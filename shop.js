@@ -1,12 +1,12 @@
-// ==================== shop.js (最新版・保存失敗対策強化) ====================
+// ==================== shop.js (ユーザーID表示追加版) ====================
 
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
-        persistSession: false,      // 毎回ログイン必須にする
-        detectSessionInUrl: true,   // メール承認リンク対応
+        persistSession: false,
+        detectSessionInUrl: true,
         autoRefreshToken: true
     }
 });
@@ -14,7 +14,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 let selectedHotelId = null;
 let feedbackStatus = null;
 
-// ====================== パスワード表示切り替え ======================
+// パスワード表示切り替え
 function togglePasswordVisibility() {
     const pwdInput = document.getElementById('auth-password');
     if (pwdInput) {
@@ -22,15 +22,13 @@ function togglePasswordVisibility() {
     }
 }
 
-// ====================== ページ読み込み時 ======================
+// ページ読み込み時
 window.onload = async function() {
-    // 全てのセクションを一旦非表示
     ['auth-section', 'profile-registration', 'pending-section', 'shop-main-section'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
 
-    // メール承認リンクから来た場合
     const hash = window.location.hash;
     if (hash.includes('access_token') || hash.includes('type=signup')) {
         const msgDiv = document.getElementById('verify-success-msg');
@@ -42,8 +40,6 @@ window.onload = async function() {
             </div>
         `;
         history.replaceState(null, null, window.location.pathname);
-
-        // 自動ログインされたセッションを即削除（手動ログイン強制）
         await supabaseClient.auth.signOut();
     }
 
@@ -55,7 +51,7 @@ window.onload = async function() {
     }
 };
 
-// ====================== 新規登録 ======================
+// 新規登録
 async function handleSignUp() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
@@ -68,9 +64,7 @@ async function handleSignUp() {
         const { error } = await supabaseClient.auth.signUp({
             email,
             password,
-            options: {
-                emailRedirectTo: window.location.origin + window.location.pathname
-            }
+            options: { emailRedirectTo: window.location.origin + window.location.pathname }
         });
         if (error) throw error;
         alert('登録確認メールを送信しました。\nメール内のリンクをクリック後、ここに戻ってログインしてください。');
@@ -79,7 +73,7 @@ async function handleSignUp() {
     }
 }
 
-// ====================== ログイン ======================
+// ログイン
 async function handleLogin() {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value;
@@ -108,18 +102,24 @@ async function handleLogin() {
     }
 }
 
-// ====================== 店舗ステータスチェック ======================
+// 店舗ステータスチェック（ユーザーID表示をここで設定）
 async function checkShopStatus(user) {
     const { data: shop, error } = await supabaseClient
         .from('shops')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
     document.getElementById('verify-success-msg').style.display = 'none';
 
-    if (error && error.code !== 'PGRST116') {  // PGRST116 = 該当レコードなし
+    if (error) {
         console.error('ショップ取得エラー:', error);
+    }
+
+    // ★ユーザーIDを表示（pending でも main でも共通）
+    const userIdElem = document.getElementById('display-user-id');
+    if (userIdElem) {
+        userIdElem.textContent = user.id;
     }
 
     if (!shop) {
@@ -136,7 +136,13 @@ async function checkShopStatus(user) {
     }
 }
 
-// ====================== 店舗情報登録（ここが問題の箇所） ======================
+// ログアウト
+async function logout() {
+    await supabaseClient.auth.signOut();
+    location.reload();
+}
+
+// 店舗情報登録（前回と同じ）
 async function submitProfile() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session?.user?.id) return alert("ログイン状態を確認できません。再度ログインしてください。");
@@ -150,7 +156,6 @@ async function submitProfile() {
     if (!file) return alert("届出確認書（画像/PDF）を選択してください");
 
     try {
-        // ファイルアップロード
         const fileExt = file.name.split('.').pop().toLowerCase();
         const filePath = `${session.user.id}/${Date.now()}.${fileExt}`;
 
@@ -163,7 +168,6 @@ async function submitProfile() {
             return alert("ファイルのアップロードに失敗しました\n" + uploadError.message);
         }
 
-        // shopsテーブルへINSERT
         const { error: insertError } = await supabaseClient
             .from('shops')
             .insert([{
@@ -174,12 +178,11 @@ async function submitProfile() {
                 document_url: filePath,
                 is_approved: false,
                 email: session.user.email,
-                // 必要に応じて created_at などはSupabase側で自動設定
             }]);
 
         if (insertError) {
             console.error('shops INSERT エラー:', insertError);
-            alert("保存に失敗しました\n" + insertError.message + "\n\n詳細はブラウザの開発者ツール（F12）→ Console タブで確認してください");
+            alert("保存に失敗しました\n" + insertError.message + "\n\n詳細はコンソールで確認してください");
             return;
         }
 
@@ -188,17 +191,11 @@ async function submitProfile() {
 
     } catch (err) {
         console.error('予期せぬエラー:', err);
-        alert("エラーが発生しました。もう一度お試しください。\n詳細: " + err.message);
+        alert("エラーが発生しました。\n詳細: " + err.message);
     }
 }
 
-// ====================== ログアウト ======================
-async function logout() {
-    await supabaseClient.auth.signOut();
-    location.reload();
-}
-
-// ====================== ホテル検索・投稿関連（変更なし） ======================
+// 以下は変更なし（ホテル検索・投稿機能）
 async function searchHotelsForFeedback() {
     const kw = document.getElementById('hotel-search').value.trim();
     if (kw.length < 2) return;

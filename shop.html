@@ -15,37 +15,37 @@
 
     <div id="verify-success-msg" style="display:none;"></div>
 
-  <div id="auth-section">
-    <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
-        <h2 style="font-size: 18px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">店舗ログイン / 新規登録</h2>
-        
-        <form id="auth-form" onsubmit="return false;">
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
-                <input type="email" id="auth-email" name="email" class="search-input" placeholder="mail@example.com" autocomplete="username" required>
-            </div>
+    <div id="auth-section">
+        <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
+            <h2 style="font-size: 18px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">店舗ログイン / 新規登録</h2>
+            
+            <form id="auth-form" onsubmit="return false;">
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
+                    <input type="email" id="auth-email" name="email" class="search-input" placeholder="mail@example.com" autocomplete="username" required>
+                </div>
 
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 14px; font-weight: bold;">パスワード</label>
-                <input type="password" id="auth-password" name="password" class="search-input" placeholder="6文字以上" autocomplete="current-password" required>
-            </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="font-size: 14px; font-weight: bold;">パスワード</label>
+                    <input type="password" id="auth-password" name="password" class="search-input" placeholder="6文字以上" autocomplete="current-password" required>
+                </div>
 
-            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="show-password" onclick="togglePasswordVisibility()">
-                <label for="show-password" style="font-size: 13px; cursor: pointer; color: #333;">パスワードを表示する</label>
-            </div>
+                <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="show-password" onclick="togglePasswordVisibility()">
+                    <label for="show-password" style="font-size: 13px; cursor: pointer; color: #333;">パスワードを表示する</label>
+                </div>
 
-            <div style="display: flex; gap: 10px;">
-                <button type="submit" class="btn-ok" onclick="handleLogin()" style="flex: 1;">ログイン</button>
-                <button type="button" class="map-btn" onclick="handleSignUp()" style="flex: 1; background: #666;">新規登録</button>
-            </div>
-        </form>
-        
-        <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">
-            ※初めての方は、入力後に「新規登録」を押してください。
-        </p>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn-ok" onclick="handleLogin()" style="flex: 1;">ログイン</button>
+                    <button type="button" class="map-btn" onclick="handleSignUp()" style="flex: 1; background: #666;">新規登録</button>
+                </div>
+            </form>
+            
+            <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">
+                ※初めての方は、入力後に「新規登録」を押してください。
+            </p>
+        </div>
     </div>
-</div>
 
     <div id="profile-registration" style="display:none;">
         <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
@@ -65,6 +65,13 @@
         <div class="hotel-card" style="max-width: 500px; margin: 0 auto; text-align: center; border: 2px solid #f39c12;">
             <h2 style="color: #e67e22;">⏳ 審査中です</h2>
             <p>運営による書類確認をお待ちください。</p>
+
+            <!-- ユーザーID表示エリア（追加） -->
+            <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; text-align: left;">
+                <strong>ユーザーID（管理用）</strong><br>
+                <span id="display-user-id" style="font-family: monospace; word-break: break-all; color: #333;"></span>
+            </div>
+
             <button onclick="logout()" style="margin-top:15px; background:none; border:none; color:#888; text-decoration:underline;">ログアウト</button>
         </div>
     </div>
@@ -73,6 +80,12 @@
         <div class="tips-box" style="background: #e7f3ff; border-left-color: #007aff;">
             <p id="plan-display" style="font-weight:bold; color:#007aff; margin:0;"></p>
             <input type="text" id="dedicated-url" class="search-input" readonly onclick="this.select()" style="margin-top:10px; background:#fff;">
+        </div>
+
+        <!-- ユーザーID表示エリア（追加） -->
+        <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px;">
+            <strong>ユーザーID（管理用）</strong><br>
+            <span id="display-user-id" style="font-family: monospace; word-break: break-all; color: #333;"></span>
         </div>
 
         <section class="hotel-card" style="margin-top: 20px;">
