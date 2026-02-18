@@ -3,38 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>店舗登録 | デリ呼ぶホテル検索</title>
+    <title>店舗管理 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="padding: 20px;">
     <header style="margin-bottom: 20px;">
-        <h1 style="font-size: 20px;">🏨 ホテル情報登録（デリ呼ぶ）</h1>
+        <h1 style="font-size: 20px;">🏪 店舗・情報管理パネル</h1>
         <button onclick="location.href='index.html'" class="btn-back">戻る</button>
     </header>
 
-    <div class="hotel-card" style="max-width: 500px; margin: 0 auto; background: #fff;">
-        <div style="margin-bottom: 10px;"><label>ホテル名</label><input type="text" id="shop-name" class="search-input"></div>
-        <div style="margin-bottom: 10px;"><label>都道府県</label><input type="text" id="shop-city" class="search-input" placeholder="東京都"></div>
-        <div style="margin-bottom: 10px;"><label>エリア・市区町村</label><input type="text" id="shop-town" class="search-input" placeholder="新宿区"></div>
-        <div style="margin-bottom: 10px;"><label>詳細住所</label><input type="text" id="shop-address" class="search-input"></div>
-
-        <div style="margin-bottom: 10px;">
-            <label style="font-weight:bold; color:var(--accent-color);">地図で場所を指定（クリックでピンを立てる）</label>
-            <div id="map-selection" style="height: 300px; border-radius: 12px; margin-top: 10px; border: 1px solid #ddd;"></div>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <input type="text" id="shop-lat" class="search-input" placeholder="緯度" readonly style="background:#f9f9f9; font-size:12px;">
-                <input type="text" id="shop-lng" class="search-input" placeholder="経度" readonly style="background:#f9f9f9; font-size:12px;">
-            </div>
+    <section class="hotel-card" style="margin-bottom: 30px;">
+        <h2 style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px;">1. 店舗を登録する</h2>
+        <div style="margin-top: 15px;">
+            <label>店名</label>
+            <input type="text" id="shop-reg-name" class="search-input" placeholder="デリ呼ぶ新宿店">
         </div>
+        <div style="margin-top: 10px;">
+            <label>ジャンル</label>
+            <select id="shop-reg-type" class="search-input">
+                <option value="men">デリ（男性向け）</option>
+                <option value="women">女風（女性向け）</option>
+            </select>
+        </div>
+        <button class="btn-ok" onclick="registerShop()" style="width:100%; margin-top: 15px;">店舗登録</button>
+    </section>
 
-        <div style="margin-bottom: 10px;"><label>攻略メモ</label><textarea id="shop-desc" class="search-input" style="height:80px;"></textarea></div>
+    <section class="hotel-card">
+        <h2 style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 5px;">2. ホテル情報の更新</h2>
+        <p style="font-size: 12px; color: #666;">掲載済みのホテルを検索して、呼べるかどうかの情報を投稿してください。</p>
         
-        <button id="save-btn" class="btn-ok" onclick="saveHotel()" style="width:100%;">登録する</button>
-        <p id="msg" style="text-align:center; margin-top:10px; font-weight:bold;"></p>
-    </div>
+        <input type="text" id="hotel-search" class="search-input" placeholder="ホテル名で検索..." oninput="searchHotelsForFeedback()">
+        
+        <div id="search-results" style="margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #eee;">
+            </div>
+
+        <div id="feedback-form" style="display:none; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee;">
+            <h3 id="selected-hotel-name" style="font-size: 15px;"></h3>
+            <div style="margin: 15px 0;">
+                <label>このホテルで呼べましたか？</label><br>
+                <button class="map-btn" onclick="setOkNg(true)" style="background: green;">YES (呼べた)</button>
+                <button class="map-btn" onclick="setOkNg(false)" style="background: red;">NO (不可)</button>
+            </div>
+            <div>
+                <label>コメント・攻略メモ</label>
+                <textarea id="hotel-comment" class="search-input" style="height: 80px;" placeholder="例：フロント通過のコツなど"></textarea>
+            </div>
+            <button id="update-btn" class="btn-ok" onclick="submitFeedback()" style="width:100%; margin-top: 15px;">情報を更新する</button>
+        </div>
+    </section>
 
     <script src="shop.js"></script>
 </body>

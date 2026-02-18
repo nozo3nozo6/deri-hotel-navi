@@ -2,68 +2,76 @@ const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; //
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let map, marker;
+let selectedHotelId = null;
+let feedbackStatus = null;
 
-// 地図の初期化
-window.onload = function() {
-    // 日本全体を初期表示
-    map = L.map('map-selection').setView([35.6895, 139.6917], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// 店舗登録
+async function registerShop() {
+    const name = document.getElementById('shop-reg-name').value;
+    const type = document.getElementById('shop-reg-type').value;
+    if(!name) return alert("店名を入力してください");
 
-    // 地図をクリックした時のイベント
-    map.on('click', function(e) {
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
+    const { error } = await supabaseClient.from('shops').insert([{ name, type }]);
+    if (error) alert("エラーが発生しました");
+    else alert("店舗登録が完了しました！");
+}
 
-        // ピンを立てる（既存のピンがあれば移動）
-        if (marker) {
-            marker.setLatLng(e.latlng);
-        } else {
-            marker = L.marker(e.latlng).addTo(map);
-        }
+// ホテル検索
+async function searchHotelsForFeedback() {
+    const kw = document.getElementById('hotel-search').value;
+    if(kw.length < 2) return;
 
-        // 入力欄に値をセット
-        document.getElementById('shop-lat').value = lat;
-        document.getElementById('shop-lng').value = lng;
+    const { data } = await supabaseClient.from('hotels').select('*').ilike('name', `%${kw}%`).limit(5);
+    const resDiv = document.getElementById('search-results');
+    resDiv.innerHTML = '';
+
+    data.forEach(h => {
+        const div = document.createElement('div');
+        div.style = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;";
+        div.innerText = h.name;
+        div.onclick = () => selectHotel(h);
+        resDiv.appendChild(div);
     });
-};
+}
 
-async function saveHotel() {
-    const btn = document.getElementById('save-btn');
-    const msg = document.getElementById('msg');
+function selectHotel(hotel) {
+    selectedHotelId = hotel.id;
+    document.getElementById('selected-hotel-name').innerText = "対象: " + hotel.name;
+    document.getElementById('feedback-form').style.display = "block";
+    document.getElementById('hotel-search').value = hotel.name;
+    document.getElementById('search-results').innerHTML = '';
+}
+
+function setOkNg(isOk) {
+    feedbackStatus = isOk;
+    alert(isOk ? "YESを選択しました" : "NOを選択しました");
+}
+
+// 既存ホテルへのコメント・ステータス更新
+async function submitFeedback() {
+    if(!selectedHotelId || feedbackStatus === null) return alert("ホテル選択とYES/NOの選択が必要です");
     
-    const hotelData = {
-        name: document.getElementById('shop-name').value,
-        city: document.getElementById('shop-city').value,
-        town: document.getElementById('shop-town').value,
-        address: document.getElementById('shop-address').value,
-        lat: parseFloat(document.getElementById('shop-lat').value), // 緯度を保存
-        lng: parseFloat(document.getElementById('shop-lng').value), // 経度を保存
-        description: document.getElementById('shop-desc').value,
-        men_ok: 0,
-        women_ok: 0
-    };
+    const comment = document.getElementById('hotel-comment').value;
+    const mode = document.getElementById('shop-reg-type').value; // 店舗種別でどっちのカウントを増やすか決める
+    const col = mode === 'men' ? 'men_ok' : 'women_ok';
+    const colNg = mode === 'men' ? 'men_ng' : 'women_ng';
 
-    if(!hotelData.name || !hotelData.city || !hotelData.lat) {
-        alert("ホテル名、都道府県、地図での場所指定は必須です！");
-        return;
+    const updateData = {};
+    if(comment) updateData.description = comment;
+
+    // 現在のカウントを取得して＋1する処理（簡易版）
+    const { data: current } = await supabaseClient.from('hotels').select('*').eq('id', selectedHotelId).single();
+    
+    if(feedbackStatus) {
+        updateData[col] = (current[col] || 0) + 1;
+    } else {
+        updateData[colNg] = (current[colNg] || 0) + 1;
     }
 
-    btn.disabled = true;
-    msg.innerText = "登録しています...";
-
-    const { error } = await supabaseClient
-        .from('hotels')
-        .insert([hotelData]);
-
-    if (error) {
-        console.error(error);
-        msg.style.color = "red";
-        msg.innerText = "エラー：登録できませんでした。";
-        btn.disabled = false;
-    } else {
-        msg.style.color = "green";
-        msg.innerText = "✨ 登録完了！地図にも表示されます。";
-        setTimeout(() => location.reload(), 2000);
+    const { error } = await supabaseClient.from('hotels').update(updateData).eq('id', selectedHotelId);
+    if (error) alert("更新に失敗しました");
+    else {
+        alert("情報の更新が完了しました。ご協力ありがとうございます！");
+        location.reload();
     }
 }
