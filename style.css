@@ -1,68 +1,21 @@
-:root {
-    --accent-color: #b89a5b;
-    --accent-light: #fdf6e9;
-    --bg-color: #f2f2f7;
-    --text-primary: #1c1c1e;
-    --text-secondary: #8e8e93;
-    --card-bg: #ffffff;
+/* 言語切り替えバーのスタイル */
+.lang-switcher, .lang-switcher-mini {
+    padding: 10px;
+    text-align: right;
+    background: #f8f8f8;
 }
 
-body.mode-women {
-    --accent-color: #d4a19d;
-    --accent-light: #fff0ef;
-}
-
-* { box-sizing: border-box; }
-
-body {
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    margin: 0;
-}
-
-/* ゲートページ (index.html) */
-.gate-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
+.lang-switcher button, .lang-switcher-mini button {
+    margin-left: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+    border: 1px solid #ccc;
     background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
 }
-.gate-container { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
-.site-logo { font-size: 28px; font-weight: 900; margin-bottom: 5px; }
-.tagline { color: var(--accent-color); font-weight: 800; margin-bottom: 40px; font-size: 14px; }
-.btn-gate {
-    width: 100%; padding: 18px; margin-bottom: 15px; border-radius: 14px; border: none;
-    font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-.btn-men { background: #1c1c1e; color: #fff; }
-.btn-women { background: #d4a19d; color: #fff; }
-.btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); }
 
-/* 地図ナビ (portal.html) */
-.map-nav-section { background-color: #f0f9fb; padding: 25px 15px; margin: 15px; border-radius: 16px; text-align: center; }
-.japan-map-container {
-    background-image: radial-gradient(#aad5dd 2px, transparent 2px);
-    background-size: 15px 15px; padding: 30px 5px; min-height: 250px; display: flex; align-items: center;
+.lang-switcher button:hover {
+    background: var(--accent-color);
+    color: #fff;
 }
-.map-grid { width: 100%; display: flex; flex-direction: column; gap: 10px; }
-.map-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-.map-btn {
-    background: #444; color: #fff; border: none; padding: 8px 12px; border-radius: 6px;
-    font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-.map-btn:hover { background: var(--accent-color); }
-
-/* ヘッダー・検索 */
-header { background: #fff; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent-color); }
-header h1 { font-size: 18px; margin: 0; }
-.btn-back { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
-.search-container { padding: 15px; }
-.search-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; }
-
-/* カード表示 */
-.hotel-card { background: #fff; margin: 15px; padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-.tips-box { background: var(--accent-light); border-radius: 10px; padding: 12px; margin: 12px 0; border-left: 4px solid var(--accent-color); }
-.btn-ok { background: var(--accent-color); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-.list-placeholder { text-align: center; color: #8e8e93; padding: 40px 0; }

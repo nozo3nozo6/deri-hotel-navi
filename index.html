@@ -8,31 +8,39 @@
 </head>
 <body class="gate-page">
 
+    <div class="lang-switcher">
+        <button onclick="changeLang('ja')">JP</button>
+        <button onclick="changeLang('en')">EN</button>
+        <button onclick="changeLang('zh')">CN</button>
+        <button onclick="changeLang('ko')">KR</button>
+    </div>
+
     <div class="gate-container">
         <div class="gate-header">
-            <h1 class="site-logo">🏨 デリ呼ぶホテル検索</h1>
-            <p class="tagline">全国エリア別・呼べるホテル検索</p>
+            <h1 class="site-logo">🏨 <span data-lang="title">デリ呼ぶホテル検索</span></h1>
+            <p class="tagline" data-lang="tagline">全国エリア別・呼べるホテル検索</p>
         </div>
 
         <div class="selection-box">
-            <p class="verification-text">ご利用のモードを選択してください</p>
+            <p class="verification-text" data-lang="select_mode">ご利用のモードを選択してください</p>
             
             <button class="btn-gate btn-men" onclick="entry('men')">
-                男性用（デリ呼ぶ）入口
+                <span data-lang="men_btn">男性用（デリ呼ぶ）入口</span>
             </button>
 
             <button class="btn-gate btn-women" onclick="entry('women')">
-                女性用（女風呼ぶ）入口
+                <span data-lang="women_btn">女性用（女風呼ぶ）入口</span>
             </button>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
             <button class="btn-gate btn-shop-gate" onclick="location.href='shop.html'">
-                店舗様・掲載用はこちら
+                <span data-lang="shop_btn">店舗様・掲載用はこちら</span>
             </button>
         </div>
     </div>
 
+    <script src="app.js"></script>
     <script>
         function entry(mode) {
             sessionStorage.setItem('session_mode', mode);
