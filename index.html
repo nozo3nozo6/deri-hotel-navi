@@ -3,43 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ホテルナビ | 全国エリア別検索</title>
+    <title>エリア選択 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="gate-page">
+<body class="portal-page">
 
-    <div class="gate-container">
-        <div class="gate-header">
-            <h1 class="site-logo">🏨 ホテルナビ</h1>
-            <p class="tagline">全国エリア別・呼べるホテル検索</p>
-        </div>
+<header>
+    <div class="header-main">
+        <h1 id="dynamic-title">エリアを選択</h1>
+        <button onclick="location.href='index.html'" class="btn-back">戻る</button>
+    </div>
+</header>
 
-        <div class="selection-box">
-            <p class="verification-text">ご利用のモードを選択してください</p>
-            
-            <button class="btn-gate btn-men" onclick="entry('men')">
-                男性用（デリ呼ぶ）入口
-            </button>
-
-            <button class="btn-gate btn-women" onclick="entry('women')">
-                女性用（女風呼ぶ）入口
-            </button>
-
-            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-
-            <button class="btn-gate btn-shop-gate" onclick="location.href='shop.html'">
-                店舗様・掲載用はこちら
-            </button>
+<section id="map-navigation" class="map-nav-section">
+    <h2 class="section-label">地図からエリアを探す</h2>
+    <div class="japan-map-container">
+        <div class="map-grid">
+            <div class="map-row">
+                <button class="map-btn" onclick="setArea('北海道')">北海道</button>
+                <button class="map-btn" onclick="setArea('東北')">東北</button>
+            </div>
+            <div class="map-row">
+                <button class="map-btn" onclick="setArea('北関東')">北関東</button>
+                <button class="map-btn" onclick="setArea('首都圏')">首都圏</button>
+                <button class="map-btn" onclick="setArea('甲信越')">甲信越</button>
+            </div>
+            <div class="map-row">
+                <button class="map-btn" onclick="setArea('北陸')">北陸</button>
+                <button class="map-btn" onclick="setArea('東海')">東海</button>
+                <button class="map-btn" onclick="setArea('近畿')">近畿</button>
+            </div>
+            <div class="map-row">
+                <button class="map-btn" onclick="setArea('中国')">中国</button>
+                <button class="map-btn" onclick="setArea('四国')">四国</button>
+                <button class="map-btn" onclick="setArea('九州')">九州</button>
+                <button class="map-btn" onclick="setArea('沖縄')">沖縄</button>
+            </div>
         </div>
     </div>
+</section>
 
-    <script>
-        function entry(mode) {
-            // モードをブラウザに保存
-            sessionStorage.setItem('session_mode', mode);
-            // エリア選択ポータルへ移動
-            location.href = 'portal.html';
-        }
-    </script>
+<div class="search-container">
+    <input type="text" id="keyword" class="search-input" placeholder="地域名やホテル名で検索..." oninput="fetchHotels()">
+</div>
+
+<div id="hotel-list">
+    <div class="list-placeholder">エリアを選択してください</div>
+</div>
+
+<script src="app.js"></script>
+
 </body>
 </html>

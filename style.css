@@ -1,6 +1,5 @@
-/* --- 共通変数設定 --- */
 :root {
-    --accent-color: #b89a5b; /* 男性用ゴールド */
+    --accent-color: #b89a5b;
     --accent-light: #fdf6e9;
     --bg-color: #f2f2f7;
     --text-primary: #1c1c1e;
@@ -8,9 +7,8 @@
     --card-bg: #ffffff;
 }
 
-/* 女性用モード時の色変更 */
 body.mode-women {
-    --accent-color: #d4a19d; /* ピンクゴールド */
+    --accent-color: #d4a19d;
     --accent-light: #fff0ef;
 }
 
@@ -21,10 +19,9 @@ body {
     color: var(--text-primary);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     margin: 0;
-    line-height: 1.6;
 }
 
-/* --- 入場ゲート (index.html) --- */
+/* ゲートページ (index.html) */
 .gate-page {
     display: flex;
     justify-content: center;
@@ -32,99 +29,40 @@ body {
     min-height: 100vh;
     background: #fff;
 }
-
-.gate-container {
-    width: 100%;
-    max-width: 400px;
-    padding: 20px;
-    text-align: center;
-}
-
-.site-logo { font-size: 32px; font-weight: 900; margin-bottom: 5px; }
+.gate-container { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
+.site-logo { font-size: 28px; font-weight: 900; margin-bottom: 5px; }
 .tagline { color: var(--accent-color); font-weight: 800; margin-bottom: 40px; font-size: 14px; }
-
 .btn-gate {
-    width: 100%;
-    padding: 18px;
-    margin-bottom: 15px;
-    border-radius: 14px;
-    border: none;
-    font-size: 16px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 0.1s;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    width: 100%; padding: 18px; margin-bottom: 15px; border-radius: 14px; border: none;
+    font-size: 16px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-
-.btn-gate:active { transform: scale(0.98); }
 .btn-men { background: #1c1c1e; color: #fff; }
 .btn-women { background: #d4a19d; color: #fff; }
 .btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); }
 
-/* --- 日本地図ナビ (portal.html) --- */
-.map-nav-section {
-    background-color: #f0f9fb;
-    padding: 25px 15px;
-    margin: 15px;
-    border-radius: 16px;
-    text-align: center;
-}
-
+/* 地図ナビ (portal.html) */
+.map-nav-section { background-color: #f0f9fb; padding: 25px 15px; margin: 15px; border-radius: 16px; text-align: center; }
 .japan-map-container {
     background-image: radial-gradient(#aad5dd 2px, transparent 2px);
-    background-size: 15px 15px;
-    padding: 30px 5px;
-    min-height: 250px;
-    display: flex;
-    align-items: center;
+    background-size: 15px 15px; padding: 30px 5px; min-height: 250px; display: flex; align-items: center;
 }
-
 .map-grid { width: 100%; display: flex; flex-direction: column; gap: 10px; }
 .map-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-
 .map-btn {
-    background: #444;
-    color: #fff;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background: #444; color: #fff; border: none; padding: 8px 12px; border-radius: 6px;
+    font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
-
 .map-btn:hover { background: var(--accent-color); }
 
-/* --- 検索 & カード --- */
-header {
-    background: #fff;
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid var(--accent-color);
-}
-
+/* ヘッダー・検索 */
+header { background: #fff; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent-color); }
+header h1 { font-size: 18px; margin: 0; }
+.btn-back { padding: 5px 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
 .search-container { padding: 15px; }
-.search-input {
-    width: 100%;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
-    font-size: 16px;
-}
+.search-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; }
 
-.hotel-card {
-    background: #fff;
-    margin: 15px;
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-}
-
-.list-placeholder {
-    text-align: center;
-    color: #8e8e93;
-    padding: 40px 0;
-}
+/* カード表示 */
+.hotel-card { background: #fff; margin: 15px; padding: 20px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+.tips-box { background: var(--accent-light); border-radius: 10px; padding: 12px; margin: 12px 0; border-left: 4px solid var(--accent-color); }
+.btn-ok { background: var(--accent-color); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.list-placeholder { text-align: center; color: #8e8e93; padding: 40px 0; }
