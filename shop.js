@@ -1,7 +1,6 @@
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
 
-//
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
         persistSession: false,     // 毎回ログインを強制
@@ -10,7 +9,6 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     }
 });
 
-let isLoginMode = false;
 let selectedHotelId = null;
 let feedbackStatus = null;
 
@@ -25,15 +23,12 @@ window.onload = async function() {
         if (el) el.style.display = 'none';
     });
 
-    // ★認証成功ハッシュの検知ロジック
+    // 認証成功ハッシュの検知
     const hash = window.location.hash;
     if (hash.includes('access_token') || hash.includes('type=signup')) {
         const msgDiv = document.getElementById('verify-success-msg');
-        msgDiv.style.cssText = 'background: #d4edda; color: #155724; padding: 15px; margin: 20px auto; max-width: 500px; border-radius: 8px; text-align: center; border: 1px solid #c3e6cb; display: block;';
-        msgDiv.innerHTML = `<h3>✅ メール認証が完了しました！</h3><p>下記からログインしてください。</p>`;
-        
-        // 成功時はログインモードへ切り替え
-        if (!isLoginMode) toggleAuthMode(); 
+        msgDiv.style.cssText = 'background: #d4edda; color: #155724; padding: 15px; margin: 20px auto; max-width: 400px; border-radius: 8px; text-align: center; border: 1px solid #c3e6cb; display: block;';
+        msgDiv.innerHTML = `<h3>✅ メール認証が完了しました！</h3><p>ログインフォームから進んでください。</p>`;
         history.replaceState(null, null, window.location.pathname);
     }
 
@@ -46,47 +41,52 @@ window.onload = async function() {
 };
 
 // -----------------------------------------
-// 2. 認証処理
+// 2. 認証処理（ログイン専用）
 // -----------------------------------------
-async function handleAuth() {
-    const emailInput = document.getElementById('auth-email');
-    const passInput = document.getElementById('auth-password');
-    const email = emailInput.value.trim();
-    const password = passInput.value;
+async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
 
-    if (!email || !password) return alert('入力してください');
+    if (!email || !password) return alert('ログイン情報を入力してください');
 
-    try {
-        if (isLoginMode) {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) {
-                // 日本語エラーの出し分け
-                if (error.message === "Invalid login credentials") {
-                    alert("メールアドレスまたはパスワードが違います。");
-                } else if (error.message === "Email not confirmed") {
-                    alert("メールの承認が完了していません。");
-                } else {
-                    alert("ログイン失敗: " + error.message);
-                }
-                return;
-            }
-            checkShopStatus(data.user);
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+        if (error.message === "Invalid login credentials") {
+            alert("メールアドレスまたはパスワードが違います。");
+        } else if (error.message === "Email not confirmed") {
+            alert("メールの承認が完了していません。届いたメールを確認してください。");
         } else {
-            const { error } = await supabaseClient.auth.signUp({
-                email, password,
-                options: { emailRedirectTo: window.location.origin + window.location.pathname }
-            });
-            if (error) throw error;
-            alert('確認メールを送信しました。メール内リンクをクリックしてください。');
-            toggleAuthMode();
+            alert("ログイン失敗: " + error.message);
         }
-    } catch (error) {
-        alert('エラー: ' + error.message);
+        return;
+    }
+    checkShopStatus(data.user);
+}
+
+// -----------------------------------------
+// 3. 認証処理（新規登録専用）
+// -----------------------------------------
+async function handleSignUp() {
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+
+    if (!email || !password) return alert('登録用メールアドレスとパスワードを入力してください');
+
+    const { error } = await supabaseClient.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname }
+    });
+
+    if (error) {
+        alert("登録エラー: " + error.message);
+    } else {
+        alert('登録確認メールを送信しました。メール内のリンクをクリックして承認後、ログインしてください。');
     }
 }
 
 // -----------------------------------------
-// 3. 審査ステータス判定
+// 4. 審査ステータス判定
 // -----------------------------------------
 async function checkShopStatus(user) {
     const { data: shop } = await supabaseClient.from('shops').select('*').eq('id', user.id).single();
@@ -110,30 +110,15 @@ async function checkShopStatus(user) {
 }
 
 // -----------------------------------------
-// 共通関数
+// 5. 共通関数 & 投稿機能
 // -----------------------------------------
-function toggleAuthMode() {
-    isLoginMode = !isLoginMode;
-    document.getElementById('auth-title').textContent = isLoginMode ? '店舗ログイン' : '店舗新規登録';
-    document.getElementById('auth-btn').textContent = isLoginMode ? 'ログイン' : '登録メールを送信';
-    document.getElementById('switch-link').textContent = isLoginMode ? '新規登録に切り替える' : 'ログインに切り替える';
-}
-
 function showElement(id) {
     const el = document.getElementById(id);
     if (el) el.style.display = 'block';
 }
 
-function togglePasswordVisibility() {
-    const pwdInput = document.getElementById('auth-password');
-    pwdInput.type = document.getElementById('show-password').checked ? "text" : "password";
-}
-
 async function logout() { await supabaseClient.auth.signOut(); location.reload(); }
 
-// -----------------------------------------
-// 4. プロフィール登録・ホテル投稿（既存維持）
-// -----------------------------------------
 async function submitProfile() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     const name = document.getElementById('reg-shop-name').value;
