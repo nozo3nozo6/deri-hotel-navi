@@ -1,10 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>エリア検索 | デリ呼ぶホテル検索</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="portal-page">
+
+<header>
+    <div class="header-main">
+        <h1 id="dynamic-title">エリアを選択</h1>
+        <button onclick="location.href='index.html'" class="btn-back">戻る</button>
+    </div>
+</header>
+
 <section id="map-navigation" class="map-nav-section">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <h2 id="map-label" class="section-label" style="margin:0;">地域を選択</h2>
         <button id="btn-map-back" onclick="backLevel()" style="display:none; padding:5px 10px; font-size:12px; border-radius:5px; border:1px solid #ddd; background:#fff;">← 戻る</button>
     </div>
-    
     <div class="japan-map-container">
         <div id="map-button-container" class="map-grid"></div>
     </div>
 </section>
+
+<div class="search-container">
+    <input type="text" id="keyword" class="search-input" placeholder="地域名やホテル名で検索..." oninput="fetchHotels()">
+</div>
+
+<div id="hotel-list">
+    <div class="list-placeholder">エリアを選択するとホテルが表示されます</div>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
