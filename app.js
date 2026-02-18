@@ -1,8 +1,8 @@
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; //
+const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 1. 翻訳データ（4カ国語）
+// 1. 翻訳データ
 const i18n = {
     ja: {
         title: "デリ呼ぶホテル検索", tagline: "全国エリア別・呼べるホテル検索", select_mode: "モードを選択してください",
@@ -34,7 +34,7 @@ const i18n = {
     }
 };
 
-// 2. 全国エリアマスターデータ（ここにある名前がボタンになります）
+// 2. 地域・都道府県データ（ここは固定）
 const areaData = {
     'regions': ['北海道', '東北', '北関東', '首都圏', '甲信越', '北陸', '東海', '近畿', '中国', '四国', '九州', '沖縄'],
     'prefectures': {
@@ -50,20 +50,6 @@ const areaData = {
         '四国': ['徳島県', '香川県', '愛媛県', '高知県'],
         '九州': ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県'],
         '沖縄': ['沖縄県']
-    },
-    'cities': {
-        '北海道': ['札幌市中央区', '札幌市北区', '札幌市ススキノ', '函館市', '旭川市'],
-        '宮城県': ['仙台市青葉区', '仙台市宮城野区', '仙台市泉区'],
-        '東京都': ['新宿区', '渋谷区', '豊島区(池袋)', '港区', '台東区(上野)', '江戸川区', '立川市', '町田市', '八王子市'],
-        '神奈川県': ['横浜市中区', '横浜市西区', '川崎市川崎区', '相模原市', '厚木市', '大和市'],
-        '千葉県': ['千葉市中央区', '船橋市', '松戸市', '柏市', '市川市', '木更津市'],
-        '埼玉県': ['さいたま市大宮区', 'さいたま市浦和区', '川越市', '川口市', '越谷市'],
-        '愛知県': ['名古屋市中区(錦)', '名古屋市中村区', '豊橋市', '岡崎市', '一宮市'],
-        '大阪府': ['大阪市北区(梅田)', '大阪市中央区(難波)', '大阪市淀川区(十三)', '堺市', '東大阪市'],
-        '兵庫県': ['神戸市中央区(三宮)', '姫路市', '尼崎市', '西宮市'],
-        '京都府': ['京都市中京区', '京都市下京区', '京都市南区'],
-        '福岡県': ['福岡市博多区(中洲)', '福岡市中央区(天神)', '北九州市小倉', '久留米市'],
-        '沖縄県': ['那覇市', '沖縄市', '石垣市']
     }
 };
 
@@ -79,12 +65,11 @@ window.onload = function() {
     renderButtons();
 };
 
-// 言語切り替えロジック
 function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('app_lang', lang);
     applyLanguage();
-    renderButtons(); // ボタンのテキストも（もし翻訳データがあれば）更新
+    renderButtons();
 }
 
 function applyLanguage() {
@@ -97,8 +82,10 @@ function applyLanguage() {
     if (searchInput && texts.search_placeholder) searchInput.placeholder = texts.search_placeholder;
 }
 
-// エリア選択ボタンの描画ロジック
-function renderButtons() {
+// ==========================================
+// ★ ここが進化：動的なボタン生成
+// ==========================================
+async function renderButtons() {
     const container = document.getElementById('map-button-container');
     if (!container) return;
     const label = document.getElementById('map-label');
@@ -107,24 +94,46 @@ function renderButtons() {
     
     container.innerHTML = '';
 
-    let items = [];
     if (currentLevel === 'region') {
-        items = areaData.regions;
+        displayButtons(areaData.regions);
         label.innerText = texts.region_select;
         backBtn.style.display = "none";
-    } else if (currentLevel === 'prefecture') {
-        items = areaData.prefectures[selection.region] || [];
+    } 
+    else if (currentLevel === 'prefecture') {
+        const prefs = areaData.prefectures[selection.region] || [];
+        displayButtons(prefs);
         label.innerText = selection.region;
         backBtn.style.display = "block";
-    } else if (currentLevel === 'city') {
-        // 固定の市区町村リストを表示（これで空っぽにならない）
-        items = areaData.cities[selection.prefecture] || ['その他・全域'];
+    } 
+    else if (currentLevel === 'city') {
         label.innerText = selection.prefecture;
         backBtn.style.display = "block";
-    }
+        container.innerHTML = `<p style="text-align:center; font-size:12px; color:#888;">${texts.loading}</p>`;
 
+        // 【データベース連携】
+        // 選択された都道府県(prefecture)に紐づく「街名(town)」を重複なしで取得
+        let { data, error } = await supabaseClient
+            .from('hotels')
+            .select('town')
+            .eq('city', selection.prefecture);
+
+        if (error || !data || data.length === 0) {
+            container.innerHTML = `<p style="text-align:center; font-size:12px; color:#888;">${texts.no_hotel}</p>`;
+            return;
+        }
+
+        // 重複を除去してアルファベット/五十音順に並べ替え
+        const availableTowns = [...new Set(data.map(item => item.town))].filter(t => t).sort();
+        displayButtons(availableTowns);
+    }
+}
+
+function displayButtons(items) {
+    const container = document.getElementById('map-button-container');
+    container.innerHTML = '';
     let row = document.createElement('div');
     row.className = 'map-row';
+    
     items.forEach((name, index) => {
         const btn = document.createElement('button');
         btn.className = 'map-btn';
