@@ -1,71 +1,125 @@
-const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ==================== app.js - グロック先生 完全版 (2026年2月版) ====================
 
-// 1. 翻訳・文言データ
+const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
+
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ==================== グローバル変数 ====================
+let currentMode = 'men';     // 'men' or 'women'
+let currentLang = localStorage.getItem('app_lang') || 'ja';
+let currentLevel = 'japan';
+let historyStack = [];
+
+// ==================== 多言語データ ====================
 const i18n = {
     ja: {
-        title: "デリ呼ぶホテル検索", tagline: "全国エリア別・呼べるホテル検索",
-        success_report: "成功報告", call_btn: "呼べた！", loading: "検索中...",
-        no_hotel: "未登録です", verified: "✨ 提携店舗確認済み", visit_shop: "店舗ページを見る"
+        title: "デリ呼ぶホテル検索",
+        tagline: "全国エリア別・呼べるホテル検索",
+        select_mode: "ご利用のモードを選択してください",
+        men_btn: "男性用（デリ呼ぶ）入口",
+        women_btn: "女性用（女風呼ぶ）入口",
+        shop_btn: "店舗様・掲載用はこちら",
+        region_select: "地域を選択",
+        back_level: "一つ前に戻る",
+        search_placeholder: "地域名やホテル名を入力...",
+        list_placeholder: "エリアを選択すると、ここにホテルが表示されます",
+        success_report: "成功報告",
+        call_btn: "呼べた！",
+        loading: "検索中...",
+        no_hotel: "まだ情報がありません",
+        verified: "✨ 提携店舗確認済み",
+        visit_shop: "店舗ページを見る"
     },
-    en: {
-        title: "Hotel Delivery Search", tagline: "Search hotels for delivery",
-        success_report: "Success", call_btn: "Success!", loading: "Loading...",
-        no_hotel: "No hotels", verified: "✨ Verified by Shop", visit_shop: "Visit Shop"
+    en: { /* 必要なら追加 */ }
+};
+
+// ==================== 言語切り替え ====================
+function changeLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('app_lang', lang);
+    document.documentElement.lang = lang;
+    
+    document.querySelectorAll('[data-lang]').forEach(el => {
+        const key = el.getAttribute('data-lang');
+        if (i18n[lang] && i18n[lang][key]) {
+            el.textContent = i18n[lang][key];
+        }
+    });
+}
+
+// ==================== 階層メニュー ====================
+async function loadLevel(level = 'japan', parentCode = null) {
+    const container = document.getElementById('map-button-container');
+    container.innerHTML = '';
+
+    document.getElementById('current-level').innerHTML = 
+        `現在: ${level === 'japan' ? '日本全国' : level === 'prefecture' ? '都道府県' : '市区町村'}`;
+
+    document.getElementById('btn-map-back').style.display = level === 'japan' ? 'none' : 'block';
+
+    let query = supabase.from('hotels').select('*');
+
+    if (level === 'prefecture') {
+        query = query.eq('middle_class_code', parentCode);
+    } else if (level === 'smallClass') {
+        query = query.eq('small_class_code', parentCode);
     }
-    // (CN/KRは既存のものを継続使用してください)
-};
 
-let currentMode = 'men';
-let currentLang = localStorage.getItem('app_lang') || 'ja';
+    const { data } = await query.not('name', 'is', null).order('name');
 
-window.onload = function() {
-    currentMode = sessionStorage.getItem('session_mode') || 'men';
-    if (currentMode === 'women') document.body.classList.add('mode-women');
-    applyLanguage();
-    if(typeof renderButtons === 'function') renderButtons();
-};
+    const unique = {};
+    data.forEach(h => {
+        const key = level === 'japan' ? h.prefecture : h.city || h.name;
+        if (!unique[key]) unique[key] = h;
+    });
 
-// -----------------------------------------
-// ★ 進化した検索ロジック
-// -----------------------------------------
+    Object.values(unique).forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'map-btn';
+        btn.textContent = level === 'japan' ? item.prefecture : (item.city || item.name);
+        btn.onclick = () => {
+            historyStack.push({ level, code: parentCode });
+            loadLevel(level === 'japan' ? 'prefecture' : 'smallClass', 
+                      level === 'japan' ? item.middle_class_code : item.small_class_code);
+        };
+        container.appendChild(btn);
+    });
+}
+
+function backLevel() {
+    if (historyStack.length === 0) return;
+    const prev = historyStack.pop();
+    loadLevel(prev.level, prev.code);
+}
+
+// ==================== ホテル検索 ====================
 async function fetchHotels() {
-    const keyword = document.getElementById('keyword').value;
+    const keyword = document.getElementById('keyword').value.trim();
     const listContainer = document.getElementById('hotel-list');
     const texts = i18n[currentLang];
-    
-    listContainer.innerHTML = `<p style="text-align:center; padding:20px;">🔍 ${texts.loading}</p>`;
 
-    // 1. まずホテルデータを取得
-    let { data: hotels, error } = await supabaseClient
+    listContainer.innerHTML = `<p style="text-align:center; padding:40px 20px;">🔍 ${texts.loading}</p>`;
+
+    let query = supabase
         .from('hotels')
         .select(`
             *,
-            shops:last_posted_by (
-                name,
-                url,
-                plan
-            )
-        `)
-        .or(`name.ilike.%${keyword}%,city.ilike.%${keyword}%,town.ilike.%${keyword}%`)
-        .limit(50);
+            reviews!inner(count)
+        `);
 
-    if (error) return console.error(error);
+    if (keyword) {
+        query = query.or(`name.ilike.%${keyword}%,address.ilike.%${keyword}%,city.ilike.%${keyword}%`);
+    }
 
-    // 2. JavaScript側で「有料プラン」を最優先に並び替え
-    // 有料(paid) > 無料(free) > 未投稿(null) の順
-    hotels.sort((a, b) => {
-        const planA = a.shops?.plan === 'paid' ? 2 : (a.shops?.plan === 'free' ? 1 : 0);
-        const planB = b.shops?.plan === 'paid' ? 2 : (b.shops?.plan === 'free' ? 1 : 0);
-        if (planB !== planA) return planB - planA;
-        
-        // プランが同じなら成功数順
-        const okCol = currentMode === 'men' ? 'men_ok' : 'women_ok';
-        return (b[okCol] || 0) - (a[okCol] || 0);
-    });
+    const { data: hotels, error } = await query.order('name').limit(100);
 
-    renderHotels(hotels);
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    renderHotels(hotels || []);
 }
 
 function renderHotels(hotels) {
@@ -73,7 +127,7 @@ function renderHotels(hotels) {
     const texts = i18n[currentLang];
     listContainer.innerHTML = '';
 
-    if (!hotels || hotels.length === 0) {
+    if (hotels.length === 0) {
         listContainer.innerHTML = `<p class="list-placeholder">${texts.no_hotel}</p>`;
         return;
     }
@@ -81,33 +135,66 @@ function renderHotels(hotels) {
     const okCol = currentMode === 'men' ? 'men_ok' : 'women_ok';
 
     hotels.forEach(h => {
-        const isPaid = h.shops?.plan === 'paid';
         const card = document.createElement('div');
-        // 有料店舗の投稿には特別な枠線を付ける
-        card.className = `hotel-card ${isPaid ? 'premium-card' : ''}`;
-        
+        card.className = 'hotel-card';
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <h3 style="margin:0;">${h.name}</h3>
-                ${isPaid ? `<span class="badge-paid">${texts.verified}</span>` : ''}
-            </div>
-            <small style="color:#8e8e93;">${h.address}</small>
+            <h3>${h.name}</h3>
+            <small style="color:#666;">${h.address}</small>
             
             <div class="tips-box">
-                <p style="margin:0; font-size:13px;">${h.description || ''}</p>
-                ${isPaid ? `
-                    <div style="margin-top:10px; border-top:1px solid rgba(0,0,0,0.05); padding-top:8px;">
-                        <p style="font-size:11px; color:#666; margin:0;">情報提供: <b>${h.shops.name}</b></p>
-                        <a href="${h.shops.url}" target="_blank" class="btn-shop-link">${texts.visit_shop}</a>
-                    </div>
-                ` : ''}
+                <p style="margin:8px 0;">${h.description || 'まだ投稿がありません'}</p>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:var(--accent-color); font-weight:bold;">${texts.success_report}: <span id="count-${h.id}">${h[okCol] || 0}</span></span>
-                <button class="btn-ok" onclick="reportSuccess(${h.id}, '${okCol}')">${texts.call_btn}</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                <span style="color:var(--accent-color); font-weight:bold;">
+                    ${texts.success_report}: <span id="count-${h.id}">${h[okCol] || 0}</span>
+                </span>
+                <button class="btn-ok" onclick="reportSuccess('${h.id}', '${okCol}')">
+                    ${texts.call_btn}
+                </button>
             </div>
         `;
         listContainer.appendChild(card);
     });
 }
+
+// ==================== 成功報告 ====================
+async function reportSuccess(hotelId, okCol) {
+    if (!confirm('このホテルで呼べましたか？')) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // reviewsテーブルに記録
+    await supabase.from('reviews').insert({
+        hotel_id: hotelId,
+        is_official: false,
+        author_shop_id: null,
+        used_shop_id: null,
+        used_shop_name_custom: null,
+        condition_id: 1, // 例: 直通OK (後で拡張)
+        comment: '呼べました！',
+        visit_date: new Date().toISOString().split('T')[0]
+    });
+
+    // hotelsテーブルのカウントを+1
+    await supabase
+        .from('hotels')
+        .update({ [okCol]: supabase.rpc('increment', { column: okCol }) })
+        .eq('id', hotelId);
+
+    // UI即時更新
+    const countEl = document.getElementById(`count-${hotelId}`);
+    if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+
+    alert('✅ 成功報告ありがとうございます！');
+}
+
+// ==================== 初期化 ====================
+window.onload = async function() {
+    currentMode = sessionStorage.getItem('session_mode') || 'men';
+    if (currentMode === 'women') document.body.classList.add('mode-women');
+
+    changeLang(currentLang);
+    loadLevel('japan');        // 階層メニュー開始
+    fetchHotels();             // 初期表示
+};
