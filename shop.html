@@ -2,49 +2,75 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>店舗管理 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
-    <style>
-        /* JavaScriptが「出してよし」と言うまで、画面上の要素を一切見せないための設定 */
-        .js-hide { display: none !important; }
-    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .js-hide { display: none; }
+        .btn-outline {
+            background: none;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body style="padding: 20px;">
-    
-    <header style="margin-bottom: 20px;">
-        <h1 style="font-size: 20px;">🏪 店舗マイページ</h1>
-        <button onclick="location.href='index.html'" class="btn-back">戻る</button>
-    </header>
 
-    <div id="auth-section" class="js-hide">
+<header style="margin-bottom: 20px;">
+    <h1 style="font-size: 20px;">🏪 店舗管理パネル</h1>
+    <button onclick="location.href='index.html'" class="btn-back">戻る</button>
+</header>
+
+<main>
+    <div id="login-section" style="display: block;">
         <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
-            <h2 id="auth-title">店舗新規登録</h2>
+            <h2 style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">店舗ログイン</h2>
+            
             <div style="margin-bottom: 15px;">
-                <label>メールアドレス</label>
-                <input type="email" id="auth-email" class="search-input">
+                <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
+                <input type="email" id="login-email" class="search-input" placeholder="mail@example.com">
             </div>
+
             <div style="margin-bottom: 15px;">
-                <label>パスワード</label>
-                <input type="password" id="auth-password" class="search-input">
+                <label style="font-size: 14px; font-weight: bold;">パスワード</label>
+                <input type="password" id="login-password" class="search-input">
             </div>
-            <button id="auth-btn" class="btn-ok" onclick="handleAuth()" style="width:100%;">登録メールを送信</button>
-            <p style="text-align:center;"><a href="javascript:void(0)" onclick="toggleAuthMode()" id="switch-link">ログインに切り替える</a></p>
+
+            <button class="btn-ok" onclick="handleLogin()" style="width:100%;">ログイン</button>
+            
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            
+            <p style="text-align:center; font-size: 12px; color: #666; margin-bottom: 10px;">はじめてご利用の方はこちら</p>
+            <button class="btn-ok btn-outline" onclick="showRegister()" style="width:100%;">新規店舗登録をはじめる</button>
         </div>
     </div>
 
-    <div id="profile-registration" class="js-hide">
-        <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
-            <h2>店舗情報の登録</h2>
-            <button class="btn-ok" onclick="submitProfile()" style="width:100%;">審査申請</button>
-            <button onclick="logout()" style="width:100%; margin-top: 15px; background:none; border:none; color:#888; cursor:pointer; text-decoration: underline;">アカウントを切り替える(ログアウト)</button>
+    <div id="register-section" class="js-hide">
+        <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
+            <h2 style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">新規店舗登録</h2>
+            
+            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">メールアドレスとパスワードを設定してください。</p>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
+                <input type="email" id="reg-email" class="search-input" placeholder="mail@example.com">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: bold;">パスワード</label>
+                <input type="password" id="reg-password" class="search-input" placeholder="6文字以上">
+            </div>
+
+            <button class="btn-ok" onclick="handleRegister()" style="width:100%;">登録メールを送信</button>
+            
+            <button class="btn-back" onclick="showLogin()" style="width:100%; margin-top: 15px; border:none; background:none; color:#888; text-decoration:underline;">ログイン画面に戻る</button>
         </div>
     </div>
 
-    <div id="pending-section" class="js-hide"> ... </div>
-    <div id="shop-main-section" class="js-hide"> ... </div>
+    </main>
 
-    <script src="shop.js"></script>
+<script src="shop.js"></script>
 </body>
 </html>
