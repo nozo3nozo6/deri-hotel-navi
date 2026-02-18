@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マイリスト | ホテルナビ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-color: #e52d27; --tel-color: #27ae60; --fav-color: #ff4757; --bg-color: #f0f2f5; }
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: var(--bg-color); margin: 0; padding-bottom: 50px; }
+        header { background: #333; color: white; padding: 15px; text-align: center; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .back-btn { color: white; text-decoration: none; font-size: 0.9em; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        .hotel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .hotel-card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: relative; border: 1px solid #eee; }
+
+        .action-icons { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; }
+        .icon-btn { width: 38px; height: 38px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; font-size: 1.1em; background: #f8f9fa; }
+        .btn-tel { color: var(--tel-color); border: 1px solid #dcf2e5; }
+        .btn-remove { color: var(--fav-color); border: 1px solid #ffebeb; }
+
+        .hotel-name { font-size: 1.05em; font-weight: bold; margin: 0 0 10px 0; padding-right: 85px; line-height: 1.4; }
+        .hotel-info { font-size: 0.85em; color: #636e72; margin-bottom: 5px; display: flex; align-items: center; }
+        .hotel-info i { width: 22px; color: var(--primary-color); }
+
+        .btn-group { display: flex; gap: 8px; margin-top: 15px; }
+        .btn-action { flex: 1; padding: 10px; border-radius: 8px; font-size: 0.85em; font-weight: bold; text-align: center; cursor: pointer; background: #fff; border: 1px solid #ddd; color: #555; display: flex; align-items: center; justify-content: center; }
+        .btn-copy { background: #f0f7ff; border-color: #007bff; color: #007bff; }
+        
+        .status-msg { text-align: center; color: #888; padding: 100px 20px; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.9em; display: none; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="back-btn"><i class="fas fa-chevron-left"></i> 戻る</a>
+    <h1 style="font-size: 1.2em; margin: 0;">❤️ 呼べるホテル一覧</h1>
+    <div style="width: 40px;"></div>
+</header>
+
+<div class="container">
+    <div id="status-msg" class="status-msg">お気に入りはまだありません</div>
+    <div id="hotel-grid" class="hotel-grid"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const PROJECT_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
+    const PROJECT_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
+    const client = supabase.createClient(PROJECT_URL, PROJECT_KEY);
+
+    async function loadFavorites() {
+        const favorites = JSON.parse(localStorage.getItem('my_fav_hotels')) || [];
+        if (favorites.length === 0) {
+            document.getElementById('status-msg').style.display = 'block';
+            document.getElementById('hotel-grid').innerHTML = '';
+            return;
+        }
+
+        document.getElementById('status-msg').innerText = '読み込み中...';
+        const { data, error } = await client
+            .from('hotels')
+            .select('*')
+            .in('rakuten_hotel_no', favorites);
+
+        if (error || !data) {
+            document.getElementById('status-msg').innerText = '読み込みエラー';
+            return;
+        }
+
+        document.getElementById('status-msg').style.display = 'none';
+        renderHotels(data);
+    }
+
+    function renderHotels(hotels) {
+        const grid = document.getElementById('hotel-grid');
+        grid.innerHTML = '';
+        hotels.forEach(hotel => {
+            const card = document.createElement('div');
+            card.className = 'hotel-card';
+            card.innerHTML = `
+                <div class="action-icons">
+                    <a href="tel:${hotel.tel}" class="icon-btn btn-tel"><i class="fas fa-phone-alt"></i></a>
+                    <button class="icon-btn btn-remove" onclick="removeFav('${hotel.rakuten_hotel_no}')"><i class="fas fa-trash-alt"></i></button>
+                </div>
+                <h2 class="hotel-name">${hotel.name}</h2>
+                <div class="hotel-info"><i class="fas fa-map-marker-alt"></i><span>${hotel.address}</span></div>
+                <div class="btn-group">
+                    <div class="btn-action btn-copy" onclick="copyInfo('${hotel.name}', '${hotel.address}', '${hotel.tel}', '${hotel.access_info}')">
+                        <i class="far fa-copy" style="margin-right:5px;"></i> 依頼用にコピー
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function removeFav(hotelNo) {
+        let favorites = JSON.parse(localStorage.getItem('my_fav_hotels')) || [];
+        favorites = favorites.filter(id => id !== hotelNo);
+        localStorage.setItem('my_fav_hotels', JSON.stringify(favorites));
+        loadFavorites();
+    }
+
+    function copyInfo(name, address, tel, access) {
+        const text = `【ホテル情報】
+■名前：${name}
+■住所：${address}
+■部屋：　　　号室
+■電話：${tel || '未登録'}
+■備考：${access || ''}`;
+
+        navigator.clipboard.writeText(text).then(() => {
+            const toast = document.getElementById('toast');
+            toast.innerText = "依頼用フォーマットをコピーしました！";
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2000);
+        });
+    }
+
+    loadFavorites();
+</script>
+</body>
+</html>
