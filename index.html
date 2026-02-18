@@ -2,17 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デリ呼ぶ / 女風呼ぶ - ホテル検索ポータル</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ホテルナビ | 全国エリア別検索</title>
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body class="gate-page">
 
     <div class="gate-container">
-        <h1 class="site-logo">🏨 ホテルナビ</h1>
-        <p class="tagline">全国エリア別・呼べるホテル検索</p>
+        <div class="gate-header">
+            <h1 class="site-logo">🏨 ホテルナビ</h1>
+            <p class="tagline">全国エリア別・呼べるホテル検索</p>
+        </div>
 
         <div class="selection-box">
+            <p class="verification-text">ご利用のモードを選択してください</p>
+            
             <button class="btn-gate btn-men" onclick="entry('men')">
                 男性用（デリ呼ぶ）入口
             </button>
@@ -20,6 +24,8 @@
             <button class="btn-gate btn-women" onclick="entry('women')">
                 女性用（女風呼ぶ）入口
             </button>
+
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
 
             <button class="btn-gate btn-shop-gate" onclick="location.href='shop.html'">
                 店舗様・掲載用はこちら
@@ -29,8 +35,9 @@
 
     <script>
         function entry(mode) {
+            // モードをブラウザに保存
             sessionStorage.setItem('session_mode', mode);
-            // エリア選択（portal.html）へ移動
+            // エリア選択ポータルへ移動
             location.href = 'portal.html';
         }
     </script>
