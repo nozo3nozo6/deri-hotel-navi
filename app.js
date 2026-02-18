@@ -1,109 +1,108 @@
-const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
+// 
 
+const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentLevel = 'bigArea';   // bigArea → prefecture → majorArea → city
-let currentFilter = null;
-let historyStack = [];
-
-// ====================== 大エリア定義 ======================
-const bigAreas = [
-    { name: "北海道", code: "hokkaido" },
-    { name: "東北", code: "tohoku" },
-    { name: "関東", code: "kanto" },
-    { name: "中部", code: "chubu" },
-    { name: "近畿", code: "kinki" },
-    { name: "中国", code: "chugoku" },
-    { name: "四国", code: "shikoku" },
-    { name: "九州", code: "kyushu" },
-    { name: "沖縄", code: "okinawa" }
-];
-
-// ====================== 主要エリア定義（例） ======================
-const majorAreas = {
-    "東京都": ["東京23区", "多摩エリア", "立川・八王子エリア"],
-    "神奈川県": ["横浜エリア", "川崎エリア", "湘南エリア"],
-    "大阪府": ["大阪市内", "堺・南大阪エリア"],
-    // 必要に応じて追加してください
+// 階層の設定：[表示するレベル名, DBの列名, 次のレベル]
+const HIERARCHY = {
+    'japan':      { col: 'region',     next: 'region' },
+    'region':     { col: 'prefecture', next: 'prefecture' },
+    'prefecture': { col: 'major_area', next: 'major_area' },
+    'major_area': { col: 'city',       next: 'city' },
+    'city':       { col: null,         next: 'finish' } // 最後はホテル表示
 };
 
-// ====================== 階層メニュー ======================
-async function loadLevel(level = 'bigArea', filter = null) {
-    currentLevel = level;
-    currentFilter = filter;
+let historyStack = [];
 
+// -----------------------------------------
+// 🚀 動的階層ロード関数
+// -----------------------------------------
+async function loadLevel(level = 'japan', filterObj = {}) {
     const container = document.getElementById('map-button-container');
     const statusEl = document.getElementById('current-level');
+    const config = HIERARCHY[level];
 
-    container.innerHTML = '<p>読み込み中...</p>';
-    document.getElementById('btn-map-back').style.display = level === 'bigArea' ? 'none' : 'block';
+    // 「戻る」ボタンの制御
+    document.getElementById('btn-map-back').style.display = level === 'japan' ? 'none' : 'block';
 
-    let items = [];
-
-    if (level === 'bigArea') {
-        items = bigAreas.map(area => ({ name: area.name, type: 'prefecture', code: area.code }));
-        statusEl.innerHTML = '現在: 日本全国';
-    } 
-    else if (level === 'prefecture') {
-        // 大エリアから都道府県を表示（簡易マッピング）
-        const areaMap = {
-            'hokkaido': ['北海道'],
-            'tohoku': ['青森県','岩手県','宮城県','秋田県','山形県','福島県'],
-            'kanto': ['茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県'],
-            'chubu': ['新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県'],
-            'kinki': ['三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県'],
-            'chugoku': ['鳥取県','島根県','岡山県','広島県','山口県'],
-            'shikoku': ['徳島県','香川県','愛媛県','高知県'],
-            'kyushu': ['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県'],
-            'okinawa': ['沖縄県']
-        };
-
-        items = areaMap[filter] ? areaMap[filter].map(name => ({ name, type: 'majorArea', code: name })) : [];
-        statusEl.innerHTML = `現在: ${filter}`;
-    } 
-    else if (level === 'majorArea') {
-        // 都道府県から主要エリアを表示
-        items = majorAreas[filter] ? majorAreas[filter].map(name => ({ name, type: 'city', code: name })) : [];
-        statusEl.innerHTML = `現在: ${filter}`;
-    } 
-    else if (level === 'city') {
-        // 市区町村を表示（実際のデータから）
-        const { data } = await supabaseClient
-            .from('hotels')
-            .select('city')
-            .eq('prefecture', filter);   // 必要に応じて調整
-
-        items = data.map(h => ({ name: h.city, type: 'city', code: h.city }));
-        items = [...new Set(items.map(i => i.name))].map(name => ({ name, type: 'city', code: name }));
-        statusEl.innerHTML = `現在: ${filter}`;
+    // ホテル表示フェーズなら別関数へ
+    if (config.next === 'finish') {
+        return fetchHotels(filterObj);
     }
 
-    container.innerHTML = '';
+    container.innerHTML = `<p style="text-align:center; grid-column:1/-1;">読み込み中...</p>`;
 
-    if (items.length === 0) {
-        container.innerHTML = '<p>該当するエリアがありません</p>';
+    // 1. クエリ作成
+    let query = supabaseClient.from('hotels').select('*');
+    
+    // これまでの選択条件をすべて適用（例：region="関東" AND prefecture="東京都"）
+    Object.keys(filterObj).forEach(key => {
+        query = query.eq(key, filterObj[key]);
+    });
+
+    const { data, error } = await query;
+    if (error) return console.error(error);
+
+    // 2. 次に表示すべきエリア名（列）を重複なしで抽出
+    const targetCol = config.col;
+    const uniqueAreas = [...new Set(data.map(h => h[targetCol]))].filter(Boolean);
+
+    // 3. ボタン生成
+    container.innerHTML = '';
+    statusEl.innerText = `現在: ${Object.values(filterObj).join(' > ') || '日本全国'}`;
+
+    if (uniqueAreas.length === 0) {
+        container.innerHTML = `<p style="text-align:center; grid-column:1/-1;">データがありません</p>`;
         return;
     }
 
-    items.forEach(item => {
+    uniqueAreas.forEach(areaName => {
         const btn = document.createElement('button');
         btn.className = 'map-btn';
-        btn.textContent = item.name;
+        btn.textContent = areaName;
         btn.onclick = () => {
-            historyStack.push({ level, filter });
-            loadLevel(item.type, item.name);
+            const nextFilter = { ...filterObj, [targetCol]: areaName };
+            historyStack.push({ level, filter: filterObj });
+            loadLevel(config.next, nextFilter);
         };
         container.appendChild(btn);
     });
 }
 
-function backLevel() {
-    if (historyStack.length === 0) return;
-    const prev = historyStack.pop();
-    loadLevel(prev.level, prev.filter);
+// -----------------------------------------
+// 🏨 ホテル一覧表示
+// -----------------------------------------
+async function fetchHotels(filterObj) {
+    const listContainer = document.getElementById('hotel-list');
+    const container = document.getElementById('map-button-container');
+    container.innerHTML = ''; 
+
+    listContainer.innerHTML = `<p style="text-align:center;">ホテルを検索中...</p>`;
+
+    let query = supabaseClient.from('hotels').select(`*, shops:last_posted_by(name, plan, url)`);
+    Object.keys(filterObj).forEach(key => {
+        query = query.eq(key, filterObj[key]);
+    });
+
+    const { data: hotels, error } = await query;
+    if (error) return console.error(error);
+
+    // 有料プラン店舗の情報を優先（ソート）
+    hotels.sort((a, b) => (b.shops?.plan === 'paid' ? 1 : 0) - (a.shops?.plan === 'paid' ? 1 : 0));
+
+    renderHotelCards(hotels);
 }
 
-window.onload = () => {
-    loadLevel('bigArea');
-};
+// 戻る処理
+function backLevel() {
+    const prev = historyStack.pop();
+    if (prev) {
+        loadLevel(prev.level, prev.filter);
+    } else {
+        loadLevel('japan', {});
+    }
+    document.getElementById('hotel-list').innerHTML = '';
+}
+
+window.onload = () => loadLevel('japan', {});
