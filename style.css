@@ -1,253 +1,95 @@
 /* ==========================================================================
-   1. 変数定義と共通設定（テーマ切り替えの要）
+   楽天トラベル風：日本地図ナビゲーション
    ========================================================================== */
-:root {
-    /* 男性用：ゴールドテーマ */
-    --accent-color: #b89a5b;
-    --accent-light: #fdf6e9;
-    --bg-color: #f2f2f7;
-    --card-bg: #ffffff;
-    --text-primary: #1c1c1e;
-    --text-secondary: #8e8e93;
-    --border-color: #e5e5ea;
-    --danger-color: #ff3b30;
-    --success-color: #34c759;
-    --google-blue: #4285F4;
-}
-
-/* 女性用：ピンクゴールドテーマへの切り替え */
-body.mode-women {
-    --accent-color: #d4a19d;
-    --accent-light: #fff0ef;
-}
-
-* {
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-}
-
-body {
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    margin: 0;
-    line-height: 1.6;
-    overflow-x: hidden;
-}
-
-/* ==========================================================================
-   2. 広告枠（マネタイズセクション）
-   ========================================================================== */
-.ad-slot {
-    width: 100%;
-    margin: 10px 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.ad-placeholder {
-    width: 100%;
-    max-width: 728px;
-    height: 90px;
-    background: #eef2f3;
-    border: 2px dashed #bdc3c7;
-    border-radius: 8px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #7f8c8d;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.ad-text-placeholder {
-    width: 90%;
-    padding: 15px;
-    background: var(--accent-light);
-    border: 1px solid var(--accent-color);
-    border-radius: 12px;
-    color: var(--accent-color);
-    font-size: 13px;
-    text-align: center;
-    font-weight: bold;
-}
-
-/* ==========================================================================
-   3. 入場ゲート（index.html）
-   ========================================================================== */
-.gate-page {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-.gate-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px 20px;
-}
-
-.gate-header {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.site-logo {
-    font-size: 28px;
-    font-weight: 900;
-    margin: 0;
-    letter-spacing: -1px;
-    color: var(--text-primary);
-}
-
-.tagline {
-    font-size: 10px;
-    font-weight: 800;
-    color: var(--accent-color);
-    letter-spacing: 3px;
-    margin-top: 5px;
-}
-
-.selection-box {
-    width: 100%;
-    max-width: 400px;
-    background: #fff;
+.map-nav-section {
+    background-color: #f0f9fb; /* 爽やかな水色の背景 */
     padding: 30px 20px;
-    border-radius: 24px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    margin: 15px;
+    border-radius: 16px;
     text-align: center;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
 }
 
-.verification-text {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 25px;
-}
-
-.btn-gate {
+.japan-map-container {
+    position: relative;
     width: 100%;
-    padding: 18px;
+    max-width: 700px;
+    margin: 0 auto;
+    /* ドット柄の背景で地図を表現 */
+    background-image: radial-gradient(#aad5dd 2.5px, transparent 2.5px);
+    background-size: 18px 18px;
+    padding: 40px 10px;
+    border-radius: 12px;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.map-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    z-index: 2;
+}
+
+.map-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* エリアボタンのスタイル（ライバルサイト・楽天風） */
+.map-btn {
+    background-color: #444; /* シックな濃いグレー */
+    color: #fff;
     border: none;
-    border-radius: 14px;
-    font-size: 15px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
     font-weight: 800;
     cursor: pointer;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    transition: transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+    min-width: 80px;
 }
 
-.btn-gate:active { transform: scale(0.98); }
-
-.btn-men { background: #1c1c1e; color: #fff; }
-.btn-women { background: #d4a19d; color: #fff; }
-.btn-underage { background: #fff; border: 1px solid var(--border-color); color: var(--text-secondary); margin-top: 10px; font-size: 13px; }
-.btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); }
-
-/* ==========================================================================
-   4. エリアリンク & SEO（フッター）
-   ========================================================================== */
-.gate-footer {
-    background: #fff;
-    padding: 40px 20px;
-    border-top: 1px solid var(--border-color);
+/* ホバー・クリック時の色（ゴールド/ピンクゴールド） */
+.map-btn:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
 }
 
-.area-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin: 20px 0;
+.map-btn:active {
+    transform: translateY(0);
 }
 
-.area-grid a {
-    text-decoration: none;
-    color: var(--text-primary);
-    background: var(--bg-color);
-    padding: 10px 2px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    text-align: center;
+/* 都道府県などの細かなリンク用（必要に応じて） */
+.section-label {
+    font-size: 16px;
+    font-weight: 900;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    display: block;
 }
 
-.seo-text {
-    margin-top: 30px;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-/* ==========================================================================
-   5. メインポータル（portal.html / shop.html）共通
-   ========================================================================== */
-header {
-    background: #fff;
-    padding: 12px 16px;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    border-bottom: 2px solid var(--accent-color);
-}
-
-.header-main { display: flex; justify-content: space-between; align-items: center; }
-.header-main h1 { font-size: 15px; font-weight: 800; margin: 0; }
-
-.search-container { padding: 16px; display: flex; gap: 8px; }
-.search-input {
-    flex: 1; padding: 14px; border: 1px solid var(--border-color);
-    border-radius: 12px; font-size: 16px; outline: none; background: #fff;
-}
-
-.hotel-card {
-    background: var(--card-bg);
-    border-radius: 16px;
-    padding: 20px;
-    margin: 0 16px 16px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-}
-
-.hotel-name { font-size: 18px; font-weight: 800; margin: 0 0 5px; }
-.hotel-address { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 12px; }
-
-/* 攻略Tipsボックス */
-.tips-box {
-    background: var(--accent-light);
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 15px;
-    border-left: 4px solid var(--accent-color);
-}
-.tips-label { font-size: 9px; font-weight: 800; color: var(--accent-color); text-transform: uppercase; margin-bottom: 4px; display: block; }
-.tips-content { font-size: 12px; line-height: 1.5; color: var(--text-primary); margin: 0; }
-
-.stats-area {
-    display: flex;
-    background: #f9f9fb;
-    border-radius: 10px;
-    padding: 12px;
-    justify-content: space-around;
-    border: 1px solid #f0f0f5;
-}
-.stat-label { font-size: 10px; color: var(--text-secondary); font-weight: 700; display: block; }
-.stat-value { font-size: 20px; font-weight: 800; }
-.value-ok { color: var(--accent-color); }
-
-.action-btns { display: flex; gap: 10px; margin-top: 15px; }
-.btn {
-    flex: 1; padding: 14px; border: none; font-size: 13px;
-    border-radius: 10px; font-weight: 800; cursor: pointer;
-}
-.btn-ok { background: var(--accent-color); color: #fff; }
-.btn-map-link { background: #fff; border: 1px solid var(--google-blue); color: var(--google-blue); }
-
-/* モバイル対応の調整 */
+/* スマホ対応：ボタンを押しやすく大きく */
 @media (max-width: 480px) {
-    .area-grid { grid-template-columns: repeat(4, 1fr); }
+    .map-nav-section {
+        padding: 20px 10px;
+        margin: 10px;
+    }
+    .map-btn {
+        padding: 12px 10px;
+        font-size: 14px;
+        flex: 1 1 40%; /* 2列に並ぶように調整 */
+        max-width: 45%;
+    }
+    .map-row {
+        gap: 8px;
+    }
 }
