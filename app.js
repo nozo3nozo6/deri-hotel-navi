@@ -1,8 +1,8 @@
-// 1. 変数名を supabaseClient に変更して名前の衝突を避ける
-const supabaseClient = supabase.createClient(
-    'https://ojkhwbvoaiaqekxrbpdd.supabase.co',
-    'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'
-);
+const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
+
+// クライアント作成（Geminiと同じ）
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentMode = 'men';
 let currentLang = localStorage.getItem('app_lang') || 'ja';
@@ -10,7 +10,7 @@ let currentLevel = 'japan';
 let currentParentCode = null;
 let historyStack = [];
 
-// 多言語データ
+// 多言語データ（必要最低限）
 const i18n = {
     ja: {
         select_area: "エリアを選択してください",
@@ -24,9 +24,7 @@ const i18n = {
     }
 };
 
-// -----------------------------------------
-// 階層メニュー表示ロジック
-// -----------------------------------------
+// 階層メニュー表示ロジック（Geminiのシンプルさを維持しつつ拡張）
 async function loadLevel(level = 'japan', parentCode = null) {
     currentLevel = level;
     currentParentCode = parentCode;
@@ -36,12 +34,9 @@ async function loadLevel(level = 'japan', parentCode = null) {
     const texts = i18n[currentLang] || i18n.ja;
 
     container.innerHTML = `<p style="grid-column: 1/-1; text-align:center;">${texts.loading}</p>`;
-
-    // 表示テキストの更新
-    statusEl.innerHTML = `現在: ${level === 'japan' ? '日本全国' : level === 'prefecture' ? '都道府県内' : '市区町村'}`;
+    statusEl.innerHTML = `現在: ${level === 'japan' ? '日本全国' : level === 'prefecture' ? '都道府県' : '市区町村'}`;
     document.getElementById('btn-map-back').style.display = level === 'japan' ? 'none' : 'block';
 
-    // ★ supabaseClient を使用してデータを取得
     let query = supabaseClient.from('hotels').select('*');
 
     if (level === 'prefecture') {
@@ -68,36 +63,36 @@ async function loadLevel(level = 'japan', parentCode = null) {
     });
 
     const items = Object.values(unique);
-
     if (items.length === 0) {
         container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#999;">${texts.no_data}</p>`;
+        return;
     }
 
     items.forEach(item => {
         const btn = document.createElement('button');
         btn.className = 'map-btn';
         btn.textContent = level === 'japan' ? item.prefecture : item.city;
-        
+
         btn.onclick = () => {
             historyStack.push({ level, code: parentCode });
             loadLevel(
-                level === 'japan' ? 'prefecture' : 'smallClass', 
+                level === 'japan' ? 'prefecture' : 'smallClass',
                 level === 'japan' ? item.middle_class_code : item.small_class_code
             );
         };
+
         container.appendChild(btn);
     });
 }
 
-// -----------------------------------------
-// 補助関数
-// -----------------------------------------
+// 戻るボタン
 function backLevel() {
     if (historyStack.length === 0) return;
     const prev = historyStack.pop();
     loadLevel(prev.level, prev.code);
 }
 
+// 言語切り替え
 function changeLang(lang) {
     currentLang = lang;
     localStorage.setItem('app_lang', lang);
@@ -108,10 +103,10 @@ function changeLang(lang) {
     });
 }
 
+// 初期化
 window.onload = () => {
     currentMode = sessionStorage.getItem('session_mode') || 'men';
     if (currentMode === 'women') document.body.classList.add('mode-women');
-
     changeLang(currentLang);
     loadLevel('japan');
 };
