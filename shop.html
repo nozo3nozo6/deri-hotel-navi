@@ -6,8 +6,8 @@
     <title>店舗管理 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
     <style>
-        /* JSが読み込まれるまで、すべての画面要素を強制的に隠す設定 */
-        .loading-guard { display: none !important; }
+        /* JavaScriptが「出してよし」と言うまで、画面上の要素を一切見せないための設定 */
+        .js-hide { display: none !important; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -18,7 +18,7 @@
         <button onclick="location.href='index.html'" class="btn-back">戻る</button>
     </header>
 
-    <div id="auth-section" class="loading-guard">
+    <div id="auth-section" class="js-hide">
         <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
             <h2 id="auth-title">店舗新規登録</h2>
             <div style="margin-bottom: 15px;">
@@ -34,19 +34,16 @@
         </div>
     </div>
 
-    <div id="profile-registration" class="loading-guard">
+    <div id="profile-registration" class="js-hide">
         <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
-            <h2 style="border-bottom: 2px solid var(--accent-color);">店舗情報の登録</h2>
-            <p style="font-size: 12px; color: #666;">※別のアカウントでやり直す場合は、下のログアウトを押してください。</p>
-            <div style="margin-top: 15px;"><label>店舗名</label><input type="text" id="reg-shop-name" class="search-input"></div>
-            <button class="btn-ok" onclick="submitProfile()" style="width:100%; margin-top: 20px;">審査申請</button>
-            
-            <button onclick="logout()" style="width:100%; margin-top: 10px; border:none; background:none; color:#888; cursor:pointer;">アカウントを切り替える(ログアウト)</button>
+            <h2>店舗情報の登録</h2>
+            <button class="btn-ok" onclick="submitProfile()" style="width:100%;">審査申請</button>
+            <button onclick="logout()" style="width:100%; margin-top: 15px; background:none; border:none; color:#888; cursor:pointer; text-decoration: underline;">アカウントを切り替える(ログアウト)</button>
         </div>
     </div>
 
-    <div id="pending-section" class="loading-guard"> ... </div>
-    <div id="shop-main-section" class="loading-guard"> ... </div>
+    <div id="pending-section" class="js-hide"> ... </div>
+    <div id="shop-main-section" class="js-hide"> ... </div>
 
     <script src="shop.js"></script>
 </body>

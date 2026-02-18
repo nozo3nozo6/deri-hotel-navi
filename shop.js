@@ -3,49 +3,39 @@ const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 window.onload = async function() {
-    // ログインセッションをチェック
+    // 1. 起動時、念のため全ての要素を非表示のままにする
+    document.querySelectorAll('.js-hide').forEach(el => el.style.display = 'none');
+
+    // 2. ログイン状態を確認
     const { data: { session } } = await supabaseClient.auth.getSession();
 
     if (!session) {
-        // 【ログインしていない】→ ログイン画面を表示
-        showSection('auth-section');
+        // 【未ログイン】→ 100%確実に「メール/パス」画面を出す
+        showElement('auth-section');
     } else {
-        // 【ログイン中】→ メール認証が済んでいるか？
+        // 【ログイン済み】→ 次のステップへ誘導
         if (session.user.email_confirmed_at) {
             checkShopStatus(session.user);
         } else {
-            // メール認証未完了なら強制ログアウトしてログイン画面へ
+            // メール未認証なら追い出す
             await supabaseClient.auth.signOut();
-            showSection('auth-section');
-            alert("メール認証を完了させてください。");
+            showElement('auth-section');
         }
     }
 };
 
-// 指定したIDのセクションだけを表示し、loading-guardを外す関数
-function showSection(id) {
+function showElement(id) {
     const el = document.getElementById(id);
     if (el) {
-        el.classList.remove('loading-guard');
+        el.classList.remove('js-hide');
         el.style.display = 'block';
     }
 }
 
-async function checkShopStatus(user) {
-    const { data: shop } = await supabaseClient.from('shops').select('*').eq('id', user.id).single();
+// ... 以前の checkShopStatus, handleAuth, submitProfile 等 ...
 
-    if (!shop) {
-        showSection('profile-registration');
-    } else if (shop.is_approved === false) {
-        showSection('pending-section');
-    } else {
-        showSection('shop-main-section');
-    }
-}
-
-// ログアウト：これを実行すれば、次回は必ずログイン画面から始まります
 async function logout() {
     await supabaseClient.auth.signOut();
-    localStorage.clear(); // ローカルの記憶も完全に消去
+    localStorage.clear(); // ブラウザの全記憶を消去
     location.reload();
 }
