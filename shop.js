@@ -39,3 +39,6 @@ async function logout() {
     localStorage.clear(); // ブラウザの全記憶を消去
     location.reload();
 }
+// shop.js の window.onload の一番上にこれを1行だけ追加してください
+// 一度読み込んでログイン画面が出たら、この行は消して大丈夫です！
+await supabaseClient.auth.signOut(); localStorage.clear();
