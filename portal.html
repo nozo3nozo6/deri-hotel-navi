@@ -1,64 +1,10 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>エリア検索 - ホテルナビ</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body>
-
-<header>
-    <div class="header-main">
-        <h1 id="dynamic-title">エリアを選択してください</h1>
-        <button onclick="location.href='index.html'" style="padding:5px 10px; font-size:12px;">戻る</button>
-    </div>
-</header>
-
 <section id="map-navigation" class="map-nav-section">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 id="map-label" class="section-label" style="margin:0;">地域を選択</h2>
+        <button id="btn-map-back" onclick="backLevel()" style="display:none; padding:5px 10px; font-size:12px; border-radius:5px; border:1px solid #ddd; background:#fff;">← 戻る</button>
+    </div>
+    
     <div class="japan-map-container">
-        <div class="map-grid">
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('北海道')">北海道</button>
-                <button class="map-btn" onclick="setArea('東北')">東北</button>
-            </div>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('北関東')">北関東</button>
-                <button class="map-btn" onclick="setArea('首都圏')">首都圏</button>
-                <button class="map-btn" onclick="setArea('甲信越')">甲信越</button>
-            </div>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('北陸')">北陸</button>
-                <button class="map-btn" onclick="setArea('東海')">東海</button>
-                <button class="map-btn" onclick="setArea('近畿')">近畿</button>
-            </div>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('中国')">中国</button>
-                <button class="map-btn" onclick="setArea('四国')">四国</button>
-                <button class="map-btn" onclick="setArea('九州')">九州</button>
-                <button class="map-btn" onclick="setArea('沖縄')">沖縄</button>
-            </div>
-        </div>
+        <div id="map-button-container" class="map-grid"></div>
     </div>
 </section>
-
-<div class="search-container">
-    <input type="text" id="keyword" class="search-input" placeholder="ホテル名で検索..." oninput="fetchHotels()">
-</div>
-
-<div class="filter-scroll" style="display:flex; justify-content:center; gap:10px; margin-bottom:10px;">
-    <button id="chip-recent" class="filter-chip active" onclick="setSort('recent')">最新順</button>
-    <button id="chip-success" class="filter-chip" onclick="setSort('success')">成功順</button>
-</div>
-
-<div id="hotel-list">
-    <p style="text-align:center; color:#888;">エリアを選択するとホテルが表示されます</p>
-</div>
-
-<script src="app.js"></script>
-
-</body>
-</html>
