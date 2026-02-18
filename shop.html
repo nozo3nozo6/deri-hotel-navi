@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店舗登録 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="padding: 20px;">
@@ -13,15 +15,27 @@
         <button onclick="location.href='index.html'" class="btn-back">戻る</button>
     </header>
 
-    <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
+    <div class="hotel-card" style="max-width: 500px; margin: 0 auto; background: #fff;">
         <div style="margin-bottom: 10px;"><label>ホテル名</label><input type="text" id="shop-name" class="search-input"></div>
         <div style="margin-bottom: 10px;"><label>都道府県</label><input type="text" id="shop-city" class="search-input" placeholder="東京都"></div>
         <div style="margin-bottom: 10px;"><label>エリア・市区町村</label><input type="text" id="shop-town" class="search-input" placeholder="新宿区"></div>
         <div style="margin-bottom: 10px;"><label>詳細住所</label><input type="text" id="shop-address" class="search-input"></div>
+
+        <div style="margin-bottom: 10px;">
+            <label style="font-weight:bold; color:var(--accent-color);">地図で場所を指定（クリックでピンを立てる）</label>
+            <div id="map-selection" style="height: 300px; border-radius: 12px; margin-top: 10px; border: 1px solid #ddd;"></div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="shop-lat" class="search-input" placeholder="緯度" readonly style="background:#f9f9f9; font-size:12px;">
+                <input type="text" id="shop-lng" class="search-input" placeholder="経度" readonly style="background:#f9f9f9; font-size:12px;">
+            </div>
+        </div>
+
         <div style="margin-bottom: 10px;"><label>攻略メモ</label><textarea id="shop-desc" class="search-input" style="height:80px;"></textarea></div>
+        
         <button id="save-btn" class="btn-ok" onclick="saveHotel()" style="width:100%;">登録する</button>
-        <p id="msg" style="text-align:center; margin-top:10px;"></p>
+        <p id="msg" style="text-align:center; margin-top:10px; font-weight:bold;"></p>
     </div>
+
     <script src="shop.js"></script>
 </body>
 </html>

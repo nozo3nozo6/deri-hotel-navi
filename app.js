@@ -9,7 +9,7 @@ const i18n = {
         select_area: "エリアを選択してください", back: "戻る", region_select: "地域を選択", back_level: "一つ前に戻る",
         search_placeholder: "地域名やホテル名を入力...", list_placeholder: "エリアを選択すると、ここにホテルが表示されます",
         success_report: "成功報告", call_btn: "呼べた！", loading: "検索中...", no_hotel: "このエリアのホテルは未登録です",
-        report_thanks: "報告ありがとうございます！数値を更新しました。"
+        report_thanks: "報告ありがとうございます！数値を更新しました。", map_view: "地図で見る"
     },
     en: {
         title: "Hotel Delivery Search", tagline: "Search hotels that allow delivery services", select_mode: "Select Mode",
@@ -17,7 +17,7 @@ const i18n = {
         select_area: "Select Area", back: "Back", region_select: "Select Region", back_level: "Back",
         search_placeholder: "Search area or hotel...", list_placeholder: "Select area to see hotels",
         success_report: "Success", call_btn: "Success!", loading: "Searching...", no_hotel: "No hotels registered",
-        report_thanks: "Thank you for reporting! Updated the count."
+        report_thanks: "Thank you for reporting!", map_view: "View Map"
     },
     zh: {
         title: "酒店外送搜索", tagline: "全国区域分类・可外送酒店搜索", select_mode: "请选择模式",
@@ -25,7 +25,7 @@ const i18n = {
         select_area: "请选择区域", back: "返回", region_select: "选择地区", back_level: "返回",
         search_placeholder: "输入区域或酒店名...", list_placeholder: "选择区域后显示酒店",
         success_report: "成功案例", call_btn: "叫到了！", loading: "正在搜索...", no_hotel: "尚未注册酒店",
-        report_thanks: "感谢您的报告！数值已更新。"
+        report_thanks: "感谢您的报告！", map_view: "查看地图"
     },
     ko: {
         title: "호텔 딜리버리 검색", tagline: "전국 지역별·부를 수 있는 호텔 검색", select_mode: "모드를 선택해 주세요",
@@ -33,7 +33,7 @@ const i18n = {
         select_area: "지역을 선택해 주세요", back: "뒤로", region_select: "지역 선택", back_level: "뒤로",
         search_placeholder: "지역명이나 호텔명 입력...", list_placeholder: "지역을 선택하면 호텔이 표시됩니다",
         success_report: "성공 보고", call_btn: "불렀다!", loading: "검색 중...", no_hotel: "등록된 호텔이 없습니다",
-        report_thanks: "보고 감사합니다! 수치를 업데이트했습니다."
+        report_thanks: "보고 감사합니다!", map_view: "지도로 보기"
     }
 };
 
@@ -53,19 +53,20 @@ let currentLang = localStorage.getItem('app_lang') || 'ja';
 let currentLevel = 'region'; 
 let selection = { region: '', prefecture: '', town: '' };
 let currentMode = 'men';
+let map, markers = [];
 
 window.onload = function() {
     currentMode = sessionStorage.getItem('session_mode') || 'men';
     if (currentMode === 'women') document.body.classList.add('mode-women');
+    initMap(); // 地図の初期化
     applyLanguage();
     renderButtons();
 };
 
-function changeLang(lang) {
-    currentLang = lang;
-    localStorage.setItem('app_lang', lang);
-    applyLanguage();
-    renderButtons();
+function initMap() {
+    // 日本全体を表示
+    map = L.map('map-navigation').setView([36.2048, 138.2529], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 }
 
 function applyLanguage() {
@@ -74,13 +75,10 @@ function applyLanguage() {
         const key = el.getAttribute('data-lang');
         if (texts[key]) el.innerText = texts[key];
     });
-    const searchInput = document.getElementById('keyword');
-    if (searchInput && texts.search_placeholder) searchInput.placeholder = texts.search_placeholder;
 }
 
 async function renderButtons() {
     const container = document.getElementById('map-button-container');
-    if (!container) return;
     const label = document.getElementById('map-label');
     const backBtn = document.getElementById('btn-map-back');
     const texts = i18n[currentLang];
@@ -91,24 +89,13 @@ async function renderButtons() {
         label.innerText = texts.region_select;
         backBtn.style.display = "none";
     } else if (currentLevel === 'prefecture') {
-        const prefs = areaData.prefectures[selection.region] || [];
-        displayButtons(prefs);
+        displayButtons(areaData.prefectures[selection.region] || []);
         label.innerText = selection.region;
         backBtn.style.display = "block";
     } else if (currentLevel === 'city') {
         label.innerText = selection.prefecture;
         backBtn.style.display = "block";
-        container.innerHTML = `<p style="text-align:center; font-size:12px; color:#888;">${texts.loading}</p>`;
-
-        let { data, error } = await supabaseClient
-            .from('hotels')
-            .select('town')
-            .eq('city', selection.prefecture);
-
-        if (error || !data || data.length === 0) {
-            container.innerHTML = `<p style="text-align:center; font-size:12px; color:#888;">${texts.no_hotel}</p>`;
-            return;
-        }
+        let { data } = await supabaseClient.from('hotels').select('town').eq('city', selection.prefecture);
         const availableTowns = [...new Set(data.map(item => item.town))].filter(t => t).sort();
         displayButtons(availableTowns);
     }
@@ -116,7 +103,6 @@ async function renderButtons() {
 
 function displayButtons(items) {
     const container = document.getElementById('map-button-container');
-    container.innerHTML = '';
     let row = document.createElement('div');
     row.className = 'map-row';
     items.forEach((name, index) => {
@@ -134,44 +120,44 @@ function displayButtons(items) {
 }
 
 function handleSelect(name) {
-    if (currentLevel === 'region') {
-        selection.region = name;
-        currentLevel = 'prefecture';
-    } else if (currentLevel === 'prefecture') {
-        selection.prefecture = name;
-        currentLevel = 'city';
-    } else {
-        selection.town = name;
-    }
+    if (currentLevel === 'region') { selection.region = name; currentLevel = 'prefecture'; }
+    else if (currentLevel === 'prefecture') { selection.prefecture = name; currentLevel = 'city'; }
+    else { selection.town = name; }
     document.getElementById('keyword').value = name;
-    document.getElementById('dynamic-title').innerText = name;
     fetchHotels();
-    renderButtons();
-}
-
-function backLevel() {
-    if (currentLevel === 'city') currentLevel = 'prefecture';
-    else if (currentLevel === 'prefecture') currentLevel = 'region';
     renderButtons();
 }
 
 async function fetchHotels() {
     const keyword = document.getElementById('keyword').value;
-    const listContainer = document.getElementById('hotel-list');
-    const texts = i18n[currentLang];
-    listContainer.innerHTML = `<p style="text-align:center; padding:20px;">🔍 ${texts.loading}</p>`;
-
-    let { data: hotels, error } = await supabaseClient
+    const okCol = currentMode === 'men' ? 'men_ok' : 'women_ok';
+    
+    // 成功数が多い順に取得
+    let { data: hotels } = await supabaseClient
         .from('hotels')
         .select('*')
-        .or(`name.ilike.%${keyword}%,address.ilike.%${keyword}%,city.ilike.%${keyword}%,town.ilike.%${keyword}%`)
-        .limit(30);
+        .or(`city.ilike.%${keyword}%,town.ilike.%${keyword}%,name.ilike.%${keyword}%`)
+        .order(okCol, { ascending: false });
 
-    if (error) {
-        listContainer.innerHTML = '<p>Error</p>';
-        return;
-    }
     renderHotels(hotels);
+    updateMapMarkers(hotels); // 地図のピンを更新
+}
+
+function updateMapMarkers(hotels) {
+    markers.forEach(m => map.removeLayer(m)); // 古いピンを消す
+    markers = [];
+    if (!hotels || hotels.length === 0) return;
+
+    const bounds = [];
+    hotels.forEach(h => {
+        if (h.lat && h.lng) {
+            const marker = L.marker([h.lat, h.lng]).addTo(map)
+                .bindPopup(`<b>${h.name}</b><br>成功報告: ${h[currentMode === 'men' ? 'men_ok' : 'women_ok']}`);
+            markers.push(marker);
+            bounds.push([h.lat, h.lng]);
+        }
+    });
+    if (bounds.length > 0) map.fitBounds(bounds); // ホテルがある場所に地図をズーム
 }
 
 function renderHotels(hotels) {
@@ -187,9 +173,9 @@ function renderHotels(hotels) {
         const card = document.createElement('div');
         card.className = 'hotel-card';
         card.innerHTML = `
-            <h3 style="margin:0;">${h.name}</h3>
-            <small style="color:#8e8e93;">${h.address}</small>
-            <div class="tips-box"><p style="margin:0; font-size:13px;">${h.description || ''}</p></div>
+            <h3>${h.name}</h3>
+            <small>${h.address}</small>
+            <div class="tips-box"><p>${h.description || ''}</p></div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <span style="color:var(--accent-color); font-weight:bold;">${texts.success_report}: <span id="count-${h.id}">${h[okCol] || 0}</span></span>
                 <button class="btn-ok" onclick="reportSuccess(${h.id}, '${okCol}')">${texts.call_btn}</button>
@@ -199,27 +185,10 @@ function renderHotels(hotels) {
     });
 }
 
-// ==========================================
-// ★ 報告機能：データベースの数値を更新
-// ==========================================
 async function reportSuccess(id, column) {
-    const texts = i18n[currentLang];
     const countEl = document.getElementById(`count-${id}`);
-    let currentCount = parseInt(countEl.innerText);
-
-    // 1. 画面上の数値を仮で＋1して反応を良くする
-    countEl.innerText = currentCount + 1;
-
-    // 2. データベースを更新
-    const { error } = await supabaseClient
-        .from('hotels')
-        .update({ [column]: currentCount + 1 })
-        .eq('id', id);
-
-    if (error) {
-        console.error('Update Error:', error);
-        countEl.innerText = currentCount; // 失敗したら戻す
-    } else {
-        alert(texts.report_thanks);
-    }
+    let newCount = parseInt(countEl.innerText) + 1;
+    countEl.innerText = newCount;
+    await supabaseClient.from('hotels').update({ [column]: newCount }).eq('id', id);
+    alert(i18n[currentLang].report_thanks);
 }
