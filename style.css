@@ -1,13 +1,97 @@
 /* ==========================================================================
-   楽天トラベル風：日本地図ナビゲーション
+   1. 基本設定 & テーマ変数（ゴールド / ピンクゴールド）
+   ========================================================================== */
+:root {
+    --accent-color: #b89a5b; /* 男性用ゴールド */
+    --accent-light: #fdf6e9;
+    --bg-color: #f2f2f7;
+    --card-bg: #ffffff;
+    --text-primary: #1c1c1e;
+    --text-secondary: #8e8e93;
+    --border-color: #e5e5ea;
+    --google-blue: #4285F4;
+}
+
+body.mode-women {
+    --accent-color: #d4a19d; /* 女性用ピンクゴールド */
+    --accent-light: #fff0ef;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   2. 入場ゲート（index.html）専用スタイル
+   ========================================================================== */
+.gate-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #fff;
+}
+
+.gate-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 20px;
+}
+
+.site-logo {
+    font-size: 32px;
+    font-weight: 900;
+    margin: 0;
+    letter-spacing: -1px;
+}
+
+.tagline {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--accent-color);
+    letter-spacing: 3px;
+    margin-bottom: 40px;
+}
+
+.selection-box {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.btn-gate {
+    width: 100%;
+    padding: 20px;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: transform 0.1s;
+}
+
+.btn-gate:active { transform: scale(0.97); }
+.btn-men { background: #1c1c1e; color: #fff; }
+.btn-women { background: #d4a19d; color: #fff; }
+.btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); margin-top: 20px; }
+
+/* ==========================================================================
+   3. 楽天トラベル風：日本地図ナビ（portal.html）
    ========================================================================== */
 .map-nav-section {
-    background-color: #f0f9fb; /* 爽やかな水色の背景 */
+    background-color: #f0f9fb;
     padding: 30px 20px;
     margin: 15px;
     border-radius: 16px;
     text-align: center;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
 }
 
 .japan-map-container {
@@ -15,24 +99,13 @@
     width: 100%;
     max-width: 700px;
     margin: 0 auto;
-    /* ドット柄の背景で地図を表現 */
     background-image: radial-gradient(#aad5dd 2.5px, transparent 2.5px);
     background-size: 18px 18px;
     padding: 40px 10px;
-    border-radius: 12px;
     min-height: 300px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-}
-
-.map-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    width: 100%;
-    z-index: 2;
 }
 
 .map-row {
@@ -40,56 +113,56 @@
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 
-/* エリアボタンのスタイル（ライバルサイト・楽天風） */
 .map-btn {
-    background-color: #444; /* シックな濃いグレー */
+    background-color: #444;
     color: #fff;
     border: none;
-    padding: 8px 16px;
+    padding: 10px 18px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    transition: all 0.2s ease;
-    min-width: 80px;
+    transition: all 0.2s;
 }
 
-/* ホバー・クリック時の色（ゴールド/ピンクゴールド） */
 .map-btn:hover {
     background-color: var(--accent-color);
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
 }
 
-.map-btn:active {
-    transform: translateY(0);
+/* ==========================================================================
+   4. ポータル & ホテルリスト 表示設定
+   ========================================================================== */
+header {
+    background: #fff;
+    padding: 15px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 2px solid var(--accent-color);
 }
 
-/* 都道府県などの細かなリンク用（必要に応じて） */
-.section-label {
-    font-size: 16px;
-    font-weight: 900;
-    color: #2c3e50;
-    margin-bottom: 20px;
-    display: block;
+#map { width: 100%; height: 0; transition: height 0.4s; }
+#map.active { height: 300px; }
+
+.hotel-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
-/* スマホ対応：ボタンを押しやすく大きく */
-@media (max-width: 480px) {
-    .map-nav-section {
-        padding: 20px 10px;
-        margin: 10px;
-    }
-    .map-btn {
-        padding: 12px 10px;
-        font-size: 14px;
-        flex: 1 1 40%; /* 2列に並ぶように調整 */
-        max-width: 45%;
-    }
-    .map-row {
-        gap: 8px;
-    }
+.tips-box {
+    background: var(--accent-light);
+    border-radius: 10px;
+    padding: 12px;
+    margin: 12px 0;
+    border-left: 4px solid var(--accent-color);
 }
+
+.btn-ok { background: var(--accent-color); color: #fff; width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: 800; }
