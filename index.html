@@ -2,77 +2,37 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>エリア別ホテル検索 - デリ呼ぶ/女風呼ぶ</title>
-    <meta name="description" content="全国各地のホテルでデリ・女風が呼べるかチェック。">
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>デリ呼ぶ / 女風呼ぶ - ホテル検索ポータル</title>
     <link rel="stylesheet" href="style.css">
-    
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="portal-page">
+<body class="gate-page">
 
-<header>
-    <div class="header-main">
-        <div>
-            <h1 id="dynamic-title">ホテル検索</h1>
-            <div id="role-display" class="user-role-badge">USER MODE</div>
-        </div>
-        <div class="header-controls">
-            <select id="lang-switch" onchange="updateLanguage()">
-                <option value="ja">日本語</option>
-                <option value="en">English</option>
-                <option value="zh">中文</option>
-                <option value="ko">한국어</option>
-            </select>
-            <button onclick="location.href='index.html'" class="btn-exit-gate">ゲートへ</button>
-        </div>
-    </div>
-</header>
+    <div class="gate-container">
+        <h1 class="site-logo">🏨 ホテルナビ</h1>
+        <p class="tagline">全国エリア別・呼べるホテル検索</p>
 
-<section id="map-navigation" class="map-nav-section">
-    <h2 class="section-label">日本地図からエリアを選択</h2>
-    <div class="japan-map-container">
-        <div class="map-grid">
-            <button class="map-btn" onclick="setArea('北海道')">北海道</button>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('東北')">東北</button>
-                <button class="map-btn" onclick="setArea('北関東')">北関東</button>
-                <button class="map-btn" onclick="setArea('首都圏')">首都圏</button>
-            </div>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('北陸')">北陸</button>
-                <button class="map-btn" onclick="setArea('甲信越')">甲信越</button>
-                <button class="map-btn" onclick="setArea('東海')">東海</button>
-            </div>
-            <div class="map-row">
-                <button class="map-btn" onclick="setArea('近畿')">近畿</button>
-                <button class="map-btn" onclick="setArea('中国')">中国</button>
-                <button class="map-btn" onclick="setArea('四国')">四国</button>
-                <button class="map-btn" onclick="setArea('九州')">九州</button>
-                <button class="map-btn" onclick="setArea('沖縄')">沖縄</button>
-            </div>
+        <div class="selection-box">
+            <button class="btn-gate btn-men" onclick="entry('men')">
+                男性用（デリ呼ぶ）入口
+            </button>
+
+            <button class="btn-gate btn-women" onclick="entry('women')">
+                女性用（女風呼ぶ）入口
+            </button>
+
+            <button class="btn-gate btn-shop-gate" onclick="location.href='shop.html'">
+                店舗様・掲載用はこちら
+            </button>
         </div>
     </div>
-</section>
 
-<div id="map"></div>
-
-<div class="search-container">
-    <input type="text" class="search-input" id="keyword" placeholder="現在のエリアでホテル名検索...">
-    <button class="btn-map-toggle" onclick="toggleMap()"><i class="fa-solid fa-map-location-dot"></i></button>
-</div>
-
-<div class="filter-scroll">
-    <div class="filter-chip active" id="chip-recent" onclick="setSort('recent')">最新順</div>
-    <div class="filter-chip" id="chip-success" onclick="setSort('success')">成功数順</div>
-</div>
-
-<div id="hotel-list"></div>
-
-<script src="app.js"></script>
+    <script>
+        function entry(mode) {
+            sessionStorage.setItem('session_mode', mode);
+            // エリア選択（portal.html）へ移動
+            location.href = 'portal.html';
+        }
+    </script>
 </body>
 </html>

@@ -1,168 +1,45 @@
-/* ==========================================================================
-   1. 基本設定 & テーマ変数（ゴールド / ピンクゴールド）
-   ========================================================================== */
+/* --- 共通変数 --- */
 :root {
-    --accent-color: #b89a5b; /* 男性用ゴールド */
-    --accent-light: #fdf6e9;
+    --accent-color: #b89a5b; 
     --bg-color: #f2f2f7;
-    --card-bg: #ffffff;
     --text-primary: #1c1c1e;
-    --text-secondary: #8e8e93;
-    --border-color: #e5e5ea;
-    --google-blue: #4285F4;
 }
 
-body.mode-women {
-    --accent-color: #d4a19d; /* 女性用ピンクゴールド */
-    --accent-light: #fff0ef;
-}
-
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-body {
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-    margin: 0;
-    line-height: 1.6;
-}
-
-/* ==========================================================================
-   2. 入場ゲート（index.html）専用スタイル
-   ========================================================================== */
+/* --- ゲートページ全体 --- */
 .gate-page {
+    background-color: var(--bg-color);
+    margin: 0;
     display: flex;
-    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     min-height: 100vh;
-    background: #fff;
+    font-family: sans-serif;
 }
 
 .gate-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 60px 20px;
-}
-
-.site-logo {
-    font-size: 32px;
-    font-weight: 900;
-    margin: 0;
-    letter-spacing: -1px;
-}
-
-.tagline {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--accent-color);
-    letter-spacing: 3px;
-    margin-bottom: 40px;
-}
-
-.selection-box {
+    text-align: center;
+    padding: 20px;
     width: 100%;
     max-width: 400px;
-    text-align: center;
 }
 
+.site-logo { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+.tagline { color: var(--accent-color); font-weight: bold; margin-bottom: 30px; }
+
+/* --- ボタンのデザイン --- */
 .btn-gate {
+    display: block;
     width: 100%;
     padding: 20px;
-    border: none;
-    border-radius: 16px;
-    font-size: 16px;
-    font-weight: 800;
-    cursor: pointer;
     margin-bottom: 15px;
-    transition: transform 0.1s;
+    border-radius: 12px;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
-.btn-gate:active { transform: scale(0.97); }
 .btn-men { background: #1c1c1e; color: #fff; }
 .btn-women { background: #d4a19d; color: #fff; }
-.btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); margin-top: 20px; }
-
-/* ==========================================================================
-   3. 楽天トラベル風：日本地図ナビ（portal.html）
-   ========================================================================== */
-.map-nav-section {
-    background-color: #f0f9fb;
-    padding: 30px 20px;
-    margin: 15px;
-    border-radius: 16px;
-    text-align: center;
-}
-
-.japan-map-container {
-    position: relative;
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
-    background-image: radial-gradient(#aad5dd 2.5px, transparent 2.5px);
-    background-size: 18px 18px;
-    padding: 40px 10px;
-    min-height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.map-row {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-}
-
-.map-btn {
-    background-color: #444;
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
-    transition: all 0.2s;
-}
-
-.map-btn:hover {
-    background-color: var(--accent-color);
-    transform: translateY(-2px);
-}
-
-/* ==========================================================================
-   4. ポータル & ホテルリスト 表示設定
-   ========================================================================== */
-header {
-    background: #fff;
-    padding: 15px;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    border-bottom: 2px solid var(--accent-color);
-}
-
-#map { width: 100%; height: 0; transition: height 0.4s; }
-#map.active { height: 300px; }
-
-.hotel-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 20px;
-    margin: 15px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.tips-box {
-    background: var(--accent-light);
-    border-radius: 10px;
-    padding: 12px;
-    margin: 12px 0;
-    border-left: 4px solid var(--accent-color);
-}
-
-.btn-ok { background: var(--accent-color); color: #fff; width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: 800; }
+.btn-shop-gate { background: #fff; border: 2px solid var(--accent-color); color: var(--accent-color); }
