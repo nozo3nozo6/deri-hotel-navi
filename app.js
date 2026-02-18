@@ -3,92 +3,107 @@ const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentMode = 'men';
-let currentLang = localStorage.getItem('app_lang') || 'ja';
-let currentLevel = 'japan';
-let currentParentCode = null;
+let currentLevel = 'bigArea';   // bigArea → prefecture → majorArea → city
+let currentFilter = null;
 let historyStack = [];
 
-// 多言語データ（シンプルに）
-const i18n = {
-    ja: {
-        select_area: "エリアを選択してください",
-        back: "戻る",
-        region_select: "地域を選択",
-        back_level: "一つ前に戻る",
-        search_placeholder: "地域名やホテル名を入力...",
-        list_placeholder: "エリアを選択すると、ここにホテルが表示されます",
-        loading: "読み込み中...",
-        no_data: "データがありません（テスト中）"
-    }
+// ====================== 大エリア定義 ======================
+const bigAreas = [
+    { name: "北海道", code: "hokkaido" },
+    { name: "東北", code: "tohoku" },
+    { name: "関東", code: "kanto" },
+    { name: "中部", code: "chubu" },
+    { name: "近畿", code: "kinki" },
+    { name: "中国", code: "chugoku" },
+    { name: "四国", code: "shikoku" },
+    { name: "九州", code: "kyushu" },
+    { name: "沖縄", code: "okinawa" }
+];
+
+// ====================== 主要エリア定義（例） ======================
+const majorAreas = {
+    "東京都": ["東京23区", "多摩エリア", "立川・八王子エリア"],
+    "神奈川県": ["横浜エリア", "川崎エリア", "湘南エリア"],
+    "大阪府": ["大阪市内", "堺・南大阪エリア"],
+    // 必要に応じて追加してください
 };
 
-// 階層メニュー（データがなくても仮表示で動く）
-async function loadLevel(level = 'japan', parentCode = null) {
+// ====================== 階層メニュー ======================
+async function loadLevel(level = 'bigArea', filter = null) {
     currentLevel = level;
-    currentParentCode = parentCode;
+    currentFilter = filter;
 
     const container = document.getElementById('map-button-container');
     const statusEl = document.getElementById('current-level');
-    const texts = i18n[currentLang] || i18n.ja;
 
-    container.innerHTML = `<p style="grid-column: 1/-1; text-align:center;">${texts.loading}</p>`;
-    statusEl.innerHTML = `現在: ${level === 'japan' ? '日本全国' : level === 'prefecture' ? '都道府県' : '市区町村'}`;
-    document.getElementById('btn-map-back').style.display = level === 'japan' ? 'none' : 'block';
+    container.innerHTML = '<p>読み込み中...</p>';
+    document.getElementById('btn-map-back').style.display = level === 'bigArea' ? 'none' : 'block';
 
     let items = [];
 
-    if (level === 'japan') {
-        // 仮データ（データがなくても動くように）
-        items = [
-            { prefecture: '東京都', middle_class_code: '13' },
-            { prefecture: '大阪府', middle_class_code: '27' },
-            { prefecture: '北海道', middle_class_code: '1' },
-            { prefecture: '沖縄県', middle_class_code: '47' },
-            { prefecture: '愛知県', middle_class_code: '23' }
-        ];
-    } else if (level === 'prefecture') {
-        // 仮データ（実際のデータが入ったら置き換わる）
-        items = [
-            { city: '新宿区', small_class_code: '13104' },
-            { city: '渋谷区', small_class_code: '13113' },
-            { city: '大阪市中央区', small_class_code: '27128' }
-        ];
+    if (level === 'bigArea') {
+        items = bigAreas.map(area => ({ name: area.name, type: 'prefecture', code: area.code }));
+        statusEl.innerHTML = '現在: 日本全国';
+    } 
+    else if (level === 'prefecture') {
+        // 大エリアから都道府県を表示（簡易マッピング）
+        const areaMap = {
+            'hokkaido': ['北海道'],
+            'tohoku': ['青森県','岩手県','宮城県','秋田県','山形県','福島県'],
+            'kanto': ['茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県'],
+            'chubu': ['新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県'],
+            'kinki': ['三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県'],
+            'chugoku': ['鳥取県','島根県','岡山県','広島県','山口県'],
+            'shikoku': ['徳島県','香川県','愛媛県','高知県'],
+            'kyushu': ['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県'],
+            'okinawa': ['沖縄県']
+        };
+
+        items = areaMap[filter] ? areaMap[filter].map(name => ({ name, type: 'majorArea', code: name })) : [];
+        statusEl.innerHTML = `現在: ${filter}`;
+    } 
+    else if (level === 'majorArea') {
+        // 都道府県から主要エリアを表示
+        items = majorAreas[filter] ? majorAreas[filter].map(name => ({ name, type: 'city', code: name })) : [];
+        statusEl.innerHTML = `現在: ${filter}`;
+    } 
+    else if (level === 'city') {
+        // 市区町村を表示（実際のデータから）
+        const { data } = await supabaseClient
+            .from('hotels')
+            .select('city')
+            .eq('prefecture', filter);   // 必要に応じて調整
+
+        items = data.map(h => ({ name: h.city, type: 'city', code: h.city }));
+        items = [...new Set(items.map(i => i.name))].map(name => ({ name, type: 'city', code: name }));
+        statusEl.innerHTML = `現在: ${filter}`;
     }
 
     container.innerHTML = '';
 
     if (items.length === 0) {
-        container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#999;">${texts.no_data}</p>`;
+        container.innerHTML = '<p>該当するエリアがありません</p>';
         return;
     }
 
     items.forEach(item => {
         const btn = document.createElement('button');
         btn.className = 'map-btn';
-        btn.textContent = level === 'japan' ? item.prefecture : item.city;
-
+        btn.textContent = item.name;
         btn.onclick = () => {
-            historyStack.push({ level, code: parentCode });
-            loadLevel(level === 'japan' ? 'prefecture' : 'smallClass', 
-                      level === 'japan' ? item.middle_class_code : item.small_class_code);
+            historyStack.push({ level, filter });
+            loadLevel(item.type, item.name);
         };
-
         container.appendChild(btn);
     });
 }
 
-// 戻るボタン
 function backLevel() {
     if (historyStack.length === 0) return;
     const prev = historyStack.pop();
-    loadLevel(prev.level, prev.code);
+    loadLevel(prev.level, prev.filter);
 }
 
-// 初期化
 window.onload = () => {
-    currentMode = sessionStorage.getItem('session_mode') || 'men';
-    if (currentMode === 'women') document.body.classList.add('mode-women');
-    changeLang(currentLang);
-    loadLevel('japan');
+    loadLevel('bigArea');
 };
