@@ -2,9 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>店舗管理 | デリ呼ぶホテル検索</title>
     <link rel="stylesheet" href="./style.css">
+    <style>
+        /* JSが読み込まれるまで、すべての画面要素を強制的に隠す設定 */
+        .loading-guard { display: none !important; }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="padding: 20px;">
@@ -14,54 +18,35 @@
         <button onclick="location.href='index.html'" class="btn-back">戻る</button>
     </header>
 
-    <div id="auth-section" style="display: none;">
+    <div id="auth-section" class="loading-guard">
         <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
-            <h2 id="auth-title" style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">店舗新規登録</h2>
+            <h2 id="auth-title">店舗新規登録</h2>
             <div style="margin-bottom: 15px;">
-                <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
-                <input type="email" id="auth-email" class="search-input" placeholder="mail@example.com">
+                <label>メールアドレス</label>
+                <input type="email" id="auth-email" class="search-input">
             </div>
             <div style="margin-bottom: 15px;">
-                <label style="font-size: 14px; font-weight: bold;">パスワード</label>
-                <input type="password" id="auth-password" class="search-input" placeholder="6文字以上">
-            </div>
-            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="show-password" onclick="togglePasswordVisibility()">
-                <label for="show-password" style="font-size: 12px; cursor: pointer;">パスワードを表示する</label>
+                <label>パスワード</label>
+                <input type="password" id="auth-password" class="search-input">
             </div>
             <button id="auth-btn" class="btn-ok" onclick="handleAuth()" style="width:100%;">登録メールを送信</button>
-            <p style="text-align:center; font-size: 12px; margin-top: 20px;">
-                <a href="javascript:void(0)" onclick="toggleAuthMode()" id="switch-link" style="color: var(--accent-color); font-weight: bold;">ログインに切り替える</a>
-            </p>
+            <p style="text-align:center;"><a href="javascript:void(0)" onclick="toggleAuthMode()" id="switch-link">ログインに切り替える</a></p>
         </div>
     </div>
 
-    <div id="profile-registration" style="display: none;">
+    <div id="profile-registration" class="loading-guard">
         <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
-            <h2 style="font-size: 16px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px;">店舗情報の登録</h2>
+            <h2 style="border-bottom: 2px solid var(--accent-color);">店舗情報の登録</h2>
+            <p style="font-size: 12px; color: #666;">※別のアカウントでやり直す場合は、下のログアウトを押してください。</p>
             <div style="margin-top: 15px;"><label>店舗名</label><input type="text" id="reg-shop-name" class="search-input"></div>
-            <div style="margin-top: 15px;"><label>店舗URL</label><input type="url" id="reg-shop-url" class="search-input"></div>
-            <div style="margin-top: 15px;"><label>電話番号</label><input type="tel" id="reg-shop-phone" class="search-input"></div>
-            <div style="margin-top: 15px;">
-                <label style="color:red; font-weight:bold;">届出確認書 (画像/PDF)</label>
-                <input type="file" id="reg-document" class="search-input" accept="image/*,application/pdf">
-            </div>
-            <button class="btn-ok" onclick="submitProfile()" style="width:100%; margin-top: 20px;">書類をアップロードして審査申請</button>
+            <button class="btn-ok" onclick="submitProfile()" style="width:100%; margin-top: 20px;">審査申請</button>
+            
+            <button onclick="logout()" style="width:100%; margin-top: 10px; border:none; background:none; color:#888; cursor:pointer;">アカウントを切り替える(ログアウト)</button>
         </div>
     </div>
 
-    <div id="pending-section" style="display: none;">
-        <div class="hotel-card" style="max-width: 500px; margin: 0 auto; text-align: center; border: 2px solid #f39c12;">
-            <h2 style="color: #e67e22;">⏳ 審査中</h2>
-            <p>承認までお待ちください。</p>
-            <button onclick="logout()" class="btn-back">ログアウト</button>
-        </div>
-    </div>
-
-    <div id="shop-main-section" style="display: none;">
-        <div id="plan-display" class="tips-box"></div>
-        <button onclick="logout()" class="btn-back">ログアウト</button>
-    </div>
+    <div id="pending-section" class="loading-guard"> ... </div>
+    <div id="shop-main-section" class="loading-guard"> ... </div>
 
     <script src="shop.js"></script>
 </body>
