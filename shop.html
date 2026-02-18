@@ -15,39 +15,37 @@
 
     <div id="verify-success-msg" style="display:none;"></div>
 
-    <div id="auth-section">
-        <div style="display: flex; flex-direction: column; gap: 30px; max-width: 400px; margin: 0 auto;">
-            
-            <div class="hotel-card" style="margin: 0; border-top: 4px solid var(--accent-color);">
-                <h2 style="font-size: 18px; margin-bottom: 20px;">🔑 店舗ログイン</h2>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; font-weight: bold;">メールアドレス</label>
-                    <input type="email" id="login-email" class="search-input" placeholder="mail@example.com">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; font-weight: bold;">パスワード</label>
-                    <input type="password" id="login-password" class="search-input">
-                </div>
-                <button class="btn-ok" onclick="handleLogin()" style="width:100%;">ログイン</button>
+  <div id="auth-section">
+    <div class="hotel-card" style="max-width: 400px; margin: 0 auto;">
+        <h2 style="font-size: 18px; border-bottom: 2px solid var(--accent-color); padding-bottom: 10px; margin-bottom: 20px;">店舗ログイン / 新規登録</h2>
+        
+        <form id="auth-form" onsubmit="return false;">
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: bold;">メールアドレス</label>
+                <input type="email" id="auth-email" name="email" class="search-input" placeholder="mail@example.com" autocomplete="username" required>
             </div>
 
-            <div style="text-align: center; color: #ccc;">── OR ──</div>
-
-            <div class="hotel-card" style="margin: 0; border-top: 4px solid #666;">
-                <h2 style="font-size: 18px; margin-bottom: 20px;">📝 店舗新規登録</h2>
-                <p style="font-size: 11px; color: #666; margin-bottom: 15px;">※初めての方はこちらから登録メールを送信してください。</p>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; font-weight: bold;">メールアドレス</label>
-                    <input type="email" id="signup-email" class="search-input" placeholder="mail@example.com">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="font-size: 12px; font-weight: bold;">パスワード</label>
-                    <input type="password" id="signup-password" class="search-input" placeholder="6文字以上">
-                </div>
-                <button class="map-btn" onclick="handleSignUp()" style="width:100%; background: #666;">登録メールを送信</button>
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 14px; font-weight: bold;">パスワード</label>
+                <input type="password" id="auth-password" name="password" class="search-input" placeholder="6文字以上" autocomplete="current-password" required>
             </div>
-        </div>
+
+            <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="show-password" onclick="togglePasswordVisibility()">
+                <label for="show-password" style="font-size: 13px; cursor: pointer; color: #333;">パスワードを表示する</label>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn-ok" onclick="handleLogin()" style="flex: 1;">ログイン</button>
+                <button type="button" class="map-btn" onclick="handleSignUp()" style="flex: 1; background: #666;">新規登録</button>
+            </div>
+        </form>
+        
+        <p style="font-size: 11px; color: #666; margin-top: 15px; text-align: center;">
+            ※初めての方は、入力後に「新規登録」を押してください。
+        </p>
     </div>
+</div>
 
     <div id="profile-registration" style="display:none;">
         <div class="hotel-card" style="max-width: 500px; margin: 0 auto;">
