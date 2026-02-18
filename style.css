@@ -1,21 +1,273 @@
-/* 言語切り替えバーのスタイル */
-.lang-switcher, .lang-switcher-mini {
+/* ==========================================================================
+   1. 基本設定 & テーマ変数
+   ========================================================================== */
+:root {
+    --accent-color: #b89a5b; /* 男性用：ゴールド */
+    --accent-light: #fdf6e9;
+    --bg-color: #f2f2f7;
+    --card-bg: #ffffff;
+    --text-primary: #1c1c1e;
+    --text-secondary: #8e8e93;
+    --border-color: #e5e5ea;
+}
+
+/* 女性用モード：ピンクゴールドに切り替え */
+body.mode-women {
+    --accent-color: #d4a19d;
+    --accent-light: #fff0ef;
+}
+
+* { 
+    box-sizing: border-box; 
+    -webkit-tap-highlight-color: transparent; 
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Meiryo", sans-serif;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* ==========================================================================
+   2. 多言語切り替えバー（新設）
+   ========================================================================== */
+.lang-switcher {
     padding: 10px;
     text-align: right;
+    background: #fff;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.lang-switcher-mini {
+    display: flex;
+    gap: 4px;
+    padding: 5px 15px;
     background: #f8f8f8;
+    justify-content: flex-end;
 }
 
 .lang-switcher button, .lang-switcher-mini button {
-    margin-left: 5px;
-    padding: 4px 8px;
+    padding: 4px 10px;
     font-size: 11px;
+    font-weight: bold;
     border: 1px solid #ccc;
     background: #fff;
-    border-radius: 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.lang-switcher button:hover, .lang-switcher-mini button:hover {
+    background: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+
+/* ==========================================================================
+   3. 入場ゲート（index.html）
+   ========================================================================== */
+.gate-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: #fff;
+}
+
+.gate-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.site-logo {
+    font-size: 28px;
+    font-weight: 900;
+    margin: 0 0 5px 0;
+    letter-spacing: -1px;
+}
+
+.tagline {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent-color);
+    letter-spacing: 1px;
+    margin-bottom: 40px;
+}
+
+.selection-box {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.verification-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.btn-gate {
+    width: 100%;
+    padding: 20px;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.btn-gate:active { transform: scale(0.97); }
+.btn-men { background: #1c1c1e; color: #fff; }
+.btn-women { background: #d4a19d; color: #fff; }
+.btn-shop-gate { 
+    background: #fff; 
+    border: 2px solid var(--accent-color); 
+    color: var(--accent-color); 
+    margin-top: 10px;
+}
+
+/* ==========================================================================
+   4. ポータル検索（portal.html） & 地図ナビ
+   ========================================================================== */
+header {
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.header-main {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-main h1 { font-size: 18px; margin: 0; font-weight: 800; }
+
+.btn-back {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: bold;
     cursor: pointer;
 }
 
-.lang-switcher button:hover {
+/* 地図ナビゲーションセクション */
+.map-nav-section {
+    background-color: #f0f9fb;
+    padding: 20px 15px;
+    margin: 15px;
+    border-radius: 16px;
+}
+
+.section-label {
+    font-size: 14px;
+    font-weight: 800;
+    color: #444;
+}
+
+.japan-map-container {
+    background-image: radial-gradient(#aad5dd 2px, transparent 2px);
+    background-size: 16px 16px;
+    padding: 20px 0;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.map-grid { display: flex; flex-direction: column; gap: 10px; }
+.map-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+.map-btn {
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    transition: 0.2s;
+}
+
+.map-btn:hover {
+    background: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+#btn-map-back {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* 検索窓 */
+.search-container { padding: 0 15px 15px; }
+.search-input {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-size: 16px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+/* ==========================================================================
+   5. ホテルリスト & カード
+   ========================================================================== */
+.hotel-card {
+    background: #fff;
+    margin: 0 15px 15px;
+    padding: 20px;
+    border-radius: 18px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.tips-box {
+    background: var(--accent-light);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 15px 0;
+    border-left: 5px solid var(--accent-color);
+}
+
+.btn-ok {
     background: var(--accent-color);
     color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-ok:active { opacity: 0.8; }
+
+.list-placeholder {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 60px 20px;
+    font-size: 14px;
 }
