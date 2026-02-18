@@ -1,43 +1,46 @@
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; //
+const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB'; 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let isLoginMode = false;
 let selectedHotelId = null;
 let feedbackStatus = null;
 
-// 初期化：ログイン状態のチェック
 window.onload = async function() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-        showShopSection(session.user);
+        checkShopStatus(session.user);
     }
 };
 
-function toggleAuthMode() {
-    isLoginMode = !isLoginMode;
-    document.getElementById('auth-title').innerText = isLoginMode ? "店舗ログイン" : "店舗新規登録（無料）";
-    document.getElementById('auth-btn').innerText = isLoginMode ? "ログイン" : "登録メールを送信";
+// -----------------------------------------
+// 認証・表示切り替え
+// -----------------------------------------
+function togglePasswordVisibility() {
+    const pwdInput = document.getElementById('auth-password');
+    pwdInput.type = document.getElementById('show-password').checked ? "text" : "password";
 }
 
-// 会員登録・ログイン処理
+function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    document.getElementById('auth-title').innerText = isLoginMode ? "店舗ログイン" : "店舗新規登録";
+    document.getElementById('auth-btn').innerText = isLoginMode ? "ログイン" : "登録メールを送信";
+    document.getElementById('switch-link').innerText = isLoginMode ? "新規登録に切り替える" : "ログインに切り替える";
+}
+
 async function handleAuth() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    const shopName = document.getElementById('email-shop-name').value;
+    if (!email || !password) return alert("入力してください");
 
     if (isLoginMode) {
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) alert("ログイン失敗: " + error.message);
+        if (error) alert("失敗: " + error.message);
         else location.reload();
     } else {
-        const { error } = await supabaseClient.auth.signUp({ 
-            email, 
-            password,
-            options: { data: { shop_name: shopName } }
-        });
-        if (error) alert("登録失敗: " + error.message);
-        else alert("確認メールを送信しました。承認後にログイン可能になります。");
+        const { error } = await supabaseClient.auth.signUp({ email, password });
+        if (error) alert("エラー: " + error.message);
+        else alert("確認メールを送信しました。承認後にログインしてください。");
     }
 }
 
@@ -46,17 +49,71 @@ async function logout() {
     location.reload();
 }
 
-// ログイン成功後の表示
-function showShopSection(user) {
+// -----------------------------------------
+// 審査ステータス判定
+// -----------------------------------------
+async function checkShopStatus(user) {
+    const { data: shop } = await supabaseClient
+        .from('shops')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
     document.getElementById('auth-section').style.display = "none";
-    document.getElementById('shop-section').style.display = "block";
-    
-    // 専用URLを生成 (portal.html?shop_id=ユーザーID)
-    const baseUrl = window.location.origin + window.location.pathname.replace('shop.html', 'portal.html');
-    document.getElementById('dedicated-url').value = `${baseUrl}?shop_id=${user.id}`;
+
+    if (!shop) {
+        // A. 店舗データがない -> 初回プロフィール登録へ
+        document.getElementById('profile-registration').style.display = "block";
+    } else if (shop.is_approved === false) {
+        // B. 承認フラグが false -> 審査中画面へ
+        document.getElementById('pending-section').style.display = "block";
+    } else {
+        // C. 承認済み -> メインパネルへ
+        document.getElementById('shop-main-section').style.display = "block";
+        document.getElementById('plan-display').innerText = `プラン: ${shop.plan === 'paid' ? '有料掲載' : '無料掲載'}`;
+        const baseUrl = window.location.origin + window.location.pathname.replace('shop.html', 'portal.html');
+        document.getElementById('dedicated-url').value = `${baseUrl}?shop_id=${user.id}`;
+    }
 }
 
-// ホテル検索 & フィードバック（前回のロジックを継承）
+// -----------------------------------------
+// プロフィール送信 ＆ 書類アップロード
+// -----------------------------------------
+async function submitProfile() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const name = document.getElementById('reg-shop-name').value;
+    const url = document.getElementById('reg-shop-url').value;
+    const phone = document.getElementById('reg-shop-phone').value;
+    const file = document.getElementById('reg-document').files[0];
+
+    if (!name || !file) return alert("店舗名と書類は必須です");
+
+    // 1. 書類をStorageに保存
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${session.user.id}/${Date.now()}.${fileExt}`;
+    const { error: uploadError } = await supabaseClient.storage
+        .from('documents')
+        .upload(filePath, file);
+
+    if (uploadError) return alert("書類の送信に失敗しました");
+
+    // 2. shopsテーブルにレコード作成
+    const { error } = await supabaseClient.from('shops').insert([{
+        id: session.user.id,
+        name: name,
+        url: url,
+        phone: phone,
+        document_url: filePath,
+        is_approved: false
+    }]);
+
+    if (error) alert("登録エラー");
+    else location.reload();
+}
+
+// -----------------------------------------
+// ホテル検索・投稿（承認済み店舗のみ実行可能）
+// -----------------------------------------
 async function searchHotelsForFeedback() {
     const kw = document.getElementById('hotel-search').value;
     if(kw.length < 2) return;
@@ -65,7 +122,7 @@ async function searchHotelsForFeedback() {
     resDiv.innerHTML = '';
     data.forEach(h => {
         const div = document.createElement('div');
-        div.style = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer;";
+        div.style = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size:14px;";
         div.innerText = h.name;
         div.onclick = () => {
             selectedHotelId = h.id;
@@ -80,18 +137,18 @@ async function searchHotelsForFeedback() {
 function setOkNg(isOk) { feedbackStatus = isOk; alert(isOk ? "YESを選択" : "NOを選択"); }
 
 async function submitFeedback() {
-    if(!selectedHotelId || feedbackStatus === null) return alert("情報を選択してください");
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    if(!selectedHotelId || feedbackStatus === null) return alert("情報を入力してください");
     const comment = document.getElementById('hotel-comment').value;
+    const { data: { session } } = await supabaseClient.auth.getSession();
 
-    // 投稿内容をDBに記録（hotelsテーブルのposted_by列にshop_idを記録する想定）
-    // 実際には専用の feedback テーブルに保存し、app.js でそれを読み込むのがベスト
     const { error } = await supabaseClient.from('hotels').update({
         description: comment,
-        last_posted_by: session.user.id, // 誰が投稿したかを記録
-        [feedbackStatus ? 'men_ok' : 'men_ng']: 1 // カウントアップ（簡易版）
+        last_posted_by: session.user.id
     }).eq('id', selectedHotelId);
 
     if (error) alert("更新エラー");
-    else alert("投稿完了！専用URLに反映されました。");
+    else {
+        alert("情報を投稿しました！");
+        location.reload();
+    }
 }
