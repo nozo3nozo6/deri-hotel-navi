@@ -147,6 +147,9 @@
         .success-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
         .success-sub { font-size: 13px; color: var(--text-3); line-height: 1.9; }
         .note { font-size: 11px; color: var(--text-3); margin-top: 16px; line-height: 1.7; padding-top: 14px; border-top: 1px solid var(--border); }
+        .f-err { font-size: 12px; color: var(--red); margin-top: 5px; display: none; }
+        .f-input.has-error { border-color: var(--red) !important; }
+        .file-zone.has-error { border-color: var(--red) !important; }
         @media (max-width: 500px) {
             body { padding: 24px 12px 60px; }
             .card { padding: 28px 18px; }
@@ -210,25 +213,30 @@
         </div>
         <div class="f-group">
             <label class="f-label">店舗名<span class="req">*</span></label>
-            <input type="text" id="shop-name" class="f-input" placeholder="例: エステート新宿">
+            <input type="text" id="shop-name" class="f-input" placeholder="例: エステート新宿" oninput="clearFieldErr(this)">
             <div style="font-size:12px;color:#888;margin-top:5px;">※届出確認書に記載の名称を入力してください</div>
+            <div class="f-err" id="err-shop-name"></div>
         </div>
         <div class="f-group">
             <label class="f-label">店舗URL<span class="req">*</span></label>
-            <input type="url" id="shop-url" class="f-input" placeholder="https://...">
+            <input type="url" id="shop-url" class="f-input" placeholder="https://..." oninput="clearFieldErr(this)">
+            <div class="f-err" id="err-shop-url"></div>
         </div>
         <div class="f-group">
             <label class="f-label">電話番号<span class="req">*</span></label>
-            <input type="tel" id="shop-tel" class="f-input" placeholder="00-0000-0000">
+            <input type="tel" id="shop-tel" class="f-input" placeholder="00-0000-0000" oninput="clearFieldErr(this)">
+            <div class="f-err" id="err-shop-tel"></div>
         </div>
         <div class="f-group">
             <label class="f-label">パスワード<span class="req">*</span></label>
-            <input type="password" id="shop-pw" class="f-input" placeholder="8文字以上" autocomplete="new-password">
+            <input type="password" id="shop-pw" class="f-input" placeholder="8文字以上" autocomplete="new-password" oninput="clearFieldErr(this)">
+            <div class="f-err" id="err-shop-pw"></div>
         </div>
         <div class="f-group">
             <label class="f-label">パスワード（確認）<span class="req">*</span></label>
-            <input type="password" id="shop-pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password">
+            <input type="password" id="shop-pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password" oninput="clearFieldErr(this)">
             <label class="pw-toggle"><input type="checkbox" onchange="togglePwVis(this.checked)"> パスワードを表示</label>
+            <div class="f-err" id="err-shop-pw2"></div>
         </div>
         <div class="f-group">
             <label class="f-label">無店舗型性風俗特殊営業届出確認書<span class="req">*</span></label>
@@ -246,6 +254,7 @@
                     <div class="file-zone-name" id="file-name-disp"></div>
                 </div>
             </div>
+            <div class="f-err" id="err-shop-doc"></div>
         </div>
         <div class="err-msg" id="form-err"></div>
         <button class="btn-primary" onclick="goToConfirm()">確認画面へ進む</button>
@@ -271,6 +280,14 @@
             <p style="color:var(--text-2);margin:8px 0 0;">現在、届出確認書の審査を行っております。</p>
             <p style="color:var(--text-2);margin:8px 0 0;">審査完了後、ご登録のメールアドレスに<br>管理画面のログインURLをお送りいたします。</p>
             <p style="color:var(--text-3);margin-top:24px;font-size:12px;">審査には通常1〜3営業日かかります。<br>しばらくお待ちください。</p>
+        </div>
+        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px 20px;margin-top:8px;">
+            <p style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--text-2);">登録内容</p>
+            <table id="done-summary" class="confirm-table"></table>
+            <p style="font-size:11px;color:var(--text-3);margin-top:14px;padding-top:12px;border-top:1px solid var(--border);line-height:1.7;">
+                ※この内容を控えとして保存してください。<br>
+                <!-- TODO: メール送信機能は後日実装予定 -->
+            </p>
         </div>
     </div>
 
@@ -375,7 +392,10 @@
 
         // ========== ファイル選択 ==========
         function onFileSelect(input) {
-            if (input.files[0]) setFile(input.files[0]);
+            if (input.files[0]) {
+                setFile(input.files[0]);
+                clearFieldErr(document.getElementById('file-zone'));
+            }
         }
 
         function setFile(file) {
@@ -389,9 +409,31 @@
             reader.readAsDataURL(file);
         }
 
+        // ========== フィールドバリデーション ==========
+        function showFieldErr(inputId, errId, msg) {
+            const input = document.getElementById(inputId);
+            const err = document.getElementById(errId);
+            if (input) input.classList.add('has-error');
+            if (err) { err.textContent = msg; err.style.display = ''; }
+        }
+
+        function clearFieldErr(el) {
+            if (!el) return;
+            el.classList.remove('has-error');
+            const errEl = el.parentElement?.querySelector('.f-err');
+            if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+        }
+
+        function clearAllFieldErrs() {
+            document.querySelectorAll('.has-error').forEach(el => el.classList.remove('has-error'));
+            document.querySelectorAll('.f-err').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
+        }
+
         // ========== 確認画面 ==========
         function goToConfirm() {
             showErr('form-err', '');
+            clearAllFieldErrs();
+
             const genre = document.getElementById('shop-gender').value;
             const name = document.getElementById('shop-name').value.trim();
             const url = document.getElementById('shop-url').value.trim();
@@ -400,14 +442,20 @@
             const pw2 = document.getElementById('shop-pw2').value;
             const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
 
-            if (!name) { showErr('form-err', '店舗名を入力してください'); return; }
-            if (!url) { showErr('form-err', '店舗URLを入力してください'); return; }
-            if (!url.startsWith('https://')) { showErr('form-err', 'URLは https:// で始まる必要があります'); return; }
-            if (!tel) { showErr('form-err', '電話番号を入力してください'); return; }
-            if (!pw) { showErr('form-err', 'パスワードを入力してください'); return; }
-            if (pw.length < 8) { showErr('form-err', 'パスワードは8文字以上にしてください'); return; }
-            if (pw !== pw2) { showErr('form-err', 'パスワードが一致しません'); return; }
-            if (!docFile) { showErr('form-err', '届出確認書を添付してください'); return; }
+            let hasErr = false;
+            if (!name) { showFieldErr('shop-name', 'err-shop-name', 'この項目は必須です'); hasErr = true; }
+            if (!url) { showFieldErr('shop-url', 'err-shop-url', 'この項目は必須です'); hasErr = true; }
+            else if (!url.startsWith('https://')) { showFieldErr('shop-url', 'err-shop-url', 'URLは https:// で始まる必要があります'); hasErr = true; }
+            if (!tel) { showFieldErr('shop-tel', 'err-shop-tel', 'この項目は必須です'); hasErr = true; }
+            if (!pw) { showFieldErr('shop-pw', 'err-shop-pw', 'この項目は必須です'); hasErr = true; }
+            else if (pw.length < 8) { showFieldErr('shop-pw', 'err-shop-pw', 'パスワードは8文字以上にしてください'); hasErr = true; }
+            if (!pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'この項目は必須です'); hasErr = true; }
+            else if (pw && pw !== pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'パスワードが一致しません'); hasErr = true; }
+            if (!docFile) {
+                showFieldErr('file-zone', 'err-shop-doc', '届出確認書の画像を添付してください');
+                hasErr = true;
+            }
+            if (hasErr) return;
 
             // 確認画面を生成
             let imgHtml = '';
@@ -452,6 +500,7 @@
                 console.log('2. セッション取得:', session);
                 if (!session) throw new Error('セッションが切れました。ページをリロードしてください。');
                 const userEmail = session.user.email;
+                const userId = session.user.id;
 
                 const genre = document.getElementById('shop-gender').value;
                 const name = document.getElementById('shop-name').value.trim();
@@ -464,27 +513,27 @@
                 let documentUrl = null;
                 if (docFile) {
                     const ext = docFile.name.split('.').pop().toLowerCase();
-                    const filePath = `shop-licenses/${session.user.id}/${Date.now()}.${ext}`;
+                    const filePath = `shop-licenses/${userId}/${Date.now()}.${ext}`;
                     console.log('3. 画像アップロード開始:', filePath);
                     const uploadResult = await sb.storage
                         .from('documents')
-                        .upload(filePath, docFile, { upsert: false });
+                        .upload(filePath, docFile, { upsert: true });
                     console.log('4. 画像アップロード結果:', uploadResult);
                     if (uploadResult.error) {
-                        console.error('upload error:', uploadResult.error);
+                        console.error('upload error:', JSON.stringify(uploadResult.error));
                         throw new Error('書類アップロードエラー: ' + uploadResult.error.message);
                     }
                     const { data: urlData } = sb.storage.from('documents').getPublicUrl(filePath);
                     documentUrl = urlData?.publicUrl || null;
                     console.log('   画像URL:', documentUrl);
                 } else {
-                    console.log('3. 画像ファイルなし（スキップ）');
-                    console.log('4. 画像アップロードスキップ');
+                    console.log('3-4. 画像ファイルなし（スキップ）');
                 }
 
-                // shops テーブルを更新（email_pendingレコードをregisteredに昇格）
+                // shops テーブルを更新
                 const payload = {
                     email:            userEmail,
+                    auth_user_id:     userId,
                     shop_name:        name,
                     gender_mode:      genre,
                     shop_url:         url || null,
@@ -495,24 +544,38 @@
                 };
                 console.log('5. shopsテーブルupsert開始', payload);
                 const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
-                console.log('6. shopsテーブルupsert結果:', result);
+                console.log('6. shopsテーブルupsert結果:', JSON.stringify(result));
                 if (result.error) {
-                    console.error('upsert error:', result.error);
-                    // よくある原因をチェック
-                    const msg = result.error.message || '';
-                    if (msg.includes('column') || msg.includes('42703')) {
-                        console.error('>>> カラム名がテーブルと一致していません。shop_name, gender_mode, shop_tel, document_url カラムをshopsテーブルに追加してください。');
-                    }
-                    if (msg.includes('policy') || msg.includes('42501') || msg.includes('permission')) {
-                        console.error('>>> RLSポリシーでINSERT/UPDATEが許可されていません。shopsテーブルにpublic_insert / public_update ポリシーを追加してください。');
-                    }
-                    if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505')) {
-                        console.error('>>> emailのUNIQUE制約で重複エラーです。同じメールで再登録する場合はupsertが必要です。');
-                    }
-                    throw new Error('登録エラー: ' + msg);
+                    console.error('upsert詳細エラー:', JSON.stringify(result.error));
+                    throw new Error('登録エラー: ' + (result.error.message || JSON.stringify(result.error)));
                 }
 
-                console.log('7. 登録完了！');
+                // 7. 保存を検証（RLSサイレント失敗対策）
+                console.log('7. 保存検証中...');
+                const { data: verify, error: verifyErr } = await sb.from('shops')
+                    .select('id,email,shop_name,status')
+                    .eq('email', userEmail)
+                    .single();
+                console.log('8. 保存検証結果:', JSON.stringify(verify), verifyErr ? JSON.stringify(verifyErr) : 'OK');
+                if (verifyErr || !verify) {
+                    console.error('保存検証失敗: データがテーブルに存在しません');
+                    throw new Error('登録に失敗しました。もう一度お試しください。');
+                }
+                if (verify.status !== 'registered') {
+                    console.error('保存検証失敗: statusが更新されていません:', verify.status);
+                    throw new Error('登録に失敗しました。もう一度お試しください。');
+                }
+
+                console.log('9. 登録完了！');
+
+                // 完了画面に登録内容を表示
+                // TODO: メール送信機能は後日実装予定（Supabase Edge Function等でサーバーサイド送信）
+                document.getElementById('done-summary').innerHTML = `
+                    <tr><th>ジャンル</th><td>${esc(GENRE_LABELS[genre] || genre)}</td></tr>
+                    <tr><th>店舗名</th><td>${esc(name)}</td></tr>
+                    <tr><th>メール</th><td>${esc(userEmail)}</td></tr>
+                    <tr><th>電話番号</th><td>${esc(tel)}</td></tr>
+                    <tr><th>URL</th><td>${esc(url)}</td></tr>`;
                 showStep('done');
             } catch (e) {
                 console.error('登録エラー catch:', e);
