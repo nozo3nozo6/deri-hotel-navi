@@ -207,6 +207,7 @@
         <div class="f-group">
             <label class="f-label">店舗名<span class="req">*</span></label>
             <input type="text" id="shop-name" class="f-input" placeholder="例: エステート新宿">
+            <div style="font-size:12px;color:#888;margin-top:5px;">※届出確認書に記載の名称を入力してください</div>
         </div>
         <div class="f-group">
             <label class="f-label">店舗URL<span class="req">*</span></label>
@@ -227,10 +228,7 @@
         </div>
         <div class="f-group">
             <label class="f-label">無店舗型性風俗特殊営業届出確認書<span class="req">*</span></label>
-            <div class="file-zone" id="file-zone" onclick="document.getElementById('shop-doc').click()"
-                 ondragover="event.preventDefault();this.classList.add('dragover')"
-                 ondragleave="this.classList.remove('dragover')"
-                 ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event)">
+            <div class="file-zone" id="file-zone" onclick="document.getElementById('shop-doc').click()">
                 <input type="file" id="shop-doc" accept="image/*" onchange="onFileSelect(this)">
                 <div id="file-zone-inner">
                     <div class="file-zone-icon">📄</div>
@@ -366,17 +364,6 @@
             if (input.files[0]) setFile(input.files[0]);
         }
 
-        function handleDrop(e) {
-            const file = e.dataTransfer.files[0];
-            if (file && file.type.startsWith('image/')) {
-                setFile(file);
-                // inputにもセット
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                document.getElementById('shop-doc').files = dt.files;
-            }
-        }
-
         function setFile(file) {
             _selectedFile = file;
             document.getElementById('file-zone-inner').style.display = 'none';
@@ -444,9 +431,11 @@
             btn.textContent = '送信中...';
 
             try {
-                const { data: { session } } = await sb.auth.getSession();
+                const { data: { session }, error: sessErr } = await sb.auth.getSession();
+                if (sessErr) console.error('[submitRegistration] getSession error:', sessErr);
                 if (!session) throw new Error('セッションが切れました。ページをリロードしてください。');
                 const userEmail = session.user.email;
+                console.log('[submitRegistration] session OK, email:', userEmail);
 
                 const genre = document.getElementById('shop-gender').value;
                 const name = document.getElementById('shop-name').value.trim();
@@ -456,35 +445,76 @@
                 const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
 
                 // Storage にアップロード（shop-licenses バケット）
-                const ext = docFile.name.split('.').pop().toLowerCase();
-                const filePath = `${session.user.id}/${Date.now()}.${ext}`;
-                const { error: uploadErr } = await sb.storage
-                    .from('shop-licenses')
-                    .upload(filePath, docFile, { upsert: false });
-                if (uploadErr) throw new Error('書類アップロードエラー: ' + uploadErr.message);
-
-                const { data: urlData } = sb.storage.from('shop-licenses').getPublicUrl(filePath);
+                let documentUrl = null;
+                if (docFile) {
+                    const ext = docFile.name.split('.').pop().toLowerCase();
+                    const filePath = `${session.user.id}/${Date.now()}.${ext}`;
+                    console.log('[submitRegistration] uploading to:', filePath);
+                    const { error: uploadErr } = await sb.storage
+                        .from('shop-licenses')
+                        .upload(filePath, docFile, { upsert: false });
+                    if (uploadErr) {
+                        console.error('[submitRegistration] upload error:', uploadErr);
+                        throw new Error('書類アップロードエラー: ' + uploadErr.message);
+                    }
+                    const { data: urlData } = sb.storage.from('shop-licenses').getPublicUrl(filePath);
+                    documentUrl = urlData?.publicUrl || null;
+                    console.log('[submitRegistration] upload OK, url:', documentUrl);
+                }
 
                 // shops テーブルを更新（email_pendingレコードをregisteredに昇格）
-                const { error: insertErr } = await sb.from('shops').upsert({
+                const payload = {
                     email:            userEmail,
                     shop_name:        name,
                     gender_mode:      genre,
                     shop_url:         url || null,
                     shop_tel:         tel || null,
                     password_hash:    btoa(pw),
-                    document_url:     urlData?.publicUrl || null,
+                    document_url:     documentUrl,
                     status:           'registered',
-                }, { onConflict: 'email' });
-                if (insertErr) throw new Error('登録エラー: ' + insertErr.message);
+                };
+                console.log('[submitRegistration] upsert payload:', payload);
+                const { error: insertErr } = await sb.from('shops').upsert(payload, { onConflict: 'email' });
+                if (insertErr) {
+                    console.error('[submitRegistration] upsert error:', insertErr);
+                    throw new Error('登録エラー: ' + insertErr.message);
+                }
 
+                console.log('[submitRegistration] success');
                 showStep('done');
             } catch (e) {
+                console.error('[submitRegistration] catch:', e);
                 showErr('confirm-err', e.message);
                 btn.disabled = false;
                 btn.textContent = '登録する';
             }
         }
+        // ========== ドラッグ&ドロップ ==========
+        (function initDragDrop() {
+            const dropArea = document.getElementById('file-zone');
+            if (!dropArea) return;
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => { dropArea.classList.add('dragover'); });
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, () => { dropArea.classList.remove('dragover'); });
+            });
+            dropArea.addEventListener('drop', (e) => {
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    setFile(file);
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    document.getElementById('shop-doc').files = dt.files;
+                }
+            });
+        })();
     </script>
 </body>
 </html>
