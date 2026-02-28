@@ -1,40 +1,81 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>デリ呼ぶホテル検索</title>
+    <title>デリヘル呼べるホテル検索 | Deri Hotel Navi</title>
+    <meta name="description" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテル・ビジネスホテルのデリヘル入室情報・女風呼べる情報をエリア別に確認できます。">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://derihotelnavi.com/">
+
+    <!-- OGP -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="デリヘル呼べるホテル検索 | Deri Hotel Navi">
+    <meta property="og:description" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテルの入室情報を確認。">
+    <meta property="og:url" content="https://derihotelnavi.com/">
+    <meta property="og:site_name" content="Deri Hotel Navi">
+    <meta property="og:locale" content="ja_JP">
+    <meta name="twitter:card" content="summary">
+
+    <!-- ✅ Google Fonts（portal.htmlと同じセット） -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="./style.css">
 </head>
 <body class="gate-page">
 
+    <!-- ✅ .lang-btn クラスを追加（portal.htmlと同じスタイルが当たる） -->
     <div class="lang-switcher">
-        <button onclick="changeLang('ja')">JP</button>
-        <button onclick="changeLang('en')">EN</button>
-        <button onclick="changeLang('zh')">CN</button>
-        <button onclick="changeLang('ko')">KR</button>
+        <button onclick="changeLang('ja')" class="lang-btn active">JP</button>
+        <button onclick="changeLang('en')" class="lang-btn">EN</button>
+        <button onclick="changeLang('zh')" class="lang-btn">CN</button>
+        <button onclick="changeLang('ko')" class="lang-btn">KR</button>
     </div>
 
     <div class="gate-container">
         <div class="gate-header">
-            <h1 class="site-logo">🏨 <span data-lang="title">デリ呼ぶホテル検索</span></h1>
+            <!-- ✅ portal.htmlのロゴと同じ構造に統一 -->
+            <h1 class="site-logo">
+                <span class="logo-text">Deri <em>Hotel</em> Navi</span>
+            </h1>
             <p class="tagline" data-lang="tagline">全国エリア別・呼べるホテル検索</p>
         </div>
 
         <div class="selection-box">
             <p class="verification-text" data-lang="select_mode">ご利用のモードを選択してください</p>
-            
+
             <button class="btn-gate btn-men" onclick="entry('men')">
-                <span data-lang="men_btn">男性用（デリ呼ぶ）入口</span>
+                <span data-lang="men_btn">♂ 男性用（デリヘルを呼ぶ）</span>
             </button>
 
             <button class="btn-gate btn-women" onclick="entry('women')">
-                <span data-lang="women_btn">女性用（女風呼ぶ）入口</span>
+                <span data-lang="women_btn">♀ 女性用（女風を呼ぶ）</span>
             </button>
 
-            <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
+            <button class="btn-gate btn-shop-gate" onclick="toggleSamePanel()" id="btn-same-toggle">
+                <span>⚧ 同性利用</span>
+            </button>
 
-            <button class="btn-gate btn-shop-gate" onclick="location.href='shop.html'">
+            <!-- サブ選択パネル（max-height スライドアニメーション） -->
+            <div id="same-panel" style="max-height:0;overflow:hidden;transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1);">
+                <div style="margin-top:8px;padding:14px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;">
+                    <p style="font-size:12px;color:var(--text-3);text-align:center;margin:0 0 12px 0;">どちらの利用ですか？</p>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn-gate btn-women" onclick="entry('women_same')" style="flex:1;font-size:13px;padding:13px 8px;">
+                            ♀ ♀ 女性同士
+                        </button>
+                        <button class="btn-gate btn-men" onclick="entry('men_same')" style="flex:1;font-size:13px;padding:13px 8px;">
+                            ♂ ♂ 男性同士
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="margin: 25px 0; border: 0; border-top: 1px solid var(--border);">
+
+            <button class="btn-gate btn-shop-gate" onclick="location.href='shop-register.html'">
                 <span data-lang="shop_btn">店舗様・掲載用はこちら</span>
             </button>
         </div>
@@ -43,8 +84,24 @@
     <script src="app.js"></script>
     <script>
         function entry(mode) {
-            sessionStorage.setItem('session_mode', mode);
-            location.href = 'portal.html';
+            location.href = 'portal.html?mode=' + mode;
+        }
+
+        function toggleSamePanel() {
+            const panel = document.getElementById('same-panel');
+            const btn = document.getElementById('btn-same-toggle');
+            const isOpen = panel.dataset.open === 'true';
+            if (isOpen) {
+                panel.style.maxHeight = '0';
+                panel.dataset.open = 'false';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+            } else {
+                panel.style.maxHeight = panel.scrollHeight + 'px';
+                panel.dataset.open = 'true';
+                btn.style.borderColor = 'rgba(130,100,180,0.5)';
+                btn.style.color = '#8264b4';
+            }
         }
     </script>
 </body>

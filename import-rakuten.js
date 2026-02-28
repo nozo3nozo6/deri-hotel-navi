@@ -1,125 +1,202 @@
-/**
- * 楽天トラベルAPI 全自動インポートツール（2026年最新版・先生最終修正）
- * - 楽天の正しい4階層（Middle → Small → Detail）を自動取得
- * - 電話番号重複チェック付き
- * - region（11地方）自動判定
- * - レート制限回避 + エラー耐性強化
- */
+const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
 
-const RAKUTEN_APP_ID = '18c62ced-24a7-4c8b-9917-b41d6ae300fe';   // ← あなたのIDに変更
-const RAKUTEN_ACCESS_KEY = 'pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J'; // ← あなたのキー
+const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
+const SUPABASE_KEY = 'sb_secret_YTSjsm66P67WKiuXEEVIig_3NyBMHTl';
+const RAKUTEN_APP_ID = '18c62ced-24a7-4c8b-9917-b41d6ae300fe';
+const RAKUTEN_ACCESS_KEY = 'pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J';
 
-const supabaseClient = supabase.createClient(
-    'https://ojkhwbvoaiaqekxrbpdd.supabase.co',
-    'sb_secret_YTSjsm66P67WKiuXEEVIig_3NyBMHTl'   // Service Role Key（秘密鍵）推奨
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const WAIT_TIME = 2000;
+const RETRY_WAIT = 5000; // 503エラー時のリトライ待機（5秒）
+const MAX_RETRY = 3;     // 最大リトライ回数
 
-const WAIT_TIME = 1200; // 1.2秒待機（レート制限回避）
+const HEADERS = {
+    'Referer': 'https://deri-hotel-navi.vercel.app',
+    'Origin': 'https://deri-hotel-navi.vercel.app',
+    'Authorization': 'Bearer pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J'
+};
 
-// 11地方自動判定
-function getRegion(middleCode) {
-    const map = {
-        "1": "北海道", "2":"東北","3":"東北","4":"東北","5":"東北","6":"東北","7":"東北",
-        "8":"関東","9":"関東","10":"関東","11":"関東","12":"関東","13":"関東","14":"関東",
-        "15":"北陸","16":"北陸","17":"北陸",
-        "18":"甲信越","19":"甲信越","20":"甲信越",
-        "21":"東海","22":"東海","23":"東海","24":"東海",
-        "25":"関西","26":"関西","27":"関西","28":"関西","29":"関西","30":"関西",
-        "31":"中国","32":"中国","33":"中国","34":"中国","35":"中国",
-        "36":"四国","37":"四国","38":"四国","39":"四国",
-        "40":"九州","41":"九州","42":"九州","43":"九州","44":"九州","45":"九州","46":"九州",
-        "47":"沖縄"
-    };
-    return map[middleCode] || "その他";
-}
-
-// 電話番号お掃除
-function cleanTel(tel) {
-    return tel ? tel.replace(/\D/g, '') : null;
-}
+const REGION_MAP = {
+    "hokkaido": "北海道",
+    "aomori": "東北", "iwate": "東北", "miyagi": "東北", "akita": "東北", "yamagata": "東北", "fukushima": "東北",
+    "ibaraki": "関東", "tochigi": "関東", "gunma": "関東", "saitama": "関東", "chiba": "関東", "tokyo": "関東", "kanagawa": "関東",
+    "niigata": "中部", "toyama": "中部", "ishikawa": "中部", "fukui": "中部", "yamanashi": "中部", "nagano": "中部", "gifu": "中部", "shizuoka": "中部", "aichi": "中部",
+    "mie": "近畿", "shiga": "近畿", "kyoto": "近畿", "osaka": "近畿", "hyogo": "近畿", "nara": "近畿", "wakayama": "近畿",
+    "tottori": "中国", "shimane": "中国", "okayama": "中国", "hiroshima": "中国", "yamaguchi": "中国",
+    "tokushima": "四国", "kagawa": "四国", "ehime": "四国", "kochi": "四国",
+    "fukuoka": "九州", "saga": "九州", "nagasaki": "九州", "kumamoto": "九州", "oita": "九州", "miyazaki": "九州", "kagoshima": "九州",
+    "okinawa": "沖縄"
+};
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ==================== メイン関数 ====================
-async function runFullImport() {
-    console.log("🚀 楽天トラベル 全自動インポート開始");
+function detectHotelType(name) {
+    if (!name) return 'other';
+    if (/旅館|温泉|湯|宿|荘|館/.test(name)) return 'ryokan';
+    if (/ペンション/.test(name)) return 'pension';
+    if (/民宿/.test(name)) return 'minshuku';
+    if (/リゾート/.test(name)) return 'resort';
+    if (/ゲストハウス|ホステル|カプセル/.test(name)) return 'other';
+    if (/東横イン|アパホテル|ルートイン|スーパーホテル|ドーミーイン|コンフォート|ホテルリブマックス|ビジネス|イン|[Ii]nn/.test(name)) return 'business';
+    if (/ホテル/.test(name)) return 'city';
+    return 'other';
+}
 
-    // エリアマスタ取得（最新バージョン）
-    const areaRes = await fetch(`https://openapi.rakuten.co.jp/engine/api/Travel/GetAreaClass/20140210?applicationId=${RAKUTEN_APP_ID}&accessKey=${RAKUTEN_ACCESS_KEY}&format=json&formatVersion=2`);
-    const areaData = await areaRes.json();
+function extractCity(address) {
+    if (!address) return null;
+    const match = address.match(/(?:都|道|府|県)([^0-9０-９\-－\s]{1,10}?[市区町村郡])/);
+    return match ? match[1] : null;
+}
 
-    const middleClasses = areaData.items[0].middleClasses;
+// リトライ付きAPIリクエスト
+async function rakutenRequest(params, retry = 0) {
+    try {
+        const res = await axios.get(
+            'https://openapi.rakuten.co.jp/engine/api/Travel/SimpleHotelSearch/20170426',
+            { params, headers: HEADERS }
+        );
+        return res;
+    } catch (err) {
+        const code = err.response?.data?.errors?.errorCode || err.response?.status;
+        const isRetryable = code === 503 || code === 429 || code === 500;
 
-    for (const m of middleClasses) {
-        const region = getRegion(m.middleClassCode);
-        const prefecture = m.middleClassName;
+        if (isRetryable && retry < MAX_RETRY) {
+            const wait = RETRY_WAIT * (retry + 1); // 5秒→10秒→15秒
+            console.log(`  ⚠️  エラー${code} — ${wait/1000}秒後にリトライ (${retry + 1}/${MAX_RETRY})...`);
+            await sleep(wait);
+            return rakutenRequest(params, retry + 1);
+        }
+        throw err;
+    }
+}
 
-        console.log(`📍 ${region} - ${prefecture} を処理中...`);
+async function syncAllJapan() {
+    console.log('🇯🇵 【全国制覇モード】ホテル収集を開始します...');
+    try {
+        const areaRes = await axios.get(
+            'https://openapi.rakuten.co.jp/engine/api/Travel/GetAreaClass/20140210',
+            {
+                params: { applicationId: RAKUTEN_APP_ID, accessKey: RAKUTEN_ACCESS_KEY, format: 'json' },
+                headers: HEADERS
+            }
+        );
 
-        for (const s of m.smallClasses) {
-            const majorArea = s.smallClassName;
-            const smallCode = s.smallClassCode;
+        const middleClasses = areaRes.data.areaClasses.largeClasses[0].largeClass.middleClasses;
+        console.log(`📍 全${middleClasses.length}都道府県を順次取得します。\n`);
 
-            if (s.detailClasses && s.detailClasses.length > 0) {
-                for (const d of s.detailClasses) {
-                    await fetchAndSave(region, prefecture, majorArea, d.detailClass.detailClassName, 
-                                      m.middleClassCode, smallCode, d.detailClass.detailClassCode);
+        for (const middleObj of middleClasses) {
+            const pref = middleObj.middleClass;
+            const prefCode = pref.middleClassCode;
+            const prefName = pref.middleClassName;
+            const region = REGION_MAP[prefCode] || 'その他';
+
+            console.log(`\n==============\n🗾 ${region} - ${prefName}\n==============`);
+
+            const smallClasses = pref.smallClasses || [];
+
+            for (const smallObj of smallClasses) {
+                const city = smallObj.smallClass;
+                const cityCode = city.smallClassCode;
+                const cityName = city.smallClassName;
+                const detailClasses = city.detailClasses || [];
+
+                if (detailClasses.length > 0) {
+                    for (const detailObj of detailClasses) {
+                        const detail = detailObj.detailClass;
+                        const detailCode = detail.detailClassCode;
+                        const detailName = detail.detailClassName;
+                        process.stdout.write(`  🔎 ${cityName}/${detailName} のホテルを検索中... `);
+                        const count = await fetchAndSave(region, prefName, prefCode, cityName, cityCode, detailCode, detailName);
+                        if (count > 0) console.log(`=> ✅ ${count}軒 追加`);
+                        else console.log(`=> ☁️ なし`);
+                        await sleep(WAIT_TIME);
+                    }
+                } else {
+                    process.stdout.write(`  🔎 ${cityName} のホテルを検索中... `);
+                    const count = await fetchAndSave(region, prefName, prefCode, cityName, cityCode, null, null);
+                    if (count > 0) console.log(`=> ✅ ${count}軒 追加`);
+                    else console.log(`=> ☁️ なし`);
                     await sleep(WAIT_TIME);
                 }
-            } else {
-                await fetchAndSave(region, prefecture, majorArea, majorArea, 
-                                  m.middleClassCode, smallCode, null);
-                await sleep(WAIT_TIME);
             }
         }
+        console.log('\n🎉🎉🎉 日本全国のホテルデータ同期が完了しました！ 🎉🎉🎉');
+    } catch (err) {
+        console.error('\n❌ 致命的エラー:', err.response?.data || err.message);
     }
-
-    console.log("🎉 全インポートが完了しました！");
 }
 
-// ==================== ホテル取得＆保存 ====================
-async function fetchAndSave(region, prefecture, majorArea, city, mCode, sCode, dCode) {
-    let url = `https://openapi.rakuten.co.jp/engine/api/Travel/SimpleHotelSearch/20170426?` +
-              `applicationId=${RAKUTEN_APP_ID}&accessKey=${RAKUTEN_ACCESS_KEY}&format=json` +
-              `&largeClassCode=japan&middleClassCode=${mCode}&smallClassCode=${sCode}`;
-
-    if (dCode) url += `&detailClassCode=${dCode}`;
-
+async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, detailCode, detailName) {
     try {
-        const res = await fetch(url);
-        const data = await res.json();
+        let page = 1;
+        let totalSaved = 0;
 
-        const hotels = (data.hotels || []).map(h => {
-            const info = h.hotel[0].hotelBasicInfo;
-            return {
-                rakuten_hotel_no: info.hotelNo.toString(),
-                name: info.hotelName,
-                address: (info.address1 || '') + (info.address2 || ''),
-                tel: cleanTel(info.telephoneNo),
-                postal_code: info.postalCode,
-                region: region,
-                prefecture: prefecture,
-                major_area: majorArea,
-                city: city,
-                thumbnail_url: info.hotelThumbnailUrl,
-                hotel_url: info.hotelInformationUrl,
-                rakuten_id: info.hotelNo,
-                lat: parseFloat(info.latitude),
-                lng: parseFloat(info.longitude)
+        while (true) {
+            const params = {
+                applicationId: RAKUTEN_APP_ID,
+                accessKey: RAKUTEN_ACCESS_KEY,
+                format: 'json',
+                largeClassCode: 'japan',
+                middleClassCode: prefCode,
+                smallClassCode: cityCode,
+                hits: 30,
+                page: page,
+                datumType: 1
             };
-        });
+            if (detailCode) params.detailClassCode = detailCode;
 
-        if (hotels.length > 0) {
-            const { error } = await supabaseClient.from('hotels').upsert(hotels, { 
-                onConflict: 'tel' 
-            });
-            if (error) console.error(`❌ 保存エラー (${city}):`, error.message);
-            else console.log(`✅ ${city} : ${hotels.length}件 保存完了`);
+            const res = await rakutenRequest(params); // リトライ付き
+
+            const hotels = res.data.hotels || [];
+            if (hotels.length === 0) break;
+
+            for (const h of hotels) {
+                const info = h.hotel[0]?.hotelBasicInfo;
+                if (!info) continue;
+
+                const address = (info.address1 || '') + (info.address2 || '');
+
+                const { error } = await supabase.from('hotels').upsert({
+                    rakuten_hotel_no: String(info.hotelNo),
+                    name: info.hotelName,
+                    address: address,
+                    tel: info.telephoneNo,
+                    postal_code: info.postalCode,
+                    region: region,
+                    prefecture: prefecture,
+                    major_area: majorArea,
+                    city: extractCity(address),
+                    detail_area: detailName || null,
+                    detail_area_code: detailCode || null,
+                    latitude: parseFloat(info.latitude),
+                    longitude: parseFloat(info.longitude),
+                    thumbnail_url: info.hotelThumbnailUrl,
+                    hotel_url: info.hotelInformationUrl,
+                    nearest_station: info.nearestStation,
+                    image_url: info.hotelImageUrl,
+                    review_average: info.reviewAverage ? parseFloat(info.reviewAverage) : null,
+                    min_charge: info.hotelMinCharge ? parseInt(info.hotelMinCharge) : null,
+                    hotel_type: detectHotelType(info.hotelName)
+                }, { onConflict: 'rakuten_hotel_no' });
+
+                if (error) console.error('  💥 保存エラー:', error.message);
+            }
+
+            totalSaved += hotels.length;
+
+            const pageInfo = res.data.pagingInfo;
+            if (!pageInfo || page >= pageInfo.pageCount) break;
+
+            page++;
+            await sleep(WAIT_TIME);
         }
-    } catch (e) {
-        console.error(`APIエラー (${city}):`, e);
+
+        return totalSaved;
+    } catch (err) {
+        console.error(`  ❌ エラー (リトライ上限):`, err.response?.data || err.message);
+        return 0;
     }
 }
 
-// ==================== 実行ボタン用 ====================
-window.runFullImport = runFullImport;
+syncAllJapan();

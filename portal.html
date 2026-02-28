@@ -1,49 +1,343 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>エリア検索 | デリ呼ぶホテル検索</title>
+
+    <!-- SEO: modeに応じてJSで書き換え -->
+    <title id="page-title">デリヘル呼べるホテル検索 | エリアから探す | Deri Hotel Navi</title>
+    <meta name="description" id="page-desc" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテル・ビジネスホテルのデリヘル入室情報・女風呼べる情報をエリア別に確認できます。">
+    <meta name="keywords" content="デリヘル 呼べる ホテル 地域,デリヘル 入れる ホテル 検索,出張デリヘル ホテル,デリヘル ラブホ,デリヘル シティホテル,デリヘル ビジネスホテル,女風 呼べる ホテル,女性用風俗 ホテル 入室,女風 出張 ホテル,ホテル デリヘル 入り方,カードキー デリヘル,直通 デリヘル ホテル,フロント相談 デリヘル">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://derihotelnavi.com/portal.html">
+
+    <!-- OGP -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" id="og-title" content="デリヘル呼べるホテル検索 | Deri Hotel Navi">
+    <meta property="og:description" id="og-desc" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテルの入室情報を確認。">
+    <meta property="og:url" content="https://derihotelnavi.com/portal.html">
+    <meta property="og:site_name" content="Deri Hotel Navi">
+    <meta property="og:locale" content="ja_JP">
+    <meta name="twitter:card" content="summary">
+
+    <!-- 構造化データ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Deri Hotel Navi - ホテル検索",
+      "url": "https://derihotelnavi.com/portal.html",
+      "description": "デリヘル・女性用風俗をホテルに呼べるか調べられる全国ホテル情報検索サービス",
+      "applicationCategory": "LifestyleApplication",
+      "inLanguage": "ja",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="portal-page">
 
-<header>
-    <div class="header-main">
-        <h1 id="dynamic-title" data-lang="select_area">エリアを選択してください</h1>
-        <button onclick="location.href='index.html'" class="btn-back" data-lang="back">戻る</button>
+<header class="portal-header">
+    <div class="header-inner">
+        <!-- ゲートへ戻る（おしゃれボタン） -->
+        <button onclick="location.href='index.html'" class="btn-to-gate">
+            <span class="btn-gate-icon">⛩</span>
+            <span class="btn-gate-text">ゲートへ</span>
+        </button>
+
+        <div class="header-logo">
+            <span class="logo-text">Deri <em>Hotel</em> Navi</span><span id="mode-badge" class="mode-badge"></span>
+        </div>
+
+        <div class="lang-buttons">
+            <button onclick="changeLang('ja')" class="lang-btn active">JP</button>
+            <button onclick="changeLang('en')" class="lang-btn">EN</button>
+            <button onclick="changeLang('zh')" class="lang-btn">CN</button>
+            <button onclick="changeLang('ko')" class="lang-btn">KR</button>
+        </div>
     </div>
-    <div class="lang-switcher-mini">
-        <button onclick="changeLang('ja')">JP</button>
-        <button onclick="changeLang('en')">EN</button>
-        <button onclick="changeLang('zh')">CN</button>
-        <button onclick="changeLang('ko')">KR</button>
-    </div>
+    <!-- 男性/女性専用バー -->
+    <div class="mode-title-bar" id="mode-title-bar"></div>
 </header>
 
-<section id="map-navigation" class="map-nav-section">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h2 id="map-label" class="section-label" style="margin:0;" data-lang="region_select">地域を選択</h2>
-        <button id="btn-map-back" onclick="backLevel()" style="display:none;" data-lang="back_level">一つ前に戻る</button>
+<!-- エリア選択 -->
+<section class="area-section">
+    <!-- パンくず -->
+    <div class="breadcrumb" id="breadcrumb">
+        <span class="breadcrumb-item active">日本全国</span>
     </div>
-    <div class="japan-map-container">
-        <div id="map-button-container" class="map-grid"></div>
+
+    <!-- タイトル行：タイトル＋「1つ前へ」ボタン -->
+    <div class="area-header">
+        <h2 id="area-title">地域を選択</h2>
+        <!-- 1つ前へ戻るボタン（初期非表示） -->
+        <button id="btn-area-back" class="btn-area-back" onclick="backLevel()">
+            <span class="back-arrow">←</span>
+            <span class="back-text">前へ</span>
+        </button>
     </div>
+
+    <div id="area-button-container" class="area-grid"></div>
 </section>
 
-<div id="current-level" style="padding:12px 15px; background:#f0f9fb; margin:0 15px 15px; border-radius:12px; font-weight:bold; text-align:center;">
-    現在: 日本全国
+<!-- 検索ツール（1行レイアウト） -->
+<div class="search-tools">
+
+    <!-- ① 現在地ボタン -->
+    <button class="btn-location" id="btn-location" onclick="searchByLocation()">
+        <span class="btn-location-icon">📍</span>
+        <span class="btn-location-label">現在地</span>
+    </button>
+
+    <!-- ② ホテル名検索 -->
+    <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input
+            type="text"
+            id="keyword"
+            class="search-input-lux"
+            placeholder="ホテル名で検索..."
+            oninput="fetchHotelsFromSearch()"
+        >
+        <button class="search-clear" onclick="clearSearch()" id="search-clear-btn" style="display:none;">✕</button>
+    </div>
+
+    <!-- ③ 最寄駅検索 -->
+    <div class="station-search-wrapper">
+        <span class="station-icon">🚉</span>
+        <input
+            type="text"
+            id="station-input"
+            class="station-input"
+            placeholder="最寄駅で検索..."
+            oninput="fetchHotelsByStation()"
+        >
+    </div>
+
+    <!-- ④ 未掲載ホテル情報提供 -->
+    <button class="btn-add-hotel" onclick="openHotelRequestModal()">
+        <span class="btn-add-hotel-icon">🏨</span>
+        <span class="btn-add-hotel-label">
+            <span class="label-full">未掲載ホテル<br>情報提供</span>
+            <span class="label-short">未掲載</span>
+        </span>
+    </button>
+
 </div>
 
-<div class="search-container">
-    <input type="text" id="keyword" class="search-input" placeholder="地域名やホテル名を入力..." oninput="fetchHotels()" data-lang-placeholder="search_placeholder">
+<div id="result-status" class="result-status" style="display:none;"></div>
+
+<div id="hotel-list" class="hotel-list-container">
+    <div class="empty-state">
+        <div class="empty-icon">🗾</div>
+        <p class="empty-text">エリアを選択するとホテルが表示されます</p>
+    </div>
 </div>
 
-<div id="hotel-list">
-    <div class="list-placeholder" data-lang="list_placeholder">エリアを選択すると、ここにホテルが表示されます</div>
+<div id="loading-overlay" class="loading-overlay" style="display:none;">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">検索中...</p>
 </div>
 
-<script src="app.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const MODE = urlParams.get('mode') || 'men';
+    document.body.setAttribute('data-mode', MODE);
+
+    const modeBadgeLabels = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' };
+    document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
+
+    document.getElementById('mode-title-bar').style.display = 'none';
+
+    // モードに応じてtitle・descriptionを切り替え（SEO）
+    if (MODE === 'men' || MODE === 'men_same') {
+        document.title = 'デリヘル呼べるホテル検索 | 地域・エリアから探す | Deri Hotel Navi';
+        document.getElementById('page-desc').setAttribute('content',
+            'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。');
+        document.getElementById('og-title').setAttribute('content',
+            'デリヘル呼べるホテル検索 | Deri Hotel Navi');
+        document.getElementById('og-desc').setAttribute('content',
+            'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。');
+    } else {
+        document.title = '女性用風俗・女風呼べるホテル検索 | 地域から探す | Deri Hotel Navi';
+        document.getElementById('page-desc').setAttribute('content',
+            '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。');
+        document.getElementById('og-title').setAttribute('content',
+            '女性用風俗・女風呼べるホテル検索 | Deri Hotel Navi');
+        document.getElementById('og-desc').setAttribute('content',
+            '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。');
+        document.querySelector('link[rel="canonical"]').setAttribute('href',
+            'https://derihotelnavi.com/portal.html?mode=women');
+    }
+</script>
+<!-- 呼べた理由選択モーダル -->
+<!-- 呼べた理由選択モーダル -->
+<div id="can-reasons-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9990;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:#f7f5f0;border-radius:16px;padding:24px 20px 28px;width:100%;max-width:460px;max-height:82vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.22);">
+        <div style="text-align:center;margin-bottom:18px;">
+            <div style="font-size:17px;font-weight:700;color:#1a1410;">✅ 呼べた理由を選んでください</div>
+            <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">複数選択可・スキップして次へ進むこともできます</div>
+        </div>
+        <div id="can-reasons-checkboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px;max-height:46vh;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="cancelCanReasons()" style="flex:1;padding:13px;background:#f0ebe0;border:1px solid rgba(180,150,100,0.25);border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;color:#4a3a2a;">キャンセル</button>
+            <button onclick="confirmCanReasons()" style="flex:2;padding:13px;background:#c9a84c;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">決定する</button>
+        </div>
+    </div>
+</div>
+
+<!-- 呼べなかった理由選択モーダル -->
+<div id="cannot-reasons-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9990;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:#f7f5f0;border-radius:16px;padding:24px 20px 28px;width:100%;max-width:460px;max-height:82vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.22);">
+        <div style="text-align:center;margin-bottom:18px;">
+            <div style="font-size:17px;font-weight:700;color:#1a1410;">❌ 呼べなかった理由を選んでください</div>
+            <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">複数選択可・スキップして次へ進むこともできます</div>
+        </div>
+        <div id="cannot-reasons-checkboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px;max-height:46vh;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="cancelCannotReasons()" style="flex:1;padding:13px;background:#f0ebe0;border:1px solid rgba(180,150,100,0.25);border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;color:#4a3a2a;">キャンセル</button>
+            <button onclick="confirmCannotReasons()" style="flex:2;padding:13px;background:#c05050;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">決定する</button>
+        </div>
+    </div>
+</div>
+
+<!-- 投稿確認モーダル -->
+<div id="post-confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9995;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:#f7f5f0;border-radius:16px;padding:24px 20px 28px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.22);">
+        <div style="text-align:center;margin-bottom:18px;">
+            <div style="font-size:17px;font-weight:700;color:#1a1410;">📋 投稿内容の確認</div>
+            <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">内容をご確認の上、送信してください</div>
+        </div>
+        <div id="post-confirm-content"></div>
+        <div style="background:rgba(192,80,80,0.08);border:1px solid rgba(192,80,80,0.2);border-radius:10px;padding:12px 14px;margin:16px 0 20px;font-size:12px;color:#a05050;line-height:1.7;">
+            ⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="closePostConfirmModal()" style="flex:1;padding:13px;background:#f0ebe0;border:1px solid rgba(180,150,100,0.25);border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;color:#4a3a2a;">修正する</button>
+            <button onclick="doSubmitReport()" id="btn-do-submit" style="flex:2;padding:13px;background:#c9a84c;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">この内容で投稿する</button>
+        </div>
+    </div>
+</div>
+
+<!-- 投稿報告モーダル -->
+<div id="flag-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9998;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:#f7f5f0;border-radius:16px;padding:24px 20px 28px;width:100%;max-width:400px;box-shadow:0 8px 48px rgba(0,0,0,0.22);">
+        <!-- Step 1: 理由選択 + コメント（1画面） -->
+        <div id="flag-step1">
+            <div style="text-align:center;margin-bottom:18px;">
+                <div style="font-size:17px;font-weight:700;color:#1a1410;">🚩 この投稿を報告</div>
+                <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">報告理由を選択してください</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;" id="flag-reason-btns">
+                <button onclick="selectFlagReason('スパム・宣伝',this)" style="padding:12px 16px;background:var(--bg-3,#f0ebe0);border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#1a1410;text-align:left;transition:all 0.15s;">📢 スパム・宣伝</button>
+                <button onclick="selectFlagReason('虚偽情報',this)" style="padding:12px 16px;background:var(--bg-3,#f0ebe0);border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#1a1410;text-align:left;transition:all 0.15s;">❌ 虚偽情報</button>
+                <button onclick="selectFlagReason('不適切な内容',this)" style="padding:12px 16px;background:var(--bg-3,#f0ebe0);border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#1a1410;text-align:left;transition:all 0.15s;">⚠️ 不適切な内容</button>
+                <button onclick="selectFlagReason('その他',this)" style="padding:12px 16px;background:var(--bg-3,#f0ebe0);border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#1a1410;text-align:left;transition:all 0.15s;">💬 その他</button>
+            </div>
+            <div id="flag-reason-err" style="display:none;font-size:12px;color:#c05050;margin-bottom:10px;padding:8px 12px;background:rgba(192,80,80,0.08);border:1px solid rgba(192,80,80,0.2);border-radius:8px;">理由を選択してください</div>
+            <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" style="width:100%;padding:10px 12px;border:1px solid rgba(180,150,100,0.3);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;margin-bottom:10px;"></textarea>
+            <button onclick="showFlagConfirm()" style="width:100%;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">確認する →</button>
+            <button onclick="closeFlagModal()" style="width:100%;padding:12px;background:transparent;border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#8a7a6a;">キャンセル</button>
+        </div>
+        <!-- Step 2: 確認 -->
+        <div id="flag-step2" style="display:none;">
+            <div style="text-align:center;margin-bottom:18px;">
+                <div style="font-size:17px;font-weight:700;color:#1a1410;">🚩 報告内容を確認</div>
+                <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">この内容で報告しますか？</div>
+            </div>
+            <div style="background:#f0ebe0;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+                <div style="font-size:11px;color:#8a7a6a;margin-bottom:3px;">報告理由</div>
+                <div style="font-size:14px;font-weight:700;color:#1a1410;" id="flag-confirm-reason"></div>
+                <div id="flag-confirm-comment-wrap" style="display:none;margin-top:10px;">
+                    <div style="font-size:11px;color:#8a7a6a;margin-bottom:3px;">詳細コメント</div>
+                    <div style="font-size:13px;color:#4a3a2a;white-space:pre-wrap;" id="flag-confirm-comment"></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button onclick="showFlagStep1()" style="flex:1;padding:12px;background:transparent;border:1px solid rgba(180,150,100,0.25);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:#8a7a6a;">← 戻る</button>
+                <button onclick="submitFlag()" style="flex:2;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">送信する</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ホテル詳細パネル（SPA） -->
+<div id="hotel-detail-panel" style="display:none;">
+    <div id="hotel-detail-content"></div>
+</div>
+
+<!-- ホテル追加申請モーダル -->
+<div id="hotel-request-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9996;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:#f7f5f0;border-radius:16px;padding:24px 20px 28px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.22);">
+
+        <!-- Step 1: 入力 -->
+        <div id="hreq-step1">
+            <div style="text-align:center;margin-bottom:18px;">
+                <div style="font-size:17px;font-weight:700;color:#1a1410;">🏨 ホテル掲載リクエスト</div>
+                <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">掲載希望のホテル情報を入力してください</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;color:#8a7a6a;margin-bottom:4px;letter-spacing:0.4px;">ホテル名 <span style="color:#c9a84c;">*</span></label>
+                    <input id="hreq-name" type="text" placeholder="例: ホテルアルファ新宿" style="width:100%;padding:10px 12px;border:1px solid rgba(180,150,100,0.3);border-radius:10px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;color:#8a7a6a;margin-bottom:4px;letter-spacing:0.4px;">住所 <span style="color:#c9a84c;">*</span> <span style="font-weight:400;">※わかる範囲でOK</span></label>
+                    <input id="hreq-address" type="text" placeholder="例: 東京都新宿区..." style="width:100%;padding:10px 12px;border:1px solid rgba(180,150,100,0.3);border-radius:10px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;color:#8a7a6a;margin-bottom:4px;letter-spacing:0.4px;">電話番号 <span style="font-weight:400;">(任意)</span></label>
+                    <input id="hreq-tel" type="tel" placeholder="例: 03-xxxx-xxxx" style="width:100%;padding:10px 12px;border:1px solid rgba(180,150,100,0.3);border-radius:10px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:11px;font-weight:700;color:#8a7a6a;margin-bottom:4px;letter-spacing:0.4px;">ホテルタイプ</label>
+                    <select id="hreq-type" style="width:100%;padding:10px 12px;border:1px solid rgba(180,150,100,0.3);border-radius:10px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+                        <option value="business">ビジネスホテル</option>
+                        <option value="city">シティホテル</option>
+                        <option value="resort">リゾートホテル</option>
+                        <option value="ryokan">旅館</option>
+                        <option value="pension">ペンション</option>
+                        <option value="minshuku">民宿</option>
+                        <option value="other">その他</option>
+                    </select>
+                </div>
+            </div>
+            <div id="hreq-err" style="display:none;font-size:12px;color:#c05050;margin-bottom:12px;padding:8px 12px;background:rgba(192,80,80,0.08);border:1px solid rgba(192,80,80,0.2);border-radius:8px;"></div>
+            <button onclick="hreqToConfirm()" style="width:100%;padding:13px;background:#c9a84c;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">確認画面へ →</button>
+            <button onclick="closeHotelRequestModal()" style="width:100%;padding:12px;background:transparent;border:1px solid rgba(180,150,100,0.25);border-radius:12px;font-size:13px;cursor:pointer;font-family:inherit;color:#8a7a6a;">キャンセル</button>
+        </div>
+
+        <!-- Step 2: 確認 -->
+        <div id="hreq-step2" style="display:none;">
+            <div style="text-align:center;margin-bottom:18px;">
+                <div style="font-size:17px;font-weight:700;color:#1a1410;">📋 内容を確認</div>
+                <div style="font-size:12px;color:#8a7a6a;margin-top:5px;">この内容でリクエストを送信しますか？</div>
+            </div>
+            <div style="background:#f0ebe0;border-radius:10px;padding:14px 16px;margin-bottom:18px;display:flex;flex-direction:column;gap:8px;" id="hreq-confirm-body"></div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="hreqBack()" style="flex:1;padding:13px;background:#f0ebe0;border:1px solid rgba(180,150,100,0.25);border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;color:#4a3a2a;">修正する</button>
+                <button onclick="submitHotelRequest()" id="hreq-submit-btn" style="flex:2;padding:13px;background:#c9a84c;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">送信する</button>
+            </div>
+        </div>
+
+        <!-- 完了 -->
+        <div id="hreq-done" style="display:none;text-align:center;padding:20px 0;">
+            <div style="font-size:40px;margin-bottom:12px;">🎉</div>
+            <div style="font-size:17px;font-weight:700;color:#1a1410;margin-bottom:8px;">ありがとうございました！</div>
+            <div style="font-size:13px;color:#8a7a6a;margin-bottom:24px;line-height:1.7;">リクエストを受け付けました。<br>確認後、順次掲載を検討いたします。</div>
+            <button onclick="closeHotelRequestModal()" style="padding:12px 32px;background:#c9a84c;border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js?v=3"></script>
 </body>
 </html>

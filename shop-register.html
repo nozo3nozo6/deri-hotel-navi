@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>店舗様登録 | Deri Hotel Navi</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --gold: #c9a84c;
+            --gold-dim: #a08030;
+            --gold-bg: rgba(201,168,76,0.08);
+            --gold-border: rgba(201,168,76,0.25);
+            --bg: #0a0a0f;
+            --bg-2: #111118;
+            --bg-3: #1a1a24;
+            --border: rgba(255,255,255,0.08);
+            --border-s: rgba(255,255,255,0.15);
+            --text: #f0ede8;
+            --text-2: rgba(240,237,232,0.7);
+            --text-3: rgba(240,237,232,0.4);
+            --red: #c05050;
+            --green: #3a9a60;
+            --r: 10px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Noto Sans JP", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px 80px;
+        }
+        .logo {
+            font-family: "Cormorant Garamond", serif;
+            font-size: 22px;
+            font-weight: 300;
+            letter-spacing: 0.12em;
+            color: var(--gold);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .logo em { font-style: italic; font-weight: 600; }
+        .logo-sub {
+            font-size: 11px;
+            color: var(--text-3);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 36px;
+            text-align: center;
+        }
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px 32px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+        }
+        .card-title { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+        .card-sub { font-size: 12px; color: var(--text-3); margin-bottom: 28px; line-height: 1.6; }
+        .steps { display: flex; gap: 6px; margin-bottom: 28px; }
+        .step-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+        .step-dot.on { background: var(--gold); }
+        .f-group { margin-bottom: 18px; }
+        .f-label {
+            display: block; font-size: 11px; font-weight: 700; color: var(--text-3);
+            margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase;
+        }
+        .f-label .req { color: var(--gold); margin-left: 2px; }
+        .f-input {
+            width: 100%; padding: 11px 14px; background: var(--bg-3);
+            border: 1px solid var(--border); border-radius: var(--r);
+            color: var(--text); font-family: inherit; font-size: 16px;
+            outline: none; transition: border-color 0.2s; -webkit-appearance: none;
+        }
+        .f-input:focus { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+        .f-input::placeholder { color: var(--text-3); }
+        select.f-input { cursor: pointer; }
+        select.f-input option { background: #1a1a24; color: var(--text); }
+        .btn-primary {
+            width: 100%; padding: 14px; background: var(--gold); border: none;
+            border-radius: var(--r); color: #fff; font-family: inherit;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            letter-spacing: 0.8px; transition: background 0.2s, opacity 0.2s;
+            margin-top: 6px; min-height: 48px;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--gold-dim); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary {
+            width: 100%; padding: 12px; background: transparent;
+            border: 1px solid var(--border-s); border-radius: var(--r);
+            color: var(--text-2); font-family: inherit; font-size: 13px;
+            cursor: pointer; transition: border-color 0.2s; margin-top: 8px; min-height: 44px;
+        }
+        .btn-secondary:hover { border-color: var(--gold-border); color: var(--text); }
+        .err-msg {
+            display: none; font-size: 12px; color: var(--red); margin-top: 10px;
+            padding: 9px 12px; background: rgba(192,80,80,0.1);
+            border: 1px solid rgba(192,80,80,0.2); border-radius: 8px;
+        }
+        .info-box {
+            background: var(--gold-bg); border: 1px solid var(--gold-border);
+            border-radius: var(--r); padding: 14px 16px; font-size: 12px;
+            color: var(--text-2); line-height: 1.75; margin-bottom: 22px;
+        }
+        /* ファイルアップロードゾーン */
+        .file-zone {
+            border: 1.5px dashed var(--gold-border); border-radius: var(--r);
+            padding: 24px 16px; text-align: center; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s; background: var(--gold-bg);
+            position: relative;
+        }
+        .file-zone:hover, .file-zone.dragover {
+            border-color: var(--gold); background: rgba(201,168,76,0.12);
+        }
+        .file-zone input[type="file"] { display: none; }
+        .file-zone-icon { font-size: 30px; margin-bottom: 6px; }
+        .file-zone-label { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+        .file-zone-name { font-size: 12px; color: var(--gold); margin-top: 8px; font-weight: 500; }
+        .file-preview { margin-top: 10px; max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain; }
+        /* パスワード表示切替 */
+        .pw-toggle { display: flex; align-items: center; gap: 6px; margin-top: 8px; cursor: pointer; font-size: 12px; color: var(--text-3); }
+        .pw-toggle input { accent-color: var(--gold); cursor: pointer; }
+        /* 確認画面 */
+        .confirm-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+        .confirm-table th {
+            text-align: left; font-size: 11px; color: var(--text-3); font-weight: 600;
+            padding: 8px 0; border-bottom: 1px solid var(--border); width: 90px;
+            vertical-align: top; letter-spacing: 0.3px;
+        }
+        .confirm-table td {
+            font-size: 13px; padding: 8px 0 8px 12px; border-bottom: 1px solid var(--border);
+            word-break: break-all;
+        }
+        .confirm-img { max-width: 100%; max-height: 200px; border-radius: 6px; margin-top: 4px; object-fit: contain; }
+        .success-wrap { text-align: center; padding: 12px 0; }
+        .success-icon { font-size: 54px; margin-bottom: 14px; }
+        .success-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .success-sub { font-size: 13px; color: var(--text-3); line-height: 1.9; }
+        .note { font-size: 11px; color: var(--text-3); margin-top: 16px; line-height: 1.7; padding-top: 14px; border-top: 1px solid var(--border); }
+        @media (max-width: 500px) {
+            body { padding: 24px 12px 60px; }
+            .card { padding: 28px 18px; }
+            .card-title { font-size: 17px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">Deri <em>Hotel</em> Navi</div>
+    <div class="logo-sub">Shop Registration</div>
+
+    <!-- ステップ1: メールアドレス入力 -->
+    <div class="card" id="step-email">
+        <div class="card-title">店舗様登録</div>
+        <div class="card-sub">登録メールアドレスに認証リンクを送信します</div>
+        <div class="steps"><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+        <div class="f-group">
+            <label class="f-label">メールアドレス<span class="req">*</span></label>
+            <input type="email" id="reg-email" class="f-input" placeholder="shop@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendOtp()">
+        </div>
+        <div class="err-msg" id="email-err"></div>
+        <button class="btn-primary" id="send-btn" onclick="sendOtp()">認証メールを送信する</button>
+        <p class="note">※ 届いたメールのリンクをクリックすると次のステップに進みます。<br>迷惑メールフォルダもご確認ください。</p>
+    </div>
+
+    <!-- ステップ1.5: 送信完了 -->
+    <div class="card" id="step-sent" style="display:none;">
+        <div class="success-wrap">
+            <div class="success-icon">📧</div>
+            <div class="success-title">メールを送信しました</div>
+            <div class="success-sub">
+                認証メールを送信しました。<br>
+                メールのリンクをクリックして<br>
+                登録を続けてください。<br><br>
+                <span style="font-size:11px;">迷惑メールフォルダもご確認ください。</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ステップ2: 店舗情報入力 -->
+    <div class="card" id="step-form" style="display:none;">
+        <div class="card-title">店舗情報入力</div>
+        <div class="card-sub">審査後、メールにてご連絡いたします</div>
+        <div class="steps"><div class="step-dot on"></div><div class="step-dot on"></div><div class="step-dot"></div></div>
+        <div class="info-box">
+            📋 審査には通常2〜3営業日かかります。承認後にポータル画面への掲載が開始されます。<br>
+            虚偽の情報や不正な書類は審査不通過となります。
+        </div>
+        <div class="f-group">
+            <label class="f-label">店舗ジャンル<span class="req">*</span></label>
+            <select id="shop-gender" class="f-input">
+                <option value="men">男性向け（デリヘル）</option>
+                <option value="women">女性向け（女性用風俗）</option>
+                <option value="men_same">男性同士向け</option>
+                <option value="women_same">女性同士向け</option>
+            </select>
+        </div>
+        <div class="f-group">
+            <label class="f-label">店舗名<span class="req">*</span></label>
+            <input type="text" id="shop-name" class="f-input" placeholder="例: エステート新宿">
+        </div>
+        <div class="f-group">
+            <label class="f-label">店舗URL<span class="req">*</span></label>
+            <input type="url" id="shop-url" class="f-input" placeholder="https://...">
+        </div>
+        <div class="f-group">
+            <label class="f-label">電話番号<span class="req">*</span></label>
+            <input type="tel" id="shop-tel" class="f-input" placeholder="00-0000-0000">
+        </div>
+        <div class="f-group">
+            <label class="f-label">パスワード<span class="req">*</span></label>
+            <input type="password" id="shop-pw" class="f-input" placeholder="8文字以上" autocomplete="new-password">
+        </div>
+        <div class="f-group">
+            <label class="f-label">パスワード（確認）<span class="req">*</span></label>
+            <input type="password" id="shop-pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password">
+            <label class="pw-toggle"><input type="checkbox" onchange="togglePwVis(this.checked)"> パスワードを表示</label>
+        </div>
+        <div class="f-group">
+            <label class="f-label">無店舗型性風俗特殊営業届出確認書<span class="req">*</span></label>
+            <div class="file-zone" id="file-zone" onclick="document.getElementById('shop-doc').click()"
+                 ondragover="event.preventDefault();this.classList.add('dragover')"
+                 ondragleave="this.classList.remove('dragover')"
+                 ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event)">
+                <input type="file" id="shop-doc" accept="image/*" onchange="onFileSelect(this)">
+                <div id="file-zone-inner">
+                    <div class="file-zone-icon">📄</div>
+                    <div class="file-zone-label">
+                        タップまたはドラッグ&amp;ドロップで選択<br>
+                        <span style="font-size:11px;color:var(--text-3);">画像ファイル（JPG / PNG）</span>
+                    </div>
+                </div>
+                <div id="file-preview-wrap" style="display:none;">
+                    <img id="file-preview-img" class="file-preview" alt="プレビュー">
+                    <div class="file-zone-name" id="file-name-disp"></div>
+                </div>
+            </div>
+        </div>
+        <div class="err-msg" id="form-err"></div>
+        <button class="btn-primary" onclick="goToConfirm()">確認画面へ進む</button>
+    </div>
+
+    <!-- ステップ3: 確認画面 -->
+    <div class="card" id="step-confirm" style="display:none;">
+        <div class="card-title">入力内容の確認</div>
+        <div class="card-sub">以下の内容で登録します。よろしいですか？</div>
+        <div class="steps"><div class="step-dot on"></div><div class="step-dot on"></div><div class="step-dot on"></div></div>
+        <div id="confirm-body"></div>
+        <div class="err-msg" id="confirm-err"></div>
+        <button class="btn-primary" id="submit-btn" onclick="submitRegistration()">登録する</button>
+        <button class="btn-secondary" onclick="backToForm()">← 修正する</button>
+    </div>
+
+    <!-- ステップ4: 申請完了 -->
+    <div class="card" id="step-done" style="display:none;">
+        <div class="success-wrap">
+            <div class="success-icon">✅</div>
+            <div class="success-title">登録完了しました</div>
+            <div class="success-sub">
+                管理者の確認後、掲載が開始されます。<br>
+                通常2〜3営業日かかります。<br>
+                今しばらくお待ちください。
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SB_URL = "https://ojkhwbvoaiaqekxrbpdd.supabase.co";
+        const SB_KEY = "sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
+        const sb = supabase.createClient(SB_URL, SB_KEY);
+        const GENRE_LABELS = { men: '男性向け（デリヘル）', women: '女性向け（女性用風俗）', men_same: '男性同士向け', women_same: '女性同士向け' };
+
+        let _selectedFile = null;
+
+        function showStep(name) {
+            ['email','sent','form','confirm','done'].forEach(s =>
+                document.getElementById('step-' + s).style.display = (s === name) ? '' : 'none'
+            );
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showErr(id, msg) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = msg;
+            el.style.display = msg ? '' : 'none';
+        }
+
+        function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        // ========== 認証 ==========
+        let _authResolved = false;
+
+        sb.auth.onAuthStateChange((event, session) => {
+            if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+                _authResolved = true;
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('step') === 'profile') {
+                    showStep('form');
+                }
+            }
+        });
+
+        // ページ読込時: step=profileならセッション確認
+        (async function init() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('step') === 'profile') {
+                // 既存セッションを確認
+                const { data: { session } } = await sb.auth.getSession();
+                if (session) {
+                    showStep('form');
+                    return;
+                }
+                // ハッシュフラグメントからのセッション取得を待つ（最大3秒）
+                setTimeout(() => {
+                    if (!_authResolved) {
+                        showErr('email-err', '認証に失敗しました。もう一度メールアドレスを入力してください。');
+                        showStep('email');
+                    }
+                }, 3000);
+            }
+        })();
+
+        async function sendOtp() {
+            const email = document.getElementById('reg-email').value.trim();
+            if (!email) { showErr('email-err', 'メールアドレスを入力してください'); return; }
+            showErr('email-err', '');
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.textContent = '送信中...';
+            const { error } = await sb.auth.signInWithOtp({
+                email,
+                options: { emailRedirectTo: 'https://deri-hotel-navi.vercel.app/shop-register.html?step=profile' }
+            });
+            btn.disabled = false;
+            btn.textContent = '認証メールを送信する';
+            if (error) { showErr('email-err', 'エラー: ' + error.message); return; }
+
+            // shopsテーブルにemail_pendingで仮レコード作成（重複時はupsertで上書き）
+            await sb.from('shops').upsert(
+                { email, status: 'email_pending', created_at: new Date().toISOString() },
+                { onConflict: 'email' }
+            );
+
+            showStep('sent');
+        }
+
+        // ========== パスワード表示切替 ==========
+        function togglePwVis(show) {
+            const type = show ? 'text' : 'password';
+            document.getElementById('shop-pw').type = type;
+            document.getElementById('shop-pw2').type = type;
+        }
+
+        // ========== ファイル選択 ==========
+        function onFileSelect(input) {
+            if (input.files[0]) setFile(input.files[0]);
+        }
+
+        function handleDrop(e) {
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                setFile(file);
+                // inputにもセット
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                document.getElementById('shop-doc').files = dt.files;
+            }
+        }
+
+        function setFile(file) {
+            _selectedFile = file;
+            document.getElementById('file-zone-inner').style.display = 'none';
+            const wrap = document.getElementById('file-preview-wrap');
+            wrap.style.display = '';
+            document.getElementById('file-name-disp').textContent = '📎 ' + file.name;
+            const reader = new FileReader();
+            reader.onload = (e) => { document.getElementById('file-preview-img').src = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+
+        // ========== 確認画面 ==========
+        function goToConfirm() {
+            showErr('form-err', '');
+            const genre = document.getElementById('shop-gender').value;
+            const name = document.getElementById('shop-name').value.trim();
+            const url = document.getElementById('shop-url').value.trim();
+            const tel = document.getElementById('shop-tel').value.trim();
+            const pw = document.getElementById('shop-pw').value;
+            const pw2 = document.getElementById('shop-pw2').value;
+            const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
+
+            if (!name) { showErr('form-err', '店舗名を入力してください'); return; }
+            if (!url) { showErr('form-err', '店舗URLを入力してください'); return; }
+            if (!url.startsWith('https://')) { showErr('form-err', 'URLは https:// で始まる必要があります'); return; }
+            if (!tel) { showErr('form-err', '電話番号を入力してください'); return; }
+            if (!pw) { showErr('form-err', 'パスワードを入力してください'); return; }
+            if (pw.length < 8) { showErr('form-err', 'パスワードは8文字以上にしてください'); return; }
+            if (pw !== pw2) { showErr('form-err', 'パスワードが一致しません'); return; }
+            if (!docFile) { showErr('form-err', '届出確認書を添付してください'); return; }
+
+            // 確認画面を生成
+            let imgHtml = '';
+            if (docFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('confirm-img-slot').innerHTML =
+                        `<img src="${e.target.result}" class="confirm-img" alt="届出確認書">`;
+                };
+                reader.readAsDataURL(docFile);
+                imgHtml = '<div id="confirm-img-slot" style="margin-top:4px;"><span style="color:var(--text-3);font-size:12px;">読み込み中...</span></div>';
+            }
+
+            document.getElementById('confirm-body').innerHTML = `
+                <table class="confirm-table">
+                    <tr><th>ジャンル</th><td>${esc(GENRE_LABELS[genre] || genre)}</td></tr>
+                    <tr><th>店舗名</th><td>${esc(name)}</td></tr>
+                    <tr><th>URL</th><td>${esc(url)}</td></tr>
+                    <tr><th>電話番号</th><td>${esc(tel)}</td></tr>
+                    <tr><th>パスワード</th><td>${'●'.repeat(pw.length)}</td></tr>
+                    <tr><th>届出確認書</th><td>${esc(docFile.name)}${imgHtml}</td></tr>
+                </table>`;
+            showStep('confirm');
+        }
+
+        function backToForm() {
+            showStep('form');
+        }
+
+        // ========== 送信 ==========
+        async function submitRegistration() {
+            showErr('confirm-err', '');
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.textContent = '送信中...';
+
+            try {
+                const { data: { session } } = await sb.auth.getSession();
+                if (!session) throw new Error('セッションが切れました。ページをリロードしてください。');
+                const userEmail = session.user.email;
+
+                const genre = document.getElementById('shop-gender').value;
+                const name = document.getElementById('shop-name').value.trim();
+                const url = document.getElementById('shop-url').value.trim();
+                const tel = document.getElementById('shop-tel').value.trim();
+                const pw = document.getElementById('shop-pw').value;
+                const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
+
+                // Storage にアップロード（shop-licenses バケット）
+                const ext = docFile.name.split('.').pop().toLowerCase();
+                const filePath = `${session.user.id}/${Date.now()}.${ext}`;
+                const { error: uploadErr } = await sb.storage
+                    .from('shop-licenses')
+                    .upload(filePath, docFile, { upsert: false });
+                if (uploadErr) throw new Error('書類アップロードエラー: ' + uploadErr.message);
+
+                const { data: urlData } = sb.storage.from('shop-licenses').getPublicUrl(filePath);
+
+                // shops テーブルを更新（email_pendingレコードをregisteredに昇格）
+                const { error: insertErr } = await sb.from('shops').upsert({
+                    email:            userEmail,
+                    shop_name:        name,
+                    gender_mode:      genre,
+                    shop_url:         url || null,
+                    shop_tel:         tel || null,
+                    password_hash:    btoa(pw),
+                    document_url:     urlData?.publicUrl || null,
+                    status:           'registered',
+                }, { onConflict: 'email' });
+                if (insertErr) throw new Error('登録エラー: ' + insertErr.message);
+
+                showStep('done');
+            } catch (e) {
+                showErr('confirm-err', e.message);
+                btn.disabled = false;
+                btn.textContent = '登録する';
+            }
+        }
+    </script>
+</body>
+</html>
