@@ -461,21 +461,21 @@
                 const pw = document.getElementById('shop-pw').value;
                 const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
 
-                // Storage にアップロード（shop-licenses バケット）
+                // Storage にアップロード（documents バケット）
                 let documentUrl = null;
                 if (docFile) {
                     const ext = docFile.name.split('.').pop().toLowerCase();
-                    const filePath = `${session.user.id}/${Date.now()}.${ext}`;
+                    const filePath = `shop-licenses/${session.user.id}/${Date.now()}.${ext}`;
                     console.log('3. 画像アップロード開始:', filePath);
                     const uploadResult = await sb.storage
-                        .from('shop-licenses')
+                        .from('documents')
                         .upload(filePath, docFile, { upsert: false });
                     console.log('4. 画像アップロード結果:', uploadResult);
                     if (uploadResult.error) {
                         console.error('upload error:', uploadResult.error);
                         throw new Error('書類アップロードエラー: ' + uploadResult.error.message);
                     }
-                    const { data: urlData } = sb.storage.from('shop-licenses').getPublicUrl(filePath);
+                    const { data: urlData } = sb.storage.from('documents').getPublicUrl(filePath);
                     documentUrl = urlData?.publicUrl || null;
                     console.log('   画像URL:', documentUrl);
                 } else {
