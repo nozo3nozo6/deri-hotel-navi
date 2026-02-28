@@ -79,6 +79,8 @@
         .b-email-pending{background:#fffde7;color:#f9a825;border-color:rgba(249,168,37,0.3);}
         .b-registered{background:#fff3e0;color:#e67e22;border-color:rgba(230,126,34,0.25);}
         .b-suspended{background:var(--bg-3);color:var(--ink-3);border-color:var(--border);}
+        .b-published{background:var(--green-bg);color:var(--green);border-color:rgba(40,132,90,0.2);}
+        .b-unpublished{background:var(--bg-3);color:var(--ink-3);border-color:var(--border);}
         /* ボタン */
         .btn{padding:6px 11px;border-radius:var(--r);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;min-height:30px;}
         .btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.1);}
@@ -363,6 +365,7 @@
                     <input class="filter-input" id="hotel-search" placeholder="ホテル名・住所で検索..." oninput="onHotelSearchInput()">
                     <select class="filter-select" id="hotel-pref-f" onchange="fetchHotels()"><option value="">全都道府県</option></select>
                     <select class="filter-select" id="hotel-source-f" onchange="fetchHotels()"><option value="">全ソース</option><option value="manual">手動追加のみ</option><option value="rakuten">楽天APIのみ</option></select>
+                    <select class="filter-select" id="hotel-pub-f" onchange="fetchHotels()"><option value="">全公開状態</option><option value="true">公開中</option><option value="false">非公開</option></select>
                 </div>
                 <div class="tbl-wrap"><table class="tbl">
                     <thead><tr>
@@ -370,6 +373,7 @@
                         <th onclick="doSort('hotels','prefecture',renderHotels)">都道府県<span class="sa">↕</span></th>
                         <th onclick="doSort('hotels','nearest_station',renderHotels)">最寄駅<span class="sa">↕</span></th>
                         <th onclick="doSort('hotels','min_charge',renderHotels)">料金<span class="sa">↕</span></th>
+                        <th>公開状態</th>
                         <th>操作</th>
                     </tr></thead>
                     <tbody id="hotels-tbody"></tbody>
@@ -400,16 +404,34 @@
     <div class="modal">
         <div class="modal-title">&#x1F3E8; ホテル情報を編集</div>
         <input type="hidden" id="edit-id">
-        <div class="mf"><label class="ml">ホテル名</label><input id="edit-name" class="mi"></div>
-        <div class="mf"><label class="ml">住所</label><input id="edit-address" class="mi"></div>
-        <div class="mf"><label class="ml">最寄駅</label><input id="edit-station" class="mi"></div>
-        <div class="mf"><label class="ml">電話番号</label><input id="edit-tel" class="mi"></div>
-        <div class="mf"><label class="ml">都道府県</label><input id="edit-pref" class="mi"></div>
-        <div class="mf"><label class="ml">エリア (major_area)</label><input id="edit-area" class="mi"></div>
-        <div class="mf"><label class="ml">参考料金（円）</label><input id="edit-charge" class="mi" type="number"></div>
-        <div class="modal-btns">
-            <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
-            <button class="btn-save" onclick="saveHotel()">保存する</button>
+        <!-- Step1: フォーム -->
+        <div id="edit-step1">
+            <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="edit-name" class="mi"></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">郵便番号</label><input id="edit-postal" class="mi" placeholder="例: 160-0022"></div>
+            <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><input id="edit-pref" class="mi" placeholder="例: 東京都"></div>
+            <div class="mf"><label class="ml">市区町村</label><input id="edit-city" class="mi" placeholder="例: 新宿区"></div>
+            <div class="mf"><label class="ml">住所 <span style="color:var(--gold);">*</span></label><input id="edit-address" class="mi" placeholder="例: 東京都新宿区..."></div>
+            <div class="mf"><label class="ml">電話番号</label><input id="edit-tel" class="mi" placeholder="例: 03-xxxx-xxxx"></div>
+            <div class="mf"><label class="ml">最寄り駅</label><input id="edit-station" class="mi" placeholder="例: 新宿駅"></div>
+            <div class="mf"><label class="ml">エリア (major_area)</label><input id="edit-major-area" class="mi" placeholder="例: 東京"></div>
+            <div class="mf"><label class="ml">詳細エリア (detail_area)</label><input id="edit-detail-area" class="mi" placeholder="例: 新宿・歌舞伎町"></div>
+            <div class="mf"><label class="ml">緯度</label><input id="edit-lat" class="mi" type="number" step="any" placeholder="例: 35.6895"></div>
+            <div class="mf"><label class="ml">経度</label><input id="edit-lng" class="mi" type="number" step="any" placeholder="例: 139.6917"></div>
+            <div class="mf"><button type="button" class="btn b-btn-gold" style="width:100%;padding:10px;font-size:13px;" onclick="geocodeAndFill('edit')">📍 住所から緯度経度を取得</button></div>
+            <div class="mf"><label class="ml">参考料金（円）</label><input id="edit-charge" class="mi" type="number" placeholder="例: 5000"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+                <button class="btn-save" onclick="editToConfirm()">確認画面へ →</button>
+            </div>
+        </div>
+        <!-- Step2: 確認 -->
+        <div id="edit-step2" style="display:none;">
+            <div id="edit-confirm-body" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:2;"></div>
+            <div class="modal-btns">
+                <button class="btn-cancel" onclick="editBack()">← 修正する</button>
+                <button class="btn-save" onclick="saveHotel()">保存する</button>
+            </div>
         </div>
     </div>
 </div>
@@ -420,12 +442,19 @@
         <!-- Step1: フォーム -->
         <div id="add-step1">
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="add-name" class="mi" placeholder="例: ホテルアルファ新宿"></div>
-            <div class="mf"><label class="ml">住所</label><input id="add-address" class="mi" placeholder="例: 東京都新宿区..."></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="add-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">郵便番号</label><input id="add-postal" class="mi" placeholder="例: 160-0022"></div>
+            <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><input id="add-pref" class="mi" placeholder="例: 東京都"></div>
+            <div class="mf"><label class="ml">市区町村</label><input id="add-city" class="mi" placeholder="例: 新宿区"></div>
+            <div class="mf"><label class="ml">住所 <span style="color:var(--gold);">*</span></label><input id="add-address" class="mi" placeholder="例: 東京都新宿区..."></div>
             <div class="mf"><label class="ml">電話番号</label><input id="add-tel" class="mi" placeholder="例: 03-xxxx-xxxx"></div>
-            <div class="mf"><label class="ml">ホテルタイプ</label><select id="add-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
-            <div class="mf"><label class="ml">都道府県</label><input id="add-pref" class="mi" placeholder="例: 東京都"></div>
-            <div class="mf"><label class="ml">市区町村 / エリア</label><input id="add-area" class="mi" placeholder="例: 新宿区"></div>
             <div class="mf"><label class="ml">最寄り駅</label><input id="add-station" class="mi" placeholder="例: 新宿駅"></div>
+            <div class="mf"><label class="ml">エリア (major_area)</label><input id="add-major-area" class="mi" placeholder="例: 東京"></div>
+            <div class="mf"><label class="ml">詳細エリア (detail_area)</label><input id="add-detail-area" class="mi" placeholder="例: 新宿・歌舞伎町"></div>
+            <div class="mf"><label class="ml">緯度</label><input id="add-lat" class="mi" type="number" step="any" placeholder="例: 35.6895"></div>
+            <div class="mf"><label class="ml">経度</label><input id="add-lng" class="mi" type="number" step="any" placeholder="例: 139.6917"></div>
+            <div class="mf"><button type="button" class="btn b-btn-gold" style="width:100%;padding:10px;font-size:13px;" onclick="geocodeAndFill('add')">📍 住所から緯度経度を取得</button></div>
+            <div class="mf"><label class="ml">参考料金（円）</label><input id="add-charge" class="mi" type="number" placeholder="例: 5000"></div>
             <div class="modal-btns">
                 <button class="btn-cancel" onclick="closeAddHotel()">キャンセル</button>
                 <button class="btn-save" onclick="addHotelToConfirm()">確認画面へ →</button>
@@ -563,11 +592,11 @@
     </div>
 </div>
 <!-- モーダル：届出書プレビュー -->
-<div class="modal-overlay" id="license-modal" style="display:none;" onclick="if(event.target===this)document.getElementById('license-modal').style.display='none'">
+<div class="modal-overlay" id="license-modal" style="display:none;" onclick="if(event.target===this)closeLicenseModal()">
     <div class="modal" style="max-width:700px;">
         <div class="modal-title">📄 届出確認書</div>
         <div id="license-img-wrap" style="text-align:center;"></div>
-        <div class="modal-btns"><button class="btn-cancel" onclick="document.getElementById('license-modal').style.display='none'">閉じる</button></div>
+        <div class="modal-btns"><button class="btn-cancel" onclick="closeLicenseModal()">閉じる</button></div>
     </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -575,6 +604,8 @@
 const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
 const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
 const sb=supabase.createClient(SB_URL,SB_KEY);
+const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,min_charge,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
 function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
@@ -616,6 +647,7 @@ async function loadShops(){const{data}=await sb.from("shops").select("*").order(
 function updateShopBadge(){const count=shopsData.filter(s=>{const st=getShopStatus(s);return st==="email_pending"||st==="registered";}).length;const b=document.getElementById("shop-badge");if(b){if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}}
 function renderShops(){const mF=document.getElementById("shop-mode-f").value;const aF=document.getElementById("shop-appr-f").value;const pF=document.getElementById("shop-plan-f").value;const qF=document.getElementById("shop-search").value.toLowerCase();let data=shopsData.filter(s=>{if(mF&&s.gender_mode!==mF)return false;const st=getShopStatus(s);if(aF&&aF!==st)return false;if(pF==="free"&&s.plan==="paid")return false;if(pF==="paid"&&s.plan!=="paid")return false;if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;return true;});data=applySortArr(data,"shops");const epCount=shopsData.filter(s=>getShopStatus(s)==="email_pending").length;const regCount=shopsData.filter(s=>getShopStatus(s)==="registered").length;const pendingInfo=[];if(epCount>0)pendingInfo.push("認証待 "+epCount+" 件");if(regCount>0)pendingInfo.push("準備中 "+regCount+" 件");document.getElementById("shops-sub").textContent=`${data.length} 件${pendingInfo.length>0?" ("+pendingInfo.join(" / ")+")":""}`;document.getElementById("shops-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="9">該当する店舗がありません</td></tr>`:data.map(s=>{const st=getShopStatus(s);const isPaid=s.plan==="paid";const planBtn=st==="email_pending"?`<span style="color:var(--ink-3);font-size:11px;">—</span>`:`<button class="btn ${isPaid?"b-btn-gold":"b-btn-gray"}" onclick="togglePlan(${s.id},'${s.plan||"free"}')">${isPaid?"★ 有料":"無料"}</button>`;const genreCell=`<span style="font-size:11px;">${SHOP_GENRE_LABELS[s.gender_mode]||"—"}</span>`;const docCell=s.document_url?`<button class="btn b-btn-gray" style="font-size:10px;" onclick="showLicenseImg('${esc(s.document_url)}')">📄確認</button>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;let actionBtns="";if(st==="email_pending"){actionBtns='<button class="btn b-btn-red" onclick="deleteShop('+s.id+',\''+esc(s.shop_name||s.email||"")+'\')">削除</button>';}else{actionBtns='<button class="btn b-btn-gold" onclick="openShopReview('+s.id+')">編集</button>';if(st==="registered")actionBtns+='<button class="btn b-btn-green" onclick="approveShop('+s.id+')">承認</button>';if(st==="active")actionBtns+='<button class="btn b-btn-gray" onclick="suspendShop('+s.id+')">停止</button>';actionBtns+='<button class="btn b-btn-blue" onclick="openPlacementModal('+s.id+')">📍</button>';actionBtns+='<button class="btn b-btn-red" onclick="deleteShop('+s.id+',\''+esc(s.shop_name||"")+'\')">削除</button>';}return`<tr><td style="color:var(--ink-3);font-size:11px;white-space:nowrap;">${fmtShort(s.created_at)}</td><td style="font-size:11px;color:var(--ink-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.email||"—")}</td><td style="font-weight:500;font-size:13px;">${esc(s.shop_name||"—")}</td><td>${genreCell}</td><td>${docCell}</td><td>${shopStatusBadge(s)}</td><td>${planBtn}</td><td><div class="btn-row">${actionBtns}</div></td></tr>`;}).join("");}
 function showLicenseImg(url){const wrap=document.getElementById("license-img-wrap");const isPdf=url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(url)}" style="width:100%;height:500px;border:none;"></iframe>`:`<img src="${esc(url)}" style="width:100%;max-height:70vh;object-fit:contain;display:block;">`;document.getElementById("license-modal").style.display="flex";}
+function closeLicenseModal(){document.getElementById("license-modal").style.display="none";}
 async function approveShop(id){if(!confirm("この店舗を承認して掲載を開始しますか？"))return;const{error}=await sb.from("shops").update({status:"active",is_approved:true,denial_reason:null}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>s.id===id?{...s,status:"active",is_approved:true,denial_reason:null}:s);updateShopBadge();renderShops();toast("✅ 承認しました（掲載中）");}
 async function suspendShop(id){if(!confirm("この店舗の掲載を停止しますか？"))return;const{error}=await sb.from("shops").update({status:"suspended"}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>s.id===id?{...s,status:"suspended"}:s);renderShops();toast("⏸ 停止しました");}
 async function deleteShop(id,name){if(!confirm("「"+name+"」を削除しますか？元に戻せません。"))return;const{error}=await sb.from("shops").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}shopsData=shopsData.filter(s=>s.id!==id);updateShopBadge();renderShops();toast("🗑 削除しました");}
@@ -758,25 +790,77 @@ async function delReport(id){if(!confirm("この投稿を削除しますか？�
 
 // ===== ホテル編集 =====
 let hotelsData=[];let _hotelSearchTimer=null;
-async function loadHotels(){const{data}=await sb.from("hotels").select("id,name,address,prefecture,major_area,nearest_station,tel,min_charge,source").order("name").limit(500);hotelsData=data||[];const prefs=[...new Set(hotelsData.map(h=>h.prefecture).filter(Boolean))].sort();const sel=document.getElementById("hotel-pref-f");prefs.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});renderHotels();}
+// ===== ジオコーディング =====
+async function geocodeAddress(address){
+  // 前処理: 全角数字→半角、全角ハイフン→半角、余分なスペース削除
+  let normalized=address
+    .replace(/[０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0))
+    .replace(/[ー−—–]/g,"-")
+    .replace(/\s+/g," ").trim();
+  // 1. Nominatimで試行
+  try{
+    const res=await fetch("https://nominatim.openstreetmap.org/search?"+new URLSearchParams({q:normalized,format:"json",limit:1,countrycodes:"jp"}),{headers:{"Accept-Language":"ja"}});
+    const data=await res.json();
+    if(data.length>0)return{lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};
+  }catch(e){}
+  // 2. 国土地理院APIでフォールバック
+  try{
+    const res2=await fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(normalized));
+    const data2=await res2.json();
+    if(data2.length>0&&data2[0].geometry&&data2[0].geometry.coordinates){
+      return{lat:data2[0].geometry.coordinates[1],lng:data2[0].geometry.coordinates[0]};
+    }
+  }catch(e){}
+  return null;
+}
+async function geocodeAndFill(prefix){
+  const addr=document.getElementById(prefix+"-address").value.trim();
+  if(!addr){toast("住所を入力してからボタンを押してください");return;}
+  const btn=event.target;
+  const origText=btn.textContent;
+  btn.disabled=true;btn.textContent="取得中...";
+  try{
+    const result=await geocodeAddress(addr);
+    if(result){
+      document.getElementById(prefix+"-lat").value=result.lat;
+      document.getElementById(prefix+"-lng").value=result.lng;
+      toast("📍 緯度経度を取得しました");
+    }else{
+      toast("住所から緯度経度を取得できませんでした。手動で入力してください。");
+    }
+  }catch(e){
+    console.error("[geocode]",e);
+    toast("取得エラーが発生しました。手動で入力してください。");
+  }finally{
+    btn.disabled=false;btn.textContent=origText;
+  }
+}
+
+async function loadHotels(){const{data}=await sb.from("hotels").select(HOTEL_SELECT_COLS).order("name").limit(500);hotelsData=data||[];const prefs=[...new Set(hotelsData.map(h=>h.prefecture).filter(Boolean))].sort();const sel=document.getElementById("hotel-pref-f");prefs.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});renderHotels();}
 function onHotelSearchInput(){clearTimeout(_hotelSearchTimer);_hotelSearchTimer=setTimeout(fetchHotels,400);}
 async function fetchHotels(){
   const q=document.getElementById("hotel-search").value.trim();
   const pF=document.getElementById("hotel-pref-f").value;
   const sF=document.getElementById("hotel-source-f").value;
-  let query=sb.from("hotels").select("id,name,address,prefecture,major_area,nearest_station,tel,min_charge,source").order("name").limit(200);
+  const pubF=document.getElementById("hotel-pub-f").value;
+  let query=sb.from("hotels").select(HOTEL_SELECT_COLS).order("name").limit(200);
   if(q)query=query.ilike("name",`%${q}%`);
   if(pF)query=query.eq("prefecture",pF);
   if(sF)query=query.eq("source",sF);
+  if(pubF==="true")query=query.eq("is_published",true);
+  if(pubF==="false")query=query.eq("is_published",false);
   const{data}=await query;hotelsData=data||[];renderHotels();
 }
-function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="5">該当するホテルがありません</td></tr>`:data.map(h=>`<tr><td style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${h.min_charge?"¥"+parseInt(h.min_charge).toLocaleString()+"~":"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openEdit(${h.id})">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`).join("");}
-function openEdit(id){const h=hotelsData.find(h=>h.id===id);if(!h)return;document.getElementById("edit-id").value=h.id;document.getElementById("edit-name").value=h.name||"";document.getElementById("edit-address").value=h.address||"";document.getElementById("edit-station").value=h.nearest_station||"";document.getElementById("edit-tel").value=h.tel||"";document.getElementById("edit-pref").value=h.prefecture||"";document.getElementById("edit-area").value=h.major_area||"";document.getElementById("edit-charge").value=h.min_charge||"";document.getElementById("hotel-modal").style.display="flex";}
+function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="6">該当するホテルがありません</td></tr>`:data.map(h=>{const pub=h.is_published!==false;const pubBadge=pub?'<span class="badge b-published">公開中</span>':'<span class="badge b-unpublished">非公開</span>';const pubBtn=pub?`<button class="btn b-btn-gray" onclick="togglePublish(${h.id},true)">非公開にする</button>`:`<button class="btn b-btn-green" onclick="togglePublish(${h.id},false)">公開する</button>`;return`<tr><td style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${h.min_charge?"¥"+parseInt(h.min_charge).toLocaleString()+"~":"—"}</td><td>${pubBadge}</td><td><div class="btn-row">${pubBtn}<button class="btn b-btn-gold" onclick="openEdit(${h.id})">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`;}).join("");}
+function openEdit(id){const h=hotelsData.find(h=>h.id===id);if(!h)return;document.getElementById("edit-id").value=h.id;document.getElementById("edit-name").value=h.name||"";document.getElementById("edit-type").value=h.hotel_type||"other";document.getElementById("edit-postal").value=h.postal_code||"";document.getElementById("edit-pref").value=h.prefecture||"";document.getElementById("edit-city").value=h.city||"";document.getElementById("edit-address").value=h.address||"";document.getElementById("edit-tel").value=h.tel||"";document.getElementById("edit-station").value=h.nearest_station||"";document.getElementById("edit-major-area").value=h.major_area||"";document.getElementById("edit-detail-area").value=h.detail_area||"";document.getElementById("edit-lat").value=h.latitude||"";document.getElementById("edit-lng").value=h.longitude||"";document.getElementById("edit-charge").value=h.min_charge||"";document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";document.getElementById("hotel-modal").style.display="flex";}
 function closeModal(){document.getElementById("hotel-modal").style.display="none";}
+function editToConfirm(){const name=document.getElementById("edit-name").value.trim();if(!name){toast("ホテル名を入力してください");return;}if(!document.getElementById("edit-address").value.trim()){toast("住所を入力してください");return;}if(!document.getElementById("edit-pref").value.trim()){toast("都道府県を入力してください");return;}const rows=[["ホテル名",name],["タイプ",HOTEL_TYPE_LABELS[document.getElementById("edit-type").value]||"—"],["郵便番号",document.getElementById("edit-postal").value.trim()||"—"],["都道府県",document.getElementById("edit-pref").value.trim()||"—"],["市区町村",document.getElementById("edit-city").value.trim()||"—"],["住所",document.getElementById("edit-address").value.trim()||"—"],["電話番号",document.getElementById("edit-tel").value.trim()||"—"],["最寄り駅",document.getElementById("edit-station").value.trim()||"—"],["エリア",document.getElementById("edit-major-area").value.trim()||"—"],["詳細エリア",document.getElementById("edit-detail-area").value.trim()||"—"],["緯度",document.getElementById("edit-lat").value||"—"],["経度",document.getElementById("edit-lng").value||"—"],["参考料金",document.getElementById("edit-charge").value?("¥"+parseInt(document.getElementById("edit-charge").value).toLocaleString()):"—"]];document.getElementById("edit-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");document.getElementById("edit-step1").style.display="none";document.getElementById("edit-step2").style.display="";}
+function editBack(){document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";}
 async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const{error}=await sb.from("hotels").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
-async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),address:document.getElementById("edit-address").value.trim(),nearest_station:document.getElementById("edit-station").value.trim(),tel:document.getElementById("edit-tel").value.trim(),prefecture:document.getElementById("edit-pref").value.trim(),major_area:document.getElementById("edit-area").value.trim(),min_charge:document.getElementById("edit-charge").value||null};const{error}=await sb.from("hotels").update(payload).eq("id",id);if(error){toast("保存エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
+async function togglePublish(id,current){const newVal=!current;const{error}=await sb.from("hotels").update({is_published:newVal}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
+async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value.trim()||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value.trim()||null,detail_area:document.getElementById("edit-detail-area").value.trim()||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,min_charge:document.getElementById("edit-charge").value?parseInt(document.getElementById("edit-charge").value):null};const{error}=await sb.from("hotels").update(payload).eq("id",id);if(error){toast("保存エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
 function openAddHotel(){
-  ["add-name","add-address","add-tel","add-pref","add-area","add-station"].forEach(id=>document.getElementById(id).value="");
+  ["add-name","add-postal","add-pref","add-city","add-address","add-tel","add-station","add-major-area","add-detail-area","add-lat","add-lng","add-charge"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("add-type").value="business";
   document.getElementById("add-step1").style.display="";
   document.getElementById("add-step2").style.display="none";
@@ -786,15 +870,22 @@ function closeAddHotel(){document.getElementById("hotel-add-modal").style.displa
 function addHotelToConfirm(){
   const name=document.getElementById("add-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
-  const typeLabels={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+  if(!document.getElementById("add-address").value.trim()){toast("住所を入力してください");return;}
+  if(!document.getElementById("add-pref").value.trim()){toast("都道府県を入力してください");return;}
   const rows=[
     ["ホテル名",name],
+    ["タイプ",HOTEL_TYPE_LABELS[document.getElementById("add-type").value]||"—"],
+    ["郵便番号",document.getElementById("add-postal").value.trim()||"—"],
+    ["都道府県",document.getElementById("add-pref").value.trim()||"—"],
+    ["市区町村",document.getElementById("add-city").value.trim()||"—"],
     ["住所",document.getElementById("add-address").value.trim()||"—"],
     ["電話番号",document.getElementById("add-tel").value.trim()||"—"],
-    ["タイプ",typeLabels[document.getElementById("add-type").value]||"—"],
-    ["都道府県",document.getElementById("add-pref").value.trim()||"—"],
-    ["エリア",document.getElementById("add-area").value.trim()||"—"],
     ["最寄り駅",document.getElementById("add-station").value.trim()||"—"],
+    ["エリア",document.getElementById("add-major-area").value.trim()||"—"],
+    ["詳細エリア",document.getElementById("add-detail-area").value.trim()||"—"],
+    ["緯度",document.getElementById("add-lat").value||"—"],
+    ["経度",document.getElementById("add-lng").value||"—"],
+    ["参考料金",document.getElementById("add-charge").value?("¥"+parseInt(document.getElementById("add-charge").value).toLocaleString()):"—"],
   ];
   document.getElementById("add-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");
   document.getElementById("add-step1").style.display="none";
@@ -809,17 +900,24 @@ async function saveNewHotel(){
   if(!name){toast("ホテル名を入力してください");return;}
   const payload={
     name,
+    hotel_type:document.getElementById("add-type").value,
+    postal_code:document.getElementById("add-postal").value.trim()||null,
+    prefecture:document.getElementById("add-pref").value.trim()||null,
+    city:document.getElementById("add-city").value.trim()||null,
     address:document.getElementById("add-address").value.trim()||null,
     tel:document.getElementById("add-tel").value.trim()||null,
-    hotel_type:document.getElementById("add-type").value,
-    prefecture:document.getElementById("add-pref").value.trim()||null,
-    major_area:document.getElementById("add-area").value.trim()||null,
     nearest_station:document.getElementById("add-station").value.trim()||null,
-    source:"manual"
+    major_area:document.getElementById("add-major-area").value.trim()||null,
+    detail_area:document.getElementById("add-detail-area").value.trim()||null,
+    latitude:document.getElementById("add-lat").value?parseFloat(document.getElementById("add-lat").value):null,
+    longitude:document.getElementById("add-lng").value?parseFloat(document.getElementById("add-lng").value):null,
+    min_charge:document.getElementById("add-charge").value?parseInt(document.getElementById("add-charge").value):null,
+    source:"manual",
+    is_published:false
   };
   const{data,error}=await sb.from("hotels").insert(payload).select().single();
   if(error){console.error("[saveNewHotel]",error);toast("追加エラー: "+error.message);return;}
-  hotelsData.unshift(data);renderHotels();closeAddHotel();toast("✅ ホテルを追加しました");
+  hotelsData.unshift(data);renderHotels();closeAddHotel();toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
 }
 
 // ===== マスターデータ（呼べた理由 / 呼べなかった理由 / 部屋タイプ） =====
@@ -952,7 +1050,8 @@ async function saveHreqAsHotel(){
     prefecture:document.getElementById("hreq-edit-pref").value.trim()||null,
     major_area:document.getElementById("hreq-edit-area").value.trim()||null,
     nearest_station:document.getElementById("hreq-edit-station").value.trim()||null,
-    source:"manual"
+    source:"manual",
+    is_published:false
   };
   console.log("[saveHreqAsHotel] payload:",payload,"hreq_id:",id);
   var r1=await sb.from("hotels").insert(payload).select().single();
@@ -961,7 +1060,7 @@ async function saveHreqAsHotel(){
   if(r2.error){console.error("[saveHreqAsHotel] hotel_requests update error:",r2.error);toast("ステータス更新エラー: "+r2.error.message);return;}
   hotelRequestsData=hotelRequestsData.map(function(r){return String(r.id)===id?Object.assign({},r,{status:"confirmed"}):r;});
   updateHreqBadge();renderHotelRequests();closeHreqEdit();
-  toast("✅ ホテルに登録しました");
+  toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
 }
 
 async function deleteHotelRequest(id){

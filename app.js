@@ -288,7 +288,7 @@ async function showPrefPage(region) {
     // 都道府県ごとのホテル数を並行取得（全件）して多い順にソート
     const prefCountResults = await Promise.all(
         region.prefs.map(pref =>
-            supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref)
+            supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref).eq('is_published', true)
                 .then(({ count }) => ({ pref, count: count || 0 }))
         )
     );
@@ -327,20 +327,55 @@ async function showMajorAreaPage(region, pref) {
     container.className = 'area-grid col-2';
 
     // まずエリア一覧を取得（全件）
-    const { data, error } = await supabaseClient.from('hotels').select('major_area').eq('prefecture', pref).limit(5000);
+    const { data, error } = await supabaseClient.from('hotels').select('major_area').eq('prefecture', pref).eq('is_published', true).limit(5000);
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
     // エリアごとのホテル数を集計して多い順
     const areaCount = {};
-    data.forEach(h => { if (h.major_area) areaCount[h.major_area] = (areaCount[h.major_area] || 0) + 1; });
+    let noAreaCount = 0;
+    data.forEach(h => {
+        if (h.major_area) areaCount[h.major_area] = (areaCount[h.major_area] || 0) + 1;
+        else noAreaCount++;
+    });
     const areas = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]);
-    if (!areas.length) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);">${t('no_data')}</div>`; return; }
+    if (!areas.length && !noAreaCount) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);">${t('no_data')}</div>`; return; }
 
     buildAreaButtons(
         areas,
         () => { pageStack.push(() => showMajorAreaPage(region, pref)); fetchAndShowHotels({ prefecture: pref }); },
         (area) => { pageStack.push(() => showMajorAreaPage(region, pref)); showCityPage(region, pref, area); }
     );
+
+    // major_area 未設定のホテルがある場合は「その他のエリア」ボタンを追加
+    if (noAreaCount > 0) {
+        const noAreaBtn = document.createElement('button');
+        noAreaBtn.className = 'area-btn';
+        noAreaBtn.innerHTML = `<span class="city-name">その他のエリア</span><span class="city-count">${noAreaCount}</span>`;
+        noAreaBtn.onclick = async () => {
+            pageStack.push(() => showMajorAreaPage(region, pref));
+            showLoading();
+            setBreadcrumb([
+                { label: t('japan'), onclick: 'showJapanPage()' },
+                { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+                { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
+                { label: 'その他のエリア' }
+            ]);
+            setTitle('その他のエリア');
+            document.getElementById('area-button-container').innerHTML = '';
+            try {
+                let query = supabaseClient.from('hotels').select('*')
+                    .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(80)
+                    .order('review_average', { ascending: false, nullsFirst: false });
+                const hotels = await fetchHotelsWithSummary(query);
+                renderHotelCards(hotels);
+                setResultStatus(hotels.length);
+            } catch (e) { console.error(e); } finally { hideLoading(); }
+        };
+        // 「全て表示」ボタンの前に挿入
+        const allBtn = container.querySelector('.all-btn');
+        if (allBtn) container.insertBefore(noAreaBtn, allBtn);
+        else container.appendChild(noAreaBtn);
+    }
 }
 
 async function showCityPage(region, pref, majorArea) {
@@ -361,13 +396,14 @@ async function showCityPage(region, pref, majorArea) {
 
     const { data, error } = await supabaseClient
         .from('hotels').select('address,city,detail_area')
-        .eq('prefecture', pref).eq('major_area', majorArea);
+        .eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true);
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
     // detail_area がある場合は detailClass 階層を先に表示
+    // ただし detail_area == major_area の場合はサブ分類として無意味なので除外
     const detailAreaCount = {};
-    data.forEach(h => { if (h.detail_area) detailAreaCount[h.detail_area] = (detailAreaCount[h.detail_area] || 0) + 1; });
+    data.forEach(h => { if (h.detail_area && h.detail_area !== majorArea) detailAreaCount[h.detail_area] = (detailAreaCount[h.detail_area] || 0) + 1; });
     const hasDetailArea = Object.keys(detailAreaCount).length > 0;
 
     if (hasDetailArea) {
@@ -448,7 +484,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 
     const { data, error } = await supabaseClient
         .from('hotels').select('address,city')
-        .eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea);
+        .eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true);
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
@@ -528,7 +564,7 @@ async function fetchAndShowHotels(filterObj) {
 
     try {
         const keyword = document.getElementById('keyword')?.value?.trim() || '';
-        let query = supabaseClient.from('hotels').select('*').limit(80);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = applyKeywordFilter(query, keyword);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -563,7 +599,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     setBreadcrumb(crumbs);
 
     try {
-        let query = supabaseClient.from('hotels').select('*').limit(80);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = query.eq('city', city);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -661,13 +697,13 @@ async function searchByLocation() {
                     // city カラムで検索 → なければ major_area でフォールバック
                     const { data: byCity, error: e1 } = await supabaseClient
                         .from('hotels').select('*')
-                        .ilike('city', `%${cityName}%`);
+                        .ilike('city', `%${cityName}%`).eq('is_published', true);
                     if (e1) throw e1;
                     let matched = byCity || [];
                     if (!matched.length) {
                         const { data: byArea } = await supabaseClient
                             .from('hotels').select('*')
-                            .ilike('major_area', `%${cityName}%`);
+                            .ilike('major_area', `%${cityName}%`).eq('is_published', true);
                         matched = byArea || [];
                     }
                     withDist = matched.map(h =>
@@ -681,6 +717,7 @@ async function searchByLocation() {
                         .from('hotels').select('*')
                         .not('latitude', 'is', null)
                         .not('longitude', 'is', null)
+                        .eq('is_published', true)
                         .limit(1000);
                     if (error) throw error;
                     withDist = allH
@@ -748,6 +785,7 @@ function fetchHotelsByStation() {
         try {
             let query = supabaseClient.from('hotels').select('*')
                 .ilike('nearest_station', `%${val}%`)
+                .eq('is_published', true)
                 .order('review_average', { ascending: false, nullsFirst: false })
                 .limit(80);
 
@@ -795,7 +833,7 @@ function fetchHotelsFromSearch() {
         document.getElementById('area-button-container').innerHTML = '';
 
         try {
-            let query = supabaseClient.from('hotels').select('*').limit(80);
+            let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
             query = applyKeywordFilter(query, keyword);
             query = query.order('review_average', { ascending: false, nullsFirst: false });
 
@@ -1158,7 +1196,7 @@ async function loadHotelDetail(hotelId) {
     try {
         await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
         const [hotelRes, reportsRes, summaryRes, shopsRes] = await Promise.all([
-            supabaseClient.from('hotels').select('*').eq('id', hotelId).single(),
+            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).single(),
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),  // 店舗フィールド削除のため不使用
