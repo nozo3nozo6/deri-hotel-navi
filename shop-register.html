@@ -191,6 +191,10 @@
         <div class="card-title">店舗情報入力</div>
         <div class="card-sub">審査後、メールにてご連絡いたします</div>
         <div class="steps"><div class="step-dot on"></div><div class="step-dot on"></div><div class="step-dot"></div></div>
+        <div id="session-email-box" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);padding:12px 16px;border-radius:10px;margin-bottom:20px;display:none;">
+            <p style="margin:0;font-size:12px;color:var(--text-3);">貴店様のID（メールアドレス）</p>
+            <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:var(--gold);" id="session-email-val"></p>
+        </div>
         <div class="info-box">
             📋 審査には通常2〜3営業日かかります。承認後にポータル画面への掲載が開始されます。<br>
             虚偽の情報や不正な書類は審査不通過となります。
@@ -298,11 +302,21 @@
         // ========== 認証 ==========
         let _authResolved = false;
 
+        function displaySessionEmail(email) {
+            const box = document.getElementById('session-email-box');
+            const val = document.getElementById('session-email-val');
+            if (box && val && email) {
+                val.textContent = email;
+                box.style.display = '';
+            }
+        }
+
         sb.auth.onAuthStateChange((event, session) => {
             if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
                 _authResolved = true;
                 const params = new URLSearchParams(window.location.search);
                 if (params.get('step') === 'profile') {
+                    displaySessionEmail(session.user.email);
                     showStep('form');
                 }
             }
@@ -315,13 +329,14 @@
                 // 既存セッションを確認
                 const { data: { session } } = await sb.auth.getSession();
                 if (session) {
+                    displaySessionEmail(session.user.email);
                     showStep('form');
                     return;
                 }
                 // ハッシュフラグメントからのセッション取得を待つ（最大3秒）
                 setTimeout(() => {
                     if (!_authResolved) {
-                        showErr('email-err', '認証に失敗しました。もう一度メールアドレスを入力してください。');
+                        showErr('email-err', '認証が必要です。メールアドレスを入力してください。');
                         showStep('email');
                     }
                 }, 3000);
@@ -431,11 +446,13 @@
             btn.textContent = '送信中...';
 
             try {
+                console.log('1. 登録開始');
+
                 const { data: { session }, error: sessErr } = await sb.auth.getSession();
-                if (sessErr) console.error('[submitRegistration] getSession error:', sessErr);
+                if (sessErr) console.error('getSession error:', sessErr);
+                console.log('2. セッション取得:', session);
                 if (!session) throw new Error('セッションが切れました。ページをリロードしてください。');
                 const userEmail = session.user.email;
-                console.log('[submitRegistration] session OK, email:', userEmail);
 
                 const genre = document.getElementById('shop-gender').value;
                 const name = document.getElementById('shop-name').value.trim();
@@ -449,17 +466,21 @@
                 if (docFile) {
                     const ext = docFile.name.split('.').pop().toLowerCase();
                     const filePath = `${session.user.id}/${Date.now()}.${ext}`;
-                    console.log('[submitRegistration] uploading to:', filePath);
-                    const { error: uploadErr } = await sb.storage
+                    console.log('3. 画像アップロード開始:', filePath);
+                    const uploadResult = await sb.storage
                         .from('shop-licenses')
                         .upload(filePath, docFile, { upsert: false });
-                    if (uploadErr) {
-                        console.error('[submitRegistration] upload error:', uploadErr);
-                        throw new Error('書類アップロードエラー: ' + uploadErr.message);
+                    console.log('4. 画像アップロード結果:', uploadResult);
+                    if (uploadResult.error) {
+                        console.error('upload error:', uploadResult.error);
+                        throw new Error('書類アップロードエラー: ' + uploadResult.error.message);
                     }
                     const { data: urlData } = sb.storage.from('shop-licenses').getPublicUrl(filePath);
                     documentUrl = urlData?.publicUrl || null;
-                    console.log('[submitRegistration] upload OK, url:', documentUrl);
+                    console.log('   画像URL:', documentUrl);
+                } else {
+                    console.log('3. 画像ファイルなし（スキップ）');
+                    console.log('4. 画像アップロードスキップ');
                 }
 
                 // shops テーブルを更新（email_pendingレコードをregisteredに昇格）
@@ -473,17 +494,29 @@
                     document_url:     documentUrl,
                     status:           'registered',
                 };
-                console.log('[submitRegistration] upsert payload:', payload);
-                const { error: insertErr } = await sb.from('shops').upsert(payload, { onConflict: 'email' });
-                if (insertErr) {
-                    console.error('[submitRegistration] upsert error:', insertErr);
-                    throw new Error('登録エラー: ' + insertErr.message);
+                console.log('5. shopsテーブルupsert開始', payload);
+                const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
+                console.log('6. shopsテーブルupsert結果:', result);
+                if (result.error) {
+                    console.error('upsert error:', result.error);
+                    // よくある原因をチェック
+                    const msg = result.error.message || '';
+                    if (msg.includes('column') || msg.includes('42703')) {
+                        console.error('>>> カラム名がテーブルと一致していません。shop_name, gender_mode, shop_tel, document_url カラムをshopsテーブルに追加してください。');
+                    }
+                    if (msg.includes('policy') || msg.includes('42501') || msg.includes('permission')) {
+                        console.error('>>> RLSポリシーでINSERT/UPDATEが許可されていません。shopsテーブルにpublic_insert / public_update ポリシーを追加してください。');
+                    }
+                    if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('23505')) {
+                        console.error('>>> emailのUNIQUE制約で重複エラーです。同じメールで再登録する場合はupsertが必要です。');
+                    }
+                    throw new Error('登録エラー: ' + msg);
                 }
 
-                console.log('[submitRegistration] success');
+                console.log('7. 登録完了！');
                 showStep('done');
             } catch (e) {
-                console.error('[submitRegistration] catch:', e);
+                console.error('登録エラー catch:', e);
                 showErr('confirm-err', e.message);
                 btn.disabled = false;
                 btn.textContent = '登録する';
