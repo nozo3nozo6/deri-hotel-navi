@@ -232,15 +232,17 @@
     <div class="login-card">
         <h2>店舗ログイン</h2>
         <div class="sub">登録時のメールアドレスとパスワードでログインしてください</div>
+        <form id="login-form" onsubmit="handleLogin(event)">
         <div class="f-group">
             <label class="f-label">メールアドレス</label>
-            <input type="email" class="f-input" id="login-email" placeholder="example@shop.com">
+            <input type="email" class="f-input" id="login-email" name="email" autocomplete="email" placeholder="example@shop.com" required>
         </div>
         <div class="f-group">
             <label class="f-label">パスワード</label>
-            <input type="password" class="f-input" id="login-pw" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()">
+            <input type="password" class="f-input" id="login-pw" name="password" autocomplete="current-password" placeholder="パスワード" required>
         </div>
-        <button class="btn-login" onclick="doLogin()">ログイン</button>
+        <button type="submit" class="btn-login">ログイン</button>
+        </form>
         <div class="login-error" id="login-error"></div>
     </div>
 </div>
@@ -420,6 +422,7 @@ function extractCity(address){
 let currentShop=null;
 const SESSION_KEY="shop_admin_session";
 
+function handleLogin(e){e.preventDefault();doLogin();}
 function doLogin(){
     const email=document.getElementById("login-email").value.trim();
     const pw=document.getElementById("login-pw").value;
