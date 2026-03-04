@@ -282,7 +282,10 @@ function doLogin(){
     const errEl=document.getElementById("login-error");
     errEl.style.display="none";
     if(!email||!pw){errEl.textContent="メールとパスワードを入力してください";errEl.style.display="block";return;}
-    sb.from("shops").select("*").eq("shop_email",email).single().then(({data,error})=>{
+    console.log("検索メール:",email);
+    sb.from("shops").select("*").eq("email",email).single().then(({data,error})=>{
+        console.log("検索結果:",data);
+        console.log("エラー:",error);
         if(error||!data){errEl.textContent="メールアドレスが見つかりません";errEl.style.display="block";return;}
         try{
             const storedPw=atob(data.password_hash||"");
@@ -290,7 +293,7 @@ function doLogin(){
         }catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
         if(data.status==="suspended"){errEl.textContent="このアカウントは停止中です";errEl.style.display="block";return;}
         currentShop=data;
-        localStorage.setItem(SESSION_KEY,JSON.stringify({id:data.id,email:data.shop_email}));
+        localStorage.setItem(SESSION_KEY,JSON.stringify({id:data.id,email:data.email}));
         onLoggedIn();
     });
 }
