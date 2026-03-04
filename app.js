@@ -228,24 +228,28 @@ function extractCity(address) {
 // ==========================================================================
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
+    console.log('[fetchReportSummaries] hotelIds count:', hotelIds.length);
     try {
         // まずサマリービューを試行
         const { data, error } = await supabaseClient
             .from('hotel_report_summary')
             .select('*')
             .in('hotel_id', hotelIds);
+        console.log('[fetchReportSummaries] view result:', error ? 'ERROR: '+error.message : (data ? data.length+' rows' : 'null'));
         if (!error && data && data.length > 0) {
             const map = {};
             data.forEach(r => { map[r.hotel_id] = r; });
             return map;
         }
-    } catch {}
+    } catch(e) { console.log('[fetchReportSummaries] view exception:', e); }
     // フォールバック: reportsテーブルから直接集計
+    console.log('[fetchReportSummaries] falling back to reports table');
     try {
-        const { data: reports } = await supabaseClient
+        const { data: reports, error: repErr } = await supabaseClient
             .from('reports')
             .select('hotel_id,can_call,poster_type')
             .in('hotel_id', hotelIds);
+        console.log('[fetchReportSummaries] reports result:', repErr ? 'ERROR: '+repErr.message : (reports ? reports.length+' rows' : 'null'));
         if (!reports) return {};
         const map = {};
         reports.forEach(r => {
@@ -255,7 +259,7 @@ async function fetchReportSummaries(hotelIds) {
             else { r.can_call ? s.can_call_count++ : s.cannot_call_count++; }
         });
         return map;
-    } catch { return {}; }
+    } catch(e) { console.log('[fetchReportSummaries] reports exception:', e); return {}; }
 }
 
 // ==========================================================================
@@ -573,6 +577,7 @@ async function fetchHotelsWithSummary(query) {
     const latestMap = await fetchLatestReportDates(hotelIds);
 
     // ホテルデータに集計を合体
+    console.log('[fetchHotelsWithSummary] summaries:', JSON.stringify(summaries));
     return hotels.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
 }
 
@@ -970,6 +975,7 @@ function renderHotelCards(hotels, showDistance = false) {
 
         // ===== 口コミ数 =====
         const reviewCount = getReportCount(h);
+        if (reviewCount > 0) console.log('[renderCard]', h.name, '口コミ数:', reviewCount, 'summary:', JSON.stringify(h.summary));
 
         // ===== 最寄駅 + 参考料金（横並び） =====
         const priceInline = h.min_charge
