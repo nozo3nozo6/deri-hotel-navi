@@ -229,18 +229,33 @@ function extractCity(address) {
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
+        // まずサマリービューを試行
         const { data, error } = await supabaseClient
             .from('hotel_report_summary')
             .select('*')
             .in('hotel_id', hotelIds);
-        if (error) return {};
-        // hotel_id をキーにしたマップを返す
+        if (!error && data && data.length > 0) {
+            const map = {};
+            data.forEach(r => { map[r.hotel_id] = r; });
+            return map;
+        }
+    } catch {}
+    // フォールバック: reportsテーブルから直接集計
+    try {
+        const { data: reports } = await supabaseClient
+            .from('reports')
+            .select('hotel_id,can_call,poster_type')
+            .in('hotel_id', hotelIds);
+        if (!reports) return {};
         const map = {};
-        (data || []).forEach(r => { map[r.hotel_id] = r; });
+        reports.forEach(r => {
+            if (!map[r.hotel_id]) map[r.hotel_id] = { hotel_id: r.hotel_id, can_call_count: 0, cannot_call_count: 0, shop_can_count: 0, shop_ng_count: 0 };
+            const s = map[r.hotel_id];
+            if (r.poster_type === 'shop') { r.can_call ? s.shop_can_count++ : s.shop_ng_count++; }
+            else { r.can_call ? s.can_call_count++ : s.cannot_call_count++; }
+        });
         return map;
-    } catch {
-        return {};
-    }
+    } catch { return {}; }
 }
 
 // ==========================================================================
