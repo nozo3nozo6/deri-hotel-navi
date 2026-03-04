@@ -685,7 +685,7 @@ function openForm(hotel,existing){
 
     if(existing){
         setCanCall(existing.can_call);
-        setTransportFee(existing.transport_cost);
+        setTransportFee(existing.transport_fee);
         document.getElementById("form-memo").value=existing.memo||"";
         // サービス読み込み
         sb.from("shop_hotel_services").select("service_option_id").eq("shop_hotel_info_id",existing.id).then(({data})=>{
@@ -809,7 +809,7 @@ async function doSubmit(){
     };
     const{error:repErr}=await sb.from("reports").insert(reportPayload);
     if(repErr){
-        console.error("reports insert error:",repErr);
+        console.error("reports insert error:",JSON.stringify(repErr));
         if(repErr.code!=="23505"){
             submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";
             closeConfirm();toast("投稿エラー: "+repErr.message);return;
@@ -821,18 +821,18 @@ async function doSubmit(){
         shop_id:currentShop.id,
         hotel_id:hotelId,
         can_call:canCall,
-        transport_cost:transportFee||null,
+        transport_fee:transportFee||null,
         memo:memo
     };
 
     let infoId;
     if(editId){
         const{error}=await sb.from("shop_hotel_info").update(infoPayload).eq("id",editId);
-        if(error){console.error("shop_hotel_info update error:",error);closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
+        if(error){console.error("shop_hotel_info update error:",JSON.stringify(error));closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
         infoId=editId;
     }else{
         const{data,error}=await sb.from("shop_hotel_info").insert(infoPayload).select().single();
-        if(error){console.error("shop_hotel_info insert error:",error);closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
+        if(error){console.error("shop_hotel_info insert error:",JSON.stringify(error));closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
         infoId=data.id;
     }
 
@@ -868,7 +868,7 @@ function renderRegistered(){
     wrap.innerHTML=pageData.map(r=>{
         const name=r.hotels?r.hotels.name:"(削除済み)";
         const canLabel=r.can_call?'<span class="reg-status can">呼べる</span>':'<span class="reg-status cant">呼べない</span>';
-        const tVal=r.transport_cost;
+        const tVal=r.transport_fee;
         const cost=tVal===null||tVal===undefined?"—":formatFee(tVal);
         return`<div class="reg-row"><span class="reg-name">${esc(name)}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">削除</button></div></div>`;
     }).join("");

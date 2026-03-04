@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS shop_hotel_info (
   shop_id uuid NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   hotel_id text NOT NULL,
   can_call boolean NOT NULL DEFAULT true,
-  transport_cost integer DEFAULT 0,
+  transport_fee integer DEFAULT 0,
   memo text,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
