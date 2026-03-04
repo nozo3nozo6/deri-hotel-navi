@@ -1195,15 +1195,16 @@ async function loadHotelDetail(hotelId) {
 
     try {
         await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
-        const [hotelRes, reportsRes, summaryRes, shopsRes] = await Promise.all([
+        const [hotelRes, reportsRes, summaryRes, shopsRes, shopHotelInfoRes] = await Promise.all([
             supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).single(),
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
-            Promise.resolve({ data: [] }),  // 店舗フィールド削除のため不使用
+            Promise.resolve({ data: [] }),
+            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name)').eq('hotel_id', hotelId),
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
-        renderHotelDetail(hotelRes.data, reportsRes.data || [], summaryRes.data, shopsRes.data || []);
+        renderHotelDetail(hotelRes.data, reportsRes.data || [], summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || []);
     } catch(e) {
         console.error(e);
         content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
@@ -1244,12 +1245,27 @@ function formatDate(iso) {
     return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function renderHotelDetail(hotel, reports, summary, _shops) {
+function formatTransportFee(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (val === 0 || val === '0') return '無料';
+    const num = parseInt(String(val).replace(/,/g, ''), 10);
+    if (isNaN(num)) return null;
+    return '¥' + num.toLocaleString('ja-JP') + '-';
+}
+
+function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
     const can     = summary?.can_call_count    || 0;
     const cannot  = summary?.cannot_call_count || 0;
     const shopCan = summary?.shop_can_count    || 0;
     const shopNg  = summary?.shop_ng_count     || 0;
     const total   = can + cannot;
+
+    // 店舗名 → transport_fee のマップ
+    const shopFeeMap = {};
+    (shopHotelInfoList || []).forEach(info => {
+        const name = info.shops?.shop_name;
+        if (name) shopFeeMap[name] = info.transport_fee;
+    });
 
     function buildReportCard(r) {
         // 入り方タグ（can_call_reasons / conditions / cannot_call_reasons をまとめて表示）
@@ -1273,7 +1289,7 @@ function renderHotelDetail(hotel, reports, summary, _shops) {
         ].join('');
         return `
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:5px;">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:${r.comment ? '6px' : '0'};">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:${(r.comment || (r.poster_type==='shop' && formatTransportFee(shopFeeMap[r.poster_name]))) ? '6px' : '0'};">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
                 <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
                     ${r.can_call ? '✅ 呼べた' : '❌ 呼べなかった'}
@@ -1283,6 +1299,7 @@ function renderHotelDetail(hotel, reports, summary, _shops) {
                 ${r.poster_name ? (()=>{const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';return`<span style="font-size:10px;color:${col};margin-left:auto;font-weight:600;">${icon} ${r.poster_name}</span>`})() : '<span style="flex:1;"></span>'}
                 ${r.id ? `<button onclick="showFlagModal('${r.id}')" style="padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap;">🚩 報告</button>` : ''}
             </div>
+            ${(()=>{ if(r.poster_type==='shop'){const fee=formatTransportFee(shopFeeMap[r.poster_name]);if(fee)return`<div style="font-size:11px;color:#9a7030;margin-top:4px;"><span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;">🚕 交通費: ${fee}</span></div>`;} return''; })()}
             ${r.comment ? `<div style="font-size:12px;color:var(--text-2);line-height:1.6;">${r.comment}</div>` : ''}
         </div>`;
     }
