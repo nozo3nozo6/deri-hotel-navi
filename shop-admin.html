@@ -119,6 +119,14 @@
 
         .f-select{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
         .f-select:focus{border-color:var(--rose);}
+
+        /* 交通費入力 */
+        .transport-fee-input{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r);padding:0 12px;background:var(--bg-3);transition:border-color 0.2s;}
+        .transport-fee-input:focus-within{border-color:var(--rose);}
+        .fee-prefix,.fee-suffix{font-size:16px;font-weight:700;color:var(--text-2);}
+        .transport-fee-input input{border:none;outline:none;font-size:16px;padding:10px 8px;flex:1;text-align:right;background:transparent;color:var(--text);font-family:inherit;}
+        .transport-fee-input input::placeholder{color:var(--text-3);}
+
         .f-textarea{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;}
         .f-textarea:focus{border-color:var(--rose);}
         .f-textarea::placeholder{color:var(--text-3);}
@@ -322,15 +330,11 @@
             <!-- 4. 店舗専用項目（常に表示） -->
             <div class="form-group" style="margin-top:18px;">
                 <label class="form-label">交通費 <span class="opt">(任意)</span></label>
-                <select class="f-select" id="form-transport">
-                    <option value="">未選択</option>
-                    <option value="0">無料</option>
-                    <option value="1000">1,000円</option>
-                    <option value="2000">2,000円</option>
-                    <option value="3000">3,000円</option>
-                    <option value="-1">実費</option>
-                    <option value="-2">要確認</option>
-                </select>
+                <div class="transport-fee-input" id="transport-fee-wrap">
+                    <span class="fee-prefix">¥</span>
+                    <input type="text" id="form-transport" inputmode="numeric" placeholder="0">
+                    <span class="fee-suffix">-</span>
+                </div>
             </div>
 
             <div class="form-group">
@@ -665,12 +669,11 @@ function openForm(hotel,existing){
     document.getElementById("form-cant-reason").value="";
     document.getElementById("form-room-type").value="";
     document.getElementById("form-time-slot").value="";
-    document.getElementById("form-transport").value="";
-    document.getElementById("form-memo").value="";
+    document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";
 
     if(existing){
         setCanCall(existing.can_call);
-        document.getElementById("form-transport").value=existing.transport_cost!=null?String(existing.transport_cost):"";
+        setTransportFee(existing.transport_cost);
         document.getElementById("form-memo").value=existing.memo||"";
         // サービス読み込み
         sb.from("shop_hotel_services").select("service_option_id").eq("shop_hotel_info_id",existing.id).then(({data})=>{
@@ -689,8 +692,16 @@ function cancelForm(){
     formCanCall=null;
 }
 
+// ===== 交通費入力フォーマット =====
+(function(){
+    const fi=document.getElementById("form-transport");
+    fi.addEventListener("input",function(e){let v=e.target.value.replace(/[^0-9]/g,"");if(v)v=parseInt(v,10).toLocaleString("ja-JP");e.target.value=v;});
+})();
+function getTransportFee(){const raw=document.getElementById("form-transport").value.replace(/,/g,"");return raw?parseInt(raw,10):0;}
+function setTransportFee(num){const fi=document.getElementById("form-transport");if(num===null||num===undefined||num===0){fi.value="";return;}fi.value=num.toLocaleString("ja-JP");}
+function formatFee(num){if(!num||num===0)return"無料";return"¥"+num.toLocaleString("ja-JP")+"-";}
+
 // ===== 確認画面 =====
-const TRANSPORT_LABELS={"0":"無料","1000":"1,000円","2000":"2,000円","3000":"3,000円","-1":"実費","-2":"要確認"};
 
 function showConfirm(){
     if(formCanCall===null){toast("「呼べる」か「呼べない」を選択してください");return;}
@@ -700,7 +711,7 @@ function showConfirm(){
     const cantReason=document.getElementById("form-cant-reason").value;
     const roomType=document.getElementById("form-room-type").value;
     const timeSlot=document.getElementById("form-time-slot").value;
-    const transport=document.getElementById("form-transport").value;
+    const transportFee=getTransportFee();
     const memo=document.getElementById("form-memo").value.trim();
     const svcs=getSelectedServices();
 
@@ -717,7 +728,7 @@ function showConfirm(){
     if(!canCall&&cantReason)html+=row('呼べなかった理由',`<span class="confirm-tag red">${esc(cantReason)}</span>`);
     if(canCall&&roomType)html+=row('部屋タイプ',esc(roomType));
     if(canCall&&timeSlot)html+=row('時間帯',esc(timeSlot));
-    if(transport)html+=row('交通費',TRANSPORT_LABELS[transport]||transport);
+    html+=row('交通費',formatFee(transportFee));
     if(svcs.length>0){
         const tags=svcs.map(sid=>{const s=serviceOptions.find(x=>x.id===sid);return s?`<span class="confirm-tag rose">${esc(s.label)}</span>`:'';}).join("");
         html+=row('対応サービス',tags);
@@ -745,7 +756,7 @@ async function doSubmit(){
     const cantReason=document.getElementById("form-cant-reason").value;
     const roomType=document.getElementById("form-room-type").value;
     const timeSlot=document.getElementById("form-time-slot").value;
-    const transport=document.getElementById("form-transport").value;
+    const transportFee=getTransportFee();
     const memo=document.getElementById("form-memo").value.trim()||null;
     const svcs=getSelectedServices();
 
@@ -767,7 +778,6 @@ async function doSubmit(){
     const{error:repErr}=await sb.from("reports").insert(reportPayload);
     if(repErr){
         console.error("reports insert error:",repErr);
-        // 23505 = duplicate → すでに投稿済みでも shop_hotel_info は更新する
         if(repErr.code!=="23505"){
             submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";
             closeConfirm();toast("投稿エラー: "+repErr.message);return;
@@ -779,7 +789,7 @@ async function doSubmit(){
         shop_id:currentShop.id,
         hotel_id:hotelId,
         can_call:canCall,
-        transport_cost:transport?parseInt(transport):null,
+        transport_cost:transportFee||null,
         memo:memo
     };
 
@@ -827,7 +837,7 @@ function renderRegistered(){
         const name=r.hotels?r.hotels.name:"(削除済み)";
         const canLabel=r.can_call?'<span class="reg-status can">呼べる</span>':'<span class="reg-status cant">呼べない</span>';
         const tVal=r.transport_cost;
-        const cost=tVal===null||tVal===undefined?"—":TRANSPORT_LABELS[String(tVal)]||`¥${tVal.toLocaleString()}`;
+        const cost=tVal===null||tVal===undefined?"—":formatFee(tVal);
         return`<div class="reg-row"><span class="reg-name">${esc(name)}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">削除</button></div></div>`;
     }).join("");
     if(totalPages<=1){document.getElementById("pagination").innerHTML="";return;}
