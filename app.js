@@ -1335,51 +1335,6 @@ function renderHotelDetail(hotel, reports, summary, _shops) {
             </div>` : ''}
         </div>
 
-        <!-- 呼べる？情報 -->
-        <div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px;">
-            <span style="font-size:16px;font-weight:600;color:var(--text);">呼べる？情報</span>
-            <div style="flex:1;height:1px;background:var(--border);"></div>
-        </div>
-
-        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:12px;box-shadow:var(--shadow);">
-            <!-- 店舗様提供情報 -->
-            <div style="font-size:11px;font-weight:700;padding:4px 10px;background:var(--accent-bg);color:var(--accent-dim);border:1px solid var(--border-strong);border-radius:6px;display:inline-block;margin-bottom:10px;">🏪 店舗様提供情報</div>
-            ${shopCan + shopNg === 0
-                ? `<div style="text-align:center;padding:8px 0 14px;color:var(--text-3);font-size:12px;">まだ情報がありません</div>`
-                : `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;border:1px solid var(--border-strong);border-radius:8px;background:var(--accent-bg);">
-                    <div style="flex:1;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                            <span style="font-size:13px;color:var(--text-2);font-weight:500;min-width:32px;">可</span>
-                            <span style="font-size:26px;font-weight:700;color:#3a9a60;line-height:1;">${shopCan}<span style="font-size:12px;font-weight:400;margin-left:2px;">件</span></span>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="font-size:13px;color:var(--text-2);font-weight:500;min-width:32px;">不可</span>
-                            <span style="font-size:26px;font-weight:700;color:#c05050;line-height:1;">${shopNg}<span style="font-size:12px;font-weight:400;margin-left:2px;">件</span></span>
-                        </div>
-                    </div>
-                    <div style="flex-shrink:0;">${buildDonutSVG(shopCan, shopNg)}</div>
-                </div>`
-            }
-            <!-- ユーザー投稿情報 -->
-            <div style="font-size:11px;font-weight:700;padding:4px 10px;background:rgba(58,154,96,0.1);color:#3a7a50;border:1px solid rgba(58,154,96,0.2);border-radius:6px;display:inline-block;margin-bottom:10px;">👤 ユーザー投稿情報</div>
-            ${can + cannot === 0
-                ? `<div style="text-align:center;padding:8px 0;color:var(--text-3);font-size:12px;">まだ情報がありません</div>`
-                : `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid rgba(58,154,96,0.2);border-radius:8px;background:rgba(58,154,96,0.03);">
-                    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                        <div style="text-align:center;padding:8px 4px;border:1px solid rgba(58,154,96,0.2);border-radius:8px;background:rgba(58,154,96,0.04);">
-                            <div style="font-size:11px;color:#3a7a50;margin-bottom:3px;font-weight:500;">呼べた</div>
-                            <div style="font-size:24px;font-weight:700;color:#3a9a60;line-height:1;">${can}<span style="font-size:11px;font-weight:400;margin-left:1px;">件</span></div>
-                        </div>
-                        <div style="text-align:center;padding:8px 4px;border:1px solid rgba(192,80,80,0.15);border-radius:8px;background:rgba(192,80,80,0.03);">
-                            <div style="font-size:11px;color:#a05050;margin-bottom:3px;font-weight:500;">呼べなかった</div>
-                            <div style="font-size:24px;font-weight:700;color:#c05050;line-height:1;">${cannot}<span style="font-size:11px;font-weight:400;margin-left:1px;">件</span></div>
-                        </div>
-                    </div>
-                    <div style="flex-shrink:0;">${buildDonutSVG(can, cannot, 64, true)}</div>
-                </div>`
-            }
-        </div>
-
         ${reportsHTML}
 
         <div style="display:flex;align-items:center;gap:10px;margin:28px 0 10px;">
