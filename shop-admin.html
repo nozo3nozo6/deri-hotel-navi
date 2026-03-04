@@ -345,7 +345,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="service-group" style="display:none;">
                 <label class="form-label">対応サービス <span class="opt">(任意)</span></label>
                 <div class="service-checks" id="service-checks"></div>
             </div>
@@ -492,14 +492,17 @@ async function loadMasterData(){
     cantSel.innerHTML='<option value="">未選択</option>'+cannotReasons.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");
     const rtSel=document.getElementById("form-room-type");
     rtSel.innerHTML='<option value="">未選択</option>'+roomTypes.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");
+
+    // サービス0件なら非表示
+    document.getElementById("service-group").style.display=serviceOptions.length>0?"":"none";
 }
 
 function renderServiceChecks(selectedIds=[]){
     const wrap=document.getElementById("service-checks");
-    if(!serviceOptions.length){wrap.innerHTML='<span style="font-size:12px;color:var(--text-3);">サービスオプションが未登録です</span>';return;}
+    if(!serviceOptions.length){wrap.innerHTML="";return;}
     wrap.innerHTML=serviceOptions.map(s=>{
         const checked=selectedIds.includes(s.id);
-        return`<label class="svc-check${checked?" checked":""}" onclick="toggleSvcCheck(this)"><input type="checkbox" value="${s.id}"${checked?" checked":""}><span class="svc-dot"></span>${esc(s.label)}</label>`;
+        return`<label class="svc-check${checked?" checked":""}" onclick="toggleSvcCheck(this)"><input type="checkbox" value="${s.id}"${checked?" checked":""}><span class="svc-dot"></span>${esc(s.name)}</label>`;
     }).join("");
 }
 function toggleSvcCheck(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);}
@@ -759,7 +762,7 @@ function showConfirm(){
     if(canCall&&timeSlot)html+=row('時間帯',esc(timeSlot));
     html+=row('交通費',formatFee(transportFee));
     if(svcs.length>0){
-        const tags=svcs.map(sid=>{const s=serviceOptions.find(x=>x.id===sid);return s?`<span class="confirm-tag rose">${esc(s.label)}</span>`:'';}).join("");
+        const tags=svcs.map(sid=>{const s=serviceOptions.find(x=>x.id===sid);return s?`<span class="confirm-tag rose">${esc(s.name)}</span>`:'';}).join("");
         html+=row('対応サービス',tags);
     }
     if(memo)html+=row('メモ',esc(memo));

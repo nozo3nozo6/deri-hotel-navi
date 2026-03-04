@@ -1,7 +1,7 @@
 -- 店舗サービスオプションテーブル
 CREATE TABLE IF NOT EXISTS shop_service_options (
   id serial PRIMARY KEY,
-  label text NOT NULL UNIQUE,
+  name text NOT NULL UNIQUE,
   sort_order integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
