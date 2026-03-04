@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>店舗管理パネル | Deri Hotel Navi</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --rose:#b05570;--rose-dim:#8e3f56;--rose-bg:rgba(176,85,112,0.08);--rose-border:rgba(176,85,112,0.25);
+            --gold:#c9a84c;--gold-dim:#a08030;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);
+            --bg:#0a0a0f;--bg-2:#111118;--bg-3:#1a1a24;--bg-4:#22222e;
+            --border:rgba(255,255,255,0.08);--border-s:rgba(255,255,255,0.15);
+            --text:#f0ede8;--text-2:rgba(240,237,232,0.7);--text-3:rgba(240,237,232,0.4);
+            --red:#c05050;--green:#3a9a60;--blue:#5a8abf;
+            --r:10px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:"Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+        /* ===== ログイン ===== */
+        .login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+        .logo{font-family:"Cormorant Garamond",serif;font-size:22px;font-weight:300;letter-spacing:0.12em;color:var(--gold);margin-bottom:6px;text-align:center;}
+        .logo em{font-style:italic;font-weight:600;}
+        .logo-sub{font-size:11px;color:var(--text-3);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:32px;text-align:center;}
+        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.3);}
+        .login-card h2{font-size:18px;font-weight:700;margin-bottom:4px;}
+        .login-card .sub{font-size:12px;color:var(--text-3);margin-bottom:24px;}
+        .f-group{margin-bottom:16px;}
+        .f-label{display:block;font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:6px;letter-spacing:0.5px;}
+        .f-input{width:100%;padding:11px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:border-color 0.2s;}
+        .f-input:focus{border-color:var(--rose);}
+        .f-input::placeholder{color:var(--text-3);}
+        .btn-login{width:100%;padding:13px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.2s;margin-top:8px;}
+        .btn-login:hover{background:var(--rose-dim);}
+        .login-error{color:var(--red);font-size:12px;margin-top:10px;display:none;}
+
+        /* ===== ヘッダー ===== */
+        .hdr{background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:400;display:none;}
+        .hdr-inner{max-width:1000px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px;}
+        .hdr-logo{font-family:"Cormorant Garamond",serif;font-size:16px;font-weight:300;color:var(--gold);letter-spacing:0.08em;}
+        .hdr-logo em{font-style:italic;font-weight:600;}
+        .hdr-shop{font-size:13px;font-weight:700;color:var(--text);margin-left:12px;}
+        .hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+        .btn-logout{padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.2s;}
+        .btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+        /* ===== メインレイアウト ===== */
+        .main-wrap{max-width:1000px;margin:0 auto;padding:20px;display:none;}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.15);}
+        .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+        .card-title .sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:auto;}
+
+        /* ===== 検索バー ===== */
+        .search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+        .search-input{flex:1;min-width:200px;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color 0.2s;}
+        .search-input:focus{border-color:var(--rose);}
+        .search-input::placeholder{color:var(--text-3);}
+        .search-select{padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:12px;outline:none;cursor:pointer;}
+        .btn-search{padding:10px 20px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
+        .btn-search:hover{background:var(--rose-dim);}
+
+        /* ===== ホテル検索結果 ===== */
+        .hotel-results{display:grid;gap:8px;margin-bottom:16px;}
+        .hotel-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.15s;}
+        .hotel-row:hover{border-color:var(--rose-border);background:var(--bg-4);}
+        .hotel-row.selected{border-color:var(--rose);background:var(--rose-bg);}
+        .hotel-row .h-name{font-size:13px;font-weight:600;flex:1;}
+        .hotel-row .h-addr{font-size:11px;color:var(--text-3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .hotel-row .h-type{font-size:10px;color:var(--text-3);background:var(--bg);padding:2px 8px;border-radius:4px;white-space:nowrap;}
+
+        /* ===== 入力フォーム ===== */
+        .info-form{display:none;}
+        .info-form.active{display:block;}
+        .form-hotel-name{font-size:14px;font-weight:700;color:var(--rose);margin-bottom:16px;padding:10px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:8px;}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+        .form-full{grid-column:1/-1;}
+        .f-select{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;cursor:pointer;}
+        .f-select:focus{border-color:var(--rose);}
+        .f-textarea{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;}
+        .f-textarea:focus{border-color:var(--rose);}
+        .f-textarea::placeholder{color:var(--text-3);}
+
+        /* ===== サービスチェックボックス ===== */
+        .service-checks{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+        .svc-check{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all 0.15s;font-size:12px;user-select:none;}
+        .svc-check:hover{border-color:var(--rose-border);}
+        .svc-check input{display:none;}
+        .svc-check.checked{background:var(--rose-bg);border-color:var(--rose);color:var(--rose);}
+        .svc-check .svc-dot{width:8px;height:8px;border-radius:50%;border:2px solid var(--text-3);transition:all 0.15s;}
+        .svc-check.checked .svc-dot{background:var(--rose);border-color:var(--rose);}
+
+        /* ===== ボタン ===== */
+        .btn{padding:8px 16px;border-radius:var(--r);border:1px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;}
+        .btn-rose{background:var(--rose);color:#fff;border-color:var(--rose);}
+        .btn-rose:hover{background:var(--rose-dim);border-color:var(--rose-dim);}
+        .btn-outline{background:transparent;color:var(--text-2);border-color:var(--border);}
+        .btn-outline:hover{border-color:var(--text-2);color:var(--text);}
+        .btn-gold{background:var(--gold-bg);color:var(--gold);border-color:var(--gold-border);}
+        .btn-gold:hover{background:var(--gold);color:#fff;border-color:var(--gold);}
+        .btn-red{background:transparent;color:var(--red);border-color:rgba(192,80,80,0.25);}
+        .btn-red:hover{background:var(--red);color:#fff;border-color:var(--red);}
+        .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+        /* ===== 登録済みホテル一覧 ===== */
+        .reg-list{display:grid;gap:8px;}
+        .reg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;transition:all 0.15s;}
+        .reg-row:hover{border-color:var(--border-s);}
+        .reg-name{font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .reg-status{font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;}
+        .reg-status.can{background:rgba(58,154,96,0.12);color:var(--green);border:1px solid rgba(58,154,96,0.25);}
+        .reg-status.cant{background:rgba(192,80,80,0.1);color:var(--red);border:1px solid rgba(192,80,80,0.2);}
+        .reg-cost{font-size:11px;color:var(--text-3);white-space:nowrap;}
+        .reg-actions{display:flex;gap:6px;}
+        .pagination{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;}
+        .page-btn{padding:6px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+        .page-btn:hover{border-color:var(--rose-border);color:var(--text);}
+        .page-btn.active{background:var(--rose);color:#fff;border-color:var(--rose);}
+        .page-btn:disabled{opacity:0.3;cursor:not-allowed;}
+        .page-info{font-size:11px;color:var(--text-3);}
+
+        /* ===== トースト ===== */
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--bg-2);border:1px solid var(--border-s);color:var(--text);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+        .toast.show{opacity:1;}
+
+        /* ===== タブ ===== */
+        .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;}
+        .tab-btn{padding:10px 20px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+        .tab-btn:hover{color:var(--text-2);}
+        .tab-btn.active{color:var(--rose);border-bottom-color:var(--rose);}
+        .tab-content{display:none;}
+        .tab-content.active{display:block;}
+
+        /* ===== レスポンシブ ===== */
+        @media(max-width:640px){
+            .form-grid{grid-template-columns:1fr;}
+            .hotel-row{flex-wrap:wrap;}
+            .hotel-row .h-addr{flex-basis:100%;order:3;}
+            .hdr-inner{padding:10px 14px;}
+            .hdr-shop{font-size:11px;}
+            .main-wrap{padding:12px;}
+            .card{padding:16px;}
+            .search-bar{flex-direction:column;}
+            .search-input{min-width:auto;}
+            .reg-row{flex-wrap:wrap;}
+            .reg-name{flex-basis:100%;}
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div class="login-wrap" id="login-wrap">
+    <div class="logo"><em>Deri</em> Hotel Navi</div>
+    <div class="logo-sub">Shop Admin Panel</div>
+    <div class="login-card">
+        <h2>店舗ログイン</h2>
+        <div class="sub">登録時のメールアドレスとパスワードでログインしてください</div>
+        <div class="f-group">
+            <label class="f-label">メールアドレス</label>
+            <input type="email" class="f-input" id="login-email" placeholder="example@shop.com">
+        </div>
+        <div class="f-group">
+            <label class="f-label">パスワード</label>
+            <input type="password" class="f-input" id="login-pw" placeholder="パスワード" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="btn-login" onclick="doLogin()">ログイン</button>
+        <div class="login-error" id="login-error"></div>
+    </div>
+</div>
+
+<!-- ===== ヘッダー ===== -->
+<div class="hdr" id="hdr">
+    <div class="hdr-inner">
+        <div class="hdr-logo"><em>Deri</em> Hotel Navi</div>
+        <div class="hdr-shop" id="hdr-shop-name"></div>
+        <div class="hdr-right">
+            <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== メインコンテンツ ===== -->
+<div class="main-wrap" id="main-wrap">
+
+    <!-- タブ切替 -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('search')">ホテル検索・登録</button>
+        <button class="tab-btn" onclick="switchTab('list')">登録済みホテル</button>
+    </div>
+
+    <!-- ===== ホテル検索・登録タブ ===== -->
+    <div class="tab-content active" id="tab-search">
+        <div class="card">
+            <div class="card-title">ホテル検索</div>
+            <div class="search-bar">
+                <input class="search-input" id="hotel-keyword" placeholder="ホテル名・住所で検索..." onkeydown="if(event.key==='Enter')searchHotels()">
+                <select class="search-select" id="hotel-pref">
+                    <option value="">全都道府県</option>
+                </select>
+                <button class="btn-search" onclick="searchHotels()">検索</button>
+            </div>
+            <div id="search-status" style="font-size:11px;color:var(--text-3);margin-bottom:8px;"></div>
+            <div class="hotel-results" id="hotel-results"></div>
+        </div>
+
+        <!-- ===== 情報入力フォーム ===== -->
+        <div class="card info-form" id="info-form">
+            <div class="card-title">ホテル情報入力</div>
+            <div class="form-hotel-name" id="form-hotel-name"></div>
+            <input type="hidden" id="form-hotel-id">
+            <input type="hidden" id="form-edit-id">
+
+            <div class="form-grid">
+                <div>
+                    <label class="f-label">呼べる / 呼べない</label>
+                    <select class="f-select" id="form-can-call">
+                        <option value="true">呼べる</option>
+                        <option value="false">呼べない</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="f-label">交通費（円）</label>
+                    <input type="number" class="f-input" id="form-transport-cost" placeholder="0">
+                </div>
+            </div>
+
+            <div class="f-group">
+                <label class="f-label">対応サービス</label>
+                <div class="service-checks" id="service-checks"></div>
+            </div>
+
+            <div class="f-group">
+                <label class="f-label">メモ</label>
+                <textarea class="f-textarea" id="form-memo" placeholder="特記事項があれば入力..."></textarea>
+            </div>
+
+            <div class="btn-row" style="justify-content:flex-end;">
+                <button class="btn btn-outline" onclick="cancelForm()">キャンセル</button>
+                <button class="btn btn-rose" onclick="saveHotelInfo()">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 登録済みホテル一覧タブ ===== -->
+    <div class="tab-content" id="tab-list">
+        <div class="card">
+            <div class="card-title">登録済みホテル一覧<span class="sub" id="reg-count"></span></div>
+            <div class="reg-list" id="reg-list"></div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
+const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+
+// ===== ユーティリティ =====
+function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// ===== 都道府県リスト =====
+const PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+const HOTEL_TYPES={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+(function(){const sel=document.getElementById("hotel-pref");PREFS.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});})();
+
+// ===== 認証 =====
+let currentShop=null;
+const SESSION_KEY="shop_admin_session";
+
+function doLogin(){
+    const email=document.getElementById("login-email").value.trim();
+    const pw=document.getElementById("login-pw").value;
+    const errEl=document.getElementById("login-error");
+    errEl.style.display="none";
+    if(!email||!pw){errEl.textContent="メールとパスワードを入力してください";errEl.style.display="block";return;}
+    sb.from("shops").select("*").eq("shop_email",email).single().then(({data,error})=>{
+        if(error||!data){errEl.textContent="メールアドレスが見つかりません";errEl.style.display="block";return;}
+        try{
+            const storedPw=atob(data.password_hash||"");
+            if(storedPw!==pw){errEl.textContent="パスワードが正しくありません";errEl.style.display="block";return;}
+        }catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+        if(data.status==="suspended"){errEl.textContent="このアカウントは停止中です";errEl.style.display="block";return;}
+        currentShop=data;
+        localStorage.setItem(SESSION_KEY,JSON.stringify({id:data.id,email:data.shop_email}));
+        onLoggedIn();
+    });
+}
+
+function doLogout(){
+    currentShop=null;
+    localStorage.removeItem(SESSION_KEY);
+    location.reload();
+}
+
+function onLoggedIn(){
+    document.getElementById("login-wrap").style.display="none";
+    document.getElementById("hdr").style.display="block";
+    document.getElementById("main-wrap").style.display="block";
+    document.getElementById("hdr-shop-name").textContent=currentShop.shop_name||"店舗";
+    loadServiceOptions();
+    loadRegisteredHotels();
+}
+
+// セッション復元
+(function(){
+    const saved=localStorage.getItem(SESSION_KEY);
+    if(!saved)return;
+    try{
+        const sess=JSON.parse(saved);
+        if(!sess.id)return;
+        sb.from("shops").select("*").eq("id",sess.id).single().then(({data,error})=>{
+            if(error||!data||data.status==="suspended"){localStorage.removeItem(SESSION_KEY);return;}
+            currentShop=data;
+            onLoggedIn();
+        });
+    }catch(e){localStorage.removeItem(SESSION_KEY);}
+})();
+
+// ===== タブ切替 =====
+function switchTab(name){
+    document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+    document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
+    document.getElementById("tab-"+name).classList.add("active");
+    event.currentTarget.classList.add("active");
+    if(name==="list")loadRegisteredHotels();
+}
+
+// ===== サービスオプション読み込み =====
+let serviceOptions=[];
+function loadServiceOptions(){
+    sb.from("shop_service_options").select("*").order("sort_order").then(({data,error})=>{
+        if(error){console.error("service options error:",error);return;}
+        serviceOptions=data||[];
+        renderServiceChecks();
+    });
+}
+
+function renderServiceChecks(selectedIds=[]){
+    const wrap=document.getElementById("service-checks");
+    if(!serviceOptions.length){wrap.innerHTML='<span style="font-size:12px;color:var(--text-3);">サービスオプションが未登録です</span>';return;}
+    wrap.innerHTML=serviceOptions.map(s=>{
+        const checked=selectedIds.includes(s.id);
+        return `<label class="svc-check${checked?" checked":""}" onclick="toggleSvcCheck(this)"><input type="checkbox" value="${s.id}"${checked?" checked":""}><span class="svc-dot"></span>${esc(s.label)}</label>`;
+    }).join("");
+}
+
+function toggleSvcCheck(el){
+    const cb=el.querySelector("input");
+    cb.checked=!cb.checked;
+    el.classList.toggle("checked",cb.checked);
+}
+
+function getSelectedServices(){
+    return Array.from(document.querySelectorAll("#service-checks input:checked")).map(cb=>parseInt(cb.value));
+}
+
+// ===== ホテル検索 =====
+let searchResults=[];
+async function searchHotels(){
+    const keyword=document.getElementById("hotel-keyword").value.trim();
+    const pref=document.getElementById("hotel-pref").value;
+    if(!keyword&&!pref){toast("検索条件を入力してください");return;}
+    let q=sb.from("hotels").select("id,name,address,prefecture,hotel_type").eq("is_published",true);
+    if(keyword)q=q.or(`name.ilike.%${keyword}%,address.ilike.%${keyword}%`);
+    if(pref)q=q.eq("prefecture",pref);
+    q=q.order("name").limit(50);
+    const{data,error}=await q;
+    if(error){toast("検索エラー: "+error.message);return;}
+    searchResults=data||[];
+    document.getElementById("search-status").textContent=searchResults.length?`${searchResults.length}件見つかりました`:"該当するホテルがありません";
+    renderSearchResults();
+}
+
+function renderSearchResults(){
+    const wrap=document.getElementById("hotel-results");
+    if(!searchResults.length){wrap.innerHTML="";return;}
+    wrap.innerHTML=searchResults.map(h=>`<div class="hotel-row" onclick="selectHotel('${h.id}')"><span class="h-name">${esc(h.name)}</span><span class="h-addr">${esc(h.address||"—")}</span><span class="h-type">${HOTEL_TYPES[h.hotel_type]||"—"}</span></div>`).join("");
+}
+
+// ===== ホテル選択 → フォーム表示 =====
+function selectHotel(hotelId){
+    const h=searchResults.find(x=>String(x.id)===String(hotelId));
+    if(!h)return;
+    // 既存情報があるかチェック
+    sb.from("shop_hotel_info").select("*").eq("shop_id",currentShop.id).eq("hotel_id",hotelId).maybeSingle().then(({data})=>{
+        openForm(h,data);
+    });
+}
+
+function openForm(hotel,existingInfo){
+    document.getElementById("form-hotel-name").textContent=hotel.name;
+    document.getElementById("form-hotel-id").value=hotel.id;
+    document.getElementById("form-edit-id").value=existingInfo?existingInfo.id:"";
+    document.getElementById("form-can-call").value=existingInfo?String(existingInfo.can_call):"true";
+    document.getElementById("form-transport-cost").value=existingInfo?existingInfo.transport_cost||"":"";
+    document.getElementById("form-memo").value=existingInfo?existingInfo.memo||"":"";
+
+    // 既存サービス読み込み
+    if(existingInfo&&existingInfo.id){
+        sb.from("shop_hotel_services").select("service_option_id").eq("shop_hotel_info_id",existingInfo.id).then(({data})=>{
+            const ids=(data||[]).map(d=>d.service_option_id);
+            renderServiceChecks(ids);
+        });
+    }else{
+        renderServiceChecks([]);
+    }
+
+    document.getElementById("info-form").classList.add("active");
+    document.getElementById("info-form").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function cancelForm(){
+    document.getElementById("info-form").classList.remove("active");
+    document.getElementById("form-edit-id").value="";
+}
+
+// ===== 保存 =====
+async function saveHotelInfo(){
+    if(!currentShop)return;
+    const hotelId=document.getElementById("form-hotel-id").value;
+    const editId=document.getElementById("form-edit-id").value;
+    const canCall=document.getElementById("form-can-call").value==="true";
+    const cost=parseInt(document.getElementById("form-transport-cost").value)||0;
+    const memo=document.getElementById("form-memo").value.trim()||null;
+    const services=getSelectedServices();
+
+    const payload={
+        shop_id:currentShop.id,
+        hotel_id:hotelId,
+        can_call:canCall,
+        transport_cost:cost,
+        memo:memo
+    };
+
+    let infoId;
+    if(editId){
+        // 更新
+        const{error}=await sb.from("shop_hotel_info").update(payload).eq("id",editId);
+        if(error){console.error("update error:",error);toast("更新エラー: "+error.message);return;}
+        infoId=editId;
+    }else{
+        // 新規
+        const{data,error}=await sb.from("shop_hotel_info").insert(payload).select().single();
+        if(error){console.error("insert error:",error);toast("保存エラー: "+error.message);return;}
+        infoId=data.id;
+    }
+
+    // サービス保存（全削除→再挿入）
+    await sb.from("shop_hotel_services").delete().eq("shop_hotel_info_id",infoId);
+    if(services.length>0){
+        const rows=services.map(sid=>({shop_hotel_info_id:infoId,service_option_id:sid}));
+        const{error:sErr}=await sb.from("shop_hotel_services").insert(rows);
+        if(sErr)console.error("services save error:",sErr);
+    }
+
+    cancelForm();
+    toast(editId?"✅ 更新しました":"✅ 保存しました");
+    loadRegisteredHotels();
+}
+
+// ===== 登録済みホテル一覧 =====
+let regData=[];
+let regPage=1;
+const PER_PAGE=20;
+
+async function loadRegisteredHotels(){
+    if(!currentShop)return;
+    const{data,error}=await sb.from("shop_hotel_info").select("*,hotels(name,address,hotel_type)").eq("shop_id",currentShop.id).order("created_at",{ascending:false});
+    if(error){console.error("loadRegistered error:",error);return;}
+    regData=data||[];
+    regPage=1;
+    renderRegistered();
+}
+
+function renderRegistered(){
+    const total=regData.length;
+    const totalPages=Math.ceil(total/PER_PAGE)||1;
+    if(regPage>totalPages)regPage=totalPages;
+    const start=(regPage-1)*PER_PAGE;
+    const pageData=regData.slice(start,start+PER_PAGE);
+
+    document.getElementById("reg-count").textContent=`全${total}件`;
+    const wrap=document.getElementById("reg-list");
+
+    if(!pageData.length){
+        wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-3);font-size:13px;">登録済みホテルがありません</div>';
+        document.getElementById("pagination").innerHTML="";
+        return;
+    }
+
+    wrap.innerHTML=pageData.map(r=>{
+        const name=r.hotels?r.hotels.name:"(削除済み)";
+        const canLabel=r.can_call?'<span class="reg-status can">呼べる</span>':'<span class="reg-status cant">呼べない</span>';
+        const cost=r.transport_cost?`¥${r.transport_cost.toLocaleString()}`:"—";
+        return `<div class="reg-row"><span class="reg-name">${esc(name)}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">削除</button></div></div>`;
+    }).join("");
+
+    // ページネーション
+    if(totalPages<=1){document.getElementById("pagination").innerHTML="";return;}
+    let pgHtml='<button class="page-btn" onclick="goPage('+(regPage-1)+')"'+(regPage<=1?" disabled":"")+'>←</button>';
+    for(let i=1;i<=totalPages;i++){
+        if(totalPages>7&&Math.abs(i-regPage)>2&&i!==1&&i!==totalPages){
+            if(i===2||i===totalPages-1)pgHtml+='<span class="page-info">...</span>';
+            continue;
+        }
+        pgHtml+=`<button class="page-btn${i===regPage?" active":""}" onclick="goPage(${i})">${i}</button>`;
+    }
+    pgHtml+='<button class="page-btn" onclick="goPage('+(regPage+1)+')"'+(regPage>=totalPages?" disabled":"")+'>→</button>';
+    document.getElementById("pagination").innerHTML=pgHtml;
+}
+
+function goPage(p){
+    const totalPages=Math.ceil(regData.length/PER_PAGE)||1;
+    if(p<1||p>totalPages)return;
+    regPage=p;
+    renderRegistered();
+}
+
+async function editRegistered(infoId){
+    const info=regData.find(r=>String(r.id)===String(infoId));
+    if(!info)return;
+    // ホテル情報でフォームを開く
+    const hotel={id:info.hotel_id,name:info.hotels?info.hotels.name:"(不明)"};
+    openForm(hotel,info);
+    switchTab('search');
+    document.querySelectorAll(".tab-btn").forEach((btn,i)=>{btn.classList.toggle("active",i===0);});
+}
+
+async function deleteRegistered(infoId){
+    if(!confirm("この登録情報を削除しますか？"))return;
+    await sb.from("shop_hotel_services").delete().eq("shop_hotel_info_id",infoId);
+    const{error}=await sb.from("shop_hotel_info").delete().eq("id",infoId);
+    if(error){toast("削除エラー: "+error.message);return;}
+    regData=regData.filter(r=>String(r.id)!==String(infoId));
+    renderRegistered();
+    toast("🗑 削除しました");
+}
+</script>
+</body>
+</html>

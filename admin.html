@@ -350,6 +350,7 @@
                     <button class="master-tab" id="mt-cannot" onclick="switchMasterSub('cannot')">❌ 呼べなかった理由</button>
                     <button class="master-tab" id="mt-room" onclick="switchMasterSub('room')">🛏 部屋タイプ</button>
                     <button class="master-tab" id="mt-plans" onclick="switchMasterSub('plans')">💰 契約プラン</button>
+                    <button class="master-tab" id="mt-service" onclick="switchMasterSub('service')">🛎 店舗サービス</button>
                 </div>
                 <div class="master-sub active" id="msub-can">
                     <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="can-reasons-sub"></div>
@@ -386,6 +387,14 @@
                         <input id="new-plan-price" class="add-input" placeholder="月額(円)" type="number" style="flex:1;">
                         <input id="new-plan-desc" class="add-input" placeholder="説明(任意)" style="flex:2;">
                         <button class="btn-add" onclick="addContractPlan()">＋ 追加</button>
+                    </div>
+                </div>
+                <div class="master-sub" id="msub-service">
+                    <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="service-options-sub"></div>
+                    <div class="cond-list" id="service-options-list"></div>
+                    <div class="add-row">
+                        <input id="new-service-option" class="add-input" placeholder="新しいサービスを入力..." onkeydown="if(event.key==='Enter')addServiceOption()">
+                        <button class="btn-add" onclick="addServiceOption()">＋ 追加</button>
                     </div>
                 </div>
             </div>
@@ -671,7 +680,7 @@ function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("ope
 function openNav(){toggleTabBar();}
 function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadHotelRequests();}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadHotelRequests();}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
 const sortStates={};
@@ -997,6 +1006,15 @@ async function addRoomType(){const input=document.getElementById("new-room-type"
 async function editRoomType(id,label){const newLabel=prompt("タイプ名を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("room_types").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}roomTypesData=roomTypesData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderRoomTypes();toast("✅ 更新しました");}
 async function deleteRoomType(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("room_types").delete().eq("id",id);if(error){toast("削除エラー");return;}roomTypesData=roomTypesData.filter(c=>c.id!==id);renderRoomTypes();toast("🗑 削除しました");}
 
+// ===== 店舗サービス =====
+let serviceOptionsData=[];
+const SQL_SERVICE_OPTIONS=`CREATE TABLE IF NOT EXISTS shop_service_options (id serial PRIMARY KEY, label text NOT NULL UNIQUE, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE shop_service_options ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "shop_service_options_select" ON shop_service_options FOR SELECT USING (true);\nCREATE POLICY "shop_service_options_insert" ON shop_service_options FOR INSERT WITH CHECK (true);\nCREATE POLICY "shop_service_options_update" ON shop_service_options FOR UPDATE USING (true);\nCREATE POLICY "shop_service_options_delete" ON shop_service_options FOR DELETE USING (true);`;
+async function loadServiceOptions(){const{data,error}=await sb.from("shop_service_options").select("*").order("sort_order");if(error){if(error.code==="PGRST205")return showTableMissing("service-options-list","service-options-sub","shop_service_options",SQL_SERVICE_OPTIONS);toast("取得エラー: "+error.message);return;}serviceOptionsData=data||[];renderServiceOptions();}
+function renderServiceOptions(){document.getElementById("service-options-sub").textContent=`全 ${serviceOptionsData.length} 件`;document.getElementById("service-options-list").innerHTML=serviceOptionsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:serviceOptionsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'shop_service_options')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editServiceOption(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteServiceOption(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
+async function addServiceOption(){const input=document.getElementById("new-service-option");const label=input.value.trim();if(!label){toast("サービス名を入力してください");return;}const maxOrder=serviceOptionsData.length?Math.max(...serviceOptionsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("shop_service_options").insert({label,sort_order:maxOrder}).select().single();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}serviceOptionsData.push(data);renderServiceOptions();input.value="";toast("✅ 追加しました");}
+async function editServiceOption(id,label){const newLabel=prompt("サービス名を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("shop_service_options").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}serviceOptionsData=serviceOptionsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderServiceOptions();toast("✅ 更新しました");}
+async function deleteServiceOption(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("shop_service_options").delete().eq("id",id);if(error){toast("削除エラー");return;}serviceOptionsData=serviceOptionsData.filter(c=>c.id!==id);renderServiceOptions();toast("🗑 削除しました");}
+
 // ===== 契約プラン =====
 let contractPlansData=[];
 const SQL_CONTRACT_PLANS=`CREATE TABLE IF NOT EXISTS contract_plans (id serial PRIMARY KEY, name text NOT NULL, price integer NOT NULL DEFAULT 0, description text, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE contract_plans ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "contract_plans_select" ON contract_plans FOR SELECT USING (true);\nCREATE POLICY "contract_plans_insert" ON contract_plans FOR INSERT WITH CHECK (true);\nCREATE POLICY "contract_plans_update" ON contract_plans FOR UPDATE USING (true);\nCREATE POLICY "contract_plans_delete" ON contract_plans FOR DELETE USING (true);\nINSERT INTO contract_plans (name,price,description,sort_order) VALUES ('無料プラン',0,'基本掲載のみ',1),('Aプラン',5000,'スタンダード掲載',2),('Bプラン',10000,'プレミアム掲載',3);`;
@@ -1186,7 +1204,7 @@ CREATE POLICY "public_read" ON public.hotel_requests FOR SELECT USING (true);
 CREATE POLICY "public_insert" ON public.hotel_requests FOR INSERT WITH CHECK (true);
 CREATE POLICY "admin_update" ON public.hotel_requests FOR UPDATE USING (true);
 CREATE POLICY "admin_delete" ON public.hotel_requests FOR DELETE USING (true);`;
-const _sqlMap={can_call_reasons:SQL_CAN_REASONS,cannot_call_reasons:SQL_CANNOT_REASONS,room_types:SQL_ROOM_TYPES,hotel_requests:SQL_HOTEL_REQUESTS};
+const _sqlMap={can_call_reasons:SQL_CAN_REASONS,cannot_call_reasons:SQL_CANNOT_REASONS,room_types:SQL_ROOM_TYPES,hotel_requests:SQL_HOTEL_REQUESTS,shop_service_options:SQL_SERVICE_OPTIONS,contract_plans:SQL_CONTRACT_PLANS};
 function copyTableSQL(t){navigator.clipboard.writeText(_sqlMap[t]||"").then(()=>toast("✅ SQLをコピーしました")).catch(()=>toast("コピー失敗"));}
 function showTableMissing(listId,subId,tableName,sql){const sub=document.getElementById(subId);if(sub)sub.textContent="⚠️ テーブル未作成";const el=document.getElementById(listId);if(!el)return;el.innerHTML=`<div style="padding:16px;background:rgba(192,80,80,0.06);border:1px solid rgba(192,80,80,0.22);border-radius:8px;margin-bottom:4px;"><div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;">⚠️ テーブルが存在しません (public.${tableName})</div><div style="font-size:12px;color:var(--ink-3);margin-bottom:10px;">Supabase Dashboard → SQL Editor で以下のSQLを実行してください。実行後、ページをリロードすると表示されます。</div><pre style="background:#1a1a1a;color:#bbb;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:8px;">${esc(sql)}</pre><button class="btn b-btn-gold" onclick="copyTableSQL('${tableName}')">📋 SQLをコピー</button></div>`;}
 
@@ -1196,7 +1214,7 @@ function dndStart(e,id,table){_dndSrcId=id;_dndTable=table;e.currentTarget.class
 function dndOver(e){e.preventDefault();e.currentTarget.classList.add("drag-over");}
 function dndLeave(e){e.currentTarget.classList.remove("drag-over");}
 function dndEnd(e){e.currentTarget.classList.remove("dragging");document.querySelectorAll(".cond-row.drag-over").forEach(el=>el.classList.remove("drag-over"));}
-async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
+async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
 </script>
 </body>
 </html>
