@@ -367,6 +367,7 @@ async function showMajorAreaPage(region, pref) {
                     .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(80)
                     .order('review_average', { ascending: false, nullsFirst: false });
                 const hotels = await fetchHotelsWithSummary(query);
+                sortHotelsByReviews(hotels);
                 renderHotelCards(hotels);
                 setResultStatus(hotels.length);
             } catch (e) { console.error(e); } finally { hideLoading(); }
@@ -553,8 +554,38 @@ async function fetchHotelsWithSummary(query) {
     const hotelIds = hotels.map(h => h.id);
     const summaries = await fetchReportSummaries(hotelIds);
 
+    // 最新投稿日時を一括取得
+    const latestMap = await fetchLatestReportDates(hotelIds);
+
     // ホテルデータに集計を合体
-    return hotels.map(h => ({ ...h, summary: summaries[h.id] || null }));
+    return hotels.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
+}
+
+async function fetchLatestReportDates(hotelIds) {
+    if (!hotelIds.length) return {};
+    try {
+        const { data } = await supabaseClient.from('reports').select('hotel_id,created_at').in('hotel_id', hotelIds).order('created_at', { ascending: false });
+        const map = {};
+        (data || []).forEach(r => { if (!map[r.hotel_id]) map[r.hotel_id] = r.created_at; });
+        return map;
+    } catch { return {}; }
+}
+
+function getReportCount(h) {
+    const s = h.summary;
+    if (!s) return 0;
+    return (s.can_call_count||0) + (s.cannot_call_count||0) + (s.shop_can_count||0) + (s.shop_ng_count||0);
+}
+
+function sortHotelsByReviews(hotels) {
+    hotels.sort((a, b) => {
+        const ca = getReportCount(a), cb = getReportCount(b);
+        if (ca !== cb) return cb - ca;
+        const da = a.latestReportAt || '', db = b.latestReportAt || '';
+        if (da !== db) return da < db ? 1 : -1;
+        return (a.name || '').localeCompare(b.name || '', 'ja');
+    });
+    return hotels;
 }
 
 async function fetchAndShowHotels(filterObj) {
@@ -570,6 +601,7 @@ async function fetchAndShowHotels(filterObj) {
         query = query.order('review_average', { ascending: false, nullsFirst: false });
 
         const hotels = await fetchHotelsWithSummary(query);
+        sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
     } catch (e) {
@@ -605,19 +637,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         query = query.order('review_average', { ascending: false, nullsFirst: false });
 
         const hotels = await fetchHotelsWithSummary(query);
-        const TYPE_ORDER = { business: 0, city: 1, resort: 2, other: 3, ryokan: 4, pension: 5, minshuku: 6 };
-        const repCount = h => {
-            const s = h.summary;
-            if (!s) return 0;
-            return (s.can_call_count||0) + (s.cannot_call_count||0) + (s.shop_can_count||0) + (s.shop_ng_count||0);
-        };
-        hotels.sort((a, b) => {
-            const ca = repCount(a), cb = repCount(b);
-            if (ca !== cb) return cb - ca;  // 投稿数多い順
-            const oa = TYPE_ORDER[a.hotel_type ?? 'other'] ?? 3;
-            const ob = TYPE_ORDER[b.hotel_type ?? 'other'] ?? 3;
-            return oa - ob;
-        });
+        sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
     } catch (e) {
@@ -790,6 +810,7 @@ function fetchHotelsByStation() {
                 .limit(80);
 
             const hotels = await fetchHotelsWithSummary(query);
+            sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);
         } catch (e) {
@@ -838,6 +859,7 @@ function fetchHotelsFromSearch() {
             query = query.order('review_average', { ascending: false, nullsFirst: false });
 
             const hotels = await fetchHotelsWithSummary(query);
+            sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);
         } catch (e) {
@@ -931,6 +953,12 @@ function renderHotelCards(hotels, showDistance = false) {
         // ===== ホテルランクバッジ（楽天評価の代替） =====
         const rankHTML = hotelRankBadge(h.review_average);
 
+        // ===== 口コミ数バッジ =====
+        const reviewCount = getReportCount(h);
+        const reviewBadgeHTML = reviewCount > 0
+            ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);border-radius:10px;font-size:10px;font-weight:700;color:#9a7a20;white-space:nowrap;flex-shrink:0;">💬 ${reviewCount}件</span>`
+            : '';
+
         // ===== 最寄駅 + 参考料金（横並び） =====
         const priceInline = h.min_charge
             ? `<span class="hotel-price-inline">最安値 ¥${parseInt(h.min_charge).toLocaleString()}~</span>`
@@ -954,6 +982,7 @@ function renderHotelCards(hotels, showDistance = false) {
                 <div class="hotel-card-head">
                     ${distHTML}
                     <div class="hotel-name" style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${h.name}</div>
+                    ${reviewBadgeHTML}
                     ${rankHTML}
                 </div>
 
