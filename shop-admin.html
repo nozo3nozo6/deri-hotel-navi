@@ -718,15 +718,14 @@ function cancelForm(){
 }
 
 // ===== 交通費入力 =====
-(function(){
-    const fInput=document.getElementById("form-transport");
-    if(!fInput)return;
-    fInput.addEventListener("input",function(){
-        const raw=this.value.replace(/[^0-9]/g,"");
-        const formatted=raw?parseInt(raw,10).toLocaleString("ja-JP"):"";
-        if(this.value!==formatted)this.value=formatted;
-    });
-})();
+document.getElementById('form-transport').addEventListener('input', function(e) {
+    let val = this.value.replace(/[^0-9]/g, '');
+    if (val) {
+        this.value = parseInt(val, 10).toLocaleString('ja-JP');
+    } else {
+        this.value = '';
+    }
+});
 function toggleTransportFee(){
     const fc=document.getElementById("transport-free");
     const wrap=document.getElementById("transport-fee-wrap");
