@@ -1247,7 +1247,7 @@ async function loadHotelDetail(hotelId) {
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),
-            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name)').eq('hotel_id', hotelId),
+            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name,shop_url,plan_id,contract_plans(price))').eq('hotel_id', hotelId),
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
@@ -1307,11 +1307,16 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
     const shopNg  = summary?.shop_ng_count     || 0;
     const total   = can + cannot;
 
-    // 店舗名 → transport_fee のマップ
+    // 店舗名 → { transport_fee, shop_url, isPaid } のマップ
     const shopFeeMap = {};
+    const shopInfoMap = {};
     (shopHotelInfoList || []).forEach(info => {
-        const name = info.shops?.shop_name;
-        if (name) shopFeeMap[name] = info.transport_fee;
+        const shop = info.shops;
+        const name = shop?.shop_name;
+        if (!name) return;
+        shopFeeMap[name] = info.transport_fee;
+        const price = shop?.contract_plans?.price || 0;
+        shopInfoMap[name] = { shop_url: shop?.shop_url || null, isPaid: price > 0 };
     });
 
     function buildReportCard(r) {
@@ -1336,7 +1341,12 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
         ].join('');
         const isShop = r.poster_type === 'shop';
         const feeLabel = isShop ? formatTransportFee(shopFeeMap[r.poster_name]) : null;
-        const posterHTML = r.poster_name ? (()=>{const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;})() : '';
+        const posterHTML = r.poster_name ? (()=>{
+            const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
+            const si=isShop?shopInfoMap[r.poster_name]:null;
+            if(si&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
+        })() : '';
         const feeHTML = feeLabel ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030;">🚕 交通費: ${feeLabel}</span>` : '';
         const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" style="padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap;">🚩 報告</button>` : '';
 

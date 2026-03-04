@@ -813,6 +813,7 @@ async function doSubmit(){
         can_call:canCall,
         poster_type:"shop",
         poster_name:currentShop.shop_name||"店舗",
+        shop_id:currentShop.id,
         can_call_reasons:canCall?canReasonArr:[],
         cannot_call_reasons:!canCall?cantReasonArr:[],
         time_slot:timeSlotArr[0]||null,
