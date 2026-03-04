@@ -134,6 +134,17 @@
         .f-textarea:focus{border-color:var(--rose);}
         .f-textarea::placeholder{color:var(--text-3);}
 
+        /* チェックグループ（理由・部屋タイプ・時間帯） */
+        .check-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+        .check-item{display:flex;align-items:center;gap:6px;padding:7px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all 0.15s;font-size:12px;user-select:none;}
+        .check-item:hover{border-color:var(--border-s);}
+        .check-item input{display:none;}
+        .check-item.checked{background:rgba(58,154,96,0.1);border-color:var(--green);color:var(--green);}
+        .cant-sec .check-item.checked{background:rgba(192,80,80,0.1);border-color:var(--red);color:var(--red);}
+        .check-item .ci-dot{width:8px;height:8px;border-radius:50%;border:2px solid var(--text-3);transition:all 0.15s;flex-shrink:0;}
+        .check-item.checked .ci-dot{background:var(--green);border-color:var(--green);}
+        .cant-sec .check-item.checked .ci-dot{background:var(--red);border-color:var(--red);}
+
         /* サービスチェックボックス */
         .service-checks{display:flex;flex-wrap:wrap;gap:8px;}
         .svc-check{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:all 0.15s;font-size:12px;user-select:none;}
@@ -160,6 +171,7 @@
         .confirm-tag{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;margin:2px 2px 2px 0;}
         .confirm-tag.green{background:rgba(58,154,96,0.15);border:1px solid rgba(58,154,96,0.3);color:var(--green);}
         .confirm-tag.red{background:rgba(192,80,80,0.12);border:1px solid rgba(192,80,80,0.25);color:var(--red);}
+        .confirm-tag.blue{background:rgba(90,138,191,0.12);border:1px solid rgba(90,138,191,0.25);color:var(--blue);}
         .confirm-tag.rose{background:var(--rose-bg);border:1px solid var(--rose-border);color:var(--rose);}
         .confirm-btns{display:flex;gap:8px;margin-top:20px;}
         .confirm-btns .btn-back-confirm{flex:1;padding:13px;background:var(--bg-3);border:1px solid var(--border);border-radius:12px;font-size:14px;cursor:pointer;font-family:inherit;color:var(--text-2);}
@@ -301,34 +313,24 @@
             <!-- 2. 呼べる場合の追加項目 -->
             <div class="cond-section can-sec" id="can-section">
                 <div class="form-group">
-                    <label class="form-label">呼べた理由 <span class="opt">(任意)</span></label>
-                    <select class="f-select" id="form-can-reason"><option value="">未選択</option></select>
+                    <label class="form-label">呼べた理由 <span class="opt">(任意・複数選択可)</span></label>
+                    <div class="check-group" id="can-reason-checks"></div>
                 </div>
-                <div class="form-row">
-                    <div>
-                        <label class="form-label">部屋タイプ <span class="opt">(任意)</span></label>
-                        <select class="f-select" id="form-room-type"><option value="">未選択</option></select>
-                    </div>
-                    <div>
-                        <label class="form-label">時間帯 <span class="opt">(任意)</span></label>
-                        <select class="f-select" id="form-time-slot">
-                            <option value="">未選択</option>
-                            <option value="早朝 (5:00~8:00)">早朝 (5:00~8:00)</option>
-                            <option value="朝 (8:00~11:00)">朝 (8:00~11:00)</option>
-                            <option value="昼 (11:00~16:00)">昼 (11:00~16:00)</option>
-                            <option value="夕方 (16:00~18:00)">夕方 (16:00~18:00)</option>
-                            <option value="夜 (18:00~23:00)">夜 (18:00~23:00)</option>
-                            <option value="深夜 (23:00~5:00)">深夜 (23:00~5:00)</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">部屋タイプ <span class="opt">(任意・複数選択可)</span></label>
+                    <div class="check-group" id="room-type-checks"></div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label">時間帯 <span class="opt">(任意・複数選択可)</span></label>
+                    <div class="check-group" id="time-slot-checks"></div>
                 </div>
             </div>
 
             <!-- 3. 呼べない場合の追加項目 -->
             <div class="cond-section cant-sec" id="cant-section">
                 <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label">呼べなかった理由 <span class="opt">(任意)</span></label>
-                    <select class="f-select" id="form-cant-reason"><option value="">未選択</option></select>
+                    <label class="form-label">呼べなかった理由 <span class="opt">(任意・複数選択可)</span></label>
+                    <div class="check-group" id="cant-reason-checks"></div>
                 </div>
             </div>
 
@@ -472,6 +474,7 @@ function switchTab(name){
 
 // ===== マスターデータ読み込み =====
 let canReasons=[],cannotReasons=[],roomTypes=[],serviceOptions=[];
+const TIME_SLOTS=["早朝 (5:00~8:00)","朝 (8:00~11:00)","昼 (11:00~16:00)","夕方 (16:00~18:00)","夜 (18:00~23:00)","深夜 (23:00~5:00)"];
 
 async function loadMasterData(){
     const[cr,cnr,rt,so]=await Promise.all([
@@ -485,17 +488,27 @@ async function loadMasterData(){
     roomTypes=(rt.data||[]).map(d=>d.label);
     serviceOptions=so.data||[];
 
-    // プルダウン生成
-    const canSel=document.getElementById("form-can-reason");
-    canSel.innerHTML='<option value="">未選択</option>'+canReasons.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");
-    const cantSel=document.getElementById("form-cant-reason");
-    cantSel.innerHTML='<option value="">未選択</option>'+cannotReasons.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");
-    const rtSel=document.getElementById("form-room-type");
-    rtSel.innerHTML='<option value="">未選択</option>'+roomTypes.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join("");
+    // チェックボックスグループ生成
+    renderCheckGroup("can-reason-checks",canReasons);
+    renderCheckGroup("cant-reason-checks",cannotReasons);
+    renderCheckGroup("room-type-checks",roomTypes);
+    renderCheckGroup("time-slot-checks",TIME_SLOTS);
 
     // サービス0件なら非表示
     document.getElementById("service-group").style.display=serviceOptions.length>0?"":"none";
 }
+
+function renderCheckGroup(containerId,items,selectedVals=[]){
+    const wrap=document.getElementById(containerId);
+    if(!wrap)return;
+    wrap.innerHTML=items.map(v=>{
+        const checked=selectedVals.includes(v);
+        return`<label class="check-item${checked?" checked":""}" onclick="toggleCheckItem(this)"><input type="checkbox" value="${esc(v)}"${checked?" checked":""}><span class="ci-dot"></span>${esc(v)}</label>`;
+    }).join("");
+}
+function toggleCheckItem(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);}
+function getCheckedValues(containerId){return Array.from(document.querySelectorAll("#"+containerId+" input:checked")).map(cb=>cb.value);}
+function clearCheckGroup(containerId){document.querySelectorAll("#"+containerId+" .check-item").forEach(el=>{el.classList.remove("checked");el.querySelector("input").checked=false;});}
 
 function renderServiceChecks(selectedIds=[]){
     const wrap=document.getElementById("service-checks");
@@ -654,8 +667,8 @@ function setCanCall(val){
     document.getElementById("btn-cannot").classList.toggle("active",val===false);
     document.getElementById("can-section").classList.toggle("active",val===true);
     document.getElementById("cant-section").classList.toggle("active",val===false);
-    if(val===true){document.getElementById("form-cant-reason").value="";}
-    else{document.getElementById("form-can-reason").value="";document.getElementById("form-room-type").value="";document.getElementById("form-time-slot").value="";}
+    if(val===true){clearCheckGroup("cant-reason-checks");}
+    else{clearCheckGroup("can-reason-checks");clearCheckGroup("room-type-checks");clearCheckGroup("time-slot-checks");}
 }
 
 // ===== ホテル選択 → フォーム =====
@@ -677,10 +690,10 @@ function openForm(hotel,existing){
     document.getElementById("btn-cannot").classList.remove("active");
     document.getElementById("can-section").classList.remove("active");
     document.getElementById("cant-section").classList.remove("active");
-    document.getElementById("form-can-reason").value="";
-    document.getElementById("form-cant-reason").value="";
-    document.getElementById("form-room-type").value="";
-    document.getElementById("form-time-slot").value="";
+    clearCheckGroup("can-reason-checks");
+    clearCheckGroup("cant-reason-checks");
+    clearCheckGroup("room-type-checks");
+    clearCheckGroup("time-slot-checks");
     document.getElementById("transport-free").checked=false;document.getElementById("transport-fee-wrap").style.display="flex";document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";
 
     if(existing){
@@ -739,10 +752,10 @@ function showConfirm(){
     if(formCanCall===null){toast("「呼べる」か「呼べない」を選択してください");return;}
 
     const canCall=formCanCall;
-    const canReason=document.getElementById("form-can-reason").value;
-    const cantReason=document.getElementById("form-cant-reason").value;
-    const roomType=document.getElementById("form-room-type").value;
-    const timeSlot=document.getElementById("form-time-slot").value;
+    const canReasonArr=getCheckedValues("can-reason-checks");
+    const cantReasonArr=getCheckedValues("cant-reason-checks");
+    const roomTypeArr=getCheckedValues("room-type-checks");
+    const timeSlotArr=getCheckedValues("time-slot-checks");
     const transportFee=getTransportFee();
     const memo=document.getElementById("form-memo").value.trim();
     const svcs=getSelectedServices();
@@ -754,12 +767,13 @@ function showConfirm(){
         if(!value)return'';
         return`<div class="confirm-row"><div class="confirm-label">${label}</div><div class="confirm-value">${value}</div></div>`;
     }
+    function tagsHtml(arr,cls){return arr.map(v=>`<span class="confirm-tag ${cls}">${esc(v)}</span>`).join("");}
 
     let html=`<div class="confirm-row"><div class="confirm-label">結果</div><div class="confirm-value" style="font-weight:700;color:${resultColor};">${resultText}</div></div>`;
-    if(canCall&&canReason)html+=row('呼べた理由',`<span class="confirm-tag green">${esc(canReason)}</span>`);
-    if(!canCall&&cantReason)html+=row('呼べなかった理由',`<span class="confirm-tag red">${esc(cantReason)}</span>`);
-    if(canCall&&roomType)html+=row('部屋タイプ',esc(roomType));
-    if(canCall&&timeSlot)html+=row('時間帯',esc(timeSlot));
+    if(canCall&&canReasonArr.length)html+=row('呼べた理由',tagsHtml(canReasonArr,'green'));
+    if(!canCall&&cantReasonArr.length)html+=row('呼べなかった理由',tagsHtml(cantReasonArr,'red'));
+    if(canCall&&roomTypeArr.length)html+=row('部屋タイプ',tagsHtml(roomTypeArr,'blue'));
+    if(canCall&&timeSlotArr.length)html+=row('時間帯',tagsHtml(timeSlotArr,'blue'));
     html+=row('交通費',formatFee(transportFee));
     if(svcs.length>0){
         const tags=svcs.map(sid=>{const s=serviceOptions.find(x=>x.id===sid);return s?`<span class="confirm-tag rose">${esc(s.name)}</span>`:'';}).join("");
@@ -784,10 +798,10 @@ async function doSubmit(){
     const hotelId=document.getElementById("form-hotel-id").value;
     const editId=document.getElementById("form-edit-id").value;
     const canCall=formCanCall;
-    const canReason=document.getElementById("form-can-reason").value;
-    const cantReason=document.getElementById("form-cant-reason").value;
-    const roomType=document.getElementById("form-room-type").value;
-    const timeSlot=document.getElementById("form-time-slot").value;
+    const canReasonArr=getCheckedValues("can-reason-checks");
+    const cantReasonArr=getCheckedValues("cant-reason-checks");
+    const roomTypeArr=getCheckedValues("room-type-checks");
+    const timeSlotArr=getCheckedValues("time-slot-checks");
     const transportFee=getTransportFee();
     const memo=document.getElementById("form-memo").value.trim()||null;
     const svcs=getSelectedServices();
@@ -798,10 +812,10 @@ async function doSubmit(){
         can_call:canCall,
         poster_type:"shop",
         poster_name:currentShop.shop_name||"店舗",
-        can_call_reasons:canCall&&canReason?[canReason]:[],
-        cannot_call_reasons:!canCall&&cantReason?[cantReason]:[],
-        time_slot:timeSlot||null,
-        room_type:roomType||null,
+        can_call_reasons:canCall?canReasonArr:[],
+        cannot_call_reasons:!canCall?cantReasonArr:[],
+        time_slot:timeSlotArr[0]||null,
+        room_type:roomTypeArr[0]||null,
         comment:memo,
         gender_mode:currentShop.gender_mode||"men",
         guest_male:1,
