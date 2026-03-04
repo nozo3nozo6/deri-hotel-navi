@@ -121,6 +121,9 @@
         .f-select:focus{border-color:var(--rose);}
 
         /* 交通費入力 */
+        .transport-fee-group{display:flex;flex-direction:column;gap:10px;}
+        .free-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);user-select:none;}
+        .free-check input{width:16px;height:16px;cursor:pointer;accent-color:var(--rose);}
         .transport-fee-input{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r);padding:0 12px;background:var(--bg-3);transition:border-color 0.2s;}
         .transport-fee-input:focus-within{border-color:var(--rose);}
         .fee-prefix,.fee-suffix{font-size:16px;font-weight:700;color:var(--text-2);}
@@ -330,10 +333,13 @@
             <!-- 4. 店舗専用項目（常に表示） -->
             <div class="form-group" style="margin-top:18px;">
                 <label class="form-label">交通費 <span class="opt">(任意)</span></label>
-                <div class="transport-fee-input" id="transport-fee-wrap">
-                    <span class="fee-prefix">¥</span>
-                    <input type="text" id="form-transport" inputmode="numeric" placeholder="0">
-                    <span class="fee-suffix">-</span>
+                <div class="transport-fee-group">
+                    <label class="free-check"><input type="checkbox" id="transport-free" onchange="toggleTransportFee()"><span>交通費無料</span></label>
+                    <div class="transport-fee-input" id="transport-fee-wrap">
+                        <span class="fee-prefix">¥</span>
+                        <input type="tel" id="form-transport" inputmode="numeric" placeholder="0">
+                        <span class="fee-suffix">-</span>
+                    </div>
                 </div>
             </div>
 
@@ -669,7 +675,7 @@ function openForm(hotel,existing){
     document.getElementById("form-cant-reason").value="";
     document.getElementById("form-room-type").value="";
     document.getElementById("form-time-slot").value="";
-    document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";
+    document.getElementById("transport-free").checked=false;document.getElementById("transport-fee-wrap").style.display="flex";document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";
 
     if(existing){
         setCanCall(existing.can_call);
@@ -692,13 +698,33 @@ function cancelForm(){
     formCanCall=null;
 }
 
-// ===== 交通費入力フォーマット =====
+// ===== 交通費入力 =====
 (function(){
-    const fi=document.getElementById("form-transport");
-    fi.addEventListener("input",function(e){let v=e.target.value.replace(/[^0-9]/g,"");if(v)v=parseInt(v,10).toLocaleString("ja-JP");e.target.value=v;});
+    document.getElementById("form-transport").addEventListener("input",function(e){
+        let v=e.target.value.replace(/[^0-9]/g,"");
+        if(v)v=parseInt(v,10).toLocaleString("ja-JP");
+        e.target.value=v;
+    });
 })();
-function getTransportFee(){const raw=document.getElementById("form-transport").value.replace(/,/g,"");return raw?parseInt(raw,10):0;}
-function setTransportFee(num){const fi=document.getElementById("form-transport");if(num===null||num===undefined||num===0){fi.value="";return;}fi.value=num.toLocaleString("ja-JP");}
+function toggleTransportFee(){
+    const fc=document.getElementById("transport-free");
+    const wrap=document.getElementById("transport-fee-wrap");
+    const fi=document.getElementById("form-transport");
+    if(fc.checked){wrap.style.display="none";fi.value="";}
+    else{wrap.style.display="flex";fi.focus();}
+}
+function getTransportFee(){
+    if(document.getElementById("transport-free").checked)return 0;
+    const raw=document.getElementById("form-transport").value.replace(/,/g,"");
+    return raw?parseInt(raw,10):0;
+}
+function setTransportFee(num){
+    const fc=document.getElementById("transport-free");
+    const wrap=document.getElementById("transport-fee-wrap");
+    const fi=document.getElementById("form-transport");
+    if(num===null||num===undefined||num===0){fc.checked=true;wrap.style.display="none";fi.value="";return;}
+    fc.checked=false;wrap.style.display="flex";fi.value=num.toLocaleString("ja-JP");
+}
 function formatFee(num){if(!num||num===0)return"無料";return"¥"+num.toLocaleString("ja-JP")+"-";}
 
 // ===== 確認画面 =====
