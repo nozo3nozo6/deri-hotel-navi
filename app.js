@@ -1316,20 +1316,25 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
             r.room_type  ? `<span style="padding:2px 7px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:10px;color:var(--text-2);">🛏${r.room_type}</span>` : '',
             guestChip,
         ].join('');
+        const isShop = r.poster_type === 'shop';
+        const feeLabel = isShop ? formatTransportFee(shopFeeMap[r.poster_name]) : null;
+        const posterHTML = r.poster_name ? (()=>{const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;})() : '';
+        const feeHTML = feeLabel ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030;">🚕 交通費: ${feeLabel}</span>` : '';
+        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" style="padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap;">🚩 報告</button>` : '';
+
         return `
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:5px;">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:${(r.comment || (r.poster_type==='shop' && formatTransportFee(shopFeeMap[r.poster_name]))) ? '6px' : '0'};">
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
                 <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
                     ${r.can_call ? '✅ 呼べた' : '❌ 呼べなかった'}
                 </span>
                 ${tagsHTML}
                 ${metaChips}
-                ${r.poster_name ? (()=>{const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';return`<span style="font-size:10px;color:${col};margin-left:auto;font-weight:600;">${icon} ${r.poster_name}</span>`})() : '<span style="flex:1;"></span>'}
-                ${r.id ? `<button onclick="showFlagModal('${r.id}')" style="padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap;">🚩 報告</button>` : ''}
             </div>
-            ${(()=>{ if(r.poster_type==='shop'){const fee=formatTransportFee(shopFeeMap[r.poster_name]);if(fee)return`<div style="font-size:11px;color:#9a7030;margin-top:4px;"><span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;">🚕 交通費: ${fee}</span></div>`;} return''; })()}
-            ${r.comment ? `<div style="font-size:12px;color:var(--text-2);line-height:1.6;">${r.comment}</div>` : ''}
+            ${(posterHTML || feeHTML) ? `<div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap;">${posterHTML}${feeHTML}</div>` : ''}
+            ${r.comment ? `<div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:6px;">${r.comment}</div>` : ''}
+            ${flagHTML ? `<div style="text-align:right;margin-top:4px;">${flagHTML}</div>` : ''}
         </div>`;
     }
 
