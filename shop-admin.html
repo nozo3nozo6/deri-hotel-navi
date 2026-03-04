@@ -341,7 +341,7 @@
                     <label class="free-check"><input type="checkbox" id="transport-free" onchange="toggleTransportFee()"><span>交通費無料</span></label>
                     <div class="transport-fee-input" id="transport-fee-wrap">
                         <span class="fee-prefix">¥</span>
-                        <input type="tel" id="form-transport" inputmode="numeric" placeholder="0">
+                        <input type="text" id="form-transport" inputmode="numeric" pattern="[0-9,]*" placeholder="0">
                         <span class="fee-suffix">-</span>
                     </div>
                 </div>
@@ -719,10 +719,12 @@ function cancelForm(){
 
 // ===== 交通費入力 =====
 (function(){
-    document.getElementById("form-transport").addEventListener("input",function(e){
-        let v=e.target.value.replace(/[^0-9]/g,"");
-        if(v)v=parseInt(v,10).toLocaleString("ja-JP");
-        e.target.value=v;
+    const fInput=document.getElementById("form-transport");
+    if(!fInput)return;
+    fInput.addEventListener("input",function(){
+        const raw=this.value.replace(/[^0-9]/g,"");
+        const formatted=raw?parseInt(raw,10).toLocaleString("ja-JP"):"";
+        if(this.value!==formatted)this.value=formatted;
     });
 })();
 function toggleTransportFee(){
