@@ -1357,11 +1357,19 @@ async function loadHotelDetail(hotelId) {
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),
-            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name,shop_url,plan_id,contract_plans(price))').eq('hotel_id', hotelId),
+            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name,shop_url,plan_id,status,contract_plans(price))').eq('hotel_id', hotelId),
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
-        renderHotelDetail(hotelRes.data, reportsRes.data || [], summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || []);
+        // 店舗投稿の店舗名からステータスを一括取得
+        const allReports = reportsRes.data || [];
+        const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
+        let shopStatusMap = {};
+        if (shopNames.length > 0) {
+            const { data: shopRows } = await supabaseClient.from('shops').select('shop_name,status').in('shop_name', shopNames);
+            (shopRows || []).forEach(s => { shopStatusMap[s.shop_name] = s.status; });
+        }
+        renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
     } catch(e) {
         console.error(e);
         content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
@@ -1410,7 +1418,8 @@ function formatTransportFee(val) {
     return '¥' + num.toLocaleString('ja-JP') + '-';
 }
 
-function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
+function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap) {
+    shopStatusMap = shopStatusMap || {};
     const can     = summary?.can_call_count    || 0;
     const cannot  = summary?.cannot_call_count || 0;
     const shopCan = summary?.shop_can_count    || 0;
@@ -1426,7 +1435,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
         if (!name) return;
         shopFeeMap[name] = info.transport_fee;
         const price = shop?.contract_plans?.price || 0;
-        shopInfoMap[name] = { shop_url: shop?.shop_url || null, isPaid: price > 0 };
+        shopInfoMap[name] = { shop_url: shop?.shop_url || null, isPaid: price > 0, status: shop?.status || null };
     });
 
     function buildReportCard(r) {
@@ -1454,6 +1463,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList) {
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
             const si=isShop?shopInfoMap[r.poster_name]:null;
+            const shopSt=isShop?(si?.status||shopStatusMap[r.poster_name]||null):null;
+            if(isShop&&shopSt&&shopSt!=='active'){return`<span style="font-size:10px;color:var(--text-3);font-style:italic;">（投稿元の店舗名は非表示です）</span>`;}
             if(si&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
         })() : '';
