@@ -894,16 +894,26 @@ async function searchByLocation() {
                         .slice(0, 60);
                 }
 
-                // 集計を追加
+                // 集計・最新投稿日時を追加
                 const hotelIds = withDist.map(h => h.id);
-                const summaries = await fetchReportSummaries(hotelIds);
-                const withSummary = withDist.map(h => ({ ...h, summary: summaries[h.id] || null }));
+                const [summaries, latestMap] = await Promise.all([
+                    fetchReportSummaries(hotelIds),
+                    fetchLatestReportDates(hotelIds),
+                ]);
+                const withSummary = withDist.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
 
-                renderHotelCards(withSummary, true);
+                // 口コミありを口コミ数順、口コミなしを距離順
+                const withReviews = withSummary.filter(h => getReportCount(h) > 0);
+                const noReviews = withSummary.filter(h => getReportCount(h) === 0);
+                sortHotelsByReviews(withReviews);
+                noReviews.sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
+                const sorted = [...withReviews, ...noReviews];
+
+                renderHotelCards(sorted, true);
                 const status = document.getElementById('result-status');
                 if (status) {
                     status.style.display = 'block';
-                    status.innerHTML = `${locationLabel} — <strong>${withSummary.length}</strong> ${t('results')}`;
+                    status.innerHTML = `${locationLabel} — <strong>${sorted.length}</strong> ${t('results')}`;
                 }
             } catch (e) {
                 console.error(e);
