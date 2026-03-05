@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title id="page-title">店舗ページ | YobuHo</title>
+    <meta name="description" id="page-desc" content="">
+    <meta name="robots" content="index, follow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --rose:#b05570;--rose-dim:#8e3f56;--rose-bg:rgba(176,85,112,0.08);--rose-border:rgba(176,85,112,0.25);
+            --gold:#c9a84c;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);
+            --bg:#0a0a0f;--bg-2:#111118;--bg-3:#1a1a24;--bg-4:#22222e;
+            --border:rgba(255,255,255,0.08);--border-s:rgba(255,255,255,0.15);
+            --text:#f0ede8;--text-2:rgba(240,237,232,0.7);--text-3:rgba(240,237,232,0.4);
+            --red:#c05050;--green:#3a9a60;
+            --r:10px;
+        }
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:"Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+        .hdr{background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+        .hdr-inner{max-width:800px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px;}
+        .hdr-logo{font-family:"Cormorant Garamond",serif;font-size:16px;font-weight:300;color:var(--gold);letter-spacing:0.08em;text-decoration:none;}
+        .hdr-logo em{font-style:italic;font-weight:600;}
+        .main{max-width:800px;margin:0 auto;padding:20px;}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.15);}
+        .shop-name{font-size:22px;font-weight:700;margin-bottom:8px;}
+        .genre-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-border);}
+        .shop-info{margin-top:16px;display:flex;flex-direction:column;gap:10px;font-size:14px;}
+        .shop-info a{color:var(--rose);text-decoration:none;word-break:break-all;}
+        .shop-info a:hover{text-decoration:underline;}
+        .section-title{font-size:16px;font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+        .hotel-card{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px;transition:border-color 0.15s;}
+        .hotel-card:hover{border-color:var(--border-s);}
+        .hotel-card-name{font-size:14px;font-weight:700;margin-bottom:6px;}
+        .hotel-card-addr{font-size:12px;color:var(--text-3);margin-bottom:8px;}
+        .hotel-card-status{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;}
+        .can-call{background:rgba(58,154,96,0.12);color:var(--green);border:1px solid rgba(58,154,96,0.25);}
+        .cannot-call{background:rgba(192,80,80,0.1);color:var(--red);border:1px solid rgba(192,80,80,0.2);}
+        .hotel-detail{font-size:12px;color:var(--text-2);margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+        .empty-msg{text-align:center;padding:40px 20px;color:var(--text-3);font-size:14px;}
+        .error-page{text-align:center;padding:80px 20px;}
+        .error-page h2{font-size:20px;margin-bottom:12px;}
+        .error-page p{color:var(--text-3);font-size:14px;margin-bottom:20px;}
+        .error-page a{color:var(--rose);text-decoration:none;}
+        .error-page a:hover{text-decoration:underline;}
+        @media(max-width:500px){
+            .main{padding:12px;}
+            .card{padding:18px 14px;}
+            .shop-name{font-size:18px;}
+        }
+    </style>
+</head>
+<body>
+<div class="hdr">
+    <div class="hdr-inner">
+        <a href="https://yobuho.com/" class="hdr-logo"><em>Deri</em> Hotel Navi</a>
+    </div>
+</div>
+
+<div class="main" id="main">
+    <div class="empty-msg" id="loading">読み込み中...</div>
+</div>
+
+<script>
+const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
+const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const GENRE_LABELS={men:"男性向け（デリヘル）",women:"女性向け（女性用風俗）",men_same:"男性同士向け",women_same:"女性同士向け"};
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+(async function init(){
+    const params=new URLSearchParams(window.location.search);
+    const shopId=params.get("id");
+    const main=document.getElementById("main");
+
+    if(!shopId){
+        main.innerHTML='<div class="error-page"><h2>ページが見つかりません</h2><p>店舗IDが指定されていません。</p><a href="https://yobuho.com/">トップへ戻る</a></div>';
+        return;
+    }
+
+    // 店舗情報取得
+    const{data:shop,error}=await sb.from("shops").select("*,contract_plans(name,price)").eq("id",shopId).single();
+    if(error||!shop){
+        main.innerHTML='<div class="error-page"><h2>店舗が見つかりません</h2><p>指定された店舗は存在しません。</p><a href="https://yobuho.com/">トップへ戻る</a></div>';
+        return;
+    }
+    if(shop.status!=="active"){
+        main.innerHTML='<div class="error-page"><h2>この店舗は現在掲載されていません</h2><p>掲載が停止または審査中のため、現在閲覧できません。</p><a href="https://yobuho.com/">トップへ戻る</a></div>';
+        return;
+    }
+
+    // SEO
+    document.getElementById("page-title").textContent=`${shop.shop_name} | YobuHo`;
+    document.getElementById("page-desc").content=`${shop.shop_name}の対応ホテル情報 - YobuHo`;
+
+    const isPaid=shop.contract_plans&&Number(shop.contract_plans.price)>0;
+
+    // 店舗情報カード
+    let shopInfoHtml="";
+    if(isPaid){
+        if(shop.shop_tel)shopInfoHtml+=`<div>📞 ${esc(shop.shop_tel)}</div>`;
+        if(shop.shop_url)shopInfoHtml+=`<div>🌐 <a href="${esc(shop.shop_url)}" target="_blank" rel="noopener">${esc(shop.shop_url)}</a></div>`;
+    }
+
+    // ホテル情報取得
+    const{data:hotelInfos}=await sb.from("shop_hotel_info").select("*").eq("shop_id",shop.id);
+    let hotelCardsHtml="";
+    if(hotelInfos&&hotelInfos.length>0){
+        // ホテルID一覧取得
+        const hotelIds=[...new Set(hotelInfos.map(h=>h.hotel_id))];
+        const{data:hotels}=await sb.from("hotels").select("id,hotel_name,address1,address2").in("id",hotelIds);
+        const hotelMap={};
+        (hotels||[]).forEach(h=>{hotelMap[h.id]=h;});
+
+        // サービス情報取得
+        const infoIds=hotelInfos.map(h=>h.id);
+        const{data:services}=await sb.from("shop_hotel_services").select("*").in("shop_hotel_info_id",infoIds);
+        const serviceMap={};
+        (services||[]).forEach(s=>{
+            if(!serviceMap[s.shop_hotel_info_id])serviceMap[s.shop_hotel_info_id]=[];
+            serviceMap[s.shop_hotel_info_id].push(s.service_name);
+        });
+
+        hotelCardsHtml=hotelInfos.map(info=>{
+            const hotel=hotelMap[info.hotel_id];
+            if(!hotel)return"";
+            const canCall=info.can_call;
+            const statusBadge=canCall
+                ?'<span class="hotel-card-status can-call">呼べる</span>'
+                :'<span class="hotel-card-status cannot-call">呼べない</span>';
+            let detailHtml="";
+            if(isPaid){
+                if(info.transport_fee!==null&&info.transport_fee!==undefined){
+                    detailHtml+=`<div>🚕 交通費: ${info.transport_fee===0?"無料":"¥"+Number(info.transport_fee).toLocaleString()+"-"}</div>`;
+                }
+                const svcList=serviceMap[info.id];
+                if(svcList&&svcList.length>0){
+                    detailHtml+=`<div>🛎 サービス: ${svcList.map(s=>esc(s)).join(", ")}</div>`;
+                }
+                if(info.notes){
+                    detailHtml+=`<div>📝 ${esc(info.notes)}</div>`;
+                }
+            }
+            const addr=[hotel.address1,hotel.address2].filter(Boolean).join(" ");
+            return`<div class="hotel-card">
+                <div class="hotel-card-name">${esc(hotel.hotel_name)}</div>
+                <div class="hotel-card-addr">${esc(addr)}</div>
+                ${statusBadge}
+                ${detailHtml?'<div class="hotel-detail">'+detailHtml+'</div>':""}
+            </div>`;
+        }).join("");
+    }
+
+    main.innerHTML=`
+        <div class="card">
+            <div class="shop-name">${esc(shop.shop_name)}</div>
+            <span class="genre-badge">${esc(GENRE_LABELS[shop.gender_mode]||shop.gender_mode||"")}</span>
+            ${shopInfoHtml?'<div class="shop-info">'+shopInfoHtml+'</div>':""}
+        </div>
+        <div class="card">
+            <div class="section-title">対応ホテル一覧</div>
+            ${hotelCardsHtml||'<div class="empty-msg">登録されたホテル情報はまだありません。</div>'}
+        </div>
+    `;
+})();
+</script>
+</body>
+</html>

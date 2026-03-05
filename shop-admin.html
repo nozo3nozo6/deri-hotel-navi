@@ -55,6 +55,15 @@
         .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
         .card-title .sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:auto;}
 
+        /* ===== ステータスバッジ ===== */
+        .st-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;}
+        .st-active{background:rgba(58,154,96,0.12);color:var(--green);border:1px solid rgba(58,154,96,0.25);}
+        .st-registered{background:#fff3e0;color:#e67e22;border:1px solid rgba(230,126,34,0.25);}
+        .st-suspended{background:var(--bg-3);color:var(--text-3);border:1px solid var(--border);}
+        .st-rejected{background:rgba(192,80,80,0.1);color:var(--red);border:1px solid rgba(192,80,80,0.2);}
+        .st-revision{background:#fce4ec;color:#d84315;border:1px solid rgba(216,67,21,0.25);}
+        .st-pending{background:#fffde7;color:#f9a825;border:1px solid rgba(249,168,37,0.3);}
+
         /* ===== パンくず ===== */
         .breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:14px;font-size:12px;}
         .breadcrumb-item{color:var(--text-3);cursor:pointer;transition:color 0.15s;}
@@ -276,6 +285,26 @@
         <button class="tab-btn active" id="tab-btn-search" onclick="switchTab('search')">ホテル検索</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
         <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
+    </div>
+
+    <!-- ===== 掲載状況カード ===== -->
+    <div class="card" id="status-card">
+        <div class="card-title">掲載状況</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:12px;color:var(--text-3);min-width:90px;">ステータス:</span>
+                <span id="status-badge"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:12px;color:var(--text-3);min-width:90px;">契約プラン:</span>
+                <span id="status-plan" style="font-size:13px;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-size:12px;color:var(--text-3);min-width:90px;">店舗ページ:</span>
+                <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
+                <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
+            </div>
+        </div>
     </div>
 
     <!-- ===== ホテル検索タブ ===== -->
@@ -507,6 +536,27 @@ function onLoggedIn(){
     loadRegisteredHotelIds();
     loadRegisteredHotels();
     showJapanPage();
+    loadStatusCard();
+}
+
+async function loadStatusCard(){
+    const{data}=await sb.from("shops").select("*,contract_plans(name,price)").eq("id",currentShop.id).single();
+    if(!data)return;
+    currentShop=data;
+    const st=data.status||"pending";
+    const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
+    const[label,cls]=badgeMap[st]||['不明','st-suspended'];
+    document.getElementById("status-badge").innerHTML=`<span class="st-badge ${cls}">${label}</span>`;
+    const plan=data.contract_plans;
+    document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"未設定（無料）";
+    const shopUrl="https://yobuho.com/shop-page.html?id="+data.id;
+    const urlEl=document.getElementById("status-shop-url");
+    urlEl.href=shopUrl;urlEl.textContent=shopUrl;
+}
+
+function copyShopUrl(){
+    const url="https://yobuho.com/shop-page.html?id="+currentShop.id;
+    navigator.clipboard.writeText(url);toast("URLをコピーしました");
 }
 
 (function(){

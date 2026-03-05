@@ -1369,10 +1369,10 @@ async function loadHotelDetail(hotelId) {
         const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
         let shopStatusMap = {};
         if (shopNames.length > 0) {
-            const { data: shopRows } = await supabaseClient.from('shops').select('shop_name,status,shop_url,plan_id,contract_plans(price)').in('shop_name', shopNames);
+            const { data: shopRows } = await supabaseClient.from('shops').select('id,shop_name,status,shop_url,plan_id,contract_plans(price)').in('shop_name', shopNames);
             (shopRows || []).forEach(s => {
                 const price = s.contract_plans?.price || 0;
-                shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0 };
+                shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0, shopId: s.id };
             });
             console.log('[loadHotelDetail] shopStatusMap:', JSON.stringify(shopStatusMap));
         }
@@ -1438,7 +1438,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     const shopInfoMap = {};
     // shopStatusMap（reportsのposter_nameからshopsテーブル直接取得）を先にセット
     Object.entries(shopStatusMap).forEach(([name, info]) => {
-        shopInfoMap[name] = { shop_url: info.shop_url || null, isPaid: info.isPaid || false, status: info.status || null };
+        shopInfoMap[name] = { shop_url: info.shop_url || null, isPaid: info.isPaid || false, status: info.status || null, shopId: info.shopId || null };
     });
     // shop_hotel_info経由のデータで上書き・補完（transport_feeはここでのみ取得）
     (shopHotelInfoList || []).forEach(info => {
@@ -1451,7 +1451,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         shopInfoMap[name] = {
             shop_url: shop?.shop_url || existing.shop_url || null,
             isPaid: price > 0 || existing.isPaid || false,
-            status: shop?.status || existing.status || null
+            status: shop?.status || existing.status || null,
+            shopId: shop?.id || existing.shopId || null
         };
     });
     console.log('[renderHotelDetail] shopInfoMap:', JSON.stringify(shopInfoMap));
@@ -1484,8 +1485,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             console.log('[buildReportCard]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url);
             // 非activeの店舗 → 店舗名を隠す
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
-            // active + 有料 + URL → リンク付き店舗名
-            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            // active + 有料 → 店舗ページリンク付き店舗名
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shopId){return`<a href="https://yobuho.com/shop-page.html?id=${si.shopId}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
             // active + 無料 or ユーザー投稿 → テキストのみ
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
         })() : '';
