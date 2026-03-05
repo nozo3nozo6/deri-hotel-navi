@@ -30,8 +30,8 @@ if (empty($to) || empty($subject) || empty($body)) {
 $headers = [
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
-    'From: YobuHo <noreply@yobuho.com>',
-    'Reply-To: support@yobuho.com',
+    'From: YobuHo <hotel@yobuho.com>',
+    'Reply-To: hotel@yobuho.com',
     'X-Mailer: PHP/' . phpversion()
 ];
 
