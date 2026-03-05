@@ -1362,13 +1362,30 @@ async function loadHotelDetail(hotelId) {
 
     try {
         await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
-        const [hotelRes, reportsRes, summaryRes, shopsRes, shopHotelInfoRes] = await Promise.all([
+        const fetchList = [
             supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).single(),
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),
             supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name,shop_url,plan_id,status,contract_plans(price))').eq('hotel_id', hotelId),
-        ]);
+        ];
+        // shop filter mode: fetch shop_hotel_info + services for this shop
+        if (SHOP_ID) {
+            fetchList.push(
+                supabaseClient.from('shop_hotel_info').select('id,can_call,transport_fee,memo').eq('shop_id', SHOP_ID).eq('hotel_id', hotelId).maybeSingle()
+            );
+        }
+        const results = await Promise.all(fetchList);
+        const [hotelRes, reportsRes, summaryRes, shopsRes, shopHotelInfoRes] = results;
+        const myShopInfoRes = SHOP_ID ? results[5] : null;
+
+        // shop filter mode: fetch services if shop_hotel_info exists
+        let myShopInfo = null;
+        if (SHOP_ID && myShopInfoRes?.data) {
+            myShopInfo = myShopInfoRes.data;
+            const { data: svcData } = await supabaseClient.from('shop_hotel_services').select('service_option_id,shop_service_options(label)').eq('shop_hotel_info_id', myShopInfo.id);
+            myShopInfo.services = (svcData || []).map(s => s.shop_service_options?.label).filter(Boolean);
+        }
 
         if (!hotelRes.data) throw new Error('Hotel not found');
         // 店舗専用モード時は、この店舗の投稿のみに絞る
@@ -1385,9 +1402,8 @@ async function loadHotelDetail(hotelId) {
                 const price = s.contract_plans?.price || 0;
                 shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0, shopId: s.id };
             });
-            console.log('[loadHotelDetail] shopStatusMap:', JSON.stringify(shopStatusMap));
         }
-        renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
+        renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap, myShopInfo);
     } catch(e) {
         console.error(e);
         content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
@@ -1436,7 +1452,7 @@ function formatTransportFee(val) {
     return '¥' + num.toLocaleString('ja-JP') + '-';
 }
 
-function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap) {
+function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap, myShopInfo) {
     shopStatusMap = shopStatusMap || {};
     const can     = summary?.can_call_count    || 0;
     const cannot  = summary?.cannot_call_count || 0;
@@ -1524,6 +1540,31 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     const shopReports = reports.filter(r => r.poster_type === 'shop' && (!r.gender_mode || r.gender_mode === MODE));
     const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
 
+    // shop filter mode: show shop_hotel_info as dedicated section
+    let myShopInfoSection = '';
+    if (SHOP_ID && myShopInfo) {
+        const canLabel = myShopInfo.can_call ? '✅ 呼べる' : '❌ 呼べない';
+        const canColor = myShopInfo.can_call ? '#3a9a60' : '#c05050';
+        const canBg = myShopInfo.can_call ? 'rgba(58,154,96,0.08)' : 'rgba(192,80,80,0.08)';
+        const feeLabel = formatTransportFee(myShopInfo.transport_fee);
+        const feeHTML = feeLabel ? `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;"><span style="padding:3px 10px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:12px;color:#9a7030;">🚕 交通費: ${feeLabel}</span></div>` : '';
+        const svcHTML = (myShopInfo.services && myShopInfo.services.length > 0) ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${myShopInfo.services.map(s => `<span style="padding:2px 8px;background:rgba(106,138,188,0.1);border:1px solid rgba(106,138,188,0.25);border-radius:8px;font-size:11px;color:#6a8abc;">${s}</span>`).join('')}</div>` : '';
+        const memoHTML = myShopInfo.memo ? `<div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px;padding:8px 10px;background:var(--bg-3);border-radius:6px;">${myShopInfo.memo}</div>` : '';
+        const shopName = SHOP_DATA?.shop_name || '店舗';
+        myShopInfoSection = `
+        <div style="border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <span style="font-size:11px;font-weight:700;padding:4px 12px;background:rgba(201,168,76,0.18);color:#7a5c10;border:1px solid rgba(201,168,76,0.4);border-radius:20px;letter-spacing:0.03em;">🏢 ${shopName} の登録情報</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:${canBg};color:${canColor};">${canLabel}</span>
+            </div>
+            ${feeHTML}
+            ${svcHTML}
+            ${memoHTML}
+        </div>`;
+    }
+
     const shopSection = shopReports.length === 0 ? '' : `
         <div style="border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
@@ -1534,6 +1575,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         </div>`;
 
     const reportsHTML = `
+        ${myShopInfoSection}
         ${shopSection}
         <div style="display:flex;align-items:center;gap:10px;margin:4px 0 10px;">
             <span style="font-size:16px;font-weight:600;color:var(--text);">みんなの体験談</span>
