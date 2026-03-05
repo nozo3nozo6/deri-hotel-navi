@@ -275,6 +275,7 @@
     <div class="tabs">
         <button class="tab-btn active" id="tab-btn-search" onclick="switchTab('search')">ホテル検索</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
+        <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
     </div>
 
     <!-- ===== ホテル検索タブ ===== -->
@@ -367,6 +368,45 @@
             <div class="card-title">登録済みホテル一覧<span class="sub" id="reg-count"></span></div>
             <div class="reg-list" id="reg-list"></div>
             <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- ===== 設定タブ ===== -->
+    <div class="tab-content" id="tab-settings">
+        <div class="card">
+            <div class="card-title">メールアドレス（ID）変更</div>
+            <div class="f-group">
+                <label class="f-label">現在のメールアドレス</label>
+                <div id="settings-current-email" style="padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:13px;"></div>
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいメールアドレス</label>
+                <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
+            </div>
+            <div class="f-group">
+                <label class="f-label">現在のパスワード（本人確認）</label>
+                <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
+            </div>
+            <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+            <button class="btn btn-rose" onclick="changeEmail()">メールアドレスを変更</button>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <div class="card-title">パスワード変更</div>
+            <div class="f-group">
+                <label class="f-label">現在のパスワード</label>
+                <input class="f-input" type="password" id="settings-old-pw" placeholder="現在のパスワード">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード</label>
+                <input class="f-input" type="password" id="settings-new-pw" placeholder="新しいパスワード">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード（確認）</label>
+                <input class="f-input" type="password" id="settings-new-pw2" placeholder="もう一度入力">
+            </div>
+            <div id="settings-pw-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+            <button class="btn btn-rose" onclick="changePassword()">パスワードを変更</button>
         </div>
     </div>
 </div>
@@ -470,6 +510,7 @@ function switchTab(name){
     document.getElementById("tab-"+name).classList.add("active");
     document.getElementById("tab-btn-"+name).classList.add("active");
     if(name==="list")loadRegisteredHotels();
+    if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
 }
 
 // ===== マスターデータ読み込み =====
@@ -912,6 +953,51 @@ async function deleteRegistered(infoId){
     regData=regData.filter(r=>String(r.id)!==String(infoId));
     if(info)registeredHotelIds.delete(String(info.hotel_id));
     renderRegistered();toast("🗑 削除しました");
+}
+
+// ===== 設定: メールアドレス変更 =====
+async function changeEmail(){
+    const errEl=document.getElementById("settings-email-error");
+    errEl.style.display="none";
+    const newEmail=document.getElementById("settings-new-email").value.trim();
+    const pw=document.getElementById("settings-email-pw").value;
+    if(!newEmail||!pw){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){errEl.textContent="メールアドレスの形式が正しくありません";errEl.style.display="block";return;}
+    try{const storedPw=atob(currentShop.password_hash||"");if(storedPw!==pw){errEl.textContent="パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    const oldEmail=currentShop.email;
+    const{error}=await sb.from("shops").update({email:newEmail}).eq("id",currentShop.id);
+    if(error){errEl.textContent="更新エラー: "+error.message;errEl.style.display="block";return;}
+    currentShop.email=newEmail;
+    localStorage.setItem(SESSION_KEY,JSON.stringify({id:currentShop.id,email:newEmail}));
+    document.getElementById("settings-current-email").textContent=newEmail;
+    document.getElementById("settings-new-email").value="";
+    document.getElementById("settings-email-pw").value="";
+    // 旧アドレスに通知
+    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:oldEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>ご登録のメールアドレスが変更されました。</p><p>心当たりがない場合は、hotel@yobuho.com までお問い合わせください。</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
+    // 新アドレスに通知
+    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:newEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>メールアドレスが変更されました。</p><p>新しいID: <strong>'+esc(newEmail)+'</strong></p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
+    toast("メールアドレスを変更しました");
+}
+
+// ===== 設定: パスワード変更 =====
+async function changePassword(){
+    const errEl=document.getElementById("settings-pw-error");
+    errEl.style.display="none";
+    const oldPw=document.getElementById("settings-old-pw").value;
+    const newPw=document.getElementById("settings-new-pw").value;
+    const newPw2=document.getElementById("settings-new-pw2").value;
+    if(!oldPw||!newPw||!newPw2){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
+    try{const storedPw=atob(currentShop.password_hash||"");if(storedPw!==oldPw){errEl.textContent="現在のパスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    if(newPw!==newPw2){errEl.textContent="新しいパスワードが一致しません";errEl.style.display="block";return;}
+    if(newPw.length<6){errEl.textContent="パスワードは6文字以上にしてください";errEl.style.display="block";return;}
+    const newHash=btoa(newPw);
+    const{error}=await sb.from("shops").update({password_hash:newHash}).eq("id",currentShop.id);
+    if(error){errEl.textContent="更新エラー: "+error.message;errEl.style.display="block";return;}
+    currentShop.password_hash=newHash;
+    document.getElementById("settings-old-pw").value="";
+    document.getElementById("settings-new-pw").value="";
+    document.getElementById("settings-new-pw2").value="";
+    toast("パスワードを変更しました");
 }
 </script>
 </body>
