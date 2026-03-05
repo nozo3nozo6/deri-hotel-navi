@@ -282,9 +282,9 @@
 <!-- ===== メインコンテンツ ===== -->
 <div class="main-wrap" id="main-wrap">
     <div class="tabs">
-        <button class="tab-btn active" id="tab-btn-search" onclick="switchTab('search')">ホテル検索</button>
+        <button class="tab-btn active" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
+        <button class="tab-btn" id="tab-btn-search" onclick="switchTab('search')">ホテル検索登録</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
-        <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
     </div>
 
     <!-- ===== 掲載状況カード ===== -->
@@ -307,8 +307,63 @@
         </div>
     </div>
 
-    <!-- ===== ホテル検索タブ ===== -->
-    <div class="tab-content active" id="tab-search">
+    <!-- ===== 設定タブ ===== -->
+    <div class="tab-content active" id="tab-settings">
+        <div class="card">
+            <div class="card-title">メールアドレス（ID）変更</div>
+            <!-- Step1: 認証メール送信 -->
+            <div id="email-step1">
+                <div class="f-group">
+                    <label class="f-label">現在のメールアドレス</label>
+                    <div id="settings-current-email" style="padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:13px;"></div>
+                </div>
+                <div class="f-group">
+                    <label class="f-label">新しいメールアドレス</label>
+                    <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">現在のパスワード（本人確認）</label>
+                    <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
+                </div>
+                <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+                <button class="btn btn-rose" onclick="sendEmailVerification()">認証メールを送信</button>
+            </div>
+            <!-- Step2: 認証コード入力 -->
+            <div id="email-step2" style="display:none;">
+                <div style="padding:12px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:var(--r);color:var(--text-2);font-size:13px;margin-bottom:12px;">認証コードを新しいメールアドレスに送信しました。<br>10分以内にコードを入力してください。</div>
+                <div class="f-group">
+                    <label class="f-label">認証コード（6桁）</label>
+                    <input class="f-input" type="text" id="settings-verify-code" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:4px;font-size:18px;text-align:center;">
+                </div>
+                <div id="settings-verify-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-rose" onclick="verifyAndChangeEmail()">メールアドレスを変更する</button>
+                    <button class="btn" style="background:var(--bg-3);border:1px solid var(--border);" onclick="cancelEmailChange()">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <div class="card-title">パスワード変更</div>
+            <div class="f-group">
+                <label class="f-label">現在のパスワード</label>
+                <input class="f-input" type="password" id="settings-old-pw" placeholder="現在のパスワード">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード</label>
+                <input class="f-input" type="password" id="settings-new-pw" placeholder="新しいパスワード">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード（確認）</label>
+                <input class="f-input" type="password" id="settings-new-pw2" placeholder="もう一度入力">
+            </div>
+            <div id="settings-pw-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+            <button class="btn btn-rose" onclick="changePassword()">パスワードを変更</button>
+        </div>
+    </div>
+
+    <!-- ===== ホテル検索登録タブ ===== -->
+    <div class="tab-content" id="tab-search">
         <div class="card">
             <div class="card-title">ホテル名で検索</div>
             <div class="search-bar">
@@ -397,61 +452,6 @@
             <div class="card-title">登録済みホテル一覧<span class="sub" id="reg-count"></span></div>
             <div class="reg-list" id="reg-list"></div>
             <div class="pagination" id="pagination"></div>
-        </div>
-    </div>
-
-    <!-- ===== 設定タブ ===== -->
-    <div class="tab-content" id="tab-settings">
-        <div class="card">
-            <div class="card-title">メールアドレス（ID）変更</div>
-            <!-- Step1: 認証メール送信 -->
-            <div id="email-step1">
-                <div class="f-group">
-                    <label class="f-label">現在のメールアドレス</label>
-                    <div id="settings-current-email" style="padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:13px;"></div>
-                </div>
-                <div class="f-group">
-                    <label class="f-label">新しいメールアドレス</label>
-                    <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
-                </div>
-                <div class="f-group">
-                    <label class="f-label">現在のパスワード（本人確認）</label>
-                    <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
-                </div>
-                <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-                <button class="btn btn-rose" onclick="sendEmailVerification()">認証メールを送信</button>
-            </div>
-            <!-- Step2: 認証コード入力 -->
-            <div id="email-step2" style="display:none;">
-                <div style="padding:12px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:var(--r);color:var(--text-2);font-size:13px;margin-bottom:12px;">認証コードを新しいメールアドレスに送信しました。<br>10分以内にコードを入力してください。</div>
-                <div class="f-group">
-                    <label class="f-label">認証コード（6桁）</label>
-                    <input class="f-input" type="text" id="settings-verify-code" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:4px;font-size:18px;text-align:center;">
-                </div>
-                <div id="settings-verify-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-rose" onclick="verifyAndChangeEmail()">メールアドレスを変更する</button>
-                    <button class="btn" style="background:var(--bg-3);border:1px solid var(--border);" onclick="cancelEmailChange()">キャンセル</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" style="margin-top:16px;">
-            <div class="card-title">パスワード変更</div>
-            <div class="f-group">
-                <label class="f-label">現在のパスワード</label>
-                <input class="f-input" type="password" id="settings-old-pw" placeholder="現在のパスワード">
-            </div>
-            <div class="f-group">
-                <label class="f-label">新しいパスワード</label>
-                <input class="f-input" type="password" id="settings-new-pw" placeholder="新しいパスワード">
-            </div>
-            <div class="f-group">
-                <label class="f-label">新しいパスワード（確認）</label>
-                <input class="f-input" type="password" id="settings-new-pw2" placeholder="もう一度入力">
-            </div>
-            <div id="settings-pw-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-            <button class="btn btn-rose" onclick="changePassword()">パスワードを変更</button>
         </div>
     </div>
 </div>
