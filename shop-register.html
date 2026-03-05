@@ -327,29 +327,42 @@
             }
         }
 
-        sb.auth.onAuthStateChange((event, session) => {
+        sb.auth.onAuthStateChange(async (event, session) => {
             if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
                 _authResolved = true;
                 const params = new URLSearchParams(window.location.search);
                 if (params.get('step') === 'profile') {
                     displaySessionEmail(session.user.email);
+                    await checkResubmission(session.user.email);
                     showStep('form');
                 }
             }
         });
 
         // ページ読込時: step=profileならセッション確認
+        let _isResubmission = false;
+        async function checkResubmission(email) {
+            const { data } = await sb.from('shops').select('id,status,shop_name,gender_mode,shop_url,shop_tel').eq('email', email).single();
+            if (data && data.status === 'revision_required') {
+                _isResubmission = true;
+                document.getElementById('shop-name').value = data.shop_name || '';
+                document.getElementById('shop-gender').value = data.gender_mode || 'men';
+                document.getElementById('shop-url').value = data.shop_url || '';
+                document.getElementById('shop-tel').value = data.shop_tel || '';
+                const infoBox = document.querySelector('.info-box');
+                if (infoBox) infoBox.innerHTML = '⚠️ <strong>登録内容に不備がありました。</strong><br>修正の上、再度ご申請ください。届出確認書の画像も再アップロードしてください。';
+            }
+        }
         (async function init() {
             const params = new URLSearchParams(window.location.search);
             if (params.get('step') === 'profile') {
-                // 既存セッションを確認
                 const { data: { session } } = await sb.auth.getSession();
                 if (session) {
                     displaySessionEmail(session.user.email);
+                    await checkResubmission(session.user.email);
                     showStep('form');
                     return;
                 }
-                // ハッシュフラグメントからのセッション取得を待つ（最大3秒）
                 setTimeout(() => {
                     if (!_authResolved) {
                         showErr('email-err', '認証が必要です。メールアドレスを入力してください。');
@@ -447,10 +460,15 @@
             if (!url) { showFieldErr('shop-url', 'err-shop-url', 'この項目は必須です'); hasErr = true; }
             else if (!url.startsWith('https://')) { showFieldErr('shop-url', 'err-shop-url', 'URLは https:// で始まる必要があります'); hasErr = true; }
             if (!tel) { showFieldErr('shop-tel', 'err-shop-tel', 'この項目は必須です'); hasErr = true; }
-            if (!pw) { showFieldErr('shop-pw', 'err-shop-pw', 'この項目は必須です'); hasErr = true; }
-            else if (pw.length < 8) { showFieldErr('shop-pw', 'err-shop-pw', 'パスワードは8文字以上にしてください'); hasErr = true; }
-            if (!pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'この項目は必須です'); hasErr = true; }
-            else if (pw && pw !== pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'パスワードが一致しません'); hasErr = true; }
+            if (!_isResubmission) {
+                if (!pw) { showFieldErr('shop-pw', 'err-shop-pw', 'この項目は必須です'); hasErr = true; }
+                else if (pw.length < 8) { showFieldErr('shop-pw', 'err-shop-pw', 'パスワードは8文字以上にしてください'); hasErr = true; }
+                if (!pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'この項目は必須です'); hasErr = true; }
+                else if (pw && pw !== pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'パスワードが一致しません'); hasErr = true; }
+            } else if (pw) {
+                if (pw.length < 8) { showFieldErr('shop-pw', 'err-shop-pw', 'パスワードは8文字以上にしてください'); hasErr = true; }
+                if (pw !== pw2) { showFieldErr('shop-pw2', 'err-shop-pw2', 'パスワードが一致しません'); hasErr = true; }
+            }
             if (!docFile) {
                 showFieldErr('file-zone', 'err-shop-doc', '届出確認書の画像を添付してください');
                 hasErr = true;
@@ -538,10 +556,10 @@
                     gender_mode:      genre,
                     shop_url:         url || null,
                     shop_tel:         tel || null,
-                    password_hash:    btoa(pw),
                     document_url:     documentUrl,
                     status:           'registered',
                 };
+                if (pw) payload.password_hash = btoa(pw);
                 console.log('5. shopsテーブルupsert開始', payload);
                 const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
                 console.log('6. shopsテーブルupsert結果:', JSON.stringify(result));
