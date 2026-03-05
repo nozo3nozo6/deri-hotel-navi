@@ -1191,19 +1191,8 @@ let CONDITIONS = [
     'フロント相談', 'ノウハウ', 'その他'
 ];  // フォールバック用デフォルト値
 
-async function loadConditionsMaster() {
-    try {
-        const { data } = await supabaseClient
-            .from('conditions_master')
-            .select('label')
-            .eq('is_active', true)
-            .order('sort_order');
-        if (data && data.length > 0) {
-            CONDITIONS = data.map(d => d.label);
-        }
-    } catch(e) {
-        console.log('conditions_master not found, using defaults');
-    }
+function loadConditionsMaster() {
+    // uses hardcoded defaults above
 }
 
 // 呼べた理由マスタ
@@ -1367,7 +1356,7 @@ async function loadHotelDetail(hotelId) {
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),
-            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(shop_name,shop_url,plan_id,status,contract_plans(price))').eq('hotel_id', hotelId),
+            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(id,shop_name,shop_url,plan_id,status,contract_plans(price))').eq('hotel_id', hotelId),
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
