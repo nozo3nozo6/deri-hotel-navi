@@ -1364,13 +1364,17 @@ async function loadHotelDetail(hotelId) {
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
-        // 店舗投稿の店舗名からステータスを一括取得
+        // 店舗投稿の店舗名からステータス・プラン情報を一括取得
         const allReports = reportsRes.data || [];
         const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
         let shopStatusMap = {};
         if (shopNames.length > 0) {
-            const { data: shopRows } = await supabaseClient.from('shops').select('shop_name,status').in('shop_name', shopNames);
-            (shopRows || []).forEach(s => { shopStatusMap[s.shop_name] = s.status; });
+            const { data: shopRows } = await supabaseClient.from('shops').select('shop_name,status,shop_url,plan_id,contract_plans(price)').in('shop_name', shopNames);
+            (shopRows || []).forEach(s => {
+                const price = s.contract_plans?.price || 0;
+                shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0 };
+            });
+            console.log('[loadHotelDetail] shopStatusMap:', JSON.stringify(shopStatusMap));
         }
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
     } catch(e) {
@@ -1429,17 +1433,28 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     const shopNg  = summary?.shop_ng_count     || 0;
     const total   = can + cannot;
 
-    // 店舗名 → { transport_fee, shop_url, isPaid } のマップ
+    // 店舗名 → { transport_fee, shop_url, isPaid, status } のマップ
     const shopFeeMap = {};
     const shopInfoMap = {};
+    // shopStatusMap（reportsのposter_nameからshopsテーブル直接取得）を先にセット
+    Object.entries(shopStatusMap).forEach(([name, info]) => {
+        shopInfoMap[name] = { shop_url: info.shop_url || null, isPaid: info.isPaid || false, status: info.status || null };
+    });
+    // shop_hotel_info経由のデータで上書き・補完（transport_feeはここでのみ取得）
     (shopHotelInfoList || []).forEach(info => {
         const shop = info.shops;
         const name = shop?.shop_name;
         if (!name) return;
         shopFeeMap[name] = info.transport_fee;
         const price = shop?.contract_plans?.price || 0;
-        shopInfoMap[name] = { shop_url: shop?.shop_url || null, isPaid: price > 0, status: shop?.status || null };
+        const existing = shopInfoMap[name] || {};
+        shopInfoMap[name] = {
+            shop_url: shop?.shop_url || existing.shop_url || null,
+            isPaid: price > 0 || existing.isPaid || false,
+            status: shop?.status || existing.status || null
+        };
     });
+    console.log('[renderHotelDetail] shopInfoMap:', JSON.stringify(shopInfoMap));
 
     function buildReportCard(r) {
         // 入り方タグ（can_call_reasons / conditions / cannot_call_reasons をまとめて表示）
@@ -1466,9 +1481,12 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
             const si=isShop?shopInfoMap[r.poster_name]:null;
-            const shopSt=isShop?(si?.status||shopStatusMap[r.poster_name]||null):null;
-            if(isShop&&shopSt&&shopSt!=='active'){return`<span style="font-size:10px;color:var(--text-3);font-style:italic;">🏢 店舗情報</span>`;}
-            if(si&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            console.log('[buildReportCard]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url);
+            // 非activeの店舗 → 店舗名を隠す
+            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">🏢 店舗情報</span>`;}
+            // active + 有料 + URL → リンク付き店舗名
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            // active + 無料 or ユーザー投稿 → テキストのみ
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
         })() : '';
         const feeHTML = feeLabel ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030;">🚕 交通費: ${feeLabel}</span>` : '';
