@@ -568,8 +568,36 @@
 
                 console.log('9. 登録完了！');
 
+                // 登録受付メール送信
+                try {
+                    await fetch('https://yobuho.com/api/send-mail.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: userEmail,
+                            subject: '【YobuHo】店舗登録を受付けました',
+                            body: '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">' +
+                                '<h2 style="color:#b5627a;">YobuHo - 登録受付完了</h2>' +
+                                '<p>' + esc(name) + ' 様</p>' +
+                                '<p>店舗登録を受付けました。</p>' +
+                                '<p>届出確認書の審査完了後、管理画面のログインURLをお送りいたします。</p>' +
+                                '<p>審査には通常1〜3営業日かかります。</p>' +
+                                '<div style="background:#f8f0f2;padding:16px;border-radius:8px;margin:16px 0;">' +
+                                '<p style="margin:0;"><strong>登録内容</strong></p>' +
+                                '<p>店舗名: ' + esc(name) + '</p>' +
+                                '<p>メール: ' + esc(userEmail) + '</p>' +
+                                '</div>' +
+                                '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">' +
+                                '<p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p>' +
+                                '</div>'
+                        })
+                    });
+                    console.log('10. 登録受付メール送信完了');
+                } catch (mailErr) {
+                    console.error('メール送信エラー:', mailErr);
+                }
+
                 // 完了画面に登録内容を表示
-                // TODO: メール送信機能は後日実装予定（Supabase Edge Function等でサーバーサイド送信）
                 document.getElementById('done-summary').innerHTML = `
                     <tr><th>ジャンル</th><td>${esc(GENRE_LABELS[genre] || genre)}</td></tr>
                     <tr><th>店舗名</th><td>${esc(name)}</td></tr>
