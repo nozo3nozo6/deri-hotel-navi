@@ -24,6 +24,47 @@ let pageStack = [];
 let currentPage = null;  // 現在のページ描画関数を保持（言語切替時の再描画用）
 
 // ==========================================================================
+// 店舗専用表示モード
+// ==========================================================================
+const SHOP_ID = new URLSearchParams(window.location.search).get('shop') || null;
+let SHOP_HOTEL_IDS = null; // Set of hotel IDs for shop filter
+let SHOP_DATA = null; // shop info
+
+async function initShopMode() {
+    if (!SHOP_ID) return;
+    // 店舗情報取得
+    const { data: shop } = await supabaseClient.from('shops').select('*,contract_plans(name,price)').eq('id', SHOP_ID).eq('status', 'active').single();
+    if (!shop) { SHOP_HOTEL_IDS = new Set(); return; }
+    SHOP_DATA = shop;
+    // reports + shop_hotel_info からhotel_idリスト取得
+    const [repRes, infoRes] = await Promise.all([
+        supabaseClient.from('reports').select('hotel_id').eq('shop_id', SHOP_ID).eq('poster_type', 'shop'),
+        supabaseClient.from('shop_hotel_info').select('hotel_id').eq('shop_id', SHOP_ID)
+    ]);
+    const ids = new Set();
+    (repRes.data || []).forEach(r => ids.add(r.hotel_id));
+    (infoRes.data || []).forEach(r => ids.add(r.hotel_id));
+    SHOP_HOTEL_IDS = ids;
+    // ヘッダーバナー表示
+    const modeIcon = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' }[shop.gender_mode] || '♂';
+    const isPaid = shop.contract_plans && Number(shop.contract_plans.price) > 0;
+    const titleBar = document.getElementById('mode-title-bar');
+    if (titleBar) {
+        titleBar.style.display = '';
+        titleBar.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:700;">${modeIcon} ${shop.shop_name} の対応ホテル</span>
+            ${isPaid && shop.shop_url ? `<a href="${shop.shop_url}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none;">🔗 公式サイト</a>` : ''}
+            <a href="portal.html?mode=${new URLSearchParams(window.location.search).get('mode') || 'men'}" style="font-size:11px;color:var(--text-3);text-decoration:none;margin-left:8px;">全てのホテルを見る →</a>
+        </div>`;
+    }
+}
+
+function shopFilterHotels(hotels) {
+    if (!SHOP_ID || !SHOP_HOTEL_IDS) return hotels;
+    return hotels.filter(h => SHOP_HOTEL_IDS.has(h.id));
+}
+
+// ==========================================================================
 // URL状態管理
 // ==========================================================================
 let _skipPushState = false;
@@ -38,9 +79,10 @@ function findRegionByLabel(label) {
 
 function updateUrl(params) {
     if (_skipPushState) return;
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const cur = new URLSearchParams(window.location.search);
     const newParams = new URLSearchParams();
-    newParams.set('mode', mode);
+    newParams.set('mode', cur.get('mode') || 'men');
+    if (SHOP_ID) newParams.set('shop', SHOP_ID);
     Object.entries(params).forEach(([k, v]) => {
         if (v != null) newParams.set(k, v);
     });
@@ -404,17 +446,33 @@ function showJapanPage() {
     container.innerHTML = '';
     container.className = 'area-grid region-level';
 
-    REGION_MAP.forEach((region, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'area-btn has-children';
-        btn.style.animationDelay = `${i * 0.04}s`;
-        btn.textContent = region.label;
-        btn.onclick = () => {
-            pageStack.push(showJapanPage);
-            showPrefPage(region);
-        };
-        container.appendChild(btn);
-    });
+    if (SHOP_ID && SHOP_HOTEL_IDS && SHOP_HOTEL_IDS.size > 0) {
+        // 店舗モード: shop hotel IDsからprefectureを取得してregionごとに集計
+        const { data: shopHotels } = await supabaseClient.from('hotels').select('id,prefecture').in('id', [...SHOP_HOTEL_IDS]).eq('is_published', true);
+        const regionCount = {};
+        (shopHotels || []).forEach(h => {
+            const r = findRegionByPref(h.prefecture);
+            if (r) regionCount[r.label] = (regionCount[r.label] || 0) + 1;
+        });
+        REGION_MAP.forEach((region, i) => {
+            if (!regionCount[region.label]) return;
+            const btn = document.createElement('button');
+            btn.className = 'area-btn has-children';
+            btn.style.animationDelay = `${i * 0.04}s`;
+            btn.textContent = region.label;
+            btn.onclick = () => { pageStack.push(showJapanPage); showPrefPage(region); };
+            container.appendChild(btn);
+        });
+    } else {
+        REGION_MAP.forEach((region, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'area-btn has-children';
+            btn.style.animationDelay = `${i * 0.04}s`;
+            btn.textContent = region.label;
+            btn.onclick = () => { pageStack.push(showJapanPage); showPrefPage(region); };
+            container.appendChild(btn);
+        });
+    }
 }
 
 async function showPrefPage(region) {
@@ -433,16 +491,28 @@ async function showPrefPage(region) {
     container.className = 'area-grid col-2';
 
     // 都道府県ごとのホテル数を並行取得（全件）して多い順にソート
-    const prefCountResults = await Promise.all(
-        region.prefs.map(pref =>
-            supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref).eq('is_published', true)
-                .then(({ count }) => ({ pref, count: count || 0 }))
-        )
-    );
-    const sorted = prefCountResults
-        .filter(r => r.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .map(r => r.pref);
+    let sorted;
+    if (SHOP_ID && SHOP_HOTEL_IDS) {
+        const prefCount = {};
+        SHOP_HOTEL_IDS.forEach(id => {/* counted below */});
+        // 店舗モード: shop hotel IDsのホテルをprefectureごとに集計
+        const shopIds = [...SHOP_HOTEL_IDS];
+        if (shopIds.length > 0) {
+            const { data: shopHotels } = await supabaseClient.from('hotels').select('id,prefecture').in('id', shopIds).eq('is_published', true);
+            (shopHotels || []).forEach(h => {
+                if (region.prefs.includes(h.prefecture)) prefCount[h.prefecture] = (prefCount[h.prefecture] || 0) + 1;
+            });
+        }
+        sorted = Object.keys(prefCount).filter(p => prefCount[p] > 0).sort((a, b) => prefCount[b] - prefCount[a]);
+    } else {
+        const prefCountResults = await Promise.all(
+            region.prefs.map(pref =>
+                supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref).eq('is_published', true)
+                    .then(({ count }) => ({ pref, count: count || 0 }))
+            )
+        );
+        sorted = prefCountResults.filter(r => r.count > 0).sort((a, b) => b.count - a.count).map(r => r.pref);
+    }
 
     container.innerHTML = '';
     sorted.forEach((pref, i) => {
@@ -475,7 +545,9 @@ async function showMajorAreaPage(region, pref) {
     container.className = 'area-grid col-2';
 
     // まずエリア一覧を取得（全件）
-    const { data, error } = await supabaseClient.from('hotels').select('major_area').eq('prefecture', pref).eq('is_published', true).limit(5000);
+    let query_ma = supabaseClient.from('hotels').select('id,major_area').eq('prefecture', pref).eq('is_published', true).limit(5000);
+    if (SHOP_ID && SHOP_HOTEL_IDS && SHOP_HOTEL_IDS.size > 0) query_ma = supabaseClient.from('hotels').select('id,major_area').in('id', [...SHOP_HOTEL_IDS]).eq('prefecture', pref).eq('is_published', true).limit(5000);
+    const { data, error } = await query_ma;
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
     // エリアごとのホテル数を集計して多い順
@@ -514,7 +586,8 @@ async function showMajorAreaPage(region, pref) {
                 let query = supabaseClient.from('hotels').select('*')
                     .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(80)
                     .order('review_average', { ascending: false, nullsFirst: false });
-                const hotels = await fetchHotelsWithSummary(query);
+                let hotels = await fetchHotelsWithSummary(query);
+                hotels = shopFilterHotels(hotels);
                 sortHotelsByReviews(hotels);
                 renderHotelCards(hotels);
                 setResultStatus(hotels.length);
@@ -544,9 +617,9 @@ async function showCityPage(region, pref, majorArea) {
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
     container.className = 'area-grid col-2';
 
-    const { data, error } = await supabaseClient
-        .from('hotels').select('address,city,detail_area')
-        .eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true);
+    let query_city = supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true);
+    if (SHOP_ID && SHOP_HOTEL_IDS && SHOP_HOTEL_IDS.size > 0) query_city = supabaseClient.from('hotels').select('id,address,city,detail_area').in('id', [...SHOP_HOTEL_IDS]).eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true);
+    const { data, error } = await query_city;
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
@@ -633,9 +706,9 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
     container.className = 'area-grid col-2';
 
-    const { data, error } = await supabaseClient
-        .from('hotels').select('address,city')
-        .eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true);
+    let query_da = supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true);
+    if (SHOP_ID && SHOP_HOTEL_IDS && SHOP_HOTEL_IDS.size > 0) query_da = supabaseClient.from('hotels').select('id,address,city').in('id', [...SHOP_HOTEL_IDS]).eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true);
+    const { data, error } = await query_da;
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
@@ -745,7 +818,8 @@ async function fetchAndShowHotels(filterObj) {
         query = applyKeywordFilter(query, keyword);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
 
-        const hotels = await fetchHotelsWithSummary(query);
+        let hotels = await fetchHotelsWithSummary(query);
+        hotels = shopFilterHotels(hotels);
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
@@ -787,7 +861,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         query = query.eq('city', city);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
 
-        const hotels = await fetchHotelsWithSummary(query);
+        let hotels = await fetchHotelsWithSummary(query);
+        hotels = shopFilterHotels(hotels);
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
@@ -905,9 +980,11 @@ async function searchByLocation() {
                 ]);
                 const withSummary = withDist.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
 
+                // 店舗フィルター適用
+                const filtered = shopFilterHotels(withSummary);
                 // 口コミありを口コミ数順、口コミなしを距離順
-                const withReviews = withSummary.filter(h => getReportCount(h) > 0);
-                const noReviews = withSummary.filter(h => getReportCount(h) === 0);
+                const withReviews = filtered.filter(h => getReportCount(h) > 0);
+                const noReviews = filtered.filter(h => getReportCount(h) === 0);
                 sortHotelsByReviews(withReviews);
                 noReviews.sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
                 const sorted = [...withReviews, ...noReviews];
@@ -1364,8 +1441,14 @@ async function loadHotelDetail(hotelId) {
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
+        // 店舗専用モード時は、この店舗の投稿のみに絞る
+        let allReports = reportsRes.data || [];
+        if (SHOP_ID) {
+            allReports = allReports.filter(r => (r.poster_type === 'shop' && r.shop_id === SHOP_ID) || r.poster_type !== 'shop');
+            // 店舗モード時はユーザー投稿も非表示にする
+            allReports = allReports.filter(r => r.poster_type === 'shop' && r.shop_id === SHOP_ID);
+        }
         // 店舗投稿の店舗名からステータス・プラン情報を一括取得
-        const allReports = reportsRes.data || [];
         const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
         let shopStatusMap = {};
         if (shopNames.length > 0) {
@@ -1485,8 +1568,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             console.log('[buildReportCard]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url);
             // 非activeの店舗 → 店舗名を隠す
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
-            // active + 有料 → 店舗ページリンク付き店舗名
-            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shopId){return`<a href="https://yobuho.com/shop-page.html?id=${si.shopId}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            // active + 有料 → 店舗専用ポータルリンク付き店舗名
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shopId){const shopMode=r.gender_mode||'men';return`<a href="portal.html?mode=${shopMode}&shop=${si.shopId}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
             // active + 無料 or ユーザー投稿 → テキストのみ
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
         })() : '';
@@ -2208,6 +2291,7 @@ async function submitHotelRequest() {
 // ==========================================================================
 // 初期化
 // ==========================================================================
-window.onload = () => {
+window.onload = async () => {
+    await initShopMode();
     restoreFromUrl();
 };
