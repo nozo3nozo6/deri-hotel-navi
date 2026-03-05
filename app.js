@@ -1360,10 +1360,17 @@ async function loadHotelDetail(hotelId) {
         ]);
 
         if (!hotelRes.data) throw new Error('Hotel not found');
-        // 店舗専用モード時は、この店舗の投稿のみに絞る
+        // 店舗専用モード時は、この店舗の投稿 + ユーザー投稿のみに絞る
         let allReports = reportsRes.data || [];
+        console.log('[loadHotelDetail] SHOP_ID:', SHOP_ID, 'total reports:', allReports.length);
         if (SHOP_ID) {
-            allReports = allReports.filter(r => r.poster_type === 'shop' && r.shop_id === SHOP_ID);
+            console.log('[loadHotelDetail] shop reports before filter:', allReports.filter(r => r.poster_type === 'shop').map(r => ({ shop_id: r.shop_id, poster_name: r.poster_name })));
+            const shopName = SHOP_DATA?.shop_name;
+            allReports = allReports.filter(r => {
+                if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                return true; // ユーザー投稿は残す
+            });
+            console.log('[loadHotelDetail] after filter:', allReports.length, 'reports');
         }
         // 店舗投稿の店舗名からステータス・プラン情報を一括取得
         const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
@@ -1510,6 +1517,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
     const userReports = reports.filter(r => r.poster_type !== 'shop');
     const shopReports = reports.filter(r => r.poster_type === 'shop' && (!r.gender_mode || r.gender_mode === MODE));
+    console.log('[renderHotelDetail] MODE:', MODE, 'shopReports:', shopReports.length, 'userReports:', userReports.length, 'reports gender_modes:', reports.filter(r => r.poster_type === 'shop').map(r => r.gender_mode));
     const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
 
     const shopSection = shopReports.length === 0 ? '' : `
