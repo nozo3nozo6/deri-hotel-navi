@@ -12,8 +12,8 @@ const RETRY_WAIT = 5000; // 503エラー時のリトライ待機（5秒）
 const MAX_RETRY = 3;     // 最大リトライ回数
 
 const HEADERS = {
-    'Referer': 'https://deri-hotel-navi.vercel.app',
-    'Origin': 'https://deri-hotel-navi.vercel.app',
+    'Referer': 'https://yobuho.com',
+    'Origin': 'https://yobuho.com',
     'Authorization': 'Bearer pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J'
 };
 

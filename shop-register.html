@@ -381,7 +381,7 @@
             btn.textContent = '送信中...';
             const { error } = await sb.auth.signInWithOtp({
                 email,
-                options: { emailRedirectTo: 'https://deri-hotel-navi.vercel.app/shop-register.html?step=profile' }
+                options: { emailRedirectTo: 'https://yobuho.com/shop-register.html?step=profile' }
             });
             btn.disabled = false;
             btn.textContent = '認証メールを送信する';

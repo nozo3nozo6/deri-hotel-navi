@@ -15,8 +15,8 @@ const SUPABASE_KEY = 'sb_secret_YTSjsm66P67WKiuXEEVIig_3NyBMHTl';
 const RAKUTEN_APP_ID = '18c62ced-24a7-4c8b-9917-b41d6ae300fe';
 const RAKUTEN_ACCESS_KEY = 'pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J';
 const HEADERS = {
-    'Referer': 'https://deri-hotel-navi.vercel.app',
-    'Origin': 'https://deri-hotel-navi.vercel.app',
+    'Referer': 'https://yobuho.com',
+    'Origin': 'https://yobuho.com',
     'Authorization': 'Bearer pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J'
 };
 const WAIT_TIME = 2000;
