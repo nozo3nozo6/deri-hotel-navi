@@ -1483,7 +1483,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             const si=isShop?shopInfoMap[r.poster_name]:null;
             console.log('[buildReportCard]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url);
             // 非activeの店舗 → 店舗名を隠す
-            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">🏢 店舗情報</span>`;}
+            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">🏢 店舗提供情報</span>`;}
             // active + 有料 + URL → リンク付き店舗名
             if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
             // active + 無料 or ユーザー投稿 → テキストのみ
