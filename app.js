@@ -44,7 +44,9 @@ function updateUrl(params) {
     Object.entries(params).forEach(([k, v]) => {
         if (v != null) newParams.set(k, v);
     });
-    history.pushState(null, '', '?' + newParams.toString());
+    const newUrl = '?' + newParams.toString();
+    console.log('[updateUrl] pushState:', newUrl);
+    history.pushState(null, '', newUrl);
 }
 
 function ensurePortalMode() {
@@ -78,6 +80,7 @@ function ensurePortalMode() {
 
 function restoreFromUrl() {
     const params = new URLSearchParams(window.location.search);
+    console.log('[restoreFromUrl] URL params:', Object.fromEntries(params));
     _skipPushState = true;
 
     if (params.get('hotel')) {
