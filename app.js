@@ -24,6 +24,129 @@ let pageStack = [];
 let currentPage = null;  // 現在のページ描画関数を保持（言語切替時の再描画用）
 
 // ==========================================================================
+// URL状態管理
+// ==========================================================================
+let _skipPushState = false;
+
+function findRegionByPref(pref) {
+    return REGION_MAP.find(r => r.prefs.includes(pref));
+}
+
+function findRegionByLabel(label) {
+    return REGION_MAP.find(r => r.label === label);
+}
+
+function updateUrl(params) {
+    if (_skipPushState) return;
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const newParams = new URLSearchParams();
+    newParams.set('mode', mode);
+    Object.entries(params).forEach(([k, v]) => {
+        if (v != null) newParams.set(k, v);
+    });
+    history.pushState(null, '', '?' + newParams.toString());
+}
+
+function ensurePortalMode() {
+    const panel = document.getElementById('hotel-detail-panel');
+    if (panel && panel.style.display !== 'none') {
+        panel.style.display = 'none';
+        const header = document.querySelector('.portal-header');
+        header.innerHTML = `
+            <div class="header-inner">
+                <button onclick="location.href='index.html'" class="btn-to-gate">
+                    <span class="btn-gate-icon">⛩</span>
+                    <span class="btn-gate-text">ゲートへ</span>
+                </button>
+                <div class="header-logo">
+                    <span class="logo-text">Deri <em>Hotel</em> Navi</span>
+                </div>
+                <div class="lang-buttons">
+                    <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
+                    <button onclick="changeLang('en')" class="lang-btn ${state.lang==='en'?'active':''}">EN</button>
+                    <button onclick="changeLang('zh')" class="lang-btn ${state.lang==='zh'?'active':''}">CN</button>
+                    <button onclick="changeLang('ko')" class="lang-btn ${state.lang==='ko'?'active':''}">KR</button>
+                </div>
+            </div>
+            <div class="mode-title-bar" id="mode-title-bar" style="display:none;">
+            </div>`;
+        document.querySelector('.area-section').style.display = '';
+        document.querySelector('.search-tools').style.display = '';
+        document.getElementById('hotel-list').style.display = '';
+    }
+}
+
+function restoreFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    _skipPushState = true;
+
+    if (params.get('hotel')) {
+        showHotelPanel(parseInt(params.get('hotel')));
+        _skipPushState = false;
+        return;
+    }
+
+    ensurePortalMode();
+
+    if (params.get('city')) {
+        const pref = params.get('pref');
+        const area = params.get('area');
+        const detail = params.get('detail');
+        const city = params.get('city');
+        const region = findRegionByPref(pref);
+        pageStack = [showJapanPage];
+        if (region) pageStack.push(() => showPrefPage(region));
+        if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
+        if (area) pageStack.push(() => showCityPage(region, pref, area));
+        if (detail) pageStack.push(() => showDetailAreaPage(region, pref, area, detail));
+        const filterObj = { prefecture: pref };
+        if (area) filterObj.major_area = area;
+        if (detail) filterObj.detail_area = detail;
+        fetchAndShowHotelsByCity(filterObj, city);
+    } else if (params.get('detail')) {
+        const pref = params.get('pref');
+        const area = params.get('area');
+        const detail = params.get('detail');
+        const region = findRegionByPref(pref);
+        pageStack = [showJapanPage];
+        if (region) pageStack.push(() => showPrefPage(region));
+        if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
+        if (area) pageStack.push(() => showCityPage(region, pref, area));
+        showDetailAreaPage(region, pref, area, detail);
+    } else if (params.get('area')) {
+        const pref = params.get('pref');
+        const area = params.get('area');
+        const region = findRegionByPref(pref);
+        pageStack = [showJapanPage];
+        if (region) pageStack.push(() => showPrefPage(region));
+        if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
+        showCityPage(region, pref, area);
+    } else if (params.get('pref')) {
+        const pref = params.get('pref');
+        const region = findRegionByPref(pref);
+        pageStack = [showJapanPage];
+        if (region) pageStack.push(() => showPrefPage(region));
+        showMajorAreaPage(region, pref);
+    } else if (params.get('region')) {
+        const region = findRegionByLabel(params.get('region'));
+        if (region) {
+            pageStack = [showJapanPage];
+            showPrefPage(region);
+        } else {
+            showJapanPage();
+        }
+    } else {
+        showJapanPage();
+    }
+
+    _skipPushState = false;
+}
+
+window.addEventListener('popstate', () => {
+    restoreFromUrl();
+});
+
+// ==========================================================================
 // 多言語
 // ==========================================================================
 const state = { lang: 'ja' };
@@ -268,6 +391,7 @@ async function fetchReportSummaries(hotelIds) {
 function showJapanPage() {
     pageStack = [];
     currentPage = showJapanPage;
+    updateUrl({});
     setTitle(t('select_area'));
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
@@ -292,6 +416,7 @@ function showJapanPage() {
 
 async function showPrefPage(region) {
     currentPage = () => showPrefPage(region);
+    updateUrl({ region: region.label });
     setTitle(region.label);
     setBackBtn(true);
     setBreadcrumb([
@@ -332,6 +457,7 @@ async function showPrefPage(region) {
 
 async function showMajorAreaPage(region, pref) {
     currentPage = () => showMajorAreaPage(region, pref);
+    updateUrl({ pref });
     setTitle(pref);
     setBackBtn(true);
     setBreadcrumb([
@@ -400,6 +526,7 @@ async function showMajorAreaPage(region, pref) {
 
 async function showCityPage(region, pref, majorArea) {
     currentPage = () => showCityPage(region, pref, majorArea);
+    updateUrl({ pref, area: majorArea });
     setTitle(majorArea);
     setBackBtn(true);
     setBreadcrumb([
@@ -487,6 +614,7 @@ async function showCityPage(region, pref, majorArea) {
 // ==========================================================================
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
+    updateUrl({ pref, area: majorArea, detail: detailArea });
     setTitle(detailArea);
     setBackBtn(true);
     setBreadcrumb([
@@ -551,14 +679,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 // 戻るボタン
 // ==========================================================================
 function backLevel() {
-    const prev = pageStack.pop();
-    if (prev) {
-        prev();
-    } else {
-        showJapanPage();
-    }
-    clearHotelList();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    history.back();
 }
 
 // ==========================================================================
@@ -633,6 +754,12 @@ async function fetchAndShowHotels(filterObj) {
 }
 
 async function fetchAndShowHotelsByCity(filterObj, city) {
+    const _urlP = {};
+    if (filterObj.prefecture) _urlP.pref = filterObj.prefecture;
+    if (filterObj.major_area) _urlP.area = filterObj.major_area;
+    if (filterObj.detail_area) _urlP.detail = filterObj.detail_area;
+    _urlP.city = city;
+    updateUrl(_urlP);
     showLoading();
     document.getElementById('area-button-container').innerHTML = '';
     setTitle(city);
@@ -1168,6 +1295,7 @@ function hotelToggleMultiPerson(checked) {
 }
 
 function showHotelPanel(hotelId) {
+    updateUrl({ hotel: hotelId });
     currentHotelId = hotelId;
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
 
@@ -1205,35 +1333,7 @@ function showHotelPanel(hotelId) {
 }
 
 function closeHotelPanel() {
-    // パネルを閉じてポータルに戻る
-    const panel = document.getElementById('hotel-detail-panel');
-    panel.style.display = 'none';
-
-    // ヘッダーを元に戻す
-    const header = document.querySelector('.portal-header');
-    header.innerHTML = `
-        <div class="header-inner">
-            <button onclick="location.href='index.html'" class="btn-to-gate">
-                <span class="btn-gate-icon">⛩</span>
-                <span class="btn-gate-text">ゲートへ</span>
-            </button>
-            <div class="header-logo">
-                <span class="logo-text">Deri <em>Hotel</em> Navi</span>
-            </div>
-            <div class="lang-buttons">
-                <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
-                <button onclick="changeLang('en')" class="lang-btn ${state.lang==='en'?'active':''}">EN</button>
-                <button onclick="changeLang('zh')" class="lang-btn ${state.lang==='zh'?'active':''}">CN</button>
-                <button onclick="changeLang('ko')" class="lang-btn ${state.lang==='ko'?'active':''}">KR</button>
-            </div>
-        </div>
-        <div class="mode-title-bar" id="mode-title-bar" style="display:none;">
-        </div>`;
-
-    // ポータルを再表示
-    document.querySelector('.area-section').style.display = '';
-    document.querySelector('.search-tools').style.display = '';
-    document.getElementById('hotel-list').style.display = '';
+    history.back();
 }
 
 async function loadHotelDetail(hotelId) {
@@ -2066,5 +2166,5 @@ async function submitHotelRequest() {
 // 初期化
 // ==========================================================================
 window.onload = () => {
-    showJapanPage();
+    restoreFromUrl();
 };
