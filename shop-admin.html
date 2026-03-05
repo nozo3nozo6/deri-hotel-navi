@@ -375,20 +375,36 @@
     <div class="tab-content" id="tab-settings">
         <div class="card">
             <div class="card-title">メールアドレス（ID）変更</div>
-            <div class="f-group">
-                <label class="f-label">現在のメールアドレス</label>
-                <div id="settings-current-email" style="padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:13px;"></div>
+            <!-- Step1: 認証メール送信 -->
+            <div id="email-step1">
+                <div class="f-group">
+                    <label class="f-label">現在のメールアドレス</label>
+                    <div id="settings-current-email" style="padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:13px;"></div>
+                </div>
+                <div class="f-group">
+                    <label class="f-label">新しいメールアドレス</label>
+                    <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">現在のパスワード（本人確認）</label>
+                    <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
+                </div>
+                <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+                <button class="btn btn-rose" onclick="sendEmailVerification()">認証メールを送信</button>
             </div>
-            <div class="f-group">
-                <label class="f-label">新しいメールアドレス</label>
-                <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
+            <!-- Step2: 認証コード入力 -->
+            <div id="email-step2" style="display:none;">
+                <div style="padding:12px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:var(--r);color:var(--text-2);font-size:13px;margin-bottom:12px;">認証コードを新しいメールアドレスに送信しました。<br>10分以内にコードを入力してください。</div>
+                <div class="f-group">
+                    <label class="f-label">認証コード（6桁）</label>
+                    <input class="f-input" type="text" id="settings-verify-code" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:4px;font-size:18px;text-align:center;">
+                </div>
+                <div id="settings-verify-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-rose" onclick="verifyAndChangeEmail()">メールアドレスを変更する</button>
+                    <button class="btn" style="background:var(--bg-3);border:1px solid var(--border);" onclick="cancelEmailChange()">キャンセル</button>
+                </div>
             </div>
-            <div class="f-group">
-                <label class="f-label">現在のパスワード（本人確認）</label>
-                <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
-            </div>
-            <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-            <button class="btn btn-rose" onclick="changeEmail()">メールアドレスを変更</button>
         </div>
 
         <div class="card" style="margin-top:16px;">
@@ -955,8 +971,8 @@ async function deleteRegistered(infoId){
     renderRegistered();toast("🗑 削除しました");
 }
 
-// ===== 設定: メールアドレス変更 =====
-async function changeEmail(){
+// ===== 設定: メールアドレス変更 (Step1: 認証コード送信) =====
+async function sendEmailVerification(){
     const errEl=document.getElementById("settings-email-error");
     errEl.style.display="none";
     const newEmail=document.getElementById("settings-new-email").value.trim();
@@ -964,19 +980,54 @@ async function changeEmail(){
     if(!newEmail||!pw){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){errEl.textContent="メールアドレスの形式が正しくありません";errEl.style.display="block";return;}
     try{const storedPw=atob(currentShop.password_hash||"");if(storedPw!==pw){errEl.textContent="パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    const code=String(Math.floor(100000+Math.random()*900000));
+    localStorage.setItem("email_change_code",JSON.stringify({code:code,newEmail:newEmail,expires:Date.now()+10*60*1000}));
+    const emailBody='<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><h2 style="color: #b5627a;">YobuHo - メールアドレス変更</h2><p>メールアドレス変更の認証コードをお知らせします。</p><div style="background: #f8f0f2; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;"><p style="margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 8px;">'+code+'</p></div><p style="color: #888; font-size: 12px;">このコードは10分間有効です。</p><p style="color: #888; font-size: 12px;">心当たりがない場合は無視してください。</p></div>';
+    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:newEmail,subject:"【YobuHo】メールアドレス変更の認証コード",body:emailBody})});}catch(e){}
+    document.getElementById("email-step1").style.display="none";
+    document.getElementById("email-step2").style.display="block";
+}
+
+// ===== 設定: メールアドレス変更 (Step2: 認証コード確認) =====
+async function verifyAndChangeEmail(){
+    const errEl=document.getElementById("settings-verify-error");
+    errEl.style.display="none";
+    const inputCode=document.getElementById("settings-verify-code").value.trim();
+    if(!inputCode){errEl.textContent="認証コードを入力してください";errEl.style.display="block";return;}
+    const result=verifyEmailChangeCode(inputCode);
+    if(!result.valid){errEl.textContent=result.reason;errEl.style.display="block";return;}
+    const newEmail=result.newEmail;
     const oldEmail=currentShop.email;
     const{error}=await sb.from("shops").update({email:newEmail}).eq("id",currentShop.id);
     if(error){errEl.textContent="更新エラー: "+error.message;errEl.style.display="block";return;}
     currentShop.email=newEmail;
     localStorage.setItem(SESSION_KEY,JSON.stringify({id:currentShop.id,email:newEmail}));
+    localStorage.removeItem("email_change_code");
     document.getElementById("settings-current-email").textContent=newEmail;
     document.getElementById("settings-new-email").value="";
     document.getElementById("settings-email-pw").value="";
+    document.getElementById("settings-verify-code").value="";
+    document.getElementById("email-step1").style.display="block";
+    document.getElementById("email-step2").style.display="none";
     // 旧アドレスに通知
     try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:oldEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>ご登録のメールアドレスが変更されました。</p><p>心当たりがない場合は、hotel@yobuho.com までお問い合わせください。</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
-    // 新アドレスに通知
-    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:newEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>メールアドレスが変更されました。</p><p>新しいID: <strong>'+esc(newEmail)+'</strong></p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
-    toast("メールアドレスを変更しました");
+    toast("メールアドレスを変更しました。次回から新しいアドレスでログインしてください。");
+}
+
+function verifyEmailChangeCode(inputCode){
+    const stored=JSON.parse(localStorage.getItem("email_change_code")||"null");
+    if(!stored)return{valid:false,reason:"認証コードが見つかりません。再度お試しください。"};
+    if(Date.now()>stored.expires){localStorage.removeItem("email_change_code");return{valid:false,reason:"認証コードの有効期限が切れました。再度お試しください。"};}
+    if(inputCode!==String(stored.code))return{valid:false,reason:"認証コードが正しくありません。"};
+    return{valid:true,newEmail:stored.newEmail};
+}
+
+function cancelEmailChange(){
+    localStorage.removeItem("email_change_code");
+    document.getElementById("email-step1").style.display="block";
+    document.getElementById("email-step2").style.display="none";
+    document.getElementById("settings-verify-code").value="";
+    document.getElementById("settings-verify-error").style.display="none";
 }
 
 // ===== 設定: パスワード変更 =====
