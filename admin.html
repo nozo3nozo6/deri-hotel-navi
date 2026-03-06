@@ -729,7 +729,6 @@ if(!raw)return;
 try{const auth=JSON.parse(raw);if(auth.loginAt){auth.lastActivity=new Date().toISOString();localStorage.setItem("admin_auth",JSON.stringify(auth));}}catch(e){}
 });
 checkAuth();
-console.log('Initial password hash (Yh@2026Admin!):', (async()=>{const h=await hashPassword('Yh@2026Admin!');console.log(h);return h;})());
 // パスワード変更
 function openPasswordChange(){document.getElementById("pw-change-modal").style.display="flex";document.getElementById("pw-current").value="";document.getElementById("pw-new").value="";document.getElementById("pw-confirm").value="";}
 function closePwChange(){document.getElementById("pw-change-modal").style.display="none";}
