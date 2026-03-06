@@ -1153,10 +1153,10 @@ function renderHotelCards(hotels, showDistance = false) {
 
                 <!-- 住所・駅 -->
                 <div class="hotel-info-row" style="justify-content:space-between;">
-                    <span style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;">
+                    <a href="${h.address ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(h.address) : '#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                         <span class="hotel-info-icon">📍</span>
                         <span class="hotel-info-text">${h.address || ''}</span>
-                    </span>
+                    </a>
                     ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;margin-left:8px;">📞 ' + h.tel + '</span>' : ''}
                 </div>
                 ${stationHTML}
@@ -1545,7 +1545,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
         <!-- ホテル名 + 参考料金（同行） -->
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0;">
-            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;">${hotel.name}</h2>
+            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;"><a href="https://www.google.com/search?q=${encodeURIComponent(hotel.name)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${hotel.name} <span style="font-size:12px;color:#999;">🔍</span></a></h2>
             ${hotel.min_charge ? '<span style="font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0;">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
         </div>
 
@@ -1553,7 +1553,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         <div style="background:#ffffff;border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
             <!-- 行1: 住所 | 電話番号 -->
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
-                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '📍 ' + hotel.address : ''}</span>
+                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(hotel.address) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'" onclick="event.stopPropagation()">📍 ' + hotel.address + ' <span style="font-size:12px;color:#999;">📍</span></a>' : ''}</span>
                 ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + hotel.tel + '</span>' : ''}
             </div>
             <!-- 行2: 最寄駅 | エリア -->
