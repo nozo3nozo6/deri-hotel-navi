@@ -31,7 +31,7 @@ let SHOP_DATA = null;
 
 async function initShopMode() {
     if (!SHOP_ID) return;
-    const { data: shop } = await supabaseClient.from('shops').select('shop_name,gender_mode,shop_url,plan_id,status,contract_plans(price)').eq('id', SHOP_ID).eq('status', 'active').single();
+    const { data: shop } = await supabaseClient.from('shops').select('shop_name,gender_mode,shop_url,plan_id,status,contract_plans(price)').eq('id', SHOP_ID).eq('status', 'active').maybeSingle();
     if (!shop) return;
     SHOP_DATA = shop;
 }
@@ -1352,7 +1352,7 @@ async function loadHotelDetail(hotelId) {
     try {
         await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
         const [hotelRes, reportsRes, summaryRes, shopsRes, shopHotelInfoRes] = await Promise.all([
-            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).single(),
+            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).maybeSingle(),
             supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
             Promise.resolve({ data: [] }),
@@ -1461,6 +1461,18 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             shopId: shop?.id || existing.shopId || null
         };
     });
+    // SHOP_DATA（shopパラメータ時のinitShopModeで取得）からも補完
+    if (SHOP_DATA && SHOP_DATA.shop_name) {
+        const name = SHOP_DATA.shop_name;
+        const existing = shopInfoMap[name] || {};
+        const price = SHOP_DATA.contract_plans?.price || 0;
+        shopInfoMap[name] = {
+            shop_url: existing.shop_url || SHOP_DATA.shop_url || null,
+            isPaid: existing.isPaid || price > 0,
+            status: existing.status || SHOP_DATA.status || null,
+            shopId: existing.shopId || SHOP_ID || null
+        };
+    }
     console.log('[renderHotelDetail] shopInfoMap:', JSON.stringify(shopInfoMap));
 
     function buildReportCard(r) {
