@@ -1492,7 +1492,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             // 非activeの店舗 → 店舗名を隠す
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
             // active + 有料 → 店舗専用ポータルリンク付き店舗名
-            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shopId){const shopMode=r.gender_mode||'men';return`<a href="portal.html?mode=${shopMode}&shop=${si.shopId}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${si.shop_url}" target="_blank" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${r.poster_name} 🔗</a>`;}
             // active + 無料 or ユーザー投稿 → テキストのみ
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${r.poster_name}</span>`;
         })() : '';
