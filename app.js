@@ -406,6 +406,7 @@ async function fetchReportSummaries(hotelIds) {
 // ページ描画
 // ==========================================================================
 function showJapanPage() {
+    if(document.activeElement)document.activeElement.blur();
     pageStack = [];
     currentPage = showJapanPage;
     updateUrl({});
@@ -429,6 +430,7 @@ function showJapanPage() {
 }
 
 async function showPrefPage(region) {
+    if(document.activeElement)document.activeElement.blur();
     currentPage = () => showPrefPage(region);
     updateUrl({ region: region.label });
     setTitle(region.label);
@@ -467,6 +469,7 @@ async function showPrefPage(region) {
 }
 
 async function showMajorAreaPage(region, pref) {
+    if(document.activeElement)document.activeElement.blur();
     currentPage = () => showMajorAreaPage(region, pref);
     updateUrl({ pref });
     setTitle(pref);
@@ -537,6 +540,7 @@ async function showMajorAreaPage(region, pref) {
 }
 
 async function showCityPage(region, pref, majorArea) {
+    if(document.activeElement)document.activeElement.blur();
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
     setTitle(majorArea);
@@ -624,6 +628,7 @@ async function showCityPage(region, pref, majorArea) {
 // detail_area ページ（detailClass階層: smallClass → detailClass → city）
 // ==========================================================================
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
+    if(document.activeElement)document.activeElement.blur();
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
     setTitle(detailArea);
@@ -1179,6 +1184,7 @@ function renderHotelCards(hotels, showDistance = false) {
 // ホテル詳細ページへ遷移
 // ==========================================================================
 function openHotelDetail(hotelId) {
+    if(document.activeElement)document.activeElement.blur();
     // パネルを表示してホテル詳細をロード（SPA）
     showHotelPanel(hotelId);
 }
