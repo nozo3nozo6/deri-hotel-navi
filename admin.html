@@ -676,13 +676,30 @@ function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 // ===== 認証 =====
 function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
+async function hashPassword(password){
+const encoder=new TextEncoder();
+const data=encoder.encode(password+'yobuho-salt-2026');
+const hash=await crypto.subtle.digest('SHA-256',data);
+return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+let _loginAttempts=parseInt(localStorage.getItem('admin_login_attempts')||'0');
+let _lockUntil=parseInt(localStorage.getItem('admin_lock_until')||'0');
 async function doLogin(){
+if(Date.now()<_lockUntil){const sec=Math.ceil((_lockUntil-Date.now())/1000);toast("ロック中です。"+sec+"秒後に再試行してください。");return;}
 const username=document.getElementById("admin-username").value.trim();
 const password=document.getElementById("admin-password").value;
 if(!username||!password){toast("IDとパスワードを入力してください");return;}
-const{data,error}=await sb.from("admin_users").select("*").eq("username",username).single();
-if(error||!data||atob(data.password_hash)!==password){toast("IDまたはパスワードが正しくありません");return;}
-localStorage.setItem("admin_auth",JSON.stringify({id:data.id,username:data.username,loginAt:new Date().toISOString()}));
+const hashedInput=await hashPassword(password);
+const{data,error}=await sb.from("admin_users").select("*").eq("username",username).eq("password_hash",hashedInput).single();
+if(error||!data){
+_loginAttempts++;
+localStorage.setItem('admin_login_attempts',String(_loginAttempts));
+if(_loginAttempts>=5){_lockUntil=Date.now()+30000;localStorage.setItem('admin_lock_until',String(_lockUntil));localStorage.setItem('admin_login_attempts','0');_loginAttempts=0;toast("5回失敗しました。30秒間ロックされます。");}
+else{toast("IDまたはパスワードが正しくありません（残り"+(5-_loginAttempts)+"回）");}
+return;}
+localStorage.setItem('admin_login_attempts','0');_loginAttempts=0;
+const now=new Date().toISOString();
+localStorage.setItem("admin_auth",JSON.stringify({id:data.id,username:data.username,loginAt:now,lastActivity:now}));
 showAdminPanel(data.username);
 }
 function doLogout(){localStorage.removeItem("admin_auth");location.reload();}
@@ -698,12 +715,21 @@ const raw=localStorage.getItem("admin_auth");
 if(!raw){document.getElementById("login-wrap").style.display="flex";return;}
 try{
 const auth=JSON.parse(raw);
-const elapsed=Date.now()-new Date(auth.loginAt).getTime();
-if(elapsed>24*60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("セッションの有効期限が切れました。再ログインしてください。");return;}
+const now=Date.now();
+const loginTime=new Date(auth.loginAt).getTime();
+const lastActivity=new Date(auth.lastActivity||auth.loginAt).getTime();
+if(now-loginTime>8*60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("セッションの有効期限が切れました（8時間）。再ログインしてください。");return;}
+if(now-lastActivity>60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("無操作のためログアウトしました。再ログインしてください。");return;}
 showAdminPanel(auth.username);
 }catch(e){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";}
 }
+document.addEventListener('click',function(){
+const raw=localStorage.getItem("admin_auth");
+if(!raw)return;
+try{const auth=JSON.parse(raw);if(auth.loginAt){auth.lastActivity=new Date().toISOString();localStorage.setItem("admin_auth",JSON.stringify(auth));}}catch(e){}
+});
 checkAuth();
+console.log('Initial password hash (Yh@2026Admin!):', (async()=>{const h=await hashPassword('Yh@2026Admin!');console.log(h);return h;})());
 // パスワード変更
 function openPasswordChange(){document.getElementById("pw-change-modal").style.display="flex";document.getElementById("pw-current").value="";document.getElementById("pw-new").value="";document.getElementById("pw-confirm").value="";}
 function closePwChange(){document.getElementById("pw-change-modal").style.display="none";}
@@ -715,9 +741,11 @@ if(!cur||!nw||!cf){toast("すべての項目を入力してください");return
 if(nw!==cf){toast("新しいパスワードが一致しません");return;}
 if(nw.length<4){toast("パスワードは4文字以上にしてください");return;}
 const auth=JSON.parse(localStorage.getItem("admin_auth")||"{}");
-const{data,error}=await sb.from("admin_users").select("*").eq("id",auth.id).single();
-if(error||!data||atob(data.password_hash)!==cur){toast("現在のパスワードが正しくありません");return;}
-const{error:upErr}=await sb.from("admin_users").update({password_hash:btoa(nw)}).eq("id",auth.id);
+const curHash=await hashPassword(cur);
+const{data,error}=await sb.from("admin_users").select("*").eq("id",auth.id).eq("password_hash",curHash).single();
+if(error||!data){toast("現在のパスワードが正しくありません");return;}
+const newHash=await hashPassword(nw);
+const{error:upErr}=await sb.from("admin_users").update({password_hash:newHash}).eq("id",auth.id);
 if(upErr){toast("更新エラー: "+upErr.message);return;}
 toast("パスワードを変更しました");closePwChange();
 }
