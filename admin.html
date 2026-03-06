@@ -2,6 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>管理画面 | Deri Hotel Navi</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -685,6 +688,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
+console.log('[admin.html] version: 2026-03-07-v2');
 const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
 const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
 const sb=supabase.createClient(SB_URL,SB_KEY);
@@ -821,10 +825,9 @@ plans.forEach(p=>{if(p.id!==shop.plan_id){planHtml+='<button onclick="startPlanC
 planBtns.innerHTML=planHtml;
 }
 function startAction(shopId,newStatus,type,title){
-console.log('[startAction]',shopId,newStatus,type,title);
 pendingAction={shopId,newStatus,type,actionType:'status'};
-const subjectMap={'approval':'【YobuHo】審査完了・掲載開始のお知らせ','suspension':'【YobuHo】掲載停止のお知らせ','resumption':'【YobuHo】掲載再開のお知らせ','rejection':'【YobuHo】審査結果のお知らせ','deficiency':'【YobuHo】登録内容の不備について'};
-const btnColorMap={'approval':'#28a745','suspension':'#6c757d','resumption':'#28a745','rejection':'#dc3545','deficiency':'#fd7e14'};
+var subjectMap={'approval':'【YobuHo】審査完了・掲載開始のお知らせ','suspension':'【YobuHo】掲載停止のお知らせ','deficiency':'【YobuHo】登録内容の不備について','rejection':'【YobuHo】審査結果のお知らせ'};
+var btnColorMap={'approval':'#28a745','suspension':'#6c757d','deficiency':'#fd7e14','rejection':'#dc3545'};
 document.getElementById('action-title').textContent=title;
 document.getElementById('action-email-subject').value=subjectMap[type]||'';
 document.getElementById('action-email-extra').value='';
@@ -833,7 +836,8 @@ document.getElementById('action-email-section').style.display='block';
 document.getElementById('action-execute-btn').style.background=btnColorMap[type]||'#0066cc';
 var panel=document.getElementById('action-confirm-panel');
 panel.style.display='block';
-setTimeout(function(){var sc=document.querySelector('.sr-right > div');if(sc){sc.scrollTop=sc.scrollHeight;}},100);
+var sc=document.querySelector('.sr-right > div');
+if(sc)setTimeout(function(){sc.scrollTop=sc.scrollHeight;},50);
 }
 function startPlanChange(shopId,planId,planName,planPrice){
 pendingAction={shopId,planId,planName,planPrice,actionType:'plan'};
@@ -849,31 +853,26 @@ setTimeout(function(){var sc=document.querySelector('.sr-right > div');if(sc){sc
 function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
 async function executeAction(){
 if(!pendingAction)return;
-const{shopId,actionType}=pendingAction;
+var{shopId,actionType}=pendingAction;
 try{
 if(actionType==='status'){
-const{newStatus,type}=pendingAction;
-const updateData={status:newStatus};
-console.log('[executeAction] status update:',shopId,newStatus,type,JSON.stringify(updateData));
-const{error:updateError}=await sb.from('shops').update(updateData).eq('id',shopId);
-console.log('[executeAction] update result:',updateError?JSON.stringify(updateError):'success');
-if(updateError){console.error('[executeAction] DB error:',JSON.stringify(updateError));toast('更新エラー: '+updateError.message);pendingAction=null;return;}
-shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,...updateData}:s);
+var{newStatus,type}=pendingAction;
+var updateData={status:newStatus};
+var{error:updateError}=await sb.from('shops').update(updateData).eq('id',shopId);
+if(updateError){toast('更新エラー: '+updateError.message);pendingAction=null;return;}
+shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,updateData):s;});
 if(document.getElementById('action-send-email').checked){
-const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-console.log('[executeAction] sending email type:',type,'to:',shop?.email);
-if(shop){const extra=document.getElementById('action-email-extra').value;const ok=await sendShopEmail(shop,type,{reason:extra||undefined});console.log('[executeAction] email result:',ok);toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
+var{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,type,{reason:extra||undefined});toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
 }else{toast('ステータス更新完了（メール未送信）');}
 }else if(actionType==='plan'){
-const{planId,planName,planPrice}=pendingAction;
-console.log('[executeAction] plan change:',shopId,planId,planName);
-const{error}=await sb.from('shops').update({plan_id:planId}).eq('id',shopId);
-if(error){console.error('[executeAction] DB error:',JSON.stringify(error));toast('更新エラー: '+error.message);pendingAction=null;return;}
-shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:planId}:s);
+var{planId,planName,planPrice}=pendingAction;
+var{error}=await sb.from('shops').update({plan_id:planId}).eq('id',shopId);
+if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
+shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,{plan_id:planId}):s;});
 if(document.getElementById('action-send-email').checked){
-const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-console.log('[executeAction] sending plan_change email to:',shop?.email);
-if(shop){const extra=document.getElementById('action-email-extra').value;const ok=await sendShopEmail(shop,'plan_change',{planName,planPrice,reason:extra||undefined});console.log('[executeAction] email result:',ok);toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');}
+var{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,'plan_change',{planName:planName,planPrice:planPrice,reason:extra||undefined});toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');}
 }else{toast('プラン変更完了（メール未送信）');}
 }
 }catch(e){console.error('[executeAction] error:',e);toast('エラーが発生しました: '+e.message);}
