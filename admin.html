@@ -855,27 +855,33 @@ function cancelAction(){pendingAction=null;document.getElementById('action-confi
 async function executeAction(){
 if(!pendingAction)return;
 const{shopId,actionType}=pendingAction;
+try{
 if(actionType==='status'){
 const{newStatus,type}=pendingAction;
 const updateData={status:newStatus};
 if(newStatus==='active')updateData.approved_at=new Date().toISOString();
+console.log('[executeAction] status update:',shopId,newStatus,type);
 const{error}=await sb.from('shops').update(updateData).eq('id',shopId);
-if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
+if(error){console.error('[executeAction] DB error:',JSON.stringify(error));toast('更新エラー: '+error.message);pendingAction=null;return;}
 shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,...updateData}:s);
 if(document.getElementById('action-send-email').checked){
 const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-if(shop){const extra=document.getElementById('action-email-extra').value;await sendShopEmail(shop,type,{reason:extra||undefined});toast('ステータス更新 + メール送信完了');}
+console.log('[executeAction] sending email type:',type,'to:',shop?.email);
+if(shop){const extra=document.getElementById('action-email-extra').value;const ok=await sendShopEmail(shop,type,{reason:extra||undefined});console.log('[executeAction] email result:',ok);toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
 }else{toast('ステータス更新完了（メール未送信）');}
 }else if(actionType==='plan'){
 const{planId,planName,planPrice}=pendingAction;
+console.log('[executeAction] plan change:',shopId,planId,planName);
 const{error}=await sb.from('shops').update({plan_id:planId}).eq('id',shopId);
-if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
+if(error){console.error('[executeAction] DB error:',JSON.stringify(error));toast('更新エラー: '+error.message);pendingAction=null;return;}
 shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:planId}:s);
 if(document.getElementById('action-send-email').checked){
 const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-if(shop){const extra=document.getElementById('action-email-extra').value;await sendShopEmail(shop,'plan_change',{planName,planPrice,reason:extra||undefined});toast('プラン変更 + メール送信完了');}
+console.log('[executeAction] sending plan_change email to:',shop?.email);
+if(shop){const extra=document.getElementById('action-email-extra').value;const ok=await sendShopEmail(shop,'plan_change',{planName,planPrice,reason:extra||undefined});console.log('[executeAction] email result:',ok);toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');}
 }else{toast('プラン変更完了（メール未送信）');}
 }
+}catch(e){console.error('[executeAction] error:',e);toast('エラーが発生しました: '+e.message);}
 pendingAction=null;
 document.getElementById('action-confirm-panel').style.display='none';
 updateShopBadge();renderShops();closeShopReview();
