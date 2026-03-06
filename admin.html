@@ -240,14 +240,11 @@
     </style>
 </head>
 <body>
-<!-- ⚠️ テストモードバナー -->
-<div class="test-banner" style="position:sticky;top:0;z-index:9999;background:#c0392b;color:#fff;text-align:center;padding:8px 16px;font-size:13px;font-weight:700;letter-spacing:0.03em;">
-    ⚠️ テストモード：本番前に認証を必ず有効化してください
-</div>
 <div class="hdr" id="hdr" style="display:none;">
     <div class="hdr-inner">
-        <div class="hdr-logo">&#x26E9; Deri Hotel Navi <span>/ 管理画面</span></div>
+        <div class="hdr-logo">&#x26E9; YobuHo <span>/ 管理画面</span></div>
         <span class="hdr-user" id="hdr-email"></span>
+        <button class="btn-logout" onclick="openPasswordChange()" style="margin-right:4px;">🔑 PW変更</button>
         <button class="btn-logout" onclick="doLogout()">ログアウト</button>
     </div>
     <nav class="tab-bar" id="tab-bar">
@@ -261,13 +258,26 @@
 </div>
 <div class="login-wrap" id="login-wrap" style="display:none;">
     <div class="login-card">
-        <div class="login-title">&#x1F510; 管理者ログイン</div>
-        <div class="login-sub">Deri Hotel Navi 管理画面</div>
+        <div class="login-title">⛩ YobuHo 管理画面</div>
+        <div class="login-sub">管理者ログイン</div>
         <form onsubmit="event.preventDefault();doLogin()" autocomplete="on">
-            <div class="f-group"><label class="f-label">メールアドレス</label><input type="email" id="login-email" name="email" class="f-input" placeholder="admin@example.com" autocomplete="username"></div>
-            <div class="f-group"><label class="f-label">パスワード</label><input type="password" id="login-pw" name="password" class="f-input" placeholder="••••••••" autocomplete="current-password"></div>
+            <div class="f-group"><label class="f-label">ID</label><input type="text" id="admin-username" name="username" class="f-input" placeholder="管理者ID" autocomplete="username"></div>
+            <div class="f-group"><label class="f-label">パスワード</label><div style="position:relative;"><input type="password" id="admin-password" name="password" class="f-input" placeholder="••••••••" autocomplete="current-password" style="padding-right:40px;"><label style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink-3);cursor:pointer;user-select:none;"><input type="checkbox" onchange="togglePwVis(this,'admin-password')" style="margin-right:3px;">表示</label></div></div>
             <button type="submit" class="btn-login">ログイン</button>
         </form>
+    </div>
+</div>
+<!-- パスワード変更モーダル -->
+<div class="modal-overlay" id="pw-change-modal" style="display:none;" onclick="if(event.target===this)closePwChange()">
+    <div class="modal">
+        <div class="modal-title">🔑 パスワード変更</div>
+        <div class="mf"><label class="ml">現在のパスワード</label><input type="password" id="pw-current" class="mi"></div>
+        <div class="mf"><label class="ml">新しいパスワード</label><input type="password" id="pw-new" class="mi"></div>
+        <div class="mf"><label class="ml">新しいパスワード（確認）</label><input type="password" id="pw-confirm" class="mi"></div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closePwChange()">キャンセル</button>
+            <button class="btn-save" onclick="changePassword()">変更する</button>
+        </div>
     </div>
 </div>
 <div class="layout" id="layout" style="display:none;">
@@ -664,18 +674,53 @@ function toast(msg,d=2500){const el=document.getElementById("toast");el.textCont
 function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-/* --- 本番認証コード（テストモード中はコメントアウト） ---
-async function doLogin(){const email=document.getElementById("login-email").value.trim();const pw=document.getElementById("login-pw").value;if(!email||!pw){toast("メールとパスワードを入力してください");return;}const{data,error}=await sb.auth.signInWithPassword({email,password:pw});if(error){toast("❌ "+error.message);return;}onLoggedIn(data.user);}
-async function doLogout(){await sb.auth.signOut();location.reload();}
-function onLoggedIn(user){document.getElementById("login-wrap").style.display="none";document.getElementById("hdr").style.display="block";document.getElementById("layout").style.display="block";document.getElementById("hdr-email").textContent=user.email;loadAll();}
-sb.auth.getSession().then(({data})=>{if(data.session)onLoggedIn(data.session.user);});
---- テストモード終了時にここまでのコメントを解除し、下のテスト用コードを削除 --- */
-
-// ===== テストモード：認証スキップ =====
-function doLogin(){}
-function doLogout(){location.reload();}
-function onLoggedIn(_user){}
-(function(){document.getElementById("login-wrap").style.display="none";document.getElementById("hdr").style.display="block";document.getElementById("layout").style.display="block";document.getElementById("hdr-email").textContent="テストモード";loadAll();})();
+// ===== 認証 =====
+function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
+async function doLogin(){
+const username=document.getElementById("admin-username").value.trim();
+const password=document.getElementById("admin-password").value;
+if(!username||!password){toast("IDとパスワードを入力してください");return;}
+const{data,error}=await sb.from("admin_users").select("*").eq("username",username).single();
+if(error||!data||atob(data.password_hash)!==password){toast("IDまたはパスワードが正しくありません");return;}
+localStorage.setItem("admin_auth",JSON.stringify({id:data.id,username:data.username,loginAt:new Date().toISOString()}));
+showAdminPanel(data.username);
+}
+function doLogout(){localStorage.removeItem("admin_auth");location.reload();}
+function showAdminPanel(username){
+document.getElementById("login-wrap").style.display="none";
+document.getElementById("hdr").style.display="block";
+document.getElementById("layout").style.display="block";
+document.getElementById("hdr-email").textContent=username;
+loadAll();
+}
+function checkAuth(){
+const raw=localStorage.getItem("admin_auth");
+if(!raw){document.getElementById("login-wrap").style.display="flex";return;}
+try{
+const auth=JSON.parse(raw);
+const elapsed=Date.now()-new Date(auth.loginAt).getTime();
+if(elapsed>24*60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("セッションの有効期限が切れました。再ログインしてください。");return;}
+showAdminPanel(auth.username);
+}catch(e){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";}
+}
+checkAuth();
+// パスワード変更
+function openPasswordChange(){document.getElementById("pw-change-modal").style.display="flex";document.getElementById("pw-current").value="";document.getElementById("pw-new").value="";document.getElementById("pw-confirm").value="";}
+function closePwChange(){document.getElementById("pw-change-modal").style.display="none";}
+async function changePassword(){
+const cur=document.getElementById("pw-current").value;
+const nw=document.getElementById("pw-new").value;
+const cf=document.getElementById("pw-confirm").value;
+if(!cur||!nw||!cf){toast("すべての項目を入力してください");return;}
+if(nw!==cf){toast("新しいパスワードが一致しません");return;}
+if(nw.length<4){toast("パスワードは4文字以上にしてください");return;}
+const auth=JSON.parse(localStorage.getItem("admin_auth")||"{}");
+const{data,error}=await sb.from("admin_users").select("*").eq("id",auth.id).single();
+if(error||!data||atob(data.password_hash)!==cur){toast("現在のパスワードが正しくありません");return;}
+const{error:upErr}=await sb.from("admin_users").update({password_hash:btoa(nw)}).eq("id",auth.id);
+if(upErr){toast("更新エラー: "+upErr.message);return;}
+toast("パスワードを変更しました");closePwChange();
+}
 
 // ハンバーガーメニュー
 function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("open");}
