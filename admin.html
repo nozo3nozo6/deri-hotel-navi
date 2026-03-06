@@ -840,8 +840,7 @@ document.getElementById('action-email-section').style.display='block';
 document.getElementById('action-execute-btn').style.background=btnColorMap[type]||'#0066cc';
 var panel=document.getElementById('action-confirm-panel');
 panel.style.display='block';
-console.log('[startAction] panel display:',panel.style.display,'offsetHeight:',panel.offsetHeight);
-setTimeout(function(){panel.scrollIntoView({behavior:'smooth',block:'nearest'});var sc=panel.closest('[style*="overflow"]')||panel.parentElement;if(sc&&sc.scrollHeight>sc.clientHeight)sc.scrollTop=sc.scrollHeight;},100);
+setTimeout(function(){var sc=document.querySelector('.sr-right > div');if(sc){sc.scrollTop=sc.scrollHeight;}},100);
 }
 function startPlanChange(shopId,planId,planName,planPrice){
 pendingAction={shopId,planId,planName,planPrice,actionType:'plan'};
@@ -852,7 +851,7 @@ document.getElementById('action-send-email').checked=true;
 document.getElementById('action-email-section').style.display='block';
 document.getElementById('action-execute-btn').style.background='#0066cc';
 document.getElementById('action-confirm-panel').style.display='block';
-document.getElementById('action-confirm-panel').scrollIntoView({behavior:'smooth'});
+setTimeout(function(){var sc=document.querySelector('.sr-right > div');if(sc){sc.scrollTop=sc.scrollHeight;}},100);
 }
 function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
 async function executeAction(){
