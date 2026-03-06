@@ -828,6 +828,7 @@ plans.forEach(p=>{if(p.id!==shop.plan_id){planHtml+='<button onclick="startPlanC
 planBtns.innerHTML=planHtml;
 }
 function startAction(shopId,newStatus,type,title){
+console.log('[startAction]',shopId,newStatus,type,title);
 pendingAction={shopId,newStatus,type,actionType:'status'};
 const subjectMap={'approval':'【YobuHo】審査完了・掲載開始のお知らせ','suspension':'【YobuHo】掲載停止のお知らせ','resumption':'【YobuHo】掲載再開のお知らせ','rejection':'【YobuHo】審査結果のお知らせ','deficiency':'【YobuHo】登録内容の不備について'};
 const btnColorMap={'approval':'#28a745','suspension':'#6c757d','resumption':'#28a745','rejection':'#dc3545','deficiency':'#fd7e14'};
@@ -837,8 +838,10 @@ document.getElementById('action-email-extra').value='';
 document.getElementById('action-send-email').checked=true;
 document.getElementById('action-email-section').style.display='block';
 document.getElementById('action-execute-btn').style.background=btnColorMap[type]||'#0066cc';
-document.getElementById('action-confirm-panel').style.display='block';
-document.getElementById('action-confirm-panel').scrollIntoView({behavior:'smooth'});
+var panel=document.getElementById('action-confirm-panel');
+panel.style.display='block';
+console.log('[startAction] panel display:',panel.style.display,'offsetHeight:',panel.offsetHeight);
+setTimeout(function(){panel.scrollIntoView({behavior:'smooth',block:'nearest'});var sc=panel.closest('[style*="overflow"]')||panel.parentElement;if(sc&&sc.scrollHeight>sc.clientHeight)sc.scrollTop=sc.scrollHeight;},100);
 }
 function startPlanChange(shopId,planId,planName,planPrice){
 pendingAction={shopId,planId,planName,planPrice,actionType:'plan'};
