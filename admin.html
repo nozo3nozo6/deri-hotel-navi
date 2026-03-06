@@ -817,8 +817,8 @@ let html='';
 const st=shop.status;
 if(st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'active\',\'approval\',\'✅ 掲載開始\')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">✅ 掲載開始</button>';}
 if(st==='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'suspended\',\'suspension\',\'⏸ 掲載停止\')" style="background:#6c757d;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⏸ 掲載停止</button>';}
-if(st==='registered'||st==='revision_required'){html+='<button onclick="startAction(\''+shop.id+'\',\'revision_required\',\'deficiency\',\'⚠️ 不備あり\')" style="background:#fd7e14;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⚠️ 不備あり</button>';}
-if(st!=='rejected'&&st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'rejected\',\'rejection\',\'❌ 却下\')" style="background:#dc3545;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">❌ 却下</button>';}
+if(st!=='revision_required'){html+='<button onclick="startAction(\''+shop.id+'\',\'revision_required\',\'deficiency\',\'⚠️ 不備あり\')" style="background:#fd7e14;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⚠️ 不備あり</button>';}
+if(st!=='rejected'){html+='<button onclick="startAction(\''+shop.id+'\',\'rejected\',\'rejection\',\'❌ 却下\')" style="background:#dc3545;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">❌ 却下</button>';}
 statusBtns.innerHTML=html;
 const currentPlan=plans.find(p=>p.id===shop.plan_id);
 document.getElementById('shop-plan-badge').textContent=currentPlan?currentPlan.name+'（¥'+currentPlan.price.toLocaleString()+'）':'未設定';
