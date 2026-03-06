@@ -1500,7 +1500,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
             const si=isShop?shopInfoMap[r.poster_name]:null;
-            console.log('[buildReportCard]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url);
+            console.log('[buildReportCard v16]', r.poster_name, 'isShop:', isShop, 'status:', si?.status, 'isPaid:', si?.isPaid, 'url:', si?.shop_url, 'shopInfoMapKeys:', Object.keys(shopInfoMap));
             // 非activeの店舗 → 店舗名を隠す
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
             // active + 有料 → 店舗専用ポータルリンク付き店舗名
