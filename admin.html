@@ -593,23 +593,42 @@
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
                     <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel"></div>
                     <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url"></div>
-                    <div class="mf"><label class="ml">ステータス</label><select id="sr-status" class="mi"><option value="registered">準備中</option><option value="active">掲載中</option><option value="suspended">停止中</option><option value="revision_required">不備あり</option><option value="rejected">却下</option></select></div>
-                    <div class="mf"><label class="ml">契約プラン</label><select id="sr-plan" class="mi"></select></div>
-                    <div class="mf" id="sr-contract-wrap"><label class="ml">契約状態</label><div style="display:flex;gap:8px;align-items:center;"><span id="sr-contract-badge"></span><button class="btn b-btn-red" id="sr-contract-stop-btn" style="font-size:11px;" onclick="srContractStop()">契約停止</button><button class="btn b-btn-green" id="sr-contract-resume-btn" style="font-size:11px;display:none;" onclick="srContractResume()">契約再開</button></div></div>
-                    <div id="sr-deny-wrap" style="display:none;" class="mf">
-                        <label class="ml">否認理由（任意）</label>
-                        <textarea id="sr-deny-reason" class="mi" rows="3" style="resize:vertical;" placeholder="例: 届出書の内容が確認できません"></textarea>
+                    <div style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
+                        <label style="font-weight:bold;">ステータス</label>
+                        <div style="margin:8px 0;">現在: <span id="shop-status-badge"></span></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="status-action-buttons"></div>
                     </div>
+                    <div style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
+                        <label style="font-weight:bold;">契約プラン</label>
+                        <div style="margin:8px 0;">現在: <span id="shop-plan-badge" style="font-weight:bold;"></span></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;" id="plan-action-buttons"></div>
+                    </div>
+                    <div id="action-confirm-panel" style="display:none;margin-top:16px;padding:16px;background:#fff3cd;border:1px solid #ffc107;border-radius:4px;">
+                        <h4 id="action-title" style="margin:0 0 12px;"></h4>
+                        <div style="margin-bottom:8px;">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="action-send-email" checked>
+                                店舗にメールを送信する
+                            </label>
+                        </div>
+                        <div id="action-email-section">
+                            <label>件名:</label>
+                            <input type="text" id="action-email-subject" class="mi" readonly style="margin-bottom:8px;">
+                            <label>追加メッセージ（任意）:</label>
+                            <textarea id="action-email-extra" class="mi" rows="2" placeholder="店舗への追加メッセージ..."></textarea>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                            <button onclick="cancelAction()" style="padding:8px 16px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">キャンセル</button>
+                            <button onclick="executeAction()" id="action-execute-btn" style="padding:8px 16px;border:none;color:#fff;border-radius:4px;cursor:pointer;">更新する</button>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;text-align:right;"><a href="#" style="color:#dc3545;font-size:12px;" onclick="deleteShopFromModal();return false;">この店舗を削除する</a></div>
                 </div>
                 <div class="sr-actions">
-                    <button id="sr-deny-btn" class="btn b-btn-red" style="font-size:12px;" onclick="showDenyInput()">否認</button>
-                    <button id="sr-deny-submit-btn" class="btn b-btn-red" style="font-size:12px;display:none;" onclick="saveShopDenial()">否認を確定</button>
                     <div style="flex:1;"></div>
                     <button class="btn-cancel" onclick="closeShopReview()">閉じる</button>
                     <button class="btn-save" id="sr-save-btn" onclick="saveShopEdit()">💾 保存</button>
-                    <button class="btn-save" id="sr-approve-btn" style="background:var(--green);" onclick="saveShopApproval()">&#x2705; 承認</button>
                 </div>
-                <div id="sr-status-actions"></div>
             </div>
         </div>
     </div>
@@ -781,25 +800,87 @@ async function reactivateShop(id){if(!confirm("この店舗の掲載を再開し
 async function notifyDeficiency(id){const reason=prompt("不備の内容を入力してください（店舗にメール通知されます）:\n例: 届出確認書の画像が不鮮明です、店舗名が届出書と一致しません 等");if(!reason)return;if(!confirm("不備通知メールを送信しますか？\n店舗に再申請を依頼します。"))return;const{error}=await sb.from("shops").update({status:"revision_required"}).eq("id",id);if(error){console.error("notifyDeficiency error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"revision_required"}:s);updateShopBadge();renderShops();const{data:shop}=await sb.from("shops").select("*").eq("id",id).maybeSingle();const ok=await sendShopEmail(shop,"deficiency",{reason});toast(ok?"不備通知を送信しました":"不備通知しました（メール送信に失敗しました）");}
 async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const{error}=await sb.from("shops").update({status:"deleted",deleted_at:new Date().toISOString()}).eq("id",id);if(error){console.error("deleteShop error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
 async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
-async function approveShopAndClose(id){await approveShop(id);closeShopReview();loadShops();}
-async function notifyDeficiencyAndClose(id){await notifyDeficiency(id);closeShopReview();loadShops();}
-async function rejectShopAndClose(id){await rejectShop(id);closeShopReview();loadShops();}
-async function suspendShopAndClose(id){await suspendShop(id);closeShopReview();loadShops();}
-async function reactivateShopAndClose(id){await reactivateShop(id);closeShopReview();loadShops();}
 async function restoreShop(id){if(!confirm("この店舗を復活しますか？"))return;const{error}=await sb.from("shops").update({status:"registered",deleted_at:null}).eq("id",id);if(error){toast("復活エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"registered",deleted_at:null}:s);updateShopBadge();renderShops();toast("復活しました（準備中ステータス）");}
 async function permanentDeleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を完全に削除しますか？この操作は取り消せません。"))return;const{error}=await sb.from("shops").delete().eq("id",id);if(error){console.error("permanentDeleteShop error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}shopsData=shopsData.filter(s=>String(s.id)!==String(id));updateShopBadge();renderShops();toast("完全に削除しました");}
 let _srId=null;
-function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;const st=getShopStatus(s);document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";document.getElementById("sr-status").value=getShopStatus(s);const planSel=document.getElementById("sr-plan");planSel.innerHTML='<option value="">未設定</option>'+contractPlansData.map(p=>`<option value="${p.id}">${esc(p.name)} (¥${p.price.toLocaleString()})</option>`).join("");planSel.value=s.plan_id||"";const cs=s.contract_status||"active";document.getElementById("sr-contract-badge").innerHTML=cs==="suspended"?'<span class="badge b-stop">停止中</span>':'<span class="badge b-active">契約中</span>';document.getElementById("sr-contract-stop-btn").style.display=cs==="suspended"?"none":"";document.getElementById("sr-contract-resume-btn").style.display=cs==="suspended"?"":"none";document.getElementById("sr-deny-reason").value=s.denial_reason||"";document.getElementById("sr-deny-wrap").style.display="none";document.getElementById("sr-deny-btn").style.display="";document.getElementById("sr-deny-submit-btn").style.display="none";document.getElementById("sr-approve-btn").style.display=(st==="registered")?"":"none";const wrap=document.getElementById("sr-doc-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;
-let _sa='<div style="margin-top:20px;padding-top:16px;border-top:1px solid #ddd;"><p style="font-weight:bold;margin-bottom:12px;">ステータス変更</p>';
-if(st==='registered'||st==='revision_required'){_sa+='<button style="background:#28a745;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="approveShopAndClose(\''+id+'\')">✅ 承認（公開）</button>';_sa+='<button style="background:#fd7e14;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="notifyDeficiencyAndClose(\''+id+'\')">⚠️ 不備通知</button>';_sa+='<button style="background:#dc3545;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="rejectShopAndClose(\''+id+'\')">❌ 却下</button>';}
-else if(st==='active'){_sa+='<button style="background:#6c757d;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="suspendShopAndClose(\''+id+'\')">⏸ 掲載停止</button>';}
-else if(st==='suspended'){_sa+='<button style="background:#28a745;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="reactivateShopAndClose(\''+id+'\')">▶️ 掲載再開</button>';}
-else if(st==='rejected'){_sa+='<button style="background:#28a745;color:#fff;border:none;padding:8px 16px;border-radius:4px;margin:4px;cursor:pointer;" onclick="approveShopAndClose(\''+id+'\')">✅ 承認（公開）</button>';}
-_sa+='<div style="margin-top:16px;"><a href="#" style="color:#dc3545;font-size:12px;" onclick="deleteShopFromModal();return false;">この店舗を削除する</a></div></div>';
-document.getElementById("sr-status-actions").innerHTML=_sa;
-document.getElementById("shop-review-modal").style.display="flex";}
-function closeShopReview(){document.getElementById("shop-review-modal").style.display="none";_srId=null;_dvReset();}
-function showDenyInput(){document.getElementById("sr-deny-wrap").style.display="";document.getElementById("sr-deny-btn").style.display="none";document.getElementById("sr-deny-submit-btn").style.display="";}
+function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";const wrap=document.getElementById("sr-doc-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
+function closeShopReview(){document.getElementById("shop-review-modal").style.display="none";pendingAction=null;_srId=null;_dvReset();}
+let pendingAction=null;
+function renderEditActions(shop,plans){
+const statusNames={email_pending:'認証待',registered:'準備中',active:'掲載中',suspended:'停止中',rejected:'却下',revision_required:'不備あり',deleted:'削除済'};
+const statusColors={email_pending:'#ffc107',registered:'#fd7e14',active:'#28a745',suspended:'#6c757d',rejected:'#dc3545',revision_required:'#e65100',deleted:'#999'};
+const badge=document.getElementById('shop-status-badge');
+badge.textContent=statusNames[shop.status]||shop.status;
+badge.style.cssText='background:'+(statusColors[shop.status]||'#999')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;';
+const statusBtns=document.getElementById('status-action-buttons');
+let html='';
+const st=shop.status;
+if(st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'active\',\'approval\',\'✅ 掲載開始\')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">✅ 掲載開始</button>';}
+if(st==='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'suspended\',\'suspension\',\'⏸ 掲載停止\')" style="background:#6c757d;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⏸ 掲載停止</button>';}
+if(st==='registered'||st==='revision_required'){html+='<button onclick="startAction(\''+shop.id+'\',\'revision_required\',\'deficiency\',\'⚠️ 不備あり\')" style="background:#fd7e14;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⚠️ 不備あり</button>';}
+if(st!=='rejected'&&st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'rejected\',\'rejection\',\'❌ 却下\')" style="background:#dc3545;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">❌ 却下</button>';}
+statusBtns.innerHTML=html;
+const currentPlan=plans.find(p=>p.id===shop.plan_id);
+document.getElementById('shop-plan-badge').textContent=currentPlan?currentPlan.name+'（¥'+currentPlan.price.toLocaleString()+'）':'未設定';
+const planBtns=document.getElementById('plan-action-buttons');
+let planHtml='';
+plans.forEach(p=>{if(p.id!==shop.plan_id){planHtml+='<button onclick="startPlanChange(\''+shop.id+'\','+p.id+',\''+esc(p.name)+'\','+p.price+')" style="background:#0066cc;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">'+esc(p.name)+'（¥'+p.price.toLocaleString()+'）に変更</button>';}});
+planBtns.innerHTML=planHtml;
+}
+function startAction(shopId,newStatus,type,title){
+pendingAction={shopId,newStatus,type,actionType:'status'};
+const subjectMap={'approval':'【YobuHo】審査完了・掲載開始のお知らせ','suspension':'【YobuHo】掲載停止のお知らせ','resumption':'【YobuHo】掲載再開のお知らせ','rejection':'【YobuHo】審査結果のお知らせ','deficiency':'【YobuHo】登録内容の不備について'};
+const btnColorMap={'approval':'#28a745','suspension':'#6c757d','resumption':'#28a745','rejection':'#dc3545','deficiency':'#fd7e14'};
+document.getElementById('action-title').textContent=title;
+document.getElementById('action-email-subject').value=subjectMap[type]||'';
+document.getElementById('action-email-extra').value='';
+document.getElementById('action-send-email').checked=true;
+document.getElementById('action-email-section').style.display='block';
+document.getElementById('action-execute-btn').style.background=btnColorMap[type]||'#0066cc';
+document.getElementById('action-confirm-panel').style.display='block';
+document.getElementById('action-confirm-panel').scrollIntoView({behavior:'smooth'});
+}
+function startPlanChange(shopId,planId,planName,planPrice){
+pendingAction={shopId,planId,planName,planPrice,actionType:'plan'};
+document.getElementById('action-title').textContent='📋 プラン変更: '+planName;
+document.getElementById('action-email-subject').value='【YobuHo】プラン変更のお知らせ';
+document.getElementById('action-email-extra').value='';
+document.getElementById('action-send-email').checked=true;
+document.getElementById('action-email-section').style.display='block';
+document.getElementById('action-execute-btn').style.background='#0066cc';
+document.getElementById('action-confirm-panel').style.display='block';
+document.getElementById('action-confirm-panel').scrollIntoView({behavior:'smooth'});
+}
+function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
+async function executeAction(){
+if(!pendingAction)return;
+const{shopId,actionType}=pendingAction;
+if(actionType==='status'){
+const{newStatus,type}=pendingAction;
+const updateData={status:newStatus};
+if(newStatus==='active')updateData.approved_at=new Date().toISOString();
+const{error}=await sb.from('shops').update(updateData).eq('id',shopId);
+if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
+shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,...updateData}:s);
+if(document.getElementById('action-send-email').checked){
+const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+if(shop){const extra=document.getElementById('action-email-extra').value;await sendShopEmail(shop,type,{reason:extra||undefined});toast('ステータス更新 + メール送信完了');}
+}else{toast('ステータス更新完了（メール未送信）');}
+}else if(actionType==='plan'){
+const{planId,planName,planPrice}=pendingAction;
+const{error}=await sb.from('shops').update({plan_id:planId}).eq('id',shopId);
+if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
+shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:planId}:s);
+if(document.getElementById('action-send-email').checked){
+const{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+if(shop){const extra=document.getElementById('action-email-extra').value;await sendShopEmail(shop,'plan_change',{planName,planPrice,reason:extra||undefined});toast('プラン変更 + メール送信完了');}
+}else{toast('プラン変更完了（メール未送信）');}
+}
+pendingAction=null;
+document.getElementById('action-confirm-panel').style.display='none';
+updateShopBadge();renderShops();closeShopReview();
+}
+document.addEventListener('DOMContentLoaded',function(){const cb=document.getElementById('action-send-email');if(cb)cb.addEventListener('change',function(){document.getElementById('action-email-section').style.display=this.checked?'block':'none';});});
 let _dv={scale:1,x:0,y:0,drag:false,sx:0,sy:0,moved:false};
 function _dvApply(){const img=document.querySelector(".sr-doc-viewer img");if(!img)return;img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";img.style.cursor=_dv.scale>1?"grab":"zoom-in";}
 function _dvReset(){_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;_dv.moved=false;const v=document.getElementById("sr-doc-wrap");if(v)v.classList.remove("dragging");_dvApply();}
@@ -814,9 +895,7 @@ document.addEventListener("touchstart",function(e){var c=v();if(!c||!c.contains(
 document.addEventListener("touchmove",function(e){if(!_dv.drag)return;e.preventDefault();_dv.x=e.touches[0].clientX-_dv.sx;_dv.y=e.touches[0].clientY-_dv.sy;_dv.moved=true;var img=document.querySelector(".sr-doc-viewer img");if(img)img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";},{passive:false});
 document.addEventListener("touchend",function(){if(_dv.drag){_dv.drag=false;setTimeout(function(){_dv.moved=false;},10);}});
 })();
-async function saveShopEdit(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const planVal=document.getElementById("sr-plan").value;const newStatus=document.getElementById("sr-status").value;const oldShop=shopsData.find(s=>String(s.id)===String(_srId));const oldStatus=oldShop?getShopStatus(oldShop):"";const oldPlanId=oldShop?oldShop.plan_id:null;const newPlanId=planVal?Number(planVal):null;const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null,plan_id:newPlanId,status:newStatus};if(newStatus==="active"&&oldStatus!=="active"){payload.approved_at=new Date().toISOString();}const{error}=await sb.from("shops").update(payload).eq("id",_srId);if(error){console.error("saveShopEdit error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();const{data:shop}=await sb.from("shops").select("*").eq("id",_srId).maybeSingle();let mailSent=false;if(newStatus!==oldStatus&&shop){if(newStatus==="active"&&oldStatus!=="active"){mailSent=await sendShopEmail(shop,"approval");}else if(newStatus==="rejected"){const reason=prompt("却下理由を入力してください（メール通知されます）：")||"";if(reason){await sb.from("shops").update({denial_reason:reason}).eq("id",_srId);mailSent=await sendShopEmail(shop,"rejection",{reason});}else{mailSent=await sendShopEmail(shop,"rejection",{reason:"理由の記載なし"});}}else if(newStatus==="revision_required"){const reason=prompt("不備の内容を入力してください（メール通知されます）：")||"";mailSent=await sendShopEmail(shop,"deficiency",{reason});}else if(newStatus==="suspended"){const reason=prompt("停止理由を入力してください（任意・メール通知されます）：")||"";mailSent=await sendShopEmail(shop,"suspension",{reason});}else if(oldStatus==="suspended"&&newStatus==="active"){mailSent=await sendShopEmail(shop,"resumption");}}if(newPlanId!==oldPlanId&&newPlanId&&shop){const planObj=contractPlansData.find(p=>p.id===newPlanId);if(planObj){const planOk=await sendShopEmail(shop,"plan_change",{planName:planObj.name,planPrice:planObj.price});if(planOk)mailSent=true;}}toast(mailSent?"💾 保存・メール送信しました":"💾 保存しました");}
-async function saveShopApproval(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const planVal=document.getElementById("sr-plan").value;const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null,plan_id:planVal?Number(planVal):null,status:"active",approved_at:new Date().toISOString()};if(!confirm("この店舗を承認して公開しますか？"))return;const{error}=await sb.from("shops").update(payload).eq("id",_srId);if(error){console.error("saveShopApproval error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();const{data:shop}=await sb.from("shops").select("*").eq("id",_srId).maybeSingle();const ok=await sendShopEmail(shop,"approval");toast(ok?"✅ 承認完了・メール送信しました":"✅ 承認完了（メール送信に失敗しました）");}
-async function saveShopDenial(){if(!_srId)return;const payload={status:"suspended"};const{error}=await sb.from("shops").update(payload).eq("id",_srId);if(error){console.error("saveShopDenial error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("🚫 否認しました");}
+async function saveShopEdit(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const{error}=await sb.from("shops").update(payload).eq("id",_srId);if(error){console.error("saveShopEdit error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
 // ===== 掲載エリア管理 =====
 let placementsData=[];
 let _pmShopId=null;
