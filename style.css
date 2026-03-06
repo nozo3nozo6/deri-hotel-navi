@@ -390,7 +390,7 @@ body[data-mode="men_same"] {
 }
 
 .search-wrapper {
-    flex: 2;
+    flex: 1;
     display: flex;
     align-items: center;
     background: var(--bg-2);
@@ -1365,11 +1365,6 @@ body[data-mode="men"] .header-title {
     .station-search-wrapper {
         flex: 2 1 auto;
         order: 3;
-    }
-    .btn-add-hotel {
-        flex: 1 1 auto;
-        width: auto;
-        order: 4;
     }
     /* ラベルを短縮 */
     .label-full { display: none; }

@@ -242,11 +242,7 @@ function setBreadcrumb(crumbs) {
 
 function clearHotelList() {
     const el = document.getElementById('hotel-list');
-    if (el) el.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">🗾</div>
-            <p class="empty-text">${t('list_placeholder')}</p>
-        </div>`;
+    if (el) el.innerHTML = '';
     const s = document.getElementById('result-status');
     if (s) s.style.display = 'none';
 }
@@ -1178,6 +1174,14 @@ function renderHotelCards(hotels, showDistance = false) {
             </div>
         </div>`;
     }).join('');
+
+    // ホテル一覧の下に案内バーを追加
+    container.insertAdjacentHTML('beforeend', `
+        <div class="bottom-links" style="display:flex; justify-content:center; gap:24px; padding:16px; margin-top:20px; border-top:1px solid #e0d5d0; font-size:13px;">
+            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#b5627a; text-decoration:none;">📝 未掲載ホテル情報提供</a>
+            <a href="/shop-register.html" style="color:#b5627a; text-decoration:none;">🏪 店舗様・掲載用はこちら</a>
+        </div>
+    `);
 }
 
 // ==========================================================================
