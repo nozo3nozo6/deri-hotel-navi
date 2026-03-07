@@ -54,7 +54,7 @@
         </button>
 
         <div class="header-logo">
-            <span class="logo-text">Deri <em>Hotel</em> Navi</span><span id="mode-badge" class="mode-badge"></span>
+            <span class="logo-text" id="header-logo-text"><b>YobuHo</b></span><span id="mode-badge" class="mode-badge"></span>
         </div>
 
         <div class="lang-buttons">
@@ -150,6 +150,14 @@
 
     const modeBadgeLabels = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' };
     document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
+
+    const logoMap = {
+        'men': 'Deli <b>YobuHo</b> ♂',
+        'women': 'JoFu <b>YobuHo</b> ♀',
+        'women_same': '♀ <b>YobuHo</b> ♀',
+        'men_same': '♂ <b>YobuHo</b> ♂'
+    };
+    document.getElementById('header-logo-text').innerHTML = logoMap[MODE] || '<b>YobuHo</b>';
 
     document.getElementById('mode-title-bar').style.display = 'none';
 
