@@ -150,11 +150,12 @@
     const MODE = urlParams.get('mode') || 'men';
     document.body.setAttribute('data-mode', MODE);
 
-    const modeBadgeLabels = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' };
+    const modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
     document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
+    if (MODE === 'men') document.getElementById('mode-badge').style.display = 'none';
 
     const logoMap = {
-        'men': 'Deli <b>YobuHo</b>',
+        'men': '<span style="font-style:italic; color:#666; font-weight:300; font-size:0.85em; letter-spacing:2px;">Deli</span> <b style="color:#c0392b; font-size:1.2em; letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b; font-size:0.9em;">♂</span>',
         'women': 'JoFu <b>YobuHo</b>',
         'women_same': '<b>YobuHo</b>',
         'men_same': '<b>YobuHo</b>'
