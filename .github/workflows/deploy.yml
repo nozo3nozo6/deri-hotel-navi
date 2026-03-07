@@ -12,14 +12,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy via rsync over SSH
-        uses: burnett01/rsync-deployments@7.0.1
+      - name: Deploy via rsync over SSH (with retry)
+        uses: nick-fields/retry@v3
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json'
-          path: ./
-          remote_path: /home/yobuho/yobuho.com/public_html/
-          remote_host: ${{ secrets.SSH_HOST }}
-          remote_port: 10022
-          remote_user: ${{ secrets.SSH_USERNAME }}
-          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          remote_key_pass: ${{ secrets.SSH_PASSPHRASE }}
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 10
+          command: |
+            mkdir -p ~/.ssh
+            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            eval $(ssh-agent -s)
+            echo "${{ secrets.SSH_PASSPHRASE }}" | SSH_ASKPASS=/bin/cat ssh-add ~/.ssh/deploy_key 2>/dev/null || DISPLAY=:0 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS="echo ${{ secrets.SSH_PASSPHRASE }}" ssh-add ~/.ssh/deploy_key
+            rsync -avz --delete \
+              --exclude='.git*' \
+              --exclude='node_modules' \
+              --exclude='.github' \
+              --exclude='sql' \
+              --exclude='CLAUDE.md' \
+              --exclude='progress.md' \
+              --exclude='package*.json' \
+              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+              ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/
