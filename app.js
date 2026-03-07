@@ -555,10 +555,18 @@ async function showCityPage(region, pref, majorArea) {
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
     container.className = 'area-grid col-2';
 
-    const query_city = supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true);
-    const { data, error } = await query_city;
-
-    if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
+    // major_area内の全ホテル取得（ページネーション対応）
+    let data = [];
+    let cpFrom = 0;
+    const CP_PAGE = 1000;
+    while (true) {
+        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true).range(cpFrom, cpFrom + CP_PAGE - 1);
+        if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
+        if (!chunk || !chunk.length) break;
+        data = data.concat(chunk);
+        if (chunk.length < CP_PAGE) break;
+        cpFrom += CP_PAGE;
+    }
 
     // detail_area がある場合は detailClass 階層を先に表示
     // ただし detail_area == major_area の場合はサブ分類として無意味なので除外
@@ -626,7 +634,7 @@ async function showCityPage(region, pref, majorArea) {
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
         btn.innerHTML = `
             <span class="city-name">${city}</span>
-            <span class="city-count">${cityCount[city]}</span>`;
+            <span class="city-count">${cityCount[city] || 0}</span>`;
         btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city); };
         container.appendChild(btn);
     });
