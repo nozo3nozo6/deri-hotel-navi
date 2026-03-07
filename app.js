@@ -1175,13 +1175,6 @@ function renderHotelCards(hotels, showDistance = false) {
         </div>`;
     }).join('');
 
-    // ホテル一覧の下に案内バーを追加
-    container.insertAdjacentHTML('beforeend', `
-        <div class="bottom-links" style="display:flex; justify-content:center; gap:24px; padding:16px; margin-top:20px; border-top:1px solid #e0d5d0; font-size:13px;">
-            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#b5627a; text-decoration:none;">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register.html" style="color:#b5627a; text-decoration:none;">🏪 店舗様・掲載用はこちら</a>
-        </div>
-    `);
 }
 
 // ==========================================================================
