@@ -664,7 +664,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
     });
 
-    const cities = Object.keys(cityCount).sort((a, b) => cityCount[b] - cityCount[a]);
+    const cities = cityList.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length) {
         fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
@@ -677,7 +677,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const btn = document.createElement('button');
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-        btn.innerHTML = `<span class="city-name">${city}</span><span class="city-count">${cityCount[city]}</span>`;
+        btn.innerHTML = `<span class="city-name">${city}</span><span class="city-count">${cityCount[city] || 0}</span>`;
         btn.onclick = () => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
             fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
