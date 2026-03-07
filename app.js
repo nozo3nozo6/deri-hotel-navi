@@ -587,14 +587,31 @@ async function showCityPage(region, pref, majorArea) {
         return;
     }
 
-    // detail_area なし → 市区町村ごとの件数を集計（従来動作）
-    const cityCount = {};
+    // detail_area なし → 市区町村を抽出し、全エリア合算でカウント
+    const citySetLocal = new Set();
     data.forEach(h => {
         const city = h.city || extractCity(h.address);
-        if (city) cityCount[city] = (cityCount[city] || 0) + 1;
+        if (city) citySetLocal.add(city);
+    });
+    const displayCities = [...citySetLocal];
+
+    // prefecture + city のみでカウント（major_areaフィルタなし）
+    const cityCount = {};
+    let countRows = [];
+    let countFrom = 0;
+    const COUNT_PAGE = 1000;
+    while (true) {
+        const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', displayCities).eq('is_published', true).range(countFrom, countFrom + COUNT_PAGE - 1);
+        if (!chunk || !chunk.length) break;
+        countRows = countRows.concat(chunk);
+        if (chunk.length < COUNT_PAGE) break;
+        countFrom += COUNT_PAGE;
+    }
+    countRows.forEach(h => {
+        if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
     });
 
-    const cities = Object.keys(cityCount).sort((a, b) => cityCount[b] - cityCount[a]);
+    const cities = displayCities.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length || (cities.length === 1 && cities[0] === majorArea)) {
         fetchAndShowHotels({ prefecture: pref, major_area: majorArea });
