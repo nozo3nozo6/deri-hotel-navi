@@ -1156,10 +1156,10 @@ function renderHotelCards(hotels, showDistance = false) {
 
                 <!-- 住所・駅 -->
                 <div class="hotel-info-row" style="justify-content:space-between;">
-                    <a href="${h.address ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(h.address) : '#'}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                    <div style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;">
                         <span class="hotel-info-icon">📍</span>
                         <span class="hotel-info-text">${h.address || ''}</span>
-                    </a>
+                    </div>
                     ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;margin-left:8px;">📞 ' + h.tel + '</span>' : ''}
                 </div>
                 ${stationHTML}
