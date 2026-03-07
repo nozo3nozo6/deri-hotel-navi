@@ -257,6 +257,7 @@
         <button class="tab-link" onclick="switchTab('hotel-requests')" id="tl-hotel-requests">掲載リクエスト<span class="tab-badge" id="hreq-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('shops')" id="tl-shops">ショップ管理<span class="tab-badge" id="shop-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('master')" id="tl-master">マスタデータ</button>
+        <button class="tab-link" onclick="switchTab('outreach')" id="tl-outreach">営業メール</button>
     </nav>
 </div>
 <div class="login-wrap" id="login-wrap" style="display:none;">
@@ -433,6 +434,25 @@
                         <th>操作</th>
                     </tr></thead>
                     <tbody id="hotels-tbody"></tbody>
+                </table></div>
+            </div>
+        </div>
+        <!-- 営業メール -->
+        <div class="tab-panel" id="tab-outreach">
+            <div class="card">
+                <div class="card-title">&#x1F4E7; 営業メール送信</div>
+                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option></select></div>
+                <div class="f-group"><label class="f-label">送信先メールアドレス</label><input type="email" id="outreach-to" class="f-input" placeholder="example@shop.com"></div>
+                <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
+                <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
+                <div class="f-group"><label class="f-label">本文</label><textarea id="outreach-body" class="f-input" rows="20" style="white-space:pre-wrap;font-size:13px;"></textarea></div>
+                <button onclick="sendOutreachEmail()" class="btn-primary" style="margin-top:8px;">&#x1F4E8; 送信する</button>
+            </div>
+            <div class="card" style="margin-top:16px;">
+                <div class="card-title">&#x1F4CB; 送信履歴<span class="sub" id="outreach-sub"></span></div>
+                <div class="tbl-wrap"><table class="tbl">
+                    <thead><tr><th>送信日時</th><th>店舗名</th><th>メールアドレス</th><th>テンプレート</th><th>ステータス</th></tr></thead>
+                    <tbody id="outreach-history-body"></tbody>
                 </table></div>
             </div>
         </div>
@@ -776,7 +796,7 @@ function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("ope
 function openNav(){toggleTabBar();}
 function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadHotelRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
 const sortStates={};
@@ -1439,6 +1459,191 @@ function dndStart(e,id,table){_dndSrcId=id;_dndTable=table;e.currentTarget.class
 function dndOver(e){e.preventDefault();e.currentTarget.classList.add("drag-over");}
 function dndLeave(e){e.currentTarget.classList.remove("drag-over");}
 function dndEnd(e){e.currentTarget.classList.remove("dragging");document.querySelectorAll(".cond-row.drag-over").forEach(el=>el.classList.remove("drag-over"));}
+// ===== 営業メール =====
+const outreachTemplates={
+general:{subject:"【YobuHo】無料で店舗掲載しませんか？ - 呼べるホテル検索ポータル",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+呼べるホテル検索ポータル「YobuHo」を運営しております、YobuHo Studioと申します。
+
+現在YobuHoでは、全国42,000件以上のホテルについて「呼べるかどうか」の情報を、ユーザーの口コミと掲載店舗様からの情報の両方から提供しております。
+
+この度、貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店専用ページが作れます
+━━━━━━━━━━━━━━━━━━━
+
+YobuHoでは、掲載店舗様ごとに専用ページをご用意しています。
+
+・貴店の情報だけが表示される専用ページ（他店舗の情報は一切表示されません）
+・オフィシャルサイトやSNSにそのまま設置できるURL
+・お客様が貴店の対応エリアのホテル情報をすぐに確認できます
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様からの信頼感アップ → ご依頼につながる
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示されます
+・実際の派遣実績に基づく情報なので、お客様が安心してホテルを選べます
+・「このホテルなら呼べる」という信頼感が、貴店へのご依頼に直結します
+
+━━━━━━━━━━━━━━━━━━━
+■ お店の認知度・知名度アップ
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、口コミ数として検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、認知度向上につながります
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register.html
+
+▼ サイトはこちら
+https://yobuho.com/
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Studio
+呼べるホテル検索ポータル「YobuHo」
+https://yobuho.com/
+お問い合わせ: hotel@yobuho.com
+─────────────────`},
+deli:{subject:"【Deli YobuHo】貴店専用ページを無料で作りませんか？ - デリヘル対応ホテル検索",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+デリヘル対応ホテル検索サイト「Deli YobuHo」を運営しております、YobuHo Studioと申します。
+
+当サイトでは、全国42,000件以上のホテルについて「デリヘルを呼べるかどうか」の情報を提供しており、多くのユーザー様にご利用いただいております。
+
+現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+━━━━━━━━━━━━━━━━━━━
+
+・貴店の情報だけが表示される専用ページ（他店舗の情報は一切表示されません）
+・オフィシャルサイトやSNS、広告媒体にそのまま設置できるURL
+・お客様がホテル選びに迷わない → スムーズなご依頼につながります
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register.html
+
+▼ サイトはこちら
+https://deli.yobuho.com/
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Studio
+デリヘル対応ホテル検索「Deli YobuHo」
+https://deli.yobuho.com/
+お問い合わせ: hotel@yobuho.com
+─────────────────`},
+jofu:{subject:"【JoFu YobuHo】女性のお客様の安心につながる無料掲載のご案内",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+女性向け風俗（女風）対応ホテル検索サイト「JoFu YobuHo」を運営しております、YobuHo Studioと申します。
+
+当サイトでは、全国42,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しております。
+
+女性のお客様にとって、ホテル選びは特に重要です。貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+━━━━━━━━━━━━━━━━━━━
+
+・貴店の情報だけが表示される専用ページ（他店舗の情報は一切表示されません）
+・オフィシャルサイトやSNSにそのまま設置できるURL
+・女性のお客様が安心してホテルを選べる環境を提供できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 女性のお客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して呼べる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register.html
+
+▼ サイトはこちら
+https://jofu.yobuho.com/
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Studio
+女性向け風俗対応ホテル検索「JoFu YobuHo」
+https://jofu.yobuho.com/
+お問い合わせ: hotel@yobuho.com
+─────────────────`}
+};
+function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
+async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}
+async function loadOutreachHistory(){const{data,error}=await sb.from("outreach_emails").select("*").order("sent_at",{ascending:false}).limit(50);if(error){if(error.code==="PGRST205"){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5" style="text-align:center;padding:20px;color:var(--ink-3);">テーブル未作成です。下記SQLをSupabaseで実行してください：<br><code style="display:block;margin-top:8px;text-align:left;font-size:11px;background:var(--bg-3);padding:8px;border-radius:4px;">CREATE TABLE outreach_emails (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, to_email text NOT NULL, shop_name text, template_type text, subject text NOT NULL, status text DEFAULT 'sent', sent_at timestamptz, created_at timestamptz DEFAULT now()); ALTER TABLE outreach_emails ENABLE ROW LEVEL SECURITY; CREATE POLICY "public_read" ON outreach_emails FOR SELECT USING (true); CREATE POLICY "public_insert" ON outreach_emails FOR INSERT WITH CHECK (true);</code></td></tr>`;}else{document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;}document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+
 async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
 </script>
 </body>
