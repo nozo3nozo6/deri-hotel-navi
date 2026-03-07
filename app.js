@@ -644,8 +644,19 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
     container.className = 'area-grid col-2';
 
-    const query_da = supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true);
-    const { data, error } = await query_da;
+    // detail_area内のcity一覧取得（ページネーション対応）
+    let data = [];
+    let daFrom = 0;
+    const DA_PAGE = 1000;
+    while (true) {
+        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true).range(daFrom, daFrom + DA_PAGE - 1);
+        if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
+        if (!chunk || !chunk.length) break;
+        data = data.concat(chunk);
+        if (chunk.length < DA_PAGE) break;
+        daFrom += DA_PAGE;
+    }
+    const error = null;
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
