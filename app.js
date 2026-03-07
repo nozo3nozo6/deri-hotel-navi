@@ -24,6 +24,23 @@ let pageStack = [];
 let currentPage = null;  // 現在のページ描画関数を保持（言語切替時の再描画用）
 
 // ==========================================================================
+// SEO: 動的タイトル
+// ==========================================================================
+const TITLE_SUFFIX_MAP = {
+    'men': 'Deli YobuHo',
+    'women': 'JoFu YobuHo',
+    'women_same': 'YobuHo',
+    'men_same': 'YobuHo'
+};
+function getSiteSuffix() {
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    return TITLE_SUFFIX_MAP[mode] || 'YobuHo';
+}
+function updatePageTitle(prefix) {
+    document.title = prefix + ' | ' + getSiteSuffix();
+}
+
+// ==========================================================================
 // 店舗専用表示モード
 // ==========================================================================
 const SHOP_ID = new URLSearchParams(window.location.search).get('shop') || null;
@@ -409,6 +426,7 @@ function showJapanPage() {
     currentPage = showJapanPage;
     updateUrl({});
     setTitle(t('select_area'));
+    updatePageTitle('全国のホテル検索');
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
     clearHotelList();
@@ -432,6 +450,7 @@ async function showPrefPage(region) {
     currentPage = () => showPrefPage(region);
     updateUrl({ region: region.label });
     setTitle(region.label);
+    updatePageTitle(region.label + 'のホテル検索');
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
@@ -471,6 +490,7 @@ async function showMajorAreaPage(region, pref) {
     currentPage = () => showMajorAreaPage(region, pref);
     updateUrl({ pref });
     setTitle(pref);
+    updatePageTitle(pref + 'のホテル検索');
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
@@ -542,6 +562,7 @@ async function showCityPage(region, pref, majorArea) {
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
     setTitle(majorArea);
+    updatePageTitle(majorArea + 'のホテル検索');
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
@@ -670,6 +691,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
     setTitle(detailArea);
+    updatePageTitle(detailArea + 'のホテル検索');
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
@@ -859,6 +881,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     showLoading();
     document.getElementById('area-button-container').innerHTML = '';
     setTitle(city);
+    updatePageTitle(city + 'の呼べるホテル一覧');
 
     // パンくず全階層を再構築（全レベルをクリック可能に）
     const pref = filterObj.prefecture;
@@ -1530,6 +1553,7 @@ function formatTransportFee(val) {
 
 function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap) {
     shopStatusMap = shopStatusMap || {};
+    updatePageTitle(hotel.name + ' - 口コミ・対応情報');
     const can     = summary?.can_call_count    || 0;
     const cannot  = summary?.cannot_call_count || 0;
     const shopCan = summary?.shop_can_count    || 0;

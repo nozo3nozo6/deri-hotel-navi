@@ -5,18 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <!-- SEO: modeに応じてJSで書き換え -->
-    <title id="page-title">デリヘル呼べるホテル検索 | エリアから探す | Deri Hotel Navi</title>
-    <meta name="description" id="page-desc" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテル・ビジネスホテルのデリヘル入室情報・女風呼べる情報をエリア別に確認できます。">
+    <title id="page-title">YobuHo - 呼べるホテル検索</title>
+    <meta name="description" id="page-desc" content="全国42,000件以上のホテルから呼べるホテルを検索。ユーザーの実体験口コミと店舗提供情報のダブルチェックで信頼性の高いホテル情報。">
     <meta name="keywords" content="デリヘル 呼べる ホテル 地域,デリヘル 入れる ホテル 検索,出張デリヘル ホテル,デリヘル ラブホ,デリヘル シティホテル,デリヘル ビジネスホテル,女風 呼べる ホテル,女性用風俗 ホテル 入室,女風 出張 ホテル,ホテル デリヘル 入り方,カードキー デリヘル,直通 デリヘル ホテル,フロント相談 デリヘル">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://derihotelnavi.com/portal.html">
+    <link rel="canonical" href="https://yobuho.com/portal.html">
+    <meta name="theme-color" content="#b5627a">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
     <!-- OGP -->
     <meta property="og:type" content="website">
-    <meta property="og:title" id="og-title" content="デリヘル呼べるホテル検索 | Deri Hotel Navi">
-    <meta property="og:description" id="og-desc" content="デリヘル・女性用風俗をホテルに呼べるか地域から検索。全国のラブホ・シティホテルの入室情報を確認。">
-    <meta property="og:url" content="https://derihotelnavi.com/portal.html">
-    <meta property="og:site_name" content="Deri Hotel Navi">
+    <meta property="og:title" id="og-title" content="YobuHo - 呼べるホテル検索">
+    <meta property="og:description" id="og-desc" content="全国42,000件以上のホテルから呼べるホテルを検索。ユーザー口コミ×店舗情報で信頼できるホテル情報。">
+    <meta property="og:url" content="https://yobuho.com/portal.html">
+    <meta property="og:site_name" content="YobuHo">
     <meta property="og:locale" content="ja_JP">
     <meta name="twitter:card" content="summary">
 
@@ -25,9 +27,9 @@
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "Deri Hotel Navi - ホテル検索",
-      "url": "https://derihotelnavi.com/portal.html",
-      "description": "デリヘル・女性用風俗をホテルに呼べるか調べられる全国ホテル情報検索サービス",
+      "name": "YobuHo - 呼べるホテル検索",
+      "url": "https://yobuho.com/portal.html",
+      "description": "全国42,000件以上のホテルから呼べるホテルを検索。ユーザーの実体験口コミと店舗提供情報のダブルチェックで信頼性の高いホテル情報。",
       "applicationCategory": "LifestyleApplication",
       "inLanguage": "ja",
       "offers": {
@@ -162,25 +164,29 @@
     document.getElementById('mode-title-bar').style.display = 'none';
 
     // モードに応じてtitle・descriptionを切り替え（SEO）
+    const titleMap = {
+        'men': 'デリヘルを呼べるホテル検索 | Deli YobuHo',
+        'women': '女性用風俗を呼べるホテル検索 | JoFu YobuHo',
+        'women_same': '女性同士で利用できるホテル検索 | YobuHo',
+        'men_same': '男性同士で利用できるホテル検索 | YobuHo'
+    };
+    document.title = titleMap[MODE] || 'YobuHo - 呼べるホテル検索';
+
     if (MODE === 'men' || MODE === 'men_same') {
-        document.title = 'デリヘル呼べるホテル検索 | 地域・エリアから探す | Deri Hotel Navi';
         document.getElementById('page-desc').setAttribute('content',
             'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。');
-        document.getElementById('og-title').setAttribute('content',
-            'デリヘル呼べるホテル検索 | Deri Hotel Navi');
+        document.getElementById('og-title').setAttribute('content', titleMap[MODE]);
         document.getElementById('og-desc').setAttribute('content',
             'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。');
     } else {
-        document.title = '女性用風俗・女風呼べるホテル検索 | 地域から探す | Deri Hotel Navi';
         document.getElementById('page-desc').setAttribute('content',
             '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。');
-        document.getElementById('og-title').setAttribute('content',
-            '女性用風俗・女風呼べるホテル検索 | Deri Hotel Navi');
+        document.getElementById('og-title').setAttribute('content', titleMap[MODE]);
         document.getElementById('og-desc').setAttribute('content',
             '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。');
-        document.querySelector('link[rel="canonical"]').setAttribute('href',
-            'https://derihotelnavi.com/portal.html?mode=women');
     }
+    document.querySelector('link[rel="canonical"]').setAttribute('href',
+        'https://yobuho.com/portal.html?mode=' + MODE);
 </script>
 <!-- 呼べた理由選択モーダル -->
 <!-- 呼べた理由選択モーダル -->

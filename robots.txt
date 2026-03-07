@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
-Disallow: /admin.html
+Sitemap: https://yobuho.com/sitemap.xml
 
-Sitemap: https://derihotelnavi.com/sitemap.xml
+Disallow: /admin.html
+Disallow: /shop-admin.html
+Disallow: /api/

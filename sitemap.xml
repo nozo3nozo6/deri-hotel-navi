@@ -1,21 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>https://derihotelnavi.com/</loc>
-        <lastmod>2025-01-01</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>1.0</priority>
-    </url>
-    <url>
-        <loc>https://derihotelnavi.com/portal.html?mode=men</loc>
-        <lastmod>2025-01-01</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://derihotelnavi.com/portal.html?mode=women</loc>
-        <lastmod>2025-01-01</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>0.9</priority>
-    </url>
+  <url><loc>https://yobuho.com/</loc><priority>1.0</priority><changefreq>daily</changefreq></url>
+  <url><loc>https://yobuho.com/portal.html?mode=men</loc><priority>0.9</priority><changefreq>daily</changefreq></url>
+  <url><loc>https://yobuho.com/portal.html?mode=women</loc><priority>0.9</priority><changefreq>daily</changefreq></url>
+  <url><loc>https://yobuho.com/portal.html?mode=women_same</loc><priority>0.7</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://yobuho.com/portal.html?mode=men_same</loc><priority>0.7</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://deli.yobuho.com/</loc><priority>0.8</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://jofu.yobuho.com/</loc><priority>0.8</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://same.yobuho.com/</loc><priority>0.8</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://yobuho.com/terms.html</loc><priority>0.3</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://yobuho.com/privacy.html</loc><priority>0.3</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://yobuho.com/contact.html</loc><priority>0.3</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://yobuho.com/shop-register.html</loc><priority>0.5</priority><changefreq>monthly</changefreq></url>
 </urlset>
