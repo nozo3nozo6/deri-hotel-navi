@@ -148,13 +148,14 @@
     const MODE = urlParams.get('mode') || 'men';
     document.body.setAttribute('data-mode', MODE);
 
-    document.getElementById('mode-badge').style.display = 'none';
+    const modeBadgeLabels = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' };
+    document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
 
     const logoMap = {
-        'men': 'Deli <b>YobuHo</b> ♂',
-        'women': 'JoFu <b>YobuHo</b> ♀',
-        'women_same': '♀ <b>YobuHo</b> ♀',
-        'men_same': '♂ <b>YobuHo</b> ♂'
+        'men': 'Deli <b>YobuHo</b>',
+        'women': 'JoFu <b>YobuHo</b>',
+        'women_same': '<b>YobuHo</b>',
+        'men_same': '<b>YobuHo</b>'
     };
     document.getElementById('header-logo-text').innerHTML = logoMap[MODE] || '<b>YobuHo</b>';
 
