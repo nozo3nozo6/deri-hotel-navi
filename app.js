@@ -659,10 +659,20 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     // 市区町村ごとの全ホテル数を取得（detail_areaに関係なく、prefecture+cityで集計）
     const cityList = [...citySet];
     const cityCount = {};
-    await Promise.all(cityList.map(async (c) => {
-        const { count } = await supabaseClient.from('hotels').select('*', { count: 'exact', head: true }).eq('prefecture', pref).eq('city', c).eq('is_published', true);
-        cityCount[c] = count || 0;
-    }));
+    // 一括取得してJS側でカウント（ページネーション対応）
+    let allRows = [];
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+        const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', cityList).eq('is_published', true).range(from, from + PAGE - 1);
+        if (!chunk || !chunk.length) break;
+        allRows = allRows.concat(chunk);
+        if (chunk.length < PAGE) break;
+        from += PAGE;
+    }
+    allRows.forEach(h => {
+        if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+    });
 
     const cities = cityList.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
