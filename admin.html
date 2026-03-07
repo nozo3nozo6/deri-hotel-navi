@@ -591,11 +591,11 @@
             <!-- 右カラム：編集フォーム -->
             <div class="sr-right">
                 <div style="overflow-y:auto;flex:1;padding-right:4px;">
-                    <div class="mf"><label class="ml">店舗名 <span style="color:var(--gold);">*</span></label><input id="sr-name" class="mi"></div>
-                    <div class="mf"><label class="ml">ジャンル</label><select id="sr-gender" class="mi"><option value="men">男性向け（デリヘル）</option><option value="women">女性向け（女性用風俗）</option><option value="men_same">男性同士向け</option><option value="women_same">女性同士向け</option></select></div>
+                    <div class="mf"><label class="ml">店舗名</label><input id="sr-name" class="mi" readonly style="background:var(--bg-3);cursor:default;"></div>
+                    <div class="mf"><label class="ml">ジャンル</label><select id="sr-gender" class="mi" disabled style="background:var(--bg-3);cursor:default;"><option value="men">男性向け（デリヘル）</option><option value="women">女性向け（女性用風俗）</option><option value="men_same">男性同士向け</option><option value="women_same">女性同士向け</option></select></div>
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
-                    <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel"></div>
-                    <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url"></div>
+                    <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel" readonly style="background:var(--bg-3);cursor:default;"></div>
+                    <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url" readonly style="background:var(--bg-3);cursor:default;"></div>
                     <div style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
                         <label style="font-weight:bold;">ステータス</label>
                         <div style="margin:8px 0;">現在: <span id="shop-status-badge"></span></div>
@@ -627,10 +627,8 @@
                     </div>
                     <div style="margin-top:16px;text-align:right;"><a href="#" style="color:#dc3545;font-size:12px;" onclick="deleteShopFromModal();return false;">この店舗を削除する</a></div>
                 </div>
-                <div class="sr-actions">
-                    <div style="flex:1;"></div>
-                    <button class="btn-cancel" onclick="closeShopReview()">閉じる</button>
-                    <button class="btn-save" id="sr-save-btn" onclick="saveShopEdit()">💾 保存</button>
+                <div style="display:flex;justify-content:flex-end;padding:16px;border-top:1px solid #ddd;">
+                    <button onclick="closeShopReview()" style="padding:8px 24px;border:1px solid #ddd;background:#fff;border-radius:4px;cursor:pointer;">閉じる</button>
                 </div>
             </div>
         </div>
@@ -878,7 +876,14 @@ if(shop){var extra=document.getElementById('action-email-extra').value;var ok=aw
 }catch(e){console.error('[executeAction] error:',e);toast('エラーが発生しました: '+e.message);}
 pendingAction=null;
 document.getElementById('action-confirm-panel').style.display='none';
-updateShopBadge();renderShops();closeShopReview();
+// モーダルは閉じずに最新状態で更新
+var{data:updatedShop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+if(updatedShop){
+shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?updatedShop:s;});
+var{data:plans}=await sb.from('contract_plans').select('*').order('sort_order');
+renderEditActions(updatedShop,plans||[]);
+}
+updateShopBadge();renderShops();
 }
 document.addEventListener('DOMContentLoaded',function(){const cb=document.getElementById('action-send-email');if(cb)cb.addEventListener('change',function(){document.getElementById('action-email-section').style.display=this.checked?'block':'none';});});
 let _dv={scale:1,x:0,y:0,drag:false,sx:0,sy:0,moved:false};
