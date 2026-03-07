@@ -595,28 +595,43 @@ async function showCityPage(region, pref, majorArea) {
         return;
     }
 
-    // detail_area なし → 市区町村を抽出し、全エリア合算でカウント
+    // detail_area なし → 市区町村を抽出
     const citySetLocal = new Set();
     data.forEach(h => {
         const city = h.city || extractCity(h.address);
         if (city) citySetLocal.add(city);
     });
-    const displayCities = [...citySetLocal];
+    const candidateCities = [...citySetLocal];
 
-    // prefecture + city のみでカウント（major_areaフィルタなし）
+    // 全エリアでのcity別・major_area別ホテル数を取得
     const cityCount = {};
+    const cityAreaCount = {}; // city -> { major_area -> count }
     let countRows = [];
     let countFrom = 0;
     const COUNT_PAGE = 1000;
     while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', displayCities).eq('is_published', true).range(countFrom, countFrom + COUNT_PAGE - 1);
+        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).in('city', candidateCities).eq('is_published', true).range(countFrom, countFrom + COUNT_PAGE - 1);
         if (!chunk || !chunk.length) break;
         countRows = countRows.concat(chunk);
         if (chunk.length < COUNT_PAGE) break;
         countFrom += COUNT_PAGE;
     }
     countRows.forEach(h => {
-        if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+        if (!h.city) return;
+        cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+        if (h.major_area) {
+            if (!cityAreaCount[h.city]) cityAreaCount[h.city] = {};
+            cityAreaCount[h.city][h.major_area] = (cityAreaCount[h.city][h.major_area] || 0) + 1;
+        }
+    });
+
+    // 現在のmajor_areaが最多（同数含む）のcityのみ表示
+    const displayCities = candidateCities.filter(city => {
+        const ac = cityAreaCount[city];
+        if (!ac) return true;
+        const maxCount = Math.max(...Object.values(ac));
+        const currentCount = ac[majorArea] || 0;
+        return currentCount >= maxCount;
     });
 
     const cities = displayCities.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
@@ -691,23 +706,37 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const city = h.city || extractCity(h.address);
         if (city) citySet.add(city);
     });
+    const candidateCitiesDA = [...citySet];
 
-    // 市区町村ごとの全ホテル数を取得（detail_areaに関係なく、prefecture+cityで集計）
-    const cityList = [...citySet];
+    // 全エリアでのcity別・detail_area別ホテル数を取得
     const cityCount = {};
-    // 一括取得してJS側でカウント（ページネーション対応）
+    const cityDetailCount = {}; // city -> { detail_area -> count }
     let allRows = [];
     let from = 0;
     const PAGE = 1000;
     while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', cityList).eq('is_published', true).range(from, from + PAGE - 1);
+        const { data: chunk } = await supabaseClient.from('hotels').select('city,detail_area').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).range(from, from + PAGE - 1);
         if (!chunk || !chunk.length) break;
         allRows = allRows.concat(chunk);
         if (chunk.length < PAGE) break;
         from += PAGE;
     }
     allRows.forEach(h => {
-        if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+        if (!h.city) return;
+        cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+        if (h.detail_area) {
+            if (!cityDetailCount[h.city]) cityDetailCount[h.city] = {};
+            cityDetailCount[h.city][h.detail_area] = (cityDetailCount[h.city][h.detail_area] || 0) + 1;
+        }
+    });
+
+    // 現在のdetail_areaが最多（同数含む）のcityのみ表示
+    const cityList = candidateCitiesDA.filter(city => {
+        const dc = cityDetailCount[city];
+        if (!dc) return true; // detail_area=nullのみのcityはそのまま表示
+        const maxCount = Math.max(...Object.values(dc));
+        const currentCount = dc[detailArea] || 0;
+        return currentCount >= maxCount;
     });
 
     const cities = cityList.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
