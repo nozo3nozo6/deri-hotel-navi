@@ -292,6 +292,42 @@ function closeSuccessModal() {
     document.getElementById('success-modal').style.display = 'none';
 }
 
+// ==========================================================================
+// 広告表示
+// ==========================================================================
+async function loadAds(placementType, placementTarget) {
+    const container = document.getElementById('ad-container');
+    if (!container) return;
+    container.innerHTML = '';
+    try {
+        const { data } = await supabaseClient.from('ad_placements')
+            .select('*, shops(shop_name, website_url), ad_plans(name)')
+            .eq('placement_type', placementType)
+            .eq('placement_target', placementTarget)
+            .eq('status', 'active');
+        if (!data || !data.length) return;
+        container.innerHTML = data.map(ad => {
+            const shopName = ad.shops?.shop_name || '掲載店舗';
+            const url = ad.shops?.website_url;
+            const nameHTML = url
+                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-weight:bold; text-decoration:none;">${esc(shopName)}</a>`
+                : `<span style="font-weight:bold; color:var(--text);">${esc(shopName)}</span>`;
+            return `<div style="background:#fff8f0; border:1px solid #f0d5c0; border-radius:8px; padding:12px 16px; margin-bottom:8px;">
+                <div style="font-size:10px; color:#999; margin-bottom:4px;">📢 掲載店舗</div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="background:#b5627a; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">認定店</span>
+                    ${nameHTML}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) { /* 広告取得エラーは無視 */ }
+}
+
+function clearAds() {
+    const container = document.getElementById('ad-container');
+    if (container) container.innerHTML = '';
+}
+
 function showLoading(msg) {
     const el = document.getElementById('loading-overlay');
     if (el) {
@@ -439,6 +475,7 @@ function showJapanPage() {
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
     clearHotelList();
+    loadAds('premium', '全国');
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = '';
@@ -466,6 +503,7 @@ async function showPrefPage(region) {
         { label: region.label }
     ]);
     clearHotelList();
+    clearAds();
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -507,6 +545,7 @@ async function showMajorAreaPage(region, pref) {
         { label: pref }
     ]);
     clearHotelList();
+    loadAds('big', pref);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -580,6 +619,7 @@ async function showCityPage(region, pref, majorArea) {
         { label: majorArea }
     ]);
     clearHotelList();
+    loadAds('area', majorArea);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -710,6 +750,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         { label: detailArea }
     ]);
     clearHotelList();
+    loadAds('town', detailArea);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -892,6 +933,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
+    loadAds('spot', city);
 
     try {
         let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
