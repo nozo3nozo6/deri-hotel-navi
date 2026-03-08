@@ -258,6 +258,7 @@
         <button class="tab-link" onclick="switchTab('shops')" id="tl-shops">ショップ管理<span class="tab-badge" id="shop-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('master')" id="tl-master">マスタデータ</button>
         <button class="tab-link" onclick="switchTab('outreach')" id="tl-outreach">営業メール</button>
+        <button class="tab-link" onclick="switchTab('ads')" id="tl-ads">広告管理</button>
     </nav>
 </div>
 <div class="login-wrap" id="login-wrap" style="display:none;">
@@ -473,6 +474,72 @@
                 </table></div>
             </div>
         </div>
+
+        <!-- 広告管理タブ -->
+        <div class="tab-panel" id="tab-ads">
+            <!-- プラン一覧 -->
+            <div class="card">
+                <div class="card-title">📊 広告プラン一覧</div>
+                <div class="tbl-wrap"><table class="tbl">
+                    <thead><tr><th>プラン名</th><th>レベル</th><th>月額（税別）</th><th>ボーナス額</th><th>上限枠</th></tr></thead>
+                    <tbody id="ad-plans-body"></tbody>
+                </table></div>
+            </div>
+
+            <!-- 新規広告契約 -->
+            <div class="card" style="margin-top:16px;">
+                <div class="card-title">📋 新規広告契約</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;">
+                    <div class="f-group"><label class="f-label">店舗</label><select id="ad-shop-select" class="f-input"></select></div>
+                    <div class="f-group"><label class="f-label">広告プラン</label><select id="ad-plan-select" class="f-input" onchange="updateAdForm()"></select></div>
+                </div>
+                <div class="f-group" style="max-width:640px;margin-top:8px;">
+                    <label class="f-label">掲載先</label>
+                    <div id="ad-target-section"><span style="color:var(--ink-3);font-size:12px;">プランを選択してください</span></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;margin-top:8px;">
+                    <div class="f-group"><label class="f-label">開始日</label><input type="date" id="ad-start-date" class="f-input"></div>
+                    <div class="f-group"><label class="f-label">終了日（空欄で無期限）</label><input type="date" id="ad-end-date" class="f-input"></div>
+                </div>
+                <div style="margin-top:12px;"><button onclick="createAdContract()" class="btn-save">契約登録</button></div>
+
+                <!-- ボーナス枠セクション -->
+                <div id="bonus-section" style="display:none;margin-top:20px;padding:16px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:var(--r);">
+                    <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;">🎁 ボーナス枠の設定</h3>
+                    <p style="font-size:13px;margin-bottom:12px;">ボーナス残額: <strong id="bonus-remaining">¥0</strong></p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="f-group"><label class="f-label">ボーナス枠のプラン</label><select id="bonus-plan-select" class="f-input"></select></div>
+                        <div class="f-group"><label class="f-label">ボーナス枠の掲載先</label><div id="bonus-target-section"></div></div>
+                    </div>
+                    <div style="margin-top:8px;"><button onclick="addBonusPlacement()" class="btn-save" style="background:var(--gold);">ボーナス枠を追加</button></div>
+                    <div id="bonus-placements-list" style="margin-top:12px;"></div>
+                </div>
+            </div>
+
+            <!-- 契約一覧 -->
+            <div class="card" style="margin-top:16px;">
+                <div class="card-title">📑 広告契約一覧<span class="sub" id="ad-contracts-sub"></span></div>
+                <div class="filter-bar">
+                    <select class="filter-select" id="ad-status-f" onchange="loadAdContracts()"><option value="">全ステータス</option><option value="active">稼働中</option><option value="paused">停止中</option><option value="cancelled">解約</option></select>
+                </div>
+                <div class="tbl-wrap"><table class="tbl">
+                    <thead><tr><th>店舗名</th><th>プラン</th><th>掲載先</th><th>ボーナス残</th><th>ステータス</th><th>開始日</th><th>終了日</th><th>操作</th></tr></thead>
+                    <tbody id="ad-contracts-body"></tbody>
+                </table></div>
+            </div>
+
+            <!-- 枠状況確認 -->
+            <div class="card" style="margin-top:16px;">
+                <div class="card-title">📊 枠状況確認</div>
+                <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+                    <div class="f-group"><label class="f-label">プラン</label><select id="slot-check-plan" class="f-input" onchange="updateSlotCheckTarget()"></select></div>
+                    <div class="f-group"><label class="f-label">掲載先</label><select id="slot-check-target" class="f-input"></select></div>
+                    <button onclick="checkSlotStatus()" class="btn-save" style="margin-bottom:4px;">確認</button>
+                </div>
+                <div id="slot-status-result" style="margin-top:12px;font-size:13px;"></div>
+            </div>
+        </div>
+
     </div>
 </div>
 <!-- モーダル：ホテル編集 -->
@@ -1868,6 +1935,340 @@ https://same.yobuho.com/
 function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
 async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}
 async function loadOutreachHistory(){const{data,error}=await sb.from("outreach_emails").select("*").order("sent_at",{ascending:false}).limit(50);if(error){if(error.code==="PGRST205"){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5" style="text-align:center;padding:20px;color:var(--ink-3);">テーブル未作成です。下記SQLをSupabaseで実行してください：<br><code style="display:block;margin-top:8px;text-align:left;font-size:11px;background:var(--bg-3);padding:8px;border-radius:4px;">CREATE TABLE outreach_emails (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, to_email text NOT NULL, shop_name text, template_type text, subject text NOT NULL, status text DEFAULT 'sent', sent_at timestamptz, created_at timestamptz DEFAULT now()); ALTER TABLE outreach_emails ENABLE ROW LEVEL SECURITY; CREATE POLICY "public_read" ON outreach_emails FOR SELECT USING (true); CREATE POLICY "public_insert" ON outreach_emails FOR INSERT WITH CHECK (true);</code></td></tr>`;}else{document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;}document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+
+// ========== 広告管理 ==========
+let adPlans=[];
+let adCurrentContractId=null;
+let adCurrentPlan=null;
+let adBonusRemaining=0;
+const AD_LEVEL_ORDER=['premium','big','area','town','spot'];
+
+async function loadAdTab(){
+    await loadAdPlans();
+    await loadAdShops();
+    await loadAdContracts();
+    setupSlotCheckPlan();
+}
+
+async function loadAdPlans(){
+    const{data,error}=await sb.from('ad_plans').select('*').order('sort_order');
+    if(error){document.getElementById('ad-plans-body').innerHTML='<tr class="erow"><td colspan="5">読込エラー</td></tr>';return;}
+    adPlans=data||[];
+    document.getElementById('ad-plans-body').innerHTML=adPlans.map(p=>`<tr><td style="font-weight:600;">${esc(p.name)}</td><td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${p.level}</span></td><td>¥${p.price.toLocaleString()}</td><td>${p.bonus_amount?'¥'+p.bonus_amount.toLocaleString():'—'}</td><td>${p.max_slots}</td></tr>`).join('');
+    // プラン選択プルダウン更新
+    const planSel=document.getElementById('ad-plan-select');
+    planSel.innerHTML='<option value="">選択...</option>'+adPlans.map(p=>`<option value="${p.id}">${p.name}（${p.level}）</option>`).join('');
+}
+
+async function loadAdShops(){
+    const{data}=await sb.from('shops').select('id,shop_name').eq('status','active').order('shop_name');
+    const sel=document.getElementById('ad-shop-select');
+    sel.innerHTML='<option value="">選択...</option>'+(data||[]).map(s=>`<option value="${s.id}">${esc(s.shop_name)}</option>`).join('');
+}
+
+async function updateAdForm(){
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    const section=document.getElementById('ad-target-section');
+    if(!plan){section.innerHTML='<span style="color:var(--ink-3);font-size:12px;">プランを選択してください</span>';return;}
+    if(plan.level==='premium'){
+        section.innerHTML='<input type="text" value="全国" readonly class="f-input" id="ad-target-val">';
+    }else{
+        await renderTargetDropdowns(section,'ad',plan.level);
+    }
+}
+
+async function renderTargetDropdowns(container,prefix,level){
+    const{data:prefData}=await sb.from('hotels').select('prefecture').eq('is_published',true);
+    const prefs=[...new Set((prefData||[]).map(h=>h.prefecture).filter(Boolean))].sort();
+    let html='<select id="'+prefix+'-target-pref" class="f-input" onchange="onAdPrefChange(\''+prefix+'\',\''+level+'\')"><option value="">都道府県を選択</option>'+prefs.map(p=>'<option>'+esc(p)+'</option>').join('')+'</select>';
+    if(level==='area'||level==='town'||level==='spot'){
+        html+='<select id="'+prefix+'-target-major" class="f-input" style="margin-top:6px;display:none;" onchange="onAdMajorChange(\''+prefix+'\',\''+level+'\')"><option value="">エリアを選択</option></select>';
+    }
+    if(level==='town'||level==='spot'){
+        html+='<select id="'+prefix+'-target-detail" class="f-input" style="margin-top:6px;display:none;" onchange="onAdDetailChange(\''+prefix+'\',\''+level+'\')"><option value="">詳細エリアを選択</option></select>';
+    }
+    if(level==='spot'){
+        html+='<select id="'+prefix+'-target-city" class="f-input" style="margin-top:6px;display:none;"><option value="">市区町村を選択</option></select>';
+    }
+    container.innerHTML=html;
+}
+
+async function onAdPrefChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    if(!pref)return;
+    if(level==='big')return; // 都道府県のみ
+    const majorSel=document.getElementById(prefix+'-target-major');
+    if(!majorSel)return;
+    const{data}=await sb.from('hotels').select('major_area').eq('prefecture',pref).eq('is_published',true).not('major_area','is',null);
+    const areas=[...new Set((data||[]).map(h=>h.major_area).filter(Boolean))].sort();
+    majorSel.innerHTML='<option value="">エリアを選択</option>'+areas.map(a=>'<option>'+esc(a)+'</option>').join('');
+    majorSel.style.display='';
+    // 下位リセット
+    const detailSel=document.getElementById(prefix+'-target-detail');
+    if(detailSel){detailSel.innerHTML='<option value="">詳細エリアを選択</option>';detailSel.style.display='none';}
+    const citySel=document.getElementById(prefix+'-target-city');
+    if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+}
+
+async function onAdMajorChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    const major=document.getElementById(prefix+'-target-major').value;
+    if(!major||level==='area')return;
+    const detailSel=document.getElementById(prefix+'-target-detail');
+    if(!detailSel)return;
+    const{data}=await sb.from('hotels').select('detail_area').eq('prefecture',pref).eq('major_area',major).eq('is_published',true).not('detail_area','is',null);
+    const details=[...new Set((data||[]).map(h=>h.detail_area).filter(Boolean))].sort();
+    detailSel.innerHTML='<option value="">詳細エリアを選択</option>'+details.map(d=>'<option>'+esc(d)+'</option>').join('');
+    detailSel.style.display='';
+    const citySel=document.getElementById(prefix+'-target-city');
+    if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+}
+
+async function onAdDetailChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    const major=document.getElementById(prefix+'-target-major').value;
+    const detail=document.getElementById(prefix+'-target-detail').value;
+    if(!detail||level==='town')return;
+    const citySel=document.getElementById(prefix+'-target-city');
+    if(!citySel)return;
+    const{data}=await sb.from('hotels').select('city').eq('prefecture',pref).eq('major_area',major).eq('detail_area',detail).eq('is_published',true).not('city','is',null);
+    const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+    citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
+    citySel.style.display='';
+}
+
+function getAdTarget(prefix='ad'){
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!plan)return'';
+    if(plan.level==='premium')return'全国';
+    if(plan.level==='big')return document.getElementById(prefix+'-target-pref')?.value||'';
+    if(plan.level==='area')return document.getElementById(prefix+'-target-major')?.value||'';
+    if(plan.level==='town')return document.getElementById(prefix+'-target-detail')?.value||'';
+    if(plan.level==='spot')return document.getElementById(prefix+'-target-city')?.value||'';
+    return'';
+}
+
+function getBonusTarget(){
+    const planId=document.getElementById('bonus-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!plan)return'';
+    if(plan.level==='premium')return'全国';
+    const pref=document.getElementById('bonus-target-pref')?.value||'';
+    if(plan.level==='big')return pref;
+    const major=document.getElementById('bonus-target-major')?.value||'';
+    if(plan.level==='area')return major;
+    const detail=document.getElementById('bonus-target-detail')?.value||'';
+    if(plan.level==='town')return detail;
+    const city=document.getElementById('bonus-target-city')?.value||'';
+    if(plan.level==='spot')return city;
+    return'';
+}
+
+async function createAdContract(){
+    const shopId=document.getElementById('ad-shop-select').value;
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!shopId||!plan){toast('店舗とプランを選択してください');return;}
+    const target=getAdTarget();
+    if(!target){toast('掲載先を選択してください');return;}
+    const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
+    const endDate=document.getElementById('ad-end-date').value||null;
+
+    // 枠の空き確認
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',plan.level).eq('placement_target',target).eq('status','active');
+    if(count>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
+
+    // 契約登録
+    const{data:contract,error:cErr}=await sb.from('ad_contracts').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate}).select().single();
+    if(cErr){toast('契約登録エラー: '+cErr.message);return;}
+
+    // メイン掲載枠を登録
+    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate});
+    if(pErr){toast('掲載枠登録エラー: '+pErr.message);return;}
+
+    toast('✅ 広告契約を登録しました');
+
+    if(plan.bonus_amount>0){
+        showBonusSection(contract.id,plan);
+    }
+    loadAdContracts();
+}
+
+function showBonusSection(contractId,plan){
+    adCurrentContractId=contractId;
+    adCurrentPlan=plan;
+    adBonusRemaining=plan.bonus_amount;
+    document.getElementById('bonus-remaining').textContent='¥'+adBonusRemaining.toLocaleString();
+    // 下位プランのみ表示
+    const planIdx=AD_LEVEL_ORDER.indexOf(plan.level);
+    const lowerPlans=adPlans.filter(p=>AD_LEVEL_ORDER.indexOf(p.level)>planIdx);
+    const bonusPlanSel=document.getElementById('bonus-plan-select');
+    bonusPlanSel.innerHTML='<option value="">選択...</option>'+lowerPlans.map(p=>`<option value="${p.id}" data-price="${p.price}" data-level="${p.level}">${p.name}（¥${p.price.toLocaleString()}）</option>`).join('');
+    document.getElementById('bonus-target-section').innerHTML='';
+    document.getElementById('bonus-placements-list').innerHTML='';
+    document.getElementById('bonus-section').style.display='';
+    bonusPlanSel.onchange=async function(){
+        const bp=adPlans.find(p=>p.id==parseInt(this.value));
+        if(!bp)return;
+        const sec=document.getElementById('bonus-target-section');
+        if(bp.level==='premium'){sec.innerHTML='<input type="text" value="全国" readonly class="f-input">';}
+        else{await renderTargetDropdowns(sec,'bonus',bp.level);}
+    };
+}
+
+async function addBonusPlacement(){
+    if(!adCurrentContractId){toast('契約が選択されていません');return;}
+    const bonusPlanId=document.getElementById('bonus-plan-select').value;
+    const bonusPlan=adPlans.find(p=>p.id==parseInt(bonusPlanId));
+    if(!bonusPlan){toast('ボーナスプランを選択してください');return;}
+    if(adBonusRemaining<bonusPlan.price){toast('ボーナス残額が不足しています（残:¥'+adBonusRemaining.toLocaleString()+' / 必要:¥'+bonusPlan.price.toLocaleString()+'）');return;}
+    const target=getBonusTarget();
+    if(!target){toast('掲載先を選択してください');return;}
+
+    // 枠の空き確認
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',bonusPlan.level).eq('placement_target',target).eq('status','active');
+    if(count>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
+
+    const shopId=document.getElementById('ad-shop-select').value;
+    const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
+    const endDate=document.getElementById('ad-end-date').value||null;
+
+    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate});
+    if(pErr){toast('ボーナス枠登録エラー: '+pErr.message);return;}
+
+    adBonusRemaining-=bonusPlan.price;
+    await sb.from('ad_contracts').update({bonus_remaining:adBonusRemaining}).eq('id',adCurrentContractId);
+    document.getElementById('bonus-remaining').textContent='¥'+adBonusRemaining.toLocaleString();
+
+    // リストに追加
+    const list=document.getElementById('bonus-placements-list');
+    list.insertAdjacentHTML('beforeend',`<div style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);margin-top:6px;font-size:12px;">🎁 ${esc(bonusPlan.name)} - ${esc(target)}（¥${bonusPlan.price.toLocaleString()}）</div>`);
+
+    toast('✅ ボーナス枠を追加しました');
+    if(adBonusRemaining<=0){
+        document.getElementById('bonus-section').style.display='none';
+    }
+    loadAdContracts();
+}
+
+async function loadAdContracts(){
+    const statusF=document.getElementById('ad-status-f')?.value||'';
+    let query=sb.from('ad_contracts').select('*,shops(shop_name),ad_plans(name,level)').order('created_at',{ascending:false});
+    if(statusF)query=query.eq('status',statusF);
+    const{data,error}=await query;
+    if(error){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="8">'+esc(error.message)+'</td></tr>';return;}
+    const rows=data||[];
+    document.getElementById('ad-contracts-sub').textContent=' ('+rows.length+'件)';
+
+    if(!rows.length){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="8">契約がありません</td></tr>';return;}
+
+    // 各契約のplacementsも取得
+    const contractIds=rows.map(r=>r.id);
+    const{data:placements}=await sb.from('ad_placements').select('*,ad_plans(name,level)').in('shop_id',rows.map(r=>r.shop_id)).eq('status','active');
+
+    const statusLabels={active:'稼働中',paused:'停止中',cancelled:'解約'};
+    const statusColors={active:'b-can',paused:'b-email-pending',cancelled:'b-cant'};
+
+    document.getElementById('ad-contracts-body').innerHTML=rows.map(r=>{
+        const shopName=r.shops?.shop_name||'—';
+        const planName=r.ad_plans?.name||'—';
+        const planLevel=r.ad_plans?.level||'';
+        const bonusPlaces=(placements||[]).filter(p=>p.shop_id===r.shop_id&&p.is_bonus);
+        const bonusHTML=bonusPlaces.length?'<div style="margin-top:4px;">'+bonusPlaces.map(bp=>`<span style="display:inline-block;font-size:10px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:3px;padding:1px 6px;margin:2px;">🎁 ${bp.ad_plans?.name||bp.placement_type} - ${esc(bp.placement_target||'')}</span>`).join('')+'</div>':'';
+        return`<tr>
+            <td style="font-size:12px;">${esc(shopName)}</td>
+            <td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${esc(planName)}</span></td>
+            <td style="font-size:12px;">${esc(r.placement_target||'—')}${bonusHTML}</td>
+            <td style="font-size:12px;">¥${(r.bonus_remaining||0).toLocaleString()}</td>
+            <td><span class="badge ${statusColors[r.status]||''}">${statusLabels[r.status]||r.status}</span></td>
+            <td style="font-size:11px;white-space:nowrap;">${r.start_date||'—'}</td>
+            <td style="font-size:11px;white-space:nowrap;">${r.end_date||'無期限'}</td>
+            <td style="white-space:nowrap;">
+                ${r.status==='active'?`<button class="btn b-btn-gold" style="font-size:11px;padding:4px 8px;" onclick="toggleAdContract('${r.id}','paused')">停止</button>`:''}
+                ${r.status==='paused'?`<button class="btn b-btn-green" style="font-size:11px;padding:4px 8px;" onclick="toggleAdContract('${r.id}','active')">再開</button>`:''}
+                <button class="btn b-btn-red" style="font-size:11px;padding:4px 8px;" onclick="deleteAdContract('${r.id}','${r.shop_id}')">削除</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function toggleAdContract(contractId,newStatus){
+    const{error}=await sb.from('ad_contracts').update({status:newStatus}).eq('id',contractId);
+    if(error){toast('更新エラー: '+error.message);return;}
+    // placementsも連動更新
+    if(newStatus==='paused'){
+        await sb.from('ad_placements').update({status:'paused'}).eq('shop_id',(await sb.from('ad_contracts').select('shop_id').eq('id',contractId).single()).data?.shop_id);
+    }
+    toast('✅ ステータスを更新しました');
+    loadAdContracts();
+}
+
+async function deleteAdContract(contractId,shopId){
+    if(!confirm('この契約と関連する掲載枠を削除しますか？'))return;
+    await sb.from('ad_placements').delete().eq('shop_id',shopId);
+    await sb.from('ad_contracts').delete().eq('id',contractId);
+    toast('✅ 契約を削除しました');
+    loadAdContracts();
+}
+
+function setupSlotCheckPlan(){
+    const sel=document.getElementById('slot-check-plan');
+    sel.innerHTML='<option value="">選択...</option>'+adPlans.map(p=>`<option value="${p.level}" data-max="${p.max_slots}">${p.name}（${p.level}）</option>`).join('');
+}
+
+async function updateSlotCheckTarget(){
+    const level=document.getElementById('slot-check-plan').value;
+    const sel=document.getElementById('slot-check-target');
+    if(!level){sel.innerHTML='<option value="">プランを選択</option>';return;}
+    if(level==='premium'){sel.innerHTML='<option value="全国">全国</option>';return;}
+
+    // 掲載先の候補をad_placementsから取得
+    const{data}=await sb.from('ad_placements').select('placement_target').eq('placement_type',level);
+    const targets=[...new Set((data||[]).map(p=>p.placement_target).filter(Boolean))].sort();
+
+    if(level==='big'){
+        const{data:prefData}=await sb.from('hotels').select('prefecture').eq('is_published',true);
+        const allPrefs=[...new Set((prefData||[]).map(h=>h.prefecture).filter(Boolean))].sort();
+        sel.innerHTML=allPrefs.map(p=>'<option>'+esc(p)+'</option>').join('');
+    }else{
+        sel.innerHTML=targets.length?targets.map(t=>'<option>'+esc(t)+'</option>').join(''):'<option value="">データなし</option>';
+    }
+}
+
+async function checkSlotStatus(){
+    const level=document.getElementById('slot-check-plan').value;
+    const target=document.getElementById('slot-check-target').value;
+    const plan=adPlans.find(p=>p.level===level);
+    if(!level||!target||!plan){toast('プランと掲載先を選択してください');return;}
+
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',level).eq('placement_target',target).eq('status','active');
+    const{data:details}=await sb.from('ad_placements').select('*,shops(shop_name)').eq('placement_type',level).eq('placement_target',target).eq('status','active');
+
+    const resultDiv=document.getElementById('slot-status-result');
+    const used=count||0;
+    const max=plan.max_slots;
+    const pct=Math.round(used/max*100);
+    const barColor=pct>=100?'var(--red)':pct>=60?'#f9a825':'var(--green)';
+
+    let detailHTML='';
+    if(details&&details.length){
+        detailHTML='<div style="margin-top:8px;">'+details.map(d=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">${d.is_bonus?'🎁':'📌'} ${esc(d.shops?.shop_name||'—')} <span style="color:var(--ink-3);font-size:11px;">(${d.start_date||'—'}〜)</span></div>`).join('')+'</div>';
+    }
+
+    resultDiv.innerHTML=`
+        <div style="font-weight:600;margin-bottom:6px;">${esc(plan.name)}枠 - ${esc(target)}: ${used}/${max}枠使用中</div>
+        <div style="background:var(--bg-3);border-radius:4px;height:20px;overflow:hidden;">
+            <div style="background:${barColor};height:100%;width:${Math.min(pct,100)}%;border-radius:4px;transition:width 0.3s;"></div>
+        </div>
+        ${detailHTML}
+    `;
+}
+
+// switchTabにads対応を追加
+const _origSwitchTab=switchTab;
+switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();};
 
 async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
 </script>
