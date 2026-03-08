@@ -1175,15 +1175,12 @@ function freshnessLabel(isoDate) {
 // ==========================================================================
 // ホテルカードレンダリング
 // ==========================================================================
-function renderHotelCards(hotels, showDistance = false) {
-    const container = document.getElementById('hotel-list');
+let allHotels = [];
+let displayedCount = 0;
+let showDistanceFlag = false;
+const HOTELS_PER_PAGE = 20;
 
-    if (!hotels.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_results')}</p></div>`;
-        return;
-    }
-
-    container.innerHTML = hotels.map((h, i) => {
+function buildCardHTML(h, i, showDistance) {
         const s = h.summary;
 
         // ===== 投稿集計 =====
@@ -1281,7 +1278,49 @@ function renderHotelCards(hotels, showDistance = false) {
 
             </div>
         </div>`;
-    }).join('');
+}
+
+function renderHotelCards(hotels, showDistance = false) {
+    const container = document.getElementById('hotel-list');
+
+    if (!hotels.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_results')}</p></div>`;
+        return;
+    }
+
+    allHotels = hotels;
+    displayedCount = 0;
+    showDistanceFlag = showDistance;
+
+    container.innerHTML = '';
+    loadMoreHotels();
+}
+
+function loadMoreHotels() {
+    const container = document.getElementById('hotel-list');
+
+    // 既存のもっと見るボタンとリンクバーを削除
+    const oldLoadMore = document.getElementById('load-more-container');
+    if (oldLoadMore) oldLoadMore.remove();
+    const oldLinksBar = container.querySelector('.info-links-bar');
+    if (oldLinksBar) oldLinksBar.remove();
+
+    const nextBatch = allHotels.slice(displayedCount, displayedCount + HOTELS_PER_PAGE);
+    const html = nextBatch.map((h, i) => buildCardHTML(h, displayedCount + i, showDistanceFlag)).join('');
+    container.insertAdjacentHTML('beforeend', html);
+    displayedCount += nextBatch.length;
+
+    // もっと見るボタン
+    const remaining = allHotels.length - displayedCount;
+    if (remaining > 0) {
+        container.insertAdjacentHTML('beforeend', `
+            <div id="load-more-container" style="text-align:center; margin:20px 0;">
+                <button id="load-more-btn" onclick="loadMoreHotels()" style="background:#b5627a; color:#fff; border:none; padding:12px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">
+                    もっと見る（残り${remaining}件）
+                </button>
+            </div>
+        `);
+    }
 
     // ホテル一覧の下にリンクバーを追加
     document.getElementById('bottom-info-links').style.display = 'none';
