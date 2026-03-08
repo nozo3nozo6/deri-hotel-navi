@@ -739,12 +739,23 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     });
     const candidateCitiesDA = [...citySet];
 
-    // このdetail_area内の市区町村別ホテル数を集計
+    // 各cityの全ホテル数を取得（detail_areaに関係なくprefecture+cityで集計）
     const cityCount = {};
-    data.forEach(h => {
-        const city = h.city || extractCity(h.address);
-        if (city) cityCount[city] = (cityCount[city] || 0) + 1;
-    });
+    if (candidateCitiesDA.length > 0) {
+        let allCityRows = [];
+        let cFrom = 0;
+        const C_PAGE = 1000;
+        while (true) {
+            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).range(cFrom, cFrom + C_PAGE - 1);
+            if (!chunk || !chunk.length) break;
+            allCityRows = allCityRows.concat(chunk);
+            if (chunk.length < C_PAGE) break;
+            cFrom += C_PAGE;
+        }
+        allCityRows.forEach(h => {
+            if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
+        });
+    }
 
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
