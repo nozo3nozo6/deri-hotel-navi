@@ -739,38 +739,14 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     });
     const candidateCitiesDA = [...citySet];
 
-    // 全エリアでのcity別・detail_area別ホテル数を取得
+    // このdetail_area内の市区町村別ホテル数を集計
     const cityCount = {};
-    const cityDetailCount = {}; // city -> { detail_area -> count }
-    let allRows = [];
-    let from = 0;
-    const PAGE = 1000;
-    while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city,detail_area').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).range(from, from + PAGE - 1);
-        if (!chunk || !chunk.length) break;
-        allRows = allRows.concat(chunk);
-        if (chunk.length < PAGE) break;
-        from += PAGE;
-    }
-    allRows.forEach(h => {
-        if (!h.city) return;
-        cityCount[h.city] = (cityCount[h.city] || 0) + 1;
-        if (h.detail_area) {
-            if (!cityDetailCount[h.city]) cityDetailCount[h.city] = {};
-            cityDetailCount[h.city][h.detail_area] = (cityDetailCount[h.city][h.detail_area] || 0) + 1;
-        }
+    data.forEach(h => {
+        const city = h.city || extractCity(h.address);
+        if (city) cityCount[city] = (cityCount[city] || 0) + 1;
     });
 
-    // 現在のdetail_areaが最多（同数含む）のcityのみ表示
-    const cityList = candidateCitiesDA.filter(city => {
-        const dc = cityDetailCount[city];
-        if (!dc) return true; // detail_area=nullのみのcityはそのまま表示
-        const maxCount = Math.max(...Object.values(dc));
-        const currentCount = dc[detailArea] || 0;
-        return currentCount >= maxCount;
-    });
-
-    const cities = cityList.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
+    const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length) {
         fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
