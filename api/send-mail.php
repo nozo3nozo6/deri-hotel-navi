@@ -34,16 +34,12 @@ if (empty($to) || empty($subject) || empty($body)) {
 // 改行を \r\n に正規化
 $body = str_replace(["\r\n", "\r", "\n"], "\r\n", $body);
 
-// メールヘッダー
-$headers = implode("\r\n", [
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
-    'Reply-To: hotel@yobuho.com',
-    'X-Mailer: PHP/' . phpversion()
-]);
+// メールヘッダー（mb_send_mailが件名・本文のエンコードを自動処理）
+$headers  = "From: YobuHo <hotel@yobuho.com>\r\n";
+$headers .= "Reply-To: hotel@yobuho.com\r\n";
+$headers .= "MIME-Version: 1.0\r\n";
 
-// mb_send_mailで送信（件名の自動エンコード対応）
+// mb_send_mailで送信（件名・本文のISO-2022-JPエンコードを自動処理）
 $result = mb_send_mail($to, $subject, $body, $headers);
 
 if ($result) {
