@@ -283,6 +283,15 @@ function showToast(msg, duration = 2500) {
     }, duration);
 }
 
+function showSuccessModal(title, message) {
+    document.getElementById('success-modal-title').textContent = title;
+    document.getElementById('success-modal-message').textContent = message || '';
+    document.getElementById('success-modal').style.display = 'flex';
+}
+function closeSuccessModal() {
+    document.getElementById('success-modal').style.display = 'none';
+}
+
 function showLoading(msg) {
     const el = document.getElementById('loading-overlay');
     if (el) {
@@ -2185,7 +2194,7 @@ async function doSubmitReport() {
     }
     closePostConfirmModal();
     if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-    showToast('✅ 投稿しました！ありがとうございます');
+    showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
     setTimeout(() => loadHotelDetail(currentHotelId), 1500);
 }
 
@@ -2380,8 +2389,8 @@ async function submitHotelRequest() {
         return;
     }
 
-    document.getElementById('hreq-step2').style.display = 'none';
-    document.getElementById('hreq-done').style.display = '';
+    closeHotelRequestModal();
+    showSuccessModal('送信ありがとうございます！', 'ホテル情報を受け付けました。確認後、掲載いたします。');
 }
 
 // ==========================================================================

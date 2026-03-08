@@ -483,6 +483,8 @@ const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
+function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';}
+function closeSuccessModal(){document.getElementById('success-modal').style.display='none';}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 // ===== 地方・都道府県マッピング =====
@@ -977,7 +979,7 @@ async function doSubmit(){
     cancelForm();
     registeredHotelIds.add(String(hotelId));
     loadRegisteredHotels();
-    toast("✅ 保存しました");
+    showSuccessModal('登録完了！', 'ホテル情報が登録されました。');
 }
 
 // ===== 登録済みホテル一覧 =====
@@ -1120,5 +1122,15 @@ async function changePassword(){
   </div>
   <p style="margin:4px 0 0; color:#888;">&copy; 2026 YobuHo Studio All Rights Reserved.</p>
 </footer>
+
+<div id="success-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:32px; max-width:400px; text-align:center; margin:16px; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <p style="font-size:32px; margin:0 0 16px;">✅</p>
+    <h3 id="success-modal-title" style="margin:0 0 12px;">完了しました</h3>
+    <p id="success-modal-message" style="margin:0 0 24px; color:#666; font-size:14px;"></p>
+    <button onclick="closeSuccessModal()" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
+  </div>
+</div>
+
 </body>
 </html>

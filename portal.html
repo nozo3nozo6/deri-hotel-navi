@@ -360,6 +360,15 @@
   <p style="margin:4px 0 0; color:#888;">&copy; 2026 YobuHo Studio All Rights Reserved.</p>
 </footer>
 
-<script src="app.js?v=31"></script>
+<div id="success-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:12px; padding:32px; max-width:400px; text-align:center; margin:16px; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+    <p style="font-size:32px; margin:0 0 16px;">✅</p>
+    <h3 id="success-modal-title" style="margin:0 0 12px;">完了しました</h3>
+    <p id="success-modal-message" style="margin:0 0 24px; color:#666; font-size:14px;"></p>
+    <button onclick="closeSuccessModal()" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
+  </div>
+</div>
+
+<script src="app.js?v=32"></script>
 </body>
 </html>
