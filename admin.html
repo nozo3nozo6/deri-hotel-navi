@@ -2014,22 +2014,46 @@ async function onAdPrefChange(prefix,level){
 async function onAdMajorChange(prefix,level){
     const pref=document.getElementById(prefix+'-target-pref').value;
     const major=document.getElementById(prefix+'-target-major').value;
-    if(!major||level==='area')return;
-    const detailSel=document.getElementById(prefix+'-target-detail');
-    if(!detailSel)return;
+    if(!major)return;
+    if(level==='area')return; // areaはmajor_areaが掲載先
+
+    // detail_areaの有無を確認
     const{data}=await sb.from('hotels').select('detail_area').eq('prefecture',pref).eq('major_area',major).eq('is_published',true).not('detail_area','is',null);
     const details=[...new Set((data||[]).map(h=>h.detail_area).filter(Boolean))].sort();
-    detailSel.innerHTML='<option value="">詳細エリアを選択</option>'+details.map(d=>'<option>'+esc(d)+'</option>').join('');
-    detailSel.style.display='';
+
+    const detailSel=document.getElementById(prefix+'-target-detail');
     const citySel=document.getElementById(prefix+'-target-city');
-    if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+
+    if(details.length>0&&(level==='town'||level==='spot')){
+        // detail_areaがある場合 → detail_areaプルダウンを表示
+        if(detailSel){
+            detailSel.innerHTML='<option value="">詳細エリアを選択</option>'+details.map(d=>'<option>'+esc(d)+'</option>').join('');
+            detailSel.style.display='';
+        }
+        if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+    }else if(level==='spot'){
+        // detail_areaがない場合 → 直接cityプルダウンを表示
+        if(detailSel){detailSel.innerHTML='<option value="">（なし）</option>';detailSel.style.display='none';}
+        if(citySel){
+            const{data:cityData}=await sb.from('hotels').select('city').eq('prefecture',pref).eq('major_area',major).eq('is_published',true).not('city','is',null);
+            const cities=[...new Set((cityData||[]).map(h=>h.city).filter(Boolean))].sort();
+            citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
+            citySel.style.display='';
+        }
+    }else if(level==='town'&&details.length===0){
+        // townでdetail_areaがない場合 → major_areaが掲載先（これ以上の選択不要）
+        if(detailSel){detailSel.style.display='none';}
+    }
 }
 
 async function onAdDetailChange(prefix,level){
     const pref=document.getElementById(prefix+'-target-pref').value;
     const major=document.getElementById(prefix+'-target-major').value;
     const detail=document.getElementById(prefix+'-target-detail').value;
-    if(!detail||level==='town')return;
+    if(!detail)return;
+    if(level==='town')return; // townはdetail_areaが掲載先
+
+    // spotの場合 → cityプルダウンを表示
     const citySel=document.getElementById(prefix+'-target-city');
     if(!citySel)return;
     const{data}=await sb.from('hotels').select('city').eq('prefecture',pref).eq('major_area',major).eq('detail_area',detail).eq('is_published',true).not('city','is',null);
@@ -2045,7 +2069,12 @@ function getAdTarget(prefix='ad'){
     if(plan.level==='premium')return'全国';
     if(plan.level==='big')return document.getElementById(prefix+'-target-pref')?.value||'';
     if(plan.level==='area')return document.getElementById(prefix+'-target-major')?.value||'';
-    if(plan.level==='town')return document.getElementById(prefix+'-target-detail')?.value||'';
+    if(plan.level==='town'){
+        // detail_areaがあればそれ、なければmajor_area
+        const detail=document.getElementById(prefix+'-target-detail');
+        if(detail&&detail.style.display!=='none'&&detail.value)return detail.value;
+        return document.getElementById(prefix+'-target-major')?.value||'';
+    }
     if(plan.level==='spot')return document.getElementById(prefix+'-target-city')?.value||'';
     return'';
 }
@@ -2059,8 +2088,11 @@ function getBonusTarget(){
     if(plan.level==='big')return pref;
     const major=document.getElementById('bonus-target-major')?.value||'';
     if(plan.level==='area')return major;
-    const detail=document.getElementById('bonus-target-detail')?.value||'';
-    if(plan.level==='town')return detail;
+    if(plan.level==='town'){
+        const detail=document.getElementById('bonus-target-detail');
+        if(detail&&detail.style.display!=='none'&&detail.value)return detail.value;
+        return major;
+    }
     const city=document.getElementById('bonus-target-city')?.value||'';
     if(plan.level==='spot')return city;
     return'';
