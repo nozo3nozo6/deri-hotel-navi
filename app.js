@@ -542,7 +542,7 @@ async function showMajorAreaPage(region, pref) {
             document.getElementById('area-button-container').innerHTML = '';
             try {
                 let query = supabaseClient.from('hotels').select('*')
-                    .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(80)
+                    .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(1000)
                     .order('review_average', { ascending: false, nullsFirst: false });
                 let hotels = await fetchHotelsWithSummary(query);
                 sortHotelsByReviews(hotels);
@@ -855,7 +855,7 @@ async function fetchAndShowHotels(filterObj) {
 
     try {
         const keyword = document.getElementById('keyword')?.value?.trim() || '';
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = applyKeywordFilter(query, keyword);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -898,7 +898,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     setBreadcrumb(crumbs);
 
     try {
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = query.eq('city', city);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -1084,7 +1084,7 @@ function fetchHotelsByStation() {
                 .ilike('nearest_station', `%${val}%`)
                 .eq('is_published', true)
                 .order('review_average', { ascending: false, nullsFirst: false })
-                .limit(80);
+                .limit(1000);
 
             const hotels = await fetchHotelsWithSummary(query);
             sortHotelsByReviews(hotels);
@@ -1131,7 +1131,7 @@ function fetchHotelsFromSearch() {
         document.getElementById('area-button-container').innerHTML = '';
 
         try {
-            let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(80);
+            let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
             query = applyKeywordFilter(query, keyword);
             query = query.order('review_average', { ascending: false, nullsFirst: false });
 
