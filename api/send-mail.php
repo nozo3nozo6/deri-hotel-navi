@@ -31,23 +31,20 @@ if (empty($to) || empty($subject) || empty($body)) {
     exit;
 }
 
+// 改行を \r\n に正規化
+$body = str_replace(["\r\n", "\r", "\n"], "\r\n", $body);
+
 // メールヘッダー
 $headers = implode("\r\n", [
     'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
+    'Content-Type: text/plain; charset=UTF-8',
     'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
     'Reply-To: hotel@yobuho.com',
     'X-Mailer: PHP/' . phpversion()
 ]);
 
-// 件名をMIMEエンコード
-$encoded_subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-
-// 本文をbase64エンコード
-$encoded_body = base64_encode($body);
-
-$result = mail($to, $encoded_subject, $encoded_body, $headers);
+// mb_send_mailで送信（件名の自動エンコード対応）
+$result = mb_send_mail($to, $subject, $body, $headers);
 
 if ($result) {
     echo json_encode(['success' => true, 'message' => 'メール送信完了']);
