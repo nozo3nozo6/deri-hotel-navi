@@ -78,16 +78,17 @@ async function fetchWithRetry(url, retry = 0) {
   }
 }
 
-// 既存ホテルの name+address セットを取得
+// 既存ホテルの name+address セット + tel セットを取得
 async function loadExistingKeys() {
   console.log('📦 既存ホテルデータを読み込み中...');
-  const keys = new Set();
+  const nameAddrKeys = new Set();
+  const telKeys = new Set();
   const PAGE_SIZE = 1000;
   let from = 0;
   while (true) {
     const { data, error } = await supabase
       .from('hotels')
-      .select('name, address')
+      .select('name, address, tel')
       .range(from, from + PAGE_SIZE - 1);
     if (error) {
       console.error('❌ 既存データ読み込みエラー:', error.message);
@@ -95,12 +96,13 @@ async function loadExistingKeys() {
     }
     if (!data || data.length === 0) break;
     for (const row of data) {
-      keys.add(`${row.name}|||${row.address}`);
+      nameAddrKeys.add(`${row.name}|||${row.address}`);
+      if (row.tel) telKeys.add(row.tel);
     }
     from += PAGE_SIZE;
   }
-  console.log(`📦 既存ホテル: ${keys.size}件\n`);
-  return keys;
+  console.log(`📦 既存ホテル: ${nameAddrKeys.size}件 (tel: ${telKeys.size}件)\n`);
+  return { nameAddrKeys, telKeys };
 }
 
 // Yahoo API から1ページ取得
@@ -117,17 +119,28 @@ async function fetchPage(gc, ac, start) {
   return fetchWithRetry(url);
 }
 
+// --start 引数パース
+function parseStartCode() {
+  const idx = process.argv.indexOf('--start');
+  if (idx !== -1 && process.argv[idx + 1]) {
+    return process.argv[idx + 1].padStart(2, '0');
+  }
+  return '01';
+}
+
 // メイン処理
 async function main() {
-  console.log('🇯🇵 Yahoo!ローカルサーチ ホテルインポート開始\n');
+  const startCode = parseStartCode();
+  console.log(`🇯🇵 Yahoo!ローカルサーチ ホテルインポート開始 (開始: ac=${startCode})\n`);
 
-  const existingKeys = await loadExistingKeys();
+  const { nameAddrKeys, telKeys } = await loadExistingKeys();
 
   let totalAdded = 0;
   let totalSkipped = 0;
   let totalErrors = 0;
 
   for (const [ac, prefName] of Object.entries(prefCodes)) {
+    if (ac < startCode) continue;
     console.log(`\n========================================`);
     console.log(`🗾 ${prefName} (ac=${ac})`);
     console.log(`========================================`);
@@ -160,9 +173,15 @@ async function main() {
         for (const f of features) {
           const name = f.Name || '';
           const address = f.Property?.Address || '';
-          const key = `${name}|||${address}`;
+          const tel = f.Property?.Tel1 || null;
+          const nameAddrKey = `${name}|||${address}`;
 
-          if (existingKeys.has(key)) {
+          // 重複チェック: tel一致 → name+address一致
+          if (tel && telKeys.has(tel)) {
+            prefSkipped++;
+            continue;
+          }
+          if (nameAddrKeys.has(nameAddrKey)) {
             prefSkipped++;
             continue;
           }
@@ -185,7 +204,7 @@ async function main() {
           toInsert.push({
             name,
             address,
-            tel: f.Property?.Tel1 || null,
+            tel,
             hotel_type: genre.hotel_type,
             prefecture: prefName,
             latitude,
@@ -196,7 +215,8 @@ async function main() {
             city: extractCity(address, prefName),
           });
 
-          existingKeys.add(key);
+          nameAddrKeys.add(nameAddrKey);
+          if (tel) telKeys.add(tel);
         }
 
         // Supabase に INSERT（50件ずつバッチ）
@@ -211,7 +231,7 @@ async function main() {
           }
         }
 
-        prefSkipped += (features.length - toInsert.length);
+        // prefSkipped is already incremented in the loop above
 
         // 次ページ判定
         if (start + RESULTS_PER_PAGE - 1 >= totalAvailable) break;
