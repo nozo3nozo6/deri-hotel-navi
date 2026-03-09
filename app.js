@@ -2,6 +2,11 @@
 // DERI HOTEL NAVI — app.js
 // ==========================================================================
 
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
