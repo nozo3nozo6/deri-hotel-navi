@@ -89,6 +89,7 @@ function clearHotelList() {
     if (el) el.innerHTML = '';
     const s = document.getElementById('result-status');
     if (s) s.style.display = 'none';
+    hideHotelTabs();
 }
 function showToast(msg, duration = 2500) {
     let el = document.getElementById('lh-toast');
@@ -462,6 +463,7 @@ async function fetchAndShowHotels(filterObj) {
     currentPage = () => fetchAndShowHotels(filterObj);
     showLoading();
     document.getElementById('area-button-container').innerHTML = '';
+    hideHotelTabs();
     try {
         let query = hotelsQuery().limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
@@ -508,8 +510,44 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
+
+        // ホテルタブ表示
+        showHotelTabs(pref, city, hotels.length);
     } catch (e) { console.error(e); }
     finally { hideLoading(); }
+}
+
+// ==========================================================================
+// ホテルタブ（portal.htmlへの逆リンク）
+// ==========================================================================
+async function showHotelTabs(pref, city, lovehoCount) {
+    hideHotelTabs();
+    if (!pref || !city) return;
+
+    // 通常ホテル件数を取得（love_hotel除外）
+    const { count: hotelCount } = await supabaseClient.from('hotels')
+        .select('*', { count: 'exact', head: true })
+        .eq('prefecture', pref)
+        .eq('city', city)
+        .neq('hotel_type', 'love_hotel')
+        .eq('is_published', true);
+
+    const portalUrl = 'https://yobuho.com/portal.html?mode=men&pref=' + encodeURIComponent(pref) + '&city=' + encodeURIComponent(city);
+    const tabsDiv = document.createElement('div');
+    tabsDiv.id = 'lh-hotel-tabs';
+    tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid rgba(255,255,255,0.1);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    tabsDiv.innerHTML = `
+        <a href="${portalUrl}" style="padding:10px 24px;border:none;background:transparent;cursor:pointer;font-size:14px;color:var(--lh-text-3);border-bottom:3px solid transparent;text-decoration:none;font-family:inherit;display:flex;align-items:center;">🏨 ホテル (${hotelCount || 0})</a>
+        <button style="padding:10px 24px;border:none;background:transparent;cursor:default;font-size:14px;font-weight:bold;border-bottom:3px solid var(--lh-accent);color:var(--lh-accent);font-family:inherit;">🏩 ラブホ (${lovehoCount})</button>
+    `;
+
+    const hotelList = document.getElementById('hotel-list');
+    hotelList.parentNode.insertBefore(tabsDiv, hotelList);
+}
+
+function hideHotelTabs() {
+    const existing = document.getElementById('lh-hotel-tabs');
+    if (existing) existing.remove();
 }
 
 function setResultStatus(count) {
@@ -1189,8 +1227,8 @@ function restoreFromUrl() {
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
         if (region) pageStack.push(() => showPrefPage(region));
-        if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
-        if (area) pageStack.push(() => showCityPage(region, pref, area));
+        if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
+        if (pref && area) pageStack.push(() => showCityPage(region, pref, area));
         if (detail) pageStack.push(() => showDetailAreaPage(region, pref, area, detail));
         const filterObj = { prefecture: pref };
         if (area) filterObj.major_area = area;

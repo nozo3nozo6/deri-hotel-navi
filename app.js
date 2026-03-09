@@ -269,6 +269,7 @@ function clearHotelList() {
     if (s) s.style.display = 'none';
     const links = document.getElementById('bottom-info-links');
     if (links) links.style.display = 'flex';
+    hideLovehoTabs();
 }
 
 function showToast(msg, duration = 2500) {
@@ -895,10 +896,11 @@ async function fetchAndShowHotels(filterObj) {
     currentPage = () => fetchAndShowHotels(filterObj);
     showLoading();
     document.getElementById('area-button-container').innerHTML = '';
+    hideLovehoTabs();
 
     try {
         const keyword = document.getElementById('keyword')?.value?.trim() || '';
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).neq('hotel_type', 'love_hotel').limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = applyKeywordFilter(query, keyword);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -942,7 +944,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     loadAds('spot', city);
 
     try {
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).limit(1000);
+        // love_hotel除外で取得
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).neq('hotel_type', 'love_hotel').limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = query.eq('city', city);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -951,11 +954,49 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
+
+        // ラブホタブ表示
+        showLovehoTabs(pref, city, hotels.length);
     } catch (e) {
         console.error(e);
     } finally {
         hideLoading();
     }
+}
+
+// ==========================================================================
+// ラブホタブ表示
+// ==========================================================================
+async function showLovehoTabs(pref, city, hotelCount) {
+    hideLovehoTabs();
+    if (!pref || !city) return;
+
+    // ラブホ件数を取得
+    const { count: lovehoCount } = await supabaseClient.from('hotels')
+        .select('*', { count: 'exact', head: true })
+        .eq('prefecture', pref)
+        .eq('city', city)
+        .eq('hotel_type', 'love_hotel')
+        .eq('is_published', true);
+
+    if (!lovehoCount) return;
+
+    const lovehoUrl = 'https://loveho.yobuho.com/?pref=' + encodeURIComponent(pref) + '&city=' + encodeURIComponent(city);
+    const tabsDiv = document.createElement('div');
+    tabsDiv.id = 'hotel-loveho-tabs';
+    tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #ddd;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    tabsDiv.innerHTML = `
+        <button style="padding:10px 24px;border:none;background:transparent;cursor:default;font-size:14px;font-weight:bold;border-bottom:3px solid var(--accent,#b5627a);color:var(--accent,#b5627a);font-family:inherit;">🏨 ホテル (${hotelCount})</button>
+        <a href="${lovehoUrl}" style="padding:10px 24px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#999;border-bottom:3px solid transparent;text-decoration:none;font-family:inherit;display:flex;align-items:center;">🏩 ラブホ (${lovehoCount})</a>
+    `;
+
+    const hotelList = document.getElementById('hotel-list');
+    hotelList.parentNode.insertBefore(tabsDiv, hotelList);
+}
+
+function hideLovehoTabs() {
+    const existing = document.getElementById('hotel-loveho-tabs');
+    if (existing) existing.remove();
 }
 
 function setResultStatus(count) {
