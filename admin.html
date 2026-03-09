@@ -497,6 +497,16 @@
                     <label class="f-label">掲載先</label>
                     <div id="ad-target-section"><span style="color:var(--ink-3);font-size:12px;">プランを選択してください</span></div>
                 </div>
+                <div class="f-group" style="max-width:640px;margin-top:8px;">
+                    <label class="f-label">対象モード</label>
+                    <select id="ad-mode" class="f-input">
+                        <option value="men">♂ 男性用（デリヘル）</option>
+                        <option value="women">♀ 女性用（女風）</option>
+                        <option value="ff">♀♀ 女性同士</option>
+                        <option value="mm">♂♂ 男性同士</option>
+                        <option value="all">全モード共通</option>
+                    </select>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;margin-top:8px;">
                     <div class="f-group"><label class="f-label">開始日</label><input type="date" id="ad-start-date" class="f-input"></div>
                     <div class="f-group"><label class="f-label">終了日（空欄で無期限）</label><input type="date" id="ad-end-date" class="f-input"></div>
@@ -523,7 +533,7 @@
                     <select class="filter-select" id="ad-status-f" onchange="loadAdContracts()"><option value="">全ステータス</option><option value="active">稼働中</option><option value="paused">停止中</option><option value="cancelled">解約</option></select>
                 </div>
                 <div class="tbl-wrap"><table class="tbl">
-                    <thead><tr><th>店舗名</th><th>プラン</th><th>掲載先</th><th>ボーナス残</th><th>ステータス</th><th>開始日</th><th>終了日</th><th>操作</th></tr></thead>
+                    <thead><tr><th>店舗名</th><th>プラン</th><th>掲載先</th><th>モード</th><th>ボーナス残</th><th>ステータス</th><th>開始日</th><th>終了日</th><th>操作</th></tr></thead>
                     <tbody id="ad-contracts-body"></tbody>
                 </table></div>
             </div>
@@ -2107,17 +2117,18 @@ async function createAdContract(){
     if(!target){toast('掲載先を選択してください');return;}
     const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
     const endDate=document.getElementById('ad-end-date').value||null;
+    const adMode=document.getElementById('ad-mode').value||'men';
 
     // 枠の空き確認
     const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',plan.level).eq('placement_target',target).eq('status','active');
     if(count>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
 
     // 契約登録
-    const{data:contract,error:cErr}=await sb.from('ad_contracts').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate}).select().single();
+    const{data:contract,error:cErr}=await sb.from('ad_contracts').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate,mode:adMode}).select().single();
     if(cErr){toast('契約登録エラー: '+cErr.message);return;}
 
     // メイン掲載枠を登録
-    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate});
+    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate,mode:adMode});
     if(pErr){toast('掲載枠登録エラー: '+pErr.message);return;}
 
     toast('✅ 広告契約を登録しました');
@@ -2167,7 +2178,8 @@ async function addBonusPlacement(){
     const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
     const endDate=document.getElementById('ad-end-date').value||null;
 
-    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate});
+    const adMode=document.getElementById('ad-mode').value||'men';
+    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate,mode:adMode});
     if(pErr){toast('ボーナス枠登録エラー: '+pErr.message);return;}
 
     adBonusRemaining-=bonusPlan.price;
@@ -2190,11 +2202,11 @@ async function loadAdContracts(){
     let query=sb.from('ad_contracts').select('*,shops(shop_name),ad_plans(name,level)').order('created_at',{ascending:false});
     if(statusF)query=query.eq('status',statusF);
     const{data,error}=await query;
-    if(error){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="8">'+esc(error.message)+'</td></tr>';return;}
+    if(error){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="9">'+esc(error.message)+'</td></tr>';return;}
     const rows=data||[];
     document.getElementById('ad-contracts-sub').textContent=' ('+rows.length+'件)';
 
-    if(!rows.length){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="8">契約がありません</td></tr>';return;}
+    if(!rows.length){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="9">契約がありません</td></tr>';return;}
 
     // 各契約のplacementsも取得
     const contractIds=rows.map(r=>r.id);
@@ -2213,6 +2225,7 @@ async function loadAdContracts(){
             <td style="font-size:12px;">${esc(shopName)}</td>
             <td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${esc(planName)}</span></td>
             <td style="font-size:12px;">${esc(r.placement_target||'—')}${bonusHTML}</td>
+            <td style="font-size:12px;">${({men:'♂男性',women:'♀女性',ff:'♀♀女同士',mm:'♂♂男同士',all:'全モード'})[r.mode]||r.mode||'men'}</td>
             <td style="font-size:12px;">¥${(r.bonus_remaining||0).toLocaleString()}</td>
             <td><span class="badge ${statusColors[r.status]||''}">${statusLabels[r.status]||r.status}</span></td>
             <td style="font-size:11px;white-space:nowrap;">${r.start_date||'—'}</td>

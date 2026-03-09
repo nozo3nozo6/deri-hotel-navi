@@ -306,11 +306,13 @@ async function loadAds(placementType, placementTarget) {
     if (!container) return;
     container.innerHTML = '';
     try {
+        const currentMode = new URLSearchParams(window.location.search).get('mode') || 'men';
         const { data, error } = await supabaseClient.from('ad_placements')
             .select('*, shops(shop_name, shop_url), ad_plans(name)')
             .eq('placement_type', placementType)
             .eq('placement_target', placementTarget)
-            .eq('status', 'active');
+            .eq('status', 'active')
+            .or('mode.eq.' + currentMode + ',mode.eq.all,mode.is.null');
         console.log('[loadAds]', placementType, placementTarget, 'results:', data?.length, error?.message);
         if (!data || !data.length) return;
         container.innerHTML = data.map(ad => {
