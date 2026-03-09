@@ -332,6 +332,33 @@ async function loadAds(placementType, placementTarget) {
     } catch (e) { console.error('[loadAds] error:', e); }
 }
 
+async function fetchDetailAds(placementType, placementTarget) {
+    try {
+        const currentMode = new URLSearchParams(window.location.search).get('mode') || 'men';
+        const { data } = await supabaseClient.from('ad_placements')
+            .select('*, shops(shop_name, shop_url), ad_plans(name)')
+            .eq('placement_type', placementType)
+            .eq('placement_target', placementTarget)
+            .eq('status', 'active')
+            .or('mode.eq.' + currentMode + ',mode.eq.all,mode.is.null');
+        if (!data || !data.length) return '';
+        return data.map(ad => {
+            const shopName = ad.shops?.shop_name || '掲載店舗';
+            const url = ad.shops?.shop_url;
+            const nameHTML = url
+                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
+                : `<span style="font-size:13px; color:var(--text); margin-left:4px;">${esc(shopName)}</span>`;
+            return `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:6px; padding:10px 14px; margin:16px 0; font-size:12px;">
+                <span style="color:#999; font-size:10px;">📢 このエリアの掲載店舗</span>
+                <div style="margin-top:4px;">
+                    <span style="background:#b5627a; color:#fff; font-size:9px; padding:1px 5px; border-radius:2px;">認定店</span>
+                    ${nameHTML}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) { console.error('[fetchDetailAds] error:', e); return ''; }
+}
+
 function clearAds() {
     const container = document.getElementById('ad-container');
     if (container) container.innerHTML = '';
@@ -1238,6 +1265,15 @@ async function loadLovehoDetail(hotelId) {
         ]);
         if (!hotelRes.data) throw new Error('Hotel not found');
         renderLovehoDetail(hotelRes.data, reportsRes.data || []);
+        // ラブホ詳細ページに広告を挿入
+        const hotelCity = hotelRes.data.city;
+        if (hotelCity) {
+            const adHTML = await fetchDetailAds('spot', hotelCity);
+            if (adHTML) {
+                const adSlot = document.getElementById('detail-ad-slot');
+                if (adSlot) adSlot.innerHTML = adHTML;
+            }
+        }
     } catch (e) {
         console.error(e);
         content.innerHTML = '<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラー</div>';
@@ -1328,6 +1364,8 @@ function renderLovehoDetail(hotel, reports) {
             ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
             ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
         </div>
+
+        <div id="detail-ad-slot"></div>
 
         ${reports.length > 0 ? `
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
@@ -2117,6 +2155,15 @@ async function loadHotelDetail(hotelId) {
             });
         }
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
+        // ホテル詳細ページに広告を挿入
+        const hotelCity = hotelRes.data.city;
+        if (hotelCity) {
+            const adHTML = await fetchDetailAds('spot', hotelCity);
+            if (adHTML) {
+                const adSlot = document.getElementById('detail-ad-slot');
+                if (adSlot) adSlot.innerHTML = adHTML;
+            }
+        }
     } catch(e) {
         console.error(e);
         content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
@@ -2310,6 +2357,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${hotel.major_area || hotel.prefecture}</span>` : ''}
             </div>` : ''}
         </div>
+
+        <div id="detail-ad-slot"></div>
 
         ${reportsHTML}
 
