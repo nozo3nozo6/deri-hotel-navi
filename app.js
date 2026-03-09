@@ -300,15 +300,16 @@ async function loadAds(placementType, placementTarget) {
     if (!container) return;
     container.innerHTML = '';
     try {
-        const { data } = await supabaseClient.from('ad_placements')
-            .select('*, shops(shop_name, website_url), ad_plans(name)')
+        const { data, error } = await supabaseClient.from('ad_placements')
+            .select('*, shops(shop_name, shop_url), ad_plans(name)')
             .eq('placement_type', placementType)
             .eq('placement_target', placementTarget)
             .eq('status', 'active');
+        console.log('[loadAds]', placementType, placementTarget, 'results:', data?.length, error?.message);
         if (!data || !data.length) return;
         container.innerHTML = data.map(ad => {
             const shopName = ad.shops?.shop_name || '掲載店舗';
-            const url = ad.shops?.website_url;
+            const url = ad.shops?.shop_url;
             const nameHTML = url
                 ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-weight:bold; text-decoration:none;">${esc(shopName)}</a>`
                 : `<span style="font-weight:bold; color:var(--text);">${esc(shopName)}</span>`;
