@@ -1103,15 +1103,15 @@ async function fetchLovehoReviewSummaries(hotelIds) {
     try {
         const { data, error } = await supabaseClient
             .from('loveho_reports')
-            .select('hotel_id,recommend,cleanliness,cost_performance,can_enter_alone,can_go_outside')
+            .select('hotel_id,recommendation,cleanliness,cost_performance,solo_entry,can_go_out')
             .in('hotel_id', hotelIds);
         if (error || !data) return {};
         const map = {};
         data.forEach(r => {
-            if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommend_sum: 0, cleanliness_sum: 0, cp_sum: 0 };
+            if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommendation_sum: 0, cleanliness_sum: 0, cp_sum: 0 };
             const s = map[r.hotel_id];
             s.count++;
-            if (r.recommend) s.recommend_sum += r.recommend;
+            if (r.recommendation) s.recommendation_sum += r.recommendation;
             if (r.cleanliness) s.cleanliness_sum += r.cleanliness;
             if (r.cost_performance) s.cp_sum += r.cost_performance;
         });
@@ -1148,7 +1148,7 @@ function renderLovehoCards(hotels) {
 function buildLovehoCardHTML(h, i) {
     const s = h.lhSummary;
     const reviewCount = s ? s.count : 0;
-    const avgRec = s && s.count ? s.recommend_sum / s.count : 0;
+    const avgRec = s && s.count ? s.recommendation_sum / s.count : 0;
     const avgClean = s && s.count ? s.cleanliness_sum / s.count : 0;
     const starsRow = avgRec > 0
         ? `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;font-size:12px;color:var(--text-2,#6a5a4a);">
@@ -1253,12 +1253,12 @@ function renderLovehoDetail(hotel, reports) {
     const facilityCount = {}, atmosphereCount = {};
 
     reports.forEach(r => {
-        if (r.recommend) { recSum += r.recommend; rated++; }
+        if (r.recommendation) { recSum += r.recommendation; rated++; }
         if (r.cleanliness) cleanSum += r.cleanliness;
         if (r.cost_performance) cpSum += r.cost_performance;
-        if (r.can_enter_alone === 'yes') aloneY++; else if (r.can_enter_alone === 'no') aloneN++; else aloneU++;
-        if (r.can_go_outside === 'yes') outsideY++; else if (r.can_go_outside === 'no') outsideN++; else outsideU++;
-        if (r.parking === 'yes') parkingY++; else if (r.parking === 'no') parkingN++; else parkingU++;
+        if (r.solo_entry === 'yes') aloneY++; else if (r.solo_entry === 'no') aloneN++; else aloneU++;
+        if (r.can_go_out === 'yes') outsideY++; else if (r.can_go_out === 'no') outsideN++; else outsideU++;
+        if (r.has_parking === 'yes') parkingY++; else if (r.has_parking === 'no') parkingN++; else parkingU++;
         if (r.facilities && Array.isArray(r.facilities)) r.facilities.forEach(f => { facilityCount[f] = (facilityCount[f] || 0) + 1; });
         if (r.atmosphere) atmosphereCount[r.atmosphere] = (atmosphereCount[r.atmosphere] || 0) + 1;
     });
@@ -1287,17 +1287,17 @@ function renderLovehoDetail(hotel, reports) {
     const reviewsHTML = reports.map(r => {
         const tags = [];
         if (r.atmosphere) tags.push(r.atmosphere);
-        if (r.room_type) tags.push(r.room_type);
+        if (r.room_type_id) tags.push(r.room_type_id);
         if (r.time_slot) tags.push(r.time_slot);
-        if (r.rest_price) tags.push('休憩: ' + r.rest_price);
-        if (r.stay_price) tags.push('宿泊: ' + r.stay_price);
+        if (r.price_rest) tags.push('休憩: ' + r.price_rest);
+        if (r.price_stay) tags.push('宿泊: ' + r.price_stay);
         return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
                 <span style="font-size:12px;color:var(--text-2);font-weight:500;">${esc(r.poster_name || '匿名')}</span>
                 <span style="font-size:11px;color:var(--text-3);">${formatDate(r.created_at)}</span>
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text-2);margin-bottom:4px;">
-                ${r.recommend ? `<span>おすすめ ${lhStarsHTML(r.recommend)} ${r.recommend}</span>` : ''}
+                ${r.recommendation ? `<span>おすすめ ${lhStarsHTML(r.recommendation)} ${r.recommendation}</span>` : ''}
                 ${r.cleanliness ? `<span>清潔感 ${r.cleanliness}</span>` : ''}
                 ${r.cost_performance ? `<span>コスパ ${r.cost_performance}</span>` : ''}
             </div>
@@ -1359,13 +1359,13 @@ function renderLovehoDetail(hotel, reports) {
             <h3 style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;text-align:center;">🏩 口コミを投稿する</h3>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">一人で先に入れる？</label>
-                <select id="lh-solo-entry" onchange="lhFormState.can_enter_alone=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
                     <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
                 </select>
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">外出可能？</label>
-                <select id="lh-go-out" onchange="lhFormState.can_go_outside=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                <select id="lh-go-out" onchange="lhFormState.can_go_out=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
                     <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
                 </select>
             </div>
@@ -1379,7 +1379,7 @@ function renderLovehoDetail(hotel, reports) {
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label>
-                <div id="lh-star-recommend" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('recommend',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+                <div id="lh-star-recommendation" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('recommendation',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label>
@@ -1387,13 +1387,13 @@ function renderLovehoDetail(hotel, reports) {
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">駐車場</label>
-                <select onchange="lhFormState.parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                <select onchange="lhFormState.has_parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
                     <option value="">選択してください</option><option value="yes">あり</option><option value="no">なし</option><option value="unknown">わからない</option>
                 </select>
             </div>
             ${LH_MASTER.room_types.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">ルームタイプ</label>
-                <select onchange="lhFormState.room_type=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
+                <select onchange="lhFormState.room_type_id=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
             </div>` : ''}
             ${LH_MASTER.facilities.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">設備（複数選択可）</label>
@@ -1401,11 +1401,11 @@ function renderLovehoDetail(hotel, reports) {
             </div>` : ''}
             ${LH_MASTER.price_ranges_rest.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">休憩料金帯</label>
-                <select onchange="lhFormState.rest_price=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_rest)}</select>
+                <select onchange="lhFormState.price_rest=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_rest)}</select>
             </div>` : ''}
             ${LH_MASTER.price_ranges_stay.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">宿泊料金帯</label>
-                <select onchange="lhFormState.stay_price=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_stay)}</select>
+                <select onchange="lhFormState.price_stay=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_stay)}</select>
             </div>` : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
@@ -1423,7 +1423,7 @@ function renderLovehoDetail(hotel, reports) {
         </div>
     `;
 
-    lhFormState = { can_enter_alone: '', can_go_outside: '', atmosphere: '', cleanliness: 0, recommend: 0, cost_performance: 0, parking: '', room_type: '', facilities: [], rest_price: '', stay_price: '', time_slot: '', comment: '', poster_name: '' };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', cleanliness: 0, recommendation: 0, cost_performance: 0, has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
 }
 
 function lhSetStar(field, value) {
@@ -1445,7 +1445,7 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.can_enter_alone || lhFormState.can_go_outside || lhFormState.atmosphere || lhFormState.cleanliness || lhFormState.recommend || lhFormState.cost_performance || lhFormState.parking || lhFormState.room_type || lhFormState.facilities.length || lhFormState.rest_price || lhFormState.stay_price || lhFormState.time_slot || lhFormState.comment;
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.cleanliness || lhFormState.recommendation || lhFormState.cost_performance || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.facilities.length || lhFormState.price_rest || lhFormState.price_stay || lhFormState.time_slot || lhFormState.comment;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1453,17 +1453,17 @@ async function submitLovehoReport() {
     try {
         const payload = {
             hotel_id: currentHotelId,
-            can_enter_alone: lhFormState.can_enter_alone || null,
-            can_go_outside: lhFormState.can_go_outside || null,
+            solo_entry: lhFormState.solo_entry || null,
+            can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
             cleanliness: lhFormState.cleanliness || null,
-            recommend: lhFormState.recommend || null,
+            recommendation: lhFormState.recommendation || null,
             cost_performance: lhFormState.cost_performance || null,
-            parking: lhFormState.parking || null,
-            room_type: lhFormState.room_type || null,
+            has_parking: lhFormState.has_parking || null,
+            room_type_id: lhFormState.room_type_id || null,
             facilities: lhFormState.facilities.length ? lhFormState.facilities : null,
-            rest_price: lhFormState.rest_price || null,
-            stay_price: lhFormState.stay_price || null,
+            price_rest: lhFormState.price_rest || null,
+            price_stay: lhFormState.price_stay || null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
