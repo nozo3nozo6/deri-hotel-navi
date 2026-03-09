@@ -955,8 +955,12 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
 
+        // タブ用にフィルタ情報を保存
+        _tabFilterObj = filterObj;
+        _tabCity = city;
+
         // ラブホタブ表示
-        showLovehoTabs(pref, city, hotels.length);
+        showLovehoTabs(pref, city, hotels.length, hotels);
     } catch (e) {
         console.error(e);
     } finally {
@@ -965,11 +969,27 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 }
 
 // ==========================================================================
-// ラブホタブ表示
+// ラブホタブ（ページ内切替）
 // ==========================================================================
-async function showLovehoTabs(pref, city, hotelCount) {
+let currentTab = 'hotel';
+let cachedHotelData = null;
+let cachedLovehoData = null;
+let _tabCityKey = null; // pref+city でキャッシュ管理
+let _tabFilterObj = null;
+let _tabCity = null;
+
+async function showLovehoTabs(pref, city, hotelCount, hotels) {
     hideLovehoTabs();
     if (!pref || !city) return;
+
+    // キャッシュリセット（city変更時）
+    const cacheKey = pref + '|||' + city;
+    if (_tabCityKey !== cacheKey) {
+        cachedHotelData = null;
+        cachedLovehoData = null;
+        _tabCityKey = cacheKey;
+    }
+    cachedHotelData = hotels;
 
     // ラブホ件数を取得
     const { count: lovehoCount } = await supabaseClient.from('hotels')
@@ -981,22 +1001,480 @@ async function showLovehoTabs(pref, city, hotelCount) {
 
     if (!lovehoCount) return;
 
-    const lovehoUrl = 'https://loveho.yobuho.com/?pref=' + encodeURIComponent(pref) + '&city=' + encodeURIComponent(city);
+    // URL tab パラメータ確認
+    const urlTab = new URLSearchParams(window.location.search).get('tab');
+
     const tabsDiv = document.createElement('div');
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #ddd;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     tabsDiv.innerHTML = `
-        <button style="padding:10px 24px;border:none;background:transparent;cursor:default;font-size:14px;font-weight:bold;border-bottom:3px solid var(--accent,#b5627a);color:var(--accent,#b5627a);font-family:inherit;">🏨 ホテル (${hotelCount})</button>
-        <a href="${lovehoUrl}" style="padding:10px 24px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#999;border-bottom:3px solid transparent;text-decoration:none;font-family:inherit;display:flex;align-items:center;">🏩 ラブホ (${lovehoCount})</a>
+        <button class="hotel-tab" data-tab="hotel" onclick="switchTab('hotel')" style="padding:10px 24px;border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:bold;border-bottom:3px solid var(--accent,#b5627a);color:var(--accent,#b5627a);font-family:inherit;">🏨 ホテル (<span id="hotel-count">${hotelCount}</span>)</button>
+        <button class="hotel-tab" data-tab="loveho" onclick="switchTab('loveho')" style="padding:10px 24px;border:none;background:transparent;cursor:pointer;font-size:14px;color:#999;border-bottom:3px solid transparent;font-family:inherit;">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>
     `;
 
     const hotelList = document.getElementById('hotel-list');
     hotelList.parentNode.insertBefore(tabsDiv, hotelList);
+
+    // URL にtab=lovehoがある場合は自動切替
+    if (urlTab === 'loveho') {
+        switchTab('loveho');
+    } else {
+        currentTab = 'hotel';
+    }
 }
 
 function hideLovehoTabs() {
     const existing = document.getElementById('hotel-loveho-tabs');
     if (existing) existing.remove();
+    currentTab = 'hotel';
+}
+
+async function switchTab(tab) {
+    currentTab = tab;
+
+    // タブスタイル切替
+    document.querySelectorAll('#hotel-loveho-tabs .hotel-tab').forEach(t => {
+        if (t.dataset.tab === tab) {
+            t.style.fontWeight = 'bold';
+            t.style.borderBottomColor = tab === 'loveho' ? '#c9a96e' : 'var(--accent,#b5627a)';
+            t.style.color = tab === 'loveho' ? '#c9a96e' : 'var(--accent,#b5627a)';
+        } else {
+            t.style.fontWeight = 'normal';
+            t.style.borderBottomColor = 'transparent';
+            t.style.color = '#999';
+        }
+    });
+
+    // URL更新（tab パラメータ）
+    const cur = new URLSearchParams(window.location.search);
+    if (tab === 'loveho') cur.set('tab', 'loveho');
+    else cur.delete('tab');
+    history.replaceState(null, '', '?' + cur.toString());
+
+    // データ取得と表示
+    if (tab === 'hotel') {
+        if (cachedHotelData) {
+            renderHotelCards(cachedHotelData);
+            setResultStatus(cachedHotelData.length);
+        }
+    } else {
+        if (cachedLovehoData) {
+            renderLovehoCards(cachedLovehoData);
+        } else {
+            await loadLovehoForCurrentCity();
+        }
+    }
+}
+
+async function loadLovehoForCurrentCity() {
+    if (!_tabFilterObj || !_tabCity) return;
+    showLoading();
+    try {
+        let query = supabaseClient.from('hotels').select('*')
+            .eq('is_published', true)
+            .eq('hotel_type', 'love_hotel')
+            .eq('city', _tabCity)
+            .limit(1000);
+        Object.keys(_tabFilterObj).forEach(k => { query = query.eq(k, _tabFilterObj[k]); });
+        const { data: hotels, error } = await query;
+        if (error) throw error;
+        if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
+        // loveho_reports からサマリー取得
+        const hotelIds = hotels.map(h => h.id);
+        const summaries = await fetchLovehoReviewSummaries(hotelIds);
+        const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
+        withSummary.sort((a, b) => {
+            const ca = a.lhSummary ? a.lhSummary.count : 0;
+            const cb = b.lhSummary ? b.lhSummary.count : 0;
+            return cb - ca;
+        });
+        cachedLovehoData = withSummary;
+        renderLovehoCards(withSummary);
+    } catch (e) { console.error(e); }
+    finally { hideLoading(); }
+}
+
+async function fetchLovehoReviewSummaries(hotelIds) {
+    if (!hotelIds.length) return {};
+    try {
+        const { data, error } = await supabaseClient
+            .from('loveho_reports')
+            .select('hotel_id,recommend,cleanliness,cost_performance,can_enter_alone,can_go_outside')
+            .in('hotel_id', hotelIds);
+        if (error || !data) return {};
+        const map = {};
+        data.forEach(r => {
+            if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommend_sum: 0, cleanliness_sum: 0, cp_sum: 0 };
+            const s = map[r.hotel_id];
+            s.count++;
+            if (r.recommend) s.recommend_sum += r.recommend;
+            if (r.cleanliness) s.cleanliness_sum += r.cleanliness;
+            if (r.cost_performance) s.cp_sum += r.cost_performance;
+        });
+        return map;
+    } catch { return {}; }
+}
+
+// ==========================================================================
+// ラブホカードレンダリング
+// ==========================================================================
+function lhStarsHTML(rating) {
+    if (!rating) return '';
+    let html = '';
+    for (let i = 1; i <= 5; i++) html += i <= Math.round(rating) ? '<span style="color:#c9a96e;">★</span>' : '<span style="color:#ccc;">★</span>';
+    return html;
+}
+
+function renderLovehoCards(hotels) {
+    const container = document.getElementById('hotel-list');
+    const rs = document.getElementById('result-status');
+    if (rs) { rs.style.display = 'block'; rs.innerHTML = hotels.length > 0 ? `<strong>${hotels.length}</strong> 件のラブホテル` : 'ラブホテルが見つかりませんでした'; }
+    if (!hotels.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">ラブホテルが見つかりませんでした</p></div>';
+        return;
+    }
+    allHotels = hotels;
+    displayedCount = 0;
+    showDistanceFlag = false;
+    container.innerHTML = '';
+    loadMoreLovehoCards();
+}
+
+function buildLovehoCardHTML(h, i) {
+    const s = h.lhSummary;
+    const reviewCount = s ? s.count : 0;
+    const avgRec = s && s.count ? s.recommend_sum / s.count : 0;
+    const avgClean = s && s.count ? s.cleanliness_sum / s.count : 0;
+    const starsRow = avgRec > 0
+        ? `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;font-size:12px;color:var(--text-2,#6a5a4a);">
+            <span>おすすめ ${lhStarsHTML(avgRec)} ${avgRec.toFixed(1)}</span>
+            ${avgClean > 0 ? `<span>清潔感 ${avgClean.toFixed(1)}</span>` : ''}
+          </div>` : '';
+    const reviewBadge = reviewCount > 0 ? `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(201,169,110,0.12);color:#c9a96e;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">💬 ${reviewCount}件</span>` : '';
+    return `
+    <div class="hotel-card-lux" style="animation-delay:${Math.min(i*0.04,0.4)}s;background:#f9f5f0;border:1px solid rgba(201,169,110,0.2);" onclick="openLovehoDetail(${h.id})" role="button">
+        <div class="hotel-card-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <div style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${esc(h.name)}</div>
+                ${reviewBadge}
+            </div>
+            <div class="hotel-info-row"><span class="hotel-info-icon">📍</span><span class="hotel-info-text">${esc(h.address || '')}</span></div>
+            ${h.nearest_station ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>` : ''}
+            ${h.tel ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">📞 ${esc(h.tel)}</div>` : ''}
+            ${starsRow}
+            <div class="hotel-card-footer" style="display:flex;gap:6px;padding-top:10px;">
+                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" style="flex:1;padding:8px 6px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:8px;font-size:11px;font-weight:700;color:#1a1a2e;cursor:pointer;font-family:inherit;white-space:nowrap;">✨ 口コミを見る${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
+                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" style="flex:1;padding:8px 6px;background:transparent;border:1.5px solid rgba(201,169,110,0.35);border-radius:8px;font-size:11px;font-weight:700;color:#c9a96e;cursor:pointer;font-family:inherit;white-space:nowrap;">📝 口コミを投稿</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function loadMoreLovehoCards() {
+    const container = document.getElementById('hotel-list');
+    const old = document.getElementById('load-more-container');
+    if (old) old.remove();
+    const oldLinks = container.querySelector('.info-links-bar');
+    if (oldLinks) oldLinks.remove();
+
+    const nextBatch = allHotels.slice(displayedCount, displayedCount + HOTELS_PER_PAGE);
+    container.insertAdjacentHTML('beforeend', nextBatch.map((h, i) => buildLovehoCardHTML(h, displayedCount + i)).join(''));
+    displayedCount += nextBatch.length;
+
+    const remaining = allHotels.length - displayedCount;
+    if (remaining > 0) {
+        container.insertAdjacentHTML('beforeend', `
+            <div id="load-more-container" style="text-align:center;margin:20px 0;">
+                <button onclick="loadMoreLovehoCards()" style="background:#c9a96e;color:#fff;border:none;padding:12px 32px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;">もっと見る（残り${remaining}件）</button>
+            </div>`);
+    }
+}
+
+// ==========================================================================
+// ラブホ詳細ページ
+// ==========================================================================
+let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [] };
+let lhFormState = {};
+
+async function loadLhMasters() {
+    if (LH_MASTER._loaded) return;
+    const [atm, rt, fac, pr, ts] = await Promise.all([
+        supabaseClient.from('loveho_atmospheres').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_room_types').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_facilities').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_price_ranges').select('label,type').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_time_slots').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+    ]);
+    LH_MASTER.atmospheres = atm.map(r => r.label);
+    LH_MASTER.room_types = rt.map(r => r.label);
+    LH_MASTER.facilities = fac.map(r => r.label);
+    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.label);
+    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.label);
+    LH_MASTER.time_slots = ts.map(r => r.label);
+    if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
+    LH_MASTER._loaded = true;
+}
+
+function openLovehoDetail(hotelId) {
+    if (document.activeElement) document.activeElement.blur();
+    showHotelPanel(hotelId, true);
+}
+
+async function loadLovehoDetail(hotelId) {
+    const content = document.getElementById('hotel-detail-content');
+    content.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>';
+    try {
+        await loadLhMasters();
+        const [hotelRes, reportsRes] = await Promise.all([
+            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).maybeSingle(),
+            supabaseClient.from('loveho_reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
+        ]);
+        if (!hotelRes.data) throw new Error('Hotel not found');
+        renderLovehoDetail(hotelRes.data, reportsRes.data || []);
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = '<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラー</div>';
+    }
+}
+
+function renderLovehoDetail(hotel, reports) {
+    const h = hotel;
+    const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(h.name)}`;
+    const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address || h.name)}`;
+
+    let recSum = 0, cleanSum = 0, cpSum = 0, rated = 0;
+    let aloneY = 0, aloneN = 0, aloneU = 0, outsideY = 0, outsideN = 0, outsideU = 0;
+    let parkingY = 0, parkingN = 0, parkingU = 0;
+    const facilityCount = {}, atmosphereCount = {};
+
+    reports.forEach(r => {
+        if (r.recommend) { recSum += r.recommend; rated++; }
+        if (r.cleanliness) cleanSum += r.cleanliness;
+        if (r.cost_performance) cpSum += r.cost_performance;
+        if (r.can_enter_alone === 'yes') aloneY++; else if (r.can_enter_alone === 'no') aloneN++; else aloneU++;
+        if (r.can_go_outside === 'yes') outsideY++; else if (r.can_go_outside === 'no') outsideN++; else outsideU++;
+        if (r.parking === 'yes') parkingY++; else if (r.parking === 'no') parkingN++; else parkingU++;
+        if (r.facilities && Array.isArray(r.facilities)) r.facilities.forEach(f => { facilityCount[f] = (facilityCount[f] || 0) + 1; });
+        if (r.atmosphere) atmosphereCount[r.atmosphere] = (atmosphereCount[r.atmosphere] || 0) + 1;
+    });
+
+    const avgRec = rated ? (recSum / rated).toFixed(1) : '-';
+    const avgClean = rated ? (cleanSum / rated).toFixed(1) : '-';
+    const avgCp = rated ? (cpSum / rated).toFixed(1) : '-';
+
+    function ynBar(title, yes, no, unk) {
+        const total = yes + no + unk;
+        if (!total) return '';
+        const yP = Math.round(yes/total*100), nP = Math.round(no/total*100), uP = 100 - yP - nP;
+        return `<div style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">${title}</div>
+            <div style="display:flex;height:22px;border-radius:11px;overflow:hidden;background:var(--bg-4,#ede8df);">
+                ${yP > 0 ? `<div style="width:${yP}%;background:#3a9a60;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">Yes ${yP}%</div>` : ''}
+                ${nP > 0 ? `<div style="width:${nP}%;background:#c05050;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">No ${nP}%</div>` : ''}
+                ${uP > 0 ? `<div style="width:${uP}%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-3);">?</div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    const facilityTags = Object.entries(facilityCount).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<span style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:11px;color:var(--text-2);">${esc(f)} (${c})</span>`).join(' ');
+    const atmosphereTags = Object.entries(atmosphereCount).sort((a,b)=>b[1]-a[1]).map(([a,c])=>`<span style="background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.25);border-radius:16px;padding:3px 10px;font-size:11px;color:#c9a96e;">${esc(a)} (${c})</span>`).join(' ');
+
+    const reviewsHTML = reports.map(r => {
+        const tags = [];
+        if (r.atmosphere) tags.push(r.atmosphere);
+        if (r.room_type) tags.push(r.room_type);
+        if (r.time_slot) tags.push(r.time_slot);
+        if (r.rest_price) tags.push('休憩: ' + r.rest_price);
+        if (r.stay_price) tags.push('宿泊: ' + r.stay_price);
+        return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:12px;color:var(--text-2);font-weight:500;">${esc(r.poster_name || '匿名')}</span>
+                <span style="font-size:11px;color:var(--text-3);">${formatDate(r.created_at)}</span>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text-2);margin-bottom:4px;">
+                ${r.recommend ? `<span>おすすめ ${lhStarsHTML(r.recommend)} ${r.recommend}</span>` : ''}
+                ${r.cleanliness ? `<span>清潔感 ${r.cleanliness}</span>` : ''}
+                ${r.cost_performance ? `<span>コスパ ${r.cost_performance}</span>` : ''}
+            </div>
+            ${r.comment ? `<div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-top:4px;">${esc(r.comment)}</div>` : ''}
+            ${tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${tags.map(t=>`<span style="background:var(--bg-3);border-radius:10px;padding:2px 8px;font-size:10px;color:var(--text-3);">${esc(t)}</span>`).join('')}</div>` : ''}
+            <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
+        </div>`;
+    }).join('');
+
+    // フォーム用 select 生成
+    const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    const facCheckboxes = LH_MASTER.facilities.map(f =>
+        `<label onclick="lhToggleFac(this,'${esc(f)}')" style="display:flex;align-items:center;gap:6px;background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text-2);cursor:pointer;transition:all 0.15s;">
+            <input type="checkbox" value="${esc(f)}" style="display:none;"><span>${esc(f)}</span>
+        </label>`
+    ).join('');
+
+    const content = document.getElementById('hotel-detail-content');
+    content.innerHTML = `
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:12px;">
+            <a href="${googleSearch}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.name)}</a>
+            <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:6px;">🏩 ラブホテル</span>
+        </div>
+        <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px;"><span>📍</span><a href="${googleMap}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.address || '住所不明')}</a></div>
+            ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
+            ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
+        </div>
+
+        ${reports.length > 0 ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">おすすめ度</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgRec}</div>
+                ${rated ? lhStarsHTML(recSum/rated) : ''}
+            </div>
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">清潔感</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgClean}</div>
+            </div>
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">コスパ</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgCp}</div>
+            </div>
+        </div>
+        ${ynBar('一人で入れる？', aloneY, aloneN, aloneU)}
+        ${ynBar('外出可能？', outsideY, outsideN, outsideU)}
+        ${ynBar('駐車場', parkingY, parkingN, parkingU)}
+        ${atmosphereTags ? `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">雰囲気</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${atmosphereTags}</div></div>` : ''}
+        ${facilityTags ? `<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">設備</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${facilityTags}</div></div>` : ''}
+        ` : '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">まだ口コミがありません</div>'}
+
+        <div style="margin-bottom:24px;">
+            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${reports.length}件)</h3>
+            ${reviewsHTML || '<div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>'}
+        </div>
+
+        <div style="background:var(--bg-2,#fff);border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:20px 16px;margin-bottom:24px;">
+            <h3 style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;text-align:center;">🏩 口コミを投稿する</h3>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">一人で先に入れる？</label>
+                <select id="lh-solo-entry" onchange="lhFormState.can_enter_alone=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
+                </select>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">外出可能？</label>
+                <select id="lh-go-out" onchange="lhFormState.can_go_outside=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
+                </select>
+            </div>
+            ${LH_MASTER.atmospheres.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
+                <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
+            </div>` : ''}
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">清潔感</label>
+                <div id="lh-star-cleanliness" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cleanliness',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label>
+                <div id="lh-star-recommend" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('recommend',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label>
+                <div id="lh-star-cost_performance" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cost_performance',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">駐車場</label>
+                <select onchange="lhFormState.parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                    <option value="">選択してください</option><option value="yes">あり</option><option value="no">なし</option><option value="unknown">わからない</option>
+                </select>
+            </div>
+            ${LH_MASTER.room_types.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">ルームタイプ</label>
+                <select onchange="lhFormState.room_type=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
+            </div>` : ''}
+            ${LH_MASTER.facilities.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">設備（複数選択可）</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">${facCheckboxes}</div>
+            </div>` : ''}
+            ${LH_MASTER.price_ranges_rest.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">休憩料金帯</label>
+                <select onchange="lhFormState.rest_price=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_rest)}</select>
+            </div>` : ''}
+            ${LH_MASTER.price_ranges_stay.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">宿泊料金帯</label>
+                <select onchange="lhFormState.stay_price=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_stay)}</select>
+            </div>` : ''}
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
+                <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">フリーコメント</label>
+                <textarea id="lh-comment" rows="3" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;"></textarea>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label>
+                <input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+            </div>
+            <button onclick="submitLovehoReport()" id="lh-submit-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">投稿する</button>
+        </div>
+    `;
+
+    lhFormState = { can_enter_alone: '', can_go_outside: '', atmosphere: '', cleanliness: 0, recommend: 0, cost_performance: 0, parking: '', room_type: '', facilities: [], rest_price: '', stay_price: '', time_slot: '', comment: '', poster_name: '' };
+}
+
+function lhSetStar(field, value) {
+    lhFormState[field] = value;
+    const container = document.getElementById('lh-star-' + field);
+    if (!container) return;
+    container.querySelectorAll('span').forEach((s, i) => { s.style.color = i < value ? '#c9a96e' : '#ccc'; });
+}
+
+function lhToggleFac(el, name) {
+    const cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    el.style.borderColor = cb.checked ? '#c9a96e' : '';
+    el.style.background = cb.checked ? 'rgba(201,169,110,0.1)' : '';
+    el.style.color = cb.checked ? '#c9a96e' : '';
+    if (cb.checked) { if (!lhFormState.facilities.includes(name)) lhFormState.facilities.push(name); }
+    else { lhFormState.facilities = lhFormState.facilities.filter(f => f !== name); }
+}
+
+async function submitLovehoReport() {
+    const btn = document.getElementById('lh-submit-btn');
+    const hasData = lhFormState.can_enter_alone || lhFormState.can_go_outside || lhFormState.atmosphere || lhFormState.cleanliness || lhFormState.recommend || lhFormState.cost_performance || lhFormState.parking || lhFormState.room_type || lhFormState.facilities.length || lhFormState.rest_price || lhFormState.stay_price || lhFormState.time_slot || lhFormState.comment;
+    if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    try {
+        const payload = {
+            hotel_id: currentHotelId,
+            can_enter_alone: lhFormState.can_enter_alone || null,
+            can_go_outside: lhFormState.can_go_outside || null,
+            atmosphere: lhFormState.atmosphere || null,
+            cleanliness: lhFormState.cleanliness || null,
+            recommend: lhFormState.recommend || null,
+            cost_performance: lhFormState.cost_performance || null,
+            parking: lhFormState.parking || null,
+            room_type: lhFormState.room_type || null,
+            facilities: lhFormState.facilities.length ? lhFormState.facilities : null,
+            rest_price: lhFormState.rest_price || null,
+            stay_price: lhFormState.stay_price || null,
+            time_slot: lhFormState.time_slot || null,
+            comment: lhFormState.comment || null,
+            poster_name: lhFormState.poster_name || null,
+        };
+        const { error } = await supabaseClient.from('loveho_reports').insert(payload);
+        if (error) throw error;
+        showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
+        cachedLovehoData = null; // キャッシュクリア
+        loadLovehoDetail(currentHotelId);
+    } catch (e) {
+        console.error(e);
+        showToast('投稿エラーが発生しました');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '投稿する';
+    }
 }
 
 function setResultStatus(count) {
@@ -1547,7 +2025,7 @@ function hotelToggleMultiPerson(checked) {
     }
 }
 
-function showHotelPanel(hotelId) {
+function showHotelPanel(hotelId, isLoveho) {
     updateUrl({ hotel: hotelId });
     currentHotelId = hotelId;
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
@@ -1558,6 +2036,7 @@ function showHotelPanel(hotelId) {
     const rs = document.getElementById('result-status');
     if (rs) rs.style.display = 'none';
     document.getElementById('hotel-list').style.display = 'none';
+    hideLovehoTabs();
 
     const panel = document.getElementById('hotel-detail-panel');
     panel.style.display = 'block';
@@ -1581,7 +2060,11 @@ function showHotelPanel(hotelId) {
     // パネルを通常フローで表示（fixed廃止）
     panel.style.cssText = 'display:block;';
 
-    loadHotelDetail(hotelId);
+    if (isLoveho) {
+        loadLovehoDetail(hotelId);
+    } else {
+        loadHotelDetail(hotelId);
+    }
     window.scrollTo(0, 0);
 }
 
