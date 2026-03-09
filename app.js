@@ -321,7 +321,7 @@ async function loadAds(placementType, placementTarget) {
                 </div>
             </div>`;
         }).join('');
-    } catch (e) { /* 広告取得エラーは無視 */ }
+    } catch (e) { console.error('[loadAds] error:', e); }
 }
 
 function clearAds() {
