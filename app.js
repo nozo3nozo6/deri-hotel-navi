@@ -1030,6 +1030,7 @@ function hideLovehoTabs() {
 }
 
 async function switchTab(tab) {
+    console.log('[switchTab]', tab);
     currentTab = tab;
 
     // タブスタイル切替
@@ -1067,17 +1068,20 @@ async function switchTab(tab) {
 }
 
 async function loadLovehoForCurrentCity() {
-    if (!_tabFilterObj || !_tabCity) return;
+    if (!_tabFilterObj || !_tabCity) { console.log('[loveho] missing filter/city, skip'); return; }
     showLoading();
     try {
+        // prefecture + city のみでフィルタ（major_area/detail_area はラブホに設定されていない場合があるため除外）
+        const pref = _tabFilterObj.prefecture;
         let query = supabaseClient.from('hotels').select('*')
             .eq('is_published', true)
             .eq('hotel_type', 'love_hotel')
             .eq('city', _tabCity)
             .limit(1000);
-        Object.keys(_tabFilterObj).forEach(k => { query = query.eq(k, _tabFilterObj[k]); });
+        if (pref) query = query.eq('prefecture', pref);
         const { data: hotels, error } = await query;
         if (error) throw error;
+        console.log('[loveho] loaded:', hotels ? hotels.length : 0, 'hotels');
         if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
         // loveho_reports からサマリー取得
         const hotelIds = hotels.map(h => h.id);
@@ -1126,6 +1130,7 @@ function lhStarsHTML(rating) {
 }
 
 function renderLovehoCards(hotels) {
+    console.log('[renderLoveho] rendering', hotels.length, 'cards');
     const container = document.getElementById('hotel-list');
     const rs = document.getElementById('result-status');
     if (rs) { rs.style.display = 'block'; rs.innerHTML = hotels.length > 0 ? `<strong>${hotels.length}</strong> 件のラブホテル` : 'ラブホテルが見つかりませんでした'; }
