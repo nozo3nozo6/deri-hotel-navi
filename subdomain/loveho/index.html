@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja" prefix="og: https://ogp.me/ns#">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>ラブホテル検索・口コミ | LoveHo YobuHo - 全国6,000件以上</title>
+    <meta name="description" content="全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報をお届けします。">
+    <meta name="keywords" content="ラブホテル 口コミ,ラブホ 検索,ラブホテル 清潔,ラブホ おすすめ,ラブホテル 一人,ラブホ 外出,ラブホテル 駐車場,ラブホ コスパ">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://loveho.yobuho.com/">
+    <meta name="theme-color" content="#1a1a2e">
+    <link rel="icon" type="image/svg+xml" href="https://yobuho.com/favicon.svg">
+
+    <!-- OGP -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ラブホテル検索・口コミ | LoveHo YobuHo">
+    <meta property="og:description" content="全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報をお届けします。">
+    <meta property="og:url" content="https://loveho.yobuho.com/">
+    <meta property="og:site_name" content="LoveHo YobuHo">
+    <meta property="og:locale" content="ja_JP">
+    <meta name="twitter:card" content="summary">
+
+    <!-- 構造化データ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "LoveHo YobuHo - ラブホテル検索・口コミ",
+      "url": "https://loveho.yobuho.com/",
+      "description": "全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報。",
+      "applicationCategory": "LifestyleApplication",
+      "inLanguage": "ja",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      }
+    }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./loveho-style.css?v=1">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header class="lh-header">
+    <div class="lh-header-inner">
+        <button onclick="location.href='https://yobuho.com/'" class="btn-to-gate">
+            <span>⛩</span>
+            <span>YobuHoへ</span>
+        </button>
+        <div class="lh-logo">LoveHo <b>YobuHo</b></div>
+        <div style="width:70px;"></div>
+    </div>
+</header>
+
+<div class="lh-age-notice">
+    ※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。
+</div>
+
+<!-- エリア選択 -->
+<section class="lh-area-section">
+    <div class="lh-breadcrumb" id="breadcrumb">
+        <span class="lh-breadcrumb-item active">日本全国</span>
+    </div>
+    <div class="lh-area-header">
+        <h2 id="area-title">地域を選択</h2>
+        <button id="btn-area-back" class="lh-btn-back" onclick="backLevel()">
+            <span>←</span>
+            <span>前へ</span>
+        </button>
+    </div>
+    <div id="area-button-container" class="lh-area-grid"></div>
+</section>
+
+<!-- 検索ツール -->
+<div class="lh-search-tools">
+    <button class="lh-btn-location" id="btn-location" onclick="searchByLocation()">
+        <span class="icon">📍</span>
+        <span class="label" id="btn-location-label">現在地</span>
+    </button>
+    <div class="lh-search-wrapper">
+        <span class="icon">🔍</span>
+        <input type="text" id="keyword" class="lh-search-input" placeholder="ホテル名で検索..." oninput="fetchHotelsFromSearch()">
+        <button class="lh-search-clear" onclick="clearSearch()" id="search-clear-btn">✕</button>
+    </div>
+    <div class="lh-station-wrapper">
+        <span class="icon">🚉</span>
+        <input type="text" id="station-input" class="lh-station-input" placeholder="最寄駅で検索..." oninput="fetchHotelsByStation()">
+    </div>
+</div>
+
+<div id="result-status" class="lh-result-status"></div>
+
+<div id="hotel-list" class="lh-hotel-list"></div>
+
+<!-- ホテル詳細パネル -->
+<div id="hotel-detail-panel" class="lh-detail-panel">
+    <div id="hotel-detail-content"></div>
+</div>
+
+<!-- ローディング -->
+<div id="loading-overlay" class="lh-loading">
+    <div class="lh-spinner"></div>
+    <p class="lh-loading-text">検索中...</p>
+</div>
+
+<!-- 投稿確認モーダル -->
+<div id="post-confirm-modal" class="lh-modal-overlay">
+    <div class="lh-modal">
+        <h3>📋 投稿内容の確認</h3>
+        <div id="post-confirm-content"></div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+            <button class="btn-cancel" onclick="closePostConfirmModal()">修正する</button>
+            <button class="btn-confirm" onclick="doSubmitReport()" id="btn-do-submit">この内容で投稿する</button>
+        </div>
+    </div>
+</div>
+
+<!-- 報告モーダル -->
+<div id="flag-modal" class="lh-modal-overlay" style="z-index:9998;">
+    <div class="lh-modal" style="max-width:400px;">
+        <div id="flag-step1">
+            <h3>🚩 この投稿を報告</h3>
+            <div style="font-size:12px;color:var(--lh-text-3);text-align:center;margin-bottom:14px;">報告理由を選択してください</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;" id="flag-reason-btns">
+                <button onclick="selectFlagReason('スパム・宣伝',this)" class="lh-area-btn">📢 スパム・宣伝</button>
+                <button onclick="selectFlagReason('虚偽情報',this)" class="lh-area-btn">❌ 虚偽情報</button>
+                <button onclick="selectFlagReason('不適切な内容',this)" class="lh-area-btn">⚠️ 不適切な内容</button>
+                <button onclick="selectFlagReason('その他',this)" class="lh-area-btn">💬 その他</button>
+            </div>
+            <div id="flag-reason-err" style="display:none;font-size:12px;color:#c05050;margin-bottom:10px;padding:8px 12px;background:rgba(192,80,80,0.08);border:1px solid rgba(192,80,80,0.2);border-radius:8px;">理由を選択してください</div>
+            <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" style="width:100%;padding:10px 12px;border:1px solid var(--lh-border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:var(--lh-bg-3);color:var(--lh-text);outline:none;box-sizing:border-box;margin-bottom:10px;"></textarea>
+            <button onclick="showFlagConfirm()" style="width:100%;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">確認する →</button>
+            <button onclick="closeFlagModal()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--lh-border);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--lh-text-3);">キャンセル</button>
+        </div>
+        <div id="flag-step2" style="display:none;">
+            <h3>🚩 報告内容を確認</h3>
+            <div style="background:var(--lh-bg-3);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+                <div style="font-size:11px;color:var(--lh-text-3);margin-bottom:3px;">報告理由</div>
+                <div style="font-size:14px;font-weight:700;color:#fff;" id="flag-confirm-reason"></div>
+                <div id="flag-confirm-comment-wrap" style="display:none;margin-top:10px;">
+                    <div style="font-size:11px;color:var(--lh-text-3);margin-bottom:3px;">詳細コメント</div>
+                    <div style="font-size:13px;color:var(--lh-text);white-space:pre-wrap;" id="flag-confirm-comment"></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button onclick="showFlagStep1()" class="btn-cancel">← 戻る</button>
+                <button onclick="submitFlag()" style="flex:2;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">送信する</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 成功モーダル -->
+<div id="success-modal" class="lh-success-modal">
+    <div class="inner">
+        <p style="font-size:32px;margin:0 0 16px;">✅</p>
+        <h3 id="success-modal-title">完了しました</h3>
+        <p id="success-modal-message"></p>
+        <button onclick="closeSuccessModal()">閉じる</button>
+    </div>
+</div>
+
+<footer class="lh-footer">
+    <div style="display:flex;justify-content:center;align-items:center;gap:0;flex-wrap:wrap;">
+        <a href="https://yobuho.com/terms.html">利用規約</a>
+        <span class="sep">|</span>
+        <a href="https://yobuho.com/privacy.html">プライバシーポリシー</a>
+        <span class="sep">|</span>
+        <a href="https://yobuho.com/contact.html">お問い合わせ</a>
+    </div>
+    <p>&copy; 2026 YobuHo Studio All Rights Reserved.</p>
+</footer>
+
+<script src="loveho-app.js?v=1"></script>
+</body>
+</html>

@@ -44,3 +44,6 @@ jobs:
             rsync -avz \
               -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
               ./subdomain/same/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/same.yobuho.com/
+            rsync -avz \
+              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+              ./subdomain/loveho/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/loveho.yobuho.com/

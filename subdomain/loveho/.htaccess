@@ -1,0 +1,4 @@
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteRule ^index\.html$ / [R=301,L]
