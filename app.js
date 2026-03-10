@@ -831,15 +831,6 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const city = h.city || extractCity(h.address);
         if (city) citySet.add(city);
     });
-    // ラブホのcityも追加（detail_area/major_areaがnullのためprefectureで取得）
-    const { data: lovehoCityRows } = await supabaseClient.from('hotels')
-        .select('city')
-        .eq('prefecture', pref)
-        .eq('hotel_type', 'love_hotel')
-        .eq('is_published', true);
-    (lovehoCityRows || []).forEach(h => {
-        if (h.city) citySet.add(h.city);
-    });
     const candidateCitiesDA = [...citySet];
 
     // 各cityの全ホテル数を取得（detail_areaに関係なくprefecture+cityで集計）
