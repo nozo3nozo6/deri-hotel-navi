@@ -111,6 +111,8 @@ function ensurePortalMode() {
         document.querySelector('.area-section').style.display = '';
         document.querySelector('.search-tools').style.display = '';
         document.getElementById('hotel-list').style.display = '';
+        const bottomLinks = document.getElementById('bottom-info-links');
+        if (bottomLinks) bottomLinks.style.display = 'none';
     }
 }
 
@@ -2084,6 +2086,8 @@ function showHotelPanel(hotelId, isLoveho) {
     const rs = document.getElementById('result-status');
     if (rs) rs.style.display = 'none';
     document.getElementById('hotel-list').style.display = 'none';
+    const bottomLinks = document.getElementById('bottom-info-links');
+    if (bottomLinks) bottomLinks.style.display = 'none';
     hideLovehoTabs();
 
     const panel = document.getElementById('hotel-detail-panel');
