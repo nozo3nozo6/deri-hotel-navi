@@ -645,7 +645,6 @@ async function showMajorAreaPage(region, pref) {
 }
 
 async function showCityPage(region, pref, majorArea) {
-    console.log('[showCityPage] CALLED', pref, majorArea);
     if(document.activeElement)document.activeElement.blur();
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
@@ -739,7 +738,6 @@ async function showCityPage(region, pref, majorArea) {
     const { data: lovehoRows } = await supabaseClient.from('hotels')
         .select('city')
         .eq('prefecture', pref)
-        .eq('major_area', majorArea)
         .eq('hotel_type', 'love_hotel')
         .eq('is_published', true)
         .in('city', candidateCities);
@@ -791,7 +789,6 @@ async function showCityPage(region, pref, majorArea) {
 // detail_area ページ（detailClass階層: smallClass → detailClass → city）
 // ==========================================================================
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
-    console.log('[showDetailAreaPage] CALLED', pref, majorArea, detailArea);
     if(document.activeElement)document.activeElement.blur();
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
@@ -834,11 +831,10 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const city = h.city || extractCity(h.address);
         if (city) citySet.add(city);
     });
-    // ラブホのcityも追加（detail_areaがnullのためmajor_area+cityで取得）
+    // ラブホのcityも追加（detail_area/major_areaがnullのためprefectureで取得）
     const { data: lovehoCityRows } = await supabaseClient.from('hotels')
         .select('city')
         .eq('prefecture', pref)
-        .eq('major_area', majorArea)
         .eq('hotel_type', 'love_hotel')
         .eq('is_published', true);
     (lovehoCityRows || []).forEach(h => {
@@ -865,19 +861,15 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     }
 
     const lovehoCount = {};
-    console.log('[debug1] pref:', pref, 'majorArea:', majorArea, 'candidateCitiesDA:', candidateCitiesDA);
     const lovehoResult = await supabaseClient.from('hotels')
         .select('city')
         .eq('prefecture', pref)
-        .eq('major_area', majorArea)
         .eq('hotel_type', 'love_hotel')
         .eq('is_published', true)
         .in('city', candidateCitiesDA);
-    console.log('[debug2] lovehoResult:', JSON.stringify(lovehoResult));
     (lovehoResult.data || []).forEach(h => {
         if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
     });
-    console.log('[debug3] lovehoCount:', JSON.stringify(lovehoCount));
 
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
