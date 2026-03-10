@@ -841,7 +841,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         let cFrom = 0;
         const C_PAGE = 1000;
         while (true) {
-            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).neq('hotel_type', 'love_hotel').range(cFrom, cFrom + C_PAGE - 1);
+            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).in('city', candidateCitiesDA).eq('is_published', true).neq('hotel_type', 'love_hotel').range(cFrom, cFrom + C_PAGE - 1);
             if (!chunk || !chunk.length) break;
             allCityRows = allCityRows.concat(chunk);
             if (chunk.length < C_PAGE) break;
