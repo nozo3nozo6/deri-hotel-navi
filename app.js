@@ -645,6 +645,7 @@ async function showMajorAreaPage(region, pref) {
 }
 
 async function showCityPage(region, pref, majorArea) {
+    console.log('[showCityPage] CALLED', pref, majorArea);
     if(document.activeElement)document.activeElement.blur();
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
@@ -790,6 +791,7 @@ async function showCityPage(region, pref, majorArea) {
 // detail_area ページ（detailClass階層: smallClass → detailClass → city）
 // ==========================================================================
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
+    console.log('[showDetailAreaPage] CALLED', pref, majorArea, detailArea);
     if(document.activeElement)document.activeElement.blur();
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
