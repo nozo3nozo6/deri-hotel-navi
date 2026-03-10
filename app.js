@@ -319,12 +319,12 @@ async function loadAds(placementType, placementTarget) {
             const shopName = ad.shops?.shop_name || '掲載店舗';
             const url = ad.shops?.shop_url;
             const nameHTML = url
-                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-weight:bold; text-decoration:none;">${esc(shopName)}</a>`
-                : `<span style="font-weight:bold; color:var(--text);">${esc(shopName)}</span>`;
-            return `<div style="background:#fff8f0; border:1px solid #f0d5c0; border-radius:8px; padding:12px 16px; margin-bottom:8px;">
-                <div style="font-size:10px; color:#999; margin-bottom:4px;">📢 掲載店舗</div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="background:#b5627a; color:#fff; font-size:10px; padding:2px 6px; border-radius:3px;">認定店</span>
+                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
+                : `<span style="font-size:13px; color:var(--text); margin-left:4px;">${esc(shopName)}</span>`;
+            return `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:6px; padding:10px 14px; margin:16px 0; font-size:12px;">
+                <span style="color:#999; font-size:10px;">📢 このエリアの掲載店舗</span>
+                <div style="margin-top:4px;">
+                    <span style="background:#b5627a; color:#fff; font-size:9px; padding:1px 5px; border-radius:2px;">認定店</span>
                     ${nameHTML}
                 </div>
             </div>`;
