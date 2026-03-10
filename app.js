@@ -271,7 +271,7 @@ function clearHotelList() {
     const s = document.getElementById('result-status');
     if (s) s.style.display = 'none';
     const links = document.getElementById('bottom-info-links');
-    if (links) links.style.display = 'flex';
+    if (links) links.style.display = 'none';
     hideLovehoTabs();
 }
 
