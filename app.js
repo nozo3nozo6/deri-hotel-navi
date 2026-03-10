@@ -863,6 +863,8 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     (lovehoRows || []).forEach(h => {
         if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
     });
+    console.log('[lovehoCount]', JSON.stringify(lovehoCount));
+    console.log('[candidateCitiesDA]', candidateCitiesDA);
 
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
