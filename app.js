@@ -852,6 +852,19 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         });
     }
 
+    const lovehoCount = {};
+    const { data: lovehoRows } = await supabaseClient.from('hotels')
+        .select('city')
+        .eq('prefecture', pref)
+        .eq('major_area', majorArea)
+        .eq('detail_area', detailArea)
+        .eq('hotel_type', 'love_hotel')
+        .eq('is_published', true)
+        .in('city', candidateCitiesDA);
+    (lovehoRows || []).forEach(h => {
+        if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
+    });
+
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length) {
@@ -865,7 +878,12 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const btn = document.createElement('button');
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-        btn.innerHTML = `<span class="city-name">${city}</span><span class="city-count">${cityCount[city] || 0}</span>`;
+        btn.innerHTML = `
+            <span class="city-name">${city}</span>
+            <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
+                ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
+                ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
+            </span>`;
         btn.onclick = () => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
             fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
