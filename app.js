@@ -863,18 +863,19 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     }
 
     const lovehoCount = {};
-    const { data: lovehoRows } = await supabaseClient.from('hotels')
+    console.log('[debug1] pref:', pref, 'majorArea:', majorArea, 'candidateCitiesDA:', candidateCitiesDA);
+    const lovehoResult = await supabaseClient.from('hotels')
         .select('city')
         .eq('prefecture', pref)
         .eq('major_area', majorArea)
         .eq('hotel_type', 'love_hotel')
         .eq('is_published', true)
         .in('city', candidateCitiesDA);
-    (lovehoRows || []).forEach(h => {
+    console.log('[debug2] lovehoResult:', JSON.stringify(lovehoResult));
+    (lovehoResult.data || []).forEach(h => {
         if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
     });
-    console.log('[lovehoCount]', JSON.stringify(lovehoCount));
-    console.log('[candidateCitiesDA]', candidateCitiesDA);
+    console.log('[debug3] lovehoCount:', JSON.stringify(lovehoCount));
 
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
