@@ -1256,6 +1256,16 @@ function loadMoreLovehoCards() {
                 <button onclick="loadMoreLovehoCards()" style="background:#c9a96e;color:#fff;border:none;padding:12px 32px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;">もっと見る（残り${remaining}件）</button>
             </div>`);
     }
+
+    if (displayedCount >= allHotels.length) {
+        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>';
+        container.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${shopRegLink}
+            </div>
+        `);
+    }
 }
 
 // ==========================================================================
