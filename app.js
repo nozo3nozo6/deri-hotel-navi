@@ -857,7 +857,6 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         .select('city')
         .eq('prefecture', pref)
         .eq('major_area', majorArea)
-        .eq('detail_area', detailArea)
         .eq('hotel_type', 'love_hotel')
         .eq('is_published', true)
         .in('city', candidateCitiesDA);
