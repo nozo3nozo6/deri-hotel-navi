@@ -141,6 +141,7 @@ function restoreFromUrl() {
         const filterObj = { prefecture: pref };
         if (area) filterObj.major_area = area;
         if (detail) filterObj.detail_area = detail;
+        setBackBtn(true);
         fetchAndShowHotelsByCity(filterObj, city);
     } else if (params.get('detail')) {
         const pref = params.get('pref');
@@ -1355,7 +1356,8 @@ function renderLovehoDetail(hotel, reports) {
 
     const content = document.getElementById('hotel-detail-content');
     content.innerHTML = `
-        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:12px;">
+      <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
+        <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
             <a href="${googleSearch}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.name)}</a>
             <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:6px;">🏩 ラブホテル</span>
         </div>
@@ -1461,6 +1463,7 @@ function renderLovehoDetail(hotel, reports) {
             </div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">投稿する</button>
         </div>
+      </div>
     `;
 
     lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', cleanliness: 0, recommendation: 0, cost_performance: 0, has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
