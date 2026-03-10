@@ -826,11 +826,21 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
-    // このdetail_area内の市区町村を抽出
+    // このdetail_area内の市区町村を抽出（ラブホも含む）
     const citySet = new Set();
     data.forEach(h => {
         const city = h.city || extractCity(h.address);
         if (city) citySet.add(city);
+    });
+    // ラブホのcityも追加（detail_areaがnullのためmajor_area+cityで取得）
+    const { data: lovehoCityRows } = await supabaseClient.from('hotels')
+        .select('city')
+        .eq('prefecture', pref)
+        .eq('major_area', majorArea)
+        .eq('hotel_type', 'love_hotel')
+        .eq('is_published', true);
+    (lovehoCityRows || []).forEach(h => {
+        if (h.city) citySet.add(h.city);
     });
     const candidateCitiesDA = [...citySet];
 
