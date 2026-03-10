@@ -719,7 +719,7 @@ async function showCityPage(region, pref, majorArea) {
     let countFrom = 0;
     const COUNT_PAGE = 1000;
     while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).in('city', candidateCities).eq('is_published', true).neq('hotel_type', 'love_hotel').range(countFrom, countFrom + COUNT_PAGE - 1);
+        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).eq('major_area', majorArea).in('city', candidateCities).eq('is_published', true).neq('hotel_type', 'love_hotel').range(countFrom, countFrom + COUNT_PAGE - 1);
         if (!chunk || !chunk.length) break;
         countRows = countRows.concat(chunk);
         if (chunk.length < COUNT_PAGE) break;
@@ -732,6 +732,18 @@ async function showCityPage(region, pref, majorArea) {
             if (!cityAreaCount[h.city]) cityAreaCount[h.city] = {};
             cityAreaCount[h.city][h.major_area] = (cityAreaCount[h.city][h.major_area] || 0) + 1;
         }
+    });
+
+    const lovehoCount = {};
+    const { data: lovehoRows } = await supabaseClient.from('hotels')
+        .select('city')
+        .eq('prefecture', pref)
+        .eq('major_area', majorArea)
+        .eq('hotel_type', 'love_hotel')
+        .eq('is_published', true)
+        .in('city', candidateCities);
+    (lovehoRows || []).forEach(h => {
+        if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
     });
 
     // 現在のmajor_areaが最多（同数含む）のcityのみ表示
@@ -758,7 +770,10 @@ async function showCityPage(region, pref, majorArea) {
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
         btn.innerHTML = `
             <span class="city-name">${city}</span>
-            <span class="city-count">${cityCount[city] || 0}</span>`;
+            <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
+                ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
+                ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
+            </span>`;
         btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city); };
         container.appendChild(btn);
     });
