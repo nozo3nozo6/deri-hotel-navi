@@ -1304,20 +1304,13 @@ async function loadLhMasters() {
     LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
     LH_MASTER.time_slots = ts.map(r => r.name);
     if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
-    const gp = await supabaseClient
+    const gpRes = await supabaseClient
         .from('loveho_good_points')
-        .select('id, label')
+        .select('label, category')
         .eq('is_active', true)
         .order('sort_order');
-    console.log('[good_points raw]', gp.data, gp.error);
-    LH_MASTER.good_points = (gp.data || []).map(r => r.label);
+    LH_MASTER.good_points = (gpRes.data || []);
     LH_MASTER._loaded = true;
-    console.log('[LH_MASTER]', JSON.stringify({
-        atmospheres: LH_MASTER.atmospheres.length,
-        room_types: LH_MASTER.room_types.length,
-        time_slots: LH_MASTER.time_slots.length,
-        good_points: LH_MASTER.good_points.length
-    }));
 }
 
 function openLovehoDetail(hotelId) {
@@ -1473,15 +1466,22 @@ function renderLovehoDetail(hotel, reports) {
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
-            ${LH_MASTER.good_points && LH_MASTER.good_points.length ? `
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">📝 チェックポイント <span style="font-weight:400;color:var(--text-3);">（複数選択可）</span></label>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                    ${LH_MASTER.good_points.map(p => `
-                        <div onclick="lhToggleGoodPoint(this,'${esc(p)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p)}</div>
-                    `).join('')}
-                </div>
-            </div>` : ''}
+            ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
+                const categories = ['設備・お部屋', 'サービス・利便性'];
+                const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
+                return categories.map(cat => {
+                    const items = LH_MASTER.good_points.filter(p => p.category === cat);
+                    if (!items.length) return '';
+                    return `<div style="margin-bottom:14px;">
+                        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">${catIcons[cat] || '📝'} ${cat} <span style="font-weight:400;color:var(--text-3);">（複数選択可）</span></label>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                            ${items.map(p => `
+                                <div onclick="lhToggleGoodPoint(this,'${esc(p.label)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p.label)}</div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }).join('');
+            })() : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
                 <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
