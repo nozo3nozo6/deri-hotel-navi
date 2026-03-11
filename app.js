@@ -1304,18 +1304,19 @@ async function loadLhMasters() {
     LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
     LH_MASTER.time_slots = ts.map(r => r.name);
     if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
-    const { data: goodPoints } = await supabaseClient
+    const gp = await supabaseClient
         .from('loveho_good_points')
         .select('id, label')
         .eq('is_active', true)
         .order('sort_order');
-    LH_MASTER.goodPoints = goodPoints || [];
+    console.log('[good_points raw]', gp.data, gp.error);
+    LH_MASTER.good_points = gp.data || [];
     LH_MASTER._loaded = true;
     console.log('[LH_MASTER]', JSON.stringify({
         atmospheres: LH_MASTER.atmospheres.length,
         room_types: LH_MASTER.room_types.length,
         time_slots: LH_MASTER.time_slots.length,
-        goodPoints: LH_MASTER.goodPoints.length
+        good_points: LH_MASTER.good_points.length
     }));
 }
 
@@ -1478,10 +1479,10 @@ function renderLovehoDetail(hotel, reports) {
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
-            ${LH_MASTER.goodPoints.length ? `<div style="margin-bottom:14px;">
+            ${LH_MASTER.good_points.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">📝 チェックポイント（複数選択可）</label>
                 <div style="display:flex;flex-wrap:wrap;gap:0;">
-                    ${LH_MASTER.goodPoints.map(p => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e0d5d0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;margin:4px;"><input type="checkbox" name="good_points" value="${p.id}" style="accent-color:#b94060;"> ${esc(p.label)}</label>`).join('')}
+                    ${LH_MASTER.good_points.map(p => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e0d5d0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;margin:4px;"><input type="checkbox" name="good_points" value="${p.id}" style="accent-color:#b94060;"> ${esc(p.label)}</label>`).join('')}
                 </div>
             </div>` : ''}
             <div style="margin-bottom:14px;">
