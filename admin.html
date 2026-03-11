@@ -367,6 +367,7 @@
                     <button class="master-tab" id="mt-room" onclick="switchMasterSub('room')">🛏 部屋タイプ</button>
                     <button class="master-tab" id="mt-plans" onclick="switchMasterSub('plans')">💰 契約プラン</button>
                     <button class="master-tab" id="mt-service" onclick="switchMasterSub('service')">🛎 店舗サービス</button>
+                    <button class="master-tab" id="mt-goodpoints" onclick="switchMasterSub('goodpoints')">📝 チェックポイント</button>
                 </div>
                 <div class="master-sub active" id="msub-can">
                     <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="can-reasons-sub"></div>
@@ -411,6 +412,14 @@
                     <div class="add-row">
                         <input id="new-service-option" class="add-input" placeholder="新しいサービスを入力..." onkeydown="if(event.key==='Enter')addServiceOption()">
                         <button class="btn-add" onclick="addServiceOption()">＋ 追加</button>
+                    </div>
+                </div>
+                <div class="master-sub" id="msub-goodpoints">
+                    <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="goodpoints-sub"></div>
+                    <div class="cond-list" id="goodpoints-list"></div>
+                    <div class="add-row">
+                        <input id="new-goodpoint" class="add-input" placeholder="新しいチェックポイントを入力..." onkeydown="if(event.key==='Enter')addGoodPoint()">
+                        <button class="btn-add" onclick="addGoodPoint()">＋ 追加</button>
                     </div>
                 </div>
             </div>
@@ -873,7 +882,7 @@ function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("ope
 function openNav(){toggleTabBar();}
 function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
 const sortStates={};
@@ -1335,6 +1344,15 @@ function renderServiceOptions(){document.getElementById("service-options-sub").t
 async function addServiceOption(){const input=document.getElementById("new-service-option");const name=input.value.trim();if(!name){toast("サービス名を入力してください");return;}const maxOrder=serviceOptionsData.length?Math.max(...serviceOptionsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("shop_service_options").insert({name,sort_order:maxOrder}).select().maybeSingle();if(error){console.error("addServiceOption error:",JSON.stringify(error));toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー: "+error.message);return;}serviceOptionsData.push(data);renderServiceOptions();input.value="";toast("✅ 追加しました");}
 async function editServiceOption(id,oldName){const newName=prompt("サービス名を編集してください:",oldName);if(!newName||newName.trim()===oldName)return;const{error}=await sb.from("shop_service_options").update({name:newName.trim()}).eq("id",id);if(error){console.error("editServiceOption error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}serviceOptionsData=serviceOptionsData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderServiceOptions();toast("✅ 更新しました");}
 async function deleteServiceOption(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const{error}=await sb.from("shop_service_options").delete().eq("id",id);if(error){console.error("deleteServiceOption error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}serviceOptionsData=serviceOptionsData.filter(c=>c.id!==id);renderServiceOptions();toast("🗑 削除しました");}
+
+// ===== チェックポイント =====
+let goodPointsData=[];
+async function loadGoodPoints(){const{data,error}=await sb.from("loveho_good_points").select("*").order("sort_order");if(error){toast("取得エラー: "+error.message);return;}goodPointsData=data||[];renderGoodPoints();}
+function renderGoodPoints(){document.getElementById("goodpoints-sub").textContent=`全 ${goodPointsData.length} 件`;document.getElementById("goodpoints-list").innerHTML=goodPointsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:goodPointsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_good_points')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})" style="${c.is_active?'':'opacity:0.4;'}"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="toggleGoodPoint(${c.id},${c.is_active})">${c.is_active?'無効にする':'有効にする'}</button><button class="btn b-btn-gold" onclick="editGoodPoint(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteGoodPoint(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
+async function addGoodPoint(){const input=document.getElementById("new-goodpoint");const label=input.value.trim();if(!label){toast("チェックポイントを入力してください");return;}const maxOrder=goodPointsData.length?Math.max(...goodPointsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("loveho_good_points").insert({label,sort_order:maxOrder,is_active:true}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}goodPointsData.push(data);renderGoodPoints();input.value="";toast("✅ 追加しました");}
+async function editGoodPoint(id,label){const newLabel=prompt("チェックポイントを編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("loveho_good_points").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderGoodPoints();toast("✅ 更新しました");}
+async function toggleGoodPoint(id,currentActive){const{error}=await sb.from("loveho_good_points").update({is_active:!currentActive}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
+async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("loveho_good_points").delete().eq("id",id);if(error){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
 
 // ===== 契約プラン =====
 let contractPlansData=[];
@@ -2315,7 +2333,7 @@ async function checkSlotStatus(){
 const _origSwitchTab=switchTab;
 switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();};
 
-async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
+async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
 </script>
 </body>
 </html>
