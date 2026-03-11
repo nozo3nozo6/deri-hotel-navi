@@ -127,13 +127,16 @@ function ensurePortalMode() {
     }
 }
 
-function restoreFromUrl() {
+async function restoreFromUrl() {
     const params = new URLSearchParams(window.location.search);
     console.log('[restoreFromUrl] URL params:', Object.fromEntries(params));
     _skipPushState = true;
 
     if (params.get('hotel')) {
-        showHotelPanel(parseInt(params.get('hotel')));
+        const hotelId = parseInt(params.get('hotel'));
+        const { data: h } = await supabaseClient.from('hotels').select('hotel_type').eq('id', hotelId).maybeSingle();
+        const isLoveho = h && h.hotel_type === 'love_hotel';
+        showHotelPanel(hotelId, isLoveho);
         _skipPushState = false;
         return;
     }
