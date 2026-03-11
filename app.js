@@ -1288,18 +1288,18 @@ let lhFormState = {};
 async function loadLhMasters() {
     if (LH_MASTER._loaded) return;
     const [atm, rt, fac, pr, ts] = await Promise.all([
-        supabaseClient.from('loveho_atmospheres').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_room_types').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_facilities').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_price_ranges').select('label,type').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_time_slots').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_atmospheres').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_room_types').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_facilities').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_price_ranges').select('name,type').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_time_slots').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
     ]);
-    LH_MASTER.atmospheres = atm.map(r => r.label);
-    LH_MASTER.room_types = rt.map(r => r.label);
-    LH_MASTER.facilities = fac.map(r => r.label);
-    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.label);
-    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.label);
-    LH_MASTER.time_slots = ts.map(r => r.label);
+    LH_MASTER.atmospheres = atm.map(r => r.name);
+    LH_MASTER.room_types = rt.map(r => r.name);
+    LH_MASTER.facilities = fac.map(r => r.name);
+    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.name);
+    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
+    LH_MASTER.time_slots = ts.map(r => r.name);
     if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
     LH_MASTER._loaded = true;
 }
