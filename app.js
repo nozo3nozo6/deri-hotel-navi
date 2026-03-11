@@ -1469,12 +1469,6 @@ function renderLovehoDetail(hotel, reports) {
                     <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>
                 </select>
             </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">外出可能？</label>
-                <select id="lh-go-out" onchange="lhFormState.can_go_out=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
-                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
-                </select>
-            </div>
             ${LH_MASTER.atmospheres.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
@@ -1506,7 +1500,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
 }
 
 function lhSetStar(field, value) {
@@ -1547,7 +1541,7 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1556,7 +1550,6 @@ async function submitLovehoReport() {
         const payload = {
             hotel_id: currentHotelId,
             solo_entry: lhFormState.solo_entry || null,
-            can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
             good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
             time_slot: lhFormState.time_slot || null,
