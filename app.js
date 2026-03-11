@@ -1301,6 +1301,12 @@ async function loadLhMasters() {
     LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
     LH_MASTER.time_slots = ts.map(r => r.name);
     if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
+    const { data: goodPoints } = await supabaseClient
+        .from('loveho_good_points')
+        .select('id, label')
+        .eq('is_active', true)
+        .order('sort_order');
+    LH_MASTER.goodPoints = goodPoints || [];
     LH_MASTER._loaded = true;
 }
 
@@ -1469,18 +1475,12 @@ function renderLovehoDetail(hotel, reports) {
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">清潔感</label>
-                <div id="lh-star-cleanliness" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cleanliness',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label>
-                <div id="lh-star-recommendation" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('recommendation',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label>
-                <div id="lh-star-cost_performance" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cost_performance',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
-            </div>
+            ${LH_MASTER.goodPoints.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">✅ 良かった点（複数選択可）</label>
+                <div style="display:flex;flex-wrap:wrap;gap:0;">
+                    ${LH_MASTER.goodPoints.map(p => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e0d5d0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;margin:4px;"><input type="checkbox" name="good_points" value="${p.id}" style="accent-color:#b94060;"> ${esc(p.label)}</label>`).join('')}
+                </div>
+            </div>` : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">駐車場</label>
                 <select onchange="lhFormState.has_parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
@@ -1520,7 +1520,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', cleanliness: 0, recommendation: 0, cost_performance: 0, has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
 }
 
 function lhSetStar(field, value) {
@@ -1542,7 +1542,8 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.cleanliness || lhFormState.recommendation || lhFormState.cost_performance || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.facilities.length || lhFormState.price_rest || lhFormState.price_stay || lhFormState.time_slot || lhFormState.comment;
+    const goodPoints = [...document.querySelectorAll('input[name="good_points"]:checked')].map(el => parseInt(el.value));
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.facilities.length || lhFormState.price_rest || lhFormState.price_stay || lhFormState.time_slot || lhFormState.comment || goodPoints.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1553,9 +1554,7 @@ async function submitLovehoReport() {
             solo_entry: lhFormState.solo_entry || null,
             can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
-            cleanliness: lhFormState.cleanliness || null,
-            recommendation: lhFormState.recommendation || null,
-            cost_performance: lhFormState.cost_performance || null,
+            good_points: goodPoints.length ? goodPoints : null,
             has_parking: lhFormState.has_parking || null,
             room_type_id: lhFormState.room_type_id || null,
             facilities: lhFormState.facilities.length ? lhFormState.facilities : null,
