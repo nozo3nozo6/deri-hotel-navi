@@ -108,7 +108,7 @@ function ensurePortalMode() {
                     <span class="btn-gate-text">ゲートへ</span>
                 </button>
                 <div class="header-logo">
-                    <span class="logo-text">Deri <em>Hotel</em> Navi</span>
+                    <a href="https://yobuho.com/" style="text-decoration:none;"><span class="logo-text">Deri <em>Hotel</em> Navi</span></a>
                 </div>
                 <div class="lang-buttons">
                     <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
@@ -2143,7 +2143,7 @@ function showHotelPanel(hotelId, isLoveho) {
                 <span class="btn-gate-text">ゲートへ</span>
             </button>
             <div class="header-logo" style="flex:1;text-align:center;">
-                <span class="logo-text">Deri <em>Hotel</em> Navi</span>
+                <a href="https://yobuho.com/" style="text-decoration:none;"><span class="logo-text">Deri <em>Hotel</em> Navi</span></a>
             </div>
             <button class="btn-area-back" onclick="closeHotelPanel()" style="display:flex;">
                 <span class="back-arrow">←</span>
