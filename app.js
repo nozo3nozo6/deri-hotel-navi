@@ -1310,7 +1310,7 @@ async function loadLhMasters() {
         .eq('is_active', true)
         .order('sort_order');
     console.log('[good_points raw]', gp.data, gp.error);
-    LH_MASTER.good_points = gp.data || [];
+    LH_MASTER.good_points = (gp.data || []).map(r => r.label);
     LH_MASTER._loaded = true;
     console.log('[LH_MASTER]', JSON.stringify({
         atmospheres: LH_MASTER.atmospheres.length,
@@ -1479,10 +1479,13 @@ function renderLovehoDetail(hotel, reports) {
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
-            ${LH_MASTER.good_points.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">📝 チェックポイント（複数選択可）</label>
-                <div style="display:flex;flex-wrap:wrap;gap:0;">
-                    ${LH_MASTER.good_points.map(p => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e0d5d0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;margin:4px;"><input type="checkbox" name="good_points" value="${p.id}" style="accent-color:#b94060;"> ${esc(p.label)}</label>`).join('')}
+            ${LH_MASTER.good_points && LH_MASTER.good_points.length ? `
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">📝 チェックポイント <span style="font-weight:400;color:var(--text-3);">（複数選択可）</span></label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    ${LH_MASTER.good_points.map(p => `
+                        <div onclick="lhToggleGoodPoint(this,'${esc(p)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p)}</div>
+                    `).join('')}
                 </div>
             </div>` : ''}
             <div style="margin-bottom:14px;">
@@ -1513,7 +1516,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', time_slot: '', comment: '', poster_name: '' };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
 }
 
 function lhSetStar(field, value) {
@@ -1521,6 +1524,25 @@ function lhSetStar(field, value) {
     const container = document.getElementById('lh-star-' + field);
     if (!container) return;
     container.querySelectorAll('span').forEach((s, i) => { s.style.color = i < value ? '#c9a96e' : '#ccc'; });
+}
+
+function lhToggleGoodPoint(el, name) {
+    const active = el.dataset.active === '1';
+    if (active) {
+        el.dataset.active = '0';
+        el.style.borderColor = 'rgba(201,169,110,0.4)';
+        el.style.background = '#fff';
+        el.style.color = 'var(--text-2)';
+        el.style.fontWeight = 'normal';
+        lhFormState.good_points = lhFormState.good_points.filter(p => p !== name);
+    } else {
+        el.dataset.active = '1';
+        el.style.borderColor = '#c9a96e';
+        el.style.background = 'rgba(201,169,110,0.12)';
+        el.style.color = '#c9a96e';
+        el.style.fontWeight = '600';
+        if (!lhFormState.good_points.includes(name)) lhFormState.good_points.push(name);
+    }
 }
 
 function lhToggleFac(el, name) {
@@ -1535,8 +1557,7 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const goodPoints = [...document.querySelectorAll('input[name="good_points"]:checked')].map(el => parseInt(el.value));
-    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.time_slot || lhFormState.comment || goodPoints.length;
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1547,7 +1568,7 @@ async function submitLovehoReport() {
             solo_entry: lhFormState.solo_entry || null,
             can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
-            good_points: goodPoints.length ? goodPoints : null,
+            good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
             has_parking: lhFormState.has_parking || null,
             room_type_id: lhFormState.room_type_id || null,
             time_slot: lhFormState.time_slot || null,
