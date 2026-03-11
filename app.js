@@ -2347,7 +2347,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
                 <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
-                    ${r.can_call ? '✅ 呼べた' : '❌ 呼べなかった'}
+                    ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ 呼べた' : '❌ 呼べなかった')}
                 </span>
                 ${tagsHTML}
                 ${metaChips}
