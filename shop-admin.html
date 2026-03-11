@@ -499,7 +499,7 @@ const REGION_MAP=[
     {label:"九州",prefs:["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県"]},
     {label:"沖縄",prefs:["沖縄県"]}
 ];
-const HOTEL_TYPES={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+const HOTEL_TYPES={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"ラブホテル",other:"その他"};
 
 function extractCity(address){
     if(!address)return null;
@@ -759,7 +759,8 @@ function renderHotelCards(hotels){
     if(!hotels.length)return'<div class="loading">ホテルがありません</div>';
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
         const isReg=registeredHotelIds.has(String(h.id));
-        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer"><button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button></div></div>`;
+        const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
+        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer"><button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button></div></div>`;
     }).join("")+'</div>';
 }
 
@@ -1000,7 +1001,7 @@ function renderRegistered(){
     if(!pageData.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-3);font-size:13px;">登録済みホテルがありません</div>';document.getElementById("pagination").innerHTML="";return;}
     wrap.innerHTML=pageData.map(r=>{
         const name=r.hotels?r.hotels.name:"(削除済み)";
-        const canLabel=r.can_call?'<span class="reg-status can">呼べる</span>':'<span class="reg-status cant">呼べない</span>';
+        const canLabel=r.can_call?'<span class="reg-status can">ご案内実績あり</span>':'<span class="reg-status cant">ご案内不可</span>';
         const tVal=r.transport_fee;
         const cost=tVal===null||tVal===undefined?"—":formatFee(tVal);
         return`<div class="reg-row"><span class="reg-name">${esc(name)}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">削除</button></div></div>`;
