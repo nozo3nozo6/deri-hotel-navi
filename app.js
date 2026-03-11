@@ -7,6 +7,17 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const GATE_URL_MAP = {
+    'men': 'https://deli.yobuho.com/',
+    'women': 'https://jofu.yobuho.com/',
+    'men_same': 'https://same.yobuho.com/',
+    'women_same': 'https://same.yobuho.com/',
+};
+function getGateUrl() {
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    return GATE_URL_MAP[mode] || 'https://yobuho.com/';
+}
+
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -92,7 +103,7 @@ function ensurePortalMode() {
         const header = document.querySelector('.portal-header');
         header.innerHTML = `
             <div class="header-inner">
-                <button onclick="location.href='index.html'" class="btn-to-gate">
+                <button onclick="location.href=getGateUrl()" class="btn-to-gate">
                     <span class="btn-gate-icon">⛩</span>
                     <span class="btn-gate-text">ゲートへ</span>
                 </button>
@@ -2136,7 +2147,7 @@ function showHotelPanel(hotelId, isLoveho) {
     const header = document.querySelector('.portal-header');
     header.innerHTML = `
         <div class="header-inner" style="max-width:640px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;">
-            <button onclick="location.href='index.html'" class="btn-to-gate">
+            <button onclick="location.href=getGateUrl()" class="btn-to-gate">
                 <span class="btn-gate-icon">⛩</span>
                 <span class="btn-gate-text">ゲートへ</span>
             </button>
