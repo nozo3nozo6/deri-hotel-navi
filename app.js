@@ -1408,12 +1408,6 @@ function renderLovehoDetail(hotel, reports) {
 
     // フォーム用 select 生成
     const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-    const facCheckboxes = LH_MASTER.facilities.map(f =>
-        `<label onclick="lhToggleFac(this,'${esc(f)}')" style="display:flex;align-items:center;gap:6px;background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text-2);cursor:pointer;transition:all 0.15s;">
-            <input type="checkbox" value="${esc(f)}" style="display:none;"><span>${esc(f)}</span>
-        </label>`
-    ).join('');
-
     const content = document.getElementById('hotel-detail-content');
     content.innerHTML = `
       <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
@@ -1462,7 +1456,7 @@ function renderLovehoDetail(hotel, reports) {
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">一人で先に入れる？</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
-                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
+                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>
                 </select>
             </div>
             <div style="margin-bottom:14px;">
@@ -1476,7 +1470,7 @@ function renderLovehoDetail(hotel, reports) {
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
             ${LH_MASTER.goodPoints.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">✅ 良かった点（複数選択可）</label>
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">📝 チェックポイント（複数選択可）</label>
                 <div style="display:flex;flex-wrap:wrap;gap:0;">
                     ${LH_MASTER.goodPoints.map(p => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e0d5d0;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;margin:4px;"><input type="checkbox" name="good_points" value="${p.id}" style="accent-color:#b94060;"> ${esc(p.label)}</label>`).join('')}
                 </div>
@@ -1491,18 +1485,6 @@ function renderLovehoDetail(hotel, reports) {
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">ルームタイプ</label>
                 <select onchange="lhFormState.room_type_id=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
             </div>` : ''}
-            ${LH_MASTER.facilities.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">設備（複数選択可）</label>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">${facCheckboxes}</div>
-            </div>` : ''}
-            ${LH_MASTER.price_ranges_rest.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">休憩料金帯</label>
-                <select onchange="lhFormState.price_rest=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_rest)}</select>
-            </div>` : ''}
-            ${LH_MASTER.price_ranges_stay.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">宿泊料金帯</label>
-                <select onchange="lhFormState.price_stay=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_stay)}</select>
-            </div>` : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
                 <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
@@ -1514,13 +1496,14 @@ function renderLovehoDetail(hotel, reports) {
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label>
                 <input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
+                <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div>
             </div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">投稿する</button>
         </div>
       </div>
     `;
 
-    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', time_slot: '', comment: '', poster_name: '' };
 }
 
 function lhSetStar(field, value) {
@@ -1543,7 +1526,7 @@ function lhToggleFac(el, name) {
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
     const goodPoints = [...document.querySelectorAll('input[name="good_points"]:checked')].map(el => parseInt(el.value));
-    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.facilities.length || lhFormState.price_rest || lhFormState.price_stay || lhFormState.time_slot || lhFormState.comment || goodPoints.length;
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.time_slot || lhFormState.comment || goodPoints.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1557,9 +1540,6 @@ async function submitLovehoReport() {
             good_points: goodPoints.length ? goodPoints : null,
             has_parking: lhFormState.has_parking || null,
             room_type_id: lhFormState.room_type_id || null,
-            facilities: lhFormState.facilities.length ? lhFormState.facilities : null,
-            price_rest: lhFormState.price_rest || null,
-            price_stay: lhFormState.price_stay || null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
