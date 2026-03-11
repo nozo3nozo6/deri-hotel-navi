@@ -585,6 +585,7 @@ function switchTab(name){
     document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
     document.getElementById("tab-"+name).classList.add("active");
     document.getElementById("tab-btn-"+name).classList.add("active");
+    if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";showJapanPage();}
     if(name==="list")loadRegisteredHotels();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
 }
