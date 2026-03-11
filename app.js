@@ -1311,6 +1311,12 @@ async function loadLhMasters() {
         .order('sort_order');
     LH_MASTER.goodPoints = goodPoints || [];
     LH_MASTER._loaded = true;
+    console.log('[LH_MASTER]', JSON.stringify({
+        atmospheres: LH_MASTER.atmospheres.length,
+        room_types: LH_MASTER.room_types.length,
+        time_slots: LH_MASTER.time_slots.length,
+        goodPoints: LH_MASTER.goodPoints.length
+    }));
 }
 
 function openLovehoDetail(hotelId) {
