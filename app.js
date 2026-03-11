@@ -1489,16 +1489,6 @@ function renderLovehoDetail(hotel, reports) {
                 </div>
             </div>` : ''}
             <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">駐車場</label>
-                <select onchange="lhFormState.has_parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
-                    <option value="">選択してください</option><option value="yes">あり</option><option value="no">なし</option><option value="unknown">わからない</option>
-                </select>
-            </div>
-            ${LH_MASTER.room_types.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">ルームタイプ</label>
-                <select onchange="lhFormState.room_type_id=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
-            </div>` : ''}
-            <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
                 <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
             </div>
@@ -1516,7 +1506,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', has_parking: '', room_type_id: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
 }
 
 function lhSetStar(field, value) {
@@ -1557,7 +1547,7 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1569,8 +1559,6 @@ async function submitLovehoReport() {
             can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
             good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
-            has_parking: lhFormState.has_parking || null,
-            room_type_id: lhFormState.room_type_id || null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
