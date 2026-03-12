@@ -1394,13 +1394,13 @@ function renderLovehoDetail(hotel, reports) {
     content.innerHTML = `
       <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
         <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
-            <a href="${googleSearch}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.name)}</a>
-            <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:6px;">🏩 ラブホテル</span>
+            ${esc(h.name)} <span style="font-size:14px;">🏩</span>
         </div>
         <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
             <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px;"><span>📍</span><a href="${googleMap}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.address || '住所不明')}</a></div>
             ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
             ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
+            ${h.major_area ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📌</span><span>${esc(h.major_area)}</span></div>` : ''}
             ${soloPct !== null ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>👤</span><span>一人入室 <strong>${soloPct}%</strong> が可能と回答</span></div>` : ''}
         </div>
 
