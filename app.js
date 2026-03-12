@@ -1384,6 +1384,7 @@ function renderLovehoDetail(hotel, reports) {
             ${gpRoom.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🛁 設備・お部屋</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpRoom)}</div></div>` : ''}
             ${gpService.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🏨 サービス・利便性</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpService)}</div></div>` : ''}
             ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🕐 ${esc(r.time_slot)}</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:#c9a96e;margin-top:4px;">👥 複数人利用OK</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }).join('');
@@ -1448,6 +1449,12 @@ function renderLovehoDetail(hotel, reports) {
                 }).join('');
             })() : ''}
             <div style="margin-bottom:14px;">
+                <label onclick="lhToggleMultiPerson(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
+                    <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked" style="width:16px;height:16px;accent-color:#c9a96e;cursor:pointer;">
+                    <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
+                </label>
+            </div>
+            <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
                 <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
             </div>
@@ -1465,7 +1472,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [] };
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false };
 }
 
 function lhSetStar(field, value) {
@@ -1520,6 +1527,7 @@ async function submitLovehoReport() {
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
+            multi_person: lhFormState.multi_person || false,
         };
         const { error } = await supabaseClient.from('loveho_reports').insert(payload);
         if (error) throw error;
