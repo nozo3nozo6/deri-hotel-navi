@@ -1349,41 +1349,7 @@ function renderLovehoDetail(hotel, reports) {
     const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(h.name)}`;
     const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address || h.name)}`;
 
-    let aloneY = 0, aloneN = 0, aloneU = 0;
-    const facilityCount = {}, atmosphereCount = {}, goodPointCount = {};
-
-    reports.forEach(r => {
-        if (r.solo_entry === 'yes') aloneY++; else if (r.solo_entry === 'no') aloneN++; else aloneU++;
-        if (r.facilities && Array.isArray(r.facilities)) r.facilities.forEach(f => { facilityCount[f] = (facilityCount[f] || 0) + 1; });
-        if (r.atmosphere) atmosphereCount[r.atmosphere] = (atmosphereCount[r.atmosphere] || 0) + 1;
-        if (r.good_points && Array.isArray(r.good_points)) r.good_points.forEach(gp => { goodPointCount[gp] = (goodPointCount[gp] || 0) + 1; });
-    });
-
-    function ynBar(title, yes, no, unk) {
-        const total = yes + no + unk;
-        if (!total) return '';
-        const yP = Math.round(yes/total*100), nP = Math.round(no/total*100), uP = 100 - yP - nP;
-        return `<div style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">${title}</div>
-            <div style="display:flex;height:22px;border-radius:11px;overflow:hidden;background:var(--bg-4,#ede8df);">
-                ${yP > 0 ? `<div style="width:${yP}%;background:#3a9a60;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">Yes ${yP}%</div>` : ''}
-                ${nP > 0 ? `<div style="width:${nP}%;background:#c05050;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">No ${nP}%</div>` : ''}
-                ${uP > 0 ? `<div style="width:${uP}%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-3);">?</div>` : ''}
-            </div>
-        </div>`;
-    }
-
-    const facilityTags = Object.entries(facilityCount).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<span style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:11px;color:var(--text-2);">${esc(f)} (${c})</span>`).join(' ');
-    const atmosphereTags = Object.entries(atmosphereCount).sort((a,b)=>b[1]-a[1]).map(([a,c])=>`<span style="background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.25);border-radius:16px;padding:3px 10px;font-size:11px;color:#c9a96e;">${esc(a)} (${c})</span>`).join(' ');
-    const goodPointTags = Object.entries(goodPointCount).sort((a,b)=>b[1]-a[1]).map(([gp,c])=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:16px;padding:3px 10px;font-size:11px;color:#3a9a60;">${esc(gp)} (${c})</span>`).join(' ');
-
     const reviewsHTML = reports.map(r => {
-        const tags = [];
-        if (r.atmosphere) tags.push('✨ ' + r.atmosphere);
-        if (r.room_type_id) tags.push(r.room_type_id);
-        if (r.time_slot) tags.push('🕐 ' + r.time_slot);
-        if (r.price_rest) tags.push('休憩: ' + r.price_rest);
-        if (r.price_stay) tags.push('宿泊: ' + r.price_stay);
         const gpTags = r.good_points && Array.isArray(r.good_points) && r.good_points.length
             ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${r.good_points.map(gp=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">${esc(gp)}</span>`).join('')}</div>` : '';
         return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
@@ -1393,7 +1359,8 @@ function renderLovehoDetail(hotel, reports) {
             </div>
             ${r.comment ? `<div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-top:4px;">${esc(r.comment)}</div>` : ''}
             ${gpTags}
-            ${tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${tags.map(t=>`<span style="background:var(--bg-3);border-radius:10px;padding:2px 8px;font-size:10px;color:var(--text-3);">${esc(t)}</span>`).join('')}</div>` : ''}
+            ${r.atmosphere ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">✨ ${esc(r.atmosphere)}</div>` : ''}
+            ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:4px;">🕐 ${esc(r.time_slot)}</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }).join('');
@@ -1414,13 +1381,6 @@ function renderLovehoDetail(hotel, reports) {
         </div>
 
         <div id="detail-ad-slot"></div>
-
-        ${reports.length > 0 ? `
-        ${ynBar('一人で入れる？', aloneY, aloneN, aloneU)}
-        ${goodPointTags ? `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">チェックポイント</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${goodPointTags}</div></div>` : ''}
-        ${atmosphereTags ? `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">雰囲気</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${atmosphereTags}</div></div>` : ''}
-        ${facilityTags ? `<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">設備</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${facilityTags}</div></div>` : ''}
-        ` : '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">まだ口コミがありません</div>'}
 
         <div style="margin-bottom:24px;">
             <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${reports.length}件)</h3>
