@@ -1396,12 +1396,16 @@ function renderLovehoDetail(hotel, reports) {
         <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
             ${esc(h.name)} <span style="font-size:14px;">🏩</span>
         </div>
-        <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
-            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px;"><span>📍</span><a href="${googleMap}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.address || '住所不明')}</a></div>
-            ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
-            ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
-            ${h.major_area ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📌</span><span>${esc(h.major_area)}</span></div>` : ''}
-            ${soloPct !== null ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>👤</span><span>一人入室 <strong>${soloPct}%</strong> が可能と回答</span></div>` : ''}
+        <div style="padding:12px 0;border-bottom:1px solid rgba(201,169,110,0.2);margin-bottom:12px;">
+            ${h.address || h.tel ? `<div style="font-size:13px;color:var(--text-2);margin-bottom:4px;">
+                ${h.address ? `📍 ${esc(h.address)}` : ''}
+                ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
+            </div>` : ''}
+            <div style="font-size:13px;color:var(--text-2);">
+                ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
+                ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
+            </div>
+            ${soloPct !== null ? `<div style="font-size:13px;color:var(--text-2);margin-top:4px;">👤 一人入室 <strong>${soloPct}%</strong> が可能と回答</div>` : ''}
         </div>
 
         <div id="detail-ad-slot"></div>
