@@ -2413,12 +2413,14 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
         ${shopPct !== null ? `
         <div style="margin-bottom:12px;">
-            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">🏪 店舗実績 <span style="color:var(--text-3);">店舗投稿 ${shopReports.length}件</span></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
-                    <div style="background:#c9a96e;height:100%;width:${shopPct}%;transition:width 0.5s;"></div>
-                </div>
-                <span style="font-size:13px;font-weight:600;color:#c9a96e;">${shopPct}%</span>
+            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">🏪 店舗実績（${shopReports.length}件）</div>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+                <div style="width:${shopPct}%;background:#3a9a60;"></div>
+                <div style="width:${100-shopPct}%;background:#c05050;"></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>ご案内実績あり ${shopPct}%</span>
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>ご案内不可 ${100-shopPct}%</span>
             </div>
         </div>` : ''}
 
@@ -2426,12 +2428,14 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
         ${userPct !== null ? `
         <div style="margin-bottom:12px;">
-            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">📊 呼べる？ <span style="color:var(--text-3);">ユーザー投稿 ${userReports.length}件</span></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
-                    <div style="background:var(--accent,#b5627a);height:100%;width:${userPct}%;transition:width 0.5s;"></div>
-                </div>
-                <span style="font-size:13px;font-weight:600;color:var(--accent,#b5627a);">${userPct}%</span>
+            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">📊 呼べる？（${userReports.length}件）</div>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+                <div style="width:${userPct}%;background:#3a9a60;"></div>
+                <div style="width:${100-userPct}%;background:#c05050;"></div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>呼べた ${userPct}%</span>
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>呼べなかった ${100-userPct}%</span>
             </div>
         </div>` : ''}
 
