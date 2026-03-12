@@ -571,7 +571,7 @@ const REGION_MAP=[
     {label:"九州",prefs:["福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県"]},
     {label:"沖縄",prefs:["沖縄県"]}
 ];
-const HOTEL_TYPES={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"ラブホテル",other:"その他"};
+const HOTEL_TYPES={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"ラブホテル",rental_room:"レンタルルーム",other:"その他"};
 
 function extractCity(address){
     if(!address)return null;
@@ -827,11 +827,11 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     if(error){nav.innerHTML=`<div class="loading">エラー: ${esc(error.message)}</div>`;return;}
     const hotels=data||[];
     console.log('[showHotels] total:',hotels.length,'hotel_types:',hotels.map(h=>h.hotel_type));
-    const normalHotels=hotels.filter(h=>h.hotel_type!=='love_hotel');
+    const normalHotels=hotels.filter(h=>!['love_hotel','rental_room'].includes(h.hotel_type));
     // ラブホはmajor_area/detail_areaがnullのため別途取得
     let loveHotels=[];
     if(pref&&city){
-        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true).eq("hotel_type","love_hotel").eq("prefecture",pref).eq("city",city).order("name").limit(100);
+        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true).in("hotel_type",["love_hotel","rental_room"]).eq("prefecture",pref).eq("city",city).order("name").limit(100);
         loveHotels=lhData||[];
     }
     console.log('[showHotels] normal:',normalHotels.length,'loveho:',loveHotels.length);
@@ -854,7 +854,7 @@ function renderHotelCards(hotels){
     if(!hotels.length)return'<div class="loading">ホテルがありません</div>';
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
         const isReg=registeredHotelIds.has(String(h.id));
-        const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
+        const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':h.hotel_type==='rental_room'?'🏠 レンタルルーム':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
         return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer"><button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button></div></div>`;
     }).join("")+'</div>';
 }
