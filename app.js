@@ -1365,9 +1365,12 @@ function renderLovehoDetail(hotel, reports) {
     if (LH_MASTER.good_points) LH_MASTER.good_points.forEach(p => { gpCatMap[p.label] = p.category; });
 
     // 一人入室の集計
-    const soloYes = reports.filter(r => r.solo_entry === 'yes').length;
-    const soloTotal = reports.filter(r => r.solo_entry && r.solo_entry !== '').length;
-    const soloPct = soloTotal > 0 ? Math.round(soloYes / soloTotal * 100) : null;
+    const soloMap = { yes: 'はい', no: 'いいえ', together: '一緒に入った', waiting: '待合室待ち', unknown: 'わからない' };
+    const soloColors = { yes: '#c9a96e', no: '#b5627a', together: '#7a9bc9', waiting: '#9b7ac9', unknown: '#ccc' };
+    const soloReports = reports.filter(r => r.solo_entry && r.solo_entry !== '');
+    const soloCounts = {};
+    soloReports.forEach(r => { soloCounts[r.solo_entry] = (soloCounts[r.solo_entry] || 0) + 1; });
+    const soloTotal = soloReports.length;
 
     const reviewsHTML = reports.map(r => {
         const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
@@ -1405,11 +1408,14 @@ function renderLovehoDetail(hotel, reports) {
             ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
             ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
         </div>
-        ${soloPct !== null ? `
-        <div style="margin-top:12px;">
-            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">👤 一人入室可能 <strong>${soloPct}%</strong>（${soloTotal}件回答）</div>
-            <div style="background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
-                <div style="background:#c9a96e;height:100%;width:${soloPct}%;transition:width 0.5s;"></div>
+        ${soloTotal > 0 ? `
+        <div style="margin-top:12px;margin-bottom:16px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">👤 一人で先に入れる？（${soloTotal}件回答）</div>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+                ${Object.entries(soloCounts).map(([key, count]) => `<div style="width:${Math.round(count/soloTotal*100)}%;background:${soloColors[key]||'#ccc'};"></div>`).join('')}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                ${Object.entries(soloCounts).map(([key, count]) => `<span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${soloColors[key]||'#ccc'};margin-right:3px;"></span>${soloMap[key]||key} ${Math.round(count/soloTotal*100)}%</span>`).join('')}
             </div>
         </div>` : ''}
 
