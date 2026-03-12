@@ -542,6 +542,16 @@ function showJapanPage() {
         btn.onclick = () => { pageStack.push(showJapanPage); showPrefPage(region); };
         container.appendChild(btn);
     });
+    // リンクバー追加
+    const hlcJp = document.getElementById('hotel-list');
+    if (hlcJp && !hlcJp.querySelector('.info-links-bar')) {
+        hlcJp.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+            </div>
+        `);
+    }
 }
 
 async function showPrefPage(region) {
@@ -583,6 +593,16 @@ async function showPrefPage(region) {
         };
         container.appendChild(btn);
     });
+    // リンクバー追加
+    const hlcPref = document.getElementById('hotel-list');
+    if (hlcPref && !hlcPref.querySelector('.info-links-bar')) {
+        hlcPref.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+            </div>
+        `);
+    }
 }
 
 async function showMajorAreaPage(region, pref) {
