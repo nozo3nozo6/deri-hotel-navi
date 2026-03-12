@@ -656,6 +656,16 @@ async function showMajorAreaPage(region, pref) {
         if (allBtn) container.insertBefore(noAreaBtn, allBtn);
         else container.appendChild(noAreaBtn);
     }
+    // リンクバー追加
+    const hlc = document.getElementById('hotel-list');
+    if (hlc && !hlc.querySelector('.info-links-bar')) {
+        hlc.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+            </div>
+        `);
+    }
 }
 
 async function showCityPage(region, pref, majorArea) {
@@ -911,6 +921,16 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
     };
     container.appendChild(allBtn);
+    // リンクバー追加
+    const hlc2 = document.getElementById('hotel-list');
+    if (hlc2 && !hlc2.querySelector('.info-links-bar')) {
+        hlc2.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+            </div>
+        `);
+    }
 }
 
 // ==========================================================================
