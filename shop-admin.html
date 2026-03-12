@@ -11,12 +11,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --rose:#b05570;--rose-dim:#8e3f56;--rose-bg:rgba(176,85,112,0.08);--rose-border:rgba(176,85,112,0.25);
-            --gold:#c9a84c;--gold-dim:#a08030;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);
-            --bg:#0d0d14;--bg-2:#141420;--bg-3:#1c1c2a;--bg-4:#252532;
-            --border:rgba(255,255,255,0.10);--border-s:rgba(255,255,255,0.18);
-            --text:#f2efe9;--text-2:rgba(242,239,233,0.72);--text-3:rgba(242,239,233,0.42);
-            --red:#c05050;--green:#3a9a60;--blue:#5a8abf;
+            --rose:#b5627a;--rose-dim:#9a4e65;--rose-bg:rgba(181,98,122,0.07);--rose-border:rgba(181,98,122,0.22);
+            --gold:#c9a96e;--gold-dim:#a8894e;--gold-bg:rgba(201,169,110,0.08);--gold-border:rgba(201,169,110,0.25);
+            --bg:#f8f7f5;--bg-2:#ffffff;--bg-3:#f3f1ee;--bg-4:#ece9e5;
+            --border:#e8e4e0;--border-s:#d5d0cb;
+            --text:#1a1a1a;--text-2:#666666;--text-3:#999999;
+            --red:#c05050;--green:#2e8b57;--blue:#4a7fb5;
             --r:8px;
         }
         *{box-sizing:border-box;margin:0;padding:0;}
@@ -27,12 +27,12 @@
         .logo{font-family:"Cormorant Garamond",serif;font-size:22px;font-weight:300;letter-spacing:0.12em;color:var(--gold);margin-bottom:6px;text-align:center;}
         .logo em{font-style:italic;font-weight:600;}
         .logo-sub{font-size:11px;color:var(--text-3);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:32px;text-align:center;}
-        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.35);}
+        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.08);}
         .login-card h2{font-size:18px;font-weight:700;margin-bottom:4px;}
         .login-card .sub{font-size:12px;color:var(--text-3);margin-bottom:24px;}
         .f-group{margin-bottom:16px;}
         .f-label{display:block;font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:6px;letter-spacing:0.5px;}
-        .f-input{width:100%;padding:11px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:border-color 0.2s;}
+        .f-input{width:100%;padding:11px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:border-color 0.2s;}
         .f-input:focus{border-color:var(--rose);}
         .f-input::placeholder{color:var(--text-3);}
         .btn-login{width:100%;padding:13px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.2s;margin-top:8px;}
@@ -51,7 +51,7 @@
 
         /* ===== メインレイアウト ===== */
         .main-wrap{max-width:1000px;margin:0 auto;padding:20px;display:none;}
-        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25);}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
         .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
         .card-title .sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:auto;}
 
@@ -59,7 +59,7 @@
         .st-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;}
         .st-active{background:rgba(58,154,96,0.12);color:var(--green);border:1px solid rgba(58,154,96,0.25);}
         .st-registered{background:#fff3e0;color:#e67e22;border:1px solid rgba(230,126,34,0.25);}
-        .st-suspended{background:var(--bg-3);color:var(--text-3);border:1px solid var(--border);}
+        .st-suspended{background:#f0eeec;color:#888;border:1px solid var(--border);}
         .st-rejected{background:rgba(192,80,80,0.1);color:var(--red);border:1px solid rgba(192,80,80,0.2);}
         .st-revision{background:#fce4ec;color:#d84315;border:1px solid rgba(216,67,21,0.25);}
         .st-pending{background:#fffde7;color:#f9a825;border:1px solid rgba(249,168,37,0.3);}
@@ -78,13 +78,13 @@
         /* ===== エリアボタングリッド ===== */
         .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px;}
         .area-btn{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.15s;text-align:left;}
-        .area-btn:hover{border-color:var(--rose-border);background:var(--bg-4);transform:translateY(-1px);}
+        .area-btn:hover{border-color:var(--rose-border);background:#faf8f6;transform:translateY(-1px);}
         .area-btn .area-name{font-size:13px;font-weight:600;}
-        .area-btn .area-count{font-size:11px;color:var(--text-3);background:var(--bg);padding:2px 8px;border-radius:10px;white-space:nowrap;}
+        .area-btn .area-count{font-size:11px;color:var(--text-3);background:var(--bg-4);padding:2px 8px;border-radius:10px;white-space:nowrap;}
 
         /* ===== 検索バー ===== */
         .search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
-        .search-input{flex:1;min-width:200px;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color 0.2s;}
+        .search-input{flex:1;min-width:200px;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color 0.2s;}
         .search-input:focus{border-color:var(--rose);}
         .search-input::placeholder{color:var(--text-3);}
         .btn-search{padding:10px 20px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
@@ -93,7 +93,7 @@
         /* ===== ホテルカード ===== */
         .hotel-cards{display:grid;gap:10px;}
         .hotel-card{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:16px;transition:all 0.15s;animation:fadeIn 0.3s ease both;}
-        .hotel-card:hover{border-color:var(--border-s);}
+        .hotel-card:hover{border-color:var(--border-s);background:#faf8f6;}
         @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
         .hotel-card-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
         .hotel-card-name{font-size:14px;font-weight:700;flex:1;}
@@ -126,20 +126,20 @@
         .form-row{display:flex;gap:12px;flex-wrap:wrap;}
         .form-row>div{flex:1;min-width:0;}
 
-        .f-select{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+        .f-select{width:100%;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
         .f-select:focus{border-color:var(--rose);}
 
         /* 交通費入力 */
         .transport-fee-group{display:flex;flex-direction:column;gap:10px;}
         .free-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);user-select:none;}
         .free-check input{width:16px;height:16px;cursor:pointer;accent-color:var(--rose);}
-        .transport-fee-input{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r);padding:0 12px;background:var(--bg-3);transition:border-color 0.2s;}
+        .transport-fee-input{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r);padding:0 12px;background:#fff;transition:border-color 0.2s;}
         .transport-fee-input:focus-within{border-color:var(--rose);}
         .fee-prefix,.fee-suffix{font-size:16px;font-weight:700;color:var(--text-2);}
         .transport-fee-input input{border:none;outline:none;font-size:16px;padding:10px 8px;flex:1;text-align:right;background:transparent;color:var(--text);font-family:inherit;}
         .transport-fee-input input::placeholder{color:var(--text-3);}
 
-        .f-textarea{width:100%;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;}
+        .f-textarea{width:100%;padding:10px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:13px;outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;}
         .f-textarea:focus{border-color:var(--rose);}
         .f-textarea::placeholder{color:var(--text-3);}
 
@@ -169,9 +169,9 @@
         .btn-submit:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
         /* ===== 確認モーダル ===== */
-        .confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9995;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
+        .confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9995;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
         .confirm-overlay.active{display:flex;}
-        .confirm-card{background:var(--bg-2);border:1px solid var(--border-s);border-radius:16px;padding:24px 20px 28px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.4);}
+        .confirm-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:24px 20px 28px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 8px 48px rgba(0,0,0,0.12);}
         .confirm-title{text-align:center;font-size:17px;font-weight:700;margin-bottom:4px;}
         .confirm-sub{text-align:center;font-size:12px;color:var(--text-3);margin-bottom:18px;}
         .confirm-row{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
@@ -190,7 +190,7 @@
 
         /* ===== ボタン共通 ===== */
         .btn{padding:8px 16px;border-radius:var(--r);border:1px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;}
-        .btn:hover{box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+        .btn:hover{box-shadow:0 2px 8px rgba(0,0,0,0.08);}
         .btn-rose{background:var(--rose);color:#fff;border-color:var(--rose);}
         .btn-rose:hover{background:var(--rose-dim);border-color:var(--rose-dim);}
         .btn-outline{background:transparent;color:var(--text-2);border-color:var(--border);}
@@ -204,7 +204,7 @@
         /* ===== 登録済みホテル一覧 ===== */
         .reg-list{display:grid;gap:8px;}
         .reg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;transition:all 0.15s;}
-        .reg-row:hover{border-color:var(--border-s);}
+        .reg-row:hover{border-color:var(--border-s);background:#faf8f6;}
         .reg-name{font-size:13px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .reg-status{font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;}
         .reg-status.can{background:rgba(58,154,96,0.12);color:var(--green);border:1px solid rgba(58,154,96,0.25);}
@@ -220,7 +220,7 @@
 
         /* ===== その他 ===== */
         .loading{text-align:center;padding:30px;color:var(--text-3);font-size:13px;}
-        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--bg-2);border:1px solid var(--border-s);color:var(--text);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
         .toast.show{opacity:1;}
         .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;}
         .tab-btn{padding:10px 20px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
