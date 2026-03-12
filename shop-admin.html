@@ -443,6 +443,28 @@
                 <div class="service-checks" id="service-checks"></div>
             </div>
 
+            <div style="margin-bottom:14px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;background:#fff;user-select:none;">
+                    <input type="checkbox" id="sa-multi-person-check" onchange="document.getElementById('sa-multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
+                </label>
+                <div id="sa-multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
+                    <select id="sa-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">男性</option>
+                        <option value="1">男性 1名</option>
+                        <option value="2">男性 2名</option>
+                        <option value="3">男性 3名</option>
+                        <option value="4">男性 4名</option>
+                    </select>
+                    <select id="sa-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">女性</option>
+                        <option value="1">女性 1名</option>
+                        <option value="2">女性 2名</option>
+                        <option value="3">女性 3名</option>
+                        <option value="4">女性 4名</option>
+                    </select>
+                </div>
+            </div>
             <div class="form-group">
                 <label class="form-label">メモ <span class="opt">(任意)</span></label>
                 <textarea class="f-textarea" id="form-memo" placeholder="特記事項があれば入力..."></textarea>
@@ -813,7 +835,7 @@ function openForm(hotel,existing){
     clearCheckGroup("cant-reason-checks");
     clearCheckGroup("room-type-checks");
     clearCheckGroup("time-slot-checks");
-    document.getElementById("transport-free").checked=false;document.getElementById("transport-fee-wrap").style.display="flex";document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";
+    document.getElementById("transport-free").checked=false;document.getElementById("transport-fee-wrap").style.display="flex";document.getElementById("form-transport").value="";document.getElementById("form-memo").value="";document.getElementById("sa-multi-person-check").checked=false;document.getElementById("sa-multi-person-detail").style.display="none";document.getElementById("sa-guest-male").value="";document.getElementById("sa-guest-female").value="";
 
     if(existing){
         setCanCall(existing.can_call);
@@ -939,8 +961,9 @@ async function doSubmit(){
         room_type:roomTypeArr[0]||null,
         comment:memo,
         gender_mode:currentShop.gender_mode||"men",
-        guest_male:1,
-        guest_female:0
+        multi_person:!!document.getElementById("sa-multi-person-check").checked,
+        guest_male:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
+        guest_female:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-female").value)||0):0
     };
     const{error:repErr}=await sb.from("reports").insert(reportPayload);
     if(repErr){
