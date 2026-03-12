@@ -725,6 +725,16 @@ async function showCityPage(region, pref, majorArea) {
         allBtn.textContent = `▶ ${t('show_all')}`;
         allBtn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotels({ prefecture: pref, major_area: majorArea }); };
         container.appendChild(allBtn);
+        // リンクバー追加（detail_areaパス）
+        const hlcDA = document.getElementById('hotel-list');
+        if (hlcDA && !hlcDA.querySelector('.info-links-bar')) {
+            hlcDA.insertAdjacentHTML('beforeend', `
+                <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                    <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                    ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+                </div>
+            `);
+        }
         return;
     }
 
@@ -807,6 +817,16 @@ async function showCityPage(region, pref, majorArea) {
     allBtn.textContent = `▶ ${t('show_all')}`;
     allBtn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotels({ prefecture: pref, major_area: majorArea }); };
     container.appendChild(allBtn);
+    // リンクバー追加（cityパス）
+    const hlcCity = document.getElementById('hotel-list');
+    if (hlcCity && !hlcCity.querySelector('.info-links-bar')) {
+        hlcCity.insertAdjacentHTML('beforeend', `
+            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+            </div>
+        `);
+    }
 }
 
 // ==========================================================================
