@@ -285,7 +285,6 @@
         <button class="tab-btn active" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
         <button class="tab-btn" id="tab-btn-search" onclick="switchTab('search')">ホテル検索登録</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
-        <button class="tab-btn" id="tab-btn-loveho" onclick="switchTab('loveho')">🏩 ラブホ</button>
     </div>
 
     <!-- ===== 掲載状況カード ===== -->
@@ -386,6 +385,54 @@
             <div id="area-nav"></div>
         </div>
 
+        <!-- ===== ラブホ口コミフォーム ===== -->
+        <div class="card" id="lh-form-card" style="display:none;">
+            <div class="card-title" id="lh-form-title">口コミ投稿</div>
+            <div class="form-group">
+                <label class="form-label">一人で先に入れる？</label>
+                <select id="lh-f-solo" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                    <option value="">選択してください</option>
+                    <option value="yes">はい</option>
+                    <option value="no">いいえ</option>
+                    <option value="together">一緒に入った</option>
+                    <option value="lobby">待合室で待ち合わせ</option>
+                    <option value="unknown">わからない</option>
+                </select>
+            </div>
+            <div class="form-group" id="lh-f-atm-wrap">
+                <label class="form-label">雰囲気</label>
+                <select id="lh-f-atmosphere" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"></select>
+            </div>
+            <div id="lh-f-gp-wrap"></div>
+            <div style="margin-bottom:14px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;background:#fff;user-select:none;">
+                    <input type="checkbox" id="lh-f-multi" onchange="document.getElementById('lh-f-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
+                    <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
+                </label>
+                <div id="lh-f-multi-detail" style="display:none;gap:8px;margin-top:8px;">
+                    <select id="lh-f-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option>
+                    </select>
+                    <select id="lh-f-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" id="lh-f-ts-wrap">
+                <label class="form-label">利用時間帯</label>
+                <select id="lh-f-timeslot" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">フリーコメント <span class="opt">(任意)</span></label>
+                <textarea class="f-textarea" id="lh-f-comment" placeholder="良かった点、気になった点など"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">投稿者名 <span class="opt">(任意)</span></label>
+                <input type="text" id="lh-f-poster" placeholder="未入力の場合は店舗名で表示" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;box-sizing:border-box;">
+            </div>
+            <button class="btn-submit" id="lh-f-submit" onclick="lhSubmitReport()">口コミを投稿する</button>
+        </div>
+
         <!-- ===== 情報入力フォーム（portal風） ===== -->
         <div class="card info-form" id="info-form">
             <div class="card-title">ホテル情報を登録</div>
@@ -484,71 +531,6 @@
         </div>
     </div>
 
-    <!-- ===== ラブホタブ ===== -->
-    <div class="tab-content" id="tab-loveho">
-        <div class="card">
-            <div class="card-title">🏩 ラブホテル口コミ投稿</div>
-            <div style="margin-bottom:12px;">
-                <select id="lh-pref-select" onchange="lhOnPrefChange()" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                    <option value="">都道府県を選択</option>
-                </select>
-            </div>
-            <div id="lh-breadcrumb" style="font-size:11px;color:#999;margin-bottom:8px;"></div>
-            <div id="lh-city-list"></div>
-            <div id="lh-hotel-list"></div>
-            <div style="display:flex;gap:8px;margin-top:12px;">
-                <input class="search-input" id="lh-keyword" placeholder="ラブホテル名で検索..." onkeydown="if(event.key==='Enter')lhSearch()" style="flex:1;">
-                <button class="btn btn-rose" onclick="lhSearch()">検索</button>
-            </div>
-            <div id="lh-search-results"></div>
-        </div>
-        <div class="card" id="lh-form-card" style="display:none;">
-            <div class="card-title" id="lh-form-title">口コミ投稿</div>
-            <div class="form-group">
-                <label class="form-label">一人で先に入れる？</label>
-                <select id="lh-f-solo" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                    <option value="">選択してください</option>
-                    <option value="yes">はい</option>
-                    <option value="no">いいえ</option>
-                    <option value="together">一緒に入った</option>
-                    <option value="lobby">待合室で待ち合わせ</option>
-                    <option value="unknown">わからない</option>
-                </select>
-            </div>
-            <div class="form-group" id="lh-f-atm-wrap">
-                <label class="form-label">雰囲気</label>
-                <select id="lh-f-atmosphere" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"></select>
-            </div>
-            <div id="lh-f-gp-wrap"></div>
-            <div style="margin-bottom:14px;">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="lh-f-multi" onchange="document.getElementById('lh-f-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
-                    <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
-                </label>
-                <div id="lh-f-multi-detail" style="display:none;gap:8px;margin-top:8px;">
-                    <select id="lh-f-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option>
-                    </select>
-                    <select id="lh-f-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group" id="lh-f-ts-wrap">
-                <label class="form-label">利用時間帯</label>
-                <select id="lh-f-timeslot" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"></select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">フリーコメント <span class="opt">(任意)</span></label>
-                <textarea class="f-textarea" id="lh-f-comment" placeholder="良かった点、気になった点など"></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">投稿者名 <span class="opt">(任意)</span></label>
-                <input type="text" id="lh-f-poster" placeholder="未入力の場合は店舗名で表示" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;box-sizing:border-box;">
-            </div>
-            <button class="btn-submit" id="lh-f-submit" onclick="lhSubmitReport()">口コミを投稿する</button>
-        </div>
-    </div>
 </div>
 
 <!-- ===== 確認モーダル ===== -->
@@ -674,10 +656,9 @@ function switchTab(name){
     document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
     document.getElementById("tab-"+name).classList.add("active");
     document.getElementById("tab-btn-"+name).classList.add("active");
-    if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";showJapanPage();}
+    if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";document.getElementById("lh-form-card").style.display="none";showJapanPage();}
     if(name==="list")loadRegisteredHotels();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
-    if(name==="loveho"){lhInitTab();}
 }
 
 // ===== マスターデータ読み込み =====
@@ -843,7 +824,21 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     const{data,error}=await q;
     if(error){nav.innerHTML=`<div class="loading">エラー: ${esc(error.message)}</div>`;return;}
     const hotels=data||[];
-    nav.innerHTML=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">${hotels.length}件のホテル</div>`+renderHotelCards(hotels);
+    const normalHotels=hotels.filter(h=>h.hotel_type!=='love_hotel');
+    const loveHotels=hotels.filter(h=>h.hotel_type==='love_hotel');
+    let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
+    if(loveHotels.length>0){
+        html+=`<div style="display:flex;gap:0;border-bottom:1px solid var(--border,#e0d5d0);margin-bottom:12px;">
+            <button onclick="saShowSubTab('hotel')" id="sa-subtab-hotel" style="padding:8px 16px;border:none;border-bottom:2px solid var(--rose,#c47a88);background:transparent;font-size:12px;font-weight:600;color:var(--rose,#c47a88);cursor:pointer;font-family:inherit;">🏨 ホテル (${normalHotels.length})</button>
+            <button onclick="saShowSubTab('loveho')" id="sa-subtab-loveho" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:transparent;font-size:12px;font-weight:600;color:var(--text-3,#999);cursor:pointer;font-family:inherit;">🏩 ラブホ (${loveHotels.length})</button>
+        </div>`;
+        html+=`<div id="sa-subtab-hotel-content">${renderHotelCards(normalHotels)}</div>`;
+        html+=`<div id="sa-subtab-loveho-content" style="display:none;">${lhRenderHotelCards(loveHotels)}</div>`;
+    }else{
+        html+=`<div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">${hotels.length}件のホテル</div>`+renderHotelCards(hotels);
+    }
+    nav.innerHTML=html;
+    document.getElementById("lh-form-card").style.display="none";
 }
 
 function renderHotelCards(hotels){
@@ -1204,51 +1199,28 @@ async function changePassword(){
     toast("パスワードを変更しました");
 }
 
-// ===== ラブホタブ =====
+// ===== ラブホ関連 =====
 let lhMaster={atmospheres:[],good_points:[],time_slots:[]};
 let lhSelectedHotelId=null;
 let lhSelectedGoodPoints=[];
-const LH_PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
 
-async function lhInitTab(){
-    await lhLoadMasters();
-    // populate prefecture select
-    const sel=document.getElementById("lh-pref-select");
-    if(sel.options.length<=1){
-        // 実際にラブホがある都道府県だけ取得
-        const{data}=await sb.from("hotels").select("prefecture").eq("is_published",true).eq("hotel_type","love_hotel");
-        const prefSet=new Set((data||[]).map(r=>r.prefecture).filter(Boolean));
-        LH_PREFS.forEach(p=>{if(prefSet.has(p))sel.innerHTML+=`<option value="${esc(p)}">${esc(p)}</option>`;});
+function saShowSubTab(tab){
+    const hotelBtn=document.getElementById("sa-subtab-hotel");
+    const lovehoBtn=document.getElementById("sa-subtab-loveho");
+    const hotelC=document.getElementById("sa-subtab-hotel-content");
+    const lovehoC=document.getElementById("sa-subtab-loveho-content");
+    if(!hotelBtn||!lovehoBtn)return;
+    if(tab==='hotel'){
+        hotelBtn.style.borderBottomColor='var(--rose,#c47a88)';hotelBtn.style.color='var(--rose,#c47a88)';
+        lovehoBtn.style.borderBottomColor='transparent';lovehoBtn.style.color='var(--text-3,#999)';
+        hotelC.style.display='';lovehoC.style.display='none';
+        document.getElementById("lh-form-card").style.display="none";
+    }else{
+        lovehoBtn.style.borderBottomColor='#c9a96e';lovehoBtn.style.color='#c9a96e';
+        hotelBtn.style.borderBottomColor='transparent';hotelBtn.style.color='var(--text-3,#999)';
+        hotelC.style.display='none';lovehoC.style.display='';
+        lhLoadMasters();
     }
-    document.getElementById("lh-city-list").innerHTML="";
-    document.getElementById("lh-hotel-list").innerHTML="";
-    document.getElementById("lh-search-results").innerHTML="";
-    document.getElementById("lh-breadcrumb").innerHTML="";
-    document.getElementById("lh-form-card").style.display="none";
-}
-
-async function lhOnPrefChange(){
-    const pref=document.getElementById("lh-pref-select").value;
-    document.getElementById("lh-hotel-list").innerHTML="";
-    document.getElementById("lh-form-card").style.display="none";
-    if(!pref){document.getElementById("lh-city-list").innerHTML="";document.getElementById("lh-breadcrumb").innerHTML="";return;}
-    document.getElementById("lh-breadcrumb").innerHTML=`📍 ${esc(pref)}`;
-    document.getElementById("lh-city-list").innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("city").eq("is_published",true).eq("hotel_type","love_hotel").eq("prefecture",pref);
-    const cities=[...new Set((data||[]).map(r=>r.city).filter(Boolean))].sort();
-    if(!cities.length){document.getElementById("lh-city-list").innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">この都道府県にラブホテルはありません</div>';return;}
-    document.getElementById("lh-city-list").innerHTML=`<div style="font-size:12px;color:#999;margin-bottom:8px;">${cities.length}エリア</div><div style="display:flex;flex-wrap:wrap;gap:6px;">`+cities.map(c=>`<button onclick="lhSelectCity('${esc(pref).replace(/'/g,"\\'")}','${esc(c).replace(/'/g,"\\'")}')" style="padding:8px 14px;border:1px solid var(--border,#e0d5d0);border-radius:20px;background:#fff;font-size:12px;cursor:pointer;font-family:inherit;">${esc(c)}</button>`).join('')+'</div>';
-}
-
-async function lhSelectCity(pref,city){
-    document.getElementById("lh-breadcrumb").innerHTML=`<span onclick="lhOnPrefChange()" style="cursor:pointer;text-decoration:underline;">📍 ${esc(pref)}</span> › ${esc(city)}`;
-    document.getElementById("lh-city-list").innerHTML="";
-    document.getElementById("lh-hotel-list").innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">読み込み中...</div>';
-    document.getElementById("lh-form-card").style.display="none";
-    const{data}=await sb.from("hotels").select("id,name,address,nearest_station").eq("is_published",true).eq("hotel_type","love_hotel").eq("prefecture",pref).eq("city",city).order("name").limit(100);
-    const hotels=data||[];
-    if(!hotels.length){document.getElementById("lh-hotel-list").innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">ラブホテルがありません</div>';return;}
-    document.getElementById("lh-hotel-list").innerHTML=`<div style="font-size:12px;color:#999;margin-bottom:8px;">${hotels.length}件のラブホテル</div>`+lhRenderHotelCards(hotels);
 }
 
 function lhRenderHotelCards(hotels){
@@ -1296,20 +1268,6 @@ function lhToggleGP(el,label){
     const idx=lhSelectedGoodPoints.indexOf(label);
     if(idx>=0){lhSelectedGoodPoints.splice(idx,1);el.style.background='#fff';el.style.borderColor='var(--border,#e0d5d0)';el.style.fontWeight='400';}
     else{lhSelectedGoodPoints.push(label);el.style.background='rgba(201,169,110,0.15)';el.style.borderColor='rgba(201,169,110,0.5)';el.style.fontWeight='600';}
-}
-
-async function lhSearch(){
-    const kw=document.getElementById("lh-keyword").value.trim();
-    if(!kw){toast("検索キーワードを入力してください");return;}
-    const wrap=document.getElementById("lh-search-results");
-    wrap.innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">検索中...</div>';
-    document.getElementById("lh-city-list").innerHTML="";
-    document.getElementById("lh-hotel-list").innerHTML="";
-    document.getElementById("lh-breadcrumb").innerHTML="🔍 検索結果";
-    const{data}=await sb.from("hotels").select("id,name,address,nearest_station").eq("is_published",true).eq("hotel_type","love_hotel").or(`name.ilike.%${kw}%,address.ilike.%${kw}%`).order("name").limit(50);
-    const hotels=data||[];
-    if(!hotels.length){wrap.innerHTML='<div style="text-align:center;padding:12px;color:#999;font-size:12px;">該当するラブホテルがありません</div>';return;}
-    wrap.innerHTML=`<div style="font-size:12px;color:#999;margin-bottom:8px;">${hotels.length}件見つかりました</div>`+lhRenderHotelCards(hotels);
 }
 
 async function lhSelectHotel(hotelId,hotelName){
