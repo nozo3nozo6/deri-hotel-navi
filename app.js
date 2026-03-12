@@ -2195,19 +2195,25 @@ function showHotelPanel(hotelId, isLoveho) {
     panel.style.display = 'block';
     // ヘッダーを詳細用に切り替え
     const header = document.querySelector('.portal-header');
+    const _logoMap = {
+        'men': '<span style="font-style:italic;color:#666;font-weight:300;font-size:0.85em;letter-spacing:2px;">Deli</span> <b style="color:#c0392b;font-size:1.2em;letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b;font-size:0.9em;">♂</span>',
+        'women': 'JoFu <b>YobuHo</b>',
+        'women_same': '<b>YobuHo</b>',
+        'men_same': '<b>YobuHo</b>',
+    };
+    const _modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
+    const _badgeText = _modeBadgeLabels[MODE] || '';
+    const _badgeHTML = _badgeText ? `<span class="mode-badge">${_badgeText}</span>` : '';
+    const _logoHTML = (_logoMap[MODE] || '<b>YobuHo</b>') + _badgeHTML;
     header.innerHTML = `
         <div class="header-inner" style="max-width:640px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;">
-            <button onclick="location.href=getGateUrl()" class="btn-to-gate">
-                <span class="btn-gate-icon">⛩</span>
-                <span class="btn-gate-text">ゲートへ</span>
+            <button onclick="closeHotelPanel()" class="btn-to-gate">
+                <span class="btn-gate-icon">←</span>
+                <span class="btn-gate-text">戻る</span>
             </button>
-            <div class="header-logo" style="flex:1;text-align:center;">
-                <a href="https://yobuho.com/" style="text-decoration:none;"><span class="logo-text">Deri <em>Hotel</em> Navi</span></a>
+            <div class="header-logo">
+                <span class="logo-text">${_logoHTML}</span>
             </div>
-            <button class="btn-area-back" onclick="closeHotelPanel()" style="display:flex;">
-                <span class="back-arrow">←</span>
-                <span class="back-text">前へ</span>
-            </button>
         </div>`;
 
     // パネルを通常フローで表示（fixed廃止）
