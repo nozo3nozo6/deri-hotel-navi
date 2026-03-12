@@ -802,6 +802,7 @@ async function showDetailAreaCities(ri,pref,majorArea,detailArea){
 }
 
 async function showHotels(ri,pref,majorArea,detailArea,city){
+    console.log('[showHotels] called',{ri,pref,majorArea,detailArea,city});
     const region=REGION_MAP[ri];
     const crumbs=[{label:"日本全国",onclick:"showJapanPage()"}];
     crumbs.push({label:region.label,onclick:`showPrefPage(${ri})`});
@@ -824,8 +825,10 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     const{data,error}=await q;
     if(error){nav.innerHTML=`<div class="loading">エラー: ${esc(error.message)}</div>`;return;}
     const hotels=data||[];
+    console.log('[showHotels] total:',hotels.length,'hotel_types:',hotels.map(h=>h.hotel_type));
     const normalHotels=hotels.filter(h=>h.hotel_type!=='love_hotel');
     const loveHotels=hotels.filter(h=>h.hotel_type==='love_hotel');
+    console.log('[showHotels] normal:',normalHotels.length,'loveho:',loveHotels.length);
     let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
     if(loveHotels.length>0){
         html+=`<div style="display:flex;gap:0;border-bottom:1px solid var(--border,#e0d5d0);margin-bottom:12px;">
