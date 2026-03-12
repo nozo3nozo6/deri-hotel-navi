@@ -1387,7 +1387,7 @@ function renderLovehoDetail(hotel, reports) {
             ${gpRoom.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🛁 設備・お部屋</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpRoom)}</div></div>` : ''}
             ${gpService.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🏨 サービス・利便性</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpService)}</div></div>` : ''}
             ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🕐 ${esc(r.time_slot)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:#c9a96e;margin-top:4px;">👥 複数人利用OK</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }).join('');
@@ -2316,9 +2316,9 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             `<span style="padding:2px 7px;background:${tagBg};border:1px solid ${tagBorder};border-radius:8px;font-size:10px;color:${tagColor};">${t}</span>`
         ).join('');
         const guestChip = r.multi_person
-            ? `<span style="padding:2px 7px;background:rgba(130,100,180,0.08);border:1px solid rgba(130,100,180,0.2);border-radius:8px;font-size:10px;color:#8264b4;">👥 複数人利用OK${r.guest_male||r.guest_female ? ` 男性${r.guest_male||0}名・女性${r.guest_female||0}名`:''}</span>`
+            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}</span>`
             : (r.guest_female != null && r.guest_female > 0)
-            ? `<span style="padding:2px 7px;background:rgba(130,100,180,0.08);border:1px solid rgba(130,100,180,0.2);border-radius:8px;font-size:10px;color:#8264b4;">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
+            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
         const metaChips = [
             r.time_slot  ? `<span style="padding:2px 7px;background:rgba(106,138,188,0.1);border:1px solid rgba(106,138,188,0.25);border-radius:8px;font-size:10px;color:#6a8abc;">🕐${r.time_slot}</span>` : '',
