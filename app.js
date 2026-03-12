@@ -1450,9 +1450,25 @@ function renderLovehoDetail(hotel, reports) {
             })() : ''}
             <div style="margin-bottom:14px;">
                 <label onclick="lhToggleMultiPerson(this)" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked" style="width:16px;height:16px;accent-color:#c9a96e;cursor:pointer;">
+                    <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked; document.getElementById('lh-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:#c9a96e;cursor:pointer;">
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
+                <div id="lh-multi-detail" style="display:none;gap:8px;margin-top:8px;margin-bottom:4px;">
+                    <select onchange="lhFormState.guest_male=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">男性</option>
+                        <option value="1">男性 1名</option>
+                        <option value="2">男性 2名</option>
+                        <option value="3">男性 3名</option>
+                        <option value="4">男性 4名</option>
+                    </select>
+                    <select onchange="lhFormState.guest_female=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">女性</option>
+                        <option value="1">女性 1名</option>
+                        <option value="2">女性 2名</option>
+                        <option value="3">女性 3名</option>
+                        <option value="4">女性 4名</option>
+                    </select>
+                </div>
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
@@ -1472,7 +1488,7 @@ function renderLovehoDetail(hotel, reports) {
       </div>
     `;
 
-    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false };
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
 }
 
 function lhSetStar(field, value) {
@@ -1528,6 +1544,8 @@ async function submitLovehoReport() {
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
             multi_person: lhFormState.multi_person || false,
+            guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
+            guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
         };
         const { error } = await supabaseClient.from('loveho_reports').insert(payload);
         if (error) throw error;
