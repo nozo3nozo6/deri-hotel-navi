@@ -2309,7 +2309,9 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         const tagsHTML = entryTags.map(t =>
             `<span style="padding:2px 7px;background:${tagBg};border:1px solid ${tagBorder};border-radius:8px;font-size:10px;color:${tagColor};">${t}</span>`
         ).join('');
-        const guestChip = (r.guest_female != null && r.guest_female > 0)
+        const guestChip = r.multi_person
+            ? `<span style="padding:2px 7px;background:rgba(130,100,180,0.08);border:1px solid rgba(130,100,180,0.2);border-radius:8px;font-size:10px;color:#8264b4;">👥 複数人利用OK${r.guest_male||r.guest_female ? ` 男性${r.guest_male||0}名・女性${r.guest_female||0}名`:''}</span>`
+            : (r.guest_female != null && r.guest_female > 0)
             ? `<span style="padding:2px 7px;background:rgba(130,100,180,0.08);border:1px solid rgba(130,100,180,0.2);border-radius:8px;font-size:10px;color:#8264b4;">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
         const metaChips = [
@@ -2499,6 +2501,28 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                             ${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
+                </div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
+                    <input type="checkbox" id="multi-person-check" onchange="hotelFormState.multi_person=this.checked; document.getElementById('multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+                    <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
+                </label>
+                <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
+                    <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">男性</option>
+                        <option value="1">男性 1名</option>
+                        <option value="2">男性 2名</option>
+                        <option value="3">男性 3名</option>
+                        <option value="4">男性 4名</option>
+                    </select>
+                    <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                        <option value="">女性</option>
+                        <option value="1">女性 1名</option>
+                        <option value="2">女性 2名</option>
+                        <option value="3">女性 3名</option>
+                        <option value="4">女性 4名</option>
+                    </select>
                 </div>
             </div>
             <div class="form-group">
@@ -2858,6 +2882,7 @@ async function doSubmitReport() {
         comment: hotelFormState.comment || null,
         poster_name: hotelFormState.poster_name?.trim() || '無記名',
         room_type: hotelFormState.room_type || null,
+        multi_person: hotelFormState.multi_person || false,
         guest_male: hotelFormState.multi_person ? hotelFormState.guest_male : 1,
         guest_female: hotelFormState.multi_person ? hotelFormState.guest_female : 0,
         gender_mode: typeof MODE !== 'undefined' ? MODE : 'men',
