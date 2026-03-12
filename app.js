@@ -3097,7 +3097,8 @@ async function submitFlag() {
 // ==========================================================================
 const HOTEL_TYPE_LABELS = {
     business: 'ビジネスホテル', city: 'シティホテル', resort: 'リゾートホテル',
-    ryokan: '旅館', pension: 'ペンション', minshuku: '民宿', rental_room: 'レンタルルーム', other: 'その他',
+    ryokan: '旅館', pension: 'ペンション', minshuku: '民宿',
+    love_hotel: 'ラブホテル', rental_room: 'レンタルルーム', other: 'その他',
 };
 
 function openHotelRequestModal() {
