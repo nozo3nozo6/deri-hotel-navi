@@ -827,7 +827,12 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     const hotels=data||[];
     console.log('[showHotels] total:',hotels.length,'hotel_types:',hotels.map(h=>h.hotel_type));
     const normalHotels=hotels.filter(h=>h.hotel_type!=='love_hotel');
-    const loveHotels=hotels.filter(h=>h.hotel_type==='love_hotel');
+    // ラブホはmajor_area/detail_areaがnullのため別途取得
+    let loveHotels=[];
+    if(pref&&city){
+        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true).eq("hotel_type","love_hotel").eq("prefecture",pref).eq("city",city).order("name").limit(100);
+        loveHotels=lhData||[];
+    }
     console.log('[showHotels] normal:',normalHotels.length,'loveho:',loveHotels.length);
     let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
     if(loveHotels.length>0){
