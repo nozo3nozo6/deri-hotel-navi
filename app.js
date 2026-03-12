@@ -1394,10 +1394,10 @@ function renderLovehoDetail(hotel, reports) {
     content.innerHTML = `
       <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
         <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
-            ${esc(h.name)} <span style="font-size:14px;">🏩</span>
+            <a href="https://www.google.com/search?q=${encodeURIComponent(h.name)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">${esc(h.name)}</a> <span style="font-size:14px;">🏩</span>
         </div>
         <div style="font-size:13px;color:var(--text-2);margin-bottom:6px;">
-            ${h.address ? `📍 ${esc(h.address)}` : ''}
+            ${h.address ? `📍 <a href="https://www.google.com/maps/search/${encodeURIComponent(h.address)}" target="_blank" rel="noopener" style="color:var(--text-2);text-decoration:underline;">${esc(h.address)}</a>` : ''}
             ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
         </div>
         <div style="font-size:13px;color:var(--text-2);">
