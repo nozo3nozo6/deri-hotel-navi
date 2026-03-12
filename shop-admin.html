@@ -13,11 +13,11 @@
         :root {
             --rose:#b05570;--rose-dim:#8e3f56;--rose-bg:rgba(176,85,112,0.08);--rose-border:rgba(176,85,112,0.25);
             --gold:#c9a84c;--gold-dim:#a08030;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);
-            --bg:#0a0a0f;--bg-2:#111118;--bg-3:#1a1a24;--bg-4:#22222e;
-            --border:rgba(255,255,255,0.08);--border-s:rgba(255,255,255,0.15);
-            --text:#f0ede8;--text-2:rgba(240,237,232,0.7);--text-3:rgba(240,237,232,0.4);
+            --bg:#0d0d14;--bg-2:#141420;--bg-3:#1c1c2a;--bg-4:#252532;
+            --border:rgba(255,255,255,0.10);--border-s:rgba(255,255,255,0.18);
+            --text:#f2efe9;--text-2:rgba(242,239,233,0.72);--text-3:rgba(242,239,233,0.42);
             --red:#c05050;--green:#3a9a60;--blue:#5a8abf;
-            --r:10px;
+            --r:8px;
         }
         *{box-sizing:border-box;margin:0;padding:0;}
         body{font-family:"Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
@@ -27,7 +27,7 @@
         .logo{font-family:"Cormorant Garamond",serif;font-size:22px;font-weight:300;letter-spacing:0.12em;color:var(--gold);margin-bottom:6px;text-align:center;}
         .logo em{font-style:italic;font-weight:600;}
         .logo-sub{font-size:11px;color:var(--text-3);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:32px;text-align:center;}
-        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.3);}
+        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.35);}
         .login-card h2{font-size:18px;font-weight:700;margin-bottom:4px;}
         .login-card .sub{font-size:12px;color:var(--text-3);margin-bottom:24px;}
         .f-group{margin-bottom:16px;}
@@ -51,7 +51,7 @@
 
         /* ===== メインレイアウト ===== */
         .main-wrap{max-width:1000px;margin:0 auto;padding:20px;display:none;}
-        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.15);}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25);}
         .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
         .card-title .sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:auto;}
 
@@ -190,6 +190,7 @@
 
         /* ===== ボタン共通 ===== */
         .btn{padding:8px 16px;border-radius:var(--r);border:1px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;}
+        .btn:hover{box-shadow:0 2px 8px rgba(0,0,0,0.25);}
         .btn-rose{background:var(--rose);color:#fff;border-color:var(--rose);}
         .btn-rose:hover{background:var(--rose-dim);border-color:var(--rose-dim);}
         .btn-outline{background:transparent;color:var(--text-2);border-color:var(--border);}
