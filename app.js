@@ -2341,8 +2341,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             ${shopReports.map(buildReportCard).join('')}
         </div>`;
 
-    const reportsHTML = `
-        ${shopSection}
+    const userReportsHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin:4px 0 10px;">
             <span style="font-size:16px;font-weight:600;color:var(--text);">みんなの体験談</span>
             <div style="flex:1;height:1px;background:var(--border);"></div>
@@ -2376,16 +2375,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             </div>` : ''}
         </div>
 
-        ${userPct !== null ? `
-        <div style="margin-bottom:12px;">
-            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">📊 呼べる？ <span style="color:var(--text-3);">ユーザー投稿 ${userReports.length}件</span></div>
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
-                    <div style="background:var(--accent,#b5627a);height:100%;width:${userPct}%;transition:width 0.5s;"></div>
-                </div>
-                <span style="font-size:13px;font-weight:600;color:var(--accent,#b5627a);">${userPct}%</span>
-            </div>
-        </div>` : ''}
+        <div id="detail-ad-slot"></div>
 
         ${shopPct !== null ? `
         <div style="margin-bottom:12px;">
@@ -2398,9 +2388,20 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             </div>
         </div>` : ''}
 
-        <div id="detail-ad-slot"></div>
+        ${shopSection}
 
-        ${reportsHTML}
+        ${userPct !== null ? `
+        <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">📊 呼べる？ <span style="color:var(--text-3);">ユーザー投稿 ${userReports.length}件</span></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="background:var(--accent,#b5627a);height:100%;width:${userPct}%;transition:width 0.5s;"></div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:var(--accent,#b5627a);">${userPct}%</span>
+            </div>
+        </div>` : ''}
+
+        ${userReportsHTML}
 
         <div style="display:flex;align-items:center;gap:10px;margin:28px 0 10px;">
             <span style="font-size:16px;font-weight:600;color:var(--text);">情報を投稿する</span>
