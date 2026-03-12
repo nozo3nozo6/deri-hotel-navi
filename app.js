@@ -1396,17 +1396,21 @@ function renderLovehoDetail(hotel, reports) {
         <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
             ${esc(h.name)} <span style="font-size:14px;">🏩</span>
         </div>
-        <div style="padding:12px 0;border-bottom:1px solid rgba(201,169,110,0.2);margin-bottom:12px;">
-            ${h.address || h.tel ? `<div style="font-size:13px;color:var(--text-2);margin-bottom:4px;">
-                ${h.address ? `📍 ${esc(h.address)}` : ''}
-                ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
-            </div>` : ''}
-            <div style="font-size:13px;color:var(--text-2);">
-                ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
-                ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
-            </div>
-            ${soloPct !== null ? `<div style="font-size:13px;color:var(--text-2);margin-top:4px;">👤 一人入室 <strong>${soloPct}%</strong> が可能と回答</div>` : ''}
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:6px;">
+            ${h.address ? `📍 ${esc(h.address)}` : ''}
+            ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
         </div>
+        <div style="font-size:13px;color:var(--text-2);">
+            ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
+            ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
+        </div>
+        ${soloPct !== null ? `
+        <div style="margin-top:12px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">👤 一人入室可能 <strong>${soloPct}%</strong>（${soloTotal}件回答）</div>
+            <div style="background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
+                <div style="background:#c9a96e;height:100%;width:${soloPct}%;transition:width 0.5s;"></div>
+            </div>
+        </div>` : ''}
 
         <div id="detail-ad-slot"></div>
 
