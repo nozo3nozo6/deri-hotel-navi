@@ -573,7 +573,7 @@
         <!-- Step1: フォーム -->
         <div id="edit-step1">
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="edit-name" class="mi"></div>
-            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
             <div class="mf"><label class="ml">郵便番号</label><input id="edit-postal" class="mi" placeholder="例: 160-0022"></div>
             <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><select id="edit-pref" class="mi" onchange="onPrefChange('edit')"><option value="">選択してください</option></select></div>
             <div class="mf"><label class="ml">市区町村</label><input id="edit-city" class="mi" placeholder="例: 新宿区"></div>
@@ -608,7 +608,7 @@
         <!-- Step1: フォーム -->
         <div id="add-step1">
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="add-name" class="mi" placeholder="例: ホテルアルファ新宿"></div>
-            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="add-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="add-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
             <div class="mf"><label class="ml">郵便番号</label><input id="add-postal" class="mi" placeholder="例: 160-0022"></div>
             <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><select id="add-pref" class="mi" onchange="onPrefChange('add')"><option value="">選択してください</option></select></div>
             <div class="mf"><label class="ml">市区町村</label><input id="add-city" class="mi" placeholder="例: 新宿区"></div>
@@ -646,7 +646,7 @@
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="hreq-edit-name" class="mi" placeholder="例: ホテルアルファ新宿"></div>
             <div class="mf"><label class="ml">住所</label><input id="hreq-edit-address" class="mi" placeholder="例: 東京都新宿区..."></div>
             <div class="mf"><label class="ml">電話番号</label><input id="hreq-edit-tel" class="mi" placeholder="例: 03-xxxx-xxxx"></div>
-            <div class="mf"><label class="ml">ホテルタイプ</label><select id="hreq-edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">ホテルタイプ</label><select id="hreq-edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
             <div class="mf"><label class="ml">都道府県</label><select id="hreq-edit-pref" class="mi" onchange="onPrefChange('hreq-edit')"><option value="">選択してください</option></select></div>
             <div class="mf"><label class="ml">エリア (major_area)</label><select id="hreq-edit-major-area" class="mi" onchange="onMajorAreaChange('hreq-edit')"><option value="">都道府県を先に選択</option></select></div>
             <div class="mf"><label class="ml">詳細エリア (detail_area)</label><select id="hreq-edit-detail-area" class="mi"><option value="">（なし）</option></select></div>
@@ -800,7 +800,7 @@ console.log('[admin.html] version: 2026-03-07-v2');
 const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
 const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
 const sb=supabase.createClient(SB_URL,SB_KEY);
-const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,min_charge,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
 function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
@@ -1369,7 +1369,7 @@ async function editContractPlan(id){const p=contractPlansData.find(x=>x.id===id)
 async function deleteContractPlan(id){const cnt=shopsData.filter(s=>s.plan_id===id).length;if(cnt>0){toast("⚠️ このプランは"+cnt+"店舗で使用中のため削除できません");return;}const p=contractPlansData.find(x=>x.id===id);if(!confirm(`「${p?p.name:""}」を削除しますか？`))return;const{error}=await sb.from("contract_plans").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}contractPlansData=contractPlansData.filter(x=>x.id!==id);renderContractPlans();toast("🗑 削除しました");}
 
 // ===== 掲載リクエスト =====
-const HREQ_TYPE_LABELS={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+const HREQ_TYPE_LABELS={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 let hotelRequestsData=[];
 
 async function loadHotelRequests(){
@@ -1447,7 +1447,7 @@ function closeHreqEdit(){document.getElementById("hreq-edit-modal").style.displa
 function hreqEditToConfirm(){
   var name=document.getElementById("hreq-edit-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
-  var typeLabels={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",other:"その他"};
+  var typeLabels={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
   var rows=[
     ["ホテル名",name],
     ["住所",document.getElementById("hreq-edit-address").value.trim()||"—"],
