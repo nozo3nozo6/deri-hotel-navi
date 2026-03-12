@@ -625,7 +625,7 @@ async function showMajorAreaPage(region, pref) {
     container.className = 'area-grid col-2';
 
     // まずエリア一覧を取得（全件）
-    const query_ma = supabaseClient.from('hotels').select('id,major_area').eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(5000);
+    const query_ma = supabaseClient.from('hotels').select('id,major_area,city,address').eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(5000);
     const { data, error } = await query_ma;
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
@@ -645,36 +645,36 @@ async function showMajorAreaPage(region, pref) {
         (area) => { pageStack.push(() => showMajorAreaPage(region, pref)); showCityPage(region, pref, area); }
     );
 
-    // major_area 未設定のホテルがある場合は「その他のエリア」ボタンを追加
+    // major_area未設定のホテルはcity別にボタン表示
     if (noAreaCount > 0) {
-        const noAreaBtn = document.createElement('button');
-        noAreaBtn.className = 'area-btn';
-        noAreaBtn.innerHTML = `<span class="city-name">その他のエリア</span><span class="city-count">${noAreaCount}</span>`;
-        noAreaBtn.onclick = async () => {
-            pageStack.push(() => showMajorAreaPage(region, pref));
-            showLoading();
-            setBreadcrumb([
-                { label: t('japan'), onclick: 'showJapanPage()' },
-                { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
-                { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
-                { label: 'その他のエリア' }
-            ]);
-            setTitle('その他のエリア');
-            document.getElementById('area-button-container').innerHTML = '';
-            try {
-                let query = supabaseClient.from('hotels').select('*')
-                    .eq('prefecture', pref).is('major_area', null).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(1000)
-                    .order('review_average', { ascending: false, nullsFirst: false });
-                let hotels = await fetchHotelsWithSummary(query);
-                sortHotelsByReviews(hotels);
-                renderHotelCards(hotels);
-                setResultStatus(hotels.length);
-            } catch (e) { console.error(e); } finally { hideLoading(); }
-        };
-        // 「全て表示」ボタンの前に挿入
+        const noAreaHotels = data.filter(h => !h.major_area);
+        const noAreaCityCount = {};
+        noAreaHotels.forEach(h => {
+            const city = h.city || extractCity(h.address);
+            if (city) noAreaCityCount[city] = (noAreaCityCount[city] || 0) + 1;
+        });
+        const noAreaCities = Object.entries(noAreaCityCount).sort((a, b) => b[1] - a[1]);
+        // ラブホ件数も取得
+        const noAreaCityNames = noAreaCities.map(c => c[0]);
+        const noAreaLovehoCount = {};
+        if (noAreaCityNames.length > 0) {
+            const { data: lhRows } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('hotel_type', ['love_hotel', 'rental_room']).eq('is_published', true).in('city', noAreaCityNames);
+            (lhRows || []).forEach(h => { if (h.city) noAreaLovehoCount[h.city] = (noAreaLovehoCount[h.city] || 0) + 1; });
+        }
         const allBtn = container.querySelector('.all-btn');
-        if (allBtn) container.insertBefore(noAreaBtn, allBtn);
-        else container.appendChild(noAreaBtn);
+        noAreaCities.forEach(([city, count]) => {
+            const btn = document.createElement('button');
+            btn.className = 'area-btn';
+            btn.innerHTML = `
+                <span class="city-name">${city}</span>
+                <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
+                    ${count > 0 ? `<span class="city-count">🏨${count}</span>` : ''}
+                    ${(noAreaLovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${noAreaLovehoCount[city]||0}</span>` : ''}
+                </span>`;
+            btn.onclick = () => { pageStack.push(() => showMajorAreaPage(region, pref)); fetchAndShowHotelsByCity({ prefecture: pref }, city); };
+            if (allBtn) container.insertBefore(btn, allBtn);
+            else container.appendChild(btn);
+        });
     }
     // リンクバー追加
     const hlc = document.getElementById('hotel-list');
