@@ -1349,18 +1349,30 @@ function renderLovehoDetail(hotel, reports) {
     const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(h.name)}`;
     const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address || h.name)}`;
 
+    // カテゴリ参照マップ
+    const gpCatMap = {};
+    if (LH_MASTER.good_points) LH_MASTER.good_points.forEach(p => { gpCatMap[p.label] = p.category; });
+
+    // 一人入室の集計
+    const soloYes = reports.filter(r => r.solo_entry === 'yes').length;
+    const soloTotal = reports.filter(r => r.solo_entry && r.solo_entry !== '').length;
+    const soloPct = soloTotal > 0 ? Math.round(soloYes / soloTotal * 100) : null;
+
     const reviewsHTML = reports.map(r => {
-        const gpTags = r.good_points && Array.isArray(r.good_points) && r.good_points.length
-            ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${r.good_points.map(gp=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">${esc(gp)}</span>`).join('')}</div>` : '';
+        const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
+        const gpRoom = gps.filter(gp => gpCatMap[gp] === '設備・お部屋');
+        const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
+        const gpTagHTML = (items) => items.map(gp=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">${esc(gp)}</span>`).join('');
         return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
                 <span style="font-size:12px;color:var(--text-2);font-weight:500;">${esc(r.poster_name || '匿名')}</span>
                 <span style="font-size:11px;color:var(--text-3);">${formatDate(r.created_at)}</span>
             </div>
             ${r.comment ? `<div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-top:4px;">${esc(r.comment)}</div>` : ''}
-            ${gpTags}
             ${r.atmosphere ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">✨ ${esc(r.atmosphere)}</div>` : ''}
-            ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:4px;">🕐 ${esc(r.time_slot)}</div>` : ''}
+            ${gpRoom.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🛁 設備・お部屋</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpRoom)}</div></div>` : ''}
+            ${gpService.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🏨 サービス・利便性</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpService)}</div></div>` : ''}
+            ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🕐 ${esc(r.time_slot)}</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }).join('');
@@ -1378,6 +1390,7 @@ function renderLovehoDetail(hotel, reports) {
             <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px;"><span>📍</span><a href="${googleMap}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.address || '住所不明')}</a></div>
             ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
             ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
+            ${soloPct !== null ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>👤</span><span>一人入室 <strong>${soloPct}%</strong> が可能と回答</span></div>` : ''}
         </div>
 
         <div id="detail-ad-slot"></div>
