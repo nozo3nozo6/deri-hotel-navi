@@ -329,6 +329,11 @@
         </div>
         <!-- 投稿管理（統合） -->
         <div class="tab-panel" id="tab-reports">
+            <div id="report-subtab-bar" style="display:flex;gap:8px;margin-bottom:16px;">
+                <button id="btn-subtab-deli" onclick="switchReportSubtab('deli')" style="padding:6px 18px;border-radius:20px;border:1px solid #c9a84c;background:#c9a84c;color:#fff;font-size:13px;cursor:pointer;font-weight:600;">🏨 デリヘル口コミ</button>
+                <button id="btn-subtab-loveho" onclick="switchReportSubtab('loveho')" style="padding:6px 18px;border-radius:20px;border:1px solid #c9a84c;background:#fff;color:#c9a84c;font-size:13px;cursor:pointer;">🏩 ラブホ口コミ</button>
+            </div>
+            <div id="deli-reports-area">
             <div class="card">
                 <div class="card-title">&#x1F4DD; 投稿一覧<span class="sub" id="reports-sub"></span></div>
                 <div class="filter-bar">
@@ -354,6 +359,13 @@
                     <button class="btn b-btn-gray" id="rep-prev" onclick="repChangePage(-1)">← 前へ</button>
                     <span class="pager-info" id="rep-page-info"></span>
                     <button class="btn b-btn-gray" id="rep-next" onclick="repChangePage(1)">次へ →</button>
+                </div>
+            </div>
+            </div><!-- /deli-reports-area -->
+            <div id="loveho-reports-area" style="display:none;">
+                <div class="card">
+                    <div class="card-title">🏩 ラブホ口コミ一覧<span class="sub" id="loveho-reports-sub"></span></div>
+                    <div id="loveho-reports-list" style="max-height:70vh;overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
@@ -1141,6 +1153,59 @@ function closeRepEditModal(){document.getElementById("report-edit-modal").style.
 async function saveRepEdit(){const id=document.getElementById("re-id").value;const can_call=document.getElementById("re-can-call").value==="true";const poster_name=document.getElementById("re-poster-name").value.trim();const time_slot=document.getElementById("re-time-slot").value.trim()||null;const room_type=document.getElementById("re-room-type").value||null;const comment=document.getElementById("re-comment").value.trim()||null;const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons};const{error}=await sb.from("reports").update(payload).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,...payload}:r);renderReports();closeRepEditModal();toast("✅ 更新しました");}
 async function toggleVis(id,cur){const{error}=await sb.from("reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const{error}=await sb.from("reports").delete().eq("id",id);if(error){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
+
+// ===== ラブホ口コミサブタブ =====
+let currentReportSubtab='deli';
+function switchReportSubtab(tab){
+    currentReportSubtab=tab;
+    document.getElementById('btn-subtab-deli').style.background=tab==='deli'?'#c9a84c':'#fff';
+    document.getElementById('btn-subtab-deli').style.color=tab==='deli'?'#fff':'#c9a84c';
+    document.getElementById('btn-subtab-loveho').style.background=tab==='loveho'?'#c9a84c':'#fff';
+    document.getElementById('btn-subtab-loveho').style.color=tab==='loveho'?'#fff':'#c9a84c';
+    document.getElementById('deli-reports-area').style.display=tab==='deli'?'':'none';
+    document.getElementById('loveho-reports-area').style.display=tab==='loveho'?'':'none';
+    if(tab==='loveho')loadLovehoReportsAdmin();
+}
+async function loadLovehoReportsAdmin(){
+    const container=document.getElementById('loveho-reports-list');
+    container.innerHTML='<div style="text-align:center;padding:40px;color:#999;">読み込み中...</div>';
+    const{data,error}=await sb.from('loveho_reports').select('*,hotels(name,prefecture,city)').order('created_at',{ascending:false}).limit(200);
+    if(error){container.innerHTML='<div style="color:red;">取得エラー: '+error.message+'</div>';return;}
+    if(!data||!data.length){container.innerHTML='<div style="text-align:center;padding:40px;color:#999;">ラブホ口コミはまだありません</div>';return;}
+    document.getElementById('loveho-reports-sub').textContent=data.length+' 件';
+    const soloMap={yes:'はい',no:'いいえ',together:'一緒に入った',waiting:'待合室待ち',unknown:'わからない'};
+    container.innerHTML=data.map(r=>{
+        const hotelName=r.hotels?r.hotels.name:'ホテルID:'+r.hotel_id;
+        const location=r.hotels?(r.hotels.prefecture||'')+' '+(r.hotels.city||''):'';
+        const gm=r.gender_mode;
+        const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';
+        return `<div style="background:#fff;border:1px solid #e0d5c8;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div><span style="font-size:13px;font-weight:700;color:#1a1410;">🏩 ${esc(hotelName)}</span><span style="font-size:11px;color:#999;margin-left:8px;">${esc(location)}</span></div>
+                <span style="font-size:11px;color:#999;">${fmtDate(r.created_at)}</span>
+            </div>
+            <div style="font-size:12px;color:#555;margin-bottom:6px;">
+                <span style="color:#4a7ab0;font-weight:600;">${gmIcon} ${esc(r.poster_name||'匿名')}</span>
+                ${r.poster_type==='shop'?'<span style="background:#c9a96e;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;">店舗</span>':''}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#555;margin-bottom:6px;">
+                ${r.atmosphere?'<span>雰囲気: '+esc(r.atmosphere)+'</span>':''}
+                ${r.solo_entry?'<span>一人入室: '+(soloMap[r.solo_entry]||r.solo_entry)+'</span>':''}
+                ${r.time_slot?'<span>⏰ '+esc(r.time_slot)+'</span>':''}
+                ${r.multi_person?'<span>👥 複数人利用</span>':''}
+            </div>
+            ${r.good_points&&r.good_points.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">'+r.good_points.map(gp=>'<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">'+esc(gp)+'</span>').join('')+'</div>':''}
+            ${r.comment?'<div style="font-size:12px;color:#333;background:#f8f5f0;border-radius:6px;padding:8px 10px;">'+esc(r.comment)+'</div>':''}
+            <div style="text-align:right;margin-top:8px;"><button onclick="deleteLovehoReport(\''+r.id+'\')" style="font-size:11px;color:#c05050;background:none;border:1px solid #c05050;border-radius:6px;padding:3px 10px;cursor:pointer;">削除</button></div>
+        </div>`;
+    }).join('');
+}
+async function deleteLovehoReport(id){
+    if(!confirm('このラブホ口コミを削除しますか？'))return;
+    const{error}=await sb.from('loveho_reports').delete().eq('id',id);
+    if(error){toast('削除エラー: '+error.message);return;}
+    loadLovehoReportsAdmin();
+}
 
 // ===== ホテル編集 =====
 let hotelsData=[];let _hotelSearchTimer=null;
