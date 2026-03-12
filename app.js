@@ -2324,7 +2324,11 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     }
 
     const userReports = reports.filter(r => r.poster_type !== 'shop');
+    const userCanCall = userReports.filter(r => r.can_call).length;
+    const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
     const shopReports = reports.filter(r => r.poster_type === 'shop' && (!r.gender_mode || r.gender_mode === MODE));
+    const shopCanCall = shopReports.filter(r => r.can_call).length;
+    const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
     console.log('[renderHotelDetail] MODE:', MODE, 'shopReports:', shopReports.length, 'userReports:', userReports.length, 'reports gender_modes:', reports.filter(r => r.poster_type === 'shop').map(r => r.gender_mode));
     const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
 
@@ -2371,6 +2375,28 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${hotel.major_area || hotel.prefecture}</span>` : ''}
             </div>` : ''}
         </div>
+
+        ${userPct !== null ? `
+        <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">📊 呼べる？ <span style="color:var(--text-3);">ユーザー投稿 ${userReports.length}件</span></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="background:var(--accent,#b5627a);height:100%;width:${userPct}%;transition:width 0.5s;"></div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:var(--accent,#b5627a);">${userPct}%</span>
+            </div>
+        </div>` : ''}
+
+        ${shopPct !== null ? `
+        <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:4px;">🏪 店舗実績 <span style="color:var(--text-3);">店舗投稿 ${shopReports.length}件</span></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;background:#f0ebe0;border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="background:#c9a96e;height:100%;width:${shopPct}%;transition:width 0.5s;"></div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:#c9a96e;">${shopPct}%</span>
+            </div>
+        </div>` : ''}
 
         <div id="detail-ad-slot"></div>
 
