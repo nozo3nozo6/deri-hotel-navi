@@ -2992,14 +2992,16 @@ async function doSubmitReport() {
 // ==========================================================================
 let flagTargetId = null;
 let flagSelectedReason = null;
+let flagTargetTable = "reports";
 
-function showFlagModal(reportId) {
+function showFlagModal(reportId, table) {
     if (!reportId || reportId === 'null' || reportId === 'undefined') {
         console.error('[flag] showFlagModal called with invalid id:', reportId);
         showToast('報告対象が取得できませんでした');
         return;
     }
     flagTargetId = reportId;
+    flagTargetTable = table || "reports";
     flagSelectedReason = null;
     document.getElementById('flag-comment-input').value = '';
     document.getElementById('flag-reason-err').style.display = 'none';
@@ -3015,10 +3017,12 @@ function showFlagModal(reportId) {
     document.getElementById('flag-modal').style.display = 'flex';
 }
 
+function openFlagModal(reportId) { showFlagModal(reportId, "loveho_reports"); }
 function closeFlagModal() {
     document.getElementById('flag-modal').style.display = 'none';
     flagTargetId = null;
     flagSelectedReason = null;
+    flagTargetTable = "reports";
 }
 
 function selectFlagReason(reason, btn) {
@@ -3052,11 +3056,9 @@ function showFlagStep1() {
 }
 
 function showFlagConfirm() {
-    if (!flagSelectedReason) {
-        document.getElementById('flag-reason-err').style.display = '';
-        return;
-    }
     const comment = document.getElementById('flag-comment-input').value.trim();
+    if (!flagSelectedReason && !comment) { document.getElementById('flag-reason-err').style.display = ''; return; }
+    if (!flagSelectedReason) flagSelectedReason = "その他";
     document.getElementById('flag-confirm-reason').textContent = flagSelectedReason;
     const cWrap = document.getElementById('flag-confirm-comment-wrap');
     if (comment) {
@@ -3091,7 +3093,8 @@ async function submitFlag() {
 
     closeFlagModal(); // ここで flagTargetId = null になるが targetId は安全
 
-    const { error } = await supabaseClient.from('reports').update(flagPayload).eq('id', targetId);
+    const tbl = flagTargetTable || 'reports';
+    const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
     if (error) {
         console.error('[flag] error:', error);
         showToast('報告の送信に失敗しました: ' + error.message);
