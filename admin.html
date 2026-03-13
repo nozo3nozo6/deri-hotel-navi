@@ -678,6 +678,7 @@
             <div class="mf" id="re-can-wrap"><label class="ml">呼べた理由</label><div id="re-can-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
             <div class="mf" id="re-cannot-wrap"><label class="ml">呼べなかった理由</label><div id="re-cannot-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
             <div class="mf"><label class="ml">部屋タイプ</label><select id="re-room-type" class="mi"></select></div>
+            <div class="mf"><label class="ml">時間帯</label><input id="re-time-slot" class="mi" placeholder="例: 夜 (18:00~23:00)"></div>
         </div>
         <!-- ラブホ専用フィールド -->
         <div id="re-loveho-section" style="display:none;">
@@ -1251,6 +1252,7 @@ function openRepEdit(id){
     document.getElementById("re-can-cb").innerHTML=canLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCan.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
     document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
     reToggleReasons(r.can_call?"true":"false");
+    document.getElementById("re-time-slot").value=r.time_slot||"";
   } else {
     // 雰囲気セレクト
     const atmSel = document.getElementById("re-lh-atmosphere");
