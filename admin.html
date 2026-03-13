@@ -681,17 +681,46 @@
         </div>
         <!-- ラブホ専用フィールド -->
         <div id="re-loveho-section" style="display:none;">
-            <div class="mf"><label class="ml">雰囲気</label><select id="re-lh-atmosphere" class="mi"><option value="">未選択</option><option value="very_good">とても良い</option><option value="good">良い</option><option value="normal">普通</option><option value="bad">悪い</option></select></div>
-            <div class="mf"><label class="ml">一人入室</label><select id="re-lh-solo" class="mi"><option value="">未選択</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="waiting">待合室待ち</option><option value="unknown">わからない</option></select></div>
-            <div class="mf"><label class="ml">外出可否</label><select id="re-lh-can-go-out" class="mi"><option value="">未選択</option><option value="yes">可能</option><option value="no">不可</option><option value="unknown">わからない</option></select></div>
-            <div class="mf"><label class="ml">清潔感</label><select id="re-lh-cleanliness" class="mi"><option value="">未選択</option><option value="very_good">とても清潔</option><option value="good">清潔</option><option value="normal">普通</option><option value="bad">やや汚い</option></select></div>
-            <div class="mf"><label class="ml">コスパ</label><select id="re-lh-cost" class="mi"><option value="">未選択</option><option value="very_good">とても良い</option><option value="good">良い</option><option value="normal">普通</option><option value="bad">悪い</option></select></div>
-            <div class="mf"><label class="ml">複数人OK</label><select id="re-lh-multi" class="mi"><option value="">未選択</option><option value="true">OK</option><option value="false">NG</option></select></div>
-            <div class="mf"><label class="ml">チェックポイント</label><div id="re-lh-goodpoints-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
+            <!-- 一人入室 -->
+            <div class="mf"><label class="ml">一人で先に入れる？</label>
+            <select id="re-lh-solo" class="mi">
+              <option value="">未選択</option>
+              <option value="yes">はい</option>
+              <option value="no">いいえ</option>
+              <option value="together">一緒に入った</option>
+              <option value="waiting">待合室で待ち合わせ</option>
+              <option value="unknown">わからない</option>
+            </select></div>
+            <!-- 雰囲気 -->
+            <div class="mf"><label class="ml">雰囲気</label>
+            <select id="re-lh-atmosphere" class="mi">
+              <option value="">未選択</option>
+            </select></div>
+            <!-- チェックポイント -->
+            <div class="mf"><label class="ml">📝 チェックポイント</label>
+            <div id="re-lh-goodpoints-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
+            <!-- 複数人OK -->
+            <div class="mf"><label class="ml">複数人OK</label>
+            <select id="re-lh-multi" class="mi">
+              <option value="">未選択</option>
+              <option value="true">OK</option>
+              <option value="false">NG</option>
+            </select></div>
+            <!-- 利用時間帯 -->
+            <div class="mf"><label class="ml">利用時間帯</label>
+            <select id="re-lh-time-slot" class="mi">
+              <option value="">未選択</option>
+            </select></div>
         </div>
         <!-- 共通フィールド -->
+        <div class="mf"><label class="ml">性別モード</label>
+        <select id="re-gender-mode" class="mi">
+          <option value="men">♂ 男性</option>
+          <option value="women">♀ 女性</option>
+          <option value="women_same">♀♀ 女性同士</option>
+          <option value="men_same">♂♂ 男性同士</option>
+        </select></div>
         <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi"></div>
-        <div class="mf"><label class="ml">時間帯</label><input id="re-time-slot" class="mi" placeholder="例: 夜 (18:00~23:00)"></div>
         <div class="mf"><label class="ml">コメント</label><textarea id="re-comment" class="mi" rows="3" style="resize:vertical;"></textarea></div>
         <div id="re-date-wrap" class="mf">
           <label class="ml">投稿日時</label>
