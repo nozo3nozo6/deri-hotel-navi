@@ -693,8 +693,10 @@
         <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi"></div>
         <div class="mf"><label class="ml">時間帯</label><input id="re-time-slot" class="mi" placeholder="例: 夜 (18:00~23:00)"></div>
         <div class="mf"><label class="ml">コメント</label><textarea id="re-comment" class="mi" rows="3" style="resize:vertical;"></textarea></div>
-        <!-- 日時（有料店舗投稿のみ編集可） -->
-        <div class="mf" id="re-date-wrap" style="display:none;"><label class="ml">日時（手動更新）</label><input id="re-created-at" class="mi" type="datetime-local"></div>
+        <div id="re-date-wrap" class="mf">
+          <label class="ml">投稿日時</label>
+          <input type="datetime-local" id="re-created-at" class="mi">
+        </div>
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeRepEditModal()">キャンセル</button>
             <button class="btn-save" onclick="saveRepEdit()">保存する</button>
@@ -1222,27 +1224,38 @@ function openRepEdit(id){
     document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
     reToggleReasons(r.can_call?"true":"false");
   } else {
-    // ラブホフィールド
-    document.getElementById("re-lh-atmosphere").value=r.atmosphere||"";
-    document.getElementById("re-lh-solo").value=r.solo_entry||"";
-    document.getElementById("re-lh-can-go-out").value=r.can_go_out||"";
-    document.getElementById("re-lh-cleanliness").value=r.cleanliness||"";
-    document.getElementById("re-lh-cost").value=r.cost_performance||"";
-    document.getElementById("re-lh-multi").value=r.multi_person===true?"true":r.multi_person===false?"false":"";
+    // 雰囲気セレクト
+    const atmSel = document.getElementById("re-lh-atmosphere");
+    const atmOpts = goodPointsData.length ? [...new Set(goodPointsData.filter(g=>g.category==='atmosphere').map(g=>g.label))] : [];
+    // マスターから取得できない場合はフォールバック
+    const atmFallback = ["シンプル・清潔感","ラグジュアリー","アジアン・エスニック","和風","カジュアル","大人向け"];
+    const atmList = atmOpts.length ? atmOpts : atmFallback;
+    atmSel.innerHTML = '<option value="">未選択</option>' + atmList.map(l=>`<option value="${esc(l)}"${r.atmosphere===l?" selected":""}>${esc(l)}</option>`).join("");
+    if(r.atmosphere && !atmList.includes(r.atmosphere)){
+      const o=document.createElement("option"); o.value=r.atmosphere; o.textContent=r.atmosphere; o.selected=true; atmSel.appendChild(o);
+    }
+
+    // 時間帯セレクト
+    const tsSel = document.getElementById("re-lh-time-slot");
+    const tsFallback = ["早朝（5:00〜8:00）","朝（8:00〜11:00）","昼（11:00〜16:00）","夕方（16:00〜18:00）","夜（18:00〜23:00）","深夜（23:00〜5:00）"];
+    tsSel.innerHTML = '<option value="">未選択</option>' + tsFallback.map(l=>`<option value="${esc(l)}"${r.time_slot===l?" selected":""}>${esc(l)}</option>`).join("");
+
+    document.getElementById("re-lh-solo").value = r.solo_entry||"";
+    document.getElementById("re-lh-multi").value = r.multi_person===true?"true":r.multi_person===false?"false":"";
+
     // チェックポイント
-    const selGp=r.good_points||[];
-    document.getElementById("re-lh-goodpoints-cb").innerHTML=goodPointsData.filter(g=>g.is_active).map(g=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(g.label)}"${selGp.includes(g.label)?" checked":""}> ${esc(g.label)}</label>`).join("");
+    const selGp = r.good_points||[];
+    const gpData = goodPointsData.filter(g=>g.is_active);
+    document.getElementById("re-lh-goodpoints-cb").innerHTML = gpData.map(g=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(g.label)}"${selGp.includes(g.label)?" checked":""}> ${esc(g.label)}</label>`).join("");
   }
-  // 日時：有料店舗投稿のみ編集可
-  const isShopPaid=r.poster_type==="shop"&&shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase())?.plan==="paid";
-  const dateWrap=document.getElementById("re-date-wrap");
-  if(isShopPaid){
-    dateWrap.style.display="";
-    const dt=r.created_at?new Date(r.created_at).toISOString().slice(0,16):"";
-    document.getElementById("re-created-at").value=dt;
-  }else{
-    dateWrap.style.display="none";
-  }
+
+  // 性別モード
+  document.getElementById("re-gender-mode").value = r.gender_mode||"men";
+
+  // 日時（常に表示）
+  const dt = r.created_at ? new Date(r.created_at).toISOString().slice(0,16) : "";
+  document.getElementById("re-created-at").value = dt;
+
   document.getElementById("report-edit-modal").style.display="flex";
 }
 function reToggleReasons(v){document.getElementById("re-can-wrap").style.display=v==="true"?"":"none";document.getElementById("re-cannot-wrap").style.display=v==="false"?"":"none";}
@@ -1267,16 +1280,16 @@ async function saveRepEdit(){
     if(error){toast("更新エラー: "+error.message);return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
   } else {
-    const atmosphere=document.getElementById("re-lh-atmosphere").value||null;
-    const solo_entry=document.getElementById("re-lh-solo").value||null;
-    const can_go_out=document.getElementById("re-lh-can-go-out").value||null;
-    const cleanliness=document.getElementById("re-lh-cleanliness").value||null;
-    const cost_performance=document.getElementById("re-lh-cost").value||null;
-    const multiVal=document.getElementById("re-lh-multi").value;
-    const multi_person=multiVal==="true"?true:multiVal==="false"?false:null;
-    const good_points=[...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
-    const payload={atmosphere,solo_entry,can_go_out,cleanliness,cost_performance,multi_person,good_points,poster_name,time_slot,comment};
-    if(newDate)payload.created_at=new Date(newDate).toISOString();
+    const atmosphere = document.getElementById("re-lh-atmosphere").value||null;
+    const solo_entry = document.getElementById("re-lh-solo").value||null;
+    const multi_val = document.getElementById("re-lh-multi").value;
+    const multi_person = multi_val==="true"?true:multi_val==="false"?false:null;
+    const time_slot = document.getElementById("re-lh-time-slot").value||null;
+    const good_points = [...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
+    const gender_mode = document.getElementById("re-gender-mode").value||"men";
+    const payload = {atmosphere,solo_entry,multi_person,good_points,poster_name,time_slot:time_slot||comment&&null,comment,gender_mode};
+    const newDate2 = document.getElementById("re-created-at").value;
+    if(newDate2) payload.created_at = new Date(newDate2).toISOString();
     const{error}=await sb.from("loveho_reports").update(payload).eq("id",id);
     if(error){toast("更新エラー: "+error.message);return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)&&r._kind==="loveho"?{...r,...payload}:r);
