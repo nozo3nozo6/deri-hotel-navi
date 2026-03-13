@@ -1390,12 +1390,19 @@ async function loadLovehoDetail(hotelId) {
             supabaseClient.from('loveho_reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
         ]);
         if (!hotelRes.data) throw new Error('Hotel not found');
-        setBreadcrumb([
-            { label: '全国', onclick: 'resetToTop()' },
-            ...(hotelRes.data.prefecture ? [{ label: hotelRes.data.prefecture, onclick: `drillDown('pref','${hotelRes.data.prefecture}')` }] : []),
-            ...(hotelRes.data.city ? [{ label: hotelRes.data.city, onclick: `drillDown('city','${hotelRes.data.city}')` }] : []),
-            { label: hotelRes.data.name }
-        ]);
+        // パンくず：ホテルのprefectureからregionとmajor_areaを逆引きして全階層表示
+        const _hotel = hotelRes.data;
+        const _pref = _hotel.prefecture || '';
+        const _city = _hotel.city || '';
+        const _majorArea = _hotel.major_area || '';
+        const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
+        const _crumbs = [{ label: '全国', onclick: 'showJapanPage()' }];
+        if (_region) _crumbs.push({ label: _region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_region.label}'))` });
+        if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}')` });
+        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}')` });
+        if (_city) _crumbs.push({ label: _city });
+        _crumbs.push({ label: _hotel.name });
+        setBreadcrumb(_crumbs);
         renderLovehoDetail(hotelRes.data, reportsRes.data || []);
         // ラブホ詳細ページに広告を挿入
         const hotelCity = hotelRes.data.city;
@@ -2272,12 +2279,19 @@ async function loadHotelDetail(hotelId) {
                 shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0, shopId: s.id };
             });
         }
-        setBreadcrumb([
-            { label: '全国', onclick: 'resetToTop()' },
-            ...(hotelRes.data.prefecture ? [{ label: hotelRes.data.prefecture, onclick: `drillDown('pref','${hotelRes.data.prefecture}')` }] : []),
-            ...(hotelRes.data.city ? [{ label: hotelRes.data.city, onclick: `drillDown('city','${hotelRes.data.city}')` }] : []),
-            { label: hotelRes.data.name }
-        ]);
+        // パンくず：ホテルのprefectureからregionとmajor_areaを逆引きして全階層表示
+        const _hotel = hotelRes.data;
+        const _pref = _hotel.prefecture || '';
+        const _city = _hotel.city || '';
+        const _majorArea = _hotel.major_area || '';
+        const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
+        const _crumbs = [{ label: '全国', onclick: 'showJapanPage()' }];
+        if (_region) _crumbs.push({ label: _region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_region.label}'))` });
+        if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}')` });
+        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}')` });
+        if (_city) _crumbs.push({ label: _city });
+        _crumbs.push({ label: _hotel.name });
+        setBreadcrumb(_crumbs);
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
         // ホテル詳細ページに広告を挿入
         const hotelCity = hotelRes.data.city;
