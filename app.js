@@ -99,14 +99,7 @@ function updateUrl(params) {
 function ensurePortalMode() {
     const content = document.getElementById('hotel-detail-content');
     if (content && content.style.display !== 'none') {
-        content.style.display = 'none';
-        content.innerHTML = '';
-        document.getElementById('area-button-container').style.display = '';
-        document.querySelector('.area-section').style.display = '';
-        document.querySelector('.search-tools').style.display = '';
-        document.getElementById('hotel-list').style.display = '';
-        const bottomLinks = document.getElementById('bottom-info-links');
-        if (bottomLinks) bottomLinks.style.display = 'none';
+        closeHotelPanel();
     }
 }
 
@@ -1369,7 +1362,7 @@ function openLovehoDetail(hotelId) {
 
 async function loadLovehoDetail(hotelId) {
     const content = document.getElementById('hotel-detail-content');
-    content.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>';
+    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
     try {
         await loadLhMasters();
         const [hotelRes, reportsRes] = await Promise.all([
@@ -1383,9 +1376,7 @@ async function loadLovehoDetail(hotelId) {
         const _majorArea = _hotel.major_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
-        const _crumbs = [
-            { label: '全国', onclick: `showJapanPage()` },
-        ];
+        const _crumbs = [{ label: '全国', onclick: 'showJapanPage()' }];
         if (_region) _crumbs.push({ label: _rl, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
@@ -2189,7 +2180,6 @@ function showHotelPanel(hotelId, isLoveho) {
     updateUrl({ hotel: hotelId });
     setBackBtn(true);
 
-    // area-button-containerを隠してhotel-detail-contentを表示
     document.getElementById('area-button-container').style.display = 'none';
     document.querySelector('.search-tools').style.display = 'none';
     const rs = document.getElementById('result-status');
@@ -2260,9 +2250,7 @@ async function loadHotelDetail(hotelId) {
         const _majorArea = _hotel.major_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
-        const _crumbs = [
-            { label: '全国', onclick: `showJapanPage()` },
-        ];
+        const _crumbs = [{ label: '全国', onclick: 'showJapanPage()' }];
         if (_region) _crumbs.push({ label: _rl, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
