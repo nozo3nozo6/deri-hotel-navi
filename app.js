@@ -294,15 +294,15 @@ function showToast(msg, duration = 2500) {
     if (!el) {
         el = document.createElement('div');
         el.id = 'toast';
-        el.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%) translateY(-12px);background:#1a1410;color:#fff;padding:12px 24px;border-radius:30px;font-size:13px;opacity:0;transition:all 0.3s;z-index:9999;white-space:nowrap;pointer-events:none;';
+        el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translateX(-50%) translateY(calc(-50% - 12px));background:#1a1410;color:#fff;padding:12px 24px;border-radius:30px;font-size:13px;opacity:0;transition:all 0.3s;z-index:9999;white-space:nowrap;pointer-events:none;';
         document.body.appendChild(el);
     }
     el.textContent = msg;
     el.style.opacity = '1';
-    el.style.transform = 'translateX(-50%) translateY(0)';
+    el.style.transform = 'translateX(-50%) translateY(-50%)';
     setTimeout(() => {
         el.style.opacity = '0';
-        el.style.transform = 'translateX(-50%) translateY(-12px)';
+        el.style.transform = 'translateX(-50%) translateY(calc(-50% - 12px))';
     }, duration);
 }
 
