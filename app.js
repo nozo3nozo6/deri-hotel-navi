@@ -3072,9 +3072,9 @@ function showFlagConfirm() {
 }
 
 async function submitFlag() {
-    // closeFlagModal() が flagTargetId を null にリセットするため、先にローカル変数へ退避
     const targetId = flagTargetId;
     const selectedReason = flagSelectedReason;
+    const tbl = flagTargetTable || 'reports';
 
     if (!targetId || targetId === 'null' || targetId === 'undefined') {
         console.error('[flag] invalid targetId:', targetId);
@@ -3091,9 +3091,8 @@ async function submitFlag() {
     };
     console.log('[flag] targetId:', targetId, 'payload:', flagPayload);
 
-    closeFlagModal(); // ここで flagTargetId = null になるが targetId は安全
+    closeFlagModal();
 
-    const tbl = flagTargetTable || 'reports';
     const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
     if (error) {
         console.error('[flag] error:', error);
