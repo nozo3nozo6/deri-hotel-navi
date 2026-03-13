@@ -2992,14 +2992,16 @@ async function doSubmitReport() {
 // ==========================================================================
 let flagTargetId = null;
 let flagSelectedReason = null;
+let flagTargetTable = 'reports';
 
-function showFlagModal(reportId) {
+function showFlagModal(reportId, table) {
     if (!reportId || reportId === 'null' || reportId === 'undefined') {
         console.error('[flag] showFlagModal called with invalid id:', reportId);
         showToast('報告対象が取得できませんでした');
         return;
     }
     flagTargetId = reportId;
+    flagTargetTable = table || 'reports';
     flagSelectedReason = null;
     document.getElementById('flag-comment-input').value = '';
     document.getElementById('flag-reason-err').style.display = 'none';
@@ -3015,10 +3017,12 @@ function showFlagModal(reportId) {
     document.getElementById('flag-modal').style.display = 'flex';
 }
 
+function openFlagModal(reportId) { showFlagModal(reportId, 'loveho_reports'); }
 function closeFlagModal() {
     document.getElementById('flag-modal').style.display = 'none';
     flagTargetId = null;
     flagSelectedReason = null;
+    flagTargetTable = 'reports';
 }
 
 function selectFlagReason(reason, btn) {
@@ -3073,6 +3077,7 @@ async function submitFlag() {
     // closeFlagModal() が flagTargetId を null にリセットするため、先にローカル変数へ退避
     const targetId = flagTargetId;
     const selectedReason = flagSelectedReason;
+    const tbl = flagTargetTable || 'reports';
 
     if (!targetId || targetId === 'null' || targetId === 'undefined') {
         console.error('[flag] invalid targetId:', targetId);
@@ -3089,9 +3094,9 @@ async function submitFlag() {
     };
     console.log('[flag] targetId:', targetId, 'payload:', flagPayload);
 
-    closeFlagModal(); // ここで flagTargetId = null になるが targetId は安全
+    closeFlagModal();
 
-    const { error } = await supabaseClient.from('reports').update(flagPayload).eq('id', targetId);
+    const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
     if (error) {
         console.error('[flag] error:', error);
         showToast('報告の送信に失敗しました: ' + error.message);
