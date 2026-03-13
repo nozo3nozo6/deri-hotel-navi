@@ -1400,7 +1400,7 @@ async function loadLovehoDetail(hotelId) {
         if (_region) _crumbs.push({ label: _region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_region.label}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}')` });
-        if (_city) _crumbs.push({ label: _city, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}', '${_city}')` });
+        if (_city) _crumbs.push({ label: _city, onclick: `pageStack.push(()=>showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'),'${_pref}','${_majorArea}')); fetchAndShowHotels({prefecture:'${_pref}',major_area:'${_majorArea}',city:'${_city}'})` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
         renderLovehoDetail(hotelRes.data, reportsRes.data || []);
@@ -2289,7 +2289,7 @@ async function loadHotelDetail(hotelId) {
         if (_region) _crumbs.push({ label: _region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_region.label}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}')` });
-        if (_city) _crumbs.push({ label: _city, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'), '${_pref}', '${_majorArea}', '${_city}')` });
+        if (_city) _crumbs.push({ label: _city, onclick: `pageStack.push(()=>showCityPage(REGION_MAP.find(r=>r.label==='${_region ? _region.label : ''}'),'${_pref}','${_majorArea}')); fetchAndShowHotels({prefecture:'${_pref}',major_area:'${_majorArea}',city:'${_city}'})` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
