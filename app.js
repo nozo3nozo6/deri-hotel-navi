@@ -2106,12 +2106,18 @@ function showHotelPanel(hotelId, isLoveho) {
     // パネルを通常フローで表示（fixed廃止）
     panel.style.cssText = 'display:block;';
 
-    if (isLoveho) {
-        loadLovehoDetail(hotelId);
+    if (isLoveho !== undefined) {
+        if (isLoveho) loadLovehoDetail(hotelId);
+        else loadHotelDetail(hotelId);
+        window.scrollTo(0, 0);
     } else {
-        loadHotelDetail(hotelId);
+        supabaseClient.from('hotels').select('hotel_type').eq('id', hotelId).maybeSingle().then(({data}) => {
+            const lh = data && (data.hotel_type === 'love_hotel' || data.hotel_type === 'rental_room');
+            if (lh) { updateUrl({ hotel: hotelId, loveho: '1' }); loadLovehoDetail(hotelId); }
+            else loadHotelDetail(hotelId);
+        });
+        window.scrollTo(0, 0);
     }
-    window.scrollTo(0, 0);
 }
 
 function closeHotelPanel() {
