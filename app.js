@@ -3101,7 +3101,7 @@ async function submitFlag() {
         console.error('[flag] error:', error);
         showToast('報告の送信に失敗しました: ' + error.message);
     } else {
-        showToast('🚩 報告を受け付けました');
+        showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
     }
 }
 
