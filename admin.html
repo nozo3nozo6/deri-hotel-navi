@@ -329,28 +329,22 @@
         </div>
         <!-- 投稿管理（統合） -->
         <div class="tab-panel" id="tab-reports">
-            <div id="report-type-bar" style="display:flex;gap:8px;margin-bottom:16px;">
-                <button id="btn-type-deli" onclick="switchReportType('deli')" style="padding:6px 18px;border-radius:20px;border:1px solid #c9a84c;background:#c9a84c;color:#fff;font-size:13px;cursor:pointer;font-weight:600;">🏨 デリヘル口コミ</button>
-                <button id="btn-type-loveho" onclick="switchReportType('loveho')" style="padding:6px 18px;border-radius:20px;border:1px solid #c9a84c;background:#fff;color:#c9a84c;font-size:13px;cursor:pointer;">🏩 ラブホ口コミ</button>
-            </div>
-            <div id="deli-reports-area">
             <div class="card">
                 <div class="card-title">&#x1F4DD; 投稿一覧<span class="sub" id="reports-sub"></span></div>
                 <div class="filter-bar">
                     <select class="filter-select" id="rep-kind-f" onchange="repPage=0;renderReports()"><option value="">全種別</option><option value="deli">🏨 デリヘル</option><option value="loveho">🏩 ラブホ</option></select>
-                    <select class="filter-select" id="rep-mode-f" onchange="repPage=0;renderReports()"><option value="">全モード</option><option value="men">♂ 男性</option><option value="women">♀ 女性</option><option value="men_same">♂♂ 男性同士</option><option value="women_same">♀♀ 女性同士</option></select>
-                    <select class="filter-select" id="rep-result-f" onchange="repPage=0;renderReports()"><option value="">全結果</option><option value="can">呼べた</option><option value="cannot">呼べなかった</option></select>
-                    <select class="filter-select" id="rep-type-f" onchange="repPage=0;renderReports()"><option value="">全投稿者</option><option value="user">👤 ユーザー</option><option value="shop_free">🏪 無料掲載店舗</option><option value="shop_paid">⭐ 有料掲載店舗</option></select>
+                    <select class="filter-select" id="rep-who-f" onchange="repPage=0;renderReports()"><option value="">全員</option><option value="men_user">♂ ユーザー</option><option value="women_user">♀ ユーザー</option><option value="ff_user">♀♀ ユーザー</option><option value="mm_user">♂♂ ユーザー</option><option value="shop_free">🏪 無料店舗</option><option value="shop_paid">⭐ 有料店舗</option></select>
+                    <select class="filter-select" id="rep-result-f" onchange="repPage=0;renderReports()"><option value="">全結果</option><option value="yes">YES</option><option value="no">NO</option></select>
                     <select class="filter-select" id="rep-vis-f" onchange="repPage=0;renderReports()"><option value="">全表示</option><option value="visible">表示中</option><option value="hidden">非表示</option></select>
-                    <select class="filter-select" id="rep-flag-f" onchange="repPage=0;renderReports()"><option value="">全投稿</option><option value="flagged">🚩 未対応報告あり</option><option value="resolved">✅ 対応済み報告あり</option></select>
+                    <select class="filter-select" id="rep-flag-f" onchange="repPage=0;renderReports()"><option value="">全報告</option><option value="flagged">🚩 報告未対応</option><option value="resolved">✅ 報告対応済み</option></select>
                     <input class="filter-input" id="rep-hotel-f" placeholder="ホテル名で検索..." oninput="onRepHotelInput()" style="max-width:180px;">
                 </div>
                 <div class="tbl-wrap"><table class="tbl">
                     <thead><tr>
                         <th onclick="doSort('reports','created_at',()=>{repPage=0;renderReports();})">日時<span class="sa">↕</span></th>
-                        <th onclick="doSort('reports','hotel_name',()=>{repPage=0;renderReports();})">ホテル名<span class="sa">↕</span></th>
+                        <th>ホテル名</th>
                         <th>モード</th>
-                        <th onclick="doSort('reports','can_call',()=>{repPage=0;renderReports();})">結果<span class="sa">↕</span></th>
+                        <th>結果</th>
                         <th>投稿者</th>
                         <th>条件</th><th>コメント</th><th>報告</th><th>操作</th>
                     </tr></thead>
@@ -360,13 +354,6 @@
                     <button class="btn b-btn-gray" id="rep-prev" onclick="repChangePage(-1)">← 前へ</button>
                     <span class="pager-info" id="rep-page-info"></span>
                     <button class="btn b-btn-gray" id="rep-next" onclick="repChangePage(1)">次へ →</button>
-                </div>
-            </div>
-            </div>
-            <div id="loveho-reports-area" style="display:none;">
-                <div class="card">
-                    <div class="card-title">🏩 ラブホ口コミ一覧<span class="sub" id="loveho-reports-sub"></span></div>
-                    <div id="loveho-reports-list" style="max-height:70vh;overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
@@ -681,16 +668,33 @@
 </div>
 <!-- モーダル：投稿編集 -->
 <div class="modal-overlay" id="report-edit-modal" style="display:none;" onclick="if(event.target===this)closeRepEditModal()">
-    <div class="modal" style="max-width:520px;">
+    <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
         <div class="modal-title">&#x270F;&#xFE0F; 投稿を編集 <span id="re-hotel" style="font-size:12px;font-weight:400;color:var(--ink-3);"></span></div>
         <input type="hidden" id="re-id">
-        <div class="mf"><label class="ml">結果</label><select id="re-can-call" class="mi" onchange="reToggleReasons(this.value)"><option value="true">✅ 呼べた</option><option value="false">❌ 呼べなかった</option></select></div>
+        <input type="hidden" id="re-kind">
+        <!-- デリヘル専用フィールド -->
+        <div id="re-deli-section">
+            <div class="mf"><label class="ml">結果</label><select id="re-can-call" class="mi" onchange="reToggleReasons(this.value)"><option value="true">YES（呼べた / ご案内実績あり）</option><option value="false">NO（呼べなかった / ご案内不可）</option></select></div>
+            <div class="mf" id="re-can-wrap"><label class="ml">呼べた理由</label><div id="re-can-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
+            <div class="mf" id="re-cannot-wrap"><label class="ml">呼べなかった理由</label><div id="re-cannot-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
+            <div class="mf"><label class="ml">部屋タイプ</label><select id="re-room-type" class="mi"></select></div>
+        </div>
+        <!-- ラブホ専用フィールド -->
+        <div id="re-loveho-section" style="display:none;">
+            <div class="mf"><label class="ml">雰囲気</label><select id="re-lh-atmosphere" class="mi"><option value="">未選択</option><option value="very_good">とても良い</option><option value="good">良い</option><option value="normal">普通</option><option value="bad">悪い</option></select></div>
+            <div class="mf"><label class="ml">一人入室</label><select id="re-lh-solo" class="mi"><option value="">未選択</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="waiting">待合室待ち</option><option value="unknown">わからない</option></select></div>
+            <div class="mf"><label class="ml">外出可否</label><select id="re-lh-can-go-out" class="mi"><option value="">未選択</option><option value="yes">可能</option><option value="no">不可</option><option value="unknown">わからない</option></select></div>
+            <div class="mf"><label class="ml">清潔感</label><select id="re-lh-cleanliness" class="mi"><option value="">未選択</option><option value="very_good">とても清潔</option><option value="good">清潔</option><option value="normal">普通</option><option value="bad">やや汚い</option></select></div>
+            <div class="mf"><label class="ml">コスパ</label><select id="re-lh-cost" class="mi"><option value="">未選択</option><option value="very_good">とても良い</option><option value="good">良い</option><option value="normal">普通</option><option value="bad">悪い</option></select></div>
+            <div class="mf"><label class="ml">複数人OK</label><select id="re-lh-multi" class="mi"><option value="">未選択</option><option value="true">OK</option><option value="false">NG</option></select></div>
+            <div class="mf"><label class="ml">チェックポイント</label><div id="re-lh-goodpoints-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
+        </div>
+        <!-- 共通フィールド -->
         <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi"></div>
         <div class="mf"><label class="ml">時間帯</label><input id="re-time-slot" class="mi" placeholder="例: 夜 (18:00~23:00)"></div>
-        <div class="mf"><label class="ml">部屋タイプ</label><select id="re-room-type" class="mi"></select></div>
-        <div class="mf" id="re-can-wrap"><label class="ml">呼べた理由</label><div id="re-can-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
-        <div class="mf" id="re-cannot-wrap"><label class="ml">呼べなかった理由</label><div id="re-cannot-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
         <div class="mf"><label class="ml">コメント</label><textarea id="re-comment" class="mi" rows="3" style="resize:vertical;"></textarea></div>
+        <!-- 日時（有料店舗投稿のみ編集可） -->
+        <div class="mf" id="re-date-wrap" style="display:none;"><label class="ml">日時（手動更新）</label><input id="re-created-at" class="mi" type="datetime-local"></div>
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeRepEditModal()">キャンセル</button>
             <button class="btn-save" onclick="saveRepEdit()">保存する</button>
@@ -1146,114 +1150,129 @@ async function resolveFlag(id){const{error}=await sb.from("reports").update({fla
 async function unresolveFlag(id){const{error}=await sb.from("reports").update({flag_resolved:null}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
 let repPage=0;const REP_PER_PAGE=30;
 let _repHotelTimer=null;function onRepHotelInput(){clearTimeout(_repHotelTimer);_repHotelTimer=setTimeout(()=>{repPage=0;renderReports();},500);}
-function getRepFiltered(){const kF=document.getElementById("rep-kind-f")?.value||"";const mF=document.getElementById("rep-mode-f").value;const rF=document.getElementById("rep-result-f").value;const tF=document.getElementById("rep-type-f").value;const vF=document.getElementById("rep-vis-f").value;const fF=document.getElementById("rep-flag-f").value;const hF=document.getElementById("rep-hotel-f")?.value.trim()||"";return reportsData.filter(r=>{if(kF&&r._kind!==kF)return false;if(mF&&r.hotel_mode!==mF)return false;if(rF==="can"&&!r.can_call)return false;if(rF==="cannot"&&r.can_call)return false;if(r._kind==="loveho"&&(rF==="can"||rF==="cannot"))return false;if(tF==="user"&&r.poster_type==="shop")return false;if(tF==="shop_free"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan==="paid")return false;}if(tF==="shop_paid"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan!=="paid")return false;}if(vF==="visible"&&r.is_hidden)return false;if(vF==="hidden"&&!r.is_hidden)return false;if(fF==="flagged"&&!(r.flagged_at&&!r.flag_resolved))return false;if(fF==="resolved"&&!(r.flagged_at&&r.flag_resolved))return false;if(hF){const words=hF.split(/[\s　]+/).filter(w=>w.length>0);const name=(r.hotel_name||"").toLowerCase();if(!words.every(w=>name.includes(w.toLowerCase())))return false;}return true;});}
-function renderReports(){let data=getRepFiltered();data=applySortArr(data,"reports");const total=data.length;const totalPages=Math.max(1,Math.ceil(total/REP_PER_PAGE));if(repPage>=totalPages)repPage=totalPages-1;const page=data.slice(repPage*REP_PER_PAGE,(repPage+1)*REP_PER_PAGE);console.log("[renderReports]",{filtered:total,page:page.length,flaggedInPage:page.filter(r=>r.flagged_at&&!r.flag_resolved).length});document.getElementById("reports-sub").textContent=`${total} 件`;const pi=document.getElementById("rep-page-info");if(pi)pi.textContent=`${repPage+1} / ${totalPages} ページ`;const prev=document.getElementById("rep-prev");const next=document.getElementById("rep-next");if(prev)prev.disabled=repPage===0;if(next)next.disabled=repPage>=totalPages-1;document.getElementById("reports-tbody").innerHTML=page.length===0?`<tr class="erow"><td colspan="9">該当する投稿がありません</td></tr>`:page.map(r=>{if(r._kind==="loveho"){const gm=r.gender_mode;const gmBadge=gm==="women"?"<span class='badge b-women'>♀</span>":gm==="women_same"?"<span class='badge b-women'>♀♀</span>":gm==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>";return`<tr style="background:rgba(201,168,76,0.04);"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${gmBadge}</td><td><span class="badge" style="background:var(--gold-bg);color:var(--gold-dim);border-color:var(--gold-border);">🏩 ラブホ</span></td><td><span class="badge b-free">👤 ユーザー</span></td><td style="font-size:11px;color:var(--ink-3);">${(r.good_points||[]).slice(0,2).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td>—</td><td><div class="btn-row"><button class="btn b-btn-red" onclick="delLhReportFromList('${r.id}')">削除</button></div></td></tr>`;}const isUnresolved=r.flagged_at&&!r.flag_resolved;const rowStyle=r.is_hidden?"opacity:0.45;":"";const rowFlagStyle=isUnresolved?"background:rgba(192,80,80,0.08);border-left:3px solid var(--red);":"";return`<tr style="${rowStyle}${rowFlagStyle}"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${r.hotel_mode==="women"?"<span class='badge b-women'>♀</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>"}</td><td><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td><span class="badge ${r.poster_type==="shop"?"b-shop":""}">${r.poster_type==="shop"?"🏪 店舗":"👤 ユーザー"}</span></td><td style="font-size:11px;color:var(--ink-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.conditions||[]).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td style="font-size:11px;min-width:140px;">${r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveFlag('${r.id}')">未対応に戻す</button>`:"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delReport('${r.id}')">削除</button></div></td></tr>`;}).join("");}
+function getRepFiltered(){
+  const kF=document.getElementById("rep-kind-f")?.value||"";
+  const wF=document.getElementById("rep-who-f")?.value||"";
+  const rF=document.getElementById("rep-result-f").value;
+  const vF=document.getElementById("rep-vis-f").value;
+  const fF=document.getElementById("rep-flag-f").value;
+  const hF=document.getElementById("rep-hotel-f")?.value.trim()||"";
+  const modeMap={men_user:"men",women_user:"women",ff_user:"women_same",mm_user:"men_same"};
+  return reportsData.filter(r=>{
+    if(kF&&r._kind!==kF)return false;
+    if(wF){
+      if(wF==="shop_free"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan==="paid")return false;}
+      else if(wF==="shop_paid"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan!=="paid")return false;}
+      else{if(r.poster_type==="shop")return false;const needMode=modeMap[wF];if(needMode&&r.hotel_mode!==needMode)return false;}
+    }
+    if(rF==="yes"&&!r.can_call&&r._kind==="deli")return false;
+    if(rF==="no"&&r.can_call&&r._kind==="deli")return false;
+    if(rF!==""){}// ラブホはresultフィルター無視
+    if(vF==="visible"&&r.is_hidden)return false;
+    if(vF==="hidden"&&!r.is_hidden)return false;
+    if(fF==="flagged"&&!(r.flagged_at&&!r.flag_resolved))return false;
+    if(fF==="resolved"&&!(r.flagged_at&&r.flag_resolved))return false;
+    if(hF){const words=hF.split(/[\s　]+/).filter(w=>w.length>0);const name=(r.hotel_name||"").toLowerCase();if(!words.every(w=>name.includes(w.toLowerCase())))return false;}
+    return true;
+  });
+}
+function renderReports(){let data=getRepFiltered();data=applySortArr(data,"reports");const total=data.length;const totalPages=Math.max(1,Math.ceil(total/REP_PER_PAGE));if(repPage>=totalPages)repPage=totalPages-1;const page=data.slice(repPage*REP_PER_PAGE,(repPage+1)*REP_PER_PAGE);console.log("[renderReports]",{filtered:total,page:page.length,flaggedInPage:page.filter(r=>r.flagged_at&&!r.flag_resolved).length});document.getElementById("reports-sub").textContent=`${total} 件`;const pi=document.getElementById("rep-page-info");if(pi)pi.textContent=`${repPage+1} / ${totalPages} ページ`;const prev=document.getElementById("rep-prev");const next=document.getElementById("rep-next");if(prev)prev.disabled=repPage===0;if(next)next.disabled=repPage>=totalPages-1;document.getElementById("reports-tbody").innerHTML=page.length===0?`<tr class="erow"><td colspan="9">該当する投稿がありません</td></tr>`:page.map(r=>{if(r._kind==="loveho"){const gm=r.gender_mode;const gmBadge=gm==="women"?"<span class='badge b-women'>♀</span>":gm==="women_same"?"<span class='badge b-women'>♀♀</span>":gm==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>";return`<tr style="background:rgba(201,168,76,0.04);${r.is_hidden?'opacity:0.45;':''}"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${gmBadge}</td><td><span class="badge" style="background:var(--gold-bg);color:var(--gold-dim);border-color:var(--gold-border);">🏩 ラブホ</span></td><td><span class="badge b-free">👤 ユーザー</span></td><td style="font-size:11px;color:var(--ink-3);">${(r.good_points||[]).slice(0,2).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td>—</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleLhVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delLhReportFromList('${r.id}')">削除</button></div></td></tr>`;}const isUnresolved=r.flagged_at&&!r.flag_resolved;const rowStyle=r.is_hidden?"opacity:0.45;":"";const rowFlagStyle=isUnresolved?"background:rgba(192,80,80,0.08);border-left:3px solid var(--red);":"";return`<tr style="${rowStyle}${rowFlagStyle}"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${r.hotel_mode==="women"?"<span class='badge b-women'>♀</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>"}</td><td><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td><span class="badge ${r.poster_type==="shop"?"b-shop":""}">${r.poster_type==="shop"?"🏪 店舗":"👤 ユーザー"}</span></td><td style="font-size:11px;color:var(--ink-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.conditions||[]).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td style="font-size:11px;min-width:140px;">${r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveFlag('${r.id}')">未対応に戻す</button>`:"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delReport('${r.id}')">削除</button></div></td></tr>`;}).join("");}
 function repChangePage(delta){repPage+=delta;renderReports();}
-function openRepEdit(id){const r=reportsData.find(r=>r.id===id);if(!r)return;document.getElementById("re-id").value=id;document.getElementById("re-hotel").textContent=r.hotel_name||"—";document.getElementById("re-can-call").value=r.can_call?"true":"false";document.getElementById("re-poster-name").value=r.poster_name||"";document.getElementById("re-time-slot").value=r.time_slot||"";document.getElementById("re-comment").value=r.comment||"";const rtSel=document.getElementById("re-room-type");const rtOpts=roomTypesData.length?roomTypesData.map(t=>t.label):["シングル","セミダブル","ダブル","ツイン","和室","その他"];rtSel.innerHTML='<option value="">未選択</option>'+rtOpts.map(l=>`<option value="${esc(l)}"${r.room_type===l?" selected":""}>${esc(l)}</option>`).join("");if(r.room_type&&!rtOpts.includes(r.room_type)){const o=document.createElement("option");o.value=r.room_type;o.textContent=r.room_type;o.selected=true;rtSel.appendChild(o);}const canLabels=canReasonsData.length?canReasonsData.map(c=>c.label):["直通","カードキー必須","EVフロント階スキップ","フロント相談","ノウハウ","バスタオル依頼推奨","玄関待ち合わせ"];const cannotLabels=cannotReasonsData.length?cannotReasonsData.map(c=>c.label):["フロントSTOP","防犯カメラ確認","深夜外出NG","その他"];const selCan=r.can_call_reasons||[];const selCannot=r.cannot_call_reasons||[];document.getElementById("re-can-cb").innerHTML=canLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCan.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");reToggleReasons(r.can_call?"true":"false");document.getElementById("report-edit-modal").style.display="flex";}
+function openRepEdit(id){
+  const r=reportsData.find(r=>String(r.id)===String(id));
+  if(!r)return;
+  const kind=r._kind||"deli";
+  document.getElementById("re-id").value=id;
+  document.getElementById("re-kind").value=kind;
+  document.getElementById("re-hotel").textContent=r.hotel_name||"—";
+  document.getElementById("re-poster-name").value=r.poster_name||"";
+  document.getElementById("re-time-slot").value=r.time_slot||"";
+  document.getElementById("re-comment").value=r.comment||"";
+  // デリヘル/ラブホセクション切替
+  document.getElementById("re-deli-section").style.display=kind==="deli"?"":"none";
+  document.getElementById("re-loveho-section").style.display=kind==="loveho"?"":"none";
+  if(kind==="deli"){
+    document.getElementById("re-can-call").value=r.can_call?"true":"false";
+    const rtSel=document.getElementById("re-room-type");
+    const rtOpts=roomTypesData.length?roomTypesData.map(t=>t.label):["シングル","セミダブル","ダブル","ツイン","和室","その他"];
+    rtSel.innerHTML='<option value="">未選択</option>'+rtOpts.map(l=>`<option value="${esc(l)}"${r.room_type===l?" selected":""}>${esc(l)}</option>`).join("");
+    if(r.room_type&&!rtOpts.includes(r.room_type)){const o=document.createElement("option");o.value=r.room_type;o.textContent=r.room_type;o.selected=true;rtSel.appendChild(o);}
+    const canLabels=canReasonsData.length?canReasonsData.map(c=>c.label):["直通","カードキー必須","EVフロント階スキップ","フロント相談","ノウハウ","バスタオル依頼推奨","玄関待ち合わせ"];
+    const cannotLabels=cannotReasonsData.length?cannotReasonsData.map(c=>c.label):["フロントSTOP","防犯カメラ確認","深夜外出NG","その他"];
+    const selCan=r.can_call_reasons||[];
+    const selCannot=r.cannot_call_reasons||[];
+    document.getElementById("re-can-cb").innerHTML=canLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCan.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
+    document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
+    reToggleReasons(r.can_call?"true":"false");
+  } else {
+    // ラブホフィールド
+    document.getElementById("re-lh-atmosphere").value=r.atmosphere||"";
+    document.getElementById("re-lh-solo").value=r.solo_entry||"";
+    document.getElementById("re-lh-can-go-out").value=r.can_go_out||"";
+    document.getElementById("re-lh-cleanliness").value=r.cleanliness||"";
+    document.getElementById("re-lh-cost").value=r.cost_performance||"";
+    document.getElementById("re-lh-multi").value=r.multi_person===true?"true":r.multi_person===false?"false":"";
+    // チェックポイント
+    const selGp=r.good_points||[];
+    document.getElementById("re-lh-goodpoints-cb").innerHTML=goodPointsData.filter(g=>g.is_active).map(g=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(g.label)}"${selGp.includes(g.label)?" checked":""}> ${esc(g.label)}</label>`).join("");
+  }
+  // 日時：有料店舗投稿のみ編集可
+  const isShopPaid=r.poster_type==="shop"&&shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase())?.plan==="paid";
+  const dateWrap=document.getElementById("re-date-wrap");
+  if(isShopPaid){
+    dateWrap.style.display="";
+    const dt=r.created_at?new Date(r.created_at).toISOString().slice(0,16):"";
+    document.getElementById("re-created-at").value=dt;
+  }else{
+    dateWrap.style.display="none";
+  }
+  document.getElementById("report-edit-modal").style.display="flex";
+}
 function reToggleReasons(v){document.getElementById("re-can-wrap").style.display=v==="true"?"":"none";document.getElementById("re-cannot-wrap").style.display=v==="false"?"":"none";}
 function closeRepEditModal(){document.getElementById("report-edit-modal").style.display="none";}
-async function saveRepEdit(){const id=document.getElementById("re-id").value;const can_call=document.getElementById("re-can-call").value==="true";const poster_name=document.getElementById("re-poster-name").value.trim();const time_slot=document.getElementById("re-time-slot").value.trim()||null;const room_type=document.getElementById("re-room-type").value||null;const comment=document.getElementById("re-comment").value.trim()||null;const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons};const{error}=await sb.from("reports").update(payload).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,...payload}:r);renderReports();closeRepEditModal();toast("✅ 更新しました");}
+async function saveRepEdit(){
+  const id=document.getElementById("re-id").value;
+  const kind=document.getElementById("re-kind").value||"deli";
+  const poster_name=document.getElementById("re-poster-name").value.trim();
+  const time_slot=document.getElementById("re-time-slot").value.trim()||null;
+  const comment=document.getElementById("re-comment").value.trim()||null;
+  // 日時更新
+  const dateWrap=document.getElementById("re-date-wrap");
+  const newDate=dateWrap.style.display!==""?null:document.getElementById("re-created-at").value;
+  if(kind==="deli"){
+    const can_call=document.getElementById("re-can-call").value==="true";
+    const room_type=document.getElementById("re-room-type").value||null;
+    const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);
+    const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
+    const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons};
+    if(newDate)payload.created_at=new Date(newDate).toISOString();
+    const{error}=await sb.from("reports").update(payload).eq("id",id);
+    if(error){toast("更新エラー: "+error.message);return;}
+    reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
+  } else {
+    const atmosphere=document.getElementById("re-lh-atmosphere").value||null;
+    const solo_entry=document.getElementById("re-lh-solo").value||null;
+    const can_go_out=document.getElementById("re-lh-can-go-out").value||null;
+    const cleanliness=document.getElementById("re-lh-cleanliness").value||null;
+    const cost_performance=document.getElementById("re-lh-cost").value||null;
+    const multiVal=document.getElementById("re-lh-multi").value;
+    const multi_person=multiVal==="true"?true:multiVal==="false"?false:null;
+    const good_points=[...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
+    const payload={atmosphere,solo_entry,can_go_out,cleanliness,cost_performance,multi_person,good_points,poster_name,time_slot,comment};
+    if(newDate)payload.created_at=new Date(newDate).toISOString();
+    const{error}=await sb.from("loveho_reports").update(payload).eq("id",id);
+    if(error){toast("更新エラー: "+error.message);return;}
+    reportsData=reportsData.map(r=>String(r.id)===String(id)&&r._kind==="loveho"?{...r,...payload}:r);
+  }
+  renderReports();closeRepEditModal();toast("✅ 更新しました");
+}
 async function toggleVis(id,cur){const{error}=await sb.from("reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const{error}=await sb.from("reports").delete().eq("id",id);if(error){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
-async function delLhReportFromList(id){if(!confirm("このラブホ口コミを削除しますか？"))return;const{error}=await sb.from("loveho_reports").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}reportsData=reportsData.filter(r=>!(r._kind==="loveho"&&String(r.id)===String(id)));renderReports();toast("🗑 削除しました");}
+async function delLhReportFromList(id){if(!confirm("このラブホ口コミを削除しますか？"))return;const{error}=await sb.from("loveho_reports").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}reportsData=reportsData.filter(r=>!(r._kind==="loveho"&&r.id===id));renderReports();toast("🗑 削除しました");}
+async function toggleLhVis(id,cur){const{error}=await sb.from("loveho_reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 
 // ===== 投稿種別フィルター =====
 let currentReportType='deli';
-let lovehoReportsData=[];
-function switchReportType(type){
-    currentReportType=type;
-    document.getElementById('btn-type-deli').style.background=type==='deli'?'#c9a84c':'#fff';
-    document.getElementById('btn-type-deli').style.color=type==='deli'?'#fff':'#c9a84c';
-    document.getElementById('btn-type-deli').style.fontWeight=type==='deli'?'600':'400';
-    document.getElementById('btn-type-loveho').style.background=type==='loveho'?'#c9a84c':'#fff';
-    document.getElementById('btn-type-loveho').style.color=type==='loveho'?'#fff':'#c9a84c';
-    document.getElementById('btn-type-loveho').style.fontWeight=type==='loveho'?'600':'400';
-    document.getElementById('deli-reports-area').style.display=type==='deli'?'':'none';
-    document.getElementById('loveho-reports-area').style.display=type==='loveho'?'':'none';
-    if(type==='loveho'&&lovehoReportsData.length===0)loadLovehoReportsAdmin();
-}
-async function loadLovehoReportsAdmin(){
-    if(lovehoReportsData.length>0){renderLovehoReportsAdmin(lovehoReportsData);return;}
-    const container=document.getElementById('loveho-reports-list');
-    container.innerHTML='<div style="text-align:center;padding:40px;color:#999;">読み込み中...</div>';
-    const{data,error}=await sb.from('loveho_reports').select('*,hotels(name,prefecture,city)').order('created_at',{ascending:false}).limit(200);
-    if(error){container.innerHTML='<div style="color:red;">取得エラー: '+error.message+'</div>';return;}
-    if(!data||!data.length){container.innerHTML='<div style="text-align:center;padding:40px;color:#999;">ラブホ口コミはまだありません</div>';return;}
-    lovehoReportsData=data;
-    document.getElementById('loveho-reports-sub').textContent=data.length+' 件';
-    renderLovehoReportsAdmin(data);
-}
-function renderLovehoReportsAdmin(data){
-    const container=document.getElementById('loveho-reports-list');
-    const soloMap={yes:'はい',no:'いいえ',together:'一緒に入った',waiting:'待合室待ち',unknown:'わからない'};
-    container.innerHTML=data.map(r=>{
-        const hotelName=r.hotels?r.hotels.name:'ホテルID:'+r.hotel_id;
-        const location=r.hotels?(r.hotels.prefecture||'')+' '+(r.hotels.city||''):'';
-        const gm=r.gender_mode;
-        const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';
-        return `<div id="lh-report-card-${r.id}" style="background:#fff;border:1px solid #e0d5c8;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-                <div><span style="font-size:13px;font-weight:700;color:#1a1410;">🏩 ${esc(hotelName)}</span><span style="font-size:11px;color:#999;margin-left:8px;">${esc(location)}</span></div>
-                <span style="font-size:11px;color:#999;">${fmtDate(r.created_at)}</span>
-            </div>
-            <div style="font-size:12px;color:#555;margin-bottom:6px;">
-                <span style="color:#4a7ab0;font-weight:600;">${gmIcon} ${esc(r.poster_name||'匿名')}</span>
-                ${r.poster_type==='shop'?'<span style="background:#c9a96e;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:6px;">店舗</span>':''}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#555;margin-bottom:6px;">
-                ${r.atmosphere?'<span>雰囲気: '+esc(r.atmosphere)+'</span>':''}
-                ${r.solo_entry?'<span>一人入室: '+(soloMap[r.solo_entry]||r.solo_entry)+'</span>':''}
-                ${r.time_slot?'<span>⏰ '+esc(r.time_slot)+'</span>':''}
-                ${r.multi_person?'<span>👥 複数人OK</span>':''}
-            </div>
-            ${r.good_points&&r.good_points.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">'+r.good_points.map(gp=>'<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">'+esc(gp)+'</span>').join('')+'</div>':''}
-            <div id="lh-comment-display-${r.id}">
-                ${r.comment?'<div style="font-size:12px;color:#333;background:#f8f5f0;border-radius:6px;padding:8px 10px;margin-bottom:8px;">'+esc(r.comment)+'</div>':''}
-            </div>
-            <div id="lh-comment-edit-${r.id}" style="display:none;margin-bottom:8px;">
-                <textarea id="lh-comment-input-${r.id}" rows="3" style="width:100%;padding:8px 10px;border:1px solid #c9a96e;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;">${esc(r.comment||'')}</textarea>
-                <div style="display:flex;gap:8px;margin-top:6px;">
-                    <button onclick="saveLovehoComment('${r.id}')" style="padding:5px 14px;background:#c9a96e;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">保存</button>
-                    <button onclick="cancelLhEdit('${r.id}')" style="padding:5px 14px;background:#f0ebe0;color:#555;border:none;border-radius:6px;font-size:12px;cursor:pointer;">キャンセル</button>
-                </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <button onclick="editLhComment('${r.id}')" style="font-size:11px;color:#5a7ab0;background:none;border:1px solid #5a7ab0;border-radius:6px;padding:3px 10px;cursor:pointer;">✏️ 編集</button>
-                <button onclick="deleteLhReport('${r.id}')" style="font-size:11px;color:#c05050;background:none;border:1px solid #c05050;border-radius:6px;padding:3px 10px;cursor:pointer;">🗑 削除</button>
-            </div>
-        </div>`;
-    }).join('');
-}
-function editLhComment(id){
-    document.getElementById('lh-comment-display-'+id).style.display='none';
-    document.getElementById('lh-comment-edit-'+id).style.display='block';
-}
-function cancelLhEdit(id){
-    document.getElementById('lh-comment-display-'+id).style.display='block';
-    document.getElementById('lh-comment-edit-'+id).style.display='none';
-}
-async function saveLovehoComment(id){
-    const newComment=document.getElementById('lh-comment-input-'+id).value.trim();
-    const{error}=await sb.from('loveho_reports').update({comment:newComment||null}).eq('id',id);
-    if(error){toast('更新エラー: '+error.message);return;}
-    const r=lovehoReportsData.find(x=>x.id===id);
-    if(r)r.comment=newComment||null;
-    cancelLhEdit(id);
-    document.getElementById('lh-comment-display-'+id).innerHTML=
-        newComment?'<div style="font-size:12px;color:#333;background:#f8f5f0;border-radius:6px;padding:8px 10px;margin-bottom:8px;">'+esc(newComment)+'</div>':'';
-    toast('✅ 更新しました');
-}
-async function deleteLhReport(id){
-    if(!confirm('このラブホ口コミを削除しますか？'))return;
-    const{error}=await sb.from('loveho_reports').delete().eq('id',id);
-    if(error){alert('削除エラー: '+error.message);return;}
-    const card=document.getElementById('lh-report-card-'+id);
-    if(card)card.remove();
-    lovehoReportsData=lovehoReportsData.filter(x=>String(x.id)!==String(id));
-    const sub=document.getElementById('loveho-reports-sub');
-    if(sub)sub.textContent=lovehoReportsData.length+' 件';
-    toast('🗑 削除しました');
-}
 
 // ===== ホテル編集 =====
 let hotelsData=[];let _hotelSearchTimer=null;
