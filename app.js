@@ -7,17 +7,6 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-const GATE_URL_MAP = {
-    'men': 'https://deli.yobuho.com/',
-    'women': 'https://jofu.yobuho.com/',
-    'men_same': 'https://same.yobuho.com/',
-    'women_same': 'https://same.yobuho.com/',
-};
-function getGateUrl() {
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
-    return GATE_URL_MAP[mode] || 'https://yobuho.com/';
-}
-
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -103,12 +92,12 @@ function ensurePortalMode() {
         const header = document.querySelector('.portal-header');
         header.innerHTML = `
             <div class="header-inner">
-                <button onclick="location.href=getGateUrl()" class="btn-to-gate">
+                <button onclick="location.href='index.html'" class="btn-to-gate">
                     <span class="btn-gate-icon">⛩</span>
                     <span class="btn-gate-text">ゲートへ</span>
                 </button>
                 <div class="header-logo">
-                    <a href="https://yobuho.com/" style="text-decoration:none;"><span class="logo-text">Deri <em>Hotel</em> Navi</span></a>
+                    <span class="logo-text">Deri <em>Hotel</em> Navi</span>
                 </div>
                 <div class="lang-buttons">
                     <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
@@ -122,21 +111,16 @@ function ensurePortalMode() {
         document.querySelector('.area-section').style.display = '';
         document.querySelector('.search-tools').style.display = '';
         document.getElementById('hotel-list').style.display = '';
-        const bottomLinks = document.getElementById('bottom-info-links');
-        if (bottomLinks) bottomLinks.style.display = 'none';
     }
 }
 
-async function restoreFromUrl() {
+function restoreFromUrl() {
     const params = new URLSearchParams(window.location.search);
     console.log('[restoreFromUrl] URL params:', Object.fromEntries(params));
     _skipPushState = true;
 
     if (params.get('hotel')) {
-        const hotelId = parseInt(params.get('hotel'));
-        const { data: h } = await supabaseClient.from('hotels').select('hotel_type').eq('id', hotelId).maybeSingle();
-        const isLoveho = h && ['love_hotel', 'rental_room'].includes(h.hotel_type);
-        showHotelPanel(hotelId, isLoveho);
+        showHotelPanel(parseInt(params.get('hotel')));
         _skipPushState = false;
         return;
     }
@@ -157,7 +141,6 @@ async function restoreFromUrl() {
         const filterObj = { prefecture: pref };
         if (area) filterObj.major_area = area;
         if (detail) filterObj.detail_area = detail;
-        setBackBtn(true);
         fetchAndShowHotelsByCity(filterObj, city);
     } else if (params.get('detail')) {
         const pref = params.get('pref');
@@ -285,7 +268,7 @@ function clearHotelList() {
     const s = document.getElementById('result-status');
     if (s) s.style.display = 'none';
     const links = document.getElementById('bottom-info-links');
-    if (links) links.style.display = 'none';
+    if (links) links.style.display = 'flex';
     hideLovehoTabs();
 }
 
@@ -542,16 +525,6 @@ function showJapanPage() {
         btn.onclick = () => { pageStack.push(showJapanPage); showPrefPage(region); };
         container.appendChild(btn);
     });
-    // リンクバー追加
-    const hlcJp = document.getElementById('hotel-list');
-    if (hlcJp && !hlcJp.querySelector('.info-links-bar')) {
-        hlcJp.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-            </div>
-        `);
-    }
 }
 
 async function showPrefPage(region) {
@@ -575,7 +548,7 @@ async function showPrefPage(region) {
     // 都道府県ごとのホテル数を並行取得（全件）して多い順にソート
     const prefCountResults = await Promise.all(
         region.prefs.map(pref =>
-            supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")')
+            supabaseClient.from('hotels').select('id', { count: 'exact', head: true }).eq('prefecture', pref).eq('is_published', true)
                 .then(({ count }) => ({ pref, count: count || 0 }))
         )
     );
@@ -593,16 +566,6 @@ async function showPrefPage(region) {
         };
         container.appendChild(btn);
     });
-    // リンクバー追加
-    const hlcPref = document.getElementById('hotel-list');
-    if (hlcPref && !hlcPref.querySelector('.info-links-bar')) {
-        hlcPref.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-            </div>
-        `);
-    }
 }
 
 async function showMajorAreaPage(region, pref) {
@@ -625,7 +588,7 @@ async function showMajorAreaPage(region, pref) {
     container.className = 'area-grid col-2';
 
     // まずエリア一覧を取得（全件）
-    const query_ma = supabaseClient.from('hotels').select('id,major_area,city,address').eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(5000);
+    const query_ma = supabaseClient.from('hotels').select('id,major_area').eq('prefecture', pref).eq('is_published', true).limit(5000);
     const { data, error } = await query_ma;
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
@@ -645,46 +608,36 @@ async function showMajorAreaPage(region, pref) {
         (area) => { pageStack.push(() => showMajorAreaPage(region, pref)); showCityPage(region, pref, area); }
     );
 
-    // major_area未設定のホテルはcity別にボタン表示
+    // major_area 未設定のホテルがある場合は「その他のエリア」ボタンを追加
     if (noAreaCount > 0) {
-        const noAreaHotels = data.filter(h => !h.major_area);
-        const noAreaCityCount = {};
-        noAreaHotels.forEach(h => {
-            const city = h.city || extractCity(h.address);
-            if (city) noAreaCityCount[city] = (noAreaCityCount[city] || 0) + 1;
-        });
-        const noAreaCities = Object.entries(noAreaCityCount).sort((a, b) => b[1] - a[1]);
-        // ラブホ件数も取得
-        const noAreaCityNames = noAreaCities.map(c => c[0]);
-        const noAreaLovehoCount = {};
-        if (noAreaCityNames.length > 0) {
-            const { data: lhRows } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('hotel_type', ['love_hotel', 'rental_room']).eq('is_published', true).in('city', noAreaCityNames);
-            (lhRows || []).forEach(h => { if (h.city) noAreaLovehoCount[h.city] = (noAreaLovehoCount[h.city] || 0) + 1; });
-        }
+        const noAreaBtn = document.createElement('button');
+        noAreaBtn.className = 'area-btn';
+        noAreaBtn.innerHTML = `<span class="city-name">その他のエリア</span><span class="city-count">${noAreaCount}</span>`;
+        noAreaBtn.onclick = async () => {
+            pageStack.push(() => showMajorAreaPage(region, pref));
+            showLoading();
+            setBreadcrumb([
+                { label: t('japan'), onclick: 'showJapanPage()' },
+                { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+                { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
+                { label: 'その他のエリア' }
+            ]);
+            setTitle('その他のエリア');
+            document.getElementById('area-button-container').innerHTML = '';
+            try {
+                let query = supabaseClient.from('hotels').select('*')
+                    .eq('prefecture', pref).is('major_area', null).eq('is_published', true).limit(1000)
+                    .order('review_average', { ascending: false, nullsFirst: false });
+                let hotels = await fetchHotelsWithSummary(query);
+                sortHotelsByReviews(hotels);
+                renderHotelCards(hotels);
+                setResultStatus(hotels.length);
+            } catch (e) { console.error(e); } finally { hideLoading(); }
+        };
+        // 「全て表示」ボタンの前に挿入
         const allBtn = container.querySelector('.all-btn');
-        noAreaCities.forEach(([city, count]) => {
-            const btn = document.createElement('button');
-            btn.className = 'area-btn';
-            btn.innerHTML = `
-                <span class="city-name">${city}</span>
-                <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
-                    ${count > 0 ? `<span class="city-count">🏨${count}</span>` : ''}
-                    ${(noAreaLovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${noAreaLovehoCount[city]||0}</span>` : ''}
-                </span>`;
-            btn.onclick = () => { pageStack.push(() => showMajorAreaPage(region, pref)); fetchAndShowHotelsByCity({ prefecture: pref }, city); };
-            if (allBtn) container.insertBefore(btn, allBtn);
-            else container.appendChild(btn);
-        });
-    }
-    // リンクバー追加
-    const hlc = document.getElementById('hotel-list');
-    if (hlc && !hlc.querySelector('.info-links-bar')) {
-        hlc.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-            </div>
-        `);
+        if (allBtn) container.insertBefore(noAreaBtn, allBtn);
+        else container.appendChild(noAreaBtn);
     }
 }
 
@@ -713,7 +666,7 @@ async function showCityPage(region, pref, majorArea) {
     let cpFrom = 0;
     const CP_PAGE = 1000;
     while (true) {
-        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(cpFrom, cpFrom + CP_PAGE - 1);
+        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true).range(cpFrom, cpFrom + CP_PAGE - 1);
         if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
         if (!chunk || !chunk.length) break;
         data = data.concat(chunk);
@@ -745,16 +698,6 @@ async function showCityPage(region, pref, majorArea) {
         allBtn.textContent = `▶ ${t('show_all')}`;
         allBtn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotels({ prefecture: pref, major_area: majorArea }); };
         container.appendChild(allBtn);
-        // リンクバー追加（detail_areaパス）
-        const hlcDA = document.getElementById('hotel-list');
-        if (hlcDA && !hlcDA.querySelector('.info-links-bar')) {
-            hlcDA.insertAdjacentHTML('beforeend', `
-                <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                    <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                    ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-                </div>
-            `);
-        }
         return;
     }
 
@@ -773,7 +716,7 @@ async function showCityPage(region, pref, majorArea) {
     let countFrom = 0;
     const COUNT_PAGE = 1000;
     while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).eq('major_area', majorArea).in('city', candidateCities).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(countFrom, countFrom + COUNT_PAGE - 1);
+        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).in('city', candidateCities).eq('is_published', true).range(countFrom, countFrom + COUNT_PAGE - 1);
         if (!chunk || !chunk.length) break;
         countRows = countRows.concat(chunk);
         if (chunk.length < COUNT_PAGE) break;
@@ -786,17 +729,6 @@ async function showCityPage(region, pref, majorArea) {
             if (!cityAreaCount[h.city]) cityAreaCount[h.city] = {};
             cityAreaCount[h.city][h.major_area] = (cityAreaCount[h.city][h.major_area] || 0) + 1;
         }
-    });
-
-    const lovehoCount = {};
-    const { data: lovehoRows } = await supabaseClient.from('hotels')
-        .select('city')
-        .eq('prefecture', pref)
-        .in('hotel_type', ['love_hotel', 'rental_room'])
-        .eq('is_published', true)
-        .in('city', candidateCities);
-    (lovehoRows || []).forEach(h => {
-        if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
     });
 
     // 現在のmajor_areaが最多（同数含む）のcityのみ表示
@@ -823,10 +755,7 @@ async function showCityPage(region, pref, majorArea) {
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
         btn.innerHTML = `
             <span class="city-name">${city}</span>
-            <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
-                ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
-                ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
-            </span>`;
+            <span class="city-count">${cityCount[city] || 0}</span>`;
         btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city); };
         container.appendChild(btn);
     });
@@ -837,16 +766,6 @@ async function showCityPage(region, pref, majorArea) {
     allBtn.textContent = `▶ ${t('show_all')}`;
     allBtn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotels({ prefecture: pref, major_area: majorArea }); };
     container.appendChild(allBtn);
-    // リンクバー追加（cityパス）
-    const hlcCity = document.getElementById('hotel-list');
-    if (hlcCity && !hlcCity.querySelector('.info-links-bar')) {
-        hlcCity.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-            </div>
-        `);
-    }
 }
 
 // ==========================================================================
@@ -878,7 +797,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     let daFrom = 0;
     const DA_PAGE = 1000;
     while (true) {
-        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(daFrom, daFrom + DA_PAGE - 1);
+        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true).range(daFrom, daFrom + DA_PAGE - 1);
         if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
         if (!chunk || !chunk.length) break;
         data = data.concat(chunk);
@@ -889,7 +808,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 
     if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
 
-    // このdetail_area内の市区町村を抽出（ラブホも含む）
+    // このdetail_area内の市区町村を抽出
     const citySet = new Set();
     data.forEach(h => {
         const city = h.city || extractCity(h.address);
@@ -904,7 +823,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         let cFrom = 0;
         const C_PAGE = 1000;
         while (true) {
-            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).in('city', candidateCitiesDA).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(cFrom, cFrom + C_PAGE - 1);
+            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).range(cFrom, cFrom + C_PAGE - 1);
             if (!chunk || !chunk.length) break;
             allCityRows = allCityRows.concat(chunk);
             if (chunk.length < C_PAGE) break;
@@ -914,17 +833,6 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
             if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1;
         });
     }
-
-    const lovehoCount = {};
-    const lovehoResult = await supabaseClient.from('hotels')
-        .select('city')
-        .eq('prefecture', pref)
-        .in('hotel_type', ['love_hotel', 'rental_room'])
-        .eq('is_published', true)
-        .in('city', candidateCitiesDA);
-    (lovehoResult.data || []).forEach(h => {
-        if (h.city) lovehoCount[h.city] = (lovehoCount[h.city] || 0) + 1;
-    });
 
     const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
@@ -939,12 +847,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const btn = document.createElement('button');
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-        btn.innerHTML = `
-            <span class="city-name">${city}</span>
-            <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
-                ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
-                ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
-            </span>`;
+        btn.innerHTML = `<span class="city-name">${city}</span><span class="city-count">${cityCount[city] || 0}</span>`;
         btn.onclick = () => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
             fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
@@ -961,16 +864,6 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
     };
     container.appendChild(allBtn);
-    // リンクバー追加
-    const hlc2 = document.getElementById('hotel-list');
-    if (hlc2 && !hlc2.querySelector('.info-links-bar')) {
-        hlc2.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
-            </div>
-        `);
-    }
 }
 
 // ==========================================================================
@@ -1036,7 +929,7 @@ async function fetchAndShowHotels(filterObj) {
 
     try {
         const keyword = document.getElementById('keyword')?.value?.trim() || '';
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(1000);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).neq('hotel_type', 'love_hotel').limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = applyKeywordFilter(query, keyword);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -1078,11 +971,10 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
     loadAds('spot', city);
-    setBackBtn(true);
 
     try {
         // love_hotel除外で取得
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').limit(1000);
+        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).neq('hotel_type', 'love_hotel').limit(1000);
         Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
         query = query.eq('city', city);
         query = query.order('review_average', { ascending: false, nullsFirst: false });
@@ -1133,7 +1025,7 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
         .select('*', { count: 'exact', head: true })
         .eq('prefecture', pref)
         .eq('city', city)
-        .in('hotel_type', ['love_hotel', 'rental_room'])
+        .eq('hotel_type', 'love_hotel')
         .eq('is_published', true);
 
     if (!lovehoCount) return;
@@ -1212,7 +1104,7 @@ async function loadLovehoForCurrentCity() {
         const pref = _tabFilterObj.prefecture;
         let query = supabaseClient.from('hotels').select('*')
             .eq('is_published', true)
-            .in('hotel_type', ['love_hotel', 'rental_room'])
+            .eq('hotel_type', 'love_hotel')
             .eq('city', _tabCity)
             .limit(1000);
         if (pref) query = query.eq('prefecture', pref);
@@ -1330,16 +1222,6 @@ function loadMoreLovehoCards() {
                 <button onclick="loadMoreLovehoCards()" style="background:#c9a96e;color:#fff;border:none;padding:12px 32px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;">もっと見る（残り${remaining}件）</button>
             </div>`);
     }
-
-    if (displayedCount >= allHotels.length) {
-        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>';
-        container.insertAdjacentHTML('beforeend', `
-            <div class="info-links-bar" style="display:flex; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${shopRegLink}
-            </div>
-        `);
-    }
 }
 
 // ==========================================================================
@@ -1351,25 +1233,19 @@ let lhFormState = {};
 async function loadLhMasters() {
     if (LH_MASTER._loaded) return;
     const [atm, rt, fac, pr, ts] = await Promise.all([
-        supabaseClient.from('loveho_atmospheres').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_room_types').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_facilities').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_price_ranges').select('name,type').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_time_slots').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_atmospheres').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_room_types').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_facilities').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_price_ranges').select('label,type').order('sort_order').then(r => r.data || []).catch(() => []),
+        supabaseClient.from('loveho_time_slots').select('label').order('sort_order').then(r => r.data || []).catch(() => []),
     ]);
-    LH_MASTER.atmospheres = atm.map(r => r.name);
-    LH_MASTER.room_types = rt.map(r => r.name);
-    LH_MASTER.facilities = fac.map(r => r.name);
-    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.name);
-    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
-    LH_MASTER.time_slots = ts.map(r => r.name);
+    LH_MASTER.atmospheres = atm.map(r => r.label);
+    LH_MASTER.room_types = rt.map(r => r.label);
+    LH_MASTER.facilities = fac.map(r => r.label);
+    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.label);
+    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.label);
+    LH_MASTER.time_slots = ts.map(r => r.label);
     if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
-    const gpRes = await supabaseClient
-        .from('loveho_good_points')
-        .select('label, category')
-        .eq('is_active', true)
-        .order('sort_order');
-    LH_MASTER.good_points = (gpRes.data || []);
     LH_MASTER._loaded = true;
 }
 
@@ -1404,83 +1280,115 @@ async function loadLovehoDetail(hotelId) {
     }
 }
 
-function atmosphereIcon(atm) {
-    const map = {
-        'おしゃれ': '🎨',
-        'ラグジュアリー': '👑',
-        'きれい': '✨',
-        '普通': '🏨',
-        'レトロ': '🕰️',
-    };
-    return map[atm] ? map[atm] + ' ' : '✨ ';
-}
-
 function renderLovehoDetail(hotel, reports) {
     const h = hotel;
     const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(h.name)}`;
     const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.address || h.name)}`;
 
-    // カテゴリ参照マップ
-    const gpCatMap = {};
-    if (LH_MASTER.good_points) LH_MASTER.good_points.forEach(p => { gpCatMap[p.label] = p.category; });
+    let recSum = 0, cleanSum = 0, cpSum = 0, rated = 0;
+    let aloneY = 0, aloneN = 0, aloneU = 0, outsideY = 0, outsideN = 0, outsideU = 0;
+    let parkingY = 0, parkingN = 0, parkingU = 0;
+    const facilityCount = {}, atmosphereCount = {};
 
-    // 一人入室の集計
-    const soloMap = { yes: 'はい', no: 'いいえ', together: '一緒に入った', waiting: '待合室待ち', unknown: 'わからない' };
-    const soloColors = { yes: '#c9a96e', no: '#b5627a', together: '#7a9bc9', waiting: '#9b7ac9', unknown: '#ccc' };
-    const soloReports = reports.filter(r => r.solo_entry && r.solo_entry !== '');
-    const soloCounts = {};
-    soloReports.forEach(r => { soloCounts[r.solo_entry] = (soloCounts[r.solo_entry] || 0) + 1; });
-    const soloTotal = soloReports.length;
+    reports.forEach(r => {
+        if (r.recommendation) { recSum += r.recommendation; rated++; }
+        if (r.cleanliness) cleanSum += r.cleanliness;
+        if (r.cost_performance) cpSum += r.cost_performance;
+        if (r.solo_entry === 'yes') aloneY++; else if (r.solo_entry === 'no') aloneN++; else aloneU++;
+        if (r.can_go_out === 'yes') outsideY++; else if (r.can_go_out === 'no') outsideN++; else outsideU++;
+        if (r.has_parking === 'yes') parkingY++; else if (r.has_parking === 'no') parkingN++; else parkingU++;
+        if (r.facilities && Array.isArray(r.facilities)) r.facilities.forEach(f => { facilityCount[f] = (facilityCount[f] || 0) + 1; });
+        if (r.atmosphere) atmosphereCount[r.atmosphere] = (atmosphereCount[r.atmosphere] || 0) + 1;
+    });
+
+    const avgRec = rated ? (recSum / rated).toFixed(1) : '-';
+    const avgClean = rated ? (cleanSum / rated).toFixed(1) : '-';
+    const avgCp = rated ? (cpSum / rated).toFixed(1) : '-';
+
+    function ynBar(title, yes, no, unk) {
+        const total = yes + no + unk;
+        if (!total) return '';
+        const yP = Math.round(yes/total*100), nP = Math.round(no/total*100), uP = 100 - yP - nP;
+        return `<div style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">${title}</div>
+            <div style="display:flex;height:22px;border-radius:11px;overflow:hidden;background:var(--bg-4,#ede8df);">
+                ${yP > 0 ? `<div style="width:${yP}%;background:#3a9a60;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">Yes ${yP}%</div>` : ''}
+                ${nP > 0 ? `<div style="width:${nP}%;background:#c05050;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">No ${nP}%</div>` : ''}
+                ${uP > 0 ? `<div style="width:${uP}%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text-3);">?</div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    const facilityTags = Object.entries(facilityCount).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<span style="background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:16px;padding:3px 10px;font-size:11px;color:var(--text-2);">${esc(f)} (${c})</span>`).join(' ');
+    const atmosphereTags = Object.entries(atmosphereCount).sort((a,b)=>b[1]-a[1]).map(([a,c])=>`<span style="background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.25);border-radius:16px;padding:3px 10px;font-size:11px;color:#c9a96e;">${esc(a)} (${c})</span>`).join(' ');
 
     const reviewsHTML = reports.map(r => {
-        const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
-        const gpRoom = gps.filter(gp => gpCatMap[gp] === '設備・お部屋');
-        const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
-        const gpTagHTML = (items) => items.map(gp=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">${esc(gp)}</span>`).join('');
-        const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
+        const tags = [];
+        if (r.atmosphere) tags.push(r.atmosphere);
+        if (r.room_type_id) tags.push(r.room_type_id);
+        if (r.time_slot) tags.push(r.time_slot);
+        if (r.price_rest) tags.push('休憩: ' + r.price_rest);
+        if (r.price_stay) tags.push('宿泊: ' + r.price_stay);
         return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:10px;color:${gmCol};font-weight:600;">${gmIcon} ${esc(r.poster_name || '匿名')}</span>
+                <span style="font-size:12px;color:var(--text-2);font-weight:500;">${esc(r.poster_name || '匿名')}</span>
                 <span style="font-size:11px;color:var(--text-3);">${formatDate(r.created_at)}</span>
             </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text-2);margin-bottom:4px;">
+                ${r.recommendation ? `<span>おすすめ ${lhStarsHTML(r.recommendation)} ${r.recommendation}</span>` : ''}
+                ${r.cleanliness ? `<span>清潔感 ${r.cleanliness}</span>` : ''}
+                ${r.cost_performance ? `<span>コスパ ${r.cost_performance}</span>` : ''}
+            </div>
             ${r.comment ? `<div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-top:4px;">${esc(r.comment)}</div>` : ''}
-            ${r.atmosphere ? `<div style="margin-bottom:6px;"><span style="font-size:11px;font-weight:600;color:var(--text-3);">✨ 雰囲気　</span><span style="padding:3px 10px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:#c9a96e;background:rgba(201,169,110,0.08);">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
-            ${gpRoom.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🛁 設備・お部屋</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpRoom)}</div></div>` : ''}
-            ${gpService.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🏨 サービス・利便性</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpService)}</div></div>` : ''}
-            ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🕐 ${esc(r.time_slot)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}</div>` : ''}
+            ${tags.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${tags.map(t=>`<span style="background:var(--bg-3);border-radius:10px;padding:2px 8px;font-size:10px;color:var(--text-3);">${esc(t)}</span>`).join('')}</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }).join('');
 
     // フォーム用 select 生成
     const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    const facCheckboxes = LH_MASTER.facilities.map(f =>
+        `<label onclick="lhToggleFac(this,'${esc(f)}')" style="display:flex;align-items:center;gap:6px;background:var(--bg-3,#f5f2ec);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text-2);cursor:pointer;transition:all 0.15s;">
+            <input type="checkbox" value="${esc(f)}" style="display:none;"><span>${esc(f)}</span>
+        </label>`
+    ).join('');
+
     const content = document.getElementById('hotel-detail-content');
     content.innerHTML = `
-      <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
-        <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
-            <a href="https://www.google.com/search?q=${encodeURIComponent(h.name)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">${esc(h.name)}</a> <span style="font-size:14px;">🏩</span>
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:12px;">
+            <a href="${googleSearch}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.name)}</a>
+            <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:6px;">🏩 ラブホテル</span>
         </div>
-        <div style="font-size:13px;color:var(--text-2);margin-bottom:6px;">
-            ${h.address ? `📍 <a href="https://www.google.com/maps/search/${encodeURIComponent(h.address)}" target="_blank" rel="noopener" style="color:var(--text-2);text-decoration:underline;">${esc(h.address)}</a>` : ''}
-            ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
+        <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+            <div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;font-size:13px;"><span>📍</span><a href="${googleMap}" target="_blank" rel="noopener" style="color:#c9a96e;text-decoration:none;">${esc(h.address || '住所不明')}</a></div>
+            ${h.tel ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>📞</span><a href="tel:${h.tel}" style="color:#c9a96e;text-decoration:none;">${esc(h.tel)}</a></div>` : ''}
+            ${h.nearest_station ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;border-top:1px solid var(--border);"><span>🚉</span><span>${esc(h.nearest_station)}</span></div>` : ''}
         </div>
-        <div style="font-size:13px;color:var(--text-2);">
-            ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
-            ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
-        </div>
-        ${soloTotal > 0 ? `
-        <div style="margin-top:12px;margin-bottom:16px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">👤 一人で先に入れる？（${soloTotal}件回答）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
-                ${Object.entries(soloCounts).map(([key, count]) => `<div style="width:${Math.round(count/soloTotal*100)}%;background:${soloColors[key]||'#ccc'};"></div>`).join('')}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                ${Object.entries(soloCounts).map(([key, count]) => `<span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${soloColors[key]||'#ccc'};margin-right:3px;"></span>${soloMap[key]||key} ${Math.round(count/soloTotal*100)}%</span>`).join('')}
-            </div>
-        </div>` : ''}
 
         <div id="detail-ad-slot"></div>
+
+        ${reports.length > 0 ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">おすすめ度</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgRec}</div>
+                ${rated ? lhStarsHTML(recSum/rated) : ''}
+            </div>
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">清潔感</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgClean}</div>
+            </div>
+            <div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+                <div style="font-size:10px;color:var(--text-3);margin-bottom:4px;">コスパ</div>
+                <div style="font-size:18px;font-weight:700;color:#c9a96e;">${avgCp}</div>
+            </div>
+        </div>
+        ${ynBar('一人で入れる？', aloneY, aloneN, aloneU)}
+        ${ynBar('外出可能？', outsideY, outsideN, outsideU)}
+        ${ynBar('駐車場', parkingY, parkingN, parkingU)}
+        ${atmosphereTags ? `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">雰囲気</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${atmosphereTags}</div></div>` : ''}
+        ${facilityTags ? `<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">設備</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${facilityTags}</div></div>` : ''}
+        ` : '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">まだ口コミがありません</div>'}
 
         <div style="margin-bottom:24px;">
             <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${reports.length}件)</h3>
@@ -1492,51 +1400,53 @@ function renderLovehoDetail(hotel, reports) {
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">一人で先に入れる？</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
-                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>
+                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
+                </select>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">外出可能？</label>
+                <select id="lh-go-out" onchange="lhFormState.can_go_out=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                    <option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="unknown">わからない</option>
                 </select>
             </div>
             ${LH_MASTER.atmospheres.length ? `<div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
                 <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
             </div>` : ''}
-            ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
-                const categories = ['設備・お部屋', 'サービス・利便性'];
-                const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
-                return categories.map(cat => {
-                    const items = LH_MASTER.good_points.filter(p => p.category === cat);
-                    if (!items.length) return '';
-                    return `<div style="margin-bottom:14px;">
-                        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">${catIcons[cat] || '📝'} ${cat} <span style="font-size:10px;font-weight:400;color:var(--text-3);">複数選択可</span></label>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                            ${items.map(p => `
-                                <div onclick="lhToggleGoodPoint(this,'${esc(p.label)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p.label)}</div>
-                            `).join('')}
-                        </div>
-                    </div>`;
-                }).join('');
-            })() : ''}
             <div style="margin-bottom:14px;">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked; document.getElementById('lh-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:#c9a96e;cursor:pointer;">
-                    <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
-                </label>
-                <div id="lh-multi-detail" style="display:none;gap:8px;margin-top:8px;margin-bottom:4px;">
-                    <select onchange="lhFormState.guest_male=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option>
-                        <option value="1">男性 1名</option>
-                        <option value="2">男性 2名</option>
-                        <option value="3">男性 3名</option>
-                        <option value="4">男性 4名</option>
-                    </select>
-                    <select onchange="lhFormState.guest_female=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option>
-                        <option value="1">女性 1名</option>
-                        <option value="2">女性 2名</option>
-                        <option value="3">女性 3名</option>
-                        <option value="4">女性 4名</option>
-                    </select>
-                </div>
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">清潔感</label>
+                <div id="lh-star-cleanliness" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cleanliness',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
             </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label>
+                <div id="lh-star-recommendation" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('recommendation',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label>
+                <div id="lh-star-cost_performance" style="display:flex;gap:4px;cursor:pointer;">${[1,2,3,4,5].map(n=>`<span onclick="lhSetStar('cost_performance',${n})" style="font-size:24px;color:#ccc;cursor:pointer;transition:all 0.15s;">★</span>`).join('')}</div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">駐車場</label>
+                <select onchange="lhFormState.has_parking=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
+                    <option value="">選択してください</option><option value="yes">あり</option><option value="no">なし</option><option value="unknown">わからない</option>
+                </select>
+            </div>
+            ${LH_MASTER.room_types.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">ルームタイプ</label>
+                <select onchange="lhFormState.room_type_id=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.room_types)}</select>
+            </div>` : ''}
+            ${LH_MASTER.facilities.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">設備（複数選択可）</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">${facCheckboxes}</div>
+            </div>` : ''}
+            ${LH_MASTER.price_ranges_rest.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">休憩料金帯</label>
+                <select onchange="lhFormState.price_rest=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_rest)}</select>
+            </div>` : ''}
+            ${LH_MASTER.price_ranges_stay.length ? `<div style="margin-bottom:14px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">宿泊料金帯</label>
+                <select onchange="lhFormState.price_stay=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.price_ranges_stay)}</select>
+            </div>` : ''}
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
                 <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
@@ -1548,14 +1458,12 @@ function renderLovehoDetail(hotel, reports) {
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label>
                 <input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
-                <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div>
             </div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">投稿する</button>
         </div>
-      </div>
     `;
 
-    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
+    lhFormState = { solo_entry: '', can_go_out: '', atmosphere: '', cleanliness: 0, recommendation: 0, cost_performance: 0, has_parking: '', room_type_id: '', facilities: [], price_rest: '', price_stay: '', time_slot: '', comment: '', poster_name: '' };
 }
 
 function lhSetStar(field, value) {
@@ -1563,25 +1471,6 @@ function lhSetStar(field, value) {
     const container = document.getElementById('lh-star-' + field);
     if (!container) return;
     container.querySelectorAll('span').forEach((s, i) => { s.style.color = i < value ? '#c9a96e' : '#ccc'; });
-}
-
-function lhToggleGoodPoint(el, name) {
-    const active = el.dataset.active === '1';
-    if (active) {
-        el.dataset.active = '0';
-        el.style.borderColor = 'rgba(201,169,110,0.4)';
-        el.style.background = '#fff';
-        el.style.color = 'var(--text-2)';
-        el.style.fontWeight = 'normal';
-        lhFormState.good_points = lhFormState.good_points.filter(p => p !== name);
-    } else {
-        el.dataset.active = '1';
-        el.style.borderColor = '#c9a96e';
-        el.style.background = 'rgba(201,169,110,0.12)';
-        el.style.color = '#c9a96e';
-        el.style.fontWeight = '600';
-        if (!lhFormState.good_points.includes(name)) lhFormState.good_points.push(name);
-    }
 }
 
 function lhToggleFac(el, name) {
@@ -1596,7 +1485,7 @@ function lhToggleFac(el, name) {
 
 async function submitLovehoReport() {
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    const hasData = lhFormState.solo_entry || lhFormState.can_go_out || lhFormState.atmosphere || lhFormState.cleanliness || lhFormState.recommendation || lhFormState.cost_performance || lhFormState.has_parking || lhFormState.room_type_id || lhFormState.facilities.length || lhFormState.price_rest || lhFormState.price_stay || lhFormState.time_slot || lhFormState.comment;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -1605,15 +1494,19 @@ async function submitLovehoReport() {
         const payload = {
             hotel_id: currentHotelId,
             solo_entry: lhFormState.solo_entry || null,
+            can_go_out: lhFormState.can_go_out || null,
             atmosphere: lhFormState.atmosphere || null,
-            good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
+            cleanliness: lhFormState.cleanliness || null,
+            recommendation: lhFormState.recommendation || null,
+            cost_performance: lhFormState.cost_performance || null,
+            has_parking: lhFormState.has_parking || null,
+            room_type_id: lhFormState.room_type_id || null,
+            facilities: lhFormState.facilities.length ? lhFormState.facilities : null,
+            price_rest: lhFormState.price_rest || null,
+            price_stay: lhFormState.price_stay || null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment || null,
             poster_name: lhFormState.poster_name || null,
-            gender_mode: typeof MODE !== 'undefined' ? MODE : null,
-            multi_person: lhFormState.multi_person || false,
-            guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
-            guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
         };
         const { error } = await supabaseClient.from('loveho_reports').insert(payload);
         if (error) throw error;
@@ -2038,6 +1931,7 @@ function loadMoreHotels() {
     }
 
     // ホテル一覧の下にリンクバーを追加
+    document.getElementById('bottom-info-links').style.display = 'none';
     const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>';
     container.insertAdjacentHTML('beforeend', `
         <div class="info-links-bar" style="display:flex; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
@@ -2187,33 +2081,25 @@ function showHotelPanel(hotelId, isLoveho) {
     const rs = document.getElementById('result-status');
     if (rs) rs.style.display = 'none';
     document.getElementById('hotel-list').style.display = 'none';
-    const bottomLinks = document.getElementById('bottom-info-links');
-    if (bottomLinks) bottomLinks.style.display = 'none';
     hideLovehoTabs();
 
     const panel = document.getElementById('hotel-detail-panel');
     panel.style.display = 'block';
     // ヘッダーを詳細用に切り替え
     const header = document.querySelector('.portal-header');
-    const _logoMap = {
-        'men': '<span style="font-style:italic;color:#666;font-weight:300;font-size:0.85em;letter-spacing:2px;">Deli</span> <b style="color:#c0392b;font-size:1.2em;letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b;font-size:0.9em;">♂</span>',
-        'women': 'JoFu <b>YobuHo</b>',
-        'women_same': '<b>YobuHo</b>',
-        'men_same': '<b>YobuHo</b>',
-    };
-    const _modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
-    const _badgeText = _modeBadgeLabels[MODE] || '';
-    const _badgeHTML = _badgeText ? `<span class="mode-badge">${_badgeText}</span>` : '';
-    const _logoHTML = (_logoMap[MODE] || '<b>YobuHo</b>') + _badgeHTML;
     header.innerHTML = `
         <div class="header-inner" style="max-width:640px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;">
-            <button onclick="closeHotelPanel()" class="btn-to-gate">
-                <span class="btn-gate-icon">←</span>
-                <span class="btn-gate-text">戻る</span>
+            <button onclick="location.href='index.html'" class="btn-to-gate">
+                <span class="btn-gate-icon">⛩</span>
+                <span class="btn-gate-text">ゲートへ</span>
             </button>
-            <div class="header-logo">
-                <span class="logo-text">${_logoHTML}</span>
+            <div class="header-logo" style="flex:1;text-align:center;">
+                <span class="logo-text">Deri <em>Hotel</em> Navi</span>
             </div>
+            <button class="btn-area-back" onclick="closeHotelPanel()" style="display:flex;">
+                <span class="back-arrow">←</span>
+                <span class="back-text">前へ</span>
+            </button>
         </div>`;
 
     // パネルを通常フローで表示（fixed廃止）
@@ -2383,10 +2269,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         const tagsHTML = entryTags.map(t =>
             `<span style="padding:2px 7px;background:${tagBg};border:1px solid ${tagBorder};border-radius:8px;font-size:10px;color:${tagColor};">${t}</span>`
         ).join('');
-        const guestChip = r.multi_person
-            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}</span>`
-            : (r.guest_female != null && r.guest_female > 0)
-            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
+        const guestChip = (r.guest_female != null && r.guest_female > 0)
+            ? `<span style="padding:2px 7px;background:rgba(130,100,180,0.08);border:1px solid rgba(130,100,180,0.2);border-radius:8px;font-size:10px;color:#8264b4;">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
         const metaChips = [
             r.time_slot  ? `<span style="padding:2px 7px;background:rgba(106,138,188,0.1);border:1px solid rgba(106,138,188,0.25);border-radius:8px;font-size:10px;color:#6a8abc;">🕐${r.time_slot}</span>` : '',
@@ -2414,7 +2298,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
                 <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
-                    ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ 呼べた' : '❌ 呼べなかった')}
+                    ${r.can_call ? '✅ 呼べた' : '❌ 呼べなかった'}
                 </span>
                 ${tagsHTML}
                 ${metaChips}
@@ -2426,11 +2310,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     }
 
     const userReports = reports.filter(r => r.poster_type !== 'shop');
-    const userCanCall = userReports.filter(r => r.can_call).length;
-    const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
     const shopReports = reports.filter(r => r.poster_type === 'shop' && (!r.gender_mode || r.gender_mode === MODE));
-    const shopCanCall = shopReports.filter(r => r.can_call).length;
-    const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
     console.log('[renderHotelDetail] MODE:', MODE, 'shopReports:', shopReports.length, 'userReports:', userReports.length, 'reports gender_modes:', reports.filter(r => r.poster_type === 'shop').map(r => r.gender_mode));
     const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
 
@@ -2443,7 +2323,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             ${shopReports.map(buildReportCard).join('')}
         </div>`;
 
-    const userReportsHTML = `
+    const reportsHTML = `
+        ${shopSection}
         <div style="display:flex;align-items:center;gap:10px;margin:4px 0 10px;">
             <span style="font-size:16px;font-weight:600;color:var(--text);">みんなの体験談</span>
             <div style="flex:1;height:1px;background:var(--border);"></div>
@@ -2479,35 +2360,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
         <div id="detail-ad-slot"></div>
 
-        ${shopPct !== null ? `
-        <div style="margin-bottom:12px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">🏪 店舗実績（${shopReports.length}件）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
-                <div style="width:${shopPct}%;background:#3a9a60;"></div>
-                <div style="width:${100-shopPct}%;background:#c05050;"></div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>ご案内実績あり ${shopPct}%</span>
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>ご案内不可 ${100-shopPct}%</span>
-            </div>
-        </div>` : ''}
-
-        ${shopSection}
-
-        ${userPct !== null ? `
-        <div style="margin-bottom:12px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">📊 呼べる？（${userReports.length}件）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
-                <div style="width:${userPct}%;background:#3a9a60;"></div>
-                <div style="width:${100-userPct}%;background:#c05050;"></div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>呼べた ${userPct}%</span>
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>呼べなかった ${100-userPct}%</span>
-            </div>
-        </div>` : ''}
-
-        ${userReportsHTML}
+        ${reportsHTML}
 
         <div style="display:flex;align-items:center;gap:10px;margin:28px 0 10px;">
             <span style="font-size:16px;font-weight:600;color:var(--text);">情報を投稿する</span>
@@ -2581,28 +2434,6 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                     </div>
                 </div>
             </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="multi-person-check" onchange="hotelFormState.multi_person=this.checked; document.getElementById('multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
-                    <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
-                </label>
-                <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
-                    <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option>
-                        <option value="1">男性 1名</option>
-                        <option value="2">男性 2名</option>
-                        <option value="3">男性 3名</option>
-                        <option value="4">男性 4名</option>
-                    </select>
-                    <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option>
-                        <option value="1">女性 1名</option>
-                        <option value="2">女性 2名</option>
-                        <option value="3">女性 3名</option>
-                        <option value="4">女性 4名</option>
-                    </select>
-                </div>
-            </div>
             <div class="form-group">
                 <label class="form-label">コメント <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
                 <textarea class="form-textarea" id="form-comment" placeholder="状況や注意点など自由に記入してください..." oninput="hotelFormState.comment=this.value"></textarea>
@@ -2613,10 +2444,6 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 </div>
             </div>
             <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">確認画面に進む</button>
-        </div>
-        <div style="display:flex; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
-            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; font-size:12px; white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register.html" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; font-size:12px; white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>
         </div>
     </div>`;
 }
@@ -2960,7 +2787,6 @@ async function doSubmitReport() {
         comment: hotelFormState.comment || null,
         poster_name: hotelFormState.poster_name?.trim() || '無記名',
         room_type: hotelFormState.room_type || null,
-        multi_person: hotelFormState.multi_person || false,
         guest_male: hotelFormState.multi_person ? hotelFormState.guest_male : 1,
         guest_female: hotelFormState.multi_person ? hotelFormState.guest_female : 0,
         gender_mode: typeof MODE !== 'undefined' ? MODE : 'men',
@@ -2992,7 +2818,7 @@ async function doSubmitReport() {
 // ==========================================================================
 let flagTargetId = null;
 let flagSelectedReason = null;
-let flagTargetTable = "reports";
+let flagTargetTable = 'reports';
 
 function showFlagModal(reportId, table) {
     if (!reportId || reportId === 'null' || reportId === 'undefined') {
@@ -3001,7 +2827,7 @@ function showFlagModal(reportId, table) {
         return;
     }
     flagTargetId = reportId;
-    flagTargetTable = table || "reports";
+    flagTargetTable = table || 'reports';
     flagSelectedReason = null;
     document.getElementById('flag-comment-input').value = '';
     document.getElementById('flag-reason-err').style.display = 'none';
@@ -3017,12 +2843,15 @@ function showFlagModal(reportId, table) {
     document.getElementById('flag-modal').style.display = 'flex';
 }
 
-function openFlagModal(reportId) { showFlagModal(reportId, "loveho_reports"); }
+function openFlagModal(reportId) {
+    showFlagModal(reportId, 'loveho_reports');
+}
+
 function closeFlagModal() {
     document.getElementById('flag-modal').style.display = 'none';
     flagTargetId = null;
     flagSelectedReason = null;
-    flagTargetTable = "reports";
+    flagTargetTable = 'reports';
 }
 
 function selectFlagReason(reason, btn) {
@@ -3057,8 +2886,11 @@ function showFlagStep1() {
 
 function showFlagConfirm() {
     const comment = document.getElementById('flag-comment-input').value.trim();
-    if (!flagSelectedReason && !comment) { document.getElementById('flag-reason-err').style.display = ''; return; }
-    if (!flagSelectedReason) flagSelectedReason = "その他";
+    if (!flagSelectedReason && !comment) {
+        document.getElementById('flag-reason-err').style.display = '';
+        return;
+    }
+    if (!flagSelectedReason) flagSelectedReason = 'その他';
     document.getElementById('flag-confirm-reason').textContent = flagSelectedReason;
     const cWrap = document.getElementById('flag-confirm-comment-wrap');
     if (comment) {
@@ -3072,6 +2904,7 @@ function showFlagConfirm() {
 }
 
 async function submitFlag() {
+    // closeFlagModal() がフラグ変数をリセットするため、先にローカル変数へ退避
     const targetId = flagTargetId;
     const selectedReason = flagSelectedReason;
     const tbl = flagTargetTable || 'reports';
@@ -3107,8 +2940,7 @@ async function submitFlag() {
 // ==========================================================================
 const HOTEL_TYPE_LABELS = {
     business: 'ビジネスホテル', city: 'シティホテル', resort: 'リゾートホテル',
-    ryokan: '旅館', pension: 'ペンション', minshuku: '民宿',
-    love_hotel: 'ラブホテル', rental_room: 'レンタルルーム', other: 'その他',
+    ryokan: '旅館', pension: 'ペンション', minshuku: '民宿', other: 'その他',
 };
 
 function openHotelRequestModal() {
