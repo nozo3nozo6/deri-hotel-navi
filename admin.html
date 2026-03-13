@@ -332,7 +332,7 @@
             <div class="card">
                 <div class="card-title">&#x1F4DD; 投稿一覧<span class="sub" id="reports-sub"></span></div>
                 <div class="filter-bar">
-                    <select class="filter-select" id="rep-kind-f" onchange="repPage=0;renderReports()"><option value="">全種別</option><option value="deli">🏨 デリヘル</option><option value="loveho">🏩 ラブホ</option></select>
+                    <select class="filter-select" id="rep-kind-f" onchange="updateResultFilter();repPage=0;renderReports()"><option value="">全種別</option><option value="deli">🏨 デリヘル</option><option value="loveho">🏩 ラブホ</option></select>
                     <select class="filter-select" id="rep-who-f" onchange="repPage=0;renderReports()"><option value="">全員</option><option value="men_user">♂ ユーザー</option><option value="women_user">♀ ユーザー</option><option value="ff_user">♀♀ ユーザー</option><option value="mm_user">♂♂ ユーザー</option><option value="shop_free">🏪 無料店舗</option><option value="shop_paid">⭐ 有料店舗</option></select>
                     <select class="filter-select" id="rep-result-f" onchange="repPage=0;renderReports()"><option value="">全結果</option><option value="yes">YES</option><option value="no">NO</option></select>
                     <select class="filter-select" id="rep-vis-f" onchange="repPage=0;renderReports()"><option value="">全表示</option><option value="visible">表示中</option><option value="hidden">非表示</option></select>
@@ -1149,6 +1149,17 @@ function updateFlagBadge(){const count=reportsData.filter(r=>r.flagged_at&&!r.fl
 async function resolveFlag(id){const{error}=await sb.from("reports").update({flag_resolved:new Date().toISOString()}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
 async function unresolveFlag(id){const{error}=await sb.from("reports").update({flag_resolved:null}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
 let repPage=0;const REP_PER_PAGE=30;
+function updateResultFilter(){
+  const kF=document.getElementById("rep-kind-f")?.value||"";
+  const sel=document.getElementById("rep-result-f");
+  const cur=sel.value;
+  if(kF==="loveho"){
+    sel.innerHTML='<option value="">全結果</option><option value="yes">はい（一人入室）</option><option value="no">いいえ・その他</option>';
+  }else{
+    sel.innerHTML='<option value="">全結果</option><option value="yes">YES</option><option value="no">NO</option>';
+  }
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
 let _repHotelTimer=null;function onRepHotelInput(){clearTimeout(_repHotelTimer);_repHotelTimer=setTimeout(()=>{repPage=0;renderReports();},500);}
 function getRepFiltered(){
   const kF=document.getElementById("rep-kind-f")?.value||"";
