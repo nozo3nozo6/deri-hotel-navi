@@ -1139,7 +1139,7 @@ async function loadReports(){
     return af-bf||new Date(b.created_at)-new Date(a.created_at);
   });
   const deliData=merged.map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
-  const lhData=(lhR.data||[]).map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:"user",flagged_at:null,flag_resolved:null}));
+  const lhData=(lhR.data||[]).map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:"user"}));
   reportsData=[...deliData,...lhData];
   reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
