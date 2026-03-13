@@ -120,7 +120,8 @@ function restoreFromUrl() {
     _skipPushState = true;
 
     if (params.get('hotel')) {
-        showHotelPanel(parseInt(params.get('hotel')));
+        const isLoveho = params.get('loveho') === '1';
+        showHotelPanel(parseInt(params.get('hotel')), isLoveho);
         _skipPushState = false;
         return;
     }
@@ -2071,7 +2072,7 @@ function hotelToggleMultiPerson(checked) {
 }
 
 function showHotelPanel(hotelId, isLoveho) {
-    updateUrl({ hotel: hotelId });
+    updateUrl({ hotel: hotelId, ...(isLoveho ? { loveho: '1' } : {}) });
     currentHotelId = hotelId;
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
 
