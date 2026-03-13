@@ -1165,9 +1165,14 @@ function getRepFiltered(){
       else if(wF==="shop_paid"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan!=="paid")return false;}
       else{if(r.poster_type==="shop")return false;const needMode=modeMap[wF];if(needMode&&r.hotel_mode!==needMode)return false;}
     }
-    if(rF==="yes"&&!r.can_call&&r._kind==="deli")return false;
-    if(rF==="no"&&r.can_call&&r._kind==="deli")return false;
-    if(rF!==""){}// ラブホはresultフィルター無視
+    if(rF==="yes"){
+      if(r._kind==="deli"&&!r.can_call)return false;
+      if(r._kind==="loveho"&&r.solo_entry!=="yes")return false;
+    }
+    if(rF==="no"){
+      if(r._kind==="deli"&&r.can_call)return false;
+      if(r._kind==="loveho"&&r.solo_entry==="yes")return false;
+    }
     if(vF==="visible"&&r.is_hidden)return false;
     if(vF==="hidden"&&!r.is_hidden)return false;
     if(fF==="flagged"&&!(r.flagged_at&&!r.flag_resolved))return false;
