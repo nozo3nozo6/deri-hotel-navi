@@ -2200,6 +2200,8 @@ function hotelToggleMultiPerson(checked) {
 }
 
 function showHotelPanel(hotelId, isLoveho) {
+    // 現在のページをstackに積む（前へで戻れるように）
+    if (currentPage) pageStack.push(currentPage);
     updateUrl({ hotel: hotelId });
     currentHotelId = hotelId;
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
@@ -2268,7 +2270,7 @@ function closeHotelPanel() {
     restorePortalHeader();
     window.scrollTo(0, 0);
     if (pageStack.length > 0) {
-        const fn = pageStack[pageStack.length - 1];
+        const fn = pageStack.pop();
         fn();
     } else {
         showJapanPage();
