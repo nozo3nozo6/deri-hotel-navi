@@ -2237,10 +2237,14 @@ function showHotelPanel(hotelId, isLoveho) {
 
     // パネルを通常フローで表示（fixed廃止）
     panel.style.cssText = 'display:block;';
+    panel.dataset.isLoveho = isLoveho ? '1' : '0';
 
     // パンくずクリック時はパネルを閉じてから遷移
     window._breadcrumbNav = function(fn) {
+        const _hotelId = currentHotelId;
+        const _isLoveho = document.getElementById('hotel-detail-panel').dataset.isLoveho === '1';
         closeHotelPanel();
+        pageStack.push(() => showHotelPanel(_hotelId, _isLoveho));
         setTimeout(fn, 50);
     };
 
