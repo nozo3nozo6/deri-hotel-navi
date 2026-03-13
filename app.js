@@ -97,28 +97,11 @@ function updateUrl(params) {
 }
 
 function ensurePortalMode() {
-    const panel = document.getElementById('hotel-detail-panel');
-    if (panel && panel.style.display !== 'none') {
-        panel.style.display = 'none';
-        const header = document.querySelector('.portal-header');
-        header.innerHTML = `
-            <div class="header-inner">
-                <button onclick="location.href=getGateUrl()" class="btn-to-gate">
-                    <span class="btn-gate-icon">⛩</span>
-                    <span class="btn-gate-text">ゲートへ</span>
-                </button>
-                <div class="header-logo">
-                    <a href="https://yobuho.com/" style="text-decoration:none;"><span class="logo-text">Deri <em>Hotel</em> Navi</span></a>
-                </div>
-                <div class="lang-buttons">
-                    <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
-                    <button onclick="changeLang('en')" class="lang-btn ${state.lang==='en'?'active':''}">EN</button>
-                    <button onclick="changeLang('zh')" class="lang-btn ${state.lang==='zh'?'active':''}">CN</button>
-                    <button onclick="changeLang('ko')" class="lang-btn ${state.lang==='ko'?'active':''}">KR</button>
-                </div>
-            </div>
-            <div class="mode-title-bar" id="mode-title-bar" style="display:none;">
-            </div>`;
+    const content = document.getElementById('hotel-detail-content');
+    if (content && content.style.display !== 'none') {
+        content.style.display = 'none';
+        content.innerHTML = '';
+        document.getElementById('area-button-container').style.display = '';
         document.querySelector('.area-section').style.display = '';
         document.querySelector('.search-tools').style.display = '';
         document.getElementById('hotel-list').style.display = '';
@@ -277,8 +260,6 @@ function setBreadcrumb(crumbs) {
     }).join('');
     const el = document.getElementById('breadcrumb');
     if (el) el.innerHTML = html;
-    const elDetail = document.getElementById('detail-breadcrumb');
-    if (elDetail) elDetail.innerHTML = html;
 }
 
 function clearHotelList() {
@@ -1403,12 +1384,12 @@ async function loadLovehoDetail(hotelId) {
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
         const _crumbs = [
-            { label: '全国', onclick: `_breadcrumbNav(()=>showJapanPage())` },
+            { label: '全国', onclick: `showJapanPage()` },
         ];
-        if (_region) _crumbs.push({ label: _rl, onclick: `_breadcrumbNav(()=>showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}')))` });
-        if (_pref) _crumbs.push({ label: _pref, onclick: `_breadcrumbNav(()=>showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}'))` });
-        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `_breadcrumbNav(()=>showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}'))` });
-        if (_city) _crumbs.push({ label: _city, onclick: `_breadcrumbNav(()=>fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}'))` });
+        if (_region) _crumbs.push({ label: _rl, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
+        if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
+        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
+        if (_city) _crumbs.push({ label: _city, onclick: `fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
         renderLovehoDetail(hotelRes.data, reportsRes.data || []);
@@ -2200,55 +2181,25 @@ function hotelToggleMultiPerson(checked) {
 }
 
 function showHotelPanel(hotelId, isLoveho) {
-    // 現在のページをstackに積む（前へで戻れるように）
     if (currentPage) pageStack.push(currentPage);
-    updateUrl({ hotel: hotelId });
     currentHotelId = hotelId;
+    currentPage = () => showHotelPanel(hotelId, isLoveho);
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
 
-    // ポータルコンテンツを隠す（ヘッダーはそのまま）
-    document.querySelector('.area-section').style.display = 'none';
+    updateUrl({ hotel: hotelId });
+    setBackBtn(true);
+
+    // area-button-containerを隠してhotel-detail-contentを表示
+    document.getElementById('area-button-container').style.display = 'none';
     document.querySelector('.search-tools').style.display = 'none';
     const rs = document.getElementById('result-status');
     if (rs) rs.style.display = 'none';
     document.getElementById('hotel-list').style.display = 'none';
-    const bottomLinks = document.getElementById('bottom-info-links');
-    if (bottomLinks) bottomLinks.style.display = 'none';
     hideLovehoTabs();
 
-    const panel = document.getElementById('hotel-detail-panel');
-    panel.style.display = 'block';
-    // ヘッダーを詳細用に切り替え（前へ=左、ロゴ=中央、ゲートへ=右）
-    const header = document.querySelector('.portal-header');
-    const _mode = new URLSearchParams(window.location.search).get('mode') || 'men';
-    const _gateUrl = _mode === 'women' ? 'https://jofu.yobuho.com' : _mode === 'men_same' || _mode === 'women_same' ? 'https://same.yobuho.com' : 'https://deli.yobuho.com';
-    header.innerHTML = `
-        <div class="header-inner" style="max-width:640px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;">
-            <button class="btn-area-back" onclick="closeHotelPanel()" style="display:flex;">
-                <span class="back-arrow">←</span>
-                <span class="back-text">前へ</span>
-            </button>
-            <div class="header-logo" style="flex:1;text-align:center;cursor:pointer;" onclick="location.href='index.html'">
-                <span class="logo-text"><b>YobuHo</b></span>
-            </div>
-            <button onclick="location.href='${_gateUrl}'" class="btn-to-gate">
-                <span class="btn-gate-icon">⛩</span>
-                <span class="btn-gate-text">ゲートへ</span>
-            </button>
-        </div>`;
-
-    // パネルを通常フローで表示（fixed廃止）
-    panel.style.cssText = 'display:block;';
-    panel.dataset.isLoveho = isLoveho ? '1' : '0';
-
-    // パンくずクリック時はパネルを閉じてから遷移
-    window._breadcrumbNav = function(fn) {
-        const _hotelId = currentHotelId;
-        const _isLoveho = document.getElementById('hotel-detail-panel').dataset.isLoveho === '1';
-        pageStack.push(() => showHotelPanel(_hotelId, _isLoveho));
-        closeHotelPanel();
-        setTimeout(fn, 50);
-    };
+    const content = document.getElementById('hotel-detail-content');
+    content.style.display = 'block';
+    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
 
     if (isLoveho) {
         loadLovehoDetail(hotelId);
@@ -2259,46 +2210,11 @@ function showHotelPanel(hotelId, isLoveho) {
 }
 
 function closeHotelPanel() {
-    const panel = document.getElementById('hotel-detail-panel');
-    panel.style.display = 'none';
-    document.querySelector('.area-section').style.display = '';
-    document.querySelector('.search-tools').style.display = '';
-    const rs = document.getElementById('result-status');
-    if (rs) rs.style.display = '';
-    document.getElementById('hotel-list').style.display = '';
-    // ヘッダーを元に戻す
-    restorePortalHeader();
-    window.scrollTo(0, 0);
-    if (pageStack.length > 0) {
-        const fn = pageStack.pop();
-        fn();
-    } else {
-        showJapanPage();
-    }
-}
-
-function restorePortalHeader() {
-    const header = document.querySelector('.portal-header');
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
-    const gateUrl = mode === 'women' ? 'https://jofu.yobuho.com' : mode === 'men_same' || mode === 'women_same' ? 'https://same.yobuho.com' : 'https://deli.yobuho.com';
-    header.innerHTML = `
-        <div class="header-inner">
-            <button onclick="location.href='${gateUrl}'" class="btn-to-gate">
-                <span class="btn-gate-icon">⛩</span>
-                <span class="btn-gate-text">ゲートへ</span>
-            </button>
-            <div class="header-logo">
-                <span class="logo-text" id="header-logo-text"><b>YobuHo</b></span>
-            </div>
-            <div class="lang-buttons">
-                <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
-                <button onclick="changeLang('en')" class="lang-btn ${state.lang==='en'?'active':''}">EN</button>
-                <button onclick="changeLang('zh')" class="lang-btn ${state.lang==='zh'?'active':''}">CN</button>
-                <button onclick="changeLang('ko')" class="lang-btn ${state.lang==='ko'?'active':''}">KR</button>
-            </div>
-        </div>
-        <div class="mode-title-bar" id="mode-title-bar" style="display:none;">
-        </div>`;
+    const content = document.getElementById('hotel-detail-content');
+    content.style.display = 'none';
+    content.innerHTML = '';
+    document.getElementById('area-button-container').style.display = '';
+    backLevel();
 }
 
 async function loadHotelDetail(hotelId) {
@@ -2345,12 +2261,12 @@ async function loadHotelDetail(hotelId) {
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
         const _crumbs = [
-            { label: '全国', onclick: `_breadcrumbNav(()=>showJapanPage())` },
+            { label: '全国', onclick: `showJapanPage()` },
         ];
-        if (_region) _crumbs.push({ label: _rl, onclick: `_breadcrumbNav(()=>showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}')))` });
-        if (_pref) _crumbs.push({ label: _pref, onclick: `_breadcrumbNav(()=>showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}'))` });
-        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `_breadcrumbNav(()=>showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}'))` });
-        if (_city) _crumbs.push({ label: _city, onclick: `_breadcrumbNav(()=>fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}'))` });
+        if (_region) _crumbs.push({ label: _rl, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
+        if (_pref) _crumbs.push({ label: _pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
+        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
+        if (_city) _crumbs.push({ label: _city, onclick: `fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
