@@ -1285,7 +1285,15 @@ async function saveRepEdit(){
 }
 async function toggleVis(id,cur){const{error}=await sb.from("reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const{error}=await sb.from("reports").delete().eq("id",id);if(error){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
-async function delLhReportFromList(id){if(!confirm("このラブホ口コミを削除しますか？"))return;const{error}=await sb.from("loveho_reports").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}reportsData=reportsData.filter(r=>!(r._kind==="loveho"&&r.id===id));renderReports();toast("🗑 削除しました");}
+async function delLhReportFromList(id){
+    if(!confirm("このラブホ口コミを削除しますか？元に戻せません。"))return;
+    const{error}=await sb.from("loveho_reports").delete().eq("id",id);
+    if(error){toast("削除エラー: "+error.message);return;}
+    reportsData=reportsData.filter(r=>r.id!==id);
+    updateFlagBadge();
+    renderReports();
+    toast("🗑 削除しました");
+}
 async function resolveLhFlag(id){const{error}=await sb.from("loveho_reports").update({flag_resolved:new Date().toISOString()}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:new Date().toISOString()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
 async function unresolveLhFlag(id){const{error}=await sb.from("loveho_reports").update({flag_resolved:null}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
 async function toggleLhVis(id,cur){const{error}=await sb.from("loveho_reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
