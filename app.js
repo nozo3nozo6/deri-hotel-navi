@@ -266,9 +266,7 @@ function setBackBtn(show) {
 }
 
 function setBreadcrumb(crumbs) {
-    const el = document.getElementById('breadcrumb');
-    if (!el) return;
-    el.innerHTML = crumbs.map((c, i) => {
+    const html = crumbs.map((c, i) => {
         const isLast = i === crumbs.length - 1;
         return `
             ${i > 0 ? '<span class="breadcrumb-sep">›</span>' : ''}
@@ -277,6 +275,10 @@ function setBreadcrumb(crumbs) {
                 ${c.label}
             </span>`;
     }).join('');
+    const el = document.getElementById('breadcrumb');
+    if (el) el.innerHTML = html;
+    const elDetail = document.getElementById('detail-breadcrumb');
+    if (elDetail) elDetail.innerHTML = html;
 }
 
 function clearHotelList() {
@@ -1388,6 +1390,12 @@ async function loadLovehoDetail(hotelId) {
             supabaseClient.from('loveho_reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
         ]);
         if (!hotelRes.data) throw new Error('Hotel not found');
+        setBreadcrumb([
+            { label: '全国', onclick: 'resetToTop()' },
+            ...(hotelRes.data.prefecture ? [{ label: hotelRes.data.prefecture, onclick: `drillDown('pref','${hotelRes.data.prefecture}')` }] : []),
+            ...(hotelRes.data.city ? [{ label: hotelRes.data.city, onclick: `drillDown('city','${hotelRes.data.city}')` }] : []),
+            { label: hotelRes.data.name }
+        ]);
         renderLovehoDetail(hotelRes.data, reportsRes.data || []);
         // ラブホ詳細ページに広告を挿入
         const hotelCity = hotelRes.data.city;
@@ -2193,27 +2201,23 @@ function showHotelPanel(hotelId, isLoveho) {
 
     const panel = document.getElementById('hotel-detail-panel');
     panel.style.display = 'block';
-    // ヘッダーを詳細用に切り替え
+    // ヘッダーを詳細用に切り替え（前へ=左、ロゴ=中央、ゲートへ=右）
     const header = document.querySelector('.portal-header');
-    const _logoMap = {
-        'men': '<span style="font-style:italic;color:#666;font-weight:300;font-size:0.85em;letter-spacing:2px;">Deli</span> <b style="color:#c0392b;font-size:1.2em;letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b;font-size:0.9em;">♂</span>',
-        'women': 'JoFu <b>YobuHo</b>',
-        'women_same': '<b>YobuHo</b>',
-        'men_same': '<b>YobuHo</b>',
-    };
-    const _modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
-    const _badgeText = _modeBadgeLabels[MODE] || '';
-    const _badgeHTML = _badgeText ? `<span class="mode-badge">${_badgeText}</span>` : '';
-    const _logoHTML = (_logoMap[MODE] || '<b>YobuHo</b>') + _badgeHTML;
+    const _mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const _gateUrl = _mode === 'women' ? 'https://jofu.yobuho.com' : _mode === 'men_same' || _mode === 'women_same' ? 'https://same.yobuho.com' : 'https://deli.yobuho.com';
     header.innerHTML = `
         <div class="header-inner" style="max-width:640px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;gap:12px;">
-            <button onclick="closeHotelPanel()" class="btn-to-gate">
-                <span class="btn-gate-icon">←</span>
-                <span class="btn-gate-text">戻る</span>
+            <button class="btn-area-back" onclick="closeHotelPanel()" style="display:flex;">
+                <span class="back-arrow">←</span>
+                <span class="back-text">前へ</span>
             </button>
-            <div class="header-logo">
-                <span class="logo-text">${_logoHTML}</span>
+            <div class="header-logo" style="flex:1;text-align:center;cursor:pointer;" onclick="location.href='index.html'">
+                <span class="logo-text"><b>YobuHo</b></span>
             </div>
+            <button onclick="location.href='${_gateUrl}'" class="btn-to-gate">
+                <span class="btn-gate-icon">⛩</span>
+                <span class="btn-gate-text">ゲートへ</span>
+            </button>
         </div>`;
 
     // パネルを通常フローで表示（fixed廃止）
@@ -2268,6 +2272,12 @@ async function loadHotelDetail(hotelId) {
                 shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0, shopId: s.id };
             });
         }
+        setBreadcrumb([
+            { label: '全国', onclick: 'resetToTop()' },
+            ...(hotelRes.data.prefecture ? [{ label: hotelRes.data.prefecture, onclick: `drillDown('pref','${hotelRes.data.prefecture}')` }] : []),
+            ...(hotelRes.data.city ? [{ label: hotelRes.data.city, onclick: `drillDown('city','${hotelRes.data.city}')` }] : []),
+            { label: hotelRes.data.name }
+        ]);
         renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
         // ホテル詳細ページに広告を挿入
         const hotelCity = hotelRes.data.city;
