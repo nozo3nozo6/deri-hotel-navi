@@ -2243,8 +2243,8 @@ function showHotelPanel(hotelId, isLoveho) {
     window._breadcrumbNav = function(fn) {
         const _hotelId = currentHotelId;
         const _isLoveho = document.getElementById('hotel-detail-panel').dataset.isLoveho === '1';
-        closeHotelPanel();
         pageStack.push(() => showHotelPanel(_hotelId, _isLoveho));
+        closeHotelPanel();
         setTimeout(fn, 50);
     };
 
@@ -2257,7 +2257,46 @@ function showHotelPanel(hotelId, isLoveho) {
 }
 
 function closeHotelPanel() {
-    history.back();
+    const panel = document.getElementById('hotel-detail-panel');
+    panel.style.display = 'none';
+    document.querySelector('.area-section').style.display = '';
+    document.querySelector('.search-tools').style.display = '';
+    const rs = document.getElementById('result-status');
+    if (rs) rs.style.display = '';
+    document.getElementById('hotel-list').style.display = '';
+    // ヘッダーを元に戻す
+    restorePortalHeader();
+    window.scrollTo(0, 0);
+    if (pageStack.length > 0) {
+        const fn = pageStack[pageStack.length - 1];
+        fn();
+    } else {
+        showJapanPage();
+    }
+}
+
+function restorePortalHeader() {
+    const header = document.querySelector('.portal-header');
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const gateUrl = mode === 'women' ? 'https://jofu.yobuho.com' : mode === 'men_same' || mode === 'women_same' ? 'https://same.yobuho.com' : 'https://deli.yobuho.com';
+    header.innerHTML = `
+        <div class="header-inner">
+            <button onclick="location.href='${gateUrl}'" class="btn-to-gate">
+                <span class="btn-gate-icon">⛩</span>
+                <span class="btn-gate-text">ゲートへ</span>
+            </button>
+            <div class="header-logo">
+                <span class="logo-text" id="header-logo-text"><b>YobuHo</b></span>
+            </div>
+            <div class="lang-buttons">
+                <button onclick="changeLang('ja')" class="lang-btn ${state.lang==='ja'?'active':''}">JP</button>
+                <button onclick="changeLang('en')" class="lang-btn ${state.lang==='en'?'active':''}">EN</button>
+                <button onclick="changeLang('zh')" class="lang-btn ${state.lang==='zh'?'active':''}">CN</button>
+                <button onclick="changeLang('ko')" class="lang-btn ${state.lang==='ko'?'active':''}">KR</button>
+            </div>
+        </div>
+        <div class="mode-title-bar" id="mode-title-bar" style="display:none;">
+        </div>`;
 }
 
 async function loadHotelDetail(hotelId) {
