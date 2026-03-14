@@ -119,6 +119,9 @@ async function restoreFromUrl() {
 
     ensurePortalMode();
 
+    // ホテル詳細以外では search-tools を常に表示
+    document.querySelector('.search-tools').style.display = '';
+
     if (params.get('city')) {
         const pref = params.get('pref');
         const area = params.get('area');
