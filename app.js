@@ -119,9 +119,6 @@ async function restoreFromUrl() {
 
     ensurePortalMode();
 
-    // ホテル詳細以外では search-tools を常に表示
-    document.querySelector('.search-tools').style.display = '';
-
     if (params.get('city')) {
         const pref = params.get('pref');
         const area = params.get('area');
@@ -2191,10 +2188,6 @@ function showHotelPanel(hotelId, isLoveho) {
     setBackBtn(true);
 
     document.getElementById('area-button-container').style.display = 'none';
-    document.querySelector('.search-tools').style.display = 'none';
-    const rs = document.getElementById('result-status');
-    if (rs) rs.style.display = 'none';
-    document.getElementById('hotel-list').style.display = 'none';
     hideLovehoTabs();
 
     const content = document.getElementById('hotel-detail-content');
@@ -2214,10 +2207,6 @@ function closeHotelPanel() {
     content.style.display = 'none';
     content.innerHTML = '';
     document.getElementById('area-button-container').style.display = '';
-    document.getElementById('hotel-list').style.display = '';
-    document.querySelector('.search-tools').style.display = '';
-    const rs = document.getElementById('result-status');
-    if (rs) rs.style.display = '';
     if (pageStack.length > 0) {
         const fn = pageStack.pop();
         fn();
