@@ -9,13 +9,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          host: sv6825.wpx.ne.jp
-          username: yobuho
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 10022
-          script: |
-            cd ~/public_html
-            git pull origin main
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: /public_html/
+          state-name: .ftp-deploy-sync-state-${{ github.run_number }}.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .github/**
