@@ -2204,7 +2204,12 @@ function closeHotelPanel() {
     content.style.display = 'none';
     content.innerHTML = '';
     document.getElementById('area-button-container').style.display = '';
-    backLevel();
+    if (pageStack.length > 0) {
+        const fn = pageStack.pop();
+        fn();
+    } else {
+        showJapanPage();
+    }
 }
 
 function leaveHotelDetail() {
