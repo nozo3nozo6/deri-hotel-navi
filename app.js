@@ -2209,6 +2209,7 @@ function closeHotelPanel() {
     content.style.display = 'none';
     content.innerHTML = '';
     document.getElementById('area-button-container').style.display = '';
+    document.querySelector('.search-tools').style.display = '';
     if (pageStack.length > 0) {
         const fn = pageStack.pop();
         fn();
