@@ -19,8 +19,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./
           server-dir: /public_html/
-          dangerous-clean-slate: false
-          force-upload: true
+          state-name: .ftp-deploy-sync-state-${{ github.run_number }}.json
           exclude: |
             **/.git*
             **/.git*/**
