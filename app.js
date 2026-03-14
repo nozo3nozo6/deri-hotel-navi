@@ -2208,20 +2208,7 @@ function showHotelPanel(hotelId, isLoveho) {
 }
 
 function closeHotelPanel() {
-    const content = document.getElementById('hotel-detail-content');
-    content.style.display = 'none';
-    content.innerHTML = '';
-    document.getElementById('area-button-container').style.display = '';
-    document.getElementById('hotel-list').style.display = '';
-    document.querySelector('.search-tools').style.display = '';
-    const rs = document.getElementById('result-status');
-    if (rs) rs.style.display = '';
-    if (pageStack.length > 0) {
-        const fn = pageStack.pop();
-        fn();
-    } else {
-        showJapanPage();
-    }
+    history.back();
 }
 
 function leaveHotelDetail() {
