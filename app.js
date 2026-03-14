@@ -1374,12 +1374,14 @@ async function loadLovehoDetail(hotelId) {
         const _pref = _hotel.prefecture || '';
         const _city = _hotel.city || '';
         const _majorArea = _hotel.major_area || '';
+        const _detailArea = _hotel.detail_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
         const _crumbs = [{ label: '全国', onclick: 'leaveHotelDetail();showJapanPage()' }];
         if (_region) _crumbs.push({ label: _rl, onclick: `leaveHotelDetail();showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `leaveHotelDetail();showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
+        if (_detailArea) _crumbs.push({ label: _detailArea, onclick: `leaveHotelDetail();showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}','${_detailArea}')` });
         if (_city) _crumbs.push({ label: _city, onclick: `leaveHotelDetail();fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
@@ -2172,7 +2174,12 @@ function hotelToggleMultiPerson(checked) {
 }
 
 function showHotelPanel(hotelId, isLoveho) {
-    if (currentPage) pageStack.push(currentPage);
+    if (currentPage) {
+        const currentPageStr = currentPage.toString();
+        if (!currentPageStr.includes('showHotelPanel')) {
+            pageStack.push(currentPage);
+        }
+    }
     currentHotelId = hotelId;
     currentPage = () => showHotelPanel(hotelId, isLoveho);
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
@@ -2265,12 +2272,14 @@ async function loadHotelDetail(hotelId) {
         const _pref = _hotel.prefecture || '';
         const _city = _hotel.city || '';
         const _majorArea = _hotel.major_area || '';
+        const _detailArea = _hotel.detail_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
         const _crumbs = [{ label: '全国', onclick: 'leaveHotelDetail();showJapanPage()' }];
         if (_region) _crumbs.push({ label: _rl, onclick: `leaveHotelDetail();showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `leaveHotelDetail();showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
+        if (_detailArea) _crumbs.push({ label: _detailArea, onclick: `leaveHotelDetail();showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}','${_detailArea}')` });
         if (_city) _crumbs.push({ label: _city, onclick: `leaveHotelDetail();fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
         _crumbs.push({ label: _hotel.name });
         setBreadcrumb(_crumbs);
