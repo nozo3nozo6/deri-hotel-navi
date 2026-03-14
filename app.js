@@ -107,6 +107,7 @@ function ensurePortalMode() {
 }
 
 async function restoreFromUrl() {
+    document.querySelector('.search-tools').style.display = '';
     const params = new URLSearchParams(window.location.search);
     console.log('[restoreFromUrl] URL params:', Object.fromEntries(params));
     _skipPushState = true;
