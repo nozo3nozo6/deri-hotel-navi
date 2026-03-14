@@ -9,41 +9,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Deploy via rsync over SSH (with retry)
-        uses: nick-fields/retry@v3
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 10
-          command: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-            chmod 600 ~/.ssh/deploy_key
-            eval $(ssh-agent -s)
-            echo "${{ secrets.SSH_PASSPHRASE }}" | SSH_ASKPASS=/bin/cat ssh-add ~/.ssh/deploy_key 2>/dev/null || DISPLAY=:0 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS="echo ${{ secrets.SSH_PASSPHRASE }}" ssh-add ~/.ssh/deploy_key
-            rsync -avz --delete \
-              --exclude='.git*' \
-              --exclude='node_modules' \
-              --exclude='.github' \
-              --exclude='sql' \
-              --exclude='CLAUDE.md' \
-              --exclude='progress.md' \
-              --exclude='package*.json' \
-              --exclude='subdomain' \
-              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-              ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/
-            rsync -avz \
-              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-              ./subdomain/deli/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/deli.yobuho.com/
-            rsync -avz \
-              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-              ./subdomain/jofu/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/jofu.yobuho.com/
-            rsync -avz \
-              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-              ./subdomain/same/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/same.yobuho.com/
-            rsync -avz \
-              -e "ssh -p 10022 -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-              ./subdomain/loveho/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/loveho.yobuho.com/
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: /public_html/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .github/**
