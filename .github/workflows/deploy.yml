@@ -1,0 +1,25 @@
+name: Deploy to Shin Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via rsync over SSH
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json'
+          path: ./
+          remote_path: /home/yobuho/yobuho.com/public_html/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_port: 10022
+          remote_user: ${{ secrets.SSH_USERNAME }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          remote_key_pass: ${{ secrets.SSH_PASSPHRASE }}
