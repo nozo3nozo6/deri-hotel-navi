@@ -3,7 +3,7 @@
 ## Stack
 - Frontend: Vanilla JS (app.js), HTML (portal.html, admin.html, index.html, shop-register.html)
 - DB: Supabase (PostgreSQL)
-- Deploy: Vercel
+- Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via GitHub Actions FTP
 - Hotel data: Rakuten Travel API
 
 ## Supabase
@@ -31,7 +31,7 @@ men / women / men_same / women_same
 - extractCity(): parse city from address using prefecture list
 - hotel_type: detected from name (business/city/resort/ryokan/pension/minshuku/other)
 - detail_area: Rakuten detailClass (11 major cities only)
-- Cache buster: app.js?v=3
+- Cache buster: app.js?v=65（app.js変更時は必ずportal.htmlのバージョン番号を+1すること）
 - RLS: public_read + public_write on all tables
 
 ## Commands
