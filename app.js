@@ -175,6 +175,8 @@ async function restoreFromUrl() {
 }
 
 window.addEventListener('popstate', () => {
+    const content = document.getElementById('hotel-detail-content');
+    if (content && content.style.display !== 'none') return;
     restoreFromUrl();
 });
 
