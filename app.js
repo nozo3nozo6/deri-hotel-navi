@@ -101,6 +101,9 @@ function ensurePortalMode() {
     if (content && content.style.display !== 'none') {
         closeHotelPanel();
     }
+    // search-toolsを常に表示
+    const st = document.querySelector('.search-tools');
+    if (st) st.style.display = '';
 }
 
 async function restoreFromUrl() {
