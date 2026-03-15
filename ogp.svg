@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1d27"/>
+      <stop offset="100%" style="stop-color:#232733"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <line x1="100" y1="520" x2="1100" y2="520" stroke="#b5627a" stroke-width="2" opacity="0.5"/>
+  <text x="600" y="280" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="120" font-weight="bold" fill="#ffffff" letter-spacing="8">YobuHo</text>
+  <text x="600" y="360" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="32" fill="#b5627a" letter-spacing="4">yobuho.com</text>
+  <text x="600" y="480" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="28" fill="#aaaaaa" letter-spacing="2">呼べるホテル検索 | 全国42,000件以上</text>
+</svg>
