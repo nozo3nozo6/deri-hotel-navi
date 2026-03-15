@@ -569,8 +569,8 @@ function backLevel() {
     const detail = document.getElementById('hotel-detail-content');
     if (detail && detail.style.display !== 'none' && detail.innerHTML !== '') {
         leaveHotelDetail();
-        return;
     }
+    // 前のページを復元
     if (pageStack.length > 0) {
         const prevPage = pageStack.pop();
         prevPage();

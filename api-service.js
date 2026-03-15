@@ -8,10 +8,10 @@ function esc(str) {
 }
 
 const GATE_URL_MAP = {
-    'men': '/subdomain/deli/index.html',
-    'women': '/subdomain/jofu/index.html',
-    'men_same': '/subdomain/same/index.html',
-    'women_same': '/subdomain/same/index.html',
+    'men': 'https://deli.yobuho.com/',
+    'women': 'https://jofu.yobuho.com/',
+    'men_same': 'https://same.yobuho.com/',
+    'women_same': 'https://same.yobuho.com/',
 };
 function getGateUrl() {
     const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
