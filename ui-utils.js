@@ -1,0 +1,308 @@
+// ==========================================================================
+// ui-utils.js — toast、モーダル制御、DOM操作、多言語、SEO
+// ==========================================================================
+
+const TITLE_SUFFIX_MAP = {
+    'men': 'Deli YobuHo',
+    'women': 'JoFu YobuHo',
+    'women_same': 'YobuHo',
+    'men_same': 'YobuHo'
+};
+function getSiteSuffix() {
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    return TITLE_SUFFIX_MAP[mode] || 'YobuHo';
+}
+function updatePageTitle(prefix) {
+    document.title = prefix + ' | ' + getSiteSuffix();
+    const ldScript = document.querySelector('script[type="application/ld+json"]');
+    if (ldScript) {
+        try {
+            const ld = JSON.parse(ldScript.textContent);
+            ld.name = document.title;
+            ld.description = document.querySelector('meta[name="description"]')?.content || '';
+            ldScript.textContent = JSON.stringify(ld);
+        } catch(e) {}
+    }
+}
+
+const state = { lang: localStorage.getItem('yobuho_lang') || 'ja' };
+const LANG = {
+    ja: {
+        select_area: '地域を選択', japan: '日本全国', back: '前へ',
+        search_placeholder: 'ホテル名で検索...',
+        list_placeholder: '市区町村まで選択するとホテルが表示されます',
+        results: '件のホテル', no_results: 'ホテルが見つかりませんでした',
+        min_charge: '最安料金', nearest: '最寄駅', no_data: 'データがありません',
+        show_all: 'このエリア全体を見る',
+        locating: '位置情報を取得中...', location_error: '位置情報を取得できませんでした',
+        nearby: '現在地から近い順',
+    },
+    en: {
+        select_area: 'Select Area', japan: 'All Japan', back: 'Back',
+        search_placeholder: 'Search hotel...', list_placeholder: 'Select a city to view hotels',
+        results: 'hotels', no_results: 'No hotels found',
+        min_charge: 'From', nearest: 'Station', no_data: 'No data', show_all: 'View all',
+        locating: 'Getting location...', location_error: 'Could not get location',
+        nearby: 'Near you',
+    },
+    zh: {
+        select_area: '选择地区', japan: '全日本', back: '返回',
+        search_placeholder: '搜索酒店...', list_placeholder: '请选择城市查看酒店',
+        results: '家酒店', no_results: '没有找到酒店',
+        min_charge: '最低价', nearest: '最近车站', no_data: '没有数据', show_all: '查看全部',
+        locating: '获取位置中...', location_error: '无法获取位置',
+        nearby: '离您最近',
+    },
+    ko: {
+        select_area: '지역 선택', japan: '일본 전국', back: '이전',
+        search_placeholder: '호텔 검색...', list_placeholder: '도시를 선택하면 호텔이 표시됩니다',
+        results: '개 호텔', no_results: '호텔을 찾을 수 없습니다',
+        min_charge: '최저가', nearest: '역', no_data: '데이터 없음', show_all: '전체 보기',
+        locating: '위치 가져오는 중...', location_error: '위치를 가져올 수 없습니다',
+        nearby: '가까운 순',
+    },
+};
+function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }
+
+function changeLang(lang) {
+    state.lang = lang;
+    localStorage.setItem('yobuho_lang', lang);
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[onclick="changeLang('${lang}')"]`)?.classList.add('active');
+    if (lang !== 'ja') {
+        showToast('多言語対応は準備中です', 2000);
+    }
+    if (currentPage) currentPage();
+}
+
+function setTitle(text) {
+    const el = document.getElementById('area-title');
+    if (el) el.textContent = text;
+}
+
+function setBackBtn(show) {
+    const el = document.getElementById('btn-area-back');
+    if (el) el.style.display = show ? 'flex' : 'none';
+}
+
+function setBreadcrumb(crumbs) {
+    const html = crumbs.map((c, i) => {
+        const isLast = i === crumbs.length - 1;
+        return `
+            ${i > 0 ? '<span class="breadcrumb-sep">›</span>' : ''}
+            <span class="breadcrumb-item ${isLast ? 'active' : ''}"
+                  ${!isLast && c.onclick ? `style="cursor:pointer" onclick="${c.onclick}"` : ''}>
+                ${c.label}
+            </span>`;
+    }).join('');
+    const el = document.getElementById('breadcrumb');
+    if (el) el.innerHTML = html;
+}
+
+function clearHotelList() {
+    const el = document.getElementById('hotel-list');
+    if (el) el.innerHTML = '';
+    const s = document.getElementById('result-status');
+    if (s) s.style.display = 'none';
+    const links = document.getElementById('bottom-info-links');
+    if (links) links.style.display = 'none';
+    hideLovehoTabs();
+}
+
+function showToast(msg, duration = 2500) {
+    let el = document.getElementById('toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'toast';
+        el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translateX(-50%) translateY(calc(-50% - 12px));background:#1a1410;color:#fff;padding:12px 24px;border-radius:30px;font-size:13px;opacity:0;transition:all 0.3s;z-index:9999;white-space:nowrap;pointer-events:none;';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    el.style.transform = 'translateX(-50%) translateY(-50%)';
+    setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(-50%) translateY(calc(-50% - 12px))';
+    }, duration);
+}
+
+function showSuccessModal(title, message) {
+    document.getElementById('success-modal-title').textContent = title;
+    document.getElementById('success-modal-message').textContent = message || '';
+    document.getElementById('success-modal').style.display = 'flex';
+}
+function closeSuccessModal() {
+    document.getElementById('success-modal').style.display = 'none';
+}
+
+function showLoading(msg) {
+    const el = document.getElementById('loading-overlay');
+    if (el) {
+        el.style.display = 'flex';
+        const txt = el.querySelector('.loading-text');
+        if (txt) txt.textContent = msg || '検索中...';
+    }
+}
+
+function hideLoading() {
+    const el = document.getElementById('loading-overlay');
+    if (el) el.style.display = 'none';
+}
+
+function showSkeletonLoader() {
+    const container = document.getElementById('hotel-list');
+    if (!container) return;
+    container.innerHTML = Array(5).fill(0).map(() =>
+        '<div class="skeleton skeleton-card"></div>'
+    ).join('');
+}
+
+function buildAreaButtons(items, onAllClick, onItemClick, hasChildren = true) {
+    const container = document.getElementById('area-button-container');
+    container.innerHTML = '';
+    container.className = 'area-grid col-2';
+
+    items.forEach((item, i) => {
+        const btn = document.createElement('button');
+        btn.className = `area-btn ${hasChildren ? 'has-children' : ''}`;
+        btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
+        btn.textContent = item;
+        btn.onclick = () => onItemClick(item);
+        container.appendChild(btn);
+    });
+
+    if (onAllClick) {
+        const allBtn = document.createElement('button');
+        allBtn.className = 'area-btn all-btn';
+        allBtn.style.cssText = 'grid-column:1/-1; margin-top:8px;';
+        allBtn.textContent = `▶ ${t('show_all')}`;
+        allBtn.onclick = onAllClick;
+        container.appendChild(allBtn);
+    }
+}
+
+function extractCity(address) {
+    if (!address) return null;
+
+    const PREFS = [
+        '北海道',
+        '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+        '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+        '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県',
+        '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県',
+        '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+        '徳島県', '香川県', '愛媛県', '高知県',
+        '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+    ];
+
+    let after = address;
+    for (const pref of PREFS) {
+        if (address.startsWith(pref)) {
+            after = address.slice(pref.length).trimStart();
+            break;
+        }
+    }
+    if (!after) return null;
+
+    const base = after.replace(/^[\u4E00-\u9FFF\u3040-\u30FF]{1,5}郡/, '');
+    let m;
+
+    m = base.match(/^((?:(?!区)[\u4E00-\u9FFF\u3040-\u30FF]){1,10}?市)/);
+    if (m) return m[1];
+
+    m = base.match(/^([\u4E00-\u9FFF\u3040-\u30FF]{1,6}?区)/);
+    if (m) return m[1];
+
+    m = after.match(/^([\u4E00-\u9FFF\u3040-\u30FF]{1,5}郡[\u4E00-\u9FFF\u3040-\u30FF]{1,5}[町村])/);
+    if (m) return m[1];
+
+    m = after.match(/^([\u4E00-\u9FFF\u3040-\u30FF]{1,6}郡)/);
+    if (m) return m[1];
+
+    m = after.match(/^([\u4E00-\u9FFF\u3040-\u30FF]{1,6}[町村])/);
+    if (m) return m[1];
+
+    return null;
+}
+
+function hotelRankBadge(_score) {
+    return '';
+}
+
+function freshnessLabel(isoDate) {
+    if (!isoDate) return '';
+    const diff = Math.floor((Date.now() - new Date(isoDate)) / 86400000);
+    if      (diff === 0)  return '<span class="freshness fresh">本日更新</span>';
+    else if (diff <= 7)   return `<span class="freshness recent">${diff}日前に更新</span>`;
+    else if (diff <= 30)  return `<span class="freshness normal">${diff}日前に更新</span>`;
+    else                  return `<span class="freshness old">${diff}日前に更新</span>`;
+}
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLng/2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatTransportFee(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (val === 0 || val === '0') return '無料';
+    const num = parseInt(String(val).replace(/,/g, ''), 10);
+    if (isNaN(num)) return null;
+    return '¥' + num.toLocaleString('ja-JP') + '-';
+}
+
+function buildDonutSVG(greenCount, redCount, size = 60, showPct = false) {
+    const r = 22, sw = 8;
+    const cx = size / 2, cy = size / 2;
+    const C = 2 * Math.PI * r;
+    const total = greenCount + redCount;
+    if (total === 0) return '';
+    const gLen = (greenCount / total) * C;
+    const rLen = (redCount / total) * C;
+    const off = (C * 0.25).toFixed(2);
+    const offR = (C * 0.25 - gLen).toFixed(2);
+    const pct = Math.round((greenCount / total) * 100);
+    const pctColor = greenCount >= redCount ? '#3a9a60' : '#c05050';
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;flex-shrink:0;">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,0,0,0.07)" stroke-width="${sw}"/>
+      ${gLen > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#3a9a60" stroke-width="${sw}" stroke-dasharray="${gLen.toFixed(2)} ${(C - gLen).toFixed(2)}" stroke-dashoffset="${off}"/>` : ''}
+      ${rLen > 0 ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#c05050" stroke-width="${sw}" stroke-dasharray="${rLen.toFixed(2)} ${(C - rLen).toFixed(2)}" stroke-dashoffset="${offR}"/>` : ''}
+      ${showPct ? `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" style="font-size:11px;font-weight:700;fill:${pctColor};">${pct}%</text>` : ''}
+    </svg>`;
+}
+
+function getReportCount(h) {
+    const s = h.summary;
+    if (!s) return 0;
+    if (s.total_reports != null) return s.total_reports;
+    return (s.can_call_count||0) + (s.cannot_call_count||0) + (s.shop_can_count||0) + (s.shop_ng_count||0);
+}
+
+function sortHotelsByReviews(hotels) {
+    hotels.sort((a, b) => {
+        const ca = getReportCount(a), cb = getReportCount(b);
+        if (ca !== cb) return cb - ca;
+        const da = a.latestReportAt || '', db = b.latestReportAt || '';
+        if (da !== db) return da < db ? 1 : -1;
+        return (a.name || '').localeCompare(b.name || '', 'ja');
+    });
+    return hotels;
+}
+
+function applyKeywordFilter(query, rawKeyword) {
+    if (!rawKeyword) return query;
+    const words = rawKeyword.trim().split(/[\s　]+/).filter(w => w.length > 0);
+    for (const word of words) {
+        query = query.or(`name.ilike.%${word}%,address.ilike.%${word}%`);
+    }
+    return query;
+}

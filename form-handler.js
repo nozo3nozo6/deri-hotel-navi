@@ -1,0 +1,722 @@
+// ==========================================================================
+// form-handler.js — 投稿フォーム、フラグ、ホテル追加申請
+// ==========================================================================
+
+let CONDITIONS = [
+    '直通', 'カードキー必須', 'EV待ち合わせ',
+    '玄関待ち合わせ', '深夜玄関待合', '2名予約必須',
+    'フロント相談', 'ノウハウ', 'その他'
+];
+
+const TIME_SLOTS = [
+    '早朝（5:00〜8:00）',
+    '朝（8:00〜11:00）',
+    '昼（11:00〜16:00）',
+    '夕方（16:00〜18:00）',
+    '夜（18:00〜23:00）',
+    '深夜（23:00〜5:00）',
+];
+
+let hotelFormState = {
+    can_call: null,
+    conditions: new Set(),
+    time_slot: '',
+    can_call_reasons: new Set(),
+    cannot_call_reasons: new Set(),
+    comment: '',
+    poster_name: '',
+    room_type: '',
+    multi_person: false,
+    guest_male: 1,
+    guest_female: 1,
+};
+
+function hotelStepGuest(gender, delta) {
+    const key = gender === 'male' ? 'guest_male' : 'guest_female';
+    const elId = gender === 'male' ? 'form-guest-male' : 'form-guest-female';
+    const next = Math.min(4, Math.max(0, (hotelFormState[key] || 0) + delta));
+    hotelFormState[key] = next;
+    const el = document.getElementById(elId);
+    if (el) el.textContent = next;
+}
+
+function hotelToggleMultiPerson(checked) {
+    hotelFormState.multi_person = checked;
+    const section = document.getElementById('form-multi-person-section');
+    if (section) section.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        hotelFormState.guest_male = 1;
+        hotelFormState.guest_female = 1;
+        const mEl = document.getElementById('form-guest-male');
+        const fEl = document.getElementById('form-guest-female');
+        if (mEl) mEl.textContent = 1;
+        if (fEl) fEl.textContent = 1;
+    }
+}
+
+function updatePostDatetime() {
+    const el = document.getElementById('post-datetime');
+    if (!el) return;
+    const now = new Date();
+    const fmt = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    el.textContent = fmt;
+    setTimeout(updatePostDatetime, 60000);
+}
+
+function hotelSetCanCall(val) {
+    hotelFormState.can_call = val;
+    document.getElementById('btn-can').classList.toggle('active', val === true);
+    document.getElementById('btn-cannot').classList.toggle('active', val === false);
+    if (val) {
+        hotelFormState.cannot_call_reasons.clear();
+        const cd = document.getElementById('cannot-reasons-display');
+        if (cd) cd.innerHTML = '';
+        showCanReasonsModal();
+    } else {
+        hotelFormState.can_call_reasons.clear();
+        const cd = document.getElementById('can-reasons-display');
+        if (cd) cd.innerHTML = '';
+        hotelFormState.conditions.clear();
+        hotelFormState.time_slot = '';
+        const tsEl = document.getElementById('form-time-slot');
+        if (tsEl) tsEl.value = '';
+        showCannotReasonsModal();
+    }
+}
+
+// ==========================================================================
+// 呼べた理由モーダル
+// ==========================================================================
+function showCanReasonsModal() {
+    hotelFormState.can_call_reasons.clear();
+    const checkboxes = document.getElementById('can-reasons-checkboxes');
+    checkboxes.innerHTML = CAN_CALL_REASONS.map((r, i) => {
+        const narrow = CAN_CALL_REASONS_NARROW[r] || r;
+        return `
+        <label id="cr-${i}" onclick="toggleCanReason(${i})"
+            style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
+            <span class="cr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
+            <span class="cr-label-full" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${r}</span>
+            <span class="cr-label-narrow" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${narrow}</span>
+        </label>`;
+    }).join('');
+    document.getElementById('can-reasons-modal').style.display = 'flex';
+}
+
+function toggleCanReason(idx) {
+    const reason = CAN_CALL_REASONS[idx];
+    const el = document.getElementById(`cr-${idx}`);
+    const check = el.querySelector('.cr-check');
+    if (hotelFormState.can_call_reasons.has(reason)) {
+        hotelFormState.can_call_reasons.delete(reason);
+        el.style.borderColor = '';
+        el.style.background = '';
+        check.textContent = '';
+        check.style.background = '#fff';
+        check.style.borderColor = 'rgba(180,150,100,0.4)';
+        check.style.color = 'transparent';
+    } else {
+        hotelFormState.can_call_reasons.add(reason);
+        el.style.borderColor = 'rgba(58,154,96,0.5)';
+        el.style.background = 'rgba(58,154,96,0.06)';
+        check.textContent = '✓';
+        check.style.background = '#3a9a60';
+        check.style.borderColor = '#3a9a60';
+        check.style.color = '#fff';
+    }
+}
+
+function cancelCanReasons() {
+    document.getElementById('can-reasons-modal').style.display = 'none';
+    hotelFormState.can_call = null;
+    hotelFormState.can_call_reasons.clear();
+    document.getElementById('btn-can').classList.remove('active');
+}
+
+function confirmCanReasons() {
+    document.getElementById('can-reasons-modal').style.display = 'none';
+    const display = document.getElementById('can-reasons-display');
+    if (display) {
+        const selected = [...hotelFormState.can_call_reasons];
+        display.innerHTML = selected.length > 0
+            ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
+                <span style="font-size:11px;color:var(--text-3);">呼べた理由：</span>
+                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:10px;font-size:11px;color:#3a9a60;font-weight:600;">${r}</span>`).join('')}
+                <button onclick="showCanReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
+               </div>`
+            : `<div style="padding:4px 0;"><button onclick="showCanReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(58,154,96,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#3a7a50;">＋ 呼べた理由を選択（任意）</button></div>`;
+    }
+}
+
+// ==========================================================================
+// 呼べなかった理由モーダル
+// ==========================================================================
+function showCannotReasonsModal() {
+    hotelFormState.cannot_call_reasons.clear();
+    const checkboxes = document.getElementById('cannot-reasons-checkboxes');
+    checkboxes.innerHTML = CANNOT_CALL_REASONS.map((r, i) => `
+        <label id="cnr-${i}" onclick="toggleCannotReason(${i})"
+            style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
+            <span class="cnr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
+            <span style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${r}</span>
+        </label>`).join('');
+    document.getElementById('cannot-reasons-modal').style.display = 'flex';
+}
+
+function toggleCannotReason(idx) {
+    const reason = CANNOT_CALL_REASONS[idx];
+    const el = document.getElementById(`cnr-${idx}`);
+    const check = el.querySelector('.cnr-check');
+    if (hotelFormState.cannot_call_reasons.has(reason)) {
+        hotelFormState.cannot_call_reasons.delete(reason);
+        el.style.borderColor = '';
+        el.style.background = '';
+        check.textContent = '';
+        check.style.background = '#fff';
+        check.style.borderColor = 'rgba(180,150,100,0.4)';
+        check.style.color = 'transparent';
+    } else {
+        hotelFormState.cannot_call_reasons.add(reason);
+        el.style.borderColor = 'rgba(192,80,80,0.5)';
+        el.style.background = 'rgba(192,80,80,0.06)';
+        check.textContent = '✓';
+        check.style.background = '#c05050';
+        check.style.borderColor = '#c05050';
+        check.style.color = '#fff';
+    }
+}
+
+function cancelCannotReasons() {
+    document.getElementById('cannot-reasons-modal').style.display = 'none';
+    hotelFormState.can_call = null;
+    hotelFormState.cannot_call_reasons.clear();
+    document.getElementById('btn-cannot').classList.remove('active');
+}
+
+function confirmCannotReasons() {
+    document.getElementById('cannot-reasons-modal').style.display = 'none';
+    const display = document.getElementById('cannot-reasons-display');
+    if (display) {
+        const selected = [...hotelFormState.cannot_call_reasons];
+        display.innerHTML = selected.length > 0
+            ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
+                <span style="font-size:11px;color:var(--text-3);">呼べなかった理由：</span>
+                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.3);border-radius:10px;font-size:11px;color:#c05050;font-weight:600;">${r}</span>`).join('')}
+                <button onclick="showCannotReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
+               </div>`
+            : `<div style="padding:4px 0;"><button onclick="showCannotReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(192,80,80,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#c05050;">＋ 呼べなかった理由を選択（任意）</button></div>`;
+    }
+}
+
+function hotelToggleTimeSlot(idx) {
+    const slot = TIME_SLOTS[idx];
+    const el = document.getElementById(`ts-${idx}`);
+    if (!el) { console.warn('[timeslot] element not found: ts-' + idx); return; }
+
+    const isSame = hotelFormState.time_slot === slot;
+
+    TIME_SLOTS.forEach((_, i) => {
+        const btn = document.getElementById(`ts-${i}`);
+        if (btn) {
+            btn.style.background = 'var(--bg-3)';
+            btn.style.borderColor = 'var(--border)';
+            btn.style.color = 'var(--text-2)';
+            btn.style.fontWeight = '400';
+        }
+    });
+
+    if (isSame) {
+        hotelFormState.time_slot = '';
+        console.log('[timeslot] deselected:', slot);
+    } else {
+        hotelFormState.time_slot = slot;
+        el.style.background = 'var(--accent-bg)';
+        el.style.borderColor = 'var(--border-strong)';
+        el.style.color = 'var(--accent-dim)';
+        el.style.fontWeight = '600';
+        console.log('[timeslot] selected:', slot);
+    }
+}
+
+function hotelToggleCondition(cond) {
+    const el = document.getElementById(`cond-${cond}`);
+    if (hotelFormState.conditions.has(cond)) {
+        hotelFormState.conditions.delete(cond);
+        el.classList.remove('checked');
+    } else {
+        hotelFormState.conditions.add(cond);
+        el.classList.add('checked');
+    }
+}
+
+async function voteReport(reportId, vote) {
+    const fp = btoa([navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|')).slice(0,32);
+
+    const { error } = await supabaseClient.from('report_votes').insert({
+        report_id: reportId,
+        fingerprint: fp,
+        vote: vote
+    });
+
+    if (error) {
+        if (error.code === '23505') {
+            showToast('既に評価済みです');
+        } else {
+            showToast('評価に失敗しました');
+        }
+        return;
+    }
+
+    const countEl = document.getElementById(`${vote === 'helpful' ? 'helpful' : 'unhelpful'}-count-${reportId}`);
+    if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+
+    const btnEl = document.getElementById(`vote-${vote}-${reportId}`);
+    if (btnEl) {
+        btnEl.style.background = vote === 'helpful' ? 'rgba(58,154,96,0.1)' : 'rgba(192,80,80,0.08)';
+        btnEl.style.borderColor = vote === 'helpful' ? 'rgba(58,154,96,0.3)' : 'rgba(192,80,80,0.25)';
+        btnEl.style.color = vote === 'helpful' ? '#3a9a60' : '#c05050';
+    }
+
+    if (vote === 'unhelpful') {
+        const unhelpfulCount = parseInt(document.getElementById(`unhelpful-count-${reportId}`)?.textContent || '0');
+        if (unhelpfulCount >= 3) {
+            const card = btnEl?.closest('div[style*="border-radius:10px"]');
+            if (card) {
+                card.style.opacity = '0.5';
+                card.innerHTML = `<div style="font-size:12px;color:var(--text-3);text-align:center;padding:8px;cursor:pointer;" onclick="this.parentElement.style.opacity='1';this.parentElement.innerHTML='';">
+                    ⚠️ 低評価が多い投稿です（タップで表示）
+                </div>` + card.innerHTML;
+            }
+        }
+    }
+
+    showToast(vote === 'helpful' ? '👍 参考になりました' : '👎 評価しました');
+}
+
+function hotelSubmitReport() {
+    if (hotelFormState.can_call === null) {
+        showToast('「呼べた」か「呼べなかった」を選択してください');
+        return;
+    }
+    showPostConfirmModal();
+}
+
+function showPostConfirmModal() {
+    const doBtn = document.getElementById('btn-do-submit');
+    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+
+    const s = hotelFormState;
+    const posterName = s.poster_name?.trim() || '匿名希望';
+    const resultText = s.can_call ? '✅ 呼べた' : '❌ 呼べなかった';
+    const resultColor = s.can_call ? '#3a9a60' : '#c05050';
+    const reasons = s.can_call ? [...s.can_call_reasons] : [...s.cannot_call_reasons];
+    const reasonLabel = s.can_call ? '呼べた理由' : '呼べなかった理由';
+    const timeSlot = s.time_slot || '';
+
+    function row(label, value) {
+        if (!value) return '';
+        return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">${label}</div>
+            <div style="font-size:13px;color:#1a1410;flex:1;line-height:1.6;">${value}</div>
+        </div>`;
+    }
+
+    function tags(arr, color) {
+        if (!arr || arr.length === 0) return null;
+        return arr.map(r => `<span style="display:inline-block;padding:3px 9px;background:${color}1a;border:1px solid ${color}40;border-radius:10px;font-size:11px;color:${color};margin:2px 2px 2px 0;">${r}</span>`).join('');
+    }
+
+    const content = `
+        ${row('投稿者名', posterName)}
+        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">結果</div>
+            <div style="font-size:13px;font-weight:700;color:${resultColor};">${resultText}</div>
+        </div>
+        ${reasons.length > 0 ? `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:4px;">${reasonLabel}</div>
+            <div style="flex:1;">${tags(reasons, s.can_call ? '#3a9a60' : '#c05050')}</div>
+        </div>` : ''}
+        ${timeSlot ? `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">時間帯</div>
+            <div style="font-size:13px;color:#1a1410;">${timeSlot}</div>
+        </div>` : ''}
+        ${row('部屋タイプ', s.room_type || null)}
+        ${row('コメント', s.comment || null)}
+    `;
+
+    document.getElementById('post-confirm-content').innerHTML = content;
+    document.getElementById('post-confirm-modal').style.display = 'flex';
+}
+
+function closePostConfirmModal() {
+    document.getElementById('post-confirm-modal').style.display = 'none';
+}
+
+async function doSubmitReport() {
+    const doBtn = document.getElementById('btn-do-submit');
+    if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
+
+    let posterType = 'user';
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user?.email) {
+            const { data: shopRow } = await supabaseClient
+                .from('shops')
+                .select('id,is_approved')
+                .eq('email', session.user.email)
+                .eq('is_approved', true)
+                .maybeSingle();
+            if (shopRow) posterType = 'shop';
+        }
+    } catch (_) {}
+
+    const fingerprint = btoa([navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|')).slice(0,32);
+    const payload = {
+        hotel_id: currentHotelId,
+        can_call: hotelFormState.can_call,
+        poster_type: posterType,
+        can_call_reasons: hotelFormState.can_call ? [...hotelFormState.can_call_reasons] : [],
+        cannot_call_reasons: !hotelFormState.can_call ? [...hotelFormState.cannot_call_reasons] : [],
+        time_slot: hotelFormState.time_slot || null,
+        comment: hotelFormState.comment ? hotelFormState.comment.slice(0, 500) : null,
+        poster_name: hotelFormState.poster_name?.trim() || '無記名',
+        room_type: hotelFormState.room_type || null,
+        multi_person: hotelFormState.multi_person || false,
+        guest_male: hotelFormState.multi_person ? hotelFormState.guest_male
+            : (MODE === 'women' || MODE === 'women_same' ? 0 : 1),
+        guest_female: hotelFormState.multi_person ? hotelFormState.guest_female
+            : (MODE === 'women' || MODE === 'women_same' ? 1 : 0),
+        gender_mode: typeof MODE !== 'undefined' ? MODE : 'men',
+        fingerprint,
+    };
+    console.log('[submit] payload:', JSON.stringify(payload, null, 2));
+
+    const { error } = await supabaseClient.from('reports').insert(payload);
+
+    if (error) {
+        console.error('[submit] error:', error);
+        closePostConfirmModal();
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+        if (error.code === '23505') {
+            showToast('このホテルへは既に投稿済みです');
+        } else {
+            alert('送信エラー:\n' + (error.message || JSON.stringify(error)));
+        }
+        return;
+    }
+    closePostConfirmModal();
+    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+    showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
+    setTimeout(() => loadHotelDetail(currentHotelId), 1500);
+}
+
+// ==========================================================================
+// ラブホ投稿
+// ==========================================================================
+function lhSetStar(field, value) {
+    lhFormState[field] = value;
+    const container = document.getElementById('lh-star-' + field);
+    if (!container) return;
+    container.querySelectorAll('span').forEach((s, i) => { s.style.color = i < value ? '#c9a96e' : '#ccc'; });
+}
+
+function lhToggleGoodPoint(el, name) {
+    const active = el.dataset.active === '1';
+    if (active) {
+        el.dataset.active = '0';
+        el.style.borderColor = 'rgba(201,169,110,0.4)';
+        el.style.background = '#fff';
+        el.style.color = 'var(--text-2)';
+        el.style.fontWeight = 'normal';
+        lhFormState.good_points = lhFormState.good_points.filter(p => p !== name);
+    } else {
+        el.dataset.active = '1';
+        el.style.borderColor = '#c9a96e';
+        el.style.background = 'rgba(201,169,110,0.12)';
+        el.style.color = '#c9a96e';
+        el.style.fontWeight = '600';
+        if (!lhFormState.good_points.includes(name)) lhFormState.good_points.push(name);
+    }
+}
+
+function lhToggleFac(el, name) {
+    const cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    el.style.borderColor = cb.checked ? '#c9a96e' : '';
+    el.style.background = cb.checked ? 'rgba(201,169,110,0.1)' : '';
+    el.style.color = cb.checked ? '#c9a96e' : '';
+    if (cb.checked) { if (!lhFormState.facilities.includes(name)) lhFormState.facilities.push(name); }
+    else { lhFormState.facilities = lhFormState.facilities.filter(f => f !== name); }
+}
+
+async function submitLovehoReport() {
+    const btn = document.getElementById('lh-submit-btn');
+    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    try {
+        const payload = {
+            hotel_id: currentHotelId,
+            solo_entry: lhFormState.solo_entry || null,
+            atmosphere: lhFormState.atmosphere || null,
+            good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
+            time_slot: lhFormState.time_slot || null,
+            comment: lhFormState.comment ? lhFormState.comment.slice(0, 500) : null,
+            poster_name: lhFormState.poster_name || null,
+            gender_mode: typeof MODE !== 'undefined' ? MODE : null,
+            multi_person: lhFormState.multi_person || false,
+            guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
+            guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
+        };
+        const { error } = await supabaseClient.from('loveho_reports').insert(payload);
+        if (error) throw error;
+        showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
+        cachedLovehoData = null;
+        loadLovehoDetail(currentHotelId);
+    } catch (e) {
+        console.error(e);
+        showToast('投稿エラーが発生しました');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '投稿する';
+    }
+}
+
+function shopVerdict(r) {
+    if (r.can_call === true) return '可';
+    return '不可';
+}
+
+// ==========================================================================
+// 投稿報告（フラグ）
+// ==========================================================================
+let flagTargetId = null;
+let flagSelectedReason = null;
+let flagTargetTable = 'reports';
+
+function showFlagModal(reportId, table) {
+    if (!reportId || reportId === 'null' || reportId === 'undefined') {
+        console.error('[flag] showFlagModal called with invalid id:', reportId);
+        showToast('報告対象が取得できませんでした');
+        return;
+    }
+    flagTargetId = reportId;
+    flagTargetTable = table || 'reports';
+    flagSelectedReason = null;
+    document.getElementById('flag-comment-input').value = '';
+    document.getElementById('flag-reason-err').style.display = 'none';
+    document.querySelectorAll('#flag-reason-btns button').forEach(b => {
+        b.style.background = 'var(--bg-3,#f0ebe0)';
+        b.style.borderColor = 'rgba(180,150,100,0.25)';
+        b.style.fontWeight = '400';
+        b.style.color = '#1a1410';
+    });
+    document.getElementById('flag-step1').style.display = '';
+    document.getElementById('flag-step2').style.display = 'none';
+    document.getElementById('flag-modal').style.display = 'flex';
+}
+
+function openFlagModal(reportId) { showFlagModal(reportId, 'loveho_reports'); }
+function closeFlagModal() {
+    document.getElementById('flag-modal').style.display = 'none';
+    flagTargetId = null;
+    flagSelectedReason = null;
+    flagTargetTable = 'reports';
+}
+
+function selectFlagReason(reason, btn) {
+    if (flagSelectedReason === reason) {
+        flagSelectedReason = null;
+        btn.style.background = 'var(--bg-3,#f0ebe0)';
+        btn.style.borderColor = 'rgba(180,150,100,0.25)';
+        btn.style.fontWeight = '400';
+        btn.style.color = '#1a1410';
+        return;
+    }
+    flagSelectedReason = reason;
+    document.getElementById('flag-reason-err').style.display = 'none';
+    document.querySelectorAll('#flag-reason-btns button').forEach(b => {
+        b.style.background = 'var(--bg-3,#f0ebe0)';
+        b.style.borderColor = 'rgba(180,150,100,0.25)';
+        b.style.fontWeight = '400';
+        b.style.color = '#1a1410';
+    });
+    btn.style.background = 'rgba(192,80,80,0.08)';
+    btn.style.borderColor = 'rgba(192,80,80,0.4)';
+    btn.style.fontWeight = '700';
+    btn.style.color = '#c05050';
+}
+
+function showFlagStep1() {
+    document.getElementById('flag-step1').style.display = '';
+    document.getElementById('flag-step2').style.display = 'none';
+}
+
+function showFlagConfirm() {
+    if (!flagSelectedReason) {
+        document.getElementById('flag-reason-err').style.display = 'block';
+        return;
+    }
+    const comment = document.getElementById('flag-comment-input').value.trim();
+    document.getElementById('flag-confirm-reason').textContent = flagSelectedReason;
+    const cWrap = document.getElementById('flag-confirm-comment-wrap');
+    if (comment) {
+        cWrap.style.display = '';
+        document.getElementById('flag-confirm-comment').textContent = comment;
+    } else {
+        cWrap.style.display = 'none';
+    }
+    document.getElementById('flag-step1').style.display = 'none';
+    document.getElementById('flag-step2').style.display = '';
+}
+
+async function submitFlag() {
+    const targetId = flagTargetId;
+    const selectedReason = flagSelectedReason;
+    const tbl = flagTargetTable || 'reports';
+
+    if (!targetId || targetId === 'null' || targetId === 'undefined') {
+        console.error('[flag] invalid targetId:', targetId);
+        showToast('報告対象が不明です。ページを再読み込みしてください。');
+        return;
+    }
+    if (!selectedReason) return;
+
+    const flag_comment = document.getElementById('flag-comment-input').value.trim() || null;
+    const flagPayload = {
+        flagged_at: new Date().toISOString(),
+        flag_reason: selectedReason,
+        flag_comment,
+    };
+    console.log('[flag] targetId:', targetId, 'payload:', flagPayload);
+
+    closeFlagModal();
+
+    const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
+    if (error) {
+        console.error('[flag] error:', error);
+        showToast('報告の送信に失敗しました: ' + error.message);
+    } else {
+        showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
+    }
+}
+
+// ==========================================================================
+// ホテル追加申請モーダル
+// ==========================================================================
+const HOTEL_TYPE_LABELS = {
+    business: 'ビジネスホテル', city: 'シティホテル', resort: 'リゾートホテル',
+    ryokan: '旅館', pension: 'ペンション', minshuku: '民宿',
+    love_hotel: 'ラブホテル', rental_room: 'レンタルルーム', other: 'その他',
+};
+
+function openHotelRequestModal() {
+    document.getElementById('hreq-name').value = '';
+    document.getElementById('hreq-address').value = '';
+    document.getElementById('hreq-tel').value = '';
+    document.getElementById('hreq-type').value = 'business';
+    document.getElementById('hreq-err').style.display = 'none';
+    document.getElementById('hreq-step1').style.display = '';
+    document.getElementById('hreq-step2').style.display = 'none';
+    document.getElementById('hreq-done').style.display = 'none';
+    document.getElementById('hotel-request-modal').style.display = 'flex';
+}
+
+function closeHotelRequestModal() {
+    document.getElementById('hotel-request-modal').style.display = 'none';
+}
+
+function hreqToConfirm() {
+    const name = document.getElementById('hreq-name').value.trim();
+    const address = document.getElementById('hreq-address').value.trim();
+    const errEl = document.getElementById('hreq-err');
+    if (!name || !address) {
+        errEl.textContent = 'ホテル名と住所は必須です';
+        errEl.style.display = 'block';
+        return;
+    }
+    errEl.style.display = 'none';
+
+    const tel = document.getElementById('hreq-tel').value.trim();
+    const type = document.getElementById('hreq-type').value;
+    const rows = [
+        ['ホテル名', name],
+        ['住所', address],
+        ...(tel ? [['電話番号', tel]] : []),
+        ['タイプ', HOTEL_TYPE_LABELS[type] || type],
+    ];
+    document.getElementById('hreq-confirm-body').innerHTML = rows.map(([k, v]) =>
+        `<div><span style="font-size:11px;color:#8a7a6a;font-weight:700;">${k}</span><div style="font-size:13px;color:#1a1410;margin-top:2px;">${v}</div></div>`
+    ).join('');
+
+    document.getElementById('hreq-step1').style.display = 'none';
+    document.getElementById('hreq-step2').style.display = '';
+}
+
+function hreqBack() {
+    document.getElementById('hreq-step2').style.display = 'none';
+    document.getElementById('hreq-step1').style.display = '';
+}
+
+async function submitHotelRequest() {
+    const btn = document.getElementById('hreq-submit-btn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    const name = document.getElementById('hreq-name').value.trim();
+    const address = document.getElementById('hreq-address').value.trim();
+    const tel = document.getElementById('hreq-tel').value.trim() || null;
+    const type = document.getElementById('hreq-type').value;
+
+    const { error } = await supabaseClient.from('hotel_requests').insert({
+        hotel_name: name, address, tel, hotel_type: type, status: 'pending',
+    });
+
+    btn.disabled = false;
+    btn.textContent = '送信する';
+
+    if (error) {
+        showToast('送信に失敗しました: ' + error.message);
+        return;
+    }
+
+    closeHotelRequestModal();
+    showSuccessModal('送信ありがとうございます！', 'ホテル情報を受け付けました。確認後、掲載いたします。');
+}
+
+// ==========================================================================
+// Escapeキーリスナー
+// ==========================================================================
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modals = [
+            { id: 'success-modal', close: closeSuccessModal },
+            { id: 'can-reasons-modal', close: cancelCanReasons },
+            { id: 'cannot-reasons-modal', close: cancelCannotReasons },
+            { id: 'post-confirm-modal', close: closePostConfirmModal },
+            { id: 'flag-modal', close: closeFlagModal },
+            { id: 'hotel-request-modal', close: closeHotelRequestModal },
+        ];
+        for (const { id, close } of modals) {
+            const el = document.getElementById(id);
+            if (el && el.style.display !== 'none' && el.style.display !== '') {
+                close();
+                break;
+            }
+        }
+    }
+});
+
+// ==========================================================================
+// 初期化
+// ==========================================================================
+window.onload = async () => {
+    const savedLang = localStorage.getItem('yobuho_lang');
+    if (savedLang && savedLang !== 'ja') {
+        changeLang(savedLang);
+    }
+    await initShopMode();
+    restoreFromUrl();
+};
