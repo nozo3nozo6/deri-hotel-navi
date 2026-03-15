@@ -649,13 +649,22 @@ function fetchHotelsByStation() {
 // キーワード検索
 // ==========================================================================
 let searchTimeout = null;
+let _isComposing = false; // IME変換中フラグ
+
+// IME変換中は検索を実行しない
+document.addEventListener('compositionstart', () => { _isComposing = true; });
+document.addEventListener('compositionend', () => {
+    _isComposing = false;
+    fetchHotelsFromSearch();
+});
 
 function fetchHotelsFromSearch() {
+    if (_isComposing) return; // IME変換中はスキップ
     const keyword = document.getElementById('keyword')?.value?.trim() || '';
     document.getElementById('search-clear-btn').style.display = keyword ? 'block' : 'none';
 
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => {
+    searchTimeout = setTimeout(async () => { // 500ms debounce（日本語入力の変換中に発火しないよう）
         if (keyword.length < 2) return;
         showLoading();
         showSkeletonLoader();
