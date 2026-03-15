@@ -565,7 +565,12 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 }
 
 function backLevel() {
-    history.back();
+    if (pageStack.length > 0) {
+        const prevPage = pageStack.pop();
+        prevPage();
+    } else {
+        showJapanPage();
+    }
 }
 
 function goToHotelCity(regionLabel, pref, majorArea, city) {
