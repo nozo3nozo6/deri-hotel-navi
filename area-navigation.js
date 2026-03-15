@@ -427,7 +427,7 @@ async function showCityPage(region, pref, majorArea) {
                 ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
                 ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
             </span>`;
-        btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city); };
+        btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref }, city); };
         container.appendChild(btn);
     });
 
@@ -541,7 +541,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
             </span>`;
         btn.onclick = () => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
-            fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
+            fetchAndShowHotelsByCity({ prefecture: pref }, city);
         };
         container.appendChild(btn);
     });
@@ -585,5 +585,5 @@ function backLevel() {
 function goToHotelCity(regionLabel, pref, majorArea, city) {
     const region = REGION_MAP.find(r => r.label === regionLabel);
     pageStack.push(() => showCityPage(region, pref, majorArea));
-    fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city);
+    fetchAndShowHotelsByCity({ prefecture: pref }, city);
 }
