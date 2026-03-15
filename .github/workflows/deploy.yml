@@ -17,14 +17,7 @@ jobs:
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           mkdir -p api
-          cat > api/auth-config.php <<EOF
-          <?php
-          define('SUPABASE_SERVICE_KEY', '${SERVICE_KEY}');
-          define('SUPABASE_URL', 'https://ojkhwbvoaiaqekxrbpdd.supabase.co');
-          define('SESSION_TIMEOUT', 1800);
-          define('MAX_LOGIN_ATTEMPTS', 5);
-          define('LOCKOUT_TIME', 900);
-          EOF
+          printf "<?php\ndefine('SUPABASE_SERVICE_KEY', '%s');\ndefine('SUPABASE_URL', 'https://ojkhwbvoaiaqekxrbpdd.supabase.co');\ndefine('SESSION_TIMEOUT', 1800);\ndefine('MAX_LOGIN_ATTEMPTS', 5);\ndefine('LOCKOUT_TIME', 900);\n" "$SERVICE_KEY" > api/auth-config.php
 
       - name: Deploy via rsync over SSH
         uses: burnett01/rsync-deployments@7.0.1
