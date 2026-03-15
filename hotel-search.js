@@ -167,6 +167,8 @@ async function switchTab(tab) {
             await loadLovehoForCurrentCity();
         }
     }
+    // 地図が表示中ならタブに合わせてマーカーを更新
+    refreshMapIfVisible();
 }
 
 async function loadLovehoForCurrentCity() {
@@ -765,7 +767,8 @@ function showMap() {
         showToast('地図ライブラリを読み込み中です…', 2000);
         return;
     }
-    const hotels = allHotels || [];
+    // タブに応じたデータを使用
+    const hotels = (currentTab === 'loveho' ? cachedLovehoData : allHotels) || [];
     const hotelsWithCoords = hotels.filter(h => h.latitude && h.longitude);
 
     if (!mapInstance) {
@@ -789,7 +792,7 @@ function showMap() {
     hotelsWithCoords.forEach(h => {
         const marker = L.marker([h.latitude, h.longitude])
             .addTo(mapInstance)
-            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelDetail(' + h.id + ')">詳細を見る</a>');
+            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelDetail(' + h.id + ',' + (currentTab === 'loveho') + ')">' + t('view_detail') + '</a>');
         mapMarkers.push(marker);
         bounds.push([h.latitude, h.longitude]);
     });
