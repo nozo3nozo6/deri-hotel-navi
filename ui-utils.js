@@ -29,7 +29,7 @@ const state = { lang: localStorage.getItem('yobuho_lang') || 'ja' };
 const LANG = {
     ja: {
         select_area: '地域を選択', japan: '日本全国', back: '前へ',
-        search_placeholder: 'ホテル名で検索...',
+        search_placeholder: 'ホテル名・住所・キーワードで検索...',
         station_placeholder: '最寄駅で検索...',
         list_placeholder: '市区町村まで選択するとホテルが表示されます',
         results: '件のホテル', no_results: 'ホテルが見つかりませんでした',
@@ -52,7 +52,7 @@ const LANG = {
     },
     en: {
         select_area: 'Select Area', japan: 'All Japan', back: 'Back',
-        search_placeholder: 'Search by hotel name',
+        search_placeholder: 'Hotel name, address, keyword...',
         station_placeholder: 'Search by station',
         list_placeholder: 'Select a city to view hotels',
         results: 'hotels', no_results: 'No hotels found',
@@ -74,7 +74,7 @@ const LANG = {
     },
     zh: {
         select_area: '选择地区', japan: '全日本', back: '返回',
-        search_placeholder: '按酒店名搜索',
+        search_placeholder: '酒店名·地址·关键词搜索...',
         station_placeholder: '按车站搜索',
         list_placeholder: '请选择城市查看酒店',
         results: '家酒店', no_results: '未找到酒店',
@@ -96,7 +96,7 @@ const LANG = {
     },
     ko: {
         select_area: '지역 선택', japan: '일본 전국', back: '뒤로',
-        search_placeholder: '호텔명으로 검색',
+        search_placeholder: '호텔명·주소·키워드 검색...',
         station_placeholder: '역명으로 검색',
         list_placeholder: '도시를 선택하면 호텔이 표시됩니다',
         results: '개 호텔', no_results: '호텔을 찾을 수 없습니다',
