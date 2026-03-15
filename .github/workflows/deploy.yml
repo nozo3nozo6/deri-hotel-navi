@@ -12,10 +12,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Generate auth-config.php
+        run: |
+          mkdir -p api
+          cat > api/auth-config.php << 'PHPEOF'
+          <?php
+          define('SUPABASE_SERVICE_KEY', '${{ secrets.SUPABASE_SERVICE_KEY }}');
+          define('SUPABASE_URL', 'https://ojkhwbvoaiaqekxrbpdd.supabase.co');
+          define('SESSION_TIMEOUT', 1800);
+          define('MAX_LOGIN_ATTEMPTS', 5);
+          define('LOCKOUT_TIME', 900);
+          PHPEOF
+
       - name: Deploy via rsync over SSH
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='api/auth-config.php' --exclude='api/migrate-passwords.php' --exclude='ogp.svg'
+          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='api/migrate-passwords.php' --exclude='ogp.svg'
           path: ./
           remote_path: /home/yobuho/yobuho.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
