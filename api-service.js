@@ -7,8 +7,15 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const GATE_URL_MAP = {
+    'men': '/subdomain/deli/index.html',
+    'women': '/subdomain/jofu/index.html',
+    'men_same': '/subdomain/same/index.html',
+    'women_same': '/subdomain/same/index.html',
+};
 function getGateUrl() {
-    return '/index.html';
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    return GATE_URL_MAP[mode] || '/index.html';
 }
 
 const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';

@@ -565,6 +565,12 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 }
 
 function backLevel() {
+    // ホテル詳細が表示中なら先に閉じる
+    const detail = document.getElementById('hotel-detail-content');
+    if (detail && detail.style.display !== 'none' && detail.innerHTML !== '') {
+        leaveHotelDetail();
+        return;
+    }
     if (pageStack.length > 0) {
         const prevPage = pageStack.pop();
         prevPage();
