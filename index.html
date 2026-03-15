@@ -2,7 +2,8 @@
 <html lang="ja" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp; img-src 'self' data: https:; frame-ancestors 'none';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     <title>YobuHo - 呼べるホテル検索ポータル | 全国42,000件以上</title>
     <meta name="description" content="デリヘル・女性用風俗・同性利用、あなたの目的に合ったホテルを全国42,000件以上から検索。ユーザー口コミと店舗提供情報で信頼できるホテル情報。">
     <meta name="keywords" content="呼べるホテル,ホテル検索,デリヘル,女性用風俗,同性利用">
@@ -14,6 +15,9 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="YobuHo">
     <meta property="og:locale" content="ja_JP">
+    <meta property="og:image" content="https://yobuho.com/ogp.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary">
     <meta name="theme-color" content="#b5627a">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -33,6 +37,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- display=swap 確認済み: FOUTを防止しつつWebフォント読み込みを最適化 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {

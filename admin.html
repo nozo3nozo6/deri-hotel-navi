@@ -2,10 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co; img-src 'self' data: https:; frame-ancestors 'none';">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>管理画面 | Deri Hotel Navi</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -239,6 +241,32 @@
             .modal-btns{flex-direction:column;}
             .modal-btns .btn-save,.modal-btns .btn-cancel{width:100%;}
             .cond-row .btn{font-size:10px;padding:5px 8px;min-height:30px;}
+        }
+        /* ===== モバイルカード表示 (640px) ===== */
+        /* 注意: テーブルはJSで動的生成のため、data-label属性はJS側で付与が必要 */
+        @media (max-width: 640px) {
+            .tbl thead { display: none; }
+            .tbl tbody tr {
+                display: block;
+                margin-bottom: 12px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 12px;
+                background: #fff;
+            }
+            .tbl tbody td {
+                display: flex;
+                justify-content: space-between;
+                padding: 4px 0;
+                border: none;
+                font-size: 13px;
+            }
+            .tbl tbody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #666;
+                margin-right: 8px;
+            }
         }
     </style>
 </head>
@@ -855,35 +883,38 @@ function toast(msg,d=2500){const el=document.getElementById("toast");el.textCont
 function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-// ===== 認証 =====
+// ===== 認証（サーバー側PHP認証 via api/auth.php） =====
 function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
-async function hashPassword(password){
-const encoder=new TextEncoder();
-const data=encoder.encode(password+'yobuho-salt-2026');
-const hash=await crypto.subtle.digest('SHA-256',data);
-return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-let _loginAttempts=parseInt(localStorage.getItem('admin_login_attempts')||'0');
-let _lockUntil=parseInt(localStorage.getItem('admin_lock_until')||'0');
+let _currentUser=null;
 async function doLogin(){
-if(Date.now()<_lockUntil){const sec=Math.ceil((_lockUntil-Date.now())/1000);toast("ロック中です。"+sec+"秒後に再試行してください。");return;}
 const username=document.getElementById("admin-username").value.trim();
 const password=document.getElementById("admin-password").value;
 if(!username||!password){toast("IDとパスワードを入力してください");return;}
-const hashedInput=await hashPassword(password);
-const{data,error}=await sb.from("admin_users").select("*").eq("username",username).eq("password_hash",hashedInput).maybeSingle();
-if(error||!data){
-_loginAttempts++;
-localStorage.setItem('admin_login_attempts',String(_loginAttempts));
-if(_loginAttempts>=5){_lockUntil=Date.now()+30000;localStorage.setItem('admin_lock_until',String(_lockUntil));localStorage.setItem('admin_login_attempts','0');_loginAttempts=0;toast("5回失敗しました。30秒間ロックされます。");}
-else{toast("IDまたはパスワードが正しくありません（残り"+(5-_loginAttempts)+"回）");}
-return;}
-localStorage.setItem('admin_login_attempts','0');_loginAttempts=0;
-const now=new Date().toISOString();
-localStorage.setItem("admin_auth",JSON.stringify({id:data.id,username:data.username,loginAt:now,lastActivity:now}));
-showAdminPanel(data.username);
+try{
+const res=await fetch('/api/auth.php?action=login',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+credentials:'include',
+body:JSON.stringify({username,password})
+});
+const data=await res.json();
+if(data.success){
+_currentUser=data.user;
+showAdminPanel(data.user.username);
+}else{
+toast(data.message||'ログインに失敗しました');
 }
-function doLogout(){localStorage.removeItem("admin_auth");location.reload();}
+}catch(e){
+toast('通信エラーが発生しました');
+}
+}
+async function doLogout(){
+try{
+await fetch('/api/auth.php?action=logout',{method:'POST',credentials:'include'});
+}catch(e){}
+_currentUser=null;
+location.reload();
+}
 function showAdminPanel(username){
 document.getElementById("login-wrap").style.display="none";
 document.getElementById("hdr").style.display="block";
@@ -891,24 +922,21 @@ document.getElementById("layout").style.display="block";
 document.getElementById("hdr-email").textContent=username;
 loadAll();
 }
-function checkAuth(){
-const raw=localStorage.getItem("admin_auth");
-if(!raw){document.getElementById("login-wrap").style.display="flex";return;}
+async function checkAuth(){
 try{
-const auth=JSON.parse(raw);
-const now=Date.now();
-const loginTime=new Date(auth.loginAt).getTime();
-const lastActivity=new Date(auth.lastActivity||auth.loginAt).getTime();
-if(now-loginTime>8*60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("セッションの有効期限が切れました（8時間）。再ログインしてください。");return;}
-if(now-lastActivity>60*60*1000){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";toast("無操作のためログアウトしました。再ログインしてください。");return;}
-showAdminPanel(auth.username);
-}catch(e){localStorage.removeItem("admin_auth");document.getElementById("login-wrap").style.display="flex";}
+const res=await fetch('/api/auth.php?action=check',{credentials:'include'});
+const data=await res.json();
+if(data.authenticated){
+_currentUser=data.user;
+showAdminPanel(data.user.username);
+}else{
+if(data.reason==='timeout'){toast("セッションの有効期限が切れました。再ログインしてください。");}
+document.getElementById("login-wrap").style.display="flex";
 }
-document.addEventListener('click',function(){
-const raw=localStorage.getItem("admin_auth");
-if(!raw)return;
-try{const auth=JSON.parse(raw);if(auth.loginAt){auth.lastActivity=new Date().toISOString();localStorage.setItem("admin_auth",JSON.stringify(auth));}}catch(e){}
-});
+}catch(e){
+document.getElementById("login-wrap").style.display="flex";
+}
+}
 checkAuth();
 // パスワード変更
 function openPasswordChange(){document.getElementById("pw-change-modal").style.display="flex";document.getElementById("pw-current").value="";document.getElementById("pw-new").value="";document.getElementById("pw-confirm").value="";}
@@ -920,14 +948,17 @@ const cf=document.getElementById("pw-confirm").value;
 if(!cur||!nw||!cf){toast("すべての項目を入力してください");return;}
 if(nw!==cf){toast("新しいパスワードが一致しません");return;}
 if(nw.length<4){toast("パスワードは4文字以上にしてください");return;}
-const auth=JSON.parse(localStorage.getItem("admin_auth")||"{}");
-const curHash=await hashPassword(cur);
-const{data,error}=await sb.from("admin_users").select("*").eq("id",auth.id).eq("password_hash",curHash).maybeSingle();
-if(error||!data){toast("現在のパスワードが正しくありません");return;}
-const newHash=await hashPassword(nw);
-const{error:upErr}=await sb.from("admin_users").update({password_hash:newHash}).eq("id",auth.id);
-if(upErr){toast("更新エラー: "+upErr.message);return;}
+try{
+const res=await fetch('/api/auth.php?action=change-password',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+credentials:'include',
+body:JSON.stringify({current_password:cur,new_password:nw})
+});
+const data=await res.json();
+if(!data.success){toast(data.message||"パスワード変更に失敗しました");return;}
 toast("パスワードを変更しました");closePwChange();
+}catch(e){toast("通信エラーが発生しました");}
 }
 
 // ハンバーガーメニュー

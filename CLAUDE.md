@@ -1,15 +1,13 @@
 # Deri Hotel Navi
 
 ## Stack
-- Frontend: Vanilla JS (app.js), HTML (portal.html, admin.html, index.html, shop-register.html)
+- Frontend: Vanilla JS (5モジュール), HTML (portal.html, admin.html, index.html, shop-register.html)
 - DB: Supabase (PostgreSQL)
 - Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via GitHub Actions FTP
 - Hotel data: Rakuten Travel API
 
 ## Supabase
-- URL: https://ojkhwbvoaiaqekxrbpdd.supabase.co
-- Key: sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB
-- DB: see .env DATABASE_URL
+- URL/Key/DB: see .env file (do not commit secrets to this file)
 
 ## Tables
 - hotels: 42,052 hotels (hotel_type, detail_area, city)
@@ -20,7 +18,7 @@
 
 ## Pages
 - index.html: gate (men/women/lgbtq/shop)
-- portal.html + app.js: main app
+- portal.html: main app (api-service.js, ui-utils.js, area-navigation.js, hotel-search.js, form-handler.js)
 - admin.html: admin panel
 - shop-register.html: shop registration
 
@@ -31,8 +29,9 @@ men / women / men_same / women_same
 - extractCity(): parse city from address using prefecture list
 - hotel_type: detected from name (business/city/resort/ryokan/pension/minshuku/other)
 - detail_area: Rakuten detailClass (11 major cities only)
-- Cache buster: app.js?v=65（app.js変更時は必ずportal.htmlのバージョン番号を+1すること）
-- RLS: public_read + public_write on all tables
+- Cache buster: 各JSファイル?v=N（変更時はportal.htmlのバージョン番号を+1すること）
+- RLS: public_read（writeはテーブルごとに制限済み）
+- Auth: admin.html はサーバー側PHP認証（api/auth.php）
 
 ## Commands
 - Import hotels: node import-rakuten.js

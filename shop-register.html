@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp; img-src 'self' data: https:; frame-ancestors 'none';">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     <title>店舗登録 | YobuHo - 掲載店舗募集中</title>
     <meta name="description" content="YobuHoに店舗を掲載しませんか？届出確認済みの店舗として、ホテル対応情報を提供できます。">
     <meta name="robots" content="index, follow">
@@ -12,6 +13,9 @@
     <meta property="og:url" content="https://yobuho.com/shop-register.html">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="YobuHo">
+    <meta property="og:image" content="https://yobuho.com/ogp.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta name="theme-color" content="#b5627a">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,11 +31,11 @@
             --bg: #0a0a0f;
             --bg-2: #111118;
             --bg-3: #1a1a24;
-            --border: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.15);
             --border-s: rgba(255,255,255,0.15);
             --text: #f0ede8;
             --text-2: rgba(240,237,232,0.7);
-            --text-3: rgba(240,237,232,0.4);
+            --text-3: rgba(240,237,232,0.6);
             --red: #c05050;
             --green: #3a9a60;
             --r: 10px;
@@ -176,10 +180,10 @@
         <div class="card-sub">登録メールアドレスに認証リンクを送信します</div>
         <div class="steps"><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div></div>
         <div class="f-group">
-            <label class="f-label">メールアドレス<span class="req">*</span></label>
+            <label class="f-label" for="reg-email">メールアドレス<span class="req">*</span></label>
             <input type="email" id="reg-email" class="f-input" placeholder="shop@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendOtp()">
         </div>
-        <div class="err-msg" id="email-err"></div>
+        <div class="err-msg" id="email-err" role="alert" aria-live="polite"></div>
         <button class="btn-primary" id="send-btn" onclick="sendOtp()">認証メールを送信する</button>
         <p class="note">※ 届いたメールのリンクをクリックすると次のステップに進みます。<br>迷惑メールフォルダもご確認ください。</p>
     </div>
@@ -212,7 +216,7 @@
             虚偽の情報や不正な書類は審査不通過となります。
         </div>
         <div class="f-group">
-            <label class="f-label">店舗ジャンル<span class="req">*</span></label>
+            <label class="f-label" for="shop-gender">店舗ジャンル<span class="req">*</span></label>
             <select id="shop-gender" class="f-input">
                 <option value="men">男性向け（デリヘル）</option>
                 <option value="women">女性向け（女性用風俗）</option>
@@ -221,34 +225,34 @@
             </select>
         </div>
         <div class="f-group">
-            <label class="f-label">店舗名<span class="req">*</span></label>
+            <label class="f-label" for="shop-name">店舗名<span class="req">*</span></label>
             <input type="text" id="shop-name" class="f-input" placeholder="例: エステート新宿" oninput="clearFieldErr(this)">
             <div style="font-size:12px;color:#888;margin-top:5px;">※届出確認書に記載の名称を入力してください</div>
-            <div class="f-err" id="err-shop-name"></div>
+            <div class="f-err" id="err-shop-name" role="alert" aria-live="polite"></div>
         </div>
         <div class="f-group">
-            <label class="f-label">店舗URL<span class="req">*</span></label>
+            <label class="f-label" for="shop-url">店舗URL<span class="req">*</span></label>
             <input type="url" id="shop-url" class="f-input" placeholder="https://..." oninput="clearFieldErr(this)">
-            <div class="f-err" id="err-shop-url"></div>
+            <div class="f-err" id="err-shop-url" role="alert" aria-live="polite"></div>
         </div>
         <div class="f-group">
-            <label class="f-label">電話番号<span class="req">*</span></label>
+            <label class="f-label" for="shop-tel">電話番号<span class="req">*</span></label>
             <input type="tel" id="shop-tel" class="f-input" placeholder="00-0000-0000" oninput="clearFieldErr(this)">
-            <div class="f-err" id="err-shop-tel"></div>
+            <div class="f-err" id="err-shop-tel" role="alert" aria-live="polite"></div>
         </div>
         <div class="f-group">
-            <label class="f-label">パスワード<span class="req">*</span></label>
+            <label class="f-label" for="shop-pw">パスワード<span class="req">*</span></label>
             <input type="password" id="shop-pw" class="f-input" placeholder="8文字以上" autocomplete="new-password" oninput="clearFieldErr(this)">
-            <div class="f-err" id="err-shop-pw"></div>
+            <div class="f-err" id="err-shop-pw" role="alert" aria-live="polite"></div>
         </div>
         <div class="f-group">
-            <label class="f-label">パスワード（確認）<span class="req">*</span></label>
+            <label class="f-label" for="shop-pw2">パスワード（確認）<span class="req">*</span></label>
             <input type="password" id="shop-pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password" oninput="clearFieldErr(this)">
             <label class="pw-toggle"><input type="checkbox" onchange="togglePwVis(this.checked)"> パスワードを表示</label>
-            <div class="f-err" id="err-shop-pw2"></div>
+            <div class="f-err" id="err-shop-pw2" role="alert" aria-live="polite"></div>
         </div>
         <div class="f-group">
-            <label class="f-label">無店舗型性風俗特殊営業届出確認書<span class="req">*</span></label>
+            <label class="f-label" for="shop-doc">無店舗型性風俗特殊営業届出確認書<span class="req">*</span></label>
             <div class="file-zone" id="file-zone" onclick="document.getElementById('shop-doc').click()">
                 <input type="file" id="shop-doc" accept="image/*" onchange="onFileSelect(this)">
                 <div id="file-zone-inner">
@@ -263,9 +267,15 @@
                     <div class="file-zone-name" id="file-name-disp"></div>
                 </div>
             </div>
-            <div class="f-err" id="err-shop-doc"></div>
+            <div class="f-err" id="err-shop-doc" role="alert" aria-live="polite"></div>
+            <div id="upload-progress" style="display:none; margin-top:8px;">
+                <div style="background:#2a2a34; border-radius:4px; height:6px; overflow:hidden;">
+                    <div id="upload-progress-bar" style="height:100%; background:var(--accent, var(--gold)); width:0%; transition:width 0.2s;"></div>
+                </div>
+                <div id="upload-progress-text" style="font-size:12px; color:var(--text-2); margin-top:4px;">読み込み中...</div>
+            </div>
         </div>
-        <div class="err-msg" id="form-err"></div>
+        <div class="err-msg" id="form-err" role="alert" aria-live="polite"></div>
         <button class="btn-primary" onclick="goToConfirm()">確認画面へ進む</button>
     </div>
 
@@ -275,7 +285,7 @@
         <div class="card-sub">以下の内容で登録します。よろしいですか？</div>
         <div class="steps"><div class="step-dot on"></div><div class="step-dot on"></div><div class="step-dot on"></div></div>
         <div id="confirm-body"></div>
-        <div class="err-msg" id="confirm-err"></div>
+        <div class="err-msg" id="confirm-err" role="alert" aria-live="polite"></div>
         <button class="btn-primary" id="submit-btn" onclick="submitRegistration()">登録する</button>
         <button class="btn-secondary" onclick="backToForm()">← 修正する</button>
     </div>
@@ -415,8 +425,37 @@
         // ========== ファイル選択 ==========
         function onFileSelect(input) {
             if (input.files[0]) {
-                setFile(input.files[0]);
+                const file = input.files[0];
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(file.type)) {
+                    showFieldErr('file-zone', 'err-shop-doc', '許可されていないファイル形式です。JPG, PNG, GIF, WebPのみアップロード可能です。');
+                    input.value = '';
+                    return;
+                }
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                if (file.size > maxSize) {
+                    showFieldErr('file-zone', 'err-shop-doc', 'ファイルサイズが5MBを超えています。5MB以下の画像を選択してください。');
+                    input.value = '';
+                    return;
+                }
+                setFile(file);
                 clearFieldErr(document.getElementById('file-zone'));
+            }
+        }
+
+        function showUploadProgress(show) {
+            document.getElementById('upload-progress').style.display = show ? '' : 'none';
+            if (show) {
+                document.getElementById('upload-progress-bar').style.width = '0%';
+                document.getElementById('upload-progress-text').textContent = '読み込み中...';
+            }
+        }
+
+        function updateUploadProgress(e) {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('upload-progress-bar').style.width = pct + '%';
+                document.getElementById('upload-progress-text').textContent = pct + '%';
             }
         }
 
@@ -426,8 +465,14 @@
             const wrap = document.getElementById('file-preview-wrap');
             wrap.style.display = '';
             document.getElementById('file-name-disp').textContent = '📎 ' + file.name;
+            showUploadProgress(true);
             const reader = new FileReader();
-            reader.onload = (e) => { document.getElementById('file-preview-img').src = e.target.result; };
+            reader.onprogress = updateUploadProgress;
+            reader.onload = (e) => {
+                document.getElementById('file-preview-img').src = e.target.result;
+                showUploadProgress(false);
+            };
+            reader.onerror = () => { showUploadProgress(false); };
             reader.readAsDataURL(file);
         }
 
@@ -484,28 +529,34 @@
             }
             if (hasErr) return;
 
-            // 確認画面を生成
-            let imgHtml = '';
-            if (docFile) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    document.getElementById('confirm-img-slot').innerHTML =
-                        `<img src="${e.target.result}" class="confirm-img" alt="届出確認書">`;
-                };
-                reader.readAsDataURL(docFile);
-                imgHtml = '<div id="confirm-img-slot" style="margin-top:4px;"><span style="color:var(--text-3);font-size:12px;">読み込み中...</span></div>';
+            // 確認画面を生成（FileReader完了を待ってから表示）
+            function renderConfirm(imgDataUrl) {
+                let imgHtml = '';
+                if (imgDataUrl) {
+                    imgHtml = `<div id="confirm-img-slot" style="margin-top:4px;"><img src="${imgDataUrl}" class="confirm-img" alt="届出確認書"></div>`;
+                }
+                document.getElementById('confirm-body').innerHTML = `
+                    <table class="confirm-table">
+                        <tr><th>ジャンル</th><td>${esc(GENRE_LABELS[genre] || genre)}</td></tr>
+                        <tr><th>店舗名</th><td>${esc(name)}</td></tr>
+                        <tr><th>URL</th><td>${esc(url)}</td></tr>
+                        <tr><th>電話番号</th><td>${esc(tel)}</td></tr>
+                        <tr><th>パスワード</th><td>${'●'.repeat(pw.length)}</td></tr>
+                        <tr><th>届出確認書</th><td>${esc(docFile.name)}${imgHtml}</td></tr>
+                    </table>`;
+                showStep('confirm');
             }
 
-            document.getElementById('confirm-body').innerHTML = `
-                <table class="confirm-table">
-                    <tr><th>ジャンル</th><td>${esc(GENRE_LABELS[genre] || genre)}</td></tr>
-                    <tr><th>店舗名</th><td>${esc(name)}</td></tr>
-                    <tr><th>URL</th><td>${esc(url)}</td></tr>
-                    <tr><th>電話番号</th><td>${esc(tel)}</td></tr>
-                    <tr><th>パスワード</th><td>${'●'.repeat(pw.length)}</td></tr>
-                    <tr><th>届出確認書</th><td>${esc(docFile.name)}${imgHtml}</td></tr>
-                </table>`;
-            showStep('confirm');
+            if (docFile) {
+                showUploadProgress(true);
+                const reader = new FileReader();
+                reader.onprogress = updateUploadProgress;
+                reader.onload = (e) => { showUploadProgress(false); renderConfirm(e.target.result); };
+                reader.onerror = () => { showUploadProgress(false); renderConfirm(null); };
+                reader.readAsDataURL(docFile);
+            } else {
+                renderConfirm(null);
+            }
         }
 
         function backToForm() {
@@ -569,6 +620,7 @@
                     status:           'registered',
                 };
                 if (pw) payload.password_hash = btoa(pw);
+                if (location.hostname !== 'yobuho.com' && location.hostname !== 'localhost') { alert('不正なアクセスです'); return; }
                 console.log('5. shopsテーブルupsert開始', payload);
                 const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
                 console.log('6. shopsテーブルupsert結果:', JSON.stringify(result));
@@ -596,6 +648,8 @@
                 console.log('9. 登録完了！');
 
                 // 登録受付メール送信
+                // ⚠️ CORS注意: send-mail.php側でAccess-Control-Allow-Origin: https://yobuho.comを設定すること
+                // レート制限もサーバー側で実装すること（IP/メールアドレス単位で1時間1回等）
                 try {
                     await fetch('https://yobuho.com/api/send-mail.php', {
                         method: 'POST',
@@ -640,7 +694,9 @@
             }
         }
         // ========== ドラッグ&ドロップ ==========
+        let _dragDropInitialized = false;
         (function initDragDrop() {
+            if (_dragDropInitialized) return;
             const dropArea = document.getElementById('file-zone');
             if (!dropArea) return;
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -658,12 +714,24 @@
             dropArea.addEventListener('drop', (e) => {
                 const file = e.dataTransfer.files[0];
                 if (file && file.type.startsWith('image/')) {
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                        showFieldErr('file-zone', 'err-shop-doc', '許可されていないファイル形式です。JPG, PNG, GIF, WebPのみアップロード可能です。');
+                        return;
+                    }
+                    const maxSize = 5 * 1024 * 1024; // 5MB
+                    if (file.size > maxSize) {
+                        showFieldErr('file-zone', 'err-shop-doc', 'ファイルサイズが5MBを超えています。5MB以下の画像を選択してください。');
+                        return;
+                    }
                     setFile(file);
+                    clearFieldErr(document.getElementById('file-zone'));
                     const dt = new DataTransfer();
                     dt.items.add(file);
                     document.getElementById('shop-doc').files = dt.files;
                 }
             });
+            _dragDropInitialized = true;
         })();
     </script>
 

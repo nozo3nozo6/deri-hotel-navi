@@ -2,6 +2,17 @@
 // DERI HOTEL NAVI — app.js v69
 // ==========================================================================
 
+// ==========================================================================
+// TODO: モジュール分割計画（INP改善のため）
+// 現在3200+行の単一ファイル。以下の分割を検討：
+//   - hotel-search.js: ホテル検索・フィルタリング・ソート
+//   - form-handler.js: 投稿フォーム・バリデーション
+//   - api-service.js: Supabase API連携
+//   - ui-utils.js: toast・モーダル・DOM操作ユーティリティ
+//   - area-navigation.js: エリア選択・ページ遷移
+// 分割時はES Modules (import/export) またはビルドツール (Vite等) を使用
+// ==========================================================================
+
 function esc(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -54,6 +65,15 @@ function getSiteSuffix() {
 }
 function updatePageTitle(prefix) {
     document.title = prefix + ' | ' + getSiteSuffix();
+    const ldScript = document.querySelector('script[type="application/ld+json"]');
+    if (ldScript) {
+        try {
+            const ld = JSON.parse(ldScript.textContent);
+            ld.name = document.title;
+            ld.description = document.querySelector('meta[name="description"]')?.content || '';
+            ldScript.textContent = JSON.stringify(ld);
+        } catch(e) {}
+    }
 }
 
 // ==========================================================================
@@ -107,7 +127,8 @@ function ensurePortalMode() {
 }
 
 async function restoreFromUrl() {
-    document.querySelector('.search-tools').style.display = '';
+    const searchTools = document.querySelector('.search-tools');
+    if (searchTools) searchTools.style.display = '';
     const params = new URLSearchParams(window.location.search);
     console.log('[restoreFromUrl] URL params:', Object.fromEntries(params));
     _skipPushState = true;
@@ -187,7 +208,7 @@ window.addEventListener('popstate', () => {
 // ==========================================================================
 // 多言語
 // ==========================================================================
-const state = { lang: 'ja' };
+const state = { lang: localStorage.getItem('yobuho_lang') || 'ja' };
 const LANG = {
     ja: {
         select_area: '地域を選択', japan: '日本全国', back: '前へ',
@@ -228,8 +249,13 @@ function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }
 
 function changeLang(lang) {
     state.lang = lang;
+    localStorage.setItem('yobuho_lang', lang);
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`[onclick="changeLang('${lang}')"]`)?.classList.add('active');
+    // TODO: 実際の多言語対応は将来実装
+    if (lang !== 'ja') {
+        showToast('多言語対応は準備中です', 2000);
+    }
     // 現在のページを再描画
     if (currentPage) currentPage();
 }
@@ -318,7 +344,7 @@ async function loadAds(placementType, placementTarget) {
             const shopName = ad.shops?.shop_name || '掲載店舗';
             const url = ad.shops?.shop_url;
             const nameHTML = url
-                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
+                ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
                 : `<span style="font-size:13px; color:var(--text); margin-left:4px;">${esc(shopName)}</span>`;
             return `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:6px; padding:10px 14px; margin:16px 0; font-size:12px;">
                 <span style="color:#999; font-size:10px;">📢 このエリアの掲載店舗</span>
@@ -345,7 +371,7 @@ async function fetchDetailAds(placementType, placementTarget) {
             const shopName = ad.shops?.shop_name || '掲載店舗';
             const url = ad.shops?.shop_url;
             const nameHTML = url
-                ? `<a href="${url}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
+                ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; margin-left:4px;">${esc(shopName)} 🔗</a>`
                 : `<span style="font-size:13px; color:var(--text); margin-left:4px;">${esc(shopName)}</span>`;
             return `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:6px; padding:10px 14px; margin:16px 0; font-size:12px;">
                 <span style="color:#999; font-size:10px;">📢 このエリアの掲載店舗</span>
@@ -377,6 +403,14 @@ function hideLoading() {
     if (el) el.style.display = 'none';
 }
 
+function showSkeletonLoader() {
+    const container = document.getElementById('hotel-list');
+    if (!container) return;
+    container.innerHTML = Array(5).fill(0).map(() =>
+        '<div class="skeleton skeleton-card"></div>'
+    ).join('');
+}
+
 function buildAreaButtons(items, onAllClick, onItemClick, hasChildren = true) {
     const container = document.getElementById('area-button-container');
     container.innerHTML = '';
@@ -401,6 +435,9 @@ function buildAreaButtons(items, onAllClick, onItemClick, hasChildren = true) {
     }
 }
 
+// NOTE: extractCity() は「新宿区市谷」のようなケースでも正しく動作する。
+//   「区」が出現する前に「市」で終わるパターンのみ市として抽出するため、
+//   「新宿区」→ 区マッチで正しく「新宿区」を返す（市谷の「市」は誤マッチしない）。
 function extractCity(address) {
     if (!address) return null;
 
@@ -648,7 +685,7 @@ async function showMajorAreaPage(region, pref) {
             const btn = document.createElement('button');
             btn.className = 'area-btn';
             btn.innerHTML = `
-                <span class="city-name">${city}</span>
+                <span class="city-name">${esc(city)}</span>
                 <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
                     ${count > 0 ? `<span class="city-count">🏨${count}</span>` : ''}
                     ${(noAreaLovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${noAreaLovehoCount[city]||0}</span>` : ''}
@@ -717,7 +754,7 @@ async function showCityPage(region, pref, majorArea) {
             const btn = document.createElement('button');
             btn.className = 'area-btn';
             btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-            btn.innerHTML = `<span class="city-name">${area}</span><span class="city-count">${detailAreaCount[area]}</span>`;
+            btn.innerHTML = `<span class="city-name">${esc(area)}</span><span class="city-count">${detailAreaCount[area]}</span>`;
             btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); showDetailAreaPage(region, pref, majorArea, area); };
             container.appendChild(btn);
         });
@@ -804,7 +841,7 @@ async function showCityPage(region, pref, majorArea) {
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
         btn.innerHTML = `
-            <span class="city-name">${city}</span>
+            <span class="city-name">${esc(city)}</span>
             <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
                 ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
                 ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
@@ -922,7 +959,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
         btn.innerHTML = `
-            <span class="city-name">${city}</span>
+            <span class="city-name">${esc(city)}</span>
             <span style="display:flex;gap:4px;align-items:center;flex-shrink:0;">
                 ${(cityCount[city]||0) > 0 ? `<span class="city-count">🏨${cityCount[city]||0}</span>` : ''}
                 ${(lovehoCount[city]||0) > 0 ? `<span class="city-count" style="background:rgba(201,169,110,0.12);border-color:rgba(201,169,110,0.3);color:#c9a96e;">🏩${lovehoCount[city]||0}</span>` : ''}
@@ -1013,6 +1050,7 @@ function sortHotelsByReviews(hotels) {
 async function fetchAndShowHotels(filterObj) {
     currentPage = () => fetchAndShowHotels(filterObj);
     showLoading();
+    showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
     hideLovehoTabs();
 
@@ -1048,6 +1086,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     _urlP.city = city;
     updateUrl(_urlP);
     showLoading();
+    showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
     setTitle(city);
     updatePageTitle(city + 'の呼べるホテル一覧');
@@ -1236,9 +1275,9 @@ async function fetchLovehoReviewSummaries(hotelIds) {
             if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommendation_sum: 0, cleanliness_sum: 0, cp_sum: 0 };
             const s = map[r.hotel_id];
             s.count++;
-            if (r.recommendation) s.recommendation_sum += r.recommendation;
-            if (r.cleanliness) s.cleanliness_sum += r.cleanliness;
-            if (r.cost_performance) s.cp_sum += r.cost_performance;
+            if (r.recommendation != null) s.recommendation_sum += r.recommendation;
+            if (r.cleanliness != null) s.cleanliness_sum += r.cleanliness;
+            if (r.cost_performance != null) s.cp_sum += r.cost_performance;
         });
         return map;
     } catch { return {}; }
@@ -1546,7 +1585,7 @@ function renderLovehoDetail(hotel, reports) {
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">フリーコメント</label>
-                <textarea id="lh-comment" rows="3" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;"></textarea>
+                <textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;"></textarea>
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label>
@@ -1611,7 +1650,7 @@ async function submitLovehoReport() {
             atmosphere: lhFormState.atmosphere || null,
             good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
             time_slot: lhFormState.time_slot || null,
-            comment: lhFormState.comment || null,
+            comment: lhFormState.comment ? lhFormState.comment.slice(0, 500) : null,
             poster_name: lhFormState.poster_name || null,
             gender_mode: typeof MODE !== 'undefined' ? MODE : null,
             multi_person: lhFormState.multi_person || false,
@@ -1680,6 +1719,7 @@ async function searchByLocation() {
     }
 
     showLoading(t('locating'));
+    showSkeletonLoader();
 
     navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -1791,6 +1831,7 @@ function fetchHotelsByStation() {
 
     stationTimeout = setTimeout(async () => {
         showLoading();
+        showSkeletonLoader();
         setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `🚉 ${val}駅周辺` }]);
         setTitle(`${val}駅 周辺のホテル`);
         setBackBtn(true);
@@ -1842,6 +1883,7 @@ function fetchHotelsFromSearch() {
     searchTimeout = setTimeout(async () => {
         if (keyword.length < 2) return;
         showLoading();
+        showSkeletonLoader();
         setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `「${keyword}」の検索結果` }]);
         setTitle(`「${keyword}」の検索結果`);
         setBackBtn(true);
@@ -1954,7 +1996,7 @@ function buildCardHTML(h, i, showDistance) {
             ? `<span class="hotel-price-inline">最安値 ¥${parseInt(h.min_charge).toLocaleString()}~</span>`
             : '';
         const stationHTML = h.nearest_station
-            ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${h.nearest_station}</span>${priceInline}</div>`
+            ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span>${priceInline}</div>`
             : (priceInline ? `<div class="hotel-info-row">${priceInline}</div>` : '');
 
 
@@ -1971,7 +2013,7 @@ function buildCardHTML(h, i, showDistance) {
                 <!-- ホテル名 + ランク + 距離 -->
                 <div class="hotel-card-head">
                     ${distHTML}
-                    <div class="hotel-name" style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${h.name}</div>
+                    <div class="hotel-name" style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${esc(h.name)}</div>
                     ${rankHTML}
                 </div>
 
@@ -1979,9 +2021,9 @@ function buildCardHTML(h, i, showDistance) {
                 <div class="hotel-info-row" style="justify-content:space-between;">
                     <div style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;">
                         <span class="hotel-info-icon">📍</span>
-                        <span class="hotel-info-text">${h.address || ''}</span>
+                        <span class="hotel-info-text">${esc(h.address || '')}</span>
                     </div>
-                    ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;margin-left:8px;">📞 ' + h.tel + '</span>' : ''}
+                    ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;margin-left:8px;">📞 ' + esc(h.tel) + '</span>' : ''}
                 </div>
                 ${stationHTML}
 
@@ -2094,7 +2136,8 @@ async function loadCanCallReasonsMaster() {
             CAN_CALL_REASONS = data.map(d => d.label);
         }
     } catch(e) {
-        console.log('can_call_reasons not found, using defaults');
+        console.warn('can_call_reasons not found, using defaults');
+        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
     }
 }
 
@@ -2111,7 +2154,8 @@ async function loadCannotCallReasonsMaster() {
             CANNOT_CALL_REASONS = data.map(d => d.label);
         }
     } catch(e) {
-        console.log('cannot_call_reasons not found, using defaults');
+        console.warn('cannot_call_reasons not found, using defaults');
+        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
     }
 }
 // 部屋タイプマスタ
@@ -2127,7 +2171,8 @@ async function loadRoomTypesMaster() {
             ROOM_TYPES = data.map(d => d.label);
         }
     } catch(e) {
-        console.log('room_types not found, using defaults');
+        console.warn('room_types not found, using defaults');
+        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
     }
 }
 
@@ -2363,14 +2408,14 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         };
     });
     // SHOP_DATA（shopパラメータ時のinitShopModeで取得）からも補完
-    if (SHOP_DATA && SHOP_DATA.shop_name) {
+    if (SHOP_DATA?.shop_name) {
         const name = SHOP_DATA.shop_name;
         const existing = shopInfoMap[name] || {};
-        const price = SHOP_DATA.contract_plans?.price || 0;
+        const price = SHOP_DATA?.contract_plans?.price || 0;
         shopInfoMap[name] = {
-            shop_url: existing.shop_url || SHOP_DATA.shop_url || null,
+            shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
             isPaid: existing.isPaid || price > 0,
-            status: existing.status || SHOP_DATA.status || null,
+            status: existing.status || SHOP_DATA?.status || null,
             shopId: existing.shopId || SHOP_ID || null
         };
     }
@@ -2463,7 +2508,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
         <!-- ホテル名 + 参考料金（同行） -->
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0;">
-            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;"><a href="https://www.google.com/search?q=${encodeURIComponent(hotel.name)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${hotel.name} <span style="font-size:12px;color:#999;">🔍</span></a></h2>
+            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;"><a href="https://www.google.com/search?q=${encodeURIComponent(hotel.name)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(hotel.name)} <span style="font-size:12px;color:#999;">🔍</span></a></h2>
             ${hotel.min_charge ? '<span style="font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0;">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
         </div>
 
@@ -2471,14 +2516,14 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         <div style="background:#ffffff;border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
             <!-- 行1: 住所 | 電話番号 -->
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
-                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(hotel.address) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'" onclick="event.stopPropagation()">📍 ' + hotel.address + ' <span style="font-size:12px;color:#999;">📍</span></a>' : ''}</span>
-                ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + hotel.tel + '</span>' : ''}
+                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(hotel.address) + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'" onclick="event.stopPropagation()">📍 ' + esc(hotel.address) + ' <span style="font-size:12px;color:#999;">📍</span></a>' : ''}</span>
+                ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + esc(hotel.tel) + '</span>' : ''}
             </div>
             <!-- 行2: 最寄駅 | エリア -->
             ${(hotel.nearest_station || hotel.prefecture) ? `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                ${hotel.nearest_station ? `<span style="font-size:13px;color:var(--text-2);">🚉 ${hotel.nearest_station}</span>` : '<span></span>'}
-                ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${hotel.major_area || hotel.prefecture}</span>` : ''}
+                ${hotel.nearest_station ? `<span style="font-size:13px;color:var(--text-2);">🚉 ${esc(hotel.nearest_station)}</span>` : '<span></span>'}
+                ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${esc(hotel.major_area || hotel.prefecture)}</span>` : ''}
             </div>` : ''}
         </div>
 
@@ -2610,7 +2655,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             </div>
             <div class="form-group">
                 <label class="form-label">コメント <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
-                <textarea class="form-textarea" id="form-comment" placeholder="状況や注意点など自由に記入してください..." oninput="hotelFormState.comment=this.value"></textarea>
+                <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="状況や注意点など自由に記入してください..." oninput="hotelFormState.comment=this.value"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">
                     ${(typeof MODE !== 'undefined' ? MODE : 'men') === 'women'
                         ? '※お店名・セラピスト情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります'
@@ -2962,12 +3007,15 @@ async function doSubmitReport() {
         can_call_reasons: hotelFormState.can_call ? [...hotelFormState.can_call_reasons] : [],
         cannot_call_reasons: !hotelFormState.can_call ? [...hotelFormState.cannot_call_reasons] : [],
         time_slot: hotelFormState.time_slot || null,
-        comment: hotelFormState.comment || null,
+        comment: hotelFormState.comment ? hotelFormState.comment.slice(0, 500) : null,
         poster_name: hotelFormState.poster_name?.trim() || '無記名',
         room_type: hotelFormState.room_type || null,
         multi_person: hotelFormState.multi_person || false,
-        guest_male: hotelFormState.multi_person ? hotelFormState.guest_male : 1,
-        guest_female: hotelFormState.multi_person ? hotelFormState.guest_female : 0,
+        // 単一人数モード時: 男性モード→male=1,female=0 / 女性モード→male=0,female=1
+        guest_male: hotelFormState.multi_person ? hotelFormState.guest_male
+            : (MODE === 'women' || MODE === 'women_same' ? 0 : 1),
+        guest_female: hotelFormState.multi_person ? hotelFormState.guest_female
+            : (MODE === 'women' || MODE === 'women_same' ? 1 : 0),
         gender_mode: typeof MODE !== 'undefined' ? MODE : 'men',
         fingerprint,
     };
@@ -3062,7 +3110,7 @@ function showFlagStep1() {
 
 function showFlagConfirm() {
     if (!flagSelectedReason) {
-        document.getElementById('flag-reason-err').style.display = '';
+        document.getElementById('flag-reason-err').style.display = 'block';
         return;
     }
     const comment = document.getElementById('flag-comment-input').value.trim();
@@ -3141,7 +3189,7 @@ function hreqToConfirm() {
     const errEl = document.getElementById('hreq-err');
     if (!name || !address) {
         errEl.textContent = 'ホテル名と住所は必須です';
-        errEl.style.display = '';
+        errEl.style.display = 'block';
         return;
     }
     errEl.style.display = 'none';
@@ -3196,7 +3244,33 @@ async function submitHotelRequest() {
 // ==========================================================================
 // 初期化
 // ==========================================================================
+// Escapeキーでモーダルを閉じる
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modals = [
+            { id: 'success-modal', close: closeSuccessModal },
+            { id: 'can-reasons-modal', close: cancelCanReasons },
+            { id: 'cannot-reasons-modal', close: cancelCannotReasons },
+            { id: 'post-confirm-modal', close: closePostConfirmModal },
+            { id: 'flag-modal', close: closeFlagModal },
+            { id: 'hotel-request-modal', close: closeHotelRequestModal },
+        ];
+        for (const { id, close } of modals) {
+            const el = document.getElementById(id);
+            if (el && el.style.display !== 'none' && el.style.display !== '') {
+                close();
+                break;
+            }
+        }
+    }
+});
+
 window.onload = async () => {
+    // localStorageから言語設定を復元
+    const savedLang = localStorage.getItem('yobuho_lang');
+    if (savedLang && savedLang !== 'ja') {
+        changeLang(savedLang);
+    }
     await initShopMode();
     restoreFromUrl();
 };
