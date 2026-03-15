@@ -140,18 +140,6 @@
 
 </div>
 
-<!-- フィルタバー -->
-<div class="filter-bar" id="filter-bar" style="display:none;">
-    <div class="filter-chips">
-        <button class="filter-chip active" data-filter-key="filter_all" onclick="toggleFilter('all')">すべて</button>
-        <button class="filter-chip" data-filter-key="filter_business" onclick="toggleFilter('business')">ビジネス</button>
-        <button class="filter-chip" data-filter-key="filter_city" onclick="toggleFilter('city')">シティ</button>
-        <button class="filter-chip" data-filter-key="filter_resort" onclick="toggleFilter('resort')">リゾート</button>
-        <button class="filter-chip" data-filter-key="filter_ryokan" onclick="toggleFilter('ryokan')">旅館</button>
-        <button class="filter-chip" data-filter-key="filter_loveho" onclick="toggleFilter('love_hotel')">ラブホ</button>
-    </div>
-</div>
-
 <!-- 地図トグル＆地図コンテナ -->
 <div id="map-toggle-bar" style="display:none; padding:8px 0;">
     <button class="filter-chip" id="btn-map-toggle" onclick="toggleMapView()">🗺️ 地図で見る</button>
@@ -407,9 +395,9 @@
 </div>
 
 <script defer src="api-service.js?v=1"></script>
-<script defer src="ui-utils.js?v=3"></script>
+<script defer src="ui-utils.js?v=4"></script>
 <script defer src="area-navigation.js?v=1"></script>
-<script defer src="hotel-search.js?v=4"></script>
+<script defer src="hotel-search.js?v=5"></script>
 <script defer src="form-handler.js?v=1"></script>
 </body>
 </html>

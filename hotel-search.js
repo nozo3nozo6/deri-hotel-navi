@@ -731,19 +731,11 @@ function applyFilter() {
 }
 
 function showFilterBar() {
-    const bar = document.getElementById('filter-bar');
-    if (bar) bar.style.display = 'flex';
     const mapToggle = document.getElementById('map-toggle-bar');
     if (mapToggle) mapToggle.style.display = 'flex';
 }
 
 function hideFilterBar() {
-    const bar = document.getElementById('filter-bar');
-    if (bar) bar.style.display = 'none';
-    currentFilter = 'all';
-    document.querySelectorAll('.filter-chip').forEach(c => {
-        c.classList.toggle('active', c.dataset.filterKey === 'filter_all');
-    });
     hideMap();
 }
 

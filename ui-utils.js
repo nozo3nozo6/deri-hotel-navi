@@ -129,9 +129,14 @@ function changeLang(lang) {
 }
 
 function updateUILanguage() {
-    // エリアタイトル
+    // エリアタイトル（デフォルトテキストの場合のみ更新）
     const areaTitle = document.getElementById('area-title');
-    if (areaTitle && areaTitle.textContent === '地域を選択') areaTitle.textContent = t('select_area');
+    if (areaTitle) {
+        const defaultTitles = ['地域を選択', 'Select Area', '选择地区', '지역 선택'];
+        if (defaultTitles.includes(areaTitle.textContent)) {
+            areaTitle.textContent = t('select_area');
+        }
+    }
 
     // 検索プレースホルダー
     const searchInput = document.querySelector('.search-input-lux');
