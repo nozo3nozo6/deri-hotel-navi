@@ -13,16 +13,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate auth-config.php
+        env:
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           mkdir -p api
-          cat > api/auth-config.php << 'PHPEOF'
+          cat > api/auth-config.php <<EOF
           <?php
-          define('SUPABASE_SERVICE_KEY', '${{ secrets.SUPABASE_SERVICE_KEY }}');
+          define('SUPABASE_SERVICE_KEY', '${SERVICE_KEY}');
           define('SUPABASE_URL', 'https://ojkhwbvoaiaqekxrbpdd.supabase.co');
           define('SESSION_TIMEOUT', 1800);
           define('MAX_LOGIN_ATTEMPTS', 5);
           define('LOCKOUT_TIME', 900);
-          PHPEOF
+          EOF
 
       - name: Deploy via rsync over SSH
         uses: burnett01/rsync-deployments@7.0.1
