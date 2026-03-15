@@ -46,3 +46,12 @@ api/migrate-passwords.php
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backup / legacy files
+*.bak
+*.bak.old
+*.legacy
+
+# report files
+analysis-report.html
+fix-report*.html

@@ -107,6 +107,7 @@ function clearHotelList() {
     const links = document.getElementById('bottom-info-links');
     if (links) links.style.display = 'none';
     hideLovehoTabs();
+    if (typeof hideFilterBar === 'function') hideFilterBar();
 }
 
 function showToast(msg, duration = 2500) {

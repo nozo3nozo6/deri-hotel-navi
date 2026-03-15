@@ -504,7 +504,7 @@ async function searchByLocation() {
     }
 
     if (!navigator.geolocation) {
-        alert('位置情報がサポートされていません');
+        showToast('位置情報がサポートされていません', 3000);
         resetLocationBtn();
         return;
     }
@@ -580,7 +580,7 @@ async function searchByLocation() {
                 }
             } catch (e) {
                 console.error(e);
-                alert('検索中にエラーが発生しました');
+                showToast('検索中にエラーが発生しました', 4000);
             } finally {
                 hideLoading();
                 resetLocationBtn();
@@ -590,7 +590,7 @@ async function searchByLocation() {
             hideLoading();
             resetLocationBtn();
             const msgs = { 1: '位置情報の使用が許可されていません。', 2: '位置情報を取得できませんでした。', 3: 'タイムアウトしました。' };
-            alert(msgs[err.code] || t('location_error'));
+            showToast(msgs[err.code] || t('location_error'), 4000);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
@@ -690,9 +690,55 @@ function clearSearch() {
 // ホテルカードレンダリング
 // ==========================================================================
 let allHotels = [];
+let unfilteredHotels = [];
+let currentFilter = 'all';
 let displayedCount = 0;
 let showDistanceFlag = false;
 const HOTELS_PER_PAGE = 20;
+
+function getFilterLabel(type) {
+    const map = { all: 'すべて', business: 'ビジネス', city: 'シティ', resort: 'リゾート', ryokan: '旅館', love_hotel: 'ラブホ' };
+    return map[type] || type;
+}
+
+function toggleFilter(type) {
+    currentFilter = type;
+    document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.textContent === getFilterLabel(type));
+    });
+    applyFilter();
+}
+
+function applyFilter() {
+    if (!unfilteredHotels || unfilteredHotels.length === 0) return;
+    const filtered = currentFilter === 'all'
+        ? unfilteredHotels
+        : unfilteredHotels.filter(h => h.hotel_type === currentFilter);
+    allHotels = filtered;
+    displayedCount = 0;
+    const container = document.getElementById('hotel-list');
+    container.innerHTML = '';
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">' + t('no_results') + '</p></div>';
+    } else {
+        loadMoreHotels();
+    }
+    setResultStatus(filtered.length);
+}
+
+function showFilterBar() {
+    const bar = document.getElementById('filter-bar');
+    if (bar) bar.style.display = 'flex';
+}
+
+function hideFilterBar() {
+    const bar = document.getElementById('filter-bar');
+    if (bar) bar.style.display = 'none';
+    currentFilter = 'all';
+    document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.textContent === 'すべて');
+    });
+}
 
 function buildCardHTML(h, i, showDistance) {
         const s = h.summary;
@@ -791,17 +837,29 @@ function buildCardHTML(h, i, showDistance) {
 function renderHotelCards(hotels, showDistance = false) {
     const container = document.getElementById('hotel-list');
 
-    if (!hotels.length) {
+    // フィルタ用に元データを保持
+    unfilteredHotels = hotels;
+    showDistanceFlag = showDistance;
+
+    // フィルタが適用中なら絞り込む
+    const filtered = currentFilter === 'all'
+        ? hotels
+        : hotels.filter(h => h.hotel_type === currentFilter);
+
+    if (!filtered.length) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_results')}</p></div>`;
+        allHotels = filtered;
+        displayedCount = 0;
+        showFilterBar();
         return;
     }
 
-    allHotels = hotels;
+    allHotels = filtered;
     displayedCount = 0;
-    showDistanceFlag = showDistance;
 
     container.innerHTML = '';
     loadMoreHotels();
+    showFilterBar();
 }
 
 function loadMoreHotels() {

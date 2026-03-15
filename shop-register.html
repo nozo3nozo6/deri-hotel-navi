@@ -316,6 +316,20 @@
         const sb = supabase.createClient(SB_URL, SB_KEY);
         const GENRE_LABELS = { men: '男性向け（デリヘル）', women: '女性向け（女性用風俗）', men_same: '男性同士向け', women_same: '女性同士向け' };
 
+        function showNotice(msg, duration = 3000) {
+            let el = document.getElementById('shop-notice-toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'shop-notice-toast';
+                el.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;max-width:90vw;text-align:center;opacity:0;transition:opacity .3s;';
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.style.opacity = '1';
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => { el.style.opacity = '0'; }, duration);
+        }
+
         let _selectedFile = null;
 
         function showStep(name) {
@@ -620,7 +634,7 @@
                     status:           'registered',
                 };
                 if (pw) payload.password_hash = btoa(pw);
-                if (location.hostname !== 'yobuho.com' && location.hostname !== 'localhost') { alert('不正なアクセスです'); return; }
+                if (location.hostname !== 'yobuho.com' && location.hostname !== 'localhost') { showNotice('不正なアクセスです'); return; }
                 console.log('5. shopsテーブルupsert開始', payload);
                 const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
                 console.log('6. shopsテーブルupsert結果:', JSON.stringify(result));

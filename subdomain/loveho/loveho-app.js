@@ -634,7 +634,7 @@ function calcDistance(lat1, lng1, lat2, lng2) {
 async function searchByLocation() {
     const btn = document.getElementById('btn-location');
     if (btn) { btn.querySelector('.label').textContent = '取得中...'; }
-    if (!navigator.geolocation) { alert('位置情報がサポートされていません'); resetLocationBtn(); return; }
+    if (!navigator.geolocation) { showToast('位置情報がサポートされていません', 3000); resetLocationBtn(); return; }
     showLoading('位置情報を取得中...');
     navigator.geolocation.getCurrentPosition(
         async (pos) => {
@@ -658,10 +658,10 @@ async function searchByLocation() {
                 renderHotelCards(sorted, true);
                 const status = document.getElementById('result-status');
                 if (status) { status.style.display = 'block'; status.innerHTML = `📍 現在地周辺 — <strong>${sorted.length}</strong> 件`; }
-            } catch (e) { console.error(e); alert('検索中にエラーが発生しました'); }
+            } catch (e) { console.error(e); showToast('検索中にエラーが発生しました', 4000); }
             finally { hideLoading(); resetLocationBtn(); }
         },
-        () => { hideLoading(); resetLocationBtn(); alert('位置情報を取得できませんでした'); },
+        () => { hideLoading(); resetLocationBtn(); showToast('位置情報を取得できませんでした', 4000); },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
 }

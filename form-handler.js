@@ -400,7 +400,7 @@ async function doSubmitReport() {
         if (error.code === '23505') {
             showToast('このホテルへは既に投稿済みです');
         } else {
-            alert('送信エラー:\n' + (error.message || JSON.stringify(error)));
+            showToast('送信エラー: ' + (error.message || '予期しないエラーが発生しました'), 4000);
         }
         return;
     }

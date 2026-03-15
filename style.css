@@ -404,6 +404,40 @@ body[data-mode="men_same"] {
     gap: 8px;
 }
 
+/* フィルタバー */
+.filter-bar {
+    padding: 4px 14px 8px;
+    max-width: 640px;
+    margin: 0 auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.filter-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+.filter-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-2);
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.filter-chip:hover {
+    border-color: var(--border-strong);
+}
+.filter-chip.active {
+    background: var(--accent, #c9a84c);
+    color: #fff;
+    border-color: var(--accent, #c9a84c);
+}
+
 .search-wrapper {
     flex: 1;
     display: flex;

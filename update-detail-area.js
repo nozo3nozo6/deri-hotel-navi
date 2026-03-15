@@ -7,17 +7,18 @@
  * 実行: node update-detail-area.js
  */
 
+require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 
-const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_secret_YTSjsm66P67WKiuXEEVIig_3NyBMHTl';
-const RAKUTEN_APP_ID = '18c62ced-24a7-4c8b-9917-b41d6ae300fe';
-const RAKUTEN_ACCESS_KEY = 'pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const RAKUTEN_APP_ID = process.env.RAKUTEN_APP_ID;
+const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY;
 const HEADERS = {
     'Referer': 'https://yobuho.com',
     'Origin': 'https://yobuho.com',
-    'Authorization': 'Bearer pk_42uxCSTpax33Jbgv0zbf89kgrHyfiGk4BstKcHLrp5J'
+    'Authorization': `Bearer ${RAKUTEN_ACCESS_KEY}`
 };
 const WAIT_TIME = 2000;
 const MAX_RETRY = 5;
