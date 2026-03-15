@@ -1,9 +1,9 @@
 name: Deploy to Shin Server
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+  # push トリガーは無効化（ローカルrsyncでデプロイするため）
+  # SSH鍵の問題が解決したら push: branches: [main] に戻す
 
 jobs:
   deploy:
