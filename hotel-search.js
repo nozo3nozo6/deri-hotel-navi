@@ -787,12 +787,22 @@ function showMap() {
         return;
     }
 
+    // マーカーアイコン（ラブホはピンク）
+    const isLoveho = currentTab === 'loveho';
+    const markerIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:28px;height:28px;border-radius:50%;background:${isLoveho ? '#e91e8c' : '#3388ff'};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:14px;">${isLoveho ? '🏩' : '🏨'}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -16]
+    });
+
     // マーカー追加
     const bounds = [];
     hotelsWithCoords.forEach(h => {
-        const marker = L.marker([h.latitude, h.longitude])
+        const marker = L.marker([h.latitude, h.longitude], { icon: markerIcon })
             .addTo(mapInstance)
-            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelDetail(' + h.id + ',' + (currentTab === 'loveho') + ')">' + t('view_detail') + '</a>');
+            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelDetail(' + h.id + ',' + isLoveho + ')">' + t('view_detail') + '</a>');
         mapMarkers.push(marker);
         bounds.push([h.latitude, h.longitude]);
     });
