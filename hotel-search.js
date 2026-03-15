@@ -1002,7 +1002,11 @@ function showHotelPanel(hotelId, isLoveho) {
     setBackBtn(true);
 
     document.getElementById('area-button-container').style.display = 'none';
+    document.getElementById('hotel-list').style.display = 'none';
+    const rs = document.getElementById('result-status');
+    if (rs) rs.style.display = 'none';
     hideLovehoTabs();
+    hideFilterBar();
 
     const content = document.getElementById('hotel-detail-content');
     content.style.display = 'block';
