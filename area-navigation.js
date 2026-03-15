@@ -497,7 +497,8 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         let cFrom = 0;
         const C_PAGE = 1000;
         while (true) {
-            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).in('city', candidateCitiesDA).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(cFrom, cFrom + C_PAGE - 1);
+            // 都道府県全体での件数を取得（エリアに関係なく同じ市区町村の件数を統一）
+            const { data: chunk } = await supabaseClient.from('hotels').select('city').eq('prefecture', pref).in('city', candidateCitiesDA).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(cFrom, cFrom + C_PAGE - 1);
             if (!chunk || !chunk.length) break;
             allCityRows = allCityRows.concat(chunk);
             if (chunk.length < C_PAGE) break;
