@@ -1851,3 +1851,15 @@ body[data-mode="men"] .header-title {
 }
 .skeleton-card { height: 120px; margin-bottom: 12px; }
 .skeleton-text { height: 16px; margin-bottom: 8px; width: 60%; }
+
+/* ==========================================================================
+   地図表示
+   ========================================================================== */
+#hotel-map {
+    z-index: 1;
+    border: 1px solid var(--border);
+}
+#map-toggle-bar {
+    display: flex;
+    gap: 8px;
+}

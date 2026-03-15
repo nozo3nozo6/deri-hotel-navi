@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp; img-src 'self' data: https:; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp; img-src 'self' data: https:; frame-ancestors 'none';">
 
     <!-- SEO: modeに応じてJSで書き換え -->
     <title id="page-title">YobuHo - 呼べるホテル検索</title>
@@ -46,7 +46,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./style.css?v=6">
+    <link rel="stylesheet" href="./style.css?v=7">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="portal-page">
@@ -141,14 +143,20 @@
 <!-- フィルタバー -->
 <div class="filter-bar" id="filter-bar" style="display:none;">
     <div class="filter-chips">
-        <button class="filter-chip active" onclick="toggleFilter('all')">すべて</button>
-        <button class="filter-chip" onclick="toggleFilter('business')">ビジネス</button>
-        <button class="filter-chip" onclick="toggleFilter('city')">シティ</button>
-        <button class="filter-chip" onclick="toggleFilter('resort')">リゾート</button>
-        <button class="filter-chip" onclick="toggleFilter('ryokan')">旅館</button>
-        <button class="filter-chip" onclick="toggleFilter('love_hotel')">ラブホ</button>
+        <button class="filter-chip active" data-filter-key="filter_all" onclick="toggleFilter('all')">すべて</button>
+        <button class="filter-chip" data-filter-key="filter_business" onclick="toggleFilter('business')">ビジネス</button>
+        <button class="filter-chip" data-filter-key="filter_city" onclick="toggleFilter('city')">シティ</button>
+        <button class="filter-chip" data-filter-key="filter_resort" onclick="toggleFilter('resort')">リゾート</button>
+        <button class="filter-chip" data-filter-key="filter_ryokan" onclick="toggleFilter('ryokan')">旅館</button>
+        <button class="filter-chip" data-filter-key="filter_loveho" onclick="toggleFilter('love_hotel')">ラブホ</button>
     </div>
 </div>
+
+<!-- 地図トグル＆地図コンテナ -->
+<div id="map-toggle-bar" style="display:none; padding:8px 0;">
+    <button class="filter-chip" id="btn-map-toggle" onclick="toggleMapView()">🗺️ 地図で見る</button>
+</div>
+<div id="hotel-map" style="display:none; height:400px; border-radius:12px; margin-bottom:16px;"></div>
 
 <div id="bottom-info-links" class="info-links-bar" style="display:none; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
   <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">📝 未掲載ホテル情報提供</a>
@@ -399,9 +407,9 @@
 </div>
 
 <script defer src="api-service.js?v=1"></script>
-<script defer src="ui-utils.js?v=2"></script>
+<script defer src="ui-utils.js?v=3"></script>
 <script defer src="area-navigation.js?v=1"></script>
-<script defer src="hotel-search.js?v=2"></script>
+<script defer src="hotel-search.js?v=4"></script>
 <script defer src="form-handler.js?v=1"></script>
 </body>
 </html>

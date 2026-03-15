@@ -30,36 +30,91 @@ const LANG = {
     ja: {
         select_area: '地域を選択', japan: '日本全国', back: '前へ',
         search_placeholder: 'ホテル名で検索...',
+        station_placeholder: '最寄駅で検索...',
         list_placeholder: '市区町村まで選択するとホテルが表示されます',
         results: '件のホテル', no_results: 'ホテルが見つかりませんでした',
         min_charge: '最安料金', nearest: '最寄駅', no_data: 'データがありません',
         show_all: 'このエリア全体を見る',
+        current_location: '現在地',
         locating: '位置情報を取得中...', location_error: '位置情報を取得できませんでした',
         nearby: '現在地から近い順',
+        can_call: '呼べた', cannot_call: '呼べなかった',
+        no_reports: '投稿なし',
+        view_detail: '詳細を見る',
+        submit: '投稿する', cancel: 'キャンセル', confirm: '決定する',
+        loading: '読み込み中...',
+        filter_all: 'すべて', filter_business: 'ビジネス', filter_city: 'シティ',
+        filter_resort: 'リゾート', filter_ryokan: '旅館', filter_loveho: 'ラブホ',
+        terms: '利用規約', privacy: 'プライバシーポリシー', contact: 'お問い合わせ',
+        top_page: 'トップページ', shop_register: '店舗登録',
+        select_reason: '理由を選んでください',
+        post_success: '投稿ありがとうございます', post_error: '送信エラー',
     },
     en: {
         select_area: 'Select Area', japan: 'All Japan', back: 'Back',
-        search_placeholder: 'Search hotel...', list_placeholder: 'Select a city to view hotels',
+        search_placeholder: 'Search by hotel name',
+        station_placeholder: 'Search by station',
+        list_placeholder: 'Select a city to view hotels',
         results: 'hotels', no_results: 'No hotels found',
         min_charge: 'From', nearest: 'Station', no_data: 'No data', show_all: 'View all',
+        current_location: 'Location',
         locating: 'Getting location...', location_error: 'Could not get location',
         nearby: 'Near you',
+        can_call: 'Available', cannot_call: 'Unavailable',
+        no_reports: 'No reviews',
+        view_detail: 'View Details',
+        submit: 'Submit', cancel: 'Cancel', confirm: 'Confirm',
+        loading: 'Loading...',
+        filter_all: 'All', filter_business: 'Business', filter_city: 'City',
+        filter_resort: 'Resort', filter_ryokan: 'Ryokan', filter_loveho: 'Love Hotel',
+        terms: 'Terms', privacy: 'Privacy Policy', contact: 'Contact',
+        top_page: 'Top Page', shop_register: 'Shop Registration',
+        select_reason: 'Select a reason',
+        post_success: 'Thank you for your review', post_error: 'Submission error',
     },
     zh: {
         select_area: '选择地区', japan: '全日本', back: '返回',
-        search_placeholder: '搜索酒店...', list_placeholder: '请选择城市查看酒店',
-        results: '家酒店', no_results: '没有找到酒店',
+        search_placeholder: '按酒店名搜索',
+        station_placeholder: '按车站搜索',
+        list_placeholder: '请选择城市查看酒店',
+        results: '家酒店', no_results: '未找到酒店',
         min_charge: '最低价', nearest: '最近车站', no_data: '没有数据', show_all: '查看全部',
+        current_location: '当前位置',
         locating: '获取位置中...', location_error: '无法获取位置',
         nearby: '离您最近',
+        can_call: '可以叫', cannot_call: '不能叫',
+        no_reports: '暂无评价',
+        view_detail: '查看详情',
+        submit: '提交', cancel: '取消', confirm: '确定',
+        loading: '加载中...',
+        filter_all: '全部', filter_business: '商务', filter_city: '城市',
+        filter_resort: '度假', filter_ryokan: '旅馆', filter_loveho: '情侣酒店',
+        terms: '使用条款', privacy: '隐私政策', contact: '联系我们',
+        top_page: '首页', shop_register: '店铺注册',
+        select_reason: '请选择原因',
+        post_success: '感谢您的评价', post_error: '提交错误',
     },
     ko: {
-        select_area: '지역 선택', japan: '일본 전국', back: '이전',
-        search_placeholder: '호텔 검색...', list_placeholder: '도시를 선택하면 호텔이 표시됩니다',
+        select_area: '지역 선택', japan: '일본 전국', back: '뒤로',
+        search_placeholder: '호텔명으로 검색',
+        station_placeholder: '역명으로 검색',
+        list_placeholder: '도시를 선택하면 호텔이 표시됩니다',
         results: '개 호텔', no_results: '호텔을 찾을 수 없습니다',
         min_charge: '최저가', nearest: '역', no_data: '데이터 없음', show_all: '전체 보기',
+        current_location: '현재 위치',
         locating: '위치 가져오는 중...', location_error: '위치를 가져올 수 없습니다',
         nearby: '가까운 순',
+        can_call: '가능', cannot_call: '불가능',
+        no_reports: '리뷰 없음',
+        view_detail: '상세 보기',
+        submit: '제출', cancel: '취소', confirm: '확인',
+        loading: '로딩 중...',
+        filter_all: '전체', filter_business: '비즈니스', filter_city: '시티',
+        filter_resort: '리조트', filter_ryokan: '료칸', filter_loveho: '러브호텔',
+        terms: '이용약관', privacy: '개인정보처리방침', contact: '문의',
+        top_page: '홈', shop_register: '매장 등록',
+        select_reason: '이유를 선택하세요',
+        post_success: '리뷰를 남겨주셔서 감사합니다', post_error: '제출 오류',
     },
 };
 function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }
@@ -69,10 +124,43 @@ function changeLang(lang) {
     localStorage.setItem('yobuho_lang', lang);
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`[onclick="changeLang('${lang}')"]`)?.classList.add('active');
-    if (lang !== 'ja') {
-        showToast('多言語対応は準備中です', 2000);
-    }
+    updateUILanguage();
     if (currentPage) currentPage();
+}
+
+function updateUILanguage() {
+    // エリアタイトル
+    const areaTitle = document.getElementById('area-title');
+    if (areaTitle && areaTitle.textContent === '地域を選択') areaTitle.textContent = t('select_area');
+
+    // 検索プレースホルダー
+    const searchInput = document.querySelector('.search-input-lux');
+    if (searchInput) searchInput.placeholder = t('search_placeholder');
+    const stationInput = document.querySelector('.station-input');
+    if (stationInput) stationInput.placeholder = t('station_placeholder');
+
+    // 現在地ボタン
+    const locLabel = document.querySelector('.btn-location-label');
+    if (locLabel) locLabel.textContent = t('current_location');
+
+    // 戻るボタン
+    const backText = document.querySelector('.back-text');
+    if (backText) backText.textContent = t('back');
+
+    // フィルタチップ（data-filter-key属性を使って翻訳）
+    document.querySelectorAll('.filter-chip[data-filter-key]').forEach(chip => {
+        chip.textContent = t(chip.dataset.filterKey);
+    });
+
+    // フッターリンク
+    document.querySelectorAll('.footer-link').forEach(link => {
+        const href = link.getAttribute('href') || '';
+        if (href.includes('terms')) link.textContent = t('terms');
+        else if (href.includes('privacy')) link.textContent = t('privacy');
+        else if (href.includes('contact')) link.textContent = t('contact');
+        else if (href.includes('index.html')) link.textContent = t('top_page');
+        else if (href.includes('shop-register')) link.textContent = t('shop_register');
+    });
 }
 
 function setTitle(text) {
@@ -108,6 +196,7 @@ function clearHotelList() {
     if (links) links.style.display = 'none';
     hideLovehoTabs();
     if (typeof hideFilterBar === 'function') hideFilterBar();
+    if (typeof hideMap === 'function') hideMap();
 }
 
 function showToast(msg, duration = 2500) {
@@ -141,7 +230,7 @@ function showLoading(msg) {
     if (el) {
         el.style.display = 'flex';
         const txt = el.querySelector('.loading-text');
-        if (txt) txt.textContent = msg || '検索中...';
+        if (txt) txt.textContent = msg || t('loading');
     }
 }
 

@@ -500,7 +500,7 @@ async function searchByLocation() {
     const btn = document.getElementById('btn-location');
     if (btn) {
         btn.classList.add('loading');
-        btn.querySelector('.btn-location-label').textContent = '取得中...';
+        btn.querySelector('.btn-location-label').textContent = t('locating');
     }
 
     if (!navigator.geolocation) {
@@ -601,7 +601,7 @@ function resetLocationBtn() {
     if (btn) {
         btn.classList.remove('loading');
         const label = btn.querySelector('.btn-location-label');
-        if (label) label.textContent = '現在地';
+        if (label) label.textContent = t('current_location');
     }
 }
 
@@ -697,14 +697,17 @@ let showDistanceFlag = false;
 const HOTELS_PER_PAGE = 20;
 
 function getFilterLabel(type) {
-    const map = { all: 'すべて', business: 'ビジネス', city: 'シティ', resort: 'リゾート', ryokan: '旅館', love_hotel: 'ラブホ' };
-    return map[type] || type;
+    const keyMap = { all: 'filter_all', business: 'filter_business', city: 'filter_city', resort: 'filter_resort', ryokan: 'filter_ryokan', love_hotel: 'filter_loveho' };
+    return t(keyMap[type] || type);
 }
+
+const FILTER_TYPE_MAP = { filter_all: 'all', filter_business: 'business', filter_city: 'city', filter_resort: 'resort', filter_ryokan: 'ryokan', filter_loveho: 'love_hotel' };
 
 function toggleFilter(type) {
     currentFilter = type;
     document.querySelectorAll('.filter-chip').forEach(c => {
-        c.classList.toggle('active', c.textContent === getFilterLabel(type));
+        const chipType = c.dataset.filterKey ? FILTER_TYPE_MAP[c.dataset.filterKey] : null;
+        c.classList.toggle('active', chipType === type);
     });
     applyFilter();
 }
@@ -724,11 +727,14 @@ function applyFilter() {
         loadMoreHotels();
     }
     setResultStatus(filtered.length);
+    refreshMapIfVisible();
 }
 
 function showFilterBar() {
     const bar = document.getElementById('filter-bar');
     if (bar) bar.style.display = 'flex';
+    const mapToggle = document.getElementById('map-toggle-bar');
+    if (mapToggle) mapToggle.style.display = 'flex';
 }
 
 function hideFilterBar() {
@@ -736,8 +742,92 @@ function hideFilterBar() {
     if (bar) bar.style.display = 'none';
     currentFilter = 'all';
     document.querySelectorAll('.filter-chip').forEach(c => {
-        c.classList.toggle('active', c.textContent === 'すべて');
+        c.classList.toggle('active', c.dataset.filterKey === 'filter_all');
     });
+    hideMap();
+}
+
+// ==========================================================================
+// 地図表示（Leaflet）
+// ==========================================================================
+let mapInstance = null;
+let mapMarkers = [];
+
+function toggleMapView() {
+    const mapEl = document.getElementById('hotel-map');
+    const btn = document.getElementById('btn-map-toggle');
+    if (mapEl.style.display === 'none') {
+        mapEl.style.display = 'block';
+        btn.textContent = '📋 リストで見る';
+        btn.classList.add('active');
+        showMap();
+    } else {
+        mapEl.style.display = 'none';
+        btn.textContent = '🗺️ 地図で見る';
+        btn.classList.remove('active');
+    }
+}
+
+function showMap() {
+    if (typeof L === 'undefined') {
+        showToast('地図ライブラリを読み込み中です…', 2000);
+        return;
+    }
+    const hotels = allHotels || [];
+    const hotelsWithCoords = hotels.filter(h => h.latitude && h.longitude);
+
+    if (!mapInstance) {
+        mapInstance = L.map('hotel-map').setView([35.6762, 139.6503], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(mapInstance);
+    }
+
+    // 既存マーカーをクリア
+    mapMarkers.forEach(m => m.remove());
+    mapMarkers = [];
+
+    if (hotelsWithCoords.length === 0) {
+        showToast('位置情報のあるホテルがありません', 2000);
+        return;
+    }
+
+    // マーカー追加
+    const bounds = [];
+    hotelsWithCoords.forEach(h => {
+        const marker = L.marker([h.latitude, h.longitude])
+            .addTo(mapInstance)
+            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelDetail(' + h.id + ')">詳細を見る</a>');
+        mapMarkers.push(marker);
+        bounds.push([h.latitude, h.longitude]);
+    });
+
+    // 全マーカーが見えるようにズーム
+    if (bounds.length > 0) {
+        mapInstance.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    // Leafletのサイズ問題を解消
+    setTimeout(() => mapInstance.invalidateSize(), 100);
+}
+
+function hideMap() {
+    const mapEl = document.getElementById('hotel-map');
+    if (mapEl) mapEl.style.display = 'none';
+    const mapToggle = document.getElementById('map-toggle-bar');
+    if (mapToggle) mapToggle.style.display = 'none';
+    const btn = document.getElementById('btn-map-toggle');
+    if (btn) {
+        btn.textContent = '🗺️ 地図で見る';
+        btn.classList.remove('active');
+    }
+}
+
+function refreshMapIfVisible() {
+    const mapEl = document.getElementById('hotel-map');
+    if (mapEl && mapEl.style.display !== 'none') {
+        showMap();
+    }
 }
 
 function buildCardHTML(h, i, showDistance) {
@@ -771,11 +861,11 @@ function buildCardHTML(h, i, showDistance) {
                         <div class="card-summary-boxes">
                             <div class="card-summary-box user-can">
                                 <span class="csb-val">${userCan}</span>
-                                <span class="csb-label">呼べた</span>
+                                <span class="csb-label">${t('can_call')}</span>
                             </div>
                             <div class="card-summary-box user-cannot">
                                 <span class="csb-val">${userCannot}</span>
-                                <span class="csb-label">呼べなかった</span>
+                                <span class="csb-label">${t('cannot_call')}</span>
                             </div>
                         </div>
                     </div>
@@ -1092,7 +1182,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
                 <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
-                    ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ 呼べた' : '❌ 呼べなかった')}
+                    ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}
                 </span>
                 ${tagsHTML}
                 ${metaChips}
@@ -1178,8 +1268,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 <div style="width:${100-userPct}%;background:#c05050;"></div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>呼べた ${userPct}%</span>
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>呼べなかった ${100-userPct}%</span>
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>${t('can_call')} ${userPct}%</span>
+                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>${t('cannot_call')} ${100-userPct}%</span>
             </div>
         </div>` : ''}
 
@@ -1199,8 +1289,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
             <div class="form-group">
                 <label class="form-label">結果 <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">必須</span></label>
                 <div class="toggle-row">
-                    <button class="toggle-btn can" id="btn-can" onclick="hotelSetCanCall(true)">✅ 呼べた</button>
-                    <button class="toggle-btn cannot" id="btn-cannot" onclick="hotelSetCanCall(false)">❌ 呼べなかった</button>
+                    <button class="toggle-btn can" id="btn-can" onclick="hotelSetCanCall(true)">✅ ${t('can_call')}</button>
+                    <button class="toggle-btn cannot" id="btn-cannot" onclick="hotelSetCanCall(false)">❌ ${t('cannot_call')}</button>
                 </div>
                 <div id="can-reasons-display"></div>
                 <div id="cannot-reasons-display"></div>
