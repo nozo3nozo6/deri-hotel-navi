@@ -36,6 +36,10 @@ yarn-error.log*
 .env.*.local
 !.env.example
 
+# PHP認証設定（Service Role Key含む）
+api/auth-config.php
+api/migrate-passwords.php
+
 # vercel
 .vercel
 

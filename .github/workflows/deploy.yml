@@ -15,7 +15,7 @@ jobs:
       - name: Deploy via rsync over SSH
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json'
+          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='api/auth-config.php' --exclude='api/migrate-passwords.php' --exclude='ogp.svg'
           path: ./
           remote_path: /home/yobuho/yobuho.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
