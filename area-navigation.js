@@ -367,13 +367,14 @@ async function showCityPage(region, pref, majorArea) {
     });
     const candidateCities = [...citySetLocal];
 
+    // 都道府県全体での件数を取得（エリアに関係なく同じ市区町村の件数を統一）
     const cityCount = {};
     const cityAreaCount = {};
     let countRows = [];
     let countFrom = 0;
     const COUNT_PAGE = 1000;
     while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).eq('major_area', majorArea).in('city', candidateCities).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(countFrom, countFrom + COUNT_PAGE - 1);
+        const { data: chunk } = await supabaseClient.from('hotels').select('city,major_area').eq('prefecture', pref).in('city', candidateCities).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(countFrom, countFrom + COUNT_PAGE - 1);
         if (!chunk || !chunk.length) break;
         countRows = countRows.concat(chunk);
         if (chunk.length < COUNT_PAGE) break;
@@ -565,12 +566,13 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 }
 
 function backLevel() {
-    // ホテル詳細が表示中なら先に閉じる
+    // ホテル詳細が表示中なら閉じるだけ（リストに戻る）
     const detail = document.getElementById('hotel-detail-content');
     if (detail && detail.style.display !== 'none' && detail.innerHTML !== '') {
         leaveHotelDetail();
+        return;
     }
-    // 前のページを復元
+    // 通常のエリアナビゲーションの「前へ」
     if (pageStack.length > 0) {
         const prevPage = pageStack.pop();
         prevPage();
