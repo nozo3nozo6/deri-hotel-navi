@@ -2,45 +2,48 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co; img-src 'self' data: https:; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://cdn.jsdelivr.net; img-src 'self' data: https:;">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     <meta name="robots" content="noindex, nofollow">
     <title>管理画面 | Deri Hotel Navi</title>
+    <link rel="icon" href="/favicon-admin.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon-admin.svg" type="image/svg+xml">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root{--navy:#1a1a2e;--navy-l:#2d2d44;--accent:#0066cc;--accent-h:#0052a3;--accent-bg:rgba(0,102,204,0.06);--accent-bdr:rgba(0,102,204,0.2);--gold:#c9a84c;--gold-dim:#a08030;--gold-bg:rgba(201,168,76,0.08);--gold-border:rgba(201,168,76,0.25);--ink:#1e1e2e;--ink-2:#3a3a4a;--ink-3:#7a7a8a;--bg:#f4f5f7;--bg-2:#ffffff;--bg-3:#eef0f4;--border:rgba(0,0,0,0.1);--border-s:rgba(0,0,0,0.18);--green:#28845a;--green-bg:rgba(40,132,90,0.06);--red:#c0392b;--red-bg:rgba(192,57,43,0.06);--blue:#2c5fa1;--blue-bg:rgba(44,95,161,0.06);--pink:#b05570;--pink-bg:rgba(176,85,112,0.06);--r:3px;--shadow:0 1px 3px rgba(0,0,0,0.08);}
+        :root{--navy:#0f172a;--navy-l:#1e293b;--accent:#3b82f6;--accent-h:#2563eb;--accent-bg:rgba(59,130,246,0.06);--accent-bdr:rgba(59,130,246,0.2);--gold:#d97706;--gold-dim:#b45309;--gold-bg:rgba(217,119,6,0.06);--gold-border:rgba(217,119,6,0.2);--ink:#0f172a;--ink-2:#334155;--ink-3:#94a3b8;--bg:#f8fafc;--bg-2:#ffffff;--bg-3:#f1f5f9;--border:rgba(0,0,0,0.08);--border-s:rgba(0,0,0,0.14);--green:#059669;--green-bg:rgba(5,150,105,0.06);--red:#dc2626;--red-bg:rgba(220,38,38,0.06);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.06);--pink:#db2777;--pink-bg:rgba(219,39,119,0.06);--r:8px;--shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);}
         *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{overflow-x:hidden;width:100%;}
         body{font-family:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;}
         /* ヘッダー */
-        .hdr{background:var(--navy);position:sticky;top:0;z-index:400;}
-        .hdr-inner{max-width:1200px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px;}
-        .hdr-logo{font-size:15px;font-weight:700;color:#fff;}
-        .hdr-logo span{color:rgba(255,255,255,0.4);font-weight:400;}
-        .hdr-user{font-size:11px;color:rgba(255,255,255,0.4);margin-left:auto;}
-        .btn-logout{padding:5px 14px;background:transparent;border:1px solid rgba(255,255,255,0.18);border-radius:var(--r);color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.2s;min-height:30px;}
-        .btn-logout:hover{border-color:var(--red);color:var(--red);}
+        .hdr{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-l) 100%);position:sticky;top:0;z-index:400;border-bottom:1px solid rgba(255,255,255,0.06);}
+        .hdr-inner{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:12px;}
+        .hdr-logo{font-size:15px;font-weight:700;color:#fff;letter-spacing:0.3px;}
+        .hdr-logo span{color:rgba(255,255,255,0.45);font-weight:400;}
+        .hdr-user{font-size:11px;color:rgba(255,255,255,0.45);margin-left:auto;}
+        .btn-logout{padding:6px 14px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:rgba(255,255,255,0.6);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.2s;min-height:30px;}
+        .btn-logout:hover{background:rgba(255,255,255,0.1);color:#fff;border-color:rgba(255,255,255,0.2);}
         /* タブバー */
-        .tab-bar{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;}
-        .tab-link{padding:10px 18px;background:transparent;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;position:relative;}
-        .tab-link:hover{color:rgba(255,255,255,0.85);}
-        .tab-link.active{color:#fff;border-bottom-color:var(--accent);font-weight:700;}
+        .tab-bar{max-width:1200px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .tab-link{padding:10px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:rgba(255,255,255,0.5);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap;position:relative;border-radius:6px 6px 0 0;}
+        .tab-link:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.04);}
+        .tab-link.active{color:#fff;border-bottom-color:var(--accent);font-weight:700;background:rgba(255,255,255,0.06);}
         .tab-badge{position:absolute;top:2px;right:0;font-size:9px;min-width:16px;height:16px;padding:0 4px;background:var(--red);color:#fff;border-radius:8px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
-        .hamburger{display:none;}
-        .nav-overlay{display:none;}
+        .hamburger{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;z-index:410;}
+        .nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:399;}
         /* ログイン */
         .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:36px;width:100%;max-width:360px;box-shadow:var(--shadow);}
+        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,0.08);}
         .login-title{font-size:18px;font-weight:700;margin-bottom:4px;}
         .login-sub{font-size:12px;color:var(--ink-3);margin-bottom:24px;}
         .f-group{margin-bottom:14px;}
         .f-label{display:block;font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:5px;letter-spacing:0.3px;}
         .f-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:14px;outline:none;background:var(--bg-3);transition:border-color 0.2s;}
         .f-input:focus{border-color:var(--accent);background:#fff;}
-        .btn-login{width:100%;padding:11px;background:var(--accent);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.2s;}
-        .btn-login:hover{background:var(--accent-h);}
+        .btn-login{width:100%;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(59,130,246,0.3);}
+        .btn-login:hover{background:var(--accent-h);transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.35);}
         /* レイアウト */
         .layout{max-width:1200px;margin:0 auto;padding:20px;}
         .sidebar{display:none;}
@@ -51,27 +54,28 @@
         .tab-panel{display:none;}
         .tab-panel.active{display:block;}
         /* カード */
-        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
-        .card-title{font-size:14px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .card-title .sub{font-size:11px;font-weight:400;color:var(--ink-3);margin-left:auto;}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;box-shadow:var(--shadow);margin-bottom:20px;}
+        .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+        .card-title .sub{font-size:11px;font-weight:500;color:var(--ink-3);margin-left:auto;background:var(--bg-3);padding:2px 10px;border-radius:12px;}
         /* ダッシュボード統計 */
-        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
-        .stat-box{background:var(--bg-2);border:1px solid var(--border);border-radius:4px;padding:16px 12px;text-align:center;}
-        .stat-val{font-size:28px;font-weight:700;color:var(--accent);line-height:1;}
-        .stat-lbl{font-size:11px;color:var(--ink-3);margin-top:5px;}
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+        .stat-box{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:20px 16px;text-align:center;transition:all 0.2s;box-shadow:var(--shadow);}
+        .stat-box:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+        .stat-val{font-size:32px;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-0.5px;}
+        .stat-lbl{font-size:11px;color:var(--ink-3);margin-top:8px;font-weight:500;letter-spacing:0.3px;text-transform:uppercase;}
         /* テーブル */
         .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
         .tbl{width:100%;border-collapse:collapse;font-size:12px;}
-        .tbl th{text-align:left;padding:9px 11px;background:#e8ecef;color:var(--ink-2);font-size:11px;font-weight:700;letter-spacing:0.3px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;}
-        .tbl th:hover{color:var(--ink);}
+        .tbl th{text-align:left;padding:10px 12px;background:var(--bg-3);color:var(--ink-2);font-size:11px;font-weight:600;letter-spacing:0.4px;border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;text-transform:uppercase;}
+        .tbl th:hover{color:var(--accent);}
         .tbl th .sa{margin-left:3px;opacity:0.4;}
         .tbl th.sorted .sa{opacity:1;color:var(--accent);}
-        .tbl td{padding:10px 11px;border-bottom:1px solid var(--border);vertical-align:middle;}
+        .tbl td{padding:12px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
         .tbl tr:last-child td{border-bottom:none;}
-        .tbl tbody tr:nth-child(even) td{background:#f9fafb;}
-        .tbl tbody tr:hover td{background:#f0f4ff;}
+        .tbl tbody tr:nth-child(even) td{background:rgba(248,250,252,0.6);}
+        .tbl tbody tr:hover td{background:rgba(59,130,246,0.04);}
         /* バッジ */
-        .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:2px;font-size:10px;font-weight:700;border:1px solid;white-space:nowrap;}
+        .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:600;border:1px solid;white-space:nowrap;letter-spacing:0.2px;}
         .b-paid{background:var(--gold-bg);color:var(--gold-dim);border-color:var(--gold-border);}
         .b-free{background:var(--bg-3);color:var(--ink-3);border-color:var(--border);}
         .b-active{background:var(--green-bg);color:var(--green);border-color:rgba(40,132,90,0.2);}
@@ -88,8 +92,9 @@
         .b-published{background:var(--green-bg);color:var(--green);border-color:rgba(40,132,90,0.2);}
         .b-unpublished{background:var(--bg-3);color:var(--ink-3);border-color:var(--border);}
         /* ボタン */
-        .btn{padding:6px 11px;border-radius:var(--r);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;min-height:30px;}
-        .btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+        .btn{padding:7px 14px;border-radius:8px;border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap;min-height:32px;}
+        .btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,0.1);}
+        .btn:active{transform:translateY(0);}
         .b-btn-green{background:var(--green-bg);color:var(--green);border-color:rgba(40,132,90,0.25);}
         .b-btn-green:hover{background:var(--green);color:#fff;border-color:var(--green);}
         .b-btn-red{background:var(--red-bg);color:var(--red);border-color:rgba(192,57,43,0.2);}
@@ -103,10 +108,10 @@
         .btn-row{display:flex;gap:5px;flex-wrap:wrap;}
         /* フィルター */
         .filter-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-        .filter-select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px;background:var(--bg-3);outline:none;cursor:pointer;min-height:34px;}
-        .filter-select:focus{border-color:var(--accent);}
-        .filter-input{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px;background:var(--bg-3);outline:none;flex:1;min-width:150px;min-height:34px;}
-        .filter-input:focus{border-color:var(--accent);}
+        .filter-select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg-2);outline:none;cursor:pointer;min-height:36px;transition:border-color 0.2s;}
+        .filter-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
+        .filter-input{padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg-2);outline:none;flex:1;min-width:150px;min-height:36px;transition:border-color 0.2s;}
+        .filter-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg);}
         /* マスター条件リスト */
         .cond-list{display:flex;flex-direction:column;gap:6px;margin-bottom:13px;}
         .cond-row{display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);}
@@ -129,7 +134,7 @@
         .master-sub.active{display:block;}
         /* モーダル */
         .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
-        .modal{background:var(--bg-2);border-radius:6px;padding:28px;width:100%;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,0.18);margin:auto;}
+        .modal{background:var(--bg-2);border-radius:16px;padding:32px;width:100%;max-width:520px;box-shadow:0 12px 40px rgba(0,0,0,0.15);margin:auto;}
         .modal-title{font-size:16px;font-weight:700;margin-bottom:20px;}
         .mf{margin-bottom:14px;}
         .ml{display:block;font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:5px;letter-spacing:0.3px;}
@@ -144,6 +149,22 @@
         .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:10px 22px;border-radius:4px;font-size:13px;opacity:0;transition:all 0.3s;z-index:9999;white-space:nowrap;pointer-events:none;}
         .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
         .erow td{text-align:center;color:var(--ink-3);padding:30px;}
+        /* 未対応タスクカード */
+        .dash-tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
+        .task-card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);}
+        .task-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1);border-color:var(--accent-bdr);}
+        .task-card .tc-icon{font-size:24px;flex-shrink:0;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;}
+        .task-card .tc-body{flex:1;min-width:0;}
+        .task-card .tc-count{font-size:22px;font-weight:800;line-height:1;}
+        .task-card .tc-label{font-size:11px;color:var(--ink-3);margin-top:2px;font-weight:500;}
+        .task-card.tc-red .tc-icon{background:var(--red-bg);}
+        .task-card.tc-red .tc-count{color:var(--red);}
+        .task-card.tc-orange .tc-icon{background:rgba(217,119,6,0.08);}
+        .task-card.tc-orange .tc-count{color:var(--gold);}
+        .task-card.tc-blue .tc-icon{background:var(--accent-bg);}
+        .task-card.tc-blue .tc-count{color:var(--accent);}
+        .task-card.tc-green .tc-icon{background:var(--green-bg);}
+        .task-card.tc-green .tc-count{color:var(--green);}
         /* ページャー */
         .pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;}
         .pager-info{font-size:12px;color:var(--ink-3);}
@@ -167,10 +188,14 @@
             .hdr-logo{font-size:12px;}
             .hdr-user{font-size:10px;}
             .btn-logout{padding:4px 10px;font-size:10px;min-height:26px;}
-            /* タブバー：横スクロール */
-            .tab-bar{padding:0 8px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none;}
-            .tab-bar::-webkit-scrollbar{display:none;}
-            .tab-link{padding:8px 12px;font-size:11px;flex-shrink:0;}
+            /* ハンバーガーメニュー */
+            .hamburger{display:block;}
+            .hdr-inner{position:relative;padding-right:44px;}
+            .tab-bar{display:none;flex-direction:column;position:fixed;top:0;right:0;width:220px;height:100vh;background:var(--navy);z-index:450;padding:56px 0 20px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,0.3);}
+            .tab-bar.open{display:flex;}
+            .tab-link{padding:14px 20px;font-size:13px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);border-left:3px solid transparent;}
+            .tab-link.active{border-left-color:var(--accent);border-bottom:1px solid rgba(255,255,255,0.08);}
+            .nav-overlay.open{display:block;}
             /* レイアウト */
             .layout{padding:10px;}
             /* カード */
@@ -183,7 +208,7 @@
             .stat-lbl{font-size:10px;}
             /* テーブル */
             .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-            .tbl{min-width:600px;}
+            .tbl{min-width:0;}
             .tbl th{padding:7px 8px;font-size:10px;}
             .tbl td{padding:8px 8px;font-size:11px;}
             /* フィルター */
@@ -223,24 +248,24 @@
         }
         /* ===== 極小スマホ (480px) ===== */
         @media(max-width:480px){
-            .hdr-inner{padding:6px 8px;gap:6px;}
+            .hdr-inner{padding:6px 8px;gap:6px;padding-right:40px;}
             .hdr-logo{font-size:11px;}
             .hdr-user{display:none;}
             .btn-logout{font-size:9px;padding:3px 8px;min-height:24px;}
-            .tab-link{padding:7px 10px;font-size:10px;}
-            .layout{padding:6px;}
-            .card{padding:10px 8px;}
+            .layout{padding:4px;}
+            .card{padding:10px 6px;}
             .card-title{font-size:12px;}
             .stats-grid{gap:6px;}
             .stat-box{padding:10px 6px;}
             .stat-val{font-size:18px;}
-            .tbl{min-width:520px;}
-            .filter-select{flex:1 1 100%;}
+            .tbl{min-width:0;}
             .modal{padding:14px 10px;max-width:100vw;border-radius:0;}
             .modal-overlay{padding:0;}
             .modal-btns{flex-direction:column;}
             .modal-btns .btn-save,.modal-btns .btn-cancel{width:100%;}
             .cond-row .btn{font-size:10px;padding:5px 8px;min-height:30px;}
+            .btn-row{flex-direction:column;gap:4px;}
+            .btn-row .btn{width:100%;text-align:center;}
         }
         /* ===== モバイルカード表示 (640px) ===== */
         /* 注意: テーブルはJSで動的生成のため、data-label属性はJS側で付与が必要 */
@@ -266,6 +291,34 @@
                 font-weight: 600;
                 color: #666;
                 margin-right: 8px;
+                min-width: 70px;
+                flex-shrink: 0;
+            }
+            .tbl tbody td[data-label="操作"] {
+                justify-content: flex-start;
+            }
+            .tbl tbody td[data-label="操作"]::before {
+                display: none;
+            }
+            .tbl tbody td[data-label="操作"] .btn-row {
+                width: 100%;
+            }
+            .tbl tbody td {
+                max-width: none !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                word-break: break-all;
+            }
+            .tbl-wrap {
+                overflow-x: visible;
+            }
+            .filter-bar {
+                flex-direction: column;
+            }
+            .filter-select, .filter-input {
+                width: 100%;
+                min-width: 0;
+                flex: none;
             }
         }
     </style>
@@ -277,7 +330,9 @@
         <span class="hdr-user" id="hdr-email"></span>
         <button class="btn-logout" onclick="openPasswordChange()" style="margin-right:4px;">🔑 PW変更</button>
         <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+        <button class="hamburger" id="hamburger-btn" onclick="toggleMobileMenu()">☰</button>
     </div>
+    <div class="nav-overlay" id="nav-overlay" onclick="closeMobileMenu()"></div>
     <nav class="tab-bar" id="tab-bar">
         <button class="tab-link active" onclick="switchTab('dashboard')" id="tl-dashboard">ダッシュボード</button>
         <button class="tab-link" onclick="switchTab('reports')" id="tl-reports">投稿管理<span class="tab-badge" id="rep-badge" style="display:none;"></span></button>
@@ -324,6 +379,9 @@
                 <div class="stat-box"><div class="stat-val" id="s-shops">—</div><div class="stat-lbl">登録店舗</div></div>
                 <div class="stat-box"><div class="stat-val" id="s-canrate">—</div><div class="stat-lbl">呼べた率</div></div>
             </div>
+            <!-- 未対応タスク -->
+            <div id="dash-tasks" class="dash-tasks" style="display:none;"></div>
+
             <div class="card">
                 <div class="card-title">&#x1F4C8; 最近の投稿<span class="sub" id="dash-sub"></span></div>
                 <div class="tbl-wrap"><table class="tbl"><thead><tr><th>日時</th><th>ホテル名</th><th>モード</th><th>結果</th><th>条件</th><th>コメント</th></tr></thead>
@@ -396,6 +454,7 @@
                     <button class="master-tab" id="mt-plans" onclick="switchMasterSub('plans')">💰 契約プラン</button>
                     <button class="master-tab" id="mt-service" onclick="switchMasterSub('service')">🛎 店舗サービス</button>
                     <button class="master-tab" id="mt-goodpoints" onclick="switchMasterSub('goodpoints')">📝 チェックポイント</button>
+                    <button class="master-tab" id="mt-atmosphere" onclick="switchMasterSub('atmosphere')">✨ 雰囲気</button>
                 </div>
                 <div class="master-sub active" id="msub-can">
                     <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="can-reasons-sub"></div>
@@ -454,6 +513,14 @@
                         <button class="btn-add" onclick="addGoodPoint()">＋ 追加</button>
                     </div>
                 </div>
+                <div class="master-sub" id="msub-atmosphere">
+                    <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="atmosphere-sub"></div>
+                    <div class="cond-list" id="atmosphere-list"></div>
+                    <div class="add-row">
+                        <input id="new-atmosphere" class="add-input" placeholder="新しい雰囲気を入力..." onkeydown="if(event.key==='Enter')addAtmosphere()">
+                        <button class="btn-add" onclick="addAtmosphere()">＋ 追加</button>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- ホテル編集 -->
@@ -462,16 +529,20 @@
                 <div class="card-title">&#x1F3E8; ホテル情報編集<span class="sub" id="hotels-sub"></span><button class="btn b-btn-gold" style="margin-left:auto;" onclick="openAddHotel()">＋ ホテル追加</button></div>
                 <div class="filter-bar">
                     <input class="filter-input" id="hotel-search" placeholder="ホテル名・住所で検索..." oninput="onHotelSearchInput()">
-                    <select class="filter-select" id="hotel-pref-f" onchange="fetchHotels()"><option value="">全都道府県</option></select>
-                    <select class="filter-select" id="hotel-source-f" onchange="fetchHotels()"><option value="">全ソース</option><option value="manual">手動追加のみ</option><option value="rakuten">楽天APIのみ</option></select>
+                    <select class="filter-select" id="hotel-region-f" onchange="onRegionChange()"><option value="">全国</option></select>
+                    <select class="filter-select" id="hotel-pref-f" onchange="onHotelPrefChange()" disabled><option value="">都道府県を選択</option></select>
+                    <select class="filter-select" id="hotel-city-f" onchange="fetchHotels()" disabled><option value="">市区町村を選択</option></select>
+                    <select class="filter-select" id="hotel-source-f" onchange="fetchHotels()"><option value="">全ソース</option><option value="manual">手動追加のみ</option><option value="rakuten">楽天APIのみ</option><option value="yahoo">Yahoo!APIのみ</option></select>
                     <select class="filter-select" id="hotel-pub-f" onchange="fetchHotels()"><option value="">全公開状態</option><option value="true">公開中</option><option value="false">非公開</option></select>
                 </div>
                 <div class="tbl-wrap"><table class="tbl">
                     <thead><tr>
                         <th onclick="doSort('hotels','name',renderHotels)">ホテル名<span class="sa">↕</span></th>
                         <th onclick="doSort('hotels','prefecture',renderHotels)">都道府県<span class="sa">↕</span></th>
+                        <th onclick="doSort('hotels','city',renderHotels)">市区町村<span class="sa">↕</span></th>
                         <th onclick="doSort('hotels','nearest_station',renderHotels)">最寄駅<span class="sa">↕</span></th>
                         <th onclick="doSort('hotels','min_charge',renderHotels)">料金<span class="sa">↕</span></th>
+                        <th>ソース</th>
                         <th>公開状態</th>
                         <th>操作</th>
                     </tr></thead>
@@ -488,7 +559,7 @@
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
                 <div class="f-group"><label class="f-label">本文</label><textarea id="outreach-body" class="f-input" rows="20" style="white-space:pre-wrap;font-size:13px;"></textarea></div>
-                <button onclick="sendOutreachEmail()" class="btn-primary" style="margin-top:8px;">&#x1F4E8; 送信する</button>
+                <button onclick="sendOutreachEmail()" class="btn-save" style="margin-top:8px;width:100%;">&#x1F4E8; 送信する</button>
             </div>
             <div class="card" style="margin-top:16px;">
                 <div class="card-title">&#x1F4CB; 送信履歴<span class="sub" id="outreach-sub"></span></div>
@@ -548,6 +619,35 @@
                         <option value="all">全モード共通</option>
                     </select>
                 </div>
+                <!-- バナー画像設定 -->
+                <div style="border:1px dashed var(--border);border-radius:var(--r);padding:12px;margin-top:12px;max-width:640px;">
+                    <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:8px;">バナー画像（任意）</div>
+                    <div class="f-group" style="margin-bottom:8px;">
+                        <label class="f-label">バナー画像URL</label>
+                        <input type="text" id="ad-banner-image-url" class="f-input" placeholder="https://example.com/banner.jpg" oninput="previewAdBanner()">
+                    </div>
+                    <div id="ad-banner-preview" style="display:none;text-align:center;margin-bottom:8px;">
+                        <img id="ad-banner-preview-img" style="max-width:100%;max-height:150px;border-radius:6px;border:1px solid var(--border);">
+                    </div>
+                    <div class="f-group" style="margin-bottom:8px;">
+                        <label class="f-label">バナーリンクURL（空欄で店舗URLを使用）</label>
+                        <input type="text" id="ad-banner-link-url" class="f-input" placeholder="https://example.com/">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="f-group" style="margin-bottom:0;">
+                            <label class="f-label">バナーサイズ</label>
+                            <select id="ad-banner-size" class="f-input">
+                                <option value="medium">medium（468px）</option>
+                                <option value="large">large（728px）</option>
+                                <option value="small">small（320px）</option>
+                            </select>
+                        </div>
+                        <div class="f-group" style="margin-bottom:0;">
+                            <label class="f-label">代替テキスト</label>
+                            <input type="text" id="ad-banner-alt" class="f-input" placeholder="広告バナー">
+                        </div>
+                    </div>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px;margin-top:8px;">
                     <div class="f-group"><label class="f-label">開始日</label><input type="date" id="ad-start-date" class="f-input"></div>
                     <div class="f-group"><label class="f-label">終了日（空欄で無期限）</label><input type="date" id="ad-end-date" class="f-input"></div>
@@ -601,7 +701,7 @@
         <!-- Step1: フォーム -->
         <div id="edit-step1">
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="edit-name" class="mi"></div>
-            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select><div style="font-size:10px;color:var(--ink-3);margin-top:4px;">🔒 変更するとAPIインポートで上書きされなくなります（管理者編集保護）</div></div>
             <div class="mf"><label class="ml">郵便番号</label><input id="edit-postal" class="mi" placeholder="例: 160-0022"></div>
             <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><select id="edit-pref" class="mi" onchange="onPrefChange('edit')"><option value="">選択してください</option></select></div>
             <div class="mf"><label class="ml">市区町村</label><input id="edit-city" class="mi" placeholder="例: 新宿区"></div>
@@ -710,14 +810,21 @@
         </div>
         <!-- ラブホ専用フィールド -->
         <div id="re-loveho-section" style="display:none;">
-            <!-- 一人入室 -->
-            <div class="mf"><label class="ml">一人で先に入れる？</label>
+            <!-- 店舗投稿切替 -->
+            <div class="mf" style="margin-bottom:10px;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--ink-3);">
+                <input type="checkbox" id="re-lh-shop-mode" onchange="toggleLhShopMode(this.checked)" style="width:16px;height:16px;">
+                🏪 店舗投稿として編集
+              </label>
+            </div>
+            <!-- 一人入室 / チェックイン方法 -->
+            <div class="mf"><label class="ml" id="re-lh-solo-label">一人で先に入れる？</label>
             <select id="re-lh-solo" class="mi">
               <option value="">未選択</option>
               <option value="yes">はい</option>
               <option value="no">いいえ</option>
               <option value="together">一緒に入った</option>
-              <option value="waiting">待合室で待ち合わせ</option>
+              <option value="lobby">待合室で待ち合わせ</option>
               <option value="unknown">わからない</option>
             </select></div>
             <!-- 雰囲気 -->
@@ -788,7 +895,7 @@
                         <div style="margin:8px 0;">現在: <span id="shop-status-badge"></span></div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="status-action-buttons"></div>
                     </div>
-                    <div style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
+                    <div id="plan-section" style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
                         <label style="font-weight:bold;">契約プラン</label>
                         <div style="margin:8px 0;">現在: <span id="shop-plan-badge" style="font-weight:bold;"></span></div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;" id="plan-action-buttons"></div>
@@ -832,28 +939,35 @@
         </div>
         <!-- 新規追加フォーム -->
         <div style="border-top:1px solid var(--border);padding-top:18px;">
-            <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:12px;">新規エリア追加</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                <div class="mf" style="margin-bottom:0;">
-                    <label class="ml">レベル <span style="color:var(--gold);">*</span></label>
-                    <select id="pm-level" class="mi">
-                        <option value="national">🌐 全国</option>
-                        <option value="area">🗾 エリア（関東/近畿等）</option>
-                        <option value="prefecture">📌 都道府県</option>
-                        <option value="small_area">🏙 smallエリア（市区エリア）</option>
-                        <option value="detail_area">🔍 detailエリア（詳細エリア）</option>
-                        <option value="city">🏘 市区町村</option>
-                    </select>
-                </div>
-                <div class="mf" style="margin-bottom:0;">
-                    <label class="ml">エリアコード（任意）</label>
-                    <input id="pm-target-code" class="mi" placeholder="例: tokyo, yokohama">
-                </div>
-            </div>
+            <div id="pm-form-title" style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:12px;">新規エリア追加</div>
             <div class="mf" style="margin-bottom:10px;">
-                <label class="ml">対象エリア名 <span style="color:var(--gold);">*</span></label>
-                <input id="pm-target-name" class="mi" placeholder="例: 東京23区、横浜、池袋・赤羽・巣鴨・大塚">
+                <label class="ml">レベル <span style="color:var(--gold);">*</span></label>
+                <select id="pm-level" class="mi" onchange="onPmLevelChange()">
+                    <option value="city">🏘 市区町村</option>
+                    <option value="spot">🏙 エリア</option>
+                    <option value="prefecture">📌 都道府県</option>
+                </select>
             </div>
+            <div class="mf" style="margin-bottom:10px;" id="pm-pref-wrap">
+                <label class="ml">都道府県 <span style="color:var(--gold);">*</span></label>
+                <select id="pm-pref" class="mi" onchange="onPmPrefChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div class="mf" style="margin-bottom:10px;display:none;" id="pm-area-wrap">
+                <label class="ml">エリア <span style="color:var(--gold);">*</span></label>
+                <select id="pm-area" class="mi" onchange="onPmAreaChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div class="mf" style="margin-bottom:10px;display:none;" id="pm-city-wrap">
+                <label class="ml">市区町村 <span style="color:var(--gold);">*</span></label>
+                <select id="pm-city" class="mi">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <input type="hidden" id="pm-target-code">
+            <input type="hidden" id="pm-target-name">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
                 <div class="mf" style="margin-bottom:0;">
                     <label class="ml">掲載開始日</label>
@@ -964,9 +1078,11 @@ toast("パスワードを変更しました");closePwChange();
 // ハンバーガーメニュー
 function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("open");}
 function openNav(){toggleTabBar();}
-function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");}
+function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");var ov=document.getElementById("nav-overlay");if(ov)ov.classList.remove("open");}
+function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
+function closeMobileMenu(){closeNav();}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
 const sortStates={};
@@ -974,7 +1090,7 @@ function doSort(ns,key,renderFn){if(!sortStates[ns])sortStates[ns]={key:null,asc
 function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}
 
 // ===== ダッシュボード =====
-async function loadDashboard(){const[hR,rR,sR,recR]=await Promise.all([sb.from("hotels").select("id",{count:"exact",head:true}),sb.from("reports").select("id,can_call",{count:"exact"}).limit(2000),sb.from("shops").select("id",{count:"exact",head:true}),sb.from("reports").select("id,created_at,can_call,conditions,comment,poster_type,gender_mode,hotels(name)").order("created_at",{ascending:false}).limit(30)]);document.getElementById("s-hotels").textContent=(hR.count||0).toLocaleString();document.getElementById("s-reports").textContent=(rR.count||0).toLocaleString();document.getElementById("s-shops").textContent=(sR.count||0).toLocaleString();const rD=rR.data||[];const canN=rD.filter(r=>r.can_call).length;document.getElementById("s-canrate").textContent=rD.length?Math.round(canN/rD.length*100)+"%":"—";const rec=recR.data||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;">${esc(r.hotels?.name||"—")}</td><td>${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
+async function loadDashboard(){const[hR,rR,sR,recR,flagR,shopPendR,hreqPendR]=await Promise.all([sb.from("hotels").select("id",{count:"exact"}),sb.from("reports").select("id,can_call",{count:"exact"}).limit(2000),sb.from("shops").select("id",{count:"exact"}),sb.from("reports").select("id,created_at,can_call,conditions,comment,poster_type,gender_mode,hotels(name)").order("created_at",{ascending:false}).limit(30),sb.from("reports").select("id",{count:"exact",head:true}).not("flagged_at","is",null).is("flag_resolved",null),sb.from("shops").select("id",{count:"exact"}).eq("status","registered"),sb.from("hotel_requests").select("id",{count:"exact"}).eq("status","pending")]);document.getElementById("s-hotels").textContent=(hR.count||0).toLocaleString();document.getElementById("s-reports").textContent=(rR.count||0).toLocaleString();document.getElementById("s-shops").textContent=(sR.count||0).toLocaleString();const rD=rR.data||[];const canN=rD.filter(r=>r.can_call).length;document.getElementById("s-canrate").textContent=rD.length?Math.round(canN/rD.length*100)+"%":"—";const flagCount=flagR.count||0;const shopPendCount=shopPendR.count||0;const hreqPendCount=hreqPendR.count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=recR.data||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotels?.name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
 
 // ===== 店舗管理 =====
 let shopsData=[];
@@ -983,8 +1099,8 @@ function getShopStatus(s){return s.status||"pending";}
 function shopStatusBadge(s){const st=getShopStatus(s);switch(st){case"email_pending":return'<span class="badge b-email-pending">認証待</span>';case"registered":return'<span class="badge b-registered">準備中</span>';case"active":return'<span class="badge b-active">掲載中</span>';case"suspended":return'<span class="badge b-suspended">停止中</span>';case"denied":return'<span class="badge b-stop">否認</span>';case"revision_required":return'<span class="badge b-revision">不備あり</span>';case"rejected":return'<span class="badge b-stop">却下</span>';case"deleted":return'<span class="badge b-suspended">削除済</span>';default:return'<span class="badge b-free">未確認</span>';}}
 async function loadShops(){const{data}=await sb.from("shops").select("*").order("created_at",{ascending:false});shopsData=data||[];updateShopBadge();renderShops();}
 function updateShopBadge(){const count=shopsData.filter(s=>getShopStatus(s)==="registered").length;const b=document.getElementById("shop-badge");if(b){if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}}
-function renderShops(){const mF=document.getElementById("shop-mode-f").value;const aF=document.getElementById("shop-appr-f").value;const pF=document.getElementById("shop-plan-f").value;const qF=document.getElementById("shop-search").value.toLowerCase();let data=shopsData.filter(s=>{if(mF&&s.gender_mode!==mF)return false;const st=getShopStatus(s);if(aF){if(aF!==st)return false;}else{if(st==="deleted")return false;}if(pF==="free"&&s.plan==="paid")return false;if(pF==="paid"&&s.plan!=="paid")return false;if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;return true;});data=applySortArr(data,"shops");const regCount=shopsData.filter(s=>getShopStatus(s)==="registered").length;document.getElementById("shops-sub").textContent=`${data.length} 件${regCount>0?" (審査待ち "+regCount+" 件)":""}`;document.getElementById("shops-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="8">該当する店舗がありません</td></tr>`:data.map(s=>{const st=getShopStatus(s);const genreCell=`<span style="font-size:11px;">${SHOP_GENRE_LABELS[s.gender_mode]||"—"}</span>`;const planObj=contractPlansData.find(p=>p.id===s.plan_id);const planCell=planObj?`<span style="font-size:11px;">${esc(planObj.name)}</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;const docCell=s.document_url?`<button class="btn b-btn-gray" style="font-size:10px;" onclick="openShopReview('${s.id}')">📄確認</button>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;let actionBtns='<button class="btn b-btn-gray" style="font-size:10px;" onclick="openShopReview(\''+s.id+'\')">✏️ 編集</button>';return`<tr><td style="font-weight:500;font-size:13px;">${esc(s.shop_name||"—")}</td><td>${genreCell}</td><td style="font-size:11px;color:var(--ink-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.email||"—")}</td><td style="font-size:11px;color:var(--ink-3);">${esc(s.shop_tel||"—")}</td><td>${planCell}</td><td>${shopStatusBadge(s)}</td><td>${docCell}</td><td><div class="btn-row">${actionBtns}</div></td></tr>`;}).join("");}
-async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)return false;const loginUrl="https://yobuho.com/shop-admin.html";const shopName=esc(shop.shop_name||"店舗");const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。<br>ご不明点は hotel@yobuho.com までお問い合わせください。</p></div>`;let subject="",body="";switch(type){case"approval":subject="【YobuHo】審査完了・掲載開始のお知らせ";body=header+`<p>届出確認書の審査が完了し、掲載が開始されました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">店舗管理画面</p><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a><p style="margin:12px 0 0;font-size:13px;">ID: ${esc(shop.email)}</p></div>`+footer;break;case"rejection":subject="【YobuHo】審査結果のお知らせ";body=header+`<p>審査の結果、今回は掲載を見送らせていただくことになりました。</p><div style="background:#fff0f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div>`+footer;break;case"suspension":subject="【YobuHo】掲載停止のお知らせ";body=header+`<p>掲載を停止いたしました。</p>${extraData.reason?'<div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">'+esc(extraData.reason)+'</p></div>':''}`+footer;break;case"resumption":subject="【YobuHo】掲載再開のお知らせ";body=header+`<p>掲載を再開いたしました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div><p>引き続きYobuHoをご利用ください。</p>`+footer;break;case"deficiency":subject="【YobuHo】登録内容の不備について";body=header+`<p>ご登録いただいた内容を確認したところ、以下の不備がございました。</p><div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">不備の内容:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div><p>お手数ですが、内容を修正の上、再度ご申請をお願いいたします。</p><div style="margin:16px 0;"><a href="https://yobuho.com/shop-register.html" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">再申請はこちら</a></div>`+footer;break;case"plan_change":subject="【YobuHo】プラン変更のお知らせ";body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p></div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;break;default:return false;}try{const res=await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:shop.email,subject,body})});const result=await res.json();return result.success||false;}catch(e){console.error("メール送信エラー:",e);return false;}}
+function renderShops(){const mF=document.getElementById("shop-mode-f").value;const aF=document.getElementById("shop-appr-f").value;const pF=document.getElementById("shop-plan-f").value;const qF=document.getElementById("shop-search").value.toLowerCase();let data=shopsData.filter(s=>{if(mF&&s.gender_mode!==mF)return false;const st=getShopStatus(s);if(aF){if(aF!==st)return false;}else{if(st==="deleted")return false;}const _planPrice=(contractPlansData.find(p=>p.id===s.plan_id)||{}).price||0;if(pF==="free"&&_planPrice>0)return false;if(pF==="paid"&&_planPrice<=0)return false;if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;return true;});data=applySortArr(data,"shops");const regCount=shopsData.filter(s=>getShopStatus(s)==="registered").length;document.getElementById("shops-sub").textContent=`${data.length} 件${regCount>0?" (審査待ち "+regCount+" 件)":""}`;document.getElementById("shops-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="8">該当する店舗がありません</td></tr>`:data.map(s=>{const st=getShopStatus(s);const genreCell=`<span style="font-size:11px;">${SHOP_GENRE_LABELS[s.gender_mode]||"—"}</span>`;const planObj=contractPlansData.find(p=>p.id===s.plan_id);const planCell=planObj?`<span style="font-size:11px;">${esc(planObj.name)}</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;const docCell=s.document_url?`<span style="color:#28a745;font-size:11px;">📄 あり</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;let actionBtns=st==='registered'?'<button class="btn b-btn-gray" style="font-size:10px;background:#fd7e14;color:#fff;" onclick="openShopReview(\''+s.id+'\')">📄 審査</button>':'<button class="btn b-btn-gray" style="font-size:10px;" onclick="openShopReview(\''+s.id+'\')">✏️ 編集</button>';return`<tr><td data-label="店舗名" style="font-weight:500;font-size:13px;">${esc(s.shop_name||"—")}</td><td data-label="ジャンル">${genreCell}</td><td data-label="メール" style="font-size:11px;color:var(--ink-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.email||"—")}</td><td data-label="電話番号" style="font-size:11px;color:var(--ink-3);">${esc(s.shop_tel||"—")}</td><td data-label="プラン">${planCell}</td><td data-label="ステータス">${shopStatusBadge(s)}</td><td data-label="届出書">${docCell}</td><td data-label="操作"><div class="btn-row">${actionBtns}</div></td></tr>`;}).join("");}
+async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)return false;const loginUrl="https://yobuho.com/shop-admin.html";const shopName=esc(shop.shop_name||"店舗");const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。<br>ご不明点は hotel@yobuho.com までお問い合わせください。</p></div>`;let subject="",body="";switch(type){case"approval":subject="【YobuHo】審査完了・掲載開始のお知らせ";body=header+`<p>届出確認書の審査が完了し、掲載が開始されました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">店舗管理画面</p><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a><p style="margin:12px 0 0;font-size:13px;">ID: ${esc(shop.email)}</p></div>`+footer;break;case"rejection":subject="【YobuHo】審査結果のお知らせ";body=header+`<p>審査の結果、今回は掲載を見送らせていただくことになりました。</p><div style="background:#fff0f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div>`+footer;break;case"suspension":subject="【YobuHo】掲載停止のお知らせ";body=header+`<p>掲載を停止いたしました。</p>${extraData.reason?'<div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">'+esc(extraData.reason)+'</p></div>':''}`+footer;break;case"resumption":subject="【YobuHo】掲載再開のお知らせ";body=header+`<p>掲載を再開いたしました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div><p>引き続きYobuHoをご利用ください。</p>`+footer;break;case"deficiency":subject="【YobuHo】登録内容の不備について";body=header+`<p>ご登録いただいた内容を確認したところ、以下の不備がございました。</p><div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">不備の内容:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div><p>お手数ですが、内容を修正の上、再度ご申請をお願いいたします。</p><div style="margin:16px 0;"><a href="https://yobuho.com/shop-register.html" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">再申請はこちら</a></div>`+footer;break;case"plan_change":subject="【YobuHo】プラン変更のお知らせ";body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p>${extraData.areas?'<p style="margin:8px 0 0;">掲載エリア: <strong>'+esc(extraData.areas)+'</strong></p>':''}</div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;break;default:return false;}try{const res=await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:shop.email,subject,body})});const result=await res.json();return result.success||false;}catch(e){console.error("メール送信エラー:",e);return false;}}
 async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const{error}=await sb.from("shops").update({status:"deleted",deleted_at:new Date().toISOString()}).eq("id",id);if(error){console.error("deleteShop error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
 async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
 let _srId=null;
@@ -1000,17 +1116,22 @@ badge.style.cssText='background:'+(statusColors[shop.status]||'#999')+';color:#f
 const statusBtns=document.getElementById('status-action-buttons');
 let html='';
 const st=shop.status;
-if(st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'active\',\'approval\',\'✅ 掲載開始\')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">✅ 掲載開始</button>';}
+if(st!=='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'active\',\'approval\',\'✅ 掲載開始（無料プラン）\')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">✅ 掲載開始（無料プラン）</button>';}
 if(st==='active'){html+='<button onclick="startAction(\''+shop.id+'\',\'suspended\',\'suspension\',\'⏸ 掲載停止\')" style="background:#6c757d;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⏸ 掲載停止</button>';}
 if(st!=='revision_required'){html+='<button onclick="startAction(\''+shop.id+'\',\'revision_required\',\'deficiency\',\'⚠️ 不備あり\')" style="background:#fd7e14;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⚠️ 不備あり</button>';}
 if(st!=='rejected'){html+='<button onclick="startAction(\''+shop.id+'\',\'rejected\',\'rejection\',\'❌ 却下\')" style="background:#dc3545;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">❌ 却下</button>';}
 statusBtns.innerHTML=html;
-const currentPlan=plans.find(p=>p.id===shop.plan_id);
-document.getElementById('shop-plan-badge').textContent=currentPlan?currentPlan.name+'（¥'+currentPlan.price.toLocaleString()+'）':'未設定';
+const planSection=document.getElementById('plan-section');
 const planBtns=document.getElementById('plan-action-buttons');
-let planHtml='';
-plans.forEach(p=>{if(p.id!==shop.plan_id){planHtml+='<button onclick="startPlanChange(\''+shop.id+'\','+p.id+',\''+esc(p.name)+'\','+p.price+')" style="background:#0066cc;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">'+esc(p.name)+'（¥'+p.price.toLocaleString()+'）に変更</button>';}});
-planBtns.innerHTML=planHtml;
+if(shop.status==='active'){
+if(planSection)planSection.style.display='';
+// 複数プラン対応: shop_contractsから現在のプランを取得
+loadShopContracts(shop.id,plans);
+}else{
+if(planSection)planSection.style.display='none';
+planBtns.innerHTML='';
+document.getElementById('shop-plan-badge').textContent='未設定';
+}
 }
 function startAction(shopId,newStatus,type,title){
 pendingAction={shopId,newStatus,type,actionType:'status'};
@@ -1027,17 +1148,6 @@ panel.style.display='block';
 var sc=document.querySelector('.sr-right > div');
 if(sc)setTimeout(function(){sc.scrollTop=sc.scrollHeight;},50);
 }
-function startPlanChange(shopId,planId,planName,planPrice){
-pendingAction={shopId,planId,planName,planPrice,actionType:'plan'};
-document.getElementById('action-title').textContent='📋 プラン変更: '+planName;
-document.getElementById('action-email-subject').value='【YobuHo】プラン変更のお知らせ';
-document.getElementById('action-email-extra').value='';
-document.getElementById('action-send-email').checked=true;
-document.getElementById('action-email-section').style.display='block';
-document.getElementById('action-execute-btn').style.background='#0066cc';
-document.getElementById('action-confirm-panel').style.display='block';
-setTimeout(function(){var sc=document.querySelector('.sr-right > div');if(sc){sc.scrollTop=sc.scrollHeight;}},100);
-}
 function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
 async function executeAction(){
 if(!pendingAction)return;
@@ -1046,6 +1156,11 @@ try{
 if(actionType==='status'){
 var{newStatus,type}=pendingAction;
 var updateData={status:newStatus};
+// 掲載開始時は無料プランを自動セット
+if(newStatus==='active'){
+var freePlan=contractPlansData.find(function(p){return p.price===0;});
+if(freePlan){updateData.plan_id=freePlan.id;updateData.approved_at=new Date().toISOString();}
+}
 var{error:updateError}=await sb.from('shops').update(updateData).eq('id',shopId);
 if(updateError){toast('更新エラー: '+updateError.message);pendingAction=null;return;}
 shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,updateData):s;});
@@ -1053,15 +1168,6 @@ if(document.getElementById('action-send-email').checked){
 var{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
 if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,type,{reason:extra||undefined});toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
 }else{toast('ステータス更新完了（メール未送信）');}
-}else if(actionType==='plan'){
-var{planId,planName,planPrice}=pendingAction;
-var{error}=await sb.from('shops').update({plan_id:planId}).eq('id',shopId);
-if(error){toast('更新エラー: '+error.message);pendingAction=null;return;}
-shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,{plan_id:planId}):s;});
-if(document.getElementById('action-send-email').checked){
-var{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,'plan_change',{planName:planName,planPrice:planPrice,reason:extra||undefined});toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');}
-}else{toast('プラン変更完了（メール未送信）');}
 }
 }catch(e){console.error('[executeAction] error:',e);toast('エラーが発生しました: '+e.message);}
 pendingAction=null;
@@ -1094,21 +1200,39 @@ async function saveShopEdit(){if(!_srId)return;const name=document.getElementByI
 // ===== 掲載エリア管理 =====
 let placementsData=[];
 let _pmShopId=null;
-const PM_LEVEL_LABELS={national:"🌐 全国",area:"🗾 エリア",prefecture:"📌 都道府県",small_area:"🏙 smallエリア",detail_area:"🔍 detailエリア",city:"🏘 市区町村"};
+const PM_LEVEL_LABELS={city:"🏘 市区町村",spot:"🏙 エリア",prefecture:"📌 都道府県",national:"🌐 全国",area:"🗾 エリア",small_area:"🏙 smallエリア",detail_area:"🔍 detailエリア"};
 
 async function openPlacementModal(shopId){
   _pmShopId=shopId;
   const shop=shopsData.find(s=>String(s.id)===String(shopId));
   document.getElementById("pm-shop-name").textContent=shop?("— "+esc(shop.shop_name||"")):"";
-  document.getElementById("pm-level").value="national";
-  document.getElementById("pm-target-code").value="";
-  document.getElementById("pm-target-name").value="";
+  document.getElementById("pm-level").value="city";
+  initPmPrefs();
+  onPmLevelChange();
   document.getElementById("pm-started-at").value=new Date().toISOString().split("T")[0];
   document.getElementById("pm-ended-at").value="";
   document.getElementById("placement-modal").style.display="flex";
   await loadPlacements(shopId);
 }
-function closePlacementModal(){document.getElementById("placement-modal").style.display="none";_pmShopId=null;placementsData=[];}
+let _pendingPlanEmail=null;
+async function closePlacementModal(){
+  const shopId=_pmShopId;
+  document.getElementById("placement-modal").style.display="none";
+  // プラン変更後のエリア設定完了 → メール送信
+  if(_pendingPlanEmail&&shopId){
+    const pe=_pendingPlanEmail;_pendingPlanEmail=null;
+    // 登録済みエリア一覧を取得
+    const{data:areas}=await sb.from("shop_placements").select("level,target_name").eq("shop_id",shopId).eq("is_active",true);
+    const areaList=(areas||[]).map(a=>(PM_LEVEL_LABELS[a.level]||a.level)+': '+a.target_name);
+    const{data:shop}=await sb.from("shops").select("*").eq("id",shopId).maybeSingle();
+    if(shop){
+      const areaText=areaList.length?areaList.join('、'):'未設定';
+      const ok=await sendShopEmail(shop,'plan_change',{planName:pe.planName,planPrice:pe.planPrice,areas:areaText});
+      toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');
+    }
+  }
+  _pmShopId=null;placementsData=[];
+}
 
 async function loadPlacements(shopId){
   document.getElementById("pm-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">読み込み中...</div>';
@@ -1136,6 +1260,7 @@ function renderPlacements(){
       <td style="color:var(--ink-3);font-size:11px;white-space:nowrap;">${period}</td>
       <td style="${statusStyle}font-size:11px;">${statusLabel}</td>
       <td><div class="btn-row">
+        <button class="btn b-btn-gray" onclick="editPlacement(${p.id})">編集</button>
         <button class="btn ${p.is_active?"b-btn-gray":"b-btn-green"}" onclick="togglePlacement(${p.id},${p.is_active})">${p.is_active?"停止":"再開"}</button>
         <button class="btn b-btn-red" onclick="deletePlacement(${p.id})">削除</button>
       </div></td>
@@ -1143,24 +1268,184 @@ function renderPlacements(){
   }).join("")}</tbody></table>`;
 }
 
+// プランごとの掲載枠数
+const PLAN_LIMITS={
+  1:{city:0,spot:0,prefecture:0},// 無料
+  2:{city:1,spot:0,prefecture:0},// 市区町村
+  3:{city:0,spot:1,prefecture:0},// エリア
+  4:{city:0,spot:0,prefecture:1},// 都道府県
+  5:{city:3,spot:0,prefecture:0},// 3市区町村パック
+  6:{city:5,spot:0,prefecture:0},// 5市区町村パック
+  7:{city:3,spot:1,prefecture:0},// エリア+3市区町村パック
+};
+
+async function loadShopContracts(shopId,plans){
+  const{data:contracts}=await sb.from('shop_contracts').select('plan_id').eq('shop_id',shopId);
+  const activeIds=(contracts||[]).map(c=>c.plan_id);
+  // 現在のプラン表示
+  const badgeEl=document.getElementById('shop-plan-badge');
+  if(activeIds.length){
+    const names=activeIds.map(id=>{const p=plans.find(x=>x.id===id);return p?p.name:'?';});
+    badgeEl.textContent=names.join(' + ');
+  }else{badgeEl.textContent='無料プラン';}
+  // 合計枠数を計算
+  let totalLimits={city:0,spot:0,prefecture:0};
+  activeIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){totalLimits.city+=l.city;totalLimits.spot+=l.spot;totalLimits.prefecture+=l.prefecture;}});
+  const hasPaid=activeIds.some(id=>id>1);
+  // プラン追加/削除ボタン
+  let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">契約中プランをクリックで解除、未契約をクリックで追加</div>';
+  planHtml+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+  plans.forEach(p=>{
+    if(p.id===1)return;// 無料プランは表示しない
+    const isActive=activeIds.includes(p.id);
+    const style=isActive
+      ?'background:#28a745;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
+      :'background:#fff;color:#333;border:1px solid #ddd;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
+    const icon=isActive?'✅ ':'';
+    planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
+  });
+  planHtml+='</div>';
+  // 枠数表示
+  if(hasPaid){
+    planHtml+=`<div style="margin-top:10px;padding:8px 12px;background:#f0f4ff;border-radius:6px;font-size:11px;">
+      掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠 / 🏙エリア <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠
+    </div>`;
+    planHtml+='<div id="sr-area-list" style="margin-top:8px;padding:10px 12px;background:#f8f9fa;border-radius:6px;font-size:12px;color:var(--ink-3);">掲載エリア読み込み中...</div>';
+    planHtml+=`<button onclick="openPlacementModal('${shopId}')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;margin-top:8px;">📍 掲載エリア管理</button>`;
+  }
+  document.getElementById('plan-action-buttons').innerHTML=planHtml;
+  if(hasPaid){loadShopAreaList(shopId);}
+  // _currentShopLimitsをグローバルに保存（エリア追加時の制限チェック用）
+  window._currentShopLimits=totalLimits;
+}
+
+async function toggleShopContract(shopId,planId,isActive){
+  if(isActive){
+    if(!confirm('このプランを解除しますか？'))return;
+    await sb.from('shop_contracts').delete().eq('shop_id',shopId).eq('plan_id',planId);
+    toast('プランを解除しました');
+  }else{
+    await sb.from('shop_contracts').insert({shop_id:shopId,plan_id:planId});
+    toast('プランを追加しました');
+  }
+  // 再描画
+  const{data:plans}=await sb.from('contract_plans').select('*').order('sort_order');
+  const{data:updatedShop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+  if(updatedShop){shopsData=shopsData.map(s=>String(s.id)===String(shopId)?updatedShop:s);}
+  loadShopContracts(shopId,plans||[]);
+  // 有料プラン追加時はエリア管理を案内
+  const p=(plans||[]).find(x=>x.id===planId);
+  if(!isActive&&p&&p.price>0){
+    _pendingPlanEmail={shopId,planName:p.name,planPrice:p.price};
+  }
+}
+
+async function loadShopAreaList(shopId){
+  const el=document.getElementById('sr-area-list');
+  if(!el)return;
+  const{data}=await sb.from("shop_placements").select("level,target_name,is_active").eq("shop_id",shopId).eq("is_active",true);
+  if(!data||!data.length){el.innerHTML='<span style="color:#999;">掲載エリア未設定</span>';return;}
+  el.innerHTML='<div style="font-size:11px;font-weight:600;margin-bottom:6px;">📍 掲載エリア</div>'+data.map(a=>`<span style="display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:12px;font-size:11px;color:#2e7d32;">${esc(PM_LEVEL_LABELS[a.level]||a.level)} ${esc(a.target_name)}</span>`).join('');
+}
+
+// 都道府県リスト
+const PM_PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+
+function initPmPrefs(){
+  const sel=document.getElementById("pm-pref");
+  sel.innerHTML='<option value="">選択してください</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+
+function onPmLevelChange(){
+  const lv=document.getElementById("pm-level").value;
+  document.getElementById("pm-pref-wrap").style.display='';
+  document.getElementById("pm-area-wrap").style.display=(lv==='city'||lv==='spot')?'':'none';
+  document.getElementById("pm-city-wrap").style.display=lv==='city'?'':'none';
+  document.getElementById("pm-pref").value='';
+  document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
+  if(lv==='prefecture'){document.getElementById("pm-area-wrap").style.display='none';document.getElementById("pm-city-wrap").style.display='none';}
+}
+
+async function onPmPrefChange(){
+  const pref=document.getElementById("pm-pref").value;
+  const lv=document.getElementById("pm-level").value;
+  if(lv==='prefecture')return;// 都道府県レベルではエリア不要
+  const areaSel=document.getElementById("pm-area");
+  const citySel=document.getElementById("pm-city");
+  areaSel.innerHTML='<option value="">読み込み中...</option>';
+  citySel.innerHTML='<option value="">選択してください</option>';
+  if(!pref)return;
+  const{data}=await sb.from("hotels").select("major_area").eq("prefecture",pref).eq("is_published",true).not("major_area","is",null);
+  const areas=[...new Set((data||[]).map(h=>h.major_area).filter(Boolean))].sort();
+  areaSel.innerHTML='<option value="">選択してください</option>'+areas.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  if(lv==='spot'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='none';}
+  if(lv==='city'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='';}
+}
+
+async function onPmAreaChange(){
+  const lv=document.getElementById("pm-level").value;
+  if(lv!=='city')return;
+  const pref=document.getElementById("pm-pref").value;
+  const area=document.getElementById("pm-area").value;
+  const citySel=document.getElementById("pm-city");
+  citySel.innerHTML='<option value="">読み込み中...</option>';
+  if(!pref)return;
+  let q=sb.from("hotels").select("city").eq("prefecture",pref).eq("is_published",true).not("city","is",null);
+  if(area)q=q.eq("major_area",area);
+  const{data}=await q;
+  const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+  citySel.innerHTML='<option value="">選択してください</option>'+cities.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+
+function getPmTargetName(){
+  const lv=document.getElementById("pm-level").value;
+  if(lv==='prefecture')return document.getElementById("pm-pref").value;
+  if(lv==='spot')return document.getElementById("pm-area").value;
+  if(lv==='city')return document.getElementById("pm-city").value;
+  return'';
+}
+
 async function addPlacement(){
   if(!_pmShopId)return;
-  const targetName=document.getElementById("pm-target-name").value.trim();
-  if(!targetName){toast("エリア名を入力してください");return;}
+  const targetName=getPmTargetName();
+  if(!targetName){toast("エリアを選択してください");return;}
   const level=document.getElementById("pm-level").value;
-  const targetCode=document.getElementById("pm-target-code").value.trim()||null;
   const startedAt=document.getElementById("pm-started-at").value;
   const endedAt=document.getElementById("pm-ended-at").value;
+  // 重複チェック（同一店舗×同一レベル×同一エリア名は1つまで）
+  const{data:existCheck}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",level).eq("target_name",targetName);
+  if(existCheck&&existCheck.length>0){toast("このエリアは既に登録済みです");return;}
+  // 枠数制限チェック
+  const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
+  const maxSlots=limits[level]||0;
+  const{data:currentPlacements}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",level).eq("is_active",true);
+  const currentCount=(currentPlacements||[]).length;
+  if(currentCount>=maxSlots){toast(`${PM_LEVEL_LABELS[level]||level}の掲載枠が上限（${maxSlots}枠）に達しています。プランを追加してください。`);return;}
+  // shop_placements に追加
   const payload={
-    shop_id:_pmShopId,level,target_code:targetCode,target_name:targetName,is_active:true,
+    shop_id:_pmShopId,level,target_code:null,target_name:targetName,is_active:true,
     started_at:startedAt?new Date(startedAt).toISOString():new Date().toISOString(),
     ended_at:endedAt?new Date(endedAt).toISOString():null
   };
   const{error}=await sb.from("shop_placements").insert(payload);
   if(error){toast("追加エラー: "+error.message);return;}
+  // ad_placements にも追加（ポータル表示用、重複チェック）
+  const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
+  const adMode=shop?shop.gender_mode:'men';
+  const{data:adExist}=await sb.from("ad_placements").select("id").eq("shop_id",_pmShopId).eq("placement_type",level).eq("placement_target",targetName);
+  if(!adExist||!adExist.length){
+    await sb.from("ad_placements").insert({
+      shop_id:_pmShopId,placement_type:level,placement_target:targetName,
+      status:'active',mode:adMode,
+      start_date:startedAt||new Date().toISOString().split('T')[0],
+      end_date:endedAt||null
+    });
+  }
   toast("✅ エリアを追加しました");
-  document.getElementById("pm-target-name").value="";
-  document.getElementById("pm-target-code").value="";
+  document.getElementById("pm-pref").value="";
+  document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-ended-at").value="";
   await loadPlacements(_pmShopId);
 }
@@ -1174,10 +1459,56 @@ async function togglePlacement(id,current){
 
 async function deletePlacement(id){
   if(!confirm("このエリアを削除しますか？"))return;
+  const p=placementsData.find(x=>x.id===id);
   const{error}=await sb.from("shop_placements").delete().eq("id",id);
   if(error){toast("削除エラー: "+error.message);return;}
-  placementsData=placementsData.filter(p=>p.id!==id);
+  // ad_placementsからも削除
+  if(p&&_pmShopId){await sb.from("ad_placements").delete().eq("shop_id",_pmShopId).eq("placement_type",p.level).eq("placement_target",p.target_name);}
+  placementsData=placementsData.filter(x=>x.id!==id);
   renderPlacements();toast("🗑 削除しました");
+}
+
+let _editingPlacementId=null;
+function editPlacement(id){
+  const p=placementsData.find(x=>x.id===id);
+  if(!p)return;
+  _editingPlacementId=id;
+  // 新規追加フォームを編集モードにする
+  document.getElementById("pm-level").value=p.level;
+  onPmLevelChange();
+  // フォームタイトルとボタンを編集モードに切替
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(addBtn){addBtn.textContent='✏️ エリアを更新';addBtn.onclick=function(){updatePlacement();};}
+  const levelLabel=PM_LEVEL_LABELS[p.level]||p.level;
+  document.getElementById('pm-form-title').textContent='✏️ エリア編集（現在: '+levelLabel+' '+p.target_name+'）';
+  toast('エリアを選択して「エリアを更新」を押してください');
+}
+
+async function updatePlacement(){
+  if(!_editingPlacementId||!_pmShopId)return;
+  const newTargetName=getPmTargetName();
+  if(!newTargetName){toast("エリアを選択してください");return;}
+  const newLevel=document.getElementById("pm-level").value;
+  const oldP=placementsData.find(x=>x.id===_editingPlacementId);
+  // 重複チェック（自分自身は除外）
+  const{data:existCheck}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",newLevel).eq("target_name",newTargetName);
+  if(existCheck&&existCheck.filter(x=>x.id!==_editingPlacementId).length>0){toast("このエリアは既に登録済みです");return;}
+  // shop_placements更新
+  const{error}=await sb.from("shop_placements").update({level:newLevel,target_name:newTargetName}).eq("id",_editingPlacementId);
+  if(error){toast("更新エラー: "+error.message);return;}
+  // ad_placements も更新
+  if(oldP){
+    await sb.from("ad_placements").delete().eq("shop_id",_pmShopId).eq("placement_type",oldP.level).eq("placement_target",oldP.target_name);
+    const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
+    await sb.from("ad_placements").insert({shop_id:_pmShopId,placement_type:newLevel,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men',start_date:new Date().toISOString().split('T')[0]});
+  }
+  toast("✅ エリアを更新しました");
+  _editingPlacementId=null;
+  // フォームを新規追加モードに戻す
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(addBtn){addBtn.textContent='＋ エリアを追加';addBtn.onclick=function(){addPlacement();};}
+  document.getElementById('pm-form-title').textContent='新規エリア追加';
+  await loadPlacements(_pmShopId);
 }
 
 async function togglePlan(id,currentPlan){const newPlan=currentPlan==="paid"?"free":"paid";const{error}=await sb.from("shops").update({plan:newPlan}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,plan:newPlan}:s);renderShops();toast(newPlan==="paid"?"★ 有料掲載に変更":"無料掲載に変更");}
@@ -1202,7 +1533,8 @@ async function loadReports(){
     return af-bf||new Date(b.created_at)-new Date(a.created_at);
   });
   const deliData=merged.map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
-  const lhData=(lhR.data||[]).map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:"user"}));
+  const shopNames=new Set(shopsData.map(s=>s.shop_name).filter(Boolean));
+  const lhData=(lhR.data||[]).map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_name&&shopNames.has(r.poster_name)?"shop":"user"}));
   reportsData=[...deliData,...lhData];
   reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
@@ -1236,8 +1568,8 @@ function getRepFiltered(){
   return reportsData.filter(r=>{
     if(kF&&r._kind!==kF)return false;
     if(wF){
-      if(wF==="shop_free"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan==="paid")return false;}
-      else if(wF==="shop_paid"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());if(shop?.plan!=="paid")return false;}
+      if(wF==="shop_free"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());const _sp=(contractPlansData.find(p=>p.id===shop?.plan_id)||{}).price||0;if(_sp>0)return false;}
+      else if(wF==="shop_paid"){if(r.poster_type!=="shop")return false;const shop=shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());const _sp=(contractPlansData.find(p=>p.id===shop?.plan_id)||{}).price||0;if(_sp<=0)return false;}
       else{if(r.poster_type==="shop")return false;const needMode=modeMap[wF];if(needMode&&r.hotel_mode!==needMode)return false;}
     }
     if(rF==="yes"){
@@ -1256,7 +1588,7 @@ function getRepFiltered(){
     return true;
   });
 }
-function renderReports(){let data=getRepFiltered();data=applySortArr(data,"reports");const total=data.length;const totalPages=Math.max(1,Math.ceil(total/REP_PER_PAGE));if(repPage>=totalPages)repPage=totalPages-1;const page=data.slice(repPage*REP_PER_PAGE,(repPage+1)*REP_PER_PAGE);console.log("[renderReports]",{filtered:total,page:page.length,flaggedInPage:page.filter(r=>r.flagged_at&&!r.flag_resolved).length});document.getElementById("reports-sub").textContent=`${total} 件`;const pi=document.getElementById("rep-page-info");if(pi)pi.textContent=`${repPage+1} / ${totalPages} ページ`;const prev=document.getElementById("rep-prev");const next=document.getElementById("rep-next");if(prev)prev.disabled=repPage===0;if(next)next.disabled=repPage>=totalPages-1;document.getElementById("reports-tbody").innerHTML=page.length===0?`<tr class="erow"><td colspan="9">該当する投稿がありません</td></tr>`:page.map(r=>{if(r._kind==="loveho"){const gm=r.gender_mode;const gmBadge=gm==="women"?"<span class='badge b-women'>♀ ユーザー</span>":gm==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":gm==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>";const soloLabel=r.solo_entry==="yes"?"<span class='badge b-can'>一人入室◯</span>":r.solo_entry==="no"?"<span class='badge b-cant'>一人入室✕</span>":"—";const lhFlagHTML=r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveLhFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveLhFlag('${r.id}')">未対応に戻す</button>`:"—";const lhRowStyle=`background:rgba(201,168,76,0.04);${r.is_hidden?'opacity:0.45;':''}${r.flagged_at&&!r.flag_resolved?';border-left:3px solid var(--red);background:rgba(192,80,80,0.08);':''}`;return`<tr style="${lhRowStyle}"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${gmBadge.replace(" ユーザー","")}</td><td>${soloLabel}</td><td>${gmBadge}</td><td style="font-size:11px;color:var(--ink-3);">${(r.good_points||[]).slice(0,2).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td style="font-size:11px;min-width:140px;">${lhFlagHTML}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleLhVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delLhReportFromList('${r.id}')">削除</button></div></td></tr>`;}const isUnresolved=r.flagged_at&&!r.flag_resolved;const rowStyle=r.is_hidden?"opacity:0.45;":"";const rowFlagStyle=isUnresolved?"background:rgba(192,80,80,0.08);border-left:3px solid var(--red);":"";return`<tr style="${rowStyle}${rowFlagStyle}"><td style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td>${r.hotel_mode==="women"?"<span class='badge b-women'>♀</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>"}</td><td><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td>${r.poster_type==="shop"?"<span class='badge b-shop'>🏪 店舗</span>":r.hotel_mode==="women"?"<span class='badge b-women'>♀ ユーザー</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>"}</td><td style="font-size:11px;color:var(--ink-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.conditions||[]).join(", ")||"—"}</td><td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td style="font-size:11px;min-width:140px;">${r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveFlag('${r.id}')">未対応に戻す</button>`:"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delReport('${r.id}')">削除</button></div></td></tr>`;}).join("");}
+function renderReports(){let data=getRepFiltered();data=applySortArr(data,"reports");const total=data.length;const totalPages=Math.max(1,Math.ceil(total/REP_PER_PAGE));if(repPage>=totalPages)repPage=totalPages-1;const page=data.slice(repPage*REP_PER_PAGE,(repPage+1)*REP_PER_PAGE);console.log("[renderReports]",{filtered:total,page:page.length,flaggedInPage:page.filter(r=>r.flagged_at&&!r.flag_resolved).length});document.getElementById("reports-sub").textContent=`${total} 件`;const pi=document.getElementById("rep-page-info");if(pi)pi.textContent=`${repPage+1} / ${totalPages} ページ`;const prev=document.getElementById("rep-prev");const next=document.getElementById("rep-next");if(prev)prev.disabled=repPage===0;if(next)next.disabled=repPage>=totalPages-1;document.getElementById("reports-tbody").innerHTML=page.length===0?`<tr class="erow"><td colspan="9">該当する投稿がありません</td></tr>`:page.map(r=>{if(r._kind==="loveho"){const gm=r.gender_mode;const gmBadge=gm==="women"?"<span class='badge b-women'>♀ ユーザー</span>":gm==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":gm==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>";const soloLabel=r.solo_entry==="yes"?"<span class='badge b-can'>一人入室◯</span>":r.solo_entry==="no"?"<span class='badge b-cant'>一人入室✕</span>":"—";const lhFlagHTML=r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveLhFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveLhFlag('${r.id}')">未対応に戻す</button>`:"—";const lhRowStyle=`background:rgba(201,168,76,0.04);${r.is_hidden?'opacity:0.45;':''}${r.flagged_at&&!r.flag_resolved?';border-left:3px solid var(--red);background:rgba(192,80,80,0.08);':''}`;return`<tr style="${lhRowStyle}"><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${gmBadge.replace(" ユーザー","")}</td><td data-label="結果">${soloLabel}</td><td data-label="投稿者">${gmBadge}</td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.good_points||[]).slice(0,2).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td data-label="報告" style="font-size:11px;min-width:140px;">${lhFlagHTML}</td><td data-label="操作"><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleLhVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delLhReportFromList('${r.id}')">削除</button></div></td></tr>`;}const isUnresolved=r.flagged_at&&!r.flag_resolved;const rowStyle=r.is_hidden?"opacity:0.45;":"";const rowFlagStyle=isUnresolved?"background:rgba(192,80,80,0.08);border-left:3px solid var(--red);":"";return`<tr style="${rowStyle}${rowFlagStyle}"><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.hotel_mode==="women"?"<span class='badge b-women'>♀</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="投稿者">${r.poster_type==="shop"?"<span class='badge b-shop'>🏪 店舗</span>":r.hotel_mode==="women"?"<span class='badge b-women'>♀ ユーザー</span>":r.hotel_mode==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":r.hotel_mode==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>"}</td><td data-label="条件" style="font-size:11px;color:var(--ink-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td data-label="報告" style="font-size:11px;min-width:140px;">${r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" onclick="resolveFlag('${r.id}')">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" onclick="unresolveFlag('${r.id}')">未対応に戻す</button>`:"—"}</td><td data-label="操作"><div class="btn-row"><button class="btn b-btn-gold" onclick="openRepEdit('${r.id}')">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" onclick="delReport('${r.id}')">削除</button></div></td></tr>`;}).join("");}
 function repChangePage(delta){repPage+=delta;renderReports();}
 function openRepEdit(id){
   const r=reportsData.find(r=>String(r.id)===String(id));
@@ -1296,13 +1628,19 @@ function openRepEdit(id){
       const o=document.createElement("option"); o.value=r.atmosphere; o.textContent=r.atmosphere; o.selected=true; atmSel.appendChild(o);
     }
 
-    // 時間帯セレクト
+    // 時間帯セレクト（現在の選択肢 + DBにある旧フォーマットも含める）
     const tsSel = document.getElementById("re-lh-time-slot");
     const tsFallback = ["早朝（5:00〜8:00）","朝（8:00〜11:00）","昼（11:00〜16:00）","夕方（16:00〜18:00）","夜（18:00〜23:00）","深夜（23:00〜5:00）"];
-    tsSel.innerHTML = '<option value="">未選択</option>' + tsFallback.map(l=>`<option value="${esc(l)}"${r.time_slot===l?" selected":""}>${esc(l)}</option>`).join("");
+    const tsOptions = [...tsFallback];
+    if (r.time_slot && !tsOptions.includes(r.time_slot)) tsOptions.push(r.time_slot);
+    tsSel.innerHTML = '<option value="">未選択</option>' + tsOptions.map(l=>`<option value="${esc(l)}"${r.time_slot===l?" selected":""}>${esc(l)}</option>`).join("");
 
-    document.getElementById("re-lh-solo").value = r.solo_entry||"";
-    document.getElementById("re-lh-multi").value = r.multi_person===true?"true":r.multi_person===false?"false":"";
+    // 店舗投稿チェックボックスの状態をセット
+    const isShopPost = r.poster_type === 'shop' || (r.poster_name && shopsData.some(s => s.shop_name === r.poster_name));
+    document.getElementById("re-lh-shop-mode").checked = isShopPost;
+    toggleLhShopMode(isShopPost, r.solo_entry);
+    // multi_person: trueのみ「OK」、falseやnullは「未選択」（ポータルと同じ動作）
+    document.getElementById("re-lh-multi").value = r.multi_person===true?"true":"";
 
     // チェックポイント
     const selGp = r.good_points||[];
@@ -1348,7 +1686,7 @@ async function saveRepEdit(){
     const time_slot = document.getElementById("re-lh-time-slot").value||null;
     const good_points = [...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
     const gender_mode = document.getElementById("re-gender-mode").value||"men";
-    const payload = {atmosphere,solo_entry,multi_person,good_points,poster_name,time_slot:time_slot||comment&&null,comment,gender_mode};
+    const payload = {atmosphere,solo_entry,multi_person,good_points,poster_name,time_slot,comment,gender_mode};
     const newDate2 = document.getElementById("re-created-at").value;
     if(newDate2) payload.created_at = new Date(newDate2).toISOString();
     const{error}=await sb.from("loveho_reports").update(payload).eq("id",id);
@@ -1423,29 +1761,76 @@ async function geocodeAndFill(prefix){
   }
 }
 
-async function loadHotels(){const{data}=await sb.from("hotels").select(HOTEL_SELECT_COLS).order("name").limit(500);hotelsData=data||[];const prefs=[...new Set(hotelsData.map(h=>h.prefecture).filter(Boolean))].sort();const sel=document.getElementById("hotel-pref-f");prefs.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});renderHotels();}
+// 地方→都道府県→市区町村 カスケード
+const ADMIN_REGION_MAP=[
+  {label:'北海道',prefs:['北海道']},
+  {label:'東北',prefs:['青森県','岩手県','宮城県','秋田県','山形県','福島県']},
+  {label:'関東',prefs:['茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県']},
+  {label:'北陸',prefs:['富山県','石川県','福井県']},
+  {label:'甲信越',prefs:['新潟県','山梨県','長野県']},
+  {label:'東海',prefs:['岐阜県','静岡県','愛知県','三重県']},
+  {label:'関西',prefs:['滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県']},
+  {label:'中国',prefs:['鳥取県','島根県','岡山県','広島県','山口県']},
+  {label:'四国',prefs:['徳島県','香川県','愛媛県','高知県']},
+  {label:'九州',prefs:['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県']},
+  {label:'沖縄',prefs:['沖縄県']}
+];
+function initRegionSelect(){
+  const sel=document.getElementById("hotel-region-f");
+  ADMIN_REGION_MAP.forEach(r=>{const o=document.createElement("option");o.value=r.label;o.textContent=r.label;sel.appendChild(o);});
+}
+function onRegionChange(){
+  const regionLabel=document.getElementById("hotel-region-f").value;
+  const prefSel=document.getElementById("hotel-pref-f");
+  const citySel=document.getElementById("hotel-city-f");
+  prefSel.innerHTML='<option value="">都道府県を選択</option>';
+  citySel.innerHTML='<option value="">市区町村を選択</option>';
+  citySel.disabled=true;
+  if(!regionLabel){prefSel.disabled=true;fetchHotels();return;}
+  const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);
+  if(region){region.prefs.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;prefSel.appendChild(o);});}
+  prefSel.disabled=false;
+  fetchHotels();
+}
+async function onHotelPrefChange(){
+  const pref=document.getElementById("hotel-pref-f").value;
+  const citySel=document.getElementById("hotel-city-f");
+  citySel.innerHTML='<option value="">市区町村を選択</option>';
+  if(!pref){citySel.disabled=true;fetchHotels();return;}
+  // DBから該当都道府県の市区町村一覧を取得
+  const{data}=await sb.from("hotels").select("city").eq("prefecture",pref).not("city","is",null);
+  const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+  cities.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o);});
+  citySel.disabled=cities.length===0;
+  fetchHotels();
+}
+async function loadHotels(){initRegionSelect();fetchHotels();}
 function onHotelSearchInput(){clearTimeout(_hotelSearchTimer);_hotelSearchTimer=setTimeout(fetchHotels,400);}
 async function fetchHotels(){
   const q=document.getElementById("hotel-search").value.trim();
+  const regionLabel=document.getElementById("hotel-region-f").value;
   const pF=document.getElementById("hotel-pref-f").value;
+  const cityF=document.getElementById("hotel-city-f").value;
   const sF=document.getElementById("hotel-source-f").value;
   const pubF=document.getElementById("hotel-pub-f").value;
   let query=sb.from("hotels").select(HOTEL_SELECT_COLS).order("name").limit(200);
-  if(q)query=query.ilike("name",`%${q}%`);
-  if(pF)query=query.eq("prefecture",pF);
+  if(q){const qs=q.replace(/[%_]/g,'');query=query.or('name.ilike.%'+qs+'%,address.ilike.%'+qs+'%');}
+  if(pF){query=query.eq("prefecture",pF);}
+  else if(regionLabel){const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);if(region)query=query.in("prefecture",region.prefs);}
+  if(cityF)query=query.eq("city",cityF);
   if(sF)query=query.eq("source",sF);
   if(pubF==="true")query=query.eq("is_published",true);
   if(pubF==="false")query=query.eq("is_published",false);
   const{data}=await query;hotelsData=data||[];renderHotels();
 }
-function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="6">該当するホテルがありません</td></tr>`:data.map(h=>{const pub=h.is_published!==false;const pubBadge=pub?'<span class="badge b-published">公開中</span>':'<span class="badge b-unpublished">非公開</span>';const pubBtn=pub?`<button class="btn b-btn-gray" onclick="togglePublish(${h.id},true)">非公開にする</button>`:`<button class="btn b-btn-green" onclick="togglePublish(${h.id},false)">公開する</button>`;return`<tr><td style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td style="font-size:12px;color:var(--ink-3);">${h.min_charge?"¥"+parseInt(h.min_charge).toLocaleString()+"~":"—"}</td><td>${pubBadge}</td><td><div class="btn-row">${pubBtn}<button class="btn b-btn-gold" onclick="openEdit(${h.id})">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`;}).join("");}
+function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="8">該当するホテルがありません</td></tr>`:data.map(h=>{const pub=h.is_published!==false;const pubBadge=pub?'<span class="badge b-published">公開中</span>':'<span class="badge b-unpublished">非公開</span>';const pubBtn=pub?`<button class="btn b-btn-gray" onclick="togglePublish(${h.id},true)">非公開にする</button>`:`<button class="btn b-btn-green" onclick="togglePublish(${h.id},false)">公開する</button>`;const srcBadge=h.source==='rakuten'?'<span class="badge b-active">楽天</span>':h.source==='yahoo'?'<span class="badge b-paid">Yahoo</span>':'<span class="badge b-free">手動</span>';return`<tr><td data-label="ホテル名" style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td data-label="都道府県" style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td data-label="市区町村" style="font-size:12px;color:var(--ink-3);">${esc(h.city||"—")}</td><td data-label="最寄り駅" style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td data-label="最安料金" style="font-size:12px;color:var(--ink-3);">${h.min_charge?"¥"+parseInt(h.min_charge).toLocaleString()+"~":"—"}</td><td data-label="ソース">${srcBadge}</td><td data-label="状態">${pubBadge}</td><td data-label="操作"><div class="btn-row">${pubBtn}<button class="btn b-btn-gold" onclick="openEdit(${h.id})">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`;}).join("");}
 async function openEdit(id){const h=hotelsData.find(h=>h.id===id);if(!h)return;document.getElementById("edit-id").value=h.id;document.getElementById("edit-name").value=h.name||"";document.getElementById("edit-type").value=h.hotel_type||"other";document.getElementById("edit-postal").value=h.postal_code||"";document.getElementById("edit-city").value=h.city||"";document.getElementById("edit-address").value=h.address||"";document.getElementById("edit-tel").value=h.tel||"";document.getElementById("edit-station").value=h.nearest_station||"";document.getElementById("edit-lat").value=h.latitude||"";document.getElementById("edit-lng").value=h.longitude||"";document.getElementById("edit-charge").value=h.min_charge||"";document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";document.getElementById("hotel-modal").style.display="flex";await prefillAreaSelects("edit",h.prefecture,h.major_area,h.detail_area);}
 function closeModal(){document.getElementById("hotel-modal").style.display="none";}
 function editToConfirm(){const name=document.getElementById("edit-name").value.trim();if(!name){toast("ホテル名を入力してください");return;}if(!document.getElementById("edit-address").value.trim()){toast("住所を入力してください");return;}if(!document.getElementById("edit-pref").value){toast("都道府県を選択してください");return;}const rows=[["ホテル名",name],["タイプ",HOTEL_TYPE_LABELS[document.getElementById("edit-type").value]||"—"],["郵便番号",document.getElementById("edit-postal").value.trim()||"—"],["都道府県",document.getElementById("edit-pref").value||"—"],["市区町村",document.getElementById("edit-city").value.trim()||"—"],["住所",document.getElementById("edit-address").value.trim()||"—"],["電話番号",document.getElementById("edit-tel").value.trim()||"—"],["最寄り駅",document.getElementById("edit-station").value.trim()||"—"],["エリア",document.getElementById("edit-major-area").value||"—"],["詳細エリア",document.getElementById("edit-detail-area").value||"—"],["緯度",document.getElementById("edit-lat").value||"—"],["経度",document.getElementById("edit-lng").value||"—"],["参考料金",document.getElementById("edit-charge").value?("¥"+parseInt(document.getElementById("edit-charge").value).toLocaleString()):"—"]];document.getElementById("edit-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");document.getElementById("edit-step1").style.display="none";document.getElementById("edit-step2").style.display="";}
 function editBack(){document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";}
 async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const{error}=await sb.from("hotels").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
 async function togglePublish(id,current){const newVal=!current;const{error}=await sb.from("hotels").update({is_published:newVal}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
-async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,min_charge:document.getElementById("edit-charge").value?parseInt(document.getElementById("edit-charge").value):null};const{error}=await sb.from("hotels").update(payload).eq("id",id);if(error){toast("保存エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
+async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,min_charge:document.getElementById("edit-charge").value?parseInt(document.getElementById("edit-charge").value):null,is_edited:true};const{error}=await sb.from("hotels").update(payload).eq("id",id);if(error){toast("保存エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
 function openAddHotel(){
   ["add-name","add-postal","add-city","add-address","add-tel","add-station","add-lat","add-lng","add-charge"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("add-type").value="business";
@@ -1505,6 +1890,8 @@ async function saveNewHotel(){
     source:"manual",
     is_published:false
   };
+  // 電話番号で重複チェック
+  if(payload.tel){const telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){const{data:dup}=await sb.from("hotels").select("id,name").eq("tel",payload.tel).eq("prefecture",payload.prefecture).limit(1);if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
   const{data,error}=await sb.from("hotels").insert(payload).select().maybeSingle();
   if(error){console.error("[saveNewHotel]",error);toast("追加エラー: "+error.message);return;}
   hotelsData.unshift(data);renderHotels();closeAddHotel();toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
@@ -1535,7 +1922,7 @@ async function onMajorAreaChange(prefix){
   if(daSel)daSel.innerHTML='<option value="">（なし）</option>';
   if(!pref||!ma||!daSel)return;
   const{data}=await sb.from('hotels').select('detail_area').eq('prefecture',pref).eq('major_area',ma).not('detail_area','is',null).limit(1000);
-  const details=[...new Set((data||[]).map(d=>d.detail_area))].filter(d=>d!==ma).sort();
+  const details=[...new Set((data||[]).map(d=>d.detail_area))].sort();
   details.forEach(d=>{daSel.innerHTML+='<option value="'+esc(d)+'">'+esc(d)+'</option>';});
 }
 async function prefillAreaSelects(prefix,pref,majorArea,detailArea){
@@ -1544,11 +1931,23 @@ async function prefillAreaSelects(prefix,pref,majorArea,detailArea){
   if(pref){
     await onPrefChange(prefix);
     const maSel=document.getElementById(prefix+"-major-area");
-    if(maSel&&majorArea)maSel.value=majorArea;
-    if(majorArea){
+    if(maSel&&majorArea){
+      maSel.value=majorArea;
+      // value設定が失敗した場合（esc()の影響）、テキスト一致で探す
+      if(maSel.value!==majorArea){
+        for(let i=0;i<maSel.options.length;i++){if(maSel.options[i].textContent===majorArea){maSel.selectedIndex=i;break;}}
+      }
+    }
+    if(majorArea&&maSel&&maSel.value){
       await onMajorAreaChange(prefix);
       const daSel=document.getElementById(prefix+"-detail-area");
-      if(daSel&&detailArea)daSel.value=detailArea;
+      if(daSel&&detailArea){
+        daSel.value=detailArea;
+        // value設定が失敗した場合、テキスト一致で探す
+        if(daSel.value!==detailArea){
+          for(let i=0;i<daSel.options.length;i++){if(daSel.options[i].textContent===detailArea){daSel.selectedIndex=i;break;}}
+        }
+      }
     }
   }
 }
@@ -1591,6 +1990,32 @@ async function editGoodPoint(id,label){const newLabel=prompt("チェックポイ
 async function toggleGoodPoint(id,currentActive){const{error}=await sb.from("loveho_good_points").update({is_active:!currentActive}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
 async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("loveho_good_points").delete().eq("id",id);if(error){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
 async function updateGoodPointCategory(id,category){const{error}=await sb.from("loveho_good_points").update({category}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,category}:c);toast("✅ カテゴリを更新しました");}
+
+// ===== ラブホ店舗/ユーザー切替 =====
+function toggleLhShopMode(isShop, currentVal) {
+  const label = document.getElementById("re-lh-solo-label");
+  const sel = document.getElementById("re-lh-solo");
+  const prev = currentVal !== undefined ? currentVal : sel.value;
+  if (isShop) {
+    label.textContent = 'チェックイン方法（店舗投稿）';
+    sel.innerHTML = '<option value="">未選択</option><option value="yes">はい！ご案内実績有</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有</option>';
+  } else {
+    label.textContent = '一人で先に入れる？';
+    sel.innerHTML = '<option value="">未選択</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>';
+  }
+  sel.value = prev || '';
+  if (prev && sel.value !== prev) {
+    const o = document.createElement("option"); o.value = prev; o.textContent = prev; o.selected = true; sel.appendChild(o);
+  }
+}
+
+// ===== 雰囲気マスタ =====
+let atmospheresData=[];
+async function loadAtmospheres(){const{data,error}=await sb.from("loveho_atmospheres").select("*").order("sort_order");if(error){toast("取得エラー: "+error.message);return;}atmospheresData=data||[];renderAtmospheres();}
+function renderAtmospheres(){document.getElementById("atmosphere-sub").textContent=`全 ${atmospheresData.length} 件`;document.getElementById("atmosphere-list").innerHTML=atmospheresData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:atmospheresData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_atmospheres')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.name)}</span><button class="btn b-btn-gold" onclick="editAtmosphere(${c.id},'${esc(c.name)}')">編集</button><button class="btn b-btn-red" onclick="deleteAtmosphere(${c.id},'${esc(c.name)}')">削除</button></div>`).join("");}
+async function addAtmosphere(){const input=document.getElementById("new-atmosphere");const name=input.value.trim();if(!name){toast("雰囲気を入力してください");return;}const maxOrder=atmospheresData.length?Math.max(...atmospheresData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("loveho_atmospheres").insert({name,sort_order:maxOrder}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー: "+error.message);return;}atmospheresData.push(data);renderAtmospheres();input.value="";toast("✅ 追加しました");}
+async function editAtmosphere(id,name){const newName=prompt("雰囲気を編集してください:",name);if(!newName||newName.trim()===name)return;const{error}=await sb.from("loveho_atmospheres").update({name:newName.trim()}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}atmospheresData=atmospheresData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderAtmospheres();toast("✅ 更新しました");}
+async function deleteAtmosphere(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const{error}=await sb.from("loveho_atmospheres").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}atmospheresData=atmospheresData.filter(c=>c.id!==id);renderAtmospheres();toast("🗑 削除しました");}
 
 // ===== 契約プラン =====
 let contractPlansData=[];
@@ -1650,8 +2075,8 @@ async function toggleHreqStatus(id){
   var r=hotelRequestsData.find(function(r){return String(r.id)===id;});
   if(!r){toast("データが見つかりません");return;}
   var newStatus=r.status==="pending"?"confirmed":"pending";
-  var res=await sb.from("hotel_requests").update({status:newStatus}).eq("id",r.id);
-  if(res.error){toast("更新エラー: "+res.error.message);return;}
+  var res=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:r.id,data:{status:newStatus}})});
+  if(!res.ok){toast("更新エラー: "+(await res.text()));return;}
   hotelRequestsData=hotelRequestsData.map(function(x){return String(x.id)===id?Object.assign({},x,{status:newStatus}):x;});
   updateHreqBadge();renderHotelRequests();
   toast(newStatus==="confirmed"?"✅ 確認済にしました":"🔄 未確認に戻しました");
@@ -1720,8 +2145,8 @@ async function saveHreqAsHotel(){
   console.log("[saveHreqAsHotel] payload:",payload,"hreq_id:",id);
   var r1=await sb.from("hotels").insert(payload).select().maybeSingle();
   if(r1.error){console.error("[saveHreqAsHotel] hotels insert error:",r1.error,"payload:",payload);toast("ホテル追加エラー: "+r1.error.message);return;}
-  var r2=await sb.from("hotel_requests").update({status:"confirmed"}).eq("id",id);
-  if(r2.error){console.error("[saveHreqAsHotel] hotel_requests update error:",r2.error);toast("ステータス更新エラー: "+r2.error.message);return;}
+  var r2=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:id,data:{status:'confirmed'}})});
+  if(!r2.ok){console.error("[saveHreqAsHotel] hotel_requests update error");toast("ステータス更新エラー");return;}
   hotelRequestsData=hotelRequestsData.map(function(r){return String(r.id)===id?Object.assign({},r,{status:"confirmed"}):r;});
   updateHreqBadge();renderHotelRequests();closeHreqEdit();
   toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
@@ -1731,8 +2156,8 @@ async function deleteHotelRequest(id){
   var r=hotelRequestsData.find(function(r){return String(r.id)===id;});
   if(!r){toast("データが見つかりません");return;}
   if(!confirm("「"+r.hotel_name+"」のリクエストを削除しますか？"))return;
-  var res=await sb.from("hotel_requests").delete().eq("id",r.id);
-  if(res.error){toast("削除エラー: "+res.error.message);return;}
+  var res=await fetch('/api/admin-api.php?action=delete',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:r.id})});
+  if(!res.ok){toast("削除エラー: "+(await res.text()));return;}
   hotelRequestsData=hotelRequestsData.filter(function(r){return String(r.id)!==id;});
   updateHreqBadge();renderHotelRequests();
   toast("🗑 削除しました");
@@ -1799,7 +2224,7 @@ general:{subject:"【YobuHo】無料で店舗掲載しませんか？ - 呼べ�
 突然のご連絡失礼いたします。
 呼べるホテル検索ポータル「YobuHo」を運営しております、YobuHo Studioと申します。
 
-現在YobuHoでは、全国42,000件以上のホテルについて「呼べるかどうか」の情報を、ユーザーの口コミと掲載店舗様からの情報の両方から提供しております。
+現在YobuHoでは、全国43,000件以上のホテルについて「呼べるかどうか」の情報を、ユーザーの口コミと掲載店舗様からの情報の両方から提供しております。
 
 この度、貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
 
@@ -1877,7 +2302,7 @@ deli:{subject:"【Deli YobuHo】貴店専用ページを無料で作りません
 突然のご連絡失礼いたします。
 デリヘル対応ホテル検索サイト「Deli YobuHo」を運営しております、YobuHo Studioと申します。
 
-当サイトでは、全国42,000件以上のホテルについて「デリヘルを呼べるかどうか」の情報を提供しており、多くのユーザー様にご利用いただいております。
+当サイトでは、全国43,000件以上のホテルについて「デリヘルを呼べるかどうか」の情報を提供しており、多くのユーザー様にご利用いただいております。
 
 現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
 
@@ -1958,7 +2383,7 @@ jofu:{subject:"【JoFu YobuHo】女性のお客様の安心につながる無料
 突然のご連絡失礼いたします。
 女性向け風俗（女風）対応ホテル検索サイト「JoFu YobuHo」を運営しております、YobuHo Studioと申します。
 
-当サイトでは、全国42,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しております。
+当サイトでは、全国43,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しております。
 
 女性のお客様にとって、ホテル選びは特に重要です。貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
 
@@ -2038,7 +2463,7 @@ ff:{subject:"【YobuHo】女性同士で利用できるホテル情報の無料�
 突然のご連絡失礼いたします。
 同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Studioと申します。
 
-当サイトでは、全国42,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
 
 女性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
 
@@ -2120,7 +2545,7 @@ mm:{subject:"【YobuHo】男性同士で利用できるホテル情報の無料�
 突然のご連絡失礼いたします。
 同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Studioと申します。
 
-当サイトでは、全国42,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
 
 男性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
 
@@ -2230,6 +2655,14 @@ async function loadAdShops(){
     const{data}=await sb.from('shops').select('id,shop_name').eq('status','active').order('shop_name');
     const sel=document.getElementById('ad-shop-select');
     sel.innerHTML='<option value="">選択...</option>'+(data||[]).map(s=>`<option value="${s.id}">${esc(s.shop_name)}</option>`).join('');
+}
+
+function previewAdBanner(){
+    const url=document.getElementById('ad-banner-image-url').value.trim();
+    const preview=document.getElementById('ad-banner-preview');
+    const img=document.getElementById('ad-banner-preview-img');
+    if(url){preview.style.display='';img.src=url;img.onerror=function(){preview.style.display='none';};}
+    else{preview.style.display='none';}
 }
 
 async function updateAdForm(){
@@ -2376,15 +2809,23 @@ async function createAdContract(){
     const adMode=document.getElementById('ad-mode').value||'men';
 
     // 枠の空き確認
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',plan.level).eq('placement_target',target).eq('status','active');
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',plan.level).eq('placement_target',target).eq('status','active');
     if(count>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
 
     // 契約登録
     const{data:contract,error:cErr}=await sb.from('ad_contracts').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate,mode:adMode}).select().single();
     if(cErr){toast('契約登録エラー: '+cErr.message);return;}
 
+    // バナー情報を取得
+    const bannerImageUrl=document.getElementById('ad-banner-image-url').value.trim()||null;
+    const bannerLinkUrl=document.getElementById('ad-banner-link-url').value.trim()||null;
+    const bannerSize=document.getElementById('ad-banner-size').value||'medium';
+    const bannerAlt=document.getElementById('ad-banner-alt').value.trim()||null;
+
     // メイン掲載枠を登録
-    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate,mode:adMode});
+    const placementPayload={shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate,mode:adMode};
+    if(bannerImageUrl){placementPayload.banner_image_url=bannerImageUrl;placementPayload.banner_link_url=bannerLinkUrl;placementPayload.banner_size=bannerSize;placementPayload.banner_alt=bannerAlt;}
+    const{error:pErr}=await sb.from('ad_placements').insert(placementPayload);
     if(pErr){toast('掲載枠登録エラー: '+pErr.message);return;}
 
     toast('✅ 広告契約を登録しました');
@@ -2427,7 +2868,7 @@ async function addBonusPlacement(){
     if(!target){toast('掲載先を選択してください');return;}
 
     // 枠の空き確認
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',bonusPlan.level).eq('placement_target',target).eq('status','active');
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',bonusPlan.level).eq('placement_target',target).eq('status','active');
     if(count>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
 
     const shopId=document.getElementById('ad-shop-select').value;
@@ -2544,7 +2985,7 @@ async function checkSlotStatus(){
     const plan=adPlans.find(p=>p.level===level);
     if(!level||!target||!plan){toast('プランと掲載先を選択してください');return;}
 
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact',head:true}).eq('placement_type',level).eq('placement_target',target).eq('status','active');
+    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',level).eq('placement_target',target).eq('status','active');
     const{data:details}=await sb.from('ad_placements').select('*,shops(shop_name)').eq('placement_type',level).eq('placement_target',target).eq('status','active');
 
     const resultDiv=document.getElementById('slot-status-result');
@@ -2571,7 +3012,7 @@ async function checkSlotStatus(){
 const _origSwitchTab=switchTab;
 switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();};
 
-async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
+async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
 </script>
 </body>
 </html>

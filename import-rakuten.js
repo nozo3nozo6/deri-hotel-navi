@@ -34,6 +34,8 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 function detectHotelType(name) {
     if (!name) return 'other';
+    // ラブホテル判定（他の判定より先に実行）
+    if (/ラブホテル|ファッションホテル|レンタルルーム|ブティックホテル|レジャーホテル|アダルト/.test(name) && !/クラブホテル/.test(name)) return 'love_hotel';
     if (/旅館|温泉|湯|宿|荘|館/.test(name)) return 'ryokan';
     if (/ペンション/.test(name)) return 'pension';
     if (/民宿/.test(name)) return 'minshuku';
@@ -158,7 +160,35 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
 
                 const address = (info.address1 || '') + (info.address2 || '');
 
-                const { error } = await supabase.from('hotels').upsert({
+                // 既存ホテルを確認（重複防止 + 管理者編集保護）
+                const telNorm = (info.telephoneNo || '').replace(/[-\s　・（）()]/g, '');
+                let existingHotel = null;
+
+                // rakuten_hotel_no で既存チェック
+                const { data: byRakuten } = await supabase.from('hotels')
+                    .select('id,rakuten_hotel_no,is_edited')
+                    .eq('rakuten_hotel_no', String(info.hotelNo))
+                    .limit(1);
+                if (byRakuten && byRakuten.length > 0) existingHotel = byRakuten[0];
+
+                // 電話番号で重複チェック
+                if (!existingHotel && telNorm.length >= 8) {
+                    const { data: byTel } = await supabase.from('hotels')
+                        .select('id,rakuten_hotel_no,is_edited')
+                        .eq('tel', info.telephoneNo)
+                        .eq('prefecture', prefecture)
+                        .eq('is_published', true)
+                        .limit(1);
+                    if (byTel && byTel.length > 0 && byTel[0].rakuten_hotel_no !== String(info.hotelNo)) {
+                        console.log(`  ⏭ 電話番号重複スキップ: ${info.hotelName} (TEL: ${info.telephoneNo}, 既存ID: ${byTel[0].id})`);
+                        totalSaved++;
+                        continue;
+                    }
+                }
+
+                // 管理者編集済みのホテルはhotel_type等を保護
+                const newHotelType = (existingHotel && existingHotel.is_edited) ? undefined : detectHotelType(info.hotelName);
+                const payload = {
                     rakuten_hotel_no: String(info.hotelNo),
                     name: info.hotelName,
                     address: address,
@@ -178,8 +208,13 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
                     image_url: info.hotelImageUrl,
                     review_average: info.reviewAverage ? parseFloat(info.reviewAverage) : null,
                     min_charge: info.hotelMinCharge ? parseInt(info.hotelMinCharge) : null,
-                    hotel_type: detectHotelType(info.hotelName)
-                }, { onConflict: 'rakuten_hotel_no' });
+                };
+                if (newHotelType !== undefined) payload.hotel_type = newHotelType;
+                if (existingHotel && existingHotel.is_edited) {
+                    console.log(`  🔒 管理者編集済み保護: ${info.hotelName} (hotel_type維持)`);
+                }
+
+                const { error } = await supabase.from('hotels').upsert(payload, { onConflict: 'rakuten_hotel_no' });
 
                 if (error) console.error('  💥 保存エラー:', error.message);
             }

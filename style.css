@@ -69,11 +69,150 @@
     --bg-4: #f0e4e8;
     --text: #2a1a20;
     --text-2: #5a3a46;
-    --text-3: #9a7a86;
+    --text-3: #6b4453;
     --border: rgba(181,98,122,0.18);
     --border-strong: rgba(181,98,122,0.38);
     --card-shadow: 0 2px 16px rgba(181,98,122,0.08), 0 1px 4px rgba(0,0,0,0.04);
     --card-shadow-hover: 0 8px 32px rgba(181,98,122,0.15), 0 2px 8px rgba(0,0,0,0.07);
+}
+
+/* ==========================================================================
+   ラブホタブ — エロチック・ムードデザイン（全モード共通）
+   ========================================================================== */
+.loveho-mood {
+    background: linear-gradient(180deg, #1a0a12 0%, #2a1020 40%, #1a0a12 100%);
+    border-radius: 16px;
+    padding: 16px 12px;
+    margin-top: 8px;
+    transition: background 0.4s ease, padding 0.3s ease;
+}
+.loveho-mood .hotel-card {
+    background: linear-gradient(135deg, rgba(40,15,28,0.95) 0%, rgba(60,20,40,0.9) 100%);
+    border: 1px solid rgba(200,120,150,0.2);
+    border-radius: 12px;
+    color: #f0e0e6;
+    box-shadow: 0 4px 20px rgba(181,98,122,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+.loveho-mood .hotel-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(200,100,140,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+    border-color: rgba(200,120,150,0.4);
+}
+.loveho-mood .hotel-card .hotel-name {
+    color: #f8e0ea;
+}
+.loveho-mood .hotel-card .hotel-info {
+    color: rgba(240,220,228,0.7);
+}
+.loveho-mood .btn-check {
+    background: linear-gradient(135deg, #9b2d5a 0%, #c44a7a 100%);
+    border: none;
+    color: #fff;
+    border-radius: 20px;
+    box-shadow: 0 2px 10px rgba(180,60,100,0.3);
+}
+.loveho-mood .btn-check:hover {
+    background: linear-gradient(135deg, #c44a7a 0%, #d66a9a 100%);
+    box-shadow: 0 4px 16px rgba(200,80,120,0.4);
+}
+.loveho-mood .btn-report {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(200,120,150,0.3);
+    color: #e0c0cc;
+    border-radius: 20px;
+}
+.loveho-mood .btn-report:hover {
+    background: rgba(200,120,150,0.15);
+    border-color: rgba(200,120,150,0.5);
+}
+.loveho-mood .result-status {
+    color: rgba(240,200,216,0.8);
+}
+
+/* ==========================================================================
+   女性モード — ときめきデザイン強化
+   ========================================================================== */
+/* ヘッダー: ローズグラデーション */
+body[data-mode="women"] .portal-header {
+    background: linear-gradient(180deg, #fff5f7 0%, rgba(253,248,249,0.97) 100%);
+    border-bottom: 1px solid rgba(181,98,122,0.12);
+}
+body[data-mode="women"] .portal-header::before {
+    height: 3px;
+    background: linear-gradient(90deg, #e8a0b4, #b5627a 30%, #d4899e 50%, #b5627a 70%, #e8a0b4);
+}
+
+/* カード: 柔らかい角丸 + ほんのりピンクシャドウ */
+body[data-mode="women"] .hotel-card,
+body[data-mode="women"] .info-links-bar {
+    border-radius: 14px;
+    border-color: rgba(212,137,158,0.2);
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+body[data-mode="women"] .hotel-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(181,98,122,0.12), 0 2px 8px rgba(0,0,0,0.04);
+}
+
+/* ボタン: グラデーション + 丸み */
+body[data-mode="women"] .btn-check,
+body[data-mode="women"] .btn-report {
+    border-radius: 24px;
+    background: linear-gradient(135deg, #c47a8e 0%, #b5627a 100%);
+    border: none;
+    letter-spacing: 0.5px;
+}
+body[data-mode="women"] .btn-check:hover,
+body[data-mode="women"] .btn-report:hover {
+    background: linear-gradient(135deg, #d4899e 0%, #c47a8e 100%);
+    transform: translateY(-1px);
+}
+
+/* パンくずリスト: 柔らかいスタイル */
+body[data-mode="women"] .breadcrumb-inner {
+    background: linear-gradient(135deg, rgba(253,248,249,0.9) 0%, rgba(248,240,242,0.9) 100%);
+}
+
+/* エリアボタン: ピルシェイプ */
+body[data-mode="women"] .area-btn {
+    border-radius: 24px;
+    border-color: rgba(212,137,158,0.25);
+    transition: all 0.2s ease;
+}
+body[data-mode="women"] .area-btn:hover {
+    background: rgba(181,98,122,0.08);
+    border-color: rgba(181,98,122,0.4);
+    transform: translateY(-1px);
+}
+
+/* タブ: 丸みのあるスタイル */
+body[data-mode="women"] .hotel-tab-btn {
+    border-radius: 20px 20px 0 0;
+}
+
+/* 検索バー: ふんわり */
+body[data-mode="women"] .search-input-wrap input,
+body[data-mode="women"] .station-search-input {
+    border-radius: 24px;
+    border-color: rgba(212,137,158,0.25);
+}
+body[data-mode="women"] .search-input-wrap input:focus,
+body[data-mode="women"] .station-search-input:focus {
+    border-color: #d4899e;
+    box-shadow: 0 0 0 3px rgba(181,98,122,0.1);
+}
+
+/* GPS ボタン: ピルシェイプ */
+body[data-mode="women"] .gps-btn {
+    border-radius: 24px;
+    border-color: rgba(212,137,158,0.3);
+}
+
+/* フッター: ローズグラデ */
+body[data-mode="women"] .portal-footer {
+    background: linear-gradient(180deg, #fdf5f7 0%, #f8eef1 100%);
+    border-top: 1px solid rgba(181,98,122,0.12);
 }
 
 /* ==========================================================================
@@ -91,7 +230,7 @@
     --bg-4: #e2e8f2;
     --text: #0e1824;
     --text-2: #3a4a62;
-    --text-3: #7a8aa8;
+    --text-3: #3d5478;
     --border: rgba(42,90,143,0.15);
     --border-strong: rgba(42,90,143,0.35);
     --card-shadow: 0 2px 16px rgba(42,90,143,0.08), 0 1px 4px rgba(0,0,0,0.04);
@@ -113,7 +252,7 @@
     --bg-4: #e8e0f0;
     --text: #1a1428;
     --text-2: #4a3a5e;
-    --text-3: #8a7a9a;
+    --text-3: #564568;
     --border: rgba(138,90,158,0.18);
     --border-strong: rgba(138,90,158,0.38);
     --card-shadow: 0 2px 16px rgba(138,90,158,0.08), 0 1px 4px rgba(0,0,0,0.04);
@@ -1546,9 +1685,23 @@ body[data-mode="men"] .header-title {
     border-radius: 16px;
     padding: 24px 20px 28px;
     width: 100%;
+    max-height: calc(100dvh - 80px);
     box-shadow: 0 8px 48px rgba(0,0,0,0.22);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+}
+
+/* Modal height adjustment for small devices */
+[id$="-modal"] > div {
+    max-height: calc(100dvh - 80px);
+    overflow-y: auto;
+}
+
+@media (max-height: 667px) {
+    .modal-content,
+    [id$="-modal"] > div {
+        max-height: calc(100dvh - 60px);
+    }
 }
 
 .modal-header {
@@ -1858,8 +2011,151 @@ body[data-mode="men"] .header-title {
 #hotel-map {
     z-index: 1;
     border: 1px solid var(--border);
+    touch-action: manipulation;
 }
 #map-toggle-bar {
     display: flex;
     gap: 8px;
+}
+
+/* ==========================================================================
+   広告バナー
+   ========================================================================== */
+.ad-banner-container {
+    text-align: center;
+    margin: 16px 0;
+}
+.ad-banner-container a {
+    display: inline-block;
+}
+.ad-banner-large {
+    width: 100%;
+    max-width: 728px;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+}
+.ad-banner-medium {
+    width: 100%;
+    max-width: 468px;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+}
+.ad-banner-small {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+}
+
+/* ==========================================================================
+   店舗バッジ
+   ========================================================================== */
+.shop-premium-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    background: rgba(201,169,110,0.15);
+    color: #c9a96e;
+    border: 1px solid rgba(201,169,110,0.35);
+    border-radius: 10px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.shop-verified-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    background: rgba(106,138,188,0.12);
+    color: #6a8abc;
+    border: 1px solid rgba(106,138,188,0.3);
+    border-radius: 10px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   エリア店舗セクション
+   ========================================================================== */
+.area-shop-section {
+    max-width: 640px;
+    margin: 0 auto 20px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-2);
+    box-shadow: var(--card-shadow);
+}
+
+/* ==========================================================================
+   Touch target minimum 44px (WCAG 2.5.8)
+   ========================================================================== */
+.lang-btn,
+.breadcrumb-item,
+.filter-chip {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+}
+
+/* ==========================================================================
+   Touch-action: manipulation (300ms tap delay fix)
+   ========================================================================== */
+.area-btn,
+.hotel-card-lux,
+.lang-btn,
+.breadcrumb-item,
+.filter-chip,
+.modal-overlay button,
+.hotel-card-footer button {
+    touch-action: manipulation;
+}
+
+/* ==========================================================================
+   Minimum font-size 12px (accessibility)
+   ========================================================================== */
+.mode-badge,
+.btn-location-label,
+.hotel-rating-star,
+.hotel-price-label,
+.report-state-can span,
+.report-state-cannot span,
+.freshness,
+.card-summary-label,
+.csb-label,
+.summary-num-label,
+.summary-bar-label,
+.report-date {
+    font-size: 12px !important;
+}
+
+/* ==========================================================================
+   Landscape orientation optimization
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 500px) {
+    .modal-content,
+    [id$="-modal"] > div {
+        max-height: calc(100dvh - 40px);
+        padding: 16px 16px 20px;
+    }
+    .area-grid { grid-template-columns: repeat(3, 1fr); }
+    .hotel-card-lux { padding: 12px; }
 }

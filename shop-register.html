@@ -2,10 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp; img-src 'self' data: https:; frame-ancestors 'none';">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://app.rakuten.co.jp https://cdn.jsdelivr.net https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
-    <title>店舗登録 | YobuHo - 掲載店舗募集中</title>
-    <meta name="description" content="YobuHoに店舗を掲載しませんか？届出確認済みの店舗として、ホテル対応情報を提供できます。">
+    <title>店舗掲載・広告掲載 | YobuHo - デリヘル・女性用風俗・出張マッサージ店舗様向け</title>
+    <meta name="description" content="YobuHoに店舗を無料掲載しませんか？デリヘル（デリバリーヘルス）・女性用風俗（女風）・出張マッサージ・メンズエステ店舗様向け。呼べるホテル情報を提供して集客アップ。登録無料。">
+    <meta name="keywords" content="デリヘル 広告,女性用風俗 広告,風俗店 掲載,デリバリーヘルス 集客,女風 広告,出張マッサージ 掲載,メンズエステ 広告,風俗 ホテル情報,YobuHo 店舗登録">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://yobuho.com/shop-register.html">
     <meta property="og:title" content="店舗登録 | YobuHo">
@@ -17,27 +21,32 @@
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="theme-color" content="#b5627a">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
-            --gold: #c9a84c;
-            --gold-dim: #a08030;
-            --gold-bg: rgba(201,168,76,0.08);
-            --gold-border: rgba(201,168,76,0.25);
-            --bg: #0a0a0f;
-            --bg-2: #111118;
-            --bg-3: #1a1a24;
-            --border: rgba(255,255,255,0.15);
-            --border-s: rgba(255,255,255,0.15);
-            --text: #f0ede8;
-            --text-2: rgba(240,237,232,0.7);
-            --text-3: rgba(240,237,232,0.6);
+            --gold: #c9a96e;
+            --gold-dim: #a8894e;
+            --gold-bg: rgba(201,169,110,0.08);
+            --gold-border: rgba(201,169,110,0.25);
+            --rose: #b5627a;
+            --rose-dim: #9a4e65;
+            --rose-bg: rgba(181,98,122,0.07);
+            --rose-border: rgba(181,98,122,0.22);
+            --bg: #f8f7f5;
+            --bg-2: #ffffff;
+            --bg-3: #f3f1ee;
+            --border: #e8e4e0;
+            --border-s: #d5d0cb;
+            --text: #1a1a1a;
+            --text-2: #666666;
+            --text-3: #999999;
             --red: #c05050;
-            --green: #3a9a60;
+            --green: #2e8b57;
             --r: 10px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -76,37 +85,37 @@
             padding: 36px 32px;
             width: 100%;
             max-width: 480px;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 40px rgba(0,0,0,0.08);
         }
         .card-title { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
         .card-sub { font-size: 12px; color: var(--text-3); margin-bottom: 28px; line-height: 1.6; }
         .steps { display: flex; gap: 6px; margin-bottom: 28px; }
         .step-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
-        .step-dot.on { background: var(--gold); }
+        .step-dot.on { background: var(--rose); }
         .f-group { margin-bottom: 18px; }
         .f-label {
             display: block; font-size: 11px; font-weight: 700; color: var(--text-3);
             margin-bottom: 6px; letter-spacing: 0.5px; text-transform: uppercase;
         }
-        .f-label .req { color: var(--gold); margin-left: 2px; }
+        .f-label .req { color: var(--rose); margin-left: 2px; }
         .f-input {
-            width: 100%; padding: 11px 14px; background: var(--bg-3);
+            width: 100%; padding: 11px 14px; background: #fff;
             border: 1px solid var(--border); border-radius: var(--r);
             color: var(--text); font-family: inherit; font-size: 16px;
             outline: none; transition: border-color 0.2s; -webkit-appearance: none;
         }
-        .f-input:focus { border-color: var(--gold); background: rgba(201,168,76,0.05); }
+        .f-input:focus { border-color: var(--rose); background: rgba(181,98,122,0.03); }
         .f-input::placeholder { color: var(--text-3); }
         select.f-input { cursor: pointer; }
-        select.f-input option { background: #1a1a24; color: var(--text); }
+        select.f-input option { background: #fff; color: var(--text); }
         .btn-primary {
-            width: 100%; padding: 14px; background: var(--gold); border: none;
+            width: 100%; padding: 14px; background: var(--rose); border: none;
             border-radius: var(--r); color: #fff; font-family: inherit;
             font-size: 14px; font-weight: 700; cursor: pointer;
             letter-spacing: 0.8px; transition: background 0.2s, opacity 0.2s;
             margin-top: 6px; min-height: 48px;
         }
-        .btn-primary:hover:not(:disabled) { background: var(--gold-dim); }
+        .btn-primary:hover:not(:disabled) { background: var(--rose-dim); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-secondary {
             width: 100%; padding: 12px; background: transparent;
@@ -114,35 +123,35 @@
             color: var(--text-2); font-family: inherit; font-size: 13px;
             cursor: pointer; transition: border-color 0.2s; margin-top: 8px; min-height: 44px;
         }
-        .btn-secondary:hover { border-color: var(--gold-border); color: var(--text); }
+        .btn-secondary:hover { border-color: var(--rose-border); color: var(--text); }
         .err-msg {
             display: none; font-size: 12px; color: var(--red); margin-top: 10px;
             padding: 9px 12px; background: rgba(192,80,80,0.1);
             border: 1px solid rgba(192,80,80,0.2); border-radius: 8px;
         }
         .info-box {
-            background: var(--gold-bg); border: 1px solid var(--gold-border);
+            background: var(--rose-bg); border: 1px solid var(--rose-border);
             border-radius: var(--r); padding: 14px 16px; font-size: 12px;
             color: var(--text-2); line-height: 1.75; margin-bottom: 22px;
         }
         /* ファイルアップロードゾーン */
         .file-zone {
-            border: 1.5px dashed var(--gold-border); border-radius: var(--r);
+            border: 1.5px dashed var(--rose-border); border-radius: var(--r);
             padding: 24px 16px; text-align: center; cursor: pointer;
-            transition: border-color 0.2s, background 0.2s; background: var(--gold-bg);
+            transition: border-color 0.2s, background 0.2s; background: var(--rose-bg);
             position: relative;
         }
         .file-zone:hover, .file-zone.dragover {
-            border-color: var(--gold); background: rgba(201,168,76,0.12);
+            border-color: var(--rose); background: rgba(181,98,122,0.10);
         }
         .file-zone input[type="file"] { display: none; }
         .file-zone-icon { font-size: 30px; margin-bottom: 6px; }
         .file-zone-label { font-size: 13px; color: var(--text-2); line-height: 1.6; }
-        .file-zone-name { font-size: 12px; color: var(--gold); margin-top: 8px; font-weight: 500; }
+        .file-zone-name { font-size: 12px; color: var(--rose); margin-top: 8px; font-weight: 500; }
         .file-preview { margin-top: 10px; max-width: 100%; max-height: 180px; border-radius: 6px; object-fit: contain; }
         /* パスワード表示切替 */
         .pw-toggle { display: flex; align-items: center; gap: 6px; margin-top: 8px; cursor: pointer; font-size: 12px; color: var(--text-3); }
-        .pw-toggle input { accent-color: var(--gold); cursor: pointer; }
+        .pw-toggle input { accent-color: var(--rose); cursor: pointer; }
         /* 確認画面 */
         .confirm-table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
         .confirm-table th {
@@ -163,10 +172,38 @@
         .f-err { font-size: 12px; color: var(--red); margin-top: 5px; display: none; }
         .f-input.has-error { border-color: var(--red) !important; }
         .file-zone.has-error { border-color: var(--red) !important; }
+        /* 料金テーブル */
+        .pricing-section { width: 100%; max-width: 720px; margin-bottom: 32px; }
+        .pricing-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+        .pricing-sub { font-size: 12px; color: var(--text-3); text-align: center; margin-bottom: 20px; line-height: 1.7; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+        .pricing-card {
+            background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px;
+            padding: 22px 18px; text-align: center; transition: box-shadow 0.2s, border-color 0.2s;
+        }
+        .pricing-card:hover { border-color: var(--gold-border); box-shadow: 0 4px 18px rgba(201,169,110,0.12); }
+        .pricing-card.featured { border-color: var(--gold); box-shadow: 0 2px 12px rgba(201,169,110,0.15); position: relative; }
+        .pricing-card.featured::before {
+            content: 'おすすめ'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--gold), #e0c060); color: #fff; font-size: 10px;
+            font-weight: 700; padding: 2px 12px; border-radius: 10px; letter-spacing: 0.05em;
+        }
+        .pricing-plan-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+        .pricing-price { font-size: 22px; font-weight: 700; color: var(--gold-dim); margin-bottom: 4px; }
+        .pricing-price small { font-size: 12px; font-weight: 400; color: var(--text-3); }
+        .pricing-desc { font-size: 11px; color: var(--text-2); line-height: 1.7; }
+        .pricing-free .pricing-price { color: var(--green); }
+
         @media (max-width: 500px) {
             body { padding: 24px 12px 60px; }
             .card { padding: 28px 18px; }
             .card-title { font-size: 17px; }
+            .pricing-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .pricing-card { padding: 16px 12px; }
+            .pricing-price { font-size: 18px; }
+        }
+        @media (max-width: 360px) {
+            .pricing-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -174,11 +211,58 @@
     <div class="logo"><b>YobuHo</b></div>
     <div class="logo-sub">Shop Registration</div>
 
+    <!-- 無料掲載アピール -->
+    <section class="pricing-section">
+        <div class="pricing-title">掲載無料！</div>
+        <div class="pricing-sub">YobuHoへの店舗掲載は<strong>完全無料</strong>。<br>今すぐ登録して、ホテル情報の発信を始めましょう。</div>
+        <div style="max-width:480px;margin:16px auto 0;text-align:left;">
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">✅</span>
+                    <div><strong style="color:var(--gold-dim);">店舗名がポータルに掲載</strong><br><span style="font-size:13px;color:var(--text-3);">対応エリアのホテル一覧に店舗名が表示。ユーザー口コミに加えて店舗の公式情報があることで「この店なら安心」という信頼感が生まれ、貴店への導線になります</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">📝</span>
+                    <div><strong style="color:var(--gold-dim);">「ご案内実績あり」を公式発信</strong><br><span style="font-size:13px;color:var(--text-3);">実際にご案内できたホテルの実績を店舗公式として投稿。「このホテルならこの店が対応済み」とユーザーに伝わり、予約前の不安を解消して利用につなげます</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">🏷️</span>
+                    <div><strong style="color:var(--gold-dim);">認証店舗バッジ付与</strong><br><span style="font-size:13px;color:var(--text-3);">口コミに「認証店舗」マークが表示され、信頼性がアップ</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">🔗</span>
+                    <div><strong style="color:var(--gold-dim);">店舗専用URLを発行</strong><br><span style="font-size:13px;color:var(--text-3);">自店舗の情報だけが表示される専用ページを発行。自社サイトやSNSに貼るだけで「呼べるホテル一覧」が完成。ホテルリストを自分で作る手間なし、交通費や対応情報もまとめて掲載できます</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">📊</span>
+                    <div><strong style="color:var(--gold-dim);">店舗管理画面を利用</strong><br><span style="font-size:13px;color:var(--text-3);">投稿の管理・編集がいつでも可能。スマホからも操作できます</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">🔍</span>
+                    <div><strong style="color:var(--gold-dim);">全国43,000件以上のホテルに対応</strong><br><span style="font-size:13px;color:var(--text-3);">対応エリアのホテルを検索して情報を登録できます</span></div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <span style="font-size:20px;flex-shrink:0;">💰</span>
+                    <div><strong style="color:var(--gold-dim);">初期費用・月額費用ゼロ</strong><br><span style="font-size:13px;color:var(--text-3);">完全無料で始められます。クレジットカード登録も不要です</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ステップ1: メールアドレス入力 -->
     <div class="card" id="step-email">
         <div class="card-title">店舗様登録</div>
         <div class="card-sub">登録メールアドレスに認証リンクを送信します</div>
         <div class="steps"><div class="step-dot on"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+        <div class="f-group">
+            <label class="f-label" for="reg-genre">店舗ジャンル<span class="req">*</span></label>
+            <select id="reg-genre" class="f-input">
+                <option value="men">男性向け（デリヘル）</option>
+                <option value="women">女性向け（女性用風俗）</option>
+                <option value="men_same">男性同士向け</option>
+                <option value="women_same">女性同士向け</option>
+            </select>
+        </div>
         <div class="f-group">
             <label class="f-label" for="reg-email">メールアドレス<span class="req">*</span></label>
             <input type="email" id="reg-email" class="f-input" placeholder="shop@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')sendOtp()">
@@ -207,9 +291,9 @@
         <div class="card-title">店舗情報入力</div>
         <div class="card-sub">審査後、メールにてご連絡いたします</div>
         <div class="steps"><div class="step-dot on"></div><div class="step-dot on"></div><div class="step-dot"></div></div>
-        <div id="session-email-box" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);padding:12px 16px;border-radius:10px;margin-bottom:20px;display:none;">
+        <div id="session-email-box" style="background:var(--rose-bg);border:1px solid var(--rose-border);padding:12px 16px;border-radius:10px;margin-bottom:20px;display:none;">
             <p style="margin:0;font-size:12px;color:var(--text-3);">貴店様のID（メールアドレス）</p>
-            <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:var(--gold);" id="session-email-val"></p>
+            <p style="margin:4px 0 0;font-size:15px;font-weight:700;color:var(--rose);" id="session-email-val"></p>
         </div>
         <div class="info-box">
             📋 審査には通常2〜3営業日かかります。承認後にポータル画面への掲載が開始されます。<br>
@@ -316,6 +400,38 @@
         const sb = supabase.createClient(SB_URL, SB_KEY);
         const GENRE_LABELS = { men: '男性向け（デリヘル）', women: '女性向け（女性用風俗）', men_same: '男性同士向け', women_same: '女性同士向け' };
 
+        // サブドメイン/URLパラメータ/リファラーからジャンル自動判定
+        function detectGenre() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('genre') && GENRE_LABELS[params.get('genre')]) return params.get('genre');
+            const host = location.hostname;
+            if (host.startsWith('deli.')) return 'men';
+            if (host.startsWith('jofu.')) return 'women';
+            if (host.startsWith('same.')) return 'men_same';
+            // リファラーからサブドメイン/modeパラメータ判定
+            try {
+                const ref = new URL(document.referrer);
+                if (ref.hostname.startsWith('deli.')) return 'men';
+                if (ref.hostname.startsWith('jofu.')) return 'women';
+                if (ref.hostname.startsWith('same.')) return 'men_same';
+                const refMode = new URLSearchParams(ref.search).get('mode');
+                if (refMode && GENRE_LABELS[refMode]) return refMode;
+            } catch (e) {}
+            // localStorageに保存されたジャンル
+            const saved = localStorage.getItem('shop_register_genre');
+            if (saved && GENRE_LABELS[saved]) return saved;
+            return null;
+        }
+        const _detectedGenre = detectGenre();
+        if (_detectedGenre) {
+            document.addEventListener('DOMContentLoaded', () => {
+                const sel = document.getElementById('shop-gender');
+                if (sel) sel.value = _detectedGenre;
+                const regSel = document.getElementById('reg-genre');
+                if (regSel) regSel.value = _detectedGenre;
+            });
+        }
+
         function showNotice(msg, duration = 3000) {
             let el = document.getElementById('shop-notice-toast');
             if (!el) {
@@ -350,6 +466,7 @@
 
         // ========== 認証 ==========
         let _authResolved = false;
+        let _cachedSession = null;
 
         function displaySessionEmail(email) {
             const box = document.getElementById('session-email-box');
@@ -363,10 +480,12 @@
         sb.auth.onAuthStateChange(async (event, session) => {
             if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
                 _authResolved = true;
+                _cachedSession = session;
                 const params = new URLSearchParams(window.location.search);
                 if (params.get('step') === 'profile') {
                     displaySessionEmail(session.user.email);
                     await checkResubmission(session.user.email);
+                    if (_detectedGenre) document.getElementById('shop-gender').value = _detectedGenre;
                     showStep('form');
                 }
             }
@@ -391,8 +510,10 @@
             if (params.get('step') === 'profile') {
                 const { data: { session } } = await sb.auth.getSession();
                 if (session) {
+                    _cachedSession = session;
                     displaySessionEmail(session.user.email);
                     await checkResubmission(session.user.email);
+                    if (_detectedGenre) document.getElementById('shop-gender').value = _detectedGenre;
                     showStep('form');
                     return;
                 }
@@ -409,22 +530,37 @@
             const email = document.getElementById('reg-email').value.trim();
             if (!email) { showErr('email-err', 'メールアドレスを入力してください'); return; }
             showErr('email-err', '');
+            const selectedGenre = document.getElementById('reg-genre').value;
+            // ジャンルをlocalStorageに保存（認証リダイレクト後に復元）
+            localStorage.setItem('shop_register_genre', selectedGenre);
             const btn = document.getElementById('send-btn');
             btn.disabled = true;
-            btn.textContent = '送信中...';
+            btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px;"><span class="spin-icon" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span>送信中...</span>';
+            if (!document.getElementById('spin-style')) {
+                const s = document.createElement('style');
+                s.id = 'spin-style';
+                s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+                document.head.appendChild(s);
+            }
             const { error } = await sb.auth.signInWithOtp({
                 email,
-                options: { emailRedirectTo: 'https://yobuho.com/shop-register.html?step=profile' }
+                options: { emailRedirectTo: 'https://yobuho.com/shop-register.html?step=profile&genre=' + selectedGenre }
             });
-            btn.disabled = false;
-            btn.textContent = '認証メールを送信する';
-            if (error) { showErr('email-err', 'エラー: ' + error.message); return; }
+            if (error) {
+                btn.disabled = false;
+                btn.textContent = '認証メールを送信する';
+                showErr('email-err', 'エラー: ' + error.message);
+                return;
+            }
 
-            // shopsテーブルにemail_pendingで仮レコード作成（重複時はupsertで上書き）
-            await sb.from('shops').upsert(
-                { email, status: 'email_pending', created_at: new Date().toISOString() },
-                { onConflict: 'email' }
-            );
+            // shopsテーブルにemail_pendingで仮レコード作成（PHP経由）
+            try {
+                await fetch('https://yobuho.com/api/submit-shop.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, shop_name: 'pending' })
+                });
+            } catch (e) {  }
 
             showStep('sent');
         }
@@ -585,11 +721,38 @@
             btn.textContent = '送信中...';
 
             try {
-                console.log('1. 登録開始');
+                
 
-                const { data: { session }, error: sessErr } = await sb.auth.getSession();
-                if (sessErr) console.error('getSession error:', sessErr);
-                console.log('2. セッション取得:', session);
+                // キャッシュ済みセッションを優先（ロックハング回避）
+                let session = _cachedSession;
+                if (!session) {
+                    // getSessionにタイムアウトを設ける（ロックハング対策）
+                    const sessionPromise = sb.auth.getSession();
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('timeout')), 5000)
+                    );
+                    try {
+                        const { data, error: sessErr } = await Promise.race([sessionPromise, timeoutPromise]);
+                        if (sessErr) { /* session error */ }
+                        session = data?.session;
+                    } catch (e) {
+                        
+                        // localStorageからセッションを直接取得
+                        try {
+                            const stored = localStorage.getItem('sb-ojkhwbvoaiaqekxrbpdd-auth-token');
+                            if (stored) {
+                                const parsed = JSON.parse(stored);
+                                if (parsed?.access_token && parsed?.user) {
+                                    session = parsed;
+                                    
+                                }
+                            }
+                        } catch (lsErr) {
+                            
+                        }
+                    }
+                }
+                
                 if (!session) throw new Error('セッションが切れました。ページをリロードしてください。');
                 const userEmail = session.user.email;
                 const userId = session.user.id;
@@ -601,28 +764,26 @@
                 const pw = document.getElementById('shop-pw').value;
                 const docFile = _selectedFile || document.getElementById('shop-doc').files[0];
 
-                // Storage にアップロード（documents バケット）
+                // 届出確認書画像をBase64でdocument_urlに保存
                 let documentUrl = null;
                 if (docFile) {
-                    const ext = docFile.name.split('.').pop().toLowerCase();
-                    const filePath = `shop-licenses/${userId}/${Date.now()}.${ext}`;
-                    console.log('3. 画像アップロード開始:', filePath);
-                    const uploadResult = await sb.storage
-                        .from('documents')
-                        .upload(filePath, docFile, { upsert: true });
-                    console.log('4. 画像アップロード結果:', uploadResult);
-                    if (uploadResult.error) {
-                        console.error('upload error:', JSON.stringify(uploadResult.error));
-                        throw new Error('書類アップロードエラー: ' + uploadResult.error.message);
+                    
+                    try {
+                        documentUrl = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => resolve(reader.result);
+                            reader.onerror = () => reject(new Error('画像の読み込みに失敗'));
+                            reader.readAsDataURL(docFile);
+                        });
+                    } catch (readErr) {
+                        
+                        documentUrl = null;
                     }
-                    const { data: urlData } = sb.storage.from('documents').getPublicUrl(filePath);
-                    documentUrl = urlData?.publicUrl || null;
-                    console.log('   画像URL:', documentUrl);
                 } else {
-                    console.log('3-4. 画像ファイルなし（スキップ）');
+                    
                 }
 
-                // shops テーブルを更新
+                // shops テーブルを更新（PHP経由、service key使用）
                 const payload = {
                     email:            userEmail,
                     auth_user_id:     userId,
@@ -631,35 +792,19 @@
                     shop_url:         url || null,
                     shop_tel:         tel || null,
                     document_url:     documentUrl,
-                    status:           'registered',
                 };
                 if (pw) payload.password_hash = btoa(pw);
-                if (location.hostname !== 'yobuho.com' && location.hostname !== 'localhost') { showNotice('不正なアクセスです'); return; }
-                console.log('5. shopsテーブルupsert開始', payload);
-                const result = await sb.from('shops').upsert(payload, { onConflict: 'email' });
-                console.log('6. shopsテーブルupsert結果:', JSON.stringify(result));
-                if (result.error) {
-                    console.error('upsert詳細エラー:', JSON.stringify(result.error));
-                    throw new Error('登録エラー: ' + (result.error.message || JSON.stringify(result.error)));
+                
+                const res = await fetch('https://yobuho.com/api/submit-shop.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await res.json();
+                if (!res.ok || !resData.success) {
+                    throw new Error('登録エラー: ' + (resData.error || '不明なエラー'));
                 }
-
-                // 7. 保存を検証（RLSサイレント失敗対策）
-                console.log('7. 保存検証中...');
-                const { data: verify, error: verifyErr } = await sb.from('shops')
-                    .select('id,email,shop_name,status')
-                    .eq('email', userEmail)
-                    .single();
-                console.log('8. 保存検証結果:', JSON.stringify(verify), verifyErr ? JSON.stringify(verifyErr) : 'OK');
-                if (verifyErr || !verify) {
-                    console.error('保存検証失敗: データがテーブルに存在しません');
-                    throw new Error('登録に失敗しました。もう一度お試しください。');
-                }
-                if (verify.status !== 'registered') {
-                    console.error('保存検証失敗: statusが更新されていません:', verify.status);
-                    throw new Error('登録に失敗しました。もう一度お試しください。');
-                }
-
-                console.log('9. 登録完了！');
+                
 
                 // 登録受付メール送信
                 // ⚠️ CORS注意: send-mail.php側でAccess-Control-Allow-Origin: https://yobuho.comを設定すること
@@ -678,18 +823,23 @@
                                 '<p>届出確認書の審査完了後、管理画面のログインURLをお送りいたします。</p>' +
                                 '<p>審査には通常1〜3営業日かかります。</p>' +
                                 '<div style="background:#f8f0f2;padding:16px;border-radius:8px;margin:16px 0;">' +
-                                '<p style="margin:0;"><strong>登録内容</strong></p>' +
-                                '<p>店舗名: ' + esc(name) + '</p>' +
-                                '<p>メール: ' + esc(userEmail) + '</p>' +
+                                '<p style="margin:0 0 12px;"><strong>登録内容</strong></p>' +
+                                '<table style="width:100%;border-collapse:collapse;font-size:14px;">' +
+                                '<tr><td style="padding:6px 0;color:#888;width:90px;">店舗名</td><td style="padding:6px 0;">' + esc(name) + '</td></tr>' +
+                                '<tr><td style="padding:6px 0;color:#888;">ジャンル</td><td style="padding:6px 0;">' + esc(GENRE_LABELS[genre] || genre) + '</td></tr>' +
+                                '<tr><td style="padding:6px 0;color:#888;">メール</td><td style="padding:6px 0;">' + esc(userEmail) + '</td></tr>' +
+                                '<tr><td style="padding:6px 0;color:#888;">電話番号</td><td style="padding:6px 0;">' + esc(tel) + '</td></tr>' +
+                                '<tr><td style="padding:6px 0;color:#888;">URL</td><td style="padding:6px 0;word-break:break-all;">' + esc(url) + '</td></tr>' +
+                                '</table>' +
                                 '</div>' +
                                 '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">' +
                                 '<p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p>' +
                                 '</div>'
                         })
                     });
-                    console.log('10. 登録受付メール送信完了');
+                    
                 } catch (mailErr) {
-                    console.error('メール送信エラー:', mailErr);
+                    
                 }
 
                 // 完了画面に登録内容を表示
@@ -701,7 +851,7 @@
                     <tr><th>URL</th><td>${esc(url)}</td></tr>`;
                 showStep('done');
             } catch (e) {
-                console.error('登録エラー catch:', e);
+                
                 showErr('confirm-err', e.message);
                 btn.disabled = false;
                 btn.textContent = '登録する';
@@ -749,15 +899,25 @@
         })();
     </script>
 
-<footer style="background:#2c2c2c; padding:12px 16px; margin-top:40px; text-align:center; font-size:11px; line-height:1.6;">
-  <div style="display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;">
-    <a href="/terms.html" style="color:#aaa; text-decoration:none;">利用規約</a>
-    <span style="color:#555;">|</span>
-    <a href="/privacy.html" style="color:#aaa; text-decoration:none;">プライバシーポリシー</a>
-    <span style="color:#555;">|</span>
-    <a href="/contact.html" style="color:#aaa; text-decoration:none;">お問い合わせ</a>
-  </div>
-  <p style="margin:4px 0 0; color:#888;">&copy; 2026 YobuHo Studio All Rights Reserved.</p>
+<footer style="background:var(--bg-3); padding:20px 16px 12px; margin-top:40px; text-align:center; font-size:11px; line-height:1.6;">
+  <nav style="display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;" aria-label="フッターナビゲーション">
+    <a href="/index.html" style="color:var(--text-3); text-decoration:none;">トップページ</a>
+    <span style="color:var(--border);">|</span>
+    <a href="https://deli.yobuho.com/" style="color:var(--text-3); text-decoration:none;">デリヘル専用</a>
+    <span style="color:var(--border);">|</span>
+    <a href="https://jofu.yobuho.com/" style="color:var(--text-3); text-decoration:none;">女性用風俗専用</a>
+    <span style="color:var(--border);">|</span>
+    <a href="https://same.yobuho.com/" style="color:var(--text-3); text-decoration:none;">同性利用専用</a>
+    <span style="color:var(--border);">|</span>
+    <a href="https://loveho.yobuho.com/" style="color:var(--text-3); text-decoration:none;">ラブホテル検索</a>
+    <span style="color:var(--border);">|</span>
+    <a href="/terms.html" style="color:var(--text-3); text-decoration:none;">利用規約</a>
+    <span style="color:var(--border);">|</span>
+    <a href="/privacy.html" style="color:var(--text-3); text-decoration:none;">プライバシーポリシー</a>
+    <span style="color:var(--border);">|</span>
+    <a href="/contact.html" style="color:var(--text-3); text-decoration:none;">お問い合わせ</a>
+  </nav>
+  <p style="margin:8px 0 0; color:var(--text-3);">&copy; 2026 YobuHo Studio All Rights Reserved.</p>
 </footer>
 </body>
 </html>

@@ -2,181 +2,330 @@
 <html lang="ja" prefix="og: https://ogp.me/ns#">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ラブホテル検索・口コミ | LoveHo YobuHo - 全国6,000件以上</title>
-    <meta name="description" content="全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報をお届けします。">
-    <meta name="keywords" content="ラブホテル 口コミ,ラブホ 検索,ラブホテル 清潔,ラブホ おすすめ,ラブホテル 一人,ラブホ 外出,ラブホテル 駐車場,ラブホ コスパ">
+    <meta name="description" content="全国6,000件以上のラブホテル・レンタルルームの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報をお届けします。">
+    <meta name="keywords" content="ラブホテル 口コミ,ラブホ 検索,ラブホテル 清潔,ラブホ おすすめ,ラブホテル 一人入り,ラブホ 一人利用,ラブホテル 雰囲気,ラブホ コスパ,ラブホテル 同性,ラブホ カップル,ラブホテル デリヘル,ラブホ 風俗,レンタルルーム,ラブホテル レビュー">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://loveho.yobuho.com/">
-    <meta name="theme-color" content="#1a1a2e">
-    <link rel="icon" type="image/svg+xml" href="https://yobuho.com/favicon.svg">
-
-    <!-- OGP -->
-    <meta property="og:type" content="website">
     <meta property="og:title" content="ラブホテル検索・口コミ | LoveHo YobuHo">
-    <meta property="og:description" content="全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報をお届けします。">
+    <meta property="og:description" content="全国6,000件以上のラブホテル・レンタルルームの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど。">
     <meta property="og:url" content="https://loveho.yobuho.com/">
+    <meta property="og:type" content="website">
     <meta property="og:site_name" content="LoveHo YobuHo">
     <meta property="og:locale" content="ja_JP">
-    <meta name="twitter:card" content="summary">
-
-    <!-- 構造化データ -->
+    <meta property="og:image" content="https://yobuho.com/ogp.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="LoveHo YobuHo - ラブホテル検索・口コミ">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ラブホテル検索・口コミ | LoveHo YobuHo">
+    <meta name="twitter:description" content="全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど。">
+    <meta name="twitter:image" content="https://yobuho.com/ogp.png">
+    <meta name="theme-color" content="#1a1a2e">
+    <link rel="icon" href="https://yobuho.com/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="https://yobuho.com/favicon.svg" type="image/svg+xml">
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "LoveHo YobuHo - ラブホテル検索・口コミ",
+      "@type": "WebSite",
+      "name": "LoveHo YobuHo",
       "url": "https://loveho.yobuho.com/",
-      "description": "全国6,000件以上のラブホテルの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報。",
-      "applicationCategory": "LifestyleApplication",
-      "inLanguage": "ja",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "JPY"
+      "description": "全国6,000件以上のラブホテル・レンタルルームの口コミ・評価を検索。清潔感・雰囲気・一人で入れるかなど、リアルな情報。",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://yobuho.com/portal.html?mode=men&tab=loveho&search={search_term_string}",
+        "query-input": "required name=search_term_string"
       }
     }
     </script>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./loveho-style.css?v=1">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --accent: #c9a96e;
+            --accent-dim: #a8894e;
+            --accent-bg: rgba(201,169,110,0.08);
+            --bg: #0d0d14;
+            --bg-2: #141420;
+            --bg-3: #1a1a2e;
+            --text: #f0ede8;
+            --text-2: rgba(240,237,232,0.7);
+            --text-3: rgba(240,237,232,0.5);
+            --border: rgba(201,169,110,0.18);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        .lp-header {
+            background: var(--bg-2);
+            padding: 14px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .lp-header .logo {
+            font-size: 22px;
+            color: var(--accent);
+            font-weight: 300;
+            letter-spacing: 0.06em;
+        }
+        .lp-header .logo b { font-weight: 700; }
+        .hero {
+            background: linear-gradient(135deg, #0d0d14 0%, #1a1a2e 50%, #16213e 100%);
+            padding: 60px 20px 56px;
+            text-align: center;
+            color: #fff;
+        }
+        .hero h1 {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        .hero-sub {
+            font-size: 14px;
+            color: var(--text-2);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+        .cta-button {
+            display: inline-block;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #c9a96e, #e0c88a);
+            color: #1a1a2e;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(201,169,110,0.3);
+        }
+        .cta-button:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(201,169,110,0.4); }
+        .trust-section {
+            padding: 56px 20px;
+            background: var(--bg-2);
+        }
+        .trust-section h2 {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: var(--accent);
+        }
+        .trust-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .trust-card {
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px 20px;
+            text-align: center;
+        }
+        .trust-icon { font-size: 36px; margin-bottom: 14px; }
+        .trust-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--accent); }
+        .trust-card p { font-size: 13px; color: var(--text-2); line-height: 1.8; }
+        .features {
+            padding: 56px 20px;
+            background: var(--bg);
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: var(--text);
+        }
+        .feature-list {
+            max-width: 700px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 20px;
+        }
+        .feature-num { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; min-width: 40px; }
+        .feature-item h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+        .feature-item p { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+        .howto {
+            padding: 56px 20px;
+            background: var(--bg-2);
+        }
+        .howto h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; color: var(--accent); }
+        .steps { display: flex; justify-content: center; gap: 24px; max-width: 700px; margin: 0 auto; }
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 24px 16px;
+            background: var(--bg-3);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px; height: 44px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 50%;
+            font-size: 20px; font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .step p { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.6; }
+        .cta-section {
+            padding: 56px 20px;
+            background: linear-gradient(135deg, #0d0d14 0%, #16213e 100%);
+            text-align: center;
+        }
+        .cta-section h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 24px; }
+        .lp-footer {
+            background: #0a0a0f;
+            padding: 24px 16px 12px;
+            text-align: center;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+        .footer-links { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .footer-links a { color: #888; text-decoration: none; }
+        .footer-links span { color: #444; }
+        .lp-footer p { margin: 8px 0 0; color: #666; }
+        @media (max-width: 640px) {
+            .hero { padding: 44px 16px 40px; }
+            .hero h1 { font-size: 20px; }
+            .trust-cards { grid-template-columns: 1fr; gap: 14px; }
+            .steps { flex-direction: column; gap: 14px; }
+            .cta-button { padding: 14px 32px; font-size: 15px; }
+        }
+    </style>
 </head>
 <body>
 
-<header class="lh-header">
-    <div class="lh-header-inner">
-        <button onclick="location.href='https://yobuho.com/'" class="btn-to-gate">
-            <span>⛩</span>
-            <span>YobuHoへ</span>
-        </button>
-        <div class="lh-logo">LoveHo <b>YobuHo</b></div>
-        <div style="width:70px;"></div>
-    </div>
+<header class="lp-header">
+    <div class="logo">LoveHo <b>YobuHo</b></div>
 </header>
 
-<div class="lh-age-notice">
-    ※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。
-</div>
-
-<!-- エリア選択 -->
-<section class="lh-area-section">
-    <div class="lh-breadcrumb" id="breadcrumb">
-        <span class="lh-breadcrumb-item active">日本全国</span>
-    </div>
-    <div class="lh-area-header">
-        <h2 id="area-title">地域を選択</h2>
-        <button id="btn-area-back" class="lh-btn-back" onclick="backLevel()">
-            <span>←</span>
-            <span>前へ</span>
-        </button>
-    </div>
-    <div id="area-button-container" class="lh-area-grid"></div>
+<section class="hero">
+    <h1>ラブホテル検索・口コミ</h1>
+    <p class="hero-sub">全国6,000件以上のラブホテル・レンタルルームの口コミ情報</p>
+    <p style="text-align:center;color:var(--text-3);font-size:12px;margin:16px 0;">※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。</p>
+    <a href="https://yobuho.com/portal.html?mode=men" class="cta-button">🏩 ラブホテルを検索する</a>
 </section>
 
-<!-- 検索ツール -->
-<div class="lh-search-tools">
-    <button class="lh-btn-location" id="btn-location" onclick="searchByLocation()">
-        <span class="icon">📍</span>
-        <span class="label" id="btn-location-label">現在地</span>
-    </button>
-    <div class="lh-search-wrapper">
-        <span class="icon">🔍</span>
-        <input type="text" id="keyword" class="lh-search-input" placeholder="ホテル名で検索..." oninput="fetchHotelsFromSearch()">
-        <button class="lh-search-clear" onclick="clearSearch()" id="search-clear-btn">✕</button>
-    </div>
-    <div class="lh-station-wrapper">
-        <span class="icon">🚉</span>
-        <input type="text" id="station-input" class="lh-station-input" placeholder="最寄駅で検索..." oninput="fetchHotelsByStation()">
-    </div>
-</div>
-
-<div id="result-status" class="lh-result-status"></div>
-
-<div id="hotel-list" class="lh-hotel-list"></div>
-
-<!-- ホテル詳細パネル -->
-<div id="hotel-detail-panel" class="lh-detail-panel">
-    <div id="hotel-detail-content"></div>
-</div>
-
-<!-- ローディング -->
-<div id="loading-overlay" class="lh-loading">
-    <div class="lh-spinner"></div>
-    <p class="lh-loading-text">検索中...</p>
-</div>
-
-<!-- 投稿確認モーダル -->
-<div id="post-confirm-modal" class="lh-modal-overlay">
-    <div class="lh-modal">
-        <h3>📋 投稿内容の確認</h3>
-        <div id="post-confirm-content"></div>
-        <div style="display:flex;gap:8px;margin-top:16px;">
-            <button class="btn-cancel" onclick="closePostConfirmModal()">修正する</button>
-            <button class="btn-confirm" onclick="doSubmitReport()" id="btn-do-submit">この内容で投稿する</button>
+<section class="trust-section">
+    <h2>LoveHo YobuHoの特徴</h2>
+    <div class="trust-cards">
+        <div class="trust-card">
+            <div class="trust-icon">✨</div>
+            <h3>清潔感・雰囲気の口コミ</h3>
+            <p>実際に利用したユーザーが投稿する清潔感・雰囲気・コスパの評価。星5段階で一目瞭然。</p>
+        </div>
+        <div class="trust-card">
+            <div class="trust-icon">🚪</div>
+            <h3>一人で入れるかチェック</h3>
+            <p>一人で先に入れるか、一緒にチェックインが必要か。デリヘルや風俗利用時に重要な情報を確認。</p>
+        </div>
+        <div class="trust-card">
+            <div class="trust-icon">🏪</div>
+            <h3>店舗からの公式情報</h3>
+            <p>届出確認済みの掲載店舗が提供する入室方法・交通費情報。実績に基づいた確かなデータです。</p>
         </div>
     </div>
-</div>
+</section>
 
-<!-- 報告モーダル -->
-<div id="flag-modal" class="lh-modal-overlay" style="z-index:9998;">
-    <div class="lh-modal" style="max-width:400px;">
-        <div id="flag-step1">
-            <h3>🚩 この投稿を報告</h3>
-            <div style="font-size:12px;color:var(--lh-text-3);text-align:center;margin-bottom:14px;">報告理由を選択してください</div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;" id="flag-reason-btns">
-                <button onclick="selectFlagReason('スパム・宣伝',this)" class="lh-area-btn">📢 スパム・宣伝</button>
-                <button onclick="selectFlagReason('虚偽情報',this)" class="lh-area-btn">❌ 虚偽情報</button>
-                <button onclick="selectFlagReason('不適切な内容',this)" class="lh-area-btn">⚠️ 不適切な内容</button>
-                <button onclick="selectFlagReason('その他',this)" class="lh-area-btn">💬 その他</button>
+<section class="features">
+    <h2>こんな情報が見つかります</h2>
+    <div class="feature-list">
+        <div class="feature-item">
+            <span class="feature-num">01</span>
+            <div>
+                <h3>全国6,000件以上のラブホテル・レンタルルーム</h3>
+                <p>北海道から沖縄まで全国を網羅。地域・エリア・市区町村から簡単に検索できます。</p>
             </div>
-            <div id="flag-reason-err" style="display:none;font-size:12px;color:#c05050;margin-bottom:10px;padding:8px 12px;background:rgba(192,80,80,0.08);border:1px solid rgba(192,80,80,0.2);border-radius:8px;">理由を選択してください</div>
-            <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" style="width:100%;padding:10px 12px;border:1px solid var(--lh-border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:var(--lh-bg-3);color:var(--lh-text);outline:none;box-sizing:border-box;margin-bottom:10px;"></textarea>
-            <button onclick="showFlagConfirm()" style="width:100%;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">確認する →</button>
-            <button onclick="closeFlagModal()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--lh-border);border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--lh-text-3);">キャンセル</button>
         </div>
-        <div id="flag-step2" style="display:none;">
-            <h3>🚩 報告内容を確認</h3>
-            <div style="background:var(--lh-bg-3);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
-                <div style="font-size:11px;color:var(--lh-text-3);margin-bottom:3px;">報告理由</div>
-                <div style="font-size:14px;font-weight:700;color:#fff;" id="flag-confirm-reason"></div>
-                <div id="flag-confirm-comment-wrap" style="display:none;margin-top:10px;">
-                    <div style="font-size:11px;color:var(--lh-text-3);margin-bottom:3px;">詳細コメント</div>
-                    <div style="font-size:13px;color:var(--lh-text);white-space:pre-wrap;" id="flag-confirm-comment"></div>
-                </div>
+        <div class="feature-item">
+            <span class="feature-num">02</span>
+            <div>
+                <h3>口コミが多いホテルから表示</h3>
+                <p>情報が充実しているホテルが上位に表示されるので、信頼できるホテルをすぐに見つけられます。</p>
             </div>
-            <div style="display:flex;gap:10px;">
-                <button onclick="showFlagStep1()" class="btn-cancel">← 戻る</button>
-                <button onclick="submitFlag()" style="flex:2;padding:12px;background:#c05050;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">送信する</button>
+        </div>
+        <div class="feature-item">
+            <span class="feature-num">03</span>
+            <div>
+                <h3>完全無料・匿名で利用可能</h3>
+                <p>会員登録不要。誰でも無料でホテル情報を検索・口コミを投稿できます。</p>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-<!-- 成功モーダル -->
-<div id="success-modal" class="lh-success-modal">
-    <div class="inner">
-        <p style="font-size:32px;margin:0 0 16px;">✅</p>
-        <h3 id="success-modal-title">完了しました</h3>
-        <p id="success-modal-message"></p>
-        <button onclick="closeSuccessModal()">閉じる</button>
+<section class="howto">
+    <h2>使い方はかんたん3ステップ</h2>
+    <div class="steps">
+        <div class="step">
+            <span class="step-num">1</span>
+            <p>地域・都道府県を選択</p>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <p>市区町村を選んでラブホタブをクリック</p>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <p>口コミ・店舗情報を確認</p>
+        </div>
     </div>
-</div>
+</section>
 
-<footer class="lh-footer">
-    <div style="display:flex;justify-content:center;align-items:center;gap:0;flex-wrap:wrap;">
+<section class="cta-section">
+    <h2>さっそく検索してみよう</h2>
+    <a href="https://yobuho.com/portal.html?mode=men" class="cta-button">🏩 ラブホテルを検索する</a>
+</section>
+
+<footer class="lp-footer">
+    <div style="max-width:700px;margin:0 auto 16px;padding:0 16px;font-size:11px;line-height:1.8;color:#888;text-align:left;">
+        <p>LoveHo YobuHoは、全国6,000件以上のラブホテル・レンタルルームの口コミ検索サイトです。清潔感・雰囲気・コスパの評価、一人で入れるか、同性カップルでの利用可否など、リアルな口コミ情報を掲載。デリヘル（デリバリーヘルス）や風俗利用時のホテル選びにも役立ちます。</p>
+    </div>
+    <nav class="footer-links" aria-label="フッターナビゲーション">
+        <a href="https://yobuho.com/">YobuHo トップ</a>
+        <span>|</span>
+        <a href="https://deli.yobuho.com/">デリヘル</a>
+        <span>|</span>
+        <a href="https://jofu.yobuho.com/">女性用風俗</a>
+        <span>|</span>
+        <a href="https://same.yobuho.com/">同性利用</a>
+        <span>|</span>
         <a href="https://yobuho.com/terms.html">利用規約</a>
-        <span class="sep">|</span>
+        <span>|</span>
         <a href="https://yobuho.com/privacy.html">プライバシーポリシー</a>
-        <span class="sep">|</span>
+        <span>|</span>
         <a href="https://yobuho.com/contact.html">お問い合わせ</a>
-    </div>
+    </nav>
     <p>&copy; 2026 YobuHo Studio All Rights Reserved.</p>
 </footer>
 
-<script src="loveho-app.js?v=1"></script>
 </body>
 </html>

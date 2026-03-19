@@ -23,4 +23,4 @@ ON shops(email);
 
 -- 広告配置のエリア検索用
 CREATE INDEX IF NOT EXISTS idx_shop_placements_area
-ON shop_placements(area_level, area_value);
+ON shop_placements(level, target_name);

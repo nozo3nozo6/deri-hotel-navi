@@ -5,8 +5,14 @@
 const TITLE_SUFFIX_MAP = {
     'men': 'Deli YobuHo',
     'women': 'JoFu YobuHo',
-    'women_same': 'YobuHo',
-    'men_same': 'YobuHo'
+    'women_same': 'Same YobuHo',
+    'men_same': 'Same YobuHo'
+};
+const MODE_DESC_MAP = {
+    'men': 'デリヘル（デリバリーヘルス・出張ヘルス）を呼べるホテルを全国43,000件以上から検索。ユーザー口コミと店舗情報のダブルチェックで信頼できるホテル情報。',
+    'women': '女性用風俗（女風）・出張マッサージ・セラピストを呼べるホテルを全国43,000件以上から検索。口コミと店舗情報で安心のホテル選び。',
+    'men_same': '男性同士（ゲイカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。',
+    'women_same': '女性同士（レズビアンカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。'
 };
 function getSiteSuffix() {
     const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
@@ -14,12 +20,22 @@ function getSiteSuffix() {
 }
 function updatePageTitle(prefix) {
     document.title = prefix + ' | ' + getSiteSuffix();
+    // Update meta description based on mode
+    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const descMeta = document.querySelector('meta[name="description"]');
+    if (descMeta && MODE_DESC_MAP[mode]) descMeta.content = MODE_DESC_MAP[mode];
+    // Update OG tags
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogTitle) ogTitle.content = document.title;
+    if (ogDesc && MODE_DESC_MAP[mode]) ogDesc.content = MODE_DESC_MAP[mode];
+    // Update JSON-LD
     const ldScript = document.querySelector('script[type="application/ld+json"]');
     if (ldScript) {
         try {
             const ld = JSON.parse(ldScript.textContent);
             ld.name = document.title;
-            ld.description = document.querySelector('meta[name="description"]')?.content || '';
+            ld.description = descMeta?.content || '';
             ldScript.textContent = JSON.stringify(ld);
         } catch(e) {}
     }
@@ -123,7 +139,7 @@ function changeLang(lang) {
     state.lang = lang;
     localStorage.setItem('yobuho_lang', lang);
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`[onclick="changeLang('${lang}')"]`)?.classList.add('active');
+    document.querySelector(`[data-action="changeLang"][data-param="${lang}"]`)?.classList.add('active');
     updateUILanguage();
     if (currentPage) currentPage();
 }
@@ -185,7 +201,7 @@ function setBreadcrumb(crumbs) {
             ${i > 0 ? '<span class="breadcrumb-sep">›</span>' : ''}
             <span class="breadcrumb-item ${isLast ? 'active' : ''}"
                   ${!isLast && c.onclick ? `style="cursor:pointer" onclick="${c.onclick}"` : ''}>
-                ${c.label}
+                ${esc(c.label)}
             </span>`;
     }).join('');
     const el = document.getElementById('breadcrumb');
@@ -229,6 +245,22 @@ function showSuccessModal(title, message) {
 function closeSuccessModal() {
     document.getElementById('success-modal').style.display = 'none';
 }
+
+// モーダル背景クリックで閉じる
+document.addEventListener('click', function(e) {
+    if (!e.target.classList.contains('modal-overlay') && !e.target.classList.contains('modal-overlay-success')) return;
+    const map = {
+        'can-reasons-modal': 'cancelCanReasons',
+        'cannot-reasons-modal': 'cancelCannotReasons',
+        'post-confirm-modal': 'closePostConfirmModal',
+        'flag-modal': 'closeFlagModal',
+        'hotel-request-modal': 'closeHotelRequestModal',
+        'success-modal': 'closeSuccessModal',
+    };
+    const fn = map[e.target.id];
+    if (fn && typeof window[fn] === 'function') window[fn]();
+    else e.target.style.display = 'none';
+});
 
 function showLoading(msg) {
     const el = document.getElementById('loading-overlay');
@@ -382,12 +414,15 @@ function getReportCount(h) {
     return (s.can_call_count||0) + (s.cannot_call_count||0) + (s.shop_can_count||0) + (s.shop_ng_count||0);
 }
 
+const HOTEL_TYPE_ORDER = { business: 0, city: 1, resort: 2, ryokan: 3, pension: 4, minshuku: 5, other: 6 };
 function sortHotelsByReviews(hotels) {
     hotels.sort((a, b) => {
         const ca = getReportCount(a), cb = getReportCount(b);
         if (ca !== cb) return cb - ca;
         const da = a.latestReportAt || '', db = b.latestReportAt || '';
         if (da !== db) return da < db ? 1 : -1;
+        const ta = HOTEL_TYPE_ORDER[a.hotel_type] ?? 6, tb = HOTEL_TYPE_ORDER[b.hotel_type] ?? 6;
+        if (ta !== tb) return ta - tb;
         return (a.name || '').localeCompare(b.name || '', 'ja');
     });
     return hotels;

@@ -1,6 +1,13 @@
 <?php
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: *');
+
+$allowed_origins = ['https://yobuho.com', 'https://deli.yobuho.com', 'https://jofu.yobuho.com', 'https://same.yobuho.com', 'https://loveho.yobuho.com'];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowed_origins)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+} else {
+    header('Access-Control-Allow-Origin: https://yobuho.com');
+}
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
@@ -15,10 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// 日本語メール設定
-mb_language('Japanese');
-mb_internal_encoding('UTF-8');
-
 $input = json_decode(file_get_contents('php://input'), true);
 
 $to = $input['to'] ?? '';
@@ -31,16 +34,20 @@ if (empty($to) || empty($subject) || empty($body)) {
     exit;
 }
 
-// 改行を \r\n に正規化
-$body = str_replace(["\r\n", "\r", "\n"], "\r\n", $body);
+// 件名をBase64エンコード（UTF-8対応）
+$encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 
-// メールヘッダー（mb_send_mailが件名・本文のエンコードを自動処理）
-$headers  = "From: YobuHo <hotel@yobuho.com>\r\n";
+// メールヘッダー
+$headers  = "From: =?UTF-8?B?" . base64_encode('YobuHo') . "?= <hotel@yobuho.com>\r\n";
 $headers .= "Reply-To: hotel@yobuho.com\r\n";
 $headers .= "MIME-Version: 1.0\r\n";
+$headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+$headers .= "Content-Transfer-Encoding: base64\r\n";
 
-// mb_send_mailで送信（件名・本文のISO-2022-JPエンコードを自動処理）
-$result = mb_send_mail($to, $subject, $body, $headers);
+// 本文をBase64エンコード（文字化け防止）
+$encodedBody = chunk_split(base64_encode($body));
+
+$result = mail($to, $encodedSubject, $encodedBody, $headers);
 
 if ($result) {
     echo json_encode(['success' => true, 'message' => 'メール送信完了']);

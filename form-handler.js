@@ -31,6 +31,9 @@ let hotelFormState = {
     guest_female: 1,
 };
 
+// AppState.form 登録
+Object.defineProperty(AppState.form, 'hotel', { get() { return hotelFormState; }, set(v) { hotelFormState = v; } });
+
 function hotelStepGuest(gender, delta) {
     const key = gender === 'male' ? 'guest_male' : 'guest_female';
     const elId = gender === 'male' ? 'form-guest-male' : 'form-guest-female';
@@ -96,11 +99,12 @@ function showCanReasonsModal() {
         <label id="cr-${i}" onclick="toggleCanReason(${i})"
             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
             <span class="cr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
-            <span class="cr-label-full" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${r}</span>
-            <span class="cr-label-narrow" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${narrow}</span>
+            <span class="cr-label-full" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${esc(r)}</span>
+            <span class="cr-label-narrow" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${esc(narrow)}</span>
         </label>`;
     }).join('');
     document.getElementById('can-reasons-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('can-reasons-modal')?.focus(), 100);
 }
 
 function toggleCanReason(idx) {
@@ -141,7 +145,7 @@ function confirmCanReasons() {
         display.innerHTML = selected.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
                 <span style="font-size:11px;color:var(--text-3);">呼べた理由：</span>
-                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:10px;font-size:11px;color:#3a9a60;font-weight:600;">${r}</span>`).join('')}
+                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:10px;font-size:11px;color:#3a9a60;font-weight:600;">${esc(r)}</span>`).join('')}
                 <button onclick="showCanReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
             : `<div style="padding:4px 0;"><button onclick="showCanReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(58,154,96,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#3a7a50;">＋ 呼べた理由を選択（任意）</button></div>`;
@@ -158,9 +162,10 @@ function showCannotReasonsModal() {
         <label id="cnr-${i}" onclick="toggleCannotReason(${i})"
             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
             <span class="cnr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
-            <span style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${r}</span>
+            <span style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${esc(r)}</span>
         </label>`).join('');
     document.getElementById('cannot-reasons-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('cannot-reasons-modal')?.focus(), 100);
 }
 
 function toggleCannotReason(idx) {
@@ -201,7 +206,7 @@ function confirmCannotReasons() {
         display.innerHTML = selected.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
                 <span style="font-size:11px;color:var(--text-3);">呼べなかった理由：</span>
-                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.3);border-radius:10px;font-size:11px;color:#c05050;font-weight:600;">${r}</span>`).join('')}
+                ${selected.map(r => `<span style="padding:3px 9px;background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.3);border-radius:10px;font-size:11px;color:#c05050;font-weight:600;">${esc(r)}</span>`).join('')}
                 <button onclick="showCannotReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
             : `<div style="padding:4px 0;"><button onclick="showCannotReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(192,80,80,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#c05050;">＋ 呼べなかった理由を選択（任意）</button></div>`;
@@ -211,7 +216,7 @@ function confirmCannotReasons() {
 function hotelToggleTimeSlot(idx) {
     const slot = TIME_SLOTS[idx];
     const el = document.getElementById(`ts-${idx}`);
-    if (!el) { console.warn('[timeslot] element not found: ts-' + idx); return; }
+    if (!el) return;
 
     const isSame = hotelFormState.time_slot === slot;
 
@@ -227,14 +232,12 @@ function hotelToggleTimeSlot(idx) {
 
     if (isSame) {
         hotelFormState.time_slot = '';
-        console.log('[timeslot] deselected:', slot);
     } else {
         hotelFormState.time_slot = slot;
         el.style.background = 'var(--accent-bg)';
         el.style.borderColor = 'var(--border-strong)';
         el.style.color = 'var(--accent-dim)';
         el.style.fontWeight = '600';
-        console.log('[timeslot] selected:', slot);
     }
 }
 
@@ -250,7 +253,7 @@ function hotelToggleCondition(cond) {
 }
 
 async function voteReport(reportId, vote) {
-    const fp = btoa([navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|')).slice(0,32);
+    const fp = await generateFingerprint();
 
     const { error } = await supabaseClient.from('report_votes').insert({
         report_id: reportId,
@@ -316,14 +319,14 @@ function showPostConfirmModal() {
     function row(label, value) {
         if (!value) return '';
         return `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
-            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">${label}</div>
-            <div style="font-size:13px;color:#1a1410;flex:1;line-height:1.6;">${value}</div>
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">${esc(label)}</div>
+            <div style="font-size:13px;color:#1a1410;flex:1;line-height:1.6;">${esc(value)}</div>
         </div>`;
     }
 
     function tags(arr, color) {
         if (!arr || arr.length === 0) return null;
-        return arr.map(r => `<span style="display:inline-block;padding:3px 9px;background:${color}1a;border:1px solid ${color}40;border-radius:10px;font-size:11px;color:${color};margin:2px 2px 2px 0;">${r}</span>`).join('');
+        return arr.map(r => `<span style="display:inline-block;padding:3px 9px;background:${color}1a;border:1px solid ${color}40;border-radius:10px;font-size:11px;color:${color};margin:2px 2px 2px 0;">${esc(r)}</span>`).join('');
     }
 
     const content = `
@@ -338,7 +341,7 @@ function showPostConfirmModal() {
         </div>` : ''}
         ${timeSlot ? `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
             <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">時間帯</div>
-            <div style="font-size:13px;color:#1a1410;">${timeSlot}</div>
+            <div style="font-size:13px;color:#1a1410;">${esc(timeSlot)}</div>
         </div>` : ''}
         ${row('部屋タイプ', s.room_type || null)}
         ${row('コメント', s.comment || null)}
@@ -352,9 +355,65 @@ function closePostConfirmModal() {
     document.getElementById('post-confirm-modal').style.display = 'none';
 }
 
+// ==========================================================================
+// 強化フィンガープリント生成（SHA-256）
+// ==========================================================================
+async function generateFingerprint() {
+    try {
+        // Canvas fingerprint
+        let canvasHash = '';
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 50;
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#f60';
+            ctx.fillRect(0, 0, 100, 50);
+            ctx.fillStyle = '#069';
+            ctx.fillText('fingerprint', 2, 15);
+            ctx.fillStyle = 'rgba(102,204,0,0.7)';
+            ctx.fillText('fingerprint', 4, 17);
+            canvasHash = canvas.toDataURL();
+        } catch (_) {
+            canvasHash = 'no-canvas';
+        }
+
+        const components = [
+            navigator.userAgent || '',
+            screen.width + 'x' + screen.height,
+            screen.colorDepth || '',
+            Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+            navigator.language || '',
+            navigator.platform || '',
+            canvasHash,
+            (navigator.plugins ? navigator.plugins.length : 0).toString(),
+            new Date().getTimezoneOffset().toString(),
+        ].join('|||');
+
+        const encoder = new TextEncoder();
+        const data = encoder.encode(components);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        // Fallback: weak fingerprint if crypto.subtle unavailable
+        // SHA-256 unavailable, using fallback
+        return btoa([navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|')).slice(0,32);
+    }
+}
+
 async function doSubmitReport() {
     const doBtn = document.getElementById('btn-do-submit');
     if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
+
+    if (!currentHotelId) {
+        showToast('ホテルが選択されていません。ページを再読み込みしてください。');
+        closePostConfirmModal();
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+        return;
+    }
 
     let posterType = 'user';
     try {
@@ -362,15 +421,15 @@ async function doSubmitReport() {
         if (session?.user?.email) {
             const { data: shopRow } = await supabaseClient
                 .from('shops')
-                .select('id,is_approved')
+                .select('id,status')
                 .eq('email', session.user.email)
-                .eq('is_approved', true)
+                .eq('status', 'active')
                 .maybeSingle();
             if (shopRow) posterType = 'shop';
         }
     } catch (_) {}
 
-    const fingerprint = btoa([navigator.userAgent, screen.width+'x'+screen.height, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|')).slice(0,32);
+    const fingerprint = await generateFingerprint();
     const payload = {
         hotel_id: currentHotelId,
         can_call: hotelFormState.can_call,
@@ -389,25 +448,38 @@ async function doSubmitReport() {
         gender_mode: typeof MODE !== 'undefined' ? MODE : 'men',
         fingerprint,
     };
-    console.log('[submit] payload:', JSON.stringify(payload, null, 2));
 
-    const { error } = await supabaseClient.from('reports').insert(payload);
+    try {
+        const response = await fetch('api/submit-report.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
 
-    if (error) {
-        console.error('[submit] error:', error);
+        const result = await response.json();
+
+        if (!response.ok) {
+            closePostConfirmModal();
+            if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+            if (response.status === 429) {
+                showToast(result.error || '投稿制限中です。しばらく時間をおいてから再度お試しください。', 5000);
+            } else if (response.status === 409) {
+                showToast('このホテルへは既に投稿済みです');
+            } else {
+                showToast('送信エラー: ' + (result.error || '予期しないエラーが発生しました'), 4000);
+            }
+            return;
+        }
+
         closePostConfirmModal();
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-        if (error.code === '23505') {
-            showToast('このホテルへは既に投稿済みです');
-        } else {
-            showToast('送信エラー: ' + (error.message || '予期しないエラーが発生しました'), 4000);
-        }
-        return;
+        showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
+        setTimeout(() => loadHotelDetail(currentHotelId), 1500);
+    } catch (e) {
+        closePostConfirmModal();
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+        showToast('通信エラーが発生しました。ネットワーク接続を確認してください。', 4000);
     }
-    closePostConfirmModal();
-    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-    showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
-    setTimeout(() => loadHotelDetail(currentHotelId), 1500);
 }
 
 // ==========================================================================
@@ -450,8 +522,12 @@ function lhToggleFac(el, name) {
 }
 
 async function submitLovehoReport() {
+    if (!currentHotelId) {
+        showToast('ホテルが選択されていません。ページを再読み込みしてください。');
+        return;
+    }
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.recommendation || lhFormState.cleanliness || lhFormState.cost_performance || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -461,6 +537,9 @@ async function submitLovehoReport() {
             hotel_id: currentHotelId,
             solo_entry: lhFormState.solo_entry || null,
             atmosphere: lhFormState.atmosphere || null,
+            recommendation: lhFormState.recommendation || null,
+            cleanliness: lhFormState.cleanliness || null,
+            cost_performance: lhFormState.cost_performance || null,
             good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment ? lhFormState.comment.slice(0, 500) : null,
@@ -476,7 +555,6 @@ async function submitLovehoReport() {
         cachedLovehoData = null;
         loadLovehoDetail(currentHotelId);
     } catch (e) {
-        console.error(e);
         showToast('投稿エラーが発生しました');
     } finally {
         btn.disabled = false;
@@ -496,9 +574,14 @@ let flagTargetId = null;
 let flagSelectedReason = null;
 let flagTargetTable = 'reports';
 
+Object.defineProperties(AppState.form.flag, {
+    targetId:       { get() { return flagTargetId; },       set(v) { flagTargetId = v; } },
+    selectedReason: { get() { return flagSelectedReason; }, set(v) { flagSelectedReason = v; } },
+    targetTable:    { get() { return flagTargetTable; },    set(v) { flagTargetTable = v; } },
+});
+
 function showFlagModal(reportId, table) {
     if (!reportId || reportId === 'null' || reportId === 'undefined') {
-        console.error('[flag] showFlagModal called with invalid id:', reportId);
         showToast('報告対象が取得できませんでした');
         return;
     }
@@ -516,6 +599,7 @@ function showFlagModal(reportId, table) {
     document.getElementById('flag-step1').style.display = '';
     document.getElementById('flag-step2').style.display = 'none';
     document.getElementById('flag-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('flag-modal')?.focus(), 100);
 }
 
 function openFlagModal(reportId) { showFlagModal(reportId, 'loveho_reports'); }
@@ -578,7 +662,6 @@ async function submitFlag() {
     const tbl = flagTargetTable || 'reports';
 
     if (!targetId || targetId === 'null' || targetId === 'undefined') {
-        console.error('[flag] invalid targetId:', targetId);
         showToast('報告対象が不明です。ページを再読み込みしてください。');
         return;
     }
@@ -590,13 +673,11 @@ async function submitFlag() {
         flag_reason: selectedReason,
         flag_comment,
     };
-    console.log('[flag] targetId:', targetId, 'payload:', flagPayload);
 
     closeFlagModal();
 
     const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
     if (error) {
-        console.error('[flag] error:', error);
         showToast('報告の送信に失敗しました: ' + error.message);
     } else {
         showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
@@ -622,6 +703,7 @@ function openHotelRequestModal() {
     document.getElementById('hreq-step2').style.display = 'none';
     document.getElementById('hreq-done').style.display = 'none';
     document.getElementById('hotel-request-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('hreq-name')?.focus(), 100);
 }
 
 function closeHotelRequestModal() {
@@ -648,7 +730,7 @@ function hreqToConfirm() {
         ['タイプ', HOTEL_TYPE_LABELS[type] || type],
     ];
     document.getElementById('hreq-confirm-body').innerHTML = rows.map(([k, v]) =>
-        `<div><span style="font-size:11px;color:#8a7a6a;font-weight:700;">${k}</span><div style="font-size:13px;color:#1a1410;margin-top:2px;">${v}</div></div>`
+        `<div><span style="font-size:11px;color:#8a7a6a;font-weight:700;">${esc(k)}</span><div style="font-size:13px;color:#1a1410;margin-top:2px;">${esc(v)}</div></div>`
     ).join('');
 
     document.getElementById('hreq-step1').style.display = 'none';

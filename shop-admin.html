@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>店舗管理パネル | Deri Hotel Navi</title>
+    <link rel="icon" href="/favicon-shop.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon-shop.svg" type="image/svg+xml">
     <meta name="robots" content="noindex, nofollow">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -262,10 +264,55 @@
         <div class="f-group">
             <label class="f-label">パスワード</label>
             <input type="password" class="f-input" id="login-pw" name="password" autocomplete="current-password" placeholder="パスワード" required>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="document.getElementById('login-pw').type=this.checked?'text':'password'" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
         </div>
         <button type="submit" class="btn-login">ログイン</button>
         </form>
         <div class="login-error" id="login-error"></div>
+        <div style="text-align:center;margin-top:16px;">
+            <a href="#" onclick="showPasswordReset();return false;" style="font-size:12px;color:var(--rose);text-decoration:none;">パスワードをお忘れですか？</a>
+        </div>
+    </div>
+    <!-- パスワードリセット -->
+    <div class="login-card" id="pw-reset-card" style="display:none;margin-top:16px;">
+        <h2 style="font-size:16px;">パスワードリセット</h2>
+        <div class="sub">登録済みのメールアドレスにリセットリンクを送信します</div>
+        <div id="pw-reset-step1">
+            <div class="f-group">
+                <label class="f-label">メールアドレス</label>
+                <input type="email" class="f-input" id="reset-email" placeholder="登録済みのメールアドレス" autocomplete="email">
+            </div>
+            <div id="reset-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
+            <button class="btn-login" onclick="sendPasswordReset()" id="reset-send-btn">リセットメールを送信</button>
+        </div>
+        <div id="pw-reset-step2" style="display:none;">
+            <div style="padding:12px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:var(--r);color:var(--text-2);font-size:13px;margin-bottom:12px;">認証コードを送信しました。メールをご確認ください。</div>
+            <div class="f-group">
+                <label class="f-label">認証コード（6桁）</label>
+                <input class="f-input" type="text" id="reset-code" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:4px;font-size:18px;text-align:center;">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード</label>
+                <input class="f-input" type="password" id="reset-new-pw" placeholder="8文字以上">
+            </div>
+            <div class="f-group">
+                <label class="f-label">新しいパスワード（確認）</label>
+                <input class="f-input" type="password" id="reset-new-pw2" placeholder="もう一度入力">
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="['reset-new-pw','reset-new-pw2'].forEach(id=>{document.getElementById(id).type=this.checked?'text':'password';})" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
+            </div>
+            <div id="reset-step2-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
+            <button class="btn-login" onclick="executePasswordReset()">パスワードを変更</button>
+        </div>
+        <div id="pw-reset-step3" style="display:none;">
+            <div style="text-align:center;padding:20px 0;">
+                <div style="font-size:36px;margin-bottom:12px;">✅</div>
+                <p style="font-size:14px;font-weight:700;">パスワードを変更しました</p>
+                <p style="font-size:12px;color:var(--text-3);margin-top:8px;">新しいパスワードでログインしてください。</p>
+            </div>
+        </div>
+        <div style="text-align:center;margin-top:12px;">
+            <a href="#" onclick="hidePasswordReset();return false;" style="font-size:12px;color:var(--text-3);text-decoration:none;">← ログイン画面に戻る</a>
+        </div>
     </div>
 </div>
 
@@ -288,34 +335,52 @@
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
     </div>
 
-    <!-- ===== 掲載状況カード ===== -->
-    <div class="card" id="status-card">
-        <div class="card-title">掲載状況</div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:12px;color:var(--text-3);min-width:90px;">ステータス:</span>
-                <span id="status-badge"></span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:12px;color:var(--text-3);min-width:90px;">契約プラン:</span>
-                <span id="status-plan" style="font-size:13px;"></span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <span style="font-size:12px;color:var(--text-3);min-width:90px;">店舗専用URL:</span>
-                <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
-                <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
-            </div>
-            <p style="font-size: 12px; color: #888; margin-top: 8px; line-height: 1.6;">
-              💡 このURLではユーザーの投稿情報と貴店の登録情報のみが表示され、<br>
-              他店舗の情報や広告は表示されません。<br>
-              上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
-              貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
-            </p>
-        </div>
-    </div>
-
     <!-- ===== 設定タブ ===== -->
     <div class="tab-content active" id="tab-settings">
+        <!-- 掲載状況カード -->
+        <div class="card" id="status-card">
+            <div class="card-title">掲載状況</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">ジャンル:</span>
+                    <span id="status-genre" style="font-size:13px;font-weight:500;"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">ステータス:</span>
+                    <span id="status-badge"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">契約プラン:</span>
+                    <span id="status-plan" style="font-size:13px;"></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">店舗専用URL:</span>
+                    <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
+                    <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
+                </div>
+                <p style="font-size: 12px; color: #888; margin-top: 8px; line-height: 1.6;">
+                  💡 このURLではユーザーの投稿情報と貴店の登録情報のみが表示され、<br>
+                  他店舗の情報や広告は表示されません。<br>
+                  上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
+                  貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
+                </p>
+                <!-- サムネイル（有料プランのみ） -->
+                <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        <span style="font-size:12px;color:var(--text-3);min-width:90px;">サムネイル:</span>
+                        <span style="font-size:11px;color:var(--text-3);">推奨 480×640px（縦長）</span>
+                    </div>
+                    <div id="thumbnail-preview" style="margin-bottom:10px;"></div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
+                            画像を選択
+                            <input type="file" id="thumbnail-file" accept="image/*" onchange="onThumbnailSelect(this)" style="display:none;">
+                        </label>
+                        <button id="thumbnail-delete-btn" onclick="deleteThumbnail()" style="display:none;padding:8px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;">削除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="card">
             <div class="card-title">メールアドレス（ID）変更</div>
             <!-- Step1: 認証メール送信 -->
@@ -326,11 +391,11 @@
                 </div>
                 <div class="f-group">
                     <label class="f-label">新しいメールアドレス</label>
-                    <input class="f-input" type="email" id="settings-new-email" placeholder="new@example.com">
+                    <input class="f-input" type="email" id="settings-new-email" placeholder="新しいメールアドレスを入力">
                 </div>
                 <div class="f-group">
                     <label class="f-label">現在のパスワード（本人確認）</label>
-                    <input class="f-input" type="password" id="settings-email-pw" placeholder="パスワードを入力">
+                    <input class="f-input" type="password" id="settings-email-pw" placeholder="現在のパスワードを入力">
                 </div>
                 <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
                 <button class="btn btn-rose" onclick="sendEmailVerification()">認証メールを送信</button>
@@ -364,6 +429,7 @@
                 <label class="f-label">新しいパスワード（確認）</label>
                 <input class="f-input" type="password" id="settings-new-pw2" placeholder="もう一度入力">
             </div>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="['settings-old-pw','settings-new-pw','settings-new-pw2'].forEach(id=>{document.getElementById(id).type=this.checked?'text':'password';})" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
             <div id="settings-pw-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
             <button class="btn btn-rose" onclick="changePassword()">パスワードを変更</button>
         </div>
@@ -378,10 +444,15 @@
                 <button class="btn-search" onclick="textSearch()">検索</button>
             </div>
             <div id="text-search-results"></div>
+            <div style="text-align:center;margin-top:12px;">
+                <button onclick="openShopHotelRequest()" style="padding:8px 20px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:inherit;">📝 未掲載ホテル情報提供</button>
+            </div>
         </div>
 
+        <div class="card" id="fav-areas" style="display:none;"></div>
+
         <div class="card">
-            <div class="card-title">エリアから探す</div>
+            <div class="card-title">エリアから探す <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:8px;">⭐ でお気に入りエリアに追加できます</span></div>
             <div class="breadcrumb" id="breadcrumb"></div>
             <div id="area-nav"></div>
         </div>
@@ -390,14 +461,22 @@
         <div class="card" id="lh-form-card" style="display:none;">
             <div class="card-title" id="lh-form-title">口コミ投稿</div>
             <div class="form-group">
-                <label class="form-label">一人で先に入れる？</label>
+                <label class="form-label">チェックイン方法</label>
                 <select id="lh-f-solo" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
                     <option value="">選択してください</option>
-                    <option value="yes">はい</option>
+                    <option value="yes">はい！ご案内実績有</option>
                     <option value="no">いいえ</option>
-                    <option value="together">一緒に入った</option>
-                    <option value="lobby">待合室で待ち合わせ</option>
-                    <option value="unknown">わからない</option>
+                    <option value="together">一緒にチェックインでご案内実績有</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">入室方法</label>
+                <select id="lh-f-entry-method" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                    <option value="">選択してください</option>
+                    <option value="front">フロント経由(部屋番号を伝えて入室)</option>
+                    <option value="direct">直接入室(お部屋に直行)</option>
+                    <option value="lobby">ロビー待ち合わせ</option>
+                    <option value="waiting">待合室で待ち合わせ</option>
                 </select>
             </div>
             <div class="form-group" id="lh-f-atm-wrap">
@@ -427,9 +506,21 @@
                 <label class="form-label">フリーコメント <span class="opt">(任意)</span></label>
                 <textarea class="f-textarea" id="lh-f-comment" placeholder="良かった点、気になった点など"></textarea>
             </div>
+            <div class="form-group" style="margin-top:18px;">
+                <label class="form-label">交通費 <span class="opt">(任意)</span></label>
+                <div class="transport-fee-group">
+                    <label class="free-check"><input type="checkbox" id="lh-transport-free" onchange="toggleLhTransportFee()"><span>交通費無料</span></label>
+                    <div class="transport-fee-input" id="lh-transport-fee-wrap">
+                        <span class="fee-prefix">¥</span>
+                        <input type="text" id="lh-form-transport" inputmode="numeric" pattern="[0-9,]*" placeholder="0">
+                        <span class="fee-suffix">-</span>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※ 半角数字で入力してください（例: 1000）</div>
+                </div>
+            </div>
             <div class="form-group">
-                <label class="form-label">投稿者名 <span class="opt">(任意)</span></label>
-                <input type="text" id="lh-f-poster" placeholder="未入力の場合は店舗名で表示" style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;box-sizing:border-box;">
+                <label class="form-label">投稿者名</label>
+                <input type="text" id="lh-f-poster" readonly style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:var(--bg-3,#f5f0eb);font-family:inherit;box-sizing:border-box;color:var(--text-2,#6a5a4a);">
             </div>
             <button class="btn-submit" id="lh-f-submit" onclick="lhSubmitReport()">口コミを投稿する</button>
         </div>
@@ -484,6 +575,7 @@
                         <input type="text" id="form-transport" inputmode="numeric" pattern="[0-9,]*" placeholder="0">
                         <span class="fee-suffix">-</span>
                     </div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※ 半角数字で入力してください（例: 1000）</div>
                 </div>
             </div>
 
@@ -559,6 +651,52 @@ function showSuccessModal(title,message){document.getElementById('success-modal-
 function closeSuccessModal(){document.getElementById('success-modal').style.display='none';}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
+// ===== パスワードリセット =====
+function showPasswordReset(){document.getElementById("pw-reset-card").style.display="block";document.getElementById("login-form").closest(".login-card").style.display="none";}
+function hidePasswordReset(){document.getElementById("pw-reset-card").style.display="none";document.getElementById("login-form").closest(".login-card").style.display="block";document.getElementById("pw-reset-step1").style.display="block";document.getElementById("pw-reset-step2").style.display="none";document.getElementById("pw-reset-step3").style.display="none";}
+let _resetEmail="";
+async function sendPasswordReset(){
+    const errEl=document.getElementById("reset-error");errEl.style.display="none";
+    const email=document.getElementById("reset-email").value.trim();
+    if(!email){errEl.textContent="メールアドレスを入力してください";errEl.style.display="block";return;}
+    const btn=document.getElementById("reset-send-btn");btn.disabled=true;btn.textContent="送信中...";
+    // メールアドレスの存在確認
+    const{data,error}=await sb.from("shops").select("id,email").eq("email",email).maybeSingle();
+    if(!data){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="このメールアドレスは登録されていません";errEl.style.display="block";return;}
+    _resetEmail=email;
+    const code=String(Math.floor(100000+Math.random()*900000));
+    localStorage.setItem("pw_reset_code",JSON.stringify({code:code,email:email,expires:Date.now()+10*60*1000}));
+    const emailBody='<div style="font-family:sans-serif;max-width:520px;margin:0 auto;"><div style="background:#b5627a;padding:24px;text-align:center;border-radius:8px 8px 0 0;"><h1 style="color:#fff;margin:0;font-size:22px;">YobuHo</h1><p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px;">パスワードリセット</p></div><div style="border:1px solid #e0e0e0;border-top:none;padding:32px 28px;border-radius:0 0 8px 8px;"><p style="font-size:14px;line-height:1.8;">パスワードリセットの認証コードをお知らせします。</p><div style="background:#f8f0f2;padding:20px;border-radius:8px;margin:20px 0;text-align:center;"><p style="margin:0;font-size:36px;font-weight:bold;letter-spacing:8px;color:#b5627a;">'+code+'</p></div><p style="font-size:13px;color:#666;">※ このコードは10分間有効です。<br>※ 心当たりがない場合は無視してください。</p><hr style="border:none;border-top:1px solid #eee;margin:24px 0;"><p style="font-size:12px;color:#999;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div></div>';
+    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:email,subject:"【YobuHo】パスワードリセットの認証コード",body:emailBody})});}catch(e){}
+    btn.disabled=false;btn.textContent="リセットメールを送信";
+    document.getElementById("pw-reset-step1").style.display="none";
+    document.getElementById("pw-reset-step2").style.display="block";
+}
+async function executePasswordReset(){
+    const errEl=document.getElementById("reset-step2-error");errEl.style.display="none";
+    const inputCode=document.getElementById("reset-code").value.trim();
+    const newPw=document.getElementById("reset-new-pw").value;
+    const newPw2=document.getElementById("reset-new-pw2").value;
+    if(!inputCode){errEl.textContent="認証コードを入力してください";errEl.style.display="block";return;}
+    if(!newPw||!newPw2){errEl.textContent="新しいパスワードを入力してください";errEl.style.display="block";return;}
+    if(newPw!==newPw2){errEl.textContent="パスワードが一致しません";errEl.style.display="block";return;}
+    if(newPw.length<8){errEl.textContent="パスワードは8文字以上にしてください";errEl.style.display="block";return;}
+    // コード検証
+    const stored=JSON.parse(localStorage.getItem("pw_reset_code")||"null");
+    if(!stored){errEl.textContent="認証コードが見つかりません。再度お試しください。";errEl.style.display="block";return;}
+    if(Date.now()>stored.expires){localStorage.removeItem("pw_reset_code");errEl.textContent="認証コードの有効期限が切れました。再度お試しください。";errEl.style.display="block";return;}
+    if(inputCode!==String(stored.code)){errEl.textContent="認証コードが正しくありません";errEl.style.display="block";return;}
+    // パスワード更新（PHP経由）
+    try{
+        const res=await fetch("https://yobuho.com/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:stored.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});
+        const result=await res.json();
+        if(!result.success){errEl.textContent="更新エラー: "+(result.error||"不明");errEl.style.display="block";return;}
+    }catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
+    localStorage.removeItem("pw_reset_code");
+    document.getElementById("pw-reset-step2").style.display="none";
+    document.getElementById("pw-reset-step3").style.display="block";
+}
+
 // ===== 地方・都道府県マッピング =====
 const REGION_MAP=[
     {label:"北海道",prefs:["北海道"]},{label:"東北",prefs:["青森県","岩手県","宮城県","秋田県","山形県","福島県"]},
@@ -590,20 +728,22 @@ let currentShop=null;
 const SESSION_KEY="shop_admin_session";
 
 function handleLogin(e){e.preventDefault();doLogin();}
-function doLogin(){
+async function doLogin(){
     const email=document.getElementById("login-email").value.trim();
     const pw=document.getElementById("login-pw").value;
     const errEl=document.getElementById("login-error");
     errEl.style.display="none";
     if(!email||!pw){errEl.textContent="メールとパスワードを入力してください";errEl.style.display="block";return;}
-    sb.from("shops").select("*").eq("email",email).single().then(({data,error})=>{
-        if(error||!data){errEl.textContent="メールアドレスが見つかりません";errEl.style.display="block";return;}
-        try{const storedPw=atob(data.password_hash||"");if(storedPw!==pw){errEl.textContent="パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
-        if(data.status==="suspended"){errEl.textContent="このアカウントは停止中です";errEl.style.display="block";return;}
+    try{
+        const res=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pw})});
+        const result=await res.json();
+        if(!result.success){errEl.textContent=result.error||"認証エラー";errEl.style.display="block";return;}
+        const data=result.shop;
+        if(data.status!=="active"){errEl.textContent="このアカウントはまだ掲載開始されていません（ステータス: "+data.status+"）";errEl.style.display="block";return;}
         currentShop=data;
         localStorage.setItem(SESSION_KEY,JSON.stringify({id:data.id,email:data.email}));
         onLoggedIn();
-    });
+    }catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
 }
 function doLogout(){currentShop=null;localStorage.removeItem(SESSION_KEY);location.reload();}
 
@@ -612,6 +752,7 @@ function onLoggedIn(){
     document.getElementById("hdr").style.display="block";
     document.getElementById("main-wrap").style.display="block";
     document.getElementById("hdr-shop-name").textContent=currentShop.shop_name||"店舗";
+    document.getElementById("settings-current-email").textContent=currentShop.email||"";
     loadMasterData();
     loadRegisteredHotelIds();
     loadRegisteredHotels();
@@ -620,19 +761,71 @@ function onLoggedIn(){
 }
 
 async function loadStatusCard(){
-    const{data}=await sb.from("shops").select("*,contract_plans(name,price)").eq("id",currentShop.id).single();
+    const{data}=await sb.from("shops").select("*,shop_contracts(plan_id,contract_plans(name,price))").eq("id",currentShop.id).single();
     if(!data)return;
     currentShop=data;
     const st=data.status||"pending";
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
     document.getElementById("status-badge").innerHTML=`<span class="st-badge ${cls}">${label}</span>`;
-    const plan=data.contract_plans;
+    const genreLabels={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',men_same:'男性同士向け',women_same:'女性同士向け'};
+    document.getElementById("status-genre").textContent=genreLabels[data.gender_mode]||data.gender_mode||'—';
+    const contracts=data.shop_contracts||[];
+    const topContract=contracts.sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
+    const plan=topContract?.contract_plans||null;
     document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"未設定（無料）";
     const shopMode=data.gender_mode||"men";
     const shopUrl="https://yobuho.com/portal.html?mode="+shopMode+"&shop="+data.id;
     const urlEl=document.getElementById("status-shop-url");
     urlEl.href=shopUrl;urlEl.textContent=shopUrl;
+    // サムネイルセクション（有料プランのみ）
+    const thumbSection=document.getElementById("thumbnail-section");
+    const isPaid=plan&&plan.price>0;
+    window._shopIsPaid=isPaid;
+    if(thumbSection){
+        thumbSection.style.display=isPaid?'':'none';
+        if(isPaid){renderThumbnailPreview(data.thumbnail_url);}
+    }
+}
+
+function renderThumbnailPreview(url){
+    const el=document.getElementById('thumbnail-preview');
+    const delBtn=document.getElementById('thumbnail-delete-btn');
+    if(url){
+        el.innerHTML=`<img src="${esc(url)}" style="max-width:120px;max-height:160px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">`;
+        delBtn.style.display='';
+    }else{
+        el.innerHTML='<span style="font-size:12px;color:var(--text-3);">未設定</span>';
+        delBtn.style.display='none';
+    }
+}
+
+async function onThumbnailSelect(input){
+    if(!input.files[0])return;
+    const file=input.files[0];
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG/PNG/WebPのみ対応');input.value='';return;}
+    if(file.size>2*1024*1024){toast('2MB以下の画像を選択してください');input.value='';return;}
+    // Base64に変換してDBに保存
+    const reader=new FileReader();
+    reader.onload=async(e)=>{
+        const base64=e.target.result;
+        const{error}=await sb.from('shops').update({thumbnail_url:base64}).eq('id',currentShop.id);
+        if(error){toast('保存エラー: '+error.message);return;}
+        currentShop.thumbnail_url=base64;
+        renderThumbnailPreview(base64);
+        toast('サムネイルを保存しました');
+    };
+    reader.readAsDataURL(file);
+    input.value='';
+}
+
+async function deleteThumbnail(){
+    if(!confirm('サムネイルを削除しますか？'))return;
+    const{error}=await sb.from('shops').update({thumbnail_url:null}).eq('id',currentShop.id);
+    if(error){toast('削除エラー: '+error.message);return;}
+    currentShop.thumbnail_url=null;
+    renderThumbnailPreview(null);
+    toast('サムネイルを削除しました');
 }
 
 function copyShopUrl(){
@@ -727,15 +920,67 @@ function setBreadcrumb(crumbs){
     }).join("");
 }
 
+// ===== お気に入りエリア =====
+function getFavKey(){return currentShop?'shop_fav_areas_'+currentShop.id:'shop_fav_areas';}
+function getFavAreas(){try{return JSON.parse(localStorage.getItem(getFavKey()))||[];}catch{return[];}}
+function saveFavAreas(favs){localStorage.setItem(getFavKey(),JSON.stringify(favs));}
+function addFavArea(fav){const favs=getFavAreas();if(favs.some(f=>f.label===fav.label&&f.pref===fav.pref))return;favs.push(fav);saveFavAreas(favs);toast('⭐ お気に入りに追加しました');renderFavAreas();}
+function removeFavArea(idx){const favs=getFavAreas();favs.splice(idx,1);saveFavAreas(favs);toast('お気に入りから削除しました');renderFavAreas();}
+function renderFavAreas(){
+    const favs=getFavAreas();
+    const el=document.getElementById('fav-areas');
+    if(!el)return;
+    if(!favs.length){el.style.display='none';return;}
+    el.style.display='block';
+    el.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--text-2,#6a5a4a);margin-bottom:6px;">⭐ お気に入りエリア</div><div style="display:flex;flex-wrap:wrap;gap:6px;">'+
+        favs.map((f,i)=>`<div onclick="navToFav(${i})" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.25);border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:#8a6a20;"><span>${esc(f.label)}</span><span style="font-size:10px;color:var(--text-3,#999);">${esc(f.pref)}</span><button onclick="event.stopPropagation();removeFavArea(${i})" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text-3,#999);padding:0;margin-left:2px;" title="削除">✕</button></div>`).join('')+
+    '</div>';
+}
+function navToFav(idx){
+    const f=getFavAreas()[idx];if(!f)return;
+    const ri=REGION_MAP.findIndex(r=>r.prefs.includes(f.pref));
+    if(ri<0)return;
+    if(f.city)showHotels(ri,f.pref,f.majorArea,f.detailArea,f.city);
+    else if(f.detailArea)showDetailAreaCities(ri,f.pref,f.majorArea,f.detailArea);
+    else if(f.majorArea)showCityPage(ri,f.pref,f.majorArea);
+    else showMajorAreaPage(ri,f.pref);
+}
+function buildFavBtn(label,pref,majorArea,detailArea,city){
+    const fav={label:city||detailArea||majorArea||label,pref,majorArea:majorArea||null,detailArea:detailArea||null,city:city||null};
+    const favs=getFavAreas();
+    const exists=favs.some(f=>f.label===fav.label&&f.pref===fav.pref&&f.city===fav.city&&f.detailArea===fav.detailArea);
+    if(exists)return'';
+    return`<button onclick="event.stopPropagation();addFavArea(${esc(JSON.stringify(fav)).replace(/"/g,'&quot;')})" title="お気に入りエリアに追加" style="display:inline-flex;align-items:center;padding:2px 6px;border:1px solid rgba(201,169,110,0.3);border-radius:50%;background:rgba(201,169,110,0.06);color:#b08030;font-size:12px;cursor:pointer;font-family:inherit;line-height:1;">⭐</button>`;
+}
+
 // ===== ナビゲーション =====
 let pageStack=[];
-function backLevel(){const prev=pageStack.pop();if(prev)prev();else showJapanPage();}
+let _skipPush=false;
+function backLevel(){history.back();}
+function pushNavState(state){
+    if(_skipPush)return;
+    history.pushState(state,'',"#"+Object.entries(state).filter(([k,v])=>v!=null).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&'));
+}
+window.addEventListener('popstate',function(e){
+    _skipPush=true;
+    const s=e.state;
+    if(!s||!s.page){showJapanPage();}
+    else if(s.page==='pref')showPrefPage(s.ri);
+    else if(s.page==='major')showMajorAreaPage(s.ri,s.pref);
+    else if(s.page==='city')showCityPage(s.ri,s.pref,s.majorArea);
+    else if(s.page==='detail')showDetailAreaCities(s.ri,s.pref,s.majorArea,s.detailArea);
+    else if(s.page==='hotels')showHotels(s.ri,s.pref,s.majorArea,s.detailArea,s.city);
+    else showJapanPage();
+    _skipPush=false;
+});
 
 async function showJapanPage(){
     pageStack=[];setBreadcrumb([{label:"日本全国"}]);
+    pushNavState({page:'japan'});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
+    renderFavAreas();
     const rc=await Promise.all(REGION_MAP.map(async(r)=>{
-        const res=await Promise.all(r.prefs.map(p=>sb.from("hotels").select("id",{count:"exact",head:true}).eq("prefecture",p).eq("is_published",true).then(({count})=>count||0)));
+        const res=await Promise.all(r.prefs.map(p=>sb.from("hotels").select("id",{count:"exact"}).eq("prefecture",p).eq("is_published",true).limit(0).then(({count})=>count||0)));
         return{label:r.label,count:res.reduce((a,b)=>a+b,0)};
     }));
     let h='<div class="area-grid">';
@@ -746,8 +991,9 @@ async function showJapanPage(){
 async function showPrefPage(ri){
     const region=REGION_MAP[ri];pageStack=[()=>showJapanPage()];
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:region.label}]);
+    pushNavState({page:'pref',ri});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const pc=await Promise.all(region.prefs.map(p=>sb.from("hotels").select("id",{count:"exact",head:true}).eq("prefecture",p).eq("is_published",true).then(({count})=>({pref:p,count:count||0}))));
+    const pc=await Promise.all(region.prefs.map(p=>sb.from("hotels").select("id",{count:"exact"}).eq("prefecture",p).eq("is_published",true).limit(0).then(({count})=>({pref:p,count:count||0}))));
     const sorted=pc.filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
     sorted.forEach(r=>{h+=`<div class="area-btn" onclick="showMajorAreaPage(${ri},'${r.pref}')"><span class="area-name">${esc(r.pref)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
@@ -757,34 +1003,35 @@ async function showPrefPage(ri){
 async function showMajorAreaPage(ri,pref){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri)];
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref}]);
+    pushNavState({page:'major',ri,pref});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("major_area").eq("prefecture",pref).eq("is_published",true).limit(5000);
-    const ac={};let nac=0;(data||[]).forEach(h=>{if(h.major_area)ac[h.major_area]=(ac[h.major_area]||0)+1;else nac++;});
+    const{data}=await sb.from("hotels").select("major_area").eq("prefecture",pref).eq("is_published",true).not("major_area","is",null).limit(10000);
+    const ac={};
+    (data||[]).forEach(h=>{if(h.major_area)ac[h.major_area]=(ac[h.major_area]||0)+1;});
     const areas=Object.keys(ac).sort((a,b)=>ac[b]-ac[a]);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    areas.forEach(a=>{h+=`<div class="area-btn" onclick="showCityPage(${ri},'${esc(pref)}','${esc(a)}')"><span class="area-name">${esc(a)}</span><span class="area-count">${ac[a].toLocaleString()}件</span></div>`;});
-    if(nac>0)h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}',null,null,null)"><span class="area-name">その他のエリア</span><span class="area-count">${nac.toLocaleString()}件</span></div>`;
+    areas.forEach(a=>{h+=`<div class="area-btn" onclick="showCityPage(${ri},'${esc(pref)}','${esc(a)}')"><span class="area-name">${esc(a)}</span><span class="area-count">${ac[a].toLocaleString()}件</span>${buildFavBtn(a,pref,a,null,null)}</div>`;});
+    if(!areas.length)h+='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">エリアデータがありません</div>';
     nav.innerHTML=h+'</div>';
 }
 
 async function showCityPage(ri,pref,majorArea){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri),()=>showMajorAreaPage(ri,pref)];
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea}]);
+    pushNavState({page:'city',ri,pref,majorArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("address,city,detail_area").eq("prefecture",pref).eq("major_area",majorArea).eq("is_published",true).limit(5000);
+    const{data}=await sb.from("hotels").select("address,city,detail_area").eq("prefecture",pref).eq("major_area",majorArea).eq("is_published",true).limit(10000);
     const dac={};(data||[]).forEach(h=>{if(h.detail_area&&h.detail_area!==majorArea)dac[h.detail_area]=(dac[h.detail_area]||0)+1;});
     if(Object.keys(dac).length>0){
         const das=Object.keys(dac).sort((a,b)=>dac[b]-dac[a]);
         let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        das.forEach(da=>{h+=`<div class="area-btn" onclick="showDetailAreaCities(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(da)}')"><span class="area-name">${esc(da)}</span><span class="area-count">${dac[da].toLocaleString()}件</span></div>`;});
-        h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,null)"><span class="area-name">すべて表示</span><span class="area-count">${(data||[]).length.toLocaleString()}件</span></div>`;
+        das.forEach(da=>{h+=`<div class="area-btn" onclick="showDetailAreaCities(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(da)}')"><span class="area-name">${esc(da)}</span><span class="area-count">${dac[da].toLocaleString()}件</span>${buildFavBtn(da,pref,majorArea,da,null)}</div>`;});
         nav.innerHTML=h+'</div>';
     }else{
         const cc={};(data||[]).forEach(h=>{const c=h.city||extractCity(h.address);if(c)cc[c]=(cc[c]||0)+1;});
         const cities=Object.keys(cc).sort((a,b)=>cc[b]-cc[a]);
         let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,'${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span></div>`;});
-        h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,null)"><span class="area-name">すべて表示</span><span class="area-count">${(data||[]).length.toLocaleString()}件</span></div>`;
+        cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,'${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,null,c)}</div>`;});
         nav.innerHTML=h+'</div>';
     }
 }
@@ -792,18 +1039,18 @@ async function showCityPage(ri,pref,majorArea){
 async function showDetailAreaCities(ri,pref,majorArea,detailArea){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri),()=>showMajorAreaPage(ri,pref),()=>showCityPage(ri,pref,majorArea)];
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea,onclick:`showCityPage(${ri},'${pref}','${majorArea}')`},{label:detailArea}]);
+    pushNavState({page:'detail',ri,pref,majorArea,detailArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     const{data}=await sb.from("hotels").select("address,city,detail_area").eq("prefecture",pref).eq("major_area",majorArea).eq("detail_area",detailArea).eq("is_published",true).limit(5000);
     const cc={};(data||[]).forEach(h=>{const c=h.city||extractCity(h.address);if(c)cc[c]=(cc[c]||0)+1;});
     const cities=Object.keys(cc).sort((a,b)=>cc[b]-cc[a]);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}','${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span></div>`;});
-    h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}',null)"><span class="area-name">すべて表示</span><span class="area-count">${(data||[]).length.toLocaleString()}件</span></div>`;
+    cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}','${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,detailArea,c)}</div>`;});
     nav.innerHTML=h+'</div>';
 }
 
 async function showHotels(ri,pref,majorArea,detailArea,city){
-    console.log('[showHotels] called',{ri,pref,majorArea,detailArea,city});
+    pushNavState({page:'hotels',ri,pref,majorArea,detailArea,city});
     const region=REGION_MAP[ri];
     const crumbs=[{label:"日本全国",onclick:"showJapanPage()"}];
     crumbs.push({label:region.label,onclick:`showPrefPage(${ri})`});
@@ -817,34 +1064,50 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     if(detailArea)stack.push(()=>showDetailAreaCities(ri,pref,majorArea,detailArea));
     pageStack=stack;
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    let q=sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true);
+    let q=sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).not("hotel_type","eq","love_hotel").not("hotel_type","eq","rental_room");
     if(pref)q=q.eq("prefecture",pref);
-    if(majorArea)q=q.eq("major_area",majorArea);else q=q.is("major_area",null);
-    if(detailArea)q=q.eq("detail_area",detailArea);
-    if(city)q=q.eq("city",city);
-    q=q.order("name").limit(100);
+    if(city){q=q.eq("city",city);}
+    else if(detailArea){q=q.eq("detail_area",detailArea);}
+    else if(majorArea){q=q.eq("major_area",majorArea);}
+    q=q.order("name").limit(1000);
     const{data,error}=await q;
     if(error){nav.innerHTML=`<div class="loading">エラー: ${esc(error.message)}</div>`;return;}
     const hotels=data||[];
-    console.log('[showHotels] total:',hotels.length,'hotel_types:',hotels.map(h=>h.hotel_type));
+    // ポータルと同じソート: 口コミ件数→ホテルタイプ→名前
+    const typeOrder={business:0,city:1,resort:2,ryokan:3,pension:4,minshuku:5,love_hotel:0,rental_room:1,other:6};
+    hotels.sort((a,b)=>{
+        const ca=a.hotel_report_summary?.[0]?.total_reports||0;
+        const cb=b.hotel_report_summary?.[0]?.total_reports||0;
+        if(ca!==cb)return cb-ca;
+        const ta=typeOrder[a.hotel_type]??6;
+        const tb=typeOrder[b.hotel_type]??6;
+        if(ta!==tb)return ta-tb;
+        return(a.name||'').localeCompare(b.name||'','ja');
+    });
     const normalHotels=hotels.filter(h=>!['love_hotel','rental_room'].includes(h.hotel_type));
     // ラブホはmajor_area/detail_areaがnullのため別途取得
     let loveHotels=[];
     if(pref&&city){
-        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true).in("hotel_type",["love_hotel","rental_room"]).eq("prefecture",pref).eq("city",city).order("name").limit(100);
-        loveHotels=lhData||[];
+        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).in("hotel_type",["love_hotel","rental_room"]).eq("prefecture",pref).eq("city",city).order("name").limit(1000);
+        loveHotels=(lhData||[]).sort((a,b)=>{
+            const ca=a.hotel_report_summary?.[0]?.total_reports||0;
+            const cb=b.hotel_report_summary?.[0]?.total_reports||0;
+            if(ca!==cb)return cb-ca;
+            return(a.name||'').localeCompare(b.name||'','ja');
+        });
     }
-    console.log('[showHotels] normal:',normalHotels.length,'loveho:',loveHotels.length);
+    const favLabel=city||detailArea||majorArea||pref;
     let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
-    if(loveHotels.length>0){
+    html+=buildFavBtn(favLabel,pref,majorArea,detailArea,city);
+    if(pref&&city){
         html+=`<div style="display:flex;gap:0;border-bottom:1px solid var(--border,#e0d5d0);margin-bottom:12px;">
             <button onclick="saShowSubTab('hotel')" id="sa-subtab-hotel" style="padding:8px 16px;border:none;border-bottom:2px solid var(--rose,#c47a88);background:transparent;font-size:12px;font-weight:600;color:var(--rose,#c47a88);cursor:pointer;font-family:inherit;">🏨 ホテル (${normalHotels.length})</button>
             <button onclick="saShowSubTab('loveho')" id="sa-subtab-loveho" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:transparent;font-size:12px;font-weight:600;color:var(--text-3,#999);cursor:pointer;font-family:inherit;">🏩 ラブホ (${loveHotels.length})</button>
         </div>`;
-        html+=`<div id="sa-subtab-hotel-content">${renderHotelCards(normalHotels)}</div>`;
-        html+=`<div id="sa-subtab-loveho-content" style="display:none;">${lhRenderHotelCards(loveHotels)}</div>`;
+        html+=`<div id="sa-subtab-hotel-content" style="max-height:60vh;overflow-y:auto;">${renderHotelCards(normalHotels)}</div>`;
+        html+=`<div id="sa-subtab-loveho-content" style="display:none;max-height:60vh;overflow-y:auto;">${lhRenderHotelCards(loveHotels)}</div>`;
     }else{
-        html+=`<div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">${hotels.length}件のホテル</div>`+renderHotelCards(hotels);
+        html+=`<div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">${hotels.length}件のホテル</div><div style="max-height:60vh;overflow-y:auto;">`+renderHotelCards(hotels)+'</div>';
     }
     nav.innerHTML=html;
     document.getElementById("lh-form-card").style.display="none";
@@ -855,7 +1118,13 @@ function renderHotelCards(hotels){
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
         const isReg=registeredHotelIds.has(String(h.id));
         const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':h.hotel_type==='rental_room'?'🏠 レンタルルーム':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
-        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer"><button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button></div></div>`;
+        const rc=h.hotel_report_summary?.[0]?.total_reports||0;
+        const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
+        const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
+        const actionBtns=isReg
+            ?`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
+            :`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button>`;
+        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
 
@@ -865,10 +1134,10 @@ async function textSearch(){
     if(!kw){toast("検索キーワードを入力してください");return;}
     const wrap=document.getElementById("text-search-results");
     wrap.innerHTML='<div class="loading">検索中...</div>';
-    const{data}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type").eq("is_published",true).or(`name.ilike.%${kw}%,address.ilike.%${kw}%`).order("name").limit(50);
+    const{data}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).or(`name.ilike.%${kw}%,address.ilike.%${kw}%`).order("name").limit(50);
     const hotels=data||[];
     if(!hotels.length){wrap.innerHTML='<div style="font-size:12px;color:var(--text-3);padding:10px 0;">該当するホテルがありません</div>';return;}
-    wrap.innerHTML=`<div style="font-size:12px;color:var(--text-3);margin-bottom:8px;">${hotels.length}件見つかりました</div>`+renderHotelCards(hotels);
+    wrap.innerHTML=`<div style="font-size:12px;color:var(--text-3);margin-bottom:8px;">${hotels.length}件見つかりました</div><div style="max-height:60vh;overflow-y:auto;">`+renderHotelCards(hotels)+'</div>';
 }
 
 // ===== フォーム状態 =====
@@ -886,13 +1155,19 @@ function setCanCall(val){
 
 // ===== ホテル選択 → フォーム =====
 async function selectHotelById(hotelId){
-    const{data:hotel}=await sb.from("hotels").select("id,name,address").eq("id",hotelId).single();
+    const{data:hotel}=await sb.from("hotels").select("id,name,address,hotel_type").eq("id",hotelId).single();
     if(!hotel){toast("ホテルが見つかりません");return;}
+    // ラブホ/レンタルルームの場合はラブホ用フォームを開く
+    if(hotel.hotel_type==='love_hotel'||hotel.hotel_type==='rental_room'){
+        lhSelectHotel(hotel.id, hotel.name);
+        return;
+    }
     const{data:existing}=await sb.from("shop_hotel_info").select("*").eq("shop_id",currentShop.id).eq("hotel_id",hotelId).maybeSingle();
     openForm(hotel,existing);
 }
 
 function openForm(hotel,existing){
+    document.getElementById("lh-form-card").style.display="none";
     document.getElementById("form-hotel-name").textContent=hotel.name;
     document.getElementById("form-hotel-id").value=hotel.id;
     document.getElementById("form-edit-id").value=existing?existing.id:"";
@@ -945,6 +1220,20 @@ function toggleTransportFee(){
     const fi=document.getElementById("form-transport");
     if(fc.checked){wrap.style.display="none";fi.value="";}
     else{wrap.style.display="flex";fi.focus();}
+}
+function toggleLhTransportFee(){
+    const fc=document.getElementById("lh-transport-free");
+    const wrap=document.getElementById("lh-transport-fee-wrap");
+    const fi=document.getElementById("lh-form-transport");
+    if(fc.checked){wrap.style.display="none";fi.value="";}
+    else{wrap.style.display="flex";fi.focus();}
+}
+function getLhTransportFee(){
+    if(document.getElementById("lh-transport-free").checked)return 0;
+    const v=document.getElementById("lh-form-transport").value.replace(/[,，]/g,"").trim();
+    if(!v)return null;
+    const n=parseInt(v,10);
+    return isNaN(n)?null:n;
 }
 function getTransportFee(){
     if(document.getElementById("transport-free").checked)return 0;
@@ -1020,9 +1309,9 @@ async function doSubmit(){
     const memo=document.getElementById("form-memo").value.trim()||null;
     const svcs=getSelectedServices();
 
-    // 1. reportsテーブルにinsert
+    // 1. reportsテーブルにupsert（1店舗1ホテル1件制限）
     const reportPayload={
-        hotel_id:hotelId,
+        hotel_id:parseInt(hotelId),
         can_call:canCall,
         poster_type:"shop",
         poster_name:currentShop.shop_name||"店舗",
@@ -1037,13 +1326,22 @@ async function doSubmit(){
         guest_male:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
         guest_female:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-female").value)||0):0
     };
-    const{error:repErr}=await sb.from("reports").insert(reportPayload);
+    // 既存の店舗投稿を確認
+    const{data:existingRep}=await sb.from("reports").select("id").eq("hotel_id",parseInt(hotelId)).eq("shop_id",currentShop.id).eq("poster_type","shop").maybeSingle();
+    let repErr;
+    if(existingRep){
+        // 既存があれば上書き更新
+        reportPayload.updated_at=new Date().toISOString();
+        const{error}=await sb.from("reports").update(reportPayload).eq("id",existingRep.id);
+        repErr=error;
+    }else{
+        // 新規insert
+        const{error}=await sb.from("reports").insert(reportPayload);
+        repErr=error;
+    }
     if(repErr){
-        console.error("reports insert error:",JSON.stringify(repErr));
-        if(repErr.code!=="23505"){
-            submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";
-            closeConfirm();toast("投稿エラー: "+repErr.message);return;
-        }
+        submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";
+        closeConfirm();toast("投稿エラー: "+repErr.message);return;
     }
 
     // 2. shop_hotel_infoテーブルにupsert
@@ -1058,11 +1356,11 @@ async function doSubmit(){
     let infoId;
     if(editId){
         const{error}=await sb.from("shop_hotel_info").update(infoPayload).eq("id",editId);
-        if(error){console.error("shop_hotel_info update error:",JSON.stringify(error));closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
+        if(error){closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
         infoId=editId;
     }else{
         const{data,error}=await sb.from("shop_hotel_info").insert(infoPayload).select().single();
-        if(error){console.error("shop_hotel_info insert error:",JSON.stringify(error));closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
+        if(error){closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
         infoId=data.id;
     }
 
@@ -1076,6 +1374,7 @@ async function doSubmit(){
     cancelForm();
     registeredHotelIds.add(String(hotelId));
     loadRegisteredHotels();
+    if(_editModal)closeEditModal();
     showSuccessModal('登録完了！', 'ホテル情報が登録されました。');
 }
 
@@ -1097,10 +1396,13 @@ function renderRegistered(){
     if(!pageData.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-3);font-size:13px;">登録済みホテルがありません</div>';document.getElementById("pagination").innerHTML="";return;}
     wrap.innerHTML=pageData.map(r=>{
         const name=r.hotels?r.hotels.name:"(削除済み)";
+        const ht=r.hotels?.hotel_type||'';
+        const isLoveho=ht==='love_hotel'||ht==='rental_room';
+        const typeTag=isLoveho?'<span style="font-size:10px;color:#b5627a;margin-left:4px;">🏩</span>':'';
         const canLabel=r.can_call?'<span class="reg-status can">ご案内実績あり</span>':'<span class="reg-status cant">ご案内不可</span>';
         const tVal=r.transport_fee;
         const cost=tVal===null||tVal===undefined?"—":formatFee(tVal);
-        return`<div class="reg-row"><span class="reg-name">${esc(name)}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">削除</button></div></div>`;
+        return`<div class="reg-row"><span class="reg-name">${esc(name)}${typeTag}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">投稿削除</button></div></div>`;
     }).join("");
     if(totalPages<=1){document.getElementById("pagination").innerHTML="";return;}
     let pg='<button class="page-btn" onclick="goPage('+(regPage-1)+')"'+(regPage<=1?" disabled":"")+'>←</button>';
@@ -1111,14 +1413,52 @@ function renderRegistered(){
 
 function goPage(p){const tp=Math.ceil(regData.length/PER_PAGE)||1;if(p<1||p>tp)return;regPage=p;renderRegistered();}
 
+let _editModal=null;
 async function editRegistered(infoId){
     const info=regData.find(r=>String(r.id)===String(infoId));if(!info)return;
-    const hotel={id:info.hotel_id,name:info.hotels?info.hotels.name:"(不明)"};
-    switchTab('search');openForm(hotel,info);
+    const ht=info.hotels?.hotel_type||'';
+    const isLoveho=ht==='love_hotel'||ht==='rental_room';
+    const hotelName=info.hotels?info.hotels.name:"(不明)";
+    // モーダルで編集フォームを表示
+    const modal=document.getElementById('edit-modal');
+    const container=document.getElementById('edit-modal-content');
+    if(isLoveho){
+        // ラブホフォームをモーダルに移動
+        const form=document.getElementById('lh-form-card');
+        container.innerHTML='';container.appendChild(form);
+        form.style.display='block';
+        _editModal={type:'loveho',form};
+        await lhSelectHotel(info.hotel_id,hotelName);
+    }else{
+        // ホテルフォームをモーダルに移動
+        const form=document.getElementById('info-form');
+        container.innerHTML='';container.appendChild(form);
+        _editModal={type:'hotel',form};
+        const hotel={id:info.hotel_id,name:hotelName};
+        openForm(hotel,info);
+    }
+    modal.style.display='flex';
+}
+function closeEditModal(){
+    const modal=document.getElementById('edit-modal');
+    modal.style.display='none';
+    // フォームを元の位置に戻す
+    if(_editModal){
+        const searchTab=document.getElementById('tab-search');
+        if(_editModal.type==='loveho'){
+            _editModal.form.style.display='none';
+            searchTab.appendChild(_editModal.form);
+        }else{
+            _editModal.form.classList.remove('active');
+            searchTab.appendChild(_editModal.form);
+        }
+        _editModal=null;
+    }
+    loadRegisteredHotels();
 }
 
 async function deleteRegistered(infoId){
-    if(!confirm("この登録情報を削除しますか？"))return;
+    if(!confirm("この投稿を削除しますか？（ホテル自体は削除されません）"))return;
     const info=regData.find(r=>String(r.id)===String(infoId));
     await sb.from("shop_hotel_services").delete().eq("shop_hotel_info_id",infoId);
     const{error}=await sb.from("shop_hotel_info").delete().eq("id",infoId);
@@ -1136,7 +1476,7 @@ async function sendEmailVerification(){
     const pw=document.getElementById("settings-email-pw").value;
     if(!newEmail||!pw){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){errEl.textContent="メールアドレスの形式が正しくありません";errEl.style.display="block";return;}
-    try{const storedPw=atob(currentShop.password_hash||"");if(storedPw!==pw){errEl.textContent="パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    try{const vRes=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:pw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
     const code=String(Math.floor(100000+Math.random()*900000));
     localStorage.setItem("email_change_code",JSON.stringify({code:code,newEmail:newEmail,expires:Date.now()+10*60*1000}));
     const emailBody='<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><h2 style="color: #b5627a;">YobuHo - メールアドレス変更</h2><p>メールアドレス変更の認証コードをお知らせします。</p><div style="background: #f8f0f2; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;"><p style="margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 8px;">'+code+'</p></div><p style="color: #888; font-size: 12px;">このコードは10分間有効です。</p><p style="color: #888; font-size: 12px;">心当たりがない場合は無視してください。</p></div>';
@@ -1195,13 +1535,10 @@ async function changePassword(){
     const newPw=document.getElementById("settings-new-pw").value;
     const newPw2=document.getElementById("settings-new-pw2").value;
     if(!oldPw||!newPw||!newPw2){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
-    try{const storedPw=atob(currentShop.password_hash||"");if(storedPw!==oldPw){errEl.textContent="現在のパスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    try{const vRes=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:oldPw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"現在のパスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
     if(newPw!==newPw2){errEl.textContent="新しいパスワードが一致しません";errEl.style.display="block";return;}
     if(newPw.length<6){errEl.textContent="パスワードは6文字以上にしてください";errEl.style.display="block";return;}
-    const newHash=btoa(newPw);
-    const{error}=await sb.from("shops").update({password_hash:newHash}).eq("id",currentShop.id);
-    if(error){errEl.textContent="更新エラー: "+error.message;errEl.style.display="block";return;}
-    currentShop.password_hash=newHash;
+    try{const res=await fetch("https://yobuho.com/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});const result=await res.json();if(!result.success){errEl.textContent="更新エラー: "+(result.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
     document.getElementById("settings-old-pw").value="";
     document.getElementById("settings-new-pw").value="";
     document.getElementById("settings-new-pw2").value="";
@@ -1233,11 +1570,18 @@ function saShowSubTab(tab){
 }
 
 function lhRenderHotelCards(hotels){
-    return hotels.map(h=>`
-        <div style="background:#fff;border:1px solid var(--border,#e0d5d0);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-            <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">${esc(h.name)}</div>${h.address?`<div style="font-size:11px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div style="font-size:11px;color:#999;">🚉 ${esc(h.nearest_station)}</div>`:''}</div>
-            <button class="btn btn-rose" style="flex-shrink:0;margin-left:8px;" onclick="lhSelectHotel(${h.id},'${esc(h.name).replace(/'/g,"\\'")}')">🏩 投稿</button>
-        </div>`).join('');
+    if(!hotels.length)return'<div class="loading">ラブホがありません</div>';
+    return'<div class="hotel-cards">'+hotels.map((h,i)=>{
+        const isReg=registeredHotelIds.has(String(h.id));
+        const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':'🏠 レンタルルーム';
+        const rc=h.hotel_report_summary?.[0]?.total_reports||0;
+        const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
+        const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
+        const actionBtns=isReg
+            ?`<button class="btn btn-rose" onclick="lhSelectHotel(${h.id},'${esc(h.name).replace(/'/g,"\\'")}')">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
+            :`<button class="btn btn-rose" onclick="lhSelectHotel(${h.id},'${esc(h.name).replace(/'/g,"\\'")}')">📝 情報登録</button>`;
+        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span><span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
+    }).join("")+'</div>';
 }
 
 async function lhLoadMasters(){
@@ -1282,19 +1626,50 @@ function lhToggleGP(el,label){
 async function lhSelectHotel(hotelId,hotelName){
     lhSelectedHotelId=hotelId;
     lhSelectedGoodPoints=[];
+    document.getElementById("info-form").classList.remove("active");
     document.getElementById("lh-form-title").textContent='🏩 '+hotelName+' に口コミ投稿';
     document.getElementById("lh-form-card").style.display="block";
     document.getElementById("lh-f-solo").value="";
+    document.getElementById("lh-f-entry-method").value="";
     document.getElementById("lh-f-atmosphere").value="";
     document.getElementById("lh-f-timeslot").value="";
     document.getElementById("lh-f-comment").value="";
-    document.getElementById("lh-f-poster").value="";
+    document.getElementById("lh-f-poster").value=currentShop.shop_name||"店舗";
     document.getElementById("lh-f-multi").checked=false;
     document.getElementById("lh-f-multi-detail").style.display="none";
     document.getElementById("lh-f-guest-male").value="";
     document.getElementById("lh-f-guest-female").value="";
     document.querySelectorAll("#lh-f-gp-wrap div[onclick]").forEach(el=>{el.style.background='#fff';el.style.borderColor='var(--border,#e0d5d0)';el.style.fontWeight='400';});
+    // 交通費リセット
+    document.getElementById("lh-transport-free").checked=false;
+    document.getElementById("lh-transport-fee-wrap").style.display="flex";
+    document.getElementById("lh-form-transport").value="";
+    // 既存の交通費データを読み込み
+    const{data:shi}=await sb.from("shop_hotel_info").select("transport_fee").eq("shop_id",currentShop.id).eq("hotel_id",hotelId).maybeSingle();
+    if(shi){
+        if(shi.transport_fee===0){document.getElementById("lh-transport-free").checked=true;document.getElementById("lh-transport-fee-wrap").style.display="none";}
+        else if(shi.transport_fee!==null){document.getElementById("lh-form-transport").value=shi.transport_fee;}
+    }
     await lhLoadMasters();
+    // 既存のラブホ投稿データを読み込みフォームに反映
+    const shopName=currentShop.shop_name||"店舗";
+    const{data:existLh}=await sb.from("loveho_reports").select("*").eq("hotel_id",hotelId).eq("poster_name",shopName).maybeSingle();
+    if(existLh){
+        document.getElementById("lh-form-title").textContent='🏩 '+hotelName+' の情報を編集';
+        if(existLh.solo_entry)document.getElementById("lh-f-solo").value=existLh.solo_entry;
+        if(existLh.entry_method)document.getElementById("lh-f-entry-method").value=existLh.entry_method;
+        if(existLh.atmosphere)document.getElementById("lh-f-atmosphere").value=existLh.atmosphere;
+        if(existLh.time_slot)document.getElementById("lh-f-timeslot").value=existLh.time_slot;
+        if(existLh.comment)document.getElementById("lh-f-comment").value=existLh.comment;
+        if(existLh.multi_person){document.getElementById("lh-f-multi").checked=true;document.getElementById("lh-f-multi-detail").style.display="flex";if(existLh.guest_male)document.getElementById("lh-f-guest-male").value=existLh.guest_male;if(existLh.guest_female)document.getElementById("lh-f-guest-female").value=existLh.guest_female;}
+        if(existLh.good_points&&Array.isArray(existLh.good_points)){
+            lhSelectedGoodPoints=existLh.good_points;
+            document.querySelectorAll("#lh-f-gp-wrap div[onclick]").forEach(el=>{
+                const label=el.textContent.trim();
+                if(lhSelectedGoodPoints.includes(label)){el.style.background='rgba(201,169,110,0.15)';el.style.borderColor='rgba(201,169,110,0.5)';el.style.fontWeight='600';}
+            });
+        }
+    }
     document.getElementById("lh-form-card").scrollIntoView({behavior:'smooth'});
 }
 
@@ -1302,40 +1677,148 @@ async function lhSubmitReport(){
     const btn=document.getElementById("lh-f-submit");
     if(!lhSelectedHotelId){toast("ホテルを選択してください");return;}
     const solo=document.getElementById("lh-f-solo").value;
+    const entryMethod=document.getElementById("lh-f-entry-method").value;
     const atm=document.getElementById("lh-f-atmosphere").value;
     const ts=document.getElementById("lh-f-timeslot").value;
     const comment=document.getElementById("lh-f-comment").value.trim();
     const poster=document.getElementById("lh-f-poster").value.trim();
     const multi=document.getElementById("lh-f-multi").checked;
-    const hasData=solo||atm||ts||comment||lhSelectedGoodPoints.length;
+    const hasData=solo||entryMethod||atm||ts||comment||lhSelectedGoodPoints.length;
     if(!hasData){toast("少なくとも1つ以上の項目を入力してください");return;}
     btn.disabled=true;btn.textContent="送信中...";
     try{
         const payload={
             hotel_id:lhSelectedHotelId,
             solo_entry:solo||null,
+            entry_method:entryMethod||null,
             atmosphere:atm||null,
             good_points:lhSelectedGoodPoints.length?lhSelectedGoodPoints:null,
             time_slot:ts||null,
             comment:comment||null,
             poster_name:poster||currentShop.shop_name||"店舗",
-            poster_type:"shop",
             multi_person:multi,
             guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,
-            guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null
+            guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null,
+            gender_mode:currentShop.gender_mode||'men'
         };
-        const{error}=await sb.from("loveho_reports").insert(payload);
-        if(error)throw error;
-        toast("口コミを投稿しました！");
+        // 既存の店舗投稿を確認（1店舗1ホテル1件制限）
+        const shopName=currentShop.shop_name||"店舗";
+        const{data:existingLh}=await sb.from("loveho_reports").select("id").eq("hotel_id",lhSelectedHotelId).eq("poster_name",shopName).maybeSingle();
+        if(existingLh){
+            payload.updated_at=new Date().toISOString();
+            const{error}=await sb.from("loveho_reports").update(payload).eq("id",existingLh.id);
+            if(error)throw error;
+            toast("口コミを更新しました！");
+        }else{
+            const{error}=await sb.from("loveho_reports").insert(payload);
+            if(error)throw error;
+            toast("口コミを投稿しました！");
+        }
+        // 交通費をshop_hotel_infoに保存（ホテルと同じ仕組み）
+        const lhTransportFee=getLhTransportFee();
+        const{data:existShi}=await sb.from("shop_hotel_info").select("id").eq("shop_id",currentShop.id).eq("hotel_id",lhSelectedHotelId).maybeSingle();
+        if(existShi){
+            await sb.from("shop_hotel_info").update({transport_fee:lhTransportFee,can_call:true}).eq("id",existShi.id);
+        }else{
+            await sb.from("shop_hotel_info").insert({shop_id:currentShop.id,hotel_id:lhSelectedHotelId,can_call:true,transport_fee:lhTransportFee});
+        }
+        if(!registeredHotelIds.has(String(lhSelectedHotelId)))registeredHotelIds.add(String(lhSelectedHotelId));
         document.getElementById("lh-form-card").style.display="none";
         lhSelectedHotelId=null;
+        if(_editModal)closeEditModal();
     }catch(e){
-        console.error(e);toast("投稿エラー: "+e.message);
+        toast("投稿エラー: "+e.message);
     }finally{
         btn.disabled=false;btn.textContent="口コミを投稿する";
     }
 }
+
+
+// ===== 未掲載ホテル情報提供 =====
+function openShopHotelRequest(){
+  document.getElementById('sa-hreq-name').value='';
+  document.getElementById('sa-hreq-address').value='';
+  document.getElementById('sa-hreq-tel').value='';
+  document.getElementById('sa-hreq-type').value='business';
+  document.getElementById('sa-hreq-err').style.display='none';
+  document.getElementById('sa-hreq-step1').style.display='';
+  document.getElementById('sa-hreq-step2').style.display='none';
+  document.getElementById('sa-hreq-done').style.display='none';
+  document.getElementById('sa-hreq-modal').style.display='flex';
+}
+function closeShopHotelRequest(){document.getElementById('sa-hreq-modal').style.display='none';}
+function saHreqConfirm(){
+  const name=document.getElementById('sa-hreq-name').value.trim();
+  const address=document.getElementById('sa-hreq-address').value.trim();
+  const err=document.getElementById('sa-hreq-err');
+  if(!name||!address){err.textContent='ホテル名と住所は必須です';err.style.display='block';return;}
+  err.style.display='none';
+  const tel=document.getElementById('sa-hreq-tel').value.trim();
+  const type=document.getElementById('sa-hreq-type').value;
+  const tl=HOTEL_TYPES[type]||type;
+  document.getElementById('sa-hreq-confirm-body').innerHTML=
+    `<div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--text-3);font-weight:600;">ホテル名</span><div style="font-size:13px;margin-top:2px;">${esc(name)}</div></div>`+
+    `<div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--text-3);font-weight:600;">住所</span><div style="font-size:13px;margin-top:2px;">${esc(address)}</div></div>`+
+    (tel?`<div style="margin-bottom:8px;"><span style="font-size:11px;color:var(--text-3);font-weight:600;">電話番号</span><div style="font-size:13px;margin-top:2px;">${esc(tel)}</div></div>`:'')+
+    `<div><span style="font-size:11px;color:var(--text-3);font-weight:600;">タイプ</span><div style="font-size:13px;margin-top:2px;">${esc(tl)}</div></div>`;
+  document.getElementById('sa-hreq-step1').style.display='none';
+  document.getElementById('sa-hreq-step2').style.display='';
+}
+function saHreqBack(){document.getElementById('sa-hreq-step2').style.display='none';document.getElementById('sa-hreq-step1').style.display='';}
+async function saHreqSubmit(){
+  const btn=document.getElementById('sa-hreq-submit');
+  btn.disabled=true;btn.textContent='送信中...';
+  const payload={hotel_name:document.getElementById('sa-hreq-name').value.trim(),address:document.getElementById('sa-hreq-address').value.trim(),tel:document.getElementById('sa-hreq-tel').value.trim()||null,hotel_type:document.getElementById('sa-hreq-type').value,status:'pending'};
+  const{error}=await sb.from('hotel_requests').insert(payload);
+  btn.disabled=false;btn.textContent='送信する';
+  if(error){toast('送信エラー: '+error.message);return;}
+  document.getElementById('sa-hreq-step2').style.display='none';
+  document.getElementById('sa-hreq-done').style.display='';
+  toast('ホテル情報を送信しました');
+}
 </script>
+
+<!-- 編集モーダル -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto;" onclick="if(event.target===this)closeEditModal()">
+  <div style="background:#fff;border-radius:16px;max-width:520px;width:100%;padding:24px 20px;box-shadow:0 8px 40px rgba(0,0,0,0.15);margin:40px auto;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button onclick="closeEditModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
+    </div>
+    <div id="edit-modal-content"></div>
+  </div>
+</div>
+
+<!-- 未掲載ホテル情報提供モーダル -->
+<div id="sa-hreq-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;padding:20px;" onclick="if(event.target===this)closeShopHotelRequest()">
+  <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 8px 40px rgba(0,0,0,0.15);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:16px;font-weight:700;margin:0;">📝 未掲載ホテル情報提供</h3>
+      <button onclick="closeShopHotelRequest()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
+    </div>
+    <div id="sa-hreq-step1">
+      <p style="font-size:12px;color:var(--text-3);margin-bottom:16px;">掲載されていないホテルの情報をお寄せください。確認後、掲載いたします。</p>
+      <div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">ホテル名 *</label><input id="sa-hreq-name" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;font-family:inherit;box-sizing:border-box;" placeholder="ホテル名を入力"></div>
+      <div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">住所 *</label><input id="sa-hreq-address" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;font-family:inherit;box-sizing:border-box;" placeholder="住所を入力"></div>
+      <div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">電話番号（任意）</label><input id="sa-hreq-tel" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;font-family:inherit;box-sizing:border-box;" placeholder="電話番号"></div>
+      <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">タイプ</label><select id="sa-hreq-type" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;font-family:inherit;background:#fff;box-sizing:border-box;"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="love_hotel">ラブホテル</option><option value="other">その他</option></select></div>
+      <div id="sa-hreq-err" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button onclick="saHreqConfirm()" style="width:100%;padding:12px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">確認画面へ</button>
+    </div>
+    <div id="sa-hreq-step2" style="display:none;">
+      <div id="sa-hreq-confirm-body" style="background:var(--bg-3);padding:16px;border-radius:8px;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saHreqBack()" style="flex:1;padding:10px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">← 戻る</button>
+        <button id="sa-hreq-submit" onclick="saHreqSubmit()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">送信する</button>
+      </div>
+    </div>
+    <div id="sa-hreq-done" style="display:none;text-align:center;padding:20px 0;">
+      <div style="font-size:36px;margin-bottom:12px;">✅</div>
+      <p style="font-size:14px;font-weight:600;">情報をお寄せいただきありがとうございます</p>
+      <p style="font-size:12px;color:var(--text-3);margin-top:8px;">確認後、掲載いたします。</p>
+      <button onclick="closeShopHotelRequest()" style="margin-top:16px;padding:10px 24px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <footer style="background:#2c2c2c; padding:12px 16px; margin-top:40px; text-align:center; font-size:11px; line-height:1.6;">
   <div style="display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;">

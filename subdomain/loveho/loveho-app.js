@@ -12,7 +12,7 @@ const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const HOTEL_TYPE_FILTER = 'love_hotel';
+const HOTEL_TYPE_FILTERS = ['love_hotel', 'rental_room'];
 
 const REGION_MAP = [
     { label: '北海道', prefs: ['北海道'] },
@@ -55,10 +55,10 @@ function updatePageTitle(prefix) {
 // Supabase クエリヘルパー（hotel_type フィルタ自動付与）
 // ==========================================================================
 function hotelsQuery() {
-    return supabaseClient.from('hotels').select('*').eq('hotel_type', HOTEL_TYPE_FILTER).eq('is_published', true);
+    return supabaseClient.from('hotels').select('*').in('hotel_type', HOTEL_TYPE_FILTERS).eq('is_published', true);
 }
 function hotelsQueryColumns(cols) {
-    return supabaseClient.from('hotels').select(cols).eq('hotel_type', HOTEL_TYPE_FILTER).eq('is_published', true);
+    return supabaseClient.from('hotels').select(cols).in('hotel_type', HOTEL_TYPE_FILTERS).eq('is_published', true);
 }
 
 // ==========================================================================
@@ -80,7 +80,7 @@ function setBreadcrumb(crumbs) {
         return `${i > 0 ? '<span class="lh-breadcrumb-sep">›</span>' : ''}
             <span class="lh-breadcrumb-item ${isLast ? 'active' : ''}"
                   ${!isLast && c.onclick ? `style="cursor:pointer" onclick="${c.onclick}"` : ''}>
-                ${c.label}
+                ${esc(c.label)}
             </span>`;
     }).join('');
 }
@@ -159,7 +159,7 @@ async function fetchReviewSummaries(hotelIds) {
     try {
         const { data, error } = await supabaseClient
             .from('loveho_reports')
-            .select('hotel_id,recommend,cleanliness,cost_performance,can_enter_alone,can_go_outside')
+            .select('hotel_id,recommendation,cleanliness,cost_performance,solo_entry,can_go_out')
             .in('hotel_id', hotelIds);
         if (error || !data) return {};
         const map = {};
@@ -167,18 +167,18 @@ async function fetchReviewSummaries(hotelIds) {
             if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommend_sum: 0, cleanliness_sum: 0, cp_sum: 0, alone_yes: 0, alone_no: 0, alone_unknown: 0, outside_yes: 0, outside_no: 0, outside_unknown: 0 };
             const s = map[r.hotel_id];
             s.count++;
-            if (r.recommend) s.recommend_sum += r.recommend;
+            if (r.recommendation) s.recommend_sum += r.recommendation;
             if (r.cleanliness) s.cleanliness_sum += r.cleanliness;
             if (r.cost_performance) s.cp_sum += r.cost_performance;
-            if (r.can_enter_alone === 'yes') s.alone_yes++;
-            else if (r.can_enter_alone === 'no') s.alone_no++;
+            if (r.solo_entry === 'yes') s.alone_yes++;
+            else if (r.solo_entry === 'no') s.alone_no++;
             else s.alone_unknown++;
-            if (r.can_go_outside === 'yes') s.outside_yes++;
-            else if (r.can_go_outside === 'no') s.outside_no++;
+            if (r.can_go_out === 'yes') s.outside_yes++;
+            else if (r.can_go_out === 'no') s.outside_no++;
             else s.outside_unknown++;
         });
         return map;
-    } catch (e) { console.error('[fetchReviewSummaries]', e); return {}; }
+    } catch (e) { return {}; }
 }
 
 // ==========================================================================
@@ -349,10 +349,26 @@ async function showCityPage(region, pref, majorArea) {
         return;
     }
 
-    // city 一覧
+    // city 一覧（エリア内のラブホから市区町村候補を取得）
+    const citySetLocal = new Set();
+    data.forEach(h => { const c = h.city || extractCity(h.address); if (c) citySetLocal.add(c); });
+    const candidateCities = [...citySetLocal];
+
+    // 都道府県全体での件数を取得（ポータルと統一）
     const cityCount = {};
-    data.forEach(h => { const c = h.city || extractCity(h.address); if (c) cityCount[c] = (cityCount[c] || 0) + 1; });
-    const cities = Object.keys(cityCount).sort((a, b) => cityCount[b] - cityCount[a]);
+    if (candidateCities.length > 0) {
+        let countRows = [];
+        let countFrom = 0;
+        while (true) {
+            const { data: chunk } = await hotelsQueryColumns('city').eq('prefecture', pref).in('city', candidateCities).range(countFrom, countFrom + 999);
+            if (!chunk || !chunk.length) break;
+            countRows = countRows.concat(chunk);
+            if (chunk.length < 1000) break;
+            countFrom += 1000;
+        }
+        countRows.forEach(h => { if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1; });
+    }
+    const cities = candidateCities.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length) { fetchAndShowHotels({ prefecture: pref, major_area: majorArea }); return; }
 
@@ -361,8 +377,8 @@ async function showCityPage(region, pref, majorArea) {
         const btn = document.createElement('button');
         btn.className = 'lh-area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-        btn.innerHTML = `<span>${city}</span><span class="city-count">${cityCount[city]}</span>`;
-        btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city); };
+        btn.innerHTML = `<span>${city}</span><span class="city-count">${cityCount[city] || 0}</span>`;
+        btn.onclick = () => { pageStack.push(() => showCityPage(region, pref, majorArea)); fetchAndShowHotelsByCity({ prefecture: pref }, city); };
         container.appendChild(btn);
     });
     const allBtn = document.createElement('button');
@@ -403,9 +419,24 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         from += 1000;
     }
 
+    const citySetDA = new Set();
+    data.forEach(h => { const c = h.city || extractCity(h.address); if (c) citySetDA.add(c); });
+    const candidateCitiesDA = [...citySetDA];
+
     const cityCount = {};
-    data.forEach(h => { const c = h.city || extractCity(h.address); if (c) cityCount[c] = (cityCount[c] || 0) + 1; });
-    const cities = Object.keys(cityCount).sort((a, b) => cityCount[b] - cityCount[a]);
+    if (candidateCitiesDA.length > 0) {
+        let countRows = [];
+        let countFrom = 0;
+        while (true) {
+            const { data: chunk } = await hotelsQueryColumns('city').eq('prefecture', pref).in('city', candidateCitiesDA).range(countFrom, countFrom + 999);
+            if (!chunk || !chunk.length) break;
+            countRows = countRows.concat(chunk);
+            if (chunk.length < 1000) break;
+            countFrom += 1000;
+        }
+        countRows.forEach(h => { if (h.city) cityCount[h.city] = (cityCount[h.city] || 0) + 1; });
+    }
+    const cities = candidateCitiesDA.sort((a, b) => (cityCount[b] || 0) - (cityCount[a] || 0));
 
     if (!cities.length) { fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea }); return; }
 
@@ -414,10 +445,10 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         const btn = document.createElement('button');
         btn.className = 'lh-area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
-        btn.innerHTML = `<span>${city}</span><span class="city-count">${cityCount[city]}</span>`;
+        btn.innerHTML = `<span>${city}</span><span class="city-count">${cityCount[city] || 0}</span>`;
         btn.onclick = () => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
-            fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
+            fetchAndShowHotelsByCity({ prefecture: pref }, city);
         };
         container.appendChild(btn);
     });
@@ -473,7 +504,7 @@ async function fetchAndShowHotels(filterObj) {
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
-    } catch (e) { console.error(e); }
+    } catch (e) { /* error silenced */ }
     finally { hideLoading(); }
 }
 
@@ -504,8 +535,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 
     try {
         let query = hotelsQuery().limit(1000);
-        Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
-        query = query.eq('city', city);
+        if (filterObj.prefecture) query = query.eq('prefecture', filterObj.prefecture);
+        query = query.ilike('city', `${city}%`);
         let hotels = await fetchHotelsWithSummary(query);
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
@@ -513,7 +544,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 
         // ホテルタブ表示
         showHotelTabs(pref, city, hotels.length);
-    } catch (e) { console.error(e); }
+    } catch (e) { /* error silenced */ }
     finally { hideLoading(); }
 }
 
@@ -525,12 +556,14 @@ async function showHotelTabs(pref, city, lovehoCount) {
     if (!pref || !city) return;
 
     // 通常ホテル件数を取得（love_hotel除外）
-    const { count: hotelCount } = await supabaseClient.from('hotels')
-        .select('*', { count: 'exact', head: true })
+    const { data: hotelRows } = await supabaseClient.from('hotels')
+        .select('id')
         .eq('prefecture', pref)
         .eq('city', city)
-        .neq('hotel_type', 'love_hotel')
-        .eq('is_published', true);
+        .not('hotel_type', 'in', '("love_hotel","rental_room")')
+        .eq('is_published', true)
+        .limit(50);
+    const hotelCount = hotelRows ? hotelRows.length : 0;
 
     const portalUrl = 'https://yobuho.com/portal.html?mode=men&pref=' + encodeURIComponent(pref) + '&city=' + encodeURIComponent(city);
     const tabsDiv = document.createElement('div');
@@ -587,7 +620,7 @@ function fetchHotelsFromSearch() {
             sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);
-        } catch (e) { console.error(e); }
+        } catch (e) { /* error silenced */ }
         finally { hideLoading(); }
     }, 500);
 }
@@ -615,7 +648,7 @@ function fetchHotelsByStation() {
             sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);
-        } catch (e) { console.error(e); }
+        } catch (e) { /* error silenced */ }
         finally { hideLoading(); }
     }, 500);
 }
@@ -658,7 +691,7 @@ async function searchByLocation() {
                 renderHotelCards(sorted, true);
                 const status = document.getElementById('result-status');
                 if (status) { status.style.display = 'block'; status.innerHTML = `📍 現在地周辺 — <strong>${sorted.length}</strong> 件`; }
-            } catch (e) { console.error(e); showToast('検索中にエラーが発生しました', 4000); }
+            } catch (e) { /* error silenced */ showToast('検索中にエラーが発生しました', 4000); }
             finally { hideLoading(); resetLocationBtn(); }
         },
         () => { hideLoading(); resetLocationBtn(); showToast('位置情報を取得できませんでした', 4000); },
@@ -769,7 +802,7 @@ function showPortalMode() {
 function showHotelPanel(hotelId) {
     updateUrl({ hotel: hotelId });
     currentHotelId = hotelId;
-    formState = { can_enter_alone: '', can_go_outside: '', atmosphere: '', cleanliness: 0, recommend: 0, cost_performance: 0, parking: '', room_type: '', facilities: [], rest_price: '', stay_price: '', time_slot: '', comment: '', poster_name: '' };
+    formState = { solo_entry: '', can_go_out: '', atmosphere: '', cleanliness: 0, recommend: 0, cost_performance: 0, parking: '', room_type: '', facilities: [], rest_price: '', stay_price: '', time_slot: '', comment: '', poster_name: '' };
 
     document.querySelector('.lh-area-section').style.display = 'none';
     document.querySelector('.lh-search-tools').style.display = 'none';
@@ -825,7 +858,7 @@ async function loadHotelDetail(hotelId) {
         if (!hotelRes.data) throw new Error('Hotel not found');
         renderHotelDetail(hotelRes.data, reportsRes.data || []);
     } catch (e) {
-        console.error(e);
+        /* error silenced */
         content.innerHTML = '<div style="text-align:center;padding:60px;color:#c05050;">読み込みエラーが発生しました</div>';
     }
 }
@@ -842,14 +875,14 @@ function renderHotelDetail(hotel, reports) {
     const facilityCount = {};
 
     reports.forEach(r => {
-        if (r.recommend) { recSum += r.recommend; rated++; }
+        if (r.recommendation) { recSum += r.recommendation; rated++; }
         if (r.cleanliness) cleanSum += r.cleanliness;
         if (r.cost_performance) cpSum += r.cost_performance;
-        if (r.can_enter_alone === 'yes') aloneY++;
-        else if (r.can_enter_alone === 'no') aloneN++;
+        if (r.solo_entry === 'yes') aloneY++;
+        else if (r.solo_entry === 'no') aloneN++;
         else aloneU++;
-        if (r.can_go_outside === 'yes') outsideY++;
-        else if (r.can_go_outside === 'no') outsideN++;
+        if (r.can_go_out === 'yes') outsideY++;
+        else if (r.can_go_out === 'no') outsideN++;
         else outsideU++;
         if (r.parking === 'yes') parkingY++;
         else if (r.parking === 'no') parkingN++;
@@ -896,7 +929,7 @@ function renderHotelDetail(hotel, reports) {
                 <span class="date">${formatDate(r.created_at)}</span>
             </div>
             <div class="ratings">
-                ${r.recommend ? `<span>おすすめ ${starsHTML(r.recommend)} ${r.recommend}</span>` : ''}
+                ${r.recommendation ? `<span>おすすめ ${starsHTML(r.recommendation)} ${r.recommendation}</span>` : ''}
                 ${r.cleanliness ? `<span>清潔感 ${r.cleanliness}</span>` : ''}
                 ${r.cost_performance ? `<span>コスパ ${r.cost_performance}</span>` : ''}
             </div>
@@ -952,7 +985,7 @@ function renderHotelDetail(hotel, reports) {
 
             <div class="lh-form-group">
                 <label>一人で先に入れる？</label>
-                <select id="form-alone" onchange="formState.can_enter_alone=this.value">
+                <select id="form-alone" onchange="formState.solo_entry=this.value">
                     <option value="">選択してください</option>
                     <option value="yes">はい</option>
                     <option value="no">いいえ</option>
@@ -962,7 +995,7 @@ function renderHotelDetail(hotel, reports) {
 
             <div class="lh-form-group">
                 <label>外出可能？</label>
-                <select id="form-outside" onchange="formState.can_go_outside=this.value">
+                <select id="form-outside" onchange="formState.can_go_out=this.value">
                     <option value="">選択してください</option>
                     <option value="yes">はい</option>
                     <option value="no">いいえ</option>
@@ -1085,8 +1118,8 @@ function toggleFacility(el, name) {
 // ==========================================================================
 function showPostConfirm() {
     const items = [];
-    if (formState.can_enter_alone) items.push(`一人で入れる: ${formState.can_enter_alone === 'yes' ? 'はい' : formState.can_enter_alone === 'no' ? 'いいえ' : 'わからない'}`);
-    if (formState.can_go_outside) items.push(`外出可能: ${formState.can_go_outside === 'yes' ? 'はい' : formState.can_go_outside === 'no' ? 'いいえ' : 'わからない'}`);
+    if (formState.solo_entry) items.push(`一人で入れる: ${formState.solo_entry === 'yes' ? 'はい' : formState.solo_entry === 'no' ? 'いいえ' : 'わからない'}`);
+    if (formState.can_go_out) items.push(`外出可能: ${formState.can_go_out === 'yes' ? 'はい' : formState.can_go_out === 'no' ? 'いいえ' : 'わからない'}`);
     if (formState.atmosphere) items.push(`雰囲気: ${formState.atmosphere}`);
     if (formState.cleanliness) items.push(`清潔感: ${'★'.repeat(formState.cleanliness)}`);
     if (formState.recommend) items.push(`おすすめ度: ${'★'.repeat(formState.recommend)}`);
@@ -1113,20 +1146,22 @@ async function doSubmitReport() {
     btn.disabled = true;
     btn.textContent = '送信中...';
 
+    if (!currentHotelId) {
+        showToast('ホテルが選択されていません。ページを再読み込みしてください。');
+        btn.disabled = false;
+        btn.textContent = 'この内容で投稿する';
+        return;
+    }
+
     try {
         const payload = {
             hotel_id: currentHotelId,
-            can_enter_alone: formState.can_enter_alone || null,
-            can_go_outside: formState.can_go_outside || null,
+            solo_entry: formState.solo_entry || null,
             atmosphere: formState.atmosphere || null,
             cleanliness: formState.cleanliness || null,
-            recommend: formState.recommend || null,
+            recommendation: formState.recommend || null,
             cost_performance: formState.cost_performance || null,
-            parking: formState.parking || null,
-            room_type: formState.room_type || null,
-            facilities: formState.facilities.length ? formState.facilities : null,
-            rest_price: formState.rest_price || null,
-            stay_price: formState.stay_price || null,
+            good_points: formState.facilities && formState.facilities.length ? formState.facilities : null,
             time_slot: formState.time_slot || null,
             comment: formState.comment || null,
             poster_name: formState.poster_name || null,
@@ -1139,7 +1174,7 @@ async function doSubmitReport() {
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         loadHotelDetail(currentHotelId);
     } catch (e) {
-        console.error(e);
+        /* error silenced */
         showToast('投稿エラーが発生しました');
     } finally {
         btn.disabled = false;
@@ -1191,19 +1226,18 @@ function showFlagStep1() {
 function closeFlagModal() { document.getElementById('flag-modal').style.display = 'none'; }
 
 async function submitFlag() {
-    try {
-        const { error } = await supabaseClient.from('flags').insert({
-            target_type: 'loveho_report',
-            target_id: flagTargetId,
-            reason: flagReason,
-            comment: document.getElementById('flag-comment-input').value.trim() || null,
-        });
-        if (error) throw error;
-        closeFlagModal();
-        showSuccessModal('報告完了', '報告を受け付けました。ご協力ありがとうございます。');
-    } catch (e) {
-        console.error(e);
-        showToast('報告エラーが発生しました');
+    if (!flagTargetId || !flagReason) return;
+    const flag_comment = document.getElementById('flag-comment-input').value.trim() || null;
+    const { error } = await supabaseClient.from('loveho_reports').update({
+        flagged_at: new Date().toISOString(),
+        flag_reason: flagReason,
+        flag_comment,
+    }).eq('id', flagTargetId);
+    closeFlagModal();
+    if (error) {
+        showToast('報告の送信に失敗しました');
+    } else {
+        showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
     }
 }
 

@@ -1,7 +1,11 @@
 User-agent: *
 Allow: /
-Sitemap: https://yobuho.com/sitemap.xml
 
 Disallow: /admin.html
 Disallow: /shop-admin.html
 Disallow: /api/
+Disallow: /sql/
+Disallow: /scripts/
+Disallow: /*.bak$
+
+Sitemap: https://yobuho.com/sitemap.xml
