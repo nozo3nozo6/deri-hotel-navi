@@ -587,6 +587,7 @@ async function showNoAreaCityPage(region, pref) {
         if (!cities.length) {
             container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);">${t('no_data')}</div>`;
         }
+        appendInfoLinksBar();
         return;
     }
 
@@ -618,4 +619,5 @@ async function showNoAreaCityPage(region, pref) {
     if (!cities.length) {
         container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);">${t('no_data')}</div>`;
     }
+    appendInfoLinksBar();
 }

@@ -7,6 +7,23 @@ let _fetchGeneration = 0;
 // モバイル: 同タブ遷移（戻るで戻れる）、PC: 新タブ
 const _extTarget = ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? '_self' : '_blank';
 
+// 共通ユーティリティ（ホテル/ラブホ両方で使用）
+const SHOP_REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
+function shopSortDate(r) {
+    const d = new Date(r.updated_at || r.created_at);
+    if (Date.now() - d.getTime() > SHOP_REFRESH_MS) {
+        const cycles = Math.floor((Date.now() - d.getTime()) / SHOP_REFRESH_MS);
+        return new Date(d.getTime() + cycles * SHOP_REFRESH_MS);
+    }
+    return d;
+}
+function scrollableSection(items, buildFn, emptyMsg) {
+    if (!items.length) return emptyMsg || '';
+    const html = items.map(buildFn).join('');
+    if (items.length <= 5) return html;
+    return `<div style="max-height:420px;overflow-y:auto;padding-right:4px;">${html}</div>`;
+}
+
 // AppState 登録（検索・表示状態の発見・デバッグ用）
 // 各 let 宣言は既存コードとの互換性のためそのまま維持し、
 // AppState経由でも読み書き可能にする（Object.defineProperties は各変数宣言後に実行）
@@ -464,7 +481,7 @@ async function loadDetail(hotelId, isLoveho) {
             hotel._lhShopInfoMap = shopInfoMap;
             renderLovehoDetail(hotel, reports);
         } else {
-            renderHotelDetail(hotel, reports, results[3]?.data, [], shiRes.data || [], shopInfoMap);
+            renderHotelDetail(hotel, reports, results[3]?.data, shopInfoMap, shopFeeMap);
         }
 
         // 3段階広告ロード（共通）
@@ -551,16 +568,6 @@ function renderLovehoDetail(hotel, reports) {
     // 店舗投稿とユーザー投稿を分離
     const lhShopReports = reports.filter(r => shopNames.includes(r.poster_name) && r.gender_mode === MODE);
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
-    const SHOP_REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
-    function shopSortDate(r) {
-        const d = new Date(r.updated_at || r.created_at);
-        // 30日以上経過していたら現在時刻に近い値として扱う（自動更新相当）
-        if (Date.now() - d.getTime() > SHOP_REFRESH_MS) {
-            const cycles = Math.floor((Date.now() - d.getTime()) / SHOP_REFRESH_MS);
-            return new Date(d.getTime() + cycles * SHOP_REFRESH_MS);
-        }
-        return d;
-    }
     lhShopReports.sort((a, b) => {
         const pa = lhShopInfoMap[a.poster_name]?.isPaid ? 1 : 0;
         const pb = lhShopInfoMap[b.poster_name]?.isPaid ? 1 : 0;
@@ -569,20 +576,13 @@ function renderLovehoDetail(hotel, reports) {
     });
     const lhUserReports = reports.filter(r => !shopNames.includes(r.poster_name));
 
-    function lhScrollable(items, buildFn) {
-        if (!items.length) return '';
-        const html = items.map(buildFn).join('');
-        if (items.length <= 5) return html;
-        return `<div style="max-height:420px;overflow-y:auto;padding-right:4px;">${html}</div>`;
-    }
-
     const lhShopSection = lhShopReports.length === 0 ? '' : `
         <div style="border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <span style="font-size:11px;font-weight:700;padding:4px 12px;background:rgba(201,168,76,0.18);color:#7a5c10;border:1px solid rgba(201,168,76,0.4);border-radius:20px;">✅ 店舗公式情報</span>
                 <span style="font-size:11px;color:#9a8050;">${lhShopReports.length}件</span>
             </div>
-            ${lhScrollable(lhShopReports, buildLhReviewCard)}
+            ${scrollableSection(lhShopReports, buildLhReviewCard)}
         </div>`;
 
     // ラブホユーザーフィルタータブ
@@ -605,29 +605,16 @@ function renderLovehoDetail(hotel, reports) {
                 <span style="font-size:11px;color:var(--text-3);">${lhUserReports.length}件</span>
             </div>
             ${lhFilterTabs}
-            <div id="lh-user-reports-list">${lhScrollable(lhUserReports, buildLhReviewCard)}</div>
+            <div id="lh-user-reports-list">${scrollableSection(lhUserReports, buildLhReviewCard)}</div>
         </div>`;
 
     const reviewsHTML = lhShopSection + lhUserSection;
 
     const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 
-    const content = getDetailContainer();
-    content.innerHTML = `
-      <div style="padding:16px 14px 120px; max-width:640px; margin:0 auto;">
-        <div style="font-size:23px;font-weight:700;color:var(--text);margin-bottom:12px;">
-            <a href="https://www.google.com/search?q=${encodeURIComponent(h.name)}" target="${_extTarget}" rel="noopener" style="text-decoration:none;color:inherit;">${esc(h.name)}</a> <span style="font-size:14px;">🏩</span>
-        </div>
-        <div style="font-size:13px;color:var(--text-2);margin-bottom:6px;">
-            ${h.address ? `📍 <a href="https://www.google.com/maps/search/${encodeURIComponent(h.address)}" target="${_extTarget}" rel="noopener" style="color:var(--text-2);text-decoration:underline;">${esc(h.address)}</a>` : ''}
-            ${h.tel ? `　📞 ${esc(h.tel)}` : ''}
-        </div>
-        <div style="font-size:13px;color:var(--text-2);">
-            ${h.nearest_station ? `🚉 ${esc(h.nearest_station)}` : ''}
-            ${h.major_area ? `　📌 ${esc(h.major_area)}` : ''}
-        </div>
-        ${soloTotal > 0 ? `
-        <div style="margin-top:12px;margin-bottom:16px;">
+    // 統計HTML
+    const statsHTML = soloTotal > 0 ? `
+        <div style="margin-bottom:16px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">👤 一人で先に入れる？（${soloTotal}件回答）</div>
             <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
                 ${Object.entries(soloCounts).map(([key, count]) => `<div style="width:${Math.round(count/soloTotal*100)}%;background:${soloColors[key]||'#ccc'};"></div>`).join('')}
@@ -635,17 +622,17 @@ function renderLovehoDetail(hotel, reports) {
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
                 ${Object.entries(soloCounts).map(([key, count]) => `<span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${soloColors[key]||'#ccc'};margin-right:3px;"></span>${soloMap[key]||key} ${Math.round(count/soloTotal*100)}%</span>`).join('')}
             </div>
-        </div>` : ''}
+        </div>` : '';
 
-        <div id="detail-ad-slot"></div>
-
+    // 口コミセクション
+    const userSection = `
         <div style="margin-bottom:24px;">
             <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${reports.length}件)</h3>
             ${reviewsHTML || '<div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>'}
-        </div>
+        </div>`;
 
-        <div id="detail-ad-area-slot"></div>
-
+    // フォームHTML
+    const formHTML = `
         <div style="background:var(--bg-2,#fff);border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:20px 16px;margin-bottom:24px;">
             <div style="text-align:center;margin-bottom:16px;">
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">${esc(h.name)}</div>
@@ -656,46 +643,20 @@ function renderLovehoDetail(hotel, reports) {
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">
                     ${SHOP_ID
                         ? '<option value="">選択してください</option><option value="yes">はい！ご案内実績有</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有</option>'
-                        : '<option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>'
-                    }
+                        : '<option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>'}
                 </select>
             </div>
-            ${LH_MASTER.atmospheres.length ? `<div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label>
-                <select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select>
-            </div>` : ''}
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label>
-                <div id="lh-star-recommendation" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">
-                    ${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('recommendation',${n})">★</span>`).join('')}
-                </div>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">清潔感</label>
-                <div id="lh-star-cleanliness" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">
-                    ${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cleanliness',${n})">★</span>`).join('')}
-                </div>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label>
-                <div id="lh-star-cost_performance" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">
-                    ${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cost_performance',${n})">★</span>`).join('')}
-                </div>
-            </div>
+            ${LH_MASTER.atmospheres.length ? `<div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">雰囲気</label><select onchange="lhFormState.atmosphere=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">おすすめ度</label><div id="lh-star-recommendation" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('recommendation',${n})">★</span>`).join('')}</div></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">清潔感</label><div id="lh-star-cleanliness" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cleanliness',${n})">★</span>`).join('')}</div></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">コスパ</label><div id="lh-star-cost_performance" style="display:flex;gap:4px;font-size:24px;cursor:pointer;color:#ccc;">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cost_performance',${n})">★</span>`).join('')}</div></div>
             ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
                 const categories = ['設備・お部屋', 'サービス・利便性'];
                 const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
                 return categories.map(cat => {
                     const items = LH_MASTER.good_points.filter(p => p.category === cat);
                     if (!items.length) return '';
-                    return `<div style="margin-bottom:14px;">
-                        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">${catIcons[cat] || '📝'} ${cat} <span style="font-size:10px;font-weight:400;color:var(--text-3);">複数選択可</span></label>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                            ${items.map(p => `
-                                <div onclick="lhToggleGoodPoint(this,'${esc(p.label)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p.label)}</div>
-                            `).join('')}
-                        </div>
-                    </div>`;
+                    return `<div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px;">${catIcons[cat] || '📝'} ${cat} <span style="font-size:10px;font-weight:400;color:var(--text-3);">複数選択可</span></label><div style="display:flex;flex-wrap:wrap;gap:8px;">${items.map(p => `<div onclick="lhToggleGoodPoint(this,'${esc(p.label)}')" style="cursor:pointer;padding:6px 12px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:var(--text-2);background:#fff;transition:all 0.15s;user-select:none;">${esc(p.label)}</div>`).join('')}</div></div>`;
                 }).join('');
             })() : ''}
             <div style="margin-bottom:14px;">
@@ -704,40 +665,17 @@ function renderLovehoDetail(hotel, reports) {
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
                 <div id="lh-multi-detail" style="display:none;gap:8px;margin-top:8px;margin-bottom:4px;">
-                    <select onchange="lhFormState.guest_male=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option>
-                        <option value="1">男性 1名</option>
-                        <option value="2">男性 2名</option>
-                        <option value="3">男性 3名</option>
-                        <option value="4">男性 4名</option>
-                    </select>
-                    <select onchange="lhFormState.guest_female=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option>
-                        <option value="1">女性 1名</option>
-                        <option value="2">女性 2名</option>
-                        <option value="3">女性 3名</option>
-                        <option value="4">女性 4名</option>
-                    </select>
+                    <select onchange="lhFormState.guest_male=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
+                    <select onchange="lhFormState.guest_female=this.value" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
                 </div>
             </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label>
-                <select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">フリーコメント</label>
-                <textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;"></textarea>
-            </div>
-            <div style="margin-bottom:14px;">
-                <label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label>
-                <input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;">
-                <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div>
-            </div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">利用時間帯</label><select onchange="lhFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;">${selOpts(LH_MASTER.time_slots)}</select></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">フリーコメント</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;background:#fff;outline:none;box-sizing:border-box;"></textarea></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;">投稿者名（任意）</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:#fff;outline:none;box-sizing:border-box;"><div style="font-size:11px;color:var(--text-3);margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div></div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;">投稿する</button>
-        </div>
-        <div id="detail-ad-pref-slot"></div>
-      </div>
-    `;
+        </div>`;
+
+    renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });
 
     lhFormState = { solo_entry: '', atmosphere: '', recommendation: 0, cleanliness: 0, cost_performance: 0, time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
 }
@@ -1454,49 +1392,56 @@ function leaveHotelDetail() {
     document.getElementById('hotel-list').classList.remove('loveho-mood');
 }
 
-// loadHotelDetail / loadLovehoDetail は loadDetail に統合済み
 
-function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap) {
-    shopStatusMap = shopStatusMap || {};
-    updatePageTitle(hotel.name + ' - 口コミ・対応情報');
-    const can     = summary?.can_call_count    || 0;
-    const cannot  = summary?.cannot_call_count || 0;
-    const shopCan = summary?.shop_can_count    || 0;
-    const shopNg  = summary?.shop_ng_count     || 0;
-    const total   = can + cannot;
+// ==========================================================================
+// 詳細ページ共通骨組み
+// ==========================================================================
+function renderDetailPage(hotel, isLoveho, sections) {
+    updatePageTitle(hotel.name + (isLoveho ? ' - ラブホ口コミ' : ' - 口コミ・対応情報'));
+    const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(hotel.name)}`;
+    const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotel.address || hotel.name)}`;
+    const modeParam = typeof MODE !== 'undefined' ? MODE : 'men';
 
-    const shopFeeMap = {};
-    const shopInfoMap = {};
-    Object.entries(shopStatusMap).forEach(([name, info]) => {
-        shopInfoMap[name] = { shop_url: info.shop_url || null, isPaid: info.isPaid || false, planPrice: info.planPrice || 0, status: info.status || null, shopId: info.shopId || null };
-    });
-    (shopHotelInfoList || []).forEach(info => {
-        const shop = info.shops;
-        const name = shop?.shop_name;
-        if (!name) return;
-        shopFeeMap[name] = info.transport_fee;
-        const price = Math.max(...(shop?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-        const existing = shopInfoMap[name] || {};
-        shopInfoMap[name] = {
-            shop_url: shop?.shop_url || existing.shop_url || null,
-            isPaid: price > 0 || existing.isPaid || false,
-            planPrice: Math.max(price, existing.planPrice || 0),
-            status: shop?.status || existing.status || null,
-            shopId: shop?.id || existing.shopId || null
-        };
-    });
-    if (SHOP_DATA?.shop_name) {
-        const name = SHOP_DATA.shop_name;
-        const existing = shopInfoMap[name] || {};
-        const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-        shopInfoMap[name] = {
-            shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
-            isPaid: existing.isPaid || price > 0,
-            planPrice: Math.max(price, existing.planPrice || 0),
-            status: existing.status || SHOP_DATA?.status || null,
-            shopId: existing.shopId || SHOP_ID || null
-        };
-    }
+    getDetailContainer().innerHTML = `
+    <div style="max-width:640px;margin:0 auto;padding:16px 14px 120px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0;">
+            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;">
+                <a href="${googleSearch}" target="${_extTarget}" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                    ${esc(hotel.name)} ${isLoveho ? '<span style="font-size:14px;">🏩</span>' : ''} <span style="font-size:12px;color:#999;">🔍</span>
+                </a>
+            </h2>
+            ${!isLoveho && hotel.min_charge ? '<span style="font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0;">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
+        </div>
+        <div style="background:#ffffff;border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
+                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
+                ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + esc(hotel.tel) + '</span>' : ''}
+            </div>
+            ${(hotel.nearest_station || hotel.prefecture) ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                ${hotel.nearest_station ? `<span style="font-size:13px;color:var(--text-2);">🚉 ${esc(hotel.nearest_station)}</span>` : '<span></span>'}
+                ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${esc(hotel.major_area || hotel.prefecture)}</span>` : ''}
+            </div>` : ''}
+        </div>
+        <div id="detail-ad-slot"></div>
+        ${sections.statsHTML || ''}
+        ${sections.shopSection || ''}
+        ${sections.userSection || ''}
+        <div id="detail-ad-area-slot"></div>
+        ${sections.formHTML || ''}
+        <div id="detail-ad-pref-slot"></div>
+        <div style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;font-size:13px;">
+            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
+            <a href="/shop-register.html?genre=${modeParam}" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>
+        </div>
+    </div>`;
+}
+
+// ==========================================================================
+// ホテル詳細セクション生成 → renderDetailPage に委譲
+// ==========================================================================
+function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
+    shopInfoMap = shopInfoMap || {};
+    shopFeeMap = shopFeeMap || {};
 
     function buildReportCard(r) {
         const entryTags = [
@@ -1553,37 +1498,15 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
     const userCanCall = userReports.filter(r => r.can_call).length;
     const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
     const shopReports = reports.filter(r => r.poster_type === 'shop' && r.gender_mode === MODE);
-    const SHOP_REFRESH_MS2 = 30 * 24 * 60 * 60 * 1000;
-    function shopSortDate2(r) {
-        const d = new Date(r.updated_at || r.created_at);
-        if (Date.now() - d.getTime() > SHOP_REFRESH_MS2) {
-            const cycles = Math.floor((Date.now() - d.getTime()) / SHOP_REFRESH_MS2);
-            return new Date(d.getTime() + cycles * SHOP_REFRESH_MS2);
-        }
-        return d;
-    }
     shopReports.sort((a, b) => {
         const priceA = shopInfoMap[a.poster_name]?.planPrice || 0;
         const priceB = shopInfoMap[b.poster_name]?.planPrice || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate2(b) - shopSortDate2(a);
+        return shopSortDate(b) - shopSortDate(a);
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
     const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
-
-    window._scrollableSection = function(items, buildFn) {
-        if (!items.length) return '<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">該当する投稿がありません</div>';
-        const html = items.map(buildFn).join('');
-        if (items.length <= 5) return html;
-        return `<div style="max-height:420px;overflow-y:auto;padding-right:4px;">${html}</div>`;
-    };
-    function scrollableSection(items, buildFn) {
-        if (!items.length) return '';
-        const html = items.map(buildFn).join('');
-        if (items.length <= 5) return html;
-        return `<div style="max-height:420px;overflow-y:auto;padding-right:4px;">${html}</div>`;
-    }
 
     // 店舗フィルタータブ
     window._shopReports = shopReports;
@@ -1632,31 +1555,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
 
 
 
-    getDetailContainer().innerHTML = `
-    <div style="max-width:640px;margin:0 auto;padding:16px 14px 120px;">
-
-        <!-- ホテル名 + 参考料金 -->
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0;">
-            <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;"><a href="https://www.google.com/search?q=${encodeURIComponent(hotel.name)}" target="${_extTarget}" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(hotel.name)} <span style="font-size:12px;color:#999;">🔍</span></a></h2>
-            ${hotel.min_charge ? '<span style="font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0;">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
-        </div>
-
-        <!-- ホテル基本情報 -->
-        <div style="background:#ffffff;border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
-                <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(hotel.address) + '" target="${_extTarget}" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'" onclick="event.stopPropagation()">📍 ' + esc(hotel.address) + ' <span style="font-size:12px;color:#999;">📍</span></a>' : ''}</span>
-                ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + esc(hotel.tel) + '</span>' : ''}
-            </div>
-            ${(hotel.nearest_station || hotel.prefecture) ? `
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                ${hotel.nearest_station ? `<span style="font-size:13px;color:var(--text-2);">🚉 ${esc(hotel.nearest_station)}</span>` : '<span></span>'}
-                ${hotel.prefecture ? `<span style="font-size:12px;color:var(--text-3);">📌 ${esc(hotel.major_area || hotel.prefecture)}</span>` : ''}
-            </div>` : ''}
-        </div>
-
-        <div id="detail-ad-slot"></div>
-
-        ${shopPct !== null ? `
+    // 統計HTML
+    const statsHTML = (shopPct !== null ? `
         <div style="margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">🏪 店舗実績（${shopReports.length}件）</div>
             <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
@@ -1667,11 +1567,8 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>ご案内実績あり ${shopPct}%</span>
                 <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>ご案内不可 ${100-shopPct}%</span>
             </div>
-        </div>` : ''}
-
-        ${shopSection}
-
-        ${userPct !== null ? `
+        </div>` : '')
+        + (userPct !== null ? `
         <div style="margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">📊 呼べる？（${userReports.length}件）</div>
             <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
@@ -1682,12 +1579,11 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2196f3;margin-right:3px;"></span>${t('can_call')} ${userPct}%</span>
                 <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>${t('cannot_call')} ${100-userPct}%</span>
             </div>
-        </div>` : ''}
+        </div>` : '');
 
-        ${userReportsHTML}
-
-        <div id="detail-ad-area-slot"></div>
-
+    // フォームHTML
+    const castLabel = (typeof MODE !== 'undefined' ? MODE : 'men') === 'women' ? 'セラピスト' : 'キャスト';
+    const formHTML = `
         <div style="text-align:center;margin:28px 0 10px;">
             <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">${esc(hotel.name)}</div>
             <div style="display:flex;align-items:center;gap:10px;">
@@ -1698,9 +1594,7 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
                 <label class="form-label">投稿者名 <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
-                <input type="text" id="form-poster-name" placeholder="未入力の場合は「匿名希望」で表示されます"
-                    oninput="hotelFormState.poster_name=this.value"
-                    style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
+                <input type="text" id="form-poster-name" placeholder="未入力の場合は「匿名希望」で表示されます" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
             </div>
             <div class="form-group">
                 <label class="form-label">結果 <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">必須</span></label>
@@ -1712,27 +1606,22 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 <div id="cannot-reasons-display"></div>
                 <div style="margin-top:10px;">
                     <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);">
-                        <input type="checkbox" id="form-multi-person" onchange="hotelToggleMultiPerson(this.checked)"
-                            style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+                        <input type="checkbox" id="form-multi-person" onchange="hotelToggleMultiPerson(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
                         3P・4P…複数人で利用OK（任意）
                     </label>
                     <div id="form-multi-person-section" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;">
                         <div style="display:flex;gap:16px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-size:12px;color:var(--text-2);width:40px;">男性</span>
-                                <button type="button" onclick="hotelStepGuest('male',-1)"
-                                    style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
+                                <button type="button" onclick="hotelStepGuest('male',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-male" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
-                                <button type="button" onclick="hotelStepGuest('male',1)"
-                                    style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
+                                <button type="button" onclick="hotelStepGuest('male',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-size:12px;color:var(--text-2);width:40px;">女性</span>
-                                <button type="button" onclick="hotelStepGuest('female',-1)"
-                                    style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
+                                <button type="button" onclick="hotelStepGuest('female',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-female" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
-                                <button type="button" onclick="hotelStepGuest('female',1)"
-                                    style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
+                                <button type="button" onclick="hotelStepGuest('female',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                         </div>
                     </div>
@@ -1742,23 +1631,14 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                 <div style="display:flex;gap:10px;">
                     <div style="flex:1;min-width:0;">
                         <label class="form-label" style="margin-bottom:6px;display:block;">時間帯 <span style="color:var(--text-3);font-weight:400;">(任意)</span></label>
-                        <select id="form-time-slot" onchange="hotelFormState.time_slot=this.value"
-                            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
-                            <option value="">未選択</option>
-                            <option value="早朝 (5:00~8:00)">早朝 (5:00~8:00)</option>
-                            <option value="朝 (8:00~11:00)">朝 (8:00~11:00)</option>
-                            <option value="昼 (11:00~16:00)">昼 (11:00~16:00)</option>
-                            <option value="夕方 (16:00~18:00)">夕方 (16:00~18:00)</option>
-                            <option value="夜 (18:00~23:00)">夜 (18:00~23:00)</option>
-                            <option value="深夜 (23:00~5:00)">深夜 (23:00~5:00)</option>
+                        <select id="form-time-slot" onchange="hotelFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
+                            <option value="">未選択</option><option value="早朝 (5:00~8:00)">早朝 (5:00~8:00)</option><option value="朝 (8:00~11:00)">朝 (8:00~11:00)</option><option value="昼 (11:00~16:00)">昼 (11:00~16:00)</option><option value="夕方 (16:00~18:00)">夕方 (16:00~18:00)</option><option value="夜 (18:00~23:00)">夜 (18:00~23:00)</option><option value="深夜 (23:00~5:00)">深夜 (23:00~5:00)</option>
                         </select>
                     </div>
                     <div style="flex:1;min-width:0;">
                         <label class="form-label" style="margin-bottom:6px;display:block;">部屋タイプ <span style="color:var(--text-3);font-weight:400;">(任意)</span></label>
-                        <select id="form-room-type" onchange="hotelFormState.room_type=this.value"
-                            style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
-                            <option value="">未選択</option>
-                            ${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
+                        <select id="form-room-type" onchange="hotelFormState.room_type=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
+                            <option value="">未選択</option>${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -1769,50 +1649,31 @@ function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, s
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
                 <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
-                    <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option>
-                        <option value="1">男性 1名</option>
-                        <option value="2">男性 2名</option>
-                        <option value="3">男性 3名</option>
-                        <option value="4">男性 4名</option>
-                    </select>
-                    <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option>
-                        <option value="1">女性 1名</option>
-                        <option value="2">女性 2名</option>
-                        <option value="3">女性 3名</option>
-                        <option value="4">女性 4名</option>
-                    </select>
+                    <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
+                    <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="form-label">コメント <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
                 <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="状況や注意点など自由に記入してください..." oninput="hotelFormState.comment=this.value"></textarea>
-                <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">
-                    ${(typeof MODE !== 'undefined' ? MODE : 'men') === 'women'
-                        ? '※お店名・セラピスト情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります'
-                        : '※お店名・キャスト情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります'}
-                </div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">※お店名・${castLabel}情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります</div>
             </div>
             <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">確認画面に進む</button>
-        </div>
-        <div id="detail-ad-pref-slot"></div>
-        <div style="display:flex; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
-            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; font-size:12px; white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register.html?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; font-size:12px; white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>
-        </div>
-    </div>`;
+        </div>`;
+
+    renderDetailPage(hotel, false, { statsHTML, shopSection, userSection: userReportsHTML, formHTML });
 }
 
 // ==========================================================================
 // エリア店舗セクション表示
 // ==========================================================================
 // フィルタータブ切替
+const _filterEmptyMsg = '<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">該当する投稿がありません</div>';
 function filterUserReports(filter) {
     const items = window._userReports || [];
     const buildFn = window._buildReportCard;
     const filtered = filter === 'can' ? items.filter(r => r.can_call) : filter === 'ng' ? items.filter(r => !r.can_call) : items;
-    document.getElementById('user-reports-list').innerHTML = window._scrollableSection(filtered, buildFn);
+    document.getElementById('user-reports-list').innerHTML = scrollableSection(filtered, buildFn, _filterEmptyMsg);
     document.querySelectorAll('.ur-tab').forEach(t => {
         if (t.dataset.filter === filter) { t.style.background = 'var(--accent-bg)'; t.style.color = 'var(--accent)'; }
         else { t.style.background = 'transparent'; t.style.color = t.dataset.filter === 'can' ? '#1976d2' : t.dataset.filter === 'ng' ? '#c05050' : 'var(--text-3)'; }
@@ -1822,7 +1683,7 @@ function filterShopReports(filter) {
     const items = window._shopReports || [];
     const buildFn = window._buildReportCard;
     const filtered = filter === 'can' ? items.filter(r => r.can_call) : filter === 'ng' ? items.filter(r => !r.can_call) : items;
-    document.getElementById('shop-reports-list').innerHTML = window._scrollableSection(filtered, buildFn);
+    document.getElementById('shop-reports-list').innerHTML = scrollableSection(filtered, buildFn, _filterEmptyMsg);
     document.querySelectorAll('.sr-tab').forEach(t => {
         if (t.dataset.filter === filter) { t.style.background = 'rgba(201,168,76,0.12)'; t.style.color = '#7a5c10'; }
         else { t.style.background = 'transparent'; t.style.color = t.dataset.filter === 'can' ? '#3a9a60' : t.dataset.filter === 'ng' ? '#c05050' : 'var(--text-3)'; }
@@ -1836,7 +1697,7 @@ function filterLhUserReports(filter) {
     else if (filter === 'no') filtered = items.filter(r => r.solo_entry === 'no');
     else if (filter === 'together') filtered = items.filter(r => r.solo_entry === 'together');
     else filtered = items;
-    document.getElementById('lh-user-reports-list').innerHTML = window._scrollableSection(filtered, buildFn);
+    document.getElementById('lh-user-reports-list').innerHTML = scrollableSection(filtered, buildFn, _filterEmptyMsg);
     document.querySelectorAll('.lhu-tab').forEach(t => {
         if (t.dataset.filter === filter) { t.style.background = 'var(--accent-bg)'; t.style.color = 'var(--accent)'; }
         else { t.style.background = 'transparent'; }

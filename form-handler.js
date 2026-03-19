@@ -474,7 +474,7 @@ async function doSubmitReport() {
         closePostConfirmModal();
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
         showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
-        setTimeout(() => loadHotelDetail(currentHotelId), 1500);
+        setTimeout(() => loadDetail(currentHotelId, false), 1500);
     } catch (e) {
         closePostConfirmModal();
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
@@ -553,7 +553,7 @@ async function submitLovehoReport() {
         if (error) throw error;
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         cachedLovehoData = null;
-        loadLovehoDetail(currentHotelId);
+        loadDetail(currentHotelId, true);
     } catch (e) {
         showToast('投稿エラーが発生しました');
     } finally {
