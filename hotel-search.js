@@ -370,34 +370,83 @@ function openLovehoDetail(hotelId) {
     showHotelPanel(hotelId, true);
 }
 
-async function loadLovehoDetail(hotelId) {
+// ==========================================================================
+// 統一詳細ローダー（ホテル/ラブホ共通）
+// ==========================================================================
+async function loadDetail(hotelId, isLoveho) {
     const content = getDetailContainer();
     content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
     try {
-        await loadLhMasters();
-        const [hotelRes, reportsRes, shiRes] = await Promise.all([
+        // マスタデータロード（タイプ別）
+        if (isLoveho) await loadLhMasters();
+        else await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
+
+        // データ取得（共通パターン）
+        const reportTable = isLoveho ? 'loveho_reports' : 'reports';
+        const fetches = [
             supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).maybeSingle(),
-            supabaseClient.from('loveho_reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
+            supabaseClient.from(reportTable).select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
             supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(id,shop_name,shop_url,plan_id,status,shop_contracts(plan_id,contract_plans(price)))').eq('hotel_id', hotelId),
-        ]);
+        ];
+        if (!isLoveho) fetches.push(supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle());
+
+        const results = await Promise.all(fetches);
+        const [hotelRes, reportsRes, shiRes] = results;
         if (!hotelRes.data) throw new Error('Hotel not found');
-        const _hotel = hotelRes.data;
-        // 店舗名→交通費マップ（ラブホ用）
-        const _lhShopFeeMap = {};
-        const _lhShopInfoMap = {};
+        const hotel = hotelRes.data;
+        let reports = reportsRes.data || [];
+
+        // 店舗情報マップ構築（共通）
+        const shopInfoMap = {};
+        const shopFeeMap = {};
         (shiRes.data || []).forEach(info => {
-            if (!info.shops || info.shops.status !== 'active') return;
-            const name = info.shops.shop_name;
-            _lhShopFeeMap[name] = info.transport_fee;
-            const maxPrice = Math.max(...(info.shops.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-            _lhShopInfoMap[name] = { isPaid: maxPrice > 0, url: info.shops.shop_url };
+            const shop = info.shops;
+            if (!shop) return;
+            if (isLoveho && shop.status !== 'active') return;
+            const name = shop.shop_name;
+            if (!name) return;
+            shopFeeMap[name] = info.transport_fee;
+            const maxPrice = Math.max(...(shop.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+            shopInfoMap[name] = { shop_url: shop.shop_url, isPaid: maxPrice > 0, planPrice: maxPrice, status: shop.status, shopId: shop.id, url: shop.shop_url };
         });
-        _hotel._lhShopFeeMap = _lhShopFeeMap;
-        _hotel._lhShopInfoMap = _lhShopInfoMap;
-        const _pref = _hotel.prefecture || '';
-        const _city = _hotel.city || '';
-        const _majorArea = _hotel.major_area || '';
-        const _detailArea = _hotel.detail_area || '';
+
+        // ホテル固有: レポート投稿者の店舗情報を追加取得
+        if (!isLoveho) {
+            if (SHOP_ID) {
+                const shopName = SHOP_DATA?.shop_name;
+                reports = reports.filter(r => {
+                    if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                    return true;
+                });
+            }
+            const posterShopNames = [...new Set(reports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
+            if (posterShopNames.length > 0) {
+                const { data: shopRows } = await supabaseClient.from('shops').select('id,shop_name,status,shop_url,plan_id,shop_contracts(plan_id,contract_plans(price))').in('shop_name', posterShopNames);
+                (shopRows || []).forEach(s => {
+                    const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+                    shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
+                });
+            }
+            if (SHOP_DATA?.shop_name) {
+                const name = SHOP_DATA.shop_name;
+                const existing = shopInfoMap[name] || {};
+                const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+                shopInfoMap[name] = {
+                    shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
+                    isPaid: existing.isPaid || price > 0,
+                    planPrice: Math.max(price, existing.planPrice || 0),
+                    status: existing.status || SHOP_DATA?.status || null,
+                    shopId: existing.shopId || SHOP_ID || null,
+                    url: existing.shop_url || SHOP_DATA?.shop_url || null
+                };
+            }
+        }
+
+        // パンくず構築（共通）
+        const _pref = hotel.prefecture || '';
+        const _city = hotel.city || '';
+        const _majorArea = hotel.major_area || '';
+        const _detailArea = hotel.detail_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
         const _crumbs = [{ label: '全国', onclick: 'leaveHotelDetail();showJapanPage()' }];
@@ -406,29 +455,35 @@ async function loadLovehoDetail(hotelId) {
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
         if (_detailArea) _crumbs.push({ label: _detailArea, onclick: `leaveHotelDetail();showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}','${_detailArea}')` });
         if (_city) _crumbs.push({ label: _city, onclick: `leaveHotelDetail();fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
-        _crumbs.push({ label: _hotel.name });
+        _crumbs.push({ label: hotel.name });
         setBreadcrumb(_crumbs);
-        renderLovehoDetail(hotelRes.data, reportsRes.data || []);
-        const _lh = hotelRes.data;
-        if (_lh.city && !SHOP_ID) {
+
+        // レンダリング（タイプ別）
+        if (isLoveho) {
+            hotel._lhShopFeeMap = shopFeeMap;
+            hotel._lhShopInfoMap = shopInfoMap;
+            renderLovehoDetail(hotel, reports);
+        } else {
+            renderHotelDetail(hotel, reports, results[3]?.data, [], shiRes.data || [], shopInfoMap);
+        }
+
+        // 3段階広告ロード（共通）
+        if (hotel.city && !SHOP_ID) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
             const [cityShops, areaAds, prefAds] = await Promise.all([
-                fetchAreaShops(_lh.prefecture, _lh.city, genderMode),
-                _lh.major_area ? fetchDetailAds('area', _lh.major_area) : Promise.resolve(''),
-                _lh.prefecture ? fetchDetailAds('big', _lh.prefecture) : Promise.resolve('')
+                fetchAreaShops(hotel.prefecture, hotel.city, genderMode),
+                hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(''),
+                hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve('')
             ]);
             const citySlot = document.getElementById('detail-ad-slot');
-            if (citySlot && cityShops && cityShops.length) {
-                citySlot.innerHTML = renderDetailShopCards(cityShops, _lh.city);
-            }
+            if (citySlot && cityShops && cityShops.length) citySlot.innerHTML = renderDetailShopCards(cityShops, hotel.city);
             const areaSlot = document.getElementById('detail-ad-area-slot');
             if (areaSlot && areaAds) areaSlot.innerHTML = areaAds;
             const prefSlot = document.getElementById('detail-ad-pref-slot');
             if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
         }
-    } catch (e) {
-        /* error silenced */
-        content.innerHTML = '<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラー</div>';
+    } catch(e) {
+        content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
     }
 }
 
@@ -1343,11 +1398,7 @@ async function showHotelPanel(hotelId, isLoveho) {
     content.style.display = 'block';
     content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
 
-    if (isLoveho) {
-        await loadLovehoDetail(hotelId);
-    } else {
-        await loadHotelDetail(hotelId);
-    }
+    await loadDetail(hotelId, isLoveho);
     if (_mapDetailMode) {
         // 地図と詳細の境目あたりにスクロール（地図の半分が見える位置）
         const mapEl = document.getElementById('hotel-map');
@@ -1403,80 +1454,7 @@ function leaveHotelDetail() {
     document.getElementById('hotel-list').classList.remove('loveho-mood');
 }
 
-async function loadHotelDetail(hotelId) {
-    const content = getDetailContainer();
-    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
-
-    try {
-        await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
-        const [hotelRes, reportsRes, summaryRes, shopsRes, shopHotelInfoRes] = await Promise.all([
-            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).maybeSingle(),
-            supabaseClient.from('reports').select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
-            supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle(),
-            Promise.resolve({ data: [] }),
-            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(id,shop_name,shop_url,plan_id,status,shop_contracts(plan_id,contract_plans(price)))').eq('hotel_id', hotelId),
-        ]);
-
-        if (!hotelRes.data) throw new Error('Hotel not found');
-        let allReports = reportsRes.data || [];
-        if (SHOP_ID) {
-            const shopName = SHOP_DATA?.shop_name;
-            allReports = allReports.filter(r => {
-                if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
-                return true;
-            });
-        }
-        const shopNames = [...new Set(allReports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
-        let shopStatusMap = {};
-        if (shopNames.length > 0) {
-            const { data: shopRows } = await supabaseClient.from('shops').select('id,shop_name,status,shop_url,plan_id,shop_contracts(plan_id,contract_plans(price))').in('shop_name', shopNames);
-            (shopRows || []).forEach(s => {
-                const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                shopStatusMap[s.shop_name] = { status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id };
-            });
-        }
-        const _hotel = hotelRes.data;
-        const _pref = _hotel.prefecture || '';
-        const _city = _hotel.city || '';
-        const _majorArea = _hotel.major_area || '';
-        const _detailArea = _hotel.detail_area || '';
-        const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
-        const _rl = _region ? _region.label : '';
-        const _crumbs = [{ label: '全国', onclick: 'leaveHotelDetail();showJapanPage()' }];
-        if (_region) _crumbs.push({ label: _rl, onclick: `leaveHotelDetail();showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
-        if (_pref) _crumbs.push({ label: _pref, onclick: `leaveHotelDetail();showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
-        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
-        if (_detailArea) _crumbs.push({ label: _detailArea, onclick: `leaveHotelDetail();showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}','${_detailArea}')` });
-        if (_city) _crumbs.push({ label: _city, onclick: `leaveHotelDetail();fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
-        _crumbs.push({ label: _hotel.name });
-        setBreadcrumb(_crumbs);
-        renderHotelDetail(hotelRes.data, allReports, summaryRes.data, shopsRes.data || [], shopHotelInfoRes.data || [], shopStatusMap);
-        const _h = hotelRes.data;
-        if (_h.city && !SHOP_ID) {
-            const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            // 3段階の広告を並列取得
-            const [cityShops, areaAds, prefAds] = await Promise.all([
-                fetchAreaShops(_h.prefecture, _h.city, genderMode),
-                _h.major_area ? fetchDetailAds('area', _h.major_area) : Promise.resolve(''),
-                _h.prefecture ? fetchDetailAds('big', _h.prefecture) : Promise.resolve('')
-            ]);
-            // 市区町村プラン: 基本情報直下（最も目立つ）
-            const citySlot = document.getElementById('detail-ad-slot');
-            if (citySlot && cityShops && cityShops.length) {
-                citySlot.innerHTML = renderDetailShopCards(cityShops, _h.city);
-            }
-            // エリアプラン: 口コミの下
-            const areaSlot = document.getElementById('detail-ad-area-slot');
-            if (areaSlot && areaAds) areaSlot.innerHTML = areaAds;
-            // 都道府県プラン: フォームの下
-            const prefSlot = document.getElementById('detail-ad-pref-slot');
-            if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
-        }
-    } catch(e) {
-        /* error silenced */
-        content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
-    }
-}
+// loadHotelDetail / loadLovehoDetail は loadDetail に統合済み
 
 function renderHotelDetail(hotel, reports, summary, _shops, shopHotelInfoList, shopStatusMap) {
     shopStatusMap = shopStatusMap || {};
