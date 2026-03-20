@@ -1,0 +1,88 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  keywords?: string;
+  canonical?: string;
+  robots?: string;
+  themeColor?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogUrl?: string;
+  ogImage?: string;
+  ogImageAlt?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  noGa?: boolean;
+  jsonLd?: object | object[];
+  csp?: string;
+  extraHead?: string;
+}
+
+const {
+  title,
+  description,
+  keywords,
+  canonical,
+  robots = 'index, follow',
+  themeColor = '#b5627a',
+  ogTitle,
+  ogDescription,
+  ogUrl,
+  ogImage = 'https://yobuho.com/ogp.png',
+  ogImageAlt,
+  twitterTitle,
+  twitterDescription,
+  twitterImage,
+  noGa = false,
+  jsonLd,
+  csp,
+} = Astro.props;
+
+const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    {!noGa && (
+        <Fragment>
+            <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
+            <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+        </Fragment>
+    )}
+    {csp && <meta http-equiv="Content-Security-Policy" content={csp} />}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {keywords && <meta name="keywords" content={keywords} />}
+    <meta name="robots" content={robots} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    {ogTitle && <meta property="og:title" content={ogTitle} />}
+    {ogDescription && <meta property="og:description" content={ogDescription} />}
+    {ogUrl && <meta property="og:url" content={ogUrl} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="YobuHo" />
+    <meta property="og:locale" content="ja_JP" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {ogImage && <meta property="og:image:width" content="1200" />}
+    {ogImage && <meta property="og:image:height" content="630" />}
+    {ogImageAlt && <meta property="og:image:alt" content={ogImageAlt} />}
+    {(twitterTitle || ogTitle) && <meta name="twitter:card" content="summary_large_image" />}
+    {twitterTitle && <meta name="twitter:title" content={twitterTitle} />}
+    {twitterDescription && <meta name="twitter:description" content={twitterDescription} />}
+    {twitterImage && <meta name="twitter:image" content={twitterImage} />}
+    <meta name="theme-color" content={themeColor} />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    {jsonLdArray.map((ld) => (
+        <script type="application/ld+json" set:html={JSON.stringify(ld)} />
+    ))}
+    <slot name="head" />
+</head>
+<body>
+    <slot />
+</body>
+</html>

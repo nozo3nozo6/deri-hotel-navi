@@ -2,8 +2,6 @@ name: Deploy to Shin Server
 
 on:
   workflow_dispatch:
-  # push トリガーは無効化（ローカルrsyncでデプロイするため）
-  # SSH鍵の問題が解決したら push: branches: [main] に戻す
 
 jobs:
   deploy:
@@ -17,29 +15,38 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (Astro)
+        run: cd astro-src && npm ci
 
-      - name: Generate area-data.json
-        env:
-          SUPABASE_URL: https://ojkhwbvoaiaqekxrbpdd.supabase.co
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: node generate-area-data.js
+      - name: Build Astro SSG
+        run: |
+          cd astro-src && npx astro build
+          cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html ../
+          cp dist/index.html ../index.html
+          cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html ../
+          mkdir -p ../deli.yobuho.com ../jofu.yobuho.com ../same.yobuho.com ../loveho.yobuho.com
+          cp dist/deli.html ../deli.yobuho.com/index.html
+          cp dist/jofu.html ../jofu.yobuho.com/index.html
+          cp dist/same.html ../same.yobuho.com/index.html
+          cp dist/loveho.html ../loveho.yobuho.com/index.html
 
       - name: Generate sitemap.xml
         run: node generate-sitemap.js
 
-      - name: Generate auth-config.php
+      - name: Generate db-config.php
         env:
-          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
         run: |
           mkdir -p api
-          printf "<?php\ndefine('SUPABASE_SERVICE_KEY', '%s');\ndefine('SUPABASE_URL', 'https://ojkhwbvoaiaqekxrbpdd.supabase.co');\ndefine('SESSION_TIMEOUT', 1800);\ndefine('MAX_LOGIN_ATTEMPTS', 5);\ndefine('LOCKOUT_TIME', 900);\n" "$SERVICE_KEY" > api/auth-config.php
+          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > api/db-config.php
 
       - name: Deploy via rsync over SSH
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='api/migrate-passwords.php' --exclude='ogp.svg'
+          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='ogp.svg' --exclude='generate-*.js' --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' --exclude='astro-src' --exclude='.env' --exclude='.env.example' --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='db-local.js' --exclude='.eslintrc.json' --exclude='handover-*.md'
           path: ./
           remote_path: /home/yobuho/yobuho.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
@@ -47,3 +54,18 @@ jobs:
           remote_user: ${{ secrets.SSH_USERNAME }}
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
           remote_key_pass: ${{ secrets.SSH_PASSPHRASE }}
+
+      - name: Generate static JSON on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: 10022
+          script: |
+            cd /home/yobuho/yobuho.com/public_html
+            php api/generate-master-data.php
+            php api/generate-area-data.php
+            php api/generate-hotel-data.php
+            php api/generate-search-index.php

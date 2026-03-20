@@ -2,8 +2,9 @@
 // portal-init.js — ポータル初期化、イベント委譲、インラインscript外部化
 // ==========================================================================
 
-// ── モード別フォント遅延読込 ──
+// ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
+    if (window.__ASTRO_MODE) return;
     var m = new URLSearchParams(location.search).get('mode') || 'men';
     if (m === 'women' || m === 'women_same') {
         var l = document.createElement('link');
@@ -16,28 +17,33 @@
 // ── モード初期化（旧インラインscript） ──
 document.addEventListener('DOMContentLoaded', function() {
     var urlParams = new URLSearchParams(window.location.search);
-    // modeパラメータ未指定の場合、mode=menを付与してリダイレクト
-    if (!urlParams.get('mode')) {
+    // Astro SSGページではwindow.__ASTRO_MODEがビルド時に埋め込まれる
+    var astroMode = window.__ASTRO_MODE || null;
+    // modeパラメータ未指定の場合（Astroモードでもない場合）、mode=menを付与してリダイレクト
+    if (!urlParams.get('mode') && !astroMode) {
         urlParams.set('mode', 'men');
         location.replace('portal.html?' + urlParams.toString());
         return;
     }
-    window.MODE = urlParams.get('mode') || 'men';
+    window.MODE = urlParams.get('mode') || astroMode || 'men';
     var MODE = window.MODE;
     document.body.setAttribute('data-mode', MODE);
 
-    var modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
-    document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
-    if (MODE === 'men') document.getElementById('mode-badge').style.display = 'none';
+    // Astroモードではロゴ・バッジはビルド時に出力済み
+    if (!astroMode) {
+        var modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
+        document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
+        if (MODE === 'men') document.getElementById('mode-badge').style.display = 'none';
 
-    var logoMap = {
-        'men': '<span style="font-style:italic; color:#666; font-weight:300; font-size:0.85em; letter-spacing:2px;">Deli</span> <b style="color:#c0392b; font-size:1.2em; letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b; font-size:0.9em;">♂</span>',
-        'women': 'JoFu <b>YobuHo</b>',
-        'women_same': '<b>YobuHo</b>',
-        'men_same': '<b>YobuHo</b>'
-    };
-    document.getElementById('header-logo-text').innerHTML = logoMap[MODE] || '<b>YobuHo</b>';
-    document.getElementById('mode-title-bar').style.display = 'none';
+        var logoMap = {
+            'men': '<span style="font-style:italic; color:#666; font-weight:300; font-size:0.85em; letter-spacing:2px;">Deli</span> <b style="color:#c0392b; font-size:1.2em; letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b; font-size:0.9em;">♂</span>',
+            'women': 'JoFu <b>YobuHo</b>',
+            'women_same': '<b>YobuHo</b>',
+            'men_same': '<b>YobuHo</b>'
+        };
+        document.getElementById('header-logo-text').innerHTML = logoMap[MODE] || '<b>YobuHo</b>';
+        document.getElementById('mode-title-bar').style.display = 'none';
+    }
 
     var titleMap = {
         'men': 'デリヘルを呼べるホテル検索 | Deli YobuHo',
@@ -45,20 +51,30 @@ document.addEventListener('DOMContentLoaded', function() {
         'women_same': '女性同士で利用できるホテル検索 | YobuHo',
         'men_same': '男性同士で利用できるホテル検索 | YobuHo'
     };
-    document.title = titleMap[MODE] || 'YobuHo - 呼べるホテル検索';
+    if (!astroMode) {
+        document.title = titleMap[MODE] || 'YobuHo - 呼べるホテル検索';
+    }
 
-    if (MODE === 'men' || MODE === 'men_same') {
-        document.getElementById('page-desc').setAttribute('content',
-            'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。');
-        document.getElementById('og-title').setAttribute('content', titleMap[MODE]);
-        document.getElementById('og-desc').setAttribute('content',
-            'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。');
-    } else {
-        document.getElementById('page-desc').setAttribute('content',
-            '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。');
-        document.getElementById('og-title').setAttribute('content', titleMap[MODE]);
-        document.getElementById('og-desc').setAttribute('content',
-            '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。');
+    // Astroモードではmeta/OGはビルド時に確定済み、portal.html用のみ動的更新
+    if (!astroMode) {
+        var pageDesc = document.getElementById('page-desc');
+        var ogTitle = document.getElementById('og-title');
+        var ogDesc = document.getElementById('og-desc');
+        if (pageDesc && ogTitle && ogDesc) {
+            if (MODE === 'men' || MODE === 'men_same') {
+                pageDesc.setAttribute('content',
+                    'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。');
+                ogTitle.setAttribute('content', titleMap[MODE]);
+                ogDesc.setAttribute('content',
+                    'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。');
+            } else {
+                pageDesc.setAttribute('content',
+                    '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。');
+                ogTitle.setAttribute('content', titleMap[MODE]);
+                ogDesc.setAttribute('content',
+                    '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。');
+            }
+        }
     }
 
     // canonical動的設定

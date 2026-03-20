@@ -28,6 +28,61 @@ function scrollableSection(items, buildFn, emptyMsg) {
 // 各 let 宣言は既存コードとの互換性のためそのまま維持し、
 // AppState経由でも読み書き可能にする（Object.defineProperties は各変数宣言後に実行）
 
+// PHP API経由ホテル検索ヘルパー
+async function queryHotelsAPI(params) {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+        if (v != null && v !== '') qs.set(k, v);
+    }
+    const res = await fetch('api/hotels.php?' + qs.toString());
+    if (!res.ok) return [];
+    return await res.json();
+}
+
+// Fuse.js検索（クライアント側完結、サーバー負荷ゼロ）
+let _fuse = null;
+let _fuseLoading = false;
+let _searchIndex = null;
+async function ensureFuse() {
+    if (_fuse) return _fuse;
+    if (_fuseLoading) return null;
+    _fuseLoading = true;
+    try {
+        // Fuse.js CDN読み込み
+        if (!window.Fuse) {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js';
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+        // 検索インデックス読み込み（1.4MB gzip）
+        const res = await fetch('/search-index.json');
+        _searchIndex = await res.json();
+        _fuse = new Fuse(_searchIndex, {
+            keys: ['n', 'a', 'c', 's'],  // name, address, city, station
+            threshold: 0.3,
+            ignoreLocation: true,
+            minMatchCharLength: 2
+        });
+        return _fuse;
+    } catch (e) {
+        _fuseLoading = false;
+        return null;
+    }
+}
+
+async function fuseSearch(keyword, limit) {
+    const fuse = await ensureFuse();
+    if (!fuse) return null; // フォールバック: PHP API
+    const results = fuse.search(keyword, { limit: limit || 50 });
+    const hotelIds = results.map(r => r.item.i);
+    if (!hotelIds.length) return [];
+    return queryHotelsAPI({ ids: hotelIds.join(','), limit: hotelIds.length });
+}
+
 async function fetchAndShowHotels(filterObj) {
     const gen = ++_fetchGeneration;
     ++_areaGeneration;
@@ -39,12 +94,15 @@ async function fetchAndShowHotels(filterObj) {
 
     try {
         const keyword = document.getElementById('keyword')?.value?.trim() || '';
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).not('hotel_type','eq','love_hotel').not('hotel_type','eq','rental_room').limit(50);
-        Object.keys(filterObj).forEach(k => { query = query.eq(k, filterObj[k]); });
-        query = applyKeywordFilter(query, keyword);
-        query = query.order('review_average', { ascending: false, nullsFirst: false });
+        const apiParams = { limit: 50 };
+        if (filterObj.prefecture) apiParams.pref = filterObj.prefecture;
+        if (filterObj.major_area) apiParams.major_area = filterObj.major_area;
+        if (filterObj.detail_area) apiParams.detail_area = filterObj.detail_area;
+        if (filterObj.city) apiParams.city = filterObj.city;
+        if (keyword) apiParams.keyword = keyword;
 
-        let hotels = await fetchHotelsWithSummary(query);
+        const rawHotels = await queryHotelsAPI(apiParams);
+        let hotels = await fetchHotelsWithSummary(rawHotels);
         if (gen !== _fetchGeneration) return; // stale, abort
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
@@ -94,12 +152,11 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     setBackBtn(true);
 
     try {
-        let query = supabaseClient.from('hotels').select('*').eq('is_published', true).not('hotel_type','eq','love_hotel').not('hotel_type','eq','rental_room').limit(50);
-        if (filterObj.prefecture) query = query.eq('prefecture', filterObj.prefecture);
-        query = query.eq('city', city);
-        query = query.order('review_average', { ascending: false, nullsFirst: false });
+        const apiParams = { limit: 50, city };
+        if (filterObj.prefecture) apiParams.pref = filterObj.prefecture;
 
-        let hotels = await fetchHotelsWithSummary(query);
+        const rawHotels = await queryHotelsAPI(apiParams);
+        let hotels = await fetchHotelsWithSummary(rawHotels);
         if (gen !== _fetchGeneration) return; // stale, abort
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
@@ -167,16 +224,10 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
             }
         }
     }
-    // フォールバック: JSONにない場合はSupabaseクエリ
+    // フォールバック: JSONにない場合はPHP API
     if (!lovehoCount && !_areaData) {
-        const { data: lovehoRows } = await supabaseClient.from('hotels')
-            .select('id')
-            .eq('prefecture', pref)
-            .ilike('city', `${city}%`)
-            .in('hotel_type', ['love_hotel', 'rental_room'])
-            .eq('is_published', true)
-            .limit(50);
-        lovehoCount = lovehoRows ? lovehoRows.length : 0;
+        const fbHotels = await queryHotelsAPI({ pref, city_like: city, type: 'loveho', cols: 'id', limit: 50 });
+        lovehoCount = fbHotels ? fbHotels.length : 0;
     }
     if (!lovehoCount) return;
 
@@ -258,14 +309,9 @@ async function loadLovehoForCurrentCity() {
     showLoading();
     try {
         const pref = _tabFilterObj.prefecture;
-        let query = supabaseClient.from('hotels').select('*')
-            .eq('is_published', true)
-            .in('hotel_type', ['love_hotel', 'rental_room'])
-            .ilike('city', `${_tabCity}%`)
-            .limit(50);
-        if (pref) query = query.eq('prefecture', pref);
-        const { data: hotels, error } = await query;
-        if (error) throw error;
+        const apiP = { type: 'loveho', city_like: _tabCity, limit: 50 };
+        if (pref) apiP.pref = pref;
+        const hotels = await queryHotelsAPI(apiP);
         if (gen !== _fetchGeneration) return; // stale, abort
         if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
         const hotelIds = hotels.map(h => h.id);
@@ -398,25 +444,19 @@ async function loadDetail(hotelId, isLoveho) {
         if (isLoveho) await loadLhMasters();
         else await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
 
-        // データ取得（共通パターン）
-        const reportTable = isLoveho ? 'loveho_reports' : 'reports';
-        const fetches = [
-            supabaseClient.from('hotels').select('*').eq('id', hotelId).eq('is_published', true).maybeSingle(),
-            supabaseClient.from(reportTable).select('*').eq('hotel_id', hotelId).order('created_at', { ascending: false }).limit(50),
-            supabaseClient.from('shop_hotel_info').select('shop_id,transport_fee,shops(id,shop_name,shop_url,plan_id,status,shop_contracts(plan_id,contract_plans(price)))').eq('hotel_id', hotelId),
-        ];
-        if (!isLoveho) fetches.push(supabaseClient.from('hotel_report_summary').select('*').eq('hotel_id', hotelId).maybeSingle());
-
-        const results = await Promise.all(fetches);
-        const [hotelRes, reportsRes, shiRes] = results;
-        if (!hotelRes.data) throw new Error('Hotel not found');
-        const hotel = hotelRes.data;
-        let reports = reportsRes.data || [];
+        // データ取得（PHP API経由）
+        const detailType = isLoveho ? 'loveho' : 'hotel';
+        const detailRes = await fetch(`api/hotel-detail.php?hotel_id=${hotelId}&type=${detailType}`);
+        if (!detailRes.ok) throw new Error('Hotel not found');
+        const detailData = await detailRes.json();
+        if (!detailData.hotel) throw new Error('Hotel not found');
+        const hotel = detailData.hotel;
+        let reports = detailData.reports || [];
 
         // 店舗情報マップ構築（共通）
         const shopInfoMap = {};
         const shopFeeMap = {};
-        (shiRes.data || []).forEach(info => {
+        (detailData.shop_info || []).forEach(info => {
             const shop = info.shops;
             if (!shop) return;
             if (isLoveho && shop.status !== 'active') return;
@@ -438,7 +478,7 @@ async function loadDetail(hotelId, isLoveho) {
             }
             const posterShopNames = [...new Set(reports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
             if (posterShopNames.length > 0) {
-                const { data: shopRows } = await supabaseClient.from('shops').select('id,shop_name,status,shop_url,plan_id,shop_contracts(plan_id,contract_plans(price))').in('shop_name', posterShopNames);
+                const shopRows = detailData.poster_shops || [];
                 (shopRows || []).forEach(s => {
                     const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
                     shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
@@ -481,7 +521,7 @@ async function loadDetail(hotelId, isLoveho) {
             hotel._lhShopInfoMap = shopInfoMap;
             renderLovehoDetail(hotel, reports);
         } else {
-            renderHotelDetail(hotel, reports, results[3]?.data, shopInfoMap, shopFeeMap);
+            renderHotelDetail(hotel, reports, detailData.summary || null, shopInfoMap, shopFeeMap);
         }
 
         // 3段階広告ロード（共通）
@@ -726,41 +766,24 @@ async function searchByLocation() {
                 const isLovehoSearch = currentTab === 'loveho';
                 let candidates = [];
 
-                function applyTypeFilter(q) {
-                    if (isLovehoSearch) return q.in('hotel_type', ['love_hotel', 'rental_room']);
-                    return q.not('hotel_type','eq','love_hotel').not('hotel_type','eq','rental_room');
-                }
+                const gpsType = isLovehoSearch ? 'loveho' : 'hotel';
 
                 // Step 1: 市区町村で検索
                 if (cityName) {
-                    let q = supabaseClient.from('hotels').select('*')
-                        .ilike('city', `%${cityName}%`).eq('is_published', true);
-                    q = applyTypeFilter(q);
-                    const { data, error: e1 } = await q.limit(500);
-                    candidates = data || [];
+                    candidates = await queryHotelsAPI({ city_like: cityName, type: gpsType, limit: 500 });
                 }
                 // Step 2: 市区町村で少なければ都道府県全体で補完
                 if (candidates.length < 20) {
                     const prefName = await reverseGeocodePref(userLat, userLng);
                     if (prefName) {
                         const existIds = new Set(candidates.map(h => h.id));
-                        let q = supabaseClient.from('hotels').select('*')
-                            .eq('prefecture', prefName).eq('is_published', true)
-                            .not('latitude', 'is', null).not('longitude', 'is', null);
-                        q = applyTypeFilter(q);
-                        const { data, error: e2 } = await q.limit(3000);
-                        (data || []).forEach(h => { if (!existIds.has(h.id)) candidates.push(h); });
+                        const prefHotels = await queryHotelsAPI({ pref: prefName, type: gpsType, has_coords: 'true', limit: 3000 });
+                        (prefHotels || []).forEach(h => { if (!existIds.has(h.id)) candidates.push(h); });
                     }
                 }
                 // Step 3: それでも足りなければ全国から
                 if (!candidates.length) {
-                    let q = supabaseClient.from('hotels').select('*')
-                        .not('latitude', 'is', null).not('longitude', 'is', null)
-                        .eq('is_published', true);
-                    q = applyTypeFilter(q);
-                    const { data, error } = await q.limit(2000);
-                    if (error) throw error;
-                    candidates = data || [];
+                    candidates = await queryHotelsAPI({ type: gpsType, has_coords: 'true', limit: 2000 });
                 }
                 // 距離を計算して近い順にソート、上位60件を取得
                 const withDist = candidates
@@ -838,14 +861,8 @@ function fetchHotelsByStation() {
         document.getElementById('area-button-container').innerHTML = '';
 
         try {
-            let query = supabaseClient.from('hotels').select('*')
-                .ilike('nearest_station', `%${val}%`)
-                .eq('is_published', true)
-                .not('hotel_type','eq','love_hotel').not('hotel_type','eq','rental_room')
-                .order('review_average', { ascending: false, nullsFirst: false })
-                .limit(50);
-
-            const hotels = await fetchHotelsWithSummary(query);
+            const rawHotels = await queryHotelsAPI({ station: val, limit: 50 });
+            const hotels = await fetchHotelsWithSummary(rawHotels);
             sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);
@@ -887,11 +904,10 @@ function fetchHotelsFromSearch() {
         document.getElementById('area-button-container').innerHTML = '';
 
         try {
-            let query = supabaseClient.from('hotels').select('*').eq('is_published', true).not('hotel_type','eq','love_hotel').not('hotel_type','eq','rental_room').limit(50);
-            query = applyKeywordFilter(query, keyword);
-            query = query.order('review_average', { ascending: false, nullsFirst: false });
-
-            const hotels = await fetchHotelsWithSummary(query);
+            // Fuse.js優先（クライアント側即時検索）、フォールバック: PHP API
+            let rawHotels = await fuseSearch(keyword, 50);
+            if (rawHotels === null) rawHotels = await queryHotelsAPI({ keyword, limit: 50 });
+            const hotels = await fetchHotelsWithSummary(rawHotels);
             sortHotelsByReviews(hotels);
             renderHotelCards(hotels);
             setResultStatus(hotels.length);

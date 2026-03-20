@@ -3,17 +3,17 @@
 呼べるホテル検索ポータル「YobuHo」- デリヘル/女風/同性利用可能なホテルの口コミ検索サービス
 
 ## Stack
-- Frontend: Vanilla JS (5モジュール), HTML 9ページ
-- DB: Supabase (PostgreSQL) + RLS
+- Frontend: Vanilla JS (5モジュール), HTML 9ページ — 全ページSupabase依存ゼロ（PHP API経由）
+- DB: MySQL (MariaDB) on シンレンタルサーバー — 全PHP APIがdb.php経由で接続
+- Data: 静的JSON（area-data.json, master-data.json, hotel-data/） + PHP API
 - Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via rsync over SSH (port 10022)
 - Hotel data: Rakuten Travel API (43,580件), Yahoo!ローカルサーチAPI
 - Map: Leaflet + OpenStreetMap
 - Geocoding: Nominatim (OpenStreetMap)
 
-## Supabase
-- URL/Key/DB: see .env file (do not commit secrets to this file)
-- anon key (sb_publishable_*): フロントエンド用（RLSで制限）
-- service key (sb_secret_*): admin-api.php / submit-report.php / submit-shop.php 経由でのみ使用
+## DB
+- MySQL (MariaDB): シンレンタルサーバー上、api/db-config.phpで接続情報定義（deploy.ymlでGitHub Secretsから生成）
+- ローカル接続: SSHトンネル（ssh -p 10022 -L 3307:localhost:3306）+ db-local.js
 - SMTP: hotel@yobuho.com（sv6825.wpx.ne.jp:587）— Magic Linkテンプレートカスタマイズ済み
 
 ## Project Structure
@@ -35,13 +35,25 @@ deri-hotel-navi/
 │
 ├── api/
 │   ├── auth.php              admin認証（セッション、レート制限）
-│   ├── auth-config.php       認証設定（service key、タイムアウト等）※デプロイ時にGitHub Secretsから生成
-│   ├── admin-api.php         管理操作プロキシ（service key、PHP認証必須）
+│   ├── db-config.php         DB接続設定（デプロイ時にGitHub Secretsから生成、コミットしない）
+│   ├── admin-api.php         管理統合API（CRUD/dashboard/reorder/reports-all/hotels-search/hotel-cascades/ad管理）
 │   ├── submit-report.php     ユーザー投稿（レート制限、不正検知、CORS制限）
+│   ├── submit-vote.php       口コミ評価（helpful/unhelpful、重複チェック）
+│   ├── submit-loveho-report.php ラブホ口コミ投稿（レート制限）
+│   ├── submit-flag.php       投稿報告（フラグ更新、reports/loveho_reports対応）
+│   ├── submit-hotel-request.php 未掲載ホテル情報提供（レート制限）
+│   ├── hotels.php            ホテル検索統一エンドポイント（フィルタ/キーワード/駅/GPS）
+│   ├── hotel-detail.php      ホテル詳細+口コミ+店舗情報（loadDetail用）
+│   ├── report-summaries.php  レポートサマリー一括取得（ホテル一覧用）
+│   ├── area-shops.php        エリア内案内可能店舗
+│   ├── ads.php               広告配置データ
+│   ├── shop-info.php         店舗モード情報（initShopMode用）
 │   ├── submit-shop.php       店舗登録（service key、RLS回避、bcryptハッシュ化）
 │   ├── verify-password.php   パスワード検証（bcrypt対応、レガシーBase64自動移行）
 │   ├── send-mail.php         メール送信（HTML対応、CORS制限）
-│   └── migrate-passwords.php パスワード移行（一回限り）
+│   ├── shop-auth.php         店舗セッション管理（login/check/profile/thumbnail/email）
+│   ├── shop-hotel-api.php    店舗ホテルCRUD（登録/編集/削除/ラブホ、セッション認証必須）
+│   └── db.php                DB接続ヘルパー（db-config.php読み込み、PDO接続）
 │
 ├── sql/
 │   ├── add-indexes.sql       パフォーマンスインデックス
@@ -51,19 +63,24 @@ deri-hotel-navi/
 │   ├── reports_add_shop_id.sql   reports拡張
 │   └── ad_banner_columns.sql     広告バナー
 │
-├── import-rakuten.js         楽天ホテルインポート
-├── update-detail-area.js     詳細エリア更新
+├── import-rakuten.js         楽天ホテルインポート（MySQL、db-local.js経由）
+├── update-detail-area.js     詳細エリア更新（MySQL、db-local.js経由）
 ├── generate-sitemap.js       サイトマップ生成
-├── generate-area-data.js     エリアナビ用静的JSON生成
+├── db-local.js               ローカルMySQL接続ヘルパー（SSHトンネル経由）
 ├── area-data.json            エリアナビ事前計算データ（generate-area-data.jsで生成）
+├── master-data.json          マスタデータ（generate-master-data.jsで生成、2.7KB）
+├── hotel-data/               都道府県別ホテルJSON（generate-hotel-data.jsで生成、17MB）
+├── generate-search-index.js  Fuse.js用検索インデックス生成（hotel-data/→search-index.json）
+├── search-index.json         Fuse.js検索インデックス（6.5MB raw, 1.4MB gzip）
 ├── scripts/
 │   └── import-yahoo-hotels.js Yahoo!ホテルインポート
 │
-├── subdomain/                 全サブドメインはLP方式（HTMLのみ、JS不要）
-│   ├── deli/index.html       デリヘル専用LP → portal.html?mode=men
-│   ├── jofu/index.html       女風専用LP → portal.html?mode=women
-│   ├── same/index.html       同性利用専用LP → portal.html?mode=men_same
-│   └── loveho/index.html     ラブホLP → portal.html（loveho-app.js/loveho-style.cssは廃止）
+├── astro-src/src/pages/       サブドメインLPのソース（Astro SSGでビルド）
+│   ├── deli/index.astro      デリヘル専用LP → portal.html?mode=men
+│   ├── jofu/index.astro      女風専用LP → portal.html?mode=women
+│   ├── same/index.astro      同性利用専用LP → portal.html?mode=men_same
+│   └── loveho/index.astro    ラブホLP → portal.html
+│   ※ ビルド後 dist/*.html → サーバーの *.yobuho.com/index.html にデプロイ
 │
 ├── .github/workflows/deploy.yml  GitHub Actions デプロイ
 ├── .env                      環境変数（コミットしない）
@@ -87,11 +104,12 @@ deri-hotel-navi/
 - 投稿報告（フラグ）機能
 - 掲載リクエストモーダル
 - 店舗広告表示（エリア別、プラン別）
-- キャッシュバスター: style.css?v=13, portal-init.js?v=2, api-service.js?v=15, ui-utils.js?v=9, area-navigation.js?v=11, hotel-search.js?v=43, form-handler.js?v=6
+- キャッシュバスター: style.css?v=13, portal-init.js?v=2, api-service.js?v=16, ui-utils.js?v=9, area-navigation.js?v=12, hotel-search.js?v=45, form-handler.js?v=7
 - サブドメイン方針: 全サブドメイン（deli/jofu/same/loveho）はランディングページ方式（HTMLのみ、JS不要）。検索・投稿は全てportal.htmlに集約
 
-### admin.html — 管理画面
+### admin.html — 管理画面（Supabase依存ゼロ）
 - PHP認証（api/auth.php、セッション: $_SESSION['user_id']）
+- データ取得: admin-api.php統合エンドポイント（112箇所のsb.from()→fetch()に移行完了）
 - ダッシュボード（統計、未対応タスクカード）
 - 投稿管理（reports + loveho_reports統合、フラグ対応、編集/非表示/削除）
 - 店舗管理（審査、プラン、ステータス管理）
@@ -112,8 +130,9 @@ deri-hotel-navi/
 - セッション: キャッシュ+タイムアウト+localStorageフォールバック（ロックハング対策）
 - ステータス: email_pending → registered → active
 
-### shop-admin.html — 店舗管理画面
-- ログイン: メール+パスワード認証、パスワード表示チェック、パスワードリセット機能（6桁認証コード）
+### shop-admin.html — 店舗管理画面（Supabase依存ゼロ）
+- ログイン: shop-auth.php PHPセッション認証、パスワード表示チェック、パスワードリセット機能（6桁認証コード）
+- データ取得: shop-auth.php / shop-hotel-api.php / hotels.php / master-data.json / area-data.json
 - 掲載状況カード: ジャンル表示、ステータス、プラン、店舗専用URL、サムネイル画像アップロード（有料のみ）
 - ホテル情報登録（呼べる/呼べない、交通費、サービス、メモ）
 - ラブホ口コミ投稿（チェックイン方法、交通費、雰囲気、チェックポイント）
@@ -213,6 +232,28 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - HTML形式メール送信（UTF-8 Base64エンコード）
 - 登録確認メール、承認メール、パスワードリセット認証コード送信
 - CORS: yobuho.com + サブドメインのみ許可
+
+### api/shop-auth.php
+- action=login: POST {email, password} → PHPセッション開始、shop data返却
+- action=check: GET → セッション有効性チェック（ページリロード時）
+- action=profile: GET → shop + shop_contracts + contract_plans JOIN（ステータスカード）
+- action=update-thumbnail: POST {thumbnail_url} → サムネイル更新/削除
+- action=update-email: POST {new_email} → メールアドレス変更
+- action=lookup-email: GET {email} → パスワードリセット用メール存在確認
+- セッション: $_SESSION['shop_id'], $_SESSION['shop_email'], $_SESSION['last_activity']
+- Cookie: httponly, samesite=Strict, secure, domain=yobuho.com
+- タイムアウト: 86400秒（24時間）
+
+### api/shop-hotel-api.php
+- action=registered-ids: GET → 登録済みhotel_idリスト
+- action=registered-list: GET → 登録済みホテル一覧（hotels JOIN）
+- action=get-info: GET {hotel_id} → shop_hotel_info + service_ids
+- action=get-transport-fee: GET {hotel_id} → transport_fee
+- action=get-existing-loveho: GET {hotel_id, poster_name} → 既存ラブホレポート
+- action=save-hotel-info: POST → report + info + services 一括トランザクション保存
+- action=save-loveho-info: POST → ラブホレポート + transport_fee 一括トランザクション保存
+- action=delete-info: POST {info_id} → services + info 削除
+- 全action: PHPセッション認証必須（shop-auth.phpのセッション共有）
 
 ## Key logic
 
@@ -447,10 +488,39 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 ### 店舗専用URL・ラブホタブ（前回からの残タスク）
 - [ ] 店舗専用URL（?shop=xxx）の表示ルール確定
 - [ ] ラブホタブの店舗差別化（さらなる検討）
-- [ ] GitHub Secrets: SUPABASE_ANON_KEY の追加（deploy.ymlのarea-data.json生成用）
+- [x] GitHub Secrets: DB_HOST/DB_NAME/DB_USER/DB_PASS の追加（deploy.ymlのdb-config.php生成用）
 
 ### パフォーマンス残課題
 - [ ] ホテル一覧表示時のSupabaseクエリ速度改善（口コミデータはリアルタイム取得が必要、Redis等が理想だが現スタックでは限界）
+
+### 2026年3月21日 — MySQL移行 Phase 7（クリーンアップ・Supabase完全除去）
+- package.jsonから@supabase/supabase-js、pg、pagefind削除
+- .envからSUPABASE_URL/KEY/SERVICE_KEY削除
+- 不要スクリプト6ファイル削除: check_yokohama.js、migrate-to-mysql.js、build-search-index.mjs、generate-hotel-data.js、generate-master-data.js、generate-area-data.js
+- Node.jsスクリプト3ファイルMySQL化（db-local.js経由）: import-rakuten.js、update-detail-area.js、scripts/import-yahoo-hotels.js
+- api/auth-config.php削除（Supabase service key参照、もう不要）、api/migrate-passwords.php削除（一回限り）
+- .eslintrc.jsonからsupabaseグローバル変数削除
+- deploy.ymlのrsync exclude整理
+- **Supabaseへの依存がコードベースから完全にゼロになった**
+
+### 2026年3月21日 — MySQL移行 Phase 6（admin.html）
+- admin.htmlからSupabase JS SDK完全除去（112箇所のsb.from()→0箇所）
+- api/admin-api.php全面書き換え: 汎用CRUD（list/insert/update/delete/reorder）+ 特殊エンドポイント（dashboard/reports-all/hotels-search/hotel-cascades/shop-contracts/ad-contracts-list/ad-slot-count/ad-toggle-contract/ad-delete-contract）
+- Supabase CDN削除、CSPからSupabase URL除去
+- 許可テーブル18個: hotels, reports, loveho_reports, shops, shop_placements, shop_contracts, ad_placements, ad_contracts, hotel_requests, outreach_emails, can_call_reasons, cannot_call_reasons, room_types, shop_service_options, loveho_good_points, loveho_atmospheres, contract_plans, ad_plans
+- JS側にapi()/apiGet()ヘルパー関数追加（credentials:'include'でPHPセッション共有）
+- ホテルカスケードドロップダウン: hotel-cascadesエンドポイントで都道府県→エリア→市区町村のDISTINCT値取得
+
+### 2026年3月21日 — MySQL移行 Phase 5（shop-admin.html）
+- shop-admin.htmlからSupabase JS SDK完全除去（46箇所のsb.from()→0箇所）
+- api/shop-auth.php新設: 店舗PHPセッション管理（login/check/profile/update-thumbnail/update-email/lookup-email）、24時間タイムアウト、httponly cookie
+- api/shop-hotel-api.php新設: 店舗ホテルCRUD 8アクション（registered-ids/registered-list/get-info/get-transport-fee/get-existing-loveho/save-hotel-info/save-loveho-info/delete-info）、トランザクション使用
+- api/hotels.php拡張: include_summary=1（hotel_report_summary LEFT JOIN）、type=all（ホテル+ラブホ同時検索）
+- api/generate-master-data.php拡張: shop_service_optionsをmaster-data.jsonに追加
+- エリアナビ: area-data.json静的JSON読み込み（Supabase 12〜17クエリ → 0クエリ）
+- マスタデータ: master-data.json読み込み（Supabase 4クエリ → 0クエリ）
+- ログイン: verify-password.php → shop-auth.php login（PHPセッション開始）
+- セッション復元: localStorage → PHPセッション check（Cookie認証）
 
 ### 2026年3月20日 — SEO登録・Analytics・UI改善
 #### SEO・検索エンジン登録
@@ -513,7 +583,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - PHP認証: secure cookie (httponly, samesite=strict), 30分タイムアウト, 5回ロックアウト
 - パスワード: bcryptハッシュ（verify-password.php、レガシーBase64自動移行対応）
 - レート制限: ファイルベース(auth), DB+REMOTE_ADDR+fingerprint(reports)
-- service key分離: submit-report.php / submit-shop.php / admin-api.php / verify-password.php のみ
+- DB接続: db-config.phpにDB認証情報集約（deploy.ymlでGitHub Secretsから生成）
 - CORS: yobuho.com + サブドメインのみ許可（submit-report.php, send-mail.php, verify-password.php）
 - CSP: 外部ドメインホワイトリスト
 - 入力サニタイズ: esc()関数、コメント500文字制限
@@ -532,9 +602,10 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - パス: /home/yobuho/yobuho.com/public_html/
 - SSH: port 10022, key: ~/.ssh/yobuho_deploy
 - rsync: --deleteは絶対に使わない（サブドメインディレクトリが消える）
-- サブドメインパス: deli.yobuho.com/, jofu.yobuho.com/, same.yobuho.com/, loveho.yobuho.com/
+- サブドメインDocRoot: /home/yobuho/yobuho.com/public_html/*.yobuho.com/（deli/jofu/same/loveho）
+- rsync --deleteでサブドメインが消えないよう --exclude='*.yobuho.com' 設定済み
 - GitHub Actions: .github/workflows/deploy.yml（手動トリガー、auth-config.phpをSecretsから生成、sitemap.xml自動生成、area-data.json自動生成）
-- GitHub Secrets必要: SSH_HOST, SSH_USERNAME, SSH_PRIVATE_KEY, SSH_PASSPHRASE, SUPABASE_SERVICE_KEY, SUPABASE_ANON_KEY
+- GitHub Secrets必要: SSH_HOST, SSH_USERNAME, SSH_PRIVATE_KEY, SSH_PASSPHRASE, DB_HOST, DB_NAME, DB_USER, DB_PASS
 - Google Search Console: ドメインプロパティ登録済み（DNS TXTレコード認証）、サイトマップ送信済み
 
 ## Commands
@@ -543,10 +614,86 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - Update city: node update_city.mjs
 - Update detail_area: node update-detail-area.js
 - Generate sitemap: node generate-sitemap.js（deploy.ymlで自動実行、&をXML用に&amp;エスケープ済み）
-- Generate area data: node generate-area-data.js（deploy.ymlで自動実行、ホテルインポート後にも手動実行が必要）
+- Generate area data: php api/generate-area-data.php（サーバー上で実行、deploy.ymlで自動実行）
+- Generate master data: php api/generate-master-data.php（サーバー上で実行、deploy.ymlで自動実行）
+- Generate hotel data: php api/generate-hotel-data.php（サーバー上で実行、deploy.ymlで自動実行）
+- Generate search index: php api/generate-search-index.php（サーバー上で実行、deploy.ymlで自動実行）
+- ローカルからDB接続: SSHトンネル（ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N）+ db-local.js
 
 ## Dependencies (package.json)
-- @supabase/supabase-js: ^2.97.0
 - axios: ^1.13.5
 - dotenv: ^17.3.1
-- pg: ^8.19.0
+- fuse.js: ^7.1.0
+- mysql2: ^3.20.0
+
+## Astro SSG移行（2026-03-20）
+
+### Phase 1+2 完了（14ページ、768msビルド）
+- astro-src/ ディレクトリに全ファイル構築済み
+- Phase 1: index, legal, terms, privacy, contact, shop-register, deli, jofu, same, loveho（10ページ）
+- Phase 2: portal-men, portal-women, portal-men-same, portal-women-same（4ページ）
+- PortalLayout.astroでモード別meta/OG/title/JSON-LDをビルド時確定
+- 既存JS5モジュール + portal-init.js はそのままdefer読み込み
+- admin.html, shop-admin.htmlはAstro移行しない（認証系はVanilla JS維持）
+
+### astro-src/ 構造
+```
+astro-src/
+├── astro.config.mjs        SSG mode, build.format: 'file'
+├── src/
+│   ├── layouts/
+│   │   ├── BaseLayout.astro    GA4, meta, favicon, OG, JSON-LD, CSP
+│   │   ├── LegalLayout.astro   法的ページ共通
+│   │   └── PortalLayout.astro  ポータル（モード別SEO、全モーダル、JS読込）
+│   ├── components/
+│   │   ├── PageHeader.astro    法的ページ用ヘッダー
+│   │   ├── Footer.astro        サイト共通フッター
+│   │   └── LPFooter.astro      サブドメインLP用フッター
+│   └── pages/
+│       ├── index.astro, legal.astro, terms.astro, privacy.astro, contact.astro
+│       ├── shop-register.astro
+│       ├── deli/index.astro, jofu/index.astro, same/index.astro, loveho/index.astro
+│       ├── portal-men.astro, portal-women.astro
+│       └── portal-men-same.astro, portal-women-same.astro
+└── public/ (favicon only)
+```
+
+### Astro Dependencies (astro-src/package.json)
+- astro: ^6.0.7
+
+## Supabase依存削減 — 完了（2026-03-20 Scenario C）
+
+### 方針
+- ユーザー向けポータルからSupabase依存をゼロにする → **完了**
+- 全ページSupabase依存ゼロ化完了（PHP API + 静的JSON）
+
+### 完了フェーズ
+- [x] C4: フロントWRITE→PHP API化（submit-vote/loveho-report/flag/hotel-request.php）
+- [x] C2: マスタデータ静的JSON化（9テーブル → master-data.json 2.7KB）
+- [x] C3: 口コミ・店舗データPHP API化（hotel-detail/report-summaries/area-shops/ads/shop-info/hotels.php）
+- [x] C1: ホテルデータ静的JSON化（47都道府県 → hotel-data/*.json 17MB）
+- [x] C5: anon key完全除去（portal.htmlからsupabase-js CDN削除、api-service.jsからキー削除）
+
+### ポータルのデータフロー（Supabaseゼロ）
+- エリアナビ: area-data.json（静的JSON）→ フォールバック: api/hotels.php
+- ホテル一覧: api/hotels.php → api/report-summaries.php
+- ホテル詳細: api/hotel-detail.php（hotel+reports+shop_info+summary）
+- マスタデータ: master-data.json（静的JSON）
+- 投稿: api/submit-report.php, submit-loveho-report.php, submit-vote.php, submit-flag.php, submit-hotel-request.php
+- 広告: api/ads.php
+- 店舗: api/area-shops.php, api/shop-info.php
+- 検索: api/hotels.php（keyword/station/GPS/フィルタ）
+
+### Fuse.js検索（Pagefindから移行）
+- generate-search-index.js: hotel-data/*.jsonからid/name/address/city/stationを抽出（search-index.json, 6.5MB/1.4MB gzip）
+- Fuse.js: CDN読み込み（cdn.jsdelivr.net）、threshold:0.3, ignoreLocation:true
+- インデックス(4.2MB) + フラグメント(170MB)はオンデマンド読み込み
+- キーワード検索: Fuse.js優先（クライアント側） → フォールバック: hotels.php（PHP API）
+- CSP: wasm-unsafe-eval追加済み
+- deploy.yml: build-search-index.mjsステップ追加済み
+
+### デプロイ方針
+- deploy.yml: Astroビルド + 静的JSON生成 + 検索インデックス + sitemap生成を自動実行
+- Astro出力: dist/portal-*.html → ルートにコピー、dist/*.html → *.yobuho.com/index.html にコピー
+- .htaccess: portal.html?mode=men → portal-men.html にリライト設定済み
+- CSS: inlineStylesheets:'always' でインライン化（サブドメインに _astro/ 不要）

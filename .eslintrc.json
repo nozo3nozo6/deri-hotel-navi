@@ -9,10 +9,7 @@
     "ecmaVersion": "latest",
     "sourceType": "script"
   },
-  "globals": {
-    "supabase": "readonly",
-    "supabaseClient": "writable"
-  },
+  "globals": {},
   "rules": {
     "no-unused-vars": "warn",
     "no-console": "off",

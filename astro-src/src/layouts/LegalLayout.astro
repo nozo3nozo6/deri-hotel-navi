@@ -1,0 +1,44 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  pageTitle: string;
+  description?: string;
+  canonical?: string;
+  robots?: string;
+}
+
+const { title, pageTitle, description, canonical, robots } = Astro.props;
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  canonical={canonical}
+  robots={robots}
+  ogTitle={title}
+  themeColor="#b5627a"
+>
+    <Fragment slot="head">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Noto Sans JP', system-ui, sans-serif; background: #faf8f4; color: #1a1410; line-height: 1.8; }
+        </style>
+    </Fragment>
+
+    <PageHeader pageTitle={pageTitle} />
+    <div class="content">
+        <slot />
+    </div>
+    <Footer variant="full" />
+</BaseLayout>
+
+<style>
+    .content { max-width: 720px; margin: 0 auto; padding: 32px 20px 40px; }
+</style>

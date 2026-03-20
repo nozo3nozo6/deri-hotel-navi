@@ -20,13 +20,13 @@
   },
   "homepage": "https://github.com/nozo3nozo6/deri-hotel-navi#readme",
   "dependencies": {
-    "@supabase/supabase-js": "^2.97.0",
     "axios": "^1.13.5",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "fuse.js": "^7.1.0",
+    "mysql2": "^3.20.0"
   },
   "devDependencies": {
     "jsdom": "^26.1.0",
-    "pg": "^8.19.0",
     "vitest": "^3.2.1"
   }
 }

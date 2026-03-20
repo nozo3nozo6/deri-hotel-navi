@@ -41,98 +41,82 @@ const GATE_URL_MAP = {
     'women_same': 'https://same.yobuho.com/',
 };
 function getGateUrl() {
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     return GATE_URL_MAP[mode] || '/index.html';
 }
 
-const SUPABASE_URL = 'https://ojkhwbvoaiaqekxrbpdd.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Supabase anon key removed — all data access via PHP API
 
 const SHOP_ID = new URLSearchParams(window.location.search).get('shop') || null;
 let SHOP_DATA = null;
 
 async function initShopMode() {
     if (!SHOP_ID) return;
-    const { data: shop } = await supabaseClient.from('shops').select('shop_name,gender_mode,shop_url,plan_id,status,shop_contracts(plan_id,contract_plans(price))').eq('id', SHOP_ID).eq('status', 'active').maybeSingle();
-    if (!shop) return;
-    SHOP_DATA = shop;
+    try {
+        const res = await fetch(`api/shop-info.php?shop_id=${encodeURIComponent(SHOP_ID)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data) SHOP_DATA = data;
+    } catch (e) { /* silently fail */ }
 }
 
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const { data, error } = await supabaseClient
-            .from('hotel_report_summary')
-            .select('*')
-            .in('hotel_id', hotelIds);
-        if (!error && data && data.length > 0) {
-            const map = {};
-            data.forEach(r => { map[r.hotel_id] = r; });
-            return map;
-        }
-    } catch(e) { /* view exception, fallback to reports */ }
-    try {
-        const { data: reports, error: repErr } = await supabaseClient
-            .from('reports')
-            .select('hotel_id,can_call,poster_type')
-            .in('hotel_id', hotelIds);
-        if (!reports) return {};
-        const map = {};
-        reports.forEach(r => {
-            if (!map[r.hotel_id]) map[r.hotel_id] = { hotel_id: r.hotel_id, can_call_count: 0, cannot_call_count: 0, shop_can_count: 0, shop_ng_count: 0 };
-            const s = map[r.hotel_id];
-            if (r.poster_type === 'shop') { r.can_call ? s.shop_can_count++ : s.shop_ng_count++; }
-            else { r.can_call ? s.can_call_count++ : s.cannot_call_count++; }
+        const res = await fetch('api/report-summaries.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hotel_ids: hotelIds }),
         });
-        return map;
-    } catch(e) { return {}; }
+        if (!res.ok) return {};
+        const data = await res.json();
+        return data.summaries || {};
+    } catch (e) { return {}; }
 }
 
 async function fetchLatestReportDates(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const { data } = await supabaseClient.from('reports').select('hotel_id,created_at').in('hotel_id', hotelIds).order('created_at', { ascending: false });
-        const map = {};
-        (data || []).forEach(r => { if (!map[r.hotel_id]) map[r.hotel_id] = r.created_at; });
-        return map;
-    } catch { return {}; }
+        const res = await fetch('api/report-summaries.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hotel_ids: hotelIds, latest_only: true }),
+        });
+        if (!res.ok) return {};
+        const data = await res.json();
+        return data.latest_dates || {};
+    } catch (e) { return {}; }
 }
 
-async function fetchHotelsWithSummary(query) {
-    const { data: hotels, error } = await query;
-    if (error) throw error;
+async function fetchHotelsWithSummary(hotels) {
     if (!hotels || !hotels.length) return [];
-
     const hotelIds = hotels.map(h => h.id);
-    const [summaries, latestMap] = await Promise.all([
-        fetchReportSummaries(hotelIds),
-        fetchLatestReportDates(hotelIds)
-    ]);
-
+    const res = await fetch('api/report-summaries.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hotel_ids: hotelIds }),
+    });
+    let summaries = {}, latestMap = {};
+    if (res.ok) {
+        const data = await res.json();
+        summaries = data.summaries || {};
+        latestMap = data.latest_dates || {};
+    }
     return hotels.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
 }
 
 async function fetchLovehoReviewSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const { data, error } = await supabaseClient
-            .from('loveho_reports')
-            .select('hotel_id,recommendation,cleanliness,cost_performance,solo_entry,can_go_out,created_at')
-            .in('hotel_id', hotelIds);
-        if (error || !data) return {};
-        const map = {};
-        data.forEach(r => {
-            if (!map[r.hotel_id]) map[r.hotel_id] = { count: 0, recommendation_sum: 0, cleanliness_sum: 0, cp_sum: 0, latestAt: null };
-            const s = map[r.hotel_id];
-            s.count++;
-            if (r.recommendation != null) s.recommendation_sum += r.recommendation;
-            if (r.cleanliness != null) s.cleanliness_sum += r.cleanliness;
-            if (r.cost_performance != null) s.cp_sum += r.cost_performance;
-            if (r.created_at && (!s.latestAt || r.created_at > s.latestAt)) s.latestAt = r.created_at;
+        const res = await fetch('api/report-summaries.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hotel_ids: hotelIds, loveho: true }),
         });
-        return map;
-    } catch { return {}; }
+        if (!res.ok) return {};
+        const data = await res.json();
+        return data.loveho_summaries || {};
+    } catch (e) { return {}; }
 }
 
 // 呼べた理由マスタ
@@ -147,85 +131,42 @@ const CAN_CALL_REASONS_NARROW = {
     '玄関待ち合わせ':    '玄関待合わせ',
 };
 
-async function loadCanCallReasonsMaster() {
-    try {
-        const { data } = await supabaseClient
-            .from('can_call_reasons')
-            .select('label')
-            .order('sort_order');
-        if (data && data.length > 0) {
-            CAN_CALL_REASONS = data.map(d => d.label);
-        }
-    } catch(e) {
-        // fallback to defaults
-        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
-    }
-}
-
 let CANNOT_CALL_REASONS = ['フロントSTOP', '防犯カメラ確認', '深夜外出NG', 'その他'];
-
-async function loadCannotCallReasonsMaster() {
-    try {
-        const { data } = await supabaseClient
-            .from('cannot_call_reasons')
-            .select('label')
-            .order('sort_order');
-        if (data && data.length > 0) {
-            CANNOT_CALL_REASONS = data.map(d => d.label);
-        }
-    } catch(e) {
-        // fallback to defaults
-        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
-    }
-}
-
 let ROOM_TYPES = ['シングル', 'ダブル', 'ツイン', 'スイート', '和室', 'その他'];
+let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [], good_points: [] };
 
-async function loadRoomTypesMaster() {
+let _masterDataLoaded = false;
+async function loadMasterData() {
+    if (_masterDataLoaded) return;
     try {
-        const { data } = await supabaseClient
-            .from('room_types')
-            .select('label')
-            .order('sort_order');
-        if (data && data.length > 0) {
-            ROOM_TYPES = data.map(d => d.label);
+        const res = await fetch('/master-data.json');
+        if (!res.ok) return;
+        const md = await res.json();
+        if (md.can_call_reasons?.length) CAN_CALL_REASONS = md.can_call_reasons;
+        if (md.cannot_call_reasons?.length) CANNOT_CALL_REASONS = md.cannot_call_reasons;
+        if (md.room_types?.length) ROOM_TYPES = md.room_types;
+        if (md.loveho) {
+            const lh = md.loveho;
+            if (lh.atmospheres?.length) LH_MASTER.atmospheres = lh.atmospheres;
+            if (lh.room_types?.length) LH_MASTER.room_types = lh.room_types;
+            if (lh.facilities?.length) LH_MASTER.facilities = lh.facilities;
+            if (lh.price_ranges_rest?.length) LH_MASTER.price_ranges_rest = lh.price_ranges_rest;
+            if (lh.price_ranges_stay?.length) LH_MASTER.price_ranges_stay = lh.price_ranges_stay;
+            if (lh.time_slots?.length) LH_MASTER.time_slots = lh.time_slots;
+            if (lh.good_points?.length) LH_MASTER.good_points = lh.good_points;
         }
-    } catch(e) {
-        // fallback to defaults
-        showToast('マスタデータの読み込みに失敗しました。デフォルト値を使用します。', 3000);
+        _masterDataLoaded = true;
+    } catch (e) {
+        // fallback to defaults silently
     }
 }
 
-function loadConditionsMaster() {
-    // uses hardcoded defaults
-}
-
-let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [] };
-
-async function loadLhMasters() {
-    if (LH_MASTER._loaded) return;
-    const [atm, rt, fac, pr, ts] = await Promise.all([
-        supabaseClient.from('loveho_atmospheres').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_room_types').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_facilities').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_price_ranges').select('name,type').order('sort_order').then(r => r.data || []).catch(() => []),
-        supabaseClient.from('loveho_time_slots').select('name').order('sort_order').then(r => r.data || []).catch(() => []),
-    ]);
-    LH_MASTER.atmospheres = atm.map(r => r.name);
-    LH_MASTER.room_types = rt.map(r => r.name);
-    LH_MASTER.facilities = fac.map(r => r.name);
-    LH_MASTER.price_ranges_rest = pr.filter(r => r.type === 'rest').map(r => r.name);
-    LH_MASTER.price_ranges_stay = pr.filter(r => r.type === 'stay').map(r => r.name);
-    LH_MASTER.time_slots = ts.map(r => r.name);
-    if (!LH_MASTER.time_slots.length) LH_MASTER.time_slots = ['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
-    const gpRes = await supabaseClient
-        .from('loveho_good_points')
-        .select('label, category')
-        .eq('is_active', true)
-        .order('sort_order');
-    LH_MASTER.good_points = (gpRes.data || []);
-    LH_MASTER._loaded = true;
-}
+// Legacy function signatures (called from other files)
+async function loadCanCallReasonsMaster() { await loadMasterData(); }
+async function loadCannotCallReasonsMaster() { await loadMasterData(); }
+async function loadRoomTypesMaster() { await loadMasterData(); }
+function loadConditionsMaster() {}
+async function loadLhMasters() { await loadMasterData(); }
 
 function renderAdHTML(ad) {
     if (ad.banner_image_url) {
@@ -266,34 +207,23 @@ async function loadAds(placementType, placementTarget) {
     if (!container) return;
     container.innerHTML = '';
     try {
-        const currentMode = new URLSearchParams(window.location.search).get('mode') || 'men';
-        const { data, error } = await supabaseClient.from('ad_placements')
-            .select('*, shops(shop_name, shop_url, status, thumbnail_url), ad_plans(name), banner_image_url, banner_link_url, banner_size, banner_alt')
-            .eq('placement_type', placementType)
-            .eq('placement_target', placementTarget)
-            .eq('status', 'active')
-            .or('mode.eq.' + currentMode + ',mode.eq.all,mode.is.null');
+        const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+        const res = await fetch(`api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+        if (!res.ok) return;
+        const data = await res.json();
         if (!data || !data.length) return;
-        // 掲載停止中の店舗を除外
-        const activeAds = data.filter(ad => !ad.shops || ad.shops.status === 'active');
-        if (!activeAds.length) return;
-        container.innerHTML = activeAds.map(ad => renderAdHTML(ad)).join('');
+        container.innerHTML = data.map(ad => renderAdHTML(ad)).join('');
     } catch (e) { /* ad load failed silently */ }
 }
 
 async function fetchDetailAds(placementType, placementTarget) {
     try {
-        const currentMode = new URLSearchParams(window.location.search).get('mode') || 'men';
-        const { data } = await supabaseClient.from('ad_placements')
-            .select('*, shops(shop_name, shop_url, status, thumbnail_url), ad_plans(name), banner_image_url, banner_link_url, banner_size, banner_alt')
-            .eq('placement_type', placementType)
-            .eq('placement_target', placementTarget)
-            .eq('status', 'active')
-            .or('mode.eq.' + currentMode + ',mode.eq.all,mode.is.null');
+        const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+        const res = await fetch(`api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+        if (!res.ok) return '';
+        const data = await res.json();
         if (!data || !data.length) return '';
-        const activeAds = data.filter(ad => !ad.shops || ad.shops.status === 'active');
-        if (!activeAds.length) return '';
-        return activeAds.map(ad => renderAdHTML(ad)).join('');
+        return data.map(ad => renderAdHTML(ad)).join('');
     } catch (e) { return ''; }
 }
 
@@ -307,63 +237,11 @@ function clearAds() {
 // ==========================================================================
 async function fetchAreaShops(pref, city, genderMode) {
     try {
-        // Step 1: city に該当するホテルIDを取得
-        let hotelQuery = supabaseClient.from('hotels').select('id').eq('is_published', true).eq('prefecture', pref);
-        if (city) hotelQuery = hotelQuery.eq('city', city);
-        const { data: hotelRows, error: hErr } = await hotelQuery.limit(5000);
-        if (hErr || !hotelRows || !hotelRows.length) return [];
-        const hotelIds = hotelRows.map(h => h.id);
-
-        // Step 2: shop_hotel_info でそのホテルを案内できる店舗を取得
-        const { data: shiRows, error: shiErr } = await supabaseClient
-            .from('shop_hotel_info')
-            .select('shop_id, hotel_id, can_call')
-            .in('hotel_id', hotelIds)
-            .eq('can_call', true);
-        if (shiErr || !shiRows || !shiRows.length) return [];
-
-        // shop_id ごとにホテル数を集計
-        const shopHotelCount = {};
-        shiRows.forEach(r => {
-            if (!shopHotelCount[r.shop_id]) shopHotelCount[r.shop_id] = 0;
-            shopHotelCount[r.shop_id]++;
-        });
-        const shopIds = Object.keys(shopHotelCount);
-        if (!shopIds.length) return [];
-
-        // Step 3: 店舗情報を取得（active + gender_mode一致）
-        const { data: shops, error: sErr } = await supabaseClient
-            .from('shops')
-            .select('id, shop_name, shop_url, gender_mode, thumbnail_url, shop_contracts(plan_id, contract_plans(price))')
-            .in('id', shopIds)
-            .eq('status', 'active');
-        if (sErr || !shops || !shops.length) return [];
-
-        // gender_mode フィルタ & 有料プラン契約ありのみ
-        const result = shops
-            .filter(s => {
-                if (s.gender_mode !== genderMode) return false;
-                const contracts = s.shop_contracts || [];
-                return contracts.some(c => (c.contract_plans?.price || 0) > 0);
-            })
-            .map(s => {
-                const maxPrice = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                return {
-                    shop_name: s.shop_name,
-                    shop_url: s.shop_url,
-                    thumbnail_url: s.thumbnail_url || null,
-                    plan_price: maxPrice,
-                    hotel_count: shopHotelCount[s.id] || 0
-                };
-            });
-
-        // ソート: 有料プラン(高い順) → ホテル件数(多い順)
-        result.sort((a, b) => {
-            if (b.plan_price !== a.plan_price) return b.plan_price - a.plan_price;
-            return b.hotel_count - a.hotel_count;
-        });
-
-        return result;
+        let url = `api/area-shops.php?pref=${encodeURIComponent(pref)}&mode=${encodeURIComponent(genderMode)}`;
+        if (city) url += `&city=${encodeURIComponent(city)}`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        return await res.json();
     } catch (e) {
         return [];
     }

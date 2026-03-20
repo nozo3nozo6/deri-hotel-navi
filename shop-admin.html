@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --rose:#b5627a;--rose-dim:#9a4e65;--rose-bg:rgba(181,98,122,0.07);--rose-border:rgba(181,98,122,0.22);
@@ -642,10 +641,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
-const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
-const sb=supabase.createClient(SB_URL,SB_KEY);
-
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
 function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';}
 function closeSuccessModal(){document.getElementById('success-modal').style.display='none';}
@@ -661,8 +656,7 @@ async function sendPasswordReset(){
     if(!email){errEl.textContent="メールアドレスを入力してください";errEl.style.display="block";return;}
     const btn=document.getElementById("reset-send-btn");btn.disabled=true;btn.textContent="送信中...";
     // メールアドレスの存在確認
-    const{data,error}=await sb.from("shops").select("id,email").eq("email",email).maybeSingle();
-    if(!data){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="このメールアドレスは登録されていません";errEl.style.display="block";return;}
+    try{const lRes=await fetch("https://yobuho.com/api/shop-auth.php?action=lookup-email&email="+encodeURIComponent(email));const lData=await lRes.json();if(!lData.exists){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="このメールアドレスは登録されていません";errEl.style.display="block";return;}}catch(e){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="通信エラー";errEl.style.display="block";return;}
     _resetEmail=email;
     const code=String(Math.floor(100000+Math.random()*900000));
     localStorage.setItem("pw_reset_code",JSON.stringify({code:code,email:email,expires:Date.now()+10*60*1000}));
@@ -735,7 +729,7 @@ async function doLogin(){
     errEl.style.display="none";
     if(!email||!pw){errEl.textContent="メールとパスワードを入力してください";errEl.style.display="block";return;}
     try{
-        const res=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email,password:pw})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=login",{method:"POST",headers:{"Content-Type":"application/json"},credentials:'include',body:JSON.stringify({email:email,password:pw})});
         const result=await res.json();
         if(!result.success){errEl.textContent=result.error||"認証エラー";errEl.style.display="block";return;}
         const data=result.shop;
@@ -761,9 +755,7 @@ function onLoggedIn(){
 }
 
 async function loadStatusCard(){
-    const{data}=await sb.from("shops").select("*,shop_contracts(plan_id,contract_plans(name,price))").eq("id",currentShop.id).single();
-    if(!data)return;
-    currentShop=data;
+    try{const pRes=await fetch("https://yobuho.com/api/shop-auth.php?action=profile",{credentials:'include'});const data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
     const st=data.status||"pending";
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
@@ -809,8 +801,7 @@ async function onThumbnailSelect(input){
     const reader=new FileReader();
     reader.onload=async(e)=>{
         const base64=e.target.result;
-        const{error}=await sb.from('shops').update({thumbnail_url:base64}).eq('id',currentShop.id);
-        if(error){toast('保存エラー: '+error.message);return;}
+        try{const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-thumbnail",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({thumbnail_url:base64})});const r=await res.json();if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
         currentShop.thumbnail_url=base64;
         renderThumbnailPreview(base64);
         toast('サムネイルを保存しました');
@@ -821,8 +812,7 @@ async function onThumbnailSelect(input){
 
 async function deleteThumbnail(){
     if(!confirm('サムネイルを削除しますか？'))return;
-    const{error}=await sb.from('shops').update({thumbnail_url:null}).eq('id',currentShop.id);
-    if(error){toast('削除エラー: '+error.message);return;}
+    try{const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-thumbnail",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({thumbnail_url:null})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
     currentShop.thumbnail_url=null;
     renderThumbnailPreview(null);
     toast('サムネイルを削除しました');
@@ -834,14 +824,19 @@ function copyShopUrl(){
     navigator.clipboard.writeText(url);toast("URLをコピーしました");
 }
 
-(function(){
-    const saved=localStorage.getItem(SESSION_KEY);if(!saved)return;
-    try{const sess=JSON.parse(saved);if(!sess.id)return;
-        sb.from("shops").select("*").eq("id",sess.id).single().then(({data,error})=>{
-            if(error||!data||data.status==="suspended"){localStorage.removeItem(SESSION_KEY);return;}
-            currentShop=data;onLoggedIn();
-        });
-    }catch(e){localStorage.removeItem(SESSION_KEY);}
+(async function(){
+    // PHPセッション復元を優先、フォールバックとしてlocalStorage
+    try{
+        const cRes=await fetch("https://yobuho.com/api/shop-auth.php?action=check",{credentials:'include'});
+        const cData=await cRes.json();
+        if(cData.authenticated&&cData.shop){
+            currentShop=cData.shop;
+            localStorage.setItem(SESSION_KEY,JSON.stringify({id:cData.shop.id,email:cData.shop.email}));
+            onLoggedIn();return;
+        }
+    }catch(e){}
+    // PHPセッションなし → localStorage確認（ログイン画面表示）
+    localStorage.removeItem(SESSION_KEY);
 })();
 
 // ===== タブ切替 =====
@@ -859,17 +854,18 @@ function switchTab(name){
 let canReasons=[],cannotReasons=[],roomTypes=[],serviceOptions=[];
 const TIME_SLOTS=["早朝 (5:00~8:00)","朝 (8:00~11:00)","昼 (11:00~16:00)","夕方 (16:00~18:00)","夜 (18:00~23:00)","深夜 (23:00~5:00)"];
 
+let _masterJson=null;
+async function getMasterJson(){
+    if(_masterJson)return _masterJson;
+    try{const res=await fetch('/master-data.json');_masterJson=await res.json();}catch(e){_masterJson={};}
+    return _masterJson;
+}
 async function loadMasterData(){
-    const[cr,cnr,rt,so]=await Promise.all([
-        sb.from("can_call_reasons").select("label").order("sort_order"),
-        sb.from("cannot_call_reasons").select("label").order("sort_order"),
-        sb.from("room_types").select("label").order("sort_order"),
-        sb.from("shop_service_options").select("*").order("sort_order")
-    ]);
-    canReasons=(cr.data||[]).map(d=>d.label);
-    cannotReasons=(cnr.data||[]).map(d=>d.label);
-    roomTypes=(rt.data||[]).map(d=>d.label);
-    serviceOptions=so.data||[];
+    const md=await getMasterJson();
+    canReasons=md.can_call_reasons||[];
+    cannotReasons=md.cannot_call_reasons||[];
+    roomTypes=md.room_types||[];
+    serviceOptions=(md.shop_service_options||[]).map(s=>({id:s.id,name:s.name}));
 
     // チェックボックスグループ生成
     renderCheckGroup("can-reason-checks",canReasons);
@@ -908,8 +904,7 @@ function getSelectedServices(){return Array.from(document.querySelectorAll("#ser
 let registeredHotelIds=new Set();
 async function loadRegisteredHotelIds(){
     if(!currentShop)return;
-    const{data}=await sb.from("shop_hotel_info").select("hotel_id").eq("shop_id",currentShop.id);
-    registeredHotelIds=new Set((data||[]).map(d=>String(d.hotel_id)));
+    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=registered-ids',{credentials:'include'});const ids=await res.json();registeredHotelIds=new Set((ids||[]).map(d=>String(d)));}catch(e){registeredHotelIds=new Set();}
 }
 
 // ===== パンくず =====
@@ -974,15 +969,20 @@ window.addEventListener('popstate',function(e){
     _skipPush=false;
 });
 
+let _areaData=null;
+async function getAreaData(){
+    if(_areaData)return _areaData;
+    try{const res=await fetch('/area-data.json');_areaData=await res.json();}catch(e){_areaData={};}
+    return _areaData;
+}
 async function showJapanPage(){
     pageStack=[];setBreadcrumb([{label:"日本全国"}]);
     pushNavState({page:'japan'});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     renderFavAreas();
-    const rc=await Promise.all(REGION_MAP.map(async(r)=>{
-        const res=await Promise.all(r.prefs.map(p=>sb.from("hotels").select("id",{count:"exact"}).eq("prefecture",p).eq("is_published",true).limit(0).then(({count})=>count||0)));
-        return{label:r.label,count:res.reduce((a,b)=>a+b,0)};
-    }));
+    const ad=await getAreaData();
+    const pc=ad.prefCounts||{};
+    const rc=REGION_MAP.map(r=>({label:r.label,count:r.prefs.reduce((s,p)=>s+(pc[p]||0),0)}));
     let h='<div class="area-grid">';
     rc.forEach((r,i)=>{if(r.count>0)h+=`<div class="area-btn" onclick="showPrefPage(${i})"><span class="area-name">${esc(r.label)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
     nav.innerHTML=h+'</div>';
@@ -993,8 +993,9 @@ async function showPrefPage(ri){
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:region.label}]);
     pushNavState({page:'pref',ri});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const pc=await Promise.all(region.prefs.map(p=>sb.from("hotels").select("id",{count:"exact"}).eq("prefecture",p).eq("is_published",true).limit(0).then(({count})=>({pref:p,count:count||0}))));
-    const sorted=pc.filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+    const ad=await getAreaData();
+    const pc=ad.prefCounts||{};
+    const sorted=region.prefs.map(p=>({pref:p,count:pc[p]||0})).filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
     sorted.forEach(r=>{h+=`<div class="area-btn" onclick="showMajorAreaPage(${ri},'${r.pref}')"><span class="area-name">${esc(r.pref)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
     nav.innerHTML=h+'</div>';
@@ -1005,12 +1006,11 @@ async function showMajorAreaPage(ri,pref){
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref}]);
     pushNavState({page:'major',ri,pref});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("major_area").eq("prefecture",pref).eq("is_published",true).not("major_area","is",null).limit(10000);
-    const ac={};
-    (data||[]).forEach(h=>{if(h.major_area)ac[h.major_area]=(ac[h.major_area]||0)+1;});
-    const areas=Object.keys(ac).sort((a,b)=>ac[b]-ac[a]);
+    const ad=await getAreaData();
+    const prefData=ad.pref?.[pref];
+    const areas=(prefData?.areas||[]).filter(a=>a[1]>0);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    areas.forEach(a=>{h+=`<div class="area-btn" onclick="showCityPage(${ri},'${esc(pref)}','${esc(a)}')"><span class="area-name">${esc(a)}</span><span class="area-count">${ac[a].toLocaleString()}件</span>${buildFavBtn(a,pref,a,null,null)}</div>`;});
+    areas.forEach(([a,cnt])=>{h+=`<div class="area-btn" onclick="showCityPage(${ri},'${esc(pref)}','${esc(a)}')"><span class="area-name">${esc(a)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(a,pref,a,null,null)}</div>`;});
     if(!areas.length)h+='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">エリアデータがありません</div>';
     nav.innerHTML=h+'</div>';
 }
@@ -1020,18 +1020,17 @@ async function showCityPage(ri,pref,majorArea){
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea}]);
     pushNavState({page:'city',ri,pref,majorArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("address,city,detail_area").eq("prefecture",pref).eq("major_area",majorArea).eq("is_published",true).limit(10000);
-    const dac={};(data||[]).forEach(h=>{if(h.detail_area&&h.detail_area!==majorArea)dac[h.detail_area]=(dac[h.detail_area]||0)+1;});
-    if(Object.keys(dac).length>0){
-        const das=Object.keys(dac).sort((a,b)=>dac[b]-dac[a]);
+    const ad=await getAreaData();
+    const aKey=pref+'\t'+majorArea;
+    const areaInfo=ad.area?.[aKey]||{da:[],ct:[]};
+    if(areaInfo.da&&areaInfo.da.length>0){
         let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        das.forEach(da=>{h+=`<div class="area-btn" onclick="showDetailAreaCities(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(da)}')"><span class="area-name">${esc(da)}</span><span class="area-count">${dac[da].toLocaleString()}件</span>${buildFavBtn(da,pref,majorArea,da,null)}</div>`;});
+        areaInfo.da.forEach(([da,cnt])=>{h+=`<div class="area-btn" onclick="showDetailAreaCities(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(da)}')"><span class="area-name">${esc(da)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(da,pref,majorArea,da,null)}</div>`;});
         nav.innerHTML=h+'</div>';
     }else{
-        const cc={};(data||[]).forEach(h=>{const c=h.city||extractCity(h.address);if(c)cc[c]=(cc[c]||0)+1;});
-        const cities=Object.keys(cc).sort((a,b)=>cc[b]-cc[a]);
+        const cities=(areaInfo.ct||[]).filter(c=>c[1]>0);
         let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,'${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,null,c)}</div>`;});
+        cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,'${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,null,c)}</div>`;});
         nav.innerHTML=h+'</div>';
     }
 }
@@ -1041,11 +1040,12 @@ async function showDetailAreaCities(ri,pref,majorArea,detailArea){
     setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea,onclick:`showCityPage(${ri},'${pref}','${majorArea}')`},{label:detailArea}]);
     pushNavState({page:'detail',ri,pref,majorArea,detailArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    const{data}=await sb.from("hotels").select("address,city,detail_area").eq("prefecture",pref).eq("major_area",majorArea).eq("detail_area",detailArea).eq("is_published",true).limit(5000);
-    const cc={};(data||[]).forEach(h=>{const c=h.city||extractCity(h.address);if(c)cc[c]=(cc[c]||0)+1;});
-    const cities=Object.keys(cc).sort((a,b)=>cc[b]-cc[a]);
+    const ad=await getAreaData();
+    const daKey=pref+'\t'+majorArea+'\t'+detailArea;
+    const daInfo=ad.da?.[daKey]||{ct:[]};
+    const cities=(daInfo.ct||[]).filter(c=>c[1]>0);
     let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    cities.forEach(c=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}','${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cc[c].toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,detailArea,c)}</div>`;});
+    cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}','${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,detailArea,c)}</div>`;});
     nav.innerHTML=h+'</div>';
 }
 
@@ -1064,20 +1064,18 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     if(detailArea)stack.push(()=>showDetailAreaCities(ri,pref,majorArea,detailArea));
     pageStack=stack;
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
-    let q=sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).not("hotel_type","eq","love_hotel").not("hotel_type","eq","rental_room");
-    if(pref)q=q.eq("prefecture",pref);
-    if(city){q=q.eq("city",city);}
-    else if(detailArea){q=q.eq("detail_area",detailArea);}
-    else if(majorArea){q=q.eq("major_area",majorArea);}
-    q=q.order("name").limit(1000);
-    const{data,error}=await q;
-    if(error){nav.innerHTML=`<div class="loading">エラー: ${esc(error.message)}</div>`;return;}
-    const hotels=data||[];
+    const hp=new URLSearchParams({type:'hotel',include_summary:'1',limit:'1000'});
+    if(pref)hp.set('pref',pref);
+    if(city)hp.set('city',city);
+    else if(detailArea)hp.set('detail_area',detailArea);
+    else if(majorArea)hp.set('major_area',majorArea);
+    let hotels=[];
+    try{const hRes=await fetch('https://yobuho.com/api/hotels.php?'+hp);hotels=await hRes.json();if(hotels.error){nav.innerHTML=`<div class="loading">エラー: ${esc(hotels.error)}</div>`;return;}}catch(e){nav.innerHTML='<div class="loading">通信エラー</div>';return;}
     // ポータルと同じソート: 口コミ件数→ホテルタイプ→名前
     const typeOrder={business:0,city:1,resort:2,ryokan:3,pension:4,minshuku:5,love_hotel:0,rental_room:1,other:6};
     hotels.sort((a,b)=>{
-        const ca=a.hotel_report_summary?.[0]?.total_reports||0;
-        const cb=b.hotel_report_summary?.[0]?.total_reports||0;
+        const ca=a.total_reports||0;
+        const cb=b.total_reports||0;
         if(ca!==cb)return cb-ca;
         const ta=typeOrder[a.hotel_type]??6;
         const tb=typeOrder[b.hotel_type]??6;
@@ -1088,13 +1086,7 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     // ラブホはmajor_area/detail_areaがnullのため別途取得
     let loveHotels=[];
     if(pref&&city){
-        const{data:lhData}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).in("hotel_type",["love_hotel","rental_room"]).eq("prefecture",pref).eq("city",city).order("name").limit(1000);
-        loveHotels=(lhData||[]).sort((a,b)=>{
-            const ca=a.hotel_report_summary?.[0]?.total_reports||0;
-            const cb=b.hotel_report_summary?.[0]?.total_reports||0;
-            if(ca!==cb)return cb-ca;
-            return(a.name||'').localeCompare(b.name||'','ja');
-        });
+        try{const lhRes=await fetch('https://yobuho.com/api/hotels.php?type=loveho&include_summary=1&limit=1000&pref='+encodeURIComponent(pref)+'&city='+encodeURIComponent(city));loveHotels=await lhRes.json();if(Array.isArray(loveHotels)){loveHotels.sort((a,b)=>{const ca=a.total_reports||0;const cb=b.total_reports||0;if(ca!==cb)return cb-ca;return(a.name||'').localeCompare(b.name||'','ja');});}else{loveHotels=[];}}catch(e){loveHotels=[];}
     }
     const favLabel=city||detailArea||majorArea||pref;
     let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
@@ -1118,7 +1110,7 @@ function renderHotelCards(hotels){
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
         const isReg=registeredHotelIds.has(String(h.id));
         const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':h.hotel_type==='rental_room'?'🏠 レンタルルーム':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
-        const rc=h.hotel_report_summary?.[0]?.total_reports||0;
+        const rc=h.total_reports||0;
         const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
         const actionBtns=isReg
@@ -1134,8 +1126,8 @@ async function textSearch(){
     if(!kw){toast("検索キーワードを入力してください");return;}
     const wrap=document.getElementById("text-search-results");
     wrap.innerHTML='<div class="loading">検索中...</div>';
-    const{data}=await sb.from("hotels").select("id,name,address,nearest_station,hotel_type,hotel_report_summary(total_reports)").eq("is_published",true).or(`name.ilike.%${kw}%,address.ilike.%${kw}%`).order("name").limit(50);
-    const hotels=data||[];
+    let hotels=[];
+    try{const sRes=await fetch('https://yobuho.com/api/hotels.php?type=all&keyword='+encodeURIComponent(kw)+'&include_summary=1&limit=50');hotels=await sRes.json();if(!Array.isArray(hotels))hotels=[];}catch(e){hotels=[];}
     if(!hotels.length){wrap.innerHTML='<div style="font-size:12px;color:var(--text-3);padding:10px 0;">該当するホテルがありません</div>';return;}
     wrap.innerHTML=`<div style="font-size:12px;color:var(--text-3);margin-bottom:8px;">${hotels.length}件見つかりました</div><div style="max-height:60vh;overflow-y:auto;">`+renderHotelCards(hotels)+'</div>';
 }
@@ -1155,14 +1147,16 @@ function setCanCall(val){
 
 // ===== ホテル選択 → フォーム =====
 async function selectHotelById(hotelId){
-    const{data:hotel}=await sb.from("hotels").select("id,name,address,hotel_type").eq("id",hotelId).single();
+    let hotel=null;
+    try{const hRes=await fetch('https://yobuho.com/api/hotels.php?hotel_id='+hotelId+'&type=all');const arr=await hRes.json();hotel=Array.isArray(arr)?arr[0]:null;}catch(e){}
     if(!hotel){toast("ホテルが見つかりません");return;}
     // ラブホ/レンタルルームの場合はラブホ用フォームを開く
     if(hotel.hotel_type==='love_hotel'||hotel.hotel_type==='rental_room'){
         lhSelectHotel(hotel.id, hotel.name);
         return;
     }
-    const{data:existing}=await sb.from("shop_hotel_info").select("*").eq("shop_id",currentShop.id).eq("hotel_id",hotelId).maybeSingle();
+    let existing=null;
+    try{const eRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-info&hotel_id='+hotelId,{credentials:'include'});existing=await eRes.json();}catch(e){}
     openForm(hotel,existing);
 }
 
@@ -1188,10 +1182,7 @@ function openForm(hotel,existing){
         setCanCall(existing.can_call);
         setTransportFee(existing.transport_fee);
         document.getElementById("form-memo").value=existing.memo||"";
-        // サービス読み込み
-        sb.from("shop_hotel_services").select("service_option_id").eq("shop_hotel_info_id",existing.id).then(({data})=>{
-            renderServiceChecks((data||[]).map(d=>d.service_option_id));
-        });
+        renderServiceChecks(existing.service_ids||[]);
     }else{
         renderServiceChecks([]);
     }
@@ -1309,66 +1300,29 @@ async function doSubmit(){
     const memo=document.getElementById("form-memo").value.trim()||null;
     const svcs=getSelectedServices();
 
-    // 1. reportsテーブルにupsert（1店舗1ホテル1件制限）
-    const reportPayload={
+    const multiPerson=!!document.getElementById("sa-multi-person-check").checked;
+    const payload={
         hotel_id:parseInt(hotelId),
-        can_call:canCall,
-        poster_type:"shop",
-        poster_name:currentShop.shop_name||"店舗",
-        shop_id:currentShop.id,
-        can_call_reasons:canCall?canReasonArr:[],
-        cannot_call_reasons:!canCall?cantReasonArr:[],
-        time_slot:timeSlotArr[0]||null,
-        room_type:roomTypeArr[0]||null,
-        comment:memo,
-        gender_mode:currentShop.gender_mode||"men",
-        multi_person:!!document.getElementById("sa-multi-person-check").checked,
-        guest_male:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
-        guest_female:document.getElementById("sa-multi-person-check").checked?(parseInt(document.getElementById("sa-guest-female").value)||0):0
+        edit_id:editId||null,
+        report:{
+            can_call:canCall,
+            can_call_reasons:canCall?canReasonArr:[],
+            cannot_call_reasons:!canCall?cantReasonArr:[],
+            time_slot:timeSlotArr[0]||null,
+            room_type:roomTypeArr[0]||null,
+            comment:memo,
+            multi_person:multiPerson,
+            guest_male:multiPerson?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
+            guest_female:multiPerson?(parseInt(document.getElementById("sa-guest-female").value)||0):0
+        },
+        info:{transport_fee:transportFee||null,memo:memo},
+        service_ids:svcs
     };
-    // 既存の店舗投稿を確認
-    const{data:existingRep}=await sb.from("reports").select("id").eq("hotel_id",parseInt(hotelId)).eq("shop_id",currentShop.id).eq("poster_type","shop").maybeSingle();
-    let repErr;
-    if(existingRep){
-        // 既存があれば上書き更新
-        reportPayload.updated_at=new Date().toISOString();
-        const{error}=await sb.from("reports").update(reportPayload).eq("id",existingRep.id);
-        repErr=error;
-    }else{
-        // 新規insert
-        const{error}=await sb.from("reports").insert(reportPayload);
-        repErr=error;
-    }
-    if(repErr){
-        submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";
-        closeConfirm();toast("投稿エラー: "+repErr.message);return;
-    }
-
-    // 2. shop_hotel_infoテーブルにupsert
-    const infoPayload={
-        shop_id:currentShop.id,
-        hotel_id:hotelId,
-        can_call:canCall,
-        transport_fee:transportFee||null,
-        memo:memo
-    };
-
-    let infoId;
-    if(editId){
-        const{error}=await sb.from("shop_hotel_info").update(infoPayload).eq("id",editId);
-        if(error){closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
-        infoId=editId;
-    }else{
-        const{data,error}=await sb.from("shop_hotel_info").insert(infoPayload).select().single();
-        if(error){closeConfirm();submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";toast("保存エラー: "+error.message);return;}
-        infoId=data.id;
-    }
-
-    // 3. shop_hotel_servicesに保存
-    await sb.from("shop_hotel_services").delete().eq("shop_hotel_info_id",infoId);
-    if(svcs.length>0){
-        await sb.from("shop_hotel_services").insert(svcs.map(sid=>({shop_hotel_info_id:infoId,service_option_id:sid})));
-    }
+    try{
+        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-hotel-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
+        const result=await res.json();
+        if(!result.success){submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();toast("保存エラー: "+(result.error||"不明"));return;}
+    }catch(e){submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();toast("通信エラー");return;}
 
     closeConfirm();
     cancelForm();
@@ -1383,8 +1337,8 @@ let regData=[];let regPage=1;const PER_PAGE=20;
 
 async function loadRegisteredHotels(){
     if(!currentShop)return;
-    const{data}=await sb.from("shop_hotel_info").select("*,hotels(name,address,hotel_type)").eq("shop_id",currentShop.id).order("created_at",{ascending:false});
-    regData=data||[];regPage=1;renderRegistered();
+    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=registered-list',{credentials:'include'});regData=await res.json();if(!Array.isArray(regData))regData=[];}catch(e){regData=[];}
+    regPage=1;renderRegistered();
 }
 
 function renderRegistered(){
@@ -1460,9 +1414,7 @@ function closeEditModal(){
 async function deleteRegistered(infoId){
     if(!confirm("この投稿を削除しますか？（ホテル自体は削除されません）"))return;
     const info=regData.find(r=>String(r.id)===String(infoId));
-    await sb.from("shop_hotel_services").delete().eq("shop_hotel_info_id",infoId);
-    const{error}=await sb.from("shop_hotel_info").delete().eq("id",infoId);
-    if(error){toast("削除エラー: "+error.message);return;}
+    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=delete-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({info_id:infoId})});const r=await res.json();if(!r.success){toast("削除エラー: "+(r.error||"不明"));return;}}catch(e){toast("通信エラー");return;}
     regData=regData.filter(r=>String(r.id)!==String(infoId));
     if(info)registeredHotelIds.delete(String(info.hotel_id));
     renderRegistered();toast("🗑 削除しました");
@@ -1495,8 +1447,7 @@ async function verifyAndChangeEmail(){
     if(!result.valid){errEl.textContent=result.reason;errEl.style.display="block";return;}
     const newEmail=result.newEmail;
     const oldEmail=currentShop.email;
-    const{error}=await sb.from("shops").update({email:newEmail}).eq("id",currentShop.id);
-    if(error){errEl.textContent="更新エラー: "+error.message;errEl.style.display="block";return;}
+    try{const uRes=await fetch("https://yobuho.com/api/shop-auth.php?action=update-email",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({new_email:newEmail})});const uData=await uRes.json();if(!uData.success){errEl.textContent="更新エラー: "+(uData.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラー";errEl.style.display="block";return;}
     currentShop.email=newEmail;
     localStorage.setItem(SESSION_KEY,JSON.stringify({id:currentShop.id,email:newEmail}));
     localStorage.removeItem("email_change_code");
@@ -1574,7 +1525,7 @@ function lhRenderHotelCards(hotels){
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
         const isReg=registeredHotelIds.has(String(h.id));
         const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':'🏠 レンタルルーム';
-        const rc=h.hotel_report_summary?.[0]?.total_reports||0;
+        const rc=h.total_reports||0;
         const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
         const actionBtns=isReg
@@ -1586,15 +1537,12 @@ function lhRenderHotelCards(hotels){
 
 async function lhLoadMasters(){
     if(lhMaster._loaded)return;
-    const[atm,ts,gp]=await Promise.all([
-        sb.from("loveho_atmospheres").select("name").order("sort_order"),
-        sb.from("loveho_time_slots").select("name").order("sort_order"),
-        sb.from("loveho_good_points").select("label,category").eq("is_active",true).order("sort_order")
-    ]);
-    lhMaster.atmospheres=(atm.data||[]).map(r=>r.name);
-    lhMaster.time_slots=(ts.data||[]).map(r=>r.name);
+    const md=await getMasterJson();
+    const lh=md.loveho||{};
+    lhMaster.atmospheres=lh.atmospheres||[];
+    lhMaster.time_slots=lh.time_slots||[];
     if(!lhMaster.time_slots.length)lhMaster.time_slots=['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
-    lhMaster.good_points=gp.data||[];
+    lhMaster.good_points=lh.good_points||[];
     lhMaster._loaded=true;
     // populate selects
     const selOpt=arr=>'<option value="">選択してください</option>'+arr.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
@@ -1645,7 +1593,7 @@ async function lhSelectHotel(hotelId,hotelName){
     document.getElementById("lh-transport-fee-wrap").style.display="flex";
     document.getElementById("lh-form-transport").value="";
     // 既存の交通費データを読み込み
-    const{data:shi}=await sb.from("shop_hotel_info").select("transport_fee").eq("shop_id",currentShop.id).eq("hotel_id",hotelId).maybeSingle();
+    let shi=null;try{const tfRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-transport-fee&hotel_id='+hotelId,{credentials:'include'});shi=await tfRes.json();}catch(e){}
     if(shi){
         if(shi.transport_fee===0){document.getElementById("lh-transport-free").checked=true;document.getElementById("lh-transport-fee-wrap").style.display="none";}
         else if(shi.transport_fee!==null){document.getElementById("lh-form-transport").value=shi.transport_fee;}
@@ -1653,7 +1601,7 @@ async function lhSelectHotel(hotelId,hotelName){
     await lhLoadMasters();
     // 既存のラブホ投稿データを読み込みフォームに反映
     const shopName=currentShop.shop_name||"店舗";
-    const{data:existLh}=await sb.from("loveho_reports").select("*").eq("hotel_id",hotelId).eq("poster_name",shopName).maybeSingle();
+    let existLh=null;try{const lhRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-existing-loveho&hotel_id='+hotelId+'&poster_name='+encodeURIComponent(shopName),{credentials:'include'});existLh=await lhRes.json();}catch(e){}
     if(existLh){
         document.getElementById("lh-form-title").textContent='🏩 '+hotelName+' の情報を編集';
         if(existLh.solo_entry)document.getElementById("lh-f-solo").value=existLh.solo_entry;
@@ -1687,41 +1635,26 @@ async function lhSubmitReport(){
     if(!hasData){toast("少なくとも1つ以上の項目を入力してください");return;}
     btn.disabled=true;btn.textContent="送信中...";
     try{
-        const payload={
+        const apiPayload={
             hotel_id:lhSelectedHotelId,
-            solo_entry:solo||null,
-            entry_method:entryMethod||null,
-            atmosphere:atm||null,
-            good_points:lhSelectedGoodPoints.length?lhSelectedGoodPoints:null,
-            time_slot:ts||null,
-            comment:comment||null,
-            poster_name:poster||currentShop.shop_name||"店舗",
-            multi_person:multi,
-            guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,
-            guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null,
-            gender_mode:currentShop.gender_mode||'men'
+            report:{
+                solo_entry:solo||null,
+                entry_method:entryMethod||null,
+                atmosphere:atm||null,
+                good_points:lhSelectedGoodPoints.length?lhSelectedGoodPoints:null,
+                time_slot:ts||null,
+                comment:comment||null,
+                poster_name:poster||currentShop.shop_name||"店舗",
+                multi_person:multi,
+                guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,
+                guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null
+            },
+            transport_fee:getLhTransportFee()
         };
-        // 既存の店舗投稿を確認（1店舗1ホテル1件制限）
-        const shopName=currentShop.shop_name||"店舗";
-        const{data:existingLh}=await sb.from("loveho_reports").select("id").eq("hotel_id",lhSelectedHotelId).eq("poster_name",shopName).maybeSingle();
-        if(existingLh){
-            payload.updated_at=new Date().toISOString();
-            const{error}=await sb.from("loveho_reports").update(payload).eq("id",existingLh.id);
-            if(error)throw error;
-            toast("口コミを更新しました！");
-        }else{
-            const{error}=await sb.from("loveho_reports").insert(payload);
-            if(error)throw error;
-            toast("口コミを投稿しました！");
-        }
-        // 交通費をshop_hotel_infoに保存（ホテルと同じ仕組み）
-        const lhTransportFee=getLhTransportFee();
-        const{data:existShi}=await sb.from("shop_hotel_info").select("id").eq("shop_id",currentShop.id).eq("hotel_id",lhSelectedHotelId).maybeSingle();
-        if(existShi){
-            await sb.from("shop_hotel_info").update({transport_fee:lhTransportFee,can_call:true}).eq("id",existShi.id);
-        }else{
-            await sb.from("shop_hotel_info").insert({shop_id:currentShop.id,hotel_id:lhSelectedHotelId,can_call:true,transport_fee:lhTransportFee});
-        }
+        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(apiPayload)});
+        const result=await res.json();
+        if(!result.success)throw new Error(result.error||'不明なエラー');
+        toast("口コミを保存しました！");
         if(!registeredHotelIds.has(String(lhSelectedHotelId)))registeredHotelIds.add(String(lhSelectedHotelId));
         document.getElementById("lh-form-card").style.display="none";
         lhSelectedHotelId=null;
@@ -1768,10 +1701,8 @@ function saHreqBack(){document.getElementById('sa-hreq-step2').style.display='no
 async function saHreqSubmit(){
   const btn=document.getElementById('sa-hreq-submit');
   btn.disabled=true;btn.textContent='送信中...';
-  const payload={hotel_name:document.getElementById('sa-hreq-name').value.trim(),address:document.getElementById('sa-hreq-address').value.trim(),tel:document.getElementById('sa-hreq-tel').value.trim()||null,hotel_type:document.getElementById('sa-hreq-type').value,status:'pending'};
-  const{error}=await sb.from('hotel_requests').insert(payload);
-  btn.disabled=false;btn.textContent='送信する';
-  if(error){toast('送信エラー: '+error.message);return;}
+  const payload={hotel_name:document.getElementById('sa-hreq-name').value.trim(),address:document.getElementById('sa-hreq-address').value.trim(),tel:document.getElementById('sa-hreq-tel').value.trim()||null,hotel_type:document.getElementById('sa-hreq-type').value};
+  try{const res=await fetch('https://yobuho.com/api/submit-hotel-request.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const r=await res.json();btn.disabled=false;btn.textContent='送信する';if(!r.success){toast('送信エラー: '+(r.error||'不明'));return;}}catch(e){btn.disabled=false;btn.textContent='送信する';toast('通信エラー');return;}
   document.getElementById('sa-hreq-step2').style.display='none';
   document.getElementById('sa-hreq-done').style.display='';
   toast('ホテル情報を送信しました');

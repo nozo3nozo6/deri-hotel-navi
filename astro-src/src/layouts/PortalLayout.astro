@@ -1,0 +1,396 @@
+---
+/**
+ * PortalLayout.astro
+ * portal.html用レイアウト。モード別のmeta/OG/title/themeColorをビルド時に確定。
+ * 既存JS5モジュール + portal-init.js はそのまま読み込む。
+ */
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  mode: 'men' | 'women' | 'men_same' | 'women_same';
+}
+
+const { mode } = Astro.props;
+
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src https://fonts.gstatic.com; connect-src 'self' https://nominatim.openstreetmap.org https://msearch.gsi.go.jp https://unpkg.com https://cdn.jsdelivr.net https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
+
+// モード別SEOデータ
+const MODE_DATA: Record<string, {
+  title: string;
+  description: string;
+  ogTitle: string;
+  ogDescription: string;
+  themeColor: string;
+  badge: string;
+  logoHtml: string;
+}> = {
+  men: {
+    title: 'デリヘルを呼べるホテル検索 | Deli YobuHo',
+    description: 'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。',
+    ogTitle: 'デリヘルを呼べるホテル検索 | Deli YobuHo',
+    ogDescription: 'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。',
+    themeColor: '#9b2d35',
+    badge: '',
+    logoHtml: '<span style="font-style:italic; color:#666; font-weight:300; font-size:0.85em; letter-spacing:2px;">Deli</span> <b style="color:#c0392b; font-size:1.2em; letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b; font-size:0.9em;">&#9794;</span>',
+  },
+  women: {
+    title: '女性用風俗を呼べるホテル検索 | JoFu YobuHo',
+    description: '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。',
+    ogTitle: '女性用風俗を呼べるホテル検索 | JoFu YobuHo',
+    ogDescription: '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。',
+    themeColor: '#b5627a',
+    badge: '&#9792;',
+    logoHtml: 'JoFu <b>YobuHo</b>',
+  },
+  men_same: {
+    title: '男性同士で利用できるホテル検索 | YobuHo',
+    description: 'デリヘルをホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのデリヘル入室情報を確認。直通・カードキー・フロント相談など入り方の実績もわかります。',
+    ogTitle: '男性同士で利用できるホテル検索 | YobuHo',
+    ogDescription: 'デリヘルをホテルに呼べるか地域から検索。直通・カードキー・フロント相談など入り方の実績もわかります。',
+    themeColor: '#2a5a8f',
+    badge: '&#9794;&#9794;',
+    logoHtml: '<b>YobuHo</b>',
+  },
+  women_same: {
+    title: '女性同士で利用できるホテル検索 | YobuHo',
+    description: '女性用風俗・女風をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルへの出張女風俗の入室情報・呼べた実績を確認できます。',
+    ogTitle: '女性同士で利用できるホテル検索 | YobuHo',
+    ogDescription: '女性用風俗・女風をホテルに呼べるか地域から検索。出張女風俗の入室情報・呼べた実績を確認。',
+    themeColor: '#8a5a9e',
+    badge: '&#9792;&#9792;',
+    logoHtml: '<b>YobuHo</b>',
+  },
+};
+
+const d = MODE_DATA[mode];
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": d.title,
+    "url": `https://yobuho.com/portal.html?mode=${mode}`,
+    "description": d.description,
+    "applicationCategory": "LifestyleApplication",
+    "operatingSystem": "All",
+    "inLanguage": "ja",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/portal.html?keyword={search_term_string}" },
+      "query-input": "required name=search_term_string"
+    },
+    "provider": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com/", "logo": "https://yobuho.com/ogp.png" }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "ホーム", "item": "https://yobuho.com/" },
+      { "@type": "ListItem", "position": 2, "name": d.ogTitle, "item": `https://yobuho.com/portal.html?mode=${mode}` }
+    ]
+  }
+];
+---
+
+<BaseLayout
+  title={d.title}
+  description={d.description}
+  keywords="呼べるホテル,呼べたホテル,ホテル検索,デリヘル 呼べる ホテル,女性用風俗 呼べる ホテル,女風 ホテル 検索,女風 呼べるホテル,レズビアン ホテル,ゲイ ホテル,同性カップル ホテル,LGBT ホテル,同性利用OK ホテル,セラピスト 派遣 ホテル,女性向け風俗 ホテル,メンズエステ ホテル,出張マッサージ ホテル,ラブホテル 口コミ,ビジネスホテル デリヘル,シティホテル 呼べる,ホテル 派遣 可能,出張 ホテル 呼べる"
+  canonical={`https://yobuho.com/portal.html?mode=${mode}`}
+  ogTitle={d.ogTitle}
+  ogDescription={d.ogDescription}
+  ogUrl={`https://yobuho.com/portal.html?mode=${mode}`}
+  ogImageAlt="YobuHo - 呼べるホテル検索ポータル"
+  twitterTitle={d.ogTitle}
+  twitterDescription={d.ogDescription}
+  twitterImage="https://yobuho.com/ogp.png"
+  themeColor={d.themeColor}
+  csp={csp}
+  jsonLd={jsonLd}
+>
+    <Fragment slot="head">
+        <meta name="google-site-verification" content="nQWgZIeYu0-5NzyWjCcLGezF8ojgPviuSztTr0M1bl4" />
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+        {(mode === 'women' || mode === 'women_same') && (
+            <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+        )}
+        <script is:inline define:vars={{ mode }}>window.__ASTRO_MODE = mode;</script>
+        <script is:inline src="/portal-init.js?v=2"></script>
+        <link rel="stylesheet" href="/style.css?v=13">
+    </Fragment>
+
+    <h1 class="sr-only">呼べるホテル検索 YobuHo（よぶほ・ヨブホ） - デリヘル・女性用風俗・同性利用・ラブホテル口コミ</h1>
+
+    <header class="portal-header">
+        <div class="header-inner">
+            <button data-action="goToGate" class="btn-to-gate">
+                <span class="btn-gate-icon">&#9961;</span>
+                <span class="btn-gate-text">ゲートへ</span>
+            </button>
+            <div class="header-logo">
+                <a href="/index.html" style="text-decoration:none;">
+                    <span class="logo-text" id="header-logo-text" set:html={d.logoHtml} />
+                </a>
+                <span id="mode-badge" class="mode-badge" set:html={d.badge} style={mode === 'men' ? 'display:none' : undefined} />
+            </div>
+            <div class="lang-buttons">
+                <button data-action="changeLang" data-param="ja" class="lang-btn active">JP</button>
+                <button data-action="changeLang" data-param="en" class="lang-btn">EN</button>
+                <button data-action="changeLang" data-param="zh" class="lang-btn">CN</button>
+                <button data-action="changeLang" data-param="ko" class="lang-btn">KR</button>
+            </div>
+        </div>
+        <div class="mode-title-bar" id="mode-title-bar" style="display:none;"></div>
+    </header>
+
+    <section class="area-section">
+        <nav aria-label="パンくずリスト">
+            <div class="breadcrumb" id="breadcrumb">
+                <span class="breadcrumb-item active">日本全国</span>
+            </div>
+        </nav>
+        <div class="area-header">
+            <h2 id="area-title">地域を選択</h2>
+            <button id="btn-area-back" class="btn-area-back" data-action="backLevel" aria-label="前のエリアに戻る">
+                <span class="back-arrow">&larr;</span>
+                <span class="back-text">前へ</span>
+            </button>
+        </div>
+        <div id="ad-container"></div>
+        <div id="area-button-container" class="area-grid"></div>
+        <div id="hotel-detail-content" style="display:none;"></div>
+    </section>
+
+    <div class="search-tools">
+        <button class="btn-location" id="btn-location" data-action="searchByLocation" aria-label="現在地周辺のホテルをリスト表示">
+            <span class="btn-location-icon">&#128205;</span>
+            <span class="btn-location-label">現在地リスト表示</span>
+        </button>
+        <div class="search-wrapper">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" id="keyword" class="search-input-lux" placeholder="ホテル名・住所・キーワードで検索..." data-oninput="fetchHotelsFromSearch">
+            <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">&#10005;</button>
+        </div>
+        <div class="station-search-wrapper">
+            <span class="station-icon">&#128649;</span>
+            <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="fetchHotelsByStation">
+        </div>
+    </div>
+
+    <div id="hotel-map" style="display:none; height:400px; border-radius:12px; margin-bottom:16px;"></div>
+    <div id="map-detail-content" style="display:none;"></div>
+
+    <div id="bottom-info-links" class="info-links-bar" style="display:none; justify-content:center; gap:16px; padding:14px 20px; margin-top:12px; background:#fff; border:1px solid #e0d5d0; border-radius:8px; font-size:13px;">
+        <a href="#" data-action="openHotelRequestModal" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">&#128221; 未掲載ホテル情報提供</a>
+        <a href={`/shop-register.html?genre=${mode}`} id="shop-register-link" style="color:#8b5e6b; text-decoration:none; padding:6px 16px; border:1px solid #d4b8c1; border-radius:20px; background:#fdf6f8; transition:background 0.2s; font-size:12px; white-space:nowrap;">&#127978; 店舗様・掲載用はこちら</a>
+    </div>
+
+    <div id="result-status" class="result-status" style="display:none;"></div>
+
+    <main>
+        <div id="hotel-list" class="hotel-list-container"></div>
+    </main>
+
+    <div id="loading-overlay" class="loading-overlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">検索中...</p>
+    </div>
+
+    <!-- モーダル群 -->
+    <div id="can-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+        <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
+            <div class="modal-header">
+                <div class="modal-title">&#9989; 呼べた理由を選んでください</div>
+                <div class="modal-subtitle">複数選択可・スキップして次へ進むこともできます</div>
+            </div>
+            <div id="can-reasons-checkboxes" class="modal-checkbox-grid"></div>
+            <div class="modal-actions">
+                <button data-action="cancelCanReasons" class="btn-modal-cancel" style="flex:1;">キャンセル</button>
+                <button data-action="confirmCanReasons" class="btn-modal-primary" style="flex:2;font-size:14px;">決定する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cannot-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+        <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
+            <div class="modal-header">
+                <div class="modal-title">&#10060; 呼べなかった理由を選んでください</div>
+                <div class="modal-subtitle">複数選択可・スキップして次へ進むこともできます</div>
+            </div>
+            <div id="cannot-reasons-checkboxes" class="modal-checkbox-grid"></div>
+            <div class="modal-actions">
+                <button data-action="cancelCannotReasons" class="btn-modal-cancel" style="flex:1;">キャンセル</button>
+                <button data-action="confirmCannotReasons" class="btn-modal-danger" style="flex:2;font-size:14px;">決定する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="post-confirm-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
+        <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
+            <div class="modal-header">
+                <div class="modal-title">&#128203; 投稿内容の確認</div>
+                <div class="modal-subtitle">内容をご確認の上、送信してください</div>
+            </div>
+            <div id="post-confirm-content"></div>
+            <div class="modal-warning">&#9888;&#65039; お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます</div>
+            <div class="modal-actions">
+                <button data-action="closePostConfirmModal" class="btn-modal-cancel" style="flex:1;">修正する</button>
+                <button data-action="doSubmitReport" id="btn-do-submit" class="btn-modal-primary" style="flex:2;font-size:14px;">この内容で投稿する</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="flag-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-confirm);">
+        <div class="modal-content" style="max-width:400px;">
+            <div id="flag-step1">
+                <div class="modal-header">
+                    <div class="modal-title">&#128681; この投稿を報告</div>
+                    <div class="modal-subtitle">報告理由を選択してください</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;" id="flag-reason-btns">
+                    <button data-action="selectFlagReason" data-param="スパム・宣伝" class="btn-flag-reason">&#128226; スパム・宣伝</button>
+                    <button data-action="selectFlagReason" data-param="虚偽情報" class="btn-flag-reason">&#10060; 虚偽情報</button>
+                    <button data-action="selectFlagReason" data-param="不適切な内容" class="btn-flag-reason">&#9888;&#65039; 不適切な内容</button>
+                    <button data-action="selectFlagReason" data-param="その他" class="btn-flag-reason">&#128172; その他</button>
+                </div>
+                <div id="flag-reason-err" class="modal-error" role="alert" aria-live="polite">理由を選択してください</div>
+                <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" class="modal-textarea" style="margin-bottom:10px;"></textarea>
+                <button data-action="showFlagConfirm" class="btn-modal-danger" style="width:100%;font-size:13px;padding:12px;border-radius:10px;margin-bottom:8px;">確認する &rarr;</button>
+                <button data-action="closeFlagModal" class="btn-modal-ghost">キャンセル</button>
+            </div>
+            <div id="flag-step2" style="display:none;">
+                <div class="modal-header">
+                    <div class="modal-title">&#128681; 報告内容を確認</div>
+                    <div class="modal-subtitle">この内容で報告しますか？</div>
+                </div>
+                <div class="modal-confirm-box">
+                    <div class="modal-confirm-label">報告理由</div>
+                    <div class="modal-confirm-value" id="flag-confirm-reason"></div>
+                    <div id="flag-confirm-comment-wrap" style="display:none;margin-top:10px;">
+                        <div class="modal-confirm-label">詳細コメント</div>
+                        <div style="font-size:13px;color:#4a3a2a;white-space:pre-wrap;" id="flag-confirm-comment"></div>
+                    </div>
+                </div>
+                <div class="modal-actions" style="gap:10px;">
+                    <button data-action="showFlagStep1" class="btn-modal-ghost" style="flex:1;">&larr; 戻る</button>
+                    <button data-action="submitFlag" class="btn-modal-danger" style="flex:2;font-size:13px;padding:12px;border-radius:10px;">送信する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hotel-request-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
+        <div class="modal-content" style="max-width:440px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
+            <div id="hreq-step1">
+                <div class="modal-header">
+                    <div class="modal-title">&#127976; ホテル掲載リクエスト</div>
+                    <div class="modal-subtitle">掲載希望のホテル情報を入力してください</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:18px;">
+                    <div>
+                        <label class="modal-label" for="hreq-name">ホテル名 <span class="modal-label-required">*</span></label>
+                        <input id="hreq-name" type="text" placeholder="例: ホテルアルファ新宿" class="modal-input">
+                    </div>
+                    <div>
+                        <label class="modal-label" for="hreq-address">住所 <span class="modal-label-required">*</span> <span class="modal-label-optional">※わかる範囲でOK</span></label>
+                        <input id="hreq-address" type="text" placeholder="例: 東京都新宿区..." class="modal-input">
+                    </div>
+                    <div>
+                        <label class="modal-label" for="hreq-tel">電話番号 <span class="modal-label-optional">(任意)</span></label>
+                        <input id="hreq-tel" type="tel" placeholder="例: 03-xxxx-xxxx" class="modal-input">
+                    </div>
+                    <div>
+                        <label class="modal-label" for="hreq-type">ホテルタイプ</label>
+                        <select id="hreq-type" class="modal-select">
+                            <option value="business">ビジネスホテル</option>
+                            <option value="city">シティホテル</option>
+                            <option value="resort">リゾートホテル</option>
+                            <option value="ryokan">旅館</option>
+                            <option value="pension">ペンション</option>
+                            <option value="minshuku">民宿</option>
+                            <option value="love_hotel">&#127977; ラブホテル</option>
+                            <option value="rental_room">&#127977; レンタルルーム</option>
+                            <option value="other">その他</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="hreq-err" class="modal-error" role="alert" aria-live="polite" style="margin-bottom:12px;"></div>
+                <button data-action="hreqToConfirm" class="btn-modal-primary" style="font-size:14px;margin-bottom:8px;">確認画面へ &rarr;</button>
+                <button data-action="closeHotelRequestModal" class="btn-modal-ghost" style="border-radius:12px;">キャンセル</button>
+            </div>
+            <div id="hreq-step2" style="display:none;">
+                <div class="modal-header">
+                    <div class="modal-title">&#128203; 内容を確認</div>
+                    <div class="modal-subtitle">この内容でリクエストを送信しますか？</div>
+                </div>
+                <div class="modal-confirm-box" style="display:flex;flex-direction:column;gap:8px;" id="hreq-confirm-body"></div>
+                <div class="modal-actions" style="margin-top:18px;">
+                    <button data-action="hreqBack" class="btn-modal-cancel" style="flex:1;">修正する</button>
+                    <button data-action="submitHotelRequest" id="hreq-submit-btn" class="btn-modal-primary" style="flex:2;font-size:14px;">送信する</button>
+                </div>
+            </div>
+            <div id="hreq-done" class="modal-done">
+                <div style="font-size:40px;margin-bottom:12px;">&#127881;</div>
+                <div class="modal-title" style="margin-bottom:8px;">ありがとうございました！</div>
+                <div class="modal-subtitle" style="margin-bottom:24px;line-height:1.7;">リクエストを受け付けました。<br>確認後、順次掲載を検討いたします。</div>
+                <button data-action="closeHotelRequestModal" class="btn-modal-primary" style="width:auto;padding:12px 32px;font-size:14px;">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="site-footer">
+        <div class="footer-seo-text" style="max-width:800px;margin:0 auto 24px;padding:0 16px;font-size:12px;line-height:1.8;color:#888;text-align:left;">
+            <p><strong>YobuHo（よぶほ）</strong>は、全国43,000件以上のホテルから「呼べるホテル」を検索できる口コミポータルサイトです。デリヘル・女性用風俗（女風）・出張マッサージ・メンズエステなどの派遣サービスを呼べるかどうか、実際に利用したユーザーと店舗の両方から情報を集めています。</p>
+            <p>同性カップルで利用できるホテルもお探しいただけます。ゲイ・レズビアンカップルの宿泊やLGBTフレンドリーなホテル情報、男性同士・女性同士で安心して使えるホテルの口コミも掲載中。ラブホテルの一人利用・清潔感・雰囲気の口コミ評価も検索できます。</p>
+            <p>ビジネスホテル・シティホテル・リゾートホテル・ラブホテルなど、ホテルタイプ別の情報も充実。カードキー式・フロント相談・直通エレベーターなど、派遣利用時に重要な情報を口コミでチェックできます。</p>
+        </div>
+        <nav class="footer-links" aria-label="フッターナビゲーション">
+            <a href="/index.html" class="footer-link">トップページ</a>
+            <span class="footer-separator">|</span>
+            <a href={`/shop-register.html?genre=${mode}`} class="footer-link" id="footer-shop-register">店舗登録</a>
+            <span class="footer-separator">|</span>
+            <a href="https://deli.yobuho.com/" class="footer-link">デリヘル専用</a>
+            <span class="footer-separator">|</span>
+            <a href="https://jofu.yobuho.com/" class="footer-link">女性用風俗専用</a>
+            <span class="footer-separator">|</span>
+            <a href="https://same.yobuho.com/" class="footer-link">同性利用専用</a>
+            <span class="footer-separator">|</span>
+            <a href="https://loveho.yobuho.com/" class="footer-link">ラブホテル検索</a>
+            <span class="footer-separator">|</span>
+            <a href="/terms.html" class="footer-link">利用規約</a>
+            <span class="footer-separator">|</span>
+            <a href="/privacy.html" class="footer-link">プライバシーポリシー</a>
+            <span class="footer-separator">|</span>
+            <a href="/contact.html" class="footer-link">お問い合わせ</a>
+        </nav>
+        <p class="footer-copy">&copy; 2026 YobuHo Studio All Rights Reserved.</p>
+    </footer>
+
+    <div id="success-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay-success" style="z-index:var(--z-toast);">
+        <div class="modal-content-success">
+            <p style="font-size:32px; margin:0 0 16px;">&#9989;</p>
+            <h3 id="success-modal-title" style="margin:0 0 12px;">完了しました</h3>
+            <p id="success-modal-message" style="margin:0 0 24px; color:#666; font-size:14px;"></p>
+            <button data-action="closeSuccessModal" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
+        </div>
+    </div>
+
+    <script defer is:inline src="/api-service.js?v=16"></script>
+    <script defer is:inline src="/ui-utils.js?v=9"></script>
+    <script defer is:inline src="/area-navigation.js?v=12"></script>
+    <script defer is:inline src="/hotel-search.js?v=46"></script>
+    <script defer is:inline src="/form-handler.js?v=7"></script>
+</BaseLayout>
+
+<style>
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+</style>

@@ -15,13 +15,13 @@ const MODE_DESC_MAP = {
     'women_same': '女性同士（レズビアンカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。'
 };
 function getSiteSuffix() {
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     return TITLE_SUFFIX_MAP[mode] || 'YobuHo';
 }
 function updatePageTitle(prefix) {
     document.title = prefix + ' | ' + getSiteSuffix();
     // Update meta description based on mode
-    const mode = new URLSearchParams(window.location.search).get('mode') || 'men';
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     const descMeta = document.querySelector('meta[name="description"]');
     if (descMeta && MODE_DESC_MAP[mode]) descMeta.content = MODE_DESC_MAP[mode];
     // Update OG tags

@@ -1,16 +1,13 @@
 require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
+const { query, close } = require('./db-local');
 const axios = require('axios');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RAKUTEN_APP_ID = process.env.RAKUTEN_APP_ID;
 const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const WAIT_TIME = 2000;
-const RETRY_WAIT = 5000; // 503エラー時のリトライ待機（5秒）
-const MAX_RETRY = 3;     // 最大リトライ回数
+const RETRY_WAIT = 5000;
+const MAX_RETRY = 3;
 
 const HEADERS = {
     'Referer': 'https://yobuho.com',
@@ -34,7 +31,6 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 function detectHotelType(name) {
     if (!name) return 'other';
-    // ラブホテル判定（他の判定より先に実行）
     if (/ラブホテル|ファッションホテル|レンタルルーム|ブティックホテル|レジャーホテル|アダルト/.test(name) && !/クラブホテル/.test(name)) return 'love_hotel';
     if (/旅館|温泉|湯|宿|荘|館/.test(name)) return 'ryokan';
     if (/ペンション/.test(name)) return 'pension';
@@ -52,7 +48,6 @@ function extractCity(address) {
     return match ? match[1] : null;
 }
 
-// リトライ付きAPIリクエスト
 async function rakutenRequest(params, retry = 0) {
     try {
         const res = await axios.get(
@@ -63,9 +58,8 @@ async function rakutenRequest(params, retry = 0) {
     } catch (err) {
         const code = err.response?.data?.errors?.errorCode || err.response?.status;
         const isRetryable = code === 503 || code === 429 || code === 500;
-
         if (isRetryable && retry < MAX_RETRY) {
-            const wait = RETRY_WAIT * (retry + 1); // 5秒→10秒→15秒
+            const wait = RETRY_WAIT * (retry + 1);
             console.log(`  ⚠️  エラー${code} — ${wait/1000}秒後にリトライ (${retry + 1}/${MAX_RETRY})...`);
             await sleep(wait);
             return rakutenRequest(params, retry + 1);
@@ -127,6 +121,8 @@ async function syncAllJapan() {
         console.log('\n🎉🎉🎉 日本全国のホテルデータ同期が完了しました！ 🎉🎉🎉');
     } catch (err) {
         console.error('\n❌ 致命的エラー:', err.response?.data || err.message);
+    } finally {
+        await close();
     }
 }
 
@@ -149,7 +145,7 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
             };
             if (detailCode) params.detailClassCode = detailCode;
 
-            const res = await rakutenRequest(params); // リトライ付き
+            const res = await rakutenRequest(params);
 
             const hotels = res.data.hotels || [];
             if (hotels.length === 0) break;
@@ -160,26 +156,23 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
 
                 const address = (info.address1 || '') + (info.address2 || '');
 
-                // 既存ホテルを確認（重複防止 + 管理者編集保護）
                 const telNorm = (info.telephoneNo || '').replace(/[-\s　・（）()]/g, '');
                 let existingHotel = null;
 
                 // rakuten_hotel_no で既存チェック
-                const { data: byRakuten } = await supabase.from('hotels')
-                    .select('id,rakuten_hotel_no,is_edited')
-                    .eq('rakuten_hotel_no', String(info.hotelNo))
-                    .limit(1);
-                if (byRakuten && byRakuten.length > 0) existingHotel = byRakuten[0];
+                const byRakuten = await query(
+                    'SELECT id, rakuten_hotel_no, is_edited FROM hotels WHERE rakuten_hotel_no = ? LIMIT 1',
+                    [String(info.hotelNo)]
+                );
+                if (byRakuten.length > 0) existingHotel = byRakuten[0];
 
                 // 電話番号で重複チェック
                 if (!existingHotel && telNorm.length >= 8) {
-                    const { data: byTel } = await supabase.from('hotels')
-                        .select('id,rakuten_hotel_no,is_edited')
-                        .eq('tel', info.telephoneNo)
-                        .eq('prefecture', prefecture)
-                        .eq('is_published', true)
-                        .limit(1);
-                    if (byTel && byTel.length > 0 && byTel[0].rakuten_hotel_no !== String(info.hotelNo)) {
+                    const byTel = await query(
+                        'SELECT id, rakuten_hotel_no, is_edited FROM hotels WHERE tel = ? AND prefecture = ? AND is_published = 1 LIMIT 1',
+                        [info.telephoneNo, prefecture]
+                    );
+                    if (byTel.length > 0 && byTel[0].rakuten_hotel_no !== String(info.hotelNo)) {
                         console.log(`  ⏭ 電話番号重複スキップ: ${info.hotelName} (TEL: ${info.telephoneNo}, 既存ID: ${byTel[0].id})`);
                         totalSaved++;
                         continue;
@@ -187,36 +180,53 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
                 }
 
                 // 管理者編集済みのホテルはhotel_type等を保護
-                const newHotelType = (existingHotel && existingHotel.is_edited) ? undefined : detectHotelType(info.hotelName);
-                const payload = {
-                    rakuten_hotel_no: String(info.hotelNo),
-                    name: info.hotelName,
-                    address: address,
-                    tel: info.telephoneNo,
-                    postal_code: info.postalCode,
-                    region: region,
-                    prefecture: prefecture,
-                    major_area: majorArea,
-                    city: extractCity(address),
-                    detail_area: detailName || null,
-                    detail_area_code: detailCode || null,
-                    latitude: parseFloat(info.latitude),
-                    longitude: parseFloat(info.longitude),
-                    thumbnail_url: info.hotelThumbnailUrl,
-                    hotel_url: info.hotelInformationUrl,
-                    nearest_station: info.nearestStation,
-                    image_url: info.hotelImageUrl,
-                    review_average: info.reviewAverage ? parseFloat(info.reviewAverage) : null,
-                    min_charge: info.hotelMinCharge ? parseInt(info.hotelMinCharge) : null,
-                };
-                if (newHotelType !== undefined) payload.hotel_type = newHotelType;
-                if (existingHotel && existingHotel.is_edited) {
+                const isEdited = existingHotel && existingHotel.is_edited;
+                const newHotelType = isEdited ? null : detectHotelType(info.hotelName);
+
+                if (isEdited) {
                     console.log(`  🔒 管理者編集済み保護: ${info.hotelName} (hotel_type維持)`);
                 }
 
-                const { error } = await supabase.from('hotels').upsert(payload, { onConflict: 'rakuten_hotel_no' });
+                // INSERT ON DUPLICATE KEY UPDATE (rakuten_hotel_noがUNIQUE)
+                const cols = [
+                    'rakuten_hotel_no', 'name', 'address', 'tel', 'postal_code',
+                    'region', 'prefecture', 'major_area', 'city',
+                    'detail_area', 'detail_area_code',
+                    'latitude', 'longitude',
+                    'thumbnail_url', 'hotel_url', 'nearest_station', 'image_url',
+                    'review_average', 'min_charge'
+                ];
+                const vals = [
+                    String(info.hotelNo), info.hotelName, address, info.telephoneNo, info.postalCode,
+                    region, prefecture, majorArea, extractCity(address),
+                    detailName || null, detailCode || null,
+                    parseFloat(info.latitude), parseFloat(info.longitude),
+                    info.hotelThumbnailUrl, info.hotelInformationUrl, info.nearestStation, info.hotelImageUrl,
+                    info.reviewAverage ? parseFloat(info.reviewAverage) : null,
+                    info.hotelMinCharge ? parseInt(info.hotelMinCharge) : null
+                ];
 
-                if (error) console.error('  💥 保存エラー:', error.message);
+                if (newHotelType !== null) {
+                    cols.push('hotel_type');
+                    vals.push(newHotelType);
+                }
+
+                const placeholders = cols.map(() => '?').join(',');
+                // ON DUPLICATE KEY: update all columns except hotel_type if is_edited
+                const updateParts = cols
+                    .filter(c => c !== 'rakuten_hotel_no')
+                    .filter(c => isEdited ? c !== 'hotel_type' : true)
+                    .map(c => `\`${c}\` = VALUES(\`${c}\`)`);
+
+                try {
+                    await query(
+                        `INSERT INTO hotels (${cols.map(c => '`'+c+'`').join(',')}) VALUES (${placeholders})
+                         ON DUPLICATE KEY UPDATE ${updateParts.join(', ')}`,
+                        vals
+                    );
+                } catch (e) {
+                    console.error('  💥 保存エラー:', e.message);
+                }
             }
 
             totalSaved += hotels.length;

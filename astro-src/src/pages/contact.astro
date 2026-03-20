@@ -1,0 +1,132 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout
+  title="お問い合わせ | YobuHo"
+  description="YobuHoへのお問い合わせはこちら。ご質問・ご要望をお気軽にお寄せください。"
+  canonical="https://yobuho.com/contact.html"
+  ogTitle="お問い合わせ | YobuHo"
+  themeColor="#b5627a"
+>
+    <Fragment slot="head">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    </Fragment>
+
+    <PageHeader pageTitle="お問い合わせ" />
+    <div class="content">
+        <h1>お問い合わせ</h1>
+
+        <form id="contact-form">
+            <div class="form-group">
+                <label>お名前<span class="req">*必須</span></label>
+                <input type="text" id="c-name" required placeholder="お名前を入力">
+            </div>
+            <div class="form-group">
+                <label>メールアドレス<span class="req">*必須</span></label>
+                <input type="email" id="c-email" required placeholder="example@email.com">
+            </div>
+            <div class="form-group">
+                <label>お問い合わせ種別</label>
+                <select id="c-type">
+                    <option value="一般的なお問い合わせ">一般的なお問い合わせ</option>
+                    <option value="店舗掲載について">店舗掲載について</option>
+                    <option value="ホテル情報について">ホテル情報について</option>
+                    <option value="不具合報告">不具合報告</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>お問い合わせ内容<span class="req">*必須</span></label>
+                <textarea id="c-message" required placeholder="お問い合わせ内容を入力してください"></textarea>
+            </div>
+            <div id="form-error" class="error-msg"></div>
+            <button type="submit" class="btn-submit" id="c-submit">送信する</button>
+        </form>
+
+        <div class="done-msg" id="contact-done">
+            <div class="icon">&#9993;&#65039;</div>
+            <div class="title">お問い合わせありがとうございます</div>
+            <div class="desc">確認次第ご連絡いたします。<br>しばらくお待ちください。</div>
+        </div>
+    </div>
+    <Footer variant="full" />
+</BaseLayout>
+
+<script is:inline>
+document.getElementById('contact-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('c-submit');
+    const errEl = document.getElementById('form-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    const name = document.getElementById('c-name').value.trim();
+    const email = document.getElementById('c-email').value.trim();
+    const type = document.getElementById('c-type').value;
+    const message = document.getElementById('c-message').value.trim();
+
+    if (!name || !email || !message) {
+        errEl.textContent = '必須項目を入力してください。';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '送信する';
+        return;
+    }
+
+    try {
+        const res = await fetch('https://yobuho.com/api/send-mail.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: 'hotel@yobuho.com',
+                subject: '\u3010\u304a\u554f\u3044\u5408\u308f\u305b\u3011' + type,
+                body: '\u304a\u540d\u524d: ' + name + '\n\u30e1\u30fc\u30eb: ' + email + '\n\u7a2e\u5225: ' + type + '\n\n' + message
+            })
+        });
+        if (!res.ok) throw new Error('送信に失敗しました');
+
+        document.getElementById('contact-form').style.display = 'none';
+        document.getElementById('contact-done').style.display = 'block';
+    } catch (err) {
+        errEl.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '送信する';
+    }
+});
+</script>
+
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans JP', system-ui, sans-serif; background: #faf8f4; color: #1a1410; line-height: 1.8; }
+    .content { max-width: 560px; margin: 0 auto; padding: 32px 20px 40px; }
+    h1 { font-size: 22px; font-weight: 700; color: #1a1410; margin-bottom: 24px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #1a1410; margin-bottom: 6px; }
+    label .req { color: #c05050; font-size: 11px; margin-left: 4px; }
+    input, select, textarea {
+        width: 100%; padding: 12px 14px; border: 1px solid #d5cfc5; border-radius: 8px;
+        font-size: 14px; font-family: inherit; color: #1a1410; background: #fff;
+        transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #c9a84c; box-shadow: 0 0 0 3px rgba(201,168,76,0.15); }
+    textarea { resize: vertical; min-height: 140px; }
+    .btn-submit {
+        width: 100%; padding: 14px; background: linear-gradient(135deg, #c9a84c, #e0c060);
+        border: none; border-radius: 10px; color: #fff; font-size: 15px; font-weight: 700;
+        cursor: pointer; font-family: inherit; letter-spacing: 0.05em;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.15); transition: opacity 0.2s;
+    }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .done-msg { text-align: center; padding: 40px 0; display: none; }
+    .done-msg .icon { font-size: 48px; margin-bottom: 16px; }
+    .done-msg .title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .done-msg .desc { font-size: 13px; color: #8a7a6a; line-height: 1.7; }
+    .error-msg { color: #c05050; font-size: 12px; margin-top: 4px; display: none; }
+</style>

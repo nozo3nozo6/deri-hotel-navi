@@ -5,14 +5,13 @@
  * 【モード2】detailClassのない都市  → smallClass単位でdetail_area = smallName に更新
  *
  * 実行: node update-detail-area.js
+ * 事前にSSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N
  */
 
 require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
+const { query, close } = require('./db-local');
 const axios = require('axios');
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RAKUTEN_APP_ID = process.env.RAKUTEN_APP_ID;
 const RAKUTEN_ACCESS_KEY = process.env.RAKUTEN_ACCESS_KEY;
 const HEADERS = {
@@ -23,17 +22,14 @@ const HEADERS = {
 const WAIT_TIME = 2000;
 const MAX_RETRY = 5;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ── モード1: detailClassあり都市（GetAreaClassから動的に取得） ──────────────
 const DETAIL_CITIES = [
-    // 【リトライ】東京23区・池袋エリア（前回 socket hang up）
     { prefCode: 'tokyo',    smallCode: 'tokyo',     label: '東京２３区内（池袋リトライ）', retryCode: 'G' },
 ];
 
 // ── モード2: detailClassなし都市（smallClass単位で更新） ──────────────────────
-// 確認済み: 横浜・福岡・仙台・神戸・広島・那覇 は全てdetailClassなし
 const SIMPLE_CITIES = [
     { prefCode: 'kanagawa',  smallCode: 'yokohama',  smallName: '横浜',                              prefName: '神奈川県' },
     { prefCode: 'hukuoka',   smallCode: 'fukuoka',   smallName: '博多・キャナルシティ・海の中道・太宰府・二日市', prefName: '福岡県' },
@@ -91,12 +87,16 @@ async function updateByDetail(prefCode, smallCode, detailCode, detailName) {
             .map(String);
 
         if (hotelNos.length > 0) {
-            const { error } = await supabase
-                .from('hotels')
-                .update({ detail_area: detailName, detail_area_code: detailCode })
-                .in('rakuten_hotel_no', hotelNos);
-            if (error) console.error(`    💥 UPDATE エラー:`, error.message);
-            else totalUpdated += hotelNos.length;
+            const placeholders = hotelNos.map(() => '?').join(',');
+            try {
+                await query(
+                    `UPDATE hotels SET detail_area = ?, detail_area_code = ? WHERE rakuten_hotel_no IN (${placeholders})`,
+                    [detailName, detailCode, ...hotelNos]
+                );
+                totalUpdated += hotelNos.length;
+            } catch (e) {
+                console.error(`    💥 UPDATE エラー:`, e.message);
+            }
         }
 
         const pageInfo = res.data.pagingInfo;
@@ -133,12 +133,16 @@ async function updateBySmall(prefCode, smallCode, smallName) {
             .map(String);
 
         if (hotelNos.length > 0) {
-            const { error } = await supabase
-                .from('hotels')
-                .update({ detail_area: smallName, detail_area_code: smallCode })
-                .in('rakuten_hotel_no', hotelNos);
-            if (error) console.error(`    💥 UPDATE エラー:`, error.message);
-            else totalUpdated += hotelNos.length;
+            const placeholders = hotelNos.map(() => '?').join(',');
+            try {
+                await query(
+                    `UPDATE hotels SET detail_area = ?, detail_area_code = ? WHERE rakuten_hotel_no IN (${placeholders})`,
+                    [smallName, smallCode, ...hotelNos]
+                );
+                totalUpdated += hotelNos.length;
+            } catch (e) {
+                console.error(`    💥 UPDATE エラー:`, e.message);
+            }
         }
 
         const pageInfo = res.data.pagingInfo;
@@ -155,52 +159,42 @@ async function showSummary() {
     console.log('📊 detail_area 設定状況（完了後集計）');
     console.log('========================================');
 
-    // 総件数
-    const { count: totalCount } = await supabase
-        .from('hotels')
-        .select('*', { count: 'exact', head: true })
-        .not('detail_area', 'is', null);
+    const [{ cnt: totalCount }] = await query(
+        'SELECT COUNT(*) as cnt FROM hotels WHERE detail_area IS NOT NULL'
+    );
     console.log(`\n✅ detail_area が入っているホテル総数: ${totalCount} 件`);
 
-    // 都市別 detail_area 一覧
     const cities = [
-        { label: '東京23区',  filter: { prefecture: '東京都' } },
-        { label: '大阪',      filter: { prefecture: '大阪府' } },
-        { label: '京都',      filter: { prefecture: '京都府' } },
-        { label: '札幌',      filter: { major_area: '札幌' } },
-        { label: '名古屋',    filter: { major_area: '名古屋' } },
-        { label: '横浜',      filter: { major_area: '横浜' } },
-        { label: '福岡（博多）', filter: { major_area: '博多・キャナルシティ・海の中道・太宰府・二日市' } },
-        { label: '仙台',      filter: { major_area: '仙台' } },
-        { label: '神戸',      filter: { major_area: '神戸' } },
-        { label: '広島',      filter: { major_area: '広島' } },
-        { label: '那覇',      filter: { major_area: '那覇' } },
+        { label: '東京23区',  where: "prefecture = '東京都'" },
+        { label: '大阪',      where: "prefecture = '大阪府'" },
+        { label: '京都',      where: "prefecture = '京都府'" },
+        { label: '札幌',      where: "major_area = '札幌'" },
+        { label: '名古屋',    where: "major_area = '名古屋'" },
+        { label: '横浜',      where: "major_area = '横浜'" },
+        { label: '福岡（博多）', where: "major_area = '博多・キャナルシティ・海の中道・太宰府・二日市'" },
+        { label: '仙台',      where: "major_area = '仙台'" },
+        { label: '神戸',      where: "major_area = '神戸'" },
+        { label: '広島',      where: "major_area = '広島'" },
+        { label: '那覇',      where: "major_area = '那覇'" },
     ];
 
     console.log('\n--- 都市別 detail_area件数 ---');
     for (const city of cities) {
-        let query = supabase.from('hotels').select('*', { count: 'exact', head: true }).not('detail_area', 'is', null);
-        for (const [col, val] of Object.entries(city.filter)) {
-            query = query.eq(col, val);
-        }
-        const { count } = await query;
-        console.log(`  ${city.label}: ${count ?? 0} 件`);
+        const [{ cnt }] = await query(
+            `SELECT COUNT(*) as cnt FROM hotels WHERE detail_area IS NOT NULL AND ${city.where}`
+        );
+        console.log(`  ${city.label}: ${cnt} 件`);
     }
 
-    // detail_area 種類一覧（東京23区）
     console.log('\n--- 東京23区 detail_area 種類 ---');
-    const { data: tokyoAreas } = await supabase
-        .from('hotels')
-        .select('detail_area')
-        .eq('prefecture', '東京都')
-        .not('detail_area', 'is', null);
-    const tokyoUniq = [...new Set((tokyoAreas || []).map(h => h.detail_area))].sort();
-    tokyoUniq.forEach(a => console.log('  - ' + a));
+    const tokyoAreas = await query(
+        "SELECT DISTINCT detail_area FROM hotels WHERE prefecture = '東京都' AND detail_area IS NOT NULL ORDER BY detail_area"
+    );
+    tokyoAreas.forEach(r => console.log('  - ' + r.detail_area));
 }
 
 // ── メイン ────────────────────────────────────────────────────────────────────
 async function main() {
-    // GetAreaClass 取得
     console.log('📡 GetAreaClass を取得中...\n');
     const areaRes = await axios.get(
         'https://openapi.rakuten.co.jp/engine/api/Travel/GetAreaClass/20140210',
@@ -208,8 +202,6 @@ async function main() {
     );
     const middles = areaRes.data.areaClasses.largeClasses[0].largeClass.middleClasses;
 
-    // ──【モード1タスク構築】──
-    // 池袋リトライ: Tokyo の detailCode G のみ抽出
     const detailTasks = [];
     for (const cityDef of DETAIL_CITIES) {
         const mObj = middles.find(m => m.middleClass.middleClassCode === cityDef.prefCode);
@@ -232,7 +224,6 @@ async function main() {
         }
     }
 
-    // ──【表示】──
     console.log('========================================');
     console.log('📋 実行予定タスク一覧');
     console.log('========================================');
@@ -248,7 +239,6 @@ async function main() {
 
     let grandTotal = 0;
 
-    // ──【モード1実行: 池袋リトライ】──
     if (detailTasks.length > 0) {
         console.log('=== 【モード1】detailClass指定更新 ===\n');
         for (const task of detailTasks) {
@@ -264,7 +254,6 @@ async function main() {
         }
     }
 
-    // ──【モード2実行: 6都市】──
     console.log('\n=== 【モード2】smallClass単位更新（detailClassなし6都市） ===\n');
     for (const city of SIMPLE_CITIES) {
         process.stdout.write(`  🔎 ${city.prefName}/${city.smallName} → detail_area="${city.smallName}" ... `);
@@ -280,8 +269,8 @@ async function main() {
 
     console.log(`\n🎉 完了! 合計 ${grandTotal} 件を更新しました。`);
 
-    // ── 完了後集計 ──
     await showSummary();
+    await close();
 }
 
-main().catch(err => console.error('❌ 致命的エラー:', err.message));
+main().catch(async err => { console.error('❌ 致命的エラー:', err.message); await close(); });

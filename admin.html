@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://ojkhwbvoaiaqekxrbpdd.supabase.co; style-src 'self' 'unsafe-inline'; connect-src 'self' https://ojkhwbvoaiaqekxrbpdd.supabase.co https://cdn.jsdelivr.net; img-src 'self' data: https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yobuho.com; img-src 'self' data: https:;">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -11,7 +11,6 @@
     <title>管理画面 | Deri Hotel Navi</title>
     <link rel="icon" href="/favicon-admin.ico" type="image/x-icon">
     <link rel="icon" href="/favicon-admin.svg" type="image/svg+xml">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root{--navy:#0f172a;--navy-l:#1e293b;--accent:#3b82f6;--accent-h:#2563eb;--accent-bg:rgba(59,130,246,0.06);--accent-bdr:rgba(59,130,246,0.2);--gold:#d97706;--gold-dim:#b45309;--gold-bg:rgba(217,119,6,0.06);--gold-border:rgba(217,119,6,0.2);--ink:#0f172a;--ink-2:#334155;--ink-3:#94a3b8;--bg:#f8fafc;--bg-2:#ffffff;--bg-3:#f1f5f9;--border:rgba(0,0,0,0.08);--border-s:rgba(0,0,0,0.14);--green:#059669;--green-bg:rgba(5,150,105,0.06);--red:#dc2626;--red-bg:rgba(220,38,38,0.06);--blue:#2563eb;--blue-bg:rgba(37,99,235,0.06);--pink:#db2777;--pink-bg:rgba(219,39,119,0.06);--r:8px;--shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);}
         *{box-sizing:border-box;margin:0;padding:0;}
@@ -987,10 +986,9 @@
 </div>
 <div class="toast" id="toast"></div>
 <script>
-console.log('[admin.html] version: 2026-03-07-v2');
-const SB_URL="https://ojkhwbvoaiaqekxrbpdd.supabase.co";
-const SB_KEY="sb_publishable_UqlcQo5CdoPB_1s1ouLX9Q_olbwArKB";
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const AA='/api/admin-api.php';
+async function api(action,body){const r=await fetch(AA+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body||{})});return r.json();}
+async function apiGet(action,params=''){const r=await fetch(AA+'?action='+action+(params?'&'+params:''),{credentials:'include'});return r.json();}
 const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,min_charge,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
@@ -1090,18 +1088,18 @@ function doSort(ns,key,renderFn){if(!sortStates[ns])sortStates[ns]={key:null,asc
 function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}
 
 // ===== ダッシュボード =====
-async function loadDashboard(){const[hR,rR,sR,recR,flagR,shopPendR,hreqPendR]=await Promise.all([sb.from("hotels").select("id",{count:"exact"}),sb.from("reports").select("id,can_call",{count:"exact"}).limit(2000),sb.from("shops").select("id",{count:"exact"}),sb.from("reports").select("id,created_at,can_call,conditions,comment,poster_type,gender_mode,hotels(name)").order("created_at",{ascending:false}).limit(30),sb.from("reports").select("id",{count:"exact",head:true}).not("flagged_at","is",null).is("flag_resolved",null),sb.from("shops").select("id",{count:"exact"}).eq("status","registered"),sb.from("hotel_requests").select("id",{count:"exact"}).eq("status","pending")]);document.getElementById("s-hotels").textContent=(hR.count||0).toLocaleString();document.getElementById("s-reports").textContent=(rR.count||0).toLocaleString();document.getElementById("s-shops").textContent=(sR.count||0).toLocaleString();const rD=rR.data||[];const canN=rD.filter(r=>r.can_call).length;document.getElementById("s-canrate").textContent=rD.length?Math.round(canN/rD.length*100)+"%":"—";const flagCount=flagR.count||0;const shopPendCount=shopPendR.count||0;const hreqPendCount=hreqPendR.count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=recR.data||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotels?.name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
+async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
 
 // ===== 店舗管理 =====
 let shopsData=[];
 const SHOP_GENRE_LABELS={men:"♂ デリヘル",women:"♀ 女風",men_same:"♂♂",women_same:"♀♀"};
 function getShopStatus(s){return s.status||"pending";}
 function shopStatusBadge(s){const st=getShopStatus(s);switch(st){case"email_pending":return'<span class="badge b-email-pending">認証待</span>';case"registered":return'<span class="badge b-registered">準備中</span>';case"active":return'<span class="badge b-active">掲載中</span>';case"suspended":return'<span class="badge b-suspended">停止中</span>';case"denied":return'<span class="badge b-stop">否認</span>';case"revision_required":return'<span class="badge b-revision">不備あり</span>';case"rejected":return'<span class="badge b-stop">却下</span>';case"deleted":return'<span class="badge b-suspended">削除済</span>';default:return'<span class="badge b-free">未確認</span>';}}
-async function loadShops(){const{data}=await sb.from("shops").select("*").order("created_at",{ascending:false});shopsData=data||[];updateShopBadge();renderShops();}
+async function loadShops(){const data=await apiGet('list','table=shops&order=created_at&dir=desc');shopsData=Array.isArray(data)?data:[];updateShopBadge();renderShops();}
 function updateShopBadge(){const count=shopsData.filter(s=>getShopStatus(s)==="registered").length;const b=document.getElementById("shop-badge");if(b){if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}}
 function renderShops(){const mF=document.getElementById("shop-mode-f").value;const aF=document.getElementById("shop-appr-f").value;const pF=document.getElementById("shop-plan-f").value;const qF=document.getElementById("shop-search").value.toLowerCase();let data=shopsData.filter(s=>{if(mF&&s.gender_mode!==mF)return false;const st=getShopStatus(s);if(aF){if(aF!==st)return false;}else{if(st==="deleted")return false;}const _planPrice=(contractPlansData.find(p=>p.id===s.plan_id)||{}).price||0;if(pF==="free"&&_planPrice>0)return false;if(pF==="paid"&&_planPrice<=0)return false;if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;return true;});data=applySortArr(data,"shops");const regCount=shopsData.filter(s=>getShopStatus(s)==="registered").length;document.getElementById("shops-sub").textContent=`${data.length} 件${regCount>0?" (審査待ち "+regCount+" 件)":""}`;document.getElementById("shops-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="8">該当する店舗がありません</td></tr>`:data.map(s=>{const st=getShopStatus(s);const genreCell=`<span style="font-size:11px;">${SHOP_GENRE_LABELS[s.gender_mode]||"—"}</span>`;const planObj=contractPlansData.find(p=>p.id===s.plan_id);const planCell=planObj?`<span style="font-size:11px;">${esc(planObj.name)}</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;const docCell=s.document_url?`<span style="color:#28a745;font-size:11px;">📄 あり</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;let actionBtns=st==='registered'?'<button class="btn b-btn-gray" style="font-size:10px;background:#fd7e14;color:#fff;" onclick="openShopReview(\''+s.id+'\')">📄 審査</button>':'<button class="btn b-btn-gray" style="font-size:10px;" onclick="openShopReview(\''+s.id+'\')">✏️ 編集</button>';return`<tr><td data-label="店舗名" style="font-weight:500;font-size:13px;">${esc(s.shop_name||"—")}</td><td data-label="ジャンル">${genreCell}</td><td data-label="メール" style="font-size:11px;color:var(--ink-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.email||"—")}</td><td data-label="電話番号" style="font-size:11px;color:var(--ink-3);">${esc(s.shop_tel||"—")}</td><td data-label="プラン">${planCell}</td><td data-label="ステータス">${shopStatusBadge(s)}</td><td data-label="届出書">${docCell}</td><td data-label="操作"><div class="btn-row">${actionBtns}</div></td></tr>`;}).join("");}
 async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)return false;const loginUrl="https://yobuho.com/shop-admin.html";const shopName=esc(shop.shop_name||"店舗");const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。<br>ご不明点は hotel@yobuho.com までお問い合わせください。</p></div>`;let subject="",body="";switch(type){case"approval":subject="【YobuHo】審査完了・掲載開始のお知らせ";body=header+`<p>届出確認書の審査が完了し、掲載が開始されました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">店舗管理画面</p><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a><p style="margin:12px 0 0;font-size:13px;">ID: ${esc(shop.email)}</p></div>`+footer;break;case"rejection":subject="【YobuHo】審査結果のお知らせ";body=header+`<p>審査の結果、今回は掲載を見送らせていただくことになりました。</p><div style="background:#fff0f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div>`+footer;break;case"suspension":subject="【YobuHo】掲載停止のお知らせ";body=header+`<p>掲載を停止いたしました。</p>${extraData.reason?'<div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">'+esc(extraData.reason)+'</p></div>':''}`+footer;break;case"resumption":subject="【YobuHo】掲載再開のお知らせ";body=header+`<p>掲載を再開いたしました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div><p>引き続きYobuHoをご利用ください。</p>`+footer;break;case"deficiency":subject="【YobuHo】登録内容の不備について";body=header+`<p>ご登録いただいた内容を確認したところ、以下の不備がございました。</p><div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">不備の内容:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div><p>お手数ですが、内容を修正の上、再度ご申請をお願いいたします。</p><div style="margin:16px 0;"><a href="https://yobuho.com/shop-register.html" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">再申請はこちら</a></div>`+footer;break;case"plan_change":subject="【YobuHo】プラン変更のお知らせ";body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p>${extraData.areas?'<p style="margin:8px 0 0;">掲載エリア: <strong>'+esc(extraData.areas)+'</strong></p>':''}</div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;break;default:return false;}try{const res=await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:shop.email,subject,body})});const result=await res.json();return result.success||false;}catch(e){console.error("メール送信エラー:",e);return false;}}
-async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const{error}=await sb.from("shops").update({status:"deleted",deleted_at:new Date().toISOString()}).eq("id",id);if(error){console.error("deleteShop error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
+async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const r=await api('update',{table:'shops',id,data:{status:'deleted',deleted_at:new Date().toISOString()}});if(!r.ok){toast("削除エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
 async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
 let _srId=null;
 function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";const wrap=document.getElementById("sr-doc-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
@@ -1161,11 +1159,11 @@ if(newStatus==='active'){
 var freePlan=contractPlansData.find(function(p){return p.price===0;});
 if(freePlan){updateData.plan_id=freePlan.id;updateData.approved_at=new Date().toISOString();}
 }
-var{error:updateError}=await sb.from('shops').update(updateData).eq('id',shopId);
-if(updateError){toast('更新エラー: '+updateError.message);pendingAction=null;return;}
+var uR=await api('update',{table:'shops',id:shopId,data:updateData});
+if(!uR.ok){toast('更新エラー');pendingAction=null;return;}
 shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,updateData):s;});
 if(document.getElementById('action-send-email').checked){
-var{data:shop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+var shop=shopsData.find(s=>String(s.id)===String(shopId));if(shop)shop=Object.assign({},shop,updateData);
 if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,type,{reason:extra||undefined});toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
 }else{toast('ステータス更新完了（メール未送信）');}
 }
@@ -1173,11 +1171,9 @@ if(shop){var extra=document.getElementById('action-email-extra').value;var ok=aw
 pendingAction=null;
 document.getElementById('action-confirm-panel').style.display='none';
 // モーダルは閉じずに最新状態で更新
-var{data:updatedShop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
+var updatedShop=shopsData.find(function(s){return String(s.id)===String(shopId);});
 if(updatedShop){
-shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?updatedShop:s;});
-var{data:plans}=await sb.from('contract_plans').select('*').order('sort_order');
-renderEditActions(updatedShop,plans||[]);
+renderEditActions(updatedShop,contractPlansData||[]);
 }
 updateShopBadge();renderShops();
 }
@@ -1196,7 +1192,7 @@ document.addEventListener("touchstart",function(e){var c=v();if(!c||!c.contains(
 document.addEventListener("touchmove",function(e){if(!_dv.drag)return;e.preventDefault();_dv.x=e.touches[0].clientX-_dv.sx;_dv.y=e.touches[0].clientY-_dv.sy;_dv.moved=true;var img=document.querySelector(".sr-doc-viewer img");if(img)img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";},{passive:false});
 document.addEventListener("touchend",function(){if(_dv.drag){_dv.drag=false;setTimeout(function(){_dv.moved=false;},10);}});
 })();
-async function saveShopEdit(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const{error}=await sb.from("shops").update(payload).eq("id",_srId);if(error){console.error("saveShopEdit error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
+async function saveShopEdit(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const r=await api('update',{table:'shops',id:_srId,data:payload});if(!r.ok){toast("更新エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
 // ===== 掲載エリア管理 =====
 let placementsData=[];
 let _pmShopId=null;
@@ -1222,9 +1218,9 @@ async function closePlacementModal(){
   if(_pendingPlanEmail&&shopId){
     const pe=_pendingPlanEmail;_pendingPlanEmail=null;
     // 登録済みエリア一覧を取得
-    const{data:areas}=await sb.from("shop_placements").select("level,target_name").eq("shop_id",shopId).eq("is_active",true);
+    const areas=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1&order=created_at&dir=desc');
     const areaList=(areas||[]).map(a=>(PM_LEVEL_LABELS[a.level]||a.level)+': '+a.target_name);
-    const{data:shop}=await sb.from("shops").select("*").eq("id",shopId).maybeSingle();
+    const shop=shopsData.find(s=>String(s.id)===String(shopId));
     if(shop){
       const areaText=areaList.length?areaList.join('、'):'未設定';
       const ok=await sendShopEmail(shop,'plan_change',{planName:pe.planName,planPrice:pe.planPrice,areas:areaText});
@@ -1236,9 +1232,9 @@ async function closePlacementModal(){
 
 async function loadPlacements(shopId){
   document.getElementById("pm-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">読み込み中...</div>';
-  const{data,error}=await sb.from("shop_placements").select("*").eq("shop_id",shopId).order("created_at",{ascending:false});
-  if(error){document.getElementById("pm-list").innerHTML=`<div style="color:var(--red);font-size:12px;padding:10px;">取得エラー: ${esc(error.message)}</div>`;return;}
-  placementsData=data||[];
+  const data=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&order=created_at&dir=desc');
+  if(data.error){document.getElementById("pm-list").innerHTML=`<div style="color:var(--red);font-size:12px;padding:10px;">取得エラー</div>`;return;}
+  placementsData=Array.isArray(data)?data:[];
   renderPlacements();
 }
 
@@ -1280,7 +1276,7 @@ const PLAN_LIMITS={
 };
 
 async function loadShopContracts(shopId,plans){
-  const{data:contracts}=await sb.from('shop_contracts').select('plan_id').eq('shop_id',shopId);
+  const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
   const activeIds=(contracts||[]).map(c=>c.plan_id);
   // 現在のプラン表示
   const badgeEl=document.getElementById('shop-plan-badge');
@@ -1322,17 +1318,13 @@ async function loadShopContracts(shopId,plans){
 async function toggleShopContract(shopId,planId,isActive){
   if(isActive){
     if(!confirm('このプランを解除しますか？'))return;
-    await sb.from('shop_contracts').delete().eq('shop_id',shopId).eq('plan_id',planId);
+    await api('delete',{table:'shop_contracts',filters:{shop_id:shopId,plan_id:planId}});
     toast('プランを解除しました');
   }else{
-    await sb.from('shop_contracts').insert({shop_id:shopId,plan_id:planId});
+    await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
     toast('プランを追加しました');
   }
-  // 再描画
-  const{data:plans}=await sb.from('contract_plans').select('*').order('sort_order');
-  const{data:updatedShop}=await sb.from('shops').select('*').eq('id',shopId).maybeSingle();
-  if(updatedShop){shopsData=shopsData.map(s=>String(s.id)===String(shopId)?updatedShop:s);}
-  loadShopContracts(shopId,plans||[]);
+  loadShopContracts(shopId,contractPlansData||[]);
   // 有料プラン追加時はエリア管理を案内
   const p=(plans||[]).find(x=>x.id===planId);
   if(!isActive&&p&&p.price>0){
@@ -1343,8 +1335,8 @@ async function toggleShopContract(shopId,planId,isActive){
 async function loadShopAreaList(shopId){
   const el=document.getElementById('sr-area-list');
   if(!el)return;
-  const{data}=await sb.from("shop_placements").select("level,target_name,is_active").eq("shop_id",shopId).eq("is_active",true);
-  if(!data||!data.length){el.innerHTML='<span style="color:#999;">掲載エリア未設定</span>';return;}
+  const data=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1&order=created_at&dir=desc');
+  if(!data||!data.length||data.error){el.innerHTML='<span style="color:#999;">掲載エリア未設定</span>';return;}
   el.innerHTML='<div style="font-size:11px;font-weight:600;margin-bottom:6px;">📍 掲載エリア</div>'+data.map(a=>`<span style="display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:12px;font-size:11px;color:#2e7d32;">${esc(PM_LEVEL_LABELS[a.level]||a.level)} ${esc(a.target_name)}</span>`).join('');
 }
 
@@ -1376,9 +1368,8 @@ async function onPmPrefChange(){
   areaSel.innerHTML='<option value="">読み込み中...</option>';
   citySel.innerHTML='<option value="">選択してください</option>';
   if(!pref)return;
-  const{data}=await sb.from("hotels").select("major_area").eq("prefecture",pref).eq("is_published",true).not("major_area","is",null);
-  const areas=[...new Set((data||[]).map(h=>h.major_area).filter(Boolean))].sort();
-  areaSel.innerHTML='<option value="">選択してください</option>'+areas.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  const areas=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
+  areaSel.innerHTML='<option value="">選択してください</option>'+(areas||[]).map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
   if(lv==='spot'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='none';}
   if(lv==='city'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='';}
 }
@@ -1391,10 +1382,8 @@ async function onPmAreaChange(){
   const citySel=document.getElementById("pm-city");
   citySel.innerHTML='<option value="">読み込み中...</option>';
   if(!pref)return;
-  let q=sb.from("hotels").select("city").eq("prefecture",pref).eq("is_published",true).not("city","is",null);
-  if(area)q=q.eq("major_area",area);
-  const{data}=await q;
-  const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+  const params='field=city&pref='+encodeURIComponent(pref)+(area?'&major_area='+encodeURIComponent(area):'');
+  const cities=await apiGet('hotel-cascades',params);
   citySel.innerHTML='<option value="">選択してください</option>'+cities.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
 }
 
@@ -1414,12 +1403,12 @@ async function addPlacement(){
   const startedAt=document.getElementById("pm-started-at").value;
   const endedAt=document.getElementById("pm-ended-at").value;
   // 重複チェック（同一店舗×同一レベル×同一エリア名は1つまで）
-  const{data:existCheck}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",level).eq("target_name",targetName);
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&placement_target="+encodeURIComponent(targetName));
   if(existCheck&&existCheck.length>0){toast("このエリアは既に登録済みです");return;}
   // 枠数制限チェック
   const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
   const maxSlots=limits[level]||0;
-  const{data:currentPlacements}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",level).eq("is_active",true);
+  const currentPlacements=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&is_active=1");
   const currentCount=(currentPlacements||[]).length;
   if(currentCount>=maxSlots){toast(`${PM_LEVEL_LABELS[level]||level}の掲載枠が上限（${maxSlots}枠）に達しています。プランを追加してください。`);return;}
   // shop_placements に追加
@@ -1428,19 +1417,19 @@ async function addPlacement(){
     started_at:startedAt?new Date(startedAt).toISOString():new Date().toISOString(),
     ended_at:endedAt?new Date(endedAt).toISOString():null
   };
-  const{error}=await sb.from("shop_placements").insert(payload);
+  const _spir=await api("insert",{table:"shop_placements",data:payload});const error=_spir.ok?null:{message:"error"};
   if(error){toast("追加エラー: "+error.message);return;}
   // ad_placements にも追加（ポータル表示用、重複チェック）
   const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
   const adMode=shop?shop.gender_mode:'men';
-  const{data:adExist}=await sb.from("ad_placements").select("id").eq("shop_id",_pmShopId).eq("placement_type",level).eq("placement_target",targetName);
+  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(_pmShopId)+"&placement_type="+encodeURIComponent(level)+"&placement_target="+encodeURIComponent(targetName));
   if(!adExist||!adExist.length){
-    await sb.from("ad_placements").insert({
+    await api("insert",{table:"ad_placements",data:{
       shop_id:_pmShopId,placement_type:level,placement_target:targetName,
       status:'active',mode:adMode,
       start_date:startedAt||new Date().toISOString().split('T')[0],
       end_date:endedAt||null
-    });
+    }});
   }
   toast("✅ エリアを追加しました");
   document.getElementById("pm-pref").value="";
@@ -1451,7 +1440,7 @@ async function addPlacement(){
 }
 
 async function togglePlacement(id,current){
-  const{error}=await sb.from("shop_placements").update({is_active:!current}).eq("id",id);
+  const _spu=await api("update",{table:"shop_placements",id,data:{is_active:!current}});const error=_spu.ok?null:{message:"error"};
   if(error){toast("更新エラー: "+error.message);return;}
   placementsData=placementsData.map(p=>p.id===id?{...p,is_active:!current}:p);
   renderPlacements();toast(current?"⏸ 停止しました":"✅ 再開しました");
@@ -1460,10 +1449,10 @@ async function togglePlacement(id,current){
 async function deletePlacement(id){
   if(!confirm("このエリアを削除しますか？"))return;
   const p=placementsData.find(x=>x.id===id);
-  const{error}=await sb.from("shop_placements").delete().eq("id",id);
+  const _spd=await api("delete",{table:"shop_placements",id});const error=_spd.ok?null:{message:"error"};
   if(error){toast("削除エラー: "+error.message);return;}
   // ad_placementsからも削除
-  if(p&&_pmShopId){await sb.from("ad_placements").delete().eq("shop_id",_pmShopId).eq("placement_type",p.level).eq("placement_target",p.target_name);}
+  if(p&&_pmShopId){await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:p.level,placement_target:p.target_name}});}
   placementsData=placementsData.filter(x=>x.id!==id);
   renderPlacements();toast("🗑 削除しました");
 }
@@ -1491,16 +1480,16 @@ async function updatePlacement(){
   const newLevel=document.getElementById("pm-level").value;
   const oldP=placementsData.find(x=>x.id===_editingPlacementId);
   // 重複チェック（自分自身は除外）
-  const{data:existCheck}=await sb.from("shop_placements").select("id").eq("shop_id",_pmShopId).eq("level",newLevel).eq("target_name",newTargetName);
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(newLevel)+"&placement_target="+encodeURIComponent(newTargetName));
   if(existCheck&&existCheck.filter(x=>x.id!==_editingPlacementId).length>0){toast("このエリアは既に登録済みです");return;}
   // shop_placements更新
-  const{error}=await sb.from("shop_placements").update({level:newLevel,target_name:newTargetName}).eq("id",_editingPlacementId);
+  const _spu2=await api("update",{table:"shop_placements",id:_editingPlacementId,data:{level:newLevel,target_name:newTargetName}});const error=_spu2.ok?null:{message:"error"};
   if(error){toast("更新エラー: "+error.message);return;}
   // ad_placements も更新
   if(oldP){
-    await sb.from("ad_placements").delete().eq("shop_id",_pmShopId).eq("placement_type",oldP.level).eq("placement_target",oldP.target_name);
+    await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:oldP.level,placement_target:oldP.target_name}});
     const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
-    await sb.from("ad_placements").insert({shop_id:_pmShopId,placement_type:newLevel,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men',start_date:new Date().toISOString().split('T')[0]});
+    await api("insert",{table:"ad_placements",data:{shop_id:_pmShopId,placement_type:newLevel,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men',start_date:new Date().toISOString().split('T')[0]}});
   }
   toast("✅ エリアを更新しました");
   _editingPlacementId=null;
@@ -1511,19 +1500,15 @@ async function updatePlacement(){
   await loadPlacements(_pmShopId);
 }
 
-async function togglePlan(id,currentPlan){const newPlan=currentPlan==="paid"?"free":"paid";const{error}=await sb.from("shops").update({plan:newPlan}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,plan:newPlan}:s);renderShops();toast(newPlan==="paid"?"★ 有料掲載に変更":"無料掲載に変更");}
+async function togglePlan(id,currentPlan){const newPlan=currentPlan==="paid"?"free":"paid";const r=await api('update',{table:'shops',id,data:{plan:newPlan}});if(!r.ok){toast("更新エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,plan:newPlan}:s);renderShops();toast(newPlan==="paid"?"★ 有料掲載に変更":"無料掲載に変更");}
 
 // ===== 投稿管理（統合） =====
 let reportsData=[];
 async function loadReports(){
-  const[r1,r2,lhR]=await Promise.all([
-    sb.from("reports").select("*,hotels(name)").order("created_at",{ascending:false}).limit(2000),
-    sb.from("reports").select("*,hotels(name)").not("flagged_at","is",null).order("created_at",{ascending:false}),
-    sb.from("loveho_reports").select("*,hotels(name)").order("created_at",{ascending:false}).limit(500)
-  ]);
-  if(r1.error&&r2.error){toast("⚠️ レポート取得エラー: "+r1.error.message);console.error("[loadReports]",r1.error);return;}
-  const all=r1.data||[];
-  const flagged=r2.data||[];
+  const rAll=await apiGet('reports-all');
+  if(rAll.error){toast("⚠️ レポート取得エラー");return;}
+  const all=rAll.reports||[];
+  const flagged=rAll.flagged||[];
   const allIds=new Set(all.map(r=>r.id));
   const extra=flagged.filter(r=>!allIds.has(r.id));
   const merged=[...extra,...all];
@@ -1532,17 +1517,17 @@ async function loadReports(){
     const bf=b.flagged_at&&!b.flag_resolved?0:1;
     return af-bf||new Date(b.created_at)-new Date(a.created_at);
   });
-  const deliData=merged.map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
+  const deliData=merged.map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
   const shopNames=new Set(shopsData.map(s=>s.shop_name).filter(Boolean));
-  const lhData=(lhR.data||[]).map(r=>({...r,hotel_name:r.hotels?.name||"",hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_name&&shopNames.has(r.poster_name)?"shop":"user"}));
+  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_name&&shopNames.has(r.poster_name)?"shop":"user"}));
   reportsData=[...deliData,...lhData];
   reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
   updateFlagBadge();renderReports();
 }
 function updateFlagBadge(){const count=reportsData.filter(r=>r.flagged_at&&!r.flag_resolved).length;console.log("[updateFlagBadge] 未対応報告件数:",count,"/ 総投稿:",reportsData.length);const badge=document.getElementById("rep-badge");if(count>0){badge.style.display="inline";badge.textContent=count;}else badge.style.display="none";}
-async function resolveFlag(id){const{error}=await sb.from("reports").update({flag_resolved:new Date().toISOString()}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
-async function unresolveFlag(id){const{error}=await sb.from("reports").update({flag_resolved:null}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
+async function resolveFlag(id){const _r=await api("update",{table:"reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
+async function unresolveFlag(id){const _r=await api("update",{table:"reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
 let repPage=0;const REP_PER_PAGE=30;
 function updateResultFilter(){
   const kF=document.getElementById("rep-kind-f")?.value||"";
@@ -1675,8 +1660,7 @@ async function saveRepEdit(){
     const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
     const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons};
     if(newDate)payload.created_at=new Date(newDate).toISOString();
-    const{error}=await sb.from("reports").update(payload).eq("id",id);
-    if(error){toast("更新エラー: "+error.message);return;}
+    const _r=await api("update",{table:"reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
   } else {
     const atmosphere = document.getElementById("re-lh-atmosphere").value||null;
@@ -1689,26 +1673,24 @@ async function saveRepEdit(){
     const payload = {atmosphere,solo_entry,multi_person,good_points,poster_name,time_slot,comment,gender_mode};
     const newDate2 = document.getElementById("re-created-at").value;
     if(newDate2) payload.created_at = new Date(newDate2).toISOString();
-    const{error}=await sb.from("loveho_reports").update(payload).eq("id",id);
-    if(error){toast("更新エラー: "+error.message);return;}
+    const _r=await api("update",{table:"loveho_reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)&&r._kind==="loveho"?{...r,...payload}:r);
   }
   renderReports();closeRepEditModal();toast("✅ 更新しました");
 }
-async function toggleVis(id,cur){const{error}=await sb.from("reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
-async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const{error}=await sb.from("reports").delete().eq("id",id);if(error){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
+async function toggleVis(id,cur){const _r=await api("update",{table:"reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const _r=await api("delete",{table:"reports",id});if(!_r.ok){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
 async function delLhReportFromList(id){
     if(!confirm("このラブホ口コミを削除しますか？元に戻せません。"))return;
-    const{error}=await sb.from("loveho_reports").delete().eq("id",id);
-    if(error){toast("削除エラー: "+error.message);return;}
+    const _r=await api("delete",{table:"loveho_reports",id});if(!_r.ok){toast("削除エラー");return;}
     reportsData=reportsData.filter(r=>r.id!==id);
     updateFlagBadge();
     renderReports();
     toast("🗑 削除しました");
 }
-async function resolveLhFlag(id){const{error}=await sb.from("loveho_reports").update({flag_resolved:new Date().toISOString()}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:new Date().toISOString()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
-async function unresolveLhFlag(id){const{error}=await sb.from("loveho_reports").update({flag_resolved:null}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
-async function toggleLhVis(id,cur){const{error}=await sb.from("loveho_reports").update({is_hidden:!cur}).eq("id",id);if(error){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function resolveLhFlag(id){const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:new Date().toISOString()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
+async function unresolveLhFlag(id){const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
+async function toggleLhVis(id,cur){const _r=await api("update",{table:"loveho_reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 
 // ===== 投稿種別フィルター =====
 let currentReportType='deli';
@@ -1798,8 +1780,7 @@ async function onHotelPrefChange(){
   citySel.innerHTML='<option value="">市区町村を選択</option>';
   if(!pref){citySel.disabled=true;fetchHotels();return;}
   // DBから該当都道府県の市区町村一覧を取得
-  const{data}=await sb.from("hotels").select("city").eq("prefecture",pref).not("city","is",null);
-  const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+  const cities=await apiGet("hotel-cascades","field=city&pref="+encodeURIComponent(pref));
   cities.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o);});
   citySel.disabled=cities.length===0;
   fetchHotels();
@@ -1813,24 +1794,23 @@ async function fetchHotels(){
   const cityF=document.getElementById("hotel-city-f").value;
   const sF=document.getElementById("hotel-source-f").value;
   const pubF=document.getElementById("hotel-pub-f").value;
-  let query=sb.from("hotels").select(HOTEL_SELECT_COLS).order("name").limit(200);
-  if(q){const qs=q.replace(/[%_]/g,'');query=query.or('name.ilike.%'+qs+'%,address.ilike.%'+qs+'%');}
-  if(pF){query=query.eq("prefecture",pF);}
-  else if(regionLabel){const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);if(region)query=query.in("prefecture",region.prefs);}
-  if(cityF)query=query.eq("city",cityF);
-  if(sF)query=query.eq("source",sF);
-  if(pubF==="true")query=query.eq("is_published",true);
-  if(pubF==="false")query=query.eq("is_published",false);
-  const{data}=await query;hotelsData=data||[];renderHotels();
+  const hp=new URLSearchParams();
+  if(q)hp.set('q',q.replace(/[%_]/g,''));
+  if(pF)hp.set('pref',pF);
+  else if(regionLabel){const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);if(region)hp.set('region_prefs',region.prefs.join(','));}
+  if(cityF)hp.set('city',cityF);
+  if(sF)hp.set('source',sF);
+  if(pubF)hp.set('pub',pubF);
+  const data=await apiGet('hotels-search',hp.toString());hotelsData=data||[];renderHotels();
 }
 function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="8">該当するホテルがありません</td></tr>`:data.map(h=>{const pub=h.is_published!==false;const pubBadge=pub?'<span class="badge b-published">公開中</span>':'<span class="badge b-unpublished">非公開</span>';const pubBtn=pub?`<button class="btn b-btn-gray" onclick="togglePublish(${h.id},true)">非公開にする</button>`:`<button class="btn b-btn-green" onclick="togglePublish(${h.id},false)">公開する</button>`;const srcBadge=h.source==='rakuten'?'<span class="badge b-active">楽天</span>':h.source==='yahoo'?'<span class="badge b-paid">Yahoo</span>':'<span class="badge b-free">手動</span>';return`<tr><td data-label="ホテル名" style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td data-label="都道府県" style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td data-label="市区町村" style="font-size:12px;color:var(--ink-3);">${esc(h.city||"—")}</td><td data-label="最寄り駅" style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td data-label="最安料金" style="font-size:12px;color:var(--ink-3);">${h.min_charge?"¥"+parseInt(h.min_charge).toLocaleString()+"~":"—"}</td><td data-label="ソース">${srcBadge}</td><td data-label="状態">${pubBadge}</td><td data-label="操作"><div class="btn-row">${pubBtn}<button class="btn b-btn-gold" onclick="openEdit(${h.id})">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`;}).join("");}
 async function openEdit(id){const h=hotelsData.find(h=>h.id===id);if(!h)return;document.getElementById("edit-id").value=h.id;document.getElementById("edit-name").value=h.name||"";document.getElementById("edit-type").value=h.hotel_type||"other";document.getElementById("edit-postal").value=h.postal_code||"";document.getElementById("edit-city").value=h.city||"";document.getElementById("edit-address").value=h.address||"";document.getElementById("edit-tel").value=h.tel||"";document.getElementById("edit-station").value=h.nearest_station||"";document.getElementById("edit-lat").value=h.latitude||"";document.getElementById("edit-lng").value=h.longitude||"";document.getElementById("edit-charge").value=h.min_charge||"";document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";document.getElementById("hotel-modal").style.display="flex";await prefillAreaSelects("edit",h.prefecture,h.major_area,h.detail_area);}
 function closeModal(){document.getElementById("hotel-modal").style.display="none";}
 function editToConfirm(){const name=document.getElementById("edit-name").value.trim();if(!name){toast("ホテル名を入力してください");return;}if(!document.getElementById("edit-address").value.trim()){toast("住所を入力してください");return;}if(!document.getElementById("edit-pref").value){toast("都道府県を選択してください");return;}const rows=[["ホテル名",name],["タイプ",HOTEL_TYPE_LABELS[document.getElementById("edit-type").value]||"—"],["郵便番号",document.getElementById("edit-postal").value.trim()||"—"],["都道府県",document.getElementById("edit-pref").value||"—"],["市区町村",document.getElementById("edit-city").value.trim()||"—"],["住所",document.getElementById("edit-address").value.trim()||"—"],["電話番号",document.getElementById("edit-tel").value.trim()||"—"],["最寄り駅",document.getElementById("edit-station").value.trim()||"—"],["エリア",document.getElementById("edit-major-area").value||"—"],["詳細エリア",document.getElementById("edit-detail-area").value||"—"],["緯度",document.getElementById("edit-lat").value||"—"],["経度",document.getElementById("edit-lng").value||"—"],["参考料金",document.getElementById("edit-charge").value?("¥"+parseInt(document.getElementById("edit-charge").value).toLocaleString()):"—"]];document.getElementById("edit-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");document.getElementById("edit-step1").style.display="none";document.getElementById("edit-step2").style.display="";}
 function editBack(){document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";}
-async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const{error}=await sb.from("hotels").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
-async function togglePublish(id,current){const newVal=!current;const{error}=await sb.from("hotels").update({is_published:newVal}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
-async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,min_charge:document.getElementById("edit-charge").value?parseInt(document.getElementById("edit-charge").value):null,is_edited:true};const{error}=await sb.from("hotels").update(payload).eq("id",id);if(error){toast("保存エラー: "+error.message);return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
+async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const _r=await api("delete",{table:"hotels",id});if(!_r.ok){toast("削除エラー");return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
+async function togglePublish(id,current){const newVal=!current;const _r=await api("update",{table:"hotels",id,data:{is_published:newVal}});if(!_r.ok){toast("更新エラー");return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
+async function saveHotel(){const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,min_charge:document.getElementById("edit-charge").value?parseInt(document.getElementById("edit-charge").value):null,is_edited:true};const _r=await api("update",{table:"hotels",id,data:payload});if(!_r.ok){toast("保存エラー");return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}
 function openAddHotel(){
   ["add-name","add-postal","add-city","add-address","add-tel","add-station","add-lat","add-lng","add-charge"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("add-type").value="business";
@@ -1891,9 +1871,8 @@ async function saveNewHotel(){
     is_published:false
   };
   // 電話番号で重複チェック
-  if(payload.tel){const telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){const{data:dup}=await sb.from("hotels").select("id,name").eq("tel",payload.tel).eq("prefecture",payload.prefecture).limit(1);if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
-  const{data,error}=await sb.from("hotels").insert(payload).select().maybeSingle();
-  if(error){console.error("[saveNewHotel]",error);toast("追加エラー: "+error.message);return;}
+  if(payload.tel){const telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){const dupArr=await apiGet("hotels-search","q="+encodeURIComponent(payload.tel)+"&pref="+encodeURIComponent(payload.prefecture));const dup=(dupArr||[]).filter(h=>h.tel===payload.tel);if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
+  const insR=await api("insert",{table:"hotels",data:payload});if(!insR.ok){toast("追加エラー: "+(insR.error||""));return;}const data=insR.data;
   hotelsData.unshift(data);renderHotels();closeAddHotel();toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
 }
 
@@ -1911,8 +1890,7 @@ async function onPrefChange(prefix){
   if(maSel)maSel.innerHTML='<option value="">選択してください</option>';
   if(daSel)daSel.innerHTML='<option value="">（なし）</option>';
   if(!pref||!maSel)return;
-  const{data}=await sb.from('hotels').select('major_area').eq('prefecture',pref).not('major_area','is',null).limit(1000);
-  const areas=[...new Set((data||[]).map(d=>d.major_area))].sort();
+  const areas=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
   areas.forEach(a=>{maSel.innerHTML+='<option value="'+esc(a)+'">'+esc(a)+'</option>';});
 }
 async function onMajorAreaChange(prefix){
@@ -1921,8 +1899,7 @@ async function onMajorAreaChange(prefix){
   const daSel=document.getElementById(prefix+"-detail-area");
   if(daSel)daSel.innerHTML='<option value="">（なし）</option>';
   if(!pref||!ma||!daSel)return;
-  const{data}=await sb.from('hotels').select('detail_area').eq('prefecture',pref).eq('major_area',ma).not('detail_area','is',null).limit(1000);
-  const details=[...new Set((data||[]).map(d=>d.detail_area))].sort();
+  const details=await apiGet('hotel-cascades','field=detail_area&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(ma));
   details.forEach(d=>{daSel.innerHTML+='<option value="'+esc(d)+'">'+esc(d)+'</option>';});
 }
 async function prefillAreaSelects(prefix,pref,majorArea,detailArea){
@@ -1954,42 +1931,42 @@ async function prefillAreaSelects(prefix,pref,majorArea,detailArea){
 
 // ===== マスターデータ（呼べた理由 / 呼べなかった理由 / 部屋タイプ） =====
 let canReasonsData=[];
-async function loadCanReasons(){const{data,error}=await sb.from("can_call_reasons").select("*").order("sort_order");if(error){if(error.code==="PGRST205")return showTableMissing("can-reasons-list","can-reasons-sub","can_call_reasons",SQL_CAN_REASONS);toast("取得エラー: "+error.message);return;}canReasonsData=data||[];renderCanReasons();}
+async function loadCanReasons(){const data=await apiGet("list","table=can_call_reasons&order=sort_order&dir=asc");canReasonsData=data||[];renderCanReasons();}
 function renderCanReasons(){document.getElementById("can-reasons-sub").textContent=`全 ${canReasonsData.length} 件`;document.getElementById("can-reasons-list").innerHTML=canReasonsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:canReasonsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'can_call_reasons')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editCanReason(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteCanReason(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
-async function addCanReason(){const input=document.getElementById("new-can-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=canReasonsData.length?Math.max(...canReasonsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("can_call_reasons").insert({label,sort_order:maxOrder}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}canReasonsData.push(data);renderCanReasons();input.value="";toast("✅ 追加しました");}
-async function editCanReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("can_call_reasons").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}canReasonsData=canReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCanReasons();toast("✅ 更新しました");}
-async function deleteCanReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("can_call_reasons").delete().eq("id",id);if(error){toast("削除エラー");return;}canReasonsData=canReasonsData.filter(c=>c.id!==id);renderCanReasons();toast("🗑 削除しました");}
+async function addCanReason(){const input=document.getElementById("new-can-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=canReasonsData.length?Math.max(...canReasonsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"can_call_reasons",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;canReasonsData.push(data);renderCanReasons();input.value="";toast("✅ 追加しました");}
+async function editCanReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"can_call_reasons",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}canReasonsData=canReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCanReasons();toast("✅ 更新しました");}
+async function deleteCanReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"can_call_reasons",id:id});if(!_r.ok){toast("削除エラー");return;}canReasonsData=canReasonsData.filter(c=>c.id!==id);renderCanReasons();toast("🗑 削除しました");}
 let cannotReasonsData=[];
-async function loadCannotReasons(){const{data,error}=await sb.from("cannot_call_reasons").select("*").order("sort_order");if(error){if(error.code==="PGRST205")return showTableMissing("cannot-reasons-list","cannot-reasons-sub","cannot_call_reasons",SQL_CANNOT_REASONS);toast("取得エラー: "+error.message);return;}cannotReasonsData=data||[];renderCannotReasons();}
+async function loadCannotReasons(){const data=await apiGet("list","table=cannot_call_reasons&order=sort_order&dir=asc");cannotReasonsData=data||[];renderCannotReasons();}
 function renderCannotReasons(){document.getElementById("cannot-reasons-sub").textContent=`全 ${cannotReasonsData.length} 件`;document.getElementById("cannot-reasons-list").innerHTML=cannotReasonsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:cannotReasonsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'cannot_call_reasons')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editCannotReason(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteCannotReason(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
-async function addCannotReason(){const input=document.getElementById("new-cannot-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=cannotReasonsData.length?Math.max(...cannotReasonsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("cannot_call_reasons").insert({label,sort_order:maxOrder}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}cannotReasonsData.push(data);renderCannotReasons();input.value="";toast("✅ 追加しました");}
-async function editCannotReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("cannot_call_reasons").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}cannotReasonsData=cannotReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCannotReasons();toast("✅ 更新しました");}
-async function deleteCannotReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("cannot_call_reasons").delete().eq("id",id);if(error){toast("削除エラー");return;}cannotReasonsData=cannotReasonsData.filter(c=>c.id!==id);renderCannotReasons();toast("🗑 削除しました");}
+async function addCannotReason(){const input=document.getElementById("new-cannot-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=cannotReasonsData.length?Math.max(...cannotReasonsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"cannot_call_reasons",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;cannotReasonsData.push(data);renderCannotReasons();input.value="";toast("✅ 追加しました");}
+async function editCannotReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"cannot_call_reasons",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}cannotReasonsData=cannotReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCannotReasons();toast("✅ 更新しました");}
+async function deleteCannotReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"cannot_call_reasons",id:id});if(!_r.ok){toast("削除エラー");return;}cannotReasonsData=cannotReasonsData.filter(c=>c.id!==id);renderCannotReasons();toast("🗑 削除しました");}
 let roomTypesData=[];
-async function loadRoomTypes(){const{data,error}=await sb.from("room_types").select("*").order("sort_order");if(error){if(error.code==="PGRST205")return showTableMissing("room-types-list","room-types-sub","room_types",SQL_ROOM_TYPES);toast("取得エラー: "+error.message);return;}roomTypesData=data||[];renderRoomTypes();}
+async function loadRoomTypes(){const data=await apiGet("list","table=room_types&order=sort_order&dir=asc");roomTypesData=data||[];renderRoomTypes();}
 function renderRoomTypes(){document.getElementById("room-types-sub").textContent=`全 ${roomTypesData.length} 件`;document.getElementById("room-types-list").innerHTML=roomTypesData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:roomTypesData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'room_types')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editRoomType(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteRoomType(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
-async function addRoomType(){const input=document.getElementById("new-room-type");const label=input.value.trim();if(!label){toast("タイプ名を入力してください");return;}const maxOrder=roomTypesData.length?Math.max(...roomTypesData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("room_types").insert({label,sort_order:maxOrder}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}roomTypesData.push(data);renderRoomTypes();input.value="";toast("✅ 追加しました");}
-async function editRoomType(id,label){const newLabel=prompt("タイプ名を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("room_types").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}roomTypesData=roomTypesData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderRoomTypes();toast("✅ 更新しました");}
-async function deleteRoomType(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("room_types").delete().eq("id",id);if(error){toast("削除エラー");return;}roomTypesData=roomTypesData.filter(c=>c.id!==id);renderRoomTypes();toast("🗑 削除しました");}
+async function addRoomType(){const input=document.getElementById("new-room-type");const label=input.value.trim();if(!label){toast("タイプ名を入力してください");return;}const maxOrder=roomTypesData.length?Math.max(...roomTypesData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"room_types",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;roomTypesData.push(data);renderRoomTypes();input.value="";toast("✅ 追加しました");}
+async function editRoomType(id,label){const newLabel=prompt("タイプ名を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"room_types",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}roomTypesData=roomTypesData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderRoomTypes();toast("✅ 更新しました");}
+async function deleteRoomType(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"room_types",id:id});if(!_r.ok){toast("削除エラー");return;}roomTypesData=roomTypesData.filter(c=>c.id!==id);renderRoomTypes();toast("🗑 削除しました");}
 
 // ===== 店舗サービス =====
 let serviceOptionsData=[];
 const SQL_SERVICE_OPTIONS=`CREATE TABLE IF NOT EXISTS shop_service_options (id serial PRIMARY KEY, name text NOT NULL UNIQUE, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE shop_service_options ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "shop_service_options_select" ON shop_service_options FOR SELECT USING (true);\nCREATE POLICY "shop_service_options_insert" ON shop_service_options FOR INSERT WITH CHECK (true);\nCREATE POLICY "shop_service_options_update" ON shop_service_options FOR UPDATE USING (true);\nCREATE POLICY "shop_service_options_delete" ON shop_service_options FOR DELETE USING (true);`;
-async function loadServiceOptions(){const{data,error}=await sb.from("shop_service_options").select("*").order("sort_order");if(error){console.error("loadServiceOptions error:",JSON.stringify(error));if(error.code==="PGRST205")return showTableMissing("service-options-list","service-options-sub","shop_service_options",SQL_SERVICE_OPTIONS);toast("取得エラー: "+error.message);return;}serviceOptionsData=data||[];renderServiceOptions();}
+async function loadServiceOptions(){const data=await apiGet("list","table=shop_service_options&order=sort_order&dir=asc");serviceOptionsData=data||[];renderServiceOptions();}
 function renderServiceOptions(){document.getElementById("service-options-sub").textContent=`全 ${serviceOptionsData.length} 件`;document.getElementById("service-options-list").innerHTML=serviceOptionsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:serviceOptionsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'shop_service_options')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.name)}</span><button class="btn b-btn-gold" onclick="editServiceOption(${c.id},'${esc(c.name)}')">編集</button><button class="btn b-btn-red" onclick="deleteServiceOption(${c.id},'${esc(c.name)}')">削除</button></div>`).join("");}
-async function addServiceOption(){const input=document.getElementById("new-service-option");const name=input.value.trim();if(!name){toast("サービス名を入力してください");return;}const maxOrder=serviceOptionsData.length?Math.max(...serviceOptionsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("shop_service_options").insert({name,sort_order:maxOrder}).select().maybeSingle();if(error){console.error("addServiceOption error:",JSON.stringify(error));toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー: "+error.message);return;}serviceOptionsData.push(data);renderServiceOptions();input.value="";toast("✅ 追加しました");}
-async function editServiceOption(id,oldName){const newName=prompt("サービス名を編集してください:",oldName);if(!newName||newName.trim()===oldName)return;const{error}=await sb.from("shop_service_options").update({name:newName.trim()}).eq("id",id);if(error){console.error("editServiceOption error:",JSON.stringify(error));toast("更新エラー: "+error.message);return;}serviceOptionsData=serviceOptionsData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderServiceOptions();toast("✅ 更新しました");}
-async function deleteServiceOption(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const{error}=await sb.from("shop_service_options").delete().eq("id",id);if(error){console.error("deleteServiceOption error:",JSON.stringify(error));toast("削除エラー: "+error.message);return;}serviceOptionsData=serviceOptionsData.filter(c=>c.id!==id);renderServiceOptions();toast("🗑 削除しました");}
+async function addServiceOption(){const input=document.getElementById("new-service-option");const name=input.value.trim();if(!name){toast("サービス名を入力してください");return;}const maxOrder=serviceOptionsData.length?Math.max(...serviceOptionsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"shop_service_options",data:{name,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;serviceOptionsData.push(data);renderServiceOptions();input.value="";toast("✅ 追加しました");}
+async function editServiceOption(id,oldName){const newName=prompt("サービス名を編集してください:",oldName);if(!newName||newName.trim()===oldName)return;const _r=await api("update",{table:"shop_service_options",id:id,data:{name:newName.trim()}});if(!_r.ok){toast("更新エラー");return;}serviceOptionsData=serviceOptionsData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderServiceOptions();toast("✅ 更新しました");}
+async function deleteServiceOption(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const _r=await api("delete",{table:"shop_service_options",id:id});if(!_r.ok){toast("削除エラー");return;}serviceOptionsData=serviceOptionsData.filter(c=>c.id!==id);renderServiceOptions();toast("🗑 削除しました");}
 
 // ===== チェックポイント =====
 let goodPointsData=[];
-async function loadGoodPoints(){const{data,error}=await sb.from("loveho_good_points").select("*").order("sort_order");if(error){toast("取得エラー: "+error.message);return;}goodPointsData=data||[];renderGoodPoints();}
+async function loadGoodPoints(){const data=await apiGet("list","table=loveho_good_points&order=sort_order&dir=asc");goodPointsData=data||[];renderGoodPoints();}
 function renderGoodPoints(){document.getElementById("goodpoints-sub").textContent=`全 ${goodPointsData.length} 件`;document.getElementById("goodpoints-list").innerHTML=goodPointsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:goodPointsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_good_points')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})" style="${c.is_active?'':'opacity:0.4;'}"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><select onchange="updateGoodPointCategory(${c.id},this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-right:6px;"><option value="設備・お部屋"${c.category==='設備・お部屋'?' selected':''}>設備・お部屋</option><option value="サービス・利便性"${c.category==='サービス・利便性'?' selected':''}>サービス・利便性</option></select><button class="btn b-btn-gold" onclick="toggleGoodPoint(${c.id},${c.is_active})">${c.is_active?'無効にする':'有効にする'}</button><button class="btn b-btn-gold" onclick="editGoodPoint(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteGoodPoint(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
-async function addGoodPoint(){const input=document.getElementById("new-goodpoint");const catSel=document.getElementById("new-goodpoint-cat");const label=input.value.trim();if(!label){toast("チェックポイントを入力してください");return;}const category=catSel.value;const maxOrder=goodPointsData.length?Math.max(...goodPointsData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("loveho_good_points").insert({label,category,sort_order:maxOrder,is_active:true}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー");return;}goodPointsData.push(data);renderGoodPoints();input.value="";toast("✅ 追加しました");}
-async function editGoodPoint(id,label){const newLabel=prompt("チェックポイントを編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const{error}=await sb.from("loveho_good_points").update({label:newLabel.trim()}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderGoodPoints();toast("✅ 更新しました");}
-async function toggleGoodPoint(id,currentActive){const{error}=await sb.from("loveho_good_points").update({is_active:!currentActive}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
-async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const{error}=await sb.from("loveho_good_points").delete().eq("id",id);if(error){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
-async function updateGoodPointCategory(id,category){const{error}=await sb.from("loveho_good_points").update({category}).eq("id",id);if(error){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,category}:c);toast("✅ カテゴリを更新しました");}
+async function addGoodPoint(){const input=document.getElementById("new-goodpoint");const catSel=document.getElementById("new-goodpoint-cat");const label=input.value.trim();if(!label){toast("チェックポイントを入力してください");return;}const category=catSel.value;const maxOrder=goodPointsData.length?Math.max(...goodPointsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_good_points",data:{label,category,sort_order:maxOrder,is_active:true}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;goodPointsData.push(data);renderGoodPoints();input.value="";toast("✅ 追加しました");}
+async function editGoodPoint(id,label){const newLabel=prompt("チェックポイントを編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"loveho_good_points",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderGoodPoints();toast("✅ 更新しました");}
+async function toggleGoodPoint(id,currentActive){const _r=await api("update",{table:"loveho_good_points",id:id,data:{is_active:!currentActive}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
+async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_good_points",id:id});if(!_r.ok){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
+async function updateGoodPointCategory(id,category){const _r=await api("update",{table:"loveho_good_points",id:id,data:{category}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,category}:c);toast("✅ カテゴリを更新しました");}
 
 // ===== ラブホ店舗/ユーザー切替 =====
 function toggleLhShopMode(isShop, currentVal) {
@@ -2011,28 +1988,28 @@ function toggleLhShopMode(isShop, currentVal) {
 
 // ===== 雰囲気マスタ =====
 let atmospheresData=[];
-async function loadAtmospheres(){const{data,error}=await sb.from("loveho_atmospheres").select("*").order("sort_order");if(error){toast("取得エラー: "+error.message);return;}atmospheresData=data||[];renderAtmospheres();}
+async function loadAtmospheres(){const data=await apiGet("list","table=loveho_atmospheres&order=sort_order&dir=asc");atmospheresData=data||[];renderAtmospheres();}
 function renderAtmospheres(){document.getElementById("atmosphere-sub").textContent=`全 ${atmospheresData.length} 件`;document.getElementById("atmosphere-list").innerHTML=atmospheresData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:atmospheresData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_atmospheres')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.name)}</span><button class="btn b-btn-gold" onclick="editAtmosphere(${c.id},'${esc(c.name)}')">編集</button><button class="btn b-btn-red" onclick="deleteAtmosphere(${c.id},'${esc(c.name)}')">削除</button></div>`).join("");}
-async function addAtmosphere(){const input=document.getElementById("new-atmosphere");const name=input.value.trim();if(!name){toast("雰囲気を入力してください");return;}const maxOrder=atmospheresData.length?Math.max(...atmospheresData.map(c=>c.sort_order))+1:1;const{data,error}=await sb.from("loveho_atmospheres").insert({name,sort_order:maxOrder}).select().maybeSingle();if(error){toast(error.code==="23505"?"同じ名前が既にあります":"追加エラー: "+error.message);return;}atmospheresData.push(data);renderAtmospheres();input.value="";toast("✅ 追加しました");}
-async function editAtmosphere(id,name){const newName=prompt("雰囲気を編集してください:",name);if(!newName||newName.trim()===name)return;const{error}=await sb.from("loveho_atmospheres").update({name:newName.trim()}).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}atmospheresData=atmospheresData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderAtmospheres();toast("✅ 更新しました");}
-async function deleteAtmosphere(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const{error}=await sb.from("loveho_atmospheres").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}atmospheresData=atmospheresData.filter(c=>c.id!==id);renderAtmospheres();toast("🗑 削除しました");}
+async function addAtmosphere(){const input=document.getElementById("new-atmosphere");const name=input.value.trim();if(!name){toast("雰囲気を入力してください");return;}const maxOrder=atmospheresData.length?Math.max(...atmospheresData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_atmospheres",data:{name,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;atmospheresData.push(data);renderAtmospheres();input.value="";toast("✅ 追加しました");}
+async function editAtmosphere(id,name){const newName=prompt("雰囲気を編集してください:",name);if(!newName||newName.trim()===name)return;const _r=await api("update",{table:"loveho_atmospheres",id:id,data:{name:newName.trim()}});if(!_r.ok){toast("更新エラー");return;}atmospheresData=atmospheresData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderAtmospheres();toast("✅ 更新しました");}
+async function deleteAtmosphere(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_atmospheres",id:id});if(!_r.ok){toast("削除エラー");return;}atmospheresData=atmospheresData.filter(c=>c.id!==id);renderAtmospheres();toast("🗑 削除しました");}
 
 // ===== 契約プラン =====
 let contractPlansData=[];
 const SQL_CONTRACT_PLANS=`CREATE TABLE IF NOT EXISTS contract_plans (id serial PRIMARY KEY, name text NOT NULL, price integer NOT NULL DEFAULT 0, description text, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE contract_plans ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "contract_plans_select" ON contract_plans FOR SELECT USING (true);\nCREATE POLICY "contract_plans_insert" ON contract_plans FOR INSERT WITH CHECK (true);\nCREATE POLICY "contract_plans_update" ON contract_plans FOR UPDATE USING (true);\nCREATE POLICY "contract_plans_delete" ON contract_plans FOR DELETE USING (true);\nINSERT INTO contract_plans (name,price,description,sort_order) VALUES ('無料プラン',0,'基本掲載のみ',1),('Aプラン',5000,'スタンダード掲載',2),('Bプラン',10000,'プレミアム掲載',3);`;
-async function loadContractPlans(){const{data,error}=await sb.from("contract_plans").select("*").order("sort_order");if(error){if(error.code==="PGRST205")return showTableMissing("plans-tbody","plans-sub","contract_plans",SQL_CONTRACT_PLANS);toast("取得エラー: "+error.message);return;}contractPlansData=data||[];renderContractPlans();}
+async function loadContractPlans(){const data=await apiGet("list","table=contract_plans&order=sort_order&dir=asc");contractPlansData=data||[];renderContractPlans();}
 function renderContractPlans(){document.getElementById("plans-sub").textContent=`全 ${contractPlansData.length} 件`;const useCounts={};shopsData.forEach(s=>{if(s.plan_id)useCounts[s.plan_id]=(useCounts[s.plan_id]||0)+1;});document.getElementById("plans-tbody").innerHTML=contractPlansData.length===0?`<tr class="erow"><td colspan="6">プランがありません</td></tr>`:contractPlansData.map(p=>{const cnt=useCounts[p.id]||0;return`<tr><td style="font-weight:500;font-size:13px;">${esc(p.name)}</td><td style="font-size:13px;">¥${p.price.toLocaleString()}</td><td style="font-size:12px;color:var(--ink-3);">${esc(p.description||"—")}</td><td style="text-align:center;font-size:12px;">${p.sort_order}</td><td style="text-align:center;font-size:12px;">${cnt>0?cnt+"店舗":"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" onclick="editContractPlan(${p.id})">編集</button><button class="btn b-btn-red" onclick="deleteContractPlan(${p.id})"${cnt>0?' disabled style="opacity:0.4;cursor:not-allowed;"':""}>削除</button></div></td></tr>`;}).join("");}
-async function addContractPlan(){const name=document.getElementById("new-plan-name").value.trim();const price=parseInt(document.getElementById("new-plan-price").value)||0;const desc=document.getElementById("new-plan-desc").value.trim()||null;if(!name){toast("プラン名を入力してください");return;}const maxOrder=contractPlansData.length?Math.max(...contractPlansData.map(p=>p.sort_order))+1:1;const{data,error}=await sb.from("contract_plans").insert({name,price,description:desc,sort_order:maxOrder}).select().maybeSingle();if(error){toast("追加エラー: "+error.message);return;}contractPlansData.push(data);renderContractPlans();document.getElementById("new-plan-name").value="";document.getElementById("new-plan-price").value="";document.getElementById("new-plan-desc").value="";toast("✅ プランを追加しました");}
-async function editContractPlan(id){const p=contractPlansData.find(x=>x.id===id);if(!p)return;const newName=prompt("プラン名:",p.name);if(!newName||!newName.trim())return;const newPrice=prompt("月額料金(円):",p.price);if(newPrice===null)return;const newDesc=prompt("説明:",p.description||"");if(newDesc===null)return;const newOrder=prompt("並び順:",p.sort_order);if(newOrder===null)return;const payload={name:newName.trim(),price:parseInt(newPrice)||0,description:newDesc.trim()||null,sort_order:parseInt(newOrder)||p.sort_order};const{error}=await sb.from("contract_plans").update(payload).eq("id",id);if(error){toast("更新エラー: "+error.message);return;}contractPlansData=contractPlansData.map(x=>x.id===id?{...x,...payload}:x);contractPlansData.sort((a,b)=>a.sort_order-b.sort_order);renderContractPlans();toast("✅ 更新しました");}
-async function deleteContractPlan(id){const cnt=shopsData.filter(s=>s.plan_id===id).length;if(cnt>0){toast("⚠️ このプランは"+cnt+"店舗で使用中のため削除できません");return;}const p=contractPlansData.find(x=>x.id===id);if(!confirm(`「${p?p.name:""}」を削除しますか？`))return;const{error}=await sb.from("contract_plans").delete().eq("id",id);if(error){toast("削除エラー: "+error.message);return;}contractPlansData=contractPlansData.filter(x=>x.id!==id);renderContractPlans();toast("🗑 削除しました");}
+async function addContractPlan(){const name=document.getElementById("new-plan-name").value.trim();const price=parseInt(document.getElementById("new-plan-price").value)||0;const desc=document.getElementById("new-plan-desc").value.trim()||null;if(!name){toast("プラン名を入力してください");return;}const maxOrder=contractPlansData.length?Math.max(...contractPlansData.map(p=>p.sort_order))+1:1;const _ir=await api("insert",{table:"contract_plans",data:{name,price,description:desc,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;contractPlansData.push(data);renderContractPlans();document.getElementById("new-plan-name").value="";document.getElementById("new-plan-price").value="";document.getElementById("new-plan-desc").value="";toast("✅ プランを追加しました");}
+async function editContractPlan(id){const p=contractPlansData.find(x=>x.id===id);if(!p)return;const newName=prompt("プラン名:",p.name);if(!newName||!newName.trim())return;const newPrice=prompt("月額料金(円):",p.price);if(newPrice===null)return;const newDesc=prompt("説明:",p.description||"");if(newDesc===null)return;const newOrder=prompt("並び順:",p.sort_order);if(newOrder===null)return;const payload={name:newName.trim(),price:parseInt(newPrice)||0,description:newDesc.trim()||null,sort_order:parseInt(newOrder)||p.sort_order};const _cpu=await api("update",{table:"contract_plans",id,data:payload});if(!_cpu.ok){toast("更新エラー");return;}contractPlansData=contractPlansData.map(x=>x.id===id?{...x,...payload}:x);contractPlansData.sort((a,b)=>a.sort_order-b.sort_order);renderContractPlans();toast("✅ 更新しました");}
+async function deleteContractPlan(id){const cnt=shopsData.filter(s=>s.plan_id===id).length;if(cnt>0){toast("⚠️ このプランは"+cnt+"店舗で使用中のため削除できません");return;}const p=contractPlansData.find(x=>x.id===id);if(!confirm(`「${p?p.name:""}」を削除しますか？`))return;const _r=await api("delete",{table:"contract_plans",id:id});if(!_r.ok){toast("削除エラー");return;}contractPlansData=contractPlansData.filter(x=>x.id!==id);renderContractPlans();toast("🗑 削除しました");}
 
 // ===== 掲載リクエスト =====
 const HREQ_TYPE_LABELS={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 let hotelRequestsData=[];
 
 async function loadHotelRequests(){
-  const{data,error}=await sb.from("hotel_requests").select("*").order("created_at",{ascending:false});
-  if(error){if(error.code==="PGRST205")return showTableMissing("hreq-tbody","hreq-sub","hotel_requests",SQL_HOTEL_REQUESTS);toast("取得エラー: "+error.message);return;}
+  const data=await apiGet("list","table=hotel_requests&order=created_at&dir=desc");
+  
   hotelRequestsData=data||[];
   updateHreqBadge();renderHotelRequests();
 }
@@ -2143,7 +2120,7 @@ async function saveHreqAsHotel(){
     is_published:false
   };
   console.log("[saveHreqAsHotel] payload:",payload,"hreq_id:",id);
-  var r1=await sb.from("hotels").insert(payload).select().maybeSingle();
+  var r1=await api('insert',{table:'hotels',data:payload});r1={data:r1.data,error:r1.ok?null:{message:r1.error||''}};
   if(r1.error){console.error("[saveHreqAsHotel] hotels insert error:",r1.error,"payload:",payload);toast("ホテル追加エラー: "+r1.error.message);return;}
   var r2=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:id,data:{status:'confirmed'}})});
   if(!r2.ok){console.error("[saveHreqAsHotel] hotel_requests update error");toast("ステータス更新エラー");return;}
@@ -2624,8 +2601,8 @@ https://same.yobuho.com/
 ─────────────────`}
 };
 function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
-async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await sb.from("outreach_emails").insert({to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}
-async function loadOutreachHistory(){const{data,error}=await sb.from("outreach_emails").select("*").order("sent_at",{ascending:false}).limit(50);if(error){if(error.code==="PGRST205"){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5" style="text-align:center;padding:20px;color:var(--ink-3);">テーブル未作成です。下記SQLをSupabaseで実行してください：<br><code style="display:block;margin-top:8px;text-align:left;font-size:11px;background:var(--bg-3);padding:8px;border-radius:4px;">CREATE TABLE outreach_emails (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, to_email text NOT NULL, shop_name text, template_type text, subject text NOT NULL, status text DEFAULT 'sent', sent_at timestamptz, created_at timestamptz DEFAULT now()); ALTER TABLE outreach_emails ENABLE ROW LEVEL SECURITY; CREATE POLICY "public_read" ON outreach_emails FOR SELECT USING (true); CREATE POLICY "public_insert" ON outreach_emails FOR INSERT WITH CHECK (true);</code></td></tr>`;}else{document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;}document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()}});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()}});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}
+async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=50');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
 
 // ========== 広告管理 ==========
 let adPlans=[];
@@ -2642,8 +2619,8 @@ async function loadAdTab(){
 }
 
 async function loadAdPlans(){
-    const{data,error}=await sb.from('ad_plans').select('*').order('sort_order');
-    if(error){document.getElementById('ad-plans-body').innerHTML='<tr class="erow"><td colspan="5">読込エラー</td></tr>';return;}
+    const data=await apiGet('list','table=ad_plans&order=sort_order&dir=asc');
+    
     adPlans=data||[];
     document.getElementById('ad-plans-body').innerHTML=adPlans.map(p=>`<tr><td style="font-weight:600;">${esc(p.name)}</td><td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${p.level}</span></td><td>¥${p.price.toLocaleString()}</td><td>${p.bonus_amount?'¥'+p.bonus_amount.toLocaleString():'—'}</td><td>${p.max_slots}</td></tr>`).join('');
     // プラン選択プルダウン更新
@@ -2652,7 +2629,7 @@ async function loadAdPlans(){
 }
 
 async function loadAdShops(){
-    const{data}=await sb.from('shops').select('id,shop_name').eq('status','active').order('shop_name');
+    const data=await apiGet('list','table=shops&status=active&order=shop_name&dir=asc');
     const sel=document.getElementById('ad-shop-select');
     sel.innerHTML='<option value="">選択...</option>'+(data||[]).map(s=>`<option value="${s.id}">${esc(s.shop_name)}</option>`).join('');
 }
@@ -2678,8 +2655,8 @@ async function updateAdForm(){
 }
 
 async function renderTargetDropdowns(container,prefix,level){
-    const{data:prefData}=await sb.from('hotels').select('prefecture').eq('is_published',true);
-    const prefs=[...new Set((prefData||[]).map(h=>h.prefecture).filter(Boolean))].sort();
+    const prefData=await apiGet('hotel-cascades','field=prefecture');
+    const prefs=(prefData||[]).sort();
     let html='<select id="'+prefix+'-target-pref" class="f-input" onchange="onAdPrefChange(\''+prefix+'\',\''+level+'\')"><option value="">都道府県を選択</option>'+prefs.map(p=>'<option>'+esc(p)+'</option>').join('')+'</select>';
     if(level==='area'||level==='town'||level==='spot'){
         html+='<select id="'+prefix+'-target-major" class="f-input" style="margin-top:6px;display:none;" onchange="onAdMajorChange(\''+prefix+'\',\''+level+'\')"><option value="">エリアを選択</option></select>';
@@ -2699,8 +2676,8 @@ async function onAdPrefChange(prefix,level){
     if(level==='big')return; // 都道府県のみ
     const majorSel=document.getElementById(prefix+'-target-major');
     if(!majorSel)return;
-    const{data}=await sb.from('hotels').select('major_area').eq('prefecture',pref).eq('is_published',true).not('major_area','is',null);
-    const areas=[...new Set((data||[]).map(h=>h.major_area).filter(Boolean))].sort();
+    const data=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
+    const areas=(data||[]).sort();
     majorSel.innerHTML='<option value="">エリアを選択</option>'+areas.map(a=>'<option>'+esc(a)+'</option>').join('');
     majorSel.style.display='';
     // 下位リセット
@@ -2717,8 +2694,8 @@ async function onAdMajorChange(prefix,level){
     if(level==='area')return; // areaはmajor_areaが掲載先
 
     // detail_areaの有無を確認
-    const{data}=await sb.from('hotels').select('detail_area').eq('prefecture',pref).eq('major_area',major).eq('is_published',true).not('detail_area','is',null);
-    const details=[...new Set((data||[]).map(h=>h.detail_area).filter(Boolean))].sort();
+    const data=await apiGet('hotel-cascades','field=detail_area&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major));
+    const details=(data||[]).sort();
 
     const detailSel=document.getElementById(prefix+'-target-detail');
     const citySel=document.getElementById(prefix+'-target-city');
@@ -2734,8 +2711,8 @@ async function onAdMajorChange(prefix,level){
         // detail_areaがない場合 → 直接cityプルダウンを表示
         if(detailSel){detailSel.innerHTML='<option value="">（なし）</option>';detailSel.style.display='none';}
         if(citySel){
-            const{data:cityData}=await sb.from('hotels').select('city').eq('prefecture',pref).eq('major_area',major).eq('is_published',true).not('city','is',null);
-            const cities=[...new Set((cityData||[]).map(h=>h.city).filter(Boolean))].sort();
+            const cityData=await apiGet('hotel-cascades','field=city&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major));
+            const cities=(cityData||[]).sort();
             citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
             citySel.style.display='';
         }
@@ -2755,8 +2732,8 @@ async function onAdDetailChange(prefix,level){
     // spotの場合 → cityプルダウンを表示
     const citySel=document.getElementById(prefix+'-target-city');
     if(!citySel)return;
-    const{data}=await sb.from('hotels').select('city').eq('prefecture',pref).eq('major_area',major).eq('detail_area',detail).eq('is_published',true).not('city','is',null);
-    const cities=[...new Set((data||[]).map(h=>h.city).filter(Boolean))].sort();
+    const data=await apiGet('hotel-cascades','field=city&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major)+'&detail_area='+encodeURIComponent(detail));
+    const cities=(data||[]).sort();
     citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
     citySel.style.display='';
 }
@@ -2809,12 +2786,12 @@ async function createAdContract(){
     const adMode=document.getElementById('ad-mode').value||'men';
 
     // 枠の空き確認
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',plan.level).eq('placement_target',target).eq('status','active');
-    if(count>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(plan.level)+'&target='+encodeURIComponent(target));
+    if((_sc.count||0)>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
 
     // 契約登録
-    const{data:contract,error:cErr}=await sb.from('ad_contracts').insert({shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate,mode:adMode}).select().single();
-    if(cErr){toast('契約登録エラー: '+cErr.message);return;}
+    const _acr=await api('insert',{table:'ad_contracts',data:{shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate,mode:adMode}});
+    if(!_acr.ok){toast('契約登録エラー');return;}const contract=_acr.data;
 
     // バナー情報を取得
     const bannerImageUrl=document.getElementById('ad-banner-image-url').value.trim()||null;
@@ -2825,7 +2802,7 @@ async function createAdContract(){
     // メイン掲載枠を登録
     const placementPayload={shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate,mode:adMode};
     if(bannerImageUrl){placementPayload.banner_image_url=bannerImageUrl;placementPayload.banner_link_url=bannerLinkUrl;placementPayload.banner_size=bannerSize;placementPayload.banner_alt=bannerAlt;}
-    const{error:pErr}=await sb.from('ad_placements').insert(placementPayload);
+    const _apr=await api('insert',{table:'ad_placements',data:placementPayload});const pErr=_apr.ok?null:{message:_apr.error||''};
     if(pErr){toast('掲載枠登録エラー: '+pErr.message);return;}
 
     toast('✅ 広告契約を登録しました');
@@ -2868,19 +2845,19 @@ async function addBonusPlacement(){
     if(!target){toast('掲載先を選択してください');return;}
 
     // 枠の空き確認
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',bonusPlan.level).eq('placement_target',target).eq('status','active');
-    if(count>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(bonusPlan.level)+'&target='+encodeURIComponent(target));
+    if((_sc.count||0)>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
 
     const shopId=document.getElementById('ad-shop-select').value;
     const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
     const endDate=document.getElementById('ad-end-date').value||null;
 
     const adMode=document.getElementById('ad-mode').value||'men';
-    const{error:pErr}=await sb.from('ad_placements').insert({shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate,mode:adMode});
+    const _bpr=await api('insert',{table:'ad_placements',data:{shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate,mode:adMode}});const pErr=_bpr.ok?null:{message:_bpr.error||''};
     if(pErr){toast('ボーナス枠登録エラー: '+pErr.message);return;}
 
     adBonusRemaining-=bonusPlan.price;
-    await sb.from('ad_contracts').update({bonus_remaining:adBonusRemaining}).eq('id',adCurrentContractId);
+    await api('update',{table:'ad_contracts',id:adCurrentContractId,data:{bonus_remaining:adBonusRemaining}});
     document.getElementById('bonus-remaining').textContent='¥'+adBonusRemaining.toLocaleString();
 
     // リストに追加
@@ -2896,9 +2873,8 @@ async function addBonusPlacement(){
 
 async function loadAdContracts(){
     const statusF=document.getElementById('ad-status-f')?.value||'';
-    let query=sb.from('ad_contracts').select('*,shops(shop_name),ad_plans(name,level)').order('created_at',{ascending:false});
-    if(statusF)query=query.eq('status',statusF);
-    const{data,error}=await query;
+    const _acl=await apiGet('ad-contracts-list',statusF?'status='+encodeURIComponent(statusF):'');
+    const data=_acl.contracts||[];const error=_acl.error?{message:_acl.error}:null;
     if(error){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="9">'+esc(error.message)+'</td></tr>';return;}
     const rows=data||[];
     document.getElementById('ad-contracts-sub').textContent=' ('+rows.length+'件)';
@@ -2907,7 +2883,7 @@ async function loadAdContracts(){
 
     // 各契約のplacementsも取得
     const contractIds=rows.map(r=>r.id);
-    const{data:placements}=await sb.from('ad_placements').select('*,ad_plans(name,level)').in('shop_id',rows.map(r=>r.shop_id)).eq('status','active');
+    const placements=_acl.placements||[];
 
     const statusLabels={active:'稼働中',paused:'停止中',cancelled:'解約'};
     const statusColors={active:'b-can',paused:'b-email-pending',cancelled:'b-cant'};
@@ -2937,11 +2913,11 @@ async function loadAdContracts(){
 }
 
 async function toggleAdContract(contractId,newStatus){
-    const{error}=await sb.from('ad_contracts').update({status:newStatus}).eq('id',contractId);
+    const _atr=await api('ad-toggle-contract',{contract_id:contractId,status:newStatus});const error=_atr.ok?null:{message:_atr.error||''};
     if(error){toast('更新エラー: '+error.message);return;}
     // placementsも連動更新
     if(newStatus==='paused'){
-        await sb.from('ad_placements').update({status:'paused'}).eq('shop_id',(await sb.from('ad_contracts').select('shop_id').eq('id',contractId).single()).data?.shop_id);
+        // placements paused by ad-toggle-contract
     }
     toast('✅ ステータスを更新しました');
     loadAdContracts();
@@ -2949,8 +2925,8 @@ async function toggleAdContract(contractId,newStatus){
 
 async function deleteAdContract(contractId,shopId){
     if(!confirm('この契約と関連する掲載枠を削除しますか？'))return;
-    await sb.from('ad_placements').delete().eq('shop_id',shopId);
-    await sb.from('ad_contracts').delete().eq('id',contractId);
+    // handled by ad-delete-contract
+    await api('ad-delete-contract',{contract_id:contractId,shop_id:shopId});
     toast('✅ 契約を削除しました');
     loadAdContracts();
 }
@@ -2967,12 +2943,12 @@ async function updateSlotCheckTarget(){
     if(level==='premium'){sel.innerHTML='<option value="全国">全国</option>';return;}
 
     // 掲載先の候補をad_placementsから取得
-    const{data}=await sb.from('ad_placements').select('placement_target').eq('placement_type',level);
+    const data=await apiGet('list','table=ad_placements&placement_type='+encodeURIComponent(level));
     const targets=[...new Set((data||[]).map(p=>p.placement_target).filter(Boolean))].sort();
 
     if(level==='big'){
-        const{data:prefData}=await sb.from('hotels').select('prefecture').eq('is_published',true);
-        const allPrefs=[...new Set((prefData||[]).map(h=>h.prefecture).filter(Boolean))].sort();
+        const prefData=await apiGet('hotel-cascades','field=prefecture');
+        const allPrefs=(prefData||[]).sort();
         sel.innerHTML=allPrefs.map(p=>'<option>'+esc(p)+'</option>').join('');
     }else{
         sel.innerHTML=targets.length?targets.map(t=>'<option>'+esc(t)+'</option>').join(''):'<option value="">データなし</option>';
@@ -2985,11 +2961,11 @@ async function checkSlotStatus(){
     const plan=adPlans.find(p=>p.level===level);
     if(!level||!target||!plan){toast('プランと掲載先を選択してください');return;}
 
-    const{count}=await sb.from('ad_placements').select('*',{count:'exact'}).eq('placement_type',level).eq('placement_target',target).eq('status','active');
-    const{data:details}=await sb.from('ad_placements').select('*,shops(shop_name)').eq('placement_type',level).eq('placement_target',target).eq('status','active');
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(level)+'&target='+encodeURIComponent(target)+'&details=1');
+    const details=_sc.details||[];
 
     const resultDiv=document.getElementById('slot-status-result');
-    const used=count||0;
+    const used=_sc.count||0;
     const max=plan.max_slots;
     const pct=Math.round(used/max*100);
     const barColor=pct>=100?'var(--red)':pct>=60?'#f9a825':'var(--green)';
@@ -3012,7 +2988,7 @@ async function checkSlotStatus(){
 const _origSwitchTab=switchTab;
 switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();};
 
-async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const results=await Promise.all(dataArr.map(c=>sb.from(_dndTable).update({sort_order:c.sort_order}).eq("id",c.id)));if(results.some(r=>r.error))toast("⚠️ 並び替えエラー");else toast("✅ 順番を保存しました");}
+async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");}
 </script>
 </body>
 </html>

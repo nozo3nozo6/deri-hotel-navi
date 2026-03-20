@@ -57,7 +57,7 @@ function updateUrl(params) {
     if (_skipPushState) return;
     const cur = new URLSearchParams(window.location.search);
     const newParams = new URLSearchParams();
-    newParams.set('mode', cur.get('mode') || 'men');
+    newParams.set('mode', cur.get('mode') || window.MODE || 'men');
     if (SHOP_ID) newParams.set('shop', SHOP_ID);
     Object.entries(params).forEach(([k, v]) => {
         if (v != null) newParams.set(k, v);
@@ -114,7 +114,8 @@ async function restoreFromUrl() {
 
     if (params.get('hotel')) {
         const hotelId = parseInt(params.get('hotel'));
-        const { data: h } = await supabaseClient.from('hotels').select('hotel_type').eq('id', hotelId).maybeSingle();
+        const hArr = await queryHotelsAPI({ hotel_id: hotelId, cols: 'hotel_type', limit: 1 });
+        const h = hArr && hArr.length ? hArr[0] : null;
         const isLoveho = h && ['love_hotel', 'rental_room'].includes(h.hotel_type);
         showHotelPanel(hotelId, isLoveho);
         _skipPushState = false;
@@ -243,10 +244,12 @@ async function showPrefPage(region) {
             .filter(p => (ad.prefCounts[p] || 0) > 0)
             .sort((a, b) => (ad.prefCounts[b] || 0) - (ad.prefCounts[a] || 0));
     } else {
-        // フォールバック: RPC
-        const { data: prefCounts } = await supabaseClient.rpc('get_pref_hotel_counts', { pref_list: region.prefs });
+        // フォールバック: PHP API
+        const fbHotels = await queryHotelsAPI({ cols: 'prefecture', limit: 5000 });
         if (gen !== _areaGeneration) return;
-        sorted = (prefCounts || []).filter(r => r.hotel_count > 0).sort((a, b) => b.hotel_count - a.hotel_count).map(r => r.prefecture);
+        const prefCount = {};
+        (fbHotels || []).forEach(h => { if (region.prefs.includes(h.prefecture)) prefCount[h.prefecture] = (prefCount[h.prefecture] || 0) + 1; });
+        sorted = Object.keys(prefCount).filter(p => prefCount[p] > 0).sort((a, b) => prefCount[b] - prefCount[a]);
     }
 
     container.innerHTML = '';
@@ -294,16 +297,13 @@ async function showMajorAreaPage(region, pref) {
         areas = ad.pref[pref].areas.map(a => a[0]); // [[name, count], ...] -> [name, ...]
         hasNoArea = ad.pref[pref].hasNoArea;
     } else {
-        // フォールバック: Supabase直接クエリ
-        const { data: maRows, error } = await supabaseClient.from('hotels').select('major_area').eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').not('major_area','is',null).limit(10000);
-        if (error) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
+        // フォールバック: PHP API
+        const maRows = await queryHotelsAPI({ pref, cols: 'major_area', limit: 5000 });
         if (gen !== _areaGeneration) return;
         const areaCount = {};
         (maRows || []).forEach(h => { if (h.major_area) areaCount[h.major_area] = (areaCount[h.major_area] || 0) + 1; });
         areas = Object.keys(areaCount).sort((a, b) => areaCount[b] - areaCount[a]);
-        const { data: noAreaRows } = await supabaseClient.from('hotels').select('id').eq('prefecture', pref).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').is('major_area', null).limit(1);
-        if (gen !== _areaGeneration) return;
-        hasNoArea = noAreaRows && noAreaRows.length > 0;
+        hasNoArea = (maRows || []).some(h => !h.major_area);
     }
 
     if (!areas.length && !hasNoArea) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);">${t('no_data')}</div>`; return; }
@@ -389,19 +389,9 @@ async function showCityPage(region, pref, majorArea) {
         return;
     }
 
-    // --- フォールバック: Supabase直接クエリ ---
-    let data = [];
-    let cpFrom = 0;
-    const CP_PAGE = 1000;
-    while (true) {
-        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city,detail_area').eq('prefecture', pref).eq('major_area', majorArea).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(cpFrom, cpFrom + CP_PAGE - 1);
-        if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
-        if (gen !== _areaGeneration) return;
-        if (!chunk || !chunk.length) break;
-        data = data.concat(chunk);
-        if (chunk.length < CP_PAGE) break;
-        cpFrom += CP_PAGE;
-    }
+    // --- フォールバック: PHP API ---
+    const data = await queryHotelsAPI({ pref, major_area: majorArea, cols: 'id,address,city,detail_area', limit: 5000 });
+    if (gen !== _areaGeneration) return;
 
     const detailAreaCount = {};
     data.forEach(h => { if (h.detail_area && h.detail_area !== majorArea) detailAreaCount[h.detail_area] = (detailAreaCount[h.detail_area] || 0) + 1; });
@@ -493,19 +483,9 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         return;
     }
 
-    // フォールバック: Supabase直接クエリ
-    let data = [];
-    let daFrom = 0;
-    const DA_PAGE = 1000;
-    while (true) {
-        const { data: chunk, error: chunkErr } = await supabaseClient.from('hotels').select('id,address,city').eq('prefecture', pref).eq('major_area', majorArea).eq('detail_area', detailArea).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(daFrom, daFrom + DA_PAGE - 1);
-        if (chunkErr) { container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#c47a88;">エラー</div>`; return; }
-        if (gen !== _areaGeneration) return;
-        if (!chunk || !chunk.length) break;
-        data = data.concat(chunk);
-        if (chunk.length < DA_PAGE) break;
-        daFrom += DA_PAGE;
-    }
+    // フォールバック: PHP API
+    const data = await queryHotelsAPI({ pref, major_area: majorArea, detail_area: detailArea, cols: 'id,address,city', limit: 5000 });
+    if (gen !== _areaGeneration) return;
 
     const citySet = new Set();
     data.forEach(h => { const c = h.city || extractCity(h.address); if (c) citySet.add(c); });
@@ -591,17 +571,8 @@ async function showNoAreaCityPage(region, pref) {
         return;
     }
 
-    // フォールバック
-    let data = [];
-    let from = 0;
-    const PAGE = 1000;
-    while (true) {
-        const { data: chunk } = await supabaseClient.from('hotels').select('city,address').eq('prefecture', pref).is('major_area', null).eq('is_published', true).not('hotel_type','in','("love_hotel","rental_room")').range(from, from + PAGE - 1);
-        if (!chunk || !chunk.length) break;
-        data = data.concat(chunk);
-        if (chunk.length < PAGE) break;
-        from += PAGE;
-    }
+    // フォールバック: PHP API
+    const data = await queryHotelsAPI({ pref, no_major_area: 'true', cols: 'city,address', limit: 5000 });
     if (gen !== _areaGeneration) return;
 
     const cityCount = {};

@@ -3,6 +3,16 @@ RewriteEngine On
 RewriteCond %{THE_REQUEST} /index\.html [NC]
 RewriteRule ^index\.html$ / [R=301,L]
 
+# Astro SSG: portal.html?mode=X&... → portal-X.html?mode=X&... にリライト（全パラメータ維持）
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
+RewriteRule ^portal\.html$ /portal-men.html [L,QSA]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
+RewriteRule ^portal\.html$ /portal-women.html [L,QSA]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
+RewriteRule ^portal\.html$ /portal-men-same.html [L,QSA]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
+RewriteRule ^portal\.html$ /portal-women-same.html [L,QSA]
+
 # セキュリティヘッダー
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"

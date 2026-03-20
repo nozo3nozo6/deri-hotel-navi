@@ -55,3 +55,10 @@ next-env.d.ts
 # report files
 analysis-report.html
 fix-report*.html
+
+# generated data (deploy.ymlで自動生成)
+hotel-data/
+search-index.json
+pagefind/
+master-data.json
+area-data.json

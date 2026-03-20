@@ -1,0 +1,60 @@
+---
+interface Props {
+  seoText: string;
+  links: { href: string; label: string }[];
+  dark?: boolean;
+}
+const { seoText, links, dark = false } = Astro.props;
+---
+
+<footer class:list={['lp-footer', { dark }]}>
+    <div class="footer-seo">
+        <p>{seoText}</p>
+    </div>
+    <nav class="footer-links" aria-label="フッターナビゲーション">
+        {links.map((link, i) => (
+            <Fragment>
+                {i > 0 && <span>|</span>}
+                <a href={link.href}>{link.label}</a>
+            </Fragment>
+        ))}
+    </nav>
+    <p>&copy; 2026 YobuHo Studio All Rights Reserved.</p>
+</footer>
+
+<style is:global>
+    .lp-footer {
+        background: #2c2c2c;
+        padding: 12px 16px;
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+    .lp-footer.dark {
+        background: #0a0a0f;
+        padding-top: 24px;
+    }
+    .footer-seo {
+        max-width: 700px;
+        margin: 0 auto 20px;
+        padding: 0 16px;
+        font-size: 11px;
+        line-height: 1.8;
+        color: #999;
+        text-align: left;
+    }
+    .dark .footer-seo { color: #888; }
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .footer-links a { color: #aaa; text-decoration: none; }
+    .footer-links span { color: #555; }
+    .dark .footer-links a { color: #888; }
+    .dark .footer-links span { color: #444; }
+    .lp-footer > p { margin: 4px 0 0; color: #888; }
+    .dark > p { color: #666; }
+</style>

@@ -1,0 +1,61 @@
+---
+interface Props {
+  variant?: 'simple' | 'full';
+  seoText?: string;
+}
+const { variant = 'simple', seoText } = Astro.props;
+---
+
+<footer class="site-footer">
+    {seoText && (
+        <div class="footer-seo">
+            <p set:html={seoText} />
+        </div>
+    )}
+    <nav class="footer-links" aria-label="フッターナビゲーション">
+        {variant === 'full' && (
+            <Fragment>
+                <a href="https://deli.yobuho.com/">デリヘル専用</a><span>|</span>
+                <a href="https://jofu.yobuho.com/">女性用風俗専用</a><span>|</span>
+                <a href="https://same.yobuho.com/">同性利用専用</a><span>|</span>
+                <a href="https://loveho.yobuho.com/">ラブホテル検索</a><span>|</span>
+                <a href="/shop-register.html">店舗登録</a><span>|</span>
+            </Fragment>
+        )}
+        <a href="/index.html">トップページ</a><span>|</span>
+        <a href="/terms.html">利用規約</a><span>|</span>
+        <a href="/privacy.html">プライバシーポリシー</a><span>|</span>
+        <a href="/contact.html">お問い合わせ</a>
+    </nav>
+    <p>&copy; 2026 YobuHo Studio All Rights Reserved.</p>
+</footer>
+
+<style>
+    .site-footer {
+        background: #2c2c2c;
+        padding: 20px 16px 12px;
+        margin-top: 40px;
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.6;
+    }
+    .footer-seo {
+        max-width: 700px;
+        margin: 0 auto 16px;
+        padding: 0 16px;
+        font-size: 11px;
+        line-height: 1.8;
+        color: #999;
+        text-align: left;
+    }
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .footer-links a { color: #aaa; text-decoration: none; }
+    .footer-links span { color: #555; }
+    .site-footer > p { margin: 8px 0 0; color: #888; }
+</style>

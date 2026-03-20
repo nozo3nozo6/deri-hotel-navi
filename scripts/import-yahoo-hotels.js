@@ -1,34 +1,29 @@
 // ==========================================================================
-// Yahoo!ローカルサーチAPI → Supabase hotels テーブル インポート
+// Yahoo!ローカルサーチAPI → MySQL hotels テーブル インポート
+// 事前にSSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N
 // ==========================================================================
-require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+const { query, close } = require('../db-local');
 
 const YAHOO_CLIENT_ID = process.env.YAHOO_CLIENT_ID;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-if (!YAHOO_CLIENT_ID || !SUPABASE_URL || !SUPABASE_KEY) {
+if (!YAHOO_CLIENT_ID) {
   console.error('❌ 環境変数が不足しています。.env を確認してください。');
-  console.error('   必要: YAHOO_CLIENT_ID, SUPABASE_URL, SUPABASE_KEY');
+  console.error('   必要: YAHOO_CLIENT_ID');
   process.exit(1);
 }
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const DELAY_PER_REQUEST = 500;
 const DELAY_PER_PREF = 1000;
 const MAX_RETRY = 3;
 const RESULTS_PER_PAGE = 100;
 
-// ジャンルコード → hotel_type マッピング
 const GENRES = [
   { gc: '0304001', hotel_type: 'hotel',          label: 'ホテル' },
   { gc: '0304004', hotel_type: 'business_hotel',  label: 'ビジネスホテル' },
   { gc: '0304009', hotel_type: 'love_hotel',      label: 'ラブホテル' },
 ];
 
-// 都道府県コード
 const prefCodes = {
   '01': '北海道', '02': '青森県', '03': '岩手県', '04': '宮城県',
   '05': '秋田県', '06': '山形県', '07': '福島県', '08': '茨城県',
@@ -46,19 +41,15 @@ const prefCodes = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 住所から市区町村を抽出
 function extractCity(address, prefecture) {
   if (!address || !prefecture) return null;
   const withoutPref = address.replace(prefecture, '');
-  // 政令指定都市: ○○市○○区
   const cityKu = withoutPref.match(/^(.+?市.+?区)/);
   if (cityKu) return cityKu[1];
-  // 通常の市区町村
   const match = withoutPref.match(/^(.+?[市区町村])/) || withoutPref.match(/^(.+?郡.+?[町村])/);
   return match ? match[1] : null;
 }
 
-// リトライ付き fetch
 async function fetchWithRetry(url, retry = 0) {
   try {
     const res = await fetch(url);
@@ -83,29 +74,16 @@ async function loadExistingKeys() {
   console.log('📦 既存ホテルデータを読み込み中...');
   const nameAddrKeys = new Set();
   const telKeys = new Set();
-  const PAGE_SIZE = 1000;
-  let from = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from('hotels')
-      .select('name, address, tel')
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) {
-      console.error('❌ 既存データ読み込みエラー:', error.message);
-      break;
-    }
-    if (!data || data.length === 0) break;
-    for (const row of data) {
-      nameAddrKeys.add(`${row.name}|||${row.address}`);
-      if (row.tel) telKeys.add(row.tel);
-    }
-    from += PAGE_SIZE;
+
+  const rows = await query('SELECT name, address, tel FROM hotels');
+  for (const row of rows) {
+    nameAddrKeys.add(`${row.name}|||${row.address}`);
+    if (row.tel) telKeys.add(row.tel);
   }
   console.log(`📦 既存ホテル: ${nameAddrKeys.size}件 (tel: ${telKeys.size}件)\n`);
   return { nameAddrKeys, telKeys };
 }
 
-// Yahoo API から1ページ取得
 async function fetchPage(gc, ac, start) {
   const params = new URLSearchParams({
     appid: YAHOO_CLIENT_ID,
@@ -119,7 +97,6 @@ async function fetchPage(gc, ac, start) {
   return fetchWithRetry(url);
 }
 
-// --start 引数パース
 function parseStartCode() {
   const idx = process.argv.indexOf('--start');
   if (idx !== -1 && process.argv[idx + 1]) {
@@ -128,7 +105,6 @@ function parseStartCode() {
   return '01';
 }
 
-// メイン処理
 async function main() {
   const startCode = parseStartCode();
   console.log(`🇯🇵 Yahoo!ローカルサーチ ホテルインポート開始 (開始: ac=${startCode})\n`);
@@ -167,7 +143,6 @@ async function main() {
 
         const totalAvailable = data.ResultInfo?.Total || 0;
 
-        // バッチ用の配列
         const toInsert = [];
 
         for (const f of features) {
@@ -176,17 +151,9 @@ async function main() {
           const tel = f.Property?.Tel1 || null;
           const nameAddrKey = `${name}|||${address}`;
 
-          // 重複チェック: tel一致 → name+address一致
-          if (tel && telKeys.has(tel)) {
-            prefSkipped++;
-            continue;
-          }
-          if (nameAddrKeys.has(nameAddrKey)) {
-            prefSkipped++;
-            continue;
-          }
+          if (tel && telKeys.has(tel)) { prefSkipped++; continue; }
+          if (nameAddrKeys.has(nameAddrKey)) { prefSkipped++; continue; }
 
-          // 座標: Yahoo APIは "経度,緯度" の順
           let latitude = null;
           let longitude = null;
           if (f.Geometry?.Coordinates) {
@@ -195,45 +162,39 @@ async function main() {
             latitude = parseFloat(coords[1]) || null;
           }
 
-          // 最寄り駅
           let nearestStation = null;
           if (f.Property?.Station && f.Property.Station.length > 0) {
             nearestStation = f.Property.Station[0].Name || null;
           }
 
-          toInsert.push({
-            name,
-            address,
-            tel,
-            hotel_type: genre.hotel_type,
-            prefecture: prefName,
-            latitude,
-            longitude,
-            nearest_station: nearestStation,
-            source: 'yahoo',
-            is_published: true,
-            city: extractCity(address, prefName),
-          });
+          toInsert.push([
+            name, address, tel, genre.hotel_type, prefName,
+            latitude, longitude, nearestStation, 'yahoo', 1,
+            extractCity(address, prefName)
+          ]);
 
           nameAddrKeys.add(nameAddrKey);
           if (tel) telKeys.add(tel);
         }
 
-        // Supabase に INSERT（50件ずつバッチ）
+        // MySQL INSERT（50件ずつバッチ）
         for (let i = 0; i < toInsert.length; i += 50) {
           const batch = toInsert.slice(i, i + 50);
-          const { error } = await supabase.from('hotels').insert(batch);
-          if (error) {
-            console.error(`  💥 INSERT エラー: ${error.message}`);
-            totalErrors += batch.length;
-          } else {
+          const placeholders = batch.map(() => '(?,?,?,?,?,?,?,?,?,?,?)').join(',');
+          const flatVals = batch.flat();
+          try {
+            await query(
+              `INSERT INTO hotels (name, address, tel, hotel_type, prefecture, latitude, longitude, nearest_station, source, is_published, city)
+               VALUES ${placeholders}`,
+              flatVals
+            );
             prefAdded += batch.length;
+          } catch (e) {
+            console.error(`  💥 INSERT エラー: ${e.message}`);
+            totalErrors += batch.length;
           }
         }
 
-        // prefSkipped is already incremented in the loop above
-
-        // 次ページ判定
         if (start + RESULTS_PER_PAGE - 1 >= totalAvailable) break;
         start += RESULTS_PER_PAGE;
         await sleep(DELAY_PER_REQUEST);
@@ -260,9 +221,12 @@ async function main() {
   console.log(`   スキップ（重複）: ${totalSkipped}件`);
   console.log(`   エラー: ${totalErrors}件`);
   console.log(`========================================`);
+
+  await close();
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error('❌ 致命的エラー:', err);
+  await close();
   process.exit(1);
 });

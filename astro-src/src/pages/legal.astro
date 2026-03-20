@@ -1,0 +1,39 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+---
+
+<LegalLayout
+  title="特定商取引法に基づく表記 | YobuHo"
+  pageTitle="特定商取引法に基づく表記"
+  robots="noindex, nofollow"
+>
+    <h1>特定商取引法に基づく表記</h1>
+    <table>
+        <tr><th>販売事業者</th><td>YobuHo Studio</td></tr>
+        <tr><th>連絡先</th><td><a href="mailto:hotel@yobuho.com" class="link-accent">hotel@yobuho.com</a></td></tr>
+        <tr><th>サービス名</th><td>YobuHo（ヨブホ）</td></tr>
+        <tr>
+            <th>販売価格</th>
+            <td>
+                店舗向け掲載プラン<br>
+                ・無料プラン: &yen;0<br>
+                ・Aプラン: &yen;5,000/月（税込）<br>
+                ・Bプラン: &yen;10,000/月（税込）
+            </td>
+        </tr>
+        <tr><th>支払方法</th><td class="pending">【後日記載】</td></tr>
+        <tr><th>支払時期</th><td class="pending">【後日記載】</td></tr>
+        <tr><th>サービス提供時期</th><td>お申し込み承認後、速やかにサービスを提供いたします。</td></tr>
+        <tr><th>キャンセル・解約</th><td>管理画面またはお問い合わせにて随時対応いたします。日割り返金は行っておりません。</td></tr>
+        <tr><th>動作環境</th><td>最新の Chrome, Safari, Edge, Firefox</td></tr>
+    </table>
+</LegalLayout>
+
+<style>
+    h1 { font-size: 22px; font-weight: 700; color: #1a1410; margin-bottom: 32px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    th { text-align: left; vertical-align: top; padding: 14px 16px; background: #f5f2ec; border: 1px solid #e0d5d0; font-size: 13px; font-weight: 600; color: #1a1410; width: 30%; white-space: nowrap; }
+    td { padding: 14px 16px; border: 1px solid #e0d5d0; font-size: 14px; color: #3a3020; }
+    .pending { color: #a09080; font-style: italic; }
+    .link-accent { color: #c9a84c; }
+</style>

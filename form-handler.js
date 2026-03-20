@@ -255,18 +255,19 @@ function hotelToggleCondition(cond) {
 async function voteReport(reportId, vote) {
     const fp = await generateFingerprint();
 
-    const { error } = await supabaseClient.from('report_votes').insert({
-        report_id: reportId,
-        fingerprint: fp,
-        vote: vote
-    });
-
-    if (error) {
-        if (error.code === '23505') {
-            showToast('既に評価済みです');
-        } else {
-            showToast('評価に失敗しました');
+    try {
+        const res = await fetch('api/submit-vote.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report_id: reportId, fingerprint: fp, vote }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+            showToast(result.error === 'already_voted' ? '既に評価済みです' : '評価に失敗しました');
+            return;
         }
+    } catch (e) {
+        showToast('評価に失敗しました');
         return;
     }
 
@@ -415,19 +416,7 @@ async function doSubmitReport() {
         return;
     }
 
-    let posterType = 'user';
-    try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.user?.email) {
-            const { data: shopRow } = await supabaseClient
-                .from('shops')
-                .select('id,status')
-                .eq('email', session.user.email)
-                .eq('status', 'active')
-                .maybeSingle();
-            if (shopRow) posterType = 'shop';
-        }
-    } catch (_) {}
+    const posterType = 'user';
 
     const fingerprint = await generateFingerprint();
     const payload = {
@@ -549,8 +538,16 @@ async function submitLovehoReport() {
             guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
             guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
         };
-        const { error } = await supabaseClient.from('loveho_reports').insert(payload);
-        if (error) throw error;
+        const res = await fetch('api/submit-loveho-report.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            if (res.status === 429) { showToast(result.error || '投稿制限中です。'); return; }
+            throw new Error(result.error || 'Submit failed');
+        }
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);
@@ -676,11 +673,20 @@ async function submitFlag() {
 
     closeFlagModal();
 
-    const { error } = await supabaseClient.from(tbl).update(flagPayload).eq('id', targetId);
-    if (error) {
-        showToast('報告の送信に失敗しました: ' + error.message);
-    } else {
-        showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
+    try {
+        const res = await fetch('api/submit-flag.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: targetId, table: tbl, flag_reason: selectedReason, flag_comment: flag_comment }),
+        });
+        if (!res.ok) {
+            const result = await res.json();
+            showToast('報告の送信に失敗しました: ' + (result.error || ''));
+        } else {
+            showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
+        }
+    } catch (e) {
+        showToast('報告の送信に失敗しました');
     }
 }
 
@@ -752,20 +758,30 @@ async function submitHotelRequest() {
     const tel = document.getElementById('hreq-tel').value.trim() || null;
     const type = document.getElementById('hreq-type').value;
 
-    const { error } = await supabaseClient.from('hotel_requests').insert({
-        hotel_name: name, address, tel, hotel_type: type, status: 'pending',
-    });
+    try {
+        const res = await fetch('api/submit-hotel-request.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hotel_name: name, address, tel, hotel_type: type }),
+        });
 
-    btn.disabled = false;
-    btn.textContent = '送信する';
+        btn.disabled = false;
+        btn.textContent = '送信する';
 
-    if (error) {
-        showToast('送信に失敗しました: ' + error.message);
-        return;
+        if (!res.ok) {
+            const result = await res.json();
+            if (res.status === 429) { showToast(result.error || '申請数が上限に達しました。'); return; }
+            showToast('送信に失敗しました: ' + (result.error || ''));
+            return;
+        }
+
+        closeHotelRequestModal();
+        showSuccessModal('送信ありがとうございます！', 'ホテル情報を受け付けました。確認後、掲載いたします。');
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '送信する';
+        showToast('通信エラーが発生しました');
     }
-
-    closeHotelRequestModal();
-    showSuccessModal('送信ありがとうございます！', 'ホテル情報を受け付けました。確認後、掲載いたします。');
 }
 
 // ==========================================================================
