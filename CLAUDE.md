@@ -87,7 +87,7 @@ deri-hotel-navi/
 - 投稿報告（フラグ）機能
 - 掲載リクエストモーダル
 - 店舗広告表示（エリア別、プラン別）
-- キャッシュバスター: style.css?v=11, portal-init.js?v=2, api-service.js?v=15, ui-utils.js?v=9, area-navigation.js?v=11, hotel-search.js?v=34, form-handler.js?v=6
+- キャッシュバスター: style.css?v=13, portal-init.js?v=2, api-service.js?v=15, ui-utils.js?v=9, area-navigation.js?v=11, hotel-search.js?v=43, form-handler.js?v=6
 - サブドメイン方針: 全サブドメイン（deli/jofu/same/loveho）はランディングページ方式（HTMLのみ、JS不要）。検索・投稿は全てportal.htmlに集約
 
 ### admin.html — 管理画面
