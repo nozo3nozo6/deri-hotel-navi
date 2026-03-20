@@ -15,6 +15,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install dependencies (root)
+        run: npm ci
+
       - name: Install dependencies (Astro)
         run: cd astro-src && npm ci
 
@@ -43,10 +46,10 @@ jobs:
           mkdir -p api
           printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > api/db-config.php
 
-      - name: Deploy via rsync over SSH
+      - name: Deploy via rsync over SSH (Phase 1: code)
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='ogp.svg' --exclude='generate-*.js' --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' --exclude='astro-src' --exclude='.env' --exclude='.env.example' --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='db-local.js' --exclude='.eslintrc.json' --exclude='handover-*.md'
+          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='ogp.svg' --exclude='generate-*.js' --exclude='generate-*.mjs' --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' --exclude='astro-src' --exclude='.env' --exclude='.env.example' --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='db-local.js' --exclude='.eslintrc.json' --exclude='handover-*.md' --exclude='pagefind-data.json'
           path: ./
           remote_path: /home/yobuho/yobuho.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
@@ -55,7 +58,7 @@ jobs:
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
           remote_key_pass: ${{ secrets.SSH_PASSPHRASE }}
 
-      - name: Generate static JSON on server
+      - name: Generate static JSON + Pagefind data on server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -69,3 +72,32 @@ jobs:
             php api/generate-area-data.php
             php api/generate-hotel-data.php
             php api/generate-search-index.php
+            php api/generate-pagefind-data.php
+
+      - name: Download pagefind-data.json from server
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          eval "$(ssh-agent -s)"
+          echo "$SSH_PASSPHRASE" | SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=/bin/cat setsid ssh-add ~/.ssh/deploy_key
+          scp -P 10022 -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/home/yobuho/yobuho.com/public_html/pagefind-data.json ./pagefind-data.json
+          ssh-agent -k
+
+      - name: Build Pagefind index
+        run: node generate-pagefind-index.mjs
+
+      - name: Upload Pagefind index to server
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz --delete
+          path: ./pagefind/
+          remote_path: /home/yobuho/yobuho.com/public_html/pagefind/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_port: 10022
+          remote_user: ${{ secrets.SSH_USERNAME }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          remote_key_pass: ${{ secrets.SSH_PASSPHRASE }}

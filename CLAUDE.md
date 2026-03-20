@@ -71,7 +71,10 @@ deri-hotel-navi/
 ├── master-data.json          マスタデータ（generate-master-data.jsで生成、2.7KB）
 ├── hotel-data/               都道府県別ホテルJSON（generate-hotel-data.jsで生成、17MB）
 ├── generate-search-index.js  Fuse.js用検索インデックス生成（hotel-data/→search-index.json）
+├── generate-pagefind-index.mjs  Pagefindインデックス生成（pagefind-data.json→pagefind/）
 ├── search-index.json         Fuse.js検索インデックス（6.5MB raw, 1.4MB gzip）
+├── pagefind-data.json        Pagefind用データ（generate-pagefind-data.phpで生成）
+├── pagefind/                 Pagefindインデックス（generate-pagefind-index.mjsで生成）
 ├── scripts/
 │   └── import-yahoo-hotels.js Yahoo!ホテルインポート
 │
@@ -618,9 +621,12 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - Generate master data: php api/generate-master-data.php（サーバー上で実行、deploy.ymlで自動実行）
 - Generate hotel data: php api/generate-hotel-data.php（サーバー上で実行、deploy.ymlで自動実行）
 - Generate search index: php api/generate-search-index.php（サーバー上で実行、deploy.ymlで自動実行）
+- Generate pagefind data: php api/generate-pagefind-data.php（サーバー上で実行、deploy.ymlで自動実行）
+- Build pagefind index: node generate-pagefind-index.mjs（CI上で実行、pagefind-data.json必須）
 - ローカルからDB接続: SSHトンネル（ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N）+ db-local.js
 
 ## Dependencies (package.json)
+- pagefind: (devDependency) Pagefindインデックス生成
 - axios: ^1.13.5
 - dotenv: ^17.3.1
 - fuse.js: ^7.1.0
@@ -684,13 +690,19 @@ astro-src/
 - 店舗: api/area-shops.php, api/shop-info.php
 - 検索: api/hotels.php（keyword/station/GPS/フィルタ）
 
-### Fuse.js検索（Pagefindから移行）
-- generate-search-index.js: hotel-data/*.jsonからid/name/address/city/stationを抽出（search-index.json, 6.5MB/1.4MB gzip）
-- Fuse.js: CDN読み込み（cdn.jsdelivr.net）、threshold:0.3, ignoreLocation:true
-- インデックス(4.2MB) + フラグメント(170MB)はオンデマンド読み込み
-- キーワード検索: Fuse.js優先（クライアント側） → フォールバック: hotels.php（PHP API）
-- CSP: wasm-unsafe-eval追加済み
-- deploy.yml: build-search-index.mjsステップ追加済み
+### Pagefind + Fuse.js ハイブリッド検索
+- **Pagefind**: 全文検索 + 構造化フィルタ（prefecture/city/hotel_type/deri/jofu/same_m/same_f）
+  - generate-pagefind-data.php: DB→ホテル+モード別レポート統計JSON（pagefind-data.json）
+  - generate-pagefind-index.mjs: Pagefind Node APIでインデックス生成（pagefind/ディレクトリ）
+  - クライアント初期負荷: pagefind.js(33KB) + wasm(51KB)、インデックスチャンクはオンデマンド
+  - フィルタ: deri/jofu/same_m/same_f = "OK"（呼べた実績あり）、loveho_report = "OK"
+- **Fuse.js**: 曖昧・部分一致検索（タイポ・略称に強い）
+  - generate-search-index.php: search-index.json (6.5MB/1.4MB gzip)
+  - Fuse.js: CDN読み込み（cdn.jsdelivr.net）、threshold:0.3, ignoreLocation:true
+- **検索フロー**: hybridSearch() → Pagefind + Fuse.js 並列実行 → マージ（Pagefind優先）→ PHP APIで詳細取得
+- **フォールバック**: 両方失敗時 → hotels.php LIKE検索（PHP API）
+- CSP: script-src に 'wasm-unsafe-eval' 追加
+- deploy.yml: PHP→pagefind-data.json生成 → SCP → Node→Pagefindインデックス生成 → rsync
 
 ### デプロイ方針
 - deploy.yml: Astroビルド + 静的JSON生成 + 検索インデックス + sitemap生成を自動実行

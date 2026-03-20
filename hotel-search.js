@@ -39,16 +39,63 @@ async function queryHotelsAPI(params) {
     return await res.json();
 }
 
-// Fuse.js検索（クライアント側完結、サーバー負荷ゼロ）
+// ==========================================================================
+// Pagefind + Fuse.js ハイブリッド検索
+// Pagefind: 全文検索 + 構造化フィルタ（prefecture/city/hotel_type/deri/jofu等）
+// Fuse.js:  曖昧・部分一致（タイポ・略称に強い）
+// ==========================================================================
+
+// --- Pagefind ---
+let _pagefind = null;
+let _pagefindLoading = false;
+
+const _MODE_FILTER_KEY = { men: 'deri', women: 'jofu', men_same: 'same_m', women_same: 'same_f' };
+
+async function ensurePagefind() {
+    if (_pagefind) return _pagefind;
+    if (_pagefindLoading) return null;
+    _pagefindLoading = true;
+    try {
+        _pagefind = await import('/pagefind/pagefind.js');
+        _pagefind.init();
+        return _pagefind;
+    } catch (e) {
+        _pagefindLoading = false;
+        return null;
+    }
+}
+
+/** Pagefind検索 → ホテルIDの配列を返す */
+async function pagefindSearchIds(keyword, filters, limit) {
+    const pf = await ensurePagefind();
+    if (!pf) return null;
+    try {
+        const opts = {};
+        if (filters && Object.keys(filters).length) opts.filters = filters;
+        const result = await pf.search(keyword || null, opts);
+        if (!result?.results?.length) return [];
+        // メタデータからIDを取得（上位N件）
+        const slice = result.results.slice(0, limit || 50);
+        const ids = await Promise.all(slice.map(async r => {
+            const data = await r.data();
+            return data?.meta?.id ? parseInt(data.meta.id) : null;
+        }));
+        return ids.filter(Boolean);
+    } catch (e) {
+        return null;
+    }
+}
+
+// --- Fuse.js ---
 let _fuse = null;
 let _fuseLoading = false;
 let _searchIndex = null;
+
 async function ensureFuse() {
     if (_fuse) return _fuse;
     if (_fuseLoading) return null;
     _fuseLoading = true;
     try {
-        // Fuse.js CDN読み込み
         if (!window.Fuse) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
@@ -58,11 +105,10 @@ async function ensureFuse() {
                 document.head.appendChild(s);
             });
         }
-        // 検索インデックス読み込み（1.4MB gzip）
         const res = await fetch('/search-index.json');
         _searchIndex = await res.json();
         _fuse = new Fuse(_searchIndex, {
-            keys: ['n', 'a', 'c', 's'],  // name, address, city, station
+            keys: ['n', 'a', 'c', 's'],
             threshold: 0.3,
             ignoreLocation: true,
             minMatchCharLength: 2
@@ -74,13 +120,44 @@ async function ensureFuse() {
     }
 }
 
-async function fuseSearch(keyword, limit) {
+/** Fuse.js検索 → ホテルIDの配列を返す */
+async function fuseSearchIds(keyword, limit) {
     const fuse = await ensureFuse();
-    if (!fuse) return null; // フォールバック: PHP API
+    if (!fuse) return null;
     const results = fuse.search(keyword, { limit: limit || 50 });
-    const hotelIds = results.map(r => r.item.i);
-    if (!hotelIds.length) return [];
-    return queryHotelsAPI({ ids: hotelIds.join(','), limit: hotelIds.length });
+    return results.map(r => r.item.i);
+}
+
+// --- ハイブリッド検索 ---
+/** Pagefind + Fuse.js 並列実行 → マージ → API取得 */
+async function hybridSearch(keyword, limit) {
+    const lim = limit || 50;
+    const mode = typeof MODE !== 'undefined' ? MODE : 'men';
+    const modeKey = _MODE_FILTER_KEY[mode];
+
+    // Pagefindフィルタ: 現在のモードで「呼べた実績あり」
+    const pgFilters = modeKey ? { [modeKey]: 'OK' } : {};
+
+    // Pagefind + Fuse.js 並列実行
+    const [pgIds, fuseIds] = await Promise.all([
+        pagefindSearchIds(keyword, pgFilters, lim),
+        fuseSearchIds(keyword, lim)
+    ]);
+
+    // マージ: Pagefind優先（全文一致）→ Fuse.js補完（曖昧一致）
+    const seen = new Set();
+    const mergedIds = [];
+    for (const id of [...(pgIds || []), ...(fuseIds || [])]) {
+        if (!seen.has(id)) { seen.add(id); mergedIds.push(id); }
+    }
+
+    if (!mergedIds.length) return null; // 両方失敗 or 0件 → PHP APIフォールバック
+    return queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), limit: lim });
+}
+
+/** 後方互換: 旧fuseSearch（hybridSearchに委譲） */
+async function fuseSearch(keyword, limit) {
+    return hybridSearch(keyword, limit);
 }
 
 async function fetchAndShowHotels(filterObj) {

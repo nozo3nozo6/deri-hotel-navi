@@ -60,5 +60,6 @@ fix-report*.html
 hotel-data/
 search-index.json
 pagefind/
+pagefind-data.json
 master-data.json
 area-data.json
