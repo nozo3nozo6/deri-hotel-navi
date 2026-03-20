@@ -21,7 +21,7 @@ function scrollableSection(items, buildFn, emptyMsg) {
     if (!items.length) return emptyMsg || '';
     const html = items.map(buildFn).join('');
     if (items.length <= 5) return html;
-    return `<div style="max-height:420px;overflow-y:auto;padding-right:4px;">${html}</div>`;
+    return `<div class="scrollable-reviews">${html}</div>`;
 }
 
 // AppState 登録（検索・表示状態の発見・デバッグ用）
@@ -392,7 +392,7 @@ function openLovehoDetail(hotelId) {
 // ==========================================================================
 async function loadDetail(hotelId, isLoveho) {
     const content = getDetailContainer();
-    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
+    content.innerHTML = `<div class="detail-loading">読み込み中...</div>`;
     try {
         // マスタデータロード（タイプ別）
         if (isLoveho) await loadLhMasters();
@@ -500,7 +500,7 @@ async function loadDetail(hotelId, isLoveho) {
             if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
         }
     } catch(e) {
-        content.innerHTML = `<div style="text-align:center;padding:60px;color:#c47a88;">読み込みエラーが発生しました</div>`;
+        content.innerHTML = `<div class="detail-error">読み込みエラーが発生しました</div>`;
     }
 }
 
@@ -538,22 +538,22 @@ function renderLovehoDetail(hotel, reports) {
         const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
         const gpRoom = gps.filter(gp => gpCatMap[gp] === '設備・お部屋');
         const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
-        const gpTagHTML = (items) => items.map(gp=>`<span style="background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.25);border-radius:10px;padding:2px 8px;font-size:10px;color:#3a9a60;">${esc(gp)}</span>`).join('');
+        const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(gp)}</span>`).join('');
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
         const pName=r.poster_name||'匿名';
         const si=lhShopInfoMap[pName];
         const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" style="font-size:10px;color:${gmCol};font-weight:600;text-decoration:none;">${gmIcon} ${esc(pName)} 🔗</a>`:`<span style="font-size:10px;color:${gmCol};font-weight:600;">${gmIcon} ${esc(pName)}</span>`;
         const fee=lhShopFeeMap[pName];
         const feeLabel=fee===0?'無料':fee>0?'¥'+Number(fee).toLocaleString():null;
-        const feeHTML=feeLabel?`<span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030;">🚕 交通費: ${feeLabel}</span>`:'';
+        const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
-        return `<div style="background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;">
+        return `<div class="review-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:8px;">${posterHTML}${feeHTML}</div>
                 <span style="font-size:11px;color:var(--text-3);">${formatDate(r.created_at)}</span>
             </div>
-            ${r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<div style="margin:6px 0;"><span style="padding:3px 10px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:20px;font-size:11px;color:#2e7d32;font-weight:600;">✅ ご案内実績有</span></div>` : ''}
-            ${r.solo_entry && !shopNames.includes(pName) ? `<div style="margin:6px 0;"><span style="padding:3px 10px;background:${r.solo_entry==='yes'?'rgba(58,154,96,0.1)':'rgba(181,98,122,0.1)'};border:1px solid ${r.solo_entry==='yes'?'rgba(58,154,96,0.3)':'rgba(181,98,122,0.3)'};border-radius:20px;font-size:11px;color:${r.solo_entry==='yes'?'#2e7d32':'#9a4e65'};font-weight:600;">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span></div>` : ''}
+            ${r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<div style="margin:6px 0;"><span class="round-badge round-badge--solo-can">✅ ご案内実績有</span></div>` : ''}
+            ${r.solo_entry && !shopNames.includes(pName) ? `<div style="margin:6px 0;"><span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span></div>` : ''}
             ${r.comment ? `<div style="font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;margin-top:4px;">${esc(r.comment)}</div>` : ''}
             ${r.atmosphere ? `<div style="margin-bottom:6px;"><span style="font-size:11px;font-weight:600;color:var(--text-3);">✨ 雰囲気　</span><span style="padding:3px 10px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:#c9a96e;background:rgba(201,169,110,0.08);">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
             ${gpRoom.length ? `<div style="margin-top:6px;"><div style="font-size:10px;font-weight:600;color:var(--text-3);margin-bottom:3px;">🛁 設備・お部屋</div><div style="display:flex;flex-wrap:wrap;gap:4px;">${gpTagHTML(gpRoom)}</div></div>` : ''}
@@ -561,7 +561,7 @@ function renderLovehoDetail(hotel, reports) {
             ${r.entry_method ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🚪 ${MODE==='women'?'セラピスト':'キャスト'}の入室方法: ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${r.time_slot ? `<div style="font-size:11px;color:var(--text-2);margin-top:6px;">🕐 ${esc(r.time_slot)}</div>` : ''}
             ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}</div>` : ''}
-            <button onclick="event.stopPropagation();openFlagModal('${r.id}')" style="background:none;border:none;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;opacity:0.6;">🚩 報告</button>
+            <button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn" style="margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }
 
@@ -577,9 +577,9 @@ function renderLovehoDetail(hotel, reports) {
     const lhUserReports = reports.filter(r => !shopNames.includes(r.poster_name));
 
     const lhShopSection = lhShopReports.length === 0 ? '' : `
-        <div style="border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);">
+        <div class="section-official">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <span style="font-size:11px;font-weight:700;padding:4px 12px;background:rgba(201,168,76,0.18);color:#7a5c10;border:1px solid rgba(201,168,76,0.4);border-radius:20px;">✅ 店舗公式情報</span>
+                <span class="section-label section-label--official">✅ 店舗公式情報</span>
                 <span style="font-size:11px;color:#9a8050;">${lhShopReports.length}件</span>
             </div>
             ${scrollableSection(lhShopReports, buildLhReviewCard)}
@@ -601,7 +601,7 @@ function renderLovehoDetail(hotel, reports) {
     const lhUserSection = lhUserReports.length === 0 ? '' : `
         <div style="margin-bottom:16px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <span style="font-size:11px;font-weight:700;padding:4px 12px;background:rgba(181,98,122,0.1);color:#8a4a5e;border:1px solid rgba(181,98,122,0.3);border-radius:20px;">👤 ユーザー口コミ</span>
+                <span class="section-label section-label--user">👤 ユーザー口コミ</span>
                 <span style="font-size:11px;color:var(--text-3);">${lhUserReports.length}件</span>
             </div>
             ${lhFilterTabs}
@@ -616,11 +616,11 @@ function renderLovehoDetail(hotel, reports) {
     const statsHTML = soloTotal > 0 ? `
         <div style="margin-bottom:16px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">👤 一人で先に入れる？（${soloTotal}件回答）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+            <div class="progress-bar">
                 ${Object.entries(soloCounts).map(([key, count]) => `<div style="width:${Math.round(count/soloTotal*100)}%;background:${soloColors[key]||'#ccc'};"></div>`).join('')}
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                ${Object.entries(soloCounts).map(([key, count]) => `<span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${soloColors[key]||'#ccc'};margin-right:3px;"></span>${soloMap[key]||key} ${Math.round(count/soloTotal*100)}%</span>`).join('')}
+            <div class="stat-legend">
+                ${Object.entries(soloCounts).map(([key, count]) => `<span class="stat-legend-item"><span class="stat-legend-dot" style="background:${soloColors[key]||'#ccc'};"></span>${soloMap[key]||key} ${Math.round(count/soloTotal*100)}%</span>`).join('')}
             </div>
         </div>` : '';
 
@@ -1334,7 +1334,7 @@ async function showHotelPanel(hotelId, isLoveho) {
         ? document.getElementById('map-detail-content')
         : document.getElementById('hotel-detail-content');
     content.style.display = 'block';
-    content.innerHTML = `<div style="text-align:center;padding:60px;color:var(--text-3);">読み込み中...</div>`;
+    content.innerHTML = `<div class="detail-loading">読み込み中...</div>`;
 
     await loadDetail(hotelId, isLoveho);
     if (_mapDetailMode) {
@@ -1403,7 +1403,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
     const modeParam = typeof MODE !== 'undefined' ? MODE : 'men';
 
     getDetailContainer().innerHTML = `
-    <div style="max-width:640px;margin:0 auto;padding:16px 14px 120px;">
+    <div class="detail-wrap">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0;">
             <h2 style="font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0;">
                 <a href="${googleSearch}" target="${_extTarget}" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
@@ -1412,7 +1412,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
             </h2>
             ${!isLoveho && hotel.min_charge ? '<span style="font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0;">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
         </div>
-        <div style="background:#ffffff;border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06);">
+        <div class="detail-info-box">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">
                 <span style="font-size:13px;color:var(--text-2);line-height:1.5;flex:1;">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
                 ${hotel.tel ? '<span style="font-size:13px;color:var(--text-2);white-space:nowrap;flex-shrink:0;">📞 ' + esc(hotel.tel) + '</span>' : ''}
@@ -1429,9 +1429,9 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div id="detail-ad-area-slot"></div>
         ${sections.formHTML || ''}
         <div id="detail-ad-pref-slot"></div>
-        <div style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;font-size:13px;">
-            <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register.html?genre=${modeParam}" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>
+        <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;">
+            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
+            <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
     </div>`;
 }
@@ -1448,20 +1448,18 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             ...(r.can_call ? (r.can_call_reasons||[]) : (r.cannot_call_reasons||[])),
             ...(r.conditions||[])
         ];
-        const tagColor = r.can_call ? '#1976d2' : '#c05050';
-        const tagBg   = r.can_call ? 'rgba(33,150,243,0.1)'  : 'rgba(192,80,80,0.08)';
-        const tagBorder = r.can_call ? 'rgba(33,150,243,0.3)' : 'rgba(192,80,80,0.25)';
+        const tagCls = r.can_call ? 'tag-chip--can' : 'tag-chip--ng';
         const tagsHTML = entryTags.map(t =>
-            `<span style="padding:2px 7px;background:${tagBg};border:1px solid ${tagBorder};border-radius:8px;font-size:10px;color:${tagColor};">${esc(t)}</span>`
+            `<span class="tag-chip ${tagCls}">${esc(t)}</span>`
         ).join('');
         const guestChip = r.multi_person
-            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}</span>`
+            ? `<span class="tag-chip tag-chip--guest">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}</span>`
             : (r.guest_female != null && r.guest_female > 0)
-            ? `<span style="padding:2px 7px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:8px;font-size:10px;color:var(--accent,#b5627a);">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
+            ? `<span class="tag-chip tag-chip--guest">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
         const metaChips = [
-            r.time_slot  ? `<span style="padding:2px 7px;background:rgba(106,138,188,0.1);border:1px solid rgba(106,138,188,0.25);border-radius:8px;font-size:10px;color:#6a8abc;">🕐${esc(r.time_slot)}</span>` : '',
-            r.room_type  ? `<span style="padding:2px 7px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:10px;color:var(--text-2);">🛏${esc(r.room_type)}</span>` : '',
+            r.time_slot  ? `<span class="tag-chip tag-chip--time">🕐${esc(r.time_slot)}</span>` : '',
+            r.room_type  ? `<span class="tag-chip tag-chip--room">🛏${esc(r.room_type)}</span>` : '',
             guestChip,
         ].join('');
         const isShop = r.poster_type === 'shop';
@@ -1475,14 +1473,15 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             if(isShop&&si&&si.status==='active'){return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
         })() : '';
-        const feeHTML = feeLabel ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030;">🚕 交通費: ${feeLabel}</span>` : '';
-        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" style="padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap;">🚩 報告</button>` : '';
+        const feeHTML = feeLabel ? `<span class="fee-badge">🚕 交通費: ${feeLabel}</span>` : '';
+        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button>` : '';
+        const badgeCls = r.can_call ? (r.poster_type === 'shop' ? 'round-badge--shop-can' : 'round-badge--user-can') : (r.poster_type === 'shop' ? 'round-badge--shop-ng' : 'round-badge--user-ng');
 
         return `
-        <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:5px;">
+        <div class="review-card review-card--compact">
             <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
-                <span style="padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;${r.can_call ? (r.poster_type === 'shop' ? 'background:rgba(58,154,96,0.08);color:#3a9a60;' : 'background:rgba(33,150,243,0.08);color:#1976d2;') : 'background:rgba(192,80,80,0.08);color:#c05050;'}">
+                <span class="round-badge ${badgeCls}">
                     ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}
                 </span>
                 ${tagsHTML}
@@ -1514,14 +1513,14 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const shopCanCount = shopReports.filter(r => r.can_call).length;
     const shopNgCount = shopReports.filter(r => !r.can_call).length;
     const shopFilterTabs = (shopReports.length > 1 && shopCanCount > 0 && shopNgCount > 0) ? `
-                <button onclick="filterShopReports('all')" class="sr-tab sr-tab-active" data-filter="all" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(201,168,76,0.4);background:rgba(201,168,76,0.12);color:#7a5c10;">全て</button>
-                <button onclick="filterShopReports('can')" class="sr-tab" data-filter="can" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(58,154,96,0.25);background:transparent;color:#3a9a60;">✅ 案内可 ${shopCanCount}</button>
-                <button onclick="filterShopReports('ng')" class="sr-tab" data-filter="ng" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ 案内不可 ${shopNgCount}</button>` : '';
+                <button onclick="filterShopReports('all')" class="sr-tab sr-tab-active filter-tab" data-filter="all" style="border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.12);color:#7a5c10;">全て</button>
+                <button onclick="filterShopReports('can')" class="sr-tab filter-tab" data-filter="can" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">✅ 案内可 ${shopCanCount}</button>
+                <button onclick="filterShopReports('ng')" class="sr-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 案内不可 ${shopNgCount}</button>` : '';
 
     const shopSection = shopReports.length === 0 ? '' : `
-        <div style="border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);">
+        <div class="section-official">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:8px;">
-                <span style="font-size:12px;font-weight:700;color:#7a5c10;white-space:nowrap;">✅ 店舗公式情報 (${shopReports.length})</span>
+                <span class="section-label section-label--official">✅ 店舗公式情報 (${shopReports.length})</span>
                 ${shopFilterTabs}
             </div>
             <div id="shop-reports-list">${scrollableSection(shopReports, buildReportCard)}</div>
@@ -1546,9 +1545,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px;">
             <span style="font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap;">${{ men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' }[MODE] || '♂'} ユーザー投稿 (${userReports.length})</span>
             ${(userReports.length > 1 && canCount > 0 && ngCount > 0) ? `
-                <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active" data-filter="all" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--accent-bg);color:var(--accent);">全て</button>
-                ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab" data-filter="can" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(33,150,243,0.25);background:transparent;color:#1976d2;">✅ 呼べた ${canCount}</button>` : ''}
-                ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab" data-filter="ng" style="padding:3px 10px;border-radius:14px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ 呼べない ${ngCount}</button>` : ''}
+                <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active filter-tab" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">全て</button>
+                ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab filter-tab" data-filter="can" style="border-color:rgba(33,150,243,0.25);color:#1976d2;">✅ 呼べた ${canCount}</button>` : ''}
+                ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 呼べない ${ngCount}</button>` : ''}
             ` : ''}
         </div>
         <div id="user-reports-list">${userReports.length > 0 ? scrollableSection(userReports, buildReportCard) : noReports}</div>`;
@@ -1559,25 +1558,25 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const statsHTML = (shopPct !== null ? `
         <div style="margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">🏪 店舗実績（${shopReports.length}件）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+            <div class="progress-bar">
                 <div style="width:${shopPct}%;background:#3a9a60;"></div>
                 <div style="width:${100-shopPct}%;background:#c05050;"></div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3a9a60;margin-right:3px;"></span>ご案内実績あり ${shopPct}%</span>
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>ご案内不可 ${100-shopPct}%</span>
+            <div class="stat-legend">
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#3a9a60;"></span>ご案内実績あり ${shopPct}%</span>
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#c05050;"></span>ご案内不可 ${100-shopPct}%</span>
             </div>
         </div>` : '')
         + (userPct !== null ? `
         <div style="margin-bottom:12px;">
             <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">📊 呼べる？（${userReports.length}件）</div>
-            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+            <div class="progress-bar">
                 <div style="width:${userPct}%;background:#2196f3;"></div>
                 <div style="width:${100-userPct}%;background:#c05050;"></div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2196f3;margin-right:3px;"></span>${t('can_call')} ${userPct}%</span>
-                <span style="font-size:11px;color:var(--text-2);"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#c05050;margin-right:3px;"></span>${t('cannot_call')} ${100-userPct}%</span>
+            <div class="stat-legend">
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#2196f3;"></span>${t('can_call')} ${userPct}%</span>
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#c05050;"></span>${t('cannot_call')} ${100-userPct}%</span>
             </div>
         </div>` : '');
 
@@ -1712,7 +1711,7 @@ function renderDetailShopCards(shops, cityName) {
         const thumbHtml = s.thumbnail_url
             ? `<img src="${esc(s.thumbnail_url)}" width="48" height="64" loading="lazy" style="object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
             : '';
-        return `<div style="background:#faf7f4;border:1px solid #e8ddd5;border-radius:8px;padding:12px 14px;margin-bottom:8px;font-size:12px;">
+        return `<div class="shop-ad-card">
             <div style="color:#999;font-size:10px;margin-bottom:6px;">📢 ${esc(cityName)}で呼べる店舗</div>
             <div style="display:flex;align-items:center;gap:12px;">
                 ${thumbHtml}
