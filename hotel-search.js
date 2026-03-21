@@ -86,61 +86,48 @@ async function pagefindSearchIds(keyword, filters, limit) {
     }
 }
 
-// --- Fuse.js ---
-let _fuse = null;
-let _fuseLoading = false;
-let _fuseLoadPromise = null;
+// --- Fuse.js (Web Worker) ---
+let _fuseWorker = null;
+let _fuseReady = false;
+let _fuseReadyPromise = null;
 
-async function ensureFuse() {
-    if (_fuse) return _fuse;
-    if (_fuseLoadPromise) return _fuseLoadPromise;
-    if (_fuseLoading) return null;
-    _fuseLoading = true;
-    _fuseLoadPromise = (async () => {
-        try {
-            if (!window.Fuse) {
-                const savedT = window.t;
-                await new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js';
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                });
-                window.t = savedT;
-            }
-            const res = await fetch('/search-index.json');
-            const searchIndex = await res.json();
-            _fuse = new Fuse(searchIndex, {
-                keys: ['n', 'a', 'c', 's'],
-                threshold: 0.4,
-                ignoreLocation: true,
-                minMatchCharLength: 2,
-                includeMatches: false,
-                includeScore: false
-            });
-            return _fuse;
-        } catch (e) {
-            _fuseLoading = false;
-            _fuseLoadPromise = null;
-            return null;
-        }
-    })();
-    return _fuseLoadPromise;
+function ensureFuseWorker() {
+    if (_fuseWorker) return _fuseReadyPromise;
+    try {
+        _fuseWorker = new Worker('/fuse-worker.js');
+        _fuseReadyPromise = new Promise((resolve) => {
+            _fuseWorker.onmessage = (e) => {
+                if (e.data.type === 'ready') { _fuseReady = true; resolve(true); }
+                if (e.data.type === 'error') { resolve(false); }
+            };
+        });
+        _fuseWorker.postMessage({ type: 'init' });
+    } catch (e) {
+        _fuseReadyPromise = Promise.resolve(false);
+    }
+    return _fuseReadyPromise;
 }
 
-/** Fuse.js検索 → ホテルIDの配列を返す */
+/** Fuse.js検索 → ホテルIDの配列を返す（Web Worker経由） */
 async function fuseSearchIds(keyword, limit) {
-    const fuse = await ensureFuse();
-    if (!fuse) return null;
-    const results = fuse.search(keyword, { limit: limit || 30 });
-    return results.map(r => r.item.i);
+    if (!_fuseReady) await ensureFuseWorker();
+    if (!_fuseReady || !_fuseWorker) return null;
+    return new Promise((resolve) => {
+        const handler = (e) => {
+            if (e.data.type === 'result') {
+                _fuseWorker.removeEventListener('message', handler);
+                resolve(e.data.ids);
+            }
+        };
+        _fuseWorker.addEventListener('message', handler);
+        _fuseWorker.postMessage({ type: 'search', keyword, limit: limit || 30 });
+    });
 }
 
 // --- 事前初期化（ページ読み込み後バックグラウンドで準備） ---
 setTimeout(() => {
     ensurePagefind();
-    ensureFuse();
+    ensureFuseWorker();
 }, 1500);
 
 // --- ハイブリッド検索 ---
