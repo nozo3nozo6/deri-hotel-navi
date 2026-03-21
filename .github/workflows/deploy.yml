@@ -119,6 +119,13 @@ jobs:
             -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
             ./pagefind/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/pagefind/
 
+      - name: Purge Cloudflare cache
+        run: |
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'
+
       - name: Cleanup SSH key
         if: always()
         run: rm -f ~/.ssh/deploy_key
