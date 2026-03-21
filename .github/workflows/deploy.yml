@@ -22,11 +22,15 @@ jobs:
           node-version: '22'
 
       - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          wc -c ~/.ssh/deploy_key
           ssh-keyscan -p $SSH_PORT $REMOTE_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o BatchMode=yes $REMOTE_USER@$REMOTE_HOST "echo SSH_OK"
 
       - name: Install dependencies (root)
         run: npm ci
