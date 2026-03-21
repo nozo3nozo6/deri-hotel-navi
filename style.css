@@ -434,13 +434,14 @@ body[data-mode="men_same"] {
 .breadcrumb {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     margin-bottom: 12px;
     flex-wrap: wrap;
+    line-height: 1.4;
 }
 .breadcrumb-item { font-size: 0.75rem; color: var(--text-3); }
 .breadcrumb-item.active { color: var(--accent); font-weight: 500; }
-.breadcrumb-sep { color: var(--text-3); font-size: 0.75rem; }
+.breadcrumb-sep { color: var(--text-3); font-size: 0.75rem; margin: 0 1px; }
 
 .area-header {
     display: flex;
