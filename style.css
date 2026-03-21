@@ -456,9 +456,9 @@ body[data-mode="men_same"] {
     display: flex;
     align-items: baseline;
     gap: 0;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
     flex-wrap: wrap;
-    line-height: 1.6;
+    line-height: 1.5;
 }
 .breadcrumb-item { font-size: 0.75rem; color: var(--text-3); white-space: nowrap; }
 .breadcrumb-item.active { color: var(--accent); font-weight: 500; }
