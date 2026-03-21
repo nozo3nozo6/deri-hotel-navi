@@ -47,6 +47,10 @@ jobs:
           cp dist/jofu.html ../jofu.yobuho.com/index.html
           cp dist/same.html ../same.yobuho.com/index.html
           cp dist/loveho.html ../loveho.yobuho.com/index.html
+          for sub in deli.yobuho.com jofu.yobuho.com same.yobuho.com loveho.yobuho.com; do
+            cp ../favicon.ico ../$sub/favicon.ico
+            cp ../favicon.svg ../$sub/favicon.svg
+          done
 
       - name: Generate sitemap.xml
         run: node generate-sitemap.js
