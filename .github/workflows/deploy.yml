@@ -44,6 +44,8 @@ jobs:
           cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html ../
           cp dist/index.html ../index.html
           cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html ../
+          mkdir -p ../guide
+          cp dist/guide/*.html ../guide/ 2>/dev/null || true
           mkdir -p ../deli.yobuho.com ../jofu.yobuho.com ../same.yobuho.com ../loveho.yobuho.com
           cp dist/deli.html ../deli.yobuho.com/index.html
           cp dist/jofu.html ../jofu.yobuho.com/index.html

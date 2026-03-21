@@ -1,0 +1,112 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Footer from '../../components/Footer.astro';
+
+const title = 'デリヘルを呼べるホテルの見分け方・選び方ガイド | YobuHo';
+const description = 'デリヘルをホテルに呼ぶ際のホテル選びのポイントを解説。カードキー式・フロント相談・直通エレベーターなど、派遣可能なホテルの特徴と注意点をまとめました。全国43,000件以上のホテルから検索できます。';
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  canonical="https://yobuho.com/guide/deli-hotel.html"
+  ogTitle={title}
+  ogDescription={description}
+  themeColor="#9b2d35"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Noto Sans JP', sans-serif; background: #faf8f4; color: #2a2520; line-height: 1.8; }
+      .guide-header { background: linear-gradient(135deg, #9b2d35 0%, #c0392b 100%); color: #fff; padding: 48px 20px; text-align: center; }
+      .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.9; }
+      .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #9b2d35; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #f0e6d6; }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; }
+      .guide-content ul { margin: 0 0 16px 20px; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; }
+      .cta-box { background: linear-gradient(135deg, rgba(155,45,53,0.08), rgba(192,57,43,0.08)); border: 1px solid rgba(155,45,53,0.2); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
+      .cta-box a { display: inline-block; background: #c0392b; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+      .cta-box a:hover { opacity: 0.9; }
+      .point-card { background: #fff; border: 1px solid #e8e0d4; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+      .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
+    </style>
+    <script is:inline type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "デリヘルを呼べるホテルの見分け方・選び方ガイド",
+      "description": "デリヘルをホテルに呼ぶ際のホテル選びのポイントを解説",
+      "author": { "@type": "Organization", "name": "YobuHo" },
+      "publisher": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com" },
+      "mainEntityOfPage": "https://yobuho.com/guide/deli-hotel.html"
+    }
+    </script>
+  </Fragment>
+
+  <div class="guide-header">
+    <h1>デリヘルを呼べるホテルの見分け方・選び方ガイド</h1>
+    <p>初めてでも安心。ホテル選びのポイントを徹底解説</p>
+  </div>
+
+  <div class="guide-content">
+    <p>デリヘルをホテルに呼びたいけど、どのホテルなら大丈夫？断られたらどうしよう？そんな不安を解消するために、呼べるホテルの見分け方と選び方を解説します。</p>
+
+    <h2>呼べるホテルの3つの特徴</h2>
+
+    <div class="point-card">
+      <div class="emoji">🔑</div>
+      <h3>カードキー式のホテル</h3>
+      <p>フロントを通らずに部屋まで直行できるカードキー式のホテルは、デリヘルを呼びやすいホテルの代表格です。ビジネスホテルチェーンの多くがこの方式を採用しています。</p>
+    </div>
+
+    <div class="point-card">
+      <div class="emoji">🛗</div>
+      <h3>直通エレベーターがあるホテル</h3>
+      <p>ロビーからフロントを経由せずにエレベーターにアクセスできるホテルは、来客の出入りが自由なため安心です。</p>
+    </div>
+
+    <div class="point-card">
+      <div class="emoji">📞</div>
+      <h3>フロント相談で許可が出るホテル</h3>
+      <p>一部のシティホテルでは、フロントに「来客がある」と伝えれば許可される場合があります。事前に電話で確認するのがおすすめです。</p>
+    </div>
+
+    <h2>ホテル選びで注意すべきポイント</h2>
+    <ul>
+      <li><strong>ラブホテルは確実</strong> — ラブホテルは基本的にデリヘルの受け入れOKです。ただし一部のラブホは断る場合もあるため、口コミで確認しましょう。</li>
+      <li><strong>ビジネスホテルは要確認</strong> — チェーンによって対応が異なります。同じチェーンでも店舗ごとに方針が違うこともあります。</li>
+      <li><strong>高級ホテルは難しい</strong> — セキュリティが厳しいため、事前確認が必須です。</li>
+      <li><strong>口コミが最強の情報源</strong> — 実際に呼んだ人・呼ばれた店舗の口コミが最も信頼できます。</li>
+    </ul>
+
+    <h2>地域別の傾向</h2>
+    <p>都市部のビジネスホテルは比較的呼びやすい傾向にあります。特に東京・大阪・名古屋・福岡などの繁華街周辺は、デリヘル対応のホテルが多数あります。</p>
+    <p>地方都市でもビジネスホテルチェーンであれば対応していることが多いですが、個人経営のホテルや旅館は事前確認が必要です。</p>
+
+    <div class="cta-box">
+      <p style="margin-bottom: 12px; font-weight: 600;">全国43,000件以上のホテルから「呼べるホテル」を検索</p>
+      <a href="/portal.html?mode=men">今すぐ検索する</a>
+    </div>
+
+    <h2>YobuHoの口コミの見方</h2>
+    <p>YobuHoでは、<strong>ユーザー口コミ</strong>と<strong>店舗公式情報</strong>の2種類の情報を掲載しています。</p>
+    <ul>
+      <li><strong>ユーザー口コミ（📊）</strong> — 実際にデリヘルを呼んだ利用者の体験談。「呼べた」「呼べなかった」の実績がわかります。</li>
+      <li><strong>店舗公式情報（🏪）</strong> — デリヘル店舗が実際に派遣した実績に基づく情報。信頼度が高いです。</li>
+    </ul>
+    <p>両方の情報を確認することで、より確実にホテルを選ぶことができます。</p>
+
+    <div class="cta-box">
+      <p style="margin-bottom: 12px; font-weight: 600;">口コミで呼べるホテルをチェック</p>
+      <a href="/portal.html?mode=men">ホテル検索へ</a>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>

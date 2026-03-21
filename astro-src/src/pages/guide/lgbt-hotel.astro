@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Footer from '../../components/Footer.astro';
+
+const title = '同性カップル・LGBTフレンドリーなホテルの探し方 | YobuHo';
+const description = 'ゲイカップル・レズビアンカップルで利用できるホテルの探し方ガイド。LGBTフレンドリーなビジネスホテル・ラブホテルの見分け方、同性二人でのチェックイン方法を解説。全国43,000件以上から検索。';
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  canonical="https://yobuho.com/guide/lgbt-hotel.html"
+  ogTitle={title}
+  ogDescription={description}
+  themeColor="#2a5a8f"
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Noto Sans JP', sans-serif; background: #f4f7fa; color: #2a2520; line-height: 1.8; }
+      .guide-header { background: linear-gradient(135deg, #2a5a8f 0%, #4a8abf 100%); color: #fff; padding: 48px 20px; text-align: center; }
+      .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.9; }
+      .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #2a5a8f; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #d6e4f0; }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; }
+      .guide-content ul { margin: 0 0 16px 20px; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; }
+      .cta-box { background: linear-gradient(135deg, rgba(42,90,143,0.08), rgba(74,138,191,0.08)); border: 1px solid rgba(42,90,143,0.2); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
+      .cta-box a { display: inline-block; background: #2a5a8f; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; margin: 4px; }
+      .cta-box a.women-same { background: #8a5a9e; }
+      .cta-box a:hover { opacity: 0.9; }
+      .point-card { background: #fff; border: 1px solid #d6e4f0; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+      .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
+    </style>
+    <script is:inline type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "同性カップル・LGBTフレンドリーなホテルの探し方",
+      "description": "ゲイカップル・レズビアンカップルで利用できるホテルの探し方ガイド",
+      "author": { "@type": "Organization", "name": "YobuHo" },
+      "publisher": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com" },
+      "mainEntityOfPage": "https://yobuho.com/guide/lgbt-hotel.html"
+    }
+    </script>
+  </Fragment>
+
+  <div class="guide-header">
+    <h1>同性カップル・LGBTフレンドリーなホテルの探し方</h1>
+    <p>安心して二人で泊まれるホテルを見つけるために</p>
+  </div>
+
+  <div class="guide-content">
+    <p>同性カップルでホテルを利用する際、「二人で泊まれるか不安」「フロントでの対応が心配」という声は少なくありません。このガイドでは、同性カップルが安心して利用できるホテルの探し方を解説します。</p>
+
+    <h2>同性カップルが利用しやすいホテルの特徴</h2>
+
+    <div class="point-card">
+      <div class="emoji">🏨</div>
+      <h3>大手ビジネスホテルチェーン</h3>
+      <p>大手チェーンはダイバーシティ方針を掲げている場合が多く、同性カップルの宿泊に対応しています。ツインルームやダブルルームを予約すれば、スムーズにチェックインできます。</p>
+    </div>
+
+    <div class="point-card">
+      <div class="emoji">🏩</div>
+      <h3>ラブホテル</h3>
+      <p>ラブホテルはフロント対面がないため、性別を問わず利用しやすいです。特にタッチパネル式のラブホテルは完全に無人チェックインが可能です。</p>
+    </div>
+
+    <div class="point-card">
+      <div class="emoji">🌈</div>
+      <h3>LGBTフレンドリーを明示しているホテル</h3>
+      <p>近年、LGBTフレンドリーを公式に表明するホテルが増えています。予約サイトのフィルタやホテルの公式サイトで確認できます。</p>
+    </div>
+
+    <h2>チェックイン時のポイント</h2>
+    <ul>
+      <li><strong>ツイン・ダブルを予約</strong> — 「友人と」「同僚と」として予約すれば問題ありません。ダブルベッドでも二人利用可能なホテルは多いです。</li>
+      <li><strong>オンライン予約を活用</strong> — 対面のやり取りを最小限にできます。事前決済にすればさらにスムーズです。</li>
+      <li><strong>セルフチェックインのホテル</strong> — 機械チェックインのホテルなら、フロントとのやり取りが不要です。</li>
+    </ul>
+
+    <h2>口コミで安心を確認</h2>
+    <p>YobuHoでは、同性カップルで実際に利用した方の口コミを確認できます。「呼べた（利用できた）」「呼べなかった」の実績があるため、事前に安心して判断できます。</p>
+
+    <div class="cta-box">
+      <p style="margin-bottom: 12px; font-weight: 600;">同性カップルで利用できるホテルを検索</p>
+      <a href="/portal.html?mode=men_same">男性同士で検索</a>
+      <a href="/portal.html?mode=women_same" class="women-same">女性同士で検索</a>
+    </div>
+
+    <h2>主要都市のLGBTフレンドリーエリア</h2>
+    <p>東京（新宿二丁目・渋谷）、大阪（堂山町）、名古屋（栄）、福岡（中洲）など、LGBTコミュニティが活発なエリア周辺には、理解のあるホテルが集まっています。</p>
+    <p>YobuHoの地域検索で、お近くのホテルの口コミを確認してください。</p>
+
+    <div class="cta-box">
+      <p style="margin-bottom: 12px; font-weight: 600;">全国43,000件以上のホテルから検索</p>
+      <a href="/portal.html?mode=men_same">ホテル検索へ</a>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>

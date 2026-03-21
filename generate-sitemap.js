@@ -69,6 +69,11 @@ urls.push(entry('https://jofu.yobuho.com/', '0.8', 'weekly'));
 urls.push(entry('https://same.yobuho.com/', '0.8', 'weekly'));
 urls.push(entry('https://loveho.yobuho.com/', '0.8', 'weekly'));
 
+// ガイドページ
+urls.push(entry(`${BASE_URL}/guide/deli-hotel.html`, '0.8', 'weekly'));
+urls.push(entry(`${BASE_URL}/guide/jofu-hotel.html`, '0.8', 'weekly'));
+urls.push(entry(`${BASE_URL}/guide/lgbt-hotel.html`, '0.8', 'weekly'));
+
 // 固定ページ
 urls.push(entry(`${BASE_URL}/terms.html`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/privacy.html`, '0.3', 'monthly'));
