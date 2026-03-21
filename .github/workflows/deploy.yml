@@ -30,8 +30,14 @@ jobs:
           eval $(ssh-agent -s)
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
-          printf '%s\n' "$SSH_KEY" > /tmp/deploy_key
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+          echo "=== Key debug ==="
+          head -1 /tmp/deploy_key
+          tail -1 /tmp/deploy_key
+          wc -l /tmp/deploy_key
+          file /tmp/deploy_key
+          ssh-keygen -y -P "$SSH_PASSPHRASE" -f /tmp/deploy_key > /dev/null && echo "Key OK" || echo "Key invalid"
           ssh-keygen -p -P "$SSH_PASSPHRASE" -N "" -f /tmp/deploy_key
           ssh-add /tmp/deploy_key
           rm /tmp/deploy_key
