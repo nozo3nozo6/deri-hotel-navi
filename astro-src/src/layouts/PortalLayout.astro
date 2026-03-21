@@ -136,11 +136,14 @@ const jsonLd = [
                 </a>
                 <span id="mode-badge" class="mode-badge" set:html={d.badge} style={mode === 'men' ? 'display:none' : undefined} />
             </div>
-            <div class="lang-buttons">
-                <button data-action="changeLang" data-param="ja" class="lang-btn active">JP</button>
-                <button data-action="changeLang" data-param="en" class="lang-btn">EN</button>
-                <button data-action="changeLang" data-param="zh" class="lang-btn">CN</button>
-                <button data-action="changeLang" data-param="ko" class="lang-btn">KR</button>
+            <div class="lang-dropdown">
+                <button class="lang-toggle" onclick="this.parentElement.classList.toggle('open')">🌐 JP</button>
+                <div class="lang-menu">
+                    <button data-action="changeLang" data-param="ja" class="lang-menu-item active">JP 日本語</button>
+                    <button data-action="changeLang" data-param="en" class="lang-menu-item">EN English</button>
+                    <button data-action="changeLang" data-param="zh" class="lang-menu-item">CN 中文</button>
+                    <button data-action="changeLang" data-param="ko" class="lang-menu-item">KR 한국어</button>
+                </div>
             </div>
         </div>
         <div class="mode-title-bar" id="mode-title-bar" style="display:none;"></div>

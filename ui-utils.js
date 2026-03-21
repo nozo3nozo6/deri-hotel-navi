@@ -138,8 +138,12 @@ function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }
 function changeLang(lang) {
     state.lang = lang;
     localStorage.setItem('yobuho_lang', lang);
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    const langLabels = { ja: 'JP', en: 'EN', zh: 'CN', ko: 'KR' };
+    document.querySelectorAll('.lang-menu-item').forEach(b => b.classList.remove('active'));
     document.querySelector(`[data-action="changeLang"][data-param="${lang}"]`)?.classList.add('active');
+    const toggle = document.querySelector('.lang-toggle');
+    if (toggle) toggle.textContent = '🌐 ' + (langLabels[lang] || 'JP');
+    document.querySelector('.lang-dropdown')?.classList.remove('open');
     updateUILanguage();
     if (currentPage) currentPage();
 }
@@ -248,6 +252,10 @@ function closeSuccessModal() {
 
 // モーダル背景クリックで閉じる
 document.addEventListener('click', function(e) {
+    // 言語ドロップダウン外クリックで閉じる
+    if (!e.target.closest('.lang-dropdown')) {
+        document.querySelector('.lang-dropdown')?.classList.remove('open');
+    }
     if (!e.target.classList.contains('modal-overlay') && !e.target.classList.contains('modal-overlay-success')) return;
     const map = {
         'can-reasons-modal': 'cancelCanReasons',
