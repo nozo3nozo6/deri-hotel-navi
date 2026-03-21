@@ -166,9 +166,17 @@ async function hybridSearch(keyword, limit) {
 
     if (!mergedIds.length) return null;
     const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), limit: lim });
-    // 検索関連度順を維持（APIはreview_average順で返すため再ソート）
-    const idOrder = new Map(mergedIds.map((id, i) => [id, i]));
-    hotels.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
+    // キーワード一致度でソート（完全一致 > 先頭一致 > 部分一致 > それ以外）
+    const kw = keyword.toLowerCase();
+    hotels.sort((a, b) => {
+        const na = (a.name || '').toLowerCase(), nb = (b.name || '').toLowerCase();
+        const scoreA = na === kw ? 0 : na.startsWith(kw) ? 1 : na.includes(kw) ? 2 : 3;
+        const scoreB = nb === kw ? 0 : nb.startsWith(kw) ? 1 : nb.includes(kw) ? 2 : 3;
+        if (scoreA !== scoreB) return scoreA - scoreB;
+        // 同スコアならマージ順（Pagefind/Fuse.js関連度）を維持
+        const idOrder = new Map(mergedIds.map((id, i) => [id, i]));
+        return (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999);
+    });
     return hotels;
 }
 
