@@ -428,11 +428,8 @@ async function loadLovehoForCurrentCity() {
 // ==========================================================================
 // ラブホカードレンダリング
 // ==========================================================================
-function lhStarsHTML(rating) {
-    if (!rating) return '';
-    let html = '';
-    for (let i = 1; i <= 5; i++) html += i <= Math.round(rating) ? '<span style="color:#c9a96e;">★</span>' : '<span style="color:#ccc;">★</span>';
-    return html;
+function lhStarsHTML() {
+    return '';
 }
 
 function renderLovehoCards(hotels, showDistance = false) {
@@ -453,13 +450,6 @@ function renderLovehoCards(hotels, showDistance = false) {
 function buildLovehoCardHTML(h, i, showDist) {
     const s = h.lhSummary;
     const reviewCount = s ? s.count : 0;
-    const avgRec = s && s.count ? s.recommendation_sum / s.count : 0;
-    const avgClean = s && s.count ? s.cleanliness_sum / s.count : 0;
-    const starsRow = avgRec > 0
-        ? `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;font-size:12px;color:var(--text-2,#6a5a4a);">
-            <span>おすすめ ${lhStarsHTML(avgRec)} ${avgRec.toFixed(1)}</span>
-            ${avgClean > 0 ? `<span>清潔感 ${avgClean.toFixed(1)}</span>` : ''}
-          </div>` : '';
     const reviewBadge = reviewCount > 0 ? `<span class="review-count-badge">💬 ${reviewCount}件</span>` : '';
     const distHTML = showDist && h.distance != null ? `<div class="hotel-distance-badge">📍 ${h.distance < 1 ? Math.round(h.distance * 1000) + 'm' : h.distance.toFixed(1) + 'km'}</div>` : '';
     return `
@@ -473,7 +463,6 @@ function buildLovehoCardHTML(h, i, showDist) {
             <div class="hotel-info-row"><span class="hotel-info-icon">📍</span><span class="hotel-info-text">${esc(h.address || '')}</span></div>
             ${h.nearest_station ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>` : ''}
             ${h.tel ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">📞 ${esc(h.tel)}</div>` : ''}
-            ${starsRow}
             <div class="hotel-card-footer card-footer">
                 <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-primary">✨ 口コミを見る${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
                 <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-secondary">📝 口コミを投稿</button>
@@ -776,9 +765,6 @@ function renderLovehoDetail(hotel, reports) {
                 </select>
             </div>
             ${LH_MASTER.atmospheres.length ? `<div class="lh-form-row"><label class="lh-form-label">雰囲気</label><select onchange="lhFormState.atmosphere=this.value" class="lh-form-select">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
-            <div class="lh-form-row"><label class="lh-form-label">おすすめ度</label><div id="lh-star-recommendation" class="lh-star-row">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('recommendation',${n})">★</span>`).join('')}</div></div>
-            <div class="lh-form-row"><label class="lh-form-label">清潔感</label><div id="lh-star-cleanliness" class="lh-star-row">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cleanliness',${n})">★</span>`).join('')}</div></div>
-            <div class="lh-form-row"><label class="lh-form-label">コスパ</label><div id="lh-star-cost_performance" class="lh-star-row">${[1,2,3,4,5].map(n => `<span onclick="lhSetStar('cost_performance',${n})">★</span>`).join('')}</div></div>
             ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
                 const categories = ['設備・お部屋', 'サービス・利便性'];
                 const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
@@ -806,7 +792,7 @@ function renderLovehoDetail(hotel, reports) {
 
     renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });
 
-    lhFormState = { solo_entry: '', atmosphere: '', recommendation: 0, cleanliness: 0, cost_performance: 0, time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
 }
 
 function setResultStatus(count) {

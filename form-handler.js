@@ -474,12 +474,6 @@ async function doSubmitReport() {
 // ==========================================================================
 // ラブホ投稿
 // ==========================================================================
-function lhSetStar(field, value) {
-    lhFormState[field] = value;
-    const container = document.getElementById('lh-star-' + field);
-    if (!container) return;
-    container.querySelectorAll('span').forEach((s, i) => { s.style.color = i < value ? '#c9a96e' : '#ccc'; });
-}
 
 function lhToggleGoodPoint(el, name) {
     const active = el.dataset.active === '1';
@@ -516,7 +510,7 @@ async function submitLovehoReport() {
         return;
     }
     const btn = document.getElementById('lh-submit-btn');
-    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.recommendation || lhFormState.cleanliness || lhFormState.cost_performance || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
+    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
 
     btn.disabled = true;
@@ -526,9 +520,6 @@ async function submitLovehoReport() {
             hotel_id: currentHotelId,
             solo_entry: lhFormState.solo_entry || null,
             atmosphere: lhFormState.atmosphere || null,
-            recommendation: lhFormState.recommendation || null,
-            cleanliness: lhFormState.cleanliness || null,
-            cost_performance: lhFormState.cost_performance || null,
             good_points: lhFormState.good_points.length ? lhFormState.good_points : null,
             time_slot: lhFormState.time_slot || null,
             comment: lhFormState.comment ? lhFormState.comment.slice(0, 500) : null,

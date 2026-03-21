@@ -61,7 +61,7 @@ foreach ($stmt->fetchAll() as $row) {
 }
 
 // ── ラブホサマリー ──
-$stmt = $pdo->prepare("SELECT hotel_id, recommendation, cleanliness, cost_performance, created_at FROM loveho_reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 ORDER BY created_at DESC");
+$stmt = $pdo->prepare("SELECT hotel_id, created_at FROM loveho_reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 ORDER BY created_at DESC");
 $stmt->execute($hotelIds);
 $lovehoSummaries = [];
 foreach ($stmt->fetchAll() as $row) {
@@ -69,16 +69,10 @@ foreach ($stmt->fetchAll() as $row) {
     if (!isset($lovehoSummaries[$hid])) {
         $lovehoSummaries[$hid] = [
             'count' => 0,
-            'recommendation_sum' => 0,
-            'cleanliness_sum' => 0,
-            'cp_sum' => 0,
             'latestAt' => $row['created_at'],
         ];
     }
     $lovehoSummaries[$hid]['count']++;
-    $lovehoSummaries[$hid]['recommendation_sum'] += (int)($row['recommendation'] ?? 0);
-    $lovehoSummaries[$hid]['cleanliness_sum'] += (int)($row['cleanliness'] ?? 0);
-    $lovehoSummaries[$hid]['cp_sum'] += (int)($row['cost_performance'] ?? 0);
 }
 
 echo json_encode([

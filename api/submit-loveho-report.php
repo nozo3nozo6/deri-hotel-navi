@@ -47,15 +47,12 @@ $comment = $input['comment'] ?? null;
 if ($comment) $comment = mb_substr(trim($comment), 0, 500);
 
 $id = DB::uuid();
-$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, recommendation, cleanliness, cost_performance, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, gender_mode, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, gender_mode, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 $stmt->execute([
     $id,
     $hotelId,
     $input['solo_entry'] ?? null,
     $input['atmosphere'] ?? null,
-    isset($input['recommendation']) ? (int)$input['recommendation'] : null,
-    isset($input['cleanliness']) ? (int)$input['cleanliness'] : null,
-    isset($input['cost_performance']) ? (int)$input['cost_performance'] : null,
     DB::jsonEncode($input['good_points'] ?? null),
     $input['time_slot'] ?? null,
     $comment,
