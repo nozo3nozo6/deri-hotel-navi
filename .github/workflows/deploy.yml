@@ -54,6 +54,14 @@ jobs:
             cp ../favicon.svg ../$sub/favicon.svg
           done
 
+      - name: Auto cache buster
+        run: |
+          HASH=$(git rev-parse --short HEAD)
+          echo "Cache buster: $HASH"
+          sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal.html
+          sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal-men.html portal-women.html portal-men-same.html portal-women-same.html
+          sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" shop-admin.html admin.html 2>/dev/null || true
+
       - name: Generate sitemap.xml
         run: node generate-sitemap.js
 
