@@ -982,8 +982,10 @@ function fetchHotelsFromSearch() {
     document.getElementById('search-clear-btn').style.display = keyword ? 'block' : 'none';
 
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => { // 500ms debounce（日本語入力の変換中に発火しないよう）
-        if (keyword.length < 2) return;
+    if (keyword.length < 3) return; // 3文字未満は検索しない
+    searchTimeout = setTimeout(async () => {
+        // キーボードを閉じる（スマホ）
+        document.getElementById('keyword')?.blur();
         showLoading();
         showSkeletonLoader();
         setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `「${keyword}」の検索結果` }]);
@@ -991,6 +993,7 @@ function fetchHotelsFromSearch() {
         setBackBtn(true);
         pageStack.push(showJapanPage);
         document.getElementById('area-button-container').innerHTML = '';
+        window.scrollTo(0, 0);
 
         try {
             // ハイブリッド検索（Pagefind+Fuse.js）、フォールバック: PHP API
@@ -1005,7 +1008,7 @@ function fetchHotelsFromSearch() {
         } finally {
             hideLoading();
         }
-    }, 500);
+    }, 800);
 }
 
 function clearSearch() {
