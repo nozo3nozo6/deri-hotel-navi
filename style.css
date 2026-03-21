@@ -1282,18 +1282,6 @@ body[data-mode="men"] .header-title {
 }
 
 /* 駅名横の参考料金（インライン） */
-.hotel-price-inline {
-    margin-left: auto;
-    flex-shrink: 0;
-    font-size: 0.75rem;
-    color: var(--accent-dim);
-    font-weight: 600;
-    white-space: nowrap;
-    padding: 2px 8px;
-    background: var(--accent-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-}
 
 /* ==========================================================================
    ホテル詳細パネル（SPA統合）
@@ -2300,7 +2288,6 @@ body[data-mode="men"] .header-title {
 .detail-title { font-size:23px;font-weight:600;color:#1a1410 !important;line-height:1.4;margin:0;padding:0;flex:1;min-width:0; }
 .detail-title a { color:inherit;text-decoration:none; }
 .detail-title a:hover { text-decoration:underline; }
-.detail-min-charge { font-size:13px;font-weight:600;color:var(--accent-dim);white-space:nowrap;flex-shrink:0; }
 .detail-info-inner { display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px; }
 .detail-info-addr { font-size:13px;color:var(--text-2);line-height:1.5;flex:1; }
 .detail-info-addr a { color:inherit;text-decoration:none; }

@@ -11,7 +11,7 @@ $outDir = $root . '/hotel-data';
 
 if (!is_dir($outDir)) mkdir($outDir, 0755, true);
 
-$cols = 'id, name, address, prefecture, city, major_area, detail_area, hotel_type, source, review_average, min_charge, nearest_station, postal_code, tel, latitude, longitude';
+$cols = 'id, name, address, prefecture, city, major_area, detail_area, hotel_type, source, review_average, nearest_station, postal_code, tel, latitude, longitude';
 $stmt = $pdo->query("SELECT $cols FROM hotels WHERE is_published = 1 ORDER BY prefecture, id");
 $allHotels = $stmt->fetchAll();
 
@@ -40,7 +40,6 @@ foreach ($byPref as $pref => $hotels) {
         // Cast numeric types
         $h['id'] = (int)$h['id'];
         if ($h['review_average'] !== null) $h['review_average'] = (float)$h['review_average'];
-        if ($h['min_charge'] !== null) $h['min_charge'] = (int)$h['min_charge'];
         if ($h['latitude'] !== null) $h['latitude'] = (float)$h['latitude'];
         if ($h['longitude'] !== null) $h['longitude'] = (float)$h['longitude'];
         $records[] = $h;

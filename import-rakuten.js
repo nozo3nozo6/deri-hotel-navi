@@ -194,7 +194,7 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
                     'detail_area', 'detail_area_code',
                     'latitude', 'longitude',
                     'thumbnail_url', 'hotel_url', 'nearest_station', 'image_url',
-                    'review_average', 'min_charge'
+                    'review_average'
                 ];
                 const vals = [
                     String(info.hotelNo), info.hotelName, address, info.telephoneNo, info.postalCode,
@@ -202,8 +202,7 @@ async function fetchAndSave(region, prefecture, prefCode, majorArea, cityCode, d
                     detailName || null, detailCode || null,
                     parseFloat(info.latitude), parseFloat(info.longitude),
                     info.hotelThumbnailUrl, info.hotelInformationUrl, info.nearestStation, info.hotelImageUrl,
-                    info.reviewAverage ? parseFloat(info.reviewAverage) : null,
-                    info.hotelMinCharge ? parseInt(info.hotelMinCharge) : null
+                    info.reviewAverage ? parseFloat(info.reviewAverage) : null
                 ];
 
                 if (newHotelType !== null) {

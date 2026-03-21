@@ -1285,12 +1285,9 @@ function buildCardHTML(h, i, showDistance) {
 
         const reviewCount = getReportCount(h);
 
-        const priceInline = h.min_charge
-            ? `<span class="hotel-price-inline">最安値 ¥${parseInt(h.min_charge).toLocaleString()}~</span>`
-            : '';
         const stationHTML = h.nearest_station
-            ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span>${priceInline}</div>`
-            : (priceInline ? `<div class="hotel-info-row">${priceInline}</div>` : '');
+            ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>`
+            : '';
 
 
         const distHTML = showDistance && h.distance != null
@@ -1526,7 +1523,6 @@ function renderDetailPage(hotel, isLoveho, sections) {
                     ${esc(hotel.name)} ${isLoveho ? '<span style="font-size:14px;">🏩</span>' : ''} <span style="font-size:12px;color:#999;">🔍</span>
                 </a>
             </h2>
-            ${!isLoveho && hotel.min_charge ? '<span class="detail-min-charge">最安値 ¥' + parseInt(hotel.min_charge).toLocaleString() + '~</span>' : ''}
         </div>
         <div class="detail-info-box">
             <div class="detail-info-inner">
