@@ -6,10 +6,13 @@
 - Frontend: Vanilla JS (5モジュール), HTML 9ページ — 全ページSupabase依存ゼロ（PHP API経由）
 - DB: MySQL (MariaDB) on シンレンタルサーバー — 全PHP APIがdb.php経由で接続
 - Data: 静的JSON（area-data.json, master-data.json, hotel-data/） + PHP API
-- Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via rsync over SSH (port 10022)
-- Hotel data: Rakuten Travel API (43,580件), Yahoo!ローカルサーチAPI
+- Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via rsync over SSH (port 10022)、pushで自動デプロイ
+- Hotel data: 43,580件（元: Rakuten Travel API + Yahoo!ローカルサーチAPI、source統一済み→imported/manual）
+- Search: Pagefind + Fuse.js（Web Worker）ハイブリッド検索
+- CDN: Cloudflare Free（SSL Full）
 - Map: Leaflet + OpenStreetMap
 - Geocoding: Nominatim (OpenStreetMap)
+- Monitoring: UptimeRobot（5分間隔）
 
 ## DB
 - MySQL (MariaDB): シンレンタルサーバー上、api/db-config.phpで接続情報定義（deploy.ymlでGitHub Secretsから生成）
@@ -26,11 +29,13 @@ deri-hotel-navi/
 ├── shop-admin.html           店舗管理画面
 ├── legal.html / terms.html / privacy.html / contact.html  法的ページ
 │
-├── api-service.js            Supabase初期化、API呼び出し、マスタデータ
+├── api-service.js            API呼び出し、マスタデータ、AppState
 ├── ui-utils.js               Toast、モーダル、i18n（日英中韓）、extractCity()
 ├── area-navigation.js        エリアナビ、REGION_MAP、URL状態管理
 ├── hotel-search.js           ホテル検索/表示、ラブホタブ、地図、GPS検索
 ├── form-handler.js           投稿フォーム、フラグ報告、掲載リクエスト
+├── portal-init.js            ポータル初期化、イベント委譲
+├── fuse-worker.js            Fuse.js Web Worker（メインスレッド非ブロック検索）
 ├── style.css                 全スタイル（テーマ変数、レスポンシブ）
 │
 ├── api/
@@ -63,26 +68,25 @@ deri-hotel-navi/
 │   ├── reports_add_shop_id.sql   reports拡張
 │   └── ad_banner_columns.sql     広告バナー
 │
-├── import-rakuten.js         楽天ホテルインポート（MySQL、db-local.js経由）
-├── update-detail-area.js     詳細エリア更新（MySQL、db-local.js経由）
 ├── generate-sitemap.js       サイトマップ生成
-├── db-local.js               ローカルMySQL接続ヘルパー（SSHトンネル経由）
-├── area-data.json            エリアナビ事前計算データ（generate-area-data.jsで生成）
-├── master-data.json          マスタデータ（generate-master-data.jsで生成、2.7KB）
-├── hotel-data/               都道府県別ホテルJSON（generate-hotel-data.jsで生成、17MB）
-├── generate-search-index.js  Fuse.js用検索インデックス生成（hotel-data/→search-index.json）
+├── generate-search-index.js  Fuse.js用検索インデックス生成
 ├── generate-pagefind-index.mjs  Pagefindインデックス生成（pagefind-data.json→pagefind/）
+├── db-local.js               ローカルMySQL接続ヘルパー（SSHトンネル経由）
+├── area-data.json            エリアナビ事前計算データ（PHP APIで生成）
+├── master-data.json          マスタデータ（PHP APIで生成、2.7KB）
+├── hotel-data/               都道府県別ホテルJSON（PHP APIで生成、17MB）
 ├── search-index.json         Fuse.js検索インデックス（6.5MB raw, 1.4MB gzip）
 ├── pagefind-data.json        Pagefind用データ（generate-pagefind-data.phpで生成）
 ├── pagefind/                 Pagefindインデックス（generate-pagefind-index.mjsで生成）
-├── scripts/
-│   └── import-yahoo-hotels.js Yahoo!ホテルインポート
 │
-├── astro-src/src/pages/       サブドメインLPのソース（Astro SSGでビルド）
+├── astro-src/src/pages/       サブドメインLP + ガイドページのソース（Astro SSGでビルド）
 │   ├── deli/index.astro      デリヘル専用LP → portal.html?mode=men
 │   ├── jofu/index.astro      女風専用LP → portal.html?mode=women
 │   ├── same/index.astro      同性利用専用LP → portal.html?mode=men_same
-│   └── loveho/index.astro    ラブホLP → portal.html
+│   ├── loveho/index.astro    ラブホLP → portal.html
+│   ├── guide/deli-hotel.astro   デリヘルホテルガイド
+│   ├── guide/jofu-hotel.astro   女風ホテルガイド
+│   └── guide/lgbt-hotel.astro   LGBTホテルガイド
 │   ※ ビルド後 dist/*.html → サーバーの *.yobuho.com/index.html にデプロイ
 │
 ├── .github/workflows/deploy.yml  GitHub Actions デプロイ
@@ -107,7 +111,7 @@ deri-hotel-navi/
 - 投稿報告（フラグ）機能
 - 掲載リクエストモーダル
 - 店舗広告表示（エリア別、プラン別）
-- キャッシュバスター: style.css?v=13, portal-init.js?v=2, api-service.js?v=16, ui-utils.js?v=9, area-navigation.js?v=12, hotel-search.js?v=45, form-handler.js?v=7
+- キャッシュバスター: deploy.ymlでgitハッシュに自動置換（手動更新不要）
 - サブドメイン方針: 全サブドメイン（deli/jofu/same/loveho）はランディングページ方式（HTMLのみ、JS不要）。検索・投稿は全てportal.htmlに集約
 
 ### admin.html — 管理画面（Supabase依存ゼロ）
@@ -116,7 +120,7 @@ deri-hotel-navi/
 - ダッシュボード（統計、未対応タスクカード）
 - 投稿管理（reports + loveho_reports統合、フラグ対応、編集/非表示/削除）
 - 店舗管理（審査、プラン、ステータス管理）
-- ホテル編集（地方→都道府県→市区町村カスケード、住所検索、ソースフィルタ: rakuten/yahoo/manual）
+- ホテル編集（地方→都道府県→市区町村カスケード、住所検索、ソースフィルタ: imported/manual）
 - 掲載リクエスト管理（確認済/削除→admin-api.php経由）
 - 広告配置管理（バナー画像対応）
 - 営業メール送信
@@ -159,7 +163,7 @@ deri-hotel-navi/
 ## Tables
 
 ### hotels (43,580件)
-id, name, address, prefecture, city, major_area, detail_area, hotel_type, source (rakuten/yahoo/manual), review_average, min_charge, nearest_station, postal_code, tel, latitude, longitude, is_published, is_edited, created_at, updated_at
+id, name, address, prefecture, city, major_area, detail_area, hotel_type, source (imported/manual), review_average, nearest_station, postal_code, tel, latitude, longitude, is_published, is_edited, created_at, updated_at
 
 ### reports
 id(UUID), hotel_id, can_call, poster_type(user/shop), poster_name, shop_id, can_call_reasons[], cannot_call_reasons[], time_slot, room_type, comment, multi_person, guest_male, guest_female, gender_mode, fingerprint, ip_hash, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
@@ -582,6 +586,45 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - PC: target="_blank"（従来通り新タブ）
 - hotel-search.jsの全7箇所の外部リンクに適用
 
+### 2026年3月22日 — CI/CD復旧・データクリーンアップ・インフラプロ仕様化・SEO・UI
+
+#### CI/CD復旧
+- SSH鍵: パスフレーズなしed25519に再生成（旧鍵はチャット露出のため無効化・削除済み）
+- deploy.yml: ssh-agent方式→鍵ファイル直接指定に簡素化、actions v4→v5
+- GitHub Secrets追加: DB_HOST, DB_NAME, DB_USER, DB_PASS
+- SSH_PASSPHRASE削除（パスフレーズなし鍵のため不要）
+
+#### データクリーンアップ
+- min_charge（最安値）: DB全レコードNULL化 + コード全削除
+- 楽天/Yahoo API痕跡除去: source='rakuten'/'yahoo'→'imported'統一
+- 削除ファイル: import-rakuten.js, update-detail-area.js, scripts/import-yahoo-hotels.js, scripts/ディレクトリ
+- .env APIキー削除、axios依存削除
+- 住所正規化: 丁目/番地→ハイフン、全角数字→半角（3,159件）
+- ホテル名: ハピホテ提携244件、ラブホグループ名189件削除
+
+#### インフラプロ仕様化（7項目）
+1. push時自動デプロイ（on: push: branches: [main] + workflow_dispatch）
+2. キャッシュバスター自動化（gitハッシュで?v=自動置換）
+3. Fuse.js Web Worker化（fuse-worker.js、メインスレッド非ブロック）
+4. Cloudflare CDN導入（Free、SSL Full、NS変更済み）
+5. デプロイ後の自動キャッシュPurge（Cloudflare API）
+6. HTMLキャッシュ無効化 + JS/CSS/画像1年キャッシュ（.htaccess）
+7. UptimeRobot監視（5分間隔、メール通知）
+
+#### SEO改善
+- titleタグ・OGP・descriptionをキーワード最適化
+- ガイドページ3本追加（/guide/deli-hotel, jofu-hotel, lgbt-hotel）
+- GSCインデックス登録リクエスト12URL
+
+#### UI修正
+- パンくず: 44pxタッチターゲット除去（行間空き解消）
+- 言語ボタン: 4ボタン横並び→ドロップダウン化
+- スマホ検索: debounce 800ms、最低3文字、blur()、scrollTo(0,0)
+- サブドメインfavicon修正、CSPにCloudflare Insights許可
+
+#### 検索品質改善
+- hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
+
 ## Security
 - PHP認証: secure cookie (httponly, samesite=strict), 30分タイムアウト, 5回ロックアウト
 - パスワード: bcryptハッシュ（verify-password.php、レガシーBase64自動移行対応）
@@ -602,20 +645,22 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 
 ## Deploy
 - サーバー: sv6825.wpx.ne.jp (シンレンタルサーバー)
+- CDN: Cloudflare Free（SSL Full、NS: cosmin/galilea.ns.cloudflare.com）
 - パス: /home/yobuho/yobuho.com/public_html/
-- SSH: port 10022, key: ~/.ssh/yobuho_deploy
+- SSH: port 10022, key: ~/.ssh/yobuho_deploy（パスフレーズなし）
 - rsync: --deleteは絶対に使わない（サブドメインディレクトリが消える）
 - サブドメインDocRoot: /home/yobuho/yobuho.com/public_html/*.yobuho.com/（deli/jofu/same/loveho）
 - rsync --deleteでサブドメインが消えないよう --exclude='*.yobuho.com' 設定済み
-- GitHub Actions: .github/workflows/deploy.yml（手動トリガー、auth-config.phpをSecretsから生成、sitemap.xml自動生成、area-data.json自動生成）
-- GitHub Secrets必要: SSH_HOST, SSH_USERNAME, SSH_PRIVATE_KEY, SSH_PASSPHRASE, DB_HOST, DB_NAME, DB_USER, DB_PASS
+- rsync --excludeにサーバー生成ファイル追加（pagefind/, master-data.json, area-data.json, hotel-data/, search-index.json）
+- GitHub Actions: .github/workflows/deploy.yml（pushで自動デプロイ + 手動トリガー）
+- キャッシュバスター: gitハッシュで?v=自動置換（deploy.ymlのsedステップ）
+- キャッシュ: HTML=no-cache、JS/CSS/画像=1年（.htaccess）
+- デプロイ後Cloudflareキャッシュ自動Purge（CLOUDFLARE_ZONE_ID/API_TOKEN）
+- GitHub Secrets必要: SSH_HOST, SSH_USERNAME, SSH_PRIVATE_KEY, DB_HOST, DB_NAME, DB_USER, DB_PASS, CLOUDFLARE_ZONE_ID, CLOUDFLARE_API_TOKEN
 - Google Search Console: ドメインプロパティ登録済み（DNS TXTレコード認証）、サイトマップ送信済み
+- 監視: UptimeRobot（5分間隔、メール通知）
 
 ## Commands
-- Import Rakuten hotels: node import-rakuten.js
-- Import Yahoo hotels: node scripts/import-yahoo-hotels.js
-- Update city: node update_city.mjs
-- Update detail_area: node update-detail-area.js
 - Generate sitemap: node generate-sitemap.js（deploy.ymlで自動実行、&をXML用に&amp;エスケープ済み）
 - Generate area data: php api/generate-area-data.php（サーバー上で実行、deploy.ymlで自動実行）
 - Generate master data: php api/generate-master-data.php（サーバー上で実行、deploy.ymlで自動実行）
@@ -626,18 +671,20 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - ローカルからDB接続: SSHトンネル（ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N）+ db-local.js
 
 ## Dependencies (package.json)
-- pagefind: (devDependency) Pagefindインデックス生成
-- axios: ^1.13.5
 - dotenv: ^17.3.1
 - fuse.js: ^7.1.0
 - mysql2: ^3.20.0
+- pagefind: ^1.4.0 (devDependency) Pagefindインデックス生成
+- vitest: ^3.2.1 (devDependency) テスト
+- jsdom: ^26.1.0 (devDependency) vitest用DOM環境
 
 ## Astro SSG移行（2026-03-20）
 
-### Phase 1+2 完了（14ページ、768msビルド）
+### Phase 1+2 完了（14ページ + ガイド3ページ）
 - astro-src/ ディレクトリに全ファイル構築済み
 - Phase 1: index, legal, terms, privacy, contact, shop-register, deli, jofu, same, loveho（10ページ）
 - Phase 2: portal-men, portal-women, portal-men-same, portal-women-same（4ページ）
+- ガイドページ: guide/deli-hotel, guide/jofu-hotel, guide/lgbt-hotel（3ページ、SEOロングテール向け）
 - PortalLayout.astroでモード別meta/OG/title/JSON-LDをビルド時確定
 - 既存JS5モジュール + portal-init.js はそのままdefer読み込み
 - admin.html, shop-admin.htmlはAstro移行しない（認証系はVanilla JS維持）
@@ -660,7 +707,8 @@ astro-src/
 │       ├── shop-register.astro
 │       ├── deli/index.astro, jofu/index.astro, same/index.astro, loveho/index.astro
 │       ├── portal-men.astro, portal-women.astro
-│       └── portal-men-same.astro, portal-women-same.astro
+│       ├── portal-men-same.astro, portal-women-same.astro
+│       └── guide/deli-hotel.astro, jofu-hotel.astro, lgbt-hotel.astro
 └── public/ (favicon only)
 ```
 
@@ -698,8 +746,9 @@ astro-src/
   - フィルタ: deri/jofu/same_m/same_f = "OK"（呼べた実績あり）、loveho_report = "OK"
 - **Fuse.js**: 曖昧・部分一致検索（タイポ・略称に強い）
   - generate-search-index.php: search-index.json (6.5MB/1.4MB gzip)
-  - Fuse.js: CDN読み込み（cdn.jsdelivr.net）、threshold:0.3, ignoreLocation:true
-- **検索フロー**: hybridSearch() → Pagefind + Fuse.js 並列実行 → マージ（Pagefind優先）→ PHP APIで詳細取得
+  - Fuse.js: Web Worker（fuse-worker.js）でメインスレッド非ブロック
+  - CDN読み込み（cdn.jsdelivr.net）、threshold:0.3, ignoreLocation:true
+- **検索フロー**: hybridSearch() → Pagefind + Fuse.js(Worker) 並列実行 → マージ（Pagefind優先）→ キーワード一致度ソート（完全一致>先頭一致>部分一致>その他）→ PHP APIで詳細取得
 - **フォールバック**: 両方失敗時 → hotels.php LIKE検索（PHP API）
 - CSP: script-src に 'wasm-unsafe-eval' 追加
 - deploy.yml: PHP→pagefind-data.json生成 → SCP → Node→Pagefindインデックス生成 → rsync

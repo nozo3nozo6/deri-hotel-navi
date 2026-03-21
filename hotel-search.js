@@ -1298,12 +1298,12 @@ function buildCardHTML(h, i, showDistance) {
                 </div>
 
                 <!-- 住所・駅 -->
-                <div class="hotel-info-row" style="justify-content:space-between;">
+                <div class="hotel-info-row" style="justify-content:space-between;flex-wrap:wrap;">
                     <div style="display:flex;align-items:flex-start;gap:4px;flex:1;min-width:0;">
                         <span class="hotel-info-icon">📍</span>
                         <span class="hotel-info-text">${esc(h.address || '')}</span>
                     </div>
-                    ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;margin-left:8px;">📞 ' + esc(h.tel) + '</span>' : ''}
+                    ${h.tel ? '<span style="font-size:11px;color:var(--text-3);white-space:nowrap;margin-left:8px;">📞 ' + esc(h.tel) + '</span>' : ''}
                 </div>
                 ${stationHTML}
 
