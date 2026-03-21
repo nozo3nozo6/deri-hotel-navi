@@ -21,23 +21,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Setup SSH agent with passphrase
-        env:
-          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+      - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          eval $(ssh-agent -s)
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
-          echo "$SSH_KEY" | tr -d '\r' > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          head -1 /tmp/deploy_key
-          tail -1 /tmp/deploy_key
-          wc -c /tmp/deploy_key
-          ssh-keygen -p -P "$SSH_PASSPHRASE" -N "" -f /tmp/deploy_key
-          ssh-add /tmp/deploy_key
-          rm /tmp/deploy_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p $SSH_PORT $REMOTE_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Install dependencies (root)
@@ -86,12 +74,12 @@ jobs:
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' \
             --exclude='db-local.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
-            -e "ssh -p $SSH_PORT" \
+            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
             ./ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
 
       - name: Generate static JSON + Pagefind data on server
         run: |
-          ssh -p $SSH_PORT $REMOTE_USER@$REMOTE_HOST "
+          ssh -p $SSH_PORT -i ~/.ssh/deploy_key $REMOTE_USER@$REMOTE_HOST "
             cd $REMOTE_PATH
             php api/generate-master-data.php
             php api/generate-area-data.php
@@ -101,7 +89,7 @@ jobs:
           "
 
       - name: Download pagefind-data.json from server
-        run: scp -P $SSH_PORT $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/pagefind-data.json ./pagefind-data.json
+        run: scp -P $SSH_PORT -i ~/.ssh/deploy_key $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/pagefind-data.json ./pagefind-data.json
 
       - name: Build Pagefind index
         run: node generate-pagefind-index.mjs
@@ -109,10 +97,9 @@ jobs:
       - name: Upload Pagefind index to server
         run: |
           rsync -avz --delete \
-            -e "ssh -p $SSH_PORT" \
+            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
             ./pagefind/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/pagefind/
 
-      - name: Cleanup SSH agent
+      - name: Cleanup SSH key
         if: always()
-        run: |
-          ssh-agent -k 2>/dev/null || true
+        run: rm -f ~/.ssh/deploy_key
