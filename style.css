@@ -454,15 +454,15 @@ body[data-mode="men_same"] {
 
 .breadcrumb {
     display: flex;
-    align-items: center;
-    gap: 2px;
-    margin-bottom: 12px;
+    align-items: baseline;
+    gap: 0;
+    margin-bottom: 8px;
     flex-wrap: wrap;
-    line-height: 1.4;
+    line-height: 1.6;
 }
-.breadcrumb-item { font-size: 0.75rem; color: var(--text-3); }
+.breadcrumb-item { font-size: 0.75rem; color: var(--text-3); white-space: nowrap; }
 .breadcrumb-item.active { color: var(--accent); font-weight: 500; }
-.breadcrumb-sep { color: var(--text-3); font-size: 0.75rem; margin: 0 1px; }
+.breadcrumb-sep { color: var(--text-3); font-size: 0.75rem; margin: 0 2px; }
 
 .area-header {
     display: flex;
