@@ -32,7 +32,13 @@ jobs:
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
           echo "$SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-          echo "$SSH_PASSPHRASE" | SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=/bin/cat setsid ssh-add /tmp/deploy_key
+          sudo apt-get -qq install -y expect > /dev/null 2>&1
+          expect <<EXPECT
+            spawn ssh-add /tmp/deploy_key
+            expect "Enter passphrase"
+            send "$SSH_PASSPHRASE\r"
+            expect { eof }
+          EXPECT
           rm /tmp/deploy_key
           ssh-keyscan -p $SSH_PORT $REMOTE_HOST >> ~/.ssh/known_hosts 2>/dev/null
 
