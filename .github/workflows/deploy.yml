@@ -46,10 +46,10 @@ jobs:
           mkdir -p api
           printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > api/db-config.php
 
-      - name: Deploy via rsync over SSH (Phase 1: code)
+      - name: "Deploy via rsync over SSH (Phase 1: code)"
         uses: burnett01/rsync-deployments@7.0.1
         with:
-          switches: -avz --delete --exclude='.git*' --exclude='node_modules' --exclude='.github' --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' --exclude='analysis-report.html' --exclude='fix-report*.html' --exclude='fix-rls-policies.sql' --exclude='ogp.svg' --exclude='generate-*.js' --exclude='generate-*.mjs' --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' --exclude='astro-src' --exclude='.env' --exclude='.env.example' --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='db-local.js' --exclude='.eslintrc.json' --exclude='handover-*.md' --exclude='pagefind-data.json'
+          switches: "-avz --delete --exclude=.git* --exclude=node_modules --exclude=.github --exclude=sql --exclude=CLAUDE.md --exclude=progress.md --exclude=package*.json --exclude=*.bak --exclude=*.bak.old --exclude=analysis-report.html --exclude=fix-report*.html --exclude=fix-rls-policies.sql --exclude=ogp.svg --exclude=generate-*.js --exclude=generate-*.mjs --exclude=update-*.js --exclude=import-*.js --exclude=scripts --exclude=astro-src --exclude=.env --exclude=.env.example --exclude=deli.yobuho.com --exclude=jofu.yobuho.com --exclude=same.yobuho.com --exclude=loveho.yobuho.com --exclude=db-local.js --exclude=.eslintrc.json --exclude=handover-*.md --exclude=pagefind-data.json"
           path: ./
           remote_path: /home/yobuho/yobuho.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
