@@ -2109,8 +2109,6 @@ body[data-mode="men"] .header-title {
 /* ==========================================================================
    Touch target minimum 44px (WCAG 2.5.8)
    ========================================================================== */
-.lang-btn,
-.breadcrumb-item,
 .filter-chip {
     min-height: 44px;
     min-width: 44px;
@@ -2131,8 +2129,6 @@ body[data-mode="men"] .header-title {
    ========================================================================== */
 .area-btn,
 .hotel-card-lux,
-.lang-btn,
-.breadcrumb-item,
 .filter-chip,
 .modal-overlay button,
 .hotel-card-footer button {
