@@ -90,6 +90,9 @@ jobs:
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' \
             --exclude='db-local.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
+            --exclude='pagefind' --exclude='master-data.json' \
+            --exclude='area-data.json' --exclude='hotel-data' \
+            --exclude='search-index.json' \
             -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
             ./ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
 
