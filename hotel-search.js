@@ -351,7 +351,7 @@ function hideLovehoTabs() {
 async function switchTab(tab) {
     currentTab = tab;
 
-    document.querySelectorAll('#hotel-loveho-tabs .hotel-tab').forEach(t => {
+    document.querySelectorAll('#hotel-loveho-tabs .hotel-tab, #hotel-loveho-tabs-bottom .hotel-tab').forEach(t => {
         if (t.dataset.tab === tab) {
             t.style.fontWeight = 'bold';
             t.style.borderBottomColor = tab === 'loveho' ? '#c9a96e' : 'var(--accent,#b5627a)';
@@ -991,25 +991,64 @@ async function ensureLeaflet() {
     });
 }
 
+function syncTabState(source) {
+    // 上下タブの見た目を同期
+    const other = source.id === 'hotel-loveho-tabs' ? document.getElementById('hotel-loveho-tabs-bottom') : document.getElementById('hotel-loveho-tabs');
+    if (!other) return;
+    other.querySelectorAll('[data-tab]').forEach(btn => {
+        const src = source.querySelector(`[data-tab="${btn.dataset.tab}"]`);
+        if (src) { btn.className = src.className; }
+    });
+    // 地図/リストボタンも同期
+    const srcMap = source.querySelector('.btn-map-toggle');
+    const otherMap = other.querySelector('.btn-map-toggle');
+    if (srcMap && otherMap) {
+        otherMap.className = srcMap.className;
+        otherMap.querySelector('.btn-location-icon').textContent = srcMap.querySelector('.btn-location-icon').textContent;
+        otherMap.querySelector('.btn-location-label').textContent = srcMap.querySelector('.btn-location-label').textContent;
+    }
+}
+
 async function toggleMapView() {
     const mapEl = document.getElementById('hotel-map');
     const btn = document.getElementById('btn-map-toggle');
     const tabs = document.getElementById('hotel-loveho-tabs');
-    const iconEl = btn.querySelector('.btn-location-icon');
-    const labelEl = btn.querySelector('.btn-location-label');
     if (mapEl.style.display === 'none') {
         mapEl.style.display = 'block';
-        if (iconEl) iconEl.textContent = '📋';
-        if (labelEl) labelEl.textContent = 'リストで見る';
-        btn.classList.add('active');
+        // 上下両方のボタンを更新
+        document.querySelectorAll('.btn-map-toggle').forEach(b => {
+            const i = b.querySelector('.btn-location-icon'); if (i) i.textContent = '📋';
+            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = 'リストで見る';
+            b.classList.add('active');
+        });
         // タブを地図の直前に移動
         if (tabs) mapEl.parentNode.insertBefore(tabs, mapEl);
+        // 下側タブを地図の直後に追加
+        let bottomTabs = document.getElementById('hotel-loveho-tabs-bottom');
+        if (!bottomTabs) {
+            bottomTabs = tabs.cloneNode(true);
+            bottomTabs.id = 'hotel-loveho-tabs-bottom';
+            // クローンのボタンにもイベントを設定
+            bottomTabs.querySelectorAll('[data-tab]').forEach(b => {
+                b.onclick = () => { switchTab(b.dataset.tab); syncTabState(bottomTabs); };
+            });
+            const mapBtn = bottomTabs.querySelector('.btn-map-toggle');
+            if (mapBtn) { mapBtn.id = ''; mapBtn.onclick = () => { toggleMapView(); }; }
+        }
+        mapEl.parentNode.insertBefore(bottomTabs, mapEl.nextSibling);
+        bottomTabs.style.display = 'flex';
         await showMap();
     } else {
         mapEl.style.display = 'none';
-        if (iconEl) iconEl.textContent = '🗺️';
-        if (labelEl) labelEl.textContent = '地図で見る';
-        btn.classList.remove('active');
+        // 上下両方のボタンを更新
+        document.querySelectorAll('.btn-map-toggle').forEach(b => {
+            const i = b.querySelector('.btn-location-icon'); if (i) i.textContent = '🗺️';
+            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = '地図で見る';
+            b.classList.remove('active');
+        });
+        // 下側タブを非表示
+        const bottomTabs = document.getElementById('hotel-loveho-tabs-bottom');
+        if (bottomTabs) bottomTabs.style.display = 'none';
         // タブをホテルリストの直前に戻す
         const hotelList = document.getElementById('hotel-list');
         if (tabs && hotelList) hotelList.parentNode.insertBefore(tabs, hotelList);
