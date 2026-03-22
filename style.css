@@ -2199,7 +2199,7 @@ body[data-mode="men"] .header-title {
 .info-link-pill { color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap; }
 
 /* スクロール枠 */
-.scrollable-reviews { max-height:700px;overflow-y:auto;padding-right:4px; }
+.scrollable-reviews { max-height:400px;overflow-y:auto;padding-right:4px; }
 
 /* ローディング/エラー */
 .detail-loading { text-align:center;padding:60px;color:var(--text-3); }
