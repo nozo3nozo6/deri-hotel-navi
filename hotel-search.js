@@ -994,6 +994,7 @@ async function ensureLeaflet() {
 async function toggleMapView() {
     const mapEl = document.getElementById('hotel-map');
     const btn = document.getElementById('btn-map-toggle');
+    const tabs = document.getElementById('hotel-loveho-tabs');
     const iconEl = btn.querySelector('.btn-location-icon');
     const labelEl = btn.querySelector('.btn-location-label');
     if (mapEl.style.display === 'none') {
@@ -1001,12 +1002,17 @@ async function toggleMapView() {
         if (iconEl) iconEl.textContent = '📋';
         if (labelEl) labelEl.textContent = 'リストで見る';
         btn.classList.add('active');
+        // タブを地図の直前に移動
+        if (tabs) mapEl.parentNode.insertBefore(tabs, mapEl);
         await showMap();
     } else {
         mapEl.style.display = 'none';
         if (iconEl) iconEl.textContent = '🗺️';
         if (labelEl) labelEl.textContent = '地図で見る';
         btn.classList.remove('active');
+        // タブをホテルリストの直前に戻す
+        const hotelList = document.getElementById('hotel-list');
+        if (tabs && hotelList) hotelList.parentNode.insertBefore(tabs, hotelList);
     }
 }
 
