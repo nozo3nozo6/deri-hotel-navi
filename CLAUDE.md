@@ -169,7 +169,8 @@ id, name, address, prefecture, city, major_area, detail_area, hotel_type, source
 id(UUID), hotel_id, can_call, poster_type(user/shop), poster_name, shop_id, can_call_reasons[], cannot_call_reasons[], time_slot, room_type, comment, multi_person, guest_male, guest_female, gender_mode, fingerprint, ip_hash, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
 
 ### loveho_reports
-id(UUID), hotel_id, solo_entry(yes/no/together/lobby/unknown), atmosphere, recommendation, cleanliness, cost_performance, good_points[], time_slot, comment, poster_name, multi_person, guest_male, guest_female, gender_mode, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
+id(UUID), hotel_id, solo_entry(yes/no/together/lobby/unknown), atmosphere, good_points[], time_slot, comment, poster_name, multi_person, guest_male, guest_female, gender_mode, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
+※ recommendation, cleanliness, cost_performance カラムはDB上残存するがUI非表示・新規投稿でnull固定
 
 ### shops
 id(UUID), email, auth_user_id, shop_name, gender_mode, shop_url, shop_tel, phone, website_url, document_url, thumbnail_url, area, prefecture, status(email_pending/registered/active/suspended/revision_required/rejected/deleted), plan_id, contract_status, password_hash, slug, denial_reason, approved_at, deleted_at, last_login_ip_hash, created_at, updated_at
