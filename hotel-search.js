@@ -1031,7 +1031,10 @@ async function showMap() {
             touchZoom: true,
             doubleClickZoom: true,
             dragging: true,
-            bounceAtZoomLimits: true
+            bounceAtZoomLimits: true,
+            scrollWheelZoom: true,
+            wheelDebounceTime: 100,
+            wheelPxPerZoomLevel: 120
         }).setView([35.6762, 139.6503], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
