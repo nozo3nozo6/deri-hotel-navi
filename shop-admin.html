@@ -1654,11 +1654,11 @@ async function lhSubmitReport(){
         const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(apiPayload)});
         const result=await res.json();
         if(!result.success)throw new Error(result.error||'不明なエラー');
-        toast("口コミを保存しました！");
         if(!registeredHotelIds.has(String(lhSelectedHotelId)))registeredHotelIds.add(String(lhSelectedHotelId));
         document.getElementById("lh-form-card").style.display="none";
         lhSelectedHotelId=null;
         if(_editModal)closeEditModal();
+        showSuccessModal('投稿完了！', '口コミが投稿されました。');
     }catch(e){
         toast("投稿エラー: "+e.message);
     }finally{
@@ -1705,7 +1705,7 @@ async function saHreqSubmit(){
   try{const res=await fetch('https://yobuho.com/api/submit-hotel-request.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const r=await res.json();btn.disabled=false;btn.textContent='送信する';if(!r.success){toast('送信エラー: '+(r.error||'不明'));return;}}catch(e){btn.disabled=false;btn.textContent='送信する';toast('通信エラー');return;}
   document.getElementById('sa-hreq-step2').style.display='none';
   document.getElementById('sa-hreq-done').style.display='';
-  toast('ホテル情報を送信しました');
+  showSuccessModal('送信完了！', 'ホテル情報を送信しました。');
 }
 </script>
 
