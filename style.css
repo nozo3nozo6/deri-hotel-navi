@@ -645,49 +645,6 @@ body[data-mode="men_same"] {
 }
 
 /* ===== 現在地ボタン ===== */
-.btn-location {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 8px 6px;
-    background: var(--bg-2);
-    border: 1px solid var(--border-strong);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    transition: all 0.25s ease;
-    font-family: inherit;
-    box-shadow: var(--card-shadow);
-    flex-shrink: 0;
-    width: 60px;
-    min-width: 60px;
-    min-height: 44px;
-    position: relative;
-    overflow: hidden;
-}
-.btn-location::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-.btn-location:active { transform: translateY(0); }
-.btn-location.loading .btn-location-icon { animation: spin 1s linear infinite; display: inline-block; }
-
-.btn-location-icon { font-size: 18px; line-height: 1; position: relative; z-index: 1; }
-.btn-location-label {
-    font-size: 10px;
-    color: var(--text-2);
-    letter-spacing: 0.5px;
-    font-weight: 600;
-    position: relative;
-    z-index: 1;
-    transition: color 0.2s;
-}
-
 /* 最寄駅検索 */
 .station-search-wrapper {
     flex: 1;
@@ -1593,28 +1550,12 @@ body[data-mode="men"] .header-title {
         flex-wrap: wrap;
         gap: 6px;
     }
-    /* 上段: 現在地 + ホテル名検索 */
-    .btn-location {
-        flex: 0 0 auto;
-        width: auto;
-        min-width: 0;
-        order: 1;
-    }
     .search-wrapper {
-        flex: 1 1 auto;
-        order: 2;
+        flex: 1 1 100%;
     }
-    /* 下段: 駅検索 + 未掲載 */
     .station-search-wrapper {
-        flex: 2 1 auto;
-        order: 3;
+        flex: 1 1 100%;
     }
-    /* ラベルを短縮 */
-    .label-full { display: none; }
-    .label-short { display: inline; }
-    /* 現在地ラベルも小さめ */
-    .btn-location-label { font-size: 9px; }
-    .btn-location-icon  { font-size: 15px; }
 }
 
 .btn-gate:active { transform: translateY(0); box-shadow: none; }
@@ -1668,14 +1609,6 @@ body[data-mode="men"] .header-title {
     }
 
     .search-clear:hover { border-color: var(--border-strong); color: var(--text-2); }
-
-    .btn-location:hover::before { opacity: 1; }
-    .btn-location:hover {
-        border-color: var(--accent);
-        transform: translateY(-2px);
-        box-shadow: var(--card-shadow-hover);
-    }
-    .btn-location:hover .btn-location-label { color: var(--accent); }
 
     .btn-add-hotel:hover {
         background: var(--accent-glow, rgba(201,168,76,0.1));
@@ -2183,7 +2116,6 @@ body[data-mode="men"] .header-title {
    Minimum font-size 12px (accessibility)
    ========================================================================== */
 .mode-badge,
-.btn-location-label,
 .hotel-rating-star,
 .hotel-price-label,
 .report-state-can span,
