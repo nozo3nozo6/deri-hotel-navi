@@ -622,7 +622,7 @@ body[data-mode="men_same"] {
     flex: 1;
     background: transparent;
     border: none;
-    padding: 12px 0 12px 7px;
+    padding: 8px 0 8px 7px;
     color: var(--text);
     font-size: 16px;
     font-family: inherit;
@@ -713,7 +713,7 @@ body[data-mode="men_same"] {
     flex: 1;
     background: transparent;
     border: none;
-    padding: 12px 0;
+    padding: 8px 0;
     color: var(--text);
     font-size: 16px;
     font-family: inherit;
@@ -721,6 +721,49 @@ body[data-mode="men_same"] {
     min-width: 0;
 }
 .station-input::placeholder { color: var(--text-3); }
+
+/* 駅名サジェストドロップダウン */
+.station-suggest {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-2, #fff);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 200;
+    max-height: 260px;
+    overflow-y: auto;
+}
+.station-suggest-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-weak, rgba(0,0,0,0.05));
+}
+.station-suggest-item:last-child { border-bottom: none; }
+.station-suggest-item:hover, .station-suggest-item:active {
+    background: var(--accent-glow, rgba(201,168,76,0.1));
+}
+.station-suggest-cnt {
+    font-size: 11px;
+    color: var(--text-3);
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+.station-suggest-empty {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+}
 
 /* ホテル追加ボタン（未掲載ホテル情報提供） */
 .btn-add-hotel {
@@ -2224,7 +2267,7 @@ body[data-mode="men"] .header-title {
 .info-link-pill { color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap; }
 
 /* スクロール枠 */
-.scrollable-reviews { max-height:420px;overflow-y:auto;padding-right:4px; }
+.scrollable-reviews { max-height:700px;overflow-y:auto;padding-right:4px; }
 
 /* ローディング/エラー */
 .detail-loading { text-align:center;padding:60px;color:var(--text-3); }

@@ -173,15 +173,17 @@
     </div>
 
     <!-- ③ 最寄駅検索 -->
-    <div class="station-search-wrapper">
+    <div class="station-search-wrapper" style="position:relative;">
         <span class="station-icon">🚉</span>
         <input
             type="text"
             id="station-input"
             class="station-input"
             placeholder="最寄駅で検索..."
-            data-oninput="fetchHotelsByStation"
+            data-oninput="suggestStations"
+            autocomplete="off"
         >
+        <div id="station-suggest" class="station-suggest"></div>
     </div>
 
 </div>

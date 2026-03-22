@@ -917,37 +917,81 @@ function resetLocationBtn() {
 }
 
 // ==========================================================================
-// 最寄駅検索
+// 最寄駅検索（サジェスト→選択→ホテル一覧）
 // ==========================================================================
+// 駅名の表示統一: 末尾「駅」なら除去して「駅」付与、「駅前」「駅東口」等や駅を含まない名前はそのまま
+function formatStationName(name) {
+    if (name.endsWith('駅')) return name;
+    if (name.includes('駅')) return name; // 「長崎駅前」等はそのまま
+    return name + '駅';
+}
 let stationTimeout = null;
 
-function fetchHotelsByStation() {
+function suggestStations() {
     const val = document.getElementById('station-input')?.value?.trim() || '';
+    const box = document.getElementById('station-suggest');
     clearTimeout(stationTimeout);
-    if (!val) return;
+    if (!val || val.length < 1) { box.innerHTML = ''; box.style.display = 'none'; return; }
 
     stationTimeout = setTimeout(async () => {
-        showLoading();
-        showSkeletonLoader();
-        setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `🚉 ${val}駅周辺` }]);
-        setTitle(`${val}駅 周辺のホテル`);
-        setBackBtn(true);
-        pageStack.push(showJapanPage);
-        document.getElementById('area-button-container').innerHTML = '';
-
         try {
-            const rawHotels = await queryHotelsAPI({ station: val, limit: 50 });
-            const hotels = await fetchHotelsWithSummary(rawHotels);
-            sortHotelsByReviews(hotels);
-            renderHotelCards(hotels);
-            setResultStatus(hotels.length);
-        } catch (e) {
-            /* error silenced */
-        } finally {
-            hideLoading();
-        }
-    }, 500);
+            const res = await fetch('api/hotels.php?suggest_station=' + encodeURIComponent(val));
+            if (!res.ok) return;
+            const stations = await res.json();
+            if (!stations.length) { box.innerHTML = '<div class="station-suggest-empty">該当する駅が見つかりません</div>'; box.style.display = 'block'; return; }
+            box.innerHTML = stations.map(s => {
+                const display = formatStationName(s.name);
+                return `<div class="station-suggest-item" onclick="selectStation('${esc(s.name).replace(/'/g, "\\'")}')"><span class="station-suggest-name">${esc(display)}</span> <span class="station-suggest-cnt">${s.cnt}件</span></div>`;
+            }).join('');
+            box.style.display = 'block';
+        } catch (e) { /* silenced */ }
+    }, 300);
 }
+
+function selectStation(dbName) {
+    const input = document.getElementById('station-input');
+    const box = document.getElementById('station-suggest');
+    input.value = formatStationName(dbName);
+    box.innerHTML = '';
+    box.style.display = 'none';
+    input.blur();
+    fetchHotelsByStation(dbName);
+}
+
+async function fetchHotelsByStation(stationName) {
+    const name = stationName || document.getElementById('station-input')?.value?.trim() || '';
+    if (!name) return;
+    const displayName = formatStationName(name);
+
+    showLoading();
+    showSkeletonLoader();
+    setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `🚉 ${esc(displayName)} 周辺` }]);
+    setTitle(`${displayName} 周辺のホテル`);
+    setBackBtn(true);
+    pageStack.push(showJapanPage);
+    document.getElementById('area-button-container').innerHTML = '';
+
+    try {
+        const rawHotels = await queryHotelsAPI({ station: name, limit: 50 });
+        const hotels = await fetchHotelsWithSummary(rawHotels);
+        sortHotelsByReviews(hotels);
+        renderHotelCards(hotels);
+        setResultStatus(hotels.length);
+    } catch (e) {
+        /* error silenced */
+    } finally {
+        hideLoading();
+    }
+}
+
+// サジェスト外クリックで閉じる
+document.addEventListener('click', (e) => {
+    const box = document.getElementById('station-suggest');
+    if (box && !e.target.closest('.station-search-wrapper')) {
+        box.innerHTML = '';
+        box.style.display = 'none';
+    }
+});
 
 // ==========================================================================
 // キーワード検索

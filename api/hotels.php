@@ -4,7 +4,8 @@
  * GET params:
  *   pref, city, major_area, detail_area — フィルタ
  *   keyword — 名前/住所検索 (LIKE)
- *   station — 最寄駅検索 (LIKE)
+ *   station — 最寄駅検索 (完全一致)
+ *   suggest_station — 駅名サジェスト (LIKE, DISTINCT駅名+件数)
  *   city_like — 市区町村あいまい検索 (LIKE, GPS用)
  *   type — hotel / loveho (default: hotel)
  *   hotel_id — 単一ホテル取得
@@ -31,6 +32,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/db.php';
 
 $pdo = DB::conn();
+
+// 駅名サジェスト: ?suggest_station=中野 → DISTINCT駅名+件数リスト
+if (isset($_GET['suggest_station']) && $_GET['suggest_station'] !== '') {
+    $q = preg_replace('/[駅站]$|Station$/i', '', trim($_GET['suggest_station']));
+    if ($q === '') { echo '[]'; exit; }
+    $stmt = $pdo->prepare(
+        "SELECT nearest_station AS name, COUNT(*) AS cnt
+         FROM hotels
+         WHERE nearest_station LIKE ? AND nearest_station IS NOT NULL AND nearest_station != '' AND is_published = 1
+         GROUP BY nearest_station
+         ORDER BY
+           CASE WHEN nearest_station = ? THEN 0 WHEN nearest_station LIKE ? THEN 1 ELSE 2 END,
+           cnt DESC
+         LIMIT 20"
+    );
+    $stmt->execute(['%' . $q . '%', $q, $q . '%']);
+    echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $limit = min((int)($_GET['limit'] ?? 50), 5000);
 $type  = $_GET['type'] ?? 'hotel';
 
@@ -82,10 +103,10 @@ if (isset($_GET['keyword']) && $_GET['keyword'] !== '') {
     $params[] = $kw;
 }
 
-// Station search
+// Station search — 駅名完全一致（サジェストで選ばれた駅名で検索）
 if (isset($_GET['station']) && $_GET['station'] !== '') {
-    $where[] = 'h.nearest_station LIKE ?';
-    $params[] = '%' . $_GET['station'] . '%';
+    $where[] = 'h.nearest_station = ?';
+    $params[] = trim($_GET['station']);
 }
 
 // City fuzzy search (GPS)

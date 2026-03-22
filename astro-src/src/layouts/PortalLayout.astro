@@ -177,9 +177,10 @@ const jsonLd = [
             <input type="text" id="keyword" class="search-input-lux" placeholder="ホテル名・住所・キーワードで検索..." data-oninput="fetchHotelsFromSearch">
             <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">&#10005;</button>
         </div>
-        <div class="station-search-wrapper">
+        <div class="station-search-wrapper" style="position:relative;">
             <span class="station-icon">&#128649;</span>
-            <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="fetchHotelsByStation">
+            <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="suggestStations" autocomplete="off">
+            <div id="station-suggest" class="station-suggest"></div>
         </div>
     </div>
 
