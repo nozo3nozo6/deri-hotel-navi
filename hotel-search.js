@@ -980,17 +980,30 @@ async function ensureLeaflet() {
     if (_leafletLoading) return false;
     _leafletLoading = true;
 
-    // Load CSS
+    // Load Leaflet CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(link);
 
-    // Load JS
+    // Load GestureHandling CSS
+    const ghLink = document.createElement('link');
+    ghLink.rel = 'stylesheet';
+    ghLink.href = 'https://unpkg.com/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.css';
+    document.head.appendChild(ghLink);
+
+    // Load Leaflet JS → then GestureHandling JS
     return new Promise((resolve) => {
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = () => { _leafletLoaded = true; _leafletLoading = false; resolve(true); };
+        script.onload = () => {
+            // Load GestureHandling plugin
+            const ghScript = document.createElement('script');
+            ghScript.src = 'https://unpkg.com/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.js';
+            ghScript.onload = () => { _leafletLoaded = true; _leafletLoading = false; resolve(true); };
+            ghScript.onerror = () => { _leafletLoaded = true; _leafletLoading = false; resolve(true); }; // プラグイン失敗でもLeafletは使える
+            document.head.appendChild(ghScript);
+        };
         script.onerror = () => { _leafletLoading = false; resolve(false); };
         document.head.appendChild(script);
     });
@@ -1076,11 +1089,12 @@ async function showMap() {
             doubleClickZoom: true,
             dragging: true,
             bounceAtZoomLimits: true,
-            scrollWheelZoom: true,
+            scrollWheelZoom: 'center',
             wheelDebounceTime: 200,
-            wheelPxPerZoomLevel: 300,
-            zoomSnap: 1,
-            zoomDelta: 1
+            wheelPxPerZoomLevel: 120,
+            zoomSnap: 0.5,
+            zoomDelta: 0.5,
+            gestureHandling: true
         }).setView([35.6762, 139.6503], 12);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
