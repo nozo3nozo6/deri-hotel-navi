@@ -19,11 +19,14 @@ function shopSortDate(r) {
 }
 function scrollableSection(items, buildFn, emptyMsg) {
     if (!items.length) return emptyMsg || '';
-    if (items.length <= 5) return items.map(buildFn).join('');
-    // 最初の5件は外に表示、6件目以降をスクロール枠に
-    const first5 = items.slice(0, 5).map(buildFn).join('');
-    const rest = items.slice(5).map(buildFn).join('');
-    return first5 + `<div class="scrollable-reviews">${rest}</div>`;
+    if (items.length <= 3) return items.map(buildFn).join('');
+    // 最初の3件は外に表示、4件目以降をスクロール枠に
+    const first3 = items.slice(0, 3).map(buildFn).join('');
+    const rest = items.slice(3).map(buildFn).join('');
+    const remaining = items.length - 3;
+    return first3
+        + `<div class="scroll-hint">▼ 他${remaining}件の口コミを表示（スクロール）</div>`
+        + `<div class="scrollable-reviews">${rest}</div>`;
 }
 
 // AppState 登録（検索・表示状態の発見・デバッグ用）
