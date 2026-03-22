@@ -318,23 +318,24 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
         const fbHotels = await queryHotelsAPI({ pref, city_like: city, type: 'loveho', cols: 'id', limit: 50 });
         lovehoCount = fbHotels ? fbHotels.length : 0;
     }
-    if (!lovehoCount) return;
-
     const urlTab = new URLSearchParams(window.location.search).get('tab');
 
     const tabsDiv = document.createElement('div');
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #ddd;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    const lovehoTab = lovehoCount
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>`
+        : '';
     tabsDiv.innerHTML = `
         <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">🏨 ホテル (<span id="hotel-count">${hotelCount}</span>)</button>
-        <button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>
+        ${lovehoTab}
         <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">地図で見る</span></button>
     `;
 
     const hotelList = document.getElementById('hotel-list');
     hotelList.parentNode.insertBefore(tabsDiv, hotelList);
 
-    if (urlTab === 'loveho') {
+    if (urlTab === 'loveho' && lovehoCount) {
         switchTab('loveho');
     } else {
         currentTab = 'hotel';
