@@ -732,8 +732,6 @@ function renderLovehoDetail(hotel, reports) {
             <div id="lh-user-reports-list">${scrollableSection(lhUserReports, buildLhReviewCard)}</div>
         </div>`;
 
-    const reviewsHTML = lhShopSection + lhUserSection;
-
     const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 
     // 統計HTML
@@ -748,12 +746,16 @@ function renderLovehoDetail(hotel, reports) {
             </div>
         </div>` : '';
 
-    // 口コミセクション
-    const userSection = `
+    // 口コミセクション（ユーザー投稿のみ — 店舗公式は shopSection で別表示）
+    const userSection = lhUserReports.length > 0 ? `
         <div style="margin-bottom:24px;">
-            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${reports.length}件)</h3>
-            ${reviewsHTML || '<div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>'}
-        </div>`;
+            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${lhUserReports.length}件)</h3>
+            ${lhUserSection}
+        </div>` : (lhShopReports.length === 0 ? `
+        <div style="margin-bottom:24px;">
+            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (0件)</h3>
+            <div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>
+        </div>` : '');
 
     // フォームHTML
     const formHTML = `
