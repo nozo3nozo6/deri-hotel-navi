@@ -849,6 +849,8 @@ async function fetchHotelsByStation(stationName) {
     if (!name) return;
     const displayName = formatStationName(name);
 
+    // ホテル詳細が開いていれば閉じる
+    if (currentHotelId) leaveHotelDetail();
     showLoading();
     showSkeletonLoader();
     setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `🚉 ${esc(displayName)} 周辺` }]);
@@ -900,6 +902,8 @@ function fetchHotelsFromSearch() {
     clearTimeout(searchTimeout);
     if (keyword.length < 3) return; // 3文字未満は検索しない
     searchTimeout = setTimeout(async () => {
+        // ホテル詳細が開いていれば閉じる
+        if (currentHotelId) leaveHotelDetail();
         // キーボードを閉じる（スマホ）
         document.getElementById('keyword')?.blur();
         showLoading();
