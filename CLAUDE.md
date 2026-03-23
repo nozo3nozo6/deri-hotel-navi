@@ -626,6 +626,50 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月23日 — サブディレクトリURL移行・UI改善・バグ修正
+
+#### サブディレクトリ方式URL移行（SEO最適化）
+- 旧: portal.html?mode=men&pref=東京都&city=立川市
+- 新: /men/東京都/立川市
+- .htaccess: /men/, /women/, /men-same/, /women-same/ の内部リライト + 旧URL 301リダイレクト
+- area-navigation.js: updateUrl()/restoreFromUrl() パスベースに全面書き換え
+- portal-init.js: MODE読み取り・canonical をパスベースに
+- generate-sitemap.js: 全352 URLを新形式に
+- 全JS: fetch('api/...') → fetch('/api/...') 絶対パスに修正（相対パス問題解消）
+- index.html/shop-admin.html/Astro全ページ: リンクを新URL形式に
+
+#### 駅検索改善
+- DBの最寄駅名からサジェストドロップダウン方式に変更（LIKE部分一致→DB駅名候補→完全一致検索）
+- hotels.php: suggest_station APIエンドポイント追加（DISTINCT駅名+件数）
+- 「駅」入力有無で同じ結果（PHP側で末尾「駅」除去）
+- formatStationName(): 駅名表示統一（駅なし→付与、駅前等→そのまま）
+
+#### UI改善
+- 現在地リスト表示ボタン削除（地図内の現在地ボタンに集約、検索エリア縦幅改善）
+- 地図表示時にホテル/ラブホタブを上下両方に配置
+- 口コミ表示: 3件一覧表示 + 4件目以降スクロール枠(520px) + 「▼ 他N件の口コミを表示」ヒント
+- 検索窓/駅入力: padding 12px→8px（スマホ高さ縮小）
+- ラブホ0件でもホテルタブ+地図ボタンを表示
+- ホテル詳細表示中のキーワード/駅検索で詳細を閉じてから結果表示
+- shop-admin投稿完了時にshowSuccessModal（画面中央モーダル）
+
+#### バグ修正
+- ラブホ詳細で店舗投稿が2重表示されるバグ修正（reviewsHTML経由の重複除去）
+- Leaflet GestureHandlingプラグイン導入（Macトラックパッドズーム暴走対策）
+- zoomSnap: 0.5, zoomDelta: 0.5, scrollWheelZoom: 'center'
+- Cloudflare Purge失敗時にデプロイを失敗扱いにしない（|| echo フォールバック）
+
+## URL構造（サブディレクトリ方式）
+- /men/ — デリヘルトップ
+- /men/東京都 — 都道府県
+- /men/東京都/西東京・三多摩 — エリア+市区町村
+- /men/東京都/西東京・三多摩/立川市 — エリア+市区町村
+- /women/, /men-same/, /women-same/ — 同様
+- ホテル詳細: /men/?hotel=12345
+- タブ: /men/東京都/立川市?tab=loveho
+- 旧URL (portal.html?mode=...) は全て301リダイレクト
+- MODE↔パスマッピング: men→men, women→women, men_same→men-same, women_same→women-same
+
 ## Security
 - PHP認証: secure cookie (httponly, samesite=strict), 30分タイムアウト, 5回ロックアウト
 - パスワード: bcryptハッシュ（verify-password.php、レガシーBase64自動移行対応）
