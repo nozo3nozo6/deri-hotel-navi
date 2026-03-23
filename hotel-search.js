@@ -297,6 +297,7 @@ Object.defineProperties(AppState.search, {
 
 async function showLovehoTabs(pref, city, hotelCount, hotels) {
     hideLovehoTabs();
+    _stationForLoveho = null; // 通常エリアナビなので駅フラグリセット
     if (!pref || !city) return;
 
     const cacheKey = pref + '|||' + city;
@@ -405,6 +406,10 @@ async function switchTab(tab) {
 }
 
 async function loadLovehoForCurrentCity() {
+    // 駅検索の場合は駅名ベースでラブホ取得
+    if (_stationForLoveho) {
+        return loadLovehoForStation(_stationForLoveho);
+    }
     if (!_tabFilterObj || !_tabCity) return;
     const gen = ++_fetchGeneration;
     showLoading();
@@ -418,6 +423,36 @@ async function loadLovehoForCurrentCity() {
         const hotelIds = hotels.map(h => h.id);
         const summaries = await fetchLovehoReviewSummaries(hotelIds);
         if (gen !== _fetchGeneration) return; // stale, abort
+        const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
+        const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
+        withSummary.sort((a, b) => {
+            const ca = a.lhSummary ? a.lhSummary.count : 0;
+            const cb = b.lhSummary ? b.lhSummary.count : 0;
+            if (ca !== cb) return cb - ca;
+            const da = (a.lhSummary && a.lhSummary.latestAt) || '';
+            const db = (b.lhSummary && b.lhSummary.latestAt) || '';
+            if (da !== db) return da < db ? 1 : -1;
+            const ta = LOVEHO_ORDER[a.hotel_type] ?? 1, tb = LOVEHO_ORDER[b.hotel_type] ?? 1;
+            if (ta !== tb) return ta - tb;
+            return (a.name || '').localeCompare(b.name || '', 'ja');
+        });
+        cachedLovehoData = withSummary;
+        renderLovehoCards(withSummary);
+    } catch (e) { /* error silenced */ }
+    finally { hideLoading(); }
+}
+
+/** 駅名ベースでラブホ取得（駅検索時のタブ切替用） */
+async function loadLovehoForStation(stationName) {
+    const gen = ++_fetchGeneration;
+    showLoading();
+    try {
+        const hotels = await queryHotelsAPI({ station: stationName, type: 'loveho', limit: 50 });
+        if (gen !== _fetchGeneration) return;
+        if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
+        const hotelIds = hotels.map(h => h.id);
+        const summaries = await fetchLovehoReviewSummaries(hotelIds);
+        if (gen !== _fetchGeneration) return;
         const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
         const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
         withSummary.sort((a, b) => {
@@ -880,12 +915,46 @@ async function fetchHotelsByStation(stationName) {
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
+
+        // 駅周辺ラブホタブ表示
+        showStationLovehoTabs(name, hotels);
     } catch (e) {
         /* error silenced */
     } finally {
         hideLoading();
     }
 }
+
+/** 駅検索用ラブホタブ表示 */
+async function showStationLovehoTabs(stationName, hotels) {
+    hideLovehoTabs();
+    cachedHotelData = hotels;
+    cachedLovehoData = null;
+    _tabFilterObj = null;
+    _tabCity = null;
+    _tabCityKey = 'station|||' + stationName;
+    _stationForLoveho = stationName;
+
+    // 駅名でラブホ件数を取得
+    const lovehoHotels = await queryHotelsAPI({ station: stationName, type: 'loveho', cols: 'id', limit: 50 });
+    const lovehoCount = lovehoHotels ? lovehoHotels.length : 0;
+
+    const tabsDiv = document.createElement('div');
+    tabsDiv.id = 'hotel-loveho-tabs';
+    tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #ddd;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    const lovehoTab = lovehoCount
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>`
+        : '';
+    tabsDiv.innerHTML = `
+        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">🏨 ホテル (<span id="hotel-count">${hotels.length}</span>)</button>
+        ${lovehoTab}
+        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">地図で見る</span></button>
+    `;
+    const hotelList = document.getElementById('hotel-list');
+    hotelList.parentNode.insertBefore(tabsDiv, hotelList);
+}
+
+let _stationForLoveho = null;
 
 // サジェスト外クリックで閉じる
 document.addEventListener('click', (e) => {
