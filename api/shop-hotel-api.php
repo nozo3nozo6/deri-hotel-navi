@@ -196,7 +196,7 @@ function handleSaveHotelInfo() {
         ];
 
         if ($existingRep) {
-            $stmt = $pdo->prepare('UPDATE reports SET hotel_id=?, can_call=?, poster_type=?, poster_name=?, shop_id=?, can_call_reasons=?, cannot_call_reasons=?, time_slot=?, room_type=?, comment=?, gender_mode=?, multi_person=?, guest_male=?, guest_female=?, multi_fee=?, updated_at=NOW() WHERE id=?');
+            $stmt = $pdo->prepare('UPDATE reports SET hotel_id=?, can_call=?, poster_type=?, poster_name=?, shop_id=?, can_call_reasons=?, cannot_call_reasons=?, time_slot=?, room_type=?, comment=?, gender_mode=?, multi_person=?, guest_male=?, guest_female=?, multi_fee=? WHERE id=?');
             $stmt->execute(array_merge($reportData, [$existingRep['id']]));
         } else {
             $uuid = DB::uuid();
