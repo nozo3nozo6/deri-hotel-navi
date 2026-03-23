@@ -710,7 +710,7 @@ function renderLovehoDetail(hotel, reports) {
         const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店舗</span>`:` <span class="shop-verified-badge">認証店舗</span>`):'';
         const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=lhShopFeeMap[pName];
-        const feeLabel=fee===0?'無料':fee>0?'¥'+Number(fee).toLocaleString():null;
+        const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
         return `<div class="review-card">
