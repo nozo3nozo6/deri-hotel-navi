@@ -1216,14 +1216,9 @@ function cancelForm(){
 }
 
 // ===== 交通費入力 =====
-document.getElementById('form-transport').addEventListener('input', function(e) {
-    let val = this.value.replace(/[^0-9]/g, '');
-    if (val) {
-        this.value = parseInt(val, 10).toLocaleString('ja-JP');
-    } else {
-        this.value = '';
-    }
-});
+function formatTransportInput(el){let val=el.value.replace(/[^0-9]/g,'');el.value=val?parseInt(val,10).toLocaleString('ja-JP'):'';}
+document.getElementById('form-transport').addEventListener('input',function(){formatTransportInput(this);});
+document.getElementById('lh-form-transport').addEventListener('input',function(){formatTransportInput(this);});
 function toggleTransportFee(){
     const fc=document.getElementById("transport-free");
     const wrap=document.getElementById("transport-fee-wrap");
