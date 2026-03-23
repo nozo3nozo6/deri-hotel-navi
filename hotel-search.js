@@ -829,10 +829,12 @@ function renderLovehoDetail(hotel, reports) {
                     <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked; document.getElementById('lh-multi-detail').style.display=this.checked?'flex':'none';" class="multi-check-input" style="accent-color:#c9a96e;">
                     <span class="text-sub">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="lh-multi-detail" class="multi-detail-row" style="margin-bottom:4px;">
-                    <select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
-                    <select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
-                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">追加料金あり</label>
+                <div id="lh-multi-detail" class="multi-detail-row" style="margin-bottom:4px;flex-direction:column;">
+                    <div style="display:flex;gap:8px;">
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">男性</span><select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">女性</span><select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                    </div>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="lh-form-row"><label class="lh-form-label">利用時間帯</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
@@ -1803,8 +1805,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                                 <span id="form-guest-female" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
                                 <button type="button" onclick="hotelStepGuest('female',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
-                            <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;margin-left:auto;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
                         </div>
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
                     </div>
                 </div>
             </div>
@@ -1829,10 +1831,12 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                     <input type="checkbox" id="multi-person-check" onchange="hotelFormState.multi_person=this.checked; document.getElementById('multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
-                    <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
-                    <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
-                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
+                <div id="multi-person-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
+                    <div style="display:flex;gap:8px;">
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">男性</span><select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">女性</span><select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                    </div>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group">

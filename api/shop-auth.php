@@ -29,6 +29,7 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'login':            handleLogin(); break;
+    case 'logout':           handleLogout(); break;
     case 'check':            handleCheck(); break;
     case 'profile':          handleProfile(); break;
     case 'update-thumbnail': handleUpdateThumbnail(); break;
@@ -94,6 +95,12 @@ function handleLogin() {
 
     unset($shop['password_hash']);
     echo json_encode(['success' => true, 'shop' => $shop]);
+}
+
+function handleLogout() {
+    $_SESSION = [];
+    session_destroy();
+    echo json_encode(['success' => true]);
 }
 
 function handleCheck() {

@@ -166,10 +166,10 @@ deri-hotel-navi/
 id, name, address, prefecture, city, major_area, detail_area, hotel_type, source (imported/manual), review_average, nearest_station, postal_code, tel, latitude, longitude, is_published, is_edited, created_at, updated_at
 
 ### reports
-id(UUID), hotel_id, can_call, poster_type(user/shop), poster_name, shop_id, can_call_reasons[], cannot_call_reasons[], time_slot, room_type, comment, multi_person, guest_male, guest_female, gender_mode, fingerprint, ip_hash, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
+id(UUID), hotel_id, can_call, poster_type(user/shop), poster_name, shop_id, can_call_reasons[], cannot_call_reasons[], time_slot, room_type, comment, multi_person, guest_male, guest_female, multi_fee, gender_mode, fingerprint, ip_hash, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
 
 ### loveho_reports
-id(UUID), hotel_id, solo_entry(yes/no/together/lobby/unknown), atmosphere, good_points[], time_slot, comment, poster_name, multi_person, guest_male, guest_female, gender_mode, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
+id(UUID), hotel_id, solo_entry(yes/no/together/lobby/unknown), atmosphere, good_points[], time_slot, comment, poster_name, multi_person, guest_male, guest_female, multi_fee, gender_mode, is_hidden, flagged_at, flag_reason, flag_comment, flag_resolved, created_at
 ※ recommendation, cleanliness, cost_performance カラムはDB上残存するがUI非表示・新規投稿でnull固定
 
 ### shops
@@ -626,6 +626,30 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
+
+### 2026年3月24日（後半5） — 保存エラー改善・文字化け修正・複数人追加料金
+
+#### admin保存エラー改善
+- saveHotel(), saveNewHotel()にtry-catch追加（無反応バグ防止）
+- api(), apiGet()で非JSONレスポンス時のクラッシュ防止
+- エラー時に具体的なメッセージをtoast表示
+
+#### サーバー障害後のデータ修正
+- .htaccess: AddDefaultCharset UTF-8追加
+- DB文字化け4件修正: 渋?谷?区→渋谷区、東村→東村山市、武蔵村→武蔵村山市
+- 全国データ整合性チェック: 上記以外は全て正常
+
+#### 交通費表示統一
+- ラブホ口コミの交通費表示をformatTransportFee()に統一（文字列"0"対応）
+- 交通費無料=表示、未記入=非表示
+
+#### 複数人利用「追加料金あり」チェック追加
+- DB: reports, loveho_reports に multi_fee TINYINT(1) DEFAULT NULL カラム追加
+- ポータル: ホテル/ラブホ投稿フォームに追加料金チェック（男性/女性と同じ行、1行表示）
+- ポータル: 口コミ表示に「💰追加料金あり」タグ（multi_fee=trueの場合のみ）
+- shop-admin: ホテル/ラブホフォームに追加料金チェック追加
+- admin: ラブホ編集に追加料金フィールド追加
+- PHP API: submit-report.php, submit-loveho-report.php, shop-hotel-api.php 全対応
 
 ### 2026年3月24日（後半4） — 検索をEnter実行方式に変更
 

@@ -357,14 +357,6 @@
                     <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
                     <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">
-                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">URLスラッグ:</span>
-                    <input id="slug-input" type="text" placeholder="例: my-shop-name" maxlength="30" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;width:200px;">
-                    <button onclick="saveSlug()" style="padding:4px 10px;background:var(--rose);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">保存</button>
-                </div>
-                <p style="font-size:11px;color:#999;margin-top:4px;line-height:1.5;">
-                  英小文字・数字・ハイフンで3〜30文字。URLの末尾部分を自由に設定できます。
-                </p>
                 <p style="font-size: 12px; color: #888; margin-top: 8px; line-height: 1.6;">
                   💡 このURLではユーザーの投稿情報と貴店の登録情報のみが表示され、<br>
                   他店舗の情報や広告は表示されません。<br>
@@ -496,14 +488,18 @@
                     <input type="checkbox" id="lh-f-multi" onchange="document.getElementById('lh-f-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="lh-f-multi-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
-                    <select id="lh-f-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option>
-                    </select>
-                    <select id="lh-f-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option>
-                    </select>
-                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="lh-f-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
+                <div id="lh-f-multi-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
+                    <div style="display:flex;gap:8px;">
+                        <span style="font-size:13px;color:#555;min-width:32px;">男性</span>
+                        <select id="lh-f-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                            <option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option>
+                        </select>
+                        <span style="font-size:13px;color:#555;min-width:32px;">女性</span>
+                        <select id="lh-f-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                            <option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option>
+                        </select>
+                    </div>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="lh-f-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group" id="lh-f-ts-wrap">
@@ -597,22 +593,26 @@
                     <input type="checkbox" id="sa-multi-person-check" onchange="document.getElementById('sa-multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="sa-multi-person-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
-                    <select id="sa-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">男性</option>
-                        <option value="1">男性 1名</option>
-                        <option value="2">男性 2名</option>
-                        <option value="3">男性 3名</option>
-                        <option value="4">男性 4名</option>
-                    </select>
-                    <select id="sa-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
-                        <option value="">女性</option>
-                        <option value="1">女性 1名</option>
-                        <option value="2">女性 2名</option>
-                        <option value="3">女性 3名</option>
-                        <option value="4">女性 4名</option>
-                    </select>
-                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="sa-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
+                <div id="sa-multi-person-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
+                    <div style="display:flex;gap:8px;">
+                        <span style="font-size:13px;color:#555;min-width:32px;">男性</span>
+                        <select id="sa-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                            <option value="">-</option>
+                            <option value="1">1名</option>
+                            <option value="2">2名</option>
+                            <option value="3">3名</option>
+                            <option value="4">4名</option>
+                        </select>
+                        <span style="font-size:13px;color:#555;min-width:32px;">女性</span>
+                        <select id="sa-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
+                            <option value="">-</option>
+                            <option value="1">1名</option>
+                            <option value="2">2名</option>
+                            <option value="3">3名</option>
+                            <option value="4">4名</option>
+                        </select>
+                    </div>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="sa-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group">
@@ -749,7 +749,7 @@ async function doLogin(){
         onLoggedIn();
     }catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
 }
-function doLogout(){currentShop=null;localStorage.removeItem(SESSION_KEY);location.reload();}
+async function doLogout(){try{await fetch("https://yobuho.com/api/shop-auth.php?action=logout",{method:'POST',credentials:'include'});}catch(e){}currentShop=null;localStorage.removeItem(SESSION_KEY);location.reload();}
 
 function onLoggedIn(){
     document.getElementById("login-wrap").style.display="none";
@@ -765,7 +765,8 @@ function onLoggedIn(){
 }
 
 async function loadStatusCard(){
-    try{const pRes=await fetch("https://yobuho.com/api/shop-auth.php?action=profile",{credentials:'include'});const data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
+    let data;
+    try{const pRes=await fetch("https://yobuho.com/api/shop-auth.php?action=profile",{credentials:'include'});data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
     const st=data.status||"pending";
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
@@ -782,9 +783,6 @@ async function loadStatusCard(){
     const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/shop/"+encodeURIComponent(shopSlug)+"/";
     const urlEl=document.getElementById("status-shop-url");
     urlEl.href=shopUrl;urlEl.textContent=shopUrl;
-    // slug編集欄
-    const slugInput=document.getElementById("slug-input");
-    if(slugInput)slugInput.value=data.slug||'';
     // サムネイルセクション（有料プランのみ）
     const thumbSection=document.getElementById("thumbnail-section");
     const isPaid=plan&&plan.price>0;
@@ -840,20 +838,6 @@ function copyShopUrl(){
     navigator.clipboard.writeText(url);toast("URLをコピーしました");
 }
 
-async function saveSlug(){
-    const input=document.getElementById('slug-input');
-    const slug=(input.value||'').trim().toLowerCase();
-    if(!slug){toast('slugを入力してください');return;}
-    if(!/^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$/.test(slug)){toast('英小文字・数字・ハイフンで3〜30文字（先頭末尾ハイフン不可）');return;}
-    try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-slug",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({slug})});
-        const r=await res.json();
-        if(!r.success){toast(r.error||'保存エラー');return;}
-        currentShop.slug=slug;
-        loadStatusCard();
-        toast('URLスラッグを保存しました');
-    }catch(e){toast('通信エラー');}
-}
 
 (async function(){
     // PHPセッション復元を優先、フォールバックとしてlocalStorage
