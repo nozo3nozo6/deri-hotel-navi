@@ -767,7 +767,7 @@ async function loadStatusCard(){
     const plan=topContract?.contract_plans||null;
     document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"未設定（無料）";
     const shopMode=data.gender_mode||"men";
-    const shopUrl="https://yobuho.com/portal.html?mode="+shopMode+"&shop="+data.id;
+    const modePathMap={men:'men',women:'women',men_same:'men-same',women_same:'women-same'};const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'men')+"/?shop="+data.id;
     const urlEl=document.getElementById("status-shop-url");
     urlEl.href=shopUrl;urlEl.textContent=shopUrl;
     // サムネイルセクション（有料プランのみ）
@@ -820,7 +820,7 @@ async function deleteThumbnail(){
 
 function copyShopUrl(){
     const shopMode=currentShop.gender_mode||"men";
-    const url="https://yobuho.com/portal.html?mode="+shopMode+"&shop="+currentShop.id;
+    const url="https://yobuho.com/"+(modePathMap[shopMode]||'men')+"/?shop="+currentShop.id;
     navigator.clipboard.writeText(url);toast("URLをコピーしました");
 }
 

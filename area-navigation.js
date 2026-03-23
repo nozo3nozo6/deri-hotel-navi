@@ -53,17 +53,36 @@ function findRegionByLabel(label) {
     return REGION_MAP.find(r => r.label === label);
 }
 
+// MODE → URLパスセグメント
+const MODE_PATH_MAP = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
+const PATH_MODE_MAP = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+
+function getModePath() {
+    return MODE_PATH_MAP[window.MODE] || 'men';
+}
+
+function buildUrl(params) {
+    const base = '/' + getModePath();
+    const p = params || {};
+    let path = base;
+    if (p.pref) {
+        path += '/' + encodeURIComponent(p.pref);
+        if (p.area) path += '/' + encodeURIComponent(p.area);
+        if (p.detail) path += '/' + encodeURIComponent(p.detail);
+        if (p.city) path += '/' + encodeURIComponent(p.city);
+    }
+    // 追加パラメータ（hotel, tab, shop等）はクエリストリングで
+    const qs = new URLSearchParams();
+    if (p.hotel) qs.set('hotel', p.hotel);
+    if (p.tab) qs.set('tab', p.tab);
+    if (SHOP_ID) qs.set('shop', SHOP_ID);
+    const qsStr = qs.toString();
+    return path + (qsStr ? '?' + qsStr : '');
+}
+
 function updateUrl(params) {
     if (_skipPushState) return;
-    const cur = new URLSearchParams(window.location.search);
-    const newParams = new URLSearchParams();
-    newParams.set('mode', cur.get('mode') || window.MODE || 'men');
-    if (SHOP_ID) newParams.set('shop', SHOP_ID);
-    Object.entries(params).forEach(([k, v]) => {
-        if (v != null) newParams.set(k, v);
-    });
-    const newUrl = '?' + newParams.toString();
-    history.pushState(null, '', newUrl);
+    history.pushState(null, '', buildUrl(params));
 }
 
 function ensurePortalMode() {
@@ -106,14 +125,34 @@ function renderCityButtons(container, cities, onCityClick) {
     });
 }
 
+// URLパスからパラメータを抽出: /men/東京都/エリア/市区町村 → {pref, area, city}
+function parseUrlPath() {
+    const path = decodeURIComponent(window.location.pathname);
+    const segments = path.split('/').filter(Boolean);
+    // 先頭がモードパスか確認
+    if (segments.length > 0 && PATH_MODE_MAP[segments[0]]) {
+        segments.shift(); // モードセグメントを除去
+    }
+    const qs = new URLSearchParams(window.location.search);
+    return {
+        pref: qs.get('pref') || segments[0] || null,
+        area: qs.get('area') || segments[1] || null,
+        detail: qs.get('detail') || (segments.length >= 4 ? segments[2] : null),
+        city: qs.get('city') || (segments.length >= 4 ? segments[3] : segments.length === 3 ? segments[2] : null),
+        hotel: qs.get('hotel') || null,
+        region: qs.get('region') || null,
+        tab: qs.get('tab') || null,
+    };
+}
+
 async function restoreFromUrl() {
     const searchTools = document.querySelector('.search-tools');
     if (searchTools) searchTools.style.display = '';
-    const params = new URLSearchParams(window.location.search);
+    const params = parseUrlPath();
     _skipPushState = true;
 
-    if (params.get('hotel')) {
-        const hotelId = parseInt(params.get('hotel'));
+    if (params.hotel) {
+        const hotelId = parseInt(params.hotel);
         const hArr = await queryHotelsAPI({ hotel_id: hotelId, cols: 'hotel_type', limit: 1 });
         const h = hArr && hArr.length ? hArr[0] : null;
         const isLoveho = h && ['love_hotel', 'rental_room'].includes(h.hotel_type);
@@ -124,11 +163,8 @@ async function restoreFromUrl() {
 
     ensurePortalMode();
 
-    if (params.get('city')) {
-        const pref = params.get('pref');
-        const area = params.get('area');
-        const detail = params.get('detail');
-        const city = params.get('city');
+    if (params.city) {
+        const { pref, area, detail, city } = params;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
         if (region) pageStack.push(() => showPrefPage(region));
@@ -140,32 +176,29 @@ async function restoreFromUrl() {
         if (detail) filterObj.detail_area = detail;
         setBackBtn(true);
         fetchAndShowHotelsByCity(filterObj, city);
-    } else if (params.get('detail')) {
-        const pref = params.get('pref');
-        const area = params.get('area');
-        const detail = params.get('detail');
+    } else if (params.detail) {
+        const { pref, area, detail } = params;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
         if (region) pageStack.push(() => showPrefPage(region));
         if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
         if (area) pageStack.push(() => showCityPage(region, pref, area));
         showDetailAreaPage(region, pref, area, detail);
-    } else if (params.get('area')) {
-        const pref = params.get('pref');
-        const area = params.get('area');
+    } else if (params.area) {
+        const { pref, area } = params;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
         if (region) pageStack.push(() => showPrefPage(region));
         if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
         showCityPage(region, pref, area);
-    } else if (params.get('pref')) {
-        const pref = params.get('pref');
+    } else if (params.pref) {
+        const pref = params.pref;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
         if (region) pageStack.push(() => showPrefPage(region));
         showMajorAreaPage(region, pref);
-    } else if (params.get('region')) {
-        const region = findRegionByLabel(params.get('region'));
+    } else if (params.region) {
+        const region = findRegionByLabel(params.region);
         if (region) {
             pageStack = [showJapanPage];
             showPrefPage(region);

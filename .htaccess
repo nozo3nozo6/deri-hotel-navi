@@ -3,7 +3,85 @@ RewriteEngine On
 RewriteCond %{THE_REQUEST} /index\.html [NC]
 RewriteRule ^index\.html$ / [R=301,L]
 
-# Astro SSG: portal.html?mode=X&... → portal-X.html?mode=X&... にリライト（全パラメータ維持）
+# ===== サブディレクトリ方式 URL ルーティング =====
+# /men/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
+RewriteRule ^men/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^women/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^men-same/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^women-same/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+
+# /men/東京都/東京２３区内/渋谷区 → portal-men.html (pref+area+city)
+RewriteRule ^men/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^women/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^men-same/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^women-same/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&city=$3 [L,QSA]
+
+# /men/東京都 → portal-men.html (pref)
+RewriteRule ^men/([^/]+)$ /portal-men.html?pref=$1 [L,QSA]
+RewriteRule ^women/([^/]+)$ /portal-women.html?pref=$1 [L,QSA]
+RewriteRule ^men-same/([^/]+)$ /portal-men-same.html?pref=$1 [L,QSA]
+RewriteRule ^women-same/([^/]+)$ /portal-women-same.html?pref=$1 [L,QSA]
+
+# /men/ → portal-men.html (トップ)
+RewriteRule ^men/?$ /portal-men.html [L,QSA]
+RewriteRule ^women/?$ /portal-women.html [L,QSA]
+RewriteRule ^men-same/?$ /portal-men-same.html [L,QSA]
+RewriteRule ^women-same/?$ /portal-women-same.html [L,QSA]
+
+# ===== 旧URL → 新URL 301リダイレクト =====
+# mode値→URLパスのマッピング: men→men, women→women, men_same→men-same, women_same→women-same
+
+# portal.html?mode=men&pref=X&city=Y → /men/X/Y
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/%1/%2? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/%1/%2? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/%1/%2? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/%1/%2? [R=301,L]
+
+# portal.html?mode=men&pref=X → /men/X
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)city=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)city=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)city=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
+RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)city=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/%1? [R=301,L]
+
+# portal.html?mode=men → /men/
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)pref=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)pref=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)pref=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
+RewriteCond %{QUERY_STRING} !(^|&)pref=
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/? [R=301,L]
+
+# ===== 旧Astroリライト（フォールバック） =====
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteRule ^portal\.html$ /portal-men.html [L,QSA]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)

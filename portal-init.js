@@ -5,7 +5,10 @@
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
     if (window.__ASTRO_MODE) return;
-    var m = new URLSearchParams(location.search).get('mode') || 'men';
+    // パスベースURL対応: /men/, /women/, /men-same/, /women-same/
+    var pathMap = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+    var seg = location.pathname.split('/').filter(Boolean)[0] || '';
+    var m = pathMap[seg] || new URLSearchParams(location.search).get('mode') || 'men';
     if (m === 'women' || m === 'women_same') {
         var l = document.createElement('link');
         l.rel = 'stylesheet';
@@ -19,13 +22,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var urlParams = new URLSearchParams(window.location.search);
     // Astro SSGページではwindow.__ASTRO_MODEがビルド時に埋め込まれる
     var astroMode = window.__ASTRO_MODE || null;
-    // modeパラメータ未指定の場合（Astroモードでもない場合）、mode=menを付与してリダイレクト
-    if (!urlParams.get('mode') && !astroMode) {
-        urlParams.set('mode', 'men');
-        location.replace('portal.html?' + urlParams.toString());
+    // パスベースURL対応
+    var pathModeMap = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+    var firstSeg = location.pathname.split('/').filter(Boolean)[0] || '';
+    var pathMode = pathModeMap[firstSeg] || null;
+    // モード未指定の場合、/men/ にリダイレクト
+    if (!urlParams.get('mode') && !astroMode && !pathMode) {
+        location.replace('/men/');
         return;
     }
-    window.MODE = urlParams.get('mode') || astroMode || 'men';
+    window.MODE = pathMode || urlParams.get('mode') || astroMode || 'men';
     var MODE = window.MODE;
     document.body.setAttribute('data-mode', MODE);
 
@@ -77,13 +83,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // canonical動的設定
-    var cp = new URLSearchParams();
-    if (urlParams.get('mode')) cp.set('mode', urlParams.get('mode'));
-    if (urlParams.get('pref')) cp.set('pref', urlParams.get('pref'));
-    if (urlParams.get('city')) cp.set('city', urlParams.get('city'));
-    var cq = cp.toString();
-    var canonicalUrl = 'https://yobuho.com/portal.html' + (cq ? '?' + cq : '');
+    // canonical動的設定（パスベースURL）
+    var modePathMap = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
+    var canonicalPath = '/' + (modePathMap[MODE] || 'men');
+    var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
+    if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
+    if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);
+    var canonicalUrl = 'https://yobuho.com' + canonicalPath;
     document.querySelector('link[rel="canonical"]').setAttribute('href', canonicalUrl);
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);

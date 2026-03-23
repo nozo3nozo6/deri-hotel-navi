@@ -63,13 +63,16 @@ const MODE_DATA: Record<string, {
 };
 
 const d = MODE_DATA[mode];
+const MODE_PATH_MAP: Record<string, string> = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
+const modePath = MODE_PATH_MAP[mode] || 'men';
+const modeUrl = `https://yobuho.com/${modePath}/`;
 
 const jsonLd = [
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": d.title,
-    "url": `https://yobuho.com/portal.html?mode=${mode}`,
+    "url": modeUrl,
     "description": d.description,
     "applicationCategory": "LifestyleApplication",
     "operatingSystem": "All",
@@ -77,7 +80,7 @@ const jsonLd = [
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/portal.html?keyword={search_term_string}" },
+      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/men/?keyword={search_term_string}" },
       "query-input": "required name=search_term_string"
     },
     "provider": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com/", "logo": "https://yobuho.com/ogp.png" }
@@ -87,7 +90,7 @@ const jsonLd = [
     "@type": "BreadcrumbList",
     "itemListElement": [
       { "@type": "ListItem", "position": 1, "name": "ホーム", "item": "https://yobuho.com/" },
-      { "@type": "ListItem", "position": 2, "name": d.ogTitle, "item": `https://yobuho.com/portal.html?mode=${mode}` }
+      { "@type": "ListItem", "position": 2, "name": d.ogTitle, "item": modeUrl }
     ]
   }
 ];
@@ -97,10 +100,10 @@ const jsonLd = [
   title={d.title}
   description={d.description}
   keywords="呼べるホテル,呼べたホテル,ホテル検索,デリヘル 呼べる ホテル,女性用風俗 呼べる ホテル,女風 ホテル 検索,女風 呼べるホテル,レズビアン ホテル,ゲイ ホテル,同性カップル ホテル,LGBT ホテル,同性利用OK ホテル,セラピスト 派遣 ホテル,女性向け風俗 ホテル,メンズエステ ホテル,出張マッサージ ホテル,ラブホテル 口コミ,ビジネスホテル デリヘル,シティホテル 呼べる,ホテル 派遣 可能,出張 ホテル 呼べる"
-  canonical={`https://yobuho.com/portal.html?mode=${mode}`}
+  canonical={modeUrl}
   ogTitle={d.ogTitle}
   ogDescription={d.ogDescription}
-  ogUrl={`https://yobuho.com/portal.html?mode=${mode}`}
+  ogUrl={modeUrl}
   ogImageAlt="YobuHo - 呼べるホテル検索ポータル"
   twitterTitle={d.ogTitle}
   twitterDescription={d.ogDescription}

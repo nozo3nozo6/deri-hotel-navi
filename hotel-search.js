@@ -369,10 +369,13 @@ async function switchTab(tab) {
         }
     });
 
+    // タブ状態をURLに反映（パスは維持、tabパラメータのみ操作）
+    const curPath = window.location.pathname;
     const cur = new URLSearchParams(window.location.search);
     if (tab === 'loveho') cur.set('tab', 'loveho');
     else cur.delete('tab');
-    history.replaceState(null, '', '?' + cur.toString());
+    const qs = cur.toString();
+    history.replaceState(null, '', curPath + (qs ? '?' + qs : ''));
 
     // ラブホタブ: ムード切替
     const hotelList = document.getElementById('hotel-list');

@@ -12,6 +12,7 @@ const BASE_URL = 'https://yobuho.com';
 const TODAY = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
 const MODES = ['men', 'women', 'men_same', 'women_same'];
+const MODE_PATH = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
 
 const PREFECTURES = [
   '北海道',
@@ -57,11 +58,11 @@ const urls = [];
 // トップページ
 urls.push(entry(`${BASE_URL}/`, '1.0', 'daily'));
 
-// モード別ポータル
-urls.push(entry(`${BASE_URL}/portal.html?mode=men`, '0.9', 'daily'));
-urls.push(entry(`${BASE_URL}/portal.html?mode=women`, '0.9', 'daily'));
-urls.push(entry(`${BASE_URL}/portal.html?mode=men_same`, '0.7', 'weekly'));
-urls.push(entry(`${BASE_URL}/portal.html?mode=women_same`, '0.7', 'weekly'));
+// モード別ポータル（サブディレクトリ方式）
+urls.push(entry(`${BASE_URL}/men/`, '0.9', 'daily'));
+urls.push(entry(`${BASE_URL}/women/`, '0.9', 'daily'));
+urls.push(entry(`${BASE_URL}/men-same/`, '0.7', 'weekly'));
+urls.push(entry(`${BASE_URL}/women-same/`, '0.7', 'weekly'));
 
 // サブドメイン（loveho追加）
 urls.push(entry('https://deli.yobuho.com/', '0.8', 'weekly'));
@@ -80,19 +81,21 @@ urls.push(entry(`${BASE_URL}/privacy.html`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/contact.html`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/shop-register.html`, '0.5', 'monthly'));
 
-// 都道府県 x モード別URL（モードなしURLはmode=menにリダイレクトされるため省略）
+// 都道府県 x モード別URL（サブディレクトリ方式）
 for (const mode of MODES) {
+  const mp = MODE_PATH[mode];
   for (const pref of PREFECTURES) {
-    urls.push(entry(`${BASE_URL}/portal.html?mode=${mode}&pref=${encodeURIComponent(pref)}`, '0.6', 'daily'));
+    urls.push(entry(`${BASE_URL}/${mp}/${encodeURIComponent(pref)}`, '0.6', 'daily'));
   }
 }
 
 // 主要都市 x モード別URL（高検索ボリューム）
 for (const mode of ['men', 'women']) {
+  const mp = MODE_PATH[mode];
   for (const [pref, cities] of Object.entries(MAJOR_CITIES)) {
     for (const city of cities) {
       urls.push(entry(
-        `${BASE_URL}/portal.html?mode=${mode}&pref=${encodeURIComponent(pref)}&city=${encodeURIComponent(city)}`,
+        `${BASE_URL}/${mp}/${encodeURIComponent(pref)}/${encodeURIComponent(city)}`,
         '0.5', 'daily'
       ));
     }
