@@ -111,6 +111,22 @@ function handleGetInfo() {
     $stmt->execute([$info['id']]);
     $info['service_ids'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+    // reportsテーブルの口コミデータも取得
+    $stmt = $pdo->prepare('SELECT can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, multi_person, guest_male, guest_female, multi_fee FROM reports WHERE hotel_id = ? AND shop_id = ? AND poster_type = ? LIMIT 1');
+    $stmt->execute([$hotelId, $auth['shop_id'], 'shop']);
+    $report = $stmt->fetch();
+    if ($report) {
+        $info['can_call_reasons'] = json_decode($report['can_call_reasons'] ?: '[]', true);
+        $info['cannot_call_reasons'] = json_decode($report['cannot_call_reasons'] ?: '[]', true);
+        $info['time_slot'] = $report['time_slot'];
+        $info['room_type'] = $report['room_type'];
+        $info['report_comment'] = $report['comment'];
+        $info['multi_person'] = (bool)$report['multi_person'];
+        $info['guest_male'] = $report['guest_male'];
+        $info['guest_female'] = $report['guest_female'];
+        $info['multi_fee'] = (bool)$report['multi_fee'];
+    }
+
     echo json_encode($info, JSON_UNESCAPED_UNICODE);
 }
 

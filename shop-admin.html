@@ -1194,8 +1194,14 @@ function openForm(hotel,existing){
     if(existing){
         setCanCall(existing.can_call);
         setTransportFee(existing.transport_fee);
-        document.getElementById("form-memo").value=existing.memo||"";
+        document.getElementById("form-memo").value=existing.report_comment||existing.memo||"";
         renderServiceChecks(existing.service_ids||[]);
+        // 口コミデータ復元
+        if(existing.can_call_reasons&&existing.can_call_reasons.length){renderCheckGroup("can-reason-checks",canReasons,existing.can_call_reasons);}
+        if(existing.cannot_call_reasons&&existing.cannot_call_reasons.length){renderCheckGroup("cant-reason-checks",cannotReasons,existing.cannot_call_reasons);}
+        if(existing.room_type){renderCheckGroup("room-type-checks",roomTypes,[existing.room_type]);}
+        if(existing.time_slot){renderCheckGroup("time-slot-checks",TIME_SLOTS,[existing.time_slot]);}
+        if(existing.multi_person){document.getElementById("sa-multi-person-check").checked=true;document.getElementById("sa-multi-person-detail").style.display="flex";if(existing.guest_male)document.getElementById("sa-guest-male").value=existing.guest_male;if(existing.guest_female)document.getElementById("sa-guest-female").value=existing.guest_female;if(existing.multi_fee)document.getElementById("sa-multi-fee").checked=true;}
     }else{
         renderServiceChecks([]);
     }
