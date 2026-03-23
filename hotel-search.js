@@ -102,7 +102,7 @@ let _fuseReadyPromise = null;
 function ensureFuseWorker() {
     if (_fuseWorker) return _fuseReadyPromise;
     try {
-        _fuseWorker = new Worker('/fuse-worker.js');
+        _fuseWorker = new Worker('/fuse-worker.js?v=CACHE_HASH');
         _fuseReadyPromise = new Promise((resolve) => {
             _fuseWorker.onmessage = (e) => {
                 if (e.data.type === 'ready') { _fuseReady = true; resolve(true); }
