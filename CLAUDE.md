@@ -627,6 +627,17 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半4） — 検索をEnter実行方式に変更
+
+#### キーワード検索UX改善（Google式Enter実行）
+- 旧: 入力中に800msデバウンスで自動検索（入力途中で発火、意図しない検索）
+- 新: Enterキー（PC）/ 検索ボタン（スマホ）で明示的に検索実行
+- portal.html: input type="search" + enterkeyhint="search"（スマホに検索ボタン表示）
+- hotel-search.js: data-oninput自動検索→keydownイベントでEnter検出、executeKeywordSearch()実行
+- ✕ボタン表示/非表示はinputイベントで維持（検索は発火しない）
+- IME変換確定のEnterはcomposingフラグでスキップ
+- 駅検索のsuggestStationsは入力中サジェストのまま変更なし
+
 ### 2026年3月24日（後半3） — 検索の半角/全角表記ゆれ対応
 
 #### NFKC正規化による表記ゆれ吸収

@@ -897,54 +897,63 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================================================
-// キーワード検索
+// キーワード検索（Enter/検索ボタンで実行）
 // ==========================================================================
-let searchTimeout = null;
 let _isComposing = false; // IME変換中フラグ
-
-// IME変換中は検索を実行しない
 document.addEventListener('compositionstart', () => { _isComposing = true; });
-document.addEventListener('compositionend', () => {
-    _isComposing = false;
-    fetchHotelsFromSearch();
+document.addEventListener('compositionend', () => { _isComposing = false; });
+
+// ✕ボタン表示切替（入力中に動かす）
+document.addEventListener('input', (e) => {
+    if (e.target.id === 'keyword') {
+        const v = e.target.value.trim();
+        document.getElementById('search-clear-btn').style.display = v ? 'block' : 'none';
+    }
 });
 
-function fetchHotelsFromSearch() {
-    if (_isComposing) return; // IME変換中はスキップ
+// Enterキーまたはスマホ検索ボタンで検索実行
+document.addEventListener('keydown', (e) => {
+    if (e.target.id !== 'keyword') return;
+    if (e.key !== 'Enter') return;
+    if (_isComposing) return; // IME変換確定のEnterはスキップ
+    e.preventDefault();
+    executeKeywordSearch();
+});
+
+async function executeKeywordSearch() {
     const keyword = document.getElementById('keyword')?.value?.trim() || '';
-    document.getElementById('search-clear-btn').style.display = keyword ? 'block' : 'none';
+    if (!keyword) return;
 
-    clearTimeout(searchTimeout);
-    if (keyword.length < 3) return; // 3文字未満は検索しない
-    searchTimeout = setTimeout(async () => {
-        // ホテル詳細が開いていれば閉じる
-        if (currentHotelId) leaveHotelDetail();
-        // キーボードを閉じる（スマホ）
-        document.getElementById('keyword')?.blur();
-        showLoading();
-        showSkeletonLoader();
-        setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `「${keyword}」の検索結果` }]);
-        setTitle(`「${keyword}」の検索結果`);
-        setBackBtn(true);
-        pageStack.push(showJapanPage);
-        document.getElementById('area-button-container').innerHTML = '';
-        window.scrollTo(0, 0);
+    // ホテル詳細が開いていれば閉じる
+    if (currentHotelId) leaveHotelDetail();
+    // キーボードを閉じる（スマホ）
+    document.getElementById('keyword')?.blur();
+    showLoading();
+    showSkeletonLoader();
+    setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `「${keyword}」の検索結果` }]);
+    setTitle(`「${keyword}」の検索結果`);
+    setBackBtn(true);
+    pageStack.push(showJapanPage);
+    document.getElementById('area-button-container').innerHTML = '';
+    window.scrollTo(0, 0);
 
-        try {
-            // ハイブリッド検索（Pagefind+Fuse.js）、フォールバック: PHP API
-            let rawHotels = await fuseSearch(keyword, 50);
-            if (rawHotels === null) rawHotels = await queryHotelsAPI({ keyword, limit: 50 });
-            const hotels = await fetchHotelsWithSummary(rawHotels);
-            // キーワード検索は関連度順を維持（sortHotelsByReviewsをスキップ）
-            renderHotelCards(hotels);
-            setResultStatus(hotels.length);
-        } catch (e) {
-            /* error silenced */
-        } finally {
-            hideLoading();
-        }
-    }, 800);
+    try {
+        // ハイブリッド検索（Pagefind+Fuse.js）、フォールバック: PHP API
+        let rawHotels = await fuseSearch(keyword, 50);
+        if (rawHotels === null) rawHotels = await queryHotelsAPI({ keyword, limit: 50 });
+        const hotels = await fetchHotelsWithSummary(rawHotels);
+        // キーワード検索は関連度順を維持（sortHotelsByReviewsをスキップ）
+        renderHotelCards(hotels);
+        setResultStatus(hotels.length);
+    } catch (e) {
+        /* error silenced */
+    } finally {
+        hideLoading();
+    }
 }
+
+// 後方互換（compositionendから呼ばれていた名前を維持）
+function fetchHotelsFromSearch() { executeKeywordSearch(); }
 
 function clearSearch() {
     const input = document.getElementById('keyword');
