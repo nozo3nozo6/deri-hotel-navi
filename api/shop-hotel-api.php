@@ -192,14 +192,15 @@ function handleSaveHotelInfo() {
             (int)($report['multi_person'] ?? false),
             (int)($report['guest_male'] ?? 1),
             (int)($report['guest_female'] ?? 0),
+            ($report['multi_person'] ?? false) ? (int)(bool)($report['multi_fee'] ?? false) : null,
         ];
 
         if ($existingRep) {
-            $stmt = $pdo->prepare('UPDATE reports SET hotel_id=?, can_call=?, poster_type=?, poster_name=?, shop_id=?, can_call_reasons=?, cannot_call_reasons=?, time_slot=?, room_type=?, comment=?, gender_mode=?, multi_person=?, guest_male=?, guest_female=?, updated_at=NOW() WHERE id=?');
+            $stmt = $pdo->prepare('UPDATE reports SET hotel_id=?, can_call=?, poster_type=?, poster_name=?, shop_id=?, can_call_reasons=?, cannot_call_reasons=?, time_slot=?, room_type=?, comment=?, gender_mode=?, multi_person=?, guest_male=?, guest_female=?, multi_fee=?, updated_at=NOW() WHERE id=?');
             $stmt->execute(array_merge($reportData, [$existingRep['id']]));
         } else {
             $uuid = DB::uuid();
-            $stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, shop_id, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, gender_mode, multi_person, guest_male, guest_female) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, shop_id, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, gender_mode, multi_person, guest_male, guest_female, multi_fee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
             $stmt->execute(array_merge([$uuid], $reportData));
         }
 
@@ -280,6 +281,7 @@ function handleSaveLovehoInfo() {
             'multi_person' => (int)($report['multi_person'] ?? false),
             'guest_male' => $report['guest_male'] ?? null,
             'guest_female' => $report['guest_female'] ?? null,
+            'multi_fee' => ($report['multi_person'] ?? false) ? (int)(bool)($report['multi_fee'] ?? false) : null,
             'gender_mode' => $shop['gender_mode'] ?? 'men',
         ];
 

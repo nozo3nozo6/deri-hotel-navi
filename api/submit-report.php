@@ -81,7 +81,7 @@ if ($suspiciousShops) {
 
 // ── INSERT ──
 $id = DB::uuid();
-$stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, multi_person, guest_male, guest_female, gender_mode, fingerprint, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+$stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, multi_person, guest_male, guest_female, multi_fee, gender_mode, fingerprint, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 $stmt->execute([
     $id,
     $hotelId,
@@ -96,6 +96,7 @@ $stmt->execute([
     (int)(bool)($input['multi_person'] ?? false),
     (int)($input['guest_male'] ?? 0),
     (int)($input['guest_female'] ?? 0),
+    ($input['multi_person'] ?? false) ? (int)(bool)($input['multi_fee'] ?? false) : null,
     $input['gender_mode'] ?? 'men',
     $fingerprint,
     $ipHash,

@@ -27,6 +27,7 @@ let hotelFormState = {
     poster_name: '',
     room_type: '',
     multi_person: false,
+    multi_fee: false,
     guest_male: 1,
     guest_female: 1,
 };
@@ -430,6 +431,7 @@ async function doSubmitReport() {
         poster_name: hotelFormState.poster_name?.trim() || '無記名',
         room_type: hotelFormState.room_type || null,
         multi_person: hotelFormState.multi_person || false,
+        multi_fee: hotelFormState.multi_person ? (hotelFormState.multi_fee || false) : false,
         guest_male: hotelFormState.multi_person ? hotelFormState.guest_male
             : (MODE === 'women' || MODE === 'women_same' ? 0 : 1),
         guest_female: hotelFormState.multi_person ? hotelFormState.guest_female
@@ -526,6 +528,7 @@ async function submitLovehoReport() {
             poster_name: lhFormState.poster_name || null,
             gender_mode: typeof MODE !== 'undefined' ? MODE : null,
             multi_person: lhFormState.multi_person || false,
+            multi_fee: lhFormState.multi_person ? (lhFormState.multi_fee || false) : false,
             guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
             guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
         };

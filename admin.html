@@ -833,11 +833,14 @@
             <div id="re-lh-goodpoints-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
             <!-- 複数人OK -->
             <div class="mf"><label class="ml">複数人OK</label>
-            <select id="re-lh-multi" class="mi">
+            <div style="display:flex;align-items:center;gap:8px;">
+            <select id="re-lh-multi" class="mi" style="flex:1;">
               <option value="">未選択</option>
               <option value="true">OK</option>
               <option value="false">NG</option>
-            </select></div>
+            </select>
+            <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--ink-3);cursor:pointer;"><input type="checkbox" id="re-lh-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
+            </div></div>
             <!-- 利用時間帯 -->
             <div class="mf"><label class="ml">利用時間帯</label>
             <select id="re-lh-time-slot" class="mi">
@@ -1623,6 +1626,7 @@ function openRepEdit(id){
     toggleLhShopMode(isShopPost, r.solo_entry);
     // multi_person: trueのみ「OK」、falseやnullは「未選択」（ポータルと同じ動作）
     document.getElementById("re-lh-multi").value = r.multi_person===true?"true":"";
+    document.getElementById("re-lh-multi-fee").checked = !!r.multi_fee;
 
     // チェックポイント
     const selGp = r.good_points||[];
@@ -1667,7 +1671,8 @@ async function saveRepEdit(){
     const time_slot = document.getElementById("re-lh-time-slot").value||null;
     const good_points = [...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
     const gender_mode = document.getElementById("re-gender-mode").value||"men";
-    const payload = {atmosphere,solo_entry,multi_person,good_points,poster_name,time_slot,comment,gender_mode};
+    const multi_fee = multi_person ? (document.getElementById("re-lh-multi-fee").checked || false) : null;
+    const payload = {atmosphere,solo_entry,multi_person,multi_fee,good_points,poster_name,time_slot,comment,gender_mode};
     const newDate2 = document.getElementById("re-created-at").value;
     if(newDate2) payload.created_at = new Date(newDate2).toISOString();
     const _r=await api("update",{table:"loveho_reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}

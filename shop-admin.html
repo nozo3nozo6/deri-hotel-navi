@@ -496,13 +496,14 @@
                     <input type="checkbox" id="lh-f-multi" onchange="document.getElementById('lh-f-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="lh-f-multi-detail" style="display:none;gap:8px;margin-top:8px;">
+                <div id="lh-f-multi-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
                     <select id="lh-f-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
                         <option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option>
                     </select>
                     <select id="lh-f-guest-female" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
                         <option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option>
                     </select>
+                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="lh-f-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group" id="lh-f-ts-wrap">
@@ -596,7 +597,7 @@
                     <input type="checkbox" id="sa-multi-person-check" onchange="document.getElementById('sa-multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="sa-multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
+                <div id="sa-multi-person-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
                     <select id="sa-guest-male" style="flex:1;padding:8px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;">
                         <option value="">男性</option>
                         <option value="1">男性 1名</option>
@@ -611,6 +612,7 @@
                         <option value="3">女性 3名</option>
                         <option value="4">女性 4名</option>
                     </select>
+                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:#555;cursor:pointer;"><input type="checkbox" id="sa-multi-fee" style="width:14px;height:14px;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group">
@@ -1341,6 +1343,7 @@ async function doSubmit(){
             room_type:roomTypeArr[0]||null,
             comment:memo,
             multi_person:multiPerson,
+            multi_fee:multiPerson?(document.getElementById("sa-multi-fee").checked||false):false,
             guest_male:multiPerson?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
             guest_female:multiPerson?(parseInt(document.getElementById("sa-guest-female").value)||0):0
         },
@@ -1638,7 +1641,7 @@ async function lhSelectHotel(hotelId,hotelName){
         if(existLh.atmosphere)document.getElementById("lh-f-atmosphere").value=existLh.atmosphere;
         if(existLh.time_slot)document.getElementById("lh-f-timeslot").value=existLh.time_slot;
         if(existLh.comment)document.getElementById("lh-f-comment").value=existLh.comment;
-        if(existLh.multi_person){document.getElementById("lh-f-multi").checked=true;document.getElementById("lh-f-multi-detail").style.display="flex";if(existLh.guest_male)document.getElementById("lh-f-guest-male").value=existLh.guest_male;if(existLh.guest_female)document.getElementById("lh-f-guest-female").value=existLh.guest_female;}
+        if(existLh.multi_person){document.getElementById("lh-f-multi").checked=true;document.getElementById("lh-f-multi-detail").style.display="flex";if(existLh.guest_male)document.getElementById("lh-f-guest-male").value=existLh.guest_male;if(existLh.guest_female)document.getElementById("lh-f-guest-female").value=existLh.guest_female;if(existLh.multi_fee)document.getElementById("lh-f-multi-fee").checked=true;}
         if(existLh.good_points&&Array.isArray(existLh.good_points)){
             lhSelectedGoodPoints=existLh.good_points;
             document.querySelectorAll("#lh-f-gp-wrap div[onclick]").forEach(el=>{
@@ -1675,6 +1678,7 @@ async function lhSubmitReport(){
                 comment:comment||null,
                 poster_name:poster||currentShop.shop_name||"店舗",
                 multi_person:multi,
+                multi_fee:multi?(document.getElementById("lh-f-multi-fee").checked||false):false,
                 guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,
                 guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null
             },

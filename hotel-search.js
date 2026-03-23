@@ -726,7 +726,7 @@ function renderLovehoDetail(hotel, reports) {
             ${gpService.length ? `<div class="review-gp-section"><div class="review-gp-label">🏨 サービス・利便性</div><div class="review-gp-tags">${gpTagHTML(gpService)}</div></div>` : ''}
             ${r.entry_method ? `<div class="review-detail-text">🚪 ${MODE==='women'?'セラピスト':'キャスト'}の入室方法: ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${r.time_slot ? `<div class="review-detail-text">🕐 ${esc(r.time_slot)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : ''}</div>` : ''}
             <button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn" style="margin-top:6px;opacity:0.6;">🚩 報告</button>
         </div>`;
     }
@@ -832,6 +832,7 @@ function renderLovehoDetail(hotel, reports) {
                 <div id="lh-multi-detail" class="multi-detail-row" style="margin-bottom:4px;">
                     <select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
                     <select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
+                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="lh-form-row"><label class="lh-form-label">利用時間帯</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
@@ -842,7 +843,7 @@ function renderLovehoDetail(hotel, reports) {
 
     renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });
 
-    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, guest_male: '', guest_female: '' };
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, multi_fee: false, guest_male: '', guest_female: '' };
 }
 
 function setResultStatus(count) {
@@ -1483,7 +1484,7 @@ async function showHotelPanel(hotelId, isLoveho) {
     }
     currentHotelId = hotelId;
     currentPage = () => showHotelPanel(hotelId, isLoveho);
-    hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, guest_male: 1, guest_female: 1 };
+    hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, multi_fee: false, guest_male: 1, guest_female: 1 };
 
     updateUrl({ hotel: hotelId });
     setBackBtn(true);
@@ -1631,8 +1632,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const tagsHTML = entryTags.map(t =>
             `<span class="tag-chip ${tagCls}">${esc(t)}</span>`
         ).join('');
+        const multiFeeTag = r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : '';
         const guestChip = r.multi_person
-            ? `<span class="tag-chip tag-chip--guest">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}</span>`
+            ? `<span class="tag-chip tag-chip--guest">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}${multiFeeTag}</span>`
             : (r.guest_female != null && r.guest_female > 0)
             ? `<span class="tag-chip tag-chip--guest">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
@@ -1801,6 +1803,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                                 <span id="form-guest-female" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
                                 <button type="button" onclick="hotelStepGuest('female',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
+                            <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;margin-left:auto;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
                         </div>
                     </div>
                 </div>
@@ -1826,9 +1829,10 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                     <input type="checkbox" id="multi-person-check" onchange="hotelFormState.multi_person=this.checked; document.getElementById('multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
-                <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;">
+                <div id="multi-person-detail" style="display:none;gap:8px;margin-top:8px;align-items:center;">
                     <select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">男性</option><option value="1">男性 1名</option><option value="2">男性 2名</option><option value="3">男性 3名</option><option value="4">男性 4名</option></select>
                     <select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">女性</option><option value="1">女性 1名</option><option value="2">女性 2名</option><option value="3">女性 3名</option><option value="4">女性 4名</option></select>
+                    <label style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
                 </div>
             </div>
             <div class="form-group">

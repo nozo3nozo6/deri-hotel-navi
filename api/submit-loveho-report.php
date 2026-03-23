@@ -47,7 +47,7 @@ $comment = $input['comment'] ?? null;
 if ($comment) $comment = mb_substr(trim($comment), 0, 500);
 
 $id = DB::uuid();
-$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, gender_mode, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, multi_fee, gender_mode, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 $stmt->execute([
     $id,
     $hotelId,
@@ -63,6 +63,7 @@ $stmt->execute([
     (int)(bool)($input['multi_person'] ?? false),
     isset($input['guest_male']) ? (int)$input['guest_male'] : null,
     isset($input['guest_female']) ? (int)$input['guest_female'] : null,
+    ($input['multi_person'] ?? false) ? (int)(bool)($input['multi_fee'] ?? false) : null,
     $input['gender_mode'] ?? null,
     $ipHash,
 ]);
