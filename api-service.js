@@ -53,7 +53,7 @@ let SHOP_DATA = null;
 async function initShopMode() {
     if (!SHOP_ID) return;
     try {
-        const res = await fetch(`api/shop-info.php?shop_id=${encodeURIComponent(SHOP_ID)}`);
+        const res = await fetch(`/api/shop-info.php?shop_id=${encodeURIComponent(SHOP_ID)}`);
         if (!res.ok) return;
         const data = await res.json();
         if (data) SHOP_DATA = data;
@@ -63,7 +63,7 @@ async function initShopMode() {
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const res = await fetch('api/report-summaries.php', {
+        const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hotel_ids: hotelIds }),
@@ -77,7 +77,7 @@ async function fetchReportSummaries(hotelIds) {
 async function fetchLatestReportDates(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const res = await fetch('api/report-summaries.php', {
+        const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hotel_ids: hotelIds, latest_only: true }),
@@ -91,7 +91,7 @@ async function fetchLatestReportDates(hotelIds) {
 async function fetchHotelsWithSummary(hotels) {
     if (!hotels || !hotels.length) return [];
     const hotelIds = hotels.map(h => h.id);
-    const res = await fetch('api/report-summaries.php', {
+    const res = await fetch('/api/report-summaries.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hotel_ids: hotelIds }),
@@ -108,7 +108,7 @@ async function fetchHotelsWithSummary(hotels) {
 async function fetchLovehoReviewSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
-        const res = await fetch('api/report-summaries.php', {
+        const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hotel_ids: hotelIds, loveho: true }),
@@ -208,7 +208,7 @@ async function loadAds(placementType, placementTarget) {
     container.innerHTML = '';
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const res = await fetch(`api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
         if (!res.ok) return;
         const data = await res.json();
         if (!data || !data.length) return;
@@ -219,7 +219,7 @@ async function loadAds(placementType, placementTarget) {
 async function fetchDetailAds(placementType, placementTarget) {
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const res = await fetch(`api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
         if (!res.ok) return '';
         const data = await res.json();
         if (!data || !data.length) return '';

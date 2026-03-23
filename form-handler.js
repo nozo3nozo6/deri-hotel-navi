@@ -256,7 +256,7 @@ async function voteReport(reportId, vote) {
     const fp = await generateFingerprint();
 
     try {
-        const res = await fetch('api/submit-vote.php', {
+        const res = await fetch('/api/submit-vote.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ report_id: reportId, fingerprint: fp, vote }),
@@ -439,7 +439,7 @@ async function doSubmitReport() {
     };
 
     try {
-        const response = await fetch('api/submit-report.php', {
+        const response = await fetch('/api/submit-report.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -529,7 +529,7 @@ async function submitLovehoReport() {
             guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
             guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
         };
-        const res = await fetch('api/submit-loveho-report.php', {
+        const res = await fetch('/api/submit-loveho-report.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -665,7 +665,7 @@ async function submitFlag() {
     closeFlagModal();
 
     try {
-        const res = await fetch('api/submit-flag.php', {
+        const res = await fetch('/api/submit-flag.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: targetId, table: tbl, flag_reason: selectedReason, flag_comment: flag_comment }),
@@ -750,7 +750,7 @@ async function submitHotelRequest() {
     const type = document.getElementById('hreq-type').value;
 
     try {
-        const res = await fetch('api/submit-hotel-request.php', {
+        const res = await fetch('/api/submit-hotel-request.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hotel_name: name, address, tel, hotel_type: type }),

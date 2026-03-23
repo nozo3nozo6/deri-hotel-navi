@@ -39,7 +39,7 @@ async function queryHotelsAPI(params) {
     for (const [k, v] of Object.entries(params)) {
         if (v != null && v !== '') qs.set(k, v);
     }
-    const res = await fetch('api/hotels.php?' + qs.toString());
+    const res = await fetch('/api/hotels.php?' + qs.toString());
     if (!res.ok) return [];
     return await res.json();
 }
@@ -533,7 +533,7 @@ async function loadDetail(hotelId, isLoveho) {
 
         // データ取得（PHP API経由）
         const detailType = isLoveho ? 'loveho' : 'hotel';
-        const detailRes = await fetch(`api/hotel-detail.php?hotel_id=${hotelId}&type=${detailType}`);
+        const detailRes = await fetch(`/api/hotel-detail.php?hotel_id=${hotelId}&type=${detailType}`);
         if (!detailRes.ok) throw new Error('Hotel not found');
         const detailData = await detailRes.json();
         if (!detailData.hotel) throw new Error('Hotel not found');
@@ -832,7 +832,7 @@ function suggestStations() {
 
     stationTimeout = setTimeout(async () => {
         try {
-            const res = await fetch('api/hotels.php?suggest_station=' + encodeURIComponent(val));
+            const res = await fetch('/api/hotels.php?suggest_station=' + encodeURIComponent(val));
             if (!res.ok) return;
             const stations = await res.json();
             if (!stations.length) { box.innerHTML = '<div class="station-suggest-empty">該当する駅が見つかりません</div>'; box.style.display = 'block'; return; }
