@@ -72,13 +72,16 @@ async function ensurePagefind() {
 }
 
 /** Pagefind検索 → ホテルIDの配列を返す */
+// 半角/全角統一（NFKC: ＩＮＮ→INN、全角数字→半角等）+ 小文字化
+function _norm(s) { return s ? s.normalize('NFKC').toLowerCase() : ''; }
+
 async function pagefindSearchIds(keyword, filters, limit) {
     const pf = await ensurePagefind();
     if (!pf) return null;
     try {
         const opts = {};
         if (filters && Object.keys(filters).length) opts.filters = filters;
-        const result = await pf.search(keyword || null, opts);
+        const result = await pf.search(keyword ? keyword.normalize('NFKC') : null, opts);
         if (!result?.results?.length) return [];
         const slice = result.results.slice(0, limit || 30);
         const ids = await Promise.all(slice.map(async r => {
@@ -159,9 +162,9 @@ async function hybridSearch(keyword, limit) {
     if (!mergedIds.length) return null;
     const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), limit: lim });
     // キーワード一致度でソート（完全一致 > 先頭一致 > 部分一致 > それ以外）
-    const kw = keyword.toLowerCase();
+    const kw = _norm(keyword);
     hotels.sort((a, b) => {
-        const na = (a.name || '').toLowerCase(), nb = (b.name || '').toLowerCase();
+        const na = _norm(a.name), nb = _norm(b.name);
         const scoreA = na === kw ? 0 : na.startsWith(kw) ? 1 : na.includes(kw) ? 2 : 3;
         const scoreB = nb === kw ? 0 : nb.startsWith(kw) ? 1 : nb.includes(kw) ? 2 : 3;
         if (scoreA !== scoreB) return scoreA - scoreB;

@@ -627,6 +627,17 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半3） — 検索の半角/全角表記ゆれ対応
+
+#### NFKC正規化による表記ゆれ吸収
+- 問題: 「東横inn府中」(半角)で「東横ＩＮＮ府中」(全角)がヒットしない
+- 原因: Unicode的に半角INN≠全角ＩＮＮ、Fuse.js/Pagefind両方で別文字扱い
+- 解決: NFKC正規化（全角英数→半角、カタカナ統一等）を検索パイプライン全体に適用
+- fuse-worker.js: インデックス構築時に正規化フィールド(_n,_a,_c,_s)追加 + クエリ正規化
+- hotel-search.js: Pagefindクエリ正規化 + ソート比較正規化（_norm関数追加）
+- generate-pagefind-index.mjs: Pagefindインデックス生成時にcontent NFKC正規化
+- 効果: 半角inn/全角ＩＮＮ/カタカナイン 全てで同一ホテルがヒット
+
 ### 2026年3月24日（後半2） — ホテル詳細URLクリーン化
 
 #### ホテル詳細クリーンURL（SEO・CTR・シェアしやすさ向上）

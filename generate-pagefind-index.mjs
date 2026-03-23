@@ -19,10 +19,13 @@ const MODE_FILTER_MAP = {
     women_same: 'same_f',
 };
 
+// 半角/全角統一（NFKC: ＩＮＮ→INN、全角数字→半角等）
+const norm = s => s ? s.normalize('NFKC') : '';
+
 let added = 0;
 for (const h of data.hotels) {
-    // 検索対象テキスト: ホテル名 + 住所 + 駅名
-    const content = [h.name, h.address, h.station].filter(Boolean).join(' ');
+    // 検索対象テキスト: ホテル名 + 住所 + 駅名（NFKC正規化で表記ゆれ吸収）
+    const content = [h.name, h.address, h.station].filter(Boolean).map(norm).join(' ');
 
     // フィルタ構築
     const filters = {
