@@ -237,7 +237,7 @@ function clearAds() {
 // ==========================================================================
 async function fetchAreaShops(pref, city, genderMode) {
     try {
-        let url = `api/area-shops.php?pref=${encodeURIComponent(pref)}&mode=${encodeURIComponent(genderMode)}`;
+        let url = `/api/area-shops.php?pref=${encodeURIComponent(pref)}&mode=${encodeURIComponent(genderMode)}`;
         if (city) url += `&city=${encodeURIComponent(city)}`;
         const res = await fetch(url);
         if (!res.ok) return [];
