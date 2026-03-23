@@ -5,8 +5,8 @@
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
     if (window.__ASTRO_MODE) return;
-    // パスベースURL対応: /men/, /women/, /men-same/, /women-same/
-    var pathMap = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+    // パスベースURL対応: /deli/, /jofu/, /same-m/, /same-f/
+    var pathMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same' };
     var seg = location.pathname.split('/').filter(Boolean)[0] || '';
     var m = pathMap[seg] || new URLSearchParams(location.search).get('mode') || 'men';
     if (m === 'women' || m === 'women_same') {
@@ -23,12 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Astro SSGページではwindow.__ASTRO_MODEがビルド時に埋め込まれる
     var astroMode = window.__ASTRO_MODE || null;
     // パスベースURL対応
-    var pathModeMap = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+    var pathModeMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same' };
     var firstSeg = location.pathname.split('/').filter(Boolean)[0] || '';
     var pathMode = pathModeMap[firstSeg] || null;
     // モード未指定の場合、/men/ にリダイレクト
     if (!urlParams.get('mode') && !astroMode && !pathMode) {
-        location.replace('/men/');
+        location.replace('/deli/');
         return;
     }
     window.MODE = pathMode || urlParams.get('mode') || astroMode || 'men';
@@ -84,8 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // canonical動的設定（パスベースURL）
-    var modePathMap = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
-    var canonicalPath = '/' + (modePathMap[MODE] || 'men');
+    var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+    var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
     var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
     if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
     if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);

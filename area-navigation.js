@@ -54,11 +54,11 @@ function findRegionByLabel(label) {
 }
 
 // MODE → URLパスセグメント
-const MODE_PATH_MAP = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
-const PATH_MODE_MAP = { 'men': 'men', 'women': 'women', 'men-same': 'men_same', 'women-same': 'women_same' };
+const MODE_PATH_MAP = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+const PATH_MODE_MAP = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same' };
 
 function getModePath() {
-    return MODE_PATH_MAP[window.MODE] || 'men';
+    return MODE_PATH_MAP[window.MODE] || 'deli';
 }
 
 function buildUrl(params) {

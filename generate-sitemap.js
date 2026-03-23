@@ -12,7 +12,7 @@ const BASE_URL = 'https://yobuho.com';
 const TODAY = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
 const MODES = ['men', 'women', 'men_same', 'women_same'];
-const MODE_PATH = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
+const MODE_PATH = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
 
 const PREFECTURES = [
   '北海道',
@@ -59,10 +59,10 @@ const urls = [];
 urls.push(entry(`${BASE_URL}/`, '1.0', 'daily'));
 
 // モード別ポータル（サブディレクトリ方式）
-urls.push(entry(`${BASE_URL}/men/`, '0.9', 'daily'));
-urls.push(entry(`${BASE_URL}/women/`, '0.9', 'daily'));
-urls.push(entry(`${BASE_URL}/men-same/`, '0.7', 'weekly'));
-urls.push(entry(`${BASE_URL}/women-same/`, '0.7', 'weekly'));
+urls.push(entry(`${BASE_URL}/deli/`, '0.9', 'daily'));
+urls.push(entry(`${BASE_URL}/jofu/`, '0.9', 'daily'));
+urls.push(entry(`${BASE_URL}/same-m/`, '0.7', 'weekly'));
+urls.push(entry(`${BASE_URL}/same-f/`, '0.7', 'weekly'));
 
 // サブドメイン（loveho追加）
 urls.push(entry('https://deli.yobuho.com/', '0.8', 'weekly'));

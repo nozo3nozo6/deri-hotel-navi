@@ -767,7 +767,7 @@ async function loadStatusCard(){
     const plan=topContract?.contract_plans||null;
     document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"未設定（無料）";
     const shopMode=data.gender_mode||"men";
-    const modePathMap={men:'men',women:'women',men_same:'men-same',women_same:'women-same'};const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'men')+"/?shop="+data.id;
+    const modePathMap={men:'deli',women:'jofu',men_same:'same-m',women_same:'same-f'};const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/?shop="+data.id;
     const urlEl=document.getElementById("status-shop-url");
     urlEl.href=shopUrl;urlEl.textContent=shopUrl;
     // サムネイルセクション（有料プランのみ）

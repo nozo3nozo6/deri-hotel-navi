@@ -63,8 +63,8 @@ const MODE_DATA: Record<string, {
 };
 
 const d = MODE_DATA[mode];
-const MODE_PATH_MAP: Record<string, string> = { men: 'men', women: 'women', men_same: 'men-same', women_same: 'women-same' };
-const modePath = MODE_PATH_MAP[mode] || 'men';
+const MODE_PATH_MAP: Record<string, string> = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+const modePath = MODE_PATH_MAP[mode] || 'deli';
 const modeUrl = `https://yobuho.com/${modePath}/`;
 
 const jsonLd = [
@@ -80,7 +80,7 @@ const jsonLd = [
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/men/?keyword={search_term_string}" },
+      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/deli/?keyword={search_term_string}" },
       "query-input": "required name=search_term_string"
     },
     "provider": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com/", "logo": "https://yobuho.com/ogp.png" }

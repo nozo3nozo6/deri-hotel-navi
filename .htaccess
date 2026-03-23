@@ -4,88 +4,98 @@ RewriteCond %{THE_REQUEST} /index\.html [NC]
 RewriteRule ^index\.html$ / [R=301,L]
 
 # ===== サブディレクトリ方式 URL ルーティング =====
-# /men/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
-RewriteRule ^men/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^women/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^men-same/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^women-same/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+# deli=men, jofu=women, same-m=men_same, same-f=women_same
 
-# /men/東京都/東京２３区内/渋谷区 → portal-men.html (pref+area+city)
-RewriteRule ^men/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^women/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^men-same/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^women-same/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&city=$3 [L,QSA]
+# 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
 
-# /men/東京都/渋谷区 or /men/東京都/東京２３区内 → portal-men.html (pref+area, JS側でarea/city判別)
-RewriteRule ^men/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^women/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^men-same/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^women-same/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2 [L,QSA]
+# 3セグメント: /deli/東京都/東京２３区内/渋谷区 → portal-men.html (pref+area+city)
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&city=$3 [L,QSA]
 
-# /men/東京都 → portal-men.html (pref)
-RewriteRule ^men/([^/]+)$ /portal-men.html?pref=$1 [L,QSA]
-RewriteRule ^women/([^/]+)$ /portal-women.html?pref=$1 [L,QSA]
-RewriteRule ^men-same/([^/]+)$ /portal-men-same.html?pref=$1 [L,QSA]
-RewriteRule ^women-same/([^/]+)$ /portal-women-same.html?pref=$1 [L,QSA]
+# 2セグメント: /deli/東京都/渋谷区 or /deli/東京都/東京２３区内 → portal-men.html (pref+area, JS側でarea/city判別)
+RewriteRule ^deli/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2 [L,QSA]
 
-# /men/ → portal-men.html (トップ)
-RewriteRule ^men/?$ /portal-men.html [L,QSA]
-RewriteRule ^women/?$ /portal-women.html [L,QSA]
-RewriteRule ^men-same/?$ /portal-men-same.html [L,QSA]
-RewriteRule ^women-same/?$ /portal-women-same.html [L,QSA]
+# 1セグメント: /deli/東京都 → portal-men.html (pref)
+RewriteRule ^deli/([^/]+)$ /portal-men.html?pref=$1 [L,QSA]
+RewriteRule ^jofu/([^/]+)$ /portal-women.html?pref=$1 [L,QSA]
+RewriteRule ^same-m/([^/]+)$ /portal-men-same.html?pref=$1 [L,QSA]
+RewriteRule ^same-f/([^/]+)$ /portal-women-same.html?pref=$1 [L,QSA]
 
-# ===== 旧URL → 新URL 301リダイレクト =====
-# mode値→URLパスのマッピング: men→men, women→women, men_same→men-same, women_same→women-same
+# 0セグメント: /deli/ → portal-men.html (トップ)
+RewriteRule ^deli/?$ /portal-men.html [L,QSA]
+RewriteRule ^jofu/?$ /portal-women.html [L,QSA]
+RewriteRule ^same-m/?$ /portal-men-same.html [L,QSA]
+RewriteRule ^same-f/?$ /portal-women-same.html [L,QSA]
 
-# portal.html?mode=men&pref=X&city=Y → /men/X/Y
+# ===== 旧パス /men/ 等 → 新パス /deli/ 等 301リダイレクト =====
+RewriteRule ^men/(.+)$ /deli/$1 [R=301,L]
+RewriteRule ^men/?$ /deli/ [R=301,L]
+RewriteRule ^women/(.+)$ /jofu/$1 [R=301,L]
+RewriteRule ^women/?$ /jofu/ [R=301,L]
+RewriteRule ^men-same/(.+)$ /same-m/$1 [R=301,L]
+RewriteRule ^men-same/?$ /same-m/ [R=301,L]
+RewriteRule ^women-same/(.+)$ /same-f/$1 [R=301,L]
+RewriteRule ^women-same/?$ /same-f/ [R=301,L]
+
+# ===== 旧クエリURL → 新URL 301リダイレクト =====
+# portal.html?mode=men&pref=X&city=Y → /deli/X/Y
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1/%2? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1/%2? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1/%2? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1/%2? [R=301,L]
 
-# portal.html?mode=men&pref=X → /men/X
+# portal.html?mode=men&pref=X → /deli/X
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1? [R=301,L]
 
-# portal.html?mode=men → /men/
+# portal.html?mode=men → /deli/
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)pref=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men/? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)pref=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women/? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)pref=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /men-same/? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)pref=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /women-same/? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/? [R=301,L]
 
 # ===== 旧Astroリライト（フォールバック） =====
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)

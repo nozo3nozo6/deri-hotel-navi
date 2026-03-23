@@ -626,11 +626,27 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
-### 2026年3月24日 — 2セグメントURL 404修正（GSC対応）
-- .htaccess: 2セグメントリライトルール追加（/men/東京都/渋谷区 → portal-men.html?pref=$1&area=$2）
+### 2026年3月24日 — URLパスSEO最適化 + 2セグメント404修正
+
+#### URLパス変更（SEOキーワード最適化、サブドメインと統一）
+- /men/ → /deli/（デリヘルキーワード、deli.yobuho.comと一致）
+- /women/ → /jofu/（女風キーワード、jofu.yobuho.comと一致）
+- /men-same/ → /same-m/（same.yobuho.comと一致）
+- /women-same/ → /same-f/（same.yobuho.comと一致）
+- .htaccess: 全リライトルール更新 + 旧パス(/men/等)→新パス(/deli/等) 301リダイレクト追加
+- area-navigation.js: MODE_PATH_MAP/PATH_MODE_MAP更新
+- portal-init.js: pathMap/pathModeMap/canonical/redirect先更新
+- generate-sitemap.js: MODE_PATH + 静的URL更新
+- portal.html: canonical/og:url/JSON-LD更新
+- index.html: 全モードリンク更新
+- shop-admin.html: modePathMap更新
+- astro-src/: 全サブドメインLP + ガイドページ + PortalLayout更新
+
+#### 2セグメントURL 404修正
+- .htaccess: 2セグメントリライトルール追加（/deli/東京都/渋谷区 → portal-men.html?pref=$1&area=$2）
 - area-navigation.js restoreFromUrl(): area-data.jsonで2セグメントURLの自動判別（エリア名 or 市区町村名）
-- サイトマップの /men/東京都/渋谷区 形式URLが404だった問題を解消
-- エリアページ（/men/東京都/東京２３区内）のリロード時404も同時修正
+- サイトマップの /deli/東京都/渋谷区 形式URLが404だった問題を解消
+- エリアページ（/deli/東京都/東京２３区内）のリロード時404も同時修正
 
 ### 2026年3月23日 — サブディレクトリURL移行・UI改善・バグ修正
 
@@ -666,17 +682,17 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - Cloudflare Purge失敗時にデプロイを失敗扱いにしない（|| echo フォールバック）
 
 ## URL構造（サブディレクトリ方式）
-- /men/ — デリヘルトップ
-- /men/東京都 — 都道府県（1セグメント）
-- /men/東京都/渋谷区 — 都道府県+市区町村（2セグメント、エリアなし直接アクセス）
-- /men/東京都/東京２３区内 — 都道府県+エリア（2セグメント）
-- /men/東京都/東京２３区内/渋谷区 — エリア+市区町村（3セグメント）
-- /men/東京都/東京２３区内/渋谷/渋谷区 — エリア+詳細エリア+市区町村（4セグメント）
-- /women/, /men-same/, /women-same/ — 同様
-- ホテル詳細: /men/?hotel=12345
-- タブ: /men/東京都/立川市?tab=loveho
-- 旧URL (portal.html?mode=...) は全て301リダイレクト
-- MODE↔パスマッピング: men→men, women→women, men_same→men-same, women_same→women-same
+- /deli/ — デリヘルトップ
+- /deli/東京都 — 都道府県（1セグメント）
+- /deli/東京都/渋谷区 — 都道府県+市区町村（2セグメント、エリアなし直接アクセス）
+- /deli/東京都/東京２３区内 — 都道府県+エリア（2セグメント）
+- /deli/東京都/東京２３区内/渋谷区 — エリア+市区町村（3セグメント）
+- /deli/東京都/東京２３区内/渋谷/渋谷区 — エリア+詳細エリア+市区町村（4セグメント）
+- /jofu/, /same-m/, /same-f/ — 同様
+- ホテル詳細: /deli/?hotel=12345
+- タブ: /deli/東京都/立川市?tab=loveho
+- 旧URL (portal.html?mode=..., /men/...) は全て301リダイレクト
+- MODE↔パスマッピング: men→deli, women→jofu, men_same→same-m, women_same→same-f
 - 2セグメントURL判別: restoreFromUrl()でarea-data.jsonを参照し、エリア名か市区町村名かを自動判別
 
 ## Security
