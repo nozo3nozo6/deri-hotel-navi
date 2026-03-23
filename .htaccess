@@ -16,6 +16,12 @@ RewriteRule ^women/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&c
 RewriteRule ^men-same/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&city=$3 [L,QSA]
 RewriteRule ^women-same/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&city=$3 [L,QSA]
 
+# /men/東京都/渋谷区 or /men/東京都/東京２３区内 → portal-men.html (pref+area, JS側でarea/city判別)
+RewriteRule ^men/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^women/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^men-same/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2 [L,QSA]
+RewriteRule ^women-same/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2 [L,QSA]
+
 # /men/東京都 → portal-men.html (pref)
 RewriteRule ^men/([^/]+)$ /portal-men.html?pref=$1 [L,QSA]
 RewriteRule ^women/([^/]+)$ /portal-women.html?pref=$1 [L,QSA]

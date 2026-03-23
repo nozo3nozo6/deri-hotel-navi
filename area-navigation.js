@@ -187,10 +187,22 @@ async function restoreFromUrl() {
     } else if (params.area) {
         const { pref, area } = params;
         const region = findRegionByPref(pref);
-        pageStack = [showJapanPage];
-        if (region) pageStack.push(() => showPrefPage(region));
-        if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
-        showCityPage(region, pref, area);
+        // 2セグメントURL判別: area-data.jsonに存在するエリア名か、市区町村名か
+        const ad = await loadAreaData();
+        const isValidArea = area === '_other' || ad?.pref?.[pref]?.areas?.some(([name]) => name === area);
+        if (isValidArea) {
+            pageStack = [showJapanPage];
+            if (region) pageStack.push(() => showPrefPage(region));
+            if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
+            showCityPage(region, pref, area);
+        } else {
+            // areaではなくcity名 → ホテル一覧を直接表示
+            pageStack = [showJapanPage];
+            if (region) pageStack.push(() => showPrefPage(region));
+            if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
+            setBackBtn(true);
+            fetchAndShowHotelsByCity({ prefecture: pref }, area);
+        }
     } else if (params.pref) {
         const pref = params.pref;
         const region = findRegionByPref(pref);

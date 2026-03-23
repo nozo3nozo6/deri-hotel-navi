@@ -626,6 +626,12 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日 — 2セグメントURL 404修正（GSC対応）
+- .htaccess: 2セグメントリライトルール追加（/men/東京都/渋谷区 → portal-men.html?pref=$1&area=$2）
+- area-navigation.js restoreFromUrl(): area-data.jsonで2セグメントURLの自動判別（エリア名 or 市区町村名）
+- サイトマップの /men/東京都/渋谷区 形式URLが404だった問題を解消
+- エリアページ（/men/東京都/東京２３区内）のリロード時404も同時修正
+
 ### 2026年3月23日 — サブディレクトリURL移行・UI改善・バグ修正
 
 #### サブディレクトリ方式URL移行（SEO最適化）
@@ -661,14 +667,17 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 
 ## URL構造（サブディレクトリ方式）
 - /men/ — デリヘルトップ
-- /men/東京都 — 都道府県
-- /men/東京都/西東京・三多摩 — エリア+市区町村
-- /men/東京都/西東京・三多摩/立川市 — エリア+市区町村
+- /men/東京都 — 都道府県（1セグメント）
+- /men/東京都/渋谷区 — 都道府県+市区町村（2セグメント、エリアなし直接アクセス）
+- /men/東京都/東京２３区内 — 都道府県+エリア（2セグメント）
+- /men/東京都/東京２３区内/渋谷区 — エリア+市区町村（3セグメント）
+- /men/東京都/東京２３区内/渋谷/渋谷区 — エリア+詳細エリア+市区町村（4セグメント）
 - /women/, /men-same/, /women-same/ — 同様
 - ホテル詳細: /men/?hotel=12345
 - タブ: /men/東京都/立川市?tab=loveho
 - 旧URL (portal.html?mode=...) は全て301リダイレクト
 - MODE↔パスマッピング: men→men, women→women, men_same→men-same, women_same→women-same
+- 2セグメントURL判別: restoreFromUrl()でarea-data.jsonを参照し、エリア名か市区町村名かを自動判別
 
 ## Security
 - PHP認証: secure cookie (httponly, samesite=strict), 30分タイムアウト, 5回ロックアウト
