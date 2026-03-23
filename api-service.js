@@ -48,7 +48,12 @@ function getGateUrl() {
 // Supabase anon key removed — all data access via PHP API
 
 // 店舗専用URL: /deli/shop/slug/ or ?shop=slug or ?shop=uuid
-const _shopParam = new URLSearchParams(window.location.search).get('shop') || null;
+const _shopParam = (() => {
+    const qs = new URLSearchParams(window.location.search).get('shop');
+    if (qs) return qs;
+    const m = window.location.pathname.match(/\/shop\/([^/]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+})();
 let SHOP_ID = null;   // UUID（API比較用）
 let SHOP_SLUG = null; // slug（URL生成用）
 let SHOP_DATA = null;
