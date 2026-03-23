@@ -65,8 +65,11 @@ function buildUrl(params) {
     const base = '/' + getModePath();
     const p = params || {};
     let path = base;
+    // ホテル詳細クリーンURL: /deli/hotel/29599
+    if (p.hotel) {
+        path += '/hotel/' + p.hotel;
     // 店舗専用URL: /deli/shop/slug/ パスベース
-    if (SHOP_SLUG) {
+    } else if (SHOP_SLUG) {
         path += '/shop/' + encodeURIComponent(SHOP_SLUG);
     } else if (p.pref) {
         path += '/' + encodeURIComponent(p.pref);
@@ -75,7 +78,6 @@ function buildUrl(params) {
         if (p.city) path += '/' + encodeURIComponent(p.city);
     }
     const qs = new URLSearchParams();
-    if (p.hotel) qs.set('hotel', p.hotel);
     if (p.tab) qs.set('tab', p.tab);
     // 店舗モード時にエリアパラメータもクエリで維持
     if (SHOP_SLUG && p.pref) qs.set('pref', p.pref);
@@ -139,14 +141,16 @@ function parseUrlPath() {
         segments.shift(); // モードセグメントを除去
     }
     const qs = new URLSearchParams(window.location.search);
+    // ホテル詳細クリーンURL: /deli/hotel/29599
+    const isHotelPath = segments[0] === 'hotel' && segments[1];
     // 店舗専用URL: /deli/shop/slug/ → パスセグメントを無視、クエリのみ使用
     const isShopPath = segments[0] === 'shop';
     return {
-        pref: qs.get('pref') || (isShopPath ? null : segments[0] || null),
-        area: qs.get('area') || (isShopPath ? null : segments[1] || null),
-        detail: qs.get('detail') || (isShopPath ? null : (segments.length >= 4 ? segments[2] : null)),
-        city: qs.get('city') || (isShopPath ? null : (segments.length >= 4 ? segments[3] : segments.length === 3 ? segments[2] : null)),
-        hotel: qs.get('hotel') || null,
+        pref: qs.get('pref') || (isShopPath || isHotelPath ? null : segments[0] || null),
+        area: qs.get('area') || (isShopPath || isHotelPath ? null : segments[1] || null),
+        detail: qs.get('detail') || (isShopPath || isHotelPath ? null : (segments.length >= 4 ? segments[2] : null)),
+        city: qs.get('city') || (isShopPath || isHotelPath ? null : (segments.length >= 4 ? segments[3] : segments.length === 3 ? segments[2] : null)),
+        hotel: qs.get('hotel') || (isHotelPath ? segments[1] : null),
         region: qs.get('region') || null,
         tab: qs.get('tab') || null,
     };

@@ -627,6 +627,17 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半2） — ホテル詳細URLクリーン化
+
+#### ホテル詳細クリーンURL（SEO・CTR・シェアしやすさ向上）
+- 旧: /deli/?hotel=29599（クエリパラメータ）
+- 新: /deli/hotel/29599（パスベース、クリーンURL）
+- .htaccess: /deli/hotel/29599 リライトルール追加（店舗shopルールの前に配置）
+- .htaccess: 旧 ?hotel=ID → /deli/hotel/ID 301リダイレクト追加
+- area-navigation.js: buildUrl()でhotelパス生成（`/deli/hotel/ID`）、parseUrlPath()でhotelパス解析
+- portal-init.js: canonical URLにhotelクリーンURL対応
+- hotel-search.js: updateUrl({hotel:id})はbuildUrl()経由のため自動対応
+
 ### 2026年3月24日（後半） — 店舗専用URL slug化・ラブホバッジ統一・Cloudflare Purge改善
 
 #### 店舗専用URL slug化（SEO被リンク最適化）
@@ -720,7 +731,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - /jofu/, /same-m/, /same-f/ — 同様
 - 店舗専用URL: /deli/shop/my-slug/ — パスベース（SEO被リンク最適化）
 - 店舗+エリア: /deli/shop/my-slug/?pref=東京都&city=渋谷区
-- ホテル詳細: /deli/?hotel=12345
+- ホテル詳細: /deli/hotel/12345 — クリーンURL（旧 ?hotel=12345 は301リダイレクト）
 - タブ: /deli/東京都/立川市?tab=loveho
 - 旧URL (portal.html?mode=..., /men/...) は全て301リダイレクト
 - 旧店舗URL (?shop=UUID) はJS側でslugフォールバック対応

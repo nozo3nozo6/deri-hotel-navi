@@ -87,11 +87,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
     var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
     var shopSlugParam = urlParams.get('shop');
-    if (shopSlugParam) {
+    var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
+    if (parsed.hotel) {
+        // ホテル詳細クリーンURL: /deli/hotel/29599
+        canonicalPath += '/hotel/' + parsed.hotel;
+    } else if (shopSlugParam) {
         // 店舗専用URL: /deli/shop/slug/
         canonicalPath += '/shop/' + encodeURIComponent(shopSlugParam);
     } else {
-        var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
         if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
         if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);
     }

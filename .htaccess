@@ -6,6 +6,12 @@ RewriteRule ^index\.html$ / [R=301,L]
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same
 
+# ホテル詳細クリーンURL: /deli/hotel/29599 → portal-men.html?hotel=29599
+RewriteRule ^deli/hotel/([0-9]+)/?$ /portal-men.html?hotel=$1 [L,QSA]
+RewriteRule ^jofu/hotel/([0-9]+)/?$ /portal-women.html?hotel=$1 [L,QSA]
+RewriteRule ^same-m/hotel/([0-9]+)/?$ /portal-men-same.html?hotel=$1 [L,QSA]
+RewriteRule ^same-f/hotel/([0-9]+)/?$ /portal-women-same.html?hotel=$1 [L,QSA]
+
 # 店舗専用URL: /deli/shop/slug/ → portal-men.html?shop=slug
 RewriteRule ^deli/shop/([a-z0-9\-]+)/?$ /portal-men.html?shop=$1 [L,QSA]
 RewriteRule ^jofu/shop/([a-z0-9\-]+)/?$ /portal-women.html?shop=$1 [L,QSA]
@@ -14,6 +20,16 @@ RewriteRule ^same-f/shop/([a-z0-9\-]+)/?$ /portal-women-same.html?shop=$1 [L,QSA
 
 # 旧?shop=UUID → 新パスへ301リダイレクト（slug解決はJS側）
 # ※ slug解決が必要なためJS側で処理。htaccessではリダイレクトしない
+
+# 旧 ?hotel=ID → /deli/hotel/ID 301リダイレクト（リライトルールより前に配置）
+RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
+RewriteRule ^deli/?$ /deli/hotel/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
+RewriteRule ^jofu/?$ /jofu/hotel/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
+RewriteRule ^same-m/?$ /same-m/hotel/%1? [R=301,L]
+RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
+RewriteRule ^same-f/?$ /same-f/hotel/%1? [R=301,L]
 
 # 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
 RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
