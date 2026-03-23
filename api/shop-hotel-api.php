@@ -165,7 +165,9 @@ function handleGetExistingLoveho() {
 function handleSaveHotelInfo() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
     $auth = requireAuth();
-    $input = json_decode(file_get_contents('php://input'), true);
+    $raw = file_get_contents('php://input');
+    error_log('[save-hotel-info] raw input: ' . $raw);
+    $input = json_decode($raw, true);
     if (!$input) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); return; }
 
     $pdo = DB::conn();
