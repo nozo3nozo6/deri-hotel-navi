@@ -952,8 +952,8 @@ async function executeKeywordSearch() {
     }
 }
 
-// 後方互換（compositionendから呼ばれていた名前を維持）
-function fetchHotelsFromSearch() { executeKeywordSearch(); }
+// 後方互換（名前だけ残す。inputイベント委譲から呼ばれても何もしない）
+function fetchHotelsFromSearch() { /* Enter方式に移行済み */ }
 
 function clearSearch() {
     const input = document.getElementById('keyword');
