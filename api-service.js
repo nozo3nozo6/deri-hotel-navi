@@ -47,16 +47,26 @@ function getGateUrl() {
 
 // Supabase anon key removed — all data access via PHP API
 
-const SHOP_ID = new URLSearchParams(window.location.search).get('shop') || null;
+// 店舗専用URL: /deli/shop/slug/ or ?shop=slug or ?shop=uuid
+const _shopParam = new URLSearchParams(window.location.search).get('shop') || null;
+let SHOP_ID = null;   // UUID（API比較用）
+let SHOP_SLUG = null; // slug（URL生成用）
 let SHOP_DATA = null;
 
 async function initShopMode() {
-    if (!SHOP_ID) return;
+    if (!_shopParam) return;
     try {
-        const res = await fetch(`/api/shop-info.php?shop_id=${encodeURIComponent(SHOP_ID)}`);
+        // UUIDっぽいか判定（8-4-4-4-12）
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(_shopParam);
+        const param = isUuid ? `shop_id=${encodeURIComponent(_shopParam)}` : `slug=${encodeURIComponent(_shopParam)}`;
+        const res = await fetch(`/api/shop-info.php?${param}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data) SHOP_DATA = data;
+        if (data) {
+            SHOP_DATA = data;
+            SHOP_ID = data.id || _shopParam;
+            SHOP_SLUG = data.slug || _shopParam;
+        }
     } catch (e) { /* silently fail */ }
 }
 

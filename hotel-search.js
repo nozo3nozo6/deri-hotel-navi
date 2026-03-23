@@ -611,8 +611,8 @@ async function loadDetail(hotelId, isLoveho) {
             renderHotelDetail(hotel, reports, detailData.summary || null, shopInfoMap, shopFeeMap);
         }
 
-        // 3段階広告ロード（共通）
-        if (hotel.city && !SHOP_ID) {
+        // 3段階広告ロード（共通、店舗モード時も自店舗情報は表示）
+        if (hotel.city) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
             const [cityShops, areaAds, prefAds] = await Promise.all([
                 fetchAreaShops(hotel.prefecture, hotel.city, genderMode),
@@ -669,7 +669,8 @@ function renderLovehoDetail(hotel, reports) {
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
         const pName=r.poster_name||'匿名';
         const si=lhShopInfoMap[pName];
-        const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>`;
+        const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店舗</span>`:` <span class="shop-verified-badge">認証店舗</span>`):'';
+        const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=lhShopFeeMap[pName];
         const feeLabel=fee===0?'無料':fee>0?'¥'+Number(fee).toLocaleString():null;
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
@@ -1829,8 +1830,11 @@ function renderAreaShopSection(shops) {
     const existing = document.getElementById('area-shop-section');
     if (existing) existing.remove();
 
-    // ?shop= パラメータがある場合は表示しない（店舗自身のビュー）
-    if (SHOP_ID) return;
+    // 店舗モード時は自店舗のみ表示（他店舗広告は非表示）
+    if (SHOP_ID && shops) {
+        shops = shops.filter(s => s.id === SHOP_ID);
+        if (!shops.length) return;
+    }
 
     const hotelList = document.getElementById('hotel-list');
     if (!hotelList) return;

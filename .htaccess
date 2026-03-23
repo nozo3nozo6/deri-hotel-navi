@@ -6,6 +6,15 @@ RewriteRule ^index\.html$ / [R=301,L]
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same
 
+# 店舗専用URL: /deli/shop/slug/ → portal-men.html?shop=slug
+RewriteRule ^deli/shop/([a-z0-9\-]+)/?$ /portal-men.html?shop=$1 [L,QSA]
+RewriteRule ^jofu/shop/([a-z0-9\-]+)/?$ /portal-women.html?shop=$1 [L,QSA]
+RewriteRule ^same-m/shop/([a-z0-9\-]+)/?$ /portal-men-same.html?shop=$1 [L,QSA]
+RewriteRule ^same-f/shop/([a-z0-9\-]+)/?$ /portal-women-same.html?shop=$1 [L,QSA]
+
+# 旧?shop=UUID → 新パスへ301リダイレクト（slug解決はJS側）
+# ※ slug解決が必要なためJS側で処理。htaccessではリダイレクトしない
+
 # 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
 RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
 RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]

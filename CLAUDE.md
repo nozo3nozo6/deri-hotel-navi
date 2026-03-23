@@ -247,6 +247,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - action=profile: GET → shop + shop_contracts + contract_plans JOIN（ステータスカード）
 - action=update-thumbnail: POST {thumbnail_url} → サムネイル更新/削除
 - action=update-email: POST {new_email} → メールアドレス変更
+- action=update-slug: POST {slug} → URLスラッグ更新（バリデーション+重複チェック）
 - action=lookup-email: GET {email} → パスワードリセット用メール存在確認
 - セッション: $_SESSION['shop_id'], $_SESSION['shop_email'], $_SESSION['last_activity']
 - Cookie: httponly, samesite=Strict, secure, domain=yobuho.com
@@ -414,7 +415,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - ビジネス3件(MEDIUM): お気に入りホテル、最新24h口コミ、投稿感謝可視化
 - パフォーマンス2件(LOW): Service Worker、CSS分割
 - ビジネス3件(LOW): 営業ダッシュボード、メール購読、アクセス追跡
-- 店舗2件: 店舗専用URL表示ルール、ラブホタブ店舗差別化
+- 店舗2件: [x]店舗専用URL slug化完了、[x]ラブホタブ店舗差別化完了
 
 ## 残タスク一覧（2026-03-19 全チーム監査結果）
 
@@ -494,8 +495,8 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - terms.html/privacy.html/contact.html/legal.html/shop-register.html: フッターをポータルと統一（サブドメイン4リンク+トップ+店舗登録追加）
 
 ### 店舗専用URL・ラブホタブ（前回からの残タスク）
-- [ ] 店舗専用URL（?shop=xxx）の表示ルール確定
-- [ ] ラブホタブの店舗差別化（さらなる検討）
+- [x] 店舗専用URL: /deli/shop/slug/ パスベース化（slug自動生成+編集UI+.htaccessリライト）
+- [x] ラブホタブの店舗差別化: 認定/認証バッジ統一、広告自店舗表示
 - [x] GitHub Secrets: DB_HOST/DB_NAME/DB_USER/DB_PASS の追加（deploy.ymlのdb-config.php生成用）
 
 ### パフォーマンス残課題
@@ -626,6 +627,34 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半） — 店舗専用URL slug化・ラブホバッジ統一・Cloudflare Purge改善
+
+#### 店舗専用URL slug化（SEO被リンク最適化）
+- 旧: /deli/?shop=UUID（クエリパラメータ、36文字）
+- 新: /deli/shop/my-slug/（パスベース、3〜30文字、SEO効果大）
+- .htaccess: /deli/shop/slug/ リライトルール追加（通常セグメントルールより前に配置）
+- submit-shop.php: 登録時にランダム8文字slug自動生成（英小文字+数字、重複チェック）
+- shop-info.php: slug検索対応（?slug=xxx OR ?shop_id=uuid、レスポンスにid/slug追加）
+- shop-auth.php: update-slug API追加（バリデーション: ^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$、重複チェック）
+- api-service.js: SHOP_ID(UUID)とSHOP_SLUG分離保持、UUID/slug自動判定
+- area-navigation.js: buildUrl()を/deli/shop/slug/形式に、parseUrlPath()でshopパス判別
+- portal-init.js: canonical URLをshop slug対応に
+- shop-admin.html: slug編集UI追加、店舗URLをslug形式で表示
+- sql/backfill-slugs.sql: 既存店舗への一括slug付与SQL
+
+#### ラブホタブ店舗バッジ統一
+- ラブホ詳細のbuildLhReviewCard()に認定店舗/認証店舗バッジ追加（ホテル側と統一）
+
+#### 店舗モード広告改善
+- hotel-search.js: SHOP_ID時の広告全非表示→自店舗情報のみ表示に変更
+- renderAreaShopSection(): 他店舗フィルタ（自店舗ID一致のみ表示）
+
+#### Cloudflare Purge改善
+- deploy.yml: curl -sf → レスポンス変数格納 + "success":true 検証
+- タイムアウト追加（接続10秒、最大30秒）
+- 失敗時 ::warning:: でGitHub Actions警告表示（エラー詳細付き）
+- 次回push時に根本原因が特定可能に
+
 ### 2026年3月24日 — URLパスSEO最適化 + 2セグメント404修正
 
 #### URLパス変更（SEOキーワード最適化、サブドメインと統一）
@@ -689,9 +718,12 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - /deli/東京都/東京２３区内/渋谷区 — エリア+市区町村（3セグメント）
 - /deli/東京都/東京２３区内/渋谷/渋谷区 — エリア+詳細エリア+市区町村（4セグメント）
 - /jofu/, /same-m/, /same-f/ — 同様
+- 店舗専用URL: /deli/shop/my-slug/ — パスベース（SEO被リンク最適化）
+- 店舗+エリア: /deli/shop/my-slug/?pref=東京都&city=渋谷区
 - ホテル詳細: /deli/?hotel=12345
 - タブ: /deli/東京都/立川市?tab=loveho
 - 旧URL (portal.html?mode=..., /men/...) は全て301リダイレクト
+- 旧店舗URL (?shop=UUID) はJS側でslugフォールバック対応
 - MODE↔パスマッピング: men→deli, women→jofu, men_same→same-m, women_same→same-f
 - 2セグメントURL判別: restoreFromUrl()でarea-data.jsonを参照し、エリア名か市区町村名かを自動判別
 

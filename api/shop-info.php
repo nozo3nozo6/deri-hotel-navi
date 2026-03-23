@@ -23,20 +23,26 @@ require_once __DIR__ . '/db.php';
 $pdo = DB::conn();
 
 $shopId = $_GET['shop_id'] ?? null;
-if (!$shopId) { http_response_code(400); echo json_encode(['error' => 'shop_id は必須です']); exit; }
+$slug = $_GET['slug'] ?? null;
+if (!$shopId && !$slug) { http_response_code(400); echo json_encode(['error' => 'shop_id または slug は必須です']); exit; }
 
-// UUID形式サニタイズ
-$shopId = preg_replace('/[^a-zA-Z0-9\-]/', '', $shopId);
+// サニタイズ
+if ($shopId) $shopId = preg_replace('/[^a-zA-Z0-9\-]/', '', $shopId);
+if ($slug) $slug = preg_replace('/[^a-z0-9\-]/', '', $slug);
+
+// slug優先、なければshop_id
+$where = $slug ? 's.slug = ?' : 's.id = ?';
+$param = $slug ?: $shopId;
 
 $stmt = $pdo->prepare("
-    SELECT s.shop_name, s.gender_mode, s.shop_url, s.plan_id, s.status,
+    SELECT s.id, s.shop_name, s.gender_mode, s.shop_url, s.plan_id, s.status, s.slug,
            sc.plan_id AS sc_plan_id, cp.price
     FROM shops s
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
-    WHERE s.id = ? AND s.status = 'active'
+    WHERE {$where} AND s.status = 'active'
 ");
-$stmt->execute([$shopId]);
+$stmt->execute([$param]);
 $rows = $stmt->fetchAll();
 
 if (empty($rows)) {
@@ -45,13 +51,14 @@ if (empty($rows)) {
     exit;
 }
 
-// Supabase形式にreshape
 $shop = [
+    'id' => $rows[0]['id'],
     'shop_name' => $rows[0]['shop_name'],
     'gender_mode' => $rows[0]['gender_mode'],
     'shop_url' => $rows[0]['shop_url'],
     'plan_id' => $rows[0]['plan_id'],
     'status' => $rows[0]['status'],
+    'slug' => $rows[0]['slug'],
     'shop_contracts' => [],
 ];
 foreach ($rows as $row) {

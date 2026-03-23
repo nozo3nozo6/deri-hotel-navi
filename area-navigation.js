@@ -65,17 +65,22 @@ function buildUrl(params) {
     const base = '/' + getModePath();
     const p = params || {};
     let path = base;
-    if (p.pref) {
+    // 店舗専用URL: /deli/shop/slug/ パスベース
+    if (SHOP_SLUG) {
+        path += '/shop/' + encodeURIComponent(SHOP_SLUG);
+    } else if (p.pref) {
         path += '/' + encodeURIComponent(p.pref);
         if (p.area) path += '/' + encodeURIComponent(p.area);
         if (p.detail) path += '/' + encodeURIComponent(p.detail);
         if (p.city) path += '/' + encodeURIComponent(p.city);
     }
-    // 追加パラメータ（hotel, tab, shop等）はクエリストリングで
     const qs = new URLSearchParams();
     if (p.hotel) qs.set('hotel', p.hotel);
     if (p.tab) qs.set('tab', p.tab);
-    if (SHOP_ID) qs.set('shop', SHOP_ID);
+    // 店舗モード時にエリアパラメータもクエリで維持
+    if (SHOP_SLUG && p.pref) qs.set('pref', p.pref);
+    if (SHOP_SLUG && p.area) qs.set('area', p.area);
+    if (SHOP_SLUG && p.city) qs.set('city', p.city);
     const qsStr = qs.toString();
     return path + (qsStr ? '?' + qsStr : '');
 }
@@ -134,11 +139,13 @@ function parseUrlPath() {
         segments.shift(); // モードセグメントを除去
     }
     const qs = new URLSearchParams(window.location.search);
+    // 店舗専用URL: /deli/shop/slug/ → パスセグメントを無視、クエリのみ使用
+    const isShopPath = segments[0] === 'shop';
     return {
-        pref: qs.get('pref') || segments[0] || null,
-        area: qs.get('area') || segments[1] || null,
-        detail: qs.get('detail') || (segments.length >= 4 ? segments[2] : null),
-        city: qs.get('city') || (segments.length >= 4 ? segments[3] : segments.length === 3 ? segments[2] : null),
+        pref: qs.get('pref') || (isShopPath ? null : segments[0] || null),
+        area: qs.get('area') || (isShopPath ? null : segments[1] || null),
+        detail: qs.get('detail') || (isShopPath ? null : (segments.length >= 4 ? segments[2] : null)),
+        city: qs.get('city') || (isShopPath ? null : (segments.length >= 4 ? segments[3] : segments.length === 3 ? segments[2] : null)),
         hotel: qs.get('hotel') || null,
         region: qs.get('region') || null,
         tab: qs.get('tab') || null,

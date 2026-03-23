@@ -86,16 +86,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // canonical動的設定（パスベースURL）
     var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
     var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
-    var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
-    if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
-    if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);
+    var shopSlugParam = urlParams.get('shop');
+    if (shopSlugParam) {
+        // 店舗専用URL: /deli/shop/slug/
+        canonicalPath += '/shop/' + encodeURIComponent(shopSlugParam);
+    } else {
+        var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
+        if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
+        if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);
+    }
     var canonicalUrl = 'https://yobuho.com' + canonicalPath;
     document.querySelector('link[rel="canonical"]').setAttribute('href', canonicalUrl);
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
-    // shop-registerリンクにgenreパラメータ付与
-    if (urlParams.get('shop')) {
+    // shop-registerリンクにgenreパラメータ付与（店舗専用URL時は非表示）
+    if (urlParams.get('shop') || _shopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
     }

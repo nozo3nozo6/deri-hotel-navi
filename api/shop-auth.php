@@ -1,7 +1,7 @@
 <?php
 /**
  * shop-auth.php — 店舗セッション管理（MySQL版）
- * Actions: login, check, profile, update-thumbnail, update-email, lookup-email
+ * Actions: login, check, profile, update-thumbnail, update-email, update-slug, lookup-email
  */
 require_once __DIR__ . '/db.php';
 
@@ -33,6 +33,7 @@ switch ($action) {
     case 'profile':          handleProfile(); break;
     case 'update-thumbnail': handleUpdateThumbnail(); break;
     case 'update-email':     handleUpdateEmail(); break;
+    case 'update-slug':      handleUpdateSlug(); break;
     case 'lookup-email':     handleLookupEmail(); break;
     default:
         http_response_code(400);
@@ -169,6 +170,34 @@ function handleUpdateEmail() {
 
     $_SESSION['shop_email'] = $newEmail;
     echo json_encode(['success' => true]);
+}
+
+function handleUpdateSlug() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $slug = trim($input['slug'] ?? '');
+
+    // バリデーション: 英小文字・数字・ハイフン、3〜30文字
+    if (!preg_match('/^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$/', $slug)) {
+        echo json_encode(['success' => false, 'error' => 'slugは英小文字・数字・ハイフンで3〜30文字にしてください（先頭・末尾にハイフン不可）']);
+        return;
+    }
+
+    $pdo = DB::conn();
+    // 重複チェック（自分以外）
+    $stmt = $pdo->prepare('SELECT id FROM shops WHERE slug = ? AND id != ? LIMIT 1');
+    $stmt->execute([$slug, $auth['shop_id']]);
+    if ($stmt->fetch()) {
+        echo json_encode(['success' => false, 'error' => 'このslugは既に使用されています']);
+        return;
+    }
+
+    $stmt = $pdo->prepare('UPDATE shops SET slug = ?, updated_at = NOW() WHERE id = ?');
+    $stmt->execute([$slug, $auth['shop_id']]);
+    echo json_encode(['success' => true, 'slug' => $slug]);
 }
 
 function handleLookupEmail() {

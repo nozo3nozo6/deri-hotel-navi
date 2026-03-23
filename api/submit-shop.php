@@ -34,6 +34,19 @@ if (!in_array($genderMode, $allowedGenders)) { http_response_code(400); echo jso
 
 $shopName = mb_substr($shopName, 0, 100);
 
+// slug自動生成（ランダム8文字英小文字+数字）
+function generateSlug(PDO $pdo): string {
+    $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    for ($attempt = 0; $attempt < 10; $attempt++) {
+        $slug = '';
+        for ($i = 0; $i < 8; $i++) $slug .= $chars[random_int(0, strlen($chars) - 1)];
+        $stmt = $pdo->prepare('SELECT id FROM shops WHERE slug = ? LIMIT 1');
+        $stmt->execute([$slug]);
+        if (!$stmt->fetch()) return $slug;
+    }
+    return bin2hex(random_bytes(4)); // フォールバック
+}
+
 // 既存チェック
 $stmt = $pdo->prepare('SELECT id, status FROM shops WHERE email = ?');
 $stmt->execute([$email]);
@@ -77,8 +90,9 @@ if ($existing) {
 } else {
     // INSERT
     $id = DB::uuid();
-    $stmt = $pdo->prepare('INSERT INTO shops (id, email, auth_user_id, shop_name, gender_mode, shop_url, shop_tel, document_url, password_hash, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$id, $email, $authUserId ?: null, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, $bcryptHash, 'registered', $now, $now]);
+    $slug = generateSlug($pdo);
+    $stmt = $pdo->prepare('INSERT INTO shops (id, email, auth_user_id, shop_name, gender_mode, shop_url, shop_tel, document_url, password_hash, slug, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$id, $email, $authUserId ?: null, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, $bcryptHash, $slug, 'registered', $now, $now]);
 }
 
 $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ?');

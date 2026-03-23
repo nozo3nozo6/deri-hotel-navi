@@ -357,6 +357,14 @@
                     <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
                     <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
                 </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;">
+                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">URLスラッグ:</span>
+                    <input id="slug-input" type="text" placeholder="例: my-shop-name" maxlength="30" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace;width:200px;">
+                    <button onclick="saveSlug()" style="padding:4px 10px;background:var(--rose);color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">保存</button>
+                </div>
+                <p style="font-size:11px;color:#999;margin-top:4px;line-height:1.5;">
+                  英小文字・数字・ハイフンで3〜30文字。URLの末尾部分を自由に設定できます。
+                </p>
                 <p style="font-size: 12px; color: #888; margin-top: 8px; line-height: 1.6;">
                   💡 このURLではユーザーの投稿情報と貴店の登録情報のみが表示され、<br>
                   他店舗の情報や広告は表示されません。<br>
@@ -767,9 +775,14 @@ async function loadStatusCard(){
     const plan=topContract?.contract_plans||null;
     document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"未設定（無料）";
     const shopMode=data.gender_mode||"men";
-    const modePathMap={men:'deli',women:'jofu',men_same:'same-m',women_same:'same-f'};const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/?shop="+data.id;
+    const modePathMap={men:'deli',women:'jofu',men_same:'same-m',women_same:'same-f'};
+    const shopSlug=data.slug||data.id;
+    const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/shop/"+encodeURIComponent(shopSlug)+"/";
     const urlEl=document.getElementById("status-shop-url");
     urlEl.href=shopUrl;urlEl.textContent=shopUrl;
+    // slug編集欄
+    const slugInput=document.getElementById("slug-input");
+    if(slugInput)slugInput.value=data.slug||'';
     // サムネイルセクション（有料プランのみ）
     const thumbSection=document.getElementById("thumbnail-section");
     const isPaid=plan&&plan.price>0;
@@ -820,8 +833,24 @@ async function deleteThumbnail(){
 
 function copyShopUrl(){
     const shopMode=currentShop.gender_mode||"men";
-    const url="https://yobuho.com/"+(modePathMap[shopMode]||'men')+"/?shop="+currentShop.id;
+    const shopSlug=currentShop.slug||currentShop.id;
+    const url="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/shop/"+encodeURIComponent(shopSlug)+"/";
     navigator.clipboard.writeText(url);toast("URLをコピーしました");
+}
+
+async function saveSlug(){
+    const input=document.getElementById('slug-input');
+    const slug=(input.value||'').trim().toLowerCase();
+    if(!slug){toast('slugを入力してください');return;}
+    if(!/^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$/.test(slug)){toast('英小文字・数字・ハイフンで3〜30文字（先頭末尾ハイフン不可）');return;}
+    try{
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-slug",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({slug})});
+        const r=await res.json();
+        if(!r.success){toast(r.error||'保存エラー');return;}
+        currentShop.slug=slug;
+        loadStatusCard();
+        toast('URLスラッグを保存しました');
+    }catch(e){toast('通信エラー');}
 }
 
 (async function(){
