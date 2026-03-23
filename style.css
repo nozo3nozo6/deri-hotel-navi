@@ -630,6 +630,7 @@ body[data-mode="men_same"] {
     min-width: 0;
 }
 .search-input-lux::placeholder { color: var(--text-3); }
+.search-input-lux::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
 
 .search-clear {
     background: var(--bg-3);
