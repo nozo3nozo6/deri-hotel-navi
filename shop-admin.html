@@ -832,10 +832,8 @@ async function deleteThumbnail(){
 }
 
 function copyShopUrl(){
-    const shopMode=currentShop.gender_mode||"men";
-    const shopSlug=currentShop.slug||currentShop.id;
-    const url="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/shop/"+encodeURIComponent(shopSlug)+"/";
-    navigator.clipboard.writeText(url);toast("URLをコピーしました");
+    const el=document.getElementById("status-shop-url");
+    if(el&&el.href){navigator.clipboard.writeText(el.href);toast("URLをコピーしました");}
 }
 
 
