@@ -1248,7 +1248,7 @@ function getLhTransportFee(){
 function getTransportFee(){
     if(document.getElementById("transport-free").checked)return 0;
     const raw=document.getElementById("form-transport").value.replace(/,/g,"");
-    return raw?parseInt(raw,10):0;
+    return raw?parseInt(raw,10):null;
 }
 function setTransportFee(num){
     const fc=document.getElementById("transport-free");
@@ -1335,7 +1335,7 @@ async function doSubmit(){
             guest_male:multiPerson?(parseInt(document.getElementById("sa-guest-male").value)||1):1,
             guest_female:multiPerson?(parseInt(document.getElementById("sa-guest-female").value)||0):0
         },
-        info:{transport_fee:transportFee||null,memo:memo},
+        info:{transport_fee:transportFee!==null&&transportFee!==undefined?transportFee:null,memo:memo},
         service_ids:svcs
     };
     try{
