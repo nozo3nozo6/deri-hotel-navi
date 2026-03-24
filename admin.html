@@ -1371,7 +1371,7 @@ async function toggleShopContract(shopId,planId,isActive){
   }
   loadShopContracts(shopId,contractPlansData||[]);
   // 有料プラン追加時はエリア管理を案内
-  const p=(plans||[]).find(x=>x.id===planId);
+  const p=(contractPlansData||[]).find(x=>x.id===planId);
   if(!isActive&&p&&p.price>0){
     _pendingPlanEmail={shopId,planName:p.name,planPrice:p.price};
   }
