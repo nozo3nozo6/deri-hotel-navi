@@ -29,7 +29,7 @@ $pwHash     = $input['password_hash'] ?? null;
 if (!$email || !$shopName) { http_response_code(400); echo json_encode(['error' => 'email と shop_name は必須です']); exit; }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { http_response_code(400); echo json_encode(['error' => '無効なメールアドレスです']); exit; }
 
-$allowedGenders = ['men', 'women', 'men_same', 'women_same'];
+$allowedGenders = ['men', 'women', 'men_same', 'women_same', 'este'];
 if (!in_array($genderMode, $allowedGenders)) { http_response_code(400); echo json_encode(['error' => '無効なジャンルです']); exit; }
 
 $shopName = mb_substr($shopName, 0, 100);

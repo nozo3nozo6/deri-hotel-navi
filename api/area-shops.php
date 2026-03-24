@@ -28,7 +28,7 @@ $city = $_GET['city'] ?? null;
 $mode = $_GET['mode'] ?? null;
 
 if (!$pref) { http_response_code(400); echo json_encode(['error' => 'pref は必須です']); exit; }
-if (!$mode || !in_array($mode, ['men', 'women', 'men_same', 'women_same'])) {
+if (!$mode || !in_array($mode, ['men', 'women', 'men_same', 'women_same', 'este'])) {
     http_response_code(400); echo json_encode(['error' => 'mode は必須です']); exit;
 }
 
