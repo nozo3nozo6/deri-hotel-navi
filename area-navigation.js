@@ -116,7 +116,6 @@ function ensurePortalMode() {
 
 // 店舗URLの全国ページに LP コンテンツを追加するヘルパー
 function appendShopModeLpContent() {
-    if (!_shopParam) return;
     const hlc = document.getElementById('hotel-list');
     if (!hlc || hlc.querySelector('.shop-lp-content')) return;
     const mode = window.MODE || 'men';
@@ -124,7 +123,8 @@ function appendShopModeLpContent() {
         men: 'デリヘルを呼べるホテル検索',
         women: '女性用風俗を呼べるホテル検索',
         men_same: '男性同士で利用できるホテル検索',
-        women_same: '女性同士で利用できるホテル検索'
+        women_same: '女性同士で利用できるホテル検索',
+        este: 'デリエステを呼べるホテル検索'
     };
     const hero = heroMap[mode] || 'YobuHoで呼べるホテルを検索';
     hlc.insertAdjacentHTML('beforeend', `

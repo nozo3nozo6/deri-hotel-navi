@@ -6,7 +6,7 @@ const { pageTitle } = Astro.props;
 ---
 
 <div class="page-header">
-    <a href="/index.html" class="btn-back">&#9961; ゲートへ</a>
+    <a href="#" onclick="history.back();return false;" class="btn-back">← 全国へ</a>
     <span class="page-header-logo">YobuHo</span>
     <span class="page-header-title">{pageTitle}</span>
 </div>
