@@ -34,15 +34,15 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-const GATE_URL_MAP = {
-    'men': 'https://deli.yobuho.com/',
-    'women': 'https://jofu.yobuho.com/',
-    'men_same': 'https://same.yobuho.com/',
-    'women_same': 'https://same.yobuho.com/',
+const GATE_PATH_MAP = {
+    'men': '/deli/',
+    'women': '/jofu/',
+    'men_same': '/same-m/',
+    'women_same': '/same-f/',
 };
 function getGateUrl() {
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-    return GATE_URL_MAP[mode] || '/index.html';
+    return GATE_PATH_MAP[mode] || '/deli/';
 }
 
 // Supabase anon key removed — all data access via PHP API
