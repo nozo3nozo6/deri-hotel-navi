@@ -1360,7 +1360,7 @@ const PLAN_LIMITS={
   5:{city:3,detail_area:0,spot:0,prefecture:0},// 3市区町村パック
   6:{city:5,detail_area:0,spot:0,prefecture:0},// 5市区町村パック
   7:{city:3,detail_area:0,spot:1,prefecture:0},// エリア+3市区町村パック
-  // 詳細エリアプランは後日追加（contract_plansテーブルにINSERT後、ここにIDを追加）
+  8:{city:0,detail_area:1,spot:0,prefecture:0},// 詳細エリアプラン
 };
 
 async function loadShopContracts(shopId,plans){
