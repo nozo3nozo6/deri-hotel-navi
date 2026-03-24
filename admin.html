@@ -932,6 +932,10 @@
 <div class="modal-overlay" id="placement-modal" style="display:none;" onclick="if(event.target===this)closePlacementModal()">
     <div class="modal" style="max-width:660px;">
         <div class="modal-title">📍 掲載エリア管理 <span id="pm-shop-name" style="font-size:13px;font-weight:400;color:var(--ink-3);"></span></div>
+        <!-- 残り枠サマリバナー -->
+        <div id="pm-slot-banner" style="margin-bottom:16px;"></div>
+        <!-- 追加フィードバックメッセージ -->
+        <div id="pm-feedback" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:600;"></div>
         <!-- 現在の掲載エリア一覧 -->
         <div style="margin-bottom:20px;">
             <div style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:8px;">現在の掲載エリア</div>
@@ -947,6 +951,7 @@
                     <option value="spot">🏙 エリア</option>
                     <option value="prefecture">📌 都道府県</option>
                 </select>
+                <div id="pm-level-hint" style="margin-top:4px;font-size:12px;font-weight:600;"></div>
             </div>
             <div class="mf" style="margin-bottom:10px;" id="pm-pref-wrap">
                 <label class="ml">都道府県 <span style="color:var(--gold);">*</span></label>
@@ -1240,19 +1245,42 @@ async function loadPlacements(shopId){
   renderPlacements();
 }
 
-function renderPlacements(){
-  const el=document.getElementById("pm-list");
-  // 残り枠サマリ
+function getSlotStatus(){
   const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
   const active=placementsData.filter(p=>p.is_active);
   const used={city:active.filter(p=>p.level==='city').length,spot:active.filter(p=>p.level==='spot').length,prefecture:active.filter(p=>p.level==='prefecture').length};
-  const slotItems=[{key:'city',label:'🏘 市区町村'},{key:'spot',label:'🏙 エリア'},{key:'prefecture',label:'📌 都道府県'}]
-    .filter(({key})=>limits[key]>0)
-    .map(({key,label})=>{const u=used[key];const m=limits[key];const full=u>=m;return`<span style="font-size:11px;font-weight:700;color:${full?'#d32f2f':'#2e7d32'};">${label} ${u}/${m}枠${full?' ⚠':' ✓'}</span>`;});
-  const slotHtml=slotItems.length?`<div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 12px;background:#f8f9fa;border-radius:6px;margin-bottom:12px;">${slotItems.join('<span style="color:#ccc;font-size:11px;">│</span>')}</div>`:'';
-  if(!placementsData.length){el.innerHTML=slotHtml+'<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
+  return{limits,used};
+}
+function renderSlotBanner(){
+  const banner=document.getElementById("pm-slot-banner");
+  if(!banner)return;
+  const {limits,used}=getSlotStatus();
+  const items=[{key:'city',label:'市区町村',icon:'🏘'},{key:'spot',label:'エリア',icon:'🏙'},{key:'prefecture',label:'都道府県',icon:'📌'}].filter(({key})=>limits[key]>0);
+  if(!items.length){banner.innerHTML='<div style="padding:10px 14px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:12px;color:#856404;">有料プランが未設定です。プランを追加すると掲載枠が利用できます。</div>';return;}
+  banner.innerHTML=items.map(({key,label,icon})=>{
+    const u=used[key],m=limits[key],remain=m-u,pct=Math.round(u/m*100);
+    const barColor=remain<=0?'#d32f2f':remain===1?'#f9a825':'#2e7d32';
+    const bgColor=remain<=0?'#ffebee':remain===1?'#fff8e1':'#e8f5e9';
+    const borderColor=remain<=0?'#ef9a9a':remain===1?'#ffe082':'#a5d6a7';
+    return`<div style="padding:10px 14px;background:${bgColor};border:1px solid ${borderColor};border-radius:8px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;color:#333;">${icon} ${label}</span>
+        <span style="font-size:13px;font-weight:700;color:${barColor};">${remain<=0?'⚠ 上限':'残り '+remain+'枠'}</span>
+      </div>
+      <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:10px;color:#888;margin-top:3px;text-align:right;">${u} / ${m} 枠使用中</div>
+    </div>`;
+  }).join('');
+}
+function renderPlacements(){
+  const el=document.getElementById("pm-list");
+  renderSlotBanner();
+  updatePmFormSlotHint();
+  if(!placementsData.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
   const now=new Date();
-  el.innerHTML=slotHtml+`<table class="tbl"><thead><tr>
+  el.innerHTML=`<table class="tbl"><thead><tr>
     <th>レベル</th><th>エリア名</th><th>コード</th><th>期間</th><th>状態</th><th>操作</th>
   </tr></thead><tbody>${placementsData.map(p=>{
     const ended=p.ended_at&&new Date(p.ended_at)<now;
@@ -1365,6 +1393,24 @@ function initPmPrefs(){
   sel.innerHTML='<option value="">選択してください</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
 }
 
+function updatePmFormSlotHint(){
+  const hint=document.getElementById("pm-level-hint");
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(!hint)return;
+  const lv=document.getElementById("pm-level").value;
+  const {limits,used}=getSlotStatus();
+  const max=limits[lv]||0;const u=used[lv]||0;const remain=max-u;
+  if(max===0){
+    hint.textContent='このレベルの枠がありません（プラン追加が必要）';hint.style.color='#d32f2f';
+    if(addBtn){addBtn.disabled=true;addBtn.style.opacity='0.5';}
+  }else if(remain<=0){
+    hint.textContent='⚠ 枠の上限に達しています（'+max+'枠中'+u+'枠使用中）';hint.style.color='#d32f2f';
+    if(addBtn&&!_editingPlacementId){addBtn.disabled=true;addBtn.style.opacity='0.5';}
+  }else{
+    hint.textContent='残り '+remain+' 枠（'+max+'枠中'+u+'枠使用中）';hint.style.color='#2e7d32';
+    if(addBtn){addBtn.disabled=false;addBtn.style.opacity='1';}
+  }
+}
 function onPmLevelChange(){
   const lv=document.getElementById("pm-level").value;
   document.getElementById("pm-pref-wrap").style.display='';
@@ -1374,6 +1420,7 @@ function onPmLevelChange(){
   document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
   if(lv==='prefecture'){document.getElementById("pm-area-wrap").style.display='none';document.getElementById("pm-city-wrap").style.display='none';}
+  updatePmFormSlotHint();
 }
 
 async function onPmPrefChange(){
@@ -1448,12 +1495,30 @@ async function addPlacement(){
       end_date:endedAt||null
     }});
   }
-  toast("✅ エリアを追加しました");
-  document.getElementById("pm-pref").value="";
-  document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
-  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
-  document.getElementById("pm-ended-at").value="";
   await loadPlacements(_pmShopId);
+  // フィードバックメッセージ（残り枠数を表示）
+  const {limits:newLimits,used:newUsed}=getSlotStatus();
+  const remain=(newLimits[level]||0)-(newUsed[level]||0);
+  const fb=document.getElementById("pm-feedback");
+  if(fb){
+    if(remain>0){
+      fb.style.display='';fb.style.background='#e8f5e9';fb.style.color='#2e7d32';fb.style.border='1px solid #a5d6a7';
+      fb.textContent='✓ '+targetName+'を追加しました。残り'+remain+'枠 — 続けて追加できます';
+    }else{
+      fb.style.display='';fb.style.background='#fff3cd';fb.style.color='#856404';fb.style.border='1px solid #ffc107';
+      fb.textContent='✓ '+targetName+'を追加しました。'+PM_LEVEL_LABELS[level]+'の枠を全て使い切りました';
+    }
+    setTimeout(()=>{fb.style.display='none';},6000);
+  }
+  // 連続追加しやすいよう、レベルと都道府県は維持し、市区町村/エリア選択のみリセット
+  if(level==='city'){
+    document.getElementById("pm-city").value="";
+  }else if(level==='spot'){
+    document.getElementById("pm-area").value="";
+  }else{
+    document.getElementById("pm-pref").value="";
+  }
+  document.getElementById("pm-ended-at").value="";
 }
 
 async function togglePlacement(id,current){

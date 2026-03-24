@@ -627,6 +627,31 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月25日 — キャッシュ修正・esteバグ修正・テーマ最終決定・確認ダイアログ・掲載エリアUX改善
+
+#### .htaccessキャッシュ修正
+- ExpiresByType application/json 削除（PHP APIレスポンスまでキャッシュされていた根本原因）
+
+#### esteモードバグ修正
+- area-shops.php / submit-shop.php に este モード追加（400エラー修正）
+
+#### テーマ最終決定
+- esteテーマ: 紫→ゴールド→ネオンティール→パステルティール(#2aa8b8)に最終決定
+- ラブホタブ: ダークワイン紫→ソフトピンク(#fff0f3)にリデザイン
+
+#### 確認ダイアログ一括追加
+- 全画面の投稿・編集・追加アクションに確認ダイアログ追加（ポータル/admin/shop-admin、計20+箇所）
+
+#### admin CSP修正
+- CSPに `https://static.cloudflareinsights.com` 追加（Cloudflare Insights許可）
+
+#### 掲載エリア管理モーダルUX改善（admin.html）
+- モーダル上部にプログレスバー付き残り枠サマリバナーを常時表示（レベル別: 色分け+バー+使用数）
+- エリア追加後にフィードバックメッセージ表示（「✓ 立川市を追加しました。残り2枠 — 続けて追加できます」）
+- フォームを連続追加しやすく改善（レベル・都道府県を維持、市区町村/エリアのみリセット）
+- レベルselect変更時にそのレベルの残り枠数をインライン表示（枠0時は追加ボタン無効化）
+- getSlotStatus() / renderSlotBanner() / updatePmFormSlotHint() 関数追加
+
 ### 2026年3月24日（後半7） — デリエステ（este）ジャンル追加
 
 #### 新ジャンル仕様
