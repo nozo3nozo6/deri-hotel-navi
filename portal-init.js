@@ -113,6 +113,14 @@ document.addEventListener('DOMContentLoaded', function() {
             a.href = '/shop-register.html?genre=' + MODE;
         });
     }
+
+    // プレースホルダーをスクリーン幅に合わせて調整
+    var kwInput = document.getElementById('keyword');
+    if (kwInput) {
+        kwInput.placeholder = window.innerWidth < 480
+            ? 'ホテル名・住所で検索'
+            : 'ホテル名・住所で検索（Enterで実行）';
+    }
 });
 
 // ── イベント委譲（onclick属性の代替） ──

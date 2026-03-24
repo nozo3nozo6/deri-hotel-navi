@@ -629,7 +629,10 @@ body[data-mode="men_same"] {
     outline: none;
     min-width: 0;
 }
-.search-input-lux::placeholder { color: var(--text-3); }
+.search-input-lux::placeholder         { color: var(--text-3); font-size: 14px; }
+.search-input-lux::-webkit-input-placeholder { color: var(--text-3); font-size: 14px; }
+.search-input-lux::-moz-placeholder         { color: var(--text-3); font-size: 14px; opacity: 1; }
+.search-input-lux:-ms-input-placeholder     { color: var(--text-3); font-size: 14px; }
 .search-input-lux::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
 
 .search-clear {
@@ -678,7 +681,10 @@ body[data-mode="men_same"] {
     outline: none;
     min-width: 0;
 }
-.station-input::placeholder { color: var(--text-3); }
+.station-input::placeholder         { color: var(--text-3); font-size: 14px; }
+.station-input::-webkit-input-placeholder { color: var(--text-3); font-size: 14px; }
+.station-input::-moz-placeholder         { color: var(--text-3); font-size: 14px; opacity: 1; }
+.station-input:-ms-input-placeholder     { color: var(--text-3); font-size: 14px; }
 
 /* 駅名サジェストドロップダウン */
 .station-suggest {
