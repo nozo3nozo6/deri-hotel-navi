@@ -96,8 +96,13 @@ function updateUrl(params) {
 function goToNationalTop() {
     if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
     if (typeof showJapanPage === 'function') showJapanPage();
-    // buildUrl()を経由しない（SHOP_SLUGが残るため）
-    history.pushState(null, '', '/' + getModePath() + '/');
+    if (SHOP_SLUG) {
+        // 店舗モード: SHOP_SLUGを維持 → /jofu/shop/slug/
+        updateUrl({});
+    } else {
+        // 通常モード: buildUrl()を経由しない → /jofu/
+        history.pushState(null, '', '/' + getModePath() + '/');
+    }
 }
 
 function ensurePortalMode() {
