@@ -1012,16 +1012,52 @@ async function executeKeywordSearch() {
     try {
         // ハイブリッド検索（Pagefind+Fuse.js）、フォールバック: PHP API
         let rawHotels = await fuseSearch(keyword, 50);
-        if (rawHotels === null) rawHotels = await queryHotelsAPI({ keyword, limit: 50 });
+        if (rawHotels === null) rawHotels = await queryHotelsAPI({ keyword, type: 'all', limit: 50 });
         const hotels = await fetchHotelsWithSummary(rawHotels);
-        // キーワード検索は関連度順を維持（sortHotelsByReviewsをスキップ）
-        renderHotelCards(hotels);
-        setResultStatus(hotels.length);
+
+        // ホテル/ラブホに分離
+        const isLoveho = h => h.hotel_type === 'love_hotel' || h.hotel_type === 'rental_room';
+        const hotelResults = hotels.filter(h => !isLoveho(h));
+        const lovehoResults = hotels.filter(h => isLoveho(h));
+
+        // タブ表示
+        hideLovehoTabs();
+        _keywordHotelCache = hotelResults;
+        _keywordLovehoCache = lovehoResults;
+        const tabsDiv = document.createElement('div');
+        tabsDiv.id = 'hotel-loveho-tabs';
+        tabsDiv.style.cssText = 'display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #ddd;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+        const lovehoTab = lovehoResults.length
+            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">🏩 ラブホ (${lovehoResults.length})</button>`
+            : '';
+        tabsDiv.innerHTML = `
+            <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchKeywordTab('hotel')">🏨 ホテル (${hotelResults.length})</button>
+            ${lovehoTab}
+        `;
+        const hotelList = document.getElementById('hotel-list');
+        hotelList.parentNode.insertBefore(tabsDiv, hotelList);
+
+        renderHotelCards(hotelResults);
+        setResultStatus(hotelResults.length);
     } catch (e) {
         /* error silenced */
     } finally {
         hideLoading();
     }
+}
+
+// キーワード検索タブ切り替え
+let _keywordHotelCache = [];
+let _keywordLovehoCache = [];
+function switchKeywordTab(tab) {
+    const tabs = document.querySelectorAll('#hotel-loveho-tabs .hotel-tab');
+    tabs.forEach(t => {
+        t.classList.toggle('detail-tab--active', t.dataset.tab === tab);
+        t.classList.toggle('detail-tab--inactive', t.dataset.tab !== tab);
+    });
+    const data = tab === 'loveho' ? _keywordLovehoCache : _keywordHotelCache;
+    renderHotelCards(data);
+    setResultStatus(data.length);
 }
 
 // 後方互換（名前だけ残す。inputイベント委譲から呼ばれても何もしない）
