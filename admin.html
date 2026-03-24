@@ -1465,12 +1465,15 @@ async function addPlacement(){
   const _spir=await api("insert",{table:"shop_placements",data:payload});const error=_spir.ok?null:{message:"error"};
   if(error){toast("追加エラー: "+error.message);return;}
   // ad_placements にも追加（ポータル表示用、重複チェック）
+  // ポータルのads.phpが使うplacement_type: city→spot, spot→area, prefecture→big
+  const AD_TYPE_MAP={city:'spot',spot:'area',prefecture:'big'};
+  const adType=AD_TYPE_MAP[level]||level;
   const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
   const adMode=shop?shop.gender_mode:'men';
-  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(_pmShopId)+"&placement_type="+encodeURIComponent(level)+"&placement_target="+encodeURIComponent(targetName));
+  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(_pmShopId)+"&placement_type="+encodeURIComponent(adType)+"&placement_target="+encodeURIComponent(targetName));
   if(!adExist||!adExist.length){
     await api("insert",{table:"ad_placements",data:{
-      shop_id:_pmShopId,placement_type:level,placement_target:targetName,
+      shop_id:_pmShopId,placement_type:adType,placement_target:targetName,
       status:'active',mode:adMode
     }});
   }
@@ -1513,7 +1516,8 @@ async function deletePlacement(id){
   const _spd=await api("delete",{table:"shop_placements",id});const error=_spd.ok?null:{message:"error"};
   if(error){toast("削除エラー: "+error.message);return;}
   // ad_placementsからも削除
-  if(p&&_pmShopId){await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:p.level,placement_target:p.target_name}});}
+  const AD_TYPE_MAP3={city:'spot',spot:'area',prefecture:'big'};
+  if(p&&_pmShopId){const delAdType=AD_TYPE_MAP3[p.level]||p.level;await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:delAdType,placement_target:p.target_name}});}
   placementsData=placementsData.filter(x=>x.id!==id);
   renderPlacements();toast("🗑 削除しました");
 }
@@ -1547,10 +1551,13 @@ async function updatePlacement(){
   const _spu2=await api("update",{table:"shop_placements",id:_editingPlacementId,data:{level:newLevel,target_name:newTargetName}});const error=_spu2.ok?null:{message:"error"};
   if(error){toast("更新エラー: "+error.message);return;}
   // ad_placements も更新
+  const AD_TYPE_MAP2={city:'spot',spot:'area',prefecture:'big'};
   if(oldP){
-    await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:oldP.level,placement_target:oldP.target_name}});
+    const oldAdType=AD_TYPE_MAP2[oldP.level]||oldP.level;
+    await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:oldAdType,placement_target:oldP.target_name}});
+    const newAdType=AD_TYPE_MAP2[newLevel]||newLevel;
     const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
-    await api("insert",{table:"ad_placements",data:{shop_id:_pmShopId,placement_type:newLevel,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men'}});
+    await api("insert",{table:"ad_placements",data:{shop_id:_pmShopId,placement_type:newAdType,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men'}});
   }
   toast("✅ エリアを更新しました");
   _editingPlacementId=null;
