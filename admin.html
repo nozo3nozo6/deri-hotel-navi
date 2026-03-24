@@ -753,6 +753,9 @@
         <!-- Step2: 確認 -->
         <div id="add-step2" style="display:none;">
             <div id="add-confirm-body" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:2;"></div>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="checkbox" id="add-publish" checked style="width:18px;height:18px;accent-color:var(--green);"> 登録と同時に公開する
+            </label>
             <div class="modal-btns">
                 <button class="btn-cancel" onclick="addHotelBack()">← 修正する</button>
                 <button class="btn-save" onclick="saveNewHotel()">追加する</button>
@@ -1953,12 +1956,12 @@ async function saveNewHotel(){if(!confirm("新しいホテルを追加します�
     latitude:document.getElementById("add-lat").value?parseFloat(document.getElementById("add-lat").value):null,
     longitude:document.getElementById("add-lng").value?parseFloat(document.getElementById("add-lng").value):null,
     source:"manual",
-    is_published:false
+    is_published:document.getElementById("add-publish").checked
   };
   // 電話番号で重複チェック
   if(payload.tel){const telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){const dupArr=await apiGet("hotels-search","q="+encodeURIComponent(payload.tel)+"&pref="+encodeURIComponent(payload.prefecture));const dup=(dupArr||[]).filter(h=>h.tel===payload.tel);if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
   const insR=await api("insert",{table:"hotels",data:payload});if(!insR.ok){toast("追加エラー: "+(insR.error||""));return;}const data=insR.data;
-  hotelsData.unshift(data);renderHotels();closeAddHotel();toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
+  hotelsData.unshift(data);renderHotels();closeAddHotel();toast(payload.is_published?"✅ ホテルを追加・公開しました":"✅ ホテルを追加しました（非公開）");
 }catch(e){console.error('[saveNewHotel]',e);toast("追加エラー: "+e.message);}}
 
 // ===== 都道府県・エリア プルダウン =====
