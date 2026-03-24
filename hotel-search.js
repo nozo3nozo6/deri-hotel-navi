@@ -160,7 +160,7 @@ async function hybridSearch(keyword, limit) {
     }
 
     if (!mergedIds.length) return null;
-    const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), limit: lim });
+    const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), type: 'all', limit: lim });
     // キーワード一致度でソート（完全一致 > 先頭一致 > 部分一致 > それ以外）
     const kw = _norm(keyword);
     hotels.sort((a, b) => {
