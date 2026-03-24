@@ -107,14 +107,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (urlParams.get('shop') || _shopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
-        // ゲートボタンを店舗URLルートへのリンクに変更
+        // ゲートボタンをモードのトップページへのリンクに変更
         var gateBtn = document.querySelector('.btn-to-gate');
-        if (gateBtn && _shopParam) {
-            var shopRootUrl = '/' + (modePathMap[MODE] || 'deli') + '/shop/' + encodeURIComponent(_shopParam) + '/';
+        if (gateBtn) {
+            var modeRootUrl = '/' + (modePathMap[MODE] || 'deli') + '/';
             gateBtn.removeAttribute('data-action');
-            gateBtn.onclick = function() { location.href = shopRootUrl; };
-            var gateText = gateBtn.querySelector('.btn-gate-text');
-            if (gateText) gateText.textContent = '一覧へ戻る';
+            gateBtn.onclick = function() { location.href = modeRootUrl; };
         }
     }
     if (MODE) {
