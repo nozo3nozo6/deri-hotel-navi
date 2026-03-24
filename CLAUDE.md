@@ -627,6 +627,40 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半6） — 店舗URLバグ修正・全国へSPA・LP改善
+
+#### 店舗専用URLで他店舗が表示されるバグ修正（hotel-search.js）
+- renderAreaShopSection(): `if (SHOP_ID && shops)` → `if (_shopParam && shops)` に変更（非同期レース対策）
+- SHOP_ID / SHOP_SLUG / _shopParam の3条件マルチフィルタ
+- loadHotelDetail() ホテル口コミフィルタ: `if (_shopParam && SHOP_ID)` → `if (_shopParam && (SHOP_ID || SHOP_DATA?.shop_name))` に変更
+- loadHotelDetail() ラブホ口コミフィルタ: `loveho_reports`に`poster_type`カラム非存在が根本原因 → `shopInfoMap[r.poster_name]`で店舗判定に変更
+- loadHotelDetail() renderDetailShopCards: cityShopsを`_shopParam`フィルタ（自店舗のみ）、エリア/都道府県広告は店舗モード時に非表示
+
+#### 「全国へ」ボタン SPA遷移実装（area-navigation.js / portal.html / portal-init.js）
+- ボタン変更: `data-action="goToGate"` → `data-action="goToNationalTop"` "全国へ"
+- goToNationalTop() 追加（SPA方式、ページリロードなし）: SHOP_SLUG維持 or 通常URLリセット
+- portal-init.js: goToNationalTopイベント委譲追加
+- astro-src/src/layouts/PortalLayout.astro: 同ボタン変更
+
+#### getGateUrl() をパスベースURLに変更（api-service.js）
+- GATE_URL_MAP（サブドメイン）→ GATE_PATH_MAP（/deli/ 等パスベース）に変更
+
+#### フッターリンク・サブドメインLP フッターリンクをパスベースに統一
+- portal.html: デリヘル/女風/同性/ラブホリンクをパスベースに変更
+- astro-src 全5ページ（deli/jofu/same/loveho/shop-register）: footerLinksをパスベースに変更
+
+#### LP改善（astro-src）
+- deli/index.astro・jofu/index.astro: heroセクションの「今すぐホテルを検索する」CTAボタン削除
+
+#### 店舗URLの全国ページにLPコンテンツ表示（area-navigation.js）
+- appendShopModeLpContent() 追加（_shopParamある場合のみ表示）
+- showJapanPage() 末尾で呼び出し
+- 表示: ヒーローテキスト（モード別）、「なぜYobuHoの情報は信頼できるのか」3カード、「かんたん3ステップ」
+
+#### モバイルUX改善
+- style.css: @media (max-width: 640px) で主要コンテナに padding 16px 追加
+- portal-init.js: 480px未満のプレースホルダーを短縮（"ホテル名・住所で検索"）
+
 ### 2026年3月24日（後半5） — 保存エラー改善・文字化け修正・複数人追加料金
 
 #### admin保存エラー改善
