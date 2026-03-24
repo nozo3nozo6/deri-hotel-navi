@@ -134,39 +134,39 @@ function appendShopModeLpContent() {
                 <p style="font-size:13px;color:var(--text-2);margin:0;">全国43,000件以上のホテルから最適なホテルを見つけよう</p>
             </div>
             <div style="padding:12px 4px;">
-                <p style="font-size:12px;font-weight:700;color:var(--text-1);margin:0 0 10px;text-align:center;">なぜYobuHoの情報は信頼できるのか</p>
+                <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">なぜYobuHoの情報は信頼できるのか</p>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    <div style="background:var(--surface-2,#f8f5f6);border:1px solid var(--border-light,#e0d5d0);border-radius:8px;padding:10px 6px;text-align:center;">
+                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
                         <div style="font-size:1.4em;margin-bottom:4px;">💬</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text-1);margin-bottom:3px;">実体験口コミ</div>
+                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">実体験口コミ</div>
                         <div style="font-size:11px;color:var(--text-2);line-height:1.4;">実際に利用した方の投稿情報</div>
                     </div>
-                    <div style="background:var(--surface-2,#f8f5f6);border:1px solid var(--border-light,#e0d5d0);border-radius:8px;padding:10px 6px;text-align:center;">
+                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
                         <div style="font-size:1.4em;margin-bottom:4px;">🏪</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text-1);margin-bottom:3px;">店舗の公式情報</div>
+                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">店舗の公式情報</div>
                         <div style="font-size:11px;color:var(--text-2);line-height:1.4;">届出確認済み店舗の実績</div>
                     </div>
-                    <div style="background:var(--surface-2,#f8f5f6);border:1px solid var(--border-light,#e0d5d0);border-radius:8px;padding:10px 6px;text-align:center;">
+                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
                         <div style="font-size:1.4em;margin-bottom:4px;">✅</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text-1);margin-bottom:3px;">ダブルチェック</div>
+                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">ダブルチェック</div>
                         <div style="font-size:11px;color:var(--text-2);line-height:1.4;">口コミ×店舗で高い信頼性</div>
                     </div>
                 </div>
             </div>
             <div style="padding:4px 4px 16px;">
-                <p style="font-size:12px;font-weight:700;color:var(--text-1);margin:0 0 10px;text-align:center;">使い方はかんたん3ステップ</p>
+                <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">使い方はかんたん3ステップ</p>
                 <div style="display:flex;flex-direction:column;gap:6px;">
-                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--surface-2,#f8f5f6);border-radius:8px;padding:9px 12px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-3);border-radius:8px;padding:9px 12px;">
                         <span style="font-size:1em;font-weight:700;color:var(--accent);min-width:22px;">01</span>
-                        <div><div style="font-size:12px;font-weight:600;color:var(--text-1);">エリアを選ぶ</div><div style="font-size:11px;color:var(--text-2);">地方→都道府県→市区町村の順に絞り込み</div></div>
+                        <div><div style="font-size:12px;font-weight:600;color:var(--text);">エリアを選ぶ</div><div style="font-size:11px;color:var(--text-2);">地方→都道府県→市区町村の順に絞り込み</div></div>
                     </div>
-                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--surface-2,#f8f5f6);border-radius:8px;padding:9px 12px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-3);border-radius:8px;padding:9px 12px;">
                         <span style="font-size:1em;font-weight:700;color:var(--accent);min-width:22px;">02</span>
-                        <div><div style="font-size:12px;font-weight:600;color:var(--text-1);">ホテルを選ぶ</div><div style="font-size:11px;color:var(--text-2);">口コミ件数・呼べた率でホテルを確認</div></div>
+                        <div><div style="font-size:12px;font-weight:600;color:var(--text);">ホテルを選ぶ</div><div style="font-size:11px;color:var(--text-2);">口コミ件数・呼べた率でホテルを確認</div></div>
                     </div>
-                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--surface-2,#f8f5f6);border-radius:8px;padding:9px 12px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-3);border-radius:8px;padding:9px 12px;">
                         <span style="font-size:1em;font-weight:700;color:var(--accent);min-width:22px;">03</span>
-                        <div><div style="font-size:12px;font-weight:600;color:var(--text-1);">口コミを確認</div><div style="font-size:11px;color:var(--text-2);">実体験に基づいた情報で安心して利用</div></div>
+                        <div><div style="font-size:12px;font-weight:600;color:var(--text);">口コミを確認</div><div style="font-size:11px;color:var(--text-2);">実体験に基づいた情報で安心して利用</div></div>
                     </div>
                 </div>
             </div>

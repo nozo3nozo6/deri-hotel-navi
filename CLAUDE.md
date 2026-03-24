@@ -633,7 +633,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - ジャンル名: デリエステ（回春マッサージ・M性感・風俗エステ、男性専用）
 - モードキー: `este`（パスとキーが同じ）
 - URLパス: `/este/`、サブドメイン: `este.yobuho.com`
-- テーマ: ディープパープル `#6b46c1`、アイコン: 💆‍♂️
+- テーマ: アンバーゴールド×ダークブラウン `#c49832`（男性向け高級スパ）、アイコン: 💆‍♂️
 - ユーザー口コミは全ジャンル共通表示
 
 #### 変更ファイル
@@ -652,6 +652,19 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - admin.html: shop-mode-f/sr-gender/re-gender-mode select + SHOP_GENRE_LABELS に este 追加
 - shop-admin.html: genreLabels + modePathMap に este 追加
 - astro-src/pages/shop-register.astro: reg-genre/shop-gender select + GENRE_LABELS + detectGenre() に este 追加
+
+#### admin 掲載エリア管理 UI改善
+- `admin.html` loadShopContracts(): 枠数・エリア一覧・管理ボタンを1つのカード（緑枠）に統合（カードヘッダー「掲載エリア」+ 右に「管理する →」ボタン、カード内エリアチップ、カードフッターに枠数青帯）
+- renderPlacements(): モーダル上部に残り枠サマリ追加（市区町村/エリア/都道府県、赤/緑で視認性向上）
+
+#### hotel-detail.php キャッシュ対策
+- `api/hotel-detail.php` に `Cache-Control: no-store` ヘッダー追加
+- 背景: ホテル一覧の口コミ件数と詳細の口コミ件数が不一致になるケース（ブラウザキャッシュが原因）
+
+#### LP入場CTA追加・全国ページLP常時表示・ゲートへ→全国へ
+- `area-navigation.js`: appendShopModeLpContent() の `_shopParam` ガード削除 → 全モードの全国ページでLP内容を常時表示 + este を heroMap に追加
+- `astro-src/pages/deli/index.astro`, `jofu/index.astro`, `este/index.astro`: heroに「ホテルを検索する（入場）」CTAボタン追加（same/lovehoは既存CTAあり → 変更なし）
+- `astro-src/components/PageHeader.astro`: 「ゲートへ」→「← 全国へ」（history.back()）に変更
 
 ### 2026年3月24日（後半6） — 店舗URLバグ修正・全国へSPA・LP改善
 

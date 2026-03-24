@@ -39,7 +39,7 @@ const footerLinks = [
   twitterTitle="デリエステを呼べるホテル検索 | Este YobuHo"
   twitterDescription="デリエステ・風俗エステ・回春マッサージを呼べるホテルを全国43,000件以上から検索。"
   twitterImage="https://yobuho.com/ogp.png"
-  themeColor="#6b46c1"
+  themeColor="#c49832"
   jsonLd={jsonLd}
 >
     <Fragment slot="head">
@@ -120,28 +120,30 @@ const footerLinks = [
 
 <style is:global>
     :root {
-        --accent: #6b46c1; --accent-light: #9b72e8; --accent-dim: #5230a8;
-        --accent-bg: rgba(107,70,193,0.07); --accent-glow: rgba(107,70,193,0.18);
-        --bg: #faf8fd; --bg-2: #ffffff; --bg-3: #f4f0fc;
-        --text: #1a1228; --text-2: #4a3870; --text-3: #5a3e90;
-        --border: rgba(107,70,193,0.14);
+        --accent: #c49832; --accent-light: #deb860; --accent-dim: #a07818;
+        --accent-bg: rgba(196,152,50,0.10); --accent-glow: rgba(196,152,50,0.22);
+        --bg: #12100e; --bg-2: #1a1614; --bg-3: #242018;
+        --text: #e8dcc8; --text-2: #bfae94; --text-3: #9a8a6e;
+        --border: rgba(196,152,50,0.18);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-    .lp-header { background: #150f2a; padding: 14px 20px; text-align: center; }
+    .lp-header { background: #0e0c0a; padding: 14px 20px; text-align: center; border-bottom: 1px solid rgba(196,152,50,0.12); }
     .lp-header .logo { font-size: 22px; color: var(--accent-light); font-weight: 300; letter-spacing: 0.06em; }
     .lp-header .logo b { font-weight: 700; color: #fff; }
-    .lp-header .logo-sub { font-style: italic; color: var(--accent-light); font-size: 0.85em; letter-spacing: 2px; }
-    .hero { background: linear-gradient(135deg, #150f2a 0%, #2a1a5e 50%, #1e1040 100%); padding: 60px 20px 56px; text-align: center; color: #fff; }
-    .hero h1 { font-size: 24px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
-    .hero-sub { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 32px; line-height: 1.7; }
-    .age-notice { text-align: center; color: #bbb; font-size: 12px; margin: 16px 0; }
-    .cta-button { display: inline-block; padding: 16px 40px; background: var(--accent); color: #fff; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; transition: background 0.2s, transform 0.2s; box-shadow: 0 4px 20px rgba(107,70,193,0.35); }
-    .cta-button:hover { background: var(--accent-dim); transform: translateY(-1px); }
+    .lp-header .logo-sub { font-style: italic; color: var(--accent); font-size: 0.85em; letter-spacing: 2px; }
+    .hero { background: linear-gradient(135deg, #0e0c0a 0%, #1a1408 40%, #201810 70%, #12100e 100%); padding: 60px 20px 56px; text-align: center; color: #fff; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at 50% 30%, rgba(196,152,50,0.08) 0%, transparent 70%); pointer-events: none; }
+    .hero h1 { font-size: 24px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; position: relative; }
+    .hero-sub { font-size: 14px; color: rgba(232,220,200,0.65); margin-bottom: 32px; line-height: 1.7; position: relative; }
+    .age-notice { text-align: center; color: #8a7a60; font-size: 12px; margin: 16px 0; position: relative; }
+    .cta-button { display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #c49832, #a07818); color: #fff; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; transition: background 0.2s, transform 0.2s; box-shadow: 0 4px 20px rgba(196,152,50,0.3); position: relative; }
+    .cta-button:hover { background: linear-gradient(135deg, #deb860, #c49832); transform: translateY(-1px); }
+    .hero-cta { position: relative; }
     .trust-section { padding: 56px 20px; background: var(--bg-2); }
     .trust-section h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; color: var(--text); }
     .trust-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 0 auto; }
-    .trust-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 28px 20px; text-align: center; }
+    .trust-card { background: var(--bg-3); border: 1px solid var(--border); border-radius: 12px; padding: 28px 20px; text-align: center; }
     .trust-icon { font-size: 36px; margin-bottom: 14px; }
     .trust-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--accent); }
     .trust-card p { font-size: 13px; color: var(--text-2); line-height: 1.8; }
@@ -155,10 +157,10 @@ const footerLinks = [
     .howto { padding: 56px 20px; background: var(--bg-2); }
     .howto h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; }
     .steps { display: flex; justify-content: center; gap: 24px; max-width: 700px; margin: 0 auto; }
-    .step { flex: 1; text-align: center; padding: 24px 16px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
-    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--accent); color: #fff; border-radius: 50%; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .step { flex: 1; text-align: center; padding: 24px 16px; background: var(--bg-3); border-radius: 12px; border: 1px solid var(--border); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: linear-gradient(135deg, #c49832, #a07818); color: #fff; border-radius: 50%; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
     .step p { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.6; }
-    .cta-section { padding: 56px 20px; background: linear-gradient(135deg, #150f2a 0%, #2a1a5e 100%); text-align: center; }
+    .cta-section { padding: 56px 20px; background: linear-gradient(135deg, #0e0c0a 0%, #1a1408 50%, #12100e 100%); text-align: center; }
     .cta-section h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 24px; }
     @media (max-width: 640px) {
         .hero { padding: 44px 16px 40px; } .hero h1 { font-size: 20px; }
