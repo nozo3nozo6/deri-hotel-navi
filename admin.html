@@ -996,8 +996,8 @@
 <div class="toast" id="toast"></div>
 <script>
 const AA='/api/admin-api.php';
-async function api(action,body){const r=await fetch(AA+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body||{})});const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[api] non-JSON response:',r.status,text.substring(0,200));return{ok:false,error:'サーバーエラー ('+r.status+')'};}}
-async function apiGet(action,params=''){const r=await fetch(AA+'?action='+action+(params?'&'+params:''),{credentials:'include'});const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[apiGet] non-JSON response:',r.status,text.substring(0,200));return null;}}
+async function api(action,body){const r=await fetch(AA+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body||{})});if(r.status===401){toast('セッションが切れました。再ログインしてください');setTimeout(()=>location.reload(),1500);return{ok:false,error:'Session expired'};}const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[api] non-JSON response:',r.status,text.substring(0,200));return{ok:false,error:'サーバーエラー ('+r.status+')'};}}
+async function apiGet(action,params=''){const r=await fetch(AA+'?action='+action+(params?'&'+params:''),{credentials:'include'});if(r.status===401){toast('セッションが切れました。再ログインしてください');setTimeout(()=>location.reload(),1500);return null;}const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[apiGet] non-JSON response:',r.status,text.substring(0,200));return null;}}
 const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
@@ -1319,7 +1319,7 @@ const PLAN_LIMITS={
 
 async function loadShopContracts(shopId,plans){
   const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
-  const activeIds=(contracts||[]).map(c=>c.plan_id);
+  const activeIds=(Array.isArray(contracts)?contracts:[]).map(c=>c.plan_id);
   // 現在のプラン表示
   const badgeEl=document.getElementById('shop-plan-badge');
   if(activeIds.length){
