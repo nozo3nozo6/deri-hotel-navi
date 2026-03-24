@@ -1224,6 +1224,7 @@ async function closePlacementModal(){
       toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');
     }
   }
+  if(shopId)loadShopAreaList(shopId);
   _pmShopId=null;placementsData=[];
 }
 
