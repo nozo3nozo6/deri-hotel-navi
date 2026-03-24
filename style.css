@@ -80,54 +80,54 @@
    ラブホタブ — エロチック・ムードデザイン（全モード共通）
    ========================================================================== */
 .loveho-mood {
-    background: linear-gradient(180deg, #1a0a12 0%, #2a1020 40%, #1a0a12 100%);
+    background: linear-gradient(180deg, #fff0f3 0%, #fde4ea 40%, #fff0f3 100%);
     border-radius: 16px;
     padding: 16px 12px;
     margin-top: 8px;
     transition: background 0.4s ease, padding 0.3s ease;
 }
 .loveho-mood .hotel-card {
-    background: linear-gradient(135deg, rgba(40,15,28,0.95) 0%, rgba(60,20,40,0.9) 100%);
-    border: 1px solid rgba(200,120,150,0.2);
+    background: #fff;
+    border: 1px solid rgba(220,130,160,0.25);
     border-radius: 12px;
-    color: #f0e0e6;
-    box-shadow: 0 4px 20px rgba(181,98,122,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    color: var(--text, #2a1a20);
+    box-shadow: 0 2px 12px rgba(220,130,160,0.10);
     transition: transform 0.2s ease, box-shadow 0.3s ease;
 }
 .loveho-mood .hotel-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(200,100,140,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
-    border-color: rgba(200,120,150,0.4);
+    box-shadow: 0 6px 24px rgba(220,130,160,0.18);
+    border-color: rgba(220,130,160,0.4);
 }
 .loveho-mood .hotel-card .hotel-name {
-    color: #f8e0ea;
+    color: var(--text, #2a1a20);
 }
 .loveho-mood .hotel-card .hotel-info {
-    color: rgba(240,220,228,0.7);
+    color: var(--text-2, #5a3a46);
 }
 .loveho-mood .btn-check {
-    background: linear-gradient(135deg, #9b2d5a 0%, #c44a7a 100%);
+    background: linear-gradient(135deg, #e87a98 0%, #d4688a 100%);
     border: none;
     color: #fff;
     border-radius: 20px;
-    box-shadow: 0 2px 10px rgba(180,60,100,0.3);
+    box-shadow: 0 2px 10px rgba(220,100,140,0.25);
 }
 .loveho-mood .btn-check:hover {
-    background: linear-gradient(135deg, #c44a7a 0%, #d66a9a 100%);
-    box-shadow: 0 4px 16px rgba(200,80,120,0.4);
+    background: linear-gradient(135deg, #d4688a 0%, #c45878 100%);
+    box-shadow: 0 4px 16px rgba(220,100,140,0.35);
 }
 .loveho-mood .btn-report {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(200,120,150,0.3);
-    color: #e0c0cc;
+    background: #fff;
+    border: 1px solid rgba(220,130,160,0.35);
+    color: #c47088;
     border-radius: 20px;
 }
 .loveho-mood .btn-report:hover {
-    background: rgba(200,120,150,0.15);
-    border-color: rgba(200,120,150,0.5);
+    background: rgba(220,130,160,0.08);
+    border-color: rgba(220,130,160,0.5);
 }
 .loveho-mood .result-status {
-    color: rgba(240,200,216,0.8);
+    color: #8a5a68;
 }
 
 /* ==========================================================================
@@ -2257,18 +2257,18 @@ body[data-mode="men"] .header-title {
 
 /* カードアクションボタン */
 .card-action-btn { flex:1;min-width:0;padding:8px 6px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:none; }
-.card-action-btn--lh-primary { background:linear-gradient(135deg,#c9a96e,#e0c88a);color:#1a1a2e; }
-.card-action-btn--lh-secondary { background:transparent;border:1.5px solid rgba(201,169,110,0.35);color:#c9a96e; }
+.card-action-btn--lh-primary { background:linear-gradient(135deg,#e87a98,#d4688a);color:#fff; }
+.card-action-btn--lh-secondary { background:transparent;border:1.5px solid rgba(220,130,160,0.35);color:#c47088; }
 .card-action-btn--h-primary { background:linear-gradient(135deg,#c9a84c,#e0c060);color:#fff; }
 .card-action-btn--h-secondary { background:transparent;border:1.5px solid rgba(180,150,100,0.35);color:var(--gold-dim,#a08030); }
 
 /* もっと見るボタン */
 .load-more-btn { border:none;padding:12px 32px;border-radius:6px;font-size:14px;cursor:pointer;font-family:inherit;color:#fff; }
-.load-more-btn--loveho { background:#c9a96e; }
+.load-more-btn--loveho { background:#e87a98; }
 .load-more-btn--hotel { background:#b5627a; }
 
 /* 口コミ件数バッジ */
-.review-count-badge { display:inline-flex;align-items:center;gap:4px;background:rgba(201,169,110,0.12);color:#c9a96e;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px; }
+.review-count-badge { display:inline-flex;align-items:center;gap:4px;background:rgba(220,130,160,0.12);color:#c47088;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px; }
 
 /* ラブホ投稿フォーム */
 .lh-form-wrap { background:var(--bg-2,#fff);border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:20px 16px;margin-bottom:24px; }
@@ -2298,10 +2298,10 @@ body[data-mode="men"] .header-title {
 .review-gp-tags { display:flex;flex-wrap:wrap;gap:4px; }
 
 /* 雰囲気バッジ */
-.atmo-badge { padding:3px 10px;border:1px solid rgba(201,169,110,0.4);border-radius:20px;font-size:12px;color:#c9a96e;background:rgba(201,169,110,0.08); }
+.atmo-badge { padding:3px 10px;border:1px solid rgba(220,130,160,0.4);border-radius:20px;font-size:12px;color:#c47088;background:rgba(220,130,160,0.08); }
 
 /* ラブホカード */
-.loveho-card-bg { background:#f9f5f0;border:1px solid rgba(201,169,110,0.2); }
+.loveho-card-bg { background:#fff;border:1px solid rgba(220,130,160,0.25); }
 .card-name { flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all; }
 .card-footer { display:flex;gap:6px;padding-top:10px; }
 .hotel-card-footer.card-footer { padding-top:10px; }
@@ -2316,7 +2316,7 @@ body[data-mode="men"] .header-title {
 .multi-select { flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg-2);color:var(--text);font-family:inherit; }
 
 /* 送信ボタン */
-.lh-submit-btn { width:100%;padding:14px;background:linear-gradient(135deg,#c9a96e,#e0c88a);border:none;border-radius:10px;color:#1a1a2e;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px; }
+.lh-submit-btn { width:100%;padding:14px;background:linear-gradient(135deg,#e87a98,#d4688a);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px; }
 
 /* 詳細ヘッダー */
 .detail-header-row { display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:0 0 12px 0; }
