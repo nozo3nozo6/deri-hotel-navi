@@ -893,6 +893,14 @@
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
                     <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel" readonly style="background:var(--bg-3);cursor:default;"></div>
                     <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url" readonly style="background:var(--bg-3);cursor:default;"></div>
+                    <!-- 活動エリア（都道府県） -->
+                    <div class="mf" style="margin-top:12px;">
+                        <label class="ml">活動エリア（都道府県）</label>
+                        <select id="sr-prefecture" class="mi" onchange="savePrefecture()">
+                            <option value="">未設定</option>
+                        </select>
+                        <div id="sr-pref-hint" style="margin-top:4px;font-size:11px;color:#888;"></div>
+                    </div>
                     <div style="margin-top:16px;padding:16px;background:#f8f9fa;border-radius:4px;">
                         <label style="font-weight:bold;">ステータス</label>
                         <div style="margin:8px 0;">現在: <span id="shop-status-badge"></span></div>
@@ -947,8 +955,18 @@
         <!-- 新規追加フォーム -->
         <div style="border-top:1px solid var(--border);padding-top:18px;">
             <div id="pm-form-title" style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:12px;">新規エリア追加</div>
-            <div class="mf" style="margin-bottom:10px;">
-                <label class="ml">レベル <span style="color:var(--gold);">*</span></label>
+            <!-- Step 1: 都道府県 -->
+            <div class="mf" style="margin-bottom:10px;" id="pm-pref-wrap">
+                <label class="ml">① 都道府県を選択 <span style="color:var(--gold);">*</span></label>
+                <select id="pm-pref" class="mi" onchange="onPmPrefChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <!-- 都道府県の掲載エリア構造プレビュー -->
+            <div id="pm-pref-preview" style="display:none;margin-bottom:14px;"></div>
+            <!-- Step 2: レベル -->
+            <div class="mf" style="margin-bottom:10px;display:none;" id="pm-level-wrap">
+                <label class="ml">② 掲載レベルを選択 <span style="color:var(--gold);">*</span></label>
                 <select id="pm-level" class="mi" onchange="onPmLevelChange()">
                     <option value="city">🏘 市区町村</option>
                     <option value="spot">🏙 エリア</option>
@@ -956,20 +974,16 @@
                 </select>
                 <div id="pm-level-hint" style="margin-top:4px;font-size:12px;font-weight:600;"></div>
             </div>
-            <div class="mf" style="margin-bottom:10px;" id="pm-pref-wrap">
-                <label class="ml">都道府県 <span style="color:var(--gold);">*</span></label>
-                <select id="pm-pref" class="mi" onchange="onPmPrefChange()">
-                    <option value="">選択してください</option>
-                </select>
-            </div>
+            <!-- Step 3: エリア -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-area-wrap">
-                <label class="ml">エリア <span style="color:var(--gold);">*</span></label>
+                <label class="ml">③ エリア <span style="color:var(--gold);">*</span></label>
                 <select id="pm-area" class="mi" onchange="onPmAreaChange()">
                     <option value="">選択してください</option>
                 </select>
             </div>
+            <!-- Step 4: 市区町村 -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-city-wrap">
-                <label class="ml">市区町村 <span style="color:var(--gold);">*</span></label>
+                <label class="ml">④ 市区町村 <span style="color:var(--gold);">*</span></label>
                 <select id="pm-city" class="mi">
                     <option value="">選択してください</option>
                 </select>
@@ -1100,7 +1114,36 @@ async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)retur
 async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const r=await api('update',{table:'shops',id,data:{status:'deleted',deleted_at:new Date().toISOString()}});if(!r.ok){toast("削除エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
 async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
 let _srId=null;
-function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";const wrap=document.getElementById("sr-doc-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
+function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";
+// 都道府県select初期化+セット
+const prefSel=document.getElementById("sr-prefecture");
+prefSel.innerHTML='<option value="">未設定</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
+prefSel.value=s.prefecture||'';
+updatePrefHint(s.prefecture);
+const wrap=document.getElementById("sr-doc-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
+
+function updatePrefHint(pref){
+  const hint=document.getElementById("sr-pref-hint");
+  if(!hint)return;
+  if(pref){
+    hint.textContent='掲載エリア管理で'+pref+'のエリア構造が自動表示されます';
+    hint.style.color='#2e7d32';
+  }else{
+    hint.textContent='設定すると、掲載エリア管理で該当エリアが自動選択されます';
+    hint.style.color='#888';
+  }
+}
+
+async function savePrefecture(){
+  if(!_srId)return;
+  const pref=document.getElementById("sr-prefecture").value;
+  const r=await api('update',{table:'shops',id:_srId,data:{prefecture:pref||null}});
+  if(!r.ok){toast("保存エラー");return;}
+  // ローカルデータ更新
+  shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,prefecture:pref||null}:s);
+  updatePrefHint(pref);
+  toast(pref?'活動エリア: '+pref+' を保存しました':'活動エリアをクリアしました');
+}
 function closeShopReview(){document.getElementById("shop-review-modal").style.display="none";pendingAction=null;_srId=null;_dvReset();}
 let pendingAction=null;
 function renderEditActions(shop,plans){
@@ -1203,7 +1246,18 @@ async function openPlacementModal(shopId){
   document.getElementById("pm-shop-name").textContent=shop?("— "+esc(shop.shop_name||"")):"";
   document.getElementById("pm-level").value="city";
   initPmPrefs();
-  onPmLevelChange();
+  // 初期状態: レベル/エリア/市区町村/プレビューを非表示
+  document.getElementById("pm-level-wrap").style.display='none';
+  document.getElementById("pm-area-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+  document.getElementById("pm-pref-preview").style.display='none';
+  document.getElementById("pm-feedback").style.display='none';
+  await ensureAreaData();
+  // 店舗の都道府県が設定されていれば自動選択+プレビュー表示
+  if(shop&&shop.prefecture){
+    document.getElementById("pm-pref").value=shop.prefecture;
+    await onPmPrefChange();
+  }
   document.getElementById("placement-modal").style.display="flex";
   await loadPlacements(shopId);
 }
@@ -1374,6 +1428,14 @@ async function loadShopAreaList(shopId){
 // 都道府県リスト
 const PM_PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
 
+// area-data.json キャッシュ
+let _pmAreaData=null;
+async function ensureAreaData(){
+  if(_pmAreaData)return _pmAreaData;
+  try{const r=await fetch('/area-data.json');_pmAreaData=await r.json();return _pmAreaData;}
+  catch(e){console.error('[ensureAreaData]',e);return null;}
+}
+
 function initPmPrefs(){
   const sel=document.getElementById("pm-pref");
   sel.innerHTML='<option value="">選択してください</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
@@ -1397,44 +1459,143 @@ function updatePmFormSlotHint(){
     if(addBtn){addBtn.disabled=false;addBtn.style.opacity='1';}
   }
 }
+
+// 都道府県のエリア構造をプレビュー表示
+function renderPrefPreview(pref){
+  const el=document.getElementById("pm-pref-preview");
+  if(!el)return;
+  if(!pref||!_pmAreaData){el.style.display='none';return;}
+  const prefEntry=_pmAreaData.pref[pref];
+  if(!prefEntry){el.style.display='none';return;}
+  const areas=prefEntry.areas||[];// [[areaName, count], ...]
+  const totalHotels=_pmAreaData.prefCounts[pref]||0;
+  // エリアごとの市区町村数を集計
+  let areaDetails=[];
+  for(const [aName,aCount] of areas){
+    const aKey=pref+'\t'+aName;
+    const aEntry=_pmAreaData.area[aKey];
+    const cityCount=aEntry&&aEntry.ct?aEntry.ct.length:0;
+    const hasDa=aEntry&&aEntry.da&&aEntry.da.length>0;
+    areaDetails.push({name:aName,count:aCount,cityCount,hasDa});
+  }
+  // 上位8エリアを表示、残りは省略
+  const showCount=8;
+  const shown=areaDetails.slice(0,showCount);
+  const remaining=areaDetails.length-showCount;
+
+  let html=`<div style="background:#f8f9ff;border:1px solid #d0d7ff;border-radius:8px;padding:12px 14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-size:13px;font-weight:700;color:#333;">📍 ${esc(pref)} の掲載エリア構造</span>
+      <span style="font-size:11px;color:#666;">全${totalHotels.toLocaleString()}件のホテル</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+
+  for(const a of shown){
+    const sub=a.cityCount>0?a.cityCount+'市区町村':'';
+    html+=`<div style="background:#fff;border:1px solid #e0e4f0;border-radius:6px;padding:6px 10px;font-size:12px;min-width:0;">
+      <div style="font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(a.name)}</div>
+      <div style="color:#888;font-size:10px;margin-top:2px;">${a.count}件${sub?' · '+sub:''}</div>
+    </div>`;
+  }
+  if(remaining>0){
+    html+=`<div style="display:flex;align-items:center;padding:6px 10px;font-size:11px;color:#888;">他${remaining}エリア</div>`;
+  }
+
+  html+=`</div>
+    <div style="margin-top:10px;font-size:11px;color:#555;line-height:1.5;">
+      掲載レベルの目安:
+      <span style="display:inline-block;background:#e8f5e9;padding:1px 8px;border-radius:4px;margin:0 2px;">📌都道府県</span> = ${esc(pref)}全域
+      <span style="display:inline-block;background:#e3f2fd;padding:1px 8px;border-radius:4px;margin:0 2px;">🏙エリア</span> = ${shown.length>0?esc(shown[0].name)+'等':'—'}
+      <span style="display:inline-block;background:#fff3e0;padding:1px 8px;border-radius:4px;margin:0 2px;">🏘市区町村</span> = 各エリア内の市区町村
+    </div>
+  </div>`;
+  el.innerHTML=html;
+  el.style.display='';
+}
+
 function onPmLevelChange(){
   const lv=document.getElementById("pm-level").value;
-  document.getElementById("pm-pref-wrap").style.display='';
   document.getElementById("pm-area-wrap").style.display=(lv==='city'||lv==='spot')?'':'none';
   document.getElementById("pm-city-wrap").style.display=lv==='city'?'':'none';
-  document.getElementById("pm-pref").value='';
   document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
   if(lv==='prefecture'){document.getElementById("pm-area-wrap").style.display='none';document.getElementById("pm-city-wrap").style.display='none';}
+  // 都道府県が既に選択されている場合、エリア/市区町村を再セット
+  const pref=document.getElementById("pm-pref").value;
+  if(pref&&lv!=='prefecture')populateAreaSelect(pref);
   updatePmFormSlotHint();
 }
 
 async function onPmPrefChange(){
   const pref=document.getElementById("pm-pref").value;
-  const lv=document.getElementById("pm-level").value;
-  if(lv==='prefecture')return;// 都道府県レベルではエリア不要
+  const levelWrap=document.getElementById("pm-level-wrap");
+  const previewEl=document.getElementById("pm-pref-preview");
   const areaSel=document.getElementById("pm-area");
   const citySel=document.getElementById("pm-city");
-  areaSel.innerHTML='<option value="">読み込み中...</option>';
+  areaSel.innerHTML='<option value="">選択してください</option>';
   citySel.innerHTML='<option value="">選択してください</option>';
-  if(!pref)return;
-  const areas=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
-  areaSel.innerHTML='<option value="">選択してください</option>'+(areas||[]).map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
-  if(lv==='spot'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='none';}
-  if(lv==='city'){document.getElementById("pm-area-wrap").style.display='';document.getElementById("pm-city-wrap").style.display='';}
+  document.getElementById("pm-area-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+
+  if(!pref){
+    levelWrap.style.display='none';
+    if(previewEl)previewEl.style.display='none';
+    return;
+  }
+
+  await ensureAreaData();
+  // プレビュー表示
+  renderPrefPreview(pref);
+  // レベル選択を表示
+  levelWrap.style.display='';
+  // レベルに応じてエリアをセット
+  const lv=document.getElementById("pm-level").value;
+  if(lv!=='prefecture')populateAreaSelect(pref);
+  updatePmFormSlotHint();
 }
 
-async function onPmAreaChange(){
+function populateAreaSelect(pref){
+  if(!_pmAreaData||!pref)return;
+  const prefEntry=_pmAreaData.pref[pref];
+  if(!prefEntry)return;
+  const areas=prefEntry.areas||[];
+  const areaSel=document.getElementById("pm-area");
+  const lv=document.getElementById("pm-level").value;
+
+  if(lv==='spot'||lv==='city'){
+    areaSel.innerHTML='<option value="">エリアを選択</option>'+areas.map(([name,count])=>
+      `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
+    ).join('');
+    document.getElementById("pm-area-wrap").style.display='';
+  }
+  if(lv==='city'){
+    document.getElementById("pm-city-wrap").style.display='';
+    document.getElementById("pm-city").innerHTML='<option value="">← まずエリアを選択</option>';
+  }
+}
+
+function onPmAreaChange(){
   const lv=document.getElementById("pm-level").value;
   if(lv!=='city')return;
   const pref=document.getElementById("pm-pref").value;
   const area=document.getElementById("pm-area").value;
   const citySel=document.getElementById("pm-city");
-  citySel.innerHTML='<option value="">読み込み中...</option>';
-  if(!pref)return;
-  const params='field=city&pref='+encodeURIComponent(pref)+(area?'&major_area='+encodeURIComponent(area):'');
-  const cities=await apiGet('hotel-cascades',params);
-  citySel.innerHTML='<option value="">選択してください</option>'+cities.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+  if(!pref||!area||!_pmAreaData){
+    citySel.innerHTML='<option value="">← まずエリアを選択</option>';
+    return;
+  }
+
+  const aKey=pref+'\t'+area;
+  const aEntry=_pmAreaData.area[aKey];
+  if(!aEntry||!aEntry.ct||!aEntry.ct.length){
+    citySel.innerHTML='<option value="">（市区町村データなし）</option>';
+    return;
+  }
+  // ct: [[cityName, hotelCount, lovehoCount], ...]
+  citySel.innerHTML='<option value="">市区町村を選択</option>'+aEntry.ct.map(([name,count])=>
+    `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
+  ).join('');
 }
 
 function getPmTargetName(){
@@ -1493,14 +1654,13 @@ async function addPlacement(){
     }
     setTimeout(()=>{fb.style.display='none';},6000);
   }
-  // 連続追加しやすいよう、レベルと都道府県は維持し、市区町村/エリア選択のみリセット
+  // 連続追加しやすいよう、都道府県とレベルは維持し、エリア/市区町村のみリセット
   if(level==='city'){
     document.getElementById("pm-city").value="";
   }else if(level==='spot'){
     document.getElementById("pm-area").value="";
-  }else{
-    document.getElementById("pm-pref").value="";
   }
+  // 都道府県レベルの場合はリセット不要（同一都道府県の重複登録はチェック済み）
 }
 
 async function togglePlacement(id,current){
@@ -1524,13 +1684,43 @@ async function deletePlacement(id){
 }
 
 let _editingPlacementId=null;
-function editPlacement(id){
+async function editPlacement(id){
   const p=placementsData.find(x=>x.id===id);
   if(!p)return;
   _editingPlacementId=id;
-  // 新規追加フォームを編集モードにする
+  await ensureAreaData();
+  // target_nameから都道府県/エリアを逆引き
+  let editPref='',editArea='';
+  if(p.level==='prefecture'){
+    editPref=p.target_name;
+  }else if(p.level==='spot'){
+    // エリア名→都道府県を逆引き
+    if(_pmAreaData&&_pmAreaData.area){
+      for(const key of Object.keys(_pmAreaData.area)){
+        const [pr,ar]=key.split('\t');
+        if(ar===p.target_name){editPref=pr;editArea=p.target_name;break;}
+      }
+    }
+  }else if(p.level==='city'){
+    // 市区町村名→都道府県+エリアを逆引き
+    if(_pmAreaData&&_pmAreaData.area){
+      for(const [key,val] of Object.entries(_pmAreaData.area)){
+        if(val.ct&&val.ct.some(([c])=>c===p.target_name)){
+          const [pr,ar]=key.split('\t');
+          editPref=pr;editArea=ar;break;
+        }
+      }
+    }
+  }
+  // フォームをセット
+  document.getElementById("pm-pref").value=editPref;
+  await onPmPrefChange();
   document.getElementById("pm-level").value=p.level;
   onPmLevelChange();
+  if(editArea&&(p.level==='spot'||p.level==='city')){
+    document.getElementById("pm-area").value=editArea;
+    if(p.level==='city'){onPmAreaChange();setTimeout(()=>{document.getElementById("pm-city").value=p.target_name;},50);}
+  }
   // フォームタイトルとボタンを編集モードに切替
   const addBtn=document.querySelector('#placement-modal .btn-add');
   if(addBtn){addBtn.textContent='✏️ エリアを更新';addBtn.onclick=function(){updatePlacement();};}
