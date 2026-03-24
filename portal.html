@@ -251,6 +251,22 @@
     </div>
 </div>
 
+<!-- ラブホ投稿確認モーダル -->
+<div id="lh-confirm-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
+    <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
+        <div class="modal-header">
+            <div class="modal-title">📋 投稿内容の確認</div>
+            <div class="modal-subtitle">内容をご確認の上、送信してください</div>
+        </div>
+        <div id="lh-confirm-content"></div>
+        <div class="modal-warning">⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます</div>
+        <div class="modal-actions">
+            <button onclick="document.getElementById('lh-confirm-modal').style.display='none'" class="btn-modal-cancel" style="flex:1;">修正する</button>
+            <button onclick="doSubmitLovehoReport()" id="btn-do-lh-submit" class="btn-modal-primary" style="flex:2;font-size:14px;">この内容で投稿する</button>
+        </div>
+    </div>
+</div>
+
 <!-- 投稿報告モーダル -->
 <div id="flag-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-confirm);">
     <div class="modal-content" style="max-width:400px;">

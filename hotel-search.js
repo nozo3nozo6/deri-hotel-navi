@@ -862,7 +862,7 @@ function renderLovehoDetail(hotel, reports) {
             <div class="lh-form-row"><label class="lh-form-label">利用時間帯</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
             <div class="lh-form-row"><label class="lh-form-label">フリーコメント</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" class="lh-form-select" style="resize:vertical;"></textarea></div>
             <div class="lh-form-row"><label class="lh-form-label">投稿者名（任意）</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div></div>
-            <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">投稿する</button>
+            <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">確認画面に進む</button>
         </div>`;
 
     renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });

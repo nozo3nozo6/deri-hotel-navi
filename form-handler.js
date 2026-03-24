@@ -506,17 +506,43 @@ function lhToggleFac(el, name) {
     else { lhFormState.facilities = lhFormState.facilities.filter(f => f !== name); }
 }
 
-async function submitLovehoReport() {
+function submitLovehoReport() {
     if (!currentHotelId) {
         showToast('ホテルが選択されていません。ページを再読み込みしてください。');
         return;
     }
-    const btn = document.getElementById('lh-submit-btn');
     const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
     if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
+    showLhConfirmModal();
+}
 
-    btn.disabled = true;
-    btn.textContent = '送信中...';
+function showLhConfirmModal() {
+    const doBtn = document.getElementById('btn-do-lh-submit');
+    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+
+    const s = lhFormState;
+    const posterName = s.poster_name?.trim() || '匿名';
+    const soloMap = { yes: '一人で入れた', no: '一人では入れなかった', together: '一緒に入室', lobby: 'ロビー待機', unknown: '不明' };
+    function row(label, val) {
+        if (!val) return '';
+        return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="min-width:90px;color:var(--text-3);font-weight:600;">${label}</span><span style="color:var(--text);word-break:break-all;">${esc(String(val))}</span></div>`;
+    }
+    const content = `
+        ${row('投稿者名', posterName)}
+        ${row('一人入室', soloMap[s.solo_entry] || null)}
+        ${row('雰囲気', s.atmosphere)}
+        ${row('良かった点', s.good_points.length ? s.good_points.join('、') : null)}
+        ${row('時間帯', s.time_slot)}
+        ${s.multi_person ? row('複数人利用', `男性${s.guest_male || 0}名・女性${s.guest_female || 0}名${s.multi_fee ? '（追加料金あり）' : ''}`) : ''}
+        ${row('コメント', s.comment || null)}
+    `;
+    document.getElementById('lh-confirm-content').innerHTML = content;
+    document.getElementById('lh-confirm-modal').style.display = 'flex';
+}
+
+async function doSubmitLovehoReport() {
+    const doBtn = document.getElementById('btn-do-lh-submit');
+    if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
     try {
         const payload = {
             hotel_id: currentHotelId,
@@ -539,17 +565,19 @@ async function submitLovehoReport() {
         });
         if (!res.ok) {
             const result = await res.json();
+            document.getElementById('lh-confirm-modal').style.display = 'none';
+            if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
             if (res.status === 429) { showToast(result.error || '投稿制限中です。'); return; }
             throw new Error(result.error || 'Submit failed');
         }
+        document.getElementById('lh-confirm-modal').style.display = 'none';
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);
     } catch (e) {
         showToast('投稿エラーが発生しました');
     } finally {
-        btn.disabled = false;
-        btn.textContent = '投稿する';
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
     }
 }
 
