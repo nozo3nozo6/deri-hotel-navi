@@ -1151,6 +1151,7 @@ function cancelAction(){pendingAction=null;document.getElementById('action-confi
 async function executeAction(){
 if(!pendingAction)return;
 var{shopId,actionType}=pendingAction;
+if(!confirm("この操作を実行しますか？"))return;
 try{
 if(actionType==='status'){
 var{newStatus,type}=pendingAction;
@@ -1193,7 +1194,7 @@ document.addEventListener("touchstart",function(e){var c=v();if(!c||!c.contains(
 document.addEventListener("touchmove",function(e){if(!_dv.drag)return;e.preventDefault();_dv.x=e.touches[0].clientX-_dv.sx;_dv.y=e.touches[0].clientY-_dv.sy;_dv.moved=true;var img=document.querySelector(".sr-doc-viewer img");if(img)img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";},{passive:false});
 document.addEventListener("touchend",function(){if(_dv.drag){_dv.drag=false;setTimeout(function(){_dv.moved=false;},10);}});
 })();
-async function saveShopEdit(){if(!_srId)return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const r=await api('update',{table:'shops',id:_srId,data:payload});if(!r.ok){toast("更新エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
+async function saveShopEdit(){if(!_srId)return;if(!confirm("店舗情報を保存しますか？"))return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const r=await api('update',{table:'shops',id:_srId,data:payload});if(!r.ok){toast("更新エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
 // ===== 掲載エリア管理 =====
 let placementsData=[];
 let _pmShopId=null;
@@ -1412,7 +1413,7 @@ function getPmTargetName(){
 }
 
 async function addPlacement(){
-  if(!_pmShopId)return;
+  if(!_pmShopId)return;if(!confirm("掲載エリアを追加しますか？"))return;
   const targetName=getPmTargetName();
   if(!targetName){toast("エリアを選択してください");return;}
   const level=document.getElementById("pm-level").value;
@@ -1456,6 +1457,7 @@ async function addPlacement(){
 }
 
 async function togglePlacement(id,current){
+  if(!confirm(current?"この掲載を無効にしますか？":"この掲載を有効にしますか？"))return;
   const _spu=await api("update",{table:"shop_placements",id,data:{is_active:!current}});const error=_spu.ok?null:{message:"error"};
   if(error){toast("更新エラー: "+error.message);return;}
   placementsData=placementsData.map(p=>p.id===id?{...p,is_active:!current}:p);
@@ -1490,7 +1492,7 @@ function editPlacement(id){
 }
 
 async function updatePlacement(){
-  if(!_editingPlacementId||!_pmShopId)return;
+  if(!_editingPlacementId||!_pmShopId)return;if(!confirm("掲載エリアを更新しますか？"))return;
   const newTargetName=getPmTargetName();
   if(!newTargetName){toast("エリアを選択してください");return;}
   const newLevel=document.getElementById("pm-level").value;
@@ -1542,8 +1544,8 @@ async function loadReports(){
   updateFlagBadge();renderReports();
 }
 function updateFlagBadge(){const count=reportsData.filter(r=>r.flagged_at&&!r.flag_resolved).length;console.log("[updateFlagBadge] 未対応報告件数:",count,"/ 総投稿:",reportsData.length);const badge=document.getElementById("rep-badge");if(count>0){badge.style.display="inline";badge.textContent=count;}else badge.style.display="none";}
-async function resolveFlag(id){const _r=await api("update",{table:"reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
-async function unresolveFlag(id){const _r=await api("update",{table:"reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
+async function resolveFlag(id){if(!confirm("対応済みにしますか？"))return;const _r=await api("update",{table:"reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
+async function unresolveFlag(id){if(!confirm("未対応に戻しますか？"))return;const _r=await api("update",{table:"reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
 let repPage=0;const REP_PER_PAGE=30;
 function updateResultFilter(){
   const kF=document.getElementById("rep-kind-f")?.value||"";
@@ -1662,6 +1664,7 @@ function openRepEdit(id){
 function reToggleReasons(v){document.getElementById("re-can-wrap").style.display=v==="true"?"":"none";document.getElementById("re-cannot-wrap").style.display=v==="false"?"":"none";}
 function closeRepEditModal(){document.getElementById("report-edit-modal").style.display="none";}
 async function saveRepEdit(){
+  if(!confirm("口コミの編集内容を保存しますか？"))return;
   const id=document.getElementById("re-id").value;
   const kind=document.getElementById("re-kind").value||"deli";
   const poster_name=document.getElementById("re-poster-name").value.trim();
@@ -1696,7 +1699,7 @@ async function saveRepEdit(){
   }
   renderReports();closeRepEditModal();toast("✅ 更新しました");
 }
-async function toggleVis(id,cur){const _r=await api("update",{table:"reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function toggleVis(id,cur){if(!confirm(cur?"この投稿を表示に戻しますか？":"この投稿を非表示にしますか？"))return;const _r=await api("update",{table:"reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const _r=await api("delete",{table:"reports",id});if(!_r.ok){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
 async function delLhReportFromList(id){
     if(!confirm("このラブホ口コミを削除しますか？元に戻せません。"))return;
@@ -1706,9 +1709,9 @@ async function delLhReportFromList(id){
     renderReports();
     toast("🗑 削除しました");
 }
-async function resolveLhFlag(id){const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:new Date().toISOString()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
-async function unresolveLhFlag(id){const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
-async function toggleLhVis(id,cur){const _r=await api("update",{table:"loveho_reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function resolveLhFlag(id){if(!confirm("対応済みにしますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:new Date().toISOString()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
+async function unresolveLhFlag(id){if(!confirm("未対応に戻しますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
+async function toggleLhVis(id,cur){if(!confirm(cur?"このラブホ口コミを表示に戻しますか？":"このラブホ口コミを非表示にしますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 
 // ===== 投稿種別フィルター =====
 let currentReportType='deli';
@@ -1827,8 +1830,8 @@ function closeModal(){document.getElementById("hotel-modal").style.display="none
 function editToConfirm(){const name=document.getElementById("edit-name").value.trim();if(!name){toast("ホテル名を入力してください");return;}if(!document.getElementById("edit-address").value.trim()){toast("住所を入力してください");return;}if(!document.getElementById("edit-pref").value){toast("都道府県を選択してください");return;}const rows=[["ホテル名",name],["タイプ",HOTEL_TYPE_LABELS[document.getElementById("edit-type").value]||"—"],["郵便番号",document.getElementById("edit-postal").value.trim()||"—"],["都道府県",document.getElementById("edit-pref").value||"—"],["市区町村",document.getElementById("edit-city").value.trim()||"—"],["住所",document.getElementById("edit-address").value.trim()||"—"],["電話番号",document.getElementById("edit-tel").value.trim()||"—"],["最寄り駅",document.getElementById("edit-station").value.trim()||"—"],["エリア",document.getElementById("edit-major-area").value||"—"],["詳細エリア",document.getElementById("edit-detail-area").value||"—"],["緯度",document.getElementById("edit-lat").value||"—"],["経度",document.getElementById("edit-lng").value||"—"],];document.getElementById("edit-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");document.getElementById("edit-step1").style.display="none";document.getElementById("edit-step2").style.display="";}
 function editBack(){document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";}
 async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const _r=await api("delete",{table:"hotels",id});if(!_r.ok){toast("削除エラー");return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
-async function togglePublish(id,current){const newVal=!current;const _r=await api("update",{table:"hotels",id,data:{is_published:newVal}});if(!_r.ok){toast("更新エラー");return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
-async function saveHotel(){try{const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,is_edited:true};const _r=await api("update",{table:"hotels",id,data:payload});if(!_r.ok){toast("保存エラー: "+(_r.error||"不明なエラー"));return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}catch(e){console.error('[saveHotel]',e);toast("保存エラー: "+e.message);}}
+async function togglePublish(id,current){if(!confirm(current?"このホテルを非公開にしますか？":"このホテルを公開しますか？"))return;const newVal=!current;const _r=await api("update",{table:"hotels",id,data:{is_published:newVal}});if(!_r.ok){toast("更新エラー");return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
+async function saveHotel(){if(!confirm("ホテル情報を保存しますか？"))return;try{const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value.trim()||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,is_edited:true};const _r=await api("update",{table:"hotels",id,data:payload});if(!_r.ok){toast("保存エラー: "+(_r.error||"不明なエラー"));return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}catch(e){console.error('[saveHotel]',e);toast("保存エラー: "+e.message);}}
 function openAddHotel(){
   ["add-name","add-postal","add-city","add-address","add-tel","add-station","add-lat","add-lng"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("add-type").value="business";
@@ -1867,7 +1870,7 @@ function addHotelBack(){
   document.getElementById("add-step1").style.display="";
   document.getElementById("add-step2").style.display="none";
 }
-async function saveNewHotel(){try{
+async function saveNewHotel(){if(!confirm("新しいホテルを追加しますか？"))return;try{
   const name=document.getElementById("add-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
   const payload={
@@ -1980,7 +1983,7 @@ async function loadGoodPoints(){const data=await apiGet("list","table=loveho_goo
 function renderGoodPoints(){document.getElementById("goodpoints-sub").textContent=`全 ${goodPointsData.length} 件`;document.getElementById("goodpoints-list").innerHTML=goodPointsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:goodPointsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_good_points')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})" style="${c.is_active?'':'opacity:0.4;'}"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><select onchange="updateGoodPointCategory(${c.id},this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-right:6px;"><option value="設備・お部屋"${c.category==='設備・お部屋'?' selected':''}>設備・お部屋</option><option value="サービス・利便性"${c.category==='サービス・利便性'?' selected':''}>サービス・利便性</option></select><button class="btn b-btn-gold" onclick="toggleGoodPoint(${c.id},${c.is_active})">${c.is_active?'無効にする':'有効にする'}</button><button class="btn b-btn-gold" onclick="editGoodPoint(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteGoodPoint(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
 async function addGoodPoint(){const input=document.getElementById("new-goodpoint");const catSel=document.getElementById("new-goodpoint-cat");const label=input.value.trim();if(!label){toast("チェックポイントを入力してください");return;}const category=catSel.value;const maxOrder=goodPointsData.length?Math.max(...goodPointsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_good_points",data:{label,category,sort_order:maxOrder,is_active:true}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;goodPointsData.push(data);renderGoodPoints();input.value="";toast("✅ 追加しました");}
 async function editGoodPoint(id,label){const newLabel=prompt("チェックポイントを編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"loveho_good_points",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderGoodPoints();toast("✅ 更新しました");}
-async function toggleGoodPoint(id,currentActive){const _r=await api("update",{table:"loveho_good_points",id:id,data:{is_active:!currentActive}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
+async function toggleGoodPoint(id,currentActive){if(!confirm(currentActive?"このチェックポイントを無効にしますか？":"このチェックポイントを有効にしますか？"))return;const _r=await api("update",{table:"loveho_good_points",id:id,data:{is_active:!currentActive}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
 async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_good_points",id:id});if(!_r.ok){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
 async function updateGoodPointCategory(id,category){const _r=await api("update",{table:"loveho_good_points",id:id,data:{category}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,category}:c);toast("✅ カテゴリを更新しました");}
 
@@ -2853,6 +2856,7 @@ function showBonusSection(contractId,plan){
 
 async function addBonusPlacement(){
     if(!adCurrentContractId){toast('契約が選択されていません');return;}
+    if(!confirm("ボーナス掲載を追加しますか？"))return;
     const bonusPlanId=document.getElementById('bonus-plan-select').value;
     const bonusPlan=adPlans.find(p=>p.id==parseInt(bonusPlanId));
     if(!bonusPlan){toast('ボーナスプランを選択してください');return;}
@@ -2929,6 +2933,7 @@ async function loadAdContracts(){
 }
 
 async function toggleAdContract(contractId,newStatus){
+    if(!confirm(`広告契約を${newStatus==='active'?'有効':'一時停止'}にしますか？`))return;
     const _atr=await api('ad-toggle-contract',{contract_id:contractId,status:newStatus});const error=_atr.ok?null:{message:_atr.error||''};
     if(error){toast('更新エラー: '+error.message);return;}
     // placementsも連動更新

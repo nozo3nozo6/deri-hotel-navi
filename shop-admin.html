@@ -635,6 +635,19 @@
 
 </div>
 
+<!-- ===== ラブホ投稿確認モーダル ===== -->
+<div class="confirm-overlay" id="lh-confirm-modal">
+    <div class="confirm-card">
+        <div class="confirm-title">📋 口コミ投稿内容の確認</div>
+        <div class="confirm-sub">内容をご確認の上、送信してください</div>
+        <div id="lh-confirm-body"></div>
+        <div class="confirm-btns">
+            <button class="btn-back-confirm" onclick="closeLhConfirm()">修正する</button>
+            <button class="btn-do-submit" id="lh-confirm-submit-btn" onclick="doLhSubmitReport()">この内容で投稿する</button>
+        </div>
+    </div>
+</div>
+
 <!-- ===== 確認モーダル ===== -->
 <div class="confirm-overlay" id="confirm-modal">
     <div class="confirm-card">
@@ -810,7 +823,7 @@ async function onThumbnailSelect(input){
     const file=input.files[0];
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG/PNG/WebPのみ対応');input.value='';return;}
     if(file.size>2*1024*1024){toast('2MB以下の画像を選択してください');input.value='';return;}
-    // Base64に変換してDBに保存
+    if(!confirm('この画像をサムネイルとして保存しますか？'))return;
     const reader=new FileReader();
     reader.onload=async(e)=>{
         const base64=e.target.result;
@@ -1636,8 +1649,8 @@ async function lhSelectHotel(hotelId,hotelName){
     document.getElementById("lh-form-card").scrollIntoView({behavior:'smooth'});
 }
 
-async function lhSubmitReport(){
-    const btn=document.getElementById("lh-f-submit");
+let _lhPendingPayload=null;
+function lhSubmitReport(){
     if(!lhSelectedHotelId){toast("ホテルを選択してください");return;}
     const solo=document.getElementById("lh-f-solo").value;
     const entryMethod=document.getElementById("lh-f-entry-method").value;
@@ -1648,37 +1661,37 @@ async function lhSubmitReport(){
     const multi=document.getElementById("lh-f-multi").checked;
     const hasData=solo||entryMethod||atm||ts||comment||lhSelectedGoodPoints.length;
     if(!hasData){toast("少なくとも1つ以上の項目を入力してください");return;}
+    _lhPendingPayload={
+        hotel_id:lhSelectedHotelId,
+        report:{solo_entry:solo||null,entry_method:entryMethod||null,atmosphere:atm||null,good_points:lhSelectedGoodPoints.length?lhSelectedGoodPoints:null,time_slot:ts||null,comment:comment||null,poster_name:poster||currentShop.shop_name||"店舗",multi_person:multi,multi_fee:multi?(document.getElementById("lh-f-multi-fee").checked||false):false,guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null},
+        transport_fee:getLhTransportFee()
+    };
+    const r=_lhPendingPayload.report;
+    const soloMap={yes:'一人で入れた',no:'一人では入れなかった',together:'一緒に入室',lobby:'ロビー待機',unknown:'不明'};
+    const entryMap={front:'フロント経由',direct:'直通',lobby:'ロビー待機',waiting:'外待機'};
+    function row(l,v){if(!v)return '';return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="min-width:90px;color:var(--text-3);font-weight:600;">${l}</span><span style="color:var(--text);word-break:break-all;">${esc(String(v))}</span></div>`;}
+    const html=row('投稿者名',r.poster_name)+row('一人入室',soloMap[r.solo_entry]||null)+row('入室方法',entryMap[r.entry_method]||null)+row('雰囲気',r.atmosphere)+row('良かった点',r.good_points?r.good_points.join('、'):null)+row('時間帯',r.time_slot)+(r.multi_person?row('複数人利用',`男性${r.guest_male||0}名・女性${r.guest_female||0}名${r.multi_fee?'（追加料金あり）':''}`):'')+((_lhPendingPayload.transport_fee!=null&&_lhPendingPayload.transport_fee!=='')?row('交通費',_lhPendingPayload.transport_fee+'円'):'')+row('コメント',r.comment);
+    document.getElementById('lh-confirm-body').innerHTML=html;
+    document.getElementById('lh-confirm-modal').classList.add('active');
+}
+function closeLhConfirm(){document.getElementById('lh-confirm-modal').classList.remove('active');}
+async function doLhSubmitReport(){
+    const btn=document.getElementById("lh-confirm-submit-btn");
     btn.disabled=true;btn.textContent="送信中...";
     try{
-        const apiPayload={
-            hotel_id:lhSelectedHotelId,
-            report:{
-                solo_entry:solo||null,
-                entry_method:entryMethod||null,
-                atmosphere:atm||null,
-                good_points:lhSelectedGoodPoints.length?lhSelectedGoodPoints:null,
-                time_slot:ts||null,
-                comment:comment||null,
-                poster_name:poster||currentShop.shop_name||"店舗",
-                multi_person:multi,
-                multi_fee:multi?(document.getElementById("lh-f-multi-fee").checked||false):false,
-                guest_male:multi?(parseInt(document.getElementById("lh-f-guest-male").value)||null):null,
-                guest_female:multi?(parseInt(document.getElementById("lh-f-guest-female").value)||null):null
-            },
-            transport_fee:getLhTransportFee()
-        };
-        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(apiPayload)});
+        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(_lhPendingPayload)});
         const result=await res.json();
         if(!result.success)throw new Error(result.error||'不明なエラー');
-        if(!registeredHotelIds.has(String(lhSelectedHotelId)))registeredHotelIds.add(String(lhSelectedHotelId));
+        if(!registeredHotelIds.has(String(_lhPendingPayload.hotel_id)))registeredHotelIds.add(String(_lhPendingPayload.hotel_id));
         document.getElementById("lh-form-card").style.display="none";
-        lhSelectedHotelId=null;
+        lhSelectedHotelId=null;_lhPendingPayload=null;
+        closeLhConfirm();
         if(_editModal)closeEditModal();
         showSuccessModal('投稿完了！', '口コミが投稿されました。');
     }catch(e){
         toast("投稿エラー: "+e.message);
     }finally{
-        btn.disabled=false;btn.textContent="口コミを投稿する";
+        btn.disabled=false;btn.textContent="この内容で投稿する";
     }
 }
 
