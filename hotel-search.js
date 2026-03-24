@@ -1956,8 +1956,14 @@ function renderAreaShopSection(shops) {
     if (existing) existing.remove();
 
     // 店舗モード時は自店舗のみ表示（他店舗広告は非表示）
-    if (SHOP_ID && shops) {
-        shops = shops.filter(s => s.id === SHOP_ID);
+    // _shopParamは同期的に取得済み（SHOP_IDは非同期のためフォールバック）
+    if (_shopParam && shops) {
+        shops = shops.filter(s =>
+            (SHOP_ID && s.id === SHOP_ID) ||
+            (SHOP_SLUG && s.slug === SHOP_SLUG) ||
+            s.slug === _shopParam ||
+            s.id === _shopParam
+        );
         if (!shops.length) return;
     }
 
