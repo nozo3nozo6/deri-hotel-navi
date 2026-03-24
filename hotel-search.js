@@ -594,7 +594,7 @@ async function loadDetail(hotelId, isLoveho) {
 
         // ホテル固有: レポート投稿者の店舗情報を追加取得
         if (!isLoveho) {
-            if (SHOP_ID) {
+            if (_shopParam && SHOP_ID) {
                 const shopName = SHOP_DATA?.shop_name;
                 reports = reports.filter(r => {
                     if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
@@ -642,6 +642,14 @@ async function loadDetail(hotelId, isLoveho) {
 
         // レンダリング（タイプ別）
         if (isLoveho) {
+            // 店舗モード時: ラブホ店舗投稿も自店舗のみ表示（ホテル側と同様）
+            if (_shopParam && SHOP_ID) {
+                const shopName = SHOP_DATA?.shop_name;
+                reports = reports.filter(r => {
+                    if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                    return true;
+                });
+            }
             hotel._lhShopFeeMap = shopFeeMap;
             hotel._lhShopInfoMap = shopInfoMap;
             renderLovehoDetail(hotel, reports);
