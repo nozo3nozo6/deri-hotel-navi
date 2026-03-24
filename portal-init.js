@@ -103,8 +103,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
-    // shop-registerリンクにgenreパラメータ付与（店舗専用URL時は非表示）
+    // 店舗専用URL時: ゲートボタン・店舗登録リンク非表示
     if (urlParams.get('shop') || _shopParam) {
+        var gateBtn = document.querySelector('.btn-to-gate');
+        if (gateBtn) gateBtn.style.display = 'none';
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
     }
