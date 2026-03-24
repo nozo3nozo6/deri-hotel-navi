@@ -1981,7 +1981,6 @@ function renderAreaShopSection(shops) {
     if (existing) existing.remove();
 
     // 店舗モード時は自店舗のみ表示（他店舗広告は非表示）
-    // _shopParamは同期的に取得済み（SHOP_IDは非同期のためフォールバック）
     if (_shopParam && shops) {
         shops = shops.filter(s =>
             (SHOP_ID && s.id === SHOP_ID) ||
@@ -1990,6 +1989,15 @@ function renderAreaShopSection(shops) {
             s.id === _shopParam
         );
         if (!shops.length) return;
+    }
+
+    // ad-container（ads.php広告）に既に表示されている店舗を除外（重複防止）
+    if (shops && shops.length) {
+        const adContainer = document.getElementById('ad-container');
+        if (adContainer && adContainer.innerHTML) {
+            const adText = adContainer.textContent || '';
+            shops = shops.filter(s => !adText.includes(s.shop_name));
+        }
     }
 
     const hotelList = document.getElementById('hotel-list');
