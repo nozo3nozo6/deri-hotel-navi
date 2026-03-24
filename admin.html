@@ -974,19 +974,7 @@
                     <option value="">選択してください</option>
                 </select>
             </div>
-            <input type="hidden" id="pm-target-code">
-            <input type="hidden" id="pm-target-name">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-                <div class="mf" style="margin-bottom:0;">
-                    <label class="ml">掲載開始日</label>
-                    <input id="pm-started-at" class="mi" type="date">
-                </div>
-                <div class="mf" style="margin-bottom:0;">
-                    <label class="ml">掲載終了日（空欄=無期限）</label>
-                    <input id="pm-ended-at" class="mi" type="date">
-                </div>
-            </div>
-            <button class="btn-add" style="width:100%;" onclick="addPlacement()">＋ エリアを追加</button>
+            <button class="btn-add" style="width:100%;margin-top:8px;" onclick="addPlacement()">＋ エリアを追加</button>
         </div>
         <div class="modal-btns" style="margin-top:14px;">
             <button class="btn-cancel" onclick="closePlacementModal()">閉じる</button>
@@ -1216,8 +1204,6 @@ async function openPlacementModal(shopId){
   document.getElementById("pm-level").value="city";
   initPmPrefs();
   onPmLevelChange();
-  document.getElementById("pm-started-at").value=new Date().toISOString().split("T")[0];
-  document.getElementById("pm-ended-at").value="";
   document.getElementById("placement-modal").style.display="flex";
   await loadPlacements(shopId);
 }
@@ -1283,19 +1269,14 @@ function renderPlacements(){
   renderSlotBanner();
   updatePmFormSlotHint();
   if(!placementsData.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
-  const now=new Date();
   el.innerHTML=`<table class="tbl"><thead><tr>
-    <th>レベル</th><th>エリア名</th><th>コード</th><th>期間</th><th>状態</th><th>操作</th>
+    <th>レベル</th><th>エリア名</th><th>状態</th><th>操作</th>
   </tr></thead><tbody>${placementsData.map(p=>{
-    const ended=p.ended_at&&new Date(p.ended_at)<now;
-    const statusLabel=ended?"期限切れ":p.is_active?"✓ 有効":"停止中";
-    const statusStyle=p.is_active&&!ended?"color:var(--green);font-weight:700;":"color:var(--ink-3);";
-    const period=`${p.started_at?fmtShort(p.started_at):"—"} 〜 ${p.ended_at?fmtShort(p.ended_at):"無期限"}`;
-    return`<tr style="${!p.is_active||ended?"opacity:0.6;":""}">
+    const statusLabel=p.is_active?"✓ 有効":"停止中";
+    const statusStyle=p.is_active?"color:var(--green);font-weight:700;":"color:var(--ink-3);";
+    return`<tr style="${!p.is_active?"opacity:0.6;":""}">
       <td><span class="badge b-free" style="font-size:10px;">${esc(PM_LEVEL_LABELS[p.level]||p.level)}</span></td>
       <td style="font-weight:500;">${esc(p.target_name||"（全国）")}</td>
-      <td style="color:var(--ink-3);font-size:11px;">${esc(p.target_code||"—")}</td>
-      <td style="color:var(--ink-3);font-size:11px;white-space:nowrap;">${period}</td>
       <td style="${statusStyle}font-size:11px;">${statusLabel}</td>
       <td><div class="btn-row">
         <button class="btn b-btn-gray" onclick="editPlacement(${p.id})">編集</button>
@@ -1468,8 +1449,6 @@ async function addPlacement(){
   const targetName=getPmTargetName();
   if(!targetName){toast("エリアを選択してください");return;}
   const level=document.getElementById("pm-level").value;
-  const startedAt=document.getElementById("pm-started-at").value;
-  const endedAt=document.getElementById("pm-ended-at").value;
   // 重複チェック（同一店舗×同一レベル×同一エリア名は1つまで）
   const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&target_name="+encodeURIComponent(targetName));
   if(existCheck&&existCheck.length>0){toast("このエリアは既に登録済みです");return;}
@@ -1481,9 +1460,7 @@ async function addPlacement(){
   if(currentCount>=maxSlots){toast(`${PM_LEVEL_LABELS[level]||level}の掲載枠が上限（${maxSlots}枠）に達しています。プランを追加してください。`);return;}
   // shop_placements に追加
   const payload={
-    shop_id:_pmShopId,level,target_code:null,target_name:targetName,is_active:true,
-    started_at:startedAt?new Date(startedAt).toISOString():new Date().toISOString(),
-    ended_at:endedAt?new Date(endedAt).toISOString():null
+    shop_id:_pmShopId,level,target_name:targetName,is_active:true
   };
   const _spir=await api("insert",{table:"shop_placements",data:payload});const error=_spir.ok?null:{message:"error"};
   if(error){toast("追加エラー: "+error.message);return;}
@@ -1495,8 +1472,7 @@ async function addPlacement(){
     await api("insert",{table:"ad_placements",data:{
       shop_id:_pmShopId,placement_type:level,placement_target:targetName,
       status:'active',mode:adMode,
-      start_date:startedAt||new Date().toISOString().split('T')[0],
-      end_date:endedAt||null
+      start_date:new Date().toISOString().split('T')[0]
     }});
   }
   await loadPlacements(_pmShopId);
@@ -1522,7 +1498,6 @@ async function addPlacement(){
   }else{
     document.getElementById("pm-pref").value="";
   }
-  document.getElementById("pm-ended-at").value="";
 }
 
 async function togglePlacement(id,current){
