@@ -430,7 +430,7 @@ async function showMajorAreaPage(region, pref) {
         { label: pref }
     ]);
     clearHotelList();
-    loadAds('big', pref);
+    loadAds('big', pref, [{ type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -480,7 +480,7 @@ async function showCityPage(region, pref, majorArea) {
         { label: majorArea }
     ]);
     clearHotelList();
-    loadAds('area', majorArea, [{ type: 'big', target: pref }]);
+    loadAds('area', majorArea, [{ type: 'big', target: pref }, { type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -599,7 +599,8 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     clearHotelList();
     loadAds('town', detailArea, [
         { type: 'area', target: majorArea },
-        { type: 'big', target: pref }
+        { type: 'big', target: pref },
+        { type: 'premium', target: '全国' }
     ]);
 
     const container = document.getElementById('area-button-container');

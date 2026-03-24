@@ -248,6 +248,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     const _adFb = [];
     if (majorArea) _adFb.push({ type: 'area', target: majorArea });
     if (pref) _adFb.push({ type: 'big', target: pref });
+    _adFb.push({ type: 'premium', target: '全国' });
     loadAds('spot', city, _adFb);
     setBackBtn(true);
 

@@ -972,6 +972,7 @@
                     <option value="detail_area">🔍 詳細エリア</option>
                     <option value="spot">🏙 エリア</option>
                     <option value="prefecture">📌 都道府県</option>
+                    <option value="national">🌐 全国</option>
                 </select>
                 <div id="pm-level-hint" style="margin-top:4px;font-size:12px;font-weight:600;"></div>
             </div>
@@ -1300,16 +1301,16 @@ async function loadPlacements(shopId){
 }
 
 function getSlotStatus(){
-  const limits=window._currentShopLimits||{city:0,detail_area:0,spot:0,prefecture:0};
+  const limits=window._currentShopLimits||{city:0,detail_area:0,spot:0,prefecture:0,national:0};
   const active=placementsData.filter(p=>p.is_active);
-  const used={city:active.filter(p=>p.level==='city').length,detail_area:active.filter(p=>p.level==='detail_area').length,spot:active.filter(p=>p.level==='spot').length,prefecture:active.filter(p=>p.level==='prefecture').length};
+  const used={city:active.filter(p=>p.level==='city').length,detail_area:active.filter(p=>p.level==='detail_area').length,spot:active.filter(p=>p.level==='spot').length,prefecture:active.filter(p=>p.level==='prefecture').length,national:active.filter(p=>p.level==='national').length};
   return{limits,used};
 }
 function renderSlotBanner(){
   const banner=document.getElementById("pm-slot-banner");
   if(!banner)return;
   const {limits,used}=getSlotStatus();
-  const items=[{key:'city',label:'市区町村',icon:'🏘'},{key:'detail_area',label:'詳細エリア',icon:'🔍'},{key:'spot',label:'エリア',icon:'🏙'},{key:'prefecture',label:'都道府県',icon:'📌'}].filter(({key})=>limits[key]>0);
+  const items=[{key:'city',label:'市区町村',icon:'🏘'},{key:'detail_area',label:'詳細エリア',icon:'🔍'},{key:'spot',label:'エリア',icon:'🏙'},{key:'prefecture',label:'都道府県',icon:'📌'},{key:'national',label:'全国',icon:'🌐'}].filter(({key})=>limits[key]>0);
   if(!items.length){banner.innerHTML='<div style="padding:10px 14px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:12px;color:#856404;">有料プランが未設定です。プランを追加すると掲載枠が利用できます。</div>';return;}
   banner.innerHTML=items.map(({key,label,icon})=>{
     const u=used[key],m=limits[key],remain=m-u,pct=Math.round(u/m*100);
@@ -1362,6 +1363,9 @@ const PLAN_LIMITS={
   7:{city:3,detail_area:0,spot:1,prefecture:0},// エリア+3市区町村パック
   8:{city:0,detail_area:1,spot:0,prefecture:0},// 詳細エリアプラン
   9:{city:0,detail_area:0,spot:0,prefecture:0},// 投稿リンクプラン（掲載枠なし、リンク+サムネイルのみ）
+  10:{city:0,detail_area:0,spot:0,prefecture:0,national:1},// 全国プラン
+  11:{city:3,detail_area:1,spot:0,prefecture:0},// 詳細エリア+3市区町村パック
+  12:{city:0,detail_area:0,spot:1,prefecture:1},// 都道府県+エリアパック
 };
 
 async function loadShopContracts(shopId,plans){
@@ -1374,8 +1378,8 @@ async function loadShopContracts(shopId,plans){
     badgeEl.textContent=names.join(' + ');
   }else{badgeEl.textContent='無料プラン';}
   // 合計枠数を計算
-  let totalLimits={city:0,detail_area:0,spot:0,prefecture:0};
-  activeIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){totalLimits.city+=l.city;totalLimits.detail_area+=l.detail_area;totalLimits.spot+=l.spot;totalLimits.prefecture+=l.prefecture;}});
+  let totalLimits={city:0,detail_area:0,spot:0,prefecture:0,national:0};
+  activeIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){totalLimits.city+=l.city;totalLimits.detail_area+=l.detail_area;totalLimits.spot+=l.spot;totalLimits.prefecture+=l.prefecture;totalLimits.national+=l.national||0;}});
   const hasPaid=activeIds.some(id=>id>1);
   // プラン追加/削除ボタン
   let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">契約中プランをクリックで解除、未契約をクリックで追加</div>';
@@ -1401,7 +1405,7 @@ async function loadShopContracts(shopId,plans){
         <div id="sr-area-list" style="font-size:12px;color:var(--ink-3);">読み込み中...</div>
       </div>
       <div style="padding:6px 12px;background:#f0f4ff;border-top:1px solid #dde8ff;font-size:11px;color:var(--ink-3);">
-        掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠${totalLimits.detail_area?' / 🔍詳細エリア <strong>'+totalLimits.detail_area+'</strong>枠':''} / 🏙エリア <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠
+        掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠${totalLimits.detail_area?' / 🔍詳細エリア <strong>'+totalLimits.detail_area+'</strong>枠':''} / 🏙エリア <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠${totalLimits.national?' / 🌐全国 <strong>'+totalLimits.national+'</strong>枠':''}
       </div>
     </div>`;
   }
@@ -1548,6 +1552,12 @@ function onPmLevelChange(){
   }
   // ステップ番号を更新
   updatePmStepLabels(lv);
+  // 全国レベルは都道府県選択不要
+  if(lv==='national'){
+    document.getElementById("pm-pref-preview").style.display='none';
+    updatePmFormSlotHint();
+    return;
+  }
   // 都道府県が既に選択されている場合、エリアをセット
   const pref=document.getElementById("pm-pref").value;
   if(pref&&lv!=='prefecture')populateAreaSelect(pref);
@@ -1669,6 +1679,7 @@ function onPmDaChange(){
 
 function getPmTargetName(){
   const lv=document.getElementById("pm-level").value;
+  if(lv==='national')return'全国';
   if(lv==='prefecture')return document.getElementById("pm-pref").value;
   if(lv==='spot')return document.getElementById("pm-area").value;
   if(lv==='detail_area')return document.getElementById("pm-da").value;
@@ -1698,7 +1709,7 @@ async function addPlacement(){
   if(error){toast("追加エラー: "+error.message);return;}
   // ad_placements にも追加（ポータル表示用、重複チェック）
   // ポータルのads.phpが使うplacement_type: city→spot, detail_area→town, spot→area, prefecture→big
-  const AD_TYPE_MAP={city:'spot',detail_area:'town',spot:'area',prefecture:'big'};
+  const AD_TYPE_MAP={city:'spot',detail_area:'town',spot:'area',prefecture:'big',national:'premium'};
   const adType=AD_TYPE_MAP[level]||level;
   const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
   const adMode=shop?shop.gender_mode:'men';
@@ -1749,7 +1760,7 @@ async function deletePlacement(id){
   const _spd=await api("delete",{table:"shop_placements",id});const error=_spd.ok?null:{message:"error"};
   if(error){toast("削除エラー: "+error.message);return;}
   // ad_placementsからも削除
-  const AD_TYPE_MAP3={city:'spot',detail_area:'town',spot:'area',prefecture:'big'};
+  const AD_TYPE_MAP3={city:'spot',detail_area:'town',spot:'area',prefecture:'big',national:'premium'};
   if(p&&_pmShopId){const delAdType=AD_TYPE_MAP3[p.level]||p.level;await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:delAdType,placement_target:p.target_name}});}
   placementsData=placementsData.filter(x=>x.id!==id);
   renderPlacements();toast("🗑 削除しました");
@@ -1823,7 +1834,7 @@ async function updatePlacement(){
   const _spu2=await api("update",{table:"shop_placements",id:_editingPlacementId,data:{level:newLevel,target_name:newTargetName}});const error=_spu2.ok?null:{message:"error"};
   if(error){toast("更新エラー: "+error.message);return;}
   // ad_placements も更新
-  const AD_TYPE_MAP2={city:'spot',detail_area:'town',spot:'area',prefecture:'big'};
+  const AD_TYPE_MAP2={city:'spot',detail_area:'town',spot:'area',prefecture:'big',national:'premium'};
   if(oldP){
     const oldAdType=AD_TYPE_MAP2[oldP.level]||oldP.level;
     await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:oldAdType,placement_target:oldP.target_name}});
