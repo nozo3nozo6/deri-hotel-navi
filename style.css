@@ -260,43 +260,28 @@ body[data-mode="women"] .portal-footer {
 }
 
 /* ==========================================================================
-   テーマ変数 — デリエステモード ネオンティール×ダーク — 夜のネオン・リラックス
+   テーマ変数 — デリエステモード パステルティール — 清潔感・リラックス・親しみ
    ========================================================================== */
 [data-mode="este"] {
-    --accent: #0891b2;
-    --accent-light: #22d3ee;
-    --accent-dim: #0e7490;
-    --accent-bg: rgba(8,145,178,0.10);
-    --accent-glow: rgba(8,145,178,0.22);
-    --bg: #0f1419;
-    --bg-2: #161d24;
-    --bg-3: #1e2730;
-    --bg-4: #283440;
-    --text: #d4e0ec;
-    --text-2: #94a8be;
-    --text-3: #7590aa;
-    --border: rgba(8,145,178,0.20);
-    --border-strong: rgba(8,145,178,0.40);
-    --card-shadow: 0 2px 16px rgba(8,145,178,0.08), 0 1px 4px rgba(0,0,0,0.12);
-    --card-shadow-hover: 0 8px 32px rgba(8,145,178,0.15), 0 2px 8px rgba(0,0,0,0.18);
+    --accent: #2aa8b8;
+    --accent-light: #5cc8d4;
+    --accent-dim: #1a8a9a;
+    --accent-bg: rgba(42,168,184,0.07);
+    --accent-glow: rgba(42,168,184,0.15);
+    --bg: #f4fafb;
+    --bg-2: #ffffff;
+    --bg-3: #eaf5f7;
+    --bg-4: #d8eef2;
+    --text: #1a2e34;
+    --text-2: #3d6068;
+    --text-3: #4d7a84;
+    --border: rgba(42,168,184,0.18);
+    --border-strong: rgba(42,168,184,0.38);
+    --card-shadow: 0 2px 16px rgba(42,168,184,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 8px 32px rgba(42,168,184,0.15), 0 2px 8px rgba(0,0,0,0.07);
 }
 
-/* ==========================================================================
-   デリエステ ダークテーマ補助 — ハードコード色のオーバーライド
-   ========================================================================== */
-body[data-mode="este"] .portal-header {
-    background: rgba(15,20,25,0.97);
-    border-bottom: 1px solid rgba(8,145,178,0.15);
-}
-body[data-mode="este"] .portal-header::before {
-    background: linear-gradient(90deg, transparent, #0e7490 20%, #22d3ee 50%, #0e7490 80%, transparent);
-}
-body[data-mode="este"] .modal-overlay { background: rgba(0,0,0,0.7); }
-body[data-mode="este"] .modal-content,
-body[data-mode="este"] .modal-lg { background: var(--bg-3); color: var(--text); }
-body[data-mode="este"] .toast { background: var(--bg-3); color: var(--text); border-color: var(--border); }
-body[data-mode="este"] .breadcrumb-item { color: var(--text-2); }
-body[data-mode="este"] .breadcrumb-item:hover { color: var(--accent-light); }
+/* デリエステ: ゴシック体ロゴ */
 body[data-mode="este"] .logo-text {
     font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
     font-weight: 700;
