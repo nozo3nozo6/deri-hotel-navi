@@ -65,12 +65,12 @@ function buildUrl(params) {
     const base = '/' + getModePath();
     const p = params || {};
     let path = base;
-    // ホテル詳細クリーンURL: /deli/hotel/29599
-    if (p.hotel) {
+    // 店舗専用URL: /deli/shop/slug/ パスベース（ホテル詳細含め常に維持）
+    if (SHOP_SLUG) {
+        path += '/shop/' + encodeURIComponent(SHOP_SLUG) + '/';
+    } else if (p.hotel) {
+        // ホテル詳細クリーンURL: /deli/hotel/29599
         path += '/hotel/' + p.hotel;
-    // 店舗専用URL: /deli/shop/slug/ パスベース
-    } else if (SHOP_SLUG) {
-        path += '/shop/' + encodeURIComponent(SHOP_SLUG);
     } else if (p.pref) {
         path += '/' + encodeURIComponent(p.pref);
         if (p.area) path += '/' + encodeURIComponent(p.area);
@@ -79,10 +79,11 @@ function buildUrl(params) {
     }
     const qs = new URLSearchParams();
     if (p.tab) qs.set('tab', p.tab);
-    // 店舗モード時にエリアパラメータもクエリで維持
+    // 店舗モード時にエリアパラメータ+ホテルIDもクエリで維持
     if (SHOP_SLUG && p.pref) qs.set('pref', p.pref);
     if (SHOP_SLUG && p.area) qs.set('area', p.area);
     if (SHOP_SLUG && p.city) qs.set('city', p.city);
+    if (SHOP_SLUG && p.hotel) qs.set('hotel', p.hotel);
     const qsStr = qs.toString();
     return path + (qsStr ? '?' + qsStr : '');
 }
