@@ -48,6 +48,14 @@ async function loadAreaData() {
 function findRegionByPref(pref) {
     return REGION_MAP.find(r => r.prefs.includes(pref));
 }
+function isSinglePrefRegion(region) {
+    return region && region.prefs.length === 1;
+}
+function regionBreadcrumb(region) {
+    // 1県のみの地方（北海道・沖縄）はパンくずで地方ラベルを省略
+    if (isSinglePrefRegion(region)) return [];
+    return [{ label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` }];
+}
 
 function findRegionByLabel(label) {
     return REGION_MAP.find(r => r.label === label);
@@ -251,7 +259,7 @@ async function restoreFromUrl() {
         const { pref, area, detail, city } = params;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
-        if (region) pageStack.push(() => showPrefPage(region));
+        if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
         if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
         if (area) pageStack.push(() => showCityPage(region, pref, area));
         if (detail) pageStack.push(() => showDetailAreaPage(region, pref, area, detail));
@@ -264,7 +272,7 @@ async function restoreFromUrl() {
         const { pref, area, detail } = params;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
-        if (region) pageStack.push(() => showPrefPage(region));
+        if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
         if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
         if (area) pageStack.push(() => showCityPage(region, pref, area));
         showDetailAreaPage(region, pref, area, detail);
@@ -276,13 +284,13 @@ async function restoreFromUrl() {
         const isValidArea = area === '_other' || ad?.pref?.[pref]?.areas?.some(([name]) => name === area);
         if (isValidArea) {
             pageStack = [showJapanPage];
-            if (region) pageStack.push(() => showPrefPage(region));
+            if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
             if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
             showCityPage(region, pref, area);
         } else {
             // areaではなくcity名 → ホテル一覧を直接表示
             pageStack = [showJapanPage];
-            if (region) pageStack.push(() => showPrefPage(region));
+            if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
             if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
             setBackBtn(true);
             fetchAndShowHotelsByCity({ prefecture: pref }, area);
@@ -291,13 +299,17 @@ async function restoreFromUrl() {
         const pref = params.pref;
         const region = findRegionByPref(pref);
         pageStack = [showJapanPage];
-        if (region) pageStack.push(() => showPrefPage(region));
+        if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
         showMajorAreaPage(region, pref);
     } else if (params.region) {
         const region = findRegionByLabel(params.region);
         if (region) {
             pageStack = [showJapanPage];
-            showPrefPage(region);
+            if (isSinglePrefRegion(region)) {
+                showMajorAreaPage(region, region.prefs[0]);
+            } else {
+                showPrefPage(region);
+            }
         } else {
             showJapanPage();
         }
@@ -339,7 +351,14 @@ function showJapanPage() {
         btn.className = 'area-btn has-children';
         btn.style.animationDelay = `${i * 0.04}s`;
         btn.textContent = region.label;
-        btn.onclick = () => { pageStack.push(showJapanPage); showPrefPage(region); };
+        btn.onclick = () => {
+            pageStack.push(showJapanPage);
+            if (isSinglePrefRegion(region)) {
+                showMajorAreaPage(region, region.prefs[0]);
+            } else {
+                showPrefPage(region);
+            }
+        };
         container.appendChild(btn);
     });
     appendInfoLinksBar();
@@ -407,7 +426,7 @@ async function showMajorAreaPage(region, pref) {
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
-        { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+        ...regionBreadcrumb(region),
         { label: pref }
     ]);
     clearHotelList();
@@ -456,7 +475,7 @@ async function showCityPage(region, pref, majorArea) {
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
-        { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+        ...regionBreadcrumb(region),
         { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
         { label: majorArea }
     ]);
@@ -572,7 +591,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
-        { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+        ...regionBreadcrumb(region),
         { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
         { label: majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}', '${majorArea}')` },
         { label: detailArea }
@@ -678,7 +697,7 @@ async function showNoAreaCityPage(region, pref) {
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
-        { label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` },
+        ...regionBreadcrumb(region),
         { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
         { label: 'その他のエリア' }
     ]);
