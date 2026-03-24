@@ -297,6 +297,11 @@ body[data-mode="este"] .modal-lg { background: var(--bg-3); color: var(--text); 
 body[data-mode="este"] .toast { background: var(--bg-3); color: var(--text); border-color: var(--border); }
 body[data-mode="este"] .breadcrumb-item { color: var(--text-2); }
 body[data-mode="este"] .breadcrumb-item:hover { color: var(--accent-light); }
+body[data-mode="este"] .logo-text {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
