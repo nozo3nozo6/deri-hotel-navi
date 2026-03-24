@@ -245,7 +245,10 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
-    loadAds('spot', city);
+    const _adFb = [];
+    if (majorArea) _adFb.push({ type: 'area', target: majorArea });
+    if (pref) _adFb.push({ type: 'big', target: pref });
+    loadAds('spot', city, _adFb);
     setBackBtn(true);
 
     try {

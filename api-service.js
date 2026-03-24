@@ -218,17 +218,25 @@ function renderAdHTML(ad) {
     </div>`;
 }
 
-async function loadAds(placementType, placementTarget) {
+async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data || !data.length) return;
-        container.innerHTML = data.map(ad => renderAdHTML(ad)).join('');
+        const targets = [{ type: placementType, target: placementTarget }];
+        if (fallbacks) fallbacks.forEach(f => targets.push(f));
+        const seen = new Set();
+        let allAds = [];
+        for (const t of targets) {
+            const res = await fetch(`/api/ads.php?type=${encodeURIComponent(t.type)}&target=${encodeURIComponent(t.target)}&mode=${encodeURIComponent(currentMode)}`);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && data.length) {
+                data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
+            }
+        }
+        if (allAds.length) container.innerHTML = allAds.map(ad => renderAdHTML(ad)).join('');
     } catch (e) { /* ad load failed silently */ }
 }
 

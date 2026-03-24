@@ -461,7 +461,7 @@ async function showCityPage(region, pref, majorArea) {
         { label: majorArea }
     ]);
     clearHotelList();
-    loadAds('area', majorArea);
+    loadAds('area', majorArea, [{ type: 'big', target: pref }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -578,7 +578,10 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         { label: detailArea }
     ]);
     clearHotelList();
-    loadAds('town', detailArea);
+    loadAds('town', detailArea, [
+        { type: 'area', target: majorArea },
+        { type: 'big', target: pref }
+    ]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
