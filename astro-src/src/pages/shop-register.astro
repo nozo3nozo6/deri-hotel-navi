@@ -50,6 +50,7 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.j
                 <option value="women">女性向け（女性用風俗）</option>
                 <option value="men_same">男性同士向け</option>
                 <option value="women_same">女性同士向け</option>
+                <option value="este">デリエステ</option>
             </select>
         </div>
         <div class="f-group">
@@ -85,6 +86,7 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.j
                 <option value="women">女性向け（女性用風俗）</option>
                 <option value="men_same">男性同士向け</option>
                 <option value="women_same">女性同士向け</option>
+                <option value="este">デリエステ</option>
             </select>
         </div>
         <div class="f-group">
@@ -179,8 +181,8 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.j
 </BaseLayout>
 
 <script is:inline>
-const GENRE_LABELS={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',men_same:'男性同士向け',women_same:'女性同士向け'};
-function detectGenre(){const p=new URLSearchParams(location.search);if(p.get('genre')&&GENRE_LABELS[p.get('genre')])return p.get('genre');const h=location.hostname;if(h.startsWith('deli.'))return'men';if(h.startsWith('jofu.'))return'women';if(h.startsWith('same.'))return'men_same';try{const r=new URL(document.referrer);if(r.hostname.startsWith('deli.'))return'men';if(r.hostname.startsWith('jofu.'))return'women';if(r.hostname.startsWith('same.'))return'men_same';const m=new URLSearchParams(r.search).get('mode');if(m&&GENRE_LABELS[m])return m;}catch(e){}const s=localStorage.getItem('shop_register_genre');if(s&&GENRE_LABELS[s])return s;return null;}
+const GENRE_LABELS={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',men_same:'男性同士向け',women_same:'女性同士向け',este:'デリエステ'};
+function detectGenre(){const p=new URLSearchParams(location.search);if(p.get('genre')&&GENRE_LABELS[p.get('genre')])return p.get('genre');const h=location.hostname;if(h.startsWith('deli.'))return'men';if(h.startsWith('jofu.'))return'women';if(h.startsWith('same.'))return'men_same';if(h.startsWith('este.'))return'este';try{const r=new URL(document.referrer);if(r.hostname.startsWith('deli.'))return'men';if(r.hostname.startsWith('jofu.'))return'women';if(r.hostname.startsWith('same.'))return'men_same';if(r.hostname.startsWith('este.'))return'este';const m=new URLSearchParams(r.search).get('mode');if(m&&GENRE_LABELS[m])return m;}catch(e){}const s=localStorage.getItem('shop_register_genre');if(s&&GENRE_LABELS[s])return s;return null;}
 const _detectedGenre=detectGenre();if(_detectedGenre){document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('shop-gender');if(s)s.value=_detectedGenre;const r=document.getElementById('reg-genre');if(r)r.value=_detectedGenre;});}
 function showNotice(msg,d){d=d||3000;let el=document.getElementById('shop-notice-toast');if(!el){el=document.createElement('div');el.id='shop-notice-toast';el.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;max-width:90vw;text-align:center;opacity:0;transition:opacity .3s;';document.body.appendChild(el);}el.textContent=msg;el.style.opacity='1';clearTimeout(el._timer);el._timer=setTimeout(()=>{el.style.opacity='0';},d);}
 let _selectedFile=null;

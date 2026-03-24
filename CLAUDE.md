@@ -627,6 +627,32 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 #### 検索品質改善
 - hybridSearch()にキーワード一致度ソート追加（完全一致>先頭一致>部分一致>その他）
 
+### 2026年3月24日（後半7） — デリエステ（este）ジャンル追加
+
+#### 新ジャンル仕様
+- ジャンル名: デリエステ（回春マッサージ・M性感・風俗エステ、男性専用）
+- モードキー: `este`（パスとキーが同じ）
+- URLパス: `/este/`、サブドメイン: `este.yobuho.com`
+- テーマ: ディープパープル `#6b46c1`、アイコン: 💆‍♂️
+- ユーザー口コミは全ジャンル共通表示
+
+#### 変更ファイル
+- style.css: `[data-mode="este"]` テーマ追加
+- ui-utils.js: TITLE_SUFFIX_MAP + MODE_DESC_MAP に este 追加
+- api-service.js: GATE_PATH_MAP に este→/este/ 追加
+- area-navigation.js: MODE_PATH_MAP/PATH_MODE_MAP に este 追加
+- portal-init.js: pathMap/pathModeMap/modePathMap 全3箇所に este 追加
+- .htaccess: /este/ 全ルール追加（hotel/shop/4〜0セグメント）
+- astro-src/pages/index.astro: 💆‍♂️ デリエステボタン追加 + esteスタイル
+- astro-src/layouts/PortalLayout.astro: este エントリ追加
+- astro-src/pages/portal-este.astro: 新規作成
+- astro-src/pages/este/index.astro: LPページ新規作成
+- generate-sitemap.js: MODES + MODE_PATH に este 追加
+- deploy.yml: portal-este.html コピー + este.yobuho.com デプロイ + サブドメインLP専用rsyncステップ追加
+- admin.html: shop-mode-f/sr-gender/re-gender-mode select + SHOP_GENRE_LABELS に este 追加
+- shop-admin.html: genreLabels + modePathMap に este 追加
+- astro-src/pages/shop-register.astro: reg-genre/shop-gender select + GENRE_LABELS + detectGenre() に este 追加
+
 ### 2026年3月24日（後半6） — 店舗URLバグ修正・全国へSPA・LP改善
 
 #### 店舗専用URLで他店舗が表示されるバグ修正（hotel-search.js）
