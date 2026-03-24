@@ -103,12 +103,19 @@ document.addEventListener('DOMContentLoaded', function() {
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
-    // 店舗専用URL時: ゲートボタン・店舗登録リンク非表示
+    // 店舗専用URL時: 店舗登録リンク非表示、ゲートボタンを店舗URLルートへ変更
     if (urlParams.get('shop') || _shopParam) {
-        var gateBtn = document.querySelector('.btn-to-gate');
-        if (gateBtn) gateBtn.style.display = 'none';
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
+        // ゲートボタンを店舗URLルートへのリンクに変更
+        var gateBtn = document.querySelector('.btn-to-gate');
+        if (gateBtn && _shopParam) {
+            var shopRootUrl = '/' + (modePathMap[MODE] || 'deli') + '/shop/' + encodeURIComponent(_shopParam) + '/';
+            gateBtn.removeAttribute('data-action');
+            gateBtn.onclick = function() { location.href = shopRootUrl; };
+            var gateText = gateBtn.querySelector('.btn-gate-text');
+            if (gateText) gateText.textContent = '一覧へ戻る';
+        }
     }
     if (MODE) {
         document.querySelectorAll('a[href*="shop-register"]').forEach(function(a) {

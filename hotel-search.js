@@ -657,12 +657,25 @@ async function loadDetail(hotelId, isLoveho) {
                 hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(''),
                 hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve('')
             ]);
+            // 店舗モード時は自店舗のみ表示
+            let filteredCityShops = cityShops || [];
+            if (_shopParam && filteredCityShops.length) {
+                filteredCityShops = filteredCityShops.filter(s =>
+                    (SHOP_ID && s.id === SHOP_ID) ||
+                    (SHOP_SLUG && s.slug === SHOP_SLUG) ||
+                    s.slug === _shopParam ||
+                    s.id === _shopParam
+                );
+            }
             const citySlot = document.getElementById('detail-ad-slot');
-            if (citySlot && cityShops && cityShops.length) citySlot.innerHTML = renderDetailShopCards(cityShops, hotel.city);
-            const areaSlot = document.getElementById('detail-ad-area-slot');
-            if (areaSlot && areaAds) areaSlot.innerHTML = areaAds;
-            const prefSlot = document.getElementById('detail-ad-pref-slot');
-            if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
+            if (citySlot && filteredCityShops.length) citySlot.innerHTML = renderDetailShopCards(filteredCityShops, hotel.city);
+            // 店舗モード時は他店舗のエリア/都道府県広告を非表示
+            if (!_shopParam) {
+                const areaSlot = document.getElementById('detail-ad-area-slot');
+                if (areaSlot && areaAds) areaSlot.innerHTML = areaAds;
+                const prefSlot = document.getElementById('detail-ad-pref-slot');
+                if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
+            }
         }
     } catch(e) {
         content.innerHTML = `<div class="detail-error">読み込みエラーが発生しました</div>`;
