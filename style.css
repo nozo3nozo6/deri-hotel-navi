@@ -2301,3 +2301,13 @@ body[data-mode="men"] .header-title {
 /* テキストセンター */
 .text-center { text-align:center; }
 .load-more-wrap { text-align:center;margin:20px 0; }
+
+/* スマホ横余白 */
+@media (max-width: 640px) {
+    .hotel-list-container { padding-left: 16px; padding-right: 16px; }
+    .detail-wrap { padding-left: 16px; padding-right: 16px; }
+    .search-tools { padding-left: 16px; padding-right: 16px; }
+    .filter-bar { padding-left: 16px; padding-right: 16px; }
+    .result-status { padding-left: 16px; padding-right: 16px; }
+    .header-inner { padding-left: 16px; padding-right: 16px; }
+}

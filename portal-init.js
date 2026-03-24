@@ -103,17 +103,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
-    // 店舗専用URL時: 店舗登録リンク非表示、ゲートボタンを店舗URLルートへ変更
+    // 店舗専用URL時: 店舗登録リンク非表示のみ（ゲートボタンはそのままgetGateUrl()動作）
     if (urlParams.get('shop') || _shopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
-        // ゲートボタンをモードのトップページへのリンクに変更
-        var gateBtn = document.querySelector('.btn-to-gate');
-        if (gateBtn) {
-            var modeRootUrl = '/' + (modePathMap[MODE] || 'deli') + '/';
-            gateBtn.removeAttribute('data-action');
-            gateBtn.onclick = function() { location.href = modeRootUrl; };
-        }
     }
     if (MODE) {
         document.querySelectorAll('a[href*="shop-register"]').forEach(function(a) {
