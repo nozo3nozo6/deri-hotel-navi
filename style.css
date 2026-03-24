@@ -260,36 +260,36 @@ body[data-mode="women"] .portal-footer {
 }
 
 /* ==========================================================================
-   テーマ変数 — デリエステモード アンバーゴールド×ダークブラウン — 官能・高級スパ
+   テーマ変数 — デリエステモード ネオンティール×ダーク — 夜のネオン・リラックス
    ========================================================================== */
 [data-mode="este"] {
-    --accent: #c49832;
-    --accent-light: #deb860;
-    --accent-dim: #a07818;
-    --accent-bg: rgba(196,152,50,0.10);
-    --accent-glow: rgba(196,152,50,0.22);
-    --bg: #12100e;
-    --bg-2: #1a1614;
-    --bg-3: #242018;
-    --bg-4: #302820;
-    --text: #e8dcc8;
-    --text-2: #bfae94;
-    --text-3: #9a8a6e;
-    --border: rgba(196,152,50,0.18);
-    --border-strong: rgba(196,152,50,0.38);
-    --card-shadow: 0 2px 16px rgba(196,152,50,0.08), 0 1px 4px rgba(0,0,0,0.12);
-    --card-shadow-hover: 0 8px 32px rgba(196,152,50,0.15), 0 2px 8px rgba(0,0,0,0.18);
+    --accent: #0891b2;
+    --accent-light: #22d3ee;
+    --accent-dim: #0e7490;
+    --accent-bg: rgba(8,145,178,0.10);
+    --accent-glow: rgba(8,145,178,0.22);
+    --bg: #0f1419;
+    --bg-2: #161d24;
+    --bg-3: #1e2730;
+    --bg-4: #283440;
+    --text: #d4e0ec;
+    --text-2: #94a8be;
+    --text-3: #7590aa;
+    --border: rgba(8,145,178,0.20);
+    --border-strong: rgba(8,145,178,0.40);
+    --card-shadow: 0 2px 16px rgba(8,145,178,0.08), 0 1px 4px rgba(0,0,0,0.12);
+    --card-shadow-hover: 0 8px 32px rgba(8,145,178,0.15), 0 2px 8px rgba(0,0,0,0.18);
 }
 
 /* ==========================================================================
    デリエステ ダークテーマ補助 — ハードコード色のオーバーライド
    ========================================================================== */
 body[data-mode="este"] .portal-header {
-    background: rgba(18,16,14,0.97);
-    border-bottom: 1px solid rgba(196,152,50,0.15);
+    background: rgba(15,20,25,0.97);
+    border-bottom: 1px solid rgba(8,145,178,0.15);
 }
 body[data-mode="este"] .portal-header::before {
-    background: linear-gradient(90deg, transparent, #a07818 20%, #c49832 50%, #a07818 80%, transparent);
+    background: linear-gradient(90deg, transparent, #0e7490 20%, #22d3ee 50%, #0e7490 80%, transparent);
 }
 body[data-mode="este"] .modal-overlay { background: rgba(0,0,0,0.7); }
 body[data-mode="este"] .modal-content,

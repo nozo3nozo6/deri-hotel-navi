@@ -1706,7 +1706,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const isShop = r.poster_type === 'shop';
         const feeLabel = isShop ? formatTransportFee(shopFeeMap[r.poster_name]) : null;
         const posterHTML = r.poster_name ? (()=>{
-            const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#a07818':'#4a7ab0';
+            const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#0891b2':'#4a7ab0';
             const si=isShop?shopInfoMap[r.poster_name]:null;
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
             const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店舗</span>` : `<span class="shop-verified-badge">認証店舗</span>`;
