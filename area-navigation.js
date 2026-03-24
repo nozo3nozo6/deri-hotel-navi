@@ -93,6 +93,13 @@ function updateUrl(params) {
     history.pushState(null, '', buildUrl(params));
 }
 
+function goToNationalTop() {
+    if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
+    if (typeof showJapanPage === 'function') showJapanPage();
+    // buildUrl()を経由しない（SHOP_SLUGが残るため）
+    history.pushState(null, '', '/' + getModePath() + '/');
+}
+
 function ensurePortalMode() {
     const content = document.getElementById('hotel-detail-content');
     if (content && content.style.display !== 'none') {

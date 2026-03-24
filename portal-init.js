@@ -135,6 +135,9 @@ document.addEventListener('click', function(e) {
         case 'goToGate':
             location.href = getGateUrl();
             break;
+        case 'goToNationalTop':
+            if (typeof goToNationalTop === 'function') goToNationalTop();
+            break;
         case 'changeLang':
             if (typeof changeLang === 'function') changeLang(param);
             break;
