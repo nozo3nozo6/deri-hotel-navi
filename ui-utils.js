@@ -6,13 +6,15 @@ const TITLE_SUFFIX_MAP = {
     'men': 'Deli YobuHo',
     'women': 'JoFu YobuHo',
     'women_same': 'Same YobuHo',
-    'men_same': 'Same YobuHo'
+    'men_same': 'Same YobuHo',
+    'este': 'Este YobuHo'
 };
 const MODE_DESC_MAP = {
     'men': 'デリヘル（デリバリーヘルス・出張ヘルス）を呼べるホテルを全国43,000件以上から検索。ユーザー口コミと店舗情報のダブルチェックで信頼できるホテル情報。',
     'women': '女性用風俗（女風）・出張マッサージ・セラピストを呼べるホテルを全国43,000件以上から検索。口コミと店舗情報で安心のホテル選び。',
     'men_same': '男性同士（ゲイカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。',
-    'women_same': '女性同士（レズビアンカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。'
+    'women_same': '女性同士（レズビアンカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。',
+    'este': 'デリエステ（風俗エステ・回春マッサージ・M性感）を呼べるホテルを全国43,000件以上から検索。ユーザー口コミと店舗情報で信頼できるホテル情報。'
 };
 function getSiteSuffix() {
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';

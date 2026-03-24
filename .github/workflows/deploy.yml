@@ -41,17 +41,18 @@ jobs:
       - name: Build Astro SSG
         run: |
           cd astro-src && npx astro build
-          cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html ../
+          cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html dist/portal-este.html ../
           cp dist/index.html ../index.html
           cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html ../
           mkdir -p ../guide
           cp dist/guide/*.html ../guide/ 2>/dev/null || true
-          mkdir -p ../deli.yobuho.com ../jofu.yobuho.com ../same.yobuho.com ../loveho.yobuho.com
+          mkdir -p ../deli.yobuho.com ../jofu.yobuho.com ../same.yobuho.com ../loveho.yobuho.com ../este.yobuho.com
           cp dist/deli.html ../deli.yobuho.com/index.html
           cp dist/jofu.html ../jofu.yobuho.com/index.html
           cp dist/same.html ../same.yobuho.com/index.html
           cp dist/loveho.html ../loveho.yobuho.com/index.html
-          for sub in deli.yobuho.com jofu.yobuho.com same.yobuho.com loveho.yobuho.com; do
+          cp dist/este.html ../este.yobuho.com/index.html
+          for sub in deli.yobuho.com jofu.yobuho.com same.yobuho.com loveho.yobuho.com este.yobuho.com; do
             cp ../favicon.ico ../$sub/favicon.ico
             cp ../favicon.svg ../$sub/favicon.svg
           done
@@ -90,7 +91,7 @@ jobs:
             --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' \
             --exclude='astro-src' --exclude='.env' --exclude='.env.example' \
             --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' \
-            --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' \
+            --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='este.yobuho.com' \
             --exclude='db-local.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
             --exclude='pagefind' --exclude='master-data.json' \
@@ -98,6 +99,14 @@ jobs:
             --exclude='search-index.json' \
             -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
             ./ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
+
+      - name: Deploy subdomain LP files
+        run: |
+          for sub in deli jofu same loveho este; do
+            rsync -avz \
+              -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
+              ./${sub}.yobuho.com/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/${sub}.yobuho.com/
+          done
 
       - name: Generate static JSON + Pagefind data on server
         run: |

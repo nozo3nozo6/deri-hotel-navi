@@ -11,8 +11,8 @@ const path = require('path');
 const BASE_URL = 'https://yobuho.com';
 const TODAY = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-const MODES = ['men', 'women', 'men_same', 'women_same'];
-const MODE_PATH = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+const MODES = ['men', 'women', 'men_same', 'women_same', 'este'];
+const MODE_PATH = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f', este: 'este' };
 
 const PREFECTURES = [
   '北海道',

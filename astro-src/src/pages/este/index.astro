@@ -1,0 +1,168 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import LPFooter from '../../components/LPFooter.astro';
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Este YobuHo",
+  "url": "https://este.yobuho.com/",
+  "description": "デリエステ（風俗エステ・回春マッサージ・M性感）を呼べるホテルを全国43,000件以上から検索。ユーザーの実体験口コミと店舗提供情報のダブルチェックで信頼性の高いホテル情報。",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://yobuho.com/este/?keyword={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+
+const footerLinks = [
+  { href: 'https://yobuho.com/', label: 'YobuHo トップ' },
+  { href: 'https://yobuho.com/deli/', label: 'デリヘル' },
+  { href: 'https://yobuho.com/jofu/', label: '女性用風俗' },
+  { href: 'https://yobuho.com/same-m/', label: '同性利用' },
+  { href: 'https://yobuho.com/este/?tab=loveho', label: 'ラブホテル' },
+  { href: 'https://yobuho.com/terms.html', label: '利用規約' },
+  { href: 'https://yobuho.com/privacy.html', label: 'プライバシーポリシー' },
+  { href: 'https://yobuho.com/contact.html', label: 'お問い合わせ' },
+];
+---
+
+<BaseLayout
+  title="デリエステを呼べるホテル検索 | Este YobuHo - 全国43,000件以上のホテル情報"
+  description="デリエステ（風俗エステ・回春マッサージ・M性感）を呼べるホテルを全国43,000件以上から検索。ユーザーの実体験口コミと店舗提供情報のダブルチェックで信頼性の高いホテル情報をお届けします。"
+  keywords="デリエステ 呼べるホテル,風俗エステ ホテル,回春マッサージ ホテル,M性感 ホテル,デリエステ ビジネスホテル,デリエステ シティホテル,風俗エステ 呼べる,出張エステ ホテル,メンズエステ ホテル,回春 ホテル 検索,デリエステ 口コミ,エステ 派遣 ホテル,デリエステ ラブホ,風俗エステ 入室"
+  canonical="https://este.yobuho.com/"
+  ogTitle="デリエステを呼べるホテル検索 | Este YobuHo"
+  ogDescription="デリエステ・回春マッサージ・M性感を呼べるホテルを全国43,000件以上から検索。口コミ×店舗情報で信頼できるホテル情報。"
+  ogUrl="https://este.yobuho.com/"
+  ogImageAlt="Este YobuHo - デリエステを呼べるホテル検索"
+  twitterTitle="デリエステを呼べるホテル検索 | Este YobuHo"
+  twitterDescription="デリエステ・風俗エステ・回春マッサージを呼べるホテルを全国43,000件以上から検索。"
+  twitterImage="https://yobuho.com/ogp.png"
+  themeColor="#6b46c1"
+  jsonLd={jsonLd}
+>
+    <Fragment slot="head">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    </Fragment>
+
+    <header class="lp-header">
+        <div class="logo"><span class="logo-sub">Este</span> <b>YobuHo</b></div>
+    </header>
+
+    <section class="hero">
+        <h1>デリエステを呼べるホテル検索</h1>
+        <p class="hero-sub">全国43,000件以上のホテルから、あなたに最適なホテルを見つけよう</p>
+        <p class="age-notice">※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。</p>
+    </section>
+
+    <section class="trust-section">
+        <h2>なぜYobuHoの情報は信頼できるのか</h2>
+        <div class="trust-cards">
+            <div class="trust-card">
+                <div class="trust-icon">&#128172;</div>
+                <h3>ユーザーの実体験口コミ</h3>
+                <p>実際に利用したユーザーが投稿する口コミ情報。呼べた・呼べなかったのリアルな体験をもとにした情報です。</p>
+            </div>
+            <div class="trust-card">
+                <div class="trust-icon">&#127978;</div>
+                <h3>店舗からの公式情報</h3>
+                <p>届出確認済みの掲載店舗が提供するホテル対応情報。実際の派遣実績に基づいた確かなデータです。</p>
+            </div>
+            <div class="trust-card">
+                <div class="trust-icon">&#9989;</div>
+                <h3>ダブルチェックで高い信頼性</h3>
+                <p>ユーザー口コミと店舗情報の両方から確認できるため、より正確で信頼性の高いホテル情報を提供します。</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2>YobuHoの特徴</h2>
+        <div class="feature-list">
+            <div class="feature-item">
+                <span class="feature-num">01</span>
+                <div><h3>全国43,000件以上のホテルデータ</h3><p>北海道から沖縄まで、全国のホテルを網羅。地域・エリア・市区町村から簡単に検索できます。</p></div>
+            </div>
+            <div class="feature-item">
+                <span class="feature-num">02</span>
+                <div><h3>口コミが多いホテルから表示</h3><p>情報が充実しているホテルが上位に表示されるので、信頼できるホテルをすぐに見つけられます。</p></div>
+            </div>
+            <div class="feature-item">
+                <span class="feature-num">03</span>
+                <div><h3>完全無料・匿名で利用可能</h3><p>会員登録不要。誰でも無料でホテル情報を検索・口コミを投稿できます。</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="howto">
+        <h2>使い方はかんたん3ステップ</h2>
+        <div class="steps">
+            <div class="step"><span class="step-num">1</span><p>地域・都道府県を選択</p></div>
+            <div class="step"><span class="step-num">2</span><p>エリア・市区町村を選択</p></div>
+            <div class="step"><span class="step-num">3</span><p>ホテルの口コミ・店舗情報を確認</p></div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <h2>さっそく検索してみよう</h2>
+        <a href="https://yobuho.com/este/" class="cta-button">ホテルを検索する</a>
+    </section>
+
+    <LPFooter
+      seoText="Este YobuHoは、デリエステ（風俗エステ・回春マッサージ・M性感マッサージ）を呼べるホテルの口コミ検索サイトです。ビジネスホテル・シティホテル・ラブホテルなど、全国43,000件以上のホテルから派遣エステを呼べるかどうかを確認できます。カードキー式・フロント相談・直通エレベーターなどの入室情報も口コミでチェックできます。"
+      links={footerLinks}
+    />
+</BaseLayout>
+
+<style is:global>
+    :root {
+        --accent: #6b46c1; --accent-light: #9b72e8; --accent-dim: #5230a8;
+        --accent-bg: rgba(107,70,193,0.07); --accent-glow: rgba(107,70,193,0.18);
+        --bg: #faf8fd; --bg-2: #ffffff; --bg-3: #f4f0fc;
+        --text: #1a1228; --text-2: #4a3870; --text-3: #5a3e90;
+        --border: rgba(107,70,193,0.14);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    .lp-header { background: #150f2a; padding: 14px 20px; text-align: center; }
+    .lp-header .logo { font-size: 22px; color: var(--accent-light); font-weight: 300; letter-spacing: 0.06em; }
+    .lp-header .logo b { font-weight: 700; color: #fff; }
+    .lp-header .logo-sub { font-style: italic; color: var(--accent-light); font-size: 0.85em; letter-spacing: 2px; }
+    .hero { background: linear-gradient(135deg, #150f2a 0%, #2a1a5e 50%, #1e1040 100%); padding: 60px 20px 56px; text-align: center; color: #fff; }
+    .hero h1 { font-size: 24px; font-weight: 700; line-height: 1.5; margin-bottom: 16px; }
+    .hero-sub { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 32px; line-height: 1.7; }
+    .age-notice { text-align: center; color: #bbb; font-size: 12px; margin: 16px 0; }
+    .cta-button { display: inline-block; padding: 16px 40px; background: var(--accent); color: #fff; text-decoration: none; border-radius: 50px; font-size: 16px; font-weight: 700; letter-spacing: 0.04em; transition: background 0.2s, transform 0.2s; box-shadow: 0 4px 20px rgba(107,70,193,0.35); }
+    .cta-button:hover { background: var(--accent-dim); transform: translateY(-1px); }
+    .trust-section { padding: 56px 20px; background: var(--bg-2); }
+    .trust-section h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; color: var(--text); }
+    .trust-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 0 auto; }
+    .trust-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 28px 20px; text-align: center; }
+    .trust-icon { font-size: 36px; margin-bottom: 14px; }
+    .trust-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--accent); }
+    .trust-card p { font-size: 13px; color: var(--text-2); line-height: 1.8; }
+    .features { padding: 56px 20px; background: var(--bg); }
+    .features h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+    .feature-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    .feature-item { display: flex; align-items: flex-start; gap: 16px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 12px; padding: 24px 20px; }
+    .feature-num { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; min-width: 40px; }
+    .feature-item h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feature-item p { font-size: 13px; color: var(--text-2); line-height: 1.7; }
+    .howto { padding: 56px 20px; background: var(--bg-2); }
+    .howto h2 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+    .steps { display: flex; justify-content: center; gap: 24px; max-width: 700px; margin: 0 auto; }
+    .step { flex: 1; text-align: center; padding: 24px 16px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--accent); color: #fff; border-radius: 50%; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .step p { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.6; }
+    .cta-section { padding: 56px 20px; background: linear-gradient(135deg, #150f2a 0%, #2a1a5e 100%); text-align: center; }
+    .cta-section h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 24px; }
+    @media (max-width: 640px) {
+        .hero { padding: 44px 16px 40px; } .hero h1 { font-size: 20px; }
+        .trust-cards { grid-template-columns: 1fr; gap: 14px; }
+        .steps { flex-direction: column; gap: 14px; }
+        .cta-button { padding: 14px 32px; font-size: 15px; }
+    }
+</style>

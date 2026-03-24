@@ -7,7 +7,7 @@
 import BaseLayout from './BaseLayout.astro';
 
 interface Props {
-  mode: 'men' | 'women' | 'men_same' | 'women_same';
+  mode: 'men' | 'women' | 'men_same' | 'women_same' | 'este';
 }
 
 const { mode } = Astro.props;
@@ -60,10 +60,19 @@ const MODE_DATA: Record<string, {
     badge: '&#9792;&#9792;',
     logoHtml: '<b>YobuHo</b>',
   },
+  este: {
+    title: 'デリエステを呼べるホテル検索 | Este YobuHo',
+    description: 'デリエステ（風俗エステ・回春マッサージ・M性感）をホテルに呼べるか地域から検索。全国のラブホテル・シティホテル・ビジネスホテルのエステ入室情報を確認。実績口コミと店舗情報のダブルチェックで安心のホテル選び。',
+    ogTitle: 'デリエステを呼べるホテル検索 | Este YobuHo',
+    ogDescription: 'デリエステ・風俗エステ・回春マッサージを呼べるホテルを地域から検索。口コミと店舗情報で確認。',
+    themeColor: '#6b46c1',
+    badge: '💆‍♂️',
+    logoHtml: '<span style="font-style:italic; color:#9b72e8; font-weight:300; font-size:0.85em; letter-spacing:2px;">Este</span> <b style="color:#6b46c1; font-size:1.2em; letter-spacing:1px;">YobuHo</b>',
+  },
 };
 
 const d = MODE_DATA[mode];
-const MODE_PATH_MAP: Record<string, string> = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+const MODE_PATH_MAP: Record<string, string> = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f', este: 'este' };
 const modePath = MODE_PATH_MAP[mode] || 'deli';
 const modeUrl = `https://yobuho.com/${modePath}/`;
 

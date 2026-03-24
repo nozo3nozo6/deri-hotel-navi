@@ -259,6 +259,28 @@ body[data-mode="women"] .portal-footer {
     --card-shadow-hover: 0 8px 32px rgba(138,90,158,0.15), 0 2px 8px rgba(0,0,0,0.07);
 }
 
+/* ==========================================================================
+   テーマ変数 — デリエステモード ディープパープル — 官能・高級感・癒し
+   ========================================================================== */
+[data-mode="este"] {
+    --accent: #6b46c1;
+    --accent-light: #9b72e8;
+    --accent-dim: #5230a8;
+    --accent-bg: rgba(107,70,193,0.07);
+    --accent-glow: rgba(107,70,193,0.18);
+    --bg: #faf8fd;
+    --bg-2: #ffffff;
+    --bg-3: #f4f0fc;
+    --bg-4: #e8e0f8;
+    --text: #1a1228;
+    --text-2: #4a3870;
+    --text-3: #5a3e90;
+    --border: rgba(107,70,193,0.18);
+    --border-strong: rgba(107,70,193,0.38);
+    --card-shadow: 0 2px 16px rgba(107,70,193,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 8px 32px rgba(107,70,193,0.15), 0 2px 8px rgba(0,0,0,0.07);
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
 /* 女性モード: 明朝体（デフォルト） */
@@ -271,10 +293,11 @@ body {
     overflow-x: hidden;
 }
 
-/* 男性モード・男性同士: ゴシック体 */
+/* 男性モード・男性同士・デリエステ: ゴシック体 */
 [data-mode="men"] body,
 body[data-mode="men"],
-body[data-mode="men_same"] {
+body[data-mode="men_same"],
+body[data-mode="este"] {
     font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
 

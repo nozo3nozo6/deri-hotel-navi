@@ -39,6 +39,7 @@ const GATE_PATH_MAP = {
     'women': '/jofu/',
     'men_same': '/same-m/',
     'women_same': '/same-f/',
+    'este': '/este/',
 };
 function getGateUrl() {
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';

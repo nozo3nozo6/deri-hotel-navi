@@ -5,8 +5,8 @@
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
     if (window.__ASTRO_MODE) return;
-    // パスベースURL対応: /deli/, /jofu/, /same-m/, /same-f/
-    var pathMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same' };
+    // パスベースURL対応: /deli/, /jofu/, /same-m/, /same-f/, /este/
+    var pathMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same', 'este': 'este' };
     var seg = location.pathname.split('/').filter(Boolean)[0] || '';
     var m = pathMap[seg] || new URLSearchParams(location.search).get('mode') || 'men';
     if (m === 'women' || m === 'women_same') {
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Astro SSGページではwindow.__ASTRO_MODEがビルド時に埋め込まれる
     var astroMode = window.__ASTRO_MODE || null;
     // パスベースURL対応
-    var pathModeMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same' };
+    var pathModeMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same', 'este': 'este' };
     var firstSeg = location.pathname.split('/').filter(Boolean)[0] || '';
     var pathMode = pathModeMap[firstSeg] || null;
     // モード未指定の場合、/men/ にリダイレクト
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // canonical動的設定（パスベースURL）
-    var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f' };
+    var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f', este: 'este' };
     var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
     var shopSlugParam = urlParams.get('shop');
     var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
