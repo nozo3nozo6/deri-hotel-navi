@@ -132,7 +132,7 @@ function handleList() {
     // Optional WHERE filters
     $where = [];
     $params = [];
-    foreach (['status', 'shop_id', 'is_active', 'email', 'level', 'placement_type', 'placement_target'] as $col) {
+    foreach (['status', 'shop_id', 'is_active', 'email', 'level', 'placement_type', 'placement_target', 'target_name'] as $col) {
         if (isset($_GET[$col]) && $_GET[$col] !== '') {
             $where[] = "`$col` = ?";
             $params[] = $_GET[$col];

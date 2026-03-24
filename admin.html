@@ -1467,7 +1467,7 @@ async function addPlacement(){
   const startedAt=document.getElementById("pm-started-at").value;
   const endedAt=document.getElementById("pm-ended-at").value;
   // 重複チェック（同一店舗×同一レベル×同一エリア名は1つまで）
-  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&placement_target="+encodeURIComponent(targetName));
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&target_name="+encodeURIComponent(targetName));
   if(existCheck&&existCheck.length>0){toast("このエリアは既に登録済みです");return;}
   // 枠数制限チェック
   const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
@@ -1563,7 +1563,7 @@ async function updatePlacement(){
   const newLevel=document.getElementById("pm-level").value;
   const oldP=placementsData.find(x=>x.id===_editingPlacementId);
   // 重複チェック（自分自身は除外）
-  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(newLevel)+"&placement_target="+encodeURIComponent(newTargetName));
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(newLevel)+"&target_name="+encodeURIComponent(newTargetName));
   if(existCheck&&existCheck.filter(x=>x.id!==_editingPlacementId).length>0){toast("このエリアは既に登録済みです");return;}
   // shop_placements更新
   const _spu2=await api("update",{table:"shop_placements",id:_editingPlacementId,data:{level:newLevel,target_name:newTargetName}});const error=_spu2.ok?null:{message:"error"};
