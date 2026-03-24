@@ -1241,9 +1241,17 @@ async function loadPlacements(shopId){
 
 function renderPlacements(){
   const el=document.getElementById("pm-list");
-  if(!placementsData.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
+  // 残り枠サマリ
+  const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
+  const active=placementsData.filter(p=>p.is_active);
+  const used={city:active.filter(p=>p.level==='city').length,spot:active.filter(p=>p.level==='spot').length,prefecture:active.filter(p=>p.level==='prefecture').length};
+  const slotItems=[{key:'city',label:'🏘 市区町村'},{key:'spot',label:'🏙 エリア'},{key:'prefecture',label:'📌 都道府県'}]
+    .filter(({key})=>limits[key]>0)
+    .map(({key,label})=>{const u=used[key];const m=limits[key];const full=u>=m;return`<span style="font-size:11px;font-weight:700;color:${full?'#d32f2f':'#2e7d32'};">${label} ${u}/${m}枠${full?' ⚠':' ✓'}</span>`;});
+  const slotHtml=slotItems.length?`<div style="display:flex;gap:12px;flex-wrap:wrap;padding:8px 12px;background:#f8f9fa;border-radius:6px;margin-bottom:12px;">${slotItems.join('<span style="color:#ccc;font-size:11px;">│</span>')}</div>`:'';
+  if(!placementsData.length){el.innerHTML=slotHtml+'<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
   const now=new Date();
-  el.innerHTML=`<table class="tbl"><thead><tr>
+  el.innerHTML=slotHtml+`<table class="tbl"><thead><tr>
     <th>レベル</th><th>エリア名</th><th>コード</th><th>期間</th><th>状態</th><th>操作</th>
   </tr></thead><tbody>${placementsData.map(p=>{
     const ended=p.ended_at&&new Date(p.ended_at)<now;
@@ -1302,13 +1310,20 @@ async function loadShopContracts(shopId,plans){
     planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
   });
   planHtml+='</div>';
-  // 枠数表示
+  // 枠数 + 掲載エリアカード（統合表示）
   if(hasPaid){
-    planHtml+=`<div style="margin-top:10px;padding:8px 12px;background:#f0f4ff;border-radius:6px;font-size:11px;">
-      掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠 / 🏙エリア <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠
+    planHtml+=`<div style="margin-top:12px;border:1px solid #c8e6c9;border-radius:8px;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#e8f5e9;border-bottom:1px solid #c8e6c9;">
+        <div style="font-size:12px;font-weight:700;color:#2e7d32;">📍 掲載エリア</div>
+        <button onclick="openPlacementModal('${shopId}')" style="background:#28a745;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">管理する →</button>
+      </div>
+      <div style="padding:10px 12px;min-height:36px;background:#fff;">
+        <div id="sr-area-list" style="font-size:12px;color:var(--ink-3);">読み込み中...</div>
+      </div>
+      <div style="padding:6px 12px;background:#f0f4ff;border-top:1px solid #dde8ff;font-size:11px;color:var(--ink-3);">
+        掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠 / 🏙エリア <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠
+      </div>
     </div>`;
-    planHtml+='<div id="sr-area-list" style="margin-top:8px;padding:10px 12px;background:#f8f9fa;border-radius:6px;font-size:12px;color:var(--ink-3);">掲載エリア読み込み中...</div>';
-    planHtml+=`<button onclick="openPlacementModal('${shopId}')" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;margin-top:8px;">📍 掲載エリア管理</button>`;
   }
   document.getElementById('plan-action-buttons').innerHTML=planHtml;
   if(hasPaid){loadShopAreaList(shopId);}
@@ -1338,7 +1353,7 @@ async function loadShopAreaList(shopId){
   if(!el)return;
   const data=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1&order=created_at&dir=desc');
   if(!data||!data.length||data.error){el.innerHTML='<span style="color:#999;">掲載エリア未設定</span>';return;}
-  el.innerHTML='<div style="font-size:11px;font-weight:600;margin-bottom:6px;">📍 掲載エリア</div>'+data.map(a=>`<span style="display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:12px;font-size:11px;color:#2e7d32;">${esc(PM_LEVEL_LABELS[a.level]||a.level)} ${esc(a.target_name)}</span>`).join('');
+  el.innerHTML=data.map(a=>`<span style="display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:12px;font-size:11px;color:#2e7d32;">${esc(PM_LEVEL_LABELS[a.level]||a.level)} ${esc(a.target_name)}</span>`).join('');
 }
 
 // 都道府県リスト
