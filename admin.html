@@ -768,16 +768,21 @@
     <div class="modal">
         <div class="modal-title">&#x1F3E8; ホテルとして登録 <span id="hreq-edit-label" style="font-size:12px;font-weight:400;color:var(--ink-3);"></span></div>
         <input type="hidden" id="hreq-edit-id">
-        <!-- Step1: フォーム -->
+        <!-- Step1: フォーム（ホテル追加と同一仕様） -->
         <div id="hreq-step1">
             <div class="mf"><label class="ml">ホテル名 <span style="color:var(--gold);">*</span></label><input id="hreq-edit-name" class="mi" placeholder="例: ホテルアルファ新宿"></div>
-            <div class="mf"><label class="ml">住所</label><input id="hreq-edit-address" class="mi" placeholder="例: 東京都新宿区..."></div>
-            <div class="mf"><label class="ml">電話番号</label><input id="hreq-edit-tel" class="mi" placeholder="例: 03-xxxx-xxxx"></div>
-            <div class="mf"><label class="ml">ホテルタイプ</label><select id="hreq-edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
-            <div class="mf"><label class="ml">都道府県</label><select id="hreq-edit-pref" class="mi" onchange="onPrefChange('hreq-edit')"><option value="">選択してください</option></select></div>
+            <div class="mf"><label class="ml">ホテルタイプ <span style="color:var(--gold);">*</span></label><select id="hreq-edit-type" class="mi"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="pension">ペンション</option><option value="minshuku">民宿</option><option value="love_hotel">🏩 ラブホテル</option><option value="rental_room">🏩 レンタルルーム</option><option value="other">その他</option></select></div>
+            <div class="mf"><label class="ml">郵便番号</label><input id="hreq-edit-postal" class="mi" placeholder="例: 1600022 または 160-0022" oninput="formatPostalCode(this)"></div>
+            <div class="mf"><label class="ml">住所 <span style="color:var(--gold);">*</span></label><input id="hreq-edit-address" class="mi" placeholder="例: 東京都新宿区..."></div>
+            <div class="mf"><label class="ml">都道府県 <span style="color:var(--gold);">*</span></label><select id="hreq-edit-pref" class="mi" onchange="onPrefChange('hreq-edit')"><option value="">選択してください</option></select></div>
             <div class="mf"><label class="ml">エリア (major_area)</label><select id="hreq-edit-major-area" class="mi" onchange="onMajorAreaChange('hreq-edit')"><option value="">都道府県を先に選択</option></select></div>
             <div class="mf"><label class="ml">詳細エリア (detail_area)</label><select id="hreq-edit-detail-area" class="mi"><option value="">（なし）</option></select></div>
+            <div class="mf"><label class="ml">市区町村</label><select id="hreq-edit-city" class="mi"><option value="">エリアを先に選択</option></select></div>
+            <div class="mf"><label class="ml">電話番号 <span style="font-weight:400;color:var(--ink-3);font-size:10px;">※ハイフンを入れて入力</span></label><input id="hreq-edit-tel" class="mi" placeholder="例: 03-1234-5678"></div>
             <div class="mf"><label class="ml">最寄り駅</label><input id="hreq-edit-station" class="mi" placeholder="例: 新宿駅"></div>
+            <div class="mf"><label class="ml">緯度</label><input id="hreq-edit-lat" class="mi" type="number" step="any" placeholder="例: 35.6895"></div>
+            <div class="mf"><label class="ml">経度</label><input id="hreq-edit-lng" class="mi" type="number" step="any" placeholder="例: 139.6917"></div>
+            <div class="mf"><button type="button" class="btn b-btn-gold" style="width:100%;padding:10px;font-size:13px;" onclick="geocodeAndFill('hreq-edit')">📍 住所から緯度経度を取得</button></div>
             <div class="modal-btns">
                 <button class="btn-cancel" onclick="closeHreqEdit()">キャンセル</button>
                 <button class="btn-save" onclick="hreqEditToConfirm()">確認画面へ →</button>
@@ -786,24 +791,12 @@
         <!-- Step2: 確認 -->
         <div id="hreq-step2" style="display:none;">
             <div id="hreq-confirm-body" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:2;"></div>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer;font-size:13px;font-weight:600;">
+                <input type="checkbox" id="hreq-publish" checked style="width:18px;height:18px;accent-color:var(--green);"> 登録と同時に公開する
+            </label>
             <div class="modal-btns">
                 <button class="btn-cancel" onclick="hreqEditBack()">← 修正する</button>
                 <button class="btn-save" onclick="saveHreqAsHotel()">ホテルに登録する</button>
-            </div>
-        </div>
-        <!-- Step3: 完了 → 公開 -->
-        <div id="hreq-step3" style="display:none;">
-            <div style="text-align:center;padding:20px 0;">
-                <div style="font-size:32px;margin-bottom:12px;">✅</div>
-                <div style="font-size:16px;font-weight:700;margin-bottom:8px;">ホテルを登録しました</div>
-                <div id="hreq-done-name" style="font-size:14px;color:var(--ink-3);margin-bottom:16px;"></div>
-                <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#856404;text-align:left;">
-                    現在<strong>非公開</strong>です。公開するとポータルに表示されます。
-                </div>
-                <div style="display:flex;gap:10px;justify-content:center;">
-                    <button class="btn-cancel" onclick="closeHreqEdit()">後で公開する</button>
-                    <button class="btn-save" style="background:#28a745;" onclick="publishHreqHotel()">🌐 今すぐ公開する</button>
-                </div>
             </div>
         </div>
     </div>
@@ -2526,16 +2519,28 @@ function closeHreqEdit(){document.getElementById("hreq-edit-modal").style.displa
 function hreqEditToConfirm(){
   var name=document.getElementById("hreq-edit-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
+  var addr=document.getElementById("hreq-edit-address").value.trim();
+  if(!addr){toast("住所を入力してください");return;}
+  var pref=document.getElementById("hreq-edit-pref").value;
+  if(!pref){toast("都道府県を選択してください");return;}
   var typeLabels={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
+  var lat=document.getElementById("hreq-edit-lat").value;
+  var lng=document.getElementById("hreq-edit-lng").value;
+  var cityEl=document.getElementById("hreq-edit-city");
+  var cityVal=cityEl?cityEl.value:"";
   var rows=[
     ["ホテル名",name],
-    ["住所",document.getElementById("hreq-edit-address").value.trim()||"—"],
-    ["電話番号",document.getElementById("hreq-edit-tel").value.trim()||"—"],
     ["タイプ",typeLabels[document.getElementById("hreq-edit-type").value]||"—"],
-    ["都道府県",document.getElementById("hreq-edit-pref").value||"—"],
+    ["郵便番号",document.getElementById("hreq-edit-postal").value.trim()||"—"],
+    ["住所",addr],
+    ["都道府県",pref],
     ["エリア",document.getElementById("hreq-edit-major-area").value||"—"],
     ["詳細エリア",document.getElementById("hreq-edit-detail-area").value||"—"],
+    ["市区町村",cityVal||"—"],
+    ["電話番号",document.getElementById("hreq-edit-tel").value.trim()||"—"],
     ["最寄り駅",document.getElementById("hreq-edit-station").value.trim()||"—"],
+    ["緯度",lat||"—"],
+    ["経度",lng||"—"],
   ];
   document.getElementById("hreq-confirm-body").innerHTML=rows.map(function(row){return'<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">'+row[0]+'</span><strong>'+esc(row[1])+'</strong></div>';}).join("");
   document.getElementById("hreq-step1").style.display="none";
@@ -2553,18 +2558,27 @@ async function saveHreqAsHotel(){
   var name=document.getElementById("hreq-edit-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
   if(!confirm("「"+name+"」をホテルとして登録しますか？"))return;
+  var lat=parseFloat(document.getElementById("hreq-edit-lat").value);
+  var lng=parseFloat(document.getElementById("hreq-edit-lng").value);
+  var cityEl=document.getElementById("hreq-edit-city");
   var payload={
     name:name,
-    address:document.getElementById("hreq-edit-address").value.trim()||null,
-    tel:document.getElementById("hreq-edit-tel").value.trim()||null,
     hotel_type:document.getElementById("hreq-edit-type").value||"other",
+    postal_code:document.getElementById("hreq-edit-postal").value.trim()||null,
+    address:document.getElementById("hreq-edit-address").value.trim()||null,
     prefecture:document.getElementById("hreq-edit-pref").value||null,
     major_area:document.getElementById("hreq-edit-major-area").value||null,
     detail_area:document.getElementById("hreq-edit-detail-area").value||null,
+    city:cityEl?cityEl.value||null:null,
+    tel:document.getElementById("hreq-edit-tel").value.trim()||null,
     nearest_station:document.getElementById("hreq-edit-station").value.trim()||null,
+    latitude:isNaN(lat)?null:lat,
+    longitude:isNaN(lng)?null:lng,
     source:"manual",
-    is_published:false
+    is_published:document.getElementById("hreq-publish").checked
   };
+  // 電話番号で重複チェック
+  if(payload.tel){var telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){var dupArr=await apiGet("hotels-search","q="+encodeURIComponent(payload.tel)+"&pref="+encodeURIComponent(payload.prefecture||''));var dup=(dupArr||[]).filter(function(h){return h.tel===payload.tel;});if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
   var r1=await api('insert',{table:'hotels',data:payload});r1={data:r1.data,error:r1.ok?null:{message:r1.error||''}};
   if(r1.error){toast("ホテル追加エラー: "+(r1.error.message||''));return;}
   _hreqNewHotelId=r1.data?r1.data.id:null;
@@ -2572,17 +2586,8 @@ async function saveHreqAsHotel(){
   if(!r2.ok){toast("ステータス更新エラー");return;}
   hotelRequestsData=hotelRequestsData.map(function(r){return String(r.id)===id?Object.assign({},r,{status:"confirmed"}):r;});
   updateHreqBadge();renderHotelRequests();
-  // Step3: 完了画面へ
-  document.getElementById("hreq-step2").style.display="none";
-  document.getElementById("hreq-step3").style.display="";
-  document.getElementById("hreq-done-name").textContent="「"+name+"」";
-}
-async function publishHreqHotel(){
-  if(!_hreqNewHotelId){toast("ホテルIDが不明です");closeHreqEdit();return;}
-  if(!confirm("このホテルを公開しますか？ポータルに表示されます。"))return;
-  var r=await api('update',{table:'hotels',id:_hreqNewHotelId,data:{is_published:true}});
-  if(!r.ok){toast("公開エラー");return;}
-  toast("🌐 公開しました！ポータルに表示されます。");
+  var pubLabel=payload.is_published?"（公開済み）":"（非公開）";
+  toast("✅ 「"+name+"」をホテルに登録しました"+pubLabel);
   loadHotels();
   closeHreqEdit();
 }
