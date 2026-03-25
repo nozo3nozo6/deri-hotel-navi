@@ -248,6 +248,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     const _adFb = [];
     if (majorArea) _adFb.push({ type: 'area', target: majorArea });
     if (pref) _adFb.push({ type: 'big', target: pref });
+    const _adRegion = REGION_MAP.find(r => r.prefs.includes(pref));
+    if (_adRegion && !isSinglePrefRegion(_adRegion)) _adFb.push({ type: 'region', target: _adRegion.label });
     _adFb.push({ type: 'premium', target: '全国' });
     loadAds('spot', city, _adFb);
     setBackBtn(true);
@@ -662,14 +664,17 @@ async function loadDetail(hotelId, isLoveho) {
             renderHotelDetail(hotel, reports, detailData.summary || null, shopInfoMap, shopFeeMap);
         }
 
-        // 5段階広告ロード
+        // 6段階広告ロード
         if (hotel.city) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            const [cityShops, spotAds, areaAds, prefAds, nationalAds] = await Promise.all([
+            const _region = REGION_MAP.find(r => r.prefs.includes(hotel.prefecture));
+            const _regionLabel = (_region && !isSinglePrefRegion(_region)) ? _region.label : null;
+            const [cityShops, areaAds, blockAds, prefAds, regionAds, nationalAds] = await Promise.all([
                 fetchAreaShops(hotel.prefecture, hotel.city, genderMode),
                 hotel.detail_area ? fetchDetailAds('town', hotel.detail_area) : Promise.resolve(null),
                 hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(null),
                 hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve(null),
+                _regionLabel ? fetchDetailAds('region', _regionLabel) : Promise.resolve(null),
                 fetchDetailAds('premium', '全国')
             ]);
             // ①市区町村: 画像カード（店舗モード時は自店舗のみ）
@@ -684,14 +689,16 @@ async function loadDetail(hotelId, isLoveho) {
             }
             const citySlot = document.getElementById('detail-ad-city');
             if (citySlot && filteredCityShops.length) citySlot.innerHTML = renderDetailShopCards(filteredCityShops, hotel.city);
-            // ②〜⑤: テキストリンク（店舗モード時は非表示）
+            // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
-                const spotSlot = document.getElementById('detail-ad-spot');
-                if (spotSlot && spotAds && spotAds.length) spotSlot.innerHTML = renderDetailTextLink(spotAds, 'このスポットで呼べるおすすめ認証店舗');
                 const areaSlot = document.getElementById('detail-ad-area');
                 if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderDetailTextLink(areaAds, 'このエリアで呼べるおすすめ認証店舗');
+                const blockSlot = document.getElementById('detail-ad-block');
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderDetailTextLink(blockAds, 'このエリアで呼べるおすすめ認証店舗');
                 const prefSlot = document.getElementById('detail-ad-pref');
                 if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderDetailTextLink(prefAds, (hotel.prefecture || '') + 'で呼べるおすすめ認証店舗');
+                const regSlot = document.getElementById('detail-ad-region');
+                if (regSlot && regionAds && regionAds.length) regSlot.innerHTML = renderDetailTextLink(regionAds, (_regionLabel || '') + 'で呼べるおすすめ認証店舗');
                 const natSlot = document.getElementById('detail-ad-national');
                 if (natSlot && nationalAds && nationalAds.length) natSlot.innerHTML = renderDetailTextLink(nationalAds, '全国対応のおすすめ認証店舗');
             }
@@ -1675,15 +1682,16 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div id="detail-ad-city"></div>
         ${sections.statsHTML || ''}
         ${sections.shopSection || ''}
-        <div id="detail-ad-spot"></div>
-        ${sections.userSection || ''}
         <div id="detail-ad-area"></div>
+        ${sections.userSection || ''}
+        <div id="detail-ad-block"></div>
         ${sections.formHTML || ''}
         <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
             <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
+        <div id="detail-ad-region"></div>
         <div id="detail-ad-national"></div>
     </div>`;
 }

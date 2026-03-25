@@ -378,7 +378,7 @@ async function showPrefPage(region) {
         { label: region.label }
     ]);
     clearHotelList();
-    clearAds();
+    loadAds('region', region.label, [{ type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -430,7 +430,8 @@ async function showMajorAreaPage(region, pref) {
         { label: pref }
     ]);
     clearHotelList();
-    loadAds('big', pref, [{ type: 'premium', target: '全国' }]);
+    const _regFb = isSinglePrefRegion(region) ? [] : [{ type: 'region', target: region.label }];
+    loadAds('big', pref, [..._regFb, { type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -480,7 +481,8 @@ async function showCityPage(region, pref, majorArea) {
         { label: majorArea }
     ]);
     clearHotelList();
-    loadAds('area', majorArea, [{ type: 'big', target: pref }, { type: 'premium', target: '全国' }]);
+    const _regFb2 = (region && !isSinglePrefRegion(region)) ? [{ type: 'region', target: region.label }] : [];
+    loadAds('area', majorArea, [{ type: 'big', target: pref }, ..._regFb2, { type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -597,9 +599,11 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         { label: detailArea }
     ]);
     clearHotelList();
+    const _regFb3 = (region && !isSinglePrefRegion(region)) ? [{ type: 'region', target: region.label }] : [];
     loadAds('town', detailArea, [
         { type: 'area', target: majorArea },
         { type: 'big', target: pref },
+        ..._regFb3,
         { type: 'premium', target: '全国' }
     ]);
 
