@@ -244,11 +244,11 @@ async function fetchDetailAds(placementType, placementTarget) {
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
         const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
-        if (!res.ok) return '';
+        if (!res.ok) return null;
         const data = await res.json();
-        if (!data || !data.length) return '';
-        return data.map(ad => renderAdHTML(ad)).join('');
-    } catch (e) { return ''; }
+        if (!data || !data.length) return null;
+        return data;
+    } catch (e) { return null; }
 }
 
 function clearAds() {

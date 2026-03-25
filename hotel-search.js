@@ -662,15 +662,17 @@ async function loadDetail(hotelId, isLoveho) {
             renderHotelDetail(hotel, reports, detailData.summary || null, shopInfoMap, shopFeeMap);
         }
 
-        // 3段階広告ロード（共通、店舗モード時も自店舗情報は表示）
+        // 5段階広告ロード
         if (hotel.city) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            const [cityShops, areaAds, prefAds] = await Promise.all([
+            const [cityShops, spotAds, areaAds, prefAds, nationalAds] = await Promise.all([
                 fetchAreaShops(hotel.prefecture, hotel.city, genderMode),
-                hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(''),
-                hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve('')
+                hotel.detail_area ? fetchDetailAds('town', hotel.detail_area) : Promise.resolve(null),
+                hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(null),
+                hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve(null),
+                fetchDetailAds('premium', '全国')
             ]);
-            // 店舗モード時は自店舗のみ表示
+            // ①市区町村: 画像カード（店舗モード時は自店舗のみ）
             let filteredCityShops = cityShops || [];
             if (_shopParam && filteredCityShops.length) {
                 filteredCityShops = filteredCityShops.filter(s =>
@@ -680,14 +682,18 @@ async function loadDetail(hotelId, isLoveho) {
                     s.id === _shopParam
                 );
             }
-            const citySlot = document.getElementById('detail-ad-slot');
+            const citySlot = document.getElementById('detail-ad-city');
             if (citySlot && filteredCityShops.length) citySlot.innerHTML = renderDetailShopCards(filteredCityShops, hotel.city);
-            // 店舗モード時は他店舗のエリア/都道府県広告を非表示
+            // ②〜⑤: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
-                const areaSlot = document.getElementById('detail-ad-area-slot');
-                if (areaSlot && areaAds) areaSlot.innerHTML = areaAds;
-                const prefSlot = document.getElementById('detail-ad-pref-slot');
-                if (prefSlot && prefAds) prefSlot.innerHTML = prefAds;
+                const spotSlot = document.getElementById('detail-ad-spot');
+                if (spotSlot && spotAds && spotAds.length) spotSlot.innerHTML = renderDetailTextLink(spotAds, 'このスポットで呼べるおすすめ認証店舗');
+                const areaSlot = document.getElementById('detail-ad-area');
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderDetailTextLink(areaAds, 'このエリアで呼べるおすすめ認証店舗');
+                const prefSlot = document.getElementById('detail-ad-pref');
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderDetailTextLink(prefAds, (hotel.prefecture || '') + 'で呼べるおすすめ認証店舗');
+                const natSlot = document.getElementById('detail-ad-national');
+                if (natSlot && nationalAds && nationalAds.length) natSlot.innerHTML = renderDetailTextLink(nationalAds, '全国対応のおすすめ認証店舗');
             }
         }
     } catch(e) {
@@ -1666,17 +1672,19 @@ function renderDetailPage(hotel, isLoveho, sections) {
                 ${hotel.prefecture ? `<span class="text-sub2">📌 ${esc(hotel.major_area || hotel.prefecture)}</span>` : ''}
             </div>` : ''}
         </div>
-        <div id="detail-ad-slot"></div>
+        <div id="detail-ad-city"></div>
         ${sections.statsHTML || ''}
         ${sections.shopSection || ''}
+        <div id="detail-ad-spot"></div>
         ${sections.userSection || ''}
-        <div id="detail-ad-area-slot"></div>
+        <div id="detail-ad-area"></div>
         ${sections.formHTML || ''}
-        <div id="detail-ad-pref-slot"></div>
+        <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
             <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
+        <div id="detail-ad-national"></div>
     </div>`;
 }
 
@@ -1953,7 +1961,9 @@ function filterLhUserReports(filter) {
 }
 
 function renderDetailShopCards(shops, cityName) {
-    return shops.map(s => {
+    // ①市区町村: 画像カード（最も目立つ）
+    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ店舗</div>` +
+    shops.map(s => {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)} 🔗</a>`
             : `<span style="font-size:13px;color:var(--text);font-weight:500;">${esc(s.shop_name)}</span>`;
@@ -1961,7 +1971,6 @@ function renderDetailShopCards(shops, cityName) {
             ? `<img src="${esc(s.thumbnail_url)}" width="48" height="64" loading="lazy" style="object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
             : '';
         return `<div class="shop-ad-card">
-            <div style="color:#999;font-size:10px;margin-bottom:6px;">📢 ${esc(cityName)}で呼べる店舗</div>
             <div style="display:flex;align-items:center;gap:12px;">
                 ${thumbHtml}
                 <div>
@@ -1973,7 +1982,24 @@ function renderDetailShopCards(shops, cityName) {
                 </div>
             </div>
         </div>`;
-    }).join('');
+    }).join('') + '</div>';
+}
+function renderDetailTextLink(ads, label) {
+    // ②〜⑤: テキストリンク（簡素）
+    if (!ads || !ads.length) return '';
+    const links = ads.map(ad => {
+        const name = ad.shops ? ad.shops.shop_name : '';
+        const url = ad.shops ? ad.shops.shop_url : '';
+        if (!name) return '';
+        return url
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:12px;text-decoration:none;font-weight:500;">${esc(name)} 🔗</a>`
+            : `<span style="font-size:12px;color:var(--text);font-weight:500;">${esc(name)}</span>`;
+    }).filter(Boolean);
+    if (!links.length) return '';
+    return `<div style="margin:8px 0;padding:8px 12px;border-left:3px solid #e8ddd5;background:#faf7f4;border-radius:0 6px 6px 0;">
+        <div style="color:#888;font-size:10px;margin-bottom:4px;">${esc(label)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px 16px;">${links.map(l => `<span style="display:flex;align-items:center;gap:4px;"><span style="background:#b5627a;color:#fff;font-size:8px;padding:0 4px;border-radius:2px;">認証</span>${l}</span>`).join('')}</div>
+    </div>`;
 }
 
 function renderAreaShopSection(shops) {
