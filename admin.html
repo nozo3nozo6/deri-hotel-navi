@@ -1435,19 +1435,60 @@ async function loadShopContracts(shopId,plans){
 }
 
 async function toggleShopContract(shopId,planId,isActive){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
   if(isActive){
-    if(!confirm('このプランを解除しますか？'))return;
+    // 解除時: このプランが提供する枠を失った結果、超過する掲載エリアを特定
+    const planLimits=PLAN_LIMITS[planId]||{};
+    // 解除後の残り枠を計算
+    const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+    const afterIds=(Array.isArray(contracts)?contracts:[]).filter(c=>c.plan_id!==planId).map(c=>c.plan_id);
+    let afterLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+    afterIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
+    // 現在の掲載エリアを取得
+    const placements=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1');
+    const activePlacements=Array.isArray(placements)?placements:[];
+    // レベルごとに超過分を特定
+    const AD_TYPE_DEL={city:'spot',detail_area:'town',spot:'area',prefecture:'big',region:'region',national:'premium'};
+    let toRemove=[];
+    const levels=['city','detail_area','spot','prefecture','region','national'];
+    levels.forEach(lv=>{
+      const active=activePlacements.filter(p=>p.level===lv);
+      const maxAfter=afterLimits[lv]||0;
+      if(active.length>maxAfter){
+        // 超過分（新しい順に削除）
+        const excess=active.slice(maxAfter);
+        excess.forEach(p=>toRemove.push(p));
+      }
+    });
+    // 確認ダイアログ
+    let msg='「'+planName+'」を解除しますか？';
+    if(toRemove.length>0){
+      msg+='\n\n⚠️ 枠数超過のため、以下の掲載エリアも削除されます:\n';
+      toRemove.forEach(p=>{
+        msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;
+      });
+      msg+='\n\n（掲載エリア '+toRemove.length+'件 が削除されます）';
+    }
+    if(!confirm(msg))return;
+    // プラン解除
     await api('delete',{table:'shop_contracts',filters:{shop_id:shopId,plan_id:planId}});
-    toast('プランを解除しました');
+    // 超過分の掲載エリア＋広告を削除
+    for(const p of toRemove){
+      await api('delete',{table:'shop_placements',id:p.id});
+      const adType=AD_TYPE_DEL[p.level]||p.level;
+      await api('delete',{table:'ad_placements',filters:{shop_id:shopId,placement_type:adType,placement_target:p.target_name}});
+    }
+    toast(toRemove.length>0?'プランを解除し、掲載エリア'+toRemove.length+'件を削除しました':'プランを解除しました');
   }else{
+    if(!confirm('「'+planName+'」を追加しますか？'))return;
     await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
     toast('プランを追加しました');
   }
   loadShopContracts(shopId,contractPlansData||[]);
   // 有料プラン追加時はエリア管理を案内
-  const p=(contractPlansData||[]).find(x=>x.id===planId);
-  if(!isActive&&p&&p.price>0){
-    _pendingPlanEmail={shopId,planName:p.name,planPrice:p.price};
+  if(!isActive&&planInfo&&planInfo.price>0){
+    _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price};
   }
 }
 
