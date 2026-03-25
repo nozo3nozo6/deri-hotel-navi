@@ -454,6 +454,9 @@ async function loadLovehoForCurrentCity() {
         });
         cachedLovehoData = withSummary;
         renderLovehoCards(withSummary);
+        // API実数でタブ件数を更新（area-data.jsonが古い場合の補正）
+        const lhCountEl = document.getElementById('loveho-count');
+        if (lhCountEl) lhCountEl.textContent = withSummary.length;
     } catch (e) { /* error silenced */ }
     finally { hideLoading(); }
 }
