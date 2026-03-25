@@ -258,6 +258,22 @@ async function restoreFromUrl() {
     if (params.city) {
         const { pref, area, detail, city } = params;
         const region = findRegionByPref(pref);
+        // 3セグメントURL判別: cityがdetail_area名の場合はshowDetailAreaPageへ
+        if (!detail && area && city) {
+            const ad = await loadAreaData();
+            const aKey = pref + '\t' + area;
+            const aEntry = ad?.area?.[aKey];
+            const isDetailArea = aEntry?.da?.some(([name]) => name === city);
+            if (isDetailArea) {
+                pageStack = [showJapanPage];
+                if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
+                if (pref) pageStack.push(() => showMajorAreaPage(region, pref));
+                pageStack.push(() => showCityPage(region, pref, area));
+                showDetailAreaPage(region, pref, area, city);
+                _skipPushState = false;
+                return;
+            }
+        }
         pageStack = [showJapanPage];
         if (region && !isSinglePrefRegion(region)) pageStack.push(() => showPrefPage(region));
         if (pref && area) pageStack.push(() => showMajorAreaPage(region, pref));
