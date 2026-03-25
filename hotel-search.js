@@ -697,10 +697,14 @@ async function loadDetail(hotelId, isLoveho) {
                 if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderDetailTextLink(blockAds, 'このエリアで呼べるおすすめ認証店舗');
                 const prefSlot = document.getElementById('detail-ad-pref');
                 if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderDetailTextLink(prefAds, (hotel.prefecture || '') + 'で呼べるおすすめ認証店舗');
-                const regSlot = document.getElementById('detail-ad-region');
-                if (regSlot && regionAds && regionAds.length) regSlot.innerHTML = renderDetailTextLink(regionAds, (_regionLabel || '') + 'で呼べるおすすめ認証店舗');
-                const natSlot = document.getElementById('detail-ad-national');
-                if (natSlot && nationalAds && nationalAds.length) natSlot.innerHTML = renderDetailTextLink(nationalAds, '全国対応のおすすめ認証店舗');
+                // 地方+全国を1つの広域枠にまとめ
+                const wideSlot = document.getElementById('detail-ad-wide');
+                if (wideSlot) {
+                    const wideItems = [];
+                    if (regionAds && regionAds.length) wideItems.push({ ads: regionAds, label: (_regionLabel || '') + 'で呼べるおすすめ認証店舗' });
+                    if (nationalAds && nationalAds.length) wideItems.push({ ads: nationalAds, label: '全国対応のおすすめ認証店舗' });
+                    if (wideItems.length) wideSlot.innerHTML = renderDetailWideLinks(wideItems);
+                }
             }
         }
     } catch(e) {
@@ -1691,8 +1695,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
             <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
-        <div id="detail-ad-region"></div>
-        <div id="detail-ad-national"></div>
+        <div id="detail-ad-wide"></div>
     </div>`;
 }
 
@@ -2007,6 +2010,30 @@ function renderDetailTextLink(ads, label) {
     return `<div style="margin:8px 0;padding:8px 12px;border-left:3px solid #e8ddd5;background:#faf7f4;border-radius:0 6px 6px 0;">
         <div style="color:#888;font-size:10px;margin-bottom:4px;">${esc(label)}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px 16px;">${links.map(l => `<span style="display:flex;align-items:center;gap:4px;"><span style="background:#b5627a;color:#fff;font-size:8px;padding:0 4px;border-radius:2px;">認証</span>${l}</span>`).join('')}</div>
+    </div>`;
+}
+
+function renderDetailWideLinks(items) {
+    // 地方+全国をまとめた広域枠
+    const sections = items.map(({ ads, label }) => {
+        const links = ads.map(ad => {
+            const name = ad.shops ? ad.shops.shop_name : '';
+            const url = ad.shops ? ad.shops.shop_url : '';
+            if (!name) return '';
+            return url
+                ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:12px;text-decoration:none;font-weight:500;">${esc(name)} 🔗</a>`
+                : `<span style="font-size:12px;color:var(--text);font-weight:500;">${esc(name)}</span>`;
+        }).filter(Boolean);
+        if (!links.length) return '';
+        return `<div style="margin-bottom:4px;">
+            <div style="color:#888;font-size:10px;margin-bottom:2px;">${esc(label)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">${links.map(l => `<span style="display:flex;align-items:center;gap:4px;"><span style="background:#b5627a;color:#fff;font-size:8px;padding:0 4px;border-radius:2px;">認証</span>${l}</span>`).join('')}</div>
+        </div>`;
+    }).filter(Boolean);
+    if (!sections.length) return '';
+    return `<div style="margin:8px 0;padding:10px 12px;border-left:3px solid #d5dde8;background:#f7f8fa;border-radius:0 6px 6px 0;">
+        <div style="color:#666;font-size:10px;font-weight:600;margin-bottom:6px;">広域で呼べるおすすめ認証店舗</div>
+        ${sections.join('')}
     </div>`;
 }
 
