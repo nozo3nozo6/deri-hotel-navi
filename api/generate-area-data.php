@@ -3,6 +3,8 @@
  * generate-area-data.php — エリアナビ用静的JSON生成（MySQL版）
  * Usage: php generate-area-data.php
  * Output: ../area-data.json
+ *
+ * 全件数はホテル+ラブホの合計、市区町村件数はスコープ（major_area/detail_area）固有
  */
 require_once __DIR__ . '/db.php';
 $pdo = DB::conn();
@@ -21,6 +23,10 @@ function extractCity($address) {
     return null;
 }
 
+function isLoveho($h) {
+    return in_array($h['hotel_type'], ['love_hotel', 'rental_room']);
+}
+
 echo "Fetching hotels...\n";
 $stmt = $pdo->query("SELECT prefecture, major_area, detail_area, city, address, hotel_type FROM hotels WHERE is_published = 1");
 $hotels = $stmt->fetchAll();
@@ -30,26 +36,15 @@ echo "Fetched " . count($hotels) . " hotels\n";
 foreach ($hotels as &$h) { if (!$h['city']) $h['city'] = extractCity($h['address']); }
 unset($h);
 
-$regular = array_filter($hotels, fn($h) => !in_array($h['hotel_type'], ['love_hotel','rental_room']));
-$loveho = array_filter($hotels, fn($h) => in_array($h['hotel_type'], ['love_hotel','rental_room']));
-
-// prefCounts
+// prefCounts（全タイプ合計）
 $prefCounts = [];
-foreach ($regular as $h) {
+foreach ($hotels as $h) {
     if ($h['prefecture']) $prefCounts[$h['prefecture']] = ($prefCounts[$h['prefecture']] ?? 0) + 1;
 }
 
-// loveho by city+pref
-$lovehoByCityPref = [];
-foreach ($loveho as $h) {
-    if (!$h['prefecture'] || !$h['city']) continue;
-    $key = $h['prefecture'] . "\t" . $h['city'];
-    $lovehoByCityPref[$key] = ($lovehoByCityPref[$key] ?? 0) + 1;
-}
-
-// pref -> areas + noArea
+// pref -> areas + noArea（全タイプ合計）
 $prefInfo = [];
-foreach ($regular as $h) {
+foreach ($hotels as $h) {
     if (!$h['prefecture']) continue;
     if (!isset($prefInfo[$h['prefecture']])) $prefInfo[$h['prefecture']] = ['_areas' => [], '_noArea' => 0];
     if ($h['major_area']) {
@@ -66,20 +61,16 @@ foreach ($prefInfo as $p => $d) {
     $prefData[$p] = ['areas' => $areas, 'hasNoArea' => $d['_noArea'] > 0];
 }
 
-// prefCityCount + cityAreaCountMap
-$prefCityCount = [];
+// cityAreaCountMap: どのmajor_areaにその市が最も多いか判定用（全タイプ）
 $cityAreaCountMap = [];
-foreach ($regular as $h) {
-    if (!$h['prefecture'] || !$h['city']) continue;
-    $prefCityCount[$h['prefecture']][$h['city']] = ($prefCityCount[$h['prefecture']][$h['city']] ?? 0) + 1;
-    if ($h['major_area']) {
-        $cityAreaCountMap[$h['prefecture']][$h['city']][$h['major_area']] = ($cityAreaCountMap[$h['prefecture']][$h['city']][$h['major_area']] ?? 0) + 1;
-    }
+foreach ($hotels as $h) {
+    if (!$h['prefecture'] || !$h['city'] || !$h['major_area']) continue;
+    $cityAreaCountMap[$h['prefecture']][$h['city']][$h['major_area']] = ($cityAreaCountMap[$h['prefecture']][$h['city']][$h['major_area']] ?? 0) + 1;
 }
 
-// area data
+// area data（全タイプでカウント）
 $areaHotels = [];
-foreach ($regular as $h) {
+foreach ($hotels as $h) {
     if (!$h['prefecture'] || !$h['major_area']) continue;
     $key = $h['prefecture'] . "\t" . $h['major_area'];
     $areaHotels[$key][] = $h;
@@ -88,6 +79,8 @@ foreach ($regular as $h) {
 $areaData = [];
 foreach ($areaHotels as $key => $hotelList) {
     [$p, $ma] = explode("\t", $key);
+
+    // detail_area件数（全タイプ合計）
     $daCounts = [];
     foreach ($hotelList as $h) {
         if ($h['detail_area'] && $h['detail_area'] !== $ma) {
@@ -98,28 +91,37 @@ foreach ($areaHotels as $key => $hotelList) {
     foreach ($daCounts as $da => $c) $detailAreas[] = [$da, $c];
     usort($detailAreas, fn($a, $b) => $b[1] - $a[1]);
 
-    $citySet = [];
-    foreach ($hotelList as $h) { if ($h['city']) $citySet[$h['city']] = true; }
+    // 市区町村件数（このmajor_area内でのカウント）
+    $cityRegular = [];
+    $cityLoveho = [];
+    foreach ($hotelList as $h) {
+        if (!$h['city']) continue;
+        if (isLoveho($h)) {
+            $cityLoveho[$h['city']] = ($cityLoveho[$h['city']] ?? 0) + 1;
+        } else {
+            $cityRegular[$h['city']] = ($cityRegular[$h['city']] ?? 0) + 1;
+        }
+    }
+
+    // 表示フィルタ: このmajor_areaが最多のcityのみ表示
+    $allCities = array_unique(array_merge(array_keys($cityRegular), array_keys($cityLoveho)));
     $displayCities = [];
-    foreach (array_keys($citySet) as $city) {
+    foreach ($allCities as $city) {
         $ac = $cityAreaCountMap[$p][$city] ?? null;
         if (!$ac) { $displayCities[] = $city; continue; }
         $maxCount = max($ac);
         $currentCount = $ac[$ma] ?? 0;
         if ($currentCount >= $maxCount) $displayCities[] = $city;
     }
-    $pcc = $prefCityCount[$p] ?? [];
-    usort($displayCities, fn($a, $b) => ($pcc[$b] ?? 0) - ($pcc[$a] ?? 0));
-    $cities = array_map(function($city) use ($p, $pcc, $lovehoByCityPref) {
-        return [$city, $pcc[$city] ?? 0, $lovehoByCityPref[$p . "\t" . $city] ?? 0];
-    }, $displayCities);
+    usort($displayCities, fn($a, $b) => (($cityRegular[$b] ?? 0) + ($cityLoveho[$b] ?? 0)) - (($cityRegular[$a] ?? 0) + ($cityLoveho[$a] ?? 0)));
+    $cities = array_map(fn($city) => [$city, $cityRegular[$city] ?? 0, $cityLoveho[$city] ?? 0], $displayCities);
 
     $areaData[$key] = ['da' => $detailAreas, 'ct' => $cities];
 }
 
-// detail area data
+// detail area data（全タイプ、スコープ固有カウント）
 $daHotels = [];
-foreach ($regular as $h) {
+foreach ($hotels as $h) {
     if (!$h['prefecture'] || !$h['major_area'] || !$h['detail_area']) continue;
     if ($h['detail_area'] === $h['major_area']) continue;
     $key = $h['prefecture'] . "\t" . $h['major_area'] . "\t" . $h['detail_area'];
@@ -127,32 +129,45 @@ foreach ($regular as $h) {
 }
 $detailAreaData = [];
 foreach ($daHotels as $key => $hotelList) {
-    $p = explode("\t", $key)[0];
-    $citySet = [];
-    foreach ($hotelList as $h) { if ($h['city']) $citySet[$h['city']] = true; }
-    $pcc = $prefCityCount[$p] ?? [];
-    $cityList = array_keys($citySet);
-    usort($cityList, fn($a, $b) => ($pcc[$b] ?? 0) - ($pcc[$a] ?? 0));
-    $cities = array_map(function($city) use ($p, $pcc, $lovehoByCityPref) {
-        return [$city, $pcc[$city] ?? 0, $lovehoByCityPref[$p . "\t" . $city] ?? 0];
-    }, $cityList);
+    $cityRegular = [];
+    $cityLoveho = [];
+    foreach ($hotelList as $h) {
+        if (!$h['city']) continue;
+        if (isLoveho($h)) {
+            $cityLoveho[$h['city']] = ($cityLoveho[$h['city']] ?? 0) + 1;
+        } else {
+            $cityRegular[$h['city']] = ($cityRegular[$h['city']] ?? 0) + 1;
+        }
+    }
+    $allCities = array_unique(array_merge(array_keys($cityRegular), array_keys($cityLoveho)));
+    usort($allCities, fn($a, $b) => (($cityRegular[$b] ?? 0) + ($cityLoveho[$b] ?? 0)) - (($cityRegular[$a] ?? 0) + ($cityLoveho[$a] ?? 0)));
+    $cities = array_map(fn($city) => [$city, $cityRegular[$city] ?? 0, $cityLoveho[$city] ?? 0], $allCities);
     $detailAreaData[$key] = ['ct' => $cities];
 }
 
-// noArea
+// noArea（全タイプ）
 $noAreaHotels = [];
-foreach ($regular as $h) {
+$noAreaLoveho = [];
+foreach ($hotels as $h) {
     if ($h['major_area'] || !$h['prefecture']) continue;
     $city = $h['city'] ?: 'unknown';
-    $noAreaHotels[$h['prefecture']][$city] = ($noAreaHotels[$h['prefecture']][$city] ?? 0) + 1;
+    if (isLoveho($h)) {
+        $noAreaLoveho[$h['prefecture']][$city] = ($noAreaLoveho[$h['prefecture']][$city] ?? 0) + 1;
+    } else {
+        $noAreaHotels[$h['prefecture']][$city] = ($noAreaHotels[$h['prefecture']][$city] ?? 0) + 1;
+    }
 }
 $noAreaData = [];
-foreach ($noAreaHotels as $p => $cityCounts) {
+$allNoAreaPrefs = array_unique(array_merge(array_keys($noAreaHotels), array_keys($noAreaLoveho)));
+foreach ($allNoAreaPrefs as $p) {
+    $regCounts = $noAreaHotels[$p] ?? [];
+    $lhCounts = $noAreaLoveho[$p] ?? [];
+    $allCities = array_unique(array_merge(array_keys($regCounts), array_keys($lhCounts)));
     $cities = [];
-    foreach ($cityCounts as $city => $count) {
-        $cities[] = [$city, $count, $lovehoByCityPref[$p . "\t" . $city] ?? 0];
+    foreach ($allCities as $city) {
+        $cities[] = [$city, $regCounts[$city] ?? 0, $lhCounts[$city] ?? 0];
     }
-    usort($cities, fn($a, $b) => $b[1] - $a[1]);
+    usort($cities, fn($a, $b) => ($b[1] + $b[2]) - ($a[1] + $a[2]));
     $noAreaData[$p] = $cities;
 }
 
