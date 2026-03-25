@@ -119,7 +119,21 @@ foreach ($areaHotels as $key => $hotelList) {
     $areaData[$key] = ['da' => $detailAreas, 'ct' => $cities];
 }
 
-// detail area data（全タイプ、スコープ固有カウント）
+// detail area data（市区町村件数はmajor_area全体のカウント）
+// major_area別の市区町村カウントを事前計算
+$areaCityRegular = [];
+$areaCityLoveho = [];
+foreach ($areaHotels as $aKey => $hList) {
+    foreach ($hList as $h) {
+        if (!$h['city']) continue;
+        if (isLoveho($h)) {
+            $areaCityLoveho[$aKey][$h['city']] = ($areaCityLoveho[$aKey][$h['city']] ?? 0) + 1;
+        } else {
+            $areaCityRegular[$aKey][$h['city']] = ($areaCityRegular[$aKey][$h['city']] ?? 0) + 1;
+        }
+    }
+}
+
 $daHotels = [];
 foreach ($hotels as $h) {
     if (!$h['prefecture'] || !$h['major_area'] || !$h['detail_area']) continue;
@@ -129,19 +143,19 @@ foreach ($hotels as $h) {
 }
 $detailAreaData = [];
 foreach ($daHotels as $key => $hotelList) {
-    $cityRegular = [];
-    $cityLoveho = [];
-    foreach ($hotelList as $h) {
-        if (!$h['city']) continue;
-        if (isLoveho($h)) {
-            $cityLoveho[$h['city']] = ($cityLoveho[$h['city']] ?? 0) + 1;
-        } else {
-            $cityRegular[$h['city']] = ($cityRegular[$h['city']] ?? 0) + 1;
-        }
-    }
-    $allCities = array_unique(array_merge(array_keys($cityRegular), array_keys($cityLoveho)));
-    usort($allCities, fn($a, $b) => (($cityRegular[$b] ?? 0) + ($cityLoveho[$b] ?? 0)) - (($cityRegular[$a] ?? 0) + ($cityLoveho[$a] ?? 0)));
-    $cities = array_map(fn($city) => [$city, $cityRegular[$city] ?? 0, $cityLoveho[$city] ?? 0], $allCities);
+    [$p, $ma] = explode("\t", $key);
+    $aKey = $p . "\t" . $ma;
+    $maReg = $areaCityRegular[$aKey] ?? [];
+    $maLh = $areaCityLoveho[$aKey] ?? [];
+
+    // このdetail_areaに存在する市区町村を収集
+    $citySet = [];
+    foreach ($hotelList as $h) { if ($h['city']) $citySet[$h['city']] = true; }
+    $allCities = array_keys($citySet);
+
+    // major_area全体の件数でソート・表示
+    usort($allCities, fn($a, $b) => (($maReg[$b] ?? 0) + ($maLh[$b] ?? 0)) - (($maReg[$a] ?? 0) + ($maLh[$a] ?? 0)));
+    $cities = array_map(fn($city) => [$city, $maReg[$city] ?? 0, $maLh[$city] ?? 0], $allCities);
     $detailAreaData[$key] = ['ct' => $cities];
 }
 
