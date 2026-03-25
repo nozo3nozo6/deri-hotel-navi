@@ -257,6 +257,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     try {
         const apiParams = { limit: 50, city };
         if (filterObj.prefecture) apiParams.pref = filterObj.prefecture;
+        if (filterObj.major_area) apiParams.major_area = filterObj.major_area;
+        if (filterObj.detail_area) apiParams.detail_area = filterObj.detail_area;
 
         const rawHotels = await queryHotelsAPI(apiParams);
         let hotels = await fetchHotelsWithSummary(rawHotels);
@@ -306,7 +308,9 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
     _stationForLoveho = null; // 通常エリアナビなので駅フラグリセット
     if (!pref || !city) return;
 
-    const cacheKey = pref + '|||' + city;
+    const majorArea = _tabFilterObj ? _tabFilterObj.major_area : null;
+    const detailArea = _tabFilterObj ? _tabFilterObj.detail_area : null;
+    const cacheKey = pref + '|||' + city + '|||' + (majorArea || '') + '|||' + (detailArea || '');
     if (_tabCityKey !== cacheKey) {
         cachedHotelData = null;
         cachedLovehoData = null;
@@ -314,23 +318,41 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
     }
     cachedHotelData = hotels;
 
-    // area-data.jsonからラブホ件数を取得（APIコール不要）
+    // area-data.jsonからラブホ件数を取得（スコープ固有）
     let lovehoCount = 0;
     if (_areaData) {
-        for (const areaInfo of Object.values(_areaData.area || {})) {
-            const found = (areaInfo.ct || []).find(c => c[0] === city);
-            if (found) { lovehoCount = found[2] || 0; break; }
-        }
-        if (!lovehoCount) {
-            for (const daInfo of Object.values(_areaData.da || {})) {
+        // detail_area指定時: そのdetail_areaのcity件数を使用
+        if (detailArea && majorArea) {
+            const daKey = pref + '\t' + majorArea + '\t' + detailArea;
+            const daInfo = _areaData.da && _areaData.da[daKey];
+            if (daInfo) {
                 const found = (daInfo.ct || []).find(c => c[0] === city);
+                if (found) lovehoCount = found[2] || 0;
+            }
+        }
+        // major_area指定時: そのareaのcity件数を使用
+        if (!lovehoCount && majorArea) {
+            const areaKey = pref + '\t' + majorArea;
+            const areaInfo = _areaData.area && _areaData.area[areaKey];
+            if (areaInfo) {
+                const found = (areaInfo.ct || []).find(c => c[0] === city);
+                if (found) lovehoCount = found[2] || 0;
+            }
+        }
+        // フォールバック: 全エリア検索
+        if (!lovehoCount) {
+            for (const areaInfo of Object.values(_areaData.area || {})) {
+                const found = (areaInfo.ct || []).find(c => c[0] === city);
                 if (found) { lovehoCount = found[2] || 0; break; }
             }
         }
     }
     // フォールバック: JSONにない場合はPHP API
     if (!lovehoCount && !_areaData) {
-        const fbHotels = await queryHotelsAPI({ pref, city_like: city, type: 'loveho', cols: 'id', limit: 50 });
+        const apiP = { pref, city_like: city, type: 'loveho', cols: 'id', limit: 50 };
+        if (majorArea) apiP.major_area = majorArea;
+        if (detailArea) apiP.detail_area = detailArea;
+        const fbHotels = await queryHotelsAPI(apiP);
         lovehoCount = fbHotels ? fbHotels.length : 0;
     }
     const urlTab = new URLSearchParams(window.location.search).get('tab');
@@ -423,6 +445,8 @@ async function loadLovehoForCurrentCity() {
         const pref = _tabFilterObj.prefecture;
         const apiP = { type: 'loveho', city_like: _tabCity, limit: 50 };
         if (pref) apiP.pref = pref;
+        if (_tabFilterObj.major_area) apiP.major_area = _tabFilterObj.major_area;
+        if (_tabFilterObj.detail_area) apiP.detail_area = _tabFilterObj.detail_area;
         const hotels = await queryHotelsAPI(apiP);
         if (gen !== _fetchGeneration) return; // stale, abort
         if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
