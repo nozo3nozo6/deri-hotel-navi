@@ -791,6 +791,21 @@
                 <button class="btn-save" onclick="saveHreqAsHotel()">ホテルに登録する</button>
             </div>
         </div>
+        <!-- Step3: 完了 → 公開 -->
+        <div id="hreq-step3" style="display:none;">
+            <div style="text-align:center;padding:20px 0;">
+                <div style="font-size:32px;margin-bottom:12px;">✅</div>
+                <div style="font-size:16px;font-weight:700;margin-bottom:8px;">ホテルを登録しました</div>
+                <div id="hreq-done-name" style="font-size:14px;color:var(--ink-3);margin-bottom:16px;"></div>
+                <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#856404;text-align:left;">
+                    現在<strong>非公開</strong>です。公開するとポータルに表示されます。
+                </div>
+                <div style="display:flex;gap:10px;justify-content:center;">
+                    <button class="btn-cancel" onclick="closeHreqEdit()">後で公開する</button>
+                    <button class="btn-save" style="background:#28a745;" onclick="publishHreqHotel()">🌐 今すぐ公開する</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 <!-- モーダル：投稿編集 -->
@@ -2506,7 +2521,7 @@ function openHreqEdit(id){
   document.getElementById("hreq-edit-modal").style.display="flex";
 }
 
-function closeHreqEdit(){document.getElementById("hreq-edit-modal").style.display="none";}
+function closeHreqEdit(){document.getElementById("hreq-edit-modal").style.display="none";document.getElementById("hreq-step3").style.display="none";_hreqNewHotelId=null;}
 
 function hreqEditToConfirm(){
   var name=document.getElementById("hreq-edit-name").value.trim();
@@ -2532,10 +2547,12 @@ function hreqEditBack(){
   document.getElementById("hreq-step2").style.display="none";
 }
 
+let _hreqNewHotelId=null;
 async function saveHreqAsHotel(){
   var id=document.getElementById("hreq-edit-id").value;
   var name=document.getElementById("hreq-edit-name").value.trim();
   if(!name){toast("ホテル名を入力してください");return;}
+  if(!confirm("「"+name+"」をホテルとして登録しますか？"))return;
   var payload={
     name:name,
     address:document.getElementById("hreq-edit-address").value.trim()||null,
@@ -2548,14 +2565,26 @@ async function saveHreqAsHotel(){
     source:"manual",
     is_published:false
   };
-  console.log("[saveHreqAsHotel] payload:",payload,"hreq_id:",id);
   var r1=await api('insert',{table:'hotels',data:payload});r1={data:r1.data,error:r1.ok?null:{message:r1.error||''}};
-  if(r1.error){console.error("[saveHreqAsHotel] hotels insert error:",r1.error,"payload:",payload);toast("ホテル追加エラー: "+r1.error.message);return;}
+  if(r1.error){toast("ホテル追加エラー: "+(r1.error.message||''));return;}
+  _hreqNewHotelId=r1.data?r1.data.id:null;
   var r2=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:id,data:{status:'confirmed'}})});
-  if(!r2.ok){console.error("[saveHreqAsHotel] hotel_requests update error");toast("ステータス更新エラー");return;}
+  if(!r2.ok){toast("ステータス更新エラー");return;}
   hotelRequestsData=hotelRequestsData.map(function(r){return String(r.id)===id?Object.assign({},r,{status:"confirmed"}):r;});
-  updateHreqBadge();renderHotelRequests();closeHreqEdit();
-  toast("✅ ホテルを保存しました（非公開）。公開するにはホテル一覧から公開設定してください。");
+  updateHreqBadge();renderHotelRequests();
+  // Step3: 完了画面へ
+  document.getElementById("hreq-step2").style.display="none";
+  document.getElementById("hreq-step3").style.display="";
+  document.getElementById("hreq-done-name").textContent="「"+name+"」";
+}
+async function publishHreqHotel(){
+  if(!_hreqNewHotelId){toast("ホテルIDが不明です");closeHreqEdit();return;}
+  if(!confirm("このホテルを公開しますか？ポータルに表示されます。"))return;
+  var r=await api('update',{table:'hotels',id:_hreqNewHotelId,data:{is_published:true}});
+  if(!r.ok){toast("公開エラー");return;}
+  toast("🌐 公開しました！ポータルに表示されます。");
+  loadHotels();
+  closeHreqEdit();
 }
 
 async function deleteHotelRequest(id){
