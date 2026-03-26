@@ -1621,20 +1621,11 @@ function onPmLevelChange(){
   const areaWrap=document.getElementById("pm-area-wrap");
   const daWrap=document.getElementById("pm-da-wrap");
   const cityWrap=document.getElementById("pm-city-wrap");
-  // リセット
+  // 全リセット（段階的に表示するため）
   document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-da").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
   areaWrap.style.display='none';daWrap.style.display='none';cityWrap.style.display='none';
-  // レベル別表示
-  if(lv==='city'){
-    areaWrap.style.display='';daWrap.style.display='none';cityWrap.style.display='';
-    document.getElementById("pm-city").innerHTML='<option value="">← まずエリアを選択</option>';
-  }else if(lv==='detail_area'){
-    areaWrap.style.display='';daWrap.style.display='';
-  }else if(lv==='spot'){
-    areaWrap.style.display='';
-  }
   // ステップ番号を更新
   updatePmStepLabels(lv);
   // 地方selectの表示制御
@@ -1646,9 +1637,13 @@ function onPmLevelChange(){
     updatePmFormSlotHint();
     return;
   }
-  // 都道府県が既に選択されている場合、エリアをセット
+  // 都道府県が選択されている場合、次のステップのみ表示
   const pref=document.getElementById("pm-pref").value;
-  if(pref&&lv!=='prefecture')populateAreaSelect(pref);
+  if(pref&&lv==='prefecture'){updatePmFormSlotHint();return;}
+  if(pref&&(lv==='city'||lv==='detail_area'||lv==='spot')){
+    populateAreaSelect(pref);
+    areaWrap.style.display='';// ブロック選択のみ表示（次はonPmAreaChangeで段階表示）
+  }
   updatePmFormSlotHint();
 }
 function updatePmStepLabels(lv){
@@ -1700,33 +1695,31 @@ function populateAreaSelect(pref){
   if(!prefEntry)return;
   const areas=prefEntry.areas||[];
   const areaSel=document.getElementById("pm-area");
-  const lv=document.getElementById("pm-level").value;
 
-  if(lv==='spot'||lv==='city'||lv==='detail_area'){
-    areaSel.innerHTML='<option value="">エリアを選択</option>'+areas.map(([name,count])=>
+  if(areas.length){
+    areaSel.innerHTML='<option value="">ブロックを選択</option>'+areas.map(([name,count])=>
       `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
     ).join('');
-    document.getElementById("pm-area-wrap").style.display='';
   }
-  if(lv==='city'){
-    document.getElementById("pm-city-wrap").style.display='';
-    document.getElementById("pm-city").innerHTML='<option value="">← まずエリアを選択</option>';
-  }
-  if(lv==='detail_area'){
-    document.getElementById("pm-da-wrap").style.display='';
-    document.getElementById("pm-da").innerHTML='<option value="">← まずエリアを選択</option>';
-  }
+  // 段階表示: ブロック選択のみ表示。以降はonPmAreaChange/onPmDaChangeで表示
 }
 
 function onPmAreaChange(){
   const lv=document.getElementById("pm-level").value;
   const pref=document.getElementById("pm-pref").value;
   const area=document.getElementById("pm-area").value;
+  // リセット: 下位ステップを非表示
+  document.getElementById("pm-da-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+  document.getElementById("pm-da").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
+  if(!area)return;
 
   if(lv==='detail_area'){
+    document.getElementById("pm-da-wrap").style.display='';
     const daSel=document.getElementById("pm-da");
-    if(!pref||!area||!_pmAreaData){
-      daSel.innerHTML='<option value="">← まずエリアを選択</option>';
+    if(!pref||!_pmAreaData){
+      daSel.innerHTML='<option value="">← まずブロックを選択</option>';
       return;
     }
     const aKey=pref+'\t'+area;
@@ -1743,10 +1736,11 @@ function onPmAreaChange(){
   }
 
   if(lv!=='city')return;
+  document.getElementById("pm-city-wrap").style.display='';
   const citySel=document.getElementById("pm-city");
 
-  if(!pref||!area||!_pmAreaData){
-    citySel.innerHTML='<option value="">← まずエリアを選択</option>';
+  if(!pref||!_pmAreaData){
+    citySel.innerHTML='<option value="">← まずブロックを選択</option>';
     return;
   }
 
