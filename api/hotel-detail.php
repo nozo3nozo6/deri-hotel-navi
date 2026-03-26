@@ -73,14 +73,12 @@ unset($r);
 // ── 店舗情報（shop_hotel_info + shops + shop_contracts + contract_plans） ──
 $stmt = $pdo->prepare("
     SELECT shi.shop_id, shi.transport_fee, shi.can_call, shi.memo,
-           s.id AS s_id, s.shop_name, s.shop_url, s.status, s.plan_id AS s_plan_id,
-           sc.plan_id, cp.price,
-           cp2.price AS s_plan_price
+           s.id AS s_id, s.shop_name, s.shop_url, s.status,
+           sc.plan_id, cp.price
     FROM shop_hotel_info shi
     JOIN shops s ON shi.shop_id = s.id
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
-    LEFT JOIN contract_plans cp2 ON s.plan_id = cp2.id
     WHERE shi.hotel_id = ?
 ");
 $stmt->execute([$hotelId]);
@@ -101,7 +99,6 @@ foreach ($shopRows as $row) {
                 'shop_name' => $row['shop_name'],
                 'shop_url' => $row['shop_url'],
                 'status' => $row['status'],
-                'plan_price' => (int)($row['s_plan_price'] ?? 0),
                 'shop_contracts' => [],
             ],
         ];
@@ -144,12 +141,10 @@ if ($type === 'hotel' && $reports) {
         $placeholders = implode(',', array_fill(0, count($shopNames), '?'));
         $stmt = $pdo->prepare("
             SELECT s.id, s.shop_name, s.status, s.shop_url, s.plan_id,
-                   sc.plan_id AS sc_plan_id, cp.price,
-                   cp2.price AS s_plan_price
+                   sc.plan_id AS sc_plan_id, cp.price
             FROM shops s
             LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
             LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
-            LEFT JOIN contract_plans cp2 ON s.plan_id = cp2.id
             WHERE s.shop_name IN ($placeholders)
         ");
         $stmt->execute(array_values($shopNames));
@@ -165,7 +160,6 @@ if ($type === 'hotel' && $reports) {
                     'status' => $row['status'],
                     'shop_url' => $row['shop_url'],
                     'plan_id' => $row['plan_id'],
-                    'plan_price' => (int)($row['s_plan_price'] ?? 0),
                     'shop_contracts' => [],
                 ];
             }

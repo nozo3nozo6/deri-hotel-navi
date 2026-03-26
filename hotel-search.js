@@ -612,8 +612,7 @@ async function loadDetail(hotelId, isLoveho) {
             const name = shop.shop_name;
             if (!name) return;
             shopFeeMap[name] = info.transport_fee;
-            const contractPrice = Math.max(...(shop.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-            const maxPrice = Math.max(contractPrice, shop.plan_price || 0);
+            const maxPrice = Math.max(...(shop.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
             shopInfoMap[name] = { shop_url: shop.shop_url, isPaid: maxPrice > 0, planPrice: maxPrice, status: shop.status, shopId: shop.id, url: shop.shop_url };
         });
 
@@ -630,16 +629,14 @@ async function loadDetail(hotelId, isLoveho) {
             if (posterShopNames.length > 0) {
                 const shopRows = detailData.poster_shops || [];
                 (shopRows || []).forEach(s => {
-                    const contractPrice = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                    const price = Math.max(contractPrice, s.plan_price || 0);
+                    const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
                     shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
                 });
             }
             if (SHOP_DATA?.shop_name) {
                 const name = SHOP_DATA.shop_name;
                 const existing = shopInfoMap[name] || {};
-                const contractPrice = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                const price = Math.max(contractPrice, SHOP_DATA?.plan_price || 0);
+                const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
                 shopInfoMap[name] = {
                     shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
                     isPaid: existing.isPaid || price > 0,

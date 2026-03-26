@@ -46,8 +46,7 @@ $ALLOWED_TABLES = [
     'contract_plans', 'ad_plans',
 ];
 
-// ===== JSON配列カラム（INSERT/UPDATE時にJSON化） =====
-$JSON_COLS = ['can_call_reasons', 'cannot_call_reasons', 'good_points', 'conditions'];
+// ===== 値が配列なら自動的にJSON化（カラム名ハードコード不要） =====
 
 try {
     switch ($action) {
@@ -169,7 +168,7 @@ function handleList() {
 // 汎用INSERT（挿入後のレコードを返す）
 // ===================================================================
 function handleInsert() {
-    global $pdo, $ALLOWED_TABLES, $JSON_COLS;
+    global $pdo, $ALLOWED_TABLES;
     $table = $input['table'] ?? ($GLOBALS['input']['table'] ?? '');
     $data = $input['data'] ?? ($GLOBALS['input']['data'] ?? []);
     // Re-read from global
@@ -194,7 +193,7 @@ function handleInsert() {
         $col = preg_replace('/[^a-zA-Z0-9_]/', '', $col);
         $cols[] = "`$col`";
         $placeholders[] = '?';
-        if (in_array($col, $JSON_COLS) && is_array($val)) {
+        if (is_array($val)) {
             $params[] = DB::jsonEncode($val);
         } elseif (is_bool($val)) {
             $params[] = (int)$val;
@@ -225,7 +224,7 @@ function handleInsert() {
 // 汎用UPDATE
 // ===================================================================
 function handleUpdate() {
-    global $pdo, $ALLOWED_TABLES, $JSON_COLS;
+    global $pdo, $ALLOWED_TABLES;
     $input = $GLOBALS['input'];
     $table = $input['table'] ?? '';
     $id = $input['id'] ?? '';
@@ -239,7 +238,7 @@ function handleUpdate() {
     foreach ($data as $col => $val) {
         $col = preg_replace('/[^a-zA-Z0-9_]/', '', $col);
         $sets[] = "`$col` = ?";
-        if (in_array($col, $JSON_COLS) && is_array($val)) {
+        if (is_array($val)) {
             $params[] = DB::jsonEncode($val);
         } elseif (is_bool($val)) {
             $params[] = (int)$val;

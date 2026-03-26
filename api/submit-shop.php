@@ -18,7 +18,6 @@ $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) { http_response_code(400); echo json_encode(['error' => '無効なリクエストです']); exit; }
 
 $email      = trim($input['email'] ?? '');
-$authUserId = trim($input['auth_user_id'] ?? '');
 $shopName   = trim($input['shop_name'] ?? '');
 $genderMode = $input['gender_mode'] ?? 'men';
 $shopUrl    = trim($input['shop_url'] ?? '');
@@ -82,7 +81,6 @@ if ($existing) {
     $sql = 'UPDATE shops SET shop_name=?, gender_mode=?, shop_url=?, shop_tel=?, document_url=?, status=?, updated_at=?';
     $params = [$shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, 'registered', $now];
     if ($bcryptHash) { $sql .= ', password_hash=?'; $params[] = $bcryptHash; }
-    if ($authUserId) { $sql .= ', auth_user_id=?'; $params[] = $authUserId; }
     $sql .= ' WHERE email = ?';
     $params[] = $email;
     $stmt = $pdo->prepare($sql);
@@ -91,8 +89,8 @@ if ($existing) {
     // INSERT
     $id = DB::uuid();
     $slug = generateSlug($pdo);
-    $stmt = $pdo->prepare('INSERT INTO shops (id, email, auth_user_id, shop_name, gender_mode, shop_url, shop_tel, document_url, password_hash, slug, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$id, $email, $authUserId ?: null, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, $bcryptHash, $slug, 'registered', $now, $now]);
+    $stmt = $pdo->prepare('INSERT INTO shops (id, email, shop_name, gender_mode, shop_url, shop_tel, document_url, password_hash, slug, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$id, $email, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, $bcryptHash, $slug, 'registered', $now, $now]);
 }
 
 $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ?');
