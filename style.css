@@ -1709,6 +1709,7 @@ body[data-mode="men"] .header-title {
     border-radius: 16px;
     padding: 24px 20px 28px;
     width: 100%;
+    box-sizing: border-box;
     max-height: calc(100dvh - 80px);
     box-shadow: 0 8px 48px rgba(0,0,0,0.22);
     overflow-y: auto;
