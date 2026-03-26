@@ -37,6 +37,16 @@ if ($stmt->fetchColumn() > 0) {
     exit;
 }
 
+// 既存店舗チェック: 登録済み（active/registered/suspended等）なら拒否
+$stmt = $pdo->prepare('SELECT status, shop_name FROM shops WHERE email = ?');
+$stmt->execute([$email]);
+$existingShop = $stmt->fetch();
+if ($existingShop && !in_array($existingShop['status'], ['deleted', 'rejected'])) {
+    http_response_code(409);
+    echo json_encode(['error' => 'このメールアドレスは既に店舗登録されています。店舗管理画面からログインしてください。', 'existing' => true]);
+    exit;
+}
+
 // トークン生成
 $token = bin2hex(random_bytes(32)); // 64文字
 $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1時間有効
