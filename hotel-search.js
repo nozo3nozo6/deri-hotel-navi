@@ -265,12 +265,14 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
         if (gen !== _fetchGeneration) return; // stale, abort
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
-        setResultStatus(hotels.length);
+        const cityTotal = getCityTotalFromAreaData(pref, filterObj.major_area, city);
+        const totalHotelCount = cityTotal ? cityTotal.hotel : null;
+        setResultStatus(hotels.length, totalHotelCount);
 
         _tabFilterObj = filterObj;
         _tabCity = city;
 
-        showLovehoTabs(pref, city, hotels.length, hotels);
+        showLovehoTabs(pref, city, hotels.length, hotels, totalHotelCount);
 
         // エリア店舗セクション表示
         const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
@@ -303,7 +305,7 @@ Object.defineProperties(AppState.search, {
     _tabCity:          { get() { return _tabCity; },          set(v) { _tabCity = v; } },
 });
 
-async function showLovehoTabs(pref, city, hotelCount, hotels) {
+async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     hideLovehoTabs();
     _stationForLoveho = null; // 通常エリアナビなので駅フラグリセット
     if (!pref || !city) return;
@@ -349,8 +351,11 @@ async function showLovehoTabs(pref, city, hotelCount, hotels) {
     const lovehoTab = lovehoCount
         ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>`
         : '';
+    const hotelLabel = (totalHotelCount && totalHotelCount > hotelCount)
+        ? `🏨 ホテル (<span id="hotel-count">${hotelCount}</span>/<span id="hotel-total">${totalHotelCount}</span>)`
+        : `🏨 ホテル (<span id="hotel-count">${hotelCount}</span>)`;
     tabsDiv.innerHTML = `
-        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">🏨 ホテル (<span id="hotel-count">${hotelCount}</span>)</button>
+        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">${hotelLabel}</button>
         ${lovehoTab}
         <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">地図で見る</span></button>
     `;
@@ -904,11 +909,34 @@ function renderLovehoDetail(hotel, reports) {
     lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, multi_fee: false, guest_male: '', guest_female: '' };
 }
 
-function setResultStatus(count) {
+function setResultStatus(count, totalCount) {
     const el = document.getElementById('result-status');
     if (!el) return;
     el.style.display = 'block';
-    el.innerHTML = count > 0 ? `<strong>${count}</strong> ${t('results')}` : t('no_results');
+    if (count <= 0) { el.innerHTML = t('no_results'); return; }
+    if (totalCount && totalCount > count) {
+        el.innerHTML = `<strong>${totalCount}</strong> 件中 <strong>${count}</strong> 件表示`;
+    } else {
+        el.innerHTML = `<strong>${count}</strong> ${t('results')}`;
+    }
+}
+
+// area-data.jsonからcityのホテル/ラブホ件数を取得
+function getCityTotalFromAreaData(pref, majorArea, city) {
+    if (!_areaData) return null;
+    if (majorArea) {
+        const areaKey = pref + '\t' + majorArea;
+        const areaInfo = _areaData.area && _areaData.area[areaKey];
+        if (areaInfo) {
+            const found = (areaInfo.ct || []).find(c => c[0] === city);
+            if (found) return { hotel: found[1], loveho: found[2] };
+        }
+    }
+    for (const areaInfo of Object.values(_areaData.area || {})) {
+        const found = (areaInfo.ct || []).find(c => c[0] === city);
+        if (found) return { hotel: found[1], loveho: found[2] };
+    }
+    return null;
 }
 
 // ==========================================================================
