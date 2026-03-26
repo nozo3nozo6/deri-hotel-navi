@@ -776,11 +776,11 @@ function renderLovehoDetail(hotel, reports) {
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
         const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
-        const timeHTML = r.time_slot ? `<span class="tag-chip tag-chip--time">🕐${esc(r.time_slot)}</span>` : '';
+        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
         return `<div class="review-card lh-shop-card">
-            <div class="lh-row-header"><span class="text-sub3">${formatDate(r.created_at)}</span><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
+            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
-            ${(soloHTML||userSoloHTML||feeHTML||timeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}${timeHTML}</div>` : ''}
+            ${(soloHTML||userSoloHTML||feeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}</div>` : ''}
             ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
             ${r.atmosphere ? `<div style="margin:4px 0;"><span class="review-gp-label">✨ 雰囲気　</span><span class="atmo-badge">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
             ${gpRoom.length ? `<div class="review-gp-section"><div class="review-gp-label">🛁 設備・お部屋</div><div class="review-gp-tags">${gpTagHTML(gpRoom)}</div></div>` : ''}
@@ -1770,8 +1770,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             : (r.guest_female != null && r.guest_female > 0)
             ? `<span class="tag-chip tag-chip--guest">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
             : '';
+        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
         const metaChips = [
-            r.time_slot  ? `<span class="tag-chip tag-chip--time">🕐${esc(r.time_slot)}</span>` : '',
             r.room_type  ? `<span class="tag-chip tag-chip--room">🛏${esc(r.room_type)}</span>` : '',
             guestChip,
         ].join('');
@@ -1794,7 +1794,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
 
         return `
         <div class="review-card lh-shop-card">
-            <div class="lh-row-header"><span class="text-sub3">${formatDate(r.created_at)}</span>${flagHTML}</div>
+            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div>${flagHTML}</div>
             ${posterHTML ? `<div class="lh-row1">${posterHTML}</div>` : ''}
             <div class="lh-row2">${statusBadge}${feeHTML}${metaChips}</div>
             ${tagsHTML ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${tagsHTML}</div>` : ''}
