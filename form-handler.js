@@ -807,6 +807,144 @@ async function submitHotelRequest() {
 }
 
 // ==========================================================================
+// ホテル情報修正リクエストモーダル
+// ==========================================================================
+const CORR_CATEGORY_LABELS = {
+    address: '📍 住所が違う',
+    area: '🗺️ エリアが違う',
+    tel: '📞 電話番号が違う',
+    hotel_name: '🏨 ホテル名が違う',
+    closed: '🚫 閉業している',
+    other: '💬 その他',
+};
+
+let corrHotelId = null;
+let corrHotelName = '';
+let corrSelectedCategory = null;
+
+function openCorrectionModal(hotelId, hotelName) {
+    corrHotelId = hotelId;
+    corrHotelName = hotelName || '';
+    corrSelectedCategory = null;
+    document.getElementById('corr-hotel-name').textContent = corrHotelName;
+    document.getElementById('corr-detail').value = '';
+    document.getElementById('corr-category-err').style.display = 'none';
+    document.getElementById('corr-err').style.display = 'none';
+    document.querySelectorAll('#corr-category-btns .corr-cat-btn').forEach(b => {
+        b.style.background = 'var(--bg-3,#f0ebe0)';
+        b.style.borderColor = 'rgba(180,150,100,0.25)';
+        b.style.fontWeight = '400';
+        b.style.color = '#1a1410';
+    });
+    document.getElementById('corr-step1').style.display = '';
+    document.getElementById('corr-step2').style.display = 'none';
+    document.getElementById('corr-done').style.display = 'none';
+    document.getElementById('correction-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('correction-modal')?.focus(), 100);
+}
+
+function closeCorrectionModal() {
+    document.getElementById('correction-modal').style.display = 'none';
+    corrHotelId = null;
+    corrHotelName = '';
+    corrSelectedCategory = null;
+}
+
+function selectCorrectionCategory(cat, btn) {
+    if (corrSelectedCategory === cat) {
+        corrSelectedCategory = null;
+        btn.style.background = 'var(--bg-3,#f0ebe0)';
+        btn.style.borderColor = 'rgba(180,150,100,0.25)';
+        btn.style.fontWeight = '400';
+        btn.style.color = '#1a1410';
+        return;
+    }
+    corrSelectedCategory = cat;
+    document.getElementById('corr-category-err').style.display = 'none';
+    document.querySelectorAll('#corr-category-btns .corr-cat-btn').forEach(b => {
+        b.style.background = 'var(--bg-3,#f0ebe0)';
+        b.style.borderColor = 'rgba(180,150,100,0.25)';
+        b.style.fontWeight = '400';
+        b.style.color = '#1a1410';
+    });
+    btn.style.background = 'rgba(192,80,80,0.08)';
+    btn.style.borderColor = 'rgba(192,80,80,0.4)';
+    btn.style.fontWeight = '700';
+    btn.style.color = '#c05050';
+}
+
+function correctionToConfirm() {
+    if (!corrSelectedCategory) {
+        document.getElementById('corr-category-err').style.display = 'block';
+        return;
+    }
+    const detail = document.getElementById('corr-detail').value.trim();
+    if (!detail) {
+        const errEl = document.getElementById('corr-err');
+        errEl.textContent = '正しい情報・詳細を入力してください';
+        errEl.style.display = 'block';
+        return;
+    }
+    document.getElementById('corr-err').style.display = 'none';
+
+    const rows = [
+        ['ホテル', corrHotelName],
+        ['カテゴリ', CORR_CATEGORY_LABELS[corrSelectedCategory] || corrSelectedCategory],
+        ['詳細', detail],
+    ];
+    document.getElementById('corr-confirm-body').innerHTML = rows.map(([k, v]) =>
+        `<div><span style="font-size:11px;color:#8a7a6a;font-weight:700;">${esc(k)}</span><div style="font-size:13px;color:#1a1410;margin-top:2px;">${esc(v)}</div></div>`
+    ).join('');
+
+    document.getElementById('corr-step1').style.display = 'none';
+    document.getElementById('corr-step2').style.display = '';
+}
+
+function correctionBack() {
+    document.getElementById('corr-step2').style.display = 'none';
+    document.getElementById('corr-step1').style.display = '';
+}
+
+async function submitCorrection() {
+    if (!confirm('この内容で情報修正リクエストを送信しますか？')) return;
+
+    const btn = document.getElementById('corr-submit-btn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    const detail = document.getElementById('corr-detail').value.trim();
+
+    try {
+        const res = await fetch('/api/submit-hotel-correction.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hotel_id: corrHotelId,
+                category: corrSelectedCategory,
+                detail: detail,
+            }),
+        });
+
+        btn.disabled = false;
+        btn.textContent = '送信する';
+
+        if (!res.ok) {
+            const result = await res.json();
+            if (res.status === 429) { showToast(result.error || '送信数が上限に達しました。'); return; }
+            showToast('送信に失敗しました: ' + (result.error || ''));
+            return;
+        }
+
+        document.getElementById('corr-step2').style.display = 'none';
+        document.getElementById('corr-done').style.display = '';
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '送信する';
+        showToast('通信エラーが発生しました');
+    }
+}
+
+// ==========================================================================
 // Escapeキーリスナー
 // ==========================================================================
 document.addEventListener('keydown', (e) => {
@@ -818,6 +956,7 @@ document.addEventListener('keydown', (e) => {
             { id: 'post-confirm-modal', close: closePostConfirmModal },
             { id: 'flag-modal', close: closeFlagModal },
             { id: 'hotel-request-modal', close: closeHotelRequestModal },
+            { id: 'correction-modal', close: closeCorrectionModal },
         ];
         for (const { id, close } of modals) {
             const el = document.getElementById(id);

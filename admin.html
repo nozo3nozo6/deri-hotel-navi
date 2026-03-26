@@ -337,6 +337,7 @@
         <button class="tab-link" onclick="switchTab('reports')" id="tl-reports">投稿管理<span class="tab-badge" id="rep-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('hotels')" id="tl-hotels">ホテル編集</button>
         <button class="tab-link" onclick="switchTab('hotel-requests')" id="tl-hotel-requests">掲載リクエスト<span class="tab-badge" id="hreq-badge" style="display:none;"></span></button>
+        <button class="tab-link" onclick="switchTab('hotel-corrections')" id="tl-hotel-corrections">情報修正<span class="tab-badge" id="corr-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('shops')" id="tl-shops">ショップ管理<span class="tab-badge" id="shop-badge" style="display:none;"></span></button>
         <button class="tab-link" onclick="switchTab('master')" id="tl-master">マスタデータ</button>
         <button class="tab-link" onclick="switchTab('outreach')" id="tl-outreach">営業メール</button>
@@ -581,6 +582,24 @@
                         <th>住所</th><th>TEL</th><th>タイプ</th><th>ステータス</th><th>操作</th>
                     </tr></thead>
                     <tbody id="hreq-tbody"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- 情報修正 -->
+        <div class="tab-panel" id="tab-hotel-corrections">
+            <div class="card">
+                <div class="card-title">&#x26A0;&#xFE0F; ホテル情報修正リクエスト<span class="sub" id="corr-sub"></span></div>
+                <div class="filter-bar">
+                    <select class="filter-select" id="corr-status-f" onchange="renderCorrections()"><option value="">全ステータス</option><option value="pending">未対応</option><option value="resolved">対応済</option><option value="rejected">却下</option></select>
+                </div>
+                <div class="tbl-wrap"><table class="tbl">
+                    <thead><tr>
+                        <th onclick="doSort('corr','created_at',renderCorrections)">申請日<span class="sa">&#x2195;</span></th>
+                        <th onclick="doSort('corr','hotel_name',renderCorrections)">ホテル名<span class="sa">&#x2195;</span></th>
+                        <th>カテゴリ</th><th>詳細</th><th>ステータス</th><th>操作</th>
+                    </tr></thead>
+                    <tbody id="corr-tbody"></tbody>
                 </table></div>
             </div>
         </div>
@@ -1126,7 +1145,7 @@ function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList
 function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
 function closeMobileMenu(){closeNav();}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
 const sortStates={};
@@ -1134,7 +1153,7 @@ function doSort(ns,key,renderFn){if(!sortStates[ns])sortStates[ns]={key:null,asc
 function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}
 
 // ===== ダッシュボード =====
-async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
+async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);const corrPendCount=d.corr_pend_count||0;if(corrPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('hotel-corrections');"><div class="tc-icon">&#x26A0;&#xFE0F;</div><div class="tc-body"><div class="tc-count">${corrPendCount}</div><div class="tc-label">未対応の情報修正</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
 
 // ===== 店舗管理 =====
 let shopsData=[];
@@ -2602,6 +2621,50 @@ async function deleteHotelRequest(id){
   updateHreqBadge();renderHotelRequests();
   toast("🗑 削除しました");
 }
+
+// ===== 情報修正リクエスト =====
+const CORR_CAT_LABELS={address:"📍 住所",area:"🗺️ エリア",tel:"📞 電話番号",hotel_name:"🏨 ホテル名",closed:"🚫 閉業",other:"💬 その他"};
+let correctionsData=[];
+
+async function loadCorrections(){
+  const data=await apiGet("list","table=hotel_corrections&order=created_at&dir=desc");
+  correctionsData=data||[];
+  updateCorrBadge();renderCorrections();
+}
+
+function updateCorrBadge(){const count=correctionsData.filter(r=>r.status==="pending").length;const b=document.getElementById("corr-badge");if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}
+
+function renderCorrections(){
+  const fF=document.getElementById("corr-status-f").value;
+  let data=correctionsData.filter(r=>!fF||r.status===fF);
+  data=applySortArr(data,"corr");
+  document.getElementById("corr-sub").textContent=` (${data.length}件)`;
+  document.getElementById("corr-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="6">情報修正リクエストはありません</td></tr>`:data.map(function(r){
+    const statusBadge=r.status==="pending"?'<span class="badge b-email-pending">未対応</span>':r.status==="resolved"?'<span class="badge b-active">対応済</span>':'<span class="badge b-suspended">却下</span>';
+    const catLabel=CORR_CAT_LABELS[r.category]||r.category;
+    let actionBtns='';
+    if(r.status==="pending"){
+      actionBtns='<button class="btn b-btn-gray" style="font-size:10px;background:#28a745;color:#fff;" onclick="resolveCorrection(\''+r.id+'\')">✅ 対応済み</button> <button class="btn b-btn-gray" style="font-size:10px;background:#dc3545;color:#fff;" onclick="rejectCorrection(\''+r.id+'\')">❌ 却下</button>';
+    }else{
+      actionBtns='<button class="btn b-btn-gray" style="font-size:10px;" onclick="reopenCorrection(\''+r.id+'\')">🔄 未対応に戻す</button> <button class="btn b-btn-gray" style="font-size:10px;background:#dc3545;color:#fff;" onclick="deleteCorrection(\''+r.id+'\')">🗑 削除</button>';
+    }
+    return`<tr>
+      <td data-label="申請日" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td>
+      <td data-label="ホテル名" style="font-size:12px;cursor:pointer;color:var(--accent);" onclick="openHotelEditById(${r.hotel_id})">${esc(r.hotel_name||"—")}</td>
+      <td data-label="カテゴリ" style="font-size:12px;">${catLabel}</td>
+      <td data-label="詳細" style="font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.detail||"")}">${esc(r.detail||"—")}</td>
+      <td data-label="ステータス">${statusBadge}</td>
+      <td data-label="操作"><div class="btn-row">${actionBtns}</div></td>
+    </tr>`;
+  }).join("");
+}
+
+async function resolveCorrection(id){if(!confirm("対応済みにしますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"resolved"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"resolved"}:r);updateCorrBadge();renderCorrections();toast("✅ 対応済みにしました");}
+async function rejectCorrection(id){if(!confirm("却下しますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"rejected"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"rejected"}:r);updateCorrBadge();renderCorrections();toast("❌ 却下しました");}
+async function reopenCorrection(id){if(!confirm("未対応に戻しますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"pending"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"pending"}:r);updateCorrBadge();renderCorrections();toast("🔄 未対応に戻しました");}
+async function deleteCorrection(id){if(!confirm("この情報修正リクエストを削除しますか？"))return;const res=await api("delete",{table:"hotel_corrections",id:parseInt(id)});if(!res.ok){toast("削除エラー");return;}correctionsData=correctionsData.filter(r=>String(r.id)!==String(id));updateCorrBadge();renderCorrections();toast("🗑 削除しました");}
+
+function openHotelEditById(hotelId){switchTab("hotels");setTimeout(()=>{const input=document.getElementById("hotel-search");if(input){input.value=String(hotelId);if(typeof fetchHotels==="function")fetchHotels();}},200);}
 
 // ===== テーブル未作成ヘルパー =====
 const SQL_CAN_REASONS=`CREATE TABLE public.can_call_reasons (

@@ -40,7 +40,7 @@ $input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_content
 $ALLOWED_TABLES = [
     'hotels', 'reports', 'loveho_reports', 'shops',
     'shop_placements', 'shop_contracts', 'ad_placements', 'ad_contracts',
-    'hotel_requests', 'outreach_emails',
+    'hotel_requests', 'hotel_corrections', 'outreach_emails',
     'can_call_reasons', 'cannot_call_reasons', 'room_types',
     'shop_service_options', 'loveho_good_points', 'loveho_atmospheres',
     'contract_plans', 'ad_plans',
@@ -95,6 +95,7 @@ function handleDashboard() {
     $flagCount = $pdo->query("SELECT COUNT(*) FROM reports WHERE flagged_at IS NOT NULL AND flag_resolved IS NULL")->fetchColumn();
     $shopPendCount = $pdo->query("SELECT COUNT(*) FROM shops WHERE status = 'registered'")->fetchColumn();
     $hreqPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_requests WHERE status = 'pending'")->fetchColumn();
+    $corrPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_corrections WHERE status = 'pending'")->fetchColumn();
 
     // 最新30件のレポート
     $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 30");
@@ -112,6 +113,7 @@ function handleDashboard() {
         'flag_count' => (int)$flagCount,
         'shop_pend_count' => (int)$shopPendCount,
         'hreq_pend_count' => (int)$hreqPendCount,
+        'corr_pend_count' => (int)$corrPendCount,
         'recent' => $recent,
     ], JSON_UNESCAPED_UNICODE);
 }

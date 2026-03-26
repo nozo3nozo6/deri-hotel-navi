@@ -265,6 +265,7 @@ document.addEventListener('click', function(e) {
         'post-confirm-modal': 'closePostConfirmModal',
         'flag-modal': 'closeFlagModal',
         'hotel-request-modal': 'closeHotelRequestModal',
+        'correction-modal': 'closeCorrectionModal',
         'success-modal': 'closeSuccessModal',
     };
     const fn = map[e.target.id];

@@ -148,6 +148,13 @@ document.addEventListener('click', function(e) {
             e.preventDefault();
             if (typeof openHotelRequestModal === 'function') openHotelRequestModal();
             break;
+        case 'openCorrectionModal':
+            e.preventDefault();
+            if (typeof openCorrectionModal === 'function') openCorrectionModal(target.dataset.hotelId, target.dataset.hotelName);
+            break;
+        case 'selectCorrectionCategory':
+            if (typeof selectCorrectionCategory === 'function') selectCorrectionCategory(param, target);
+            break;
         default:
             // 引数なし関数の汎用呼び出し
             if (typeof window[action] === 'function') window[action]();
