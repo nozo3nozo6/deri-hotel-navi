@@ -906,8 +906,6 @@ function correctionBack() {
 }
 
 async function submitCorrection() {
-    if (!confirm('この内容で情報修正リクエストを送信しますか？')) return;
-
     const btn = document.getElementById('corr-submit-btn');
     btn.disabled = true;
     btn.textContent = '送信中...';
@@ -935,8 +933,8 @@ async function submitCorrection() {
             return;
         }
 
-        document.getElementById('corr-step2').style.display = 'none';
-        document.getElementById('corr-done').style.display = '';
+        closeCorrectionModal();
+        showSuccessModal('情報修正リクエストを送信しました', '確認後、順次対応いたします。ご協力ありがとうございました。');
     } catch (e) {
         btn.disabled = false;
         btn.textContent = '送信する';
