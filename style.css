@@ -2261,8 +2261,7 @@ body[data-mode="men"] .header-title {
 .lh-shop-card { padding:12px 14px !important; }
 .lh-row1 { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
 .lh-row2 { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
-.lh-row-date { margin-bottom:4px; }
-.lh-row-footer { display:flex;align-items:center;justify-content:flex-end;margin-top:8px;padding-top:6px;border-top:1px solid var(--border,#eee); }
+.lh-row-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border,#eee); }
 
 /* カードアクションボタン */
 .card-action-btn { flex:1;min-width:0;padding:8px 6px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:none; }

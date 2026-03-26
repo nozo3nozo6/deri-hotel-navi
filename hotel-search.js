@@ -777,7 +777,7 @@ function renderLovehoDetail(hotel, reports) {
         const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         return `<div class="review-card lh-shop-card">
-            <div class="lh-row-date"><span class="text-sub3">${formatDate(r.created_at)}</span></div>
+            <div class="lh-row-header"><span class="text-sub3">${formatDate(r.created_at)}</span><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
             ${(soloHTML||userSoloHTML||feeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}</div>` : ''}
             ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
@@ -787,7 +787,6 @@ function renderLovehoDetail(hotel, reports) {
             ${r.entry_method ? `<div class="review-detail-text">🚪 ${MODE==='women'?'セラピスト':'キャスト'}の入室方法: ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${r.time_slot ? `<div class="review-detail-text">🕐 ${esc(r.time_slot)}</div>` : ''}
             ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : ''}</div>` : ''}
-            <div class="lh-row-footer"><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
         </div>`;
     }
 
