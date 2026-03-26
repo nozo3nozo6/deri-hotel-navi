@@ -383,8 +383,8 @@ async function switchTab(tab) {
     document.querySelectorAll('#hotel-loveho-tabs .hotel-tab, #hotel-loveho-tabs-bottom .hotel-tab').forEach(t => {
         if (t.dataset.tab === tab) {
             t.style.fontWeight = 'bold';
-            t.style.borderBottomColor = tab === 'loveho' ? '#c9a96e' : 'var(--accent,#b5627a)';
-            t.style.color = tab === 'loveho' ? '#c9a96e' : 'var(--accent,#b5627a)';
+            t.style.borderBottomColor = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
+            t.style.color = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
         } else {
             t.style.fontWeight = 'normal';
             t.style.borderBottomColor = 'transparent';
@@ -1134,8 +1134,15 @@ let _keywordLovehoCache = [];
 function switchKeywordTab(tab) {
     const tabs = document.querySelectorAll('#hotel-loveho-tabs .hotel-tab');
     tabs.forEach(t => {
-        t.classList.toggle('detail-tab--active', t.dataset.tab === tab);
-        t.classList.toggle('detail-tab--inactive', t.dataset.tab !== tab);
+        const isActive = t.dataset.tab === tab;
+        t.classList.toggle('detail-tab--active', isActive);
+        t.classList.toggle('detail-tab--inactive', !isActive);
+        if (isActive) {
+            const c = t.dataset.tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
+            t.style.color = c; t.style.borderBottomColor = c;
+        } else {
+            t.style.color = ''; t.style.borderBottomColor = '';
+        }
     });
     const data = tab === 'loveho' ? _keywordLovehoCache : _keywordHotelCache;
     renderHotelCards(data);
