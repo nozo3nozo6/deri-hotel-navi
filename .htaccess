@@ -175,10 +175,15 @@ RewriteRule ^portal\.html$ /portal-women-same.html [L,QSA]
   ExpiresByType image/webp "access plus 1 year"
 </IfModule>
 
-# 静的JSONファイルは1時間キャッシュ（キャッシュバスター?v=で無効化）
+# 静的JSONファイルのキャッシュ制御
 # ※ ExpiresByType application/json はPHP APIのJSONレスポンスまでキャッシュするため使わない
 <IfModule mod_headers.c>
-  <FilesMatch "\.json$">
+  # マスタ/エリアデータ: adminで変更されるため短キャッシュ
+  <FilesMatch "(master-data|area-data)\.json$">
+    Header set Cache-Control "public, max-age=60"
+  </FilesMatch>
+  # その他の静的JSON: 1時間キャッシュ
+  <FilesMatch "search-index\.json$">
     Header set Cache-Control "public, max-age=3600"
   </FilesMatch>
 </IfModule>
