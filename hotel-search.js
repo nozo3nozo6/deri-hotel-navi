@@ -347,7 +347,7 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
 
     const tabsDiv = document.createElement('div');
     tabsDiv.id = 'hotel-loveho-tabs';
-    tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    tabsDiv.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:16px;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
         ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>`
         : '';
@@ -1026,7 +1026,7 @@ async function showStationLovehoTabs(stationName, hotels) {
 
     const tabsDiv = document.createElement('div');
     tabsDiv.id = 'hotel-loveho-tabs';
-    tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+    tabsDiv.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:16px;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
         ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ (<span id="loveho-count">${lovehoCount}</span>)</button>`
         : '';
@@ -1108,7 +1108,7 @@ async function executeKeywordSearch() {
         _keywordLovehoCache = lovehoResults;
         const tabsDiv = document.createElement('div');
         tabsDiv.id = 'hotel-loveho-tabs';
-        tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
+        tabsDiv.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:16px;max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
         const lovehoTab = lovehoResults.length
             ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">🏩 ラブホ (${lovehoResults.length})</button>`
             : '';
