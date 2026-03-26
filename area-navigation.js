@@ -338,7 +338,12 @@ async function restoreFromUrl() {
 
 window.addEventListener('popstate', () => {
     const content = document.getElementById('hotel-detail-content');
-    if (content && content.style.display !== 'none') return;
+    if (content && content.style.display !== 'none') {
+        // ホテル詳細表示中にブラウザ戻る → 詳細を閉じて一覧に戻る
+        if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
+        restoreFromUrl();
+        return;
+    }
     restoreFromUrl();
 });
 
