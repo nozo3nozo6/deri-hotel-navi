@@ -99,5 +99,39 @@ $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ?');
 $stmt->execute([$email]);
 $shop = $stmt->fetch();
 unset($shop['password_hash']);
+
+// admin通知メール（新規登録・更新時、パスワードリセット以外）
+$genreLabels = ['men' => 'デリヘル', 'women' => '女風', 'men_same' => '男性同士', 'women_same' => '女性同士', 'este' => 'デリエステ'];
+$genreLabel = $genreLabels[$genderMode] ?? $genderMode;
+$isNew = !$existing;
+$adminSubject = $isNew
+    ? "【YobuHo】新規店舗登録: {$shopName}"
+    : "【YobuHo】店舗情報更新: {$shopName}";
+$adminBody = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">'
+    . '<h2 style="color:#333;">' . ($isNew ? '🏪 新規店舗登録' : '🏪 店舗情報更新') . '</h2>'
+    . '<table style="border-collapse:collapse;width:100%;font-size:14px;">'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:100px;">店舗名</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($shopName) . '</td></tr>'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">メール</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($email) . '</td></tr>'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">ジャンル</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($genreLabel) . '</td></tr>'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">URL</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($shopUrl ?: '未入力') . '</td></tr>'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">TEL</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($shopTel ?: '未入力') . '</td></tr>'
+    . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">届出確認書</td><td style="padding:8px;border-bottom:1px solid #eee;">' . ($docUrl ? 'あり' : 'なし') . '</td></tr>'
+    . '<tr><td style="padding:8px;color:#888;">登録日時</td><td style="padding:8px;">' . $now . ' UTC</td></tr>'
+    . '</table>'
+    . '<div style="margin-top:20px;text-align:center;">'
+    . '<a href="https://yobuho.com/admin.html" style="display:inline-block;padding:12px 30px;background:#e67e22;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">管理画面で確認する</a>'
+    . '</div>'
+    . '</div>';
+
+$adminHeaders = [
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    'From: YobuHo <hotel@yobuho.com>',
+];
+$encodedAdminSubject = '=?UTF-8?B?' . base64_encode($adminSubject) . '?=';
+$encodedAdminBody = base64_encode($adminBody);
+@mail('hotel@yobuho.com', $encodedAdminSubject, $encodedAdminBody, implode("\r\n", $adminHeaders));
+
 echo json_encode(['success' => true, 'shop' => $shop]);
 ?>
