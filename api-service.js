@@ -152,28 +152,42 @@ let ROOM_TYPES = ['シングル', 'ダブル', 'ツイン', 'スイート', '和
 let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [], good_points: [] };
 
 let _masterDataLoaded = false;
+let _masterDataPromise = null;
 async function loadMasterData() {
     if (_masterDataLoaded) return;
-    try {
-        const res = await fetch('/master-data.json');
-        if (!res.ok) return;
-        const md = await res.json();
-        if (md.can_call_reasons?.length) CAN_CALL_REASONS = md.can_call_reasons;
-        if (md.cannot_call_reasons?.length) CANNOT_CALL_REASONS = md.cannot_call_reasons;
-        if (md.room_types?.length) ROOM_TYPES = md.room_types;
-        if (md.loveho) {
-            const lh = md.loveho;
-            if (lh.atmospheres?.length) LH_MASTER.atmospheres = lh.atmospheres;
-            if (lh.room_types?.length) LH_MASTER.room_types = lh.room_types;
-            if (lh.facilities?.length) LH_MASTER.facilities = lh.facilities;
-            if (lh.price_ranges_rest?.length) LH_MASTER.price_ranges_rest = lh.price_ranges_rest;
-            if (lh.price_ranges_stay?.length) LH_MASTER.price_ranges_stay = lh.price_ranges_stay;
-            if (lh.time_slots?.length) LH_MASTER.time_slots = lh.time_slots;
-            if (lh.good_points?.length) LH_MASTER.good_points = lh.good_points;
+    // 重複呼び出し防止: 既にロード中ならそのPromiseを待つ
+    if (_masterDataPromise) return _masterDataPromise;
+    _masterDataPromise = _doLoadMasterData();
+    try { await _masterDataPromise; } finally { _masterDataPromise = null; }
+}
+async function _doLoadMasterData() {
+    // リトライ付き（最大2回）
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const res = await fetch('/master-data.json');
+            if (!res.ok) { if (attempt === 0) continue; return; }
+            const md = await res.json();
+            _applyMasterData(md);
+            _masterDataLoaded = true;
+            return;
+        } catch (e) {
+            if (attempt === 0) continue; // 1回目失敗→リトライ
         }
-        _masterDataLoaded = true;
-    } catch (e) {
-        // fallback to defaults silently
+    }
+}
+function _applyMasterData(md) {
+    if (md.can_call_reasons?.length) CAN_CALL_REASONS = md.can_call_reasons;
+    if (md.cannot_call_reasons?.length) CANNOT_CALL_REASONS = md.cannot_call_reasons;
+    if (md.room_types?.length) ROOM_TYPES = md.room_types;
+    if (md.loveho) {
+        const lh = md.loveho;
+        if (lh.atmospheres?.length) LH_MASTER.atmospheres = lh.atmospheres;
+        if (lh.room_types?.length) LH_MASTER.room_types = lh.room_types;
+        if (lh.facilities?.length) LH_MASTER.facilities = lh.facilities;
+        if (lh.price_ranges_rest?.length) LH_MASTER.price_ranges_rest = lh.price_ranges_rest;
+        if (lh.price_ranges_stay?.length) LH_MASTER.price_ranges_stay = lh.price_ranges_stay;
+        if (lh.time_slots?.length) LH_MASTER.time_slots = lh.time_slots;
+        if (lh.good_points?.length) LH_MASTER.good_points = lh.good_points;
     }
 }
 
