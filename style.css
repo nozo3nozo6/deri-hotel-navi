@@ -2251,12 +2251,12 @@ body[data-mode="men"] .header-title {
 .report-flag-btn { padding:2px 7px;background:transparent;border:1px solid rgba(180,150,100,0.2);border-radius:8px;font-size:10px;color:var(--text-3);cursor:pointer;font-family:inherit;white-space:nowrap; }
 
 /* ホテル/ラブホタブ */
-.detail-tab { padding:10px 18px;border:1px solid var(--border,#ddd);background:#eee;cursor:pointer;font-size:14px;font-family:inherit;color:#999;border-radius:10px;margin-bottom:0;position:relative;transition:all .15s; }
-.detail-tab--active { font-weight:bold;background:var(--accent-bg,rgba(181,98,122,0.12));color:var(--accent,#b5627a);border-color:var(--accent,#b5627a);box-shadow:inset 3px 0 0 var(--accent,#b5627a); }
-.detail-tab--inactive { color:#999;font-weight:400; }
-.detail-tab--inactive:hover { background:#e4e4e4;color:#666; }
-.btn-map-toggle { margin-left:auto;padding:8px 16px;border:1px solid #c5d8f0;background:rgba(59,130,246,0.06);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;color:#3b82f6;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:4px;transition:background .15s; }
-.btn-map-toggle:hover { background:rgba(59,130,246,0.12); }
+.detail-tab { padding:10px 18px;border:none;border-bottom:3px solid transparent;background:transparent;cursor:pointer;font-size:14px;font-family:inherit;color:#aaa;margin-bottom:-1px;position:relative;transition:all .15s; }
+.detail-tab--active { font-weight:bold;color:var(--accent,#b5627a);border-bottom-color:var(--accent,#b5627a);font-size:15px; }
+.detail-tab--inactive { color:#aaa;font-weight:400;font-size:13px; }
+.detail-tab--inactive:hover { color:#666; }
+.btn-map-toggle { margin-left:auto;padding:8px 14px;border:none;background:rgba(59,130,246,0.08);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#3b82f6;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:4px; }
+.btn-map-toggle:hover { background:rgba(59,130,246,0.15); }
 
 /* ラブホ店舗口コミカード */
 .lh-shop-card { padding:12px 14px !important; }
