@@ -1512,6 +1512,15 @@ async function toggleShopContract(shopId,planId,isActive){
     await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
     toast('プランを追加しました');
   }
+  // shops.plan_idを最高額プランに同期
+  const updatedContracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const activeContracts=Array.isArray(updatedContracts)?updatedContracts:[];
+  let bestPlanId=1; // デフォルト: 無料プラン
+  let bestPrice=0;
+  activeContracts.forEach(c=>{const p=(contractPlansData||[]).find(x=>x.id===c.plan_id);if(p&&p.price>bestPrice){bestPrice=p.price;bestPlanId=p.id;}});
+  await api('update',{table:'shops',id:shopId,data:{plan_id:bestPlanId}});
+  shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:bestPlanId}:s);
+  renderShops();
   loadShopContracts(shopId,contractPlansData||[]);
   // 有料プラン追加時はエリア管理を案内
   if(!isActive&&planInfo&&planInfo.price>0){
