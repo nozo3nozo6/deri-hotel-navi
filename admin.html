@@ -2431,7 +2431,7 @@ function toggleLhShopMode(isShop, currentVal) {
   const prev = currentVal !== undefined ? currentVal : sel.value;
   if (isShop) {
     label.textContent = 'チェックイン方法（店舗投稿）';
-    sel.innerHTML = '<option value="">未選択</option><option value="yes">はい！ご案内実績有</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有</option>';
+    sel.innerHTML = '<option value="">未選択</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>';
   } else {
     label.textContent = '一人で先に入れる？';
     sel.innerHTML = '<option value="">未選択</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>';

@@ -779,7 +779,7 @@ function renderLovehoDetail(hotel, reports) {
                 <div class="review-poster-row">${posterHTML}${feeHTML}</div>
                 <span class="text-sub3">${formatDate(r.created_at)}</span>
             </div>
-            ${r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<div style="margin:6px 0;"><span class="round-badge round-badge--solo-can">✅ ご案内実績有</span></div>` : ''}
+            ${r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<div style="margin:6px 0;"><span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span></div>` : ''}
             ${r.solo_entry && !shopNames.includes(pName) ? `<div style="margin:6px 0;"><span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span></div>` : ''}
             ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
             ${r.atmosphere ? `<div style="margin-bottom:6px;"><span class="review-gp-label">✨ 雰囲気　</span><span class="atmo-badge">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
@@ -871,7 +871,7 @@ function renderLovehoDetail(hotel, reports) {
                 <label class="lh-form-label">${SHOP_ID ? 'チェックイン方法' : '一人で先に入れる？'}</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" class="lh-form-select">
                     ${SHOP_ID
-                        ? '<option value="">選択してください</option><option value="yes">はい！ご案内実績有</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有</option>'
+                        ? '<option value="">選択してください</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>'
                         : '<option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>'}
                 </select>
             </div>
