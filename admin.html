@@ -982,19 +982,11 @@
         <!-- 新規追加フォーム -->
         <div style="border-top:1px solid var(--border);padding-top:18px;">
             <div id="pm-form-title" style="font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:0.3px;margin-bottom:12px;">新規エリア追加</div>
-            <!-- Step 1: 都道府県 -->
-            <div class="mf" style="margin-bottom:10px;" id="pm-pref-wrap">
-                <label class="ml">① 都道府県を選択 <span style="color:var(--gold);">*</span></label>
-                <select id="pm-pref" class="mi" onchange="onPmPrefChange()">
-                    <option value="">選択してください</option>
-                </select>
-            </div>
-            <!-- 都道府県の掲載エリア構造プレビュー -->
-            <div id="pm-pref-preview" style="display:none;margin-bottom:14px;"></div>
-            <!-- Step 2: レベル -->
-            <div class="mf" style="margin-bottom:10px;display:none;" id="pm-level-wrap">
-                <label class="ml">② 掲載レベルを選択 <span style="color:var(--gold);">*</span></label>
+            <!-- Step 1: レベル -->
+            <div class="mf" style="margin-bottom:10px;" id="pm-level-wrap">
+                <label class="ml">① 掲載レベルを選択 <span style="color:var(--gold);">*</span></label>
                 <select id="pm-level" class="mi" onchange="onPmLevelChange()">
+                    <option value="">選択してください</option>
                     <option value="city">🏘 市区町村</option>
                     <option value="detail_area">🔍 エリア</option>
                     <option value="spot">🏙 ブロック</option>
@@ -1004,6 +996,15 @@
                 </select>
                 <div id="pm-level-hint" style="margin-top:4px;font-size:12px;font-weight:600;"></div>
             </div>
+            <!-- Step 2: 都道府県 -->
+            <div class="mf" style="margin-bottom:10px;display:none;" id="pm-pref-wrap">
+                <label class="ml">② 都道府県を選択 <span style="color:var(--gold);">*</span></label>
+                <select id="pm-pref" class="mi" onchange="onPmPrefChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <!-- 都道府県の掲載エリア構造プレビュー -->
+            <div id="pm-pref-preview" style="display:none;margin-bottom:14px;"></div>
             <!-- 地方select（regionレベル時のみ表示） -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-region-wrap">
                 <label class="ml">② 地方を選択 <span style="color:var(--gold);">*</span></label>
@@ -1022,21 +1023,21 @@
             </div>
             <!-- Step 3: ブロック -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-area-wrap">
-                <label class="ml">③ ブロック <span style="color:var(--gold);">*</span></label>
+                <label class="ml">④ ブロック <span style="color:var(--gold);">*</span></label>
                 <select id="pm-area" class="mi" onchange="onPmAreaChange()">
                     <option value="">選択してください</option>
                 </select>
             </div>
             <!-- Step 3.5: エリア -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-da-wrap">
-                <label class="ml" id="pm-da-label">③ エリア <span style="color:var(--gold);">*</span></label>
+                <label class="ml" id="pm-da-label">④ エリア <span style="color:var(--gold);">*</span></label>
                 <select id="pm-da" class="mi" onchange="onPmDaChange()">
                     <option value="">選択してください</option>
                 </select>
             </div>
             <!-- Step 4: 市区町村 -->
             <div class="mf" style="margin-bottom:10px;display:none;" id="pm-city-wrap">
-                <label class="ml" id="pm-city-label">④ 市区町村 <span style="color:var(--gold);">*</span></label>
+                <label class="ml" id="pm-city-label">⑤ 市区町村 <span style="color:var(--gold);">*</span></label>
                 <select id="pm-city" class="mi">
                     <option value="">選択してください</option>
                 </select>
@@ -1297,10 +1298,12 @@ async function openPlacementModal(shopId){
   _pmShopId=shopId;
   const shop=shopsData.find(s=>String(s.id)===String(shopId));
   document.getElementById("pm-shop-name").textContent=shop?("— "+esc(shop.shop_name||"")):"";
-  document.getElementById("pm-level").value="city";
+  document.getElementById("pm-level").value="";
+  document.getElementById("pm-pref").value="";
   initPmPrefs();
-  // 初期状態: 全フォーム要素を非表示
-  document.getElementById("pm-level-wrap").style.display='none';
+  // 初期状態: レベル選択のみ表示、他は非表示
+  document.getElementById("pm-level-wrap").style.display='';
+  document.getElementById("pm-pref-wrap").style.display='none';
   document.getElementById("pm-region-wrap").style.display='none';
   document.getElementById("pm-area-wrap").style.display='none';
   document.getElementById("pm-da-wrap").style.display='none';
@@ -1308,8 +1311,8 @@ async function openPlacementModal(shopId){
   document.getElementById("pm-pref-preview").style.display='none';
   document.getElementById("pm-feedback").style.display='none';
   await ensureAreaData();
-  // 店舗の都道府県が設定されていれば自動選択+プレビュー表示
-  if(shop&&shop.prefecture){
+  // 店舗の都道府県が設定されていれば自動選択は保留（レベル選択後に表示）
+  if(false&&shop&&shop.prefecture){
     document.getElementById("pm-pref").value=shop.prefecture;
     await onPmPrefChange();
   }
@@ -1618,32 +1621,30 @@ function renderPrefPreview(pref){
 
 function onPmLevelChange(){
   const lv=document.getElementById("pm-level").value;
+  const prefWrap=document.getElementById("pm-pref-wrap");
   const areaWrap=document.getElementById("pm-area-wrap");
   const daWrap=document.getElementById("pm-da-wrap");
   const cityWrap=document.getElementById("pm-city-wrap");
   // 全リセット（段階的に表示するため）
+  document.getElementById("pm-pref").value='';
   document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-da").innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
-  areaWrap.style.display='none';daWrap.style.display='none';cityWrap.style.display='none';
+  prefWrap.style.display='none';areaWrap.style.display='none';daWrap.style.display='none';cityWrap.style.display='none';
+  document.getElementById("pm-pref-preview").style.display='none';
   // ステップ番号を更新
   updatePmStepLabels(lv);
   // 地方selectの表示制御
   const regionWrap=document.getElementById("pm-region-wrap");
   if(regionWrap)regionWrap.style.display=(lv==='region')?'':'none';
+  if(!lv){updatePmFormSlotHint();return;}
   // 全国・地方レベルは都道府県選択不要
   if(lv==='national'||lv==='region'){
-    document.getElementById("pm-pref-preview").style.display='none';
     updatePmFormSlotHint();
     return;
   }
-  // 都道府県が選択されている場合、次のステップのみ表示
-  const pref=document.getElementById("pm-pref").value;
-  if(pref&&lv==='prefecture'){updatePmFormSlotHint();return;}
-  if(pref&&(lv==='city'||lv==='detail_area'||lv==='spot')){
-    populateAreaSelect(pref);
-    areaWrap.style.display='';// ブロック選択のみ表示（次はonPmAreaChangeで段階表示）
-  }
+  // 都道府県選択を表示
+  prefWrap.style.display='';
   updatePmFormSlotHint();
 }
 function updatePmStepLabels(lv){
@@ -1651,29 +1652,30 @@ function updatePmStepLabels(lv){
   const daLabel=document.getElementById("pm-da-label");
   const cityLabel=document.getElementById("pm-city-label");
   if(lv==='city'){
-    if(areaLabel)areaLabel.innerHTML='③ ブロック <span style="color:var(--gold);">*</span>';
-    if(cityLabel)cityLabel.innerHTML='④ 市区町村 <span style="color:var(--gold);">*</span>';
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
+    if(cityLabel)cityLabel.innerHTML='⑤ 市区町村 <span style="color:var(--gold);">*</span>';
   }else if(lv==='detail_area'){
-    if(areaLabel)areaLabel.innerHTML='③ ブロック <span style="color:var(--gold);">*</span>';
-    if(daLabel)daLabel.innerHTML='④ エリア <span style="color:var(--gold);">*</span>';
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
+    if(daLabel)daLabel.innerHTML='⑤ エリア <span style="color:var(--gold);">*</span>';
   }else if(lv==='spot'){
-    if(areaLabel)areaLabel.innerHTML='③ ブロック <span style="color:var(--gold);">*</span>';
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
   }
 }
 
 async function onPmPrefChange(){
   const pref=document.getElementById("pm-pref").value;
-  const levelWrap=document.getElementById("pm-level-wrap");
   const previewEl=document.getElementById("pm-pref-preview");
   const areaSel=document.getElementById("pm-area");
   const citySel=document.getElementById("pm-city");
+  const daSel=document.getElementById("pm-da");
   areaSel.innerHTML='<option value="">選択してください</option>';
   citySel.innerHTML='<option value="">選択してください</option>';
+  daSel.innerHTML='<option value="">選択してください</option>';
   document.getElementById("pm-area-wrap").style.display='none';
+  document.getElementById("pm-da-wrap").style.display='none';
   document.getElementById("pm-city-wrap").style.display='none';
 
   if(!pref){
-    levelWrap.style.display='none';
     if(previewEl)previewEl.style.display='none';
     return;
   }
@@ -1681,11 +1683,13 @@ async function onPmPrefChange(){
   await ensureAreaData();
   // プレビュー表示
   renderPrefPreview(pref);
-  // レベル選択を表示
-  levelWrap.style.display='';
-  // レベルに応じてエリアをセット
+  // レベルに応じて次のステップを表示
   const lv=document.getElementById("pm-level").value;
-  if(lv!=='prefecture')populateAreaSelect(pref);
+  if(lv==='prefecture'){updatePmFormSlotHint();return;}
+  if(lv==='city'||lv==='detail_area'||lv==='spot'){
+    populateAreaSelect(pref);
+    document.getElementById("pm-area-wrap").style.display='';
+  }
   updatePmFormSlotHint();
 }
 
