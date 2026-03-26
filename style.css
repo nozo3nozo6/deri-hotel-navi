@@ -2252,7 +2252,7 @@ body[data-mode="men"] .header-title {
 
 /* ホテル/ラブホタブ */
 .detail-tab { padding:10px 18px;border:1px solid var(--border,#ddd);border-bottom:none;background:var(--bg-3,#f5f5f5);cursor:pointer;font-size:14px;font-family:inherit;color:#888;border-radius:8px 8px 0 0;margin-bottom:-1px;position:relative;transition:background .15s,color .15s; }
-.detail-tab--active { font-weight:bold;background:var(--bg-2,#fff);color:var(--accent,#b5627a);border-color:var(--border,#ddd);border-bottom:1px solid var(--bg-2,#fff); }
+.detail-tab--active { font-weight:bold;background:var(--bg-2,#fff);color:var(--accent,#b5627a);border-color:var(--border,#ddd);border-bottom:1px solid var(--bg-2,#fff);border-top:3px solid var(--accent,#b5627a);box-shadow:0 -2px 6px rgba(0,0,0,0.06); }
 .detail-tab--inactive { color:#555;font-weight:500; }
 .detail-tab--inactive:hover { background:var(--bg-2,#fff);color:#333; }
 .btn-map-toggle { margin-left:auto;padding:8px 16px;border:1px solid var(--border,#ddd);border-bottom:none;background:var(--bg-3,#f5f5f5);border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:600;color:#3b82f6;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:4px;margin-bottom:-1px;transition:background .15s; }
