@@ -30,7 +30,7 @@ if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 // レート制限: 同じメールへのトークン送信は5分に1回
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_email_tokens WHERE email = ? AND created_at >= ? AND used = 0');
-$stmt->execute([$email, gmdate('Y-m-d H:i:s', time() - 300)]);
+$stmt->execute([$email, date('Y-m-d H:i:s', time() - 300)]);
 if ($stmt->fetchColumn() > 0) {
     http_response_code(429);
     echo json_encode(['error' => '認証メールは5分に1回のみ送信できます。しばらくお待ちください。']);
@@ -39,7 +39,7 @@ if ($stmt->fetchColumn() > 0) {
 
 // トークン生成
 $token = bin2hex(random_bytes(32)); // 64文字
-$expiresAt = gmdate('Y-m-d H:i:s', time() + 3600); // 1時間有効
+$expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1時間有効
 
 // DB保存
 $stmt = $pdo->prepare('INSERT INTO shop_email_tokens (email, token, genre, expires_at) VALUES (?, ?, ?, ?)');
