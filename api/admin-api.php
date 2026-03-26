@@ -46,6 +46,29 @@ $ALLOWED_TABLES = [
     'contract_plans', 'ad_plans',
 ];
 
+// ===== マスタデータテーブル（変更時にmaster-data.json再生成） =====
+$MASTER_TABLES = [
+    'can_call_reasons', 'cannot_call_reasons', 'room_types',
+    'loveho_good_points', 'loveho_atmospheres',
+    'shop_service_options', 'contract_plans',
+];
+
+/**
+ * マスタデータテーブル変更時にmaster-data.jsonを再生成
+ */
+function regenerateMasterDataIfNeeded(string $table): void {
+    global $MASTER_TABLES;
+    if (!in_array($table, $MASTER_TABLES)) return;
+    try {
+        ob_start();
+        include __DIR__ . '/generate-master-data.php';
+        ob_end_clean();
+    } catch (Exception $e) {
+        ob_end_clean();
+        error_log('[admin-api] master-data.json regeneration failed: ' . $e->getMessage());
+    }
+}
+
 // ===== 値が配列なら自動的にJSON化（カラム名ハードコード不要） =====
 
 try {
@@ -218,6 +241,7 @@ function handleInsert() {
         if (isset($row['is_active'])) $row['is_active'] = (bool)$row['is_active'];
     }
     echo json_encode(['ok' => true, 'data' => $row], JSON_UNESCAPED_UNICODE);
+    regenerateMasterDataIfNeeded($table);
 }
 
 // ===================================================================
@@ -251,6 +275,7 @@ function handleUpdate() {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     echo json_encode(['ok' => true, 'affected' => $stmt->rowCount()]);
+    regenerateMasterDataIfNeeded($table);
 }
 
 // ===================================================================
@@ -286,6 +311,7 @@ function handleDelete() {
         http_response_code(400); echo json_encode(['error' => 'id or filters required']); return;
     }
     echo json_encode(['ok' => true]);
+    regenerateMasterDataIfNeeded($table);
 }
 
 // ===================================================================
@@ -304,6 +330,7 @@ function handleReorder() {
         $stmt->execute([(int)$item['sort_order'], $item['id']]);
     }
     echo json_encode(['ok' => true]);
+    regenerateMasterDataIfNeeded($table);
 }
 
 // ===================================================================
