@@ -103,10 +103,15 @@ foreach ($areaHotels as $key => $hotelList) {
         }
     }
 
-    // 表示フィルタ: このmajor_areaが最多のcityのみ表示
+    // 表示フィルタ: このmajor_areaが最多のcityのみ表示（政令指定都市の区は常に表示）
+    $seirei = ['札幌市','仙台市','さいたま市','千葉市','横浜市','川崎市','相模原市','新潟市','静岡市','浜松市','名古屋市','京都市','大阪市','堺市','神戸市','岡山市','広島市','北九州市','福岡市','熊本市'];
     $allCities = array_unique(array_merge(array_keys($cityRegular), array_keys($cityLoveho)));
     $displayCities = [];
     foreach ($allCities as $city) {
+        // 政令指定都市の区（例: 千葉市中央区）は常に表示
+        $isSeireiWard = false;
+        foreach ($seirei as $sc) { if (str_starts_with($city, $sc) && $city !== $sc && str_ends_with($city, '区')) { $isSeireiWard = true; break; } }
+        if ($isSeireiWard) { $displayCities[] = $city; continue; }
         $ac = $cityAreaCountMap[$p][$city] ?? null;
         if (!$ac) { $displayCities[] = $city; continue; }
         $maxCount = max($ac);
