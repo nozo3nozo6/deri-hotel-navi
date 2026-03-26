@@ -774,21 +774,19 @@ function renderLovehoDetail(hotel, reports) {
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
-        return `<div class="review-card">
-            <div class="review-meta-row">
-                <div class="review-poster-row">${posterHTML}${feeHTML}</div>
-                <span class="text-sub3">${formatDate(r.created_at)}</span>
-            </div>
-            ${r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<div style="margin:6px 0;"><span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span></div>` : ''}
-            ${r.solo_entry && !shopNames.includes(pName) ? `<div style="margin:6px 0;"><span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span></div>` : ''}
+        const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
+        const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
+        return `<div class="review-card lh-shop-card">
+            <div class="lh-row1">${posterHTML}</div>
+            ${(soloHTML||userSoloHTML||feeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}</div>` : ''}
             ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
-            ${r.atmosphere ? `<div style="margin-bottom:6px;"><span class="review-gp-label">✨ 雰囲気　</span><span class="atmo-badge">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
+            ${r.atmosphere ? `<div style="margin:4px 0;"><span class="review-gp-label">✨ 雰囲気　</span><span class="atmo-badge">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
             ${gpRoom.length ? `<div class="review-gp-section"><div class="review-gp-label">🛁 設備・お部屋</div><div class="review-gp-tags">${gpTagHTML(gpRoom)}</div></div>` : ''}
             ${gpService.length ? `<div class="review-gp-section"><div class="review-gp-label">🏨 サービス・利便性</div><div class="review-gp-tags">${gpTagHTML(gpService)}</div></div>` : ''}
             ${r.entry_method ? `<div class="review-detail-text">🚪 ${MODE==='women'?'セラピスト':'キャスト'}の入室方法: ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${r.time_slot ? `<div class="review-detail-text">🕐 ${esc(r.time_slot)}</div>` : ''}
             ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : ''}</div>` : ''}
-            <button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn" style="margin-top:6px;opacity:0.6;">🚩 報告</button>
+            <div class="lh-row-footer"><span class="text-sub3">${formatDate(r.created_at)}</span><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
         </div>`;
     }
 

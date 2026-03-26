@@ -2257,6 +2257,12 @@ body[data-mode="men"] .header-title {
 .btn-map-toggle { margin-left:auto;padding:8px 16px;border:1px solid var(--border,#ddd);border-bottom:none;background:var(--bg-3,#f5f5f5);border-radius:8px 8px 0 0;cursor:pointer;font-size:12px;font-weight:600;color:#3b82f6;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:4px;margin-bottom:-1px;transition:background .15s; }
 .btn-map-toggle:hover { background:rgba(59,130,246,0.08); }
 
+/* ラブホ店舗口コミカード */
+.lh-shop-card { padding:12px 14px !important; }
+.lh-row1 { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.lh-row2 { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
+.lh-row-footer { display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid var(--border,#eee); }
+
 /* カードアクションボタン */
 .card-action-btn { flex:1;min-width:0;padding:8px 6px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:none; }
 .card-action-btn--lh-primary { background:linear-gradient(135deg,#e87a98,#d4688a);color:#fff; }
