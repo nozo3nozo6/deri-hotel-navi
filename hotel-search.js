@@ -796,9 +796,9 @@ function renderLovehoDetail(hotel, reports) {
     const lhShopReports = reports.filter(r => shopNames.includes(r.poster_name) && r.gender_mode === MODE);
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
     lhShopReports.sort((a, b) => {
-        const pa = lhShopInfoMap[a.poster_name]?.isPaid ? 1 : 0;
-        const pb = lhShopInfoMap[b.poster_name]?.isPaid ? 1 : 0;
-        if (pb !== pa) return pb - pa;
+        const priceA = lhShopInfoMap[a.poster_name]?.planPrice || 0;
+        const priceB = lhShopInfoMap[b.poster_name]?.planPrice || 0;
+        if (priceB !== priceA) return priceB - priceA;
         return shopSortDate(b) - shopSortDate(a);
     });
     const lhUserReports = reports.filter(r => !shopNames.includes(r.poster_name));
