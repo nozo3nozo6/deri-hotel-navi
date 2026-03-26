@@ -776,16 +776,16 @@ function renderLovehoDetail(hotel, reports) {
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
         const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
+        const timeHTML = r.time_slot ? `<span class="tag-chip tag-chip--time">🕐${esc(r.time_slot)}</span>` : '';
         return `<div class="review-card lh-shop-card">
             <div class="lh-row-header"><span class="text-sub3">${formatDate(r.created_at)}</span><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
-            ${(soloHTML||userSoloHTML||feeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}</div>` : ''}
+            ${(soloHTML||userSoloHTML||feeHTML||timeHTML) ? `<div class="lh-row2">${soloHTML}${userSoloHTML}${feeHTML}${timeHTML}</div>` : ''}
             ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
             ${r.atmosphere ? `<div style="margin:4px 0;"><span class="review-gp-label">✨ 雰囲気　</span><span class="atmo-badge">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span></div>` : ''}
             ${gpRoom.length ? `<div class="review-gp-section"><div class="review-gp-label">🛁 設備・お部屋</div><div class="review-gp-tags">${gpTagHTML(gpRoom)}</div></div>` : ''}
             ${gpService.length ? `<div class="review-gp-section"><div class="review-gp-label">🏨 サービス・利便性</div><div class="review-gp-tags">${gpTagHTML(gpService)}</div></div>` : ''}
             ${r.entry_method ? `<div class="review-detail-text">🚪 ${MODE==='women'?'セラピスト':'キャスト'}の入室方法: ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
-            ${r.time_slot ? `<div class="review-detail-text">🕐 ${esc(r.time_slot)}</div>` : ''}
             ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : ''}</div>` : ''}
         </div>`;
     }
@@ -1790,19 +1790,15 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button>` : '';
         const badgeCls = r.can_call ? (r.poster_type === 'shop' ? 'round-badge--shop-can' : 'round-badge--user-can') : (r.poster_type === 'shop' ? 'round-badge--shop-ng' : 'round-badge--user-ng');
 
+        const statusBadge = `<span class="round-badge ${badgeCls}">${isShop ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}</span>`;
+
         return `
-        <div class="review-card review-card--compact">
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
-                <span style="font-size:11px;font-weight:700;color:var(--text-3);white-space:nowrap;">${formatDate(r.created_at)}</span>
-                <span class="round-badge ${badgeCls}">
-                    ${r.poster_type === 'shop' ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}
-                </span>
-                ${tagsHTML}
-                ${metaChips}
-            </div>
-            ${(posterHTML || feeHTML) ? `<div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap;">${posterHTML}${feeHTML}</div>` : ''}
+        <div class="review-card lh-shop-card">
+            <div class="lh-row-header"><span class="text-sub3">${formatDate(r.created_at)}</span>${flagHTML}</div>
+            ${posterHTML ? `<div class="lh-row1">${posterHTML}</div>` : ''}
+            <div class="lh-row2">${statusBadge}${feeHTML}${metaChips}</div>
+            ${tagsHTML ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${tagsHTML}</div>` : ''}
             ${r.comment ? `<div class="text-comment--sm" style="margin-top:6px;">${esc(r.comment)}</div>` : ''}
-            ${flagHTML ? `<div style="text-align:right;margin-top:4px;">${flagHTML}</div>` : ''}
         </div>`;
     }
 
