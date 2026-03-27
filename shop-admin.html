@@ -1378,8 +1378,13 @@ async function doSubmit(){
     const submitBtn=document.getElementById("btn-do-submit");
     submitBtn.disabled=true;submitBtn.textContent="保存中...";
 
+    let hotelId='';
     const hiddenEl=document.getElementById("form-hotel-id");
-    const hotelId=hiddenEl?hiddenEl.value:'';
+    if(hiddenEl)hotelId=hiddenEl.value;
+    // フォールバック: info-form内のhidden要素を探す
+    if(!hotelId){const form=document.getElementById("info-form");if(form){const h=form.querySelector('#form-hotel-id');if(h)hotelId=h.value;}}
+    // フォールバック: _editModalから取得
+    if(!hotelId&&_editModal&&_editModal.form){const h=_editModal.form.querySelector('#form-hotel-id');if(h)hotelId=h.value;}
     if(!hotelId){toast('ホテルIDが取得できません。ホテルを再選択してください。');submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();return;}
     const editId=document.getElementById("form-edit-id").value;
     const canCall=formCanCall;
