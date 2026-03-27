@@ -855,20 +855,34 @@ function renderShopImages(){
     countEl.textContent=`${_shopImages.length}/3枚`;
     if(addEl)addEl.style.display=_shopImages.length>=3?'none':'flex';
 }
+function resizeImage(file,maxW,maxH,quality){
+    return new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>{
+            let w=img.width,h=img.height;
+            if(w>maxW||h>maxH){const r=Math.min(maxW/w,maxH/h);w=Math.round(w*r);h=Math.round(h*r);}
+            const c=document.createElement('canvas');c.width=w;c.height=h;
+            c.getContext('2d').drawImage(img,0,0,w,h);
+            resolve(c.toDataURL('image/jpeg',quality));
+        };
+        img.onerror=reject;
+        const r=new FileReader();r.onload=e=>{img.src=e.target.result;};r.readAsDataURL(file);
+    });
+}
 async function onShopImageSelect(input){
     if(!input.files[0])return;
     const file=input.files[0];
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG/PNG/WebPのみ対応');input.value='';return;}
-    if(file.size>2*1024*1024){toast('2MB以下の画像を選択してください');input.value='';return;}
+    if(file.size>5*1024*1024){toast('5MB以下の画像を選択してください');input.value='';return;}
     if(!confirm('この画像を追加しますか？'))return;
-    const reader=new FileReader();
-    reader.onload=async(e)=>{
-        const base64=e.target.result;
-        try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});const r=await res.json();if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
+    try{
+        const base64=await resizeImage(file,600,800,0.85);
+        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});
+        const r=await res.json();
+        if(!r.success){toast('保存エラー: '+(r.error||'不明'));input.value='';return;}
         await loadShopImages();
         toast('画像を追加しました');
-    };
-    reader.readAsDataURL(file);
+    }catch(e){toast('通信エラー');}
     input.value='';
 }
 async function deleteShopImage(imageId){
