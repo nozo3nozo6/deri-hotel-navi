@@ -872,11 +872,11 @@ function resizeImage(file,maxW,maxH,quality){
 async function onShopImageSelect(input){
     if(!input.files[0])return;
     const file=input.files[0];
-    if(!['image/jpeg','image/png'].includes(file.type)){toast('JPG/PNGのみ対応です');input.value='';return;}
-    if(file.size>5*1024*1024){toast('5MB以下の画像を選択してください');input.value='';return;}
+    if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');input.value='';return;}
+    if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');input.value='';return;}
     // サイズチェック（600×800px以内）
     const sizeOk=await new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.width<=600&&img.height<=800);img.onerror=()=>resolve(false);const r=new FileReader();r.onload=e=>{img.src=e.target.result;};r.readAsDataURL(file);});
-    if(!sizeOk){toast('画像サイズは600×800px以内にしてください');input.value='';return;}
+    if(!sizeOk){showSuccessModal('サイズ超過','画像サイズは600×800px以内にしてください');input.value='';return;}
     if(!confirm('この画像を追加しますか？'))return;
     try{
         const base64=await resizeImage(file,600,800,0.85);
