@@ -529,7 +529,6 @@ async function showCityPage(region, pref, majorArea) {
     ]);
     clearHotelList();
     const _regFb2 = (region && !isSinglePrefRegion(region)) ? [{ type: 'region', target: region.label }] : [];
-    loadAds('area', majorArea, [{ type: 'big', target: pref }, ..._regFb2, { type: 'premium', target: '全国' }]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -555,6 +554,7 @@ async function showCityPage(region, pref, majorArea) {
         }
         if (detailAreas.length > 1) {
             // 詳細エリア一覧を表示
+            loadAds('area', majorArea, [{ type: 'big', target: pref }, ..._regFb2, { type: 'premium', target: '全国' }]);
             container.innerHTML = '';
             detailAreas.forEach(([area, count], i) => {
                 const btn = document.createElement('button');
@@ -580,6 +580,7 @@ async function showCityPage(region, pref, majorArea) {
             return;
         }
 
+        loadAds('area', majorArea, [{ type: 'big', target: pref }, ..._regFb2, { type: 'premium', target: '全国' }]);
         renderCityButtons(container, cities, (city) => {
             pageStack.push(() => showCityPage(region, pref, majorArea));
             fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea }, city);
@@ -654,13 +655,6 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         { label: detailArea }
     ]);
     clearHotelList();
-    const _regFb3 = (region && !isSinglePrefRegion(region)) ? [{ type: 'region', target: region.label }] : [];
-    loadAds('town', detailArea, [
-        { type: 'area', target: majorArea },
-        { type: 'big', target: pref },
-        ..._regFb3,
-        { type: 'premium', target: '全国' }
-    ]);
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
@@ -685,6 +679,8 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
             }
             return;
         }
+        const _regFb3 = (region && !isSinglePrefRegion(region)) ? [{ type: 'region', target: region.label }] : [];
+        loadAds('town', detailArea, [{ type: 'area', target: majorArea }, { type: 'big', target: pref }, ..._regFb3, { type: 'premium', target: '全国' }]);
         renderCityButtons(container, cities, (city) => {
             pageStack.push(() => showDetailAreaPage(region, pref, majorArea, detailArea));
             fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
