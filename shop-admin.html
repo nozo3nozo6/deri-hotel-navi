@@ -683,8 +683,8 @@
 
 <script>
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
-function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';}
-function closeSuccessModal(){document.getElementById('success-modal').style.display='none';}
+function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';document.body.style.overflow='hidden';}
+function closeSuccessModal(){document.getElementById('success-modal').style.display='none';document.body.style.overflow='';}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 // ===== パスワードリセット =====
