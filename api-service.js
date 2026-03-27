@@ -238,7 +238,6 @@ async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
-    container.style.display = '';
     const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
@@ -255,7 +254,7 @@ async function loadAds(placementType, placementTarget, fallbacks) {
             }
         }
         if (gen !== _adGeneration) return; // suppressed
-        if (allAds.length) container.innerHTML = allAds.map(ad => renderAdHTML(ad)).join('');
+        if (allAds.length) { container.style.display = ''; container.innerHTML = allAds.map(ad => renderAdHTML(ad)).join(''); }
     } catch (e) { /* ad load failed silently */ }
 }
 
