@@ -368,19 +368,19 @@
                   上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
                   貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
                 </p>
-                <!-- サムネイル（有料プランのみ） -->
+                <!-- 店舗画像（有料プランのみ、最大3枚） -->
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                        <span style="font-size:12px;color:var(--text-3);min-width:90px;">サムネイル:</span>
-                        <span style="font-size:11px;color:var(--text-3);">推奨 480×640px（縦長）</span>
+                        <span style="font-size:12px;color:var(--text-3);">店舗画像:</span>
+                        <span style="font-size:11px;color:var(--text-3);">最大3枚（推奨 480×640px）</span>
                     </div>
-                    <div id="thumbnail-preview" style="margin-bottom:10px;"></div>
-                    <div style="display:flex;gap:8px;align-items:center;">
+                    <div id="shop-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+                    <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
                         <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
-                            画像を選択
-                            <input type="file" id="thumbnail-file" accept="image/*" onchange="onThumbnailSelect(this)" style="display:none;">
+                            画像を追加
+                            <input type="file" id="shop-image-file" accept="image/*" onchange="onShopImageSelect(this)" style="display:none;">
                         </label>
-                        <button id="thumbnail-delete-btn" onclick="deleteThumbnail()" style="display:none;padding:8px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;">削除</button>
+                        <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
                     </div>
                 </div>
                 <!-- キャッチコピー（有料プランのみ） -->
@@ -820,7 +820,7 @@ async function loadStatusCard(){
     window._shopIsPaid=isPaid;
     if(thumbSection){
         thumbSection.style.display=isPaid?'':'none';
-        if(isPaid){renderThumbnailPreview(data.thumbnail_url);}
+        if(isPaid){loadShopImages();}
     }
     // キャッチコピーセクション（有料プランのみ）
     const catchSection=document.getElementById("catchphrase-section");
@@ -834,42 +834,48 @@ async function loadStatusCard(){
     }
 }
 
-function renderThumbnailPreview(url){
-    const el=document.getElementById('thumbnail-preview');
-    const delBtn=document.getElementById('thumbnail-delete-btn');
-    if(url){
-        el.innerHTML=`<img src="${esc(url)}" style="max-width:120px;max-height:160px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">`;
-        delBtn.style.display='';
-    }else{
-        el.innerHTML='<span style="font-size:12px;color:var(--text-3);">未設定</span>';
-        delBtn.style.display='none';
-    }
+let _shopImages=[];
+async function loadShopImages(){
+    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
+    renderShopImages();
 }
-
-async function onThumbnailSelect(input){
+function renderShopImages(){
+    const el=document.getElementById('shop-images-preview');
+    const countEl=document.getElementById('shop-images-count');
+    const addEl=document.getElementById('shop-images-add');
+    if(!el)return;
+    if(!_shopImages.length){
+        el.innerHTML='<span style="font-size:12px;color:var(--text-3);">未設定</span>';
+    }else{
+        el.innerHTML=_shopImages.map(img=>`<div style="position:relative;display:inline-block;">
+            <img src="${esc(img.image_url)}" style="width:80px;height:100px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">
+            <button onclick="deleteShopImage(${img.id})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">×</button>
+        </div>`).join('');
+    }
+    countEl.textContent=`${_shopImages.length}/3枚`;
+    if(addEl)addEl.style.display=_shopImages.length>=3?'none':'flex';
+}
+async function onShopImageSelect(input){
     if(!input.files[0])return;
     const file=input.files[0];
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG/PNG/WebPのみ対応');input.value='';return;}
     if(file.size>2*1024*1024){toast('2MB以下の画像を選択してください');input.value='';return;}
-    if(!confirm('この画像をサムネイルとして保存しますか？'))return;
+    if(!confirm('この画像を追加しますか？'))return;
     const reader=new FileReader();
     reader.onload=async(e)=>{
         const base64=e.target.result;
-        try{const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-thumbnail",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({thumbnail_url:base64})});const r=await res.json();if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
-        currentShop.thumbnail_url=base64;
-        renderThumbnailPreview(base64);
-        toast('サムネイルを保存しました');
+        try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});const r=await res.json();if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
+        await loadShopImages();
+        toast('画像を追加しました');
     };
     reader.readAsDataURL(file);
     input.value='';
 }
-
-async function deleteThumbnail(){
-    if(!confirm('サムネイルを削除しますか？'))return;
-    try{const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-thumbnail",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({thumbnail_url:null})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
-    currentShop.thumbnail_url=null;
-    renderThumbnailPreview(null);
-    toast('サムネイルを削除しました');
+async function deleteShopImage(imageId){
+    if(!confirm('この画像を削除しますか？'))return;
+    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
+    await loadShopImages();
+    toast('画像を削除しました');
 }
 
 async function saveCatchphrase(){

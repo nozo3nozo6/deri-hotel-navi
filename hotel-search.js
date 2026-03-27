@@ -2165,14 +2165,15 @@ function renderAreaShopSection(shops) {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);">${esc(s.shop_name)}</span>`;
-        const thumbHtml = s.thumbnail_url
-            ? `<img src="${esc(s.thumbnail_url)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
-            : `<div class="ad-shop-thumb ad-shop-thumb--empty">📢</div>`;
+        const images = s.images && s.images.length ? s.images : (s.thumbnail_url ? [s.thumbnail_url] : []);
+        const thumbsHtml = images.length
+            ? `<div class="ad-shop-thumbs">${images.map(u => `<img src="${esc(u)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
+            : `<div class="ad-shop-thumbs"><div class="ad-shop-thumb ad-shop-thumb--empty">📢</div></div>`;
         const catchHtml = s.catchphrase
             ? `<div class="ad-shop-catch">${esc(s.catchphrase)}</div>`
             : '';
         return `<div class="ad-shop-card">
-            ${thumbHtml}
+            ${thumbsHtml}
             <div class="ad-shop-info">
                 ${nameHtml}
                 ${catchHtml}

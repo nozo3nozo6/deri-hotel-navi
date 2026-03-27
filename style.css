@@ -2153,6 +2153,7 @@ body[data-mode="men"] .header-title {
 .ad-shop-list { display:flex;flex-direction:column;gap:8px; }
 .ad-shop-card { display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;transition:background .15s; }
 .ad-shop-card:hover { background:rgba(181,98,122,0.04); }
+.ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid var(--border); }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
 .ad-shop-info { flex:1;min-width:0; }

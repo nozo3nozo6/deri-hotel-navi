@@ -92,5 +92,36 @@ foreach ($shopRows as $row) {
 $result = array_filter(array_values($shopMap), fn($s) => $s['plan_price'] > 0);
 usort($result, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
 
-echo json_encode(array_values($result), JSON_UNESCAPED_UNICODE);
+// 画像3枚を取得
+$allShopIds = array_column(array_values($result), null); // reset keys
+$resultArr = array_values($result);
+if (!empty($resultArr)) {
+    $sids = array_map(fn($s) => $s['id'] ?? '', $resultArr);
+    // shop_idはshopMap構築時にkeyとして使ったが、resultにidがない→shopMapから取得
+}
+// shopMapのキー(shop_id)を結果に付与
+$finalResult = [];
+foreach ($shopMap as $sid => $s) {
+    if ($s['plan_price'] <= 0) continue;
+    $s['id'] = $sid;
+    $finalResult[] = $s;
+}
+usort($finalResult, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
+
+// shop_imagesを一括取得
+$fIds = array_column($finalResult, 'id');
+if (!empty($fIds)) {
+    $ph = implode(',', array_fill(0, count($fIds), '?'));
+    $stmt = $pdo->prepare("SELECT shop_id, image_url FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
+    $stmt->execute($fIds);
+    $imgMap = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $imgMap[$row['shop_id']][] = $row['image_url'];
+    }
+    foreach ($finalResult as &$s) {
+        $s['images'] = $imgMap[$s['id']] ?? [];
+    }
+}
+
+echo json_encode(array_values($finalResult), JSON_UNESCAPED_UNICODE);
 ?>
