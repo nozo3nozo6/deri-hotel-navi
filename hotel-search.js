@@ -991,7 +991,11 @@ async function fetchHotelsByStation(stationName) {
     setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `🚉 ${esc(displayName)} 周辺` }]);
     setTitle(`${displayName} 周辺のホテル`);
     setBackBtn(true);
-    pageStack.push(showJapanPage);
+    // pageStackをリセットして全国に戻れるようにする（連続検索時の蓄積防止）
+    pageStack = [showJapanPage];
+    currentPage = () => fetchHotelsByStation(name);
+    // URLに駅名を反映（ブラウザ戻る/進むで復元可能に）
+    updateUrl({ station: name });
     document.getElementById('area-button-container').innerHTML = '';
 
     try {
@@ -1087,7 +1091,11 @@ async function executeKeywordSearch() {
     setBreadcrumb([{ label: t('japan'), onclick: 'showJapanPage()' }, { label: `「${keyword}」の検索結果` }]);
     setTitle(`「${keyword}」の検索結果`);
     setBackBtn(true);
-    pageStack.push(showJapanPage);
+    // pageStackをリセットして全国に戻れるようにする（連続検索時の蓄積防止）
+    pageStack = [showJapanPage];
+    currentPage = () => executeKeywordSearch();
+    // URLにキーワードを反映（ブラウザ戻る/進むで復元可能に）
+    updateUrl({ q: keyword });
     document.getElementById('area-button-container').innerHTML = '';
     window.scrollTo(0, 0);
 
@@ -1602,8 +1610,13 @@ function openHotelFromMap(hotelId, isLoveho) {
     showHotelPanel(hotelId, isLoveho);
 }
 
+let _showingHotelId = null; // ダブルクリック防止
 async function showHotelPanel(hotelId, isLoveho) {
-    if (currentPage) {
+    // 同じホテルを連続で開くのを防止（ダブルクリック対策）
+    if (_showingHotelId === hotelId) return;
+    _showingHotelId = hotelId;
+    if (currentPage && currentHotelId !== hotelId) {
+        // 現在のページが既にホテル詳細でない場合のみpageStackに追加
         const currentPageStr = currentPage.toString();
         if (!currentPageStr.includes('showHotelPanel')) {
             pageStack.push(currentPage);
@@ -1645,6 +1658,8 @@ async function showHotelPanel(hotelId, isLoveho) {
     content.innerHTML = `<div class="detail-loading">読み込み中...</div>`;
 
     await loadDetail(hotelId, isLoveho);
+    // 読み込み完了後、同一ホテルのダブルクリック防止を解除（別のホテルを開けるように）
+    if (_showingHotelId === hotelId) _showingHotelId = null;
     if (_mapDetailMode) {
         // 地図と詳細の境目あたりにスクロール（地図の半分が見える位置）
         const mapEl = document.getElementById('hotel-map');
@@ -1659,22 +1674,32 @@ async function showHotelPanel(hotelId, isLoveho) {
 }
 
 function closeHotelPanel() {
-    history.back();
+    // 直接URLでホテル詳細に入った場合、history.back()ではサイト外に出てしまう
+    // pageStackが空の場合はSPA内ナビゲーションで全国ページに戻る
+    if (pageStack.length === 0) {
+        leaveHotelDetail();
+        showJapanPage();
+    } else {
+        history.back();
+    }
 }
 
 let _savedBreadcrumbHTML = '';
 let _savedTabsHTML = '';
+let _savedScrollY = 0;
 
 function saveListState() {
     const bc = document.querySelector('.breadcrumb-inner');
     if (bc) _savedBreadcrumbHTML = bc.innerHTML;
     const tabs = document.getElementById('hotel-loveho-tabs');
     if (tabs) _savedTabsHTML = tabs.outerHTML;
+    _savedScrollY = window.scrollY;
 }
 
 function leaveHotelDetail() {
     _mapDetailMode = false;
     currentHotelId = null;
+    _showingHotelId = null;
     const content = document.getElementById('hotel-detail-content');
     if (content) { content.style.display = 'none'; content.innerHTML = ''; }
     const mapDetail = document.getElementById('map-detail-content');
@@ -1698,6 +1723,11 @@ function leaveHotelDetail() {
     }
     // ラブホムード解除
     document.getElementById('hotel-list').classList.remove('loveho-mood');
+    // スクロール位置を復元（ホテル詳細から一覧に戻る時）
+    if (_savedScrollY > 0) {
+        setTimeout(() => window.scrollTo(0, _savedScrollY), 0);
+        _savedScrollY = 0;
+    }
 }
 
 

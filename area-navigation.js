@@ -87,6 +87,12 @@ function buildUrl(params) {
     }
     const qs = new URLSearchParams();
     if (p.tab) qs.set('tab', p.tab);
+    // 地方ページ用: regionクエリパラメータを保持（パスに含まれないため）
+    if (p.region) qs.set('region', p.region);
+    // キーワード検索用: qクエリパラメータを保持
+    if (p.q) qs.set('q', p.q);
+    // 駅検索用: stationクエリパラメータを保持
+    if (p.station) qs.set('station', p.station);
     // 店舗モード時にエリアパラメータ+ホテルIDもクエリで維持
     if (SHOP_SLUG && p.pref) qs.set('pref', p.pref);
     if (SHOP_SLUG && p.area) qs.set('area', p.area);
@@ -103,14 +109,8 @@ function updateUrl(params) {
 
 function goToNationalTop() {
     if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
+    // showJapanPage()内でupdateUrl({})が呼ばれるため、ここでは追加のpushStateは不要
     if (typeof showJapanPage === 'function') showJapanPage();
-    if (SHOP_SLUG) {
-        // 店舗モード: SHOP_SLUGを維持 → /jofu/shop/slug/
-        updateUrl({});
-    } else {
-        // 通常モード: buildUrl()を経由しない → /jofu/
-        history.pushState(null, '', '/' + getModePath() + '/');
-    }
 }
 
 function ensurePortalMode() {
@@ -234,6 +234,8 @@ function parseUrlPath() {
         hotel: qs.get('hotel') || (isHotelPath ? segments[1] : null),
         region: qs.get('region') || null,
         tab: qs.get('tab') || null,
+        q: qs.get('q') || null,
+        station: qs.get('station') || null,
     };
 }
 
@@ -254,6 +256,26 @@ async function restoreFromUrl() {
     }
 
     ensurePortalMode();
+
+    // キーワード検索結果の復元
+    if (params.q) {
+        const kw = params.q;
+        const kwInput = document.getElementById('keyword');
+        if (kwInput) kwInput.value = kw;
+        if (typeof executeKeywordSearch === 'function') executeKeywordSearch();
+        _skipPushState = false;
+        return;
+    }
+
+    // 駅検索結果の復元
+    if (params.station) {
+        const st = params.station;
+        const stInput = document.getElementById('station-input');
+        if (stInput) stInput.value = typeof formatStationName === 'function' ? formatStationName(st) : st;
+        if (typeof fetchHotelsByStation === 'function') fetchHotelsByStation(st);
+        _skipPushState = false;
+        return;
+    }
 
     if (params.city) {
         const { pref, area, detail, city } = params;
@@ -338,10 +360,14 @@ async function restoreFromUrl() {
 
 window.addEventListener('popstate', () => {
     const content = document.getElementById('hotel-detail-content');
-    if (content && content.style.display !== 'none') {
+    const mapDetail = document.getElementById('map-detail-content');
+    const isDetailVisible = (content && content.style.display !== 'none' && content.innerHTML !== '') ||
+                            (mapDetail && mapDetail.style.display !== 'none' && mapDetail.innerHTML !== '');
+    if (isDetailVisible) {
         // ホテル詳細表示中にブラウザ戻る → 詳細を閉じて一覧に戻る
+        // 一覧のDOMは hidden 状態で残っているので leaveHotelDetail() で復元するだけでよい
+        // restoreFromUrl() は呼ばない（再フェッチが走り画面がちらつくため）
         if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
-        restoreFromUrl();
         return;
     }
     restoreFromUrl();
@@ -696,6 +722,10 @@ function backLevel() {
                             (mapDetail && mapDetail.style.display !== 'none' && mapDetail.innerHTML !== '');
     if (isDetailVisible) {
         leaveHotelDetail();
+        // 直接URLでホテル詳細に入った場合、一覧が空なので全国ページに戻す
+        if (pageStack.length === 0) {
+            showJapanPage();
+        }
         return;
     }
     if (pageStack.length > 0) {
