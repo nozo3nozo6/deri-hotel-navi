@@ -232,10 +232,13 @@ function renderAdHTML(ad) {
     </div>`;
 }
 
+let _adGeneration = 0;
+function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) c.innerHTML = ''; }
 async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
+    const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
         const targets = [{ type: placementType, target: placementTarget }];
@@ -250,6 +253,7 @@ async function loadAds(placementType, placementTarget, fallbacks) {
                 data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
             }
         }
+        if (gen !== _adGeneration) return; // suppressed
         if (allAds.length) container.innerHTML = allAds.map(ad => renderAdHTML(ad)).join('');
     } catch (e) { /* ad load failed silently */ }
 }

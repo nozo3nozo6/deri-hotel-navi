@@ -196,7 +196,7 @@ async function fetchAndShowHotels(filterObj) {
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
-    document.getElementById('ad-container').innerHTML = '';
+    suppressAds();
     hideLovehoTabs();
 
     try {
@@ -237,7 +237,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (filterObj.detail_area) _urlP.detail = filterObj.detail_area;
     _urlP.city = city;
     updateUrl(_urlP);
-    document.getElementById('ad-container').innerHTML = '';
+    suppressAds();
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
@@ -1637,7 +1637,7 @@ async function showHotelPanel(hotelId, isLoveho) {
     }
     currentHotelId = hotelId;
     currentPage = () => showHotelPanel(hotelId, isLoveho);
-    document.getElementById('ad-container').innerHTML = '';
+    suppressAds();
     hotelFormState = { can_call: null, conditions: new Set(), time_slot: '', can_call_reasons: new Set(), cannot_call_reasons: new Set(), comment: '', poster_name: '', room_type: '', multi_person: false, multi_fee: false, guest_male: 1, guest_female: 1 };
 
     updateUrl({ hotel: hotelId });
