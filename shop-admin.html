@@ -1252,6 +1252,7 @@ function openForm(hotel,existing){
     document.getElementById("lh-form-card").style.display="none";
     document.getElementById("form-hotel-name").textContent=hotel.name;
     document.getElementById("form-hotel-id").value=hotel.id;
+    window._currentFormHotelId=String(hotel.id);
     document.getElementById("form-edit-id").value=existing?existing.id:"";
 
     // リセット
@@ -1381,11 +1382,10 @@ async function doSubmit(){
     let hotelId='';
     const hiddenEl=document.getElementById("form-hotel-id");
     if(hiddenEl)hotelId=hiddenEl.value;
-    // フォールバック: info-form内のhidden要素を探す
-    if(!hotelId){const form=document.getElementById("info-form");if(form){const h=form.querySelector('#form-hotel-id');if(h)hotelId=h.value;}}
-    // フォールバック: _editModalから取得
-    if(!hotelId&&_editModal&&_editModal.form){const h=_editModal.form.querySelector('#form-hotel-id');if(h)hotelId=h.value;}
-    if(!hotelId){toast('ホテルIDが取得できません。ホテルを再選択してください。');submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();return;}
+    if(!hotelId){const form=document.getElementById("info-form");if(form){const h=form.querySelector('input[type=hidden]');if(h)hotelId=h.value;}}
+    if(!hotelId&&_editModal&&_editModal.form){const h=_editModal.form.querySelector('input[type=hidden]');if(h)hotelId=h.value;}
+    if(!hotelId&&window._currentFormHotelId)hotelId=window._currentFormHotelId;
+    if(!hotelId){toast('ホテルIDが取得できません(debug: el='+(hiddenEl?'found':'null')+', val='+(hiddenEl?hiddenEl.value:'N/A')+')');submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();return;}
     const editId=document.getElementById("form-edit-id").value;
     const canCall=formCanCall;
     const canReasonArr=getCheckedValues("can-reason-checks");
