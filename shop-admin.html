@@ -874,8 +874,8 @@ async function onShopImageSelect(input){
     const file=input.files[0];
     if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');input.value='';return;}
     if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');input.value='';return;}
-    // サイズチェック（600×800px以内）
-    const sizeOk=await new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.width<=600&&img.height<=800);img.onerror=()=>resolve(false);const r=new FileReader();r.onload=e=>{img.src=e.target.result;};r.readAsDataURL(file);});
+    // サイズチェック（600×800px以内）— createObjectURLで軽量チェック
+    const sizeOk=await new Promise(resolve=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);resolve(img.width<=600&&img.height<=800);};img.onerror=()=>{URL.revokeObjectURL(url);resolve(false);};img.src=url;});
     if(!sizeOk){showSuccessModal('サイズ超過','画像サイズは600×800px以内にしてください');input.value='';return;}
     if(!confirm('この画像を追加しますか？'))return;
     try{
