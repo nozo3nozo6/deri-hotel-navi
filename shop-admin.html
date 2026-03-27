@@ -372,13 +372,13 @@
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                         <span style="font-size:12px;color:var(--text-3);">店舗画像:</span>
-                        <span style="font-size:11px;color:var(--text-3);">最大3枚（推奨 480×640px）</span>
+                        <span style="font-size:11px;color:var(--text-3);">最大3枚（600×800px以内、JPG/PNGのみ）</span>
                     </div>
                     <div id="shop-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
                     <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
                         <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
                             画像を追加
-                            <input type="file" id="shop-image-file" accept="image/*" onchange="onShopImageSelect(this)" style="display:none;">
+                            <input type="file" id="shop-image-file" accept="image/jpeg,image/png" onchange="onShopImageSelect(this)" style="display:none;">
                         </label>
                         <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
                     </div>
@@ -872,8 +872,11 @@ function resizeImage(file,maxW,maxH,quality){
 async function onShopImageSelect(input){
     if(!input.files[0])return;
     const file=input.files[0];
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('JPG/PNG/WebPのみ対応');input.value='';return;}
+    if(!['image/jpeg','image/png'].includes(file.type)){toast('JPG/PNGのみ対応です');input.value='';return;}
     if(file.size>5*1024*1024){toast('5MB以下の画像を選択してください');input.value='';return;}
+    // サイズチェック（600×800px以内）
+    const sizeOk=await new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.width<=600&&img.height<=800);img.onerror=()=>resolve(false);const r=new FileReader();r.onload=e=>{img.src=e.target.result;};r.readAsDataURL(file);});
+    if(!sizeOk){toast('画像サイズは600×800px以内にしてください');input.value='';return;}
     if(!confirm('この画像を追加しますか？'))return;
     try{
         const base64=await resizeImage(file,600,800,0.85);
