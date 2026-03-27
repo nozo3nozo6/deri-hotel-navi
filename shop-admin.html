@@ -870,12 +870,14 @@ async function deleteThumbnail(){
 async function saveCatchphrase(){
     const val=document.getElementById('catchphrase-input').value.trim();
     if(val.length>20){toast('20文字以内にしてください');return;}
+    const msg=val?`キャッチコピーを「${val}」に設定しますか？`:'キャッチコピーを削除しますか？';
+    if(!confirm(msg))return;
     try{
         const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:val||null})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         if(currentShop)currentShop.catchphrase=val||null;
-        toast('キャッチコピーを保存しました');
+        showSuccessModal('保存完了',val?'キャッチコピーを設定しました':'キャッチコピーを削除しました');
     }catch(e){toast('通信エラー');}
 }
 
