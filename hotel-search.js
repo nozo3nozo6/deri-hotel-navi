@@ -2148,8 +2148,9 @@ function renderAreaShopSection(shops) {
         }
     }
 
-    const hotelList = document.getElementById('hotel-list');
-    if (!hotelList) return;
+    // area-button-container（エリアセクション内）に挿入（タブの上に表示）
+    const insertTarget = document.getElementById('area-button-container') || document.getElementById('hotel-list');
+    if (!insertTarget) return;
 
     const section = document.createElement('div');
     section.id = 'area-shop-section';
@@ -2184,5 +2185,5 @@ function renderAreaShopSection(shops) {
     if (!html) return; // 店舗がなければセクション自体を表示しない
 
     section.innerHTML = html;
-    hotelList.parentNode.insertBefore(section, hotelList);
+    insertTarget.appendChild(section);
 }
