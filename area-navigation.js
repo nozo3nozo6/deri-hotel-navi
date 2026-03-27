@@ -546,7 +546,13 @@ async function showCityPage(region, pref, majorArea) {
         const detailAreas = areaInfo.da || [];
         const cities = areaInfo.ct || [];
 
-        if (detailAreas.length > 0) {
+        if (detailAreas.length === 1) {
+            // detail_areaが1つだけ: スキップして直接そのdetail_areaを表示
+            pageStack.push(() => showCityPage(region, pref, majorArea));
+            showDetailAreaPage(region, pref, majorArea, detailAreas[0][0]);
+            return;
+        }
+        if (detailAreas.length > 1) {
             // 詳細エリア一覧を表示
             container.innerHTML = '';
             detailAreas.forEach(([area, count], i) => {
@@ -666,8 +672,14 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
 
     if (daInfo) {
         const cities = daInfo.ct || [];
-        if (!cities.length) {
-            fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
+        if (cities.length <= 1) {
+            // 市区町村が0-1件: detail_areaをスキップして直接ホテル一覧
+            const city = cities.length === 1 ? cities[0][0] : null;
+            if (city) {
+                fetchAndShowHotelsByCity({ prefecture: pref, major_area: majorArea, detail_area: detailArea }, city);
+            } else {
+                fetchAndShowHotels({ prefecture: pref, major_area: majorArea, detail_area: detailArea });
+            }
             return;
         }
         renderCityButtons(container, cities, (city) => {
