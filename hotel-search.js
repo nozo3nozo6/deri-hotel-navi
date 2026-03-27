@@ -1547,6 +1547,9 @@ function buildCardHTML(h, i, showDistance) {
 }
 
 function renderHotelCards(hotels, showDistance = false) {
+    // ホテルリスト表示時はad-container（エリアナビ用広告）を確実に非表示
+    const adC = document.getElementById('ad-container');
+    if (adC) { adC.innerHTML = ''; adC.style.display = 'none'; }
     const container = document.getElementById('hotel-list');
     showDistanceFlag = showDistance;
 
