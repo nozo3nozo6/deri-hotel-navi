@@ -686,8 +686,8 @@ function toast(msg,d=2500){const el=document.getElementById("toast");el.textCont
 function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';}
 function closeSuccessModal(){document.getElementById('success-modal').style.display='none';}
 let _confirmResolve=null;
-function showConfirmModal(msg){return new Promise(resolve=>{_confirmResolve=resolve;document.getElementById('confirm-modal-message').textContent=msg;document.getElementById('confirm-modal').style.display='flex';});}
-function resolveConfirm(val){if(_confirmResolve){_confirmResolve(val);_confirmResolve=null;}document.getElementById('confirm-modal').style.display='none';}
+function showConfirmModal(msg){return new Promise(resolve=>{_confirmResolve=resolve;document.getElementById('custom-confirm-message').textContent=msg;document.getElementById('custom-confirm-modal').style.display='flex';});}
+function resolveConfirm(val){if(_confirmResolve){_confirmResolve(val);_confirmResolve=null;}document.getElementById('custom-confirm-modal').style.display='none';}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 // ===== パスワードリセット =====
@@ -1379,13 +1379,7 @@ async function doSubmit(){
     const submitBtn=document.getElementById("btn-do-submit");
     submitBtn.disabled=true;submitBtn.textContent="保存中...";
 
-    let hotelId='';
-    const hiddenEl=document.getElementById("form-hotel-id");
-    if(hiddenEl)hotelId=hiddenEl.value;
-    if(!hotelId){const form=document.getElementById("info-form");if(form){const h=form.querySelector('input[type=hidden]');if(h)hotelId=h.value;}}
-    if(!hotelId&&_editModal&&_editModal.form){const h=_editModal.form.querySelector('input[type=hidden]');if(h)hotelId=h.value;}
-    if(!hotelId&&window._currentFormHotelId)hotelId=window._currentFormHotelId;
-    if(!hotelId){toast('ホテルIDが取得できません(debug: el='+(hiddenEl?'found':'null')+', val='+(hiddenEl?hiddenEl.value:'N/A')+')');submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();return;}
+    const hotelId=document.getElementById("form-hotel-id").value;
     const editId=document.getElementById("form-edit-id").value;
     const canCall=formCanCall;
     const canReasonArr=getCheckedValues("can-reason-checks");
@@ -1868,10 +1862,10 @@ async function saHreqSubmit(){
     <button onclick="closeSuccessModal()" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
   </div>
 </div>
-<div id="confirm-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9998; align-items:center; justify-content:center;">
+<div id="custom-confirm-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9998; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:12px; padding:28px 24px; max-width:400px; width:90%; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.3);">
     <p style="font-size:28px; margin:0 0 14px;">📋</p>
-    <p id="confirm-modal-message" style="margin:0 0 20px; color:#333; font-size:14px; line-height:1.7;"></p>
+    <p id="custom-confirm-message" style="margin:0 0 20px; color:#333; font-size:14px; line-height:1.7;"></p>
     <div style="display:flex; gap:10px;">
       <button onclick="resolveConfirm(false)" style="flex:1; padding:10px; background:#f5f5f5; border:1px solid #ddd; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit; color:#666;">キャンセル</button>
       <button onclick="resolveConfirm(true)" style="flex:1; padding:10px; background:#b5627a; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit; font-weight:600;">OK</button>
