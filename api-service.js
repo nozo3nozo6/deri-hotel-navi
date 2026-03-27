@@ -233,11 +233,12 @@ function renderAdHTML(ad) {
 }
 
 let _adGeneration = 0;
-function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) c.innerHTML = ''; }
+function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } }
 async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
+    container.style.display = '';
     const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
