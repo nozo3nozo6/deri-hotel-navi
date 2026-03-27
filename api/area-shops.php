@@ -58,7 +58,7 @@ $shopIds = array_keys($shopCounts);
 $spH = implode(',', array_fill(0, count($shopIds), '?'));
 $stmt = $pdo->prepare("
     SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.catchphrase, s.gender_mode,
-           sc.plan_id, cp.price
+           s.approved_at, sc.plan_id, cp.price
     FROM shops s
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
@@ -77,6 +77,7 @@ foreach ($shopRows as $row) {
             'shop_url' => $row['shop_url'],
             'thumbnail_url' => $row['thumbnail_url'],
             'catchphrase' => $row['catchphrase'],
+            'approved_at' => $row['approved_at'],
             'plan_price' => 0,
             'hotel_count' => $shopCounts[$sid] ?? 0,
         ];
@@ -87,9 +88,9 @@ foreach ($shopRows as $row) {
     }
 }
 
-// 有料プランのみ + 価格順
+// 有料プランのみ + 掲載日順（早い方が上位）
 $result = array_filter(array_values($shopMap), fn($s) => $s['plan_price'] > 0);
-usort($result, fn($a, $b) => $b['plan_price'] - $a['plan_price']);
+usort($result, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
 
 echo json_encode(array_values($result), JSON_UNESCAPED_UNICODE);
 ?>
