@@ -392,6 +392,7 @@
                     <div style="display:flex;gap:8px;align-items:center;">
                         <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用リラクゼーション" class="f-input" style="flex:1;">
                         <button onclick="saveCatchphrase()" style="padding:8px 16px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">保存</button>
+                        <button onclick="deleteCatchphrase()" id="catchphrase-delete-btn" style="display:none;padding:8px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;">削除</button>
                     </div>
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※エリア広告に表示されます</div>
                 </div>
@@ -828,7 +829,11 @@ async function loadStatusCard(){
     const catchSection=document.getElementById("catchphrase-section");
     if(catchSection){
         catchSection.style.display=isPaid?'':'none';
-        if(isPaid){document.getElementById("catchphrase-input").value=data.catchphrase||'';}
+        if(isPaid){
+            document.getElementById("catchphrase-input").value=data.catchphrase||'';
+            const delBtn=document.getElementById("catchphrase-delete-btn");
+            if(delBtn)delBtn.style.display=data.catchphrase?'':'none';
+        }
     }
 }
 
@@ -872,16 +877,32 @@ async function deleteThumbnail(){
 
 async function saveCatchphrase(){
     const val=document.getElementById('catchphrase-input').value.trim();
+    if(!val){toast('キャッチコピーを入力してください');return;}
     if(val.length>20){toast('20文字以内にしてください');return;}
-    const msg=val?`キャッチコピーを「${val}」に設定しますか？`:'キャッチコピーを削除しますか？';
-    const ok=await showConfirmModal(msg);
+    const ok=await showConfirmModal(`キャッチコピーを「${val}」に設定しますか？`);
     if(!ok)return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:val||null})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:val})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
-        if(currentShop)currentShop.catchphrase=val||null;
-        showSuccessModal('保存完了',val?'キャッチコピーを設定しました':'キャッチコピーを削除しました');
+        if(currentShop)currentShop.catchphrase=val;
+        const delBtn=document.getElementById("catchphrase-delete-btn");
+        if(delBtn)delBtn.style.display='';
+        showSuccessModal('保存完了','キャッチコピーを設定しました');
+    }catch(e){toast('通信エラー');}
+}
+async function deleteCatchphrase(){
+    const ok=await showConfirmModal('キャッチコピーを削除しますか？');
+    if(!ok)return;
+    try{
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:null})});
+        const r=await res.json();
+        if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}
+        if(currentShop)currentShop.catchphrase=null;
+        document.getElementById('catchphrase-input').value='';
+        const delBtn=document.getElementById("catchphrase-delete-btn");
+        if(delBtn)delBtn.style.display='none';
+        showSuccessModal('削除完了','キャッチコピーを削除しました');
     }catch(e){toast('通信エラー');}
 }
 
