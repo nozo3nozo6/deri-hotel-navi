@@ -168,7 +168,7 @@ function handleSaveHotelInfo() {
     $raw = file_get_contents('php://input');
     error_log('[save-hotel-info] raw input: ' . $raw);
     $input = json_decode($raw, true);
-    if (!$input) { http_response_code(400); echo json_encode(['error' => 'Invalid input', 'raw' => substr($raw, 0, 200)]); return; }
+    if (!$input) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); return; }
 
     $pdo = DB::conn();
     $shopId = $auth['shop_id'];
@@ -178,7 +178,7 @@ function handleSaveHotelInfo() {
     $info = $input['info'] ?? [];
     $serviceIds = $input['service_ids'] ?? [];
 
-    if (!$hotelId) { http_response_code(400); echo json_encode(['error' => 'hotel_id required', 'got' => $input['hotel_id'] ?? 'missing']); return; }
+    if (!$hotelId) { http_response_code(400); echo json_encode(['error' => 'hotel_id required']); return; }
 
     // 店舗名取得
     $stmt = $pdo->prepare('SELECT shop_name, gender_mode FROM shops WHERE id = ? LIMIT 1');
