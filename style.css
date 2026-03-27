@@ -473,9 +473,9 @@ body[data-mode="este"] {
    ========================================================================== */
 .area-section {
     background: var(--bg-2);
-    margin: 14px auto;
+    margin: 14px auto 8px;
     border-radius: var(--radius-lg);
-    padding: 18px;
+    padding: 18px 18px 12px;
     border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     max-width: 640px;
@@ -2365,7 +2365,7 @@ body[data-mode="men"] .header-title {
 .detail-info-sub { display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; }
 
 /* info-links-bar */
-.info-links-bar { display:flex;justify-content:center;flex-wrap:wrap;gap:10px 16px;padding:14px 16px;margin-top:12px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px; }
+.info-links-bar { display:flex;justify-content:center;flex-wrap:wrap;gap:10px 16px;padding:14px 16px;margin-top:12px;margin-bottom:0;background:var(--bg-2);border:1px solid var(--border);border-radius:8px; }
 
 /* セクション見出し */
 .stat-heading { font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px; }
