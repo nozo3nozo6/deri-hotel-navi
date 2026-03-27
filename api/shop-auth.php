@@ -33,6 +33,7 @@ switch ($action) {
     case 'check':            handleCheck(); break;
     case 'profile':          handleProfile(); break;
     case 'update-thumbnail': handleUpdateThumbnail(); break;
+    case 'update-catchphrase': handleUpdateCatchphrase(); break;
     case 'update-email':     handleUpdateEmail(); break;
     case 'update-slug':      handleUpdateSlug(); break;
     case 'lookup-email':     handleLookupEmail(); break;
@@ -155,6 +156,22 @@ function handleUpdateThumbnail() {
     $pdo = DB::conn();
     $stmt = $pdo->prepare('UPDATE shops SET thumbnail_url = ?, updated_at = NOW() WHERE id = ?');
     $stmt->execute([$thumbnailUrl, $auth['shop_id']]);
+
+    echo json_encode(['success' => true]);
+}
+
+function handleUpdateCatchphrase() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $catchphrase = $input['catchphrase'] ?? null;
+    if ($catchphrase !== null) $catchphrase = mb_substr(trim($catchphrase), 0, 20);
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('UPDATE shops SET catchphrase = ?, updated_at = NOW() WHERE id = ?');
+    $stmt->execute([$catchphrase, $auth['shop_id']]);
 
     echo json_encode(['success' => true]);
 }

@@ -57,7 +57,7 @@ if (empty($shopCounts)) { echo json_encode([]); exit; }
 $shopIds = array_keys($shopCounts);
 $spH = implode(',', array_fill(0, count($shopIds), '?'));
 $stmt = $pdo->prepare("
-    SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.gender_mode,
+    SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.catchphrase, s.gender_mode,
            sc.plan_id, cp.price
     FROM shops s
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
@@ -76,6 +76,7 @@ foreach ($shopRows as $row) {
             'shop_name' => $row['shop_name'],
             'shop_url' => $row['shop_url'],
             'thumbnail_url' => $row['thumbnail_url'],
+            'catchphrase' => $row['catchphrase'],
             'plan_price' => 0,
             'hotel_count' => $shopCounts[$sid] ?? 0,
         ];

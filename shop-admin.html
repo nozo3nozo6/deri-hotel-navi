@@ -383,6 +383,18 @@
                         <button id="thumbnail-delete-btn" onclick="deleteThumbnail()" style="display:none;padding:8px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;">削除</button>
                     </div>
                 </div>
+                <!-- キャッチコピー（有料プランのみ） -->
+                <div id="catchphrase-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                        <span style="font-size:12px;color:var(--text-3);">キャッチコピー:</span>
+                        <span style="font-size:11px;color:var(--text-3);">20文字以内</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用リラクゼーション" class="f-input" style="flex:1;">
+                        <button onclick="saveCatchphrase()" style="padding:8px 16px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">保存</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※エリア広告に表示されます</div>
+                </div>
             </div>
         </div>
         <div class="card">
@@ -809,6 +821,12 @@ async function loadStatusCard(){
         thumbSection.style.display=isPaid?'':'none';
         if(isPaid){renderThumbnailPreview(data.thumbnail_url);}
     }
+    // キャッチコピーセクション（有料プランのみ）
+    const catchSection=document.getElementById("catchphrase-section");
+    if(catchSection){
+        catchSection.style.display=isPaid?'':'none';
+        if(isPaid){document.getElementById("catchphrase-input").value=data.catchphrase||'';}
+    }
 }
 
 function renderThumbnailPreview(url){
@@ -847,6 +865,18 @@ async function deleteThumbnail(){
     currentShop.thumbnail_url=null;
     renderThumbnailPreview(null);
     toast('サムネイルを削除しました');
+}
+
+async function saveCatchphrase(){
+    const val=document.getElementById('catchphrase-input').value.trim();
+    if(val.length>20){toast('20文字以内にしてください');return;}
+    try{
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:val||null})});
+        const r=await res.json();
+        if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
+        if(currentShop)currentShop.catchphrase=val||null;
+        toast('キャッチコピーを保存しました');
+    }catch(e){toast('通信エラー');}
 }
 
 function copyShopUrl(){

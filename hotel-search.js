@@ -2156,34 +2156,30 @@ function renderAreaShopSection(shops) {
     section.id = 'area-shop-section';
     section.className = 'area-shop-section';
 
-    let html = '';
+    if (!shops || !shops.length) return;
 
-    if (shops && shops.length > 0) {
-        shops.forEach(s => {
-            const nameHtml = s.shop_url
-                ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; font-weight:500;">${esc(s.shop_name)} 🔗</a>`
-                : `<span style="font-size:13px; color:var(--text); font-weight:500;">${esc(s.shop_name)}</span>`;
-            const thumbHtml = s.thumbnail_url
-                ? `<img src="${esc(s.thumbnail_url)}" style="width:48px;height:64px;object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
-                : '';
-            html += `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:8px; padding:12px 14px; margin-bottom:8px; font-size:12px;">
-                <div style="color:#999; font-size:10px; margin-bottom:6px;">📢 このエリアの掲載店舗</div>
-                <div style="display:flex;align-items:center;gap:12px;">
-                    ${thumbHtml}
-                    <div>
-                        <div style="margin-bottom:4px;">
-                            <span style="background:#b5627a; color:#fff; font-size:9px; padding:1px 5px; border-radius:2px;">認定店</span>
-                            <span style="color:#999; font-size:11px; margin-left:6px;">${s.hotel_count}件対応</span>
-                        </div>
-                        ${nameHtml}
-                    </div>
-                </div>
-            </div>`;
-        });
-    }
+    // 3件制限
+    const displayShops = shops.slice(0, 3);
 
-    if (!html) return; // 店舗がなければセクション自体を表示しない
+    const cards = displayShops.map(s => {
+        const nameHtml = s.shop_url
+            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
+            : `<span class="ad-shop-name" style="color:var(--text);">${esc(s.shop_name)}</span>`;
+        const thumbHtml = s.thumbnail_url
+            ? `<img src="${esc(s.thumbnail_url)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
+            : `<div class="ad-shop-thumb ad-shop-thumb--empty">📢</div>`;
+        const catchHtml = s.catchphrase
+            ? `<div class="ad-shop-catch">${esc(s.catchphrase)}</div>`
+            : '';
+        return `<div class="ad-shop-card">
+            ${thumbHtml}
+            <div class="ad-shop-info">
+                ${nameHtml}
+                ${catchHtml}
+            </div>
+        </div>`;
+    }).join('');
 
-    section.innerHTML = html;
+    section.innerHTML = `<div class="ad-shop-header">📢 このエリアで案内できる店舗</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
