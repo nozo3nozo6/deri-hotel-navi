@@ -858,8 +858,16 @@ function renderLovehoDetail(hotel, reports) {
             <div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>
         </div>` : '');
 
-    // フォームHTML
+    // フォームHTML → モーダル化: ボタンのみ表示
     const formHTML = `
+        <div style="text-align:center;margin:24px 0 8px;">
+            <button onclick="openLovehoReportFormModal()" class="btn-open-report-modal btn-open-report-modal--lh">🏩 口コミを投稿する</button>
+        </div>`;
+
+    // モーダル内フォームを生成
+    const lhModalBody = document.getElementById('loveho-report-form-body');
+    if (lhModalBody) {
+        lhModalBody.innerHTML = `
         <div class="lh-form-wrap">
             <div style="text-align:center;margin-bottom:16px;">
                 <div class="text-sub3" style="margin-bottom:4px;">${esc(h.name)}</div>
@@ -901,6 +909,7 @@ function renderLovehoDetail(hotel, reports) {
             <div class="lh-form-row"><label class="lh-form-label">投稿者名（任意）</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div></div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">確認画面に進む</button>
         </div>`;
+    }
 
     renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });
 
@@ -1919,15 +1928,20 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             </div>
         </div>` : '');
 
-    // フォームHTML
-    const castLabel = (typeof MODE !== 'undefined' ? MODE : 'men') === 'women' ? 'セラピスト' : 'キャスト';
+    // フォームHTML → モーダル化: ボタンのみ表示
     const formHTML = `
-        <div style="text-align:center;margin:28px 0 10px;">
-            <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">${esc(hotel.name)}</div>
-            <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:16px;font-weight:600;color:var(--text);">情報を投稿する</span>
-                <div style="flex:1;height:1px;background:var(--border);"></div>
-            </div>
+        <div style="text-align:center;margin:24px 0 8px;">
+            <button onclick="openHotelReportFormModal()" class="btn-open-report-modal">📝 口コミを投稿する</button>
+        </div>`;
+
+    // モーダル内フォームを生成
+    const castLabel = (typeof MODE !== 'undefined' ? MODE : 'men') === 'women' ? 'セラピスト' : 'キャスト';
+    const modalBody = document.getElementById('hotel-report-form-body');
+    if (modalBody) {
+        modalBody.innerHTML = `
+        <div style="text-align:center;margin-bottom:16px;">
+            <div class="text-sub3" style="margin-bottom:4px;">${esc(hotel.name)}</div>
+            <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">📝 口コミを投稿する</h3>
         </div>
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
@@ -2002,6 +2016,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             </div>
             <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">確認画面に進む</button>
         </div>`;
+    }
 
     renderDetailPage(hotel, false, { statsHTML, shopSection, userSection: userReportsHTML, formHTML });
 }

@@ -358,6 +358,38 @@ function closePostConfirmModal() {
 }
 
 // ==========================================================================
+// 投稿フォームモーダル（ホテル / ラブホ）
+// ==========================================================================
+function openHotelReportFormModal() {
+    // フォーム状態リセット
+    hotelFormState = {
+        can_call: null, conditions: new Set(), time_slot: '',
+        can_call_reasons: new Set(), cannot_call_reasons: new Set(),
+        comment: '', poster_name: '', room_type: '',
+        multi_person: false, multi_fee: false, guest_male: 1, guest_female: 1,
+    };
+    const modal = document.getElementById('hotel-report-form-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeHotelReportFormModal() {
+    const modal = document.getElementById('hotel-report-form-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openLovehoReportFormModal() {
+    // フォーム状態リセット
+    lhFormState = { solo_entry: '', atmosphere: '', time_slot: '', comment: '', poster_name: '', good_points: [], multi_person: false, multi_fee: false, guest_male: '', guest_female: '' };
+    const modal = document.getElementById('loveho-report-form-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeLovehoReportFormModal() {
+    const modal = document.getElementById('loveho-report-form-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// ==========================================================================
 // 強化フィンガープリント生成（SHA-256）
 // ==========================================================================
 async function generateFingerprint() {
@@ -463,6 +495,7 @@ async function doSubmitReport() {
         }
 
         closePostConfirmModal();
+        closeHotelReportFormModal();
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
         showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
         setTimeout(() => loadDetail(currentHotelId, false), 1500);
@@ -571,6 +604,7 @@ async function doSubmitLovehoReport() {
             throw new Error(result.error || 'Submit failed');
         }
         document.getElementById('lh-confirm-modal').style.display = 'none';
+        closeLovehoReportFormModal();
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);
@@ -952,6 +986,9 @@ document.addEventListener('keydown', (e) => {
             { id: 'can-reasons-modal', close: cancelCanReasons },
             { id: 'cannot-reasons-modal', close: cancelCannotReasons },
             { id: 'post-confirm-modal', close: closePostConfirmModal },
+            { id: 'lh-confirm-modal', close: () => document.getElementById('lh-confirm-modal').style.display = 'none' },
+            { id: 'hotel-report-form-modal', close: closeHotelReportFormModal },
+            { id: 'loveho-report-form-modal', close: closeLovehoReportFormModal },
             { id: 'flag-modal', close: closeFlagModal },
             { id: 'hotel-request-modal', close: closeHotelRequestModal },
             { id: 'correction-modal', close: closeCorrectionModal },

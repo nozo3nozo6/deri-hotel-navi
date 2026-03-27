@@ -204,7 +204,7 @@
 <!-- Mode initialization handled by portal-init.js -->
 <!-- 呼べた理由選択モーダル -->
 <!-- 呼べた理由選択モーダル -->
-<div id="can-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+<div id="can-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
             <div class="modal-title">✅ 呼べた理由を選んでください</div>
@@ -219,7 +219,7 @@
 </div>
 
 <!-- 呼べなかった理由選択モーダル -->
-<div id="cannot-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+<div id="cannot-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
             <div class="modal-title">❌ 呼べなかった理由を選んでください</div>
@@ -264,6 +264,22 @@
             <button onclick="document.getElementById('lh-confirm-modal').style.display='none'" class="btn-modal-cancel" style="flex:1;">修正する</button>
             <button onclick="doSubmitLovehoReport()" id="btn-do-lh-submit" class="btn-modal-primary" style="flex:2;font-size:14px;">この内容で投稿する</button>
         </div>
+    </div>
+</div>
+
+<!-- ホテル口コミ投稿フォームモーダル -->
+<div id="hotel-report-form-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+    <div class="modal-content modal-content--form" style="max-width:520px;max-height:calc(100dvh - 120px);overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <button onclick="closeHotelReportFormModal()" class="modal-close-btn" aria-label="閉じる">&times;</button>
+        <div id="hotel-report-form-body"></div>
+    </div>
+</div>
+
+<!-- ラブホ口コミ投稿フォームモーダル -->
+<div id="loveho-report-form-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
+    <div class="modal-content modal-content--form" style="max-width:520px;max-height:calc(100dvh - 120px);overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <button onclick="closeLovehoReportFormModal()" class="modal-close-btn" aria-label="閉じる">&times;</button>
+        <div id="loveho-report-form-body"></div>
     </div>
 </div>
 

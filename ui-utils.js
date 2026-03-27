@@ -263,6 +263,8 @@ document.addEventListener('click', function(e) {
         'can-reasons-modal': 'cancelCanReasons',
         'cannot-reasons-modal': 'cancelCannotReasons',
         'post-confirm-modal': 'closePostConfirmModal',
+        'hotel-report-form-modal': 'closeHotelReportFormModal',
+        'loveho-report-form-modal': 'closeLovehoReportFormModal',
         'flag-modal': 'closeFlagModal',
         'hotel-request-modal': 'closeHotelRequestModal',
         'correction-modal': 'closeCorrectionModal',

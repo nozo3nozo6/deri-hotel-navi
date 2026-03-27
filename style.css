@@ -1716,6 +1716,31 @@ body[data-mode="men"] .header-title {
     -webkit-overflow-scrolling: touch;
 }
 
+/* 投稿フォームモーダル */
+.modal-content--form { position: relative; }
+.modal-close-btn {
+    position: absolute; top: 12px; right: 12px; z-index: 1;
+    width: 32px; height: 32px; border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.08); color: #666; font-size: 20px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+}
+.modal-close-btn:hover { background: rgba(0,0,0,0.15); }
+
+/* 口コミ投稿ボタン（詳細ページ内） */
+.btn-open-report-modal {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 14px 32px; border: 2px solid var(--accent); border-radius: 12px;
+    background: transparent; color: var(--accent); font-family: inherit;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.5px;
+}
+.btn-open-report-modal:hover { background: var(--accent); color: #fff; }
+.btn-open-report-modal--lh {
+    border-color: #d4688a; color: #d4688a;
+}
+.btn-open-report-modal--lh:hover { background: #d4688a; color: #fff; }
+
 /* Modal height adjustment for small devices */
 [id$="-modal"] > div {
     max-height: calc(100dvh - 80px);
