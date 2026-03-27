@@ -17,6 +17,15 @@ function shopSortDate(r) {
     }
     return d;
 }
+function toggleAccordionForm(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : 'block';
+    const arrowId = id.replace('accordion', 'arrow');
+    const arrow = document.getElementById(arrowId);
+    if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
 function scrollableSection(items, buildFn, emptyMsg) {
     if (!items.length) return emptyMsg || '';
     if (items.length <= 3) return items.map(buildFn).join('');
@@ -858,21 +867,13 @@ function renderLovehoDetail(hotel, reports) {
             <div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>
         </div>` : '');
 
-    // フォームHTML → モーダル化: ボタンのみ表示
+    // フォームHTML → アコーディオン式
     const formHTML = `
-        <div style="text-align:center;margin:24px 0 8px;">
-            <button onclick="openLovehoReportFormModal()" class="btn-open-report-modal btn-open-report-modal--lh">🏩 口コミを投稿する</button>
-        </div>`;
-
-    // モーダル内フォームを生成
-    const lhModalBody = document.getElementById('loveho-report-form-body');
-    if (lhModalBody) {
-        lhModalBody.innerHTML = `
+        <div class="accordion-form" style="margin:24px 0 8px;">
+            <div class="text-sub3" style="text-align:center;margin-bottom:4px;">${esc(h.name)}</div>
+            <button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh" style="width:100%;">🏩 口コミを投稿する <span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button>
+            <div id="loveho-form-accordion" style="display:none;margin-top:12px;">
         <div class="lh-form-wrap">
-            <div style="text-align:center;margin-bottom:16px;">
-                <div class="text-sub3" style="margin-bottom:4px;">${esc(h.name)}</div>
-                <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">🏩 口コミを投稿する</h3>
-            </div>
             <div class="lh-form-row">
                 <label class="lh-form-label">${SHOP_ID ? 'チェックイン方法' : '一人で先に入れる？'}</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" class="lh-form-select">
@@ -908,8 +909,9 @@ function renderLovehoDetail(hotel, reports) {
             <div class="lh-form-row"><label class="lh-form-label">フリーコメント</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" class="lh-form-select" style="resize:vertical;"></textarea></div>
             <div class="lh-form-row"><label class="lh-form-label">投稿者名（任意）</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div></div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">確認画面に進む</button>
+        </div>
+            </div>
         </div>`;
-    }
 
     renderDetailPage(hotel, true, { statsHTML, shopSection: lhShopSection, userSection, formHTML });
 
@@ -1928,21 +1930,13 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             </div>
         </div>` : '');
 
-    // フォームHTML → モーダル化: ボタンのみ表示
-    const formHTML = `
-        <div style="text-align:center;margin:24px 0 8px;">
-            <button onclick="openHotelReportFormModal()" class="btn-open-report-modal">📝 口コミを投稿する</button>
-        </div>`;
-
-    // モーダル内フォームを生成
+    // フォームHTML → アコーディオン式
     const castLabel = (typeof MODE !== 'undefined' ? MODE : 'men') === 'women' ? 'セラピスト' : 'キャスト';
-    const modalBody = document.getElementById('hotel-report-form-body');
-    if (modalBody) {
-        modalBody.innerHTML = `
-        <div style="text-align:center;margin-bottom:16px;">
-            <div class="text-sub3" style="margin-bottom:4px;">${esc(hotel.name)}</div>
-            <h3 style="font-size:16px;font-weight:600;color:var(--text);margin:0;">📝 口コミを投稿する</h3>
-        </div>
+    const formHTML = `
+        <div class="accordion-form" style="margin:24px 0 8px;">
+            <div class="text-sub3" style="text-align:center;margin-bottom:4px;">${esc(hotel.name)}</div>
+            <button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal" style="width:100%;">📝 口コミを投稿する <span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button>
+            <div id="hotel-form-accordion" style="display:none;margin-top:12px;">
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
                 <label class="form-label">投稿者名 <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
@@ -2015,8 +2009,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                 <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">※お店名・${castLabel}情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります</div>
             </div>
             <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">確認画面に進む</button>
+        </div>
+            </div>
         </div>`;
-    }
 
     renderDetailPage(hotel, false, { statsHTML, shopSection, userSection: userReportsHTML, formHTML });
 }

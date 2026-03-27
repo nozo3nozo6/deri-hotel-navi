@@ -495,7 +495,7 @@ async function doSubmitReport() {
         }
 
         closePostConfirmModal();
-        closeHotelReportFormModal();
+        if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('hotel-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('hotel-form-accordion'); }
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
         showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
         setTimeout(() => loadDetail(currentHotelId, false), 1500);
@@ -604,7 +604,7 @@ async function doSubmitLovehoReport() {
             throw new Error(result.error || 'Submit failed');
         }
         document.getElementById('lh-confirm-modal').style.display = 'none';
-        closeLovehoReportFormModal();
+        if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('loveho-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('loveho-form-accordion'); }
         showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);
