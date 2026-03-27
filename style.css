@@ -2140,8 +2140,9 @@ body[data-mode="men"] .header-title {
    エリア店舗セクション
    ========================================================================== */
 .area-shop-section {
-    max-width: 640px;
-    margin: 0 auto 20px;
+    grid-column: 1 / -1;
+    max-width: 100%;
+    margin: 0 0 12px;
     padding: 16px 20px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
