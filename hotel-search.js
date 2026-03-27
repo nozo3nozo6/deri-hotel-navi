@@ -256,13 +256,8 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
-    const _adFb = [];
-    if (majorArea) _adFb.push({ type: 'area', target: majorArea });
-    if (pref) _adFb.push({ type: 'big', target: pref });
-    const _adRegion = REGION_MAP.find(r => r.prefs.includes(pref));
-    if (_adRegion && !isSinglePrefRegion(_adRegion)) _adFb.push({ type: 'region', target: _adRegion.label });
-    _adFb.push({ type: 'premium', target: '全国' });
-    loadAds('spot', city, _adFb);
+    // ホテル一覧ページではad-container広告を表示しない（area-shop-sectionのみ）
+    // loadAdsを呼ばず、suppressAds()で非表示を維持する
     setBackBtn(true);
 
     try {
