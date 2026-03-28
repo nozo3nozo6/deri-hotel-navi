@@ -190,6 +190,7 @@ async function fuseSearch(keyword, limit) {
 }
 
 async function fetchAndShowHotels(filterObj) {
+    window.scrollTo(0,0);
     const gen = ++_fetchGeneration;
     ++_areaGeneration;
     currentPage = () => fetchAndShowHotels(filterObj);
@@ -229,6 +230,7 @@ async function fetchAndShowHotels(filterObj) {
 }
 
 async function fetchAndShowHotelsByCity(filterObj, city) {
+    window.scrollTo(0,0);
     const gen = ++_fetchGeneration;
     ++_areaGeneration;
     const _urlP = {};
@@ -1626,6 +1628,7 @@ async function showHotelPanel(hotelId, isLoveho) {
     // 同じホテルを連続で開くのを防止（ダブルクリック対策）
     if (_showingHotelId === hotelId) return;
     _showingHotelId = hotelId;
+    window.scrollTo(0,0);
     if (currentPage && currentHotelId !== hotelId) {
         // 現在のページが既にホテル詳細でない場合のみpageStackに追加
         const currentPageStr = currentPage.toString();

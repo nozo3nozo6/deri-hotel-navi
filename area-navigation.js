@@ -378,6 +378,7 @@ window.addEventListener('popstate', () => {
 // ==========================================================================
 function showJapanPage() {
     if(document.activeElement)document.activeElement.blur();
+    window.scrollTo(0,0);
     ++_areaGeneration;
     pageStack = [];
     currentPage = showJapanPage;
@@ -414,6 +415,7 @@ function showJapanPage() {
 
 async function showPrefPage(region) {
     if(document.activeElement)document.activeElement.blur();
+    window.scrollTo(0,0);
     const gen = ++_areaGeneration;
     currentPage = () => showPrefPage(region);
     updateUrl({ region: region.label });
@@ -465,6 +467,7 @@ async function showPrefPage(region) {
 
 async function showMajorAreaPage(region, pref) {
     if(document.activeElement)document.activeElement.blur();
+    window.scrollTo(0,0);
     const gen = ++_areaGeneration;
     currentPage = () => showMajorAreaPage(region, pref);
     updateUrl({ pref });
@@ -515,6 +518,7 @@ async function showMajorAreaPage(region, pref) {
 
 async function showCityPage(region, pref, majorArea) {
     if(document.activeElement)document.activeElement.blur();
+    window.scrollTo(0,0);
     const gen = ++_areaGeneration;
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
@@ -641,6 +645,7 @@ async function showCityPage(region, pref, majorArea) {
 
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     if(document.activeElement)document.activeElement.blur();
+    window.scrollTo(0,0);
     const gen = ++_areaGeneration;
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
