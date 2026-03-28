@@ -785,9 +785,9 @@ function renderLovehoDetail(hotel, reports) {
         const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
-        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">✨ 雰囲気</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
-        const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🛁 設備</span>${gpTagHTML(gpRoom)}</div>` : '';
-        const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🏨 サービス</span>${gpTagHTML(gpService)}</div>` : '';
+        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">✨雰囲気</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
+        const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🛁設備･お部屋</span>${gpTagHTML(gpRoom)}</div>` : '';
+        const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🏨サービス･利便性</span>${gpTagHTML(gpService)}</div>` : '';
         return `<div class="review-card lh-shop-card">
             <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
