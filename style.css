@@ -2169,7 +2169,7 @@ body[data-mode="men"] .header-title {
 .ad-main-info > .ad-shop-name { padding:6px 12px 4px;background:color-mix(in srgb, var(--accent,#b5627a) 8%, var(--bg-3,#fff));border-bottom:1px solid color-mix(in srgb, var(--accent,#b5627a) 12%, transparent); }
 .ad-main-catch { font-size:12px;font-weight:600;color:var(--text);margin-top:2px;padding:2px 12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
 .ad-main-bottom { display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding:5px 12px;background:color-mix(in srgb, var(--accent,#b5627a) 10%, var(--bg-3,#fff));border-top:1px solid color-mix(in srgb, var(--accent,#b5627a) 12%, transparent); }
-.ad-main-price-text { font-size:17px;font-weight:800;color:var(--accent,#b5627a);letter-spacing:0.5px; }
+.ad-main-price-text { font-size:20px;font-weight:800;color:var(--accent,#b5627a);letter-spacing:0.5px; }
 .ad-main-hours-text { font-size:13px;color:var(--text-2);font-weight:500; }
 
 /* ==========================================================================
