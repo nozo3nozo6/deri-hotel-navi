@@ -392,7 +392,11 @@
                     </div>
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">営業時間</label>
-                        <div style="display:flex;gap:6px;align-items:center;">
+                        <label style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;font-size:12px;color:var(--text-2);">
+                            <input type="checkbox" id="ad-hours-24h" onchange="toggle24h(this.checked)" style="width:16px;height:16px;accent-color:var(--rose);">
+                            24時間営業
+                        </label>
+                        <div id="ad-hours-selects" style="display:flex;gap:6px;align-items:center;">
                             <select id="ad-hours-start" class="f-select" style="flex:1;"><option value="">開始</option></select>
                             <span style="color:var(--text-3);">〜</span>
                             <select id="ad-hours-end" class="f-select" style="flex:1;"><option value="">終了</option></select>
@@ -840,8 +844,13 @@ async function loadStatusCard(){
         if(isPaid){
             initHoursSelects();
             document.getElementById("catchphrase-input").value=data.catchphrase||'';
-            // 営業時間をプルダウンに復元（「10:00〜翌5:00」形式）
-            if(data.business_hours){
+            // 営業時間を復元
+            if(data.business_hours==='24時間営業'){
+                document.getElementById("ad-hours-24h").checked=true;
+                toggle24h(true);
+            }else if(data.business_hours){
+                document.getElementById("ad-hours-24h").checked=false;
+                toggle24h(false);
                 const parts=data.business_hours.split('〜');
                 if(parts[0])document.getElementById("ad-hours-start").value=parts[0];
                 if(parts[1])document.getElementById("ad-hours-end").value=parts[1];
@@ -912,6 +921,10 @@ async function deleteShopImage(imageId){
     toast('画像を削除しました');
 }
 
+function toggle24h(checked){
+    document.getElementById('ad-hours-selects').style.display=checked?'none':'flex';
+    if(checked){document.getElementById('ad-hours-start').value='';document.getElementById('ad-hours-end').value='';}
+}
 function initHoursSelects(){
     const times=['0:00','1:00','2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','翌0:00','翌1:00','翌2:00','翌3:00','翌4:00','翌5:00','翌6:00'];
     ['ad-hours-start','ad-hours-end'].forEach(id=>{
@@ -922,9 +935,9 @@ function initHoursSelects(){
 }
 async function saveAdInfo(){
     const catchphrase=document.getElementById('catchphrase-input').value.trim();
-    const hStart=document.getElementById('ad-hours-start').value;
-    const hEnd=document.getElementById('ad-hours-end').value;
-    const businessHours=(hStart&&hEnd)?hStart+'〜'+hEnd:(hStart||hEnd||'');
+    const is24h=document.getElementById('ad-hours-24h').checked;
+    let businessHours='';
+    if(is24h){businessHours='24時間営業';}else{const hStart=document.getElementById('ad-hours-start').value;const hEnd=document.getElementById('ad-hours-end').value;businessHours=(hStart&&hEnd)?hStart+'〜'+hEnd:(hStart||hEnd||'');}
     const prText=document.getElementById('ad-pr-text').value.trim();
     if(!confirm('広告情報を保存しますか？'))return;
     try{
