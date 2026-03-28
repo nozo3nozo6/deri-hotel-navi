@@ -2192,7 +2192,14 @@ function renderAreaShopSection(shops, isSub = false) {
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
         const hoursHtml = s.business_hours ? `<div class="ad-main-hours">営業時間 ${esc(s.business_hours)}</div>` : '';
-        const priceHtml = s.min_price ? `<div class="ad-main-price">💰 ${esc(s.min_price)}</div>` : '';
+        const priceHtml = (() => {
+            if (!s.min_price) return '';
+            const pp = s.min_price.split(',');
+            if (pp.length !== 2) return '';
+            const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
+            const fmtYen = n => Number(n).toLocaleString('ja-JP');
+            return `<div class="ad-main-price">${toFull(pp[0])}分 ${toFull(fmtYen(pp[1]))}円〜</div>`;
+        })();
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">
