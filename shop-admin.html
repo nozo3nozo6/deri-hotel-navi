@@ -391,16 +391,16 @@
                         <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用リラクゼーション" class="f-input">
                     </div>
                     <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">営業時間 <span style="color:var(--text-3);font-weight:400;">50文字以内</span></label>
-                        <input type="text" id="ad-business-hours" maxlength="50" placeholder="例: 10:00-翌5:00" class="f-input">
+                        <label class="f-label" style="font-size:11px;">営業時間</label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <select id="ad-hours-start" class="f-select" style="flex:1;"><option value="">開始</option></select>
+                            <span style="color:var(--text-3);">〜</span>
+                            <select id="ad-hours-end" class="f-select" style="flex:1;"><option value="">終了</option></select>
+                        </div>
                     </div>
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">PR文 <span style="color:var(--text-3);font-weight:400;">200文字以内</span></label>
                         <textarea id="ad-pr-text" maxlength="200" rows="3" placeholder="例: 『YobuHoで見た』と伝えると交通費無料！" class="f-textarea"></textarea>
-                    </div>
-                    <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">電話番号（広告表示用） <span style="color:var(--text-3);font-weight:400;">任意</span></label>
-                        <input type="tel" id="ad-display-tel" maxlength="20" placeholder="例: 070-1234-5678" class="f-input">
                     </div>
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
@@ -838,10 +838,15 @@ async function loadStatusCard(){
     if(catchSection){
         catchSection.style.display=isPaid?'':'none';
         if(isPaid){
+            initHoursSelects();
             document.getElementById("catchphrase-input").value=data.catchphrase||'';
-            document.getElementById("ad-business-hours").value=data.business_hours||'';
+            // 営業時間をプルダウンに復元（「10:00〜翌5:00」形式）
+            if(data.business_hours){
+                const parts=data.business_hours.split('〜');
+                if(parts[0])document.getElementById("ad-hours-start").value=parts[0];
+                if(parts[1])document.getElementById("ad-hours-end").value=parts[1];
+            }
             document.getElementById("ad-pr-text").value=data.pr_text||'';
-            document.getElementById("ad-display-tel").value=data.display_tel||'';
         }
     }
 }
@@ -907,17 +912,26 @@ async function deleteShopImage(imageId){
     toast('画像を削除しました');
 }
 
+function initHoursSelects(){
+    const times=['0:00','1:00','2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','翌0:00','翌1:00','翌2:00','翌3:00','翌4:00','翌5:00','翌6:00'];
+    ['ad-hours-start','ad-hours-end'].forEach(id=>{
+        const sel=document.getElementById(id);if(!sel)return;
+        const first=sel.options[0];sel.innerHTML='';sel.appendChild(first);
+        times.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
+    });
+}
 async function saveAdInfo(){
     const catchphrase=document.getElementById('catchphrase-input').value.trim();
-    const businessHours=document.getElementById('ad-business-hours').value.trim();
+    const hStart=document.getElementById('ad-hours-start').value;
+    const hEnd=document.getElementById('ad-hours-end').value;
+    const businessHours=(hStart&&hEnd)?hStart+'〜'+hEnd:(hStart||hEnd||'');
     const prText=document.getElementById('ad-pr-text').value.trim();
-    const displayTel=document.getElementById('ad-display-tel').value.trim();
     if(!confirm('広告情報を保存しますか？'))return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,pr_text:prText||null,display_tel:displayTel||null})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,pr_text:prText||null,display_tel:null})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
-        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.pr_text=prText||null;currentShop.display_tel=displayTel||null;}
+        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.pr_text=prText||null;}
         showSuccessModal('保存完了','広告情報を保存しました');
     }catch(e){toast('通信エラー');}
 }

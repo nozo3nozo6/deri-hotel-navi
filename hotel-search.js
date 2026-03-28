@@ -2193,8 +2193,6 @@ function renderAreaShopSection(shops, isSub = false) {
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
         const hoursHtml = s.business_hours ? `<div class="ad-main-hours">🕐 ${esc(s.business_hours)}</div>` : '';
         const prHtml = s.pr_text ? `<div class="ad-main-pr">${esc(s.pr_text)}</div>` : '';
-        const telHtml = s.display_tel ? `<a href="tel:${esc(s.display_tel)}" class="ad-main-tel" onclick="event.stopPropagation()">📞 ${esc(s.display_tel)}</a>` : '';
-
         return `<div class="ad-main-card">
             <div class="ad-main-top">
                 ${thumbHtml}
@@ -2205,7 +2203,6 @@ function renderAreaShopSection(shops, isSub = false) {
                 </div>
             </div>
             ${prHtml}
-            ${telHtml}
         </div>`;
     }).join('');
 
