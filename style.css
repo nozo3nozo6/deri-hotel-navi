@@ -473,9 +473,9 @@ body[data-mode="este"] {
    ========================================================================== */
 .area-section {
     background: var(--bg-2);
-    margin: 14px auto 8px;
+    margin: 14px auto 4px;
     border-radius: var(--radius-lg);
-    padding: 18px 6px 12px;
+    padding: 18px 6px 6px;
     border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     max-width: 640px;
