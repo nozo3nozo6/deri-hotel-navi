@@ -383,18 +383,29 @@
                         <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
                     </div>
                 </div>
-                <!-- キャッチコピー（有料プランのみ） -->
+                <!-- 広告情報（有料プランのみ） -->
                 <div id="catchphrase-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                        <span style="font-size:12px;color:var(--text-3);">キャッチコピー:</span>
-                        <span style="font-size:11px;color:var(--text-3);">20文字以内</span>
+                    <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📢 広告掲載情報</div>
+                    <div class="f-group" style="margin-bottom:10px;">
+                        <label class="f-label" style="font-size:11px;">キャッチコピー <span style="color:var(--text-3);font-weight:400;">20文字以内</span></label>
+                        <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用リラクゼーション" class="f-input">
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用リラクゼーション" class="f-input" style="flex:1;">
-                        <button onclick="saveCatchphrase()" style="padding:8px 16px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;">保存</button>
-                        <button onclick="deleteCatchphrase()" id="catchphrase-delete-btn" style="display:none;padding:8px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--red);font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;">削除</button>
+                    <div class="f-group" style="margin-bottom:10px;">
+                        <label class="f-label" style="font-size:11px;">営業時間 <span style="color:var(--text-3);font-weight:400;">50文字以内</span></label>
+                        <input type="text" id="ad-business-hours" maxlength="50" placeholder="例: 10:00-翌5:00" class="f-input">
                     </div>
-                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">※エリア広告に表示されます</div>
+                    <div class="f-group" style="margin-bottom:10px;">
+                        <label class="f-label" style="font-size:11px;">PR文 <span style="color:var(--text-3);font-weight:400;">200文字以内</span></label>
+                        <textarea id="ad-pr-text" maxlength="200" rows="3" placeholder="例: 『YobuHoで見た』と伝えると交通費無料！" class="f-textarea"></textarea>
+                    </div>
+                    <div class="f-group" style="margin-bottom:10px;">
+                        <label class="f-label" style="font-size:11px;">電話番号（広告表示用） <span style="color:var(--text-3);font-weight:400;">任意</span></label>
+                        <input type="tel" id="ad-display-tel" maxlength="20" placeholder="例: 070-1234-5678" class="f-input">
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:6px;">※市区町村エリアのメイン広告に表示されます</div>
                 </div>
             </div>
         </div>
@@ -828,8 +839,9 @@ async function loadStatusCard(){
         catchSection.style.display=isPaid?'':'none';
         if(isPaid){
             document.getElementById("catchphrase-input").value=data.catchphrase||'';
-            const delBtn=document.getElementById("catchphrase-delete-btn");
-            if(delBtn)delBtn.style.display=data.catchphrase?'':'none';
+            document.getElementById("ad-business-hours").value=data.business_hours||'';
+            document.getElementById("ad-pr-text").value=data.pr_text||'';
+            document.getElementById("ad-display-tel").value=data.display_tel||'';
         }
     }
 }
@@ -895,32 +907,18 @@ async function deleteShopImage(imageId){
     toast('画像を削除しました');
 }
 
-async function saveCatchphrase(){
-    const val=document.getElementById('catchphrase-input').value.trim();
-    if(!val){toast('キャッチコピーを入力してください');return;}
-    if(val.length>20){toast('20文字以内にしてください');return;}
-    if(!confirm('キャッチコピーを「'+val+'」に設定しますか？'))return;
+async function saveAdInfo(){
+    const catchphrase=document.getElementById('catchphrase-input').value.trim();
+    const businessHours=document.getElementById('ad-business-hours').value.trim();
+    const prText=document.getElementById('ad-pr-text').value.trim();
+    const displayTel=document.getElementById('ad-display-tel').value.trim();
+    if(!confirm('広告情報を保存しますか？'))return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:val})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,pr_text:prText||null,display_tel:displayTel||null})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
-        if(currentShop)currentShop.catchphrase=val;
-        const delBtn=document.getElementById("catchphrase-delete-btn");
-        if(delBtn)delBtn.style.display='';
-        showSuccessModal('保存完了','キャッチコピーを設定しました');
-    }catch(e){toast('通信エラー');}
-}
-async function deleteCatchphrase(){
-    if(!confirm('キャッチコピーを削除しますか？'))return;
-    try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-catchphrase",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:null})});
-        const r=await res.json();
-        if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}
-        if(currentShop)currentShop.catchphrase=null;
-        document.getElementById('catchphrase-input').value='';
-        const delBtn=document.getElementById("catchphrase-delete-btn");
-        if(delBtn)delBtn.style.display='none';
-        showSuccessModal('削除完了','キャッチコピーを削除しました');
+        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.pr_text=prText||null;currentShop.display_tel=displayTel||null;}
+        showSuccessModal('保存完了','広告情報を保存しました');
     }catch(e){toast('通信エラー');}
 }
 

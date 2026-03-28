@@ -220,7 +220,7 @@ async function fetchAndShowHotels(filterObj) {
         const pref = filterObj.prefecture;
         if (pref) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            fetchAreaShops(pref, filterObj.city || null, genderMode).then(shops => renderAreaShopSection(shops));
+            fetchAreaShops(pref, filterObj.city || null, genderMode).then(shops => renderAreaShopSection(shops, !filterObj.city));
         }
     } catch (e) {
         /* error silenced */
@@ -284,7 +284,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 
         // エリア店舗セクション表示
         const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-        fetchAreaShops(pref, city, genderMode).then(shops => renderAreaShopSection(shops));
+        fetchAreaShops(pref, city, genderMode).then(shops => renderAreaShopSection(shops, false));
     } catch (e) {
         /* error silenced */
     } finally {
@@ -2127,7 +2127,7 @@ function renderDetailWideLinks(items) {
     </div>`;
 }
 
-function renderAreaShopSection(shops) {
+function renderAreaShopSection(shops, isSub = false) {
     // 既存のセクションを削除
     const existing = document.getElementById('area-shop-section');
     if (existing) existing.remove();
@@ -2169,22 +2169,47 @@ function renderAreaShopSection(shops) {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);">${esc(s.shop_name)}</span>`;
-        const images = s.images && s.images.length ? s.images : (s.thumbnail_url ? [s.thumbnail_url] : []);
-        const thumbsHtml = images.length
-            ? `<div class="ad-shop-thumbs">${images.map(u => `<img src="${esc(u)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
-            : `<div class="ad-shop-thumbs"><div class="ad-shop-thumb ad-shop-thumb--empty">📢</div></div>`;
-        const catchHtml = s.catchphrase
-            ? `<div class="ad-shop-catch">${esc(s.catchphrase)}</div>`
-            : '';
-        return `<div class="ad-shop-card">
-            ${thumbsHtml}
-            <div class="ad-shop-info">
-                ${nameHtml}
-                ${catchHtml}
+        const thumbUrl = (s.images && s.images.length) ? s.images[0] : s.thumbnail_url;
+
+        if (isSub) {
+            // サブ広告: コンパクト（サムネ小+認定店+対応件数+店名）
+            const thumbHtml = thumbUrl
+                ? `<img src="${esc(thumbUrl)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
+                : '';
+            return `<div class="ad-shop-card">
+                ${thumbHtml}
+                <div class="ad-shop-info">
+                    <span style="background:var(--accent);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">認定店</span>
+                    <span style="color:var(--text-3);font-size:11px;margin-left:4px;">${s.hotel_count || ''}件対応</span>
+                    <div>${nameHtml}</div>
+                </div>
+            </div>`;
+        }
+
+        // メイン広告: リッチカード
+        const thumbHtml = thumbUrl
+            ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
+            : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
+        const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
+        const hoursHtml = s.business_hours ? `<div class="ad-main-hours">🕐 ${esc(s.business_hours)}</div>` : '';
+        const prHtml = s.pr_text ? `<div class="ad-main-pr">${esc(s.pr_text)}</div>` : '';
+        const telHtml = s.display_tel ? `<a href="tel:${esc(s.display_tel)}" class="ad-main-tel" onclick="event.stopPropagation()">📞 ${esc(s.display_tel)}</a>` : '';
+
+        return `<div class="ad-main-card">
+            <div class="ad-main-top">
+                ${thumbHtml}
+                <div class="ad-main-info">
+                    ${nameHtml}
+                    ${hoursHtml}
+                    ${catchHtml}
+                </div>
             </div>
+            ${prHtml}
+            ${telHtml}
         </div>`;
     }).join('');
 
-    section.innerHTML = `<div class="ad-shop-header">📢 このエリアで案内できる店舗</div><div class="ad-shop-list">${cards}</div>`;
+    const headerText = isSub ? '📢 このエリアで案内できる店舗' : '📢 このエリアで案内できる店舗';
+    section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
