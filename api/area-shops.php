@@ -58,7 +58,7 @@ $shopIds = array_keys($shopCounts);
 $spH = implode(',', array_fill(0, count($shopIds), '?'));
 $stmt = $pdo->prepare("
     SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.catchphrase,
-           s.business_hours, s.pr_text, s.display_tel, s.gender_mode,
+           s.business_hours, s.pr_text, s.min_price, s.display_tel, s.gender_mode,
            s.approved_at, sc.plan_id, cp.price
     FROM shops s
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
@@ -80,6 +80,7 @@ foreach ($shopRows as $row) {
             'catchphrase' => $row['catchphrase'],
             'business_hours' => $row['business_hours'],
             'pr_text' => $row['pr_text'],
+            'min_price' => $row['min_price'],
             'display_tel' => $row['display_tel'],
             'approved_at' => $row['approved_at'],
             'plan_price' => 0,

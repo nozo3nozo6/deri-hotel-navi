@@ -2190,19 +2190,16 @@ function renderAreaShopSection(shops, isSub = false) {
         const thumbHtml = thumbUrl
             ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
-        const genreLabels = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'デリエステ'};
-        const genreText = genreLabels[typeof MODE!=='undefined'?MODE:'men'] || '';
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
-        const hoursHtml = s.business_hours ? `<div class="ad-main-hours">🕐${esc(s.business_hours)}</div>` : '';
-        const reviewHtml = s.hotel_count ? `<div class="ad-main-reviews">💬 ${s.hotel_count}件対応</div>` : '';
+        const hoursHtml = s.business_hours ? `<div class="ad-main-hours">営業時間 ${esc(s.business_hours)}</div>` : '';
+        const priceHtml = s.min_price ? `<div class="ad-main-price">💰 ${esc(s.min_price)}</div>` : '';
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">
                 ${nameHtml}
-                <div class="ad-main-genre">${genreText}</div>
                 ${hoursHtml}
                 ${catchHtml}
-                ${reviewHtml}
+                ${priceHtml}
             </div>
         </div>`;
     }).join('');
