@@ -2202,7 +2202,7 @@ function renderAreaShopSection(shops, isSub = false) {
         </div>`;
     }).join('');
 
-    const headerText = isSub ? '📢 このエリアで案内できる店舗' : '📢 このエリアで案内できる店舗';
+    const headerText = '📢 このエリアで呼べるお店';
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }

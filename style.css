@@ -2143,14 +2143,14 @@ body[data-mode="men"] .header-title {
     grid-column: 1 / -1;
     max-width: 100%;
     margin: 0 0 12px;
-    padding: 12px 14px;
+    padding: 6px 4px;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background: var(--bg-2);
     box-shadow: var(--card-shadow);
 }
-.ad-shop-header { font-size:11px;color:#999;margin-bottom:10px; }
-.ad-shop-list { display:flex;flex-direction:column;gap:8px; }
+.ad-shop-header { font-size:11px;color:#999;margin-bottom:6px; }
+.ad-shop-list { display:flex;flex-direction:column;gap:4px; }
 .ad-shop-card { display:flex;align-items:center;gap:12px;padding:10px 6px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;transition:background .15s; }
 .ad-shop-card:hover { background:rgba(181,98,122,0.04); }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
@@ -2162,7 +2162,7 @@ body[data-mode="men"] .header-title {
 .ad-shop-catch { font-size:12px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 
 /* メイン広告カード（テーブルレイアウト: サムネ高さ基準） */
-.ad-main-card { display:flex;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden; }
+.ad-main-card { display:flex;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;overflow:hidden; }
 .ad-main-thumb { width:90px;min-height:110px;object-fit:cover;flex-shrink:0;display:block; }
 .ad-main-thumb.ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-2);font-size:28px;min-height:110px;width:90px; }
 .ad-main-info { flex:1;min-width:0;padding:10px 12px;display:flex;flex-direction:column;justify-content:center; }
