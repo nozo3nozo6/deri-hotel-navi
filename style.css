@@ -2232,6 +2232,7 @@ body[data-mode="men"] .header-title {
 .tag-chip--room { background:var(--bg-3);border-color:var(--border);color:var(--text-2); }
 .tag-chip--guest { background:rgba(181,98,122,0.08);border-color:rgba(181,98,122,0.2);color:var(--accent,#b5627a); }
 .tag-chip--gp { background:rgba(58,154,96,0.1);border-color:rgba(58,154,96,0.25);color:#3a9a60; }
+.tag-chip--atmo { background:rgba(139,90,180,0.1);border-color:rgba(139,90,180,0.25);color:#7b4fb0; }
 .fee-badge { padding:2px 8px;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;font-size:10px;color:#9a7030; }
 
 /* ステータスバッジ（呼べた/呼べなかった） */
@@ -2277,7 +2278,7 @@ body[data-mode="men"] .header-title {
 .info-link-pill { color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap; }
 
 /* スクロール枠 */
-.scroll-hint { text-align:center;font-size:12px;color:var(--text-3);padding:0 0 4px;margin:0;letter-spacing:0.5px; }
+.scroll-hint { text-align:center;font-size:13px;color:var(--accent,#b5627a);font-weight:600;padding:10px 0;margin:0;letter-spacing:0.5px;background:var(--accent-bg,rgba(181,98,122,0.07));border-radius:8px; }
 .scrollable-reviews { max-height:520px;overflow-y:auto;padding-right:4px; }
 
 /* ローディング/エラー */
