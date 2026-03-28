@@ -404,8 +404,36 @@
                     </div>
                     <input type="hidden" id="ad-pr-text" value="">
                     <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">最安値 <span style="color:var(--text-3);font-weight:400;">30文字以内</span></label>
-                        <input type="text" id="ad-min-price" maxlength="30" placeholder="例: 60分 10,000円〜" class="f-input">
+                        <label class="f-label" style="font-size:11px;">最安値</label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <select id="ad-min-minutes" class="f-select" style="flex:1;">
+                                <option value="">時間</option>
+                                <option value="30分">30分</option>
+                                <option value="40分">40分</option>
+                                <option value="50分">50分</option>
+                                <option value="60分">60分</option>
+                                <option value="70分">70分</option>
+                                <option value="80分">80分</option>
+                                <option value="90分">90分</option>
+                                <option value="100分">100分</option>
+                                <option value="120分">120分</option>
+                            </select>
+                            <select id="ad-min-yen" class="f-select" style="flex:1;">
+                                <option value="">金額</option>
+                                <option value="5,000円〜">5,000円〜</option>
+                                <option value="6,000円〜">6,000円〜</option>
+                                <option value="7,000円〜">7,000円〜</option>
+                                <option value="8,000円〜">8,000円〜</option>
+                                <option value="9,000円〜">9,000円〜</option>
+                                <option value="10,000円〜">10,000円〜</option>
+                                <option value="12,000円〜">12,000円〜</option>
+                                <option value="15,000円〜">15,000円〜</option>
+                                <option value="18,000円〜">18,000円〜</option>
+                                <option value="20,000円〜">20,000円〜</option>
+                                <option value="25,000円〜">25,000円〜</option>
+                                <option value="30,000円〜">30,000円〜</option>
+                            </select>
+                        </div>
                     </div>
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
@@ -857,7 +885,11 @@ async function loadStatusCard(){
                 if(parts[1])document.getElementById("ad-hours-end").value=parts[1];
             }
             document.getElementById("ad-pr-text").value=data.pr_text||'';
-            document.getElementById("ad-min-price").value=data.min_price||'';
+            if(data.min_price){
+                const pp=data.min_price.split(' ');
+                if(pp[0])document.getElementById("ad-min-minutes").value=pp[0];
+                if(pp[1])document.getElementById("ad-min-yen").value=pp.slice(1).join(' ');
+            }
         }
     }
 }
@@ -941,7 +973,9 @@ async function saveAdInfo(){
     let businessHours='';
     if(is24h){businessHours='24時間営業';}else{const hStart=document.getElementById('ad-hours-start').value;const hEnd=document.getElementById('ad-hours-end').value;businessHours=(hStart&&hEnd)?hStart+'〜'+hEnd:(hStart||hEnd||'');}
     const prText=document.getElementById('ad-pr-text').value.trim();
-    const minPrice=document.getElementById('ad-min-price').value.trim();
+    const minMin=document.getElementById('ad-min-minutes').value;
+    const minYen=document.getElementById('ad-min-yen').value;
+    const minPrice=(minMin&&minYen)?minMin+' '+minYen:'';
     if(!confirm('広告情報を保存しますか？'))return;
     try{
         const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,pr_text:prText||null,min_price:minPrice||null,display_tel:null})});
