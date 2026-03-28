@@ -2225,7 +2225,7 @@ body[data-mode="men"] .header-title {
    ========================================================================== */
 
 /* タグ/チップ/バッジ */
-.tag-chip { display:inline-flex;align-items:center;padding:2px 7px;border-radius:8px;font-size:10px;border:1px solid transparent;white-space:nowrap; }
+.tag-chip { display:inline-flex;align-items:center;padding:3px 8px;border-radius:8px;font-size:11px;border:1px solid transparent;white-space:nowrap; }
 .tag-chip--can { background:rgba(33,150,243,0.1);border-color:rgba(33,150,243,0.3);color:#1976d2; }
 .tag-chip--ng { background:rgba(192,80,80,0.08);border-color:rgba(192,80,80,0.25);color:#c05050; }
 .tag-chip--time { background:rgba(106,138,188,0.1);border-color:rgba(106,138,188,0.25);color:#6a8abc; }
