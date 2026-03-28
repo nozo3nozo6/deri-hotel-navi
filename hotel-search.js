@@ -2191,22 +2191,23 @@ function renderAreaShopSection(shops, isSub = false) {
             ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
-        const hoursHtml = s.business_hours ? `<div class="ad-main-hours">営業時間 ${esc(s.business_hours)}</div>` : '';
-        const priceHtml = (() => {
+        const hoursText = s.business_hours ? `営業時間 ${esc(s.business_hours)}` : '';
+        const priceText = (() => {
             if (!s.min_price) return '';
             const pp = s.min_price.split(',');
             if (pp.length !== 2) return '';
             const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
-            return `<div class="ad-main-price">${toFull(pp[0])}分 ${toFull(fmtYen(pp[1]))}円〜</div>`;
+            return `${toFull(pp[0])}分 ${toFull(fmtYen(pp[1]))}円〜`;
         })();
+        const bottomParts = [hoursText, priceText].filter(Boolean);
+        const bottomHtml = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('　')}</div>` : '';
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">
                 ${nameHtml}
-                ${hoursHtml}
                 ${catchHtml}
-                ${priceHtml}
+                ${bottomHtml}
             </div>
         </div>`;
     }).join('');
