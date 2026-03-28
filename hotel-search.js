@@ -2192,17 +2192,13 @@ function renderAreaShopSection(shops, isSub = false) {
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
         const hoursHtml = s.business_hours ? `<div class="ad-main-hours">🕐 ${esc(s.business_hours)}</div>` : '';
-        const prHtml = s.pr_text ? `<div class="ad-main-pr">${esc(s.pr_text)}</div>` : '';
         return `<div class="ad-main-card">
-            <div class="ad-main-top">
-                ${thumbHtml}
-                <div class="ad-main-info">
-                    ${nameHtml}
-                    ${hoursHtml}
-                    ${catchHtml}
-                </div>
+            ${thumbHtml}
+            <div class="ad-main-info">
+                ${nameHtml}
+                ${hoursHtml}
+                ${catchHtml}
             </div>
-            ${prHtml}
         </div>`;
     }).join('');
 

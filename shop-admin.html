@@ -402,10 +402,7 @@
                             <select id="ad-hours-end" class="f-select" style="flex:1;"><option value="">終了</option></select>
                         </div>
                     </div>
-                    <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">PR文 <span style="color:var(--text-3);font-weight:400;">200文字以内</span></label>
-                        <textarea id="ad-pr-text" maxlength="200" rows="3" placeholder="例: 『YobuHoで見た』と伝えると交通費無料！" class="f-textarea"></textarea>
-                    </div>
+                    <input type="hidden" id="ad-pr-text" value="">
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
                     </div>
