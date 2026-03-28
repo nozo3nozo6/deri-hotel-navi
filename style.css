@@ -82,7 +82,7 @@
 .loveho-mood {
     background: linear-gradient(180deg, #fff0f3 0%, #fde4ea 40%, #fff0f3 100%);
     border-radius: 16px;
-    padding: 16px 12px;
+    padding: 16px 6px;
     margin-top: 8px;
     transition: background 0.4s ease, padding 0.3s ease;
 }
@@ -347,7 +347,7 @@ body[data-mode="este"] {
 }
 
 .header-inner {
-    padding: 10px 14px;
+    padding: 10px 6px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -475,7 +475,7 @@ body[data-mode="este"] {
     background: var(--bg-2);
     margin: 14px auto 8px;
     border-radius: var(--radius-lg);
-    padding: 18px 18px 12px;
+    padding: 18px 6px 12px;
     border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     max-width: 640px;
@@ -586,7 +586,7 @@ body[data-mode="este"] {
    検索ツール群（1行レイアウト）
    ========================================================================== */
 .search-tools {
-    padding: 6px 14px 10px;
+    padding: 6px 6px 10px;
     max-width: 640px;
     margin: 0 auto;
     display: flex;
@@ -597,7 +597,7 @@ body[data-mode="este"] {
 
 /* フィルタバー */
 .filter-bar {
-    padding: 4px 14px 8px;
+    padding: 4px 6px 8px;
     max-width: 640px;
     margin: 0 auto;
     overflow-x: auto;
@@ -784,7 +784,7 @@ body[data-mode="este"] {
    ステータス・リスト
    ========================================================================== */
 .result-status {
-    padding: 4px 14px 6px;
+    padding: 4px 6px 6px;
     font-size: 0.8rem;
     color: var(--text-3);
     max-width: 640px;
@@ -793,13 +793,13 @@ body[data-mode="este"] {
 .result-status strong { color: var(--accent); font-weight: 700; }
 
 .hotel-list-container {
-    padding: 0 14px 100px;
+    padding: 0 6px 100px;
     max-width: 640px;
     margin: 0 auto;
     overflow-x: hidden;
 }
 
-.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state { text-align: center; padding: 60px 6px; }
 .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.3; }
 .empty-text { color: var(--text-3); font-size: 0.85rem; line-height: 2; }
 
@@ -823,7 +823,7 @@ body[data-mode="este"] {
     transition: opacity 0.3s;
 }
 
-.hotel-card-body { padding: 16px; }
+.hotel-card-body { padding: 16px 6px; }
 
 .hotel-card-top {
     display: flex;
@@ -1391,7 +1391,7 @@ body[data-mode="men"] .header-title {
 .section-head-line { flex: 1; height: 1px; background: var(--border); }
 .summary-card {
     background: var(--bg-2); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 18px;
+    border-radius: var(--radius-lg); padding: 18px 6px;
     margin-bottom: 12px; box-shadow: var(--shadow);
 }
 .summary-num {
@@ -1412,7 +1412,7 @@ body[data-mode="men"] .header-title {
 .summary-bar-label { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; color: var(--text-3); }
 .report-card {
     background: var(--bg-2); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 16px; margin-bottom: 8px;
+    border-radius: var(--radius-lg); padding: 16px 6px; margin-bottom: 8px;
     box-shadow: var(--shadow); animation: fadeInUp 0.3s ease both;
 }
 .report-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -1427,7 +1427,7 @@ body[data-mode="men"] .header-title {
 .report-shop-used { font-size: 0.75rem; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
 .report-shop-name { color: var(--accent-dim); font-weight: 600; }
 .report-date { font-size: 10px; color: var(--text-3); margin-top: 8px; text-align: right; }
-.form-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow); }
+.form-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 6px; box-shadow: var(--shadow); }
 .form-group { margin-bottom: 16px; }
 .form-label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-2); margin-bottom: 7px; letter-spacing: 0.5px; }
 .toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1997,7 +1997,7 @@ body[data-mode="men"] .header-title {
 /* フッター */
 .site-footer {
     background: #2c2c2c;
-    padding: 12px 16px;
+    padding: 12px 6px;
     margin-top: 40px;
     text-align: center;
     font-size: 0.75rem;
@@ -2039,7 +2039,7 @@ body[data-mode="men"] .header-title {
    ========================================================================== */
 @media (min-width: 1024px) {
     .area-grid { grid-template-columns: repeat(4, 1fr); }
-    .portal-header .header-inner { padding: 20px 32px; }
+    .portal-header .header-inner { padding: 20px 6px; }
 }
 
 /* ==========================================================================
@@ -2151,7 +2151,7 @@ body[data-mode="men"] .header-title {
 }
 .ad-shop-header { font-size:11px;color:#999;margin-bottom:10px; }
 .ad-shop-list { display:flex;flex-direction:column;gap:8px; }
-.ad-shop-card { display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;transition:background .15s; }
+.ad-shop-card { display:flex;align-items:center;gap:12px;padding:10px 6px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;transition:background .15s; }
 .ad-shop-card:hover { background:rgba(181,98,122,0.04); }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid var(--border); }
@@ -2255,11 +2255,11 @@ body[data-mode="men"] .header-title {
 .stat-legend-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle; }
 
 /* 口コミカード */
-.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;overflow-wrap:break-word;word-break:break-word; }
-.review-card--compact { border-radius:8px;padding:10px 12px;margin-bottom:5px; }
+.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 6px;margin-bottom:8px;overflow-wrap:break-word;word-break:break-word; }
+.review-card--compact { border-radius:8px;padding:10px 6px;margin-bottom:5px; }
 
 /* 店舗公式情報枠 */
-.section-official { border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 16px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);overflow:hidden; }
+.section-official { border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 6px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);overflow:hidden; }
 
 /* セクションラベル */
 .section-label { font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;border:1px solid transparent; }
@@ -2267,11 +2267,11 @@ body[data-mode="men"] .header-title {
 .section-label--user { background:rgba(181,98,122,0.1);color:#8a4a5e;border-color:rgba(181,98,122,0.3); }
 
 /* 店舗広告カード */
-.shop-ad-card { background:#faf7f4;border:1px solid #e8ddd5;border-radius:8px;padding:12px 14px;margin-bottom:8px;font-size:12px; }
+.shop-ad-card { background:#faf7f4;border:1px solid #e8ddd5;border-radius:8px;padding:12px 6px;margin-bottom:8px;font-size:12px; }
 
 /* 詳細ページ骨格 */
-.detail-wrap { max-width:640px;margin:0 auto;padding:8px 4px 120px;overflow-x:hidden; }
-.detail-info-box { background:var(--bg-2);border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06); }
+.detail-wrap { max-width:640px;margin:0 auto;padding:8px 6px 120px;overflow-x:hidden; }
+.detail-info-box { background:var(--bg-2);border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 6px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06); }
 
 /* リンクピル */
 .info-link-pill { color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap; }
@@ -2296,7 +2296,7 @@ body[data-mode="men"] .header-title {
 .btn-map-toggle:hover { background:rgba(59,130,246,0.15); }
 
 /* ラブホ店舗口コミカード */
-.lh-shop-card { padding:12px 14px !important; }
+.lh-shop-card { padding:12px 6px !important; }
 .lh-row1 { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
 .lh-row2 { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
 .lh-row-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border,#eee); }
@@ -2317,7 +2317,7 @@ body[data-mode="men"] .header-title {
 .review-count-badge { display:inline-flex;align-items:center;gap:4px;background:rgba(220,130,160,0.12);color:#c47088;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px; }
 
 /* ラブホ投稿フォーム */
-.lh-form-wrap { background:var(--bg-2,#fff);border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:20px 16px;margin-bottom:24px; }
+.lh-form-wrap { background:var(--bg-2,#fff);border:1px solid rgba(201,169,110,0.25);border-radius:12px;padding:20px 6px;margin-bottom:24px; }
 .lh-form-row { margin-bottom:14px; }
 .lh-form-label { display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px; }
 .lh-form-select { width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:16px;background:var(--bg-2);color:var(--text);outline:none;box-sizing:border-box; }
@@ -2377,7 +2377,7 @@ body[data-mode="men"] .header-title {
 .detail-info-sub { display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap; }
 
 /* info-links-bar */
-.info-links-bar { display:flex;justify-content:center;flex-wrap:wrap;gap:10px 16px;padding:14px 16px;margin-top:12px;margin-bottom:0;background:var(--bg-2);border:1px solid var(--border);border-radius:8px; }
+.info-links-bar { display:flex;justify-content:center;flex-wrap:wrap;gap:10px 16px;padding:14px 6px;margin-top:12px;margin-bottom:0;background:var(--bg-2);border:1px solid var(--border);border-radius:8px; }
 
 /* セクション見出し */
 .stat-heading { font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px; }
@@ -2387,12 +2387,12 @@ body[data-mode="men"] .header-title {
 .text-center { text-align:center; }
 .load-more-wrap { text-align:center;margin:20px 0; }
 
-/* スマホ横余白 */
+/* スマホ横余白 — 最小限に統一（広告横幅最大化） */
 @media (max-width: 640px) {
-    .hotel-list-container { padding-left: 16px; padding-right: 16px; }
-    .detail-wrap { padding-left: 8px; padding-right: 8px; }
-    .search-tools { padding-left: 16px; padding-right: 16px; }
-    .filter-bar { padding-left: 16px; padding-right: 16px; }
-    .result-status { padding-left: 16px; padding-right: 16px; }
-    .header-inner { padding-left: 16px; padding-right: 16px; }
+    .hotel-list-container { padding-left: 6px; padding-right: 6px; }
+    .detail-wrap { padding-left: 6px; padding-right: 6px; }
+    .search-tools { padding-left: 6px; padding-right: 6px; }
+    .filter-bar { padding-left: 6px; padding-right: 6px; }
+    .result-status { padding-left: 6px; padding-right: 6px; }
+    .header-inner { padding-left: 6px; padding-right: 6px; }
 }
