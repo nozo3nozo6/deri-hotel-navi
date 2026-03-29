@@ -2163,9 +2163,9 @@ body[data-mode="men"] .header-title {
 .ad-shop-catch { font-size:12px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 
 /* メイン広告カード（テーブルレイアウト: サムネ高さ基準） */
-.ad-rank-gold { border:2px solid #c9a96e;background:linear-gradient(135deg,#fdf8e8 0%,#fff 30%,#fff 70%,#fdf8e8 100%); }
-.ad-rank-silver { border:2px solid #a8a8a8;background:linear-gradient(135deg,#f5f5f5 0%,#fff 30%,#fff 70%,#f5f5f5 100%); }
-.ad-rank-bronze { border:2px solid #b87333;background:linear-gradient(135deg,#faf0e6 0%,#fff 30%,#fff 70%,#faf0e6 100%); }
+.ad-main-card.ad-rank-gold { border:2px solid #c9a96e;background:linear-gradient(135deg,#fdf8e8 0%,#fff 30%,#fff 70%,#fdf8e8 100%); }
+.ad-main-card.ad-rank-silver { border:2px solid #a8a8a8;background:linear-gradient(135deg,#f5f5f5 0%,#fff 30%,#fff 70%,#f5f5f5 100%); }
+.ad-main-card.ad-rank-bronze { border:2px solid #b87333;background:linear-gradient(135deg,#faf0e6 0%,#fff 30%,#fff 70%,#faf0e6 100%); }
 .ad-main-thumb { width:90px;min-height:110px;object-fit:cover;flex-shrink:0;display:block; }
 .ad-main-thumb.ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-2);font-size:28px;min-height:110px;width:90px; }
 .ad-main-info { flex:1;min-width:0;padding:0;display:flex;flex-direction:column;justify-content:space-between; }
