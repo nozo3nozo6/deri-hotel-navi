@@ -185,7 +185,7 @@ function handleUpdateAdInfo() {
     $auth = requireShopAuth();
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
     $input = json_decode(file_get_contents('php://input'), true);
-    $catchphrase = isset($input['catchphrase']) ? mb_substr(trim($input['catchphrase']), 0, 30) : null;
+    $catchphrase = isset($input['catchphrase']) ? mb_substr(trim($input['catchphrase']), 0, 40) : null;
     $businessHours = isset($input['business_hours']) ? mb_substr(trim($input['business_hours']), 0, 50) : null;
     $prText = isset($input['pr_text']) ? mb_substr(trim($input['pr_text']), 0, 200) : null;
     $minPrice = isset($input['min_price']) ? mb_substr(trim($input['min_price']), 0, 30) : null;
