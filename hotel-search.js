@@ -2191,7 +2191,7 @@ function renderAreaShopSection(shops, isSub = false) {
             ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
-        const hoursText = s.business_hours ? `営業時間 ${esc(s.business_hours)}` : '';
+        const hoursText = s.business_hours ? s.business_hours : '';
         const priceText = (() => {
             if (!s.min_price) return '';
             const pp = s.min_price.split(',');
@@ -2200,7 +2200,7 @@ function renderAreaShopSection(shops, isSub = false) {
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
             return `${toFull(pp[0])}分 ${toFull(fmtYen(pp[1]))}円〜`;
         })();
-        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text">${hoursText}</span>` : ''}</div>` : '';
+        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>` : ''}</div>` : '';
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">
