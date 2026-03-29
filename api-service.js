@@ -213,6 +213,7 @@ function renderAdHTML(ad) {
     const url = ad.shops?.shop_url;
     const thumbUrl = ad.shops?.thumbnail_url;
     const catchphrase = ad.shops?.catchphrase || '';
+    const description = ad.shops?.description || '';
     const businessHours = ad.shops?.business_hours || '';
     const minPrice = ad.shops?.min_price || '';
     const nameHTML = url
@@ -222,6 +223,7 @@ function renderAdHTML(ad) {
         ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(shopName)}" loading="lazy">`
         : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
     const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
+    const descHTML = description ? `<div class="ad-main-desc">${esc(description)}</div>` : '';
     const priceText = (() => {
         if (!minPrice) return '';
         const pp = minPrice.split(',');
@@ -242,6 +244,7 @@ function renderAdHTML(ad) {
         <div class="ad-main-info">
             <div class="ad-main-name-row">${nameHTML}${countBadge}</div>
             ${catchHTML}
+            ${descHTML}
             ${bottomHTML}
         </div>
     </div>`;

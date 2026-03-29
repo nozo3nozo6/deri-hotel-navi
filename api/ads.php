@@ -45,7 +45,7 @@ $params[] = 'all';
 $whereStr = implode(' AND ', $where);
 $stmt = $pdo->prepare("
     SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail,
-           s.catchphrase, s.business_hours, s.min_price, s.approved_at,
+           s.catchphrase, s.description, s.business_hours, s.min_price, s.approved_at,
            (SELECT COUNT(*) FROM reports r WHERE r.shop_id = a.shop_id AND r.poster_type = 'shop') AS report_count
     FROM ad_placements a
     LEFT JOIN shops s ON a.shop_id = s.id
@@ -75,6 +75,7 @@ foreach ($rows as $row) {
             'status' => $row['shop_status'],
             'thumbnail_url' => $row['shop_thumbnail'],
             'catchphrase' => $row['catchphrase'],
+            'description' => $row['description'],
             'business_hours' => $row['business_hours'],
             'min_price' => $row['min_price'],
         ],

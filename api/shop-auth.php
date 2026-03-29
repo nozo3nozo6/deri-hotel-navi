@@ -185,14 +185,15 @@ function handleUpdateAdInfo() {
     $auth = requireShopAuth();
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
     $input = json_decode(file_get_contents('php://input'), true);
-    $catchphrase = isset($input['catchphrase']) ? mb_substr(trim($input['catchphrase']), 0, 40) : null;
+    $catchphrase = isset($input['catchphrase']) ? mb_substr(trim($input['catchphrase']), 0, 20) : null;
+    $description = isset($input['description']) ? mb_substr(trim($input['description']), 0, 60) : null;
     $businessHours = isset($input['business_hours']) ? mb_substr(trim($input['business_hours']), 0, 50) : null;
     $prText = isset($input['pr_text']) ? mb_substr(trim($input['pr_text']), 0, 200) : null;
     $minPrice = isset($input['min_price']) ? mb_substr(trim($input['min_price']), 0, 30) : null;
     $displayTel = isset($input['display_tel']) ? mb_substr(trim($input['display_tel']), 0, 20) : null;
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, business_hours=?, pr_text=?, min_price=?, display_tel=?, updated_at=NOW() WHERE id=?');
-    $stmt->execute([$catchphrase ?: null, $businessHours ?: null, $prText ?: null, $minPrice ?: null, $displayTel ?: null, $auth['shop_id']]);
+    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, description=?, business_hours=?, pr_text=?, min_price=?, display_tel=?, updated_at=NOW() WHERE id=?');
+    $stmt->execute([$catchphrase ?: null, $description ?: null, $businessHours ?: null, $prText ?: null, $minPrice ?: null, $displayTel ?: null, $auth['shop_id']]);
     echo json_encode(['success' => true]);
 }
 
