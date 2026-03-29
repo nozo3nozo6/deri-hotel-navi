@@ -389,6 +389,8 @@ function showJapanPage() {
     setBreadcrumb([{ label: t('japan') }]);
     clearHotelList();
     clearAds();
+    const _adTop = document.getElementById('ad-container');
+    if (_adTop) _adTop.style.display = 'none';
     loadAdsBelowSearch('premium', '全国');
 
     const container = document.getElementById('area-button-container');

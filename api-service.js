@@ -256,6 +256,7 @@ async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
+    container.style.display = '';
     const belowSearch = document.getElementById('ad-container-below-search');
     if (belowSearch) belowSearch.innerHTML = '';
     const gen = ++_adGeneration;
