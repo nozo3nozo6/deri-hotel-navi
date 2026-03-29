@@ -2091,14 +2091,14 @@ function renderSubAdCards(ads, label) {
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
-        const countHtml = count > 0 ? `<span style="font-size:11px;color:#888;white-space:nowrap;">📋${count}件</span>` : '';
-        const catchHtml = catchphrase ? `<div style="font-size:13px;color:#666;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(catchphrase)}</div>` : '';
+        const countHtml = count > 0 ? `<span style="font-size:11px;color:#999;white-space:nowrap;font-weight:500;">📋${count}件</span>` : '';
+        const catchHtml = catchphrase ? `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;">${esc(catchphrase)}</div>` : '';
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
             ${thumbHtml}
-            <div class="ad-shop-info" style="flex:1;min-width:0;">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${nameHtml}${countHtml}</div>
+            <div class="ad-shop-info">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">${nameHtml}${countHtml}</div>
                 ${catchHtml}
             </div>
         </div>`;
