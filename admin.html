@@ -394,7 +394,7 @@
             <div class="card">
                 <div class="card-title">&#x1F3EA; 店舗一覧<span class="sub" id="shops-sub"></span></div>
                 <div class="filter-bar">
-                    <select class="filter-select" id="shop-mode-f" onchange="renderShops()"><option value="">全ジャンル</option><option value="men">♂ 男性向け</option><option value="women">♀ 女性向け</option><option value="men_same">♂♂ 男性同士</option><option value="women_same">♀♀ 女性同士</option><option value="este">💆 デリエステ</option></select>
+                    <select class="filter-select" id="shop-mode-f" onchange="renderShops()"><option value="">全ジャンル</option><option value="men">♂ 男性向け</option><option value="women">♀ 女性向け</option><option value="este">💆 デリエステ</option><option value="men_same">♂♂ 男性同士</option><option value="women_same">♀♀ 女性同士</option></select>
                     <select class="filter-select" id="shop-appr-f" onchange="renderShops()"><option value="">全ステータス</option><option value="email_pending">認証待</option><option value="registered">審査待ち</option><option value="active">掲載中</option><option value="suspended">停止中</option><option value="revision_required">不備あり</option><option value="rejected">却下</option><option value="deleted">削除済み</option></select>
                     <select class="filter-select" id="shop-plan-f" onchange="renderShops()" style="display:none;"><option value=""></option></select>
                     <input class="filter-input" id="shop-search" placeholder="店舗名・メール・TELで検索..." oninput="renderShops()">
@@ -554,7 +554,7 @@
         <div class="tab-panel" id="tab-outreach">
             <div class="card">
                 <div class="card-title">&#x1F4E7; 営業メール送信</div>
-                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="ff">女性同士利用店向け</option><option value="mm">男性同士利用店向け</option></select></div>
+                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option></select></div>
                 <div class="f-group"><label class="f-label">送信先メールアドレス</label><input type="email" id="outreach-to" class="f-input" placeholder="example@shop.com"></div>
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
@@ -632,8 +632,9 @@
                     <select id="ad-mode" class="f-input">
                         <option value="men">♂ 男性用（デリヘル）</option>
                         <option value="women">♀ 女性用（女風）</option>
-                        <option value="ff">♀♀ 女性同士</option>
+                        <option value="este">💆 デリエステ</option>
                         <option value="mm">♂♂ 男性同士</option>
+                        <option value="ff">♀♀ 女性同士</option>
                         <option value="all">全モード共通</option>
                     </select>
                 </div>
@@ -883,9 +884,9 @@
         <select id="re-gender-mode" class="mi">
           <option value="men">♂ 男性</option>
           <option value="women">♀ 女性</option>
-          <option value="women_same">♀♀ 女性同士</option>
-          <option value="men_same">♂♂ 男性同士</option>
           <option value="este">💆 デリエステ</option>
+          <option value="men_same">♂♂ 男性同士</option>
+          <option value="women_same">♀♀ 女性同士</option>
         </select></div>
         <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi"></div>
         <div class="mf"><label class="ml">コメント</label><textarea id="re-comment" class="mi" rows="3" style="resize:vertical;"></textarea></div>
@@ -924,7 +925,7 @@
                 <div style="overflow-y:auto;flex:1;padding-right:4px;">
                     <div class="mf"><label class="ml">📄 届出書</label><div id="sr-doc-thumb-wrap" style="margin-top:4px;"><span style="font-size:12px;color:var(--ink-3);">書類なし</span></div></div>
                     <div class="mf"><label class="ml">店舗名</label><input id="sr-name" class="mi"></div>
-                    <div class="mf"><label class="ml">ジャンル</label><select id="sr-gender" class="mi"><option value="men">男性向け（デリヘル）</option><option value="women">女性向け（女性用風俗）</option><option value="men_same">男性同士向け</option><option value="women_same">女性同士向け</option><option value="este">デリエステ</option></select></div>
+                    <div class="mf"><label class="ml">ジャンル</label><select id="sr-gender" class="mi"><option value="men">男性向け（デリヘル）</option><option value="women">女性向け（女性用風俗）</option><option value="este">デリエステ</option><option value="men_same">男性同士向け</option><option value="women_same">女性同士向け</option></select></div>
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
                     <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel"></div>
                     <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url"></div>
@@ -1167,7 +1168,7 @@ async function loadDashboard(){const d=await apiGet('dashboard');document.getEle
 
 // ===== 店舗管理 =====
 let shopsData=[];
-const SHOP_GENRE_LABELS={men:"♂ デリヘル",women:"♀ 女風",men_same:"♂♂",women_same:"♀♀",este:"💆 エステ"};
+const SHOP_GENRE_LABELS={men:"♂ デリヘル",women:"♀ 女風",este:"💆 エステ",men_same:"♂♂",women_same:"♀♀"};
 function getShopStatus(s){return s.status||"pending";}
 function shopStatusBadge(s){const st=getShopStatus(s);switch(st){case"email_pending":return'<span class="badge b-email-pending">認証待</span>';case"registered":return'<span class="badge b-registered">準備中</span>';case"active":return'<span class="badge b-active">掲載中</span>';case"suspended":return'<span class="badge b-suspended">停止中</span>';case"denied":return'<span class="badge b-stop">否認</span>';case"revision_required":return'<span class="badge b-revision">不備あり</span>';case"rejected":return'<span class="badge b-stop">却下</span>';case"deleted":return'<span class="badge b-suspended">削除済</span>';default:return'<span class="badge b-free">未確認</span>';}}
 async function loadShops(){const data=await apiGet('list','table=shops&order=created_at&dir=desc');shopsData=Array.isArray(data)?data:[];updateShopBadge();renderShops();}

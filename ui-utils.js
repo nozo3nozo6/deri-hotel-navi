@@ -254,9 +254,12 @@ function closeSuccessModal() {
 
 // モーダル背景クリックで閉じる
 document.addEventListener('click', function(e) {
-    // 言語ドロップダウン外クリックで閉じる
+    // ドロップダウン外クリックで閉じる
     if (!e.target.closest('.lang-dropdown')) {
         document.querySelector('.lang-dropdown')?.classList.remove('open');
+    }
+    if (!e.target.closest('.mode-dropdown')) {
+        document.querySelector('.mode-dropdown')?.classList.remove('open');
     }
     if (!e.target.classList.contains('modal-overlay') && !e.target.classList.contains('modal-overlay-success')) return;
     const map = {

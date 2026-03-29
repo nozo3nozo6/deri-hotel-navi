@@ -828,7 +828,7 @@ async function loadStatusCard(){
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
     document.getElementById("status-badge").innerHTML=`<span class="st-badge ${cls}">${label}</span>`;
-    const genreLabels={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',men_same:'男性同士向け',women_same:'女性同士向け',este:'デリエステ'};
+    const genreLabels={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',este:'デリエステ',men_same:'男性同士向け',women_same:'女性同士向け'};
     document.getElementById("status-genre").textContent=genreLabels[data.gender_mode]||data.gender_mode||'—';
     const contracts=data.shop_contracts||[];
     const topContract=[...contracts].sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
@@ -846,7 +846,7 @@ async function loadStatusCard(){
         }
     }
     const shopMode=data.gender_mode||"men";
-    const modePathMap={men:'deli',women:'jofu',men_same:'same-m',women_same:'same-f',este:'este'};
+    const modePathMap={men:'deli',women:'jofu',este:'este',men_same:'same-m',women_same:'same-f'};
     const shopSlug=data.slug||data.id;
     const shopUrl="https://yobuho.com/"+(modePathMap[shopMode]||'deli')+"/shop/"+encodeURIComponent(shopSlug)+"/";
     const urlEl=document.getElementById("status-shop-url");

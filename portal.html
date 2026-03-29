@@ -109,7 +109,18 @@
             <a href="/index.html" style="text-decoration:none;">
                 <span class="logo-text" id="header-logo-text"><b>YobuHo</b></span>
             </a>
-            <span id="mode-badge" class="mode-badge"></span>
+        </div>
+
+        <div class="mode-dropdown">
+            <button class="mode-toggle" onclick="this.parentElement.classList.toggle('open')"><span id="mode-badge-icon">♂</span> <span class="mode-toggle-caret">▼</span></button>
+            <div class="mode-menu">
+                <a href="/deli/" class="mode-menu-item" data-mode="men">♂ デリヘル</a>
+                <a href="/jofu/" class="mode-menu-item" data-mode="women">♀ 女性用風俗</a>
+                <a href="/este/" class="mode-menu-item" data-mode="este">💆 デリエステ</a>
+                <a href="/same-m/" class="mode-menu-item" data-mode="men_same">♂♂ 男性同士</a>
+                <a href="/same-f/" class="mode-menu-item" data-mode="women_same">♀♀ 女性同士</a>
+                <a href="/index.html" class="mode-menu-item">🏠 yobuho.com</a>
+            </div>
         </div>
 
         <div class="lang-dropdown">

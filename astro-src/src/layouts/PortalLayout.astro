@@ -146,7 +146,19 @@ const jsonLd = [
                 <a href="/index.html" style="text-decoration:none;">
                     <span class="logo-text" id="header-logo-text" set:html={d.logoHtml} />
                 </a>
-                <span id="mode-badge" class="mode-badge" set:html={d.badge} style={mode === 'men' ? 'display:none' : undefined} />
+            </div>
+            <div class="mode-dropdown">
+                <button class="mode-toggle" onclick="this.parentElement.classList.toggle('open')"><span id="mode-badge-icon">{
+                    mode === 'men' ? '♂' : mode === 'women' ? '♀' : mode === 'este' ? '💆' : mode === 'men_same' ? '♂♂' : '♀♀'
+                }</span> <span class="mode-toggle-caret">▼</span></button>
+                <div class="mode-menu">
+                    <a href="/deli/" class={`mode-menu-item${mode === 'men' ? ' active' : ''}`}>♂ デリヘル</a>
+                    <a href="/jofu/" class={`mode-menu-item${mode === 'women' ? ' active' : ''}`}>♀ 女性用風俗</a>
+                    <a href="/este/" class={`mode-menu-item${mode === 'este' ? ' active' : ''}`}>💆 デリエステ</a>
+                    <a href="/same-m/" class={`mode-menu-item${mode === 'men_same' ? ' active' : ''}`}>♂♂ 男性同士</a>
+                    <a href="/same-f/" class={`mode-menu-item${mode === 'women_same' ? ' active' : ''}`}>♀♀ 女性同士</a>
+                    <a href="/index.html" class="mode-menu-item">🏠 yobuho.com</a>
+                </div>
             </div>
             <div class="lang-dropdown">
                 <button class="lang-toggle" onclick="this.parentElement.classList.toggle('open')">🌐 JP</button>

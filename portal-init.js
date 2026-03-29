@@ -37,9 +37,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Astroモードではロゴ・バッジはビルド時に出力済み
     if (!astroMode) {
-        var modeBadgeLabels = { men: '', women: '♀', men_same: '♂♂', women_same: '♀♀' };
-        document.getElementById('mode-badge').textContent = modeBadgeLabels[MODE] || '';
-        if (MODE === 'men') document.getElementById('mode-badge').style.display = 'none';
+        // モードドロップダウンのアイコン設定
+        var modeBadgeIcons = { men: '♂', women: '♀', este: '💆', men_same: '♂♂', women_same: '♀♀' };
+        var badgeIconEl = document.getElementById('mode-badge-icon');
+        if (badgeIconEl) badgeIconEl.textContent = modeBadgeIcons[MODE] || '♂';
+        // active状態設定
+        document.querySelectorAll('.mode-menu-item[data-mode]').forEach(function(item) {
+            if (item.dataset.mode === MODE) item.classList.add('active');
+            else item.classList.remove('active');
+        });
 
         var logoMap = {
             'men': '<span style="font-style:italic; color:#666; font-weight:300; font-size:0.85em; letter-spacing:2px;">Deli</span> <b style="color:#c0392b; font-size:1.2em; letter-spacing:1px;">YobuHo</b> <span style="color:#c0392b; font-size:0.9em;">♂</span>',

@@ -452,6 +452,56 @@ body[data-mode="este"] {
 .lang-menu-item:hover { background: var(--accent-bg); }
 .lang-menu-item.active { color: var(--accent); font-weight: 700; }
 
+/* ジャンルドロップダウン */
+.mode-dropdown { position: relative; }
+.mode-toggle {
+    padding: 5px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.mode-toggle-caret { font-size: 8px; opacity: 0.6; }
+.mode-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 200;
+    min-width: 150px;
+    overflow: hidden;
+}
+.mode-dropdown.open .mode-menu { display: flex; flex-direction: column; }
+.mode-menu-item {
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.mode-menu-item:hover { background: var(--accent-bg); }
+.mode-menu-item.active { color: var(--accent); font-weight: 700; }
+
 /* 男性/女性専用バー */
 .mode-title-bar {
     text-align: center;
