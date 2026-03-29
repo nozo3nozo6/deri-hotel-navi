@@ -2082,7 +2082,7 @@ function renderSubAdCards(ads, label) {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
         const thumb = ad.shops ? ad.shops.thumbnail_url : '';
-        const catchphrase = ad.shops ? (ad.shops.catchphrase || '') : '';
+        const prText = ad.shops ? (ad.shops.pr_text || '') : '';
         const count = ad.report_count || 0;
         if (!name) return '';
         const nameHtml = url
@@ -2092,14 +2092,14 @@ function renderSubAdCards(ads, label) {
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
         const countHtml = count > 0 ? `<span style="font-size:11px;color:#999;white-space:nowrap;font-weight:500;">📋${count}件</span>` : '';
-        const catchHtml = `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;min-height:calc(12px * 1.3 * 2);">${catchphrase ? esc(catchphrase) : '&nbsp;'}</div>`;
+        const prHtml = `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;min-height:calc(12px * 1.3 * 2);">${prText ? esc(prText) : '&nbsp;'}</div>`;
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
             ${thumbHtml}
             <div class="ad-shop-info">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">${nameHtml}${countHtml}</div>
-                ${catchHtml}
+                ${prHtml}
             </div>
         </div>`;
     }).filter(Boolean);
