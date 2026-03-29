@@ -2152,8 +2152,8 @@ body[data-mode="men"] .header-title {
 }
 .ad-shop-header { font-size:12px;color:var(--accent,#b5627a);font-weight:600;margin-bottom:6px; }
 .ad-shop-list { display:flex;flex-direction:column;gap:4px; }
-.ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:color-mix(in srgb, var(--accent,#b5627a) 8%, #fff);border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;transition:background .15s;overflow:hidden; }
-.ad-shop-card:hover { background:color-mix(in srgb, var(--accent,#b5627a) 12%, #fff); }
+.ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 6%, #fff), color-mix(in srgb, var(--accent,#b5627a) 12%, #fff));border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;transition:background .15s;overflow:hidden;border-left:3px solid var(--accent,#b5627a); }
+.ad-shop-card:hover { background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 10%, #fff), color-mix(in srgb, var(--accent,#b5627a) 16%, #fff)); }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:48px;height:64px;border-radius:0;object-fit:cover;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
