@@ -2213,7 +2213,7 @@ function renderAreaShopSection(shops, isSub = false) {
 
     const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
     const genreName = genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
-    const headerText = `📢 このエリアで呼べる${genreName}`;
+    const headerText = `📢 このエリアで呼べる${genreName}のお店`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
