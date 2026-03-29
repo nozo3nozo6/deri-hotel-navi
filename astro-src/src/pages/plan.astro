@@ -6,8 +6,8 @@ import Footer from '../components/Footer.astro';
 const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
 
 const plans = [
-  { name: '無料プラン', price: '0', features: ['店舗名テキスト掲載','認証バッジ付与','店舗専用URL発行','管理画面利用'], tag: '', color: '#888' },
-  { name: '投稿リンクプラン', price: '5,500', features: ['口コミに店舗リンク付き','認証バッジ付与','店舗専用URL発行','管理画面利用'], tag: '', color: '#6a8a5a' },
+  { name: '無料プラン', price: '0', features: ['店舗名テキスト掲載','認証バッジ付与','店舗専用URL発行'], tag: '', color: '#888' },
+  { name: '投稿リンクプラン', price: '5,500', features: ['口コミに店舗リンク付き','認証バッジ付与','店舗専用URL発行'], tag: '', color: '#6a8a5a' },
   { name: '市区町村プラン', price: '11,000', features: ['ホテル詳細にリッチ広告','サムネ+キャッチ+料金+営業時間','指定市区町村に表示','複数契約OK','店舗ブランドページ'], tag: '人気', color: '#b5627a' },
   { name: 'エリアプラン', price: '33,000', features: ['エリア一覧にリッチ広告','ホテル詳細にも広告表示','広範囲カバー','複数契約OK','店舗ブランドページ'], tag: '', color: '#b5627a' },
   { name: 'ブロックプラン', price: '55,000', features: ['ブロック一覧にリッチ広告','ホテル詳細にも広告表示','複数市区町村を一括カバー','複数契約OK','店舗ブランドページ'], tag: 'コスパ◎', color: '#c9a84c' },
