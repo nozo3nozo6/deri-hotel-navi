@@ -46,7 +46,7 @@ $whereStr = implode(' AND ', $where);
 $stmt = $pdo->prepare("
     SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail,
            s.catchphrase, s.description, s.pr_text, s.business_hours, s.min_price, s.approved_at,
-           (SELECT COUNT(*) FROM reports r WHERE r.shop_id = a.shop_id AND r.poster_type = 'shop') AS report_count
+           (SELECT COUNT(*) FROM reports r WHERE r.shop_id = a.shop_id AND r.poster_type = 'shop') + (SELECT COUNT(*) FROM loveho_reports lr JOIN shop_hotel_info shi ON lr.hotel_id = shi.hotel_id WHERE shi.shop_id = a.shop_id AND lr.poster_name = s.shop_name) AS report_count
     FROM ad_placements a
     LEFT JOIN shops s ON a.shop_id = s.id
     WHERE $whereStr
