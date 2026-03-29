@@ -2085,9 +2085,10 @@ function renderSubAdCards(ads, label) {
         const catchphrase = ad.shops ? (ad.shops.catchphrase || '') : '';
         const count = ad.report_count || 0;
         if (!name) return '';
+        const nameStyle = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;';
         const nameHtml = url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(name)}</a>`
-            : `<span class="ad-shop-name" style="color:var(--text);">${esc(name)}</span>`;
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="${nameStyle}">${esc(name)}</a>`
+            : `<span class="ad-shop-name" style="color:var(--text);${nameStyle}">${esc(name)}</span>`;
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
