@@ -301,9 +301,21 @@ function clearAds() {
 }
 
 async function loadAdsBelowSearch(placementType, placementTarget) {
-    const container = document.getElementById('ad-container-below-search');
+    // 両方のコンテナをクリア
+    const c1 = document.getElementById('ad-container-below-search');
+    const c2 = document.getElementById('ad-container');
+    if (c1) c1.innerHTML = '';
+    if (c2) c2.innerHTML = '';
+    // search-toolsの直後に挿入するコンテナを特定
+    const searchTools = document.querySelector('.search-tools');
+    let container = c1;
+    if (!container && searchTools) {
+        const div = document.createElement('div');
+        div.id = 'ad-container-below-search';
+        searchTools.insertAdjacentElement('afterend', div);
+        container = div;
+    }
     if (!container) return;
-    container.innerHTML = '';
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
         const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
