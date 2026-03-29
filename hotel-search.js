@@ -2059,7 +2059,7 @@ function renderDetailShopCards(shops, cityName) {
         const name = s.shop_name || '';
         const url = s.shop_url || '';
         const thumb = s.thumbnail_url || '';
-        const prText = s.pr_text || '';
+        const prText = s.pr_text || s.description || '';
         const count = s.hotel_count || 0;
         if (!name) return '';
         const nameHtml = url
@@ -2092,7 +2092,7 @@ function renderSubAdCards(ads, label) {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
         const thumb = ad.shops ? ad.shops.thumbnail_url : '';
-        const prText = ad.shops ? (ad.shops.pr_text || '') : '';
+        const prText = ad.shops ? (ad.shops.pr_text || ad.shops.description || '') : '';
         const count = ad.report_count || 0;
         if (!name) return '';
         const nameHtml = url
