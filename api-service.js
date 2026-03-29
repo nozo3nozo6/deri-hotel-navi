@@ -253,15 +253,13 @@ async function loadAds(placementType, placementTarget, fallbacks) {
     const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const targets = [{ type: placementType, target: placementTarget }];
-        if (fallbacks) fallbacks.forEach(f => targets.push(f));
-        const seen = new Set();
+        // そのエリアの掲載店のみ表示（フォールバックなし）
+        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
         let allAds = [];
-        for (const t of targets) {
-            const res = await fetch(`/api/ads.php?type=${encodeURIComponent(t.type)}&target=${encodeURIComponent(t.target)}&mode=${encodeURIComponent(currentMode)}`);
-            if (!res.ok) continue;
+        if (res.ok) {
             const data = await res.json();
             if (data && data.length) {
+                const seen = new Set();
                 data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
             }
         }
