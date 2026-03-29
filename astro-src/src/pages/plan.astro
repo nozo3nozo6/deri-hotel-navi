@@ -6,31 +6,32 @@ import Footer from '../components/Footer.astro';
 const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
 
 const plans = [
-  { name: '無料プラン', price: '0', desc: '店舗名テキスト掲載、ご案内実績の公式発信、店舗専用URL', tag: '', popular: false },
-  { name: '投稿リンクプラン', price: '5,500', desc: '口コミに店舗リンク付き表示', tag: '', popular: false },
-  { name: '市区町村プラン', price: '11,000', desc: '指定市区町村のホテル詳細にメイン広告表示', tag: 'メイン広告', popular: true },
-  { name: 'エリアプラン', price: '33,000', desc: '指定エリアのホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
-  { name: 'ブロックプラン', price: '55,000', desc: '指定ブロックのホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
-  { name: '都道府県プラン', price: '77,000', desc: '指定都道府県のホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
-  { name: '地方プラン', price: '110,000', desc: '指定地方のホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
-  { name: '全国プラン', price: '165,000', desc: '全国のホテル一覧・詳細に広告表示', tag: 'サブ広告', popular: false },
+  { name: '無料プラン', price: '0', features: ['店舗名テキスト掲載','認証バッジ付与','店舗専用URL発行','管理画面利用'], tag: '', color: '#888' },
+  { name: '投稿リンクプラン', price: '5,500', features: ['無料プランの全機能','口コミに店舗リンク付き','来店につながるアクセス'], tag: '', color: '#6a8a5a' },
+  { name: '市区町村プラン', price: '11,000', features: ['ホテル詳細にリッチ広告','サムネ+キャッチ+料金+営業時間','指定市区町村に表示','複数契約OK'], tag: '人気', color: '#b5627a' },
+  { name: 'エリアプラン', price: '33,000', features: ['エリア一覧にリッチ広告','ホテル詳細にも広告表示','広範囲カバー','複数契約OK'], tag: '', color: '#b5627a' },
+  { name: 'ブロックプラン', price: '55,000', features: ['ブロック一覧にリッチ広告','ホテル詳細にも広告表示','複数市区町村を一括カバー','複数契約OK'], tag: 'コスパ◎', color: '#c9a84c' },
+  { name: '都道府県プラン', price: '77,000', features: ['都道府県一覧にリッチ広告','ホテル詳細にも広告表示','都道府県全域をカバー','複数契約OK'], tag: '', color: '#b5627a' },
+  { name: '地方プラン', price: '110,000', features: ['地方一覧にリッチ広告','ホテル詳細にも広告表示','地方全域をカバー','複数契約OK'], tag: '', color: '#b5627a' },
+  { name: '全国プラン', price: '165,000', features: ['全国トップにリッチ広告','全ホテル詳細にも広告表示','43,000件以上の全ホテルに露出','最大リーチ'], tag: '最大効果', color: '#c9a84c' },
 ];
 
 const faqs = [
-  { q: '無料プランでも掲載できますか？', a: 'はい。店舗名テキストが掲載されます。有料プランにアップグレードすると、広告枠に店舗情報が表示されます。' },
-  { q: '複数エリアに掲載できますか？', a: 'はい。同一プランを複数契約できます。たとえば市区町村プランを3つ契約し、3つの市区町村に掲載することが可能です。' },
-  { q: '掲載開始までどのくらいかかりますか？', a: '届出確認書の審査後、通常1〜2営業日で掲載開始です。' },
-  { q: '解約はいつでもできますか？', a: 'はい。いつでも解約可能です。日割り返金は行っておりません。' },
+  { q: '本当に無料で始められますか？', a: 'はい。無料プランは初期費用・月額費用ともに0円です。店舗名テキスト掲載・認証バッジ・専用URLがすべて無料で利用できます。' },
+  { q: '複数の地域に掲載できますか？', a: 'はい。同じプランを複数契約できます。例えば市区町村プランを3つ契約して、新宿区・渋谷区・立川市の3エリアに同時掲載できます。' },
+  { q: '掲載開始までどのくらいかかりますか？', a: '届出確認書の審査後、通常1〜2営業日で掲載開始です。審査は営業時間内に行います。' },
+  { q: '途中でプラン変更・解約はできますか？', a: 'はい。プランのアップグレード・ダウングレード・解約はいつでも可能です。' },
+  { q: 'どんな業種が掲載できますか？', a: 'デリヘル、女性用風俗（女風）、デリエステ（回春マッサージ・M性感・風俗エステ）、同性向けサービスが掲載可能です。届出確認書が必要です。' },
 ];
 ---
 
 <BaseLayout
   title="掲載プラン・料金 | YobuHo Check-In Partners"
-  description="YobuHoの掲載プラン・料金一覧。全国43,000件以上のホテルに広告掲載。デリヘル・女性用風俗・デリエステの集客に。"
-  keywords="YobuHo 料金,掲載プラン,デリヘル 広告 料金,女風 広告 掲載,風俗 ホテル広告,デリエステ 広告"
+  description="YobuHoの掲載プラン・料金一覧。全国43,000件以上のホテルに広告掲載。デリヘル・女性用風俗・デリエステの集客に。無料プランから始められます。"
+  keywords="YobuHo 料金,掲載プラン,デリヘル 広告 料金,女風 広告 掲載,風俗 ホテル広告,デリエステ 広告,風俗 集客"
   canonical="https://yobuho.com/plan.html"
   ogTitle="掲載プラン・料金 | YobuHo"
-  ogDescription="YobuHoの掲載プラン・料金一覧。全国43,000件以上のホテルに広告掲載。"
+  ogDescription="全国43,000件以上のホテル検索ポータルに広告掲載。無料プランから。"
   ogUrl="https://yobuho.com/plan.html"
   themeColor="#b5627a"
   csp={csp}
@@ -46,57 +47,109 @@ const faqs = [
   <main class="plan-page">
     <!-- Hero -->
     <section class="hero">
-      <h1>YobuHo 掲載プラン</h1>
-      <p class="hero-sub">全国43,000件以上のホテル検索ポータルに広告掲載<br>デリヘル・女性用風俗・デリエステの集客をサポート</p>
+      <div class="hero-badge">広告掲載のご案内</div>
+      <h1>お店の情報を<br>43,000件以上のホテルに届ける</h1>
+      <p class="hero-sub">YobuHoは、デリヘル・女性用風俗・デリエステユーザーが<br>「呼べるホテル」を探す日本最大級の検索ポータルです</p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num">43,000<small>件+</small></span><span class="stat-label">掲載ホテル数</span></div>
+        <div class="stat"><span class="stat-num">5<small>ジャンル</small></span><span class="stat-label">対応ジャンル</span></div>
+        <div class="stat"><span class="stat-num">0<small>円〜</small></span><span class="stat-label">初期費用</span></div>
+      </div>
+    </section>
+
+    <!-- Why YobuHo -->
+    <section class="why-section">
+      <h2 class="section-title">YobuHoに掲載するメリット</h2>
+      <div class="why-grid">
+        <div class="why-card">
+          <div class="why-icon">🎯</div>
+          <h3>ホテルを探しているユーザーに直接リーチ</h3>
+          <p>「呼べるホテル」を検索しているユーザーに、ホテル詳細ページで直接お店の情報を表示。高い集客効果が期待できます。</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">📊</div>
+          <h3>口コミ実績がそのまま信頼に</h3>
+          <p>お店の案内実績件数が広告に表示されるため、ユーザーからの信頼度が高く、来店につながりやすい設計です。</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon">💰</div>
+          <h3>月額固定で安心の料金体系</h3>
+          <p>クリック課金ではなく月額固定制。予算管理が簡単で、アクセス数が増えても追加料金はかかりません。</p>
+        </div>
+      </div>
     </section>
 
     <!-- Pricing Cards -->
     <section class="pricing-section">
       <h2 class="section-title">料金プラン</h2>
-      <p class="section-sub">すべてのプランは複数契約が可能です（無料・投稿リンクを除く）</p>
+      <p class="section-sub">すべての有料プランでリッチ広告(サムネイル+店舗情報)を表示<br>複数エリアへの同時掲載も可能です</p>
       <div class="plan-grid">
         {plans.map((plan) => (
-          <div class={`plan-card ${plan.popular ? 'plan-popular' : ''}`}>
-            {plan.popular && <div class="plan-badge">おすすめ</div>}
+          <div class={`plan-card ${plan.tag ? 'plan-tagged' : ''}`} style={plan.tag ? `border-color:${plan.color}` : ''}>
+            {plan.tag && <div class="plan-badge" style={`background:${plan.color}`}>{plan.tag}</div>}
             <div class="plan-name">{plan.name}</div>
             <div class="plan-price">
-              <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月</span>
+              <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月(税込)</span>
             </div>
-            {plan.tag && <div class="plan-tag">{plan.tag}</div>}
-            <p class="plan-desc">{plan.desc}</p>
+            <ul class="plan-features">
+              {plan.features.map((f) => <li>{f}</li>)}
+            </ul>
           </div>
         ))}
       </div>
     </section>
 
-    <!-- Ad Format -->
-    <section class="ad-format-section">
-      <h2 class="section-title">広告フォーマット</h2>
-      <div class="format-grid">
-        <div class="format-card">
-          <h3>メイン広告</h3>
-          <div class="format-plan">市区町村プラン</div>
-          <ul>
-            <li>サムネイル画像（大）</li>
-            <li>店舗名</li>
-            <li>キャッチコピー</li>
-            <li>紹介文</li>
-            <li>最安値</li>
-            <li>営業時間</li>
-          </ul>
-          <p class="format-note">指定した市区町村のホテル詳細ページに大きく表示されます</p>
+    <!-- Ad Examples -->
+    <section class="example-section">
+      <h2 class="section-title">広告の表示イメージ</h2>
+      <div class="example-grid">
+        <div class="example-card">
+          <div class="example-label">リッチ広告(全プラン共通)</div>
+          <div class="example-mock">
+            <div class="mock-thumb">🖼</div>
+            <div class="mock-info">
+              <div class="mock-name">お店の名前</div>
+              <div class="mock-catch">キャッチコピー30文字</div>
+              <div class="mock-desc">紹介文50文字以内</div>
+              <div class="mock-bottom">
+                <span class="mock-price">60分 10,000円〜</span>
+                <span class="mock-hours">営業時間</span>
+              </div>
+            </div>
+          </div>
+          <p class="example-note">エリア一覧ページ・ホテル詳細ページの両方に表示。サムネイル画像・キャッチコピー・紹介文・料金・営業時間を掲載できます。</p>
         </div>
-        <div class="format-card">
-          <h3>サブ広告</h3>
-          <div class="format-plan">エリア〜全国プラン</div>
-          <ul>
-            <li>サムネイル画像（小）</li>
-            <li>店舗名</li>
-            <li>紹介文</li>
-            <li>対応ホテル件数</li>
-          </ul>
-          <p class="format-note">プランに応じた範囲のホテル詳細ページに表示されます</p>
+        <div class="example-card">
+          <div class="example-label">表示される場所</div>
+          <div class="example-places">
+            <div class="place-item"><span class="place-dot" style="background:#b5627a"></span>ホテル詳細ページ上部(市区町村)</div>
+            <div class="place-item"><span class="place-dot" style="background:#c9a84c"></span>エリア一覧ページ</div>
+            <div class="place-item"><span class="place-dot" style="background:#6a8a5a"></span>ホテル詳細ページ内(エリア〜全国)</div>
+          </div>
+          <p class="example-note">上位プランほど広い範囲のホテル・エリアページに表示され、より多くのユーザーにリーチします。</p>
         </div>
+      </div>
+    </section>
+
+    <!-- Comparison -->
+    <section class="compare-section">
+      <h2 class="section-title">プラン比較</h2>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr><th>プラン</th><th>月額</th><th>表示範囲</th><th>リッチ広告</th><th>複数契約</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>無料</td><td>¥0</td><td>テキストのみ</td><td>-</td><td>-</td></tr>
+            <tr><td>投稿リンク</td><td>¥5,500</td><td>口コミ内リンク</td><td>-</td><td>-</td></tr>
+            <tr class="tr-accent"><td>市区町村</td><td>¥11,000</td><td>指定市区町村</td><td>&#9745;</td><td>&#9745;</td></tr>
+            <tr><td>エリア</td><td>¥33,000</td><td>指定エリア</td><td>&#9745;</td><td>&#9745;</td></tr>
+            <tr class="tr-highlight"><td>ブロック</td><td>¥55,000</td><td>指定ブロック</td><td>&#9745;</td><td>&#9745;</td></tr>
+            <tr><td>都道府県</td><td>¥77,000</td><td>指定都道府県</td><td>&#9745;</td><td>&#9745;</td></tr>
+            <tr><td>地方</td><td>¥110,000</td><td>指定地方</td><td>&#9745;</td><td>&#9745;</td></tr>
+            <tr class="tr-highlight"><td>全国</td><td>¥165,000</td><td>全国</td><td>&#9745;</td><td>-</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -107,7 +160,7 @@ const faqs = [
         {faqs.map((faq) => (
           <div class="faq-item">
             <div class="faq-q">Q. {faq.q}</div>
-            <div class="faq-a">A. {faq.a}</div>
+            <div class="faq-a">{faq.a}</div>
           </div>
         ))}
       </div>
@@ -115,8 +168,12 @@ const faqs = [
 
     <!-- CTA -->
     <section class="cta-section">
-      <p class="cta-text">まずは無料プランで店舗登録</p>
-      <a href="/shop-register.html" class="cta-btn">無料で店舗登録する &rarr;</a>
+      <div class="cta-box">
+        <h2>まずは無料で始めてみませんか？</h2>
+        <p>無料プランなら初期費用・月額費用ともに0円。<br>店舗名掲載・認証バッジ・専用URLをすぐにご利用いただけます。</p>
+        <a href="/shop-register.html" class="cta-btn">無料で店舗登録する &rarr;</a>
+        <p class="cta-note">※有料プランへのアップグレードはいつでも可能です</p>
+      </div>
     </section>
   </main>
 
@@ -126,143 +183,102 @@ const faqs = [
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Noto Sans JP', sans-serif; background: #faf8f5; color: #1a1410; }
-
   .plan-page { max-width: 960px; margin: 0 auto; padding: 0 16px; }
 
   /* Hero */
-  .hero { text-align: center; padding: 48px 16px 32px; }
-  .hero h1 { font-size: 28px; font-weight: 700; color: #1a1410; margin-bottom: 12px; }
-  .hero-sub { font-size: 15px; color: #5a4a3a; line-height: 1.8; }
+  .hero { text-align: center; padding: 40px 16px 32px; }
+  .hero-badge { display: inline-block; font-size: 12px; font-weight: 600; color: #b5627a; background: rgba(181,98,122,0.1); padding: 4px 16px; border-radius: 20px; margin-bottom: 16px; }
+  .hero h1 { font-size: clamp(22px, 5vw, 32px); font-weight: 700; color: #1a1410; margin-bottom: 12px; line-height: 1.4; }
+  .hero-sub { font-size: 14px; color: #5a4a3a; line-height: 1.8; }
+  .hero-stats { display: flex; justify-content: center; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat-num { display: block; font-size: 28px; font-weight: 700; color: #b5627a; line-height: 1.2; }
+  .stat-num small { font-size: 14px; font-weight: 500; }
+  .stat-label { font-size: 11px; color: #8a7a6a; }
 
   /* Section common */
   .section-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; color: #1a1410; }
-  .section-sub { font-size: 13px; text-align: center; color: #8a7a6a; margin-bottom: 24px; }
+  .section-sub { font-size: 13px; text-align: center; color: #8a7a6a; margin-bottom: 24px; line-height: 1.7; }
+
+  /* Why */
+  .why-section { padding: 32px 0; }
+  .why-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 640px) { .why-grid { grid-template-columns: repeat(3, 1fr); } }
+  .why-card { background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; padding: 24px 16px; text-align: center; }
+  .why-icon { font-size: 32px; margin-bottom: 12px; }
+  .why-card h3 { font-size: 14px; font-weight: 700; color: #1a1410; margin-bottom: 8px; line-height: 1.5; }
+  .why-card p { font-size: 13px; color: #5a4a3a; line-height: 1.7; }
 
   /* Pricing cards */
   .pricing-section { padding: 32px 0; }
-  .plan-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
+  .plan-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   @media (min-width: 640px) { .plan-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (min-width: 900px) { .plan-grid { grid-template-columns: repeat(4, 1fr); } }
-
   .plan-card {
-    position: relative;
-    background: #fff;
-    border: 1px solid #e8e0d8;
-    border-radius: 12px;
-    padding: 24px 16px 20px;
-    text-align: center;
-    transition: box-shadow 0.2s;
+    position: relative; background: #fff; border: 1px solid #e8e0d8; border-radius: 12px;
+    padding: 24px 12px 16px; text-align: center; transition: box-shadow 0.2s;
   }
   .plan-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-  .plan-popular { border-color: #b5627a; border-width: 2px; }
+  .plan-tagged { border-width: 2px; }
   .plan-badge {
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #b5627a;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 14px;
-    border-radius: 10px;
-    white-space: nowrap;
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    color: #fff; font-size: 11px; font-weight: 600; padding: 2px 14px; border-radius: 10px; white-space: nowrap;
   }
-  .plan-name { font-size: 14px; font-weight: 600; color: #3a3020; margin-bottom: 12px; }
-  .plan-price { margin-bottom: 8px; line-height: 1; }
-  .plan-yen { font-size: 16px; font-weight: 500; color: #b5627a; vertical-align: top; }
-  .plan-amount { font-size: 32px; font-weight: 700; color: #b5627a; letter-spacing: -0.02em; }
-  .plan-month { font-size: 13px; color: #8a7a6a; }
-  .plan-tag {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    color: #fff;
-    background: #8a7a6a;
-    padding: 2px 10px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-  }
-  .plan-popular .plan-tag { background: #b5627a; }
-  .plan-desc { font-size: 12px; color: #6a5a4a; line-height: 1.6; }
+  .plan-name { font-size: 13px; font-weight: 600; color: #3a3020; margin-bottom: 10px; }
+  .plan-price { margin-bottom: 12px; line-height: 1; }
+  .plan-yen { font-size: 14px; font-weight: 500; color: #b5627a; vertical-align: top; }
+  .plan-amount { font-size: 28px; font-weight: 700; color: #b5627a; letter-spacing: -0.02em; }
+  .plan-month { font-size: 11px; color: #8a7a6a; }
+  .plan-features { list-style: none; text-align: left; padding: 0; }
+  .plan-features li { font-size: 12px; color: #4a3a2a; padding: 3px 0; padding-left: 16px; position: relative; line-height: 1.5; }
+  .plan-features li::before { content: ''; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; background: #b5627a; border-radius: 50%; }
 
-  /* Ad format */
-  .ad-format-section { padding: 32px 0; }
-  .format-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  @media (min-width: 640px) { .format-grid { grid-template-columns: repeat(2, 1fr); } }
+  /* Examples */
+  .example-section { padding: 32px 0; }
+  .example-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 640px) { .example-grid { grid-template-columns: repeat(2, 1fr); } }
+  .example-card { background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; padding: 24px; }
+  .example-label { font-size: 13px; font-weight: 700; color: #b5627a; margin-bottom: 12px; }
+  .example-mock { display: flex; gap: 12px; background: linear-gradient(135deg, rgba(181,98,122,0.06), rgba(181,98,122,0.12)); border: 1px solid rgba(181,98,122,0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .mock-thumb { width: 60px; height: 80px; background: #e8e0d8; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  .mock-info { flex: 1; min-width: 0; }
+  .mock-name { font-size: 14px; font-weight: 700; color: #b5627a; margin-bottom: 4px; }
+  .mock-catch { font-size: 12px; font-weight: 600; color: #b5627a; margin-bottom: 2px; }
+  .mock-desc { font-size: 11px; color: #666; margin-bottom: 8px; }
+  .mock-bottom { display: flex; justify-content: space-between; font-size: 11px; color: #444; }
+  .mock-price { font-weight: 700; font-size: 13px; color: #c05050; }
+  .mock-hours { color: #888; }
+  .example-note { font-size: 12px; color: #6a5a4a; line-height: 1.7; }
+  .example-places { margin-bottom: 12px; }
+  .place-item { font-size: 13px; color: #3a3020; padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+  .place-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-  .format-card {
-    background: #fff;
-    border: 1px solid #e8e0d8;
-    border-radius: 12px;
-    padding: 24px;
-  }
-  .format-card h3 { font-size: 16px; font-weight: 700; color: #1a1410; margin-bottom: 8px; }
-  .format-plan {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    background: #f0ebe5;
-    color: #6a5a4a;
-    padding: 2px 10px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-  }
-  .format-card ul { list-style: none; padding: 0; margin-bottom: 12px; }
-  .format-card li {
-    font-size: 13px;
-    color: #3a3020;
-    padding: 4px 0;
-    padding-left: 16px;
-    position: relative;
-  }
-  .format-card li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 10px;
-    width: 6px;
-    height: 6px;
-    background: #b5627a;
-    border-radius: 50%;
-  }
-  .format-note { font-size: 12px; color: #8a7a6a; line-height: 1.6; }
+  /* Compare table */
+  .compare-section { padding: 32px 0; }
+  .compare-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+  .compare-table th { background: #3a3020; color: #fff; padding: 10px 12px; text-align: center; font-weight: 600; font-size: 12px; }
+  .compare-table td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #e8e0d8; }
+  .compare-table tbody tr:hover { background: rgba(181,98,122,0.04); }
+  .tr-accent td { background: rgba(181,98,122,0.06); font-weight: 600; }
+  .tr-highlight td { background: rgba(201,168,76,0.08); }
 
   /* FAQ */
   .faq-section { padding: 32px 0; }
   .faq-list { max-width: 700px; margin: 0 auto; }
-  .faq-item {
-    background: #fff;
-    border: 1px solid #e8e0d8;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 12px;
-  }
+  .faq-item { background: #fff; border: 1px solid #e8e0d8; border-radius: 10px; padding: 20px; margin-bottom: 12px; }
   .faq-q { font-size: 14px; font-weight: 600; color: #1a1410; margin-bottom: 8px; }
   .faq-a { font-size: 13px; color: #5a4a3a; line-height: 1.7; }
 
   /* CTA */
-  .cta-section { text-align: center; padding: 40px 16px 48px; }
-  .cta-text { font-size: 15px; color: #5a4a3a; margin-bottom: 16px; }
+  .cta-section { padding: 32px 16px 48px; }
+  .cta-box { background: linear-gradient(135deg, #b5627a, #9a4a62); border-radius: 16px; padding: 40px 24px; text-align: center; color: #fff; }
+  .cta-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  .cta-box p { font-size: 14px; line-height: 1.7; opacity: 0.9; margin-bottom: 20px; }
   .cta-btn {
-    display: inline-block;
-    background: #b5627a;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 600;
-    padding: 14px 40px;
-    border-radius: 8px;
-    text-decoration: none;
-    transition: opacity 0.2s;
-    font-family: inherit;
+    display: inline-block; background: #fff; color: #b5627a; font-size: 16px; font-weight: 700;
+    padding: 14px 40px; border-radius: 8px; text-decoration: none; transition: opacity 0.2s; font-family: inherit;
   }
-  .cta-btn:hover { opacity: 0.85; }
+  .cta-btn:hover { opacity: 0.9; }
+  .cta-note { font-size: 12px; opacity: 0.7; margin-top: 12px !important; margin-bottom: 0 !important; }
 </style>
