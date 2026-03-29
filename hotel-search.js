@@ -319,25 +319,27 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     }
     cachedHotelData = hotels;
 
-    // area-data.jsonからラブホ件数を取得（major_area全体）
+    // area-data.jsonからラブホ件数を取得
     let lovehoCount = 0;
+    let lovehoFound = false;
     if (_areaData) {
         if (majorArea) {
+            // majorArea指定時: そのmajor_areaのデータのみ参照（フォールバックしない）
             const areaKey = pref + '\t' + majorArea;
             const areaInfo = _areaData.area && _areaData.area[areaKey];
             if (areaInfo) {
                 const found = (areaInfo.ct || []).find(c => c[0] === city);
-                if (found) lovehoCount = found[2] || 0;
+                if (found) { lovehoCount = found[2] || 0; lovehoFound = true; }
             }
-        }
-        if (!lovehoCount) {
+        } else {
+            // majorArea未指定時: 全エリアから検索（後方互換）
             for (const areaInfo of Object.values(_areaData.area || {})) {
                 const found = (areaInfo.ct || []).find(c => c[0] === city);
-                if (found) { lovehoCount = found[2] || 0; break; }
+                if (found) { lovehoCount = found[2] || 0; lovehoFound = true; break; }
             }
         }
     }
-    if (!lovehoCount && !_areaData) {
+    if (!lovehoFound) {
         const apiP = { pref, city_like: city, type: 'loveho', cols: 'id', limit: 50 };
         if (majorArea) apiP.major_area = majorArea;
         const fbHotels = await queryHotelsAPI(apiP);
@@ -935,6 +937,7 @@ function setResultStatus(count, totalCount) {
 // area-data.jsonからcityのホテル/ラブホ件数を取得
 function getCityTotalFromAreaData(pref, majorArea, city) {
     if (!_areaData) return null;
+    // majorArea指定時: そのmajor_areaのデータのみ参照（フォールバックしない）
     if (majorArea) {
         const areaKey = pref + '\t' + majorArea;
         const areaInfo = _areaData.area && _areaData.area[areaKey];
@@ -942,7 +945,9 @@ function getCityTotalFromAreaData(pref, majorArea, city) {
             const found = (areaInfo.ct || []).find(c => c[0] === city);
             if (found) return { hotel: found[1], loveho: found[2] };
         }
+        return null;
     }
+    // majorArea未指定時: 全エリアから検索（後方互換）
     for (const areaInfo of Object.values(_areaData.area || {})) {
         const found = (areaInfo.ct || []).find(c => c[0] === city);
         if (found) return { hotel: found[1], loveho: found[2] };
