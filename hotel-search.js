@@ -2200,7 +2200,7 @@ function renderAreaShopSection(shops, isSub = false) {
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
             return `${toFull(pp[0])}分 ${toFull(fmtYen(pp[1]))}円〜`;
         })();
-        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>` : ''}</div>` : '';
+        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<div class="ad-main-price-text">${priceText}</div>` : ''}${hoursText ? `<div class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span> <span class="ad-main-hours-value">${esc(hoursText)}</span></div>` : ''}</div>` : '';
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">

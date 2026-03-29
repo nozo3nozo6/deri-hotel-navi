@@ -2168,11 +2168,11 @@ body[data-mode="men"] .header-title {
 .ad-main-info { flex:1;min-width:0;padding:0;display:flex;flex-direction:column;justify-content:space-between; }
 .ad-main-info > .ad-shop-name { padding:6px 12px 4px;background:color-mix(in srgb, var(--accent,#b5627a) 8%, var(--bg-3,#fff));border-bottom:1px solid color-mix(in srgb, var(--accent,#b5627a) 12%, transparent); }
 .ad-main-catch { font-size:12px;font-weight:600;color:var(--text);margin-top:2px;padding:2px 12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
-.ad-main-bottom { display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding:5px 12px;background:color-mix(in srgb, var(--accent,#b5627a) 10%, var(--bg-3,#fff));border-top:1px solid color-mix(in srgb, var(--accent,#b5627a) 12%, transparent); }
+.ad-main-bottom { margin-top:auto;padding:5px 12px;background:color-mix(in srgb, var(--accent,#b5627a) 10%, var(--bg-3,#fff));border-top:1px solid color-mix(in srgb, var(--accent,#b5627a) 12%, transparent); }
 .ad-main-price-text { font-size:20px;font-weight:800;color:var(--accent,#b5627a);letter-spacing:0.5px;white-space:nowrap; }
-.ad-main-hours-text { text-align:right;line-height:1.3; }
-.ad-main-hours-label { display:block;font-size:11px;color:var(--text-3);font-weight:400; }
-.ad-main-hours-value { display:block;font-size:14px;color:var(--text);font-weight:700; }
+.ad-main-hours-text { margin-top:2px; }
+.ad-main-hours-label { font-size:11px;color:var(--text-3);font-weight:400; }
+.ad-main-hours-value { font-size:14px;color:var(--text);font-weight:700; }
 
 /* ==========================================================================
    Touch target minimum 44px (WCAG 2.5.8)
