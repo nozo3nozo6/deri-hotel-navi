@@ -108,12 +108,10 @@ function showCanReasonsModal() {
     setTimeout(() => document.getElementById('can-reasons-modal')?.focus(), 100);
 }
 
-function toggleCanReason(idx) {
-    const reason = CAN_CALL_REASONS[idx];
-    const el = document.getElementById(`cr-${idx}`);
-    const check = el.querySelector('.cr-check');
-    if (hotelFormState.can_call_reasons.has(reason)) {
-        hotelFormState.can_call_reasons.delete(reason);
+function _toggleReasonItem(el, reasonSet, reason, borderColor, bgColor, checkColor) {
+    const check = el.querySelector('[class$="-check"]');
+    if (reasonSet.has(reason)) {
+        reasonSet.delete(reason);
         el.style.borderColor = '';
         el.style.background = '';
         check.textContent = '';
@@ -121,14 +119,20 @@ function toggleCanReason(idx) {
         check.style.borderColor = 'rgba(180,150,100,0.4)';
         check.style.color = 'transparent';
     } else {
-        hotelFormState.can_call_reasons.add(reason);
-        el.style.borderColor = 'rgba(58,154,96,0.5)';
-        el.style.background = 'rgba(58,154,96,0.06)';
+        reasonSet.add(reason);
+        el.style.borderColor = borderColor;
+        el.style.background = bgColor;
         check.textContent = '✓';
-        check.style.background = '#3a9a60';
-        check.style.borderColor = '#3a9a60';
+        check.style.background = checkColor;
+        check.style.borderColor = checkColor;
         check.style.color = '#fff';
     }
+}
+
+function toggleCanReason(idx) {
+    const el = document.getElementById(`cr-${idx}`);
+    _toggleReasonItem(el, hotelFormState.can_call_reasons, CAN_CALL_REASONS[idx],
+        'rgba(58,154,96,0.5)', 'rgba(58,154,96,0.06)', '#3a9a60');
 }
 
 function cancelCanReasons() {
@@ -170,26 +174,9 @@ function showCannotReasonsModal() {
 }
 
 function toggleCannotReason(idx) {
-    const reason = CANNOT_CALL_REASONS[idx];
     const el = document.getElementById(`cnr-${idx}`);
-    const check = el.querySelector('.cnr-check');
-    if (hotelFormState.cannot_call_reasons.has(reason)) {
-        hotelFormState.cannot_call_reasons.delete(reason);
-        el.style.borderColor = '';
-        el.style.background = '';
-        check.textContent = '';
-        check.style.background = '#fff';
-        check.style.borderColor = 'rgba(180,150,100,0.4)';
-        check.style.color = 'transparent';
-    } else {
-        hotelFormState.cannot_call_reasons.add(reason);
-        el.style.borderColor = 'rgba(192,80,80,0.5)';
-        el.style.background = 'rgba(192,80,80,0.06)';
-        check.textContent = '✓';
-        check.style.background = '#c05050';
-        check.style.borderColor = '#c05050';
-        check.style.color = '#fff';
-    }
+    _toggleReasonItem(el, hotelFormState.cannot_call_reasons, CANNOT_CALL_REASONS[idx],
+        'rgba(192,80,80,0.5)', 'rgba(192,80,80,0.06)', '#c05050');
 }
 
 function cancelCannotReasons() {

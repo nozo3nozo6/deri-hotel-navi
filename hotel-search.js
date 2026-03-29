@@ -8,6 +8,7 @@ let _fetchGeneration = 0;
 const _extTarget = ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? '_self' : '_blank';
 
 // 共通ユーティリティ（ホテル/ラブホ両方で使用）
+const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
 const SHOP_REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
 function shopSortDate(r) {
     const d = new Date(r.updated_at || r.created_at);
@@ -426,85 +427,59 @@ async function switchTab(tab) {
     refreshMapIfVisible();
 }
 
+async function _loadAndSortLoveho(params) {
+    const gen = ++_fetchGeneration;
+    showLoading();
+    try {
+        const hotels = await queryHotelsAPI(params);
+        if (gen !== _fetchGeneration) return null;
+        if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return null; }
+        const hotelIds = hotels.map(h => h.id);
+        const summaries = await fetchLovehoReviewSummaries(hotelIds);
+        if (gen !== _fetchGeneration) return null;
+        const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
+        withSummary.sort((a, b) => {
+            const ca = a.lhSummary ? a.lhSummary.count : 0;
+            const cb = b.lhSummary ? b.lhSummary.count : 0;
+            if (ca !== cb) return cb - ca;
+            const da = (a.lhSummary && a.lhSummary.latestAt) || '';
+            const db = (b.lhSummary && b.lhSummary.latestAt) || '';
+            if (da !== db) return da < db ? 1 : -1;
+            const ta = LOVEHO_ORDER[a.hotel_type] ?? 1, tb = LOVEHO_ORDER[b.hotel_type] ?? 1;
+            if (ta !== tb) return ta - tb;
+            return (a.name || '').localeCompare(b.name || '', 'ja');
+        });
+        cachedLovehoData = withSummary;
+        renderLovehoCards(withSummary);
+        return withSummary;
+    } catch (e) { return null; }
+    finally { hideLoading(); }
+}
+
 async function loadLovehoForCurrentCity() {
     // 駅検索の場合は駅名ベースでラブホ取得
     if (_stationForLoveho) {
         return loadLovehoForStation(_stationForLoveho);
     }
     if (!_tabFilterObj || !_tabCity) return;
-    const gen = ++_fetchGeneration;
-    showLoading();
-    try {
-        const pref = _tabFilterObj.prefecture;
-        const apiP = { type: 'loveho', city_like: _tabCity, limit: 50 };
-        if (pref) apiP.pref = pref;
-        if (_tabFilterObj.major_area) apiP.major_area = _tabFilterObj.major_area;
-        // detail_areaでは絞り込まない（市区町村はmajor_area全体の件数を表示）
-        const hotels = await queryHotelsAPI(apiP);
-        if (gen !== _fetchGeneration) return; // stale, abort
-        if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
-        const hotelIds = hotels.map(h => h.id);
-        const summaries = await fetchLovehoReviewSummaries(hotelIds);
-        if (gen !== _fetchGeneration) return; // stale, abort
-        const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
-        const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
-        withSummary.sort((a, b) => {
-            const ca = a.lhSummary ? a.lhSummary.count : 0;
-            const cb = b.lhSummary ? b.lhSummary.count : 0;
-            if (ca !== cb) return cb - ca;
-            const da = (a.lhSummary && a.lhSummary.latestAt) || '';
-            const db = (b.lhSummary && b.lhSummary.latestAt) || '';
-            if (da !== db) return da < db ? 1 : -1;
-            const ta = LOVEHO_ORDER[a.hotel_type] ?? 1, tb = LOVEHO_ORDER[b.hotel_type] ?? 1;
-            if (ta !== tb) return ta - tb;
-            return (a.name || '').localeCompare(b.name || '', 'ja');
-        });
-        cachedLovehoData = withSummary;
-        renderLovehoCards(withSummary);
-        // API実数でタブ件数を更新（area-data.jsonが古い場合の補正）
+    const apiP = { type: 'loveho', city_like: _tabCity, limit: 50 };
+    if (_tabFilterObj.prefecture) apiP.pref = _tabFilterObj.prefecture;
+    if (_tabFilterObj.major_area) apiP.major_area = _tabFilterObj.major_area;
+    const result = await _loadAndSortLoveho(apiP);
+    if (result) {
         const lhCountEl = document.getElementById('loveho-count');
-        if (lhCountEl) lhCountEl.textContent = withSummary.length;
-    } catch (e) { /* error silenced */ }
-    finally { hideLoading(); }
+        if (lhCountEl) lhCountEl.textContent = result.length;
+    }
 }
 
 /** 駅名ベースでラブホ取得（駅検索時のタブ切替用） */
 async function loadLovehoForStation(stationName) {
-    const gen = ++_fetchGeneration;
-    showLoading();
-    try {
-        const hotels = await queryHotelsAPI({ station: stationName, type: 'loveho', limit: 50 });
-        if (gen !== _fetchGeneration) return;
-        if (!hotels || !hotels.length) { cachedLovehoData = []; renderLovehoCards([]); return; }
-        const hotelIds = hotels.map(h => h.id);
-        const summaries = await fetchLovehoReviewSummaries(hotelIds);
-        if (gen !== _fetchGeneration) return;
-        const withSummary = hotels.map(h => ({ ...h, lhSummary: summaries[h.id] || null }));
-        const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
-        withSummary.sort((a, b) => {
-            const ca = a.lhSummary ? a.lhSummary.count : 0;
-            const cb = b.lhSummary ? b.lhSummary.count : 0;
-            if (ca !== cb) return cb - ca;
-            const da = (a.lhSummary && a.lhSummary.latestAt) || '';
-            const db = (b.lhSummary && b.lhSummary.latestAt) || '';
-            if (da !== db) return da < db ? 1 : -1;
-            const ta = LOVEHO_ORDER[a.hotel_type] ?? 1, tb = LOVEHO_ORDER[b.hotel_type] ?? 1;
-            if (ta !== tb) return ta - tb;
-            return (a.name || '').localeCompare(b.name || '', 'ja');
-        });
-        cachedLovehoData = withSummary;
-        renderLovehoCards(withSummary);
-    } catch (e) { /* error silenced */ }
-    finally { hideLoading(); }
+    await _loadAndSortLoveho({ station: stationName, type: 'loveho', limit: 50 });
 }
 
 // ==========================================================================
 // ラブホカードレンダリング
 // ==========================================================================
-function lhStarsHTML() {
-    return '';
-}
-
 function renderLovehoCards(hotels, showDistance = false) {
     const container = document.getElementById('hotel-list');
     const rs = document.getElementById('result-status');
@@ -564,7 +539,7 @@ function loadMoreLovehoCards() {
     }
 
     if (displayedCount >= allHotels.length) {
-        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
         container.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar">
                 <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
@@ -593,7 +568,7 @@ async function loadDetail(hotelId, isLoveho) {
     try {
         // マスタデータロード（タイプ別）
         if (isLoveho) await loadLhMasters();
-        else await Promise.all([loadConditionsMaster(), loadCanCallReasonsMaster(), loadCannotCallReasonsMaster(), loadRoomTypesMaster()]);
+        else await loadMasterData();
 
         // データ取得（PHP API経由）
         const detailType = isLoveho ? 'loveho' : 'hotel';
@@ -686,7 +661,7 @@ async function loadDetail(hotelId, isLoveho) {
 
         // 6段階広告ロード
         if (hotel.city) {
-            const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
+            const genderMode = getCurrentMode();
             const _region = REGION_MAP.find(r => r.prefs.includes(hotel.prefecture));
             const _regionLabel = (_region && !isSinglePrefRegion(_region)) ? _region.label : null;
             const [cityAds, areaAds, blockAds, prefAds, regionAds, nationalAds] = await Promise.all([
@@ -699,8 +674,7 @@ async function loadDetail(hotelId, isLoveho) {
             ]);
             // ①市区町村: メイン広告（リッチカード）
             const citySlot = document.getElementById('detail-ad-city');
-            const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-            const genreName = genreMap[genderMode] || 'お店';
+            const genreName = GENRE_MAP[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
                 let filtered = cityAds;
                 if (_shopParam) {
@@ -1593,7 +1567,7 @@ function loadMoreHotels() {
         `);
     }
 
-    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
     container.insertAdjacentHTML('beforeend', `
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
@@ -1758,7 +1732,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
     updatePageTitle(hotel.name + (isLoveho ? ' - ラブホ口コミ' : ' - 口コミ・対応情報'));
     const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(hotel.name)}`;
     const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotel.address || hotel.name)}`;
-    const modeParam = typeof MODE !== 'undefined' ? MODE : 'men';
+    const modeParam = getCurrentMode();
 
     getDetailContainer().innerHTML = `
     <div class="detail-wrap">
@@ -1940,7 +1914,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         </div>` : '');
 
     // フォームHTML → アコーディオン式
-    const castLabel = (typeof MODE !== 'undefined' ? MODE : 'men') === 'women' ? 'セラピスト' : 'キャスト';
+    const castLabel = (getCurrentMode()) === 'women' ? 'セラピスト' : 'キャスト';
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
             <div class="text-sub3" style="text-align:center;margin-bottom:4px;">${esc(hotel.name)}</div>
@@ -2093,8 +2067,7 @@ function renderDetailShopCards(shops, cityName) {
         </div>`;
     }).filter(Boolean);
     if (!cards.length) return '';
-    const _genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-    const _gn = _genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
+    const _gn = GENRE_MAP[getCurrentMode()] || 'お店';
     return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べる${_gn}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
@@ -2201,8 +2174,7 @@ function renderAreaShopSection(shops) {
         </div>`;
     }).join('');
 
-    const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-    const genreName = genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
+    const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
     const headerText = `📢 このエリアで呼べる${genreName}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);

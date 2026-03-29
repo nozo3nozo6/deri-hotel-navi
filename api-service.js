@@ -34,6 +34,12 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const GENRE_MAP = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+
+function getCurrentMode() {
+    return window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+}
+
 const GATE_PATH_MAP = {
     'men': '/deli/',
     'women': '/jofu/',
@@ -42,8 +48,7 @@ const GATE_PATH_MAP = {
     'este': '/este/',
 };
 function getGateUrl() {
-    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-    return GATE_PATH_MAP[mode] || '/deli/';
+    return GATE_PATH_MAP[getCurrentMode()] || '/deli/';
 }
 
 // Supabase anon key removed — all data access via PHP API
@@ -248,11 +253,6 @@ function _applyMasterData(md) {
     }
 }
 
-// Legacy function signatures (called from other files)
-async function loadCanCallReasonsMaster() { await loadMasterData(); }
-async function loadCannotCallReasonsMaster() { await loadMasterData(); }
-async function loadRoomTypesMaster() { await loadMasterData(); }
-function loadConditionsMaster() {}
 async function loadLhMasters() { await loadMasterData(); }
 
 function renderAdHTML(ad) {
@@ -309,7 +309,19 @@ function renderAdHTML(ad) {
 
 let _adGeneration = 0;
 function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } const bs = document.getElementById('ad-container-below-search'); if (bs) { bs.innerHTML = ''; bs.style.display = 'none'; } window._adsSuppressed = true; }
-async function loadAds(placementType, placementTarget, fallbacks) {
+async function _fetchAds(placementType, placementTarget) {
+    const currentMode = getCurrentMode();
+    const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data || !data.length) return [];
+    const seen = new Set();
+    const unique = [];
+    data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); unique.push(ad); } });
+    return unique;
+}
+
+async function loadAds(placementType, placementTarget) {
     window._adsSuppressed = false;
     const container = document.getElementById('ad-container');
     if (!container) return;
@@ -319,21 +331,10 @@ async function loadAds(placementType, placementTarget, fallbacks) {
     if (belowSearch) belowSearch.innerHTML = '';
     const gen = ++_adGeneration;
     try {
-        const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        // そのエリアの掲載店のみ表示（フォールバックなし）
-        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
-        let allAds = [];
-        if (res.ok) {
-            const data = await res.json();
-            if (data && data.length) {
-                const seen = new Set();
-                data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
-            }
-        }
-        if (gen !== _adGeneration || window._adsSuppressed) return; // suppressed
+        const allAds = await _fetchAds(placementType, placementTarget);
+        if (gen !== _adGeneration || window._adsSuppressed) return;
         if (allAds.length) {
-            const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-            const genreName = genreMap[currentMode] || 'お店';
+            const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
             const header = `<div class="ad-shop-header">📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
             container.style.display = '';
             container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
@@ -343,8 +344,7 @@ async function loadAds(placementType, placementTarget, fallbacks) {
 
 async function fetchDetailAds(placementType, placementTarget) {
     try {
-        const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
+        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(getCurrentMode())}`);
         if (!res.ok) return null;
         const data = await res.json();
         if (!data || !data.length) return null;
@@ -367,19 +367,10 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
     container.style.display = '';
     const gen = ++_adGeneration;
     try {
-        const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
-        const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
-        if (!res.ok) return;
+        const allAds = await _fetchAds(placementType, placementTarget);
         if (gen !== _adGeneration || window._adsSuppressed) return;
-        const data = await res.json();
-        if (!data || !data.length) return;
-        const seen = new Set();
-        const allAds = [];
-        data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
         if (!allAds.length) return;
-        if (window._adsSuppressed) return;
-        const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-        const genreName = genreMap[currentMode] || 'お店';
+        const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
         const header = `<div class="ad-shop-header">📢 全国で呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
         container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
     } catch (e) { /* silently */ }
