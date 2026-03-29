@@ -706,12 +706,12 @@ async function loadDetail(hotelId, isLoveho) {
                     const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
                     const genreName = genreMap[genderMode] || 'お店';
                     const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                    citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>店名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
+                    citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
                 }
             }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
-                const subHeader = 'このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>店名をクリック';
+                const subHeader = 'このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>名をクリック';
                 const areaSlot = document.getElementById('detail-ad-area');
                 if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, subHeader);
                 const blockSlot = document.getElementById('detail-ad-block');
@@ -770,7 +770,7 @@ function renderLovehoDetail(hotel, reports) {
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
         const pName=r.poster_name||'匿名';
         const si=lhShopInfoMap[pName];
-        const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店舗</span>`:` <span class="shop-verified-badge">認証店舗</span>`):'';
+        const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
         const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=lhShopFeeMap[pName];
         const feeLabel=formatTransportFee(fee);
@@ -1818,7 +1818,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#4a7ab0';
             const si=isShop?shopInfoMap[r.poster_name]:null;
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
-            const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店舗</span>` : `<span class="shop-verified-badge">認証店舗</span>`;
+            const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge">認定店</span>`;
             if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
             if(isShop&&si&&si.status==='active'){return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
@@ -2054,7 +2054,7 @@ function filterLhUserReports(filter) {
 
 function renderDetailShopCards(shops, cityName) {
     // ①市区町村: 画像カード（最も目立つ）
-    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>店名をクリック</div>` +
+    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>名をクリック</div>` +
     shops.map(s => {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)}</a>`
@@ -2175,7 +2175,7 @@ function renderAreaShopSection(shops) {
 
     const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
     const genreName = genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
-    const headerText = `📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>店名をクリック🔗`;
+    const headerText = `📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
