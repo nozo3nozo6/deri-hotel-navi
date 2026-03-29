@@ -251,7 +251,7 @@ function renderAdHTML(ad) {
 }
 
 let _adGeneration = 0;
-function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } }
+function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } const bs = document.getElementById('ad-container-below-search'); if (bs) bs.innerHTML = ''; }
 async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
