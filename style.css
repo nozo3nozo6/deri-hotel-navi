@@ -1783,16 +1783,17 @@ body[data-mode="men"] .header-title {
 /* 口コミ投稿ボタン（詳細ページ内） */
 .btn-open-report-modal {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 14px 32px; border: 2px solid var(--accent); border-radius: 12px;
-    background: transparent; color: var(--accent); font-family: inherit;
+    padding: 14px 32px; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; font-family: inherit;
     font-size: 15px; font-weight: 700; cursor: pointer;
-    transition: all 0.2s; letter-spacing: 0.5px;
+    transition: opacity 0.2s; letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-.btn-open-report-modal:hover { background: var(--accent); color: #fff; }
+.btn-open-report-modal:hover { opacity: 0.85; }
 .btn-open-report-modal--lh {
-    border-color: #d4688a; color: #d4688a;
+    background: #d4688a;
 }
-.btn-open-report-modal--lh:hover { background: #d4688a; color: #fff; }
+.btn-open-report-modal--lh:hover { opacity: 0.85; }
 
 /* Modal height adjustment for small devices */
 [id$="-modal"] > div {
