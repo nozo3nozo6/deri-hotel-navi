@@ -706,7 +706,7 @@ async function loadDetail(hotelId, isLoveho) {
                     const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
                     const genreName = genreMap[genderMode] || 'お店';
                     const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                    citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
+                    citySlot.innerHTML = `<div class="ad-shop-header">このホテルで呼べる${genreName}のおすすめ店　名をクリック</div><div class="ad-shop-list">${cards}</div>`;
                 }
             }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
@@ -2091,7 +2091,7 @@ function renderSubAdCards(ads, label) {
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
-        const countHtml = count > 0 ? `<span style="font-size:11px;color:#888;white-space:nowrap;">${count}件対応</span>` : '';
+        const countHtml = count > 0 ? `<span style="font-size:11px;color:#888;white-space:nowrap;">📋${count}件</span>` : '';
         const catchHtml = catchphrase ? `<div style="font-size:11px;color:#666;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(catchphrase)}</div>` : '';
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
@@ -2181,7 +2181,7 @@ function renderAreaShopSection(shops) {
 
     const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
     const genreName = genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
-    const headerText = `📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗`;
+    const headerText = `このエリアで呼べる${genreName}のおすすめ店　名をクリック`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
