@@ -717,19 +717,19 @@ async function loadDetail(hotelId, isLoveho) {
             if (citySlot && filteredCityShops.length) citySlot.innerHTML = renderDetailShopCards(filteredCityShops, hotel.city);
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
+                const subHeader = 'このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>店名をクリック';
                 const areaSlot = document.getElementById('detail-ad-area');
-                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderDetailTextLink(areaAds, 'このエリアで呼べるおすすめ認証店舗');
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, subHeader);
                 const blockSlot = document.getElementById('detail-ad-block');
-                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderDetailTextLink(blockAds, 'このエリアで呼べるおすすめ認証店舗');
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, subHeader);
                 const prefSlot = document.getElementById('detail-ad-pref');
-                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderDetailTextLink(prefAds, (hotel.prefecture || '') + 'で呼べるおすすめ認証店舗');
-                // 地方+全国を1つの広域枠にまとめ
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, subHeader);
                 const wideSlot = document.getElementById('detail-ad-wide');
                 if (wideSlot) {
-                    const wideItems = [];
-                    if (regionAds && regionAds.length) wideItems.push({ ads: regionAds, label: (_regionLabel || '') + 'で呼べるおすすめ認証店舗' });
-                    if (nationalAds && nationalAds.length) wideItems.push({ ads: nationalAds, label: '全国対応のおすすめ認証店舗' });
-                    if (wideItems.length) wideSlot.innerHTML = renderDetailWideLinks(wideItems);
+                    let wideHtml = '';
+                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, subHeader);
+                    if (nationalAds && nationalAds.length) wideHtml += renderSubAdCards(nationalAds, subHeader);
+                    if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
             }
         }
@@ -2084,45 +2084,32 @@ function renderDetailShopCards(shops, cityName) {
         </div>`;
     }).join('') + '</div>';
 }
-function renderDetailTextLink(ads, label) {
-    // ②〜⑤: テキストリンク（簡素）
+function renderSubAdCards(ads, label) {
+    // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
     if (!ads || !ads.length) return '';
-    const links = ads.map(ad => {
+    const cards = ads.map(ad => {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
+        const thumb = ad.shops ? ad.shops.thumbnail_url : '';
         if (!name) return '';
-        return url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:12px;text-decoration:none;font-weight:500;">${esc(name)} 🔗</a>`
-            : `<span style="font-size:12px;color:var(--text);font-weight:500;">${esc(name)}</span>`;
-    }).filter(Boolean);
-    if (!links.length) return '';
-    return `<div style="margin:8px 0;padding:8px 12px;border-left:3px solid #e8ddd5;background:#faf7f4;border-radius:0 6px 6px 0;">
-        <div style="color:#888;font-size:10px;margin-bottom:4px;">${esc(label)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px 16px;">${links.map(l => `<span style="display:flex;align-items:center;gap:4px;"><span style="background:#b5627a;color:#fff;font-size:8px;padding:0 4px;border-radius:2px;">認証</span>${l}</span>`).join('')}</div>
-    </div>`;
-}
-
-function renderDetailWideLinks(items) {
-    // 地方+全国をまとめた広域枠
-    const sections = items.map(({ ads, label }) => {
-        const links = ads.map(ad => {
-            const name = ad.shops ? ad.shops.shop_name : '';
-            const url = ad.shops ? ad.shops.shop_url : '';
-            if (!name) return '';
-            return url
-                ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:12px;text-decoration:none;font-weight:500;">${esc(name)} 🔗</a>`
-                : `<span style="font-size:12px;color:var(--text);font-weight:500;">${esc(name)}</span>`;
-        }).filter(Boolean);
-        if (!links.length) return '';
-        return `<div style="margin-bottom:4px;">
-            <div style="color:#888;font-size:10px;margin-bottom:2px;">${esc(label)}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px 14px;">${links.map(l => `<span style="display:flex;align-items:center;gap:4px;"><span style="background:#b5627a;color:#fff;font-size:8px;padding:0 4px;border-radius:2px;">認証</span>${l}</span>`).join('')}</div>
+        const nameHtml = url
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(name)}</a>`
+            : `<span class="ad-shop-name" style="color:var(--text);">${esc(name)}</span>`;
+        const thumbHtml = thumb
+            ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
+            : '';
+        return `<div class="ad-shop-card">
+            ${thumbHtml}
+            <div class="ad-shop-info">
+                <span class="shop-premium-badge">認定店</span>
+                <div>${nameHtml}</div>
+            </div>
         </div>`;
     }).filter(Boolean);
-    if (!sections.length) return '';
-    return `<div style="margin:8px 0;padding:10px 12px;border-left:3px solid #d5dde8;background:#f7f8fa;border-radius:0 6px 6px 0;">
-        <div style="color:#666;font-size:10px;font-weight:600;margin-bottom:6px;">広域で呼べるおすすめ認証店舗</div>
-        ${sections.join('')}
+    if (!cards.length) return '';
+    return `<div style="margin:8px 0;">
+        <div class="ad-shop-header">${label}</div>
+        <div class="ad-shop-list">${cards.join('')}</div>
     </div>`;
 }
 
