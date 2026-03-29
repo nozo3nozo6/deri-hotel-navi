@@ -391,7 +391,7 @@
                         <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用" class="f-input">
                     </div>
                     <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">紹介文 <span style="color:var(--text-3);font-weight:400;">50文字以内</span></label>
+                        <label class="f-label" style="font-size:11px;">紹介文 <span style="color:var(--text-3);font-weight:400;">50文字以内（超過分は…で省略表示）</span></label>
                         <input type="text" id="ad-description" maxlength="50" placeholder="例: 女性スタッフが丁寧に対応いたします" class="f-input">
                     </div>
                     <div class="f-group" style="margin-bottom:10px;">
@@ -942,7 +942,7 @@ function toggle24h(checked){
     if(checked){document.getElementById('ad-hours-start').value='';document.getElementById('ad-hours-end').value='';}
 }
 function initHoursSelects(){
-    const times=['0:00','1:00','2:00','3:00','4:00','5:00','6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00','翌0:00','翌1:00','翌2:00','翌3:00','翌4:00','翌5:00','翌6:00'];
+    const times=['0:00','0:30','1:00','1:30','2:00','2:30','3:00','3:30','4:00','4:30','5:00','5:30','6:00','6:30','7:00','7:30','8:00','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30','翌0:00','翌0:30','翌1:00','翌1:30','翌2:00','翌2:30','翌3:00','翌3:30','翌4:00','翌4:30','翌5:00','翌5:30','翌6:00'];
     ['ad-hours-start','ad-hours-end'].forEach(id=>{
         const sel=document.getElementById(id);if(!sel)return;
         const first=sel.options[0];sel.innerHTML='';sel.appendChild(first);
@@ -952,6 +952,8 @@ function initHoursSelects(){
 async function saveAdInfo(){
     const catchphrase=document.getElementById('catchphrase-input').value.trim();
     const adDescription=document.getElementById('ad-description').value.trim();
+    if(catchphrase.length>20){toast('キャッチコピーは20文字以内です');return;}
+    if(adDescription.length>50){toast('紹介文は50文字以内です');return;}
     const is24h=document.getElementById('ad-hours-24h').checked;
     let businessHours='';
     if(is24h){businessHours='24時間営業';}else{const hStart=document.getElementById('ad-hours-start').value;const hEnd=document.getElementById('ad-hours-end').value;businessHours=(hStart&&hEnd)?hStart+'〜'+hEnd:(hStart||hEnd||'');}
