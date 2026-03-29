@@ -460,10 +460,10 @@ function handleShopContracts() {
     global $pdo;
     $shopId = $_GET['shop_id'] ?? '';
     if (!$shopId) { echo json_encode([]); return; }
-    $stmt = $pdo->prepare('SELECT sc.plan_id FROM shop_contracts sc WHERE sc.shop_id = ?');
+    $stmt = $pdo->prepare('SELECT sc.id, sc.plan_id FROM shop_contracts sc WHERE sc.shop_id = ?');
     $stmt->execute([$shopId]);
     $rows = $stmt->fetchAll();
-    echo json_encode(array_map(fn($r) => ['plan_id' => (int)$r['plan_id']], $rows));
+    echo json_encode(array_map(fn($r) => ['id' => (int)$r['id'], 'plan_id' => (int)$r['plan_id']], $rows));
 }
 
 // ===================================================================

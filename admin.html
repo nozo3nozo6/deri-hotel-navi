@@ -1443,30 +1443,53 @@ const LEVEL_TO_AD_TYPE={city:'spot',detail_area:'town',spot:'area',prefecture:'b
 let PLAN_LIMITS={};
 function buildPlanLimits(){PLAN_LIMITS={};(contractPlansData||[]).forEach(p=>{PLAN_LIMITS[p.id]={city:p.slots_city||0,detail_area:p.slots_detail_area||0,spot:p.slots_spot||0,prefecture:p.slots_prefecture||0,region:p.slots_region||0,national:p.slots_national||0};});}
 
+const MULTI_PLAN_IDS=new Set([2,8,3,4,13]);
+
 async function loadShopContracts(shopId,plans){
   const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
-  const activeIds=(Array.isArray(contracts)?contracts:[]).map(c=>c.plan_id);
+  const rows=Array.isArray(contracts)?contracts:[];
+  const activeIds=rows.map(c=>c.plan_id);
+  // countMap: plan_id -> count, idMap: plan_id -> [row ids]
+  const countMap={};const idMap={};
+  rows.forEach(c=>{countMap[c.plan_id]=(countMap[c.plan_id]||0)+1;if(!idMap[c.plan_id])idMap[c.plan_id]=[];idMap[c.plan_id].push(c.id);});
+  window._contractIdMap=idMap;
   // 現在のプラン表示
   const badgeEl=document.getElementById('shop-plan-badge');
   if(activeIds.length){
-    const names=activeIds.map(id=>{const p=plans.find(x=>x.id===id);return p?p.name:'?';});
+    const seen={};const names=[];
+    activeIds.forEach(id=>{seen[id]=(seen[id]||0)+1;});
+    Object.keys(seen).forEach(id=>{const p=plans.find(x=>x.id===Number(id));const n=p?p.name:'?';names.push(seen[id]>1?n+' x'+seen[id]:n);});
     badgeEl.textContent=names.join(' + ');
   }else{badgeEl.textContent='無料プラン';}
-  // 合計枠数を計算
+  // 合計枠数を計算（each row = 1 unit of slots）
   let totalLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
-  activeIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){totalLimits.city+=l.city;totalLimits.detail_area+=l.detail_area;totalLimits.spot+=l.spot;totalLimits.prefecture+=l.prefecture;totalLimits.region+=l.region||0;totalLimits.national+=l.national||0;}});
+  rows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(totalLimits).forEach(k=>{totalLimits[k]+=(l[k]||0);});}});
   const hasPaid=activeIds.some(id=>id>1);
   // プラン追加/削除ボタン
-  let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">契約中プランをクリックで解除、未契約をクリックで追加</div>';
-  planHtml+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+  let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">複数契約可能なプランは＋/−で数量変更、それ以外はクリックで切替</div>';
+  planHtml+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
   plans.forEach(p=>{
     if(p.id===1)return;// 無料プランは表示しない
-    const isActive=activeIds.includes(p.id);
-    const style=isActive
-      ?'background:#28a745;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
-      :'background:#fff;color:#333;border:1px solid #ddd;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
-    const icon=isActive?'✅ ':'';
-    planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
+    const cnt=countMap[p.id]||0;
+    const isActive=cnt>0;
+    if(MULTI_PLAN_IDS.has(p.id)){
+      // Multi-allowed: +/- UI
+      const bg=cnt>0?'#e8f5e9':'#f8f8f8';const bdr=cnt>0?'1px solid #a5d6a7':'1px solid #ddd';
+      planHtml+=`<div style="background:${bg};border:${bdr};border-radius:6px;padding:6px 10px;font-size:12px;min-width:180px;">`;
+      planHtml+=`<div style="font-weight:600;margin-bottom:4px;">${esc(p.name)}（¥${p.price.toLocaleString()}）</div>`;
+      planHtml+=`<div style="display:flex;align-items:center;gap:8px;">`;
+      planHtml+=`<button onclick="removeOneContract('${shopId}',${p.id})" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:16px;line-height:1;${cnt===0?'opacity:0.3;pointer-events:none':''}">−</button>`;
+      planHtml+=`<span style="font-size:14px;font-weight:700;min-width:20px;text-align:center;">${cnt}</span>`;
+      planHtml+=`<button onclick="addOneContract('${shopId}',${p.id})" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:16px;line-height:1;">＋</button>`;
+      planHtml+=`</div></div>`;
+    }else{
+      // Single-only: toggle button
+      const style=isActive
+        ?'background:#28a745;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
+        :'background:#fff;color:#333;border:1px solid #ddd;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
+      const icon=isActive?'✅ ':'';
+      planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
+    }
   });
   planHtml+='</div>';
   // 枠数 + 掲載エリアカード（統合表示）
@@ -1490,45 +1513,44 @@ async function loadShopContracts(shopId,plans){
   window._currentShopLimits=totalLimits;
 }
 
+// shops.plan_idを最高額プランに同期するヘルパー
+async function syncBestPlan(shopId){
+  const updatedContracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const activeContracts=Array.isArray(updatedContracts)?updatedContracts:[];
+  let bestPlanId=1;let bestPrice=0;
+  activeContracts.forEach(c=>{const p=(contractPlansData||[]).find(x=>x.id===c.plan_id);if(p&&p.price>bestPrice){bestPrice=p.price;bestPlanId=p.id;}});
+  await api('update',{table:'shops',id:shopId,data:{plan_id:bestPlanId}});
+  shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:bestPlanId}:s);
+  renderShops();
+}
+
+// 単一プラン用トグル（single-only: 無料/投稿リンク/全国）
 async function toggleShopContract(shopId,planId,isActive){
   const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
   const planName=planInfo?planInfo.name:'プラン';
   if(isActive){
     // 解除時: このプランが提供する枠を失った結果、超過する掲載エリアを特定
-    const planLimits=PLAN_LIMITS[planId]||{};
-    // 解除後の残り枠を計算
     const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
-    const afterIds=(Array.isArray(contracts)?contracts:[]).filter(c=>c.plan_id!==planId).map(c=>c.plan_id);
+    const afterRows=(Array.isArray(contracts)?contracts:[]).filter(c=>c.plan_id!==planId);
     let afterLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
-    afterIds.forEach(id=>{const l=PLAN_LIMITS[id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
-    // 現在の掲載エリアを取得
+    afterRows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
     const placements=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1');
     const activePlacements=Array.isArray(placements)?placements:[];
-    // レベルごとに超過分を特定
     let toRemove=[];
     const levels=['city','detail_area','spot','prefecture','region','national'];
     levels.forEach(lv=>{
       const active=activePlacements.filter(p=>p.level===lv);
       const maxAfter=afterLimits[lv]||0;
-      if(active.length>maxAfter){
-        // 超過分（新しい順に削除）
-        const excess=active.slice(maxAfter);
-        excess.forEach(p=>toRemove.push(p));
-      }
+      if(active.length>maxAfter){active.slice(maxAfter).forEach(p=>toRemove.push(p));}
     });
-    // 確認ダイアログ
     let msg='「'+planName+'」を解除しますか？';
     if(toRemove.length>0){
       msg+='\n\n⚠️ 枠数超過のため、以下の掲載エリアも削除されます:\n';
-      toRemove.forEach(p=>{
-        msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;
-      });
+      toRemove.forEach(p=>{msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;});
       msg+='\n\n（掲載エリア '+toRemove.length+'件 が削除されます）';
     }
     if(!confirm(msg))return;
-    // プラン解除
     await api('delete',{table:'shop_contracts',filters:{shop_id:shopId,plan_id:planId}});
-    // 超過分の掲載エリア＋広告を削除
     for(const p of toRemove){
       await api('delete',{table:'shop_placements',id:p.id});
       const adType=LEVEL_TO_AD_TYPE[p.level]||p.level;
@@ -1540,20 +1562,64 @@ async function toggleShopContract(shopId,planId,isActive){
     await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
     toast('プランを追加しました');
   }
-  // shops.plan_idを最高額プランに同期
-  const updatedContracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
-  const activeContracts=Array.isArray(updatedContracts)?updatedContracts:[];
-  let bestPlanId=1; // デフォルト: 無料プラン
-  let bestPrice=0;
-  activeContracts.forEach(c=>{const p=(contractPlansData||[]).find(x=>x.id===c.plan_id);if(p&&p.price>bestPrice){bestPrice=p.price;bestPlanId=p.id;}});
-  await api('update',{table:'shops',id:shopId,data:{plan_id:bestPlanId}});
-  shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:bestPlanId}:s);
-  renderShops();
+  await syncBestPlan(shopId);
   loadShopContracts(shopId,contractPlansData||[]);
-  // 有料プラン追加時はエリア管理を案内
   if(!isActive&&planInfo&&planInfo.price>0){
     _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price};
   }
+}
+
+// 複数契約プラン: 1行追加
+async function addOneContract(shopId,planId){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
+  if(!confirm('「'+planName+'」を1枠追加しますか？'))return;
+  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
+  toast('「'+planName+'」を追加しました');
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+  if(planInfo&&planInfo.price>0){
+    _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price};
+  }
+}
+
+// 複数契約プラン: 1行削除（最後のrow idを使用）
+async function removeOneContract(shopId,planId){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
+  const ids=window._contractIdMap&&window._contractIdMap[planId];
+  if(!ids||ids.length===0)return;
+  const rowId=ids[ids.length-1];// 最後の1行を削除
+  // 解除後の枠数を計算して超過チェック
+  const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const afterRows=(Array.isArray(contracts)?contracts:[]).filter(c=>c.id!==rowId);
+  let afterLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+  afterRows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
+  const placements=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1');
+  const activePlacements=Array.isArray(placements)?placements:[];
+  let toRemove=[];
+  const levels=['city','detail_area','spot','prefecture','region','national'];
+  levels.forEach(lv=>{
+    const active=activePlacements.filter(p=>p.level===lv);
+    const maxAfter=afterLimits[lv]||0;
+    if(active.length>maxAfter){active.slice(maxAfter).forEach(p=>toRemove.push(p));}
+  });
+  let msg='「'+planName+'」を1枠減らしますか？';
+  if(toRemove.length>0){
+    msg+='\n\n⚠️ 枠数超過のため、以下の掲載エリアも削除されます:\n';
+    toRemove.forEach(p=>{msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;});
+    msg+='\n\n（掲載エリア '+toRemove.length+'件 が削除されます）';
+  }
+  if(!confirm(msg))return;
+  await api('delete',{table:'shop_contracts',id:rowId});
+  for(const p of toRemove){
+    await api('delete',{table:'shop_placements',id:p.id});
+    const adType=LEVEL_TO_AD_TYPE[p.level]||p.level;
+    await api('delete',{table:'ad_placements',filters:{shop_id:shopId,placement_type:adType,placement_target:p.target_name}});
+  }
+  toast(toRemove.length>0?'1枠減らし、掲載エリア'+toRemove.length+'件を削除しました':'1枠減らしました');
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
 }
 
 async function loadShopAreaList(shopId){
