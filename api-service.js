@@ -251,8 +251,9 @@ function renderAdHTML(ad) {
 }
 
 let _adGeneration = 0;
-function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } const bs = document.getElementById('ad-container-below-search'); if (bs) bs.innerHTML = ''; }
+function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } const bs = document.getElementById('ad-container-below-search'); if (bs) { bs.innerHTML = ''; bs.style.display = 'none'; } window._adsSuppressed = true; }
 async function loadAds(placementType, placementTarget, fallbacks) {
+    window._adsSuppressed = false;
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
@@ -272,7 +273,7 @@ async function loadAds(placementType, placementTarget, fallbacks) {
                 data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
             }
         }
-        if (gen !== _adGeneration) return; // suppressed
+        if (gen !== _adGeneration || window._adsSuppressed) return; // suppressed
         if (allAds.length) {
             const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
             const genreName = genreMap[currentMode] || 'お店';
@@ -302,21 +303,24 @@ function clearAds() {
 }
 
 async function loadAdsBelowSearch(placementType, placementTarget) {
+    window._adsSuppressed = false;
     const container = document.getElementById('ad-container-below-search');
     if (!container) return;
     container.innerHTML = '';
+    container.style.display = '';
     const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
         const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
         if (!res.ok) return;
-        if (gen !== _adGeneration) return;
+        if (gen !== _adGeneration || window._adsSuppressed) return;
         const data = await res.json();
         if (!data || !data.length) return;
         const seen = new Set();
         const allAds = [];
         data.forEach(ad => { if (!seen.has(ad.shop_id)) { seen.add(ad.shop_id); allAds.push(ad); } });
         if (!allAds.length) return;
+        if (window._adsSuppressed) return;
         const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
         const genreName = genreMap[currentMode] || 'お店';
         const header = `<div class="ad-shop-header">📢 全国で呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
