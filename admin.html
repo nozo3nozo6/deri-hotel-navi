@@ -900,6 +900,12 @@
     </div>
 </div>
 <!-- モーダル：店舗審査・編集 -->
+<div class="modal-overlay" id="doc-preview-modal" style="display:none;z-index:1010;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="position:relative;max-width:90vw;max-height:90vh;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+        <button onclick="document.getElementById('doc-preview-modal').style.display='none'" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:1;">✕</button>
+        <img id="doc-preview-img" src="" style="max-width:90vw;max-height:90vh;display:block;">
+    </div>
+</div>
 <div class="modal-overlay" id="shop-review-modal" style="display:none;" onclick="if(event.target===this)closeShopReview()">
     <div class="sr-modal">
         <div class="sr-header">
@@ -1177,7 +1183,7 @@ const prefSel=document.getElementById("sr-prefecture");
 prefSel.innerHTML='<option value="">未設定</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
 prefSel.value=s.prefecture||'';
 updatePrefHint(s.prefecture);
-const wrap=document.getElementById("sr-doc-wrap");const thumbWrap=document.getElementById("sr-doc-thumb-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;thumbWrap.innerHTML=isPdf?`<a href="${esc(s.document_url)}" target="_blank" style="font-size:12px;color:#1a73e8;">📄 PDFを開く</a>`:`<img src="${esc(s.document_url)}" class="sr-doc-thumb" onclick="window.open(this.src,'_blank')" title="クリックで拡大表示">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';thumbWrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
+const wrap=document.getElementById("sr-doc-wrap");const thumbWrap=document.getElementById("sr-doc-thumb-wrap");if(s.document_url){const isPdf=s.document_url.toLowerCase().includes(".pdf");wrap.innerHTML=isPdf?`<iframe src="${esc(s.document_url)}" style="width:100%;height:100%;border:none;"></iframe>`:`<img src="${esc(s.document_url)}" draggable="false">`;thumbWrap.innerHTML=isPdf?`<a href="${esc(s.document_url)}" target="_blank" style="font-size:12px;color:#1a73e8;">📄 PDFを開く</a>`:`<img src="${esc(s.document_url)}" class="sr-doc-thumb" onclick="document.getElementById('doc-preview-img').src=this.src;document.getElementById('doc-preview-modal').style.display='flex'" title="クリックで拡大表示">`;}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';thumbWrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
 
 function updatePrefHint(pref){
   const hint=document.getElementById("sr-pref-hint");
