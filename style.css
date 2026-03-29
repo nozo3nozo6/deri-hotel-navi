@@ -295,13 +295,9 @@ body {
     background: var(--bg);
     color: var(--text);
     font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
 }
-.site-footer { margin-top: auto; }
 
 /* 男性モード・男性同士・デリエステ: ゴシック体 */
 [data-mode="men"] body,
@@ -2052,6 +2048,7 @@ body[data-mode="men"] .header-title {
 .site-footer {
     background: #2c2c2c;
     padding: 12px 6px;
+    margin-top: 12px;
     text-align: center;
     font-size: 0.75rem;
     line-height: 1.6;
