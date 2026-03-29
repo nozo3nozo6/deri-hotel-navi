@@ -2078,7 +2078,7 @@ function renderDetailShopCards(shops, cityName) {
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
     if (!ads || !ads.length) return '';
-    const cards = ads.map(ad => {
+    const cards = ads.map((ad, i) => {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
         const thumb = ad.shops ? ad.shops.thumbnail_url : '';
@@ -2089,7 +2089,9 @@ function renderSubAdCards(ads, label) {
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
-        return `<div class="ad-shop-card">
+        const rank = ad.rank || (i + 1);
+        const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
+        return `<div class="ad-shop-card ${rankClass}">
             ${thumbHtml}
             <div class="ad-shop-info">
                 <span class="shop-premium-badge">認定店</span>
