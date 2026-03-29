@@ -2092,7 +2092,7 @@ function renderSubAdCards(ads, label) {
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
         const countHtml = count > 0 ? `<span style="font-size:11px;color:#999;white-space:nowrap;font-weight:500;">📋${count}件</span>` : '';
-        const catchHtml = catchphrase ? `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;">${esc(catchphrase)}</div>` : '';
+        const catchHtml = `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;min-height:calc(12px * 1.3 * 2);">${catchphrase ? esc(catchphrase) : '&nbsp;'}</div>`;
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
