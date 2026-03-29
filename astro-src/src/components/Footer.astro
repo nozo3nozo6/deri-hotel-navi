@@ -21,9 +21,14 @@ const { variant = 'simple', seoText } = Astro.props;
                 <a href="https://same.yobuho.com/">同性利用専用</a><span>|</span>
                 <a href="https://loveho.yobuho.com/">ラブホテル検索</a><span>|</span>
                 <a href="/shop-register.html">店舗登録</a><span>|</span>
+                <a href="/index.html">トップページ</a><span>|</span>
             </Fragment>
         )}
-        <a href="/index.html">トップページ</a><span>|</span>
+        {variant !== 'full' && (
+            <Fragment>
+                <a href="/index.html">トップページ</a><span>|</span>
+            </Fragment>
+        )}
         <a href="/terms.html">利用規約</a><span>|</span>
         <a href="/privacy.html">プライバシーポリシー</a><span>|</span>
         <a href="/contact.html">お問い合わせ</a>
