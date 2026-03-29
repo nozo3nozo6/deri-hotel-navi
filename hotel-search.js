@@ -217,11 +217,7 @@ async function fetchAndShowHotels(filterObj) {
         setResultStatus(hotels.length);
 
         // エリア店舗セクション表示
-        const pref = filterObj.prefecture;
-        if (pref) {
-            const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            fetchAreaShops(pref, filterObj.city || null, genderMode).then(shops => renderAreaShopSection(shops));
-        }
+        // 広告はloadAds(ads.php)に統一 — fetchAndShowHotelsではad-containerが非表示のため不要
     } catch (e) {
         /* error silenced */
     } finally {
@@ -239,7 +235,6 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (filterObj.detail_area) _urlP.detail = filterObj.detail_area;
     _urlP.city = city;
     updateUrl(_urlP);
-    suppressAds();
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
@@ -258,8 +253,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
-    // ホテル一覧ページではad-container広告を表示しない（area-shop-sectionのみ）
-    // loadAdsを呼ばず、suppressAds()で非表示を維持する
+    loadAds('spot', city);
     setBackBtn(true);
 
     try {
@@ -282,9 +276,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 
         showLovehoTabs(pref, city, hotels.length, hotels, totalHotelCount);
 
-        // エリア店舗セクション表示
-        const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-        fetchAreaShops(pref, city, genderMode).then(shops => renderAreaShopSection(shops));
+        // 広告はloadAds(ads.php)で統一表示済み
     } catch (e) {
         /* error silenced */
     } finally {
@@ -695,26 +687,28 @@ async function loadDetail(hotelId, isLoveho) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
             const _region = REGION_MAP.find(r => r.prefs.includes(hotel.prefecture));
             const _regionLabel = (_region && !isSinglePrefRegion(_region)) ? _region.label : null;
-            const [cityShops, areaAds, blockAds, prefAds, regionAds, nationalAds] = await Promise.all([
-                fetchAreaShops(hotel.prefecture, hotel.city, genderMode),
+            const [cityAds, areaAds, blockAds, prefAds, regionAds, nationalAds] = await Promise.all([
+                hotel.city ? fetchDetailAds('spot', hotel.city) : Promise.resolve(null),
                 hotel.detail_area ? fetchDetailAds('town', hotel.detail_area) : Promise.resolve(null),
                 hotel.major_area ? fetchDetailAds('area', hotel.major_area) : Promise.resolve(null),
                 hotel.prefecture ? fetchDetailAds('big', hotel.prefecture) : Promise.resolve(null),
                 _regionLabel ? fetchDetailAds('region', _regionLabel) : Promise.resolve(null),
                 fetchDetailAds('premium', '全国')
             ]);
-            // ①市区町村: 画像カード（店舗モード時は自店舗のみ）
-            let filteredCityShops = cityShops || [];
-            if (_shopParam && filteredCityShops.length) {
-                filteredCityShops = filteredCityShops.filter(s =>
-                    (SHOP_ID && s.id === SHOP_ID) ||
-                    (SHOP_SLUG && s.slug === SHOP_SLUG) ||
-                    s.slug === _shopParam ||
-                    s.id === _shopParam
-                );
-            }
+            // ①市区町村: メイン広告（リッチカード）
             const citySlot = document.getElementById('detail-ad-city');
-            if (citySlot && filteredCityShops.length) citySlot.innerHTML = renderDetailShopCards(filteredCityShops, hotel.city);
+            if (citySlot && cityAds && cityAds.length) {
+                let filtered = cityAds;
+                if (_shopParam) {
+                    filtered = filtered.filter(a => a.shop_id === SHOP_ID || a.shops?.shop_name === SHOP_DATA?.shop_name);
+                }
+                if (filtered.length) {
+                    const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+                    const genreName = genreMap[genderMode] || 'お店';
+                    const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
+                    citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>店名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
+                }
+            }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
                 const subHeader = 'このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>店名をクリック';
@@ -1545,9 +1539,6 @@ function buildCardHTML(h, i, showDistance) {
 }
 
 function renderHotelCards(hotels, showDistance = false) {
-    // ホテルリスト表示時はad-container（エリアナビ用広告）を確実に非表示
-    const adC = document.getElementById('ad-container');
-    if (adC) { adC.innerHTML = ''; adC.style.display = 'none'; }
     const container = document.getElementById('hotel-list');
     showDistanceFlag = showDistance;
 
