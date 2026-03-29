@@ -329,8 +329,8 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
         if (!allAds.length) return;
         const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
         const genreName = genreMap[currentMode] || 'お店';
-        const badge = '<span class="shop-premium-badge">認定店</span>';
-        container.innerHTML = renderSubAdCards(allAds, `📢 全国で呼べる${genreName}の ${badge} 名をクリック🔗`);
+        const header = `<div class="ad-shop-header">📢 全国で呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
+        container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
     } catch (e) { /* silently */ }
 }
 
