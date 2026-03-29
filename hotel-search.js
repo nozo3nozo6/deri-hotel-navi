@@ -220,7 +220,7 @@ async function fetchAndShowHotels(filterObj) {
         const pref = filterObj.prefecture;
         if (pref) {
             const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-            fetchAreaShops(pref, filterObj.city || null, genderMode).then(shops => renderAreaShopSection(shops, !filterObj.city));
+            fetchAreaShops(pref, filterObj.city || null, genderMode).then(shops => renderAreaShopSection(shops));
         }
     } catch (e) {
         /* error silenced */
@@ -284,7 +284,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
 
         // エリア店舗セクション表示
         const genderMode = typeof MODE !== 'undefined' ? MODE : 'men';
-        fetchAreaShops(pref, city, genderMode).then(shops => renderAreaShopSection(shops, false));
+        fetchAreaShops(pref, city, genderMode).then(shops => renderAreaShopSection(shops));
     } catch (e) {
         /* error silenced */
     } finally {
@@ -2063,10 +2063,10 @@ function filterLhUserReports(filter) {
 
 function renderDetailShopCards(shops, cityName) {
     // ①市区町村: 画像カード（最も目立つ）
-    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ店舗</div>` +
+    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>店名をクリック</div>` +
     shops.map(s => {
         const nameHtml = s.shop_url
-            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)} 🔗</a>`
+            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)}</a>`
             : `<span style="font-size:13px;color:var(--text);font-weight:500;">${esc(s.shop_name)}</span>`;
         const thumbHtml = s.thumbnail_url
             ? `<img src="${esc(s.thumbnail_url)}" width="48" height="64" loading="lazy" style="object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
@@ -2077,7 +2077,6 @@ function renderDetailShopCards(shops, cityName) {
                 <div>
                     <div style="margin-bottom:4px;">
                         <span style="background:#b5627a;color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">認定店</span>
-                        <span style="color:#999;font-size:11px;margin-left:6px;">${s.hotel_count}件対応</span>
                     </div>
                     ${nameHtml}
                 </div>
@@ -2127,7 +2126,7 @@ function renderDetailWideLinks(items) {
     </div>`;
 }
 
-function renderAreaShopSection(shops, isSub = false) {
+function renderAreaShopSection(shops) {
     // 既存のセクションを削除
     const existing = document.getElementById('area-shop-section');
     if (existing) existing.remove();
@@ -2171,22 +2170,7 @@ function renderAreaShopSection(shops, isSub = false) {
             : `<span class="ad-shop-name" style="color:var(--text);">${esc(s.shop_name)}</span>`;
         const thumbUrl = (s.images && s.images.length) ? s.images[0] : s.thumbnail_url;
 
-        if (isSub) {
-            // サブ広告: コンパクト（サムネ小+認定店+対応件数+店名）
-            const thumbHtml = thumbUrl
-                ? `<img src="${esc(thumbUrl)}" class="ad-shop-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
-                : '';
-            return `<div class="ad-shop-card">
-                ${thumbHtml}
-                <div class="ad-shop-info">
-                    <span style="background:var(--accent);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">認定店</span>
-                    <span style="color:var(--text-3);font-size:11px;margin-left:4px;">${s.hotel_count || ''}件対応</span>
-                    <div>${nameHtml}</div>
-                </div>
-            </div>`;
-        }
-
-        // メイン広告: リッチカード
+        // メイン広告: リッチカード（全エリア統一）
         const thumbHtml = thumbUrl
             ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
             : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
