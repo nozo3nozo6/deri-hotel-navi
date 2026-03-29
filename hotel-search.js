@@ -711,18 +711,19 @@ async function loadDetail(hotelId, isLoveho) {
             }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
-                const subHeader = '📢 このホテルで呼べるおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗';
+                const _badge = '<span class="shop-premium-badge">認定店</span>';
+                const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
-                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, subHeader);
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `📢 このエリアで呼べる${_gn}の ${_badge} 名をクリック🔗`);
                 const blockSlot = document.getElementById('detail-ad-block');
-                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, subHeader);
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `📢 この地域で呼べる${_gn}の ${_badge} 名をクリック🔗`);
                 const prefSlot = document.getElementById('detail-ad-pref');
-                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, subHeader);
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `📢 この都道府県で呼べる${_gn}の ${_badge} 名をクリック🔗`);
                 const wideSlot = document.getElementById('detail-ad-wide');
                 if (wideSlot) {
                     let wideHtml = '';
-                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, subHeader);
-                    if (nationalAds && nationalAds.length) wideHtml += renderSubAdCards(nationalAds, subHeader);
+                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `📢 この地方で呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                    if (nationalAds && nationalAds.length) wideHtml += renderSubAdCards(nationalAds, `📢 全国で呼べる${_gn}の ${_badge} 名をクリック🔗`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
             }
@@ -2080,7 +2081,9 @@ function renderDetailShopCards(shops, cityName) {
         </div>`;
     }).filter(Boolean);
     if (!cards.length) return '';
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べるおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
+    const _genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+    const _gn = _genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べる${_gn}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
