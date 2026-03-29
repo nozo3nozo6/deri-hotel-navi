@@ -1774,10 +1774,10 @@ function renderDetailPage(hotel, isLoveho, sections) {
         ${sections.userSection || ''}
         <div id="detail-ad-block"></div>
         ${sections.formHTML || ''}
-        <div id="detail-ad-pref"></div>
         <div style="text-align:center;margin:12px 0 4px;">
             <button data-action="openCorrectionModal" data-hotel-id="${hotel.id}" data-hotel-name="${esc(hotel.name)}" style="background:none;border:1px solid rgba(180,150,100,0.25);border-radius:8px;padding:8px 16px;font-size:12px;color:#8a7a6a;cursor:pointer;">⚠️ 情報の誤りを報告</button>
         </div>
+        <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
             <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
