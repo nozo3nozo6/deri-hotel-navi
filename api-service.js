@@ -235,7 +235,7 @@ function renderAdHTML(ad) {
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const reportCount = ad.report_count || 0;
-    const countBadge = reportCount > 0 ? `<span class="ad-main-count">💬${reportCount}件</span>` : '';
+    const countBadge = reportCount > 0 ? `<span class="ad-main-count">📋${reportCount}件</span>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
     return `<div class="ad-main-card ${rankClass}">
         ${thumbHTML}
