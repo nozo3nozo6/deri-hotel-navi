@@ -1,0 +1,268 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHeader from '../components/PageHeader.astro';
+import Footer from '../components/Footer.astro';
+
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
+
+const plans = [
+  { name: '無料プラン', price: '0', desc: '店舗名テキスト掲載、ご案内実績の公式発信、店舗専用URL', tag: '', popular: false },
+  { name: '投稿リンクプラン', price: '5,500', desc: '口コミに店舗リンク付き表示', tag: '', popular: false },
+  { name: '市区町村プラン', price: '11,000', desc: '指定市区町村のホテル詳細にメイン広告表示', tag: 'メイン広告', popular: true },
+  { name: 'エリアプラン', price: '33,000', desc: '指定エリアのホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
+  { name: 'ブロックプラン', price: '55,000', desc: '指定ブロックのホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
+  { name: '都道府県プラン', price: '77,000', desc: '指定都道府県のホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
+  { name: '地方プラン', price: '110,000', desc: '指定地方のホテル詳細にサブ広告表示', tag: 'サブ広告', popular: false },
+  { name: '全国プラン', price: '165,000', desc: '全国のホテル一覧・詳細に広告表示', tag: 'サブ広告', popular: false },
+];
+
+const faqs = [
+  { q: '無料プランでも掲載できますか？', a: 'はい。店舗名テキストが掲載されます。有料プランにアップグレードすると、広告枠に店舗情報が表示されます。' },
+  { q: '複数エリアに掲載できますか？', a: 'はい。同一プランを複数契約できます。たとえば市区町村プランを3つ契約し、3つの市区町村に掲載することが可能です。' },
+  { q: '掲載開始までどのくらいかかりますか？', a: '届出確認書の審査後、通常1〜2営業日で掲載開始です。' },
+  { q: '解約はいつでもできますか？', a: 'はい。いつでも解約可能です。日割り返金は行っておりません。' },
+];
+---
+
+<BaseLayout
+  title="掲載プラン・料金 | YobuHo Check-In Partners"
+  description="YobuHoの掲載プラン・料金一覧。全国43,000件以上のホテルに広告掲載。デリヘル・女性用風俗・デリエステの集客に。"
+  keywords="YobuHo 料金,掲載プラン,デリヘル 広告 料金,女風 広告 掲載,風俗 ホテル広告,デリエステ 広告"
+  canonical="https://yobuho.com/plan.html"
+  ogTitle="掲載プラン・料金 | YobuHo"
+  ogDescription="YobuHoの掲載プラン・料金一覧。全国43,000件以上のホテルに広告掲載。"
+  ogUrl="https://yobuho.com/plan.html"
+  themeColor="#b5627a"
+  csp={csp}
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  </Fragment>
+
+  <PageHeader pageTitle="掲載プラン・料金" />
+
+  <main class="plan-page">
+    <!-- Hero -->
+    <section class="hero">
+      <h1>YobuHo 掲載プラン</h1>
+      <p class="hero-sub">全国43,000件以上のホテル検索ポータルに広告掲載<br>デリヘル・女性用風俗・デリエステの集客をサポート</p>
+    </section>
+
+    <!-- Pricing Cards -->
+    <section class="pricing-section">
+      <h2 class="section-title">料金プラン</h2>
+      <p class="section-sub">すべてのプランは複数契約が可能です（無料・投稿リンクを除く）</p>
+      <div class="plan-grid">
+        {plans.map((plan) => (
+          <div class={`plan-card ${plan.popular ? 'plan-popular' : ''}`}>
+            {plan.popular && <div class="plan-badge">おすすめ</div>}
+            <div class="plan-name">{plan.name}</div>
+            <div class="plan-price">
+              <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月</span>
+            </div>
+            {plan.tag && <div class="plan-tag">{plan.tag}</div>}
+            <p class="plan-desc">{plan.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Ad Format -->
+    <section class="ad-format-section">
+      <h2 class="section-title">広告フォーマット</h2>
+      <div class="format-grid">
+        <div class="format-card">
+          <h3>メイン広告</h3>
+          <div class="format-plan">市区町村プラン</div>
+          <ul>
+            <li>サムネイル画像（大）</li>
+            <li>店舗名</li>
+            <li>キャッチコピー</li>
+            <li>紹介文</li>
+            <li>最安値</li>
+            <li>営業時間</li>
+          </ul>
+          <p class="format-note">指定した市区町村のホテル詳細ページに大きく表示されます</p>
+        </div>
+        <div class="format-card">
+          <h3>サブ広告</h3>
+          <div class="format-plan">エリア〜全国プラン</div>
+          <ul>
+            <li>サムネイル画像（小）</li>
+            <li>店舗名</li>
+            <li>紹介文</li>
+            <li>対応ホテル件数</li>
+          </ul>
+          <p class="format-note">プランに応じた範囲のホテル詳細ページに表示されます</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq-section">
+      <h2 class="section-title">よくある質問</h2>
+      <div class="faq-list">
+        {faqs.map((faq) => (
+          <div class="faq-item">
+            <div class="faq-q">Q. {faq.q}</div>
+            <div class="faq-a">A. {faq.a}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+      <p class="cta-text">まずは無料プランで店舗登録</p>
+      <a href="/shop-register.html" class="cta-btn">無料で店舗登録する &rarr;</a>
+    </section>
+  </main>
+
+  <Footer variant="full" />
+</BaseLayout>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: #faf8f5; color: #1a1410; }
+
+  .plan-page { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 48px 16px 32px; }
+  .hero h1 { font-size: 28px; font-weight: 700; color: #1a1410; margin-bottom: 12px; }
+  .hero-sub { font-size: 15px; color: #5a4a3a; line-height: 1.8; }
+
+  /* Section common */
+  .section-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; color: #1a1410; }
+  .section-sub { font-size: 13px; text-align: center; color: #8a7a6a; margin-bottom: 24px; }
+
+  /* Pricing cards */
+  .pricing-section { padding: 32px 0; }
+  .plan-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  @media (min-width: 640px) { .plan-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 900px) { .plan-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .plan-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e8e0d8;
+    border-radius: 12px;
+    padding: 24px 16px 20px;
+    text-align: center;
+    transition: box-shadow 0.2s;
+  }
+  .plan-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .plan-popular { border-color: #b5627a; border-width: 2px; }
+  .plan-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #b5627a;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 14px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .plan-name { font-size: 14px; font-weight: 600; color: #3a3020; margin-bottom: 12px; }
+  .plan-price { margin-bottom: 8px; line-height: 1; }
+  .plan-yen { font-size: 16px; font-weight: 500; color: #b5627a; vertical-align: top; }
+  .plan-amount { font-size: 32px; font-weight: 700; color: #b5627a; letter-spacing: -0.02em; }
+  .plan-month { font-size: 13px; color: #8a7a6a; }
+  .plan-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background: #8a7a6a;
+    padding: 2px 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .plan-popular .plan-tag { background: #b5627a; }
+  .plan-desc { font-size: 12px; color: #6a5a4a; line-height: 1.6; }
+
+  /* Ad format */
+  .ad-format-section { padding: 32px 0; }
+  .format-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 640px) { .format-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .format-card {
+    background: #fff;
+    border: 1px solid #e8e0d8;
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .format-card h3 { font-size: 16px; font-weight: 700; color: #1a1410; margin-bottom: 8px; }
+  .format-plan {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    background: #f0ebe5;
+    color: #6a5a4a;
+    padding: 2px 10px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .format-card ul { list-style: none; padding: 0; margin-bottom: 12px; }
+  .format-card li {
+    font-size: 13px;
+    color: #3a3020;
+    padding: 4px 0;
+    padding-left: 16px;
+    position: relative;
+  }
+  .format-card li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 6px;
+    height: 6px;
+    background: #b5627a;
+    border-radius: 50%;
+  }
+  .format-note { font-size: 12px; color: #8a7a6a; line-height: 1.6; }
+
+  /* FAQ */
+  .faq-section { padding: 32px 0; }
+  .faq-list { max-width: 700px; margin: 0 auto; }
+  .faq-item {
+    background: #fff;
+    border: 1px solid #e8e0d8;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 12px;
+  }
+  .faq-q { font-size: 14px; font-weight: 600; color: #1a1410; margin-bottom: 8px; }
+  .faq-a { font-size: 13px; color: #5a4a3a; line-height: 1.7; }
+
+  /* CTA */
+  .cta-section { text-align: center; padding: 40px 16px 48px; }
+  .cta-text { font-size: 15px; color: #5a4a3a; margin-bottom: 16px; }
+  .cta-btn {
+    display: inline-block;
+    background: #b5627a;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 14px 40px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+    font-family: inherit;
+  }
+  .cta-btn:hover { opacity: 0.85; }
+</style>
