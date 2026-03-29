@@ -2053,27 +2053,34 @@ function filterLhUserReports(filter) {
 }
 
 function renderDetailShopCards(shops, cityName) {
-    // ①市区町村: 画像カード（最も目立つ）
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べるおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div>` +
-    shops.map(s => {
-        const nameHtml = s.shop_url
-            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)}</a>`
-            : `<span style="font-size:13px;color:var(--text);font-weight:500;">${esc(s.shop_name)}</span>`;
-        const thumbHtml = s.thumbnail_url
-            ? `<img src="${esc(s.thumbnail_url)}" width="48" height="64" loading="lazy" style="object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
+    // ①市区町村: サブ広告と同じフォーマット
+    const cards = shops.map((s, i) => {
+        const name = s.shop_name || '';
+        const url = s.shop_url || '';
+        const thumb = s.thumbnail_url || '';
+        const prText = s.pr_text || '';
+        const count = s.hotel_count || 0;
+        if (!name) return '';
+        const nameHtml = url
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;">${esc(name)}</a>`
+            : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
+        const thumbHtml = thumb
+            ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
-        return `<div class="shop-ad-card">
-            <div style="display:flex;align-items:center;gap:12px;">
-                ${thumbHtml}
-                <div>
-                    <div style="margin-bottom:4px;">
-                        <span style="background:#b5627a;color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">認定店</span>
-                    </div>
-                    ${nameHtml}
-                </div>
+        const countHtml = count > 0 ? `<span style="font-size:11px;color:#2e8b57;white-space:nowrap;font-weight:600;">📋${count}件</span>` : '';
+        const prHtml = `<div style="font-size:12px;color:#888;margin-top:3px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;min-height:calc(12px * 1.3 * 2);">${prText ? esc(prText) : '&nbsp;'}</div>`;
+        const rank = i + 1;
+        const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
+        return `<div class="ad-shop-card ${rankClass}">
+            ${thumbHtml}
+            <div class="ad-shop-info">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">${nameHtml}${countHtml}</div>
+                ${prHtml}
             </div>
         </div>`;
-    }).join('') + '</div>';
+    }).filter(Boolean);
+    if (!cards.length) return '';
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べるおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
