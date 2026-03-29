@@ -217,7 +217,7 @@ function handleAddImage() {
     // 3枚制限チェック
     $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_images WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
-    if ($stmt->fetchColumn() >= 3) { http_response_code(400); echo json_encode(['error' => '画像は3枚までです']); return; }
+    if ($stmt->fetchColumn() >= 1) { http_response_code(400); echo json_encode(['error' => '画像は1枚までです']); return; }
     $stmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM shop_images WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
     $nextOrder = $stmt->fetchColumn();

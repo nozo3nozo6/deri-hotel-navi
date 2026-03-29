@@ -368,11 +368,11 @@
                   上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
                   貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
                 </p>
-                <!-- 店舗画像（有料プランのみ、最大3枚） -->
+                <!-- 店舗画像（有料プランのみ、1枚） -->
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
                         <span style="font-size:12px;color:var(--text-3);">店舗画像:</span>
-                        <span style="font-size:11px;color:var(--text-3);">最大3枚（600×800px以内、JPG/PNGのみ）</span>
+                        <span style="font-size:11px;color:var(--text-3);">1枚（600×800px以内、JPG/PNGのみ）</span>
                     </div>
                     <div id="shop-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
                     <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
@@ -408,7 +408,7 @@
                     </div>
                     <input type="hidden" id="ad-pr-text" value="">
                     <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">最安値・おすすめ料金 <span style="color:var(--text-3);font-weight:400;">半角数字で入力</span></label>
+                        <label class="f-label" style="font-size:11px;">最安値・おすすめ料金プラン <span style="color:var(--text-3);font-weight:400;">(半角数字で入力)</span></label>
                         <div style="display:flex;gap:6px;align-items:center;">
                             <input type="text" id="ad-min-minutes" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="65" class="f-input" style="width:70px;text-align:right;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">分</span>
@@ -894,8 +894,8 @@ function renderShopImages(){
             <button onclick="deleteShopImage(${img.id})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">×</button>
         </div>`).join('');
     }
-    countEl.textContent=`${_shopImages.length}/3枚`;
-    if(addEl)addEl.style.display=_shopImages.length>=3?'none':'flex';
+    countEl.textContent=`${_shopImages.length}/1枚`;
+    if(addEl)addEl.style.display=_shopImages.length>=1?'none':'flex';
 }
 function resizeImage(file,maxW,maxH,quality){
     return new Promise((resolve,reject)=>{
