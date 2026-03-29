@@ -353,9 +353,10 @@
                     <span style="font-size:12px;color:var(--text-3);min-width:90px;">ステータス:</span>
                     <span id="status-badge"></span>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:12px;color:var(--text-3);min-width:90px;">契約プラン:</span>
-                    <span id="status-plan" style="font-size:13px;"></span>
+                <div style="margin-top:8px;">
+                    <span style="font-size:12px;color:var(--text-3);">契約プラン:</span>
+                    <span id="status-plan" style="font-size:13px;font-weight:600;"></span>
+                    <div id="plan-list" style="margin-top:8px;display:flex;flex-direction:column;gap:4px;"></div>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                     <span style="font-size:12px;color:var(--text-3);min-width:90px;">店舗専用URL:</span>
@@ -830,9 +831,16 @@ async function loadStatusCard(){
     const genreLabels={men:'男性向け（デリヘル）',women:'女性向け（女性用風俗）',men_same:'男性同士向け',women_same:'女性同士向け',este:'デリエステ'};
     document.getElementById("status-genre").textContent=genreLabels[data.gender_mode]||data.gender_mode||'—';
     const contracts=data.shop_contracts||[];
-    const topContract=contracts.sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
+    const topContract=[...contracts].sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
     const plan=topContract?.contract_plans||null;
-    document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"無料";
+    document.getElementById("status-plan").textContent=plan?`${plan.name}（¥${Number(plan.price).toLocaleString()}/月）`:"無料プラン";
+    // 全プラン一覧表示
+    const planListEl=document.getElementById("plan-list");
+    if(planListEl&&contracts.length){
+        planListEl.innerHTML=contracts.map(c=>{const p=c.contract_plans;return p?`<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ ${p.name}（¥${Number(p.price).toLocaleString()}/月）</div>`:''}).join('');
+    }else if(planListEl){
+        planListEl.innerHTML='<div style="font-size:11px;color:var(--text-3);">無料プラン</div>';
+    }
     const shopMode=data.gender_mode||"men";
     const modePathMap={men:'deli',women:'jofu',men_same:'same-m',women_same:'same-f',este:'este'};
     const shopSlug=data.slug||data.id;
