@@ -2178,7 +2178,7 @@ body[data-mode="men"] .header-title {
 .ad-main-bottom { display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding:5px 12px;background:color-mix(in srgb, var(--accent,#b5627a) 15%, #fff);border-top:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent); }
 .ad-main-card { display:flex;background:#fff;border:2px solid color-mix(in srgb, var(--accent,#b5627a) 25%, transparent);border-radius:8px;overflow:hidden;margin-bottom:2px; }
 .ad-main-price-text { font-size:clamp(18px, 3vw, 26px);font-weight:800;color:#c05050;white-space:nowrap; }
-.ad-main-hours-text { text-align:right;line-height:1.3; }
+.ad-main-hours-text { text-align:right;line-height:1.3;white-space:nowrap;flex-shrink:0;margin-left:auto; }
 .ad-main-hours-label { display:block;font-size:clamp(11px, 1.8vw, 14px);color:var(--text-3);font-weight:400; }
 .ad-main-hours-value { display:block;font-size:clamp(14px, 2.2vw, 18px);color:var(--text);font-weight:700; }
 
