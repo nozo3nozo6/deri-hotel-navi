@@ -2196,10 +2196,11 @@ function renderAreaShopSection(shops, isSub = false) {
             if (!s.min_price) return '';
             const pp = s.min_price.split(',');
             if (pp.length !== 2) return '';
+            const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
-            return `${pp[0]}分 ${fmtYen(pp[1])}円〜`;
+            return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
         })();
-        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>` : ''}</div>` : '';
+        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>` : ''}</div>` : '';
         return `<div class="ad-main-card">
             ${thumbHtml}
             <div class="ad-main-info">
@@ -2210,7 +2211,9 @@ function renderAreaShopSection(shops, isSub = false) {
         </div>`;
     }).join('');
 
-    const headerText = '📢 このエリアで呼べるお店';
+    const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+    const genreName = genreMap[typeof MODE!=='undefined'?MODE:'men'] || 'お店';
+    const headerText = `📢 このエリアで呼べる${genreName}`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
