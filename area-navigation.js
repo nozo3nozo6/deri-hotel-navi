@@ -388,7 +388,8 @@ function showJapanPage() {
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
     clearHotelList();
-    loadAds('premium', '全国');
+    clearAds();
+    loadAdsBelowSearch('premium', '全国');
 
     const container = document.getElementById('area-button-container');
     container.innerHTML = '';
