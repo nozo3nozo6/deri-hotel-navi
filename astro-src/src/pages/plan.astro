@@ -17,11 +17,11 @@ const plans = [
 ];
 
 const faqs = [
-  { q: '本当に無料で始められますか？', a: 'はい。無料プランは初期費用・月額費用ともに0円です。店舗名テキスト掲載・認証バッジ・専用URLがすべて無料で利用できます。' },
+  { q: '本当に無料で始められますか？', a: 'はい。無料プランは初期費用・月額費用ともに0円です。お店様名テキスト掲載・認証バッジ・専用URLがすべて無料で利用できます。' },
   { q: '複数の地域に掲載できますか？', a: 'はい。同じプランを複数契約できます。例えば市区町村プランを3つ契約して、新宿区・渋谷区・港区の3エリアに同時掲載できます。' },
   { q: '掲載開始までどのくらいかかりますか？', a: '届出確認書の審査後、通常1〜2営業日で掲載開始です。審査は営業時間内に行います。' },
   { q: '途中でプラン変更・解約はできますか？', a: 'はい。プランのアップグレード・ダウングレード・解約はいつでも可能です。' },
-  { q: '1つのホテルに何店舗まで表示されますか？', a: '各市区町村・各エリア・各ブロック・各都道府県・各地方・全国、それぞれ最大3店舗です。ただし、ホテルの所在地が複数エリアに関連する場合、それぞれのエリアの掲載店舗が表示されるため、合計で3店舗を超える場合があります。' },
+  { q: '1つのホテルに何店様まで表示されますか？', a: '各市区町村・各エリア・各ブロック・各都道府県・各地方・全国、それぞれ最大3店様です。ただし、ホテルの所在地が複数エリアに関連する場合、それぞれのエリアの掲載店様が表示されるため、合計で3店様を超える場合があります。' },
   { q: 'どんな業種が掲載できますか？', a: 'デリヘル、女性用風俗（女風）、デリエステ（回春マッサージ・M性感・風俗エステ）、同性向けサービスが掲載可能です。届出確認書が必要です。' },
 ];
 ---
@@ -83,7 +83,7 @@ const faqs = [
     <!-- Pricing Cards -->
     <section class="pricing-section">
       <h2 class="section-title">料金プラン</h2>
-      <p class="section-sub">すべての有料プランでリッチ広告(サムネイル+店舗情報)を表示<br>複数エリアへの同時掲載も可能です</p>
+      <p class="section-sub">すべての有料プランでリッチ広告(サムネイル+お店様情報)を表示<br>複数エリアへの同時掲載も可能です</p>
       <div class="plan-grid">
         {plans.map((plan) => (
           <div class={`plan-card ${plan.tag ? 'plan-tagged' : ''}`} style={plan.tag ? `border-color:${plan.color}` : ''}>
@@ -133,7 +133,7 @@ const faqs = [
               <div class="mock-desc-std">紹介文50文字以内で表示されます。2行まで表示可能です。</div>
             </div>
           </div>
-          <p class="example-note">広いエリアのホテル詳細ページに表示。対応件数が表示されるため<strong>実績のある店舗ほど信頼度UP</strong>。広域カバーで<strong>認知拡大に効果的</strong>です。</p>
+          <p class="example-note">広いエリアのホテル詳細ページに表示。対応件数が表示されるため<strong>実績のあるお店様ほど信頼度UP</strong>。広域カバーで<strong>認知拡大に効果的</strong>です。</p>
         </div>
       </div>
       <div class="example-places-section">
@@ -156,10 +156,10 @@ const faqs = [
           <div class="brand-url">yobuho.com/deli/shop/your-slug/</div>
           <ul class="brand-features">
             <li>通常のポータルヘッダー・フッター</li>
-            <li>ユーザー口コミ + 自店舗情報を表示</li>
-            <li>他店舗の広告は非表示（自店舗の情報だけ）</li>
+            <li>ユーザー口コミ + 自店様情報を表示</li>
+            <li>他店様の広告は非表示（自店様の情報だけ）</li>
             <li>各ホテルへの交通費も記載(未記載も可)</li>
-            <li>自店舗だけの専用ページとして活用</li>
+            <li>自店様だけの専用ページとして活用</li>
             <li>オフィシャルサイトやSNSに設置可能</li>
           </ul>
         </div>
@@ -167,9 +167,9 @@ const faqs = [
           <div class="brand-label-paid">有料プラン</div>
           <div class="brand-url">yobuho.com/deli/shop/your-slug/</div>
           <ul class="brand-features">
-            <li><strong>ヘッダーに店舗名を表示</strong>（他ジャンルリンクなし）</li>
+            <li><strong>ヘッダーにお店様名を表示</strong>（他ジャンルリンクなし）</li>
             <li><strong>簡易フッター</strong>（ポータルリンクなし）</li>
-            <li>自店舗だけの専用ページとして活用</li>
+            <li>自店様だけの専用ページとして活用</li>
             <li>オフィシャルサイトやSNSに設置可能</li>
           </ul>
         </div>
@@ -215,8 +215,8 @@ const faqs = [
     <section class="cta-section">
       <div class="cta-box">
         <h2>まずは無料で始めてみませんか？</h2>
-        <p>無料プランなら初期費用・月額費用ともに0円。<br>店舗名掲載・認証バッジ・専用URLをすぐにご利用いただけます。</p>
-        <a href="/shop-register.html" class="cta-btn">無料で店舗登録する &rarr;</a>
+        <p>無料プランなら初期費用・月額費用ともに0円。<br>お店様名掲載・認証バッジ・専用URLをすぐにご利用いただけます。</p>
+        <a href="/shop-register.html" class="cta-btn">無料でお店様登録する &rarr;</a>
         <p class="cta-note">※有料プランへのアップグレードはいつでも可能です</p>
       </div>
     </section>
