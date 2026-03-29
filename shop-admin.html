@@ -408,11 +408,11 @@
                     </div>
                     <input type="hidden" id="ad-pr-text" value="">
                     <div class="f-group" style="margin-bottom:10px;">
-                        <label class="f-label" style="font-size:11px;">最安値</label>
+                        <label class="f-label" style="font-size:11px;">最安値・おすすめ料金 <span style="color:var(--text-3);font-weight:400;">半角数字で入力</span></label>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            <input type="text" id="ad-min-minutes" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="65" class="f-input" style="width:70px;text-align:right;">
+                            <input type="text" id="ad-min-minutes" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="65" class="f-input" style="width:70px;text-align:right;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">分</span>
-                            <input type="text" id="ad-min-yen" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="10000" class="f-input" style="width:100px;text-align:right;">
+                            <input type="text" id="ad-min-yen" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="10000" class="f-input" style="width:100px;text-align:right;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">円〜</span>
                         </div>
                     </div>
