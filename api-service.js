@@ -234,7 +234,8 @@ function renderAdHTML(ad) {
     if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
-    return `<div class="ad-main-card">
+    const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
+    return `<div class="ad-main-card ${rankClass}">
         ${thumbHTML}
         <div class="ad-main-info">
             ${nameHTML}

@@ -45,7 +45,8 @@ $params[] = 'all';
 $whereStr = implode(' AND ', $where);
 $stmt = $pdo->prepare("
     SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail,
-           s.catchphrase, s.business_hours, s.min_price
+           s.catchphrase, s.business_hours, s.min_price, s.approved_at,
+           (SELECT COUNT(*) FROM reports r WHERE r.shop_id = a.shop_id AND r.poster_type = 'shop') AS report_count
     FROM ad_placements a
     LEFT JOIN shops s ON a.shop_id = s.id
     WHERE $whereStr
@@ -78,8 +79,22 @@ foreach ($rows as $row) {
             'min_price' => $row['min_price'],
         ],
     ];
+    $ad['report_count'] = (int)($row['report_count'] ?? 0);
+    $ad['approved_at'] = $row['approved_at'];
     $filtered[] = $ad;
 }
 
-echo json_encode($filtered, JSON_UNESCAPED_UNICODE);
+// ソート: 口コミ投稿数多い順 → 同数なら掲載日早い順
+usort($filtered, function($a, $b) {
+    if ($b['report_count'] !== $a['report_count']) return $b['report_count'] - $a['report_count'];
+    return strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999');
+});
+
+// 3件制限 + ランク付与（金銀銅）
+$filtered = array_slice($filtered, 0, 3);
+foreach ($filtered as $i => &$ad) {
+    $ad['rank'] = $i + 1; // 1=金, 2=銀, 3=銅
+}
+
+echo json_encode(array_values($filtered), JSON_UNESCAPED_UNICODE);
 ?>
