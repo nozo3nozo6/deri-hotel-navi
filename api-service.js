@@ -256,6 +256,8 @@ async function loadAds(placementType, placementTarget, fallbacks) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
+    const belowSearch = document.getElementById('ad-container-below-search');
+    if (belowSearch) belowSearch.innerHTML = '';
     const gen = ++_adGeneration;
     try {
         const currentMode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
