@@ -89,13 +89,13 @@ const faqs = [
           <div class={`plan-card ${plan.tag ? 'plan-tagged' : ''}`} style={plan.tag ? `border-color:${plan.color}` : ''}>
             {plan.tag && <div class="plan-badge" style={`background:${plan.color}`}>{plan.tag}</div>}
             <div class="plan-name">{plan.name}</div>
+            {plan.limited && <div class="limit-badge">{plan.limited}</div>}
             <div class="plan-price">
               <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月(税込)</span>
             </div>
             <ul class="plan-features">
               {plan.features.map((f) => <li>{f}</li>)}
             </ul>
-            {plan.limited && <div class="limit-badge">{plan.limited}</div>}
           </div>
         ))}
       </div>
