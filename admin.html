@@ -915,11 +915,12 @@
             <!-- 右カラム：編集フォーム -->
             <div class="sr-right">
                 <div style="overflow-y:auto;flex:1;padding-right:4px;">
-                    <div class="mf"><label class="ml">店舗名</label><input id="sr-name" class="mi" readonly style="background:var(--bg-3);cursor:default;"></div>
+                    <div class="mf"><label class="ml">店舗名</label><input id="sr-name" class="mi"></div>
                     <div class="mf"><label class="ml">ジャンル</label><select id="sr-gender" class="mi" disabled style="background:var(--bg-3);cursor:default;"><option value="men">男性向け（デリヘル）</option><option value="women">女性向け（女性用風俗）</option><option value="men_same">男性同士向け</option><option value="women_same">女性同士向け</option><option value="este">デリエステ</option></select></div>
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
-                    <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel" readonly style="background:var(--bg-3);cursor:default;"></div>
-                    <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url" readonly style="background:var(--bg-3);cursor:default;"></div>
+                    <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel"></div>
+                    <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url"></div>
+                    <button onclick="saveShopInfo()" style="margin-top:8px;padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">店舗情報を保存</button>
                     <!-- 活動エリア（都道府県） -->
                     <div class="mf" style="margin-top:12px;">
                         <label class="ml">活動エリア（都道府県）</label>
@@ -1242,6 +1243,20 @@ var sc=document.querySelector('.sr-right > div');
 if(sc)setTimeout(function(){sc.scrollTop=sc.scrollHeight;},50);
 }
 function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
+async function saveShopInfo(){
+    if(!_srId)return;
+    const shopName=document.getElementById('sr-name').value.trim();
+    const shopTel=document.getElementById('sr-tel').value.trim();
+    const shopUrl=document.getElementById('sr-url').value.trim();
+    if(!shopName){toast('店舗名を入力してください');return;}
+    if(!confirm('店舗情報を保存しますか？'))return;
+    const data={shop_name:shopName,shop_tel:shopTel||null,shop_url:shopUrl||null};
+    const r=await api('update',{table:'shops',id:_srId,data});
+    if(!r.ok){toast('保存エラー');return;}
+    shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...data}:s);
+    renderShops();
+    toast('✅ 店舗情報を保存しました');
+}
 async function executeAction(){
 if(!pendingAction)return;
 var{shopId,actionType}=pendingAction;
