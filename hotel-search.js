@@ -697,14 +697,14 @@ async function loadDetail(hotelId, isLoveho) {
             ]);
             // ①市区町村: メイン広告（リッチカード）
             const citySlot = document.getElementById('detail-ad-city');
+            const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+            const genreName = genreMap[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
                 let filtered = cityAds;
                 if (_shopParam) {
                     filtered = filtered.filter(a => a.shop_id === SHOP_ID || a.shops?.shop_name === SHOP_DATA?.shop_name);
                 }
                 if (filtered.length) {
-                    const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
-                    const genreName = genreMap[genderMode] || 'お店';
                     const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
                     citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
                 }
