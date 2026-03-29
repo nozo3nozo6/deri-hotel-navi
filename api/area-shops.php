@@ -93,7 +93,7 @@ foreach ($shopRows as $row) {
     }
 }
 
-// 有料プランのみ + 掲載日順（早い方が上位）
+// 有料プランのみ + 掲載日順（早い方が上位）+ 3件制限
 $result = array_filter(array_values($shopMap), fn($s) => $s['plan_price'] > 0);
 usort($result, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
 
@@ -112,6 +112,9 @@ foreach ($shopMap as $sid => $s) {
     $finalResult[] = $s;
 }
 usort($finalResult, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
+
+// 3件制限（各エリア先着3店）
+$finalResult = array_slice($finalResult, 0, 3);
 
 // shop_imagesを一括取得
 $fIds = array_column($finalResult, 'id');

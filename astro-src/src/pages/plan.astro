@@ -21,6 +21,7 @@ const faqs = [
   { q: '複数の地域に掲載できますか？', a: 'はい。同じプランを複数契約できます。例えば市区町村プランを3つ契約して、新宿区・渋谷区・立川市の3エリアに同時掲載できます。' },
   { q: '掲載開始までどのくらいかかりますか？', a: '届出確認書の審査後、通常1〜2営業日で掲載開始です。審査は営業時間内に行います。' },
   { q: '途中でプラン変更・解約はできますか？', a: 'はい。プランのアップグレード・ダウングレード・解約はいつでも可能です。' },
+  { q: '1つのホテルに何店舗まで表示されますか？', a: '各掲載レベル（市区町村・エリア等）ごとに最大3店です。ただし、ホテルの所在地が複数エリアに関連する場合、それぞれのエリアの掲載店が表示されるため、合計で3店を超える場合があります。' },
   { q: 'どんな業種が掲載できますか？', a: 'デリヘル、女性用風俗（女風）、デリエステ（回春マッサージ・M性感・風俗エステ）、同性向けサービスが掲載可能です。届出確認書が必要です。' },
 ];
 ---
@@ -82,6 +83,7 @@ const faqs = [
     <!-- Pricing Cards -->
     <section class="pricing-section">
       <h2 class="section-title">料金プラン</h2>
+      <div class="limit-badge">各エリア先着3店限定</div>
       <p class="section-sub">すべての有料プランでリッチ広告(サムネイル+店舗情報)を表示<br>複数エリアへの同時掲載も可能です</p>
       <div class="plan-grid">
         {plans.map((plan) => (
@@ -212,6 +214,7 @@ const faqs = [
   /* Section common */
   .section-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 8px; color: #1a1410; }
   .section-sub { font-size: 13px; text-align: center; color: #8a7a6a; margin-bottom: 24px; line-height: 1.7; }
+  .limit-badge { display: block; margin: 4px auto 8px; padding: 4px 16px; font-size: 13px; font-weight: 700; color: #c9a84c; background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); border-radius: 20px; text-align: center; width: fit-content; }
 
   /* Why */
   .why-section { padding: 32px 0; }
