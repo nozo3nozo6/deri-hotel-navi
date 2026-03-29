@@ -76,6 +76,63 @@ async function initShopMode() {
     } catch (e) { /* silently fail */ }
 }
 
+// 店舗が有料プランかどうか判定
+function isShopPaid() {
+    if (!SHOP_DATA) return false;
+    const maxPrice = Math.max(...(SHOP_DATA.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+    return maxPrice > 0;
+}
+
+// 店舗URLモード時のヘッダー・フッターUI切り替え
+function applyShopModeUI() {
+    if (!_shopParam || !SHOP_DATA) return;
+    const paid = isShopPaid();
+
+    if (paid) {
+        // === 有料プラン: ヘッダーを店舗名のみに ===
+        // ジャンルドロップダウン非表示
+        const modeDropdown = document.querySelector('.mode-dropdown');
+        if (modeDropdown) modeDropdown.style.display = 'none';
+        // 言語ドロップダウン非表示
+        const langDropdown = document.querySelector('.lang-dropdown');
+        if (langDropdown) langDropdown.style.display = 'none';
+        // 「全国へ」ボタン非表示
+        const gateBtn = document.querySelector('.btn-to-gate');
+        if (gateBtn) gateBtn.style.display = 'none';
+        // ヘッダーロゴを店舗名に変更
+        const logoText = document.getElementById('header-logo-text');
+        if (logoText) {
+            logoText.innerHTML = `<b>${esc(SHOP_DATA.shop_name)}</b>`;
+            // リンク先を店舗URLに変更（あれば）
+            const logoLink = logoText.closest('a');
+            if (logoLink && SHOP_DATA.shop_url) {
+                logoLink.href = SHOP_DATA.shop_url;
+                logoLink.target = '_blank';
+                logoLink.rel = 'noopener';
+            } else if (logoLink) {
+                logoLink.removeAttribute('href');
+            }
+        }
+
+        // === 有料プラン: フッターを簡素化 ===
+        const footerSeo = document.querySelector('.footer-seo-text');
+        if (footerSeo) footerSeo.style.display = 'none';
+        const footerLinks = document.querySelector('.footer-links');
+        if (footerLinks) {
+            footerLinks.innerHTML =
+                '<a href="/terms.html" class="footer-link">利用規約</a>' +
+                '<span class="footer-separator">|</span>' +
+                '<a href="/privacy.html" class="footer-link">プライバシーポリシー</a>' +
+                '<span class="footer-separator">|</span>' +
+                '<a href="/contact.html" class="footer-link">お問い合わせ</a>';
+        }
+    } else {
+        // === 無料プラン: 「全国へ」ボタンを店舗URLに保持 ===
+        // goToNationalTop の挙動はportal-init.jsのイベント委譲で処理
+        // ここでは特に変更不要（デフォルトの全国ページ+shop slug維持はgoToNationalTopで対応）
+    }
+}
+
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {

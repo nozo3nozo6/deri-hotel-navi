@@ -1012,5 +1012,6 @@ window.onload = async () => {
         changeLang(savedLang);
     }
     await initShopMode();
+    if (typeof applyShopModeUI === 'function') applyShopModeUI();
     restoreFromUrl();
 };
