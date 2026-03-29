@@ -212,22 +212,34 @@ function renderAdHTML(ad) {
     const shopName = ad.shops?.shop_name || '掲載店舗';
     const url = ad.shops?.shop_url;
     const thumbUrl = ad.shops?.thumbnail_url;
+    const catchphrase = ad.shops?.catchphrase || '';
+    const businessHours = ad.shops?.business_hours || '';
+    const minPrice = ad.shops?.min_price || '';
     const nameHTML = url
-        ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:#b5627a; font-size:13px; text-decoration:none; font-weight:500;">${esc(shopName)} 🔗</a>`
-        : `<span style="font-size:13px; color:var(--text); font-weight:500;">${esc(shopName)}</span>`;
+        ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="ad-shop-name">${esc(shopName)}</a>`
+        : `<span class="ad-shop-name" style="color:var(--text);">${esc(shopName)}</span>`;
     const thumbHTML = thumbUrl
-        ? `<img src="${esc(thumbUrl)}" width="48" height="64" loading="lazy" style="width:48px;height:64px;object-fit:cover;border-radius:4px;border:1px solid #e8ddd5;flex-shrink:0;">`
-        : '';
-    return `<div style="background:#faf7f4; border:1px solid #e8ddd5; border-radius:8px; padding:12px 14px; margin:16px 0; font-size:12px;">
-        <div style="color:#999; font-size:10px; margin-bottom:6px;">📢 このエリアの掲載店舗</div>
-        <div style="display:flex;align-items:center;gap:12px;">
-            ${thumbHTML}
-            <div>
-                <div style="margin-bottom:4px;">
-                    <span style="background:#b5627a; color:#fff; font-size:9px; padding:1px 5px; border-radius:2px;">認定店</span>
-                </div>
-                ${nameHTML}
-            </div>
+        ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(shopName)}" loading="lazy">`
+        : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
+    const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
+    const priceText = (() => {
+        if (!minPrice) return '';
+        const pp = minPrice.split(',');
+        if (pp.length !== 2) return '';
+        const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
+        const fmtYen = n => Number(n).toLocaleString('ja-JP');
+        return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
+    })();
+    const bottomParts = [];
+    if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
+    if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
+    const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
+    return `<div class="ad-main-card">
+        ${thumbHTML}
+        <div class="ad-main-info">
+            ${nameHTML}
+            ${catchHTML}
+            ${bottomHTML}
         </div>
     </div>`;
 }
@@ -254,7 +266,13 @@ async function loadAds(placementType, placementTarget, fallbacks) {
             }
         }
         if (gen !== _adGeneration) return; // suppressed
-        if (allAds.length) { container.style.display = ''; container.innerHTML = allAds.map(ad => renderAdHTML(ad)).join(''); }
+        if (allAds.length) {
+            const genreMap = {men:'デリヘル',women:'女性用風俗',men_same:'男性同士',women_same:'女性同士',este:'風俗エステ'};
+            const genreName = genreMap[currentMode] || 'お店';
+            const header = `<div class="ad-shop-header">📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>店名をクリック🔗</div>`;
+            container.style.display = '';
+            container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
+        }
     } catch (e) { /* ad load failed silently */ }
 }
 

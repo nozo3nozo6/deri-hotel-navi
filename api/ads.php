@@ -44,7 +44,8 @@ $params[] = 'all';
 
 $whereStr = implode(' AND ', $where);
 $stmt = $pdo->prepare("
-    SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail
+    SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail,
+           s.catchphrase, s.business_hours, s.min_price
     FROM ad_placements a
     LEFT JOIN shops s ON a.shop_id = s.id
     WHERE $whereStr
@@ -72,6 +73,9 @@ foreach ($rows as $row) {
             'shop_url' => $row['shop_url'],
             'status' => $row['shop_status'],
             'thumbnail_url' => $row['shop_thumbnail'],
+            'catchphrase' => $row['catchphrase'],
+            'business_hours' => $row['business_hours'],
+            'min_price' => $row['min_price'],
         ],
     ];
     $filtered[] = $ad;
