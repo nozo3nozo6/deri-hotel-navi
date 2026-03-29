@@ -833,11 +833,12 @@ async function loadStatusCard(){
     const contracts=data.shop_contracts||[];
     const topContract=[...contracts].sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
     const plan=topContract?.contract_plans||null;
-    document.getElementById("status-plan").textContent=plan?`【${plan.name}】（¥${Number(plan.price).toLocaleString()}/月）`:"無料プラン";
+    const paidContracts=contracts.filter(c=>c.contract_plans&&c.contract_plans.price>0);
+    const total=paidContracts.reduce((s,c)=>s+(Number(c.contract_plans.price)||0),0);
+    document.getElementById("status-plan").textContent=paidContracts.length?`¥${total.toLocaleString()}/月`:"無料プラン";
     // 有料プラン一覧表示（無料プランは非表示）
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
-        const paidContracts=contracts.filter(c=>c.contract_plans&&c.contract_plans.price>0);
         if(paidContracts.length){
             planListEl.innerHTML=paidContracts.map(c=>{const p=c.contract_plans;return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${p.name}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
         }else{
