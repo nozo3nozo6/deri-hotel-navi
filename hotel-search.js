@@ -711,7 +711,7 @@ async function loadDetail(hotelId, isLoveho) {
             }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
             if (!_shopParam) {
-                const subHeader = 'このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>名をクリック';
+                const subHeader = 'このホテルで呼べるおすすめ店　名をクリック';
                 const areaSlot = document.getElementById('detail-ad-area');
                 if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, subHeader);
                 const blockSlot = document.getElementById('detail-ad-block');
@@ -2054,7 +2054,7 @@ function filterLhUserReports(filter) {
 
 function renderDetailShopCards(shops, cityName) {
     // ①市区町村: 画像カード（最も目立つ）
-    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ<span class="shop-premium-badge">認定店</span>名をクリック</div>` +
+    return `<div style="margin:8px 0;"><div style="color:#888;font-size:10px;margin-bottom:6px;">このホテルで呼べるおすすめ店　名をクリック</div>` +
     shops.map(s => {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" style="color:#b5627a;font-size:13px;text-decoration:none;font-weight:500;">${esc(s.shop_name)}</a>`
@@ -2082,6 +2082,8 @@ function renderSubAdCards(ads, label) {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
         const thumb = ad.shops ? ad.shops.thumbnail_url : '';
+        const catchphrase = ad.shops ? (ad.shops.catchphrase || '') : '';
+        const count = ad.report_count || 0;
         if (!name) return '';
         const nameHtml = url
             ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(name)}</a>`
@@ -2089,13 +2091,15 @@ function renderSubAdCards(ads, label) {
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
             : '';
+        const countHtml = count > 0 ? `<span style="font-size:11px;color:#888;white-space:nowrap;">${count}件対応</span>` : '';
+        const catchHtml = catchphrase ? `<div style="font-size:11px;color:#666;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(catchphrase)}</div>` : '';
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
             ${thumbHtml}
-            <div class="ad-shop-info">
-                <span class="shop-premium-badge">認定店</span>
-                <div>${nameHtml}</div>
+            <div class="ad-shop-info" style="flex:1;min-width:0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">${nameHtml}${countHtml}</div>
+                ${catchHtml}
             </div>
         </div>`;
     }).filter(Boolean);
