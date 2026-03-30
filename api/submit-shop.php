@@ -85,6 +85,9 @@ if ($existing) {
     $params[] = $email;
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
+    // ad_placementsのmodeも連動更新
+    $syncStmt = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');
+    $syncStmt->execute([$genderMode, $existing['id']]);
 } else {
     // INSERT
     $id = DB::uuid();
