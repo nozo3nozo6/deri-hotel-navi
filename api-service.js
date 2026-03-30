@@ -280,7 +280,6 @@ function renderAdHTML(ad) {
         ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
         : `<div class="ad-main-hero-empty">📢</div>`;
     const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
-    const descHTML = description ? `<div class="ad-main-desc">${esc(description)}</div>` : '';
     const priceText = (() => {
         if (!minPrice) return '';
         const pp = minPrice.split(',');
@@ -294,10 +293,9 @@ function renderAdHTML(ad) {
     const bottomParts = [];
     if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
-    if (url) bottomParts.push(`<a href="${esc(url)}" target="_blank" rel="noopener" class="ad-main-cta">詳しく見る &rsaquo;</a>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
-    const bodyHTML = (catchHTML || descHTML) ? `<div class="ad-main-body">${catchHTML}${descHTML}</div>` : '';
+    const bodyHTML = catchHTML ? `<div class="ad-main-body">${catchHTML}</div>` : '';
     return `<div class="ad-main-card ${rankClass}">
         <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay">${nameHTML}${countBadge}</div></div>
         ${bodyHTML}

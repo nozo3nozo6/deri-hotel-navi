@@ -2172,7 +2172,6 @@ function renderAreaShopSection(shops) {
             ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
             : `<div class="ad-main-hero-empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
-        const descHtml = s.description ? `<div class="ad-main-desc">${esc(s.description)}</div>` : '';
         const hoursText = s.business_hours || '';
         const priceText = (() => {
             if (!s.min_price) return '';
@@ -2185,9 +2184,8 @@ function renderAreaShopSection(shops) {
         const bottomParts = [];
         if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
         if (hoursText) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>`);
-        if (s.shop_url) bottomParts.push(`<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-main-cta">詳しく見る &rsaquo;</a>`);
         const bottomHtml = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
-        const bodyHtml = (catchHtml || descHtml) ? `<div class="ad-main-body">${catchHtml}${descHtml}</div>` : '';
+        const bodyHtml = catchHtml ? `<div class="ad-main-body">${catchHtml}</div>` : '';
         return `<div class="ad-main-card">
             <div class="ad-main-hero">${heroImgHtml}<div class="ad-main-hero-overlay">${nameHtml}</div></div>
             ${bodyHtml}
