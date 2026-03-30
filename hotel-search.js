@@ -260,15 +260,15 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     try {
         const apiParams = { limit: 50, city };
         if (filterObj.prefecture) apiParams.pref = filterObj.prefecture;
-        if (filterObj.major_area) apiParams.major_area = filterObj.major_area;
-        // detail_areaでは絞り込まない（市区町村はmajor_area全体の件数を表示）
+        // 市区町村ページは経路に関係なく、その市の全ホテルを表示（major_areaでフィルタしない）
 
         const rawHotels = await queryHotelsAPI(apiParams);
         let hotels = await fetchHotelsWithSummary(rawHotels);
         if (gen !== _fetchGeneration) return; // stale, abort
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
-        const cityTotal = getCityTotalFromAreaData(pref, filterObj.major_area, city);
+        // 市区町村の合計件数はmajor_area横断で取得
+        const cityTotal = getCityTotalFromAreaData(pref, null, city);
         const totalHotelCount = cityTotal ? cityTotal.hotel : null;
         setResultStatus(hotels.length, totalHotelCount);
 
@@ -320,24 +320,14 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     }
     cachedHotelData = hotels;
 
-    // area-data.jsonからラブホ件数を取得
+    // area-data.jsonからラブホ件数を取得（市区町村は全major_area合計）
     let lovehoCount = 0;
     let lovehoFound = false;
     if (_areaData) {
-        if (majorArea) {
-            // majorArea指定時: そのmajor_areaのデータのみ参照（フォールバックしない）
-            const areaKey = pref + '\t' + majorArea;
-            const areaInfo = _areaData.area && _areaData.area[areaKey];
-            if (areaInfo) {
-                const found = (areaInfo.ct || []).find(c => c[0] === city);
-                if (found) { lovehoCount = found[2] || 0; lovehoFound = true; }
-            }
-        } else {
-            // majorArea未指定時: 全エリアから検索（後方互換）
-            for (const areaInfo of Object.values(_areaData.area || {})) {
-                const found = (areaInfo.ct || []).find(c => c[0] === city);
-                if (found) { lovehoCount = found[2] || 0; lovehoFound = true; break; }
-            }
+        for (const [key, areaInfo] of Object.entries(_areaData.area || {})) {
+            if (!key.startsWith(pref + '\t')) continue;
+            const found = (areaInfo.ct || []).find(c => c[0] === city);
+            if (found) { lovehoCount += found[2] || 0; lovehoFound = true; }
         }
     }
     if (!lovehoFound) {
@@ -464,7 +454,7 @@ async function loadLovehoForCurrentCity() {
     if (!_tabFilterObj || !_tabCity) return;
     const apiP = { type: 'loveho', city_like: _tabCity, limit: 50 };
     if (_tabFilterObj.prefecture) apiP.pref = _tabFilterObj.prefecture;
-    if (_tabFilterObj.major_area) apiP.major_area = _tabFilterObj.major_area;
+    // 市区町村ページは全major_areaのラブホを表示（major_areaでフィルタしない）
     const result = await _loadAndSortLoveho(apiP);
     if (result) {
         const lhCountEl = document.getElementById('loveho-count');
@@ -921,12 +911,14 @@ function getCityTotalFromAreaData(pref, majorArea, city) {
         }
         return null;
     }
-    // majorArea未指定時: 全エリアから検索（後方互換）
-    for (const areaInfo of Object.values(_areaData.area || {})) {
-        const found = (areaInfo.ct || []).find(c => c[0] === city);
-        if (found) return { hotel: found[1], loveho: found[2] };
+    // majorArea未指定時: 全エリアの合計を返す（市区町村ページ用）
+    let totalHotel = 0, totalLoveho = 0, found = false;
+    for (const [key, areaInfo] of Object.entries(_areaData.area || {})) {
+        if (!key.startsWith(pref + '\t')) continue;
+        const match = (areaInfo.ct || []).find(c => c[0] === city);
+        if (match) { totalHotel += match[1]; totalLoveho += match[2]; found = true; }
     }
-    return null;
+    return found ? { hotel: totalHotel, loveho: totalLoveho } : null;
 }
 
 // ==========================================================================
