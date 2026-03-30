@@ -375,13 +375,33 @@ async function switchTab(tab) {
 
     document.querySelectorAll('#hotel-loveho-tabs .hotel-tab, #hotel-loveho-tabs-bottom .hotel-tab').forEach(t => {
         if (t.dataset.tab === tab) {
+            t.classList.remove('detail-tab--inactive');
+            t.classList.add('detail-tab--active');
             t.style.fontWeight = 'bold';
             t.style.borderBottomColor = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
             t.style.color = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
+            // アクティブ: バッジを括弧表示に戻す
+            const badge = t.querySelector('.tab-badge');
+            if (badge) {
+                const count = badge.textContent;
+                badge.remove();
+                const label = t.dataset.tab === 'loveho' ? '🏩 ラブホ' : '🏨 ホテル';
+                t.innerHTML = `${label} (${count})`;
+            }
         } else {
+            t.classList.remove('detail-tab--active');
+            t.classList.add('detail-tab--inactive');
             t.style.fontWeight = 'normal';
             t.style.borderBottomColor = 'transparent';
-            t.style.color = '#999';
+            t.style.color = '#888';
+            // 非アクティブ: 件数をハートバッジに
+            const countMatch = t.textContent.match(/\((\d+)(?:\/\d+)?\)/);
+            if (countMatch) {
+                const count = countMatch[1];
+                const badgeClass = t.dataset.tab === 'hotel' ? 'tab-badge tab-badge--accent' : 'tab-badge';
+                const label = t.dataset.tab === 'loveho' ? '🏩 ラブホ' : '🏨 ホテル';
+                t.innerHTML = `${label} <span class="${badgeClass}">♥${count}</span>`;
+            }
         }
     });
 
