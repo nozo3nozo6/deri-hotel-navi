@@ -1271,7 +1271,8 @@ async function saveShopInfo(){
     const shopUrl=document.getElementById('sr-url').value.trim();
     if(!shopName){toast('店舗名を入力してください');return;}
     if(!confirm('店舗情報を保存しますか？'))return;
-    const data={shop_name:shopName,shop_tel:shopTel||null,shop_url:shopUrl||null};
+    const genderMode=document.getElementById('sr-gender').value;
+    const data={shop_name:shopName,gender_mode:genderMode,shop_tel:shopTel||null,shop_url:shopUrl||null};
     const r=await api('update',{table:'shops',id:_srId,data});
     if(!r.ok){toast('保存エラー');return;}
     shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...data}:s);
