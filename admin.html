@@ -1275,6 +1275,8 @@ async function saveShopInfo(){
     const data={shop_name:shopName,gender_mode:genderMode,shop_tel:shopTel||null,shop_url:shopUrl||null};
     const r=await api('update',{table:'shops',id:_srId,data});
     if(!r.ok){toast('保存エラー');return;}
+    // ad_placementsのmodeも連動更新
+    await api('update-ad-mode',{shop_id:_srId,mode:genderMode});
     shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...data}:s);
     renderShops();
     toast('✅ 店舗情報を保存しました');

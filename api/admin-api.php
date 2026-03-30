@@ -82,6 +82,9 @@ try {
         case 'update': handleUpdate(); break;
         case 'delete': handleDelete(); break;
 
+        // ===== ad_placementsモード同期 =====
+        case 'update-ad-mode': handleUpdateAdMode(); break;
+
         // ===== 一括並べ替え =====
         case 'reorder': handleReorder(); break;
 
@@ -315,6 +318,19 @@ function handleDelete() {
 }
 
 // ===================================================================
+// ad_placementsのmodeを店舗のgender_modeに同期
+// ===================================================================
+function handleUpdateAdMode() {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $shopId = $input['shop_id'] ?? null;
+    $mode = $input['mode'] ?? null;
+    if (!$shopId || !$mode) { echo json_encode(['ok' => false, 'error' => 'shop_id and mode required']); return; }
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');
+    $stmt->execute([$mode, $shopId]);
+    echo json_encode(['ok' => true, 'updated' => $stmt->rowCount()]);
+}
+
 // 一括並べ替え
 // ===================================================================
 function handleReorder() {
