@@ -279,7 +279,7 @@ function renderAdHTML(ad) {
     const heroImgHTML = thumbUrl
         ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
         : `<div class="ad-main-hero-empty">📢</div>`;
-    const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
+    const overlayText = catchphrase || shopName;
     const priceText = (() => {
         if (!minPrice) return '';
         const pp = minPrice.split(',');
@@ -295,10 +295,9 @@ function renderAdHTML(ad) {
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
-    const bodyHTML = catchHTML ? `<div class="ad-main-body">${catchHTML}</div>` : '';
     return `<div class="ad-main-card ${rankClass}">
-        <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay">${nameHTML}${countBadge}</div></div>
-        ${bodyHTML}
+        <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay"><span class="ad-main-hero-catch">${esc(overlayText)}</span>${countBadge}</div></div>
+        <div class="ad-main-body">${nameHTML}</div>
         ${bottomHTML}
     </div>`;
 }
