@@ -63,12 +63,9 @@ urls.push(entry(`${BASE_URL}/deli/`, '0.9', 'daily'));
 urls.push(entry(`${BASE_URL}/jofu/`, '0.9', 'daily'));
 urls.push(entry(`${BASE_URL}/same-m/`, '0.7', 'weekly'));
 urls.push(entry(`${BASE_URL}/same-f/`, '0.7', 'weekly'));
+urls.push(entry(`${BASE_URL}/este/`, '0.7', 'weekly'));
 
-// サブドメイン（loveho追加）
-urls.push(entry('https://deli.yobuho.com/', '0.8', 'weekly'));
-urls.push(entry('https://jofu.yobuho.com/', '0.8', 'weekly'));
-urls.push(entry('https://same.yobuho.com/', '0.8', 'weekly'));
-urls.push(entry('https://loveho.yobuho.com/', '0.8', 'weekly'));
+// サブドメインURL削除済み — canonical はパスベースURL（/deli/ 等）に統一
 
 // ガイドページ
 urls.push(entry(`${BASE_URL}/guide/deli-hotel.html`, '0.8', 'weekly'));
