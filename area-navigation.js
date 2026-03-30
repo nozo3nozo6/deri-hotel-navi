@@ -196,9 +196,16 @@ function appendInfoLinksBar() {
 }
 
 // 市区町村ボタンを描画するヘルパー (cities: [[name, hotelCount, lovehoCount], ...])
+// 件数は全major_area合計を表示（市区町村ページと一致させるため）
+var _renderPref = ''; // renderCityButtons用の都道府県コンテキスト
 function renderCityButtons(container, cities, onCityClick) {
     container.innerHTML = '';
     cities.forEach(([city, hCount, lCount], i) => {
+        // 全major_area合計で上書き
+        if (_renderPref && typeof getCityTotalFromAreaData === 'function' && _areaData) {
+            const total = getCityTotalFromAreaData(_renderPref, null, city);
+            if (total) { hCount = total.hotel; lCount = total.loveho; }
+        }
         const btn = document.createElement('button');
         btn.className = 'area-btn';
         btn.style.animationDelay = `${Math.min(i * 0.03, 0.3)}s`;
@@ -518,6 +525,7 @@ async function showMajorAreaPage(region, pref) {
 }
 
 async function showCityPage(region, pref, majorArea) {
+    _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
     const gen = ++_areaGeneration;
@@ -645,6 +653,7 @@ async function showCityPage(region, pref, majorArea) {
 }
 
 async function showDetailAreaPage(region, pref, majorArea, detailArea) {
+    _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
     const gen = ++_areaGeneration;
@@ -761,6 +770,7 @@ function goToHotelCity(regionLabel, pref, majorArea, city) {
 
 // major_area=null のホテルを市区町村一覧で表示
 async function showNoAreaCityPage(region, pref) {
+    _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
     const gen = ++_areaGeneration;
     currentPage = () => showNoAreaCityPage(region, pref);
