@@ -672,7 +672,7 @@ async function loadDetail(hotelId, isLoveho) {
                 }
                 if (filtered.length) {
                     const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                    citySlot.innerHTML = `<div class="ad-shop-header">📢 このホテルで呼べる${genreName}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
+                    citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards}</div>`;
                 }
             }
             // ②〜⑥: テキストリンク（店舗モード時は非表示）
@@ -680,15 +680,15 @@ async function loadDetail(hotelId, isLoveho) {
                 const _badge = '<span class="shop-premium-badge">認定店</span>';
                 const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
-                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `📢 このエリアで呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `このエリアのおすすめ ${_badge}`);
                 const blockSlot = document.getElementById('detail-ad-block');
-                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `📢 この地域で呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `この地域のおすすめ ${_badge}`);
                 const prefSlot = document.getElementById('detail-ad-pref');
-                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `📢 この都道府県で呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `この都道府県のおすすめ ${_badge}`);
                 const wideSlot = document.getElementById('detail-ad-wide');
                 if (wideSlot) {
                     let wideHtml = '';
-                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `📢 この地方で呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge}`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
                 // 全国広告は検索バーの下に表示
@@ -696,7 +696,7 @@ async function loadDetail(hotelId, isLoveho) {
                     const bsContainer = document.getElementById('ad-container-below-search');
                     if (bsContainer) {
                         bsContainer.style.display = '';
-                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `📢 全国で呼べる${_gn}の ${_badge} 名をクリック🔗`);
+                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge}`);
                     }
                 }
             }
@@ -2068,7 +2068,7 @@ function renderDetailShopCards(shops, cityName) {
     }).filter(Boolean);
     if (!cards.length) return '';
     const _gn = GENRE_MAP[getCurrentMode()] || 'お店';
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">📢 このホテルで呼べる${_gn}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
@@ -2146,15 +2146,14 @@ function renderAreaShopSection(shops) {
     const cards = displayShops.map(s => {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
-            : `<span class="ad-shop-name" style="color:var(--text);">${esc(s.shop_name)}</span>`;
+            : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const thumbUrl = (s.images && s.images.length) ? s.images[0] : s.thumbnail_url;
-
-        // メイン広告: リッチカード（全エリア統一）
-        const thumbHtml = thumbUrl
-            ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(s.shop_name)}" loading="lazy">`
-            : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
+        const heroImgHtml = thumbUrl
+            ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
+            : `<div class="ad-main-hero-empty">📢</div>`;
         const catchHtml = s.catchphrase ? `<div class="ad-main-catch">${esc(s.catchphrase)}</div>` : '';
-        const hoursText = s.business_hours ? s.business_hours : '';
+        const descHtml = s.description ? `<div class="ad-main-desc">${esc(s.description)}</div>` : '';
+        const hoursText = s.business_hours || '';
         const priceText = (() => {
             if (!s.min_price) return '';
             const pp = s.min_price.split(',');
@@ -2163,19 +2162,21 @@ function renderAreaShopSection(shops) {
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
             return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
         })();
-        const bottomHtml = (priceText || hoursText) ? `<div class="ad-main-bottom">${priceText ? `<span class="ad-main-price-text">${priceText}</span>` : '<span></span>'}${hoursText ? `<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>` : ''}</div>` : '';
+        const bottomParts = [];
+        if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
+        if (hoursText) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>`);
+        if (s.shop_url) bottomParts.push(`<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-main-cta">詳しく見る &rsaquo;</a>`);
+        const bottomHtml = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
+        const bodyHtml = (catchHtml || descHtml) ? `<div class="ad-main-body">${catchHtml}${descHtml}</div>` : '';
         return `<div class="ad-main-card">
-            ${thumbHtml}
-            <div class="ad-main-info">
-                ${nameHtml}
-                ${catchHtml}
-                ${bottomHtml}
-            </div>
+            <div class="ad-main-hero">${heroImgHtml}<div class="ad-main-hero-overlay">${nameHtml}</div></div>
+            ${bodyHtml}
+            ${bottomHtml}
         </div>`;
     }).join('');
 
     const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-    const headerText = `📢 このエリアで呼べる${genreName}の <span class="shop-premium-badge">認定店</span> 名をクリック🔗`;
+    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">認定店</span>`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }

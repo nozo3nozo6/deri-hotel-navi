@@ -275,10 +275,10 @@ function renderAdHTML(ad) {
     const minPrice = ad.shops?.min_price || '';
     const nameHTML = url
         ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="ad-shop-name">${esc(shopName)}</a>`
-        : `<span class="ad-shop-name" style="color:var(--text);">${esc(shopName)}</span>`;
-    const thumbHTML = thumbUrl
-        ? `<img src="${esc(thumbUrl)}" class="ad-main-thumb" alt="${esc(shopName)}" loading="lazy">`
-        : `<div class="ad-main-thumb ad-shop-thumb--empty">📢</div>`;
+        : `<span class="ad-shop-name">${esc(shopName)}</span>`;
+    const heroImgHTML = thumbUrl
+        ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
+        : `<div class="ad-main-hero-empty">📢</div>`;
     const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
     const descHTML = description ? `<div class="ad-main-desc">${esc(description)}</div>` : '';
     const priceText = (() => {
@@ -289,21 +289,19 @@ function renderAdHTML(ad) {
         const fmtYen = n => Number(n).toLocaleString('ja-JP');
         return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
     })();
-    const bottomParts = [];
-    if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
-    if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
-    const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const reportCount = ad.report_count || 0;
     const countBadge = reportCount > 0 ? `<span class="ad-main-count">📋${reportCount}件</span>` : '';
+    const bottomParts = [];
+    if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
+    if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
+    if (url) bottomParts.push(`<a href="${esc(url)}" target="_blank" rel="noopener" class="ad-main-cta">詳しく見る &rsaquo;</a>`);
+    const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
+    const bodyHTML = (catchHTML || descHTML) ? `<div class="ad-main-body">${catchHTML}${descHTML}</div>` : '';
     return `<div class="ad-main-card ${rankClass}">
-        ${thumbHTML}
-        <div class="ad-main-info">
-            <div class="ad-main-name-row">${nameHTML}${countBadge}</div>
-            ${catchHTML}
-            ${descHTML}
-            ${bottomHTML}
-        </div>
+        <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay">${nameHTML}${countBadge}</div></div>
+        ${bodyHTML}
+        ${bottomHTML}
     </div>`;
 }
 
@@ -334,8 +332,7 @@ async function loadAds(placementType, placementTarget) {
         const allAds = await _fetchAds(placementType, placementTarget);
         if (gen !== _adGeneration || window._adsSuppressed) return;
         if (allAds.length) {
-            const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-            const header = `<div class="ad-shop-header">📢 このエリアで呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
+            const header = `<div class="ad-shop-header">このエリアのおすすめ <span class="shop-premium-badge">認定店</span></div>`;
             container.style.display = '';
             container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
         }
@@ -370,8 +367,7 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
         const allAds = await _fetchAds(placementType, placementTarget);
         if (gen !== _adGeneration || window._adsSuppressed) return;
         if (!allAds.length) return;
-        const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-        const header = `<div class="ad-shop-header">📢 全国で呼べる${genreName}の<span class="shop-premium-badge">認定店</span>名をクリック🔗</div>`;
+        const header = `<div class="ad-shop-header">全国のおすすめ <span class="shop-premium-badge">認定店</span></div>`;
         container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
     } catch (e) { /* silently */ }
 }
