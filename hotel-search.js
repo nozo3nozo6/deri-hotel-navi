@@ -1637,6 +1637,8 @@ async function showHotelPanel(hotelId, isLoveho) {
         document.getElementById('hotel-list').style.display = 'none';
         const rs = document.getElementById('result-status');
         if (rs) rs.style.display = 'none';
+        const areaSection = document.querySelector('.area-section');
+        if (areaSection) areaSection.style.paddingBottom = '0';
         hideLovehoTabs();
         hideFilterBar();
         // 地図下の詳細エリアは非表示
@@ -1699,6 +1701,8 @@ function leaveHotelDetail() {
     const mapDetail = document.getElementById('map-detail-content');
     if (mapDetail) { mapDetail.style.display = 'none'; mapDetail.innerHTML = ''; }
     document.getElementById('area-button-container').style.display = '';
+    const areaSection = document.querySelector('.area-section');
+    if (areaSection) areaSection.style.paddingBottom = '';
     const rs = document.getElementById('result-status');
     if (rs) rs.style.display = '';
     document.getElementById('hotel-list').style.display = '';
