@@ -2205,6 +2205,17 @@ body[data-mode="men"] .header-title {
 .ad-shop-list { display:flex;flex-direction:column;gap:4px;max-width:100%;overflow:hidden; }
 .ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 6%, #fff), color-mix(in srgb, var(--accent,#b5627a) 12%, #fff));border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;transition:background .15s;overflow:hidden;border-left:3px solid var(--accent,#b5627a); }
 .ad-shop-card:hover { background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 10%, #fff), color-mix(in srgb, var(--accent,#b5627a) 16%, #fff)); }
+/* ジャンル別カードデザイン */
+[data-mode="men"] .ad-shop-card { border-radius:2px; }
+[data-mode="women"] .ad-shop-card { border-radius:12px; }
+[data-mode="este"] .ad-shop-card { border-radius:10px; }
+[data-mode="men_same"] .ad-shop-card { border-radius:4px; }
+[data-mode="women_same"] .ad-shop-card { border-radius:12px; }
+[data-mode="men"] .ad-main-card { border-radius:2px; }
+[data-mode="women"] .ad-main-card { border-radius:12px; }
+[data-mode="este"] .ad-main-card { border-radius:10px; }
+[data-mode="men_same"] .ad-main-card { border-radius:4px; }
+[data-mode="women_same"] .ad-main-card { border-radius:12px; }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:48px;height:64px;border-radius:0;object-fit:cover;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
