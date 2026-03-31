@@ -62,7 +62,7 @@ jobs:
           HASH=$(git rev-parse --short HEAD)
           echo "Cache buster: $HASH"
           sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal.html
-          sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal-men.html portal-women.html portal-men-same.html portal-women-same.html
+          sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal-men.html portal-women.html portal-men-same.html portal-women-same.html portal-este.html
           sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" shop-admin.html admin.html 2>/dev/null || true
           sed -i "s/CACHE_HASH/$HASH/g" hotel-search.js
 

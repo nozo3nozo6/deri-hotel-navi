@@ -669,8 +669,8 @@ async function loadDetail(hotelId, isLoveho) {
             renderHotelDetail(hotel, reports, detailData.summary || null, shopInfoMap, shopFeeMap);
         }
 
-        // 6段階広告ロード
-        if (hotel.city) {
+        // 6段階広告ロード（店舗専用ページでは全て非表示）
+        if (hotel.city && !_shopParam) {
             const genderMode = getCurrentMode();
             const _region = REGION_MAP.find(r => r.prefs.includes(hotel.prefecture));
             const _regionLabel = (_region && !isSinglePrefRegion(_region)) ? _region.label : null;
@@ -686,17 +686,11 @@ async function loadDetail(hotelId, isLoveho) {
             const citySlot = document.getElementById('detail-ad-city');
             const genreName = GENRE_MAP[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
-                let filtered = cityAds;
-                if (_shopParam) {
-                    filtered = filtered.filter(a => a.shop_id === SHOP_ID || a.shops?.shop_name === SHOP_DATA?.shop_name);
-                }
-                if (filtered.length) {
-                    const cards = filtered.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                    citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards}</div>`;
-                }
+                const cards = cityAds.slice(0,3).map(ad => renderAdHTML(ad)).join('');
+                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards}</div>`;
             }
-            // ②〜⑥: テキストリンク（店舗モード時は非表示）
-            if (!_shopParam) {
+            // ②〜⑥: テキストリンク
+            {
                 const _badge = '<span class="shop-premium-badge">認定店</span>';
                 const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
@@ -2130,16 +2124,8 @@ function renderAreaShopSection(shops) {
     const existing = document.getElementById('area-shop-section');
     if (existing) existing.remove();
 
-    // 店舗モード時は自店舗のみ表示（他店舗広告は非表示）
-    if (_shopParam && shops) {
-        shops = shops.filter(s =>
-            (SHOP_ID && s.id === SHOP_ID) ||
-            (SHOP_SLUG && s.slug === SHOP_SLUG) ||
-            s.slug === _shopParam ||
-            s.id === _shopParam
-        );
-        if (!shops.length) return;
-    }
+    // 店舗専用ページでは広告を表示しない（自店舗含む）
+    if (_shopParam) return;
 
     // ad-container（ads.php広告）に既に表示されている店舗を除外（重複防止）
     if (shops && shops.length) {

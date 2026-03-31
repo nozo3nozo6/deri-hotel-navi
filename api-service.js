@@ -324,6 +324,8 @@ async function loadAds(placementType, placementTarget) {
     container.style.display = '';
     const belowSearch = document.getElementById('ad-container-below-search');
     if (belowSearch) belowSearch.innerHTML = '';
+    // 店舗専用ページでは広告を表示しない
+    if (_shopParam) return;
     const gen = ++_adGeneration;
     try {
         const allAds = await _fetchAds(placementType, placementTarget);
@@ -359,6 +361,8 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
     if (!container) return;
     container.innerHTML = '';
     container.style.display = '';
+    // 店舗専用ページでは広告を表示しない
+    if (_shopParam) return;
     const gen = ++_adGeneration;
     try {
         const allAds = await _fetchAds(placementType, placementTarget);
