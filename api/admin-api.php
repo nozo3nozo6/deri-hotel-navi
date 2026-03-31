@@ -277,6 +277,23 @@ function handleUpdate() {
     $sql = "UPDATE `$table` SET " . implode(', ', $sets) . " WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
+
+    // 店舗のgender_mode変更時、既存の口コミも連動更新
+    if ($table === 'shops' && isset($data['gender_mode'])) {
+        $newMode = $data['gender_mode'];
+        // reports: shop_id で紐付け
+        $s = $pdo->prepare('UPDATE reports SET gender_mode = ? WHERE shop_id = ? AND poster_type = ?');
+        $s->execute([$newMode, $id, 'shop']);
+        // loveho_reports: poster_name（店舗名）で紐付け
+        $s2 = $pdo->prepare('SELECT shop_name FROM shops WHERE id = ?');
+        $s2->execute([$id]);
+        $shopName = $s2->fetchColumn();
+        if ($shopName) {
+            $s3 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE poster_name = ?');
+            $s3->execute([$newMode, $shopName]);
+        }
+    }
+
     echo json_encode(['ok' => true, 'affected' => $stmt->rowCount()]);
     regenerateMasterDataIfNeeded($table);
 }
