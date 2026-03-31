@@ -296,8 +296,8 @@ function renderAdHTML(ad) {
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
     return `<div class="ad-main-card ${rankClass}">
-        <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay"><span class="ad-main-hero-catch">${esc(overlayText)}</span>${countBadge}</div></div>
-        <div class="ad-main-body">${nameHTML}</div>
+        <div class="ad-main-hero">${heroImgHTML}<div class="ad-main-hero-overlay"><span class="ad-main-hero-catch">${esc(overlayText)}</span></div></div>
+        <div class="ad-main-body">${nameHTML}${countBadge}</div>
         ${bottomHTML}
     </div>`;
 }
