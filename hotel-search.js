@@ -2153,10 +2153,13 @@ function renderAreaShopSection(shops) {
         const nameHtml = s.shop_url
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
-        const thumbUrl = (s.images && s.images.length) ? s.images[0] : s.thumbnail_url;
-        const heroImgHtml = thumbUrl
-            ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
-            : `<div class="ad-main-hero-empty">📢</div>`;
+        const images = s.images || [];
+        const thumbUrl = images.length ? images[0] : s.thumbnail_url;
+        const heroImgHtml = (s.banner_type === 'photos' && images.length > 0)
+            ? `<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
+            : thumbUrl
+                ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
+                : `<div class="ad-main-hero-empty">📢</div>`;
         const overlayText = s.catchphrase || s.shop_name;
         const hoursText = s.business_hours || '';
         const priceText = (() => {

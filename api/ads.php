@@ -45,7 +45,7 @@ $params[] = 'all';
 $whereStr = implode(' AND ', $where);
 $stmt = $pdo->prepare("
     SELECT a.*, s.shop_name, s.shop_url, s.status AS shop_status, s.thumbnail_url AS shop_thumbnail,
-           s.catchphrase, s.description, s.pr_text, s.business_hours, s.min_price, s.approved_at,
+           s.catchphrase, s.description, s.pr_text, s.business_hours, s.min_price, s.approved_at, s.banner_type,
            (SELECT COUNT(*) FROM reports r WHERE r.shop_id = a.shop_id AND r.poster_type = 'shop') + (SELECT COUNT(*) FROM loveho_reports lr JOIN shop_hotel_info shi ON lr.hotel_id = shi.hotel_id WHERE shi.shop_id = a.shop_id AND lr.poster_name = s.shop_name) AS report_count
     FROM ad_placements a
     LEFT JOIN shops s ON a.shop_id = s.id
@@ -79,6 +79,7 @@ foreach ($rows as $row) {
             'pr_text' => $row['pr_text'],
             'business_hours' => $row['business_hours'],
             'min_price' => $row['min_price'],
+            'banner_type' => $row['banner_type'],
         ],
     ];
     $ad['report_count'] = (int)($row['report_count'] ?? 0);
@@ -96,6 +97,21 @@ usort($filtered, function($a, $b) {
 $filtered = array_slice($filtered, 0, 3);
 foreach ($filtered as $i => &$ad) {
     $ad['rank'] = $i + 1; // 1=金, 2=銀, 3=銅
+}
+
+// shop_imagesを一括取得（banner_type=photos用）
+$shopIds = array_filter(array_column($filtered, 'shop_id'));
+if (!empty($shopIds)) {
+    $ph = implode(',', array_fill(0, count($shopIds), '?'));
+    $stmt = $pdo->prepare("SELECT shop_id, image_url FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
+    $stmt->execute(array_values($shopIds));
+    $imgMap = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $imgMap[$row['shop_id']][] = $row['image_url'];
+    }
+    foreach ($filtered as &$ad) {
+        $ad['shops']['images'] = $imgMap[$ad['shop_id']] ?? [];
+    }
 }
 
 echo json_encode(array_values($filtered), JSON_UNESCAPED_UNICODE);

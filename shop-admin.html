@@ -249,6 +249,12 @@
             .free-check input{width:18px;height:18px;}
             .confirm-card{max-width:100%;padding:16px 14px 20px;}
         }
+        .photo-slot{width:80px;height:92px;border:2px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;background:var(--bg-3);transition:border-color 0.15s;}
+        .photo-slot:hover{border-color:var(--rose);}
+        .photo-slot img{width:100%;height:100%;object-fit:cover;object-position:center 20%;}
+        .photo-slot-num{font-size:20px;font-weight:700;color:var(--text-3);pointer-events:none;}
+        .photo-slot img+.photo-slot-num{display:none;}
+        .photo-slot-del{position:absolute;top:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;z-index:1;}
     </style>
 </head>
 <body>
@@ -369,19 +375,51 @@
                   上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
                   貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
                 </p>
-                <!-- 店舗画像（有料プランのみ、1枚） -->
+                <!-- 広告画像設定（有料プランのみ） -->
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                        <span style="font-size:12px;color:var(--text-3);">店舗画像:</span>
-                        <span style="font-size:11px;color:var(--text-3);">1枚（600×800px以内、JPG/PNGのみ）</span>
-                    </div>
-                    <div id="shop-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
-                    <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
-                        <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
-                            画像を追加
-                            <input type="file" id="shop-image-file" accept="image/jpeg,image/png" onchange="onShopImageSelect(this)" style="display:none;">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🖼️ ヒーロー画像の設定</div>
+                    <div style="display:flex;gap:16px;margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
+                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos')" style="accent-color:var(--rose);">
+                            写真3枚（おすすめ）
                         </label>
-                        <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
+                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner')" style="accent-color:var(--rose);">
+                            バナー1枚
+                        </label>
+                    </div>
+                    <!-- 写真3枚モード -->
+                    <div id="banner-mode-photos" style="display:none;">
+                        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">推奨: 各435×500px（JPG/PNG）</div>
+                        <div style="display:flex;gap:6px;margin-bottom:8px;">
+                            <div id="photo-slot-0" class="photo-slot" onclick="triggerPhotoUpload(0)">
+                                <span class="photo-slot-num">1</span>
+                            </div>
+                            <div id="photo-slot-1" class="photo-slot" onclick="triggerPhotoUpload(1)">
+                                <span class="photo-slot-num">2</span>
+                            </div>
+                            <div id="photo-slot-2" class="photo-slot" onclick="triggerPhotoUpload(2)">
+                                <span class="photo-slot-num">3</span>
+                            </div>
+                        </div>
+                        <input type="file" id="photo-upload-input" accept="image/jpeg,image/png" style="display:none;">
+                        <div style="font-size:10px;color:var(--text-3);">クリックで追加・差し替え</div>
+                        <!-- プレビュー -->
+                        <div id="banner-preview-photos" style="margin-top:10px;border-radius:6px;overflow:hidden;aspect-ratio:2.618/1;display:none;background:#1a1a2e;"></div>
+                    </div>
+                    <!-- バナー1枚モード -->
+                    <div id="banner-mode-banner" style="display:none;">
+                        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">推奨: 1309×500px（JPG/PNG）</div>
+                        <div id="shop-images-preview" style="margin-bottom:10px;"></div>
+                        <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
+                            <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
+                                バナーをアップロード
+                                <input type="file" id="shop-image-file" accept="image/jpeg,image/png" onchange="onShopImageSelect(this)" style="display:none;">
+                            </label>
+                            <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
+                        </div>
+                        <!-- プレビュー -->
+                        <div id="banner-preview-single" style="margin-top:10px;border-radius:6px;overflow:hidden;aspect-ratio:2.618/1;display:none;background:#1a1a2e;"></div>
                     </div>
                 </div>
                 <!-- 広告情報（有料プランのみ） -->
@@ -856,7 +894,7 @@ async function loadStatusCard(){
     window._shopIsPaid=isPaid;
     if(thumbSection){
         thumbSection.style.display=isPaid?'':'none';
-        if(isPaid){loadShopImages();}
+        if(isPaid){initBannerMode();loadShopImages();}
     }
     // キャッチコピーセクション（有料プランのみ）
     const catchSection=document.getElementById("catchphrase-section");
@@ -887,9 +925,27 @@ async function loadStatusCard(){
 }
 
 let _shopImages=[];
+let _bannerMode='photos'; // 'photos' or 'banner'
+let _photoUploadSlot=0;
+
 async function loadShopImages(){
     try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
     renderShopImages();
+    renderPhotoSlots();
+    updateBannerPreview();
+}
+function switchBannerMode(mode){
+    _bannerMode=mode;
+    document.getElementById('banner-mode-photos').style.display=mode==='photos'?'':'none';
+    document.getElementById('banner-mode-banner').style.display=mode==='banner'?'':'none';
+    updateBannerPreview();
+}
+function initBannerMode(){
+    const mode=(currentShop&&currentShop.banner_type)||'photos';
+    _bannerMode=mode;
+    const radios=document.querySelectorAll('input[name="banner-mode"]');
+    radios.forEach(r=>{r.checked=r.value===mode;});
+    switchBannerMode(mode);
 }
 function renderShopImages(){
     const el=document.getElementById('shop-images-preview');
@@ -900,12 +956,50 @@ function renderShopImages(){
         el.innerHTML='<span style="font-size:12px;color:var(--text-3);">未設定</span>';
     }else{
         el.innerHTML=_shopImages.map(img=>`<div style="position:relative;display:inline-block;">
-            <img src="${esc(img.image_url)}" style="width:80px;height:100px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">
+            <img src="${esc(img.image_url)}" style="width:120px;height:46px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">
             <button onclick="deleteShopImage(${img.id})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">×</button>
         </div>`).join('');
     }
-    countEl.textContent=`${_shopImages.length}/1枚`;
-    if(addEl)addEl.style.display=_shopImages.length>=1?'none':'flex';
+    const limit=_bannerMode==='banner'?1:3;
+    countEl.textContent=`${_shopImages.length}/${limit}枚`;
+    if(addEl)addEl.style.display=_shopImages.length>=limit?'none':'flex';
+}
+function renderPhotoSlots(){
+    for(let i=0;i<3;i++){
+        const slot=document.getElementById('photo-slot-'+i);
+        if(!slot)continue;
+        const img=_shopImages[i];
+        if(img){
+            slot.innerHTML=`<img src="${esc(img.image_url)}"><span class="photo-slot-num">${i+1}</span><button class="photo-slot-del" onclick="event.stopPropagation();deleteShopImage(${img.id})">×</button>`;
+        }else{
+            slot.innerHTML=`<span class="photo-slot-num">${i+1}</span>`;
+        }
+    }
+}
+function updateBannerPreview(){
+    // Photos preview
+    const photoPrev=document.getElementById('banner-preview-photos');
+    if(photoPrev){
+        if(_bannerMode==='photos'&&_shopImages.length>0){
+            photoPrev.style.display='';
+            photoPrev.innerHTML=`<div style="display:flex;gap:2px;width:100%;height:100%;">${_shopImages.slice(0,3).map(img=>`<img src="${esc(img.image_url)}" style="flex:1 1 0;min-width:0;height:100%;object-fit:cover;object-position:center 20%;">`).join('')}</div>`;
+        }else{photoPrev.style.display='none';photoPrev.innerHTML='';}
+    }
+    // Banner preview
+    const bannerPrev=document.getElementById('banner-preview-single');
+    if(bannerPrev){
+        if(_bannerMode==='banner'&&_shopImages.length>0){
+            bannerPrev.style.display='';
+            bannerPrev.innerHTML=`<img src="${esc(_shopImages[0].image_url)}" style="width:100%;height:100%;object-fit:cover;">`;
+        }else{bannerPrev.style.display='none';bannerPrev.innerHTML='';}
+    }
+}
+function triggerPhotoUpload(slotIndex){
+    _photoUploadSlot=slotIndex;
+    const input=document.getElementById('photo-upload-input');
+    input.value='';
+    input.onchange=()=>onPhotoSlotSelect(input,slotIndex);
+    input.click();
 }
 function resizeImage(file,maxW,maxH,quality){
     return new Promise((resolve,reject)=>{
@@ -921,22 +1015,38 @@ function resizeImage(file,maxW,maxH,quality){
         const r=new FileReader();r.onload=e=>{img.src=e.target.result;};r.readAsDataURL(file);
     });
 }
+async function onPhotoSlotSelect(input,slotIndex){
+    if(!input.files[0])return;
+    const file=input.files[0];
+    if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');return;}
+    if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');return;}
+    // 既存画像があれば差し替え（削除→追加）
+    const existing=_shopImages[slotIndex];
+    if(existing){
+        try{await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:existing.id})});}catch(e){}
+    }
+    try{
+        const base64=await resizeImage(file,435,500,0.85);
+        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});
+        const r=await res.json();
+        if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
+        await loadShopImages();
+        toast('写真'+(slotIndex+1)+'を設定しました');
+    }catch(e){toast('通信エラー');}
+}
 async function onShopImageSelect(input){
     if(!input.files[0])return;
     const file=input.files[0];
     if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');input.value='';return;}
     if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');input.value='';return;}
-    // サイズチェック（600×800px以内）— createObjectURLで軽量チェック
-    const sizeOk=await new Promise(resolve=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(url);resolve(img.width<=600&&img.height<=800);};img.onerror=()=>{URL.revokeObjectURL(url);resolve(false);};img.src=url;});
-    if(!sizeOk){showSuccessModal('サイズ超過','画像サイズは600×800px以内にしてください');input.value='';return;}
-    if(!confirm('この画像を追加しますか？'))return;
+    if(!confirm('この画像をアップロードしますか？'))return;
     try{
-        const base64=await resizeImage(file,600,800,0.85);
+        const base64=await resizeImage(file,1309,500,0.85);
         const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));input.value='';return;}
         await loadShopImages();
-        toast('画像を追加しました');
+        toast('バナーをアップロードしました');
     }catch(e){toast('通信エラー');}
     input.value='';
 }
@@ -972,10 +1082,10 @@ async function saveAdInfo(){
     const minPrice=(minMin&&minYen)?minMin+','+minYen:'';
     if(!confirm('広告情報を保存しますか？'))return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,description:adDescription||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,description:adDescription||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null,banner_type:_bannerMode})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
-        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.description=adDescription||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;}
+        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.description=adDescription||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;currentShop.banner_type=_bannerMode;}
         showSuccessModal('保存完了','広告情報を保存しました');
     }catch(e){toast('通信エラー');}
 }

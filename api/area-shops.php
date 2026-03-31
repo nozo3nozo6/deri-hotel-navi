@@ -57,7 +57,7 @@ if (empty($shopCounts)) { echo json_encode([]); exit; }
 $shopIds = array_keys($shopCounts);
 $spH = implode(',', array_fill(0, count($shopIds), '?'));
 $stmt = $pdo->prepare("
-    SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.catchphrase,
+    SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.banner_type, s.catchphrase,
            s.business_hours, s.pr_text, s.min_price, s.display_tel, s.gender_mode,
            s.approved_at, sc.plan_id, cp.price
     FROM shops s
@@ -77,6 +77,7 @@ foreach ($shopRows as $row) {
             'shop_name' => $row['shop_name'],
             'shop_url' => $row['shop_url'],
             'thumbnail_url' => $row['thumbnail_url'],
+            'banner_type' => $row['banner_type'],
             'catchphrase' => $row['catchphrase'],
             'business_hours' => $row['business_hours'],
             'pr_text' => $row['pr_text'],

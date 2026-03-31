@@ -190,9 +190,10 @@ function handleUpdateAdInfo() {
     $businessHours = isset($input['business_hours']) ? mb_substr(trim($input['business_hours']), 0, 50) : null;
     $minPrice = isset($input['min_price']) ? mb_substr(trim($input['min_price']), 0, 30) : null;
     $displayTel = isset($input['display_tel']) ? mb_substr(trim($input['display_tel']), 0, 20) : null;
+    $bannerType = isset($input['banner_type']) && in_array($input['banner_type'], ['banner', 'photos']) ? $input['banner_type'] : null;
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, description=?, business_hours=?, min_price=?, display_tel=?, updated_at=NOW() WHERE id=?');
-    $stmt->execute([$catchphrase ?: null, $description ?: null, $businessHours ?: null, $minPrice ?: null, $displayTel ?: null, $auth['shop_id']]);
+    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, description=?, business_hours=?, min_price=?, display_tel=?, banner_type=?, updated_at=NOW() WHERE id=?');
+    $stmt->execute([$catchphrase ?: null, $description ?: null, $businessHours ?: null, $minPrice ?: null, $displayTel ?: null, $bannerType, $auth['shop_id']]);
     echo json_encode(['success' => true]);
 }
 
@@ -216,7 +217,7 @@ function handleAddImage() {
     // 3枚制限チェック
     $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_images WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
-    if ($stmt->fetchColumn() >= 1) { http_response_code(400); echo json_encode(['error' => '画像は1枚までです']); return; }
+    if ($stmt->fetchColumn() >= 3) { http_response_code(400); echo json_encode(['error' => '画像は3枚までです']); return; }
     $stmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM shop_images WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
     $nextOrder = $stmt->fetchColumn();
