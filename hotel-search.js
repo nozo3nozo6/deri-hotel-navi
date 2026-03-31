@@ -2183,7 +2183,7 @@ function renderAreaShopSection(shops) {
         })();
         const bottomParts = [];
         if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
-        if (hoursText) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">営業時間</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>`);
+        if (hoursText) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>`);
         const bottomHtml = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
         return `<div class="ad-main-card">
             <div class="ad-main-hero">${heroImgHtml}<div class="ad-main-hero-overlay"><span class="ad-main-hero-catch">${esc(overlayText)}</span></div></div>
