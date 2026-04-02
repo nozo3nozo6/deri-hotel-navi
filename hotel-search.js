@@ -687,22 +687,22 @@ async function loadDetail(hotelId, isLoveho) {
             const genreName = GENRE_MAP[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
                 const cards = cityAds.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards}</div>`;
+                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
             }
             // ②〜⑥: テキストリンク
             {
                 const _badge = '<span class="shop-premium-badge">認定店</span>';
                 const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
-                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `このエリアのおすすめ ${_badge}`);
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `このエリアのおすすめ ${_badge} 名をクリック🔗`);
                 const blockSlot = document.getElementById('detail-ad-block');
-                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `この地域のおすすめ ${_badge}`);
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `この地域のおすすめ ${_badge} 名をクリック🔗`);
                 const prefSlot = document.getElementById('detail-ad-pref');
-                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `この都道府県のおすすめ ${_badge}`);
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `この都道府県のおすすめ ${_badge} 名をクリック🔗`);
                 const wideSlot = document.getElementById('detail-ad-wide');
                 if (wideSlot) {
                     let wideHtml = '';
-                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge}`);
+                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge} 名をクリック🔗`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
                 // 全国広告は検索バーの下に表示
@@ -710,7 +710,7 @@ async function loadDetail(hotelId, isLoveho) {
                     const bsContainer = document.getElementById('ad-container-below-search');
                     if (bsContainer) {
                         bsContainer.style.display = '';
-                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge}`);
+                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
                     }
                 }
             }
@@ -2082,7 +2082,7 @@ function renderDetailShopCards(shops, cityName) {
     }).filter(Boolean);
     if (!cards.length) return '';
     const _gn = GENRE_MAP[getCurrentMode()] || 'お店';
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span></div><div class="ad-shop-list">${cards.join('')}</div></div>`;
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
@@ -2183,7 +2183,7 @@ function renderAreaShopSection(shops) {
     }).join('');
 
     const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">認定店</span>`;
+    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
