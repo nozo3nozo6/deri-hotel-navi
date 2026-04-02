@@ -380,11 +380,11 @@
                     <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🖼️ ヒーロー画像の設定</div>
                     <div style="display:flex;gap:16px;margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos')" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos',true)" style="accent-color:var(--rose);">
                             写真3枚（おすすめ）
                         </label>
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner')" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner',true)" style="accent-color:var(--rose);">
                             バナー1枚
                         </label>
                     </div>
@@ -942,18 +942,22 @@ async function loadShopImages(){
     renderPhotoSlots();
     updateBannerPreview();
 }
-function switchBannerMode(mode){
+function switchBannerMode(mode,save){
     _bannerMode=mode;
     document.getElementById('banner-mode-photos').style.display=mode==='photos'?'':'none';
     document.getElementById('banner-mode-banner').style.display=mode==='banner'?'':'none';
     updateBannerPreview();
+    if(save){
+        fetch('https://yobuho.com/api/shop-auth.php?action=update-ad-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({banner_type:mode,catchphrase:currentShop?.catchphrase||null,description:currentShop?.description||null,business_hours:currentShop?.business_hours||null,min_price:currentShop?.min_price||null,display_tel:currentShop?.display_tel||null})});
+        if(currentShop)currentShop.banner_type=mode;
+    }
 }
 function initBannerMode(){
     const mode=(currentShop&&currentShop.banner_type)||'photos';
     _bannerMode=mode;
     const radios=document.querySelectorAll('input[name="banner-mode"]');
     radios.forEach(r=>{r.checked=r.value===mode;});
-    switchBannerMode(mode);
+    switchBannerMode(mode,false);
 }
 function renderShopImages(){
     const el=document.getElementById('shop-images-preview');
