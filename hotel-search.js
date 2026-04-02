@@ -2155,7 +2155,7 @@ function renderAreaShopSection(shops) {
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const images = s.images || [];
         const thumbUrl = images.length ? images[0] : s.thumbnail_url;
-        const heroImgHtml = (s.banner_type === 'photos' && images.length > 0)
+        const heroImgHtml = ((s.banner_type === 'photos' || (s.banner_type !== 'banner' && images.length > 1)) && images.length > 0)
             ? `<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
             : thumbUrl
                 ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`

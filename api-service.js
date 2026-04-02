@@ -278,7 +278,7 @@ function renderAdHTML(ad) {
         : `<span class="ad-shop-name">${esc(shopName)}</span>`;
     const bannerType = ad.shops?.banner_type;
     const images = ad.shops?.images || [];
-    const heroImgHTML = (bannerType === 'photos' && images.length > 0)
+    const heroImgHTML = ((bannerType === 'photos' || (bannerType !== 'banner' && images.length > 1)) && images.length > 0)
         ? `<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(shopName)}" loading="lazy">`).join('')}</div>`
         : thumbUrl
             ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
