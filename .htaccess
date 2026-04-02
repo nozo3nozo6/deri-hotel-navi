@@ -82,41 +82,41 @@ RewriteRule ^women-same/(.+)$ /same-f/$1 [R=301,L]
 RewriteRule ^women-same/?$ /same-f/ [R=301,L]
 
 # ===== 旧クエリURL → 新URL 301リダイレクト =====
-# portal.html?mode=men&pref=X&city=Y → /deli/X/Y
+# portal.html?mode=men&pref=X&city=Y → /deli/X/Y (NE=日本語二重エンコード防止)
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1/%2? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1/%2? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1/%2? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)city=([^&]+)(?:&|$)
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1/%2? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1/%2? [R=301,L,NE]
 
 # portal.html?mode=men&pref=X → /deli/X
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /deli/%1? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /jofu/%1? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-m/%1? [R=301,L,NE]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
 RewriteCond %{QUERY_STRING} (?:^|&)pref=([^&]+)(?:&|$)
 RewriteCond %{QUERY_STRING} !(^|&)city=
-RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1? [R=301,L]
+RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/%1? [R=301,L,NE]
 
 # portal.html?mode=men → /deli/
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
