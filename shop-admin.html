@@ -380,11 +380,11 @@
                     <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🖼️ ヒーロー画像の設定</div>
                     <div style="display:flex;gap:16px;margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos',true)" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos')" style="accent-color:var(--rose);">
                             写真3枚（おすすめ）
                         </label>
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner',true)" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner')" style="accent-color:var(--rose);">
                             バナー1枚
                         </label>
                     </div>
@@ -462,6 +462,7 @@
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">円〜</span>
                         </div>
                     </div>
+                    <div id="banner-unsaved-hint" style="display:none;padding:8px 12px;margin-bottom:8px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:11px;color:#856404;">⚠ ヒーロー画像の表示モードが変更されています。下のボタンで確定してください。</div>
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
                     </div>
@@ -942,22 +943,26 @@ async function loadShopImages(){
     renderPhotoSlots();
     updateBannerPreview();
 }
-function switchBannerMode(mode,save){
+let _savedBannerMode=null;
+function switchBannerMode(mode){
     _bannerMode=mode;
     document.getElementById('banner-mode-photos').style.display=mode==='photos'?'':'none';
     document.getElementById('banner-mode-banner').style.display=mode==='banner'?'':'none';
     updateBannerPreview();
-    if(save){
-        fetch('https://yobuho.com/api/shop-auth.php?action=update-ad-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({banner_type:mode,catchphrase:currentShop?.catchphrase||null,description:currentShop?.description||null,business_hours:currentShop?.business_hours||null,min_price:currentShop?.min_price||null,display_tel:currentShop?.display_tel||null})});
-        if(currentShop)currentShop.banner_type=mode;
-    }
+    updateBannerUnsavedHint();
+}
+function updateBannerUnsavedHint(){
+    const hint=document.getElementById('banner-unsaved-hint');
+    if(!hint)return;
+    hint.style.display=(_bannerMode!==_savedBannerMode)?'':'none';
 }
 function initBannerMode(){
     const mode=(currentShop&&currentShop.banner_type)||'photos';
     _bannerMode=mode;
+    _savedBannerMode=mode;
     const radios=document.querySelectorAll('input[name="banner-mode"]');
     radios.forEach(r=>{r.checked=r.value===mode;});
-    switchBannerMode(mode,false);
+    switchBannerMode(mode);
 }
 function renderShopImages(){
     const el=document.getElementById('shop-images-preview');
@@ -1107,6 +1112,8 @@ async function saveAdInfo(){
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.description=adDescription||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;currentShop.banner_type=_bannerMode;}
+        _savedBannerMode=_bannerMode;
+        updateBannerUnsavedHint();
         showSuccessModal('保存完了','広告情報を保存しました');
     }catch(e){toast('通信エラー');}
 }
