@@ -2173,8 +2173,10 @@ function renderAreaShopSection(shops) {
         if (priceText) bottomParts.push(`<span class="ad-main-price-text">${priceText}</span>`);
         if (hoursText) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(hoursText)}</span></span>`);
         const bottomHtml = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
+        const heroLinkOpen = s.shop_url ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-main-hero-link">` : '';
+        const heroLinkClose = s.shop_url ? '</a>' : '';
         return `<div class="ad-main-card">
-            <div class="ad-main-hero">${heroImgHtml}</div>
+            ${heroLinkOpen}<div class="ad-main-hero">${heroImgHtml}</div>${heroLinkClose}
             <div class="ad-main-body">${nameHtml}</div>
             ${bottomHtml}
         </div>`;

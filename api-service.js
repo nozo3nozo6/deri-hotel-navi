@@ -298,8 +298,10 @@ function renderAdHTML(ad) {
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
+    const heroLinkOpen = url ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="ad-main-hero-link">` : '';
+    const heroLinkClose = url ? '</a>' : '';
     return `<div class="ad-main-card ${rankClass}">
-        <div class="ad-main-hero">${heroImgHTML}</div>
+        ${heroLinkOpen}<div class="ad-main-hero">${heroImgHTML}</div>${heroLinkClose}
         <div class="ad-main-body">${nameHTML}${countBadge}</div>
         ${bottomHTML}
     </div>`;
