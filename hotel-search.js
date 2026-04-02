@@ -2155,8 +2155,10 @@ function renderAreaShopSection(shops) {
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const images = s.images || [];
         const thumbUrl = images.length ? images[0] : s.thumbnail_url;
-        const heroImgHtml = ((s.banner_type === 'photos' || (s.banner_type !== 'banner' && images.length > 1)) && images.length > 0)
-            ? `<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
+        const isGrid = (s.banner_type === 'photos' || (s.banner_type !== 'banner' && images.length > 1)) && images.length > 0;
+        const bgImg = isGrid && images[3] ? `<img class="ad-main-hero-bg" src="${esc(images[3])}" alt="" loading="lazy">` : '';
+        const heroImgHtml = isGrid
+            ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
             : thumbUrl
                 ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
                 : `<div class="ad-main-hero-empty">📢</div>`;

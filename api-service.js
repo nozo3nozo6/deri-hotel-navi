@@ -278,8 +278,10 @@ function renderAdHTML(ad) {
         : `<span class="ad-shop-name">${esc(shopName)}</span>`;
     const bannerType = ad.shops?.banner_type;
     const images = ad.shops?.images || [];
-    const heroImgHTML = ((bannerType === 'photos' || (bannerType !== 'banner' && images.length > 1)) && images.length > 0)
-        ? `<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(shopName)}" loading="lazy">`).join('')}</div>`
+    const isGrid = (bannerType === 'photos' || (bannerType !== 'banner' && images.length > 1)) && images.length > 0;
+    const bgImg = isGrid && images[3] ? `<img class="ad-main-hero-bg" src="${esc(images[3])}" alt="" loading="lazy">` : '';
+    const heroImgHTML = isGrid
+        ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(shopName)}" loading="lazy">`).join('')}</div>`
         : thumbUrl
             ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
             : `<div class="ad-main-hero-empty">📢</div>`;
