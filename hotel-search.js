@@ -589,6 +589,9 @@ async function loadDetail(hotelId, isLoveho) {
         const hotel = detailData.hotel;
         let reports = detailData.reports || [];
 
+        // GA4: ホテル詳細閲覧トラッキング
+        if (typeof gtag === 'function') gtag('event', 'hotel_detail_view', { hotel_name: hotel.name || '', city: hotel.city || '', prefecture: hotel.prefecture || '' });
+
         // 店舗情報マップ構築（共通）
         const shopInfoMap = {};
         const shopFeeMap = {};
@@ -1758,7 +1761,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div class="detail-info-box">
             <div class="detail-info-inner">
                 <span class="detail-info-addr">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
-                ${hotel.tel ? '<span class="detail-info-tel">📞 ' + esc(hotel.tel) + '</span>' : ''}
+                ${hotel.tel ? '<span class="detail-info-tel"><a href="tel:' + esc(hotel.tel.replace(/[^\d+\-]/g,'')) + '" onclick="if(typeof gtag===\'function\')gtag(\'event\',\'phone_tap\',{hotel_name:\'' + esc(hotel.name||'').replace(/'/g,"\\'") + '\'})" style="color:inherit;text-decoration:none;">📞 ' + esc(hotel.tel) + '</a></span>' : ''}
             </div>
             ${(hotel.nearest_station || hotel.prefecture) ? `<div class="detail-info-sub">
                 ${hotel.nearest_station ? `<span class="text-sub">🚉 ${esc(hotel.nearest_station)}</span>` : '<span></span>'}
@@ -2061,7 +2064,7 @@ function renderDetailShopCards(shops, cityName) {
         const count = s.hotel_count || 0;
         if (!name) return '';
         const nameHtml = url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;">${esc(name)}</a>`
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'detail_shop',area:'${esc(cityName||'').replace(/'/g,"\\'")}'})">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
@@ -2095,8 +2098,10 @@ function renderSubAdCards(ads, label) {
         const businessHours = ad.shops?.business_hours || '';
         const count = ad.report_count || 0;
         if (!name) return '';
+        const _adPlType = ad.placement_type || 'sub';
+        const _adPlTarget = ad.placement_target || '';
         const nameHtml = url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;">${esc(name)}</a>`
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'${esc(_adPlType)}',area:'${esc(_adPlTarget).replace(/'/g,"\\'")}'})">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
         const thumbHtml = thumb
             ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
@@ -2165,7 +2170,7 @@ function renderAreaShopSection(shops) {
 
     const cards = displayShops.map(s => {
         const nameHtml = s.shop_url
-            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name">${esc(s.shop_name)}</a>`
+            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(s.shop_name).replace(/'/g,"\\'")}',placement_type:'area_shop',area:'${esc(s.area||'').replace(/'/g,"\\'")}'})">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const images = s.images || [];
         const thumbUrl = images.length ? images[0] : s.thumbnail_url;

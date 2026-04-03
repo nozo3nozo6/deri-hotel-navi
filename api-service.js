@@ -77,6 +77,8 @@ async function initShopMode() {
             SHOP_DATA = data;
             SHOP_ID = data.id || _shopParam;
             SHOP_SLUG = data.slug || _shopParam;
+            // GA4: 店舗専用URL閲覧トラッキング
+            if (typeof gtag === 'function') gtag('event', 'shop_url_view', { shop_name: data.shop_name || '', shop_slug: SHOP_SLUG || '' });
         }
     } catch (e) { /* silently fail */ }
 }
