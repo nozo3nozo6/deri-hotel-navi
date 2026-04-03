@@ -253,7 +253,7 @@ function handleSaveHotelInfo() {
         $pdo->rollBack();
         error_log('[shop-hotel-api] save-hotel-info error: ' . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['error' => '保存エラー: ' . $e->getMessage()]);
+        echo json_encode(['error' => 'サーバーエラーが発生しました']);
     }
 }
 
@@ -334,7 +334,7 @@ function handleSaveLovehoInfo() {
         $pdo->rollBack();
         error_log('[shop-hotel-api] save-loveho-info error: ' . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['error' => '保存エラー: ' . $e->getMessage()]);
+        echo json_encode(['error' => 'サーバーエラーが発生しました']);
     }
 }
 

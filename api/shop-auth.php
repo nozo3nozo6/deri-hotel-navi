@@ -6,6 +6,8 @@
 require_once __DIR__ . '/db.php';
 
 define('SHOP_SESSION_TIMEOUT', 86400); // 24時間
+define('SHOP_MAX_LOGIN_ATTEMPTS', 5);
+define('SHOP_LOCKOUT_TIME', 900); // 15分
 
 session_set_cookie_params([
     'lifetime' => SHOP_SESSION_TIMEOUT,
@@ -57,8 +59,47 @@ function requireShopAuth(): ?array {
     return ['shop_id' => $_SESSION['shop_id'], 'shop_email' => $_SESSION['shop_email']];
 }
 
+function shopCheckRateLimit($ip) {
+    $lockFile = sys_get_temp_dir() . '/shop_auth_lock_' . md5($ip) . '.json';
+    if (!file_exists($lockFile)) return ['locked' => false, 'attempts' => 0];
+    $data = json_decode(file_get_contents($lockFile), true);
+    if (!$data) return ['locked' => false, 'attempts' => 0];
+    if (isset($data['locked_until']) && time() < $data['locked_until']) {
+        return ['locked' => true, 'remaining' => $data['locked_until'] - time()];
+    }
+    if (isset($data['locked_until']) && time() >= $data['locked_until']) { unlink($lockFile); return ['locked' => false, 'attempts' => 0]; }
+    return ['locked' => false, 'attempts' => $data['attempts'] ?? 0];
+}
+
+function shopRecordFailedAttempt($ip) {
+    $lockFile = sys_get_temp_dir() . '/shop_auth_lock_' . md5($ip) . '.json';
+    $data = ['attempts' => 1, 'last_attempt' => time()];
+    if (file_exists($lockFile)) {
+        $existing = json_decode(file_get_contents($lockFile), true);
+        if ($existing) $data['attempts'] = ($existing['attempts'] ?? 0) + 1;
+    }
+    if ($data['attempts'] >= SHOP_MAX_LOGIN_ATTEMPTS) $data['locked_until'] = time() + SHOP_LOCKOUT_TIME;
+    file_put_contents($lockFile, json_encode($data), LOCK_EX);
+}
+
+function shopClearRateLimit($ip) {
+    $lockFile = sys_get_temp_dir() . '/shop_auth_lock_' . md5($ip) . '.json';
+    if (file_exists($lockFile)) unlink($lockFile);
+}
+
 function handleLogin() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+
+    // レート制限チェック
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $rateCheck = shopCheckRateLimit($ip);
+    if ($rateCheck['locked']) {
+        $remaining = ceil(($rateCheck['remaining'] ?? SHOP_LOCKOUT_TIME) / 60);
+        http_response_code(429);
+        echo json_encode(['success' => false, 'error' => "ログイン試行回数が上限に達しました。{$remaining}分後に再試行してください"]);
+        return;
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
     $email = trim($input['email'] ?? '');
     $password = $input['password'] ?? '';
@@ -68,10 +109,10 @@ function handleLogin() {
     $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $shop = $stmt->fetch();
-    if (!$shop) { echo json_encode(['success' => false, 'error' => 'メールアドレスが見つかりません']); return; }
+    if (!$shop) { shopRecordFailedAttempt($ip); echo json_encode(['success' => false, 'error' => 'メールアドレスまたはパスワードが正しくありません']); return; }
 
     $hash = $shop['password_hash'] ?? '';
-    if (!$hash) { echo json_encode(['success' => false, 'error' => 'パスワードが設定されていません']); return; }
+    if (!$hash) { shopRecordFailedAttempt($ip); echo json_encode(['success' => false, 'error' => 'メールアドレスまたはパスワードが正しくありません']); return; }
 
     $verified = false;
     $needsMigration = false;
@@ -84,7 +125,7 @@ function handleLogin() {
             $needsMigration = true;
         }
     }
-    if (!$verified) { echo json_encode(['success' => false, 'error' => 'パスワードが正しくありません']); return; }
+    if (!$verified) { shopRecordFailedAttempt($ip); echo json_encode(['success' => false, 'error' => 'メールアドレスまたはパスワードが正しくありません']); return; }
 
     // bcrypt移行
     if ($needsMigration) {
@@ -92,6 +133,9 @@ function handleLogin() {
         $stmt = $pdo->prepare('UPDATE shops SET password_hash = ?, updated_at = NOW() WHERE id = ?');
         $stmt->execute([$bcrypt, $shop['id']]);
     }
+
+    // ログイン成功: レート制限クリア
+    shopClearRateLimit($ip);
 
     // セッション開始
     $_SESSION['shop_id'] = $shop['id'];
@@ -302,9 +346,9 @@ function handleLookupEmail() {
     if (!$email) { echo json_encode(['exists' => false]); return; }
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, email FROM shops WHERE email = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id FROM shops WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $shop = $stmt->fetch();
-    echo json_encode(['exists' => !!$shop, 'id' => $shop['id'] ?? null, 'email' => $shop['email'] ?? null]);
+    echo json_encode(['exists' => !!$shop]);
 }
 ?>
