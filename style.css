@@ -2190,7 +2190,7 @@ body[data-mode="men"] .header-title {
    エリア店舗セクション
    ========================================================================== */
 #ad-container:not(:empty) { margin-bottom:12px; overflow:hidden; }
-#ad-container, #ad-container-below-search { max-width:100%; overflow:hidden; }
+#ad-container, #ad-container-below-search { max-width:640px; margin-left:auto; margin-right:auto; overflow:hidden; }
 .area-shop-section {
     grid-column: 1 / -1;
     max-width: 100%;
