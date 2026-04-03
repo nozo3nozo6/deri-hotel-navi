@@ -99,18 +99,24 @@ foreach ($filtered as $i => &$ad) {
     $ad['rank'] = $i + 1; // 1=金, 2=銀, 3=銅
 }
 
-// shop_imagesを一括取得（banner_type=photos用）
+// shop_imagesをusage別に一括取得
 $shopIds = array_filter(array_column($filtered, 'shop_id'));
 if (!empty($shopIds)) {
     $ph = implode(',', array_fill(0, count($shopIds), '?'));
-    $stmt = $pdo->prepare("SELECT shop_id, image_url FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
+    $stmt = $pdo->prepare("SELECT shop_id, image_url, `usage` FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
     $stmt->execute(array_values($shopIds));
-    $imgMap = [];
+    $richMap = [];
+    $stdMap = [];
     foreach ($stmt->fetchAll() as $row) {
-        $imgMap[$row['shop_id']][] = $row['image_url'];
+        if ($row['usage'] === 'standard') {
+            $stdMap[$row['shop_id']][] = $row['image_url'];
+        } else {
+            $richMap[$row['shop_id']][] = $row['image_url'];
+        }
     }
     foreach ($filtered as &$ad) {
-        $ad['shops']['images'] = $imgMap[$ad['shop_id']] ?? [];
+        $ad['shops']['images'] = $richMap[$ad['shop_id']] ?? [];
+        $ad['shops']['standard_image'] = ($stdMap[$ad['shop_id']] ?? [null])[0] ?? null;
     }
 }
 

@@ -117,18 +117,24 @@ usort($finalResult, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approv
 // 3件制限（各エリア先着3店）
 $finalResult = array_slice($finalResult, 0, 3);
 
-// shop_imagesを一括取得
+// shop_imagesをusage別に一括取得
 $fIds = array_column($finalResult, 'id');
 if (!empty($fIds)) {
     $ph = implode(',', array_fill(0, count($fIds), '?'));
-    $stmt = $pdo->prepare("SELECT shop_id, image_url FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
+    $stmt = $pdo->prepare("SELECT shop_id, image_url, `usage` FROM shop_images WHERE shop_id IN ($ph) ORDER BY sort_order, id");
     $stmt->execute($fIds);
-    $imgMap = [];
+    $richMap = [];
+    $stdMap = [];
     foreach ($stmt->fetchAll() as $row) {
-        $imgMap[$row['shop_id']][] = $row['image_url'];
+        if ($row['usage'] === 'standard') {
+            $stdMap[$row['shop_id']][] = $row['image_url'];
+        } else {
+            $richMap[$row['shop_id']][] = $row['image_url'];
+        }
     }
     foreach ($finalResult as &$s) {
-        $s['images'] = $imgMap[$s['id']] ?? [];
+        $s['images'] = $richMap[$s['id']] ?? [];
+        $s['standard_image'] = ($stdMap[$s['id']] ?? [null])[0] ?? null;
     }
 }
 

@@ -2091,8 +2091,8 @@ function renderSubAdCards(ads, label) {
     const cards = ads.map((ad, i) => {
         const name = ad.shops ? ad.shops.shop_name : '';
         const url = ad.shops ? ad.shops.shop_url : '';
-        const images = ad.shops?.images || [];
-        const thumb = images.length ? images[0] : (ad.shops ? ad.shops.thumbnail_url : '');
+        const stdImg = ad.shops?.standard_image;
+        const thumb = stdImg || (ad.shops ? ad.shops.thumbnail_url : '');
         const catchText = ad.shops ? (ad.shops.catchphrase || '') : '';
         const minPrice = ad.shops?.min_price || '';
         const businessHours = ad.shops?.business_hours || '';

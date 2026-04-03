@@ -375,9 +375,10 @@
                   上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
                   貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
                 </p>
-                <!-- 広告画像設定（有料プランのみ） -->
+                <!-- ■ リッチ広告（有料プランのみ） -->
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-                    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🖼️ ヒーロー画像の設定</div>
+                    <div style="font-size:13px;font-weight:700;margin-bottom:4px;">🖼️ リッチ広告</div>
+                    <div style="font-size:10px;color:var(--text-3);margin-bottom:10px;">市区町村プランで表示されるヒーロー画像</div>
                     <div style="display:flex;gap:16px;margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
                             <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos')" style="accent-color:var(--rose);">
@@ -410,7 +411,6 @@
                             </div>
                         </div>
                         <input type="file" id="photo-upload-input" accept="image/jpeg,image/png" style="display:none;">
-                        <!-- プレビュー -->
                         <div id="banner-preview-photos-label" style="display:none;font-size:11px;color:var(--text-3);margin-top:12px;margin-bottom:4px;">プレビュー</div>
                         <div id="banner-preview-photos" style="border-radius:6px;overflow:hidden;aspect-ratio:2.618/1;display:none;background:#1a1a2e;"></div>
                     </div>
@@ -425,18 +425,29 @@
                             </label>
                             <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
                         </div>
-                        <!-- プレビュー -->
                         <div id="banner-preview-single-label" style="display:none;font-size:11px;color:var(--text-3);margin-top:12px;margin-bottom:4px;">プレビュー</div>
                         <div id="banner-preview-single" style="border-radius:6px;overflow:hidden;aspect-ratio:2.618/1;display:none;background:#1a1a2e;"></div>
                     </div>
                 </div>
-                <!-- 広告情報（有料プランのみ） -->
-                <div id="catchphrase-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-                    <div style="font-size:13px;font-weight:700;margin-bottom:12px;">📢 広告掲載情報</div>
+                <!-- ■ スタンダード広告（有料プランのみ） -->
+                <div id="standard-ad-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:4px;">📋 スタンダード広告</div>
+                    <div style="font-size:10px;color:var(--text-3);margin-bottom:10px;">エリア以上のプランで表示されるコンパクト広告</div>
+                    <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">サムネイル: 375〜435×500px推奨（JPG/PNG、1枚）</div>
+                    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;">
+                        <div id="std-thumb-slot" class="photo-slot" onclick="triggerStdUpload()">
+                            <span class="photo-slot-num" style="font-size:14px;">+</span>
+                        </div>
+                        <input type="file" id="std-upload-input" accept="image/jpeg,image/png" style="display:none;">
+                    </div>
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">キャッチコピー <span style="color:var(--text-3);font-weight:400;">20文字以内</span></label>
                         <input type="text" id="catchphrase-input" maxlength="20" placeholder="例: 立川駅3分♪女性専用" class="f-input">
                     </div>
+                </div>
+                <!-- ■ 共通情報（有料プランのみ） -->
+                <div id="catchphrase-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:12px;">⚙️ 共通情報</div>
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">紹介文 <span style="color:var(--text-3);font-weight:400;">50文字以内（画面幅に応じて末尾が…で省略されます）</span></label>
                         <input type="text" id="ad-description" maxlength="50" placeholder="例: 女性スタッフが丁寧に対応いたします" class="f-input">
@@ -462,7 +473,7 @@
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">円〜</span>
                         </div>
                     </div>
-                    <div id="banner-unsaved-hint" style="display:none;padding:8px 12px;margin-bottom:8px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:11px;color:#856404;">⚠ ヒーロー画像の表示モードが変更されています。下のボタンで確定してください。</div>
+                    <div id="banner-unsaved-hint" style="display:none;padding:8px 12px;margin-bottom:8px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:11px;color:#856404;">⚠ 変更があります。下のボタンで確定してください。</div>
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
                     </div>
@@ -905,7 +916,13 @@ async function loadStatusCard(){
         thumbSection.style.display=isPaid?'':'none';
         if(isPaid){initBannerMode();loadShopImages();}
     }
-    // キャッチコピーセクション（有料プランのみ）
+    // スタンダード広告セクション（有料プランのみ）
+    const stdSection=document.getElementById("standard-ad-section");
+    if(stdSection){
+        stdSection.style.display=isPaid?'':'none';
+        if(isPaid){loadStdImage();}
+    }
+    // 共通情報セクション（有料プランのみ）
     const catchSection=document.getElementById("catchphrase-section");
     if(catchSection){
         catchSection.style.display=isPaid?'':'none';
@@ -938,7 +955,7 @@ let _bannerMode='photos'; // 'photos' or 'banner'
 let _photoUploadSlot=0;
 
 async function loadShopImages(){
-    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
+    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images&usage=rich',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
     renderShopImages();
     renderPhotoSlots();
     updateBannerPreview();
@@ -1053,7 +1070,7 @@ async function onPhotoSlotSelect(input,slotIndex){
         const maxW=slotIndex===3?1309:435;
         const maxH=500;
         const base64=await resizeImage(file,maxW,maxH,0.85);
-        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});
+        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         await loadShopImages();
@@ -1068,7 +1085,7 @@ async function onShopImageSelect(input){
     if(!confirm('この画像をアップロードしますか？'))return;
     try{
         const base64=await resizeImage(file,1309,500,0.85);
-        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64})});
+        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));input.value='';return;}
         await loadShopImages();
@@ -1080,6 +1097,51 @@ async function deleteShopImage(imageId){
     if(!confirm('この画像を削除しますか？'))return;
     try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
     await loadShopImages();
+    toast('画像を削除しました');
+}
+
+// === スタンダード広告画像 ===
+let _stdImage=null;
+async function loadStdImage(){
+    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images&usage=standard',{credentials:'include'});const data=await res.json();_stdImage=data&&data.length?data[0]:null;}catch(e){_stdImage=null;}
+    renderStdSlot();
+}
+function renderStdSlot(){
+    const slot=document.getElementById('std-thumb-slot');
+    if(!slot)return;
+    if(_stdImage){
+        slot.innerHTML=`<img src="${esc(_stdImage.image_url)}"><span class="photo-slot-num">+</span><button class="photo-slot-del" onclick="event.stopPropagation();deleteStdImage(${_stdImage.id})">×</button>`;
+    }else{
+        slot.innerHTML='<span class="photo-slot-num" style="font-size:14px;">+</span>';
+    }
+}
+function triggerStdUpload(){
+    const input=document.getElementById('std-upload-input');
+    input.value='';
+    input.onchange=()=>onStdImageSelect(input);
+    input.click();
+}
+async function onStdImageSelect(input){
+    if(!input.files[0])return;
+    const file=input.files[0];
+    if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');return;}
+    if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');return;}
+    if(_stdImage){
+        try{await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:_stdImage.id})});}catch(e){}
+    }
+    try{
+        const base64=await resizeImage(file,435,500,0.85);
+        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'standard'})});
+        const r=await res.json();
+        if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
+        await loadStdImage();
+        toast('サムネイルを設定しました');
+    }catch(e){toast('通信エラー');}
+}
+async function deleteStdImage(imageId){
+    if(!confirm('この画像を削除しますか？'))return;
+    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー');return;}}catch(e){toast('通信エラー');return;}
+    await loadStdImage();
     toast('画像を削除しました');
 }
 

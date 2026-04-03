@@ -244,9 +244,15 @@ function handleUpdateAdInfo() {
 function handleGetImages() {
     $auth = requireShopAuth();
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+    $usage = $_GET['usage'] ?? null;
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, image_url, sort_order FROM shop_images WHERE shop_id = ? ORDER BY sort_order, id');
-    $stmt->execute([$auth['shop_id']]);
+    if ($usage && in_array($usage, ['rich', 'standard'])) {
+        $stmt = $pdo->prepare("SELECT id, image_url, sort_order, `usage` FROM shop_images WHERE shop_id = ? AND `usage` = ? ORDER BY sort_order, id");
+        $stmt->execute([$auth['shop_id'], $usage]);
+    } else {
+        $stmt = $pdo->prepare("SELECT id, image_url, sort_order, `usage` FROM shop_images WHERE shop_id = ? ORDER BY sort_order, id");
+        $stmt->execute([$auth['shop_id']]);
+    }
     echo json_encode($stmt->fetchAll(), JSON_UNESCAPED_UNICODE);
 }
 
@@ -256,22 +262,30 @@ function handleAddImage() {
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
     $input = json_decode(file_get_contents('php://input'), true);
     $imageUrl = $input['image_url'] ?? null;
+    $usage = $input['usage'] ?? 'rich';
+    if (!in_array($usage, ['rich', 'standard'])) $usage = 'rich';
     if (!$imageUrl) { http_response_code(400); echo json_encode(['error' => 'image_url required']); return; }
     $pdo = DB::conn();
-    // 3枚制限チェック
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_images WHERE shop_id = ?');
-    $stmt->execute([$auth['shop_id']]);
-    if ($stmt->fetchColumn() >= 4) { http_response_code(400); echo json_encode(['error' => '画像は4枚までです']); return; }
-    $stmt = $pdo->prepare('SELECT COALESCE(MAX(sort_order),0)+1 FROM shop_images WHERE shop_id = ?');
-    $stmt->execute([$auth['shop_id']]);
+    // usage別の枚数制限（rich:4枚、standard:1枚）
+    $limit = $usage === 'standard' ? 1 : 4;
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM shop_images WHERE shop_id = ? AND `usage` = ?");
+    $stmt->execute([$auth['shop_id'], $usage]);
+    if ($stmt->fetchColumn() >= $limit) { http_response_code(400); echo json_encode(['error' => "画像は{$limit}枚までです"]); return; }
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(sort_order),0)+1 FROM shop_images WHERE shop_id = ? AND `usage` = ?");
+    $stmt->execute([$auth['shop_id'], $usage]);
     $nextOrder = $stmt->fetchColumn();
-    $stmt = $pdo->prepare('INSERT INTO shop_images (shop_id, image_url, sort_order) VALUES (?, ?, ?)');
-    $stmt->execute([$auth['shop_id'], $imageUrl, $nextOrder]);
-    // thumbnail_urlも1枚目に同期
-    $stmt = $pdo->prepare('SELECT image_url FROM shop_images WHERE shop_id = ? ORDER BY sort_order, id LIMIT 1');
+    $stmt = $pdo->prepare("INSERT INTO shop_images (shop_id, image_url, sort_order, `usage`) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$auth['shop_id'], $imageUrl, $nextOrder, $usage]);
+    // thumbnail_urlをstandard画像の1枚目に同期（なければrich[0]にフォールバック）
+    $stmt = $pdo->prepare("SELECT image_url FROM shop_images WHERE shop_id = ? AND `usage` = 'standard' ORDER BY sort_order, id LIMIT 1");
     $stmt->execute([$auth['shop_id']]);
     $first = $stmt->fetchColumn();
-    $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$first, $auth['shop_id']]);
+    if (!$first) {
+        $stmt = $pdo->prepare("SELECT image_url FROM shop_images WHERE shop_id = ? AND `usage` = 'rich' ORDER BY sort_order, id LIMIT 1");
+        $stmt->execute([$auth['shop_id']]);
+        $first = $stmt->fetchColumn();
+    }
+    $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$first ?: null, $auth['shop_id']]);
     echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()]);
 }
 
@@ -285,11 +299,16 @@ function handleDeleteImage() {
     $pdo = DB::conn();
     $stmt = $pdo->prepare('DELETE FROM shop_images WHERE id = ? AND shop_id = ?');
     $stmt->execute([$imageId, $auth['shop_id']]);
-    // thumbnail_urlを1枚目に同期（なければnull）
-    $stmt = $pdo->prepare('SELECT image_url FROM shop_images WHERE shop_id = ? ORDER BY sort_order, id LIMIT 1');
+    // thumbnail_urlをstandard→richの順でフォールバック同期
+    $stmt = $pdo->prepare("SELECT image_url FROM shop_images WHERE shop_id = ? AND `usage` = 'standard' ORDER BY sort_order, id LIMIT 1");
     $stmt->execute([$auth['shop_id']]);
-    $first = $stmt->fetchColumn() ?: null;
-    $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$first, $auth['shop_id']]);
+    $first = $stmt->fetchColumn();
+    if (!$first) {
+        $stmt = $pdo->prepare("SELECT image_url FROM shop_images WHERE shop_id = ? AND `usage` = 'rich' ORDER BY sort_order, id LIMIT 1");
+        $stmt->execute([$auth['shop_id']]);
+        $first = $stmt->fetchColumn();
+    }
+    $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$first ?: null, $auth['shop_id']]);
     echo json_encode(['success' => true]);
 }
 
