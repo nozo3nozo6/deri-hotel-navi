@@ -705,11 +705,12 @@ async function loadDetail(hotelId, isLoveho) {
                     if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge} 名をクリック🔗`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
-                // 全国広告はdetail-ad-wide内に追加（検索バー下ではなくホテル詳細内に表示）
+                // 全国広告は検索バーの下に表示（地方広告→検索バー→全国広告の順）
                 if (nationalAds && nationalAds.length) {
-                    const wideSlotForNational = document.getElementById('detail-ad-wide');
-                    if (wideSlotForNational) {
-                        wideSlotForNational.innerHTML += renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
+                    const bsContainer = document.getElementById('ad-container-below-search');
+                    if (bsContainer) {
+                        bsContainer.style.display = '';
+                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
                     }
                 }
             }
@@ -1644,8 +1645,6 @@ async function showHotelPanel(hotelId, isLoveho) {
         if (rs) rs.style.display = 'none';
         const areaSection = document.querySelector('.area-section');
         if (areaSection) areaSection.style.paddingBottom = '0';
-        const searchTools = document.querySelector('.search-tools');
-        if (searchTools) searchTools.style.display = 'none';
         hideLovehoTabs();
         hideFilterBar();
         // 地図下の詳細エリアは非表示
