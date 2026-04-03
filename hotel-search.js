@@ -2093,6 +2093,8 @@ function renderSubAdCards(ads, label) {
         const images = ad.shops?.images || [];
         const thumb = images.length ? images[0] : (ad.shops ? ad.shops.thumbnail_url : '');
         const catchText = ad.shops ? (ad.shops.catchphrase || '') : '';
+        const minPrice = ad.shops?.min_price || '';
+        const businessHours = ad.shops?.business_hours || '';
         const count = ad.report_count || 0;
         if (!name) return '';
         const nameHtml = url
@@ -2103,6 +2105,18 @@ function renderSubAdCards(ads, label) {
             : '';
         const countHtml = count > 0 ? `<span style="font-size:11px;color:#2e8b57;white-space:nowrap;font-weight:600;">📋${count}件</span>` : '';
         const catchHtml = catchText ? `<div style="font-size:13px;font-weight:700;color:var(--accent,#b5627a);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4;">${esc(catchText)}</div>` : '';
+        const priceText = (() => {
+            if (!minPrice) return '';
+            const pp = minPrice.split(',');
+            if (pp.length !== 2) return '';
+            const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
+            const fmtYen = n => Number(n).toLocaleString('ja-JP');
+            return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
+        })();
+        const detailParts = [];
+        if (priceText) detailParts.push(`<span style="font-size:12px;font-weight:700;color:#c05050;">${priceText}</span>`);
+        if (businessHours) detailParts.push(`<span style="font-size:11px;color:var(--text-3);">${esc(businessHours)}</span>`);
+        const detailHtml = detailParts.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">${detailParts.join('')}</div>` : '';
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
@@ -2110,6 +2124,7 @@ function renderSubAdCards(ads, label) {
             <div class="ad-shop-info">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">${nameHtml}${countHtml}</div>
                 ${catchHtml}
+                ${detailHtml}
             </div>
         </div>`;
     }).filter(Boolean);
