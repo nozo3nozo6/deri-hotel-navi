@@ -24,7 +24,7 @@ self.onmessage = async function(e) {
             });
             fuse = new Fuse(data, {
                 keys: ['_n', '_a', '_c', '_s'],
-                threshold: 0.4,
+                threshold: 0.35,
                 ignoreLocation: true,
                 minMatchCharLength: 2,
                 includeMatches: false,

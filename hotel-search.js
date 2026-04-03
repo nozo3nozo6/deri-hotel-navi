@@ -169,14 +169,23 @@ async function hybridSearch(keyword, limit) {
         if (!seen.has(id)) { seen.add(id); mergedIds.push(id); }
     }
 
-    if (!mergedIds.length) return null;
+    if (!mergedIds.length) {
+        // Pagefind/Fuse.jsで結果なし → API LIKE検索にフォールバック
+        const fallback = await queryHotelsAPI({ keyword: keyword, type: 'all', limit: lim });
+        return fallback && fallback.length ? fallback : null;
+    }
     const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), type: 'all', limit: lim });
     // キーワード一致度でソート（完全一致 > 先頭一致 > 部分一致 > それ以外）
     const kw = _norm(keyword);
     hotels.sort((a, b) => {
         const na = _norm(a.name), nb = _norm(b.name);
-        const scoreA = na === kw ? 0 : na.startsWith(kw) ? 1 : na.includes(kw) ? 2 : 3;
-        const scoreB = nb === kw ? 0 : nb.startsWith(kw) ? 1 : nb.includes(kw) ? 2 : 3;
+        const aa = _norm(a.address), ab = _norm(b.address);
+        const nameScoreA = na === kw ? 0 : na.startsWith(kw) ? 1 : na.includes(kw) ? 2 : 4;
+        const nameScoreB = nb === kw ? 0 : nb.startsWith(kw) ? 1 : nb.includes(kw) ? 2 : 4;
+        const addrScoreA = aa.includes(kw) ? 3 : 4;
+        const addrScoreB = ab.includes(kw) ? 3 : 4;
+        const scoreA = Math.min(nameScoreA, addrScoreA);
+        const scoreB = Math.min(nameScoreB, addrScoreB);
         if (scoreA !== scoreB) return scoreA - scoreB;
         // 同スコアならマージ順（Pagefind/Fuse.js関連度）を維持
         const idOrder = new Map(mergedIds.map((id, i) => [id, i]));
