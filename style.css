@@ -2218,7 +2218,7 @@ body[data-mode="men"] .header-title {
 [data-mode="men_same"] .ad-main-card { border-radius:4px; }
 [data-mode="women_same"] .ad-main-card { border-radius:12px; }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
-.ad-shop-thumb { width:48px;height:64px;border-radius:0;object-fit:cover;flex-shrink:0; }
+.ad-shop-thumb { width:60px;height:80px;border-radius:0;object-fit:cover;object-position:center 20%;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
 .ad-shop-info { flex:1;min-width:0;padding:6px 10px;display:flex;flex-direction:column;justify-content:center; }
 .ad-shop-name { font-size:13px;font-weight:700;color:var(--accent,#b5627a);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3; }
