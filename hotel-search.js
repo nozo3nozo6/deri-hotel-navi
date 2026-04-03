@@ -156,25 +156,30 @@ async function hybridSearch(keyword, limit) {
     // キーワード検索ではモードフィルタを使わない（名前で探しているため）
     // フィルタはエリアブラウジング等で別途使用
 
-    // Pagefind + Fuse.js 並列実行
-    const [pgIds, fuseIds] = await Promise.all([
+    // Pagefind + Fuse.js + API LIKE検索を並列実行
+    const [pgIds, fuseIds, apiHotels] = await Promise.all([
         pagefindSearchIds(keyword, {}, lim),
-        fuseSearchIds(keyword, lim)
+        fuseSearchIds(keyword, lim),
+        queryHotelsAPI({ keyword: keyword, type: 'all', limit: lim })
     ]);
 
-    // マージ: 両方の結果を統合、重複排除
+    // マージ: API結果のIDを優先、Pagefind/Fuse.jsを追加
     const seen = new Set();
+    const apiIds = (apiHotels || []).map(h => h.id);
     const mergedIds = [];
-    for (const id of [...(pgIds || []), ...(fuseIds || [])]) {
+    for (const id of [...apiIds, ...(pgIds || []), ...(fuseIds || [])]) {
         if (!seen.has(id)) { seen.add(id); mergedIds.push(id); }
     }
 
-    if (!mergedIds.length) {
-        // Pagefind/Fuse.jsで結果なし → API LIKE検索にフォールバック
-        const fallback = await queryHotelsAPI({ keyword: keyword, type: 'all', limit: lim });
-        return fallback && fallback.length ? fallback : null;
+    if (!mergedIds.length) return null;
+    // API結果がある場合はそれを使い、追加IDのみ補完取得
+    const apiIdSet = new Set(apiIds);
+    const extraIds = mergedIds.filter(id => !apiIdSet.has(id));
+    let hotels = apiHotels || [];
+    if (extraIds.length) {
+        const extra = await queryHotelsAPI({ ids: extraIds.slice(0, lim).join(','), type: 'all', limit: lim });
+        if (extra) hotels = [...hotels, ...extra];
     }
-    const hotels = await queryHotelsAPI({ ids: mergedIds.slice(0, lim).join(','), type: 'all', limit: lim });
     // キーワード一致度でソート（完全一致 > 先頭一致 > 部分一致 > それ以外）
     const kw = _norm(keyword);
     hotels.sort((a, b) => {
