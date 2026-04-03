@@ -705,12 +705,11 @@ async function loadDetail(hotelId, isLoveho) {
                     if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge} 名をクリック🔗`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
-                // 全国広告は検索バーの下に表示
+                // 全国広告はdetail-ad-wide内に追加（検索バー下ではなくホテル詳細内に表示）
                 if (nationalAds && nationalAds.length) {
-                    const bsContainer = document.getElementById('ad-container-below-search');
-                    if (bsContainer) {
-                        bsContainer.style.display = '';
-                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
+                    const wideSlotForNational = document.getElementById('detail-ad-wide');
+                    if (wideSlotForNational) {
+                        wideSlotForNational.innerHTML += renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
                     }
                 }
             }
