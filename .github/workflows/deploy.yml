@@ -83,7 +83,8 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude='.git*' --exclude='node_modules' --exclude='.github' \
-            --exclude='sql' --exclude='CLAUDE.md' --exclude='progress.md' \
+            --exclude='sql' --exclude='CLAUDE.md' --exclude='README.md' --exclude='progress.md' \
+            --exclude='HANDOFF-*.md' --exclude='PROPOSAL-*.md' \
             --exclude='package*.json' --exclude='*.bak' --exclude='*.bak.old' \
             --exclude='analysis-report.html' --exclude='fix-report*.html' \
             --exclude='fix-rls-policies.sql' --exclude='ogp.svg' \

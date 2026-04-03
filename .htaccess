@@ -1,3 +1,44 @@
+# ===== セキュリティ設定 =====
+
+# .git ディレクトリへのアクセス遮断
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^\.git - [F,L]
+</IfModule>
+
+# .env ファイルへのアクセス遮断
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
+
+# 機密ファイルへのアクセス遮断（設定ファイル、バックアップ等）
+<FilesMatch "\.(sql|bak|log|ini|sh|yml|yaml|json\.bak|db-config\.php)$">
+    Require all denied
+</FilesMatch>
+
+# README/CLAUDE.md 等へのアクセス遮断
+<FilesMatch "^(README|CLAUDE|HANDOFF|PROPOSAL).*\.(md|txt)$">
+    Require all denied
+</FilesMatch>
+
+# ディレクトリリスティング無効
+Options -Indexes
+
+# セキュリティヘッダー
+<IfModule mod_headers.c>
+    # HSTS（HTTPS強制、1年間）
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+    # MIMEタイプ推測防止
+    Header always set X-Content-Type-Options "nosniff"
+    # クリックジャッキング防止
+    Header always set X-Frame-Options "SAMEORIGIN"
+    # XSS保護
+    Header always set X-XSS-Protection "1; mode=block"
+    # Referrer制御
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ===== 基本設定 =====
 AddDefaultCharset UTF-8
 DirectoryIndex index.html
 RewriteEngine On
