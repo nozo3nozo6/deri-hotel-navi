@@ -2359,7 +2359,7 @@ body[data-mode="men"] .header-title {
 .shop-ad-card { background:#faf7f4;border:1px solid #e8ddd5;border-radius:8px;padding:12px 6px;margin-bottom:8px;font-size:12px; }
 
 /* 詳細ページ骨格 */
-.detail-wrap { max-width:640px;margin:0 auto;padding:8px 6px 120px;overflow-x:hidden; }
+.detail-wrap { max-width:640px;margin:0 auto;padding:8px 6px 16px;overflow-x:hidden; }
 .detail-info-box { background:var(--bg-2);border:1px solid rgba(180,140,80,0.2);border-radius:10px;padding:14px 6px;margin-bottom:12px;box-shadow:0 2px 16px rgba(0,0,0,0.06); }
 
 /* リンクピル */
