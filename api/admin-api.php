@@ -278,7 +278,7 @@ function handleUpdate() {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
-    // 店舗のgender_mode変更時、既存の口コミも連動更新
+    // 店舗のgender_mode変更時、関連テーブルを全て連動更新
     if ($table === 'shops' && isset($data['gender_mode'])) {
         $newMode = $data['gender_mode'];
         // reports: shop_id で紐付け
@@ -292,6 +292,9 @@ function handleUpdate() {
             $s3 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE poster_name = ?');
             $s3->execute([$newMode, $shopName]);
         }
+        // ad_placements: shop_id で紐付け
+        $s4 = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');
+        $s4->execute([$newMode, $id]);
     }
 
     echo json_encode(['ok' => true, 'affected' => $stmt->rowCount()]);
