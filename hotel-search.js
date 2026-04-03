@@ -1644,7 +1644,7 @@ async function showHotelPanel(hotelId, isLoveho) {
         const rs = document.getElementById('result-status');
         if (rs) rs.style.display = 'none';
         const areaSection = document.querySelector('.area-section');
-        if (areaSection) areaSection.style.paddingBottom = '0';
+        if (areaSection) { areaSection.style.paddingBottom = '0'; areaSection.style.marginBottom = '0'; areaSection.style.borderBottom = 'none'; }
         hideLovehoTabs();
         hideFilterBar();
         // 地図下の詳細エリアは非表示
@@ -1780,7 +1780,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
             <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
-        <div id="detail-ad-wide"></div>
+        <div id="detail-ad-wide" style="margin:0;padding:0;"></div>
     </div>`;
 }
 
