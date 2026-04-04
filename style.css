@@ -2258,7 +2258,7 @@ body[data-mode="men"] .header-title {
 .ad-main-hours-value { display:block;font-size:clamp(13px, 2vw, 15px);color:#444;font-weight:600; }
 
 /* ── ジャンル別メイン広告カラー ── */
-[data-mode="men"] .ad-main-card { border-radius:4px; }
+[data-mode="men"] .ad-main-card { border-radius:2px; }
 [data-mode="men"] .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520); }
 [data-mode="men"] .ad-main-count-badge { background:rgba(184,134,11,0.1);color:#8b6914; }
 [data-mode="men"] .ad-main-bottom { background:linear-gradient(90deg,#faf5e8,#f5ecd6);border-top-color:#efe0c0; }
