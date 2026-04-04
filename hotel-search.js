@@ -388,7 +388,7 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge" id="loveho-count">❤️${lovehoCount}</span></button>`
         : '';
     const hotelLabel = (totalHotelCount && totalHotelCount > hotelCount)
         ? `🏨 ホテル (<span id="hotel-count">${hotelCount}</span>/<span id="hotel-total">${totalHotelCount}</span>)`
@@ -440,13 +440,16 @@ async function switchTab(tab) {
             t.style.fontWeight = 'normal';
             t.style.borderBottomColor = 'transparent';
             t.style.color = '#888';
-            // 非アクティブ: 件数をハートバッジに
+            // 非アクティブ: 件数バッジ（ラブホのみ❤️、ホテルは丸バッジ）
             const countMatch = t.textContent.match(/\((\d+)(?:\/\d+)?\)/);
             if (countMatch) {
                 const count = countMatch[1];
-                const badgeClass = t.dataset.tab === 'hotel' ? 'tab-badge tab-badge--accent' : 'tab-badge';
                 const label = t.dataset.tab === 'loveho' ? '🏩 ラブホ' : '🏨 ホテル';
-                t.innerHTML = `${label} <span class="${badgeClass}">♥${count}</span>`;
+                if (t.dataset.tab === 'loveho') {
+                    t.innerHTML = `${label} <span class="tab-badge">❤️${count}</span>`;
+                } else {
+                    t.innerHTML = `${label} <span class="tab-badge tab-badge--accent">${count}</span>`;
+                }
             }
         }
     });
@@ -1079,7 +1082,7 @@ async function showStationLovehoTabs(stationName, hotels) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge" id="loveho-count">❤️${lovehoCount}</span></button>`
         : '';
     tabsDiv.innerHTML = `
         <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">🏨 ホテル (<span id="hotel-count">${hotels.length}</span>)</button>
@@ -1165,7 +1168,7 @@ async function executeKeywordSearch() {
         tabsDiv.id = 'hotel-loveho-tabs';
         tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
         const lovehoTab = lovehoResults.length
-            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">🏩 ラブホ <span class="tab-badge">${lovehoResults.length}</span></button>`
+            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">🏩 ラブホ <span class="tab-badge">❤️${lovehoResults.length}</span></button>`
             : '';
         tabsDiv.innerHTML = `
             <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchKeywordTab('hotel')">🏨 ホテル (${hotelResults.length})</button>
