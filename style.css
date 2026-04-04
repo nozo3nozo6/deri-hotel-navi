@@ -2244,6 +2244,7 @@ body[data-mode="men"] .header-title {
 .ad-main-body { padding:4px 10px 2px;display:flex;align-items:center;justify-content:space-between;gap:8px; }
 .ad-main-body .ad-shop-name { font-size:clamp(13px,2.3vw,17px);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .ad-main-body .ad-main-count { flex-shrink:0; }
+.ad-main-catch { padding:0 10px 4px;font-size:12px;color:var(--text-3,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4;border-left:2px solid var(--accent,#b5627a);margin:0 10px 4px;padding:2px 0 2px 8px; }
 .ad-main-bottom { display:flex;justify-content:space-between;align-items:center;padding:4px 10px 6px;background:linear-gradient(90deg, color-mix(in srgb, var(--accent,#b5627a) 12%, var(--bg-3,#f0ede8)), color-mix(in srgb, var(--accent,#b5627a) 4%, var(--bg-3,#f0ede8))); }
 .ad-badge-recommend { display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 6px;background:var(--accent,#b5627a);color:#fff;border-radius:3px;margin-right:0;white-space:nowrap;line-height:1;align-self:center; }
 .ad-badge-recommend--sm { font-size:9px;padding:1px 4px; }
@@ -2251,6 +2252,40 @@ body[data-mode="men"] .header-title {
 .ad-main-hours-text { text-align:right;line-height:1.2;white-space:nowrap;flex-shrink:0;margin-left:auto; }
 .ad-main-hours-label { display:block;font-size:12px;color:var(--text-3);font-weight:400; }
 .ad-main-hours-value { display:block;font-size:clamp(13px, 2vw, 16px);color:var(--text);font-weight:700; }
+
+/* ── ジャンル別メイン広告カラー ── */
+/* men: 黒+金 高級感 */
+[data-mode="men"] .ad-main-bottom { background:linear-gradient(90deg,#1a1a1a,#2a2218); }
+[data-mode="men"] .ad-main-price-text { color:#daa520; }
+[data-mode="men"] .ad-main-hours-label { color:#a09070; }
+[data-mode="men"] .ad-main-hours-value { color:#e8dcc8; }
+[data-mode="men"] .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520);color:#1a1a1a; }
+[data-mode="men"] .ad-main-count { color:#b8860b; }
+[data-mode="men"] .ad-main-catch { border-left-color:#b8860b;color:#8a7a60; }
+/* women: ローズピンク */
+[data-mode="women"] .ad-main-bottom { background:linear-gradient(90deg,#fdf0f3,#fef8f9); }
+[data-mode="women"] .ad-main-price-text { color:#c4506a; }
+[data-mode="women"] .ad-badge-recommend { background:linear-gradient(135deg,#b5627a,#d4849a); }
+[data-mode="women"] .ad-main-count { color:#b5627a; }
+[data-mode="women"] .ad-main-catch { border-left-color:#d4849a;color:#9a6a7a; }
+/* este: ティール */
+[data-mode="este"] .ad-main-bottom { background:linear-gradient(90deg,#edf8f8,#f4fbfb); }
+[data-mode="este"] .ad-main-price-text { color:#1a8a8a; }
+[data-mode="este"] .ad-badge-recommend { background:linear-gradient(135deg,#2aa8b8,#4cc8d0); }
+[data-mode="este"] .ad-main-count { color:#2aa8b8; }
+[data-mode="este"] .ad-main-catch { border-left-color:#4cc8d0;color:#5a8a8a; }
+/* men_same: ネイビー */
+[data-mode="men_same"] .ad-main-bottom { background:linear-gradient(90deg,#eef2f8,#f4f6fa); }
+[data-mode="men_same"] .ad-main-price-text { color:#2a5a8f; }
+[data-mode="men_same"] .ad-badge-recommend { background:linear-gradient(135deg,#2a5a8f,#4a7ab0); }
+[data-mode="men_same"] .ad-main-count { color:#2a5a8f; }
+[data-mode="men_same"] .ad-main-catch { border-left-color:#4a7ab0;color:#5a7090; }
+/* women_same: ラベンダー */
+[data-mode="women_same"] .ad-main-bottom { background:linear-gradient(90deg,#f4eef8,#f8f4fb); }
+[data-mode="women_same"] .ad-main-price-text { color:#7a4a9a; }
+[data-mode="women_same"] .ad-badge-recommend { background:linear-gradient(135deg,#8a5a9e,#a87abc); }
+[data-mode="women_same"] .ad-main-count { color:#8a5a9e; }
+[data-mode="women_same"] .ad-main-catch { border-left-color:#a87abc;color:#7a6a8a; }
 
 /* ==========================================================================
    Touch target minimum 44px (WCAG 2.5.8)

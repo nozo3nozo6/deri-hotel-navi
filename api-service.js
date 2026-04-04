@@ -297,6 +297,7 @@ function renderAdHTML(ad) {
     })();
     const reportCount = ad.report_count || 0;
     const countBadge = reportCount > 0 ? `<span class="ad-main-count">📋${reportCount}件</span>` : '';
+    const catchHTML = catchphrase ? `<div class="ad-main-catch">${esc(catchphrase)}</div>` : '';
     const bottomParts = [];
     if (priceText) bottomParts.push(`<span class="ad-badge-recommend">オススメ</span>🎫<span class="ad-main-price-text">${priceText}</span>`);
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
@@ -307,6 +308,7 @@ function renderAdHTML(ad) {
     return `<div class="ad-main-card ${rankClass}">
         ${heroLinkOpen}<div class="ad-main-hero">${heroImgHTML}</div>${heroLinkClose}
         <div class="ad-main-body">${nameHTML}${countBadge}</div>
+        ${catchHTML}
         ${bottomHTML}
     </div>`;
 }
