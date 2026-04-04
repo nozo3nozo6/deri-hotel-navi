@@ -2203,7 +2203,7 @@ body[data-mode="men"] .header-title {
 }
 .ad-shop-header { font-size:12px;color:var(--accent,#b5627a);font-weight:600;margin-bottom:6px; }
 #detail-ad-area,#detail-ad-block,#detail-ad-pref,#detail-ad-wide { margin-top:16px; }
-.ad-shop-list { display:flex;flex-direction:column;gap:4px;max-width:100%;padding:2px; }
+.ad-shop-list { display:flex;flex-direction:column;gap:4px;max-width:100%;padding:6px; }
 .ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:#fff;border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;overflow:hidden;border-left:3px solid var(--accent,#b5627a); }
 /* ジャンル別カードデザイン */
 [data-mode="men"] .ad-shop-card { border-radius:2px; }
@@ -2227,12 +2227,12 @@ body[data-mode="men"] .header-title {
 .ad-sub-hours { font-size:11px;color:var(--text-3);margin-left:auto;white-space:nowrap; }
 
 /* メイン広告カード（ヒーロー画像型） */
-/* 金: きめ細かい（外側shadow多重、insetなし） */
-.ad-rank-gold { outline:none !important;box-shadow:0 0 0 1px #b8860b,0 0 0 2px #ffd700,0 0 0 3px #daa520,0 0 8px rgba(255,215,0,0.4),0 2px 12px rgba(201,169,110,0.35) !important; }
-/* 銀: 緩やか */
-.ad-rank-silver { outline:none !important;box-shadow:0 0 0 1px #b0b0b0,0 0 0 2.5px #d8d8d8,0 0 6px rgba(192,192,192,0.4),0 2px 10px rgba(160,160,160,0.3) !important; }
-/* 銅: きめ細かい */
-.ad-rank-bronze { outline:none !important;box-shadow:0 0 0 1px #8b4513,0 0 0 2px #cd853f,0 0 0 3px #b87333,0 0 6px rgba(205,133,63,0.35),0 2px 10px rgba(184,115,51,0.3) !important; }
+/* 金: きめ細かい（5px幅、7色レイヤー） */
+.ad-rank-gold { outline:none !important;box-shadow:0 0 0 1px #8b6914,0 0 0 2px #b8860b,0 0 0 3px #daa520,0 0 0 4px #ffd700,0 0 0 5px #b8860b,0 0 10px rgba(255,215,0,0.5),0 2px 14px rgba(201,169,110,0.4) !important; }
+/* 銀: 緩やか（4px幅、3色レイヤー） */
+.ad-rank-silver { outline:none !important;box-shadow:0 0 0 1px #a0a0a0,0 0 0 2.5px #c8c8c8,0 0 0 4px #a8a8a8,0 0 8px rgba(192,192,192,0.5),0 2px 12px rgba(160,160,160,0.35) !important; }
+/* 銅: きめ細かい（5px幅、7色レイヤー） */
+.ad-rank-bronze { outline:none !important;box-shadow:0 0 0 1px #6b3410,0 0 0 2px #8b4513,0 0 0 3px #b87333,0 0 0 4px #cd853f,0 0 0 5px #8b4513,0 0 8px rgba(205,133,63,0.45),0 2px 12px rgba(184,115,51,0.35) !important; }
 /* ランクカードの下段（border-topはinset shadowと重複するため非表示） */
 .ad-rank-gold .ad-main-bottom,.ad-rank-silver .ad-main-bottom,.ad-rank-bronze .ad-main-bottom { border-top:none !important; }
 .ad-rank-silver .ad-main-bottom { background:linear-gradient(90deg,#f5f5f5,#e8e8e8) !important; }
