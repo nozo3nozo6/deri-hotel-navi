@@ -2219,13 +2219,13 @@ function renderAreaShopSection(shops) {
             ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(s.shop_name).replace(/'/g,"\\'")}',placement_type:'area_shop',area:'${esc(s.area||'').replace(/'/g,"\\'")}'})">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const images = s.images || [];
-        const thumbUrl = images.length ? images[0] : s.thumbnail_url;
         const isGrid = (s.banner_type === 'photos' || (s.banner_type !== 'banner' && images.length > 1)) && images.length > 0;
         const bgImg = isGrid && images[3] ? `<img class="ad-main-hero-bg" src="${esc(images[3])}" alt="" loading="lazy">` : '';
+        const singleImg = images.length ? images[0] : s.thumbnail_url;
         const heroImgHtml = isGrid
             ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
-            : thumbUrl
-                ? `<img src="${esc(thumbUrl)}" alt="${esc(s.shop_name)}" loading="lazy">`
+            : singleImg
+                ? `<img src="${esc(singleImg)}" alt="${esc(s.shop_name)}" loading="lazy">`
                 : `<div class="ad-main-hero-empty">📢</div>`;
         const hoursText = s.business_hours || '';
         const priceText = (() => {

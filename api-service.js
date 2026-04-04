@@ -282,10 +282,11 @@ function renderAdHTML(ad) {
     const images = ad.shops?.images || [];
     const isGrid = (bannerType === 'photos' || (bannerType !== 'banner' && images.length > 1)) && images.length > 0;
     const bgImg = isGrid && images[3] ? `<img class="ad-main-hero-bg" src="${esc(images[3])}" alt="" loading="lazy">` : '';
+    const singleImg = images.length ? images[0] : thumbUrl;
     const heroImgHTML = isGrid
         ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(shopName)}" loading="lazy">`).join('')}</div>`
-        : thumbUrl
-            ? `<img src="${esc(thumbUrl)}" alt="${esc(shopName)}" loading="lazy">`
+        : singleImg
+            ? `<img src="${esc(singleImg)}" alt="${esc(shopName)}" loading="lazy">`
             : `<div class="ad-main-hero-empty">📢</div>`;
     const priceText = (() => {
         if (!minPrice) return '';
