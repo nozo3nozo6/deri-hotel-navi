@@ -2221,7 +2221,7 @@ body[data-mode="men"] .header-title {
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:60px;height:80px;border-radius:0;object-fit:cover;object-position:center 20%;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
-.ad-shop-info { flex:1;min-width:0;padding:6px 10px;display:flex;flex-direction:column;justify-content:center; }
+.ad-shop-info { flex:1;min-width:0;padding:5px 10px 4px;display:flex;flex-direction:column;justify-content:center; }
 .ad-shop-name { font-size:13px;font-weight:700;color:var(--accent,#b5627a);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3; }
 .ad-shop-name:hover { text-decoration:underline; }
 .ad-shop-catch { font-size:12px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
@@ -2229,7 +2229,7 @@ body[data-mode="men"] .header-title {
 .ad-sub-top { display:flex;justify-content:space-between;align-items:baseline;gap:8px; }
 .ad-sub-count { font-size:11px;color:#2e8b57;white-space:nowrap;font-weight:600; }
 .ad-sub-catch { font-size:13px;font-weight:700;color:var(--accent,#b5627a);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4; }
-.ad-sub-detail { display:flex;align-items:center;gap:6px;margin-top:2px; }
+.ad-sub-detail { display:flex;align-items:center;gap:6px;margin-top:2px;padding-top:3px;border-top:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent); }
 .ad-sub-price { font-size:12px;font-weight:700;color:#c05050; }
 .ad-sub-hours { font-size:11px;color:var(--text-3);margin-left:auto;white-space:nowrap; }
 
@@ -2301,6 +2301,7 @@ body[data-mode="men"] .header-title {
 [data-mode="men"] .ad-shop-card .ad-shop-name { color:#daa520; }
 [data-mode="men"] .ad-shop-card .ad-sub-count { color:#b8860b; }
 [data-mode="men"] .ad-shop-card .ad-sub-catch { color:#c9a96e; }
+[data-mode="men"] .ad-shop-card .ad-sub-detail { border-top-color:rgba(184,134,11,0.3); }
 [data-mode="men"] .ad-shop-card .ad-sub-price { color:#daa520; }
 [data-mode="men"] .ad-shop-card .ad-sub-hours { color:#a09070; }
 [data-mode="men"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520);color:#1a1a1a; }
