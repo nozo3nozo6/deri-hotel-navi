@@ -469,7 +469,6 @@
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">円〜</span>
                         </div>
                     </div>
-                    <div id="banner-unsaved-hint" style="display:none;padding:8px 12px;margin-bottom:8px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:11px;color:#856404;">⚠ 変更があります。下のボタンで確定してください。</div>
                     <div style="display:flex;gap:8px;">
                         <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
                     </div>
@@ -956,17 +955,35 @@ async function loadShopImages(){
     updateBannerPreview();
 }
 let _savedBannerMode=null;
-function switchBannerMode(mode){
+async function switchBannerMode(mode){
+    if(_savedBannerMode && mode !== _savedBannerMode && _shopImages.length > 0){
+        if(!confirm(`モードを「${mode==='photos'?'写真3枚':'バナー1枚'}」に変更すると、現在のリッチ広告画像は全て削除されます。よろしいですか？`)){
+            // ラジオを元に戻す
+            document.querySelectorAll('input[name="banner-mode"]').forEach(r=>{r.checked=r.value===_savedBannerMode;});
+            return;
+        }
+        // API: 旧画像全削除 + banner_type更新（トランザクション）
+        try{
+            const res=await fetch('https://yobuho.com/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
+            const r=await res.json();
+            if(!r.success){toast('エラー: '+(r.error||'不明'));document.querySelectorAll('input[name="banner-mode"]').forEach(r=>{r.checked=r.value===_savedBannerMode;});return;}
+        }catch(e){toast('通信エラー');document.querySelectorAll('input[name="banner-mode"]').forEach(r=>{r.checked=r.value===_savedBannerMode;});return;}
+        _savedBannerMode=mode;
+        if(currentShop)currentShop.banner_type=mode;
+        await loadShopImages();
+        toast(`「${mode==='photos'?'写真3枚':'バナー1枚'}」モードに変更しました`);
+    } else if(_savedBannerMode && mode !== _savedBannerMode){
+        // 画像がない場合は確認なしで切替
+        try{
+            await fetch('https://yobuho.com/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
+        }catch(e){}
+        _savedBannerMode=mode;
+        if(currentShop)currentShop.banner_type=mode;
+    }
     _bannerMode=mode;
     document.getElementById('banner-mode-photos').style.display=mode==='photos'?'':'none';
     document.getElementById('banner-mode-banner').style.display=mode==='banner'?'':'none';
     updateBannerPreview();
-    updateBannerUnsavedHint();
-}
-function updateBannerUnsavedHint(){
-    const hint=document.getElementById('banner-unsaved-hint');
-    if(!hint)return;
-    hint.style.display=(_bannerMode!==_savedBannerMode)?'':'none';
 }
 function initBannerMode(){
     const mode=(currentShop&&currentShop.banner_type)||'photos';
@@ -1163,12 +1180,10 @@ async function saveAdInfo(){
     const minPrice=(minMin&&minYen)?minMin+','+minYen:'';
     if(!confirm('広告情報を保存しますか？'))return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null,banner_type:_bannerMode})});
+        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
-        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;currentShop.banner_type=_bannerMode;}
-        _savedBannerMode=_bannerMode;
-        updateBannerUnsavedHint();
+        if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;}
         showSuccessModal('保存完了','広告情報を保存しました');
     }catch(e){toast('通信エラー');}
 }

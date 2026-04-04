@@ -133,7 +133,8 @@ if (!empty($fIds)) {
         }
     }
     foreach ($finalResult as &$s) {
-        $s['images'] = $richMap[$s['id']] ?? [];
+        $richImages = $richMap[$s['id']] ?? [];
+        $s['images'] = ($s['banner_type'] === 'banner') ? array_slice($richImages, 0, 1) : $richImages;
         $s['standard_image'] = ($stdMap[$s['id']] ?? [null])[0] ?? null;
     }
 }

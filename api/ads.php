@@ -115,7 +115,8 @@ if (!empty($shopIds)) {
         }
     }
     foreach ($filtered as &$ad) {
-        $ad['shops']['images'] = $richMap[$ad['shop_id']] ?? [];
+        $richImages = $richMap[$ad['shop_id']] ?? [];
+        $ad['shops']['images'] = ($ad['shops']['banner_type'] === 'banner') ? array_slice($richImages, 0, 1) : $richImages;
         $ad['shops']['standard_image'] = ($stdMap[$ad['shop_id']] ?? [null])[0] ?? null;
     }
 }

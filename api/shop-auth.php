@@ -40,6 +40,7 @@ switch ($action) {
     case 'get-images':       handleGetImages(); break;
     case 'add-image':        handleAddImage(); break;
     case 'delete-image':     handleDeleteImage(); break;
+    case 'switch-banner-mode': handleSwitchBannerMode(); break;
     case 'update-email':     handleUpdateEmail(); break;
     case 'update-slug':      handleUpdateSlug(); break;
     case 'lookup-email':     handleLookupEmail(); break;
@@ -230,14 +231,12 @@ function handleUpdateAdInfo() {
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
     $input = json_decode(file_get_contents('php://input'), true);
     $catchphrase = isset($input['catchphrase']) ? mb_substr(trim($input['catchphrase']), 0, 20) : null;
-    $description = isset($input['description']) ? mb_substr(trim($input['description']), 0, 60) : null;
     $businessHours = isset($input['business_hours']) ? mb_substr(trim($input['business_hours']), 0, 50) : null;
     $minPrice = isset($input['min_price']) ? mb_substr(trim($input['min_price']), 0, 30) : null;
     $displayTel = isset($input['display_tel']) ? mb_substr(trim($input['display_tel']), 0, 20) : null;
-    $bannerType = isset($input['banner_type']) && in_array($input['banner_type'], ['banner', 'photos']) ? $input['banner_type'] : null;
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, description=?, business_hours=?, min_price=?, display_tel=?, banner_type=?, updated_at=NOW() WHERE id=?');
-    $stmt->execute([$catchphrase ?: null, $description ?: null, $businessHours ?: null, $minPrice ?: null, $displayTel ?: null, $bannerType, $auth['shop_id']]);
+    $stmt = $pdo->prepare('UPDATE shops SET catchphrase=?, business_hours=?, min_price=?, display_tel=?, updated_at=NOW() WHERE id=?');
+    $stmt->execute([$catchphrase ?: null, $businessHours ?: null, $minPrice ?: null, $displayTel ?: null, $auth['shop_id']]);
     echo json_encode(['success' => true]);
 }
 
@@ -266,8 +265,15 @@ function handleAddImage() {
     if (!in_array($usage, ['rich', 'standard'])) $usage = 'rich';
     if (!$imageUrl) { http_response_code(400); echo json_encode(['error' => 'image_url required']); return; }
     $pdo = DB::conn();
-    // usage別の枚数制限（rich:4枚、standard:1枚）
-    $limit = $usage === 'standard' ? 1 : 4;
+    // usage別の枚数制限（banner_typeと連動）
+    if ($usage === 'standard') {
+        $limit = 1;
+    } else {
+        $stmt = $pdo->prepare('SELECT banner_type FROM shops WHERE id = ?');
+        $stmt->execute([$auth['shop_id']]);
+        $bt = $stmt->fetchColumn();
+        $limit = ($bt === 'banner') ? 1 : 4;
+    }
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM shop_images WHERE shop_id = ? AND `usage` = ?");
     $stmt->execute([$auth['shop_id'], $usage]);
     if ($stmt->fetchColumn() >= $limit) { http_response_code(400); echo json_encode(['error' => "画像は{$limit}枚までです"]); return; }
@@ -310,6 +316,34 @@ function handleDeleteImage() {
     }
     $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$first ?: null, $auth['shop_id']]);
     echo json_encode(['success' => true]);
+}
+
+function handleSwitchBannerMode() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+    $input = json_decode(file_get_contents('php://input'), true);
+    $mode = $input['mode'] ?? '';
+    if (!in_array($mode, ['banner', 'photos'])) { http_response_code(400); echo json_encode(['error' => 'Invalid mode']); return; }
+    $pdo = DB::conn();
+    $pdo->beginTransaction();
+    try {
+        // 旧rich画像を全削除
+        $pdo->prepare("DELETE FROM shop_images WHERE shop_id = ? AND `usage` = 'rich'")->execute([$auth['shop_id']]);
+        // banner_type更新
+        $pdo->prepare('UPDATE shops SET banner_type = ?, updated_at = NOW() WHERE id = ?')->execute([$mode, $auth['shop_id']]);
+        // thumbnail_urlをstandard画像にフォールバック
+        $stmt = $pdo->prepare("SELECT image_url FROM shop_images WHERE shop_id = ? AND `usage` = 'standard' ORDER BY sort_order, id LIMIT 1");
+        $stmt->execute([$auth['shop_id']]);
+        $thumb = $stmt->fetchColumn() ?: null;
+        $pdo->prepare('UPDATE shops SET thumbnail_url = ? WHERE id = ?')->execute([$thumb, $auth['shop_id']]);
+        $pdo->commit();
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error']);
+    }
 }
 
 function handleUpdateEmail() {

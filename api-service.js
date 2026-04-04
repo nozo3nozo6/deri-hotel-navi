@@ -280,7 +280,7 @@ function renderAdHTML(ad) {
         : `<span class="ad-shop-name">${esc(shopName)}</span>`;
     const bannerType = ad.shops?.banner_type;
     const images = ad.shops?.images || [];
-    const isGrid = (bannerType === 'photos' || (bannerType !== 'banner' && images.length > 1)) && images.length > 0;
+    const isGrid = bannerType === 'photos' && images.length > 0;
     const bgImg = isGrid && images[3] ? `<img class="ad-main-hero-bg" src="${esc(images[3])}" alt="" loading="lazy">` : '';
     const singleImg = images.length ? images[0] : thumbUrl;
     const heroImgHTML = isGrid
