@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://yobuho.com; img-src 'self' data: https:;">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>代理店ポータル | YobuHo Check-In Partners</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <style>
+        :root{--accent:#2c6fbb;--accent-h:#1d5a9e;--bg:#f8f9fa;--bg-2:#ffffff;--bg-3:#f1f5f9;--border:#e2e8f0;--border-s:#cbd5e1;--text:#1a1a2e;--text-2:#475569;--text-3:#94a3b8;--green:#059669;--red:#dc2626;--gold:#d97706;--r:8px;--shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{overflow-x:hidden;width:100%;}
+        body{font-family:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+        /* ===== ログイン ===== */
+        .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+        .login-card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 8px 32px rgba(0,0,0,0.08);}
+        .login-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+        .login-sub{font-size:12px;color:var(--text-3);margin-bottom:24px;}
+        .f-group{margin-bottom:14px;}
+        .f-label{display:block;font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:5px;letter-spacing:0.3px;}
+        .f-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:14px;outline:none;background:var(--bg-3);transition:border-color 0.2s;}
+        .f-input:focus{border-color:var(--accent);background:#fff;}
+        .btn-login{width:100%;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(44,111,187,0.3);}
+        .btn-login:hover{background:var(--accent-h);transform:translateY(-1px);}
+
+        /* ===== ヘッダー ===== */
+        .hdr{background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:400;display:none;}
+        .hdr-inner{max-width:1100px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:12px;}
+        .hdr-logo{font-size:16px;font-weight:700;color:var(--accent);letter-spacing:0.3px;}
+        .hdr-logo span{font-size:11px;color:var(--text-3);font-weight:400;margin-left:6px;}
+        .hdr-user{font-size:12px;color:var(--text-2);margin-left:auto;font-weight:500;}
+        .btn-logout{padding:6px 14px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text-3);font-size:11px;cursor:pointer;font-family:inherit;transition:all 0.2s;margin-left:12px;}
+        .btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+        /* ===== レイアウト ===== */
+        .layout{max-width:1100px;margin:0 auto;padding:20px;display:none;}
+        .card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:16px;box-shadow:var(--shadow);}
+        .card-title{font-size:15px;font-weight:700;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+        .card-title .sub{font-size:11px;font-weight:400;color:var(--text-3);margin-left:auto;}
+
+        /* ===== フィルタ ===== */
+        .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+        .filter-select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px;background:var(--bg-2);color:var(--text);outline:none;}
+        .filter-select:focus{border-color:var(--accent);}
+        .filter-input{padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:12px;flex:1;min-width:160px;outline:none;}
+        .filter-input:focus{border-color:var(--accent);}
+
+        /* ===== テーブル ===== */
+        .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .tbl{width:100%;border-collapse:collapse;font-size:13px;}
+        .tbl th{background:var(--bg-3);padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap;}
+        .tbl td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+        .tbl tr:hover td{background:rgba(44,111,187,0.02);}
+        .erow td{text-align:center;color:var(--text-3);padding:24px;font-size:13px;}
+
+        /* ===== バッジ ===== */
+        .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;}
+        .b-active{background:#ecfdf5;color:#059669;}
+        .b-registered{background:#fef3c7;color:#b45309;}
+        .b-email-pending{background:#f1f5f9;color:#64748b;}
+        .b-suspended{background:#fee2e2;color:#dc2626;}
+        .b-revision{background:#fff7ed;color:#c2410c;}
+        .b-stop{background:#fce7f3;color:#be185d;}
+
+        /* ===== ボタン ===== */
+        .btn{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+        .btn-primary{background:var(--accent);color:#fff;}
+        .btn-primary:hover{background:var(--accent-h);}
+        .btn-gray{background:var(--bg-3);color:var(--text-2);border:1px solid var(--border);}
+        .btn-gray:hover{background:var(--border);color:var(--text);}
+        .btn-green{background:var(--green);color:#fff;}
+        .btn-green:hover{background:#047857;}
+        .btn-add{background:var(--accent);color:#fff;padding:8px 18px;border:none;border-radius:var(--r);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+        .btn-add:hover{background:var(--accent-h);}
+        .btn-row{display:flex;gap:4px;}
+
+        /* ===== モーダル ===== */
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+        .modal{background:var(--bg-2);border-radius:12px;width:100%;max-width:520px;max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.15);}
+        .modal-head{padding:20px 24px 0;display:flex;align-items:center;gap:8px;}
+        .modal-head h3{font-size:16px;font-weight:700;flex:1;}
+        .modal-head button{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-3);padding:4px;}
+        .modal-body{padding:16px 24px 24px;}
+        .mf{margin-bottom:12px;}
+        .ml{display:block;font-size:11px;font-weight:600;color:var(--text-3);margin-bottom:4px;}
+        .mi{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;outline:none;background:var(--bg-3);}
+        .mi:focus{border-color:var(--accent);background:#fff;}
+        .modal-foot{padding:12px 24px 20px;display:flex;justify-content:flex-end;gap:8px;}
+        .mi-readonly{background:var(--bg-3);color:var(--text-2);border:1px solid var(--border);padding:8px 12px;border-radius:var(--r);font-size:13px;word-break:break-all;}
+
+        /* ===== 届出書プレビュー ===== */
+        .doc-thumb{width:48px;height:64px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--border);}
+        .doc-preview-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:1010;}
+        .doc-preview-wrap{position:relative;max-width:90vw;max-height:90vh;background:#fff;border-radius:8px;overflow:hidden;}
+        .doc-preview-wrap img{display:block;max-width:90vw;max-height:90vh;transform-origin:center center;transition:transform 0.15s;}
+        .doc-preview-btn{position:absolute;top:8px;right:8px;display:flex;gap:4px;z-index:1;}
+        .doc-preview-btn button{background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;line-height:1;}
+
+        /* ===== ファイルアップロード ===== */
+        .file-zone{border:2px dashed var(--border);border-radius:var(--r);padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--bg-3);}
+        .file-zone:hover{border-color:var(--accent);}
+        .file-zone.dragover{border-color:var(--accent);background:rgba(44,111,187,0.04);}
+        .file-preview{display:none;align-items:center;gap:12px;padding:8px;}
+        .file-preview img{width:48px;height:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border);}
+
+        /* ===== パスワード生成 ===== */
+        .pw-gen-wrap{display:flex;gap:6px;}
+        .pw-gen-wrap input{flex:1;}
+        .btn-gen{padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);font-size:11px;cursor:pointer;white-space:nowrap;}
+        .btn-gen:hover{background:var(--border);}
+
+        /* ===== プランチップ ===== */
+        .plan-chip{display:inline-block;padding:3px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;font-size:11px;margin:2px;}
+
+        /* ===== トースト ===== */
+        .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;z-index:1100;opacity:0;transition:all 0.3s;pointer-events:none;}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+        /* ===== レスポンシブ ===== */
+        @media(max-width:768px){
+            .hdr-inner{padding:10px 16px;}
+            .layout{padding:12px;}
+            .card{padding:16px;}
+            .filter-bar{flex-direction:column;}
+            .filter-select,.filter-input{width:100%;}
+            .tbl th:nth-child(3),.tbl td:nth-child(3),
+            .tbl th:nth-child(4),.tbl td:nth-child(4){display:none;}
+            .modal{max-width:100%;border-radius:8px;}
+        }
+        @media(max-width:480px){
+            .tbl th:nth-child(5),.tbl td:nth-child(5){display:none;}
+            .hdr-user{display:none;}
+        }
+    </style>
+</head>
+<body>
+<!-- ===== ログイン ===== -->
+<div class="login-wrap" id="login-wrap">
+    <div class="login-card">
+        <div class="login-title">YobuHo 代理店ポータル</div>
+        <div class="login-sub">Check-In Partners ログイン</div>
+        <form onsubmit="event.preventDefault();doLogin()" autocomplete="on">
+            <div class="f-group"><label class="f-label">ユーザー名</label><input type="text" id="login-username" class="f-input" placeholder="ユーザー名" autocomplete="username"></div>
+            <div class="f-group"><label class="f-label">パスワード</label><input type="password" id="login-password" class="f-input" placeholder="••••••••" autocomplete="current-password"></div>
+            <button type="submit" class="btn-login">ログイン</button>
+        </form>
+    </div>
+</div>
+
+<!-- ===== ヘッダー ===== -->
+<div class="hdr" id="hdr">
+    <div class="hdr-inner">
+        <div class="hdr-logo">YobuHo <span>代理店ポータル</span></div>
+        <div class="hdr-user" id="hdr-agent-name"></div>
+        <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+    </div>
+</div>
+
+<!-- ===== メインパネル ===== -->
+<div class="layout" id="layout">
+    <div class="card">
+        <div class="card-title">&#x1F3EA; 店舗一覧 <span class="sub" id="shops-sub"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div class="filter-bar" style="margin-bottom:0;flex:1;">
+                <select class="filter-select" id="f-genre" onchange="renderShops()">
+                    <option value="">全ジャンル</option>
+                    <option value="men">&#9794; 男性向け</option>
+                    <option value="women">&#9792; 女性向け</option>
+                    <option value="este">&#x1F486;&#x200D;&#x2642;&#xFE0F; デリエステ</option>
+                    <option value="men_same">&#9794;&#9794; 男性同士</option>
+                    <option value="women_same">&#9792;&#9792; 女性同士</option>
+                </select>
+                <select class="filter-select" id="f-status" onchange="renderShops()">
+                    <option value="">全ステータス</option>
+                    <option value="email_pending">認証待</option>
+                    <option value="registered">審査待ち</option>
+                    <option value="active">掲載中</option>
+                    <option value="suspended">停止中</option>
+                    <option value="revision_required">不備あり</option>
+                    <option value="rejected">却下</option>
+                    <option value="deleted">削除済み</option>
+                </select>
+                <input class="filter-input" id="f-search" placeholder="店舗名・メール・TELで検索..." oninput="renderShops()">
+            </div>
+            <button class="btn-add" onclick="openRegisterModal()">&#xFF0B; 新規店舗登録</button>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead><tr>
+                    <th>店舗名</th>
+                    <th>ジャンル</th>
+                    <th>メール</th>
+                    <th>電話番号</th>
+                    <th>プラン</th>
+                    <th>ステータス</th>
+                    <th>届出書</th>
+                    <th>操作</th>
+                </tr></thead>
+                <tbody id="shops-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 店舗登録モーダル ===== -->
+<div class="modal-overlay" id="register-modal" onclick="if(event.target===this)closeRegisterModal()">
+    <div class="modal">
+        <div class="modal-head"><h3>&#xFF0B; 新規店舗登録</h3><button onclick="closeRegisterModal()">&#x2715;</button></div>
+        <div class="modal-body">
+            <div class="mf"><label class="ml">メールアドレス <span style="color:var(--red);">*</span></label><input id="reg-email" class="mi" type="email" placeholder="shop@example.com"></div>
+            <div class="mf"><label class="ml">店舗名 <span style="color:var(--red);">*</span></label><input id="reg-name" class="mi" placeholder="店舗名"></div>
+            <div class="mf"><label class="ml">ジャンル <span style="color:var(--red);">*</span></label>
+                <select id="reg-genre" class="mi">
+                    <option value="men">&#9794; 男性向け（デリヘル）</option>
+                    <option value="women">&#9792; 女性向け（女性用風俗）</option>
+                    <option value="este">&#x1F486;&#x200D;&#x2642;&#xFE0F; デリエステ</option>
+                    <option value="men_same">&#9794;&#9794; 男性同士向け</option>
+                    <option value="women_same">&#9792;&#9792; 女性同士向け</option>
+                </select>
+            </div>
+            <div class="mf"><label class="ml">店舗URL</label><input id="reg-url" class="mi" type="url" placeholder="https://"></div>
+            <div class="mf"><label class="ml">電話番号</label><input id="reg-tel" class="mi" type="tel" placeholder="03-0000-0000"></div>
+            <div class="mf"><label class="ml">パスワード <span style="color:var(--red);">*</span></label>
+                <div class="pw-gen-wrap">
+                    <input id="reg-pw" class="mi" type="text" placeholder="8文字以上">
+                    <button class="btn-gen" type="button" onclick="generatePassword()">自動生成</button>
+                </div>
+            </div>
+            <div class="mf">
+                <label class="ml">届出確認書</label>
+                <div class="file-zone" id="reg-file-zone" onclick="document.getElementById('reg-file-input').click()">
+                    <div id="reg-file-label" style="font-size:12px;color:var(--text-3);">クリックまたはドラッグ&ドロップで画像を選択</div>
+                    <input type="file" id="reg-file-input" accept="image/*,.pdf" style="display:none;" onchange="handleFileSelect(this.files[0])">
+                </div>
+                <div class="file-preview" id="reg-file-preview">
+                    <img id="reg-file-thumb" src="" alt="">
+                    <span id="reg-file-name" style="font-size:12px;color:var(--text-2);flex:1;"></span>
+                    <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;" onclick="clearFile()">&#x2715;</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-gray" onclick="closeRegisterModal()">キャンセル</button>
+            <button class="btn btn-primary" onclick="registerShop()">登録する</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 登録完了モーダル ===== -->
+<div class="modal-overlay" id="pw-result-modal" onclick="if(event.target===this)closePwResult()">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-head"><h3>&#x2705; 登録完了</h3><button onclick="closePwResult()">&#x2715;</button></div>
+        <div class="modal-body" style="text-align:center;">
+            <p style="margin-bottom:12px;font-size:14px;">店舗が登録されました。以下のパスワードを店舗に共有してください。</p>
+            <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-family:monospace;font-size:18px;letter-spacing:1px;margin-bottom:12px;" id="pw-result-display"></div>
+            <button class="btn btn-primary" onclick="copyPassword()">コピー</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 店舗編集モーダル ===== -->
+<div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
+    <div class="modal" style="max-width:540px;">
+        <div class="modal-head"><h3>&#x270F;&#xFE0F; 店舗情報</h3><button onclick="closeEditModal()">&#x2715;</button></div>
+        <div class="modal-body">
+            <div class="mf"><label class="ml">&#x1F4C4; 届出確認書</label><div id="edit-doc-wrap"><span style="font-size:12px;color:var(--text-3);">書類なし</span></div></div>
+            <div class="mf"><label class="ml">店舗名</label><input id="edit-name" class="mi"></div>
+            <div class="mf"><label class="ml">ジャンル</label>
+                <select id="edit-genre" class="mi">
+                    <option value="men">&#9794; 男性向け（デリヘル）</option>
+                    <option value="women">&#9792; 女性向け（女性用風俗）</option>
+                    <option value="este">&#x1F486;&#x200D;&#x2642;&#xFE0F; デリエステ</option>
+                    <option value="men_same">&#9794;&#9794; 男性同士向け</option>
+                    <option value="women_same">&#9792;&#9792; 女性同士向け</option>
+                </select>
+            </div>
+            <div class="mf"><label class="ml">電話番号</label><input id="edit-tel" class="mi" type="tel"></div>
+            <div class="mf"><label class="ml">URL</label><input id="edit-url" class="mi" type="url"></div>
+            <div class="mf"><label class="ml">メールアドレス</label><div class="mi-readonly" id="edit-email"></div></div>
+            <div class="mf"><label class="ml">ステータス</label><div id="edit-status-badge" style="margin-top:4px;"></div></div>
+            <div class="mf"><label class="ml">契約プラン</label><div id="edit-plans" style="margin-top:4px;"></div></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-gray" onclick="closeEditModal()">キャンセル</button>
+            <button class="btn btn-green" onclick="saveShopEdit()">保存する</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 届出書拡大プレビュー ===== -->
+<div class="doc-preview-overlay" id="doc-preview-modal" onclick="if(event.target===this)closeDocPreview()">
+    <div class="doc-preview-wrap">
+        <div class="doc-preview-btn">
+            <button onclick="_dpZoom(0.3)">&#xFF0B;</button>
+            <button onclick="_dpZoom(-0.3)">&#xFF0D;</button>
+            <button onclick="closeDocPreview()">&#x2715;</button>
+        </div>
+        <div style="overflow:auto;max-width:90vw;max-height:90vh;">
+            <img id="doc-preview-img" src="" style="cursor:zoom-in;">
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== Helpers =====
+const AGENT_API='/api/agent-api.php';
+const AGENT_AUTH='/api/agent-auth.php';
+
+async function agentApi(action,body){
+    const r=await fetch(AGENT_API+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body||{})});
+    if(r.status===401){toast('セッションが切れました');setTimeout(()=>location.reload(),1500);return{ok:false,error:'Session expired'};}
+    const text=await r.text();
+    try{return JSON.parse(text);}catch(e){return{ok:false,error:'サーバーエラー ('+r.status+')'};}
+}
+
+async function agentApiGet(action,params=''){
+    const r=await fetch(AGENT_API+'?action='+action+(params?'&'+params:''),{credentials:'include'});
+    if(r.status===401){toast('セッションが切れました');setTimeout(()=>location.reload(),1500);return null;}
+    const text=await r.text();
+    try{return JSON.parse(text);}catch(e){return null;}
+}
+
+function toast(msg,d=2500){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),d);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+const GENRE_LABELS={men:'♂ 男性向け',women:'♀ 女性向け',este:'💆 デリエステ',men_same:'♂♂ 男性同士',women_same:'♀♀ 女性同士'};
+
+function statusBadge(st){
+    switch(st){
+        case'email_pending':return'<span class="badge b-email-pending">認証待</span>';
+        case'registered':return'<span class="badge b-registered">審査待ち</span>';
+        case'active':return'<span class="badge b-active">掲載中</span>';
+        case'suspended':return'<span class="badge b-suspended">停止中</span>';
+        case'revision_required':return'<span class="badge b-revision">不備あり</span>';
+        case'rejected':return'<span class="badge b-stop">却下</span>';
+        case'deleted':return'<span class="badge b-suspended">削除済</span>';
+        default:return'<span class="badge b-email-pending">'+esc(st||'不明')+'</span>';
+    }
+}
+
+// ===== Auth =====
+let _agentUser=null;
+
+async function doLogin(){
+    const username=document.getElementById('login-username').value.trim();
+    const password=document.getElementById('login-password').value;
+    if(!username||!password){toast('ユーザー名とパスワードを入力してください');return;}
+    try{
+        const res=await fetch(AGENT_AUTH+'?action=login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({username,password})});
+        const data=await res.json();
+        if(data.success){
+            _agentUser=data.agent;
+            showMainPanel();
+        }else{
+            toast(data.message||'ログインに失敗しました');
+        }
+    }catch(e){toast('通信エラーが発生しました');}
+}
+
+async function doLogout(){
+    try{await fetch(AGENT_AUTH+'?action=logout',{method:'POST',credentials:'include'});}catch(e){}
+    _agentUser=null;
+    location.reload();
+}
+
+async function checkAuth(){
+    try{
+        const res=await fetch(AGENT_AUTH+'?action=check',{credentials:'include'});
+        const data=await res.json();
+        if(data.authenticated){
+            _agentUser=data.agent;
+            showMainPanel();
+        }else{
+            document.getElementById('login-wrap').style.display='flex';
+        }
+    }catch(e){
+        document.getElementById('login-wrap').style.display='flex';
+    }
+}
+
+function showMainPanel(){
+    document.getElementById('login-wrap').style.display='none';
+    document.getElementById('hdr').style.display='block';
+    document.getElementById('layout').style.display='block';
+    document.getElementById('hdr-agent-name').textContent=_agentUser?.name||_agentUser?.username||'';
+    loadShops();
+    loadContractPlans();
+}
+
+// ===== Data =====
+let shopsData=[];
+let contractPlansData=[];
+
+async function loadShops(){
+    const data=await agentApiGet('list-shops');
+    shopsData=Array.isArray(data)?data:[];
+    renderShops();
+}
+
+async function loadContractPlans(){
+    const data=await agentApiGet('contract-plans');
+    contractPlansData=Array.isArray(data)?data:[];
+}
+
+function renderShops(){
+    const gF=document.getElementById('f-genre').value;
+    const sF=document.getElementById('f-status').value;
+    const qF=document.getElementById('f-search').value.toLowerCase();
+    let data=shopsData.filter(s=>{
+        if(gF&&s.gender_mode!==gF)return false;
+        const st=s.status||'';
+        if(sF){if(st!==sF)return false;}else{if(st==='deleted')return false;}
+        if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;
+        return true;
+    });
+    document.getElementById('shops-sub').textContent=data.length+' 件';
+    const tbody=document.getElementById('shops-tbody');
+    if(!data.length){
+        tbody.innerHTML='<tr class="erow"><td colspan="8">該当する店舗がありません</td></tr>';
+        return;
+    }
+    tbody.innerHTML=data.map(s=>{
+        const genreCell='<span style="font-size:11px;">'+(GENRE_LABELS[s.gender_mode]||'—')+'</span>';
+        const planObj=contractPlansData.find(p=>p.id===s.plan_id);
+        const planCell=planObj?'<span style="font-size:11px;">'+esc(planObj.name)+'</span>':'<span style="color:var(--text-3);font-size:11px;">—</span>';
+        const docCell=s.document_url?'<span style="color:var(--green);font-size:11px;">&#x1F4C4; あり</span>':'<span style="color:var(--text-3);font-size:11px;">—</span>';
+        return'<tr>'+
+            '<td style="font-weight:500;font-size:13px;">'+esc(s.shop_name||'—')+'</td>'+
+            '<td>'+genreCell+'</td>'+
+            '<td style="font-size:11px;color:var(--text-3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(s.email||'—')+'</td>'+
+            '<td style="font-size:11px;color:var(--text-3);">'+esc(s.shop_tel||'—')+'</td>'+
+            '<td>'+planCell+'</td>'+
+            '<td>'+statusBadge(s.status)+'</td>'+
+            '<td>'+docCell+'</td>'+
+            '<td><button class="btn btn-gray" style="font-size:10px;" onclick="openShopEdit(\''+s.id+'\')">&#x270F;&#xFE0F; 編集</button></td>'+
+            '</tr>';
+    }).join('');
+}
+
+// ===== Shop Registration =====
+let _regFileData=null;
+
+function openRegisterModal(){
+    document.getElementById('reg-email').value='';
+    document.getElementById('reg-name').value='';
+    document.getElementById('reg-genre').value='men';
+    document.getElementById('reg-url').value='';
+    document.getElementById('reg-tel').value='';
+    document.getElementById('reg-pw').value='';
+    clearFile();
+    document.getElementById('register-modal').style.display='flex';
+}
+
+function closeRegisterModal(){document.getElementById('register-modal').style.display='none';}
+
+function generatePassword(){
+    const chars='abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let pw='';
+    for(let i=0;i<12;i++)pw+=chars[Math.floor(Math.random()*chars.length)];
+    document.getElementById('reg-pw').value=pw;
+}
+
+function handleFileSelect(file){
+    if(!file)return;
+    _regFileData=null;
+    const r=new FileReader();
+    r.onload=(e)=>{
+        _regFileData=e.target.result;
+        document.getElementById('reg-file-thumb').src=_regFileData;
+        document.getElementById('reg-file-name').textContent=file.name;
+        document.getElementById('reg-file-zone').style.display='none';
+        document.getElementById('reg-file-preview').style.display='flex';
+    };
+    r.readAsDataURL(file);
+}
+
+function clearFile(){
+    _regFileData=null;
+    document.getElementById('reg-file-input').value='';
+    document.getElementById('reg-file-zone').style.display='';
+    document.getElementById('reg-file-preview').style.display='none';
+}
+
+// Drag & drop
+(function(){
+    const zone=document.getElementById('reg-file-zone');
+    if(!zone)return;
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+    zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');if(e.dataTransfer.files.length)handleFileSelect(e.dataTransfer.files[0]);});
+})();
+
+async function registerShop(){
+    const email=document.getElementById('reg-email').value.trim();
+    const name=document.getElementById('reg-name').value.trim();
+    const genre=document.getElementById('reg-genre').value;
+    const url=document.getElementById('reg-url').value.trim();
+    const tel=document.getElementById('reg-tel').value.trim();
+    const pw=document.getElementById('reg-pw').value;
+    if(!email||!name){toast('メールアドレスと店舗名は必須です');return;}
+    if(!pw||pw.length<8){toast('パスワードは8文字以上で入力してください');return;}
+    if(!confirm('「'+name+'」を登録しますか？'))return;
+    const payload={email,shop_name:name,gender_mode:genre,shop_url:url||null,shop_tel:tel||null,password_hash:btoa(pw),document_url:_regFileData||null};
+    const res=await agentApi('register-shop',payload);
+    if(res.ok||res.success){
+        closeRegisterModal();
+        document.getElementById('pw-result-display').textContent=pw;
+        document.getElementById('pw-result-modal').style.display='flex';
+        loadShops();
+    }else{
+        toast(res.error||'登録に失敗しました');
+    }
+}
+
+function closePwResult(){document.getElementById('pw-result-modal').style.display='none';}
+
+function copyPassword(){
+    const pw=document.getElementById('pw-result-display').textContent;
+    navigator.clipboard.writeText(pw).then(()=>toast('コピーしました')).catch(()=>{});
+}
+
+// ===== Shop Edit =====
+let _editId=null;
+
+function openShopEdit(id){
+    const s=shopsData.find(x=>String(x.id)===String(id));
+    if(!s)return;
+    _editId=id;
+    document.getElementById('edit-name').value=s.shop_name||'';
+    document.getElementById('edit-genre').value=s.gender_mode||'men';
+    document.getElementById('edit-tel').value=s.shop_tel||'';
+    document.getElementById('edit-url').value=s.shop_url||'';
+    document.getElementById('edit-email').textContent=s.email||'—';
+    document.getElementById('edit-status-badge').innerHTML=statusBadge(s.status);
+
+    // Document thumbnail
+    const docWrap=document.getElementById('edit-doc-wrap');
+    if(s.document_url){
+        docWrap.innerHTML='<img class="doc-thumb" src="'+esc(s.document_url)+'" onclick="openDocPreview(this.src)" title="クリックで拡大">';
+    }else{
+        docWrap.innerHTML='<span style="font-size:12px;color:var(--text-3);">書類なし</span>';
+    }
+
+    // Contract plans
+    loadEditPlans(id);
+    document.getElementById('edit-modal').style.display='flex';
+}
+
+async function loadEditPlans(shopId){
+    const plansEl=document.getElementById('edit-plans');
+    plansEl.innerHTML='<span style="font-size:12px;color:var(--text-3);">読み込み中...</span>';
+    const contracts=await agentApiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+    const rows=Array.isArray(contracts)?contracts:[];
+    if(!rows.length){
+        plansEl.innerHTML='<span class="plan-chip">無料プラン</span>';
+        return;
+    }
+    const countMap={};
+    rows.forEach(c=>{countMap[c.plan_id]=(countMap[c.plan_id]||0)+1;});
+    let html='';
+    Object.keys(countMap).forEach(pid=>{
+        const p=contractPlansData.find(x=>x.id===Number(pid));
+        const name=p?p.name:'プラン#'+pid;
+        const cnt=countMap[pid];
+        html+='<span class="plan-chip">'+esc(name)+(cnt>1?' x'+cnt:'')+'</span>';
+    });
+    plansEl.innerHTML=html||'<span class="plan-chip">無料プラン</span>';
+}
+
+function closeEditModal(){document.getElementById('edit-modal').style.display='none';_editId=null;}
+
+async function saveShopEdit(){
+    if(!_editId)return;
+    const data={
+        shop_name:document.getElementById('edit-name').value.trim(),
+        gender_mode:document.getElementById('edit-genre').value,
+        shop_tel:document.getElementById('edit-tel').value.trim(),
+        shop_url:document.getElementById('edit-url').value.trim()
+    };
+    if(!data.shop_name){toast('店舗名は必須です');return;}
+    if(!confirm('店舗情報を保存しますか？'))return;
+    const res=await agentApi('update',{shop_id:_editId,data});
+    if(res.ok||res.success){
+        toast('保存しました');
+        // Update local data
+        shopsData=shopsData.map(s=>String(s.id)===String(_editId)?{...s,...data}:s);
+        renderShops();
+        closeEditModal();
+    }else{
+        toast(res.error||'保存に失敗しました');
+    }
+}
+
+// ===== Document Preview =====
+let _dpScale=1;
+
+function openDocPreview(src){
+    _dpScale=1;
+    const img=document.getElementById('doc-preview-img');
+    img.src=src;
+    img.style.transform='scale(1)';
+    document.getElementById('doc-preview-modal').style.display='flex';
+}
+
+function closeDocPreview(){
+    _dpScale=1;
+    document.getElementById('doc-preview-img').style.transform='scale(1)';
+    document.getElementById('doc-preview-modal').style.display='none';
+}
+
+function _dpZoom(d){
+    _dpScale=Math.max(0.5,Math.min(5,_dpScale+d));
+    const img=document.getElementById('doc-preview-img');
+    img.style.transform='scale('+_dpScale+')';
+    img.style.cursor=_dpScale>1?'zoom-out':'zoom-in';
+}
+
+(function(){
+    const img=document.getElementById('doc-preview-img');
+    if(!img)return;
+    img.addEventListener('wheel',function(e){e.preventDefault();_dpZoom(e.deltaY<0?0.2:-0.2);},{passive:false});
+    img.addEventListener('click',function(){_dpZoom(_dpScale>1?-0.5:0.5);});
+})();
+
+// ===== Init =====
+checkAuth();
+</script>
+</body>
+</html>
