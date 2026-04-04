@@ -2259,14 +2259,9 @@ body[data-mode="men"] .header-title {
 
 /* ── ジャンル別メイン広告カラー ── */
 [data-mode="men"] .ad-main-card { border-radius:2px; }
-[data-mode="men"] .ad-main-body { background:linear-gradient(135deg,#1e1e1e,#2a2218); }
-[data-mode="men"] .ad-main-body .ad-shop-name { color:#daa520; }
-[data-mode="men"] .ad-main-count-badge { background:rgba(184,134,11,0.25);color:#daa520; }
 [data-mode="men"] .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520); }
-[data-mode="men"] .ad-main-bottom { background:linear-gradient(135deg,#1e1e1e,#2a2218);border-top-color:rgba(184,134,11,0.3); }
-[data-mode="men"] .ad-main-price-text { color:#daa520; }
-[data-mode="men"] .ad-main-hours-label { color:#a09070; }
-[data-mode="men"] .ad-main-hours-value { color:#e8dcc8; }
+[data-mode="men"] .ad-main-count-badge { background:rgba(184,134,11,0.1);color:#8b6914; }
+[data-mode="men"] .ad-main-bottom { background:linear-gradient(90deg,#faf5e8,#f5ecd6);border-top-color:#efe0c0; }
 [data-mode="women"] .ad-main-card { border-radius:12px; }
 [data-mode="women"] .ad-badge-recommend { background:linear-gradient(135deg,#b5627a,#d4849a); }
 [data-mode="women"] .ad-main-count-badge { background:rgba(181,98,122,0.1);color:#b5627a; }
