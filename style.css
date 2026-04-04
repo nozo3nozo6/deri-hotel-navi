@@ -2368,10 +2368,10 @@ body[data-mode="men"] .header-title {
 /* リンクピル */
 .info-link-pill { color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap; }
 
-/* スクロール枠 */
+/* 口コミ展開ボタン */
 .scroll-hint { text-align:center;font-size:13px;color:var(--accent,#b5627a);font-weight:600;padding:10px 0;margin:0;letter-spacing:0.5px;background:var(--accent-bg,rgba(181,98,122,0.07));border-radius:8px; }
-.scrollable-reviews { max-height:520px;overflow-y:auto;padding-right:4px;-webkit-overflow-scrolling:touch; }
-@media (pointer: coarse) { .scrollable-reviews { max-height:none;overflow-y:visible; } }
+.review-more-btn { text-align:center;font-size:13px;color:var(--accent,#b5627a);font-weight:600;padding:12px 0;margin:4px 0;letter-spacing:0.5px;background:var(--accent-bg,rgba(181,98,122,0.07));border-radius:8px;cursor:pointer;touch-action:manipulation; }
+.review-more-btn:active { opacity:0.7; }
 
 /* ローディング/エラー */
 .detail-loading { text-align:center;padding:60px;color:var(--text-3); }

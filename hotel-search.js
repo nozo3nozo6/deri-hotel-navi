@@ -30,13 +30,45 @@ function toggleAccordionForm(id) {
 function scrollableSection(items, buildFn, emptyMsg) {
     if (!items.length) return emptyMsg || '';
     if (items.length <= 3) return items.map(buildFn).join('');
-    // 最初の3件は外に表示、4件目以降をスクロール枠に
+    // 最初の3件を表示、4件目以降は「もっと見る」で10件ずつ展開
     const first3 = items.slice(0, 3).map(buildFn).join('');
-    const rest = items.slice(3).map(buildFn).join('');
-    const remaining = items.length - 3;
+    const rest = items.slice(3);
+    const remaining = rest.length;
+    const uid = 'rv-' + Math.random().toString(36).slice(2, 8);
+    // data属性にビルド済みHTMLを保持（展開時に使用）
+    const chunks = [];
+    for (let i = 0; i < rest.length; i += 10) {
+        chunks.push(rest.slice(i, i + 10).map(buildFn).join(''));
+    }
     return first3
-        + `<div class="scroll-hint">▼ 他${remaining}件の口コミを表示（スクロール）</div>`
-        + `<div class="scrollable-reviews">${rest}</div>`;
+        + `<div class="review-more-btn" data-uid="${uid}" data-chunk="0" onclick="expandReviews(this)">▼ 他${remaining}件の口コミを表示</div>`
+        + `<div id="${uid}" class="reviews-collapsed" style="display:none;">${chunks.map((c, i) => `<div class="review-chunk" data-ci="${i}"${i > 0 ? ' style="display:none;"' : ''}>${c}</div>`).join('')}</div>`;
+}
+function expandReviews(btn) {
+    const uid = btn.dataset.uid;
+    const container = document.getElementById(uid);
+    if (!container) return;
+    const currentChunk = parseInt(btn.dataset.chunk || '0');
+    const chunks = container.querySelectorAll('.review-chunk');
+    if (currentChunk === 0) {
+        // 初回: コンテナ表示 + 最初のチャンク表示
+        container.style.display = '';
+        if (chunks[0]) chunks[0].style.display = '';
+    }
+    const nextChunk = currentChunk + 1;
+    if (nextChunk < chunks.length) {
+        chunks[nextChunk].style.display = '';
+        btn.dataset.chunk = String(nextChunk);
+        const remainingChunks = chunks.length - nextChunk - 1;
+        const remainingItems = Array.from(chunks).slice(nextChunk + 1).reduce((sum, c) => sum + c.querySelectorAll('.review-card,.lh-review-card').length, 0);
+        if (remainingItems > 0) {
+            btn.textContent = `▼ 他${remainingItems}件の口コミを表示`;
+        } else {
+            btn.style.display = 'none';
+        }
+    } else {
+        btn.style.display = 'none';
+    }
 }
 
 // AppState 登録（検索・表示状態の発見・デバッグ用）
