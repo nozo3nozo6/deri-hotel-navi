@@ -2212,12 +2212,6 @@ body[data-mode="men"] .header-title {
 [data-mode="este"] .ad-shop-card { border-radius:10px; }
 [data-mode="men_same"] .ad-shop-card { border-radius:4px; }
 [data-mode="women_same"] .ad-shop-card { border-radius:12px; }
-[data-mode="men"] .ad-main-card { border-radius:2px;border-left-color:#b8860b; }
-[data-mode="men"] .ad-main-card .ad-main-catch { border-left-color:#b8860b; }
-[data-mode="women"] .ad-main-card { border-radius:12px; }
-[data-mode="este"] .ad-main-card { border-radius:10px; }
-[data-mode="men_same"] .ad-main-card { border-radius:4px; }
-[data-mode="women_same"] .ad-main-card { border-radius:12px; }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:60px;height:80px;border-radius:0;object-fit:cover;object-position:center 20%;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
@@ -2237,8 +2231,8 @@ body[data-mode="men"] .header-title {
 .ad-rank-gold { border:2px solid transparent !important;background:linear-gradient(#fffdf5,#fff8e8) padding-box,linear-gradient(135deg,#b8860b,#daa520,#ffd700,#fff5cc,#ffd700,#daa520,#b8860b) border-box !important;box-shadow:0 0 6px rgba(255,215,0,0.4),0 2px 12px rgba(201,169,110,0.35) !important; }
 .ad-rank-silver { border:2px solid transparent !important;background:linear-gradient(#fafafa,#f5f5f5) padding-box,linear-gradient(135deg,#a0a0a0,#d4d4d4,#a0a0a0,#e0e0e0,#a0a0a0) border-box !important;box-shadow:0 0 5px rgba(192,192,192,0.4),0 2px 10px rgba(160,160,160,0.3) !important; }
 .ad-rank-bronze { border:2px solid transparent !important;background:linear-gradient(#fdf8f3,#faf0e6) padding-box,linear-gradient(135deg,#8b4513,#b87333,#cd853f,#f0d4a8,#cd853f,#b87333,#8b4513) border-box !important;box-shadow:0 0 5px rgba(205,133,63,0.35),0 2px 10px rgba(184,115,51,0.3) !important; }
-.ad-main-card { display:flex;flex-direction:column;background:var(--bg-2,#f8f6f2);border:none;border-left:4px solid var(--accent,#b5627a);border-radius:8px;overflow:hidden;margin-bottom:6px;max-width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.10),0 1px 4px rgba(0,0,0,0.06);transition:transform 0.2s ease,box-shadow 0.2s ease; }
-.ad-main-card:hover { transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.14),0 2px 8px rgba(0,0,0,0.08); }
+.ad-main-card { display:flex;flex-direction:column;background:#fff;border:none;border-radius:12px;overflow:hidden;margin-bottom:8px;max-width:100%;box-shadow:0 4px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04);transition:transform 0.2s ease,box-shadow 0.2s ease; }
+.ad-main-card:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.10),0 2px 6px rgba(0,0,0,0.06); }
 .ad-main-card:active { transform:scale(0.985); }
 .ad-main-hero-link { display:block;text-decoration:none; }
 .ad-main-hero { position:relative;width:100%;aspect-ratio:2.618/1;overflow:hidden;background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 30%, #1a1a2e), color-mix(in srgb, var(--accent,#b5627a) 15%, #2d2d44)); }
@@ -2246,53 +2240,44 @@ body[data-mode="men"] .header-title {
 .ad-main-hero-bg { position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;z-index:0; }
 .ad-main-hero-grid { position:relative;display:flex;width:100%;height:100%;justify-content:space-evenly;align-items:stretch;z-index:1; }
 .ad-main-hero-grid img { max-width:33.3%;height:100%;object-fit:cover;object-position:center 20%;display:block; }
-.ad-main-count { font-size:11px;color:#2e8b57;font-weight:600;white-space:nowrap; }
 .ad-main-hero-empty { display:flex;align-items:center;justify-content:center;font-size:48px;opacity:0.5; }
-.ad-main-body { padding:4px 10px 2px;display:flex;align-items:center;justify-content:space-between;gap:8px; }
-.ad-main-body .ad-shop-name { font-size:clamp(13px,2.3vw,17px);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.ad-main-body .ad-main-count { flex-shrink:0; }
-.ad-main-catch { padding:0 10px 4px;font-size:12px;color:var(--text-3,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4;border-left:2px solid var(--accent,#b5627a);margin:0 10px 4px;padding:2px 0 2px 8px; }
-.ad-main-bottom { display:flex;justify-content:space-between;align-items:center;padding:3px 10px 4px;background:linear-gradient(90deg, color-mix(in srgb, var(--accent,#b5627a) 12%, var(--bg-3,#f0ede8)), color-mix(in srgb, var(--accent,#b5627a) 4%, var(--bg-3,#f0ede8))); }
-.ad-badge-recommend { display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 6px;background:var(--accent,#b5627a);color:#fff;border-radius:3px;margin-right:0;white-space:nowrap;line-height:1;align-self:center; }
+.ad-main-body { padding:12px 16px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.ad-main-body .ad-shop-name { font-size:clamp(16px,3vw,22px);font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.02em; }
+.ad-main-count-badge { font-size:11px;font-weight:600;white-space:nowrap;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--accent,#b5627a) 10%, #fff);color:var(--accent,#b5627a);flex-shrink:0; }
+.ad-main-bottom { display:flex;justify-content:space-between;align-items:center;padding:6px 16px 10px; }
+.ad-badge-recommend { display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 8px;background:var(--accent,#b5627a);color:#fff;border-radius:4px;white-space:nowrap;line-height:1;align-self:center; }
 .ad-badge-recommend--sm { font-size:9px;padding:1px 4px; }
-.ad-main-price-text { font-size:clamp(16px, 2.8vw, 22px);font-weight:800;color:#c05050;white-space:nowrap; }
-.ad-main-hours-text { text-align:right;line-height:1.2;white-space:nowrap;flex-shrink:0;margin-left:auto; }
-.ad-main-hours-label { display:block;font-size:12px;color:var(--text-3);font-weight:400; }
+.ad-main-price-text { font-size:clamp(20px,3.5vw,28px);font-weight:800;color:#c05050;white-space:nowrap;letter-spacing:0.01em; }
+.ad-main-hours-text { text-align:right;line-height:1.3;white-space:nowrap;flex-shrink:0;margin-left:auto; }
+.ad-main-hours-label { display:block;font-size:11px;color:var(--text-3);font-weight:400; }
 .ad-main-hours-value { display:block;font-size:clamp(13px, 2vw, 16px);color:var(--text);font-weight:700; }
 
 /* ── ジャンル別メイン広告カラー ── */
-/* men: ウォームゴールド */
-[data-mode="men"] .ad-main-bottom { background:linear-gradient(90deg,#faf5e8,#f5ecd6); }
+/* men: ゴールド */
+[data-mode="men"] .ad-main-card { border-radius:4px; }
 [data-mode="men"] .ad-main-price-text { color:#8b6914; }
-[data-mode="men"] .ad-main-hours-label { color:#9a8a6a; }
-[data-mode="men"] .ad-main-hours-value { color:#5a4a2a; }
 [data-mode="men"] .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520);color:#fff; }
-[data-mode="men"] .ad-main-count { color:#b8860b; }
-[data-mode="men"] .ad-main-catch { border-left-color:#b8860b;color:#8a7a60; }
-/* women: ローズピンク */
-[data-mode="women"] .ad-main-bottom { background:linear-gradient(90deg,#fdf0f3,#fef8f9); }
+[data-mode="men"] .ad-main-count-badge { background:rgba(184,134,11,0.1);color:#8b6914; }
+/* women: ローズ */
+[data-mode="women"] .ad-main-card { border-radius:14px; }
 [data-mode="women"] .ad-main-price-text { color:#c4506a; }
 [data-mode="women"] .ad-badge-recommend { background:linear-gradient(135deg,#b5627a,#d4849a); }
-[data-mode="women"] .ad-main-count { color:#b5627a; }
-[data-mode="women"] .ad-main-catch { border-left-color:#d4849a;color:#9a6a7a; }
+[data-mode="women"] .ad-main-count-badge { background:rgba(181,98,122,0.1);color:#b5627a; }
 /* este: ティール */
-[data-mode="este"] .ad-main-bottom { background:linear-gradient(90deg,#edf8f8,#f4fbfb); }
+[data-mode="este"] .ad-main-card { border-radius:12px; }
 [data-mode="este"] .ad-main-price-text { color:#1a8a8a; }
 [data-mode="este"] .ad-badge-recommend { background:linear-gradient(135deg,#2aa8b8,#4cc8d0); }
-[data-mode="este"] .ad-main-count { color:#2aa8b8; }
-[data-mode="este"] .ad-main-catch { border-left-color:#4cc8d0;color:#5a8a8a; }
+[data-mode="este"] .ad-main-count-badge { background:rgba(42,168,184,0.1);color:#2aa8b8; }
 /* men_same: ネイビー */
-[data-mode="men_same"] .ad-main-bottom { background:linear-gradient(90deg,#eef2f8,#f4f6fa); }
+[data-mode="men_same"] .ad-main-card { border-radius:6px; }
 [data-mode="men_same"] .ad-main-price-text { color:#2a5a8f; }
 [data-mode="men_same"] .ad-badge-recommend { background:linear-gradient(135deg,#2a5a8f,#4a7ab0); }
-[data-mode="men_same"] .ad-main-count { color:#2a5a8f; }
-[data-mode="men_same"] .ad-main-catch { border-left-color:#4a7ab0;color:#5a7090; }
+[data-mode="men_same"] .ad-main-count-badge { background:rgba(42,90,143,0.1);color:#2a5a8f; }
 /* women_same: ラベンダー */
-[data-mode="women_same"] .ad-main-bottom { background:linear-gradient(90deg,#f4eef8,#f8f4fb); }
+[data-mode="women_same"] .ad-main-card { border-radius:14px; }
 [data-mode="women_same"] .ad-main-price-text { color:#7a4a9a; }
 [data-mode="women_same"] .ad-badge-recommend { background:linear-gradient(135deg,#8a5a9e,#a87abc); }
-[data-mode="women_same"] .ad-main-count { color:#8a5a9e; }
-[data-mode="women_same"] .ad-main-catch { border-left-color:#a87abc;color:#7a6a8a; }
+[data-mode="women_same"] .ad-main-count-badge { background:rgba(138,90,158,0.1);color:#8a5a9e; }
 
 /* ── ジャンル別サブ広告カラー ── */
 /* men: 金系 */

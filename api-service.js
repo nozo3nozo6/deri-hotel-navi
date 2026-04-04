@@ -296,7 +296,7 @@ function renderAdHTML(ad) {
         return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
     })();
     const reportCount = ad.report_count || 0;
-    const countBadge = reportCount > 0 ? `<span class="ad-main-count">📋${reportCount}件</span>` : '';
+    const countBadge = reportCount > 0 ? `<span class="ad-main-count-badge">📋${reportCount}件</span>` : '';
     const bottomParts = [];
     if (priceText) bottomParts.push(`<span class="ad-badge-recommend">オススメ</span> 🎫 <span class="ad-main-price-text">${priceText}</span>`);
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
