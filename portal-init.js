@@ -173,3 +173,23 @@ document.addEventListener('input', function(e) {
     var action = e.target.dataset.oninput;
     if (action && typeof window[action] === 'function') window[action]();
 });
+
+// ── スクロールコンテナのタッチ端到達時に親スクロールへ移行 ──
+(function() {
+    var _startY = 0;
+    document.addEventListener('touchstart', function(e) {
+        var el = e.target.closest('.scrollable-reviews');
+        if (el) _startY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+        var el = e.target.closest('.scrollable-reviews');
+        if (!el) return;
+        var dy = e.touches[0].clientY - _startY;
+        var atTop = el.scrollTop <= 0 && dy > 0;
+        var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && dy < 0;
+        if (atTop || atBottom) {
+            el.style.overflowY = 'hidden';
+            requestAnimationFrame(function() { el.style.overflowY = 'auto'; });
+        }
+    }, { passive: true });
+})();
