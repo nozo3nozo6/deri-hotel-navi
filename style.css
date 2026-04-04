@@ -2245,8 +2245,8 @@ body[data-mode="men"] .header-title {
 .ad-main-body .ad-shop-name { font-size:clamp(13px,2.3vw,17px);font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 .ad-main-body .ad-main-count { flex-shrink:0; }
 .ad-main-bottom { display:flex;justify-content:space-between;align-items:center;padding:4px 10px 6px;background:linear-gradient(90deg, color-mix(in srgb, var(--accent,#b5627a) 12%, var(--bg-3,#f0ede8)), color-mix(in srgb, var(--accent,#b5627a) 4%, var(--bg-3,#f0ede8))); }
-.ad-badge-recommend { display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;background:var(--accent,#b5627a);color:#fff;border-radius:3px;vertical-align:middle;margin-right:6px;white-space:nowrap; }
-.ad-badge-recommend--sm { font-size:9px;padding:1px 4px;margin-right:4px; }
+.ad-badge-recommend { display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;background:var(--accent,#b5627a);color:#fff;border-radius:3px;vertical-align:middle;margin-right:4px;white-space:nowrap; }
+.ad-badge-recommend--sm { font-size:9px;padding:1px 4px;margin-right:3px; }
 .ad-main-price-text { font-size:clamp(16px, 2.8vw, 22px);font-weight:800;color:#c05050;white-space:nowrap; }
 .ad-main-hours-text { text-align:right;line-height:1.2;white-space:nowrap;flex-shrink:0;margin-left:auto; }
 .ad-main-hours-label { display:block;font-size:12px;color:var(--text-3);font-weight:400; }

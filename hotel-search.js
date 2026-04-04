@@ -2133,7 +2133,7 @@ function renderSubAdCards(ads, label) {
         const detailParts = [];
         if (priceText) detailParts.push(`<span class="ad-badge-recommend ad-badge-recommend--sm">おすすめ</span><span style="font-size:12px;font-weight:700;color:#c05050;">${priceText}</span>`);
         if (businessHours) detailParts.push(`<span style="font-size:11px;color:var(--text-3);">${esc(businessHours)}</span>`);
-        const detailHtml = detailParts.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">${detailParts.join('')}</div>` : '';
+        const detailHtml = detailParts.length ? `<div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap;">${detailParts.join('')}</div>` : '';
         const rank = ad.rank || (i + 1);
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
