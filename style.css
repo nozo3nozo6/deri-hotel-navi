@@ -2203,7 +2203,7 @@ body[data-mode="men"] .header-title {
 }
 .ad-shop-header { font-size:12px;color:var(--accent,#b5627a);font-weight:600;margin-bottom:6px; }
 #detail-ad-area,#detail-ad-block,#detail-ad-pref,#detail-ad-wide { margin-top:16px; }
-.ad-shop-list { display:flex;flex-direction:column;gap:4px;max-width:100%;padding:6px; }
+.ad-shop-list { display:flex;flex-direction:column;gap:12px;max-width:100%;padding:6px; }
 .ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:#fff;border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;overflow:hidden;border-left:3px solid var(--accent,#b5627a); }
 /* ジャンル別カードデザイン */
 [data-mode="men"] .ad-shop-card { border-radius:2px; }
