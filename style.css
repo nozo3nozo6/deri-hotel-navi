@@ -2251,22 +2251,27 @@ body[data-mode="men"] .header-title {
 .ad-main-hours-label { display:block;font-size:11px;color:#999;font-weight:400; }
 .ad-main-hours-value { display:block;font-size:clamp(13px, 2vw, 15px);color:#444;font-weight:600; }
 
-/* ── ジャンル別メイン広告カラー（バッジ・件数のみ差別化） ── */
+/* ── ジャンル別メイン広告カラー ── */
 [data-mode="men"] .ad-main-card { border-radius:4px; }
 [data-mode="men"] .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520); }
 [data-mode="men"] .ad-main-count-badge { background:rgba(184,134,11,0.1);color:#8b6914; }
+[data-mode="men"] .ad-main-bottom { background:linear-gradient(90deg,#faf5e8,#f5ecd6);border-top-color:#efe0c0; }
 [data-mode="women"] .ad-main-card { border-radius:12px; }
 [data-mode="women"] .ad-badge-recommend { background:linear-gradient(135deg,#b5627a,#d4849a); }
 [data-mode="women"] .ad-main-count-badge { background:rgba(181,98,122,0.1);color:#b5627a; }
+[data-mode="women"] .ad-main-bottom { background:linear-gradient(90deg,#fdf0f3,#fef8f9);border-top-color:#f0dde3; }
 [data-mode="este"] .ad-main-card { border-radius:10px; }
 [data-mode="este"] .ad-badge-recommend { background:linear-gradient(135deg,#2aa8b8,#4cc8d0); }
 [data-mode="este"] .ad-main-count-badge { background:rgba(42,168,184,0.1);color:#2aa8b8; }
+[data-mode="este"] .ad-main-bottom { background:linear-gradient(90deg,#edf8f8,#f4fbfb);border-top-color:#d0eaec; }
 [data-mode="men_same"] .ad-main-card { border-radius:4px; }
 [data-mode="men_same"] .ad-badge-recommend { background:linear-gradient(135deg,#2a5a8f,#4a7ab0); }
 [data-mode="men_same"] .ad-main-count-badge { background:rgba(42,90,143,0.1);color:#2a5a8f; }
+[data-mode="men_same"] .ad-main-bottom { background:linear-gradient(90deg,#eef2f8,#f4f6fa);border-top-color:#d8e0ec; }
 [data-mode="women_same"] .ad-main-card { border-radius:12px; }
 [data-mode="women_same"] .ad-badge-recommend { background:linear-gradient(135deg,#8a5a9e,#a87abc); }
 [data-mode="women_same"] .ad-main-count-badge { background:rgba(138,90,158,0.1);color:#8a5a9e; }
+[data-mode="women_same"] .ad-main-bottom { background:linear-gradient(90deg,#f4eef8,#f8f4fb);border-top-color:#e0d4ea; }
 /* ── ジャンル別サブ広告カラー ── */
 /* men: 金系 */
 [data-mode="men"] .ad-shop-card { border-left-color:#b8860b;background:linear-gradient(135deg,#1e1e1e,#2a2218);border-color:rgba(184,134,11,0.3); }
