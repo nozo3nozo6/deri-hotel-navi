@@ -2235,7 +2235,7 @@ body[data-mode="men"] .header-title {
 
 /* メイン広告カード（ヒーロー画像型） */
 .ad-rank-gold { border:2px solid transparent !important;background:linear-gradient(#fffdf5,#fff8e8) padding-box,linear-gradient(135deg,#b8860b,#daa520,#ffd700,#fff5cc,#ffd700,#daa520,#b8860b) border-box !important;box-shadow:0 0 6px rgba(255,215,0,0.4),0 2px 12px rgba(201,169,110,0.35) !important; }
-.ad-rank-silver { border:2px solid transparent !important;background:linear-gradient(#fafafa,#f5f5f5) padding-box,linear-gradient(135deg,#a0a0a0,#d4d4d4,#a0a0a0,#e0e0e0,#a0a0a0) border-box !important;box-shadow:0 0 5px rgba(192,192,192,0.4),0 2px 10px rgba(160,160,160,0.3) !important; }
+.ad-rank-silver { border:2px solid transparent !important;background:linear-gradient(#fafafa,#f5f5f5) padding-box,linear-gradient(135deg,#b0b0b0,#d8d8d8,#b0b0b0) border-box !important;box-shadow:0 0 5px rgba(192,192,192,0.4),0 2px 10px rgba(160,160,160,0.3) !important; }
 .ad-rank-bronze { border:2px solid transparent !important;background:linear-gradient(#fdf8f3,#faf0e6) padding-box,linear-gradient(135deg,#8b4513,#b87333,#cd853f,#f0d4a8,#cd853f,#b87333,#8b4513) border-box !important;box-shadow:0 0 5px rgba(205,133,63,0.35),0 2px 10px rgba(184,115,51,0.3) !important; }
 .ad-main-card { display:flex;flex-direction:column;background:var(--bg-2,#f8f6f2);border:none;border-left:4px solid var(--accent,#b5627a);border-radius:8px;overflow:hidden;margin-bottom:6px;max-width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.10),0 1px 4px rgba(0,0,0,0.06); }
 .ad-main-hero-link { display:block;text-decoration:none; }
