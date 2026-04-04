@@ -2131,7 +2131,7 @@ function renderSubAdCards(ads, label) {
             return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
         })();
         const detailParts = [];
-        if (priceText) detailParts.push(`<span style="font-size:12px;font-weight:700;color:#c05050;">${priceText}</span>`);
+        if (priceText) detailParts.push(`<span class="ad-badge-recommend ad-badge-recommend--sm">おすすめ</span><span style="font-size:12px;font-weight:700;color:#c05050;">${priceText}</span>`);
         if (businessHours) detailParts.push(`<span style="font-size:11px;color:var(--text-3);">${esc(businessHours)}</span>`);
         const detailHtml = detailParts.length ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px;">${detailParts.join('')}</div>` : '';
         const rank = ad.rank || (i + 1);
