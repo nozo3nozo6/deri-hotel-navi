@@ -2166,7 +2166,7 @@ function renderSubAdCards(ads, label) {
             return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
         })();
         const detailParts = [];
-        if (priceText) detailParts.push(`<span class="ad-badge-recommend ad-badge-recommend--sm">オススメ</span><span style="margin:0 1px">🌟</span><span class="ad-sub-price">${priceText}</span>`);
+        if (priceText) detailParts.push(`<span class="ad-badge-recommend ad-badge-recommend--sm">オススメ</span><span style="margin:0 1px">💎</span><span class="ad-sub-price">${priceText}</span>`);
         if (businessHours) detailParts.push(`<span class="ad-sub-hours">🕐${esc(businessHours)}🕐</span>`);
         const detailHtml = detailParts.length ? `<div class="ad-sub-detail">${detailParts.join('')}</div>` : '';
         const rank = ad.rank || (i + 1);

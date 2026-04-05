@@ -299,7 +299,7 @@ function renderAdHTML(ad) {
     const reportCount = ad.report_count || 0;
     const countBadge = reportCount > 0 ? `<span class="ad-main-count-badge">📋${reportCount}件</span>` : '';
     const bottomParts = [];
-    if (priceText) bottomParts.push(`<span class="ad-badge-recommend">オススメ</span><span style="margin:0 1px">🌟</span><span class="ad-main-price-text">${priceText}</span>`);
+    if (priceText) bottomParts.push(`<span class="ad-badge-recommend">オススメ</span><span style="margin:0 1px">💎</span><span class="ad-main-price-text">${priceText}</span>`);
     if (businessHours) bottomParts.push(`<span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">${esc(businessHours)}</span></span>`);
     const bottomHTML = bottomParts.length ? `<div class="ad-main-bottom">${bottomParts.join('')}</div>` : '';
     const rankClass = ad.rank === 1 ? 'ad-rank-gold' : ad.rank === 2 ? 'ad-rank-silver' : ad.rank === 3 ? 'ad-rank-bronze' : '';
