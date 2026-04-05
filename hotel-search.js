@@ -2161,9 +2161,8 @@ function renderSubAdCards(ads, label) {
             if (!minPrice) return '';
             const pp = minPrice.split(',');
             if (pp.length !== 2) return '';
-            const toFull = n => String(n).replace(/[0-9]/g, c => String.fromCharCode(c.charCodeAt(0) + 0xFEE0));
             const fmtYen = n => Number(n).toLocaleString('ja-JP');
-            return `${toFull(pp[0])}分 ${fmtYen(pp[1])}円〜`;
+            return `${pp[0]}分 ${fmtYen(pp[1])}円〜`;
         })();
         const detailParts = [];
         if (priceText) detailParts.push(`<span class="ad-badge-recommend ad-badge-recommend--sm">オススメ</span>💎<span class="ad-sub-price">${priceText}</span>`);
