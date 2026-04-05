@@ -40,6 +40,17 @@ function getCurrentMode() {
     return window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
 }
 
+// デフォルト画像マップ（店舗が画像未アップロード時のComing Soon画像）
+const DEFAULT_IMAGES = {
+    men:        { hero: '/assets/default/yobuho_default_1309x500_delihel.png', thumb: '/assets/default/yobuho_default_375x500_delihel.png' },
+    women:      { hero: '/assets/default/yobuho_default_1309x500_jofu.png',    thumb: '/assets/default/yobuho_default_375x500_jofu.png' },
+    este:       { hero: '/assets/default/yobuho_default_1309x500_esthe.png',   thumb: '/assets/default/yobuho_default_375x500_esthe.png' },
+    women_same: { hero: '/assets/default/yobuho_default_1309x500_women.png',   thumb: '/assets/default/yobuho_default_375x500_women.png' },
+    men_same:   { hero: '/assets/default/yobuho_default_1309x500_men.png',     thumb: '/assets/default/yobuho_default_375x500_men.png' },
+};
+function getDefaultHero() { return (DEFAULT_IMAGES[getCurrentMode()] || DEFAULT_IMAGES.men).hero; }
+function getDefaultThumb() { return (DEFAULT_IMAGES[getCurrentMode()] || DEFAULT_IMAGES.men).thumb; }
+
 const GATE_PATH_MAP = {
     'men': '/deli/',
     'women': '/jofu/',
@@ -285,9 +296,7 @@ function renderAdHTML(ad) {
     const singleImg = images.length ? images[0] : thumbUrl;
     const heroImgHTML = isGrid
         ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(shopName)}" loading="lazy">`).join('')}</div>`
-        : singleImg
-            ? `<img src="${esc(singleImg)}" alt="${esc(shopName)}" loading="lazy">`
-            : `<div class="ad-main-hero-empty">📢</div>`;
+        : `<img src="${esc(singleImg || getDefaultHero())}" alt="${esc(shopName)}" loading="lazy">`;
     const priceText = (() => {
         if (!minPrice) return '';
         const pp = minPrice.split(',');

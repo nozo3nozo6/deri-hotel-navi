@@ -2115,9 +2115,7 @@ function renderDetailShopCards(shops, cityName) {
         const nameHtml = url
             ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'detail_shop',area:'${esc(cityName||'').replace(/'/g,"\\'")}'})">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
-        const thumbHtml = thumb
-            ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
-            : '';
+        const thumbHtml = `<img src="${esc(thumb || getDefaultThumb())}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`;
         const countHtml = count > 0 ? `<span class="ad-sub-count">📋${count}件</span>` : '';
         const prHtml = prText ? `<div class="ad-sub-catch">${esc(prText)}</div>` : '';
         const rank = i + 1;
@@ -2152,9 +2150,7 @@ function renderSubAdCards(ads, label) {
         const nameHtml = url
             ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'${esc(_adPlType)}',area:'${esc(_adPlTarget).replace(/'/g,"\\'")}'})">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
-        const thumbHtml = thumb
-            ? `<img src="${esc(thumb)}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`
-            : '';
+        const thumbHtml = `<img src="${esc(thumb || getDefaultThumb())}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`;
         const countHtml = count > 0 ? `<span class="ad-sub-count">📋${count}件</span>` : '';
         const catchHtml = catchText ? `<div class="ad-sub-catch">${esc(catchText)}</div>` : '';
         const priceText = (() => {
@@ -2226,9 +2222,7 @@ function renderAreaShopSection(shops) {
         const singleImg = images.length ? images[0] : s.thumbnail_url;
         const heroImgHtml = isGrid
             ? `${bgImg}<div class="ad-main-hero-grid">${images.slice(0,3).map(u => `<img src="${esc(u)}" alt="${esc(s.shop_name)}" loading="lazy">`).join('')}</div>`
-            : singleImg
-                ? `<img src="${esc(singleImg)}" alt="${esc(s.shop_name)}" loading="lazy">`
-                : `<div class="ad-main-hero-empty">📢</div>`;
+            : `<img src="${esc(singleImg || getDefaultHero())}" alt="${esc(s.shop_name)}" loading="lazy">`;
         const hoursText = s.business_hours || '';
         const priceText = (() => {
             if (!s.min_price) return '';
