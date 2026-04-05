@@ -1758,7 +1758,7 @@ function leaveHotelDetail() {
     if (content) { content.style.display = 'none'; content.innerHTML = ''; }
     const mapDetail = document.getElementById('map-detail-content');
     if (mapDetail) { mapDetail.style.display = 'none'; mapDetail.innerHTML = ''; }
-    document.getElementById('area-button-container').style.display = '';
+    document.getElementById('area-button-container').style.display = 'grid';
     const areaSection = document.querySelector('.area-section');
     if (areaSection) areaSection.style.paddingBottom = '';
     const searchTools = document.querySelector('.search-tools');
