@@ -1764,7 +1764,7 @@ function leaveHotelDetail() {
     const searchTools = document.querySelector('.search-tools');
     if (searchTools) searchTools.style.display = '';
     const rs = document.getElementById('result-status');
-    if (rs) rs.style.display = '';
+    if (rs) rs.style.display = 'block';
     document.getElementById('hotel-list').style.display = '';
     // パンくず復元
     if (_savedBreadcrumbHTML) {
