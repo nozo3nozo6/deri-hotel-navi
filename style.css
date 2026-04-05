@@ -2234,7 +2234,7 @@ body[data-mode="men"] .header-title {
 .ad-sub-top { display:flex;justify-content:space-between;align-items:baseline;gap:8px; }
 .ad-sub-count { font-size:11px;color:#2e8b57;white-space:nowrap;font-weight:600; }
 .ad-sub-catch { font-size:13px;font-weight:700;color:var(--accent,#b5627a);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4; }
-.ad-sub-detail { display:flex;align-items:center;gap:6px;margin:2px -10px -1px;padding:3px 10px 2px;border-top:1px solid #f0f0f0;background:linear-gradient(90deg, color-mix(in srgb, var(--accent,#b5627a) 12%, var(--bg-3,#f0ede8)), color-mix(in srgb, var(--accent,#b5627a) 4%, var(--bg-3,#f0ede8))); }
+.ad-sub-detail { display:flex;align-items:center;gap:6px;margin:2px -10px 0;padding:3px 10px 3px;border-top:1px solid #f0f0f0;background:linear-gradient(90deg, color-mix(in srgb, var(--accent,#b5627a) 12%, var(--bg-3,#f0ede8)), color-mix(in srgb, var(--accent,#b5627a) 4%, var(--bg-3,#f0ede8))); }
 .ad-sub-price { font-size:clamp(13px,2.2vw,16px);font-weight:800;color:#c05050; }
 .ad-sub-hours { font-size:clamp(11px,1.8vw,13px);color:#444;margin-left:auto;white-space:nowrap;font-weight:600; }
 /* サブ広告 ジャンル別角丸 */
@@ -2248,8 +2248,6 @@ body[data-mode="men"] .header-title {
 [data-mode="men"] .ad-shop-card .ad-sub-count { color:#b8860b; }
 [data-mode="men"] .ad-shop-card .ad-sub-catch { color:#c9a96e; }
 [data-mode="men"] .ad-shop-card .ad-sub-detail { border-top-color:rgba(184,134,11,0.3); }
-[data-mode="men"] .ad-shop-card .ad-sub-price { color:#daa520; }
-[data-mode="men"] .ad-shop-card .ad-sub-hours { color:#a09070; }
 /* サブ広告 ランク下段 */
 .ad-rank-gold .ad-sub-detail { border-top:none;background:linear-gradient(90deg,#faf5e8,#f5ecd6) !important; }
 .ad-rank-silver .ad-sub-detail { background:linear-gradient(90deg,#f5f5f5,#e8e8e8) !important;border-top:none; }
@@ -2302,21 +2300,17 @@ body[data-mode="men"] .header-title {
 [data-mode="men"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520);color:#1a1a1a; }
 /* women: ローズ */
 [data-mode="women"] .ad-shop-card .ad-sub-count { color:#b5627a; }
-[data-mode="women"] .ad-shop-card .ad-sub-price { color:#c4506a; }
 /* este: ティール */
 [data-mode="este"] .ad-shop-card .ad-sub-count { color:#2aa8b8; }
 [data-mode="este"] .ad-shop-card .ad-sub-catch { color:#1a8a8a; }
-[data-mode="este"] .ad-shop-card .ad-sub-price { color:#1a8a8a; }
 [data-mode="este"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#2aa8b8,#4cc8d0); }
 /* men_same: ネイビー */
 [data-mode="men_same"] .ad-shop-card .ad-sub-count { color:#2a5a8f; }
 [data-mode="men_same"] .ad-shop-card .ad-sub-catch { color:#2a5a8f; }
-[data-mode="men_same"] .ad-shop-card .ad-sub-price { color:#2a5a8f; }
 [data-mode="men_same"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#2a5a8f,#4a7ab0); }
 /* women_same: ラベンダー */
 [data-mode="women_same"] .ad-shop-card .ad-sub-count { color:#8a5a9e; }
 [data-mode="women_same"] .ad-shop-card .ad-sub-catch { color:#7a4a9a; }
-[data-mode="women_same"] .ad-shop-card .ad-sub-price { color:#7a4a9a; }
 [data-mode="women_same"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#8a5a9e,#a87abc); }
 
 /* ==========================================================================
