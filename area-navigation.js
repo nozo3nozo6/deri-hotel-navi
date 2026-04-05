@@ -248,7 +248,7 @@ function parseUrlPath() {
 
 async function restoreFromUrl() {
     const searchTools = document.querySelector('.search-tools');
-    if (searchTools) searchTools.style.display = '';
+    if (searchTools) searchTools.style.display = 'flex';
     const params = parseUrlPath();
     _skipPushState = true;
 
