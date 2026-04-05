@@ -530,7 +530,6 @@ body[data-mode="este"] {
     border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     max-width: 640px;
-    min-height: 60vh;
     overflow-x: hidden;
 }
 
