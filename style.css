@@ -1,7 +1,7 @@
 /* ==========================================================================
    DERI HOTEL NAVI — style.css
    ========================================================================== */
-html { overflow-y:scroll;scrollbar-gutter:stable; }
+html { overflow-y:scroll; }
 
 /* ==========================================================================
    テーマ変数 — 男性モード
@@ -298,6 +298,7 @@ body {
     font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    min-height: 100vh;
 }
 
 /* 男性モード・男性同士・デリエステ: ゴシック体 */
@@ -529,6 +530,7 @@ body[data-mode="este"] {
     border: 1px solid var(--border);
     box-shadow: var(--card-shadow);
     max-width: 640px;
+    min-height: 60vh;
     overflow-x: hidden;
 }
 
