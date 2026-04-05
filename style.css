@@ -850,6 +850,7 @@ body[data-mode="este"] {
 }
 
 .empty-state { text-align: center; padding: 60px 6px; }
+.empty-state:empty { display: none; }
 .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.3; }
 .empty-text { color: var(--text-3); font-size: 0.85rem; line-height: 2; }
 
