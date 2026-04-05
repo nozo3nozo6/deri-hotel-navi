@@ -2243,7 +2243,6 @@ body[data-mode="men"] .header-title {
 [data-mode="men"] .ad-shop-card .ad-sub-count { color:#b8860b; }
 [data-mode="men"] .ad-shop-card .ad-sub-catch { color:#c9a96e; }
 [data-mode="men"] .ad-shop-card .ad-sub-detail { border-top-color:rgba(184,134,11,0.3); }
-[data-mode="men"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#b8860b,#daa520);color:#1a1a1a; }
 /* サブ広告 ジャンル別（women） */
 [data-mode="women"] .ad-shop-card { border-radius:12px; }
 [data-mode="women"] .ad-shop-card .ad-sub-count { color:#b5627a; }
@@ -2251,17 +2250,14 @@ body[data-mode="men"] .header-title {
 [data-mode="este"] .ad-shop-card { border-radius:10px; }
 [data-mode="este"] .ad-shop-card .ad-sub-count { color:#2aa8b8; }
 [data-mode="este"] .ad-shop-card .ad-sub-catch { color:#1a8a8a; }
-[data-mode="este"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#2aa8b8,#4cc8d0); }
 /* サブ広告 ジャンル別（men_same） */
 [data-mode="men_same"] .ad-shop-card { border-radius:4px; }
 [data-mode="men_same"] .ad-shop-card .ad-sub-count { color:#2a5a8f; }
 [data-mode="men_same"] .ad-shop-card .ad-sub-catch { color:#2a5a8f; }
-[data-mode="men_same"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#2a5a8f,#4a7ab0); }
 /* サブ広告 ジャンル別（women_same） */
 [data-mode="women_same"] .ad-shop-card { border-radius:12px; }
 [data-mode="women_same"] .ad-shop-card .ad-sub-count { color:#8a5a9e; }
 [data-mode="women_same"] .ad-shop-card .ad-sub-catch { color:#7a4a9a; }
-[data-mode="women_same"] .ad-shop-card .ad-badge-recommend { background:linear-gradient(135deg,#8a5a9e,#a87abc); }
 /* サブ広告 ランク下段 */
 .ad-rank-gold .ad-sub-detail { border-top:none;background:linear-gradient(90deg,#faf5e8,#f5ecd6) !important; }
 .ad-rank-silver .ad-sub-detail { background:linear-gradient(90deg,#f5f5f5,#e8e8e8) !important;border-top:none; }
