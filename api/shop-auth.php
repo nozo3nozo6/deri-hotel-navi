@@ -44,6 +44,8 @@ switch ($action) {
     case 'update-email':     handleUpdateEmail(); break;
     case 'update-slug':      handleUpdateSlug(); break;
     case 'lookup-email':     handleLookupEmail(); break;
+    case 'get-fav-areas':    handleGetFavAreas(); break;
+    case 'save-fav-areas':   handleSaveFavAreas(); break;
     default:
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Invalid action']);
@@ -403,5 +405,33 @@ function handleLookupEmail() {
     $stmt->execute([$email]);
     $shop = $stmt->fetch();
     echo json_encode(['exists' => !!$shop]);
+}
+
+// ===== GET: お気に入りエリア取得 =====
+function handleGetFavAreas() {
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT fav_areas FROM shops WHERE id = ?');
+    $stmt->execute([$auth['shop_id']]);
+    $row = $stmt->fetch();
+    $favs = $row && $row['fav_areas'] ? json_decode($row['fav_areas'], true) : [];
+    echo json_encode($favs ?: []);
+}
+
+// ===== POST: お気に入りエリア保存 =====
+function handleSaveFavAreas() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+    $input = json_decode(file_get_contents('php://input'), true);
+    $favs = $input['fav_areas'] ?? [];
+    if (!is_array($favs)) $favs = [];
+    // 最大20件に制限
+    $favs = array_slice($favs, 0, 20);
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('UPDATE shops SET fav_areas = ? WHERE id = ?');
+    $stmt->execute([json_encode($favs, JSON_UNESCAPED_UNICODE), $auth['shop_id']]);
+    echo json_encode(['ok' => true]);
 }
 ?>
