@@ -320,7 +320,7 @@ function renderAdHTML(ad) {
 }
 
 let _adGeneration = 0;
-function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } window._adsSuppressed = true; }
+function suppressAds() { ++_adGeneration; const c = document.getElementById('ad-container'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } const bs = document.getElementById('ad-container-below-search'); if (bs) { bs.innerHTML = ''; bs.style.display = 'none'; } window._adsSuppressed = true; }
 async function _fetchAds(placementType, placementTarget) {
     const currentMode = getCurrentMode();
     const res = await fetch(`/api/ads.php?type=${encodeURIComponent(placementType)}&target=${encodeURIComponent(placementTarget)}&mode=${encodeURIComponent(currentMode)}`);
@@ -338,9 +338,9 @@ async function loadAds(placementType, placementTarget) {
     const container = document.getElementById('ad-container');
     if (!container) return;
     container.innerHTML = '';
-    container.style.display = '';
+    container.style.display = 'none';
     const belowSearch = document.getElementById('ad-container-below-search');
-    if (belowSearch) belowSearch.innerHTML = '';
+    if (belowSearch) { belowSearch.innerHTML = ''; belowSearch.style.display = 'none'; }
     // 店舗専用ページでは広告を表示しない
     if (_shopParam) return;
     const gen = ++_adGeneration;
@@ -367,9 +367,9 @@ async function fetchDetailAds(placementType, placementTarget) {
 
 function clearAds() {
     const container = document.getElementById('ad-container');
-    if (container) container.innerHTML = '';
+    if (container) { container.innerHTML = ''; container.style.display = 'none'; }
     const belowSearch = document.getElementById('ad-container-below-search');
-    if (belowSearch) belowSearch.innerHTML = '';
+    if (belowSearch) { belowSearch.innerHTML = ''; belowSearch.style.display = 'none'; }
 }
 
 async function loadAdsBelowSearch(placementType, placementTarget) {
@@ -377,7 +377,7 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
     const container = document.getElementById('ad-container-below-search');
     if (!container) return;
     container.innerHTML = '';
-    container.style.display = '';
+    container.style.display = 'none';
     // 店舗専用ページでは広告を表示しない
     if (_shopParam) return;
     const gen = ++_adGeneration;
@@ -385,6 +385,7 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
         const allAds = await _fetchAds(placementType, placementTarget);
         if (gen !== _adGeneration || window._adsSuppressed) return;
         if (!allAds.length) return;
+        container.style.display = '';
         const header = `<div class="ad-shop-header">全国のおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div>`;
         container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
     } catch (e) { /* silently */ }

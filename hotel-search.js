@@ -1817,7 +1817,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
                 ${hotel.prefecture ? `<span class="text-sub2">📌 ${esc(hotel.major_area || hotel.prefecture)}</span>` : ''}
             </div>` : ''}
         </div>
-        <div id="detail-ad-city" style="margin-bottom:16px;"></div>
+        <div id="detail-ad-city"></div>
         ${sections.statsHTML || ''}
         ${sections.shopSection || ''}
         <div id="detail-ad-area"></div>
