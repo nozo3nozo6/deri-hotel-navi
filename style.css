@@ -298,7 +298,6 @@ body {
     font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', serif;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
-    min-height: 100vh;
 }
 
 /* 男性モード・男性同士・デリエステ: ゴシック体 */
