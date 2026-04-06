@@ -1510,9 +1510,9 @@ async function loadShopContracts(shopId,plans){
       if(diff<0)statusHtml='<span style="color:#d32f2f;font-weight:700;">⚠ 期限切れ</span>';
       else if(diff<=5)statusHtml=`<span style="color:#e65100;font-weight:700;">⚠ 残り${diff}日</span>`;
       else statusHtml=`<span style="color:#2e7d32;">残り${diff}日</span>`;
-      planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;">`;
-      planHtml+=`<div>${esc(pName)} — ${c.expires_at} ${statusHtml}</div>`;
-      planHtml+=`<button onclick="renewContract(${c.id},'${shopId}')" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;">更新 +1ヶ月</button>`;
+      planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;gap:8px;">`;
+      planHtml+=`<div style="flex:1;">${esc(pName)} — <input type="date" value="${c.expires_at}" onchange="setContractExpiry(${c.id},'${shopId}',this.value)" style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;cursor:pointer;"> ${statusHtml}</div>`;
+      planHtml+=`<button onclick="renewContract(${c.id},'${shopId}')" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+1ヶ月</button>`;
       planHtml+=`</div>`;
     });
     planHtml+='</div>';
@@ -1545,6 +1545,15 @@ async function renewContract(contractId,shopId){
     toast('✅ 更新しました（期限: '+res.expires_at+'）');
     loadShopContracts(shopId,contractPlansData);
   }else{toast('更新エラー');}
+}
+
+async function setContractExpiry(contractId,shopId,dateVal){
+  if(!dateVal)return;
+  const res=await api('set-contract-expiry',{contract_id:contractId,expires_at:dateVal});
+  if(res&&res.success){
+    toast('✅ 期限を '+dateVal+' に設定しました');
+    loadShopContracts(shopId,contractPlansData);
+  }else{toast('設定エラー');}
 }
 
 // shops.plan_idを最高額プランに同期するヘルパー

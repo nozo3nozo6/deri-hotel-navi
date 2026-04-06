@@ -94,6 +94,7 @@ try {
         case 'hotel-cascades': handleHotelCascades(); break;
         case 'shop-contracts': handleShopContracts(); break;
         case 'renew-contract': handleRenewContract(); break;
+        case 'set-contract-expiry': handleSetContractExpiry(); break;
         case 'ad-contracts-list': handleAdContractsList(); break;
         case 'ad-slot-count':  handleAdSlotCount(); break;
         case 'ad-toggle-contract': handleAdToggleContract(); break;
@@ -541,6 +542,21 @@ function handleRenewContract() {
     $stmt = $pdo->prepare('UPDATE shop_contracts SET expires_at = ? WHERE id = ?');
     $stmt->execute([$newExpires, $contractId]);
     echo json_encode(['success' => true, 'expires_at' => $newExpires]);
+}
+
+// 契約期限を直接設定
+function handleSetContractExpiry() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    global $pdo;
+    $input = json_decode(file_get_contents('php://input'), true);
+    $contractId = (int)($input['contract_id'] ?? 0);
+    $expiresAt = $input['expires_at'] ?? '';
+    if (!$contractId || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiresAt)) {
+        http_response_code(400); echo json_encode(['error' => 'Invalid parameters']); return;
+    }
+    $stmt = $pdo->prepare('UPDATE shop_contracts SET expires_at = ? WHERE id = ?');
+    $stmt->execute([$expiresAt, $contractId]);
+    echo json_encode(['success' => true, 'expires_at' => $expiresAt]);
 }
 
 // ===================================================================
