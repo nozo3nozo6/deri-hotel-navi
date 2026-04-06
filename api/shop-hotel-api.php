@@ -143,29 +143,21 @@ function handleGetTransportFee() {
     echo json_encode($row ?: null);
 }
 
-// ===== GET: 既存ラブホレポート確認 =====
+// ===== GET: 既存ラブホレポート確認（shop_idベース） =====
 function handleGetExistingLoveho() {
     $auth = requireAuth();
     $hotelId = (int)($_GET['hotel_id'] ?? 0);
-    $posterName = $_GET['poster_name'] ?? '';
     if (!$hotelId) { echo json_encode(null); return; }
 
     $pdo = DB::conn();
-    $shopId = $auth['shop_id'];
-    // shop_id で検索（優先）、フォールバック: poster_name
     $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND shop_id = ? LIMIT 1');
-    $stmt->execute([$hotelId, $shopId]);
+    $stmt->execute([$hotelId, $auth['shop_id']]);
     $row = $stmt->fetch();
-    if (!$row && $posterName) {
-        $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
-        $stmt->execute([$hotelId, $posterName]);
-        $row = $stmt->fetch();
-    }
     if ($row) {
         $row['multi_person'] = (bool)$row['multi_person'];
         $row['good_points'] = DB::jsonDecode($row['good_points']);
     }
-    echo json_encode($row, JSON_UNESCAPED_UNICODE);
+    echo json_encode($row ?: null, JSON_UNESCAPED_UNICODE);
 }
 
 // ===== POST: レポート + info + services 一括保存 =====
@@ -289,15 +281,10 @@ function handleSaveLovehoInfo() {
     try {
         $pdo->beginTransaction();
 
-        // 1. loveho_reports upsert（shop_id優先、フォールバック: poster_name）
+        // 1. loveho_reports upsert（shop_idベース: 1店舗1ホテル1件）
         $stmt = $pdo->prepare('SELECT id FROM loveho_reports WHERE hotel_id = ? AND shop_id = ? LIMIT 1');
         $stmt->execute([$hotelId, $shopId]);
         $existing = $stmt->fetch();
-        if (!$existing) {
-            $stmt = $pdo->prepare('SELECT id FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
-            $stmt->execute([$hotelId, $posterName]);
-            $existing = $stmt->fetch();
-        }
 
         $cols = [
             'hotel_id' => $hotelId,
@@ -363,10 +350,26 @@ function handleDeleteInfo() {
     $pdo = DB::conn();
     try {
         $pdo->beginTransaction();
+
+        // shop_hotel_info から hotel_id を取得（loveho_reports 連動削除用）
+        $stmt = $pdo->prepare('SELECT hotel_id FROM shop_hotel_info WHERE id = ? AND shop_id = ?');
+        $stmt->execute([$infoId, $auth['shop_id']]);
+        $shiRow = $stmt->fetch();
+
         $stmt = $pdo->prepare('DELETE FROM shop_hotel_services WHERE shop_hotel_info_id = ?');
         $stmt->execute([$infoId]);
         $stmt = $pdo->prepare('DELETE FROM shop_hotel_info WHERE id = ? AND shop_id = ?');
         $stmt->execute([$infoId, $auth['shop_id']]);
+
+        // reports（ホテル口コミ）も連動削除
+        if ($shiRow) {
+            $stmt = $pdo->prepare('DELETE FROM reports WHERE hotel_id = ? AND shop_id = ? AND poster_type = ?');
+            $stmt->execute([$shiRow['hotel_id'], $auth['shop_id'], 'shop']);
+            // loveho_reports（ラブホ口コミ）も連動削除
+            $stmt = $pdo->prepare('DELETE FROM loveho_reports WHERE hotel_id = ? AND shop_id = ?');
+            $stmt->execute([$shiRow['hotel_id'], $auth['shop_id']]);
+        }
+
         $pdo->commit();
         echo json_encode(['success' => true]);
     } catch (Exception $e) {

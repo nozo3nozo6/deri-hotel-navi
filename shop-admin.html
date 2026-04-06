@@ -1975,7 +1975,7 @@ async function lhSelectHotel(hotelId,hotelName){
     await lhLoadMasters();
     // 既存のラブホ投稿データを読み込みフォームに反映
     const shopName=currentShop.shop_name||"店舗";
-    let existLh=null;try{const lhRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-existing-loveho&hotel_id='+hotelId+'&poster_name='+encodeURIComponent(shopName),{credentials:'include'});existLh=await lhRes.json();}catch(e){}
+    let existLh=null;try{const lhRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-existing-loveho&hotel_id='+hotelId,{credentials:'include'});existLh=await lhRes.json();}catch(e){}
     if(existLh){
         document.getElementById("lh-form-title").textContent='🏩 '+hotelName+' の情報を編集';
         if(existLh.solo_entry)document.getElementById("lh-f-solo").value=existLh.solo_entry;
