@@ -1647,6 +1647,16 @@ async function addOneContract(shopId,planId){
   const planName=planInfo?planInfo.name:'プラン';
   if(!confirm('「'+planName+'」を1枠追加しますか？'))return;
   await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
+  // 地方プラン: 店舗の都道府県から地方を逆引きして自動配置
+  if(planInfo){
+    const limits=PLAN_LIMITS[planId]||{};
+    const shop=shopsData.find(s=>String(s.id)===String(shopId));
+    const adMode=shop?shop.gender_mode:'men';
+    if(limits.region>0&&shop?.prefecture){
+      const regionLabel=document.querySelector('#pm-pref option[value="'+shop.prefecture+'"]')?.closest('optgroup')?.label;
+      if(regionLabel)await autoCreatePlacement(shopId,'region',regionLabel,adMode);
+    }
+  }
   toast('「'+planName+'」を追加しました');
   await syncBestPlan(shopId);
   loadShopContracts(shopId,contractPlansData||[]);

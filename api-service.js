@@ -333,7 +333,7 @@ async function _fetchAds(placementType, placementTarget) {
     return unique;
 }
 
-async function loadAds(placementType, placementTarget) {
+async function loadAds(placementType, placementTarget, fallbacks) {
     window._adsSuppressed = false;
     const container = document.getElementById('ad-container');
     if (!container) return;
@@ -345,8 +345,14 @@ async function loadAds(placementType, placementTarget) {
     if (_shopParam) return;
     const gen = ++_adGeneration;
     try {
-        const allAds = await _fetchAds(placementType, placementTarget);
-        if (gen !== _adGeneration || window._adsSuppressed) return;
+        // プライマリ → フォールバック順に試行
+        const chain = [{ type: placementType, target: placementTarget }, ...(fallbacks || [])];
+        let allAds = [];
+        for (const { type, target } of chain) {
+            allAds = await _fetchAds(type, target);
+            if (gen !== _adGeneration || window._adsSuppressed) return;
+            if (allAds.length) break;
+        }
         if (allAds.length) {
             const header = `<div class="ad-shop-header">このエリアのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div>`;
             container.style.display = '';
