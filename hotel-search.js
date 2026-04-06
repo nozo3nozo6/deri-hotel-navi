@@ -904,8 +904,8 @@ function renderLovehoDetail(hotel, reports) {
     // フォームHTML → アコーディオン式
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
-            <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(h.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh">🏩 口コミを投稿する <span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(h.name)}</div>
+            <div><button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh">🏩 口コミを投稿する <span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="loveho-form-accordion" style="display:none;margin-top:12px;">
         <div class="lh-form-wrap">
             <div class="lh-form-row">
@@ -1981,8 +1981,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const castLabel = (getCurrentMode()) === 'women' ? 'セラピスト' : 'キャスト';
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
-            <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(hotel.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal">📝 口コミを投稿する <span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(hotel.name)}</div>
+            <div><button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal">📝 口コミを投稿する <span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="hotel-form-accordion" style="display:none;margin-top:12px;">
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
