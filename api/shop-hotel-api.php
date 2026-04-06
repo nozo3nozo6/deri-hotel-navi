@@ -148,11 +148,18 @@ function handleGetExistingLoveho() {
     $auth = requireAuth();
     $hotelId = (int)($_GET['hotel_id'] ?? 0);
     $posterName = $_GET['poster_name'] ?? '';
-    if (!$hotelId || !$posterName) { echo json_encode(null); return; }
+    if (!$hotelId) { echo json_encode(null); return; }
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
-    $stmt->execute([$hotelId, $posterName]);
+    $shopId = $auth['shop_id'];
+    // shop_id で検索（優先）、フォールバック: poster_name
+    $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND shop_id = ? LIMIT 1');
+    $stmt->execute([$hotelId, $shopId]);
+    $row = $stmt->fetch();
+    if (!$row && $posterName) {
+        $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
+        $stmt->execute([$hotelId, $posterName]);
+    }
     $row = $stmt->fetch();
     if ($row) {
         $row['multi_person'] = (bool)$row['multi_person'];
@@ -282,10 +289,15 @@ function handleSaveLovehoInfo() {
     try {
         $pdo->beginTransaction();
 
-        // 1. loveho_reports upsert
-        $stmt = $pdo->prepare('SELECT id FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
-        $stmt->execute([$hotelId, $posterName]);
+        // 1. loveho_reports upsert（shop_id優先、フォールバック: poster_name）
+        $stmt = $pdo->prepare('SELECT id FROM loveho_reports WHERE hotel_id = ? AND shop_id = ? LIMIT 1');
+        $stmt->execute([$hotelId, $shopId]);
         $existing = $stmt->fetch();
+        if (!$existing) {
+            $stmt = $pdo->prepare('SELECT id FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
+            $stmt->execute([$hotelId, $posterName]);
+            $existing = $stmt->fetch();
+        }
 
         $cols = [
             'hotel_id' => $hotelId,
