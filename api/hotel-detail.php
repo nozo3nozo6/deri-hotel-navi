@@ -129,11 +129,18 @@ if ($type === 'hotel') {
 
 // ── 投稿者店舗情報 ──
 $posterShops = [];
-if ($type === 'hotel' && $reports) {
+if ($reports) {
     $shopNames = [];
     foreach ($reports as $r) {
-        if (($r['poster_type'] ?? '') === 'shop' && !empty($r['poster_name'])) {
-            $shopNames[] = $r['poster_name'];
+        if ($type === 'hotel') {
+            if (($r['poster_type'] ?? '') === 'shop' && !empty($r['poster_name'])) {
+                $shopNames[] = $r['poster_name'];
+            }
+        } else {
+            // loveho_reportsにはposter_typeがないため、poster_nameで店舗を判別
+            if (!empty($r['poster_name'])) {
+                $shopNames[] = $r['poster_name'];
+            }
         }
     }
     $shopNames = array_unique($shopNames);

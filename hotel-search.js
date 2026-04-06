@@ -655,7 +655,27 @@ async function loadDetail(hotelId, isLoveho) {
             shopInfoMap[name] = { shop_url: shop.shop_url, isPaid: maxPrice > 0, planPrice: maxPrice, status: shop.status, shopId: shop.id, url: shop.shop_url };
         });
 
-        // ホテル固有: レポート投稿者の店舗情報を追加取得
+        // 投稿者の店舗情報を追加取得（ホテル・ラブホ共通）
+        const posterShopRows = detailData.poster_shops || [];
+        posterShopRows.forEach(s => {
+            const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+            shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
+        });
+        if (SHOP_DATA?.shop_name) {
+            const name = SHOP_DATA.shop_name;
+            const existing = shopInfoMap[name] || {};
+            const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
+            shopInfoMap[name] = {
+                shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
+                isPaid: existing.isPaid || price > 0,
+                planPrice: Math.max(price, existing.planPrice || 0),
+                status: existing.status || SHOP_DATA?.status || null,
+                shopId: existing.shopId || SHOP_ID || null,
+                url: existing.shop_url || SHOP_DATA?.shop_url || null
+            };
+        }
+
+        // ホテル固有: 店舗モード時は自店舗投稿のみ表示
         if (!isLoveho) {
             if (_shopParam && (SHOP_ID || SHOP_DATA?.shop_name)) {
                 const shopName = SHOP_DATA?.shop_name;
@@ -663,27 +683,6 @@ async function loadDetail(hotelId, isLoveho) {
                     if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
                     return true;
                 });
-            }
-            const posterShopNames = [...new Set(reports.filter(r => r.poster_type === 'shop' && r.poster_name).map(r => r.poster_name))];
-            if (posterShopNames.length > 0) {
-                const shopRows = detailData.poster_shops || [];
-                (shopRows || []).forEach(s => {
-                    const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                    shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
-                });
-            }
-            if (SHOP_DATA?.shop_name) {
-                const name = SHOP_DATA.shop_name;
-                const existing = shopInfoMap[name] || {};
-                const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-                shopInfoMap[name] = {
-                    shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
-                    isPaid: existing.isPaid || price > 0,
-                    planPrice: Math.max(price, existing.planPrice || 0),
-                    status: existing.status || SHOP_DATA?.status || null,
-                    shopId: existing.shopId || SHOP_ID || null,
-                    url: existing.shop_url || SHOP_DATA?.shop_url || null
-                };
             }
         }
 
@@ -834,7 +833,7 @@ function renderLovehoDetail(hotel, reports) {
     }
 
     // 店舗投稿とユーザー投稿を分離
-    const lhShopReports = reports.filter(r => shopNames.includes(r.poster_name) && r.gender_mode === MODE);
+    const lhShopReports = reports.filter(r => shopNames.includes(r.poster_name) && (_shopParam || r.gender_mode === MODE));
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
     lhShopReports.sort((a, b) => {
         const priceA = lhShopInfoMap[a.poster_name]?.planPrice || 0;
@@ -1893,7 +1892,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const userReports = reports.filter(r => r.poster_type !== 'shop');
     const userCanCall = userReports.filter(r => r.can_call).length;
     const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
-    const shopReports = reports.filter(r => r.poster_type === 'shop' && r.gender_mode === MODE);
+    const shopReports = reports.filter(r => r.poster_type === 'shop' && (_shopParam || r.gender_mode === MODE));
     shopReports.sort((a, b) => {
         const priceA = shopInfoMap[a.poster_name]?.planPrice || 0;
         const priceB = shopInfoMap[b.poster_name]?.planPrice || 0;
