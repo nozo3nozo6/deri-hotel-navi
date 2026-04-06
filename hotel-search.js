@@ -303,13 +303,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
-    const _fbCity = [
-        majorArea ? { type: 'area', target: majorArea } : null,
-        pref ? { type: 'big', target: pref } : null,
-        region && !isSinglePrefRegion(region) ? { type: 'region', target: regionLabel } : null,
-        { type: 'premium', target: '全国' }
-    ].filter(Boolean);
-    loadAds('spot', city, _fbCity);
+    loadAds('spot', city);
     setBackBtn(true);
 
     try {
