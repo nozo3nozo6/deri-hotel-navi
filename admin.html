@@ -1556,6 +1556,18 @@ async function setContractExpiry(contractId,shopId,dateVal){
   }else{toast('設定エラー');}
 }
 
+// 掲載エリア+広告の自動作成ヘルパー（全国/地方プラン用）
+async function autoCreatePlacement(shopId,level,targetName,adMode){
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(shopId)+"&level="+encodeURIComponent(level)+"&target_name="+encodeURIComponent(targetName));
+  if(existCheck&&existCheck.length>0)return;
+  await api("insert",{table:"shop_placements",data:{shop_id:shopId,level,target_name:targetName,is_active:true}});
+  const adType=LEVEL_TO_AD_TYPE[level]||level;
+  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(shopId)+"&placement_type="+encodeURIComponent(adType)+"&placement_target="+encodeURIComponent(targetName));
+  if(!adExist||!adExist.length){
+    await api("insert",{table:"ad_placements",data:{shop_id:shopId,placement_type:adType,placement_target:targetName,status:'active',mode:adMode}});
+  }
+}
+
 // shops.plan_idを最高額プランに同期するヘルパー
 async function syncBestPlan(shopId){
   const updatedContracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
@@ -1603,6 +1615,23 @@ async function toggleShopContract(shopId,planId,isActive){
   }else{
     if(!confirm('「'+planName+'」を追加しますか？'))return;
     await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
+    // 全国・地方プラン: 掲載エリア+広告を自動作成
+    if(planInfo){
+      const limits=PLAN_LIMITS[planId]||{};
+      const shop=shopsData.find(s=>String(s.id)===String(shopId));
+      const adMode=shop?shop.gender_mode:'men';
+      if(limits.national>0){
+        await autoCreatePlacement(shopId,'national','全国',adMode);
+      }
+      if(limits.region>0){
+        // 地方プラン: 店舗の都道府県から地方を逆引き
+        const shopPref=shop?.prefecture;
+        if(shopPref){
+          const regionLabel=document.querySelector('#pm-pref option[value="'+shopPref+'"]')?.closest('optgroup')?.label;
+          if(regionLabel)await autoCreatePlacement(shopId,'region',regionLabel,adMode);
+        }
+      }
+    }
     toast('プランを追加しました');
   }
   await syncBestPlan(shopId);
