@@ -24,3 +24,15 @@ ON shops(email);
 -- 広告配置のエリア検索用
 CREATE INDEX IF NOT EXISTS idx_shop_placements_area
 ON shop_placements(level, target_name);
+
+-- 広告配置の type+status+mode 検索用（ads.php高速化）
+CREATE INDEX IF NOT EXISTS idx_ad_placements_type_status_mode
+ON ad_placements(placement_type, status, mode);
+
+-- 店舗ホテル情報の hotel_id+can_call 検索用（area-shops.php高速化）
+CREATE INDEX IF NOT EXISTS idx_shop_hotel_info_hotel_can_call
+ON shop_hotel_info(hotel_id, can_call);
+
+-- 店舗画像の shop_id 検索用（ads.php/area-shops.php高速化）
+CREATE INDEX IF NOT EXISTS idx_shop_images_shop_id
+ON shop_images(shop_id, sort_order);

@@ -32,87 +32,51 @@ if (!$mode || !in_array($mode, ['men', 'women', 'men_same', 'women_same', 'este'
     http_response_code(400); echo json_encode(['error' => 'mode は必須です']); exit;
 }
 
-// Step 1: エリア内ホテルID取得
-$hotelWhere = 'is_published = 1 AND prefecture = ?';
-$hotelParams = [$pref];
-if ($city) { $hotelWhere .= ' AND city = ?'; $hotelParams[] = $city; }
-$stmt = $pdo->prepare("SELECT id FROM hotels WHERE $hotelWhere LIMIT 5000");
-$stmt->execute($hotelParams);
-$hotelIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+// 1クエリで hotels→shop_hotel_info→shops→contracts を結合
+$cityWhere = '';
+$queryParams = [$pref];
+if ($city) { $cityWhere = 'AND h.city = ?'; $queryParams[] = $city; }
+$queryParams[] = $mode;
 
-if (empty($hotelIds)) { echo json_encode([]); exit; }
-
-// Step 2: shop_hotel_info（can_call=1）→ shop_idごとのホテル数
-$placeholders = implode(',', array_fill(0, count($hotelIds), '?'));
-$stmt = $pdo->prepare("SELECT shop_id, COUNT(*) AS cnt FROM shop_hotel_info WHERE hotel_id IN ($placeholders) AND can_call = 1 GROUP BY shop_id");
-$stmt->execute($hotelIds);
-$shopCounts = [];
-foreach ($stmt->fetchAll() as $row) {
-    $shopCounts[$row['shop_id']] = (int)$row['cnt'];
-}
-
-if (empty($shopCounts)) { echo json_encode([]); exit; }
-
-// Step 3: 店舗情報（active + gender_mode一致 + 有料プラン）
-$shopIds = array_keys($shopCounts);
-$spH = implode(',', array_fill(0, count($shopIds), '?'));
 $stmt = $pdo->prepare("
     SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.banner_type, s.catchphrase,
-           s.business_hours, s.pr_text, s.min_price, s.display_tel, s.gender_mode,
-           s.approved_at, sc.plan_id, cp.price
-    FROM shops s
+           s.business_hours, s.pr_text, s.min_price, s.display_tel, s.approved_at,
+           COUNT(DISTINCT shi.hotel_id) AS hotel_count,
+           MAX(cp.price) AS plan_price
+    FROM shop_hotel_info shi
+    JOIN hotels h ON shi.hotel_id = h.id AND h.is_published = 1 AND h.prefecture = ? $cityWhere
+    JOIN shops s ON shi.shop_id = s.id AND s.status = 'active' AND s.gender_mode = ?
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
-    WHERE s.id IN ($spH) AND s.status = 'active' AND s.gender_mode = ?
+    WHERE shi.can_call = 1
+    GROUP BY s.id
+    HAVING plan_price > 0
+    ORDER BY s.approved_at ASC
+    LIMIT 3
 ");
-$stmt->execute(array_merge($shopIds, [$mode]));
+$stmt->execute($queryParams);
 $shopRows = $stmt->fetchAll();
 
-// 整形: shop_idごとに最大価格を計算
-$shopMap = [];
-foreach ($shopRows as $row) {
-    $sid = $row['id'];
-    if (!isset($shopMap[$sid])) {
-        $shopMap[$sid] = [
-            'shop_name' => $row['shop_name'],
-            'shop_url' => $row['shop_url'],
-            'thumbnail_url' => $row['thumbnail_url'],
-            'banner_type' => $row['banner_type'],
-            'catchphrase' => $row['catchphrase'],
-            'business_hours' => $row['business_hours'],
-            'pr_text' => $row['pr_text'],
-            'min_price' => $row['min_price'],
-            'display_tel' => $row['display_tel'],
-            'approved_at' => $row['approved_at'],
-            'plan_price' => 0,
-            'hotel_count' => $shopCounts[$sid] ?? 0,
-        ];
-    }
-    $price = (int)($row['price'] ?? 0);
-    if ($price > $shopMap[$sid]['plan_price']) {
-        $shopMap[$sid]['plan_price'] = $price;
-    }
-}
+if (empty($shopRows)) { echo json_encode([]); exit; }
 
-// 有料プランのみ + 掲載日順（早い方が上位）+ 3件制限
-$result = array_filter(array_values($shopMap), fn($s) => $s['plan_price'] > 0);
-usort($result, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
-
-// 画像3枚を取得
-$allShopIds = array_column(array_values($result), null); // reset keys
-$resultArr = array_values($result);
-if (!empty($resultArr)) {
-    $sids = array_map(fn($s) => $s['id'] ?? '', $resultArr);
-    // shop_idはshopMap構築時にkeyとして使ったが、resultにidがない→shopMapから取得
-}
-// shopMapのキー(shop_id)を結果に付与
 $finalResult = [];
-foreach ($shopMap as $sid => $s) {
-    if ($s['plan_price'] <= 0) continue;
-    $s['id'] = $sid;
-    $finalResult[] = $s;
+foreach ($shopRows as $row) {
+    $finalResult[] = [
+        'id' => $row['id'],
+        'shop_name' => $row['shop_name'],
+        'shop_url' => $row['shop_url'],
+        'thumbnail_url' => $row['thumbnail_url'],
+        'banner_type' => $row['banner_type'],
+        'catchphrase' => $row['catchphrase'],
+        'business_hours' => $row['business_hours'],
+        'pr_text' => $row['pr_text'],
+        'min_price' => $row['min_price'],
+        'display_tel' => $row['display_tel'],
+        'approved_at' => $row['approved_at'],
+        'hotel_count' => (int)$row['hotel_count'],
+        'plan_price' => (int)$row['plan_price'],
+    ];
 }
-usort($finalResult, fn($a, $b) => strcmp($a['approved_at'] ?? '9999', $b['approved_at'] ?? '9999'));
 
 // 3件制限（各エリア先着3店）
 $finalResult = array_slice($finalResult, 0, 3);

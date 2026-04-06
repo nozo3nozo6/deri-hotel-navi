@@ -119,7 +119,7 @@ function ensurePortalMode() {
         closeHotelPanel();
     }
     const st = document.querySelector('.search-tools');
-    if (st) st.style.display = '';
+    if (st) st.style.display = 'flex';
 }
 
 // 店舗URLの全国ページに LP コンテンツを追加するヘルパー
