@@ -159,8 +159,8 @@ function handleGetExistingLoveho() {
     if (!$row && $posterName) {
         $stmt = $pdo->prepare('SELECT * FROM loveho_reports WHERE hotel_id = ? AND poster_name = ? LIMIT 1');
         $stmt->execute([$hotelId, $posterName]);
+        $row = $stmt->fetch();
     }
-    $row = $stmt->fetch();
     if ($row) {
         $row['multi_person'] = (bool)$row['multi_person'];
         $row['good_points'] = DB::jsonDecode($row['good_points']);
