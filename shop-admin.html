@@ -1969,8 +1969,8 @@ async function lhSelectHotel(hotelId,hotelName){
     // 既存の交通費データを読み込み
     let shi=null;try{const tfRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-transport-fee&hotel_id='+hotelId,{credentials:'include'});shi=await tfRes.json();}catch(e){}
     if(shi){
-        if(shi.transport_fee===0){document.getElementById("lh-transport-free").checked=true;document.getElementById("lh-transport-fee-wrap").style.display="none";}
-        else if(shi.transport_fee!==null){document.getElementById("lh-form-transport").value=shi.transport_fee;}
+        if(String(shi.transport_fee)==='0'){document.getElementById("lh-transport-free").checked=true;document.getElementById("lh-transport-fee-wrap").style.display="none";}
+        else if(shi.transport_fee!==null&&shi.transport_fee!==''){document.getElementById("lh-form-transport").value=shi.transport_fee;}
     }
     await lhLoadMasters();
     // 既存のラブホ投稿データを読み込みフォームに反映
