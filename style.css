@@ -2227,7 +2227,7 @@ body[data-mode="men"] .header-title {
 /* ==========================================================================
    サブ広告（.ad-shop-card）
    ========================================================================== */
-.ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:#fff;border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;overflow:hidden;border-left:3px solid var(--accent,#b5627a); }
+.ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:#fff;border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;overflow:hidden; }
 .ad-shop-thumbs { display:flex;gap:4px;flex-shrink:0; }
 .ad-shop-thumb { width:60px;height:80px;border-radius:0;object-fit:cover;object-position:center 20%;flex-shrink:0; }
 .ad-shop-thumb--empty { display:flex;align-items:center;justify-content:center;background:var(--bg-3);font-size:20px; }
@@ -2242,7 +2242,7 @@ body[data-mode="men"] .header-title {
 .ad-sub-price { font-size:clamp(13px,2.2vw,16px);font-weight:800;color:#c05050; }
 .ad-sub-hours { font-size:clamp(11px,1.8vw,13px);color:#444;margin-left:auto;white-space:nowrap;font-weight:600; }
 /* サブ広告 ジャンル別（men） */
-[data-mode="men"] .ad-shop-card { border-radius:2px;border-left-color:#b8860b;border-color:rgba(184,134,11,0.3); }
+[data-mode="men"] .ad-shop-card { border-radius:2px;border-color:rgba(184,134,11,0.3); }
 [data-mode="men"] .ad-shop-card .ad-sub-count { color:#b8860b; }
 [data-mode="men"] .ad-shop-card .ad-sub-catch { color:#c9a96e; }
 [data-mode="men"] .ad-shop-card .ad-sub-detail { border-top-color:rgba(184,134,11,0.3); }
