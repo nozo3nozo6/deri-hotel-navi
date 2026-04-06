@@ -93,6 +93,7 @@ try {
         case 'hotels-search':  handleHotelsSearch(); break;
         case 'hotel-cascades': handleHotelCascades(); break;
         case 'shop-contracts': handleShopContracts(); break;
+        case 'renew-contract': handleRenewContract(); break;
         case 'ad-contracts-list': handleAdContractsList(); break;
         case 'ad-slot-count':  handleAdSlotCount(); break;
         case 'ad-toggle-contract': handleAdToggleContract(); break;
@@ -228,6 +229,17 @@ function handleInsert() {
         }
     }
 
+    // shop_contracts: 有料プラン（plan_id > 1）に自動で expires_at を付与
+    if ($table === 'shop_contracts' && !isset($data['expires_at'])) {
+        $planId = (int)($data['plan_id'] ?? 0);
+        if ($planId > 1) {
+            $cols[] = '`expires_at`';
+            $placeholders[] = 'DATE_ADD(CURDATE(), INTERVAL 1 MONTH)';
+            // placeholderが式なのでparamsには追加しない→prepare文を直接組み立て
+        }
+    }
+
+    // DATE_ADD等のSQL式を含むplaceholderに対応
     $sql = "INSERT INTO `$table` (" . implode(',', $cols) . ") VALUES (" . implode(',', $placeholders) . ")";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -498,10 +510,37 @@ function handleShopContracts() {
     global $pdo;
     $shopId = $_GET['shop_id'] ?? '';
     if (!$shopId) { echo json_encode([]); return; }
-    $stmt = $pdo->prepare('SELECT sc.id, sc.plan_id FROM shop_contracts sc WHERE sc.shop_id = ?');
+    $stmt = $pdo->prepare('SELECT sc.id, sc.plan_id, sc.expires_at, sc.created_at FROM shop_contracts sc WHERE sc.shop_id = ?');
     $stmt->execute([$shopId]);
     $rows = $stmt->fetchAll();
-    echo json_encode(array_map(fn($r) => ['id' => (int)$r['id'], 'plan_id' => (int)$r['plan_id']], $rows));
+    echo json_encode(array_map(fn($r) => [
+        'id' => (int)$r['id'],
+        'plan_id' => (int)$r['plan_id'],
+        'expires_at' => $r['expires_at'],
+        'created_at' => $r['created_at'],
+    ], $rows));
+}
+
+// 契約更新（月+1）
+function handleRenewContract() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    global $pdo;
+    $input = json_decode(file_get_contents('php://input'), true);
+    $contractId = (int)($input['contract_id'] ?? 0);
+    if (!$contractId) { http_response_code(400); echo json_encode(['error' => 'contract_id required']); return; }
+
+    $stmt = $pdo->prepare('SELECT expires_at FROM shop_contracts WHERE id = ?');
+    $stmt->execute([$contractId]);
+    $row = $stmt->fetch();
+    if (!$row) { http_response_code(404); echo json_encode(['error' => 'Contract not found']); return; }
+
+    // 基準日: expires_atが過去なら今日から、未来ならexpires_atから +1ヶ月
+    $base = $row['expires_at'] && $row['expires_at'] >= date('Y-m-d') ? $row['expires_at'] : date('Y-m-d');
+    $newExpires = date('Y-m-d', strtotime($base . ' +1 month'));
+
+    $stmt = $pdo->prepare('UPDATE shop_contracts SET expires_at = ? WHERE id = ?');
+    $stmt->execute([$newExpires, $contractId]);
+    echo json_encode(['success' => true, 'expires_at' => $newExpires]);
 }
 
 // ===================================================================

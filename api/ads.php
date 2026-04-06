@@ -63,10 +63,23 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $rows = $stmt->fetchAll();
 
-// shops.status != 'active' を除外 + Supabase形式にreshape
+// 有効な契約がある店舗IDを取得（期限内のみ）
+$validShopIds = [];
+if (!empty($rows)) {
+    $allShopIds = array_unique(array_filter(array_column($rows, 'shop_id')));
+    if (!empty($allShopIds)) {
+        $ph = implode(',', array_fill(0, count($allShopIds), '?'));
+        $scStmt = $pdo->prepare("SELECT DISTINCT shop_id FROM shop_contracts WHERE shop_id IN ($ph) AND plan_id > 1 AND (expires_at IS NULL OR expires_at >= CURDATE())");
+        $scStmt->execute(array_values($allShopIds));
+        $validShopIds = $scStmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+}
+
+// shops.status != 'active' または契約期限切れ を除外 + reshape
 $filtered = [];
 foreach ($rows as $row) {
     if ($row['shop_status'] !== 'active') continue;
+    if (!in_array($row['shop_id'], $validShopIds)) continue;
     $ad = [
         'id' => (int)$row['id'],
         'placement_type' => $row['placement_type'],

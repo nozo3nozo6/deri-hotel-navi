@@ -1495,6 +1495,28 @@ async function loadShopContracts(shopId,plans){
     }
   });
   planHtml+='</div>';
+  // 契約期限一覧（有料プランのみ）
+  const paidRows=rows.filter(c=>c.plan_id>1&&c.expires_at);
+  if(paidRows.length){
+    const today=new Date();today.setHours(0,0,0,0);
+    planHtml+='<div style="margin-top:12px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">';
+    planHtml+='<div style="padding:8px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0;font-size:12px;font-weight:700;">📅 契約期限</div>';
+    paidRows.forEach(c=>{
+      const p=plans.find(x=>x.id===c.plan_id);
+      const pName=p?p.name:'プラン'+c.plan_id;
+      const exp=new Date(c.expires_at+'T00:00:00');
+      const diff=Math.ceil((exp-today)/(1000*60*60*24));
+      let statusHtml='';
+      if(diff<0)statusHtml='<span style="color:#d32f2f;font-weight:700;">⚠ 期限切れ</span>';
+      else if(diff<=5)statusHtml=`<span style="color:#e65100;font-weight:700;">⚠ 残り${diff}日</span>`;
+      else statusHtml=`<span style="color:#2e7d32;">残り${diff}日</span>`;
+      planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;">`;
+      planHtml+=`<div>${esc(pName)} — ${c.expires_at} ${statusHtml}</div>`;
+      planHtml+=`<button onclick="renewContract(${c.id},'${shopId}')" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;">更新 +1ヶ月</button>`;
+      planHtml+=`</div>`;
+    });
+    planHtml+='</div>';
+  }
   // 枠数 + 掲載エリアカード（統合表示）
   if(hasPaid){
     planHtml+=`<div style="margin-top:12px;border:1px solid #c8e6c9;border-radius:8px;overflow:hidden;">
@@ -1514,6 +1536,15 @@ async function loadShopContracts(shopId,plans){
   if(hasPaid){loadShopAreaList(shopId);}
   // _currentShopLimitsをグローバルに保存（エリア追加時の制限チェック用）
   window._currentShopLimits=totalLimits;
+}
+
+async function renewContract(contractId,shopId){
+  if(!confirm('この契約を1ヶ月更新しますか？'))return;
+  const res=await api('renew-contract',{contract_id:contractId});
+  if(res&&res.success){
+    toast('✅ 更新しました（期限: '+res.expires_at+'）');
+    loadShopContracts(shopId,contractPlansData);
+  }else{toast('更新エラー');}
 }
 
 // shops.plan_idを最高額プランに同期するヘルパー

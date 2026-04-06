@@ -46,7 +46,7 @@ $stmt = $pdo->prepare("
     FROM shop_hotel_info shi
     JOIN hotels h ON shi.hotel_id = h.id AND h.is_published = 1 AND h.prefecture = ? $cityWhere
     JOIN shops s ON shi.shop_id = s.id AND s.status = 'active' AND s.gender_mode = ?
-    LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
+    LEFT JOIN shop_contracts sc ON s.id = sc.shop_id AND (sc.expires_at IS NULL OR sc.expires_at >= CURDATE())
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
     WHERE shi.can_call = 1
     GROUP BY s.id
