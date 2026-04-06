@@ -704,13 +704,12 @@ async function loadDetail(hotelId, isLoveho) {
 
         // レンダリング（タイプ別）
         if (isLoveho) {
-            // 店舗モード時: ラブホ店舗投稿も自店舗のみ表示
-            // loveho_reportsにはposter_typeがないためshopInfoMapで店舗投稿を判別
-            if (_shopParam && SHOP_DATA?.shop_name) {
-                const shopName = SHOP_DATA.shop_name;
+            // 店舗モード時: 自店舗投稿のみ表示（poster_typeで統一判別）
+            if (_shopParam && (SHOP_ID || SHOP_DATA?.shop_name)) {
+                const shopName = SHOP_DATA?.shop_name;
                 reports = reports.filter(r => {
-                    if (shopInfoMap[r.poster_name]) return r.poster_name === shopName;
-                    return true; // ユーザー投稿はそのまま
+                    if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                    return true;
                 });
             }
             hotel._lhShopFeeMap = shopFeeMap;
@@ -815,8 +814,9 @@ function renderLovehoDetail(hotel, reports) {
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
-        const soloHTML = r.solo_entry && shopNames.includes(pName) && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
-        const userSoloHTML = r.solo_entry && !shopNames.includes(pName) ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
+        const isShopPost = r.poster_type === 'shop' || shopNames.includes(pName);
+        const soloHTML = r.solo_entry && isShopPost && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
+        const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
         const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">✨雰囲気</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
         const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🛁設備･お部屋</span>${gpTagHTML(gpRoom)}</div>` : '';
@@ -832,8 +832,9 @@ function renderLovehoDetail(hotel, reports) {
         </div>`;
     }
 
-    // 店舗投稿とユーザー投稿を分離
-    const lhShopReports = reports.filter(r => shopNames.includes(r.poster_name) && (_shopParam || r.gender_mode === MODE));
+    // 店舗投稿とユーザー投稿を分離（poster_type優先、後方互換でshopNames照合）
+    const isLhShop = r => r.poster_type === 'shop' || shopNames.includes(r.poster_name);
+    const lhShopReports = reports.filter(r => isLhShop(r) && (_shopParam || r.gender_mode === MODE));
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
     lhShopReports.sort((a, b) => {
         const priceA = lhShopInfoMap[a.poster_name]?.planPrice || 0;
@@ -841,7 +842,7 @@ function renderLovehoDetail(hotel, reports) {
         if (priceB !== priceA) return priceB - priceA;
         return shopSortDate(b) - shopSortDate(a);
     });
-    const lhUserReports = reports.filter(r => !shopNames.includes(r.poster_name));
+    const lhUserReports = reports.filter(r => !isLhShop(r));
 
     const lhShopSection = lhShopReports.length === 0 ? '' : `
         <div class="section-official">

@@ -53,11 +53,10 @@ $stmt = $pdo->prepare("
         SELECT shop_id, COUNT(*) AS cnt FROM reports WHERE poster_type = 'shop' GROUP BY shop_id
     ) rc ON rc.shop_id = a.shop_id
     LEFT JOIN (
-        SELECT shi.shop_id, COUNT(*) AS cnt
-        FROM loveho_reports lr
-        JOIN shop_hotel_info shi ON lr.hotel_id = shi.hotel_id
-        JOIN shops s2 ON shi.shop_id = s2.id AND lr.poster_name = s2.shop_name
-        GROUP BY shi.shop_id
+        SELECT shop_id, COUNT(*) AS cnt
+        FROM loveho_reports
+        WHERE poster_type = 'shop' AND shop_id IS NOT NULL
+        GROUP BY shop_id
     ) lrc ON lrc.shop_id = a.shop_id
     WHERE $whereStr
 ");

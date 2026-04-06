@@ -284,13 +284,15 @@ function handleUpdate() {
         // reports: shop_id で紐付け
         $s = $pdo->prepare('UPDATE reports SET gender_mode = ? WHERE shop_id = ? AND poster_type = ?');
         $s->execute([$newMode, $id, 'shop']);
-        // loveho_reports: poster_name（店舗名）で紐付け
-        $s2 = $pdo->prepare('SELECT shop_name FROM shops WHERE id = ?');
-        $s2->execute([$id]);
-        $shopName = $s2->fetchColumn();
+        // loveho_reports: shop_id + poster_type で紐付け（後方互換: poster_nameでも更新）
+        $s2 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE shop_id = ? AND poster_type = ?');
+        $s2->execute([$newMode, $id, 'shop']);
+        $s3 = $pdo->prepare('SELECT shop_name FROM shops WHERE id = ?');
+        $s3->execute([$id]);
+        $shopName = $s3->fetchColumn();
         if ($shopName) {
-            $s3 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE poster_name = ?');
-            $s3->execute([$newMode, $shopName]);
+            $s4 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE poster_name = ? AND (poster_type IS NULL OR poster_type = ?) AND shop_id IS NULL');
+            $s4->execute([$newMode, $shopName, 'user']);
         }
         // ad_placements: shop_id で紐付け
         $s4 = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');

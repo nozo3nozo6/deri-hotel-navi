@@ -296,6 +296,8 @@ function handleSaveLovehoInfo() {
             'time_slot' => $report['time_slot'] ?? null,
             'comment' => $report['comment'] ?? null,
             'poster_name' => $posterName,
+            'poster_type' => 'shop',
+            'shop_id' => $shopId,
             'multi_person' => (int)($report['multi_person'] ?? false),
             'guest_male' => $report['guest_male'] ?? null,
             'guest_female' => $report['guest_female'] ?? null,

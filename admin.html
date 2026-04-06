@@ -2059,7 +2059,7 @@ async function loadReports(){
   });
   const deliData=merged.map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
   const shopNames=new Set(shopsData.map(s=>s.shop_name).filter(Boolean));
-  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_name&&shopNames.has(r.poster_name)?"shop":"user"}));
+  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_type||(r.poster_name&&shopNames.has(r.poster_name)?"shop":"user")}));
   reportsData=[...deliData,...lhData];
   reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
