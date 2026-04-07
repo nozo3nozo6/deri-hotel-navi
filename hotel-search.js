@@ -849,7 +849,7 @@ function renderLovehoDetail(hotel, reports) {
     }
 
     // 店舗投稿とユーザー投稿を分離（poster_type優先、shop_id照合）
-    const isLhShop = r => r.poster_type === 'shop' || (r.shop_id && shopIdSet.has(String(r.shop_id)));
+    const isLhShop = r => r.poster_type === 'shop' || !!r.shop_id;
     const lhShopReports = reports.filter(r => isLhShop(r) && (_shopParam || r.gender_mode === MODE));
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
     lhShopReports.sort((a, b) => {
@@ -1917,10 +1917,10 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         </div>`;
     }
 
-    const userReports = reports.filter(r => r.poster_type !== 'shop');
+    const userReports = reports.filter(r => r.poster_type !== 'shop' && !r.shop_id);
     const userCanCall = userReports.filter(r => r.can_call).length;
     const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
-    const shopReports = reports.filter(r => r.poster_type === 'shop' && (_shopParam || r.gender_mode === MODE));
+    const shopReports = reports.filter(r => (r.poster_type === 'shop' || !!r.shop_id) && (_shopParam || r.gender_mode === MODE));
     shopReports.sort((a, b) => {
         const sidA = a.shop_id ? String(a.shop_id) : null;
         const sidB = b.shop_id ? String(b.shop_id) : null;
