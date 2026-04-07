@@ -1614,14 +1614,11 @@ async function loadShopContracts(shopId,plans){
     }
   });
   planHtml+='</div>';
-  // キャンペーンボタン（投稿リンクプラン未契約時のみ）
-  const linkPlanActive=(countMap[9]||0)>0;
-  if(!linkPlanActive){
-    planHtml+='<div style="margin-top:10px;padding:10px 14px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
-    planHtml+=`<span style="font-size:12px;color:#5a4a2a;">🎁 キャンペーン:</span>`;
-    planHtml+=`<button onclick="toggleShopContract('${shopId}',9,false,'campaign')" style="background:#e65100;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">投稿リンクプラン 1ヶ月無料で適用する</button>`;
-    planHtml+='</div>';
-  }
+  // キャンペーンボタン（常に表示）
+  planHtml+='<div style="margin-top:10px;padding:10px 14px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
+  planHtml+=`<span style="font-size:12px;color:#5a4a2a;">🎁 キャンペーン:</span>`;
+  planHtml+=`<button onclick="toggleShopContract('${shopId}',9,false,'campaign')" style="background:#e65100;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">投稿リンクプラン 1ヶ月無料で適用する</button>`;
+  planHtml+='</div>';
   // 契約期限一覧（有料プランのみ）
   const paidRows=rows.filter(c=>c.plan_id>1&&c.expires_at);
   if(paidRows.length){
