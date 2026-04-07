@@ -343,6 +343,7 @@
         <button class="tab-link" onclick="switchTab('master')" id="tl-master">マスタデータ</button>
         <button class="tab-link" onclick="switchTab('outreach')" id="tl-outreach">営業メール</button>
         <button class="tab-link" onclick="switchTab('ads')" id="tl-ads">広告管理</button>
+        <button class="tab-link" onclick="switchTab('plan-requests')" id="tl-plan-requests">プラン申込<span class="tab-badge" id="planreq-badge" style="display:none;"></span></button>
     </nav>
 </div>
 <div class="login-wrap" id="login-wrap" style="display:none;">
@@ -716,6 +717,20 @@
                     <button onclick="checkSlotStatus()" class="btn-save" style="margin-bottom:4px;">確認</button>
                 </div>
                 <div id="slot-status-result" style="margin-top:12px;font-size:13px;"></div>
+            </div>
+        </div>
+
+        <!-- ===== プラン申込管理 ===== -->
+        <div class="tab-panel" id="tab-plan-requests">
+            <div class="card">
+                <div class="card-title">📋 プラン申込一覧<span class="sub" id="planreq-sub"></span></div>
+                <div class="filter-bar">
+                    <select class="filter-select" id="planreq-status-f" onchange="renderPlanRequests()"><option value="">全ステータス</option><option value="pending">審査中</option><option value="approved">承認済</option><option value="rejected">却下</option><option value="cancelled">キャンセル</option></select>
+                </div>
+                <div class="tbl-wrap"><table class="tbl">
+                    <thead><tr><th>申込日</th><th>店舗名</th><th>ジャンル</th><th>プラン</th><th>月額</th><th>希望エリア</th><th>ステータス</th><th>操作</th></tr></thead>
+                    <tbody id="planreq-tbody"></tbody>
+                </table></div>
             </div>
         </div>
 
@@ -1182,7 +1197,7 @@ function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList
 function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
 function closeMobileMenu(){closeNav();}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");if(name==='ngwords')loadNgWords();}
 
@@ -1213,7 +1228,7 @@ function doSort(ns,key,renderFn){if(!sortStates[ns])sortStates[ns]={key:null,asc
 function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}
 
 // ===== ダッシュボード =====
-async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);const corrPendCount=d.corr_pend_count||0;if(corrPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('hotel-corrections');"><div class="tc-icon">&#x26A0;&#xFE0F;</div><div class="tc-body"><div class="tc-count">${corrPendCount}</div><div class="tc-label">未対応の情報修正</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
+async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);const corrPendCount=d.corr_pend_count||0;if(corrPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('hotel-corrections');"><div class="tc-icon">&#x26A0;&#xFE0F;</div><div class="tc-body"><div class="tc-count">${corrPendCount}</div><div class="tc-label">未対応の情報修正</div></div></div>`);const planReqPendCount=d.plan_req_pend_count||0;if(planReqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('plan-requests');"><div class="tc-icon">&#x1F4CB;</div><div class="tc-body"><div class="tc-count">${planReqPendCount}</div><div class="tc-label">未処理のプラン申込</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀ 女性</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":"<span class='badge b-men'>♂ 男性</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.conditions||[]).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");}
 
 // ===== 店舗管理 =====
 let shopsData=[];
@@ -3848,7 +3863,63 @@ async function checkSlotStatus(){
 
 // switchTabにads対応を追加
 const _origSwitchTab=switchTab;
-switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();};
+switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();if(name==='plan-requests')loadPlanRequests();};
+
+// ===== プラン申込管理 =====
+let planReqData=[];
+async function loadPlanRequests(){
+    try{
+        const data=await apiGet('plan-requests');
+        planReqData=Array.isArray(data)?data:[];
+    }catch(e){planReqData=[];}
+    updatePlanReqBadge();
+    renderPlanRequests();
+}
+function updatePlanReqBadge(){
+    const cnt=planReqData.filter(r=>r.status==='pending').length;
+    const badge=document.getElementById('planreq-badge');
+    if(badge){badge.textContent=cnt;badge.style.display=cnt>0?'':'none';}
+}
+function renderPlanRequests(){
+    const statusF=document.getElementById('planreq-status-f')?.value||'';
+    let filtered=planReqData;
+    if(statusF)filtered=planReqData.filter(r=>r.status===statusF);
+    document.getElementById('planreq-sub').textContent=`${filtered.length} 件`;
+    const genreMap={men:'♂ デリヘル',women:'♀ 女風',este:'💆 エステ',men_same:'♂♂',women_same:'♀♀'};
+    const stMap={pending:'<span class="badge b-registered">審査中</span>',approved:'<span class="badge b-active">承認済</span>',rejected:'<span class="badge b-stop">却下</span>',cancelled:'<span class="badge b-suspended">キャンセル</span>'};
+    const tbody=document.getElementById('planreq-tbody');
+    if(!filtered.length){tbody.innerHTML='<tr class="erow"><td colspan="8">申込がありません</td></tr>';return;}
+    tbody.innerHTML=filtered.map(r=>{
+        const areas=(r.requested_areas||[]).join(', ')||'未指定';
+        const actions=r.status==='pending'
+            ?`<button class="btn b-btn-green" style="font-size:11px;" onclick="approvePlanReq(${r.id})">承認</button><button class="btn b-btn-red" style="font-size:11px;margin-left:4px;" onclick="rejectPlanReq(${r.id})">却下</button>`
+            :(r.status==='approved'?`<a href="/api/contract.php?id=${r.id}" target="_blank" style="font-size:11px;color:#b5627a;">契約書</a>`:'—');
+        return`<tr${r.status==='pending'?' style="background:rgba(255,243,224,0.3);"':''}>
+            <td style="font-size:11px;white-space:nowrap;">${fmtDate(r.created_at)}</td>
+            <td style="font-size:12px;font-weight:600;">${esc(r.shop_name||'—')}</td>
+            <td>${genreMap[r.gender_mode]||'—'}</td>
+            <td style="font-weight:600;">${esc(r.plan_name||'—')}</td>
+            <td style="font-size:12px;">¥${Number(r.plan_price||0).toLocaleString()}</td>
+            <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;">${esc(areas)}</td>
+            <td>${stMap[r.status]||r.status}</td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
+}
+async function approvePlanReq(id){
+    if(!confirm('このプラン申込を承認しますか？\n（契約が作成され、承認メールが送信されます）'))return;
+    const r=await api('review-plan-request',{request_id:id,action:'approve'});
+    if(!r.ok){toast('承認エラー: '+(r.error||''));return;}
+    toast('✅ 承認しました');loadPlanRequests();loadDashboard();
+}
+async function rejectPlanReq(id){
+    const reason=prompt('却下理由を入力してください（任意）:');
+    if(reason===null)return;
+    if(!confirm('このプラン申込を却下しますか？'))return;
+    const r=await api('review-plan-request',{request_id:id,action:'reject',admin_note:reason});
+    if(!r.ok){toast('却下エラー: '+(r.error||''));return;}
+    toast('✅ 却下しました');loadPlanRequests();loadDashboard();
+}
 
 async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");}
 </script>

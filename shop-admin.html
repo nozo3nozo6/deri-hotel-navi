@@ -224,6 +224,24 @@
         .page-btn:hover{border-color:var(--rose-border);color:var(--text);}
         .page-btn.active{background:var(--rose);color:#fff;border-color:var(--rose);}
         .page-btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+        /* ===== プラン申込 ===== */
+        .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+        .plan-card{background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:16px;transition:all 0.15s;position:relative;}
+        .plan-card:hover{border-color:var(--rose-border);}
+        .plan-card-name{font-size:14px;font-weight:700;margin-bottom:4px;}
+        .plan-card-price{font-size:20px;font-weight:800;color:var(--rose);margin-bottom:8px;}
+        .plan-card-price small{font-size:11px;color:var(--text-3);font-weight:400;}
+        .plan-card-desc{font-size:11px;color:var(--text-3);line-height:1.6;margin-bottom:12px;}
+        .plan-card .btn-apply{width:100%;padding:8px;background:var(--rose);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+        .plan-card .btn-apply:hover{background:#9a4e66;}
+        .plan-req-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+        .plan-req-row:last-child{border-bottom:none;}
+        .plan-req-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;}
+        .plan-req-badge.pending{background:#fff3e0;color:#e65100;}
+        .plan-req-badge.approved{background:#e8f5e9;color:#2e7d32;}
+        .plan-req-badge.rejected{background:#fce4ec;color:#c62828;}
+        .plan-req-badge.cancelled{background:#f5f5f5;color:#888;}
         .page-info{font-size:11px;color:var(--text-3);}
 
         /* ===== その他 ===== */
@@ -350,6 +368,7 @@
         <button class="tab-btn active" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
         <button class="tab-btn" id="tab-btn-search" onclick="switchTab('search')">ホテル検索登録</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
+        <button class="tab-btn" id="tab-btn-plan" onclick="switchTab('plan')">プラン申込</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -741,6 +760,36 @@
             </div>
             <div class="reg-list" id="reg-list"></div>
             <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <!-- ===== プラン申込タブ ===== -->
+    <div class="tab-content" id="tab-plan" style="display:none;">
+        <div class="card">
+            <div class="card-title">現在のプラン</div>
+            <div id="plan-current-status" style="padding:8px 0;font-size:13px;color:var(--text-2);">読み込み中...</div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+            <div class="card-title">プラン一覧</div>
+            <div class="plan-grid" id="plan-grid"></div>
+        </div>
+        <div class="card" id="plan-form-card" style="display:none;margin-top:12px;">
+            <div class="card-title">プラン申込</div>
+            <div class="mf"><label class="ml">選択プラン</label><div id="plan-form-name" style="font-weight:700;font-size:14px;"></div></div>
+            <div class="mf"><label class="ml">希望エリア（任意・カンマ区切り）</label><input id="plan-form-areas" class="mi" placeholder="例: 渋谷区, 新宿区"></div>
+            <div class="mf"><label class="ml">メッセージ（任意）</label><textarea id="plan-form-message" class="mi" rows="2" placeholder="ご要望があればご記入ください"></textarea></div>
+            <div class="mf" style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="plan-form-agree">
+                <label for="plan-form-agree" style="font-size:12px;cursor:pointer;"><a href="/terms.html" target="_blank" style="color:var(--rose);">広告掲載規約</a>に同意する</label>
+            </div>
+            <div style="margin-top:12px;">
+                <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);padding:10px 24px;font-weight:700;" onclick="submitPlanRequest()">申込を送信する</button>
+                <button class="btn" style="margin-left:8px;" onclick="closePlanForm()">キャンセル</button>
+            </div>
+        </div>
+        <div class="card" style="margin-top:12px;">
+            <div class="card-title">申込履歴</div>
+            <div id="plan-history" style="font-size:13px;color:var(--text-3);padding:8px 0;">読み込み中...</div>
         </div>
     </div>
 
@@ -1232,6 +1281,7 @@ function switchTab(name){
     document.getElementById("tab-btn-"+name).classList.add("active");
     if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";document.getElementById("lh-form-card").style.display="none";showJapanPage();}
     if(name==="list")loadRegisteredHotels();
+    if(name==="plan")loadPlanTab();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
 }
 
@@ -2152,6 +2202,100 @@ async function saHreqSubmit(){
   document.getElementById('sa-hreq-step2').style.display='none';
   document.getElementById('sa-hreq-done').style.display='';
   showSuccessModal('送信完了！', 'ホテル情報を送信しました。');
+}
+
+// ===== プラン申込 =====
+let planData=[];let _selectedPlanId=null;
+
+async function loadPlanTab(){
+    // 現在のプラン表示
+    const statusEl=document.getElementById('plan-current-status');
+    if(currentShop){
+        try{
+            const res=await fetch('/api/shop-auth.php?action=profile',{credentials:'include'});
+            const p=await res.json();
+            const contracts=(p.shop_contracts||[]).filter(c=>c.contract_plans?.price>0);
+            if(contracts.length){
+                statusEl.innerHTML=contracts.map(c=>`<span style="display:inline-block;padding:4px 12px;background:rgba(181,98,122,0.1);color:var(--rose);border-radius:6px;font-weight:600;margin-right:6px;">${esc(c.contract_plans.name||'')} ¥${Number(c.contract_plans.price).toLocaleString()}/月</span>`).join('');
+            }else{
+                statusEl.textContent='無料プラン（有料プランへのアップグレードで広告掲載が可能です）';
+            }
+        }catch(e){statusEl.textContent='取得エラー';}
+    }
+    // プラン一覧
+    try{
+        const res=await fetch('/api/shop-plan-api.php?action=plans',{credentials:'include'});
+        planData=await res.json();if(!Array.isArray(planData))planData=[];
+    }catch(e){planData=[];}
+    renderPlanGrid();
+    loadPlanHistory();
+}
+
+function renderPlanGrid(){
+    const grid=document.getElementById('plan-grid');
+    const paid=planData.filter(p=>p.price>0);
+    if(!paid.length){grid.innerHTML='<div style="color:var(--text-3);font-size:12px;">プランが見つかりません</div>';return;}
+    grid.innerHTML=paid.map(p=>`<div class="plan-card">
+        <div class="plan-card-name">${esc(p.name)}</div>
+        <div class="plan-card-price">&yen;${Number(p.price).toLocaleString()}<small>/月(税込)</small></div>
+        <div class="plan-card-desc">${esc(p.description||'')}</div>
+        <button class="btn-apply" onclick="openPlanForm(${p.id},'${esc(p.name)}',${p.price})">このプランに申し込む</button>
+    </div>`).join('');
+}
+
+function openPlanForm(planId,name,price){
+    _selectedPlanId=planId;
+    document.getElementById('plan-form-name').textContent=name+' (¥'+Number(price).toLocaleString()+'/月)';
+    document.getElementById('plan-form-areas').value='';
+    document.getElementById('plan-form-message').value='';
+    document.getElementById('plan-form-agree').checked=false;
+    document.getElementById('plan-form-card').style.display='';
+    document.getElementById('plan-form-card').scrollIntoView({behavior:'smooth'});
+}
+function closePlanForm(){document.getElementById('plan-form-card').style.display='none';_selectedPlanId=null;}
+
+async function submitPlanRequest(){
+    if(!_selectedPlanId){toast('プランを選択してください');return;}
+    if(!document.getElementById('plan-form-agree').checked){toast('広告掲載規約への同意が必要です');return;}
+    if(!confirm('このプランに申し込みますか？'))return;
+    const areasRaw=document.getElementById('plan-form-areas').value.trim();
+    const areas=areasRaw?areasRaw.split(/[,、，\s]+/).map(s=>s.trim()).filter(Boolean):[];
+    const message=document.getElementById('plan-form-message').value.trim();
+    try{
+        const res=await fetch('/api/shop-plan-api.php?action=submit-request',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({plan_id:_selectedPlanId,requested_areas:areas,message,agreed:true})});
+        const r=await res.json();
+        if(r.error){toast('⚠️ '+r.error);return;}
+        closePlanForm();
+        showSuccessModal('申込完了！','プラン申込を受け付けました。管理者が確認後、ご連絡いたします。');
+        loadPlanHistory();
+    }catch(e){toast('通信エラー');}
+}
+
+async function loadPlanHistory(){
+    const el=document.getElementById('plan-history');
+    try{
+        const res=await fetch('/api/shop-plan-api.php?action=my-requests',{credentials:'include'});
+        const rows=await res.json();if(!Array.isArray(rows)||!rows.length){el.innerHTML='<div style="padding:8px 0;color:var(--text-3);font-size:12px;">申込履歴はありません</div>';return;}
+        const statusMap={pending:'審査中',approved:'承認済み',rejected:'却下',cancelled:'キャンセル'};
+        el.innerHTML=rows.map(r=>{
+            const areas=(r.requested_areas||[]).join(', ')||'未指定';
+            const date=new Date(r.created_at).toLocaleDateString('ja-JP');
+            const st=r.status;
+            const contractLink=st==='approved'&&r.id?` <a href="/api/contract.php?id=${r.id}" target="_blank" style="color:var(--rose);font-size:11px;">契約書を見る</a>`:'';
+            const cancelBtn=st==='pending'?` <button class="btn" style="font-size:10px;padding:2px 8px;" onclick="cancelPlanRequest(${r.id})">取消</button>`:'';
+            return`<div class="plan-req-row"><span class="plan-req-badge ${st}">${statusMap[st]||st}</span><span style="font-weight:600;">${esc(r.plan_name)}</span><span style="color:var(--text-3);">${areas}</span><span style="color:var(--text-3);">${date}</span>${contractLink}${cancelBtn}</div>`;
+        }).join('');
+    }catch(e){el.innerHTML='<div style="color:var(--red);font-size:12px;">取得エラー</div>';}
+}
+
+async function cancelPlanRequest(id){
+    if(!confirm('この申込を取り消しますか？'))return;
+    try{
+        const res=await fetch('/api/shop-plan-api.php?action=cancel-request',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({request_id:id})});
+        const r=await res.json();
+        if(r.error){toast('⚠️ '+r.error);return;}
+        toast('✅ 申込を取り消しました');loadPlanHistory();
+    }catch(e){toast('通信エラー');}
 }
 </script>
 

@@ -43,7 +43,7 @@ $ALLOWED_TABLES = [
     'hotel_requests', 'hotel_corrections', 'outreach_emails',
     'can_call_reasons', 'cannot_call_reasons', 'room_types',
     'shop_service_options', 'loveho_good_points', 'loveho_atmospheres',
-    'contract_plans', 'ad_plans',
+    'contract_plans', 'ad_plans', 'shop_plan_requests',
 ];
 
 // ===== マスタデータテーブル（変更時にmaster-data.json再生成） =====
@@ -101,6 +101,8 @@ try {
         case 'ad-delete-contract': handleAdDeleteContract(); break;
         case 'ng-words-list': handleNgWordsList(); break;
         case 'ng-words-save': handleNgWordsSave(); break;
+        case 'plan-requests': handlePlanRequests(); break;
+        case 'review-plan-request': handleReviewPlanRequest(); break;
 
         default:
             http_response_code(400);
@@ -125,6 +127,7 @@ function handleDashboard() {
     $shopPendCount = $pdo->query("SELECT COUNT(*) FROM shops WHERE status = 'registered'")->fetchColumn();
     $hreqPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_requests WHERE status = 'pending'")->fetchColumn();
     $corrPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_corrections WHERE status = 'pending'")->fetchColumn();
+    $planReqPendCount = $pdo->query("SELECT COUNT(*) FROM shop_plan_requests WHERE status = 'pending'")->fetchColumn();
 
     // 最新30件のレポート
     $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 30");
@@ -143,6 +146,7 @@ function handleDashboard() {
         'shop_pend_count' => (int)$shopPendCount,
         'hreq_pend_count' => (int)$hreqPendCount,
         'corr_pend_count' => (int)$corrPendCount,
+        'plan_req_pend_count' => (int)$planReqPendCount,
         'recent' => $recent,
     ], JSON_UNESCAPED_UNICODE);
 }
@@ -718,5 +722,128 @@ function handleNgWordsSave() {
         http_response_code(500);
         echo json_encode(['error' => '保存に失敗しました']);
     }
+}
+
+// プラン申込一覧
+function handlePlanRequests() {
+    global $pdo;
+    $stmt = $pdo->query('
+        SELECT r.*, s.shop_name, s.email, s.gender_mode, cp.name AS plan_name, cp.price AS plan_price
+        FROM shop_plan_requests r
+        JOIN shops s ON r.shop_id = s.id
+        JOIN contract_plans cp ON r.plan_id = cp.id
+        ORDER BY FIELD(r.status, "pending", "approved", "rejected", "cancelled"), r.created_at DESC
+    ');
+    $rows = $stmt->fetchAll();
+    foreach ($rows as &$row) {
+        if ($row['requested_areas']) $row['requested_areas'] = json_decode($row['requested_areas'], true);
+    }
+    echo json_encode($rows, JSON_UNESCAPED_UNICODE);
+}
+
+// プラン申込 承認/却下
+function handleReviewPlanRequest() {
+    global $pdo;
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $input = json_decode(file_get_contents('php://input'), true);
+    $requestId = (int)($input['request_id'] ?? 0);
+    $action = $input['action'] ?? '';
+    $adminNote = trim($input['admin_note'] ?? '');
+
+    if (!$requestId || !in_array($action, ['approve', 'reject'])) {
+        http_response_code(400); echo json_encode(['error' => 'Invalid parameters']); return;
+    }
+
+    // 現在のリクエスト取得（pending確認）
+    $stmt = $pdo->prepare('SELECT r.*, s.shop_name, s.email, cp.name AS plan_name, cp.price AS plan_price FROM shop_plan_requests r JOIN shops s ON r.shop_id = s.id JOIN contract_plans cp ON r.plan_id = cp.id WHERE r.id = ? AND r.status = ?');
+    $stmt->execute([$requestId, 'pending']);
+    $req = $stmt->fetch();
+    if (!$req) { http_response_code(404); echo json_encode(['error' => '対象の申込が見つかりません']); return; }
+
+    $now = date('Y-m-d H:i:s');
+    $pdo->beginTransaction();
+    try {
+        if ($action === 'approve') {
+            // shop_contracts作成
+            $expiresAt = date('Y-m-d', strtotime('+1 month'));
+            $stmt = $pdo->prepare('INSERT INTO shop_contracts (shop_id, plan_id, created_at, expires_at) VALUES (?, ?, ?, ?)');
+            $stmt->execute([$req['shop_id'], $req['plan_id'], $now, $expiresAt]);
+            $contractId = $pdo->lastInsertId();
+
+            // shop_plan_requests更新
+            $stmt = $pdo->prepare('UPDATE shop_plan_requests SET status = ?, contract_id = ?, admin_note = ?, reviewed_at = ? WHERE id = ?');
+            $stmt->execute(['approved', $contractId, $adminNote ?: null, $now, $requestId]);
+
+            // 掲載エリア作成（requested_areasがあれば）
+            $areas = $req['requested_areas'] ? json_decode($req['requested_areas'], true) : [];
+            if (is_array($areas)) {
+                foreach ($areas as $area) {
+                    $stmt = $pdo->prepare('INSERT INTO shop_placements (shop_id, level, target_name, is_active) VALUES (?, ?, ?, 1)');
+                    $stmt->execute([$req['shop_id'], 'city', $area]);
+                }
+            }
+
+            $pdo->commit();
+
+            // 承認メール
+            $contractUrl = 'https://yobuho.com/api/contract.php?id=' . $requestId;
+            $body = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">'
+                . '<h2 style="color:#b5627a;">YobuHo</h2>'
+                . '<p>' . htmlspecialchars($req['shop_name']) . ' 様</p>'
+                . '<p>プラン申込が承認されました。</p>'
+                . '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0;">'
+                . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:120px;">プラン</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($req['plan_name']) . '</td></tr>'
+                . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">月額料金</td><td style="padding:8px;border-bottom:1px solid #eee;">&yen;' . number_format($req['plan_price']) . '/月(税込)</td></tr>'
+                . '<tr><td style="padding:8px;color:#888;">契約期間</td><td style="padding:8px;">' . date('Y/m/d') . ' 〜 ' . date('Y/m/d', strtotime('+1 month')) . '</td></tr>'
+                . '</table>'
+                . '<div style="text-align:center;margin:24px 0;">'
+                . '<a href="' . $contractUrl . '" style="display:inline-block;padding:14px 36px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:14px;">契約書を確認する</a>'
+                . '</div>'
+                . '<p style="font-size:12px;color:#888;">契約書ページからPDFとして保存できます（ブラウザの印刷機能をご利用ください）。</p>'
+                . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
+                . '<p style="font-size:11px;color:#999;">このメールはYobuHoから自動送信されています。</p>'
+                . '</div>';
+            sendPlanMail($req['email'], '【YobuHo】プラン申込が承認されました', $body);
+
+            echo json_encode(['ok' => true, 'contract_id' => (int)$contractId]);
+
+        } else {
+            // 却下
+            $stmt = $pdo->prepare('UPDATE shop_plan_requests SET status = ?, admin_note = ?, reviewed_at = ? WHERE id = ?');
+            $stmt->execute(['rejected', $adminNote ?: null, $now, $requestId]);
+            $pdo->commit();
+
+            // 却下メール
+            $body = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;">'
+                . '<h2 style="color:#b5627a;">YobuHo</h2>'
+                . '<p>' . htmlspecialchars($req['shop_name']) . ' 様</p>'
+                . '<p>プラン申込について、確認の結果、今回は見送りとなりました。</p>'
+                . '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0;">'
+                . '<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:120px;">プラン</td><td style="padding:8px;border-bottom:1px solid #eee;">' . htmlspecialchars($req['plan_name']) . '</td></tr>'
+                . ($adminNote ? '<tr><td style="padding:8px;color:#888;">理由</td><td style="padding:8px;">' . nl2br(htmlspecialchars($adminNote)) . '</td></tr>' : '')
+                . '</table>'
+                . '<p>ご不明な点がございましたら、お気軽にお問い合わせください。</p>'
+                . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
+                . '<p style="font-size:11px;color:#999;">このメールはYobuHoから自動送信されています。</p>'
+                . '</div>';
+            sendPlanMail($req['email'], '【YobuHo】プラン申込について', $body);
+
+            echo json_encode(['ok' => true]);
+        }
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage()]);
+    }
+}
+
+function sendPlanMail($to, $subject, $htmlBody) {
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
+    ];
+    @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', base64_encode($htmlBody), implode("\r\n", $headers));
 }
 ?>
