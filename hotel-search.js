@@ -819,12 +819,12 @@ function renderLovehoDetail(hotel, reports) {
         const gpRoom = gps.filter(gp => gpCatMap[gp] === '設備・お部屋');
         const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
         const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(gp)}</span>`).join('');
-        const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#4a7ab0';
+        const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
         const pName=r.poster_name||'匿名';
         const _lhSid=r.shop_id?String(r.shop_id):null;
         const si=_lhSid?lhShopInfoMap[_lhSid]:null;
         const _siActive=si&&si.status==='active';
-        const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
+        const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge" style="background:${gmCol};color:#fff;border-color:${gmCol};">認定店</span>`):'';
         const posterHTML=_siActive&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=_siActive&&_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
@@ -842,9 +842,9 @@ function renderLovehoDetail(hotel, reports) {
             <div class="lh-row1">${posterHTML}</div>
             <div class="lh-row2">${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
             ${gpRoomHTML}${gpServiceHTML}
-            ${r.comment ? `<div class="text-comment" style="margin-top:4px;">${esc(r.comment)}</div>` : ''}
-            ${r.entry_method ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:4px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : ''}</div>` : ''}
+            ${r.comment ? `<div class="text-comment" style="margin-top:2px;">${esc(r.comment)}</div>` : ''}
+            ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:11px;">💰追加料金あり</span>' : ''}</div>` : ''}
         </div>`;
     }
 
@@ -1892,10 +1892,10 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const _siHotel = isShop && _sid ? shopInfoMap[_sid] : null;
         const feeLabel = isShop && _sid && _siHotel?.status === 'active' ? formatTransportFee(shopFeeMap[_sid]) : null;
         const posterHTML = r.poster_name ? (()=>{
-            const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#4a7ab0';
+            const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
             const si=isShop&&_sid?shopInfoMap[_sid]:null;
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
-            const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge">認定店</span>`;
+            const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge" style="background:${col};color:#fff;border-color:${col};">認定店</span>`;
             if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
             if(isShop&&si&&si.status==='active'){return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
             return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
@@ -1912,8 +1912,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div>${flagHTML}</div>
             ${posterHTML ? `<div class="lh-row1">${posterHTML}</div>` : ''}
             <div class="lh-row2">${statusBadge}${feeHTML}${metaChips}</div>
-            ${tagsHTML ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${tagsHTML}</div>` : ''}
-            ${r.comment ? `<div class="text-comment--sm" style="margin-top:6px;">${esc(r.comment)}</div>` : ''}
+            ${tagsHTML ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${tagsHTML}</div>` : ''}
+            ${r.comment ? `<div class="text-comment--sm" style="margin-top:3px;">${esc(r.comment)}</div>` : ''}
         </div>`;
     }
 

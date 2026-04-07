@@ -2166,9 +2166,9 @@ body[data-mode="men"] .header-title {
     font-size: 11px;
     font-weight: 700;
     padding: 2px 8px;
-    background: rgba(201,169,110,0.15);
-    color: #c9a96e;
-    border: 1px solid rgba(201,169,110,0.35);
+    background: #c9a96e;
+    color: #fff;
+    border: 1px solid #b8944f;
     border-radius: 10px;
     letter-spacing: 0.02em;
     white-space: nowrap;
@@ -2179,9 +2179,9 @@ body[data-mode="men"] .header-title {
     font-size: 11px;
     font-weight: 600;
     padding: 2px 8px;
-    background: rgba(106,138,188,0.12);
-    color: #6a8abc;
-    border: 1px solid rgba(106,138,188,0.3);
+    background: #6a8abc;
+    color: #fff;
+    border: 1px solid #5a7aaa;
     border-radius: 10px;
     letter-spacing: 0.02em;
     white-space: nowrap;
@@ -2450,10 +2450,10 @@ body[data-mode="men"] .header-title {
 .btn-map-toggle:hover { background:rgba(59,130,246,0.15); }
 
 /* ラブホ店舗口コミカード */
-.lh-shop-card { padding:12px 6px !important; }
-.lh-row1 { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
-.lh-row2 { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px; }
-.lh-row-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border,#eee); }
+.lh-shop-card { padding:10px 6px !important; }
+.lh-row1 { display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px; }
+.lh-row2 { display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px; }
+.lh-row-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;padding-bottom:4px;border-bottom:1px solid var(--border,#eee); }
 
 /* カードアクションボタン */
 .card-action-btn { flex:1;min-width:0;padding:8px 6px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:none; }
@@ -2480,7 +2480,7 @@ body[data-mode="men"] .header-title {
 /* 共通テキストスタイル */
 .text-sub { font-size:13px;color:var(--text-2); }
 .text-sub2 { font-size:12px;color:var(--text-3); }
-.text-sub3 { font-size:11px;color:var(--text-3); }
+.text-sub3 { font-size:12px;color:var(--text-2); }
 .text-sub4 { font-size:11px;color:var(--text-2); }
 .text-comment { font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap; }
 .text-comment--sm { font-size:12px;color:var(--text-2);line-height:1.6; }
