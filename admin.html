@@ -902,7 +902,7 @@
           <option value="men_same">♂♂ 男性同士</option>
           <option value="women_same">♀♀ 女性同士</option>
         </select></div>
-        <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi"></div>
+        <div class="mf"><label class="ml">投稿者名</label><input id="re-poster-name" class="mi" oninput="onPosterNameInput()"></div>
         <div class="mf"><label class="ml">コメント</label><textarea id="re-comment" class="mi" rows="3" style="resize:vertical;"></textarea></div>
         <div id="re-date-wrap" class="mf">
           <label class="ml">投稿日時</label>
@@ -2319,13 +2319,39 @@ function openRepEdit(id){
 }
 function reToggleReasons(v){document.getElementById("re-can-wrap").style.display=v==="true"?"":"none";document.getElementById("re-cannot-wrap").style.display=v==="false"?"":"none";}
 function closeRepEditModal(){document.getElementById("report-edit-modal").style.display="none";}
-function onPosterTypeChange(){const isShop=document.getElementById("re-poster-type").value==="shop";document.getElementById("re-mode-label").textContent=isShop?"ジャンル":"性別モード";}
+function onPosterTypeChange(){
+  const isShop=document.getElementById("re-poster-type").value==="shop";
+  document.getElementById("re-mode-label").textContent=isShop?"ジャンル":"性別モード";
+  if(isShop){
+    // 店舗選択時: poster_nameから店舗を特定し、gender_mode・投稿者名を連動
+    const curName=document.getElementById("re-poster-name").value.trim();
+    const shop=curName?shopsData.find(s=>s.shop_name?.toLowerCase()===curName.toLowerCase()):null;
+    if(shop){
+      document.getElementById("re-gender-mode").value=shop.gender_mode||"men";
+    }
+  }
+}
+function onPosterNameInput(){
+  // 投稿者名変更時、店舗タイプならgender_modeを連動
+  if(document.getElementById("re-poster-type").value!=="shop")return;
+  const name=document.getElementById("re-poster-name").value.trim();
+  const shop=name?shopsData.find(s=>s.shop_name?.toLowerCase()===name.toLowerCase()):null;
+  if(shop){
+    document.getElementById("re-gender-mode").value=shop.gender_mode||"men";
+  }
+}
 async function saveRepEdit(){
   if(!confirm("口コミの編集内容を保存しますか？"))return;
   const id=document.getElementById("re-id").value;
   const kind=document.getElementById("re-kind").value||"deli";
   const poster_name=document.getElementById("re-poster-name").value.trim();
   const poster_type=document.getElementById("re-poster-type").value==="shop"?"shop":"user";
+  // 店舗投稿: shop_idを逆引きしてセット、ユーザー投稿: shop_idをクリア
+  let shop_id=null;
+  if(poster_type==="shop"&&poster_name){
+    const _matchShop=shopsData.find(s=>s.shop_name?.toLowerCase()===poster_name.toLowerCase());
+    if(_matchShop)shop_id=_matchShop.id;
+  }
   const time_slot=document.getElementById("re-time-slot").value.trim()||null;
   const comment=document.getElementById("re-comment").value.trim()||null;
   // 日時更新
@@ -2337,7 +2363,7 @@ async function saveRepEdit(){
     const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);
     const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
     const gender_mode=document.getElementById("re-gender-mode").value||null;
-    const payload={can_call,poster_type,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode};
+    const payload={can_call,poster_type,poster_name,shop_id,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode};
     if(newDate)payload.created_at=new Date(newDate).toISOString();
     const _r=await api("update",{table:"reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
@@ -2350,7 +2376,7 @@ async function saveRepEdit(){
     const good_points = [...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
     const gender_mode = document.getElementById("re-gender-mode").value||"men";
     const multi_fee = multi_person ? (document.getElementById("re-lh-multi-fee").checked || false) : null;
-    const payload = {atmosphere,solo_entry,multi_person,multi_fee,good_points,poster_type,poster_name,time_slot,comment,gender_mode};
+    const payload = {atmosphere,solo_entry,multi_person,multi_fee,good_points,poster_type,poster_name,shop_id,time_slot,comment,gender_mode};
     const newDate2 = document.getElementById("re-created-at").value;
     if(newDate2) payload.created_at = new Date(newDate2).toISOString();
     const _r=await api("update",{table:"loveho_reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}

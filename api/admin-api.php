@@ -289,6 +289,15 @@ function handleUpdate() {
         }
     }
     $params[] = $id;
+
+    // 旧店名を取得（UPDATE前に取得する必要がある）
+    $oldShopName = null;
+    if ($table === 'shops' && isset($data['shop_name'])) {
+        $sOld = $pdo->prepare('SELECT shop_name FROM shops WHERE id = ?');
+        $sOld->execute([$id]);
+        $oldShopName = $sOld->fetchColumn();
+    }
+
     $sql = "UPDATE `$table` SET " . implode(', ', $sets) . " WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -296,11 +305,19 @@ function handleUpdate() {
     // 店舗のshop_name変更時、reports/loveho_reportsのposter_nameを連動更新
     if ($table === 'shops' && isset($data['shop_name'])) {
         $newName = $data['shop_name'];
-        // shop_idベースで確実に更新（poster_nameはshop_idに紐づく表示用フィールド）
+        $oldName = $oldShopName;
+        // shop_idベースで確実に更新
         $sn1 = $pdo->prepare('UPDATE reports SET poster_name = ? WHERE shop_id = ? AND poster_type = ?');
         $sn1->execute([$newName, $id, 'shop']);
         $sn2 = $pdo->prepare('UPDATE loveho_reports SET poster_name = ? WHERE shop_id = ? AND poster_type = ?');
         $sn2->execute([$newName, $id, 'shop']);
+        // レガシー: shop_idがないがposter_nameが旧店名のレコードも更新
+        if ($oldName && $oldName !== $newName) {
+            $sn3 = $pdo->prepare('UPDATE reports SET poster_name = ?, shop_id = ? WHERE poster_name = ? AND poster_type = ? AND shop_id IS NULL');
+            $sn3->execute([$newName, $id, $oldName, 'shop']);
+            $sn4 = $pdo->prepare('UPDATE loveho_reports SET poster_name = ?, shop_id = ? WHERE poster_name = ? AND poster_type = ? AND shop_id IS NULL');
+            $sn4->execute([$newName, $id, $oldName, 'shop']);
+        }
     }
 
     // 店舗のgender_mode変更時、関連テーブルを全て連動更新
