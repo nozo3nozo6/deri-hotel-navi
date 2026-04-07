@@ -652,7 +652,6 @@ async function loadDetail(hotelId, isLoveho) {
         (detailData.shop_info || []).forEach(info => {
             const shop = info.shops;
             if (!shop || !shop.id) return;
-            if (isLoveho && shop.status !== 'active') return;
             const sid = String(shop.id);
             shopFeeMap[sid] = info.transport_fee;
             const maxPrice = Math.max(...(shop.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
@@ -815,8 +814,9 @@ function renderLovehoDetail(hotel, reports) {
         const pName=r.poster_name||'匿名';
         const _lhSid=r.shop_id?String(r.shop_id):null;
         const si=_lhSid?lhShopInfoMap[_lhSid]:null;
-        const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
-        const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
+        const _siActive=si&&si.status==='active';
+        const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
+        const posterHTML=_siActive&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
