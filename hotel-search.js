@@ -681,6 +681,15 @@ async function loadDetail(hotelId, isLoveho) {
             };
         }
 
+        // 停止中店舗の投稿を除外（ホテル/ラブホ共通）
+        reports = reports.filter(r => {
+            if (r.poster_type !== 'shop') return true;
+            const sid = r.shop_id ? String(r.shop_id) : null;
+            if (!sid) return true;
+            const si = shopInfoMap[sid];
+            return !si || si.status === 'active';
+        });
+
         // ホテル固有: 店舗モード時は自店舗投稿のみ表示
         if (!isLoveho) {
             if (_shopParam && SHOP_ID) {
