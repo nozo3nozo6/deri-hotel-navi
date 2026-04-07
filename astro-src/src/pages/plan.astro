@@ -113,14 +113,15 @@ const faqs = [
         <div class="example-card example-premium">
           <div class="example-label">📌 リッチ広告</div>
           <div class="example-plan-tag"><strong>各プランの該当エリアページ上部に表示<br>市区町村プランはホテル詳細ページにも表示</strong></div>
-          <div class="example-mock">
-            <div class="mock-thumb">🖼</div>
-            <div class="mock-info">
-              <div class="mock-name-row"><span class="mock-name">お店様の名前</span><span class="mock-count">📋6件</span></div>
-              <div class="mock-bottom">
-                <span class="mock-price">💎 60分 10,000円〜</span>
-                <span class="mock-hours">🕐 6:00〜翌4:30</span>
-              </div>
+          <div class="example-mock example-mock-rich">
+            <div class="mock-hero">🖼 ヒーロー画像</div>
+            <div class="mock-rich-body">
+              <span class="mock-name">お店様の名前</span>
+              <span class="mock-count">📋6件</span>
+            </div>
+            <div class="mock-rich-bottom">
+              <span>オススメ 💎 60分 10,000円〜</span>
+              <span>🕐 6:00〜翌4:30 🕐</span>
             </div>
           </div>
           <p class="example-note">エリア一覧ページ上部に大きく表示。ヒーロー画像（写真グリッドまたは単体）・店名リンク・料金・営業時間・対応件数(📋)を掲載。金🥇銀🥈銅🥉のランク枠付き。<strong>投稿実績が多いほど上位に表示</strong>されるため、積極的な情報提供が集客力に直結します。</p>
@@ -303,6 +304,10 @@ const faqs = [
   .example-card { background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; padding: 24px; }
   .example-label { font-size: 13px; font-weight: 700; color: #b5627a; margin-bottom: 12px; }
   .example-mock { display: flex; gap: 12px; background: linear-gradient(135deg, rgba(181,98,122,0.06), rgba(181,98,122,0.12)); border: 1px solid rgba(181,98,122,0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .example-mock-rich { flex-direction: column; gap: 0; padding: 0; overflow: hidden; border-radius: 10px; border: 2px solid #c9a84c; }
+  .mock-hero { background: linear-gradient(135deg, #3a3a3a, #555); color: #fff; padding: 32px 16px; text-align: center; font-size: 16px; }
+  .mock-rich-body { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
+  .mock-rich-bottom { display: flex; justify-content: space-between; padding: 8px 14px; background: linear-gradient(90deg, rgba(181,98,122,0.08), rgba(181,98,122,0.15)); font-size: 11px; color: #444; border-top: 1px solid rgba(181,98,122,0.15); }
   .mock-thumb { width: 60px; height: 80px; background: #e8e0d8; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
   .mock-info { flex: 1; min-width: 0; }
   .mock-name { font-size: 14px; font-weight: 700; color: #b5627a; margin-bottom: 4px; }
