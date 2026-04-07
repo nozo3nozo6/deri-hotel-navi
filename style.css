@@ -2405,11 +2405,11 @@ body[data-mode="men"] .header-title {
 .stat-legend-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle; }
 
 /* 口コミカード */
-.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:14px 6px;margin-bottom:8px;overflow-wrap:break-word;word-break:break-word; }
+.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:10px 6px;margin-bottom:6px;overflow-wrap:break-word;word-break:break-word; }
 .review-card--compact { border-radius:8px;padding:10px 6px;margin-bottom:5px; }
 
 /* 店舗公式情報枠 */
-.section-official { border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:14px 6px;margin-bottom:16px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);overflow:hidden; }
+.section-official { border:2px solid rgba(201,168,76,0.5);border-radius:12px;padding:8px 6px;margin-bottom:8px;background:linear-gradient(135deg,rgba(201,168,76,0.07) 0%,rgba(255,248,220,0.5) 100%);box-shadow:0 2px 12px rgba(201,168,76,0.12);overflow:hidden; }
 
 /* セクションラベル */
 .section-label { font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;border:1px solid transparent; }

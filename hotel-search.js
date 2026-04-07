@@ -870,7 +870,7 @@ function renderLovehoDetail(hotel, reports) {
 
     const lhShopSection = lhShopReports.length === 0 ? '' : `
         <div class="section-official">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                 <span class="section-label section-label--official">✅ お店からの公式情報</span>
                 <span style="font-size:11px;color:#9a8050;">${lhShopReports.length}件</span>
             </div>
@@ -1951,7 +1951,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
 
     const shopSection = shopReports.length === 0 ? '' : `
         <div class="section-official">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:4px;">
                 <span class="section-label section-label--official">✅ お店からの公式情報 (${shopReports.length})</span>
                 ${shopFilterTabs}
             </div>
