@@ -412,7 +412,7 @@ function handleReportsAll() {
         $r['conditions'] = DB::jsonDecode($r['conditions'] ?? null);
     }
 
-    $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM loveho_reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 500");
+    $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM loveho_reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 2000");
     $loveho = $stmt->fetchAll();
     foreach ($loveho as &$r) {
         $r['is_hidden'] = (bool)($r['is_hidden'] ?? false);

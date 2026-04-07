@@ -23,6 +23,7 @@ $pdo = DB::conn();
 
 define('IP_HASH_SALT', getenv('IP_HASH_SALT') ?: 'deri_hotel_navi_2026_salt_xK9m');
 define('MAX_LOVEHO_REPORTS_PER_IP_24H', 10);
+define('MAX_LOVEHO_REPORTS_PER_FP_PER_HOTEL', 3);
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!$input) { http_response_code(400); echo json_encode(['error' => 'Invalid request']); exit; }
@@ -30,10 +31,14 @@ if (!$input) { http_response_code(400); echo json_encode(['error' => 'Invalid re
 $hotelId = $input['hotel_id'] ?? null;
 if (!$hotelId) { http_response_code(400); echo json_encode(['error' => 'hotel_id is required']); exit; }
 
+$fingerprint = $input['fingerprint'] ?? '';
+$fingerprint = preg_replace('/[^a-zA-Z0-9+\/=]/', '', $fingerprint);
+if (strlen($fingerprint) > 64) $fingerprint = substr($fingerprint, 0, 64);
+
 $clientIP = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 $ipHash = hash('sha256', IP_HASH_SALT . $clientIP);
 
-// Rate limit: IP 10/24h
+// ── レート制限: IP 10件/24h ──
 $since24h = gmdate('Y-m-d H:i:s', time() - 86400);
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM loveho_reports WHERE ip_hash = ? AND created_at >= ?');
 $stmt->execute([$ipHash, $since24h]);
@@ -43,11 +48,32 @@ if ($stmt->fetchColumn() >= MAX_LOVEHO_REPORTS_PER_IP_24H) {
     exit;
 }
 
+// ── レート制限: フィンガープリント×ホテル ──
+if ($fingerprint) {
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM loveho_reports WHERE fingerprint = ? AND hotel_id = ?');
+    $stmt->execute([$fingerprint, $hotelId]);
+    if ($stmt->fetchColumn() >= MAX_LOVEHO_REPORTS_PER_FP_PER_HOTEL) {
+        http_response_code(429);
+        echo json_encode(['error' => 'このホテルへの投稿数が上限に達しました。']);
+        exit;
+    }
+}
+
+// ── 不審パターン検知（店舗IPとの一致） ──
 $comment = $input['comment'] ?? null;
 if ($comment) $comment = mb_substr(trim($comment), 0, 500);
 
+$stmt = $pdo->prepare('SELECT id, shop_name FROM shops WHERE last_login_ip_hash = ?');
+$stmt->execute([$ipHash]);
+$suspiciousShops = $stmt->fetchAll();
+if ($suspiciousShops) {
+    $shopNames = array_map(fn($s) => $s['shop_name'] ?? $s['id'], $suspiciousShops);
+    $note = '[要確認] 店舗ログインIPと一致: ' . implode(', ', $shopNames);
+    $comment = $comment ? ($note . ' | ' . $comment) : $note;
+}
+
 $id = DB::uuid();
-$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, multi_fee, gender_mode, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+$stmt = $pdo->prepare('INSERT INTO loveho_reports (id, hotel_id, solo_entry, atmosphere, good_points, time_slot, comment, poster_name, poster_type, shop_id, entry_method, multi_person, guest_male, guest_female, multi_fee, gender_mode, fingerprint, ip_hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 $stmt->execute([
     $id,
     $hotelId,
@@ -65,6 +91,7 @@ $stmt->execute([
     isset($input['guest_female']) ? (int)$input['guest_female'] : null,
     ($input['multi_person'] ?? false) ? (int)(bool)($input['multi_fee'] ?? false) : null,
     $input['gender_mode'] ?? null,
+    $fingerprint ?: null,
     $ipHash,
 ]);
 

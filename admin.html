@@ -2145,8 +2145,8 @@ async function loadReports(){
   updateFlagBadge();renderReports();
 }
 function updateFlagBadge(){const count=reportsData.filter(r=>r.flagged_at&&!r.flag_resolved).length;console.log("[updateFlagBadge] 未対応報告件数:",count,"/ 総投稿:",reportsData.length);const badge=document.getElementById("rep-badge");if(count>0){badge.style.display="inline";badge.textContent=count;}else badge.style.display="none";}
-async function resolveFlag(id){if(!confirm("対応済みにしますか？"))return;const _r=await api("update",{table:"reports",id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
-async function unresolveFlag(id){if(!confirm("未対応に戻しますか？"))return;const _r=await api("update",{table:"reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
+async function resolveFlag(id){if(!confirm("対応済みにしますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{flag_resolved:new Date().toISOString()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:new Date().toISOString()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
+async function unresolveFlag(id){if(!confirm("未対応に戻しますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
 let repPage=0;const REP_PER_PAGE=30;
 function updateResultFilter(){
   const kF=document.getElementById("rep-kind-f")?.value||"";
@@ -2279,7 +2279,8 @@ async function saveRepEdit(){
     const room_type=document.getElementById("re-room-type").value||null;
     const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);
     const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
-    const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons};
+    const gender_mode=document.getElementById("re-gender-mode").value||null;
+    const payload={can_call,poster_name,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode};
     if(newDate)payload.created_at=new Date(newDate).toISOString();
     const _r=await api("update",{table:"reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
@@ -2300,7 +2301,7 @@ async function saveRepEdit(){
   }
   renderReports();closeRepEditModal();toast("✅ 更新しました");
 }
-async function toggleVis(id,cur){if(!confirm(cur?"この投稿を表示に戻しますか？":"この投稿を非表示にしますか？"))return;const _r=await api("update",{table:"reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function toggleVis(id,cur){if(!confirm(cur?"この投稿を表示に戻しますか？":"この投稿を非表示にしますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
 async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const _r=await api("delete",{table:"reports",id});if(!_r.ok){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
 async function delLhReportFromList(id){
     if(!confirm("このラブホ口コミを削除しますか？元に戻せません。"))return;
