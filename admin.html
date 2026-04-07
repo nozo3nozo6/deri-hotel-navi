@@ -3536,7 +3536,7 @@ async function doSendOutreachEmail(){
         const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});
         if(res.ok){
             btn.textContent="✅ 送信完了";
-            await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()}});
+            await api("insert",{table:"outreach_emails",data:{email:to,shop_name:shopName||null,genre:template||null,notes:subject,status:"sent",sent_at:new Date().toISOString()}});
             loadOutreachHistory();
             document.getElementById("outreach-to").value="";
             document.getElementById("outreach-shop-name").value="";
@@ -3544,13 +3544,13 @@ async function doSendOutreachEmail(){
         }else{
             const errText=await res.text();
             btn.textContent="❌ 送信エラー";
-            await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()}});
+            await api("insert",{table:"outreach_emails",data:{email:to,shop_name:shopName||null,genre:template||null,notes:subject,status:"error",sent_at:new Date().toISOString()}});
             loadOutreachHistory();
             setTimeout(()=>{btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+errText);},1500);
         }
     }catch(e){btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+e.message);}
 }
-async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=50');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=50');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.email||"—")}</td><td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
 
 // ========== 広告管理 ==========
 let adPlans=[];
