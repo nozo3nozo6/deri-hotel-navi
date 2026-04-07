@@ -1587,12 +1587,7 @@ async function loadShopContracts(shopId,plans){
   rows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(totalLimits).forEach(k=>{totalLimits[k]+=(l[k]||0);});}});
   const hasPaid=activeIds.some(id=>id>1);
   // プラン追加/削除ボタン
-  // キャンペーンバナー
-  let planHtml='<div style="margin-bottom:12px;padding:12px 16px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:8px;font-size:13px;">';
-  planHtml+='<div style="font-weight:700;color:#b8860b;margin-bottom:4px;">🎁 キャンペーン実施中</div>';
-  planHtml+='<div style="color:#5a4a2a;">投稿リンクプラン（月額¥5,500）を <strong>1ヶ月無料</strong> でお試しいただけます</div>';
-  planHtml+='</div>';
-  planHtml+='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">複数契約可能なプランは＋/−で数量変更、それ以外はクリックで切替</div>';
+  let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">複数契約可能なプランは＋/−で数量変更、それ以外はクリックで切替</div>';
   planHtml+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
   plans.forEach(p=>{
     if(p.id===1)return;// 無料プランは表示しない
