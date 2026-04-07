@@ -44,6 +44,11 @@ $headers .= "MIME-Version: 1.0\r\n";
 $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
 $headers .= "Content-Transfer-Encoding: base64\r\n";
 
+// プレーンテキスト本文の改行をHTML対応（<タグがなければnl2br変換）
+if (strpos($body, '<') === false) {
+    $body = '<div style="font-family:sans-serif;font-size:14px;line-height:1.8;white-space:pre-wrap;">' . nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8')) . '</div>';
+}
+
 // 本文をBase64エンコード（文字化け防止）
 $encodedBody = chunk_split(base64_encode($body));
 
