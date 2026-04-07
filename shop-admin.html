@@ -769,10 +769,6 @@
             <div class="card-title">現在のプラン</div>
             <div id="plan-current-status" style="padding:8px 0;font-size:13px;color:var(--text-2);">読み込み中...</div>
         </div>
-        <div style="margin-top:12px;padding:16px 20px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:12px;">
-            <div style="font-size:16px;font-weight:700;color:#b8860b;margin-bottom:6px;">🎁 キャンペーン実施中</div>
-            <div style="font-size:14px;color:#3a3020;line-height:1.7;">投稿リンクプラン（月額¥5,500）を <strong>ご登録日から1ヶ月間無料</strong> でお試しいただけます！<br><span style="font-size:12px;color:#6a5a3a;">無料期間終了後も自動課金されません。継続をご希望の場合のみお手続きください。</span></div>
-        </div>
         <div class="card" style="margin-top:12px;">
             <div class="card-title">プラン一覧</div>
             <div class="plan-grid" id="plan-grid"></div>
@@ -2248,26 +2244,12 @@ function renderPlanGrid(){
     const grid=document.getElementById('plan-grid');
     const paid=planData.filter(p=>p.price>0);
     if(!paid.length){grid.innerHTML='<div style="color:var(--text-3);font-size:12px;">プランが見つかりません</div>';return;}
-    // キャンペーンカード（投稿リンクプラン 1ヶ月無料）を先頭に追加
-    const linkPlan=paid.find(p=>p.id===9);
-    let html='';
-    if(linkPlan){
-        html+=`<div class="plan-card" style="border:2px solid #f0d060;background:linear-gradient(135deg,#fffef8,#fff8e1);">
-        <div style="background:#e65100;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;margin-bottom:8px;display:inline-block;">🎁 1ヶ月無料キャンペーン</div>
-        <div class="plan-card-name">${esc(linkPlan.name)}</div>
-        <div class="plan-card-price"><span style="text-decoration:line-through;color:var(--text-3);font-size:14px;font-weight:400;">&yen;${Number(linkPlan.price).toLocaleString()}</span> <span style="color:#e65100;">&yen;0</span><small>/初月</small></div>
-        <div class="plan-card-desc">1ヶ月間無料でお試し。自動課金なし。</div>
-        <button class="btn-apply" style="background:#e65100;" onclick="openPlanForm(${linkPlan.id},'${esc(linkPlan.name)}（1ヶ月無料）',${linkPlan.price})">無料で試してみる</button>
-    </div>`;
-    }
-    // 通常プランカード
-    html+=paid.map(p=>`<div class="plan-card">
+    grid.innerHTML=paid.map(p=>`<div class="plan-card">
         <div class="plan-card-name">${esc(p.name)}</div>
         <div class="plan-card-price">&yen;${Number(p.price).toLocaleString()}<small>/月(税込)</small></div>
         <div class="plan-card-desc">${esc(p.description||'')}</div>
         <button class="btn-apply" onclick="openPlanForm(${p.id},'${esc(p.name)}',${p.price})">このプランに申し込む</button>
     </div>`).join('');
-    grid.innerHTML=html;
 }
 
 function openPlanForm(planId,name,price){
