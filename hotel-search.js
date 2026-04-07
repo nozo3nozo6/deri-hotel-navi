@@ -817,7 +817,7 @@ function renderLovehoDetail(hotel, reports) {
         const _siActive=si&&si.status==='active';
         const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
         const posterHTML=_siActive&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
-        const fee=_lhSid?lhShopFeeMap[_lhSid]:undefined;
+        const fee=_siActive&&_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
@@ -1880,7 +1880,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         ].join('');
         const isShop = r.poster_type === 'shop';
         const _sid = r.shop_id ? String(r.shop_id) : null;
-        const feeLabel = isShop && _sid ? formatTransportFee(shopFeeMap[_sid]) : null;
+        const _siHotel = isShop && _sid ? shopInfoMap[_sid] : null;
+        const feeLabel = isShop && _sid && _siHotel?.status === 'active' ? formatTransportFee(shopFeeMap[_sid]) : null;
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#4a7ab0';
             const si=isShop&&_sid?shopInfoMap[_sid]:null;
