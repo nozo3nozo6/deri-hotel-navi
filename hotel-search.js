@@ -646,46 +646,47 @@ async function loadDetail(hotelId, isLoveho) {
         // GA4: ホテル詳細閲覧トラッキング
         if (typeof gtag === 'function') gtag('event', 'hotel_detail_view', { hotel_name: hotel.name || '', city: hotel.city || '', prefecture: hotel.prefecture || '' });
 
-        // 店舗情報マップ構築（共通）
+        // 店舗情報マップ構築（shop_idをキーに統一）
         const shopInfoMap = {};
         const shopFeeMap = {};
         (detailData.shop_info || []).forEach(info => {
             const shop = info.shops;
-            if (!shop) return;
+            if (!shop || !shop.id) return;
             if (isLoveho && shop.status !== 'active') return;
-            const name = shop.shop_name;
-            if (!name) return;
-            shopFeeMap[name] = info.transport_fee;
+            const sid = String(shop.id);
+            shopFeeMap[sid] = info.transport_fee;
             const maxPrice = Math.max(...(shop.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-            shopInfoMap[name] = { shop_url: shop.shop_url, isPaid: maxPrice > 0, planPrice: maxPrice, status: shop.status, shopId: shop.id, url: shop.shop_url };
+            shopInfoMap[sid] = { shop_name: shop.shop_name, shop_url: shop.shop_url, isPaid: maxPrice > 0, planPrice: maxPrice, status: shop.status, shopId: shop.id, url: shop.shop_url };
         });
 
         // 投稿者の店舗情報を追加取得（ホテル・ラブホ共通）
         const posterShopRows = detailData.poster_shops || [];
         posterShopRows.forEach(s => {
+            if (!s.id) return;
+            const sid = String(s.id);
             const price = Math.max(...(s.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-            shopInfoMap[s.shop_name] = { ...shopInfoMap[s.shop_name], status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
+            shopInfoMap[sid] = { ...shopInfoMap[sid], shop_name: s.shop_name, status: s.status, shop_url: s.shop_url, isPaid: price > 0, planPrice: price, shopId: s.id, url: s.shop_url };
         });
-        if (SHOP_DATA?.shop_name) {
-            const name = SHOP_DATA.shop_name;
-            const existing = shopInfoMap[name] || {};
+        if (SHOP_ID) {
+            const sid = String(SHOP_ID);
+            const existing = shopInfoMap[sid] || {};
             const price = Math.max(...(SHOP_DATA?.shop_contracts || []).map(c => c.contract_plans?.price || 0), 0);
-            shopInfoMap[name] = {
+            shopInfoMap[sid] = {
+                shop_name: existing.shop_name || SHOP_DATA?.shop_name || null,
                 shop_url: existing.shop_url || SHOP_DATA?.shop_url || null,
                 isPaid: existing.isPaid || price > 0,
                 planPrice: Math.max(price, existing.planPrice || 0),
                 status: existing.status || SHOP_DATA?.status || null,
-                shopId: existing.shopId || SHOP_ID || null,
+                shopId: SHOP_ID,
                 url: existing.shop_url || SHOP_DATA?.shop_url || null
             };
         }
 
         // ホテル固有: 店舗モード時は自店舗投稿のみ表示
         if (!isLoveho) {
-            if (_shopParam && (SHOP_ID || SHOP_DATA?.shop_name)) {
-                const shopName = SHOP_DATA?.shop_name;
+            if (_shopParam && SHOP_ID) {
                 reports = reports.filter(r => {
-                    if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                    if (r.poster_type === 'shop') return String(r.shop_id) === String(SHOP_ID);
                     return true;
                 });
             }
@@ -709,11 +710,10 @@ async function loadDetail(hotelId, isLoveho) {
 
         // レンダリング（タイプ別）
         if (isLoveho) {
-            // 店舗モード時: 自店舗投稿のみ表示（poster_typeで統一判別）
-            if (_shopParam && (SHOP_ID || SHOP_DATA?.shop_name)) {
-                const shopName = SHOP_DATA?.shop_name;
+            // 店舗モード時: 自店舗投稿のみ表示（shop_idで判別）
+            if (_shopParam && SHOP_ID) {
                 reports = reports.filter(r => {
-                    if (r.poster_type === 'shop') return r.shop_id === SHOP_ID || (shopName && r.poster_name === shopName);
+                    if (r.poster_type === 'shop') return String(r.shop_id) === String(SHOP_ID);
                     return true;
                 });
             }
@@ -803,7 +803,7 @@ function renderLovehoDetail(hotel, reports) {
 
     const lhShopFeeMap = hotel._lhShopFeeMap || {};
     const lhShopInfoMap = hotel._lhShopInfoMap || {};
-    const shopNames = Object.keys(lhShopInfoMap);
+    const shopIdSet = new Set(Object.keys(lhShopInfoMap));
 
     function buildLhReviewCard(r) {
         const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
@@ -812,14 +812,15 @@ function renderLovehoDetail(hotel, reports) {
         const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(gp)}</span>`).join('');
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':'♂';const gmCol=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':'#4a7ab0';
         const pName=r.poster_name||'匿名';
-        const si=lhShopInfoMap[pName];
+        const _lhSid=r.shop_id?String(r.shop_id):null;
+        const si=_lhSid?lhShopInfoMap[_lhSid]:null;
         const shopBadge=si?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge">認定店</span>`):'';
         const posterHTML=si&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
-        const fee=lhShopFeeMap[pName];
+        const fee=_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
-        const isShopPost = r.poster_type === 'shop' || shopNames.includes(pName);
+        const isShopPost = r.poster_type === 'shop' || (_lhSid && shopIdSet.has(_lhSid));
         const soloHTML = r.solo_entry && isShopPost && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
@@ -1869,10 +1870,11 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             guestChip,
         ].join('');
         const isShop = r.poster_type === 'shop';
-        const feeLabel = isShop ? formatTransportFee(shopFeeMap[r.poster_name]) : null;
+        const _sid = r.shop_id ? String(r.shop_id) : null;
+        const feeLabel = isShop && _sid ? formatTransportFee(shopFeeMap[_sid]) : null;
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#4a7ab0';
-            const si=isShop?shopInfoMap[r.poster_name]:null;
+            const si=isShop&&_sid?shopInfoMap[_sid]:null;
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
             const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge">認定店</span>`;
             if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
@@ -1900,10 +1902,12 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const userPct = userReports.length > 0 ? Math.round(userCanCall / userReports.length * 100) : null;
     const shopReports = reports.filter(r => r.poster_type === 'shop' && (_shopParam || r.gender_mode === MODE));
     shopReports.sort((a, b) => {
-        const priceA = shopInfoMap[a.poster_name]?.planPrice || 0;
-        const priceB = shopInfoMap[b.poster_name]?.planPrice || 0;
+        const sidA = a.shop_id ? String(a.shop_id) : null;
+        const sidB = b.shop_id ? String(b.shop_id) : null;
+        const priceA = sidA ? (shopInfoMap[sidA]?.planPrice || 0) : 0;
+        const priceB = sidB ? (shopInfoMap[sidB]?.planPrice || 0) : 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b, shopInfoMap[b.poster_name]?.isPaid) - shopSortDate(a, shopInfoMap[a.poster_name]?.isPaid);
+        return shopSortDate(b, sidB ? shopInfoMap[sidB]?.isPaid : false) - shopSortDate(a, sidA ? shopInfoMap[sidA]?.isPaid : false);
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;

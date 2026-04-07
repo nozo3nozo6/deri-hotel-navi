@@ -2174,8 +2174,8 @@ async function loadReports(){
     return af-bf||new Date(b.created_at)-new Date(a.created_at);
   });
   const deliData=merged.map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
-  const shopNames=new Set(shopsData.map(s=>s.shop_name).filter(Boolean));
-  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_type||(r.poster_name&&shopNames.has(r.poster_name)?"shop":"user")}));
+  const shopIdSet=new Set(shopsData.map(s=>String(s.id)).filter(Boolean));
+  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_type||(r.shop_id&&shopIdSet.has(String(r.shop_id))?"shop":"user")}));
   reportsData=[...deliData,...lhData];
   reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
@@ -2285,7 +2285,7 @@ function openRepEdit(id){
     tsSel.innerHTML = '<option value="">未選択</option>' + tsOptions.map(l=>`<option value="${esc(l)}"${r.time_slot===l?" selected":""}>${esc(l)}</option>`).join("");
 
     // 店舗投稿チェックボックスの状態をセット
-    const isShopPost = r.poster_type === 'shop' || (r.poster_name && shopsData.some(s => s.shop_name === r.poster_name));
+    const isShopPost = r.poster_type === 'shop' || (r.shop_id && shopsData.some(s => String(s.id) === String(r.shop_id)));
     document.getElementById("re-lh-shop-mode").checked = isShopPost;
     toggleLhShopMode(isShopPost, r.solo_entry);
     // multi_person: trueのみ「OK」、falseやnullは「未選択」（ポータルと同じ動作）
