@@ -203,6 +203,13 @@
         .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
 
         /* ===== 登録済みホテル一覧 ===== */
+        .reg-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+        .reg-tabs{display:flex;gap:4px;}
+        .reg-tab{padding:6px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-3);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+        .reg-tab:hover{border-color:var(--rose-border);color:var(--text);}
+        .reg-tab.active{background:var(--rose);color:#fff;border-color:var(--rose);}
+        .reg-sort-btn{padding:5px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s;}
+        .reg-sort-btn:hover{border-color:var(--rose-border);color:var(--text);}
         .reg-list{display:grid;gap:8px;}
         .reg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;transition:all 0.15s;}
         .reg-row:hover{border-color:var(--border-s);background:#faf8f6;}
@@ -724,6 +731,14 @@
     <div class="tab-content" id="tab-list">
         <div class="card">
             <div class="card-title">登録済みホテル一覧<span class="sub" id="reg-count"></span></div>
+            <div class="reg-toolbar">
+                <div class="reg-tabs">
+                    <button class="reg-tab active" data-filter="all" onclick="setRegFilter('all',this)">すべて</button>
+                    <button class="reg-tab" data-filter="hotel" onclick="setRegFilter('hotel',this)">🏨 ホテル</button>
+                    <button class="reg-tab" data-filter="loveho" onclick="setRegFilter('loveho',this)">🏩 ラブホ</button>
+                </div>
+                <button class="reg-sort-btn" id="reg-sort-btn" onclick="toggleRegSort()">📅 新しい順</button>
+            </div>
             <div class="reg-list" id="reg-list"></div>
             <div class="pagination" id="pagination"></div>
         </div>
@@ -1708,6 +1723,20 @@ async function doSubmit(){
 
 // ===== 登録済みホテル一覧 =====
 let regData=[];let regPage=1;const PER_PAGE=20;
+let regFilter='all'; // all / hotel / loveho
+let regSortAsc=false; // false=新しい順, true=古い順
+
+function setRegFilter(f,btn){
+    regFilter=f;regPage=1;
+    document.querySelectorAll('.reg-tab').forEach(t=>t.classList.remove('active'));
+    if(btn)btn.classList.add('active');
+    renderRegistered();
+}
+function toggleRegSort(){
+    regSortAsc=!regSortAsc;
+    document.getElementById('reg-sort-btn').textContent=regSortAsc?'📅 古い順':'📅 新しい順';
+    regPage=1;renderRegistered();
+}
 
 async function loadRegisteredHotels(){
     if(!currentShop)return;
@@ -1716,9 +1745,25 @@ async function loadRegisteredHotels(){
 }
 
 function renderRegistered(){
-    const total=regData.length;const totalPages=Math.ceil(total/PER_PAGE)||1;
+    // フィルタ
+    let filtered=regData;
+    if(regFilter==='hotel')filtered=regData.filter(r=>{const ht=r.hotels?.hotel_type||'';return ht!=='love_hotel'&&ht!=='rental_room';});
+    else if(regFilter==='loveho')filtered=regData.filter(r=>{const ht=r.hotels?.hotel_type||'';return ht==='love_hotel'||ht==='rental_room';});
+    // ソート（投稿日時）
+    filtered=[...filtered].sort((a,b)=>{
+        const da=new Date(a.refreshed_at||a.created_at||0).getTime();
+        const db=new Date(b.refreshed_at||b.created_at||0).getTime();
+        return regSortAsc?(da-db):(db-da);
+    });
+    const total=filtered.length;const totalPages=Math.ceil(total/PER_PAGE)||1;
     if(regPage>totalPages)regPage=totalPages;
-    const start=(regPage-1)*PER_PAGE;const pageData=regData.slice(start,start+PER_PAGE);
+    const start=(regPage-1)*PER_PAGE;const pageData=filtered.slice(start,start+PER_PAGE);
+    // タブの件数表示
+    const hotelCnt=regData.filter(r=>{const ht=r.hotels?.hotel_type||'';return ht!=='love_hotel'&&ht!=='rental_room';}).length;
+    const lovehoCnt=regData.filter(r=>{const ht=r.hotels?.hotel_type||'';return ht==='love_hotel'||ht==='rental_room';}).length;
+    document.querySelector('.reg-tab[data-filter="all"]').textContent=`すべて (${regData.length})`;
+    document.querySelector('.reg-tab[data-filter="hotel"]').textContent=`🏨 ホテル (${hotelCnt})`;
+    document.querySelector('.reg-tab[data-filter="loveho"]').textContent=`🏩 ラブホ (${lovehoCnt})`;
     document.getElementById("reg-count").textContent=`全${total}件`;
     const wrap=document.getElementById("reg-list");
     if(!pageData.length){wrap.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-3);font-size:13px;">登録済みホテルがありません</div>';document.getElementById("pagination").innerHTML="";return;}
