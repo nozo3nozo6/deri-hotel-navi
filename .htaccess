@@ -66,12 +66,18 @@ RewriteRule ^legal/?$ /legal.html [L]
 RewriteRule ^plan/?$ /plan.html [L]
 RewriteRule ^shop-register/?$ /shop-register.html [L]
 
-# 旧 .html URL → クリーンURL 301リダイレクト
+# 旧 .html URL → クリーンURL 301リダイレクト（ブラウザ直接リクエスト時のみ）
+RewriteCond %{THE_REQUEST} \s/contact\.html [NC]
 RewriteRule ^contact\.html$ /contact/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/terms\.html [NC]
 RewriteRule ^terms\.html$ /terms/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/privacy\.html [NC]
 RewriteRule ^privacy\.html$ /privacy/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/legal\.html [NC]
 RewriteRule ^legal\.html$ /legal/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/plan\.html [NC]
 RewriteRule ^plan\.html$ /plan/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/shop-register\.html [NC]
 RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
 
 # ===== サブディレクトリ方式 URL ルーティング =====
