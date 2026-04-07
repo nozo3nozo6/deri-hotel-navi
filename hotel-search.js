@@ -10,12 +10,14 @@ const _extTarget = ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? 
 // 共通ユーティリティ（ホテル/ラブホ両方で使用）
 const LOVEHO_ORDER = { love_hotel: 0, rental_room: 1 };
 const SHOP_REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
-function shopSortDate(r) {
-    const d = new Date(r.updated_at || r.created_at);
-    if (Date.now() - d.getTime() > SHOP_REFRESH_MS) {
+function shopSortDate(r, isPaid) {
+    const d = new Date(r.refreshed_at || r.updated_at || r.created_at);
+    // 有料店舗: 30日自動サイクル（仮想的に新鮮扱い）
+    if (isPaid && Date.now() - d.getTime() > SHOP_REFRESH_MS) {
         const cycles = Math.floor((Date.now() - d.getTime()) / SHOP_REFRESH_MS);
         return new Date(d.getTime() + cycles * SHOP_REFRESH_MS);
     }
+    // 無料店舗: refreshed_atそのまま（自動サイクルなし）
     return d;
 }
 function toggleAccordionForm(id) {
@@ -843,7 +845,7 @@ function renderLovehoDetail(hotel, reports) {
         const priceA = lhShopInfoMap[a.poster_name]?.planPrice || 0;
         const priceB = lhShopInfoMap[b.poster_name]?.planPrice || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b) - shopSortDate(a);
+        return shopSortDate(b, lhShopInfoMap[b.poster_name]?.isPaid) - shopSortDate(a, lhShopInfoMap[a.poster_name]?.isPaid);
     });
     const lhUserReports = reports.filter(r => !isLhShop(r));
 
@@ -1901,7 +1903,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const priceA = shopInfoMap[a.poster_name]?.planPrice || 0;
         const priceB = shopInfoMap[b.poster_name]?.planPrice || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b) - shopSortDate(a);
+        return shopSortDate(b, shopInfoMap[b.poster_name]?.isPaid) - shopSortDate(a, shopInfoMap[a.poster_name]?.isPaid);
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;

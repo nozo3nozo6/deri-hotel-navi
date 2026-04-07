@@ -52,6 +52,7 @@ switch ($action) {
     case 'save-hotel-info':     handleSaveHotelInfo(); break;
     case 'save-loveho-info':    handleSaveLovehoInfo(); break;
     case 'delete-info':         handleDeleteInfo(); break;
+    case 'refresh-date':        handleRefreshDate(); break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -71,16 +72,20 @@ function handleRegisteredIds() {
 function handleRegisteredList() {
     $auth = requireAuth();
     $pdo = DB::conn();
+    $shopId = $auth['shop_id'];
     $stmt = $pdo->prepare('
-        SELECT shi.*, h.name AS hotel_name, h.address AS hotel_address, h.hotel_type
+        SELECT shi.*, h.name AS hotel_name, h.address AS hotel_address, h.hotel_type,
+               rep.refreshed_at AS report_refreshed_at,
+               lr.refreshed_at AS loveho_refreshed_at
         FROM shop_hotel_info shi
         LEFT JOIN hotels h ON h.id = shi.hotel_id
+        LEFT JOIN reports rep ON rep.hotel_id = shi.hotel_id AND rep.shop_id = shi.shop_id AND rep.poster_type = ?
+        LEFT JOIN loveho_reports lr ON lr.hotel_id = shi.hotel_id AND lr.shop_id = shi.shop_id
         WHERE shi.shop_id = ?
         ORDER BY shi.created_at DESC
     ');
-    $stmt->execute([$auth['shop_id']]);
+    $stmt->execute(['shop', $shopId]);
     $rows = $stmt->fetchAll();
-    // Supabase互換形式に変換
     foreach ($rows as &$r) {
         $r['can_call'] = (bool)$r['can_call'];
         $r['hotels'] = [
@@ -88,7 +93,10 @@ function handleRegisteredList() {
             'address' => $r['hotel_address'],
             'hotel_type' => $r['hotel_type']
         ];
-        unset($r['hotel_name'], $r['hotel_address']);
+        // refreshed_at: 両テーブルの最新を使用
+        $dates = array_filter([$r['report_refreshed_at'] ?? null, $r['loveho_refreshed_at'] ?? null]);
+        $r['refreshed_at'] = $dates ? max($dates) : null;
+        unset($r['hotel_name'], $r['hotel_address'], $r['report_refreshed_at'], $r['loveho_refreshed_at']);
     }
     echo json_encode($rows, JSON_UNESCAPED_UNICODE);
 }
@@ -217,7 +225,7 @@ function handleSaveHotelInfo() {
             $stmt->execute(array_merge($reportData, [$existingRep['id']]));
         } else {
             $uuid = DB::uuid();
-            $stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, shop_id, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, gender_mode, multi_person, guest_male, guest_female, multi_fee) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, shop_id, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, gender_mode, multi_person, guest_male, guest_female, multi_fee, refreshed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())');
             $stmt->execute(array_merge([$uuid], $reportData));
         }
 
@@ -310,10 +318,12 @@ function handleSaveLovehoInfo() {
             $stmt->execute(array_merge(array_values($cols), [$existing['id']]));
         } else {
             $uuid = DB::uuid();
+            $cols['refreshed_at'] = date('Y-m-d H:i:s');
             $colNames = 'id, ' . implode(', ', array_keys($cols));
             $placeholders = implode(', ', array_fill(0, count($cols) + 1, '?'));
             $stmt = $pdo->prepare("INSERT INTO loveho_reports ($colNames) VALUES ($placeholders)");
             $stmt->execute(array_merge([$uuid], array_values($cols)));
+            unset($cols['refreshed_at']);
         }
 
         // 2. shop_hotel_info transport_fee upsert
@@ -376,6 +386,63 @@ function handleDeleteInfo() {
         $pdo->rollBack();
         http_response_code(500);
         echo json_encode(['error' => '削除エラー']);
+    }
+}
+
+// ===== POST: 表示日更新（無料店舗のみ、月1回制限） =====
+function handleRefreshDate() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireAuth();
+    $input = json_decode(file_get_contents('php://input'), true);
+    $hotelId = (int)($input['hotel_id'] ?? 0);
+    if (!$hotelId) { http_response_code(400); echo json_encode(['error' => 'hotel_id required']); return; }
+
+    $pdo = DB::conn();
+    $shopId = $auth['shop_id'];
+
+    // 有料プランチェック（有料は自動更新なので手動不要）
+    $stmt = $pdo->prepare('SELECT MAX(cp.price) AS max_price FROM shop_contracts sc JOIN contract_plans cp ON sc.plan_id = cp.id WHERE sc.shop_id = ? AND (sc.expires_at IS NULL OR sc.expires_at >= CURDATE())');
+    $stmt->execute([$shopId]);
+    $row = $stmt->fetch();
+    if ($row && (int)($row['max_price'] ?? 0) > 0) {
+        http_response_code(400);
+        echo json_encode(['error' => '有料プランは自動更新されます']);
+        return;
+    }
+
+    // 両テーブルの最新 refreshed_at を取得
+    $stmt = $pdo->prepare('SELECT refreshed_at FROM reports WHERE hotel_id = ? AND shop_id = ? AND poster_type = ? LIMIT 1');
+    $stmt->execute([$hotelId, $shopId, 'shop']);
+    $repRow = $stmt->fetch();
+
+    $stmt = $pdo->prepare('SELECT refreshed_at FROM loveho_reports WHERE hotel_id = ? AND shop_id = ? LIMIT 1');
+    $stmt->execute([$hotelId, $shopId]);
+    $lhRow = $stmt->fetch();
+
+    $dates = array_filter([$repRow['refreshed_at'] ?? null, $lhRow['refreshed_at'] ?? null]);
+    $latestRefresh = $dates ? max($dates) : null;
+
+    // 1ヶ月クールダウン
+    if ($latestRefresh && strtotime($latestRefresh) > strtotime('-1 month')) {
+        $nextDate = date('Y-m-d', strtotime('+1 month', strtotime($latestRefresh)));
+        http_response_code(429);
+        echo json_encode(['error' => '更新は月1回まで', 'next_refresh' => $nextDate]);
+        return;
+    }
+
+    // 両テーブルの refreshed_at を更新
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare('UPDATE reports SET refreshed_at = NOW() WHERE hotel_id = ? AND shop_id = ? AND poster_type = ?');
+        $stmt->execute([$hotelId, $shopId, 'shop']);
+        $stmt = $pdo->prepare('UPDATE loveho_reports SET refreshed_at = NOW() WHERE hotel_id = ? AND shop_id = ?');
+        $stmt->execute([$hotelId, $shopId]);
+        $pdo->commit();
+        echo json_encode(['success' => true, 'refreshed_at' => date('Y-m-d H:i:s')]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => 'サーバーエラー']);
     }
 }
 ?>

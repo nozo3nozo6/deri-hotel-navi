@@ -1730,7 +1730,22 @@ function renderRegistered(){
         const canLabel=r.can_call?'<span class="reg-status can">ご案内実績あり</span>':'<span class="reg-status cant">ご案内不可</span>';
         const tVal=r.transport_fee;
         const cost=tVal===null||tVal===undefined?"—":formatFee(tVal);
-        return`<div class="reg-row"><span class="reg-name">${esc(name)}${typeTag}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span><div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">投稿削除</button></div></div>`;
+        const refreshedAt=r.refreshed_at?new Date(r.refreshed_at):null;
+        const dateStr=refreshedAt?refreshedAt.toLocaleDateString('ja-JP'):'—';
+        let refreshHTML='';
+        if(window._shopIsPaid){
+            refreshHTML='<span style="font-size:11px;color:#6a8a5a;white-space:nowrap;">🔄 自動更新</span>';
+        }else if(refreshedAt){
+            const canRefresh=Date.now()-refreshedAt.getTime()>30*24*60*60*1000;
+            if(canRefresh){
+                refreshHTML=`<button class="btn" style="font-size:10px;padding:2px 8px;background:#1976d2;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;" onclick="refreshDate(${r.hotel_id})">🔄 表示日更新</button>`;
+            }else{
+                const nextDate=new Date(refreshedAt.getTime()+30*24*60*60*1000);
+                refreshHTML=`<span style="font-size:10px;color:var(--text-3);white-space:nowrap;">次回: ${nextDate.toLocaleDateString('ja-JP')}</span>`;
+            }
+        }
+        const dateDisplay=`<span style="font-size:11px;color:var(--text-3);white-space:nowrap;">📅 ${dateStr}</span>`;
+        return`<div class="reg-row"><span class="reg-name">${esc(name)}${typeTag}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span>${dateDisplay} ${refreshHTML}<div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">投稿削除</button></div></div>`;
     }).join("");
     if(totalPages<=1){document.getElementById("pagination").innerHTML="";return;}
     let pg='<button class="page-btn" onclick="goPage('+(regPage-1)+')"'+(regPage<=1?" disabled":"")+'>←</button>';
@@ -1740,6 +1755,17 @@ function renderRegistered(){
 }
 
 function goPage(p){const tp=Math.ceil(regData.length/PER_PAGE)||1;if(p<1||p>tp)return;regPage=p;renderRegistered();}
+
+async function refreshDate(hotelId){
+    if(!confirm('表示日を更新しますか？（月1回まで）'))return;
+    try{
+        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=refresh-date',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({hotel_id:hotelId})});
+        const r=await res.json();
+        if(r.error){toast('⚠️ '+r.error+(r.next_refresh?' (次回: '+r.next_refresh+')':''));return;}
+        toast('✅ 表示日を更新しました');
+        loadRegisteredHotels();
+    }catch(e){toast('通信エラー');}
+}
 
 let _editModal=null;
 async function editRegistered(infoId){
