@@ -570,7 +570,7 @@
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
                 <div class="f-group"><label class="f-label">本文</label><textarea id="outreach-body" class="f-input" rows="20" style="white-space:pre-wrap;font-size:13px;"></textarea></div>
-                <button onclick="sendOutreachEmail()" class="btn-save" style="margin-top:8px;width:100%;">&#x1F4E8; 送信する</button>
+                <button onclick="previewOutreachEmail()" class="btn-save" style="margin-top:8px;width:100%;">&#x1F4E8; 確認画面へ</button>
             </div>
             <div class="card" style="margin-top:16px;">
                 <div class="card-title">&#x1F4CB; 送信履歴<span class="sub" id="outreach-sub"></span></div>
@@ -735,6 +735,25 @@
             </div>
         </div>
 
+    </div>
+</div>
+<!-- モーダル：営業メール確認 -->
+<div class="modal-overlay" id="outreach-confirm-modal" style="display:none;" onclick="if(event.target===this)closeOutreachConfirm()">
+    <div class="modal" style="max-width:640px;">
+        <div class="modal-header"><span class="modal-title">📧 送信内容の確認</span><button class="modal-close" onclick="closeOutreachConfirm()">&times;</button></div>
+        <div style="padding:20px;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:80px;">宛先</td><td id="oc-to" style="padding:8px;border-bottom:1px solid #eee;font-weight:600;"></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">店舗名</td><td id="oc-shop" style="padding:8px;border-bottom:1px solid #eee;"></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">件名</td><td id="oc-subject" style="padding:8px;border-bottom:1px solid #eee;font-weight:600;"></td></tr>
+            </table>
+            <div style="font-size:11px;color:#888;margin-bottom:4px;">本文プレビュー</div>
+            <div id="oc-body" style="background:#f8f6f3;border:1px solid #ece8e0;border-radius:8px;padding:16px;font-size:12px;line-height:1.8;max-height:400px;overflow-y:auto;white-space:pre-wrap;"></div>
+            <div class="modal-btns" style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn-cancel" onclick="closeOutreachConfirm()">← 修正する</button>
+                <button class="btn-save" id="oc-send-btn" onclick="doSendOutreachEmail()">📨 この内容で送信する</button>
+            </div>
+        </div>
     </div>
 </div>
 <!-- モーダル：ホテル編集 -->
@@ -3516,7 +3535,47 @@ https://yobuho.com/shop-register/
 hotel@yobuho.com までお気軽にどうぞ。`}
 };
 function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
-async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()}});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()}});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}
+let _ocData=null;
+function previewOutreachEmail(){
+    const to=document.getElementById("outreach-to").value.trim();
+    const shopName=document.getElementById("outreach-shop-name").value.trim();
+    const subject=document.getElementById("outreach-subject").value.trim();
+    const body=document.getElementById("outreach-body").value.trim();
+    const template=document.getElementById("outreach-template").value;
+    if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}
+    _ocData={to,shopName,subject,body,template};
+    document.getElementById("oc-to").textContent=to;
+    document.getElementById("oc-shop").textContent=shopName||"—";
+    document.getElementById("oc-subject").textContent=subject;
+    document.getElementById("oc-body").textContent=body;
+    document.getElementById("oc-send-btn").disabled=false;
+    document.getElementById("oc-send-btn").textContent="📨 この内容で送信する";
+    document.getElementById("outreach-confirm-modal").style.display="flex";
+}
+function closeOutreachConfirm(){document.getElementById("outreach-confirm-modal").style.display="none";_ocData=null;}
+async function doSendOutreachEmail(){
+    if(!_ocData)return;
+    const{to,shopName,subject,body,template}=_ocData;
+    const btn=document.getElementById("oc-send-btn");
+    btn.disabled=true;btn.textContent="送信中...";
+    try{
+        const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});
+        if(res.ok){
+            btn.textContent="✅ 送信完了";
+            await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()}});
+            loadOutreachHistory();
+            document.getElementById("outreach-to").value="";
+            document.getElementById("outreach-shop-name").value="";
+            setTimeout(()=>{closeOutreachConfirm();toast("✅ 送信完了: "+to);},800);
+        }else{
+            const errText=await res.text();
+            btn.textContent="❌ 送信エラー";
+            await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()}});
+            loadOutreachHistory();
+            setTimeout(()=>{btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+errText);},1500);
+        }
+    }catch(e){btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+e.message);}
+}
 async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=50');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.to_email)}</td><td style="font-size:11px;">${tplLabels[r.template_type]||r.template_type||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
 
 // ========== 広告管理 ==========
