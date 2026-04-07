@@ -775,16 +775,25 @@
         </div>
         <div class="card" id="plan-form-card" style="display:none;margin-top:12px;">
             <div class="card-title">プラン申込</div>
-            <div class="mf"><label class="ml">選択プラン</label><div id="plan-form-name" style="font-weight:700;font-size:14px;"></div></div>
-            <div class="mf"><label class="ml">希望エリア（任意・カンマ区切り）</label><input id="plan-form-areas" class="mi" placeholder="例: 渋谷区, 新宿区"></div>
-            <div class="mf"><label class="ml">メッセージ（任意）</label><textarea id="plan-form-message" class="mi" rows="2" placeholder="ご要望があればご記入ください"></textarea></div>
-            <div class="mf" style="display:flex;align-items:center;gap:8px;">
-                <input type="checkbox" id="plan-form-agree">
-                <label for="plan-form-agree" style="font-size:12px;cursor:pointer;"><a href="/terms.html" target="_blank" style="color:var(--rose);">広告掲載規約</a>に同意する</label>
+            <div class="f-group">
+                <label class="f-label">選択プラン</label>
+                <div id="plan-form-name" style="font-weight:700;font-size:15px;color:var(--text);padding:8px 0;"></div>
             </div>
-            <div style="margin-top:12px;">
-                <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);padding:10px 24px;font-weight:700;" onclick="submitPlanRequest()">申込を送信する</button>
-                <button class="btn" style="margin-left:8px;" onclick="closePlanForm()">キャンセル</button>
+            <div class="f-group">
+                <label class="f-label">希望エリア（任意・カンマ区切り）</label>
+                <input id="plan-form-areas" class="f-input" placeholder="例: 渋谷区, 新宿区">
+            </div>
+            <div class="f-group">
+                <label class="f-label">メッセージ（任意）</label>
+                <textarea id="plan-form-message" class="f-input" rows="2" style="resize:vertical;" placeholder="ご要望があればご記入ください"></textarea>
+            </div>
+            <div class="f-group" style="display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="plan-form-agree" style="width:18px;height:18px;flex-shrink:0;">
+                <label for="plan-form-agree" style="font-size:13px;cursor:pointer;"><a href="/terms.html" target="_blank" style="color:var(--rose);font-weight:600;">広告掲載規約</a>に同意する</label>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:10px;">
+                <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);padding:10px 28px;font-weight:700;font-size:14px;" onclick="submitPlanRequest()">申込を送信する</button>
+                <button class="btn" style="padding:10px 20px;" onclick="closePlanForm()">キャンセル</button>
             </div>
         </div>
         <div class="card" style="margin-top:12px;">
