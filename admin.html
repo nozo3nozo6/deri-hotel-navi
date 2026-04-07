@@ -3606,7 +3606,7 @@ https://yobuho.com/shop-register/
 YobuHo Check-In Partners
 担当窓口: hotel@yobuho.com`}
 };
-function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
+function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;if(k.startsWith('form_'))document.getElementById("outreach-to").value='hotel@yobuho.com';}
 let _ocData=null;
 function previewOutreachEmail(){
     const to=document.getElementById("outreach-to").value.trim();
