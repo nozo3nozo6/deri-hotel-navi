@@ -113,15 +113,15 @@ const faqs = [
         <div class="example-card example-premium">
           <div class="example-label">📌 リッチ広告</div>
           <div class="example-plan-tag"><strong>各プランの該当エリアページ上部に表示<br>市区町村プランはホテル詳細ページにも表示</strong></div>
-          <div class="example-mock example-mock-rich">
-            <img class="mock-hero-img" src="/plan-hero.png" alt="リッチ広告ヒーロー画像サンプル" width="1309" height="500" loading="lazy">
-            <div class="mock-rich-body">
-              <span class="mock-name">お店様の名前</span>
-              <span class="mock-count">📋32件</span>
+          <div class="ad-main-card ad-rank-gold plan-demo-rich">
+            <div class="ad-main-hero"><img src="/plan-hero.png" alt="リッチ広告ヒーロー画像サンプル" width="1309" height="500" loading="lazy"></div>
+            <div class="ad-main-body">
+              <span class="ad-shop-name" style="color:#b5627a;flex:1;min-width:0;">お店様の名前</span>
+              <span class="ad-main-count-badge">📋32件</span>
             </div>
-            <div class="mock-rich-bottom">
-              <span>オススメ 💎 60分 10,000円〜</span>
-              <span>🕐 6:00〜翌4:30 🕐</span>
+            <div class="ad-main-bottom">
+              <span class="ad-main-price-text">６０分 10,000円〜</span>
+              <span class="ad-main-hours-text"><span class="ad-main-hours-label">🕐営業時間🕐</span><span class="ad-main-hours-value">6:00〜翌4:30</span></span>
             </div>
           </div>
           <p class="example-note">エリア一覧ページ上部に大きく表示。ヒーロー画像（写真グリッドまたは単体）・店名リンク・料金・営業時間・対応件数(📋)を掲載。金🥇銀🥈銅🥉のランク枠付き。<strong>投稿実績が多いほど上位に表示</strong>されるため、積極的な情報提供が集客力に直結します。</p>
@@ -129,14 +129,17 @@ const faqs = [
         <div class="example-card example-standard">
           <div class="example-label">📌 スタンダード広告</div>
           <div class="example-plan-tag"><strong>エリア〜全国プラン / ホテル詳細ページ</strong></div>
-          <div class="example-mock example-mock-std">
-            <img class="mock-thumb-img" src="/plan-thumb.png" alt="スタンダード広告サムネイルサンプル" width="375" height="500" loading="lazy">
-            <div class="mock-info">
-              <div class="mock-name-row"><span class="mock-name">お店様の名前</span><span class="mock-count">📋32件</span></div>
-              <div class="mock-catch">キャッチコピー</div>
-              <div class="mock-bottom">
-                <span class="mock-price">💎 60分 10,000円〜</span>
-                <span class="mock-hours">🕐 6:00〜翌4:30</span>
+          <div class="ad-shop-card ad-rank-gold plan-demo-std">
+            <img src="/plan-thumb.png" class="ad-shop-thumb" alt="スタンダード広告サムネイルサンプル" loading="lazy">
+            <div class="ad-shop-info">
+              <div class="ad-sub-top">
+                <span class="ad-shop-name" style="color:#222;flex:1;min-width:0;">お店様の名前</span>
+                <span class="ad-sub-count">📋32件</span>
+              </div>
+              <div class="ad-sub-catch">キャッチコピー</div>
+              <div class="ad-sub-detail">
+                <span class="ad-badge-recommend ad-badge-recommend--sm">オススメ</span>💎<span class="ad-sub-price">60分 10,000円〜</span>
+                <span class="ad-sub-hours">🕐6:00〜翌4:30🕐</span>
               </div>
             </div>
           </div>
@@ -303,19 +306,38 @@ const faqs = [
   @media (min-width: 640px) { .example-grid { grid-template-columns: repeat(2, 1fr); } }
   .example-card { background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; padding: 24px; }
   .example-label { font-size: 13px; font-weight: 700; color: #b5627a; margin-bottom: 12px; }
-  .example-mock { display: flex; gap: 12px; background: linear-gradient(135deg, rgba(181,98,122,0.06), rgba(181,98,122,0.12)); border: 1px solid rgba(181,98,122,0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-  .example-mock-rich { flex-direction: column; gap: 0; padding: 0; overflow: hidden; border-radius: 10px; border: 2px solid #c9a84c; }
-  .mock-hero-img { width: 100%; height: auto; display: block; }
-  .mock-rich-body { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
-  .mock-rich-bottom { display: flex; justify-content: space-between; padding: 8px 14px; background: linear-gradient(90deg, rgba(181,98,122,0.08), rgba(181,98,122,0.15)); font-size: 11px; color: #444; border-top: 1px solid rgba(181,98,122,0.15); }
-  .mock-thumb { width: 60px; height: 80px; background: #e8e0d8; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
-  .mock-info { flex: 1; min-width: 0; }
-  .mock-name { font-size: 14px; font-weight: 700; color: #b5627a; margin-bottom: 4px; }
-  .mock-catch { font-size: 12px; font-weight: 600; color: #b5627a; margin-bottom: 2px; }
-  .mock-desc { font-size: 11px; color: #666; margin-bottom: 8px; }
-  .mock-bottom { display: flex; justify-content: space-between; font-size: 11px; color: #444; }
-  .mock-price { font-weight: 700; font-size: 13px; color: #c05050; }
-  .mock-hours { color: #888; }
+  /* リッチ広告（ポータル共通CSS） */
+  .plan-demo-rich { margin-bottom: 12px; --accent: #b5627a; }
+  .ad-main-card { display:flex;flex-direction:column;background:#fff;border-radius:10px;margin-bottom:0;max-width:100%;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden; }
+  .ad-main-hero { position:relative;width:100%;aspect-ratio:2.618/1;overflow:hidden;border-radius:0;background:linear-gradient(135deg, color-mix(in srgb, var(--accent,#b5627a) 30%, #1a1a2e), color-mix(in srgb, var(--accent,#b5627a) 15%, #2d2d44)); }
+  .ad-main-hero > img { width:100%;height:100%;object-fit:cover;display:block; }
+  .ad-main-body { padding:10px 12px 4px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff; }
+  .ad-main-body .ad-shop-name { font-size:clamp(15px,2.8vw,20px);font-weight:800;color:#222;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.01em; }
+  .ad-main-count-badge { font-size:11px;font-weight:600;white-space:nowrap;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--accent,#b5627a) 10%, #fff);color:var(--accent,#b5627a);flex-shrink:0; }
+  .ad-main-bottom { display:flex;justify-content:space-between;align-items:center;padding:4px 12px 4px;border-top:1px solid #f0f0f0;border-radius:0 0 10px 10px;background:linear-gradient(90deg,#fdf0f3,#fef8f9);border-top-color:#f0dde3; }
+  .ad-main-price-text { font-size:clamp(16px, 2.8vw, 22px);font-weight:800;color:#c05050;white-space:nowrap; }
+  .ad-main-hours-text { text-align:right;line-height:1.2;white-space:nowrap;flex-shrink:0;margin-left:auto; }
+  .ad-main-hours-label { display:block;font-size:11px;color:#999;font-weight:400; }
+  .ad-main-hours-value { display:block;font-size:clamp(13px, 2vw, 15px);color:#444;font-weight:600; }
+  .ad-rank-gold .ad-main-bottom { border-top:none !important; }
+  .ad-rank-gold.ad-main-card { border:2px solid #c9a84c;box-shadow:0 2px 12px rgba(201,168,76,0.15); }
+
+  /* スタンダード広告（ポータル共通CSS） */
+  .plan-demo-std { margin-bottom: 12px; --accent: #b5627a; }
+  .ad-shop-card { display:flex;align-items:stretch;gap:0;padding:0;background:#fff;border:1px solid color-mix(in srgb, var(--accent,#b5627a) 20%, transparent);border-radius:8px;overflow:hidden; }
+  .ad-shop-thumb { width:60px;height:80px;border-radius:0;object-fit:cover;object-position:center 20%;flex-shrink:0; }
+  .ad-shop-info { flex:1;min-width:0;padding:5px 10px 0;display:flex;flex-direction:column;justify-content:center; }
+  .ad-shop-name { font-size:13px;font-weight:700;color:#222;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3; }
+  .ad-sub-top { display:flex;justify-content:space-between;align-items:baseline;gap:8px; }
+  .ad-sub-count { font-size:11px;color:var(--accent,#b5627a);white-space:nowrap;font-weight:600; }
+  .ad-sub-catch { font-size:13px;font-weight:700;color:var(--accent,#b5627a);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4; }
+  .ad-sub-detail { display:flex;align-items:center;gap:2px;margin:2px -10px -10px;padding:3px 10px 4px;border-top:1px solid #f0f0f0;background:linear-gradient(90deg,#fdf0f3,#fef8f9);border-top-color:#f0dde3; }
+  .ad-sub-price { font-size:clamp(13px,2.2vw,16px);font-weight:800;color:#c05050; }
+  .ad-sub-hours { font-size:clamp(11px,1.8vw,13px);color:#444;margin-left:auto;white-space:nowrap;font-weight:600; }
+  .ad-rank-gold.ad-shop-card { border:2px solid #c9a84c;box-shadow:0 2px 8px rgba(201,168,76,0.1); }
+  .ad-rank-gold .ad-sub-detail { border-top:none;background:linear-gradient(90deg,#faf5e8,#f5ecd6) !important; }
+  .ad-badge-recommend { background:#b5627a;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:2px; }
+  .ad-badge-recommend--sm { font-size:9px;padding:1px 4px; }
 
   /* Brand page */
   .brand-section { padding: 32px 0; }
@@ -335,11 +357,6 @@ const faqs = [
   .example-premium { border-left: 3px solid #b5627a; }
   .example-standard { border-left: 3px solid #c9a84c; }
   .example-plan-tag { font-size: 11px; color: #8a7a6a; margin-bottom: 12px; }
-  .example-mock-std { background: linear-gradient(135deg, rgba(201,168,76,0.06), rgba(201,168,76,0.12)); border-color: rgba(201,168,76,0.2); }
-  .mock-thumb-img { width: 52px; height: 68px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
-  .mock-name-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-  .mock-count { font-size: 11px; color: #2e8b57; font-weight: 600; white-space: nowrap; }
-  .mock-desc-std { font-size: 11px; color: #666; line-height: 1.4; }
   .example-places-section { margin-top: 24px; background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; padding: 20px 24px; }
   .places-title { font-size: 14px; font-weight: 700; color: #1a1410; margin-bottom: 12px; }
   .example-places { margin-bottom: 12px; }
