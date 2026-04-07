@@ -586,7 +586,7 @@
         <div class="tab-panel" id="tab-outreach">
             <div class="card">
                 <div class="card-title">&#x1F4E7; 営業メール送信</div>
-                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option><option value="line_deli">📱 LINE用（デリヘル）</option><option value="line_jofu">📱 LINE用（女風）</option></select></div>
+                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option><option value="line_deli">📱 LINE用（デリヘル）</option><option value="line_jofu">📱 LINE用（女風）</option><option value="form_deli">📋 フォーム用（デリヘル）</option><option value="form_jofu">📋 フォーム用（女風）</option></select></div>
                 <div class="f-group"><label class="f-label">送信先メールアドレス</label><input type="email" id="outreach-to" class="f-input" placeholder="example@shop.com"></div>
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
@@ -3538,7 +3538,73 @@ https://yobuho.com/partner/a3kx9m/
 https://yobuho.com/shop-register/
 
 ご不明点はこちらのLINEまたは
-hotel@yobuho.com までお気軽にどうぞ。`}
+hotel@yobuho.com までお気軽にどうぞ。`},
+form_deli:{subject:"無料掲載のご案内 - デリヘル対応ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - デリヘル対応ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+デリヘル対応ホテル検索サイト「YobuHo」を運営しております。
+
+貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
+
+全国43,000件以上のホテルについて「呼べるかどうか」の情報を提供しており、貴店の公式情報として掲載することで、お客様への案内がスムーズになり、新規集客にもつながります。
+
+今なら投稿リンクプラン（月額5,500円・税込）を1ヶ月無料でお試しいただけます。
+※2026年4月末までにご登録の方が対象
+
+詳細はこちらをご覧ください。
+https://yobuho.com/partner/a3kx9m/
+
+店舗登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+YobuHo Check-In Partners
+担当窓口: hotel@yobuho.com`},
+form_jofu:{subject:"無料掲載のご案内 - 女性向け風俗対応ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - 女性向け風俗対応ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+女性向け風俗対応ホテル検索サイト「YobuHo」を運営しております。
+
+貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
+
+全国43,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しており、貴店の公式情報として掲載することで、女性のお客様の安心感につながり、ご依頼の後押しになります。
+
+今なら投稿リンクプラン（月額5,500円・税込）を1ヶ月無料でお試しいただけます。
+※2026年4月末までにご登録の方が対象
+
+詳細はこちらをご覧ください。
+https://yobuho.com/partner/a3kx9m/
+
+店舗登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+YobuHo Check-In Partners
+担当窓口: hotel@yobuho.com`}
 };
 function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
 let _ocData=null;
