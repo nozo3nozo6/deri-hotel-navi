@@ -28,7 +28,7 @@ function requireAuth() {
     return $_SESSION['shop_id'];
 }
 
-$pdo = DB::connect();
+$pdo = DB::conn();
 $action = $_GET['action'] ?? '';
 
 switch ($action) {

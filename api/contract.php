@@ -13,7 +13,7 @@ session_set_cookie_params([
 ]);
 session_start();
 
-$pdo = DB::connect();
+$pdo = DB::conn();
 $requestId = (int)($_GET['id'] ?? 0);
 if (!$requestId) { http_response_code(400); echo 'Invalid ID'; exit; }
 
