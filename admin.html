@@ -421,7 +421,7 @@
                 <div class="card-title">&#x1F4DD; 投稿一覧<span class="sub" id="reports-sub"></span></div>
                 <div class="filter-bar">
                     <select class="filter-select" id="rep-kind-f" onchange="updateResultFilter();repPage=0;renderReports()"><option value="">全種別</option><option value="deli">🏨 ホテル</option><option value="loveho">🏩 ラブホ</option></select>
-                    <select class="filter-select" id="rep-who-f" onchange="repPage=0;renderReports()"><option value="">全員</option><option value="men_user">♂ ユーザー</option><option value="women_user">♀ ユーザー</option><option value="ff_user">♀♀ ユーザー</option><option value="mm_user">♂♂ ユーザー</option><option disabled>──────────</option><option value="shop_free">🏪 無料店舗（全）</option><option value="shop_free_men">🏪 無料デリヘル</option><option value="shop_free_women">🏪 無料女風</option><option value="shop_free_este">🏪 無料デリエステ</option><option value="shop_free_men_same">🏪 無料同性(男)</option><option value="shop_free_women_same">🏪 無料同性(女)</option><option disabled>──────────</option><option value="shop_paid">⭐ 有料店舗（全）</option><option value="shop_paid_men">⭐ 有料デリヘル</option><option value="shop_paid_women">⭐ 有料女風</option><option value="shop_paid_este">⭐ 有料デリエステ</option><option value="shop_paid_men_same">⭐ 有料同性(男)</option><option value="shop_paid_women_same">⭐ 有料同性(女)</option></select>
+                    <select class="filter-select" id="rep-who-f" onchange="repPage=0;renderReports()"><option value="">全員</option><option value="men_user">♂ ユーザー</option><option value="women_user">♀ ユーザー</option><option value="ff_user">♀♀ ユーザー</option><option value="mm_user">♂♂ ユーザー</option><option value="este_user">💆‍♂️ エステユーザー</option><option disabled>──────────</option><option value="shop_free">🏪 無料店舗（全）</option><option value="shop_free_men">🏪 無料デリヘル</option><option value="shop_free_women">🏪 無料女風</option><option value="shop_free_este">🏪 無料デリエステ</option><option value="shop_free_men_same">🏪 無料同性(男)</option><option value="shop_free_women_same">🏪 無料同性(女)</option><option disabled>──────────</option><option value="shop_paid">⭐ 有料店舗（全）</option><option value="shop_paid_men">⭐ 有料デリヘル</option><option value="shop_paid_women">⭐ 有料女風</option><option value="shop_paid_este">⭐ 有料デリエステ</option><option value="shop_paid_men_same">⭐ 有料同性(男)</option><option value="shop_paid_women_same">⭐ 有料同性(女)</option></select>
                     <select class="filter-select" id="rep-result-f" onchange="repPage=0;renderReports()"><option value="">全結果</option><option value="yes">YES</option><option value="no">NO</option></select>
                     <select class="filter-select" id="rep-vis-f" onchange="repPage=0;renderReports()"><option value="">全表示</option><option value="visible">表示中</option><option value="hidden">非表示</option></select>
                     <select class="filter-select" id="rep-flag-f" onchange="repPage=0;renderReports()"><option value="">全報告</option><option value="flagged">🚩 報告未対応</option><option value="resolved">✅ 報告対応済み</option></select>
@@ -2222,7 +2222,7 @@ function getRepFiltered(){
   const vF=document.getElementById("rep-vis-f").value;
   const fF=document.getElementById("rep-flag-f").value;
   const hF=document.getElementById("rep-hotel-f")?.value.trim()||"";
-  const modeMap={men_user:"men",women_user:"women",ff_user:"women_same",mm_user:"men_same"};
+  const modeMap={men_user:"men",women_user:"women",ff_user:"women_same",mm_user:"men_same",este_user:"este"};
   return reportsData.filter(r=>{
     if(kF&&r._kind!==kF)return false;
     if(wF){
