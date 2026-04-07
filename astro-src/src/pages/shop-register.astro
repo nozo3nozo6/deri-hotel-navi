@@ -194,7 +194,7 @@ function detectGenre(){const p=new URLSearchParams(location.search);if(p.get('ge
 const _detectedGenre=detectGenre();if(_detectedGenre){document.addEventListener('DOMContentLoaded',()=>{const s=document.getElementById('shop-gender');if(s)s.value=_detectedGenre;const r=document.getElementById('reg-genre');if(r)r.value=_detectedGenre;});}
 function showNotice(msg,d){d=d||3000;let el=document.getElementById('shop-notice-toast');if(!el){el=document.createElement('div');el.id='shop-notice-toast';el.style.cssText='position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;max-width:90vw;text-align:center;opacity:0;transition:opacity .3s;';document.body.appendChild(el);}el.textContent=msg;el.style.opacity='1';clearTimeout(el._timer);el._timer=setTimeout(()=>{el.style.opacity='0';},d);}
 let _selectedFile=null;
-function showStep(name){['email','sent','form','confirm','done'].forEach(s=>document.getElementById('step-'+s).style.display=(s===name)?'':'none');window.scrollTo({top:0,behavior:'smooth'});}
+function showStep(name){['email','sent','form','confirm','done'].forEach(s=>document.getElementById('step-'+s).style.display=(s===name)?'':'none');const el=document.getElementById('step-'+name);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
 function showErr(id,msg){const el=document.getElementById(id);if(!el)return;el.innerHTML=msg;el.style.display=msg?'block':'none';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 let _verifiedEmail=null;
