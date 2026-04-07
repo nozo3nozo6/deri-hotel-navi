@@ -771,7 +771,8 @@ async function loadDetail(hotelId, isLoveho) {
             }
         }
     } catch(e) {
-        content.innerHTML = `<div class="detail-error">読み込みエラーが発生しました</div>`;
+        console.error('[loadDetail] error:', e);
+        content.innerHTML = `<div class="detail-error">読み込みエラーが発生しました<br><span style="font-size:11px;color:#999;">${esc(String(e))}</span></div>`;
     }
 }
 
@@ -838,15 +839,17 @@ function renderLovehoDetail(hotel, reports) {
         </div>`;
     }
 
-    // 店舗投稿とユーザー投稿を分離（poster_type優先、後方互換でshopNames照合）
-    const isLhShop = r => r.poster_type === 'shop' || shopNames.includes(r.poster_name);
+    // 店舗投稿とユーザー投稿を分離（poster_type優先、shop_id照合）
+    const isLhShop = r => r.poster_type === 'shop' || (r.shop_id && shopIdSet.has(String(r.shop_id)));
     const lhShopReports = reports.filter(r => isLhShop(r) && (_shopParam || r.gender_mode === MODE));
     // ソート: 有料プラン高い順 → 30日自動更新ベースで新しい順
     lhShopReports.sort((a, b) => {
-        const priceA = lhShopInfoMap[a.poster_name]?.planPrice || 0;
-        const priceB = lhShopInfoMap[b.poster_name]?.planPrice || 0;
+        const sidA = a.shop_id ? String(a.shop_id) : null;
+        const sidB = b.shop_id ? String(b.shop_id) : null;
+        const priceA = (sidA && lhShopInfoMap[sidA]?.planPrice) || 0;
+        const priceB = (sidB && lhShopInfoMap[sidB]?.planPrice) || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b, lhShopInfoMap[b.poster_name]?.isPaid) - shopSortDate(a, lhShopInfoMap[a.poster_name]?.isPaid);
+        return shopSortDate(b, sidB && lhShopInfoMap[sidB]?.isPaid) - shopSortDate(a, sidA && lhShopInfoMap[sidA]?.isPaid);
     });
     const lhUserReports = reports.filter(r => !isLhShop(r));
 
