@@ -822,7 +822,7 @@ function renderLovehoDetail(hotel, reports) {
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
         const isShopPost = r.poster_type === 'shop' || (_lhSid && shopIdSet.has(_lhSid));
-        const soloHTML = r.solo_entry && isShopPost && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
+        const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
         const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">✨雰囲気</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
@@ -1895,7 +1895,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button>` : '';
         const badgeCls = r.can_call ? (r.poster_type === 'shop' ? 'round-badge--shop-can' : 'round-badge--user-can') : (r.poster_type === 'shop' ? 'round-badge--shop-ng' : 'round-badge--user-ng');
 
-        const statusBadge = `<span class="round-badge ${badgeCls}">${isShop ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}</span>`;
+        const _isActiveShop = isShop && _siHotel?.status === 'active';
+        const statusBadge = `<span class="round-badge ${badgeCls}">${_isActiveShop ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}</span>`;
 
         return `
         <div class="review-card lh-shop-card">
