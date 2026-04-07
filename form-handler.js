@@ -565,6 +565,7 @@ async function doSubmitLovehoReport() {
     const doBtn = document.getElementById('btn-do-lh-submit');
     if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
     try {
+        const fingerprint = await generateFingerprint();
         const payload = {
             hotel_id: currentHotelId,
             solo_entry: lhFormState.solo_entry || null,
@@ -578,6 +579,7 @@ async function doSubmitLovehoReport() {
             multi_fee: lhFormState.multi_person ? (lhFormState.multi_fee || false) : false,
             guest_male: lhFormState.guest_male ? parseInt(lhFormState.guest_male) : null,
             guest_female: lhFormState.guest_female ? parseInt(lhFormState.guest_female) : null,
+            fingerprint,
         };
         const res = await fetch('/api/submit-loveho-report.php', {
             method: 'POST',
