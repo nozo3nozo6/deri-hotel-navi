@@ -683,7 +683,8 @@ async function loadDetail(hotelId, isLoveho) {
 
         // 停止中店舗の投稿を除外（ホテル/ラブホ共通）
         reports = reports.filter(r => {
-            if (r.poster_type !== 'shop') return true;
+            const isShopPost = r.poster_type === 'shop' || !!r.shop_id;
+            if (!isShopPost) return true;
             const sid = r.shop_id ? String(r.shop_id) : null;
             if (!sid) return true;
             const si = shopInfoMap[sid];
@@ -694,7 +695,7 @@ async function loadDetail(hotelId, isLoveho) {
         if (!isLoveho) {
             if (_shopParam && SHOP_ID) {
                 reports = reports.filter(r => {
-                    if (r.poster_type === 'shop') return String(r.shop_id) === String(SHOP_ID);
+                    if (r.poster_type === 'shop' || r.shop_id) return String(r.shop_id) === String(SHOP_ID);
                     return true;
                 });
             }
@@ -721,7 +722,7 @@ async function loadDetail(hotelId, isLoveho) {
             // 店舗モード時: 自店舗投稿のみ表示（shop_idで判別）
             if (_shopParam && SHOP_ID) {
                 reports = reports.filter(r => {
-                    if (r.poster_type === 'shop') return String(r.shop_id) === String(SHOP_ID);
+                    if (r.poster_type === 'shop' || r.shop_id) return String(r.shop_id) === String(SHOP_ID);
                     return true;
                 });
             }
@@ -830,7 +831,7 @@ function renderLovehoDetail(hotel, reports) {
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
-        const isShopPost = r.poster_type === 'shop' || (_lhSid && shopIdSet.has(_lhSid));
+        const isShopPost = r.poster_type === 'shop' || !!_lhSid;
         const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
@@ -1887,7 +1888,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             r.room_type  ? `<span class="tag-chip tag-chip--room">🛏${esc(r.room_type)}</span>` : '',
             guestChip,
         ].join('');
-        const isShop = r.poster_type === 'shop';
+        const isShop = r.poster_type === 'shop' || !!r.shop_id;
         const _sid = r.shop_id ? String(r.shop_id) : null;
         const _siHotel = isShop && _sid ? shopInfoMap[_sid] : null;
         const feeLabel = isShop && _sid && _siHotel?.status === 'active' ? formatTransportFee(shopFeeMap[_sid]) : null;

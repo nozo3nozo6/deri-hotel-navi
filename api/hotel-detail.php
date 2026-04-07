@@ -133,7 +133,7 @@ if ($reports) {
     // shop_idで店舗を特定（shop_idのみ使用）
     $shopIds = [];
     foreach ($reports as $r) {
-        if (($r['poster_type'] ?? '') === 'shop' && !empty($r['shop_id'])) {
+        if (($r['poster_type'] ?? '') === 'shop' || !empty($r['shop_id'])) {
             $shopIds[] = $r['shop_id'];
         }
     }
