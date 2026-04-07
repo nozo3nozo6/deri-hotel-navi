@@ -46,6 +46,7 @@ jobs:
           cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html dist/plan.html ../
           mkdir -p ../guide
           cp dist/guide/*.html ../guide/ 2>/dev/null || true
+          for f in dist/partner/*.html; do [ -f "$f" ] && cp "$f" "../partner-$(basename $f)"; done
           mkdir -p ../deli.yobuho.com ../jofu.yobuho.com ../same.yobuho.com ../loveho.yobuho.com ../este.yobuho.com
           cp dist/deli.html ../deli.yobuho.com/index.html
           cp dist/jofu.html ../jofu.yobuho.com/index.html

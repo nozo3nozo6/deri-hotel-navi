@@ -1,0 +1,141 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Footer from '../../components/Footer.astro';
+
+const slug = 'a3kx9m';
+const campaignDeadline = '2026年4月末';
+const campaignPrice = '5,500';
+const campaignPlan = '投稿リンクプラン';
+
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
+---
+
+<BaseLayout
+  title="店舗様向け 無料掲載のご案内 | YobuHo"
+  description="YobuHoに無料で掲載しませんか？全国43,000件以上のホテル検索ポータルで集客力アップ。"
+  keywords="YobuHo 掲載,デリヘル 広告,女風 集客,風俗 ホテル広告"
+  canonical={`https://yobuho.com/partner/${slug}/`}
+  ogTitle="店舗様向け 無料掲載のご案内 | YobuHo"
+  ogDescription="全国43,000件以上のホテル検索ポータルに無料掲載。投稿リンクプラン1ヶ月無料キャンペーン実施中。"
+  ogUrl={`https://yobuho.com/partner/${slug}/`}
+  themeColor="#b5627a"
+  csp={csp}
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <meta name="robots" content="noindex, nofollow">
+  </Fragment>
+
+  <div class="partner-page">
+    <header class="p-header">
+      <span class="p-logo">YobuHo</span>
+      <span class="p-title">店舗様向けご案内</span>
+    </header>
+
+    <section class="p-hero">
+      <h1>全国43,000件以上のホテルに<br>貴店の情報を届けませんか？</h1>
+      <p class="p-hero-sub">デリヘル・女風・デリエステ・同性利用のユーザーが<br>「呼べるホテル」を探す検索ポータル</p>
+    </section>
+
+    <section class="p-campaign">
+      <div class="p-campaign-badge">🎁 キャンペーン実施中</div>
+      <p class="p-campaign-text">「{campaignPlan}（月額{campaignPrice}円・税込）」を<strong>1ヶ月間無料</strong>でお試しいただけます</p>
+      <p class="p-campaign-deadline">※{campaignDeadline}までにご登録の方が対象です</p>
+      <p class="p-campaign-note">無料期間終了後は自動課金されません。継続をご希望の場合のみお手続きください。</p>
+    </section>
+
+    <section class="p-section">
+      <h2>🏪 貴店だけの専用ページ</h2>
+      <ul class="p-list">
+        <li>貴店の情報だけが表示される専用ページ（URL）をご用意</li>
+        <li>他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能</li>
+        <li>ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク</li>
+        <li>掲載ホテルまでの交通費も掲載可（非掲載も可）</li>
+        <li>貴店の公式情報とユーザー口コミの両方が確認でき、お客様へのご案内がスムーズに</li>
+      </ul>
+    </section>
+
+    <section class="p-section">
+      <h2>✅ お客様の信頼感アップ → ご依頼に直結</h2>
+      <ul class="p-list">
+        <li>店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示</li>
+        <li>「このホテルなら呼べる」という安心感が、貴店への依頼につながります</li>
+        <li>交通費やサービス内容も掲載でき、お客様の不安を事前に解消</li>
+      </ul>
+    </section>
+
+    <section class="p-section">
+      <h2>📈 認知度アップ・新規顧客の獲得</h2>
+      <ul class="p-list">
+        <li>ホテル情報を登録するほど、検索結果の上位に表示</li>
+        <li>ユーザーがホテルを検索するたびに、貴店の名前が目に入ります</li>
+        <li>新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます</li>
+      </ul>
+    </section>
+
+    <section class="p-section p-free">
+      <h2>🆓 無料プランですぐに始められます</h2>
+      <p>費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。</p>
+      <p class="p-note">※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。</p>
+      <ol class="p-steps">
+        <li>下記URLからメールアドレスを登録</li>
+        <li>届出確認書の画像をアップロード</li>
+        <li>審査完了後、すぐにご利用開始</li>
+      </ol>
+      <a href="/shop-register/" class="p-cta">▶ 店舗登録はこちら（無料）</a>
+    </section>
+
+    <section class="p-section">
+      <h2>💎 有料プランでさらに集客力アップ</h2>
+      <ul class="p-list">
+        <li>ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）</li>
+        <li>対応エリアのホテル一覧に貴店の情報を掲載</li>
+        <li>貴店の投稿が他の無料掲載店舗より優先的に上位表示</li>
+        <li>信頼の証「YobuHo認定店」マークを貴店の投稿に表示</li>
+      </ul>
+      <div class="p-links">
+        <a href="/plan/" class="p-link">▶ プラン詳細</a>
+        <a href="/contact/" class="p-link">▶ お問い合わせ</a>
+      </div>
+    </section>
+
+    <div class="p-footer-info">
+      <p>ご不明点がございましたら、お気軽にお問い合わせください。</p>
+      <p class="p-contact">担当窓口: <a href="mailto:hotel@yobuho.com">hotel@yobuho.com</a></p>
+    </div>
+  </div>
+
+  <Footer variant="simple" />
+</BaseLayout>
+
+<style>
+  .partner-page { font-family: 'Noto Sans JP', sans-serif; color: #1a1410; max-width: 640px; margin: 0 auto; }
+  .p-header { background: #1a1410; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  .p-logo { color: #c9a84c; font-size: 20px; font-weight: 700; }
+  .p-title { color: #ffffffa6; font-size: 13px; }
+  .p-hero { background: linear-gradient(135deg, #1a1410, #2a2218); padding: 40px 20px; text-align: center; color: #fff; }
+  .p-hero h1 { font-size: 20px; line-height: 1.6; margin: 0 0 12px; }
+  .p-hero-sub { font-size: 13px; color: #ffffffa6; line-height: 1.7; }
+  .p-campaign { background: linear-gradient(135deg, #fff8e8, #fff0d0); border: 2px solid #c9a84c; border-radius: 12px; margin: 24px 16px; padding: 24px 20px; text-align: center; }
+  .p-campaign-badge { display: inline-block; background: #c9a84c; color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .p-campaign-text { font-size: 15px; line-height: 1.7; margin: 0 0 8px; }
+  .p-campaign-deadline { font-size: 13px; color: #b8860b; font-weight: 600; margin: 0 0 8px; }
+  .p-campaign-note { font-size: 11px; color: #888; margin: 0; }
+  .p-section { padding: 28px 20px; border-bottom: 1px solid #f0ece6; }
+  .p-section h2 { font-size: 16px; margin: 0 0 14px; }
+  .p-list { margin: 0; padding: 0 0 0 20px; font-size: 14px; line-height: 2; color: #333; }
+  .p-free { background: #f8f6f2; }
+  .p-free p { font-size: 14px; line-height: 1.7; margin: 0 0 8px; }
+  .p-note { font-size: 11px; color: #888; }
+  .p-steps { margin: 16px 0; padding: 0 0 0 20px; font-size: 14px; line-height: 2; }
+  .p-cta { display: block; text-align: center; background: #b5627a; color: #fff; padding: 14px; border-radius: 8px; text-decoration: none; font-size: 15px; font-weight: 700; margin-top: 16px; }
+  .p-cta:hover { opacity: 0.85; }
+  .p-links { display: flex; gap: 12px; margin-top: 16px; }
+  .p-link { flex: 1; text-align: center; padding: 10px; border: 1px solid #b5627a; border-radius: 8px; color: #b5627a; text-decoration: none; font-size: 13px; font-weight: 600; }
+  .p-link:hover { background: #fdf6f8; }
+  .p-footer-info { padding: 24px 20px; text-align: center; font-size: 13px; color: #666; }
+  .p-contact { margin-top: 8px; }
+  .p-contact a { color: #b5627a; }
+</style>

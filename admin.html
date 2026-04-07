@@ -563,7 +563,7 @@
         <div class="tab-panel" id="tab-outreach">
             <div class="card">
                 <div class="card-title">&#x1F4E7; 営業メール送信</div>
-                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option></select></div>
+                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option><option value="line_deli">📱 LINE用（デリヘル）</option><option value="line_jofu">📱 LINE用（女風）</option></select></div>
                 <div class="f-group"><label class="f-label">送信先メールアドレス</label><input type="email" id="outreach-to" class="f-input" placeholder="example@shop.com"></div>
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
@@ -3410,7 +3410,55 @@ YobuHo Check-In Partners
 https://same.yobuho.com/
 お問い合わせ: https://yobuho.com/contact/
 担当窓口: hotel@yobuho.com
-─────────────────`}
+─────────────────`},
+line_deli:{subject:"",body:`はじめまして。
+デリヘル対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます。
+※4月末までにご登録の方が対象
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`},
+line_jofu:{subject:"",body:`はじめまして。
+女性向け風俗対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます。
+※4月末までにご登録の方が対象
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`}
 };
 function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;}
 async function sendOutreachEmail(){const to=document.getElementById("outreach-to").value.trim();const shopName=document.getElementById("outreach-shop-name").value.trim();const subject=document.getElementById("outreach-subject").value.trim();const body=document.getElementById("outreach-body").value.trim();const template=document.getElementById("outreach-template").value;if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}if(!confirm("以下に送信します:\n"+to+"\n\nよろしいですか？"))return;try{const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});if(res.ok){toast("✅ 送信完了: "+to);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"sent",sent_at:new Date().toISOString()}});loadOutreachHistory();document.getElementById("outreach-to").value="";document.getElementById("outreach-shop-name").value="";}else{const errText=await res.text();toast("送信エラー: "+errText);await api("insert",{table:"outreach_emails",data:{to_email:to,shop_name:shopName||null,template_type:template||null,subject:subject,status:"error",sent_at:new Date().toISOString()}});loadOutreachHistory();}}catch(e){toast("送信エラー: "+e.message);}}

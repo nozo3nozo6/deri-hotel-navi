@@ -67,6 +67,9 @@ RewriteRule ^legal/?$ /legal.html [L]
 RewriteRule ^plan/?$ /plan.html [L]
 RewriteRule ^shop-register/?$ /shop-register.html [L]
 
+# 営業LP: /partner/slug/ → partner-slug.html
+RewriteRule ^partner/([a-z0-9]+)/?$ /partner-$1.html [L]
+
 # 旧 .html URL → クリーンURL 301リダイレクト（ブラウザ直接リクエスト時のみ）
 RewriteCond %{THE_REQUEST} \s/contact\.html [NC]
 RewriteRule ^contact\.html$ /contact/ [R=301,L]
