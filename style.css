@@ -2405,7 +2405,7 @@ body[data-mode="men"] .header-title {
 .stat-legend-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;vertical-align:middle; }
 
 /* 口コミカード */
-.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:10px 6px;margin-bottom:6px;overflow-wrap:break-word;word-break:break-word; }
+.review-card { background:var(--bg-2,#fff);border:1px solid var(--border);border-radius:10px;padding:6px 6px;margin-bottom:6px;overflow-wrap:break-word;word-break:break-word; }
 .review-card--compact { border-radius:8px;padding:10px 6px;margin-bottom:5px; }
 
 /* 店舗公式情報枠 */
@@ -2450,7 +2450,7 @@ body[data-mode="men"] .header-title {
 .btn-map-toggle:hover { background:rgba(59,130,246,0.15); }
 
 /* ラブホ店舗口コミカード */
-.lh-shop-card { padding:10px 6px !important; }
+.lh-shop-card { padding:6px 6px !important; }
 .lh-row1 { display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px; }
 .lh-row2 { display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px; }
 .lh-row-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;padding-bottom:4px;border-bottom:1px solid var(--border,#eee); }
