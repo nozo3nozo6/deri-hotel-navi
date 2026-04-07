@@ -1613,7 +1613,7 @@ async function loadShopContracts(shopId,plans){
       planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
       // キャンペーン版ボタン（投稿リンクプランのみ、未契約時）
       if(p.id===9&&!isActive){
-        planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},false,'campaign')" style="background:#e65100;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;">${esc(p.name)}（¥${p.price.toLocaleString()}）🎁 1ヶ月無料</button>`;
+        planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},false,'campaign')" style="background:#e65100;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">${esc(p.name)}（¥${p.price.toLocaleString()}）<span style="margin-left:6px;background:rgba(255,255,255,0.25);padding:1px 8px;border-radius:3px;font-size:11px;">🎁 1ヶ月無料</span></button>`;
       }
     }
   });
