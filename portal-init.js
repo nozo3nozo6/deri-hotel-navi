@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (MODE) {
         document.querySelectorAll('a[href*="shop-register"]').forEach(function(a) {
-            a.href = '/shop-register.html?genre=' + MODE;
+            a.href = '/shop-register/?genre=' + MODE;
         });
     }
 

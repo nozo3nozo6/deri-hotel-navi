@@ -601,7 +601,7 @@ function loadMoreLovehoCards() {
     }
 
     if (displayedCount >= allHotels.length) {
-        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
         container.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar">
                 <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
@@ -1628,7 +1628,7 @@ function loadMoreHotels() {
         `);
     }
 
-    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
     container.insertAdjacentHTML('beforeend', `
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
@@ -1833,7 +1833,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
             <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register.html?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
+            <a href="/shop-register/?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
         </div>
         <div id="detail-ad-wide"></div>
     </div>`;

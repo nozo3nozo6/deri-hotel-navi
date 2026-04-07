@@ -138,11 +138,11 @@ function applyShopModeUI() {
         const footerLinks = document.querySelector('.footer-links');
         if (footerLinks) {
             footerLinks.innerHTML =
-                '<a href="/terms.html" class="footer-link">利用規約</a>' +
+                '<a href="/terms/" class="footer-link">利用規約</a>' +
                 '<span class="footer-separator">|</span>' +
-                '<a href="/privacy.html" class="footer-link">プライバシーポリシー</a>' +
+                '<a href="/privacy/" class="footer-link">プライバシーポリシー</a>' +
                 '<span class="footer-separator">|</span>' +
-                '<a href="/contact.html" class="footer-link">お問い合わせ</a>';
+                '<a href="/contact/" class="footer-link">お問い合わせ</a>';
         }
     } else {
         // === 無料プラン: 「全国へ」ボタンを店舗URLに保持 ===

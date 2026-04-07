@@ -189,7 +189,7 @@ function appendInfoLinksBar() {
         hlc.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
                 <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register.html?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+                ${SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
             </div>
         `);
     }

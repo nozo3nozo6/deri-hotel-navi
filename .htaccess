@@ -57,6 +57,23 @@ RewriteEngine On
 RewriteCond %{THE_REQUEST} /index\.html [NC]
 RewriteRule ^index\.html$ / [R=301,L]
 
+# ===== 静的ページ クリーンURL =====
+# /contact/ → contact.html, /terms/ → terms.html 等
+RewriteRule ^contact/?$ /contact.html [L]
+RewriteRule ^terms/?$ /terms.html [L]
+RewriteRule ^privacy/?$ /privacy.html [L]
+RewriteRule ^legal/?$ /legal.html [L]
+RewriteRule ^plan/?$ /plan.html [L]
+RewriteRule ^shop-register/?$ /shop-register.html [L]
+
+# 旧 .html URL → クリーンURL 301リダイレクト
+RewriteRule ^contact\.html$ /contact/ [R=301,L]
+RewriteRule ^terms\.html$ /terms/ [R=301,L]
+RewriteRule ^privacy\.html$ /privacy/ [R=301,L]
+RewriteRule ^legal\.html$ /legal/ [R=301,L]
+RewriteRule ^plan\.html$ /plan/ [R=301,L]
+RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
+
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same, este=este
 
