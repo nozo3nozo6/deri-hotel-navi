@@ -46,7 +46,9 @@ $headers .= "Content-Transfer-Encoding: base64\r\n";
 
 // プレーンテキスト本文の改行をHTML対応（<タグがなければnl2br変換）
 if (strpos($body, '<') === false) {
-    $body = '<div style="font-family:sans-serif;font-size:14px;line-height:1.8;white-space:pre-wrap;">' . nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8')) . '</div>';
+    // 3つ以上の連続改行を2つに正規化（空行の過剰防止）
+    $text = preg_replace('/\n{3,}/', "\n\n", $body);
+    $body = '<div style="font-family:sans-serif;font-size:14px;line-height:1.8;">' . nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8')) . '</div>';
 }
 
 // 本文をBase64エンコード（文字化け防止）
