@@ -4,6 +4,7 @@
  * 全action: PHPセッション認証必須
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/validation.php';
 
 define('SHOP_SESSION_TIMEOUT', 86400);
 session_set_cookie_params([
@@ -193,6 +194,11 @@ function handleSaveHotelInfo() {
     $shop = $stmt->fetch();
     if (!$shop) { http_response_code(400); echo json_encode(['error' => 'Shop not found']); return; }
 
+    // コンテンツバリデーション
+    $reportComment = $report['comment'] ?? null;
+    $validation = validateComment($reportComment, $shop['shop_name']);
+    if ($validation['errors']) { http_response_code(400); echo json_encode(['error' => $validation['errors'][0]]); return; }
+
     try {
         $pdo->beginTransaction();
 
@@ -285,6 +291,11 @@ function handleSaveLovehoInfo() {
     if (!$shop) { http_response_code(400); echo json_encode(['error' => 'Shop not found']); return; }
 
     $posterName = $report['poster_name'] ?? $shop['shop_name'] ?? '店舗';
+
+    // コンテンツバリデーション
+    $lhComment = $report['comment'] ?? null;
+    $validation = validateComment($lhComment, $posterName);
+    if ($validation['errors']) { http_response_code(400); echo json_encode(['error' => $validation['errors'][0]]); return; }
 
     try {
         $pdo->beginTransaction();

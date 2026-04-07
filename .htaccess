@@ -26,7 +26,8 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 </FilesMatch>
 
 # package.json, db-local.js 等の開発ファイルへのアクセス遮断
-<FilesMatch "^(package\.json|package-lock\.json|db-local\.js|vitest\.config\..*)$">
+# ng-words.json は admin-api 経由でのみアクセス可能（直接アクセス遮断）
+<FilesMatch "^(package\.json|package-lock\.json|ng-words\.json|db-local\.js|vitest\.config\..*)$">
     Require all denied
 </FilesMatch>
 <FilesMatch "^db\.php$">

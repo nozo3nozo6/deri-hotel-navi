@@ -456,6 +456,7 @@
                     <button class="master-tab" id="mt-service" onclick="switchMasterSub('service')">🛎 店舗サービス</button>
                     <button class="master-tab" id="mt-goodpoints" onclick="switchMasterSub('goodpoints')">📝 チェックポイント</button>
                     <button class="master-tab" id="mt-atmosphere" onclick="switchMasterSub('atmosphere')">✨ 雰囲気</button>
+                    <button class="master-tab" id="mt-ngwords" onclick="switchMasterSub('ngwords')">🚫 NGワード</button>
                 </div>
                 <div class="master-sub active" id="msub-can">
                     <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="can-reasons-sub"></div>
@@ -520,6 +521,14 @@
                     <div class="add-row">
                         <input id="new-atmosphere" class="add-input" placeholder="新しい雰囲気を入力..." onkeydown="if(event.key==='Enter')addAtmosphere()">
                         <button class="btn-add" onclick="addAtmosphere()">＋ 追加</button>
+                    </div>
+                </div>
+                <div class="master-sub" id="msub-ngwords">
+                    <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;">投稿コメント・投稿者名に含まれるとフラグが付きます（投稿自体はブロックしません）</div>
+                    <div id="ngwords-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+                    <div class="add-row">
+                        <input id="new-ngword" class="add-input" placeholder="NGワードを入力..." onkeydown="if(event.key==='Enter')addNgWord()">
+                        <button class="btn-add" onclick="addNgWord()">＋ 追加</button>
                     </div>
                 </div>
             </div>
@@ -1175,7 +1184,30 @@ function closeMobileMenu(){closeNav();}
 
 function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
-function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");}
+function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");if(name==='ngwords')loadNgWords();}
+
+let _ngWords=[];
+async function loadNgWords(){
+  try{const res=await apiGet('ng-words-list');_ngWords=Array.isArray(res)?res:[];renderNgWords();}catch(e){_ngWords=[];renderNgWords();}
+}
+function renderNgWords(){
+  const wrap=document.getElementById('ngwords-list');
+  if(!wrap)return;
+  wrap.innerHTML=_ngWords.map((w,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff0f0;border:1px solid #e8c0c0;border-radius:16px;font-size:12px;">${esc(w)}<button onclick="removeNgWord(${i})" style="background:none;border:none;cursor:pointer;color:#c05050;font-size:14px;padding:0;line-height:1;">×</button></span>`).join('');
+}
+async function addNgWord(){
+  const inp=document.getElementById('new-ngword');const w=inp.value.trim();if(!w)return;
+  if(_ngWords.includes(w)){toast('既に登録済みです');return;}
+  _ngWords.push(w);inp.value='';
+  const res=await api('ng-words-save',{words:_ngWords});
+  if(res&&res.success){renderNgWords();toast('✅ 追加しました');}else{_ngWords.pop();toast('保存エラー');}
+}
+async function removeNgWord(i){
+  if(!confirm('「'+_ngWords[i]+'」を削除しますか？'))return;
+  const removed=_ngWords.splice(i,1);
+  const res=await api('ng-words-save',{words:_ngWords});
+  if(res&&res.success){renderNgWords();toast('🗑 削除しました');}else{_ngWords.splice(i,0,...removed);toast('保存エラー');}
+}
 const sortStates={};
 function doSort(ns,key,renderFn){if(!sortStates[ns])sortStates[ns]={key:null,asc:true};if(sortStates[ns].key===key)sortStates[ns].asc=!sortStates[ns].asc;else{sortStates[ns].key=key;sortStates[ns].asc=true;}renderFn();}
 function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}

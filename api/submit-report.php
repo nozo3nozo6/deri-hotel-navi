@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/validation.php';
 $pdo = DB::conn();
 
 define('IP_HASH_SALT', getenv('IP_HASH_SALT') ?: 'deri_hotel_navi_2026_salt_xK9m');
@@ -77,6 +78,20 @@ if ($suspiciousShops) {
     $note = '[要確認] 店舗ログインIPと一致: ' . implode(', ', $shopNames);
     $comment = $comment ? ($note . ' | ' . $comment) : $note;
     error_log('[anti-gaming] suspicious report from IP matching shop(s): ' . implode(', ', $shopNames) . ' hotel_id=' . $hotelId);
+}
+
+// ── コンテンツバリデーション ──
+$posterName = $input['poster_name'] ?? null;
+$validation = validateComment($comment, $posterName);
+if ($validation['errors']) {
+    http_response_code(400);
+    echo json_encode(['error' => $validation['errors'][0]]);
+    exit;
+}
+// NGワードフラグをコメントに付与
+if ($validation['flags']) {
+    $flagNote = implode(' | ', $validation['flags']);
+    $comment = $comment ? ($flagNote . ' | ' . $comment) : $flagNote;
 }
 
 // ── INSERT ──

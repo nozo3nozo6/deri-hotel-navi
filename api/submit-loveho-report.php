@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/validation.php';
 $pdo = DB::conn();
 
 define('IP_HASH_SALT', getenv('IP_HASH_SALT') ?: 'deri_hotel_navi_2026_salt_xK9m');
@@ -70,6 +71,19 @@ if ($suspiciousShops) {
     $shopNames = array_map(fn($s) => $s['shop_name'] ?? $s['id'], $suspiciousShops);
     $note = '[要確認] 店舗ログインIPと一致: ' . implode(', ', $shopNames);
     $comment = $comment ? ($note . ' | ' . $comment) : $note;
+}
+
+// ── コンテンツバリデーション ──
+$posterName = $input['poster_name'] ?? null;
+$validation = validateComment($comment, $posterName);
+if ($validation['errors']) {
+    http_response_code(400);
+    echo json_encode(['error' => $validation['errors'][0]]);
+    exit;
+}
+if ($validation['flags']) {
+    $flagNote = implode(' | ', $validation['flags']);
+    $comment = $comment ? ($flagNote . ' | ' . $comment) : $flagNote;
 }
 
 $id = DB::uuid();

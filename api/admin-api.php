@@ -99,6 +99,8 @@ try {
         case 'ad-slot-count':  handleAdSlotCount(); break;
         case 'ad-toggle-contract': handleAdToggleContract(); break;
         case 'ad-delete-contract': handleAdDeleteContract(); break;
+        case 'ng-words-list': handleNgWordsList(); break;
+        case 'ng-words-save': handleNgWordsSave(); break;
 
         default:
             http_response_code(400);
@@ -678,5 +680,26 @@ function handleAdDeleteContract() {
     $stmt->execute([$contractId]);
     $pdo->commit();
     echo json_encode(['ok' => true]);
+}
+
+// NGワード一覧取得
+function handleNgWordsList() {
+    require_once __DIR__ . '/validation.php';
+    echo json_encode(loadNgWords(), JSON_UNESCAPED_UNICODE);
+}
+
+// NGワード保存
+function handleNgWordsSave() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    require_once __DIR__ . '/validation.php';
+    $input = json_decode(file_get_contents('php://input'), true);
+    $words = $input['words'] ?? [];
+    if (!is_array($words)) { http_response_code(400); echo json_encode(['error' => 'Invalid data']); return; }
+    if (saveNgWords($words)) {
+        echo json_encode(['success' => true, 'count' => count($words)]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => '保存に失敗しました']);
+    }
 }
 ?>
