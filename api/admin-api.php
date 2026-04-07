@@ -291,15 +291,26 @@ function handleUpdate() {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
 
+    // 店舗のshop_name変更時、reports/loveho_reportsのposter_nameを連動更新
+    if ($table === 'shops' && isset($data['shop_name'])) {
+        $newName = $data['shop_name'];
+        // shop_idベースで確実に更新（poster_nameはshop_idに紐づく表示用フィールド）
+        $sn1 = $pdo->prepare('UPDATE reports SET poster_name = ? WHERE shop_id = ? AND poster_type = ?');
+        $sn1->execute([$newName, $id, 'shop']);
+        $sn2 = $pdo->prepare('UPDATE loveho_reports SET poster_name = ? WHERE shop_id = ? AND poster_type = ?');
+        $sn2->execute([$newName, $id, 'shop']);
+    }
+
     // 店舗のgender_mode変更時、関連テーブルを全て連動更新
     if ($table === 'shops' && isset($data['gender_mode'])) {
         $newMode = $data['gender_mode'];
         // reports: shop_id で紐付け
         $s = $pdo->prepare('UPDATE reports SET gender_mode = ? WHERE shop_id = ? AND poster_type = ?');
         $s->execute([$newMode, $id, 'shop']);
-        // loveho_reports: shop_id + poster_type で紐付け（後方互換: poster_nameでも更新）
+        // loveho_reports: shop_id で紐付け
         $s2 = $pdo->prepare('UPDATE loveho_reports SET gender_mode = ? WHERE shop_id = ? AND poster_type = ?');
         $s2->execute([$newMode, $id, 'shop']);
+        // 後方互換: shop_idがないレガシーレコードもposter_nameで更新
         $s3 = $pdo->prepare('SELECT shop_name FROM shops WHERE id = ?');
         $s3->execute([$id]);
         $shopName = $s3->fetchColumn();
@@ -308,8 +319,8 @@ function handleUpdate() {
             $s4->execute([$newMode, $shopName, 'user']);
         }
         // ad_placements: shop_id で紐付け
-        $s4 = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');
-        $s4->execute([$newMode, $id]);
+        $s5 = $pdo->prepare('UPDATE ad_placements SET mode = ? WHERE shop_id = ?');
+        $s5->execute([$newMode, $id]);
     }
 
     echo json_encode(['ok' => true, 'affected' => $stmt->rowCount()]);

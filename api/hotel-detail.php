@@ -130,31 +130,51 @@ if ($type === 'hotel') {
 // ── 投稿者店舗情報 ──
 $posterShops = [];
 if ($reports) {
+    // shop_id優先で店舗を特定、フォールバックとしてposter_nameも使用
+    $shopIds = [];
     $shopNames = [];
     foreach ($reports as $r) {
-        if (($r['poster_type'] ?? '') === 'shop' && !empty($r['poster_name'])) {
-            $shopNames[] = $r['poster_name'];
+        if (($r['poster_type'] ?? '') === 'shop') {
+            if (!empty($r['shop_id'])) {
+                $shopIds[] = $r['shop_id'];
+            } elseif (!empty($r['poster_name'])) {
+                $shopNames[] = $r['poster_name'];
+            }
         }
     }
+    $shopIds = array_unique($shopIds);
     $shopNames = array_unique($shopNames);
+
+    $conditions = [];
+    $params = [];
+    if ($shopIds) {
+        $ph1 = implode(',', array_fill(0, count($shopIds), '?'));
+        $conditions[] = "s.id IN ($ph1)";
+        $params = array_merge($params, array_values($shopIds));
+    }
     if ($shopNames) {
-        $placeholders = implode(',', array_fill(0, count($shopNames), '?'));
+        $ph2 = implode(',', array_fill(0, count($shopNames), '?'));
+        $conditions[] = "s.shop_name IN ($ph2)";
+        $params = array_merge($params, array_values($shopNames));
+    }
+    if ($conditions) {
+        $where = implode(' OR ', $conditions);
         $stmt = $pdo->prepare("
             SELECT s.id, s.shop_name, s.status, s.shop_url, s.plan_id,
                    sc.plan_id AS sc_plan_id, cp.price
             FROM shops s
             LEFT JOIN shop_contracts sc ON s.id = sc.shop_id
             LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
-            WHERE s.shop_name IN ($placeholders)
+            WHERE $where
         ");
-        $stmt->execute(array_values($shopNames));
+        $stmt->execute($params);
         $psRows = $stmt->fetchAll();
 
         $psMap = [];
         foreach ($psRows as $row) {
-            $sn = $row['shop_name'];
-            if (!isset($psMap[$sn])) {
-                $psMap[$sn] = [
+            $sid = $row['id'];
+            if (!isset($psMap[$sid])) {
+                $psMap[$sid] = [
                     'id' => $row['id'],
                     'shop_name' => $row['shop_name'],
                     'status' => $row['status'],
@@ -164,7 +184,7 @@ if ($reports) {
                 ];
             }
             if ($row['sc_plan_id'] !== null) {
-                $psMap[$sn]['shop_contracts'][] = [
+                $psMap[$sid]['shop_contracts'][] = [
                     'plan_id' => (int)$row['sc_plan_id'],
                     'contract_plans' => ['price' => (int)($row['price'] ?? 0)],
                 ];
