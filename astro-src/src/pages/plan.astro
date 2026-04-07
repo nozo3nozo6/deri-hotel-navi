@@ -114,7 +114,7 @@ const faqs = [
           <div class="example-label">📌 リッチ広告</div>
           <div class="example-plan-tag"><strong>各プランの該当エリアページ上部に表示<br>市区町村プランはホテル詳細ページにも表示</strong></div>
           <div class="example-mock example-mock-rich">
-            <div class="mock-hero">🖼 ヒーロー画像</div>
+            <img class="mock-hero-img" src="/plan-hero.png" alt="リッチ広告ヒーロー画像サンプル" width="1309" height="500" loading="lazy">
             <div class="mock-rich-body">
               <span class="mock-name">お店様の名前</span>
               <span class="mock-count">📋32件</span>
@@ -130,7 +130,7 @@ const faqs = [
           <div class="example-label">📌 スタンダード広告</div>
           <div class="example-plan-tag"><strong>エリア〜全国プラン / ホテル詳細ページ</strong></div>
           <div class="example-mock example-mock-std">
-            <div class="mock-thumb-sm">🖼</div>
+            <img class="mock-thumb-img" src="/plan-thumb.png" alt="スタンダード広告サムネイルサンプル" width="375" height="500" loading="lazy">
             <div class="mock-info">
               <div class="mock-name-row"><span class="mock-name">お店様の名前</span><span class="mock-count">📋32件</span></div>
               <div class="mock-catch">キャッチコピー</div>
@@ -305,7 +305,7 @@ const faqs = [
   .example-label { font-size: 13px; font-weight: 700; color: #b5627a; margin-bottom: 12px; }
   .example-mock { display: flex; gap: 12px; background: linear-gradient(135deg, rgba(181,98,122,0.06), rgba(181,98,122,0.12)); border: 1px solid rgba(181,98,122,0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
   .example-mock-rich { flex-direction: column; gap: 0; padding: 0; overflow: hidden; border-radius: 10px; border: 2px solid #c9a84c; }
-  .mock-hero { background: linear-gradient(135deg, #3a3a3a, #555); color: #fff; padding: 32px 16px; text-align: center; font-size: 16px; }
+  .mock-hero-img { width: 100%; height: auto; display: block; }
   .mock-rich-body { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
   .mock-rich-bottom { display: flex; justify-content: space-between; padding: 8px 14px; background: linear-gradient(90deg, rgba(181,98,122,0.08), rgba(181,98,122,0.15)); font-size: 11px; color: #444; border-top: 1px solid rgba(181,98,122,0.15); }
   .mock-thumb { width: 60px; height: 80px; background: #e8e0d8; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
@@ -336,7 +336,7 @@ const faqs = [
   .example-standard { border-left: 3px solid #c9a84c; }
   .example-plan-tag { font-size: 11px; color: #8a7a6a; margin-bottom: 12px; }
   .example-mock-std { background: linear-gradient(135deg, rgba(201,168,76,0.06), rgba(201,168,76,0.12)); border-color: rgba(201,168,76,0.2); }
-  .mock-thumb-sm { width: 40px; height: 52px; background: #e8e0d8; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .mock-thumb-img { width: 52px; height: 68px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
   .mock-name-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
   .mock-count { font-size: 11px; color: #2e8b57; font-weight: 600; white-space: nowrap; }
   .mock-desc-std { font-size: 11px; color: #666; line-height: 1.4; }
