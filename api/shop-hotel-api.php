@@ -226,9 +226,16 @@ function handleSaveHotelInfo() {
             ($report['multi_person'] ?? false) ? (int)(bool)($report['multi_fee'] ?? false) : null,
         ];
 
-        if ($existingRep) {
+        if ($existingRep && $editId) {
+            // 編集モード: 既存レコードを更新
             $stmt = $pdo->prepare('UPDATE reports SET hotel_id=?, can_call=?, poster_type=?, poster_name=?, shop_id=?, can_call_reasons=?, cannot_call_reasons=?, time_slot=?, room_type=?, comment=?, gender_mode=?, multi_person=?, guest_male=?, guest_female=?, multi_fee=? WHERE id=?');
             $stmt->execute(array_merge($reportData, [$existingRep['id']]));
+        } else if ($existingRep && !$editId) {
+            // 新規モードだが既存がある → 拒否（削除してから再投稿してください）
+            $pdo->rollBack();
+            http_response_code(409);
+            echo json_encode(['error' => 'このホテルには既に投稿があります。編集するか、削除してから再投稿してください。']);
+            return;
         } else {
             $uuid = DB::uuid();
             $stmt = $pdo->prepare('INSERT INTO reports (id, hotel_id, can_call, poster_type, poster_name, shop_id, can_call_reasons, cannot_call_reasons, time_slot, room_type, comment, gender_mode, multi_person, guest_male, guest_female, multi_fee, refreshed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())');

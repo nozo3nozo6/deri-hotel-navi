@@ -30,9 +30,9 @@ function validateComment(?string $comment, ?string $posterName): array {
         if (preg_match('/0[789]0[\-\s]?\d{4}[\-\s]?\d{4}|0120[\-\s]?\d{3}[\-\s]?\d{3}|\d{10,}/', $text)) {
             $errors[] = '電話番号の記載は禁止されています';
         }
-        // LINE ID検出（@xxx 3文字以上、line.me/）
-        if (preg_match('/@[a-zA-Z0-9_]{3,}|line\.me\//i', $text)) {
-            $errors[] = 'LINE IDの記載は禁止されています';
+        // SNS ID検出（LINE, X/Twitter, Instagram等）
+        if (preg_match('/@[a-zA-Z0-9_]{3,}|line\.me\/|instagram\.com\/|twitter\.com\/|x\.com\//i', $text)) {
+            $errors[] = 'SNSアカウントID等の記載は禁止されています';
         }
     }
 
