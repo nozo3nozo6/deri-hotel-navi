@@ -129,13 +129,34 @@ function handleDashboard() {
     $corrPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_corrections WHERE status = 'pending'")->fetchColumn();
     $planReqPendCount = $pdo->query("SELECT COUNT(*) FROM shop_plan_requests WHERE status = 'pending'")->fetchColumn();
 
-    // 最新30件のレポート
-    $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 30");
+    // 最新10件のレポート（ホテル）
+    $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 10");
     $recent = $stmt->fetchAll();
     foreach ($recent as &$r) {
         $r['can_call'] = (bool)$r['can_call'];
         $r['conditions'] = DB::jsonDecode($r['conditions'] ?? null);
     }
+    unset($r);
+
+    // 最新10件のラブホ口コミ
+    $stmt = $pdo->query("SELECT lr.*, h.name AS hotel_name FROM loveho_reports lr LEFT JOIN hotels h ON h.id = lr.hotel_id ORDER BY lr.created_at DESC LIMIT 10");
+    $recentLoveho = $stmt->fetchAll();
+    foreach ($recentLoveho as &$r) {
+        $r['good_points'] = DB::jsonDecode($r['good_points'] ?? null);
+    }
+    unset($r);
+
+    // 最新10件の店舗登録
+    $stmt = $pdo->query("SELECT id, shop_name, gender_mode, email, status, created_at FROM shops ORDER BY created_at DESC LIMIT 10");
+    $recentShops = $stmt->fetchAll();
+
+    // 最新10件のホテル編集（is_edited=1のホテル、updated_at順）
+    $stmt = $pdo->query("SELECT id, name, prefecture, city, hotel_type, updated_at FROM hotels WHERE is_edited = 1 ORDER BY updated_at DESC LIMIT 10");
+    $recentHotelEdits = $stmt->fetchAll();
+
+    // 最新10件の掲載リクエスト
+    $stmt = $pdo->query("SELECT * FROM hotel_requests ORDER BY created_at DESC LIMIT 10");
+    $recentRequests = $stmt->fetchAll();
 
     echo json_encode([
         'hotel_count' => (int)$hotelCount,
@@ -148,6 +169,10 @@ function handleDashboard() {
         'corr_pend_count' => (int)$corrPendCount,
         'plan_req_pend_count' => (int)$planReqPendCount,
         'recent' => $recent,
+        'recent_loveho' => $recentLoveho,
+        'recent_shops' => $recentShops,
+        'recent_hotel_edits' => $recentHotelEdits,
+        'recent_requests' => $recentRequests,
     ], JSON_UNESCAPED_UNICODE);
 }
 
