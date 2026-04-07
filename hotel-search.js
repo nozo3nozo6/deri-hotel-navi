@@ -846,10 +846,16 @@ function renderLovehoDetail(hotel, reports) {
     lhShopReports.sort((a, b) => {
         const sidA = a.shop_id ? String(a.shop_id) : null;
         const sidB = b.shop_id ? String(b.shop_id) : null;
-        const priceA = (sidA && lhShopInfoMap[sidA]?.planPrice) || 0;
-        const priceB = (sidB && lhShopInfoMap[sidB]?.planPrice) || 0;
+        const siA = sidA ? lhShopInfoMap[sidA] : null;
+        const siB = sidB ? lhShopInfoMap[sidB] : null;
+        // 停止中は最後
+        const suspA = siA && siA.status !== 'active' ? 1 : 0;
+        const suspB = siB && siB.status !== 'active' ? 1 : 0;
+        if (suspA !== suspB) return suspA - suspB;
+        const priceA = siA?.planPrice || 0;
+        const priceB = siB?.planPrice || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b, sidB && lhShopInfoMap[sidB]?.isPaid) - shopSortDate(a, sidA && lhShopInfoMap[sidA]?.isPaid);
+        return shopSortDate(b, siB?.isPaid) - shopSortDate(a, siA?.isPaid);
     });
     const lhUserReports = reports.filter(r => !isLhShop(r));
 
@@ -1907,10 +1913,16 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     shopReports.sort((a, b) => {
         const sidA = a.shop_id ? String(a.shop_id) : null;
         const sidB = b.shop_id ? String(b.shop_id) : null;
-        const priceA = sidA ? (shopInfoMap[sidA]?.planPrice || 0) : 0;
-        const priceB = sidB ? (shopInfoMap[sidB]?.planPrice || 0) : 0;
+        const siA = sidA ? shopInfoMap[sidA] : null;
+        const siB = sidB ? shopInfoMap[sidB] : null;
+        // 停止中は最後
+        const suspA = siA && siA.status !== 'active' ? 1 : 0;
+        const suspB = siB && siB.status !== 'active' ? 1 : 0;
+        if (suspA !== suspB) return suspA - suspB;
+        const priceA = siA?.planPrice || 0;
+        const priceB = siB?.planPrice || 0;
         if (priceB !== priceA) return priceB - priceA;
-        return shopSortDate(b, sidB ? shopInfoMap[sidB]?.isPaid : false) - shopSortDate(a, sidA ? shopInfoMap[sidA]?.isPaid : false);
+        return shopSortDate(b, siB?.isPaid) - shopSortDate(a, siA?.isPaid);
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
