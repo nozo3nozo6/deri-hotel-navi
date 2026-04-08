@@ -1614,11 +1614,14 @@ async function loadShopContracts(shopId,plans){
     }
   });
   planHtml+='</div>';
-  // キャンペーンボタン（常に表示）
-  planHtml+='<div style="margin-top:10px;padding:10px 14px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
-  planHtml+=`<span style="font-size:12px;color:#5a4a2a;">🎁 キャンペーン:</span>`;
-  planHtml+=`<button onclick="toggleShopContract('${shopId}',9,false,'campaign')" style="background:#e65100;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">投稿リンクプラン 1ヶ月無料で適用する</button>`;
-  planHtml+='</div>';
+  // キャンペーン投稿リンクプラン（通常の投稿リンクプランとは独立）
+  const campaignActive=rows.some(c=>c.plan_id===9&&c._campaign);
+  const campaignStyle=campaignActive
+    ?'background:#e65100;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
+    :'background:#fff;color:#e65100;border:1px solid #e65100;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
+  planHtml+=`<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">`;
+  planHtml+=`<button onclick="applyCampaign('${shopId}')" style="${campaignStyle}">${campaignActive?'✅ ':''}🎁 投稿リンクプラン 1ヶ月無料</button>`;
+  planHtml+=`</div>`;
   // 契約期限一覧（有料プランのみ）
   const paidRows=rows.filter(c=>c.plan_id>1&&c.expires_at);
   if(paidRows.length){
@@ -1763,6 +1766,21 @@ async function toggleShopContract(shopId,planId,isActive,mode){
   if(!isActive&&planInfo&&planInfo.price>0){
     _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price,campaign:mode==='campaign'};
   }
+}
+
+// キャンペーン適用（投稿リンクプラン 1ヶ月無料）
+async function applyCampaign(shopId){
+  if(!confirm('投稿リンクプラン（1ヶ月無料キャンペーン）を適用しますか？'))return;
+  // 既に投稿リンクプランが契約済みでも、キャンペーンとして追加
+  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:9}});
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+  // キャンペーン用メール
+  const shop=shopsData.find(s=>String(s.id)===String(shopId));
+  if(shop){
+    const ok=await sendShopEmail(shop,'plan_campaign',{planName:'投稿リンクプラン',planPrice:5500});
+    toast(ok?'✅ キャンペーン適用 + メール送信完了':'キャンペーン適用完了（メール送信失敗）');
+  }else{toast('キャンペーン適用完了');}
 }
 
 // 複数契約プラン: 1行追加
