@@ -81,7 +81,7 @@ $headers = [
 $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 $encodedBody = base64_encode($mailBody);
 
-$sent = mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers));
+$sent = mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
 
 if ($sent) {
     echo json_encode(['success' => true]);

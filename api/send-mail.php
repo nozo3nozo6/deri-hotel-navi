@@ -54,7 +54,8 @@ if (strpos($body, '<') === false) {
 // 本文をBase64エンコード（文字化け防止）
 $encodedBody = chunk_split(base64_encode($body));
 
-$result = mail($to, $encodedSubject, $encodedBody, $headers);
+// Envelope-From（Return-Path）を yobuho.com に設定（SPF alignment対策）
+$result = mail($to, $encodedSubject, $encodedBody, $headers, '-f hotel@yobuho.com');
 
 if ($result) {
     echo json_encode(['success' => true, 'message' => 'メール送信完了']);

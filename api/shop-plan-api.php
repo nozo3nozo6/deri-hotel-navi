@@ -166,6 +166,6 @@ function sendMailInternal($to, $subject, $htmlBody) {
         'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
     ];
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    @mail($to, $encodedSubject, base64_encode($htmlBody), implode("\r\n", $headers));
+    @mail($to, $encodedSubject, base64_encode($htmlBody), implode("\r\n", $headers), '-f hotel@yobuho.com');
 }
 ?>

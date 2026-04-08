@@ -872,6 +872,6 @@ function sendPlanMail($to, $subject, $htmlBody) {
         'Content-Transfer-Encoding: base64',
         'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
     ];
-    @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', base64_encode($htmlBody), implode("\r\n", $headers));
+    @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', base64_encode($htmlBody), implode("\r\n", $headers), '-f hotel@yobuho.com');
 }
 ?>

@@ -132,7 +132,7 @@ $adminHeaders = [
 ];
 $encodedAdminSubject = '=?UTF-8?B?' . base64_encode($adminSubject) . '?=';
 $encodedAdminBody = base64_encode($adminBody);
-@mail('hotel@yobuho.com', $encodedAdminSubject, $encodedAdminBody, implode("\r\n", $adminHeaders));
+@mail('hotel@yobuho.com', $encodedAdminSubject, $encodedAdminBody, implode("\r\n", $adminHeaders), '-f hotel@yobuho.com');
 
 echo json_encode(['success' => true, 'shop' => $shop]);
 ?>
