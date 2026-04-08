@@ -4722,9 +4722,7 @@ function renderPlanRequests(){
     if(!filtered.length){tbody.innerHTML='<tr class="erow"><td colspan="8">申込がありません</td></tr>';return;}
     tbody.innerHTML=filtered.map(r=>{
         const areas=(r.requested_areas||[]).join(', ')||'未指定';
-        const actions=r.status==='pending'
-            ?`<button class="btn b-btn-green" style="font-size:11px;" onclick="approvePlanReq(${r.id})">承認</button><button class="btn b-btn-red" style="font-size:11px;margin-left:4px;" onclick="rejectPlanReq(${r.id})">却下</button>`
-            :(r.status==='approved'?`<a href="/api/contract.php?id=${r.id}" target="_blank" style="font-size:11px;color:#b5627a;">契約書</a>`:'—');
+        const actions=`<div class="btn-row"><button class="btn b-btn-gray" style="font-size:10px;" onclick="viewPlanReq(${r.id})">👁 表示</button><button class="btn b-btn-gold" style="font-size:10px;" onclick="editPlanReq(${r.id})">✏️ 編集</button><button class="btn b-btn-red" style="font-size:10px;" onclick="deletePlanReq(${r.id})">削除</button></div>`;
         return`<tr${r.status==='pending'?' style="background:rgba(255,243,224,0.3);"':''}>
             <td style="font-size:11px;white-space:nowrap;">${fmtDate(r.created_at)}</td>
             <td style="font-size:12px;font-weight:600;">${esc(r.shop_name||'—')}</td>
@@ -4736,6 +4734,35 @@ function renderPlanRequests(){
             <td>${actions}</td>
         </tr>`;
     }).join('');
+}
+function viewPlanReq(id){
+    const r=planReqData.find(x=>x.id===id);if(!r)return;
+    const genreMap={men:'♂ デリヘル',women:'♀ 女風',este:'💆 エステ',men_same:'♂♂ 同性(男)',women_same:'♀♀ 同性(女)'};
+    const stMap={pending:'審査中',approved:'承認済',rejected:'却下',cancelled:'キャンセル'};
+    const areas=(r.requested_areas||[]).join(', ')||'未指定';
+    const contractLink=r.status==='approved'?`\n契約書: /api/contract.php?id=${r.id}`:'';
+    alert(`【プラン申込詳細】\n\n申込日: ${fmtDate(r.created_at)}\n店舗名: ${r.shop_name||'—'}\nジャンル: ${genreMap[r.gender_mode]||'—'}\nプラン: ${r.plan_name||'—'}\n月額: ¥${Number(r.plan_price||0).toLocaleString()}\n希望エリア: ${areas}\nステータス: ${stMap[r.status]||r.status}${r.admin_note?'\n管理メモ: '+r.admin_note:''}${contractLink}`);
+}
+function editPlanReq(id){
+    const r=planReqData.find(x=>x.id===id);if(!r)return;
+    const newStatus=prompt('ステータスを変更してください:\n\npending = 審査中\napproved = 承認済\nrejected = 却下\ncancelled = キャンセル\n\n現在: '+r.status, r.status);
+    if(!newStatus||newStatus===r.status)return;
+    if(!['pending','approved','rejected','cancelled'].includes(newStatus)){toast('無効なステータスです');return;}
+    if(newStatus==='approved'){approvePlanReq(id);return;}
+    if(newStatus==='rejected'){rejectPlanReq(id);return;}
+    (async()=>{
+        const res=await api('review-plan-request',{request_id:id,action:newStatus==='cancelled'?'reject':'approve',admin_note:'ステータス変更: '+newStatus});
+        if(!res.ok){toast('更新エラー');return;}
+        toast('✅ ステータスを更新しました');loadPlanRequests();loadDashboard();
+    })();
+}
+async function deletePlanReq(id){
+    if(!confirm('このプラン申込を削除しますか？（元に戻せません）'))return;
+    const r=await api('delete',{table:'shop_plan_requests',id});
+    if(!r.ok){toast('削除エラー');return;}
+    planReqData=planReqData.filter(x=>x.id!==id);
+    updatePlanReqBadge();renderPlanRequests();
+    toast('🗑 削除しました');
 }
 async function approvePlanReq(id){
     if(!confirm('このプラン申込を承認しますか？\n（契約が作成され、承認メールが送信されます）'))return;
