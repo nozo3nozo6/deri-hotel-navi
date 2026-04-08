@@ -18,7 +18,7 @@ if (!in_array($mode, $allowedModes, true)) {
 }
 
 try {
-    $pdo = DB::connect();
+    $pdo = DB::conn();
     $stmt = $pdo->prepare("
         SELECT shop_name, gender_mode, approved_at
         FROM shops
