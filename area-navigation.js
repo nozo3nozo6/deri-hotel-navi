@@ -206,7 +206,7 @@ async function appendRecentShops() {
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
             const lpContent = hlc.querySelector('.shop-lp-content');
-            const html = `<div class="recent-shops-section" style="padding:12px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;">${lines}</div>`;
+            const html = `<div class="recent-shops-section" style="padding:12px 16px;margin-top:12px;background:linear-gradient(135deg,#fffbf0 0%,#fff8e8 100%);border:1px solid #e8d9a8;border-left:4px solid #c9a96e;border-radius:8px;box-shadow:0 1px 4px rgba(201,169,110,0.1);">${lines}</div>`;
             if (lpContent) {
                 lpContent.insertAdjacentHTML('beforebegin', html);
             } else {
