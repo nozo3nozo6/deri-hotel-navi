@@ -199,7 +199,7 @@ async function appendRecentShops() {
             const dateStr = d ? `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}` : '';
             const icon = iconMap[s.gender_mode] || '♂';
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
-            const shopLink = s.slug ? `${modePath}shop/${s.slug}/` : (s.shop_url || '');
+            const shopLink = s.shop_url || (s.slug ? `${modePath}shop/${s.slug}/` : '');
             const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
             return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">様 ご登録いただきました</span></div>`;
         }).join('');
