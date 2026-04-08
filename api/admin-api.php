@@ -243,7 +243,7 @@ function handleInsert() {
     }
 
     // UUID for UUID-based tables
-    $uuidTables = ['reports', 'loveho_reports', 'shops', 'outreach_emails'];
+    $uuidTables = ['reports', 'loveho_reports', 'shops'];
     if (in_array($table, $uuidTables) && !isset($data['id'])) {
         $data['id'] = DB::uuid();
     }
