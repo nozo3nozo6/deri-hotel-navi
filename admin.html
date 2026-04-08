@@ -586,7 +586,7 @@
         <div class="tab-panel" id="tab-outreach">
             <div class="card">
                 <div class="card-title">&#x1F4E7; 営業メール送信</div>
-                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option><option value="line_deli">📱 LINE用（デリヘル）</option><option value="line_jofu">📱 LINE用（女風）</option><option value="form_general">📋 フォーム用（全ジャンル共通）</option><option value="form_deli">📋 フォーム用（デリヘル）</option><option value="form_jofu">📋 フォーム用（女風）</option><option value="form_ff">📋 フォーム用（女性同士）</option><option value="form_mm">📋 フォーム用（男性同士）</option></select></div>
+                <div class="f-group"><label class="f-label">テンプレート選択</label><select id="outreach-template" class="f-input" onchange="loadOutreachTemplate()"><option value="">テンプレートを選択...</option><option value="general">全ジャンル共通</option><option value="deli">デリヘル店向け</option><option value="jofu">女性用風俗店向け</option><option value="este">デリエステ店向け</option><option value="mm">男性同士利用店向け</option><option value="ff">女性同士利用店向け</option><option value="line_deli">📱 LINE用（デリヘル）</option><option value="line_jofu">📱 LINE用（女風）</option><option value="line_este">📱 LINE用（デリエステ）</option><option value="form_general">📋 フォーム用（全ジャンル共通）</option><option value="form_deli">📋 フォーム用（デリヘル）</option><option value="form_jofu">📋 フォーム用（女風）</option><option value="form_este">📋 フォーム用（デリエステ）</option><option value="form_ff">📋 フォーム用（女性同士）</option><option value="form_mm">📋 フォーム用（男性同士）</option></select></div>
                 <div class="f-group"><label class="f-label">送信先メールアドレス</label><input type="email" id="outreach-to" class="f-input" placeholder="example@shop.com"></div>
                 <div class="f-group"><label class="f-label">送信先店舗名（任意・記録用）</label><input type="text" id="outreach-shop-name" class="f-input" placeholder="○○デリヘル"></div>
                 <div class="f-group"><label class="f-label">件名</label><input type="text" id="outreach-subject" class="f-input"></div>
@@ -3648,6 +3648,30 @@ https://yobuho.com/shop-register/
 
 ご不明点はこちらのLINEまたは
 hotel@yobuho.com までお気軽にどうぞ。`},
+line_este:{subject:"",body:`はじめまして。
+デリエステ対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます！
+※登録日から1ヶ月間完全無料・自動課金なし
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`},
 form_general:{subject:"無料掲載のご案内 - 呼べるホテル検索YobuHo",body:`【お名前】
 YobuHo Check-In Partners 営業担当
 
@@ -3941,6 +3965,105 @@ https://jofu.yobuho.com/
 お問い合わせ: https://yobuho.com/contact/
 担当窓口: hotel@yobuho.com
 ─────────────────`},
+form_este:{subject:"無料掲載のご案内 - デリエステ対応ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - デリエステ対応ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+デリエステ（回春マッサージ・M性感・風俗エステ）対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「デリエステを呼べるかどうか」の情報を提供しております。
+
+現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます。
+※2026年4月末までにご登録の方が対象です。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※無料期間終了後は自動課金されません。継続をご希望の場合のみお手続きください。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://este.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+デリエステ対応ホテル検索「YobuHo」
+https://este.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
 form_ff:{subject:"無料掲載のご案内 - 女性同士利用ホテル検索YobuHo",body:`【お名前】
 YobuHo Check-In Partners 営業担当
 
@@ -4184,7 +4307,7 @@ async function doSendOutreachEmail(){
         }
     }catch(e){btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+e.message);}
 }
-async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=200');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",este:"デリエステ店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け",line_deli:"📱 LINE(デリヘル)",line_jofu:"📱 LINE(女風)",form_general:"📋 フォーム(共通)",form_deli:"📋 フォーム(デリヘル)",form_jofu:"📋 フォーム(女風)",form_ff:"📋 フォーム(女性同士)",form_mm:"📋 フォーム(男性同士)"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.email||"—")}</td><td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=200');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",este:"デリエステ店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け",line_deli:"📱 LINE(デリヘル)",line_jofu:"📱 LINE(女風)",line_este:"📱 LINE(デリエステ)",form_general:"📋 フォーム(共通)",form_deli:"📋 フォーム(デリヘル)",form_jofu:"📋 フォーム(女風)",form_este:"📋 フォーム(デリエステ)",form_ff:"📋 フォーム(女性同士)",form_mm:"📋 フォーム(男性同士)"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.email||"—")}</td><td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
 
 // ========== 広告管理 ==========
 let adPlans=[];
