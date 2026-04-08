@@ -758,6 +758,25 @@
 
     </div>
 </div>
+<!-- モーダル：プランメール確認 -->
+<div class="modal-overlay" id="plan-mail-modal" style="display:none;z-index:1010;" onclick="if(event.target===this)closePlanMailModal()">
+    <div class="modal" style="max-width:640px;">
+        <div class="modal-header"><span class="modal-title">📧 送信メールの確認</span><button class="modal-close" onclick="closePlanMailModal()">&times;</button></div>
+        <div style="padding:20px;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;width:80px;">宛先</td><td id="pm-mail-to" style="padding:8px;border-bottom:1px solid #eee;font-weight:600;"></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">店舗名</td><td id="pm-mail-shop" style="padding:8px;border-bottom:1px solid #eee;"></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#888;">件名</td><td id="pm-mail-subject" style="padding:8px;border-bottom:1px solid #eee;font-weight:600;"></td></tr>
+            </table>
+            <div style="font-size:11px;color:#888;margin-bottom:4px;">メール本文プレビュー</div>
+            <div id="pm-mail-body" style="background:#f8f6f3;border:1px solid #ece8e0;border-radius:8px;padding:16px;font-size:12px;line-height:1.8;max-height:400px;overflow-y:auto;"></div>
+            <div class="modal-btns" style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">
+                <button class="btn-cancel" onclick="closePlanMailModal()">送信しない</button>
+                <button class="btn-save" id="pm-mail-send-btn" onclick="doPlanMailSend()">📨 この内容で送信する</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- モーダル：営業メール確認 -->
 <div class="modal-overlay" id="outreach-confirm-modal" style="display:none;z-index:1010;" onclick="if(event.target===this)closeOutreachConfirm()">
     <div class="modal" style="max-width:640px;">
@@ -1490,8 +1509,7 @@ async function closePlacementModal(){
     if(shop){
       const areaText=areaList.length?areaList.join('、'):'未設定';
       const emailType=pe.campaign?'plan_campaign':'plan_change';
-      const ok=await sendShopEmail(shop,emailType,{planName:pe.planName,planPrice:pe.planPrice,areas:areaText});
-      toast(ok?'プラン変更 + メール送信完了':'プラン変更完了（メール送信失敗）');
+      showPlanMailPreview(shop,emailType,{planName:pe.planName,planPrice:pe.planPrice,areas:areaText});
     }
   }
   if(shopId)loadShopAreaList(shopId);
@@ -1771,16 +1789,50 @@ async function toggleShopContract(shopId,planId,isActive,mode){
 // キャンペーン適用（投稿リンクプラン 1ヶ月無料）
 async function applyCampaign(shopId){
   if(!confirm('投稿リンクプラン（1ヶ月無料キャンペーン）を適用しますか？'))return;
-  // 既に投稿リンクプランが契約済みでも、キャンペーンとして追加
   await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:9,is_campaign:1}});
   await syncBestPlan(shopId);
   loadShopContracts(shopId,contractPlansData||[]);
-  // キャンペーン用メール
+  toast('✅ キャンペーン適用完了');
+  // メール確認モーダル表示
   const shop=shopsData.find(s=>String(s.id)===String(shopId));
-  if(shop){
-    const ok=await sendShopEmail(shop,'plan_campaign',{planName:'投稿リンクプラン',planPrice:5500});
-    toast(ok?'✅ キャンペーン適用 + メール送信完了':'キャンペーン適用完了（メール送信失敗）');
-  }else{toast('キャンペーン適用完了');}
+  if(shop) showPlanMailPreview(shop,'plan_campaign',{planName:'投稿リンクプラン',planPrice:5500});
+}
+
+// プランメール確認モーダル
+let _pmMailData=null;
+function showPlanMailPreview(shop,type,extraData){
+  // sendShopEmailと同じロジックでsubjectとbodyを生成
+  const loginUrl="https://yobuho.com/shop-admin.html";
+  const shopName=esc(shop.shop_name||"店舗");
+  const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;
+  const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo から自動送信されています。</p></div>`;
+  let subject='',body='';
+  if(type==='plan_campaign'){
+    subject='【YobuHo】投稿リンクプラン 1ヶ月無料キャンペーン適用のお知らせ';
+    body=header+`<p>投稿リンクプランの <strong>1ヶ月無料キャンペーン</strong> が適用されました！</p><div style="background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:16px;border-radius:8px;margin:16px 0;border:1px solid #f0d060;"><p style="margin:0;font-size:18px;font-weight:bold;color:#b8860b;">🎁 1ヶ月間無料</p><p style="margin:8px 0 0;">プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:4px 0 0;">月額: <strong><span style="text-decoration:line-through;color:#888;">¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"5,500"}</span> → ¥0（初月無料）</strong></p><p style="margin:8px 0 0;font-size:12px;color:#5a4a2a;">無料期間終了後、自動課金はされません。</p></div><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">無料期間中にできること</p><ul style="margin:0;padding-left:20px;font-size:13px;line-height:2;"><li>ホテル情報ページに貴店名から <strong>オフィシャルサイトへ直接リンク</strong></li><li>貴店だけの <strong>専用ページ（専用デザイン）</strong></li><li>店舗投稿日が <strong>毎月自動更新</strong></li></ul></div><div style="margin:16px 0;text-align:center;"><a href="${loginUrl}" style="display:inline-block;padding:14px 40px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;">管理画面にログイン</a></div>`+footer;
+  }else{
+    subject='【YobuHo】プラン変更のお知らせ';
+    body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p>${extraData.areas?'<p style="margin:8px 0 0;">掲載エリア: <strong>'+esc(extraData.areas)+'</strong></p>':''}</div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;
+  }
+  _pmMailData={shop,subject,body};
+  document.getElementById('pm-mail-to').textContent=shop.email;
+  document.getElementById('pm-mail-shop').textContent=shop.shop_name||'—';
+  document.getElementById('pm-mail-subject').textContent=subject;
+  document.getElementById('pm-mail-body').innerHTML=body;
+  document.getElementById('pm-mail-send-btn').disabled=false;
+  document.getElementById('pm-mail-send-btn').textContent='📨 この内容で送信する';
+  document.getElementById('plan-mail-modal').style.display='flex';
+}
+function closePlanMailModal(){document.getElementById('plan-mail-modal').style.display='none';_pmMailData=null;}
+async function doPlanMailSend(){
+  if(!_pmMailData)return;
+  const btn=document.getElementById('pm-mail-send-btn');
+  btn.disabled=true;btn.textContent='送信中...';
+  try{
+    const res=await fetch('/api/send-mail.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:_pmMailData.shop.email,subject:_pmMailData.subject,body:_pmMailData.body})});
+    if(res.ok){btn.textContent='✅ 送信完了';setTimeout(()=>{closePlanMailModal();toast('✅ メール送信完了');},800);}
+    else{btn.textContent='❌ 送信エラー';setTimeout(()=>{btn.disabled=false;btn.textContent='📨 この内容で送信する';},1500);}
+  }catch(e){btn.disabled=false;btn.textContent='📨 この内容で送信する';toast('送信エラー');}
 }
 
 // 複数契約プラン: 1行追加
