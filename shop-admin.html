@@ -965,10 +965,13 @@ async function loadStatusCard(){
     // 有料プラン一覧表示（無料プランは非表示）
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
-        if(paidContracts.length){
-            planListEl.innerHTML=paidContracts.map(c=>{const p=c.contract_plans;const isCamp=c.is_campaign;if(isCamp){return `<div style="font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:4px;">🎁 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}）1ヶ月無料</div>`;}return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
-        }else{
+        const normalContracts=paidContracts.filter(c=>!c.is_campaign);
+        if(normalContracts.length){
+            planListEl.innerHTML=normalContracts.map(c=>{const p=c.contract_plans;return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
+        }else if(!paidContracts.some(c=>c.is_campaign)){
             planListEl.innerHTML='<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
+        }else{
+            planListEl.innerHTML='';
         }
     }
     // 掲載期間表示
@@ -984,9 +987,9 @@ async function loadStatusCard(){
             const dateStr=expDate.toLocaleDateString('ja-JP');
             const diffLabel=diff>0?`（残り${diff}日）`:'<span style="color:var(--red);">（期限切れ）</span>';
             const icon=c.is_campaign?'🎁':'📅';
-            const nameLabel=c.is_campaign?`${esc(p.name)} 1ヶ月無料`:esc(p.name);
+            const nameLabel=c.is_campaign?`${esc(p.name)}（¥${Number(p.price).toLocaleString()}/月）1ヶ月無料`:esc(p.name);
             const bg=c.is_campaign?'background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;':'background:#f8f6f0;border:1px solid #e8e0d8;';
-            return `<div style="font-size:11px;padding:4px 8px;${bg}border-radius:4px;display:flex;align-items:center;gap:6px;">${icon} ${nameLabel} — ${dateStr}まで ${diffLabel}</div>`;
+            return `<div style="font-size:11px;padding:6px 10px;${bg}border-radius:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${icon} ${nameLabel} — ${dateStr}まで ${diffLabel}</div>`;
         }).filter(Boolean);
         expiryEl.innerHTML=expiryItems.length?expiryItems.join(''):'';
     }
