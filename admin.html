@@ -4295,10 +4295,11 @@ async function doSendOutreachEmail(){
         if(res.ok){
             btn.textContent="✅ 送信完了";
             await api("insert",{table:"outreach_emails",data:{email:to,shop_name:shopName||null,genre:template||null,notes:subject,status:"sent"}});
-            loadOutreachHistory();
             document.getElementById("outreach-to").value="";
             document.getElementById("outreach-shop-name").value="";
-            setTimeout(()=>{closeOutreachConfirm();toast("✅ 送信完了: "+to);},800);
+            closeOutreachConfirm();
+            await loadOutreachHistory();
+            toast("✅ 送信完了: "+to);
         }else{
             const errText=await res.text();
             btn.textContent="❌ 送信エラー";
