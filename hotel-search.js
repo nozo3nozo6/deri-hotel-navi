@@ -1228,7 +1228,11 @@ function switchKeywordTab(tab) {
         }
     });
     const data = tab === 'loveho' ? _keywordLovehoCache : _keywordHotelCache;
-    renderHotelCards(data);
+    if (tab === 'loveho') {
+        renderLovehoCards(data);
+    } else {
+        renderHotelCards(data);
+    }
     setResultStatus(data.length);
 }
 
