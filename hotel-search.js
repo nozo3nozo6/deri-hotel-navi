@@ -1245,6 +1245,13 @@ function clearSearch() {
     document.getElementById('search-clear-btn').style.display = 'none';
 }
 
+function resetSearchInput() {
+    const input = document.getElementById('keyword');
+    if (input && input.value) { input.value = ''; }
+    const btn = document.getElementById('search-clear-btn');
+    if (btn) btn.style.display = 'none';
+}
+
 // ==========================================================================
 // ホテルカードレンダリング
 // ==========================================================================

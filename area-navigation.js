@@ -387,6 +387,7 @@ function showJapanPage() {
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
     ++_areaGeneration;
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     pageStack = [];
     currentPage = showJapanPage;
     updateUrl({});
@@ -424,6 +425,7 @@ function showJapanPage() {
 async function showPrefPage(region) {
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     const gen = ++_areaGeneration;
     currentPage = () => showPrefPage(region);
     updateUrl({ region: region.label });
@@ -476,6 +478,7 @@ async function showPrefPage(region) {
 async function showMajorAreaPage(region, pref) {
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     const gen = ++_areaGeneration;
     currentPage = () => showMajorAreaPage(region, pref);
     updateUrl({ pref });
@@ -527,6 +530,7 @@ async function showCityPage(region, pref, majorArea) {
     _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     const gen = ++_areaGeneration;
     currentPage = () => showCityPage(region, pref, majorArea);
     updateUrl({ pref, area: majorArea });
@@ -655,6 +659,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
     window.scrollTo(0,0);
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     const gen = ++_areaGeneration;
     currentPage = () => showDetailAreaPage(region, pref, majorArea, detailArea);
     updateUrl({ pref, area: majorArea, detail: detailArea });
@@ -770,6 +775,7 @@ function goToHotelCity(regionLabel, pref, majorArea, city) {
 async function showNoAreaCityPage(region, pref) {
     _renderPref = pref;
     if(document.activeElement)document.activeElement.blur();
+    if (typeof resetSearchInput === 'function') resetSearchInput();
     const gen = ++_areaGeneration;
     currentPage = () => showNoAreaCityPage(region, pref);
     updateUrl({ pref, area: '_other' });
