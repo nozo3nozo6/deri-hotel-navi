@@ -89,7 +89,7 @@ const jsonLd = [
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": { "@type": "EntryPoint", "urlTemplate": "https://yobuho.com/deli/?keyword={search_term_string}" },
+      "target": { "@type": "EntryPoint", "urlTemplate": `https://yobuho.com/${modePath}/?keyword={search_term_string}` },
       "query-input": "required name=search_term_string"
     },
     "provider": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com/", "logo": "https://yobuho.com/ogp.png" }

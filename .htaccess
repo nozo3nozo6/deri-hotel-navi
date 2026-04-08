@@ -87,19 +87,19 @@ RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same, este=este
 
-# ホテル詳細クリーンURL: /deli/hotel/29599 → portal-men.html?hotel=29599
-RewriteRule ^deli/hotel/([0-9]+)/?$ /portal-men.html?hotel=$1 [L,QSA]
-RewriteRule ^jofu/hotel/([0-9]+)/?$ /portal-women.html?hotel=$1 [L,QSA]
-RewriteRule ^same-m/hotel/([0-9]+)/?$ /portal-men-same.html?hotel=$1 [L,QSA]
-RewriteRule ^same-f/hotel/([0-9]+)/?$ /portal-women-same.html?hotel=$1 [L,QSA]
-RewriteRule ^este/hotel/([0-9]+)/?$ /portal-este.html?hotel=$1 [L,QSA]
+# ホテル詳細クリーンURL: /deli/hotel/29599 → portal-men.php?hotel=29599
+RewriteRule ^deli/hotel/([0-9]+)/?$ /portal-men.php?hotel=$1 [L,QSA]
+RewriteRule ^jofu/hotel/([0-9]+)/?$ /portal-women.php?hotel=$1 [L,QSA]
+RewriteRule ^same-m/hotel/([0-9]+)/?$ /portal-men-same.php?hotel=$1 [L,QSA]
+RewriteRule ^same-f/hotel/([0-9]+)/?$ /portal-women-same.php?hotel=$1 [L,QSA]
+RewriteRule ^este/hotel/([0-9]+)/?$ /portal-este.php?hotel=$1 [L,QSA]
 
-# 店舗専用URL: /deli/shop/slug/ → portal-men.html?shop=slug
-RewriteRule ^deli/shop/([a-z0-9\-]+)/?$ /portal-men.html?shop=$1 [L,QSA]
-RewriteRule ^jofu/shop/([a-z0-9\-]+)/?$ /portal-women.html?shop=$1 [L,QSA]
-RewriteRule ^same-m/shop/([a-z0-9\-]+)/?$ /portal-men-same.html?shop=$1 [L,QSA]
-RewriteRule ^same-f/shop/([a-z0-9\-]+)/?$ /portal-women-same.html?shop=$1 [L,QSA]
-RewriteRule ^este/shop/([a-z0-9\-]+)/?$ /portal-este.html?shop=$1 [L,QSA]
+# 店舗専用URL: /deli/shop/slug/ → portal-men.php?shop=slug
+RewriteRule ^deli/shop/([a-z0-9\-]+)/?$ /portal-men.php?shop=$1 [L,QSA]
+RewriteRule ^jofu/shop/([a-z0-9\-]+)/?$ /portal-women.php?shop=$1 [L,QSA]
+RewriteRule ^same-m/shop/([a-z0-9\-]+)/?$ /portal-men-same.php?shop=$1 [L,QSA]
+RewriteRule ^same-f/shop/([a-z0-9\-]+)/?$ /portal-women-same.php?shop=$1 [L,QSA]
+RewriteRule ^este/shop/([a-z0-9\-]+)/?$ /portal-este.php?shop=$1 [L,QSA]
 
 # 旧?shop=UUID → 新パスへ301リダイレクト（slug解決はJS側）
 # ※ slug解決が必要なためJS側で処理。htaccessではリダイレクトしない
@@ -116,40 +116,40 @@ RewriteRule ^same-f/?$ /same-f/hotel/%1? [R=301,L]
 RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
 RewriteRule ^este/?$ /este/hotel/%1? [R=301,L]
 
-# 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.html (pref+area+detail+city)
-RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-este.html?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+# 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.php (pref+area+detail+city)
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
 
-# 3セグメント: /deli/東京都/東京２３区内/渋谷区 → portal-men.html (pref+area+city)
-RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)$ /portal-este.html?pref=$1&area=$2&city=$3 [L,QSA]
+# 3セグメント: /deli/東京都/東京２３区内/渋谷区 → portal-men.php (pref+area+city)
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2&city=$3 [L,QSA]
 
-# 2セグメント: /deli/東京都/渋谷区 or /deli/東京都/東京２３区内 → portal-men.html (pref+area, JS側でarea/city判別)
-RewriteRule ^deli/([^/]+)/([^/]+)$ /portal-men.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)$ /portal-women.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)$ /portal-men-same.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)$ /portal-women-same.html?pref=$1&area=$2 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)$ /portal-este.html?pref=$1&area=$2 [L,QSA]
+# 2セグメント: /deli/東京都/渋谷区 or /deli/東京都/東京２３区内 → portal-men.php (pref+area, JS側でarea/city判別)
+RewriteRule ^deli/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2 [L,QSA]
 
-# 1セグメント: /deli/東京都 → portal-men.html (pref)
-RewriteRule ^deli/([^/]+)$ /portal-men.html?pref=$1 [L,QSA]
-RewriteRule ^jofu/([^/]+)$ /portal-women.html?pref=$1 [L,QSA]
-RewriteRule ^same-m/([^/]+)$ /portal-men-same.html?pref=$1 [L,QSA]
-RewriteRule ^same-f/([^/]+)$ /portal-women-same.html?pref=$1 [L,QSA]
-RewriteRule ^este/([^/]+)$ /portal-este.html?pref=$1 [L,QSA]
+# 1セグメント: /deli/東京都 → portal-men.php (pref)
+RewriteRule ^deli/([^/]+)$ /portal-men.php?pref=$1 [L,QSA]
+RewriteRule ^jofu/([^/]+)$ /portal-women.php?pref=$1 [L,QSA]
+RewriteRule ^same-m/([^/]+)$ /portal-men-same.php?pref=$1 [L,QSA]
+RewriteRule ^same-f/([^/]+)$ /portal-women-same.php?pref=$1 [L,QSA]
+RewriteRule ^este/([^/]+)$ /portal-este.php?pref=$1 [L,QSA]
 
-# 0セグメント: /deli/ → portal-men.html (トップ)
-RewriteRule ^deli/?$ /portal-men.html [L,QSA]
-RewriteRule ^jofu/?$ /portal-women.html [L,QSA]
-RewriteRule ^same-m/?$ /portal-men-same.html [L,QSA]
-RewriteRule ^same-f/?$ /portal-women-same.html [L,QSA]
-RewriteRule ^este/?$ /portal-este.html [L,QSA]
+# 0セグメント: /deli/ → portal-men.php (トップ)
+RewriteRule ^deli/?$ /portal-men.php [L,QSA]
+RewriteRule ^jofu/?$ /portal-women.php [L,QSA]
+RewriteRule ^same-m/?$ /portal-men-same.php [L,QSA]
+RewriteRule ^same-f/?$ /portal-women-same.php [L,QSA]
+RewriteRule ^este/?$ /portal-este.php [L,QSA]
 
 # ===== 旧パス /men/ 等 → 新パス /deli/ 等 301リダイレクト =====
 RewriteRule ^men/(.+)$ /deli/$1 [R=301,L]
@@ -210,13 +210,13 @@ RewriteRule ^portal(?:-[a-z-]+)?\.html$ /same-f/? [R=301,L]
 
 # ===== 旧Astroリライト（フォールバック） =====
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
-RewriteRule ^portal\.html$ /portal-men.html [L,QSA]
+RewriteRule ^portal\.html$ /portal-men.php [L,QSA]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women(?:&|$)
-RewriteRule ^portal\.html$ /portal-women.html [L,QSA]
+RewriteRule ^portal\.html$ /portal-women.php [L,QSA]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men_same(?:&|$)
-RewriteRule ^portal\.html$ /portal-men-same.html [L,QSA]
+RewriteRule ^portal\.html$ /portal-men-same.php [L,QSA]
 RewriteCond %{QUERY_STRING} (?:^|&)mode=women_same(?:&|$)
-RewriteRule ^portal\.html$ /portal-women-same.html [L,QSA]
+RewriteRule ^portal\.html$ /portal-women-same.php [L,QSA]
 
 # セキュリティヘッダー
 <IfModule mod_headers.c>
