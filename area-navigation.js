@@ -184,19 +184,24 @@ function appendShopModeLpContent() {
 
 // info-links-bar を hotel-list に追加するヘルパー
 async function appendRecentShops() {
+    if (typeof _shopParam !== 'undefined' && _shopParam) return;
     const mode = typeof MODE !== 'undefined' ? MODE : 'men';
+    const modePath = typeof MODE_PATH_MAP !== 'undefined' ? (MODE_PATH_MAP[mode] || '/deli/') : '/deli/';
     try {
         const res = await fetch(`/api/recent-shops.php?mode=${encodeURIComponent(mode)}`);
         if (!res.ok) return;
         const shops = await res.json();
         if (!shops.length) return;
         const iconMap = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀', este: '💆‍♂️' };
+        const _ext = typeof _extTarget !== 'undefined' ? _extTarget : '_blank';
         const lines = shops.map(s => {
             const d = s.approved_at ? new Date(s.approved_at) : null;
             const dateStr = d ? `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}` : '';
             const icon = iconMap[s.gender_mode] || '♂';
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
-            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span><span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span> <span style="color:var(--text-3);">様 ご登録いただきました</span></div>`;
+            const shopLink = s.slug ? `${modePath}shop/${s.slug}/` : (s.shop_url || '');
+            const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
+            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">様 ご登録いただきました</span></div>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {

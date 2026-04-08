@@ -20,7 +20,7 @@ if (!in_array($mode, $allowedModes, true)) {
 try {
     $pdo = DB::conn();
     $stmt = $pdo->prepare("
-        SELECT shop_name, gender_mode, approved_at
+        SELECT shop_name, gender_mode, approved_at, slug, shop_url
         FROM shops
         WHERE show_announcement = 1
           AND status = 'active'
