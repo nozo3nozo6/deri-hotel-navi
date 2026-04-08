@@ -150,8 +150,8 @@ function handleDashboard() {
     $stmt = $pdo->query("SELECT id, shop_name, gender_mode, email, status, created_at FROM shops ORDER BY created_at DESC LIMIT 10");
     $recentShops = $stmt->fetchAll();
 
-    // 最新10件のホテル編集（is_edited=1のホテル、updated_at順）
-    $stmt = $pdo->query("SELECT id, name, prefecture, city, hotel_type, updated_at FROM hotels WHERE is_edited = 1 ORDER BY updated_at DESC LIMIT 10");
+    // 最新10件のホテル追加・編集（updated_atまたはcreated_at順）
+    $stmt = $pdo->query("SELECT id, name, prefecture, city, hotel_type, source, is_edited, created_at, updated_at, GREATEST(COALESCE(updated_at, created_at), created_at) AS last_changed FROM hotels ORDER BY last_changed DESC LIMIT 10");
     $recentHotelEdits = $stmt->fetchAll();
 
     // 最新10件の掲載リクエスト
