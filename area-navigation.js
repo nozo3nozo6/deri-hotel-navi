@@ -440,8 +440,8 @@ function showJapanPage() {
         };
         container.appendChild(btn);
     });
-    appendRecentShops();
     appendInfoLinksBar();
+    appendRecentShops();
     appendShopModeLpContent();
 }
 
