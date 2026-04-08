@@ -183,6 +183,28 @@ function appendShopModeLpContent() {
 }
 
 // info-links-bar を hotel-list に追加するヘルパー
+async function appendRecentShops() {
+    const mode = typeof MODE !== 'undefined' ? MODE : 'men';
+    try {
+        const res = await fetch(`/api/recent-shops.php?mode=${encodeURIComponent(mode)}`);
+        if (!res.ok) return;
+        const shops = await res.json();
+        if (!shops.length) return;
+        const iconMap = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀', este: '💆‍♂️' };
+        const lines = shops.map(s => {
+            const d = s.approved_at ? new Date(s.approved_at) : null;
+            const dateStr = d ? `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}` : '';
+            const icon = iconMap[s.gender_mode] || '♂';
+            const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
+            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span><span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span> <span style="color:var(--text-3);">様 ご登録いただきました</span></div>`;
+        }).join('');
+        const hlc = document.getElementById('hotel-list');
+        if (hlc) {
+            hlc.insertAdjacentHTML('beforeend', `<div style="padding:12px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;">${lines}</div>`);
+        }
+    } catch(e) { /* silent */ }
+}
+
 function appendInfoLinksBar() {
     const hlc = document.getElementById('hotel-list');
     if (hlc && !hlc.querySelector('.info-links-bar')) {
@@ -418,6 +440,7 @@ function showJapanPage() {
         };
         container.appendChild(btn);
     });
+    appendRecentShops();
     appendInfoLinksBar();
     appendShopModeLpContent();
 }

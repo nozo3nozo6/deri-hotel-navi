@@ -1044,6 +1044,7 @@ function _dpReset(){_dpScale=1;_dpX=0;_dpY=0;_dpUpdateTransform();}
                     <div class="mf"><label class="ml">メール</label><div id="sr-email" style="font-size:13px;color:var(--ink-3);padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);word-break:break-all;"></div></div>
                     <div class="mf"><label class="ml">TEL</label><input id="sr-tel" class="mi" type="tel"></div>
                     <div class="mf"><label class="ml">URL</label><input id="sr-url" class="mi" type="url"></div>
+                    <div class="mf" style="margin-top:4px;"><label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);cursor:pointer;"><input type="checkbox" id="sr-announcement"> 新規登録お知らせに表示</label></div>
                     <button onclick="saveShopInfo()" style="margin-top:8px;padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">店舗情報を保存</button>
                     <!-- 活動エリア（都道府県） -->
                     <div class="mf" style="margin-top:12px;">
@@ -1327,7 +1328,7 @@ async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)retur
 async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const r=await api('update',{table:'shops',id,data:{status:'deleted',deleted_at:new Date().toISOString()}});if(!r.ok){toast("削除エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:new Date().toISOString()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
 async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
 let _srId=null;
-function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";
+function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";document.getElementById("sr-announcement").checked=!!s.show_announcement;
 // 都道府県select初期化+セット
 const prefSel=document.getElementById("sr-prefecture");
 prefSel.innerHTML='<option value="">未設定</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
@@ -1409,7 +1410,8 @@ async function saveShopInfo(){
     if(!shopName){toast('店舗名を入力してください');return;}
     if(!confirm('店舗情報を保存しますか？'))return;
     const genderMode=document.getElementById('sr-gender').value;
-    const data={shop_name:shopName,gender_mode:genderMode,shop_tel:shopTel||null,shop_url:shopUrl||null};
+    const showAnnouncement=document.getElementById('sr-announcement').checked?1:0;
+    const data={shop_name:shopName,gender_mode:genderMode,shop_tel:shopTel||null,shop_url:shopUrl||null,show_announcement:showAnnouncement};
     const r=await api('update',{table:'shops',id:_srId,data});
     if(!r.ok){toast('保存エラー');return;}
     // ad_placementsのmodeも連動更新
