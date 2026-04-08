@@ -124,17 +124,20 @@ function handleDashboard() {
     $shopCount = $pdo->query("SELECT COUNT(*) FROM shops")->fetchColumn();
     $canCount = $pdo->query("SELECT COUNT(*) FROM reports WHERE can_call = 1")->fetchColumn();
     $flagCount = $pdo->query("SELECT COUNT(*) FROM reports WHERE flagged_at IS NOT NULL AND flag_resolved IS NULL")->fetchColumn();
+    $lhFlagCount = $pdo->query("SELECT COUNT(*) FROM loveho_reports WHERE flagged_at IS NOT NULL AND flag_resolved IS NULL")->fetchColumn();
+    $flagCount = (int)$flagCount + (int)$lhFlagCount;
     $shopPendCount = $pdo->query("SELECT COUNT(*) FROM shops WHERE status = 'registered'")->fetchColumn();
     $hreqPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_requests WHERE status = 'pending'")->fetchColumn();
-    $corrPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_corrections WHERE status = 'pending'")->fetchColumn();
-    $planReqPendCount = $pdo->query("SELECT COUNT(*) FROM shop_plan_requests WHERE status = 'pending'")->fetchColumn();
+    try { $corrPendCount = $pdo->query("SELECT COUNT(*) FROM hotel_corrections WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) { $corrPendCount = 0; }
+    try { $planReqPendCount = $pdo->query("SELECT COUNT(*) FROM shop_plan_requests WHERE status = 'pending'")->fetchColumn(); } catch (Exception $e) { $planReqPendCount = 0; }
 
     // 最新10件のレポート（ホテル）
     $stmt = $pdo->query("SELECT r.*, h.name AS hotel_name FROM reports r LEFT JOIN hotels h ON h.id = r.hotel_id ORDER BY r.created_at DESC LIMIT 10");
     $recent = $stmt->fetchAll();
     foreach ($recent as &$r) {
         $r['can_call'] = (bool)$r['can_call'];
-        $r['conditions'] = DB::jsonDecode($r['conditions'] ?? null);
+        $r['can_call_reasons'] = DB::jsonDecode($r['can_call_reasons'] ?? null);
+        $r['cannot_call_reasons'] = DB::jsonDecode($r['cannot_call_reasons'] ?? null);
     }
     unset($r);
 
