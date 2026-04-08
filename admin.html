@@ -1772,7 +1772,7 @@ async function toggleShopContract(shopId,planId,isActive,mode){
 async function applyCampaign(shopId){
   if(!confirm('投稿リンクプラン（1ヶ月無料キャンペーン）を適用しますか？'))return;
   // 既に投稿リンクプランが契約済みでも、キャンペーンとして追加
-  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:9}});
+  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:9,is_campaign:1}});
   await syncBestPlan(shopId);
   loadShopContracts(shopId,contractPlansData||[]);
   // キャンペーン用メール

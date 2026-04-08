@@ -185,13 +185,14 @@ function handleProfile() {
     unset($shop['password_hash']);
 
     // shop_contracts JOIN contract_plans
-    $stmt = $pdo->prepare('SELECT sc.plan_id, sc.expires_at, sc.created_at AS contract_created, cp.name, cp.price FROM shop_contracts sc JOIN contract_plans cp ON sc.plan_id = cp.id WHERE sc.shop_id = ?');
+    $stmt = $pdo->prepare('SELECT sc.plan_id, sc.expires_at, sc.created_at AS contract_created, sc.is_campaign, cp.name, cp.price FROM shop_contracts sc JOIN contract_plans cp ON sc.plan_id = cp.id WHERE sc.shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
     $contracts = $stmt->fetchAll();
     $shop['shop_contracts'] = array_map(fn($c) => [
         'plan_id' => (int)$c['plan_id'],
         'expires_at' => $c['expires_at'],
         'contract_created' => $c['contract_created'],
+        'is_campaign' => (bool)$c['is_campaign'],
         'contract_plans' => ['name' => $c['name'], 'price' => (int)$c['price']]
     ], $contracts);
 

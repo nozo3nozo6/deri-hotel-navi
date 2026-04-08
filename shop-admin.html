@@ -966,7 +966,7 @@ async function loadStatusCard(){
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
         if(paidContracts.length){
-            planListEl.innerHTML=paidContracts.map(c=>{const p=c.contract_plans;return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${p.name}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
+            planListEl.innerHTML=paidContracts.map(c=>{const p=c.contract_plans;const isCamp=c.is_campaign;if(isCamp){return `<div style="font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:4px;">🎁 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}）1ヶ月無料</div>`;}return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
         }else{
             planListEl.innerHTML='<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
         }
@@ -983,7 +983,10 @@ async function loadStatusCard(){
             const diff=Math.ceil((expDate-today)/(1000*60*60*24));
             const dateStr=expDate.toLocaleDateString('ja-JP');
             const diffLabel=diff>0?`（残り${diff}日）`:'<span style="color:var(--red);">（期限切れ）</span>';
-            return `<div style="font-size:11px;padding:4px 8px;background:#f8f6f0;border:1px solid #e8e0d8;border-radius:4px;display:flex;align-items:center;gap:6px;">📅 ${esc(p.name)} — ${dateStr}まで ${diffLabel}</div>`;
+            const icon=c.is_campaign?'🎁':'📅';
+            const nameLabel=c.is_campaign?`${esc(p.name)} 1ヶ月無料`:esc(p.name);
+            const bg=c.is_campaign?'background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;':'background:#f8f6f0;border:1px solid #e8e0d8;';
+            return `<div style="font-size:11px;padding:4px 8px;${bg}border-radius:4px;display:flex;align-items:center;gap:6px;">${icon} ${nameLabel} — ${dateStr}まで ${diffLabel}</div>`;
         }).filter(Boolean);
         expiryEl.innerHTML=expiryItems.length?expiryItems.join(''):'';
     }
