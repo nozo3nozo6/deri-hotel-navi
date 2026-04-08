@@ -205,7 +205,13 @@ async function appendRecentShops() {
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
-            hlc.insertAdjacentHTML('beforeend', `<div style="padding:12px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;">${lines}</div>`);
+            const lpContent = hlc.querySelector('.shop-lp-content');
+            const html = `<div class="recent-shops-section" style="padding:12px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;">${lines}</div>`;
+            if (lpContent) {
+                lpContent.insertAdjacentHTML('beforebegin', html);
+            } else {
+                hlc.insertAdjacentHTML('beforeend', html);
+            }
         }
     } catch(e) { /* silent */ }
 }
