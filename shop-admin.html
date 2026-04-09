@@ -960,19 +960,19 @@ async function loadStatusCard(){
     const topContract=[...contracts].sort((a,b)=>(b.contract_plans?.price||0)-(a.contract_plans?.price||0))[0];
     const plan=topContract?.contract_plans||null;
     const paidContracts=contracts.filter(c=>c.contract_plans&&c.contract_plans.price>0);
-    const total=paidContracts.reduce((s,c)=>s+(Number(c.contract_plans.price)||0),0);
-    document.getElementById("status-plan").textContent=paidContracts.length?`¥${total.toLocaleString()}/月`:"無料プラン";
+    const normalPaid=paidContracts.filter(c=>!c.is_campaign);
+    const total=normalPaid.reduce((s,c)=>s+(Number(c.contract_plans.price)||0),0);
+    const hasCampaignOnly=paidContracts.length>0&&normalPaid.length===0;
+    document.getElementById("status-plan").textContent=normalPaid.length?`¥${total.toLocaleString()}/月`:hasCampaignOnly?"キャンペーン適用中":"無料プラン";
     // 有料プラン一覧表示（無料プランは非表示）
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
-        const normalContracts=paidContracts.filter(c=>!c.is_campaign);
-        if(normalContracts.length){
-            planListEl.innerHTML=normalContracts.map(c=>{const p=c.contract_plans;return `<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;}).join('');
-        }else if(!paidContracts.some(c=>c.is_campaign)){
-            planListEl.innerHTML='<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
-        }else{
-            planListEl.innerHTML='';
-        }
+        const normalC=paidContracts.filter(c=>!c.is_campaign);
+        const campC=paidContracts.filter(c=>c.is_campaign);
+        let listHtml='';
+        normalC.forEach(c=>{const p=c.contract_plans;listHtml+=`<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;});
+        campC.forEach(c=>{const p=c.contract_plans;listHtml+=`<div style="font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:4px;">🎁 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}）1ヶ月無料</div>`;});
+        planListEl.innerHTML=listHtml||'<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
     }
     // 掲載期間表示
     const expiryEl=document.getElementById("plan-expiry");
