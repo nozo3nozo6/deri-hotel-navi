@@ -43,11 +43,14 @@ const faqs = [
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
   </Fragment>
 
-  <div class="page-header">
-    <a href="/index.html" class="btn-back">← トップへ</a>
-    <span class="page-header-logo">YobuHo</span>
-    <span class="page-header-title">掲載プラン・料金</span>
-  </div>
+  <header class="site-header">
+    <div class="site-header-accent"></div>
+    <div class="site-header-inner">
+      <a href="/index.html" class="site-header-back">← トップへ</a>
+      <a href="/index.html" class="site-header-logo"><b>YobuHo</b></a>
+      <span class="site-header-title">掲載プラン・料金</span>
+    </div>
+  </header>
 
   <main class="plan-page">
     <!-- Hero -->
@@ -242,12 +245,14 @@ const faqs = [
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Noto Sans JP', sans-serif; background: #faf8f5; color: #1a1410; }
 
-  /* Page Header */
-  .page-header { background: #1a1410; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
-  .btn-back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #e0d5c8; font-size: 12px; text-decoration: none; cursor: pointer; font-family: inherit; }
-  .btn-back:hover { background: rgba(255,255,255,0.2); }
-  .page-header-logo { font-size: 16px; font-weight: 700; color: #c9a84c; letter-spacing: 0.08em; }
-  .page-header-title { font-size: 14px; font-weight: 500; color: #fff; margin-left: auto; }
+  /* Site Header */
+  .site-header { background: rgba(250,248,244,0.97); backdrop-filter: blur(12px); border-bottom: 1px solid #e8e0d8; position: sticky; top: 0; z-index: 100; }
+  .site-header-accent { height: 2px; background: linear-gradient(90deg, transparent, #b5627a 20%, #d4899e 50%, #b5627a 80%, transparent); }
+  .site-header-inner { max-width: 960px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .site-header-back { display: inline-flex; align-items: center; padding: 5px 12px; background: rgba(181,98,122,0.08); border: 1px solid rgba(181,98,122,0.2); border-radius: 6px; color: #b5627a; font-size: 12px; text-decoration: none; font-family: inherit; white-space: nowrap; }
+  .site-header-back:hover { background: rgba(181,98,122,0.15); }
+  .site-header-logo { font-size: 18px; font-weight: 700; color: #b5627a; text-decoration: none; letter-spacing: 0.05em; }
+  .site-header-title { font-size: 13px; font-weight: 500; color: #5a4a3a; margin-left: auto; }
 
   .plan-page { max-width: 960px; margin: 0 auto; padding: 0 16px; }
 

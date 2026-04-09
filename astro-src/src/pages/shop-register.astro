@@ -22,11 +22,14 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.j
         <!-- Supabase SDK removed: メール認証はPHP API経由 -->
     </Fragment>
 
-    <div class="page-header" style="background:#1a1410;padding:12px 20px;display:flex;align-items:center;gap:12px;">
-        <a href="/index.html" style="display:inline-flex;align-items:center;gap:4px;padding:6px 14px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#e0d5c8;font-size:12px;text-decoration:none;">← トップへ</a>
-        <span style="font-size:16px;font-weight:700;color:#c9a84c;letter-spacing:0.08em;">YobuHo</span>
-        <span style="font-size:14px;font-weight:500;color:#fff;margin-left:auto;">店舗様登録</span>
-    </div>
+    <header style="background:rgba(250,248,244,0.97);backdrop-filter:blur(12px);border-bottom:1px solid #e8e0d8;position:sticky;top:0;z-index:100;">
+        <div style="height:2px;background:linear-gradient(90deg,transparent,#b5627a 20%,#d4899e 50%,#b5627a 80%,transparent);"></div>
+        <div style="max-width:960px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px;">
+            <a href="/index.html" style="display:inline-flex;align-items:center;padding:5px 12px;background:rgba(181,98,122,0.08);border:1px solid rgba(181,98,122,0.2);border-radius:6px;color:#b5627a;font-size:12px;text-decoration:none;white-space:nowrap;">← トップへ</a>
+            <a href="/index.html" style="font-size:18px;font-weight:700;color:#b5627a;text-decoration:none;letter-spacing:0.05em;"><b>YobuHo</b></a>
+            <span style="font-size:13px;font-weight:500;color:#5a4a3a;margin-left:auto;">店舗様登録</span>
+        </div>
+    </header>
 
     <section class="pricing-section">
         <div class="pricing-title">掲載無料！</div>
