@@ -178,8 +178,8 @@ const footerLinks = [
     fetch('/api/recent-shops.php?mode=este').then(function(r){return r.json();}).then(function(shops){
         if(!shops||!shops.length)return;
         var lines=shops.map(function(s){
-            var d=s.approved_at?new Date(s.approved_at):null;
-            var ds=d?(String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')):'';
+            var _dm=s.approved_at?String(s.approved_at).replace('T',' ').match(/(\d{4})-(\d{2})-(\d{2})/):null;
+            var ds=_dm?(_dm[2]+'/'+_dm[3]):'';
             var icon=iconMap[s.gender_mode]||'\uD83D\uDC86\u200D\u2642\uFE0F';
             var name=s.shop_name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             var link=s.shop_url||(s.slug?(modePathMap[s.gender_mode]||'/este/')+'shop/'+s.slug+'/':'');
