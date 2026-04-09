@@ -195,8 +195,8 @@ async function appendRecentShops() {
         const iconMap = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀', este: '💆‍♂️' };
         const _ext = typeof _extTarget !== 'undefined' ? _extTarget : '_blank';
         const lines = shops.map(s => {
-            const d = s.approved_at ? new Date(s.approved_at) : null;
-            const dateStr = d ? `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}` : '';
+            const _dm = s.approved_at ? String(s.approved_at).replace('T',' ').match(/(\d{4})-(\d{2})-(\d{2})/) : null;
+            const dateStr = _dm ? `${_dm[2]}/${_dm[3]}` : '';
             const icon = iconMap[s.gender_mode] || '♂';
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
             const shopLink = s.shop_url || (s.slug ? `${modePath}shop/${s.slug}/` : '');
