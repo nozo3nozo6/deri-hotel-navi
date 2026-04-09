@@ -968,11 +968,10 @@ async function loadStatusCard(){
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
         const normalC=paidContracts.filter(c=>!c.is_campaign);
-        const campC=paidContracts.filter(c=>c.is_campaign);
         let listHtml='';
         normalC.forEach(c=>{const p=c.contract_plans;listHtml+=`<div style="font-size:11px;padding:4px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:4px;">✅ 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}/月）</div>`;});
-        campC.forEach(c=>{const p=c.contract_plans;listHtml+=`<div style="font-size:11px;padding:4px 8px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:4px;">🎁 【${esc(p.name)}】（¥${Number(p.price).toLocaleString()}）1ヶ月無料</div>`;});
-        planListEl.innerHTML=listHtml||'<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
+        if(!listHtml&&!paidContracts.some(c=>c.is_campaign))listHtml='<div style="font-size:11px;color:var(--text-3);">無料掲載</div>';
+        planListEl.innerHTML=listHtml;
     }
     // 掲載期間表示
     const expiryEl=document.getElementById("plan-expiry");
