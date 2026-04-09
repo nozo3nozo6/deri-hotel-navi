@@ -713,7 +713,7 @@ async function submitFlag() {
 
     const flag_comment = document.getElementById('flag-comment-input').value.trim() || null;
     const flagPayload = {
-        flagged_at: new Date().toISOString(),
+        flagged_at: (function(){const d=new Date();const j=new Date(d.getTime()+((d.getTimezoneOffset()+540)*60000));return j.getFullYear()+'-'+String(j.getMonth()+1).padStart(2,'0')+'-'+String(j.getDate()).padStart(2,'0')+' '+String(j.getHours()).padStart(2,'0')+':'+String(j.getMinutes()).padStart(2,'0')+':'+String(j.getSeconds()).padStart(2,'0');})(),
         flag_reason: selectedReason,
         flag_comment,
     };

@@ -4548,7 +4548,7 @@ async function createAdContract(){
     if(!shopId||!plan){toast('店舗とプランを選択してください');return;}
     const target=getAdTarget();
     if(!target){toast('掲載先を選択してください');return;}
-    const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
+    const startDate=document.getElementById('ad-start-date').value||jstNow().split(' ')[0];
     const endDate=document.getElementById('ad-end-date').value||null;
     const adMode=document.getElementById('ad-mode').value||'men';
 
@@ -4617,7 +4617,7 @@ async function addBonusPlacement(){
     if((_sc.count||0)>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
 
     const shopId=document.getElementById('ad-shop-select').value;
-    const startDate=document.getElementById('ad-start-date').value||new Date().toISOString().split('T')[0];
+    const startDate=document.getElementById('ad-start-date').value||jstNow().split(' ')[0];
     const endDate=document.getElementById('ad-end-date').value||null;
 
     const adMode=document.getElementById('ad-mode').value||'men';
