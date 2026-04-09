@@ -1355,7 +1355,10 @@ function renderCheckGroup(containerId,items,selectedVals=[]){
         return`<label class="check-item${checked?" checked":""}" onclick="toggleCheckItem(this)"><input type="checkbox" value="${esc(v)}"${checked?" checked":""}><span class="ci-dot"></span>${esc(v)}</label>`;
     }).join("");
 }
-function toggleCheckItem(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);}
+function toggleCheckItem(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);
+// ALL TIME排他制御（時間帯グループのみ）
+const wrap=el.parentElement;if(wrap&&wrap.id==='time-slot-checks'){if(cb.value==='ALL TIME'&&cb.checked){wrap.querySelectorAll('input').forEach(c=>{if(c!==cb){c.checked=false;c.parentElement.classList.remove('checked');c.parentElement.style.opacity='0.4';c.parentElement.style.pointerEvents='none';}});}else if(cb.value==='ALL TIME'&&!cb.checked){wrap.querySelectorAll('label').forEach(l=>{l.style.opacity='';l.style.pointerEvents='';});}else{const allCb=wrap.querySelector('input[value="ALL TIME"]');if(allCb&&allCb.checked){cb.checked=false;el.classList.remove('checked');}}}
+}
 function getCheckedValues(containerId){return Array.from(document.querySelectorAll("#"+containerId+" input:checked")).map(cb=>cb.value);}
 function clearCheckGroup(containerId){document.querySelectorAll("#"+containerId+" .check-item").forEach(el=>{el.classList.remove("checked");el.querySelector("input").checked=false;});}
 
