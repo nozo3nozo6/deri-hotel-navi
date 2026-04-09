@@ -2248,7 +2248,26 @@ async function loadPlanTab(){
             const p=await res.json();
             const contracts=(p.shop_contracts||[]).filter(c=>c.contract_plans?.price>0);
             if(contracts.length){
-                statusEl.innerHTML=contracts.map(c=>`<span style="display:inline-block;padding:4px 12px;background:rgba(181,98,122,0.1);color:var(--rose);border-radius:6px;font-weight:600;margin-right:6px;">${esc(c.contract_plans.name||'')} ¥${Number(c.contract_plans.price).toLocaleString()}/月</span>`).join('');
+                const normalC=contracts.filter(c=>!c.is_campaign);
+                const campC=contracts.filter(c=>c.is_campaign);
+                let html='';
+                // 通常プラン
+                normalC.forEach(c=>{
+                    const exp=c.expires_at?new Date(c.expires_at):null;
+                    const expStr=exp?exp.toLocaleDateString('ja-JP')+'まで':'';
+                    const diff=exp?Math.ceil((exp-new Date().setHours(0,0,0,0))/(1000*60*60*24)):0;
+                    const diffStr=diff>0?`（残り${diff}日）`:'<span style="color:var(--red);">（期限切れ）</span>';
+                    html+=`<div style="padding:8px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px;">✅ <strong>${esc(c.contract_plans.name)}</strong>（¥${Number(c.contract_plans.price).toLocaleString()}/月）${expStr?`<br><span style="font-size:11px;color:var(--text-3);">📅 ${expStr} ${diffStr}</span>`:''}</div>`;
+                });
+                // キャンペーンプラン
+                campC.forEach(c=>{
+                    const exp=c.expires_at?new Date(c.expires_at):null;
+                    const expStr=exp?exp.toLocaleDateString('ja-JP')+'まで':'';
+                    const diff=exp?Math.ceil((exp-new Date().setHours(0,0,0,0))/(1000*60*60*24)):0;
+                    const diffStr=diff>0?`（残り${diff}日）`:'<span style="color:var(--red);">（期限切れ）</span>';
+                    html+=`<div style="padding:8px 12px;background:linear-gradient(135deg,#fff8e1,#fff3cd);border:1px solid #f0d060;border-radius:8px;margin-bottom:6px;font-size:13px;">🎁 <strong>${esc(c.contract_plans.name)}</strong>（¥${Number(c.contract_plans.price).toLocaleString()}）<strong>1ヶ月無料</strong>${expStr?`<br><span style="font-size:11px;color:#5a4a2a;">📅 ${expStr} ${diffStr}</span>`:''}</div>`;
+                });
+                statusEl.innerHTML=html;
             }else{
                 statusEl.textContent='無料プラン（有料プランへのアップグレードで広告掲載が可能です）';
             }
