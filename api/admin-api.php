@@ -573,7 +573,7 @@ function handleShopContracts() {
     global $pdo;
     $shopId = $_GET['shop_id'] ?? '';
     if (!$shopId) { echo json_encode([]); return; }
-    $stmt = $pdo->prepare('SELECT sc.id, sc.plan_id, sc.expires_at, sc.created_at FROM shop_contracts sc WHERE sc.shop_id = ?');
+    $stmt = $pdo->prepare('SELECT sc.id, sc.plan_id, sc.expires_at, sc.created_at, sc.is_campaign FROM shop_contracts sc WHERE sc.shop_id = ?');
     $stmt->execute([$shopId]);
     $rows = $stmt->fetchAll();
     echo json_encode(array_map(fn($r) => [
@@ -581,6 +581,7 @@ function handleShopContracts() {
         'plan_id' => (int)$r['plan_id'],
         'expires_at' => $r['expires_at'],
         'created_at' => $r['created_at'],
+        'is_campaign' => (bool)($r['is_campaign'] ?? false),
     ], $rows));
 }
 

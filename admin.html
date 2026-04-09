@@ -1636,7 +1636,7 @@ async function loadShopContracts(shopId,plans){
   });
   planHtml+='</div>';
   // キャンペーン投稿リンクプラン（通常の投稿リンクプランとは独立）
-  const campaignActive=rows.some(c=>c.plan_id===9&&c._campaign);
+  const campaignActive=rows.some(c=>c.plan_id===9&&c.is_campaign);
   const campaignStyle=campaignActive
     ?'background:#e65100;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
     :'background:#fff;color:#e65100;border:1px solid #e65100;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
@@ -1651,7 +1651,8 @@ async function loadShopContracts(shopId,plans){
     planHtml+='<div style="padding:8px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0;font-size:12px;font-weight:700;">📅 契約期限</div>';
     paidRows.forEach(c=>{
       const p=plans.find(x=>x.id===c.plan_id);
-      const pName=p?p.name:'プラン'+c.plan_id;
+      const typeLabel=c.is_campaign?'<span style="background:#fff3cd;color:#b8860b;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px;">🎁 キャンペーン</span>':'<span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px;">通常</span>';
+      const pName=(p?p.name:'プラン'+c.plan_id);
       const exp=new Date(c.expires_at+'T00:00:00');
       const diff=Math.ceil((exp-today)/(1000*60*60*24));
       let statusHtml='';
@@ -1659,7 +1660,7 @@ async function loadShopContracts(shopId,plans){
       else if(diff<=5)statusHtml=`<span style="color:#e65100;font-weight:700;">⚠ 残り${diff}日</span>`;
       else statusHtml=`<span style="color:#2e7d32;">残り${diff}日</span>`;
       planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;gap:8px;">`;
-      planHtml+=`<div style="flex:1;">${esc(pName)} — <input type="date" value="${c.expires_at}" onchange="setContractExpiry(${c.id},'${shopId}',this.value)" style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;cursor:pointer;"> ${statusHtml}</div>`;
+      planHtml+=`<div style="flex:1;">${esc(pName)}${typeLabel} — <input type="date" value="${c.expires_at}" onchange="setContractExpiry(${c.id},'${shopId}',this.value)" style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;cursor:pointer;"> ${statusHtml}</div>`;
       planHtml+=`<button onclick="renewContract(${c.id},'${shopId}')" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+1ヶ月</button>`;
       planHtml+=`</div>`;
     });
