@@ -2285,12 +2285,21 @@ function renderPlanGrid(){
     const grid=document.getElementById('plan-grid');
     const paid=planData.filter(p=>p.price>0);
     if(!paid.length){grid.innerHTML='<div style="color:var(--text-3);font-size:12px;">プランが見つかりません</div>';return;}
-    grid.innerHTML=paid.map(p=>`<div class="plan-card">
+    // 無料プランカード
+    let cardsHtml=`<div class="plan-card" style="border:1px solid var(--border);background:var(--bg-3);">
+        <div class="plan-card-name">無料プラン</div>
+        <div class="plan-card-price" style="color:var(--green);">&yen;0<small>/月</small></div>
+        <div class="plan-card-desc">店名テキスト掲載・認証バッジ・専用URL発行</div>
+        <div style="font-size:11px;color:var(--text-3);padding:6px 0;text-align:center;">現在ご利用中</div>
+    </div>`;
+    // 有料プランカード
+    cardsHtml+=paid.map(p=>`<div class="plan-card">
         <div class="plan-card-name">${esc(p.name)}</div>
         <div class="plan-card-price">&yen;${Number(p.price).toLocaleString()}<small>/月(税込)</small></div>
         <div class="plan-card-desc">${esc(p.description||'')}</div>
         <button class="btn-apply" onclick="openPlanForm(${p.id},'${esc(p.name)}',${p.price})">このプランに申し込む</button>
     </div>`).join('');
+    grid.innerHTML=cardsHtml;
 }
 
 function openPlanForm(planId,name,price){
