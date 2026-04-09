@@ -57,6 +57,8 @@ const footerLinks = [
         <a href="https://yobuho.com/deli/" class="cta-button hero-cta">🔍 ホテルを検索する（入場）</a>
     </section>
 
+    <div id="recent-shops-gate"></div>
+
     <section class="trust-section">
         <h2>なぜYobuHoの情報は信頼できるのか</h2>
         <div class="trust-cards">
@@ -164,3 +166,24 @@ const footerLinks = [
         .cta-button { padding: 14px 32px; font-size: 15px; }
     }
 </style>
+
+<script is:inline>
+(function(){
+    var iconMap={men:'\u2642',women:'\u2640',men_same:'\u2642\u2642',women_same:'\u2640\u2640',este:'\uD83D\uDC86\u200D\u2642\uFE0F'};
+    var modePathMap={men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
+    fetch('/api/recent-shops.php?mode=men').then(function(r){return r.json();}).then(function(shops){
+        if(!shops||!shops.length)return;
+        var lines=shops.map(function(s){
+            var d=s.approved_at?new Date(s.approved_at):null;
+            var ds=d?(String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')):'';
+            var icon=iconMap[s.gender_mode]||'\u2642';
+            var name=s.shop_name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            var link=s.shop_url||(s.slug?(modePathMap[s.gender_mode]||'/deli/')+'shop/'+s.slug+'/':'');
+            var nameHTML=link?'<a href="'+link+'" target="_blank" rel="noopener" style="color:#9b2d35;font-weight:600;text-decoration:none;">'+icon+' '+name+'</a>':'<span style="color:#9b2d35;font-weight:600;">'+icon+' '+name+'</span>';
+            return '<div style="font-size:13px;color:#6a5a4a;padding:3px 0;"><span style="color:#a09080;margin-right:6px;">'+ds+'</span>'+nameHTML+' <span style="color:#a09080;">様 ご登録いただきました</span></div>';
+        }).join('');
+        var el=document.getElementById('recent-shops-gate');
+        if(el)el.innerHTML='<div style="padding:12px 16px;margin:0 20px;background:linear-gradient(135deg,#fffbf0 0%,#fff8e8 100%);border:1px solid #e8d9a8;border-left:4px solid #c9a96e;border-radius:8px;box-shadow:0 1px 4px rgba(201,169,110,0.1);">'+lines+'</div>';
+    }).catch(function(){});
+})();
+</script>
