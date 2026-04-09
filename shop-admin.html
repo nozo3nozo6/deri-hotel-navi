@@ -2306,6 +2306,7 @@ function renderPlanGrid(){
         <div class="plan-card-name">${esc(p.name)}</div>
         <div class="plan-card-price">&yen;${Number(p.price).toLocaleString()}<small>/月(税込)</small></div>
         <div class="plan-card-desc">${esc(planDescMap[p.id]||p.description||'')}</div>
+        <div style="margin-bottom:8px;"><a href="/plan/" target="_blank" style="font-size:11px;color:var(--rose);font-weight:600;">詳細はこちら →</a></div>
         <button class="btn-apply" onclick="openPlanForm(${p.id},'${esc(p.name)}',${p.price})">このプランに申し込む</button>
     </div>`).join('');
     grid.innerHTML=cardsHtml;
