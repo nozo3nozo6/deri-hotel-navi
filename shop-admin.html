@@ -1322,7 +1322,7 @@ function switchTab(name){
 
 // ===== マスターデータ読み込み =====
 let canReasons=[],cannotReasons=[],roomTypes=[],serviceOptions=[];
-const TIME_SLOTS=["早朝 (5:00~8:00)","朝 (8:00~11:00)","昼 (11:00~16:00)","夕方 (16:00~18:00)","夜 (18:00~23:00)","深夜 (23:00~5:00)"];
+const TIME_SLOTS=["ALL TIME","早朝 (5:00~8:00)","朝 (8:00~11:00)","昼 (11:00~16:00)","夕方 (16:00~18:00)","夜 (18:00~23:00)","深夜 (23:00~5:00)"];
 
 let _masterJson=null;
 async function getMasterJson(){
@@ -1659,7 +1659,7 @@ function openForm(hotel,existing){
         if(existing.can_call_reasons&&existing.can_call_reasons.length){renderCheckGroup("can-reason-checks",canReasons,existing.can_call_reasons);}
         if(existing.cannot_call_reasons&&existing.cannot_call_reasons.length){renderCheckGroup("cant-reason-checks",cannotReasons,existing.cannot_call_reasons);}
         if(existing.room_type){renderCheckGroup("room-type-checks",roomTypes,[existing.room_type]);}
-        if(existing.time_slot){renderCheckGroup("time-slot-checks",TIME_SLOTS,[existing.time_slot]);}
+        if(existing.time_slot){const _ts=existing.time_slot.split(/,\s*/).filter(Boolean);renderCheckGroup("time-slot-checks",TIME_SLOTS,_ts);}
         if(existing.multi_person){document.getElementById("sa-multi-person-check").checked=true;document.getElementById("sa-multi-person-detail").style.display="flex";if(existing.guest_male)document.getElementById("sa-guest-male").value=existing.guest_male;if(existing.guest_female)document.getElementById("sa-guest-female").value=existing.guest_female;if(existing.multi_fee)document.getElementById("sa-multi-fee").checked=true;}
     }else{
         renderServiceChecks([]);
@@ -1781,7 +1781,7 @@ async function doSubmit(){
             can_call:canCall,
             can_call_reasons:canCall?canReasonArr:[],
             cannot_call_reasons:!canCall?cantReasonArr:[],
-            time_slot:timeSlotArr[0]||null,
+            time_slot:timeSlotArr.length?timeSlotArr.join(', '):null,
             room_type:roomTypeArr[0]||null,
             comment:memo,
             multi_person:multiPerson,
