@@ -1593,9 +1593,9 @@ async function loadShopContracts(shopId,plans){
   const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
   const rows=Array.isArray(contracts)?contracts:[];
   const activeIds=rows.map(c=>c.plan_id);
-  // countMap: plan_id -> count, idMap: plan_id -> [row ids]
+  // countMap: plan_id -> count (通常契約のみ), idMap: plan_id -> [row ids]
   const countMap={};const idMap={};
-  rows.forEach(c=>{countMap[c.plan_id]=(countMap[c.plan_id]||0)+1;if(!idMap[c.plan_id])idMap[c.plan_id]=[];idMap[c.plan_id].push(c.id);});
+  rows.filter(c=>!c.is_campaign).forEach(c=>{countMap[c.plan_id]=(countMap[c.plan_id]||0)+1;if(!idMap[c.plan_id])idMap[c.plan_id]=[];idMap[c.plan_id].push(c.id);});
   window._contractIdMap=idMap;
   // 現在のプラン表示
   const badgeEl=document.getElementById('shop-plan-badge');
