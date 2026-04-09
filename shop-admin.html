@@ -963,7 +963,7 @@ async function loadStatusCard(){
     const normalPaid=paidContracts.filter(c=>!c.is_campaign);
     const total=normalPaid.reduce((s,c)=>s+(Number(c.contract_plans.price)||0),0);
     const hasCampaignOnly=paidContracts.length>0&&normalPaid.length===0;
-    document.getElementById("status-plan").textContent=normalPaid.length?`¥${total.toLocaleString()}/月`:hasCampaignOnly?"キャンペーン適用中":"無料プラン";
+    document.getElementById("status-plan").innerHTML=normalPaid.length?`¥${total.toLocaleString()}/月`:hasCampaignOnly?'キャンペーン適用中<span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:4px;">（終了後は無料プランに移行します）</span>':"無料プラン";
     // 有料プラン一覧表示（無料プランは非表示）
     const planListEl=document.getElementById("plan-list");
     if(planListEl){
