@@ -11,7 +11,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/db.php';
 
 $mode = $_GET['mode'] ?? '';
-$allowedModes = ['men', 'women', 'men_same', 'women_same', 'este'];
+$allowedModes = ['men', 'women', 'men_same', 'women_same', 'este', 'all'];
 if (!in_array($mode, $allowedModes, true)) {
     echo json_encode([]);
     exit;
@@ -19,16 +19,28 @@ if (!in_array($mode, $allowedModes, true)) {
 
 try {
     $pdo = DB::conn();
-    $stmt = $pdo->prepare("
-        SELECT shop_name, gender_mode, approved_at, slug, shop_url
-        FROM shops
-        WHERE show_announcement = 1
-          AND status = 'active'
-          AND gender_mode = ?
-        ORDER BY approved_at DESC
-        LIMIT 10
-    ");
-    $stmt->execute([$mode]);
+    if ($mode === 'all') {
+        $stmt = $pdo->prepare("
+            SELECT shop_name, gender_mode, approved_at, slug, shop_url
+            FROM shops
+            WHERE show_announcement = 1
+              AND status = 'active'
+            ORDER BY approved_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute();
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT shop_name, gender_mode, approved_at, slug, shop_url
+            FROM shops
+            WHERE show_announcement = 1
+              AND status = 'active'
+              AND gender_mode = ?
+            ORDER BY approved_at DESC
+            LIMIT 10
+        ");
+        $stmt->execute([$mode]);
+    }
     $shops = $stmt->fetchAll();
 
     echo json_encode($shops);
