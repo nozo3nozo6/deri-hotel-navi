@@ -853,12 +853,12 @@ async function sendPasswordReset(){
     if(!email){errEl.textContent="メールアドレスを入力してください";errEl.style.display="block";return;}
     const btn=document.getElementById("reset-send-btn");btn.disabled=true;btn.textContent="送信中...";
     // メールアドレスの存在確認
-    try{const lRes=await fetch("https://yobuho.com/api/shop-auth.php?action=lookup-email&email="+encodeURIComponent(email));const lData=await lRes.json();if(!lData.exists){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="このメールアドレスは登録されていません";errEl.style.display="block";return;}}catch(e){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="通信エラー";errEl.style.display="block";return;}
+    try{const lRes=await fetch("/api/shop-auth.php?action=lookup-email&email="+encodeURIComponent(email));const lData=await lRes.json();if(!lData.exists){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="このメールアドレスは登録されていません";errEl.style.display="block";return;}}catch(e){btn.disabled=false;btn.textContent="リセットメールを送信";errEl.textContent="通信エラー";errEl.style.display="block";return;}
     _resetEmail=email;
     const code=String(Math.floor(100000+Math.random()*900000));
     localStorage.setItem("pw_reset_code",JSON.stringify({code:code,email:email,expires:Date.now()+10*60*1000}));
     const emailBody='<div style="font-family:sans-serif;max-width:520px;margin:0 auto;"><div style="background:#b5627a;padding:24px;text-align:center;border-radius:8px 8px 0 0;"><h1 style="color:#fff;margin:0;font-size:22px;">YobuHo</h1><p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:13px;">パスワードリセット</p></div><div style="border:1px solid #e0e0e0;border-top:none;padding:32px 28px;border-radius:0 0 8px 8px;"><p style="font-size:14px;line-height:1.8;">パスワードリセットの認証コードをお知らせします。</p><div style="background:#f8f0f2;padding:20px;border-radius:8px;margin:20px 0;text-align:center;"><p style="margin:0;font-size:36px;font-weight:bold;letter-spacing:8px;color:#b5627a;">'+code+'</p></div><p style="font-size:13px;color:#666;">※ このコードは10分間有効です。<br>※ 心当たりがない場合は無視してください。</p><hr style="border:none;border-top:1px solid #eee;margin:24px 0;"><p style="font-size:12px;color:#999;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div></div>';
-    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:email,subject:"【YobuHo】パスワードリセットの認証コード",body:emailBody})});}catch(e){}
+    try{await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:email,subject:"【YobuHo】パスワードリセットの認証コード",body:emailBody})});}catch(e){}
     btn.disabled=false;btn.textContent="リセットメールを送信";
     document.getElementById("pw-reset-step1").style.display="none";
     document.getElementById("pw-reset-step2").style.display="block";
@@ -879,7 +879,7 @@ async function executePasswordReset(){
     if(inputCode!==String(stored.code)){errEl.textContent="認証コードが正しくありません";errEl.style.display="block";return;}
     // パスワード更新（PHP経由）
     try{
-        const res=await fetch("https://yobuho.com/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:stored.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});
+        const res=await fetch("/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:stored.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});
         const result=await res.json();
         if(!result.success){errEl.textContent="更新エラー: "+(result.error||"不明");errEl.style.display="block";return;}
     }catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
@@ -926,7 +926,7 @@ async function doLogin(){
     errEl.style.display="none";
     if(!email||!pw){errEl.textContent="メールとパスワードを入力してください";errEl.style.display="block";return;}
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=login",{method:"POST",headers:{"Content-Type":"application/json"},credentials:'include',body:JSON.stringify({email:email,password:pw})});
+        const res=await fetch("/api/shop-auth.php?action=login",{method:"POST",headers:{"Content-Type":"application/json"},credentials:'include',body:JSON.stringify({email:email,password:pw})});
         const result=await res.json();
         if(!result.success){errEl.textContent=result.error||"認証エラー";errEl.style.display="block";return;}
         const data=result.shop;
@@ -936,7 +936,7 @@ async function doLogin(){
         onLoggedIn();
     }catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
 }
-async function doLogout(){try{await fetch("https://yobuho.com/api/shop-auth.php?action=logout",{method:'POST',credentials:'include'});}catch(e){}currentShop=null;localStorage.removeItem(SESSION_KEY);location.reload();}
+async function doLogout(){try{await fetch("/api/shop-auth.php?action=logout",{method:'POST',credentials:'include'});}catch(e){}currentShop=null;localStorage.removeItem(SESSION_KEY);location.reload();}
 
 function onLoggedIn(){
     document.getElementById("login-wrap").style.display="none";
@@ -953,7 +953,7 @@ function onLoggedIn(){
 
 async function loadStatusCard(){
     let data;
-    try{const pRes=await fetch("https://yobuho.com/api/shop-auth.php?action=profile",{credentials:'include'});data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
+    try{const pRes=await fetch("/api/shop-auth.php?action=profile",{credentials:'include'});data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
     const st=data.status||"pending";
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
@@ -1048,7 +1048,7 @@ let _bannerMode='photos'; // 'photos' or 'banner'
 let _photoUploadSlot=0;
 
 async function loadShopImages(){
-    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images&usage=rich',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
+    try{const res=await fetch('/api/shop-auth.php?action=get-images&usage=rich',{credentials:'include'});_shopImages=await res.json();}catch(e){_shopImages=[];}
     renderShopImages();
     renderPhotoSlots();
     updateBannerPreview();
@@ -1063,7 +1063,7 @@ async function switchBannerMode(mode){
         }
         // API: 旧画像全削除 + banner_type更新（トランザクション）
         try{
-            const res=await fetch('https://yobuho.com/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
+            const res=await fetch('/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
             const r=await res.json();
             if(!r.success){toast('エラー: '+(r.error||'不明'));document.querySelectorAll('input[name="banner-mode"]').forEach(r=>{r.checked=r.value===_savedBannerMode;});return;}
         }catch(e){toast('通信エラー');document.querySelectorAll('input[name="banner-mode"]').forEach(r=>{r.checked=r.value===_savedBannerMode;});return;}
@@ -1074,7 +1074,7 @@ async function switchBannerMode(mode){
     } else if(_savedBannerMode && mode !== _savedBannerMode){
         // 画像がない場合は確認なしで切替
         try{
-            await fetch('https://yobuho.com/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
+            await fetch('/api/shop-auth.php?action=switch-banner-mode',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({mode})});
         }catch(e){}
         _savedBannerMode=mode;
         if(currentShop)currentShop.banner_type=mode;
@@ -1175,13 +1175,13 @@ async function onPhotoSlotSelect(input,slotIndex){
     // 既存画像があれば差し替え（削除→追加）
     const existing=_shopImages[slotIndex];
     if(existing){
-        try{await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:existing.id})});}catch(e){}
+        try{await fetch('/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:existing.id})});}catch(e){}
     }
     try{
         const maxW=slotIndex===3?1309:435;
         const maxH=500;
         const base64=await resizeImage(file,maxW,maxH,0.85);
-        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
+        const res=await fetch('/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         await loadShopImages();
@@ -1196,7 +1196,7 @@ async function onShopImageSelect(input){
     if(!confirm('この画像をアップロードしますか？'))return;
     try{
         const base64=await resizeImage(file,1309,500,0.85);
-        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
+        const res=await fetch('/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'rich'})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));input.value='';return;}
         await loadShopImages();
@@ -1206,7 +1206,7 @@ async function onShopImageSelect(input){
 }
 async function deleteShopImage(imageId){
     if(!confirm('この画像を削除しますか？'))return;
-    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
+    try{const res=await fetch('/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー: '+(r.error||'不明'));return;}}catch(e){toast('通信エラー');return;}
     await loadShopImages();
     toast('画像を削除しました');
 }
@@ -1214,7 +1214,7 @@ async function deleteShopImage(imageId){
 // === スタンダード広告画像 ===
 let _stdImage=null;
 async function loadStdImage(){
-    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=get-images&usage=standard',{credentials:'include'});const data=await res.json();_stdImage=data&&data.length?data[0]:null;}catch(e){_stdImage=null;}
+    try{const res=await fetch('/api/shop-auth.php?action=get-images&usage=standard',{credentials:'include'});const data=await res.json();_stdImage=data&&data.length?data[0]:null;}catch(e){_stdImage=null;}
     renderStdSlot();
 }
 function renderStdSlot(){
@@ -1238,11 +1238,11 @@ async function onStdImageSelect(input){
     if(!['image/jpeg','image/png'].includes(file.type)){showSuccessModal('形式エラー','JPG/PNGのみ対応です');return;}
     if(file.size>5*1024*1024){showSuccessModal('容量エラー','5MB以下の画像を選択してください');return;}
     if(_stdImage){
-        try{await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:_stdImage.id})});}catch(e){}
+        try{await fetch('/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:_stdImage.id})});}catch(e){}
     }
     try{
         const base64=await resizeImage(file,435,500,0.85);
-        const res=await fetch('https://yobuho.com/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'standard'})});
+        const res=await fetch('/api/shop-auth.php?action=add-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_url:base64,usage:'standard'})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         await loadStdImage();
@@ -1251,7 +1251,7 @@ async function onStdImageSelect(input){
 }
 async function deleteStdImage(imageId){
     if(!confirm('この画像を削除しますか？'))return;
-    try{const res=await fetch('https://yobuho.com/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー');return;}}catch(e){toast('通信エラー');return;}
+    try{const res=await fetch('/api/shop-auth.php?action=delete-image',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({image_id:imageId})});const r=await res.json();if(!r.success){toast('削除エラー');return;}}catch(e){toast('通信エラー');return;}
     await loadStdImage();
     toast('画像を削除しました');
 }
@@ -1279,7 +1279,7 @@ async function saveAdInfo(){
     const minPrice=(minMin&&minYen)?minMin+','+minYen:'';
     if(!confirm('広告情報を保存しますか？'))return;
     try{
-        const res=await fetch("https://yobuho.com/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null})});
+        const res=await fetch("/api/shop-auth.php?action=update-ad-info",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({catchphrase:catchphrase||null,business_hours:businessHours||null,min_price:minPrice||null,display_tel:null})});
         const r=await res.json();
         if(!r.success){toast('保存エラー: '+(r.error||'不明'));return;}
         if(currentShop){currentShop.catchphrase=catchphrase||null;currentShop.business_hours=businessHours||null;currentShop.min_price=minPrice||null;}
@@ -1296,7 +1296,7 @@ function copyShopUrl(){
 (async function(){
     // PHPセッション復元を優先、フォールバックとしてlocalStorage
     try{
-        const cRes=await fetch("https://yobuho.com/api/shop-auth.php?action=check",{credentials:'include'});
+        const cRes=await fetch("/api/shop-auth.php?action=check",{credentials:'include'});
         const cData=await cRes.json();
         if(cData.authenticated&&cData.shop){
             currentShop=cData.shop;
@@ -1374,7 +1374,7 @@ function getSelectedServices(){return Array.from(document.querySelectorAll("#ser
 let registeredHotelIds=new Set();
 async function loadRegisteredHotelIds(){
     if(!currentShop)return;
-    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=registered-ids',{credentials:'include'});const ids=await res.json();registeredHotelIds=new Set((ids||[]).map(d=>String(d)));}catch(e){registeredHotelIds=new Set();}
+    try{const res=await fetch('/api/shop-hotel-api.php?action=registered-ids',{credentials:'include'});const ids=await res.json();registeredHotelIds=new Set((ids||[]).map(d=>String(d)));}catch(e){registeredHotelIds=new Set();}
 }
 
 // ===== パンくず =====
@@ -1541,7 +1541,7 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     else if(detailArea)hp.set('detail_area',detailArea);
     else if(majorArea)hp.set('major_area',majorArea);
     let hotels=[];
-    try{const hRes=await fetch('https://yobuho.com/api/hotels.php?'+hp);hotels=await hRes.json();if(hotels.error){nav.innerHTML=`<div class="loading">エラー: ${esc(hotels.error)}</div>`;return;}}catch(e){nav.innerHTML='<div class="loading">通信エラー</div>';return;}
+    try{const hRes=await fetch('/api/hotels.php?'+hp);hotels=await hRes.json();if(hotels.error){nav.innerHTML=`<div class="loading">エラー: ${esc(hotels.error)}</div>`;return;}}catch(e){nav.innerHTML='<div class="loading">通信エラー</div>';return;}
     // ポータルと同じソート: 口コミ件数→ホテルタイプ→名前
     const typeOrder={business:0,city:1,resort:2,ryokan:3,pension:4,minshuku:5,love_hotel:0,rental_room:1,other:6};
     hotels.sort((a,b)=>{
@@ -1557,7 +1557,7 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
     // ラブホはmajor_area/detail_areaがnullのため別途取得
     let loveHotels=[];
     if(pref&&city){
-        try{const lhRes=await fetch('https://yobuho.com/api/hotels.php?type=loveho&include_summary=1&limit=1000&pref='+encodeURIComponent(pref)+'&city='+encodeURIComponent(city));loveHotels=await lhRes.json();if(Array.isArray(loveHotels)){loveHotels.sort((a,b)=>{const ca=a.total_reports||0;const cb=b.total_reports||0;if(ca!==cb)return cb-ca;return(a.name||'').localeCompare(b.name||'','ja');});}else{loveHotels=[];}}catch(e){loveHotels=[];}
+        try{const lhRes=await fetch('/api/hotels.php?type=loveho&include_summary=1&limit=1000&pref='+encodeURIComponent(pref)+'&city='+encodeURIComponent(city));loveHotels=await lhRes.json();if(Array.isArray(loveHotels)){loveHotels.sort((a,b)=>{const ca=a.total_reports||0;const cb=b.total_reports||0;if(ca!==cb)return cb-ca;return(a.name||'').localeCompare(b.name||'','ja');});}else{loveHotels=[];}}catch(e){loveHotels=[];}
     }
     const favLabel=city||detailArea||majorArea||pref;
     let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
@@ -1598,7 +1598,7 @@ async function textSearch(){
     const wrap=document.getElementById("text-search-results");
     wrap.innerHTML='<div class="loading">検索中...</div>';
     let hotels=[];
-    try{const sRes=await fetch('https://yobuho.com/api/hotels.php?type=all&keyword='+encodeURIComponent(kw)+'&include_summary=1&limit=50');hotels=await sRes.json();if(!Array.isArray(hotels))hotels=[];}catch(e){hotels=[];}
+    try{const sRes=await fetch('/api/hotels.php?type=all&keyword='+encodeURIComponent(kw)+'&include_summary=1&limit=50');hotels=await sRes.json();if(!Array.isArray(hotels))hotels=[];}catch(e){hotels=[];}
     if(!hotels.length){wrap.innerHTML='<div style="font-size:12px;color:var(--text-3);padding:10px 0;">該当するホテルがありません</div>';return;}
     wrap.innerHTML=`<div style="font-size:12px;color:var(--text-3);margin-bottom:8px;">${hotels.length}件見つかりました</div><div style="max-height:60vh;overflow-y:auto;">`+renderHotelCards(hotels)+'</div>';
 }
@@ -1619,7 +1619,7 @@ function setCanCall(val){
 // ===== ホテル選択 → フォーム =====
 async function selectHotelById(hotelId){
     let hotel=null;
-    try{const hRes=await fetch('https://yobuho.com/api/hotels.php?hotel_id='+hotelId+'&type=all');const arr=await hRes.json();hotel=Array.isArray(arr)?arr[0]:null;}catch(e){}
+    try{const hRes=await fetch('/api/hotels.php?hotel_id='+hotelId+'&type=all');const arr=await hRes.json();hotel=Array.isArray(arr)?arr[0]:null;}catch(e){}
     if(!hotel){toast("ホテルが見つかりません");return;}
     // ラブホ/レンタルルームの場合はラブホ用フォームを開く
     if(hotel.hotel_type==='love_hotel'||hotel.hotel_type==='rental_room'){
@@ -1627,7 +1627,7 @@ async function selectHotelById(hotelId){
         return;
     }
     let existing=null;
-    try{const eRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-info&hotel_id='+hotelId,{credentials:'include'});existing=await eRes.json();}catch(e){}
+    try{const eRes=await fetch('/api/shop-hotel-api.php?action=get-info&hotel_id='+hotelId,{credentials:'include'});if(!eRes.ok){console.warn('[get-info] HTTP',eRes.status);} existing=await eRes.json();console.log('[get-info] hotel_id='+hotelId, existing);}catch(e){console.error('[get-info] error',e);}
     openForm(hotel,existing);
 }
 
@@ -1793,7 +1793,7 @@ async function doSubmit(){
         service_ids:svcs
     };
     try{
-        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-hotel-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
+        const res=await fetch('/api/shop-hotel-api.php?action=save-hotel-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(payload)});
         const result=await res.json();
         if(!result.success){submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();toast("保存エラー: "+(result.error||"不明"));return;}
     }catch(e){submitBtn.disabled=false;submitBtn.textContent="この内容で保存する";closeConfirm();toast("通信エラー");return;}
@@ -1825,7 +1825,7 @@ function toggleRegSort(){
 
 async function loadRegisteredHotels(){
     if(!currentShop)return;
-    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=registered-list',{credentials:'include'});regData=await res.json();if(!Array.isArray(regData))regData=[];}catch(e){regData=[];}
+    try{const res=await fetch('/api/shop-hotel-api.php?action=registered-list',{credentials:'include'});regData=await res.json();if(!Array.isArray(regData))regData=[];}catch(e){regData=[];}
     regPage=1;renderRegistered();
 }
 
@@ -1889,7 +1889,7 @@ function goPage(p){const tp=Math.ceil(regData.length/PER_PAGE)||1;if(p<1||p>tp)r
 async function refreshDate(hotelId){
     if(!confirm('表示日を更新しますか？（月1回まで）'))return;
     try{
-        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=refresh-date',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({hotel_id:hotelId})});
+        const res=await fetch('/api/shop-hotel-api.php?action=refresh-date',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({hotel_id:hotelId})});
         const r=await res.json();
         if(r.error){toast('⚠️ '+r.error+(r.next_refresh?' (次回: '+r.next_refresh+')':''));return;}
         toast('✅ 表示日を更新しました');
@@ -1944,7 +1944,7 @@ function closeEditModal(){
 async function deleteRegistered(infoId){
     if(!confirm("この投稿を削除しますか？（ホテル自体は削除されません）"))return;
     const info=regData.find(r=>String(r.id)===String(infoId));
-    try{const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=delete-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({info_id:infoId})});const r=await res.json();if(!r.success){toast("削除エラー: "+(r.error||"不明"));return;}}catch(e){toast("通信エラー");return;}
+    try{const res=await fetch('/api/shop-hotel-api.php?action=delete-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({info_id:infoId})});const r=await res.json();if(!r.success){toast("削除エラー: "+(r.error||"不明"));return;}}catch(e){toast("通信エラー");return;}
     regData=regData.filter(r=>String(r.id)!==String(infoId));
     if(info)registeredHotelIds.delete(String(info.hotel_id));
     renderRegistered();toast("🗑 削除しました");
@@ -1958,11 +1958,11 @@ async function sendEmailVerification(){
     const pw=document.getElementById("settings-email-pw").value;
     if(!newEmail||!pw){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){errEl.textContent="メールアドレスの形式が正しくありません";errEl.style.display="block";return;}
-    try{const vRes=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:pw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    try{const vRes=await fetch("/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:pw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"パスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
     const code=String(Math.floor(100000+Math.random()*900000));
     localStorage.setItem("email_change_code",JSON.stringify({code:code,newEmail:newEmail,expires:Date.now()+10*60*1000}));
     const emailBody='<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><h2 style="color: #b5627a;">YobuHo - メールアドレス変更</h2><p>メールアドレス変更の認証コードをお知らせします。</p><div style="background: #f8f0f2; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;"><p style="margin: 0; font-size: 32px; font-weight: bold; letter-spacing: 8px;">'+code+'</p></div><p style="color: #888; font-size: 12px;">このコードは10分間有効です。</p><p style="color: #888; font-size: 12px;">心当たりがない場合は無視してください。</p></div>';
-    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:newEmail,subject:"【YobuHo】メールアドレス変更の認証コード",body:emailBody})});}catch(e){}
+    try{await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:newEmail,subject:"【YobuHo】メールアドレス変更の認証コード",body:emailBody})});}catch(e){}
     document.getElementById("email-step1").style.display="none";
     document.getElementById("email-step2").style.display="block";
 }
@@ -1977,7 +1977,7 @@ async function verifyAndChangeEmail(){
     if(!result.valid){errEl.textContent=result.reason;errEl.style.display="block";return;}
     const newEmail=result.newEmail;
     const oldEmail=currentShop.email;
-    try{const uRes=await fetch("https://yobuho.com/api/shop-auth.php?action=update-email",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({new_email:newEmail})});const uData=await uRes.json();if(!uData.success){errEl.textContent="更新エラー: "+(uData.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラー";errEl.style.display="block";return;}
+    try{const uRes=await fetch("/api/shop-auth.php?action=update-email",{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({new_email:newEmail})});const uData=await uRes.json();if(!uData.success){errEl.textContent="更新エラー: "+(uData.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラー";errEl.style.display="block";return;}
     currentShop.email=newEmail;
     localStorage.setItem(SESSION_KEY,JSON.stringify({id:currentShop.id,email:newEmail}));
     localStorage.removeItem("email_change_code");
@@ -1988,7 +1988,7 @@ async function verifyAndChangeEmail(){
     document.getElementById("email-step1").style.display="block";
     document.getElementById("email-step2").style.display="none";
     // 旧アドレスに通知
-    try{await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:oldEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>ご登録のメールアドレスが変更されました。</p><p>心当たりがない場合は、hotel@yobuho.com までお問い合わせください。</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
+    try{await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:oldEmail,subject:"【YobuHo】メールアドレスが変更されました",body:'<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo - メールアドレス変更のお知らせ</h2><p>ご登録のメールアドレスが変更されました。</p><p>心当たりがない場合は、hotel@yobuho.com までお問い合わせください。</p><hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p></div>'})});}catch(e){}
     toast("メールアドレスを変更しました。次回から新しいアドレスでログインしてください。");
 }
 
@@ -2016,10 +2016,10 @@ async function changePassword(){
     const newPw=document.getElementById("settings-new-pw").value;
     const newPw2=document.getElementById("settings-new-pw2").value;
     if(!oldPw||!newPw||!newPw2){errEl.textContent="全ての項目を入力してください";errEl.style.display="block";return;}
-    try{const vRes=await fetch("https://yobuho.com/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:oldPw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"現在のパスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
+    try{const vRes=await fetch("/api/verify-password.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,password:oldPw})});const vResult=await vRes.json();if(!vResult.success){errEl.textContent=vResult.error||"現在のパスワードが正しくありません";errEl.style.display="block";return;}}catch(e){errEl.textContent="認証エラー";errEl.style.display="block";return;}
     if(newPw!==newPw2){errEl.textContent="新しいパスワードが一致しません";errEl.style.display="block";return;}
     if(newPw.length<6){errEl.textContent="パスワードは6文字以上にしてください";errEl.style.display="block";return;}
-    try{const res=await fetch("https://yobuho.com/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});const result=await res.json();if(!result.success){errEl.textContent="更新エラー: "+(result.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
+    try{const res=await fetch("/api/submit-shop.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:currentShop.email,shop_name:"_pw_reset_",password_hash:btoa(newPw)})});const result=await res.json();if(!result.success){errEl.textContent="更新エラー: "+(result.error||"不明");errEl.style.display="block";return;}}catch(e){errEl.textContent="通信エラーが発生しました";errEl.style.display="block";return;}
     document.getElementById("settings-old-pw").value="";
     document.getElementById("settings-new-pw").value="";
     document.getElementById("settings-new-pw2").value="";
@@ -2123,7 +2123,7 @@ async function lhSelectHotel(hotelId,hotelName){
     document.getElementById("lh-transport-fee-wrap").style.display="flex";
     document.getElementById("lh-form-transport").value="";
     // 既存の交通費データを読み込み
-    let shi=null;try{const tfRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-transport-fee&hotel_id='+hotelId,{credentials:'include'});shi=await tfRes.json();}catch(e){}
+    let shi=null;try{const tfRes=await fetch('/api/shop-hotel-api.php?action=get-transport-fee&hotel_id='+hotelId,{credentials:'include'});shi=await tfRes.json();}catch(e){}
     if(shi){
         if(String(shi.transport_fee)==='0'){document.getElementById("lh-transport-free").checked=true;document.getElementById("lh-transport-fee-wrap").style.display="none";}
         else if(shi.transport_fee!==null&&shi.transport_fee!==''){document.getElementById("lh-form-transport").value=shi.transport_fee;}
@@ -2131,7 +2131,7 @@ async function lhSelectHotel(hotelId,hotelName){
     await lhLoadMasters();
     // 既存のラブホ投稿データを読み込みフォームに反映
     const shopName=currentShop.shop_name||"店舗";
-    let existLh=null;try{const lhRes=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=get-existing-loveho&hotel_id='+hotelId,{credentials:'include'});existLh=await lhRes.json();}catch(e){}
+    let existLh=null;try{const lhRes=await fetch('/api/shop-hotel-api.php?action=get-existing-loveho&hotel_id='+hotelId,{credentials:'include'});existLh=await lhRes.json();}catch(e){}
     if(existLh){
         document.getElementById("lh-form-title").textContent='🏩 '+hotelName+' の情報を編集';
         if(existLh.solo_entry)document.getElementById("lh-f-solo").value=existLh.solo_entry;
@@ -2181,7 +2181,7 @@ async function doLhSubmitReport(){
     const btn=document.getElementById("lh-confirm-submit-btn");
     btn.disabled=true;btn.textContent="送信中...";
     try{
-        const res=await fetch('https://yobuho.com/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(_lhPendingPayload)});
+        const res=await fetch('/api/shop-hotel-api.php?action=save-loveho-info',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(_lhPendingPayload)});
         const result=await res.json();
         if(!result.success)throw new Error(result.error||'不明なエラー');
         if(!registeredHotelIds.has(String(_lhPendingPayload.hotel_id)))registeredHotelIds.add(String(_lhPendingPayload.hotel_id));
@@ -2233,7 +2233,7 @@ async function saHreqSubmit(){
   const btn=document.getElementById('sa-hreq-submit');
   btn.disabled=true;btn.textContent='送信中...';
   const payload={hotel_name:document.getElementById('sa-hreq-name').value.trim(),address:document.getElementById('sa-hreq-address').value.trim(),tel:document.getElementById('sa-hreq-tel').value.trim()||null,hotel_type:document.getElementById('sa-hreq-type').value};
-  try{const res=await fetch('https://yobuho.com/api/submit-hotel-request.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const r=await res.json();btn.disabled=false;btn.textContent='送信する';if(!r.success){toast('送信エラー: '+(r.error||'不明'));return;}}catch(e){btn.disabled=false;btn.textContent='送信する';toast('通信エラー');return;}
+  try{const res=await fetch('/api/submit-hotel-request.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const r=await res.json();btn.disabled=false;btn.textContent='送信する';if(!r.success){toast('送信エラー: '+(r.error||'不明'));return;}}catch(e){btn.disabled=false;btn.textContent='送信する';toast('通信エラー');return;}
   document.getElementById('sa-hreq-step2').style.display='none';
   document.getElementById('sa-hreq-done').style.display='';
   showSuccessModal('送信完了！', 'ホテル情報を送信しました。');
