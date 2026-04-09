@@ -1919,7 +1919,10 @@ async function editRegistered(infoId){
         container.innerHTML='';container.appendChild(form);
         _editModal={type:'hotel',form};
         const hotel={id:info.hotel_id,name:hotelName};
-        openForm(hotel,info);
+        // get-info APIで口コミデータ含む完全なデータを取得
+        let fullInfo=info;
+        try{const eRes=await fetch('/api/shop-hotel-api.php?action=get-info&hotel_id='+info.hotel_id,{credentials:'include'});const data=await eRes.json();if(data)fullInfo=data;}catch(e){}
+        openForm(hotel,fullInfo);
     }
     modal.style.display='flex';
 }
