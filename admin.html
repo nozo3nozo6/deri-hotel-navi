@@ -596,8 +596,27 @@
             </div>
             <div class="card" style="margin-top:16px;">
                 <div class="card-title">&#x1F4CB; 送信履歴<span class="sub" id="outreach-sub"></span></div>
+                <div class="filter-bar">
+                    <select class="filter-select" id="outreach-genre-f" onchange="renderOutreachHistory()">
+                        <option value="">全ジャンル</option>
+                        <option value="general">全ジャンル共通</option>
+                        <option value="deli">デリヘル</option>
+                        <option value="jofu">女性用風俗</option>
+                        <option value="este">デリエステ</option>
+                        <option value="ff">女性同士</option>
+                        <option value="mm">男性同士</option>
+                        <option value="line">📱 LINE系</option>
+                        <option value="form">📋 フォーム系</option>
+                    </select>
+                    <select class="filter-select" id="outreach-status-f" onchange="renderOutreachHistory()">
+                        <option value="">全ステータス</option>
+                        <option value="sent">送信済</option>
+                        <option value="error">エラー</option>
+                    </select>
+                    <input type="text" class="filter-select" id="outreach-search" placeholder="店舗名・メールで検索..." oninput="renderOutreachHistory()" style="min-width:180px;">
+                </div>
                 <div class="tbl-wrap"><table class="tbl">
-                    <thead><tr><th>送信日時</th><th>店舗名</th><th>メールアドレス</th><th>テンプレート</th><th>ステータス</th></tr></thead>
+                    <thead><tr><th>送信日時</th><th>店舗名</th><th>メールアドレス</th><th>ジャンル</th><th>エリア</th><th>ステータス</th><th>操作</th></tr></thead>
                     <tbody id="outreach-history-body"></tbody>
                 </table></div>
             </div>
@@ -4317,7 +4336,39 @@ async function doSendOutreachEmail(){
         }
     }catch(e){btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+e.message);}
 }
-async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=200');if(!Array.isArray(data)){document.getElementById("outreach-history-body").innerHTML=`<tr class="erow"><td colspan="5">取得エラー</td></tr>`;document.getElementById("outreach-sub").textContent="";return;}const rows=data||[];document.getElementById("outreach-sub").textContent=` (${rows.length}件)`;const tplLabels={general:"全ジャンル共通",deli:"デリヘル店向け",jofu:"女性用風俗店向け",este:"デリエステ店向け",ff:"女性同士利用店向け",mm:"男性同士利用店向け",line_deli:"📱 LINE(デリヘル)",line_jofu:"📱 LINE(女風)",line_este:"📱 LINE(デリエステ)",form_general:"📋 フォーム(共通)",form_deli:"📋 フォーム(デリヘル)",form_jofu:"📋 フォーム(女風)",form_este:"📋 フォーム(デリエステ)",form_ff:"📋 フォーム(女性同士)",form_mm:"📋 フォーム(男性同士)"};document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="5">送信履歴がありません</td></tr>`:rows.map(r=>`<tr><td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td><td style="font-size:12px;">${esc(r.shop_name||"—")}</td><td style="font-size:12px;">${esc(r.email||"—")}</td><td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td><td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td></tr>`).join("");}
+let outreachData=[];
+async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=500');outreachData=Array.isArray(data)?data:[];renderOutreachHistory();}
+function renderOutreachHistory(){
+  const genreF=document.getElementById("outreach-genre-f")?.value||'';
+  const statusF=document.getElementById("outreach-status-f")?.value||'';
+  const searchF=(document.getElementById("outreach-search")?.value||'').toLowerCase();
+  const tplLabels={general:"全ジャンル共通",deli:"デリヘル",jofu:"女風",este:"デリエステ",ff:"女性同士",mm:"男性同士",line_deli:"📱 LINE(デリヘル)",line_jofu:"📱 LINE(女風)",line_este:"📱 LINE(エステ)",form_general:"📋 フォーム(共通)",form_deli:"📋 フォーム(デリヘル)",form_jofu:"📋 フォーム(女風)",form_este:"📋 フォーム(エステ)",form_ff:"📋 フォーム(女性同士)",form_mm:"📋 フォーム(男性同士)"};
+  let rows=outreachData;
+  if(genreF){
+    if(genreF==='line')rows=rows.filter(r=>(r.genre||'').startsWith('line'));
+    else if(genreF==='form')rows=rows.filter(r=>(r.genre||'').startsWith('form'));
+    else rows=rows.filter(r=>r.genre===genreF||(r.genre||'').endsWith('_'+genreF));
+  }
+  if(statusF)rows=rows.filter(r=>r.status===statusF);
+  if(searchF)rows=rows.filter(r=>(r.shop_name||'').toLowerCase().includes(searchF)||(r.email||'').toLowerCase().includes(searchF));
+  document.getElementById("outreach-sub").textContent=` (${rows.length}/${outreachData.length}件)`;
+  document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="7">送信履歴がありません</td></tr>`:rows.map(r=>`<tr>
+    <td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td>
+    <td style="font-size:12px;">${esc(r.shop_name||"—")}</td>
+    <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.email||"—")}</td>
+    <td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td>
+    <td style="font-size:11px;color:var(--ink-3);">${esc(r.area||"—")}</td>
+    <td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td>
+    <td><button class="btn b-btn-red" style="font-size:10px;" onclick="deleteOutreach(${r.id})">削除</button></td>
+  </tr>`).join("");
+}
+async function deleteOutreach(id){
+  if(!confirm('この送信履歴を削除しますか？'))return;
+  const r=await api('delete',{table:'outreach_emails',id});
+  if(!r.ok){toast('削除エラー');return;}
+  outreachData=outreachData.filter(x=>x.id!==id);
+  renderOutreachHistory();toast('🗑 削除しました');
+}
 
 // ========== 広告管理 ==========
 let adPlans=[];
