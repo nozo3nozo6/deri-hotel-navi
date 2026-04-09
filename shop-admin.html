@@ -2348,7 +2348,7 @@ async function loadPlanHistory(){
         const statusMap={pending:'審査中',approved:'承認済み',rejected:'却下',cancelled:'キャンセル'};
         el.innerHTML=rows.map(r=>{
             const areas=(r.requested_areas||[]).join(', ')||'未指定';
-            const date=new Date(r.created_at).toLocaleDateString('ja-JP');
+            const _dm=String(r.created_at||'').replace('T',' ').replace(/Z$/,'').match(/(\d{4})-(\d{2})-(\d{2})/);const date=_dm?`${_dm[1]}/${_dm[2]}/${_dm[3]}`:'—';
             const st=r.status;
             const contractLink=st==='approved'&&r.id?` <a href="/api/contract.php?id=${r.id}" target="_blank" style="color:var(--rose);font-size:11px;">契約書を見る</a>`:'';
             const cancelBtn=st==='pending'?` <button class="btn" style="font-size:10px;padding:2px 8px;" onclick="cancelPlanRequest(${r.id})">取消</button>`:'';

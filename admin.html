@@ -1184,7 +1184,7 @@ async function apiGet(action,params=''){const r=await fetch(AA+'?action='+action
 const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
 const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
-function fmtDate(iso){if(!iso)return"—";const d=new Date(iso);return`${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
+function fmtDate(iso){if(!iso)return"—";const s=String(iso).replace('T',' ').replace(/Z$/,'');const m=s.match(/(\d{4})-(\d{2})-(\d{2})\s*(\d{2}):(\d{2})/);if(m)return`${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;return s.slice(0,16).replace('T',' ');}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function formatPostalCode(el){const digits=el.value.replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
@@ -2474,7 +2474,7 @@ function openRepEdit(id){
   }
 
   // 日時（常に表示）
-  const dt = r.created_at ? new Date(r.created_at).toISOString().slice(0,16) : "";
+  const dt = r.created_at ? String(r.created_at).replace('T',' ').replace(/Z$/,'').slice(0,16).replace(' ','T') : "";
   document.getElementById("re-created-at").value = dt;
 
   document.getElementById("report-edit-modal").style.display="flex";
