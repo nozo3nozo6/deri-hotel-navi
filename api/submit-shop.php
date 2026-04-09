@@ -57,7 +57,7 @@ if ($shopName === '_pw_reset_' && $pwHash && $existing) {
     if ($decodedPw === false) $decodedPw = $pwHash;
     $bcryptHash = password_hash($decodedPw, PASSWORD_BCRYPT);
     $stmt = $pdo->prepare('UPDATE shops SET password_hash = ?, updated_at = ? WHERE email = ?');
-    $stmt->execute([$bcryptHash, gmdate('Y-m-d H:i:s'), $email]);
+    $stmt->execute([$bcryptHash, date('Y-m-d H:i:s'), $email]);
     $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ?');
     $stmt->execute([$email]);
     $shop = $stmt->fetch();
@@ -74,7 +74,7 @@ if ($pwHash) {
     $bcryptHash = password_hash($decodedPw, PASSWORD_BCRYPT);
 }
 
-$now = gmdate('Y-m-d H:i:s');
+$now = date('Y-m-d H:i:s');
 
 if ($existing) {
     // UPDATE

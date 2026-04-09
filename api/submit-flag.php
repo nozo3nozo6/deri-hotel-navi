@@ -35,7 +35,7 @@ if (!in_array($table, ['reports', 'loveho_reports'])) { http_response_code(400);
 if ($comment) $comment = mb_substr(trim($comment), 0, 500);
 
 $stmt = $pdo->prepare("UPDATE `$table` SET flagged_at = ?, flag_reason = ?, flag_comment = ? WHERE id = ?");
-$stmt->execute([gmdate('Y-m-d H:i:s'), $reason, $comment, $targetId]);
+$stmt->execute([date('Y-m-d H:i:s'), $reason, $comment, $targetId]);
 
 echo json_encode(['success' => true]);
 ?>

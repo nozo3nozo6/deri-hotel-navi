@@ -59,7 +59,7 @@ if (!$verified) { http_response_code(401); echo json_encode(['error' => 'パス�
 if ($needsMigration) {
     $bcryptHash = password_hash($password, PASSWORD_BCRYPT);
     $stmt = $pdo->prepare('UPDATE shops SET password_hash = ?, updated_at = ? WHERE email = ?');
-    $stmt->execute([$bcryptHash, gmdate('Y-m-d H:i:s'), $email]);
+    $stmt->execute([$bcryptHash, date('Y-m-d H:i:s'), $email]);
     error_log('[verify-password] migrated Base64 to bcrypt for: ' . $email);
 }
 

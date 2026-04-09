@@ -293,7 +293,7 @@ function handleRegisterShop() {
     // slug自動生成
     $slug = generateSlug($pdo);
 
-    $now = gmdate('Y-m-d H:i:s');
+    $now = date('Y-m-d H:i:s');
     $id = DB::uuid();
     $registeredBy = $_SESSION['agent_username'] ?? 'agent';
 

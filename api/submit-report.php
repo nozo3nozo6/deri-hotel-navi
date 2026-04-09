@@ -46,7 +46,7 @@ $clientIP = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 $ipHash   = hash('sha256', IP_HASH_SALT . $clientIP);
 
 // ── レート制限: IP 10件/24h ──
-$since24h = gmdate('Y-m-d H:i:s', time() - 86400);
+$since24h = date('Y-m-d H:i:s', time() - 86400);
 $stmt = $pdo->prepare('SELECT COUNT(*) FROM reports WHERE ip_hash = ? AND created_at >= ?');
 $stmt->execute([$ipHash, $since24h]);
 if ($stmt->fetchColumn() >= MAX_REPORTS_PER_IP_24H) {
