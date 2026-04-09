@@ -159,6 +159,35 @@ const faqs = [
       </div>
     </section>
 
+    <!-- Review Display -->
+    <section class="review-display-section">
+      <h2 class="section-title">📝 口コミでの店舗名表示</h2>
+      <p class="section-sub">お店様がホテル情報を投稿すると、口コミに店舗名が表示されます</p>
+      <div class="review-demo-grid">
+        <div class="review-demo-card">
+          <div class="review-demo-label">無料プラン</div>
+          <div class="review-demo-body">
+            <div class="review-demo-date">2026/4/9</div>
+            <div class="review-demo-poster">♂ <span class="review-demo-name-text">お店様の名前</span> <span class="review-demo-badge-verified">認証店</span></div>
+            <div class="review-demo-status review-demo-status--can">✅ ご案内実績あり</div>
+            <div class="review-demo-fee">🚕 交通費: ¥1,100-</div>
+          </div>
+          <div class="review-demo-note">店舗名は<strong>テキスト表示</strong>（リンクなし）</div>
+        </div>
+        <div class="review-demo-card review-demo-card--paid">
+          <div class="review-demo-label review-demo-label--paid">投稿リンクプラン以上</div>
+          <div class="review-demo-body">
+            <div class="review-demo-date">2026/4/9</div>
+            <div class="review-demo-poster">♂ <a class="review-demo-name-link">お店様の名前 🔗</a> <span class="review-demo-badge-premium">認定店</span></div>
+            <div class="review-demo-status review-demo-status--can">✅ ご案内実績あり</div>
+            <div class="review-demo-fee">🚕 交通費: ¥1,100-</div>
+          </div>
+          <div class="review-demo-note">店舗名から<strong>オフィシャルサイトへ直接リンク 🔗</strong></div>
+        </div>
+      </div>
+      <p class="example-note" style="text-align:center;margin-top:16px;">すべてのプランで<strong>認証バッジ</strong>が付与され、公式の店舗情報として信頼性の高い表示になります。<br>投稿リンクプラン以上では<strong>認定店バッジ</strong>にアップグレードされ、オフィシャルサイトへのリンクが付きます。</p>
+    </section>
+
     <!-- Brand Page -->
     <section class="brand-section">
       <h2 class="section-title">お店様専用URL</h2>
@@ -343,6 +372,27 @@ const faqs = [
   .ad-rank-gold .ad-sub-detail { border-top:none;background:linear-gradient(90deg,#faf5e8,#f5ecd6) !important; }
   .ad-badge-recommend { background:#b5627a;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:2px; }
   .ad-badge-recommend--sm { font-size:9px;padding:1px 4px; }
+
+  /* Review display demo */
+  .review-display-section { padding: 32px 0; }
+  .review-demo-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 640px) { .review-demo-grid { grid-template-columns: repeat(2, 1fr); } }
+  .review-demo-card { background: #fff; border: 1px solid #e8e0d8; border-radius: 12px; overflow: hidden; }
+  .review-demo-card--paid { border: 2px solid #b5627a; }
+  .review-demo-label { padding: 8px 16px; background: #f5f3f0; font-size: 12px; font-weight: 700; color: #5a4a3a; border-bottom: 1px solid #e8e0d8; }
+  .review-demo-label--paid { background: linear-gradient(135deg, rgba(181,98,122,0.08), rgba(181,98,122,0.15)); color: #b5627a; }
+  .review-demo-body { padding: 16px; }
+  .review-demo-date { font-size: 11px; color: #8a7a6a; margin-bottom: 6px; }
+  .review-demo-poster { font-size: 13px; font-weight: 600; color: #4a7ab0; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .review-demo-name-text { color: #4a7ab0; }
+  .review-demo-name-link { color: #b5627a; text-decoration: none; font-weight: 700; cursor: default; }
+  .review-demo-badge-verified { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: rgba(58,154,96,0.1); color: #3a9a60; border: 1px solid rgba(58,154,96,0.25); }
+  .review-demo-badge-premium { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: rgba(181,98,122,0.1); color: #b5627a; border: 1px solid rgba(181,98,122,0.25); }
+  .review-demo-status { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .review-demo-status--can { color: #3a9a60; }
+  .review-demo-fee { font-size: 11px; color: #5a4a3a; }
+  .review-demo-note { padding: 10px 16px; background: #faf8f5; border-top: 1px solid #e8e0d8; font-size: 12px; color: #3a3020; text-align: center; }
+  .review-demo-note strong { color: #b5627a; }
 
   /* Brand page */
   .brand-section { padding: 32px 0; }
