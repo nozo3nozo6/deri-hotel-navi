@@ -7,6 +7,14 @@
 
 // --- 呼び出し元で $mode, $template を定義済み ---
 
+// 二重エンコードURL検出: %25 が含まれていたら正しいURLに301リダイレクト
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+if (strpos($requestUri, '%25') !== false) {
+    $decoded = rawurldecode($requestUri);
+    header('Location: ' . $decoded, true, 301);
+    exit;
+}
+
 $pref   = isset($_GET['pref'])   ? urldecode($_GET['pref'])   : '';
 $area   = isset($_GET['area'])   ? urldecode($_GET['area'])   : '';
 $detail = isset($_GET['detail']) ? urldecode($_GET['detail']) : '';

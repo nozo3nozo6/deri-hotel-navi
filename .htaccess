@@ -87,10 +87,6 @@ RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same, este=este
 
-# 二重エンコードURL修正: %25xx を含むURLを正しいURLに301リダイレクト
-RewriteCond %{THE_REQUEST} \s/(deli|jofu|same-m|same-f|este)/.*%25 [NC]
-RewriteRule ^(deli|jofu|same-m|same-f|este)/(.+)$ /$1/$2 [R=301,L]
-
 # ホテル詳細クリーンURL: /deli/hotel/29599 → portal-men.php?hotel=29599
 RewriteRule ^deli/hotel/([0-9]+)/?$ /portal-men.php?hotel=$1 [L,QSA]
 RewriteRule ^jofu/hotel/([0-9]+)/?$ /portal-women.php?hotel=$1 [L,QSA]
