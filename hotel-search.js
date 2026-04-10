@@ -842,7 +842,7 @@ function renderLovehoDetail(hotel, reports) {
         return `<div class="review-card lh-shop-card">
             <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
-            <div class="lh-row2">${shopSoloEntryHTML}${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
+            <div class="lh-row2">${shopSoloEntryHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
             ${gpRoomHTML}${gpServiceHTML}
             ${r.comment ? `<div class="text-comment" style="margin-top:2px;">${esc(r.comment)}</div>` : ''}
             ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
