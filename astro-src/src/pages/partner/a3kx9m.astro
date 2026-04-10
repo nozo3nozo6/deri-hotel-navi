@@ -41,6 +41,7 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.g
 
     <section class="p-campaign">
       <div class="p-campaign-badge">🎁 キャンペーン実施中</div>
+      <div class="p-campaign-deadline-badge">🗓 2026年4月末までのご登録限定</div>
       <p class="p-campaign-text">「{campaignPlan}（月額{campaignPrice}円・税込）」を<strong>1ヶ月間無料</strong>でお試しいただけます</p>
       <p class="p-campaign-deadline">※{campaignDeadline}までにご登録の方が対象です</p>
       <p class="p-campaign-note">お試し期間が終わっても、そのまま無料プランでお使いいただけます。</p>
@@ -119,7 +120,8 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.g
   .p-hero h1 { font-size: 20px; line-height: 1.6; margin: 0 0 12px; }
   .p-hero-sub { font-size: 13px; color: #ffffffa6; line-height: 1.7; }
   .p-campaign { background: linear-gradient(135deg, #fff8e8, #fff0d0); border: 2px solid #c9a84c; border-radius: 12px; margin: 24px 16px; padding: 24px 20px; text-align: center; }
-  .p-campaign-badge { display: inline-block; background: #c9a84c; color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .p-campaign-badge { display: inline-block; background: #c9a84c; color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .p-campaign-deadline-badge { display: inline-block; background: #d9534f; color: #fff; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 12px; margin-left: 6px; }
   .p-campaign-text { font-size: 15px; line-height: 1.7; margin: 0 0 8px; }
   .p-campaign-deadline { font-size: 13px; color: #b8860b; font-weight: 600; margin: 0 0 8px; }
   .p-campaign-note { font-size: 11px; color: #888; margin: 0; }
