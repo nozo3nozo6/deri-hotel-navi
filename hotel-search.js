@@ -832,7 +832,7 @@ function renderLovehoDetail(hotel, reports) {
         const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
         const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
         const isShopPost = r.poster_type === 'shop' || !!_lhSid;
-        const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-can">🚪 一人で先に入れる</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-can">🚪 一緒に入室</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-ng">🚪 一人入室不可</span>` : '') : '';
+        const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-can">🚪 一人で先に？ 可</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-can">🚪 一緒に入室</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-ng">🚪 一人で先に？ 不可</span>` : '') : '';
         const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
         const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
