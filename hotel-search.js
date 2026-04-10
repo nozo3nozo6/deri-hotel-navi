@@ -934,7 +934,7 @@ function renderLovehoDetail(hotel, reports) {
             <div id="loveho-form-accordion" style="display:none;margin-top:12px;">
         <div class="lh-form-wrap">
             <div class="lh-form-row">
-                <label class="lh-form-label">${SHOP_ID ? 'チェックイン方法' : '一人で先に入れる？'}</label>
+                <label class="lh-form-label">${SHOP_ID ? 'ご案内実績' : '一人で先に入れる？'}</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" class="lh-form-select">
                     ${SHOP_ID
                         ? '<option value="">選択してください</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>'

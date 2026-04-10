@@ -2888,7 +2888,7 @@ function toggleLhShopMode(isShop, currentVal) {
   const sel = document.getElementById("re-lh-solo");
   const prev = currentVal !== undefined ? currentVal : sel.value;
   if (isShop) {
-    label.textContent = 'チェックイン方法（店舗投稿）';
+    label.textContent = 'ご案内実績（店舗投稿）';
     sel.innerHTML = '<option value="">未選択</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>';
   } else {
     label.textContent = '一人で先に入れる？';
