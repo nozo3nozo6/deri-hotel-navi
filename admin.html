@@ -81,6 +81,7 @@
         .b-stop{background:var(--red-bg);color:var(--red);border-color:rgba(192,57,43,0.2);}
         .b-can{background:var(--green-bg);color:var(--green);border-color:rgba(40,132,90,0.2);}
         .b-cant{background:var(--red-bg);color:var(--red);border-color:rgba(192,57,43,0.2);}
+        .b-warn{background:#fff3e0;color:#e65100;border-color:rgba(230,81,0,0.2);}
         .b-men{background:var(--blue-bg);color:var(--blue);border-color:rgba(44,95,161,0.2);}
         .b-women{background:var(--pink-bg);color:var(--pink);border-color:rgba(176,85,112,0.2);}
         .b-shop{background:var(--gold-bg);color:var(--gold-dim);border-color:var(--gold-border);}
@@ -612,6 +613,7 @@
                         <option value="">全ステータス</option>
                         <option value="sent">送信済</option>
                         <option value="error">エラー</option>
+                        <option value="bounced">バウンス</option>
                     </select>
                     <input type="text" class="filter-select" id="outreach-search" placeholder="店舗名・メールで検索..." oninput="renderOutreachHistory()" style="min-width:180px;">
                 </div>
@@ -4303,6 +4305,11 @@ function previewOutreachEmail(){
     const body=document.getElementById("outreach-body").value.trim();
     const template=document.getElementById("outreach-template").value;
     if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}
+    // バウンス済みアドレスチェック
+    const bouncedRecord=outreachData.find(r=>(r.email||'').toLowerCase()===to.toLowerCase()&&r.status==='bounced');
+    if(bouncedRecord){
+      if(!confirm(`⚠️ このメールアドレス (${to}) は過去にバウンスしています。\n\n${bouncedRecord.notes||''}\n\nそれでも送信しますか？`))return;
+    }
     _ocData={to,shopName,subject,body,template};
     document.getElementById("oc-to").textContent=to;
     document.getElementById("oc-shop").textContent=shopName||"—";
@@ -4359,7 +4366,7 @@ function renderOutreachHistory(){
     <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.email||"—")}</td>
     <td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td>
     <td style="font-size:11px;color:var(--ink-3);">${esc(r.area||"—")}</td>
-    <td><span class="badge ${r.status==="sent"?"b-can":"b-cant"}">${r.status==="sent"?"送信済":"エラー"}</span></td>
+    <td><span class="badge ${r.status==="sent"?"b-can":r.status==="bounced"?"b-warn":"b-cant"}" title="${esc(r.notes||'')}">${r.status==="sent"?"送信済":r.status==="bounced"?"⚠ バウンス":"エラー"}</span></td>
     <td><button class="btn b-btn-red" style="font-size:10px;" onclick="deleteOutreach(${r.id})">削除</button></td>
   </tr>`).join("");
 }
