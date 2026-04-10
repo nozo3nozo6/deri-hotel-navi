@@ -2392,7 +2392,7 @@ body[data-mode="men"] .header-title {
 .round-badge--user-ng { background:rgba(192,80,80,0.08);color:#c05050; }
 .round-badge--solo-can { background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);color:#2e7d32;font-weight:600; }
 .round-badge--solo-ng { background:rgba(181,98,122,0.1);border:1px solid rgba(181,98,122,0.3);color:#9a4e65;font-weight:600; }
-.round-badge--solo-entry { background:rgba(33,150,243,0.1);border:1px solid rgba(33,150,243,0.35);color:#1565c0;font-weight:600; }
+.round-badge--solo-entry { background:rgba(201,169,110,0.12);border:1px solid rgba(201,169,110,0.4);color:#a07820;font-weight:600; }
 .round-badge--solo-entry-ng { background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.35);color:#b71c1c;font-weight:600; }
 .round-badge--solo-together { background:rgba(181,98,122,0.1);border:1px solid rgba(181,98,122,0.3);color:#9a4e65;font-weight:600; }
 
