@@ -2486,7 +2486,7 @@ body[data-mode="men"] .header-title {
 .text-comment--sm { font-size:12px;color:var(--text-2);line-height:1.6; }
 
 /* 投稿者名 */
-.poster-name { font-size:10px;font-weight:600;text-decoration:none; }
+.poster-name { font-size:13px;font-weight:600;text-decoration:none; }
 
 /* 口コミ内メタ情報 */
 .review-meta-row { display:flex;justify-content:space-between;align-items:center;margin-bottom:6px; }

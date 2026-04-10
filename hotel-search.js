@@ -1906,11 +1906,11 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#c47a88':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
             const si=isShop&&_sid?shopInfoMap[_sid]:null;
-            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:10px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
+            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:13px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
             const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge" style="background:${col};color:#fff;border-color:${col};">認定店</span>`;
-            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:10px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
-            if(isShop&&si&&si.status==='active'){return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
-            return`<span style="font-size:10px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:13px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
+            if(isShop&&si&&si.status==='active'){return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
+            return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
         })() : '';
         const feeHTML = feeLabel ? `<span class="fee-badge">🚕 交通費: ${feeLabel}</span>` : '';
         const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button>` : '';
