@@ -2108,6 +2108,8 @@ async function lhLoadMasters(){
     lhMaster.atmospheres=lh.atmospheres||[];
     lhMaster.time_slots=lh.time_slots||[];
     if(!lhMaster.time_slots.length)lhMaster.time_slots=['早朝（5:00〜8:00）','朝（8:00〜11:00）','昼（11:00〜16:00）','夕方（16:00〜18:00）','夜（18:00〜23:00）','深夜（23:00〜5:00）'];
+    // 店舗投稿用にALL TIMEを先頭に追加
+    if(!lhMaster.time_slots.includes('ALL TIME'))lhMaster.time_slots=['ALL TIME',...lhMaster.time_slots];
     lhMaster.good_points=lh.good_points||[];
     lhMaster._loaded=true;
     // populate selects
