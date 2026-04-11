@@ -113,6 +113,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (urlParams.get('shop') || _shopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
+        // フッターリンクを新タブで開く（戻った時に店舗ページが維持される）
+        document.querySelectorAll('footer a.footer-link').forEach(function(a) {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener');
+        });
     }
     if (MODE) {
         document.querySelectorAll('a[href*="shop-register"]').forEach(function(a) {
