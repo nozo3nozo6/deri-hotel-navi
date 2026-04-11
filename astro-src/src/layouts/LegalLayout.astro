@@ -37,6 +37,38 @@ const { title, pageTitle, description, canonical, robots } = Astro.props;
         <slot />
     </div>
     <Footer variant="full" />
+
+    <script is:inline>
+    (function(){
+        var qs = new URLSearchParams(window.location.search);
+        var shopSlug = qs.get('shop');
+        if (!shopSlug) return;
+        // 店舗情報を取得して該当ジャンルの店舗URLに書き換える
+        fetch('/api/shop-info.php?slug=' + encodeURIComponent(shopSlug))
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){
+                if (!d) return;
+                var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
+                var shopUrl = (modePathMap[d.gender_mode] || '/deli/') + 'shop/' + encodeURIComponent(d.slug || shopSlug) + '/';
+                // フッターのトップページリンクを店舗ページに置換
+                document.querySelectorAll('footer a[href="/index.html"]').forEach(function(a){
+                    a.setAttribute('href', shopUrl);
+                    a.textContent = '店舗ページに戻る';
+                });
+                // 法的ページ間の遷移にもshop param保持
+                ['/terms/','/privacy/','/contact/'].forEach(function(p){
+                    document.querySelectorAll('footer a[href="'+p+'"]').forEach(function(a){
+                        a.setAttribute('href', p + '?shop=' + encodeURIComponent(shopSlug));
+                    });
+                });
+                // ヘッダーの「全国へ」ボタン等も店舗ページに
+                document.querySelectorAll('a[href="/index.html"]').forEach(function(a){
+                    if (a.closest('footer')) return;
+                    a.setAttribute('href', shopUrl);
+                });
+            }).catch(function(){});
+    })();
+    </script>
 </BaseLayout>
 
 <style>
