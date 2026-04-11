@@ -95,12 +95,22 @@ if (isset($_GET['ids'])) {
     }
 }
 
-// Keyword search (name or address)
+// Keyword search (name, address, or tel)
 if (isset($_GET['keyword']) && $_GET['keyword'] !== '') {
-    $kw = '%' . $_GET['keyword'] . '%';
-    $where[] = '(h.name LIKE ? OR h.address LIKE ?)';
-    $params[] = $kw;
-    $params[] = $kw;
+    $rawKw = $_GET['keyword'];
+    $kw = '%' . $rawKw . '%';
+    // 電話番号検索: ハイフン/空白を除去した数字列で比較
+    $digitsOnly = preg_replace('/[^0-9]/', '', $rawKw);
+    if (strlen($digitsOnly) >= 6) {
+        $where[] = '(h.name LIKE ? OR h.address LIKE ? OR REPLACE(REPLACE(h.tel, "-", ""), " ", "") LIKE ?)';
+        $params[] = $kw;
+        $params[] = $kw;
+        $params[] = '%' . $digitsOnly . '%';
+    } else {
+        $where[] = '(h.name LIKE ? OR h.address LIKE ?)';
+        $params[] = $kw;
+        $params[] = $kw;
+    }
 }
 
 // Station search — 駅名完全一致（サジェストで選ばれた駅名で検索）
