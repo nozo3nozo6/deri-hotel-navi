@@ -842,10 +842,10 @@ function renderLovehoDetail(hotel, reports) {
         return `<div class="review-card lh-shop-card">
             <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
             <div class="lh-row1">${posterHTML}</div>
-            <div class="lh-row2">${shopSoloEntryHTML}${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
+            <div class="lh-row2">${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
+            ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${gpRoomHTML}${gpServiceHTML}
             ${r.comment ? `<div class="text-comment" style="margin-top:2px;">${esc(r.comment)}</div>` : ''}
-            ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:11px;">💰追加料金あり</span>' : ''}</div>` : ''}
         </div>`;
     }
