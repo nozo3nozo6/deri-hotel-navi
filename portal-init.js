@@ -145,14 +145,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (_localShopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
-        // フッターの法的ページリンクをSPA化（ヘッダー維持、コンテンツ差し替え）
-        ['/terms/', '/privacy/', '/contact/'].forEach(function(path) {
-            document.querySelectorAll('footer a[href="' + path + '"]').forEach(function(a) {
-                a.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    loadLegalPageInline(path, a.textContent.trim());
-                });
-            });
+        // フッターの法的ページリンクをSPA化（イベント委譲で確実にキャッチ）
+        document.addEventListener('click', function(e) {
+            var a = e.target.closest('footer a[href*="/terms/"], footer a[href*="/privacy/"], footer a[href*="/contact/"]');
+            if (!a) return;
+            e.preventDefault();
+            var href = a.getAttribute('href').replace(/\?.*$/, ''); // クエリ除去
+            loadLegalPageInline(href, a.textContent.trim());
         });
     }
     if (MODE) {
