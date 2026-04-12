@@ -121,6 +121,8 @@ function applyShopModeUI() {
                 logoLink.href = SHOP_DATA.shop_url;
                 logoLink.target = '_blank';
                 logoLink.rel = 'noopener';
+                // 「オフィシャルへ戻る」テキスト追加
+                logoLink.insertAdjacentHTML('beforeend', `<span style="display:block;font-size:10px;color:var(--text-3,#999);font-weight:400;margin-top:-2px;">オフィシャルへ戻る</span>`);
             } else if (logoLink) {
                 logoLink.removeAttribute('href');
             }
