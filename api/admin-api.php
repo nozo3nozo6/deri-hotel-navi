@@ -508,9 +508,17 @@ function handleHotelsSearch() {
 
     if ($q) {
         $kw = '%' . $q . '%';
-        $where[] = '(h.name LIKE ? OR h.address LIKE ?)';
-        $params[] = $kw;
-        $params[] = $kw;
+        $digitsOnly = preg_replace('/[^0-9]/', '', $q);
+        if (strlen($digitsOnly) >= 6) {
+            $where[] = '(h.name LIKE ? OR h.address LIKE ? OR REPLACE(REPLACE(h.tel, "-", ""), " ", "") LIKE ?)';
+            $params[] = $kw;
+            $params[] = $kw;
+            $params[] = '%' . $digitsOnly . '%';
+        } else {
+            $where[] = '(h.name LIKE ? OR h.address LIKE ?)';
+            $params[] = $kw;
+            $params[] = $kw;
+        }
     }
     if ($pref) { $where[] = 'h.prefecture = ?'; $params[] = $pref; }
     elseif ($region_prefs) {
