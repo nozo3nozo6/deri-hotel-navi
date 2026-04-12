@@ -258,6 +258,15 @@ document.addEventListener('click', function(e) {
         case 'expandReviews':
             if (typeof expandReviews === 'function') expandReviews(target);
             break;
+        case 'trackClick':
+            // gtag追跡（リンクの通常動作は維持）
+            if (typeof gtag === 'function') {
+                var evt = target.dataset.event || 'click';
+                var label = target.dataset.label || '';
+                var extra = target.dataset.extra || '';
+                gtag('event', evt, { shop_name: label, placement_type: extra });
+            }
+            break;
         case 'lhToggleGoodPoint':
             if (typeof lhToggleGoodPoint === 'function') lhToggleGoodPoint(target, target.dataset.label);
             break;
@@ -276,6 +285,37 @@ document.addEventListener('click', function(e) {
             if (typeof window[action] === 'function') window[action]();
             break;
     }
+});
+
+// ── change イベント委譲（onchange属性の代替） ──
+document.addEventListener('change', function(e) {
+    var el = e.target;
+    // data-onchange-set="obj.field" → obj.field = el.value
+    var setKey = el.dataset.onchangeSet;
+    if (setKey) {
+        var parts = setKey.split('.');
+        var obj = window[parts[0]];
+        if (obj && parts[1]) {
+            var parseDefault = el.dataset.parseInt;
+            obj[parts[1]] = parseDefault !== undefined ? (parseInt(el.value) || parseInt(parseDefault)) : el.value;
+        }
+    }
+    // data-onchange-check="obj.field" → obj.field = el.checked
+    var checkKey = el.dataset.onchangeCheck;
+    if (checkKey) {
+        var parts2 = checkKey.split('.');
+        var obj2 = window[parts2[0]];
+        if (obj2 && parts2[1]) obj2[parts2[1]] = el.checked;
+        // data-toggle-display="id" → show/hide
+        var toggleId = el.dataset.toggleDisplay;
+        if (toggleId) {
+            var toggleEl = document.getElementById(toggleId);
+            if (toggleEl) toggleEl.style.display = el.checked ? 'flex' : 'none';
+        }
+    }
+    // data-onchange-fn="functionName" → functionName(el.checked)
+    var fn = el.dataset.onchangeFn;
+    if (fn && typeof window[fn] === 'function') window[fn](el.checked);
 });
 
 // ── input イベント委譲（oninput属性の代替） ──

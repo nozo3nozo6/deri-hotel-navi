@@ -46,7 +46,7 @@ function scrollableSection(items, buildFn, emptyMsg) {
         chunks.push(rest.slice(i, i + 10).map(buildFn).join(''));
     }
     return first3
-        + `<div class="review-more-btn" data-uid="${uid}" data-chunk="0" onclick="expandReviews(this)">▼ ${t('show_more_reviews').replace('{n}', remaining)}</div>`
+        + `<div class="review-more-btn" data-uid="${uid}" data-chunk="0" data-action="expandReviews">▼ ${t('show_more_reviews').replace('{n}', remaining)}</div>`
         + `<div id="${uid}" class="reviews-collapsed" style="display:none;">${chunks.map((c, i) => `<div class="review-chunk" data-ci="${i}"${i > 0 ? ' style="display:none;"' : ''}>${c}</div>`).join('')}</div>`;
 }
 function expandReviews(btn) {
@@ -116,7 +116,7 @@ function updateFavCount() {
 }
 function favBtnHTML(hotelId) {
     const active = isFavorite(hotelId);
-    return `<button class="fav-btn${active ? ' fav-active' : ''}" data-action="toggleFavorite" data-hotel-id="${hotelId}" onclick="event.stopPropagation()" title="${t('favorites')}">${active ? '\u2605' : '\u2606'}</button>`;
+    return `<button class="fav-btn${active ? ' fav-active' : ''}" data-action="toggleFavorite" data-hotel-id="${hotelId}" title="${t('favorites')}">${active ? '\u2605' : '\u2606'}</button>`;
 }
 async function showFavoritesPage() {
     const favs = getFavorites();
@@ -461,15 +461,15 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" data-action="switchTab" data-param="loveho">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
         : '';
     const hotelLabel = (totalHotelCount && totalHotelCount > hotelCount)
         ? `${t('hotel_tab')} (<span id="hotel-count">${hotelCount}</span>/<span id="hotel-total">${totalHotelCount}</span>)`
         : `${t('hotel_tab')} (<span id="hotel-count">${hotelCount}</span>)`;
     tabsDiv.innerHTML = `
-        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">${hotelLabel}</button>
+        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" data-action="switchTab" data-param="hotel">${hotelLabel}</button>
         ${lovehoTab}
-        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
+        <button id="btn-map-toggle" class="btn-map-toggle" data-action="toggleMapView"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
     `;
 
     const hotelList = document.getElementById('hotel-list');
@@ -633,7 +633,7 @@ function buildLovehoCardHTML(h, i, showDist) {
     const reviewBadge = reviewCount > 0 ? `<span class="review-count-badge">💬 ${reviewCount}件</span>` : '';
     const distHTML = showDist && h.distance != null ? `<div class="hotel-distance-badge">📍 ${h.distance < 1 ? Math.round(h.distance * 1000) + 'm' : h.distance.toFixed(1) + 'km'}</div>` : '';
     return `
-    <div class="hotel-card-lux loveho-card-bg" style="animation-delay:${Math.min(i*0.04,0.4)}s;" onclick="openLovehoDetail(${h.id})" role="button">
+    <div class="hotel-card-lux loveho-card-bg" style="animation-delay:${Math.min(i*0.04,0.4)}s;" data-action="openLovehoDetail" data-hotel-id="${h.id}" role="button">
         ${distHTML}
         <div class="hotel-card-body">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -645,8 +645,8 @@ function buildLovehoCardHTML(h, i, showDist) {
             ${h.nearest_station ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>` : ''}
             ${h.tel ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">📞 ${esc(h.tel)}</div>` : ''}
             <div class="hotel-card-footer card-footer">
-                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-primary">${t('view_reviews')}${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
-                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-secondary">${t('post_review')}</button>
+                <button data-action="openLovehoDetail" data-hotel-id="${h.id}" data-stop="1" class="card-action-btn card-action-btn--lh-primary">${t('view_reviews')}${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
+                <button data-action="openLovehoDetail" data-hotel-id="${h.id}" data-stop="1" class="card-action-btn card-action-btn--lh-secondary">${t('post_review')}</button>
             </div>
         </div>
     </div>`;
@@ -667,7 +667,7 @@ function loadMoreLovehoCards() {
     if (remaining > 0) {
         container.insertAdjacentHTML('beforeend', `
             <div id="load-more-container" class="load-more-wrap">
-                <button onclick="loadMoreLovehoCards()" class="load-more-btn load-more-btn--loveho">${t('load_more')}（${remaining}）</button>
+                <button data-action="loadMoreLovehoCards" class="load-more-btn load-more-btn--loveho">${t('load_more')}（${remaining}）</button>
             </div>`);
     }
 
@@ -675,7 +675,7 @@ function loadMoreLovehoCards() {
         const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">' + t('shop_register_link') + '</a>';
         container.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar">
-                <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
+                <a href="#" data-action="openHotelRequestModal" class="info-link-pill">${t('hotel_not_listed')}</a>
                 ${shopRegLink}
             </div>
         `);
@@ -909,7 +909,7 @@ function renderLovehoDetail(hotel, reports) {
         const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('facilities')}</span>${gpTagHTML(gpRoom)}</div>` : '';
         const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('service')}</span>${gpTagHTML(gpService)}</div>` : '';
         return `<div class="review-card lh-shop-card">
-            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">${t('report_btn')}</button></div>
+            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button data-action="openFlagModal" data-report-id="${r.id}" data-stop="1" class="report-flag-btn">${t('report_btn')}</button></div>
             <div class="lh-row1">${posterHTML}</div>
             <div class="lh-row2">${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
             ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
@@ -955,10 +955,10 @@ function renderLovehoDetail(hotel, reports) {
     const lhNoCount = lhUserReports.filter(r => r.solo_entry === 'no').length;
     const lhTogetherCount = lhUserReports.filter(r => r.solo_entry === 'together').length;
     const lhFilterTabs = lhUserReports.length > 1 ? `<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <button onclick="filterLhUserReports('all')" class="lhu-tab filter-tab filter-tab--lg" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${lhUserReports.length})</button>
-        ${lhYesCount ? `<button onclick="filterLhUserReports('yes')" class="lhu-tab filter-tab filter-tab--lg" data-filter="yes" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">${t('filter_entered')} (${lhYesCount})</button>` : ''}
-        ${lhNoCount ? `<button onclick="filterLhUserReports('no')" class="lhu-tab filter-tab filter-tab--lg" data-filter="no" style="border-color:rgba(192,80,80,0.25);color:#c05050;">${t('filter_not_entered')} (${lhNoCount})</button>` : ''}
-        ${lhTogetherCount ? `<button onclick="filterLhUserReports('together')" class="lhu-tab filter-tab filter-tab--lg" data-filter="together" style="border-color:rgba(106,130,180,0.25);color:#4a6a9a;">${t('filter_together')} (${lhTogetherCount})</button>` : ''}
+        <button data-action="filterLhUserReports" data-param="all" class="lhu-tab filter-tab filter-tab--lg" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${lhUserReports.length})</button>
+        ${lhYesCount ? `<button data-action="filterLhUserReports" data-param="yes" class="lhu-tab filter-tab filter-tab--lg" data-filter="yes" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">${t('filter_entered')} (${lhYesCount})</button>` : ''}
+        ${lhNoCount ? `<button data-action="filterLhUserReports" data-param="no" class="lhu-tab filter-tab filter-tab--lg" data-filter="no" style="border-color:rgba(192,80,80,0.25);color:#c05050;">${t('filter_not_entered')} (${lhNoCount})</button>` : ''}
+        ${lhTogetherCount ? `<button data-action="filterLhUserReports" data-param="together" class="lhu-tab filter-tab filter-tab--lg" data-filter="together" style="border-color:rgba(106,130,180,0.25);color:#4a6a9a;">${t('filter_together')} (${lhTogetherCount})</button>` : ''}
     </div>` : '';
 
     const lhUserSection = lhUserReports.length === 0 ? '' : `
@@ -1000,44 +1000,44 @@ function renderLovehoDetail(hotel, reports) {
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
             <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(h.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh"><span id="loveho-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_loveho_review')}<span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="text-align:center;"><button data-action="toggleAccordionForm" data-param="loveho-form-accordion" class="btn-open-report-modal btn-open-report-modal--lh"><span id="loveho-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_loveho_review')}<span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="loveho-form-accordion" style="display:none;margin-top:12px;">
         <div class="lh-form-wrap">
             <div class="lh-form-row">
                 <label class="lh-form-label">${SHOP_ID ? t('guide_track') : t('solo_entry_label')}</label>
-                <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" class="lh-form-select">
+                <select id="lh-solo-entry" data-onchange-set="lhFormState.solo_entry" class="lh-form-select">
                     ${SHOP_ID
                         ? `<option value="">${t('select_please')}</option><option value="yes">${t('guide_track_yes')}</option><option value="no">${t('solo_no')}</option><option value="together">${t('guide_track_together')}</option>`
                         : `<option value="">${t('select_please')}</option><option value="yes">${t('solo_yes')}</option><option value="no">${t('solo_no')}</option><option value="together">${t('solo_together_label')}</option><option value="lobby">${t('solo_waiting')}</option><option value="unknown">${t('solo_unknown')}</option>`}
                 </select>
             </div>
-            ${LH_MASTER.atmospheres.length ? `<div class="lh-form-row"><label class="lh-form-label">${t('atmosphere')}</label><select onchange="lhFormState.atmosphere=this.value" class="lh-form-select">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
+            ${LH_MASTER.atmospheres.length ? `<div class="lh-form-row"><label class="lh-form-label">${t('atmosphere')}</label><select data-onchange-set="lhFormState.atmosphere" class="lh-form-select">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
             ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
                 const categories = ['設備・お部屋', 'サービス・利便性'];
                 const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
                 return categories.map(cat => {
                     const items = LH_MASTER.good_points.filter(p => p.category === cat);
                     if (!items.length) return '';
-                    return `<div class="lh-form-row"><label class="lh-form-label">${catIcons[cat] || '📝'} ${cat} <span class="text-sub3" style="font-weight:400;">複数選択可</span></label><div class="review-gp-tags" style="gap:8px;">${items.map(p => `<div onclick="lhToggleGoodPoint(this,'${esc(p.label)}')" class="gp-select-btn">${esc(p.label)}</div>`).join('')}</div></div>`;
+                    return `<div class="lh-form-row"><label class="lh-form-label">${catIcons[cat] || '📝'} ${cat} <span class="text-sub3" style="font-weight:400;">複数選択可</span></label><div class="review-gp-tags" style="gap:8px;">${items.map(p => `<div data-action="lhToggleGoodPoint" data-label="${esc(p.label)}" class="gp-select-btn">${esc(p.label)}</div>`).join('')}</div></div>`;
                 }).join('');
             })() : ''}
             <div class="lh-form-row">
                 <label class="multi-check-label">
-                    <input type="checkbox" id="lh-multi-person" onchange="lhFormState.multi_person=this.checked; document.getElementById('lh-multi-detail').style.display=this.checked?'flex':'none';" class="multi-check-input" style="accent-color:#c9a96e;">
+                    <input type="checkbox" id="lh-multi-person" data-onchange-check="lhFormState.multi_person" data-toggle-display="lh-multi-detail" class="multi-check-input" style="accent-color:#c9a96e;">
                     <span class="text-sub">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
                 <div id="lh-multi-detail" class="multi-detail-row" style="margin-bottom:4px;flex-direction:column;">
                     <div style="display:flex;gap:8px;">
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select data-onchange-set="lhFormState.guest_male" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select data-onchange-set="lhFormState.guest_female" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
                     </div>
-                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">${t('additional_fee')}</label>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" data-onchange-check="lhFormState.multi_fee" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">${t('additional_fee')}</label>
                 </div>
             </div>
-            <div class="lh-form-row"><label class="lh-form-label">${t('time_slot')}</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('time_slot')}</label><select data-onchange-set="lhFormState.time_slot" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
             <div class="lh-form-row"><label class="lh-form-label">${t('free_comment')}</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="${t('comment_placeholder')}" class="lh-form-select" style="resize:vertical;"></textarea></div>
             <div class="lh-form-row"><label class="lh-form-label">${t('poster_name_opt')}</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="${t('anon_placeholder')}" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">${t('anon_default')}</div></div>
-            <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">${t('confirm_post')}</button>
+            <button data-action="submitLovehoReport" id="lh-submit-btn" class="lh-submit-btn">${t('confirm_post')}</button>
         </div>
             </div>
         </div>`;
@@ -1107,7 +1107,7 @@ function suggestStations() {
             if (!stations.length) { box.innerHTML = `<div class="station-suggest-empty">${t('no_station_found')}</div>`; box.style.display = 'block'; return; }
             box.innerHTML = stations.map(s => {
                 const display = formatStationName(s.name);
-                return `<div class="station-suggest-item" onclick="selectStation('${esc(s.name).replace(/'/g, "\\'")}')"><span class="station-suggest-name">${esc(display)}</span> <span class="station-suggest-cnt">${s.cnt}件</span></div>`;
+                return `<div class="station-suggest-item" data-action="selectStation" data-param="${esc(s.name)}"><span class="station-suggest-name">${esc(display)}</span> <span class="station-suggest-cnt">${s.cnt}件</span></div>`;
             }).join('');
             box.style.display = 'block';
         } catch (e) { /* silenced */ }
@@ -1177,12 +1177,12 @@ async function showStationLovehoTabs(stationName, hotels) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" data-action="switchTab" data-param="loveho">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
         : '';
     tabsDiv.innerHTML = `
-        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">${t('hotel_tab')} (<span id="hotel-count">${hotels.length}</span>)</button>
+        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" data-action="switchTab" data-param="hotel">${t('hotel_tab')} (<span id="hotel-count">${hotels.length}</span>)</button>
         ${lovehoTab}
-        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
+        <button id="btn-map-toggle" class="btn-map-toggle" data-action="toggleMapView"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
     `;
     const hotelList = document.getElementById('hotel-list');
     hotelList.parentNode.insertBefore(tabsDiv, hotelList);
@@ -1263,10 +1263,10 @@ async function executeKeywordSearch() {
         tabsDiv.id = 'hotel-loveho-tabs';
         tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
         const lovehoTab = lovehoResults.length
-            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart">${lovehoResults.length}</span></button>`
+            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" data-action="switchKeywordTab" data-param="loveho">${t('loveho_tab')} <span class="tab-badge tab-badge--heart">${lovehoResults.length}</span></button>`
             : '';
         tabsDiv.innerHTML = `
-            <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchKeywordTab('hotel')">${t('hotel_tab')} (${hotelResults.length})</button>
+            <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" data-action="switchKeywordTab" data-param="hotel">${t('hotel_tab')} (${hotelResults.length})</button>
             ${lovehoTab}
         `;
         const hotelList = document.getElementById('hotel-list');
@@ -1655,7 +1655,7 @@ function buildCardHTML(h, i, showDistance) {
 
         return `
         <div class="hotel-card-lux" style="animation-delay:${Math.min(i * 0.04, 0.4)}s"
-             onclick="openHotelDetail(${h.id})" role="button">
+             data-action="openHotelDetail" data-hotel-id="${h.id}" role="button">
             <div class="hotel-card-body">
 
                 <!-- ホテル名 + ランク + 距離 -->
@@ -1682,8 +1682,8 @@ function buildCardHTML(h, i, showDistance) {
 
                 <!-- フッター -->
                 <div class="hotel-card-footer card-footer" style="padding-top:8px;">
-                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-primary" style="letter-spacing:0.03em;text-shadow:0 1px 2px rgba(0,0,0,0.18);">${t('check_now')}${reviewCount > 0 ? ` <span style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.35);border-radius:10px;padding:2px 8px;margin-left:4px;font-size:12px;text-shadow:none;">💬${reviewCount}</span>` : ''}</button>
-                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-secondary" style="letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;">${t('post_review')}</button>
+                    <button data-action="openHotelDetail" data-hotel-id="${h.id}" data-stop="1" class="card-action-btn card-action-btn--h-primary" style="letter-spacing:0.03em;text-shadow:0 1px 2px rgba(0,0,0,0.18);">${t('check_now')}${reviewCount > 0 ? ` <span style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.35);border-radius:10px;padding:2px 8px;margin-left:4px;font-size:12px;text-shadow:none;">💬${reviewCount}</span>` : ''}</button>
+                    <button data-action="openHotelDetail" data-hotel-id="${h.id}" data-stop="1" class="card-action-btn card-action-btn--h-secondary" style="letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;">${t('post_review')}</button>
                 </div>
 
             </div>
@@ -1727,7 +1727,7 @@ function loadMoreHotels() {
     if (remaining > 0) {
         container.insertAdjacentHTML('beforeend', `
             <div id="load-more-container" class="load-more-wrap">
-                <button id="load-more-btn" onclick="loadMoreHotels()" class="load-more-btn load-more-btn--hotel">${t('load_more')}（${remaining}）</button>
+                <button id="load-more-btn" data-action="loadMoreHotels" class="load-more-btn load-more-btn--hotel">${t('load_more')}（${remaining}）</button>
             </div>
         `);
     }
@@ -1735,7 +1735,7 @@ function loadMoreHotels() {
     const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">' + t('shop_register_link') + '</a>';
     container.insertAdjacentHTML('beforeend', `
         <div class="info-links-bar">
-            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
+            <a href="#" data-action="openHotelRequestModal" class="info-link-pill">${t('hotel_not_listed')}</a>
             ${shopRegLink}
         </div>
     `);
@@ -1918,7 +1918,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div class="detail-info-box">
             <div class="detail-info-inner">
                 <span class="detail-info-addr">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
-                ${hotel.tel ? '<span class="detail-info-tel"><a href="tel:' + esc(hotel.tel.replace(/[^\d+\-]/g,'')) + '" onclick="if(typeof gtag===\'function\')gtag(\'event\',\'phone_tap\',{hotel_name:\'' + esc(hotel.name||'').replace(/'/g,"\\'") + '\'})" style="color:inherit;text-decoration:none;">📞 ' + esc(hotel.tel) + '</a></span>' : ''}
+                ${hotel.tel ? '<span class="detail-info-tel"><a href="tel:' + esc(hotel.tel.replace(/[^\d+\-]/g,'')) + '" data-action="trackClick" data-event="phone_tap" data-label="' + esc(hotel.name||'') + '" style="color:inherit;text-decoration:none;">📞 ' + esc(hotel.tel) + '</a></span>' : ''}
             </div>
             ${(hotel.nearest_station || hotel.prefecture) ? `<div class="detail-info-sub">
                 ${hotel.nearest_station ? `<span class="text-sub">🚉 ${esc(hotel.nearest_station)}</span>` : '<span></span>'}
@@ -1937,7 +1937,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         </div>
         <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
-            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
+            <a href="#" data-action="openHotelRequestModal" class="info-link-pill">${t('hotel_not_listed')}</a>
             <a href="/shop-register/?genre=${modeParam}" class="info-link-pill">${t('shop_register_link')}</a>
         </div>
         <div id="detail-ad-wide"></div>
@@ -1980,12 +1980,12 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             const si=isShop&&_sid?shopInfoMap[_sid]:null;
             if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:13px;color:var(--text-3);">${icon} ${t('shop_provided_info')}</span>`;}
             const badge = si?.isPaid ? `<span class="shop-premium-badge">${t('certified_shop')}</span>` : `<span class="shop-verified-badge" style="background:${col};color:#fff;border-color:${col};">${t('certified_shop')}</span>`;
-            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:13px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
+            if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" class="hover-underline" style="font-size:13px;color:${col};font-weight:700;text-decoration:none;" data-stop="1">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
             if(isShop&&si&&si.status==='active'){return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
             return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
         })() : '';
         const feeHTML = feeLabel ? `<span class="fee-badge">${t('transport_fee')} ${feeLabel}</span>` : '';
-        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">${t('report_btn')}</button>` : '';
+        const flagHTML = r.id ? `<button data-action="showFlagModal" data-report-id="${r.id}" class="report-flag-btn">${t('report_btn')}</button>` : '';
         const badgeCls = r.can_call ? (r.poster_type === 'shop' ? 'round-badge--shop-can' : 'round-badge--user-can') : (r.poster_type === 'shop' ? 'round-badge--shop-ng' : 'round-badge--user-ng');
 
         const _isActiveShop = isShop && _siHotel?.status === 'active';
@@ -2029,9 +2029,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const shopCanCount = shopReports.filter(r => r.can_call).length;
     const shopNgCount = shopReports.filter(r => !r.can_call).length;
     const shopFilterTabs = (shopReports.length > 1 && shopCanCount > 0 && shopNgCount > 0) ? `
-                <button onclick="filterShopReports('all')" class="sr-tab sr-tab-active filter-tab" data-filter="all" style="border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.12);color:#7a5c10;">全て</button>
-                <button onclick="filterShopReports('can')" class="sr-tab filter-tab" data-filter="can" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">✅ 案内可 ${shopCanCount}</button>
-                <button onclick="filterShopReports('ng')" class="sr-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 案内不可 ${shopNgCount}</button>` : '';
+                <button data-action="filterShopReports" data-param="all" class="sr-tab sr-tab-active filter-tab" data-filter="all" style="border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.12);color:#7a5c10;">全て</button>
+                <button data-action="filterShopReports" data-param="can" class="sr-tab filter-tab" data-filter="can" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">✅ 案内可 ${shopCanCount}</button>
+                <button data-action="filterShopReports" data-param="ng" class="sr-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 案内不可 ${shopNgCount}</button>` : '';
 
     const shopSection = shopReports.length === 0 ? '' : `
         <div class="section-official">
@@ -2048,9 +2048,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const canCount = userReports.filter(r => r.can_call).length;
     const ngCount = userReports.filter(r => !r.can_call).length;
     const filterTabs = (userReports.length > 1 && canCount > 0 && ngCount > 0) ? `<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active" data-filter="all" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${userReports.length})</button>
-        ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab" data-filter="can" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(58,154,96,0.25);background:transparent;color:#3a9a60;">✅ ${t('can_call')} (${canCount})</button>` : ''}
-        ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab" data-filter="ng" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ ${t('cannot_call')} (${ngCount})</button>` : ''}
+        <button data-action="filterUserReports" data-param="all" class="ur-tab ur-tab-active" data-filter="all" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${userReports.length})</button>
+        ${canCount ? `<button data-action="filterUserReports" data-param="can" class="ur-tab" data-filter="can" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(58,154,96,0.25);background:transparent;color:#3a9a60;">✅ ${t('can_call')} (${canCount})</button>` : ''}
+        ${ngCount ? `<button data-action="filterUserReports" data-param="ng" class="ur-tab" data-filter="ng" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ ${t('cannot_call')} (${ngCount})</button>` : ''}
     </div>` : '';
 
     const userReportsHTML = `
@@ -2061,9 +2061,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px;">
             <span style="font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap;">${{ men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' }[MODE] || '♂'} ${t('user_reviews')} (${userReports.length})</span>
             ${(userReports.length > 1 && canCount > 0 && ngCount > 0) ? `
-                <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active filter-tab" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">全て</button>
-                ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab filter-tab" data-filter="can" style="border-color:rgba(33,150,243,0.25);color:#1976d2;">✅ 呼べた ${canCount}</button>` : ''}
-                ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 呼べない ${ngCount}</button>` : ''}
+                <button data-action="filterUserReports" data-param="all" class="ur-tab ur-tab-active filter-tab" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">全て</button>
+                ${canCount ? `<button data-action="filterUserReports" data-param="can" class="ur-tab filter-tab" data-filter="can" style="border-color:rgba(33,150,243,0.25);color:#1976d2;">✅ 呼べた ${canCount}</button>` : ''}
+                ${ngCount ? `<button data-action="filterUserReports" data-param="ng" class="ur-tab filter-tab" data-filter="ng" style="border-color:rgba(192,80,80,0.25);color:#c05050;">❌ 呼べない ${ngCount}</button>` : ''}
             ` : ''}
         </div>
         <div id="user-reports-list">${userReports.length > 0 ? scrollableSection(userReports, buildReportCard) : noReports}</div>`;
@@ -2101,7 +2101,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
             <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(hotel.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal"><span id="hotel-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_hotel_review')}<span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="text-align:center;"><button data-action="toggleAccordionForm" data-param="hotel-form-accordion" class="btn-open-report-modal"><span id="hotel-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_hotel_review')}<span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="hotel-form-accordion" style="display:none;margin-top:12px;">
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
@@ -2111,32 +2111,32 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             <div class="form-group">
                 <label class="form-label">${t('result_label')} <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">${t('result_required')}</span></label>
                 <div class="toggle-row">
-                    <button class="toggle-btn can" id="btn-can" onclick="hotelSetCanCall(true)">✅ ${t('can_call')}</button>
-                    <button class="toggle-btn cannot" id="btn-cannot" onclick="hotelSetCanCall(false)">❌ ${t('cannot_call')}</button>
+                    <button class="toggle-btn can" id="btn-can" data-action="hotelSetCanCall" data-param="true">✅ ${t('can_call')}</button>
+                    <button class="toggle-btn cannot" id="btn-cannot" data-action="hotelSetCanCall" data-param="false">❌ ${t('cannot_call')}</button>
                 </div>
                 <div id="can-reasons-display"></div>
                 <div id="cannot-reasons-display"></div>
                 <div style="margin-top:10px;">
                     <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-2);">
-                        <input type="checkbox" id="form-multi-person" onchange="hotelToggleMultiPerson(this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
+                        <input type="checkbox" id="form-multi-person" data-onchange-fn="hotelToggleMultiPerson" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);">
                         3P・4P…複数人で利用OK（任意）
                     </label>
                     <div id="form-multi-person-section" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;">
                         <div style="display:flex;gap:16px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-size:12px;color:var(--text-2);width:40px;">${t('guest_male')}</span>
-                                <button type="button" onclick="hotelStepGuest('male',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
+                                <button type="button" data-action="hotelStepGuest" data-param="male" data-dir="-1" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-male" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
-                                <button type="button" onclick="hotelStepGuest('male',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
+                                <button type="button" data-action="hotelStepGuest" data-param="male" data-dir="1" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-size:12px;color:var(--text-2);width:40px;">${t('guest_female')}</span>
-                                <button type="button" onclick="hotelStepGuest('female',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
+                                <button type="button" data-action="hotelStepGuest" data-param="female" data-dir="-1" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-female" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
-                                <button type="button" onclick="hotelStepGuest('female',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
+                                <button type="button" data-action="hotelStepGuest" data-param="female" data-dir="1" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                         </div>
-                        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="form-multi-fee-top" data-onchange-check="hotelFormState.multi_fee" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
                     </div>
                 </div>
             </div>
@@ -2144,13 +2144,13 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                 <div style="display:flex;gap:10px;">
                     <div style="flex:1;min-width:0;">
                         <label class="form-label" style="margin-bottom:6px;display:block;">${t('time_slot')}</label>
-                        <select id="form-time-slot" onchange="hotelFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
+                        <select id="form-time-slot" data-onchange-set="hotelFormState.time_slot" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
                             <option value="">${t('unselected')}</option><option value="早朝 (5:00~8:00)">${tm('早朝 (5:00~8:00)')}</option><option value="朝 (8:00~11:00)">${tm('朝 (8:00~11:00)')}</option><option value="昼 (11:00~16:00)">${tm('昼 (11:00~16:00)')}</option><option value="夕方 (16:00~18:00)">${tm('夕方 (16:00~18:00)')}</option><option value="夜 (18:00~23:00)">${tm('夜 (18:00~23:00)')}</option><option value="深夜 (23:00~5:00)">${tm('深夜 (23:00~5:00)')}</option>
                         </select>
                     </div>
                     <div style="flex:1;min-width:0;">
                         <label class="form-label" style="margin-bottom:6px;display:block;">${t('room_type')}</label>
-                        <select id="form-room-type" onchange="hotelFormState.room_type=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
+                        <select id="form-room-type" data-onchange-set="hotelFormState.room_type" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
                             <option value="">${t('unselected')}</option>${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
@@ -2158,15 +2158,15 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             </div>
             <div style="margin-bottom:14px;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="multi-person-check" onchange="hotelFormState.multi_person=this.checked; document.getElementById('multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+                    <input type="checkbox" id="multi-person-check" data-onchange-check="hotelFormState.multi_person" data-toggle-display="multi-person-detail" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
                     <span style="font-size:13px;color:var(--text-2);">👥 3P・4P…複数人で利用OK（任意）</span>
                 </label>
                 <div id="multi-person-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
                     <div style="display:flex;gap:8px;">
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select data-onchange-set="hotelFormState.guest_male" data-parse-int="1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select data-onchange-set="hotelFormState.guest_female" data-parse-int="0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
                     </div>
-                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" data-onchange-check="hotelFormState.multi_fee" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
                 </div>
             </div>
             <div class="form-group">
@@ -2174,7 +2174,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                 <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="${t('comment_placeholder')}" oninput="hotelFormState.comment=this.value"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">※お店名・${castLabel}情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります</div>
             </div>
-            <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">${t('confirm_post')}</button>
+            <button class="btn-submit" id="btn-submit" data-action="hotelSubmitReport">${t('confirm_post')}</button>
         </div>
             </div>
         </div>`;
@@ -2232,7 +2232,7 @@ function renderDetailShopCards(shops, cityName) {
         const count = s.hotel_count || 0;
         if (!name) return '';
         const nameHtml = url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'detail_shop',area:'${esc(cityName||'').replace(/'/g,"\\'")}'})">${esc(name)}</a>`
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" data-action="trackClick" data-event="ad_click" data-label="${esc(name)}" data-extra="detail_shop">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
         const thumbHtml = `<img src="${esc(thumb || getDefaultThumb())}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`;
         const countHtml = count > 0 ? `<span class="ad-sub-count">📋${count}件</span>` : '';
@@ -2267,7 +2267,7 @@ function renderSubAdCards(ads, label) {
         const _adPlType = ad.placement_type || 'sub';
         const _adPlTarget = ad.placement_target || '';
         const nameHtml = url
-            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(name).replace(/'/g,"\\'")}',placement_type:'${esc(_adPlType)}',area:'${esc(_adPlTarget).replace(/'/g,"\\'")}'})">${esc(name)}</a>`
+            ? `<a href="${esc(url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" style="flex:1;min-width:0;" data-action="trackClick" data-event="ad_click" data-label="${esc(name)}" data-extra="${esc(_adPlType)}">${esc(name)}</a>`
             : `<span class="ad-shop-name" style="color:var(--text);flex:1;min-width:0;">${esc(name)}</span>`;
         const thumbHtml = `<img src="${esc(thumb || getDefaultThumb())}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`;
         const countHtml = count > 0 ? `<span class="ad-sub-count">📋${count}件</span>` : '';
@@ -2333,7 +2333,7 @@ function renderAreaShopSection(shops) {
 
     const cards = displayShops.map(s => {
         const nameHtml = s.shop_url
-            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" onclick="if(typeof gtag==='function')gtag('event','ad_click',{shop_name:'${esc(s.shop_name).replace(/'/g,"\\'")}',placement_type:'area_shop',area:'${esc(s.area||'').replace(/'/g,"\\'")}'})">${esc(s.shop_name)}</a>`
+            ? `<a href="${esc(s.shop_url)}" target="${_extTarget}" rel="noopener" class="ad-shop-name" data-action="trackClick" data-event="ad_click" data-label="${esc(s.shop_name)}" data-extra="area_shop">${esc(s.shop_name)}</a>`
             : `<span class="ad-shop-name">${esc(s.shop_name)}</span>`;
         const images = s.images || [];
         const isGrid = s.banner_type === 'photos' && images.length > 0;
