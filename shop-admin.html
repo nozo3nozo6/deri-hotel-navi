@@ -507,6 +507,26 @@
                 </div>
             </div>
         </div>
+        <!-- 営業ダッシュボード -->
+        <div class="card" id="dashboard-card">
+            <div class="card-title">📊 ダッシュボード</div>
+            <div id="dashboard-content" style="display:flex;flex-wrap:wrap;gap:12px;">
+                <div style="flex:1;min-width:120px;padding:14px;background:var(--bg-3);border-radius:var(--r);text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:var(--rose);" id="dash-hotel-count">—</div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">登録ホテル数</div>
+                </div>
+                <div style="flex:1;min-width:120px;padding:14px;background:var(--bg-3);border-radius:var(--r);text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:var(--rose);" id="dash-review-count">—</div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">投稿口コミ数</div>
+                </div>
+                <div style="flex:1;min-width:120px;padding:14px;background:var(--bg-3);border-radius:var(--r);text-align:center;">
+                    <div style="font-size:24px;font-weight:700;color:#3a9a60;" id="dash-call-rate">—</div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;">呼べた率</div>
+                </div>
+            </div>
+            <div id="dash-latest" style="font-size:11px;color:var(--text-3);margin-top:10px;text-align:right;"></div>
+        </div>
+
         <div class="card">
             <div class="card-title">メールアドレス（ID）変更</div>
             <!-- Step1: 認証メール送信 -->
@@ -952,6 +972,7 @@ function onLoggedIn(){
     loadRegisteredHotels();
     loadFavAreas().then(()=>showJapanPage());
     loadStatusCard();
+    loadDashboard();
 }
 
 async function loadStatusCard(){
@@ -1044,6 +1065,22 @@ async function loadStatusCard(){
             }
         }
     }
+}
+
+async function loadDashboard(){
+    try{
+        const res=await fetch('/api/shop-dashboard.php',{credentials:'include'});
+        if(!res.ok)return;
+        const d=await res.json();
+        if(d.error)return;
+        document.getElementById('dash-hotel-count').textContent=d.hotel_count;
+        document.getElementById('dash-review-count').textContent=d.total_review_count;
+        document.getElementById('dash-call-rate').textContent=d.can_call_rate!==null?(d.can_call_rate+'%'):'—';
+        if(d.latest_review){
+            const dt=new Date(d.latest_review);
+            document.getElementById('dash-latest').textContent='最終投稿: '+dt.getFullYear()+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+String(dt.getDate()).padStart(2,'0');
+        }
+    }catch(e){}
 }
 
 let _shopImages=[];
