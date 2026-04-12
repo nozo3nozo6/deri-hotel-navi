@@ -751,11 +751,11 @@ async function loadDetail(hotelId, isLoveho) {
             const genreName = GENRE_MAP[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
                 const cards = cityAds.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards}</div>`;
+                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗</div><div class="ad-shop-list">${cards}</div>`;
             }
             // ②〜⑥: テキストリンク
             {
-                const _badge = '<span class="shop-premium-badge">認定店</span>';
+                const _badge = `<span class="shop-premium-badge">${t('certified_shop')}</span>`;
                 const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
                 if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `このエリアのおすすめ ${_badge} 名をクリック🔗`);
@@ -819,7 +819,7 @@ function renderLovehoDetail(hotel, reports) {
         const gps = r.good_points && Array.isArray(r.good_points) ? r.good_points : [];
         const gpRoom = gps.filter(gp => gpCatMap[gp] === '設備・お部屋');
         const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
-        const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(gp)}</span>`).join('');
+        const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(tm(gp))}</span>`).join('');
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const gmCol=gm==='women'?'#7b6fa0':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
         const pName=r.poster_name||'匿名';
         const _lhSid=r.shop_id?String(r.shop_id):null;
@@ -835,8 +835,8 @@ function renderLovehoDetail(hotel, reports) {
         const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_yes')}</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_together')}</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-entry-ng">${t('solo_entry_no')}</span>` : '') : '';
         const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">${t('guide_success')}</span>` : '';
         const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?t('solo_can'):r.solo_entry==='no'?t('solo_ng'):r.solo_entry==='together'?t('solo_together'):''}</span>` : '';
-        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
-        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">${t('atmosphere')}</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
+        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(tm(r.time_slot))}</span>` : '';
+        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">${t('atmosphere')}</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(tm(r.atmosphere))}</span>` : '';
         const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('facilities')}</span>${gpTagHTML(gpRoom)}</div>` : '';
         const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('service')}</span>${gpTagHTML(gpService)}</div>` : '';
         return `<div class="review-card lh-shop-card">
@@ -968,7 +968,7 @@ function renderLovehoDetail(hotel, reports) {
             <div class="lh-form-row"><label class="lh-form-label">${t('time_slot')}</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
             <div class="lh-form-row"><label class="lh-form-label">${t('free_comment')}</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="${t('comment_placeholder')}" class="lh-form-select" style="resize:vertical;"></textarea></div>
             <div class="lh-form-row"><label class="lh-form-label">${t('poster_name_opt')}</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="${t('anon_placeholder')}" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">${t('anon_default')}</div></div>
-            <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">確認画面に進む</button>
+            <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">${t('confirm_post')}</button>
         </div>
             </div>
         </div>`;
@@ -1886,18 +1886,18 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             ...(r.conditions||[])
         ];
         const tagCls = r.can_call ? 'tag-chip--can' : 'tag-chip--ng';
-        const tagsHTML = entryTags.map(t =>
-            `<span class="tag-chip ${tagCls}">${esc(t)}</span>`
+        const tagsHTML = entryTags.map(tag =>
+            `<span class="tag-chip ${tagCls}">${esc(tm(tag))}</span>`
         ).join('');
         const multiFeeTag = r.multi_fee ? ` <span style="color:#c9a96e;font-size:10px;">${t('additional_fee')}</span>` : '';
         const guestChip = r.multi_person
-            ? `<span class="tag-chip tag-chip--guest">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}${multiFeeTag}</span>`
+            ? `<span class="tag-chip tag-chip--guest">${t('multi_person_ok')}${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">(${r.guest_male?`${t('guest_male')}${r.guest_male}`:''}${r.guest_male&&r.guest_female?'/':''}${r.guest_female?`${t('guest_female')}${r.guest_female}`:''})</span>`:''}${multiFeeTag}</span>`
             : (r.guest_female != null && r.guest_female > 0)
-            ? `<span class="tag-chip tag-chip--guest">👥 男性${r.guest_male}名・女性${r.guest_female}名</span>`
+            ? `<span class="tag-chip tag-chip--guest">👥 ${t('guest_male')}${r.guest_male} / ${t('guest_female')}${r.guest_female}</span>`
             : '';
-        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
+        const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(tm(r.time_slot))}</span>` : '';
         const metaChips = [
-            r.room_type  ? `<span class="tag-chip tag-chip--room">🛏${esc(r.room_type)}</span>` : '',
+            r.room_type  ? `<span class="tag-chip tag-chip--room">🛏${esc(tm(r.room_type))}</span>` : '',
             guestChip,
         ].join('');
         const isShop = r.poster_type === 'shop' || !!r.shop_id;
@@ -1907,18 +1907,18 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const posterHTML = r.poster_name ? (()=>{
             const gm=r.gender_mode;const icon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const col=gm==='women'?'#7b6fa0':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
             const si=isShop&&_sid?shopInfoMap[_sid]:null;
-            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:13px;color:var(--text-3);">${icon} 🏢 店舗提供情報</span>`;}
-            const badge = si?.isPaid ? `<span class="shop-premium-badge">認定店</span>` : `<span class="shop-verified-badge" style="background:${col};color:#fff;border-color:${col};">認定店</span>`;
+            if(isShop&&si&&si.status&&si.status!=='active'){return`<span style="font-size:13px;color:var(--text-3);">${icon} ${t('shop_provided_info')}</span>`;}
+            const badge = si?.isPaid ? `<span class="shop-premium-badge">${t('certified_shop')}</span>` : `<span class="shop-verified-badge" style="background:${col};color:#fff;border-color:${col};">${t('certified_shop')}</span>`;
             if(isShop&&si&&si.status==='active'&&si.isPaid&&si.shop_url){return`<a href="${esc(si.shop_url)}" target="${_extTarget}" rel="noopener" style="font-size:13px;color:${col};font-weight:700;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">${icon} ${esc(r.poster_name)} 🔗</a> ${badge}`;}
             if(isShop&&si&&si.status==='active'){return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span> ${badge}`;}
             return`<span style="font-size:13px;color:${col};font-weight:600;">${icon} ${esc(r.poster_name)}</span>`;
         })() : '';
-        const feeHTML = feeLabel ? `<span class="fee-badge">🚕 交通費: ${feeLabel}</span>` : '';
-        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button>` : '';
+        const feeHTML = feeLabel ? `<span class="fee-badge">${t('transport_fee')} ${feeLabel}</span>` : '';
+        const flagHTML = r.id ? `<button onclick="showFlagModal('${r.id}')" class="report-flag-btn">${t('report_btn')}</button>` : '';
         const badgeCls = r.can_call ? (r.poster_type === 'shop' ? 'round-badge--shop-can' : 'round-badge--user-can') : (r.poster_type === 'shop' ? 'round-badge--shop-ng' : 'round-badge--user-ng');
 
         const _isActiveShop = isShop && _siHotel?.status === 'active';
-        const statusBadge = `<span class="round-badge ${badgeCls}">${_isActiveShop ? (r.can_call ? '✅ ご案内実績あり' : '❌ ご案内不可') : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}</span>`;
+        const statusBadge = `<span class="round-badge ${badgeCls}">${_isActiveShop ? (r.can_call ? t('guide_available') : t('guide_unavailable')) : (r.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call'))}</span>`;
 
         return `
         <div class="review-card lh-shop-card">
@@ -1950,7 +1950,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
-    const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">まだ投稿がありません</div>`;
+    const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">${t('no_posts_yet')}</div>`;
 
     // 店舗フィルタータブ
     window._shopReports = shopReports;
@@ -1965,7 +1965,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const shopSection = shopReports.length === 0 ? '' : `
         <div class="section-official">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;border-bottom:1px solid rgba(201,168,76,0.3);padding-bottom:4px;">
-                <span class="section-label section-label--official">✅ お店からの公式情報 (${shopReports.length})</span>
+                <span class="section-label section-label--official">${t('shop_official_info')} (${shopReports.length})</span>
                 ${shopFilterTabs}
             </div>
             <div id="shop-reports-list">${scrollableSection(shopReports, buildReportCard)}</div>
@@ -1984,11 +1984,11 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
 
     const userReportsHTML = `
         <div style="display:flex;align-items:center;gap:10px;margin:4px 0 10px;">
-            <span style="font-size:16px;font-weight:600;color:var(--text);">みんなの体験談</span>
+            <span style="font-size:16px;font-weight:600;color:var(--text);">${t('review_list')}</span>
             <div style="flex:1;height:1px;background:var(--border);"></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:8px;">
-            <span style="font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap;">${{ men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' }[MODE] || '♂'} ユーザー投稿 (${userReports.length})</span>
+            <span style="font-size:12px;font-weight:700;color:var(--text-2);white-space:nowrap;">${{ men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀' }[MODE] || '♂'} ${t('user_reviews')} (${userReports.length})</span>
             ${(userReports.length > 1 && canCount > 0 && ngCount > 0) ? `
                 <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active filter-tab" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">全て</button>
                 ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab filter-tab" data-filter="can" style="border-color:rgba(33,150,243,0.25);color:#1976d2;">✅ 呼べた ${canCount}</button>` : ''}
@@ -2008,8 +2008,8 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                 <div style="width:${100-shopPct}%;background:#c05050;"></div>
             </div>
             <div class="stat-legend">
-                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#3a9a60;"></span>ご案内実績あり ${shopPct}%</span>
-                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#c05050;"></span>ご案内不可 ${100-shopPct}%</span>
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#3a9a60;"></span>${t('guide_available')} ${shopPct}%</span>
+                <span class="stat-legend-item"><span class="stat-legend-dot" style="background:#c05050;"></span>${t('guide_unavailable')} ${100-shopPct}%</span>
             </div>
         </div>` : '')
         + (userPct !== null ? `
@@ -2030,15 +2030,15 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
             <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(hotel.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal"><span id="hotel-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>📝 口コミを投稿する<span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="text-align:center;"><button onclick="toggleAccordionForm('hotel-form-accordion')" class="btn-open-report-modal"><span id="hotel-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_hotel_review')}<span id="hotel-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="hotel-form-accordion" style="display:none;margin-top:12px;">
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
-                <label class="form-label">投稿者名 <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
-                <input type="text" id="form-poster-name" placeholder="未入力の場合は「匿名希望」で表示されます" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
+                <label class="form-label">${t('poster_name_opt')}</label>
+                <input type="text" id="form-poster-name" placeholder="${t('anon_placeholder')}" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
             </div>
             <div class="form-group">
-                <label class="form-label">結果 <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">必須</span></label>
+                <label class="form-label">${t('result_label')} <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">${t('result_required')}</span></label>
                 <div class="toggle-row">
                     <button class="toggle-btn can" id="btn-can" onclick="hotelSetCanCall(true)">✅ ${t('can_call')}</button>
                     <button class="toggle-btn cannot" id="btn-cannot" onclick="hotelSetCanCall(false)">❌ ${t('cannot_call')}</button>
@@ -2053,34 +2053,34 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                     <div id="form-multi-person-section" style="display:none;margin-top:10px;padding:10px 12px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;">
                         <div style="display:flex;gap:16px;">
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-size:12px;color:var(--text-2);width:40px;">男性</span>
+                                <span style="font-size:12px;color:var(--text-2);width:40px;">${t('guest_male')}</span>
                                 <button type="button" onclick="hotelStepGuest('male',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-male" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
                                 <button type="button" onclick="hotelStepGuest('male',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-size:12px;color:var(--text-2);width:40px;">女性</span>
+                                <span style="font-size:12px;color:var(--text-2);width:40px;">${t('guest_female')}</span>
                                 <button type="button" onclick="hotelStepGuest('female',-1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">－</button>
                                 <span id="form-guest-female" style="width:20px;text-align:center;font-size:14px;font-weight:600;color:var(--text);">1</span>
                                 <button type="button" onclick="hotelStepGuest('female',1)" style="width:30px;height:30px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text-2);font-size:16px;cursor:pointer;font-family:inherit;line-height:1;display:flex;align-items:center;justify-content:center;">＋</button>
                             </div>
                         </div>
-                        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
+                        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="form-multi-fee-top" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
                     </div>
                 </div>
             </div>
             <div class="form-group">
                 <div style="display:flex;gap:10px;">
                     <div style="flex:1;min-width:0;">
-                        <label class="form-label" style="margin-bottom:6px;display:block;">時間帯 <span style="color:var(--text-3);font-weight:400;">(任意)</span></label>
+                        <label class="form-label" style="margin-bottom:6px;display:block;">${t('time_slot')}</label>
                         <select id="form-time-slot" onchange="hotelFormState.time_slot=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
-                            <option value="">未選択</option><option value="早朝 (5:00~8:00)">早朝 (5:00~8:00)</option><option value="朝 (8:00~11:00)">朝 (8:00~11:00)</option><option value="昼 (11:00~16:00)">昼 (11:00~16:00)</option><option value="夕方 (16:00~18:00)">夕方 (16:00~18:00)</option><option value="夜 (18:00~23:00)">夜 (18:00~23:00)</option><option value="深夜 (23:00~5:00)">深夜 (23:00~5:00)</option>
+                            <option value="">${t('unselected')}</option><option value="早朝 (5:00~8:00)">${tm('早朝 (5:00~8:00)')}</option><option value="朝 (8:00~11:00)">${tm('朝 (8:00~11:00)')}</option><option value="昼 (11:00~16:00)">${tm('昼 (11:00~16:00)')}</option><option value="夕方 (16:00~18:00)">${tm('夕方 (16:00~18:00)')}</option><option value="夜 (18:00~23:00)">${tm('夜 (18:00~23:00)')}</option><option value="深夜 (23:00~5:00)">${tm('深夜 (23:00~5:00)')}</option>
                         </select>
                     </div>
                     <div style="flex:1;min-width:0;">
-                        <label class="form-label" style="margin-bottom:6px;display:block;">部屋タイプ <span style="color:var(--text-3);font-weight:400;">(任意)</span></label>
+                        <label class="form-label" style="margin-bottom:6px;display:block;">${t('room_type')}</label>
                         <select id="form-room-type" onchange="hotelFormState.room_type=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);appearance:none;">
-                            <option value="">未選択</option>${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
+                            <option value="">${t('unselected')}</option>${ROOM_TYPES.map(r => `<option value="${r}">${r}</option>`).join('')}
                         </select>
                     </div>
                 </div>
@@ -2092,18 +2092,18 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
                 </label>
                 <div id="multi-person-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
                     <div style="display:flex;gap:8px;">
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">男性</span><select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">女性</span><select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select onchange="hotelFormState.guest_male=parseInt(this.value)||1" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select onchange="hotelFormState.guest_female=parseInt(this.value)||0" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-family:inherit;"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
                     </div>
-                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">追加料金あり</label>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="multi-person-fee" onchange="hotelFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;">${t('additional_fee')}</label>
                 </div>
             </div>
             <div class="form-group">
-                <label class="form-label">コメント <span style="color:var(--text-3);font-weight:400;">（任意）</span></label>
-                <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="状況や注意点など自由に記入してください..." oninput="hotelFormState.comment=this.value"></textarea>
+                <label class="form-label">${t('free_comment')}</label>
+                <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="${t('comment_placeholder')}" oninput="hotelFormState.comment=this.value"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">※お店名・${castLabel}情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります</div>
             </div>
-            <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">確認画面に進む</button>
+            <button class="btn-submit" id="btn-submit" onclick="hotelSubmitReport()">${t('confirm_post')}</button>
         </div>
             </div>
         </div>`;
@@ -2178,7 +2178,7 @@ function renderDetailShopCards(shops, cityName) {
     }).filter(Boolean);
     if (!cards.length) return '';
     const _gn = GENRE_MAP[getCurrentMode()] || 'お店';
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
@@ -2294,7 +2294,7 @@ function renderAreaShopSection(shops) {
     }).join('');
 
     const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗`;
+    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }
