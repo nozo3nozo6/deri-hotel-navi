@@ -183,6 +183,37 @@ function appendShopModeLpContent() {
 }
 
 // info-links-bar を hotel-list に追加するヘルパー
+async function appendRecentReviews() {
+    if (typeof _shopParam !== 'undefined' && _shopParam) return;
+    const mode = typeof MODE !== 'undefined' ? MODE : 'men';
+    try {
+        const res = await fetch(`/api/recent-reviews.php?mode=${encodeURIComponent(mode)}&limit=5`);
+        if (!res.ok) return;
+        const reviews = await res.json();
+        if (!reviews || !reviews.length) return;
+        const modePath = typeof MODE_PATH_MAP !== 'undefined' ? (MODE_PATH_MAP[mode] || '/deli/') : '/deli/';
+        const lines = reviews.map(function(r) {
+            const d = r.created_at ? new Date(r.created_at) : null;
+            const timeStr = d ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '';
+            const name = typeof esc === 'function' ? esc(r.hotel_name) : r.hotel_name;
+            const poster = r.poster_name ? (typeof esc === 'function' ? esc(r.poster_name) : r.poster_name) : (typeof t === 'function' ? t('anonymous') : '匿名');
+            const hotelLink = `${modePath}hotel/${r.hotel_id}`;
+            let badge = '';
+            if (r.type === 'hotel') {
+                badge = r.can_call ? '<span style="color:#3a9a60;font-weight:600;">✅</span>' : '<span style="color:#c05050;font-weight:600;">❌</span>';
+            } else {
+                badge = r.solo_entry === 'yes' ? '<span style="color:#3a9a60;">🚪</span>' : r.solo_entry === 'no' ? '<span style="color:#c05050;">🚪</span>' : '<span style="color:#a09080;">🏩</span>';
+            }
+            return `<a href="${hotelLink}" style="display:block;padding:4px 0;font-size:12px;color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--border,#eee);" onmouseover="this.style.background='var(--bg-3,#f5f2ec)'" onmouseout="this.style.background=''"><span style="color:var(--text-3);margin-right:6px;">${timeStr}</span>${badge} <span style="font-weight:600;color:var(--text);">${name}</span> <span style="color:var(--text-3);font-size:11px;">— ${poster}</span></a>`;
+        }).join('');
+        const hlc = document.getElementById('hotel-list');
+        if (hlc) {
+            const title = typeof t === 'function' ? (t('recent_reviews') || '最新の口コミ') : '最新の口コミ';
+            hlc.insertAdjacentHTML('beforeend', `<div style="padding:10px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">💬 ${title}</div>${lines}</div>`);
+        }
+    } catch(e) { /* silent */ }
+}
+
 async function appendRecentShops() {
     if (typeof _shopParam !== 'undefined' && _shopParam) return;
     const mode = typeof MODE !== 'undefined' ? MODE : 'men';
@@ -451,6 +482,7 @@ function showJapanPage() {
         };
         container.appendChild(btn);
     });
+    appendRecentReviews();
     appendInfoLinksBar();
     appendRecentShops();
     appendShopModeLpContent();
