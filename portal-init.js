@@ -2,6 +2,34 @@
 // portal-init.js — ポータル初期化、イベント委譲、インラインscript外部化
 // ==========================================================================
 
+// ── 店舗専用URL: 法的ページSPA読み込み ──
+var _legalSavedHTML = null;
+var _legalSavedScroll = 0;
+function loadLegalPageInline(url, title) {
+    var main = document.getElementById('main-content') || document.querySelector('.portal-main');
+    if (!main) { window.location.href = url; return; }
+    // 現在の表示を保存
+    _legalSavedHTML = main.innerHTML;
+    _legalSavedScroll = window.scrollY;
+    // フェッチして .content 部分を抽出
+    fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString(html, 'text/html');
+        var content = doc.querySelector('.content') || doc.querySelector('main') || doc.body;
+        var backBtn = '<div style="padding:12px 16px 0;"><button onclick="closeLegalPage()" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
+        main.innerHTML = backBtn + '<div style="max-width:720px;margin:0 auto;padding:16px 20px 40px;">' + content.innerHTML + '</div>';
+        window.scrollTo(0, 0);
+    }).catch(function() { window.location.href = url; });
+}
+function closeLegalPage() {
+    var main = document.getElementById('main-content') || document.querySelector('.portal-main');
+    if (main && _legalSavedHTML !== null) {
+        main.innerHTML = _legalSavedHTML;
+        _legalSavedHTML = null;
+        window.scrollTo(0, _legalSavedScroll);
+    }
+}
+
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
     if (window.__ASTRO_MODE) return;
@@ -113,15 +141,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (urlParams.get('shop') || _shopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
-        // フッターの法的ページリンクに ?shop=slug を付与（戻った時に店舗モード維持）
-        var shopSlug = _shopParam || urlParams.get('shop');
-        if (shopSlug) {
-            ['/terms/', '/privacy/', '/contact/'].forEach(function(path) {
-                document.querySelectorAll('footer a[href="' + path + '"]').forEach(function(a) {
-                    a.setAttribute('href', path + '?shop=' + encodeURIComponent(shopSlug));
+        // フッターの法的ページリンクをSPA化（ヘッダー維持、コンテンツ差し替え）
+        ['/terms/', '/privacy/', '/contact/'].forEach(function(path) {
+            document.querySelectorAll('footer a[href="' + path + '"]').forEach(function(a) {
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    loadLegalPageInline(path, a.textContent.trim());
                 });
             });
-        }
+        });
     }
     if (MODE) {
         document.querySelectorAll('a[href*="shop-register"]').forEach(function(a) {
