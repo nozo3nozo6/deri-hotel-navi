@@ -133,6 +133,32 @@ const LANG = {
         // 未選択
         unselected: '未選択',
         shop_registered: '様 ご登録いただきました',
+        // モーダル
+        modal_can_title: '✅ 呼べた理由を選んでください', modal_cannot_title: '❌ 呼べなかった理由を選んでください',
+        modal_multi_select: '複数選択可・スキップして次へ進むこともできます',
+        modal_confirm_title: '📋 投稿内容の確認', modal_confirm_sub: '内容をご確認の上、送信してください',
+        modal_confirm_warning: '⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます',
+        modal_fix: '修正する', modal_close: '閉じる',
+        modal_flag_title: '🚩 この投稿を報告', modal_flag_sub: '報告理由を選択してください',
+        flag_spam: '📢 スパム・宣伝', flag_false: '❌ 虚偽情報', flag_inappropriate: '⚠️ 不適切な内容', flag_other: '💬 その他',
+        flag_select_reason: '理由を選択してください', flag_comment_placeholder: '詳細コメント（任意）',
+        flag_confirm_btn: '確認する →', flag_confirm_title: '🚩 報告内容を確認', flag_confirm_sub: 'この内容で報告しますか？',
+        flag_reason_label: '報告理由', flag_detail_label: '詳細コメント',
+        modal_hreq_title: '🏨 ホテル掲載リクエスト', modal_hreq_sub: '掲載希望のホテル情報を入力してください',
+        hreq_name: 'ホテル名', hreq_address: '住所', hreq_address_hint: '※わかる範囲でOK',
+        hreq_tel: '電話番号', hreq_optional: '(任意)', hreq_type: 'ホテルタイプ',
+        hreq_confirm_btn: '確認画面へ →', hreq_confirm_title: '📋 内容を確認', hreq_confirm_sub: 'この内容でリクエストを送信しますか？',
+        hreq_done_title: 'ありがとうございました！', hreq_done_sub: 'リクエストを受け付けました。<br>確認後、順次掲載を検討いたします。',
+        modal_corr_title: '⚠️ 情報の誤りを報告', modal_corr_sub: 'どの情報に誤りがありますか？',
+        corr_address: '📍 住所が違う', corr_area: '🗺️ エリアが違う', corr_tel: '📞 電話番号が違う',
+        corr_name: '🏨 ホテル名が違う', corr_closed: '🚫 閉業している', corr_other: '💬 その他',
+        corr_select_cat: 'カテゴリを選択してください', corr_detail: '正しい情報・詳細',
+        corr_detail_placeholder: '正しい住所や情報を入力してください',
+        corr_confirm_sub: 'この内容で情報修正リクエストを送信しますか？',
+        anonymous: '匿名',
+        hotel_type_business: 'ビジネスホテル', hotel_type_city: 'シティホテル', hotel_type_resort: 'リゾートホテル',
+        hotel_type_ryokan: '旅館', hotel_type_pension: 'ペンション', hotel_type_minshuku: '民宿',
+        hotel_type_loveho: '🏩 ラブホテル', hotel_type_rental: '🏩 レンタルルーム', hotel_type_other: 'その他',
         solo_question: '一人で先に入れる？', solo_answers: '件回答',
         solo_yes: 'はい', solo_no: 'いいえ', solo_together_label: '一緒に入った',
         solo_waiting: '待合室待ち', solo_unknown: 'わからない',
@@ -220,6 +246,32 @@ const LANG = {
         guest_male: 'Male', guest_female: 'Female',
         unselected: 'Not selected',
         shop_registered: 'has registered',
+        // Modals
+        modal_can_title: '✅ Select reasons (available)', modal_cannot_title: '❌ Select reasons (unavailable)',
+        modal_multi_select: 'Multiple selection OK. You can also skip.',
+        modal_confirm_title: '📋 Confirm your review', modal_confirm_sub: 'Please check and submit',
+        modal_confirm_warning: '⚠️ Content with shop names, staff info, URLs or phone numbers will be displayed without comments',
+        modal_fix: 'Edit', modal_close: 'Close',
+        modal_flag_title: '🚩 Report this post', modal_flag_sub: 'Select a reason',
+        flag_spam: '📢 Spam/Advertisement', flag_false: '❌ False information', flag_inappropriate: '⚠️ Inappropriate content', flag_other: '💬 Other',
+        flag_select_reason: 'Please select a reason', flag_comment_placeholder: 'Details (optional)',
+        flag_confirm_btn: 'Confirm →', flag_confirm_title: '🚩 Confirm report', flag_confirm_sub: 'Submit this report?',
+        flag_reason_label: 'Reason', flag_detail_label: 'Details',
+        modal_hreq_title: '🏨 Hotel listing request', modal_hreq_sub: 'Enter hotel information',
+        hreq_name: 'Hotel name', hreq_address: 'Address', hreq_address_hint: '*Approximate is OK',
+        hreq_tel: 'Phone', hreq_optional: '(optional)', hreq_type: 'Hotel type',
+        hreq_confirm_btn: 'Confirm →', hreq_confirm_title: '📋 Confirm', hreq_confirm_sub: 'Submit this request?',
+        hreq_done_title: 'Thank you!', hreq_done_sub: 'Request received.<br>We will review it.',
+        modal_corr_title: '⚠️ Report incorrect info', modal_corr_sub: 'What is incorrect?',
+        corr_address: '📍 Wrong address', corr_area: '🗺️ Wrong area', corr_tel: '📞 Wrong phone',
+        corr_name: '🏨 Wrong name', corr_closed: '🚫 Permanently closed', corr_other: '💬 Other',
+        corr_select_cat: 'Select a category', corr_detail: 'Correct information',
+        corr_detail_placeholder: 'Enter correct info',
+        corr_confirm_sub: 'Submit this correction?',
+        anonymous: 'Anonymous',
+        hotel_type_business: 'Business Hotel', hotel_type_city: 'City Hotel', hotel_type_resort: 'Resort Hotel',
+        hotel_type_ryokan: 'Ryokan', hotel_type_pension: 'Pension', hotel_type_minshuku: 'Minshuku',
+        hotel_type_loveho: '🏩 Love Hotel', hotel_type_rental: '🏩 Rental Room', hotel_type_other: 'Other',
         solo_question: 'Solo check-in possible?', solo_answers: 'responses',
         solo_yes: 'Yes', solo_no: 'No', solo_together_label: 'Entered together',
         solo_waiting: 'Waiting room', solo_unknown: 'Unknown',
@@ -307,6 +359,32 @@ const LANG = {
         guest_male: '男性', guest_female: '女性',
         unselected: '未选择',
         shop_registered: '已注册',
+        // 模态框
+        modal_can_title: '✅ 请选择原因（可以叫）', modal_cannot_title: '❌ 请选择原因（不能叫）',
+        modal_multi_select: '可多选，也可跳过',
+        modal_confirm_title: '📋 确认投稿内容', modal_confirm_sub: '请确认后提交',
+        modal_confirm_warning: '⚠️ 包含店铺名称、相关人员信息、URL或电话号码的内容将不显示评论',
+        modal_fix: '修改', modal_close: '关闭',
+        modal_flag_title: '🚩 举报此投稿', modal_flag_sub: '请选择举报原因',
+        flag_spam: '📢 垃圾/广告', flag_false: '❌ 虚假信息', flag_inappropriate: '⚠️ 不当内容', flag_other: '💬 其他',
+        flag_select_reason: '请选择原因', flag_comment_placeholder: '详细说明（可选）',
+        flag_confirm_btn: '确认 →', flag_confirm_title: '🚩 确认举报内容', flag_confirm_sub: '确认提交此举报？',
+        flag_reason_label: '举报原因', flag_detail_label: '详细说明',
+        modal_hreq_title: '🏨 酒店收录请求', modal_hreq_sub: '请输入酒店信息',
+        hreq_name: '酒店名', hreq_address: '地址', hreq_address_hint: '※大概位置即可',
+        hreq_tel: '电话', hreq_optional: '（可选）', hreq_type: '酒店类型',
+        hreq_confirm_btn: '确认 →', hreq_confirm_title: '📋 确认内容', hreq_confirm_sub: '确认提交此请求？',
+        hreq_done_title: '谢谢！', hreq_done_sub: '已收到请求。<br>确认后将考虑收录。',
+        modal_corr_title: '⚠️ 报告信息错误', modal_corr_sub: '哪些信息有误？',
+        corr_address: '📍 地址有误', corr_area: '🗺️ 地区有误', corr_tel: '📞 电话有误',
+        corr_name: '🏨 名称有误', corr_closed: '🚫 已关闭', corr_other: '💬 其他',
+        corr_select_cat: '请选择类别', corr_detail: '正确信息·详细',
+        corr_detail_placeholder: '请输入正确信息',
+        corr_confirm_sub: '确认提交此修正请求？',
+        anonymous: '匿名',
+        hotel_type_business: '商务酒店', hotel_type_city: '城市酒店', hotel_type_resort: '度假酒店',
+        hotel_type_ryokan: '旅馆', hotel_type_pension: '民宿(西式)', hotel_type_minshuku: '民宿',
+        hotel_type_loveho: '🏩 情侣酒店', hotel_type_rental: '🏩 出租房', hotel_type_other: '其他',
         solo_question: '可以单独入住吗？', solo_answers: '个回答',
         solo_yes: '是', solo_no: '否', solo_together_label: '一起入住',
         solo_waiting: '等候室等待', solo_unknown: '不清楚',
@@ -394,6 +472,32 @@ const LANG = {
         guest_male: '남성', guest_female: '여성',
         unselected: '미선택',
         shop_registered: '등록되었습니다',
+        // 모달
+        modal_can_title: '✅ 사유를 선택하세요 (가능)', modal_cannot_title: '❌ 사유를 선택하세요 (불가)',
+        modal_multi_select: '복수 선택 가능, 건너뛰기도 가능',
+        modal_confirm_title: '📋 투고 내용 확인', modal_confirm_sub: '내용을 확인하고 제출하세요',
+        modal_confirm_warning: '⚠️ 가게명, 관계자 정보, URL, 전화번호가 포함된 내용은 코멘트 없이 표시됩니다',
+        modal_fix: '수정', modal_close: '닫기',
+        modal_flag_title: '🚩 이 게시물 신고', modal_flag_sub: '신고 사유를 선택하세요',
+        flag_spam: '📢 스팸/광고', flag_false: '❌ 허위 정보', flag_inappropriate: '⚠️ 부적절한 내용', flag_other: '💬 기타',
+        flag_select_reason: '사유를 선택하세요', flag_comment_placeholder: '상세 코멘트 (선택)',
+        flag_confirm_btn: '확인 →', flag_confirm_title: '🚩 신고 내용 확인', flag_confirm_sub: '이 내용으로 신고하시겠습니까?',
+        flag_reason_label: '신고 사유', flag_detail_label: '상세 코멘트',
+        modal_hreq_title: '🏨 호텔 등록 요청', modal_hreq_sub: '호텔 정보를 입력하세요',
+        hreq_name: '호텔명', hreq_address: '주소', hreq_address_hint: '※대략적인 위치도 OK',
+        hreq_tel: '전화번호', hreq_optional: '(선택)', hreq_type: '호텔 유형',
+        hreq_confirm_btn: '확인 →', hreq_confirm_title: '📋 내용 확인', hreq_confirm_sub: '이 내용으로 요청하시겠습니까?',
+        hreq_done_title: '감사합니다!', hreq_done_sub: '요청을 접수했습니다.<br>확인 후 등록을 검토하겠습니다.',
+        modal_corr_title: '⚠️ 정보 오류 신고', modal_corr_sub: '어떤 정보가 잘못되었나요?',
+        corr_address: '📍 주소 오류', corr_area: '🗺️ 지역 오류', corr_tel: '📞 전화번호 오류',
+        corr_name: '🏨 이름 오류', corr_closed: '🚫 폐업', corr_other: '💬 기타',
+        corr_select_cat: '카테고리를 선택하세요', corr_detail: '정확한 정보·상세',
+        corr_detail_placeholder: '정확한 정보를 입력하세요',
+        corr_confirm_sub: '이 내용으로 수정 요청하시겠습니까?',
+        anonymous: '익명',
+        hotel_type_business: '비즈니스 호텔', hotel_type_city: '시티 호텔', hotel_type_resort: '리조트 호텔',
+        hotel_type_ryokan: '료칸', hotel_type_pension: '펜션', hotel_type_minshuku: '민박',
+        hotel_type_loveho: '🏩 러브호텔', hotel_type_rental: '🏩 렌탈룸', hotel_type_other: '기타',
         solo_question: '혼자 체크인 가능?', solo_answers: '개 응답',
         solo_yes: '예', solo_no: '아니오', solo_together_label: '함께 입실',
         solo_waiting: '대기실 대기', solo_unknown: '모름',
@@ -531,6 +635,20 @@ function updateUILanguage() {
     // フィルタチップ（data-filter-key属性を使って翻訳）
     document.querySelectorAll('.filter-chip[data-filter-key]').forEach(chip => {
         chip.textContent = t(chip.dataset.filterKey);
+    });
+
+    // data-i18n属性による一括翻訳
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (key) el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const key = el.dataset.i18nHtml;
+        if (key) el.innerHTML = t(key);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.dataset.i18nPlaceholder;
+        if (key) el.placeholder = t(key);
     });
 
     // フッターリンク

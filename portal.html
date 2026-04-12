@@ -219,13 +219,13 @@
 <div id="can-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
-            <div class="modal-title">✅ 呼べた理由を選んでください</div>
-            <div class="modal-subtitle">複数選択可・スキップして次へ進むこともできます</div>
+            <div class="modal-title" data-i18n="modal_can_title">✅ 呼べた理由を選んでください</div>
+            <div class="modal-subtitle" data-i18n="modal_multi_select">複数選択可・スキップして次へ進むこともできます</div>
         </div>
         <div id="can-reasons-checkboxes" class="modal-checkbox-grid"></div>
         <div class="modal-actions">
-            <button data-action="cancelCanReasons" class="btn-modal-cancel" style="flex:1;">キャンセル</button>
-            <button data-action="confirmCanReasons" class="btn-modal-primary" style="flex:2;font-size:14px;">決定する</button>
+            <button data-action="cancelCanReasons" class="btn-modal-cancel" data-i18n="cancel" style="flex:1;">キャンセル</button>
+            <button data-action="confirmCanReasons" class="btn-modal-primary" data-i18n="confirm" style="flex:2;font-size:14px;">決定する</button>
         </div>
     </div>
 </div>
@@ -234,13 +234,13 @@
 <div id="cannot-reasons-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
-            <div class="modal-title">❌ 呼べなかった理由を選んでください</div>
-            <div class="modal-subtitle">複数選択可・スキップして次へ進むこともできます</div>
+            <div class="modal-title" data-i18n="modal_cannot_title">❌ 呼べなかった理由を選んでください</div>
+            <div class="modal-subtitle" data-i18n="modal_multi_select">複数選択可・スキップして次へ進むこともできます</div>
         </div>
         <div id="cannot-reasons-checkboxes" class="modal-checkbox-grid"></div>
         <div class="modal-actions">
-            <button data-action="cancelCannotReasons" class="btn-modal-cancel" style="flex:1;">キャンセル</button>
-            <button data-action="confirmCannotReasons" class="btn-modal-danger" style="flex:2;font-size:14px;">決定する</button>
+            <button data-action="cancelCannotReasons" class="btn-modal-cancel" data-i18n="cancel" style="flex:1;">キャンセル</button>
+            <button data-action="confirmCannotReasons" class="btn-modal-danger" data-i18n="confirm" style="flex:2;font-size:14px;">決定する</button>
         </div>
     </div>
 </div>
@@ -249,16 +249,16 @@
 <div id="post-confirm-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
-            <div class="modal-title">📋 投稿内容の確認</div>
-            <div class="modal-subtitle">内容をご確認の上、送信してください</div>
+            <div class="modal-title" data-i18n="modal_confirm_title">📋 投稿内容の確認</div>
+            <div class="modal-subtitle" data-i18n="modal_confirm_sub">内容をご確認の上、送信してください</div>
         </div>
         <div id="post-confirm-content"></div>
-        <div class="modal-warning">
+        <div class="modal-warning" data-i18n="modal_confirm_warning">
             ⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます
         </div>
         <div class="modal-actions">
-            <button data-action="closePostConfirmModal" class="btn-modal-cancel" style="flex:1;">修正する</button>
-            <button data-action="doSubmitReport" id="btn-do-submit" class="btn-modal-primary" style="flex:2;font-size:14px;">この内容で投稿する</button>
+            <button data-action="closePostConfirmModal" class="btn-modal-cancel" data-i18n="modal_fix" style="flex:1;">修正する</button>
+            <button data-action="doSubmitReport" id="btn-do-submit" class="btn-modal-primary" data-i18n="confirm_post" style="flex:2;font-size:14px;">この内容で投稿する</button>
         </div>
     </div>
 </div>
@@ -267,14 +267,14 @@
 <div id="lh-confirm-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal-high);">
     <div class="modal-content" style="max-width:460px;max-height:calc(100dvh - 120px);-webkit-overflow-scrolling:touch;">
         <div class="modal-header">
-            <div class="modal-title">📋 投稿内容の確認</div>
-            <div class="modal-subtitle">内容をご確認の上、送信してください</div>
+            <div class="modal-title" data-i18n="modal_confirm_title">📋 投稿内容の確認</div>
+            <div class="modal-subtitle" data-i18n="modal_confirm_sub">内容をご確認の上、送信してください</div>
         </div>
         <div id="lh-confirm-content"></div>
-        <div class="modal-warning">⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます</div>
+        <div class="modal-warning" data-i18n="modal_confirm_warning">⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます</div>
         <div class="modal-actions">
-            <button onclick="document.getElementById('lh-confirm-modal').style.display='none'" class="btn-modal-cancel" style="flex:1;">修正する</button>
-            <button onclick="doSubmitLovehoReport()" id="btn-do-lh-submit" class="btn-modal-primary" style="flex:2;font-size:14px;">この内容で投稿する</button>
+            <button onclick="document.getElementById('lh-confirm-modal').style.display='none'" class="btn-modal-cancel" data-i18n="modal_fix" style="flex:1;">修正する</button>
+            <button onclick="doSubmitLovehoReport()" id="btn-do-lh-submit" class="btn-modal-primary" data-i18n="confirm_post" style="flex:2;font-size:14px;">この内容で投稿する</button>
         </div>
     </div>
 </div>
@@ -301,37 +301,37 @@
         <!-- Step 1: 理由選択 + コメント（1画面） -->
         <div id="flag-step1">
             <div class="modal-header">
-                <div class="modal-title">🚩 この投稿を報告</div>
-                <div class="modal-subtitle">報告理由を選択してください</div>
+                <div class="modal-title" data-i18n="modal_flag_title">🚩 この投稿を報告</div>
+                <div class="modal-subtitle" data-i18n="modal_flag_sub">報告理由を選択してください</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;" id="flag-reason-btns">
-                <button data-action="selectFlagReason" data-param="スパム・宣伝" class="btn-flag-reason">📢 スパム・宣伝</button>
-                <button data-action="selectFlagReason" data-param="虚偽情報" class="btn-flag-reason">❌ 虚偽情報</button>
-                <button data-action="selectFlagReason" data-param="不適切な内容" class="btn-flag-reason">⚠️ 不適切な内容</button>
-                <button data-action="selectFlagReason" data-param="その他" class="btn-flag-reason">💬 その他</button>
+                <button data-action="selectFlagReason" data-param="スパム・宣伝" class="btn-flag-reason" data-i18n="flag_spam">📢 スパム・宣伝</button>
+                <button data-action="selectFlagReason" data-param="虚偽情報" class="btn-flag-reason" data-i18n="flag_false">❌ 虚偽情報</button>
+                <button data-action="selectFlagReason" data-param="不適切な内容" class="btn-flag-reason" data-i18n="flag_inappropriate">⚠️ 不適切な内容</button>
+                <button data-action="selectFlagReason" data-param="その他" class="btn-flag-reason" data-i18n="flag_other">💬 その他</button>
             </div>
-            <div id="flag-reason-err" class="modal-error" role="alert" aria-live="polite">理由を選択してください</div>
-            <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" class="modal-textarea" style="margin-bottom:10px;"></textarea>
-            <button data-action="showFlagConfirm" class="btn-modal-danger" style="width:100%;font-size:13px;padding:12px;border-radius:10px;margin-bottom:8px;">確認する →</button>
-            <button data-action="closeFlagModal" class="btn-modal-ghost">キャンセル</button>
+            <div id="flag-reason-err" class="modal-error" role="alert" aria-live="polite" data-i18n="flag_select_reason">理由を選択してください</div>
+            <textarea id="flag-comment-input" rows="3" placeholder="詳細コメント（任意）" data-i18n-placeholder="flag_comment_placeholder" class="modal-textarea" style="margin-bottom:10px;"></textarea>
+            <button data-action="showFlagConfirm" class="btn-modal-danger" data-i18n="flag_confirm_btn" style="width:100%;font-size:13px;padding:12px;border-radius:10px;margin-bottom:8px;">確認する →</button>
+            <button data-action="closeFlagModal" class="btn-modal-ghost" data-i18n="cancel">キャンセル</button>
         </div>
         <!-- Step 2: 確認 -->
         <div id="flag-step2" style="display:none;">
             <div class="modal-header">
-                <div class="modal-title">🚩 報告内容を確認</div>
-                <div class="modal-subtitle">この内容で報告しますか？</div>
+                <div class="modal-title" data-i18n="flag_confirm_title">🚩 報告内容を確認</div>
+                <div class="modal-subtitle" data-i18n="flag_confirm_sub">この内容で報告しますか？</div>
             </div>
             <div class="modal-confirm-box">
-                <div class="modal-confirm-label">報告理由</div>
+                <div class="modal-confirm-label" data-i18n="flag_reason_label">報告理由</div>
                 <div class="modal-confirm-value" id="flag-confirm-reason"></div>
                 <div id="flag-confirm-comment-wrap" style="display:none;margin-top:10px;">
-                    <div class="modal-confirm-label">詳細コメント</div>
+                    <div class="modal-confirm-label" data-i18n="flag_detail_label">詳細コメント</div>
                     <div style="font-size:13px;color:#4a3a2a;white-space:pre-wrap;" id="flag-confirm-comment"></div>
                 </div>
             </div>
             <div class="modal-actions" style="gap:10px;">
-                <button data-action="showFlagStep1" class="btn-modal-ghost" style="flex:1;">← 戻る</button>
-                <button data-action="submitFlag" class="btn-modal-danger" style="flex:2;font-size:13px;padding:12px;border-radius:10px;">送信する</button>
+                <button data-action="showFlagStep1" class="btn-modal-ghost" data-i18n="back_button" style="flex:1;">← 戻る</button>
+                <button data-action="submitFlag" class="btn-modal-danger" data-i18n="submit" style="flex:2;font-size:13px;padding:12px;border-radius:10px;">送信する</button>
             </div>
         </div>
     </div>

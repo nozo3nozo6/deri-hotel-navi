@@ -821,7 +821,7 @@ function renderLovehoDetail(hotel, reports) {
         const gpService = gps.filter(gp => gpCatMap[gp] === 'サービス・利便性');
         const gpTagHTML = (items) => items.map(gp=>`<span class="tag-chip tag-chip--gp">${esc(tm(gp))}</span>`).join('');
         const gm=r.gender_mode;const gmIcon=gm==='women'?'♀':gm==='men_same'?'♂♂':gm==='women_same'?'♀♀':gm==='este'?'💆‍♂️':'♂';const gmCol=gm==='women'?'#7b6fa0':gm==='men_same'?'#2c5282':gm==='women_same'?'#8264b4':gm==='este'?'#2aa8b8':'#c4506d';
-        const pName=r.poster_name||'匿名';
+        const pName=r.poster_name||t('anonymous');
         const _lhSid=r.shop_id?String(r.shop_id):null;
         const si=_lhSid?lhShopInfoMap[_lhSid]:null;
         const _siActive=si&&si.status==='active';
