@@ -467,6 +467,16 @@ function showJapanPage() {
     container.innerHTML = '';
     container.className = 'area-grid region-level';
 
+    // お気に入りボタン
+    const favCount = typeof getFavorites === 'function' ? getFavorites().length : 0;
+    if (favCount > 0) {
+        const favBar = document.createElement('div');
+        favBar.className = 'fav-bar';
+        favBar.style.gridColumn = '1/-1';
+        favBar.innerHTML = `<button id="fav-btn" class="fav-bar-btn" onclick="if(typeof showFavoritesPage==='function')showFavoritesPage()">⭐ ${t('favorites')} (<span id="fav-count">${favCount}</span>)</button>`;
+        container.appendChild(favBar);
+    }
+
     REGION_MAP.forEach((region, i) => {
         const btn = document.createElement('button');
         btn.className = 'area-btn has-children';

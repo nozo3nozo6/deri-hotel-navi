@@ -160,7 +160,7 @@ const LANG = {
         ad_hotel: 'このホテルのおすすめ', ad_area: 'このエリアのおすすめ',
         ad_block: 'この地域のおすすめ', ad_pref: 'この都道府県のおすすめ',
         ad_region: 'この地方のおすすめ', ad_national: '全国のおすすめ',
-        ad_click: '🔗',
+        ad_click: '🔗', recent_reviews: '最新の口コミ',
         hotel_type_business: 'ビジネスホテル', hotel_type_city: 'シティホテル', hotel_type_resort: 'リゾートホテル',
         hotel_type_ryokan: '旅館', hotel_type_pension: 'ペンション', hotel_type_minshuku: '民宿',
         hotel_type_loveho: '🏩 ラブホテル', hotel_type_rental: '🏩 レンタルルーム', hotel_type_other: 'その他',
@@ -171,6 +171,8 @@ const LANG = {
         filter_together: '🚪 一緒に入った',
         count_suffix: '件', select_please: '選択してください',
         guide_track_yes: 'ご案内実績有り', guide_track_together: '一緒にチェックインでご案内実績有り',
+        added_to_favorites: 'お気に入りに追加しました', removed_from_favorites: 'お気に入りから削除しました',
+        favorites: 'お気に入り', fav_max: 'お気に入りは100件までです',
     },
     en: {
         select_area: 'Select Area', japan: 'All Japan', back: 'Back',
@@ -277,7 +279,7 @@ const LANG = {
         ad_hotel: 'Recommended for this hotel', ad_area: 'Recommended in this area',
         ad_block: 'Recommended in this region', ad_pref: 'Recommended in this prefecture',
         ad_region: 'Recommended in this district', ad_national: 'Nationwide recommended',
-        ad_click: '🔗',
+        ad_click: '🔗', recent_reviews: 'Latest Reviews',
         anonymous: 'Anonymous',
         hotel_type_business: 'Business Hotel', hotel_type_city: 'City Hotel', hotel_type_resort: 'Resort Hotel',
         hotel_type_ryokan: 'Ryokan', hotel_type_pension: 'Pension', hotel_type_minshuku: 'Minshuku',
@@ -289,6 +291,8 @@ const LANG = {
         filter_together: '🚪 Together',
         count_suffix: '', select_please: 'Select',
         guide_track_yes: 'Verified', guide_track_together: 'Verified (together)',
+        added_to_favorites: 'Added to favorites', removed_from_favorites: 'Removed from favorites',
+        favorites: 'Favorites', fav_max: 'Max 100 favorites',
     },
     zh: {
         select_area: '选择地区', japan: '全日本', back: '返回',
@@ -407,6 +411,8 @@ const LANG = {
         filter_together: '🚪 一起入住',
         count_suffix: '件', select_please: '请选择',
         guide_track_yes: '有实绩', guide_track_together: '一起入住有实绩',
+        added_to_favorites: '已添加到收藏', removed_from_favorites: '已从收藏中移除',
+        favorites: '收藏', fav_max: '最多收藏100个',
     },
     ko: {
         select_area: '지역 선택', japan: '일본 전국', back: '뒤로',
@@ -525,6 +531,8 @@ const LANG = {
         filter_together: '🚪 함께',
         count_suffix: '건', select_please: '선택하세요',
         guide_track_yes: '실적 있음', guide_track_together: '함께 체크인 실적',
+        added_to_favorites: '즐겨찾기에 추가됨', removed_from_favorites: '즐겨찾기에서 삭제됨',
+        favorites: '즐겨찾기', fav_max: '즐겨찾기는 100개까지',
     },
 };
 function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }

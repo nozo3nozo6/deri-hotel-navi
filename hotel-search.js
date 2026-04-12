@@ -80,6 +80,74 @@ function expandReviews(btn) {
 // 各 let 宣言は既存コードとの互換性のためそのまま維持し、
 // AppState経由でも読み書き可能にする（Object.defineProperties は各変数宣言後に実行）
 
+// ==========================================================================
+// お気に入り機能（localStorage）
+// ==========================================================================
+function getFavorites() {
+    try { return JSON.parse(localStorage.getItem('yobuho_favorites') || '[]'); } catch { return []; }
+}
+function toggleFavorite(hotelId) {
+    hotelId = parseInt(hotelId);
+    if (!hotelId) return;
+    let favs = getFavorites();
+    const idx = favs.indexOf(hotelId);
+    if (idx >= 0) {
+        favs.splice(idx, 1);
+        toast(t('removed_from_favorites'));
+    } else {
+        if (favs.length >= 100) { toast(t('fav_max')); return; }
+        favs.push(hotelId);
+        toast(t('added_to_favorites'));
+    }
+    localStorage.setItem('yobuho_favorites', JSON.stringify(favs));
+    document.querySelectorAll(`[data-action="toggleFavorite"][data-hotel-id="${hotelId}"]`).forEach(btn => {
+        btn.textContent = favs.includes(hotelId) ? '\u2605' : '\u2606';
+        btn.classList.toggle('fav-active', favs.includes(hotelId));
+    });
+    updateFavCount();
+}
+function isFavorite(hotelId) { return getFavorites().includes(parseInt(hotelId)); }
+function updateFavCount() {
+    const count = getFavorites().length;
+    const el = document.getElementById('fav-count');
+    if (el) el.textContent = count;
+    const btn = document.getElementById('fav-btn');
+    if (btn) btn.style.display = count > 0 ? '' : 'none';
+}
+function favBtnHTML(hotelId) {
+    const active = isFavorite(hotelId);
+    return `<button class="fav-btn${active ? ' fav-active' : ''}" data-action="toggleFavorite" data-hotel-id="${hotelId}" onclick="event.stopPropagation()" title="${t('favorites')}">${active ? '\u2605' : '\u2606'}</button>`;
+}
+async function showFavoritesPage() {
+    const favs = getFavorites();
+    if (!favs.length) return;
+    window.scrollTo(0, 0);
+    const gen = ++_fetchGeneration;
+    ++_areaGeneration;
+    showLoading();
+    showSkeletonLoader();
+    document.getElementById('area-button-container').innerHTML = '';
+    suppressAds();
+    hideLovehoTabs();
+    setTitle(t('favorites'));
+    updatePageTitle(t('favorites'));
+    setBreadcrumb([
+        { label: t('japan'), onclick: 'showJapanPage()' },
+        { label: t('favorites') }
+    ]);
+    setBackBtn(true);
+    try {
+        const rawHotels = await queryHotelsAPI({ ids: favs.join(','), limit: 100 });
+        if (gen !== _fetchGeneration) return;
+        let hotels = await fetchHotelsWithSummary(rawHotels);
+        if (gen !== _fetchGeneration) return;
+        sortHotelsByReviews(hotels);
+        renderHotelCards(hotels);
+        setResultStatus(hotels.length);
+    } catch (e) { /* silenced */ }
+    finally { hideLoading(); }
+}
+
 // PHP API経由ホテル検索ヘルパー
 async function queryHotelsAPI(params) {
     const qs = new URLSearchParams();
@@ -571,6 +639,7 @@ function buildLovehoCardHTML(h, i, showDist) {
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                 <div style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${esc(h.name)}</div>
                 ${reviewBadge}
+                ${favBtnHTML(h.id)}
             </div>
             <div class="hotel-info-row"><span class="hotel-info-icon">📍</span><span class="hotel-info-text">${esc(h.address || '')}</span></div>
             ${h.nearest_station ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>` : ''}
@@ -1595,6 +1664,7 @@ function buildCardHTML(h, i, showDistance) {
                     <div class="hotel-name" style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--text);line-height:1.5;word-break:break-all;">${esc(h.name)}</div>
                     ${rateHTML}
                     ${rankHTML}
+                    ${favBtnHTML(h.id)}
                 </div>
 
                 <!-- 住所・駅 -->
@@ -1838,11 +1908,12 @@ function renderDetailPage(hotel, isLoveho, sections) {
     getDetailContainer().innerHTML = `
     <div class="detail-wrap">
         <div class="detail-header-row">
-            <h2 class="detail-title">
+            <h2 class="detail-title" style="flex:1;min-width:0;">
                 <a href="${googleSearch}" target="${_extTarget}" rel="noopener">
                     ${esc(hotel.name)} ${isLoveho ? '<span style="font-size:14px;">🏩</span>' : ''} <span style="font-size:12px;color:#999;">🔍</span>
                 </a>
             </h2>
+            ${favBtnHTML(hotel.id)}
         </div>
         <div class="detail-info-box">
             <div class="detail-info-inner">

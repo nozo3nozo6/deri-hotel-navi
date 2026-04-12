@@ -208,6 +208,10 @@ document.addEventListener('click', function(e) {
             e.preventDefault();
             if (typeof openHotelRequestModal === 'function') openHotelRequestModal();
             break;
+        case 'toggleFavorite':
+            e.stopPropagation();
+            if (typeof toggleFavorite === 'function') toggleFavorite(parseInt(target.dataset.hotelId));
+            break;
         case 'openCorrectionModal':
             e.preventDefault();
             if (typeof openCorrectionModal === 'function') openCorrectionModal(target.dataset.hotelId, target.dataset.hotelName);
