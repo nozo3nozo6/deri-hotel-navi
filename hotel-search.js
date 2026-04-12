@@ -46,7 +46,7 @@ function scrollableSection(items, buildFn, emptyMsg) {
         chunks.push(rest.slice(i, i + 10).map(buildFn).join(''));
     }
     return first3
-        + `<div class="review-more-btn" data-uid="${uid}" data-chunk="0" onclick="expandReviews(this)">▼ 他${remaining}件の口コミを表示</div>`
+        + `<div class="review-more-btn" data-uid="${uid}" data-chunk="0" onclick="expandReviews(this)">▼ ${t('show_more_reviews').replace('{n}', remaining)}</div>`
         + `<div id="${uid}" class="reviews-collapsed" style="display:none;">${chunks.map((c, i) => `<div class="review-chunk" data-ci="${i}"${i > 0 ? ' style="display:none;"' : ''}>${c}</div>`).join('')}</div>`;
 }
 function expandReviews(btn) {
@@ -67,7 +67,7 @@ function expandReviews(btn) {
         const remainingChunks = chunks.length - nextChunk - 1;
         const remainingItems = Array.from(chunks).slice(nextChunk + 1).reduce((sum, c) => sum + c.querySelectorAll('.review-card,.lh-review-card').length, 0);
         if (remainingItems > 0) {
-            btn.textContent = `▼ 他${remainingItems}件の口コミを表示`;
+            btn.textContent = `▼ ${t('show_more_reviews').replace('{n}', remainingItems)}`;
         } else {
             btn.style.display = 'none';
         }
@@ -291,7 +291,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
     setTitle(city);
-    updatePageTitle(city + 'の呼べるホテル一覧');
+    updatePageTitle(city + ' - ' + t('hotel_tab'));
 
     const pref = filterObj.prefecture;
     const majorArea = filterObj.major_area;
@@ -393,15 +393,15 @@ async function showLovehoTabs(pref, city, hotelCount, hotels, totalHotelCount) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
         : '';
     const hotelLabel = (totalHotelCount && totalHotelCount > hotelCount)
-        ? `🏨 ホテル (<span id="hotel-count">${hotelCount}</span>/<span id="hotel-total">${totalHotelCount}</span>)`
-        : `🏨 ホテル (<span id="hotel-count">${hotelCount}</span>)`;
+        ? `${t('hotel_tab')} (<span id="hotel-count">${hotelCount}</span>/<span id="hotel-total">${totalHotelCount}</span>)`
+        : `${t('hotel_tab')} (<span id="hotel-count">${hotelCount}</span>)`;
     tabsDiv.innerHTML = `
         <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">${hotelLabel}</button>
         ${lovehoTab}
-        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">地図で見る</span></button>
+        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
     `;
 
     const hotelList = document.getElementById('hotel-list');
@@ -424,36 +424,36 @@ function hideLovehoTabs() {
 async function switchTab(tab) {
     currentTab = tab;
 
-    document.querySelectorAll('#hotel-loveho-tabs .hotel-tab, #hotel-loveho-tabs-bottom .hotel-tab').forEach(t => {
-        if (t.dataset.tab === tab) {
-            t.classList.remove('detail-tab--inactive');
-            t.classList.add('detail-tab--active');
-            t.style.fontWeight = 'bold';
-            t.style.borderBottomColor = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
-            t.style.color = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
+    document.querySelectorAll('#hotel-loveho-tabs .hotel-tab, #hotel-loveho-tabs-bottom .hotel-tab').forEach(el => {
+        if (el.dataset.tab === tab) {
+            el.classList.remove('detail-tab--inactive');
+            el.classList.add('detail-tab--active');
+            el.style.fontWeight = 'bold';
+            el.style.borderBottomColor = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
+            el.style.color = tab === 'loveho' ? '#d4527a' : 'var(--accent,#b5627a)';
             // アクティブ: バッジを括弧表示に戻す
-            const badge = t.querySelector('.tab-badge');
+            const badge = el.querySelector('.tab-badge');
             if (badge) {
                 const count = badge.textContent;
                 badge.remove();
-                const label = t.dataset.tab === 'loveho' ? '🏩 ラブホ' : '🏨 ホテル';
-                t.innerHTML = `${label} (${count})`;
+                const label = el.dataset.tab === 'loveho' ? t('loveho_tab') : t('hotel_tab');
+                el.innerHTML = `${label} (${count})`;
             }
         } else {
-            t.classList.remove('detail-tab--active');
-            t.classList.add('detail-tab--inactive');
-            t.style.fontWeight = 'normal';
-            t.style.borderBottomColor = 'transparent';
-            t.style.color = '#888';
+            el.classList.remove('detail-tab--active');
+            el.classList.add('detail-tab--inactive');
+            el.style.fontWeight = 'normal';
+            el.style.borderBottomColor = 'transparent';
+            el.style.color = '#888';
             // 非アクティブ: 件数バッジ（ラブホのみ❤️、ホテルは丸バッジ）
-            const countMatch = t.textContent.match(/\((\d+)(?:\/\d+)?\)/);
+            const countMatch = el.textContent.match(/\((\d+)(?:\/\d+)?\)/);
             if (countMatch) {
                 const count = countMatch[1];
-                const label = t.dataset.tab === 'loveho' ? '🏩 ラブホ' : '🏨 ホテル';
-                if (t.dataset.tab === 'loveho') {
-                    t.innerHTML = `${label} <span class="tab-badge tab-badge--heart">${count}</span>`;
+                const label = el.dataset.tab === 'loveho' ? t('loveho_tab') : t('hotel_tab');
+                if (el.dataset.tab === 'loveho') {
+                    el.innerHTML = `${label} <span class="tab-badge tab-badge--heart">${count}</span>`;
                 } else {
-                    t.innerHTML = `${label} <span class="tab-badge tab-badge--accent">${count}</span>`;
+                    el.innerHTML = `${label} <span class="tab-badge tab-badge--accent">${count}</span>`;
                 }
             }
         }
@@ -547,9 +547,9 @@ async function loadLovehoForStation(stationName) {
 function renderLovehoCards(hotels, showDistance = false) {
     const container = document.getElementById('hotel-list');
     const rs = document.getElementById('result-status');
-    if (rs) { rs.style.display = 'block'; rs.innerHTML = hotels.length > 0 ? `<strong>${hotels.length}</strong> 件のラブホテル` : 'ラブホテルが見つかりませんでした'; }
+    if (rs) { rs.style.display = 'block'; rs.innerHTML = hotels.length > 0 ? t('loveho_count').replace('{n}', `<strong>${hotels.length}</strong>`) : t('no_loveho_found'); }
     if (!hotels.length) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">ラブホテルが見つかりませんでした</p></div>';
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_loveho_found')}</p></div>`;
         return;
     }
     allHotels = hotels;
@@ -576,8 +576,8 @@ function buildLovehoCardHTML(h, i, showDist) {
             ${h.nearest_station ? `<div class="hotel-info-row"><span class="hotel-info-icon">🚉</span><span class="hotel-info-text">${esc(h.nearest_station)}</span></div>` : ''}
             ${h.tel ? `<div style="font-size:11px;color:var(--text-3);margin-top:2px;">📞 ${esc(h.tel)}</div>` : ''}
             <div class="hotel-card-footer card-footer">
-                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-primary">✨ 口コミを見る${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
-                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-secondary">📝 口コミを投稿</button>
+                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-primary">${t('view_reviews')}${reviewCount > 0 ? ` (${reviewCount})` : ''}</button>
+                <button onclick="event.stopPropagation();openLovehoDetail(${h.id})" class="card-action-btn card-action-btn--lh-secondary">${t('post_review')}</button>
             </div>
         </div>
     </div>`;
@@ -598,15 +598,15 @@ function loadMoreLovehoCards() {
     if (remaining > 0) {
         container.insertAdjacentHTML('beforeend', `
             <div id="load-more-container" class="load-more-wrap">
-                <button onclick="loadMoreLovehoCards()" class="load-more-btn load-more-btn--loveho">もっと見る（残り${remaining}件）</button>
+                <button onclick="loadMoreLovehoCards()" class="load-more-btn load-more-btn--loveho">${t('load_more')}（${remaining}）</button>
             </div>`);
     }
 
     if (displayedCount >= allHotels.length) {
-        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+        const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">' + t('shop_register_link') + '</a>';
         container.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar">
-                <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
+                <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
                 ${shopRegLink}
             </div>
         `);
@@ -628,7 +628,7 @@ function openLovehoDetail(hotelId) {
 // ==========================================================================
 async function loadDetail(hotelId, isLoveho) {
     const content = getDetailContainer();
-    content.innerHTML = `<div class="detail-loading">読み込み中...</div>`;
+    content.innerHTML = `<div class="detail-loading">${t('loading')}</div>`;
     try {
         // マスタデータロード（タイプ別）
         if (isLoveho) await loadLhMasters();
@@ -708,7 +708,7 @@ async function loadDetail(hotelId, isLoveho) {
         const _detailArea = hotel.detail_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
-        const _crumbs = [{ label: '全国', onclick: 'leaveHotelDetail();showJapanPage()' }];
+        const _crumbs = [{ label: t('to_nationwide'), onclick: 'leaveHotelDetail();showJapanPage()' }];
         if (_region && !isSinglePrefRegion(_region)) _crumbs.push({ label: _rl, onclick: `leaveHotelDetail();showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
         if (_pref) _crumbs.push({ label: _pref, onclick: `leaveHotelDetail();showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
         if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
@@ -781,7 +781,7 @@ async function loadDetail(hotelId, isLoveho) {
         }
     } catch(e) {
         console.error('[loadDetail] error:', e);
-        content.innerHTML = `<div class="detail-error">読み込みエラーが発生しました<br><span style="font-size:11px;color:#999;">${esc(String(e))}</span></div>`;
+        content.innerHTML = `<div class="detail-error">${t('load_error')}<br><span style="font-size:11px;color:#999;">${esc(String(e))}</span></div>`;
     }
 }
 
@@ -825,28 +825,28 @@ function renderLovehoDetail(hotel, reports) {
         const _lhSid=r.shop_id?String(r.shop_id):null;
         const si=_lhSid?lhShopInfoMap[_lhSid]:null;
         const _siActive=si&&si.status==='active';
-        const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">認定店</span>`:` <span class="shop-verified-badge" style="background:${gmCol};color:#fff;border-color:${gmCol};">認定店</span>`):'';
+        const shopBadge=_siActive?(si.isPaid?` <span class="shop-premium-badge">${t('certified_shop')}</span>`:` <span class="shop-verified-badge" style="background:${gmCol};color:#fff;border-color:${gmCol};">${t('certified_shop')}</span>`):'';
         const posterHTML=_siActive&&si.isPaid&&si.url?`<a href="${esc(si.url)}" target="${_extTarget}" rel="noopener" class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)} 🔗</a>${shopBadge}`:`<span class="poster-name" style="color:${gmCol};">${gmIcon} ${esc(pName)}</span>${shopBadge}`;
         const fee=_siActive&&_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
-        const feeHTML=feeLabel?`<span class="fee-badge">🚕 交通費: ${feeLabel}</span>`:'';
-        const entryMethodLabels={front:'フロント経由(部屋番号を伝えて入室)',direct:'直接入室(お部屋に直行)',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'};
+        const feeHTML=feeLabel?`<span class="fee-badge">${t('transport_fee')} ${feeLabel}</span>`:'';
+        const entryMethodLabels={front:t('entry_front'),direct:t('entry_direct'),lobby:t('entry_lobby'),waiting:t('entry_waiting')};
         const isShopPost = r.poster_type === 'shop' || !!_lhSid;
-        const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-entry">🚪 一人で先に？</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-entry">🚪 一緒に入室</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-entry-ng">🚪 一人で先に？ 不可</span>` : '') : '';
-        const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">✅ ご案内実績有り</span>` : '';
-        const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?'🚪 一人で先に入れた':r.solo_entry==='no'?'🚪 一人で先に入れなかった':r.solo_entry==='together'?'🚪 一緒に入った':''}</span>` : '';
+        const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_yes')}</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_together')}</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-entry-ng">${t('solo_entry_no')}</span>` : '') : '';
+        const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">${t('guide_success')}</span>` : '';
+        const userSoloHTML = r.solo_entry && !isShopPost ? `<span class="round-badge ${r.solo_entry==='yes'?'round-badge--solo-can':'round-badge--solo-ng'}">${r.solo_entry==='yes'?t('solo_can'):r.solo_entry==='no'?t('solo_ng'):r.solo_entry==='together'?t('solo_together'):''}</span>` : '';
         const timeChip = r.time_slot ? `<span class="text-sub3" style="margin-left:6px;">🕐${esc(r.time_slot)}</span>` : '';
-        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">✨雰囲気</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
-        const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🛁設備･お部屋</span>${gpTagHTML(gpRoom)}</div>` : '';
-        const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">🏨サービス･利便性</span>${gpTagHTML(gpService)}</div>` : '';
+        const atmoHTML = r.atmosphere ? `<span style="font-size:11px;color:var(--text-3);">${t('atmosphere')}</span> <span class="tag-chip tag-chip--atmo">${atmosphereIcon(r.atmosphere)}${esc(r.atmosphere)}</span>` : '';
+        const gpRoomHTML = gpRoom.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('facilities')}</span>${gpTagHTML(gpRoom)}</div>` : '';
+        const gpServiceHTML = gpService.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;"><span style="font-size:11px;color:var(--text-3);">${t('service')}</span>${gpTagHTML(gpService)}</div>` : '';
         return `<div class="review-card lh-shop-card">
-            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">🚩 報告</button></div>
+            <div class="lh-row-header"><div><span class="text-sub3">${formatDate(r.created_at)}</span>${timeChip}</div><button onclick="event.stopPropagation();openFlagModal('${r.id}')" class="report-flag-btn">${t('report_btn')}</button></div>
             <div class="lh-row1">${posterHTML}</div>
             <div class="lh-row2">${soloHTML}${userSoloHTML}${atmoHTML}${feeHTML}</div>
             ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${gpRoomHTML}${gpServiceHTML}
             ${r.comment ? `<div class="text-comment" style="margin-top:2px;">${esc(r.comment)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `女性${r.guest_female}名`:''}）</span>`:''}${r.multi_fee ? ' <span style="color:#c9a96e;font-size:11px;">💰追加料金あり</span>' : ''}</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">${t('multi_person_ok')}${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `${t('guest_male')}${r.guest_male}`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `${t('guest_female')}${r.guest_female}`:''}）</span>`:''}${r.multi_fee ? ` <span style="color:#c9a96e;font-size:11px;">${t('additional_fee')}</span>` : ''}</div>` : ''}
         </div>`;
     }
 
@@ -873,7 +873,7 @@ function renderLovehoDetail(hotel, reports) {
     const lhShopSection = lhShopReports.length === 0 ? '' : `
         <div class="section-official">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                <span class="section-label section-label--official">✅ お店からの公式情報</span>
+                <span class="section-label section-label--official">${t('shop_official_info')}</span>
                 <span style="font-size:11px;color:#9a8050;">${lhShopReports.length}件</span>
             </div>
             ${scrollableSection(lhShopReports, buildLhReviewCard)}
@@ -895,7 +895,7 @@ function renderLovehoDetail(hotel, reports) {
     const lhUserSection = lhUserReports.length === 0 ? '' : `
         <div style="margin-bottom:16px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <span class="section-label section-label--user">👤 ユーザー口コミ</span>
+                <span class="section-label section-label--user">${t('user_reviews')}</span>
                 <span style="font-size:11px;color:var(--text-3);">${lhUserReports.length}件</span>
             </div>
             ${lhFilterTabs}
@@ -919,12 +919,12 @@ function renderLovehoDetail(hotel, reports) {
     // 口コミセクション（ユーザー投稿のみ — 店舗公式は shopSection で別表示）
     const userSection = lhUserReports.length > 0 ? `
         <div style="margin-bottom:24px;">
-            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (${lhUserReports.length}件)</h3>
+            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 ${t('review_list')} (${lhUserReports.length})</h3>
             ${lhUserSection}
         </div>` : (lhShopReports.length === 0 ? `
         <div style="margin-bottom:24px;">
-            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 口コミ一覧 (0件)</h3>
-            <div style="color:var(--text-3);font-size:13px;">まだ口コミがありません。最初の投稿をお待ちしています！</div>
+            <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 ${t('review_list')} (0)</h3>
+            <div style="color:var(--text-3);font-size:13px;">${t('no_posts_yet')}</div>
         </div>` : '');
 
     // フォームHTML → アコーディオン式
@@ -1746,7 +1746,7 @@ async function showHotelPanel(hotelId, isLoveho) {
         ? document.getElementById('map-detail-content')
         : document.getElementById('hotel-detail-content');
     content.style.display = 'block';
-    content.innerHTML = `<div class="detail-loading">読み込み中...</div>`;
+    content.innerHTML = `<div class="detail-loading">${t('loading')}</div>`;
 
     await loadDetail(hotelId, isLoveho);
     // 読み込み完了後、同一ホテルのダブルクリック防止を解除（別のホテルを開けるように）

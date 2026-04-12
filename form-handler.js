@@ -149,7 +149,7 @@ function confirmCanReasons() {
         const selected = [...hotelFormState.can_call_reasons];
         display.innerHTML = selected.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
-                <span style="font-size:11px;color:var(--text-3);">呼べた理由：</span>
+                <span style="font-size:11px;color:var(--text-3);">${t('can_call_reason')}：</span>
                 ${selected.map(r => `<span style="padding:3px 9px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:10px;font-size:11px;color:#3a9a60;font-weight:600;">${esc(r)}</span>`).join('')}
                 <button onclick="showCanReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
@@ -193,7 +193,7 @@ function confirmCannotReasons() {
         const selected = [...hotelFormState.cannot_call_reasons];
         display.innerHTML = selected.length > 0
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
-                <span style="font-size:11px;color:var(--text-3);">呼べなかった理由：</span>
+                <span style="font-size:11px;color:var(--text-3);">${t('cannot_call_reason')}：</span>
                 ${selected.map(r => `<span style="padding:3px 9px;background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.3);border-radius:10px;font-size:11px;color:#c05050;font-weight:600;">${esc(r)}</span>`).join('')}
                 <button onclick="showCannotReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
@@ -251,11 +251,11 @@ async function voteReport(reportId, vote) {
         });
         const result = await res.json();
         if (!res.ok) {
-            showToast(result.error === 'already_voted' ? '既に評価済みです' : '評価に失敗しました');
+            showToast(result.error === 'already_voted' ? t('already_voted') : t('vote_failed'));
             return;
         }
     } catch (e) {
-        showToast('評価に失敗しました');
+        showToast(t('vote_failed'));
         return;
     }
 
@@ -282,12 +282,12 @@ async function voteReport(reportId, vote) {
         }
     }
 
-    showToast(vote === 'helpful' ? '👍 参考になりました' : '👎 評価しました');
+    showToast(vote === 'helpful' ? t('marked_helpful') : t('marked_unhelpful'));
 }
 
 function hotelSubmitReport() {
     if (hotelFormState.can_call === null) {
-        showToast('「呼べた」か「呼べなかった」を選択してください');
+        showToast(t('select_call_result'));
         return;
     }
     showPostConfirmModal();
@@ -295,14 +295,14 @@ function hotelSubmitReport() {
 
 function showPostConfirmModal() {
     const doBtn = document.getElementById('btn-do-submit');
-    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+    if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
 
     const s = hotelFormState;
-    const posterName = s.poster_name?.trim() || '匿名希望';
-    const resultText = s.can_call ? '✅ 呼べた' : '❌ 呼べなかった';
+    const posterName = s.poster_name?.trim() || t('anon_default');
+    const resultText = s.can_call ? '✅ ' + t('can_call') : '❌ ' + t('cannot_call');
     const resultColor = s.can_call ? '#3a9a60' : '#c05050';
     const reasons = s.can_call ? [...s.can_call_reasons] : [...s.cannot_call_reasons];
-    const reasonLabel = s.can_call ? '呼べた理由' : '呼べなかった理由';
+    const reasonLabel = s.can_call ? t('can_call_reason') : t('cannot_call_reason');
     const timeSlot = s.time_slot || '';
 
     function row(label, value) {
@@ -319,7 +319,7 @@ function showPostConfirmModal() {
     }
 
     const content = `
-        ${row('投稿者名', posterName)}
+        ${row(t('poster_name'), posterName)}
         <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
             <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">結果</div>
             <div style="font-size:13px;font-weight:700;color:${resultColor};">${resultText}</div>
@@ -329,11 +329,11 @@ function showPostConfirmModal() {
             <div style="flex:1;">${tags(reasons, s.can_call ? '#3a9a60' : '#c05050')}</div>
         </div>` : ''}
         ${timeSlot ? `<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid rgba(180,150,100,0.15);">
-            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">時間帯</div>
+            <div style="font-size:12px;color:#8a7a6a;width:90px;flex-shrink:0;padding-top:1px;">${t('time_slot')}</div>
             <div style="font-size:13px;color:#1a1410;">${esc(timeSlot)}</div>
         </div>` : ''}
-        ${row('部屋タイプ', s.room_type || null)}
-        ${row('コメント', s.comment || null)}
+        ${row(t('room_type'), s.room_type || null)}
+        ${row(t('free_comment'), s.comment || null)}
     `;
 
     document.getElementById('post-confirm-content').innerHTML = content;
@@ -427,12 +427,12 @@ async function generateFingerprint() {
 
 async function doSubmitReport() {
     const doBtn = document.getElementById('btn-do-submit');
-    if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
+    if (doBtn) { doBtn.disabled = true; doBtn.textContent = t('sending'); }
 
     if (!currentHotelId) {
-        showToast('ホテルが選択されていません。ページを再読み込みしてください。');
+        showToast(t('hotel_not_selected'));
         closePostConfirmModal();
-        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
         return;
     }
 
@@ -470,27 +470,27 @@ async function doSubmitReport() {
 
         if (!response.ok) {
             closePostConfirmModal();
-            if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+            if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
             if (response.status === 429) {
-                showToast(result.error || '投稿制限中です。しばらく時間をおいてから再度お試しください。', 5000);
+                showToast(result.error || t('posting_limit'), 5000);
             } else if (response.status === 409) {
-                showToast('このホテルへは既に投稿済みです');
+                showToast(t('already_posted'));
             } else {
-                showToast('送信エラー: ' + (result.error || '予期しないエラーが発生しました'), 4000);
+                showToast(t('post_error') + ': ' + (result.error || t('network_error')), 4000);
             }
             return;
         }
 
         closePostConfirmModal();
         if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('hotel-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('hotel-form-accordion'); }
-        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-        showSuccessModal('投稿ありがとうございます！', '口コミが投稿されました。');
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
+        showSuccessModal(t('post_success'), t('review_submitted'));
         if (typeof gtag === 'function') gtag('event', 'review_submit', { hotel_id: currentHotelId, review_type: 'hotel' });
         setTimeout(() => loadDetail(currentHotelId, false), 1500);
     } catch (e) {
         closePostConfirmModal();
-        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-        showToast('通信エラーが発生しました。ネットワーク接続を確認してください。', 4000);
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
+        showToast(t('network_error'), 4000);
     }
 }
 
@@ -529,33 +529,33 @@ function lhToggleFac(el, name) {
 
 function submitLovehoReport() {
     if (!currentHotelId) {
-        showToast('ホテルが選択されていません。ページを再読み込みしてください。');
+        showToast(t('hotel_not_selected'));
         return;
     }
     const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
-    if (!hasData) { showToast('少なくとも1つ以上の項目を入力してください'); return; }
+    if (!hasData) { showToast(t('min_fields_required')); return; }
     showLhConfirmModal();
 }
 
 function showLhConfirmModal() {
     const doBtn = document.getElementById('btn-do-lh-submit');
-    if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+    if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
 
     const s = lhFormState;
-    const posterName = s.poster_name?.trim() || '匿名';
+    const posterName = s.poster_name?.trim() || t('anon_default');
     const soloMap = { yes: '一人で入れた', no: '一人では入れなかった', together: '一緒に入室', lobby: 'ロビー待機', unknown: '不明' };
     function row(label, val) {
         if (!val) return '';
         return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="min-width:90px;color:var(--text-3);font-weight:600;">${label}</span><span style="color:var(--text);word-break:break-all;">${esc(String(val))}</span></div>`;
     }
     const content = `
-        ${row('投稿者名', posterName)}
-        ${row('一人入室', soloMap[s.solo_entry] || null)}
+        ${row(t('poster_name'), posterName)}
+        ${row(t('solo_entry_label'), soloMap[s.solo_entry] || null)}
         ${row('雰囲気', s.atmosphere)}
         ${row('良かった点', s.good_points.length ? s.good_points.join('、') : null)}
-        ${row('時間帯', s.time_slot)}
+        ${row(t('time_slot'), s.time_slot)}
         ${s.multi_person ? row('複数人利用', `男性${s.guest_male || 0}名・女性${s.guest_female || 0}名${s.multi_fee ? '（追加料金あり）' : ''}`) : ''}
-        ${row('コメント', s.comment || null)}
+        ${row(t('free_comment'), s.comment || null)}
     `;
     document.getElementById('lh-confirm-content').innerHTML = content;
     document.getElementById('lh-confirm-modal').style.display = 'flex';
@@ -563,7 +563,7 @@ function showLhConfirmModal() {
 
 async function doSubmitLovehoReport() {
     const doBtn = document.getElementById('btn-do-lh-submit');
-    if (doBtn) { doBtn.disabled = true; doBtn.textContent = '送信中...'; }
+    if (doBtn) { doBtn.disabled = true; doBtn.textContent = t('sending'); }
     try {
         const fingerprint = await generateFingerprint();
         const payload = {
@@ -589,20 +589,20 @@ async function doSubmitLovehoReport() {
         if (!res.ok) {
             const result = await res.json();
             document.getElementById('lh-confirm-modal').style.display = 'none';
-            if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
-            if (res.status === 429) { showToast(result.error || '投稿制限中です。'); return; }
+            if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
+            if (res.status === 429) { showToast(result.error || t('posting_limit')); return; }
             throw new Error(result.error || 'Submit failed');
         }
         document.getElementById('lh-confirm-modal').style.display = 'none';
         if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('loveho-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('loveho-form-accordion'); }
-        showSuccessModal('投稿完了', '口コミを投稿しました。ありがとうございます！');
+        showSuccessModal(t('post_success'), t('post_thanks'));
         if (typeof gtag === 'function') gtag('event', 'review_submit', { hotel_id: currentHotelId, review_type: 'loveho' });
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);
     } catch (e) {
-        showToast('投稿エラーが発生しました');
+        showToast(t('post_error'));
     } finally {
-        if (doBtn) { doBtn.disabled = false; doBtn.textContent = 'この内容で投稿する'; }
+        if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
     }
 }
 
@@ -626,7 +626,7 @@ Object.defineProperties(AppState.form.flag, {
 
 function showFlagModal(reportId, table) {
     if (!reportId || reportId === 'null' || reportId === 'undefined') {
-        showToast('報告対象が取得できませんでした');
+        showToast(t('report_target_error'));
         return;
     }
     flagTargetId = reportId;
@@ -706,7 +706,7 @@ async function submitFlag() {
     const tbl = flagTargetTable || 'reports';
 
     if (!targetId || targetId === 'null' || targetId === 'undefined') {
-        showToast('報告対象が不明です。ページを再読み込みしてください。');
+        showToast(t('report_target_error'));
         return;
     }
     if (!selectedReason) return;
@@ -728,12 +728,12 @@ async function submitFlag() {
         });
         if (!res.ok) {
             const result = await res.json();
-            showToast('報告の送信に失敗しました: ' + (result.error || ''));
+            showToast(t('report_failed') + ': ' + (result.error || ''));
         } else {
-            showToast('🚩 報告を受け付けました。ご協力ありがとうございます。');
+            showToast(t('report_accepted'));
         }
     } catch (e) {
-        showToast('報告の送信に失敗しました');
+        showToast(t('report_failed'));
     }
 }
 
@@ -798,7 +798,7 @@ function hreqBack() {
 async function submitHotelRequest() {
     const btn = document.getElementById('hreq-submit-btn');
     btn.disabled = true;
-    btn.textContent = '送信中...';
+    btn.textContent = t('sending');
 
     const name = document.getElementById('hreq-name').value.trim();
     const address = document.getElementById('hreq-address').value.trim();
@@ -813,21 +813,21 @@ async function submitHotelRequest() {
         });
 
         btn.disabled = false;
-        btn.textContent = '送信する';
+        btn.textContent = t('submit');
 
         if (!res.ok) {
             const result = await res.json();
-            if (res.status === 429) { showToast(result.error || '申請数が上限に達しました。'); return; }
-            showToast('送信に失敗しました: ' + (result.error || ''));
+            if (res.status === 429) { showToast(result.error || t('posting_limit')); return; }
+            showToast(t('post_error') + ': ' + (result.error || ''));
             return;
         }
 
         closeHotelRequestModal();
-        showSuccessModal('送信ありがとうございます！', 'ホテル情報を受け付けました。確認後、掲載いたします。');
+        showSuccessModal(t('post_success'), t('review_submitted'));
     } catch (e) {
         btn.disabled = false;
-        btn.textContent = '送信する';
-        showToast('通信エラーが発生しました');
+        btn.textContent = t('submit');
+        showToast(t('network_error'));
     }
 }
 
@@ -933,7 +933,7 @@ function correctionBack() {
 async function submitCorrection() {
     const btn = document.getElementById('corr-submit-btn');
     btn.disabled = true;
-    btn.textContent = '送信中...';
+    btn.textContent = t('sending');
 
     const detail = document.getElementById('corr-detail').value.trim();
 
@@ -949,21 +949,21 @@ async function submitCorrection() {
         });
 
         btn.disabled = false;
-        btn.textContent = '送信する';
+        btn.textContent = t('submit');
 
         if (!res.ok) {
             const result = await res.json();
-            if (res.status === 429) { showToast(result.error || '送信数が上限に達しました。'); return; }
-            showToast('送信に失敗しました: ' + (result.error || ''));
+            if (res.status === 429) { showToast(result.error || t('posting_limit')); return; }
+            showToast(t('post_error') + ': ' + (result.error || ''));
             return;
         }
 
         closeCorrectionModal();
-        showSuccessModal('情報修正リクエストを送信しました', '確認後、順次対応いたします。ご協力ありがとうございました。');
+        showSuccessModal(t('post_success'), t('report_accepted'));
     } catch (e) {
         btn.disabled = false;
-        btn.textContent = '送信する';
-        showToast('通信エラーが発生しました');
+        btn.textContent = t('submit');
+        showToast(t('network_error'));
     }
 }
 
