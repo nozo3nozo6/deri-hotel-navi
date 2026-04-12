@@ -201,7 +201,7 @@ async function appendRecentShops() {
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
             const shopLink = s.shop_url || (s.slug ? `${modePath}shop/${s.slug}/` : '');
             const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
-            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">様 ご登録いただきました</span></div>`;
+            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">${t('shop_registered')}</span></div>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
@@ -221,8 +221,8 @@ function appendInfoLinksBar() {
     if (hlc && !hlc.querySelector('.info-links-bar')) {
         hlc.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">📝 未掲載ホテル情報提供</a>
-                ${SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">🏪 店舗様・掲載用はこちら</a>'}
+                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">${t('hotel_not_listed')}</a>
+                ${SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">' + t('shop_register_link') + '</a>'}
             </div>
         `);
     }
@@ -474,7 +474,7 @@ async function showPrefPage(region) {
     loadAds('region', region.label);
 
     const container = document.getElementById('area-button-container');
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">${t('loading')}</div>`;
     container.className = 'area-grid col-2';
 
     const ad = await loadAreaData();
@@ -528,7 +528,7 @@ async function showMajorAreaPage(region, pref) {
     loadAds('big', pref);
 
     const container = document.getElementById('area-button-container');
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">${t('loading')}</div>`;
     container.className = 'area-grid col-2';
 
     const ad = await loadAreaData();
@@ -581,7 +581,7 @@ async function showCityPage(region, pref, majorArea) {
 
 
     const container = document.getElementById('area-button-container');
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">${t('loading')}</div>`;
     container.className = 'area-grid col-2';
 
     const ad = await loadAreaData();
@@ -710,7 +710,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     clearHotelList();
 
     const container = document.getElementById('area-button-container');
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">${t('loading')}</div>`;
     container.className = 'area-grid col-2';
 
     const ad = await loadAreaData();
@@ -813,19 +813,19 @@ async function showNoAreaCityPage(region, pref) {
     const gen = ++_areaGeneration;
     currentPage = () => showNoAreaCityPage(region, pref);
     updateUrl({ pref, area: '_other' });
-    setTitle('その他のエリア');
+    setTitle(t('other_areas'));
     updatePageTitle(pref + ' その他のエリアのホテル検索');
     setBackBtn(true);
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
         ...regionBreadcrumb(region),
         { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
-        { label: 'その他のエリア' }
+        { label: t('other_areas') }
     ]);
     clearHotelList();
 
     const container = document.getElementById('area-button-container');
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">読み込み中...</div>`;
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">${t('loading')}</div>`;
     container.className = 'area-grid col-2';
 
     const ad = await loadAreaData();
