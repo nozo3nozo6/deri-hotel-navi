@@ -137,8 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var ogUrl = document.querySelector('meta[property="og:url"]');
     if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
+    // 店舗専用URL判定（api-service.jsのdefer前に実行されるため独自検出）
+    var _shopMatch = window.location.pathname.match(/\/shop\/([^/]+)/);
+    var _localShopParam = urlParams.get('shop') || (_shopMatch ? decodeURIComponent(_shopMatch[1]) : null) || (typeof _shopParam !== 'undefined' ? _shopParam : null);
+
     // 店舗専用URL時: 店舗登録リンク非表示のみ（ゲートボタンはgetGateUrl()で/deli/等へ）
-    if (urlParams.get('shop') || _shopParam) {
+    if (_localShopParam) {
         var shopLink = document.getElementById('shop-register-link');
         if (shopLink) shopLink.style.display = 'none';
         // フッターの法的ページリンクをSPA化（ヘッダー維持、コンテンツ差し替え）
