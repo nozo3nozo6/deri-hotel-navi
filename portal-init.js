@@ -3,31 +3,46 @@
 // ==========================================================================
 
 // ── 店舗専用URL: 法的ページSPA読み込み ──
-var _legalSavedHTML = null;
 var _legalSavedScroll = 0;
+var _legalHiddenEls = [];
 function loadLegalPageInline(url, title) {
-    var main = document.getElementById('main-content') || document.querySelector('.portal-main');
+    var main = document.getElementById('main-content');
     if (!main) { window.location.href = url; return; }
-    // 現在の表示を保存
-    _legalSavedHTML = main.innerHTML;
     _legalSavedScroll = window.scrollY;
+    // エリアナビ・検索欄・結果ステータス等を非表示
+    ['area-button-container','search-tools','result-status','hotel-loveho-tabs','breadcrumb'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.style.display !== 'none') { el.style.display = 'none'; _legalHiddenEls.push(el); }
+    });
+    document.querySelectorAll('.search-tools, .area-container, .breadcrumb-inner').forEach(function(el) {
+        if (el.style.display !== 'none') { el.style.display = 'none'; _legalHiddenEls.push(el); }
+    });
+    // ホテルリストの中身を退避
+    var hotelList = document.getElementById('hotel-list');
+    var savedHotelHTML = hotelList ? hotelList.innerHTML : '';
     // フェッチして .content 部分を抽出
     fetch(url).then(function(r) { return r.text(); }).then(function(html) {
         var parser = new DOMParser();
         var doc = parser.parseFromString(html, 'text/html');
         var content = doc.querySelector('.content') || doc.querySelector('main') || doc.body;
-        var backBtn = '<div style="padding:12px 16px 0;"><button onclick="closeLegalPage()" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
-        main.innerHTML = backBtn + '<div style="max-width:720px;margin:0 auto;padding:16px 20px 40px;">' + content.innerHTML + '</div>';
+        var backBtn = '<div style="text-align:center;padding:16px 0 8px;"><button onclick="closeLegalPage()" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 24px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
+        if (hotelList) {
+            hotelList._savedHTML = savedHotelHTML;
+            hotelList.innerHTML = backBtn + '<div style="max-width:720px;margin:0 auto;padding:8px 20px 40px;">' + content.innerHTML + '</div>';
+        }
         window.scrollTo(0, 0);
     }).catch(function() { window.location.href = url; });
 }
 function closeLegalPage() {
-    var main = document.getElementById('main-content') || document.querySelector('.portal-main');
-    if (main && _legalSavedHTML !== null) {
-        main.innerHTML = _legalSavedHTML;
-        _legalSavedHTML = null;
-        window.scrollTo(0, _legalSavedScroll);
+    var hotelList = document.getElementById('hotel-list');
+    if (hotelList && hotelList._savedHTML !== undefined) {
+        hotelList.innerHTML = hotelList._savedHTML;
+        delete hotelList._savedHTML;
     }
+    // 非表示にした要素を復元
+    _legalHiddenEls.forEach(function(el) { el.style.display = ''; });
+    _legalHiddenEls = [];
+    window.scrollTo(0, _legalSavedScroll);
 }
 
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
