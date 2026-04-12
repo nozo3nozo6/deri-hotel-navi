@@ -751,22 +751,22 @@ async function loadDetail(hotelId, isLoveho) {
             const genreName = GENRE_MAP[genderMode] || 'お店';
             if (citySlot && cityAds && cityAds.length) {
                 const cards = cityAds.slice(0,3).map(ad => renderAdHTML(ad)).join('');
-                citySlot.innerHTML = `<div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗</div><div class="ad-shop-list">${cards}</div>`;
+                citySlot.innerHTML = `<div class="ad-shop-header">${t('ad_hotel')} <span class="shop-premium-badge">${t('certified_shop')}</span> ${t('ad_click')}</div><div class="ad-shop-list">${cards}</div>`;
             }
             // ②〜⑥: テキストリンク
             {
                 const _badge = `<span class="shop-premium-badge">${t('certified_shop')}</span>`;
                 const _gn = genreName;
                 const areaSlot = document.getElementById('detail-ad-area');
-                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `このエリアのおすすめ ${_badge} 名をクリック🔗`);
+                if (areaSlot && areaAds && areaAds.length) areaSlot.innerHTML = renderSubAdCards(areaAds, `${t('ad_area')} ${_badge} ${t('ad_click')}`);
                 const blockSlot = document.getElementById('detail-ad-block');
-                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `この地域のおすすめ ${_badge} 名をクリック🔗`);
+                if (blockSlot && blockAds && blockAds.length) blockSlot.innerHTML = renderSubAdCards(blockAds, `${t('ad_block')} ${_badge} ${t('ad_click')}`);
                 const prefSlot = document.getElementById('detail-ad-pref');
-                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `この都道府県のおすすめ ${_badge} 名をクリック🔗`);
+                if (prefSlot && prefAds && prefAds.length) prefSlot.innerHTML = renderSubAdCards(prefAds, `${t('ad_pref')} ${_badge} ${t('ad_click')}`);
                 const wideSlot = document.getElementById('detail-ad-wide');
                 if (wideSlot) {
                     let wideHtml = '';
-                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `この地方のおすすめ ${_badge} 名をクリック🔗`);
+                    if (regionAds && regionAds.length) wideHtml += renderSubAdCards(regionAds, `${t('ad_region')} ${_badge} ${t('ad_click')}`);
                     if (wideHtml) wideSlot.innerHTML = wideHtml;
                 }
                 // 全国広告は検索バーの下に表示（地方広告→検索バー→全国広告の順）
@@ -774,7 +774,7 @@ async function loadDetail(hotelId, isLoveho) {
                     const bsContainer = document.getElementById('ad-container-below-search');
                     if (bsContainer) {
                         bsContainer.style.display = '';
-                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `全国のおすすめ ${_badge} 名をクリック🔗`);
+                        bsContainer.innerHTML = renderSubAdCards(nationalAds, `${t('ad_national')} ${_badge} ${t('ad_click')}`);
                     }
                 }
             }
@@ -2178,7 +2178,7 @@ function renderDetailShopCards(shops, cityName) {
     }).filter(Boolean);
     if (!cards.length) return '';
     const _gn = GENRE_MAP[getCurrentMode()] || 'お店';
-    return `<div style="margin:8px 0;"><div class="ad-shop-header">このホテルのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
+    return `<div style="margin:8px 0;"><div class="ad-shop-header">${t('ad_hotel')} <span class="shop-premium-badge">${t('certified_shop')}</span> ${t('ad_click')}</div><div class="ad-shop-list">${cards.join('')}</div></div>`;
 }
 function renderSubAdCards(ads, label) {
     // サブ広告: サムネ小+認定店バッジ+店名のみ（image80仕様）
@@ -2294,7 +2294,7 @@ function renderAreaShopSection(shops) {
     }).join('');
 
     const genreName = GENRE_MAP[getCurrentMode()] || 'お店';
-    const headerText = `このエリアのおすすめ <span class="shop-premium-badge">${t('certified_shop')}</span> 🔗`;
+    const headerText = `${t('ad_area')} <span class="shop-premium-badge">${t('certified_shop')}</span> ${t('ad_click')}`;
     section.innerHTML = `<div class="ad-shop-header">${headerText}</div><div class="ad-shop-list">${cards}</div>`;
     insertTarget.appendChild(section);
 }

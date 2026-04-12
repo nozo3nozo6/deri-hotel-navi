@@ -344,7 +344,7 @@ async function loadAds(placementType, placementTarget) {
         const allAds = await _fetchAds(placementType, placementTarget);
         if (gen !== _adGeneration || window._adsSuppressed) return;
         if (allAds.length) {
-            const header = `<div class="ad-shop-header">このエリアのおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div>`;
+            const header = `<div class="ad-shop-header">${t('ad_area')} <span class="shop-premium-badge">${t('certified_shop')}</span> ${t('ad_click')}</div>`;
             container.style.display = '';
             container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
         }
@@ -382,7 +382,7 @@ async function loadAdsBelowSearch(placementType, placementTarget) {
         if (gen !== _adGeneration || window._adsSuppressed) return;
         if (!allAds.length) return;
         container.style.display = '';
-        const header = `<div class="ad-shop-header">全国のおすすめ <span class="shop-premium-badge">認定店</span> 名をクリック🔗</div>`;
+        const header = `<div class="ad-shop-header">${t('ad_national')} <span class="shop-premium-badge">${t('certified_shop')}</span> ${t('ad_click')}</div>`;
         container.innerHTML = header + `<div class="ad-shop-list">${allAds.slice(0,3).map(ad => renderAdHTML(ad)).join('')}</div>`;
     } catch (e) { /* silently */ }
 }
