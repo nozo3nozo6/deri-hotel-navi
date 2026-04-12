@@ -804,7 +804,7 @@ function renderLovehoDetail(hotel, reports) {
     const gpCatMap = {};
     if (LH_MASTER.good_points) LH_MASTER.good_points.forEach(p => { gpCatMap[p.label] = p.category; });
 
-    const soloMap = { yes: 'はい', no: 'いいえ', together: '一緒に入った', waiting: '待合室待ち', unknown: 'わからない' };
+    const soloMap = { yes: t('solo_yes'), no: t('solo_no'), together: t('solo_together_label'), waiting: t('solo_waiting'), unknown: t('solo_unknown') };
     const soloColors = { yes: '#c9a96e', no: '#b5627a', together: '#7a9bc9', waiting: '#9b7ac9', unknown: '#ccc' };
     const soloReports = reports.filter(r => r.solo_entry && r.solo_entry !== '');
     const soloCounts = {};
@@ -886,28 +886,28 @@ function renderLovehoDetail(hotel, reports) {
     const lhNoCount = lhUserReports.filter(r => r.solo_entry === 'no').length;
     const lhTogetherCount = lhUserReports.filter(r => r.solo_entry === 'together').length;
     const lhFilterTabs = lhUserReports.length > 1 ? `<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <button onclick="filterLhUserReports('all')" class="lhu-tab filter-tab filter-tab--lg" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">全て (${lhUserReports.length})</button>
-        ${lhYesCount ? `<button onclick="filterLhUserReports('yes')" class="lhu-tab filter-tab filter-tab--lg" data-filter="yes" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">🚪 入れた (${lhYesCount})</button>` : ''}
-        ${lhNoCount ? `<button onclick="filterLhUserReports('no')" class="lhu-tab filter-tab filter-tab--lg" data-filter="no" style="border-color:rgba(192,80,80,0.25);color:#c05050;">🚪 入れなかった (${lhNoCount})</button>` : ''}
-        ${lhTogetherCount ? `<button onclick="filterLhUserReports('together')" class="lhu-tab filter-tab filter-tab--lg" data-filter="together" style="border-color:rgba(106,130,180,0.25);color:#4a6a9a;">🚪 一緒に入った (${lhTogetherCount})</button>` : ''}
+        <button onclick="filterLhUserReports('all')" class="lhu-tab filter-tab filter-tab--lg" data-filter="all" style="background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${lhUserReports.length})</button>
+        ${lhYesCount ? `<button onclick="filterLhUserReports('yes')" class="lhu-tab filter-tab filter-tab--lg" data-filter="yes" style="border-color:rgba(58,154,96,0.25);color:#3a9a60;">${t('filter_entered')} (${lhYesCount})</button>` : ''}
+        ${lhNoCount ? `<button onclick="filterLhUserReports('no')" class="lhu-tab filter-tab filter-tab--lg" data-filter="no" style="border-color:rgba(192,80,80,0.25);color:#c05050;">${t('filter_not_entered')} (${lhNoCount})</button>` : ''}
+        ${lhTogetherCount ? `<button onclick="filterLhUserReports('together')" class="lhu-tab filter-tab filter-tab--lg" data-filter="together" style="border-color:rgba(106,130,180,0.25);color:#4a6a9a;">${t('filter_together')} (${lhTogetherCount})</button>` : ''}
     </div>` : '';
 
     const lhUserSection = lhUserReports.length === 0 ? '' : `
         <div style="margin-bottom:16px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <span class="section-label section-label--user">${t('user_reviews')}</span>
-                <span style="font-size:11px;color:var(--text-3);">${lhUserReports.length}件</span>
+                <span style="font-size:11px;color:var(--text-3);">${lhUserReports.length}${t('count_suffix')}</span>
             </div>
             ${lhFilterTabs}
             <div id="lh-user-reports-list">${scrollableSection(lhUserReports, buildLhReviewCard)}</div>
         </div>`;
 
-    const selOpts = (arr) => '<option value="">選択してください</option>' + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    const selOpts = (arr) => `<option value="">${t('select_please')}</option>` + arr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 
     // 統計HTML
     const statsHTML = soloTotal > 0 ? `
         <div style="margin-bottom:16px;">
-            <div class="stat-heading">👤 一人で先に入れる？（${soloTotal}件回答）</div>
+            <div class="stat-heading">👤 ${t('solo_question')}（${soloTotal}${t('solo_answers')}）</div>
             <div class="progress-bar">
                 ${Object.entries(soloCounts).map(([key, count]) => `<div style="width:${Math.round(count/soloTotal*100)}%;background:${soloColors[key]||'#ccc'};"></div>`).join('')}
             </div>
@@ -931,18 +931,18 @@ function renderLovehoDetail(hotel, reports) {
     const formHTML = `
         <div class="accordion-form" style="margin:24px 0 8px;">
             <div style="text-align:center;margin-bottom:6px;font-size:15px;font-weight:bold;color:var(--text);">${esc(h.name)}</div>
-            <div style="text-align:center;"><button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh"><span id="loveho-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>🏩 口コミを投稿する<span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
+            <div style="text-align:center;"><button onclick="toggleAccordionForm('loveho-form-accordion')" class="btn-open-report-modal btn-open-report-modal--lh"><span id="loveho-form-arrow-l" style="margin-right:6px;transition:transform .2s;">▼</span>${t('post_loveho_review')}<span id="loveho-form-arrow" style="margin-left:6px;transition:transform .2s;">▼</span></button></div>
             <div id="loveho-form-accordion" style="display:none;margin-top:12px;">
         <div class="lh-form-wrap">
             <div class="lh-form-row">
-                <label class="lh-form-label">${SHOP_ID ? 'ご案内実績' : '一人で先に入れる？'}</label>
+                <label class="lh-form-label">${SHOP_ID ? t('guide_track') : t('solo_entry_label')}</label>
                 <select id="lh-solo-entry" onchange="lhFormState.solo_entry=this.value" class="lh-form-select">
                     ${SHOP_ID
-                        ? '<option value="">選択してください</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>'
-                        : '<option value="">選択してください</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>'}
+                        ? `<option value="">${t('select_please')}</option><option value="yes">${t('guide_track_yes')}</option><option value="no">${t('solo_no')}</option><option value="together">${t('guide_track_together')}</option>`
+                        : `<option value="">${t('select_please')}</option><option value="yes">${t('solo_yes')}</option><option value="no">${t('solo_no')}</option><option value="together">${t('solo_together_label')}</option><option value="lobby">${t('solo_waiting')}</option><option value="unknown">${t('solo_unknown')}</option>`}
                 </select>
             </div>
-            ${LH_MASTER.atmospheres.length ? `<div class="lh-form-row"><label class="lh-form-label">雰囲気</label><select onchange="lhFormState.atmosphere=this.value" class="lh-form-select">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
+            ${LH_MASTER.atmospheres.length ? `<div class="lh-form-row"><label class="lh-form-label">${t('atmosphere')}</label><select onchange="lhFormState.atmosphere=this.value" class="lh-form-select">${selOpts(LH_MASTER.atmospheres)}</select></div>` : ''}
             ${LH_MASTER.good_points && LH_MASTER.good_points.length ? (() => {
                 const categories = ['設備・お部屋', 'サービス・利便性'];
                 const catIcons = { '設備・お部屋': '🛁', 'サービス・利便性': '🏨' };
@@ -959,15 +959,15 @@ function renderLovehoDetail(hotel, reports) {
                 </label>
                 <div id="lh-multi-detail" class="multi-detail-row" style="margin-bottom:4px;flex-direction:column;">
                     <div style="display:flex;gap:8px;">
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">男性</span><select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
-                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">女性</span><select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_male')}</span><select onchange="lhFormState.guest_male=this.value" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+                        <span style="font-size:13px;color:var(--text-2);min-width:32px;">${t('guest_female')}</span><select onchange="lhFormState.guest_female=this.value" class="multi-select"><option value="">-</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
                     </div>
-                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">追加料金あり</label>
+                    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-2);cursor:pointer;"><input type="checkbox" id="lh-multi-fee" onchange="lhFormState.multi_fee=this.checked" style="width:14px;height:14px;accent-color:#c9a96e;cursor:pointer;">${t('additional_fee')}</label>
                 </div>
             </div>
-            <div class="lh-form-row"><label class="lh-form-label">利用時間帯</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
-            <div class="lh-form-row"><label class="lh-form-label">フリーコメント</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="良かった点、気になった点など" class="lh-form-select" style="resize:vertical;"></textarea></div>
-            <div class="lh-form-row"><label class="lh-form-label">投稿者名（任意）</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="無記名" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">※未入力の場合は「匿名」として表示されます。</div></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('time_slot')}</label><select onchange="lhFormState.time_slot=this.value" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('free_comment')}</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="${t('comment_placeholder')}" class="lh-form-select" style="resize:vertical;"></textarea></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('poster_name_opt')}</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="${t('anon_placeholder')}" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">${t('anon_default')}</div></div>
             <button onclick="submitLovehoReport()" id="lh-submit-btn" class="lh-submit-btn">確認画面に進む</button>
         </div>
             </div>
@@ -984,7 +984,7 @@ function setResultStatus(count, totalCount) {
     el.style.display = 'block';
     if (count <= 0) { el.innerHTML = t('no_results'); return; }
     if (totalCount && totalCount > count) {
-        el.innerHTML = `<strong>${totalCount}</strong> 件中 <strong>${count}</strong> 件表示`;
+        el.innerHTML = `<strong>${totalCount}</strong> / <strong>${count}</strong>`;
     } else {
         el.innerHTML = `<strong>${count}</strong> ${t('results')}`;
     }
@@ -1035,7 +1035,7 @@ function suggestStations() {
             const res = await fetch('/api/hotels.php?suggest_station=' + encodeURIComponent(val));
             if (!res.ok) return;
             const stations = await res.json();
-            if (!stations.length) { box.innerHTML = '<div class="station-suggest-empty">該当する駅が見つかりません</div>'; box.style.display = 'block'; return; }
+            if (!stations.length) { box.innerHTML = `<div class="station-suggest-empty">${t('no_station_found')}</div>`; box.style.display = 'block'; return; }
             box.innerHTML = stations.map(s => {
                 const display = formatStationName(s.name);
                 return `<div class="station-suggest-item" onclick="selectStation('${esc(s.name).replace(/'/g, "\\'")}')"><span class="station-suggest-name">${esc(display)}</span> <span class="station-suggest-cnt">${s.cnt}件</span></div>`;
@@ -1108,12 +1108,12 @@ async function showStationLovehoTabs(stationName, hotels) {
     tabsDiv.id = 'hotel-loveho-tabs';
     tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
     const lovehoTab = lovehoCount
-        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">🏩 ラブホ <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
+        ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart" id="loveho-count">${lovehoCount}</span></button>`
         : '';
     tabsDiv.innerHTML = `
-        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">🏨 ホテル (<span id="hotel-count">${hotels.length}</span>)</button>
+        <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchTab('hotel')">${t('hotel_tab')} (<span id="hotel-count">${hotels.length}</span>)</button>
         ${lovehoTab}
-        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">地図で見る</span></button>
+        <button id="btn-map-toggle" class="btn-map-toggle" onclick="toggleMapView()"><span class="btn-location-icon">🗺️</span><span class="btn-location-label">${t('view_map')}</span></button>
     `;
     const hotelList = document.getElementById('hotel-list');
     hotelList.parentNode.insertBefore(tabsDiv, hotelList);
@@ -1194,10 +1194,10 @@ async function executeKeywordSearch() {
         tabsDiv.id = 'hotel-loveho-tabs';
         tabsDiv.style.cssText = 'display:flex;align-items:flex-end;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border,#ddd);max-width:640px;margin-left:auto;margin-right:auto;padding:0 16px;';
         const lovehoTab = lovehoResults.length
-            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">🏩 ラブホ <span class="tab-badge tab-badge--heart">${lovehoResults.length}</span></button>`
+            ? `<button class="hotel-tab detail-tab detail-tab--inactive" data-tab="loveho" onclick="switchKeywordTab('loveho')">${t('loveho_tab')} <span class="tab-badge tab-badge--heart">${lovehoResults.length}</span></button>`
             : '';
         tabsDiv.innerHTML = `
-            <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchKeywordTab('hotel')">🏨 ホテル (${hotelResults.length})</button>
+            <button class="hotel-tab detail-tab detail-tab--active" data-tab="hotel" onclick="switchKeywordTab('hotel')">${t('hotel_tab')} (${hotelResults.length})</button>
             ${lovehoTab}
         `;
         const hotelList = document.getElementById('hotel-list');
@@ -1351,7 +1351,7 @@ async function toggleMapView() {
         // 上下両方のボタンを更新
         document.querySelectorAll('.btn-map-toggle').forEach(b => {
             const i = b.querySelector('.btn-location-icon'); if (i) i.textContent = '📋';
-            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = 'リストで見る';
+            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = t('view_list');
             b.classList.add('active');
         });
         // タブを地図の直前に移動
@@ -1376,7 +1376,7 @@ async function toggleMapView() {
         // 上下両方のボタンを更新
         document.querySelectorAll('.btn-map-toggle').forEach(b => {
             const i = b.querySelector('.btn-location-icon'); if (i) i.textContent = '🗺️';
-            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = '地図で見る';
+            const l = b.querySelector('.btn-location-label'); if (l) l.textContent = t('view_map');
             b.classList.remove('active');
         });
         // 下側タブを非表示
@@ -1391,7 +1391,7 @@ async function toggleMapView() {
 async function showMap() {
     const ready = await ensureLeaflet();
     if (!ready) {
-        showToast('地図ライブラリの読み込みに失敗しました', 2000);
+        showToast(t('map_load_error'), 2000);
         return;
     }
     // タブに応じたデータを使用
@@ -1439,7 +1439,7 @@ async function showMap() {
             onAdd: function() {
                 const btn = L.DomUtil.create('button', 'leaflet-bar');
                 btn.innerHTML = '📍';
-                btn.title = '現在地へ移動';
+                btn.title = t('move_to_location');
                 btn.style.cssText = 'width:36px;height:36px;background:#fff;border:none;border-radius:4px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);';
                 L.DomEvent.disableClickPropagation(btn);
                 btn.onclick = function() {
@@ -1452,10 +1452,10 @@ async function showMap() {
                             window._userLocMarker = L.circleMarker([lat, lng], {
                                 radius: 8, fillColor: '#4285F4', fillOpacity: 1,
                                 color: '#fff', weight: 3
-                            }).addTo(mapInstance).bindPopup('現在地');
+                            }).addTo(mapInstance).bindPopup(t('move_to_location'));
                             btn.innerHTML = '📍';
                         },
-                        function(err) { const msgs = { 1: '位置情報の使用が許可されていません', 2: '位置情報を取得できませんでした', 3: 'タイムアウトしました' }; showToast(msgs[err.code] || '位置情報を取得できませんでした'); btn.innerHTML = '📍'; },
+                        function(err) { const msgs = { 1: t('location_denied'), 2: t('location_failed'), 3: t('location_timeout') }; showToast(msgs[err.code] || t('location_failed')); btn.innerHTML = '📍'; },
                         { enableHighAccuracy: true, timeout: 10000 }
                     );
                 };
@@ -1470,7 +1470,7 @@ async function showMap() {
     mapMarkers = [];
 
     if (hotelsWithCoords.length === 0) {
-        showToast('位置情報のあるホテルがありません', 2000);
+        showToast(t('no_location_hotels'), 2000);
         return;
     }
 
@@ -1511,7 +1511,7 @@ function hideMap() {
         const iconEl = btn.querySelector('.btn-location-icon');
         const labelEl = btn.querySelector('.btn-location-label');
         if (iconEl) iconEl.textContent = '🗺️';
-        if (labelEl) labelEl.textContent = '地図で見る';
+        if (labelEl) labelEl.textContent = t('view_map');
         btn.classList.remove('active');
     }
 }
@@ -1537,7 +1537,7 @@ function buildCardHTML(h, i, showDistance) {
             reportAreaHTML = `
                 <div class="card-summary-wrap">
                     <div class="card-summary-group">
-                        <div class="card-summary-label shop">🏪 店舗様提供情報</div>
+                        <div class="card-summary-label shop">${t('shop_provided_info')}</div>
                         <div class="card-summary-boxes">
                             <div class="card-summary-box shop-can">
                                 <span class="csb-val">${shopCan}</span>
@@ -1550,7 +1550,7 @@ function buildCardHTML(h, i, showDistance) {
                         </div>
                     </div>
                     <div class="card-summary-group">
-                        <div class="card-summary-label user">👤 ユーザー投稿情報</div>
+                        <div class="card-summary-label user">${t('user_reviews')}</div>
                         <div class="card-summary-boxes">
                             <div class="card-summary-box user-can">
                                 <span class="csb-val">${userCan}</span>
@@ -1612,8 +1612,8 @@ function buildCardHTML(h, i, showDistance) {
 
                 <!-- フッター -->
                 <div class="hotel-card-footer card-footer" style="padding-top:8px;">
-                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-primary" style="letter-spacing:0.03em;text-shadow:0 1px 2px rgba(0,0,0,0.18);">✨ 今すぐCHECK！${reviewCount > 0 ? ` <span style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.35);border-radius:10px;padding:2px 8px;margin-left:4px;font-size:12px;text-shadow:none;">💬${reviewCount}</span>` : ''}</button>
-                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-secondary" style="letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;">📝 口コミを投稿</button>
+                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-primary" style="letter-spacing:0.03em;text-shadow:0 1px 2px rgba(0,0,0,0.18);">${t('check_now')}${reviewCount > 0 ? ` <span style="display:inline-flex;align-items:center;background:rgba(255,255,255,0.35);border-radius:10px;padding:2px 8px;margin-left:4px;font-size:12px;text-shadow:none;">💬${reviewCount}</span>` : ''}</button>
+                    <button onclick="event.stopPropagation();openHotelDetail(${h.id})" class="card-action-btn card-action-btn--h-secondary" style="letter-spacing:0.03em;overflow:hidden;text-overflow:ellipsis;">${t('post_review')}</button>
                 </div>
 
             </div>
@@ -1657,15 +1657,15 @@ function loadMoreHotels() {
     if (remaining > 0) {
         container.insertAdjacentHTML('beforeend', `
             <div id="load-more-container" class="load-more-wrap">
-                <button id="load-more-btn" onclick="loadMoreHotels()" class="load-more-btn load-more-btn--hotel">もっと見る（残り${remaining}件）</button>
+                <button id="load-more-btn" onclick="loadMoreHotels()" class="load-more-btn load-more-btn--hotel">${t('load_more')}（${remaining}）</button>
             </div>
         `);
     }
 
-    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>';
+    const shopRegLink = SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (getCurrentMode()) + '" class="info-link-pill">' + t('shop_register_link') + '</a>';
     container.insertAdjacentHTML('beforeend', `
         <div class="info-links-bar">
-            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
+            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
             ${shopRegLink}
         </div>
     `);
@@ -1830,7 +1830,7 @@ function leaveHotelDetail() {
 // 詳細ページ共通骨組み
 // ==========================================================================
 function renderDetailPage(hotel, isLoveho, sections) {
-    updatePageTitle(hotel.name + (isLoveho ? ' - ラブホ口コミ' : ' - 口コミ・対応情報'));
+    updatePageTitle(hotel.name + ' - ' + (isLoveho ? t('loveho_tab') : t('review_list')));
     const googleSearch = `https://www.google.com/search?q=${encodeURIComponent(hotel.name)}`;
     const googleMap = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hotel.address || hotel.name)}`;
     const modeParam = getCurrentMode();
@@ -1866,8 +1866,8 @@ function renderDetailPage(hotel, isLoveho, sections) {
         </div>
         <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
-            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">📝 未掲載ホテル情報提供</a>
-            <a href="/shop-register/?genre=${modeParam}" class="info-link-pill">🏪 店舗様・掲載用はこちら</a>
+            <a href="#" onclick="openHotelRequestModal();return false;" class="info-link-pill">${t('hotel_not_listed')}</a>
+            <a href="/shop-register/?genre=${modeParam}" class="info-link-pill">${t('shop_register_link')}</a>
         </div>
         <div id="detail-ad-wide"></div>
     </div>`;
@@ -1889,7 +1889,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         const tagsHTML = entryTags.map(t =>
             `<span class="tag-chip ${tagCls}">${esc(t)}</span>`
         ).join('');
-        const multiFeeTag = r.multi_fee ? ' <span style="color:#c9a96e;font-size:10px;">💰追加料金あり</span>' : '';
+        const multiFeeTag = r.multi_fee ? ` <span style="color:#c9a96e;font-size:10px;">${t('additional_fee')}</span>` : '';
         const guestChip = r.multi_person
             ? `<span class="tag-chip tag-chip--guest">👥 複数人利用OK${r.guest_male||r.guest_female ? `<span style="color:var(--text-3);margin-left:3px;">（${r.guest_male?`男性${r.guest_male}名`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female?`女性${r.guest_female}名`:''}）</span>`:''}${multiFeeTag}</span>`
             : (r.guest_female != null && r.guest_female > 0)
@@ -1977,9 +1977,9 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     const canCount = userReports.filter(r => r.can_call).length;
     const ngCount = userReports.filter(r => !r.can_call).length;
     const filterTabs = (userReports.length > 1 && canCount > 0 && ngCount > 0) ? `<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-        <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active" data-filter="all" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--accent-bg);color:var(--accent);">全て (${userReports.length})</button>
-        ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab" data-filter="can" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(33,150,243,0.25);background:transparent;color:#1976d2;">✅ 呼べた (${canCount})</button>` : ''}
-        ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab" data-filter="ng" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ 呼べなかった (${ngCount})</button>` : ''}
+        <button onclick="filterUserReports('all')" class="ur-tab ur-tab-active" data-filter="all" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid var(--border);background:var(--accent-bg);color:var(--accent);">${t('filter_all_n')} (${userReports.length})</button>
+        ${canCount ? `<button onclick="filterUserReports('can')" class="ur-tab" data-filter="can" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(58,154,96,0.25);background:transparent;color:#3a9a60;">✅ ${t('can_call')} (${canCount})</button>` : ''}
+        ${ngCount ? `<button onclick="filterUserReports('ng')" class="ur-tab" data-filter="ng" style="padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(192,80,80,0.25);background:transparent;color:#c05050;">❌ ${t('cannot_call')} (${ngCount})</button>` : ''}
     </div>` : '';
 
     const userReportsHTML = `
