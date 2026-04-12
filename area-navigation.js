@@ -204,7 +204,7 @@ async function appendRecentReviews() {
             } else {
                 badge = r.solo_entry === 'yes' ? '<span style="color:#3a9a60;">🚪</span>' : r.solo_entry === 'no' ? '<span style="color:#c05050;">🚪</span>' : '<span style="color:#a09080;">🏩</span>';
             }
-            return `<a href="${hotelLink}" style="display:block;padding:4px 0;font-size:12px;color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--border,#eee);" onmouseover="this.style.background='var(--bg-3,#f5f2ec)'" onmouseout="this.style.background=''"><span style="color:var(--text-3);margin-right:6px;">${timeStr}</span>${badge} <span style="font-weight:600;color:var(--text);">${name}</span> <span style="color:var(--text-3);font-size:11px;">— ${poster}</span></a>`;
+            return `<a href="${hotelLink}" style="display:block;padding:4px 0;font-size:12px;color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--border,#eee);" class="hover-bg"><span style="color:var(--text-3);margin-right:6px;">${timeStr}</span>${badge} <span style="font-weight:600;color:var(--text);">${name}</span> <span style="color:var(--text-3);font-size:11px;">— ${poster}</span></a>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
@@ -231,7 +231,7 @@ async function appendRecentShops() {
             const icon = iconMap[s.gender_mode] || '♂';
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
             const shopLink = s.shop_url || (s.slug ? `${modePath}shop/${s.slug}/` : '');
-            const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
+            const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" class="hover-underline">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
             return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">${t('shop_registered')}</span></div>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
@@ -252,7 +252,7 @@ function appendInfoLinksBar() {
     if (hlc && !hlc.querySelector('.info-links-bar')) {
         hlc.insertAdjacentHTML('beforeend', `
             <div class="info-links-bar" style="display:flex;justify-content:center;gap:16px;padding:14px 20px;margin-top:12px;background:#fff;border:1px solid #e0d5d0;border-radius:8px;">
-                <a href="#" onclick="openHotelRequestModal();return false;" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">${t('hotel_not_listed')}</a>
+                <a href="#" data-action="openHotelRequestModal" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">${t('hotel_not_listed')}</a>
                 ${SHOP_ID ? '' : '<a href="/shop-register/?genre=' + (typeof MODE !== 'undefined' ? MODE : 'men') + '" style="color:#8b5e6b;text-decoration:none;padding:6px 16px;border:1px solid #d4b8c1;border-radius:20px;background:#fdf6f8;font-size:12px;white-space:nowrap;">' + t('shop_register_link') + '</a>'}
             </div>
         `);
@@ -473,7 +473,7 @@ function showJapanPage() {
         const favBar = document.createElement('div');
         favBar.className = 'fav-bar';
         favBar.style.gridColumn = '1/-1';
-        favBar.innerHTML = `<button id="fav-btn" class="fav-bar-btn" onclick="if(typeof showFavoritesPage==='function')showFavoritesPage()">⭐ ${t('favorites')} (<span id="fav-count">${favCount}</span>)</button>`;
+        favBar.innerHTML = `<button id="fav-btn" class="fav-bar-btn" data-action="showFavoritesPage">⭐ ${t('favorites')} (<span id="fav-count">${favCount}</span>)</button>`;
         container.appendChild(favBar);
     }
 

@@ -706,7 +706,7 @@ function setBreadcrumb(crumbs) {
         return `
             ${i > 0 ? '<span class="breadcrumb-sep">›</span>' : ''}
             <span class="breadcrumb-item ${isLast ? 'active' : ''}"
-                  ${!isLast && c.onclick ? `style="cursor:pointer" onclick="${c.onclick}"` : ''}>
+                  ${!isLast && c.onclick ? `style="cursor:pointer" data-action="${c.onclick.replace(/\(\)/,'')}"` : ''}>
                 ${esc(c.label)}
             </span>`;
     }).join('');

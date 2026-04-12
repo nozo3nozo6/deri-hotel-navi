@@ -24,7 +24,7 @@ function loadLegalPageInline(url, title) {
         // ページ内のstyleタグも抽出
         var styles = '';
         doc.querySelectorAll('style').forEach(function(s) { styles += s.outerHTML; });
-        var backBtn = '<div style="text-align:center;padding:16px 0 8px;"><button onclick="closeLegalPage()" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 24px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
+        var backBtn = '<div style="text-align:center;padding:16px 0 8px;"><button data-action="closeLegalPage" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 24px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
         if (hotelList) {
             hotelList._savedHTML = savedHotelHTML;
             hotelList.innerHTML = styles + backBtn + '<div style="max-width:720px;margin:0 auto;padding:8px 20px 40px;">' + content.innerHTML + '</div>';
@@ -272,6 +272,24 @@ document.addEventListener('click', function(e) {
             break;
         case 'selectStation':
             if (typeof selectStation === 'function') selectStation(param);
+            break;
+        case 'toggleCanReason':
+            if (typeof toggleCanReason === 'function') toggleCanReason(parseInt(param));
+            break;
+        case 'toggleCannotReason':
+            if (typeof toggleCannotReason === 'function') toggleCannotReason(parseInt(param));
+            break;
+        case 'showCanReasonsModal':
+            if (typeof showCanReasonsModal === 'function') showCanReasonsModal();
+            break;
+        case 'showCannotReasonsModal':
+            if (typeof showCannotReasonsModal === 'function') showCannotReasonsModal();
+            break;
+        case 'showFavoritesPage':
+            if (typeof showFavoritesPage === 'function') showFavoritesPage();
+            break;
+        case 'clearParent':
+            if (target.parentElement) { target.parentElement.style.opacity = '1'; target.parentElement.innerHTML = ''; }
             break;
         case 'toggleAccordionForm':
             if (typeof toggleAccordionForm === 'function') toggleAccordionForm(param);

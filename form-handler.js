@@ -97,7 +97,7 @@ function showCanReasonsModal() {
     checkboxes.innerHTML = CAN_CALL_REASONS.map((r, i) => {
         const narrow = CAN_CALL_REASONS_NARROW[r] || r;
         return `
-        <label id="cr-${i}" onclick="toggleCanReason(${i})"
+        <label id="cr-${i}" data-action="toggleCanReason" data-param="${i}"
             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
             <span class="cr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
             <span class="cr-label-full" style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${esc(r)}</span>
@@ -151,9 +151,9 @@ function confirmCanReasons() {
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
                 <span style="font-size:11px;color:var(--text-3);">${t('can_call_reason')}：</span>
                 ${selected.map(r => `<span style="padding:3px 9px;background:rgba(58,154,96,0.1);border:1px solid rgba(58,154,96,0.3);border-radius:10px;font-size:11px;color:#3a9a60;font-weight:600;">${esc(r)}</span>`).join('')}
-                <button onclick="showCanReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
+                <button data-action="showCanReasonsModal" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
-            : `<div style="padding:4px 0;"><button onclick="showCanReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(58,154,96,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#3a7a50;">＋ 呼べた理由を選択（任意）</button></div>`;
+            : `<div style="padding:4px 0;"><button data-action="showCanReasonsModal" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(58,154,96,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#3a7a50;">＋ 呼べた理由を選択（任意）</button></div>`;
     }
 }
 
@@ -164,7 +164,7 @@ function showCannotReasonsModal() {
     hotelFormState.cannot_call_reasons.clear();
     const checkboxes = document.getElementById('cannot-reasons-checkboxes');
     checkboxes.innerHTML = CANNOT_CALL_REASONS.map((r, i) => `
-        <label id="cnr-${i}" onclick="toggleCannotReason(${i})"
+        <label id="cnr-${i}" data-action="toggleCannotReason" data-param="${i}"
             style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-3,#f0ebe0);border:2px solid var(--border,rgba(180,150,100,0.18));border-radius:8px;cursor:pointer;transition:all 0.15s;">
             <span class="cnr-check" style="width:18px;height:18px;border:2px solid rgba(180,150,100,0.4);border-radius:4px;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:transparent;"></span>
             <span style="font-size:13px;font-weight:500;color:var(--text,#1a1410);">${esc(r)}</span>
@@ -195,9 +195,9 @@ function confirmCannotReasons() {
             ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 0 2px;">
                 <span style="font-size:11px;color:var(--text-3);">${t('cannot_call_reason')}：</span>
                 ${selected.map(r => `<span style="padding:3px 9px;background:rgba(192,80,80,0.1);border:1px solid rgba(192,80,80,0.3);border-radius:10px;font-size:11px;color:#c05050;font-weight:600;">${esc(r)}</span>`).join('')}
-                <button onclick="showCannotReasonsModal()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
+                <button data-action="showCannotReasonsModal" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:10px;background:transparent;cursor:pointer;color:var(--text-3);">変更</button>
                </div>`
-            : `<div style="padding:4px 0;"><button onclick="showCannotReasonsModal()" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(192,80,80,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#c05050;">＋ 呼べなかった理由を選択（任意）</button></div>`;
+            : `<div style="padding:4px 0;"><button data-action="showCannotReasonsModal" style="font-size:12px;padding:4px 12px;border:1px dashed rgba(192,80,80,0.4);border-radius:10px;background:transparent;cursor:pointer;color:#c05050;">＋ 呼べなかった理由を選択（任意）</button></div>`;
     }
 }
 
@@ -275,7 +275,7 @@ async function voteReport(reportId, vote) {
             const card = btnEl?.closest('div[style*="border-radius:10px"]');
             if (card) {
                 card.style.opacity = '0.5';
-                card.innerHTML = `<div style="font-size:12px;color:var(--text-3);text-align:center;padding:8px;cursor:pointer;" onclick="this.parentElement.style.opacity='1';this.parentElement.innerHTML='';">
+                card.innerHTML = `<div style="font-size:12px;color:var(--text-3);text-align:center;padding:8px;cursor:pointer;" data-action="clearParent">
                     ⚠️ 低評価が多い投稿です（タップで表示）
                 </div>` + card.innerHTML;
             }
