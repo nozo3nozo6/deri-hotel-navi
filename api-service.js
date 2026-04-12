@@ -107,16 +107,10 @@ function applyShopModeUI() {
     const paid = isShopPaid();
 
     if (paid) {
-        // === 有料プラン: ヘッダーを店舗名のみに ===
+        // === 有料プラン: ヘッダーを店舗名+全国へ+言語に ===
         // ジャンルドロップダウン非表示
         const modeDropdown = document.querySelector('.mode-dropdown');
         if (modeDropdown) modeDropdown.style.display = 'none';
-        // 言語ドロップダウン非表示
-        const langDropdown = document.querySelector('.lang-dropdown');
-        if (langDropdown) langDropdown.style.display = 'none';
-        // 「全国へ」ボタン非表示
-        const gateBtn = document.querySelector('.btn-to-gate');
-        if (gateBtn) gateBtn.style.display = 'none';
         // ヘッダーロゴを店舗名に変更
         const logoText = document.getElementById('header-logo-text');
         if (logoText) {
