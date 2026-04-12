@@ -9,12 +9,8 @@ function loadLegalPageInline(url, title) {
     var main = document.getElementById('main-content');
     if (!main) { window.location.href = url; return; }
     _legalSavedScroll = window.scrollY;
-    // エリアナビ・検索欄・結果ステータス等を非表示
-    ['area-button-container','search-tools','result-status','hotel-loveho-tabs','breadcrumb'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el && el.style.display !== 'none') { el.style.display = 'none'; _legalHiddenEls.push(el); }
-    });
-    document.querySelectorAll('.search-tools, .area-container, .breadcrumb-inner').forEach(function(el) {
+    // エリアセクション・検索欄・結果ステータス・広告等を非表示
+    document.querySelectorAll('.area-section, .search-tools, #result-status, #hotel-loveho-tabs, #ad-container-below-search, #bottom-info-links').forEach(function(el) {
         if (el.style.display !== 'none') { el.style.display = 'none'; _legalHiddenEls.push(el); }
     });
     // ホテルリストの中身を退避
@@ -25,10 +21,13 @@ function loadLegalPageInline(url, title) {
         var parser = new DOMParser();
         var doc = parser.parseFromString(html, 'text/html');
         var content = doc.querySelector('.content') || doc.querySelector('main') || doc.body;
+        // ページ内のstyleタグも抽出
+        var styles = '';
+        doc.querySelectorAll('style').forEach(function(s) { styles += s.outerHTML; });
         var backBtn = '<div style="text-align:center;padding:16px 0 8px;"><button onclick="closeLegalPage()" style="background:none;border:1px solid var(--border,#ddd);border-radius:8px;padding:8px 24px;cursor:pointer;font-size:13px;color:var(--accent,#7b6fa0);font-family:inherit;">← 戻る</button></div>';
         if (hotelList) {
             hotelList._savedHTML = savedHotelHTML;
-            hotelList.innerHTML = backBtn + '<div style="max-width:720px;margin:0 auto;padding:8px 20px 40px;">' + content.innerHTML + '</div>';
+            hotelList.innerHTML = styles + backBtn + '<div style="max-width:720px;margin:0 auto;padding:8px 20px 40px;">' + content.innerHTML + '</div>';
         }
         window.scrollTo(0, 0);
     }).catch(function() { window.location.href = url; });
