@@ -219,7 +219,59 @@ document.addEventListener('click', function(e) {
         case 'selectCorrectionCategory':
             if (typeof selectCorrectionCategory === 'function') selectCorrectionCategory(param, target);
             break;
+        case 'openHotelDetail':
+            if (target.dataset.stop) e.stopPropagation();
+            if (typeof openHotelDetail === 'function') openHotelDetail(parseInt(target.dataset.hotelId));
+            break;
+        case 'openLovehoDetail':
+            if (target.dataset.stop) e.stopPropagation();
+            if (typeof openLovehoDetail === 'function') openLovehoDetail(parseInt(target.dataset.hotelId));
+            break;
+        case 'openFlagModal':
+            if (target.dataset.stop) e.stopPropagation();
+            if (typeof openFlagModal === 'function') openFlagModal(target.dataset.reportId);
+            break;
+        case 'showFlagModal':
+            if (typeof showFlagModal === 'function') showFlagModal(target.dataset.reportId);
+            break;
+        case 'switchTab':
+            if (typeof switchTab === 'function') switchTab(param);
+            break;
+        case 'switchKeywordTab':
+            if (typeof switchKeywordTab === 'function') switchKeywordTab(param);
+            break;
+        case 'filterUserReports':
+            if (typeof filterUserReports === 'function') filterUserReports(param);
+            break;
+        case 'filterShopReports':
+            if (typeof filterShopReports === 'function') filterShopReports(param);
+            break;
+        case 'filterLhUserReports':
+            if (typeof filterLhUserReports === 'function') filterLhUserReports(param);
+            break;
+        case 'hotelSetCanCall':
+            if (typeof hotelSetCanCall === 'function') hotelSetCanCall(param === 'true');
+            break;
+        case 'hotelStepGuest':
+            if (typeof hotelStepGuest === 'function') hotelStepGuest(param, parseInt(target.dataset.dir));
+            break;
+        case 'expandReviews':
+            if (typeof expandReviews === 'function') expandReviews(target);
+            break;
+        case 'lhToggleGoodPoint':
+            if (typeof lhToggleGoodPoint === 'function') lhToggleGoodPoint(target, target.dataset.label);
+            break;
+        case 'selectStation':
+            if (typeof selectStation === 'function') selectStation(param);
+            break;
+        case 'toggleAccordionForm':
+            if (typeof toggleAccordionForm === 'function') toggleAccordionForm(param);
+            break;
         default:
+            // data-stop属性があればstopPropagation
+            if (target.dataset.stop) e.stopPropagation();
+            // href="#"のaタグはpreventDefault
+            if (target.tagName === 'A' && target.getAttribute('href') === '#') e.preventDefault();
             // 引数なし関数の汎用呼び出し
             if (typeof window[action] === 'function') window[action]();
             break;
