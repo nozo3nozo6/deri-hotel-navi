@@ -228,3 +228,10 @@ document.addEventListener('input', function(e) {
     if (action && typeof window[action] === 'function') window[action]();
 });
 
+// ── Service Worker 登録 ──
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function() {});
+    });
+}
+
