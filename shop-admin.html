@@ -2141,8 +2141,8 @@ function lhRenderHotelCards(hotels){
         const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
         const actionBtns=isReg
-            ?`<button class="btn btn-rose" onclick="lhSelectHotel(${h.id},'${esc(h.name).replace(/'/g,"\\'")}')">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
-            :`<button class="btn btn-rose" onclick="lhSelectHotel(${h.id},'${esc(h.name).replace(/'/g,"\\'")}')">📝 情報登録</button>`;
+            ?`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
+            :`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button>`;
         return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span><span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
