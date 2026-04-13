@@ -69,9 +69,8 @@ function getModePath() {
     return MODE_PATH_MAP[window.MODE] || 'deli';
 }
 
-const _isTestPage = window.location.pathname.split('/').filter(Boolean)[0] === 'test';
 function buildUrl(params) {
-    const base = (_isTestPage ? '/test' : '') + '/' + getModePath();
+    const base = '/' + getModePath();
     const p = params || {};
     let path = base;
     // 店舗専用URL: /deli/shop/slug/ パスベース（ホテル詳細含め常に維持）
@@ -291,8 +290,6 @@ function renderCityButtons(container, cities, onCityClick) {
 function parseUrlPath() {
     const path = decodeURIComponent(window.location.pathname);
     const segments = path.split('/').filter(Boolean);
-    // /test/ プレフィックスをスキップ
-    if (segments[0] === 'test') segments.shift();
     // 先頭がモードパスか確認
     if (segments.length > 0 && PATH_MODE_MAP[segments[0]]) {
         segments.shift(); // モードセグメントを除去
