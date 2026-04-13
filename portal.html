@@ -112,7 +112,7 @@
         </div>
 
         <div class="mode-dropdown">
-            <button class="mode-toggle" onclick="this.parentElement.classList.toggle('open')"><span id="mode-badge-icon">♂</span> <span class="mode-toggle-caret">▼</span></button>
+            <button class="mode-toggle" data-action="toggleDropdown"><span id="mode-badge-icon">♂</span> <span class="mode-toggle-caret">▼</span></button>
             <div class="mode-menu">
                 <a href="/deli/" class="mode-menu-item" data-mode="men">♂ デリヘル</a>
                 <a href="/jofu/" class="mode-menu-item" data-mode="women">♀ 女性用風俗</a>
@@ -124,7 +124,7 @@
         </div>
 
         <div class="lang-dropdown">
-            <button class="lang-toggle" onclick="this.parentElement.classList.toggle('open')">🌐 JP</button>
+            <button class="lang-toggle" data-action="toggleDropdown">🌐 JP</button>
             <div class="lang-menu">
                 <button data-action="changeLang" data-param="ja" class="lang-menu-item active">JP 日本語</button>
                 <button data-action="changeLang" data-param="en" class="lang-menu-item">EN English</button>
@@ -273,8 +273,8 @@
         <div id="lh-confirm-content"></div>
         <div class="modal-warning" data-i18n="modal_confirm_warning">⚠️ お店の名前、関係者情報、URLや電話番号を含む内容は、コメントなしで表示されます</div>
         <div class="modal-actions">
-            <button onclick="document.getElementById('lh-confirm-modal').style.display='none'" class="btn-modal-cancel" data-i18n="modal_fix" style="flex:1;">修正する</button>
-            <button onclick="doSubmitLovehoReport()" id="btn-do-lh-submit" class="btn-modal-primary" data-i18n="confirm_post" style="flex:2;font-size:14px;">この内容で投稿する</button>
+            <button data-action="closeLhConfirmModal" class="btn-modal-cancel" data-i18n="modal_fix" style="flex:1;">修正する</button>
+            <button data-action="doSubmitLovehoReport" id="btn-do-lh-submit" class="btn-modal-primary" data-i18n="confirm_post" style="flex:2;font-size:14px;">この内容で投稿する</button>
         </div>
     </div>
 </div>
@@ -282,7 +282,7 @@
 <!-- ホテル口コミ投稿フォームモーダル -->
 <div id="hotel-report-form-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
     <div class="modal-content modal-content--form" style="max-width:520px;max-height:calc(100dvh - 120px);overflow-y:auto;-webkit-overflow-scrolling:touch;">
-        <button onclick="closeHotelReportFormModal()" class="modal-close-btn" aria-label="閉じる">&times;</button>
+        <button data-action="closeHotelReportFormModal" class="modal-close-btn" aria-label="閉じる">&times;</button>
         <div id="hotel-report-form-body"></div>
     </div>
 </div>
@@ -290,7 +290,7 @@
 <!-- ラブホ口コミ投稿フォームモーダル -->
 <div id="loveho-report-form-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay" style="z-index:var(--z-modal);">
     <div class="modal-content modal-content--form" style="max-width:520px;max-height:calc(100dvh - 120px);overflow-y:auto;-webkit-overflow-scrolling:touch;">
-        <button onclick="closeLovehoReportFormModal()" class="modal-close-btn" aria-label="閉じる">&times;</button>
+        <button data-action="closeLovehoReportFormModal" class="modal-close-btn" aria-label="閉じる">&times;</button>
         <div id="loveho-report-form-body"></div>
     </div>
 </div>

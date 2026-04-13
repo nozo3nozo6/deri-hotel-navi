@@ -302,6 +302,13 @@ document.addEventListener('click', function(e) {
         case 'clearParent':
             if (target.parentElement) { target.parentElement.style.opacity = '1'; target.parentElement.innerHTML = ''; }
             break;
+        case 'toggleDropdown':
+            target.parentElement.classList.toggle('open');
+            break;
+        case 'closeLhConfirmModal':
+            var lhm = document.getElementById('lh-confirm-modal');
+            if (lhm) lhm.style.display = 'none';
+            break;
         case 'toggleAccordionForm':
             if (typeof toggleAccordionForm === 'function') toggleAccordionForm(param);
             break;
