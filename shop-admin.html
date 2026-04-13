@@ -1686,19 +1686,29 @@ function setCanCall(val){
     else{clearCheckGroup("can-reason-checks");clearCheckGroup("room-type-checks");clearCheckGroup("time-slot-checks");}
 }
 
-// ===== ホテル選択 → フォーム =====
+// ===== ホテル選択 → モーダルでフォーム表示 =====
 async function selectHotelById(hotelId){
     let hotel=null;
     try{const hRes=await fetch('/api/hotels.php?hotel_id='+hotelId+'&type=all');const arr=await hRes.json();hotel=Array.isArray(arr)?arr[0]:null;}catch(e){}
     if(!hotel){toast("ホテルが見つかりません");return;}
-    // ラブホ/レンタルルームの場合はラブホ用フォームを開く
-    if(hotel.hotel_type==='love_hotel'||hotel.hotel_type==='rental_room'){
-        lhSelectHotel(hotel.id, hotel.name);
-        return;
+    const isLoveho=hotel.hotel_type==='love_hotel'||hotel.hotel_type==='rental_room';
+    const modal=document.getElementById('edit-modal');
+    const container=document.getElementById('edit-modal-content');
+    if(isLoveho){
+        const form=document.getElementById('lh-form-card');
+        container.innerHTML='';container.appendChild(form);
+        form.style.display='block';
+        _editModal={type:'loveho',form};
+        await lhSelectHotel(hotel.id, hotel.name);
+    }else{
+        const form=document.getElementById('info-form');
+        container.innerHTML='';container.appendChild(form);
+        _editModal={type:'hotel',form};
+        let existing=null;
+        try{const eRes=await fetch('/api/shop-hotel-api.php?action=get-info&hotel_id='+hotelId,{credentials:'include'});existing=await eRes.json();}catch(e){}
+        openForm(hotel,existing);
     }
-    let existing=null;
-    try{const eRes=await fetch('/api/shop-hotel-api.php?action=get-info&hotel_id='+hotelId,{credentials:'include'});if(!eRes.ok){console.warn('[get-info] HTTP',eRes.status);} existing=await eRes.json();console.log('[get-info] hotel_id='+hotelId, existing);}catch(e){console.error('[get-info] error',e);}
-    openForm(hotel,existing);
+    modal.style.display='flex';
 }
 
 function openForm(hotel,existing){
@@ -1736,7 +1746,6 @@ function openForm(hotel,existing){
     }
 
     document.getElementById("info-form").classList.add("active");
-    document.getElementById("info-form").scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function cancelForm(){
