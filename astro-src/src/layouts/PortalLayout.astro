@@ -149,7 +149,7 @@ const jsonLd = [
                 </a>
             </div>
             <div class="mode-dropdown">
-                <button class="mode-toggle" ><span id="mode-badge-icon">{
+                <button class="mode-toggle" data-action="toggleDropdown"><span id="mode-badge-icon">{
                     mode === 'men' ? '♂' : mode === 'women' ? '♀' : mode === 'este' ? '💆' : mode === 'men_same' ? '♂♂' : '♀♀'
                 }</span> <span class="mode-toggle-caret">▼</span></button>
                 <div class="mode-menu">
@@ -162,7 +162,7 @@ const jsonLd = [
                 </div>
             </div>
             <div class="lang-dropdown">
-                <button class="lang-toggle" >🌐 JP</button>
+                <button class="lang-toggle" data-action="toggleDropdown">🌐 JP</button>
                 <div class="lang-menu">
                     <button data-action="changeLang" data-param="ja" class="lang-menu-item active">JP 日本語</button>
                     <button data-action="changeLang" data-param="en" class="lang-menu-item">EN English</button>
