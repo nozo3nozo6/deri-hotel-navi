@@ -53,7 +53,10 @@ function closeLegalPage() {
     if ((document.querySelector('meta[name="x-astro-mode"]')||{}).content) return;
     // パスベースURL対応: /deli/, /jofu/, /same-m/, /same-f/, /este/
     var pathMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same', 'este': 'este' };
-    var seg = location.pathname.split('/').filter(Boolean)[0] || '';
+    var segs = location.pathname.split('/').filter(Boolean);
+    var seg = segs[0] || '';
+    // /test/deli/ → skip 'test', use next segment
+    if (seg === 'test' && segs[1]) seg = segs[1];
     var m = pathMap[seg] || new URLSearchParams(location.search).get('mode') || 'men';
     if (m === 'women' || m === 'women_same') {
         var l = document.createElement('link');
