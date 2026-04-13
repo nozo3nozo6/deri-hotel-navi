@@ -1,0 +1,27 @@
+/* ==========================================================================
+   テーマ — デリエステモード パステルティール — 清潔感・リラックス・親しみ
+   ========================================================================== */
+[data-mode="este"] {
+    --accent: #2aa8b8;
+    --accent-light: #5cc8d4;
+    --accent-dim: #1a8a9a;
+    --accent-bg: rgba(42,168,184,0.07);
+    --accent-glow: rgba(42,168,184,0.15);
+    --bg: #f4fafb;
+    --bg-2: #ffffff;
+    --bg-3: #eaf5f7;
+    --bg-4: #d8eef2;
+    --text: #1a2e34;
+    --text-2: #3d6068;
+    --text-3: #4d7a84;
+    --border: rgba(42,168,184,0.18);
+    --border-strong: rgba(42,168,184,0.38);
+    --card-shadow: 0 2px 16px rgba(42,168,184,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 8px 32px rgba(42,168,184,0.15), 0 2px 8px rgba(0,0,0,0.07);
+}
+
+body[data-mode="este"] .logo-text {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}

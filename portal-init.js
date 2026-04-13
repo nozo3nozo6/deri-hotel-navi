@@ -61,6 +61,13 @@ function closeLegalPage() {
         l.href = 'https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap';
         document.head.appendChild(l);
     }
+    // テーマCSS動的読み込み
+    var themeMap = { men: 'theme-men.css', women: 'theme-women.css', men_same: 'theme-men-same.css', women_same: 'theme-women-same.css', este: 'theme-este.css' };
+    var themeFile = themeMap[m] || 'theme-men.css';
+    var tl = document.createElement('link');
+    tl.rel = 'stylesheet';
+    tl.href = '/' + themeFile;
+    document.head.appendChild(tl);
 })();
 
 // ── モード初期化（旧インラインscript） ──

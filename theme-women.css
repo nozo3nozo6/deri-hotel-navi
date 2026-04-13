@@ -1,0 +1,86 @@
+/* ==========================================================================
+   テーマ — 女性モード（女風）ラベンダーパープル — 癒し・高級感・官能
+   ========================================================================== */
+[data-mode="women"] {
+    --accent: #7b6fa0;
+    --accent-light: #9b8fbf;
+    --accent-dim: #5b4f80;
+    --accent-bg: rgba(123,111,160,0.07);
+    --accent-glow: rgba(123,111,160,0.18);
+    --bg: #f8f6fb;
+    --bg-2: #ffffff;
+    --bg-3: #f3f0f8;
+    --bg-4: #ebe6f2;
+    --text: #201a2a;
+    --text-2: #4a3a5a;
+    --text-3: #6b5f90;
+    --border: rgba(123,111,160,0.18);
+    --border-strong: rgba(123,111,160,0.38);
+    --card-shadow: 0 2px 16px rgba(123,111,160,0.08), 0 1px 4px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 8px 32px rgba(123,111,160,0.15), 0 2px 8px rgba(0,0,0,0.07);
+}
+
+body[data-mode="women"] .portal-header {
+    background: linear-gradient(180deg, #f8f5fb 0%, rgba(248,246,251,0.97) 100%);
+    border-bottom: 1px solid rgba(123,111,160,0.12);
+}
+body[data-mode="women"] .portal-header::before {
+    height: 3px;
+    background: linear-gradient(90deg, #a89ec0, #7b6fa0 30%, #9b8fbf 50%, #7b6fa0 70%, #a89ec0);
+}
+body[data-mode="women"] .hotel-card,
+body[data-mode="women"] .info-links-bar {
+    border-radius: 14px;
+    border-color: rgba(155,143,191,0.2);
+    transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+body[data-mode="women"] .hotel-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(123,111,160,0.12), 0 2px 8px rgba(0,0,0,0.04);
+}
+body[data-mode="women"] .btn-check,
+body[data-mode="women"] .btn-report {
+    border-radius: 24px;
+    background: linear-gradient(135deg, #8b7fb0 0%, #7b6fa0 100%);
+    border: none;
+    letter-spacing: 0.5px;
+}
+body[data-mode="women"] .btn-check:hover,
+body[data-mode="women"] .btn-report:hover {
+    background: linear-gradient(135deg, #9b8fbf 0%, #8b7fb0 100%);
+    transform: translateY(-1px);
+}
+body[data-mode="women"] .breadcrumb-inner {
+    background: linear-gradient(135deg, rgba(248,246,251,0.9) 0%, rgba(243,240,248,0.9) 100%);
+}
+body[data-mode="women"] .area-btn {
+    border-radius: 24px;
+    border-color: rgba(155,143,191,0.25);
+    transition: all 0.2s ease;
+}
+body[data-mode="women"] .area-btn:hover {
+    background: rgba(123,111,160,0.08);
+    border-color: rgba(123,111,160,0.4);
+    transform: translateY(-1px);
+}
+body[data-mode="women"] .hotel-tab-btn {
+    border-radius: 20px 20px 0 0;
+}
+body[data-mode="women"] .search-input-wrap input,
+body[data-mode="women"] .station-search-input {
+    border-radius: 24px;
+    border-color: rgba(212,137,158,0.25);
+}
+body[data-mode="women"] .search-input-wrap input:focus,
+body[data-mode="women"] .station-search-input:focus {
+    border-color: #d4899e;
+    box-shadow: 0 0 0 3px rgba(181,98,122,0.1);
+}
+body[data-mode="women"] .gps-btn {
+    border-radius: 24px;
+    border-color: rgba(212,137,158,0.3);
+}
+body[data-mode="women"] .portal-footer {
+    background: linear-gradient(180deg, #fdf5f7 0%, #f8eef1 100%);
+    border-top: 1px solid rgba(181,98,122,0.12);
+}

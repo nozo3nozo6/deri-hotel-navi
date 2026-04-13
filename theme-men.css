@@ -1,0 +1,29 @@
+/* ==========================================================================
+   テーマ — 男性モード（デリヘル）深緋・金
+   ========================================================================== */
+[data-mode="men"] {
+    --accent: #9b2d35;
+    --accent-light: #c45565;
+    --accent-dim: #7a1f2a;
+    --accent-bg: rgba(155,45,53,0.07);
+    --accent-glow: rgba(155,45,53,0.18);
+    --border: rgba(155,45,53,0.14);
+    --border-strong: rgba(155,45,53,0.34);
+    --card-shadow: 0 2px 16px rgba(155,45,53,0.08), 0 1px 4px rgba(0,0,0,0.06);
+    --card-shadow-hover: 0 8px 32px rgba(155,45,53,0.15), 0 2px 8px rgba(0,0,0,0.09);
+}
+
+body[data-mode="men"],
+body[data-mode="men"] * {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
+    font-style: normal !important;
+}
+body[data-mode="men"] .hotel-price-value {
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+}
+body[data-mode="men"] .logo-text,
+body[data-mode="men"] .header-title {
+    font-family: 'Cormorant Garamond', 'Noto Sans JP', sans-serif !important;
+    font-style: italic !important;
+}

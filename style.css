@@ -40,42 +40,7 @@ html { overflow-y:scroll; }
     --z-toast: 1100;
 }
 
-/* ==========================================================================
-   テーマ変数 — 男性モード（デリヘル）深緋・金
-   ========================================================================== */
-[data-mode="men"] {
-    --accent: #9b2d35;
-    --accent-light: #c45565;
-    --accent-dim: #7a1f2a;
-    --accent-bg: rgba(155,45,53,0.07);
-    --accent-glow: rgba(155,45,53,0.18);
-    --border: rgba(155,45,53,0.14);
-    --border-strong: rgba(155,45,53,0.34);
-    --card-shadow: 0 2px 16px rgba(155,45,53,0.08), 0 1px 4px rgba(0,0,0,0.06);
-    --card-shadow-hover: 0 8px 32px rgba(155,45,53,0.15), 0 2px 8px rgba(0,0,0,0.09);
-}
-
-/* ==========================================================================
-   テーマ変数 — 女性モード（女風）ラベンダーパープル — 癒し・高級感・官能
-   ========================================================================== */
-[data-mode="women"] {
-    --accent: #7b6fa0;
-    --accent-light: #9b8fbf;
-    --accent-dim: #5b4f80;
-    --accent-bg: rgba(123,111,160,0.07);
-    --accent-glow: rgba(123,111,160,0.18);
-    --bg: #f8f6fb;
-    --bg-2: #ffffff;
-    --bg-3: #f3f0f8;
-    --bg-4: #ebe6f2;
-    --text: #201a2a;
-    --text-2: #4a3a5a;
-    --text-3: #6b5f90;
-    --border: rgba(123,111,160,0.18);
-    --border-strong: rgba(123,111,160,0.38);
-    --card-shadow: 0 2px 16px rgba(123,111,160,0.08), 0 1px 4px rgba(0,0,0,0.04);
-    --card-shadow-hover: 0 8px 32px rgba(123,111,160,0.15), 0 2px 8px rgba(0,0,0,0.07);
-}
+/* テーマ変数は theme-*.css に分割済み（portal-init.jsで動的読み込み） */
 
 /* ==========================================================================
    ラブホタブ — エロチック・ムードデザイン（全モード共通）
@@ -131,163 +96,9 @@ html { overflow-y:scroll; }
     color: #8a5a68;
 }
 
-/* ==========================================================================
-   女性モード — ときめきデザイン強化
-   ========================================================================== */
-/* ヘッダー: ローズグラデーション */
-body[data-mode="women"] .portal-header {
-    background: linear-gradient(180deg, #f8f5fb 0%, rgba(248,246,251,0.97) 100%);
-    border-bottom: 1px solid rgba(123,111,160,0.12);
-}
-body[data-mode="women"] .portal-header::before {
-    height: 3px;
-    background: linear-gradient(90deg, #a89ec0, #7b6fa0 30%, #9b8fbf 50%, #7b6fa0 70%, #a89ec0);
-}
+/* 女性モード固有スタイルは theme-women.css に分割済み */
 
-/* カード: 柔らかい角丸 + ほんのりラベンダーシャドウ */
-body[data-mode="women"] .hotel-card,
-body[data-mode="women"] .info-links-bar {
-    border-radius: 14px;
-    border-color: rgba(155,143,191,0.2);
-    transition: transform 0.2s ease, box-shadow 0.3s ease;
-}
-body[data-mode="women"] .hotel-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(123,111,160,0.12), 0 2px 8px rgba(0,0,0,0.04);
-}
-
-/* ボタン: グラデーション + 丸み */
-body[data-mode="women"] .btn-check,
-body[data-mode="women"] .btn-report {
-    border-radius: 24px;
-    background: linear-gradient(135deg, #8b7fb0 0%, #7b6fa0 100%);
-    border: none;
-    letter-spacing: 0.5px;
-}
-body[data-mode="women"] .btn-check:hover,
-body[data-mode="women"] .btn-report:hover {
-    background: linear-gradient(135deg, #9b8fbf 0%, #8b7fb0 100%);
-    transform: translateY(-1px);
-}
-
-/* パンくずリスト: 柔らかいスタイル */
-body[data-mode="women"] .breadcrumb-inner {
-    background: linear-gradient(135deg, rgba(248,246,251,0.9) 0%, rgba(243,240,248,0.9) 100%);
-}
-
-/* エリアボタン: ピルシェイプ */
-body[data-mode="women"] .area-btn {
-    border-radius: 24px;
-    border-color: rgba(155,143,191,0.25);
-    transition: all 0.2s ease;
-}
-body[data-mode="women"] .area-btn:hover {
-    background: rgba(123,111,160,0.08);
-    border-color: rgba(123,111,160,0.4);
-    transform: translateY(-1px);
-}
-
-/* タブ: 丸みのあるスタイル */
-body[data-mode="women"] .hotel-tab-btn {
-    border-radius: 20px 20px 0 0;
-}
-
-/* 検索バー: ふんわり */
-body[data-mode="women"] .search-input-wrap input,
-body[data-mode="women"] .station-search-input {
-    border-radius: 24px;
-    border-color: rgba(212,137,158,0.25);
-}
-body[data-mode="women"] .search-input-wrap input:focus,
-body[data-mode="women"] .station-search-input:focus {
-    border-color: #d4899e;
-    box-shadow: 0 0 0 3px rgba(181,98,122,0.1);
-}
-
-/* GPS ボタン: ピルシェイプ */
-body[data-mode="women"] .gps-btn {
-    border-radius: 24px;
-    border-color: rgba(212,137,158,0.3);
-}
-
-/* フッター: ローズグラデ */
-body[data-mode="women"] .portal-footer {
-    background: linear-gradient(180deg, #fdf5f7 0%, #f8eef1 100%);
-    border-top: 1px solid rgba(181,98,122,0.12);
-}
-
-/* ==========================================================================
-   テーマ変数 — 男性同士モード ネイビー・コバルトブルー・シルバー
-   ========================================================================== */
-[data-mode="men_same"] {
-    --accent: #2a5a8f;
-    --accent-light: #5a8abf;
-    --accent-dim: #1a3d6b;
-    --accent-bg: rgba(42,90,143,0.07);
-    --accent-glow: rgba(42,90,143,0.18);
-    --bg: #f8f9fc;
-    --bg-2: #ffffff;
-    --bg-3: #f0f2f8;
-    --bg-4: #e2e8f2;
-    --text: #0e1824;
-    --text-2: #3a4a62;
-    --text-3: #3d5478;
-    --border: rgba(42,90,143,0.15);
-    --border-strong: rgba(42,90,143,0.35);
-    --card-shadow: 0 2px 16px rgba(42,90,143,0.08), 0 1px 4px rgba(0,0,0,0.04);
-    --card-shadow-hover: 0 8px 32px rgba(42,90,143,0.15), 0 2px 8px rgba(0,0,0,0.07);
-}
-
-/* ==========================================================================
-   テーマ変数 — 女性同士モード ミディアムパープル・ラベンダー白 — 神秘と親密
-   ========================================================================== */
-[data-mode="women_same"] {
-    --accent: #8a5a9e;
-    --accent-light: #b08ac4;
-    --accent-dim: #6a3a80;
-    --accent-bg: rgba(138,90,158,0.07);
-    --accent-glow: rgba(138,90,158,0.18);
-    --bg: #faf8fc;
-    --bg-2: #ffffff;
-    --bg-3: #f4f0f8;
-    --bg-4: #e8e0f0;
-    --text: #1a1428;
-    --text-2: #4a3a5e;
-    --text-3: #564568;
-    --border: rgba(138,90,158,0.18);
-    --border-strong: rgba(138,90,158,0.38);
-    --card-shadow: 0 2px 16px rgba(138,90,158,0.08), 0 1px 4px rgba(0,0,0,0.04);
-    --card-shadow-hover: 0 8px 32px rgba(138,90,158,0.15), 0 2px 8px rgba(0,0,0,0.07);
-}
-
-/* ==========================================================================
-   テーマ変数 — デリエステモード パステルティール — 清潔感・リラックス・親しみ
-   ========================================================================== */
-[data-mode="este"] {
-    --accent: #2aa8b8;
-    --accent-light: #5cc8d4;
-    --accent-dim: #1a8a9a;
-    --accent-bg: rgba(42,168,184,0.07);
-    --accent-glow: rgba(42,168,184,0.15);
-    --bg: #f4fafb;
-    --bg-2: #ffffff;
-    --bg-3: #eaf5f7;
-    --bg-4: #d8eef2;
-    --text: #1a2e34;
-    --text-2: #3d6068;
-    --text-3: #4d7a84;
-    --border: rgba(42,168,184,0.18);
-    --border-strong: rgba(42,168,184,0.38);
-    --card-shadow: 0 2px 16px rgba(42,168,184,0.08), 0 1px 4px rgba(0,0,0,0.04);
-    --card-shadow-hover: 0 8px 32px rgba(42,168,184,0.15), 0 2px 8px rgba(0,0,0,0.07);
-}
-
-/* デリエステ: ゴシック体ロゴ */
-body[data-mode="este"] .logo-text {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-}
+/* men_same / women_same / este テーマ変数は theme-*.css に分割済み */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
@@ -1292,24 +1103,7 @@ body[data-mode="este"] {
 /* ==========================================================================
    男性モード — 全要素ゴシック体
    ========================================================================== */
-body[data-mode="men"],
-body[data-mode="men"] * {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
-    font-style: normal !important;
-}
-
-/* 数字・価格はゴシックでも読みやすく */
-body[data-mode="men"] .hotel-price-value {
-    font-weight: 700 !important;
-    letter-spacing: 0.3px !important;
-}
-
-/* ロゴだけCormorantを残す（ブランドとして） */
-body[data-mode="men"] .logo-text,
-body[data-mode="men"] .header-title {
-    font-family: 'Cormorant Garamond', 'Noto Sans JP', sans-serif !important;
-    font-style: italic !important;
-}
+/* men固有フォントスタイルは theme-men.css に分割済み */
 
 /* 店舗投稿の可・相談・不可バッジ */
 .report-shop-verdict {
