@@ -50,7 +50,7 @@ function closeLegalPage() {
 
 // ── モード別フォント遅延読込（Astroモードではビルド時に<link>出力済みのためスキップ） ──
 (function(){
-    if (window.__ASTRO_MODE) return;
+    if ((document.querySelector('meta[name="x-astro-mode"]')||{}).content) return;
     // パスベースURL対応: /deli/, /jofu/, /same-m/, /same-f/, /este/
     var pathMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same', 'este': 'este' };
     var seg = location.pathname.split('/').filter(Boolean)[0] || '';
@@ -73,8 +73,8 @@ function closeLegalPage() {
 // ── モード初期化（旧インラインscript） ──
 document.addEventListener('DOMContentLoaded', function() {
     var urlParams = new URLSearchParams(window.location.search);
-    // Astro SSGページではwindow.__ASTRO_MODEがビルド時に埋め込まれる
-    var astroMode = window.__ASTRO_MODE || null;
+    // Astro SSGページでは(document.querySelector('meta[name="x-astro-mode"]')||{}).contentがビルド時に埋め込まれる
+    var astroMode = (document.querySelector('meta[name="x-astro-mode"]')||{}).content || null;
     // パスベースURL対応
     var pathModeMap = { 'deli': 'men', 'jofu': 'women', 'same-m': 'men_same', 'same-f': 'women_same', 'este': 'este' };
     var firstSeg = location.pathname.split('/').filter(Boolean)[0] || '';

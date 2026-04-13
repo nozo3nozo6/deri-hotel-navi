@@ -129,7 +129,7 @@ const jsonLd = [
         {(mode === 'women' || mode === 'women_same') && (
             <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
         )}
-        <script is:inline define:vars={{ mode }}>window.__ASTRO_MODE = mode;</script>
+        <meta name="x-astro-mode" content={mode}>
         <script is:inline src="/portal-init.js?v=2"></script>
         <link rel="stylesheet" href="/style.css?v=13">
         <link rel="stylesheet" href={`/theme-${mode === 'men_same' ? 'men-same' : mode === 'women_same' ? 'women-same' : mode}.css?v=1`}>

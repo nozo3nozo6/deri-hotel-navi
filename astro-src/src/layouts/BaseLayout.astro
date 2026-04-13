@@ -50,7 +50,7 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     {!noGa && (
         <Fragment>
             <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
-            <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+            <script is:inline src="/gtag-init.js"></script>
         </Fragment>
     )}
     {csp && <meta http-equiv="Content-Security-Policy" content={csp} />}
