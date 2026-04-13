@@ -3,11 +3,13 @@
 // ==========================================================================
 
 // ── 店舗専用URL: 法的ページSPA読み込み ──
+var _legalActive = false;
 var _legalSavedScroll = 0;
 var _legalHiddenEls = [];
 function loadLegalPageInline(url, title) {
     var main = document.getElementById('main-content');
     if (!main) { window.location.href = url; return; }
+    _legalActive = true;
     _legalSavedScroll = window.scrollY;
     // エリアセクション・検索欄・結果ステータス・広告等を非表示
     document.querySelectorAll('.area-section, .search-tools, #result-status, #hotel-loveho-tabs, #ad-container-below-search, #bottom-info-links').forEach(function(el) {
@@ -33,6 +35,8 @@ function loadLegalPageInline(url, title) {
     }).catch(function() { window.location.href = url; });
 }
 function closeLegalPage() {
+    if (!_legalActive) return;
+    _legalActive = false;
     var hotelList = document.getElementById('hotel-list');
     if (hotelList && hotelList._savedHTML !== undefined) {
         hotelList.innerHTML = hotelList._savedHTML;

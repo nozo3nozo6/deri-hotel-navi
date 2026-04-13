@@ -109,6 +109,8 @@ function updateUrl(params) {
 
 function goToNationalTop() {
     if (typeof leaveHotelDetail === 'function') leaveHotelDetail();
+    // 法的ページSPA表示中なら先にクリーンアップ
+    if (typeof _legalActive !== 'undefined' && _legalActive && typeof closeLegalPage === 'function') closeLegalPage();
     // showJapanPage()内でupdateUrl({})が呼ばれるため、ここでは追加のpushStateは不要
     if (typeof showJapanPage === 'function') showJapanPage();
 }
