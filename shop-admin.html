@@ -1638,6 +1638,14 @@ function saPagedCards(hotels,page,containerId,pageVarName){
     const cards=isLh?lhRenderHotelCards(slice):renderHotelCards(slice);
     return pager+cards+pager;
 }
+function _saRefreshCards(){
+    // 現在表示中のカードリストを再描画（registeredHotelIds更新後に呼ぶ）
+    const ids=['sa-subtab-hotel-content','sa-subtab-loveho-content','sa-hotel-list-paged','sa-search-paged'];
+    ids.forEach(id=>{const el=document.getElementById(id);if(!el||el.style.display==='none')return;
+        if(id==='sa-subtab-loveho-content'){el.innerHTML=saPagedCards(_saLhHotels,_saLhPage,id,'_saLhPage');}
+        else{el.innerHTML=saPagedCards(_saHotels,_saHotelPage,id,'_saHotelPage');}
+    });
+}
 function saRepage(containerId,pageVarName){
     const el=document.getElementById(containerId);if(!el)return;
     const hotels=pageVarName==='_saLhPage'?_saLhHotels:_saHotels;
@@ -1882,6 +1890,7 @@ async function doSubmit(){
     registeredHotelIds.add(String(hotelId));
     loadRegisteredHotels();
     if(_editModal)closeEditModal();
+    _saRefreshCards();
     showSuccessModal('登録完了！', 'ホテル情報が登録されました。');
 }
 
@@ -2272,6 +2281,8 @@ async function doLhSubmitReport(){
         lhSelectedHotelId=null;_lhPendingPayload=null;
         closeLhConfirm();
         if(_editModal)closeEditModal();
+        loadRegisteredHotels();
+        _saRefreshCards();
         showSuccessModal('投稿完了！', '口コミが投稿されました。');
     }catch(e){
         toast("投稿エラー: "+e.message);
