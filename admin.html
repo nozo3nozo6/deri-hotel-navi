@@ -942,6 +942,12 @@
             <div class="mf" id="re-cannot-wrap"><label class="ml">呼べなかった理由</label><div id="re-cannot-cb" style="background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px 18px;min-height:44px;"></div></div>
             <div class="mf"><label class="ml">部屋タイプ</label><select id="re-room-type" class="mi"></select></div>
             <div class="mf"><label class="ml">時間帯</label><input id="re-time-slot" class="mi" placeholder="例: 夜 (18:00~23:00)"></div>
+            <div class="mf"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--ink);"><input type="checkbox" id="re-multi-person" onchange="document.getElementById('re-multi-detail').style.display=this.checked?'flex':'none'" style="width:16px;height:16px;">👥 3P・4P…複数人で利用OK（任意）</label>
+            <div id="re-multi-detail" style="display:none;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+              <span style="font-size:12px;color:var(--ink-3);">男性</span><select id="re-guest-male" class="mi" style="width:auto;min-width:60px;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+              <span style="font-size:12px;color:var(--ink-3);">女性</span><select id="re-guest-female" class="mi" style="width:auto;min-width:60px;"><option value="">-</option><option value="1">1名</option><option value="2">2名</option><option value="3">3名</option><option value="4">4名</option></select>
+              <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-3);cursor:pointer;"><input type="checkbox" id="re-multi-fee" style="width:14px;height:14px;">追加料金あり</label>
+            </div></div>
         </div>
         <!-- ラブホ専用フィールド -->
         <div id="re-loveho-section" style="display:none;">
@@ -2455,6 +2461,12 @@ function openRepEdit(id){
     document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
     reToggleReasons(r.can_call?"true":"false");
     document.getElementById("re-time-slot").value=r.time_slot||"";
+    // 複数人
+    document.getElementById("re-multi-person").checked=!!r.multi_person;
+    document.getElementById("re-multi-detail").style.display=r.multi_person?'flex':'none';
+    document.getElementById("re-guest-male").value=r.guest_male||'';
+    document.getElementById("re-guest-female").value=r.guest_female||'';
+    document.getElementById("re-multi-fee").checked=!!r.multi_fee;
   } else {
     // 雰囲気セレクト
     const atmSel = document.getElementById("re-lh-atmosphere");
@@ -2560,7 +2572,11 @@ async function saveRepEdit(){
     const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);
     const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
     const gender_mode=document.getElementById("re-gender-mode").value||null;
-    const payload={can_call,poster_type,poster_name,shop_id,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode};
+    const multi_person=document.getElementById("re-multi-person").checked||false;
+    const multi_fee=multi_person?(document.getElementById("re-multi-fee").checked||false):false;
+    const guest_male=multi_person?(parseInt(document.getElementById("re-guest-male").value)||0):0;
+    const guest_female=multi_person?(parseInt(document.getElementById("re-guest-female").value)||0):0;
+    const payload={can_call,poster_type,poster_name,shop_id,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode,multi_person,multi_fee,guest_male,guest_female};
     if(newDate)payload.created_at=newDate.replace('T',' ')+':00';
     const _r=await api("update",{table:"reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
     reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
