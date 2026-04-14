@@ -77,108 +77,153 @@
     .hero-stat-num { font-size: 22px; font-weight: 700; color: #c9a96e; }
     .hero-stat-label { font-size: 10px; color: rgba(255,255,255,0.6); }
 
-    /* ── 検索ボックス: 白帯で目立たせる ── */
+    /* ── 検索ボックス: グラス風 ── */
     .search-tools {
-        background: #fff !important;
+        background: linear-gradient(135deg, rgba(45,27,61,0.95), rgba(26,26,46,0.9)) !important;
         border: none !important;
         border-radius: 0 !important;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
         margin: 0 !important;
-        padding: 14px 16px !important;
+        padding: 16px 16px 14px !important;
         position: relative;
         z-index: 2;
+        backdrop-filter: blur(10px);
     }
     .search-input-wrap {
-        border: 2px solid var(--accent) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 2px 8px rgba(155,45,53,0.08) !important;
+        border: 2px solid rgba(201,169,110,0.6) !important;
+        border-radius: 12px !important;
+        box-shadow: 0 0 16px rgba(201,169,110,0.15), inset 0 1px 3px rgba(0,0,0,0.05) !important;
+        background: rgba(255,255,255,0.95) !important;
     }
-    .search-input-wrap input { font-size: 15px !important; }
+    .search-input-wrap:focus-within {
+        border-color: #c9a96e !important;
+        box-shadow: 0 0 20px rgba(201,169,110,0.3), inset 0 1px 3px rgba(0,0,0,0.05) !important;
+    }
+    .search-input-wrap input {
+        font-size: 15px !important;
+    }
+    .station-search-wrapper {
+        background: rgba(255,255,255,0.9) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(201,169,110,0.3) !important;
+    }
+    .station-input {
+        color: #1a1a2e !important;
+    }
+    .search-icon, .station-icon { opacity: 0.7; }
 
     /* ── 人気タグ ── */
     .popular-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        padding: 10px 16px 14px;
-        background: #fff;
-        border-bottom: 1px solid #eee;
+        gap: 8px;
+        padding: 12px 16px 14px;
+        background: linear-gradient(180deg, rgba(45,27,61,0.85), rgba(26,26,46,0.7));
+        align-items: center;
     }
+    .popular-tags > span:first-child { color: rgba(255,255,255,0.7) !important; }
     .popular-tag {
-        font-size: 11px;
-        padding: 5px 12px;
-        background: linear-gradient(135deg, #fff8f0, #fff);
-        border: 1px solid #e8d8c8;
+        font-size: 12px;
+        padding: 6px 14px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.2);
         border-radius: 20px;
-        color: var(--accent, #9b2d35);
+        color: #fff;
         text-decoration: none;
         cursor: pointer;
         font-weight: 500;
-        transition: all 0.15s;
+        transition: all 0.2s;
+        backdrop-filter: blur(4px);
     }
     .popular-tag:hover {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(155,45,53,0.2);
+        background: #c9a96e;
+        color: #1a1a2e;
+        border-color: #c9a96e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(201,169,110,0.4);
     }
 
-    /* ── エリアセクション: カード化 ── */
+    /* ── エリアセクション ── */
     .area-section {
-        background: #fff !important;
+        background: transparent !important;
         border: none !important;
-        border-radius: 12px !important;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.06) !important;
-        margin: 12px 8px !important;
-        padding: 16px 14px 18px !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 20px 12px 16px !important;
     }
-    .breadcrumb { margin-bottom: 4px !important; }
+    .breadcrumb {
+        margin-bottom: 6px !important;
+        padding: 0 4px !important;
+    }
+    .breadcrumb-item { color: var(--accent) !important; font-size: 12px !important; }
     .area-header {
-        margin-bottom: 14px !important;
+        margin-bottom: 16px !important;
+        padding: 0 4px !important;
     }
     .area-header h2 {
-        font-size: 16px !important;
-        color: var(--text) !important;
-        padding-left: 10px;
-        border-left: 4px solid var(--accent) !important;
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #1a1a2e !important;
+        border-left: none !important;
+        padding-left: 0 !important;
         border-bottom: none !important;
         padding-bottom: 0 !important;
         margin-bottom: 0 !important;
     }
 
-    /* ── エリアボタン: リッチカード ── */
+    /* ── エリアボタン: グラスモーフィズム + グラデーション ── */
     .area-grid {
-        gap: 8px !important;
+        gap: 10px !important;
     }
     .area-btn {
-        background: linear-gradient(135deg, #fff 0%, #faf7f4 100%) !important;
-        border: 1px solid #e0d5c8 !important;
-        border-radius: 10px !important;
-        padding: 16px 14px 16px 14px !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        box-shadow: 0 1px 5px rgba(0,0,0,0.05) !important;
-        transition: all 0.2s !important;
+        background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,248,240,0.9) 100%) !important;
+        border: 1px solid rgba(201,169,110,0.2) !important;
+        border-radius: 14px !important;
+        padding: 18px 16px !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 0 0 0 rgba(201,169,110,0) !important;
+        transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
         position: relative;
-        text-align: left !important;
-        color: var(--text) !important;
+        text-align: center !important;
+        color: #2a1a30 !important;
+        letter-spacing: 0.02em;
+        overflow: hidden;
+        backdrop-filter: blur(8px);
     }
+    .area-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, transparent 0%, rgba(201,169,110,0.08) 100%);
+        border-radius: 14px;
+        opacity: 0;
+        transition: opacity 0.25s;
+    }
+    .area-btn:hover::before { opacity: 1; }
     .area-btn:hover {
-        background: linear-gradient(135deg, #fff 0%, #fef5f0 100%) !important;
-        border-color: var(--accent) !important;
-        box-shadow: 0 3px 12px rgba(155,45,53,0.12) !important;
-        transform: translateY(-2px) !important;
+        border-color: rgba(201,169,110,0.5) !important;
+        box-shadow: 0 6px 20px rgba(201,169,110,0.15), 0 0 0 2px rgba(201,169,110,0.1) !important;
+        transform: translateY(-3px) scale(1.02) !important;
+    }
+    .area-btn:active {
+        transform: translateY(0) scale(0.98) !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
     }
     .area-btn::after {
         content: '›';
         position: absolute;
-        right: 14px;
+        right: 16px;
         top: 50%;
         transform: translateY(-50%);
-        font-size: 20px;
-        color: var(--accent);
+        font-size: 22px;
+        color: #c9a96e;
         font-weight: 300;
+        transition: transform 0.2s;
+    }
+    .area-btn:hover::after {
+        transform: translateY(-50%) translateX(3px);
     }
 
     /* ── ホテルカード強化 ── */
