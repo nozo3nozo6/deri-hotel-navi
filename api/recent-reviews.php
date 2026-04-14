@@ -11,7 +11,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/db.php';
 
 $mode = $_GET['mode'] ?? '';
-$limit = min((int)($_GET['limit'] ?? 5), 10);
+$limit = min((int)($_GET['limit'] ?? 5), 50);
 $allowedModes = ['men', 'women', 'men_same', 'women_same', 'este'];
 if (!in_array($mode, $allowedModes, true)) {
     echo json_encode([]);
@@ -21,14 +21,13 @@ if (!in_array($mode, $allowedModes, true)) {
 try {
     $pdo = DB::conn();
 
-    // ホテル口コミ（直近24時間）
+    // ホテル口コミ（全期間、最新順）
     $stmt = $pdo->prepare("
         SELECT r.id, r.hotel_id, r.can_call, r.poster_name, r.created_at, r.poster_type,
                h.name AS hotel_name, h.prefecture, h.city
         FROM reports r
         JOIN hotels h ON r.hotel_id = h.id
         WHERE r.is_hidden = 0
-          AND r.created_at >= NOW() - INTERVAL 24 HOUR
           AND (r.poster_type = 'user' OR r.gender_mode = ?)
         ORDER BY r.created_at DESC
         LIMIT ?
@@ -36,14 +35,13 @@ try {
     $stmt->execute([$mode, $limit]);
     $hotelReviews = $stmt->fetchAll();
 
-    // ラブホ口コミ（直近24時間）
+    // ラブホ口コミ（全期間、最新順）
     $stmt2 = $pdo->prepare("
         SELECT lr.id, lr.hotel_id, lr.solo_entry, lr.poster_name, lr.created_at, lr.poster_type,
                h.name AS hotel_name, h.prefecture, h.city
         FROM loveho_reports lr
         JOIN hotels h ON lr.hotel_id = h.id
         WHERE lr.is_hidden = 0
-          AND lr.created_at >= NOW() - INTERVAL 24 HOUR
           AND (lr.poster_type = 'user' OR lr.gender_mode = ?)
         ORDER BY lr.created_at DESC
         LIMIT ?

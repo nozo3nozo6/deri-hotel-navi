@@ -145,7 +145,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
     var modeIcon = {men:'♂', women:'♀', men_same:'♂♂', women_same:'♀♀', este:'💆‍♂️'};
     var modeAccent = {men:'#c94870', women:'#b760a0', men_same:'#d8182e', women_same:'#c46078', este:'#9f83c0'};
     Promise.all(MODES.map(function(m){
-        return fetch('/api/recent-reviews.php?mode='+m+'&limit=6').then(function(r){return r.ok?r.json():[];}).then(function(list){
+        return fetch('/api/recent-reviews.php?mode='+m+'&limit=30').then(function(r){return r.ok?r.json():[];}).then(function(list){
             return (list||[]).map(function(item){ item._mode = m; return item; });
         }).catch(function(){return [];});
     })).then(function(all){
