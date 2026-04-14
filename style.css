@@ -4,6 +4,9 @@
 html { overflow-y: scroll; overflow-x: hidden; max-width: 100vw; }
 body { overflow-x: hidden !important; max-width: 100vw; }
 
+/* 法的ページインライン表示中の強制非表示（portal-v2のdisplay:flex !important を上書き） */
+.legal-inline-hidden { display: none !important; }
+
 /* ==========================================================================
    テーマ変数 — 男性モード
    ========================================================================== */

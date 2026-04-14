@@ -12,8 +12,12 @@ function loadLegalPageInline(url, title) {
     _legalActive = true;
     _legalSavedScroll = window.scrollY;
     // エリアセクション・検索欄・結果ステータス・広告等を非表示
+    // classで制御（portal-v2のdisplay:flex !important を上書きするため）
     document.querySelectorAll('.area-section, .search-tools, #result-status, #hotel-loveho-tabs, #ad-container-below-search, #bottom-info-links').forEach(function(el) {
-        if (el.style.display !== 'none') { el.style.display = 'none'; _legalHiddenEls.push(el); }
+        if (!el.classList.contains('legal-inline-hidden')) {
+            el.classList.add('legal-inline-hidden');
+            _legalHiddenEls.push(el);
+        }
     });
     // ホテルリストの中身を退避
     var hotelList = document.getElementById('hotel-list');
@@ -43,7 +47,7 @@ function closeLegalPage() {
         delete hotelList._savedHTML;
     }
     // 非表示にした要素を復元
-    _legalHiddenEls.forEach(function(el) { el.style.display = ''; });
+    _legalHiddenEls.forEach(function(el) { el.classList.remove('legal-inline-hidden'); });
     _legalHiddenEls = [];
     window.scrollTo(0, _legalSavedScroll);
 }
