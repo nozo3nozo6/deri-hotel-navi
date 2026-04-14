@@ -161,10 +161,6 @@ RewriteRule ^men-same/?$ /same-m/ [R=301,L]
 RewriteRule ^women-same/(.+)$ /same-f/$1 [R=301,L]
 RewriteRule ^women-same/?$ /same-f/ [R=301,L]
 
-# portal-test*.htmlはリダイレクト対象外（クエリ付きも、portal-test-jofu.html等含む）
-RewriteCond %{REQUEST_URI} ^/portal-test(-[a-z-]+)?\.html$
-RewriteRule ^ - [END]
-
 # ===== 旧クエリURL → 新URL 301リダイレクト =====
 # portal.html?mode=men&pref=X&city=Y → /deli/X/Y (pref+cityを1つのCondでキャプチャ)
 RewriteCond %{QUERY_STRING} (?:^|&)mode=men(?:&|$)
