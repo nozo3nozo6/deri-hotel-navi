@@ -367,22 +367,23 @@ document.addEventListener('input', function(e) {
 // ── Service Worker 登録 ──
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        // 旧SW（yobuho-v1等）を強制破棄して新規登録
-        var SW_RESET_KEY = 'yobuho_sw_reset_v2';
+        // 旧SW（yobuho-v1等）を強制破棄。location.reload()は呼ばない（URL状態が失われるため）
+        var SW_RESET_KEY = 'yobuho_sw_reset_v3';
         if (!localStorage.getItem(SW_RESET_KEY)) {
+            var didReset = false;
             navigator.serviceWorker.getRegistrations().then(function(regs) {
+                if (regs && regs.length) didReset = true;
                 return Promise.all(regs.map(function(r) { return r.unregister(); }));
             }).then(function() {
                 if (window.caches && caches.keys) {
                     return caches.keys().then(function(keys) {
+                        if (keys && keys.length) didReset = true;
                         return Promise.all(keys.map(function(k) { return caches.delete(k); }));
                     });
                 }
             }).then(function() {
                 localStorage.setItem(SW_RESET_KEY, '1');
                 navigator.serviceWorker.register('/sw.js').catch(function() {});
-                // 旧JS/HTMLを掴んだままのタブをリフレッシュ
-                location.reload();
             }).catch(function() {
                 navigator.serviceWorker.register('/sw.js').catch(function() {});
             });
