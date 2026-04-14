@@ -194,7 +194,8 @@ async function appendRecentReviews() {
         if (!res.ok) return;
         const reviews = await res.json();
         if (!reviews || !reviews.length) return;
-        const modePath = typeof MODE_PATH_MAP !== 'undefined' ? (MODE_PATH_MAP[mode] || '/deli/') : '/deli/';
+        const _mp = typeof MODE_PATH_MAP !== 'undefined' ? MODE_PATH_MAP[mode] : '';
+        const modePath = _mp ? `/${_mp}/` : '/deli/';
         const lines = reviews.map(function(r) {
             const d = r.created_at ? new Date(r.created_at) : null;
             const timeStr = d ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '';
@@ -220,7 +221,8 @@ async function appendRecentReviews() {
 async function appendRecentShops() {
     if (typeof _shopParam !== 'undefined' && _shopParam) return;
     const mode = typeof MODE !== 'undefined' ? MODE : 'men';
-    const modePath = typeof MODE_PATH_MAP !== 'undefined' ? (MODE_PATH_MAP[mode] || '/deli/') : '/deli/';
+    const _mp = typeof MODE_PATH_MAP !== 'undefined' ? MODE_PATH_MAP[mode] : '';
+    const modePath = _mp ? `/${_mp}/` : '/deli/';
     try {
         const res = await fetch(`/api/recent-shops.php?mode=${encodeURIComponent(mode)}`);
         if (!res.ok) return;
