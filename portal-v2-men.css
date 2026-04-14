@@ -230,9 +230,9 @@
     /* ── エリアセクション（温感グラデーション＋サブリミナル・ワイン色） ── */
     .area-section {
         background:
-            radial-gradient(ellipse at 25% 15%, rgba(201, 72, 112, 0.025) 0%, transparent 55%),
-            radial-gradient(ellipse at 80% 85%, rgba(168, 56, 80, 0.02) 0%, transparent 50%),
-            linear-gradient(180deg, #fefbfa 0%, #fcf3f2 100%) !important;
+            radial-gradient(ellipse at 25% 15%, rgba(201, 72, 112, 0.012) 0%, transparent 55%),
+            radial-gradient(ellipse at 80% 85%, rgba(168, 56, 80, 0.01) 0%, transparent 50%),
+            linear-gradient(180deg, #fefdfd 0%, #fdf9f9 100%) !important;
         border: 1px solid #ecdfe4 !important;
         border-top: 3px solid #c94870 !important;
         box-shadow: 0 2px 0 rgba(201,72,112,0.08), inset 0 -2px 0 0 #c94870 !important;
