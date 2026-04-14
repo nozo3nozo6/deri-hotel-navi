@@ -743,6 +743,7 @@ function clearHotelList() {
     hideLovehoTabs();
     if (typeof hideFilterBar === 'function') hideFilterBar();
     if (typeof hideMap === 'function') hideMap();
+    document.body.classList.remove('test-hotel-list-mode');
 }
 
 function showToast(msg, duration = 2500) {

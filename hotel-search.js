@@ -1693,6 +1693,7 @@ function buildCardHTML(h, i, showDistance) {
 function renderHotelCards(hotels, showDistance = false) {
     const container = document.getElementById('hotel-list');
     showDistanceFlag = showDistance;
+    document.body.classList.add('test-hotel-list-mode');
 
     if (!hotels.length) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_results')}</p></div>`;
