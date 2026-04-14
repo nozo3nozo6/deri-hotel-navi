@@ -239,7 +239,7 @@
         background: linear-gradient(180deg, #fafdfb 0%, #f3f9f5 100%) !important;
         border: 1px solid #dff0e5 !important;
         border-top: 3px solid #4aa8c4 !important;
-        box-shadow: 0 2px 0 rgba(74,168,196,0.1), inset 0 -2px 0 0 #4aa8c4, inset 0 5px 0 -3px #4aa8c4 !important;
+        box-shadow: 0 2px 0 rgba(74,168,196,0.1), inset 0 -2px 0 0 #4aa8c4 !important;
         margin: 16px auto !important;
         padding: 24px 20px 20px !important;
         max-width: 1100px !important;
@@ -443,6 +443,15 @@
         body.test-hotel-list-mode .search-tools {
             padding: 12px 20px !important;
         }
+    }
+
+    /* ホテル一覧ページではエリアセクションの下部余白も縮小 */
+    body.test-hotel-list-mode .area-section {
+        padding-bottom: 6px !important;
+    }
+    body.test-hotel-list-mode .area-header {
+        margin-bottom: 4px !important;
+        padding-bottom: 8px !important;
     }
 
     /* ── 詳細エリアボタン件数にホテルアイコン（🏨）を追加 ──
