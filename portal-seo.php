@@ -7,6 +7,11 @@
 
 // --- 呼び出し元で $mode, $template を定義済み ---
 
+// HTMLは常に最新配信（.htaccessのHTML用no-cacheは.phpには効かないため明示設定）
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // 二重エンコードURL検出: %25 が含まれていたら正しいURLに301リダイレクト
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
 if (strpos($requestUri, '%25') !== false) {
