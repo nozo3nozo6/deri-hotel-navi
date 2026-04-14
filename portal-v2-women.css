@@ -30,11 +30,15 @@
     *, *::before, *::after { box-sizing: border-box; }
 
     /* ── 角丸強化（女風は柔らかく、ピル寄り） ── */
-    .area-btn, .tag-chip, .filter-chip, .card-action-btn,
+    .tag-chip, .filter-chip, .card-action-btn,
     .mode-toggle, .lang-toggle, .btn-to-gate, .breadcrumb-item,
     .hotel-rating-star, .mode-badge, .load-more-btn,
     input, select, textarea {
         border-radius: 999px !important;
+    }
+    /* エリアボタンはピル型ほどは丸くしない（可読性重視） */
+    .area-btn {
+        border-radius: 16px !important;
     }
     .review-card {
         border-radius: 14px !important;
