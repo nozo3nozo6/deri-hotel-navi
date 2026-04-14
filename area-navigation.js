@@ -290,6 +290,8 @@ function renderCityButtons(container, cities, onCityClick) {
 function parseUrlPath() {
     const path = decodeURIComponent(window.location.pathname);
     const segments = path.split('/').filter(Boolean);
+    // .htmlファイル名はパスパラメータではないので除去
+    if (segments.length > 0 && segments[0].endsWith('.html')) segments.shift();
     // 先頭がモードパスか確認
     if (segments.length > 0 && PATH_MODE_MAP[segments[0]]) {
         segments.shift(); // モードセグメントを除去
