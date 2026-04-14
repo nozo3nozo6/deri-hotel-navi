@@ -364,32 +364,17 @@ document.addEventListener('input', function(e) {
     if (action && typeof window[action] === 'function') window[action]();
 });
 
-// ── Service Worker 登録 ──
+// ── Service Worker 完全廃止: 既存SWをunregister + 全キャッシュ削除 ──
+// SWがキャッシュで古いコードを掴み続ける問題が繰り返し発生したため、SW自体を廃止。
+// 新規SW登録は行わず、既存ユーザーのSW/キャッシュのみ削除する。
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        // 旧SW（yobuho-v1等）を強制破棄。location.reload()は呼ばない（URL状態が失われるため）
-        var SW_RESET_KEY = 'yobuho_sw_reset_v3';
-        if (!localStorage.getItem(SW_RESET_KEY)) {
-            var didReset = false;
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-                if (regs && regs.length) didReset = true;
-                return Promise.all(regs.map(function(r) { return r.unregister(); }));
-            }).then(function() {
-                if (window.caches && caches.keys) {
-                    return caches.keys().then(function(keys) {
-                        if (keys && keys.length) didReset = true;
-                        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-                    });
-                }
-            }).then(function() {
-                localStorage.setItem(SW_RESET_KEY, '1');
-                navigator.serviceWorker.register('/sw.js').catch(function() {});
-            }).catch(function() {
-                navigator.serviceWorker.register('/sw.js').catch(function() {});
-            });
-        } else {
-            navigator.serviceWorker.register('/sw.js').catch(function() {});
-        }
-    });
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+    }).catch(function() {});
+}
+if (window.caches && caches.keys) {
+    caches.keys().then(function(keys) {
+        keys.forEach(function(k) { caches.delete(k); });
+    }).catch(function() {});
 }
 
