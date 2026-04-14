@@ -685,7 +685,7 @@ function loadMoreLovehoCards() {
 // ==========================================================================
 // ラブホ詳細ページ
 // ==========================================================================
-let lhFormState = {};
+var lhFormState = {};
 
 function openLovehoDetail(hotelId) {
     if (document.activeElement) document.activeElement.blur();
