@@ -147,13 +147,17 @@ function applyShopModeUI() {
     }
 }
 
+function _currentGenderMode() {
+    return window.MODE || '';
+}
+
 async function fetchReportSummaries(hotelIds) {
     if (!hotelIds.length) return {};
     try {
         const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds }),
+            body: JSON.stringify({ hotel_ids: hotelIds, gender_mode: _currentGenderMode() }),
         });
         if (!res.ok) return {};
         const data = await res.json();
@@ -167,7 +171,7 @@ async function fetchLatestReportDates(hotelIds) {
         const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds, latest_only: true }),
+            body: JSON.stringify({ hotel_ids: hotelIds, latest_only: true, gender_mode: _currentGenderMode() }),
         });
         if (!res.ok) return {};
         const data = await res.json();
@@ -181,7 +185,7 @@ async function fetchHotelsWithSummary(hotels) {
     const res = await fetch('/api/report-summaries.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hotel_ids: hotelIds }),
+        body: JSON.stringify({ hotel_ids: hotelIds, gender_mode: _currentGenderMode() }),
     });
     let summaries = {}, latestMap = {};
     if (res.ok) {
@@ -198,7 +202,7 @@ async function fetchLovehoReviewSummaries(hotelIds) {
         const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds, loveho: true }),
+            body: JSON.stringify({ hotel_ids: hotelIds, loveho: true, gender_mode: _currentGenderMode() }),
         });
         if (!res.ok) return {};
         const data = await res.json();

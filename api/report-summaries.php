@@ -39,10 +39,32 @@ if (empty($hotelIds)) {
 $hotelIds = array_slice(array_map('intval', $hotelIds), 0, 500);
 $placeholders = implode(',', array_fill(0, count($hotelIds), '?'));
 
-// ── サマリー（VIEW） ──
-$stmt = $pdo->prepare("SELECT * FROM hotel_report_summary WHERE hotel_id IN ($placeholders)");
-$stmt->execute($hotelIds);
+// ── gender_modeフィルタ（ジャンル別カウント用） ──
+$gender = isset($input['gender_mode']) ? (string)$input['gender_mode'] : '';
+$allowedGenders = ['men', 'women', 'men_same', 'women_same', 'este'];
+$useGenderFilter = in_array($gender, $allowedGenders, true);
+
+// ── サマリー ──
+// ルール: ユーザー口コミは全ジャンル統一、店舗口コミはジャンル別
 $summaries = [];
+if ($useGenderFilter) {
+    // ユーザー口コミ: 全ジャンル、店舗口コミ: 該当ジャンルのみ
+    $sql = "SELECT hotel_id,
+                   SUM(CASE WHEN (poster_type='user' OR poster_type IS NULL) AND can_call=1 THEN 1 ELSE 0 END) AS user_can_call,
+                   SUM(CASE WHEN (poster_type='user' OR poster_type IS NULL) AND can_call=0 THEN 1 ELSE 0 END) AS user_cannot_call,
+                   SUM(CASE WHEN poster_type='shop' AND can_call=1 AND gender_mode=? THEN 1 ELSE 0 END) AS shop_can_call,
+                   SUM(CASE WHEN poster_type='shop' AND can_call=0 AND gender_mode=? THEN 1 ELSE 0 END) AS shop_cannot_call,
+                   SUM(CASE WHEN (poster_type='user' OR poster_type IS NULL) OR (poster_type='shop' AND gender_mode=?) THEN 1 ELSE 0 END) AS total_reports
+            FROM reports
+            WHERE hotel_id IN ($placeholders) AND is_hidden = 0
+            GROUP BY hotel_id";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(array_merge([$gender, $gender, $gender], $hotelIds));
+} else {
+    // 全ジャンル集計: VIEW使用
+    $stmt = $pdo->prepare("SELECT * FROM hotel_report_summary WHERE hotel_id IN ($placeholders)");
+    $stmt->execute($hotelIds);
+}
 foreach ($stmt->fetchAll() as $row) {
     $row['total_reports'] = (int)$row['total_reports'];
     $row['user_can_call'] = (int)$row['user_can_call'];
@@ -52,17 +74,27 @@ foreach ($stmt->fetchAll() as $row) {
     $summaries[$row['hotel_id']] = $row;
 }
 
-// ── 最新投稿日 ──
-$stmt = $pdo->prepare("SELECT hotel_id, MAX(created_at) AS latest FROM reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 GROUP BY hotel_id");
-$stmt->execute($hotelIds);
+// ── 最新投稿日（ユーザー全ジャンル or 店舗該当ジャンル） ──
+if ($useGenderFilter) {
+    $stmt = $pdo->prepare("SELECT hotel_id, MAX(created_at) AS latest FROM reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 AND ((poster_type='user' OR poster_type IS NULL) OR (poster_type='shop' AND gender_mode = ?)) GROUP BY hotel_id");
+    $stmt->execute(array_merge($hotelIds, [$gender]));
+} else {
+    $stmt = $pdo->prepare("SELECT hotel_id, MAX(created_at) AS latest FROM reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 GROUP BY hotel_id");
+    $stmt->execute($hotelIds);
+}
 $latestDates = [];
 foreach ($stmt->fetchAll() as $row) {
     $latestDates[$row['hotel_id']] = $row['latest'];
 }
 
-// ── ラブホサマリー ──
-$stmt = $pdo->prepare("SELECT hotel_id, created_at FROM loveho_reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 ORDER BY created_at DESC");
-$stmt->execute($hotelIds);
+// ── ラブホサマリー（ユーザー全ジャンル or 店舗該当ジャンル） ──
+if ($useGenderFilter) {
+    $stmt = $pdo->prepare("SELECT hotel_id, created_at FROM loveho_reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 AND ((poster_type='user' OR poster_type IS NULL) OR (poster_type='shop' AND gender_mode = ?)) ORDER BY created_at DESC");
+    $stmt->execute(array_merge($hotelIds, [$gender]));
+} else {
+    $stmt = $pdo->prepare("SELECT hotel_id, created_at FROM loveho_reports WHERE hotel_id IN ($placeholders) AND is_hidden = 0 ORDER BY created_at DESC");
+    $stmt->execute($hotelIds);
+}
 $lovehoSummaries = [];
 foreach ($stmt->fetchAll() as $row) {
     $hid = $row['hotel_id'];
