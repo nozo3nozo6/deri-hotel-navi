@@ -110,6 +110,7 @@ const LANG = {
         already_posted: 'このホテルへは既に投稿済みです',
         hotel_not_selected: 'ホテルが選択されていません。ページを再読み込みしてください。',
         min_fields_required: '少なくとも1つ以上の項目を入力してください',
+        solo_entry_required: '「一人で先に入れる？」を選択してください',
         already_voted: '既に評価済みです', vote_failed: '評価に失敗しました',
         marked_helpful: '👍 参考になりました', marked_unhelpful: '👎 評価しました',
         report_accepted: '🚩 報告を受け付けました。ご協力ありがとうございます。',

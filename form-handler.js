@@ -532,8 +532,8 @@ function submitLovehoReport() {
         showToast(t('hotel_not_selected'));
         return;
     }
-    const hasData = lhFormState.solo_entry || lhFormState.atmosphere || lhFormState.time_slot || lhFormState.comment || lhFormState.good_points.length;
-    if (!hasData) { showToast(t('min_fields_required')); return; }
+    // ユーザー投稿: 一人で先に入れるか（solo_entry）だけ必須、他は任意
+    if (!lhFormState.solo_entry) { showToast(t('solo_entry_required') || '「一人で先に入れる？」を選択してください'); return; }
     showLhConfirmModal();
 }
 
