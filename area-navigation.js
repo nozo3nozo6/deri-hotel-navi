@@ -189,7 +189,8 @@ async function appendRecentReviews() {
     if (typeof _shopParam !== 'undefined' && _shopParam) return;
     const mode = typeof MODE !== 'undefined' ? MODE : 'men';
     try {
-        const res = await fetch(`/api/recent-reviews.php?mode=${encodeURIComponent(mode)}&limit=5`);
+        // ルール: 店舗投稿は該当ジャンル、ユーザー投稿は全ジャンル統一（APIが poster_type='user' OR gender_mode=mode で対応済み）
+        const res = await fetch(`/api/recent-reviews.php?mode=${encodeURIComponent(mode)}&limit=30`);
         if (!res.ok) return;
         const reviews = await res.json();
         if (!reviews || !reviews.length) return;
@@ -211,7 +212,7 @@ async function appendRecentReviews() {
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
             const title = typeof t === 'function' ? (t('recent_reviews') || '最新の口コミ') : '最新の口コミ';
-            hlc.insertAdjacentHTML('beforeend', `<div style="padding:10px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">💬 ${title}</div>${lines}</div>`);
+            hlc.insertAdjacentHTML('beforeend', `<div style="padding:10px 16px;margin-top:8px;background:var(--bg-2,#fff);border:1px solid var(--border,#e0d5d0);border-radius:10px;"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">💬 ${title}</div><div style="max-height:190px;overflow-y:auto;padding-right:6px;">${lines}</div></div>`);
         }
     } catch(e) { /* silent */ }
 }
