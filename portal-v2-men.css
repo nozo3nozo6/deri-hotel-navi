@@ -227,9 +227,12 @@
         letter-spacing: 0.02em;
     }
 
-    /* ── エリアセクション（明るい、カード型 + 装飾5種） ── */
+    /* ── エリアセクション（温感グラデーション＋サブリミナル・ワイン色） ── */
     .area-section {
-        background: #fff !important;
+        background:
+            radial-gradient(ellipse at 25% 15%, rgba(201, 72, 112, 0.05) 0%, transparent 55%),
+            radial-gradient(ellipse at 80% 85%, rgba(168, 56, 80, 0.04) 0%, transparent 50%),
+            linear-gradient(180deg, #fdf5f3 0%, #fae8ea 100%) !important;
         border: 1px solid #ecdfe4 !important;
         border-top: 3px solid #c94870 !important;
         box-shadow: 0 2px 0 rgba(201,72,112,0.08), inset 0 -2px 0 0 #c94870 !important;
