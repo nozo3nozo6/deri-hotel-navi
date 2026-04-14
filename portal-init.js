@@ -238,6 +238,10 @@ document.addEventListener('click', function(e) {
             if (target.dataset.stop) e.stopPropagation();
             if (typeof openLovehoDetail === 'function') openLovehoDetail(parseInt(target.dataset.hotelId));
             break;
+        case 'openHotelFromMap':
+            e.preventDefault();
+            if (typeof openHotelFromMap === 'function') openHotelFromMap(parseInt(target.dataset.hotelId), target.dataset.isLoveho === '1');
+            break;
         case 'openFlagModal':
             if (target.dataset.stop) e.stopPropagation();
             if (typeof openFlagModal === 'function') openFlagModal(target.dataset.reportId);
@@ -363,7 +367,28 @@ document.addEventListener('input', function(e) {
 // ── Service Worker 登録 ──
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function() {});
+        // 旧SW（yobuho-v1等）を強制破棄して新規登録
+        var SW_RESET_KEY = 'yobuho_sw_reset_v2';
+        if (!localStorage.getItem(SW_RESET_KEY)) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+                return Promise.all(regs.map(function(r) { return r.unregister(); }));
+            }).then(function() {
+                if (window.caches && caches.keys) {
+                    return caches.keys().then(function(keys) {
+                        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                    });
+                }
+            }).then(function() {
+                localStorage.setItem(SW_RESET_KEY, '1');
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+                // 旧JS/HTMLを掴んだままのタブをリフレッシュ
+                location.reload();
+            }).catch(function() {
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+            });
+        } else {
+            navigator.serviceWorker.register('/sw.js').catch(function() {});
+        }
     });
 }
 

@@ -2,7 +2,7 @@
 // Service Worker — YobuHo オフラインキャッシュ
 // ==========================================================================
 
-const CACHE_NAME = 'yobuho-v1';
+const CACHE_NAME = 'yobuho-v2';
 const STATIC_ASSETS = [
     '/',
     '/style.css',

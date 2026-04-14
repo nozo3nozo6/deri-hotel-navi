@@ -1558,7 +1558,7 @@ async function showMap() {
     hotelsWithCoords.forEach(h => {
         const marker = L.marker([h.latitude, h.longitude], { icon: markerIcon })
             .addTo(mapInstance)
-            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="javascript:openHotelFromMap(' + h.id + ',' + isLoveho + ')">' + t('view_detail') + '</a>');
+            .bindPopup('<b>' + esc(h.name) + '</b><br><a href="#" data-action="openHotelFromMap" data-hotel-id="' + h.id + '" data-is-loveho="' + (isLoveho ? '1' : '0') + '">' + t('view_detail') + '</a>');
         mapMarkers.push(marker);
         bounds.push([h.latitude, h.longitude]);
     });
