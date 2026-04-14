@@ -309,7 +309,7 @@
     @media (min-width: 960px) {
         .area-section { margin: 20px auto !important; max-width: 800px; }
         .hotel-list-container { max-width: 800px; margin: 0 auto; }
-        .search-tools { max-width: 800px; margin: 0 auto !important; border-radius: 0 0 12px 12px !important; }
+        .search-tools { border-radius: 0 !important; }
         .popular-tags { max-width: 800px; margin: 0 auto; }
         .info-links-bar { max-width: 800px; margin: 16px auto !important; }
     }
@@ -359,20 +359,35 @@
 <div class="hero-banner">
     <h2>呼べるホテルを、すぐに検索</h2>
     <p>全国43,000件以上のホテルから最適な1件を見つけよう</p>
-    <div class="hero-stats">
-        <div class="hero-stat">
-            <div class="hero-stat-num">43,000+</div>
-            <div class="hero-stat-label">ホテル掲載数</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">2,500+</div>
-            <div class="hero-stat-label">口コミ数</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">120+</div>
-            <div class="hero-stat-label">掲載店舗</div>
-        </div>
+</div>
+
+<!-- 検索ツール（ダーク背景連続） -->
+<div class="search-tools">
+    <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="keyword" class="search-input-lux"
+            placeholder="ホテル名・住所で検索（Enterで実行）"
+            enterkeyhint="search" autocomplete="off">
+        <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">✕</button>
     </div>
+    <div class="station-search-wrapper">
+        <span class="station-icon">🚉</span>
+        <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="suggestStations" autocomplete="off">
+        <div id="station-suggestions" class="station-suggest-box" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- 人気の検索タグ（ダーク背景連続） -->
+<div class="popular-tags">
+    <span style="font-size:11px;color:var(--text-3);margin-right:4px;">🔥 人気:</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="新宿">新宿</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="渋谷">渋谷</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="池袋">池袋</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="横浜">横浜</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="大阪">大阪</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="名古屋">名古屋</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="福岡">福岡</span>
+    <span class="popular-tag" data-action="quickSearch" data-param="札幌">札幌</span>
 </div>
 
 <!-- エリア選択 -->
@@ -395,35 +410,6 @@
     <div id="area-button-container" class="area-grid"></div>
     <div id="hotel-detail-content" style="display:none;"></div>
 </section>
-
-<!-- 検索ツール -->
-<div class="search-tools">
-    <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="search" id="keyword" class="search-input-lux"
-            placeholder="ホテル名・住所で検索（Enterで実行）"
-            enterkeyhint="search" autocomplete="off">
-        <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">✕</button>
-    </div>
-    <div class="station-search-wrapper">
-        <span class="station-icon">🚉</span>
-        <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="suggestStations" autocomplete="off">
-        <div id="station-suggestions" class="station-suggest-box" style="display:none;"></div>
-    </div>
-</div>
-
-<!-- 人気の検索タグ -->
-<div class="popular-tags">
-    <span style="font-size:11px;color:var(--text-3);margin-right:4px;">🔥 人気:</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="新宿">新宿</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="渋谷">渋谷</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="池袋">池袋</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="横浜">横浜</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="大阪">大阪</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="名古屋">名古屋</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="福岡">福岡</span>
-    <span class="popular-tag" data-action="quickSearch" data-param="札幌">札幌</span>
-</div>
 
 <div id="ad-container-below-search"></div>
 <div id="hotel-map" style="display:none; height:400px; border-radius:12px; margin-bottom:16px;"></div>
