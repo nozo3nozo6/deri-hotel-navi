@@ -138,23 +138,23 @@ document.getElementById('btn-same').addEventListener('click', function() {
     }).catch(function(){});
 })();
 
-/* 最新の口コミ10件（全モード統合） */
+/* 最新の口コミ30件（10件表示＋20件スクロール、全モード統合） */
 (function(){
     var MODES = ['men', 'women', 'men_same', 'women_same', 'este'];
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
     var modeIcon = {men:'♂', women:'♀', men_same:'♂♂', women_same:'♀♀', este:'💆‍♂️'};
     var modeAccent = {men:'#c94870', women:'#c06882', men_same:'#d8182e', women_same:'#c46078', este:'#9f83c0'};
     Promise.all(MODES.map(function(m){
-        return fetch('/api/recent-reviews.php?mode='+m+'&limit=5').then(function(r){return r.ok?r.json():[];}).then(function(list){
+        return fetch('/api/recent-reviews.php?mode='+m+'&limit=6').then(function(r){return r.ok?r.json():[];}).then(function(list){
             return (list||[]).map(function(item){ item._mode = m; return item; });
         }).catch(function(){return [];});
     })).then(function(all){
         var merged = [];
         all.forEach(function(arr){ merged = merged.concat(arr); });
         merged.sort(function(a,b){ return (b.created_at||'').localeCompare(a.created_at||''); });
-        var top10 = merged.slice(0, 10);
-        if (top10.length === 0) return;
-        var lines = top10.map(function(r){
+        var top30 = merged.slice(0, 30);
+        if (top30.length === 0) return;
+        var renderRow = function(r){
             var d = r.created_at ? new Date(r.created_at) : null;
             var ts = d ? (String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0')) : '';
             var name = (r.hotel_name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -167,9 +167,12 @@ document.getElementById('btn-same').addEventListener('click', function() {
             }
             var modeTag = '<span style="color:'+modeAccent[r._mode]+';font-size:11px;margin-left:6px;">'+modeIcon[r._mode]+'</span>';
             return '<a href="'+hotelLink+'" style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:12px;color:var(--text-2,#6a5a4a);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.06);"><span style="color:#a09080;">'+ts+'</span>'+badge+'<span style="font-weight:600;color:var(--text,#1a1410);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+name+'</span>'+modeTag+'</a>';
-        }).join('');
+        };
+        var visibleLines = top30.slice(0, 10).map(renderRow).join('');
+        var scrollLines = top30.slice(10).map(renderRow).join('');
+        var scrollBlock = scrollLines ? '<div style="max-height:360px;overflow-y:auto;margin-top:4px;padding-right:4px;">'+scrollLines+'</div>' : '';
         var el = document.getElementById('recent-reviews-gate');
-        if (el) el.innerHTML = '<div style="padding:16px 18px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">💬 最新の口コミ</div>'+lines+'</div>';
+        if (el) el.innerHTML = '<div style="padding:16px 18px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">💬 最新の口コミ</div>'+visibleLines+scrollBlock+'</div>';
     }).catch(function(){});
 })();
 </script>
