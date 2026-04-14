@@ -120,7 +120,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
 (function(){
     var iconMap = {men:'♂',women:'♀',men_same:'♂♂',women_same:'♀♀',este:'💆‍♂️'};
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
-    var modeColor = {men:'#c94870',women:'#c06882',men_same:'#d8182e',women_same:'#c46078',este:'#9f83c0'};
+    var modeColor = {men:'#c94870',women:'#b760a0',men_same:'#d8182e',women_same:'#c46078',este:'#9f83c0'};
     fetch('/api/recent-shops.php?mode=all').then(function(r){return r.json();}).then(function(shops){
         if(!shops||!shops.length)return;
         var lines=shops.map(function(s){
@@ -143,7 +143,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
     var MODES = ['men', 'women', 'men_same', 'women_same', 'este'];
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
     var modeIcon = {men:'♂', women:'♀', men_same:'♂♂', women_same:'♀♀', este:'💆‍♂️'};
-    var modeAccent = {men:'#c94870', women:'#c06882', men_same:'#d8182e', women_same:'#c46078', este:'#9f83c0'};
+    var modeAccent = {men:'#c94870', women:'#b760a0', men_same:'#d8182e', women_same:'#c46078', este:'#9f83c0'};
     Promise.all(MODES.map(function(m){
         return fetch('/api/recent-reviews.php?mode='+m+'&limit=6').then(function(r){return r.ok?r.json():[];}).then(function(list){
             return (list||[]).map(function(item){ item._mode = m; return item; });
@@ -234,8 +234,8 @@ document.getElementById('btn-same').addEventListener('click', function() {
     .mode-btn.men:hover { border-color: #c94870; }
     .mode-btn.este { border-color: rgba(159,131,192,0.3); color: #9f83c0; border-radius: 15px; }
     .mode-btn.este:hover { border-color: #9f83c0; }
-    .mode-btn.women { border-color: rgba(192,104,130,0.3); color: #c06882; border-radius: 999px; }
-    .mode-btn.women:hover { border-color: #c06882; }
+    .mode-btn.women { border-color: rgba(183,96,160,0.3); color: #b760a0; border-radius: 999px; }
+    .mode-btn.women:hover { border-color: #b760a0; }
     .mode-btn.same { border-color: rgba(100,100,120,0.25); color: var(--text-2); font-size: 14px; padding: 14px 20px; border-radius: 12px; }
     .mode-btn.same:hover { border-color: rgba(100,100,120,0.5); }
     .mode-sub-panel { display: none; flex-direction: row; gap: 12px; justify-content: center; margin-top: 8px; }

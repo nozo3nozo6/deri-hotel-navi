@@ -7,25 +7,25 @@
 
     /* ── CSS変数上書き（3色パレット統一）deliモードLP・各要素に反映 ── */
     body[data-mode="women"] {
-        --accent: #c06882 !important;
-        --accent-light: #d08294 !important;
-        --accent-dim: #a04868 !important;
-        --accent-bg: rgba(192,104,130,0.08) !important;
-        --accent-glow: rgba(192,104,130,0.18) !important;
-        --border: rgba(192,104,130,0.18) !important;
-        --border-strong: rgba(192,104,130,0.38) !important;
-        --bg-3: #fdf3f5 !important;
+        --accent: #b760a0 !important;
+        --accent-light: #c880b8 !important;
+        --accent-dim: #8a4880 !important;
+        --accent-bg: rgba(183,96,160,0.08) !important;
+        --accent-glow: rgba(183,96,160,0.18) !important;
+        --border: rgba(183,96,160,0.18) !important;
+        --border-strong: rgba(183,96,160,0.38) !important;
+        --bg-3: #faf2f8 !important;
         --text: #2a1418 !important;
         --text-2: #6a4a5a !important;
-        --text-3: #a04868 !important;
+        --text-3: #8a4880 !important;
     }
 
     /* ── 最近の店舗登録セクション（ゴールド→ピンク統一） ── */
     .recent-shops-section {
         background: linear-gradient(135deg,#fff9fb 0%,#fff0f5 100%) !important;
         border: 1px solid #f0c8d2 !important;
-        border-left: 4px solid #c06882 !important;
-        box-shadow: 0 1px 4px rgba(192,104,130,0.08) !important;
+        border-left: 4px solid #b760a0 !important;
+        box-shadow: 0 1px 4px rgba(183,96,160,0.08) !important;
     }
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -51,8 +51,8 @@
 
     /* ── ヘッダー（サンセット・バーガンディ、時間帯問わず） ── */
     .portal-header {
-        background: linear-gradient(135deg, #3a0f18 0%, #5a1a28 35%, #7a2838 65%, #8a3042 100%) !important;
-        border-bottom: 2px solid #c06882 !important;
+        background: linear-gradient(135deg, #2a1030 0%, #401a48 35%, #5c2868 65%, #723280 100%) !important;
+        border-bottom: 2px solid #b760a0 !important;
         padding: 0 !important;
         box-shadow: 0 2px 14px rgba(90,42,56,0.35);
         position: relative;
@@ -62,7 +62,7 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: radial-gradient(ellipse at 75% 30%, rgba(192,104,130,0.12) 0%, transparent 55%);
+        background: radial-gradient(ellipse at 75% 30%, rgba(183,96,160,0.12) 0%, transparent 55%);
     }
     .portal-header::before { display: none !important; }
     .header-inner { padding: 10px 16px !important; }
@@ -87,13 +87,13 @@
     /* ── ヒーローバナー（サンセット・バーガンディ、温感グラデ） ── */
     .hero-banner {
         background:
-            radial-gradient(ellipse at 20% 50%, rgba(192,104,130,0.15) 0%, transparent 60%),
-            radial-gradient(ellipse at 85% 100%, rgba(192,104,130,0.10) 0%, transparent 50%),
-            linear-gradient(135deg, #8a3042 0%, #a4485c 40%, #8a3a52 70%, #6a2a38 100%);
+            radial-gradient(ellipse at 20% 50%, rgba(183,96,160,0.15) 0%, transparent 60%),
+            radial-gradient(ellipse at 85% 100%, rgba(183,96,160,0.10) 0%, transparent 50%),
+            linear-gradient(135deg, #723280 0%, #9050a0 40%, #7a4088 70%, #4a1e58 100%);
         padding: 14px 16px 12px;
         text-align: center;
         color: #fff;
-        border-bottom: 1px solid rgba(192,104,130,0.35);
+        border-bottom: 1px solid rgba(183,96,160,0.35);
         position: relative;
     }
     .hero-banner::after {
@@ -101,7 +101,7 @@
         position: absolute;
         left: 0; right: 0; bottom: 0;
         height: 2px;
-        background: linear-gradient(90deg, transparent, #c06882, transparent);
+        background: linear-gradient(90deg, transparent, #b760a0, transparent);
     }
     .hero-banner h2 {
         font-size: 20px;
@@ -121,15 +121,15 @@
         margin-top: 14px;
     }
     .hero-stat { text-align: center; }
-    .hero-stat-num { font-size: 22px; font-weight: 700; color: #c06882; }
+    .hero-stat-num { font-size: 22px; font-weight: 700; color: #b760a0; }
     .hero-stat-label { font-size: 10px; color: rgba(255,255,255,0.6); }
 
     /* ── 検索ボックス: 柔らかいローズクリーム ── */
     .search-tools {
         background: linear-gradient(180deg, #fdfaf7 0%, #fbf2ed 100%) !important;
         border: 1px solid #ebdcd2 !important;
-        border-top: 3px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.08) !important;
+        border-top: 3px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.08) !important;
         margin: 16px auto !important;
         padding: 20px 20px 22px !important;
         position: relative;
@@ -171,15 +171,15 @@
         content: '';
         width: 24px;
         height: 1px;
-        background: linear-gradient(90deg, transparent, #c06882);
+        background: linear-gradient(90deg, transparent, #b760a0);
     }
     .search-tools-header .st-title::after {
-        background: linear-gradient(90deg, #c06882, transparent);
+        background: linear-gradient(90deg, #b760a0, transparent);
     }
     .search-tools-header .st-sub {
         display: block;
         font-size: 11px;
-        color: #a04868;
+        color: #8a4880;
         letter-spacing: 0.2em;
         margin-top: 4px;
     }
@@ -188,14 +188,14 @@
     .search-wrapper {
         position: relative;
         background: #fff !important;
-        border: 1.5px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.08) !important;
+        border: 1.5px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.08) !important;
         transition: all 0.2s ease !important;
         padding: 2px 6px !important;
     }
     .search-wrapper:focus-within {
-        border-color: #c06882 !important;
-        box-shadow: 0 3px 0 rgba(192,104,130,0.2), 0 0 0 2px rgba(192,104,130,0.12) !important;
+        border-color: #b760a0 !important;
+        box-shadow: 0 3px 0 rgba(183,96,160,0.2), 0 0 0 2px rgba(183,96,160,0.12) !important;
     }
     .search-wrapper .search-icon {
         font-size: 18px !important;
@@ -211,14 +211,14 @@
     .station-search-wrapper {
         position: relative;
         background: #fff !important;
-        border: 1.5px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.08) !important;
+        border: 1.5px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.08) !important;
         transition: all 0.2s ease !important;
         padding: 2px 6px !important;
     }
     .station-search-wrapper:focus-within {
-        border-color: #c06882 !important;
-        box-shadow: 0 3px 0 rgba(192,104,130,0.2), 0 0 0 2px rgba(192,104,130,0.12) !important;
+        border-color: #b760a0 !important;
+        box-shadow: 0 3px 0 rgba(183,96,160,0.2), 0 0 0 2px rgba(183,96,160,0.12) !important;
     }
     .station-search-wrapper .station-icon {
         font-size: 18px !important;
@@ -234,8 +234,8 @@
     .area-section {
         background: linear-gradient(180deg, #fdfaf7 0%, #fbf2ed 100%) !important;
         border: 1px solid #ebdcd2 !important;
-        border-top: 3px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.1), inset 0 -2px 0 0 #c06882, inset 0 5px 0 -3px #c06882 !important;
+        border-top: 3px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.1), inset 0 -2px 0 0 #b760a0, inset 0 5px 0 -3px #b760a0 !important;
         margin: 16px auto !important;
         padding: 24px 20px 20px !important;
         max-width: 1100px !important;
@@ -245,7 +245,7 @@
         margin-bottom: 8px !important;
         padding: 0 4px !important;
     }
-    .breadcrumb-item { color: #c06882 !important; font-size: 12px !important; letter-spacing: 0.05em; font-weight: 600; }
+    .breadcrumb-item { color: #b760a0 !important; font-size: 12px !important; letter-spacing: 0.05em; font-weight: 600; }
     .breadcrumb-item.active { color: #2a1a20 !important; }
     .area-header {
         margin-bottom: 18px !important;
@@ -257,7 +257,7 @@
         font-size: 18px !important;
         font-weight: 700 !important;
         color: #2a1a20 !important;
-        border-left: 4px solid #c06882 !important;
+        border-left: 4px solid #b760a0 !important;
         padding-left: 12px !important;
         border-bottom: none !important;
         padding-bottom: 0 !important;
@@ -277,7 +277,7 @@
         padding: 18px 90px 18px 20px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.08) !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.08) !important;
         transition: all 0.15s ease !important;
         position: relative;
         text-align: left !important;
@@ -292,8 +292,8 @@
         transform: translateY(-50%);
         font-size: 11px;
         font-weight: 500;
-        color: #c06882;
-        background: #fdf3f5;
+        color: #b760a0;
+        background: #faf2f8;
         border: 1px solid #f0c8d2;
         padding: 3px 8px;
         border-radius: 3px;
@@ -372,14 +372,14 @@
     /* ピル型ではleft accentバーが中途半端に見えるため削除 */
     .area-btn::before { display: none !important; }
     .area-btn:hover {
-        border-color: #c06882 !important;
-        color: #c06882 !important;
-        box-shadow: 0 3px 0 rgba(192,104,130,0.2) !important;
+        border-color: #b760a0 !important;
+        color: #b760a0 !important;
+        box-shadow: 0 3px 0 rgba(183,96,160,0.2) !important;
         transform: translateY(-1px) !important;
     }
     .area-btn:active {
         transform: translateY(1px) !important;
-        box-shadow: 0 1px 0 rgba(192,104,130,0.15) !important;
+        box-shadow: 0 1px 0 rgba(183,96,160,0.15) !important;
     }
     .area-btn::after {
         content: '›';
@@ -388,7 +388,7 @@
         top: 50%;
         transform: translateY(-50%);
         font-size: 22px;
-        color: #c06882;
+        color: #b760a0;
         font-weight: 300;
         transition: transform 0.2s;
     }
@@ -437,18 +437,18 @@
 
     /* ── ホテルCTAボタン: ゴールド → パッションピンク統一 ── */
     .card-action-btn--h-primary {
-        background: linear-gradient(135deg, #c06882 0%, #a04868 100%) !important;
+        background: linear-gradient(135deg, #b760a0 0%, #8a4880 100%) !important;
         color: #fff !important;
     }
     .card-action-btn--h-secondary {
         background: transparent !important;
-        border: 1.5px solid rgba(192,104,130,0.35) !important;
-        color: #c06882 !important;
+        border: 1.5px solid rgba(183,96,160,0.35) !important;
+        color: #b760a0 !important;
     }
     /* 住所/駅/電話アイコン行のpadding統一 */
     .hotel-card-lux .hotel-info,
     .hotel-card-lux a[href^="tel:"] {
-        color: #c06882 !important;
+        color: #b760a0 !important;
     }
 
     /* ── ホテルカードの呼べた率を強調（既存rateHTMLを装飾） ── */
@@ -462,8 +462,8 @@
     .hotel-card-lux {
         background: linear-gradient(180deg, #fdfaf7 0%, #fbf2ed 100%) !important;
         border: 1px solid #ebdcd2 !important;
-        border-left: 4px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.1) !important;
+        border-left: 4px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.1) !important;
         overflow: hidden;
         transition: all 0.15s !important;
         color: #2a1a20;
@@ -474,8 +474,8 @@
         border: 1px solid #ebdcd2 !important;
     }
     .hotel-card-lux:hover {
-        border-color: #c06882 !important;
-        box-shadow: 0 4px 0 rgba(192,104,130,0.2) !important;
+        border-color: #b760a0 !important;
+        box-shadow: 0 4px 0 rgba(183,96,160,0.2) !important;
         transform: translateY(-1px);
     }
     .hotel-name {
@@ -496,23 +496,23 @@
         border: 1px solid #ebdcd2 !important;
         margin: 12px auto !important;
         max-width: 1100px !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.06) !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.06) !important;
         color: #2a1a20;
     }
     /* info-links-bar 内のボタン（角角・ライト化） */
     .info-links-bar a {
-        border: 1.5px solid #c06882 !important;
+        border: 1.5px solid #b760a0 !important;
         background: #fff !important;
-        color: #c06882 !important;
+        color: #b760a0 !important;
         padding: 10px 20px !important;
         font-weight: 600 !important;
         transition: all 0.15s ease !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.15) !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.15) !important;
     }
     .info-links-bar a:hover {
-        background: #c06882 !important;
+        background: #b760a0 !important;
         color: #fff !important;
-        box-shadow: 0 3px 0 rgba(192,104,130,0.3) !important;
+        box-shadow: 0 3px 0 rgba(183,96,160,0.3) !important;
         transform: translateY(-1px);
     }
 
@@ -542,23 +542,23 @@
 
     /* ── フッター ── */
     footer {
-        background: #3a0f18 !important;
+        background: #2a1030 !important;
         margin-top: 16px !important;
-        border-top: 2px solid #c06882 !important;
+        border-top: 2px solid #b760a0 !important;
     }
 
     /* ── もっと見るボタン ── */
     .load-more-btn {
         font-size: 14px !important;
         padding: 14px !important;
-        background: linear-gradient(180deg, #c06882 0%, #a04868 100%) !important;
+        background: linear-gradient(180deg, #b760a0 0%, #8a4880 100%) !important;
         color: #fff !important;
-        border: 1px solid #c06882 !important;
-        box-shadow: 0 2px 0 rgba(192,104,130,0.2) !important;
+        border: 1px solid #b760a0 !important;
+        box-shadow: 0 2px 0 rgba(183,96,160,0.2) !important;
         letter-spacing: 0.1em;
     }
     .load-more-btn:hover {
-        background: linear-gradient(180deg, #d08294 0%, #a85870 100%) !important;
+        background: linear-gradient(180deg, #c880b8 0%, #a85870 100%) !important;
     }
 
     /* ── 詳細ページ ── */
