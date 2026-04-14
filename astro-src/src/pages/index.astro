@@ -170,7 +170,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
         };
         var allLines = top30.map(renderRow).join('');
         var el = document.getElementById('recent-reviews-gate');
-        if (el) el.innerHTML = '<div style="padding:16px 18px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">💬 最新の口コミ</div><div style="max-height:400px;overflow-y:auto;padding-right:6px;">'+allLines+'</div></div>';
+        if (el) el.innerHTML = '<div style="padding:16px 18px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">💬 最新の口コミ</div><div style="max-height:190px;overflow-y:auto;padding-right:6px;">'+allLines+'</div></div>';
     }).catch(function(){});
 })();
 </script>
