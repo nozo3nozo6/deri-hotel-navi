@@ -551,10 +551,6 @@
         border: 1px solid #dff0e5 !important;
     }
 
-    /* ── 最新の口コミ: 店舗名（— poster部分）を非表示 ── */
-    a.hover-bg > span:last-child {
-        display: none !important;
-    }
 
     /* ── ホテルリスト全体の余白 ── */
     .hotel-list-container {

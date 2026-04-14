@@ -82,7 +82,7 @@ const jsonLd = [
             <div id="recent-shops-gate"></div>
             <hr class="mode-divider">
             <a href="/shop-register/" class="mode-btn shop">&#127978; 店舗様・掲載用はこちら</a>
-            <div id="recent-reviews-gate" style="max-width:480px;margin:20px auto 0;"></div>
+            <div id="recent-reviews-gate" style="width:100%;max-width:480px;margin:20px auto 0;box-sizing:border-box;"></div>
         </div>
     </section>
 
@@ -166,7 +166,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
                 badge = r.solo_entry === 'yes' ? '<span style="color:#3a9a60;">🚪</span>' : r.solo_entry === 'no' ? '<span style="color:#c05050;">🚪</span>' : '<span style="color:#a09080;">🏩</span>';
             }
             var modeTag = '<span style="color:'+modeAccent[r._mode]+';font-size:11px;margin-left:6px;">'+modeIcon[r._mode]+'</span>';
-            return '<a href="'+hotelLink+'" style="display:flex;align-items:center;gap:6px;padding:8px 0;font-size:12px;color:var(--text-2,#6a5a4a);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.06);min-width:0;"><span style="color:#a09080;flex-shrink:0;">'+ts+'</span><span style="flex-shrink:0;">'+badge+'</span><span style="font-weight:600;color:var(--text,#1a1410);flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+name+'</span><span style="flex-shrink:0;">'+modeTag+'</span></a>';
+            return '<a href="'+hotelLink+'" style="display:flex;width:100%;max-width:100%;box-sizing:border-box;align-items:center;gap:6px;padding:8px 0;font-size:12px;color:var(--text-2,#6a5a4a);text-decoration:none;border-bottom:1px solid rgba(0,0,0,0.06);min-width:0;"><span style="color:#a09080;flex-shrink:0;">'+ts+'</span><span style="flex-shrink:0;">'+badge+'</span><span style="font-weight:600;color:var(--text,#1a1410);flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+name+'</span><span style="flex-shrink:0;">'+modeTag+'</span></a>';
         };
         var allLines = top30.map(renderRow).join('');
         var el = document.getElementById('recent-reviews-gate');
@@ -220,7 +220,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
     .mode-section { padding: 40px 20px 32px; background: var(--bg); }
     .mode-section h2 { text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 24px; }
     .age-notice-inline { text-align: center; color: #999; font-size: 12px; margin: 16px 0; }
-    .mode-grid { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .mode-grid { width: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
     .mode-btn {
         display: block; width: 100%; padding: 16px 20px; border: 1px solid var(--border);
         background: var(--bg-2); font-size: 15px; font-weight: 600;

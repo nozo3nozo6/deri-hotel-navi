@@ -208,7 +208,7 @@ async function appendRecentReviews() {
             } else {
                 badge = r.solo_entry === 'yes' ? '<span style="color:#3a9a60;">🚪</span>' : r.solo_entry === 'no' ? '<span style="color:#c05050;">🚪</span>' : '<span style="color:#a09080;">🏩</span>';
             }
-            return `<a href="${hotelLink}" style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:12px;color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--border,#eee);min-width:0;" class="hover-bg"><span style="color:var(--text-3);flex-shrink:0;">${timeStr}</span><span style="flex-shrink:0;">${badge}</span><span style="font-weight:600;color:var(--text);flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span></a>`;
+            return `<a href="${hotelLink}" style="display:flex;width:100%;max-width:100%;box-sizing:border-box;align-items:center;gap:6px;padding:6px 0;font-size:12px;color:var(--text-2);text-decoration:none;border-bottom:1px solid var(--border,#eee);min-width:0;" class="hover-bg"><span style="color:var(--text-3);flex-shrink:0;">${timeStr}</span><span style="flex-shrink:0;">${badge}</span><span style="font-weight:600;color:var(--text);flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span></a>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
