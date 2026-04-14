@@ -701,17 +701,36 @@ function setBackBtn(show) {
 }
 
 function setBreadcrumb(crumbs) {
-    const html = crumbs.map((c, i) => {
-        const isLast = i === crumbs.length - 1;
-        return `
-            ${i > 0 ? '<span class="breadcrumb-sep">›</span>' : ''}
-            <span class="breadcrumb-item ${isLast ? 'active' : ''}"
-                  ${!isLast && c.onclick ? `style="cursor:pointer" data-action="${c.onclick.replace(/\(\)/,'')}"` : ''}>
-                ${esc(c.label)}
-            </span>`;
-    }).join('');
     const el = document.getElementById('breadcrumb');
-    if (el) el.innerHTML = html;
+    if (!el) return;
+    el.innerHTML = '';
+    crumbs.forEach((c, i) => {
+        const isLast = i === crumbs.length - 1;
+        if (i > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'breadcrumb-sep';
+            sep.textContent = '›';
+            el.appendChild(sep);
+        }
+        const item = document.createElement('span');
+        item.className = 'breadcrumb-item' + (isLast ? ' active' : '');
+        item.textContent = c.label;
+        const handler = !isLast ? (c.handler || _resolveBreadcrumbOnclick(c.onclick)) : null;
+        if (handler) {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', handler);
+        }
+        el.appendChild(item);
+    });
+}
+
+function _resolveBreadcrumbOnclick(onclick) {
+    if (!onclick || typeof onclick !== 'string') return null;
+    const m = onclick.match(/^([a-zA-Z_$][\w$]*)\(\)$/);
+    if (m && typeof window[m[1]] === 'function') {
+        return function() { window[m[1]](); };
+    }
+    return null;
 }
 
 function clearHotelList() {

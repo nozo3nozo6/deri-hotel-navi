@@ -367,10 +367,10 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     const region = REGION_MAP.find(r => r.prefs.includes(pref));
     const regionLabel = region ? region.label : '';
     const crumbs = [{ label: t('japan'), onclick: 'showJapanPage()' }];
-    if (region && !isSinglePrefRegion(region)) crumbs.push({ label: regionLabel, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${regionLabel}'))` });
-    if (pref) crumbs.push({ label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}')` });
-    if (majorArea) crumbs.push({ label: majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}')` });
-    if (detailArea) crumbs.push({ label: detailArea, onclick: `showDetailAreaPage(REGION_MAP.find(r=>r.label==='${regionLabel}'), '${pref}', '${majorArea}', '${detailArea}')` });
+    if (region && !isSinglePrefRegion(region)) crumbs.push({ label: regionLabel, handler: () => showPrefPage(region) });
+    if (pref) crumbs.push({ label: pref, handler: () => showMajorAreaPage(region, pref) });
+    if (majorArea) crumbs.push({ label: majorArea, handler: () => showCityPage(region, pref, majorArea) });
+    if (detailArea) crumbs.push({ label: detailArea, handler: () => showDetailAreaPage(region, pref, majorArea, detailArea) });
     crumbs.push({ label: city });
     setBreadcrumb(crumbs);
     loadAds('spot', city);
@@ -777,12 +777,12 @@ async function loadDetail(hotelId, isLoveho) {
         const _detailArea = hotel.detail_area || '';
         const _region = REGION_MAP.find(r => r.prefs.includes(_pref)) || null;
         const _rl = _region ? _region.label : '';
-        const _crumbs = [{ label: t('to_nationwide'), onclick: 'leaveHotelDetail();showJapanPage()' }];
-        if (_region && !isSinglePrefRegion(_region)) _crumbs.push({ label: _rl, onclick: `leaveHotelDetail();showPrefPage(REGION_MAP.find(r=>r.label==='${_rl}'))` });
-        if (_pref) _crumbs.push({ label: _pref, onclick: `leaveHotelDetail();showMajorAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}')` });
-        if (_majorArea) _crumbs.push({ label: _majorArea, onclick: `leaveHotelDetail();showCityPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}')` });
-        if (_detailArea) _crumbs.push({ label: _detailArea, onclick: `leaveHotelDetail();showDetailAreaPage(REGION_MAP.find(r=>r.label==='${_rl}'),'${_pref}','${_majorArea}','${_detailArea}')` });
-        if (_city) _crumbs.push({ label: _city, onclick: `leaveHotelDetail();fetchAndShowHotelsByCity({prefecture:'${_pref}',major_area:'${_majorArea}'},'${_city}')` });
+        const _crumbs = [{ label: t('to_nationwide'), handler: () => { leaveHotelDetail(); showJapanPage(); } }];
+        if (_region && !isSinglePrefRegion(_region)) _crumbs.push({ label: _rl, handler: () => { leaveHotelDetail(); showPrefPage(_region); } });
+        if (_pref) _crumbs.push({ label: _pref, handler: () => { leaveHotelDetail(); showMajorAreaPage(_region, _pref); } });
+        if (_majorArea) _crumbs.push({ label: _majorArea, handler: () => { leaveHotelDetail(); showCityPage(_region, _pref, _majorArea); } });
+        if (_detailArea) _crumbs.push({ label: _detailArea, handler: () => { leaveHotelDetail(); showDetailAreaPage(_region, _pref, _majorArea, _detailArea); } });
+        if (_city) _crumbs.push({ label: _city, handler: () => { leaveHotelDetail(); fetchAndShowHotelsByCity({ prefecture: _pref, major_area: _majorArea }, _city); } });
         _crumbs.push({ label: hotel.name });
         setBreadcrumb(_crumbs);
 

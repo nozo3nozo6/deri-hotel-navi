@@ -54,7 +54,7 @@ function isSinglePrefRegion(region) {
 function regionBreadcrumb(region) {
     // 1県のみの地方（北海道・沖縄）はパンくずで地方ラベルを省略
     if (isSinglePrefRegion(region)) return [];
-    return [{ label: region.label, onclick: `showPrefPage(REGION_MAP.find(r=>r.label==='${region.label}'))` }];
+    return [{ label: region.label, handler: () => showPrefPage(region) }];
 }
 
 function findRegionByLabel(label) {
@@ -620,7 +620,7 @@ async function showCityPage(region, pref, majorArea) {
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
         ...regionBreadcrumb(region),
-        { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
+        { label: pref, handler: () => showMajorAreaPage(region, pref) },
         { label: majorArea }
     ]);
     clearHotelList();
@@ -749,8 +749,8 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
         ...regionBreadcrumb(region),
-        { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
-        { label: majorArea, onclick: `showCityPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}', '${majorArea}')` },
+        { label: pref, handler: () => showMajorAreaPage(region, pref) },
+        { label: majorArea, handler: () => showCityPage(region, pref, majorArea) },
         { label: detailArea }
     ]);
     clearHotelList();
@@ -865,7 +865,7 @@ async function showNoAreaCityPage(region, pref) {
     setBreadcrumb([
         { label: t('japan'), onclick: 'showJapanPage()' },
         ...regionBreadcrumb(region),
-        { label: pref, onclick: `showMajorAreaPage(REGION_MAP.find(r=>r.label==='${region.label}'), '${pref}')` },
+        { label: pref, handler: () => showMajorAreaPage(region, pref) },
         { label: t('other_areas') }
     ]);
     clearHotelList();
