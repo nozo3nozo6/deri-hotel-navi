@@ -117,32 +117,32 @@ RewriteCond %{QUERY_STRING} (?:^|&)hotel=([0-9]+)(?:&|$)
 RewriteRule ^este/?$ /este/hotel/%1? [R=301,L]
 
 # 4セグメント: /deli/東京都/東京２３区内/渋谷/渋谷区 → portal-men.php (pref+area+detail+city)
-RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?$ /portal-men.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?$ /portal-women.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?$ /portal-men-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?$ /portal-women-same.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?$ /portal-este.php?pref=$1&area=$2&detail=$3&city=$4 [L,QSA]
 
 # 3セグメント: /deli/東京都/東京２３区内/渋谷区 → portal-men.php (pref+area+city)
-RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2&city=$3 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^deli/([^/]+)/([^/]+)/([^/]+)/?$ /portal-men.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/([^/]+)/?$ /portal-women.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/([^/]+)/?$ /portal-men-same.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/([^/]+)/?$ /portal-women-same.php?pref=$1&area=$2&city=$3 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)/([^/]+)/?$ /portal-este.php?pref=$1&area=$2&city=$3 [L,QSA]
 
 # 2セグメント: /deli/東京都/渋谷区 or /deli/東京都/東京２３区内 → portal-men.php (pref+area, JS側でarea/city判別)
-RewriteRule ^deli/([^/]+)/([^/]+)$ /portal-men.php?pref=$1&area=$2 [L,QSA]
-RewriteRule ^jofu/([^/]+)/([^/]+)$ /portal-women.php?pref=$1&area=$2 [L,QSA]
-RewriteRule ^same-m/([^/]+)/([^/]+)$ /portal-men-same.php?pref=$1&area=$2 [L,QSA]
-RewriteRule ^same-f/([^/]+)/([^/]+)$ /portal-women-same.php?pref=$1&area=$2 [L,QSA]
-RewriteRule ^este/([^/]+)/([^/]+)$ /portal-este.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^deli/([^/]+)/([^/]+)/?$ /portal-men.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^jofu/([^/]+)/([^/]+)/?$ /portal-women.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-m/([^/]+)/([^/]+)/?$ /portal-men-same.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^same-f/([^/]+)/([^/]+)/?$ /portal-women-same.php?pref=$1&area=$2 [L,QSA]
+RewriteRule ^este/([^/]+)/([^/]+)/?$ /portal-este.php?pref=$1&area=$2 [L,QSA]
 
 # 1セグメント: /deli/東京都 → portal-men.php (pref)
-RewriteRule ^deli/([^/]+)$ /portal-men.php?pref=$1 [L,QSA]
-RewriteRule ^jofu/([^/]+)$ /portal-women.php?pref=$1 [L,QSA]
-RewriteRule ^same-m/([^/]+)$ /portal-men-same.php?pref=$1 [L,QSA]
-RewriteRule ^same-f/([^/]+)$ /portal-women-same.php?pref=$1 [L,QSA]
-RewriteRule ^este/([^/]+)$ /portal-este.php?pref=$1 [L,QSA]
+RewriteRule ^deli/([^/]+)/?$ /portal-men.php?pref=$1 [L,QSA]
+RewriteRule ^jofu/([^/]+)/?$ /portal-women.php?pref=$1 [L,QSA]
+RewriteRule ^same-m/([^/]+)/?$ /portal-men-same.php?pref=$1 [L,QSA]
+RewriteRule ^same-f/([^/]+)/?$ /portal-women-same.php?pref=$1 [L,QSA]
+RewriteRule ^este/([^/]+)/?$ /portal-este.php?pref=$1 [L,QSA]
 
 # 0セグメント: /deli/ → portal-men.php (トップ)
 RewriteRule ^deli/?$ /portal-men.php [L,QSA]
@@ -161,9 +161,9 @@ RewriteRule ^men-same/?$ /same-m/ [R=301,L]
 RewriteRule ^women-same/(.+)$ /same-f/$1 [R=301,L]
 RewriteRule ^women-same/?$ /same-f/ [R=301,L]
 
-# portal-test.htmlはリダイレクト対象外（クエリ付きも）
-RewriteCond %{REQUEST_URI} ^/portal-test\.html$
-RewriteRule ^ - [L]
+# portal-test*.htmlはリダイレクト対象外（クエリ付きも、portal-test-jofu.html等含む）
+RewriteCond %{REQUEST_URI} ^/portal-test(-[a-z-]+)?\.html$
+RewriteRule ^ - [END]
 
 # ===== 旧クエリURL → 新URL 301リダイレクト =====
 # portal.html?mode=men&pref=X&city=Y → /deli/X/Y (pref+cityを1つのCondでキャプチャ)
