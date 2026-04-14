@@ -80,39 +80,33 @@
 
     /* ── 検索ボックス: グラス風 ── */
     .search-tools {
-        background: #3d2550 !important;
+        background: #fff !important;
         border: none !important;
         border-radius: 0 !important;
-        box-shadow: none !important;
+        box-shadow: 0 -1px 0 #eee !important;
         margin: 0 !important;
-        padding: 16px !important;
+        padding: 14px 16px !important;
         position: relative;
         z-index: 2;
         max-width: 100% !important;
         overflow: hidden;
     }
     .search-input-wrap {
-        border: 2px solid rgba(201,169,110,0.6) !important;
+        border: 2px solid var(--accent, #9b2d35) !important;
         border-radius: 12px !important;
-        box-shadow: 0 0 16px rgba(201,169,110,0.15), inset 0 1px 3px rgba(0,0,0,0.05) !important;
-        background: rgba(255,255,255,0.95) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
     }
     .search-input-wrap:focus-within {
         border-color: #c9a96e !important;
-        box-shadow: 0 0 20px rgba(201,169,110,0.3), inset 0 1px 3px rgba(0,0,0,0.05) !important;
+        box-shadow: 0 2px 12px rgba(201,169,110,0.2) !important;
     }
     .search-input-wrap input {
         font-size: 15px !important;
     }
     .station-search-wrapper {
-        background: rgba(255,255,255,0.9) !important;
         border-radius: 12px !important;
-        border: 1px solid rgba(201,169,110,0.3) !important;
+        border: 1px solid #ddd !important;
     }
-    .station-input {
-        color: #1a1a2e !important;
-    }
-    .search-icon, .station-icon { opacity: 0.7; }
 
     /* ── 人気タグ ── */
     .popular-tags {
@@ -363,25 +357,9 @@
     <p>全国43,000件以上のホテルから最適な1件を見つけよう</p>
 </div>
 
-<!-- 検索ツール（ダーク背景連続） -->
-<div class="search-tools">
-    <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="search" id="keyword" class="search-input-lux"
-            placeholder="ホテル名・住所で検索（Enterで実行）"
-            enterkeyhint="search" autocomplete="off">
-        <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">✕</button>
-    </div>
-    <div class="station-search-wrapper">
-        <span class="station-icon">🚉</span>
-        <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="suggestStations" autocomplete="off">
-        <div id="station-suggestions" class="station-suggest-box" style="display:none;"></div>
-    </div>
-</div>
-
 <!-- 人気の検索タグ（ダーク背景連続） -->
 <div class="popular-tags">
-    <span style="font-size:11px;color:var(--text-3);margin-right:4px;">🔥 人気:</span>
+    <span style="font-size:11px;margin-right:4px;">🔥 人気:</span>
     <span class="popular-tag" data-action="quickSearch" data-param="新宿">新宿</span>
     <span class="popular-tag" data-action="quickSearch" data-param="渋谷">渋谷</span>
     <span class="popular-tag" data-action="quickSearch" data-param="池袋">池袋</span>
@@ -412,6 +390,22 @@
     <div id="area-button-container" class="area-grid"></div>
     <div id="hotel-detail-content" style="display:none;"></div>
 </section>
+
+<!-- 検索ツール -->
+<div class="search-tools">
+    <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="keyword" class="search-input-lux"
+            placeholder="ホテル名・住所で検索（Enterで実行）"
+            enterkeyhint="search" autocomplete="off">
+        <button class="search-clear" data-action="clearSearch" id="search-clear-btn" style="display:none;">✕</button>
+    </div>
+    <div class="station-search-wrapper">
+        <span class="station-icon">🚉</span>
+        <input type="text" id="station-input" class="station-input" placeholder="最寄駅で検索..." data-oninput="suggestStations" autocomplete="off">
+        <div id="station-suggestions" class="station-suggest-box" style="display:none;"></div>
+    </div>
+</div>
 
 <div id="ad-container-below-search"></div>
 <div id="hotel-map" style="display:none; height:400px; border-radius:12px; margin-bottom:16px;"></div>
