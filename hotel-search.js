@@ -915,7 +915,7 @@ function renderLovehoDetail(hotel, reports) {
             ${r.entry_method ? `<div style="font-size:12px;color:var(--text-2);margin-top:2px;">🚪 ${esc(entryMethodLabels[r.entry_method]||r.entry_method)}</div>` : ''}
             ${gpRoomHTML}${gpServiceHTML}
             ${r.comment ? `<div class="text-comment" style="margin-top:2px;">${esc(r.comment)}</div>` : ''}
-            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">${t('multi_person_ok')}${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `${t('guest_male')}${r.guest_male}`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `${t('guest_female')}${r.guest_female}`:''}）</span>`:''}${r.multi_fee ? ` <span style="color:#c9a96e;font-size:11px;">${t('additional_fee')}</span>` : ''}</div>` : ''}
+            ${r.multi_person ? `<div style="font-size:12px;color:var(--accent,#b5627a);margin-top:2px;">${t('multi_person_ok')}${r.guest_male||r.guest_female ? `<span class="text-sub3" style="margin-left:4px;">（${r.guest_male ? `${t('guest_male')}${r.guest_male}`:''}${r.guest_male&&r.guest_female?'・':''}${r.guest_female ? `${t('guest_female')}${r.guest_female}`:''}）</span>`:''}${r.multi_fee ? ` <span style="color:#c9a96e;font-size:11px;">${t('additional_fee')}</span>` : ''}${isShopPost && _siActive ? ` <span class="round-badge round-badge--solo-can">${t('guide_success')}</span>` : ''}</div>` : ''}
         </div>`;
     }
 
