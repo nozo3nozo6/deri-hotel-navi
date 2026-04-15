@@ -1795,8 +1795,9 @@ function setTransportFee(num){
     const fc=document.getElementById("transport-free");
     const wrap=document.getElementById("transport-fee-wrap");
     const fi=document.getElementById("form-transport");
-    if(num===null||num===undefined||num===0){fc.checked=true;wrap.style.display="none";fi.value="";return;}
-    fc.checked=false;wrap.style.display="flex";fi.value=num.toLocaleString("ja-JP");
+    if(num===0||num==='0'){fc.checked=true;wrap.style.display="none";fi.value="";return;}
+    if(num===null||num===undefined||num===''){fc.checked=false;wrap.style.display="flex";fi.value="";return;}
+    fc.checked=false;wrap.style.display="flex";fi.value=Number(num).toLocaleString("ja-JP");
 }
 function formatFee(num){if(!num||num===0)return"無料";return"¥"+num.toLocaleString("ja-JP")+"-";}
 
