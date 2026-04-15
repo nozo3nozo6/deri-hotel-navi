@@ -1934,7 +1934,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         <div id="detail-ad-block"></div>
         ${sections.formHTML || ''}
         <div style="text-align:center;margin:12px 0 4px;">
-            <button data-action="openCorrectionModal" data-hotel-id="${hotel.id}" data-hotel-name="${esc(hotel.name)}" style="background:none;border:1px solid rgba(180,150,100,0.25);border-radius:8px;padding:8px 16px;font-size:12px;color:#8a7a6a;cursor:pointer;">⚠️ 情報の誤りを報告</button>
+            <button data-action="openCorrectionModal" data-hotel-id="${hotel.id}" data-hotel-name="${esc(hotel.name)}" style="background:none;border:1px solid rgba(180,150,100,0.25);border-radius:8px;padding:8px 16px;font-size:12px;color:#8a7a6a;cursor:pointer;">${t('modal_corr_title')}</button>
         </div>
         <div id="detail-ad-pref"></div>
         <div class="info-links-bar">
@@ -2107,7 +2107,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
                 <label class="form-label">${t('poster_name_opt')}</label>
-                <input type="text" id="form-poster-name" placeholder="${t('anon_placeholder')}" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
+                <input type="text" id="form-poster-name" placeholder="${t('anon_placeholder')}" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:16px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
             </div>
             <div class="form-group">
                 <label class="form-label">${t('result_label')} <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">${t('result_required')}</span></label>
