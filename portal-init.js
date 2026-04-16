@@ -2,6 +2,26 @@
 // portal-init.js — ポータル初期化、イベント委譲、インラインscript外部化
 // ==========================================================================
 
+// ── フォント遅延読込 ──
+// <link rel="preload" as="style" data-font-async> を見つけたら rel="stylesheet" に昇格。
+// render-blocking を回避しつつフォントは並列DL → LCP大幅改善。
+// display=swap併用で FOUT のみ（ブロッキングなし）。
+(function upgradeFontLinks() {
+    function run() {
+        var links = document.querySelectorAll('link[data-font-async]');
+        for (var i = 0; i < links.length; i++) {
+            var l = links[i];
+            l.rel = 'stylesheet';
+            l.removeAttribute('data-font-async');
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+})();
+
 // ── 店舗専用URL: 法的ページSPA読み込み ──
 var _legalActive = false;
 var _legalSavedScroll = 0;

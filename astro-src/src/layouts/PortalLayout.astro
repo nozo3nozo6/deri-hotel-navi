@@ -125,9 +125,13 @@ const jsonLd = [
         <meta name="google-site-verification" content="nQWgZIeYu0-5NzyWjCcLGezF8ojgPviuSztTr0M1bl4" />
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link rel="preload" as="style" data-font-async href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
         {(mode === 'women' || mode === 'women_same') && (
-            <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap" rel="stylesheet">
+            <Fragment>
+                <link rel="preload" as="style" data-font-async href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap">
+                <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap"></noscript>
+            </Fragment>
         )}
         <meta name="x-astro-mode" content={mode}>
         <script is:inline src="/portal-init.js?v=2"></script>
