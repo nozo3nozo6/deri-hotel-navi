@@ -61,6 +61,7 @@ const jsonLd = [
         <div class="logo"><b>YobuHo</b></div>
     </header>
 
+    <main>
     <section class="hero">
         <h1>デリヘル・女性用風俗を<br>ホテルに呼べるか、すぐわかる</h1>
         <p class="hero-sub">全国43,000件以上のホテルについて、実際に利用したユーザーの体験談から<br>「呼べたホテル」「呼べなかったホテル」を検索できます</p>
@@ -109,6 +110,7 @@ const jsonLd = [
     </section>
 
     <p class="age-notice">※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。</p>
+    </main>
 
     <Footer variant="full" seoText='<strong>YobuHo（よぶほ）</strong>は、全国43,000件以上のホテルから派遣サービスを「呼べるホテル」を探せる口コミ検索サイトです。デリヘル・女風・デリエステ・出張マッサージの利用可否を、ユーザーと掲載店舗のダブルチェック情報で確認できます。同性カップル（LGBT）対応ホテルやラブホテルの一人利用情報も掲載。都道府県・市区町村・最寄駅から絞り込めます。' />
 </BaseLayout>
@@ -205,7 +207,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
     body {
         background: var(--bg);
         color: var(--text);
-        font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+        font-family: 'Noto Sans JP', 'Noto Sans JP Fallback', 'Hiragino Kaku Gothic ProN', sans-serif;
         min-height: 100vh;
         -webkit-font-smoothing: antialiased;
     }

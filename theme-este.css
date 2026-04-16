@@ -21,7 +21,7 @@
 }
 
 body[data-mode="este"] .logo-text {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    font-family: 'Noto Sans JP', 'Noto Sans JP Fallback', 'Hiragino Kaku Gothic ProN', sans-serif;
     font-weight: 700;
     letter-spacing: 0.08em;
 }
