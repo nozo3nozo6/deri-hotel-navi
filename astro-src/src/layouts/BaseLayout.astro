@@ -81,6 +81,7 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         <script type="application/ld+json" set:html={JSON.stringify(ld)} />
     ))}
     <slot name="head" />
+    <script is:inline src="/font-async.js?v=1"></script>
 </head>
 <body>
     <slot />
