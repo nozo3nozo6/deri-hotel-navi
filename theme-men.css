@@ -17,7 +17,7 @@
 
 body[data-mode="men"],
 body[data-mode="men"] * {
-    font-family: 'Noto Sans JP', 'Noto Sans JP Fallback', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
     font-style: normal !important;
 }
 body[data-mode="men"] .hotel-price-value {

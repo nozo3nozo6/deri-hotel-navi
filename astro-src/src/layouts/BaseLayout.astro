@@ -81,33 +81,6 @@ const jsonLdArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
         <script type="application/ld+json" set:html={JSON.stringify(ld)} />
     ))}
     <slot name="head" />
-    <style is:global>
-        /* CLS対策: Noto Sans JP ロード前のフォールバックをmetric overrideでNoto Sans JPに揃える */
-        @font-face {
-            font-family: 'Noto Sans JP Fallback';
-            src: local('Hiragino Kaku Gothic ProN'), local('BIZ UDPGothic'), local('Meiryo');
-            size-adjust: 107%;
-            ascent-override: 88%;
-            descent-override: 22%;
-            line-gap-override: 0%;
-        }
-        @font-face {
-            font-family: 'Noto Serif JP Fallback';
-            src: local('Hiragino Mincho ProN'), local('Yu Mincho'), local('MS Mincho');
-            size-adjust: 107%;
-            ascent-override: 90%;
-            descent-override: 22%;
-            line-gap-override: 0%;
-        }
-        @font-face {
-            font-family: 'Cormorant Garamond Fallback';
-            src: local('Georgia'), local('Times New Roman');
-            size-adjust: 100%;
-            ascent-override: 85%;
-            descent-override: 28%;
-            line-gap-override: 0%;
-        }
-    </style>
     <script is:inline src="/font-async.js?v=1"></script>
 </head>
 <body>
