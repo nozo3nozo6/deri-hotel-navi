@@ -8,12 +8,16 @@
 <title>💬 YobuChat - YobuHo チャット</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://yobuho.com https://cloudflareinsights.com;">
 <link rel="icon" href="/favicon.ico">
-<link rel="stylesheet" href="/chat.css?v=21">
+<link rel="stylesheet" href="/chat.css?v=22">
 </head>
 <body>
 <div id="chat-root" class="loading">
   <div id="chat-header">
-    <div class="chat-header-inner">
+    <div class="chat-header-left">
+      <button type="button" id="btn-header-back" class="header-back hidden" aria-label="受信一覧に戻る">‹</button>
+      <span id="chat-visitor-name" class="visitor-name hidden"></span>
+    </div>
+    <div class="chat-header-center">
       <span id="chat-shop-name">読み込み中…</span>
       <span id="chat-status-dot" class="status-dot offline" aria-hidden="true"></span>
       <span id="chat-status-label" class="status-label" data-i18n="status.offline">オフライン</span>
@@ -120,6 +124,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=21"></script>
+<script src="/chat.js?v=22"></script>
 </body>
 </html>

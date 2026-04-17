@@ -55,6 +55,8 @@ const $ = id => document.getElementById(id);
 const refs = {
     root: $('chat-root'),
     shopName: $('chat-shop-name'),
+    visitorName: $('chat-visitor-name'),
+    btnHeaderBack: $('btn-header-back'),
     statusDot: $('chat-status-dot'),
     statusLabel: $('chat-status-label'),
     ownerToggle: $('chat-owner-toggle'),
@@ -370,6 +372,8 @@ async function enterVisitorMode() {
     refs.ownerTemplates.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.visitorName) refs.visitorName.classList.add('hidden');
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     refs.chatExit.classList.add('hidden');
     if (refs.homeLink) refs.homeLink.classList.remove('hidden');
     if (refs.nicknameArea) {
@@ -597,6 +601,8 @@ async function enterOwnerMode() {
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.visitorName) refs.visitorName.classList.add('hidden');
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
 
     await refreshOwnerStatus();
@@ -666,7 +672,12 @@ async function openOwnerThread(sessionId) {
     const visitorLabel = state.selected_session.nickname
         ? state.selected_session.nickname
         : `訪問者 #${state.selected_session.id}`;
-    refs.shopName.textContent = `${state.shop_name} ← ${visitorLabel}`;
+    refs.shopName.textContent = state.shop_name;
+    if (refs.visitorName) {
+        refs.visitorName.textContent = visitorLabel;
+        refs.visitorName.classList.remove('hidden');
+    }
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.remove('hidden');
 
     try {
         const data = await api('owner-inbox', {
@@ -909,15 +920,19 @@ refs.onlineToggle.addEventListener('change', async (e) => {
 });
 
 refs.btnRefresh.addEventListener('click', () => showInbox());
-refs.btnBackInbox.addEventListener('click', () => {
+function backToInbox() {
     state.selected_session = null;
     refs.chatExit.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.visitorName) refs.visitorName.classList.add('hidden');
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     refs.shopName.textContent = state.shop_name;
     showInbox();
-});
+}
+refs.btnBackInbox.addEventListener('click', backToInbox);
+if (refs.btnHeaderBack) refs.btnHeaderBack.addEventListener('click', backToInbox);
 
 refs.btnBlock.addEventListener('click', async () => {
     if (!state.selected_session) return;
