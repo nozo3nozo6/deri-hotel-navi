@@ -76,6 +76,9 @@ a{color:#9b2d35;text-decoration:none}
 .msg-translation-body{font-size:inherit}
 .msg-system{align-self:center;background:#fff8e1;color:#8b6914;padding:6px 12px;border-radius:10px;font-size:12px}
 
+/* ===== 訪問者ノート ===== */
+.chat-note{margin:10px 12px 4px;padding:8px 12px;background:#fff4e6;border:1px solid #f5d7a8;border-radius:8px;font-size:13px;color:#7a4a15;line-height:1.5}
+
 /* ===== クイック質問（1行横スクロール） ===== */
 .quick-questions{background:#fff;border-top:1px solid #e5e0d8;padding:6px 0}
 .quick-row{display:flex;gap:6px;overflow-x:auto;white-space:nowrap;padding:2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}

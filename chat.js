@@ -66,6 +66,7 @@ const refs = {
     chatThread: $('chat-thread'),
     chatMessages: $('chat-messages'),
     quickQuestions: $('quick-questions'),
+    visitorNote: $('visitor-note'),
     nicknameArea: document.getElementById('nickname-area'),
     nicknameInput: document.getElementById('visitor-nickname'),
     ownerTemplates: $('owner-templates'),
@@ -334,6 +335,7 @@ async function enterVisitorMode() {
     refs.chatThread.classList.remove('hidden');
     refs.inputArea.classList.remove('hidden');
     refs.quickQuestions.classList.remove('hidden');
+    if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
     refs.ownerTemplates.classList.add('hidden');
     refs.chatExit.classList.add('hidden');
     if (refs.homeLink) refs.homeLink.classList.remove('hidden');
@@ -510,6 +512,7 @@ async function enterOwnerMode() {
     refs.ownerToggle.classList.remove('hidden');
     if (refs.homeLink) refs.homeLink.classList.add('hidden');
     refs.quickQuestions.classList.add('hidden');
+    if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
 
     await refreshOwnerStatus();
