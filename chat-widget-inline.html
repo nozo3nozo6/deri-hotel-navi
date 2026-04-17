@@ -80,7 +80,9 @@
 <script type="text/javascript">
 (function(){
   if(window.__ychatInlineLoaded)return;window.__ychatInlineLoaded=true;
-  var API='https://yobuho.com/api/chat-api.php';
+  // URLを分割してCMSの自動リンク変換を回避
+  var _P='ht'+'tps',_H='yo'+'buho'+'.c'+'om';
+  var API=_P+':\/\/'+_H+'/api/chat-'+'api.php';
   var root=document.getElementById('ychat-root');
   var SLUG=root.getAttribute('data-slug')||'';
   var LS_KEY='ychat_sess_'+SLUG;
