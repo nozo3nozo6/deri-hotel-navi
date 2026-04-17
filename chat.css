@@ -90,6 +90,7 @@ a{color:var(--chat-primary);text-decoration:none}
 .quick-row::-webkit-scrollbar{display:none}
 .quick-btn{flex:0 0 auto;padding:6px 12px;background:var(--chat-quick-bg);color:var(--chat-quick-text);border:1px solid var(--chat-quick-border);border-radius:14px;font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap}
 .quick-btn:hover{background:var(--chat-quick-bg-hover)}
+#owner-quick .quick-btn{min-width:44px;padding:6px 10px;font-size:20px;line-height:1}
 
 /* ===== 定型文 ===== */
 .owner-templates{padding:8px 12px;background:#fff;border-top:1px solid #e5e0d8;max-height:30vh;overflow-y:auto}
