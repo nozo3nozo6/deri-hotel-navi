@@ -4,15 +4,35 @@ import Footer from '../../components/Footer.astro';
 
 const title = 'デリヘルを呼べるホテルの見分け方・選び方ガイド | YobuHo';
 const description = 'デリヘルをホテルに呼ぶ際のホテル選びのポイントを解説。カードキー式・フロント相談・直通エレベーターなど、派遣可能なホテルの特徴と注意点をまとめました。全国43,000件以上のホテルから検索できます。';
+const canonical = 'https://yobuho.com/guide/deli-hotel.html';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  'headline': title,
+  'description': description,
+  'mainEntityOfPage': { '@type': 'WebPage', '@id': canonical },
+  'url': canonical,
+  'inLanguage': 'ja',
+  'author': { '@type': 'Organization', 'name': 'YobuHo', 'url': 'https://yobuho.com/' },
+  'publisher': {
+    '@type': 'Organization',
+    'name': 'YobuHo',
+    'logo': { '@type': 'ImageObject', 'url': 'https://yobuho.com/ogp.png' },
+  },
+  'image': 'https://yobuho.com/ogp.png',
+  'about': 'デリヘル 呼べる ホテル',
+};
 ---
 
 <BaseLayout
   title={title}
   description={description}
-  canonical="https://yobuho.com/guide/deli-hotel.html"
+  canonical={canonical}
   ogTitle={title}
   ogDescription={description}
   themeColor="#9b2d35"
+  jsonLd={jsonLd}
 >
   <Fragment slot="head">
     <link rel="preconnect" href="https://fonts.googleapis.com">

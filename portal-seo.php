@@ -91,7 +91,7 @@ if ($hotel_id) {
     try {
         require_once __DIR__ . '/api/db.php';
         $pdo = DB::conn();
-        $stmt = $pdo->prepare('SELECT name, address, prefecture, city, hotel_type FROM hotels WHERE id = ? AND is_published = 1 LIMIT 1');
+        $stmt = $pdo->prepare('SELECT name, address, prefecture, city, hotel_type, postal_code, tel, latitude, longitude, nearest_station FROM hotels WHERE id = ? AND is_published = 1 LIMIT 1');
         $stmt->execute([$hotel_id]);
         $hotel = $stmt->fetch();
     } catch (Exception $e) {
@@ -240,6 +240,52 @@ $html = preg_replace(
     'https://yobuho.com/' . $path . '/?keyword={search_term_string}',
     $html
 );
+
+// --- Hotel スキーマ JSON-LD（ホテル詳細ページのみ）---
+// Googleホテル検索結果での露出・リッチリザルト対応
+if ($hotel_id && !empty($hotel)) {
+    $hotel_schema = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Hotel',
+        'name' => $hotel['name'],
+        'url' => $seo_canonical,
+        'description' => "{$hotel['name']}（{$hotel['address']}）で{$m['label']}{$m['verb']}か、口コミと店舗情報から確認できるホテル情報ページ。",
+        'address' => [
+            '@type' => 'PostalAddress',
+            'streetAddress' => $hotel['address'],
+            'addressLocality' => $hotel['city'],
+            'addressRegion' => $hotel['prefecture'],
+            'addressCountry' => 'JP',
+        ],
+    ];
+    if (!empty($hotel['postal_code'])) {
+        $hotel_schema['address']['postalCode'] = $hotel['postal_code'];
+    }
+    if (!empty($hotel['latitude']) && !empty($hotel['longitude'])) {
+        $hotel_schema['geo'] = [
+            '@type' => 'GeoCoordinates',
+            'latitude' => (float)$hotel['latitude'],
+            'longitude' => (float)$hotel['longitude'],
+        ];
+    }
+    if (!empty($hotel['tel'])) {
+        $hotel_schema['telephone'] = $hotel['tel'];
+    }
+    // hotel_type を schema.org 分類に補助マッピング
+    $type_map = [
+        'business' => 'ビジネスホテル',
+        'city'     => 'シティホテル',
+        'resort'   => 'リゾートホテル',
+        'ryokan'   => '旅館',
+        'love_hotel'   => 'ラブホテル',
+        'rental_room'  => 'レンタルルーム',
+    ];
+    if (!empty($hotel['hotel_type']) && isset($type_map[$hotel['hotel_type']])) {
+        $hotel_schema['additionalType'] = $type_map[$hotel['hotel_type']];
+    }
+    $hotel_jsonld = json_encode($hotel_schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $html = str_replace('</head>', '<script type="application/ld+json">' . $hotel_jsonld . '</script></head>', $html);
+}
 
 // --- 静的SEOコンテンツ生成（クローラー & JS無効ユーザー向け） ---
 // area-data.json / hotel-data/*.json から当該ページ固有の情報を埋め込む

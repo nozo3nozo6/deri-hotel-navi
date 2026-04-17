@@ -4,15 +4,35 @@ import Footer from '../../components/Footer.astro';
 
 const title = '同性カップル・LGBTフレンドリーなホテルの探し方 | YobuHo';
 const description = 'ゲイカップル・レズビアンカップルで利用できるホテルの探し方ガイド。LGBTフレンドリーなビジネスホテル・ラブホテルの見分け方、同性二人でのチェックイン方法を解説。全国43,000件以上から検索。';
+const canonical = 'https://yobuho.com/guide/lgbt-hotel.html';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  'headline': title,
+  'description': description,
+  'mainEntityOfPage': { '@type': 'WebPage', '@id': canonical },
+  'url': canonical,
+  'inLanguage': 'ja',
+  'author': { '@type': 'Organization', 'name': 'YobuHo', 'url': 'https://yobuho.com/' },
+  'publisher': {
+    '@type': 'Organization',
+    'name': 'YobuHo',
+    'logo': { '@type': 'ImageObject', 'url': 'https://yobuho.com/ogp.png' },
+  },
+  'image': 'https://yobuho.com/ogp.png',
+  'about': '同性カップル LGBT ホテル',
+};
 ---
 
 <BaseLayout
   title={title}
   description={description}
-  canonical="https://yobuho.com/guide/lgbt-hotel.html"
+  canonical={canonical}
   ogTitle={title}
   ogDescription={description}
   themeColor="#2a5a8f"
+  jsonLd={jsonLd}
 >
   <Fragment slot="head">
     <link rel="preconnect" href="https://fonts.googleapis.com">
