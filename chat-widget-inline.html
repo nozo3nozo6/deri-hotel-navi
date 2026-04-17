@@ -1,0 +1,204 @@
+<!-- YobuChat CMS Inline Widget — data-slug を変更すればどの店舗でも動作 -->
+<style type="text/css">
+.ychat-wrap,.ychat-wrap *{box-sizing:border-box!important;-webkit-font-smoothing:antialiased!important;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif!important}
+.ychat-wrap{max-width:520px!important;margin:16px auto!important;border:1px solid #e0d6c8!important;border-radius:14px!important;background:#fffaf4!important;box-shadow:0 6px 20px rgba(155,45,53,.08)!important;overflow:hidden!important;font-size:15px!important;line-height:1.6!important;color:#333!important}
+.ychat-hd{background:linear-gradient(135deg,#9b2d35 0%,#7a1f27 100%)!important;color:#fff!important;padding:14px 16px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;flex-wrap:wrap!important;gap:8px!important}
+.ychat-hd-ttl{font-size:15px!important;font-weight:700!important;margin:0!important;display:flex!important;align-items:center!important;gap:8px!important;color:#fff!important}
+.ychat-hd-ttl::before{content:"💬"!important;font-size:18px!important}
+.ychat-status{display:inline-flex!important;align-items:center!important;gap:6px!important;font-size:12px!important;font-weight:600!important;padding:3px 10px!important;background:rgba(255,255,255,.18)!important;border-radius:999px!important;color:#fff!important}
+.ychat-dot{width:8px!important;height:8px!important;border-radius:50%!important;background:#aaa!important;display:inline-block!important}
+.ychat-dot.on{background:#4ade80!important;box-shadow:0 0 6px rgba(74,222,128,.7)!important}
+.ychat-body{background:#fffaf4!important;padding:14px!important;max-height:420px!important;overflow-y:auto!important;overflow-x:hidden!important;display:flex!important;flex-direction:column!important;gap:10px!important;min-height:180px!important;-webkit-overflow-scrolling:touch!important}
+.ychat-note{background:#fff4e6!important;border:1px solid #f5d7a8!important;border-radius:8px!important;padding:10px 12px!important;font-size:13px!important;color:#7a4a15!important;line-height:1.6!important;word-wrap:break-word!important;overflow-wrap:anywhere!important}
+.ychat-msg{max-width:85%!important;padding:10px 14px!important;border-radius:14px!important;font-size:14px!important;line-height:1.6!important;word-wrap:break-word!important;overflow-wrap:anywhere!important;white-space:pre-wrap!important}
+.ychat-msg.me{align-self:flex-end!important;background:#9b2d35!important;color:#fff!important;border-bottom-right-radius:4px!important}
+.ychat-msg.shop{align-self:flex-start!important;background:#fff!important;color:#333!important;border:1px solid #e7dccc!important;border-bottom-left-radius:4px!important}
+.ychat-msg-time{font-size:11px!important;opacity:.7!important;margin-top:4px!important;display:block!important}
+.ychat-quick{display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:10px 14px 0!important}
+.ychat-qbtn{font-size:12px!important;padding:6px 12px!important;border-radius:999px!important;background:#fff!important;border:1px solid #d6c5a8!important;color:#7a4a15!important;cursor:pointer!important;white-space:nowrap!important;-webkit-tap-highlight-color:transparent!important;touch-action:manipulation!important}
+.ychat-qbtn:hover{background:#fff4e6!important}
+.ychat-form{padding:12px 14px!important;background:#fffaf4!important;border-top:1px solid #ede3d2!important}
+.ychat-row{display:flex!important;gap:8px!important;align-items:stretch!important;flex-wrap:wrap!important}
+.ychat-nick{flex:1 1 100%!important;min-width:0!important;padding:8px 10px!important;border:1px solid #d6c5a8!important;border-radius:8px!important;font-size:16px!important;background:#fff!important;color:#333!important;margin-bottom:8px!important}
+.ychat-ta{flex:1 1 auto!important;min-width:0!important;padding:10px 12px!important;border:1px solid #d6c5a8!important;border-radius:10px!important;font-size:16px!important;background:#fff!important;color:#333!important;resize:none!important;min-height:44px!important;max-height:120px!important;line-height:1.5!important;font-family:inherit!important}
+.ychat-ta:focus,.ychat-nick:focus{outline:none!important;border-color:#9b2d35!important;box-shadow:0 0 0 3px rgba(155,45,53,.15)!important}
+.ychat-send{padding:0 18px!important;min-width:64px!important;border:none!important;border-radius:10px!important;background:linear-gradient(135deg,#9b2d35 0%,#7a1f27 100%)!important;color:#fff!important;font-size:14px!important;font-weight:700!important;cursor:pointer!important;-webkit-tap-highlight-color:transparent!important;touch-action:manipulation!important;white-space:nowrap!important}
+.ychat-send:hover{transform:translateY(-1px)!important;box-shadow:0 4px 10px rgba(155,45,53,.3)!important}
+.ychat-send:disabled{opacity:.5!important;cursor:not-allowed!important;transform:none!important;box-shadow:none!important}
+.ychat-err{color:#c62828!important;font-size:13px!important;padding:8px 14px!important;background:#fff0f0!important;border-top:1px solid #f5c6cb!important;word-wrap:break-word!important;overflow-wrap:anywhere!important}
+.ychat-lang{display:inline-flex!important;gap:4px!important;background:rgba(255,255,255,.15)!important;border-radius:999px!important;padding:2px!important}
+.ychat-lang button{padding:3px 10px!important;border:none!important;border-radius:999px!important;background:transparent!important;color:rgba(255,255,255,.7)!important;font-size:11px!important;font-weight:600!important;cursor:pointer!important;-webkit-tap-highlight-color:transparent!important}
+.ychat-lang button.on{background:#fff!important;color:#9b2d35!important}
+.ychat-foot{text-align:center!important;padding:8px!important;font-size:11px!important;color:#999!important;background:#fffaf4!important;border-top:1px solid #ede3d2!important}
+.ychat-foot a{color:#9b2d35!important;text-decoration:none!important}
+.ychat-empty{text-align:center!important;color:#aaa!important;font-size:13px!important;padding:30px 10px!important}
+.ychat-wrap img{max-width:100%!important;height:auto!important}
+@media(min-width:768px){
+.ychat-wrap{max-width:560px!important;margin:24px auto!important;font-size:15px!important}
+.ychat-hd{padding:16px 20px!important}
+.ychat-hd-ttl{font-size:16px!important}
+.ychat-body{max-height:480px!important;padding:18px 20px!important;min-height:240px!important}
+.ychat-msg{max-width:78%!important;font-size:14px!important}
+.ychat-form{padding:14px 20px!important}
+.ychat-nick{flex:0 0 180px!important;margin-bottom:0!important}
+.ychat-ta{font-size:15px!important}
+.ychat-send{padding:0 24px!important}
+}
+@media(prefers-reduced-motion:reduce){
+.ychat-send{transition:none!important}
+}
+</style>
+
+<div class="ychat-wrap" id="ychat-root" data-slug="dgqeiw1i">
+  <div class="ychat-hd">
+    <h3 class="ychat-hd-ttl"><span id="ychat-shopname">読み込み中...</span></h3>
+    <span class="ychat-status"><span class="ychat-dot" id="ychat-dot"></span><span id="ychat-statusText">確認中</span></span>
+  </div>
+  <div class="ychat-body" id="ychat-body">
+    <div class="ychat-note">匿名でメッセージを送信できます。お気軽にご相談ください（料金・空き状況・ご予約など）。</div>
+    <div class="ychat-empty" id="ychat-empty">メッセージはまだありません</div>
+  </div>
+  <div class="ychat-quick" id="ychat-quick">
+    <button type="button" class="ychat-qbtn" onclick="ychatQ('料金を教えてください')">料金は？</button>
+    <button type="button" class="ychat-qbtn" onclick="ychatQ('今から予約できますか？')">今予約できる？</button>
+    <button type="button" class="ychat-qbtn" onclick="ychatQ('営業時間を教えてください')">営業時間</button>
+    <button type="button" class="ychat-qbtn" onclick="ychatQ('駐車場はありますか？')">駐車場</button>
+  </div>
+  <div class="ychat-form">
+    <div class="ychat-row">
+      <input type="text" class="ychat-nick" id="ychat-nick" placeholder="お名前（任意・20文字まで）" maxlength="20">
+    </div>
+    <div class="ychat-row" style="margin-top:8px">
+      <textarea class="ychat-ta" id="ychat-ta" rows="2" placeholder="メッセージを入力（2〜500文字）" maxlength="500"></textarea>
+      <button type="button" class="ychat-send" id="ychat-send" onclick="ychatSend()">送信</button>
+    </div>
+  </div>
+  <div class="ychat-err" id="ychat-err" style="display:none"></div>
+  <div class="ychat-foot">powered by <a href="https://yobuho.com/" target="_blank" rel="noopener">YobuHo</a></div>
+</div>
+
+<script type="text/javascript">
+(function(){
+  if(window.__ychatInlineLoaded)return;window.__ychatInlineLoaded=true;
+  var API='https://yobuho.com/api/chat-api.php';
+  var root=document.getElementById('ychat-root');
+  var SLUG=root.getAttribute('data-slug')||'';
+  var LS_KEY='ychat_sess_'+SLUG;
+  var sessionToken=null,sessionId=null,sinceId=0,pollTimer=null,statusTimer=null,sending=false;
+  var elBody=document.getElementById('ychat-body');
+  var elEmpty=document.getElementById('ychat-empty');
+  var elName=document.getElementById('ychat-shopname');
+  var elDot=document.getElementById('ychat-dot');
+  var elStatusText=document.getElementById('ychat-statusText');
+  var elTa=document.getElementById('ychat-ta');
+  var elNick=document.getElementById('ychat-nick');
+  var elSend=document.getElementById('ychat-send');
+  var elErr=document.getElementById('ychat-err');
+
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function showErr(m){if(!m){elErr.style.display='none';elErr.textContent='';return}elErr.style.display='block';elErr.textContent=m;setTimeout(function(){elErr.style.display='none';elErr.textContent=''},6000)}
+  function fmtTime(s){try{var d=new Date(s.replace(' ','T')+'+09:00');if(isNaN(d))d=new Date(s);var h=d.getHours(),m=d.getMinutes();return(h<10?'0'+h:h)+':'+(m<10?'0'+m:m)}catch(e){return''}}
+
+  function api(action,params,method){
+    var url=API+'?action='+encodeURIComponent(action);
+    var init={method:method||'POST',headers:{'Content-Type':'application/json'},credentials:'omit'};
+    if(method==='GET'){
+      Object.keys(params||{}).forEach(function(k){url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k])});
+    }else{
+      init.body=JSON.stringify(params||{});
+    }
+    return fetch(url,init).then(function(r){return r.json().catch(function(){return{ok:false,error:'サーバー応答エラー'}})});
+  }
+
+  function renderMsg(m){
+    if(elEmpty&&elEmpty.parentNode)elEmpty.parentNode.removeChild(elEmpty);
+    var d=document.createElement('div');
+    d.className='ychat-msg '+(m.sender_type==='visitor'?'me':'shop');
+    d.innerHTML=esc(m.message)+'<span class="ychat-msg-time">'+esc(fmtTime(m.sent_at))+'</span>';
+    elBody.appendChild(d);
+    elBody.scrollTop=elBody.scrollHeight;
+  }
+
+  function loadSession(){
+    try{var raw=localStorage.getItem(LS_KEY);if(!raw)return null;var j=JSON.parse(raw);if(j&&j.token&&j.ts&&(Date.now()-j.ts)<24*3600*1000)return j;localStorage.removeItem(LS_KEY)}catch(e){}return null
+  }
+  function saveSession(t,id){try{localStorage.setItem(LS_KEY,JSON.stringify({token:t,id:id,ts:Date.now()}))}catch(e){}}
+  function clearSession(){try{localStorage.removeItem(LS_KEY)}catch(e){}}
+
+  function checkStatus(){
+    api('shop-status',{shop_slug:SLUG},'GET').then(function(r){
+      if(!r.ok||!r.chat_enabled){
+        elName.textContent='チャットは利用できません';
+        elStatusText.textContent='未対応';
+        elDot.className='ychat-dot';
+        elTa.disabled=true;elSend.disabled=true;
+        return;
+      }
+      elName.textContent=r.shop_name||'店舗';
+      if(r.is_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
+      else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
+    }).catch(function(){elStatusText.textContent='接続エラー'});
+  }
+
+  function ensureSession(){
+    var s=loadSession();
+    if(s){sessionToken=s.token;sessionId=s.id;return Promise.resolve(true)}
+    return api('start-session',{shop_slug:SLUG,source:'widget'}).then(function(r){
+      if(!r.ok){showErr(r.error||'セッション開始に失敗しました');return false}
+      sessionToken=r.session_token;sessionId=r.session_id;saveSession(sessionToken,sessionId);return true
+    });
+  }
+
+  function poll(){
+    if(!sessionToken)return;
+    api('poll-messages',{session_token:sessionToken,since_id:sinceId},'GET').then(function(r){
+      if(!r.ok)return;
+      if(r.messages&&r.messages.length){
+        r.messages.forEach(function(m){renderMsg(m);if(+m.id>sinceId)sinceId=+m.id});
+      }
+      if(typeof r.shop_online!=='undefined'){
+        if(r.shop_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
+        else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
+      }
+    }).catch(function(){});
+  }
+
+  function startPolling(){
+    if(pollTimer)clearInterval(pollTimer);
+    pollTimer=setInterval(poll,5000);
+    poll();
+  }
+
+  window.ychatSend=function(){
+    if(sending)return;
+    var msg=(elTa.value||'').trim();
+    if(msg.length<2){showErr('2文字以上入力してください');return}
+    if(msg.length>500){showErr('500文字以内で入力してください');return}
+    var nick=(elNick.value||'').trim();
+    sending=true;elSend.disabled=true;
+    ensureSession().then(function(ok){
+      if(!ok){sending=false;elSend.disabled=false;return}
+      api('send-message',{session_token:sessionToken,message:msg,nickname:nick,lang:'ja'}).then(function(r){
+        sending=false;elSend.disabled=false;
+        if(!r.ok){showErr(r.error||'送信に失敗しました');if(r.error&&/Session not found|closed/i.test(r.error)){clearSession();sessionToken=null;sessionId=null;sinceId=0}return}
+        elTa.value='';
+        poll();
+        if(!pollTimer)startPolling();
+      }).catch(function(){sending=false;elSend.disabled=false;showErr('通信エラー')});
+    });
+  };
+
+  window.ychatQ=function(text){elTa.value=text;elTa.focus()};
+
+  elTa.addEventListener('keydown',function(e){
+    if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();window.ychatSend()}
+  });
+  elTa.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(120,this.scrollHeight)+'px'});
+
+  checkStatus();
+  statusTimer=setInterval(checkStatus,60000);
+  var saved=loadSession();
+  if(saved){sessionToken=saved.token;sessionId=saved.id;startPolling()}
+})();
+</script>
+<!-- /YobuChat Inline Widget -->
