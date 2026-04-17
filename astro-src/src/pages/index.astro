@@ -135,6 +135,7 @@ __deferRun(function(){
     var iconMap = {men:'♂',women:'♀',men_same:'♂♂',women_same:'♀♀',este:'💆‍♂️'};
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
     var modeColor = {men:'#c94870',women:'#b760a0',men_same:'#d8182e',women_same:'#c46078',este:'#9f83c0'};
+    var _ext = ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? '_self' : '_blank';
     fetch('/api/recent-shops.php?mode=all').then(function(r){return r.json();}).then(function(shops){
         if(!shops||!shops.length)return;
         var lines=shops.map(function(s){
@@ -144,7 +145,7 @@ __deferRun(function(){
             var color=modeColor[s.gender_mode]||'#666';
             var name=s.shop_name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             var link=s.shop_url||(s.slug?(modePathMap[s.gender_mode]||'/deli/')+'shop/'+s.slug+'/':'');
-            var nameHTML=link?'<a href="'+link+'" target="_blank" rel="noopener" style="color:'+color+';font-weight:600;text-decoration:none;">'+icon+' '+name+'</a>':'<span style="color:'+color+';font-weight:600;">'+icon+' '+name+'</span>';
+            var nameHTML=link?'<a href="'+link+'" target="'+_ext+'" rel="noopener" style="color:'+color+';font-weight:600;text-decoration:none;">'+icon+' '+name+'</a>':'<span style="color:'+color+';font-weight:600;">'+icon+' '+name+'</span>';
             return '<div style="font-size:13px;color:#6a5a4a;padding:3px 0;"><span style="color:#a09080;margin-right:6px;">'+ds+'</span>'+nameHTML+' <span style="color:#a09080;">様 ご登録いただきました</span></div>';
         }).join('');
         var el=document.getElementById('recent-shops-gate');
