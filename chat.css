@@ -104,14 +104,15 @@ a{color:var(--chat-primary);text-decoration:none}
 .quick-row::-webkit-scrollbar{display:none}
 .quick-btn{flex:0 0 auto;padding:6px 12px;background:var(--chat-quick-bg);color:var(--chat-quick-text);border:1px solid var(--chat-quick-border);border-radius:14px;font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap}
 .quick-btn:hover{background:var(--chat-quick-bg-hover)}
-#owner-quick .quick-btn{min-width:44px;padding:6px 10px;font-size:22px;line-height:1}
+#owner-quick .quick-btn{min-width:44px;padding:6px 8px;font-size:22px;line-height:1;background:transparent;border:none;border-radius:8px}
+#owner-quick .quick-btn:hover{background:#f0ede7}
 
 /* ===== 絵文字ピッカー ===== */
 .chat-input-area{position:relative}
 .emoji-toggle{width:38px;height:38px;border-radius:50%;background:#f0ede7;font-size:20px;line-height:1;display:flex;align-items:center;justify-content:center;align-self:flex-end;flex-shrink:0;transition:background .15s}
 .emoji-toggle:hover{background:#e5e0d8}
 .emoji-toggle.hidden{display:none}
-.emoji-popup{position:absolute;bottom:100%;right:58px;margin-bottom:6px;display:flex;gap:6px;padding:8px 10px;background:#fff;border:1px solid #e5e0d8;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:20;flex-wrap:wrap;max-width:calc(100% - 20px)}
+.emoji-popup{position:absolute;bottom:100%;right:58px;margin-bottom:6px;display:flex;gap:4px;padding:8px 10px;background:#fff;border:1px solid #e5e0d8;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:20;flex-wrap:wrap;width:max-content;max-width:calc(100vw - 40px)}
 .emoji-popup.hidden{display:none}
 .emoji-popup::after{content:"";position:absolute;top:100%;right:18px;width:10px;height:10px;background:#fff;border-right:1px solid #e5e0d8;border-bottom:1px solid #e5e0d8;transform:translateY(-5px) rotate(45deg)}
 
