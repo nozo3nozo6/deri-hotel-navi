@@ -58,12 +58,6 @@
     <div class="ychat-note">匿名でメッセージを送信できます。お気軽にご相談ください（料金・空き状況・ご予約など）。</div>
     <div class="ychat-empty" id="ychat-empty">メッセージはまだありません</div>
   </div>
-  <div class="ychat-quick" id="ychat-quick">
-    <button type="button" class="ychat-qbtn" onclick="ychatQ('料金を教えてください')">料金は？</button>
-    <button type="button" class="ychat-qbtn" onclick="ychatQ('今から予約できますか？')">今予約できる？</button>
-    <button type="button" class="ychat-qbtn" onclick="ychatQ('営業時間を教えてください')">営業時間</button>
-    <button type="button" class="ychat-qbtn" onclick="ychatQ('駐車場はありますか？')">駐車場</button>
-  </div>
   <div class="ychat-form">
     <div class="ychat-row">
       <input type="text" class="ychat-nick" id="ychat-nick" placeholder="お名前（任意・20文字まで）" maxlength="20">
@@ -74,7 +68,7 @@
     </div>
   </div>
   <div class="ychat-err" id="ychat-err" style="display:none"></div>
-  <div class="ychat-foot">powered by <a href="https://yobuho.com/" target="_blank" rel="noopener">YobuHo</a></div>
+  <div class="ychat-foot"><a id="ychat-foot-link" href="#" target="_blank" rel="noopener">powered by YobuHo</a></div>
 </div>
 
 <script type="text/javascript">
@@ -83,10 +77,12 @@
   // URLを分割してCMSの自動リンク変換を回避
   var _P='ht'+'tps',_H='yo'+'buho'+'.c'+'om';
   var API=_P+':\/\/'+_H+'/api/chat-'+'api.php';
+  var SITE=_P+':\/\/'+_H+'/';
+  var _flink=document.getElementById('ychat-foot-link');if(_flink)_flink.href=SITE;
   var root=document.getElementById('ychat-root');
   var SLUG=root.getAttribute('data-slug')||'';
   var LS_KEY='ychat_sess_'+SLUG;
-  var sessionToken=null,sessionId=null,sinceId=0,pollTimer=null,statusTimer=null,sending=false;
+  var sessionToken=null,sessionId=null,sinceId=0,pollTimer=null,statusTimer=null,sending=false,pollInFlight=false,statusFailCount=0;
   var elBody=document.getElementById('ychat-body');
   var elEmpty=document.getElementById('ychat-empty');
   var elName=document.getElementById('ychat-shopname');
@@ -137,12 +133,18 @@
         elStatusText.textContent='未対応';
         elDot.className='ychat-dot';
         elTa.disabled=true;elSend.disabled=true;
+        statusFailCount=0;
         return;
       }
+      statusFailCount=0;
       elName.textContent=r.shop_name||'店舗';
       if(r.is_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
       else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
-    }).catch(function(){elStatusText.textContent='接続エラー'});
+    }).catch(function(){
+      statusFailCount++;
+      if(statusFailCount<3)setTimeout(checkStatus,3000);
+      else elStatusText.textContent='接続エラー';
+    });
   }
 
   function ensureSession(){
@@ -155,17 +157,19 @@
   }
 
   function poll(){
-    if(!sessionToken)return;
+    if(!sessionToken||pollInFlight)return;
+    pollInFlight=true;
     api('poll-messages',{session_token:sessionToken,since_id:sinceId},'GET').then(function(r){
+      pollInFlight=false;
       if(!r.ok)return;
       if(r.messages&&r.messages.length){
-        r.messages.forEach(function(m){renderMsg(m);if(+m.id>sinceId)sinceId=+m.id});
+        r.messages.forEach(function(m){var id=+m.id;if(id<=sinceId)return;sinceId=id;renderMsg(m)});
       }
       if(typeof r.shop_online!=='undefined'){
         if(r.shop_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
         else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
       }
-    }).catch(function(){});
+    }).catch(function(){pollInFlight=false});
   }
 
   function startPolling(){
@@ -187,8 +191,7 @@
         sending=false;elSend.disabled=false;
         if(!r.ok){showErr(r.error||'送信に失敗しました');if(r.error&&/Session not found|closed/i.test(r.error)){clearSession();sessionToken=null;sessionId=null;sinceId=0}return}
         elTa.value='';
-        poll();
-        if(!pollTimer)startPolling();
+        if(pollTimer)poll();else startPolling();
       }).catch(function(){sending=false;elSend.disabled=false;showErr('通信エラー')});
     });
   };
