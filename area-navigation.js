@@ -246,7 +246,7 @@ async function appendRecentShops() {
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
             const lpContent = hlc.querySelector('.shop-lp-content');
-            const html = `<div class="recent-shops-section" style="padding:12px 16px;margin-top:12px;background:linear-gradient(135deg,#fffbf0 0%,#fff8e8 100%);border:1px solid #e8d9a8;border-left:4px solid #c9a96e;border-radius:8px;box-shadow:0 1px 4px rgba(201,169,110,0.1);">${lines}</div>`;
+            const html = `<div class="recent-shops-section" style="padding:12px 16px;margin-top:12px;background:linear-gradient(135deg,#fffbf0 0%,#fff8e8 100%);border:1px solid #e8d9a8;border-left:4px solid #c9a96e;border-radius:8px;box-shadow:0 1px 4px rgba(201,169,110,0.1);"><div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(201,169,110,0.3);">🎉 新規登録店舗</div><div style="max-height:190px;overflow-y:auto;overflow-x:hidden;padding-right:4px;">${lines}</div></div>`;
             if (lpContent) {
                 lpContent.insertAdjacentHTML('beforebegin', html);
             } else {
