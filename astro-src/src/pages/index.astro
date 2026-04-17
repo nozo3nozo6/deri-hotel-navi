@@ -148,7 +148,7 @@ __deferRun(function(){
             return '<div style="font-size:13px;color:#6a5a4a;padding:3px 0;"><span style="color:#a09080;margin-right:6px;">'+ds+'</span>'+nameHTML+' <span style="color:#a09080;">様 ご登録いただきました</span></div>';
         }).join('');
         var el=document.getElementById('recent-shops-gate');
-        if(el)el.innerHTML='<div style="padding:14px 18px;margin:12px 0;background:#fbfaf7;border:1px solid #e8e3d8;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);"><div style="max-height:190px;overflow-y:auto;overflow-x:hidden;padding-right:4px;">'+lines+'</div></div>';
+        if(el)el.innerHTML='<div style="padding:14px 18px;margin:12px 0;background:#fbfaf7;border:1px solid #e8e3d8;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">🎉 新規登録店舗</div><div style="max-height:190px;overflow-y:auto;overflow-x:hidden;padding-right:4px;">'+lines+'</div></div>';
     }).catch(function(){});
 });
 
