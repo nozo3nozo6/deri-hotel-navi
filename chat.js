@@ -67,6 +67,7 @@ const refs = {
     chatMessages: $('chat-messages'),
     quickQuestions: $('quick-questions'),
     visitorNote: $('visitor-note'),
+    ownerQuick: $('owner-quick'),
     nicknameArea: document.getElementById('nickname-area'),
     nicknameInput: document.getElementById('visitor-nickname'),
     ownerTemplates: $('owner-templates'),
@@ -513,6 +514,7 @@ async function enterOwnerMode() {
     if (refs.homeLink) refs.homeLink.classList.add('hidden');
     refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
 
     await refreshOwnerStatus();
@@ -572,6 +574,7 @@ async function openOwnerThread(sessionId) {
     refs.chatThread.classList.remove('hidden');
     refs.chatExit.classList.remove('hidden');
     refs.ownerTemplates.classList.remove('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.remove('hidden');
     refs.chatMessages.innerHTML = '';
     state.last_message_id = 0;
 
@@ -596,6 +599,7 @@ async function openOwnerThread(sessionId) {
     const isClosed = state.selected_session.status === 'closed';
     refs.inputArea.classList.toggle('hidden', isClosed);
     refs.ownerTemplates.classList.toggle('hidden', isClosed);
+    if (refs.ownerQuick) refs.ownerQuick.classList.toggle('hidden', isClosed);
 }
 
 function updateBlockButton() {
@@ -768,6 +772,15 @@ refs.quickQuestions.addEventListener('click', (e) => {
     sendVisitorMessage(btn.dataset.quick);
 });
 
+if (refs.ownerQuick) {
+    refs.ownerQuick.addEventListener('click', (e) => {
+        const btn = e.target.closest('.quick-btn');
+        if (!btn) return;
+        refs.input.value = btn.dataset.quick || '';
+        refs.input.focus();
+    });
+}
+
 refs.onlineToggle.addEventListener('change', async (e) => {
     try {
         const res = await api('toggle-online', {
@@ -786,6 +799,7 @@ refs.btnBackInbox.addEventListener('click', () => {
     state.selected_session = null;
     refs.chatExit.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     refs.shopName.textContent = state.shop_name;
     showInbox();
 });
