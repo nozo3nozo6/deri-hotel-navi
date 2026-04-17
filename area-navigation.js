@@ -105,6 +105,10 @@ function buildUrl(params) {
 function updateUrl(params) {
     if (_skipPushState) return;
     history.pushState(null, '', buildUrl(params));
+    // サーバーで埋め込んだ静的SEOセクションは初回URLのみ有効。SPA遷移時は除去
+    // （クローラーは毎回フルロードで正しいセクションを取得するためSEO影響ゼロ）
+    var seo = document.querySelector('.seo-static-content');
+    if (seo) seo.remove();
 }
 
 function goToNationalTop() {
