@@ -487,10 +487,17 @@ function handlePollMessages() {
     $stmt->execute([$session['shop_id']]);
     $shopOnline = (int)$stmt->fetchColumn() === 1;
 
+    // 訪問者の自メッセージのうち shop が既読した最大ID
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NOT NULL");
+    $stmt->execute([$session['id']]);
+    $lastReadOwnId = (int)$stmt->fetchColumn();
+
     ok([
         'messages' => $messages,
         'shop_online' => $shopOnline,
         'status' => $session['status'],
+        'last_read_own_id' => $lastReadOwnId,
     ]);
 }
 
@@ -582,6 +589,12 @@ function handleOwnerInbox() {
             $stmt = $pdo->prepare('SELECT 1 FROM chat_blocks WHERE shop_id = ? AND visitor_hash = ? LIMIT 1');
             $stmt->execute([$device['shop_id'], $sessRow['visitor_hash']]);
             $response['is_blocked'] = (bool)$stmt->fetchColumn();
+
+            // ショップ自メッセージのうち visitor が既読した最大ID（オーナー表示用）
+            $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                                   WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");
+            $stmt->execute([$sessionId]);
+            $response['last_read_own_id'] = (int)$stmt->fetchColumn();
 
             // visitor側メッセージを既読に
             $pdo->prepare("UPDATE chat_messages SET read_at = NOW()

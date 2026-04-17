@@ -8,7 +8,7 @@
 <title>💬 YobuChat - YobuHo チャット</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://yobuho.com https://cloudflareinsights.com;">
 <link rel="icon" href="/favicon.ico">
-<link rel="stylesheet" href="/chat.css?v=20">
+<link rel="stylesheet" href="/chat.css?v=21">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -66,8 +66,13 @@
       <input type="text" id="visitor-nickname" class="nickname-input" maxlength="20" placeholder="例: たろう" data-i18n-placeholder="nickname.placeholder" autocomplete="off">
     </div>
 
-    <div id="owner-quick" class="quick-questions hidden">
-      <div class="quick-row">
+    <div id="owner-templates" class="owner-templates hidden">
+      <p class="hint" data-i18n="template.title">定型文:</p>
+      <div id="template-list" class="template-list"></div>
+    </div>
+
+    <div id="chat-input-area" class="chat-input-area">
+      <div id="owner-quick" class="emoji-popup hidden">
         <button type="button" class="quick-btn" data-quick="🙏" aria-label="ありがとう">🙏</button>
         <button type="button" class="quick-btn" data-quick="🙇" aria-label="ごめん（男性）">🙇</button>
         <button type="button" class="quick-btn" data-quick="🙇‍♀️" aria-label="ごめん（女性）">🙇‍♀️</button>
@@ -75,15 +80,8 @@
         <button type="button" class="quick-btn" data-quick="⏰" aria-label="少々お待ち">⏰</button>
         <button type="button" class="quick-btn" data-quick="✅" aria-label="確認お願い">✅</button>
       </div>
-    </div>
-
-    <div id="owner-templates" class="owner-templates hidden">
-      <p class="hint" data-i18n="template.title">定型文:</p>
-      <div id="template-list" class="template-list"></div>
-    </div>
-
-    <div id="chat-input-area" class="chat-input-area">
       <textarea id="chat-input" rows="2" maxlength="500" placeholder="メッセージを入力..." data-i18n-placeholder="input.placeholder" autocomplete="off"></textarea>
+      <button type="button" id="emoji-toggle" class="emoji-toggle hidden" aria-label="絵文字">😊</button>
       <button type="button" id="chat-send" class="send-btn" aria-label="送信" data-i18n="input.send">送信</button>
     </div>
 
@@ -122,6 +120,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=20"></script>
+<script src="/chat.js?v=21"></script>
 </body>
 </html>

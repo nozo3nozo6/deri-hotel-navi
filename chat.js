@@ -40,6 +40,8 @@ let state = {
     session_token: '',
     session_id: 0,
     last_message_id: 0,
+    last_read_own_id: 0,
+    last_msg_date: '',
     device_token: '',
     inbox_sessions: [],
     selected_session: null,
@@ -68,6 +70,7 @@ const refs = {
     quickQuestions: $('quick-questions'),
     visitorNote: $('visitor-note'),
     ownerQuick: $('owner-quick'),
+    emojiToggle: $('emoji-toggle'),
     nicknameArea: document.getElementById('nickname-area'),
     nicknameInput: document.getElementById('visitor-nickname'),
     ownerTemplates: $('owner-templates'),
@@ -107,6 +110,22 @@ function formatTime(s) {
     const d = new Date(s.replace(' ', 'T') + '+09:00');
     return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
+function getDateKey(s) {
+    if (!s) return '';
+    const d = new Date(s.replace(' ', 'T') + '+09:00');
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function formatDateLabel(key) {
+    if (!key) return '';
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const y = new Date(now); y.setDate(y.getDate()-1);
+    const yday = y.getFullYear() + '-' + String(y.getMonth()+1).padStart(2,'0') + '-' + String(y.getDate()).padStart(2,'0');
+    if (key === today) return t('date.today') || '今日';
+    if (key === yday) return t('date.yesterday') || '昨日';
+    const [yr, mo, da] = key.split('-');
+    return yr + '年' + Number(mo) + '月' + Number(da) + '日';
+}
 
 async function api(action, params, method, baseUrl) {
     method = method || 'POST';
@@ -145,7 +164,8 @@ const I18N = {
         'login.title': '👤 オーナーログイン', 'login.desc': 'shop-admin のログイン情報でサインインしてください',
         'login.email': 'メールアドレス', 'login.password': 'パスワード', 'login.submit': 'ログイン',
         'login.note': '※ このチャットの店舗を運営するオーナー専用です',
-        'load': '読み込み中…', 'owner.loginLink': '店舗オーナーの方はこちら →'
+        'load': '読み込み中…', 'owner.loginLink': '店舗オーナーの方はこちら →',
+        'msg.read': '既読', 'date.today': '今日', 'date.yesterday': '昨日'
     },
     en: {
         'status.online': 'Online', 'status.offline': 'Offline',
@@ -161,7 +181,8 @@ const I18N = {
         'login.title': '👤 Owner login', 'login.desc': 'Sign in with your shop-admin credentials',
         'login.email': 'Email', 'login.password': 'Password', 'login.submit': 'Log in',
         'login.note': '* For the shop owner running this chat only',
-        'load': 'Loading…', 'owner.loginLink': 'Are you the shop owner? Log in →'
+        'load': 'Loading…', 'owner.loginLink': 'Are you the shop owner? Log in →',
+        'msg.read': 'Read', 'date.today': 'Today', 'date.yesterday': 'Yesterday'
     },
     zh: {
         'status.online': '在线', 'status.offline': '离线',
@@ -177,7 +198,8 @@ const I18N = {
         'login.title': '👤 店主登录', 'login.desc': '使用 shop-admin 账号登录',
         'login.email': '邮箱', 'login.password': '密码', 'login.submit': '登录',
         'login.note': '※ 仅限经营此聊天的店主',
-        'load': '加载中…', 'owner.loginLink': '店主登录 →'
+        'load': '加载中…', 'owner.loginLink': '店主登录 →',
+        'msg.read': '已读', 'date.today': '今天', 'date.yesterday': '昨天'
     },
     ko: {
         'status.online': '온라인', 'status.offline': '오프라인',
@@ -193,7 +215,8 @@ const I18N = {
         'login.title': '👤 점주 로그인', 'login.desc': 'shop-admin 로그인 정보로 로그인하세요',
         'login.email': '이메일', 'login.password': '비밀번호', 'login.submit': '로그인',
         'login.note': '※ 이 채팅을 운영하는 점주 전용',
-        'load': '로딩 중…', 'owner.loginLink': '점주 로그인 →'
+        'load': '로딩 중…', 'owner.loginLink': '점주 로그인 →',
+        'msg.read': '읽음', 'date.today': '오늘', 'date.yesterday': '어제'
     }
 };
 let currentLang = 'ja';
@@ -345,6 +368,8 @@ async function enterVisitorMode() {
     refs.quickQuestions.classList.remove('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
     refs.ownerTemplates.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     refs.chatExit.classList.add('hidden');
     if (refs.homeLink) refs.homeLink.classList.remove('hidden');
     if (refs.nicknameArea) {
@@ -395,26 +420,71 @@ function addSystemMessage(text) {
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 }
 
+function addDateSeparator(key) {
+    const sep = document.createElement('div');
+    sep.className = 'msg-date-sep';
+    sep.dataset.dateKey = key;
+    sep.innerHTML = '<span>' + esc(formatDateLabel(key)) + '</span>';
+    refs.chatMessages.appendChild(sep);
+}
 function addMessage(m, fromOwner) {
-    const div = document.createElement('div');
     const isVisitor = m.sender_type === 'visitor';
     const renderAs = fromOwner ? (isVisitor ? 'shop' : 'visitor') : (isVisitor ? 'visitor' : 'shop');
-    div.className = 'msg ' + renderAs;
-    div.textContent = m.message;
 
+    // 日付セパレーター
+    const dateKey = getDateKey(m.sent_at);
+    if (dateKey && dateKey !== state.last_msg_date) {
+        addDateSeparator(dateKey);
+        state.last_msg_date = dateKey;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + renderAs;
+    if (m.id) row.dataset.msgId = m.id;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg ' + renderAs;
+    bubble.textContent = m.message;
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
     const t = document.createElement('div');
     t.className = 'msg-time';
     t.textContent = formatTime(m.sent_at);
-    div.appendChild(t);
-    refs.chatMessages.appendChild(div);
+    meta.appendChild(t);
+
+    // visitor(自分)=時刻を吹き出しの左, shop(相手)=時刻を吹き出しの右
+    if (renderAs === 'visitor') { row.appendChild(meta); row.appendChild(bubble); }
+    else { row.appendChild(bubble); row.appendChild(meta); }
+    refs.chatMessages.appendChild(row);
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 
     // 翻訳表示: 相手のメッセージで、言語が viewer 側と異なる場合に自動翻訳
     const isOthers = fromOwner ? isVisitor : !isVisitor;
     const src = ((m.source_lang || '').toLowerCase()) || detectLang(m.message);
     if (isOthers && src && src !== currentLang && I18N[src] && I18N[currentLang]) {
-        maybeTranslate(div, m.message, src, currentLang);
+        maybeTranslate(bubble, m.message, src, currentLang);
     }
+}
+function updateReadMarkers() {
+    const ownClass = state.mode === 'owner' ? 'shop' : 'visitor';
+    const threshold = state.last_read_own_id || 0;
+    refs.chatMessages.querySelectorAll('.msg-row.' + ownClass).forEach(row => {
+        const id = Number(row.dataset.msgId || 0);
+        const meta = row.querySelector('.msg-meta');
+        if (!meta) return;
+        let mark = meta.querySelector('.msg-read');
+        if (id && id <= threshold) {
+            if (!mark) {
+                mark = document.createElement('div');
+                mark.className = 'msg-read';
+                mark.textContent = t('msg.read') || '既読';
+                meta.appendChild(mark);
+            }
+        } else if (mark) {
+            mark.remove();
+        }
+    });
 }
 
 function detectLang(text) {
@@ -470,6 +540,10 @@ async function pollMessages(initial) {
             addMessage(m, false);
             state.last_message_id = Math.max(state.last_message_id, m.id);
         }
+        if (typeof data.last_read_own_id !== 'undefined') {
+            state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+            updateReadMarkers();
+        }
         updateStatusIndicator(data.shop_online);
         if (data.status === 'closed') {
             stopPolling();
@@ -522,6 +596,7 @@ async function enterOwnerMode() {
     refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
 
     await refreshOwnerStatus();
@@ -581,9 +656,12 @@ async function openOwnerThread(sessionId) {
     refs.chatThread.classList.remove('hidden');
     refs.chatExit.classList.remove('hidden');
     refs.ownerTemplates.classList.remove('hidden');
-    if (refs.ownerQuick) refs.ownerQuick.classList.remove('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
     refs.chatMessages.innerHTML = '';
     state.last_message_id = 0;
+    state.last_msg_date = '';
+    state.last_read_own_id = 0;
 
     const visitorLabel = state.selected_session.nickname
         ? state.selected_session.nickname
@@ -599,6 +677,10 @@ async function openOwnerThread(sessionId) {
             addMessage(m, true);
             state.last_message_id = Math.max(state.last_message_id, m.id);
         }
+        if (typeof data.last_read_own_id !== 'undefined') {
+            state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+            updateReadMarkers();
+        }
         state.selected_session.is_blocked = !!data.is_blocked;
         updateBlockButton();
     } catch (e) { showError(e.message); }
@@ -606,7 +688,8 @@ async function openOwnerThread(sessionId) {
     const isClosed = state.selected_session.status === 'closed';
     refs.inputArea.classList.toggle('hidden', isClosed);
     refs.ownerTemplates.classList.toggle('hidden', isClosed);
-    if (refs.ownerQuick) refs.ownerQuick.classList.toggle('hidden', isClosed);
+    if (refs.emojiToggle) refs.emojiToggle.classList.toggle('hidden', isClosed);
+    if (isClosed && refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
 }
 
 function updateBlockButton() {
@@ -688,6 +771,10 @@ function startInboxPolling() {
                         addMessage(m, true);
                         state.last_message_id = m.id;
                     }
+                }
+                if (typeof data.last_read_own_id !== 'undefined') {
+                    state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+                    updateReadMarkers();
                 }
             } catch (e) { /* ignore */ }
         }
@@ -791,6 +878,20 @@ if (refs.ownerQuick) {
         const pos = start + emoji.length;
         el.focus();
         try { el.setSelectionRange(pos, pos); } catch (_) {}
+        refs.ownerQuick.classList.add('hidden');
+    });
+}
+
+if (refs.emojiToggle) {
+    refs.emojiToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!refs.ownerQuick) return;
+        refs.ownerQuick.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (!refs.ownerQuick || refs.ownerQuick.classList.contains('hidden')) return;
+        if (e.target.closest('#owner-quick') || e.target.closest('#emoji-toggle')) return;
+        refs.ownerQuick.classList.add('hidden');
     });
 }
 
@@ -813,6 +914,7 @@ refs.btnBackInbox.addEventListener('click', () => {
     refs.chatExit.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     refs.shopName.textContent = state.shop_name;
     showInbox();
 });
