@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="96" viewBox="0 0 480 96">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9b2d35"/>
+      <stop offset="100%" stop-color="#7a1f27"/>
+    </linearGradient>
+    <filter id="s" x="-10%" y="-10%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="464" height="80" rx="40" ry="40" fill="url(#g)" filter="url(#s)"/>
+  <text x="240" y="58" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif" font-size="22" font-weight="bold" fill="#fff">
+    💬 チャットで問い合わせる
+  </text>
+</svg>

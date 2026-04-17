@@ -102,11 +102,14 @@
   function fmtTime(s){try{var d=new Date(s.replace(' ','T')+'+09:00');if(isNaN(d))d=new Date(s);var h=d.getHours(),m=d.getMinutes();return(h<10?'0'+h:h)+':'+(m<10?'0'+m:m)}catch(e){return''}}
 
   function api(action,params,method){
+    method=method||'POST';
     var url=API+'?action='+encodeURIComponent(action);
-    var init={method:method||'POST',headers:{'Content-Type':'application/json'},credentials:'omit'};
+    var init={method:method,credentials:'omit'};
     if(method==='GET'){
+      // GETはヘッダー無しでsimple CORS request化（プリフライト回避）
       Object.keys(params||{}).forEach(function(k){url+='&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k])});
     }else{
+      init.headers={'Content-Type':'application/json'};
       init.body=JSON.stringify(params||{});
     }
     return fetch(url,init).then(function(r){return r.json().catch(function(){return{ok:false,error:'サーバー応答エラー'}})});

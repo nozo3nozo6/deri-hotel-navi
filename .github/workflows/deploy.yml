@@ -82,7 +82,7 @@ jobs:
 
       - name: Deploy code via rsync
         run: |
-          rsync -avz --delete \
+          rsync -avz \
             --exclude='.git*' --exclude='node_modules' --exclude='.github' \
             --exclude='sql' --exclude='CLAUDE.md' --exclude='README.md' --exclude='progress.md' \
             --exclude='HANDOFF-*.md' --exclude='PROPOSAL-*.md' \

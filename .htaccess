@@ -49,7 +49,15 @@ Options -Indexes
     Header always set X-XSS-Protection "1; mode=block"
     # Referrer制御
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # チャット埋め込み用に外部iframeを許可（/chat/ のみ、env=chat_embedで判定）
+    Header always unset X-Frame-Options env=chat_embed
+    Header unset X-Frame-Options env=chat_embed
+    Header always set Content-Security-Policy "frame-ancestors *" env=chat_embed
 </IfModule>
+
+# /chat/ リクエストで環境変数 chat_embed=1 をセット
+SetEnvIf Request_URI "^/chat/" chat_embed=1
 
 # ===== 基本設定 =====
 AddDefaultCharset UTF-8
@@ -93,6 +101,9 @@ RewriteRule ^jofu/hotel/([0-9]+)/?$ /portal-women.php?hotel=$1 [L,QSA]
 RewriteRule ^same-m/hotel/([0-9]+)/?$ /portal-men-same.php?hotel=$1 [L,QSA]
 RewriteRule ^same-f/hotel/([0-9]+)/?$ /portal-women-same.php?hotel=$1 [L,QSA]
 RewriteRule ^este/hotel/([0-9]+)/?$ /portal-este.php?hotel=$1 [L,QSA]
+
+# チャット専用URL: /chat/slug/ → chat-embed.php?slug=slug（PHP側でX-Frame-Options除去）
+RewriteRule ^chat/([a-z0-9\-]+)/?$ /chat-embed.php?slug=$1 [L,QSA,E=chat_embed:1]
 
 # 店舗専用URL: /deli/shop/slug/ → portal-men.php?shop=slug
 RewriteRule ^deli/shop/([a-z0-9\-]+)/?$ /portal-men.php?shop=$1 [L,QSA]
@@ -224,6 +235,15 @@ RewriteRule ^portal\.html$ /portal-women-same.php [L,QSA]
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
+
+# チャット埋め込み用ファイルは X-Frame-Options を除去（外部iframe許可）
+<Files "chat-embed.php">
+  <IfModule mod_headers.c>
+    Header always unset X-Frame-Options
+    Header unset X-Frame-Options
+    Header always set Content-Security-Policy "frame-ancestors *"
+  </IfModule>
+</Files>
 
 # Gzip圧縮
 <IfModule mod_deflate.c>
