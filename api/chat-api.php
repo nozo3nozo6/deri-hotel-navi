@@ -130,7 +130,7 @@ function verifyDevice(string $token): ?array {
     if ($token === '' || strlen($token) < 32) return null;
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT d.shop_id, s.shop_name, s.slug
+        'SELECT d.shop_id, s.shop_name, s.slug, s.gender_mode
          FROM shop_chat_devices d
          INNER JOIN shops s ON s.id = d.shop_id
          INNER JOIN shop_chat_status st ON st.shop_id = d.shop_id
@@ -400,6 +400,7 @@ function handleStartSession() {
         'session_id'    => $sessionId,
         'shop_name'     => $shop['shop_name'],
         'is_online'     => (int)$shop['is_online'] === 1,
+        'gender_mode'   => $shop['gender_mode'] ?? 'men',
     ]);
 }
 
@@ -504,6 +505,7 @@ function handleShopStatus() {
         'chat_enabled' => true,
         'is_online'    => (int)$shop['is_online'] === 1,
         'shop_name'    => $shop['shop_name'],
+        'gender_mode'  => $shop['gender_mode'] ?? 'men',
     ]);
 }
 
@@ -535,9 +537,10 @@ function handleVerifyDevice() {
     $device = verifyDevice($token);
     if (!$device) err('Invalid device token', 401);
     ok([
-        'shop_id'   => $device['shop_id'],
-        'shop_name' => $device['shop_name'],
-        'slug'      => $device['slug'],
+        'shop_id'     => $device['shop_id'],
+        'shop_name'   => $device['shop_name'],
+        'slug'        => $device['slug'],
+        'gender_mode' => $device['gender_mode'] ?? 'men',
     ]);
 }
 

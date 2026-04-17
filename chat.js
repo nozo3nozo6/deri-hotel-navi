@@ -98,6 +98,10 @@ function showError(msg) {
     setTimeout(() => refs.error.classList.add('hidden'), 3500);
 }
 function setLoading(on) { refs.root.classList.toggle('loading', on); }
+function setThemeMode(mode) {
+    const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
+    try { document.body.dataset.mode = m; } catch (_) {}
+}
 function formatTime(s) {
     if (!s) return '';
     const d = new Date(s.replace(' ', 'T') + '+09:00');
@@ -265,6 +269,7 @@ async function _init() {
                     state.mode = 'owner';
                     state.device_token = savedToken;
                     state.shop_name = dev.shop_name;
+                    setThemeMode(dev.gender_mode);
                     await enterOwnerMode();
                     setLoading(false);
                     return;
@@ -290,6 +295,7 @@ async function _init() {
                         state.mode = 'owner';
                         state.device_token = reg.device_token;
                         state.shop_name = chkData.shop.shop_name || '';
+                        setThemeMode(chkData.shop.gender_mode || reg.gender_mode);
                         await enterOwnerMode();
                         setLoading(false);
                         return;
@@ -308,6 +314,7 @@ async function _init() {
         }
         state.shop_name = status.shop_name;
         state.is_online = status.is_online;
+        setThemeMode(status.gender_mode);
         await enterVisitorMode();
 
         // URLパラメータ ?owner=1 でオーナーログインモーダル自動起動
