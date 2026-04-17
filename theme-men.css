@@ -347,11 +347,6 @@ body[data-mode="men"] footer {
     border-top: 2px solid #c94870 !important;
 }
 
-/* ── 最新の口コミで店舗名非表示（ユーザー要望） ── */
-body[data-mode="men"] a.hover-bg > span:last-child {
-    display: none !important;
-}
-
 /* ── ホテル一覧ページで検索コンパクト化 ── */
 body[data-mode="men"].test-hotel-list-mode .search-tools {
     padding: 10px 12px !important;
