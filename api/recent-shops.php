@@ -26,7 +26,7 @@ try {
             WHERE show_announcement = 1
               AND status = 'active'
             ORDER BY approved_at DESC
-            LIMIT 10
+            LIMIT 30
         ");
         $stmt->execute();
     } else {
@@ -37,7 +37,7 @@ try {
               AND status = 'active'
               AND gender_mode = ?
             ORDER BY approved_at DESC
-            LIMIT 10
+            LIMIT 30
         ");
         $stmt->execute([$mode]);
     }
