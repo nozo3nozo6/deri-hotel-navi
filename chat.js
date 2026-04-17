@@ -783,8 +783,14 @@ if (refs.ownerQuick) {
     refs.ownerQuick.addEventListener('click', (e) => {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
-        refs.input.value = btn.dataset.quick || '';
-        refs.input.focus();
+        const emoji = btn.dataset.quick || '';
+        const el = refs.input;
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
+        const pos = start + emoji.length;
+        el.focus();
+        try { el.setSelectionRange(pos, pos); } catch (_) {}
     });
 }
 
