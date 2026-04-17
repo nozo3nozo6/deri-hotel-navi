@@ -30,12 +30,14 @@ $hotelName = trim($input['hotel_name'] ?? '');
 $address   = trim($input['address'] ?? '');
 $tel       = trim($input['tel'] ?? '') ?: null;
 $hotelType = $input['hotel_type'] ?? 'business';
+$comment   = trim($input['comment'] ?? '') ?: null;
 
 if (!$hotelName || !$address) { http_response_code(400); echo json_encode(['error' => 'hotel_name and address are required']); exit; }
 
 $hotelName = mb_substr($hotelName, 0, 200);
 $address = mb_substr($address, 0, 500);
 if ($tel) $tel = mb_substr($tel, 0, 30);
+if ($comment) $comment = mb_substr($comment, 0, 500);
 
 $allowedTypes = ['business', 'city', 'resort', 'ryokan', 'pension', 'minshuku', 'love_hotel', 'rental_room', 'other'];
 if (!in_array($hotelType, $allowedTypes)) $hotelType = 'other';
@@ -57,8 +59,8 @@ if (count($requests) >= MAX_REQUESTS_PER_IP_24H) {
 }
 
 $pdo = DB::conn();
-$stmt = $pdo->prepare('INSERT INTO hotel_requests (hotel_name, address, tel, hotel_type, status) VALUES (?, ?, ?, ?, ?)');
-$stmt->execute([$hotelName, $address, $tel, $hotelType, 'pending']);
+$stmt = $pdo->prepare('INSERT INTO hotel_requests (hotel_name, address, tel, hotel_type, comment, status) VALUES (?, ?, ?, ?, ?, ?)');
+$stmt->execute([$hotelName, $address, $tel, $hotelType, $comment, 'pending']);
 $id = $pdo->lastInsertId();
 
 $requests[] = $now;

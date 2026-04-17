@@ -634,7 +634,7 @@
                     <thead><tr>
                         <th onclick="doSort('hreq','created_at',renderHotelRequests)">申請日<span class="sa">↕</span></th>
                         <th onclick="doSort('hreq','hotel_name',renderHotelRequests)">ホテル名<span class="sa">↕</span></th>
-                        <th>住所</th><th>TEL</th><th>タイプ</th><th>ステータス</th><th>操作</th>
+                        <th>住所</th><th>TEL</th><th>タイプ</th><th>コメント</th><th>ステータス</th><th>操作</th>
                     </tr></thead>
                     <tbody id="hreq-tbody"></tbody>
                 </table></div>
@@ -2952,7 +2952,7 @@ function renderHotelRequests(){
   data=applySortArr(data,"hreq");
   document.getElementById("hreq-sub").textContent=data.length+" 件";
   if(data.length===0){
-    document.getElementById("hreq-tbody").innerHTML='<tr class="erow"><td colspan="7">リクエストがありません</td></tr>';
+    document.getElementById("hreq-tbody").innerHTML='<tr class="erow"><td colspan="8">リクエストがありません</td></tr>';
     return;
   }
   document.getElementById("hreq-tbody").innerHTML=data.map(function(r){
@@ -2972,6 +2972,7 @@ function renderHotelRequests(){
       +'<td style="font-size:11px;color:var(--ink-3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.address||"—")+'</td>'
       +'<td style="font-size:11px;color:var(--ink-3);">'+esc(r.tel||"—")+'</td>'
       +'<td style="font-size:11px;">'+esc(HREQ_TYPE_LABELS[r.hotel_type]||r.hotel_type||"—")+'</td>'
+      +'<td style="font-size:11px;color:var(--ink-3);max-width:200px;white-space:pre-wrap;word-break:break-word;">'+esc(r.comment||"—")+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td>'+actionBtns+'</td>'
       +'</tr>';

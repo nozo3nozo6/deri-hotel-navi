@@ -751,6 +751,8 @@ function openHotelRequestModal() {
     document.getElementById('hreq-address').value = '';
     document.getElementById('hreq-tel').value = '';
     document.getElementById('hreq-type').value = 'business';
+    const _hc = document.getElementById('hreq-comment');
+    if (_hc) _hc.value = '';
     document.getElementById('hreq-err').style.display = 'none';
     document.getElementById('hreq-step1').style.display = '';
     document.getElementById('hreq-step2').style.display = 'none';
@@ -776,11 +778,13 @@ function hreqToConfirm() {
 
     const tel = document.getElementById('hreq-tel').value.trim();
     const type = document.getElementById('hreq-type').value;
+    const comment = (document.getElementById('hreq-comment')?.value || '').trim();
     const rows = [
         ['ホテル名', name],
         ['住所', address],
         ...(tel ? [['電話番号', tel]] : []),
         ['タイプ', HOTEL_TYPE_LABELS[type] || type],
+        ...(comment ? [['コメント', comment]] : []),
     ];
     document.getElementById('hreq-confirm-body').innerHTML = rows.map(([k, v]) =>
         `<div><span style="font-size:11px;color:#8a7a6a;font-weight:700;">${esc(k)}</span><div style="font-size:13px;color:#1a1410;margin-top:2px;">${esc(v)}</div></div>`
@@ -804,12 +808,13 @@ async function submitHotelRequest() {
     const address = document.getElementById('hreq-address').value.trim();
     const tel = document.getElementById('hreq-tel').value.trim() || null;
     const type = document.getElementById('hreq-type').value;
+    const comment = (document.getElementById('hreq-comment')?.value || '').trim() || null;
 
     try {
         const res = await fetch('/api/submit-hotel-request.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_name: name, address, tel, hotel_type: type }),
+            body: JSON.stringify({ hotel_name: name, address, tel, hotel_type: type, comment }),
         });
 
         btn.disabled = false;

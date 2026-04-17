@@ -379,6 +379,10 @@ const jsonLd = [
                             <option value="other">その他</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="modal-label" for="hreq-comment">コメント <span class="modal-label-optional">(任意)</span></label>
+                        <textarea id="hreq-comment" class="modal-input" rows="3" maxlength="500" placeholder="補足情報があればご記入ください（営業中/閉業/移転先など）" style="resize:vertical;min-height:72px;font-family:inherit;"></textarea>
+                    </div>
                 </div>
                 <div id="hreq-err" class="modal-error" role="alert" aria-live="polite" style="margin-bottom:12px;"></div>
                 <button data-action="hreqToConfirm" class="btn-modal-primary" style="font-size:14px;margin-bottom:8px;">確認画面へ &rarr;</button>
