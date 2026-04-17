@@ -80,9 +80,7 @@ const refs = {
     inputArea: $('chat-input-area'),
     input: $('chat-input'),
     sendBtn: $('chat-send'),
-    chatExit: $('chat-exit'),
     btnRefresh: $('btn-refresh-inbox'),
-    btnBackInbox: $('btn-back-inbox'),
     btnBlock: $('btn-block-user'),
     btnOwnerLogout: $('btn-owner-logout'),
     error: $('chat-error'),
@@ -374,7 +372,7 @@ async function enterVisitorMode() {
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
-    refs.chatExit.classList.add('hidden');
+    if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     if (refs.homeLink) refs.homeLink.classList.remove('hidden');
     if (refs.nicknameArea) {
         refs.nicknameArea.classList.remove('hidden');
@@ -660,7 +658,7 @@ async function openOwnerThread(sessionId) {
     if (!state.selected_session) return;
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
-    refs.chatExit.classList.remove('hidden');
+    if (refs.btnBlock) refs.btnBlock.classList.remove('hidden');
     refs.ownerTemplates.classList.remove('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
@@ -922,7 +920,7 @@ refs.onlineToggle.addEventListener('change', async (e) => {
 refs.btnRefresh.addEventListener('click', () => showInbox());
 function backToInbox() {
     state.selected_session = null;
-    refs.chatExit.classList.add('hidden');
+    if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -931,7 +929,6 @@ function backToInbox() {
     refs.shopName.textContent = state.shop_name;
     showInbox();
 }
-refs.btnBackInbox.addEventListener('click', backToInbox);
 if (refs.btnHeaderBack) refs.btnHeaderBack.addEventListener('click', backToInbox);
 
 refs.btnBlock.addEventListener('click', async () => {
@@ -957,7 +954,7 @@ refs.btnBlock.addEventListener('click', async () => {
             });
             showError('ブロックしました');
             state.selected_session = null;
-            refs.chatExit.classList.add('hidden');
+            if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
             refs.ownerTemplates.classList.add('hidden');
             await showInbox();
         } catch (e) { showError(e.message); }
