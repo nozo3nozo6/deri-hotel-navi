@@ -120,7 +120,18 @@ document.getElementById('btn-same').addEventListener('click', function() {
     var p = document.getElementById('same-panel');
     p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
 });
-(function(){
+
+/* LCP保護: fetch系はページ描画後（window.load後）に遅延実行。
+   クリティカルパスから除外し、heroの初期描画を邪魔しない */
+function __deferRun(fn) {
+    if (document.readyState === 'complete') {
+        setTimeout(fn, 0);
+    } else {
+        window.addEventListener('load', function(){ setTimeout(fn, 0); });
+    }
+}
+
+__deferRun(function(){
     var iconMap = {men:'♂',women:'♀',men_same:'♂♂',women_same:'♀♀',este:'💆‍♂️'};
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
     var modeColor = {men:'#c94870',women:'#b760a0',men_same:'#d8182e',women_same:'#c46078',este:'#9f83c0'};
@@ -139,10 +150,10 @@ document.getElementById('btn-same').addEventListener('click', function() {
         var el=document.getElementById('recent-shops-gate');
         if(el)el.innerHTML='<div style="padding:14px 18px;margin:12px 0;background:#fbfaf7;border:1px solid #e8e3d8;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">'+lines+'</div>';
     }).catch(function(){});
-})();
+});
 
 /* 最新の口コミ30件（10件表示＋20件スクロール、全モード統合） */
-(function(){
+__deferRun(function(){
     var MODES = ['men', 'women', 'men_same', 'women_same', 'este'];
     var modePathMap = {men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
     var modeIcon = {men:'♂', women:'♀', men_same:'♂♂', women_same:'♀♀', este:'💆‍♂️'};
@@ -187,7 +198,7 @@ document.getElementById('btn-same').addEventListener('click', function() {
         var el = document.getElementById('recent-reviews-gate');
         if (el) el.innerHTML = '<div style="padding:14px 14px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04);max-width:100%;box-sizing:border-box;overflow:hidden;"><div style="font-size:13px;font-weight:700;color:var(--text,#1a1410);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,0.08);">💬 最新の口コミ</div><div style="max-height:190px;overflow-y:auto;overflow-x:hidden;padding-right:4px;">'+allLines+'</div></div>';
     }).catch(function(){});
-})();
+});
 </script>
 
 <style>
