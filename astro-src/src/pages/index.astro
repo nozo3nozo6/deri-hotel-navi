@@ -187,7 +187,7 @@ __deferRun(function(){
             if (r.type === 'hotel') {
                 badge = r.can_call ? '<span style="color:#3a9a60;font-weight:600;">✅</span>' : '<span style="color:#c05050;font-weight:600;">❌</span>';
             } else {
-                badge = '<span style="color:#a09080;">🏩</span>';
+                badge = r.solo_entry === 'yes' ? '<span>🏩</span>' : '<span style="color:#a09080;">🏩</span>';
             }
             // ユーザー投稿はモード固有でないのでタグ非表示。店舗投稿は該当ジャンルのタグ表示
             var isShop = r.poster_type === 'shop';
