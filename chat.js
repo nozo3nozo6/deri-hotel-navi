@@ -68,7 +68,7 @@ const refs = {
     ownerToggle: $('chat-owner-toggle'),
     onlineToggle: $('online-toggle'),
     ownerLoginLink: $('owner-login-link'),
-    homeLink: $('home-link'),
+    footerBrand: $('footer-brand'),
     fontSizeBtn: $('font-size-toggle'),
     langSelect: $('lang-select'),
     ownerInbox: $('owner-inbox'),
@@ -515,7 +515,7 @@ async function enterVisitorMode() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
-    if (refs.homeLink) refs.homeLink.classList.remove('hidden');
+    if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.nicknameArea) {
         refs.nicknameArea.classList.remove('hidden');
         if (refs.nicknameInput) refs.nicknameInput.value = localStorage.getItem(LS_NICKNAME) || '';
@@ -834,7 +834,7 @@ function showOfflineNotifiedHint() {
 async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
-    if (refs.homeLink) refs.homeLink.classList.add('hidden');
+    if (refs.footerBrand) refs.footerBrand.classList.add('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
