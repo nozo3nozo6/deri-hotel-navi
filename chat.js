@@ -554,6 +554,8 @@ async function enterVisitorMode() {
     refs.shopName.textContent = state.shop_name;
     updateStatusIndicator(state.is_online);
     refs.ownerToggle.classList.add('hidden');
+    // ユーザー側は言語切替を表示
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
     refs.inputArea.classList.remove('hidden');
@@ -894,6 +896,11 @@ function showOfflineNotifiedHint() {
 async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
+    // オーナー側は日本語固定（言語切替はユーザーのみ）
+    if (refs.langSelect) {
+        refs.langSelect.classList.add('hidden');
+        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
+    }
     if (refs.footerBrand) refs.footerBrand.classList.add('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
