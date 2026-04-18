@@ -48,6 +48,12 @@ let state = {
     templates: [],
     polling: null,
     inbox_polling: null,
+    is_reception_hours: true,
+    reception_start: null,
+    reception_end: null,
+    next_reception_start: null,
+    reception_banner_timer: null,
+    welcome_message: null,
 };
 
 // ===== DOM refs =====
@@ -152,7 +158,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 const I18N = {
     ja: {
         'status.online': 'オンライン', 'status.offline': 'オフライン',
-        'owner.accept': '受付',
+        'owner.notify': '通知',
         'inbox.title': '📥 受信チャット', 'inbox.refresh': '更新', 'inbox.logout': 'ログアウト',
         'inbox.empty': 'まだチャットはありません',
         'quick.now': '今すぐ呼べる？', 'quick.price': '料金は？', 'quick.hours': '何時まで？', 'quick.hotel': 'このホテル呼べる？',
@@ -165,11 +171,17 @@ const I18N = {
         'login.email': 'メールアドレス', 'login.password': 'パスワード', 'login.submit': 'ログイン',
         'login.note': '※ このチャットの店舗を運営するオーナー専用です',
         'load': '読み込み中…', 'owner.loginLink': '店舗オーナーの方はこちら →',
-        'msg.read': '既読', 'date.today': '今日', 'date.yesterday': '昨日'
+        'msg.read': '既読', 'date.today': '今日', 'date.yesterday': '昨日',
+        'offline.notified': '✉️ 店舗に通知しました。しばらくお待ちください。',
+        'reception.closed': '🕒 現在は受付時間外です',
+        'reception.hours': '受付時間',
+        'reception.nextOpen': '次回受付開始',
+        'reception.sendOk': 'メッセージは届きます。営業開始後にご返信いたします。',
+        'visitor.note': '匿名でOK。お気軽にご相談ください'
     },
     en: {
         'status.online': 'Online', 'status.offline': 'Offline',
-        'owner.accept': 'Accept',
+        'owner.notify': 'Notify',
         'inbox.title': '📥 Inbox', 'inbox.refresh': 'Refresh', 'inbox.logout': 'Log out',
         'inbox.empty': 'No chats yet',
         'quick.now': 'Available now?', 'quick.price': 'Price?', 'quick.hours': 'Until what time?', 'quick.hotel': 'This hotel OK?',
@@ -182,11 +194,17 @@ const I18N = {
         'login.email': 'Email', 'login.password': 'Password', 'login.submit': 'Log in',
         'login.note': '* For the shop owner running this chat only',
         'load': 'Loading…', 'owner.loginLink': 'Are you the shop owner? Log in →',
-        'msg.read': 'Read', 'date.today': 'Today', 'date.yesterday': 'Yesterday'
+        'msg.read': 'Read', 'date.today': 'Today', 'date.yesterday': 'Yesterday',
+        'offline.notified': '✉️ The shop has been notified. Please wait a moment.',
+        'reception.closed': '🕒 Outside reception hours',
+        'reception.hours': 'Reception hours',
+        'reception.nextOpen': 'Next opening',
+        'reception.sendOk': 'Your message will be delivered. The shop will reply when reception opens.',
+        'visitor.note': 'Anonymous is OK. Feel free to chat!'
     },
     zh: {
         'status.online': '在线', 'status.offline': '离线',
-        'owner.accept': '受理',
+        'owner.notify': '通知',
         'inbox.title': '📥 收件箱', 'inbox.refresh': '刷新', 'inbox.logout': '登出',
         'inbox.empty': '暂无聊天',
         'quick.now': '现在可以叫吗？', 'quick.price': '价格？', 'quick.hours': '营业到几点？', 'quick.hotel': '可以到这家酒店吗？',
@@ -199,11 +217,17 @@ const I18N = {
         'login.email': '邮箱', 'login.password': '密码', 'login.submit': '登录',
         'login.note': '※ 仅限经营此聊天的店主',
         'load': '加载中…', 'owner.loginLink': '店主登录 →',
-        'msg.read': '已读', 'date.today': '今天', 'date.yesterday': '昨天'
+        'msg.read': '已读', 'date.today': '今天', 'date.yesterday': '昨天',
+        'offline.notified': '✉️ 已通知店家，请稍候。',
+        'reception.closed': '🕒 当前为受理时间外',
+        'reception.hours': '受理时间',
+        'reception.nextOpen': '下次开放',
+        'reception.sendOk': '消息将被送达，店家将在开始受理后回复。',
+        'visitor.note': '可匿名。欢迎随时咨询！'
     },
     ko: {
         'status.online': '온라인', 'status.offline': '오프라인',
-        'owner.accept': '접수',
+        'owner.notify': '알림',
         'inbox.title': '📥 받은 채팅', 'inbox.refresh': '새로고침', 'inbox.logout': '로그아웃',
         'inbox.empty': '아직 채팅이 없습니다',
         'quick.now': '지금 부를 수 있나요？', 'quick.price': '요금은？', 'quick.hours': '몇 시까지？', 'quick.hotel': '이 호텔 가능？',
@@ -216,7 +240,13 @@ const I18N = {
         'login.email': '이메일', 'login.password': '비밀번호', 'login.submit': '로그인',
         'login.note': '※ 이 채팅을 운영하는 점주 전용',
         'load': '로딩 중…', 'owner.loginLink': '점주 로그인 →',
-        'msg.read': '읽음', 'date.today': '오늘', 'date.yesterday': '어제'
+        'msg.read': '읽음', 'date.today': '오늘', 'date.yesterday': '어제',
+        'offline.notified': '✉️ 점포에 알림을 보냈습니다. 잠시 기다려주세요.',
+        'reception.closed': '🕒 현재 접수 시간 외입니다',
+        'reception.hours': '접수 시간',
+        'reception.nextOpen': '다음 접수 개시',
+        'reception.sendOk': '메시지는 전달됩니다. 접수 시작 후 답장드리겠습니다.',
+        'visitor.note': '익명으로 OK. 편하게 상담하세요!'
     }
 };
 let currentLang = 'ja';
@@ -292,6 +322,7 @@ async function _init() {
                     state.mode = 'owner';
                     state.device_token = savedToken;
                     state.shop_name = dev.shop_name;
+                    state.notify_enabled = dev.notify_enabled !== false;
                     setThemeMode(dev.gender_mode);
                     await enterOwnerMode();
                     setLoading(false);
@@ -332,11 +363,12 @@ async function _init() {
         // 3. 訪問者モード
         const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
         if (!status.chat_enabled) {
-            refs.root.innerHTML = '<div style="padding:40px;text-align:center;color:#888;">この店舗ではチャット機能をご利用いただけません</div>';
+            refs.root.innerHTML = '<div style="padding:40px;text-align:center;color:#888;">この店舗ではYobuChatをご利用いただけません</div>';
             return;
         }
         state.shop_name = status.shop_name;
         state.is_online = status.is_online;
+        applyReceptionStatus(status);
         setThemeMode(status.gender_mode);
         await enterVisitorMode();
 
@@ -367,6 +399,7 @@ async function enterVisitorMode() {
     refs.inputArea.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.remove('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
+    renderReceptionBanner();
     refs.ownerTemplates.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
@@ -561,11 +594,75 @@ async function pollMessages(initial) {
 
 function startVisitorPolling() {
     stopPolling();
+    // 受付時間外はポーリング停止（返信は受付時間内に再開時 or リロード時に反映）
+    if (state.is_reception_hours === false) {
+        scheduleReceptionReopenCheck();
+        return;
+    }
     state.polling = setInterval(() => pollMessages(false), POLL_INTERVAL);
 }
 function stopPolling() {
     if (state.polling) { clearInterval(state.polling); state.polling = null; }
     if (state.inbox_polling) { clearInterval(state.inbox_polling); state.inbox_polling = null; }
+    if (state.reception_banner_timer) { clearTimeout(state.reception_banner_timer); state.reception_banner_timer = null; }
+}
+
+function applyReceptionStatus(status) {
+    state.is_reception_hours = status.is_reception_hours !== false;
+    state.reception_start = status.reception_start || null;
+    state.reception_end = status.reception_end || null;
+    state.next_reception_start = status.next_reception_start || null;
+    state.welcome_message = (status.welcome_message || '').trim() || null;
+    renderReceptionBanner();
+}
+
+function formatHM(timeStr) {
+    if (!timeStr) return '';
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(timeStr));
+    if (!m) return '';
+    return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+function renderReceptionBanner() {
+    const note = refs.visitorNote;
+    if (!note) return;
+    if (state.mode !== 'visitor') return;
+    if (state.is_reception_hours !== false) {
+        // 通常ノートに戻す
+        note.classList.remove('reception-closed');
+        note.textContent = state.welcome_message || t('visitor.note');
+        return;
+    }
+    const hours = state.reception_start && state.reception_end
+        ? `${formatHM(state.reception_start)} - ${formatHM(state.reception_end)}`
+        : '';
+    const parts = [t('reception.closed')];
+    if (hours) parts.push(`${t('reception.hours')}: ${hours}`);
+    parts.push(t('reception.sendOk'));
+    note.classList.add('reception-closed');
+    note.textContent = parts.join('  /  ');
+    note.classList.remove('hidden');
+}
+
+function scheduleReceptionReopenCheck() {
+    // 次回受付開始時刻まで setTimeout で 1 回だけ shop-status を再取得
+    if (!state.next_reception_start) return;
+    const openAt = Date.parse(state.next_reception_start);
+    if (!openAt || isNaN(openAt)) return;
+    const wait = Math.max(30 * 1000, openAt - Date.now() + 5000); // 最短 30 秒後
+    if (state.reception_banner_timer) clearTimeout(state.reception_banner_timer);
+    state.reception_banner_timer = setTimeout(async () => {
+        try {
+            const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
+            if (status.chat_enabled) {
+                state.is_online = !!status.is_online;
+                applyReceptionStatus(status);
+                updateStatusIndicator(state.is_online);
+                if (state.is_reception_hours) startVisitorPolling();
+                else scheduleReceptionReopenCheck();
+            }
+        } catch (_) { /* 失敗時は次回リロード時に再判定 */ }
+    }, wait);
 }
 
 async function sendVisitorMessage(msg) {
@@ -574,6 +671,7 @@ async function sendVisitorMessage(msg) {
     refs.sendBtn.disabled = true;
     const nick = refs.nicknameInput ? String(refs.nicknameInput.value || '').trim().slice(0, 20) : '';
     if (nick) localStorage.setItem(LS_NICKNAME, nick);
+    const wasOffline = !state.is_online;
     try {
         await api('send-message', {
             session_token: state.session_token,
@@ -583,11 +681,24 @@ async function sendVisitorMessage(msg) {
         });
         refs.input.value = '';
         await pollMessages(false);
+        if (wasOffline && !state.offlineNotifiedShown) {
+            showOfflineNotifiedHint();
+            state.offlineNotifiedShown = true;
+        }
     } catch (e) {
         showError(e.message);
     } finally {
         refs.sendBtn.disabled = false;
     }
+}
+
+function showOfflineNotifiedHint() {
+    if (!refs.chatMessages) return;
+    const div = document.createElement('div');
+    div.className = 'chat-system-note';
+    div.textContent = t('offline.notified');
+    refs.chatMessages.appendChild(div);
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 }
 
 // ===== オーナーモード =====
@@ -614,7 +725,7 @@ async function refreshOwnerStatus() {
         const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
         state.is_online = status.is_online;
         updateStatusIndicator(status.is_online);
-        refs.onlineToggle.checked = status.is_online;
+        refs.onlineToggle.checked = state.notify_enabled !== false;
     } catch (e) { /* ignore */ }
 }
 
@@ -908,11 +1019,11 @@ if (refs.emojiToggle) {
 
 refs.onlineToggle.addEventListener('change', async (e) => {
     try {
-        const res = await api('toggle-online', {
+        await api('toggle-notify', {
             device_token: state.device_token,
-            is_online: e.target.checked ? 1 : 0
+            enabled: e.target.checked ? 1 : 0
         });
-        updateStatusIndicator(res.is_online);
+        state.notify_enabled = e.target.checked;
     } catch (err) {
         showError(err.message);
         e.target.checked = !e.target.checked;
@@ -972,11 +1083,31 @@ if (refs.loginModal) refs.loginModal.addEventListener('click', (e) => {
 if (refs.loginForm) refs.loginForm.addEventListener('submit', handleLogin);
 if (refs.btnOwnerLogout) refs.btnOwnerLogout.addEventListener('click', handleOwnerLogout);
 
-window.addEventListener('beforeunload', stopPolling);
+function sendOwnerGoOffline() {
+    if (state.mode !== 'owner' || !state.device_token) return;
+    try {
+        const blob = new Blob(
+            [JSON.stringify({ action: 'owner-go-offline', device_token: state.device_token })],
+            { type: 'application/json' }
+        );
+        navigator.sendBeacon(API, blob);
+    } catch (_) { /* ignore */ }
+}
+
+window.addEventListener('beforeunload', () => {
+    stopPolling();
+    sendOwnerGoOffline();
+});
+window.addEventListener('pagehide', sendOwnerGoOffline);
 window.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopPolling();
-    else if (state.mode === 'visitor' && state.session_token) startVisitorPolling();
-    else if (state.mode === 'owner') startInboxPolling();
+    if (document.hidden) {
+        stopPolling();
+        sendOwnerGoOffline();
+    } else if (state.mode === 'visitor' && state.session_token) {
+        startVisitorPolling();
+    } else if (state.mode === 'owner') {
+        startInboxPolling();
+    }
 });
 
 // ===== 起動 =====

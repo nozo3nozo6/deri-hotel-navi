@@ -371,6 +371,7 @@
         <button class="tab-btn" id="tab-btn-search" onclick="switchTab('search')">ホテル検索登録</button>
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
         <button class="tab-btn" id="tab-btn-plan" onclick="switchTab('plan')">プラン申込</button>
+        <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">💬 YobuChat</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -829,6 +830,206 @@
         <div class="card" style="margin-top:12px;">
             <div class="card-title">申込履歴</div>
             <div id="plan-history" style="font-size:13px;color:var(--text-3);padding:8px 0;">読み込み中...</div>
+        </div>
+    </div>
+
+    <!-- ===== チャット管理タブ ===== -->
+    <div class="tab-content" id="tab-chat">
+        <div id="chat-admin-loading" style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">読み込み中…</div>
+        <div id="chat-admin-disabled" class="card" style="display:none;background:#fff8e1;border:1px solid #ffe082;">
+            <div class="card-title">💬 YobuChatは現在ご利用いただけません</div>
+            <div style="font-size:13px;color:var(--text-2);line-height:1.8;">
+                <p style="margin:0 0 10px;">YobuChatは上位プラン向けのオプション機能です。有効化にはYobuHo運営までお問い合わせください。</p>
+                <p style="margin:0 0 10px;"><strong>主な機能:</strong></p>
+                <ul style="margin:0 0 12px 18px;padding:0;">
+                    <li>匿名ユーザーからの気軽な問い合わせ受付（登録不要）</li>
+                    <li>ワンクリックON/OFF切替（LINE風オンライン表示）</li>
+                    <li>定型文登録（よくある返答を素早く返信）</li>
+                    <li>メール通知（都度 or セッション初回のみ）</li>
+                    <li>迷惑ユーザーのブロック機能</li>
+                </ul>
+                <p style="margin:0;"><a href="/contact.html" target="_blank" style="color:var(--rose);font-weight:600;">運営に問い合わせる →</a></p>
+            </div>
+        </div>
+
+        <div id="chat-admin-enabled" style="display:none;">
+            <!-- ステータスカード -->
+            <div class="card">
+                <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <span>受付状態</span>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="chat-admin-online" style="width:18px;height:18px;">
+                        <span id="chat-admin-online-label" style="font-size:13px;font-weight:600;color:var(--text-2);">オフライン</span>
+                    </label>
+                </div>
+                <div style="font-size:12px;color:var(--text-3);line-height:1.7;">
+                    ONにするとチャットボタンに「オンライン」表示。ユーザーが気軽に問い合わせできます。<br>
+                    OFFの間も受信は可能、メール通知で対応できます。
+                </div>
+            </div>
+
+            <!-- 自店舗チャットURL -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">📍 YobuChat URL</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">ユーザー向けチャット画面（クライアントHPやSNSに貼ってください）</div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <input id="chat-admin-public-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-public-url')">コピー</button>
+                </div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-2);margin:16px 0 4px;">📦 埋め込みコード（<span style="color:#9b2d35;">お客様用</span>・店舗HPに貼り付け）</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">※ お客様がクリック → お客様向けチャット画面が開きます（オーナーログインではありません）</div>
+                <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
+                    <button type="button" class="btn embed-tab-btn" data-embed-tab="script" style="padding:6px 12px;font-size:12px;">① スクリプト</button>
+                    <button type="button" class="btn embed-tab-btn" data-embed-tab="iframe" style="padding:6px 12px;font-size:12px;">② iframe</button>
+                    <button type="button" class="btn embed-tab-btn" data-embed-tab="link" style="padding:6px 12px;font-size:12px;">③ リンクボタン</button>
+                    <button type="button" class="btn embed-tab-btn" data-embed-tab="floating" style="padding:6px 12px;font-size:12px;">④ 浮動ボタン</button>
+                </div>
+
+                <div class="embed-tab-panel" data-embed-panel="script" style="display:none;">
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>自社HP・WordPress等</strong>でscriptが使える場合（右下に💬ボタンが自動で出る）</div>
+                    <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
+                        <textarea id="chat-admin-embed-script" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-script')">コピー</button>
+                    </div>
+                </div>
+
+                <div class="embed-tab-panel" data-embed-panel="iframe" style="display:none;">
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>go-kichi等のCMS（scriptが使えない）</strong>向け。フリーページの「ソース」モードで貼付</div>
+                    <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
+                        <textarea id="chat-admin-embed-iframe" readonly class="f-input" rows="3" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-iframe')">コピー</button>
+                    </div>
+                </div>
+
+                <div class="embed-tab-panel" data-embed-panel="link" style="display:none;">
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>シンプルなボタンリンク</strong>（クリックで別タブにチャット）</div>
+                    <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
+                        <textarea id="chat-admin-embed-link" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-link')">コピー</button>
+                    </div>
+                </div>
+
+                <div class="embed-tab-panel" data-embed-panel="floating" style="display:none;">
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>右下固定の💬浮動ボタン</strong>（全ページに置きたい時、フッター等に貼付）</div>
+                    <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
+                        <textarea id="chat-admin-embed-floating" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-floating')">コピー</button>
+                    </div>
+                </div>
+
+                <div style="background:#f0f7ff;border:1px solid #cde0f5;padding:8px 12px;border-radius:6px;font-size:11px;color:#3a5a7a;line-height:1.7;margin-top:10px;">
+                    💡 <strong>委託制作でscriptが使えない場合</strong>は「② iframe」か「③ リンクボタン」を使ってください。
+                </div>
+            </div>
+
+            <!-- オーナー端末（ログイン方式） -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">📱 オーナーとしてチャットに入る</div>
+                <div style="font-size:12px;color:var(--text-3);line-height:1.7;margin-bottom:10px;">
+                    下のボタンから<strong>オーナー受信画面</strong>を開けます。スマホ/PCで開いてブックマークしておくと便利です。
+                </div>
+                <a id="chat-admin-owner-link" href="#" target="_blank" rel="noopener" class="btn primary" style="display:inline-block;padding:10px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px;">💬 オーナー受信画面を開く →</a>
+                <div style="background:#fff8ec;border:1px solid #f0d49a;padding:10px 12px;border-radius:6px;font-size:12px;color:#7a5a20;line-height:1.7;margin-bottom:10px;">
+                    ※ URL直リンクでもログイン必須です。<br>
+                    ※ ブラウザのパスワードマネージャーで自動入力できます。
+                </div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">ログイン済み端末</div>
+                <div id="chat-admin-device-list" style="font-size:12px;color:var(--text-2);"></div>
+            </div>
+
+            <!-- 受付時間 -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">🕒 受付時間</div>
+                <div style="font-size:12px;color:var(--text-3);line-height:1.7;margin-bottom:10px;">
+                    受付時間外はユーザー側のチャット更新（ポーリング）が停止し、サーバー負荷を抑えます。<br>
+                    ユーザーからのメッセージ送信とメール通知は受付時間外でも行われます（翌営業時間に返信する旨を案内）。
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;cursor:pointer;">
+                    <input type="checkbox" id="chat-reception-24h" style="width:18px;height:18px;">
+                    <span><strong>24時間受付</strong>（時間制限なし）</span>
+                </label>
+                <div id="chat-reception-range" style="display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap;margin-bottom:10px;">
+                    <span>開始</span>
+                    <input id="chat-reception-start" type="time" class="f-input" style="width:110px;">
+                    <span>〜 終了</span>
+                    <input id="chat-reception-end" type="time" class="f-input" style="width:110px;">
+                    <span style="font-size:11px;color:var(--text-3);">※ 日跨ぎ可 (例 18:00〜05:00)</span>
+                </div>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+            </div>
+
+            <!-- ウェルカムメッセージ -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">💌 ウェルカムメッセージ</div>
+                <div style="font-size:12px;color:var(--text-3);line-height:1.7;margin-bottom:10px;">
+                    チャット画面の上部にユーザー向けに表示される一言です。空欄の場合はデフォルト文（匿名でOK。お気軽にご相談ください）が表示されます。
+                </div>
+                <textarea id="chat-welcome-message" class="f-input" rows="2" maxlength="200" placeholder="匿名でOK。お気軽にご相談ください" style="width:100%;resize:vertical;font-size:13px;line-height:1.6;margin-bottom:6px;"></textarea>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">最大200文字</div>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+            </div>
+
+            <!-- 通知設定 -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">🔔 メール通知設定</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                        <input type="radio" name="chat-notify-mode" value="first" style="width:16px;height:16px;">
+                        <span><strong>セッション初回のみ</strong>（同じユーザーからの続きは通知しない）</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                        <input type="radio" name="chat-notify-mode" value="every" style="width:16px;height:16px;">
+                        <span><strong>毎メッセージ</strong>（下の最小間隔に従ってスロットル）</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+                        <input type="radio" name="chat-notify-mode" value="off" style="width:16px;height:16px;">
+                        <span><strong>通知しない</strong>（管理画面で確認のみ）</span>
+                    </label>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
+                    <span>最小通知間隔:</span>
+                    <input id="chat-notify-interval" type="number" min="1" max="60" class="f-input" style="width:70px;text-align:center;">
+                    <span>分</span>
+                </div>
+
+                <div style="padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:10px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px;">📧 通知先メールアドレス</div>
+                    <div style="font-size:11px;color:var(--text-3);line-height:1.7;margin-bottom:8px;">
+                        空欄の場合は登録メールアドレス（<span id="chat-admin-email"></span>）に通知します。<br>
+                        現場で別アドレスを使う場合はここに入力してください（入力した場合はこちらのみに通知）。
+                    </div>
+                    <input id="chat-notify-email" type="email" maxlength="255" class="f-input" placeholder="例: genba@example.com" style="width:100%;font-size:13px;">
+                    <div id="chat-notify-effective" style="font-size:11px;color:var(--text-3);margin-top:6px;"></div>
+                </div>
+
+                <div style="font-size:11px;color:var(--text-3);line-height:1.7;margin-bottom:10px;">
+                    オンライン中はメール通知をスキップ（リアルタイム対応中）。
+                </div>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+            </div>
+
+            <!-- 定型文 -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">💬 定型文</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">よくある返答を登録しておくと、オーナー画面から1タップで挿入できます。</div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
+                    <input id="chat-tpl-title" class="f-input" placeholder="タイトル（例: 営業時間について）" maxlength="100">
+                    <textarea id="chat-tpl-content" class="f-input" rows="3" style="resize:vertical;" placeholder="返答内容（最大500文字）" maxlength="500"></textarea>
+                    <input id="chat-tpl-sort" type="number" class="f-input" placeholder="並び順（小さいほど上）" value="100" style="width:140px;">
+                    <div>
+                        <button class="btn" id="chat-tpl-save-btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveTemplate()">追加</button>
+                        <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" onclick="cancelEditTemplate()">キャンセル</button>
+                    </div>
+                </div>
+                <div id="chat-tpl-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+            </div>
+
+            <!-- ブロック -->
+            <div class="card" style="margin-top:12px;">
+                <div class="card-title">🚫 ブロックリスト</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">オーナー画面でブロックしたユーザーの一覧です。</div>
+                <div id="chat-block-list" style="font-size:12px;color:var(--text-2);"></div>
+            </div>
         </div>
     </div>
 
@@ -1359,6 +1560,7 @@ function switchTab(name){
     if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";document.getElementById("lh-form-card").style.display="none";showJapanPage();}
     if(name==="list")loadRegisteredHotels();
     if(name==="plan")loadPlanTab();
+    if(name==="chat")loadChatAdmin();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
 }
 
@@ -2466,6 +2668,325 @@ async function cancelPlanRequest(id){
         if(r.error){toast('⚠️ '+r.error);return;}
         toast('✅ 申込を取り消しました');loadPlanHistory();
     }catch(e){toast('通信エラー');}
+}
+
+// ===== チャット管理 =====
+let _chatOverview = null;
+let _chatEditId = 0;
+
+async function chatApi(action, params, method){
+    method = method || 'POST';
+    const url = method === 'GET'
+        ? '/api/chat-api.php?action=' + encodeURIComponent(action) + '&' + new URLSearchParams(params || {}).toString()
+        : '/api/chat-api.php?action=' + encodeURIComponent(action);
+    const opts = { method, credentials: 'include', headers: method === 'POST' ? {'Content-Type':'application/json'} : {} };
+    if (method === 'POST') opts.body = JSON.stringify(params || {});
+    const res = await fetch(url, opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || ('HTTP '+res.status));
+    return data;
+}
+
+async function loadChatAdmin(){
+    document.getElementById('chat-admin-loading').style.display = 'block';
+    document.getElementById('chat-admin-disabled').style.display = 'none';
+    document.getElementById('chat-admin-enabled').style.display = 'none';
+    try {
+        const data = await chatApi('admin-overview', {}, 'GET');
+        _chatOverview = data;
+        document.getElementById('chat-admin-loading').style.display = 'none';
+        if (!data.enabled) {
+            document.getElementById('chat-admin-disabled').style.display = 'block';
+            return;
+        }
+        document.getElementById('chat-admin-enabled').style.display = 'block';
+        renderChatAdmin(data);
+    } catch (e) {
+        document.getElementById('chat-admin-loading').style.display = 'none';
+        document.getElementById('chat-admin-disabled').style.display = 'block';
+        toast('読み込みエラー: ' + e.message);
+    }
+}
+
+function renderChatAdmin(data){
+    const slug = data.slug;
+    const publicUrl = 'https://yobuho.com/chat/' + encodeURIComponent(slug) + '/';
+    document.getElementById('chat-admin-public-url').value = publicUrl;
+    const ownerLink = document.getElementById('chat-admin-owner-link');
+    if (ownerLink) ownerLink.href = publicUrl + '?owner=1';
+
+    const scriptCode = '<script src="https://yobuho.com/chat-widget.js" data-slug="' + slug + '" async><\/script>';
+    const iframeCode = '<iframe src="' + publicUrl + '?embed=1" style="width:100%;max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;" title="お問い合わせチャット"><\/iframe>';
+    const linkCode = '<a href="' + publicUrl + '" target="_blank" rel="noopener" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#9b2d35,#7a1f27);color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;box-shadow:0 3px 10px rgba(0,0,0,.2);">💬 チャットで問い合わせる<\/a>';
+    const floatingCode = '<a href="' + publicUrl + '" target="_blank" rel="noopener" style="position:fixed;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#9b2d35,#7a1f27);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:9999;" aria-label="チャット">💬<\/a>';
+
+    const embedEls = {
+        script: document.getElementById('chat-admin-embed-script'),
+        iframe: document.getElementById('chat-admin-embed-iframe'),
+        link: document.getElementById('chat-admin-embed-link'),
+        floating: document.getElementById('chat-admin-embed-floating')
+    };
+    if (embedEls.script) embedEls.script.value = scriptCode;
+    if (embedEls.iframe) embedEls.iframe.value = iframeCode;
+    if (embedEls.link) embedEls.link.value = linkCode;
+    if (embedEls.floating) embedEls.floating.value = floatingCode;
+
+    const tabBtns = document.querySelectorAll('.embed-tab-btn');
+    const tabPanels = document.querySelectorAll('.embed-tab-panel');
+    function showEmbedTab(name){
+        tabPanels.forEach(p => { p.style.display = (p.dataset.embedPanel === name) ? 'block' : 'none'; });
+        tabBtns.forEach(b => {
+            const active = b.dataset.embedTab === name;
+            b.style.background = active ? 'var(--accent)' : '';
+            b.style.color = active ? '#fff' : '';
+            b.style.fontWeight = active ? '700' : '';
+        });
+    }
+    tabBtns.forEach(b => {
+        b.onclick = () => showEmbedTab(b.dataset.embedTab);
+    });
+    showEmbedTab('script');
+
+    // Online toggle
+    const onlineChk = document.getElementById('chat-admin-online');
+    onlineChk.checked = !!data.is_online;
+    document.getElementById('chat-admin-online-label').textContent = data.is_online ? 'オンライン受付中' : 'オフライン';
+    onlineChk.onchange = async () => {
+        try {
+            const r = await chatApi('admin-toggle-online', { is_online: onlineChk.checked ? 1 : 0 });
+            document.getElementById('chat-admin-online-label').textContent = r.is_online ? 'オンライン受付中' : 'オフライン';
+            toast(r.is_online ? '✅ オンラインに切替' : 'オフラインに切替');
+        } catch (e) {
+            onlineChk.checked = !onlineChk.checked;
+            toast('⚠️ ' + e.message);
+        }
+    };
+
+    // Notify settings
+    document.querySelectorAll('input[name="chat-notify-mode"]').forEach(r => {
+        r.checked = (r.value === (data.notify_mode || 'first'));
+    });
+    document.getElementById('chat-notify-interval').value = data.notify_min_interval_minutes || 3;
+    const shopEmailText = data.shop_email || (currentShop && currentShop.email) || '';
+    document.getElementById('chat-admin-email').textContent = shopEmailText;
+    const notifyEmailInput = document.getElementById('chat-notify-email');
+    if (notifyEmailInput) {
+        notifyEmailInput.value = data.notify_email || '';
+        notifyEmailInput.oninput = updateEffectiveNotifyEmailHint;
+    }
+    updateEffectiveNotifyEmailHint();
+
+    // Reception hours
+    applyReceptionUI(data.reception_start, data.reception_end);
+    const r24 = document.getElementById('chat-reception-24h');
+    if (r24) r24.onchange = toggleReceptionRange;
+
+    // Welcome message
+    const welEl = document.getElementById('chat-welcome-message');
+    if (welEl) welEl.value = data.welcome_message || '';
+
+    // Devices
+    renderDeviceList(data.devices || []);
+    // Templates
+    renderTemplateList(data.templates || []);
+    // Blocks
+    renderBlockList(data.blocks || []);
+}
+
+function renderDeviceList(devices){
+    const el = document.getElementById('chat-admin-device-list');
+    if (!devices.length) {
+        el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">登録済み端末はありません</div>';
+        return;
+    }
+    el.innerHTML = devices.map(d => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:4px;gap:8px;">
+                <div>
+                    <div style="font-weight:600;font-size:12px;">${esc(d.device_name || '名称なし')}</div>
+                    <div style="font-size:11px;color:var(--text-3);">登録: ${esc(d.created_at || '')} / 最終アクセス: ${esc(d.last_accessed_at || '未使用')}</div>
+                </div>
+                <button class="btn" style="padding:4px 10px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" onclick="revokeDevice(${d.id})">削除</button>
+            </div>
+        `).join('');
+}
+
+function renderTemplateList(templates){
+    const el = document.getElementById('chat-tpl-list');
+    if (!templates.length) {
+        el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">定型文はまだ登録されていません</div>';
+        return;
+    }
+    el.innerHTML = templates.map(t => `
+        <div style="padding:10px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
+                <div style="font-weight:600;font-size:13px;">${esc(t.title)}</div>
+                <div style="display:flex;gap:4px;">
+                    <button class="btn" style="padding:3px 9px;font-size:11px;" onclick='editTemplate(${t.id})'>編集</button>
+                    <button class="btn" style="padding:3px 9px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" onclick="deleteTemplate(${t.id})">削除</button>
+                </div>
+            </div>
+            <div style="font-size:12px;color:var(--text-2);white-space:pre-wrap;">${esc(t.content)}</div>
+            <div style="font-size:10px;color:var(--text-3);margin-top:4px;">順序: ${t.sort_order}</div>
+        </div>
+    `).join('');
+}
+
+function renderBlockList(blocks){
+    const el = document.getElementById('chat-block-list');
+    if (!blocks.length) {
+        el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">ブロック中のユーザーはいません</div>';
+        return;
+    }
+    el.innerHTML = blocks.map(b => {
+        const label = b.nickname ? esc(b.nickname) : (b.session_id ? `訪問者 #${b.session_id}` : 'ユーザー');
+        const lastMsg = b.last_message ? `「${esc(String(b.last_message).slice(0,40))}${String(b.last_message).length>40?'…':''}」` : '';
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:4px;gap:8px;">
+            <div style="min-width:0;flex:1;">
+                <div style="font-size:13px;font-weight:600;color:var(--text-1);">${label}</div>
+                ${lastMsg ? `<div style="font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lastMsg}</div>` : ''}
+                <div style="font-size:10px;color:var(--text-3);">${esc(b.reason || '理由なし')} / ${esc(b.created_at || '')}</div>
+            </div>
+            <button class="btn" style="padding:4px 10px;font-size:11px;flex-shrink:0;" onclick="unblockUser(${b.id})">解除</button>
+        </div>
+    `}).join('');
+}
+
+function copyChatUrl(id){
+    const el = document.getElementById(id);
+    el.select();
+    try { document.execCommand('copy'); toast('✅ コピーしました'); }
+    catch(e){ navigator.clipboard && navigator.clipboard.writeText(el.value).then(()=>toast('✅ コピーしました')); }
+}
+
+async function revokeDevice(id){
+    if (!confirm('この端末を削除しますか？削除後はこの端末からチャット受信できなくなります。')) return;
+    try {
+        await chatApi('admin-revoke-device', { id });
+        toast('✅ 削除しました');
+        const data = await chatApi('admin-overview', {}, 'GET');
+        renderDeviceList(data.devices || []);
+    } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function saveChatSettings(){
+    const mode = document.querySelector('input[name="chat-notify-mode"]:checked');
+    const interval = parseInt(document.getElementById('chat-notify-interval').value, 10) || 3;
+    if (!mode) { toast('通知モードを選択してください'); return; }
+
+    const is24h = document.getElementById('chat-reception-24h').checked;
+    let rStart = null, rEnd = null;
+    if (!is24h) {
+        rStart = document.getElementById('chat-reception-start').value || '';
+        rEnd = document.getElementById('chat-reception-end').value || '';
+        if (!rStart || !rEnd) { toast('受付時間の開始と終了を入力してください（24時間受付の場合はチェックを入れてください）'); return; }
+        if (rStart === rEnd) { toast('開始と終了が同じ時刻です。24時間受付にする場合はチェックボックスを使ってください'); return; }
+    }
+
+    const welcomeEl = document.getElementById('chat-welcome-message');
+    const welcome = welcomeEl ? String(welcomeEl.value || '').trim() : '';
+
+    const notifyEmailEl = document.getElementById('chat-notify-email');
+    const notifyEmail = notifyEmailEl ? String(notifyEmailEl.value || '').trim() : '';
+    if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail)) {
+        toast('通知先メールアドレスの形式が正しくありません'); return;
+    }
+
+    try {
+        await chatApi('admin-save-settings', {
+            notify_mode: mode.value,
+            notify_min_interval_minutes: interval,
+            reception_start: rStart,
+            reception_end: rEnd,
+            welcome_message: welcome,
+            notify_email: notifyEmail
+        });
+        toast('✅ 設定を保存しました');
+        updateEffectiveNotifyEmailHint();
+    } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function updateEffectiveNotifyEmailHint(){
+    const hint = document.getElementById('chat-notify-effective');
+    if (!hint) return;
+    const notifyEl = document.getElementById('chat-notify-email');
+    const shopEl = document.getElementById('chat-admin-email');
+    const notify = notifyEl ? String(notifyEl.value || '').trim() : '';
+    const shopEmail = shopEl ? shopEl.textContent.trim() : '';
+    const effective = notify || shopEmail;
+    hint.textContent = effective ? ('→ 現在の通知先: ' + effective) : '';
+}
+
+function applyReceptionUI(start, end){
+    const is24h = !start || !end;
+    document.getElementById('chat-reception-24h').checked = is24h;
+    document.getElementById('chat-reception-start').value = start ? String(start).slice(0,5) : '';
+    document.getElementById('chat-reception-end').value = end ? String(end).slice(0,5) : '';
+    toggleReceptionRange();
+}
+function toggleReceptionRange(){
+    const disabled = document.getElementById('chat-reception-24h').checked;
+    document.getElementById('chat-reception-start').disabled = disabled;
+    document.getElementById('chat-reception-end').disabled = disabled;
+    document.getElementById('chat-reception-range').style.opacity = disabled ? '0.5' : '1';
+}
+
+async function saveTemplate(){
+    const title = document.getElementById('chat-tpl-title').value.trim();
+    const content = document.getElementById('chat-tpl-content').value.trim();
+    const sort = parseInt(document.getElementById('chat-tpl-sort').value, 10) || 100;
+    if (!title || !content) { toast('タイトルと内容を入力してください'); return; }
+    try {
+        const params = { title, content, sort_order: sort };
+        if (_chatEditId > 0) params.id = _chatEditId;
+        await chatApi('admin-save-template', params);
+        toast('✅ 保存しました');
+        document.getElementById('chat-tpl-title').value = '';
+        document.getElementById('chat-tpl-content').value = '';
+        document.getElementById('chat-tpl-sort').value = '100';
+        cancelEditTemplate();
+        const data = await chatApi('admin-overview', {}, 'GET');
+        renderTemplateList(data.templates || []);
+    } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+function editTemplate(id){
+    if (!_chatOverview) return;
+    const t = (_chatOverview.templates || []).find(x => Number(x.id) === Number(id));
+    if (!t) return;
+    _chatEditId = Number(id);
+    document.getElementById('chat-tpl-title').value = t.title;
+    document.getElementById('chat-tpl-content').value = t.content;
+    document.getElementById('chat-tpl-sort').value = t.sort_order;
+    document.getElementById('chat-tpl-save-btn').textContent = '更新';
+    document.getElementById('chat-tpl-cancel-btn').style.display = 'inline-block';
+    document.getElementById('chat-tpl-title').focus();
+}
+
+function cancelEditTemplate(){
+    _chatEditId = 0;
+    document.getElementById('chat-tpl-save-btn').textContent = '追加';
+    document.getElementById('chat-tpl-cancel-btn').style.display = 'none';
+}
+
+async function deleteTemplate(id){
+    if (!confirm('この定型文を削除しますか？')) return;
+    try {
+        await chatApi('admin-delete-template', { id });
+        toast('✅ 削除しました');
+        const data = await chatApi('admin-overview', {}, 'GET');
+        renderTemplateList(data.templates || []);
+    } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+async function unblockUser(id){
+    if (!confirm('このユーザーのブロックを解除しますか？')) return;
+    try {
+        await chatApi('admin-unblock', { id });
+        toast('✅ 解除しました');
+        const data = await chatApi('admin-overview', {}, 'GET');
+        renderBlockList(data.blocks || []);
+    } catch (e) { toast('⚠️ ' + e.message); }
 }
 </script>
 

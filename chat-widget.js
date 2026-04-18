@@ -36,7 +36,7 @@
 
     const SLUG = getSlug();
     if (!SLUG || !/^[a-z0-9\-]+$/i.test(SLUG)) {
-        console.warn('[YobuHo Chat] slug not specified');
+        console.warn('[YobuChat] slug not specified');
         return;
     }
 

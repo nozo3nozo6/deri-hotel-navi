@@ -1,5 +1,5 @@
 -- =============================================
--- YobuHo チャット機能 Phase 1 用DBスキーマ
+-- YobuChat Phase 1 用DBスキーマ
 -- MySQL 8.0 / InnoDB / utf8mb4
 -- shops.id は CHAR(36) (UUID) に合わせて shop_id も CHAR(36)
 -- =============================================
@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS shop_chat_status (
     auto_off_minutes INT UNSIGNED NOT NULL DEFAULT 10 COMMENT '無応答で自動OFFになる分数（Phase 2で使用）',
     notify_mode ENUM('first', 'every', 'off') NOT NULL DEFAULT 'first' COMMENT 'メール通知モード: first=セッション初回のみ, every=都度, off=無効',
     notify_min_interval_minutes INT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'everyモード時の最小通知間隔（分）',
+    reception_start TIME NULL COMMENT '受付開始時刻 (Asia/Tokyo). NULL=24時間受付',
+    reception_end TIME NULL COMMENT '受付終了時刻 (Asia/Tokyo). NULL=24時間受付. start>endは日跨ぎ営業',
+    welcome_message VARCHAR(200) NULL COMMENT '訪問者向けウェルカムメッセージ (未設定時はクライアント側デフォルト)',
+    notify_email VARCHAR(255) NULL COMMENT '通知専用メール (未設定時は shops.email を使用)',
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

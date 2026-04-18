@@ -29,13 +29,13 @@ session_set_cookie_params([
 session_start();
 
 // ---- 入力取得 ----
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
 $raw = file_get_contents('php://input');
 $body = [];
 if (!empty($raw)) {
     $decoded = json_decode($raw, true);
     if (is_array($decoded)) $body = $decoded;
 }
+$action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
@@ -103,7 +103,8 @@ function visitorHash(): string {
 function getShopBySlug(string $slug): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email, s.status, s.gender_mode,
-                st.is_online, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes
+                st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
+                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
          FROM shops s
          INNER JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.slug = ? AND s.status = ? LIMIT 1'
@@ -116,7 +117,8 @@ function getShopBySlug(string $slug): ?array {
 function getShopById(string $shopId): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email,
-                st.is_online, st.notify_mode, st.notify_min_interval_minutes
+                st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
+                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
          FROM shops s
          INNER JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.id = ? LIMIT 1'
@@ -124,6 +126,75 @@ function getShopById(string $shopId): ?array {
     $stmt->execute([$shopId]);
     $row = $stmt->fetch();
     return $row ?: null;
+}
+
+/**
+ * 実効オンライン判定: is_online=1 かつ last_online_at が auto_off_minutes 以内
+ */
+function effectiveOnline(?array $shop): bool {
+    if (!$shop) return false;
+    if ((int)($shop['is_online'] ?? 0) !== 1) return false;
+    $last = $shop['last_online_at'] ?? null;
+    if (!$last) return false;
+    $autoOff = max(1, (int)($shop['auto_off_minutes'] ?? 10));
+    $elapsed = time() - strtotime($last);
+    return $elapsed < $autoOff * 60;
+}
+
+/**
+ * 受付時間内判定. start/end が両方 NULL なら 24時間受付 (true).
+ * start == end も 24時間扱い. start > end は日跨ぎ営業 (例 18:00-05:00).
+ */
+function isWithinReceptionHours(?array $shop, ?int $nowTs = null): bool {
+    if (!$shop) return true;
+    $start = $shop['reception_start'] ?? null;
+    $end   = $shop['reception_end']   ?? null;
+    if (empty($start) || empty($end) || $start === $end) return true;
+
+    $tz = new DateTimeZone('Asia/Tokyo');
+    $now = new DateTimeImmutable('@' . ($nowTs ?? time()));
+    $now = $now->setTimezone($tz);
+    $hm = (int)$now->format('H') * 60 + (int)$now->format('i');
+
+    $toMin = function (string $t): int {
+        $p = explode(':', $t);
+        return ((int)$p[0]) * 60 + ((int)($p[1] ?? 0));
+    };
+    $s = $toMin((string)$start);
+    $e = $toMin((string)$end);
+
+    if ($s < $e) {
+        return $hm >= $s && $hm < $e;
+    }
+    // 日跨ぎ (例 18:00 - 05:00)
+    return $hm >= $s || $hm < $e;
+}
+
+/**
+ * 次回受付開始時刻を ISO8601 (Asia/Tokyo) で返す. 24時間受付 or 現在受付中なら null.
+ */
+function nextReceptionStart(?array $shop, ?int $nowTs = null): ?string {
+    if (!$shop) return null;
+    $start = $shop['reception_start'] ?? null;
+    $end   = $shop['reception_end']   ?? null;
+    if (empty($start) || empty($end) || $start === $end) return null;
+    if (isWithinReceptionHours($shop, $nowTs)) return null;
+
+    $tz = new DateTimeZone('Asia/Tokyo');
+    $now = new DateTimeImmutable('@' . ($nowTs ?? time()));
+    $now = $now->setTimezone($tz);
+    $today = $now->setTime((int)substr($start, 0, 2), (int)substr($start, 3, 2), 0);
+    if ($today > $now) return $today->format(DateTimeInterface::ATOM);
+    return $today->modify('+1 day')->format(DateTimeInterface::ATOM);
+}
+
+/**
+ * オーナーheartbeat: 操作毎に is_online=1, last_online_at=NOW() に更新
+ */
+function ownerHeartbeat(string $shopId): void {
+    DB::conn()->prepare(
+        'UPDATE shop_chat_status SET is_online = 1, last_online_at = NOW() WHERE shop_id = ?'
+    )->execute([$shopId]);
 }
 
 function verifyDevice(string $token): ?array {
@@ -257,14 +328,15 @@ function isBlocked(string $shopId, string $visitorHash): bool {
 function sendChatNotification(string $shopId, int $sessionId, string $preview): void {
     $shop = getShopById($shopId);
     if (!$shop) return;
-    if (empty($shop['email'])) return;
+    $notifyTo = !empty($shop['notify_email']) ? $shop['notify_email'] : ($shop['email'] ?? '');
+    if (empty($notifyTo)) return;
     $mode = $shop['notify_mode'] ?? 'first';
     if ($mode === 'off') return;
 
     $pdo = DB::conn();
 
-    // オーナーがオンライン中ならメール通知スキップ（画面で見ている前提）
-    if ((int)$shop['is_online'] === 1) return;
+    // オーナーが実効オンライン中ならメール通知スキップ（画面で見ている前提）
+    if (effectiveOnline($shop)) return;
 
     // セッション取得
     $stmt = $pdo->prepare('SELECT notified_at, visitor_hash FROM chat_sessions WHERE id = ? LIMIT 1');
@@ -285,17 +357,17 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     }
 
     // メール送信
-    $subject = '【YobuHo】新着チャット: ' . $shop['shop_name'];
+    $subject = '【YobuChat】新着メッセージ: ' . $shop['shop_name'];
     $chatUrl = 'https://yobuho.com/chat/' . rawurlencode((string)$shop['slug']) . '/?owner=1';
     $html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;background:#fff;font-family:sans-serif;">';
     $html .= '<div style="max-width:520px;margin:0 auto;">';
-    $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">新着チャットが届きました</h2>';
+    $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">YobuChat 新着メッセージ</h2>';
     $html .= '<p style="font-size:14px;line-height:1.8;color:#333;">店舗「' . htmlspecialchars($shop['shop_name'], ENT_QUOTES, 'UTF-8') . '」宛に、お客様からメッセージが届いています。</p>';
     $html .= '<div style="background:#f5f5f5;padding:12px;border-radius:6px;margin:16px 0;font-size:13px;line-height:1.6;color:#555;border-left:3px solid #9b2d35;">';
     $html .= nl2br(htmlspecialchars(mb_substr($preview, 0, 200), ENT_QUOTES, 'UTF-8'));
     $html .= '</div>';
     $html .= '<p style="margin:24px 0;"><a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 24px;background:#9b2d35;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">ログインして返信する</a></p><p style="font-size:12px;color:#666;margin:8px 0;">※ リンクをクリックするとオーナーログイン画面が開きます</p>';
-    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は shop-admin &gt; チャット管理 から変更できます。</p>';
+    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は shop-admin &gt; YobuChat から変更できます。</p>';
     $html .= '</div></body></html>';
 
     $plain = "店舗「{$shop['shop_name']}」宛に新着チャットが届きました。\n\n";
@@ -317,7 +389,7 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    @mail($shop['email'], $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+    @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
 
     // 通知済みフラグ更新
     $pdo->prepare('UPDATE chat_sessions SET notified_at = NOW() WHERE id = ?')
@@ -342,6 +414,8 @@ try {
         case 'owner-inbox':     handleOwnerInbox(); break;
         case 'owner-reply':     handleOwnerReply(); break;
         case 'toggle-online':   handleToggleOnline(); break;
+        case 'toggle-notify':   handleToggleNotify(); break;
+        case 'owner-go-offline': handleOwnerGoOffline(); break;
         case 'update-settings': handleUpdateSettings(); break;
         case 'get-templates':   handleGetTemplates(); break;
         case 'save-template':   handleSaveTemplate(); break;
@@ -379,7 +453,7 @@ function handleStartSession() {
     if ($slug === '') err('shop_slug required');
 
     $shop = getShopBySlug($slug);
-    if (!$shop) err('チャット機能は利用できません', 404);
+    if (!$shop) err('YobuChatは利用できません', 404);
 
     $vh = visitorHash();
     if (isBlocked($shop['id'], $vh)) err('この店舗への連絡は停止されています', 403);
@@ -399,7 +473,7 @@ function handleStartSession() {
         'session_token' => $token,
         'session_id'    => $sessionId,
         'shop_name'     => $shop['shop_name'],
-        'is_online'     => (int)$shop['is_online'] === 1,
+        'is_online'     => effectiveOnline($shop),
         'gender_mode'   => $shop['gender_mode'] ?? 'men',
     ]);
 }
@@ -482,10 +556,11 @@ function handlePollMessages() {
             ->execute([$session['id'], $sinceId]);
     }
 
-    // ショップのオンライン状態
-    $stmt = $pdo->prepare('SELECT is_online FROM shop_chat_status WHERE shop_id = ?');
+    // ショップの実効オンライン状態
+    $stmt = $pdo->prepare('SELECT is_online, last_online_at, auto_off_minutes FROM shop_chat_status WHERE shop_id = ?');
     $stmt->execute([$session['shop_id']]);
-    $shopOnline = (int)$stmt->fetchColumn() === 1;
+    $shopRow = $stmt->fetch();
+    $shopOnline = effectiveOnline($shopRow ?: null);
 
     // 訪問者の自メッセージのうち shop が既読した最大ID
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
@@ -508,11 +583,17 @@ function handleShopStatus() {
     if (!$shop) {
         ok(['chat_enabled' => false]);
     }
+    $inHours = isWithinReceptionHours($shop);
     ok([
-        'chat_enabled' => true,
-        'is_online'    => (int)$shop['is_online'] === 1,
-        'shop_name'    => $shop['shop_name'],
-        'gender_mode'  => $shop['gender_mode'] ?? 'men',
+        'chat_enabled'      => true,
+        'is_online'         => effectiveOnline($shop),
+        'shop_name'         => $shop['shop_name'],
+        'gender_mode'       => $shop['gender_mode'] ?? 'men',
+        'reception_start'   => $shop['reception_start'] ?? null,
+        'reception_end'     => $shop['reception_end'] ?? null,
+        'is_reception_hours' => $inHours,
+        'next_reception_start' => $inHours ? null : nextReceptionStart($shop),
+        'welcome_message'   => $shop['welcome_message'] ?? null,
     ]);
 }
 
@@ -525,7 +606,7 @@ function handleRegisterDevice() {
     // 有効化ゲート: shop_chat_status レコードあるか確認
     $stmt = DB::conn()->prepare('SELECT 1 FROM shop_chat_status WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
-    if (!$stmt->fetchColumn()) err('チャット機能が有効化されていません', 403);
+    if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
 
     $deviceName = trim((string)inp('device_name', ''));
     if (mb_strlen($deviceName) > 100) $deviceName = mb_substr($deviceName, 0, 100);
@@ -543,16 +624,23 @@ function handleVerifyDevice() {
     $token = (string)inp('device_token', '');
     $device = verifyDevice($token);
     if (!$device) err('Invalid device token', 401);
+    // 通知モード取得
+    $stmt = DB::conn()->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
+    $stmt->execute([$device['shop_id']]);
+    $notifyMode = $stmt->fetchColumn() ?: 'first';
     ok([
         'shop_id'     => $device['shop_id'],
         'shop_name'   => $device['shop_name'],
         'slug'        => $device['slug'],
         'gender_mode' => $device['gender_mode'] ?? 'men',
+        'notify_mode' => $notifyMode,
+        'notify_enabled' => $notifyMode !== 'off',
     ]);
 }
 
 function handleOwnerInbox() {
     $device = requireDevice();
+    ownerHeartbeat($device['shop_id']);
     $sessionId = (int)inp('session_id', 0);
     $pdo = DB::conn();
 
@@ -608,6 +696,7 @@ function handleOwnerInbox() {
 
 function handleOwnerReply() {
     $device = requireDevice();
+    ownerHeartbeat($device['shop_id']);
     $sessionId = (int)inp('session_id', 0);
     $msg = trim((string)inp('message', ''));
     if ($sessionId <= 0) err('session_id required');
@@ -683,6 +772,28 @@ function handleToggleOnline() {
     );
     $stmt->execute([$isOnline, $isOnline, $device['shop_id']]);
     ok(['is_online' => $isOnline === 1]);
+}
+
+/**
+ * オーナー画面を閉じた時などに呼ばれる: is_online=0 に落とす（通知モードは維持）
+ */
+function handleOwnerGoOffline() {
+    $device = requireDevice();
+    DB::conn()->prepare('UPDATE shop_chat_status SET is_online = 0 WHERE shop_id = ?')
+        ->execute([$device['shop_id']]);
+    ok(['is_online' => false]);
+}
+
+/**
+ * 通知ON/OFFトグル: ON=first, OFF=off。既存 notify_mode を単純化して使う。
+ */
+function handleToggleNotify() {
+    $device = requireDevice();
+    $enabled = (int)inp('enabled', 0) === 1;
+    $mode = $enabled ? 'first' : 'off';
+    DB::conn()->prepare('UPDATE shop_chat_status SET notify_mode = ? WHERE shop_id = ?')
+        ->execute([$mode, $device['shop_id']]);
+    ok(['notify_enabled' => $enabled, 'notify_mode' => $mode]);
 }
 
 function handleUpdateSettings() {
@@ -799,8 +910,9 @@ function handleAdminOverview() {
 
     // 有効化状態取得
     $stmt = $pdo->prepare(
-        'SELECT s.slug, s.shop_name,
-                st.is_online, st.notify_mode, st.notify_min_interval_minutes, st.last_online_at
+        'SELECT s.slug, s.shop_name, s.email AS shop_email,
+                st.is_online, st.notify_mode, st.notify_min_interval_minutes, st.last_online_at, st.auto_off_minutes,
+                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
          FROM shops s
          LEFT JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.id = ? LIMIT 1'
@@ -846,9 +958,15 @@ function handleAdminOverview() {
         'enabled'    => $enabled,
         'slug'       => $row['slug'] ?? '',
         'shop_name'  => $row['shop_name'] ?? '',
-        'is_online'  => $enabled ? ((int)$row['is_online'] === 1) : false,
+        'is_online'  => $enabled ? effectiveOnline($row) : false,
         'notify_mode'=> $row['notify_mode'] ?? 'first',
         'notify_min_interval_minutes' => (int)($row['notify_min_interval_minutes'] ?? 3),
+        'reception_start' => $row['reception_start'] ?? null,
+        'reception_end'   => $row['reception_end'] ?? null,
+        'welcome_message' => $row['welcome_message'] ?? null,
+        'notify_email'    => $row['notify_email'] ?? null,
+        'shop_email'      => $row['shop_email'] ?? '',
+        'is_reception_hours' => $enabled ? isWithinReceptionHours($row) : true,
         'last_online_at' => $row['last_online_at'] ?? null,
         'templates'  => $templates,
         'devices'    => $devices,
@@ -864,7 +982,7 @@ function handleAdminToggleOnline() {
         'SELECT 1 FROM shop_chat_status WHERE shop_id = ?'
     );
     $stmt->execute([$auth['shop_id']]);
-    if (!$stmt->fetchColumn()) err('チャット機能が有効化されていません', 403);
+    if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
 
     $pdo->prepare(
         'UPDATE shop_chat_status SET is_online = ?, last_online_at = IF(? = 1, NOW(), last_online_at) WHERE shop_id = ?'
@@ -877,12 +995,56 @@ function handleAdminSaveSettings() {
     $mode = (string)inp('notify_mode', 'first');
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
     $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
+
+    $rStart = inp('reception_start', null);
+    $rEnd   = inp('reception_end', null);
+    $rStart = normalizeReceptionTime($rStart);
+    $rEnd   = normalizeReceptionTime($rEnd);
+    // 片方だけ NULL は不整合 → 両方 NULL に寄せる（24時間受付扱い）
+    if ($rStart === null || $rEnd === null) { $rStart = null; $rEnd = null; }
+
+    $welcome = inp('welcome_message', null);
+    if ($welcome !== null) {
+        $welcome = trim((string)$welcome);
+        if ($welcome === '') {
+            $welcome = null;
+        } elseif (mb_strlen($welcome) > 200) {
+            $welcome = mb_substr($welcome, 0, 200);
+        }
+    }
+
+    $notifyEmail = inp('notify_email', null);
+    if ($notifyEmail !== null) {
+        $notifyEmail = trim((string)$notifyEmail);
+        if ($notifyEmail === '') {
+            $notifyEmail = null;
+        } elseif (mb_strlen($notifyEmail) > 255 || !filter_var($notifyEmail, FILTER_VALIDATE_EMAIL)) {
+            err('通知先メールアドレスの形式が正しくありません');
+        }
+    }
+
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'UPDATE shop_chat_status SET notify_mode = ?, notify_min_interval_minutes = ? WHERE shop_id = ?'
+        'UPDATE shop_chat_status
+         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, notify_email = ?
+         WHERE shop_id = ?'
     );
-    $stmt->execute([$mode, $interval, $auth['shop_id']]);
-    ok(['notify_mode' => $mode, 'notify_min_interval_minutes' => $interval]);
+    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $notifyEmail, $auth['shop_id']]);
+    ok([
+        'notify_mode' => $mode,
+        'notify_min_interval_minutes' => $interval,
+        'reception_start' => $rStart,
+        'reception_end' => $rEnd,
+        'welcome_message' => $welcome,
+        'notify_email' => $notifyEmail,
+    ]);
+}
+
+function normalizeReceptionTime($t): ?string {
+    if ($t === null || $t === '' || $t === 'null') return null;
+    if (!is_string($t)) return null;
+    if (!preg_match('/^([01]?\d|2[0-3]):([0-5]\d)(?::\d{2})?$/', $t, $m)) return null;
+    return sprintf('%02d:%02d:00', (int)$m[1], (int)$m[2]);
 }
 
 function handleAdminSaveTemplate() {

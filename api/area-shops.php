@@ -39,15 +39,18 @@ if ($city) { $cityWhere = 'AND h.city = ?'; $queryParams[] = $city; }
 $queryParams[] = $mode;
 
 $stmt = $pdo->prepare("
-    SELECT s.id, s.shop_name, s.shop_url, s.thumbnail_url, s.banner_type, s.catchphrase,
+    SELECT s.id, s.shop_name, s.slug, s.shop_url, s.thumbnail_url, s.banner_type, s.catchphrase,
            s.business_hours, s.pr_text, s.min_price, s.display_tel, s.approved_at,
            COUNT(DISTINCT shi.hotel_id) AS hotel_count,
-           MAX(cp.price) AS plan_price
+           MAX(cp.price) AS plan_price,
+           MAX(st.shop_id IS NOT NULL) AS chat_enabled,
+           MAX(st.is_online) AS chat_online
     FROM shop_hotel_info shi
     JOIN hotels h ON shi.hotel_id = h.id AND h.is_published = 1 AND h.prefecture = ? $cityWhere
     JOIN shops s ON shi.shop_id = s.id AND s.status = 'active' AND s.gender_mode = ?
     LEFT JOIN shop_contracts sc ON s.id = sc.shop_id AND (sc.expires_at IS NULL OR sc.expires_at >= CURDATE())
     LEFT JOIN contract_plans cp ON sc.plan_id = cp.id
+    LEFT JOIN shop_chat_status st ON st.shop_id = s.id
     WHERE shi.can_call = 1
     GROUP BY s.id
     HAVING plan_price > 0
@@ -64,6 +67,7 @@ foreach ($shopRows as $row) {
     $finalResult[] = [
         'id' => $row['id'],
         'shop_name' => $row['shop_name'],
+        'slug' => $row['slug'] ?? null,
         'shop_url' => $row['shop_url'],
         'thumbnail_url' => $row['thumbnail_url'],
         'banner_type' => $row['banner_type'],
@@ -75,6 +79,8 @@ foreach ($shopRows as $row) {
         'approved_at' => $row['approved_at'],
         'hotel_count' => (int)$row['hotel_count'],
         'plan_price' => (int)$row['plan_price'],
+        'chat_enabled' => (int)$row['chat_enabled'] === 1,
+        'chat_online' => (int)$row['chat_online'] === 1,
     ];
 }
 

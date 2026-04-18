@@ -95,9 +95,11 @@ a{color:var(--chat-primary);text-decoration:none}
 .msg.visitor .msg-translation-badge{background:rgba(255,255,255,.25);color:#fff}
 .msg-translation-body{font-size:inherit}
 .msg-system{align-self:center;background:#fff8e1;color:#8b6914;padding:6px 12px;border-radius:10px;font-size:12px}
+.chat-system-note{align-self:center;background:rgba(var(--chat-primary-rgb),.08);color:var(--chat-primary);padding:8px 14px;border-radius:12px;font-size:13px;line-height:1.5;text-align:center;max-width:86%;margin:4px 0}
 
 /* ===== 訪問者ノート ===== */
 .chat-note{margin:10px 12px 4px;padding:8px 12px;background:var(--chat-note-bg);border:1px solid var(--chat-note-border);border-radius:8px;font-size:13px;color:var(--chat-note-text);line-height:1.5}
+.chat-note.reception-closed{background:#fdecec;border-color:#f2b5b5;color:#8b2323;font-weight:600}
 
 /* ===== クイック質問（1行横スクロール） ===== */
 .quick-questions{background:#fff;border-top:1px solid #e5e0d8;padding:6px 0}

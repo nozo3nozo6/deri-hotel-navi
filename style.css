@@ -2375,3 +2375,38 @@ textarea::placeholder {
     .result-status { padding-left: 6px; padding-right: 6px; }
     .header-inner { padding-left: 6px; padding-right: 6px; }
 }
+
+/* ===== Shop chat button (portal detail shop cards) ===== */
+.shop-chat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #d4a574 0%, #b8895a 100%);
+    color: #fff !important;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 14px;
+    text-decoration: none !important;
+    box-shadow: 0 2px 6px rgba(180,120,80,0.25);
+    transition: transform .15s, box-shadow .15s;
+    white-space: nowrap;
+}
+.shop-chat-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(180,120,80,0.35);
+}
+.chat-online-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #6fdc8c;
+    box-shadow: 0 0 6px rgba(111,220,140,0.8);
+    animation: chat-pulse 1.8s ease-in-out infinite;
+    display: inline-block;
+}
+@keyframes chat-pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(1.25); }
+}
