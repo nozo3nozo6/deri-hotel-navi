@@ -285,7 +285,7 @@ const Transport = PollingTransport;
 const LS_LANG = 'chat_lang_' + SLUG;
 const I18N = {
     ja: {
-        'status.online': 'オンライン', 'status.offline': 'オフライン',
+        'status.online': '受付中', 'status.offline': '受付停止中',
         'owner.notify': '通知',
         'inbox.title': '📥 受信チャット', 'inbox.refresh': '更新', 'inbox.logout': 'ログアウト',
         'inbox.empty': 'まだチャットはありません',
@@ -309,7 +309,7 @@ const I18N = {
         'note.reservation': '💡 ご予約やお約束の確定は、お電話/LINE等でお願いします'
     },
     en: {
-        'status.online': 'Online', 'status.offline': 'Offline',
+        'status.online': 'Accepting', 'status.offline': 'Closed',
         'owner.notify': 'Notify',
         'inbox.title': '📥 Inbox', 'inbox.refresh': 'Refresh', 'inbox.logout': 'Log out',
         'inbox.empty': 'No chats yet',
@@ -333,7 +333,7 @@ const I18N = {
         'note.reservation': '💡 Please confirm bookings by phone / LINE etc.'
     },
     zh: {
-        'status.online': '在线', 'status.offline': '离线',
+        'status.online': '接待中', 'status.offline': '暂停受理',
         'owner.notify': '通知',
         'inbox.title': '📥 收件箱', 'inbox.refresh': '刷新', 'inbox.logout': '登出',
         'inbox.empty': '暂无聊天',
@@ -357,7 +357,7 @@ const I18N = {
         'note.reservation': '💡 预约的最终确认请通过电话 / LINE 等完成'
     },
     ko: {
-        'status.online': '온라인', 'status.offline': '오프라인',
+        'status.online': '접수중', 'status.offline': '접수 중단',
         'owner.notify': '알림',
         'inbox.title': '📥 받은 채팅', 'inbox.refresh': '새로고침', 'inbox.logout': '로그아웃',
         'inbox.empty': '아직 채팅이 없습니다',
