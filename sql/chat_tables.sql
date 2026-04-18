@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     session_token VARCHAR(64) NOT NULL UNIQUE COMMENT 'localStorageに保存するUUID（匿名ユーザー識別）',
     visitor_hash VARCHAR(64) NULL COMMENT 'IP+UAハッシュ（レート制限・荒らし対策）',
     started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_activity_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'ON UPDATE無し。明示的なUPDATEでのみ更新（heartbeatで勝手に進まないため）',
     closed_at DATETIME NULL,
     status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
     source ENUM('portal', 'widget', 'standalone') NOT NULL DEFAULT 'standalone',
