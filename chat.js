@@ -297,6 +297,7 @@ const I18N = {
         'thread.back': '← 受信一覧に戻る', 'thread.block': '🚫 ブロック', 'thread.unblock': '✅ 解除',
         'thread.close': '🔒 チャット終了', 'thread.closeConfirm': 'このチャットを終了しますか？終了後はお客様からの新規メッセージは届きません。',
         'thread.closed': 'チャットを終了しました',
+        'thread.closedThanks': 'このチャットは終了しました。ご利用ありがとうございました。',
         'inbox.closedTag': '(終了)', 'inbox.visitorPrefix': '訪問者', 'inbox.selfPrefix': '自分: ',
         'exit.title': '予約は以下からどうぞ:', 'exit.tel': '📞 電話する', 'exit.line': '💬 LINEで続きを',
         'login.title': '👤 オーナーログイン', 'login.desc': 'shop-admin のログイン情報でサインインしてください',
@@ -324,6 +325,7 @@ const I18N = {
         'thread.back': '← Back to inbox', 'thread.block': '🚫 Block', 'thread.unblock': '✅ Unblock',
         'thread.close': '🔒 End chat', 'thread.closeConfirm': 'End this chat? The customer will not be able to send new messages.',
         'thread.closed': 'Chat ended',
+        'thread.closedThanks': 'This chat has ended. Thank you for using our service.',
         'inbox.closedTag': '(closed)', 'inbox.visitorPrefix': 'Visitor', 'inbox.selfPrefix': 'You: ',
         'exit.title': 'Book via:', 'exit.tel': '📞 Call', 'exit.line': '💬 Continue on LINE',
         'login.title': '👤 Owner login', 'login.desc': 'Sign in with your shop-admin credentials',
@@ -351,6 +353,7 @@ const I18N = {
         'thread.back': '← 返回收件箱', 'thread.block': '🚫 屏蔽', 'thread.unblock': '✅ 解除',
         'thread.close': '🔒 结束聊天', 'thread.closeConfirm': '确定要结束此聊天吗？结束后客户将无法发送新消息。',
         'thread.closed': '聊天已结束',
+        'thread.closedThanks': '本次聊天已结束。感谢您的使用。',
         'inbox.closedTag': '(已结束)', 'inbox.visitorPrefix': '访客', 'inbox.selfPrefix': '我: ',
         'exit.title': '通过以下方式预约:', 'exit.tel': '📞 电话', 'exit.line': '💬 LINE继续',
         'login.title': '👤 店主登录', 'login.desc': '使用 shop-admin 账号登录',
@@ -378,6 +381,7 @@ const I18N = {
         'thread.back': '← 받은 채팅으로', 'thread.block': '🚫 차단', 'thread.unblock': '✅ 해제',
         'thread.close': '🔒 채팅 종료', 'thread.closeConfirm': '이 채팅을 종료하시겠습니까? 종료 후 고객은 새로운 메시지를 보낼 수 없게 됩니다.',
         'thread.closed': '채팅이 종료되었습니다',
+        'thread.closedThanks': '이 채팅은 종료되었습니다. 이용해 주셔서 감사합니다.',
         'inbox.closedTag': '(종료)', 'inbox.visitorPrefix': '방문자', 'inbox.selfPrefix': '나: ',
         'exit.title': '예약은 아래에서:', 'exit.tel': '📞 전화', 'exit.line': '💬 LINE으로 계속',
         'login.title': '👤 점주 로그인', 'login.desc': 'shop-admin 로그인 정보로 로그인하세요',
@@ -759,9 +763,10 @@ function applyVisitorBatch(data) {
         updateReadMarkers();
     }
     updateStatusIndicator(data.shop_online);
-    if (data.status === 'closed') {
+    if (data.status === 'closed' && !state._closedMsgShown) {
+        state._closedMsgShown = true;
         stopPolling();
-        addSystemMessage('チャットが終了しました');
+        addSystemMessage(t('thread.closedThanks'));
         refs.inputArea.classList.add('hidden');
     }
     if ((data.messages || []).length) saveVisitorSession();
@@ -1025,6 +1030,7 @@ async function openOwnerThread(sessionId) {
     refs.ownerTemplates.classList.toggle('hidden', isClosed);
     if (refs.emojiToggle) refs.emojiToggle.classList.toggle('hidden', isClosed);
     if (isClosed && refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (isClosed) addSystemMessage(t('thread.closedThanks'));
 }
 
 function updateBlockButton() {
@@ -1319,10 +1325,13 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
         });
         state.selected_session.status = 'closed';
         refs.btnCloseSession.classList.add('hidden');
-        showError(t('thread.closed'));
-        // 自動で受信一覧に戻る
-        backToInbox();
-        await showInbox();
+        // オーナー側にもシステムメッセージを表示
+        addSystemMessage(t('thread.closedThanks'));
+        // 入力欄を隠す（返信不可）
+        if (refs.inputArea) refs.inputArea.classList.add('hidden');
+        if (refs.ownerTemplates) refs.ownerTemplates.classList.add('hidden');
+        if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+        if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     } catch (e) { showError(e.message); }
 });
 
