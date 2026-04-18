@@ -128,6 +128,12 @@ function ensurePortalMode() {
     if (st) st.style.display = 'flex';
 }
 
+// 全国ページのみジャンルヒーロー（PortalLayoutで生成済みH1セクション）を表示
+function toggleGenreHero(show) {
+    const el = document.getElementById('genre-hero');
+    if (el) el.style.display = show ? '' : 'none';
+}
+
 // 店舗URLの全国ページに LP コンテンツを追加するヘルパー
 function appendShopModeLpContent() {
     const hlc = document.getElementById('hotel-list');
@@ -470,6 +476,7 @@ function showJapanPage() {
     updatePageTitle('全国のホテル検索');
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
+    toggleGenreHero(true);
     clearHotelList();
     clearAds();
     loadAds('premium', '全国');
@@ -523,6 +530,7 @@ async function showPrefPage(region) {
         { label: t('japan'), onclick: 'showJapanPage()' },
         { label: region.label }
     ]);
+    toggleGenreHero(false);
     clearHotelList();
     loadAds('region', region.label);
 
@@ -577,6 +585,7 @@ async function showMajorAreaPage(region, pref) {
         ...regionBreadcrumb(region),
         { label: pref }
     ]);
+    toggleGenreHero(false);
     clearHotelList();
     loadAds('big', pref);
 
@@ -630,6 +639,7 @@ async function showCityPage(region, pref, majorArea) {
         { label: pref, handler: () => showMajorAreaPage(region, pref) },
         { label: majorArea }
     ]);
+    toggleGenreHero(false);
     clearHotelList();
 
 
@@ -760,6 +770,7 @@ async function showDetailAreaPage(region, pref, majorArea, detailArea) {
         { label: majorArea, handler: () => showCityPage(region, pref, majorArea) },
         { label: detailArea }
     ]);
+    toggleGenreHero(false);
     clearHotelList();
 
     const container = document.getElementById('area-button-container');
@@ -875,6 +886,7 @@ async function showNoAreaCityPage(region, pref) {
         { label: pref, handler: () => showMajorAreaPage(region, pref) },
         { label: t('other_areas') }
     ]);
+    toggleGenreHero(false);
     clearHotelList();
 
     const container = document.getElementById('area-button-container');

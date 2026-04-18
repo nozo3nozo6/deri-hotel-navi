@@ -124,6 +124,7 @@ async function showFavoritesPage() {
     window.scrollTo(0, 0);
     const gen = ++_fetchGeneration;
     ++_areaGeneration;
+    if (typeof toggleGenreHero === 'function') toggleGenreHero(false);
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
@@ -314,6 +315,7 @@ async function fetchAndShowHotels(filterObj) {
     const gen = ++_fetchGeneration;
     ++_areaGeneration;
     currentPage = () => fetchAndShowHotels(filterObj);
+    if (typeof toggleGenreHero === 'function') toggleGenreHero(false);
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
@@ -355,6 +357,7 @@ async function fetchAndShowHotelsByCity(filterObj, city) {
     if (filterObj.detail_area) _urlP.detail = filterObj.detail_area;
     _urlP.city = city;
     updateUrl(_urlP);
+    if (typeof toggleGenreHero === 'function') toggleGenreHero(false);
     showLoading();
     showSkeletonLoader();
     document.getElementById('area-button-container').innerHTML = '';
@@ -1774,6 +1777,7 @@ async function showHotelPanel(hotelId, isLoveho) {
     if (_showingHotelId === hotelId) return;
     _showingHotelId = hotelId;
     window.scrollTo(0,0);
+    if (typeof toggleGenreHero === 'function') toggleGenreHero(false);
     if (currentPage && currentHotelId !== hotelId) {
         // 現在のページが既にホテル詳細でない場合のみpageStackに追加
         const currentPageStr = currentPage.toString();
@@ -2238,6 +2242,9 @@ function renderDetailShopCards(shops, cityName) {
         const thumbHtml = `<img src="${esc(thumb || getDefaultThumb())}" class="ad-shop-thumb" alt="${esc(name)}" loading="lazy">`;
         const countHtml = count > 0 ? `<span class="ad-sub-count">📋${count}件</span>` : '';
         const prHtml = prText ? `<div class="ad-sub-catch">${esc(prText)}</div>` : '';
+        const chatHtml = (s.chat_enabled && s.slug)
+            ? `<a href="/chat/${esc(s.slug)}/" target="${_extTarget}" rel="noopener" class="shop-chat-btn" data-action="trackClick" data-event="chat_click" data-label="${esc(name)}">💬 今すぐ相談${s.chat_online ? '<span class="chat-online-dot"></span>' : ''}</a>`
+            : '';
         const rank = i + 1;
         const rankClass = rank === 1 ? 'ad-rank-gold' : rank === 2 ? 'ad-rank-silver' : rank === 3 ? 'ad-rank-bronze' : '';
         return `<div class="ad-shop-card ${rankClass}">
@@ -2245,6 +2252,7 @@ function renderDetailShopCards(shops, cityName) {
             <div class="ad-shop-info">
                 <div class="ad-sub-top">${nameHtml}${countHtml}</div>
                 ${prHtml}
+                ${chatHtml}
             </div>
         </div>`;
     }).filter(Boolean);

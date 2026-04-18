@@ -76,6 +76,31 @@ const MODE_PATH_MAP: Record<string, string> = { men: 'deli', women: 'jofu', men_
 const modePath = MODE_PATH_MAP[mode] || 'deli';
 const modeUrl = `https://yobuho.com/${modePath}/`;
 
+// 全国ページ用 SEO ヒーロー（H1+サブテキスト、ジャンル別文言）
+const HERO_DATA: Record<string, { h1: string; sub: string }> = {
+  men: {
+    h1: 'デリヘルを呼べるホテル検索',
+    sub: '全国43,000件以上のホテルから、デリヘル（出張ヘルス・派遣風俗）を呼べるホテルを地域・口コミから検索。フロント対応・カードキー・直通エレベーターなどの入室情報も実体験の口コミで確認できます。',
+  },
+  women: {
+    h1: '女性用風俗を呼べるホテル検索',
+    sub: '全国43,000件以上のホテルから、女性用風俗（女風・出張ホスト・出張セラピスト）を呼べるホテルを地域・口コミから検索。安心して利用できるホテルを実体験に基づく信頼性の高い情報で見つけられます。',
+  },
+  men_same: {
+    h1: '男性同士・ゲイカップルで利用できるホテル検索',
+    sub: '全国43,000件以上のホテルから、男性同士・ゲイカップルで利用できるLGBTフレンドリーなホテルを地域・口コミから検索。気兼ねなくチェックインできるホテル情報を実体験で確認できます。',
+  },
+  women_same: {
+    h1: '女性同士・レズビアンカップルで利用できるホテル検索',
+    sub: '全国43,000件以上のホテルから、女性同士・レズビアンカップルで利用できるLGBTフレンドリーなホテルを地域・口コミから検索。安心してご利用いただけるホテル情報を口コミで確認できます。',
+  },
+  este: {
+    h1: 'デリエステを呼べるホテル検索',
+    sub: '全国43,000件以上のホテルから、デリエステ（回春マッサージ・M性感・風俗エステ）を呼べるホテルを地域・口コミから検索。実体験の口コミと届出確認済み店舗のダブルチェックで信頼できるホテル情報をお届けします。',
+  },
+};
+const hero = HERO_DATA[mode];
+
 const jsonLd = [
   {
     "@context": "https://schema.org",
@@ -140,8 +165,6 @@ const jsonLd = [
         <link rel="stylesheet" href={`/portal-v2-${mode === 'men_same' ? 'men-same' : mode === 'women_same' ? 'women-same' : mode}.css?v=1`}>
     </Fragment>
 
-    <h1 class="sr-only">呼べるホテル検索 YobuHo（よぶほ・ヨブホ） - デリヘル・女性用風俗・同性利用・ラブホテル口コミ</h1>
-
     <header class="portal-header">
         <div class="header-inner">
             <button data-action="goToNationalTop" class="btn-to-gate">
@@ -178,6 +201,13 @@ const jsonLd = [
         </div>
         <div class="mode-title-bar" id="mode-title-bar" style="display:none;"></div>
     </header>
+
+    <section class="genre-hero" id="genre-hero" aria-labelledby="genre-hero-title">
+        <div class="genre-hero-inner">
+            <h1 class="genre-hero-title" id="genre-hero-title">{hero.h1}</h1>
+            <p class="genre-hero-sub">{hero.sub}</p>
+        </div>
+    </section>
 
     <section class="area-section">
         <nav aria-label="パンくずリスト">
@@ -494,17 +524,38 @@ const jsonLd = [
 
     <script defer is:inline src="/api-service.js?v=16"></script>
     <script defer is:inline src="/ui-utils.js?v=9"></script>
-    <script defer is:inline src="/area-navigation.js?v=12"></script>
-    <script defer is:inline src="/hotel-search.js?v=54"></script>
+    <script defer is:inline src="/area-navigation.js?v=13"></script>
+    <script defer is:inline src="/hotel-search.js?v=55"></script>
     <script defer is:inline src="/form-handler.js?v=7"></script>
 </BaseLayout>
 
-<style>
-    .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
+<style is:global>
+    .genre-hero {
+        background: linear-gradient(135deg, var(--bg-2, #fff) 0%, var(--bg-3, #f5f0eb) 100%);
+        border-bottom: 1px solid var(--border, rgba(0,0,0,0.08));
+        padding: 36px 20px 30px;
+        text-align: center;
+    }
+    .genre-hero-inner {
+        max-width: 820px;
+        margin: 0 auto;
+    }
+    .genre-hero-title {
+        font-size: clamp(20px, 4.2vw, 28px);
+        font-weight: 700;
+        line-height: 1.45;
+        color: var(--accent, #9b2d35);
+        margin: 0 0 12px;
+        letter-spacing: 0.02em;
+    }
+    .genre-hero-sub {
+        font-size: clamp(13px, 2.5vw, 15px);
+        line-height: 1.75;
+        color: var(--text-2, #6a5a4a);
+        margin: 0;
+    }
+    @media (max-width: 640px) {
+        .genre-hero { padding: 24px 16px 22px; }
+        .genre-hero-sub { text-align: left; }
     }
 </style>
