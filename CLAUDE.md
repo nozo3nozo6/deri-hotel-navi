@@ -904,6 +904,65 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - CSP: 外部ドメインホワイトリスト
 - 入力サニタイズ: esc()関数、コメント500文字制限
 
+## YobuChat（店舗 ↔ 訪問者チャット）
+
+### 構成
+- chat.html / chat.js / chat.css — スタンドアロンチャット画面（/chat/{slug}/）
+- chat-widget.js — 外部サイト埋込（`<script src="https://yobuho.com/chat-widget.js" data-slug="...">`）
+- api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
+- shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理
+
+### DBテーブル（sql/chat_tables.sql）
+- chat_sessions — 匿名訪問者セッション（session_token、shop_id、status=open/closed、blocked）
+- chat_messages — メッセージ（sender_type=visitor/shop、read_at）
+- shop_chat_templates — 店舗定型文
+- shop_chat_status — 有効化 + is_online + notify_mode + reception_start/end + welcome_message + notify_email（shop-chat-status にレコードあり = チャット機能ON）
+- shop_chat_devices — オーナー端末（localStorage `chat_owner_token` と照合）
+- chat_blocks — visitor_hash（IP+UA hash）でのブロックリスト
+
+### 通知メール
+- `shop_chat_status.notify_email` が NULL/空 → `shops.email` に送信（デフォルト）
+- 値あり → notify_email のみに送信（登録メールには送らない。現場と総務で分ける運用向け）
+
+### Transport抽象化（Cloudflare Durable Objects 移行保険）
+chat.js の `PollingTransport` オブジェクトが配信層を抽象化。`const Transport = PollingTransport;` の1行差し替えで WebSocket/DO に切替可能。
+
+**インターフェイス:**
+- `Transport.subscribeVisitor({ getSessionToken, getSinceId, onBatch, intervalMs })` → `{ stop }`
+- `Transport.subscribeOwner({ getDeviceToken, getSelectedSessionId, onBatch, intervalMs })` → `{ stop }`
+- `onBatch(data[, selectedSid])` に生のAPIレスポンスを渡す → `applyVisitorBatch` / `applyOwnerBatch` が画面反映
+
+**絶対に壊してはいけない不変条件:**
+- UIコード（enter*Mode / addMessage / renderInbox / updateReadMarkers 等）は Transport 実装に依存しない
+- Transport の責務は「配信」のみ。業務ロジック（status==='closed' 時の入力欄hide、既読マーカー更新、saveVisitorSession等）は applyVisitorBatch/applyOwnerBatch に置く
+- 受付時間外は `startVisitorPolling()` が `scheduleReceptionReopenCheck()` にフォールバックするため、Transport.subscribeVisitor は呼ばれない → DO実装でも同じガードを保つ
+
+### Durable Objects 移行マッピング
+| 現状 | DO版 |
+|---|---|
+| shop_id (CHAR(36)) | DO instance ID（`env.CHAT_DO.idFromName(shop_id)`） |
+| chat_sessions 1行 | DO内メモリ + 永続化（DurableObject.storage.put(`session:${token}`, {...})） |
+| chat_messages (session_id別) | DO内 storage.list({prefix:`msg:${sid}:`}) or SQL onパラレル |
+| shop_chat_status.is_online | DO インスタンス内フラグ（WebSocket接続数で判定可） |
+| api/chat-api.php の poll-messages | DO.fetch('/ws') → WebSocket → onmessage |
+| api/chat-api.php の owner-inbox | DO.fetch('/owner/inbox') → WebSocket push |
+| send-message / owner-reply | DO.fetch('/send', {method:POST}) → 全接続 WebSocket に broadcast |
+| register-device / verify-device | MySQLに残したままでOK（認証系はMySQLで集中管理） |
+| 通知メール送信 | DO 内で `fetch('https://yobuho.com/api/chat-notify.php')` 呼び出し or Workers Email |
+
+**DO移行の前提:**
+- チャット以外のDB（shops/reports/hotels）は引き続きシンレン MySQL を使う
+- 認証（shop-auth.php セッション）はPHP側に残す。DO接続時は device_token をクエリ or 認証headerで渡す
+- Cloudflare Workers + DO binding が必要（Free $5/月で数千チャットOK）
+- WebSocket接続数 = Workers実行時間課金。idle セッションは 60s で切断 → 次のpollでreconnect の設計が堅い
+
+**移行見積もり（保険①〜④完了後）:**
+- ①APIラッパー: 済（api() 関数）
+- ②Transport抽象化: 済（PollingTransport）
+- ③メール送信の独立API化: 未（DO移行時に同時でも可）
+- ④このマッピング表: 済
+- 実装本体: 5-7日（DO SQL schema、WebSocket handler、broadcast、heartbeat、retention cron on DO alarm）
+
 ## Z-index Stack
 - Header: 100
 - Dropdown: 200

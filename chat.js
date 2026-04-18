@@ -46,8 +46,8 @@ let state = {
     inbox_sessions: [],
     selected_session: null,
     templates: [],
-    polling: null,
-    inbox_polling: null,
+    _visitorSub: null,
+    _ownerSub: null,
     is_reception_hours: true,
     reception_start: null,
     reception_end: null,
@@ -152,6 +152,60 @@ async function api(action, params, method, baseUrl) {
     }
     return data;
 }
+
+// ===== Transport Layer =====
+// メッセージ配信を抽象化。現在はHTTP polling、将来はWebSocket/Cloudflare Durable Objectsに
+// 差し替え可能。UIコード（enter*Mode / addMessage / renderInbox 等）は触らずに swap できる。
+//
+// DO移行時の手順:
+//   1) DurableObjectTransport を実装（subscribeVisitor/subscribeOwner 同じシグネチャ）
+//      - shop_id → DO instance にマッピング（stub.fetch('/ws')）
+//      - WebSocket.onmessage → onBatch({messages, shop_online, ...})
+//   2) 下の `const Transport = PollingTransport;` を差し替えるだけ
+//   3) send系は一旦HTTPのまま（DOのwrite API経由に寄せるのは後段でOK）
+const PollingTransport = {
+    kind: 'polling',
+
+    // 訪問者: 自分のセッションの新着メッセージを購読
+    subscribeVisitor({ getSessionToken, getSinceId, onBatch, intervalMs }) {
+        let active = true;
+        const tick = async () => {
+            if (!active) return;
+            const token = getSessionToken();
+            if (!token) return;
+            try {
+                const data = await api('poll-messages', {
+                    session_token: token,
+                    since_id: getSinceId()
+                }, 'GET');
+                if (active) onBatch(data);
+            } catch (_) { /* retry next tick */ }
+        };
+        const timer = setInterval(tick, intervalMs || POLL_INTERVAL);
+        return { stop: () => { active = false; clearInterval(timer); } };
+    },
+
+    // オーナー: 受信箱 or 選択中スレッドを購読（selected_session の有無で自動切替）
+    subscribeOwner({ getDeviceToken, getSelectedSessionId, onBatch, intervalMs }) {
+        let active = true;
+        const tick = async () => {
+            if (!active) return;
+            const dt = getDeviceToken();
+            if (!dt) return;
+            try {
+                const sid = getSelectedSessionId();
+                const params = sid ? { device_token: dt, session_id: sid } : { device_token: dt };
+                const data = await api('owner-inbox', params, 'GET');
+                if (active) onBatch(data, sid);
+            } catch (_) { /* retry next tick */ }
+        };
+        const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
+        return { stop: () => { active = false; clearInterval(timer); } };
+    }
+};
+
+// 現在の有効トランスポート。DO対応時はここを DurableObjectTransport に差し替える。
+const Transport = PollingTransport;
 
 // ===== i18n =====
 const LS_LANG = 'chat_lang_' + SLUG;
@@ -564,6 +618,26 @@ async function maybeTranslate(msgDiv, text, from, to) {
     }
 }
 
+// 訪問者メッセージバッチを画面に反映（Transport.subscribeVisitor の onBatch、および初期ロードから呼ばれる）
+function applyVisitorBatch(data) {
+    for (const m of (data.messages || [])) {
+        addMessage(m, false);
+        state.last_message_id = Math.max(state.last_message_id, m.id);
+    }
+    if (typeof data.last_read_own_id !== 'undefined') {
+        state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+        updateReadMarkers();
+    }
+    updateStatusIndicator(data.shop_online);
+    if (data.status === 'closed') {
+        stopPolling();
+        addSystemMessage('チャットが終了しました');
+        refs.inputArea.classList.add('hidden');
+    }
+    if ((data.messages || []).length) saveVisitorSession();
+}
+
+// 初期ロード / 送信直後の一回取得
 async function pollMessages(initial) {
     if (!state.session_token) return;
     try {
@@ -571,21 +645,7 @@ async function pollMessages(initial) {
             session_token: state.session_token,
             since_id: state.last_message_id
         }, 'GET');
-        for (const m of (data.messages || [])) {
-            addMessage(m, false);
-            state.last_message_id = Math.max(state.last_message_id, m.id);
-        }
-        if (typeof data.last_read_own_id !== 'undefined') {
-            state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
-            updateReadMarkers();
-        }
-        updateStatusIndicator(data.shop_online);
-        if (data.status === 'closed') {
-            stopPolling();
-            addSystemMessage('チャットが終了しました');
-            refs.inputArea.classList.add('hidden');
-        }
-        if ((data.messages || []).length) saveVisitorSession();
+        applyVisitorBatch(data);
     } catch (e) {
         if (!initial) return;
         showError(e.message);
@@ -599,11 +659,15 @@ function startVisitorPolling() {
         scheduleReceptionReopenCheck();
         return;
     }
-    state.polling = setInterval(() => pollMessages(false), POLL_INTERVAL);
+    state._visitorSub = Transport.subscribeVisitor({
+        getSessionToken: () => state.session_token,
+        getSinceId: () => state.last_message_id,
+        onBatch: applyVisitorBatch
+    });
 }
 function stopPolling() {
-    if (state.polling) { clearInterval(state.polling); state.polling = null; }
-    if (state.inbox_polling) { clearInterval(state.inbox_polling); state.inbox_polling = null; }
+    if (state._visitorSub) { state._visitorSub.stop(); state._visitorSub = null; }
+    if (state._ownerSub) { state._ownerSub.stop(); state._ownerSub = null; }
     if (state.reception_banner_timer) { clearTimeout(state.reception_banner_timer); state.reception_banner_timer = null; }
 }
 
@@ -875,30 +939,36 @@ function renderTemplates() {
     }
 }
 
+// オーナー受信箱/スレッドバッチを画面に反映（Transport.subscribeOwner の onBatch）
+function applyOwnerBatch(data, selectedSid) {
+    if (!selectedSid) {
+        // 受信箱ビュー: 非表示なら無視（スレッド表示中に裏でinbox tickが来る可能性ない設計だが念のため）
+        if (!refs.ownerInbox.classList.contains('hidden')) {
+            state.inbox_sessions = data.sessions || [];
+            renderInbox();
+        }
+        return;
+    }
+    if (!state.selected_session) return;
+    for (const m of (data.messages || [])) {
+        if (m.id > state.last_message_id) {
+            addMessage(m, true);
+            state.last_message_id = m.id;
+        }
+    }
+    if (typeof data.last_read_own_id !== 'undefined') {
+        state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+        updateReadMarkers();
+    }
+}
+
 function startInboxPolling() {
     stopPolling();
-    state.inbox_polling = setInterval(async () => {
-        if (!refs.ownerInbox.classList.contains('hidden')) {
-            await showInbox();
-        } else if (state.selected_session) {
-            try {
-                const data = await api('owner-inbox', {
-                    device_token: state.device_token,
-                    session_id: state.selected_session.id
-                }, 'GET');
-                for (const m of (data.messages || [])) {
-                    if (m.id > state.last_message_id) {
-                        addMessage(m, true);
-                        state.last_message_id = m.id;
-                    }
-                }
-                if (typeof data.last_read_own_id !== 'undefined') {
-                    state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
-                    updateReadMarkers();
-                }
-            } catch (e) { /* ignore */ }
-        }
-    }, INBOX_INTERVAL);
+    state._ownerSub = Transport.subscribeOwner({
+        getDeviceToken: () => state.device_token,
+        getSelectedSessionId: () => state.selected_session ? state.selected_session.id : null,
+        onBatch: applyOwnerBatch
+    });
 }
 
 // ===== ログインモーダル =====
