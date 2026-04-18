@@ -77,6 +77,7 @@ const refs = {
     chatMessages: $('chat-messages'),
     quickQuestions: $('quick-questions'),
     visitorNote: $('visitor-note'),
+    reservationHint: $('reservation-hint'),
     ownerQuick: $('owner-quick'),
     emojiToggle: $('emoji-toggle'),
     nicknameArea: document.getElementById('nickname-area'),
@@ -231,7 +232,8 @@ const I18N = {
         'reception.hours': '受付時間',
         'reception.nextOpen': '次回受付開始',
         'reception.sendOk': 'メッセージは届きます。営業開始後にご返信いたします。',
-        'visitor.note': '匿名でOK。お気軽にご相談ください'
+        'visitor.note': '匿名でOK。お気軽にご相談ください',
+        'note.reservation': '💡 ご予約やお約束の確定は、お電話/LINE等でお願いします'
     },
     en: {
         'status.online': 'Online', 'status.offline': 'Offline',
@@ -254,7 +256,8 @@ const I18N = {
         'reception.hours': 'Reception hours',
         'reception.nextOpen': 'Next opening',
         'reception.sendOk': 'Your message will be delivered. The shop will reply when reception opens.',
-        'visitor.note': 'Anonymous is OK. Feel free to chat!'
+        'visitor.note': 'Anonymous is OK. Feel free to chat!',
+        'note.reservation': '💡 Please confirm bookings by phone / LINE etc.'
     },
     zh: {
         'status.online': '在线', 'status.offline': '离线',
@@ -277,7 +280,8 @@ const I18N = {
         'reception.hours': '受理时间',
         'reception.nextOpen': '下次开放',
         'reception.sendOk': '消息将被送达，店家将在开始受理后回复。',
-        'visitor.note': '可匿名。欢迎随时咨询！'
+        'visitor.note': '可匿名。欢迎随时咨询！',
+        'note.reservation': '💡 预约的最终确认请通过电话 / LINE 等完成'
     },
     ko: {
         'status.online': '온라인', 'status.offline': '오프라인',
@@ -300,7 +304,8 @@ const I18N = {
         'reception.hours': '접수 시간',
         'reception.nextOpen': '다음 접수 개시',
         'reception.sendOk': '메시지는 전달됩니다. 접수 시작 후 답장드리겠습니다.',
-        'visitor.note': '익명으로 OK. 편하게 상담하세요!'
+        'visitor.note': '익명으로 OK. 편하게 상담하세요!',
+        'note.reservation': '💡 예약이나 약속 확정은 전화 / LINE 등으로 부탁드립니다'
     }
 };
 let currentLang = 'ja';
@@ -453,6 +458,7 @@ async function enterVisitorMode() {
     refs.inputArea.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.remove('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
+    if (refs.reservationHint) refs.reservationHint.classList.remove('hidden');
     renderReceptionBanner();
     refs.ownerTemplates.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -772,6 +778,7 @@ async function enterOwnerMode() {
     if (refs.homeLink) refs.homeLink.classList.add('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
+    if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.visitorName) refs.visitorName.classList.add('hidden');

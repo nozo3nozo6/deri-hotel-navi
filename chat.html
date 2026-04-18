@@ -8,7 +8,7 @@
 <title>💬 YobuChat</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://yobuho.com https://cloudflareinsights.com;">
 <link rel="icon" href="/favicon.ico">
-<link rel="stylesheet" href="/chat.css?v=28">
+<link rel="stylesheet" href="/chat.css?v=29">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -51,6 +51,7 @@
     <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
 
     <div id="visitor-note" class="chat-note hidden">匿名でOK。お気軽にご相談ください！</div>
+    <div id="reservation-hint" class="chat-note reservation-hint hidden" data-i18n="note.reservation">💡 ご予約やお約束の確定は、お電話/LINE等でお願いします</div>
 
     <div id="nickname-area" class="nickname-area hidden">
       <label for="visitor-nickname" class="nickname-label" data-i18n="nickname.label">ニックネーム（任意）</label>
@@ -130,6 +131,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=28"></script>
+<script src="/chat.js?v=29"></script>
 </body>
 </html>
