@@ -286,7 +286,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 const I18N = {
     ja: {
         'status.online': '受付中', 'status.offline': '受付停止中',
-        'owner.notify': '通知',
+        'owner.notify': '受付',
         'inbox.title': '📥 受信チャット', 'inbox.refresh': '更新', 'inbox.logout': 'ログアウト',
         'inbox.empty': 'まだチャットはありません',
         'quick.now': '今すぐ呼べる？', 'quick.price': '料金は？', 'quick.hours': '何時まで？', 'quick.hotel': 'このホテル呼べる？',
@@ -311,7 +311,7 @@ const I18N = {
     },
     en: {
         'status.online': 'Accepting', 'status.offline': 'Closed',
-        'owner.notify': 'Notify',
+        'owner.notify': 'Accept',
         'inbox.title': '📥 Inbox', 'inbox.refresh': 'Refresh', 'inbox.logout': 'Log out',
         'inbox.empty': 'No chats yet',
         'quick.now': 'Available now?', 'quick.price': 'Price?', 'quick.hours': 'Until what time?', 'quick.hotel': 'This hotel OK?',
@@ -336,7 +336,7 @@ const I18N = {
     },
     zh: {
         'status.online': '接待中', 'status.offline': '暂停受理',
-        'owner.notify': '通知',
+        'owner.notify': '受理',
         'inbox.title': '📥 收件箱', 'inbox.refresh': '刷新', 'inbox.logout': '登出',
         'inbox.empty': '暂无聊天',
         'quick.now': '现在可以叫吗？', 'quick.price': '价格？', 'quick.hours': '营业到几点？', 'quick.hotel': '可以到这家酒店吗？',
@@ -361,7 +361,7 @@ const I18N = {
     },
     ko: {
         'status.online': '접수중', 'status.offline': '접수 중단',
-        'owner.notify': '알림',
+        'owner.notify': '접수',
         'inbox.title': '📥 받은 채팅', 'inbox.refresh': '새로고침', 'inbox.logout': '로그아웃',
         'inbox.empty': '아직 채팅이 없습니다',
         'quick.now': '지금 부를 수 있나요？', 'quick.price': '요금은？', 'quick.hours': '몇 시까지？', 'quick.hotel': '이 호텔 가능？',
@@ -1234,15 +1234,18 @@ if (refs.emojiToggle) {
 }
 
 refs.onlineToggle.addEventListener('change', async (e) => {
+    const isOn = e.target.checked;
     try {
-        await api('toggle-notify', {
+        const res = await api('toggle-notify', {
             device_token: state.device_token,
-            enabled: e.target.checked ? 1 : 0
+            enabled: isOn ? 1 : 0
         });
-        state.notify_enabled = e.target.checked;
+        state.notify_enabled = isOn;
+        // 受付トグルは is_online も同時に切り替える → オーナー画面のステータスドット即時反映
+        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : isOn);
     } catch (err) {
         showError(err.message);
-        e.target.checked = !e.target.checked;
+        e.target.checked = !isOn;
     }
 });
 

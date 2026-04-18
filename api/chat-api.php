@@ -222,8 +222,12 @@ function nextReceptionStart(?array $shop, ?int $nowTs = null): ?string {
  * オーナーheartbeat: 操作毎に is_online=1, last_online_at=NOW() に更新
  */
 function ownerHeartbeat(string $shopId): void {
+    // notify_mode='off' (オーナーが受付OFFにした) の時は自動で is_online=1 に戻さない
     DB::conn()->prepare(
-        'UPDATE shop_chat_status SET is_online = 1, last_online_at = NOW() WHERE shop_id = ?'
+        "UPDATE shop_chat_status
+         SET is_online = IF(notify_mode = 'off', 0, 1),
+             last_online_at = IF(notify_mode = 'off', last_online_at, NOW())
+         WHERE shop_id = ?"
     )->execute([$shopId]);
 }
 
@@ -1064,9 +1068,15 @@ function handleToggleNotify() {
     $device = requireDevice();
     $enabled = (int)inp('enabled', 0) === 1;
     $mode = $enabled ? 'first' : 'off';
-    DB::conn()->prepare('UPDATE shop_chat_status SET notify_mode = ? WHERE shop_id = ?')
-        ->execute([$mode, $device['shop_id']]);
-    ok(['notify_enabled' => $enabled, 'notify_mode' => $mode]);
+    // 受付トグルは notify_mode と is_online を同時に切り替える（ユーザーには緑丸=受付中として見える）
+    DB::conn()->prepare(
+        "UPDATE shop_chat_status
+         SET notify_mode = ?,
+             is_online = ?,
+             last_online_at = IF(? = 1, NOW(), last_online_at)
+         WHERE shop_id = ?"
+    )->execute([$mode, $enabled ? 1 : 0, $enabled ? 1 : 0, $device['shop_id']]);
+    ok(['notify_enabled' => $enabled, 'notify_mode' => $mode, 'is_online' => $enabled]);
 }
 
 function handleUpdateSettings() {
