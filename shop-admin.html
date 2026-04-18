@@ -933,7 +933,21 @@
                     ※ URL直リンクでもログイン必須です。<br>
                     ※ ブラウザのパスワードマネージャーで自動入力できます。
                 </div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">ログイン済み端末</div>
+
+                <!-- このブラウザを登録 -->
+                <div style="padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:10px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">このブラウザをチャット受信端末として登録</div>
+                    <div style="font-size:11px;color:var(--text-3);line-height:1.7;margin-bottom:8px;">
+                        登録すると、次回から /chat/{slug}/ を開いたときに自動でオーナー画面が開きます（パスワード入力不要）。
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <input id="chat-register-device-name" class="f-input" placeholder="端末名（例: 店長スマホ / PC）" maxlength="100" style="flex:1;min-width:160px;font-size:13px;">
+                        <button class="btn" style="padding:8px 14px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="registerThisBrowser()">このブラウザを登録</button>
+                    </div>
+                    <div id="chat-register-device-hint" style="font-size:11px;color:var(--text-3);margin-top:6px;"></div>
+                </div>
+
+                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">登録済み端末</div>
                 <div id="chat-admin-device-list" style="font-size:12px;color:var(--text-2);"></div>
             </div>
 
@@ -1029,6 +1043,19 @@
                 <div class="card-title">🚫 ブロックリスト</div>
                 <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">オーナー画面でブロックしたユーザーの一覧です。</div>
                 <div id="chat-block-list" style="font-size:12px;color:var(--text-2);"></div>
+            </div>
+
+            <!-- データ保持ポリシー -->
+            <div class="card" style="margin-top:12px;background:#fff8e1;border:1px solid #ffe082;">
+                <div class="card-title" style="color:#7a5a00;">ℹ️ チャットログの保持について</div>
+                <div style="font-size:12px;color:#7a5a00;line-height:1.8;">
+                    YobuChatのメッセージは<strong>予約管理や約束の保存を目的とした記録ではありません</strong>。以下のポリシーで自動削除されます：
+                    <ul style="margin:8px 0 0 18px;padding:0;">
+                        <li>無応答のセッションは<strong>48時間</strong>で自動的に終了します</li>
+                        <li>終了後のセッションは<strong>60日</strong>で完全に削除されます（メッセージ本文も含む）</li>
+                    </ul>
+                    <div style="margin-top:8px;">予約確定や重要な連絡は、電話・LINE・メールなど別の手段で記録・確認してください。</div>
+                </div>
             </div>
         </div>
     </div>
@@ -2799,6 +2826,7 @@ function renderDeviceList(devices){
         el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">登録済み端末はありません</div>';
         return;
     }
+    const localToken = (function(){ try { return localStorage.getItem('chat_owner_token') || ''; } catch(_){ return ''; } })();
     el.innerHTML = devices.map(d => `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:4px;gap:8px;">
                 <div>
@@ -2808,6 +2836,35 @@ function renderDeviceList(devices){
                 <button class="btn" style="padding:4px 10px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" onclick="revokeDevice(${d.id})">削除</button>
             </div>
         `).join('');
+
+    // 「このブラウザを登録」ヒント更新
+    const hint = document.getElementById('chat-register-device-hint');
+    if (hint) {
+        if (localToken) {
+            hint.textContent = '※ このブラウザは既にチャット受信端末として登録されています。再登録すると別の端末として二重に登録されます。';
+            hint.style.color = '#a08000';
+        } else {
+            hint.textContent = '※ 登録後、このブラウザのlocalStorageに端末トークンが保存されます。共有PCでは使わないでください。';
+            hint.style.color = 'var(--text-3)';
+        }
+    }
+}
+
+async function registerThisBrowser(){
+    const nameEl = document.getElementById('chat-register-device-name');
+    const deviceName = nameEl ? String(nameEl.value || '').trim() : '';
+    if (!confirm('このブラウザをチャット受信端末として登録しますか？\n\n登録するとトークンがlocalStorageに保存され、次回から自動でオーナー画面が開きます。共有PCでは登録しないでください。')) return;
+    try {
+        const r = await chatApi('register-device', { device_name: deviceName || 'ブラウザ登録' });
+        if (!r.device_token) throw new Error('端末トークンの発行に失敗しました');
+        try { localStorage.setItem('chat_owner_token', r.device_token); } catch(_){}
+        if (nameEl) nameEl.value = '';
+        toast('✅ このブラウザを登録しました');
+        const data = await chatApi('admin-overview', {}, 'GET');
+        renderDeviceList(data.devices || []);
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    }
 }
 
 function renderTemplateList(templates){

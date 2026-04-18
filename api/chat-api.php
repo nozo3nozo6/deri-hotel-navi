@@ -422,6 +422,7 @@ try {
         case 'delete-template': handleDeleteTemplate(); break;
         case 'block-visitor':   handleBlockVisitor(); break;
         case 'unblock-visitor': handleUnblockVisitor(); break;
+        case 'owner-logout':    handleOwnerLogout(); break;
 
         // Owner bootstrap (PHPセッション認証)
         case 'register-device': handleRegisterDevice(); break;
@@ -618,6 +619,15 @@ function handleRegisterDevice() {
     $stmt->execute([$auth['shop_id'], $token, $deviceName ?: null]);
 
     ok(['device_token' => $token]);
+}
+
+function handleOwnerLogout() {
+    // device_token だけで削除可能。自分のトークンを明示的に無効化する用途
+    $token = (string)inp('device_token', '');
+    if ($token === '') err('device_token required');
+    $stmt = DB::conn()->prepare('DELETE FROM shop_chat_devices WHERE device_token = ?');
+    $stmt->execute([$token]);
+    ok(['revoked' => $stmt->rowCount()]);
 }
 
 function handleVerifyDevice() {

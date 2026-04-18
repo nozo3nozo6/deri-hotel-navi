@@ -76,9 +76,10 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASS: ${{ secrets.DB_PASS }}
+          CHAT_RETENTION_SECRET: ${{ secrets.CHAT_RETENTION_SECRET }}
         run: |
           mkdir -p api
-          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > api/db-config.php
+          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\ndefine('CHAT_RETENTION_SECRET', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$CHAT_RETENTION_SECRET" > api/db-config.php
 
       - name: Deploy code via rsync
         run: |

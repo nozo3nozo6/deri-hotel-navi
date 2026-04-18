@@ -1027,6 +1027,10 @@ async function handleLogin(ev) {
 
 async function handleOwnerLogout() {
     if (!confirm('この端末からログアウトしますか？以降このブラウザではオーナー画面に入れなくなります。')) return;
+    // サーバー側のdevice_tokenを無効化（ブラウザからlocalStorageを盗まれても悪用不可にするため）
+    if (state.device_token) {
+        try { await api('owner-logout', { device_token: state.device_token }); } catch (_) { /* ignore, proceed with client-side cleanup */ }
+    }
     try {
         // PHPセッションも破棄
         await fetch(SHOP_AUTH_API + '?action=logout', { method: 'POST', credentials: 'include' }).catch(() => {});
