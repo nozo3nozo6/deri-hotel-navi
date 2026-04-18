@@ -134,13 +134,31 @@ function toggleGenreHero(show) {
     if (el) el.style.display = show ? '' : 'none';
 }
 
-// 全国ページのボトムLP（3ステップのみ。トラストカードはhero側に集約）
+// 全国ページのボトムLP（信頼性カード3枚 + 使い方3ステップ）
 function appendShopModeLpContent() {
     const hlc = document.getElementById('hotel-list');
     if (!hlc || hlc.querySelector('.shop-lp-content')) return;
     hlc.insertAdjacentHTML('beforeend', `
         <div class="shop-lp-content" style="margin-top:20px;">
             <div style="padding:4px 4px 16px;">
+                <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">YobuHoが選ばれる理由</p>
+                <div class="shop-lp-trust" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 18px;">
+                    <div style="background:var(--bg-2,#fff);border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:10px;padding:14px 12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size:24px;line-height:1;margin-bottom:8px;">💬</div>
+                        <div style="font-size:12px;font-weight:700;color:var(--accent);margin:0 0 4px;line-height:1.4;">ユーザーの実体験口コミ</div>
+                        <div style="font-size:11px;color:var(--text-2);line-height:1.6;">実際に利用したユーザーが投稿した口コミ。呼べた・呼べなかったのリアルな体験。</div>
+                    </div>
+                    <div style="background:var(--bg-2,#fff);border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:10px;padding:14px 12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size:24px;line-height:1;margin-bottom:8px;">🏪</div>
+                        <div style="font-size:12px;font-weight:700;color:var(--accent);margin:0 0 4px;line-height:1.4;">店舗からの公式情報</div>
+                        <div style="font-size:11px;color:var(--text-2);line-height:1.6;">届出確認済みの掲載店舗が提供する派遣実績データ。</div>
+                    </div>
+                    <div style="background:var(--bg-2,#fff);border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:10px;padding:14px 12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size:24px;line-height:1;margin-bottom:8px;">✅</div>
+                        <div style="font-size:12px;font-weight:700;color:var(--accent);margin:0 0 4px;line-height:1.4;">ダブルチェックで高信頼性</div>
+                        <div style="font-size:11px;color:var(--text-2);line-height:1.6;">ユーザー口コミと店舗情報の両面で確認できる確かな情報。</div>
+                    </div>
+                </div>
                 <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">使い方はかんたん3ステップ</p>
                 <div style="display:flex;flex-direction:column;gap:6px;">
                     <div style="display:flex;align-items:flex-start;gap:10px;background:var(--bg-3);border-radius:8px;padding:9px 12px;">
@@ -158,6 +176,7 @@ function appendShopModeLpContent() {
                 </div>
             </div>
         </div>
+        <style>@media (max-width:640px){.shop-lp-trust{grid-template-columns:1fr !important;}}</style>
     `);
 }
 

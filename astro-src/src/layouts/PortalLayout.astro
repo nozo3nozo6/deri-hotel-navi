@@ -206,23 +206,6 @@ const jsonLd = [
         <div class="genre-hero-inner">
             <h1 class="genre-hero-title" id="genre-hero-title">{hero.h1}</h1>
             <p class="genre-hero-sub">{hero.sub}</p>
-            <div class="genre-trust-cards" role="list" aria-label="YobuHoが選ばれる理由">
-                <div class="genre-trust-card" role="listitem">
-                    <div class="genre-trust-icon" aria-hidden="true">&#128172;</div>
-                    <h2 class="genre-trust-title">ユーザーの実体験口コミ</h2>
-                    <p class="genre-trust-desc">実際に利用したユーザーが投稿した口コミ。呼べた・呼べなかったのリアルな体験をもとにした信頼できる情報です。</p>
-                </div>
-                <div class="genre-trust-card" role="listitem">
-                    <div class="genre-trust-icon" aria-hidden="true">&#127978;</div>
-                    <h2 class="genre-trust-title">店舗からの公式情報</h2>
-                    <p class="genre-trust-desc">届出確認済みの掲載店舗が提供する派遣実績データ。実際の利用状況に基づく確かな情報です。</p>
-                </div>
-                <div class="genre-trust-card" role="listitem">
-                    <div class="genre-trust-icon" aria-hidden="true">&#9989;</div>
-                    <h2 class="genre-trust-title">ダブルチェックで高信頼性</h2>
-                    <p class="genre-trust-desc">ユーザー口コミと店舗情報の両面で確認できるため、より正確で信頼性の高いホテル情報を提供します。</p>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -541,75 +524,57 @@ const jsonLd = [
 
     <script defer is:inline src="/api-service.js?v=16"></script>
     <script defer is:inline src="/ui-utils.js?v=9"></script>
-    <script defer is:inline src="/area-navigation.js?v=14"></script>
+    <script defer is:inline src="/area-navigation.js?v=15"></script>
     <script defer is:inline src="/hotel-search.js?v=55"></script>
     <script defer is:inline src="/form-handler.js?v=7"></script>
 </BaseLayout>
 
 <style is:global>
     .genre-hero {
-        background: linear-gradient(135deg, var(--bg-2, #fff) 0%, var(--bg-3, #f5f0eb) 100%);
-        border-bottom: 1px solid var(--border, rgba(0,0,0,0.08));
-        padding: 36px 20px 32px;
+        background:
+            radial-gradient(ellipse at 10% 30%, rgba(201,72,112,0.25) 0%, transparent 50%),
+            radial-gradient(ellipse at 90% 20%, rgba(216,24,46,0.18) 0%, transparent 45%),
+            radial-gradient(ellipse at 75% 80%, rgba(159,131,192,0.25) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(192,104,130,0.22) 0%, transparent 50%),
+            radial-gradient(ellipse at 55% 50%, rgba(196,96,120,0.18) 0%, transparent 55%),
+            linear-gradient(135deg, #1a1228 0%, #2a1838 35%, #3a2040 70%, #1a1228 100%);
+        padding: 20px 20px 18px;
         text-align: center;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+    .genre-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(45deg, transparent 0, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 80px);
+        pointer-events: none;
     }
     .genre-hero-inner {
         max-width: 980px;
         margin: 0 auto;
+        position: relative;
+        z-index: 1;
     }
     .genre-hero-title {
-        font-size: clamp(20px, 4.2vw, 28px);
+        font-size: clamp(20px, 4.2vw, 26px);
         font-weight: 700;
-        line-height: 1.45;
-        color: var(--accent, #9b2d35);
-        margin: 0 0 12px;
-        letter-spacing: 0.02em;
+        line-height: 1.4;
+        color: #fff;
+        margin: 0 0 6px;
+        letter-spacing: 0.03em;
+        text-shadow: 0 2px 20px rgba(0,0,0,0.4);
     }
     .genre-hero-sub {
-        font-size: clamp(13px, 2.5vw, 15px);
-        line-height: 1.75;
-        color: var(--text-2, #6a5a4a);
-        margin: 0 0 24px;
-    }
-    .genre-trust-cards {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
-        margin-top: 8px;
-    }
-    .genre-trust-card {
-        background: var(--bg, #faf8f4);
-        border: 1px solid var(--border, rgba(155,45,53,0.14));
-        border-radius: 12px;
-        padding: 20px 16px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }
-    .genre-trust-icon {
-        font-size: 30px;
-        line-height: 1;
-        margin-bottom: 10px;
-    }
-    .genre-trust-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--accent, #9b2d35);
-        margin: 0 0 8px;
-        line-height: 1.4;
-    }
-    .genre-trust-desc {
-        font-size: 12px;
-        color: var(--text-2, #6a5a4a);
-        line-height: 1.7;
+        font-size: clamp(12px, 2.5vw, 13px);
+        line-height: 1.6;
+        color: rgba(255,255,255,0.65);
         margin: 0;
     }
     @media (max-width: 640px) {
-        .genre-hero { padding: 24px 16px 22px; }
-        .genre-hero-sub { text-align: left; margin-bottom: 18px; }
-        .genre-trust-cards { grid-template-columns: 1fr; gap: 10px; }
-        .genre-trust-card { padding: 14px 14px; text-align: left; display: grid; grid-template-columns: 36px 1fr; gap: 10px 14px; align-items: start; }
-        .genre-trust-icon { font-size: 24px; margin-bottom: 0; align-self: center; }
-        .genre-trust-title { grid-column: 2; margin: 0 0 4px; font-size: 13px; }
-        .genre-trust-desc { grid-column: 2; font-size: 12px; line-height: 1.6; }
+        .genre-hero { padding: 14px 16px 12px; }
+        .genre-hero-title { font-size: 20px; margin-bottom: 4px; }
+        .genre-hero-sub { font-size: 12px; line-height: 1.5; }
     }
 </style>
