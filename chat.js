@@ -294,6 +294,7 @@ const I18N = {
         'template.title': '定型文:', 'template.empty': '定型文は shop-admin で登録してください',
         'input.placeholder': 'メッセージを入力...', 'input.send': '送信',
         'thread.back': '← 受信一覧に戻る', 'thread.block': '🚫 ブロック', 'thread.unblock': '✅ 解除',
+        'inbox.closedTag': '(終了)', 'inbox.visitorPrefix': '訪問者', 'inbox.selfPrefix': '自分: ',
         'exit.title': '予約は以下からどうぞ:', 'exit.tel': '📞 電話する', 'exit.line': '💬 LINEで続きを',
         'login.title': '👤 オーナーログイン', 'login.desc': 'shop-admin のログイン情報でサインインしてください',
         'login.email': 'メールアドレス', 'login.password': 'パスワード', 'login.submit': 'ログイン',
@@ -318,6 +319,7 @@ const I18N = {
         'template.title': 'Templates:', 'template.empty': 'Add templates in shop-admin',
         'input.placeholder': 'Type a message...', 'input.send': 'Send',
         'thread.back': '← Back to inbox', 'thread.block': '🚫 Block', 'thread.unblock': '✅ Unblock',
+        'inbox.closedTag': '(closed)', 'inbox.visitorPrefix': 'Visitor', 'inbox.selfPrefix': 'You: ',
         'exit.title': 'Book via:', 'exit.tel': '📞 Call', 'exit.line': '💬 Continue on LINE',
         'login.title': '👤 Owner login', 'login.desc': 'Sign in with your shop-admin credentials',
         'login.email': 'Email', 'login.password': 'Password', 'login.submit': 'Log in',
@@ -342,6 +344,7 @@ const I18N = {
         'template.title': '模板:', 'template.empty': '请在 shop-admin 添加模板',
         'input.placeholder': '输入消息...', 'input.send': '发送',
         'thread.back': '← 返回收件箱', 'thread.block': '🚫 屏蔽', 'thread.unblock': '✅ 解除',
+        'inbox.closedTag': '(已结束)', 'inbox.visitorPrefix': '访客', 'inbox.selfPrefix': '我: ',
         'exit.title': '通过以下方式预约:', 'exit.tel': '📞 电话', 'exit.line': '💬 LINE继续',
         'login.title': '👤 店主登录', 'login.desc': '使用 shop-admin 账号登录',
         'login.email': '邮箱', 'login.password': '密码', 'login.submit': '登录',
@@ -366,6 +369,7 @@ const I18N = {
         'template.title': '템플릿:', 'template.empty': 'shop-admin 에서 템플릿을 등록하세요',
         'input.placeholder': '메시지를 입력...', 'input.send': '전송',
         'thread.back': '← 받은 채팅으로', 'thread.block': '🚫 차단', 'thread.unblock': '✅ 해제',
+        'inbox.closedTag': '(종료)', 'inbox.visitorPrefix': '방문자', 'inbox.selfPrefix': '나: ',
         'exit.title': '예약은 아래에서:', 'exit.tel': '📞 전화', 'exit.line': '💬 LINE으로 계속',
         'login.title': '👤 점주 로그인', 'login.desc': 'shop-admin 로그인 정보로 로그인하세요',
         'login.email': '이메일', 'login.password': '비밀번호', 'login.submit': '로그인',
@@ -405,6 +409,26 @@ function applyLang(lang) {
         const note = loginModal.querySelector('.owner-login-note'); if (note) note.textContent = t('login.note');
     }
     if (state && state.is_online !== undefined) updateStatusIndicator(state.is_online);
+    // 動的生成の文字を再描画
+    try {
+        if (refs.ownerLoginLink) refs.ownerLoginLink.textContent = t('owner.loginLink');
+        if (state.mode === 'owner' && state.inbox_sessions && refs.ownerInbox && !refs.ownerInbox.classList.contains('hidden')) {
+            renderInbox();
+        }
+        if (state.mode === 'visitor') renderReceptionBanner();
+        // 選択中のスレッドのヘッダー名
+        if (state.mode === 'owner' && state.selected_session && refs.visitorName && !refs.visitorName.classList.contains('hidden')) {
+            const s = state.selected_session;
+            refs.visitorName.textContent = s.nickname ? s.nickname : `${t('inbox.visitorPrefix')} #${s.id}`;
+        }
+        // 既読マーク
+        document.querySelectorAll('.msg-read').forEach(el => { el.textContent = t('msg.read'); });
+        // ブロックボタンの label（ブロック済み/未ブロックで切替が必要）
+        if (refs.btnBlock) {
+            const isBlocked = refs.btnBlock.dataset.blocked === '1';
+            refs.btnBlock.textContent = t(isBlocked ? 'thread.unblock' : 'thread.block');
+        }
+    } catch (_) {}
     try { localStorage.setItem(LS_LANG, lang); } catch (_) {}
 }
 
@@ -916,13 +940,13 @@ function renderInbox() {
         li.className = 'inbox-item' + (s.unread_count > 0 ? ' unread' : '');
         li.dataset.sessionId = s.id;
         const unread = s.unread_count > 0 ? `<span class="unread-badge">${s.unread_count}</span>` : '';
-        const statusBadge = s.status === 'closed' ? '<span style="color:#999;font-size:11px;">(終了)</span>' : '';
-        const displayName = s.nickname ? esc(s.nickname) : `訪問者 #${s.id}`;
+        const statusBadge = s.status === 'closed' ? `<span style="color:#999;font-size:11px;">${esc(t('inbox.closedTag'))}</span>` : '';
+        const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
         li.innerHTML = `
             <div class="inbox-item-title">
                 <span>${displayName} ${statusBadge}</span>${unread}
             </div>
-            <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? '自分: ' : '')}${esc(s.last_message || '')}</div>
+            <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
             <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
         `;
         li.addEventListener('click', () => openOwnerThread(s.id));
@@ -946,7 +970,7 @@ async function openOwnerThread(sessionId) {
 
     const visitorLabel = state.selected_session.nickname
         ? state.selected_session.nickname
-        : `訪問者 #${state.selected_session.id}`;
+        : `${t('inbox.visitorPrefix')} #${state.selected_session.id}`;
     refs.shopName.textContent = state.shop_name;
     if (refs.visitorName) {
         refs.visitorName.textContent = visitorLabel;
@@ -982,10 +1006,12 @@ function updateBlockButton() {
     if (!refs.btnBlock || !state.selected_session) return;
     if (state.selected_session.is_blocked) {
         refs.btnBlock.textContent = t('thread.unblock');
+        refs.btnBlock.dataset.blocked = '1';
         refs.btnBlock.classList.remove('danger');
         refs.btnBlock.classList.add('success');
     } else {
         refs.btnBlock.textContent = t('thread.block');
+        refs.btnBlock.dataset.blocked = '0';
         refs.btnBlock.classList.remove('success');
         refs.btnBlock.classList.add('danger');
     }
