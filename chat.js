@@ -154,16 +154,34 @@ async function api(action, params, method, baseUrl) {
     return data;
 }
 
+// UUID v4 生成 (client_msg_id 用). crypto.randomUUID が使えない古環境でのフォールバック付き.
+function uuidv4() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // RFC 4122 v4 フォールバック
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+    });
+}
+
 // ===== Transport Layer =====
-// メッセージ配信を抽象化。現在はHTTP polling、将来はWebSocket/Cloudflare Durable Objectsに
+// メッセージ配信・送信を抽象化。現在はHTTP polling、将来はWebSocket/Cloudflare Durable Objectsに
 // 差し替え可能。UIコード（enter*Mode / addMessage / renderInbox 等）は触らずに swap できる。
 //
 // DO移行時の手順:
-//   1) DurableObjectTransport を実装（subscribeVisitor/subscribeOwner 同じシグネチャ）
+//   1) DurableObjectTransport を実装（subscribe* / send* 同じシグネチャ）
 //      - shop_id → DO instance にマッピング（stub.fetch('/ws')）
-//      - WebSocket.onmessage → onBatch({messages, shop_online, ...})
+//      - WebSocket.onmessage → onBatch({messages, shop_online, status, last_read_own_id, ...})
 //   2) 下の `const Transport = PollingTransport;` を差し替えるだけ
-//   3) send系は一旦HTTPのまま（DOのwrite API経由に寄せるのは後段でOK）
+//   3) send* は WS で broadcast or HTTP のまま (Cloudflare推奨: 書き込みはHTTP、購読はWS)
+//
+// 契約:
+//   - Transport.subscribeVisitor / subscribeOwner は {stop} ハンドルを返す
+//   - Transport.sendVisitor / sendOwner は {message_id, client_msg_id, messages[], ...} を返す
+//   - client_msg_id を呼び出し元が生成して渡す (冪等送信: ネットワーク再送でも重複しない)
+//   - onBatch が受け取るデータ: {messages[], shop_online, status, last_read_own_id, server_time, ...}
 const PollingTransport = {
     kind: 'polling',
 
@@ -187,7 +205,7 @@ const PollingTransport = {
     },
 
     // オーナー: 受信箱 or 選択中スレッドを購読（selected_session の有無で自動切替）
-    subscribeOwner({ getDeviceToken, getSelectedSessionId, onBatch, intervalMs }) {
+    subscribeOwner({ getDeviceToken, getSelectedSessionId, getSinceId, onBatch, intervalMs }) {
         let active = true;
         const tick = async () => {
             if (!active) return;
@@ -195,13 +213,45 @@ const PollingTransport = {
             if (!dt) return;
             try {
                 const sid = getSelectedSessionId();
-                const params = sid ? { device_token: dt, session_id: sid } : { device_token: dt };
+                const since = sid && getSinceId ? getSinceId() : 0;
+                const params = sid
+                    ? { device_token: dt, session_id: sid, since_id: since }
+                    : { device_token: dt };
                 const data = await api('owner-inbox', params, 'GET');
                 if (active) onBatch(data, sid);
             } catch (_) { /* retry next tick */ }
         };
         const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
         return { stop: () => { active = false; clearInterval(timer); } };
+    },
+
+    // 訪問者: メッセージ送信 (client_msg_id で冪等化)
+    async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
+        return api('send-message', {
+            session_token: sessionToken,
+            message,
+            nickname: nickname || '',
+            lang: lang || '',
+            client_msg_id: clientMsgId,
+            since_id: sinceId || 0
+        });
+    },
+
+    // オーナー: メッセージ送信 (client_msg_id で冪等化)
+    async sendOwner({ deviceToken, sessionId, message, clientMsgId, sinceId }) {
+        return api('owner-reply', {
+            device_token: deviceToken,
+            session_id: sessionId,
+            message,
+            client_msg_id: clientMsgId,
+            since_id: sinceId || 0
+        });
+    },
+
+    // subscribe前のゲート判定. WS版でもconnect拒否を同形で返せる.
+    async canConnect({ sessionToken, shopSlug }) {
+        const params = sessionToken ? { session_token: sessionToken } : { shop_slug: shopSlug };
+        return api('can-connect', params, 'GET');
     }
 };
 
@@ -627,8 +677,11 @@ async function maybeTranslate(msgDiv, text, from, to) {
 // 訪問者メッセージバッチを画面に反映（Transport.subscribeVisitor の onBatch、および初期ロードから呼ばれる）
 function applyVisitorBatch(data) {
     for (const m of (data.messages || [])) {
-        addMessage(m, false);
-        state.last_message_id = Math.max(state.last_message_id, m.id);
+        // 送信直後のapply + 並行pollの二重描画を防ぐため id ベースdedup
+        if (m.id > state.last_message_id) {
+            addMessage(m, false);
+            state.last_message_id = m.id;
+        }
     }
     if (typeof data.last_read_own_id !== 'undefined') {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
@@ -742,15 +795,20 @@ async function sendVisitorMessage(msg) {
     const nick = refs.nicknameInput ? String(refs.nicknameInput.value || '').trim().slice(0, 20) : '';
     if (nick) localStorage.setItem(LS_NICKNAME, nick);
     const wasOffline = !state.is_online;
+    // client_msg_id: ネットワーク再送でもサーバー側が同一メッセージと判定 (UNIQUE制約).
+    const clientMsgId = uuidv4();
     try {
-        await api('send-message', {
-            session_token: state.session_token,
+        const resp = await Transport.sendVisitor({
+            sessionToken: state.session_token,
             message: msg,
             nickname: nick,
-            lang: currentLang
+            lang: currentLang,
+            clientMsgId,
+            sinceId: state.last_message_id
         });
         refs.input.value = '';
-        await pollMessages(false);
+        // 統一バッチ応答を同じハンドラで反映. pollMessages を追加で叩く必要なし.
+        applyVisitorBatch(resp);
         if (wasOffline && !state.offlineNotifiedShown) {
             showOfflineNotifiedHint();
             state.offlineNotifiedShown = true;
@@ -901,19 +959,18 @@ async function sendOwnerReply(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
     refs.sendBtn.disabled = true;
+    const clientMsgId = uuidv4();
     try {
-        const r = await api('owner-reply', {
-            device_token: state.device_token,
-            session_id: state.selected_session.id,
-            message: msg
+        const r = await Transport.sendOwner({
+            deviceToken: state.device_token,
+            sessionId: state.selected_session.id,
+            message: msg,
+            clientMsgId,
+            sinceId: state.last_message_id
         });
         refs.input.value = '';
-        const now = new Date();
-        const pad = n => n.toString().padStart(2,'0');
-        const jstStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate()) + ' '
-                     + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-        addMessage({ sender_type: 'shop', message: msg, sent_at: jstStr }, true);
-        if (r && r.message_id) state.last_message_id = Math.max(state.last_message_id, Number(r.message_id));
+        // 統一バッチ応答を applyOwnerBatch で反映 (自送信メッセージも同経由で画面に出る).
+        applyOwnerBatch(r, state.selected_session.id);
     } catch (e) { showError(e.message); }
     finally { refs.sendBtn.disabled = false; }
 }
@@ -974,6 +1031,7 @@ function startInboxPolling() {
     state._ownerSub = Transport.subscribeOwner({
         getDeviceToken: () => state.device_token,
         getSelectedSessionId: () => state.selected_session ? state.selected_session.id : null,
+        getSinceId: () => state.last_message_id,
         onBatch: applyOwnerBatch
     });
 }

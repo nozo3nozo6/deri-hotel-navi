@@ -40,7 +40,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -81,6 +81,36 @@ function inp(string $key, $default = null) {
     return $body[$key] ?? $_POST[$key] ?? $_GET[$key] ?? $default;
 }
 function ok($data = []) { echo json_encode(['ok' => true] + $data, JSON_UNESCAPED_UNICODE); exit; }
+
+/**
+ * DO-Ready 統一バッチレスポンス.
+ * WebSocket push時も同じ形状をサーバーがブロードキャストできるよう、全エンドポイントが
+ * この形状 (messages[], status, shop_online, last_read_own_id, server_time) を返す.
+ * 余剰フィールド (sessions, is_blocked 等) は merge して返す.
+ */
+function okBatch(array $extra = []): void {
+    $payload = [
+        'ok' => true,
+        'messages' => $extra['messages'] ?? [],
+        'status' => $extra['status'] ?? null,
+        'shop_online' => $extra['shop_online'] ?? null,
+        'last_read_own_id' => $extra['last_read_own_id'] ?? 0,
+        'server_time' => gmdate('c'),
+    ];
+    foreach ($extra as $k => $v) {
+        if (!array_key_exists($k, $payload)) $payload[$k] = $v;
+    }
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/**
+ * UUID v4 形式を緩く検証 (36文字 hex/hyphen). クライアント生成のclient_msg_id用.
+ */
+function isValidClientMsgId($id): bool {
+    if (!is_string($id) || strlen($id) !== 36) return false;
+    return (bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id);
+}
 function err(string $msg, int $code = 400) {
     http_response_code($code);
     echo json_encode(['ok' => false, 'error' => $msg], JSON_UNESCAPED_UNICODE);
@@ -407,6 +437,7 @@ try {
         case 'send-message':    handleSendMessage(); break;
         case 'poll-messages':   handlePollMessages(); break;
         case 'shop-status':     handleShopStatus(); break;
+        case 'can-connect':     handleCanConnect(); break;
         case 'translate':       handleTranslate(); break;
 
         // Owner (device_token auth)
@@ -484,10 +515,13 @@ function handleSendMessage() {
     $msg = (string)inp('message', '');
     $nick = trim((string)inp('nickname', ''));
     $lang = strtolower(substr((string)inp('lang', ''), 0, 5));
+    $clientMsgId = (string)inp('client_msg_id', '');
+    $sinceId = (int)inp('since_id', 0);
     $allowedLangs = ['ja','en','zh','ko'];
     if (!in_array($lang, $allowedLangs, true)) $lang = null;
     if (mb_strlen($nick) > 20) $nick = mb_substr($nick, 0, 20);
     if ($token === '') err('session_token required');
+    if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare('SELECT id, shop_id, status, blocked, visitor_hash FROM chat_sessions WHERE session_token = ? LIMIT 1');
@@ -496,6 +530,22 @@ function handleSendMessage() {
     if (!$session) err('Session not found', 404);
     if ($session['status'] === 'closed') err('このチャットは終了しています', 410);
     if ((int)$session['blocked'] === 1) err('この店舗への連絡は停止されています', 403);
+
+    // 冪等送信: 同じ client_msg_id で過去に送信済みなら、再挿入せず既存を返す.
+    // WS再接続中のネットワーク再送でも重複行が作られない.
+    if ($clientMsgId !== '') {
+        $stmt = $pdo->prepare(
+            'SELECT id FROM chat_messages
+             WHERE client_msg_id = ? AND session_id = ? AND sender_type = ? LIMIT 1'
+        );
+        $stmt->execute([$clientMsgId, $session['id'], 'visitor']);
+        $existingId = $stmt->fetchColumn();
+        if ($existingId) {
+            // 既存行. unified batch でクライアント側に反映.
+            respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, (int)$session['status'] === 'closed' ? 'closed' : 'open', ['message_id' => (int)$existingId, 'client_msg_id' => $clientMsgId, 'duplicate' => true]);
+            return;
+        }
+    }
 
     // 荒らし防止: 直近メッセージ取得
     $stmt = $pdo->prepare(
@@ -512,22 +562,76 @@ function handleSendMessage() {
     $rateErr = checkVisitorRate((int)$session['id']);
     if ($rateErr) err($rateErr, 429);
 
-    $stmt = $pdo->prepare("INSERT INTO chat_messages (session_id, sender_type, message, source_lang) VALUES (?, 'visitor', ?, ?)");
-    $stmt->execute([$session['id'], trim($msg), $lang]);
-    $messageId = (int)$pdo->lastInsertId();
+    // client_msg_id を同時INSERT. UNIQUE制約違反 = 並行リクエストでの重複送信.
+    try {
+        $stmt = $pdo->prepare("INSERT INTO chat_messages (session_id, sender_type, message, source_lang, client_msg_id) VALUES (?, 'visitor', ?, ?, ?)");
+        $stmt->execute([$session['id'], trim($msg), $lang, $clientMsgId ?: null]);
+        $messageId = (int)$pdo->lastInsertId();
+    } catch (PDOException $e) {
+        // UNIQUE違反 (1062) = 並行重複送信 → 既存を返す
+        if ($clientMsgId !== '' && strpos($e->getMessage(), '1062') !== false) {
+            $stmt = $pdo->prepare('SELECT id FROM chat_messages WHERE client_msg_id = ? LIMIT 1');
+            $stmt->execute([$clientMsgId]);
+            $messageId = (int)$stmt->fetchColumn();
+            if (!$messageId) throw $e;
+        } else {
+            throw $e;
+        }
+    }
 
     if ($nick !== '') {
-        $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), nickname = ? WHERE id = ?')
+        $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), last_visitor_heartbeat_at = NOW(), nickname = ? WHERE id = ?')
             ->execute([$nick, $session['id']]);
     } else {
-        $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW() WHERE id = ?')
+        $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), last_visitor_heartbeat_at = NOW() WHERE id = ?')
             ->execute([$session['id']]);
     }
 
     // メール通知（スロットリング内蔵）
     sendChatNotification($session['shop_id'], (int)$session['id'], trim($msg));
 
-    ok(['message_id' => $messageId]);
+    respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, 'open', ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
+}
+
+/**
+ * 訪問者セッションの統一バッチ応答を返す (send/poll共通).
+ * since_id 以降の全メッセージ + shop_online + status + last_read_own_id を含む.
+ */
+function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceId, string $status, array $extra = []): void {
+    $stmt = $pdo->prepare(
+        'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
+         FROM chat_messages
+         WHERE session_id = ? AND id > ?
+         ORDER BY id ASC'
+    );
+    $stmt->execute([$sessionId, $sinceId]);
+    $messages = $stmt->fetchAll();
+
+    // shop側メッセージの既読化
+    if (count($messages) > 0) {
+        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                       WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NULL AND id > ?")
+            ->execute([$sessionId, $sinceId]);
+    }
+
+    // オンライン状態
+    $stmt = $pdo->prepare('SELECT is_online, last_online_at, auto_off_minutes FROM shop_chat_status WHERE shop_id = ?');
+    $stmt->execute([$shopId]);
+    $shopRow = $stmt->fetch();
+    $shopOnline = effectiveOnline($shopRow ?: null);
+
+    // visitor自身の送信メッセージが既読された最大ID
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NOT NULL");
+    $stmt->execute([$sessionId]);
+    $lastReadOwnId = (int)$stmt->fetchColumn();
+
+    okBatch(array_merge($extra, [
+        'messages' => $messages,
+        'shop_online' => $shopOnline,
+        'status' => $status,
+        'last_read_own_id' => $lastReadOwnId,
+    ]));
 }
 
 function handlePollMessages() {
@@ -541,39 +645,100 @@ function handlePollMessages() {
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
 
-    $stmt = $pdo->prepare(
-        'SELECT id, sender_type, message, source_lang, sent_at
-         FROM chat_messages
-         WHERE session_id = ? AND id > ?
-         ORDER BY id ASC'
-    );
-    $stmt->execute([$session['id'], $sinceId]);
-    $messages = $stmt->fetchAll();
+    // presence heartbeat: visitorが生きていることを記録
+    $pdo->prepare('UPDATE chat_sessions SET last_visitor_heartbeat_at = NOW() WHERE id = ?')
+        ->execute([$session['id']]);
 
-    // shop側メッセージを既読に
-    if (count($messages) > 0) {
-        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
-                       WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NULL AND id > ?")
-            ->execute([$session['id'], $sinceId]);
+    respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, $session['status']);
+}
+
+/**
+ * DO-Ready: subscribe前に一括判定するプリゲート.
+ * WebSocket版ではper-requestハンドラがなく、upgrade時点で許可/拒否を返す必要がある.
+ * ポーリング版でも購読開始前にこれを叩いて同じ挙動にすることで移行時の差異を最小化.
+ *
+ * 判定: not_found / closed / blocked / outside_hours / ok
+ */
+function handleCanConnect() {
+    $token = (string)inp('session_token', '');
+    $slug = trim((string)inp('shop_slug', ''));
+
+    // session_token 指定: 既存セッションの継続可否
+    if ($token !== '') {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare(
+            'SELECT cs.id, cs.shop_id, cs.status, cs.blocked, cs.visitor_hash,
+                    s.slug, s.shop_name, s.gender_mode,
+                    st.is_online, st.last_online_at, st.auto_off_minutes,
+                    st.reception_start, st.reception_end, st.welcome_message
+             FROM chat_sessions cs
+             INNER JOIN shops s ON s.id = cs.shop_id
+             INNER JOIN shop_chat_status st ON st.shop_id = cs.shop_id
+             WHERE cs.session_token = ? LIMIT 1'
+        );
+        $stmt->execute([$token]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            okBatch(['can_subscribe' => false, 'reason' => 'not_found']);
+            return;
+        }
+        if ($row['status'] === 'closed') {
+            okBatch(['can_subscribe' => false, 'reason' => 'closed', 'status' => 'closed']);
+            return;
+        }
+        if ((int)$row['blocked'] === 1 || isBlocked($row['shop_id'], $row['visitor_hash'])) {
+            okBatch(['can_subscribe' => false, 'reason' => 'blocked']);
+            return;
+        }
+        $inHours = isWithinReceptionHours($row);
+        $online = effectiveOnline($row);
+        okBatch([
+            'can_subscribe' => $inHours,
+            'reason' => $inHours ? 'ok' : 'outside_hours',
+            'status' => 'open',
+            'shop_online' => $online,
+            'is_reception_hours' => $inHours,
+            'next_reception_start' => $inHours ? null : nextReceptionStart($row),
+            'reception_start' => $row['reception_start'] ?? null,
+            'reception_end' => $row['reception_end'] ?? null,
+            'welcome_message' => $row['welcome_message'] ?? null,
+            'shop' => [
+                'slug' => $row['slug'],
+                'shop_name' => $row['shop_name'],
+                'gender_mode' => $row['gender_mode'] ?? 'men',
+            ],
+        ]);
+        return;
     }
 
-    // ショップの実効オンライン状態
-    $stmt = $pdo->prepare('SELECT is_online, last_online_at, auto_off_minutes FROM shop_chat_status WHERE shop_id = ?');
-    $stmt->execute([$session['shop_id']]);
-    $shopRow = $stmt->fetch();
-    $shopOnline = effectiveOnline($shopRow ?: null);
-
-    // 訪問者の自メッセージのうち shop が既読した最大ID
-    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
-                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NOT NULL");
-    $stmt->execute([$session['id']]);
-    $lastReadOwnId = (int)$stmt->fetchColumn();
-
-    ok([
-        'messages' => $messages,
-        'shop_online' => $shopOnline,
-        'status' => $session['status'],
-        'last_read_own_id' => $lastReadOwnId,
+    // shop_slug 指定: 新規セッション開始可否 (まだsession_tokenがない段階)
+    if ($slug === '') err('session_token or shop_slug required');
+    $shop = getShopBySlug($slug);
+    if (!$shop) {
+        okBatch(['can_subscribe' => false, 'reason' => 'not_found']);
+        return;
+    }
+    $vh = visitorHash();
+    if (isBlocked($shop['id'], $vh)) {
+        okBatch(['can_subscribe' => false, 'reason' => 'blocked']);
+        return;
+    }
+    $inHours = isWithinReceptionHours($shop);
+    $online = effectiveOnline($shop);
+    okBatch([
+        'can_subscribe' => $inHours,
+        'reason' => $inHours ? 'ok' : 'outside_hours',
+        'shop_online' => $online,
+        'is_reception_hours' => $inHours,
+        'next_reception_start' => $inHours ? null : nextReceptionStart($shop),
+        'reception_start' => $shop['reception_start'] ?? null,
+        'reception_end' => $shop['reception_end'] ?? null,
+        'welcome_message' => $shop['welcome_message'] ?? null,
+        'shop' => [
+            'slug' => $shop['slug'],
+            'shop_name' => $shop['shop_name'],
+            'gender_mode' => $shop['gender_mode'] ?? 'men',
+        ],
     ]);
 }
 
@@ -652,6 +817,7 @@ function handleOwnerInbox() {
     $device = requireDevice();
     ownerHeartbeat($device['shop_id']);
     $sessionId = (int)inp('session_id', 0);
+    $sinceId = (int)inp('since_id', 0);
     $pdo = DB::conn();
 
     // セッション一覧（直近30件、クローズ含む）
@@ -668,31 +834,41 @@ function handleOwnerInbox() {
     $stmt->execute([$device['shop_id']]);
     $sessions = $stmt->fetchAll();
 
-    $response = ['sessions' => $sessions];
+    $extra = ['sessions' => $sessions];
+    $messages = [];
+    $lastReadOwnId = 0;
+    $status = null;
 
     // 特定セッションのメッセージも返す（指定時）
     if ($sessionId > 0) {
-        $stmt = $pdo->prepare('SELECT id, visitor_hash FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, visitor_hash FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
         $stmt->execute([$sessionId, $device['shop_id']]);
         $sessRow = $stmt->fetch();
         if ($sessRow) {
+            $status = $sessRow['status'];
+
+            // presence heartbeat: オーナーがこのセッションを見ていることを記録
+            $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
+                ->execute([$sessionId]);
+
+            // since_id 以降のメッセージのみ返す (DO版のWS reconnect リプレイと同じ挙動)
             $stmt = $pdo->prepare(
-                'SELECT id, sender_type, message, source_lang, sent_at
-                 FROM chat_messages WHERE session_id = ? ORDER BY id ASC'
+                'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
+                 FROM chat_messages WHERE session_id = ? AND id > ? ORDER BY id ASC'
             );
-            $stmt->execute([$sessionId]);
-            $response['messages'] = $stmt->fetchAll();
+            $stmt->execute([$sessionId, $sinceId]);
+            $messages = $stmt->fetchAll();
 
             // この visitor がブロック中かどうか
             $stmt = $pdo->prepare('SELECT 1 FROM chat_blocks WHERE shop_id = ? AND visitor_hash = ? LIMIT 1');
             $stmt->execute([$device['shop_id'], $sessRow['visitor_hash']]);
-            $response['is_blocked'] = (bool)$stmt->fetchColumn();
+            $extra['is_blocked'] = (bool)$stmt->fetchColumn();
 
             // ショップ自メッセージのうち visitor が既読した最大ID（オーナー表示用）
             $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
                                    WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");
             $stmt->execute([$sessionId]);
-            $response['last_read_own_id'] = (int)$stmt->fetchColumn();
+            $lastReadOwnId = (int)$stmt->fetchColumn();
 
             // visitor側メッセージを既読に
             $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
@@ -701,7 +877,13 @@ function handleOwnerInbox() {
         }
     }
 
-    ok($response);
+    okBatch(array_merge($extra, [
+        'messages' => $messages,
+        'last_read_own_id' => $lastReadOwnId,
+        'status' => $status,
+        // shop_online は常に自分=ON扱い (オーナー画面を見ている前提)
+        'shop_online' => true,
+    ]));
 }
 
 function handleOwnerReply() {
@@ -709,25 +891,84 @@ function handleOwnerReply() {
     ownerHeartbeat($device['shop_id']);
     $sessionId = (int)inp('session_id', 0);
     $msg = trim((string)inp('message', ''));
+    $clientMsgId = (string)inp('client_msg_id', '');
+    $sinceId = (int)inp('since_id', 0);
     if ($sessionId <= 0) err('session_id required');
     if ($msg === '') err('message required');
     if (mb_strlen($msg) > 1000) err('メッセージが長すぎます');
+    if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, status FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, shop_id, status FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
     $stmt->execute([$sessionId, $device['shop_id']]);
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
     if ($session['status'] === 'closed') err('Session closed', 410);
 
-    $stmt = $pdo->prepare("INSERT INTO chat_messages (session_id, sender_type, message, source_lang) VALUES (?, 'shop', ?, 'ja')");
-    $stmt->execute([$sessionId, $msg]);
-    $messageId = (int)$pdo->lastInsertId();
+    // 冪等送信: 同じ client_msg_id で過去に送信済みなら再挿入しない
+    if ($clientMsgId !== '') {
+        $stmt = $pdo->prepare(
+            "SELECT id FROM chat_messages
+             WHERE client_msg_id = ? AND session_id = ? AND sender_type = 'shop' LIMIT 1"
+        );
+        $stmt->execute([$clientMsgId, $sessionId]);
+        $existingId = $stmt->fetchColumn();
+        if ($existingId) {
+            respondOwnerBatch($pdo, $sessionId, $device['shop_id'], $sinceId, ['message_id' => (int)$existingId, 'client_msg_id' => $clientMsgId, 'duplicate' => true]);
+            return;
+        }
+    }
 
-    $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW() WHERE id = ?')
+    try {
+        $stmt = $pdo->prepare("INSERT INTO chat_messages (session_id, sender_type, message, source_lang, client_msg_id) VALUES (?, 'shop', ?, 'ja', ?)");
+        $stmt->execute([$sessionId, $msg, $clientMsgId ?: null]);
+        $messageId = (int)$pdo->lastInsertId();
+    } catch (PDOException $e) {
+        if ($clientMsgId !== '' && strpos($e->getMessage(), '1062') !== false) {
+            $stmt = $pdo->prepare('SELECT id FROM chat_messages WHERE client_msg_id = ? LIMIT 1');
+            $stmt->execute([$clientMsgId]);
+            $messageId = (int)$stmt->fetchColumn();
+            if (!$messageId) throw $e;
+        } else {
+            throw $e;
+        }
+    }
+
+    $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), last_owner_heartbeat_at = NOW() WHERE id = ?')
         ->execute([$sessionId]);
 
-    ok(['message_id' => $messageId]);
+    respondOwnerBatch($pdo, $sessionId, $device['shop_id'], $sinceId, ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
+}
+
+/**
+ * オーナー側の統一バッチ応答 (owner-reply 後の送信直後応答用).
+ * 選択中セッションの since_id 以降のメッセージ + last_read_own_id を含む.
+ */
+function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceId, array $extra = []): void {
+    $stmt = $pdo->prepare(
+        'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
+         FROM chat_messages
+         WHERE session_id = ? AND id > ?
+         ORDER BY id ASC'
+    );
+    $stmt->execute([$sessionId, $sinceId]);
+    $messages = $stmt->fetchAll();
+
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                           WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");
+    $stmt->execute([$sessionId]);
+    $lastReadOwnId = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->prepare('SELECT status FROM chat_sessions WHERE id = ? LIMIT 1');
+    $stmt->execute([$sessionId]);
+    $status = $stmt->fetchColumn() ?: 'open';
+
+    okBatch(array_merge($extra, [
+        'messages' => $messages,
+        'last_read_own_id' => $lastReadOwnId,
+        'status' => $status,
+        'shop_online' => true,
+    ]));
 }
 
 function handleTranslate() {

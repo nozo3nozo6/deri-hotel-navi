@@ -909,8 +909,18 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 ### 構成
 - chat.html / chat.js / chat.css — スタンドアロンチャット画面（/chat/{slug}/）
 - chat-widget.js — 外部サイト埋込（`<script src="https://yobuho.com/chat-widget.js" data-slug="...">`）
-- api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
+- api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/can-connect/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
 - shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理
+
+### DO-Ready 仕様（2026-04-18 launch前改造）
+Cloudflare Durable Objects (WebSocket Hibernation) への将来移行を痛くなく行うため、
+launch前にAPI/DB/フロントを移行前提に整備済み。
+1. **client_msg_id 冪等送信**: `chat_messages.client_msg_id VARCHAR(36) UNIQUE`。send-message/owner-reply は同一IDで再送されても重複INSERTしない（UNIQUE制約+try/catchで1062復旧）。WS再接続中の重複送信を防ぐ。
+2. **統一バッチレスポンス**: `okBatch()` ヘルパーで全配信系エンドポイントが `{messages[], status, shop_online, last_read_own_id, server_time}` を返す。WS pushと完全同形状。
+3. **can-connect プリゲート**: subscribe前に `session_token` or `shop_slug` で ok/outside_hours/closed/blocked/not_found を一括判定。WS upgrade時の拒否判定と同形。
+4. **presence heartbeat**: `chat_sessions.last_visitor_heartbeat_at` / `last_owner_heartbeat_at`。poll tick毎に更新。DO版でもWS接続のping/pong代わりに使える。
+5. **Transport.send / canConnect 追加**: フロントの送信も `Transport.sendVisitor / sendOwner / canConnect` 経由。DO版でWS送信に切り替える余地あり（HTTPのままでも可、Cloudflare推奨のハイブリッド）。
+6. **since_id 両面サポート**: poll-messages / owner-inbox / send-message / owner-reply 全てが `since_id` を受け付け、WSリプレイと同じ取りこぼし防止挙動に統一。
 
 ### DBテーブル（sql/chat_tables.sql）
 - chat_sessions — 匿名訪問者セッション（session_token、shop_id、status=open/closed、blocked）
