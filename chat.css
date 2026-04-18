@@ -29,7 +29,8 @@ a{color:var(--chat-primary);text-decoration:none}
 
 /* Header right cluster */
 .chat-header-right{justify-self:end;display:flex;align-items:center;gap:8px}
-.font-size-btn{height:34px;padding:0 12px;border-radius:17px;background:#f0ede7;color:#555;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:4px;transition:background .15s;flex-shrink:0;line-height:1;border:1px solid #e0dbd0}
+.font-size-btn{height:34px;padding:0 12px;border-radius:17px;background:#f0ede7;color:#555;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;flex-shrink:0;line-height:1;border:1px solid #e0dbd0}
+.font-size-btn .font-size-icon{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:16px;color:#9b2d35;line-height:1;padding-right:6px;border-right:1px solid #d4ccbe}
 .font-size-btn:hover{background:#e5e0d8}
 .lang-select{height:34px;padding:0 26px 0 10px;border-radius:17px;background:#f0ede7;color:#444;font-size:13px;font-weight:600;border:1px solid #e0dbd0;cursor:pointer;flex-shrink:0;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23666' d='M5 6L0 0h10z'/></svg>");background-repeat:no-repeat;background-position:right 8px center}
 .lang-select:focus{outline:none;background-color:#e5e0d8}

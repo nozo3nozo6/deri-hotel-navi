@@ -507,7 +507,6 @@ async function enterVisitorMode() {
     refs.chatThread.classList.remove('hidden');
     refs.inputArea.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.remove('hidden');
-    if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.remove('hidden');
     renderReceptionBanner();
     refs.ownerTemplates.classList.add('hidden');
@@ -535,7 +534,7 @@ async function enterVisitorMode() {
         state.session_token = s.session_token;
         state.session_id = s.session_id;
         saveVisitorSession();
-        addSystemMessage('チャットを開始しました。お気軽にご質問ください。');
+        addSystemMessage(state.welcome_message || t('visitor.note'));
     }
 
     startVisitorPolling();
@@ -751,11 +750,13 @@ function renderReceptionBanner() {
     if (!note) return;
     if (state.mode !== 'visitor') return;
     if (state.is_reception_hours !== false) {
-        // 通常ノートに戻す
+        // 通常時: 常時表示の上部ノートは廃止（挨拶はシステムメッセージで代替）
         note.classList.remove('reception-closed');
-        note.textContent = state.welcome_message || t('visitor.note');
+        note.textContent = '';
+        note.classList.add('hidden');
         return;
     }
+    note.classList.remove('hidden');
     const hours = state.reception_start && state.reception_end
         ? `${formatHM(state.reception_start)} - ${formatHM(state.reception_end)}`
         : '';
