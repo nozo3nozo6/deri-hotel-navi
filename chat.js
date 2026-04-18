@@ -157,7 +157,7 @@ async function api(action, params, method, baseUrl) {
     return data;
 }
 
-// 401 device_token無効を検知したらクリーンアップして初期化し直す
+// 401 device_token無効を検知したら polling を止めて再ログインを促す（reload はしない）
 let _authRecovering = false;
 function handleDeviceAuthFailure() {
     if (_authRecovering) return;
@@ -168,9 +168,10 @@ function handleDeviceAuthFailure() {
     } catch (_) {}
     try { localStorage.removeItem(LS_DEVICE); } catch (_) {}
     state.device_token = null;
-    state.mode = null;
-    try { showError('セッションが切れました。再読み込みします...'); } catch (_) {}
-    setTimeout(() => location.reload(), 1500);
+    try { showError('セッションが切れました。「店舗オーナーの方はこちら」から再ログインしてください'); } catch (_) {}
+    // owner-login-link を表示（訪問者モードに落とさず、オーナーが再ログインできるようにする）
+    try { if (refs.ownerLoginLink) refs.ownerLoginLink.classList.remove('owner-login-link-hidden'); } catch (_) {}
+    setTimeout(() => { _authRecovering = false; }, 30000);
 }
 
 // UUID v4 生成 (client_msg_id 用). crypto.randomUUID が使えない古環境でのフォールバック付き.
