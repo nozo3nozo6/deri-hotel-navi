@@ -134,45 +134,12 @@ function toggleGenreHero(show) {
     if (el) el.style.display = show ? '' : 'none';
 }
 
-// 店舗URLの全国ページに LP コンテンツを追加するヘルパー
+// 全国ページのボトムLP（3ステップのみ。トラストカードはhero側に集約）
 function appendShopModeLpContent() {
     const hlc = document.getElementById('hotel-list');
     if (!hlc || hlc.querySelector('.shop-lp-content')) return;
-    const mode = window.MODE || 'men';
-    const heroMap = {
-        men: 'デリヘルを呼べるホテル検索',
-        women: '女性用風俗を呼べるホテル検索',
-        men_same: '男性同士で利用できるホテル検索',
-        women_same: '女性同士で利用できるホテル検索',
-        este: 'デリエステを呼べるホテル検索'
-    };
-    const hero = heroMap[mode] || 'YobuHoで呼べるホテルを検索';
     hlc.insertAdjacentHTML('beforeend', `
         <div class="shop-lp-content" style="margin-top:20px;">
-            <div style="text-align:center;padding:20px 16px 8px;">
-                <p style="font-size:1.1em;font-weight:700;color:var(--accent);margin:0 0 6px;">${hero}</p>
-                <p style="font-size:13px;color:var(--text-2);margin:0;">全国43,000件以上のホテルから最適なホテルを見つけよう</p>
-            </div>
-            <div style="padding:12px 4px;">
-                <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">なぜYobuHoの情報は信頼できるのか</p>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
-                        <div style="font-size:1.4em;margin-bottom:4px;">💬</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">実体験口コミ</div>
-                        <div style="font-size:11px;color:var(--text-2);line-height:1.4;">実際に利用した方の投稿情報</div>
-                    </div>
-                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
-                        <div style="font-size:1.4em;margin-bottom:4px;">🏪</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">店舗の公式情報</div>
-                        <div style="font-size:11px;color:var(--text-2);line-height:1.4;">届出確認済み店舗の実績</div>
-                    </div>
-                    <div style="background:var(--bg-3);border:1px solid var(--border);border-radius:8px;padding:10px 6px;text-align:center;">
-                        <div style="font-size:1.4em;margin-bottom:4px;">✅</div>
-                        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px;">ダブルチェック</div>
-                        <div style="font-size:11px;color:var(--text-2);line-height:1.4;">口コミ×店舗で高い信頼性</div>
-                    </div>
-                </div>
-            </div>
             <div style="padding:4px 4px 16px;">
                 <p style="font-size:12px;font-weight:700;color:var(--text);margin:0 0 10px;text-align:center;">使い方はかんたん3ステップ</p>
                 <div style="display:flex;flex-direction:column;gap:6px;">
