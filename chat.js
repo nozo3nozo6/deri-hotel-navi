@@ -458,7 +458,11 @@ async function init() {
         if (refs.langSelect) refs.langSelect.value = initLang;
         applyLang(initLang);
     } catch (_) { applyLang('ja'); }
-    if (refs.langSelect) refs.langSelect.addEventListener('change', e => applyLang(e.target.value));
+    if (refs.langSelect) {
+        const onLangChange = e => { if (e.target && e.target.id === 'lang-select') applyLang(e.target.value); };
+        refs.langSelect.addEventListener('change', onLangChange);
+        refs.langSelect.addEventListener('input', onLangChange);
+    }
 
     try {
         const saved = localStorage.getItem(LS_FONT_SIZE);
