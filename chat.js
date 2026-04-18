@@ -365,7 +365,7 @@ async function enterVisitorMode() {
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
     refs.inputArea.classList.remove('hidden');
-    refs.quickQuestions.classList.remove('hidden');
+    if (refs.quickQuestions) refs.quickQuestions.classList.remove('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.remove('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -595,7 +595,7 @@ async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
     if (refs.homeLink) refs.homeLink.classList.add('hidden');
-    refs.quickQuestions.classList.add('hidden');
+    if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -869,11 +869,13 @@ refs.input.addEventListener('keydown', (e) => {
     }
 });
 
-refs.quickQuestions.addEventListener('click', (e) => {
-    const btn = e.target.closest('.quick-btn');
-    if (!btn) return;
-    sendVisitorMessage(btn.dataset.quick);
-});
+if (refs.quickQuestions) {
+    refs.quickQuestions.addEventListener('click', (e) => {
+        const btn = e.target.closest('.quick-btn');
+        if (!btn) return;
+        sendVisitorMessage(btn.dataset.quick);
+    });
+}
 
 if (refs.ownerQuick) {
     refs.ownerQuick.addEventListener('click', (e) => {
