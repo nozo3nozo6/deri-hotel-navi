@@ -202,7 +202,7 @@ const jsonLd = [
         <div class="mode-title-bar" id="mode-title-bar" style="display:none;"></div>
     </header>
 
-    <section class="genre-hero" id="genre-hero" aria-labelledby="genre-hero-title">
+    <section class={`genre-hero genre-hero-${mode}`} id="genre-hero" aria-labelledby="genre-hero-title">
         <div class="genre-hero-inner">
             <h1 class="genre-hero-title" id="genre-hero-title">{hero.h1}</h1>
             <p class="genre-hero-sub">{hero.sub}</p>
@@ -531,18 +531,56 @@ const jsonLd = [
 
 <style is:global>
     .genre-hero {
-        background:
-            radial-gradient(ellipse at 10% 30%, rgba(201,72,112,0.25) 0%, transparent 50%),
-            radial-gradient(ellipse at 90% 20%, rgba(216,24,46,0.18) 0%, transparent 45%),
-            radial-gradient(ellipse at 75% 80%, rgba(159,131,192,0.25) 0%, transparent 55%),
-            radial-gradient(ellipse at 30% 90%, rgba(192,104,130,0.22) 0%, transparent 50%),
-            radial-gradient(ellipse at 55% 50%, rgba(196,96,120,0.18) 0%, transparent 55%),
-            linear-gradient(135deg, #1a1228 0%, #2a1838 35%, #3a2040 70%, #1a1228 100%);
         padding: 20px 20px 18px;
         text-align: center;
         color: #fff;
         position: relative;
         overflow: hidden;
+    }
+    /* men: 赤×ゴールド（デリヘル） */
+    .genre-hero-men {
+        background:
+            radial-gradient(ellipse at 15% 30%, rgba(201,72,88,0.30) 0%, transparent 50%),
+            radial-gradient(ellipse at 85% 25%, rgba(184,134,11,0.22) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 85%, rgba(218,165,32,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(155,45,53,0.25) 0%, transparent 50%),
+            linear-gradient(135deg, #1a0a0a 0%, #2c1414 35%, #3a1c18 70%, #1a0a0a 100%);
+    }
+    /* women: ローズピンク（女風） */
+    .genre-hero-women {
+        background:
+            radial-gradient(ellipse at 15% 30%, rgba(212,132,154,0.30) 0%, transparent 50%),
+            radial-gradient(ellipse at 85% 25%, rgba(181,98,122,0.25) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 85%, rgba(240,170,195,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(181,98,122,0.25) 0%, transparent 50%),
+            linear-gradient(135deg, #2a0e18 0%, #3a1622 35%, #4a1e30 70%, #2a0e18 100%);
+    }
+    /* men_same: 深紅×プラム（LGBT男性、青を避け温色寄りに） */
+    .genre-hero-men_same {
+        background:
+            radial-gradient(ellipse at 15% 30%, rgba(180,60,70,0.28) 0%, transparent 50%),
+            radial-gradient(ellipse at 85% 25%, rgba(120,40,60,0.22) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 85%, rgba(200,90,100,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(150,50,65,0.25) 0%, transparent 50%),
+            linear-gradient(135deg, #1a0810 0%, #2a0e18 35%, #3a1220 70%, #1a0810 100%);
+    }
+    /* women_same: パープル×ラベンダー（LGBT女性） */
+    .genre-hero-women_same {
+        background:
+            radial-gradient(ellipse at 15% 30%, rgba(168,122,188,0.30) 0%, transparent 50%),
+            radial-gradient(ellipse at 85% 25%, rgba(138,90,158,0.25) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 85%, rgba(200,160,220,0.18) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(138,90,158,0.25) 0%, transparent 50%),
+            linear-gradient(135deg, #180a28 0%, #241036 35%, #2e1a48 70%, #180a28 100%);
+    }
+    /* este: ティール×ゴールド（デリエステ） */
+    .genre-hero-este {
+        background:
+            radial-gradient(ellipse at 15% 30%, rgba(76,200,208,0.28) 0%, transparent 50%),
+            radial-gradient(ellipse at 85% 25%, rgba(42,168,184,0.22) 0%, transparent 45%),
+            radial-gradient(ellipse at 70% 85%, rgba(200,180,120,0.16) 0%, transparent 55%),
+            radial-gradient(ellipse at 30% 90%, rgba(42,168,184,0.25) 0%, transparent 50%),
+            linear-gradient(135deg, #0a2228 0%, #123038 35%, #1a4048 70%, #0a2228 100%);
     }
     .genre-hero::before {
         content: "";
