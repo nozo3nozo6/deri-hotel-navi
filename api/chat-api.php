@@ -769,16 +769,38 @@ function handleShopStatus() {
 
 function handleRegisterDevice() {
     $auth = requireShopSession();
+    $pdo = DB::conn();
     // 有効化ゲート: shop_chat_status レコードあるか確認
-    $stmt = DB::conn()->prepare('SELECT 1 FROM shop_chat_status WHERE shop_id = ?');
+    $stmt = $pdo->prepare('SELECT 1 FROM shop_chat_status WHERE shop_id = ?');
     $stmt->execute([$auth['shop_id']]);
     if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
 
     $deviceName = trim((string)inp('device_name', ''));
     if (mb_strlen($deviceName) > 100) $deviceName = mb_substr($deviceName, 0, 100);
 
+    // スパイラル防止: 同一shop+同一device_nameの直近120秒内のデバイスがあれば再利用
+    // （verify-device失敗 → register-device のループでデバイス大量発行を防ぐ）
+    if ($deviceName !== '') {
+        $stmt = $pdo->prepare(
+            'SELECT device_token FROM shop_chat_devices
+             WHERE shop_id = ? AND device_name = ?
+               AND (registered_at > NOW() - INTERVAL 120 SECOND
+                    OR last_accessed_at > NOW() - INTERVAL 120 SECOND)
+             ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([$auth['shop_id'], $deviceName]);
+        $existing = $stmt->fetchColumn();
+        if ($existing) {
+            // 再利用時 last_accessed_at を更新しておく
+            $pdo->prepare('UPDATE shop_chat_devices SET last_accessed_at = NOW() WHERE device_token = ?')
+                ->execute([$existing]);
+            ok(['device_token' => $existing, 'reused' => true]);
+            return;
+        }
+    }
+
     $token = bin2hex(random_bytes(48));
-    $stmt = DB::conn()->prepare(
+    $stmt = $pdo->prepare(
         'INSERT INTO shop_chat_devices (shop_id, device_token, device_name) VALUES (?, ?, ?)'
     );
     $stmt->execute([$auth['shop_id'], $token, $deviceName ?: null]);

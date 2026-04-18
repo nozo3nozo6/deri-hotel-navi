@@ -149,9 +149,28 @@ async function api(action, params, method, baseUrl) {
     const res = await fetch(url, opts);
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false || data.error) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+        const err = new Error(data.error || `HTTP ${res.status}`);
+        err.status = res.status;
+        err.authFailed = res.status === 401 && /device/i.test(data.error || '');
+        throw err;
     }
     return data;
+}
+
+// 401 device_token無効を検知したらクリーンアップして初期化し直す
+let _authRecovering = false;
+function handleDeviceAuthFailure() {
+    if (_authRecovering) return;
+    _authRecovering = true;
+    try {
+        if (state._ownerSub) { state._ownerSub.stop(); state._ownerSub = null; }
+        if (state._visitorSub) { state._visitorSub.stop(); state._visitorSub = null; }
+    } catch (_) {}
+    try { localStorage.removeItem(LS_DEVICE); } catch (_) {}
+    state.device_token = null;
+    state.mode = null;
+    try { showError('セッションが切れました。再読み込みします...'); } catch (_) {}
+    setTimeout(() => location.reload(), 1500);
 }
 
 // UUID v4 生成 (client_msg_id 用). crypto.randomUUID が使えない古環境でのフォールバック付き.
@@ -219,7 +238,10 @@ const PollingTransport = {
                     : { device_token: dt };
                 const data = await api('owner-inbox', params, 'GET');
                 if (active) onBatch(data, sid);
-            } catch (_) { /* retry next tick */ }
+            } catch (e) {
+                if (e && e.authFailed) { active = false; clearInterval(timer); handleDeviceAuthFailure(); return; }
+                /* retry next tick */
+            }
         };
         const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
         return { stop: () => { active = false; clearInterval(timer); } };
@@ -976,7 +998,10 @@ async function sendOwnerReply(msg) {
         refs.input.value = '';
         // 統一バッチ応答を applyOwnerBatch で反映 (自送信メッセージも同経由で画面に出る).
         applyOwnerBatch(r, state.selected_session.id);
-    } catch (e) { showError(e.message); }
+    } catch (e) {
+        if (e && e.authFailed) { handleDeviceAuthFailure(); return; }
+        showError(e.message);
+    }
     finally { refs.sendBtn.disabled = false; }
 }
 
