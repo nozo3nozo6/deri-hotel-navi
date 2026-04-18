@@ -1207,14 +1207,14 @@ function handleAdminOverview() {
         $templates = $stmt->fetchAll();
 
         $stmt = $pdo->prepare(
-            'SELECT id, device_name, last_accessed_at, created_at
+            'SELECT id, device_name, last_accessed_at, registered_at AS created_at
              FROM shop_chat_devices WHERE shop_id = ? ORDER BY id DESC'
         );
         $stmt->execute([$shopId]);
         $devices = $stmt->fetchAll();
 
         $stmt = $pdo->prepare(
-            'SELECT b.id, b.visitor_hash, b.reason, b.created_at,
+            'SELECT b.id, b.visitor_hash, b.reason, b.blocked_at AS created_at,
                     (SELECT cs.id FROM chat_sessions cs WHERE cs.shop_id = b.shop_id AND cs.visitor_hash = b.visitor_hash ORDER BY cs.id DESC LIMIT 1) AS session_id,
                     (SELECT cs.nickname FROM chat_sessions cs WHERE cs.shop_id = b.shop_id AND cs.visitor_hash = b.visitor_hash ORDER BY cs.id DESC LIMIT 1) AS nickname,
                     (SELECT cm.message FROM chat_messages cm
