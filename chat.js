@@ -516,6 +516,8 @@ async function enterVisitorMode() {
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
+    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
     if (refs.nicknameArea) {
         refs.nicknameArea.classList.remove('hidden');
         if (refs.nicknameInput) refs.nicknameInput.value = localStorage.getItem(LS_NICKNAME) || '';
@@ -835,6 +837,8 @@ async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.add('hidden');
+    if (refs.statusDot) refs.statusDot.classList.add('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
