@@ -89,6 +89,7 @@ const refs = {
     sendBtn: $('chat-send'),
     btnRefresh: $('btn-refresh-inbox'),
     btnBlock: $('btn-block-user'),
+    btnCloseSession: $('btn-close-session'),
     btnOwnerLogout: $('btn-owner-logout'),
     error: $('chat-error'),
     loginModal: $('owner-login-modal'),
@@ -294,6 +295,8 @@ const I18N = {
         'template.title': '定型文:', 'template.empty': '定型文は shop-admin で登録してください',
         'input.placeholder': 'メッセージを入力...', 'input.send': '送信',
         'thread.back': '← 受信一覧に戻る', 'thread.block': '🚫 ブロック', 'thread.unblock': '✅ 解除',
+        'thread.close': '🔒 チャット終了', 'thread.closeConfirm': 'このチャットを終了しますか？終了後はお客様からの新規メッセージは届きません。',
+        'thread.closed': 'チャットを終了しました',
         'inbox.closedTag': '(終了)', 'inbox.visitorPrefix': '訪問者', 'inbox.selfPrefix': '自分: ',
         'exit.title': '予約は以下からどうぞ:', 'exit.tel': '📞 電話する', 'exit.line': '💬 LINEで続きを',
         'login.title': '👤 オーナーログイン', 'login.desc': 'shop-admin のログイン情報でサインインしてください',
@@ -319,6 +322,8 @@ const I18N = {
         'template.title': 'Templates:', 'template.empty': 'Add templates in shop-admin',
         'input.placeholder': 'Type a message...', 'input.send': 'Send',
         'thread.back': '← Back to inbox', 'thread.block': '🚫 Block', 'thread.unblock': '✅ Unblock',
+        'thread.close': '🔒 End chat', 'thread.closeConfirm': 'End this chat? The customer will not be able to send new messages.',
+        'thread.closed': 'Chat ended',
         'inbox.closedTag': '(closed)', 'inbox.visitorPrefix': 'Visitor', 'inbox.selfPrefix': 'You: ',
         'exit.title': 'Book via:', 'exit.tel': '📞 Call', 'exit.line': '💬 Continue on LINE',
         'login.title': '👤 Owner login', 'login.desc': 'Sign in with your shop-admin credentials',
@@ -344,6 +349,8 @@ const I18N = {
         'template.title': '模板:', 'template.empty': '请在 shop-admin 添加模板',
         'input.placeholder': '输入消息...', 'input.send': '发送',
         'thread.back': '← 返回收件箱', 'thread.block': '🚫 屏蔽', 'thread.unblock': '✅ 解除',
+        'thread.close': '🔒 结束聊天', 'thread.closeConfirm': '确定要结束此聊天吗？结束后客户将无法发送新消息。',
+        'thread.closed': '聊天已结束',
         'inbox.closedTag': '(已结束)', 'inbox.visitorPrefix': '访客', 'inbox.selfPrefix': '我: ',
         'exit.title': '通过以下方式预约:', 'exit.tel': '📞 电话', 'exit.line': '💬 LINE继续',
         'login.title': '👤 店主登录', 'login.desc': '使用 shop-admin 账号登录',
@@ -369,6 +376,8 @@ const I18N = {
         'template.title': '템플릿:', 'template.empty': 'shop-admin 에서 템플릿을 등록하세요',
         'input.placeholder': '메시지를 입력...', 'input.send': '전송',
         'thread.back': '← 받은 채팅으로', 'thread.block': '🚫 차단', 'thread.unblock': '✅ 해제',
+        'thread.close': '🔒 채팅 종료', 'thread.closeConfirm': '이 채팅을 종료하시겠습니까? 종료 후 고객은 새로운 메시지를 보낼 수 없게 됩니다.',
+        'thread.closed': '채팅이 종료되었습니다',
         'inbox.closedTag': '(종료)', 'inbox.visitorPrefix': '방문자', 'inbox.selfPrefix': '나: ',
         'exit.title': '예약은 아래에서:', 'exit.tel': '📞 전화', 'exit.line': '💬 LINE으로 계속',
         'login.title': '👤 점주 로그인', 'login.desc': 'shop-admin 로그인 정보로 로그인하세요',
@@ -568,6 +577,7 @@ async function enterVisitorMode() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
@@ -971,6 +981,10 @@ async function openOwnerThread(sessionId) {
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.remove('hidden');
+    if (refs.btnCloseSession) {
+        const isClosed = state.selected_session.status === 'closed';
+        refs.btnCloseSession.classList.toggle('hidden', isClosed);
+    }
     refs.ownerTemplates.classList.remove('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
@@ -1253,6 +1267,7 @@ refs.btnRefresh.addEventListener('click', () => showInbox());
 function backToInbox() {
     state.selected_session = null;
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -1287,10 +1302,28 @@ refs.btnBlock.addEventListener('click', async () => {
             showError('ブロックしました');
             state.selected_session = null;
             if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
+            if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
             refs.ownerTemplates.classList.add('hidden');
             await showInbox();
         } catch (e) { showError(e.message); }
     }
+});
+
+if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async () => {
+    if (!state.selected_session) return;
+    if (!confirm(t('thread.closeConfirm'))) return;
+    try {
+        await api('close-session', {
+            device_token: state.device_token,
+            session_id: state.selected_session.id
+        });
+        state.selected_session.status = 'closed';
+        refs.btnCloseSession.classList.add('hidden');
+        showError(t('thread.closed'));
+        // 自動で受信一覧に戻る
+        backToInbox();
+        await showInbox();
+    } catch (e) { showError(e.message); }
 });
 
 // ログインモーダル

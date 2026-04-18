@@ -457,6 +457,7 @@ try {
         case 'delete-template': handleDeleteTemplate(); break;
         case 'block-visitor':   handleBlockVisitor(); break;
         case 'unblock-visitor': handleUnblockVisitor(); break;
+        case 'close-session':   handleCloseSession(); break;
         case 'owner-logout':    handleOwnerLogout(); break;
 
         // Owner bootstrap (PHPセッション認証)
@@ -1159,6 +1160,27 @@ function handleBlockVisitor() {
         ->execute([$sessionId, $device['shop_id']]);
 
     ok(['blocked' => true]);
+}
+
+/**
+ * オーナーがチャットを手動終了: status='closed' + closed_at=NOW()
+ * 訪問者側は次回ポーリングで status='closed' を受け取り、入力欄が非表示になる。
+ */
+function handleCloseSession() {
+    $device = requireDevice();
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+    $stmt->execute([$sessionId, $device['shop_id']]);
+    if (!$stmt->fetchColumn()) err('Session not found', 404);
+
+    $pdo->prepare("UPDATE chat_sessions SET status = 'closed', closed_at = NOW()
+                   WHERE id = ? AND shop_id = ?")
+        ->execute([$sessionId, $device['shop_id']]);
+
+    ok(['closed' => true]);
 }
 
 function handleUnblockVisitor() {
