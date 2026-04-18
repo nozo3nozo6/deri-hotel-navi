@@ -578,7 +578,14 @@ function updateStatusIndicator(online) {
     state.is_online = online;
     refs.statusDot.classList.toggle('online', online);
     refs.statusDot.classList.toggle('offline', !online);
-    refs.statusLabel.textContent = t(online ? 'status.online' : 'status.offline');
+    const hours = state.reception_start && state.reception_end
+        ? `${formatHM(state.reception_start)}-${formatHM(state.reception_end)}`
+        : '';
+    if (hours) {
+        refs.statusLabel.textContent = `${t('reception.hours')} ${hours}`;
+    } else {
+        refs.statusLabel.textContent = t(online ? 'status.online' : 'status.offline');
+    }
 }
 
 function addSystemMessage(text) {
@@ -881,6 +888,8 @@ async function refreshOwnerStatus() {
     try {
         const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
         state.is_online = status.is_online;
+        state.reception_start = status.reception_start || null;
+        state.reception_end = status.reception_end || null;
         updateStatusIndicator(status.is_online);
         refs.onlineToggle.checked = state.notify_enabled !== false;
     } catch (e) { /* ignore */ }
