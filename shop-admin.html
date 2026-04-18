@@ -1197,12 +1197,28 @@ function onLoggedIn(){
     document.getElementById("main-wrap").style.display="block";
     document.getElementById("hdr-shop-name").textContent=currentShop.shop_name||"店舗";
     document.getElementById("settings-current-email").textContent=currentShop.email||"";
+    applyChatTabVisibility();
     loadMasterData();
     loadRegisteredHotelIds();
     loadRegisteredHotels();
     loadFavAreas().then(()=>showJapanPage());
     loadStatusCard();
     loadDashboard();
+}
+
+// YobuChatタブはテスト店舗のみ表示（本番ローンチ時にこの配列を空にすれば全店舗に開放）
+const CHAT_TAB_TESTERS=['dgqeiw1i'];
+function applyChatTabVisibility(){
+    const btn=document.getElementById('tab-btn-chat');
+    if(!btn)return;
+    const allowed=currentShop&&currentShop.slug&&CHAT_TAB_TESTERS.includes(currentShop.slug);
+    btn.style.display=allowed?'':'none';
+    if(!allowed){
+        const tabContent=document.getElementById('tab-chat');
+        if(tabContent&&tabContent.classList.contains('active')){
+            switchTab('settings');
+        }
+    }
 }
 
 async function loadStatusCard(){
