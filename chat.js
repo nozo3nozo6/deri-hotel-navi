@@ -901,7 +901,7 @@ async function enterOwnerMode() {
         refs.langSelect.classList.add('hidden');
         if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
     }
-    if (refs.footerBrand) refs.footerBrand.classList.add('hidden');
+    if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
