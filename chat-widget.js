@@ -253,61 +253,71 @@
 }
 `;
 
-    const style = document.createElement('style');
-    style.setAttribute('data-ychatw', '1');
-    style.textContent = CSS;
-    document.head.appendChild(style);
+    function init() {
+        if (document.querySelector('.ychatw-btn')) return; // 重複防止
 
-    // ===== ボタン生成 =====
-    const btn = document.createElement('button');
-    btn.className = 'ychatw-btn';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'YobuChatを開く');
-    btn.innerHTML = '<span aria-hidden="true">💬</span><span class="ychatw-btn-label">YobuChat</span>';
+        const style = document.createElement('style');
+        style.setAttribute('data-ychatw', '1');
+        style.textContent = CSS;
+        (document.head || document.documentElement).appendChild(style);
 
-    // ===== モーダル生成 =====
-    const wrap = document.createElement('div');
-    wrap.className = 'ychatw-wrap';
-    wrap.setAttribute('role', 'dialog');
-    wrap.setAttribute('aria-modal', 'true');
-    wrap.setAttribute('aria-label', 'YobuChat');
-    wrap.innerHTML =
-        '<div class="ychatw-inner">' +
-        '<button type="button" class="ychatw-close" aria-label="閉じる">✕</button>' +
-        '<iframe class="ychatw-iframe" src="" title="YobuChat" allow="clipboard-write" loading="lazy"></iframe>' +
-        '</div>';
+        // ===== ボタン生成 =====
+        const btn = document.createElement('button');
+        btn.className = 'ychatw-btn';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'YobuChatを開く');
+        btn.innerHTML = '<span aria-hidden="true">💬</span><span class="ychatw-btn-label">YobuChat</span>';
 
-    document.body.appendChild(btn);
-    document.body.appendChild(wrap);
+        // ===== モーダル生成 =====
+        const wrap = document.createElement('div');
+        wrap.className = 'ychatw-wrap';
+        wrap.setAttribute('role', 'dialog');
+        wrap.setAttribute('aria-modal', 'true');
+        wrap.setAttribute('aria-label', 'YobuChat');
+        wrap.innerHTML =
+            '<div class="ychatw-inner">' +
+            '<button type="button" class="ychatw-close" aria-label="閉じる">✕</button>' +
+            '<iframe class="ychatw-iframe" src="" title="YobuChat" allow="clipboard-write" loading="lazy"></iframe>' +
+            '</div>';
 
-    const iframe = wrap.querySelector('.ychatw-iframe');
-    const closeBtn = wrap.querySelector('.ychatw-close');
+        document.body.appendChild(btn);
+        document.body.appendChild(wrap);
 
-    // ===== 開閉ロジック =====
-    let lastFocused = null;
+        const iframe = wrap.querySelector('.ychatw-iframe');
+        const closeBtn = wrap.querySelector('.ychatw-close');
 
-    function openChat() {
-        lastFocused = document.activeElement;
-        if (!iframe.src) iframe.src = CHAT_URL + '?embed=1';
-        wrap.classList.add('ychatw-open');
-        btn.style.display = 'none';
-        document.documentElement.style.overflow = 'hidden';
-        setTimeout(() => { try { closeBtn.focus(); } catch (_) {} }, 50);
+        // ===== 開閉ロジック =====
+        let lastFocused = null;
+
+        function openChat() {
+            lastFocused = document.activeElement;
+            if (!iframe.src) iframe.src = CHAT_URL + '?embed=1';
+            wrap.classList.add('ychatw-open');
+            btn.style.display = 'none';
+            document.documentElement.style.overflow = 'hidden';
+            setTimeout(() => { try { closeBtn.focus(); } catch (_) {} }, 50);
+        }
+
+        function closeChat() {
+            wrap.classList.remove('ychatw-open');
+            btn.style.display = '';
+            document.documentElement.style.overflow = '';
+            try { if (lastFocused && lastFocused.focus) lastFocused.focus(); } catch (_) {}
+        }
+
+        btn.addEventListener('click', openChat);
+        closeBtn.addEventListener('click', closeChat);
+        wrap.addEventListener('click', function (e) { if (e.target === wrap) closeChat(); });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && wrap.classList.contains('ychatw-open')) closeChat();
+        });
     }
 
-    function closeChat() {
-        wrap.classList.remove('ychatw-open');
-        btn.style.display = '';
-        document.documentElement.style.overflow = '';
-        try { if (lastFocused && lastFocused.focus) lastFocused.focus(); } catch (_) {}
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        init();
     }
-
-    btn.addEventListener('click', openChat);
-    closeBtn.addEventListener('click', closeChat);
-    wrap.addEventListener('click', function (e) { if (e.target === wrap) closeChat(); });
-
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && wrap.classList.contains('ychatw-open')) closeChat();
-    });
 
 })();

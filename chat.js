@@ -287,7 +287,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 const I18N = {
     ja: {
         'status.online': '受付中', 'status.offline': '受付停止中',
-        'owner.notify': '受付',
+        'owner.notify': '通知',
         'inbox.title': '📥 受信チャット', 'inbox.refresh': '更新', 'inbox.logout': 'ログアウト',
         'inbox.empty': 'まだチャットはありません',
         'quick.now': '今すぐ呼べる？', 'quick.price': '料金は？', 'quick.hours': '何時まで？', 'quick.hotel': 'このホテル呼べる？',
@@ -315,7 +315,7 @@ const I18N = {
     },
     en: {
         'status.online': 'Accepting', 'status.offline': 'Closed',
-        'owner.notify': 'Accept',
+        'owner.notify': 'Notify',
         'inbox.title': '📥 Inbox', 'inbox.refresh': 'Refresh', 'inbox.logout': 'Log out',
         'inbox.empty': 'No chats yet',
         'quick.now': 'Available now?', 'quick.price': 'Price?', 'quick.hours': 'Until what time?', 'quick.hotel': 'This hotel OK?',
@@ -343,7 +343,7 @@ const I18N = {
     },
     zh: {
         'status.online': '接待中', 'status.offline': '暂停受理',
-        'owner.notify': '受理',
+        'owner.notify': '通知',
         'inbox.title': '📥 收件箱', 'inbox.refresh': '刷新', 'inbox.logout': '登出',
         'inbox.empty': '暂无聊天',
         'quick.now': '现在可以叫吗？', 'quick.price': '价格？', 'quick.hours': '营业到几点？', 'quick.hotel': '可以到这家酒店吗？',
@@ -371,7 +371,7 @@ const I18N = {
     },
     ko: {
         'status.online': '접수중', 'status.offline': '접수 중단',
-        'owner.notify': '접수',
+        'owner.notify': '알림',
         'inbox.title': '📥 받은 채팅', 'inbox.refresh': '새로고침', 'inbox.logout': '로그아웃',
         'inbox.empty': '아직 채팅이 없습니다',
         'quick.now': '지금 부를 수 있나요？', 'quick.price': '요금은？', 'quick.hours': '몇 시까지？', 'quick.hotel': '이 호텔 가능？',
@@ -487,7 +487,8 @@ async function init() {
 async function _init() {
     try {
         // 1. localStorage の device_token で verify-device
-        const savedToken = localStorage.getItem(LS_DEVICE);
+        let savedToken = null;
+        try { savedToken = localStorage.getItem(LS_DEVICE); } catch (_) { savedToken = null; }
         if (savedToken) {
             try {
                 const dev = await api('verify-device', { device_token: savedToken });
@@ -587,11 +588,14 @@ async function enterVisitorMode() {
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
     if (refs.nicknameArea) {
         refs.nicknameArea.classList.remove('hidden');
-        if (refs.nicknameInput) refs.nicknameInput.value = localStorage.getItem(LS_NICKNAME) || '';
+        if (refs.nicknameInput) {
+            try { refs.nicknameInput.value = localStorage.getItem(LS_NICKNAME) || ''; } catch (_) {}
+        }
     }
 
     // 既存セッション or 新規作成
-    const saved = JSON.parse(localStorage.getItem(LS_SESSION) || 'null');
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LS_SESSION) || 'null'); } catch (_) { saved = null; }
     if (saved && saved.token) {
         state.session_token = saved.token;
         state.session_id = saved.session_id || 0;
@@ -611,11 +615,13 @@ async function enterVisitorMode() {
 
 function isEmbedded() { return window.self !== window.top; }
 function saveVisitorSession() {
-    localStorage.setItem(LS_SESSION, JSON.stringify({
-        token: state.session_token,
-        session_id: state.session_id,
-        last_message_id: state.last_message_id,
-    }));
+    try {
+        localStorage.setItem(LS_SESSION, JSON.stringify({
+            token: state.session_token,
+            session_id: state.session_id,
+            last_message_id: state.last_message_id,
+        }));
+    } catch (_) {}
 }
 
 function updateStatusIndicator(online) {
@@ -626,7 +632,7 @@ function updateStatusIndicator(online) {
         ? `${formatHM(state.reception_start)}-${formatHM(state.reception_end)}`
         : '';
     if (hours) {
-        refs.statusLabel.textContent = `${t('reception.hours')} ${hours}`;
+        refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
     } else {
         refs.statusLabel.textContent = t(online ? 'status.online' : 'status.offline');
     }
@@ -871,7 +877,7 @@ async function sendVisitorMessage(msg) {
     if (!msg) return;
     refs.sendBtn.disabled = true;
     const nick = refs.nicknameInput ? String(refs.nicknameInput.value || '').trim().slice(0, 20) : '';
-    if (nick) localStorage.setItem(LS_NICKNAME, nick);
+    if (nick) { try { localStorage.setItem(LS_NICKNAME, nick); } catch (_) {} }
     const wasOffline = !state.is_online;
     // client_msg_id: ネットワーク再送でもサーバー側が同一メッセージと判定 (UNIQUE制約).
     const clientMsgId = uuidv4();
