@@ -860,8 +860,8 @@ async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.add('hidden');
-    if (refs.statusDot) refs.statusDot.classList.add('hidden');
-    if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
+    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
