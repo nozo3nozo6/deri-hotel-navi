@@ -29,8 +29,18 @@
 .ychat-lang{display:inline-flex!important;gap:4px!important;background:rgba(255,255,255,.15)!important;border-radius:999px!important;padding:2px!important}
 .ychat-lang button{padding:3px 10px!important;border:none!important;border-radius:999px!important;background:transparent!important;color:rgba(255,255,255,.7)!important;font-size:11px!important;font-weight:600!important;cursor:pointer!important;-webkit-tap-highlight-color:transparent!important}
 .ychat-lang button.on{background:#fff!important;color:#9b2d35!important}
-.ychat-foot{text-align:center!important;padding:8px!important;font-size:11px!important;color:#999!important;background:#fffaf4!important;border-top:1px solid #ede3d2!important}
+.ychat-foot{display:flex!important;align-items:center!important;gap:8px!important;padding:8px 10px!important;font-size:11px!important;color:#999!important;background:#fffaf4!important;border-top:1px solid #ede3d2!important;flex-wrap:wrap!important;justify-content:center!important}
 .ychat-foot a{color:#9b2d35!important;text-decoration:none!important}
+.ychat-lang-sel{height:28px!important;padding:0 22px 0 8px!important;border-radius:14px!important;background:#f7f0e3!important;color:#555!important;font-size:11px!important;font-weight:600!important;border:1px solid #e0d6c1!important;cursor:pointer!important;appearance:none!important;-webkit-appearance:none!important;-moz-appearance:none!important;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23888' d='M5 6L0 0h10z'/></svg>")!important;background-repeat:no-repeat!important;background-position:right 6px center!important;line-height:1!important;font-family:inherit!important}
+.ychat-lang-sel:focus{outline:none!important;border-color:#9b2d35!important}
+.ychat-fontsize-btn{height:28px!important;padding:0 10px!important;border-radius:14px!important;background:#f7f0e3!important;color:#555!important;font-size:11px!important;font-weight:700!important;border:1px solid #e0d6c1!important;cursor:pointer!important;display:inline-flex!important;align-items:center!important;gap:4px!important;line-height:1!important;font-family:inherit!important;-webkit-tap-highlight-color:transparent!important}
+.ychat-fontsize-btn:hover{background:#efe6d3!important}
+.ychat-fontsize-btn .ychat-fs-icon{font-family:Georgia,"Times New Roman",serif!important;font-weight:700!important;font-size:13px!important;color:#9b2d35!important;padding-right:4px!important;border-right:1px solid #d4ccbe!important;line-height:1!important}
+.ychat-foot-brand{margin-left:auto!important}
+.ychat-wrap.fs-s .ychat-body,.ychat-wrap.fs-s .ychat-msg,.ychat-wrap.fs-s .ychat-note{font-size:12px!important}
+.ychat-wrap.fs-s .ychat-ta,.ychat-wrap.fs-s .ychat-nick{font-size:14px!important}
+.ychat-wrap.fs-l .ychat-body,.ychat-wrap.fs-l .ychat-msg,.ychat-wrap.fs-l .ychat-note{font-size:16px!important}
+.ychat-wrap.fs-l .ychat-ta,.ychat-wrap.fs-l .ychat-nick{font-size:18px!important}
 .ychat-empty{text-align:center!important;color:#aaa!important;font-size:13px!important;padding:30px 10px!important}
 .ychat-wrap img{max-width:100%!important;height:auto!important}
 @media(min-width:768px){
@@ -68,7 +78,16 @@
     </div>
   </div>
   <div class="ychat-err" id="ychat-err" style="display:none"></div>
-  <div class="ychat-foot"><a id="ychat-foot-link" href="#" target="_blank" rel="noopener">powered by YobuHo</a></div>
+  <div class="ychat-foot">
+    <select class="ychat-lang-sel" id="ychat-lang-sel" aria-label="言語">
+      <option value="ja">🇯🇵 日本語</option>
+      <option value="en">🇺🇸 English</option>
+      <option value="zh">🇨🇳 中文</option>
+      <option value="ko">🇰🇷 한국어</option>
+    </select>
+    <button type="button" class="ychat-fontsize-btn" id="ychat-fontsize-btn" aria-label="文字サイズ"><span class="ychat-fs-icon" aria-hidden="true">A</span><span id="ychat-fs-label">中</span></button>
+    <a id="ychat-foot-link" class="ychat-foot-brand" href="#" target="_blank" rel="noopener">powered by YobuHo</a>
+  </div>
 </div>
 
 <script type="text/javascript">
@@ -92,6 +111,46 @@
   var elNick=document.getElementById('ychat-nick');
   var elSend=document.getElementById('ychat-send');
   var elErr=document.getElementById('ychat-err');
+  var elLangSel=document.getElementById('ychat-lang-sel');
+  var elFsBtn=document.getElementById('ychat-fontsize-btn');
+  var elFsLabel=document.getElementById('ychat-fs-label');
+
+  // ---- i18n ----
+  var I18N={
+    ja:{empty:'メッセージはまだありません',note:'匿名でOK。お気軽にご相談ください！',phMsg:'メッセージを入力（2〜500文字）',phNick:'お名前（任意・20文字まで）',send:'送信',online:'オンライン',offline:'オフライン',checking:'確認中',unavailable:'未対応',connErr:'接続エラー',min2:'2文字以上入力してください',max500:'500文字以内で入力してください',sendErr:'送信に失敗しました',commErr:'通信エラー',sessErr:'セッション開始に失敗しました',unavailableName:'チャットは利用できません',fsS:'小',fsM:'中',fsL:'大'},
+    en:{empty:'No messages yet',note:'Anonymous OK. Feel free to ask!',phMsg:'Type your message (2-500 chars)',phNick:'Your name (optional, max 20)',send:'Send',online:'Online',offline:'Offline',checking:'Checking',unavailable:'Unavailable',connErr:'Connection error',min2:'Please enter at least 2 characters',max500:'Maximum 500 characters',sendErr:'Failed to send',commErr:'Network error',sessErr:'Failed to start session',unavailableName:'Chat unavailable',fsS:'S',fsM:'M',fsL:'L'},
+    zh:{empty:'暂无消息',note:'可匿名。请随意咨询！',phMsg:'请输入消息（2-500字）',phNick:'昵称（可选，最多20字）',send:'发送',online:'在线',offline:'离线',checking:'确认中',unavailable:'未开通',connErr:'连接错误',min2:'请输入2个以上字符',max500:'最多500字',sendErr:'发送失败',commErr:'通信错误',sessErr:'会话启动失败',unavailableName:'聊天不可用',fsS:'小',fsM:'中',fsL:'大'},
+    ko:{empty:'메시지가 아직 없습니다',note:'익명 OK. 편하게 문의하세요!',phMsg:'메시지 입력 (2~500자)',phNick:'이름 (선택, 최대 20자)',send:'전송',online:'온라인',offline:'오프라인',checking:'확인 중',unavailable:'미지원',connErr:'연결 오류',min2:'2자 이상 입력하세요',max500:'500자 이내로 입력하세요',sendErr:'전송 실패',commErr:'통신 오류',sessErr:'세션 시작 실패',unavailableName:'채팅 불가',fsS:'소',fsM:'중',fsL:'대'}
+  };
+  var LS_LANG='ychat_lang',LS_FS='ychat_fs';
+  var lang=(function(){try{var v=localStorage.getItem(LS_LANG);if(v&&I18N[v])return v}catch(e){}var nl=(navigator.language||'ja').slice(0,2);return I18N[nl]?nl:'ja'})();
+  function t(k){return (I18N[lang]&&I18N[lang][k])||I18N.ja[k]||k}
+  function applyLang(){
+    if(elLangSel)elLangSel.value=lang;
+    if(elEmpty)elEmpty.textContent=t('empty');
+    var elNote=root.querySelector('.ychat-note');if(elNote)elNote.textContent=t('note');
+    if(elTa)elTa.setAttribute('placeholder',t('phMsg'));
+    if(elNick)elNick.setAttribute('placeholder',t('phNick'));
+    if(elSend)elSend.textContent=t('send');
+  }
+  if(elLangSel)elLangSel.addEventListener('change',function(){
+    lang=elLangSel.value;try{localStorage.setItem(LS_LANG,lang)}catch(e){}
+    applyLang();checkStatus();
+  });
+
+  // ---- font size ----
+  var FS_STEPS=['s','m','l'];
+  var fs=(function(){try{var v=localStorage.getItem(LS_FS);if(FS_STEPS.indexOf(v)>=0)return v}catch(e){}return 'm'})();
+  function applyFs(){
+    root.classList.remove('fs-s','fs-m','fs-l');
+    root.classList.add('fs-'+fs);
+    if(elFsLabel)elFsLabel.textContent=t('fs'+fs.toUpperCase());
+  }
+  if(elFsBtn)elFsBtn.addEventListener('click',function(){
+    var i=FS_STEPS.indexOf(fs);fs=FS_STEPS[(i+1)%FS_STEPS.length];
+    try{localStorage.setItem(LS_FS,fs)}catch(e){}
+    applyFs();
+  });
 
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
   function showErr(m){if(!m){elErr.style.display='none';elErr.textContent='';return}elErr.style.display='block';elErr.textContent=m;setTimeout(function(){elErr.style.display='none';elErr.textContent=''},6000)}
@@ -129,21 +188,21 @@
   function checkStatus(){
     api('shop-status',{shop_slug:SLUG},'GET').then(function(r){
       if(!r.ok||!r.chat_enabled){
-        elName.textContent='チャットは利用できません';
-        elStatusText.textContent='未対応';
-        elDot.className='ychat-dot';
+        elName.textContent=t('unavailableName');
+        elStatusText.textContent=t('unavailable');
+        if(elDot)elDot.className='ychat-dot';
         elTa.disabled=true;elSend.disabled=true;
         statusFailCount=0;
         return;
       }
       statusFailCount=0;
-      elName.textContent=r.shop_name||'店舗';
-      if(r.is_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
-      else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
+      elName.textContent=r.shop_name||'';
+      if(r.is_online){if(elDot)elDot.className='ychat-dot on';elStatusText.textContent=t('online')}
+      else{if(elDot)elDot.className='ychat-dot';elStatusText.textContent=t('offline')}
     }).catch(function(){
       statusFailCount++;
       if(statusFailCount<3)setTimeout(checkStatus,3000);
-      else elStatusText.textContent='接続エラー';
+      else elStatusText.textContent=t('connErr');
     });
   }
 
@@ -151,7 +210,7 @@
     var s=loadSession();
     if(s){sessionToken=s.token;sessionId=s.id;return Promise.resolve(true)}
     return api('start-session',{shop_slug:SLUG,source:'widget'}).then(function(r){
-      if(!r.ok){showErr(r.error||'セッション開始に失敗しました');return false}
+      if(!r.ok){showErr(r.error||t('sessErr'));return false}
       sessionToken=r.session_token;sessionId=r.session_id;saveSession(sessionToken,sessionId);return true
     });
   }
@@ -166,8 +225,8 @@
         r.messages.forEach(function(m){var id=+m.id;if(id<=sinceId)return;sinceId=id;renderMsg(m)});
       }
       if(typeof r.shop_online!=='undefined'){
-        if(r.shop_online){elDot.className='ychat-dot on';elStatusText.textContent='オンライン'}
-        else{elDot.className='ychat-dot';elStatusText.textContent='オフライン'}
+        if(r.shop_online){if(elDot)elDot.className='ychat-dot on';elStatusText.textContent=t('online')}
+        else{if(elDot)elDot.className='ychat-dot';elStatusText.textContent=t('offline')}
       }
     }).catch(function(){pollInFlight=false});
   }
@@ -181,18 +240,18 @@
   window.ychatSend=function(){
     if(sending)return;
     var msg=(elTa.value||'').trim();
-    if(msg.length<2){showErr('2文字以上入力してください');return}
-    if(msg.length>500){showErr('500文字以内で入力してください');return}
+    if(msg.length<2){showErr(t('min2'));return}
+    if(msg.length>500){showErr(t('max500'));return}
     var nick=(elNick.value||'').trim();
     sending=true;elSend.disabled=true;
     ensureSession().then(function(ok){
       if(!ok){sending=false;elSend.disabled=false;return}
-      api('send-message',{session_token:sessionToken,message:msg,nickname:nick,lang:'ja'}).then(function(r){
+      api('send-message',{session_token:sessionToken,message:msg,nickname:nick,lang:lang}).then(function(r){
         sending=false;elSend.disabled=false;
-        if(!r.ok){showErr(r.error||'送信に失敗しました');if(r.error&&/Session not found|closed/i.test(r.error)){clearSession();sessionToken=null;sessionId=null;sinceId=0}return}
+        if(!r.ok){showErr(r.error||t('sendErr'));if(r.error&&/Session not found|closed/i.test(r.error)){clearSession();sessionToken=null;sessionId=null;sinceId=0}return}
         elTa.value='';
         if(pollTimer)poll();else startPolling();
-      }).catch(function(){sending=false;elSend.disabled=false;showErr('通信エラー')});
+      }).catch(function(){sending=false;elSend.disabled=false;showErr(t('commErr'))});
     });
   };
 
@@ -203,6 +262,8 @@
   });
   elTa.addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(120,this.scrollHeight)+'px'});
 
+  applyLang();
+  applyFs();
   checkStatus();
   statusTimer=setInterval(checkStatus,60000);
   var saved=loadSession();
