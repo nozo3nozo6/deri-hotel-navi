@@ -5,7 +5,9 @@
   "main": "app.js",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "chat:check": "node scripts/check-chat-parity.js",
+    "chat:build": "node scripts/build-chat-widget.js"
   },
   "repository": {
     "type": "git",

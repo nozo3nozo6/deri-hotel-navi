@@ -283,121 +283,15 @@ const PollingTransport = {
 const Transport = PollingTransport;
 
 // ===== i18n =====
+// 辞書は /chat-i18n.json から fetch。chat-widget-inline.html とは同一ソースを共有（scripts/build-chat-widget.js が注入）
 const LS_LANG = 'chat_lang_' + SLUG;
-const I18N = {
-    ja: {
-        'status.online': '受付中', 'status.offline': '受付停止中',
-        'owner.notify': '通知',
-        'inbox.title': '📥 受信チャット', 'inbox.refresh': '更新', 'inbox.logout': 'ログアウト',
-        'inbox.empty': 'まだチャットはありません',
-        'quick.now': '今すぐ呼べる？', 'quick.price': '料金は？', 'quick.hours': '何時まで？', 'quick.hotel': 'このホテル呼べる？',
-        'nickname.label': 'ニックネーム（任意）', 'nickname.placeholder': '未記入の場合は匿名になります',
-        'template.title': '定型文:', 'template.empty': '定型文は shop-admin で登録してください',
-        'input.placeholder': 'メッセージを入力...', 'input.send': '送信',
-        'thread.back': '← 受信一覧に戻る', 'thread.block': '🚫 ブロック', 'thread.unblock': '✅ 解除',
-        'thread.close': '🔒 チャット終了', 'thread.closeConfirm': 'このチャットを終了しますか？終了後はお客様からの新規メッセージは届きません。',
-        'thread.closed': 'チャットを終了しました',
-        'thread.closedThanks': 'このチャットは終了しました。ご利用ありがとうございました。',
-        'inbox.closedTag': '(終了)', 'inbox.visitorPrefix': '訪問者', 'inbox.selfPrefix': '自分: ',
-        'exit.title': '予約は以下からどうぞ:', 'exit.tel': '📞 電話する', 'exit.line': '💬 LINEで続きを',
-        'login.title': '👤 オーナーログイン', 'login.desc': 'shop-admin のログイン情報でサインインしてください',
-        'login.email': 'メールアドレス', 'login.password': 'パスワード', 'login.submit': 'ログイン',
-        'login.note': '※ このチャットの店舗を運営するオーナー専用です',
-        'load': '読み込み中…', 'owner.loginLink': '店舗オーナーの方はこちら →',
-        'msg.read': '既読', 'date.today': '今日', 'date.yesterday': '昨日',
-        'offline.notified': '✉️ 店舗に通知しました。しばらくお待ちください。',
-        'reception.closed': '🕒 現在は受付時間外です',
-        'reception.hours': '受付時間',
-        'reception.nextOpen': '次回受付開始',
-        'reception.sendOk': 'メッセージは届きます。営業開始後にご返信いたします。',
-        'visitor.note': '匿名でOK。お気軽にご相談ください',
-        'note.reservation': '💡 ご予約やお約束の確定は、お電話/LINE等でお願いします'
-    },
-    en: {
-        'status.online': 'Accepting', 'status.offline': 'Closed',
-        'owner.notify': 'Notify',
-        'inbox.title': '📥 Inbox', 'inbox.refresh': 'Refresh', 'inbox.logout': 'Log out',
-        'inbox.empty': 'No chats yet',
-        'quick.now': 'Available now?', 'quick.price': 'Price?', 'quick.hours': 'Until what time?', 'quick.hotel': 'This hotel OK?',
-        'nickname.label': 'Nickname (optional)', 'nickname.placeholder': 'Leave blank to stay anonymous',
-        'template.title': 'Templates:', 'template.empty': 'Add templates in shop-admin',
-        'input.placeholder': 'Type a message...', 'input.send': 'Send',
-        'thread.back': '← Back to inbox', 'thread.block': '🚫 Block', 'thread.unblock': '✅ Unblock',
-        'thread.close': '🔒 End chat', 'thread.closeConfirm': 'End this chat? The customer will not be able to send new messages.',
-        'thread.closed': 'Chat ended',
-        'thread.closedThanks': 'This chat has ended. Thank you for using our service.',
-        'inbox.closedTag': '(closed)', 'inbox.visitorPrefix': 'Visitor', 'inbox.selfPrefix': 'You: ',
-        'exit.title': 'Book via:', 'exit.tel': '📞 Call', 'exit.line': '💬 Continue on LINE',
-        'login.title': '👤 Owner login', 'login.desc': 'Sign in with your shop-admin credentials',
-        'login.email': 'Email', 'login.password': 'Password', 'login.submit': 'Log in',
-        'login.note': '* For the shop owner running this chat only',
-        'load': 'Loading…', 'owner.loginLink': 'Are you the shop owner? Log in →',
-        'msg.read': 'Read', 'date.today': 'Today', 'date.yesterday': 'Yesterday',
-        'offline.notified': '✉️ The shop has been notified. Please wait a moment.',
-        'reception.closed': '🕒 Outside reception hours',
-        'reception.hours': 'Reception hours',
-        'reception.nextOpen': 'Next opening',
-        'reception.sendOk': 'Your message will be delivered. The shop will reply when reception opens.',
-        'visitor.note': 'Anonymous is OK. Feel free to chat!',
-        'note.reservation': '💡 Please confirm bookings by phone / LINE etc.'
-    },
-    zh: {
-        'status.online': '接待中', 'status.offline': '暂停受理',
-        'owner.notify': '通知',
-        'inbox.title': '📥 收件箱', 'inbox.refresh': '刷新', 'inbox.logout': '登出',
-        'inbox.empty': '暂无聊天',
-        'quick.now': '现在可以叫吗？', 'quick.price': '价格？', 'quick.hours': '营业到几点？', 'quick.hotel': '可以到这家酒店吗？',
-        'nickname.label': '昵称（可选）', 'nickname.placeholder': '不填则为匿名',
-        'template.title': '模板:', 'template.empty': '请在 shop-admin 添加模板',
-        'input.placeholder': '输入消息...', 'input.send': '发送',
-        'thread.back': '← 返回收件箱', 'thread.block': '🚫 屏蔽', 'thread.unblock': '✅ 解除',
-        'thread.close': '🔒 结束聊天', 'thread.closeConfirm': '确定要结束此聊天吗？结束后客户将无法发送新消息。',
-        'thread.closed': '聊天已结束',
-        'thread.closedThanks': '本次聊天已结束。感谢您的使用。',
-        'inbox.closedTag': '(已结束)', 'inbox.visitorPrefix': '访客', 'inbox.selfPrefix': '我: ',
-        'exit.title': '通过以下方式预约:', 'exit.tel': '📞 电话', 'exit.line': '💬 LINE继续',
-        'login.title': '👤 店主登录', 'login.desc': '使用 shop-admin 账号登录',
-        'login.email': '邮箱', 'login.password': '密码', 'login.submit': '登录',
-        'login.note': '※ 仅限经营此聊天的店主',
-        'load': '加载中…', 'owner.loginLink': '店主登录 →',
-        'msg.read': '已读', 'date.today': '今天', 'date.yesterday': '昨天',
-        'offline.notified': '✉️ 已通知店家，请稍候。',
-        'reception.closed': '🕒 当前为受理时间外',
-        'reception.hours': '受理时间',
-        'reception.nextOpen': '下次开放',
-        'reception.sendOk': '消息将被送达，店家将在开始受理后回复。',
-        'visitor.note': '可匿名。欢迎随时咨询！',
-        'note.reservation': '💡 预约的最终确认请通过电话 / LINE 等完成'
-    },
-    ko: {
-        'status.online': '접수중', 'status.offline': '접수 중단',
-        'owner.notify': '알림',
-        'inbox.title': '📥 받은 채팅', 'inbox.refresh': '새로고침', 'inbox.logout': '로그아웃',
-        'inbox.empty': '아직 채팅이 없습니다',
-        'quick.now': '지금 부를 수 있나요？', 'quick.price': '요금은？', 'quick.hours': '몇 시까지？', 'quick.hotel': '이 호텔 가능？',
-        'nickname.label': '닉네임 (선택)', 'nickname.placeholder': '미입력 시 익명으로 표시',
-        'template.title': '템플릿:', 'template.empty': 'shop-admin 에서 템플릿을 등록하세요',
-        'input.placeholder': '메시지를 입력...', 'input.send': '전송',
-        'thread.back': '← 받은 채팅으로', 'thread.block': '🚫 차단', 'thread.unblock': '✅ 해제',
-        'thread.close': '🔒 채팅 종료', 'thread.closeConfirm': '이 채팅을 종료하시겠습니까? 종료 후 고객은 새로운 메시지를 보낼 수 없게 됩니다.',
-        'thread.closed': '채팅이 종료되었습니다',
-        'thread.closedThanks': '이 채팅은 종료되었습니다. 이용해 주셔서 감사합니다.',
-        'inbox.closedTag': '(종료)', 'inbox.visitorPrefix': '방문자', 'inbox.selfPrefix': '나: ',
-        'exit.title': '예약은 아래에서:', 'exit.tel': '📞 전화', 'exit.line': '💬 LINE으로 계속',
-        'login.title': '👤 점주 로그인', 'login.desc': 'shop-admin 로그인 정보로 로그인하세요',
-        'login.email': '이메일', 'login.password': '비밀번호', 'login.submit': '로그인',
-        'login.note': '※ 이 채팅을 운영하는 점주 전용',
-        'load': '로딩 중…', 'owner.loginLink': '점주 로그인 →',
-        'msg.read': '읽음', 'date.today': '오늘', 'date.yesterday': '어제',
-        'offline.notified': '✉️ 점포에 알림을 보냈습니다. 잠시 기다려주세요.',
-        'reception.closed': '🕒 현재 접수 시간 외입니다',
-        'reception.hours': '접수 시간',
-        'reception.nextOpen': '다음 접수 개시',
-        'reception.sendOk': '메시지는 전달됩니다. 접수 시작 후 답장드리겠습니다.',
-        'visitor.note': '익명으로 OK. 편하게 상담하세요!',
-        'note.reservation': '💡 예약이나 약속 확정은 전화 / LINE 등으로 부탁드립니다'
-    }
-};
+let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
+async function loadI18N() {
+    try {
+        const res = await fetch('/chat-i18n.json?v=45', { cache: 'force-cache' });
+        if (res.ok) I18N = await res.json();
+    } catch (_) {}
+}
 let currentLang = 'ja';
 function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.ja[key] || key); }
 function applyLang(lang) {
@@ -464,6 +358,7 @@ function cycleFontSize() {
 
 // ===== 初期化 =====
 async function init() {
+    await loadI18N();
     try {
         const savedLang = localStorage.getItem(LS_LANG);
         const browserLang = (navigator.language || 'ja').slice(0, 2);

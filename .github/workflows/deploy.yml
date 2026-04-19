@@ -35,6 +35,12 @@ jobs:
       - name: Install dependencies (root)
         run: npm ci
 
+      - name: Check YobuChat parity (chat.html ↔ widget template)
+        run: node scripts/check-chat-parity.js
+
+      - name: Build YobuChat widget from template
+        run: node scripts/build-chat-widget.js
+
       - name: Install dependencies (Astro)
         run: cd astro-src && npm ci
 
@@ -98,6 +104,7 @@ jobs:
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='este.yobuho.com' \
             --exclude='db-local.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
+            --exclude='chat-widget-inline.template.html' \
             --exclude='pagefind' --exclude='master-data.json' \
             --exclude='area-data.json' --exclude='hotel-data' \
             --exclude='search-index.json' \
