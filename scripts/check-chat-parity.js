@@ -50,8 +50,40 @@ function checkLangParity(i18n) {
   return errors;
 }
 
+// 言語セレクトの <option> 文言一致も検証（本家/埋込の静的HTMLドリフト防止）
+function checkLangOptionParity(chatHtml, widgetHtml) {
+  const pickOptions = (html, selectId) => {
+    const re = new RegExp(`<select[^>]*id="${selectId}"[\\s\\S]*?</select>`);
+    const m = re.exec(html);
+    if (!m) return null;
+    const opts = {};
+    const optRe = /<option\s+value="([a-z]+)"[^>]*>([^<]+)<\/option>/g;
+    let x;
+    while ((x = optRe.exec(m[0]))) {
+      // 絵文字のあとのラベルだけ比較（🇯🇵 などの国旗記号はどちらも同じ前提）
+      opts[x[1]] = x[2].trim();
+    }
+    return opts;
+  };
+  const chatOpts = pickOptions(chatHtml, 'lang-select');
+  const widgetOpts = pickOptions(widgetHtml, 'ychat-lang-sel');
+  const errors = [];
+  if (!chatOpts) errors.push('chat.html に <select id="lang-select"> が見つかりません');
+  if (!widgetOpts) errors.push('chat-widget-inline.template.html に <select id="ychat-lang-sel"> が見つかりません');
+  if (chatOpts && widgetOpts) {
+    const allVals = new Set([...Object.keys(chatOpts), ...Object.keys(widgetOpts)]);
+    for (const v of allVals) {
+      if (chatOpts[v] !== widgetOpts[v]) {
+        errors.push(`言語オプション "${v}" の文言が不一致: chat.html="${chatOpts[v]}" ↔ widget="${widgetOpts[v]}"`);
+      }
+    }
+  }
+  return errors;
+}
+
 function main() {
-  const chat = fs.readFileSync(CHAT_HTML, 'utf8') + '\n' + fs.readFileSync(CHAT_JS, 'utf8');
+  const chatHtmlRaw = fs.readFileSync(CHAT_HTML, 'utf8');
+  const chat = chatHtmlRaw + '\n' + fs.readFileSync(CHAT_JS, 'utf8');
   const widget = fs.readFileSync(WIDGET_TEMPLATE, 'utf8');
   const i18n = JSON.parse(fs.readFileSync(I18N_JSON, 'utf8'));
 
@@ -69,6 +101,7 @@ function main() {
   }
 
   errors.push(...checkLangParity(i18n));
+  errors.push(...checkLangOptionParity(chatHtmlRaw, widget));
 
   if (errors.length) {
     console.error('✗ YobuChat パリティ違反:');
