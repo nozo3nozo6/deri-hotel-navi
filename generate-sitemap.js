@@ -71,6 +71,7 @@ urls.push(entry(`${BASE_URL}/este/`, '0.7', 'weekly'));
 urls.push(entry(`${BASE_URL}/guide/deli-hotel.html`, '0.8', 'weekly'));
 urls.push(entry(`${BASE_URL}/guide/jofu-hotel.html`, '0.8', 'weekly'));
 urls.push(entry(`${BASE_URL}/guide/lgbt-hotel.html`, '0.8', 'weekly'));
+urls.push(entry(`${BASE_URL}/guide/este-hotel.html`, '0.8', 'weekly'));
 
 // 固定ページ
 urls.push(entry(`${BASE_URL}/terms/`, '0.3', 'monthly'));
@@ -87,13 +88,14 @@ for (const mode of MODES) {
 }
 
 // 主要都市 x モード別URL（高検索ボリューム）
-for (const mode of ['men', 'women']) {
+for (const mode of MODES) {
   const mp = MODE_PATH[mode];
+  const priority = (mode === 'men' || mode === 'women') ? '0.5' : '0.4';
   for (const [pref, cities] of Object.entries(MAJOR_CITIES)) {
     for (const city of cities) {
       urls.push(entry(
         `${BASE_URL}/${mp}/${encodeURIComponent(pref)}/${encodeURIComponent(city)}`,
-        '0.5', 'daily'
+        priority, 'daily'
       ));
     }
   }
