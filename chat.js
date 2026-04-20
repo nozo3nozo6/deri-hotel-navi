@@ -304,10 +304,17 @@ async function doFetch(path, payload, method = 'POST') {
         credentials: 'omit',
     };
     if (method === 'POST') init.body = JSON.stringify(payload || {});
-    const res = await fetch(url, init);
+    let res;
+    try {
+        res = await fetch(url, init);
+    } catch (netErr) {
+        const err = new Error(`network_error: ${netErr.message || netErr.name || 'fetch failed'} @ ${path}`);
+        err.cause = netErr;
+        throw err;
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false || data.error) {
-        const err = new Error(data.error || `do_fetch_${res.status}`);
+        const err = new Error(data.error || `do_fetch_${res.status} @ ${path}`);
         err.status = res.status;
         throw err;
     }
