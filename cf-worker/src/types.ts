@@ -58,6 +58,7 @@ export interface ShopStatus {
   reception_start?: string;     // HH:MM
   reception_end?: string;       // HH:MM
   welcome_message?: string;
+  reservation_hint?: string;
   notify_email?: string;
   slug: string;
   shop_name: string;
@@ -94,6 +95,7 @@ export interface CanConnectResult {
   ok: boolean;
   reason: CanConnectReason;
   welcome_message?: string;
+  reservation_hint?: string;
   next_reception_start?: string;
   shop_name?: string;
   shop_online?: boolean;

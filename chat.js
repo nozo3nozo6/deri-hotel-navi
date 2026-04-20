@@ -54,6 +54,7 @@ let state = {
     next_reception_start: null,
     reception_banner_timer: null,
     welcome_message: null,
+    reservation_hint: null,
 };
 
 // ===== DOM refs =====
@@ -1050,7 +1051,21 @@ function applyReceptionStatus(status) {
     state.reception_end = status.reception_end || null;
     state.next_reception_start = status.next_reception_start || null;
     state.welcome_message = (status.welcome_message || '').trim() || null;
+    state.reservation_hint = (status.reservation_hint || '').trim() || null;
+    applyReservationHint();
     renderReceptionBanner();
+}
+
+function applyReservationHint() {
+    const el = refs.reservationHint;
+    if (!el) return;
+    if (state.reservation_hint) {
+        el.removeAttribute('data-i18n');
+        el.textContent = state.reservation_hint;
+    } else {
+        el.setAttribute('data-i18n', 'note.reservation');
+        el.textContent = t('note.reservation');
+    }
 }
 
 function formatHM(timeStr) {

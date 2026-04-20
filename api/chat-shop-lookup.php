@@ -56,7 +56,7 @@ $stmt = $pdo->prepare("
     SELECT s.id AS shop_id, s.slug, s.shop_name, s.email,
            st.is_online, st.last_online_at,
            st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
-           st.reception_start, st.reception_end, st.welcome_message,
+           st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint,
            st.notify_email
     FROM shops s
     INNER JOIN shop_chat_status st ON st.shop_id = s.id
@@ -87,6 +87,7 @@ $out = [
     'reception_start' => $row['reception_start'],
     'reception_end' => $row['reception_end'],
     'welcome_message' => $row['welcome_message'],
+    'reservation_hint' => $row['reservation_hint'],
 ];
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

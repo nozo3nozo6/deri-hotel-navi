@@ -127,6 +127,7 @@ function buildCanConnect(meta: ShopStatus): CanConnectResult {
       next_reception_start: meta.reception_start,
       shop_name: meta.shop_name,
       welcome_message: meta.welcome_message,
+      reservation_hint: meta.reservation_hint,
       shop_online: false,
     };
   }
@@ -136,6 +137,7 @@ function buildCanConnect(meta: ShopStatus): CanConnectResult {
     reason: 'ok',
     shop_name: meta.shop_name,
     welcome_message: meta.welcome_message,
+    reservation_hint: meta.reservation_hint,
     shop_online: isShopOnline(meta),
   };
 }

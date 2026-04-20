@@ -134,7 +134,7 @@ function getShopBySlug(string $slug): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email, s.status, s.gender_mode,
                 st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
-                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
+                st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
          INNER JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.slug = ? AND s.status = ? LIMIT 1'
@@ -148,7 +148,7 @@ function getShopById(string $shopId): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email,
                 st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
-                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
+                st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
          INNER JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.id = ? LIMIT 1'
@@ -675,7 +675,7 @@ function handleCanConnect() {
             'SELECT cs.id, cs.shop_id, cs.status, cs.blocked, cs.visitor_hash,
                     s.slug, s.shop_name, s.gender_mode,
                     st.is_online, st.last_online_at, st.auto_off_minutes,
-                    st.reception_start, st.reception_end, st.welcome_message
+                    st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint
              FROM chat_sessions cs
              INNER JOIN shops s ON s.id = cs.shop_id
              INNER JOIN shop_chat_status st ON st.shop_id = cs.shop_id
@@ -707,6 +707,7 @@ function handleCanConnect() {
             'reception_start' => $row['reception_start'] ?? null,
             'reception_end' => $row['reception_end'] ?? null,
             'welcome_message' => $row['welcome_message'] ?? null,
+            'reservation_hint' => $row['reservation_hint'] ?? null,
             'shop' => [
                 'slug' => $row['slug'],
                 'shop_name' => $row['shop_name'],
@@ -739,6 +740,7 @@ function handleCanConnect() {
         'reception_start' => $shop['reception_start'] ?? null,
         'reception_end' => $shop['reception_end'] ?? null,
         'welcome_message' => $shop['welcome_message'] ?? null,
+        'reservation_hint' => $shop['reservation_hint'] ?? null,
         'shop' => [
             'slug' => $shop['slug'],
             'shop_name' => $shop['shop_name'],
@@ -765,6 +767,7 @@ function handleShopStatus() {
         'is_reception_hours' => $inHours,
         'next_reception_start' => $inHours ? null : nextReceptionStart($shop),
         'welcome_message'   => $shop['welcome_message'] ?? null,
+        'reservation_hint'  => $shop['reservation_hint'] ?? null,
     ]);
 }
 
@@ -1217,7 +1220,7 @@ function handleAdminOverview() {
     $stmt = $pdo->prepare(
         'SELECT s.slug, s.shop_name, s.email AS shop_email,
                 st.is_online, st.notify_mode, st.notify_min_interval_minutes, st.last_online_at, st.auto_off_minutes,
-                st.reception_start, st.reception_end, st.welcome_message, st.notify_email
+                st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
          LEFT JOIN shop_chat_status st ON st.shop_id = s.id
          WHERE s.id = ? LIMIT 1'
@@ -1269,6 +1272,7 @@ function handleAdminOverview() {
         'reception_start' => $row['reception_start'] ?? null,
         'reception_end'   => $row['reception_end'] ?? null,
         'welcome_message' => $row['welcome_message'] ?? null,
+        'reservation_hint' => $row['reservation_hint'] ?? null,
         'notify_email'    => $row['notify_email'] ?? null,
         'shop_email'      => $row['shop_email'] ?? '',
         'is_reception_hours' => $enabled ? isWithinReceptionHours($row) : true,
@@ -1318,6 +1322,16 @@ function handleAdminSaveSettings() {
         }
     }
 
+    $reservationHint = inp('reservation_hint', null);
+    if ($reservationHint !== null) {
+        $reservationHint = trim((string)$reservationHint);
+        if ($reservationHint === '') {
+            $reservationHint = null;
+        } elseif (mb_strlen($reservationHint) > 200) {
+            $reservationHint = mb_substr($reservationHint, 0, 200);
+        }
+    }
+
     $notifyEmail = inp('notify_email', null);
     if ($notifyEmail !== null) {
         $notifyEmail = trim((string)$notifyEmail);
@@ -1331,16 +1345,17 @@ function handleAdminSaveSettings() {
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
         'UPDATE shop_chat_status
-         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, notify_email = ?
+         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?
          WHERE shop_id = ?'
     );
-    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $notifyEmail, $auth['shop_id']]);
+    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
     ok([
         'notify_mode' => $mode,
         'notify_min_interval_minutes' => $interval,
         'reception_start' => $rStart,
         'reception_end' => $rEnd,
         'welcome_message' => $welcome,
+        'reservation_hint' => $reservationHint,
         'notify_email' => $notifyEmail,
     ]);
 }
