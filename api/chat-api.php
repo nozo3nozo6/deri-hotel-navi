@@ -364,10 +364,12 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $mode = $shop['notify_mode'] ?? 'first';
     if ($mode === 'off') return;
 
+    // 受付時間外はメール送信しない（時間帯制御は受付時間に委ねるルール）
+    if (!isWithinReceptionHours($shop)) return;
+
     $pdo = DB::conn();
 
     // A案 (厳格2値ルール): トグル ON の間はオーナーが画面を見ていてもメール送信する。
-    // 時間帯制御は受付時間に委ねる。
 
     // セッション取得
     $stmt = $pdo->prepare('SELECT notified_at, visitor_hash FROM chat_sessions WHERE id = ? LIMIT 1');
