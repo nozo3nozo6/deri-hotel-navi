@@ -317,9 +317,16 @@ export class ChatRoom implements DurableObject {
   }
 
   private async httpCloseSession(body: any): Promise<Response> {
-    const sid = Number(body.session_id);
-    const sess = await this.getSession(sid);
+    // session_token 優先 (オーナー側は MySQL session_id を保持しており DO の session_id と一致しないため)
+    const token = (body.session_token as string) || '';
+    let sess: ChatSession | null = null;
+    if (token) {
+      sess = await this.findSessionByToken(token);
+    } else if (body.session_id) {
+      sess = await this.getSession(Number(body.session_id));
+    }
     if (!sess) return this.errJson('session_not_found', 404);
+    const sid = sess.id;
     if (sess.status !== 'closed') {
       sess.status = 'closed';
       sess.closed_at = new Date().toISOString();

@@ -287,7 +287,7 @@ const PollingTransport = {
     },
 
     // オーナー: チャットを終了
-    async closeSession({ deviceToken, sessionId }) {
+    async closeSession({ deviceToken, sessionId, sessionToken: _t }) {
         return api('close-session', { device_token: deviceToken, session_id: sessionId });
     }
 };
@@ -457,8 +457,8 @@ const DurableObjectTransport = {
         return doFetch('/can-connect', null, 'GET');
     },
 
-    async closeSession({ deviceToken: _d, sessionId }) {
-        return doFetch('/session/close', { session_id: sessionId });
+    async closeSession({ deviceToken: _d, sessionId, sessionToken }) {
+        return doFetch('/session/close', { session_id: sessionId, session_token: sessionToken });
     },
 };
 
@@ -1482,7 +1482,8 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
     try {
         await Transport.closeSession({
             deviceToken: state.device_token,
-            sessionId: state.selected_session.id
+            sessionId: state.selected_session.id,
+            sessionToken: state.selected_session.session_token
         });
         state.selected_session.status = 'closed';
         refs.btnCloseSession.classList.add('hidden');
