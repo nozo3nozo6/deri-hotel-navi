@@ -143,11 +143,9 @@ function buildCanConnect(meta: ShopStatus): CanConnectResult {
 }
 
 function isShopOnline(meta: ShopStatus): boolean {
-  if (!meta.is_online) return false;
-  if (!meta.last_online_at) return false;
-  const elapsed = Date.now() - new Date(meta.last_online_at).getTime();
-  const limitMs = (meta.auto_off_minutes || 10) * 60 * 1000;
-  return elapsed < limitMs;
+  // A案 (厳格2値ルール): is_online フラグのみで判定。
+  // 時間帯制御は受付時間で行うため auto_off_minutes は廃止。
+  return !!meta.is_online;
 }
 
 function isWithinReceptionHours(start?: string, end?: string): boolean {

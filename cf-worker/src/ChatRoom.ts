@@ -615,12 +615,10 @@ export class ChatRoom implements DurableObject {
   // ========== Helpers ==========
 
   private isShopOnline(): boolean {
+    // A案 (厳格2値ルール): is_online フラグのみで判定。
+    // auto_off_minutes による時間経過オフは廃止 — 時間帯制御は受付時間側で行う。
     if (!this.shopMeta) return false;
-    if (!this.shopMeta.is_online) return false;
-    if (!this.shopMeta.last_online_at) return false;
-    const elapsed = Date.now() - new Date(this.shopMeta.last_online_at).getTime();
-    const limitMs = (this.shopMeta.auto_off_minutes || 10) * 60 * 1000;
-    return elapsed < limitMs;
+    return !!this.shopMeta.is_online;
   }
 
   private okBatch(extra: Partial<BatchResponse>): Response {

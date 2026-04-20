@@ -159,16 +159,13 @@ function getShopById(string $shopId): ?array {
 }
 
 /**
- * 実効オンライン判定: is_online=1 かつ last_online_at が auto_off_minutes 以内
+ * 実効オンライン判定: is_online=1 のみで判定 (A案/厳格2値ルール)
+ * 時間帯制御は受付時間 (reception_start/end) 側で行う。
+ * last_online_at は診断用のまま残すが 🟢 表示/メール通知の判定には使わない。
  */
 function effectiveOnline(?array $shop): bool {
     if (!$shop) return false;
-    if ((int)($shop['is_online'] ?? 0) !== 1) return false;
-    $last = $shop['last_online_at'] ?? null;
-    if (!$last) return false;
-    $autoOff = max(1, (int)($shop['auto_off_minutes'] ?? 10));
-    $elapsed = time() - strtotime($last);
-    return $elapsed < $autoOff * 60;
+    return (int)($shop['is_online'] ?? 0) === 1;
 }
 
 /**
@@ -369,8 +366,8 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
 
     $pdo = DB::conn();
 
-    // オーナーが実効オンライン中ならメール通知スキップ（画面で見ている前提）
-    if (effectiveOnline($shop)) return;
+    // A案 (厳格2値ルール): トグル ON の間はオーナーが画面を見ていてもメール送信する。
+    // 時間帯制御は受付時間に委ねる。
 
     // セッション取得
     $stmt = $pdo->prepare('SELECT notified_at, visitor_hash FROM chat_sessions WHERE id = ? LIMIT 1');
