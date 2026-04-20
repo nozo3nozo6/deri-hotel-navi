@@ -245,8 +245,8 @@ export class ChatRoom implements DurableObject {
       sess.last_activity_at = msg.sent_at;
       await this.saveSession(sess);
 
-      // broadcast to connected owner WS
-      this.broadcastToRole('owner', { type: 'message', data: msg, session_id: sess.id });
+      // broadcast to connected owner WS (session_token も含める: owner側 selectedSid は MySQL id であり DO session_id と不一致のため token で照合させる)
+      this.broadcastToRole('owner', { type: 'message', data: msg, session_id: sess.id, session_token: sess.session_token });
 
       // 通知 (初回 or every)
       const first = !sess.notified_at;
@@ -341,7 +341,7 @@ export class ChatRoom implements DurableObject {
       sess.last_activity_at = msg.sent_at;
       await this.saveSession(sess);
 
-      this.broadcastToSession(sid, 'visitor', { type: 'message', data: msg, session_id: sid });
+      this.broadcastToSession(sid, 'visitor', { type: 'message', data: msg, session_id: sid, session_token: sess.session_token });
     }
 
     const newer = await this.messagesSince(sid, sinceId);
@@ -390,8 +390,8 @@ export class ChatRoom implements DurableObject {
       sess.status = 'closed';
       sess.closed_at = new Date().toISOString();
       await this.saveSession(sess);
-      this.broadcastToSession(sid, 'visitor', { type: 'status', status: 'closed' });
-      this.broadcastToRole('owner', { type: 'status', session_id: sid, status: 'closed' });
+      this.broadcastToSession(sid, 'visitor', { type: 'status', status: 'closed', session_token: sess.session_token });
+      this.broadcastToRole('owner', { type: 'status', session_id: sid, session_token: sess.session_token, status: 'closed' });
     }
     return this.okBatch({ messages: [], status: sess.status, shop_online: this.isShopOnline() });
   }

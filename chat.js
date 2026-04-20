@@ -427,19 +427,28 @@ const DurableObjectTransport = {
                     const data = JSON.parse(ev.data);
                     if (data.type === 'pong') return;
                     const selectedSid = getSelectedSessionId();
+                    // selectedSid (PHP 由来の MySQL id) と DO session_id は独立カウンタで一致しない.
+                    // 選択中スレッド判定は state.selected_session.session_token と
+                    // broadcast payload の session_token で照合する.
+                    const curTok = state.selected_session && state.selected_session.session_token;
+                    const matchSelected = (curTok && data.session_token && curTok === data.session_token)
+                        || (selectedSid && data.session_id === selectedSid);
                     // WS push の正規化
                     if (data.type === 'message' && data.data) {
-                        if (selectedSid && data.session_id === selectedSid) {
+                        if (matchSelected) {
                             // 選択中スレッドの新着 → messages として適用
                             onBatch({ messages: [data.data] }, selectedSid);
                         } else if (!selectedSid) {
                             // 受信箱ビュー中 → PHP owner-inbox を再取得して未読/last_message更新
                             refreshInboxViaPhp();
+                        } else {
+                            // 他スレッド宛の push → 未読バッジ更新のため inbox を裏で再取得
+                            refreshInboxViaPhp();
                         }
                         return;
                     }
                     if (data.type === 'status') {
-                        if (selectedSid && data.session_id === selectedSid) {
+                        if (matchSelected) {
                             onBatch({ messages: [], status: data.status }, selectedSid);
                         } else if (!selectedSid) {
                             refreshInboxViaPhp();
@@ -447,7 +456,7 @@ const DurableObjectTransport = {
                         return;
                     }
                     if (data.type === 'read') {
-                        if (selectedSid && data.session_id === selectedSid) {
+                        if (matchSelected) {
                             onBatch({ messages: [], last_read_own_id: data.up_to_id }, selectedSid);
                         }
                         return;
