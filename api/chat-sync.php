@@ -20,6 +20,7 @@
  *     body: {session_token, reader:"visitor"|"shop", up_to_sent_at}
  */
 
+require_once __DIR__ . '/db-config.php'; // define(CHAT_SYNC_SECRET) を先に読み込む
 require_once __DIR__ . '/db.php';
 
 header('Content-Type: application/json; charset=UTF-8');

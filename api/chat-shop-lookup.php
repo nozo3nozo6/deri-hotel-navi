@@ -11,15 +11,15 @@
  *            auto_off_minutes, reception_start, reception_end, welcome_message}
  */
 
+require_once __DIR__ . '/db-config.php'; // define(CHAT_SYNC_SECRET) を先に読み込む
 require_once __DIR__ . '/db.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store');
 
 // ---- 認証: X-Sync-Secret ----
-// wrangler secret put MYSQL_SYNC_SECRET と同じ値を api/db-config.php などから読む
-$expected = getenv('CHAT_SYNC_SECRET') ?: (defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '');
-// db-config.php で define('CHAT_SYNC_SECRET', '...') 想定
+// wrangler secret put CHAT_SYNC_SECRET と同じ値を db-config.php から読む
+$expected = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
 if (!$expected) {
     http_response_code(500);
     echo json_encode(['error' => 'server_not_configured']);
