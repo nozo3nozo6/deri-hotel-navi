@@ -365,6 +365,21 @@ const DurableObjectTransport = {
                 try {
                     const data = JSON.parse(ev.data);
                     if (data.type === 'pong') return;
+                    // WS push (type:'message'/'status'/'read') を applyVisitorBatch が期待する
+                    // {messages[], status, last_read_own_id, shop_online} 形に正規化
+                    if (data.type === 'message' && data.data) {
+                        onBatch({ messages: [data.data] });
+                        return;
+                    }
+                    if (data.type === 'status') {
+                        onBatch({ messages: [], status: data.status });
+                        return;
+                    }
+                    if (data.type === 'read') {
+                        onBatch({ messages: [], last_read_own_id: data.up_to_id });
+                        return;
+                    }
+                    // snapshot / batch 応答はそのまま通す
                     onBatch(data);
                 } catch (_) {}
             });
@@ -411,7 +426,39 @@ const DurableObjectTransport = {
                 try {
                     const data = JSON.parse(ev.data);
                     if (data.type === 'pong') return;
-                    onBatch(data, getSelectedSessionId());
+                    const selectedSid = getSelectedSessionId();
+                    // WS push の正規化
+                    if (data.type === 'message' && data.data) {
+                        if (selectedSid && data.session_id === selectedSid) {
+                            // 選択中スレッドの新着 → messages として適用
+                            onBatch({ messages: [data.data] }, selectedSid);
+                        } else if (!selectedSid) {
+                            // 受信箱ビュー中 → PHP owner-inbox を再取得して未読/last_message更新
+                            refreshInboxViaPhp();
+                        }
+                        return;
+                    }
+                    if (data.type === 'status') {
+                        if (selectedSid && data.session_id === selectedSid) {
+                            onBatch({ messages: [], status: data.status }, selectedSid);
+                        } else if (!selectedSid) {
+                            refreshInboxViaPhp();
+                        }
+                        return;
+                    }
+                    if (data.type === 'read') {
+                        if (selectedSid && data.session_id === selectedSid) {
+                            onBatch({ messages: [], last_read_own_id: data.up_to_id }, selectedSid);
+                        }
+                        return;
+                    }
+                    if (data.type === 'inbox') {
+                        // DO の inbox スナップショットは read_at を持たない (PHP 側が権威) ため無視.
+                        // 代わりに PHP owner-inbox を叩いて MySQL 基準の未読状態を取得する.
+                        if (!selectedSid) refreshInboxViaPhp();
+                        return;
+                    }
+                    onBatch(data, selectedSid);
                 } catch (_) {}
             });
             ws.addEventListener('close', () => {
@@ -426,6 +473,19 @@ const DurableObjectTransport = {
                 }, 30000);
             });
         };
+
+        // inbox 再取得ヘルパ.
+        // DO の inbox は read_at を保持しない (MySQL/PHP が権威) ため, PHP owner-inbox を叩く.
+        // これにより owner がスレッドを開いて PHP が read_at=NOW() を打った後も未読カウントが正しくクリアされる.
+        const refreshInboxViaPhp = async () => {
+            try {
+                const dt = getDeviceToken();
+                if (!dt) return;
+                const data = await api('owner-inbox', { device_token: dt }, 'GET');
+                onBatch(data, null);
+            } catch (_) {}
+        };
+
         connect();
 
         return {
@@ -455,10 +515,13 @@ const DurableObjectTransport = {
         });
     },
 
-    async sendOwner({ deviceToken, sessionId, message, clientMsgId, sinceId }) {
+    async sendOwner({ deviceToken, sessionId, sessionToken, message, clientMsgId, sinceId }) {
+        // session_id は PHP owner-inbox 由来の MySQL auto_increment ID であり DO 内部 ID と一致しない.
+        // session_token を優先して DO 側で findSessionByToken できるようにする.
         return doFetch('/owner/reply', {
             device_token: deviceToken,
             session_id: sessionId,
+            session_token: sessionToken || '',
             message,
             client_msg_id: clientMsgId,
             since_id: sinceId || 0,
@@ -704,7 +767,12 @@ async function enterVisitorMode() {
                 sessionToken: saved.token
             });
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
-        await pollMessages(true);
+        // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
+        // PHP を叩くと MySQL mirror の message ID (DOと別空間) で state.last_message_id が汚染され、
+        // DO 発行の新規 msg.id (より小さい値) が `m.id > last_message_id` のガードで描画されない.
+        if (Transport.kind !== 'durable-object') {
+            await pollMessages(true);
+        }
     } else {
         const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
         state.session_token = s.session_token;
@@ -1210,6 +1278,7 @@ async function sendOwnerReply(msg) {
         const r = await Transport.sendOwner({
             deviceToken: state.device_token,
             sessionId: state.selected_session.id,
+            sessionToken: state.selected_session.session_token,
             message: msg,
             clientMsgId,
             sinceId: state.last_message_id

@@ -178,11 +178,16 @@ function handleMarkRead(PDO $pdo, array $body): void {
     $stmt->execute([$nowStr, $token, $target, $upTo]);
 }
 
-/** ISO8601 / relative を MySQL DATETIME に変換 */
+/**
+ * ISO8601 / relative を MySQL DATETIME(JST) に変換.
+ * chat-api.php 側は NOW()/sent_at を JST としてそのまま表示するので、
+ * mirror もローカル時刻 (date) で揃える. 過去は gmdate を使っていたが、
+ * owner-inbox が UTC 文字列を JST として扱い、9時間ずれを起こしていた.
+ */
 function mysqlDatetime($v): ?string {
     if ($v === null || $v === '') return null;
-    if ($v === 'now') return gmdate('Y-m-d H:i:s');
+    if ($v === 'now') return date('Y-m-d H:i:s');
     $ts = is_numeric($v) ? (int)$v : strtotime((string)$v);
     if ($ts === false) return null;
-    return gmdate('Y-m-d H:i:s', $ts);
+    return date('Y-m-d H:i:s', $ts);
 }

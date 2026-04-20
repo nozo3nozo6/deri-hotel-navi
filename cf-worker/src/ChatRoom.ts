@@ -75,6 +75,7 @@ export class ChatRoom implements DurableObject {
         case '/owner/reply':       return this.httpOwnerReply(body);
         case '/owner/inbox':       return this.httpOwnerInbox(body);
         case '/owner/mark-read':   return this.httpOwnerMarkRead(body);
+        case '/admin/purge':       return this.httpAdminPurge(req, body);
       }
     }
 
@@ -270,9 +271,12 @@ export class ChatRoom implements DurableObject {
     }
 
     // 送信側にも統一バッチ形式で返す (since_id 以降の新着もマージ)
+    // 注: MySQL mirror と DO 内部カウンタが乖離していると msg.id < sinceId になり得るため、
+    // 今作ったメッセージは必ず含める (dedup は client 側 last_message_id で行う).
     const newer = await this.messagesSince(sess.id, sinceId);
+    const messages = newer.some(m => m.id === msg.id) ? newer : [...newer, msg];
     return this.okBatch({
-      messages: newer,
+      messages,
       status: sess.status,
       shop_online: this.isShopOnline(),
       session_token: sess.session_token,
@@ -282,16 +286,23 @@ export class ChatRoom implements DurableObject {
   }
 
   private async httpOwnerReply(body: any): Promise<Response> {
-    const sid = Number(body.session_id);
+    // session_token 優先 (オーナー画面は PHP owner-inbox 由来の MySQL session_id を持つため DO 内部 ID と合致しない).
+    const token = (body.session_token as string) || '';
     const text = (body.message as string || '').trim();
     const cmid = body.client_msg_id as string | undefined;
     const sinceId = Number(body.since_id || 0);
-    if (!sid || !text) return this.errJson('missing_fields', 400);
+    if (!text) return this.errJson('missing_fields', 400);
 
-    const sess = await this.getSession(sid);
+    let sess: ChatSession | null = null;
+    if (token) {
+      sess = await this.findSessionByToken(token);
+    } else if (body.session_id) {
+      sess = await this.getSession(Number(body.session_id));
+    }
     if (!sess) return this.errJson('session_not_found', 404);
     if (sess.status === 'closed') return this.errJson('session_closed', 409);
 
+    const sid = sess.id;
     let msg: ChatMessage | null = null;
     if (cmid) msg = await this.messageByCmid(sid, cmid);
     if (!msg) {
@@ -313,10 +324,12 @@ export class ChatRoom implements DurableObject {
     }
 
     const newer = await this.messagesSince(sid, sinceId);
+    const messages = newer.some(m => m.id === msg.id) ? newer : [...newer, msg];
     return this.okBatch({
-      messages: newer,
+      messages,
       status: sess.status,
       shop_online: this.isShopOnline(),
+      session_token: sess.session_token,
       message_id: msg.id,
       client_msg_id: msg.client_msg_id,
     });
@@ -381,6 +394,22 @@ export class ChatRoom implements DurableObject {
     }
     this.broadcastToSession(sid, 'visitor', { type: 'read', session_id: sid, up_to_id: upTo });
     return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
+  }
+
+  // DO storage 全消去 (shop_meta は保持). CHAT_SYNC_SECRET で認証.
+  private async httpAdminPurge(req: Request, _body: any): Promise<Response> {
+    const provided = req.headers.get('X-Sync-Secret') || '';
+    const expected = this.env.CHAT_SYNC_SECRET || '';
+    if (!expected || provided !== expected) {
+      return this.errJson('forbidden', 403);
+    }
+    // shop_meta は残して他を全消去
+    const meta = await this.state.storage.get<ShopStatus>('shop_meta');
+    await this.state.storage.deleteAll();
+    if (meta) await this.state.storage.put('shop_meta', meta);
+    return new Response(JSON.stringify({ ok: true, purged: true }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
   }
 
   // ========== WebSocket ==========
