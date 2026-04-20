@@ -143,9 +143,9 @@ a{color:var(--chat-primary);text-decoration:none}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
 
 /* ===== フッター ===== */
-.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px 18px;background:#fafafa;border-top:1px solid #e5e0d8;box-shadow:0 -3px 10px rgba(0,0,0,.05);flex-wrap:wrap}
+.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px 14px;background:#fafafa;border-top:1px solid #e5e0d8;box-shadow:0 -3px 10px rgba(0,0,0,.05);flex-wrap:wrap}
 .chat-footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:rgba(255,255,255,.8);pointer-events:none}
-.chat-footer::after{content:"";position:absolute;left:28%;right:28%;bottom:6px;height:4px;border-radius:999px;background:linear-gradient(90deg,var(--chat-primary) 0%,var(--chat-primary-dark) 50%,var(--chat-primary) 100%);box-shadow:0 2px 6px rgba(var(--chat-primary-rgb),.45),0 1px 2px rgba(0,0,0,.1)}
+.chat-footer::after{content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:40px;height:3px;border-radius:999px;background:rgba(var(--chat-primary-rgb),.35);pointer-events:none}
 .footer-btn{height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e0dbd0;background:#f0ede7;color:#444;flex-shrink:0}
 .footer-btn:hover{background:#e5e0d8}
 .footer-btn.danger{color:#c62828;border-color:#ffcdd2;background:#fff5f5;margin-left:auto}
