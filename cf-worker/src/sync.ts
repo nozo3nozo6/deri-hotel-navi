@@ -23,6 +23,8 @@ export class MysqlSync {
       shop_id: shopId,
       session_token: sess.session_token,
       visitor_hash: sess.visitor_hash,
+      nickname: sess.nickname || null,
+      lang: sess.lang || null,
       started_at: sess.started_at,
       last_activity_at: sess.last_activity_at,
       last_visitor_heartbeat_at: sess.last_visitor_heartbeat_at || null,

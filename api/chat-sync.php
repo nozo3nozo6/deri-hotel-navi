@@ -86,11 +86,13 @@ function handleUpsertSession(PDO $pdo, array $body): void {
 
     $stmt = $pdo->prepare("
         INSERT INTO chat_sessions
-            (shop_id, session_token, visitor_hash, started_at, last_activity_at,
+            (shop_id, session_token, visitor_hash, nickname, lang, started_at, last_activity_at,
              last_visitor_heartbeat_at, last_owner_heartbeat_at,
              closed_at, status, source, notified_at, blocked)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+            nickname = COALESCE(VALUES(nickname), nickname),
+            lang = COALESCE(VALUES(lang), lang),
             last_activity_at = VALUES(last_activity_at),
             last_visitor_heartbeat_at = VALUES(last_visitor_heartbeat_at),
             last_owner_heartbeat_at = VALUES(last_owner_heartbeat_at),
@@ -103,6 +105,8 @@ function handleUpsertSession(PDO $pdo, array $body): void {
         $shopId,
         $token,
         $body['visitor_hash'] ?? null,
+        $body['nickname'] ?? null,
+        $body['lang'] ?? null,
         mysqlDatetime($body['started_at'] ?? null),
         mysqlDatetime($body['last_activity_at'] ?? null) ?: mysqlDatetime('now'),
         mysqlDatetime($body['last_visitor_heartbeat_at'] ?? null),

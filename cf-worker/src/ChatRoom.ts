@@ -211,12 +211,18 @@ export class ChatRoom implements DurableObject {
     const text = (body.message as string || '').trim();
     const cmid = body.client_msg_id as string | undefined;
     const sinceId = Number(body.since_id || 0);
+    const nickname = (body.nickname as string || '').trim();
+    const lang = (body.lang as string || '').trim();
     if (!token || !text) return this.errJson('missing_fields', 400);
 
     const sess = await this.findSessionByToken(token);
     if (!sess) return this.errJson('session_not_found', 404);
     if (sess.status === 'closed') return this.errJson('session_closed', 409);
     if (sess.blocked) return this.errJson('blocked', 403);
+
+    // 送信時の nickname / lang でセッション情報を更新（オーナー受信箱の表示用）
+    if (nickname) sess.nickname = nickname;
+    if (lang) sess.lang = lang;
 
     // 冪等化: 同じclient_msg_idなら既存を返す
     let msg: ChatMessage | null = null;

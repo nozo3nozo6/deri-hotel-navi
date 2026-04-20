@@ -114,14 +114,26 @@ function setThemeMode(mode) {
     const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
     try { document.body.dataset.mode = m; } catch (_) {}
 }
-function formatTime(s) {
-    if (!s) return '';
+// MySQL形式("YYYY-MM-DD HH:MM:SS"、JSTとして扱う) と ISO8601("...T...Z" or "...+00:00") の両対応
+function parseChatDate(s) {
+    if (!s) return null;
+    // ISO8601 は new Date() がそのまま解釈可能
+    if (/[TZ]/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s)) {
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    // MySQL DATETIME は JST として補正
     const d = new Date(s.replace(' ', 'T') + '+09:00');
+    return isNaN(d.getTime()) ? null : d;
+}
+function formatTime(s) {
+    const d = parseChatDate(s);
+    if (!d) return '';
     return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 function getDateKey(s) {
-    if (!s) return '';
-    const d = new Date(s.replace(' ', 'T') + '+09:00');
+    const d = parseChatDate(s);
+    if (!d) return '';
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 function formatDateLabel(key) {
