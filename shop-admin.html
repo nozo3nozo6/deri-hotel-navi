@@ -1081,7 +1081,7 @@
                         <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" onclick="cancelEditTemplate()">キャンセル</button>
                     </div>
                 </div>
-                <div id="chat-tpl-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+                <div id="chat-tpl-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
             </div>
 
             <!-- ブロック -->
@@ -3016,19 +3016,16 @@ function renderTemplateList(templates){
         el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">定型文はまだ登録されていません</div>';
         return;
     }
-    el.innerHTML = templates.map(t => `
-        <div style="padding:10px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">
-                <div style="font-weight:600;font-size:13px;">${esc(t.title)}</div>
-                <div style="display:flex;gap:4px;">
-                    <button class="btn" style="padding:3px 9px;font-size:11px;" onclick='editTemplate(${t.id})'>編集</button>
-                    <button class="btn" style="padding:3px 9px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" onclick="deleteTemplate(${t.id})">削除</button>
-                </div>
-            </div>
-            <div style="font-size:12px;color:var(--text-2);white-space:pre-wrap;">${esc(t.content)}</div>
-            <div style="font-size:10px;color:var(--text-3);margin-top:4px;">順序: ${t.sort_order}</div>
+    // コンパクトチップ表示: タイトル + 編集/削除ボタン。本文はホバーでツールチップ表示
+    el.innerHTML = templates.map(t => {
+        const preview = esc(String(t.content).slice(0, 120)) + (String(t.content).length > 120 ? '…' : '');
+        return `
+        <div title="${preview}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px;background:#fce4ec;border:1px solid #f8bbd0;border-radius:16px;font-size:12px;">
+            <span style="font-weight:600;color:#8a2c4a;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.title)}</span>
+            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;" onclick='editTemplate(${t.id})' aria-label="編集">編集</button>
+            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;color:#c62828;border:1px solid #f8bbd0;border-radius:10px;" onclick="deleteTemplate(${t.id})" aria-label="削除">×</button>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderBlockList(blocks){
