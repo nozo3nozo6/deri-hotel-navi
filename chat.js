@@ -280,7 +280,160 @@ const PollingTransport = {
     }
 };
 
-// 現在の有効トランスポート。DO対応時はここを DurableObjectTransport に差し替える。
+// =========================================================
+// DurableObjectTransport (Cloudflare Durable Objects + WebSocket Hibernation)
+// - chat.yobuho.com Worker に WebSocket で接続. 購読は WS, 送信は HTTP POST.
+// - PollingTransport と同じシグネチャ (subscribeVisitor/subscribeOwner/sendVisitor/sendOwner/canConnect).
+// - 差替えは「const Transport = DurableObjectTransport;」1行のみ.
+// =========================================================
+const DO_BASE = (window.CHAT_WORKER_URL || 'https://chat.yobuho.com').replace(/\/$/, '');
+const DO_WS_BASE = DO_BASE.replace(/^http/, 'ws');
+
+async function doFetch(path, payload, method = 'POST') {
+    const url = `${DO_BASE}${path}?shop_slug=${encodeURIComponent(SLUG)}`;
+    const init = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'omit',
+    };
+    if (method === 'POST') init.body = JSON.stringify(payload || {});
+    const res = await fetch(url, init);
+    if (!res.ok) {
+        const err = new Error('do_fetch_failed');
+        err.status = res.status;
+        throw err;
+    }
+    return res.json();
+}
+
+function openDoWebSocket(query) {
+    const qs = new URLSearchParams({ shop_slug: SLUG, ...query }).toString();
+    return new WebSocket(`${DO_WS_BASE}/ws?${qs}`);
+}
+
+const DurableObjectTransport = {
+    kind: 'durable-object',
+
+    subscribeVisitor({ getSessionToken, getSinceId, onBatch, intervalMs: _iv }) {
+        let active = true;
+        let ws = null;
+        let reconnectTimer = null;
+        let heartbeat = null;
+
+        const connect = () => {
+            if (!active) return;
+            const token = getSessionToken();
+            if (!token) { reconnectTimer = setTimeout(connect, 2000); return; }
+            try {
+                ws = openDoWebSocket({ role: 'visitor', token, since_id: String(getSinceId() || 0) });
+            } catch (_) { reconnectTimer = setTimeout(connect, 2000); return; }
+
+            ws.addEventListener('message', (ev) => {
+                if (!active) return;
+                try {
+                    const data = JSON.parse(ev.data);
+                    if (data.type === 'pong') return;
+                    onBatch(data);
+                } catch (_) {}
+            });
+            ws.addEventListener('close', () => {
+                if (!active) return;
+                clearInterval(heartbeat);
+                reconnectTimer = setTimeout(connect, 3000);
+            });
+            ws.addEventListener('error', () => { try { ws.close(); } catch (_) {} });
+            ws.addEventListener('open', () => {
+                heartbeat = setInterval(() => {
+                    try { ws.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
+                }, 30000);
+            });
+        };
+        connect();
+
+        return {
+            stop: () => {
+                active = false;
+                clearTimeout(reconnectTimer);
+                clearInterval(heartbeat);
+                try { ws && ws.close(); } catch (_) {}
+            },
+        };
+    },
+
+    subscribeOwner({ getDeviceToken, getSelectedSessionId, getSinceId, onBatch, intervalMs: _iv }) {
+        let active = true;
+        let ws = null;
+        let reconnectTimer = null;
+        let heartbeat = null;
+
+        const connect = () => {
+            if (!active) return;
+            const dt = getDeviceToken();
+            if (!dt) { reconnectTimer = setTimeout(connect, 2000); return; }
+            try {
+                ws = openDoWebSocket({ role: 'owner', device: dt });
+            } catch (_) { reconnectTimer = setTimeout(connect, 2000); return; }
+
+            ws.addEventListener('message', (ev) => {
+                if (!active) return;
+                try {
+                    const data = JSON.parse(ev.data);
+                    if (data.type === 'pong') return;
+                    onBatch(data, getSelectedSessionId());
+                } catch (_) {}
+            });
+            ws.addEventListener('close', () => {
+                if (!active) return;
+                clearInterval(heartbeat);
+                reconnectTimer = setTimeout(connect, 3000);
+            });
+            ws.addEventListener('error', () => { try { ws.close(); } catch (_) {} });
+            ws.addEventListener('open', () => {
+                heartbeat = setInterval(() => {
+                    try { ws.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
+                }, 30000);
+            });
+        };
+        connect();
+
+        return {
+            stop: () => {
+                active = false;
+                clearTimeout(reconnectTimer);
+                clearInterval(heartbeat);
+                try { ws && ws.close(); } catch (_) {}
+            },
+        };
+    },
+
+    async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
+        return doFetch('/session/send', {
+            session_token: sessionToken,
+            message,
+            nickname: nickname || '',
+            lang: lang || '',
+            client_msg_id: clientMsgId,
+            since_id: sinceId || 0,
+        });
+    },
+
+    async sendOwner({ deviceToken, sessionId, message, clientMsgId, sinceId }) {
+        return doFetch('/owner/reply', {
+            device_token: deviceToken,
+            session_id: sessionId,
+            message,
+            client_msg_id: clientMsgId,
+            since_id: sinceId || 0,
+        });
+    },
+
+    async canConnect({ sessionToken: _t, shopSlug: _s }) {
+        return doFetch('/can-connect', null, 'GET');
+    },
+};
+
+// 現在の有効トランスポート。DO切替時は以下を DurableObjectTransport に変更:
+//   const Transport = DurableObjectTransport;
 const Transport = PollingTransport;
 
 // ===== i18n =====

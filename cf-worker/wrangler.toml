@@ -1,0 +1,39 @@
+#:schema node_modules/wrangler/config-schema.json
+# YobuChat Durable Objects worker
+# chat.yobuho.com が Custom Domain としてルーティングされる
+name = "yobuchat-do"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Custom Domain: chat.yobuho.com → この Worker
+# Cloudflareが自動でDNSレコード(CNAME)とSSL証明書を発行する
+routes = [
+  { pattern = "chat.yobuho.com", custom_domain = true }
+]
+
+# Durable Object bindings
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+
+# DO を最初にデプロイする際に必要なマイグレーション定義
+# new_sqlite_classes = SQLite-backed DO (2026年以降の標準、低コスト)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatRoom"]
+
+# 環境変数 (secretは `wrangler secret put KEY` で設定)
+[vars]
+# yobuho.com 側の PHP API ベースURL (通知メール発火先)
+NOTIFY_BASE_URL = "https://yobuho.com"
+# CORS 許可オリジン (カンマ区切り)
+ALLOWED_ORIGINS = "https://yobuho.com,https://deli.yobuho.com,https://jofu.yobuho.com,https://same.yobuho.com,https://loveho.yobuho.com,https://este.yobuho.com"
+
+# 秘密鍵系は wrangler secret で別途設定:
+#   wrangler secret put CHAT_NOTIFY_SECRET   (PHP側 chat-notify.php と共有、DO→メール送信の認証)
+#   wrangler secret put CHAT_SYNC_SECRET     (PHP側 chat-shop-lookup.php / chat-sync.php と共有、DO→MySQL 同期の認証)
+
+# Observability (CF側の Analytics/Logs を有効化)
+[observability]
+enabled = true
