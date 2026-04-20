@@ -2787,6 +2787,30 @@ async function loadChatAdmin(){
     }
 }
 
+// chat.html オーナー側のトグルで切り替えた時に shop-admin 側も追従させる
+async function syncChatAdminToggle(){
+    try {
+        const data = await chatApi('admin-overview', {}, 'GET');
+        if (!data || !data.enabled) return;
+        _chatOverview = data;
+        const onlineChk = document.getElementById('chat-admin-online');
+        if (!onlineChk) return;
+        const isNotifyOn = (data.notify_mode || 'first') !== 'off';
+        onlineChk.checked = isNotifyOn;
+        const lbl = document.getElementById('chat-admin-online-label');
+        if (lbl) lbl.textContent = isNotifyOn ? 'オンライン受付中' : 'オフライン';
+        document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
+            rr.checked = (rr.value === (data.notify_mode || 'first'));
+        });
+    } catch (e) { /* silent */ }
+}
+// タブ復帰時にトグル同期（chat.html 側で切り替わっていた場合の追従）
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const panel = document.getElementById('chat-admin-enabled');
+    if (panel && panel.style.display !== 'none') syncChatAdminToggle();
+});
+
 function renderChatAdmin(data){
     const slug = data.slug;
     const publicUrl = 'https://yobuho.com/chat/' + encodeURIComponent(slug) + '/';

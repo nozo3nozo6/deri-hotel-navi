@@ -757,6 +757,7 @@ function handleShopStatus() {
         ok(['chat_enabled' => false]);
     }
     $inHours = isWithinReceptionHours($shop);
+    $notifyMode = (string)($shop['notify_mode'] ?? 'first');
     ok([
         'chat_enabled'      => true,
         'is_online'         => effectiveOnline($shop),
@@ -768,6 +769,8 @@ function handleShopStatus() {
         'next_reception_start' => $inHours ? null : nextReceptionStart($shop),
         'welcome_message'   => $shop['welcome_message'] ?? null,
         'reservation_hint'  => $shop['reservation_hint'] ?? null,
+        'notify_mode'       => $notifyMode,
+        'notify_enabled'    => $notifyMode !== 'off',
     ]);
 }
 

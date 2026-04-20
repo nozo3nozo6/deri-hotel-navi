@@ -1054,6 +1054,7 @@ function startVisitorPolling() {
 function stopPolling() {
     if (state._visitorSub) { state._visitorSub.stop(); state._visitorSub = null; }
     if (state._ownerSub) { state._ownerSub.stop(); state._ownerSub = null; }
+    if (state._ownerStatusTimer) { clearInterval(state._ownerStatusTimer); state._ownerStatusTimer = null; }
     if (state.reception_banner_timer) { clearTimeout(state.reception_banner_timer); state.reception_banner_timer = null; }
 }
 
@@ -1218,6 +1219,9 @@ async function enterOwnerMode() {
     await loadTemplates();
     await showInbox();
     startInboxPolling();
+    // shop-admin 側のトグル切替をオーナー画面に反映するため shop-status を定期リフレッシュ
+    if (state._ownerStatusTimer) clearInterval(state._ownerStatusTimer);
+    state._ownerStatusTimer = setInterval(refreshOwnerStatus, 15000);
 }
 
 async function refreshOwnerStatus() {
@@ -1227,6 +1231,10 @@ async function refreshOwnerStatus() {
         state.reception_start = status.reception_start || null;
         state.reception_end = status.reception_end || null;
         updateStatusIndicator(status.is_online);
+        // shop-admin 側と連動: notify_mode をサーバー権威として同期
+        if (typeof status.notify_enabled !== 'undefined') {
+            state.notify_enabled = !!status.notify_enabled;
+        }
         refs.onlineToggle.checked = state.notify_enabled !== false;
     } catch (e) { /* ignore */ }
 }
