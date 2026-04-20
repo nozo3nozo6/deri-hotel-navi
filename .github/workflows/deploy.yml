@@ -56,6 +56,9 @@ jobs:
           for sub in deli.yobuho.com jofu.yobuho.com same.yobuho.com loveho.yobuho.com este.yobuho.com; do
             cp ../favicon.ico ../$sub/favicon.ico
             cp ../favicon.svg ../$sub/favicon.svg
+            cp ../gtag-init.js ../$sub/gtag-init.js
+            cp ../gtag-lazy.js ../$sub/gtag-lazy.js
+            cp ../font-async.js ../$sub/font-async.js
           done
 
       - name: Auto cache buster
