@@ -1092,11 +1092,16 @@ function handleUpdateSettings() {
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
     $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
     $pdo = DB::conn();
+    // notify_mode と is_online は連動（通知トグル連動ルール）
     $stmt = $pdo->prepare(
-        'UPDATE shop_chat_status SET notify_mode = ?, notify_min_interval_minutes = ? WHERE shop_id = ?'
+        "UPDATE shop_chat_status
+         SET notify_mode = ?, notify_min_interval_minutes = ?,
+             is_online = IF(? = 'off', 0, 1),
+             last_online_at = IF(? = 'off', last_online_at, NOW())
+         WHERE shop_id = ?"
     );
-    $stmt->execute([$mode, $interval, $device['shop_id']]);
-    ok(['notify_mode' => $mode, 'notify_min_interval_minutes' => $interval]);
+    $stmt->execute([$mode, $interval, $mode, $mode, $device['shop_id']]);
+    ok(['notify_mode' => $mode, 'notify_min_interval_minutes' => $interval, 'is_online' => $mode !== 'off']);
 }
 
 function handleGetTemplates() {
@@ -1358,12 +1363,16 @@ function handleAdminSaveSettings() {
     }
 
     $pdo = DB::conn();
+    // notify_mode と is_online は常に連動させる（通知トグル連動ルール）:
+    // notify_mode='off' → is_online=0 / それ以外 → is_online=1, last_online_at=NOW()
     $stmt = $pdo->prepare(
-        'UPDATE shop_chat_status
-         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?
-         WHERE shop_id = ?'
+        "UPDATE shop_chat_status
+         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
+             is_online = IF(? = 'off', 0, 1),
+             last_online_at = IF(? = 'off', last_online_at, NOW())
+         WHERE shop_id = ?"
     );
-    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
+    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $mode, $mode, $auth['shop_id']]);
     ok([
         'notify_mode' => $mode,
         'notify_min_interval_minutes' => $interval,
@@ -1372,6 +1381,7 @@ function handleAdminSaveSettings() {
         'welcome_message' => $welcome,
         'reservation_hint' => $reservationHint,
         'notify_email' => $notifyEmail,
+        'is_online' => $mode !== 'off',
     ]);
 }
 
