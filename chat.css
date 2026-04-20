@@ -190,9 +190,9 @@ a{color:var(--chat-primary);text-decoration:none}
   .font-size-btn .font-size-icon{font-size:13px;padding-right:4px}
   .lang-select{height:30px;font-size:11px;padding:0 22px 0 8px}
   .footer-btn.danger{margin-left:0}
-  .footer-brand{margin-left:auto;flex-direction:row;align-items:center;gap:4px;padding:2px 6px;font-size:10px;min-width:0;flex-shrink:1}
-  .footer-brand-row:nth-child(2){display:none}
-  .footer-brand-ruby{display:none}
+  .footer-brand{margin-left:auto;padding:2px 6px;font-size:10px;flex-shrink:0}
+  .footer-brand-ruby{font-size:9px}
+  .footer-brand-by{font-size:9px}
 }
 
 /* ===== Owner login footer (visitor mode, discreet) ===== */
