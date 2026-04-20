@@ -284,6 +284,11 @@ const PollingTransport = {
     async canConnect({ sessionToken, shopSlug }) {
         const params = sessionToken ? { session_token: sessionToken } : { shop_slug: shopSlug };
         return api('can-connect', params, 'GET');
+    },
+
+    // オーナー: チャットを終了
+    async closeSession({ deviceToken, sessionId }) {
+        return api('close-session', { device_token: deviceToken, session_id: sessionId });
     }
 };
 
@@ -450,6 +455,10 @@ const DurableObjectTransport = {
 
     async canConnect({ sessionToken: _t, shopSlug: _s }) {
         return doFetch('/can-connect', null, 'GET');
+    },
+
+    async closeSession({ deviceToken: _d, sessionId }) {
+        return doFetch('/session/close', { session_id: sessionId });
     },
 };
 
@@ -1471,9 +1480,9 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
     if (!state.selected_session) return;
     if (!confirm(t('thread.closeConfirm'))) return;
     try {
-        await api('close-session', {
-            device_token: state.device_token,
-            session_id: state.selected_session.id
+        await Transport.closeSession({
+            deviceToken: state.device_token,
+            sessionId: state.selected_session.id
         });
         state.selected_session.status = 'closed';
         refs.btnCloseSession.classList.add('hidden');
