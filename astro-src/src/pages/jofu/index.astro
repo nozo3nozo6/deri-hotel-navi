@@ -172,7 +172,7 @@ const footerLinks = [
 (function(){
     var iconMap={men:'\u2642',women:'\u2640',men_same:'\u2642\u2642',women_same:'\u2640\u2640',este:'\uD83D\uDC86\u200D\u2642\uFE0F'};
     var modePathMap={men:'/deli/',women:'/jofu/',men_same:'/same-m/',women_same:'/same-f/',este:'/este/'};
-    fetch('/api/recent-shops.php?mode=women').then(function(r){return r.json();}).then(function(shops){
+    fetch('https://yobuho.com/api/recent-shops.php?mode=women').then(function(r){return r.json();}).then(function(shops){
         if(!shops||!shops.length)return;
         var lines=shops.map(function(s){
             var _dm=s.approved_at?String(s.approved_at).replace('T',' ').match(/(\d{4})-(\d{2})-(\d{2})/):null;
