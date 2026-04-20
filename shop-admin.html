@@ -3013,16 +3013,39 @@ function renderTemplateList(templates){
         el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">定型文はまだ登録されていません</div>';
         return;
     }
-    // コンパクトチップ表示: タイトル + 編集/削除ボタン。本文はホバーでツールチップ表示
-    el.innerHTML = templates.map(t => {
+    // コンパクトチップ表示: 並替◀▶ + タイトル + 編集/削除。本文はホバーでツールチップ
+    el.innerHTML = templates.map((t, i) => {
         const preview = esc(String(t.content).slice(0, 120)) + (String(t.content).length > 120 ? '…' : '');
+        const isFirst = i === 0;
+        const isLast = i === templates.length - 1;
         return `
         <div title="${preview}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px;background:#fce4ec;border:1px solid #f8bbd0;border-radius:16px;font-size:12px;">
-            <span style="font-weight:600;color:#8a2c4a;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.title)}</span>
+            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isFirst?'opacity:0.3;cursor:not-allowed;':''}" onclick="moveTemplate(${t.id}, -1)" ${isFirst?'disabled':''} aria-label="左へ">◀</button>
+            <span style="font-weight:600;color:#8a2c4a;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.title)}</span>
+            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isLast?'opacity:0.3;cursor:not-allowed;':''}" onclick="moveTemplate(${t.id}, 1)" ${isLast?'disabled':''} aria-label="右へ">▶</button>
             <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;" onclick='editTemplate(${t.id})' aria-label="編集">編集</button>
             <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;color:#c62828;border:1px solid #f8bbd0;border-radius:10px;" onclick="deleteTemplate(${t.id})" aria-label="削除">×</button>
         </div>
     `}).join('');
+}
+
+async function moveTemplate(id, direction){
+    if (!_chatOverview) return;
+    const templates = _chatOverview.templates || [];
+    const idx = templates.findIndex(x => Number(x.id) === Number(id));
+    if (idx < 0) return;
+    const neighborIdx = idx + direction;
+    if (neighborIdx < 0 || neighborIdx >= templates.length) return;
+    const a = templates[idx];
+    const b = templates[neighborIdx];
+    try {
+        // sort_order を入れ替え
+        await chatApi('admin-save-template', { id: a.id, title: a.title, content: a.content, sort_order: Number(b.sort_order) });
+        await chatApi('admin-save-template', { id: b.id, title: b.title, content: b.content, sort_order: Number(a.sort_order) });
+        const data = await chatApi('admin-overview', {}, 'GET');
+        _chatOverview = data;
+        renderTemplateList(data.templates || []);
+    } catch (e) { toast('⚠️ ' + e.message); }
 }
 
 function renderBlockList(blocks){
