@@ -865,6 +865,15 @@ function addDateSeparator(key) {
     refs.chatMessages.appendChild(sep);
 }
 function addMessage(m, fromOwner) {
+    // dedup: 同 client_msg_id が既に描画済みならスキップ.
+    // DO と MySQL の message.id 空間は独立しており (DO は自前カウンタ, MySQL は auto_increment)
+    // id ベース dedup では DO 新規セッションの msg が MySQL の max id より小さくなって消える.
+    if (m.client_msg_id) {
+        if (refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(m.client_msg_id)}"]`)) return;
+    } else if (m.id) {
+        if (refs.chatMessages.querySelector(`[data-msg-id="${m.id}"]`)) return;
+    }
+
     const isVisitor = m.sender_type === 'visitor';
     const renderAs = fromOwner ? (isVisitor ? 'shop' : 'visitor') : (isVisitor ? 'visitor' : 'shop');
 
@@ -878,6 +887,7 @@ function addMessage(m, fromOwner) {
     const row = document.createElement('div');
     row.className = 'msg-row ' + renderAs;
     if (m.id) row.dataset.msgId = m.id;
+    if (m.client_msg_id) row.dataset.cmid = m.client_msg_id;
 
     const bubble = document.createElement('div');
     bubble.className = 'msg ' + renderAs;
@@ -969,10 +979,11 @@ async function maybeTranslate(msgDiv, text, from, to) {
 // 訪問者メッセージバッチを画面に反映（Transport.subscribeVisitor の onBatch、および初期ロードから呼ばれる）
 function applyVisitorBatch(data) {
     for (const m of (data.messages || [])) {
-        // 送信直後のapply + 並行pollの二重描画を防ぐため id ベースdedup
-        if (m.id > state.last_message_id) {
+        // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
+        // cmid 無しの legacy msg のみ id ベース dedup.
+        if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, false);
-            state.last_message_id = m.id;
+            if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
     }
     if (typeof data.last_read_own_id !== 'undefined') {
@@ -1333,9 +1344,9 @@ function applyOwnerBatch(data, selectedSid) {
     }
     if (!state.selected_session) return;
     for (const m of (data.messages || [])) {
-        if (m.id > state.last_message_id) {
+        if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, true);
-            state.last_message_id = m.id;
+            if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
     }
     if (typeof data.last_read_own_id !== 'undefined') {
