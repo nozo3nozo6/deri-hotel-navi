@@ -391,7 +391,8 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
 
     // メール送信
     $subject = '【YobuChat】新着メッセージ: ' . $shop['shop_name'];
-    $chatUrl = 'https://yobuho.com/chat/' . rawurlencode((string)$shop['slug']) . '/?owner=1';
+    // 店舗管理画面のチャットタブへ直接誘導（shop-admin にログイン済みならそのまま返信可能）
+    $chatUrl = 'https://yobuho.com/shop-admin.html#chat';
     $html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;background:#fff;font-family:sans-serif;">';
     $html .= '<div style="max-width:520px;margin:0 auto;">';
     $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">YobuChat 新着メッセージ</h2>';
@@ -399,14 +400,14 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $html .= '<div style="background:#f5f5f5;padding:12px;border-radius:6px;margin:16px 0;font-size:13px;line-height:1.6;color:#555;border-left:3px solid #9b2d35;">';
     $html .= nl2br(htmlspecialchars(mb_substr($preview, 0, 200), ENT_QUOTES, 'UTF-8'));
     $html .= '</div>';
-    $html .= '<p style="margin:24px 0;"><a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 24px;background:#9b2d35;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">ログインして返信する</a></p><p style="font-size:12px;color:#666;margin:8px 0;">※ リンクをクリックするとオーナーログイン画面が開きます</p>';
-    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は shop-admin &gt; YobuChat から変更できます。</p>';
+    $html .= '<p style="margin:24px 0;"><a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 24px;background:#9b2d35;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">チャットを開いて返信する</a></p><p style="font-size:12px;color:#666;margin:8px 0;">※ 店舗管理画面のチャットタブが開きます（未ログインの場合はログイン画面へ）</p>';
+    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は 店舗管理画面 &gt; YobuChat から変更できます。</p>';
     $html .= '</div></body></html>';
 
     $plain = "店舗「{$shop['shop_name']}」宛に新着チャットが届きました。\n\n";
     $plain .= "内容: " . mb_substr($preview, 0, 200) . "\n\n";
-    $plain .= "ログインして返信: " . $chatUrl . "\n";
-    $plain .= "※ リンクをクリックするとオーナーログイン画面が開きます。\n";
+    $plain .= "チャットを開いて返信: " . $chatUrl . "\n";
+    $plain .= "※ 店舗管理画面のチャットタブが開きます（未ログインの場合はログイン画面へ）。\n";
 
     $boundary = '=_yobuho_' . md5(uniqid('', true));
     $mimeBody  = "This is a multi-part message in MIME format.\r\n\r\n";
