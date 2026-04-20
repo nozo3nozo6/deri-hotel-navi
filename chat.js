@@ -250,6 +250,13 @@ const PollingTransport = {
         return { stop: () => { active = false; clearInterval(timer); } };
     },
 
+    // 訪問者: セッション作成
+    async startVisitorSession({ shopSlug, source, sessionToken }) {
+        const payload = { shop_slug: shopSlug, source };
+        if (sessionToken) payload.session_token = sessionToken;
+        return api('start-session', payload);
+    },
+
     // 訪問者: メッセージ送信 (client_msg_id で冪等化)
     async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
         return api('send-message', {
@@ -298,12 +305,13 @@ async function doFetch(path, payload, method = 'POST') {
     };
     if (method === 'POST') init.body = JSON.stringify(payload || {});
     const res = await fetch(url, init);
-    if (!res.ok) {
-        const err = new Error('do_fetch_failed');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false || data.error) {
+        const err = new Error(data.error || `do_fetch_${res.status}`);
         err.status = res.status;
         throw err;
     }
-    return res.json();
+    return data;
 }
 
 function openDoWebSocket(query) {
@@ -404,6 +412,12 @@ const DurableObjectTransport = {
                 try { ws && ws.close(); } catch (_) {}
             },
         };
+    },
+
+    async startVisitorSession({ shopSlug: _s, source, sessionToken }) {
+        const payload = { source: source || 'standalone' };
+        if (sessionToken) payload.session_token = sessionToken;
+        return doFetch('/session/start', payload);
     },
 
     async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
@@ -654,9 +668,17 @@ async function enterVisitorMode() {
         state.session_id = saved.session_id || 0;
         // リロード時は全履歴を再取得（since_id=0）
         state.last_message_id = 0;
+        // DO版では既存 session_token を DO に adopt させる（createIfMissing）
+        try {
+            await Transport.startVisitorSession({
+                shopSlug: SLUG,
+                source: isEmbedded() ? 'widget' : 'standalone',
+                sessionToken: saved.token
+            });
+        } catch (_) { /* PHP版は本質的に no-op でも可 */ }
         await pollMessages(true);
     } else {
-        const s = await api('start-session', { shop_slug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
+        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
         state.session_token = s.session_token;
         state.session_id = s.session_id;
         saveVisitorSession();
@@ -728,7 +750,7 @@ async function restartVisitorSession() {
     refs.chatMessages.innerHTML = '';
     refs.inputArea.classList.remove('hidden');
     try {
-        const s = await api('start-session', { shop_slug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
+        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
         state.session_token = s.session_token;
         state.session_id = s.session_id;
         saveVisitorSession();
