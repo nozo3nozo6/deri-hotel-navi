@@ -1293,10 +1293,22 @@ function handleAdminToggleOnline() {
     $stmt->execute([$auth['shop_id']]);
     if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
 
+    // 通知設定トグル: is_online と notify_mode を同時に切り替える
+    // - ON : notify_mode が 'off' なら 'first' に復帰、その他は維持 / is_online=1 / last_online_at=NOW()
+    // - OFF: notify_mode='off' / is_online=0 (メール通知もされなくなる)
     $pdo->prepare(
-        'UPDATE shop_chat_status SET is_online = ?, last_online_at = IF(? = 1, NOW(), last_online_at) WHERE shop_id = ?'
-    )->execute([$isOnline, $isOnline, $auth['shop_id']]);
-    ok(['is_online' => $isOnline === 1]);
+        "UPDATE shop_chat_status
+         SET notify_mode = IF(? = 1, IF(notify_mode = 'off', 'first', notify_mode), 'off'),
+             is_online = ?,
+             last_online_at = IF(? = 1, NOW(), last_online_at)
+         WHERE shop_id = ?"
+    )->execute([$isOnline, $isOnline, $isOnline, $auth['shop_id']]);
+
+    // 切替後の最新 notify_mode を返す (shop-admin のラジオ同期用)
+    $row = $pdo->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
+    $row->execute([$auth['shop_id']]);
+    $mode = $row->fetchColumn() ?: 'off';
+    ok(['is_online' => $isOnline === 1, 'notify_mode' => $mode]);
 }
 
 function handleAdminSaveSettings() {
