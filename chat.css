@@ -25,7 +25,7 @@ a{color:var(--chat-primary);text-decoration:none}
 .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
 .status-dot.online{background:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.8)}
 .status-dot.offline{display:none}
-.status-label{font-size:12px;opacity:.9;line-height:1.2;text-align:right}
+.status-label{font-size:12px;opacity:.9;line-height:1.2;text-align:center}
 .status-label-line{display:block}
 
 /* Header right cluster */
