@@ -8,8 +8,8 @@
 .ychat-status{display:inline-flex!important;align-items:center!important;gap:6px!important;font-size:12px!important;font-weight:600!important;padding:3px 10px!important;background:rgba(255,255,255,.18)!important;border-radius:999px!important;color:#fff!important;line-height:1.2!important}
 .ychat-status .ychat-status-label{display:inline-flex!important;flex-direction:column!important;align-items:flex-end!important;gap:0!important;line-height:1.15!important}
 .ychat-status .ychat-status-label span{display:block!important;font-size:11px!important;line-height:1.15!important}
-.ychat-dot{width:8px!important;height:8px!important;border-radius:50%!important;background:#aaa!important;display:inline-block!important}
-.ychat-dot.on{background:#4ade80!important;box-shadow:0 0 6px rgba(74,222,128,.7)!important}
+.ychat-dot{width:8px!important;height:8px!important;border-radius:50%!important;background:#4ade80!important;display:none!important}
+.ychat-dot.on{display:inline-block!important;box-shadow:0 0 6px rgba(74,222,128,.7)!important}
 .ychat-body{background:#fffaf4!important;padding:14px!important;max-height:420px!important;overflow-y:auto!important;overflow-x:hidden!important;display:flex!important;flex-direction:column!important;gap:10px!important;min-height:180px!important;-webkit-overflow-scrolling:touch!important}
 .ychat-note{background:#fff4e6!important;border:1px solid #f5d7a8!important;border-radius:8px!important;padding:10px 12px!important;font-size:13px!important;color:#7a4a15!important;line-height:1.6!important;word-wrap:break-word!important;overflow-wrap:anywhere!important}
 .ychat-note.ychat-reservation{background:#fef7ed!important;border-color:#f0d4a0!important;color:#8a5a1f!important;font-size:12px!important}
@@ -206,8 +206,8 @@
   function renderStatusLabel(){
     if(!elStatusText)return;
     var hours=recState.reception_start&&recState.reception_end?formatHM(recState.reception_start)+'-'+formatHM(recState.reception_end):'';
-    // 受付時間外: 2行表示（受付時間 / HH:MM-HH:MM）。時間内: 受付中/停止中
-    if(recState.is_reception_hours===false&&hours){
+    // 受付時間が設定されていれば常に「受付時間 HH:MM-HH:MM」表示。未設定の店舗のみ受付中/停止中にフォールバック
+    if(hours){
       elStatusText.innerHTML='<span>'+esc(t('receptionHours'))+'</span><span>'+esc(hours)+'</span>';
     }else{
       elStatusText.textContent=t(recState.is_online?'online':'offline');
