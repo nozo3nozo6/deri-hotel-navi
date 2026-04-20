@@ -14,18 +14,22 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const CHAT_HTML = path.join(ROOT, 'chat.html');
+const CHAT_JS = path.join(ROOT, 'chat.js');
 const WIDGET_TEMPLATE = path.join(ROOT, 'chat-widget-inline.template.html');
 const I18N_JSON = path.join(ROOT, 'chat-i18n.json');
 
 // 訪問者向けUIマーカー: chat.html と chat-widget-inline.template.html 両方に必須
 // 片方に無い → CIで失敗 → 開発者がもう一方にも追加を強制される
 const REQUIRED_VISITOR_FEATURES = [
-  { name: '言語セレクタ',        chat: /id="lang-select"/,        widget: /id="ychat-lang-sel"/ },
-  { name: 'フォントサイズ切替',  chat: /id="font-size-toggle"/,   widget: /id="ychat-fontsize-btn"/ },
-  { name: 'オンライン状態ドット',chat: /id="chat-status-dot"/,    widget: /id="ychat-dot"/ },
-  { name: 'メッセージ入力欄',    chat: /id="chat-input"/,         widget: /id="ychat-ta"/ },
-  { name: '送信ボタン',          chat: /id="chat-send"/,          widget: /id="ychat-send"/ },
-  { name: 'ショップ名表示',      chat: /id="chat-shop-name"/,     widget: /id="ychat-shopname"/ },
+  { name: '言語セレクタ',        chat: /id="lang-select"/,            widget: /id="ychat-lang-sel"/ },
+  { name: 'フォントサイズ切替',  chat: /id="font-size-toggle"/,       widget: /id="ychat-fontsize-btn"/ },
+  { name: 'オンライン状態ドット',chat: /id="chat-status-dot"/,        widget: /id="ychat-dot"/ },
+  { name: 'メッセージ入力欄',    chat: /id="chat-input"/,             widget: /id="ychat-ta"/ },
+  { name: '送信ボタン',          chat: /id="chat-send"/,              widget: /id="ychat-send"/ },
+  { name: 'ショップ名表示',      chat: /id="chat-shop-name"/,         widget: /id="ychat-shopname"/ },
+  { name: '予約ヒント',          chat: /id="reservation-hint"/,       widget: /id="ychat-reservation-hint"/ },
+  { name: 'YobuChatブランドフッター', chat: /class="footer-brand-name"/, widget: /class="ychat-brand-name"/ },
+  { name: '受付時間外バナー',    chat: /reception-closed/,            widget: /ychat-reception-closed/ },
 ];
 
 // i18n辞書の言語セットも一致させる
@@ -47,7 +51,7 @@ function checkLangParity(i18n) {
 }
 
 function main() {
-  const chat = fs.readFileSync(CHAT_HTML, 'utf8');
+  const chat = fs.readFileSync(CHAT_HTML, 'utf8') + '\n' + fs.readFileSync(CHAT_JS, 'utf8');
   const widget = fs.readFileSync(WIDGET_TEMPLATE, 'utf8');
   const i18n = JSON.parse(fs.readFileSync(I18N_JSON, 'utf8'));
 

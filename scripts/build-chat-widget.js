@@ -39,6 +39,11 @@ const WIDGET_KEYS_MAP = {
   fsS: 'widget.fsS',
   fsM: 'widget.fsM',
   fsL: 'widget.fsL',
+  noteReservation: 'note.reservation',
+  receptionClosed: 'reception.closed',
+  receptionHours: 'reception.hours',
+  receptionSendOk: 'reception.sendOk',
+  receptionNextOpen: 'reception.nextOpen',
 };
 
 function main() {

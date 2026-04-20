@@ -526,7 +526,8 @@ function updateStatusIndicator(online) {
     const hours = state.reception_start && state.reception_end
         ? `${formatHM(state.reception_start)}-${formatHM(state.reception_end)}`
         : '';
-    if (hours) {
+    // 受付時間外のみ営業時間テキスト表示。時間内は受付中/受付停止中
+    if (state.is_reception_hours === false && hours) {
         refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
     } else {
         refs.statusLabel.textContent = t(online ? 'status.online' : 'status.offline');
