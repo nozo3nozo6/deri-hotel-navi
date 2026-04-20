@@ -79,11 +79,18 @@
         .btn-back:hover{border-color:var(--rose-border);color:var(--text);}
 
         /* ===== エリアボタングリッド ===== */
-        .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px;}
-        .area-btn{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.15s;text-align:left;}
-        .area-btn:hover{border-color:var(--rose-border);background:#faf8f6;transform:translateY(-1px);}
-        .area-btn .area-name{font-size:13px;font-weight:600;}
-        .area-btn .area-count{font-size:11px;color:var(--text-3);background:var(--bg-4);padding:2px 8px;border-radius:10px;white-space:nowrap;}
+        .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
+        .area-btn{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:15px 16px 15px 20px;background:linear-gradient(135deg,#ffffff 0%,#fff8ee 100%);border:1px solid #ece4d6;border-radius:12px;cursor:pointer;transition:transform 0.2s ease,box-shadow 0.2s ease,border-color 0.2s ease,background 0.2s ease;text-align:left;overflow:hidden;box-shadow:0 2px 6px rgba(166,130,90,0.08),inset 0 1px 0 rgba(255,255,255,0.9);animation:areaBtnIn 0.35s ease both;}
+        .area-btn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--gold) 0%,var(--rose) 100%);opacity:0.85;transition:opacity 0.2s,width 0.2s;}
+        .area-btn::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(255,230,180,0.35) 0%,transparent 55%);pointer-events:none;opacity:0.7;transition:opacity 0.3s;}
+        .area-btn:hover{border-color:var(--rose);background:linear-gradient(135deg,#fffdfb 0%,#fdeef0 100%);transform:translateY(-2px);box-shadow:0 8px 22px rgba(181,98,122,0.18),0 2px 6px rgba(201,169,110,0.12);}
+        .area-btn:hover::before{opacity:1;width:5px;}
+        .area-btn:hover::after{opacity:1;background:radial-gradient(circle at 85% 15%,rgba(255,200,210,0.45) 0%,transparent 55%);}
+        .area-btn:active{transform:translateY(-1px);}
+        .area-btn .area-name{font-size:13px;font-weight:700;color:var(--text);letter-spacing:0.02em;position:relative;z-index:1;}
+        .area-btn .area-count{font-size:11px;color:#a8894e;background:linear-gradient(135deg,#fff8e8 0%,#ffeec9 100%);border:1px solid var(--gold-border);padding:3px 10px;border-radius:12px;white-space:nowrap;font-weight:700;position:relative;z-index:1;transition:background 0.2s,color 0.2s,border-color 0.2s,box-shadow 0.2s;box-shadow:0 1px 2px rgba(201,169,110,0.15);}
+        .area-btn:hover .area-count{background:linear-gradient(135deg,#fff 0%,#ffeaef 100%);color:var(--rose);border-color:var(--rose);box-shadow:0 1px 3px rgba(181,98,122,0.2);}
+        @keyframes areaBtnIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
         /* ===== 検索バー ===== */
         .search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
@@ -258,9 +265,10 @@
         .tab-content.active{display:block;}
 
         @media(max-width:640px){
-            .area-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
-            .area-btn{padding:10px 12px;}
+            .area-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
+            .area-btn{padding:12px 12px 12px 16px;border-radius:10px;}
             .area-btn .area-name{font-size:12px;}
+            .area-btn .area-count{font-size:10px;padding:2px 8px;}
             .form-row{flex-direction:column;}
             .hdr-inner{padding:10px 14px;}
             .hdr-shop{font-size:11px;}
