@@ -184,6 +184,16 @@ a{color:var(--chat-primary);text-decoration:none}
 .footer-brand:hover .footer-brand-site{color:#9b2d35}
 .footer-brand:hover .footer-brand-name{color:#7a1f27}
 @media (max-width:420px){.footer-brand{font-size:10px;padding:3px 6px}.footer-brand-row{gap:3px}}
+@media (max-width:640px){
+  .chat-footer{flex-wrap:nowrap;gap:4px;padding:6px 8px}
+  .font-size-btn,.footer-btn{height:30px;padding:0 8px;font-size:11px}
+  .font-size-btn .font-size-icon{font-size:13px;padding-right:4px}
+  .lang-select{height:30px;font-size:11px;padding:0 22px 0 8px}
+  .footer-btn.danger{margin-left:0}
+  .footer-brand{margin-left:auto;flex-direction:row;align-items:center;gap:4px;padding:2px 6px;font-size:10px;min-width:0;flex-shrink:1}
+  .footer-brand-row:nth-child(2){display:none}
+  .footer-brand-ruby{display:none}
+}
 
 /* ===== Owner login footer (visitor mode, discreet) ===== */
 .owner-login-footer{padding:6px 12px;text-align:center;background:#fafafa;border-top:1px solid #eee;flex-shrink:0}
