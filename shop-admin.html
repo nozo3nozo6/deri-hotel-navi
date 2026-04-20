@@ -955,6 +955,11 @@
                     下のボタンから<strong>店舗受信画面</strong>を開けます。スマホ/PCで開いてブックマークしておくと便利です。
                 </div>
                 <a id="chat-admin-owner-link" href="#" target="_blank" rel="noopener" class="btn primary" style="display:inline-block;padding:10px 18px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px;">💬 店舗受信画面を開く →</a>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">店舗スタッフ用URL（ブックマーク・他端末で開くとき用）</div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+                    <input id="chat-admin-owner-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-owner-url')">コピー</button>
+                </div>
                 <div style="background:#fff8ec;border:1px solid #f0d49a;padding:10px 12px;border-radius:6px;font-size:12px;color:#7a5a20;line-height:1.7;margin-bottom:10px;">
                     ※ URL直リンクでもログイン必須です。<br>
                     ※ ブラウザのパスワードマネージャーで自動入力できます。
@@ -2821,6 +2826,8 @@ function renderChatAdmin(data){
     document.getElementById('chat-admin-public-url').value = publicUrl;
     const ownerLink = document.getElementById('chat-admin-owner-link');
     if (ownerLink) ownerLink.href = publicUrl + '?owner=1';
+    const ownerUrlInput = document.getElementById('chat-admin-owner-url');
+    if (ownerUrlInput) ownerUrlInput.value = publicUrl + '?owner=1';
 
     // 全埋込タイプを chat.html の iframe 方式で統一。
     // 本家 chat.html を直せば 5 タイプ全部に自動反映されるため、個別UI同期作業が不要。
