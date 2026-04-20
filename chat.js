@@ -546,12 +546,11 @@ const DurableObjectTransport = {
     },
 };
 
-// 現在の有効トランスポート。slug allowlist で段階的ロールアウト:
-// - allowlist 内の slug → DurableObjectTransport (chat.yobuho.com Worker + DO)
-// - それ以外 → PollingTransport (PHP polling)
-// 問題発生時は allowlist から該当 slug を外すだけで即ロールバック.
-const DO_ALLOWLIST_SLUGS = ['dgqeiw1i']; // 立川秘密基地
-const Transport = DO_ALLOWLIST_SLUGS.includes(SLUG) ? DurableObjectTransport : PollingTransport;
+// 現在の有効トランスポート。
+// - デフォルト: DurableObjectTransport (chat.yobuho.com Worker + DO, WebSocket Hibernation でリアルタイム配信)
+// - 個別店舗で問題が起きた際は DO_DENYLIST_SLUGS にその slug を追加して PHP polling へフォールバック
+const DO_DENYLIST_SLUGS = [];
+const Transport = DO_DENYLIST_SLUGS.includes(SLUG) ? PollingTransport : DurableObjectTransport;
 
 // ===== i18n =====
 // 辞書は /chat-i18n.json から fetch。chat-widget-inline.html とは同一ソースを共有（scripts/build-chat-widget.js が注入）
