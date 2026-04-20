@@ -1159,7 +1159,7 @@ if (refs.visitorQuick) {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
         insertEmojiAtCursor(btn.dataset.quick || '');
-        // 訪問者側は連続で選びたい場合もあるのでポップアップは閉じない
+        refs.visitorQuick.classList.add('hidden');
     });
 }
 
