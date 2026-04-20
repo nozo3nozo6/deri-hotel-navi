@@ -14,7 +14,8 @@ a{color:var(--chat-primary);text-decoration:none}
 .hidden{display:none!important}
 
 /* ===== ヘッダー ===== */
-#chat-header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:12px 6px 12px 16px;background:linear-gradient(135deg,var(--chat-primary) 0%,var(--chat-primary-dark) 100%);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:10;flex-shrink:0}
+#chat-header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:12px 6px 12px 16px;background:linear-gradient(135deg,var(--chat-primary) 0%,var(--chat-primary-dark) 100%);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:10;flex-shrink:0;border-top-left-radius:13px;border-top-right-radius:13px}
+@media (max-width:480px){#chat-header{border-top-left-radius:9px;border-top-right-radius:9px}}
 .chat-header-left{justify-self:start;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
 .chat-header-center{justify-self:center;display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow:hidden}
 .header-back{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
@@ -145,7 +146,8 @@ a{color:var(--chat-primary);text-decoration:none}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
 
 /* ===== フッター ===== */
-.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fafafa;border-top:1px solid #e5e0d8;flex-wrap:wrap}
+.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fafafa;border-top:1px solid #e5e0d8;flex-wrap:wrap;border-bottom-left-radius:13px;border-bottom-right-radius:13px}
+@media (max-width:480px){.chat-footer{border-bottom-left-radius:9px;border-bottom-right-radius:9px}}
 .footer-btn{height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e0dbd0;background:#f0ede7;color:#444;flex-shrink:0}
 .footer-btn:hover{background:#e5e0d8}
 .footer-btn.danger{color:#c62828;border-color:#ffcdd2;background:#fff5f5;margin-left:auto}
