@@ -466,6 +466,12 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - [ ] ビジネス: shop-admin.htmlに営業ダッシュボード（閲覧数/ホテル別アクセス数）
 - [ ] ビジネス: メール購読オプトイン（週1回の新規口コミ通知）
 - [ ] ビジネス: shop-redirect.phpでアクセス追跡（店舗リンククリック計測）
+- [ ] YobuChat: DO移行本体（雛形着手はYobuChat機能が完成してから）
+      - 前提条件: YobuChat機能が一通り完成 + 実運用で同時接続50+店舗/1日1000msg超 or 明確な遅延クレーム発生
+      - Cloudflare Workers Paid契約($5/月〜) + chat.yobuho.com DNS + wrangler login
+      - 雛形: cf-worker/ディレクトリ、ChatRoom DO、DurableObjectTransport、api/chat-notify.php
+      - DO-Ready準備は2026-04-18完了済み (client_msg_id/okBatch/can-connect/heartbeat/Transport)
+      - フロント差替は `const Transport = DurableObjectTransport;` 1行想定、実装見積5〜7日
 
 ### 2026年3月19日（後半） — バグ修正・lovehoサブドメインLP化・フッター統一
 #### バグ修正（前回会話の修正で混入した問題）
@@ -909,8 +915,21 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 ### 構成
 - chat.html / chat.js / chat.css — スタンドアロンチャット画面（/chat/{slug}/）
 - chat-widget.js — 外部サイト埋込（`<script src="https://yobuho.com/chat-widget.js" data-slug="...">`）
+- chat-widget-inline.template.html — 埋込版UIの**編集元**（手で書き換える）
+- chat-widget-inline.html — ビルド自動生成（直接編集禁止、厳格CMS/レガシー貼付用フォールバック）
+- chat-widget-body.js — ビルド自動生成（CMSローダー方式で動的load される本体）
+- chat-i18n.json — 訳文の唯一のソース（chat.js は起動時fetch、widget はビルド時注入）
+- scripts/build-chat-widget.js — テンプレ＋i18n → chat-widget-inline.html + chat-widget-body.js を派生生成
+- scripts/check-chat-parity.js — CIで訪問者UIパリティ検証（deploy.ymlで実行、失敗でデプロイ中断）
 - api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/can-connect/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
-- shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理
+- shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理、貼付コード生成（①script/②iframe/③link/④floating/⑤CMSローダー+レガシー）
+
+### CMS埋込のローダー方式（2026-04-20〜）
+CMSにHTML/JSをそのまま貼る方式は**貼付時点の実装で凍結**し、後日の機能追加・バグ修正が店舗側の再貼付なしには反映されない問題があった。
+→ ローダー方式（`<div id="ychat-root" data-slug>` + 短い script で `yobuho.com/chat-widget-body.js?d=YYYYMMDD` を `createElement` 経由で動的load）に移行。
+- 日次キャッシュバスター `?d=YYYYMMDD` で更新即反映
+- 静的配信は Cloudflare CDN が吸収、実サーバー負荷は軽微
+- 厳格CMS（外部script禁止）向けに shop-admin ⑤タブの `<details>` 内にレガシーインライン（fetch→`chat-widget-inline.html` 注入）を残す
 
 ### DO-Ready 仕様（2026-04-18 launch前改造）
 Cloudflare Durable Objects (WebSocket Hibernation) への将来移行を痛くなく行うため、
