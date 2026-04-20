@@ -969,8 +969,8 @@
                     <div id="chat-register-device-hint" style="font-size:11px;color:var(--text-3);margin-top:6px;"></div>
                 </div>
 
-                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">登録済み端末</div>
-                <div id="chat-admin-device-list" style="font-size:12px;color:var(--text-2);"></div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px;">登録済み端末 <span id="chat-admin-device-count" style="font-weight:400;color:var(--text-3);"></span></div>
+                <div id="chat-admin-device-list" style="font-size:12px;color:var(--text-2);max-height:330px;overflow-y:auto;padding-right:4px;"></div>
             </div>
 
             <!-- 受付時間 -->
@@ -2917,6 +2917,8 @@ function renderChatAdmin(data){
 
 function renderDeviceList(devices){
     const el = document.getElementById('chat-admin-device-list');
+    const countEl = document.getElementById('chat-admin-device-count');
+    if (countEl) countEl.textContent = devices.length ? `(${devices.length}件)` : '';
     if (!devices.length) {
         el.innerHTML = '<div style="color:var(--text-3);font-size:12px;">登録済み端末はありません</div>';
         return;
