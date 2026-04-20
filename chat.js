@@ -55,6 +55,7 @@ let state = {
     reception_banner_timer: null,
     welcome_message: null,
     reservation_hint: null,
+    nickname_locked: false,   // 最初の訪問者メッセージ送信後に true: このチャット内ではニックネーム固定
 };
 
 // ===== DOM refs =====
@@ -987,6 +988,8 @@ async function maybeTranslate(msgDiv, text, from, to) {
 
 // 訪問者メッセージバッチを画面に反映（Transport.subscribeVisitor の onBatch、および初期ロードから呼ばれる）
 function applyVisitorBatch(data) {
+    let sawVisitorMsg = false;
+    let restoredNick = '';
     for (const m of (data.messages || [])) {
         // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
         // cmid 無しの legacy msg のみ id ベース dedup.
@@ -994,6 +997,15 @@ function applyVisitorBatch(data) {
             addMessage(m, false);
             if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
+        if (m.sender_type === 'visitor') {
+            sawVisitorMsg = true;
+            if (!restoredNick && m.nickname) restoredNick = String(m.nickname).trim().slice(0, 20);
+        }
+    }
+    // 既存セッション復元: 過去に訪問者メッセージがあればニックネームを固定
+    if (state.mode === 'visitor' && sawVisitorMsg && !state.nickname_locked) {
+        if (refs.nicknameInput && restoredNick) refs.nicknameInput.value = restoredNick;
+        lockVisitorNickname();
     }
     if (typeof data.last_read_own_id !== 'undefined') {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
@@ -1119,11 +1131,29 @@ function scheduleReceptionReopenCheck() {
     }, wait);
 }
 
+function lockVisitorNickname() {
+    if (state.nickname_locked) return;
+    state.nickname_locked = true;
+    const input = refs.nicknameInput;
+    if (!input) return;
+    const val = String(input.value || '').trim().slice(0, 20);
+    if (!val) {
+        input.value = t('nickname.anonymous');
+    }
+    input.readOnly = true;
+    input.classList.add('locked');
+}
+
 async function sendVisitorMessage(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
     refs.sendBtn.disabled = true;
-    const nick = refs.nicknameInput ? String(refs.nicknameInput.value || '').trim().slice(0, 20) : '';
+    let nick = '';
+    if (refs.nicknameInput) {
+        nick = String(refs.nicknameInput.value || '').trim().slice(0, 20);
+        // ロック済み & 匿名表示になっている場合は空文字で送信（"匿名"という文字列を名前として送らない）
+        if (state.nickname_locked && nick === t('nickname.anonymous')) nick = '';
+    }
     if (nick) { try { localStorage.setItem(LS_NICKNAME, nick); } catch (_) {} }
     const wasOffline = !state.is_online;
     // client_msg_id: ネットワーク再送でもサーバー側が同一メッセージと判定 (UNIQUE制約).
@@ -1138,6 +1168,8 @@ async function sendVisitorMessage(msg) {
             sinceId: state.last_message_id
         });
         refs.input.value = '';
+        // 送信成功したらニックネームを固定（このチャット内では変更不可）
+        lockVisitorNickname();
         // 統一バッチ応答を同じハンドラで反映. pollMessages を追加で叩く必要なし.
         applyVisitorBatch(resp);
         if (wasOffline && !state.offlineNotifiedShown) {
