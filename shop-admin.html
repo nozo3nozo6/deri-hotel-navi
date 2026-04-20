@@ -1062,7 +1062,10 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
                     <input id="chat-tpl-title" class="f-input" placeholder="タイトル（例: 営業時間について）" maxlength="100">
                     <textarea id="chat-tpl-content" class="f-input" rows="3" style="resize:vertical;" placeholder="返答内容（最大500文字）" maxlength="500"></textarea>
-                    <input id="chat-tpl-sort" type="number" class="f-input" placeholder="並び順（小さいほど上）" value="100" style="width:140px;">
+                    <label style="font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:4px;width:220px;">
+                        <span>並び順 <span style="color:var(--text-3);font-weight:400;">（小さいほど上に表示）</span></span>
+                        <input id="chat-tpl-sort" type="number" class="f-input" placeholder="例: 10" value="100">
+                    </label>
                     <div>
                         <button class="btn" id="chat-tpl-save-btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveTemplate()">追加</button>
                         <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" onclick="cancelEditTemplate()">キャンセル</button>
