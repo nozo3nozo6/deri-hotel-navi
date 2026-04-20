@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -155,6 +157,77 @@ jobs:
           else
             echo "::warning::Cloudflare purge failed: $RESPONSE"
           fi
+
+      - name: Notify IndexNow (Bing/Yandex/Naver)
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          KEY="2c7fd71f6dbd0f67b6af6c9d8082443b"
+
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git diff --name-only "$BEFORE_SHA" HEAD 2>/dev/null || true)
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+          fi
+
+          declare -a URLS=()
+
+          if echo "$CHANGED" | grep -qE '^(astro-src/src/(layouts|components)/|style\.css|astro-src/src/styles/)'; then
+            URLS+=("https://yobuho.com/" "https://yobuho.com/deli/" "https://yobuho.com/jofu/" "https://yobuho.com/same-m/" "https://yobuho.com/same-f/" "https://yobuho.com/este/")
+          fi
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              astro-src/src/pages/index.astro) URLS+=("https://yobuho.com/") ;;
+              astro-src/src/pages/portal-men.astro) URLS+=("https://yobuho.com/deli/") ;;
+              astro-src/src/pages/portal-women.astro) URLS+=("https://yobuho.com/jofu/") ;;
+              astro-src/src/pages/portal-men-same.astro) URLS+=("https://yobuho.com/same-m/") ;;
+              astro-src/src/pages/portal-women-same.astro) URLS+=("https://yobuho.com/same-f/") ;;
+              astro-src/src/pages/portal-este.astro) URLS+=("https://yobuho.com/este/") ;;
+              astro-src/src/pages/deli/index.astro) URLS+=("https://yobuho.com/deli/") ;;
+              astro-src/src/pages/jofu/index.astro) URLS+=("https://yobuho.com/jofu/") ;;
+              astro-src/src/pages/este/index.astro) URLS+=("https://yobuho.com/este/") ;;
+              astro-src/src/pages/same/index.astro) URLS+=("https://yobuho.com/same-m/" "https://yobuho.com/same-f/") ;;
+              astro-src/src/pages/shop-register.astro) URLS+=("https://yobuho.com/shop-register.html") ;;
+              astro-src/src/pages/legal.astro) URLS+=("https://yobuho.com/legal.html") ;;
+              astro-src/src/pages/privacy.astro) URLS+=("https://yobuho.com/privacy.html") ;;
+              astro-src/src/pages/terms.astro) URLS+=("https://yobuho.com/terms.html") ;;
+              astro-src/src/pages/contact.astro) URLS+=("https://yobuho.com/contact.html") ;;
+              astro-src/src/pages/guide/*.astro)
+                name=$(basename "$f" .astro)
+                URLS+=("https://yobuho.com/guide/${name}.html")
+                ;;
+            esac
+          done <<< "$CHANGED"
+
+          if [ ${#URLS[@]} -eq 0 ]; then
+            echo "No URL changes detected — skipping IndexNow submission"
+            exit 0
+          fi
+
+          UNIQUE=$(printf '%s\n' "${URLS[@]}" | sort -u)
+          COUNT=$(echo "$UNIQUE" | wc -l | tr -d ' ')
+          URL_JSON=$(echo "$UNIQUE" | awk 'BEGIN{ORS=""} {printf "%s\"%s\"", (NR>1?",":""), $0}')
+
+          PAYLOAD="{\"host\":\"yobuho.com\",\"key\":\"$KEY\",\"keyLocation\":\"https://yobuho.com/${KEY}.txt\",\"urlList\":[$URL_JSON]}"
+
+          echo "Submitting $COUNT URLs to IndexNow:"
+          echo "$UNIQUE"
+
+          RESPONSE=$(curl -s -o /tmp/indexnow-body.txt -w "%{http_code}" --connect-timeout 10 --max-time 30 \
+            -X POST "https://api.indexnow.org/indexnow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d "$PAYLOAD" 2>&1) || true
+
+          BODY=$(cat /tmp/indexnow-body.txt 2>/dev/null || echo "")
+          echo "IndexNow HTTP status: $RESPONSE"
+          [ -n "$BODY" ] && echo "IndexNow body: $BODY"
+
+          case "$RESPONSE" in
+            200|202) echo "IndexNow submission accepted" ;;
+            *) echo "::warning::IndexNow submission returned $RESPONSE" ;;
+          esac
 
       - name: Cleanup SSH key
         if: always()
