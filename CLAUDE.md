@@ -913,23 +913,35 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 ## YobuChat（店舗 ↔ 訪問者チャット）
 
 ### 構成
-- chat.html / chat.js / chat.css — スタンドアロンチャット画面（/chat/{slug}/）
-- chat-widget.js — 外部サイト埋込（`<script src="https://yobuho.com/chat-widget.js" data-slug="...">`）
-- chat-widget-inline.template.html — 埋込版UIの**編集元**（手で書き換える）
-- chat-widget-inline.html — ビルド自動生成（直接編集禁止、厳格CMS/レガシー貼付用フォールバック）
-- chat-widget-body.js — ビルド自動生成（CMSローダー方式で動的load される本体）
-- chat-i18n.json — 訳文の唯一のソース（chat.js は起動時fetch、widget はビルド時注入）
-- scripts/build-chat-widget.js — テンプレ＋i18n → chat-widget-inline.html + chat-widget-body.js を派生生成
-- scripts/check-chat-parity.js — CIで訪問者UIパリティ検証（deploy.ymlで実行、失敗でデプロイ中断）
+- chat.html / chat.js / chat.css — **唯一の訪問者UIソース**（/chat/{slug}/ で公開、全5埋込タイプが iframe でこれを読み込む）
+- chat-widget.js — 外部サイト埋込①（`<script>` 1行、右下💬ボタン → クリックで iframe モーダル）
+- chat-i18n.json — 訳文の唯一のソース（chat.js が起動時 fetch）
 - api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/can-connect/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
-- shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理、貼付コード生成（①script/②iframe/③link/④floating/⑤CMSローダー+レガシー）
+- shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理、貼付コード生成（①script/②iframe/③link/④floating/⑤CMS用インライン）
 
-### CMS埋込のローダー方式（2026-04-20〜）
-CMSにHTML/JSをそのまま貼る方式は**貼付時点の実装で凍結**し、後日の機能追加・バグ修正が店舗側の再貼付なしには反映されない問題があった。
-→ ローダー方式（`<div id="ychat-root" data-slug>` + 短い script で `yobuho.com/chat-widget-body.js?d=YYYYMMDD` を `createElement` 経由で動的load）に移行。
-- 日次キャッシュバスター `?d=YYYYMMDD` で更新即反映
-- 静的配信は Cloudflare CDN が吸収、実サーバー負荷は軽微
-- 厳格CMS（外部script禁止）向けに shop-admin ⑤タブの `<details>` 内にレガシーインライン（fetch→`chat-widget-inline.html` 注入）を残す
+### 埋込アーキテクチャ（iframe 統一、2026-04-20〜）
+**全埋込タイプが `/chat/{slug}/` を iframe で読み込む。本家 chat.html を直せば5タイプ全部に自動反映される**。
+過去は chat-widget-inline.template.html を別実装として維持し CI パリティ検証で同期していたが、
+CSS/レイアウト/文言のドリフトが頻発し「片方に機能追加、もう片方に忘れる」事故が再三発生。
+iframe 方式で真の単一ソース化を達成し、手動同期作業自体を排除した。
+
+**5タイプの役割:**
+- ①script: `<script src="yobuho.com/chat-widget.js" data-slug>` — chat-widget.js が iframe 付きフローティングボタンを注入
+- ②iframe: 静的 `<iframe src="/chat/slug/?embed=1">` + 高さ自動調整 script
+- ③link: 別タブリンク（iframe 不使用）
+- ④floating: 別タブ浮動リンク（iframe 不使用）
+- ⑤CMS用インライン: 静的 `<iframe>` + 高さ自動調整 script。script 禁止 CMS 用に固定高さ版を `<details>` 内で別提供
+
+**高さ自動調整:**
+- chat.js の `setupEmbedResizeNotifier()` が `ResizeObserver` で body サイズ変化を検知し親に `postMessage({type:'ychat:resize', h})` を送信
+- 埋込側（②⑤）の小さい inline script が message イベントで受信、`iframe.style.height` を更新（範囲 500-900px）
+- **高さ調整ロジックは埋込タイプごとに独立しているため、「この埋込タイプだけ高さを変えたい」指示時のみ該当コードに触る**
+
+**変更時の鉄則:**
+- 訪問者UIの変更 → `chat.html` / `chat.js` / `chat.css` のみ編集。全5埋込に自動反映
+- i18n追加 → `chat-i18n.json` のみ編集（chat.js が fetch するため即時反映）
+- 高さ・外枠スタイル（iframe 側）の変更 → shop-admin.html の `renderChatAdmin()` 内の該当埋込タイプのコードのみ修正
+- .htaccess の `/chat/` は `frame-ancestors *` / X-Frame-Options 除去済み（iframe 埋込許可）
 
 ### DO-Ready 仕様（2026-04-18 launch前改造）
 Cloudflare Durable Objects (WebSocket Hibernation) への将来移行を痛くなく行うため、

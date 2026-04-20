@@ -1274,6 +1274,36 @@ window.addEventListener('visibilitychange', () => {
     }
 });
 
+// ===== 親iframeへの高さ通知（埋込時のみ） =====
+// chat.html が iframe で埋め込まれた際、親ページが iframe の高さを中身に追従させられるよう
+// ResizeObserver で body の高さを監視し、変化時に postMessage で通知する。
+// 親側は {type:'ychat:resize', h:Number} を受信して iframe.style.height を更新する想定。
+function setupEmbedResizeNotifier() {
+    if (!isEmbedded()) return;
+    const send = () => {
+        try {
+            const h = Math.max(
+                document.documentElement.scrollHeight,
+                document.body.scrollHeight,
+                refs.root ? refs.root.scrollHeight : 0
+            );
+            window.parent.postMessage({ type: 'ychat:resize', slug: SLUG, h }, '*');
+        } catch (_) {}
+    };
+    if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(() => send());
+        ro.observe(document.body);
+        if (refs.root) ro.observe(refs.root);
+    }
+    window.addEventListener('load', send);
+    window.addEventListener('resize', send);
+    // 初回送信（レイアウト確定後）
+    setTimeout(send, 100);
+    setTimeout(send, 500);
+    setTimeout(send, 1500);
+}
+setupEmbedResizeNotifier();
+
 // ===== 起動 =====
 init();
 
