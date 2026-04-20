@@ -1337,8 +1337,8 @@ function handleAdminSaveSettings() {
         $welcome = trim((string)$welcome);
         if ($welcome === '') {
             $welcome = null;
-        } elseif (mb_strlen($welcome) > 200) {
-            $welcome = mb_substr($welcome, 0, 200);
+        } elseif (mb_strlen($welcome) > 80) {
+            $welcome = mb_substr($welcome, 0, 80);
         }
     }
 
@@ -1347,8 +1347,8 @@ function handleAdminSaveSettings() {
         $reservationHint = trim((string)$reservationHint);
         if ($reservationHint === '') {
             $reservationHint = null;
-        } elseif (mb_strlen($reservationHint) > 200) {
-            $reservationHint = mb_substr($reservationHint, 0, 200);
+        } elseif (mb_strlen($reservationHint) > 80) {
+            $reservationHint = mb_substr($reservationHint, 0, 80);
         }
     }
 
