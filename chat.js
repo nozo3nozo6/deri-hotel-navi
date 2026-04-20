@@ -79,6 +79,7 @@ const refs = {
     visitorNote: $('visitor-note'),
     reservationHint: $('reservation-hint'),
     ownerQuick: $('owner-quick'),
+    visitorQuick: $('visitor-quick'),
     emojiToggle: $('emoji-toggle'),
     nicknameArea: document.getElementById('nickname-area'),
     nicknameInput: document.getElementById('visitor-nickname'),
@@ -472,8 +473,9 @@ async function enterVisitorMode() {
     if (refs.reservationHint) refs.reservationHint.classList.remove('hidden');
     renderReceptionBanner();
     refs.ownerTemplates.classList.add('hidden');
-    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
@@ -826,6 +828,7 @@ async function enterOwnerMode() {
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
@@ -1127,32 +1130,53 @@ if (refs.quickQuestions) {
     });
 }
 
+function insertEmojiAtCursor(emoji) {
+    const el = refs.input;
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
+    const pos = start + emoji.length;
+    el.focus();
+    try { el.setSelectionRange(pos, pos); } catch (_) {}
+}
+
+function currentQuickPopup() {
+    return state.mode === 'visitor' ? refs.visitorQuick : refs.ownerQuick;
+}
+
 if (refs.ownerQuick) {
     refs.ownerQuick.addEventListener('click', (e) => {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
-        const emoji = btn.dataset.quick || '';
-        const el = refs.input;
-        const start = el.selectionStart ?? el.value.length;
-        const end = el.selectionEnd ?? el.value.length;
-        el.value = el.value.slice(0, start) + emoji + el.value.slice(end);
-        const pos = start + emoji.length;
-        el.focus();
-        try { el.setSelectionRange(pos, pos); } catch (_) {}
+        insertEmojiAtCursor(btn.dataset.quick || '');
         refs.ownerQuick.classList.add('hidden');
+    });
+}
+
+if (refs.visitorQuick) {
+    refs.visitorQuick.addEventListener('click', (e) => {
+        const btn = e.target.closest('.quick-btn');
+        if (!btn) return;
+        insertEmojiAtCursor(btn.dataset.quick || '');
+        // 訪問者側は連続で選びたい場合もあるのでポップアップは閉じない
     });
 }
 
 if (refs.emojiToggle) {
     refs.emojiToggle.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (!refs.ownerQuick) return;
-        refs.ownerQuick.classList.toggle('hidden');
+        const popup = currentQuickPopup();
+        if (!popup) return;
+        popup.classList.toggle('hidden');
+        // もう片方のポップアップは確実に閉じる
+        const other = popup === refs.ownerQuick ? refs.visitorQuick : refs.ownerQuick;
+        if (other) other.classList.add('hidden');
     });
     document.addEventListener('click', (e) => {
-        if (!refs.ownerQuick || refs.ownerQuick.classList.contains('hidden')) return;
-        if (e.target.closest('#owner-quick') || e.target.closest('#emoji-toggle')) return;
-        refs.ownerQuick.classList.add('hidden');
+        if (e.target.closest('#owner-quick') || e.target.closest('#visitor-quick') || e.target.closest('#emoji-toggle')) return;
+        if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+        if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
     });
 }
 
@@ -1234,6 +1258,7 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
         if (refs.inputArea) refs.inputArea.classList.add('hidden');
         if (refs.ownerTemplates) refs.ownerTemplates.classList.add('hidden');
         if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+        if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
         if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     } catch (e) { showError(e.message); }
 });

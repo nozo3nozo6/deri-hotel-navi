@@ -109,8 +109,9 @@ a{color:var(--chat-primary);text-decoration:none}
 .quick-row::-webkit-scrollbar{display:none}
 .quick-btn{flex:0 0 auto;padding:6px 12px;background:var(--chat-quick-bg);color:var(--chat-quick-text);border:1px solid var(--chat-quick-border);border-radius:14px;font-size:12px;cursor:pointer;transition:background .15s;white-space:nowrap}
 .quick-btn:hover{background:var(--chat-quick-bg-hover)}
-#owner-quick .quick-btn{min-width:44px;padding:6px 8px;font-size:22px;line-height:1;background:transparent;border:none;border-radius:8px}
-#owner-quick .quick-btn:hover{background:#f0ede7}
+#owner-quick .quick-btn,#visitor-quick .quick-btn{min-width:44px;padding:6px 8px;font-size:22px;line-height:1;background:transparent;border:none;border-radius:8px}
+#owner-quick .quick-btn:hover,#visitor-quick .quick-btn:hover{background:#f0ede7}
+#visitor-quick{max-height:240px;overflow-y:auto}
 
 /* ===== 絵文字ピッカー ===== */
 .chat-input-area{position:relative}

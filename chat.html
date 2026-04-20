@@ -8,7 +8,7 @@
 <title>💬 YobuChat</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://yobuho.com https://cloudflareinsights.com;">
 <link rel="icon" href="/favicon.ico">
-<link rel="stylesheet" href="/chat.css?v=47">
+<link rel="stylesheet" href="/chat.css?v=48">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -83,6 +83,44 @@
         <button type="button" class="quick-btn" data-quick="🔥" aria-label="熱意・おすすめ">🔥</button>
         <button type="button" class="quick-btn" data-quick="🚀" aria-label="勢い・ポジティブ">🚀</button>
       </div>
+      <div id="visitor-quick" class="emoji-popup hidden">
+        <button type="button" class="quick-btn" data-quick="💕" aria-label="2つのハート">💕</button>
+        <button type="button" class="quick-btn" data-quick="💖" aria-label="きらめくハート">💖</button>
+        <button type="button" class="quick-btn" data-quick="✨" aria-label="キラキラ">✨</button>
+        <button type="button" class="quick-btn" data-quick="🎀" aria-label="リボン">🎀</button>
+        <button type="button" class="quick-btn" data-quick="😊" aria-label="笑顔">😊</button>
+        <button type="button" class="quick-btn" data-quick="🥰" aria-label="ハート笑顔">🥰</button>
+        <button type="button" class="quick-btn" data-quick="🥺" aria-label="お願い・うるうる">🥺</button>
+        <button type="button" class="quick-btn" data-quick="😳" aria-label="照れ・驚き">😳</button>
+        <button type="button" class="quick-btn" data-quick="🙈" aria-label="照れ隠し">🙈</button>
+        <button type="button" class="quick-btn" data-quick="❤️" aria-label="ハート">❤️</button>
+        <button type="button" class="quick-btn" data-quick="🤤" aria-label="メロメロ">🤤</button>
+        <button type="button" class="quick-btn" data-quick="💘" aria-label="矢のハート">💘</button>
+        <button type="button" class="quick-btn" data-quick="💓" aria-label="鼓動ハート">💓</button>
+        <button type="button" class="quick-btn" data-quick="🔰" aria-label="初心者">🔰</button>
+        <button type="button" class="quick-btn" data-quick="💞" aria-label="回るハート">💞</button>
+        <button type="button" class="quick-btn" data-quick="🌟" aria-label="星">🌟</button>
+        <button type="button" class="quick-btn" data-quick="💜" aria-label="紫ハート">💜</button>
+        <button type="button" class="quick-btn" data-quick="❣️" aria-label="ハート強調">❣️</button>
+        <button type="button" class="quick-btn" data-quick="😍" aria-label="ハート目">😍</button>
+        <button type="button" class="quick-btn" data-quick="😇" aria-label="天使">😇</button>
+        <button type="button" class="quick-btn" data-quick="😙" aria-label="キス">😙</button>
+        <button type="button" class="quick-btn" data-quick="💌" aria-label="ラブレター">💌</button>
+        <button type="button" class="quick-btn" data-quick="😏" aria-label="にやり">😏</button>
+        <button type="button" class="quick-btn" data-quick="🫶" aria-label="ハートハンド">🫶</button>
+        <button type="button" class="quick-btn" data-quick="🥲" aria-label="うるうる笑顔">🥲</button>
+        <button type="button" class="quick-btn" data-quick="😌" aria-label="安心">😌</button>
+        <button type="button" class="quick-btn" data-quick="💗" aria-label="ピンクハート">💗</button>
+        <button type="button" class="quick-btn" data-quick="💏" aria-label="キスカップル">💏</button>
+        <button type="button" class="quick-btn" data-quick="🔍" aria-label="検索">🔍</button>
+        <button type="button" class="quick-btn" data-quick="😉" aria-label="ウインク">😉</button>
+        <button type="button" class="quick-btn" data-quick="🙄" aria-label="やれやれ">🙄</button>
+        <button type="button" class="quick-btn" data-quick="❓" aria-label="疑問">❓</button>
+        <button type="button" class="quick-btn" data-quick="🤩" aria-label="興奮">🤩</button>
+        <button type="button" class="quick-btn" data-quick="‼️" aria-label="強調">‼️</button>
+        <button type="button" class="quick-btn" data-quick="😭" aria-label="号泣">😭</button>
+        <button type="button" class="quick-btn" data-quick="💑" aria-label="カップル">💑</button>
+      </div>
       <textarea id="chat-input" rows="2" maxlength="500" placeholder="メッセージを入力..." data-i18n-placeholder="input.placeholder" autocomplete="off"></textarea>
       <button type="button" id="emoji-toggle" class="emoji-toggle hidden" aria-label="絵文字">😊</button>
       <button type="button" id="chat-send" class="send-btn" aria-label="送信" data-i18n="input.send">送信</button>
@@ -141,6 +179,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=45"></script>
+<script src="/chat.js?v=48"></script>
 </body>
 </html>
