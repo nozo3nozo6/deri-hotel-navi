@@ -9,12 +9,12 @@ html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSyste
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit;padding:0}
 a{color:var(--chat-primary);text-decoration:none}
 
-#chat-root{display:flex;flex-direction:column;height:100dvh;max-height:100dvh;overflow:hidden;background:#fff}
+#chat-root{display:flex;flex-direction:column;height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);overflow:hidden;background:#fff;margin:8px;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15)}
+@media (max-width:480px){#chat-root{margin:4px;height:calc(100dvh - 8px);max-height:calc(100dvh - 8px);border-radius:10px}}
 .hidden{display:none!important}
 
 /* ===== ヘッダー ===== */
-#chat-header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:12px 6px 12px 16px;background:linear-gradient(135deg,var(--chat-primary) 0%,var(--chat-primary-dark) 100%);color:#fff;box-shadow:0 4px 14px rgba(var(--chat-primary-rgb),.35),0 2px 4px rgba(0,0,0,.12);z-index:10;flex-shrink:0}
-#chat-header::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:rgba(255,255,255,.35);pointer-events:none}
+#chat-header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:12px 6px 12px 16px;background:linear-gradient(135deg,var(--chat-primary) 0%,var(--chat-primary-dark) 100%);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:10;flex-shrink:0}
 .chat-header-left{justify-self:start;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
 .chat-header-center{justify-self:center;display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow:hidden}
 .header-back{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
@@ -145,9 +145,7 @@ a{color:var(--chat-primary);text-decoration:none}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
 
 /* ===== フッター ===== */
-.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px 14px;background:#fafafa;border-top:1px solid #e5e0d8;box-shadow:0 -3px 10px rgba(0,0,0,.05);flex-wrap:wrap}
-.chat-footer::before{content:"";position:absolute;left:0;right:0;top:-1px;height:1px;background:rgba(255,255,255,.8);pointer-events:none}
-.chat-footer::after{content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:40px;height:3px;border-radius:999px;background:rgba(var(--chat-primary-rgb),.35);pointer-events:none}
+.chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fafafa;border-top:1px solid #e5e0d8;flex-wrap:wrap}
 .footer-btn{height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e0dbd0;background:#f0ede7;color:#444;flex-shrink:0}
 .footer-btn:hover{background:#e5e0d8}
 .footer-btn.danger{color:#c62828;border-color:#ffcdd2;background:#fff5f5;margin-left:auto}
