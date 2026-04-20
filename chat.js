@@ -445,7 +445,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=45', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=46', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -701,6 +701,44 @@ function addSystemMessage(text) {
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 }
 
+function addRestartButton() {
+    if (refs.chatMessages.querySelector('.msg-restart-wrap')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-restart-wrap';
+    wrap.style.cssText = 'display:flex;justify-content:center;margin:8px 0 12px;';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-restart-chat';
+    btn.textContent = t('thread.restart');
+    btn.style.cssText = 'padding:10px 20px;border:1px solid #d4af37;border-radius:20px;background:#fff;color:#9b2d35;font-weight:600;cursor:pointer;font-size:14px;';
+    btn.addEventListener('click', restartVisitorSession);
+    wrap.appendChild(btn);
+    refs.chatMessages.appendChild(wrap);
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+async function restartVisitorSession() {
+    try { localStorage.removeItem(LS_SESSION); } catch (_) {}
+    stopPolling();
+    state.session_token = null;
+    state.session_id = 0;
+    state.last_message_id = 0;
+    state.last_read_own_id = 0;
+    state._closedMsgShown = false;
+    refs.chatMessages.innerHTML = '';
+    refs.inputArea.classList.remove('hidden');
+    try {
+        const s = await api('start-session', { shop_slug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
+        state.session_token = s.session_token;
+        state.session_id = s.session_id;
+        saveVisitorSession();
+        addSystemMessage(state.welcome_message || t('visitor.note'));
+        startVisitorPolling();
+    } catch (e) {
+        showError(e.message || 'エラーが発生しました');
+    }
+}
+
 function addDateSeparator(key) {
     const sep = document.createElement('div');
     sep.className = 'msg-date-sep';
@@ -829,6 +867,8 @@ function applyVisitorBatch(data) {
         stopPolling();
         addSystemMessage(t('thread.closedThanks'));
         refs.inputArea.classList.add('hidden');
+        // 訪問者モードのときのみ「新しいチャットを始める」ボタン表示（オーナー側は不要）
+        if (state.mode === 'visitor') addRestartButton();
     }
     if ((data.messages || []).length) saveVisitorSession();
 }
