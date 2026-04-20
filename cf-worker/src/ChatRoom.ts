@@ -299,6 +299,27 @@ export class ChatRoom implements DurableObject {
     } else if (body.session_id) {
       sess = await this.getSession(Number(body.session_id));
     }
+    // DO storage が欠けている場合 (purge 後 or pre-DO session) は token から stub session を DO 側だけに作成.
+    // MySQL 側は PHP オーナー受信箱から既に正しい session_token が得られている前提なので,
+    // saveSession() は呼ばずに MySQL mirror をスキップ (blocked/started_at 等を破壊しないため).
+    if (!sess && token) {
+      const hid = await this.nextSessionId();
+      const now = new Date().toISOString();
+      sess = {
+        id: hid,
+        session_token: token,
+        visitor_hash: '',
+        nickname: '',
+        lang: '',
+        started_at: now,
+        last_activity_at: now,
+        status: 'open',
+        source: 'standalone',
+        blocked: false,
+      };
+      await this.state.storage.put(`session:${hid}`, sess);
+      await this.state.storage.put(`session_by_token:${token}`, hid);
+    }
     if (!sess) return this.errJson('session_not_found', 404);
     if (sess.status === 'closed') return this.errJson('session_closed', 409);
 
@@ -343,6 +364,25 @@ export class ChatRoom implements DurableObject {
       sess = await this.findSessionByToken(token);
     } else if (body.session_id) {
       sess = await this.getSession(Number(body.session_id));
+    }
+    // DO storage 欠け時の hydration (httpOwnerReply と同じ理由). close も token があれば受け入れる.
+    if (!sess && token) {
+      const hid = await this.nextSessionId();
+      const now = new Date().toISOString();
+      sess = {
+        id: hid,
+        session_token: token,
+        visitor_hash: '',
+        nickname: '',
+        lang: '',
+        started_at: now,
+        last_activity_at: now,
+        status: 'open',
+        source: 'standalone',
+        blocked: false,
+      };
+      await this.state.storage.put(`session:${hid}`, sess);
+      await this.state.storage.put(`session_by_token:${token}`, hid);
     }
     if (!sess) return this.errJson('session_not_found', 404);
     const sid = sess.id;
