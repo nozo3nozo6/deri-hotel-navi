@@ -1072,10 +1072,7 @@
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">
                     <input id="chat-tpl-title" class="f-input" placeholder="タイトル（例: 営業時間について）" maxlength="100">
                     <textarea id="chat-tpl-content" class="f-input" rows="3" style="resize:vertical;" placeholder="返答内容（最大500文字）" maxlength="500"></textarea>
-                    <label style="font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:4px;width:220px;">
-                        <span>並び順 <span style="color:var(--text-3);font-weight:400;">（小さいほど上に表示）</span></span>
-                        <input id="chat-tpl-sort" type="number" class="f-input" placeholder="例: 10" value="100">
-                    </label>
+                    <div style="font-size:11px;color:var(--text-3);">※ 並び順は登録順（新しいものが末尾）に自動設定されます。</div>
                     <div>
                         <button class="btn" id="chat-tpl-save-btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveTemplate()">追加</button>
                         <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" onclick="cancelEditTemplate()">キャンセル</button>
@@ -3135,18 +3132,27 @@ function toggleReceptionRange(){
 async function saveTemplate(){
     const title = document.getElementById('chat-tpl-title').value.trim();
     const content = document.getElementById('chat-tpl-content').value.trim();
-    const sort = parseInt(document.getElementById('chat-tpl-sort').value, 10) || 100;
     if (!title || !content) { toast('タイトルと内容を入力してください'); return; }
     try {
-        const params = { title, content, sort_order: sort };
-        if (_chatEditId > 0) params.id = _chatEditId;
+        const params = { title, content };
+        if (_chatEditId > 0) {
+            // 編集時は既存の sort_order を維持
+            params.id = _chatEditId;
+            const cur = (_chatOverview?.templates || []).find(x => Number(x.id) === _chatEditId);
+            params.sort_order = cur ? Number(cur.sort_order) : 100;
+        } else {
+            // 新規登録: 既存の最大 sort_order + 10（末尾に追加）
+            const existing = _chatOverview?.templates || [];
+            const maxSort = existing.length ? Math.max(...existing.map(t => Number(t.sort_order) || 0)) : 0;
+            params.sort_order = maxSort + 10;
+        }
         await chatApi('admin-save-template', params);
         toast('✅ 保存しました');
         document.getElementById('chat-tpl-title').value = '';
         document.getElementById('chat-tpl-content').value = '';
-        document.getElementById('chat-tpl-sort').value = '100';
         cancelEditTemplate();
         const data = await chatApi('admin-overview', {}, 'GET');
+        _chatOverview = data;
         renderTemplateList(data.templates || []);
     } catch (e) { toast('⚠️ ' + e.message); }
 }
@@ -3158,7 +3164,6 @@ function editTemplate(id){
     _chatEditId = Number(id);
     document.getElementById('chat-tpl-title').value = t.title;
     document.getElementById('chat-tpl-content').value = t.content;
-    document.getElementById('chat-tpl-sort').value = t.sort_order;
     document.getElementById('chat-tpl-save-btn').textContent = '更新';
     document.getElementById('chat-tpl-cancel-btn').style.display = 'inline-block';
     document.getElementById('chat-tpl-title').focus();
@@ -3176,6 +3181,7 @@ async function deleteTemplate(id){
         await chatApi('admin-delete-template', { id });
         toast('✅ 削除しました');
         const data = await chatApi('admin-overview', {}, 'GET');
+        _chatOverview = data;
         renderTemplateList(data.templates || []);
     } catch (e) { toast('⚠️ ' + e.message); }
 }
