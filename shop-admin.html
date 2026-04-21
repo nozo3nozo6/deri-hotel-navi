@@ -257,6 +257,14 @@
         .loading{text-align:center;padding:30px;color:var(--text-3);font-size:13px;}
         .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:14px 28px;border-radius:10px;font-size:14px;font-weight:600;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.18);max-width:88vw;text-align:center;}
         .toast.show{opacity:1;}
+        /* ===== 通知トグル (chat.html と同じスライダー) ===== */
+        .cht-tg-switch{position:relative;display:inline-block;width:44px;height:24px;flex:0 0 auto;}
+        .cht-tg-switch input{opacity:0;width:0;height:0;}
+        .cht-tg-slider{position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s;}
+        .cht-tg-slider::before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+        .cht-tg-switch input:checked + .cht-tg-slider{background:#4caf50;}
+        .cht-tg-switch input:checked + .cht-tg-slider::before{transform:translateX(20px);}
+        .cht-tg-label{font-size:13px;font-weight:600;color:var(--text-2);}
         .tabs{display:flex;gap:4px;align-items:flex-end;border-bottom:1px solid var(--border);margin-bottom:16px;}
         .tab-btn{padding:10px 18px;border:1px solid var(--border);border-bottom:none;background:var(--bg-3,#f5f5f5);cursor:pointer;font-size:13px;font-family:inherit;color:#555;font-weight:500;border-radius:8px 8px 0 0;margin-bottom:-1px;position:relative;transition:background .15s,color .15s;}
         .tab-btn:hover{background:var(--bg-2,#fff);color:#333;}
@@ -866,10 +874,13 @@
             <div class="card">
                 <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
                     <span>通知設定</span>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                        <input type="checkbox" id="chat-admin-online" style="width:18px;height:18px;">
-                        <span id="chat-admin-online-label" style="font-size:13px;font-weight:600;color:var(--text-2);">オフライン</span>
-                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <label class="cht-tg-switch">
+                            <input type="checkbox" id="chat-admin-online">
+                            <span class="cht-tg-slider"></span>
+                        </label>
+                        <span class="cht-tg-label">通知</span>
+                    </div>
                 </div>
                 <div style="font-size:12px;color:var(--text-3);line-height:1.7;">
                     ONにするとチャットボタンに🟢マークがつき、ユーザーが気軽に問い合わせできます。<br>
@@ -2904,10 +2915,8 @@ async function syncChatAdminToggle(){
         _chatOverview = data;
         const onlineChk = document.getElementById('chat-admin-online');
         if (!onlineChk) return;
-        const isNotifyOn = (data.notify_mode || 'first') !== 'off';
+        const isNotifyOn = (data.notify_mode || 'off') !== 'off';
         onlineChk.checked = isNotifyOn;
-        const lbl = document.getElementById('chat-admin-online-label');
-        if (lbl) lbl.textContent = isNotifyOn ? 'オンライン受付中' : 'オフライン';
         // 'off' ラジオは廃止。off の場合は 'first' を選択状態にする（ON復帰時のデフォルト）
         const radioMode = (data.notify_mode && data.notify_mode !== 'off') ? data.notify_mode : 'first';
         document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
@@ -3005,21 +3014,19 @@ function renderChatAdmin(data){
     });
     showEmbedTab('script');
 
-    // 通知設定トグル: notify_mode != 'off' なら ON 扱い
+    // 通知設定トグル: notify_mode != 'off' なら ON 扱い（デフォルトOFF、DBの永続値を反映）
     const onlineChk = document.getElementById('chat-admin-online');
-    const isNotifyOn = (data.notify_mode || 'first') !== 'off';
+    const isNotifyOn = (data.notify_mode || 'off') !== 'off';
     onlineChk.checked = isNotifyOn;
-    document.getElementById('chat-admin-online-label').textContent = isNotifyOn ? 'オンライン受付中' : 'オフライン';
     onlineChk.onchange = async () => {
         try {
             const r = await chatApi('admin-toggle-online', { is_online: onlineChk.checked ? 1 : 0 });
-            document.getElementById('chat-admin-online-label').textContent = r.is_online ? 'オンライン受付中' : 'オフライン';
             // 'off' ラジオは廃止。notify_mode が off の場合は first をデフォルト選択（ON復帰時のため）
             const rMode = (r.notify_mode && r.notify_mode !== 'off') ? r.notify_mode : 'first';
             document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
                 rr.checked = (rr.value === rMode);
             });
-            toast(r.is_online ? '✅ オンラインに切替（メール通知ON）' : 'オフラインに切替（メール通知OFF）');
+            toast(r.is_online ? '✅ 通知ON（メール通知ON）' : '通知OFF（メール通知OFF）');
         } catch (e) {
             onlineChk.checked = !onlineChk.checked;
             toast('⚠️ ' + e.message);

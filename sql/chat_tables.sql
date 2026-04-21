@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS shop_chat_status (
     is_online TINYINT(1) NOT NULL DEFAULT 0,
     last_online_at DATETIME NULL,
     auto_off_minutes INT UNSIGNED NOT NULL DEFAULT 10 COMMENT '無応答で自動OFFになる分数（Phase 2で使用）',
-    notify_mode ENUM('first', 'every', 'off') NOT NULL DEFAULT 'first' COMMENT 'メール通知モード: first=セッション初回のみ, every=都度, off=無効',
+    notify_mode ENUM('first', 'every', 'off') NOT NULL DEFAULT 'off' COMMENT 'メール通知モード: first=セッション初回のみ, every=都度, off=無効（デフォルトOFF）',
     notify_min_interval_minutes INT UNSIGNED NOT NULL DEFAULT 3 COMMENT 'everyモード時の最小通知間隔（分）',
     reception_start TIME NULL COMMENT '受付開始時刻 (Asia/Tokyo). NULL=24時間受付',
     reception_end TIME NULL COMMENT '受付終了時刻 (Asia/Tokyo). NULL=24時間受付. start>endは日跨ぎ営業',

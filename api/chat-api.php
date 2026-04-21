@@ -757,7 +757,7 @@ function handleShopStatus() {
         ok(['chat_enabled' => false]);
     }
     $inHours = isWithinReceptionHours($shop);
-    $notifyMode = (string)($shop['notify_mode'] ?? 'first');
+    $notifyMode = (string)($shop['notify_mode'] ?? 'off');
     ok([
         'chat_enabled'      => true,
         'is_online'         => effectiveOnline($shop),
@@ -835,7 +835,7 @@ function handleVerifyDevice() {
     // 通知モード取得
     $stmt = DB::conn()->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
     $stmt->execute([$device['shop_id']]);
-    $notifyMode = $stmt->fetchColumn() ?: 'first';
+    $notifyMode = $stmt->fetchColumn() ?: 'off';
     ok([
         'shop_id'     => $device['shop_id'],
         'shop_name'   => $device['shop_name'],
@@ -1275,7 +1275,7 @@ function handleAdminOverview() {
         'slug'       => $row['slug'] ?? '',
         'shop_name'  => $row['shop_name'] ?? '',
         'is_online'  => $enabled ? effectiveOnline($row) : false,
-        'notify_mode'=> $row['notify_mode'] ?? 'first',
+        'notify_mode'=> $row['notify_mode'] ?? 'off',
         'notify_min_interval_minutes' => (int)($row['notify_min_interval_minutes'] ?? 3),
         'reception_start' => $row['reception_start'] ?? null,
         'reception_end'   => $row['reception_end'] ?? null,
