@@ -83,9 +83,9 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
             <input type="password" id="pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password">
             <label class="pw-toggle"><input type="checkbox" id="pw-show"> パスワードを表示</label>
         </div>
-        <button type="button" class="btn-primary" id="submit-btn" onclick="submitActivation()">登録を完了する</button>
+        <button type="button" class="btn-primary" id="submit-btn" onclick="submitActivation()">申請する</button>
         <div class="err-msg" id="err"></div>
-        <div class="note">登録後、キャスト管理画面（cast-admin.html）にご登録のメールアドレスとパスワードでログインしてご利用ください。このリンクは登録完了後は無効になります。</div>
+        <div class="note">パスワード設定後、店舗オーナーの承認が必要です。承認が完了するとご登録のメールアドレスに通知が届きます。このリンクは申請完了後は無効になります。</div>
     </div>
 
     <div id="stage-error" style="display:none;">
@@ -96,13 +96,14 @@ body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text
 
     <div id="stage-done" style="display:none;">
         <div class="success-wrap">
-            <div class="success-icon">✅</div>
-            <div class="success-title">登録が完了しました</div>
+            <div class="success-icon">⏳</div>
+            <div class="success-title">申請を受け付けました</div>
             <div class="success-sub">
-                キャストアカウントが有効化されました。<br>
-                キャスト管理画面にログインしてご利用ください。
+                店舗オーナーの承認をお待ちください。<br>
+                承認が完了すると、ご登録のメールアドレスに通知が届きます。<br>
+                承認後、キャスト管理画面にログインしてご利用いただけます。
             </div>
-            <a href="/cast-admin.html" class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center;box-sizing:border-box;width:100%;">キャスト管理画面にログイン →</a>
+            <a href="/cast-admin.html" class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center;box-sizing:border-box;width:100%;">キャスト管理画面を開く →</a>
         </div>
     </div>
 </div>
@@ -156,7 +157,7 @@ async function submitActivation(){
     if (pw.length < 8) { showErr('パスワードは8文字以上で設定してください'); return; }
     if (pw !== pw2) { showErr('パスワードが一致しません'); return; }
     const btn = document.getElementById('submit-btn');
-    btn.disabled = true; btn.textContent = '登録中…';
+    btn.disabled = true; btn.textContent = '申請中…';
     try {
         const res = await fetch('/api/cast-register-api.php?action=activate', {
             method: 'POST',
@@ -167,13 +168,13 @@ async function submitActivation(){
         const data = await res.json();
         if (!res.ok || data.error) {
             showErr(data.error || '登録に失敗しました');
-            btn.disabled = false; btn.textContent = '登録を完了する';
+            btn.disabled = false; btn.textContent = '申請する';
             return;
         }
         showStage('stage-done');
     } catch (e) {
         showErr('通信エラーが発生しました。');
-        btn.disabled = false; btn.textContent = '登録を完了する';
+        btn.disabled = false; btn.textContent = '申請する';
     }
 }
 

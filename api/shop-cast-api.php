@@ -244,14 +244,14 @@ function handleInvite() {
 function handleApprove() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('POST only', 405);
     $auth = requireAuth();
-    requireCastEnabled($auth['shop_id']);
+    $shop = requireCastEnabled($auth['shop_id']);
 
     $id = (string)inp('id', '');
     if ($id === '') err('id required');
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT sc.id, sc.status, c.password_hash
+        'SELECT sc.id, sc.status, sc.display_name, c.password_hash, c.email
          FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
          WHERE sc.id = ? AND sc.shop_id = ?'
@@ -264,6 +264,8 @@ function handleApprove() {
 
     $pdo->prepare('UPDATE shop_casts SET status = "active", approved_at = NOW(), updated_at = NOW() WHERE id = ?')
         ->execute([$id]);
+
+    sendApprovalMail($row['email'], $row['display_name'], $shop['shop_name']);
     ok(['message' => 'キャストを承認しました']);
 }
 
@@ -372,6 +374,34 @@ function sendInviteMail(string $email, string $displayName, string $shopName, st
           . '</div>'
           . '<p style="font-size:12px;color:#888;">このリンクは3日間有効です。</p>'
           . '<p style="font-size:12px;color:#888;">心当たりがない場合はこのメールを無視してください。招待は自動で無効になります。</p>'
+          . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
+          . '<p style="font-size:12px;color:#888;">YobuChat by YobuHo — <a href="https://yobuho.com" style="color:#b5627a;text-decoration:none;">https://yobuho.com</a></p>'
+          . '</div>';
+
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        'From: YobuHo <hotel@yobuho.com>',
+    ];
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $encodedBody = base64_encode($body);
+    mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+}
+
+function sendApprovalMail(string $email, string $displayName, string $shopName): void {
+    $loginUrl = 'https://yobuho.com/cast-admin.html';
+    $subject = '【YobuChat】' . $shopName . ' のキャスト登録が承認されました';
+
+    $body = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">'
+          . '<h2 style="color:#b5627a;">登録が承認されました 🎉</h2>'
+          . '<p>' . htmlspecialchars($displayName) . ' 様</p>'
+          . '<p>' . htmlspecialchars($shopName) . ' からのキャスト登録申請が承認されました。</p>'
+          . '<p>キャスト管理画面にログインして、プロフィール編集・チャット応答・オンライン/オフライン切替などをご利用いただけます。</p>'
+          . '<div style="text-align:center;margin:30px 0;">'
+          . '<a href="' . htmlspecialchars($loginUrl) . '" style="display:inline-block;padding:14px 36px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">キャスト管理画面にログイン</a>'
+          . '</div>'
+          . '<p style="font-size:12px;color:#888;">ログインには、申請時にご登録いただいたメールアドレスとパスワードをご利用ください。</p>'
           . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
           . '<p style="font-size:12px;color:#888;">YobuChat by YobuHo — <a href="https://yobuho.com" style="color:#b5627a;text-decoration:none;">https://yobuho.com</a></p>'
           . '</div>';
