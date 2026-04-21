@@ -303,7 +303,11 @@ export class ChatRoom implements DurableObject {
       const mode = this.shopMeta?.notify_mode || 'off';
       const first = !sess.notified_at;
       let shouldNotify = false;
-      if (mode === 'first') {
+      if (sess.cast_id) {
+        // キャスト指名セッション: 店舗モードを無視し, PHP 側で shop_casts.chat_notify_mode を適用.
+        //   throttle も PHP に委譲する. (店舗の notified_at カウンタは使わない)
+        shouldNotify = true;
+      } else if (mode === 'first') {
         shouldNotify = first;
       } else if (mode === 'every') {
         if (first) {
@@ -325,6 +329,8 @@ export class ChatRoom implements DurableObject {
             nickname: sess.nickname,
             message: msg,
             first_in_session: first,
+            cast_id: sess.cast_id || null,
+            cast_name: sess.cast_name || null,
           },
           this.env
         );

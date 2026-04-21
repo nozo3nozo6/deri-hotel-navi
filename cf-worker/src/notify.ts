@@ -13,6 +13,8 @@ export interface NotifyContext {
   nickname?: string;
   message: ChatMessage;
   first_in_session: boolean;
+  cast_id?: string | null;
+  cast_name?: string | null;
 }
 
 export type NotifyHandler = (ctx: NotifyContext, env: Env) => Promise<void>;
@@ -42,24 +44,32 @@ export class NotificationRouter {
 // ===== email ハンドラ =====
 // yobuho.com/api/chat-notify.php を POST で叩く（PHP側で既存の mail() に流す）
 export const emailHandler: NotifyHandler = async (ctx, env) => {
-  const { shop, message, session_token, first_in_session, nickname } = ctx;
+  const { shop, message, session_token, first_in_session, nickname, cast_id, cast_name } = ctx;
 
   // notify_mode チェック
-  if (shop.notify_mode === 'off') return;
-  if (shop.notify_mode === 'first' && !first_in_session) return;
+  // - キャスト指名セッションは shop.notify_mode を無視し, PHP 側で shop_casts.chat_notify_mode を適用する.
+  //   (キャスト個別トグル: 店舗が 'every' でもキャスト 'off' なら送らない / 店舗 'off' でもキャスト 'first' なら送る)
+  if (!cast_id) {
+    if (shop.notify_mode === 'off') return;
+    if (shop.notify_mode === 'first' && !first_in_session) return;
+  }
 
+  // 店舗既定宛先 (fallback). cast_id が指定されていれば PHP 側で casts.email に差し替えられる.
   const to = shop.notify_email || shop.email;
-  if (!to) return;
+  if (!to && !cast_id) return;
 
   const body = {
     secret: env.CHAT_NOTIFY_SECRET || '',
-    to,
+    to: to || '',
     shop_name: shop.shop_name,
     shop_slug: shop.slug,
     session_token,
     nickname: nickname || 'ゲスト',
     message: message.message,
     sent_at: message.sent_at,
+    first_in_session: !!first_in_session,
+    cast_id: cast_id || null,
+    cast_name: cast_name || null,
   };
 
   const url = `${env.NOTIFY_BASE_URL}/api/chat-notify.php`;
