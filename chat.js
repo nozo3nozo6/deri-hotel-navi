@@ -1094,7 +1094,9 @@ function detectLang(text) {
     if (!text) return '';
     if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja';
     if (/[\uAC00-\uD7AF]/.test(text)) return 'ko';
-    if (/[\u4E00-\u9FFF]/.test(text)) return 'zh';
+    // 漢字のみ（ひらがな/カタカナ無し）は日本語/中国語の判別不可能なので翻訳しない.
+    // 例:「何時」は日本語でも中国語でも使われる → ja 扱いで ZH→JA 誤訳(「日時」等)を防ぐ.
+    if (/[\u4E00-\u9FFF]/.test(text)) return 'ja';
     if (/[A-Za-z]/.test(text)) return 'en';
     return '';
 }

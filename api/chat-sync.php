@@ -99,9 +99,11 @@ function handleUpsertSession(PDO $pdo, array $body): void {
             closed_at = VALUES(closed_at),
             status = VALUES(status),
             notified_at = VALUES(notified_at),
-            blocked = VALUES(blocked)
+            blocked = VALUES(blocked),
+            cast_id = COALESCE(cast_id, VALUES(cast_id))
     ");
-    // cast_id は INSERT 時にのみセット（既存セッションの cast_id は上書きしない）.
+    // cast_id: NULL → 値 への retrofit のみ許可. 既に cast_id が入っている場合は別 cast への上書きを防ぐ（乗っ取り防止）.
+    // DO 側 ChatRoom.ts の `shouldResolveCast = sess && !sess.cast_id` と同じ semantics.
     $stmt->execute([
         $shopId,
         !empty($body['cast_id']) ? (string)$body['cast_id'] : null,
