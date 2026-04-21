@@ -175,13 +175,14 @@ function handleProfile(): void {
     if (!$cast) err('Cast not found', 404);
 
     // 所属店舗一覧（status != removed のみ）+ shop info
+    // pending_approval = 店舗承認待ち / active = 承認済み / suspended = 一時停止
     $sql = 'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.display_name, sc.profile_image_url, sc.bio,
-                   sc.status, sc.sort_order, sc.joined_at,
+                   sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
                    s.shop_name, s.slug, s.gender_mode, s.cast_enabled
             FROM shop_casts sc
             JOIN shops s ON s.id = sc.shop_id
             WHERE sc.cast_id = ? AND sc.status != "removed"
-            ORDER BY sc.joined_at DESC';
+            ORDER BY FIELD(sc.status, "pending_approval", "active", "suspended"), sc.joined_at DESC';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$auth['cast_id']]);
     $shops = $stmt->fetchAll(PDO::FETCH_ASSOC);

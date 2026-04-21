@@ -7,10 +7,17 @@
  *
  * Actions:
  *   - list          : 自店舗の Cast 一覧 + 定員情報
- *   - invite        : 新規 Cast を招待（Magic Link メール送信）
+ *   - invite        : 新規 Cast を招待（Magic Link メール送信）→ status='pending_approval'
+ *   - approve       : 承認待ちキャストを承認（2段階承認の2段目）→ status='active'
  *   - update        : Cast プロフィール更新
  *   - remove        : Cast を店舗から外す（shop_casts のみ削除、casts本体は他店舗所属あれば残る）
  *   - resend-invite : Magic Link 再送
+ *
+ * 2段階承認フロー:
+ *   1. 店舗が invite → shop_casts.status = 'pending_approval'
+ *   2. キャスト本人が Magic Link からパスワード設定 → casts.status = 'active' (shop_casts は承認待ちのまま)
+ *   3. 店舗オーナーが approve → shop_casts.status = 'active', approved_at = NOW()
+ *   4. 承認後のみチャット・プロフィール表示・定員カウント等の全機能が発動
  */
 require_once __DIR__ . '/db.php';
 
@@ -123,6 +130,7 @@ $action = $_GET['action'] ?? '';
 switch ($action) {
     case 'list':            handleList(); break;
     case 'invite':          handleInvite(); break;
+    case 'approve':         handleApprove(); break;
     case 'update':          handleUpdate(); break;
     case 'remove':          handleRemove(); break;
     case 'resend-invite':   handleResendInvite(); break;
@@ -137,13 +145,13 @@ function handleList() {
     $pdo = DB::conn();
 
     $sql = 'SELECT sc.id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.bio,
-                   sc.status, sc.sort_order, sc.joined_at,
+                   sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
                    c.email, c.status AS cast_status, c.last_login_at,
                    (c.password_hash IS NOT NULL) AS has_password
             FROM shop_casts sc
             JOIN casts c ON c.id = sc.cast_id
             WHERE sc.shop_id = ? AND sc.status != "removed"
-            ORDER BY sc.sort_order, sc.joined_at';
+            ORDER BY FIELD(sc.status, "pending_approval", "active", "suspended"), sc.sort_order, sc.joined_at';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$auth['shop_id']]);
     $casts = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -202,17 +210,18 @@ function handleInvite() {
                 err('このメールアドレスは既に招待済みです');
             }
             if ($existingLink && $existingLink['status'] === 'removed') {
-                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "active", updated_at = NOW() WHERE id = ?')
+                // 再招待: pending_approval に戻して承認日時もクリア
+                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, updated_at = NOW() WHERE id = ?')
                     ->execute([$displayName, $existingLink['id']]);
             } else {
-                $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name) VALUES (?, ?, ?, ?)')
+                $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, status) VALUES (?, ?, ?, ?, "pending_approval")')
                     ->execute([genUuid(), $auth['shop_id'], $castId, $displayName]);
             }
         } else {
             $castId = genUuid();
             $pdo->prepare('INSERT INTO casts (id, email, status) VALUES (?, ?, "invited")')
                 ->execute([$castId, $email]);
-            $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name) VALUES (?, ?, ?, ?)')
+            $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, status) VALUES (?, ?, ?, ?, "pending_approval")')
                 ->execute([genUuid(), $auth['shop_id'], $castId, $displayName]);
         }
 
@@ -230,6 +239,32 @@ function handleInvite() {
 
     sendInviteMail($email, $displayName, $shop['shop_name'], $token);
     ok(['message' => '招待メールを送信しました']);
+}
+
+function handleApprove() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('POST only', 405);
+    $auth = requireAuth();
+    requireCastEnabled($auth['shop_id']);
+
+    $id = (string)inp('id', '');
+    if ($id === '') err('id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT sc.id, sc.status, c.password_hash
+         FROM shop_casts sc
+         JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.id = ? AND sc.shop_id = ?'
+    );
+    $stmt->execute([$id, $auth['shop_id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) err('Cast not found', 404);
+    if ($row['status'] !== 'pending_approval') err('このキャストは既に承認済みか別の状態です');
+    if (empty($row['password_hash'])) err('キャストがメールリンクからパスワード設定を完了するまで承認できません');
+
+    $pdo->prepare('UPDATE shop_casts SET status = "active", approved_at = NOW(), updated_at = NOW() WHERE id = ?')
+        ->execute([$id]);
+    ok(['message' => 'キャストを承認しました']);
 }
 
 function handleUpdate() {
@@ -326,19 +361,19 @@ function handleResendInvite() {
 
 function sendInviteMail(string $email, string $displayName, string $shopName, string $token): void {
     $url = 'https://yobuho.com/cast-register.html?token=' . urlencode($token);
-    $subject = '【YobuHo】' . $shopName . ' からキャスト登録の招待が届いています';
+    $subject = '【YobuChat】' . $shopName . ' からキャスト登録の招待が届いています';
 
     $body = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">'
           . '<h2 style="color:#b5627a;">' . htmlspecialchars($shopName) . ' から招待が届いています</h2>'
           . '<p>' . htmlspecialchars($displayName) . ' 様</p>'
-          . '<p>YobuHo の Cast 管理に招待されました。以下のボタンからパスワードを設定してアカウントを有効化してください。</p>'
+          . '<p>YobuChat by YobuHo の Cast 管理に招待されました。以下のボタンからパスワードを設定してアカウントを有効化してください。</p>'
           . '<div style="text-align:center;margin:30px 0;">'
           . '<a href="' . htmlspecialchars($url) . '" style="display:inline-block;padding:14px 36px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-size:16px;font-weight:bold;">登録を完了する</a>'
           . '</div>'
           . '<p style="font-size:12px;color:#888;">このリンクは3日間有効です。</p>'
           . '<p style="font-size:12px;color:#888;">心当たりがない場合はこのメールを無視してください。招待は自動で無効になります。</p>'
           . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
-          . '<p style="font-size:12px;color:#888;">YobuHo (yobuho.com)</p>'
+          . '<p style="font-size:12px;color:#888;">YobuChat by YobuHo — <a href="https://yobuho.com" style="color:#b5627a;text-decoration:none;">https://yobuho.com</a></p>'
           . '</div>';
 
     $headers = [

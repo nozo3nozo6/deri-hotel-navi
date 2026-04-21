@@ -3404,23 +3404,39 @@ function renderCastList(casts){
     }
     el.innerHTML = casts.map(c => {
         const hasPwd = Number(c.has_password) === 1;
-        const statusBadge = c.status === 'suspended'
-            ? '<span style="font-size:11px;padding:2px 8px;background:#fff3cd;color:#856404;border-radius:10px;">一時停止中</span>'
-            : (hasPwd
-                ? '<span style="font-size:11px;padding:2px 8px;background:#d1fae5;color:#065f46;border-radius:10px;">登録済み</span>'
-                : '<span style="font-size:11px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;">パスワード未設定</span>');
+        const isPending = c.status === 'pending_approval';
+        let statusBadge;
+        if (c.status === 'suspended') {
+            statusBadge = '<span style="font-size:11px;padding:2px 8px;background:#fff3cd;color:#856404;border-radius:10px;">一時停止中</span>';
+        } else if (isPending) {
+            statusBadge = hasPwd
+                ? '<span style="font-size:11px;padding:2px 8px;background:#ffe4b5;color:#b76500;border-radius:10px;font-weight:700;">⏳ 承認待ち</span>'
+                : '<span style="font-size:11px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;">メール認証待ち</span>';
+        } else {
+            statusBadge = '<span style="font-size:11px;padding:2px 8px;background:#d1fae5;color:#065f46;border-radius:10px;">✓ 承認済み</span>';
+        }
         const lastLogin = c.last_login_at ? ('最終ログイン: ' + formatCastDate(c.last_login_at)) : 'ログイン履歴なし';
         const bio = c.bio ? '<div style="font-size:12px;color:var(--text-3);margin-top:6px;white-space:pre-wrap;">' + esc(c.bio) + '</div>' : '';
+        const approveBtn = (isPending && hasPwd)
+            ? '<button type="button" class="btn primary" onclick="approveCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;font-weight:700;">✓ 承認する</button>'
+            : '';
+        const pendingHint = (isPending && !hasPwd)
+            ? '<div style="font-size:11px;color:#b76500;margin-top:6px;">⚠️ キャスト本人が招待メールのリンクからパスワード設定を完了すると承認ボタンが表示されます。</div>'
+            : '';
+        const cardBg = isPending ? '#fffdf5' : 'var(--bg-2)';
+        const cardBorder = isPending ? '#ffd580' : 'var(--border)';
         return ''
-            + '<div style="padding:12px 14px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;">'
+            + '<div style="padding:12px 14px;background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;">'
             + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
             + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + '</div>'
             + '<div style="display:flex;gap:6px;">'
+            + approveBtn
             + '<button type="button" class="btn" onclick="openCastEdit(\'' + esc(c.id) + '\')" style="padding:6px 12px;font-size:12px;">✏️ 編集</button>'
             + '<button type="button" class="btn" onclick="removeCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;color:#c33;">✕ 削除</button>'
             + '</div></div>'
             + '<div style="font-size:12px;color:var(--text-3);margin-top:6px;">' + esc(c.email) + ' / ' + esc(lastLogin) + '</div>'
             + bio
+            + pendingHint
             + '</div>';
     }).join('');
 }
@@ -3519,6 +3535,18 @@ async function saveCastEdit(){
         toast('⚠️ ' + e.message);
     } finally {
         btn.disabled = false; btn.textContent = '保存する';
+    }
+}
+
+async function approveCast(id, displayName){
+    const name = displayName || 'このキャスト';
+    if (!confirm(name + ' を承認します。\n承認するとチャット受付やプロフィール表示などの全機能が有効になります。\nよろしいですか？')) return;
+    try {
+        await castApi('approve', { id });
+        toast('✅ ' + name + ' を承認しました');
+        await loadCastTab();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
     }
 }
 
