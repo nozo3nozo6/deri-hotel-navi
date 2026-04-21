@@ -359,23 +359,48 @@ function isBlocked(string $shopId, string $visitorHash): bool {
 function sendChatNotification(string $shopId, int $sessionId, string $preview): void {
     $shop = getShopById($shopId);
     if (!$shop) return;
-    $notifyTo = !empty($shop['notify_email']) ? $shop['notify_email'] : ($shop['email'] ?? '');
+
+    $pdo = DB::conn();
+
+    // セッション取得（cast_id も拾う → キャスト担当ならキャスト宛に通知ルーティング）
+    $stmt = $pdo->prepare('SELECT notified_at, visitor_hash, cast_id FROM chat_sessions WHERE id = ? LIMIT 1');
+    $stmt->execute([$sessionId]);
+    $session = $stmt->fetch();
+    if (!$session) return;
+
+    // 通知先決定: キャスト担当セッションはキャスト本人宛、それ以外は店舗オーナー宛
+    $notifyTo = '';
+    $mode = 'off';
+    $recipientLabel = $shop['shop_name']; // メール件名や文面で使う
+    $destUrl = 'https://yobuho.com/shop-admin.html#chat';
+
+    if (!empty($session['cast_id'])) {
+        // キャスト担当: shop_casts JOIN casts で email + notify_mode を引く
+        $stmt = $pdo->prepare(
+            'SELECT c.email, sc.chat_notify_mode, sc.display_name
+             FROM shop_casts sc
+             JOIN casts c ON c.id = sc.cast_id
+             WHERE sc.shop_id = ? AND sc.cast_id = ? AND sc.status = "active" LIMIT 1'
+        );
+        $stmt->execute([$shopId, $session['cast_id']]);
+        $castRow = $stmt->fetch();
+        if (!$castRow) return; // 承認待ち/停止中/削除済みには通知しない
+        $notifyTo = (string)$castRow['email'];
+        $mode = $castRow['chat_notify_mode'] ?? 'off';
+        $recipientLabel = $castRow['display_name'] . '（' . $shop['shop_name'] . '）';
+        $destUrl = 'https://yobuho.com/cast-admin.html#chat';
+    } else {
+        $notifyTo = !empty($shop['notify_email']) ? $shop['notify_email'] : ($shop['email'] ?? '');
+        $mode = $shop['notify_mode'] ?? 'first';
+    }
+
     if (empty($notifyTo)) return;
-    $mode = $shop['notify_mode'] ?? 'first';
     if ($mode === 'off') return;
 
     // 受付時間外はメール送信しない（時間帯制御は受付時間に委ねるルール）
     if (!isWithinReceptionHours($shop)) return;
 
-    $pdo = DB::conn();
-
-    // A案 (厳格2値ルール): トグル ON の間はオーナーが画面を見ていてもメール送信する。
-
-    // セッション取得
-    $stmt = $pdo->prepare('SELECT notified_at, visitor_hash FROM chat_sessions WHERE id = ? LIMIT 1');
-    $stmt->execute([$sessionId]);
-    $session = $stmt->fetch();
-    if (!$session) return;
+    // A案 (厳格2値ルール): トグル ON の間は画面を見ていてもメール送信する。
 
     if ($mode === 'first') {
         // 初回のみ: このセッションで既に通知済みならスキップ
@@ -390,24 +415,24 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     }
 
     // メール送信
-    $subject = '【YobuChat】新着メッセージ: ' . $shop['shop_name'];
-    // 店舗管理画面のチャットタブへ直接誘導（shop-admin にログイン済みならそのまま返信可能）
-    $chatUrl = 'https://yobuho.com/shop-admin.html#chat';
+    $subject = '【YobuChat】新着メッセージ: ' . $recipientLabel;
+    $chatUrl = $destUrl;
+    $openLabel = !empty($session['cast_id']) ? 'キャスト管理画面のチャットタブが開きます' : '店舗管理画面のチャットタブが開きます';
     $html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;background:#fff;font-family:sans-serif;">';
     $html .= '<div style="max-width:520px;margin:0 auto;">';
     $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">YobuChat 新着メッセージ</h2>';
-    $html .= '<p style="font-size:14px;line-height:1.8;color:#333;">店舗「' . htmlspecialchars($shop['shop_name'], ENT_QUOTES, 'UTF-8') . '」宛に、お客様からメッセージが届いています。</p>';
+    $html .= '<p style="font-size:14px;line-height:1.8;color:#333;">「' . htmlspecialchars($recipientLabel, ENT_QUOTES, 'UTF-8') . '」宛に、お客様からメッセージが届いています。</p>';
     $html .= '<div style="background:#f5f5f5;padding:12px;border-radius:6px;margin:16px 0;font-size:13px;line-height:1.6;color:#555;border-left:3px solid #9b2d35;">';
     $html .= nl2br(htmlspecialchars(mb_substr($preview, 0, 200), ENT_QUOTES, 'UTF-8'));
     $html .= '</div>';
-    $html .= '<p style="margin:24px 0;"><a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 24px;background:#9b2d35;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">チャットを開いて返信する</a></p><p style="font-size:12px;color:#666;margin:8px 0;">※ 店舗管理画面のチャットタブが開きます（未ログインの場合はログイン画面へ）</p>';
-    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は 店舗管理画面 &gt; YobuChat から変更できます。</p>';
+    $html .= '<p style="margin:24px 0;"><a href="' . htmlspecialchars($chatUrl, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:12px 24px;background:#9b2d35;color:#fff;text-decoration:none;border-radius:4px;font-weight:bold;">チャットを開いて返信する</a></p><p style="font-size:12px;color:#666;margin:8px 0;">※ ' . $openLabel . '（未ログインの場合はログイン画面へ）</p>';
+    $html .= '<p style="font-size:12px;color:#888;margin-top:24px;">通知設定は 管理画面 &gt; YobuChat から変更できます。</p>';
     $html .= '</div></body></html>';
 
-    $plain = "店舗「{$shop['shop_name']}」宛に新着チャットが届きました。\n\n";
+    $plain = "「{$recipientLabel}」宛に新着チャットが届きました。\n\n";
     $plain .= "内容: " . mb_substr($preview, 0, 200) . "\n\n";
     $plain .= "チャットを開いて返信: " . $chatUrl . "\n";
-    $plain .= "※ 店舗管理画面のチャットタブが開きます（未ログインの場合はログイン画面へ）。\n";
+    $plain .= "※ {$openLabel}（未ログインの場合はログイン画面へ）。\n";
 
     $boundary = '=_yobuho_' . md5(uniqid('', true));
     $mimeBody  = "This is a multi-part message in MIME format.\r\n\r\n";
@@ -486,6 +511,7 @@ try {
 function handleStartSession() {
     $slug = trim((string)inp('shop_slug', ''));
     $source = inp('source', 'standalone');
+    $shopCastId = trim((string)inp('cast', '')); // shop_casts.id (not casts.id) — キャスト指名
     if (!in_array($source, ['portal', 'widget', 'standalone'], true)) $source = 'standalone';
     if ($slug === '') err('shop_slug required');
 
@@ -498,18 +524,38 @@ function handleStartSession() {
     $limitErr = checkDailySessionLimit($shop['id'], $vh);
     if ($limitErr) err($limitErr, 429);
 
+    // キャスト指名: shop_casts.id → cast_id を resolve. 承認済み(active)のみ有効.
+    $castId = null;
+    $castName = null;
+    if ($shopCastId !== '') {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare(
+            'SELECT sc.cast_id, sc.display_name, sc.status
+             FROM shop_casts sc
+             WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
+        );
+        $stmt->execute([$shopCastId, $shop['id']]);
+        $row = $stmt->fetch();
+        if ($row && $row['status'] === 'active') {
+            $castId = $row['cast_id'];
+            $castName = $row['display_name'];
+        }
+        // 非active (pending_approval/suspended/removed) の場合は cast_id 未設定で続行 (店舗直通に fallback)
+    }
+
     $token = bin2hex(random_bytes(24));
-    $pdo = DB::conn();
+    $pdo = $pdo ?? DB::conn();
     $stmt = $pdo->prepare(
-        'INSERT INTO chat_sessions (shop_id, session_token, visitor_hash, source) VALUES (?, ?, ?, ?)'
+        'INSERT INTO chat_sessions (shop_id, cast_id, session_token, visitor_hash, source) VALUES (?, ?, ?, ?, ?)'
     );
-    $stmt->execute([$shop['id'], $token, $vh, $source]);
+    $stmt->execute([$shop['id'], $castId, $token, $vh, $source]);
     $sessionId = (int)$pdo->lastInsertId();
 
     ok([
         'session_token' => $token,
         'session_id'    => $sessionId,
         'shop_name'     => $shop['shop_name'],
+        'cast_name'     => $castName,
         'is_online'     => effectiveOnline($shop),
         'gender_mode'   => $shop['gender_mode'] ?? 'men',
     ]);
@@ -854,12 +900,15 @@ function handleOwnerInbox() {
     $pdo = DB::conn();
 
     // セッション一覧（直近30件、クローズ含む）
+    // cast_id が NULL でないものは店舗から閲覧のみ。一覧に cast 表示名を JOIN で同梱
     $stmt = $pdo->prepare(
-        'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.visitor_hash, s.nickname,
+        'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.visitor_hash, s.nickname, s.cast_id,
+                sc.id AS shop_cast_id, sc.display_name AS cast_name,
                 (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
                 (SELECT sender_type FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sender,
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
          FROM chat_sessions s
+         LEFT JOIN shop_casts sc ON sc.shop_id = s.shop_id AND sc.cast_id = s.cast_id AND sc.status != "removed"
          WHERE s.shop_id = ?
          ORDER BY s.last_activity_at DESC
          LIMIT 30'
@@ -932,11 +981,13 @@ function handleOwnerReply() {
     if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, shop_id, status FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, shop_id, status, cast_id FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
     $stmt->execute([$sessionId, $device['shop_id']]);
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
     if ($session['status'] === 'closed') err('Session closed', 410);
+    // キャスト担当セッションへの店舗返信はブロック（閲覧のみ、不正監視用）
+    if (!empty($session['cast_id'])) err('キャスト担当セッションのため、店舗からの返信はできません（閲覧のみ）', 403);
 
     // 冪等送信: 同じ client_msg_id で過去に送信済みなら再挿入しない
     if ($clientMsgId !== '') {

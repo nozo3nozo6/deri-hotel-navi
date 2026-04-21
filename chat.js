@@ -21,7 +21,18 @@ function getSlug() {
     return p.get('slug') || '';
 }
 
+// キャスト指名: ?cast=<shop_cast_id> があれば該当キャスト宛の session として start する.
+// サーバー側で承認済み(active)か検証し、非activeなら店舗直通に fallback する.
+function getCastParam() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('cast') || '').trim();
+        return /^[A-Za-z0-9\-]{8,40}$/.test(v) ? v : '';
+    } catch (_) { return ''; }
+}
+
 const SLUG = getSlug();
+const CAST_ID = getCastParam();
 if (!SLUG) {
     document.getElementById('chat-root').innerHTML = '<div style="padding:40px;text-align:center;color:#888;">チャットURLが不正です</div>';
     return;
@@ -80,6 +91,7 @@ const refs = {
     quickQuestions: $('quick-questions'),
     visitorNote: $('visitor-note'),
     reservationHint: $('reservation-hint'),
+    castViewBanner: $('cast-view-banner'),
     ownerQuick: $('owner-quick'),
     visitorQuick: $('visitor-quick'),
     emojiToggle: $('emoji-toggle'),
@@ -265,9 +277,10 @@ const PollingTransport = {
     },
 
     // 訪問者: セッション作成
-    async startVisitorSession({ shopSlug, source, sessionToken }) {
+    async startVisitorSession({ shopSlug, source, sessionToken, cast }) {
         const payload = { shop_slug: shopSlug, source };
         if (sessionToken) payload.session_token = sessionToken;
+        if (cast) payload.cast = cast;
         return api('start-session', payload);
     },
 
@@ -509,9 +522,10 @@ const DurableObjectTransport = {
         };
     },
 
-    async startVisitorSession({ shopSlug: _s, source, sessionToken }) {
+    async startVisitorSession({ shopSlug: _s, source, sessionToken, cast }) {
         const payload = { source: source || 'standalone' };
         if (sessionToken) payload.session_token = sessionToken;
+        if (cast) payload.cast = cast;
         return doFetch('/session/start', payload);
     },
 
@@ -774,7 +788,8 @@ async function enterVisitorMode() {
             await Transport.startVisitorSession({
                 shopSlug: SLUG,
                 source: isEmbedded() ? 'widget' : 'standalone',
-                sessionToken: saved.token
+                sessionToken: saved.token,
+                cast: CAST_ID || undefined
             });
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
         // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
@@ -784,14 +799,29 @@ async function enterVisitorMode() {
             await pollMessages(true);
         }
     } else {
-        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
+        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone', cast: CAST_ID || undefined });
         state.session_token = s.session_token;
         state.session_id = s.session_id;
+        if (s.cast_name) state.cast_name = s.cast_name;
         saveVisitorSession();
+        updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
     }
 
     startVisitorPolling();
+}
+
+// キャスト指名セッションの場合、ヘッダーにキャスト名を表示
+function updateCastHeader() {
+    if (!state.cast_name) return;
+    try {
+        if (refs.shopName) {
+            const baseName = state.shop_name || '';
+            refs.shopName.textContent = baseName
+                ? `${baseName} — ${state.cast_name}`
+                : state.cast_name;
+        }
+    } catch (_) {}
 }
 
 function isEmbedded() { return window.self !== window.top; }
@@ -856,10 +886,12 @@ async function restartVisitorSession() {
     refs.chatMessages.innerHTML = '';
     refs.inputArea.classList.remove('hidden');
     try {
-        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone' });
+        const s = await Transport.startVisitorSession({ shopSlug: SLUG, source: isEmbedded() ? 'widget' : 'standalone', cast: CAST_ID || undefined });
         state.session_token = s.session_token;
         state.session_id = s.session_id;
+        if (s.cast_name) state.cast_name = s.cast_name;
         saveVisitorSession();
+        updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
         startVisitorPolling();
     } catch (e) {
@@ -1261,10 +1293,14 @@ function renderInbox() {
         li.dataset.sessionId = s.id;
         const unread = s.unread_count > 0 ? `<span class="unread-badge">${s.unread_count}</span>` : '';
         const statusBadge = s.status === 'closed' ? `<span style="color:#999;font-size:11px;">${esc(t('inbox.closedTag'))}</span>` : '';
+        // キャスト担当セッションはバッジで一覧からも判別可能に（店舗は閲覧のみ）
+        const castBadge = s.cast_id
+            ? `<span style="background:#fff3cd;color:#7a5200;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700;">👤 ${esc(s.cast_name || 'キャスト担当')}</span>`
+            : '';
         const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
         li.innerHTML = `
             <div class="inbox-item-title">
-                <span>${displayName} ${statusBadge}</span>${unread}
+                <span>${displayName} ${statusBadge}${castBadge}</span>${unread}
             </div>
             <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
             <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
@@ -1320,11 +1356,23 @@ async function openOwnerThread(sessionId) {
     } catch (e) { showError(e.message); }
 
     const isClosed = state.selected_session.status === 'closed';
-    refs.inputArea.classList.toggle('hidden', isClosed);
-    refs.ownerTemplates.classList.toggle('hidden', isClosed);
-    if (refs.emojiToggle) refs.emojiToggle.classList.toggle('hidden', isClosed);
-    if (isClosed && refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    const isCast = !!state.selected_session.cast_id;
+    // キャスト担当セッションは店舗から閲覧のみ（返信UI非表示）
+    const hideInput = isClosed || isCast;
+    refs.inputArea.classList.toggle('hidden', hideInput);
+    refs.ownerTemplates.classList.toggle('hidden', hideInput);
+    if (refs.emojiToggle) refs.emojiToggle.classList.toggle('hidden', hideInput);
+    if (hideInput && refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (isClosed) addSystemMessage(t('thread.closedThanks'));
+    if (refs.castViewBanner) {
+        if (isCast) {
+            const castName = state.selected_session.cast_name || 'キャスト';
+            refs.castViewBanner.textContent = `👤 ${castName} 担当のセッションです。閲覧のみで返信できません（不正監視用）`;
+            refs.castViewBanner.classList.remove('hidden');
+        } else {
+            refs.castViewBanner.classList.add('hidden');
+        }
+    }
 }
 
 function updateBlockButton() {
@@ -1595,6 +1643,7 @@ function backToInbox() {
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
+    if (refs.castViewBanner) refs.castViewBanner.classList.add('hidden');
     refs.shopName.textContent = state.shop_name;
     showInbox();
 }
