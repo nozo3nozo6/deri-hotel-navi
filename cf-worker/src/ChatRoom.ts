@@ -182,10 +182,15 @@ export class ChatRoom implements DurableObject {
     let sess = await this.findSessionByToken(token);
     const isNew = !sess;
 
-    // キャスト指名解決 (新規作成時のみ。既存セッションの cast は変えない).
+    // キャスト指名解決:
+    // - 新規セッション: 必ず resolve
+    // - 既存セッションで cast_id 未設定かつ URL に cast 指定あり: retrofit
+    //   (旧 DO バージョンで作られた「cast 無視」セッションを救済)
+    // - 既存セッションで cast_id 設定済み: 変えない（別キャストへの乗っ取り防止）
+    const shouldResolveCast = !!(shopCastId && this.shopMeta?.shop_id && (isNew || (sess && !sess.cast_id)));
     let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string } = {};
-    if (isNew && shopCastId && this.shopMeta?.shop_id) {
-      castInfo = await this.resolveCast(this.shopMeta.shop_id, shopCastId);
+    if (shouldResolveCast) {
+      castInfo = await this.resolveCast(this.shopMeta!.shop_id, shopCastId);
     }
 
     if (!sess) {
@@ -206,6 +211,12 @@ export class ChatRoom implements DurableObject {
         cast_id: castInfo.cast_id || null,
         cast_name: castInfo.cast_name || null,
       };
+      await this.saveSession(sess);
+    } else if (castInfo.cast_id && !sess.cast_id) {
+      // retrofit: 既存セッションに cast 情報を付与
+      sess.shop_cast_id = castInfo.shop_cast_id || null;
+      sess.cast_id = castInfo.cast_id;
+      sess.cast_name = castInfo.cast_name || null;
       await this.saveSession(sess);
     }
 
