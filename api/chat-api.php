@@ -475,6 +475,7 @@ try {
         case 'verify-device':   handleVerifyDevice(); break;
         case 'owner-inbox':     handleOwnerInbox(); break;
         case 'owner-reply':     handleOwnerReply(); break;
+        case 'cast-url-reply':  handleCastUrlReply(); break;
         case 'toggle-online':   handleToggleOnline(); break;
         case 'toggle-notify':   handleToggleNotify(); break;
         case 'owner-go-offline': handleOwnerGoOffline(); break;
@@ -1047,6 +1048,92 @@ function handleOwnerReply() {
         ->execute([$sessionId]);
 
     respondOwnerBatch($pdo, $sessionId, $device['shop_id'], $sinceId, ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
+}
+
+/**
+ * キャストがメール通知URL(?cast=<shop_cast_id>&view=<session_token>)から返信する.
+ * device_token も cast PHPセッションも要求せず、URLパラメータの組み合わせで認証する.
+ *
+ * 脅威モデル:
+ * - session_token (UUID 128bit+) はメールでしか配布されない => 予測不能
+ * - shop_cast_id が URLに含まれる => shop_casts.cast_id と session.cast_id が一致するか検証
+ * - 一致しない場合は 403 (他キャストへの成りすまし防止)
+ * - 承認済み(active) の shop_cast のみ受付
+ */
+function handleCastUrlReply() {
+    $sessionToken = trim((string)inp('session_token', ''));
+    $shopCastId   = trim((string)inp('shop_cast_id', ''));
+    $msg          = trim((string)inp('message', ''));
+    $clientMsgId  = (string)inp('client_msg_id', '');
+    $sinceId      = (int)inp('since_id', 0);
+
+    if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
+    if ($shopCastId === '')  err('shop_cast_id required');
+    if ($msg === '') err('message required');
+    if (mb_strlen($msg) > 1000) err('メッセージが長すぎます');
+    if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
+
+    $pdo = DB::conn();
+
+    // shop_cast と cast_id 解決 (active のみ)
+    $stmt = $pdo->prepare(
+        'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.status AS sc_status, c.status AS cast_status
+         FROM shop_casts sc
+         JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.id = ? LIMIT 1'
+    );
+    $stmt->execute([$shopCastId]);
+    $sc = $stmt->fetch();
+    if (!$sc || $sc['sc_status'] !== 'active' || $sc['cast_status'] !== 'active') {
+        err('キャストが無効です', 403);
+    }
+
+    // セッション検証: session_token 一致 + cast_id が shop_cast.cast_id と一致
+    $stmt = $pdo->prepare(
+        'SELECT id, shop_id, cast_id, status FROM chat_sessions WHERE session_token = ? LIMIT 1'
+    );
+    $stmt->execute([$sessionToken]);
+    $session = $stmt->fetch();
+    if (!$session) err('Session not found', 404);
+    if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
+    if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
+    if ($session['status'] === 'closed') err('Session closed', 410);
+
+    $sessionId = (int)$session['id'];
+
+    // 冪等送信
+    if ($clientMsgId !== '') {
+        $stmt = $pdo->prepare(
+            "SELECT id FROM chat_messages
+             WHERE client_msg_id = ? AND session_id = ? AND sender_type = 'shop' LIMIT 1"
+        );
+        $stmt->execute([$clientMsgId, $sessionId]);
+        $existingId = $stmt->fetchColumn();
+        if ($existingId) {
+            respondOwnerBatch($pdo, $sessionId, (string)$sc['shop_id'], $sinceId, ['message_id' => (int)$existingId, 'client_msg_id' => $clientMsgId, 'duplicate' => true]);
+            return;
+        }
+    }
+
+    try {
+        $stmt = $pdo->prepare("INSERT INTO chat_messages (session_id, sender_type, message, source_lang, client_msg_id) VALUES (?, 'shop', ?, 'ja', ?)");
+        $stmt->execute([$sessionId, $msg, $clientMsgId ?: null]);
+        $messageId = (int)$pdo->lastInsertId();
+    } catch (PDOException $e) {
+        if ($clientMsgId !== '' && strpos($e->getMessage(), '1062') !== false) {
+            $stmt = $pdo->prepare('SELECT id FROM chat_messages WHERE client_msg_id = ? LIMIT 1');
+            $stmt->execute([$clientMsgId]);
+            $messageId = (int)$stmt->fetchColumn();
+            if (!$messageId) throw $e;
+        } else {
+            throw $e;
+        }
+    }
+
+    $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), last_owner_heartbeat_at = NOW() WHERE id = ?')
+        ->execute([$sessionId]);
+
+    respondOwnerBatch($pdo, $sessionId, (string)$sc['shop_id'], $sinceId, ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
 }
 
 /**

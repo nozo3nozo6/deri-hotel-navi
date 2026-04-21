@@ -865,8 +865,7 @@ async function enterCastViewMode() {
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
-    // 入力系UIは全非表示
-    refs.inputArea.classList.add('hidden');
+    // 入力欄はキャスト返信用に残す. ニックネーム/quick/絵文字/オーナー系は不要なので非表示.
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
@@ -906,12 +905,14 @@ async function enterCastViewMode() {
     }
     updateCastHeader();
 
-    // 閲覧専用バナー
+    // キャスト返信モードの案内バナー
     if (refs.castViewBanner) {
         const castName = state.cast_name || 'あなた';
-        refs.castViewBanner.textContent = `👤 ${castName} 宛てのお問い合わせです（閲覧専用）。ご返信はお電話・LINEで直接お願いいたします。`;
+        refs.castViewBanner.textContent = `👤 ${castName} 宛てのお問い合わせです。ここから直接返信できます。`;
         refs.castViewBanner.classList.remove('hidden');
     }
+    // 入力欄の placeholder を返信用に差し替え
+    if (refs.input) refs.input.placeholder = '返信メッセージを入力…';
 
     // 履歴取得 + 新着ポーリング（受付時間外でもメッセージは表示される）
     if (Transport.kind !== 'durable-object') {
@@ -1031,7 +1032,9 @@ function addMessage(m, fromOwner) {
     }
 
     const isVisitor = m.sender_type === 'visitor';
-    const renderAs = fromOwner ? (isVisitor ? 'shop' : 'visitor') : (isVisitor ? 'visitor' : 'shop');
+    // キャスト返信モードは shop 視点で描画 (訪問者=左/他, 自分=右/自).
+    const asOwner = fromOwner || IS_CAST_VIEW;
+    const renderAs = asOwner ? (isVisitor ? 'shop' : 'visitor') : (isVisitor ? 'visitor' : 'shop');
 
     // 日付セパレーター
     const dateKey = getDateKey(m.sent_at);
@@ -1326,6 +1329,32 @@ async function sendVisitorMessage(msg) {
             showOfflineNotifiedHint();
             state.offlineNotifiedShown = true;
         }
+    } catch (e) {
+        showError(e.message);
+    } finally {
+        refs.sendBtn.disabled = false;
+    }
+}
+
+// キャストURL返信: /chat/{slug}/?cast=<shop_cast_id>&view=<session_token> の画面から
+// device_token 不要で chat-api の cast-url-reply へ送信 (サーバ側で cast_id 一致検証).
+async function sendCastReply(msg) {
+    msg = String(msg || '').trim();
+    if (!msg) return;
+    refs.sendBtn.disabled = true;
+    const clientMsgId = uuidv4();
+    try {
+        const resp = await api('cast-url-reply', {
+            session_token: state.session_token,
+            shop_cast_id: CAST_ID,
+            message: msg,
+            client_msg_id: clientMsgId,
+            since_id: state.last_message_id
+        }, 'POST');
+        refs.input.value = '';
+        // owner-reply と同じ形状の batch が返る. applyVisitorBatch は cast view の addMessage 分岐
+        // (IS_CAST_VIEW で fromOwner=true 扱い) と整合するので流用可.
+        applyVisitorBatch(resp);
     } catch (e) {
         showError(e.message);
     } finally {
@@ -1665,7 +1694,8 @@ async function handleOwnerLogout() {
 // ===== イベントバインド =====
 refs.sendBtn.addEventListener('click', () => {
     const msg = refs.input.value;
-    if (state.mode === 'owner') sendOwnerReply(msg);
+    if (IS_CAST_VIEW) sendCastReply(msg);
+    else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
 });
 

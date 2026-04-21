@@ -146,9 +146,9 @@ $chatUrl = $castId
 
 $recipientLabel = $castName !== '' ? "{$castName}（{$shopName}）" : $shopName;
 $subject = "[YobuChat] {$recipientLabel} に新しいチャットが届きました";
-// キャスト宛ては閲覧専用URL. 店舗宛ては返信可能URL.
+// キャスト宛ても店舗宛ても URL から直接返信可能.
 $urlLabel = $castId
-    ? "チャット内容はこちらで確認できます（ご返信はお電話・LINEで直接お願いいたします）:"
+    ? "こちらからチャットで直接ご返信いただけます:"
     : "チャット画面から返信できます:";
 $textBody = <<<TXT
 {$nickname} さんからチャットメッセージが届きました。
