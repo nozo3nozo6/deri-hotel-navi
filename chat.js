@@ -31,8 +31,20 @@ function getCastParam() {
     } catch (_) { return ''; }
 }
 
+// キャスト閲覧専用モード: ?cast=&view=<session_token> で既存訪問者セッションを read-only 表示.
+// chat-notify.php がキャスト宛通知メールに付与する. 入力UIは全非表示, キャストは電話/LINEで返信する.
+function getViewToken() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('view') || '').trim();
+        return /^[a-f0-9]{32,64}$/.test(v) ? v : '';
+    } catch (_) { return ''; }
+}
+
 const SLUG = getSlug();
 const CAST_ID = getCastParam();
+const VIEW_TOKEN = getViewToken();
+const IS_CAST_VIEW = !!(CAST_ID && VIEW_TOKEN);
 if (!SLUG) {
     document.getElementById('chat-root').innerHTML = '<div style="padding:40px;text-align:center;color:#888;">チャットURLが不正です</div>';
     return;
@@ -667,6 +679,22 @@ async function init() {
 }
 async function _init() {
     try {
+        // ?cast=&view=<session_token>: キャスト宛メール通知URL. 既存訪問者セッションを閲覧専用で表示.
+        if (IS_CAST_VIEW) {
+            const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
+            if (!status.chat_enabled) {
+                refs.root.innerHTML = '<div style="padding:40px;text-align:center;color:#888;">この店舗ではYobuChatをご利用いただけません</div>';
+                return;
+            }
+            state.shop_name = status.shop_name;
+            state.is_online = status.is_online;
+            applyReceptionStatus(status);
+            setThemeMode(status.gender_mode);
+            await enterCastViewMode();
+            setLoading(false);
+            return;
+        }
+
         // ?cast=... 指名URLの場合は必ず訪問者モード。
         // 店舗オーナーが同じブラウザで開いた時にオーナー画面へ乗っ取られるのを防ぐ。
         if (!CAST_ID) {
@@ -825,6 +853,71 @@ async function enterVisitorMode() {
     startVisitorPolling();
 }
 
+// ===== キャスト閲覧専用モード =====
+// メール通知URL ?cast=&view=<session_token> で開いた時の read-only 表示.
+// 既存訪問者セッションの履歴を見るだけで送信はできない（返信は電話/LINE経由）.
+async function enterCastViewMode() {
+    refs.shopName.textContent = state.shop_name;
+    updateStatusIndicator(state.is_online);
+    refs.ownerToggle.classList.add('hidden');
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
+    refs.ownerInbox.classList.add('hidden');
+    refs.chatThread.classList.remove('hidden');
+    // 入力系UIは全非表示
+    refs.inputArea.classList.add('hidden');
+    if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
+    if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
+    if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
+    refs.ownerTemplates.classList.add('hidden');
+    if (refs.visitorName) refs.visitorName.classList.add('hidden');
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
+    if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
+    if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
+    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
+
+    state.mode = 'visitor'; // poll/apply を visitor ロジックで流用するため
+    state.session_token = VIEW_TOKEN;
+    state.session_id = 0;
+    state.last_message_id = 0;
+
+    // 既存セッションを adopt して cast_name を取得（header表示用）
+    try {
+        const adopt = await Transport.startVisitorSession({
+            shopSlug: SLUG,
+            source: 'standalone',
+            sessionToken: VIEW_TOKEN,
+            cast: CAST_ID || undefined
+        });
+        if (adopt) {
+            if (adopt.session_id) state.session_id = adopt.session_id;
+            if (adopt.cast_name) state.cast_name = adopt.cast_name;
+            if (typeof adopt.is_online !== 'undefined') state.is_online = !!adopt.is_online;
+        }
+    } catch (e) {
+        showError(e.message || 'セッションを読み込めませんでした');
+        return;
+    }
+    updateCastHeader();
+
+    // 閲覧専用バナー
+    if (refs.castViewBanner) {
+        const castName = state.cast_name || 'あなた';
+        refs.castViewBanner.textContent = `👤 ${castName} 宛てのお問い合わせです（閲覧専用）。ご返信はお電話・LINEで直接お願いいたします。`;
+        refs.castViewBanner.classList.remove('hidden');
+    }
+
+    // 履歴取得 + 新着ポーリング（受付時間外でもメッセージは表示される）
+    if (Transport.kind !== 'durable-object') {
+        await pollMessages(true);
+    }
+    startVisitorPolling();
+}
+
 // キャスト指名セッションの場合、ヘッダーにキャスト名を表示
 function updateCastHeader() {
     if (!state.cast_name) return;
@@ -840,6 +933,10 @@ function updateCastHeader() {
 
 function isEmbedded() { return window.self !== window.top; }
 function saveVisitorSession() {
+    // 閲覧専用モードでは LS_SESSION に書き込まない.
+    // 書き込むと ?cast= 単独で開いた時に訪問者セッションを adopt してしまい、
+    // 入力欄から訪問者として送信できてしまうため.
+    if (IS_CAST_VIEW) return;
     try {
         localStorage.setItem(LS_SESSION, JSON.stringify({
             token: state.session_token,
@@ -1064,8 +1161,9 @@ function applyVisitorBatch(data) {
         stopPolling();
         addSystemMessage(t('thread.closedThanks'));
         refs.inputArea.classList.add('hidden');
-        // 訪問者モードのときのみ「新しいチャットを始める」ボタン表示（オーナー側は不要）
-        if (state.mode === 'visitor') addRestartButton();
+        // 訪問者モードのときのみ「新しいチャットを始める」ボタン表示.
+        // ただしキャスト閲覧専用モードでは、訪問者セッションを勝手に再開させないよう非表示.
+        if (state.mode === 'visitor' && !IS_CAST_VIEW) addRestartButton();
     }
     if ((data.messages || []).length) saveVisitorSession();
 }

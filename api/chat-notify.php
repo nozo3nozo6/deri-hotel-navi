@@ -133,11 +133,12 @@ $nickname = mb_substr($nickname, 0, 40);
 $shopName = mb_substr($shopName, 0, 80);
 $castName = mb_substr($castName, 0, 40);
 
-// チャット画面URL (slug があればチャット直リンク、無ければ管理画面フォールバック)
-// キャスト指名は店舗オーナーが shop-admin の「キャスト管理 → 💬 チャット履歴」で閲覧
+// チャット画面URL
+// キャスト指名: ?cast=<shop_cast_id>&view=<session_token> で該当訪問者セッションを閲覧専用表示.
+// view= が無いと chat.js は新規訪問者セッションを作るため、キャストが会話を見られなくなる.
 $chatUrl = $castId
-    ? (($shopSlug && $shopCastIdForUrl !== '')
-        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($shopCastIdForUrl)
+    ? (($shopSlug && $shopCastIdForUrl !== '' && $sessionToken !== '')
+        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($shopCastIdForUrl) . '&view=' . rawurlencode($sessionToken)
         : 'https://yobuho.com/')
     : ($shopSlug
         ? 'https://yobuho.com/chat/' . $shopSlug . '/?owner=1'
@@ -145,6 +146,10 @@ $chatUrl = $castId
 
 $recipientLabel = $castName !== '' ? "{$castName}（{$shopName}）" : $shopName;
 $subject = "[YobuChat] {$recipientLabel} に新しいチャットが届きました";
+// キャスト宛ては閲覧専用URL. 店舗宛ては返信可能URL.
+$urlLabel = $castId
+    ? "チャット内容はこちらで確認できます（ご返信はお電話・LINEで直接お願いいたします）:"
+    : "チャット画面から返信できます:";
 $textBody = <<<TXT
 {$nickname} さんからチャットメッセージが届きました。
 
@@ -155,7 +160,7 @@ $textBody = <<<TXT
 {$message}
 -----
 
-チャット画面から返信できます:
+{$urlLabel}
 {$chatUrl}
 
 ※このメールは自動送信です。返信しないでください。
