@@ -422,6 +422,9 @@ function renderShops(shops){
             +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">このURLをSNSプロフィール等に貼ると、お客様から直接あなたへチャットが届きます。</div>'
             + '</div>'
             : '';
+        const notifyBlock = (!isPending)
+            ? renderNotifyToggle(s.shop_cast_id, s.chat_notify_mode || 'off')
+            : '';
         return ''
             + '<div class="shop-card">'
             +   '<div class="shop-card-hdr">'
@@ -432,6 +435,7 @@ function renderShops(shops){
             +       bio
             +       pendingNote
             +       castUrlBlock
+            +       notifyBlock
             +       '<div class="shop-actions">'
             +         '<button type="button" class="btn primary" onclick="openProfileModal(\'' + esc(s.shop_cast_id) + '\')" style="font-size:12px;padding:8px 14px;">✏️ プロフィール編集</button>'
             +         shopLink
@@ -440,6 +444,54 @@ function renderShops(shops){
             +   '</div>'
             + '</div>';
     }).join('');
+}
+
+function renderNotifyToggle(shopCastId, mode){
+    const sid = esc(shopCastId);
+    const opts = [
+        { v: 'off',   label: 'OFF' },
+        { v: 'first', label: '初回のみ' },
+        { v: 'every', label: '毎回' },
+    ];
+    const btns = opts.map(o => {
+        const active = (o.v === mode);
+        const bg = active ? 'var(--rose)' : '#fff';
+        const color = active ? '#fff' : 'var(--text-2)';
+        const border = active ? 'var(--rose)' : 'var(--border-s)';
+        const fw = active ? '700' : '500';
+        return '<button type="button" class="notify-seg" data-mode="' + o.v + '" onclick="setCastNotifyMode(\'' + sid + '\',\'' + o.v + '\')" style="padding:6px 10px;font-size:12px;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';font-weight:' + fw + ';cursor:pointer;border-radius:6px;font-family:inherit;">' + o.label + '</button>';
+    }).join('');
+    return ''
+        + '<div style="margin-top:10px;padding:10px 12px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:8px;">'
+        +   '<div style="font-size:11px;color:var(--rose-dim);font-weight:600;margin-bottom:6px;">📧 新着メッセージのメール通知</div>'
+        +   '<div id="notify-seg-' + sid + '" style="display:flex;gap:6px;flex-wrap:wrap;">' + btns + '</div>'
+        +   '<div style="font-size:10px;color:var(--text-3);margin-top:6px;line-height:1.5;">「初回のみ」はセッション開始の1通目だけ。「毎回」は新着ごとに通知（頻度注意）。</div>'
+        + '</div>';
+}
+
+async function setCastNotifyMode(shopCastId, mode){
+    const container = document.getElementById('notify-seg-' + shopCastId);
+    if (!container) return;
+    const prevActive = container.querySelector('.notify-seg[data-mode]');
+    // 楽観更新
+    container.querySelectorAll('.notify-seg').forEach(btn => {
+        const active = (btn.dataset.mode === mode);
+        btn.style.background = active ? 'var(--rose)' : '#fff';
+        btn.style.color = active ? '#fff' : 'var(--text-2)';
+        btn.style.borderColor = active ? 'var(--rose)' : 'var(--border-s)';
+        btn.style.fontWeight = active ? '700' : '500';
+    });
+    try {
+        await castChatApi('toggle-notify', { shop_cast_id: shopCastId, mode });
+        const labels = { off: 'OFF', first: '初回のみ', every: '毎回' };
+        toast('✅ メール通知: ' + labels[mode]);
+        const s = shopsCache.find(x => x.shop_cast_id === shopCastId);
+        if (s) s.chat_notify_mode = mode;
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+        // 失敗時はrender再描画
+        renderShops(shopsCache);
+    }
 }
 
 function copyCastUrl(shopCastId){

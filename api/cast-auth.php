@@ -178,6 +178,7 @@ function handleProfile(): void {
     // pending_approval = 店舗承認待ち / active = 承認済み / suspended = 一時停止
     $sql = 'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.display_name, sc.profile_image_url, sc.bio,
                    sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
+                   sc.chat_notify_mode, sc.chat_is_online,
                    s.shop_name, s.slug, s.gender_mode, s.cast_enabled
             FROM shop_casts sc
             JOIN shops s ON s.id = sc.shop_id
