@@ -86,10 +86,10 @@ function handleUpsertSession(PDO $pdo, array $body): void {
 
     $stmt = $pdo->prepare("
         INSERT INTO chat_sessions
-            (shop_id, session_token, visitor_hash, nickname, lang, started_at, last_activity_at,
+            (shop_id, cast_id, session_token, visitor_hash, nickname, lang, started_at, last_activity_at,
              last_visitor_heartbeat_at, last_owner_heartbeat_at,
              closed_at, status, source, notified_at, blocked)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             nickname = COALESCE(VALUES(nickname), nickname),
             lang = COALESCE(VALUES(lang), lang),
@@ -101,8 +101,10 @@ function handleUpsertSession(PDO $pdo, array $body): void {
             notified_at = VALUES(notified_at),
             blocked = VALUES(blocked)
     ");
+    // cast_id は INSERT 時にのみセット（既存セッションの cast_id は上書きしない）.
     $stmt->execute([
         $shopId,
+        !empty($body['cast_id']) ? (string)$body['cast_id'] : null,
         $token,
         $body['visitor_hash'] ?? null,
         $body['nickname'] ?? null,

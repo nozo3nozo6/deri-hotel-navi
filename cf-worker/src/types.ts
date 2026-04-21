@@ -44,6 +44,11 @@ export interface ChatSession {
   source: 'portal' | 'widget' | 'standalone';
   notified_at?: string | null;  // 初回メール通知済み
   blocked: boolean;
+  // キャスト指名 (?cast=<shop_casts.id>): 有効なら cast_id/cast_name がセットされる.
+  // shop_cast_id = shop_casts.id, cast_id = casts.id (通知ルーティング用)
+  shop_cast_id?: string | null;
+  cast_id?: string | null;
+  cast_name?: string | null;
 }
 
 // ===== 店舗ステータス =====

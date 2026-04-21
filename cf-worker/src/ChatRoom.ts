@@ -177,8 +177,17 @@ export class ChatRoom implements DurableObject {
     const nickname: string = body.nickname || '';
     const lang: string = body.lang || 'ja';
     const source = body.source || 'standalone';
+    const shopCastId: string = (body.cast || '').trim();
 
     let sess = await this.findSessionByToken(token);
+    const isNew = !sess;
+
+    // キャスト指名解決 (新規作成時のみ。既存セッションの cast は変えない).
+    let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string } = {};
+    if (isNew && shopCastId && this.shopMeta?.shop_id) {
+      castInfo = await this.resolveCast(this.shopMeta.shop_id, shopCastId);
+    }
+
     if (!sess) {
       const id = await this.nextSessionId();
       const now = new Date().toISOString();
@@ -193,6 +202,9 @@ export class ChatRoom implements DurableObject {
         status: 'open',
         source,
         blocked: false,
+        shop_cast_id: castInfo.shop_cast_id || null,
+        cast_id: castInfo.cast_id || null,
+        cast_name: castInfo.cast_name || null,
       };
       await this.saveSession(sess);
     }
@@ -203,7 +215,32 @@ export class ChatRoom implements DurableObject {
       shop_online: this.isShopOnline(),
       session_token: sess.session_token,
       session_id: sess.id,
+      cast_name: sess.cast_name || null,
     });
+  }
+
+  // shop_casts.id → cast_id + display_name を PHP から解決.
+  // 承認済み(active)でなければ空を返す（店舗直通にフォールバック）.
+  private async resolveCast(shopId: string, shopCastId: string): Promise<{ shop_cast_id?: string; cast_id?: string; cast_name?: string }> {
+    const base = this.env.NOTIFY_BASE_URL || 'https://yobuho.com';
+    const secret = this.env.CHAT_SYNC_SECRET || '';
+    if (!secret) return {};
+    try {
+      const qs = `shop_id=${encodeURIComponent(shopId)}&shop_cast_id=${encodeURIComponent(shopCastId)}`;
+      const res = await fetch(`${base}/api/chat-cast-lookup.php?${qs}`, {
+        headers: { 'X-Sync-Secret': secret },
+      });
+      if (!res.ok) return {};
+      const data = await res.json() as any;
+      if (!data?.ok) return {};
+      return {
+        shop_cast_id: data.shop_cast_id,
+        cast_id: data.cast_id,
+        cast_name: data.display_name,
+      };
+    } catch (_) {
+      return {};
+    }
   }
 
   private async httpSendMessage(body: any): Promise<Response> {

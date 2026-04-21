@@ -34,6 +34,7 @@ export class MysqlSync {
       source: sess.source,
       notified_at: sess.notified_at || null,
       blocked: sess.blocked ? 1 : 0,
+      cast_id: sess.cast_id || null,
     });
   }
 
