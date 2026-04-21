@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+<meta name="robots" content="noindex, nofollow">
+<title>キャスト登録 | YobuHo</title>
+<meta name="theme-color" content="#b5627a">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+    --gold:#c9a96e;--rose:#b5627a;--rose-dim:#9a4e65;--rose-bg:rgba(181,98,122,.07);--rose-border:rgba(181,98,122,.22);
+    --bg:#f8f7f5;--bg-2:#ffffff;--bg-3:#f3f1ee;
+    --border:#e8e4e0;--border-s:#d5d0cb;
+    --text:#1a1a1a;--text-2:#666;--text-3:#999;
+    --red:#c05050;--green:#2e8b57;--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px 80px;}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:var(--gold);margin-bottom:10px;text-align:center;}
+.logo em{font-style:italic;font-weight:600;}
+.logo-sub{font-size:11px;color:var(--text-3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:36px;text-align:center;}
+.card{background:var(--bg-2);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.08);}
+.card-title{font-size:19px;font-weight:700;margin-bottom:8px;}
+.card-sub{font-size:13px;color:var(--text-2);margin-bottom:22px;line-height:1.7;}
+.shop-info-box{background:var(--rose-bg);border:1px solid var(--rose-border);padding:14px 16px;border-radius:10px;margin-bottom:22px;}
+.shop-info-label{margin:0;font-size:11px;color:var(--text-3);letter-spacing:.5px;}
+.shop-info-val{margin:4px 0 0;font-size:15px;font-weight:700;color:var(--rose);}
+.shop-info-email{margin:8px 0 0;font-size:12px;color:var(--text-2);}
+.f-group{margin-bottom:18px;}
+.f-label{display:block;font-size:12px;font-weight:700;color:var(--text-3);margin-bottom:8px;letter-spacing:.5px;text-transform:uppercase;}
+.f-input{width:100%;padding:11px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.f-input:focus{border-color:var(--rose);background:rgba(181,98,122,.03);}
+.pw-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;color:var(--text-3);min-height:44px;}
+.pw-toggle input{accent-color:var(--rose);cursor:pointer;width:18px;height:18px;margin:0;}
+.btn-primary{width:100%;padding:14px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.8px;transition:background .2s,opacity .2s;margin-top:10px;min-height:48px;}
+.btn-primary:hover:not(:disabled){background:var(--rose-dim);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.err-msg{display:none;font-size:13px;color:var(--red);margin-top:12px;padding:10px 14px;background:rgba(192,80,80,.08);border:1px solid rgba(192,80,80,.25);border-radius:8px;line-height:1.6;}
+.note{font-size:11px;color:var(--text-3);margin-top:18px;line-height:1.7;padding-top:14px;border-top:1px solid var(--border);}
+.loading-wrap{text-align:center;padding:60px 20px;color:var(--text-3);font-size:14px;}
+.success-wrap{text-align:center;padding:10px 0;}
+.success-icon{font-size:54px;margin-bottom:14px;}
+.success-title{font-size:20px;font-weight:700;margin-bottom:10px;}
+.success-sub{font-size:13px;color:var(--text-2);line-height:1.9;margin-bottom:18px;}
+.pwd-req{font-size:11px;color:var(--text-3);margin-top:6px;}
+@media(max-width:480px){body{padding:24px 12px 60px;}.card{padding:24px 18px;}.card-title{font-size:17px;}}
+</style>
+</head>
+<body>
+<div class="logo">YobuHo — <em>Cast</em></div>
+<div class="logo-sub">Cast Registration</div>
+
+<div class="card" id="card">
+    <div class="loading-wrap" id="loading">招待を確認しています…</div>
+
+    <div id="stage-form" style="display:none;">
+        <div class="card-title">キャスト登録</div>
+        <div class="card-sub">招待されたアカウントでパスワードを設定してください。登録後はキャスト管理画面にログインしてお客様とのチャットに対応できます。</div>
+
+        <div class="shop-info-box">
+            <p class="shop-info-label">招待元店舗</p>
+            <p class="shop-info-val" id="info-shop">—</p>
+            <p class="shop-info-label" style="margin-top:10px;">源氏名</p>
+            <p class="shop-info-val" id="info-display-name" style="color:var(--text);">—</p>
+            <p class="shop-info-email" id="info-email">—</p>
+        </div>
+
+        <div class="f-group">
+            <label for="pw" class="f-label">パスワード <span style="color:var(--rose);">*</span></label>
+            <input type="password" id="pw" class="f-input" placeholder="8文字以上" autocomplete="new-password">
+            <div class="pwd-req">半角英数記号で8文字以上。他のサービスと同じパスワードは使わないでください。</div>
+        </div>
+        <div class="f-group">
+            <label for="pw2" class="f-label">パスワード（確認） <span style="color:var(--rose);">*</span></label>
+            <input type="password" id="pw2" class="f-input" placeholder="もう一度入力" autocomplete="new-password">
+            <label class="pw-toggle"><input type="checkbox" id="pw-show"> パスワードを表示</label>
+        </div>
+        <button type="button" class="btn-primary" id="submit-btn" onclick="submitActivation()">登録を完了する</button>
+        <div class="err-msg" id="err"></div>
+        <div class="note">登録後、キャスト管理画面（cast-admin.html）にご登録のメールアドレスとパスワードでログインしてご利用ください。このリンクは登録完了後は無効になります。</div>
+    </div>
+
+    <div id="stage-error" style="display:none;">
+        <div class="card-title" style="color:var(--red);">⚠ 招待を確認できません</div>
+        <div class="card-sub" id="error-message">—</div>
+        <div class="note">招待メールのリンクが正しいかご確認いただくか、招待元の店舗にご連絡のうえ再発行をご依頼ください。</div>
+    </div>
+
+    <div id="stage-done" style="display:none;">
+        <div class="success-wrap">
+            <div class="success-icon">✅</div>
+            <div class="success-title">登録が完了しました</div>
+            <div class="success-sub">
+                キャストアカウントが有効化されました。<br>
+                キャスト管理画面にログインしてご利用ください。
+            </div>
+            <a href="/cast-admin.html" class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center;box-sizing:border-box;width:100%;">キャスト管理画面にログイン →</a>
+        </div>
+    </div>
+</div>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+
+function showErr(msg){
+    const el = document.getElementById('err');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+function hideErr(){
+    document.getElementById('err').style.display = 'none';
+}
+function showStage(id){
+    ['loading','stage-form','stage-error','stage-done'].forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.style.display = (s === id) ? '' : 'none';
+    });
+}
+
+async function verifyToken(){
+    if (!TOKEN) {
+        document.getElementById('error-message').textContent = 'URLにトークンが含まれていません。';
+        showStage('stage-error');
+        return;
+    }
+    try {
+        const res = await fetch('/api/cast-register-api.php?action=verify&token=' + encodeURIComponent(TOKEN), { credentials: 'include' });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            document.getElementById('error-message').textContent = data.error || '招待を確認できませんでした。';
+            showStage('stage-error');
+            return;
+        }
+        document.getElementById('info-shop').textContent = data.shop_name || '—';
+        document.getElementById('info-display-name').textContent = data.display_name || '—';
+        document.getElementById('info-email').textContent = data.email || '';
+        showStage('stage-form');
+    } catch (e) {
+        document.getElementById('error-message').textContent = '通信エラーが発生しました。しばらくしてからお試しください。';
+        showStage('stage-error');
+    }
+}
+
+async function submitActivation(){
+    hideErr();
+    const pw = document.getElementById('pw').value;
+    const pw2 = document.getElementById('pw2').value;
+    if (pw.length < 8) { showErr('パスワードは8文字以上で設定してください'); return; }
+    if (pw !== pw2) { showErr('パスワードが一致しません'); return; }
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = '登録中…';
+    try {
+        const res = await fetch('/api/cast-register-api.php?action=activate', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: TOKEN, password: pw })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            showErr(data.error || '登録に失敗しました');
+            btn.disabled = false; btn.textContent = '登録を完了する';
+            return;
+        }
+        showStage('stage-done');
+    } catch (e) {
+        showErr('通信エラーが発生しました。');
+        btn.disabled = false; btn.textContent = '登録を完了する';
+    }
+}
+
+document.getElementById('pw-show').addEventListener('change', function(){
+    const t = this.checked ? 'text' : 'password';
+    document.getElementById('pw').type = t;
+    document.getElementById('pw2').type = t;
+});
+document.getElementById('pw2').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') submitActivation();
+});
+
+verifyToken();
+</script>
+</body>
+</html>

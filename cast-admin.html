@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-250LFPCPCE"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-250LFPCPCE');</script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+<meta name="robots" content="noindex, nofollow">
+<title>キャスト管理 | YobuHo</title>
+<meta name="theme-color" content="#b5627a">
+<link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+    --gold:#c9a96e;--rose:#b5627a;--rose-dim:#9a4e65;--rose-bg:rgba(181,98,122,.07);--rose-border:rgba(181,98,122,.22);
+    --bg:#f8f7f5;--bg-2:#ffffff;--bg-3:#f3f1ee;
+    --border:#e8e4e0;--border-s:#d5d0cb;
+    --text:#1a1a1a;--text-1:#1a1a1a;--text-2:#555;--text-3:#999;
+    --red:#c05050;--green:#2e8b57;--r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.login-wrap{display:flex;flex-direction:column;align-items:center;padding:40px 20px 80px;}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:var(--gold);margin-bottom:10px;text-align:center;}
+.logo em{font-style:italic;font-weight:600;}
+.logo-sub{font-size:11px;color:var(--text-3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:36px;text-align:center;}
+.card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:18px;box-shadow:0 2px 12px rgba(0,0,0,.03);}
+.login-card{max-width:420px;width:100%;padding:36px 32px;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.08);}
+.card-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text-1);}
+.f-group{margin-bottom:16px;}
+.f-label{display:block;font-size:12px;font-weight:700;color:var(--text-3);margin-bottom:6px;letter-spacing:.3px;}
+.f-input{width:100%;padding:11px 14px;background:#fff;border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;}
+.f-input:focus{border-color:var(--rose);background:rgba(181,98,122,.03);}
+textarea.f-input{resize:vertical;min-height:88px;font-size:14px;}
+.pw-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:13px;color:var(--text-3);min-height:44px;}
+.pw-toggle input{accent-color:var(--rose);cursor:pointer;width:18px;height:18px;margin:0;}
+.btn{display:inline-block;padding:10px 18px;background:#fff;border:1px solid var(--border-s);border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s;color:var(--text-2);}
+.btn:hover{background:var(--bg-3);}
+.btn.primary{background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;}
+.btn.primary:hover{background:var(--rose-dim);}
+.btn.danger{color:var(--red);border-color:rgba(192,80,80,.4);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn-primary{width:100%;padding:14px;background:var(--rose);border:none;border-radius:var(--r);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.8px;transition:background .2s,opacity .2s;min-height:48px;}
+.btn-primary:hover:not(:disabled){background:var(--rose-dim);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.err-msg{display:none;font-size:13px;color:var(--red);margin-top:12px;padding:10px 14px;background:rgba(192,80,80,.08);border:1px solid rgba(192,80,80,.25);border-radius:8px;line-height:1.6;}
+
+/* header */
+.hdr{background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:50;}
+.hdr-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.hdr-logo{font-family:'Cormorant Garamond',serif;font-size:18px;letter-spacing:.1em;color:var(--gold);}
+.hdr-logo em{font-style:italic;font-weight:600;}
+.hdr-email{font-size:12px;color:var(--text-3);}
+.hdr .btn-logout{padding:8px 14px;font-size:12px;}
+
+/* main */
+.main-wrap{max-width:880px;margin:0 auto;padding:20px 16px 60px;}
+.tabs{display:flex;gap:4px;margin-bottom:0;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tab-btn{padding:10px 18px;border:1px solid var(--border);border-bottom:none;background:var(--bg-3);cursor:pointer;font-size:13px;font-family:inherit;color:#555;font-weight:500;border-radius:8px 8px 0 0;margin-bottom:-1px;transition:background .15s,color .15s;min-height:44px;white-space:nowrap;}
+.tab-btn:hover{background:#fff;color:#333;}
+.tab-btn.active{font-weight:bold;background:#fff;color:var(--rose);border-bottom:1px solid #fff;}
+.tab-content{display:none;padding-top:18px;}
+.tab-content.active{display:block;}
+
+/* shop card */
+.shop-card{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
+.shop-card-hdr{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;}
+.shop-img{width:72px;height:96px;border-radius:8px;object-fit:cover;background:var(--bg-3);border:1px solid var(--border);flex-shrink:0;}
+.shop-img-placeholder{width:72px;height:96px;border-radius:8px;background:var(--bg-3);border:1px dashed var(--border-s);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--text-3);flex-shrink:0;}
+.shop-body{flex:1;min-width:180px;}
+.shop-meta{font-size:11px;color:var(--text-3);margin-bottom:4px;}
+.shop-display-name{font-size:17px;font-weight:700;color:var(--text-1);margin-bottom:6px;}
+.shop-bio{font-size:13px;color:var(--text-2);line-height:1.7;white-space:pre-wrap;}
+.shop-bio.empty{color:var(--text-3);font-style:italic;}
+.shop-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.status-badge{font-size:11px;padding:2px 8px;border-radius:10px;display:inline-block;font-weight:600;}
+.status-active{background:#d1fae5;color:#065f46;}
+.status-suspended{background:#fff3cd;color:#856404;}
+
+/* modal */
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9995;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
+.confirm-overlay.active{display:flex;}
+.confirm-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:24px;max-width:460px;width:100%;max-height:calc(100dvh - 48px);overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.18);}
+.confirm-title{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--text-1);}
+.confirm-sub{font-size:12px;color:var(--text-3);margin-bottom:14px;}
+.confirm-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;}
+.btn-back-confirm{padding:10px 18px;background:#fff;border:1px solid var(--border-s);border-radius:8px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--text-2);}
+.btn-do-submit{padding:10px 20px;background:var(--rose);border:none;border-radius:8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
+.btn-do-submit:disabled{opacity:.5;cursor:not-allowed;}
+
+/* toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(40,40,40,.96);color:#fff;padding:12px 22px;border-radius:10px;font-size:13px;z-index:9999;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:90%;text-align:center;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.img-preview{max-width:120px;max-height:160px;border-radius:8px;object-fit:cover;margin-top:8px;display:block;}
+.img-drop{border:1.5px dashed var(--rose-border);border-radius:var(--r);padding:14px;text-align:center;cursor:pointer;background:var(--rose-bg);font-size:12px;color:var(--text-2);}
+.img-drop:hover{background:rgba(181,98,122,.1);}
+.img-drop input{display:none;}
+.img-actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}
+
+@media(max-width:640px){.main-wrap{padding:14px 10px 60px;}.card{padding:18px 14px;}.shop-img,.shop-img-placeholder{width:60px;height:80px;}}
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div class="login-wrap" id="login-wrap">
+    <div class="logo">YobuHo — <em>Cast</em></div>
+    <div class="logo-sub">Cast Admin</div>
+    <div class="card login-card" id="login-card">
+        <div class="card-title">キャストログイン</div>
+        <div class="f-group">
+            <label for="login-email" class="f-label">メールアドレス</label>
+            <input type="email" id="login-email" class="f-input" autocomplete="username" placeholder="cast@example.com">
+        </div>
+        <div class="f-group">
+            <label for="login-pw" class="f-label">パスワード</label>
+            <input type="password" id="login-pw" class="f-input" autocomplete="current-password" placeholder="8文字以上">
+            <label class="pw-toggle"><input type="checkbox" id="login-pw-show"> パスワードを表示</label>
+        </div>
+        <button type="button" class="btn-primary" id="login-btn" onclick="doLogin()">ログイン</button>
+        <div class="err-msg" id="login-err"></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:20px;padding-top:14px;border-top:1px solid var(--border);line-height:1.7;">
+            招待メールを受け取った方は、メール内のリンクからパスワードを設定してください。まだ招待を受けていない方は、所属店舗様にご連絡ください。
+        </div>
+    </div>
+</div>
+
+<!-- ===== 本体 ===== -->
+<div id="app-wrap" style="display:none;">
+    <div class="hdr">
+        <div class="hdr-left">
+            <div class="hdr-logo">YobuHo <em>Cast</em></div>
+            <div class="hdr-email" id="hdr-email">—</div>
+        </div>
+        <button type="button" class="btn btn-logout" onclick="doLogout()">ログアウト</button>
+    </div>
+
+    <div class="main-wrap">
+        <div class="tabs">
+            <button type="button" class="tab-btn active" id="tab-btn-shops" onclick="switchTab('shops')">所属店舗</button>
+            <button type="button" class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
+        </div>
+
+        <!-- 所属店舗タブ -->
+        <div class="tab-content active" id="tab-shops">
+            <div id="shops-loading" style="padding:40px;text-align:center;color:var(--text-3);font-size:13px;">読み込み中…</div>
+            <div id="shops-empty" style="display:none;" class="card">
+                <div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;line-height:1.8;">
+                    現在、所属している店舗がありません。<br>招待を受けた店舗様にご確認ください。
+                </div>
+            </div>
+            <div id="shops-list"></div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div class="tab-content" id="tab-settings">
+            <div class="card">
+                <div class="card-title">🔒 パスワード変更</div>
+                <div class="f-group">
+                    <label class="f-label">現在のパスワード</label>
+                    <input type="password" id="pw-old" class="f-input" autocomplete="current-password">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">新しいパスワード</label>
+                    <input type="password" id="pw-new" class="f-input" autocomplete="new-password" placeholder="8文字以上">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">新しいパスワード（確認）</label>
+                    <input type="password" id="pw-new2" class="f-input" autocomplete="new-password">
+                    <label class="pw-toggle"><input type="checkbox" id="pw-change-show"> パスワードを表示</label>
+                </div>
+                <button type="button" class="btn primary" id="pw-change-btn" onclick="changePassword()">パスワードを変更</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📧 メールアドレス変更</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">現在: <strong id="current-email-val">—</strong></div>
+                <div class="f-group">
+                    <label class="f-label">新しいメールアドレス</label>
+                    <input type="email" id="email-new" class="f-input" autocomplete="off">
+                </div>
+                <div class="f-group">
+                    <label class="f-label">パスワード（確認）</label>
+                    <input type="password" id="email-pw" class="f-input" autocomplete="current-password">
+                </div>
+                <button type="button" class="btn primary" id="email-change-btn" onclick="changeEmail()">メールアドレスを変更</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== プロフィール編集モーダル ===== -->
+<div class="confirm-overlay" id="profile-modal">
+    <div class="confirm-card">
+        <div class="confirm-title">✏️ プロフィール編集</div>
+        <div class="confirm-sub" id="profile-modal-shop">—</div>
+        <div class="f-group">
+            <label class="f-label">源氏名</label>
+            <input type="text" id="pm-name" class="f-input" maxlength="100">
+        </div>
+        <div class="f-group">
+            <label class="f-label">自己紹介（任意・500文字まで）</label>
+            <textarea id="pm-bio" class="f-input" maxlength="500" rows="5" placeholder="お客様に見えるメッセージです。"></textarea>
+        </div>
+        <div class="f-group">
+            <label class="f-label">プロフィール画像（任意）</label>
+            <label class="img-drop" id="pm-img-drop">
+                <span id="pm-img-label">📷 タップして画像を選択（JPG/PNG・500KBまで）</span>
+                <input type="file" id="pm-img-input" accept="image/*">
+            </label>
+            <img id="pm-img-preview" class="img-preview" style="display:none;">
+            <div class="img-actions" id="pm-img-actions" style="display:none;">
+                <button type="button" class="btn" onclick="clearProfileImage()">画像を削除</button>
+            </div>
+        </div>
+        <div class="confirm-btns">
+            <button type="button" class="btn-back-confirm" onclick="closeProfileModal()">キャンセル</button>
+            <button type="button" class="btn-do-submit" id="pm-save-btn" onclick="saveProfileModal()">保存</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 共通ヘルパー ==========
+const SESSION_KEY = 'cast_admin_session';
+let currentCast = null;
+let shopsCache = [];
+let editingShopCastId = null;
+let editingImageDataUrl = null;
+let editingImageCleared = false;
+
+function toast(msg, d = 2500){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), d);
+}
+function esc(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+async function api(action, body = null, method = 'POST'){
+    const url = '/api/cast-auth.php?action=' + encodeURIComponent(action);
+    const opts = { method, credentials: 'include' };
+    if (method === 'POST') {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify(body || {});
+    }
+    let res;
+    try { res = await fetch(url, opts); } catch (e) { throw new Error('通信エラー'); }
+    let data;
+    try { data = await res.json(); } catch (e) { throw new Error('サーバー応答が不正です'); }
+    if (!res.ok || data.error) throw new Error(data.error || 'エラーが発生しました');
+    return data;
+}
+
+// ========== ログイン ==========
+async function doLogin(){
+    const err = document.getElementById('login-err');
+    err.style.display = 'none';
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-pw').value;
+    if (!email || !pw) { err.textContent = 'メールアドレスとパスワードを入力してください'; err.style.display = 'block'; return; }
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true; btn.textContent = 'ログイン中…';
+    try {
+        const data = await api('login', { email, password: pw });
+        currentCast = data.cast;
+        try { localStorage.setItem(SESSION_KEY, '1'); } catch (e) {}
+        showApp();
+    } catch (e) {
+        err.textContent = e.message;
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'ログイン';
+    }
+}
+
+async function doLogout(){
+    if (!confirm('ログアウトしますか？')) return;
+    try { await api('logout', {}); } catch (e) {}
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    location.reload();
+}
+
+function showApp(){
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('app-wrap').style.display = 'block';
+    document.getElementById('hdr-email').textContent = currentCast?.email || '';
+    document.getElementById('current-email-val').textContent = currentCast?.email || '—';
+    loadProfile();
+}
+
+// ========== 起動時セッション確認 ==========
+(async () => {
+    try {
+        const res = await fetch('/api/cast-auth.php?action=check', { credentials: 'include' });
+        const data = await res.json();
+        if (data.authenticated && data.cast) {
+            currentCast = data.cast;
+            showApp();
+            return;
+        }
+    } catch (e) {}
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+})();
+
+// ========== タブ切替 ==========
+function switchTab(name){
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.getElementById('tab-btn-' + name).classList.add('active');
+}
+
+// ========== プロフィール（所属店舗）取得 ==========
+async function loadProfile(){
+    const loading = document.getElementById('shops-loading');
+    const empty = document.getElementById('shops-empty');
+    const list = document.getElementById('shops-list');
+    loading.style.display = 'block';
+    empty.style.display = 'none';
+    list.innerHTML = '';
+    try {
+        const data = await api('profile', null, 'GET');
+        currentCast = data.cast;
+        shopsCache = data.shops || [];
+        document.getElementById('hdr-email').textContent = currentCast.email;
+        document.getElementById('current-email-val').textContent = currentCast.email;
+        loading.style.display = 'none';
+        if (!shopsCache.length) { empty.style.display = 'block'; return; }
+        renderShops(shopsCache);
+    } catch (e) {
+        loading.innerHTML = '<div style="color:var(--red);">読み込みエラー: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderShops(shops){
+    const list = document.getElementById('shops-list');
+    const modePath = { men: '/deli', women: '/jofu', este: '/este', men_same: '/same-m', women_same: '/same-f' };
+    list.innerHTML = shops.map(s => {
+        const imgHtml = s.profile_image_url
+            ? '<img class="shop-img" src="' + esc(s.profile_image_url) + '" alt="' + esc(s.display_name) + '">'
+            : '<div class="shop-img-placeholder">👤</div>';
+        const statusClass = s.status === 'active' ? 'status-active' : 'status-suspended';
+        const statusLabel = s.status === 'active' ? '掲載中' : '一時停止中';
+        const bio = s.bio
+            ? '<div class="shop-bio">' + esc(s.bio) + '</div>'
+            : '<div class="shop-bio empty">（自己紹介が未設定）</div>';
+        const shopUrl = s.slug && modePath[s.gender_mode] ? (modePath[s.gender_mode] + '/shop/' + encodeURIComponent(s.slug) + '/') : null;
+        const shopLink = shopUrl ? '<a href="' + shopUrl + '" target="_blank" rel="noopener" class="btn" style="font-size:12px;">🔗 店舗ページ</a>' : '';
+        return ''
+            + '<div class="shop-card">'
+            +   '<div class="shop-card-hdr">'
+            +     imgHtml
+            +     '<div class="shop-body">'
+            +       '<div class="shop-meta">' + esc(s.shop_name) + ' <span class="status-badge ' + statusClass + '">' + statusLabel + '</span></div>'
+            +       '<div class="shop-display-name">' + esc(s.display_name) + '</div>'
+            +       bio
+            +       '<div class="shop-actions">'
+            +         '<button type="button" class="btn primary" onclick="openProfileModal(\'' + esc(s.shop_cast_id) + '\')" style="font-size:12px;padding:8px 14px;">✏️ プロフィール編集</button>'
+            +         shopLink
+            +       '</div>'
+            +     '</div>'
+            +   '</div>'
+            + '</div>';
+    }).join('');
+}
+
+// ========== プロフィール編集モーダル ==========
+function openProfileModal(shopCastId){
+    const s = shopsCache.find(x => x.shop_cast_id === shopCastId);
+    if (!s) { toast('⚠️ 店舗情報が見つかりません'); return; }
+    editingShopCastId = shopCastId;
+    editingImageDataUrl = null;
+    editingImageCleared = false;
+    document.getElementById('profile-modal-shop').textContent = '店舗: ' + s.shop_name;
+    document.getElementById('pm-name').value = s.display_name || '';
+    document.getElementById('pm-bio').value = s.bio || '';
+    const preview = document.getElementById('pm-img-preview');
+    const actions = document.getElementById('pm-img-actions');
+    const label = document.getElementById('pm-img-label');
+    if (s.profile_image_url) {
+        preview.src = s.profile_image_url;
+        preview.style.display = 'block';
+        actions.style.display = 'flex';
+        label.textContent = '📷 タップして画像を変更';
+    } else {
+        preview.src = '';
+        preview.style.display = 'none';
+        actions.style.display = 'none';
+        label.textContent = '📷 タップして画像を選択（JPG/PNG・500KBまで）';
+    }
+    document.getElementById('pm-img-input').value = '';
+    document.getElementById('profile-modal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeProfileModal(){
+    editingShopCastId = null;
+    editingImageDataUrl = null;
+    editingImageCleared = false;
+    document.getElementById('profile-modal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+function clearProfileImage(){
+    editingImageDataUrl = null;
+    editingImageCleared = true;
+    document.getElementById('pm-img-preview').style.display = 'none';
+    document.getElementById('pm-img-actions').style.display = 'none';
+    document.getElementById('pm-img-input').value = '';
+    document.getElementById('pm-img-label').textContent = '📷 タップして画像を選択（JPG/PNG・500KBまで）';
+}
+document.getElementById('pm-img-input').addEventListener('change', function(e){
+    const file = this.files && this.files[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp|gif)$/i.test(file.type)) { toast('⚠️ 画像形式はJPG/PNG/WebP/GIFのみ'); this.value = ''; return; }
+    if (file.size > 500 * 1024) { toast('⚠️ 画像は500KB以下にしてください'); this.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+        editingImageDataUrl = ev.target.result;
+        editingImageCleared = false;
+        const preview = document.getElementById('pm-img-preview');
+        preview.src = editingImageDataUrl;
+        preview.style.display = 'block';
+        document.getElementById('pm-img-actions').style.display = 'flex';
+        document.getElementById('pm-img-label').textContent = '📷 タップして画像を変更';
+    };
+    reader.readAsDataURL(file);
+});
+
+async function saveProfileModal(){
+    if (!editingShopCastId) return;
+    const name = document.getElementById('pm-name').value.trim();
+    const bio = document.getElementById('pm-bio').value;
+    if (!name) { toast('⚠️ 源氏名を入力してください'); return; }
+    const payload = { shop_cast_id: editingShopCastId, display_name: name, bio };
+    if (editingImageDataUrl) payload.profile_image_url = editingImageDataUrl;
+    else if (editingImageCleared) payload.profile_image_url = '';
+    const btn = document.getElementById('pm-save-btn');
+    btn.disabled = true; btn.textContent = '保存中…';
+    try {
+        await api('update-shop-profile', payload);
+        toast('✅ 保存しました');
+        closeProfileModal();
+        await loadProfile();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = '保存';
+    }
+}
+
+// ========== パスワード変更 ==========
+document.getElementById('login-pw-show').addEventListener('change', function(){ document.getElementById('login-pw').type = this.checked ? 'text' : 'password'; });
+document.getElementById('pw-change-show').addEventListener('change', function(){
+    const t = this.checked ? 'text' : 'password';
+    ['pw-old','pw-new','pw-new2'].forEach(id => document.getElementById(id).type = t);
+});
+
+async function changePassword(){
+    const oldPw = document.getElementById('pw-old').value;
+    const newPw = document.getElementById('pw-new').value;
+    const newPw2 = document.getElementById('pw-new2').value;
+    if (!oldPw || !newPw) { toast('⚠️ パスワードを入力してください'); return; }
+    if (newPw.length < 8) { toast('⚠️ 新しいパスワードは8文字以上'); return; }
+    if (newPw !== newPw2) { toast('⚠️ 新しいパスワードが一致しません'); return; }
+    if (!confirm('パスワードを変更しますか？')) return;
+    const btn = document.getElementById('pw-change-btn');
+    btn.disabled = true; btn.textContent = '変更中…';
+    try {
+        await api('update-password', { old_password: oldPw, new_password: newPw });
+        toast('✅ パスワードを変更しました');
+        ['pw-old','pw-new','pw-new2'].forEach(id => document.getElementById(id).value = '');
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'パスワードを変更';
+    }
+}
+
+async function changeEmail(){
+    const newEmail = document.getElementById('email-new').value.trim();
+    const pw = document.getElementById('email-pw').value;
+    if (!newEmail) { toast('⚠️ 新しいメールアドレスを入力してください'); return; }
+    if (!pw) { toast('⚠️ パスワードを入力してください'); return; }
+    if (!confirm(newEmail + ' に変更しますか？')) return;
+    const btn = document.getElementById('email-change-btn');
+    btn.disabled = true; btn.textContent = '変更中…';
+    try {
+        await api('update-email', { new_email: newEmail, password: pw });
+        toast('✅ メールアドレスを変更しました');
+        document.getElementById('email-new').value = '';
+        document.getElementById('email-pw').value = '';
+        await loadProfile();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = 'メールアドレスを変更';
+    }
+}
+
+document.getElementById('login-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

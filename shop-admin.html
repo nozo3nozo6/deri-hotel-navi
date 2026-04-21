@@ -380,6 +380,7 @@
         <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
         <button class="tab-btn" id="tab-btn-plan" onclick="switchTab('plan')">プラン申込</button>
         <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">💬 YobuChat</button>
+        <button class="tab-btn" id="tab-btn-cast" onclick="switchTab('cast')" style="display:none;">💁 キャスト管理</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -1108,6 +1109,86 @@
         </div>
     </div>
 
+    <!-- ===== キャスト管理タブ ===== -->
+    <div class="tab-content" id="tab-cast">
+        <div id="cast-admin-loading" style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">読み込み中…</div>
+
+        <div id="cast-admin-body" style="display:none;">
+            <!-- サマリーカード -->
+            <div class="card">
+                <div class="card-title">💁 キャスト管理</div>
+                <div style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:14px;">
+                    お客様が<strong>キャスト本人と直接チャット</strong>できる機能です。キャストはメール招待で登録し、YobuHo のキャスト管理画面にログインして対応します。
+                </div>
+                <div id="cast-limit-summary" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;"></div>
+            </div>
+
+            <!-- 招待フォーム -->
+            <div class="card">
+                <div class="card-title">✉️ 新しいキャストを招待</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:12px;">登録したいキャストのメールアドレスと源氏名を入力すると、Magic Link の招待メールが送信されます。受信者がリンクをクリックしてパスワードを設定すると登録が完了します（招待の有効期限は3日間）。</div>
+                <div style="display:flex;flex-direction:column;gap:10px;max-width:480px;">
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">源氏名 <span style="color:#c33;">*</span></label>
+                        <input type="text" id="cast-invite-name" placeholder="例: みか" maxlength="100" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">メールアドレス <span style="color:#c33;">*</span></label>
+                        <input type="email" id="cast-invite-email" placeholder="cast@example.com" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <button type="button" class="btn primary" id="cast-invite-btn" onclick="inviteCast()" style="padding:10px 20px;font-size:14px;font-weight:700;">📩 招待メールを送信</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アクティブキャスト一覧 -->
+            <div class="card">
+                <div class="card-title">👥 登録済みキャスト</div>
+                <div id="cast-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+
+            <!-- 招待中（未受諾） -->
+            <div class="card" id="cast-pending-card" style="display:none;">
+                <div class="card-title">⏳ 招待中（未受諾）</div>
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">メールは届いたが、まだリンクをクリックしていないキャストです。有効期限内に再送できます。</div>
+                <div id="cast-pending-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== キャストプロフィール編集モーダル ===== -->
+<div class="confirm-overlay" id="cast-edit-modal">
+    <div class="confirm-card" style="max-width:460px;">
+        <div class="confirm-title">✏️ キャスト情報を編集</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin:10px 0 16px;">
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">源氏名</label>
+                <input type="text" id="cast-edit-name" maxlength="100" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">自己紹介（任意・500文字まで）</label>
+                <textarea id="cast-edit-bio" rows="4" maxlength="500" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">表示順（小さいほど上位）</label>
+                <input type="number" id="cast-edit-sort" min="0" max="9999" style="width:120px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">状態</label>
+                <select id="cast-edit-status" style="padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+                    <option value="active">掲載中</option>
+                    <option value="suspended">一時停止</option>
+                </select>
+            </div>
+        </div>
+        <div class="confirm-btns">
+            <button class="btn-back-confirm" onclick="closeCastEdit()">キャンセル</button>
+            <button class="btn-do-submit" id="cast-edit-save-btn" onclick="saveCastEdit()">保存する</button>
+        </div>
+    </div>
 </div>
 
 <!-- ===== ラブホ投稿確認モーダル ===== -->
@@ -1246,6 +1327,7 @@ function onLoggedIn(){
     document.getElementById("hdr-shop-name").textContent=currentShop.shop_name||"店舗";
     document.getElementById("settings-current-email").textContent=currentShop.email||"";
     applyChatTabVisibility();
+    applyCastTabVisibility();
     loadMasterData();
     loadRegisteredHotelIds();
     loadRegisteredHotels();
@@ -1263,6 +1345,20 @@ function applyChatTabVisibility(){
     btn.style.display=allowed?'':'none';
     if(!allowed){
         const tabContent=document.getElementById('tab-chat');
+        if(tabContent&&tabContent.classList.contains('active')){
+            switchTab('settings');
+        }
+    }
+}
+
+// キャスト管理タブはshops.cast_enabled=1の店舗のみ表示（テスト段階は立川秘密基地のみ）
+function applyCastTabVisibility(){
+    const btn=document.getElementById('tab-btn-cast');
+    if(!btn)return;
+    const allowed=!!(currentShop&&Number(currentShop.cast_enabled)===1);
+    btn.style.display=allowed?'':'none';
+    if(!allowed){
+        const tabContent=document.getElementById('tab-cast');
         if(tabContent&&tabContent.classList.contains('active')){
             switchTab('settings');
         }
@@ -1652,6 +1748,7 @@ function switchTab(name){
     if(name==="list")loadRegisteredHotels();
     if(name==="plan")loadPlanTab();
     if(name==="chat")loadChatAdmin();
+    if(name==="cast")loadCastTab();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
 }
 
@@ -3228,6 +3325,215 @@ async function unblockUser(id){
         const data = await chatApi('admin-overview', {}, 'GET');
         renderBlockList(data.blocks || []);
     } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+// ===== キャスト管理 =====
+let _castEditingId = null;
+
+async function castApi(action, body = null, method = 'POST'){
+    const url = '/api/shop-cast-api.php?action=' + encodeURIComponent(action);
+    const opts = { method, credentials: 'include' };
+    if (method === 'POST') {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify(body || {});
+    }
+    let res;
+    try { res = await fetch(url, opts); } catch (e) { throw new Error('通信に失敗しました'); }
+    let data;
+    try { data = await res.json(); } catch (e) { throw new Error('サーバー応答が不正です'); }
+    if (!res.ok || data.error) throw new Error(data.error || 'エラーが発生しました');
+    return data;
+}
+
+async function loadCastTab(){
+    const loading = document.getElementById('cast-admin-loading');
+    const body = document.getElementById('cast-admin-body');
+    loading.style.display = 'block';
+    body.style.display = 'none';
+    try {
+        const data = await castApi('list', null, 'GET');
+        renderCastSummary(data);
+        renderCastList(data.casts || []);
+        renderCastPending(data.pending_invites || []);
+        loading.style.display = 'none';
+        body.style.display = 'block';
+    } catch (e) {
+        loading.innerHTML = '<div style="color:#c33;">読み込みエラー: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderCastSummary(d){
+    const limit = Number(d.cast_limit) || 0;
+    const used = Number(d.cast_used) || 0;
+    const remaining = Math.max(0, limit - used);
+    const over = used > limit;
+    const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    const barColor = over ? '#c33' : (pct >= 80 ? '#d97706' : '#059669');
+    const summary = document.getElementById('cast-limit-summary');
+    if (limit <= 0) {
+        summary.innerHTML = '<div style="color:#c33;font-weight:600;">現在のプランではキャスト登録ができません。<a href="#" onclick="switchTab(\'plan\');return false;" style="color:var(--rose);">プランをアップグレード →</a></div>';
+        document.getElementById('cast-invite-btn').disabled = true;
+        return;
+    }
+    summary.innerHTML =
+        '<div style="flex:1;min-width:160px;"><strong style="font-size:15px;color:var(--text-1);">' + used + ' / ' + limit + ' 名</strong>'
+        + '<span style="color:var(--text-3);margin-left:8px;">（残り ' + remaining + ' 枠）</span></div>'
+        + '<div style="flex:1 1 240px;min-width:160px;height:10px;background:#eee;border-radius:5px;overflow:hidden;">'
+        + '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';transition:width .3s;"></div></div>';
+    const inviteBtn = document.getElementById('cast-invite-btn');
+    inviteBtn.disabled = (remaining <= 0);
+    if (remaining <= 0) {
+        inviteBtn.textContent = '📩 招待メールを送信（枠がいっぱいです）';
+    } else {
+        inviteBtn.textContent = '📩 招待メールを送信';
+    }
+}
+
+function renderCastList(casts){
+    const el = document.getElementById('cast-list');
+    if (!casts.length) {
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px;">まだキャストが登録されていません。上の招待フォームから追加してください。</div>';
+        return;
+    }
+    el.innerHTML = casts.map(c => {
+        const hasPwd = Number(c.has_password) === 1;
+        const statusBadge = c.status === 'suspended'
+            ? '<span style="font-size:11px;padding:2px 8px;background:#fff3cd;color:#856404;border-radius:10px;">一時停止中</span>'
+            : (hasPwd
+                ? '<span style="font-size:11px;padding:2px 8px;background:#d1fae5;color:#065f46;border-radius:10px;">登録済み</span>'
+                : '<span style="font-size:11px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;">パスワード未設定</span>');
+        const lastLogin = c.last_login_at ? ('最終ログイン: ' + formatCastDate(c.last_login_at)) : 'ログイン履歴なし';
+        const bio = c.bio ? '<div style="font-size:12px;color:var(--text-3);margin-top:6px;white-space:pre-wrap;">' + esc(c.bio) + '</div>' : '';
+        return ''
+            + '<div style="padding:12px 14px;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;">'
+            + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+            + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + '</div>'
+            + '<div style="display:flex;gap:6px;">'
+            + '<button type="button" class="btn" onclick="openCastEdit(\'' + esc(c.id) + '\')" style="padding:6px 12px;font-size:12px;">✏️ 編集</button>'
+            + '<button type="button" class="btn" onclick="removeCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;color:#c33;">✕ 削除</button>'
+            + '</div></div>'
+            + '<div style="font-size:12px;color:var(--text-3);margin-top:6px;">' + esc(c.email) + ' / ' + esc(lastLogin) + '</div>'
+            + bio
+            + '</div>';
+    }).join('');
+}
+
+function renderCastPending(invites){
+    const card = document.getElementById('cast-pending-card');
+    const list = document.getElementById('cast-pending-list');
+    if (!invites.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = invites.map(iv => ''
+        + '<div style="padding:10px 12px;background:#fffbea;border:1px solid #ffe082;border-radius:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+        + '<div style="flex:1;min-width:180px;font-size:13px;">'
+        + '<strong>' + esc(iv.display_name) + '</strong> / ' + esc(iv.email)
+        + '<div style="font-size:11px;color:var(--text-3);margin-top:2px;">有効期限: ' + formatCastDate(iv.expires_at) + '</div>'
+        + '</div>'
+        + '<button type="button" class="btn" onclick="resendCastInvite(\'' + esc(iv.id) + '\')" style="padding:6px 12px;font-size:12px;">📩 再送</button>'
+        + '</div>'
+    ).join('');
+}
+
+function formatCastDate(s){
+    if (!s) return '';
+    try {
+        const d = new Date(s.replace(' ', 'T') + '+09:00');
+        if (isNaN(d.getTime())) return s;
+        const Y = d.getFullYear(), M = String(d.getMonth()+1).padStart(2,'0'), D = String(d.getDate()).padStart(2,'0');
+        const h = String(d.getHours()).padStart(2,'0'), m = String(d.getMinutes()).padStart(2,'0');
+        return Y + '/' + M + '/' + D + ' ' + h + ':' + m;
+    } catch (e) { return s; }
+}
+
+async function inviteCast(){
+    const nameEl = document.getElementById('cast-invite-name');
+    const emailEl = document.getElementById('cast-invite-email');
+    const name = (nameEl.value || '').trim();
+    const email = (emailEl.value || '').trim();
+    if (!name) { toast('⚠️ 源氏名を入力してください'); nameEl.focus(); return; }
+    if (!email) { toast('⚠️ メールアドレスを入力してください'); emailEl.focus(); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('⚠️ メールアドレスの形式が正しくありません'); emailEl.focus(); return; }
+    if (!confirm(email + ' に招待メールを送信します。よろしいですか？')) return;
+    const btn = document.getElementById('cast-invite-btn');
+    const original = btn.textContent;
+    btn.disabled = true; btn.textContent = '送信中…';
+    try {
+        await castApi('invite', { email, display_name: name });
+        toast('✅ 招待メールを送信しました');
+        nameEl.value = ''; emailEl.value = '';
+        await loadCastTab();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+        btn.disabled = false; btn.textContent = original;
+    }
+}
+
+function openCastEdit(id){
+    const card = Array.from(document.querySelectorAll('#cast-list > div')).find(el => el.innerHTML.includes(id));
+    _castEditingId = id;
+    fetch('/api/shop-cast-api.php?action=list', { credentials: 'include' })
+        .then(r => r.json()).then(d => {
+            const c = (d.casts || []).find(x => x.id === id);
+            if (!c) { toast('⚠️ キャスト情報が見つかりません'); return; }
+            document.getElementById('cast-edit-name').value = c.display_name || '';
+            document.getElementById('cast-edit-bio').value = c.bio || '';
+            document.getElementById('cast-edit-sort').value = c.sort_order ?? 100;
+            document.getElementById('cast-edit-status').value = (c.status === 'suspended') ? 'suspended' : 'active';
+            document.getElementById('cast-edit-modal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+}
+
+function closeCastEdit(){
+    _castEditingId = null;
+    document.getElementById('cast-edit-modal').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+async function saveCastEdit(){
+    if (!_castEditingId) return;
+    const name = document.getElementById('cast-edit-name').value.trim();
+    if (!name) { toast('⚠️ 源氏名を入力してください'); return; }
+    const payload = {
+        id: _castEditingId,
+        display_name: name,
+        bio: document.getElementById('cast-edit-bio').value,
+        sort_order: Number(document.getElementById('cast-edit-sort').value) || 100,
+        status: document.getElementById('cast-edit-status').value
+    };
+    const btn = document.getElementById('cast-edit-save-btn');
+    btn.disabled = true; btn.textContent = '保存中…';
+    try {
+        await castApi('update', payload);
+        toast('✅ 更新しました');
+        closeCastEdit();
+        await loadCastTab();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    } finally {
+        btn.disabled = false; btn.textContent = '保存する';
+    }
+}
+
+async function removeCast(id, displayName){
+    if (!confirm((displayName || 'このキャスト') + ' を店舗から削除します。\nよろしいですか？\n（キャスト本人のアカウントは他店舗があれば維持されます）')) return;
+    try {
+        await castApi('remove', { id });
+        toast('✅ 削除しました');
+        await loadCastTab();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    }
+}
+
+async function resendCastInvite(inviteId){
+    if (!confirm('招待メールを再送しますか？')) return;
+    try {
+        await castApi('resend-invite', { invite_id: inviteId });
+        toast('✅ 招待メールを再送しました');
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+    }
 }
 </script>
 
