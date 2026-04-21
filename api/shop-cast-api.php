@@ -210,6 +210,16 @@ function handleInvite() {
                 $pdo->rollBack();
                 err('このメールアドレスは既に招待済みです');
             }
+
+            // 他店舗含めて1つも現役link がなければ、前回のpassword/ログイン履歴をリセット
+            // （削除後の再招待で承認ステップを事実上スキップしてしまう事故を防ぐ）
+            $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_casts WHERE cast_id = ?');
+            $stmt->execute([$castId]);
+            if ((int)$stmt->fetchColumn() === 0) {
+                $pdo->prepare('UPDATE casts SET password_hash = NULL, last_login_at = NULL, status = "invited" WHERE id = ?')
+                    ->execute([$castId]);
+            }
+
             if ($existingLink && $existingLink['status'] === 'removed') {
                 // 再招待: pending_approval に戻して承認日時もクリア
                 $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, updated_at = NOW() WHERE id = ?')
@@ -335,7 +345,7 @@ function handleRemove() {
     $pdo = DB::conn();
 
     $stmt = $pdo->prepare(
-        'SELECT c.email FROM shop_casts sc
+        'SELECT c.id AS cast_id, c.email FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
          WHERE sc.id = ? AND sc.shop_id = ?'
     );
@@ -349,6 +359,15 @@ function handleRemove() {
     if ($row && $row['email']) {
         $pdo->prepare('DELETE FROM cast_invites WHERE shop_id = ? AND email = ? AND consumed_at IS NULL')
             ->execute([$auth['shop_id'], $row['email']]);
+
+        // 他店舗に所属がなければ、cast本体もリセット（パスワード・ログイン履歴も消す）
+        // これをしないと再招待時に前回の password_hash が残り、承認ステップが事実上スキップされる
+        $stmt3 = $pdo->prepare('SELECT COUNT(*) FROM shop_casts WHERE cast_id = ?');
+        $stmt3->execute([$row['cast_id']]);
+        if ((int)$stmt3->fetchColumn() === 0) {
+            $pdo->prepare('DELETE FROM cast_invites WHERE email = ?')->execute([$row['email']]);
+            $pdo->prepare('DELETE FROM casts WHERE id = ?')->execute([$row['cast_id']]);
+        }
     }
 
     ok();
