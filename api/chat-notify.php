@@ -99,7 +99,7 @@ $headers = [
     'X-Mailer: YobuChat-DO',
 ];
 
-$ok = @mail($to, $encodedSubject, $textBody, implode("\r\n", $headers));
+$ok = @mail($to, $encodedSubject, $textBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
 
 if (!$ok) {
     http_response_code(500);
