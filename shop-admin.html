@@ -1046,11 +1046,8 @@
                         <input type="radio" name="chat-notify-mode" value="every" style="width:16px;height:16px;">
                         <span><strong>毎メッセージ</strong>（下の最小間隔に従ってスロットル）</span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
-                        <input type="radio" name="chat-notify-mode" value="off" style="width:16px;height:16px;">
-                        <span><strong>通知しない</strong>（管理画面で確認のみ）</span>
-                    </label>
                 </div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">※ 通知を止めたい場合は上部「通知設定」のトグルをOFFにしてください（チャット画面からも可）。</div>
                 <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
                     <span>最小通知間隔:</span>
                     <input id="chat-notify-interval" type="number" min="1" max="60" class="f-input" style="width:70px;text-align:center;">
@@ -2814,8 +2811,10 @@ async function syncChatAdminToggle(){
         onlineChk.checked = isNotifyOn;
         const lbl = document.getElementById('chat-admin-online-label');
         if (lbl) lbl.textContent = isNotifyOn ? 'オンライン受付中' : 'オフライン';
+        // 'off' ラジオは廃止。off の場合は 'first' を選択状態にする（ON復帰時のデフォルト）
+        const radioMode = (data.notify_mode && data.notify_mode !== 'off') ? data.notify_mode : 'first';
         document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
-            rr.checked = (rr.value === (data.notify_mode || 'first'));
+            rr.checked = (rr.value === radioMode);
         });
     } catch (e) { /* silent */ }
 }
@@ -2918,12 +2917,11 @@ function renderChatAdmin(data){
         try {
             const r = await chatApi('admin-toggle-online', { is_online: onlineChk.checked ? 1 : 0 });
             document.getElementById('chat-admin-online-label').textContent = r.is_online ? 'オンライン受付中' : 'オフライン';
-            // notify_mode ラジオも同期（ON時は first に復帰 / OFF時は off）
-            if (r.notify_mode) {
-                document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
-                    rr.checked = (rr.value === r.notify_mode);
-                });
-            }
+            // 'off' ラジオは廃止。notify_mode が off の場合は first をデフォルト選択（ON復帰時のため）
+            const rMode = (r.notify_mode && r.notify_mode !== 'off') ? r.notify_mode : 'first';
+            document.querySelectorAll('input[name="chat-notify-mode"]').forEach(rr => {
+                rr.checked = (rr.value === rMode);
+            });
             toast(r.is_online ? '✅ オンラインに切替（メール通知ON）' : 'オフラインに切替（メール通知OFF）');
         } catch (e) {
             onlineChk.checked = !onlineChk.checked;
@@ -2931,9 +2929,10 @@ function renderChatAdmin(data){
         }
     };
 
-    // Notify settings
+    // Notify settings — 'off' ラジオは廃止のため、off なら first を選択状態に
+    const initialRadioMode = (data.notify_mode && data.notify_mode !== 'off') ? data.notify_mode : 'first';
     document.querySelectorAll('input[name="chat-notify-mode"]').forEach(r => {
-        r.checked = (r.value === (data.notify_mode || 'first'));
+        r.checked = (r.value === initialRadioMode);
     });
     document.getElementById('chat-notify-interval').value = data.notify_min_interval_minutes || 3;
     const shopEmailText = data.shop_email || (currentShop && currentShop.email) || '';
@@ -3120,9 +3119,13 @@ async function saveChatSettings(){
         toast('通知先メールアドレスの形式が正しくありません'); return;
     }
 
+    // 通知トグルが OFF の場合は 'off' を送る（ラジオ値で上書きしない）
+    const toggleOn = !!(document.getElementById('chat-admin-online') || {}).checked;
+    const notifyModeToSend = toggleOn ? mode.value : 'off';
+
     try {
         await chatApi('admin-save-settings', {
-            notify_mode: mode.value,
+            notify_mode: notifyModeToSend,
             notify_min_interval_minutes: interval,
             reception_start: rStart,
             reception_end: rEnd,
