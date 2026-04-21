@@ -33,11 +33,13 @@ function getCastParam() {
 
 // キャスト閲覧専用モード: ?cast=&view=<session_token> で既存訪問者セッションを read-only 表示.
 // chat-notify.php がキャスト宛通知メールに付与する. 入力UIは全非表示, キャストは電話/LINEで返信する.
+// session_token の形式は 2 種: DO発行=UUID (8-4-4-4-12, ハイフン含む36文字), PHP発行=bin2hex 48桁hex.
+// 両方許容するため [a-f0-9\-]{32,64} で判定.
 function getViewToken() {
     try {
         const p = new URLSearchParams(window.location.search);
-        const v = (p.get('view') || '').trim();
-        return /^[a-f0-9]{32,64}$/.test(v) ? v : '';
+        const v = (p.get('view') || '').trim().toLowerCase();
+        return /^[a-f0-9\-]{32,64}$/.test(v) ? v : '';
     } catch (_) { return ''; }
 }
 
