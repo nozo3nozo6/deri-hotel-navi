@@ -667,53 +667,57 @@ async function init() {
 }
 async function _init() {
     try {
-        // 1. localStorage の device_token で verify-device
-        let savedToken = null;
-        try { savedToken = localStorage.getItem(LS_DEVICE); } catch (_) { savedToken = null; }
-        if (savedToken) {
-            try {
-                const dev = await api('verify-device', { device_token: savedToken });
-                if (dev.slug === SLUG) {
-                    state.mode = 'owner';
-                    state.device_token = savedToken;
-                    state.shop_name = dev.shop_name;
-                    state.notify_enabled = dev.notify_enabled !== false;
-                    setThemeMode(dev.gender_mode);
-                    await enterOwnerMode();
-                    setLoading(false);
-                    return;
-                }
-                // slug不一致 → トークン削除（他店アクセス）
-                localStorage.removeItem(LS_DEVICE);
-            } catch (e) {
-                // トークン無効 → 削除
-                localStorage.removeItem(LS_DEVICE);
-            }
-        }
-
-        // 2. shop-auth PHPセッション確認（店舗オーナーがshop-admin経由でログイン済みか）
-        try {
-            const chk = await fetch(SHOP_AUTH_API + '?action=check', { credentials: 'include' });
-            const chkData = await chk.json().catch(() => ({}));
-            if (chkData.authenticated && chkData.shop && chkData.shop.slug === SLUG) {
-                // 自動的に device_token 発行 → オーナーモード
+        // ?cast=... 指名URLの場合は必ず訪問者モード。
+        // 店舗オーナーが同じブラウザで開いた時にオーナー画面へ乗っ取られるのを防ぐ。
+        if (!CAST_ID) {
+            // 1. localStorage の device_token で verify-device
+            let savedToken = null;
+            try { savedToken = localStorage.getItem(LS_DEVICE); } catch (_) { savedToken = null; }
+            if (savedToken) {
                 try {
-                    const reg = await api('register-device', { device_name: 'ブラウザ自動登録' });
-                    if (reg.device_token) {
-                        localStorage.setItem(LS_DEVICE, reg.device_token);
+                    const dev = await api('verify-device', { device_token: savedToken });
+                    if (dev.slug === SLUG) {
                         state.mode = 'owner';
-                        state.device_token = reg.device_token;
-                        state.shop_name = chkData.shop.shop_name || '';
-                        setThemeMode(chkData.shop.gender_mode || reg.gender_mode);
+                        state.device_token = savedToken;
+                        state.shop_name = dev.shop_name;
+                        state.notify_enabled = dev.notify_enabled !== false;
+                        setThemeMode(dev.gender_mode);
                         await enterOwnerMode();
                         setLoading(false);
                         return;
                     }
+                    // slug不一致 → トークン削除（他店アクセス）
+                    localStorage.removeItem(LS_DEVICE);
                 } catch (e) {
-                    // チャット未有効化の場合など → 訪問者モードへフォールバック
+                    // トークン無効 → 削除
+                    localStorage.removeItem(LS_DEVICE);
                 }
             }
-        } catch (e) { /* session check fail → visitor fallback */ }
+
+            // 2. shop-auth PHPセッション確認（店舗オーナーがshop-admin経由でログイン済みか）
+            try {
+                const chk = await fetch(SHOP_AUTH_API + '?action=check', { credentials: 'include' });
+                const chkData = await chk.json().catch(() => ({}));
+                if (chkData.authenticated && chkData.shop && chkData.shop.slug === SLUG) {
+                    // 自動的に device_token 発行 → オーナーモード
+                    try {
+                        const reg = await api('register-device', { device_name: 'ブラウザ自動登録' });
+                        if (reg.device_token) {
+                            localStorage.setItem(LS_DEVICE, reg.device_token);
+                            state.mode = 'owner';
+                            state.device_token = reg.device_token;
+                            state.shop_name = chkData.shop.shop_name || '';
+                            setThemeMode(chkData.shop.gender_mode || reg.gender_mode);
+                            await enterOwnerMode();
+                            setLoading(false);
+                            return;
+                        }
+                    } catch (e) {
+                        // チャット未有効化の場合など → 訪問者モードへフォールバック
+                    }
+                }
+            } catch (e) { /* session check fail → visitor fallback */ }
+        }
 
         // 3. 訪問者モード
         const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
