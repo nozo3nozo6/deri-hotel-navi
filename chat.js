@@ -787,15 +787,19 @@ async function enterVisitorMode() {
         state.session_id = saved.session_id || 0;
         // リロード時は全履歴を再取得（since_id=0）
         state.last_message_id = 0;
+        // 既存セッションのキャスト名をヘッダーに復元（LS_SESSION から優先、無ければ adopt レスポンスで上書き）
+        if (saved.cast_name) state.cast_name = saved.cast_name;
         // DO版では既存 session_token を DO に adopt させる（createIfMissing）
         try {
-            await Transport.startVisitorSession({
+            const adopt = await Transport.startVisitorSession({
                 shopSlug: SLUG,
                 source: isEmbedded() ? 'widget' : 'standalone',
                 sessionToken: saved.token,
                 cast: CAST_ID || undefined
             });
+            if (adopt && adopt.cast_name) state.cast_name = adopt.cast_name;
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
+        updateCastHeader();
         // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
         // PHP を叩くと MySQL mirror の message ID (DOと別空間) で state.last_message_id が汚染され、
         // DO 発行の新規 msg.id (より小さい値) が `m.id > last_message_id` のガードで描画されない.
@@ -835,6 +839,7 @@ function saveVisitorSession() {
             token: state.session_token,
             session_id: state.session_id,
             last_message_id: state.last_message_id,
+            cast_name: state.cast_name || null,
         }));
     } catch (_) {}
 }

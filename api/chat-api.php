@@ -512,11 +512,38 @@ function handleStartSession() {
     $slug = trim((string)inp('shop_slug', ''));
     $source = inp('source', 'standalone');
     $shopCastId = trim((string)inp('cast', '')); // shop_casts.id (not casts.id) — キャスト指名
+    $adoptToken = trim((string)inp('session_token', '')); // DO adopt / リロード時の既存セッション復元
     if (!in_array($source, ['portal', 'widget', 'standalone'], true)) $source = 'standalone';
     if ($slug === '') err('shop_slug required');
 
     $shop = getShopBySlug($slug);
     if (!$shop) err('YobuChatは利用できません', 404);
+
+    $pdo = DB::conn();
+
+    // createIfMissing セマンティクス: 既存の session_token が有効なら、そのセッションを再利用して返す
+    // (リロード時に無駄な新規セッションを作らず、同じ cast_id / cast_name を保つ).
+    if ($adoptToken !== '') {
+        $stmt = $pdo->prepare(
+            'SELECT cs.id, cs.cast_id, sc.display_name AS cast_name
+             FROM chat_sessions cs
+             LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
+             WHERE cs.session_token = ? AND cs.shop_id = ? LIMIT 1'
+        );
+        $stmt->execute([$adoptToken, $shop['id']]);
+        $existing = $stmt->fetch();
+        if ($existing) {
+            ok([
+                'session_token' => $adoptToken,
+                'session_id'    => (int)$existing['id'],
+                'shop_name'     => $shop['shop_name'],
+                'cast_name'     => $existing['cast_name'],
+                'is_online'     => effectiveOnline($shop),
+                'gender_mode'   => $shop['gender_mode'] ?? 'men',
+            ]);
+        }
+        // 存在しなければ下の新規作成パスにフォールスルー
+    }
 
     $vh = visitorHash();
     if (isBlocked($shop['id'], $vh)) err('この店舗への連絡は停止されています', 403);
@@ -528,7 +555,6 @@ function handleStartSession() {
     $castId = null;
     $castName = null;
     if ($shopCastId !== '') {
-        $pdo = DB::conn();
         $stmt = $pdo->prepare(
             'SELECT sc.cast_id, sc.display_name, sc.status
              FROM shop_casts sc
@@ -544,7 +570,6 @@ function handleStartSession() {
     }
 
     $token = bin2hex(random_bytes(24));
-    $pdo = $pdo ?? DB::conn();
     $stmt = $pdo->prepare(
         'INSERT INTO chat_sessions (shop_id, cast_id, session_token, visitor_hash, source) VALUES (?, ?, ?, ?, ?)'
     );
