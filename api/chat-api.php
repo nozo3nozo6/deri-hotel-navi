@@ -1110,13 +1110,19 @@ function handleToggleOnline() {
 }
 
 /**
- * オーナー画面を閉じた時などに呼ばれる: is_online=0 に落とす（通知モードは維持）
+ * オーナー画面を閉じた時などに呼ばれる。
+ * A案ルール: 🟢 表示は notify_mode（受付トグル）のみで決まる。
+ * notify_mode='off' の時だけ is_online=0 に揃える（不整合の補正目的）。
+ * notify_mode != 'off' ならオーナー不在でも is_online=1 を維持する。
  */
 function handleOwnerGoOffline() {
     $device = requireDevice();
-    DB::conn()->prepare('UPDATE shop_chat_status SET is_online = 0 WHERE shop_id = ?')
-        ->execute([$device['shop_id']]);
-    ok(['is_online' => false]);
+    DB::conn()->prepare(
+        "UPDATE shop_chat_status SET is_online = IF(notify_mode = 'off', 0, 1) WHERE shop_id = ?"
+    )->execute([$device['shop_id']]);
+    $stmt = DB::conn()->prepare('SELECT is_online FROM shop_chat_status WHERE shop_id = ?');
+    $stmt->execute([$device['shop_id']]);
+    ok(['is_online' => ((int)$stmt->fetchColumn()) === 1]);
 }
 
 /**
