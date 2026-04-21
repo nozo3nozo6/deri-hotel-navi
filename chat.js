@@ -789,6 +789,8 @@ async function enterVisitorMode() {
         state.last_message_id = 0;
         // 既存セッションのキャスト名をヘッダーに復元（LS_SESSION から優先、無ければ adopt レスポンスで上書き）
         if (saved.cast_name) state.cast_name = saved.cast_name;
+        // LS に cast_name があれば await 前にヘッダーを即更新（体感速度＋ネットワークエラー時の保険）
+        updateCastHeader();
         // DO版では既存 session_token を DO に adopt させる（createIfMissing）
         try {
             const adopt = await Transport.startVisitorSession({
@@ -797,7 +799,11 @@ async function enterVisitorMode() {
                 sessionToken: saved.token,
                 cast: CAST_ID || undefined
             });
-            if (adopt && adopt.cast_name) state.cast_name = adopt.cast_name;
+            if (adopt && adopt.cast_name) {
+                state.cast_name = adopt.cast_name;
+                // adopt で得た cast_name を LS に反映（旧バージョンで保存されたセッションを救済）
+                saveVisitorSession();
+            }
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
         updateCastHeader();
         // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
