@@ -134,6 +134,7 @@ switch ($action) {
     case 'update':          handleUpdate(); break;
     case 'remove':          handleRemove(); break;
     case 'resend-invite':   handleResendInvite(); break;
+    case 'cancel-invite':   handleCancelInvite(); break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -332,10 +333,39 @@ function handleRemove() {
     if ($id === '') err('id required');
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('DELETE FROM shop_casts WHERE id = ? AND shop_id = ?');
+
+    $stmt = $pdo->prepare(
+        'SELECT c.email FROM shop_casts sc
+         JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.id = ? AND sc.shop_id = ?'
+    );
     $stmt->execute([$id, $auth['shop_id']]);
-    if (!$stmt->rowCount()) err('Cast not found', 404);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $stmt2 = $pdo->prepare('DELETE FROM shop_casts WHERE id = ? AND shop_id = ?');
+    $stmt2->execute([$id, $auth['shop_id']]);
+    if (!$stmt2->rowCount()) err('Cast not found', 404);
+
+    if ($row && $row['email']) {
+        $pdo->prepare('DELETE FROM cast_invites WHERE shop_id = ? AND email = ? AND consumed_at IS NULL')
+            ->execute([$auth['shop_id'], $row['email']]);
+    }
+
     ok();
+}
+
+function handleCancelInvite() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('POST only', 405);
+    $auth = requireAuth();
+    requireCastEnabled($auth['shop_id']);
+    $inviteId = (string)inp('invite_id', '');
+    if ($inviteId === '') err('invite_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('DELETE FROM cast_invites WHERE id = ? AND shop_id = ? AND consumed_at IS NULL');
+    $stmt->execute([$inviteId, $auth['shop_id']]);
+    if (!$stmt->rowCount()) err('招待が見つからないか既に受諾されています', 404);
+    ok(['message' => '招待を取り消しました']);
 }
 
 function handleResendInvite() {
