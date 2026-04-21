@@ -411,6 +411,17 @@ function renderShops(shops){
         const pendingNote = isPending
             ? '<div class="pending-note">店舗オーナーの承認をお待ちください。承認されるとチャット受付やプロフィール公開が有効になります。<br>プロフィールは今のうちに準備しておけます。</div>'
             : '';
+        const castChatUrl = (!isPending && s.slug) ? ('https://yobuho.com/chat/' + encodeURIComponent(s.slug) + '/?cast=' + encodeURIComponent(s.shop_cast_id)) : null;
+        const castUrlBlock = castChatUrl
+            ? '<div class="cast-url-block" style="margin-top:10px;padding:10px 12px;background:#fff8f0;border:1px solid #f5d6b3;border-radius:8px;">'
+            +   '<div style="font-size:11px;color:#8a5a2a;font-weight:600;margin-bottom:6px;">📌 あなたの指名チャットURL</div>'
+            +   '<div style="display:flex;gap:6px;align-items:center;">'
+            +     '<input type="text" readonly value="' + esc(castChatUrl) + '" id="cast-url-' + esc(s.shop_cast_id) + '" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e5c8a3;border-radius:6px;font-size:11px;background:#fff;font-family:monospace;">'
+            +     '<button type="button" class="btn" onclick="copyCastUrl(\'' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 コピー</button>'
+            +   '</div>'
+            +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">このURLをSNSプロフィール等に貼ると、お客様から直接あなたへチャットが届きます。</div>'
+            + '</div>'
+            : '';
         return ''
             + '<div class="shop-card">'
             +   '<div class="shop-card-hdr">'
@@ -420,6 +431,7 @@ function renderShops(shops){
             +       '<div class="shop-display-name">' + esc(s.display_name) + '</div>'
             +       bio
             +       pendingNote
+            +       castUrlBlock
             +       '<div class="shop-actions">'
             +         '<button type="button" class="btn primary" onclick="openProfileModal(\'' + esc(s.shop_cast_id) + '\')" style="font-size:12px;padding:8px 14px;">✏️ プロフィール編集</button>'
             +         shopLink
@@ -428,6 +440,26 @@ function renderShops(shops){
             +   '</div>'
             + '</div>';
     }).join('');
+}
+
+function copyCastUrl(shopCastId){
+    const input = document.getElementById('cast-url-' + shopCastId);
+    if (!input) return;
+    input.select();
+    input.setSelectionRange(0, 9999);
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(input.value).then(
+                () => toast('✅ URLをコピーしました'),
+                () => { document.execCommand('copy'); toast('✅ URLをコピーしました'); }
+            );
+        } else {
+            document.execCommand('copy');
+            toast('✅ URLをコピーしました');
+        }
+    } catch (e) {
+        toast('⚠️ コピーに失敗しました。手動で選択してコピーしてください');
+    }
 }
 
 // ========== プロフィール編集モーダル ==========

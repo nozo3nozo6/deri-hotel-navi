@@ -38,7 +38,7 @@ if (!SLUG) {
     return;
 }
 
-const LS_SESSION = 'chat_session_' + SLUG;
+const LS_SESSION = 'chat_session_' + SLUG + '_' + (CAST_ID || 'shop');
 const LS_NICKNAME = 'chat_nickname_' + SLUG;
 const LS_DEVICE  = 'chat_owner_token';
 
