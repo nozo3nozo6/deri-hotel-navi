@@ -927,16 +927,14 @@ function handleOwnerInbox() {
     $pdo = DB::conn();
 
     // セッション一覧（直近30件、クローズ含む）
-    // cast_id が NULL でないものは店舗から閲覧のみ。一覧に cast 表示名を JOIN で同梱
+    // キャスト指名セッションは受信トレイから除外（shop-admin のキャスト管理タブから閲覧する）
     $stmt = $pdo->prepare(
         'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.visitor_hash, s.nickname, s.cast_id,
-                sc.id AS shop_cast_id, sc.display_name AS cast_name,
                 (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
                 (SELECT sender_type FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sender,
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
          FROM chat_sessions s
-         LEFT JOIN shop_casts sc ON sc.shop_id = s.shop_id AND sc.cast_id = s.cast_id AND sc.status != "removed"
-         WHERE s.shop_id = ?
+         WHERE s.shop_id = ? AND s.cast_id IS NULL
          ORDER BY s.last_activity_at DESC
          LIMIT 30'
     );

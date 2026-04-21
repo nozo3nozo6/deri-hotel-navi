@@ -466,11 +466,11 @@ export class ChatRoom implements DurableObject {
   }
 
   private async httpOwnerInbox(_body: any): Promise<Response> {
-    // 受信箱: 全セッション + 各々のlast msg
+    // 受信箱: 店舗直通セッション (cast_id 無) のみ. キャスト指名は shop-admin 側で閲覧.
     const map = await this.state.storage.list<ChatSession>({ prefix: 'session:', limit: 100 });
     const sessions: any[] = [];
     for (const s of map.values()) {
-      // 最新メッセージ1件
+      if (s.cast_id) continue;
       const msgs = await this.messagesSince(s.id, 0);
       const last = msgs[msgs.length - 1];
       sessions.push({

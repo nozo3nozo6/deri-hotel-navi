@@ -135,6 +135,8 @@ switch ($action) {
     case 'remove':          handleRemove(); break;
     case 'resend-invite':   handleResendInvite(); break;
     case 'cancel-invite':   handleCancelInvite(); break;
+    case 'chat-sessions':   handleChatSessions(); break;
+    case 'chat-messages':   handleChatMessages(); break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -464,4 +466,72 @@ function sendApprovalMail(string $email, string $displayName, string $shopName):
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $encodedBody = base64_encode($body);
     mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+}
+
+// ==================================================
+// Cast chat viewer (店舗オーナーがキャスト指名チャットを閲覧)
+// ==================================================
+
+// GET: shop_cast_id=<shop_casts.id> → そのキャストに紐づく直近30セッション
+function handleChatSessions() {
+    $auth = requireAuth();
+    requireCastEnabled($auth['shop_id']);
+    $shopCastId = trim((string)inp('shop_cast_id', ''));
+    if ($shopCastId === '') err('shop_cast_id required');
+
+    $pdo = DB::conn();
+    // このキャストが自店舗のものか確認
+    $stmt = $pdo->prepare('SELECT id, cast_id, display_name FROM shop_casts WHERE id = ? AND shop_id = ? LIMIT 1');
+    $stmt->execute([$shopCastId, $auth['shop_id']]);
+    $sc = $stmt->fetch();
+    if (!$sc) err('cast not found', 404);
+
+    $stmt = $pdo->prepare(
+        'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.nickname,
+                (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
+                (SELECT sender_type FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sender,
+                (SELECT sent_at FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sent_at,
+                (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id) AS msg_count
+         FROM chat_sessions s
+         WHERE s.shop_id = ? AND s.cast_id = ?
+         ORDER BY s.last_activity_at DESC
+         LIMIT 30'
+    );
+    $stmt->execute([$auth['shop_id'], $sc['cast_id']]);
+    $sessions = $stmt->fetchAll();
+
+    ok([
+        'cast' => ['id' => $sc['id'], 'display_name' => $sc['display_name']],
+        'sessions' => $sessions,
+    ]);
+}
+
+// GET: session_id=<chat_sessions.id> → そのセッションの全メッセージ (read-only)
+function handleChatMessages() {
+    $auth = requireAuth();
+    requireCastEnabled($auth['shop_id']);
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $pdo = DB::conn();
+    // セッションが自店舗 AND キャスト指名であることを確認 (店舗直通セッションは受信トレイ側で閲覧する)
+    $stmt = $pdo->prepare(
+        'SELECT s.id, s.nickname, s.status, s.started_at, s.last_activity_at,
+                sc.display_name AS cast_name
+         FROM chat_sessions s
+         LEFT JOIN shop_casts sc ON sc.cast_id = s.cast_id AND sc.shop_id = s.shop_id
+         WHERE s.id = ? AND s.shop_id = ? AND s.cast_id IS NOT NULL LIMIT 1'
+    );
+    $stmt->execute([$sessionId, $auth['shop_id']]);
+    $sess = $stmt->fetch();
+    if (!$sess) err('session not found', 404);
+
+    $stmt = $pdo->prepare(
+        'SELECT id, sender_type, message, source_lang, sent_at, read_at
+         FROM chat_messages WHERE session_id = ? ORDER BY id ASC'
+    );
+    $stmt->execute([$sessionId]);
+    $messages = $stmt->fetchAll();
+
+    ok(['session' => $sess, 'messages' => $messages]);
 }
