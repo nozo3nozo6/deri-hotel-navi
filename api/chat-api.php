@@ -372,7 +372,9 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $notifyTo = '';
     $mode = 'off';
     $recipientLabel = $shop['shop_name']; // メール件名や文面で使う
-    $destUrl = 'https://yobuho.com/shop-admin.html#chat';
+    $destUrl = !empty($shop['slug'])
+        ? 'https://yobuho.com/chat/' . $shop['slug'] . '/?owner=1'
+        : 'https://yobuho.com/shop-admin.html#chat';
 
     if (!empty($session['cast_id'])) {
         // キャスト担当: shop_casts JOIN casts で email + notify_mode を引く
@@ -417,7 +419,7 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     // メール送信
     $subject = '【YobuChat】新着メッセージ: ' . $recipientLabel;
     $chatUrl = $destUrl;
-    $openLabel = !empty($session['cast_id']) ? 'キャスト管理画面のチャットタブが開きます' : '店舗管理画面のチャットタブが開きます';
+    $openLabel = !empty($session['cast_id']) ? 'キャスト管理画面のチャットタブが開きます' : 'チャット画面が開きます';
     $html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;background:#fff;font-family:sans-serif;">';
     $html .= '<div style="max-width:520px;margin:0 auto;">';
     $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">YobuChat 新着メッセージ</h2>';

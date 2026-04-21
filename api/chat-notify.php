@@ -69,8 +69,10 @@ $message = mb_substr($message, 0, 500);
 $nickname = mb_substr($nickname, 0, 40);
 $shopName = mb_substr($shopName, 0, 80);
 
-// 管理URL (店舗管理画面 → チャットタブ)
-$adminUrl = 'https://yobuho.com/shop-admin.html#chat';
+// チャット画面URL (slug があればチャット直リンク、無ければ管理画面フォールバック)
+$chatUrl = $shopSlug
+    ? 'https://yobuho.com/chat/' . $shopSlug . '/?owner=1'
+    : 'https://yobuho.com/shop-admin.html#chat';
 
 $subject = "[YobuChat] {$shopName} に新しいチャットが届きました";
 $textBody = <<<TXT
@@ -83,8 +85,8 @@ $textBody = <<<TXT
 {$message}
 -----
 
-店舗管理画面から返信できます:
-{$adminUrl}
+チャット画面から返信できます:
+{$chatUrl}
 
 ※このメールは自動送信です。返信しないでください。
 TXT;
