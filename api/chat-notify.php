@@ -71,7 +71,7 @@ if ($castId !== '') {
         // （同じ cast が複数店舗に所属しうるが, shop_slug で店舗を特定して絞る）
         $stmt = $pdo->prepare(
             'SELECT c.email, c.status AS cast_status,
-                    sc.chat_notify_mode, sc.status AS sc_status
+                    sc.chat_notify_mode, sc.chat_notify_email, sc.status AS sc_status
              FROM casts c
              JOIN shop_casts sc ON sc.cast_id = c.id
              JOIN shops s ON s.id = sc.shop_id
@@ -80,7 +80,7 @@ if ($castId !== '') {
         $stmt->execute([$castId, $shopSlug]);
         $castRow = $stmt->fetch();
 
-        if (!$castRow || $castRow['cast_status'] !== 'active' || $castRow['sc_status'] !== 'active' || empty($castRow['email'])) {
+        if (!$castRow || $castRow['cast_status'] !== 'active' || $castRow['sc_status'] !== 'active') {
             // キャスト無効 → 送信しない (店舗既定にフォールバックすると意図しない宛先に行くため)
             echo json_encode(['ok' => true, 'skipped' => 'cast_inactive']);
             exit;
@@ -97,7 +97,13 @@ if ($castId !== '') {
         }
         // mode === 'every' は throttle なしで都度送信 (キャスト側で 'first' に絞れる)
 
-        $to = $castRow['email'];
+        // 店舗オーナーが shop-admin で設定した chat_notify_email を優先. 未設定なら casts.email にフォールバック.
+        $overrideEmail = trim((string)($castRow['chat_notify_email'] ?? ''));
+        $to = $overrideEmail !== '' ? $overrideEmail : (string)($castRow['email'] ?? '');
+        if ($to === '') {
+            echo json_encode(['ok' => true, 'skipped' => 'cast_no_email']);
+            exit;
+        }
     } catch (Throwable $e) {
         error_log('[chat-notify] cast lookup failed: ' . $e->getMessage());
         // DB エラー時は店舗宛てにフォールバックせずスキップ (キャスト指名で店舗に漏れるのを防ぐ)
@@ -125,9 +131,11 @@ $shopName = mb_substr($shopName, 0, 80);
 $castName = mb_substr($castName, 0, 40);
 
 // チャット画面URL (slug があればチャット直リンク、無ければ管理画面フォールバック)
-// キャスト指名はキャスト本人がログインするので、キャスト管理画面に誘導
+// キャスト指名は店舗オーナーが shop-admin の「キャスト管理 → 💬 チャット履歴」で閲覧
 $chatUrl = $castId
-    ? 'https://yobuho.com/cast-admin.html#chat'
+    ? ($shopSlug
+        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($castId)
+        : 'https://yobuho.com/')
     : ($shopSlug
         ? 'https://yobuho.com/chat/' . $shopSlug . '/?owner=1'
         : 'https://yobuho.com/shop-admin.html#chat');

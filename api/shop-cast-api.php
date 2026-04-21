@@ -149,6 +149,7 @@ function handleList() {
 
     $sql = 'SELECT sc.id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.bio,
                    sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
+                   sc.chat_notify_mode, sc.chat_notify_email,
                    c.email, c.status AS cast_status, c.last_login_at,
                    (c.password_hash IS NOT NULL) AS has_password
             FROM shop_casts sc
@@ -328,6 +329,24 @@ function handleUpdate() {
         if (!in_array($status, ['active', 'suspended'], true)) err('invalid status');
         $fields[] = 'status = ?';
         $values[] = $status;
+    }
+    $notifyMode = inp('chat_notify_mode', null);
+    if ($notifyMode !== null) {
+        if (!in_array($notifyMode, ['off', 'first', 'every'], true)) err('invalid chat_notify_mode');
+        $fields[] = 'chat_notify_mode = ?';
+        $values[] = $notifyMode;
+    }
+    $notifyEmail = inp('chat_notify_email', null);
+    if ($notifyEmail !== null) {
+        $notifyEmail = trim((string)$notifyEmail);
+        if ($notifyEmail === '') {
+            $fields[] = 'chat_notify_email = NULL';
+        } else {
+            if (!filter_var($notifyEmail, FILTER_VALIDATE_EMAIL)) err('メールアドレスの形式が正しくありません');
+            if (mb_strlen($notifyEmail) > 255) err('メールアドレスが長すぎます');
+            $fields[] = 'chat_notify_email = ?';
+            $values[] = $notifyEmail;
+        }
     }
 
     if (!$fields) err('変更内容がありません');

@@ -1194,6 +1194,22 @@
                     <option value="suspended">一時停止</option>
                 </select>
             </div>
+            <div style="padding:12px;background:#fff8f0;border:1px solid #f5d6b3;border-radius:8px;">
+                <div style="font-size:13px;font-weight:700;color:#8a5a2a;margin-bottom:10px;">📧 チャット通知メール</div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">通知頻度</label>
+                    <select id="cast-edit-notify-mode" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+                        <option value="off">OFF（通知しない）</option>
+                        <option value="first">初回のみ（セッション開始時）</option>
+                        <option value="every">毎回（新着ごと）</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">通知先メールアドレス（任意）</label>
+                    <input type="email" id="cast-edit-notify-email" placeholder="未記入ならキャスト登録メールへ" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
+                    <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.5;">キャストの登録メールとは別のアドレスに通知を送りたいときに入力してください。空欄のままならキャスト登録メール（<span id="cast-edit-default-email" style="font-family:monospace;color:var(--text-2);">—</span>）に届きます。</div>
+                </div>
+            </div>
         </div>
         <div class="confirm-btns">
             <button class="btn-back-confirm" onclick="closeCastEdit()">キャンセル</button>
@@ -3535,6 +3551,9 @@ function openCastEdit(id){
             document.getElementById('cast-edit-bio').value = c.bio || '';
             document.getElementById('cast-edit-sort').value = c.sort_order ?? 100;
             document.getElementById('cast-edit-status').value = (c.status === 'suspended') ? 'suspended' : 'active';
+            document.getElementById('cast-edit-notify-mode').value = c.chat_notify_mode || 'off';
+            document.getElementById('cast-edit-notify-email').value = c.chat_notify_email || '';
+            document.getElementById('cast-edit-default-email').textContent = c.email || '—';
             document.getElementById('cast-edit-modal').classList.add('active');
             document.body.style.overflow = 'hidden';
         });
@@ -3550,12 +3569,16 @@ async function saveCastEdit(){
     if (!_castEditingId) return;
     const name = document.getElementById('cast-edit-name').value.trim();
     if (!name) { toast('⚠️ 源氏名を入力してください'); return; }
+    const notifyEmail = document.getElementById('cast-edit-notify-email').value.trim();
+    if (notifyEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail)) { toast('⚠️ 通知先メールアドレスの形式が正しくありません'); return; }
     const payload = {
         id: _castEditingId,
         display_name: name,
         bio: document.getElementById('cast-edit-bio').value,
         sort_order: Number(document.getElementById('cast-edit-sort').value) || 100,
-        status: document.getElementById('cast-edit-status').value
+        status: document.getElementById('cast-edit-status').value,
+        chat_notify_mode: document.getElementById('cast-edit-notify-mode').value,
+        chat_notify_email: notifyEmail
     };
     const btn = document.getElementById('cast-edit-save-btn');
     btn.disabled = true; btn.textContent = '保存中…';

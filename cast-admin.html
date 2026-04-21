@@ -104,19 +104,7 @@ textarea.f-input{resize:vertical;min-height:88px;font-size:14px;}
 .img-drop input{display:none;}
 .img-actions{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}
 
-@media(max-width:640px){.main-wrap{padding:14px 10px 60px;}.card{padding:18px 14px;}.shop-img,.shop-img-placeholder{width:60px;height:80px;}#chat-grid{grid-template-columns:1fr !important;}#chat-inbox-col{max-height:220px !important;}}
-/* chat inbox rows */
-.ci-row{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;background:#fff;transition:background .15s;}
-.ci-row:hover{background:var(--bg-3);}
-.ci-row.active{background:var(--rose-bg);border-left:3px solid var(--rose);}
-.ci-row-top{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--text-3);margin-bottom:3px;}
-.ci-row-msg{font-size:12px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ci-unread{background:var(--rose);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:700;}
-.msg-bubble{max-width:80%;padding:8px 12px;border-radius:12px;margin-bottom:8px;word-wrap:break-word;white-space:pre-wrap;}
-.msg-visitor{background:#eef3ff;color:#1a1a1a;border-bottom-left-radius:4px;align-self:flex-start;}
-.msg-shop{background:var(--rose);color:#fff;border-bottom-right-radius:4px;align-self:flex-end;margin-left:auto;}
-.msg-meta{font-size:10px;color:var(--text-3);margin-top:2px;}
-#chat-msgs{display:flex;flex-direction:column;}
+@media(max-width:640px){.main-wrap{padding:14px 10px 60px;}.card{padding:18px 14px;}.shop-img,.shop-img-placeholder{width:60px;height:80px;}}
 </style>
 </head>
 <body>
@@ -157,7 +145,6 @@ textarea.f-input{resize:vertical;min-height:88px;font-size:14px;}
     <div class="main-wrap">
         <div class="tabs">
             <button type="button" class="tab-btn active" id="tab-btn-shops" onclick="switchTab('shops')">所属店舗</button>
-            <button type="button" class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">💬 チャット</button>
             <button type="button" class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
         </div>
 
@@ -170,43 +157,6 @@ textarea.f-input{resize:vertical;min-height:88px;font-size:14px;}
                 </div>
             </div>
             <div id="shops-list"></div>
-        </div>
-
-        <!-- チャットタブ -->
-        <div class="tab-content" id="tab-chat">
-            <div id="chat-empty" style="display:none;" class="card">
-                <div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;line-height:1.8;">
-                    まだ承認済みの店舗がありません。<br>店舗オーナーの承認後にチャット機能が使えます。
-                </div>
-            </div>
-            <div id="chat-shop-select" class="card" style="display:none;">
-                <div class="card-title">📍 店舗を選ぶ</div>
-                <div id="chat-shop-buttons" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-            </div>
-            <div id="chat-pane" class="card" style="display:none;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                    <div>
-                        <div class="card-title" id="chat-pane-shop-name" style="margin-bottom:2px;">—</div>
-                        <div style="font-size:11px;color:var(--text-3);">キャスト: <span id="chat-pane-cast-name">—</span></div>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <label class="pw-toggle" style="margin:0;min-height:auto;gap:6px;">
-                            <input type="checkbox" id="chat-online-toggle">
-                            <span style="font-size:12px;color:var(--text-2);">受付中</span>
-                        </label>
-                    </div>
-                </div>
-                <div style="display:grid;grid-template-columns:240px 1fr;gap:12px;min-height:420px;" id="chat-grid">
-                    <div id="chat-inbox-col" style="border:1px solid var(--border);border-radius:8px;background:var(--bg-3);overflow-y:auto;max-height:520px;"></div>
-                    <div style="display:flex;flex-direction:column;gap:8px;min-height:420px;">
-                        <div id="chat-msgs" style="flex:1;border:1px solid var(--border);border-radius:8px;background:#fff;padding:12px;overflow-y:auto;max-height:460px;min-height:320px;font-size:13px;line-height:1.6;"></div>
-                        <div style="display:flex;gap:6px;">
-                            <textarea id="chat-input" class="f-input" rows="2" placeholder="メッセージを入力…" style="flex:1;min-height:48px;"></textarea>
-                            <button type="button" class="btn primary" id="chat-send-btn" onclick="castChatSend()" style="padding:10px 16px;">送信</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- 設定タブ -->
@@ -422,9 +372,7 @@ function renderShops(shops){
             +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">このURLをSNSプロフィール等に貼ると、お客様から直接あなたへチャットが届きます。</div>'
             + '</div>'
             : '';
-        const notifyBlock = (!isPending)
-            ? renderNotifyToggle(s.shop_cast_id, s.chat_notify_mode || 'off')
-            : '';
+        const notifyBlock = '';
         return ''
             + '<div class="shop-card">'
             +   '<div class="shop-card-hdr">'
@@ -444,54 +392,6 @@ function renderShops(shops){
             +   '</div>'
             + '</div>';
     }).join('');
-}
-
-function renderNotifyToggle(shopCastId, mode){
-    const sid = esc(shopCastId);
-    const opts = [
-        { v: 'off',   label: 'OFF' },
-        { v: 'first', label: '初回のみ' },
-        { v: 'every', label: '毎回' },
-    ];
-    const btns = opts.map(o => {
-        const active = (o.v === mode);
-        const bg = active ? 'var(--rose)' : '#fff';
-        const color = active ? '#fff' : 'var(--text-2)';
-        const border = active ? 'var(--rose)' : 'var(--border-s)';
-        const fw = active ? '700' : '500';
-        return '<button type="button" class="notify-seg" data-mode="' + o.v + '" onclick="setCastNotifyMode(\'' + sid + '\',\'' + o.v + '\')" style="padding:6px 10px;font-size:12px;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';font-weight:' + fw + ';cursor:pointer;border-radius:6px;font-family:inherit;">' + o.label + '</button>';
-    }).join('');
-    return ''
-        + '<div style="margin-top:10px;padding:10px 12px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:8px;">'
-        +   '<div style="font-size:11px;color:var(--rose-dim);font-weight:600;margin-bottom:6px;">📧 新着メッセージのメール通知</div>'
-        +   '<div id="notify-seg-' + sid + '" style="display:flex;gap:6px;flex-wrap:wrap;">' + btns + '</div>'
-        +   '<div style="font-size:10px;color:var(--text-3);margin-top:6px;line-height:1.5;">「初回のみ」はセッション開始の1通目だけ。「毎回」は新着ごとに通知（頻度注意）。</div>'
-        + '</div>';
-}
-
-async function setCastNotifyMode(shopCastId, mode){
-    const container = document.getElementById('notify-seg-' + shopCastId);
-    if (!container) return;
-    const prevActive = container.querySelector('.notify-seg[data-mode]');
-    // 楽観更新
-    container.querySelectorAll('.notify-seg').forEach(btn => {
-        const active = (btn.dataset.mode === mode);
-        btn.style.background = active ? 'var(--rose)' : '#fff';
-        btn.style.color = active ? '#fff' : 'var(--text-2)';
-        btn.style.borderColor = active ? 'var(--rose)' : 'var(--border-s)';
-        btn.style.fontWeight = active ? '700' : '500';
-    });
-    try {
-        await castChatApi('toggle-notify', { shop_cast_id: shopCastId, mode });
-        const labels = { off: 'OFF', first: '初回のみ', every: '毎回' };
-        toast('✅ メール通知: ' + labels[mode]);
-        const s = shopsCache.find(x => x.shop_cast_id === shopCastId);
-        if (s) s.chat_notify_mode = mode;
-    } catch (e) {
-        toast('⚠️ ' + e.message);
-        // 失敗時はrender再描画
-        renderShops(shopsCache);
-    }
 }
 
 function copyCastUrl(shopCastId){
@@ -645,213 +545,6 @@ async function changeEmail(){
         btn.disabled = false; btn.textContent = 'メールアドレスを変更';
     }
 }
-
-// ========== チャットタブ ==========
-const CHAT_POLL_MS = 4000;
-let chatState = {
-    shopCastId: null,       // 現在選択中の shop_cast_id
-    shopName: null,
-    castName: null,
-    sessionId: 0,           // 現在開いているセッション
-    sinceId: 0,             // 受信済みの最大メッセージID
-    pollTimer: null,
-    lastOnline: false,
-    sending: false,
-};
-
-async function castChatApi(action, body = null, method = 'POST'){
-    const url = '/api/cast-chat-api.php?action=' + encodeURIComponent(action);
-    const opts = { method, credentials: 'include' };
-    if (method === 'POST') {
-        opts.headers = { 'Content-Type': 'application/json' };
-        opts.body = JSON.stringify(body || {});
-    }
-    let res;
-    try { res = await fetch(url, opts); } catch (e) { throw new Error('通信エラー'); }
-    let data;
-    try { data = await res.json(); } catch (e) { throw new Error('サーバー応答が不正です'); }
-    if (!res.ok || data.error) throw new Error(data.error || 'エラーが発生しました');
-    return data;
-}
-
-function renderChatShopSelect(){
-    const approvedShops = (shopsCache || []).filter(s => s.status === 'active');
-    const empty = document.getElementById('chat-empty');
-    const select = document.getElementById('chat-shop-select');
-    const pane = document.getElementById('chat-pane');
-    if (!approvedShops.length) {
-        empty.style.display = 'block';
-        select.style.display = 'none';
-        pane.style.display = 'none';
-        return;
-    }
-    empty.style.display = 'none';
-    // 1店舗のみなら選択スキップして直接表示
-    if (approvedShops.length === 1) {
-        select.style.display = 'none';
-        openChatForShop(approvedShops[0].shop_cast_id);
-        return;
-    }
-    select.style.display = 'block';
-    const buttons = document.getElementById('chat-shop-buttons');
-    buttons.innerHTML = approvedShops.map(s =>
-        '<button type="button" class="btn" onclick="openChatForShop(\'' + esc(s.shop_cast_id) + '\')" style="font-size:12px;">' + esc(s.shop_name) + '</button>'
-    ).join('');
-    // すでに開いている pane があれば残す
-    if (chatState.shopCastId) pane.style.display = 'block';
-}
-
-async function openChatForShop(shopCastId){
-    const s = shopsCache.find(x => x.shop_cast_id === shopCastId);
-    if (!s) { toast('⚠️ 店舗情報が見つかりません'); return; }
-    if (s.status !== 'active') { toast('⚠️ 承認待ちの店舗です'); return; }
-    stopChatPoll();
-    chatState.shopCastId = shopCastId;
-    chatState.shopName = s.shop_name;
-    chatState.castName = s.display_name;
-    chatState.sessionId = 0;
-    chatState.sinceId = 0;
-    document.getElementById('chat-pane').style.display = 'block';
-    document.getElementById('chat-pane-shop-name').textContent = s.shop_name;
-    document.getElementById('chat-pane-cast-name').textContent = s.display_name || '—';
-    document.getElementById('chat-inbox-col').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:12px;">読み込み中…</div>';
-    document.getElementById('chat-msgs').innerHTML = '';
-    await loadChatInbox(false);
-    startChatPoll();
-}
-
-async function loadChatInbox(quiet){
-    if (!chatState.shopCastId) return;
-    try {
-        const data = await castChatApi('inbox', { shop_cast_id: chatState.shopCastId, session_id: chatState.sessionId, since_id: chatState.sinceId }, 'POST');
-        renderChatInbox(data.sessions || []);
-        applyChatBatch(data);
-        // online toggle 同期
-        document.getElementById('chat-online-toggle').checked = !!data.shop_online;
-        chatState.lastOnline = !!data.shop_online;
-    } catch (e) {
-        if (!quiet) toast('⚠️ ' + e.message);
-    }
-}
-
-function renderChatInbox(sessions){
-    const col = document.getElementById('chat-inbox-col');
-    if (!sessions.length) {
-        col.innerHTML = '<div style="padding:24px 12px;text-align:center;color:var(--text-3);font-size:12px;line-height:1.7;">まだチャットはありません。<br>店舗ページから「キャスト指名」で来訪されたお客様がここに表示されます。</div>';
-        return;
-    }
-    col.innerHTML = sessions.map(s => {
-        const name = s.nickname || 'ゲスト';
-        const preview = (s.last_message || '(メッセージなし)').slice(0, 30);
-        const sender = s.last_sender === 'shop' ? '→ ' : '';
-        const unread = parseInt(s.unread_count || 0) > 0 ? '<span class="ci-unread">' + s.unread_count + '</span>' : '';
-        const active = parseInt(s.id) === chatState.sessionId ? 'active' : '';
-        const when = s.last_activity_at ? formatRelTime(s.last_activity_at) : '';
-        return '<div class="ci-row ' + active + '" onclick="openChatSession(' + parseInt(s.id) + ')">'
-             + '<div class="ci-row-top"><span>' + esc(name) + '</span><span>' + esc(when) + '</span></div>'
-             + '<div class="ci-row-msg">' + esc(sender) + esc(preview) + '</div>'
-             + (unread ? '<div style="margin-top:3px;">' + unread + '</div>' : '')
-             + '</div>';
-    }).join('');
-}
-
-function formatRelTime(iso){
-    try {
-        const d = new Date(iso.replace(' ', 'T'));
-        const diff = (Date.now() - d.getTime()) / 1000;
-        if (diff < 60) return 'たった今';
-        if (diff < 3600) return Math.floor(diff/60) + '分前';
-        if (diff < 86400) return Math.floor(diff/3600) + '時間前';
-        return Math.floor(diff/86400) + '日前';
-    } catch (e) { return ''; }
-}
-
-async function openChatSession(sessionId){
-    chatState.sessionId = sessionId;
-    chatState.sinceId = 0;
-    document.getElementById('chat-msgs').innerHTML = '<div style="color:var(--text-3);font-size:12px;">読み込み中…</div>';
-    await loadChatInbox(false);
-}
-
-function applyChatBatch(data){
-    const msgs = data.messages || [];
-    if (!msgs.length) return;
-    const box = document.getElementById('chat-msgs');
-    // 初回読み込み時は空に
-    if (chatState.sinceId === 0) box.innerHTML = '';
-    for (const m of msgs) {
-        const cls = m.sender_type === 'shop' ? 'msg-bubble msg-shop' : 'msg-bubble msg-visitor';
-        const bubble = document.createElement('div');
-        bubble.className = cls;
-        bubble.textContent = m.message;
-        box.appendChild(bubble);
-        if (parseInt(m.id) > chatState.sinceId) chatState.sinceId = parseInt(m.id);
-    }
-    box.scrollTop = box.scrollHeight;
-}
-
-function startChatPoll(){
-    stopChatPoll();
-    chatState.pollTimer = setInterval(() => { loadChatInbox(true); }, CHAT_POLL_MS);
-}
-function stopChatPoll(){
-    if (chatState.pollTimer) clearInterval(chatState.pollTimer);
-    chatState.pollTimer = null;
-}
-
-async function castChatSend(){
-    if (chatState.sending) return;
-    if (!chatState.sessionId) { toast('⚠️ 送信先のセッションを選んでください'); return; }
-    const ta = document.getElementById('chat-input');
-    const msg = ta.value.trim();
-    if (!msg) return;
-    chatState.sending = true;
-    const btn = document.getElementById('chat-send-btn');
-    btn.disabled = true; btn.textContent = '送信中…';
-    try {
-        const cmid = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        const data = await castChatApi('reply', { session_id: chatState.sessionId, message: msg, client_msg_id: cmid, since_id: chatState.sinceId });
-        ta.value = '';
-        applyChatBatch(data);
-    } catch (e) {
-        toast('⚠️ ' + e.message);
-    } finally {
-        chatState.sending = false;
-        btn.disabled = false; btn.textContent = '送信';
-    }
-}
-
-document.getElementById('chat-online-toggle').addEventListener('change', async function(){
-    if (!chatState.shopCastId) return;
-    const on = this.checked;
-    try {
-        await castChatApi('toggle-online', { shop_cast_id: chatState.shopCastId, on });
-        toast(on ? '✅ 受付を開始しました' : '⏸ 受付を停止しました');
-        chatState.lastOnline = on;
-    } catch (e) {
-        this.checked = chatState.lastOnline;
-        toast('⚠️ ' + e.message);
-    }
-});
-
-// Enterで送信（Shift+Enterは改行）
-document.getElementById('chat-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        castChatSend();
-    }
-});
-
-// タブ切替で初期化: chatタブ開いたら shopsCache から再描画
-const origSwitchTab = switchTab;
-switchTab = function(name){
-    origSwitchTab(name);
-    if (name === 'chat') {
-        renderChatShopSelect();
-    } else {
-        stopChatPoll();
-    }
-};
 
 document.getElementById('login-pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 </script>
