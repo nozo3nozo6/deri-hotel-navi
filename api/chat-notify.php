@@ -61,6 +61,7 @@ $sentAt = (string)($body['sent_at'] ?? '');
 $castId = trim((string)($body['cast_id'] ?? ''));
 $castName = trim((string)($body['cast_name'] ?? ''));
 $firstInSession = !empty($body['first_in_session']);
+$shopCastIdForUrl = ''; // chat.js の ?cast= は shop_casts.id を期待する
 
 // キャスト指名: casts.email へ宛先差し替え + shop_casts.chat_notify_mode を適用.
 // （active 以外 / mode='off' / mode='first' で既送信のときは店舗既定に落とさず明示的にスキップ）
@@ -70,7 +71,8 @@ if ($castId !== '') {
         // cast_id は実 casts.id. shop_casts を casts.id で引いてキャスト個別モードを取得.
         // （同じ cast が複数店舗に所属しうるが, shop_slug で店舗を特定して絞る）
         $stmt = $pdo->prepare(
-            'SELECT c.email, c.status AS cast_status,
+            'SELECT sc.id AS shop_cast_id,
+                    c.email, c.status AS cast_status,
                     sc.chat_notify_mode, sc.chat_notify_email, sc.status AS sc_status
              FROM casts c
              JOIN shop_casts sc ON sc.cast_id = c.id
@@ -104,6 +106,7 @@ if ($castId !== '') {
             echo json_encode(['ok' => true, 'skipped' => 'cast_no_email']);
             exit;
         }
+        $shopCastIdForUrl = (string)($castRow['shop_cast_id'] ?? '');
     } catch (Throwable $e) {
         error_log('[chat-notify] cast lookup failed: ' . $e->getMessage());
         // DB エラー時は店舗宛てにフォールバックせずスキップ (キャスト指名で店舗に漏れるのを防ぐ)
@@ -133,8 +136,8 @@ $castName = mb_substr($castName, 0, 40);
 // チャット画面URL (slug があればチャット直リンク、無ければ管理画面フォールバック)
 // キャスト指名は店舗オーナーが shop-admin の「キャスト管理 → 💬 チャット履歴」で閲覧
 $chatUrl = $castId
-    ? ($shopSlug
-        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($castId)
+    ? (($shopSlug && $shopCastIdForUrl !== '')
+        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($shopCastIdForUrl)
         : 'https://yobuho.com/')
     : ($shopSlug
         ? 'https://yobuho.com/chat/' . $shopSlug . '/?owner=1'
