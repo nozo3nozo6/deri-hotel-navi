@@ -29,7 +29,6 @@ export class ChatRoom implements DurableObject {
   private state: DurableObjectState;
   private env: Env;
   private shopMeta: ShopStatus | null = null;
-  private initialized = false;
   private sync: MysqlSync;
 
   constructor(state: DurableObjectState, env: Env) {
@@ -51,11 +50,11 @@ export class ChatRoom implements DurableObject {
     const shopId = req.headers.get('X-Shop-Id');
     const shopSlug = req.headers.get('X-Shop-Slug');
 
-    // shopMeta の初期化 (Router から Shop 情報を JSON で渡される)
-    if (!this.initialized) {
-      await this.loadShopMeta(req);
-      this.initialized = true;
-    }
+    // shopMeta を毎リクエストで更新 (X-Shop-Meta は Worker Router 側で 60s キャッシュ済み).
+    // ここで `initialized` ガードをかけると DO インスタンスが生き続ける間、shop-admin で
+    // notify_mode / reception 時間 / notify_email 等を変えても DO が古い値を持ち続けて
+    // 「every に変えたのに 2通目からメール来ない」等の事故になるため、毎回上書きする。
+    await this.loadShopMeta(req);
 
     // WebSocket upgrade
     if (path === '/ws') {
@@ -248,9 +247,27 @@ export class ChatRoom implements DurableObject {
       // broadcast to connected owner WS (session_token も含める: owner側 selectedSid は MySQL id であり DO session_id と不一致のため token で照合させる)
       this.broadcastToRole('owner', { type: 'message', data: msg, session_id: sess.id, session_token: sess.session_token });
 
-      // 通知 (初回 or every)
+      // メール通知判定 (PHP handleSendMessage と同じロジック):
+      //  - off         → 送らない
+      //  - first       → そのセッションで未通知のときだけ
+      //  - every       → 前回通知から notify_min_interval_minutes 未満ならスキップ
+      //  送信成功したら `notified_at` を必ず更新 (every の throttle 判定に使うため).
+      const mode = this.shopMeta?.notify_mode || 'off';
       const first = !sess.notified_at;
-      if (this.shopMeta) {
+      let shouldNotify = false;
+      if (mode === 'first') {
+        shouldNotify = first;
+      } else if (mode === 'every') {
+        if (first) {
+          shouldNotify = true;
+        } else {
+          const minInterval = Math.max(1, this.shopMeta?.notify_min_interval_minutes || 3);
+          const elapsedMs = Date.now() - new Date(sess.notified_at as string).getTime();
+          shouldNotify = elapsedMs >= minInterval * 60 * 1000;
+        }
+      }
+
+      if (shouldNotify && this.shopMeta) {
         await router.notify(
           ['email'],
           {
@@ -263,10 +280,8 @@ export class ChatRoom implements DurableObject {
           },
           this.env
         );
-        if (first) {
-          sess.notified_at = msg.sent_at;
-          await this.saveSession(sess);
-        }
+        sess.notified_at = msg.sent_at;
+        await this.saveSession(sess);
       }
     }
 
