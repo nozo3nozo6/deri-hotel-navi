@@ -1731,7 +1731,8 @@ async function enterCastOwnerMode() {
     }
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
-    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
+    // キャスト受信箱では「受付中/停止中」ラベルは出さない（緑丸と通知トグルだけで状態は十分伝わる）
+    if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
     if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
