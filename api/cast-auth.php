@@ -50,11 +50,27 @@ switch ($action) {
 function requireCastAuth(): ?array {
     if (empty($_SESSION['cast_id'])) return null;
     if (time() - ($_SESSION['cast_last_activity'] ?? 0) > CAST_SESSION_TIMEOUT) {
-        unset($_SESSION['cast_id'], $_SESSION['cast_email'], $_SESSION['cast_last_activity']);
+        castDestroySession();
         return null;
     }
     $_SESSION['cast_last_activity'] = time();
     return ['cast_id' => $_SESSION['cast_id'], 'cast_email' => $_SESSION['cast_email']];
+}
+
+function castDestroySession(): void {
+    unset(
+        $_SESSION['cast_id'],
+        $_SESSION['cast_email'],
+        $_SESSION['cast_last_activity'],
+        $_SESSION['cast_pw_fp']
+    );
+}
+
+// パスワードハッシュの指紋（password_hash が変わるたび session を無効化するための nonce）.
+// password_hash が NULL のとき = 削除/未設定状態. 指紋は空文字列にしておく（生sha256が返るのを避ける）.
+function castPwFingerprint(?string $passwordHash): string {
+    if ($passwordHash === null || $passwordHash === '') return '';
+    return hash('sha256', $passwordHash);
 }
 
 function castCheckRateLimit(string $ip): array {
@@ -141,12 +157,13 @@ function handleLogin(): void {
     $_SESSION['cast_id'] = $cast['id'];
     $_SESSION['cast_email'] = $cast['email'];
     $_SESSION['cast_last_activity'] = time();
+    $_SESSION['cast_pw_fp'] = castPwFingerprint($cast['password_hash']);
 
     ok(['cast' => ['id' => $cast['id'], 'email' => $cast['email']]]);
 }
 
 function handleLogout(): void {
-    unset($_SESSION['cast_id'], $_SESSION['cast_email'], $_SESSION['cast_last_activity']);
+    castDestroySession();
     ok();
 }
 
@@ -154,14 +171,26 @@ function handleCheck(): void {
     $auth = requireCastAuth();
     if (!$auth) { echo json_encode(['authenticated' => false]); return; }
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, email, status FROM casts WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, email, status, password_hash FROM casts WHERE id = ? LIMIT 1');
     $stmt->execute([$auth['cast_id']]);
     $cast = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$cast || $cast['status'] === 'suspended') {
-        unset($_SESSION['cast_id'], $_SESSION['cast_email'], $_SESSION['cast_last_activity']);
+
+    // セッション無効化トリガ:
+    //   - cast が削除済み / suspend / password_hash NULL（削除→再招待の中継状態）
+    //   - session の password fingerprint と現在のDB上のハッシュが一致しない
+    //     （削除時に password_hash=NULL / 再招待activateで新ハッシュ に切り替わると自動logout）
+    $sessionFp = (string)($_SESSION['cast_pw_fp'] ?? '');
+    $currentFp = $cast ? castPwFingerprint($cast['password_hash']) : '';
+    $fpMismatch = $sessionFp === '' || $currentFp === '' || !hash_equals($sessionFp, $currentFp);
+
+    if (!$cast || $cast['status'] === 'suspended' || !$cast['password_hash'] || $fpMismatch) {
+        castDestroySession();
         echo json_encode(['authenticated' => false]);
         return;
     }
+
+    // 認証応答からは password_hash を除外
+    unset($cast['password_hash']);
     echo json_encode(['authenticated' => true, 'cast' => $cast]);
 }
 
@@ -261,6 +290,10 @@ function handleUpdatePassword(): void {
     $newHash = password_hash($newPw, PASSWORD_BCRYPT);
     $pdo->prepare('UPDATE casts SET password_hash = ?, updated_at = NOW() WHERE id = ?')
         ->execute([$newHash, $auth['cast_id']]);
+
+    // 自分自身のセッションは保ちつつ、他端末のセッションは次回checkで無効化されるようfingerprintを更新
+    $_SESSION['cast_pw_fp'] = castPwFingerprint($newHash);
+
     ok();
 }
 
