@@ -93,9 +93,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 
 /* ===== メッセージエリア ===== */
 .chat-thread{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-.chat-messages{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f7f5f2;-webkit-overflow-scrolling:touch}
-/* メッセージ数が少ない時は下詰め（新しい順で入力欄に寄せる）. 溢れたら通常の上方向スクロールになる */
-.chat-messages > *:first-child{margin-top:auto}
+.chat-messages{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f7f5f2;-webkit-overflow-scrolling:touch;justify-content:flex-start}
 .msg-row{display:flex;align-items:flex-end;gap:6px;max-width:88%}
 .msg-row.visitor{align-self:flex-end;justify-content:flex-end}
 .msg-row.shop{align-self:flex-start;justify-content:flex-start}
