@@ -65,3 +65,6 @@ pagefind/
 pagefind-data.json
 master-data.json
 area-data.json
+
+# Claude Code ローカル設定
+.claude/
