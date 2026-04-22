@@ -829,7 +829,12 @@ async function enterVisitorMode() {
     refs.chatThread.classList.remove('hidden');
     refs.inputArea.classList.remove('hidden');
     if (refs.quickQuestions) refs.quickQuestions.classList.remove('hidden');
-    if (refs.reservationHint) refs.reservationHint.classList.remove('hidden');
+    // キャスト指名URL (?cast=) の訪問者画面ではお店共通の予約ヒントは出さない.
+    // 店舗 Instagram/LINE への誘導ではなく「このキャスト個人に相談する」文脈のため.
+    if (refs.reservationHint) {
+        if (CAST_ID) refs.reservationHint.classList.add('hidden');
+        else refs.reservationHint.classList.remove('hidden');
+    }
     renderReceptionBanner();
     refs.ownerTemplates.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
@@ -841,7 +846,12 @@ async function enterVisitorMode() {
     if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
-    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
+    // キャスト指名URL の訪問者画面では「受付時間 HH:MM-HH:MM」ラベルは出さない.
+    // 店舗全体の営業時間表示は、キャスト個人に相談する文脈では冗長.
+    if (refs.statusLabel) {
+        if (CAST_ID) refs.statusLabel.classList.add('hidden');
+        else refs.statusLabel.classList.remove('hidden');
+    }
     if (refs.nicknameArea) {
         refs.nicknameArea.classList.remove('hidden');
         if (refs.nicknameInput) {
