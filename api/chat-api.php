@@ -43,7 +43,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -483,6 +483,11 @@ try {
         case 'fetch-push-subscribers':     handleFetchPushSubscribers(); break;
         case 'push-unsubscribe-by-endpoint': handlePushUnsubscribeByEndpoint(); break;
 
+        // Visitor email notify (訪問者が返信メール通知を opt-in / opt-out)
+        case 'visitor-notify-settings':    handleVisitorNotifySettings(); break;
+        case 'my-notify-settings':         handleMyNotifySettings(); break;
+        case 'fetch-visitor-notify':       handleFetchVisitorNotify(); break;
+
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
         case 'owner-inbox':     handleOwnerInbox(); break;
@@ -547,7 +552,7 @@ function handleStartSession() {
     // (リロード時に無駄な新規セッションを作らず、同じ cast_id / cast_name を保つ).
     if ($adoptToken !== '') {
         $stmt = $pdo->prepare(
-            'SELECT cs.id, cs.cast_id,
+            'SELECT cs.id, cs.cast_id, cs.visitor_email, cs.visitor_notify_enabled,
                     sc.id AS shop_cast_id, sc.display_name AS cast_name, sc.chat_notify_mode
              FROM chat_sessions cs
              LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
@@ -565,6 +570,8 @@ function handleStartSession() {
                 'cast_notify_mode' => $existing['chat_notify_mode'] ?? null,
                 'is_online'        => effectiveOnline($shop),
                 'gender_mode'      => $shop['gender_mode'] ?? 'men',
+                'visitor_email'    => (string)($existing['visitor_email'] ?? ''),
+                'visitor_notify_enabled' => (int)$existing['visitor_notify_enabled'] === 1,
             ]);
         }
         // 存在しなければ下の新規作成パスにフォールスルー
@@ -2409,6 +2416,92 @@ function handlePushUnsubscribeByEndpoint(): void {
     $stmt = $pdo->prepare('DELETE FROM web_push_subscriptions WHERE endpoint_hash = ?');
     $stmt->execute([$hash]);
     ok(['deleted' => $stmt->rowCount()]);
+}
+
+// ----- Visitor email notify -----
+// visitor_notify_enabled=1 の chat_sessions に対し、オーナー返信時に DO が chat-notify-visitor.php を呼ぶ
+
+function handleVisitorNotifySettings(): void {
+    $token = trim((string)inp('session_token', ''));
+    $email = trim((string)inp('email', ''));
+    $enabled = inp('enabled', null);
+    if ($token === '') err('session_token required');
+    if ($enabled === null) err('enabled required');
+    $enabledInt = (int)(bool)$enabled;
+
+    if ($enabledInt === 1) {
+        if ($email === '') err('メールアドレスを入力してください');
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) err('メールアドレスの形式が正しくありません');
+        if (strlen($email) > 255) err('メールアドレスが長すぎます');
+    }
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt->execute([$token]);
+    $session = $stmt->fetch();
+    if (!$session) err('Session not found', 404);
+
+    if ($enabledInt === 1) {
+        $upd = $pdo->prepare(
+            'UPDATE chat_sessions
+             SET visitor_email = ?, visitor_notify_enabled = 1
+             WHERE id = ?'
+        );
+        $upd->execute([$email, $session['id']]);
+    } else {
+        // OFF の場合メールアドレスは保持 (再度ON時に入力し直さずに済む)
+        $upd = $pdo->prepare(
+            'UPDATE chat_sessions SET visitor_notify_enabled = 0 WHERE id = ?'
+        );
+        $upd->execute([$session['id']]);
+    }
+
+    ok(['enabled' => $enabledInt === 1, 'email' => $enabledInt === 1 ? $email : '']);
+}
+
+// 訪問者 → 自分の通知設定を取得 (chat.js UI 初期化用).
+// 認証: session_token のみ (visitor のみ所持).
+function handleMyNotifySettings(): void {
+    $token = trim((string)inp('session_token', ''));
+    if ($token === '') err('session_token required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT visitor_email, visitor_notify_enabled
+         FROM chat_sessions WHERE session_token = ? LIMIT 1'
+    );
+    $stmt->execute([$token]);
+    $row = $stmt->fetch();
+    if (!$row) err('Session not found', 404);
+
+    ok([
+        'email' => (string)($row['visitor_email'] ?? ''),
+        'enabled' => (int)$row['visitor_notify_enabled'] === 1,
+    ]);
+}
+
+// DO → PHP: セッションの visitor_email / 通知設定を返す (オーナー返信時のメール送信判定用)
+// 認証: X-Sync-Secret
+function handleFetchVisitorNotify(): void {
+    assertSyncSecret();
+
+    $token = trim((string)inp('session_token', ''));
+    if ($token === '') err('session_token required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT visitor_email, visitor_notify_enabled, visitor_last_notified_at
+         FROM chat_sessions WHERE session_token = ? LIMIT 1'
+    );
+    $stmt->execute([$token]);
+    $row = $stmt->fetch();
+    if (!$row) err('Session not found', 404);
+
+    ok([
+        'email' => (string)($row['visitor_email'] ?? ''),
+        'enabled' => (int)$row['visitor_notify_enabled'] === 1,
+        'last_notified_at' => $row['visitor_last_notified_at'] ?? null,
+    ]);
 }
 
 function handleUnifiedSend(): void {

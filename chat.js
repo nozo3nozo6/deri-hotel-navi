@@ -54,10 +54,22 @@ function getCastInboxToken() {
     } catch (_) { return ''; }
 }
 
+// 訪問者セッション復元: ?resume=<session_token> で既存セッションを LS に投入してからチャットを開く.
+// chat-notify-visitor.php がメール内「続きを見る」リンクに付与する. 別端末/他ブラウザからもトークン所持者は履歴を引き継げる.
+// 形式は DO(UUID) / PHP(48桁hex) 両対応.
+function getResumeToken() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('resume') || '').trim().toLowerCase();
+        return /^[a-f0-9\-]{32,64}$/.test(v) ? v : '';
+    } catch (_) { return ''; }
+}
+
 const SLUG = getSlug();
 const CAST_ID = getCastParam();
 const VIEW_TOKEN = getViewToken();
 const CAST_INBOX_TOKEN = getCastInboxToken();
+const RESUME_TOKEN = getResumeToken();
 const IS_CAST_VIEW = !!(CAST_ID && VIEW_TOKEN);
 const IS_CAST_INBOX = !!CAST_INBOX_TOKEN;
 if (!SLUG) {
@@ -151,6 +163,12 @@ const refs = {
     loginError: $('owner-login-error'),
     loginSubmit: $('owner-login-submit'),
     loginClose: $('owner-login-close'),
+    visitorNotify: $('visitor-notify'),
+    visitorNotifyToggle: $('visitor-notify-toggle'),
+    visitorNotifyBody: $('visitor-notify-body'),
+    visitorNotifyEmail: $('visitor-notify-email'),
+    visitorNotifySave: $('visitor-notify-save'),
+    visitorNotifyStatus: $('visitor-notify-status'),
 };
 
 // ===== ユーティリティ =====
@@ -324,14 +342,25 @@ function markOptimisticFailed(cmid, err) {
     const row = refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`);
     if (!row) return;
     const bubble = row.querySelector('.msg');
-    if (bubble) { bubble.classList.remove('sending'); bubble.classList.add('failed'); }
+    if (bubble) {
+        bubble.classList.remove('sending');
+        bubble.classList.add('failed');
+        // エラー内容をツールチップに残す (未返信の根本原因調査用)
+        if (err && err.message) bubble.title = err.message;
+    }
     const meta = row.querySelector('.msg-meta');
     if (!meta) return;
     const oldStatus = meta.querySelector('.msg-send-status');
     if (oldStatus) oldStatus.remove();
     const status = document.createElement('div');
     status.className = 'msg-send-status failed';
-    status.textContent = (t('msg.failed') || '送信失敗') + ' · ';
+    const failedLabel = t('msg.failed') || '送信失敗';
+    // エラー詳細を表示 (例: "送信失敗 (セッションが見つかりません) · 再送")
+    const detail = err && err.message ? ` (${err.message})` : '';
+    status.textContent = failedLabel + detail + ' · ';
+    if (err) {
+        try { console.warn('[chat] send failed:', err); } catch (_) {}
+    }
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'msg-retry-btn';
@@ -1062,7 +1091,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=48', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=49', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1251,6 +1280,25 @@ async function _init() {
         state.is_online = status.is_online;
         applyReceptionStatus(status);
         setThemeMode(status.gender_mode);
+        // ?resume=<session_token>: メール通知リンクからの復帰. 既存トークンを LS_SESSION に投入して
+        // enterVisitorMode の adopt パスに乗せる. 別端末/他ブラウザでも履歴を引き継げる.
+        // URL からは即座に削除（ブックマーク/履歴汚染防止, 誤共有抑止）.
+        if (RESUME_TOKEN) {
+            try {
+                localStorage.setItem(LS_SESSION, JSON.stringify({
+                    token: RESUME_TOKEN,
+                    session_id: 0,
+                    last_message_id: 0,
+                    cast_name: null,
+                }));
+            } catch (_) {}
+            try {
+                const p = new URLSearchParams(location.search);
+                p.delete('resume');
+                const newQs = p.toString();
+                history.replaceState(null, '', location.pathname + (newQs ? '?' + newQs : ''));
+            } catch (_) {}
+        }
         await enterVisitorMode();
 
         // URLパラメータ ?owner=1 でオーナーログインモーダル自動起動
@@ -1312,6 +1360,9 @@ async function enterVisitorMode() {
         }
     }
 
+    // メール通知 opt-in UI (キャスト指名セッション ?cast= でも訪問者側では有効)
+    if (refs.visitorNotify) refs.visitorNotify.classList.remove('hidden');
+
     // 既存セッション or 新規作成
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(LS_SESSION) || 'null'); } catch (_) { saved = null; }
@@ -1337,6 +1388,13 @@ async function enterVisitorMode() {
                 // adopt で得た cast_name を LS に反映（旧バージョンで保存されたセッションを救済）
                 saveVisitorSession();
             }
+            // DO版は adopt レスポンスに visitor_email を含まないので PHP から単発で取得.
+            // PollingTransport なら adopt 応答に既に入っているので流用.
+            if (adopt && 'visitor_notify_enabled' in adopt) {
+                hydrateVisitorNotify({ email: adopt.visitor_email || '', enabled: !!adopt.visitor_notify_enabled });
+            } else {
+                loadVisitorNotifyState();
+            }
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
         updateCastHeader();
         // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
@@ -1353,6 +1411,8 @@ async function enterVisitorMode() {
         saveVisitorSession();
         updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
+        // 新規セッションは通知設定も空なので UI を初期化のみ
+        hydrateVisitorNotify({ email: '', enabled: false });
     }
 
     startVisitorPolling();
@@ -1466,6 +1526,67 @@ function saveVisitorSession() {
             cast_name: state.cast_name || null,
         }));
     } catch (_) {}
+}
+
+// ===== 訪問者メール通知 opt-in =====
+// chat_sessions.visitor_email / visitor_notify_enabled を読み書きする UI 制御.
+// DO は通知設定を持たず PHP が権威なので、GET は /api/chat-api.php?action=my-notify-settings を叩く.
+function hydrateVisitorNotify({ email, enabled }) {
+    if (!refs.visitorNotifyToggle) return;
+    refs.visitorNotifyToggle.checked = !!enabled;
+    if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.value = email || '';
+    if (refs.visitorNotifyBody) refs.visitorNotifyBody.classList.toggle('hidden', !enabled);
+    if (refs.visitorNotifyStatus) {
+        refs.visitorNotifyStatus.textContent = '';
+        refs.visitorNotifyStatus.className = 'visitor-notify-status hidden';
+    }
+}
+
+async function loadVisitorNotifyState() {
+    if (!state.session_token) return;
+    try {
+        const data = await api('my-notify-settings', { session_token: state.session_token });
+        hydrateVisitorNotify({ email: data.email || '', enabled: !!data.enabled });
+    } catch (_) {
+        // 取得失敗は致命的ではない（UI は既定のOFF状態のまま）
+    }
+}
+
+function showNotifyStatus(msg, kind) {
+    if (!refs.visitorNotifyStatus) return;
+    refs.visitorNotifyStatus.textContent = msg || '';
+    refs.visitorNotifyStatus.className = 'visitor-notify-status ' + (kind || '');
+    refs.visitorNotifyStatus.classList.toggle('hidden', !msg);
+}
+
+async function saveVisitorNotify() {
+    if (!state.session_token) {
+        showNotifyStatus('セッションが確立していません', 'err');
+        return;
+    }
+    const enabled = !!(refs.visitorNotifyToggle && refs.visitorNotifyToggle.checked);
+    const email = (refs.visitorNotifyEmail && refs.visitorNotifyEmail.value || '').trim();
+    if (enabled) {
+        if (!email) { showNotifyStatus('メールアドレスを入力してください', 'err'); return; }
+        // ざっくりフォーマット検証（PHP 側でも validate）
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showNotifyStatus('メールアドレスの形式が正しくありません', 'err');
+            return;
+        }
+    }
+    try {
+        if (refs.visitorNotifySave) refs.visitorNotifySave.disabled = true;
+        await api('visitor-notify-settings', {
+            session_token: state.session_token,
+            email,
+            enabled: enabled ? 1 : 0,
+        });
+        showNotifyStatus(enabled ? '✓ 通知を有効にしました' : '通知を停止しました', 'ok');
+    } catch (e) {
+        showNotifyStatus(e.message || '保存に失敗しました', 'err');
+    } finally {
+        if (refs.visitorNotifySave) refs.visitorNotifySave.disabled = false;
+    }
 }
 
 function updateStatusIndicator(online) {
@@ -2571,6 +2692,37 @@ if (refs.quickQuestions) {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
         sendVisitorMessage(btn.dataset.quick);
+    });
+}
+
+// 訪問者メール通知: チェックボックス切替で入力欄の表示/非表示を同期.
+// OFF 操作は即保存 (メールアドレスは PHP 側で保持される).
+if (refs.visitorNotifyToggle) {
+    refs.visitorNotifyToggle.addEventListener('change', () => {
+        const on = refs.visitorNotifyToggle.checked;
+        if (refs.visitorNotifyBody) refs.visitorNotifyBody.classList.toggle('hidden', !on);
+        if (!on) {
+            // OFF は即保存（メアド未入力でも OK）
+            saveVisitorNotify();
+        } else {
+            // ON に切り替えた瞬間はまだメアド未確定なので保存しない.
+            // フォーカスをメアド欄へ誘導してユーザーに入力させる.
+            if (refs.visitorNotifyEmail) {
+                try { refs.visitorNotifyEmail.focus(); } catch (_) {}
+            }
+            showNotifyStatus('', '');
+        }
+    });
+}
+if (refs.visitorNotifySave) {
+    refs.visitorNotifySave.addEventListener('click', saveVisitorNotify);
+}
+if (refs.visitorNotifyEmail) {
+    refs.visitorNotifyEmail.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.isComposing) {
+            e.preventDefault();
+            saveVisitorNotify();
+        }
     });
 }
 

@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=58">
+<link rel="stylesheet" href="/chat.css?v=59">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -57,6 +57,18 @@
     <div id="visitor-note" class="chat-note hidden"></div>
     <div id="reservation-hint" class="chat-note reservation-hint hidden" data-i18n="note.reservation">💡ご予約･お約束は､お電話またはLINEなどでお願いいたします</div>
     <div id="cast-view-banner" class="chat-note hidden" style="background:#fff3cd;color:#7a5200;border-left:3px solid #d4a043;"></div>
+
+    <div id="visitor-notify" class="visitor-notify hidden">
+      <label class="visitor-notify-row">
+        <input type="checkbox" id="visitor-notify-toggle">
+        <span class="visitor-notify-title" data-i18n="notify.email_opt_in">📩 返信をメールで受け取る</span>
+      </label>
+      <div id="visitor-notify-body" class="visitor-notify-body hidden">
+        <input type="email" id="visitor-notify-email" class="visitor-notify-email" placeholder="your@email.com" maxlength="255" autocomplete="email" inputmode="email">
+        <button type="button" id="visitor-notify-save" class="visitor-notify-save" data-i18n="notify.save">保存</button>
+      </div>
+      <div id="visitor-notify-status" class="visitor-notify-status hidden"></div>
+    </div>
 
     <div id="nickname-area" class="nickname-area hidden">
       <label for="visitor-nickname" class="nickname-label" data-i18n="nickname.label">ニックネーム（任意）</label>
@@ -185,6 +197,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=68"></script>
+<script src="/chat.js?v=69"></script>
 </body>
 </html>

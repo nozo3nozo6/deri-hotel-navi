@@ -437,6 +437,7 @@ export class ChatRoom implements DurableObject {
       if (this.shopMeta) {
         const pushPayload = buildOwnerReplyPushPayload(this.shopMeta, sess, msg);
         this.state.waitUntil(sendPushToSubject(this.env, 'visitor', sess.session_token, pushPayload));
+        this.state.waitUntil(sendVisitorEmailNotification(this.env, this.shopMeta, sess, msg));
       }
     }
 
@@ -842,4 +843,30 @@ function buildOwnerReplyPushPayload(shop: ShopStatus, sess: ChatSession, msg: Ch
     icon: '/favicon.ico',
     renotify: true,
   };
+}
+
+// 訪問者メール通知: オーナー/キャスト返信時に opt-in 済み訪問者へメール.
+// PHP 側 (chat-notify-visitor.php) が visitor_notify_enabled / クールダウン / 解除リンク生成を担当.
+// ここは単純に POST を打つだけ. DO 側で重い処理はしない.
+async function sendVisitorEmailNotification(env: Env, shop: ShopStatus, sess: ChatSession, msg: ChatMessage): Promise<void> {
+  if (!env.CHAT_NOTIFY_SECRET) return;
+  const base = env.NOTIFY_BASE_URL || 'https://yobuho.com';
+  try {
+    await fetch(`${base}/api/chat-notify-visitor.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: env.CHAT_NOTIFY_SECRET,
+        session_token: sess.session_token,
+        shop_name: shop.shop_name,
+        shop_slug: shop.slug,
+        cast_name: sess.cast_name || null,
+        shop_cast_id: sess.shop_cast_id || null,
+        message: msg.message,
+        sent_at: msg.sent_at,
+      }),
+    });
+  } catch (e) {
+    console.warn('[visitor-notify] fetch failed', e);
+  }
 }
