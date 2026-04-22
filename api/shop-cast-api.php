@@ -78,15 +78,26 @@ function requireCastEnabled(string $shopId): array {
 }
 
 function getCurrentPlanLimit(string $shopId): int {
+    $info = getCurrentPlanInfo($shopId);
+    return $info['limit'];
+}
+
+// 複数契約がある場合は cast_limit が最も大きい（同値なら price が高い）プランを「キャスト枠の根拠」として返す.
+function getCurrentPlanInfo(string $shopId): array {
     $pdo = DB::conn();
-    $sql = 'SELECT MAX(cp.cast_limit) AS lim
+    $sql = 'SELECT cp.name, cp.cast_limit
             FROM shop_contracts sc
             JOIN contract_plans cp ON cp.id = sc.plan_id
-            WHERE sc.shop_id = ?';
+            WHERE sc.shop_id = ?
+            ORDER BY cp.cast_limit DESC, cp.price DESC
+            LIMIT 1';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$shopId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $row && $row['lim'] !== null ? (int)$row['lim'] : 0;
+    return [
+        'limit' => $row ? (int)$row['cast_limit'] : 0,
+        'name'  => $row ? (string)$row['name'] : '',
+    ];
 }
 
 function countActiveCasts(string $shopId): int {
@@ -169,7 +180,8 @@ function handleList() {
     $stmt2->execute([$auth['shop_id']]);
     $pendingInvites = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
-    $limit = getCurrentPlanLimit($auth['shop_id']);
+    $planInfo = getCurrentPlanInfo($auth['shop_id']);
+    $limit = $planInfo['limit'];
     $used = countActiveCasts($auth['shop_id']);
 
     ok([
@@ -178,6 +190,7 @@ function handleList() {
         'cast_limit' => $limit,
         'cast_used' => $used,
         'cast_remaining' => max(0, $limit - $used),
+        'cast_plan_name' => $planInfo['name'],
     ]);
 }
 
