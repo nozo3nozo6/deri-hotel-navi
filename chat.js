@@ -925,12 +925,7 @@ async function enterCastViewMode() {
 function updateCastHeader() {
     if (!state.cast_name) return;
     try {
-        if (refs.shopName) {
-            const baseName = state.shop_name || '';
-            refs.shopName.textContent = baseName
-                ? `${baseName} — ${state.cast_name}`
-                : state.cast_name;
-        }
+        if (refs.shopName) refs.shopName.textContent = state.cast_name;
     } catch (_) {}
 }
 
