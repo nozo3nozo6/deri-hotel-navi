@@ -1214,7 +1214,7 @@ function resolveCastInboxToken(string $token): ?array {
     $stmt = $pdo->prepare(
         'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.display_name,
                 sc.chat_notify_mode, sc.status AS sc_status, c.status AS cast_status,
-                s.slug, s.shop_name
+                s.slug, s.shop_name, s.gender_mode
          FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
          JOIN shops s ON s.id = sc.shop_id
@@ -1306,6 +1306,7 @@ function handleCastInbox(): void {
         'shop_name'        => $sc['shop_name'],
         'shop_slug'        => $sc['slug'],
         'shop_cast_id'     => $sc['shop_cast_id'],
+        'gender_mode'      => $sc['gender_mode'] ?? 'men',
         'notify_mode'      => $sc['chat_notify_mode'],
         'notify_enabled'   => $sc['chat_notify_mode'] !== 'off',
         'server_time'      => date('c'),

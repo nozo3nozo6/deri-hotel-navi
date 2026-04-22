@@ -1677,6 +1677,10 @@ async function enterCastOwnerMode() {
     state.notify_enabled = !!data.notify_enabled;
     state.is_online = state.notify_enabled;
     state.inbox_sessions = data.sessions || [];
+    // 店舗ジャンル(gender_mode)に合わせてテーマ適用.
+    // data-role="cast" は CSS で店舗オーナーと区別するための装飾フック.
+    setThemeMode(data.gender_mode || 'men');
+    try { document.body.dataset.role = 'cast'; } catch (_) {}
 
     // ヘッダ/UI整備
     refs.shopName.textContent = (state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name;
