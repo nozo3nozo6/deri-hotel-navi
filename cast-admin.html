@@ -346,7 +346,7 @@ function renderShops(shops){
     list.innerHTML = shops.map(s => {
         const imgHtml = s.profile_image_url
             ? '<img class="shop-img" src="' + esc(s.profile_image_url) + '" alt="' + esc(s.display_name) + '">'
-            : '<div class="shop-img-placeholder">👤</div>';
+            : '';
         const isPending = s.status === 'pending_approval';
         let statusClass, statusLabel;
         if (isPending) { statusClass = 'status-pending'; statusLabel = '⏳ 店舗の承認待ち'; }
