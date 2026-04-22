@@ -1091,7 +1091,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=49', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=50', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1361,7 +1361,7 @@ async function enterVisitorMode() {
     }
 
     // メール通知 opt-in UI (キャスト指名セッション ?cast= でも訪問者側では有効)
-    if (refs.visitorNotify) refs.visitorNotify.classList.remove('hidden');
+    // visitor-notify ラッパー（メール入力パネル）はトグル ON 時のみ表示. ここでは unhide しない.
 
     // 既存セッション or 新規作成
     let saved = null;
@@ -1535,7 +1535,7 @@ function hydrateVisitorNotify({ email, enabled }) {
     if (!refs.visitorNotifyToggle) return;
     refs.visitorNotifyToggle.checked = !!enabled;
     if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.value = email || '';
-    if (refs.visitorNotifyBody) refs.visitorNotifyBody.classList.toggle('hidden', !enabled);
+    if (refs.visitorNotify) refs.visitorNotify.classList.toggle('hidden', !enabled);
     if (refs.visitorNotifyStatus) {
         refs.visitorNotifyStatus.textContent = '';
         refs.visitorNotifyStatus.className = 'visitor-notify-status hidden';
@@ -2700,7 +2700,7 @@ if (refs.quickQuestions) {
 if (refs.visitorNotifyToggle) {
     refs.visitorNotifyToggle.addEventListener('change', () => {
         const on = refs.visitorNotifyToggle.checked;
-        if (refs.visitorNotifyBody) refs.visitorNotifyBody.classList.toggle('hidden', !on);
+        if (refs.visitorNotify) refs.visitorNotify.classList.toggle('hidden', !on);
         if (!on) {
             // OFF は即保存（メアド未入力でも OK）
             saveVisitorNotify();

@@ -142,18 +142,20 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .chat-note{margin:10px 12px 4px;padding:8px 12px;background:var(--chat-note-bg);border:1px solid var(--chat-note-border);border-radius:8px;font-size:13px;color:var(--chat-note-text);line-height:1.5}
 .chat-note.reception-closed{background:#fdecec;border-color:#f2b5b5;color:#8b2323;font-weight:600}
 
-/* ===== 訪問者メール通知 opt-in ===== */
-.visitor-notify{margin:6px 12px;padding:8px 12px;background:#fafafa;border:1px solid #e5e0d8;border-radius:8px;font-size:13px;color:#555}
-.visitor-notify-row{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
-.visitor-notify-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--chat-primary);cursor:pointer;flex:0 0 auto}
-.visitor-notify-title{font-size:13px;color:#333}
-.visitor-notify-body{display:flex;gap:6px;margin-top:8px;align-items:center}
+/* ===== 訪問者メール通知 opt-in =====
+   nickname行の末尾にチェックボックスを同居、ON時のみ下に入力欄パネルが出る */
+.visitor-notify-inline{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;cursor:pointer;user-select:none;white-space:nowrap}
+.visitor-notify-inline input[type=checkbox]{width:16px;height:16px;accent-color:var(--chat-primary);cursor:pointer;flex:0 0 auto;margin:0}
+.visitor-notify-inline .visitor-notify-title{font-size:12px;color:#555}
+@media (max-width:480px){.visitor-notify-inline .visitor-notify-title{font-size:11px}}
+.visitor-notify{margin:0 12px 4px;padding:0;font-size:13px;color:#555}
+.visitor-notify-body{display:flex;gap:6px;align-items:center;padding:8px 10px;background:#fafafa;border:1px solid #e5e0d8;border-radius:8px}
 .visitor-notify-email{flex:1 1 auto;padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:16px;background:#fff;min-width:0}
 .visitor-notify-email:focus{outline:none;border-color:var(--chat-primary)}
 .visitor-notify-save{flex:0 0 auto;padding:6px 14px;background:var(--chat-primary);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600}
 .visitor-notify-save:hover{background:var(--chat-primary-dark)}
 .visitor-notify-save:disabled{background:#aaa;cursor:wait}
-.visitor-notify-status{margin-top:6px;font-size:12px}
+.visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px}
 .visitor-notify-status.ok{color:#2a8a5e}
 .visitor-notify-status.err{color:#a44}
 
