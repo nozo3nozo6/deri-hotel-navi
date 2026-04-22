@@ -13,6 +13,10 @@ export interface Env {
   // '1' にすると MysqlSync が no-op になる. PHP が authoritative になった後 (Day 4) に ON.
   // 途中でも wrangler secret put CHAT_SYNC_DISABLE_MIRROR で即時切替できる.
   CHAT_SYNC_DISABLE_MIRROR?: string;
+  // VAPID (Web Push RFC 8292). 未設定時は push 送信を no-op.
+  VAPID_PUBLIC_KEY?: string;   // base64url (87chars, uncompressed P-256 public)
+  VAPID_PRIVATE_KEY?: string;  // base64url (43chars, 32B scalar)
+  VAPID_SUBJECT?: string;      // mailto:... or https://...
 }
 
 // ===== メッセージ =====

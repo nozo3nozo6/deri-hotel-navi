@@ -43,7 +43,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -478,6 +478,10 @@ try {
         case 'push-config':     handlePushConfig(); break;
         case 'push-subscribe':  handlePushSubscribe(); break;
         case 'push-unsubscribe': handlePushUnsubscribe(); break;
+
+        // DO→PHP (X-Sync-Secret 認証) — Web Push 送信時の購読者取得 / 失効削除
+        case 'fetch-push-subscribers':     handleFetchPushSubscribers(); break;
+        case 'push-unsubscribe-by-endpoint': handlePushUnsubscribeByEndpoint(); break;
 
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
@@ -2359,6 +2363,51 @@ function handlePushUnsubscribe(): void {
          WHERE endpoint_hash = ? AND subject_type = ? AND subject_id = ?'
     );
     $stmt->execute([$hash, $subject['type'], $subject['id']]);
+    ok(['deleted' => $stmt->rowCount()]);
+}
+
+// ----- DO→PHP: Web Push 送信時に購読者を返す / 失効エンドポイントを削除 -----
+// 認証: X-Sync-Secret (wrangler secret CHAT_SYNC_SECRET と共有)
+
+function assertSyncSecret(): void {
+    $expected = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
+    $provided = $_SERVER['HTTP_X_SYNC_SECRET'] ?? '';
+    if (!$expected || !hash_equals($expected, $provided)) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'forbidden']);
+        exit;
+    }
+}
+
+function handleFetchPushSubscribers(): void {
+    assertSyncSecret();
+
+    $subjectType = trim((string)inp('subject_type', ''));
+    $subjectId = trim((string)inp('subject_id', ''));
+    if (!in_array($subjectType, ['shop', 'cast', 'visitor'], true)) err('invalid subject_type');
+    if ($subjectId === '') err('subject_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT endpoint, endpoint_hash, p256dh, auth
+         FROM web_push_subscriptions
+         WHERE subject_type = ? AND subject_id = ?
+         LIMIT 200'
+    );
+    $stmt->execute([$subjectType, $subjectId]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    ok(['subscribers' => $rows]);
+}
+
+function handlePushUnsubscribeByEndpoint(): void {
+    assertSyncSecret();
+
+    $hash = trim((string)inp('endpoint_hash', ''));
+    if ($hash === '') err('endpoint_hash required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('DELETE FROM web_push_subscriptions WHERE endpoint_hash = ?');
+    $stmt->execute([$hash]);
     ok(['deleted' => $stmt->rowCount()]);
 }
 

@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { buildDefaultRouter } from './notify';
 import { MysqlSync } from './sync';
+import { sendPushToSubject, type PushPayload } from './push';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;        // 30s
 const ALARM_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h retention sweep
@@ -341,6 +342,20 @@ export class ChatRoom implements DurableObject {
         sess.notified_at = msg.sent_at;
         await this.saveSession(sess);
       }
+
+      // Web Push (best-effort, 受信側の subscription 切れは自動削除).
+      // - キャスト指名セッション: 該当キャストの購読者のみ (店舗オーナーに通知しない設計)
+      // - 店舗直通セッション: 店舗の購読者全員
+      // shouldNotify とは独立 — push はマナーモード的な位置付けで「店舗が off でも個人端末は通知される」.
+      // Day 10 時点では shouldNotify と揃える方が安全なので中に入れる.
+      if (shouldNotify && this.shopMeta) {
+        const pushPayload = buildVisitorMessagePushPayload(this.shopMeta, sess, msg);
+        if (sess.cast_id) {
+          this.state.waitUntil(sendPushToSubject(this.env, 'cast', sess.cast_id, pushPayload));
+        } else {
+          this.state.waitUntil(sendPushToSubject(this.env, 'shop', this.shopMeta.shop_id, pushPayload));
+        }
+      }
     }
 
     // 送信側にも統一バッチ形式で返す (since_id 以降の新着もマージ)
@@ -415,6 +430,14 @@ export class ChatRoom implements DurableObject {
       await this.saveSession(sess);
 
       this.broadcastToSession(sid, 'visitor', { type: 'message', data: msg, session_id: sid, session_token: sess.session_token });
+
+      // 訪問者への Web Push (店舗/キャストが返信したとき).
+      // shop_slug / cast_id は URL 復元に使うため、訪問者端末が chat.yobuho.com 埋め込みか
+      // standalone ページか判別せず、shop.slug + session_token だけで復元できる形で渡す.
+      if (this.shopMeta) {
+        const pushPayload = buildOwnerReplyPushPayload(this.shopMeta, sess, msg);
+        this.state.waitUntil(sendPushToSubject(this.env, 'visitor', sess.session_token, pushPayload));
+      }
     }
 
     const newer = await this.messagesSince(sid, sinceId);
@@ -775,4 +798,48 @@ export class ChatRoom implements DurableObject {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
   }
+}
+
+// ========== Push payload builders ==========
+
+function truncateBody(s: string, max = 120): string {
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+// 訪問者→店舗/キャスト: オーナー/キャスト端末に表示.
+function buildVisitorMessagePushPayload(shop: ShopStatus, sess: ChatSession, msg: ChatMessage): PushPayload {
+  const who = sess.nickname && sess.nickname.trim() !== '' ? sess.nickname : 'ゲスト';
+  const title = sess.cast_name
+    ? `${sess.cast_name}｜${who}から新着メッセージ`
+    : `${shop.shop_name || 'YobuChat'}｜${who}から新着メッセージ`;
+  // URL: キャスト指名なら ?cast=... 、店舗直通なら shop slug のみ
+  const base = `https://yobuho.com/chat/${encodeURIComponent(shop.slug || '')}/`;
+  const url = sess.shop_cast_id
+    ? `${base}?cast=${encodeURIComponent(sess.shop_cast_id)}&view=${encodeURIComponent(sess.session_token)}`
+    : `${base}?view=${encodeURIComponent(sess.session_token)}`;
+  return {
+    title,
+    body: truncateBody(msg.message),
+    url,
+    tag: `ychat-v-${sess.session_token.slice(0, 16)}`,
+    icon: '/favicon.ico',
+    renotify: true,
+  };
+}
+
+// 店舗→訪問者: 訪問者端末に表示.
+function buildOwnerReplyPushPayload(shop: ShopStatus, sess: ChatSession, msg: ChatMessage): PushPayload {
+  const sender = sess.cast_name || shop.shop_name || 'YobuChat';
+  const base = `https://yobuho.com/chat/${encodeURIComponent(shop.slug || '')}/`;
+  const url = sess.shop_cast_id
+    ? `${base}?cast=${encodeURIComponent(sess.shop_cast_id)}&resume=${encodeURIComponent(sess.session_token)}`
+    : `${base}?resume=${encodeURIComponent(sess.session_token)}`;
+  return {
+    title: `${sender} から返信`,
+    body: truncateBody(msg.message),
+    url,
+    tag: `ychat-o-${sess.session_token.slice(0, 16)}`,
+    icon: '/favicon.ico',
+    renotify: true,
+  };
 }
