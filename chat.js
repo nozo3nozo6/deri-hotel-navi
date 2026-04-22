@@ -695,7 +695,17 @@ async function _init() {
     try {
         // ?cast_inbox=<uuid>: キャスト自分用受信箱. オーナー類似UIで cast-inbox 系 API を叩く.
         // 店舗の device_token も shop-auth セッションも使わず URL-only auth.
-        if (IS_CAST_INBOX) {
+        // URL に cast_inbox が指定されていれば、トークン形式が不正でも訪問者画面には落とさず明示エラー.
+        // (silent fallback にすると URL指定時のバグが見えなくなり、診断に時間がかかる)
+        const rawInboxParam = (() => {
+            try { return new URLSearchParams(window.location.search).get('cast_inbox') || ''; }
+            catch (_) { return ''; }
+        })();
+        if (rawInboxParam) {
+            if (!IS_CAST_INBOX) {
+                refs.root.innerHTML = '<div style="padding:40px;text-align:center;color:#c0392b;">キャスト受信箱URLが不正です (token形式エラー)</div>';
+                return;
+            }
             await enterCastOwnerMode();
             setLoading(false);
             return;
