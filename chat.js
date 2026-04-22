@@ -2300,6 +2300,33 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
+// ===== iOS キーボード対応: visualViewport で #chat-root の高さを動的調整 =====
+// body:fixed だと iOS が焦点移動で一瞬全画面スクロールする挙動が残る。
+// visualViewport.height (= 表示可能領域 = キーボードを除いた高さ) を CSS変数 --chat-vh に流し込み、
+// #chat-root 自体をキーボード上端までに縮ませる。結果、入力欄だけが "キーボードに追従してスライド" する体感になる。
+function setupViewportTracker() {
+    if (!window.visualViewport) return;
+    const vv = window.visualViewport;
+    const apply = () => {
+        // offsetTop は iOS でキーボード表示時に非0になる (表示領域が下にずれる場合). 実表示領域の下端で計算.
+        const h = vv.height;
+        document.documentElement.style.setProperty('--chat-vh', h + 'px');
+    };
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    // 入力欄にフォーカスが戻るたびに iOS が一瞬 scroll する前に、メッセージ末尾へスクロール
+    // (キーボード表示で messages 領域が小さくなった瞬間、最新メッセージが隠れるのを防ぐ)
+    document.addEventListener('focusin', (e) => {
+        const t = e.target;
+        if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
+        setTimeout(() => {
+            if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+        }, 300);
+    });
+    apply();
+}
+setupViewportTracker();
+
 // ===== 起動 =====
 init();
 
