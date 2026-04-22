@@ -878,8 +878,9 @@ async function enterCastViewMode() {
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
-    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
-    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
+    // キャスト視点では受付時間ステータスは不要（店舗向け情報）
+    if (refs.statusDot) refs.statusDot.classList.add('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
 
     state.mode = 'visitor'; // poll/apply を visitor ロジックで流用するため
     state.session_token = VIEW_TOKEN;
@@ -947,6 +948,8 @@ function saveVisitorSession() {
 
 function updateStatusIndicator(online) {
     state.is_online = online;
+    // キャスト指名ビューではステータス/受付時間は非表示（店舗向け情報）
+    if (IS_CAST_VIEW) return;
     refs.statusDot.classList.toggle('online', online);
     refs.statusDot.classList.toggle('offline', !online);
     const hours = state.reception_start && state.reception_end
