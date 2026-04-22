@@ -975,13 +975,13 @@ async function enterCastViewMode() {
     startVisitorPolling();
 }
 
-// キャスト指名セッションの場合、ヘッダーに「キャスト名 — 店舗名」を表示.
-// cast_owner / cast_inbox モードと同じ format で一貫させる.
+// キャスト指名セッションの場合、ヘッダーに「キャスト名」のみを表示.
+// cast_owner / cast_inbox モードと同じ format で一貫させる（店名は冗長なので表示しない）.
 function updateCastHeader() {
     if (!state.cast_name) return;
     try {
         if (refs.shopName) {
-            refs.shopName.textContent = state.cast_name + (state.shop_name ? ' — ' + state.shop_name : '');
+            refs.shopName.textContent = state.cast_name;
         }
     } catch (_) {}
 }
