@@ -39,6 +39,8 @@ yarn-error.log*
 # PHP認証設定（Service Role Key含む）
 api/auth-config.php
 api/migrate-passwords.php
+api/db-config.php
+api/vapid-config.php
 
 # vercel
 .vercel

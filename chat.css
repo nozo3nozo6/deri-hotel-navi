@@ -119,6 +119,13 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .typing-dot:nth-child(2){animation-delay:.18s}
 .typing-dot:nth-child(3){animation-delay:.36s}
 @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+.chat-push-btn{margin-right:8px;padding:4px 10px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:rgba(255,255,255,.9);color:var(--chat-primary);border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1.4;transition:background .15s,border-color .15s}
+.chat-push-btn:hover:not(:disabled){background:#fff;border-color:var(--chat-primary)}
+.chat-push-btn.is-on{background:var(--chat-primary);color:#fff;border-color:var(--chat-primary)}
+.chat-push-btn.is-on:hover:not(:disabled){opacity:.9}
+.chat-push-btn:disabled{opacity:.5;cursor:not-allowed}
+.chat-push-btn.hidden{display:none}
+@media (max-width:480px){.chat-push-btn{padding:3px 7px;font-size:10px}}
 .msg-date-sep{display:flex;justify-content:center;margin:8px 0 2px}
 .msg-date-sep span{background:rgba(0,0,0,.06);color:#666;font-size:11px;padding:2px 10px;border-radius:10px}
 .msg-translation{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(var(--chat-primary-rgb),.25);font-size:13px;opacity:.85;line-height:1.4}

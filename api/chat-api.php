@@ -16,6 +16,9 @@
  */
 
 require_once __DIR__ . '/db.php';
+if (file_exists(__DIR__ . '/vapid-config.php')) {
+    require_once __DIR__ . '/vapid-config.php';
+}
 
 define('SHOP_SESSION_TIMEOUT', 86400);
 session_set_cookie_params([
@@ -40,7 +43,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -472,6 +475,9 @@ try {
         case 'translate':       handleTranslate(); break;
         case 'send':            handleUnifiedSend(); break;
         case 'set-typing':      handleSetTyping(); break;
+        case 'push-config':     handlePushConfig(); break;
+        case 'push-subscribe':  handlePushSubscribe(); break;
+        case 'push-unsubscribe': handlePushUnsubscribe(); break;
 
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
@@ -2221,6 +2227,139 @@ function handleSetTyping(): void {
         }
     }
     err('invalid auth.kind');
+}
+
+// =========================================================
+// Web Push (Day 9): VAPID公開鍵配布 + 購読登録 / 解除
+// ---------------------------------------------------------
+// subject_type + subject_id で通知先を識別:
+//   shop    -> shop_id
+//   cast    -> shop_cast_id  (casts.id は内部キーなので使わない)
+//   visitor -> session_token (chat_sessions.session_token, UUID36)
+// endpoint_hash (sha256 hex) で UNIQUE, 再購読は UPSERT.
+// =========================================================
+function handlePushConfig(): void {
+    $key = defined('VAPID_PUBLIC_KEY') ? (string)VAPID_PUBLIC_KEY : '';
+    if ($key === '') { ok(['enabled' => false]); return; }
+    ok(['enabled' => true, 'public_key' => $key]);
+}
+
+function resolvePushSubject(array $auth): ?array {
+    global $body;
+    $kind = (string)($auth['kind'] ?? '');
+    $pdo = DB::conn();
+
+    switch ($kind) {
+        case 'visitor': {
+            $token = trim((string)($auth['session_token'] ?? ''));
+            if ($token === '') return null;
+            $stmt = $pdo->prepare('SELECT session_token FROM chat_sessions WHERE session_token = ? LIMIT 1');
+            $stmt->execute([$token]);
+            $t = (string)($stmt->fetchColumn() ?: '');
+            if ($t === '') return null;
+            return ['type' => 'visitor', 'id' => $t, 'device_token' => null];
+        }
+        case 'cast_view': {
+            $token = trim((string)($auth['session_token'] ?? ''));
+            $shopCastId = trim((string)($auth['shop_cast_id'] ?? ''));
+            if ($token === '' || $shopCastId === '') return null;
+            $stmt = $pdo->prepare(
+                'SELECT sc.id FROM chat_sessions s
+                 JOIN shop_casts sc ON sc.cast_id = s.cast_id AND sc.shop_id = s.shop_id
+                 WHERE s.session_token = ? AND sc.id = ? AND sc.status = "active" LIMIT 1'
+            );
+            $stmt->execute([$token, $shopCastId]);
+            $id = (string)($stmt->fetchColumn() ?: '');
+            if ($id === '') return null;
+            return ['type' => 'cast', 'id' => $id, 'device_token' => null];
+        }
+        case 'owner': {
+            if (!empty($auth['device_token'])) $body['device_token'] = $auth['device_token'];
+            $device = verifyDevice((string)inp('device_token', ''));
+            if (!$device) return null;
+            return ['type' => 'shop', 'id' => (string)$device['shop_id'], 'device_token' => (string)inp('device_token', '')];
+        }
+        case 'cast_inbox': {
+            $inbox = trim((string)($auth['inbox_token'] ?? ''));
+            $deviceToken = trim((string)($auth['device_token'] ?? ''));
+            $sc = resolveCastInboxToken($inbox);
+            if (!$sc) return null;
+            if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) return null;
+            return ['type' => 'cast', 'id' => (string)$sc['shop_cast_id'], 'device_token' => $deviceToken];
+        }
+    }
+    return null;
+}
+
+function handlePushSubscribe(): void {
+    $auth = inp('auth', []);
+    if (!is_array($auth)) err('auth required');
+
+    $sub = inp('subscription', []);
+    if (!is_array($sub)) err('subscription required');
+    $endpoint = trim((string)($sub['endpoint'] ?? ''));
+    $keys = (array)($sub['keys'] ?? []);
+    $p256dh = trim((string)($keys['p256dh'] ?? ''));
+    $authKey = trim((string)($keys['auth'] ?? ''));
+    if ($endpoint === '' || $p256dh === '' || $authKey === '') err('invalid subscription');
+    if (!preg_match('#^https?://#', $endpoint)) err('invalid endpoint');
+    if (strlen($endpoint) > 2000) err('endpoint too long');
+
+    $subject = resolvePushSubject($auth);
+    if (!$subject) err('auth failed', 403);
+
+    $hash = hash('sha256', $endpoint);
+    $ua = substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'INSERT INTO web_push_subscriptions
+            (subject_type, subject_id, device_token, endpoint, endpoint_hash, p256dh, auth, ua, last_success_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)
+         ON DUPLICATE KEY UPDATE
+            subject_type = VALUES(subject_type),
+            subject_id   = VALUES(subject_id),
+            device_token = VALUES(device_token),
+            p256dh       = VALUES(p256dh),
+            auth         = VALUES(auth),
+            ua           = VALUES(ua),
+            failure_count = 0,
+            updated_at   = CURRENT_TIMESTAMP'
+    );
+    $stmt->execute([
+        $subject['type'],
+        $subject['id'],
+        $subject['device_token'],
+        $endpoint,
+        $hash,
+        $p256dh,
+        $authKey,
+        $ua,
+    ]);
+
+    ok(['endpoint_hash' => $hash]);
+}
+
+function handlePushUnsubscribe(): void {
+    $auth = inp('auth', []);
+    if (!is_array($auth)) err('auth required');
+
+    $endpoint = trim((string)inp('endpoint', ''));
+    $endpointHash = trim((string)inp('endpoint_hash', ''));
+    if ($endpoint === '' && $endpointHash === '') err('endpoint or endpoint_hash required');
+
+    $subject = resolvePushSubject($auth);
+    if (!$subject) err('auth failed', 403);
+
+    $hash = $endpointHash !== '' ? $endpointHash : hash('sha256', $endpoint);
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'DELETE FROM web_push_subscriptions
+         WHERE endpoint_hash = ? AND subject_type = ? AND subject_id = ?'
+    );
+    $stmt->execute([$hash, $subject['type'], $subject['id']]);
+    ok(['deleted' => $stmt->rowCount()]);
 }
 
 function handleUnifiedSend(): void {

@@ -88,6 +88,20 @@ jobs:
           mkdir -p api
           printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\ndefine('CHAT_RETENTION_SECRET', '%s');\ndefine('CHAT_SYNC_SECRET', '%s');\ndefine('CHAT_NOTIFY_SECRET', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$CHAT_RETENTION_SECRET" "$CHAT_SYNC_SECRET" "$CHAT_NOTIFY_SECRET" > api/db-config.php
 
+      - name: Generate vapid-config.php
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+        run: |
+          mkdir -p api
+          if [ -n "$VAPID_PUBLIC_KEY" ]; then
+            printf "<?php\ndefine('VAPID_PUBLIC_KEY', '%s');\ndefine('VAPID_PRIVATE_KEY', '%s');\ndefine('VAPID_SUBJECT', '%s');\n" "$VAPID_PUBLIC_KEY" "$VAPID_PRIVATE_KEY" "$VAPID_SUBJECT" > api/vapid-config.php
+            echo "vapid-config.php generated"
+          else
+            echo "VAPID_PUBLIC_KEY not set — skipping (push disabled)"
+          fi
+
       - name: Deploy code via rsync
         run: |
           rsync -avz \

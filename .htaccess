@@ -8,7 +8,23 @@ RewriteRule ^\.git - [F,L]
 # Force HTTPS
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# ===== メンテナンスモード（マーカーファイル方式） =====
+# 有効化: サーバー上で `touch /home/yobuho/yobuho.com/public_html/.maintenance`
+# 解除:   サーバー上で `rm /home/yobuho/yobuho.com/public_html/.maintenance`
+# 効果: /api/ への POST/PUT/DELETE を 503 で拒否（GET/閲覧は通常通り）
+#       cron用エンドポイント（?key=...）は除外されて稼働継続
+RewriteCond %{DOCUMENT_ROOT}/.maintenance -f
+RewriteCond %{REQUEST_METHOD} !^(GET|HEAD|OPTIONS)$
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{QUERY_STRING} !(^|&)key=
+RewriteRule ^ - [R=503,L]
 </IfModule>
+
+# .maintenance マーカーファイル自体へのアクセス遮断
+<FilesMatch "^\.maintenance$">
+    Require all denied
+</FilesMatch>
 
 # .env ファイルへのアクセス遮断
 <FilesMatch "^\.env">
@@ -256,6 +272,11 @@ RewriteRule ^portal\.html$ /portal-women-same.php [L,QSA]
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
+  </FilesMatch>
+  # Service Worker は常に最新を配信（ブラウザ自身のSW cache ruleに委ねる）
+  <FilesMatch "(sw|chat-push-sw)\.js$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Service-Worker-Allowed "/"
   </FilesMatch>
 </IfModule>
 

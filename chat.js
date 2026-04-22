@@ -470,6 +470,243 @@ function renderTypingIndicator(show) {
     }
 }
 
+// =====================================================
+// Day 9: Web Push (VAPID)
+// -----------------------------------------------------
+// buildPushAuth: モード別 auth オブジェクトを組み立てる（session_id 不要）.
+// pushSupported: 現ブラウザで Push が使えるか.
+// ensurePushSW: /chat-push-sw.js を登録. 成功で Registration を返す.
+// ensurePushConfig: /api/chat-api.php?action=push-config で公開鍵取得.
+// subscribeToPush: 許可要求 → SW登録 → pushManager.subscribe → push-subscribe API保存.
+// unsubscribeFromPush: 端末の購読解除 + サーバーからも削除.
+// pushIsSubscribed: 現在このモードで購読済みかローカル判定用.
+// refreshPushButton: ボタン表示/ラベル/disabled 状態を現在のパーミッションに合わせる.
+// =====================================================
+const LS_PUSH_SUBSCRIBED = 'ychat_push_sub_v1';
+let _pushConfigCache = null;
+
+function pushSupported() {
+    return (
+        typeof window !== 'undefined' &&
+        'serviceWorker' in navigator &&
+        'PushManager' in window &&
+        'Notification' in window
+    );
+}
+
+function buildPushAuth() {
+    const payload = buildTypingPayload();
+    if (!payload) return null;
+    return payload.auth;
+}
+
+function b64urlToUint8(b64) {
+    const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+    const base64 = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+}
+
+function bufToB64url(buf) {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function ensurePushSW() {
+    if (!pushSupported()) return null;
+    try {
+        const existing = await navigator.serviceWorker.getRegistration('/chat-push-sw.js');
+        if (existing) return existing;
+        return await navigator.serviceWorker.register('/chat-push-sw.js', { scope: '/' });
+    } catch (e) {
+        return null;
+    }
+}
+
+async function ensurePushConfig() {
+    if (_pushConfigCache !== null) return _pushConfigCache;
+    try {
+        const res = await api('push-config', null, 'GET');
+        _pushConfigCache = (res && res.enabled && res.public_key) ? res : { enabled: false };
+    } catch (_) {
+        _pushConfigCache = { enabled: false };
+    }
+    return _pushConfigCache;
+}
+
+function pushIsSubscribed() {
+    try { return !!localStorage.getItem(LS_PUSH_SUBSCRIBED); } catch (_) { return false; }
+}
+
+function markPushSubscribed(hash) {
+    try { localStorage.setItem(LS_PUSH_SUBSCRIBED, hash || '1'); } catch (_) {}
+}
+
+function clearPushSubscribed() {
+    try { localStorage.removeItem(LS_PUSH_SUBSCRIBED); } catch (_) {}
+}
+
+async function subscribeToPush() {
+    if (!pushSupported()) { showError('このブラウザは通知に対応していません'); return false; }
+
+    const auth = buildPushAuth();
+    if (!auth) { showError('まずチャットセッションを開始してください'); return false; }
+
+    const cfg = await ensurePushConfig();
+    if (!cfg.enabled) { showError('通知機能は現在利用できません'); return false; }
+
+    let perm = Notification.permission;
+    if (perm === 'default') {
+        try { perm = await Notification.requestPermission(); } catch (_) { perm = 'denied'; }
+    }
+    if (perm !== 'granted') {
+        showError('通知許可がブロックされています');
+        return false;
+    }
+
+    const reg = await ensurePushSW();
+    if (!reg) { showError('Service Worker登録に失敗しました'); return false; }
+
+    let sub;
+    try {
+        sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+            sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: b64urlToUint8(cfg.public_key),
+            });
+        }
+    } catch (e) {
+        showError('通知購読に失敗しました: ' + (e && e.message ? e.message : ''));
+        return false;
+    }
+
+    const json = sub.toJSON();
+    const p256dh = json.keys && json.keys.p256dh;
+    const authKey = json.keys && json.keys.auth;
+    if (!p256dh || !authKey) { showError('購読データが不正です'); return false; }
+
+    try {
+        const r = await api('push-subscribe', {
+            auth,
+            subscription: {
+                endpoint: json.endpoint,
+                keys: { p256dh, auth: authKey },
+            },
+        }, 'POST');
+        markPushSubscribed(r.endpoint_hash || '1');
+        refreshPushButton();
+        return true;
+    } catch (e) {
+        showError('サーバー登録に失敗しました');
+        return false;
+    }
+}
+
+async function unsubscribeFromPush() {
+    if (!pushSupported()) return;
+    const auth = buildPushAuth();
+    try {
+        const reg = await navigator.serviceWorker.getRegistration('/chat-push-sw.js');
+        if (reg) {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                const endpoint = sub.endpoint;
+                try { await sub.unsubscribe(); } catch (_) {}
+                if (auth) {
+                    try {
+                        await api('push-unsubscribe', { auth, endpoint }, 'POST');
+                    } catch (_) {}
+                }
+            }
+        }
+    } catch (_) {}
+    clearPushSubscribed();
+    refreshPushButton();
+}
+
+function ensurePushButton() {
+    let btn = document.getElementById('chat-push-btn');
+    if (btn) return btn;
+    btn = document.createElement('button');
+    btn.id = 'chat-push-btn';
+    btn.type = 'button';
+    btn.className = 'chat-push-btn hidden';
+    btn.setAttribute('aria-label', '通知を許可');
+    btn.textContent = '🔔 通知を許可';
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        if (pushIsSubscribed()) {
+            await unsubscribeFromPush();
+        } else {
+            await subscribeToPush();
+        }
+        btn.disabled = false;
+    });
+    return btn;
+}
+
+function placePushButton() {
+    const btn = ensurePushButton();
+    if (btn.parentNode) return btn;
+    const host = document.querySelector('#chat-header .chat-header-right') || document.getElementById('chat-header');
+    if (!host) return btn;
+    host.insertBefore(btn, host.firstChild);
+    return btn;
+}
+
+function refreshPushButton() {
+    const btn = ensurePushButton();
+    placePushButton();
+
+    if (!pushSupported()) { btn.classList.add('hidden'); return; }
+
+    // モード判定: owner / cast_owner / cast_view / visitor で有効。
+    // visitor モードでも push は登録できるがセッション期限切れでは無効になるため条件緩め.
+    const auth = buildPushAuth();
+    if (!auth) { btn.classList.add('hidden'); return; }
+
+    // 未設定サーバーでは隠す
+    if (_pushConfigCache && _pushConfigCache.enabled === false) {
+        btn.classList.add('hidden');
+        return;
+    }
+
+    btn.classList.remove('hidden');
+
+    const perm = Notification.permission;
+    if (perm === 'denied') {
+        btn.textContent = '🔕 通知ブロック中';
+        btn.disabled = true;
+        return;
+    }
+    btn.disabled = false;
+    if (pushIsSubscribed()) {
+        btn.textContent = '🔔 通知ON (解除)';
+        btn.classList.add('is-on');
+    } else {
+        btn.textContent = '🔔 通知を許可';
+        btn.classList.remove('is-on');
+    }
+}
+
+// SW からのメッセージ処理 (通知クリック時に URL を共有する等)
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (ev) => {
+        try {
+            if (!ev.data) return;
+            if (ev.data.type === 'ychat:push-lost') {
+                clearPushSubscribed();
+                refreshPushButton();
+            }
+        } catch (_) {}
+    });
+}
+
 // 401 device_token無効を検知したら polling を止めて再ログインを促す（reload はしない）
 let _authRecovering = false;
 function handleDeviceAuthFailure() {
@@ -1030,6 +1267,7 @@ async function _init() {
         showError(e.message || 'エラーが発生しました');
     } finally {
         setLoading(false);
+        try { await ensurePushConfig(); refreshPushButton(); } catch (_) {}
     }
 }
 
