@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=61">
+<link rel="stylesheet" href="/chat.css?v=64">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -73,6 +73,7 @@
         <button type="button" id="visitor-notify-save" class="visitor-notify-save" data-i18n="notify.save">保存</button>
       </div>
       <div id="visitor-notify-status" class="visitor-notify-status hidden"></div>
+      <button type="button" id="visitor-notify-resend" class="visitor-notify-resend hidden" data-i18n="notify.resend">確認メールを再送</button>
     </div>
 
     <div id="owner-templates" class="owner-templates hidden">
@@ -171,6 +172,7 @@
   <button type="button" id="owner-login-link" class="owner-login-link-hidden" hidden></button>
 
   <div id="chat-error" class="chat-error hidden"></div>
+  <div id="network-banner" class="network-banner hidden" role="status" aria-live="polite"></div>
 </div>
 
 <!-- Owner login modal -->
@@ -197,6 +199,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=74"></script>
+<script src="/chat.js?v=83"></script>
 </body>
 </html>

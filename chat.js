@@ -169,6 +169,7 @@ const refs = {
     visitorNotifyEmail: $('visitor-notify-email'),
     visitorNotifySave: $('visitor-notify-save'),
     visitorNotifyStatus: $('visitor-notify-status'),
+    visitorNotifyResend: $('visitor-notify-resend'),
 };
 
 // ===== ユーティリティ =====
@@ -277,10 +278,82 @@ async function sendUnified(payload) {
 // - 送信失敗: .failed + 再送ボタン. outbox に残し、visibilitychange/online で再試行.
 // - outbox は in-memory (リロードで消える). 永続化は Day 4.5 以降 (必要なら localStorage).
 // =========================================================
-const _outbox = new Map(); // cmid -> {payload, renderAs, text, attempts, createdAt}
+const _outbox = new Map(); // cmid -> {payload, text, attempts, createdAt, nextRetryAt, lastErrorKind}
+const _retryTimers = new Map(); // cmid -> setTimeout id (単発の自動再送用)
 
-function addOutgoingOptimistic(cmid, text, renderAs) {
-    // renderAs: 'visitor'(自分=訪問者) or 'shop'(自分=店舗/キャスト)
+// 送信失敗の3分岐: offline (端末がオフライン) / network (通信エラー) / temporary (5xx) / permanent (4xx).
+// retryable=false なら再送ボタンを出さず outbox からも破棄 (連投/blocked/closed 等).
+function classifyFailure(err) {
+    const status = err && typeof err.status === 'number' ? err.status : 0;
+    // 4xx: サーバーが明示的に拒否. 再送しても同じ結果.
+    if (status >= 400 && status < 500) {
+        return { kind: 'permanent', icon: '✕', retryable: false };
+    }
+    // 5xx: サーバー一時障害. 自動再送する価値あり.
+    if (status >= 500) {
+        return { kind: 'temporary', icon: '⚠️', retryable: true };
+    }
+    // status 未設定 = fetch失敗 (network). 端末がオフラインかネット経路の問題.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return { kind: 'offline', icon: '📡', retryable: true };
+    }
+    return { kind: 'network', icon: '🔄', retryable: true };
+}
+
+// 自動再送の指数バックオフ: 2^(attempts-1) 秒, 上限 60s.
+function computeBackoffMs(attempts) {
+    const n = Math.max(1, attempts | 0);
+    const sec = Math.min(60, Math.pow(2, n - 1));
+    return sec * 1000;
+}
+
+// ネットワーク状態バナー. offline→赤, online復帰→緑(1.5s autohide).
+let _netBannerTimer = 0;
+function showNetworkBanner(kind, text) {
+    const el = document.getElementById('network-banner');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('hidden', 'offline', 'reconnected');
+    el.classList.add(kind);
+    // reflow で transition 起動
+    void el.offsetHeight;
+    el.classList.add('visible');
+    if (_netBannerTimer) { clearTimeout(_netBannerTimer); _netBannerTimer = 0; }
+    if (kind === 'reconnected') {
+        _netBannerTimer = setTimeout(() => hideNetworkBanner(), 1800);
+    }
+}
+function hideNetworkBanner() {
+    const el = document.getElementById('network-banner');
+    if (!el) return;
+    el.classList.remove('visible');
+    if (_netBannerTimer) { clearTimeout(_netBannerTimer); _netBannerTimer = 0; }
+    setTimeout(() => { try { el.classList.add('hidden'); } catch (_) {} }, 300);
+}
+
+// =========================================================
+// 描画規約: 位置クラスの単一ソース
+// CSS固定: .msg-row.visitor=flex-end(右/自分側), .msg-row.shop=flex-start(左/相手側)
+// 命名はレガシー互換のまま維持 (POS_SELF/POS_OTHER を参照させる)
+// =========================================================
+const POS_SELF = 'visitor';   // 自分側の位置クラス (右)
+const POS_OTHER = 'shop';     // 相手側の位置クラス (左)
+
+// 現在のviewer視点が shop-side (owner/cast送信者) か visitor-side か
+function viewerIsShopSide() {
+    return !!(IS_CAST_VIEW || IS_CAST_INBOX
+        || state.mode === 'owner' || state.mode === 'cast_owner');
+}
+// sender_type の msg を、現在のviewer視点で「自分側」か「相手側」か判定
+function positionClassFor(senderType) {
+    const senderIsVisitor = senderType === 'visitor';
+    const isSelf = viewerIsShopSide() ? !senderIsVisitor : senderIsVisitor;
+    return isSelf ? POS_SELF : POS_OTHER;
+}
+
+function addOutgoingOptimistic(cmid, text) {
+    // 自送信は常に自分側(POS_SELF=右). viewer役割に関係なく固定.
+    const renderAs = POS_SELF;
     // dedupe: 既にバブルがあれば既存を返す (retry 時は別 cmid を使うので基本衝突しない)
     const existing = refs.chatMessages
         ? refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`)
@@ -315,7 +388,7 @@ function addOutgoingOptimistic(cmid, text, renderAs) {
     status.textContent = t('msg.sending') || '送信中…';
     meta.appendChild(status);
 
-    if (renderAs === 'visitor') { row.appendChild(meta); row.appendChild(bubble); }
+    if (renderAs === POS_SELF) { row.appendChild(meta); row.appendChild(bubble); }
     else { row.appendChild(bubble); row.appendChild(meta); }
     refs.chatMessages.appendChild(row);
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
@@ -343,58 +416,149 @@ function markOptimisticFailed(cmid, err) {
     if (!refs.chatMessages) return;
     const row = refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`);
     if (!row) return;
+    const cls = classifyFailure(err);
+    const entry = _outbox.get(cmid);
+    if (entry) entry.lastErrorKind = cls.kind;
+
     const bubble = row.querySelector('.msg');
     if (bubble) {
-        bubble.classList.remove('sending');
+        bubble.classList.remove('sending', 'pending-retry');
         bubble.classList.add('failed');
-        // エラー内容をツールチップに残す (未返信の根本原因調査用)
+        // 自動再送予定ありの時は黄色表示にして「失敗で確定」ではないことを示す.
+        if (cls.retryable && entry && entry.nextRetryAt) bubble.classList.add('pending-retry');
         if (err && err.message) bubble.title = err.message;
     }
     const meta = row.querySelector('.msg-meta');
     if (!meta) return;
     const oldStatus = meta.querySelector('.msg-send-status');
     if (oldStatus) oldStatus.remove();
+    const oldActions = meta.querySelector('.msg-failed-actions');
+    if (oldActions) oldActions.remove();
+
     const status = document.createElement('div');
-    status.className = 'msg-send-status failed';
+    status.className = 'msg-send-status ' + (cls.retryable && entry && entry.nextRetryAt ? 'pending-retry' : 'failed');
+    const icon = document.createElement('span');
+    icon.className = 'msg-send-status-icon';
+    icon.textContent = cls.icon;
+    icon.setAttribute('aria-hidden', 'true');
+    status.appendChild(icon);
+
+    const label = document.createElement('span');
     const failedLabel = t('msg.failed') || '送信失敗';
-    // エラー詳細を表示 (例: "送信失敗 (セッションが見つかりません) · 再送")
-    const detail = err && err.message ? ` (${err.message})` : '';
-    status.textContent = failedLabel + detail + ' · ';
+    // kind 別の短文を優先表示 (詳細はツールチップで補完).
+    let kindLabel = failedLabel;
+    if (cls.kind === 'offline') kindLabel = (t('msg.offlineRetry') || 'オフライン — 再接続時に再送');
+    else if (cls.kind === 'network') kindLabel = (t('msg.networkRetry') || '通信エラー — まもなく再送');
+    else if (cls.kind === 'temporary') kindLabel = (t('msg.tempRetry') || '一時的な障害 — まもなく再送');
+    label.textContent = kindLabel;
+    status.appendChild(label);
+
     if (err) {
-        try { console.warn('[chat] send failed:', err); } catch (_) {}
+        try { console.warn('[chat] send failed (' + cls.kind + '):', err); } catch (_) {}
     }
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'msg-retry-btn';
-    btn.textContent = t('msg.retry') || '再送';
-    btn.addEventListener('click', (e) => { e.stopPropagation(); retryOutbox(cmid); });
-    status.appendChild(btn);
+
+    if (!cls.retryable) {
+        // 永続エラー (4xx). 連投ブロック/セッションclosed等、再送しても無駄なので outbox からも破棄.
+        dequeueOutbox(cmid);
+        clearRetryTimer(cmid);
+        // アクションバー: コピー + 削除 のみ (再送なし).
+        const actions = buildFailedActions(cmid, /*showRetry*/ false);
+        meta.appendChild(status);
+        meta.appendChild(actions);
+        return;
+    }
+
+    // 再送可能: 手動「再送」リンク + アクションバー (コピー/削除).
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'msg-retry-btn';
+    retryBtn.textContent = t('msg.retry') || '再送';
+    retryBtn.addEventListener('click', (e) => { e.stopPropagation(); retryOutbox(cmid); });
+    status.appendChild(retryBtn);
+
     meta.appendChild(status);
+    meta.appendChild(buildFailedActions(cmid, /*showRetry*/ false));
+}
+
+function buildFailedActions(cmid, showRetry) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-failed-actions';
+    if (showRetry) {
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'msg-act-retry';
+        retry.textContent = t('msg.retry') || '再送';
+        retry.addEventListener('click', (e) => { e.stopPropagation(); retryOutbox(cmid); });
+        wrap.appendChild(retry);
+    }
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'msg-act-copy';
+    copy.textContent = t('msg.copy') || 'コピー';
+    copy.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const entry = _outbox.get(cmid);
+        const text = entry && entry.text ? entry.text : '';
+        if (!text) return;
+        try { navigator.clipboard.writeText(text); } catch (_) {}
+    });
+    wrap.appendChild(copy);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'msg-act-delete';
+    del.textContent = t('msg.delete') || '削除';
+    del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteFailedMessage(cmid);
+    });
+    wrap.appendChild(del);
+    return wrap;
+}
+
+function deleteFailedMessage(cmid) {
+    if (!refs.chatMessages) return;
+    const row = refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`);
+    if (row) row.remove();
+    dequeueOutbox(cmid);
+    clearRetryTimer(cmid);
+}
+
+function clearRetryTimer(cmid) {
+    const id = _retryTimers.get(cmid);
+    if (id) { try { clearTimeout(id); } catch (_) {} _retryTimers.delete(cmid); }
 }
 
 function enqueueOutbox(cmid, entry) {
-    _outbox.set(cmid, { ...entry, attempts: entry.attempts || 0, createdAt: Date.now() });
+    _outbox.set(cmid, { ...entry, attempts: entry.attempts || 0, createdAt: Date.now(), nextRetryAt: 0 });
 }
 
-function dequeueOutbox(cmid) { _outbox.delete(cmid); }
+function dequeueOutbox(cmid) {
+    _outbox.delete(cmid);
+    clearRetryTimer(cmid);
+}
 
 async function retryOutbox(cmid) {
     const entry = _outbox.get(cmid);
     if (!entry) return;
+    clearRetryTimer(cmid);
     entry.attempts = (entry.attempts || 0) + 1;
+    entry.nextRetryAt = 0;
     // UI: failed→sending に戻す
     const row = refs.chatMessages
         ? refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`)
         : null;
     if (row) {
         const bubble = row.querySelector('.msg');
-        if (bubble) { bubble.classList.remove('failed'); bubble.classList.add('sending'); }
+        if (bubble) { bubble.classList.remove('failed', 'pending-retry'); bubble.classList.add('sending'); }
         const oldStatus = row.querySelector('.msg-send-status');
         if (oldStatus) {
             oldStatus.innerHTML = '';
             oldStatus.textContent = t('msg.sending') || '送信中…';
-            oldStatus.classList.remove('failed');
+            oldStatus.classList.remove('failed', 'pending-retry');
         }
+        const oldActions = row.querySelector('.msg-failed-actions');
+        if (oldActions) oldActions.remove();
     }
     try {
         const resp = await sendUnified(entry.payload);
@@ -412,15 +576,60 @@ async function retryOutbox(cmid) {
             applyOwnerBatch(resp, sid);
         }
     } catch (e) {
+        // 再試行可能なら指数バックオフで自動再送をスケジュール. 永続エラーなら markOptimisticFailed が dequeue.
+        const cls = classifyFailure(e);
+        if (cls.retryable && _outbox.has(cmid)) {
+            const delay = computeBackoffMs(entry.attempts);
+            const stillEntry = _outbox.get(cmid);
+            if (stillEntry) {
+                stillEntry.nextRetryAt = Date.now() + delay;
+                // offline の時はタイマーを貼らず、online イベントに任せる (無駄打ち防止).
+                if (cls.kind !== 'offline') {
+                    const tid = setTimeout(() => {
+                        _retryTimers.delete(cmid);
+                        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+                        // 個別 retryOutbox でなく flushOutbox を呼ぶ: 他の先行 cmid の送信を
+                        // 追い越さないよう FIFO 順で再評価 (#113: 順序保証).
+                        flushOutbox();
+                    }, delay);
+                    _retryTimers.set(cmid, tid);
+                }
+            }
+        }
         markOptimisticFailed(cmid, e);
         if (e && e.authFailed) handleDeviceAuthFailure();
     }
 }
 
-function flushOutbox() {
+// 同時 flush 防止: serial に await するためのロック.
+// オフライン→復帰で N 件を一気に送るとき、並列 fetch() は到着順が保証されないため
+// サーバー側で順序が崩れる可能性がある. シリアル+FIFO で受信者にも同順序で届けたい.
+let _flushing = false;
+async function flushOutbox() {
+    if (_flushing) return;
     if (!_outbox.size) return;
-    const cmids = Array.from(_outbox.keys());
-    for (const cmid of cmids) retryOutbox(cmid);
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    _flushing = true;
+    try {
+        const now = Date.now();
+        // Map.keys() は挿入順を保持するので、これで送信順 (= ユーザー入力順) になる.
+        const cmids = Array.from(_outbox.keys());
+        for (const cmid of cmids) {
+            const entry = _outbox.get(cmid);
+            if (!entry) continue;
+            // 厳密 FIFO: 先頭がバックオフ中ならそれ以降も待つ.
+            // そうしないと Msg1 失敗→Msg2 送信成功 でサーバー側到着順が逆転する.
+            // (手動「再送」ボタンは retryOutbox() 直呼びで個別スキップ可能).
+            if (entry.nextRetryAt && entry.nextRetryAt > now) break;
+            // シリアル await: HTTP 完了まで次に進まない.
+            // retryOutbox 内で再失敗時の schedule もここで setTimeout が貼られるので、
+            // 次回の flush も自然に順序付けされる.
+            await retryOutbox(cmid);
+            // 永続 4xx で dequeue された場合は次の cmid へ (既にループの break 条件で対応済み).
+        }
+    } finally {
+        _flushing = false;
+    }
 }
 
 // =====================================================
@@ -474,6 +683,33 @@ function emitTyping() {
     api('set-typing', payload, 'POST').catch(() => {});
 }
 
+// #3: 入力中停止を明示通知. 送信完了 / blur / 画面非表示 / アンロード時に呼ぶ.
+// 相手側の 6s 自然減衰を待たず即時にインジケーター非表示になる.
+function emitTypingStop(opts) {
+    const payload = buildTypingPayload();
+    if (!payload) return;
+    payload.stop = true;
+    _lastTypingEmit = 0; // 次の入力で emitTyping が即発火できるようリセット
+    // beforeunload / pagehide では sendBeacon を使う (fetch は abort されうる)
+    if (opts && opts.beacon && navigator.sendBeacon) {
+        try {
+            const blob = new Blob(
+                [JSON.stringify({ action: 'set-typing', ...payload })],
+                { type: 'application/json' }
+            );
+            navigator.sendBeacon(API, blob);
+            return;
+        } catch (_) { /* fallthrough */ }
+    }
+    api('set-typing', payload, 'POST').catch(() => {});
+}
+
+// #3: 相手側インジケーターのローカル watchdog.
+// WS push or poll で typing=true を受けたら 6.5s 後に自動で非表示にする.
+// ネットワーク断で stop 信号を取りこぼしても bubble が残り続けない保険.
+let _typingWatchdog = null;
+const TYPING_LOCAL_TIMEOUT_MS = 6500;
+
 function ensureTypingIndicatorEl() {
     let el = document.getElementById('typing-indicator');
     if (el) return el;
@@ -496,8 +732,16 @@ function renderTypingIndicator(show) {
         el.classList.remove('hidden');
         const near = refs.chatMessages.scrollHeight - refs.chatMessages.scrollTop - refs.chatMessages.clientHeight < 80;
         if (near) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+        // #3: watchdog — stop 信号を取りこぼしても 6.5s で自動非表示.
+        if (_typingWatchdog) clearTimeout(_typingWatchdog);
+        _typingWatchdog = setTimeout(() => {
+            const e = document.getElementById('typing-indicator');
+            if (e) e.classList.add('hidden');
+            _typingWatchdog = null;
+        }, TYPING_LOCAL_TIMEOUT_MS);
     } else {
         el.classList.add('hidden');
+        if (_typingWatchdog) { clearTimeout(_typingWatchdog); _typingWatchdog = null; }
     }
 }
 
@@ -807,7 +1051,12 @@ const PollingTransport = {
         // 即時 catchup (visibility復帰時の待ち時間を消す)
         tick();
         const timer = setInterval(tick, intervalMs || POLL_INTERVAL);
-        return { stop: () => { active = false; clearInterval(timer); } };
+        return {
+            stop: () => { active = false; clearInterval(timer); },
+            // #2 symmetric: PollingTransport は poll-messages?session_token= を毎 tick で叩いており
+            // PHP 側で shop→visitor read_at UPDATE + broadcastReadToDO 済み. view signal は不要なので no-op.
+            setView: () => {},
+        };
     },
 
     // オーナー: 受信箱 or 選択中スレッドを購読（selected_session の有無で自動切替）
@@ -833,7 +1082,12 @@ const PollingTransport = {
         // 即時 catchup
         tick();
         const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
-        return { stop: () => { active = false; clearInterval(timer); } };
+        return {
+            stop: () => { active = false; clearInterval(timer); },
+            // PollingTransport は owner-inbox?session_id= を毎 tick で叩いており
+            // PHP 側で read_at UPDATE + broadcastReadToDO 済み. view signal は不要なので no-op.
+            setView: () => {},
+        };
     },
 
     // 訪問者: セッション作成
@@ -905,6 +1159,9 @@ const DurableObjectTransport = {
         let ws = null;
         let reconnectTimer = null;
         let heartbeat = null;
+        // #2: 訪問者がフォアグラウンドで開いている session_token.
+        // WS open / 再接続のたびに再送し DO 側 presence を復元する.
+        let currentViewToken = null;
 
         const connect = () => {
             if (!active) return;
@@ -933,6 +1190,14 @@ const DurableObjectTransport = {
                         onBatch({ messages: [], last_read_own_id: data.up_to_id });
                         return;
                     }
+                    if (data.type === 'typing') {
+                        // #3: 相手 (shop 側) の typing 状態を即時反映.
+                        // role は typist のロール. 訪問者 UI では自セッションの shop typing のみ反映.
+                        if (data.role === 'shop' && data.session_token === getSessionToken()) {
+                            onBatch({ messages: [], other_typing: !!data.typing });
+                        }
+                        return;
+                    }
                     // snapshot / batch 応答はそのまま通す
                     onBatch(data);
                 } catch (_) {}
@@ -947,6 +1212,10 @@ const DurableObjectTransport = {
                 heartbeat = setInterval(() => {
                     try { ws.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
                 }, 30000);
+                // #2: 再接続時に訪問者 presence を DO に復元.
+                if (currentViewToken) {
+                    try { ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken })); } catch (_) {}
+                }
             });
         };
         connect();
@@ -958,6 +1227,15 @@ const DurableObjectTransport = {
                 clearInterval(heartbeat);
                 try { ws && ws.close(); } catch (_) {}
             },
+            // #2: 訪問者がチャット画面をフォアグラウンド表示 / 非表示にしたタイミングで呼ぶ.
+            // session_token=null でクリア.
+            setView: (token) => {
+                currentViewToken = token || null;
+                if (!ws || ws.readyState !== 1) return;
+                try {
+                    ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken }));
+                } catch (_) {}
+            },
         };
     },
 
@@ -966,6 +1244,9 @@ const DurableObjectTransport = {
         let ws = null;
         let reconnectTimer = null;
         let heartbeat = null;
+        // B-1: オーナーが現在開いているスレッドの session_token.
+        // WS open / 再接続のたびに再送し DO 側 presence を復元する.
+        let currentViewToken = null;
 
         const connect = () => {
             if (!active) return;
@@ -1021,6 +1302,14 @@ const DurableObjectTransport = {
                         if (!selectedSid) refreshInboxViaPhp();
                         return;
                     }
+                    if (data.type === 'typing') {
+                        // #3: 相手 (visitor 側) の typing を即時反映.
+                        // 選択中スレッドでのみ表示 (inbox 一覧には出さない).
+                        if (data.role === 'visitor' && matchSelected) {
+                            onBatch({ messages: [], other_typing: !!data.typing }, selectedSid);
+                        }
+                        return;
+                    }
                     onBatch(data, selectedSid);
                 } catch (_) {}
             });
@@ -1034,6 +1323,10 @@ const DurableObjectTransport = {
                 heartbeat = setInterval(() => {
                     try { ws.send(JSON.stringify({ type: 'ping' })); } catch (_) {}
                 }, 30000);
+                // B-1: 再接続時に現在のスレッド presence を DO に復元.
+                if (currentViewToken) {
+                    try { ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken })); } catch (_) {}
+                }
             });
         };
 
@@ -1057,6 +1350,15 @@ const DurableObjectTransport = {
                 clearTimeout(reconnectTimer);
                 clearInterval(heartbeat);
                 try { ws && ws.close(); } catch (_) {}
+            },
+            // B-1: オーナーがスレッドを開いた / 閉じたタイミングで呼ぶ.
+            // session_token=null でクリア.
+            setView: (token) => {
+                currentViewToken = token || null;
+                if (!ws || ws.readyState !== 1) return;
+                try {
+                    ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken }));
+                } catch (_) {}
             },
         };
     },
@@ -1093,7 +1395,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=52', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=54', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1390,13 +1692,9 @@ async function enterVisitorMode() {
                 // adopt で得た cast_name を LS に反映（旧バージョンで保存されたセッションを救済）
                 saveVisitorSession();
             }
-            // DO版は adopt レスポンスに visitor_email を含まないので PHP から単発で取得.
-            // PollingTransport なら adopt 応答に既に入っているので流用.
-            if (adopt && 'visitor_notify_enabled' in adopt) {
-                hydrateVisitorNotify({ email: adopt.visitor_email || '', enabled: !!adopt.visitor_notify_enabled });
-            } else {
-                loadVisitorNotifyState();
-            }
+            // adopt レスポンスは verified/pending を含まないため必ず PHP (my-notify-settings) で完全取得.
+            // Magic Link 確認状態は UI バッジ表示に必須で、adopt 側のフィールドだけでは不十分.
+            loadVisitorNotifyState();
         } catch (_) { /* PHP版は本質的に no-op でも可 */ }
         updateCastHeader();
         // DO モードでは PHP pollMessages を叩かない: WS snapshot で DO storage から履歴が配信される.
@@ -1533,14 +1831,44 @@ function saveVisitorSession() {
 // ===== 訪問者メール通知 opt-in =====
 // chat_sessions.visitor_email / visitor_notify_enabled を読み書きする UI 制御.
 // DO は通知設定を持たず PHP が権威なので、GET は /api/chat-api.php?action=my-notify-settings を叩く.
-function hydrateVisitorNotify({ email, enabled }) {
+//
+// Magic Link 確認:
+//   入力直後は verified=0 (pending). 確認メールのリンクをクリックすると verified=1.
+//   verified=0 の間は chat-notify-visitor.php が送信をスキップする (いたずら防止).
+function hydrateVisitorNotify({ email, enabled, verified, pending }) {
     if (!refs.visitorNotifyToggle) return;
     refs.visitorNotifyToggle.checked = !!enabled;
     if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.value = email || '';
     if (refs.visitorNotify) refs.visitorNotify.classList.toggle('hidden', !enabled);
-    if (refs.visitorNotifyStatus) {
+
+    // 状態に応じて persistent ステータス表示
+    if (enabled && email && !verified && pending) {
+        showNotifyStatus(t('notify.verification_pending') || '📧 確認メール送信済み — メール内のリンクをクリックしてください', 'pending');
+    } else if (enabled && verified) {
+        showNotifyStatus(t('notify.verified') || '✓ 確認済み — 通知が有効です', 'ok');
+    } else if (refs.visitorNotifyStatus) {
         refs.visitorNotifyStatus.textContent = '';
         refs.visitorNotifyStatus.className = 'visitor-notify-status hidden';
+    }
+
+    // 「確認メールを再送」ボタン: pending 状態 (メール登録済み & 未確認) のときだけ表示
+    if (refs.visitorNotifyResend) {
+        const showResend = enabled && email && !verified && pending;
+        refs.visitorNotifyResend.classList.toggle('hidden', !showResend);
+    }
+}
+
+async function resendVisitorEmailVerify() {
+    if (!state.session_token) return;
+    if (!refs.visitorNotifyResend) return;
+    try {
+        refs.visitorNotifyResend.disabled = true;
+        await api('resend-visitor-email-verify', { session_token: state.session_token });
+        showNotifyStatus(t('notify.verification_sent') || '📧 確認メールを送信しました — メール内のリンクをクリックしてください', 'pending');
+    } catch (e) {
+        showNotifyStatus(e.message || '再送に失敗しました', 'err');
+    } finally {
+        refs.visitorNotifyResend.disabled = false;
     }
 }
 
@@ -1548,7 +1876,12 @@ async function loadVisitorNotifyState() {
     if (!state.session_token) return;
     try {
         const data = await api('my-notify-settings', { session_token: state.session_token });
-        hydrateVisitorNotify({ email: data.email || '', enabled: !!data.enabled });
+        hydrateVisitorNotify({
+            email: data.email || '',
+            enabled: !!data.enabled,
+            verified: !!data.verified,
+            pending: !!data.pending,
+        });
     } catch (_) {
         // 取得失敗は致命的ではない（UI は既定のOFF状態のまま）
     }
@@ -1569,21 +1902,29 @@ async function saveVisitorNotify() {
     const enabled = !!(refs.visitorNotifyToggle && refs.visitorNotifyToggle.checked);
     const email = (refs.visitorNotifyEmail && refs.visitorNotifyEmail.value || '').trim();
     if (enabled) {
-        if (!email) { showNotifyStatus('メールアドレスを入力してください', 'err'); return; }
+        if (!email) { showNotifyStatus(t('notify.email_required') || 'メールアドレスを入力してください', 'err'); return; }
         // ざっくりフォーマット検証（PHP 側でも validate）
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showNotifyStatus('メールアドレスの形式が正しくありません', 'err');
+            showNotifyStatus(t('notify.email_invalid') || 'メールアドレスの形式が正しくありません', 'err');
             return;
         }
     }
     try {
         if (refs.visitorNotifySave) refs.visitorNotifySave.disabled = true;
-        await api('visitor-notify-settings', {
+        const res = await api('visitor-notify-settings', {
             session_token: state.session_token,
             email,
             enabled: enabled ? 1 : 0,
         });
-        showNotifyStatus(enabled ? '✓ 通知を有効にしました' : '通知を停止しました', 'ok');
+        if (!enabled) {
+            showNotifyStatus(t('notify.saved_off') || '通知を停止しました', 'ok');
+        } else if (res && res.verification_sent) {
+            showNotifyStatus(t('notify.verification_sent') || '📧 確認メールを送信しました — メール内のリンクをクリックしてください', 'pending');
+        } else if (res && res.verified) {
+            showNotifyStatus(t('notify.saved_on') || '✓ 通知を有効にしました', 'ok');
+        } else {
+            showNotifyStatus(t('notify.saved_on') || '✓ 通知を有効にしました', 'ok');
+        }
     } catch (e) {
         showNotifyStatus(e.message || '保存に失敗しました', 'err');
     } finally {
@@ -1706,7 +2047,7 @@ function sortMessagesByTime() {
     }
     state.last_msg_date = lastDate;
 }
-function addMessage(m, fromOwner) {
+function addMessage(m, _fromOwnerLegacy) {
     // dedup: 同 client_msg_id が既に描画済みならスキップ.
     // DO と MySQL の message.id 空間は独立しており (DO は自前カウンタ, MySQL は auto_increment)
     // id ベース dedup では DO 新規セッションの msg が MySQL の max id より小さくなって消える.
@@ -1716,10 +2057,10 @@ function addMessage(m, fromOwner) {
         if (refs.chatMessages.querySelector(`[data-msg-id="${m.id}"]`)) return;
     }
 
-    const isVisitor = m.sender_type === 'visitor';
-    // キャスト返信モードは shop 視点で描画 (訪問者=左/他, 自分=右/自).
-    const asOwner = fromOwner || IS_CAST_VIEW;
-    const renderAs = asOwner ? (isVisitor ? 'shop' : 'visitor') : (isVisitor ? 'visitor' : 'shop');
+    // 位置クラスは positionClassFor() に集約. viewer役割 (visitor/owner/cast_view/cast_owner)
+    // は viewerIsShopSide() が globals から判定するので、呼び出し元から viewer 情報を渡す必要なし.
+    // 旧 fromOwner 引数は後方互換のため受けるが無視.
+    const renderAs = positionClassFor(m.sender_type);
 
     // 日付セパレーター
     const dateKey = getDateKey(m.sent_at);
@@ -1745,14 +2086,14 @@ function addMessage(m, fromOwner) {
     t.textContent = formatTime(m.sent_at);
     meta.appendChild(t);
 
-    // visitor(自分)=時刻を吹き出しの左, shop(相手)=時刻を吹き出しの右
-    if (renderAs === 'visitor') { row.appendChild(meta); row.appendChild(bubble); }
+    // 自分側=時刻を吹き出しの左, 相手側=時刻を吹き出しの右
+    if (renderAs === POS_SELF) { row.appendChild(meta); row.appendChild(bubble); }
     else { row.appendChild(bubble); row.appendChild(meta); }
     refs.chatMessages.appendChild(row);
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 
     // 翻訳表示: 相手のメッセージで、言語が viewer 側と異なる場合に自動翻訳
-    const isOthers = fromOwner ? isVisitor : !isVisitor;
+    const isOthers = (renderAs === POS_OTHER);
     const src = ((m.source_lang || '').toLowerCase()) || detectLang(m.message);
     if (isOthers && src && src !== currentLang && I18N[src] && I18N[currentLang]) {
         maybeTranslate(bubble, m.message, src, currentLang);
@@ -1908,6 +2249,11 @@ function startVisitorPolling() {
         getSinceId: () => state.last_message_id,
         onBatch: applyVisitorBatch
     });
+    // #2: 訪問者がフォアグラウンドで開いている間, DO に view signal を送る.
+    // shop メッセージ到着時に DO 側で即時既読化 + owner WS へ read push.
+    if (!document.hidden && state.session_token) {
+        try { state._visitorSub.setView && state._visitorSub.setView(state.session_token); } catch (_) {}
+    }
 }
 function stopPolling() {
     if (state._visitorSub) { state._visitorSub.stop(); state._visitorSub = null; }
@@ -2025,7 +2371,7 @@ async function sendVisitorMessage(msg) {
         since_id: state.last_message_id || 0,
     };
     // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
-    addOutgoingOptimistic(clientMsgId, msg, 'visitor');
+    addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
     lockVisitorNickname();
     try {
@@ -2039,7 +2385,7 @@ async function sendVisitorMessage(msg) {
         }
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
-        enqueueOutbox(clientMsgId, { payload, renderAs: 'visitor', text: msg });
+        enqueueOutbox(clientMsgId, { payload, text: msg });
     }
 }
 
@@ -2062,18 +2408,17 @@ async function sendCastReply(msg) {
         client_msg_id: clientMsgId,
         since_id: state.last_message_id || 0,
     };
-    // cast view は IS_CAST_VIEW=true → 自分(キャスト)=右=shop側描画
-    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    // cast view 自送信 (位置クラスは positionClassFor が globals から判定)
+    addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
     try {
         const resp = await sendUnified(payload);
         markOptimisticSent(clientMsgId, (resp.messages || []).find(m => m.client_msg_id === clientMsgId));
-        // owner-reply と同じ形状の batch が返る. applyVisitorBatch は cast view の addMessage 分岐
-        // (IS_CAST_VIEW で fromOwner=true 扱い) と整合するので流用可.
+        // owner-reply と同じ形状の batch が返る. applyVisitorBatch は cast view 視点と整合する (positionClassFor).
         applyVisitorBatch(resp);
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
-        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
+        enqueueOutbox(clientMsgId, { payload, text: msg });
     }
 }
 
@@ -2175,6 +2520,11 @@ function renderInbox() {
 async function openOwnerThread(sessionId) {
     state.selected_session = state.inbox_sessions.find(s => Number(s.id) === Number(sessionId));
     if (!state.selected_session) return;
+    // B-1: DO にオーナー presence を通知 (自動既読トリガ).
+    //   visitor からの新着は owner WS が受信 → この presence があれば DO が即時 read 反映.
+    if (state._ownerSub && state._ownerSub.setView && state.selected_session.session_token) {
+        state._ownerSub.setView(state.selected_session.session_token);
+    }
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.remove('hidden');
@@ -2265,8 +2615,8 @@ async function sendOwnerReply(msg) {
         client_msg_id: clientMsgId,
         since_id: state.last_message_id || 0,
     };
-    // オーナー視点: 自分(店舗)=右=shop側描画
-    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    // オーナー自送信 (位置クラスは positionClassFor が globals から判定)
+    addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
     try {
         const r = await sendUnified(payload);
@@ -2275,7 +2625,7 @@ async function sendOwnerReply(msg) {
         applyOwnerBatch(r, sessionId);
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
-        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
+        enqueueOutbox(clientMsgId, { payload, text: msg });
         if (e && e.authFailed) handleDeviceAuthFailure();
     }
 }
@@ -2586,8 +2936,8 @@ async function sendCastInboxReply(msg) {
         client_msg_id: clientMsgId,
         since_id: state.last_message_id || 0,
     };
-    // キャスト受信箱視点: 自分(キャスト)=右=shop側描画
-    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    // キャスト受信箱 自送信 (位置クラスは positionClassFor が globals から判定)
+    addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
     try {
         const r = await sendUnified(payload);
@@ -2596,7 +2946,7 @@ async function sendCastInboxReply(msg) {
         applyOwnerBatch(r, sessionId);
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
-        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
+        enqueueOutbox(clientMsgId, { payload, text: msg });
     }
 }
 
@@ -2728,9 +3078,22 @@ refs.input.addEventListener('keydown', (e) => {
 });
 
 // Day 8: typing emit (スロットル付き — 3秒おきに再発火)
+// #3: 値が空になった / blur / 送信時は stop 信号を明示送信.
+let _hadTypingValue = false;
 refs.input.addEventListener('input', () => {
-    if (!refs.input.value) return;
-    emitTyping();
+    if (refs.input.value) {
+        _hadTypingValue = true;
+        emitTyping();
+    } else if (_hadTypingValue) {
+        _hadTypingValue = false;
+        emitTypingStop();
+    }
+});
+refs.input.addEventListener('blur', () => {
+    if (_hadTypingValue) {
+        _hadTypingValue = false;
+        emitTypingStop();
+    }
 });
 
 if (refs.quickQuestions) {
@@ -2762,6 +3125,9 @@ if (refs.visitorNotifyToggle) {
 }
 if (refs.visitorNotifySave) {
     refs.visitorNotifySave.addEventListener('click', saveVisitorNotify);
+}
+if (refs.visitorNotifyResend) {
+    refs.visitorNotifyResend.addEventListener('click', resendVisitorEmailVerify);
 }
 if (refs.visitorNotifyEmail) {
     refs.visitorNotifyEmail.addEventListener('keydown', (e) => {
@@ -2862,6 +3228,10 @@ refs.onlineToggle.addEventListener('change', async (e) => {
 
 refs.btnRefresh.addEventListener('click', () => (IS_CAST_INBOX ? showCastInbox() : showInbox()));
 function backToInbox() {
+    // B-1: presence クリア. DO 側で自動既読の対象外になる.
+    if (state._ownerSub && state._ownerSub.setView) {
+        state._ownerSub.setView(null);
+    }
     state.selected_session = null;
     renderTypingIndicator(false);
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
@@ -2962,12 +3332,23 @@ function sendOwnerGoOffline() {
 }
 
 window.addEventListener('beforeunload', () => {
+    // #3: タブを閉じる前に入力中なら stop 信号を送る (sendBeacon).
+    if (_hadTypingValue) { emitTypingStop({ beacon: true }); _hadTypingValue = false; }
     stopPolling();
     sendOwnerGoOffline();
 });
-window.addEventListener('pagehide', sendOwnerGoOffline);
+window.addEventListener('pagehide', () => {
+    if (_hadTypingValue) { emitTypingStop({ beacon: true }); _hadTypingValue = false; }
+    sendOwnerGoOffline();
+});
 window.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+        // #2: 訪問者 presence を DO 側からクリア (WS close でも消えるが明示).
+        if (state._visitorSub && state._visitorSub.setView) {
+            try { state._visitorSub.setView(null); } catch (_) {}
+        }
+        // #3: 画面が隠れた瞬間 typing 停止を相手に伝える.
+        if (_hadTypingValue) { emitTypingStop({ beacon: true }); _hadTypingValue = false; }
         stopPolling();
         sendOwnerGoOffline();
     } else if (state.mode === 'visitor' && state.session_token) {
@@ -2982,7 +3363,18 @@ window.addEventListener('visibilitychange', () => {
     }
 });
 // ネットワーク復帰時に outbox を再試行 (オフライン→オンラインで失敗メッセージを自動リトライ)
-window.addEventListener('online', () => { flushOutbox(); });
+// バナー: offline で赤, online で緑(1.5s autohide).
+window.addEventListener('online', () => {
+    showNetworkBanner('reconnected', t('net.reconnected') || '✓ 再接続しました');
+    flushOutbox();
+});
+window.addEventListener('offline', () => {
+    showNetworkBanner('offline', t('net.offline') || '📡 オフライン — 接続を待っています');
+});
+// 初回ロード時にオフラインなら即バナー.
+if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    setTimeout(() => showNetworkBanner('offline', t('net.offline') || '📡 オフライン — 接続を待っています'), 100);
+}
 
 // ===== 親iframeへの高さ通知（埋込時のみ） =====
 // chat.html が iframe で埋め込まれた際、親ページが iframe の高さを中身に追従させられるよう

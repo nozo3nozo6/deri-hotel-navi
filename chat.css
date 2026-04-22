@@ -107,10 +107,24 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 /* 楽観UI: 送信中は半透明, 失敗は赤枠+再送ボタン */
 .msg.sending{opacity:.55}
 .msg.failed{opacity:.8;border:1px solid #d39a9a !important;background:#fdeeee !important;color:#8b2a2a !important}
-.msg-send-status{font-size:10px;color:#888;line-height:1.2;white-space:nowrap}
+.msg.failed.pending-retry{border-color:#e6c58a !important;background:#fff8ea !important;color:#8a6500 !important}
+.msg-send-status{font-size:10px;color:#888;line-height:1.2;white-space:nowrap;display:flex;align-items:center;gap:4px}
 .msg-send-status.failed{color:#c0392b;font-weight:600}
+.msg-send-status.pending-retry{color:#8a6500;font-weight:600}
+.msg-send-status-icon{font-size:12px;line-height:1}
 .msg-retry-btn{background:none;border:none;color:var(--chat-primary);text-decoration:underline;font-size:10px;cursor:pointer;padding:0;margin-left:2px;font-weight:600}
 .msg-retry-btn:hover{opacity:.7}
+.msg-failed-actions{display:inline-flex;gap:6px;margin-left:4px}
+.msg-failed-actions button{background:none;border:none;color:#888;font-size:10px;cursor:pointer;padding:0;text-decoration:underline}
+.msg-failed-actions button:hover{color:#333}
+.msg-failed-actions .msg-act-delete{color:#b44}
+.msg-failed-actions .msg-act-delete:hover{color:#8a2a2a}
+/* ネットワーク状態バナー: offline=赤, reconnected=緑 */
+.network-banner{position:fixed;left:50%;transform:translateX(-50%) translateY(-120%);top:8px;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:200;white-space:nowrap;transition:transform .25s ease-out;pointer-events:none;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.network-banner.visible{transform:translateX(-50%) translateY(0)}
+.network-banner.offline{background:#fdeeee;color:#8b2a2a;border:1px solid #d39a9a}
+.network-banner.reconnected{background:#e9f7ec;color:#2a6b3a;border:1px solid #9bcfa5}
+.network-banner.hidden{display:none}
 /* Day 8: 入力中 3ドット吹き出し (常に相手=左=shop側) */
 .typing-indicator{margin-top:2px}
 .typing-indicator.hidden{display:none}
@@ -153,9 +167,13 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .visitor-notify-save{flex:0 0 auto;padding:6px 14px;background:var(--chat-primary);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600}
 .visitor-notify-save:hover{background:var(--chat-primary-dark)}
 .visitor-notify-save:disabled{background:#aaa;cursor:wait}
-.visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px}
+.visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px;line-height:1.5}
 .visitor-notify-status.ok{color:#2a8a5e}
 .visitor-notify-status.err{color:#a44}
+.visitor-notify-status.pending{color:#b07b00;background:#fffaed;border:1px solid #f0d783;border-radius:6px;padding:6px 10px}
+.visitor-notify-resend{margin-top:6px;background:transparent;color:var(--chat-primary,#b5627a);border:1px solid var(--chat-primary,#b5627a);border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer;align-self:flex-start}
+.visitor-notify-resend:hover{background:var(--chat-primary,#b5627a);color:#fff}
+.visitor-notify-resend:disabled{opacity:.5;cursor:wait}
 
 /* ===== クイック質問（1行横スクロール） ===== */
 .quick-questions{background:#fff;border-top:1px solid #e5e0d8;padding:6px 0}
@@ -205,7 +223,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 @media (max-width:480px){.chat-footer{border-bottom-left-radius:9px;border-bottom-right-radius:9px}}
 .footer-btn{height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #e0dbd0;background:#f0ede7;color:#444;flex-shrink:0}
 .footer-btn:hover{background:#e5e0d8}
-.footer-btn.danger{color:#c62828;border-color:#ffcdd2;background:#fff5f5;margin-left:auto}
+.footer-btn.danger{color:#c62828;border-color:#ffcdd2;background:#fff5f5}
 .footer-btn.danger:hover{background:#ffe5e5}
 .visitor-exit{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:#fafafa;border-top:1px solid #e5e0d8}
 .exit-link{display:inline-block;padding:10px 16px;border-radius:6px;text-align:center;font-size:14px;font-weight:600;text-decoration:none;background:var(--chat-primary);color:#fff}
@@ -243,7 +261,6 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
   .font-size-btn,.footer-btn{height:30px;padding:0 8px;font-size:11px}
   .font-size-btn .font-size-icon{font-size:13px;padding-right:4px}
   .lang-select{height:30px;font-size:11px;padding:0 22px 0 8px}
-  .footer-btn.danger{margin-left:0}
   .footer-brand{margin-left:auto;padding:2px 6px;font-size:10px;flex-shrink:0}
   .footer-brand-ruby{font-size:9px}
   .footer-brand-by{font-size:9px}
