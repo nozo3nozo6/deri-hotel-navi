@@ -40,9 +40,9 @@ export default {
       return jsonResponse({ ok: false, error: 'missing_shop' }, req, env, 400);
     }
 
-    // /broadcast: PHP→DO リレー. shop_meta 不要のため shop-lookup を短絡.
+    // /broadcast・/broadcast-read: PHP→DO リレー. shop_meta 不要のため shop-lookup を短絡.
     // shop_id 前提 (PHP 側が session から解決して渡す) でメタ取得をスキップ.
-    if (path === '/broadcast' && shopIdParam) {
+    if ((path === '/broadcast' || path === '/broadcast-read') && shopIdParam) {
       const id = env.CHAT_ROOM.idFromName(shopIdParam);
       const stub = env.CHAT_ROOM.get(id);
       const forward = new Request(req, { headers: new Headers(req.headers) });

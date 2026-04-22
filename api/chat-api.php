@@ -719,9 +719,17 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     // visitor視点 = shopの新着を既読 / shop(cast返信等)視点 = visitorの新着を既読
     if (count($messages) > 0) {
         $otherSide = $readerRole === 'shop' ? 'visitor' : 'shop';
+        // 既読化対象の MAX(id) を先取り → UPDATE → DO に broadcast (逆側 WS に既読通知)
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                               WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id > ?");
+        $stmt->execute([$sessionId, $otherSide, $sinceId]);
+        $otherMaxUnread = (int)$stmt->fetchColumn();
         $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
                        WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id > ?")
             ->execute([$sessionId, $otherSide, $sinceId]);
+        if ($otherMaxUnread > 0) {
+            broadcastReadToDO($sessionId, $readerRole, $otherMaxUnread);
+        }
     }
 
     // オンライン状態
@@ -1046,9 +1054,17 @@ function handleOwnerInbox() {
             $lastReadOwnId = (int)$stmt->fetchColumn();
 
             // visitor側メッセージを既読に
+            // 先に既読化対象の MAX(id) を取得 → UPDATE → DO に broadcast (visitor WS に既読通知)
+            $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                                   WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL");
+            $stmt->execute([$sessionId]);
+            $visitorMaxUnread = (int)$stmt->fetchColumn();
             $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
                            WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
                 ->execute([$sessionId]);
+            if ($visitorMaxUnread > 0) {
+                broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
+            }
         }
     }
 
@@ -1366,10 +1382,20 @@ function handleCastInbox(): void {
             $lastReadOwnId = (int)$stmt->fetchColumn();
 
             // visitor → 既読
+            // 既読化対象の MAX(id) を先取り → UPDATE → DO に broadcast (visitor WS に既読通知)
+            $stmt = $pdo->prepare(
+                "SELECT COALESCE(MAX(id),0) FROM chat_messages
+                 WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL"
+            );
+            $stmt->execute([$sessionId]);
+            $visitorMaxUnread = (int)$stmt->fetchColumn();
             $pdo->prepare(
                 "UPDATE chat_messages SET read_at = NOW()
                  WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL"
             )->execute([$sessionId]);
+            if ($visitorMaxUnread > 0) {
+                broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
+            }
 
             $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
                 ->execute([$sessionId]);
@@ -1661,9 +1687,17 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     $messages = $stmt->fetchAll();
 
     // オーナー/キャスト返信直後: visitorメッセージを既読化
+    // 先に MAX(id) 取得 → UPDATE → DO broadcast (visitor WS に既読通知)
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL");
+    $stmt->execute([$sessionId]);
+    $visitorMaxUnread = (int)$stmt->fetchColumn();
     $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
                    WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
         ->execute([$sessionId]);
+    if ($visitorMaxUnread > 0) {
+        broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
+    }
 
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
                            WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");
@@ -2597,6 +2631,60 @@ function broadcastToDO(string $shopId, string $sessionToken, array $messageRow):
     $errno = curl_errno($ch);
     if ($errno) {
         error_log('[chat-api] DO broadcast failed: ' . curl_error($ch));
+    }
+    curl_close($ch);
+}
+
+/**
+ * DO へ既読イベントをリレー.
+ * PHP が chat_messages.read_at を UPDATE した直後に呼ぶ.
+ * reader = 'shop' なら visitor WS に type:'read' 配信 (visitor に既読マーク表示)
+ * reader = 'visitor' なら owner WS に type:'read' 配信 (owner に既読マーク表示)
+ *
+ * @param int $sessionId MySQL chat_sessions.id — session_token 解決に使用.
+ * @param string $reader 'shop' | 'visitor' — 既読化を行った側.
+ * @param int $upToId MySQL 側の最大既読 ID.
+ */
+function broadcastReadToDO(int $sessionId, string $reader, int $upToId): void {
+    $secret = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
+    if (!$secret) return;
+    if ($reader !== 'shop' && $reader !== 'visitor') return;
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT shop_id, session_token FROM chat_sessions WHERE id = ? LIMIT 1');
+    $stmt->execute([$sessionId]);
+    $row = $stmt->fetch();
+    if (!$row) return;
+    $shopId = (string)$row['shop_id'];
+    $sessionToken = (string)$row['session_token'];
+    if ($shopId === '' || $sessionToken === '') return;
+
+    $doBase = defined('CHAT_DO_BASE_URL') ? CHAT_DO_BASE_URL : 'https://chat.yobuho.com';
+    $url = $doBase . '/broadcast-read?shop_id=' . urlencode($shopId);
+    $payload = [
+        'session_token' => $sessionToken,
+        'reader'        => $reader,
+        'up_to_id'      => $upToId,
+    ];
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $body,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-Sync-Secret: ' . $secret,
+        ],
+        CURLOPT_CONNECTTIMEOUT => 1,
+        CURLOPT_TIMEOUT        => 2,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_NOSIGNAL       => true,
+    ]);
+    @curl_exec($ch);
+    $errno = curl_errno($ch);
+    if ($errno) {
+        error_log('[chat-api] DO broadcast-read failed: ' . curl_error($ch));
     }
     curl_close($ch);
 }

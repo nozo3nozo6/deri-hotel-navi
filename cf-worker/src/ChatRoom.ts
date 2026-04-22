@@ -55,8 +55,8 @@ export class ChatRoom implements DurableObject {
     // ここで `initialized` ガードをかけると DO インスタンスが生き続ける間、shop-admin で
     // notify_mode / reception 時間 / notify_email 等を変えても DO が古い値を持ち続けて
     // 「every に変えたのに 2通目からメール来ない」等の事故になるため、毎回上書きする。
-    // /broadcast は shopMeta 不要のためスキップ (PHP→DO 高頻度パス).
-    if (path !== '/broadcast') {
+    // /broadcast・/broadcast-read は shopMeta 不要のためスキップ (PHP→DO 高頻度パス).
+    if (path !== '/broadcast' && path !== '/broadcast-read') {
       await this.loadShopMeta(req);
     }
 
@@ -80,6 +80,7 @@ export class ChatRoom implements DurableObject {
         case '/owner/mark-read':   return this.httpOwnerMarkRead(body);
         case '/admin/purge':       return this.httpAdminPurge(req, body);
         case '/broadcast':         return this.httpBroadcast(req, body);
+        case '/broadcast-read':    return this.httpBroadcastRead(req, body);
       }
     }
 
@@ -715,6 +716,64 @@ export class ChatRoom implements DurableObject {
         }
       } catch (_) {
         /* stale / already-closed WS — skip */
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, delivered }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+  }
+
+  /**
+   * POST /broadcast-read — PHP が read_at を打った直後に呼び出す.
+   * 認証: X-Sync-Secret.
+   *
+   * Body: { session_token: string, reader: 'shop'|'visitor', up_to_id: number }
+   *   - reader='shop'    → shop が visitor メッセージを既読化 → visitor WS に type:'read' 通知
+   *   - reader='visitor' → visitor が shop メッセージを既読化 → owner WS (+ cast_inbox) に type:'read' 通知
+   *
+   * up_to_id は MySQL 側の最大既読 ID (PHP 権威). DO 内 storage の read_at は触らない.
+   */
+  private async httpBroadcastRead(req: Request, body: any): Promise<Response> {
+    const provided = req.headers.get('X-Sync-Secret') || '';
+    const expected = this.env.CHAT_SYNC_SECRET || '';
+    if (!expected || provided !== expected) {
+      return this.errJson('forbidden', 403);
+    }
+
+    const token = String(body?.session_token || '');
+    const reader = String(body?.reader || '');
+    const upTo = Number(body?.up_to_id || 0);
+    if (!token || (reader !== 'shop' && reader !== 'visitor')) {
+      return this.errJson('missing_fields', 400);
+    }
+
+    // reader='shop' → 通知先 = visitor (自分のメッセージが既読になった)
+    // reader='visitor' → 通知先 = owner (自分のメッセージが既読になった)
+    const targetRole: WsRole = reader === 'shop' ? 'visitor' : 'owner';
+    const payload = JSON.stringify({
+      type: 'read',
+      session_token: token,
+      up_to_id: upTo,
+    });
+
+    let delivered = 0;
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment;
+        if (!a) continue;
+        if (targetRole === 'owner' && a.role === 'owner') {
+          ws.send(payload);
+          delivered++;
+          continue;
+        }
+        if (targetRole === 'visitor' && a.role === 'visitor' && a.session_token === token) {
+          ws.send(payload);
+          delivered++;
+        }
+      } catch (_) {
+        /* stale — skip */
       }
     }
 
