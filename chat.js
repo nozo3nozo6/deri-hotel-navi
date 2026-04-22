@@ -1600,15 +1600,17 @@ function updateStatusIndicator(online) {
     }
     refs.statusDot.classList.toggle('online', online);
     refs.statusDot.classList.toggle('offline', !online);
-    const hours = state.reception_start && state.reception_end
-        ? `${formatHM(state.reception_start)}-${formatHM(state.reception_end)}`
-        : '';
-    // 受付時間が設定されていれば常に「受付時間 HH:MM-HH:MM」表示。未設定店舗のみフォールバック。
+    const rs = state.reception_start;
+    const re = state.reception_end;
+    // 24時間受付: 両方未設定 OR 開始=終了（shop-admin の「24時間受付」チェック時は両方 null）
+    const is24H = (!rs || !re) || (rs === re);
+    // 受付時間が設定されていれば常に「受付時間 HH:MM-HH:MM」表示。24H なら営業時間の代わりに「24H」。
     // トグルONで緑丸、OFFで丸非表示（chat.cssの.status-dot.offline{display:none}）
-    if (hours) {
-        refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
+    if (is24H) {
+        refs.statusLabel.innerHTML = `<span class="status-label-line">24H</span>`;
     } else {
-        refs.statusLabel.textContent = t(online ? 'status.online' : 'status.offline');
+        const hours = `${formatHM(rs)}-${formatHM(re)}`;
+        refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
     }
 }
 
