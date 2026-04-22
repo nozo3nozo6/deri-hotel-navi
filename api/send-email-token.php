@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 $pdo = DB::conn();
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -70,18 +71,8 @@ $mailBody = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;pa
 <p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。</p>
 </div>';
 
-// send-mail.phpと同じ方式でメール送信
 $subject = '【YobuHo】店舗登録認証メール';
-$headers = [
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    'From: YobuHo <hotel@yobuho.com>',
-];
-$encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-$encodedBody = base64_encode($mailBody);
-
-$sent = mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+$sent = sendTransactionalMail($email, $subject, $mailBody);
 
 if ($sent) {
     echo json_encode(['success' => true]);

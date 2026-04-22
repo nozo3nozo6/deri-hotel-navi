@@ -20,6 +20,7 @@
  *   4. 承認後のみチャット・プロフィール表示・定員カウント等の全機能が発動
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 
 define('CAST_SESSION_TIMEOUT', 86400);
 session_set_cookie_params([
@@ -448,15 +449,7 @@ function sendInviteMail(string $email, string $displayName, string $shopName, st
           . '<p style="font-size:12px;color:#888;">YobuChat by YobuHo — <a href="https://yobuho.com" style="color:#b5627a;text-decoration:none;">https://yobuho.com</a></p>'
           . '</div>';
 
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        'From: YobuHo <hotel@yobuho.com>',
-    ];
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $encodedBody = base64_encode($body);
-    mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+    sendTransactionalMail($email, $subject, $body);
 }
 
 function sendApprovalMail(string $email, string $displayName, string $shopName): void {
@@ -476,15 +469,7 @@ function sendApprovalMail(string $email, string $displayName, string $shopName):
           . '<p style="font-size:12px;color:#888;">YobuChat by YobuHo — <a href="https://yobuho.com" style="color:#b5627a;text-decoration:none;">https://yobuho.com</a></p>'
           . '</div>';
 
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        'From: YobuHo <hotel@yobuho.com>',
-    ];
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $encodedBody = base64_encode($body);
-    mail($email, $encodedSubject, $encodedBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+    sendTransactionalMail($email, $subject, $body);
 }
 
 // ==================================================

@@ -4,6 +4,7 @@
  * Actions: plans, my-requests, submit-request, cancel-request
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 
 define('SHOP_SESSION_TIMEOUT', 86400);
 session_set_cookie_params([
@@ -157,15 +158,8 @@ function handleCancelRequest() {
     echo json_encode(['ok' => true]);
 }
 
-// メール送信ヘルパー
+// メール送信ヘルパー（mail-utils.php の sendTransactionalMail を利用）
 function sendMailInternal($to, $subject, $htmlBody) {
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
-    ];
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    @mail($to, $encodedSubject, base64_encode($htmlBody), implode("\r\n", $headers), '-f hotel@yobuho.com');
+    sendTransactionalMail($to, $subject, $htmlBody);
 }
 ?>

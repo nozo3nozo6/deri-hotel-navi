@@ -4,6 +4,7 @@
  * 全action: admin PHPセッション認証必須
  */
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 
 if (!defined('SESSION_TIMEOUT')) define('SESSION_TIMEOUT', 1800);
 session_set_cookie_params([
@@ -877,12 +878,6 @@ function handleReviewPlanRequest() {
 }
 
 function sendPlanMail($to, $subject, $htmlBody) {
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        'From: =?UTF-8?B?' . base64_encode('YobuHo') . '?= <hotel@yobuho.com>',
-    ];
-    @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', base64_encode($htmlBody), implode("\r\n", $headers), '-f hotel@yobuho.com');
+    sendTransactionalMail($to, $subject, $htmlBody);
 }
 ?>

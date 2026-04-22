@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 $pdo = DB::conn();
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -124,15 +125,7 @@ $adminBody = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;p
     . '</div>'
     . '</div>';
 
-$adminHeaders = [
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: base64',
-    'From: YobuHo <hotel@yobuho.com>',
-];
-$encodedAdminSubject = '=?UTF-8?B?' . base64_encode($adminSubject) . '?=';
-$encodedAdminBody = base64_encode($adminBody);
-@mail('hotel@yobuho.com', $encodedAdminSubject, $encodedAdminBody, implode("\r\n", $adminHeaders), '-f hotel@yobuho.com');
+sendTransactionalMail('hotel@yobuho.com', $adminSubject, $adminBody);
 
 echo json_encode(['success' => true, 'shop' => $shop]);
 ?>
