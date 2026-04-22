@@ -1693,7 +1693,8 @@ async function enterCastOwnerMode() {
     try { document.body.dataset.role = 'cast'; } catch (_) {}
 
     // ヘッダ/UI整備
-    refs.shopName.textContent = (state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name;
+    // キャスト自分用(受信箱)は店名を出さない（自分の受信箱という文脈で冗長）
+    refs.shopName.textContent = state.cast_name || state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
     if (refs.langSelect) {
         refs.langSelect.classList.add('hidden');
@@ -1750,7 +1751,7 @@ async function openCastThread(sessionId) {
     const visitorLabel = state.selected_session.nickname
         ? state.selected_session.nickname
         : `${t('inbox.visitorPrefix')} #${state.selected_session.id}`;
-    refs.shopName.textContent = (state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name;
+    refs.shopName.textContent = state.cast_name || state.shop_name;
     if (refs.visitorName) {
         refs.visitorName.textContent = visitorLabel;
         refs.visitorName.classList.remove('hidden');
@@ -2034,7 +2035,7 @@ function backToInbox() {
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.castViewBanner) refs.castViewBanner.classList.add('hidden');
     refs.shopName.textContent = IS_CAST_INBOX
-        ? ((state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name)
+        ? (state.cast_name || state.shop_name)
         : state.shop_name;
     if (IS_CAST_INBOX) showCastInbox();
     else showInbox();
