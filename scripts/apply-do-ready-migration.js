@@ -2,7 +2,7 @@
 // scripts/apply-do-ready-migration.js
 // sql/chat_do_ready_migration.sql を本番MariaDBに適用 (冪等)
 // Usage:
-//   1. ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N
+//   1. ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6051.wpx.ne.jp -N
 //   2. node scripts/apply-do-ready-migration.js
 // ==========================================================================
 const { query, close } = require('../db-local');

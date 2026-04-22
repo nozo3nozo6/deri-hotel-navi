@@ -1,7 +1,7 @@
 // ==========================================================================
 // db-local.js — ローカルからSSHトンネル経由でMySQL接続するヘルパー
 // Usage:
-//   1. ターミナルでSSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N
+//   1. ターミナルでSSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6051.wpx.ne.jp -N
 //   2. スクリプト実行: node generate-sitemap.js 等
 // ==========================================================================
 require('dotenv').config();

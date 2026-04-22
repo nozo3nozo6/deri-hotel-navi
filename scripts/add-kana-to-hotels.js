@@ -3,7 +3,7 @@
  * 英語のみのホテル名にカタカナ読みを追加するスクリプト
  *
  * Usage:
- *   1. SSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N
+ *   1. SSHトンネル起動: ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6051.wpx.ne.jp -N
  *   2. node scripts/add-kana-to-hotels.js          → プレビュー（DB変更なし）
  *   3. node scripts/add-kana-to-hotels.js --apply   → DB更新実行
  */

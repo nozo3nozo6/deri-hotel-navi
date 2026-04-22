@@ -6,7 +6,7 @@
 +-------------------+       +-------------------+       +-------------------+
 |   Browser         |       |   Shin Rental     |       |   Supabase        |
 |   (Vanilla JS)    | <---> |   Server (PHP)    | <---> |   (PostgreSQL)    |
-|                   |       |   sv6825.wpx.ne.jp|       |                   |
+|                   |       |   sv6051.wpx.ne.jp|       |                   |
 | portal.html       |       | api/auth.php      |       | hotels            |
 | index.html        |       | api/send-mail.php |       | reports           |
 | admin.html        |       |                   |       | shops             |
@@ -206,7 +206,7 @@ CSS custom properties used:
 ```
 Developer
   -> git push to GitHub (main branch)
-  -> Server-side git pull (auto-configured on sv6825.wpx.ne.jp)
+  -> Server-side git pull (auto-configured on sv6051.wpx.ne.jp)
   -> Files served from shin rental server
 ```
 

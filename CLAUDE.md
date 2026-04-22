@@ -6,7 +6,7 @@
 - Frontend: Vanilla JS (5モジュール), HTML 9ページ — 全ページSupabase依存ゼロ（PHP API経由）
 - DB: MySQL (MariaDB) on シンレンタルサーバー — 全PHP APIがdb.php経由で接続
 - Data: 静的JSON（area-data.json, master-data.json, hotel-data/） + PHP API
-- Deploy: シンレンタルサーバー（sv6825.wpx.ne.jp）via rsync over SSH (port 10022)、pushで自動デプロイ
+- Deploy: シンレンタルサーバー（sv6051.wpx.ne.jp、旧 sv6825 から 2026-04-21 移行完了 / MariaDB 10.5→10.11）via rsync over SSH (port 10022)、pushで自動デプロイ
 - Hotel data: 43,580件（元: Rakuten Travel API + Yahoo!ローカルサーチAPI、source統一済み→imported/manual）
 - Search: Pagefind + Fuse.js（Web Worker）ハイブリッド検索
 - CDN: Cloudflare Free（SSL Full）
@@ -17,7 +17,7 @@
 ## DB
 - MySQL (MariaDB): シンレンタルサーバー上、api/db-config.phpで接続情報定義（deploy.ymlでGitHub Secretsから生成）
 - ローカル接続: SSHトンネル（ssh -p 10022 -L 3307:localhost:3306）+ db-local.js
-- SMTP: hotel@yobuho.com（sv6825.wpx.ne.jp:587）— Magic Linkテンプレートカスタマイズ済み
+- SMTP: hotel@yobuho.com（sv6051.wpx.ne.jp:587）— Magic Linkテンプレートカスタマイズ済み
 
 ## Project Structure
 ```
@@ -466,12 +466,9 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - [ ] ビジネス: shop-admin.htmlに営業ダッシュボード（閲覧数/ホテル別アクセス数）
 - [ ] ビジネス: メール購読オプトイン（週1回の新規口コミ通知）
 - [ ] ビジネス: shop-redirect.phpでアクセス追跡（店舗リンククリック計測）
-- [ ] YobuChat: DO移行本体（雛形着手はYobuChat機能が完成してから）
-      - 前提条件: YobuChat機能が一通り完成 + 実運用で同時接続50+店舗/1日1000msg超 or 明確な遅延クレーム発生
-      - Cloudflare Workers Paid契約($5/月〜) + chat.yobuho.com DNS + wrangler login
-      - 雛形: cf-worker/ディレクトリ、ChatRoom DO、DurableObjectTransport、api/chat-notify.php
-      - DO-Ready準備は2026-04-18完了済み (client_msg_id/okBatch/can-connect/heartbeat/Transport)
-      - フロント差替は `const Transport = DurableObjectTransport;` 1行想定、実装見積5〜7日
+- [x] YobuChat: Cloudflare Durable Objects 移行完了（2026-04-20）
+      - cf-worker/ 実装: ChatRoom.ts（DO本体）、sync.ts（MySQL ↔ DO双方向同期）、notify.ts（メール通知）、cors.ts
+      - DO=配信専用、inbox/read_at は PHP 側が権威（feedback_yobuchat_do_split_brain.md 参照）
 
 ### 2026年3月19日（後半） — バグ修正・lovehoサブドメインLP化・フッター統一
 #### バグ修正（前回会話の修正で混入した問題）
@@ -1014,7 +1011,8 @@ chat.js の `PollingTransport` オブジェクトが配信層を抽象化。`con
 - Toast: 1100
 
 ## Deploy
-- サーバー: sv6825.wpx.ne.jp (シンレンタルサーバー)
+- サーバー: **sv6051.wpx.ne.jp (162.43.96.7)** — シンレンタルサーバー（2026-04-21 に sv6825 から移行完了、MariaDB 10.5→10.11）
+- 旧サーバー: sv6825.wpx.ne.jp (210.157.79.215) — grace period 中、直アクセス時は .maintenance でPOSTを503拒否中
 - CDN: Cloudflare Free（SSL Full、NS: cosmin/galilea.ns.cloudflare.com）
 - パス: /home/yobuho/yobuho.com/public_html/
 - SSH: port 10022, key: ~/.ssh/yobuho_deploy（パスフレーズなし）
@@ -1038,7 +1036,7 @@ chat.js の `PollingTransport` オブジェクトが配信層を抽象化。`con
 - Generate search index: php api/generate-search-index.php（サーバー上で実行、deploy.ymlで自動実行）
 - Generate pagefind data: php api/generate-pagefind-data.php（サーバー上で実行、deploy.ymlで自動実行）
 - Build pagefind index: node generate-pagefind-index.mjs（CI上で実行、pagefind-data.json必須）
-- ローカルからDB接続: SSHトンネル（ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6825.wpx.ne.jp -N）+ db-local.js
+- ローカルからDB接続: SSHトンネル（ssh -p 10022 -i ~/.ssh/yobuho_deploy -L 3307:localhost:3306 yobuho@sv6051.wpx.ne.jp -N）+ db-local.js
 
 ## Dependencies (package.json)
 - dotenv: ^17.3.1

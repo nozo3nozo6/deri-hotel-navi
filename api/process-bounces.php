@@ -10,7 +10,7 @@
 //
 // セットアップ:
 //  1. Shinレンタルサーバーのコントロールパネルで hotel@yobuho.com から
-//     yobuho@sv6825.wpx.ne.jp へメール転送設定
+//     yobuho@sv6051.wpx.ne.jp へメール転送設定
 //  2. cron設定: */30 * * * * php /path/to/api/process-bounces.php
 // ==========================================================================
 
