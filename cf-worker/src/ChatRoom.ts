@@ -55,8 +55,8 @@ export class ChatRoom implements DurableObject {
     // ここで `initialized` ガードをかけると DO インスタンスが生き続ける間、shop-admin で
     // notify_mode / reception 時間 / notify_email 等を変えても DO が古い値を持ち続けて
     // 「every に変えたのに 2通目からメール来ない」等の事故になるため、毎回上書きする。
-    // /broadcast・/broadcast-read は shopMeta 不要のためスキップ (PHP→DO 高頻度パス).
-    if (path !== '/broadcast' && path !== '/broadcast-read') {
+    // /broadcast・/broadcast-read・/broadcast-typing は shopMeta 不要のためスキップ (PHP→DO 高頻度パス).
+    if (path !== '/broadcast' && path !== '/broadcast-read' && path !== '/broadcast-typing') {
       await this.loadShopMeta(req);
     }
 
@@ -81,6 +81,7 @@ export class ChatRoom implements DurableObject {
         case '/admin/purge':       return this.httpAdminPurge(req, body);
         case '/broadcast':         return this.httpBroadcast(req, body);
         case '/broadcast-read':    return this.httpBroadcastRead(req, body);
+        case '/broadcast-typing':  return this.httpBroadcastTyping(req, body);
       }
     }
 
@@ -300,6 +301,12 @@ export class ChatRoom implements DurableObject {
 
       // broadcast to connected owner WS (session_token も含める: owner側 selectedSid は MySQL id であり DO session_id と不一致のため token で照合させる)
       this.broadcastToRole('owner', { type: 'message', data: msg, session_id: sess.id, session_token: sess.session_token });
+
+      // B-1: オーナーがそのスレッドを開いている場合、visitor 新着を即時既読化.
+      //   - DO storage の read_at 即セット (owner 側リロード時の unread 計算に反映)
+      //   - visitor WS に type:'read' push (既読マーカー即時表示)
+      //   - MySQL mirror (sync.markRead) を waitUntil で非同期発火
+      this.autoReadIfOwnerViewing(sess.session_token, sess.id, msg.id, msg.sent_at, msg);
 
       // メール通知判定 (PHP handleSendMessage と同じロジック):
       //  - off         → 送らない
@@ -646,6 +653,24 @@ export class ChatRoom implements DurableObject {
           await this.httpOwnerMarkRead({ session_id: data.session_id, up_to_id: data.up_to_id });
         }
         break;
+      case 'view':
+        // B-1 (owner): オーナーが開いているスレッドの session_token を記録.
+        //   visitor 新着メッセージ時に presence 一致すれば自動既読化.
+        // #2 (visitor): 自分の画面が visible の間 session_token を自己セット.
+        //   shop/cast 新着メッセージ時に presence あれば自動既読化 + owner/cast_inbox に read push.
+        if (attach.role === 'owner') {
+          const tok = data.session_token ? String(data.session_token) : undefined;
+          attach.viewing_session_token = tok;
+          ws.serializeAttachment(attach);
+        } else if (attach.role === 'visitor') {
+          // visitor は自分の session_token のみ登録可 (他セッションの既読は不可)
+          const tok = data.session_token ? String(data.session_token) : undefined;
+          if (!tok || tok === attach.session_token) {
+            attach.viewing_session_token = tok;
+            ws.serializeAttachment(attach);
+          }
+        }
+        break;
       case 'close-session':
         if (attach.role === 'owner' && data.session_id) {
           await this.httpCloseSession({ session_id: data.session_id });
@@ -719,6 +744,20 @@ export class ChatRoom implements DurableObject {
       }
     }
 
+    // PHP 経由のメッセージ到着時の auto-read:
+    //   - visitor 発 → owner が viewing なら read (B-1)
+    //   - shop/cast 発 → visitor が viewing なら read (#2, 対称実装)
+    // httpBroadcast の row は MySQL INSERT 直後なので DO storage は触らない (updateStorage=null).
+    if (row) {
+      const upToId = Number(row.id || 0);
+      const upToSentAt = String(row.sent_at || new Date().toISOString());
+      if (row.sender_type === 'visitor') {
+        this.autoReadIfOwnerViewing(token, null, upToId, upToSentAt, null);
+      } else if (row.sender_type === 'shop') {
+        this.autoReadIfVisitorViewing(token, null, upToId, upToSentAt, null);
+      }
+    }
+
     return new Response(JSON.stringify({ ok: true, delivered }), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
@@ -782,11 +821,193 @@ export class ChatRoom implements DurableObject {
     });
   }
 
+  /**
+   * POST /broadcast-typing — PHP の handleSetTyping 相当が呼ぶ.
+   * 認証: X-Sync-Secret.
+   *
+   * Body: { session_token, role: 'visitor'|'shop', typing: boolean }
+   *   - role='visitor' typing → 通知先 = 全 owner WS (inbox / 選択中 両方が同じ session_token をフィルタ)
+   *   - role='shop'    typing → 通知先 = 同一 session_token の visitor WS
+   *
+   * クライアント側は 6s のローカル watchdog を持つので、stop (typing=false) を取りこぼしても
+   * 自然消滅する. ただし reliability 向上のため typing=false も明示 push する.
+   */
+  private async httpBroadcastTyping(req: Request, body: any): Promise<Response> {
+    const provided = req.headers.get('X-Sync-Secret') || '';
+    const expected = this.env.CHAT_SYNC_SECRET || '';
+    if (!expected || provided !== expected) {
+      return this.errJson('forbidden', 403);
+    }
+
+    const token = String(body?.session_token || '');
+    const role = String(body?.role || '');
+    const typing = !!body?.typing;
+    if (!token || (role !== 'visitor' && role !== 'shop')) {
+      return this.errJson('missing_fields', 400);
+    }
+
+    // role='visitor'(typist) → targetRole='owner'(display side)
+    // role='shop'(typist)    → targetRole='visitor'(display side)
+    const targetRole: WsRole = role === 'visitor' ? 'owner' : 'visitor';
+    const payload = JSON.stringify({
+      type: 'typing',
+      session_token: token,
+      role,
+      typing,
+    });
+
+    let delivered = 0;
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (!a) continue;
+        if (targetRole === 'owner' && a.role === 'owner') {
+          ws.send(payload);
+          delivered++;
+          continue;
+        }
+        if (targetRole === 'visitor' && a.role === 'visitor' && a.session_token === token) {
+          ws.send(payload);
+          delivered++;
+        }
+      } catch (_) {
+        /* stale — skip */
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, delivered }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+  }
+
   private broadcastToRole(role: WsRole, payload: unknown): void {
     const clients = this.state.getWebSockets(`role:${role}`);
     const json = JSON.stringify(payload);
     for (const ws of clients) {
       try { ws.send(json); } catch (_) {}
+    }
+  }
+
+  /**
+   * B-1 owner presence: 指定 session_token のスレッドを表示中のオーナー WS が
+   * 1つでもあれば true. 自動既読トリガに使う.
+   */
+  private isOwnerViewingToken(token: string): boolean {
+    if (!token) return false;
+    const owners = this.state.getWebSockets('role:owner');
+    for (const ws of owners) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (a && a.viewing_session_token === token) return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  /**
+   * #2 visitor presence: 指定 session_token の訪問者がフォアグラウンド表示中なら true.
+   * shop/cast メッセージ到着時の自動既読トリガに使う.
+   */
+  private isVisitorViewingToken(token: string): boolean {
+    if (!token) return false;
+    const visitors = this.state.getWebSockets('role:visitor');
+    for (const ws of visitors) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (a && a.session_token === token && a.viewing_session_token === token) return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  /**
+   * B-1: visitor メッセージが届いた時点でオーナーがそのスレッドを開いていれば
+   *   - DO storage の msg.read_at を即時セット (必要なら)
+   *   - visitor WS へ type:'read' broadcast (クライアント UI 即反映)
+   *   - MySQL mirror (sync.markRead) を waitUntil で非同期発火
+   * sessionId は DO 内 id / sessionToken は PHP↔DO 共通鍵.
+   */
+  private autoReadIfOwnerViewing(
+    sessionToken: string,
+    sessionId: number | null,
+    upToId: number,
+    upToSentAt: string,
+    updateStorage: ChatMessage | null,
+  ): void {
+    if (!this.isOwnerViewingToken(sessionToken)) return;
+
+    // 1) DO storage 側の read_at を埋める (httpSendMessage の即時発行分).
+    //    httpBroadcast 経由は PHP が権威なので storage 更新はスキップ.
+    if (updateStorage && sessionId != null && !updateStorage.read_at) {
+      updateStorage.read_at = new Date().toISOString();
+      this.state.waitUntil(this.saveMessage(sessionId, updateStorage));
+    }
+
+    // 2) visitor WS へ read push (session_token で照合).
+    const payload = JSON.stringify({
+      type: 'read',
+      session_token: sessionToken,
+      session_id: sessionId ?? undefined,
+      up_to_id: upToId,
+    });
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (a && a.role === 'visitor' && a.session_token === sessionToken) {
+          ws.send(payload);
+        }
+      } catch (_) {}
+    }
+
+    // 3) MySQL 反映 (PHP handleMarkRead が chat_messages.read_at を UPDATE).
+    //    reader='shop' → sender_type='visitor' を既読化.
+    if (upToSentAt) {
+      this.state.waitUntil(this.sync.markRead(sessionToken, 'shop', upToSentAt));
+    }
+  }
+
+  /**
+   * #2: shop/cast メッセージが届いた時点で visitor がそのスレッドを開いていれば
+   *   - DO storage の msg.read_at を即時セット (必要なら)
+   *   - owner / cast_inbox WS へ type:'read' broadcast (送信者UIの既読マーカー即時反映)
+   *   - MySQL mirror (sync.markRead reader='visitor') を waitUntil で非同期発火
+   * (B-1 の owner 視点と対称の実装).
+   */
+  private autoReadIfVisitorViewing(
+    sessionToken: string,
+    sessionId: number | null,
+    upToId: number,
+    upToSentAt: string,
+    updateStorage: ChatMessage | null,
+  ): void {
+    if (!this.isVisitorViewingToken(sessionToken)) return;
+
+    // 1) DO storage 側の read_at を埋める (httpSendMessage owner path からの直接呼びのみ).
+    if (updateStorage && sessionId != null && !updateStorage.read_at) {
+      updateStorage.read_at = new Date().toISOString();
+      this.state.waitUntil(this.saveMessage(sessionId, updateStorage));
+    }
+
+    // 2) owner WS に read push (全 owner に配信. owner 側 UI は session_token で自分向け判定).
+    const payload = JSON.stringify({
+      type: 'read',
+      session_token: sessionToken,
+      session_id: sessionId ?? undefined,
+      up_to_id: upToId,
+    });
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (a && a.role === 'owner') ws.send(payload);
+      } catch (_) {}
+    }
+
+    // 3) MySQL 反映. reader='visitor' → sender_type='shop' を既読化.
+    if (upToSentAt) {
+      this.state.waitUntil(this.sync.markRead(sessionToken, 'visitor', upToSentAt));
     }
   }
 

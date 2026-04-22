@@ -126,4 +126,9 @@ export interface WsAttachment {
   last_since_id: number;
   connected_at: number;         // UNIX ms
   heartbeat_at: number;         // UNIX ms
+  // B-1 (owner): フォアグラウンドで開いているスレッドの session_token.
+  // visitor メッセージ到着時にこの値が一致する owner が居れば即時既読化 + visitor へ read push.
+  // #2 (visitor): 自分の画面がフォアグラウンドで見えている間 session_token を自己セット.
+  // shop/cast メッセージ到着時にこの値があれば即時既読化 + owner WS へ read push.
+  viewing_session_token?: string;
 }
