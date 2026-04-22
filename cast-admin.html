@@ -343,7 +343,6 @@ async function loadProfile(){
 
 function renderShops(shops){
     const list = document.getElementById('shops-list');
-    const modePath = { men: '/deli', women: '/jofu', este: '/este', men_same: '/same-m', women_same: '/same-f' };
     list.innerHTML = shops.map(s => {
         const imgHtml = s.profile_image_url
             ? '<img class="shop-img" src="' + esc(s.profile_image_url) + '" alt="' + esc(s.display_name) + '">'
@@ -353,26 +352,20 @@ function renderShops(shops){
         if (isPending) { statusClass = 'status-pending'; statusLabel = '⏳ 店舗の承認待ち'; }
         else if (s.status === 'active') { statusClass = 'status-active'; statusLabel = '掲載中'; }
         else { statusClass = 'status-suspended'; statusLabel = '一時停止中'; }
-        const bio = s.bio
-            ? '<div class="shop-bio">' + esc(s.bio) + '</div>'
-            : '<div class="shop-bio empty">（自己紹介が未設定）</div>';
-        const shopUrl = (!isPending && s.slug && modePath[s.gender_mode]) ? (modePath[s.gender_mode] + '/shop/' + encodeURIComponent(s.slug) + '/') : null;
-        const shopLink = shopUrl ? '<a href="' + shopUrl + '" target="_blank" rel="noopener" class="btn" style="font-size:12px;">🔗 店舗ページ</a>' : '';
         const pendingNote = isPending
-            ? '<div class="pending-note">店舗オーナーの承認をお待ちください。承認されるとチャット受付やプロフィール公開が有効になります。<br>プロフィールは今のうちに準備しておけます。</div>'
+            ? '<div class="pending-note">店舗オーナーの承認をお待ちください。承認されるとチャット受付が有効になります。</div>'
             : '';
         const castChatUrl = (!isPending && s.slug) ? ('https://yobuho.com/chat/' + encodeURIComponent(s.slug) + '/?cast=' + encodeURIComponent(s.shop_cast_id)) : null;
         const castUrlBlock = castChatUrl
             ? '<div class="cast-url-block" style="margin-top:10px;padding:10px 12px;background:#fff8f0;border:1px solid #f5d6b3;border-radius:8px;">'
-            +   '<div style="font-size:11px;color:#8a5a2a;font-weight:600;margin-bottom:6px;">📌 あなたの指名チャットURL</div>'
+            +   '<div style="font-size:11px;color:#8a5a2a;font-weight:600;margin-bottom:6px;">📌 あなた専用のチャットURL</div>'
             +   '<div style="display:flex;gap:6px;align-items:center;">'
             +     '<input type="text" readonly value="' + esc(castChatUrl) + '" id="cast-url-' + esc(s.shop_cast_id) + '" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e5c8a3;border-radius:6px;font-size:11px;background:#fff;font-family:monospace;">'
             +     '<button type="button" class="btn" onclick="copyCastUrl(\'' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 コピー</button>'
             +   '</div>'
-            +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">このURLをSNSプロフィール等に貼ると、お客様から直接あなたへチャットが届きます。</div>'
+            +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">プロフィールやSNSで活用してください</div>'
             + '</div>'
             : '';
-        const notifyBlock = '';
         return ''
             + '<div class="shop-card">'
             +   '<div class="shop-card-hdr">'
@@ -380,14 +373,8 @@ function renderShops(shops){
             +     '<div class="shop-body">'
             +       '<div class="shop-meta">' + esc(s.shop_name) + ' <span class="status-badge ' + statusClass + '">' + statusLabel + '</span></div>'
             +       '<div class="shop-display-name">' + esc(s.display_name) + '</div>'
-            +       bio
             +       pendingNote
             +       castUrlBlock
-            +       notifyBlock
-            +       '<div class="shop-actions">'
-            +         '<button type="button" class="btn primary" onclick="openProfileModal(\'' + esc(s.shop_cast_id) + '\')" style="font-size:12px;padding:8px 14px;">✏️ プロフィール編集</button>'
-            +         shopLink
-            +       '</div>'
             +     '</div>'
             +   '</div>'
             + '</div>';
