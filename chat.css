@@ -111,6 +111,14 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .msg-send-status.failed{color:#c0392b;font-weight:600}
 .msg-retry-btn{background:none;border:none;color:var(--chat-primary);text-decoration:underline;font-size:10px;cursor:pointer;padding:0;margin-left:2px;font-weight:600}
 .msg-retry-btn:hover{opacity:.7}
+/* Day 8: 入力中 3ドット吹き出し (常に相手=左=shop側) */
+.typing-indicator{margin-top:2px}
+.typing-indicator.hidden{display:none}
+.typing-bubble{padding:10px 14px !important;display:inline-flex;align-items:center;gap:4px;min-height:22px}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:#a3a3a3;display:inline-block;animation:typingDot 1.3s infinite ease-in-out}
+.typing-dot:nth-child(2){animation-delay:.18s}
+.typing-dot:nth-child(3){animation-delay:.36s}
+@keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
 .msg-date-sep{display:flex;justify-content:center;margin:8px 0 2px}
 .msg-date-sep span{background:rgba(0,0,0,.06);color:#666;font-size:11px;padding:2px 10px;border-radius:10px}
 .msg-translation{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(var(--chat-primary-rgb),.25);font-size:13px;opacity:.85;line-height:1.4}

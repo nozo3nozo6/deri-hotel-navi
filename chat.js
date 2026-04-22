@@ -392,6 +392,84 @@ function flushOutbox() {
     for (const cmid of cmids) retryOutbox(cmid);
 }
 
+// =====================================================
+// Day 8: typing indicator
+// -----------------------------------------------------
+// emitTyping(): 入力中に ~3 秒おきにサーバーへ set-typing を投げる.
+// サーバーは typing_until = NOW()+6s にするので、3s 間隔で続ければ相手側に常時 true が届く.
+// 送信 or 送信失敗 or blur では何もしない (6s で自然減衰する).
+// renderTypingIndicator(): バッチ応答に other_typing が入ってきたら相手側の 3ドット吹き出しを出す.
+// =====================================================
+const TYPING_EMIT_INTERVAL_MS = 3000;
+let _lastTypingEmit = 0;
+
+function buildTypingPayload() {
+    if (state.mode === 'owner') {
+        if (!state.device_token || !state.selected_session) return null;
+        return {
+            auth: { kind: 'owner', device_token: state.device_token },
+            session_id: state.selected_session.id,
+        };
+    }
+    if (state.mode === 'cast_owner') {
+        if (typeof CAST_INBOX_TOKEN === 'undefined' || !CAST_INBOX_TOKEN) return null;
+        if (!state.cast_device_token || !state.selected_session) return null;
+        return {
+            auth: {
+                kind: 'cast_inbox',
+                inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
+            },
+            session_id: state.selected_session.id,
+        };
+    }
+    if (!state.session_token) return null;
+    if (IS_CAST_VIEW && typeof CAST_ID !== 'undefined' && CAST_ID) {
+        return {
+            auth: { kind: 'cast_view', session_token: state.session_token, shop_cast_id: CAST_ID },
+        };
+    }
+    return {
+        auth: { kind: 'visitor', session_token: state.session_token },
+    };
+}
+
+function emitTyping() {
+    const now = Date.now();
+    if (now - _lastTypingEmit < TYPING_EMIT_INTERVAL_MS) return;
+    const payload = buildTypingPayload();
+    if (!payload) return;
+    _lastTypingEmit = now;
+    api('set-typing', payload, 'POST').catch(() => {});
+}
+
+function ensureTypingIndicatorEl() {
+    let el = document.getElementById('typing-indicator');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'typing-indicator';
+    el.className = 'msg-row shop typing-indicator hidden';
+    const bubble = document.createElement('div');
+    bubble.className = 'msg shop typing-bubble';
+    bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+    el.appendChild(bubble);
+    return el;
+}
+
+function renderTypingIndicator(show) {
+    if (!refs.chatMessages) return;
+    const el = ensureTypingIndicatorEl();
+    if (show) {
+        // 常に末尾に移動 (新規メッセージが追加されても下に押し出されない)
+        refs.chatMessages.appendChild(el);
+        el.classList.remove('hidden');
+        const near = refs.chatMessages.scrollHeight - refs.chatMessages.scrollTop - refs.chatMessages.clientHeight < 80;
+        if (near) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
 // 401 device_token無効を検知したら polling を止めて再ログインを促す（reload はしない）
 let _authRecovering = false;
 function handleDeviceAuthFailure() {
@@ -1385,6 +1463,7 @@ function applyVisitorBatch(data) {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
     }
+    if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
     updateStatusIndicator(data.shop_online);
     if (data.status === 'closed' && !state._closedMsgShown) {
         state._closedMsgShown = true;
@@ -1848,6 +1927,7 @@ function applyOwnerBatch(data, selectedSid) {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
     }
+    if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
 }
 
 function startInboxPolling() {
@@ -2242,6 +2322,12 @@ refs.input.addEventListener('keydown', (e) => {
     refs.sendBtn.click();
 });
 
+// Day 8: typing emit (スロットル付き — 3秒おきに再発火)
+refs.input.addEventListener('input', () => {
+    if (!refs.input.value) return;
+    emitTyping();
+});
+
 if (refs.quickQuestions) {
     refs.quickQuestions.addEventListener('click', (e) => {
         const btn = e.target.closest('.quick-btn');
@@ -2341,6 +2427,7 @@ refs.onlineToggle.addEventListener('change', async (e) => {
 refs.btnRefresh.addEventListener('click', () => (IS_CAST_INBOX ? showCastInbox() : showInbox()));
 function backToInbox() {
     state.selected_session = null;
+    renderTypingIndicator(false);
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');

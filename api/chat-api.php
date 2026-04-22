@@ -471,6 +471,7 @@ try {
         case 'can-connect':     handleCanConnect(); break;
         case 'translate':       handleTranslate(); break;
         case 'send':            handleUnifiedSend(); break;
+        case 'set-typing':      handleSetTyping(); break;
 
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
@@ -719,6 +720,13 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     $stmt->execute([$sessionId, $ownSide]);
     $lastReadOwnId = (int)$stmt->fetchColumn();
 
+    // Day 8: 相手の typing 状態 (reader の逆側の typing_until > NOW())
+    $otherTypingCol = $readerRole === 'shop' ? 'visitor_typing_until' : 'shop_typing_until';
+    $stmt = $pdo->prepare("SELECT $otherTypingCol FROM chat_sessions WHERE id = ? LIMIT 1");
+    $stmt->execute([$sessionId]);
+    $otherTypingUntil = $stmt->fetchColumn();
+    $otherTyping = $otherTypingUntil && strtotime((string)$otherTypingUntil) > time();
+
     // DO broadcast: INSERT直後のみ（send/reply path）。poll path・duplicate pathはスキップ.
     if (!empty($extra['message_id']) && empty($extra['duplicate'])) {
         $newId = (int)$extra['message_id'];
@@ -728,6 +736,9 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
                 break;
             }
         }
+        // Day 8: 送信した側の typing を即時クリア
+        $selfCol = $readerRole === 'shop' ? 'shop_typing_until' : 'visitor_typing_until';
+        $pdo->prepare("UPDATE chat_sessions SET $selfCol = NULL WHERE id = ?")->execute([$sessionId]);
     }
 
     okBatch(array_merge($extra, [
@@ -735,6 +746,7 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
         'shop_online' => $shopOnline,
         'status' => $status,
         'last_read_own_id' => $lastReadOwnId,
+        'other_typing' => (bool)$otherTyping,
     ]));
 }
 
@@ -982,14 +994,16 @@ function handleOwnerInbox() {
     $messages = [];
     $lastReadOwnId = 0;
     $status = null;
+    $otherTyping = false;
 
     // 特定セッションのメッセージも返す（指定時）
     if ($sessionId > 0) {
-        $stmt = $pdo->prepare('SELECT id, status, visitor_hash FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, status, visitor_hash, visitor_typing_until FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
         $stmt->execute([$sessionId, $device['shop_id']]);
         $sessRow = $stmt->fetch();
         if ($sessRow) {
             $status = $sessRow['status'];
+            $otherTyping = !empty($sessRow['visitor_typing_until']) && strtotime((string)$sessRow['visitor_typing_until']) > time();
 
             // presence heartbeat: オーナーがこのセッションを見ていることを記録
             $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
@@ -1027,6 +1041,7 @@ function handleOwnerInbox() {
         'status' => $status,
         // shop_online は常に自分=ON扱い (オーナー画面を見ている前提)
         'shop_online' => true,
+        'other_typing' => (bool)$otherTyping,
     ]));
 }
 
@@ -1305,17 +1320,19 @@ function handleCastInbox(): void {
     $messages = [];
     $status = null;
     $lastReadOwnId = 0;
+    $otherTyping = false;
 
     if ($sessionId > 0) {
         // 指定セッションが自分宛か検証
         $stmt = $pdo->prepare(
-            'SELECT id, status FROM chat_sessions
+            'SELECT id, status, visitor_typing_until FROM chat_sessions
              WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
         );
         $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
         $sessRow = $stmt->fetch();
         if ($sessRow) {
             $status = $sessRow['status'];
+            $otherTyping = !empty($sessRow['visitor_typing_until']) && strtotime((string)$sessRow['visitor_typing_until']) > time();
 
             $stmt = $pdo->prepare(
                 'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
@@ -1347,6 +1364,7 @@ function handleCastInbox(): void {
         'messages'         => $messages,
         'status'           => $status,
         'last_read_own_id' => $lastReadOwnId,
+        'other_typing'     => (bool)$otherTyping,
         'cast_name'        => $sc['display_name'],
         'shop_name'        => $sc['shop_name'],
         'shop_slug'        => $sc['slug'],
@@ -1635,9 +1653,11 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     $stmt->execute([$sessionId]);
     $lastReadOwnId = (int)$stmt->fetchColumn();
 
-    $stmt = $pdo->prepare('SELECT status FROM chat_sessions WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT status, visitor_typing_until FROM chat_sessions WHERE id = ? LIMIT 1');
     $stmt->execute([$sessionId]);
-    $status = $stmt->fetchColumn() ?: 'open';
+    $sessRow = $stmt->fetch();
+    $status = ($sessRow['status'] ?? null) ?: 'open';
+    $otherTyping = !empty($sessRow['visitor_typing_until']) && strtotime((string)$sessRow['visitor_typing_until']) > time();
 
     // DO broadcast: INSERT直後のみ（owner/cast_view/cast_inbox reply path）。duplicate pathはスキップ.
     if (!empty($extra['message_id']) && empty($extra['duplicate'])) {
@@ -1648,6 +1668,8 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
                 break;
             }
         }
+        // Day 8: 返信した shop 側の typing を即時クリア
+        $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = NULL WHERE id = ?')->execute([$sessionId]);
     }
 
     okBatch(array_merge($extra, [
@@ -1655,6 +1677,7 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
         'last_read_own_id' => $lastReadOwnId,
         'status' => $status,
         'shop_online' => true,
+        'other_typing' => (bool)$otherTyping,
     ]));
 }
 
@@ -2124,6 +2147,82 @@ function handleAdminUnblock() {
 // 既存4エンドポイント (send-message / owner-reply / cast-url-reply / cast-inbox-reply) も
 // そのまま動く ── 本エンドポイントは「単一入口」オプションを提供する.
 // =========================================================
+/**
+ * Day 8: typing indicator.
+ * 全4 auth (visitor/owner/cast_view/cast_inbox) を統一受付.
+ * 6秒後に自然減衰する typing_until 列を NOW()+6s にセットするだけ.
+ * クライアントは ~3秒間隔で再送、打ち終わり or 送信時にローカル停止.
+ */
+function handleSetTyping(): void {
+    global $body;
+    $auth = inp('auth', []);
+    if (!is_array($auth)) err('auth required');
+    $kind = (string)($auth['kind'] ?? '');
+    $pdo = DB::conn();
+
+    switch ($kind) {
+        case 'visitor': {
+            $token = trim((string)($auth['session_token'] ?? ''));
+            if ($token === '') err('session_token required');
+            $stmt = $pdo->prepare('SELECT id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+            $stmt->execute([$token]);
+            $id = (int)$stmt->fetchColumn();
+            if (!$id) err('Session not found', 404);
+            $pdo->prepare('UPDATE chat_sessions SET visitor_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+                ->execute([$id]);
+            ok([]);
+            return;
+        }
+        case 'cast_view': {
+            $token = trim((string)($auth['session_token'] ?? ''));
+            $shopCastId = trim((string)($auth['shop_cast_id'] ?? ''));
+            if ($token === '' || $shopCastId === '') err('auth fields missing');
+            $stmt = $pdo->prepare(
+                'SELECT s.id FROM chat_sessions s
+                 JOIN shop_casts sc ON sc.cast_id = s.cast_id AND sc.shop_id = s.shop_id
+                 WHERE s.session_token = ? AND sc.id = ? AND sc.status = "active" LIMIT 1'
+            );
+            $stmt->execute([$token, $shopCastId]);
+            $id = (int)$stmt->fetchColumn();
+            if (!$id) err('auth failed', 403);
+            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+                ->execute([$id]);
+            ok([]);
+            return;
+        }
+        case 'owner': {
+            if (!empty($auth['device_token'])) $body['device_token'] = $auth['device_token'];
+            $device = requireDevice();
+            $sessionId = (int)($auth['session_id'] ?? inp('session_id', 0));
+            if ($sessionId <= 0) err('session_id required');
+            $stmt = $pdo->prepare('SELECT 1 FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+            $stmt->execute([$sessionId, $device['shop_id']]);
+            if (!$stmt->fetchColumn()) err('auth failed', 403);
+            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+                ->execute([$sessionId]);
+            ok([]);
+            return;
+        }
+        case 'cast_inbox': {
+            $inbox = trim((string)($auth['inbox_token'] ?? ''));
+            $deviceToken = trim((string)($auth['device_token'] ?? ''));
+            $sessionId = (int)($auth['session_id'] ?? 0);
+            if ($sessionId <= 0) err('session_id required');
+            $sc = resolveCastInboxToken($inbox);
+            if (!$sc) err('invalid inbox_token', 403);
+            if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('device not registered', 403);
+            $stmt = $pdo->prepare('SELECT 1 FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1');
+            $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+            if (!$stmt->fetchColumn()) err('auth failed', 403);
+            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+                ->execute([$sessionId]);
+            ok([]);
+            return;
+        }
+    }
+    err('invalid auth.kind');
+}
+
 function handleUnifiedSend(): void {
     global $body;
     $auth = inp('auth', []);
