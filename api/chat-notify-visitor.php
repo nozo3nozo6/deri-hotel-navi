@@ -63,7 +63,7 @@ if ($sessionToken === '' || $message === '') {
 try {
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT id, visitor_email, visitor_notify_enabled, visitor_last_notified_at
+        'SELECT id, visitor_email, visitor_notify_enabled, visitor_last_notified_at, visitor_email_verified
          FROM chat_sessions WHERE session_token = ? LIMIT 1'
     );
     $stmt->execute([$sessionToken]);
@@ -74,6 +74,11 @@ try {
     }
     if ((int)$sess['visitor_notify_enabled'] !== 1) {
         echo json_encode(['ok' => true, 'skipped' => 'notify_disabled']);
+        exit;
+    }
+    // Magic Link 確認済みでない場合は送信しない (いたずら防止).
+    if ((int)($sess['visitor_email_verified'] ?? 0) !== 1) {
+        echo json_encode(['ok' => true, 'skipped' => 'email_not_verified']);
         exit;
     }
     $email = trim((string)($sess['visitor_email'] ?? ''));

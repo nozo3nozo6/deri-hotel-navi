@@ -16,6 +16,7 @@
  */
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mail-utils.php';
 if (file_exists(__DIR__ . '/vapid-config.php')) {
     require_once __DIR__ . '/vapid-config.php';
 }
@@ -43,7 +44,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -487,6 +488,7 @@ try {
         case 'visitor-notify-settings':    handleVisitorNotifySettings(); break;
         case 'my-notify-settings':         handleMyNotifySettings(); break;
         case 'fetch-visitor-notify':       handleFetchVisitorNotify(); break;
+        case 'resend-visitor-email-verify': handleResendVisitorEmailVerify(); break;
 
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
@@ -761,9 +763,10 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
                 break;
             }
         }
-        // Day 8: 送信した側の typing を即時クリア
+        // Day 8: 送信した側の typing を即時クリア + #3: 相手側にも stop を push
         $selfCol = $readerRole === 'shop' ? 'shop_typing_until' : 'visitor_typing_until';
         $pdo->prepare("UPDATE chat_sessions SET $selfCol = NULL WHERE id = ?")->execute([$sessionId]);
+        broadcastTypingToDO((int)$sessionId, $readerRole, false);
     }
 
     okBatch(array_merge($extra, [
@@ -1719,8 +1722,9 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
                 break;
             }
         }
-        // Day 8: 返信した shop 側の typing を即時クリア
+        // Day 8: 返信した shop 側の typing を即時クリア + #3: 相手側にも stop を push
         $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = NULL WHERE id = ?')->execute([$sessionId]);
+        broadcastTypingToDO((int)$sessionId, 'shop', false);
     }
 
     okBatch(array_merge($extra, [
@@ -2199,17 +2203,26 @@ function handleAdminUnblock() {
 // そのまま動く ── 本エンドポイントは「単一入口」オプションを提供する.
 // =========================================================
 /**
- * Day 8: typing indicator.
+ * Day 8: typing indicator. #3: 信頼性強化 (DO push + stop signal).
  * 全4 auth (visitor/owner/cast_view/cast_inbox) を統一受付.
- * 6秒後に自然減衰する typing_until 列を NOW()+6s にセットするだけ.
- * クライアントは ~3秒間隔で再送、打ち終わり or 送信時にローカル停止.
+ *
+ * stop=false (default): 6秒後に自然減衰する typing_until 列を NOW()+6s にセット + DO push(typing=true).
+ * stop=true:            typing_until を NULL に + DO push(typing=false) で相手側に即時停止を通知.
+ *
+ * クライアントは ~3秒間隔で再送、打ち終わり/送信/blur/unload 時に stop=true を送る.
  */
 function handleSetTyping(): void {
     global $body;
     $auth = inp('auth', []);
     if (!is_array($auth)) err('auth required');
     $kind = (string)($auth['kind'] ?? '');
+    $stop = !!inp('stop', false);
     $pdo = DB::conn();
+
+    // typing 列を SET 用の SQL 断片 (stop=true なら NULL, false なら NOW()+6s)
+    $sqlVal = $stop ? 'NULL' : 'DATE_ADD(NOW(), INTERVAL 6 SECOND)';
+    // broadcast する typing フラグ
+    $broadcastTyping = !$stop;
 
     switch ($kind) {
         case 'visitor': {
@@ -2219,8 +2232,9 @@ function handleSetTyping(): void {
             $stmt->execute([$token]);
             $id = (int)$stmt->fetchColumn();
             if (!$id) err('Session not found', 404);
-            $pdo->prepare('UPDATE chat_sessions SET visitor_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+            $pdo->prepare("UPDATE chat_sessions SET visitor_typing_until = $sqlVal WHERE id = ?")
                 ->execute([$id]);
+            broadcastTypingToDO($id, 'visitor', $broadcastTyping);
             ok([]);
             return;
         }
@@ -2236,8 +2250,9 @@ function handleSetTyping(): void {
             $stmt->execute([$token, $shopCastId]);
             $id = (int)$stmt->fetchColumn();
             if (!$id) err('auth failed', 403);
-            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+            $pdo->prepare("UPDATE chat_sessions SET shop_typing_until = $sqlVal WHERE id = ?")
                 ->execute([$id]);
+            broadcastTypingToDO($id, 'shop', $broadcastTyping);
             ok([]);
             return;
         }
@@ -2249,8 +2264,9 @@ function handleSetTyping(): void {
             $stmt = $pdo->prepare('SELECT 1 FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
             $stmt->execute([$sessionId, $device['shop_id']]);
             if (!$stmt->fetchColumn()) err('auth failed', 403);
-            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+            $pdo->prepare("UPDATE chat_sessions SET shop_typing_until = $sqlVal WHERE id = ?")
                 ->execute([$sessionId]);
+            broadcastTypingToDO($sessionId, 'shop', $broadcastTyping);
             ok([]);
             return;
         }
@@ -2265,8 +2281,9 @@ function handleSetTyping(): void {
             $stmt = $pdo->prepare('SELECT 1 FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1');
             $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
             if (!$stmt->fetchColumn()) err('auth failed', 403);
-            $pdo->prepare('UPDATE chat_sessions SET shop_typing_until = DATE_ADD(NOW(), INTERVAL 6 SECOND) WHERE id = ?')
+            $pdo->prepare("UPDATE chat_sessions SET shop_typing_until = $sqlVal WHERE id = ?")
                 ->execute([$sessionId]);
+            broadcastTypingToDO($sessionId, 'shop', $broadcastTyping);
             ok([]);
             return;
         }
@@ -2470,27 +2487,184 @@ function handleVisitorNotifySettings(): void {
     }
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt = $pdo->prepare(
+        'SELECT id, visitor_email, visitor_email_verified
+         FROM chat_sessions WHERE session_token = ? LIMIT 1'
+    );
     $stmt->execute([$token]);
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
 
-    if ($enabledInt === 1) {
+    if ($enabledInt === 0) {
+        // OFF: メール/verified は保持 (再度ON時に再入力 or 再verify不要)
+        $upd = $pdo->prepare(
+            'UPDATE chat_sessions SET visitor_notify_enabled = 0 WHERE id = ?'
+        );
+        $upd->execute([$session['id']]);
+        ok(['enabled' => false, 'email' => (string)($session['visitor_email'] ?? ''), 'verified' => (int)($session['visitor_email_verified'] ?? 0) === 1]);
+        return;
+    }
+
+    // ON
+    $oldEmail = trim((string)($session['visitor_email'] ?? ''));
+    $oldVerified = (int)($session['visitor_email_verified'] ?? 0) === 1;
+    $emailUnchanged = ($email !== '' && strcasecmp($email, $oldEmail) === 0);
+
+    if ($emailUnchanged && $oldVerified) {
+        // 同一メール＋確認済み: enable=1 にするだけ. 確認メールは送らない.
         $upd = $pdo->prepare(
             'UPDATE chat_sessions
              SET visitor_email = ?, visitor_notify_enabled = 1
              WHERE id = ?'
         );
         $upd->execute([$email, $session['id']]);
-    } else {
-        // OFF の場合メールアドレスは保持 (再度ON時に入力し直さずに済む)
-        $upd = $pdo->prepare(
-            'UPDATE chat_sessions SET visitor_notify_enabled = 0 WHERE id = ?'
-        );
-        $upd->execute([$session['id']]);
+        ok([
+            'enabled' => true,
+            'email' => $email,
+            'verified' => true,
+            'verification_sent' => false,
+        ]);
+        return;
     }
 
-    ok(['enabled' => $enabledInt === 1, 'email' => $enabledInt === 1 ? $email : '']);
+    // 新規 or メール変更 or 未確認 → トークン発行＋確認メール送信
+    $verifyToken = bin2hex(random_bytes(32));
+    $expiresAt = date('Y-m-d H:i:s', time() + 24 * 3600);
+
+    $upd = $pdo->prepare(
+        'UPDATE chat_sessions
+         SET visitor_email = ?,
+             visitor_notify_enabled = 1,
+             visitor_email_verified = 0,
+             visitor_email_verify_token = ?,
+             visitor_email_verify_expires_at = ?
+         WHERE id = ?'
+    );
+    $upd->execute([$email, $verifyToken, $expiresAt, $session['id']]);
+
+    // 店舗 slug を取得してメールに含める (チャット復帰URLの為)
+    $shopSlug = fetchSessionShopSlug((int)$session['id']);
+
+    $mailOk = sendVisitorEmailVerification($email, $verifyToken, $shopSlug, $token);
+    if (!$mailOk) {
+        // メール送信失敗: トークンはロールバックせず残す (resend で再送可能) が verified=0
+        err('確認メールの送信に失敗しました。しばらく経ってから再度お試しください', 500);
+    }
+
+    ok([
+        'enabled' => true,
+        'email' => $email,
+        'verified' => false,
+        'verification_sent' => true,
+    ]);
+}
+
+// Resend: 既に保存済みの email を再確認する (UIの「確認メールを再送」ボタン).
+// Session に紐付くメールが既にある場合のみ、新トークン発行＋再送信.
+function handleResendVisitorEmailVerify(): void {
+    $token = trim((string)inp('session_token', ''));
+    if ($token === '') err('session_token required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT id, visitor_email, visitor_email_verified
+         FROM chat_sessions WHERE session_token = ? LIMIT 1'
+    );
+    $stmt->execute([$token]);
+    $session = $stmt->fetch();
+    if (!$session) err('Session not found', 404);
+
+    $email = trim((string)($session['visitor_email'] ?? ''));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        err('メールアドレスが未登録です');
+    }
+    if ((int)($session['visitor_email_verified'] ?? 0) === 1) {
+        // 既に確認済み: 何もせず ok
+        ok(['verified' => true, 'verification_sent' => false]);
+        return;
+    }
+
+    $verifyToken = bin2hex(random_bytes(32));
+    $expiresAt = date('Y-m-d H:i:s', time() + 24 * 3600);
+
+    $upd = $pdo->prepare(
+        'UPDATE chat_sessions
+         SET visitor_email_verify_token = ?,
+             visitor_email_verify_expires_at = ?
+         WHERE id = ?'
+    );
+    $upd->execute([$verifyToken, $expiresAt, $session['id']]);
+
+    $shopSlug = fetchSessionShopSlug((int)$session['id']);
+    $mailOk = sendVisitorEmailVerification($email, $verifyToken, $shopSlug, $token);
+    if (!$mailOk) err('確認メールの送信に失敗しました。しばらく経ってから再度お試しください', 500);
+
+    ok(['verified' => false, 'verification_sent' => true]);
+}
+
+// session_id から店舗 slug を取得 (確認メール本文のチャットURL生成用).
+function fetchSessionShopSlug(int $sessionId): string {
+    try {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare(
+            'SELECT sh.slug
+             FROM chat_sessions cs
+             JOIN shops sh ON sh.id = cs.shop_id
+             WHERE cs.id = ? LIMIT 1'
+        );
+        $stmt->execute([$sessionId]);
+        return (string)($stmt->fetchColumn() ?: '');
+    } catch (Throwable $_) {
+        return '';
+    }
+}
+
+// 訪問者に対し「このメールアドレスの確認」Magic Link を送信する.
+// 目的: 他人のメール入力によるハラスメント通知の防止 (Apple/Slack/Notion 方式).
+function sendVisitorEmailVerification(string $email, string $verifyToken, string $shopSlug, string $sessionToken): bool {
+    $baseUrl = 'https://yobuho.com';
+    $verifyUrl = $baseUrl . '/api/verify-visitor-email.php?token=' . rawurlencode($verifyToken);
+
+    // 万が一確認完了後に自分のチャットに戻りやすいよう resume 用URLも添える.
+    $resumeUrl = '';
+    if ($shopSlug !== '') {
+        $resumeUrl = $baseUrl . '/chat/' . rawurlencode($shopSlug) . '/?resume=' . rawurlencode($sessionToken);
+    }
+
+    $subject = '[YobuChat] メールアドレスの確認';
+
+    $escVerify = htmlspecialchars($verifyUrl, ENT_QUOTES, 'UTF-8');
+    $escResume = htmlspecialchars($resumeUrl, ENT_QUOTES, 'UTF-8');
+
+    $resumeBlock = '';
+    if ($resumeUrl !== '') {
+        $resumeBlock = <<<HTML
+<p style="margin-top: 20px; font-size: 13px; color: #888;">
+確認後、元のチャットに戻る: <a href="{$escResume}">YobuChat を開く</a>
+</p>
+HTML;
+    }
+
+    $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html lang="ja"><body style="font-family: sans-serif; line-height: 1.7; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<p style="font-size: 15px;">YobuChat でこのメールアドレスを通知先に登録する手続きです。</p>
+<p style="font-size: 14px;">下記のボタンをクリックして確認を完了してください。確認が完了するまで通知メールは送信されません。</p>
+<p style="margin: 28px 0; text-align: center;">
+<a href="{$escVerify}" style="display: inline-block; background: #b5627a; color: #fff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 15px;">メールアドレスを確認する</a>
+</p>
+<p style="font-size: 13px; color: #666;">ボタンが押せない場合はこちらのURLをブラウザで開いてください:<br>
+<a href="{$escVerify}" style="word-break: break-all;">{$escVerify}</a></p>
+<p style="font-size: 13px; color: #888; margin-top: 20px;">このリンクは <strong>24時間</strong> 有効です。期限が切れた場合は YobuChat の通知設定から再度保存してください。</p>
+<hr style="border: none; border-top: 1px solid #ddd; margin: 32px 0;">
+<p style="font-size: 12px; color: #888;">
+このメールに心当たりがない場合は破棄してください。確認されない限り通知メールは送信されません。
+</p>
+{$resumeBlock}
+</body></html>
+HTML;
+
+    return sendTransactionalMail($email, $subject, $htmlBody);
 }
 
 // 訪問者 → 自分の通知設定を取得 (chat.js UI 初期化用).
@@ -2501,16 +2675,25 @@ function handleMyNotifySettings(): void {
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT visitor_email, visitor_notify_enabled
+        'SELECT visitor_email, visitor_notify_enabled,
+                visitor_email_verified, visitor_email_verify_expires_at
          FROM chat_sessions WHERE session_token = ? LIMIT 1'
     );
     $stmt->execute([$token]);
     $row = $stmt->fetch();
     if (!$row) err('Session not found', 404);
 
+    $email = (string)($row['visitor_email'] ?? '');
+    $enabled = (int)$row['visitor_notify_enabled'] === 1;
+    $verified = (int)($row['visitor_email_verified'] ?? 0) === 1;
+    // メール登録済みで未確認なら pending (確認メール送信済みの状態).
+    $pending = ($email !== '' && !$verified);
+
     ok([
-        'email' => (string)($row['visitor_email'] ?? ''),
-        'enabled' => (int)$row['visitor_notify_enabled'] === 1,
+        'email' => $email,
+        'enabled' => $enabled,
+        'verified' => $verified,
+        'pending' => $pending,
     ]);
 }
 
@@ -2524,7 +2707,7 @@ function handleFetchVisitorNotify(): void {
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT visitor_email, visitor_notify_enabled, visitor_last_notified_at
+        'SELECT visitor_email, visitor_notify_enabled, visitor_last_notified_at, visitor_email_verified
          FROM chat_sessions WHERE session_token = ? LIMIT 1'
     );
     $stmt->execute([$token]);
@@ -2534,6 +2717,7 @@ function handleFetchVisitorNotify(): void {
     ok([
         'email' => (string)($row['visitor_email'] ?? ''),
         'enabled' => (int)$row['visitor_notify_enabled'] === 1,
+        'verified' => (int)($row['visitor_email_verified'] ?? 0) === 1,
         'last_notified_at' => $row['visitor_last_notified_at'] ?? null,
     ]);
 }
@@ -2685,6 +2869,57 @@ function broadcastReadToDO(int $sessionId, string $reader, int $upToId): void {
     $errno = curl_errno($ch);
     if ($errno) {
         error_log('[chat-api] DO broadcast-read failed: ' . curl_error($ch));
+    }
+    curl_close($ch);
+}
+
+/**
+ * DO へ入力中(typing) イベントをリレー (#3).
+ *
+ * @param int $sessionId MySQL chat_sessions.id
+ * @param string $role 'visitor'|'shop' — 打っている側 (cast_view/cast_inbox/owner は 'shop')
+ * @param bool $typing true=入力中開始, false=停止
+ */
+function broadcastTypingToDO(int $sessionId, string $role, bool $typing): void {
+    $secret = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
+    if (!$secret) return;
+    if ($role !== 'shop' && $role !== 'visitor') return;
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT shop_id, session_token FROM chat_sessions WHERE id = ? LIMIT 1');
+    $stmt->execute([$sessionId]);
+    $row = $stmt->fetch();
+    if (!$row) return;
+    $shopId = (string)$row['shop_id'];
+    $sessionToken = (string)$row['session_token'];
+    if ($shopId === '' || $sessionToken === '') return;
+
+    $doBase = defined('CHAT_DO_BASE_URL') ? CHAT_DO_BASE_URL : 'https://chat.yobuho.com';
+    $url = $doBase . '/broadcast-typing?shop_id=' . urlencode($shopId);
+    $payload = [
+        'session_token' => $sessionToken,
+        'role'          => $role,
+        'typing'        => $typing,
+    ];
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $body,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-Sync-Secret: ' . $secret,
+        ],
+        CURLOPT_CONNECTTIMEOUT => 1,
+        CURLOPT_TIMEOUT        => 2,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_NOSIGNAL       => true,
+    ]);
+    @curl_exec($ch);
+    $errno = curl_errno($ch);
+    if ($errno) {
+        error_log('[chat-api] DO broadcast-typing failed: ' . curl_error($ch));
     }
     curl_close($ch);
 }
