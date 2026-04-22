@@ -54,7 +54,10 @@ export class ChatRoom implements DurableObject {
     // ここで `initialized` ガードをかけると DO インスタンスが生き続ける間、shop-admin で
     // notify_mode / reception 時間 / notify_email 等を変えても DO が古い値を持ち続けて
     // 「every に変えたのに 2通目からメール来ない」等の事故になるため、毎回上書きする。
-    await this.loadShopMeta(req);
+    // /broadcast は shopMeta 不要のためスキップ (PHP→DO 高頻度パス).
+    if (path !== '/broadcast') {
+      await this.loadShopMeta(req);
+    }
 
     // WebSocket upgrade
     if (path === '/ws') {
@@ -75,6 +78,7 @@ export class ChatRoom implements DurableObject {
         case '/owner/inbox':       return this.httpOwnerInbox(body);
         case '/owner/mark-read':   return this.httpOwnerMarkRead(body);
         case '/admin/purge':       return this.httpAdminPurge(req, body);
+        case '/broadcast':         return this.httpBroadcast(req, body);
       }
     }
 
@@ -634,6 +638,66 @@ export class ChatRoom implements DurableObject {
   }
 
   // ========== Broadcast ==========
+
+  /**
+   * POST /broadcast — PHP 統一送信からのリレー受信口.
+   * 認証: X-Sync-Secret (CHAT_SYNC_SECRET を PHP と共有).
+   *
+   * Body: { session_token: string, message_row: { id, sender_type, message, sent_at, client_msg_id, ... } }
+   *
+   * 配信ルール (sender の重複反映は sender 側の client_msg_id で抑止):
+   *   - sender_type = 'visitor' → 全 owner WS + 同一 session_token の visitor WS
+   *   - sender_type = 'shop'    → 同一 session_token の visitor WS + 全 owner WS
+   *   - 結果: 「room 内全員」にブロードキャスト. sender 自身の他タブも同期できる.
+   */
+  private async httpBroadcast(req: Request, body: any): Promise<Response> {
+    const provided = req.headers.get('X-Sync-Secret') || '';
+    const expected = this.env.CHAT_SYNC_SECRET || '';
+    if (!expected || provided !== expected) {
+      return this.errJson('forbidden', 403);
+    }
+
+    const token = String(body?.session_token || '');
+    const row = body?.message_row;
+    if (!token || !row || typeof row !== 'object') {
+      return this.errJson('missing_fields', 400);
+    }
+
+    const payload = {
+      type: 'message',
+      data: row,
+      session_token: token,
+    };
+    const json = JSON.stringify(payload);
+
+    // getWebSockets() = 全接続取得 (Hibernation API).
+    // tag は role:<role> や session:<id> で絞れるが、ここは visitor の session_token 照合が必要なので全件走査.
+    let delivered = 0;
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment;
+        if (!a) continue;
+        // owner WS: 全件に送る (owner は全セッションの inbox を一元管理)
+        if (a.role === 'owner') {
+          ws.send(json);
+          delivered++;
+          continue;
+        }
+        // visitor WS: 自セッションにのみ送る
+        if (a.role === 'visitor' && a.session_token === token) {
+          ws.send(json);
+          delivered++;
+        }
+      } catch (_) {
+        /* stale / already-closed WS — skip */
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, delivered }), {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+  }
 
   private broadcastToRole(role: WsRole, payload: unknown): void {
     const clients = this.state.getWebSockets(`role:${role}`);

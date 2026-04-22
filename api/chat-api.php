@@ -40,7 +40,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -470,6 +470,7 @@ try {
         case 'shop-status':     handleShopStatus(); break;
         case 'can-connect':     handleCanConnect(); break;
         case 'translate':       handleTranslate(); break;
+        case 'send':            handleUnifiedSend(); break;
 
         // Owner (device_token auth)
         case 'verify-device':   handleVerifyDevice(); break;
@@ -717,6 +718,17 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
                            WHERE session_id = ? AND sender_type = ? AND read_at IS NOT NULL");
     $stmt->execute([$sessionId, $ownSide]);
     $lastReadOwnId = (int)$stmt->fetchColumn();
+
+    // DO broadcast: INSERT直後のみ（send/reply path）。poll path・duplicate pathはスキップ.
+    if (!empty($extra['message_id']) && empty($extra['duplicate'])) {
+        $newId = (int)$extra['message_id'];
+        foreach ($messages as $m) {
+            if ((int)$m['id'] === $newId) {
+                broadcastMessageToDO((string)$shopId, (int)$sessionId, $m);
+                break;
+            }
+        }
+    }
 
     okBatch(array_merge($extra, [
         'messages' => $messages,
@@ -1627,6 +1639,17 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     $stmt->execute([$sessionId]);
     $status = $stmt->fetchColumn() ?: 'open';
 
+    // DO broadcast: INSERT直後のみ（owner/cast_view/cast_inbox reply path）。duplicate pathはスキップ.
+    if (!empty($extra['message_id']) && empty($extra['duplicate'])) {
+        $newId = (int)$extra['message_id'];
+        foreach ($messages as $m) {
+            if ((int)$m['id'] === $newId) {
+                broadcastMessageToDO((string)$shopId, (int)$sessionId, $m);
+                break;
+            }
+        }
+    }
+
     okBatch(array_merge($extra, [
         'messages' => $messages,
         'last_read_own_id' => $lastReadOwnId,
@@ -2089,4 +2112,111 @@ function handleAdminUnblock() {
             ->execute([$auth['shop_id'], $vh]);
     }
     ok(['deleted' => $stmt->rowCount()]);
+}
+
+// =========================================================
+// 統一送信エンドポイント (/api/chat-send.php → action=send)
+// ---------------------------------------------------------
+// 4種の認証 (visitor / owner / cast_view / cast_inbox) を auth.kind で束ね、
+// 既存の 4 ハンドラへルーティングする. PHPが MySQL への書き込みを完結させ、
+// その後 DO /broadcast へリレーして、接続中の他クライアントへ WS push させる.
+//
+// 既存4エンドポイント (send-message / owner-reply / cast-url-reply / cast-inbox-reply) も
+// そのまま動く ── 本エンドポイントは「単一入口」オプションを提供する.
+// =========================================================
+function handleUnifiedSend(): void {
+    global $body;
+    $auth = inp('auth', []);
+    if (!is_array($auth)) err('auth required');
+    $kind = (string)($auth['kind'] ?? '');
+
+    // auth 内フィールドを $body に昇格させ、既存ハンドラが inp() で拾えるようにする
+    switch ($kind) {
+        case 'visitor':
+            // 必要フィールド: session_token (auth or top-level), message, client_msg_id, since_id, nickname?, lang?
+            if (!empty($auth['session_token'])) $body['session_token'] = $auth['session_token'];
+            handleSendMessage();
+            return;
+
+        case 'owner':
+            // 必要フィールド: device_token (auth or top-level), session_id, message, client_msg_id, since_id
+            if (!empty($auth['device_token'])) $body['device_token'] = $auth['device_token'];
+            handleOwnerReply();
+            return;
+
+        case 'cast_view':
+            // 必要フィールド: session_token + shop_cast_id (auth), message, client_msg_id, since_id
+            if (!empty($auth['session_token']))  $body['session_token']  = $auth['session_token'];
+            if (!empty($auth['shop_cast_id']))   $body['shop_cast_id']   = $auth['shop_cast_id'];
+            handleCastUrlReply();
+            return;
+
+        case 'cast_inbox':
+            // 必要フィールド: inbox_token + device_token (auth), session_id, message, client_msg_id, since_id
+            if (!empty($auth['inbox_token']))  $body['inbox_token']  = $auth['inbox_token'];
+            if (!empty($auth['device_token'])) $body['device_token'] = $auth['device_token'];
+            handleCastInboxReply();
+            return;
+
+        default:
+            err('invalid auth.kind');
+    }
+}
+
+// =========================================================
+// DO broadcast relay
+// ---------------------------------------------------------
+// PHPのINSERT直後に respondSessionBatch / respondOwnerBatch から呼ばれる.
+// chat.yobuho.com/broadcast に {session_token, message_row} を POST.
+// DO 側が接続中の WebSocket に対して role/session_token ごとに絞って push する.
+//
+// fire-and-forget: 失敗しても PHP 応答は遅延させない (最大 2s タイムアウト).
+// X-Sync-Secret で認証 (wrangler secret CHAT_SYNC_SECRET と共有).
+// =========================================================
+function broadcastMessageToDO(string $shopId, int $sessionId, array $messageRow): void {
+    // session_token 解決 (DO側がWS attachmentと照合するのに必須)
+    static $tokenCache = [];
+    if (!isset($tokenCache[$sessionId])) {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare('SELECT session_token FROM chat_sessions WHERE id = ? LIMIT 1');
+        $stmt->execute([$sessionId]);
+        $tokenCache[$sessionId] = (string)($stmt->fetchColumn() ?: '');
+    }
+    $token = $tokenCache[$sessionId];
+    if ($token === '' || $shopId === '') return;
+
+    broadcastToDO($shopId, $token, $messageRow);
+}
+
+function broadcastToDO(string $shopId, string $sessionToken, array $messageRow): void {
+    $secret = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
+    if (!$secret) return;
+
+    $doBase = defined('CHAT_DO_BASE_URL') ? CHAT_DO_BASE_URL : 'https://chat.yobuho.com';
+    $url = $doBase . '/broadcast?shop_id=' . urlencode($shopId);
+    $payload = [
+        'session_token' => $sessionToken,
+        'message_row'   => $messageRow,
+    ];
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $body,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'X-Sync-Secret: ' . $secret,
+        ],
+        CURLOPT_CONNECTTIMEOUT => 1,
+        CURLOPT_TIMEOUT        => 2,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_NOSIGNAL       => true,
+    ]);
+    @curl_exec($ch);
+    $errno = curl_errno($ch);
+    if ($errno) {
+        error_log('[chat-api] DO broadcast failed: ' . curl_error($ch));
+    }
+    curl_close($ch);
 }

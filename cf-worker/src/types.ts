@@ -9,6 +9,10 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   CHAT_NOTIFY_SECRET?: string;
   CHAT_SYNC_SECRET?: string;
+  // DO→PHP 逆流ミラーの kill-switch.
+  // '1' にすると MysqlSync が no-op になる. PHP が authoritative になった後 (Day 4) に ON.
+  // 途中でも wrangler secret put CHAT_SYNC_DISABLE_MIRROR で即時切替できる.
+  CHAT_SYNC_DISABLE_MIRROR?: string;
 }
 
 // ===== メッセージ =====

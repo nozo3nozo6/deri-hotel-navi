@@ -9,6 +9,7 @@
 'use strict';
 
 const API = '/api/chat-api.php';
+const CHAT_SEND_API = '/api/chat-send.php';  // 統一送信エンドポイント (4 auth kind を単一URLへ集約)
 const SHOP_AUTH_API = '/api/shop-auth.php';
 const POLL_INTERVAL = 10000; // 10秒
 const INBOX_INTERVAL = 15000;
@@ -221,6 +222,176 @@ async function api(action, params, method, baseUrl) {
     return data;
 }
 
+// =========================================================
+// 統一送信 (/api/chat-send.php).
+// 4 auth kind (visitor / owner / cast_view / cast_inbox) を単一エンドポイントに集約.
+// PHP が MySQL へ書き込んでから DO /broadcast へリレーし、接続中の WebSocket に push する.
+// respondSessionBatch / respondOwnerBatch と同形のバッチを返すので、既存の applyVisitorBatch /
+// applyOwnerBatch でそのまま反映できる.
+//
+// payload = {
+//   auth: { kind, session_token?, shop_cast_id?, inbox_token?, device_token? },
+//   message, client_msg_id, since_id,
+//   session_id?, nickname?, lang?
+// }
+// =========================================================
+async function sendUnified(payload) {
+    const res = await fetch(CHAT_SEND_API, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false || data.error) {
+        const err = new Error(data.error || `HTTP ${res.status}`);
+        err.status = res.status;
+        err.authFailed = res.status === 401 && /device/i.test(data.error || '');
+        throw err;
+    }
+    return data;
+}
+
+// =========================================================
+// Outbox + 楽観的UI (Day 4)
+// - 送信ボタン押下で即 addMessage. サーバ応答を待たずに画面反映 (LINE UX).
+// - 送信成功: bubble の .sending 削除 + data-msg-id を正式 id で更新.
+// - 送信失敗: .failed + 再送ボタン. outbox に残し、visibilitychange/online で再試行.
+// - outbox は in-memory (リロードで消える). 永続化は Day 4.5 以降 (必要なら localStorage).
+// =========================================================
+const _outbox = new Map(); // cmid -> {payload, renderAs, text, attempts, createdAt}
+
+function addOutgoingOptimistic(cmid, text, renderAs) {
+    // renderAs: 'visitor'(自分=訪問者) or 'shop'(自分=店舗/キャスト)
+    // dedupe: 既にバブルがあれば既存を返す (retry 時は別 cmid を使うので基本衝突しない)
+    const existing = refs.chatMessages
+        ? refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`)
+        : null;
+    if (existing) return existing;
+
+    const nowIso = new Date().toISOString();
+    const dateKey = getDateKey(nowIso);
+    if (dateKey && dateKey !== state.last_msg_date) {
+        addDateSeparator(dateKey);
+        state.last_msg_date = dateKey;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + renderAs;
+    row.dataset.cmid = cmid;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg ' + renderAs + ' sending';
+    bubble.textContent = text;
+
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    const timeEl = document.createElement('div');
+    timeEl.className = 'msg-time';
+    timeEl.textContent = formatTime(nowIso);
+    meta.appendChild(timeEl);
+    // "送信中…" ラベル
+    const status = document.createElement('div');
+    status.className = 'msg-send-status';
+    status.textContent = t('msg.sending') || '送信中…';
+    meta.appendChild(status);
+
+    if (renderAs === 'visitor') { row.appendChild(meta); row.appendChild(bubble); }
+    else { row.appendChild(bubble); row.appendChild(meta); }
+    refs.chatMessages.appendChild(row);
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    return row;
+}
+
+function markOptimisticSent(cmid, serverMsg) {
+    if (!refs.chatMessages) return;
+    const row = refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`);
+    if (!row) return;
+    if (serverMsg && serverMsg.id) row.dataset.msgId = serverMsg.id;
+    const bubble = row.querySelector('.msg');
+    if (bubble) bubble.classList.remove('sending', 'failed');
+    const status = row.querySelector('.msg-send-status');
+    if (status) status.remove();
+    // サーバー時刻で時刻ラベル更新 (楽観時は端末時刻で描画)
+    if (serverMsg && serverMsg.sent_at) {
+        const timeEl = row.querySelector('.msg-time');
+        if (timeEl) timeEl.textContent = formatTime(serverMsg.sent_at);
+    }
+}
+
+function markOptimisticFailed(cmid, err) {
+    if (!refs.chatMessages) return;
+    const row = refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`);
+    if (!row) return;
+    const bubble = row.querySelector('.msg');
+    if (bubble) { bubble.classList.remove('sending'); bubble.classList.add('failed'); }
+    const meta = row.querySelector('.msg-meta');
+    if (!meta) return;
+    const oldStatus = meta.querySelector('.msg-send-status');
+    if (oldStatus) oldStatus.remove();
+    const status = document.createElement('div');
+    status.className = 'msg-send-status failed';
+    status.textContent = (t('msg.failed') || '送信失敗') + ' · ';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'msg-retry-btn';
+    btn.textContent = t('msg.retry') || '再送';
+    btn.addEventListener('click', (e) => { e.stopPropagation(); retryOutbox(cmid); });
+    status.appendChild(btn);
+    meta.appendChild(status);
+}
+
+function enqueueOutbox(cmid, entry) {
+    _outbox.set(cmid, { ...entry, attempts: entry.attempts || 0, createdAt: Date.now() });
+}
+
+function dequeueOutbox(cmid) { _outbox.delete(cmid); }
+
+async function retryOutbox(cmid) {
+    const entry = _outbox.get(cmid);
+    if (!entry) return;
+    entry.attempts = (entry.attempts || 0) + 1;
+    // UI: failed→sending に戻す
+    const row = refs.chatMessages
+        ? refs.chatMessages.querySelector(`[data-cmid="${CSS.escape(cmid)}"]`)
+        : null;
+    if (row) {
+        const bubble = row.querySelector('.msg');
+        if (bubble) { bubble.classList.remove('failed'); bubble.classList.add('sending'); }
+        const oldStatus = row.querySelector('.msg-send-status');
+        if (oldStatus) {
+            oldStatus.innerHTML = '';
+            oldStatus.textContent = t('msg.sending') || '送信中…';
+            oldStatus.classList.remove('failed');
+        }
+    }
+    try {
+        const resp = await sendUnified(entry.payload);
+        markOptimisticSent(cmid, (resp.messages || []).find(m => m.client_msg_id === cmid));
+        dequeueOutbox(cmid);
+        // auth.kind で apply 関数を分岐 (renderAs だけでは cast_view と owner を区別できない).
+        const kind = (entry.payload && entry.payload.auth && entry.payload.auth.kind) || '';
+        if (kind === 'visitor' || kind === 'cast_view') {
+            applyVisitorBatch(resp);
+        } else {
+            // owner / cast_inbox → 選択中セッション宛て
+            const sid = (entry.payload && entry.payload.session_id)
+                || (state.selected_session && state.selected_session.id)
+                || null;
+            applyOwnerBatch(resp, sid);
+        }
+    } catch (e) {
+        markOptimisticFailed(cmid, e);
+        if (e && e.authFailed) handleDeviceAuthFailure();
+    }
+}
+
+function flushOutbox() {
+    if (!_outbox.size) return;
+    const cmids = Array.from(_outbox.keys());
+    for (const cmid of cmids) retryOutbox(cmid);
+}
+
 // 401 device_token無効を検知したら polling を止めて再ログインを促す（reload はしない）
 let _authRecovering = false;
 function handleDeviceAuthFailure() {
@@ -261,10 +432,11 @@ function uuidv4() {
 //   2) 下の `const Transport = PollingTransport;` を差し替えるだけ
 //   3) send* は WS で broadcast or HTTP のまま (Cloudflare推奨: 書き込みはHTTP、購読はWS)
 //
-// 契約:
+// 契約 (Day 3: subscribe-only 化):
 //   - Transport.subscribeVisitor / subscribeOwner は {stop} ハンドルを返す
-//   - Transport.sendVisitor / sendOwner は {message_id, client_msg_id, messages[], ...} を返す
-//   - client_msg_id を呼び出し元が生成して渡す (冪等送信: ネットワーク再送でも重複しない)
+//   - Transport.startVisitorSession / canConnect / closeSession は従来どおり
+//   - 送信 (sendVisitor/sendOwner) は Transport から抜き、sendUnified() で統一 (/api/chat-send.php).
+//     理由: PHP が authoritative に writeし、その後 DO /broadcast にリレーする単方向フローへ集約するため.
 //   - onBatch が受け取るデータ: {messages[], shop_online, status, last_read_own_id, server_time, ...}
 const PollingTransport = {
     kind: 'polling',
@@ -286,6 +458,8 @@ const PollingTransport = {
                 if (active) onBatch(data);
             } catch (_) { /* retry next tick */ }
         };
+        // 即時 catchup (visibility復帰時の待ち時間を消す)
+        tick();
         const timer = setInterval(tick, intervalMs || POLL_INTERVAL);
         return { stop: () => { active = false; clearInterval(timer); } };
     },
@@ -310,6 +484,8 @@ const PollingTransport = {
                 /* retry next tick */
             }
         };
+        // 即時 catchup
+        tick();
         const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
         return { stop: () => { active = false; clearInterval(timer); } };
     },
@@ -322,28 +498,7 @@ const PollingTransport = {
         return api('start-session', payload);
     },
 
-    // 訪問者: メッセージ送信 (client_msg_id で冪等化)
-    async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
-        return api('send-message', {
-            session_token: sessionToken,
-            message,
-            nickname: nickname || '',
-            lang: lang || '',
-            client_msg_id: clientMsgId,
-            since_id: sinceId || 0
-        });
-    },
-
-    // オーナー: メッセージ送信 (client_msg_id で冪等化)
-    async sendOwner({ deviceToken, sessionId, message, clientMsgId, sinceId }) {
-        return api('owner-reply', {
-            device_token: deviceToken,
-            session_id: sessionId,
-            message,
-            client_msg_id: clientMsgId,
-            since_id: sinceId || 0
-        });
-    },
+    // 送信は sendUnified() に移行. Transport には subscribe のみ残す (Day 3).
 
     // subscribe前のゲート判定. WS版でもconnect拒否を同形で返せる.
     async canConnect({ sessionToken, shopSlug }) {
@@ -567,29 +722,7 @@ const DurableObjectTransport = {
         return doFetch('/session/start', payload);
     },
 
-    async sendVisitor({ sessionToken, message, nickname, lang, clientMsgId, sinceId }) {
-        return doFetch('/session/send', {
-            session_token: sessionToken,
-            message,
-            nickname: nickname || '',
-            lang: lang || '',
-            client_msg_id: clientMsgId,
-            since_id: sinceId || 0,
-        });
-    },
-
-    async sendOwner({ deviceToken, sessionId, sessionToken, message, clientMsgId, sinceId }) {
-        // session_id は PHP owner-inbox 由来の MySQL auto_increment ID であり DO 内部 ID と一致しない.
-        // session_token を優先して DO 側で findSessionByToken できるようにする.
-        return doFetch('/owner/reply', {
-            device_token: deviceToken,
-            session_id: sessionId,
-            session_token: sessionToken || '',
-            message,
-            client_msg_id: clientMsgId,
-            since_id: sinceId || 0,
-        });
-    },
+    // 送信は sendUnified() に移行. Transport には subscribe のみ残す (Day 3).
 
     async canConnect({ sessionToken: _t, shopSlug: _s }) {
         return doFetch('/can-connect', null, 'GET');
@@ -614,7 +747,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=47', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=48', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1380,7 +1513,6 @@ function lockVisitorNickname() {
 async function sendVisitorMessage(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
-    refs.sendBtn.disabled = true;
     let nick = '';
     if (refs.nicknameInput) {
         nick = String(refs.nicknameInput.value || '').trim().slice(0, 20);
@@ -1391,65 +1523,64 @@ async function sendVisitorMessage(msg) {
     const wasOffline = !state.is_online;
     // client_msg_id: ネットワーク再送でもサーバー側が同一メッセージと判定 (UNIQUE制約).
     const clientMsgId = uuidv4();
+    const payload = {
+        auth: { kind: 'visitor', session_token: state.session_token },
+        message: msg,
+        nickname: nick || '',
+        lang: currentLang || '',
+        client_msg_id: clientMsgId,
+        since_id: state.last_message_id || 0,
+    };
+    // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
+    addOutgoingOptimistic(clientMsgId, msg, 'visitor');
+    refs.input.value = '';
+    lockVisitorNickname();
     try {
-        const resp = await Transport.sendVisitor({
-            sessionToken: state.session_token,
-            message: msg,
-            nickname: nick,
-            lang: currentLang,
-            clientMsgId,
-            sinceId: state.last_message_id
-        });
-        refs.input.value = '';
-        // 送信成功したらニックネームを固定（このチャット内では変更不可）
-        lockVisitorNickname();
-        // 統一バッチ応答を同じハンドラで反映. pollMessages を追加で叩く必要なし.
+        const resp = await sendUnified(payload);
+        markOptimisticSent(clientMsgId, (resp.messages || []).find(m => m.client_msg_id === clientMsgId));
+        // 統一バッチ応答を同じハンドラで反映. addMessage は cmid dedup で 新規描画スキップ.
         applyVisitorBatch(resp);
         if (wasOffline && !state.offlineNotifiedShown) {
             showOfflineNotifiedHint();
             state.offlineNotifiedShown = true;
         }
     } catch (e) {
-        showError(e.message);
-    } finally {
-        refs.sendBtn.disabled = false;
+        markOptimisticFailed(clientMsgId, e);
+        enqueueOutbox(clientMsgId, { payload, renderAs: 'visitor', text: msg });
     }
 }
 
 // キャストURL返信: /chat/{slug}/?cast=<shop_cast_id>&view=<session_token> の画面から
-// device_token 不要で chat-api の cast-url-reply へ送信 (サーバ側で cast_id 一致検証).
-// PHP INSERT 後、DO にも /owner/reply で通知して訪問者WSにブロードキャストさせる
-// (訪問者は DurableObjectTransport 接続中なので PHP 単独だと届かない).
-// DO→chat-sync.php は UNIQUE(session_id, client_msg_id) で冪等化されるため二重INSERTにはならない.
+// URL-only auth (device_token 不要) で PHP 統一送信へ投げる.
+// PHP が INSERT 後に respondOwnerBatch 経由で DO /broadcast を叩き、訪問者 WS に push される.
+// ── 以前は cast-url-reply が DO を経由しなかったため doFetch('/owner/reply') ハックが必要だったが、
+// 統一送信+/broadcast リレー導入後は不要になったため削除.
 async function sendCastReply(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
-    refs.sendBtn.disabled = true;
     const clientMsgId = uuidv4();
-    try {
-        const resp = await api('cast-url-reply', {
+    const payload = {
+        auth: {
+            kind: 'cast_view',
             session_token: state.session_token,
             shop_cast_id: CAST_ID,
-            message: msg,
-            client_msg_id: clientMsgId,
-            since_id: state.last_message_id
-        }, 'POST');
-        refs.input.value = '';
+        },
+        message: msg,
+        client_msg_id: clientMsgId,
+        since_id: state.last_message_id || 0,
+    };
+    // cast view は IS_CAST_VIEW=true → 自分(キャスト)=右=shop側描画
+    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    refs.input.value = '';
+    try {
+        const resp = await sendUnified(payload);
+        markOptimisticSent(clientMsgId, (resp.messages || []).find(m => m.client_msg_id === clientMsgId));
         // owner-reply と同じ形状の batch が返る. applyVisitorBatch は cast view の addMessage 分岐
         // (IS_CAST_VIEW で fromOwner=true 扱い) と整合するので流用可.
         applyVisitorBatch(resp);
-        // 訪問者 WS への配信: DO に broadcast させる (fire-and-forget).
-        // 失敗しても送信自体は成立しているので throw しない.
-        doFetch('/owner/reply', {
-            session_token: state.session_token,
-            message: msg,
-            client_msg_id: clientMsgId,
-            since_id: 0
-        }).catch(() => {});
     } catch (e) {
-        showError(e.message);
-    } finally {
-        refs.sendBtn.disabled = false;
+        markOptimisticFailed(clientMsgId, e);
+        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
     }
 }
 
@@ -1632,25 +1763,28 @@ async function sendOwnerReply(msg) {
     if (!state.selected_session) return;
     msg = String(msg || '').trim();
     if (!msg) return;
-    refs.sendBtn.disabled = true;
     const clientMsgId = uuidv4();
+    const sessionId = state.selected_session.id;
+    const payload = {
+        auth: { kind: 'owner', device_token: state.device_token },
+        session_id: sessionId,
+        message: msg,
+        client_msg_id: clientMsgId,
+        since_id: state.last_message_id || 0,
+    };
+    // オーナー視点: 自分(店舗)=右=shop側描画
+    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    refs.input.value = '';
     try {
-        const r = await Transport.sendOwner({
-            deviceToken: state.device_token,
-            sessionId: state.selected_session.id,
-            sessionToken: state.selected_session.session_token,
-            message: msg,
-            clientMsgId,
-            sinceId: state.last_message_id
-        });
-        refs.input.value = '';
+        const r = await sendUnified(payload);
+        markOptimisticSent(clientMsgId, (r.messages || []).find(m => m.client_msg_id === clientMsgId));
         // 統一バッチ応答を applyOwnerBatch で反映 (自送信メッセージも同経由で画面に出る).
-        applyOwnerBatch(r, state.selected_session.id);
+        applyOwnerBatch(r, sessionId);
     } catch (e) {
-        if (e && e.authFailed) { handleDeviceAuthFailure(); return; }
-        showError(e.message);
+        markOptimisticFailed(clientMsgId, e);
+        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
+        if (e && e.authFailed) handleDeviceAuthFailure();
     }
-    finally { refs.sendBtn.disabled = false; }
 }
 
 async function loadTemplates() {
@@ -1942,24 +2076,31 @@ async function sendCastInboxReply(msg) {
     if (!state.selected_session) return;
     msg = String(msg || '').trim();
     if (!msg) return;
-    refs.sendBtn.disabled = true;
     const clientMsgId = uuidv4();
-    try {
-        const r = await api('cast-inbox-reply', {
+    const sessionId = state.selected_session.id;
+    const payload = {
+        auth: {
+            kind: 'cast_inbox',
             inbox_token: CAST_INBOX_TOKEN,
             device_token: state.cast_device_token,
-            session_id: state.selected_session.id,
-            message: msg,
-            client_msg_id: clientMsgId,
-            since_id: state.last_message_id
-        });
-        refs.input.value = '';
+        },
+        session_id: sessionId,
+        message: msg,
+        client_msg_id: clientMsgId,
+        since_id: state.last_message_id || 0,
+    };
+    // キャスト受信箱視点: 自分(キャスト)=右=shop側描画
+    addOutgoingOptimistic(clientMsgId, msg, 'shop');
+    refs.input.value = '';
+    try {
+        const r = await sendUnified(payload);
+        markOptimisticSent(clientMsgId, (r.messages || []).find(m => m.client_msg_id === clientMsgId));
         // respondOwnerBatch と同形なので applyOwnerBatch で反映可能
-        applyOwnerBatch(r, state.selected_session.id);
+        applyOwnerBatch(r, sessionId);
     } catch (e) {
-        showError(e.message);
+        markOptimisticFailed(clientMsgId, e);
+        enqueueOutbox(clientMsgId, { payload, renderAs: 'shop', text: msg });
     }
-    finally { refs.sendBtn.disabled = false; }
 }
 
 function startCastInboxPolling() {
@@ -1990,6 +2131,8 @@ function startCastInboxPolling() {
             }
         } catch (_) { /* ignore transient errors */ }
     };
+    // 即時 catchup (visibility復帰時の待ち時間を消す)
+    tick();
     const timer = setInterval(tick, INBOX_INTERVAL);
     state._ownerSub = { stop: () => clearInterval(timer) };
 }
@@ -2294,12 +2437,17 @@ window.addEventListener('visibilitychange', () => {
         sendOwnerGoOffline();
     } else if (state.mode === 'visitor' && state.session_token) {
         startVisitorPolling();
+        flushOutbox();
     } else if (state.mode === 'owner') {
         startInboxPolling();
+        flushOutbox();
     } else if (state.mode === 'cast_owner') {
         startCastInboxPolling();
+        flushOutbox();
     }
 });
+// ネットワーク復帰時に outbox を再試行 (オフライン→オンラインで失敗メッセージを自動リトライ)
+window.addEventListener('online', () => { flushOutbox(); });
 
 // ===== 親iframeへの高さ通知（埋込時のみ） =====
 // chat.html が iframe で埋め込まれた際、親ページが iframe の高さを中身に追従させられるよう

@@ -64,6 +64,11 @@ export class MysqlSync {
       console.warn('CHAT_SYNC_SECRET not set, skipping mirror');
       return;
     }
+    // Kill-switch: PHP が authoritative になった後 (Day 4+) はミラー不要.
+    // wrangler secret put CHAT_SYNC_DISABLE_MIRROR=1 で即時停止、差し戻しは delete.
+    if (this.env.CHAT_SYNC_DISABLE_MIRROR === '1') {
+      return;
+    }
     const url = `${this.baseUrl}/api/chat-sync.php?action=${action}`;
     try {
       const res = await fetch(url, {
