@@ -297,6 +297,7 @@ function addOutgoingOptimistic(cmid, text, renderAs) {
     const row = document.createElement('div');
     row.className = 'msg-row ' + renderAs;
     row.dataset.cmid = cmid;
+    row.dataset.sentAt = nowIso;
 
     const bubble = document.createElement('div');
     bubble.className = 'msg ' + renderAs + ' sending';
@@ -334,6 +335,7 @@ function markOptimisticSent(cmid, serverMsg) {
     if (serverMsg && serverMsg.sent_at) {
         const timeEl = row.querySelector('.msg-time');
         if (timeEl) timeEl.textContent = formatTime(serverMsg.sent_at);
+        row.dataset.sentAt = serverMsg.sent_at;
     }
 }
 
@@ -1607,7 +1609,7 @@ function updateStatusIndicator(online) {
     // 受付時間が設定されていれば常に「受付時間 HH:MM-HH:MM」表示。24H なら営業時間の代わりに「24H」。
     // トグルONで緑丸、OFFで丸非表示（chat.cssの.status-dot.offline{display:none}）
     if (is24H) {
-        refs.statusLabel.innerHTML = `<span class="status-label-line">24H</span>`;
+        refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">24H</span>`;
     } else {
         const hours = `${formatHM(rs)}-${formatHM(re)}`;
         refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
@@ -1669,6 +1671,41 @@ function addDateSeparator(key) {
     sep.innerHTML = '<span>' + esc(formatDateLabel(key)) + '</span>';
     refs.chatMessages.appendChild(sep);
 }
+
+// LINE 互換: メッセージ行を sent_at で昇順に並び替え (古い→新しい=上→下).
+// 楽観的UI(optimistic)と履歴 polling の appendChild 順が混在するケース向け.
+// 日付セパレーターも再構築して散らからないようにする.
+function sortMessagesByTime() {
+    if (!refs.chatMessages) return;
+    const rows = Array.from(refs.chatMessages.querySelectorAll('.msg-row'));
+    if (rows.length < 2) return;
+    rows.sort((a, b) => {
+        const ta = a.dataset.sentAt || '';
+        const tb = b.dataset.sentAt || '';
+        if (ta === tb) {
+            // 同秒: id > cmid (confirmed) > pending の順で安定化
+            const ia = Number(a.dataset.msgId || 0);
+            const ib = Number(b.dataset.msgId || 0);
+            return ia - ib;
+        }
+        return ta < tb ? -1 : 1;
+    });
+    refs.chatMessages.querySelectorAll('.msg-date-sep').forEach(s => s.remove());
+    let lastDate = '';
+    for (const row of rows) {
+        const key = getDateKey(row.dataset.sentAt || '');
+        if (key && key !== lastDate) {
+            const sep = document.createElement('div');
+            sep.className = 'msg-date-sep';
+            sep.dataset.dateKey = key;
+            sep.innerHTML = '<span>' + esc(formatDateLabel(key)) + '</span>';
+            refs.chatMessages.appendChild(sep);
+            lastDate = key;
+        }
+        refs.chatMessages.appendChild(row);
+    }
+    state.last_msg_date = lastDate;
+}
 function addMessage(m, fromOwner) {
     // dedup: 同 client_msg_id が既に描画済みならスキップ.
     // DO と MySQL の message.id 空間は独立しており (DO は自前カウンタ, MySQL は auto_increment)
@@ -1695,6 +1732,7 @@ function addMessage(m, fromOwner) {
     row.className = 'msg-row ' + renderAs;
     if (m.id) row.dataset.msgId = m.id;
     if (m.client_msg_id) row.dataset.cmid = m.client_msg_id;
+    if (m.sent_at) row.dataset.sentAt = m.sent_at;
 
     const bubble = document.createElement('div');
     bubble.className = 'msg ' + renderAs;
@@ -1803,11 +1841,13 @@ async function maybeTranslate(msgDiv, text, from, to) {
 function applyVisitorBatch(data) {
     let sawVisitorMsg = false;
     let restoredNick = '';
+    let addedAny = false;
     for (const m of (data.messages || [])) {
         // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
         // cmid 無しの legacy msg のみ id ベース dedup.
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, false);
+            addedAny = true;
             if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
         if (m.sender_type === 'visitor') {
@@ -1815,6 +1855,7 @@ function applyVisitorBatch(data) {
             if (!restoredNick && m.nickname) restoredNick = String(m.nickname).trim().slice(0, 20);
         }
     }
+    if (addedAny) sortMessagesByTime();
     // 既存セッション復元: 過去に訪問者メッセージがあればニックネームを固定
     if (state.mode === 'visitor' && sawVisitorMsg && !state.nickname_locked) {
         if (refs.nicknameInput && restoredNick) refs.nicknameInput.value = restoredNick;
@@ -2278,12 +2319,15 @@ function applyOwnerBatch(data, selectedSid) {
         return;
     }
     if (!state.selected_session) return;
+    let addedAny = false;
     for (const m of (data.messages || [])) {
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, true);
+            addedAny = true;
             if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
     }
+    if (addedAny) sortMessagesByTime();
     if (typeof data.last_read_own_id !== 'undefined') {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
