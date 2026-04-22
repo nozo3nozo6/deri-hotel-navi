@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff8f2"/>
+      <stop offset="100%" stop-color="#fde4dc"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9b2d35"/>
+      <stop offset="100%" stop-color="#c14a52"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <circle cx="1080" cy="100" r="180" fill="#f7c8c8" opacity="0.35"/>
+  <circle cx="120" cy="540" r="160" fill="#f2a09a" opacity="0.25"/>
+
+  <g transform="translate(120, 140)">
+    <rect x="0" y="0" width="140" height="110" rx="22" fill="url(#accent)" filter="url(#soft)"/>
+    <text x="70" y="82" text-anchor="middle" font-size="72" fill="#ffffff">💬</text>
+  </g>
+
+  <text x="290" y="220"
+        font-family="'Hiragino Mincho ProN','Yu Mincho',serif"
+        font-weight="800" font-size="128" fill="#9b2d35" letter-spacing="3">YobuChat</text>
+
+  <text x="298" y="270"
+        font-family="'Hiragino Sans','Yu Gothic',sans-serif"
+        font-size="30" fill="#8a7a6a" letter-spacing="14">よぶちゃ</text>
+
+  <line x1="290" y1="310" x2="900" y2="310" stroke="#e8d5c8" stroke-width="2"/>
+
+  <text x="290" y="380"
+        font-family="'Hiragino Sans','Yu Gothic',sans-serif"
+        font-weight="700" font-size="40" fill="#333" letter-spacing="2">ホテル特化の匿名チャット</text>
+
+  <text x="290" y="428"
+        font-family="'Hiragino Sans','Yu Gothic',sans-serif"
+        font-size="24" fill="#6b5a50" letter-spacing="1">登録不要・電話番号なしで、お店とサッとやり取り</text>
+
+  <g transform="translate(290, 470)">
+    <rect x="0" y="0" width="230" height="52" rx="26" fill="#ffffff" stroke="#9b2d35" stroke-width="2"/>
+    <text x="115" y="34" text-anchor="middle" font-family="'Hiragino Sans',sans-serif" font-weight="700" font-size="20" fill="#9b2d35">🔒 匿名OK</text>
+
+    <rect x="250" y="0" width="230" height="52" rx="26" fill="#ffffff" stroke="#9b2d35" stroke-width="2"/>
+    <text x="365" y="34" text-anchor="middle" font-family="'Hiragino Sans',sans-serif" font-weight="700" font-size="20" fill="#9b2d35">🌐 4言語対応</text>
+
+    <rect x="500" y="0" width="230" height="52" rx="26" fill="#ffffff" stroke="#9b2d35" stroke-width="2"/>
+    <text x="615" y="34" text-anchor="middle" font-family="'Hiragino Sans',sans-serif" font-weight="700" font-size="20" fill="#9b2d35">⚡ 即レス通知</text>
+  </g>
+
+  <g transform="translate(290, 570)">
+    <text x="0" y="0" font-family="'Hiragino Sans',sans-serif" font-size="20" fill="#a89a8a" font-style="italic">by</text>
+    <text x="40" y="0" font-family="'Hiragino Sans',sans-serif" font-weight="700" font-size="22" fill="#555">🏨 YobuHo.com</text>
+  </g>
+</svg>
