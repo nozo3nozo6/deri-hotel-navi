@@ -919,6 +919,9 @@ async function enterCastViewMode() {
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
+    // 入力欄をキャスト返信用に明示的に表示 (他モードから遷移したケースや
+    // applyVisitorBatch で closed 扱いで hidden されたケースのリカバリ).
+    refs.inputArea.classList.remove('hidden');
     // 入力欄はキャスト返信用に残す. ニックネーム/quick/絵文字/オーナー系は不要なので非表示.
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
     // 予約案内はキャスト向け文言に差し替えて表示
@@ -1924,7 +1927,7 @@ async function openCastThread(sessionId) {
     if (refs.castViewBanner) refs.castViewBanner.classList.add('hidden');
 }
 
-async function sendCastReply(msg) {
+async function sendCastInboxReply(msg) {
     if (!state.selected_session) return;
     msg = String(msg || '').trim();
     if (!msg) return;
@@ -2053,7 +2056,7 @@ async function handleOwnerLogout() {
 refs.sendBtn.addEventListener('click', () => {
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
-    else if (state.mode === 'cast_owner') sendCastReply(msg);
+    else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
 });
@@ -2317,17 +2320,26 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応: visualViewport で #chat-root の高さを動的調整 =====
-// body:fixed だと iOS が焦点移動で一瞬全画面スクロールする挙動が残る。
-// visualViewport.height (= 表示可能領域 = キーボードを除いた高さ) を CSS変数 --chat-vh に流し込み、
-// #chat-root 自体をキーボード上端までに縮ませる。結果、入力欄だけが "キーボードに追従してスライド" する体感になる。
+// ===== iOS キーボード対応: visualViewport で #chat-root の位置・高さを動的調整 =====
+// body:fixed だと iOS が焦点移動で一瞬全画面スクロールする挙動が残るので採用しない。
+//
+// iOS Safari の挙動:
+//   キーボード表示時、layout viewport は不動のまま visual viewport だけが
+//   下方向にスクロールする。html/body が overflow:hidden でも発生する。
+//   結果として #chat-root(layout 原点に配置) は視界の「上側」へ押し出されて見えなくなる。
+//
+// 対策:
+//   --chat-vh : visual viewport の高さ → #chat-root の height
+//   --chat-vv-top : visual viewport の offsetTop → #chat-root の translateY
+//   この2つで #chat-root を「visual viewport の上端に常にピッタリ貼り付ける」。
 function setupViewportTracker() {
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
     const apply = () => {
-        // offsetTop は iOS でキーボード表示時に非0になる (表示領域が下にずれる場合). 実表示領域の下端で計算.
         const h = vv.height;
+        const top = vv.offsetTop || 0;
         document.documentElement.style.setProperty('--chat-vh', h + 'px');
+        document.documentElement.style.setProperty('--chat-vv-top', top + 'px');
     };
     vv.addEventListener('resize', apply);
     vv.addEventListener('scroll', apply);
@@ -2336,7 +2348,11 @@ function setupViewportTracker() {
     document.addEventListener('focusin', (e) => {
         const t = e.target;
         if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
+        // layout viewport が万一スクロールしていた場合のリカバリ (html/body overflow:hidden でも
+        // ブラウザバー折りたたみ等で body 起点のスクロールが発生することがある).
+        try { window.scrollTo(0, 0); } catch (_) {}
         setTimeout(() => {
+            try { window.scrollTo(0, 0); } catch (_) {}
             if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
         }, 300);
     });
