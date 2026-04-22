@@ -67,6 +67,16 @@ if (!SLUG) {
 const LS_SESSION = 'chat_session_' + SLUG + '_' + (CAST_ID || 'shop');
 const LS_NICKNAME = 'chat_nickname_' + SLUG;
 const LS_DEVICE  = 'chat_owner_token';
+// キャスト受信箱 端末登録: URL + device_token の2要素。URL漏洩時の防壁.
+const LS_CAST_DEVICE = CAST_INBOX_TOKEN ? ('cast_device_' + CAST_INBOX_TOKEN) : '';
+function getCastDeviceToken() {
+    if (!LS_CAST_DEVICE) return '';
+    try { return localStorage.getItem(LS_CAST_DEVICE) || ''; } catch (_) { return ''; }
+}
+function setCastDeviceToken(token) {
+    if (!LS_CAST_DEVICE) return;
+    try { localStorage.setItem(LS_CAST_DEVICE, token); } catch (_) {}
+}
 
 // ===== State =====
 let state = {
@@ -1679,8 +1689,17 @@ function startInboxPolling() {
 // UI はオーナー受信箱と同じ (inbox list → thread) を流用. DO は経由せず PHP 直結.
 async function enterCastOwnerMode() {
     state.mode = 'cast_owner';
-    // 初回ロード
-    const data = await api('cast-inbox', { inbox_token: CAST_INBOX_TOKEN }, 'GET');
+    // 端末登録トークンがあれば一緒に送る。未登録 or 無効なら registration_required が返る.
+    state.cast_device_token = getCastDeviceToken();
+    const data = await api('cast-inbox', {
+        inbox_token: CAST_INBOX_TOKEN,
+        device_token: state.cast_device_token
+    }, 'GET');
+    if (data.registration_required) {
+        // 端末登録フローへ: キャスト登録メール宛に6桁コード送信.
+        await showCastDeviceRegistration(data);
+        return;
+    }
     state.shop_name = data.shop_name || '';
     state.cast_name = data.cast_name || '';
     state.shop_cast_id_self = data.shop_cast_id || '';
@@ -1723,6 +1742,113 @@ async function enterCastOwnerMode() {
     startCastInboxPolling();
 }
 
+// 端末登録フロー: 受信箱URLは盗まれうるので、初回のみキャスト登録メール宛に6桁コードを送って
+// この端末だけで受信箱を開けるようにする (localStorage に cast_device_xxx として保存).
+async function showCastDeviceRegistration(data) {
+    setLoading(false);
+    const castName = data.cast_name || '';
+    const shopName = data.shop_name || '';
+    const maskedEmail = data.masked_email || '';
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
+    if (refs.ownerToggle) refs.ownerToggle.classList.add('hidden');
+    if (refs.statusDot) refs.statusDot.classList.add('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
+    if (refs.shopName) refs.shopName.textContent = castName || shopName || '受信箱';
+    try { document.body.dataset.role = 'cast'; } catch (_) {}
+
+    const panel = document.createElement('div');
+    panel.className = 'cast-device-reg';
+    panel.style.cssText = 'padding:24px 20px;max-width:520px;margin:0 auto;line-height:1.6;font-size:15px;';
+    panel.innerHTML = [
+        '<h2 style="font-size:18px;margin:0 0 12px;">端末を認証する</h2>',
+        '<p style="margin:0 0 12px;color:#333;">この端末で受信箱を開くには、登録メール宛の6桁コードで認証が必要です。<br>認証後はこの端末だけでURLから受信箱を直接開けます。</p>',
+        '<div style="background:#f6f6f8;border-radius:10px;padding:12px 14px;margin:0 0 16px;font-size:14px;">送信先: <b id="cdr-email" style="letter-spacing:.03em;"></b></div>',
+        '<button type="button" id="cdr-send" style="width:100%;padding:14px;background:var(--chat-primary,#2a5a8f);color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">認証コードを送信</button>',
+        '<div id="cdr-step2" style="display:none;margin-top:18px;">',
+            '<p style="margin:0 0 8px;color:#333;">メールに届いた6桁のコードを入力してください (15分有効)</p>',
+            '<input type="tel" id="cdr-code" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456" style="width:100%;padding:14px;font-size:22px;letter-spacing:.4em;text-align:center;border:2px solid #ddd;border-radius:10px;box-sizing:border-box;">',
+            '<button type="button" id="cdr-verify" style="width:100%;padding:14px;margin-top:10px;background:#2a5a8f;color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">この端末を認証する</button>',
+            '<button type="button" id="cdr-resend" style="width:100%;padding:10px;margin-top:6px;background:transparent;color:#666;border:0;font-size:13px;cursor:pointer;text-decoration:underline;">コードを再送信</button>',
+        '</div>',
+        '<div id="cdr-msg" style="margin-top:14px;min-height:20px;font-size:13px;"></div>',
+        '<p style="margin:24px 0 0;font-size:12px;color:#888;line-height:1.5;">心当たりがない場合、受信箱URLが流出している可能性があります。<br>所属店舗のオーナーに連絡し、URLを再発行してもらってください。</p>'
+    ].join('');
+    // 既存パネルは全て隠し、受付トグルも消す。登録完了後は location.reload() でUI再構築.
+    if (refs.ownerInbox) refs.ownerInbox.classList.add('hidden');
+    if (refs.chatThread) refs.chatThread.classList.add('hidden');
+    // 既存の登録パネルが残っていたら除去してから挿入 (reload 経路でなくても冪等にする)
+    const prev = refs.root.querySelector('.cast-device-reg');
+    if (prev) prev.remove();
+    const footer = document.getElementById('chat-footer');
+    if (footer && footer.parentNode === refs.root) refs.root.insertBefore(panel, footer);
+    else refs.root.appendChild(panel);
+
+    const $cdr = id => panel.querySelector('#cdr-' + id);
+    $cdr('email').textContent = maskedEmail;
+
+    const setMsg = (text, ok) => {
+        const el = $cdr('msg');
+        el.textContent = text || '';
+        el.style.color = ok ? '#2a7a3a' : '#c0392b';
+    };
+
+    const requestCode = async () => {
+        $cdr('send').disabled = true;
+        $cdr('send').textContent = '送信中...';
+        setMsg('');
+        try {
+            const r = await api('cast-inbox-request-code', { inbox_token: CAST_INBOX_TOKEN });
+            $cdr('step2').style.display = 'block';
+            $cdr('send').textContent = 'コードを送信しました';
+            setMsg(`${r.masked_email || maskedEmail} にコードを送信しました`, true);
+            setTimeout(() => $cdr('code').focus(), 100);
+        } catch (e) {
+            $cdr('send').disabled = false;
+            $cdr('send').textContent = '認証コードを送信';
+            setMsg(e.message || '送信に失敗しました');
+        }
+    };
+
+    const verify = async () => {
+        const code = ($cdr('code').value || '').trim();
+        if (!/^\d{6}$/.test(code)) { setMsg('6桁の数字を入力してください'); return; }
+        $cdr('verify').disabled = true;
+        $cdr('verify').textContent = '認証中...';
+        setMsg('');
+        try {
+            const r = await api('cast-inbox-verify-code', {
+                inbox_token: CAST_INBOX_TOKEN,
+                code,
+                device_name: (navigator.userAgent || '').substring(0, 80)
+            });
+            if (!r || !r.device_token) throw new Error('認証に失敗しました');
+            setCastDeviceToken(r.device_token);
+            setMsg('認証しました。受信箱を開きます...', true);
+            setTimeout(async () => {
+                // 元のチャットbodyに戻して受信箱を開く
+                location.reload();
+            }, 600);
+        } catch (e) {
+            $cdr('verify').disabled = false;
+            $cdr('verify').textContent = 'この端末を認証する';
+            setMsg(e.message || '認証に失敗しました');
+        }
+    };
+
+    $cdr('send').addEventListener('click', requestCode);
+    $cdr('verify').addEventListener('click', verify);
+    $cdr('resend').addEventListener('click', () => {
+        $cdr('send').disabled = false;
+        $cdr('send').textContent = '認証コードを送信';
+        $cdr('step2').style.display = 'none';
+        $cdr('code').value = '';
+        requestCode();
+    });
+    $cdr('code').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') verify();
+    });
+}
+
 function showCastInbox() {
     refs.ownerInbox.classList.remove('hidden');
     refs.chatThread.classList.add('hidden');
@@ -1761,6 +1887,7 @@ async function openCastThread(sessionId) {
     try {
         const data = await api('cast-inbox', {
             inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
             session_id: sessionId
         }, 'GET');
         for (const m of (data.messages || [])) {
@@ -1789,6 +1916,7 @@ async function sendCastReply(msg) {
     try {
         const r = await api('cast-inbox-reply', {
             inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
             session_id: state.selected_session.id,
             message: msg,
             client_msg_id: clientMsgId,
@@ -1808,7 +1936,7 @@ function startCastInboxPolling() {
     const tick = async () => {
         try {
             const sid = state.selected_session ? state.selected_session.id : null;
-            const params = { inbox_token: CAST_INBOX_TOKEN };
+            const params = { inbox_token: CAST_INBOX_TOKEN, device_token: state.cast_device_token };
             if (sid) { params.session_id = sid; params.since_id = state.last_message_id; }
             const data = await api('cast-inbox', params, 'GET');
             if (typeof data.notify_enabled !== 'undefined') {
@@ -1993,6 +2121,7 @@ refs.onlineToggle.addEventListener('change', async (e) => {
             // キャスト自分用受信箱: URL-token auth で chat_notify_mode をトグル
             await api('cast-inbox-toggle-notify', {
                 inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
                 enabled: isOn ? 1 : 0
             });
             state.notify_enabled = isOn;
@@ -2080,6 +2209,7 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
         if (IS_CAST_INBOX) {
             await api('cast-inbox-close', {
                 inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
                 session_id: state.selected_session.id
             });
         } else {

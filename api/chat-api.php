@@ -40,7 +40,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -481,6 +481,8 @@ try {
         case 'cast-inbox-reply':        handleCastInboxReply(); break;
         case 'cast-inbox-close':        handleCastInboxClose(); break;
         case 'cast-inbox-toggle-notify': handleCastInboxToggleNotify(); break;
+        case 'cast-inbox-request-code': handleCastInboxRequestCode(); break;
+        case 'cast-inbox-verify-code':  handleCastInboxVerifyCode(); break;
         case 'toggle-online':   handleToggleOnline(); break;
         case 'toggle-notify':   handleToggleNotify(); break;
         case 'owner-go-offline': handleOwnerGoOffline(); break;
@@ -1235,6 +1237,23 @@ function handleCastInbox(): void {
     $sc = resolveCastInboxToken($token);
     if (!$sc) err('invalid or revoked inbox_token', 403);
 
+    // 端末登録チェック: device_token 未登録なら登録フローへ誘導
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) {
+        $pdoMeta = DB::conn();
+        $emailStmt = $pdoMeta->prepare('SELECT email FROM casts WHERE id = ? LIMIT 1');
+        $emailStmt->execute([$sc['cast_id']]);
+        $castEmail = (string)$emailStmt->fetchColumn();
+        ok([
+            'registration_required' => true,
+            'cast_name'    => $sc['display_name'],
+            'shop_name'    => $sc['shop_name'],
+            'masked_email' => maskCastEmail($castEmail),
+            'shop_cast_id' => $sc['shop_cast_id'],
+        ]);
+        return;
+    }
+
     $sessionId = (int)inp('session_id', 0);
     $sinceId   = (int)inp('since_id', 0);
     $pdo = DB::conn();
@@ -1321,6 +1340,9 @@ function handleCastInboxReply(): void {
     $sc = resolveCastInboxToken($token);
     if (!$sc) err('invalid or revoked inbox_token', 403);
 
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
     $sessionId   = (int)inp('session_id', 0);
     $msg         = trim((string)inp('message', ''));
     $clientMsgId = (string)inp('client_msg_id', '');
@@ -1389,6 +1411,9 @@ function handleCastInboxClose(): void {
     $sc = resolveCastInboxToken($token);
     if (!$sc) err('invalid or revoked inbox_token', 403);
 
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
     $sessionId = (int)inp('session_id', 0);
     if ($sessionId <= 0) err('session_id required');
 
@@ -1413,6 +1438,9 @@ function handleCastInboxToggleNotify(): void {
     $sc = resolveCastInboxToken($token);
     if (!$sc) err('invalid or revoked inbox_token', 403);
 
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
     $enabled = (int)inp('enabled', 0);
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
     if ($enabled === 1) {
@@ -1429,6 +1457,132 @@ function handleCastInboxToggleNotify(): void {
         'cast_notify_mode' => $newMode,
         'notify_enabled'   => $newMode !== 'off',
     ]);
+}
+
+/* =========================================================
+ * キャスト受信箱 端末登録 (cast_inbox_devices)
+ * ---------------------------------------------------------
+ * ?cast_inbox=<uuid> URL だけで開けるのはセキュリティ甘いため、URL + device_token の2要素認証化.
+ * 初回: キャスト登録メール宛に6桁コード → 検証 → device_token 発行 → localStorage 保存.
+ * 2回目以降: URL + localStorage の device_token で受信箱直行.
+ * =========================================================
+ */
+function verifyCastInboxDevice(string $shopCastId, string $deviceToken): bool {
+    if ($deviceToken === '' || !preg_match('/^[a-f0-9]{32,64}$/i', $deviceToken)) return false;
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT id FROM cast_inbox_devices WHERE shop_cast_id = ? AND device_token = ? LIMIT 1');
+    $stmt->execute([$shopCastId, $deviceToken]);
+    if (!$stmt->fetch()) return false;
+    $pdo->prepare('UPDATE cast_inbox_devices SET last_accessed_at = NOW() WHERE device_token = ?')
+        ->execute([$deviceToken]);
+    return true;
+}
+
+function maskCastEmail(string $email): string {
+    if (!preg_match('/^(.+)@(.+)$/', $email, $m)) return '***';
+    $local = $m[1]; $domain = $m[2];
+    $len = mb_strlen($local);
+    if ($len <= 2) $maskedLocal = mb_substr($local, 0, 1) . '*';
+    else $maskedLocal = mb_substr($local, 0, 1) . str_repeat('*', $len - 2) . mb_substr($local, -1);
+    return $maskedLocal . '@' . $domain;
+}
+
+function sendCastInboxAuthMail(string $to, string $displayName, string $code): void {
+    $subject = '[YobuHo] 受信箱 端末認証コード';
+    $body  = "キャスト: {$displayName}\n";
+    $body .= "\n受信箱を開く端末の認証コードです:\n\n";
+    $body .= "    {$code}\n\n";
+    $body .= "（15分間有効 / 5回間違えると再送信が必要）\n\n";
+    $body .= "心当たりがない場合、URLが流出している可能性があります。\n";
+    $body .= "所属店舗のオーナーに連絡し、受信箱URLを再発行してもらってください。\n\n";
+    $body .= "YobuHo Cast\nhttps://yobuho.com/cast-admin.html\n";
+
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $headers = [
+        'From: YobuHo <hotel@yobuho.com>',
+        'Reply-To: hotel@yobuho.com',
+        'Content-Type: text/plain; charset=UTF-8',
+        'MIME-Version: 1.0',
+    ];
+    @mail($to, $encodedSubject, $body, implode("\r\n", $headers), '-f hotel@yobuho.com');
+}
+
+/**
+ * cast-inbox-request-code: 認証コード発行 + キャストの登録メール宛に送信.
+ * レート制限: 60秒以内の連続リクエスト不可.
+ */
+function handleCastInboxRequestCode(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT email FROM casts WHERE id = ? LIMIT 1');
+    $stmt->execute([$sc['cast_id']]);
+    $email = (string)$stmt->fetchColumn();
+    if ($email === '') err('cast email not found', 500);
+
+    // レート制限: 既存コードが60秒以内に発行されていたら拒否
+    $stmt = $pdo->prepare('SELECT created_at FROM cast_inbox_codes WHERE shop_cast_id = ? LIMIT 1');
+    $stmt->execute([$sc['shop_cast_id']]);
+    $existing = $stmt->fetch();
+    if ($existing && strtotime($existing['created_at']) > (time() - 60)) {
+        err('連続リクエストは60秒後にお試しください', 429);
+    }
+
+    $code = sprintf('%06d', random_int(0, 999999));
+    $expiresAt = date('Y-m-d H:i:s', time() + 15 * 60);
+
+    $pdo->prepare(
+        'INSERT INTO cast_inbox_codes (shop_cast_id, code, expires_at, attempts, created_at)
+         VALUES (?, ?, ?, 0, NOW())
+         ON DUPLICATE KEY UPDATE code = VALUES(code), expires_at = VALUES(expires_at), attempts = 0, created_at = NOW()'
+    )->execute([$sc['shop_cast_id'], $code, $expiresAt]);
+
+    sendCastInboxAuthMail($email, $sc['display_name'], $code);
+
+    ok([
+        'sent' => true,
+        'masked_email' => maskCastEmail($email),
+        'expires_in_sec' => 900,
+    ]);
+}
+
+/**
+ * cast-inbox-verify-code: コード検証 + device_token 発行.
+ */
+function handleCastInboxVerifyCode(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $code = trim((string)inp('code', ''));
+    $deviceName = trim((string)inp('device_name', 'ブラウザ'));
+    if (!preg_match('/^\d{6}$/', $code)) err('コードは6桁の数字です');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT code, expires_at, attempts FROM cast_inbox_codes WHERE shop_cast_id = ? LIMIT 1');
+    $stmt->execute([$sc['shop_cast_id']]);
+    $row = $stmt->fetch();
+    if (!$row) err('認証コードが発行されていません。再送信してください', 400);
+    if (strtotime($row['expires_at']) < time()) err('コードの有効期限が切れています。再送信してください', 400);
+    if ((int)$row['attempts'] >= 5) err('試行回数の上限です。コードを再送信してください', 400);
+
+    if (!hash_equals((string)$row['code'], $code)) {
+        $pdo->prepare('UPDATE cast_inbox_codes SET attempts = attempts + 1 WHERE shop_cast_id = ?')
+            ->execute([$sc['shop_cast_id']]);
+        err('コードが違います', 400);
+    }
+
+    $deviceToken = bin2hex(random_bytes(24));
+    $pdo->prepare(
+        'INSERT INTO cast_inbox_devices (shop_cast_id, device_token, device_name, last_accessed_at)
+         VALUES (?, ?, ?, NOW())'
+    )->execute([$sc['shop_cast_id'], $deviceToken, mb_substr($deviceName, 0, 100)]);
+
+    $pdo->prepare('DELETE FROM cast_inbox_codes WHERE shop_cast_id = ?')->execute([$sc['shop_cast_id']]);
+
+    ok(['device_token' => $deviceToken]);
 }
 
 /**
