@@ -686,7 +686,7 @@ function handleSendMessage() {
  * 訪問者セッションの統一バッチ応答を返す (send/poll共通).
  * since_id 以降の全メッセージ + shop_online + status + last_read_own_id を含む.
  */
-function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceId, string $status, array $extra = []): void {
+function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceId, string $status, array $extra = [], string $readerRole = 'visitor'): void {
     $stmt = $pdo->prepare(
         'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
          FROM chat_messages
@@ -696,11 +696,13 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     $stmt->execute([$sessionId, $sinceId]);
     $messages = $stmt->fetchAll();
 
-    // shop側メッセージの既読化
+    // 既読化: 読む側と逆の sender_type を既読に
+    // visitor視点 = shopの新着を既読 / shop(cast返信等)視点 = visitorの新着を既読
     if (count($messages) > 0) {
+        $otherSide = $readerRole === 'shop' ? 'visitor' : 'shop';
         $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
-                       WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NULL AND id > ?")
-            ->execute([$sessionId, $sinceId]);
+                       WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id > ?")
+            ->execute([$sessionId, $otherSide, $sinceId]);
     }
 
     // オンライン状態
@@ -709,10 +711,11 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     $shopRow = $stmt->fetch();
     $shopOnline = effectiveOnline($shopRow ?: null);
 
-    // visitor自身の送信メッセージが既読された最大ID
+    // 自分の送信側が既読された最大ID
+    $ownSide = $readerRole === 'shop' ? 'shop' : 'visitor';
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
-                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NOT NULL");
-    $stmt->execute([$sessionId]);
+                           WHERE session_id = ? AND sender_type = ? AND read_at IS NOT NULL");
+    $stmt->execute([$sessionId, $ownSide]);
     $lastReadOwnId = (int)$stmt->fetchColumn();
 
     okBatch(array_merge($extra, [
@@ -726,19 +729,30 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
 function handlePollMessages() {
     $token = (string)inp('session_token', '');
     $sinceId = (int)inp('since_id', 0);
+    $asCast = (int)inp('as_cast', 0) === 1;
     if ($token === '') err('session_token required');
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, shop_id, status FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, shop_id, status, cast_id FROM chat_sessions WHERE session_token = ? LIMIT 1');
     $stmt->execute([$token]);
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
 
-    // presence heartbeat: visitorが生きていることを記録
-    $pdo->prepare('UPDATE chat_sessions SET last_visitor_heartbeat_at = NOW() WHERE id = ?')
-        ->execute([$session['id']]);
+    // キャスト視点で閲覧している場合 (cast-view URL): セッションに cast_id があることを前提に
+    // 既読化ロジックを shop 側ロールに切り替える. 権限は URL-only auth (session_token 知る者=本人向けメール受信者)
+    $readerRole = 'visitor';
+    if ($asCast && !empty($session['cast_id'])) {
+        $readerRole = 'shop';
+        // presence heartbeat: cast(shop側)側のハートビート
+        $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
+            ->execute([$session['id']]);
+    } else {
+        // presence heartbeat: visitorが生きていることを記録
+        $pdo->prepare('UPDATE chat_sessions SET last_visitor_heartbeat_at = NOW() WHERE id = ?')
+            ->execute([$session['id']]);
+    }
 
-    respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, $session['status']);
+    respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, $session['status'], [], $readerRole);
 }
 
 /**
@@ -1598,6 +1612,11 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     );
     $stmt->execute([$sessionId, $sinceId]);
     $messages = $stmt->fetchAll();
+
+    // オーナー/キャスト返信直後: visitorメッセージを既読化
+    $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                   WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
+        ->execute([$sessionId]);
 
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
                            WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");

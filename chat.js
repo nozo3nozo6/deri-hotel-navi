@@ -277,10 +277,12 @@ const PollingTransport = {
             const token = getSessionToken();
             if (!token) return;
             try {
-                const data = await api('poll-messages', {
+                const params = {
                     session_token: token,
                     since_id: getSinceId()
-                }, 'GET');
+                };
+                if (IS_CAST_VIEW) params.as_cast = 1;
+                const data = await api('poll-messages', params, 'GET');
                 if (active) onBatch(data);
             } catch (_) { /* retry next tick */ }
         };
@@ -601,8 +603,10 @@ const DurableObjectTransport = {
 // 現在の有効トランスポート。
 // - デフォルト: DurableObjectTransport (chat.yobuho.com Worker + DO, WebSocket Hibernation でリアルタイム配信)
 // - 個別店舗で問題が起きた際は DO_DENYLIST_SLUGS にその slug を追加して PHP polling へフォールバック
+// - cast-view (?cast=&view=): DOは配信専用で read_at 管理しないため PHP polling に固定
+//   → as_cast=1 で handlePollMessages が visitor メッセージを既読化する
 const DO_DENYLIST_SLUGS = [];
-const Transport = DO_DENYLIST_SLUGS.includes(SLUG) ? PollingTransport : DurableObjectTransport;
+const Transport = (IS_CAST_VIEW || DO_DENYLIST_SLUGS.includes(SLUG)) ? PollingTransport : DurableObjectTransport;
 
 // ===== i18n =====
 // 辞書は /chat-i18n.json から fetch。chat-widget-inline.html とは同一ソースを共有（scripts/build-chat-widget.js が注入）
@@ -610,7 +614,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=46', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=47', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1250,10 +1254,12 @@ function applyVisitorBatch(data) {
 async function pollMessages(initial) {
     if (!state.session_token) return;
     try {
-        const data = await api('poll-messages', {
+        const params = {
             session_token: state.session_token,
             since_id: state.last_message_id
-        }, 'GET');
+        };
+        if (IS_CAST_VIEW) params.as_cast = 1;
+        const data = await api('poll-messages', params, 'GET');
         applyVisitorBatch(data);
     } catch (e) {
         if (!initial) return;

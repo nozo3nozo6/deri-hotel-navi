@@ -3468,12 +3468,20 @@ function renderCastList(casts){
         const chatBtn = (!isPending)
             ? '<button type="button" class="btn" onclick="openCastChatViewer(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;">💬 チャット履歴</button>'
             : '';
+        const notifyOn = (c.chat_notify_mode && c.chat_notify_mode !== 'off');
+        const notifyToggle = (!isPending && c.status !== 'suspended')
+            ? '<label style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;user-select:none;" title="チャット通知メールのON/OFF">'
+                + '<input type="checkbox" ' + (notifyOn ? 'checked' : '') + ' onchange="toggleCastNotify(\'' + esc(c.id) + '\', this.checked, this)" style="accent-color:#059669;margin:0;cursor:pointer;">'
+                + '<span style="color:' + (notifyOn ? '#059669' : '#999') + ';font-weight:' + (notifyOn ? '700' : '400') + ';">🔔 通知</span>'
+              + '</label>'
+            : '';
         return ''
             + '<div style="padding:12px 14px;background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;">'
             + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
             + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + '</div>'
-            + '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
             + approveBtn
+            + notifyToggle
             + chatBtn
             + '<button type="button" class="btn" onclick="openCastEdit(\'' + esc(c.id) + '\')" style="padding:6px 12px;font-size:12px;">✏️ 編集</button>'
             + '<button type="button" class="btn" onclick="removeCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;color:#c33;">✕ 削除</button>'
@@ -3630,6 +3638,22 @@ async function resendCastInvite(inviteId){
         await castApi('resend-invite', { invite_id: inviteId });
         toast('✅ 招待メールを再送しました');
     } catch (e) {
+        toast('⚠️ ' + e.message);
+    }
+}
+
+async function toggleCastNotify(id, enabled, inputEl){
+    const mode = enabled ? 'every' : 'off';
+    const label = inputEl && inputEl.parentElement ? inputEl.parentElement.querySelector('span') : null;
+    try {
+        await castApi('update', { id, chat_notify_mode: mode });
+        if (label) {
+            label.style.color = enabled ? '#059669' : '#999';
+            label.style.fontWeight = enabled ? '700' : '400';
+        }
+        toast(enabled ? '🔔 通知ONにしました' : '🔕 通知OFFにしました');
+    } catch (e) {
+        if (inputEl) inputEl.checked = !enabled;
         toast('⚠️ ' + e.message);
     }
 }
