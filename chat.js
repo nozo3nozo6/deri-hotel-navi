@@ -860,7 +860,6 @@ async function enterVisitorMode() {
 // 既存訪問者セッションの履歴を見るだけで送信はできない（返信は電話/LINE経由）.
 async function enterCastViewMode() {
     refs.shopName.textContent = state.shop_name;
-    updateStatusIndicator(state.is_online);
     // キャスト本人向け通知トグル (shop_casts.chat_notify_mode). 初期値は adopt 応答でセット.
     refs.ownerToggle.classList.remove('hidden');
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
@@ -868,7 +867,12 @@ async function enterCastViewMode() {
     refs.chatThread.classList.remove('hidden');
     // 入力欄はキャスト返信用に残す. ニックネーム/quick/絵文字/オーナー系は不要なので非表示.
     if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
-    if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
+    // 予約案内はキャスト向け文言に差し替えて表示
+    if (refs.reservationHint) {
+        refs.reservationHint.setAttribute('data-i18n', 'note.reservation.cast');
+        refs.reservationHint.textContent = t('note.reservation.cast');
+        refs.reservationHint.classList.remove('hidden');
+    }
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
@@ -879,8 +883,8 @@ async function enterCastViewMode() {
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
     if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
-    // キャスト視点では受付時間ステータスは不要（店舗向け情報）
-    if (refs.statusDot) refs.statusDot.classList.add('hidden');
+    // キャスト視点: 緑丸はキャスト自身の通知ON/OFFで出す. 営業時間ラベルは不要（店舗向け情報）.
+    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.add('hidden');
 
     state.mode = 'visitor'; // poll/apply を visitor ロジックで流用するため
@@ -911,6 +915,8 @@ async function enterCastViewMode() {
         showError(e.message || 'セッションを読み込めませんでした');
         return;
     }
+    // adopt で notify_enabled が決まったので緑丸を同期
+    updateStatusIndicator(state.is_online);
     updateCastHeader();
 
     // キャスト返信モードの案内バナー
@@ -955,8 +961,13 @@ function saveVisitorSession() {
 
 function updateStatusIndicator(online) {
     state.is_online = online;
-    // キャスト指名ビューではステータス/受付時間は非表示（店舗向け情報）
-    if (IS_CAST_VIEW) return;
+    // キャスト指名ビュー: 緑丸はキャスト自身の通知ON/OFFに同期. 営業時間ラベルは出さない.
+    if (IS_CAST_VIEW) {
+        const castOn = !!state.notify_enabled;
+        refs.statusDot.classList.toggle('online', castOn);
+        refs.statusDot.classList.toggle('offline', !castOn);
+        return;
+    }
     refs.statusDot.classList.toggle('online', online);
     refs.statusDot.classList.toggle('offline', !online);
     const hours = state.reception_start && state.reception_end
@@ -1788,6 +1799,8 @@ refs.onlineToggle.addEventListener('change', async (e) => {
                 enabled: isOn ? 1 : 0
             });
             state.notify_enabled = isOn;
+            // 緑丸をキャスト自身の通知状態に同期
+            updateStatusIndicator(state.is_online);
         } else {
             const res = await api('toggle-notify', {
                 device_token: state.device_token,
