@@ -1282,26 +1282,38 @@ function addMessage(m, fromOwner) {
     }
 }
 function updateReadMarkers() {
-    // cast_owner / owner 共に自分の発言は 'shop' として描画される (addMessage の asOwner 分岐)
+    // LINE 流: 既読マーカーは「最後に既読になった自分のメッセージ」1 行だけに付ける.
+    // 全行に 既読 を付ける旧実装 (id <= threshold) は冗長で画面が汚れるため廃止.
+    // 受信者が順次読む → 最新の既読msgへマーカーが移動する挙動になる.
+    //
+    // 自分側のクラス: visitor モードは 'visitor', owner/cast_owner は 'shop' として描画.
     const isOwnerSide = state.mode === 'owner' || state.mode === 'cast_owner';
     const ownClass = isOwnerSide ? 'shop' : 'visitor';
     const threshold = state.last_read_own_id || 0;
-    refs.chatMessages.querySelectorAll('.msg-row.' + ownClass).forEach(row => {
+    const rows = refs.chatMessages.querySelectorAll('.msg-row.' + ownClass);
+    // 1) まず全行から既読マーカーを除去
+    rows.forEach(row => {
+        const old = row.querySelector('.msg-meta .msg-read');
+        if (old) old.remove();
+    });
+    if (threshold <= 0) return;
+    // 2) threshold 以下で最大 id の行を見つける (= 最後に既読になった自分のmsg)
+    let latestReadRow = null;
+    let latestReadId = 0;
+    rows.forEach(row => {
         const id = Number(row.dataset.msgId || 0);
-        const meta = row.querySelector('.msg-meta');
-        if (!meta) return;
-        let mark = meta.querySelector('.msg-read');
-        if (id && id <= threshold) {
-            if (!mark) {
-                mark = document.createElement('div');
-                mark.className = 'msg-read';
-                mark.textContent = t('msg.read') || '既読';
-                meta.appendChild(mark);
-            }
-        } else if (mark) {
-            mark.remove();
+        if (id > 0 && id <= threshold && id > latestReadId) {
+            latestReadId = id;
+            latestReadRow = row;
         }
     });
+    if (!latestReadRow) return;
+    const meta = latestReadRow.querySelector('.msg-meta');
+    if (!meta) return;
+    const mark = document.createElement('div');
+    mark.className = 'msg-read';
+    mark.textContent = t('msg.read') || '既読';
+    meta.appendChild(mark);
 }
 
 function detectLang(text) {
