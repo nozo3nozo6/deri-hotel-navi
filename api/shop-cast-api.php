@@ -366,30 +366,66 @@ function handleRemove() {
 
     $pdo = DB::conn();
 
+    // Soft-delete: status='removed' + deleted_at=NOW() + inbox_token再発行（旧URL即時無効化）.
+    // 60日後に chat-retention.php が物理削除。
+    // 再招待時の承認迂回事故防止のため、cast本体の password_hash / last_login_at もこの場でクリア
+    // （削除したキャストが他店舗に active で残っていたら触らない）.
     $stmt = $pdo->prepare(
-        'SELECT c.id AS cast_id, c.email FROM shop_casts sc
+        'SELECT sc.status, c.id AS cast_id, c.email FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
          WHERE sc.id = ? AND sc.shop_id = ?'
     );
     $stmt->execute([$id, $auth['shop_id']]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) err('Cast not found', 404);
+    if ($row['status'] === 'removed') err('このキャストは既に削除済みです');
 
-    $stmt2 = $pdo->prepare('DELETE FROM shop_casts WHERE id = ? AND shop_id = ?');
-    $stmt2->execute([$id, $auth['shop_id']]);
-    if (!$stmt2->rowCount()) err('Cast not found', 404);
+    $castId = $row['cast_id'];
+    $email  = (string)($row['email'] ?? '');
 
-    if ($row && $row['email']) {
-        $pdo->prepare('DELETE FROM cast_invites WHERE shop_id = ? AND email = ? AND consumed_at IS NULL')
-            ->execute([$auth['shop_id'], $row['email']]);
+    $pdo->beginTransaction();
+    try {
+        // 1. shop_casts soft-delete + inbox_token 再発行
+        $pdo->prepare(
+            'UPDATE shop_casts
+                SET status = "removed",
+                    deleted_at = NOW(),
+                    inbox_token = ?,
+                    updated_at = NOW()
+              WHERE id = ? AND shop_id = ?'
+        )->execute([genUuid(), $id, $auth['shop_id']]);
 
-        // 他店舗に所属がなければ、cast本体もリセット（パスワード・ログイン履歴も消す）
-        // これをしないと再招待時に前回の password_hash が残り、承認ステップが事実上スキップされる
-        $stmt3 = $pdo->prepare('SELECT COUNT(*) FROM shop_casts WHERE cast_id = ?');
-        $stmt3->execute([$row['cast_id']]);
-        if ((int)$stmt3->fetchColumn() === 0) {
-            $pdo->prepare('DELETE FROM cast_invites WHERE email = ?')->execute([$row['email']]);
-            $pdo->prepare('DELETE FROM casts WHERE id = ?')->execute([$row['cast_id']]);
+        // 2. セキュリティ即時パージ: 端末登録 + 登録用コード
+        $pdo->prepare('DELETE FROM cast_inbox_devices WHERE shop_cast_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM cast_inbox_codes WHERE shop_cast_id = ?')->execute([$id]);
+
+        // 3. 未消費の招待を破棄（このキャスト宛の未使用Magic Link）
+        if ($email !== '') {
+            $pdo->prepare('DELETE FROM cast_invites WHERE shop_id = ? AND email = ? AND consumed_at IS NULL')
+                ->execute([$auth['shop_id'], $email]);
         }
+
+        // 4. オープン中の該当チャットセッションを close（訪問者が返信待ちにならないように）
+        $pdo->prepare(
+            'UPDATE chat_sessions
+                SET status = "closed", closed_at = NOW()
+              WHERE shop_id = ? AND cast_id = ? AND status = "open"'
+        )->execute([$auth['shop_id'], $castId]);
+
+        // 5. このcastに active shop_casts が他に残っていなければ、cast本体もリセット
+        //    (password_hash/last_login_at を消しておかないと再招待時に承認ステップがスキップされる)
+        $stmt3 = $pdo->prepare('SELECT COUNT(*) FROM shop_casts WHERE cast_id = ? AND status != "removed"');
+        $stmt3->execute([$castId]);
+        if ((int)$stmt3->fetchColumn() === 0) {
+            $pdo->prepare('UPDATE casts SET password_hash = NULL, last_login_at = NULL, status = "invited", updated_at = NOW() WHERE id = ?')
+                ->execute([$castId]);
+        }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        error_log('[shop-cast-api:remove] ' . $e->getMessage());
+        err('削除処理中にエラーが発生しました: ' . $e->getMessage(), 500);
     }
 
     ok();

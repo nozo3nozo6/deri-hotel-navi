@@ -5,6 +5,10 @@
 // ポリシー:
 //   1) openセッション: 48時間 last_activity_at 無更新なら status='closed', closed_at=NOW()
 //   2) closedセッション: closed_at から60日経過で DELETE（FK CASCADE で messages も削除）
+//   3) 削除済みキャスト: shop_casts.deleted_at から60日経過で物理削除
+//      + 他店舗参照の無い casts は孤児として同時削除
+//      ※ status='removed' かつ deleted_at IS NOT NULL の行のみが対象。
+//        非削除（active/pending_approval/suspended）のアカウントは絶対に触らない。
 //
 // 呼び出し方法（どちらか）:
 //   - 外部cron / UptimeRobot から GET https://yobuho.com/api/chat-retention.php?key=<SECRET>
@@ -71,12 +75,55 @@ try {
     $stmt->execute();
     $orphanedMessages = $stmt->rowCount();
 
+    // 4) 削除済みキャストの60日経過物理削除（非削除アカウントは触らない二重フィルタ）
+    //    cast_inbox_devices / cast_inbox_codes は handleRemove で即時削除済みだが、
+    //    念のためここでも孤児を掃除しておく（FK 未定義のため）.
+    $stmt = $pdo->prepare("
+        DELETE FROM shop_casts
+         WHERE status = 'removed'
+           AND deleted_at IS NOT NULL
+           AND deleted_at < DATE_SUB(NOW(), INTERVAL 60 DAY)
+    ");
+    $stmt->execute();
+    $deletedShopCasts = $stmt->rowCount();
+
+    // 5) 孤児 casts（どの shop_casts からも参照されていない）を削除
+    //    → どの店舗にも所属していないキャストアカウントは存在意義がないため物理削除.
+    //    ※ 非削除の shop_casts が1つでも残っている cast_id は対象外（サブクエリで保護）.
+    $stmt = $pdo->prepare("
+        DELETE FROM casts
+         WHERE id NOT IN (SELECT cast_id FROM shop_casts)
+    ");
+    $stmt->execute();
+    $deletedOrphanCasts = $stmt->rowCount();
+
+    // 6) 孤児化した cast_inbox_devices / cast_inbox_codes 掃除（FK 無しのため手動）
+    $stmt = $pdo->prepare("
+        DELETE d FROM cast_inbox_devices d
+        LEFT JOIN shop_casts sc ON sc.id = d.shop_cast_id
+        WHERE sc.id IS NULL
+    ");
+    $stmt->execute();
+    $deletedOrphanDevices = $stmt->rowCount();
+
+    $stmt = $pdo->prepare("
+        DELETE k FROM cast_inbox_codes k
+        LEFT JOIN shop_casts sc ON sc.id = k.shop_cast_id
+        WHERE sc.id IS NULL
+    ");
+    $stmt->execute();
+    $deletedOrphanCodes = $stmt->rowCount();
+
     echo json_encode([
         'ok' => true,
         'at' => date('c'),
-        'auto_closed_sessions' => $closed,
-        'deleted_sessions'     => $deleted,
-        'deleted_orphan_messages' => $orphanedMessages,
+        'auto_closed_sessions'     => $closed,
+        'deleted_sessions'         => $deleted,
+        'deleted_orphan_messages'  => $orphanedMessages,
+        'deleted_shop_casts'       => $deletedShopCasts,
+        'deleted_orphan_casts'     => $deletedOrphanCasts,
+        'deleted_orphan_devices'   => $deletedOrphanDevices,
+        'deleted_orphan_codes'     => $deletedOrphanCodes,
     ]);
 } catch (Throwable $e) {
     http_response_code(500);
