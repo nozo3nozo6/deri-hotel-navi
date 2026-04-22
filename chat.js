@@ -861,7 +861,8 @@ async function enterVisitorMode() {
 async function enterCastViewMode() {
     refs.shopName.textContent = state.shop_name;
     updateStatusIndicator(state.is_online);
-    refs.ownerToggle.classList.add('hidden');
+    // キャスト本人向け通知トグル (shop_casts.chat_notify_mode). 初期値は adopt 応答でセット.
+    refs.ownerToggle.classList.remove('hidden');
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
@@ -899,6 +900,12 @@ async function enterCastViewMode() {
             if (adopt.session_id) state.session_id = adopt.session_id;
             if (adopt.cast_name) state.cast_name = adopt.cast_name;
             if (typeof adopt.is_online !== 'undefined') state.is_online = !!adopt.is_online;
+            // 通知トグル初期値: chat_notify_mode が 'off' 以外なら ON
+            if (typeof adopt.cast_notify_mode !== 'undefined') {
+                const enabled = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
+                state.notify_enabled = !!enabled;
+                if (refs.onlineToggle) refs.onlineToggle.checked = !!enabled;
+            }
         }
     } catch (e) {
         showError(e.message || 'セッションを読み込めませんでした');
@@ -1773,13 +1780,23 @@ if (refs.emojiToggle) {
 refs.onlineToggle.addEventListener('change', async (e) => {
     const isOn = e.target.checked;
     try {
-        const res = await api('toggle-notify', {
-            device_token: state.device_token,
-            enabled: isOn ? 1 : 0
-        });
-        state.notify_enabled = isOn;
-        // 受付トグルは is_online も同時に切り替える → オーナー画面のステータスドット即時反映
-        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : isOn);
+        if (IS_CAST_VIEW) {
+            // キャスト指名ビュー: URL-only auth で自分の chat_notify_mode をトグル
+            await api('cast-url-toggle-notify', {
+                session_token: state.session_token,
+                shop_cast_id: CAST_ID,
+                enabled: isOn ? 1 : 0
+            });
+            state.notify_enabled = isOn;
+        } else {
+            const res = await api('toggle-notify', {
+                device_token: state.device_token,
+                enabled: isOn ? 1 : 0
+            });
+            state.notify_enabled = isOn;
+            // 受付トグルは is_online も同時に切り替える → オーナー画面のステータスドット即時反映
+            updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : isOn);
+        }
     } catch (err) {
         showError(err.message);
         e.target.checked = !isOn;

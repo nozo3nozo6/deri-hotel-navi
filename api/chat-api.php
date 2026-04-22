@@ -40,7 +40,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -476,6 +476,7 @@ try {
         case 'owner-inbox':     handleOwnerInbox(); break;
         case 'owner-reply':     handleOwnerReply(); break;
         case 'cast-url-reply':  handleCastUrlReply(); break;
+        case 'cast-url-toggle-notify': handleCastUrlToggleNotify(); break;
         case 'toggle-online':   handleToggleOnline(); break;
         case 'toggle-notify':   handleToggleNotify(); break;
         case 'owner-go-offline': handleOwnerGoOffline(); break;
@@ -528,7 +529,8 @@ function handleStartSession() {
     // (リロード時に無駄な新規セッションを作らず、同じ cast_id / cast_name を保つ).
     if ($adoptToken !== '') {
         $stmt = $pdo->prepare(
-            'SELECT cs.id, cs.cast_id, sc.display_name AS cast_name
+            'SELECT cs.id, cs.cast_id,
+                    sc.id AS shop_cast_id, sc.display_name AS cast_name, sc.chat_notify_mode
              FROM chat_sessions cs
              LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
              WHERE cs.session_token = ? AND cs.shop_id = ? LIMIT 1'
@@ -537,12 +539,14 @@ function handleStartSession() {
         $existing = $stmt->fetch();
         if ($existing) {
             ok([
-                'session_token' => $adoptToken,
-                'session_id'    => (int)$existing['id'],
-                'shop_name'     => $shop['shop_name'],
-                'cast_name'     => $existing['cast_name'],
-                'is_online'     => effectiveOnline($shop),
-                'gender_mode'   => $shop['gender_mode'] ?? 'men',
+                'session_token'    => $adoptToken,
+                'session_id'       => (int)$existing['id'],
+                'shop_name'        => $shop['shop_name'],
+                'cast_name'        => $existing['cast_name'],
+                'shop_cast_id'     => $existing['shop_cast_id'],
+                'cast_notify_mode' => $existing['chat_notify_mode'] ?? null,
+                'is_online'        => effectiveOnline($shop),
+                'gender_mode'      => $shop['gender_mode'] ?? 'men',
             ]);
         }
         // 存在しなければ下の新規作成パスにフォールスルー
@@ -1134,6 +1138,56 @@ function handleCastUrlReply() {
         ->execute([$sessionId]);
 
     respondOwnerBatch($pdo, $sessionId, (string)$sc['shop_id'], $sinceId, ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
+}
+
+/**
+ * キャスト通知トグル (URL-only auth: session_token + shop_cast_id).
+ * キャストがメールURLから開いた画面で、自分の chat_notify_mode を ON/OFF する.
+ * ON: 'first' (既存値が 'every' ならそのまま) / OFF: 'off'
+ */
+function handleCastUrlToggleNotify() {
+    $sessionToken = trim((string)inp('session_token', ''));
+    $shopCastId   = trim((string)inp('shop_cast_id', ''));
+    $enabled      = (int)inp('enabled', 0);
+
+    if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
+    if ($shopCastId === '') err('shop_cast_id required');
+
+    $pdo = DB::conn();
+
+    // shop_cast 検証 (active)
+    $stmt = $pdo->prepare(
+        'SELECT sc.id, sc.shop_id, sc.cast_id, sc.chat_notify_mode, sc.status AS sc_status, c.status AS cast_status
+         FROM shop_casts sc JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.id = ? LIMIT 1'
+    );
+    $stmt->execute([$shopCastId]);
+    $sc = $stmt->fetch();
+    if (!$sc || $sc['sc_status'] !== 'active' || $sc['cast_status'] !== 'active') err('キャストが無効です', 403);
+
+    // session_token が当該 shop_cast の cast_id / shop_id と一致するか検証 (URL-only auth)
+    $stmt = $pdo->prepare('SELECT shop_id, cast_id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt->execute([$sessionToken]);
+    $session = $stmt->fetch();
+    if (!$session) err('Session not found', 404);
+    if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
+    if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
+
+    // ON→'first' (既存が 'every' なら維持) / OFF→'off'
+    $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
+    if ($enabled === 1) {
+        $newMode = $currentMode === 'off' ? 'first' : $currentMode;
+    } else {
+        $newMode = 'off';
+    }
+
+    $stmt = $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ? WHERE id = ?');
+    $stmt->execute([$newMode, $shopCastId]);
+
+    ok([
+        'cast_notify_mode' => $newMode,
+        'notify_enabled'   => $newMode !== 'off',
+    ]);
 }
 
 /**
