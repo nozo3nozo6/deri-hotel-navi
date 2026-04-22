@@ -41,6 +41,7 @@ switch ($action) {
     case 'update-shop-profile':  handleUpdateShopProfile(); break;
     case 'update-password':      handleUpdatePassword(); break;
     case 'update-email':         handleUpdateEmail(); break;
+    case 'regenerate-inbox-token': handleRegenerateInboxToken(); break;
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Invalid action']);
@@ -178,7 +179,7 @@ function handleProfile(): void {
     // pending_approval = 店舗承認待ち / active = 承認済み / suspended = 一時停止
     $sql = 'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.display_name, sc.profile_image_url, sc.bio,
                    sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
-                   sc.chat_notify_mode, sc.chat_is_online,
+                   sc.chat_notify_mode, sc.chat_is_online, sc.inbox_token,
                    s.shop_name, s.slug, s.gender_mode, s.cast_enabled
             FROM shop_casts sc
             JOIN shops s ON s.id = sc.shop_id
@@ -287,4 +288,23 @@ function handleUpdateEmail(): void {
         ->execute([$newEmail, $auth['cast_id']]);
     $_SESSION['cast_email'] = $newEmail;
     ok();
+}
+
+function handleRegenerateInboxToken(): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('POST only', 405);
+    $auth = requireCastAuth();
+    if (!$auth) err('Unauthorized', 401);
+
+    $shopCastId = (string)inp('shop_cast_id', '');
+    if ($shopCastId === '') err('shop_cast_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT id FROM shop_casts WHERE id = ? AND cast_id = ? AND status != "removed"');
+    $stmt->execute([$shopCastId, $auth['cast_id']]);
+    if (!$stmt->fetchColumn()) err('所属店舗が見つかりません', 404);
+
+    $newToken = DB::uuid();
+    $pdo->prepare('UPDATE shop_casts SET inbox_token = ?, updated_at = NOW() WHERE id = ?')
+        ->execute([$newToken, $shopCastId]);
+    ok(['inbox_token' => $newToken]);
 }

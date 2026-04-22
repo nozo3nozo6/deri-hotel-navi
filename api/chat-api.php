@@ -40,7 +40,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -477,6 +477,10 @@ try {
         case 'owner-reply':     handleOwnerReply(); break;
         case 'cast-url-reply':  handleCastUrlReply(); break;
         case 'cast-url-toggle-notify': handleCastUrlToggleNotify(); break;
+        case 'cast-inbox':              handleCastInbox(); break;
+        case 'cast-inbox-reply':        handleCastInboxReply(); break;
+        case 'cast-inbox-close':        handleCastInboxClose(); break;
+        case 'cast-inbox-toggle-notify': handleCastInboxToggleNotify(); break;
         case 'toggle-online':   handleToggleOnline(); break;
         case 'toggle-notify':   handleToggleNotify(); break;
         case 'owner-go-offline': handleOwnerGoOffline(); break;
@@ -1183,6 +1187,242 @@ function handleCastUrlToggleNotify() {
 
     $stmt = $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ? WHERE id = ?');
     $stmt->execute([$newMode, $shopCastId]);
+
+    ok([
+        'cast_notify_mode' => $newMode,
+        'notify_enabled'   => $newMode !== 'off',
+    ]);
+}
+
+/**
+ * =========================================================
+ * Cast inbox (URL-token auth).
+ * キャスト本人が ?cast_inbox=<uuid> でブックマークする「自分用URL」経由で、
+ * 自分宛全セッションの受信箱・返信・終了・通知トグルを行う.
+ *
+ * 認証: shop_casts.inbox_token (UUID) を唯一の bearer とする.
+ *   - status='active' + casts.status='active' でなければ拒否.
+ *   - URL流出時の対策: cast-admin 側で再発行 (inbox_token を UUID() で更新) すると
+ *     旧URLが失効する.
+ *
+ * session_token を受け取らない点が cast-url-* と異なる (inbox_token だけで認証が完結).
+ * =========================================================
+ */
+function resolveCastInboxToken(string $token): ?array {
+    if ($token === '' || !preg_match('/^[a-f0-9\-]{32,36}$/i', $token)) return null;
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.display_name,
+                sc.chat_notify_mode, sc.status AS sc_status, c.status AS cast_status,
+                s.slug, s.shop_name
+         FROM shop_casts sc
+         JOIN casts c ON c.id = sc.cast_id
+         JOIN shops s ON s.id = sc.shop_id
+         WHERE sc.inbox_token = ? LIMIT 1'
+    );
+    $stmt->execute([$token]);
+    $row = $stmt->fetch();
+    if (!$row) return null;
+    if ($row['sc_status'] !== 'active' || $row['cast_status'] !== 'active') return null;
+    return $row;
+}
+
+/**
+ * cast-inbox: 自分宛セッション一覧 + 指定セッションのメッセージ取得 (URL-token auth).
+ */
+function handleCastInbox(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $sessionId = (int)inp('session_id', 0);
+    $sinceId   = (int)inp('since_id', 0);
+    $pdo = DB::conn();
+
+    // presence
+    $pdo->prepare('UPDATE shop_casts SET chat_last_online_at = NOW() WHERE id = ?')
+        ->execute([$sc['shop_cast_id']]);
+
+    // 担当セッション一覧 (cast_id 一致のみ)
+    $stmt = $pdo->prepare(
+        'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at,
+                s.nickname, s.cast_id,
+                (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
+                (SELECT sender_type FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sender,
+                (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
+         FROM chat_sessions s
+         WHERE s.shop_id = ? AND s.cast_id = ?
+         ORDER BY s.last_activity_at DESC LIMIT 30'
+    );
+    $stmt->execute([$sc['shop_id'], $sc['cast_id']]);
+    $sessions = $stmt->fetchAll();
+
+    $messages = [];
+    $status = null;
+    $lastReadOwnId = 0;
+
+    if ($sessionId > 0) {
+        // 指定セッションが自分宛か検証
+        $stmt = $pdo->prepare(
+            'SELECT id, status FROM chat_sessions
+             WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
+        );
+        $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+        $sessRow = $stmt->fetch();
+        if ($sessRow) {
+            $status = $sessRow['status'];
+
+            $stmt = $pdo->prepare(
+                'SELECT id, sender_type, message, source_lang, sent_at, client_msg_id
+                 FROM chat_messages WHERE session_id = ? AND id > ? ORDER BY id ASC'
+            );
+            $stmt->execute([$sessionId, $sinceId]);
+            $messages = $stmt->fetchAll();
+
+            $stmt = $pdo->prepare(
+                "SELECT COALESCE(MAX(id),0) FROM chat_messages
+                 WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL"
+            );
+            $stmt->execute([$sessionId]);
+            $lastReadOwnId = (int)$stmt->fetchColumn();
+
+            // visitor → 既読
+            $pdo->prepare(
+                "UPDATE chat_messages SET read_at = NOW()
+                 WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL"
+            )->execute([$sessionId]);
+
+            $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
+                ->execute([$sessionId]);
+        }
+    }
+
+    ok([
+        'sessions'         => $sessions,
+        'messages'         => $messages,
+        'status'           => $status,
+        'last_read_own_id' => $lastReadOwnId,
+        'cast_name'        => $sc['display_name'],
+        'shop_name'        => $sc['shop_name'],
+        'shop_slug'        => $sc['slug'],
+        'shop_cast_id'     => $sc['shop_cast_id'],
+        'notify_mode'      => $sc['chat_notify_mode'],
+        'notify_enabled'   => $sc['chat_notify_mode'] !== 'off',
+        'server_time'      => date('c'),
+    ]);
+}
+
+/**
+ * cast-inbox-reply: 自分宛セッションに返信 (URL-token auth).
+ */
+function handleCastInboxReply(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $sessionId   = (int)inp('session_id', 0);
+    $msg         = trim((string)inp('message', ''));
+    $clientMsgId = (string)inp('client_msg_id', '');
+    $sinceId     = (int)inp('since_id', 0);
+
+    if ($sessionId <= 0) err('session_id required');
+    if ($msg === '') err('message required');
+    if (mb_strlen($msg) > 1000) err('メッセージが長すぎます');
+    if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
+
+    $pdo = DB::conn();
+
+    // セッション検証 (自分宛であること)
+    $stmt = $pdo->prepare(
+        'SELECT id, shop_id, cast_id, status FROM chat_sessions
+         WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
+    );
+    $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+    $session = $stmt->fetch();
+    if (!$session) err('担当セッションではありません', 404);
+    if ($session['status'] === 'closed') err('セッションは終了しています', 410);
+
+    // 冪等
+    if ($clientMsgId !== '') {
+        $stmt = $pdo->prepare(
+            "SELECT id FROM chat_messages
+             WHERE client_msg_id = ? AND session_id = ? AND sender_type = 'shop' LIMIT 1"
+        );
+        $stmt->execute([$clientMsgId, $sessionId]);
+        $existingId = (int)$stmt->fetchColumn();
+        if ($existingId) {
+            respondOwnerBatch($pdo, $sessionId, (string)$sc['shop_id'], $sinceId, ['message_id' => $existingId, 'client_msg_id' => $clientMsgId, 'duplicate' => true]);
+            return;
+        }
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            "INSERT INTO chat_messages (session_id, sender_type, message, source_lang, client_msg_id)
+             VALUES (?, 'shop', ?, 'ja', ?)"
+        );
+        $stmt->execute([$sessionId, $msg, $clientMsgId ?: null]);
+        $messageId = (int)$pdo->lastInsertId();
+    } catch (PDOException $e) {
+        if ($clientMsgId !== '' && strpos($e->getMessage(), '1062') !== false) {
+            $stmt = $pdo->prepare('SELECT id FROM chat_messages WHERE client_msg_id = ? LIMIT 1');
+            $stmt->execute([$clientMsgId]);
+            $messageId = (int)$stmt->fetchColumn();
+            if (!$messageId) throw $e;
+        } else {
+            throw $e;
+        }
+    }
+
+    $pdo->prepare('UPDATE chat_sessions SET last_activity_at = NOW(), last_owner_heartbeat_at = NOW() WHERE id = ?')
+        ->execute([$sessionId]);
+
+    respondOwnerBatch($pdo, $sessionId, (string)$sc['shop_id'], $sinceId, ['message_id' => $messageId, 'client_msg_id' => $clientMsgId ?: null]);
+}
+
+/**
+ * cast-inbox-close: 自分宛セッションを終了 (URL-token auth).
+ */
+function handleCastInboxClose(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
+    );
+    $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+    if (!$stmt->fetchColumn()) err('Session not found', 404);
+
+    $pdo->prepare("UPDATE chat_sessions SET status = 'closed', closed_at = NOW() WHERE id = ?")
+        ->execute([$sessionId]);
+
+    ok(['closed' => true]);
+}
+
+/**
+ * cast-inbox-toggle-notify: 通知ON/OFF (URL-token auth).
+ */
+function handleCastInboxToggleNotify(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $enabled = (int)inp('enabled', 0);
+    $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
+    if ($enabled === 1) {
+        $newMode = $currentMode === 'off' ? 'first' : $currentMode;
+    } else {
+        $newMode = 'off';
+    }
+
+    $pdo = DB::conn();
+    $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ? WHERE id = ?')
+        ->execute([$newMode, $sc['shop_cast_id']]);
 
     ok([
         'cast_notify_mode' => $newMode,

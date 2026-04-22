@@ -356,16 +356,29 @@ function renderShops(shops){
             ? '<div class="pending-note">店舗オーナーの承認をお待ちください。承認されるとチャット受付が有効になります。</div>'
             : '';
         const castChatUrl = (!isPending && s.slug) ? ('https://yobuho.com/chat/' + encodeURIComponent(s.slug) + '/?cast=' + encodeURIComponent(s.shop_cast_id)) : null;
-        const castUrlBlock = castChatUrl
+        const inboxUrl = (!isPending && s.slug && s.inbox_token) ? ('https://yobuho.com/chat/' + encodeURIComponent(s.slug) + '/?cast_inbox=' + encodeURIComponent(s.inbox_token)) : null;
+        const customerUrlBlock = castChatUrl
             ? '<div class="cast-url-block" style="margin-top:10px;padding:10px 12px;background:#fff8f0;border:1px solid #f5d6b3;border-radius:8px;">'
-            +   '<div style="font-size:11px;color:#8a5a2a;font-weight:600;margin-bottom:6px;">📌 あなた専用のチャットURL</div>'
+            +   '<div style="font-size:11px;color:#8a5a2a;font-weight:600;margin-bottom:6px;">📌 お客様用URL（お客様にシェア）</div>'
             +   '<div style="display:flex;gap:6px;align-items:center;">'
-            +     '<input type="text" readonly value="' + esc(castChatUrl) + '" id="cast-url-' + esc(s.shop_cast_id) + '" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e5c8a3;border-radius:6px;font-size:11px;background:#fff;font-family:monospace;">'
-            +     '<button type="button" class="btn" onclick="copyCastUrl(\'' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 コピー</button>'
+            +     '<input type="text" readonly value="' + esc(castChatUrl) + '" id="cust-url-' + esc(s.shop_cast_id) + '" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e5c8a3;border-radius:6px;font-size:11px;background:#fff;font-family:monospace;">'
+            +     '<button type="button" class="btn" onclick="copyUrl(\'cust-url-' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 コピー</button>'
             +   '</div>'
-            +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">プロフィールやSNSで活用してください</div>'
+            +   '<div style="font-size:10px;color:#8a5a2a;margin-top:6px;line-height:1.5;">プロフィールやSNSに貼り、お客様からチャットを受ける用</div>'
             + '</div>'
             : '';
+        const inboxUrlBlock = inboxUrl
+            ? '<div class="cast-url-block" style="margin-top:8px;padding:10px 12px;background:#fdf5f5;border:1px solid #e8c8c8;border-radius:8px;">'
+            +   '<div style="font-size:11px;color:#8a3a4a;font-weight:600;margin-bottom:6px;">🔐 自分用URL（受信箱・ブックマーク推奨）</div>'
+            +   '<div style="display:flex;gap:6px;align-items:center;">'
+            +     '<input type="text" readonly value="' + esc(inboxUrl) + '" id="inbox-url-' + esc(s.shop_cast_id) + '" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #e0b8b8;border-radius:6px;font-size:11px;background:#fff;font-family:monospace;">'
+            +     '<button type="button" class="btn" onclick="copyUrl(\'inbox-url-' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 コピー</button>'
+            +     '<button type="button" class="btn" onclick="regenInboxToken(\'' + esc(s.shop_cast_id) + '\')" style="font-size:11px;padding:6px 10px;white-space:nowrap;">🔄 再発行</button>'
+            +   '</div>'
+            +   '<div style="font-size:10px;color:#8a3a4a;margin-top:6px;line-height:1.5;">自分だけがブックマーク。他人に教えないでください（お客様とのやり取りを見る画面です）</div>'
+            + '</div>'
+            : '';
+        const castUrlBlock = customerUrlBlock + inboxUrlBlock;
         return ''
             + '<div class="shop-card">'
             +   '<div class="shop-card-hdr">'
@@ -381,8 +394,8 @@ function renderShops(shops){
     }).join('');
 }
 
-function copyCastUrl(shopCastId){
-    const input = document.getElementById('cast-url-' + shopCastId);
+function copyUrl(inputId){
+    const input = document.getElementById(inputId);
     if (!input) return;
     input.select();
     input.setSelectionRange(0, 9999);
@@ -398,6 +411,17 @@ function copyCastUrl(shopCastId){
         }
     } catch (e) {
         toast('⚠️ コピーに失敗しました。手動で選択してコピーしてください');
+    }
+}
+
+async function regenInboxToken(shopCastId){
+    if (!confirm('受信箱URLを再発行しますか？\n\n再発行すると、古いURLは使えなくなります。\n（お客様用URLは変わりません）')) return;
+    try {
+        await api('regenerate-inbox-token', { shop_cast_id: shopCastId });
+        toast('✅ 受信箱URLを再発行しました');
+        await loadProfile();
+    } catch (e) {
+        toast('⚠️ ' + e.message);
     }
 }
 

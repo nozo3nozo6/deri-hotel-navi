@@ -43,10 +43,22 @@ function getViewToken() {
     } catch (_) { return ''; }
 }
 
+// キャスト自分用受信箱: ?cast_inbox=<uuid> (shop_casts.inbox_token) で受信箱モード.
+// cast-admin でブックマーク用URLを発行. 店舗オーナーの device_token は使わず URL-only auth で PHP API を叩く.
+function getCastInboxToken() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('cast_inbox') || '').trim().toLowerCase();
+        return /^[a-f0-9\-]{32,36}$/.test(v) ? v : '';
+    } catch (_) { return ''; }
+}
+
 const SLUG = getSlug();
 const CAST_ID = getCastParam();
 const VIEW_TOKEN = getViewToken();
+const CAST_INBOX_TOKEN = getCastInboxToken();
 const IS_CAST_VIEW = !!(CAST_ID && VIEW_TOKEN);
+const IS_CAST_INBOX = !!CAST_INBOX_TOKEN;
 if (!SLUG) {
     document.getElementById('chat-root').innerHTML = '<div style="padding:40px;text-align:center;color:#888;">チャットURLが不正です</div>';
     return;
@@ -619,12 +631,12 @@ function applyLang(lang) {
     // 動的生成の文字を再描画
     try {
         if (refs.ownerLoginLink) refs.ownerLoginLink.textContent = t('owner.loginLink');
-        if (state.mode === 'owner' && state.inbox_sessions && refs.ownerInbox && !refs.ownerInbox.classList.contains('hidden')) {
+        if ((state.mode === 'owner' || state.mode === 'cast_owner') && state.inbox_sessions && refs.ownerInbox && !refs.ownerInbox.classList.contains('hidden')) {
             renderInbox();
         }
         if (state.mode === 'visitor') renderReceptionBanner();
         // 選択中のスレッドのヘッダー名
-        if (state.mode === 'owner' && state.selected_session && refs.visitorName && !refs.visitorName.classList.contains('hidden')) {
+        if ((state.mode === 'owner' || state.mode === 'cast_owner') && state.selected_session && refs.visitorName && !refs.visitorName.classList.contains('hidden')) {
             const s = state.selected_session;
             refs.visitorName.textContent = s.nickname ? s.nickname : `${t('inbox.visitorPrefix')} #${s.id}`;
         }
@@ -681,6 +693,14 @@ async function init() {
 }
 async function _init() {
     try {
+        // ?cast_inbox=<uuid>: キャスト自分用受信箱. オーナー類似UIで cast-inbox 系 API を叩く.
+        // 店舗の device_token も shop-auth セッションも使わず URL-only auth.
+        if (IS_CAST_INBOX) {
+            await enterCastOwnerMode();
+            setLoading(false);
+            return;
+        }
+
         // ?cast=&view=<session_token>: キャスト宛メール通知URL. 既存訪問者セッションを閲覧専用で表示.
         if (IS_CAST_VIEW) {
             const status = await api('shop-status', { shop_slug: SLUG }, 'GET');
@@ -935,11 +955,14 @@ async function enterCastViewMode() {
     startVisitorPolling();
 }
 
-// キャスト指名セッションの場合、ヘッダーにキャスト名を表示
+// キャスト指名セッションの場合、ヘッダーに「キャスト名 — 店舗名」を表示.
+// cast_owner / cast_inbox モードと同じ format で一貫させる.
 function updateCastHeader() {
     if (!state.cast_name) return;
     try {
-        if (refs.shopName) refs.shopName.textContent = state.cast_name;
+        if (refs.shopName) {
+            refs.shopName.textContent = state.cast_name + (state.shop_name ? ' — ' + state.shop_name : '');
+        }
     } catch (_) {}
 }
 
@@ -1089,7 +1112,9 @@ function addMessage(m, fromOwner) {
     }
 }
 function updateReadMarkers() {
-    const ownClass = state.mode === 'owner' ? 'shop' : 'visitor';
+    // cast_owner / owner 共に自分の発言は 'shop' として描画される (addMessage の asOwner 分岐)
+    const isOwnerSide = state.mode === 'owner' || state.mode === 'cast_owner';
+    const ownClass = isOwnerSide ? 'shop' : 'visitor';
     const threshold = state.last_read_own_id || 0;
     refs.chatMessages.querySelectorAll('.msg-row.' + ownClass).forEach(row => {
         const id = Number(row.dataset.msgId || 0);
@@ -1455,8 +1480,9 @@ function renderInbox() {
         li.dataset.sessionId = s.id;
         const unread = s.unread_count > 0 ? `<span class="unread-badge">${s.unread_count}</span>` : '';
         const statusBadge = s.status === 'closed' ? `<span style="color:#999;font-size:11px;">${esc(t('inbox.closedTag'))}</span>` : '';
-        // キャスト担当セッションはバッジで一覧からも判別可能に（店舗は閲覧のみ）
-        const castBadge = s.cast_id
+        // キャスト担当セッションはバッジで一覧からも判別可能に（店舗は閲覧のみ）.
+        // cast_owner モードでは全セッションが自分宛なのでバッジ抑止.
+        const castBadge = (s.cast_id && !IS_CAST_INBOX)
             ? `<span style="background:#fff3cd;color:#7a5200;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700;">👤 ${esc(s.cast_name || 'キャスト担当')}</span>`
             : '';
         const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
@@ -1467,7 +1493,7 @@ function renderInbox() {
             <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
             <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
         `;
-        li.addEventListener('click', () => openOwnerThread(s.id));
+        li.addEventListener('click', () => (IS_CAST_INBOX ? openCastThread(s.id) : openOwnerThread(s.id)));
         refs.inboxList.appendChild(li);
     }
 }
@@ -1638,6 +1664,162 @@ function startInboxPolling() {
     });
 }
 
+// ===== キャスト自分用受信箱モード (IS_CAST_INBOX) =====
+// 店舗オーナーの device_token は使わず URL-only auth で cast-inbox 系エンドポイントを叩く.
+// UI はオーナー受信箱と同じ (inbox list → thread) を流用. DO は経由せず PHP 直結.
+async function enterCastOwnerMode() {
+    state.mode = 'cast_owner';
+    // 初回ロード
+    const data = await api('cast-inbox', { inbox_token: CAST_INBOX_TOKEN }, 'GET');
+    state.shop_name = data.shop_name || '';
+    state.cast_name = data.cast_name || '';
+    state.shop_cast_id_self = data.shop_cast_id || '';
+    state.notify_enabled = !!data.notify_enabled;
+    state.is_online = state.notify_enabled;
+    state.inbox_sessions = data.sessions || [];
+
+    // ヘッダ/UI整備
+    refs.shopName.textContent = (state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name;
+    refs.ownerToggle.classList.remove('hidden');
+    if (refs.langSelect) {
+        refs.langSelect.classList.add('hidden');
+        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
+    }
+    if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
+    if (refs.statusDot) refs.statusDot.classList.remove('hidden');
+    if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
+    if (refs.quickQuestions) refs.quickQuestions.classList.add('hidden');
+    if (refs.visitorNote) refs.visitorNote.classList.add('hidden');
+    if (refs.reservationHint) refs.reservationHint.classList.add('hidden');
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    if (refs.visitorName) refs.visitorName.classList.add('hidden');
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
+    if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
+    // キャストは店舗オーナーではないので、オーナーログイン/ログアウトは非表示
+    if (refs.ownerLoginLink) refs.ownerLoginLink.classList.add('hidden');
+    if (refs.btnOwnerLogout) refs.btnOwnerLogout.classList.add('hidden');
+
+    refs.onlineToggle.checked = state.notify_enabled;
+    updateStatusIndicator(state.notify_enabled);
+
+    showCastInbox();
+    startCastInboxPolling();
+}
+
+function showCastInbox() {
+    refs.ownerInbox.classList.remove('hidden');
+    refs.chatThread.classList.add('hidden');
+    renderInbox();
+}
+
+async function openCastThread(sessionId) {
+    state.selected_session = state.inbox_sessions.find(s => Number(s.id) === Number(sessionId));
+    if (!state.selected_session) return;
+    refs.ownerInbox.classList.add('hidden');
+    refs.chatThread.classList.remove('hidden');
+    // キャスト自分用: ブロック権限なし、閉じる権限はあり
+    if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
+    if (refs.btnCloseSession) {
+        const isClosed = state.selected_session.status === 'closed';
+        refs.btnCloseSession.classList.toggle('hidden', isClosed);
+    }
+    refs.ownerTemplates.classList.add('hidden'); // キャストは店舗定型文を使わない
+    if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
+    refs.chatMessages.innerHTML = '';
+    state.last_message_id = 0;
+    state.last_msg_date = '';
+    state.last_read_own_id = 0;
+
+    const visitorLabel = state.selected_session.nickname
+        ? state.selected_session.nickname
+        : `${t('inbox.visitorPrefix')} #${state.selected_session.id}`;
+    refs.shopName.textContent = (state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name;
+    if (refs.visitorName) {
+        refs.visitorName.textContent = visitorLabel;
+        refs.visitorName.classList.remove('hidden');
+    }
+    if (refs.btnHeaderBack) refs.btnHeaderBack.classList.remove('hidden');
+
+    try {
+        const data = await api('cast-inbox', {
+            inbox_token: CAST_INBOX_TOKEN,
+            session_id: sessionId
+        }, 'GET');
+        for (const m of (data.messages || [])) {
+            addMessage(m, true);
+            state.last_message_id = Math.max(state.last_message_id, m.id);
+        }
+        if (typeof data.last_read_own_id !== 'undefined') {
+            state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
+            updateReadMarkers();
+        }
+    } catch (e) { showError(e.message); }
+
+    const isClosed = state.selected_session.status === 'closed';
+    refs.inputArea.classList.toggle('hidden', isClosed);
+    if (refs.emojiToggle) refs.emojiToggle.classList.toggle('hidden', isClosed);
+    if (isClosed) addSystemMessage(t('thread.closedThanks'));
+    if (refs.castViewBanner) refs.castViewBanner.classList.add('hidden');
+}
+
+async function sendCastReply(msg) {
+    if (!state.selected_session) return;
+    msg = String(msg || '').trim();
+    if (!msg) return;
+    refs.sendBtn.disabled = true;
+    const clientMsgId = uuidv4();
+    try {
+        const r = await api('cast-inbox-reply', {
+            inbox_token: CAST_INBOX_TOKEN,
+            session_id: state.selected_session.id,
+            message: msg,
+            client_msg_id: clientMsgId,
+            since_id: state.last_message_id
+        });
+        refs.input.value = '';
+        // respondOwnerBatch と同形なので applyOwnerBatch で反映可能
+        applyOwnerBatch(r, state.selected_session.id);
+    } catch (e) {
+        showError(e.message);
+    }
+    finally { refs.sendBtn.disabled = false; }
+}
+
+function startCastInboxPolling() {
+    stopPolling();
+    const tick = async () => {
+        try {
+            const sid = state.selected_session ? state.selected_session.id : null;
+            const params = { inbox_token: CAST_INBOX_TOKEN };
+            if (sid) { params.session_id = sid; params.since_id = state.last_message_id; }
+            const data = await api('cast-inbox', params, 'GET');
+            if (typeof data.notify_enabled !== 'undefined') {
+                state.notify_enabled = !!data.notify_enabled;
+                state.is_online = state.notify_enabled;
+                refs.onlineToggle.checked = state.notify_enabled;
+                updateStatusIndicator(state.notify_enabled);
+            }
+            if (sid && state.selected_session) {
+                // スレッド表示中: 新メッセージ/既読を反映
+                applyOwnerBatch({
+                    messages: data.messages || [],
+                    last_read_own_id: data.last_read_own_id,
+                    status: data.status
+                }, sid);
+            } else {
+                // 受信箱表示中: セッション一覧更新
+                state.inbox_sessions = data.sessions || [];
+                if (!refs.ownerInbox.classList.contains('hidden')) renderInbox();
+            }
+        } catch (_) { /* ignore transient errors */ }
+    };
+    const timer = setInterval(tick, INBOX_INTERVAL);
+    state._ownerSub = { stop: () => clearInterval(timer) };
+}
+
 // ===== ログインモーダル =====
 function openLoginModal() {
     refs.loginError.classList.add('hidden');
@@ -1711,6 +1893,7 @@ async function handleOwnerLogout() {
 refs.sendBtn.addEventListener('click', () => {
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
+    else if (state.mode === 'cast_owner') sendCastReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
 });
@@ -1791,7 +1974,16 @@ if (refs.emojiToggle) {
 refs.onlineToggle.addEventListener('change', async (e) => {
     const isOn = e.target.checked;
     try {
-        if (IS_CAST_VIEW) {
+        if (IS_CAST_INBOX) {
+            // キャスト自分用受信箱: URL-token auth で chat_notify_mode をトグル
+            await api('cast-inbox-toggle-notify', {
+                inbox_token: CAST_INBOX_TOKEN,
+                enabled: isOn ? 1 : 0
+            });
+            state.notify_enabled = isOn;
+            state.is_online = isOn;
+            updateStatusIndicator(isOn);
+        } else if (IS_CAST_VIEW) {
             // キャスト指名ビュー: URL-only auth で自分の chat_notify_mode をトグル
             await api('cast-url-toggle-notify', {
                 session_token: state.session_token,
@@ -1816,7 +2008,7 @@ refs.onlineToggle.addEventListener('change', async (e) => {
     }
 });
 
-refs.btnRefresh.addEventListener('click', () => showInbox());
+refs.btnRefresh.addEventListener('click', () => (IS_CAST_INBOX ? showCastInbox() : showInbox()));
 function backToInbox() {
     state.selected_session = null;
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
@@ -1827,8 +2019,11 @@ function backToInbox() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.castViewBanner) refs.castViewBanner.classList.add('hidden');
-    refs.shopName.textContent = state.shop_name;
-    showInbox();
+    refs.shopName.textContent = IS_CAST_INBOX
+        ? ((state.cast_name ? state.cast_name + ' — ' : '') + state.shop_name)
+        : state.shop_name;
+    if (IS_CAST_INBOX) showCastInbox();
+    else showInbox();
 }
 if (refs.btnHeaderBack) refs.btnHeaderBack.addEventListener('click', backToInbox);
 
@@ -1867,11 +2062,18 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
     if (!state.selected_session) return;
     if (!confirm(t('thread.closeConfirm'))) return;
     try {
-        await Transport.closeSession({
-            deviceToken: state.device_token,
-            sessionId: state.selected_session.id,
-            sessionToken: state.selected_session.session_token
-        });
+        if (IS_CAST_INBOX) {
+            await api('cast-inbox-close', {
+                inbox_token: CAST_INBOX_TOKEN,
+                session_id: state.selected_session.id
+            });
+        } else {
+            await Transport.closeSession({
+                deviceToken: state.device_token,
+                sessionId: state.selected_session.id,
+                sessionToken: state.selected_session.session_token
+            });
+        }
         state.selected_session.status = 'closed';
         refs.btnCloseSession.classList.add('hidden');
         // オーナー側にもシステムメッセージを表示
@@ -1918,6 +2120,8 @@ window.addEventListener('visibilitychange', () => {
         startVisitorPolling();
     } else if (state.mode === 'owner') {
         startInboxPolling();
+    } else if (state.mode === 'cast_owner') {
+        startCastInboxPolling();
     }
 });
 

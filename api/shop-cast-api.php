@@ -224,19 +224,19 @@ function handleInvite() {
             }
 
             if ($existingLink && $existingLink['status'] === 'removed') {
-                // 再招待: pending_approval に戻して承認日時もクリア
-                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, updated_at = NOW() WHERE id = ?')
-                    ->execute([$displayName, $existingLink['id']]);
+                // 再招待: pending_approval に戻して承認日時もクリア. inbox_token は再発行.
+                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, inbox_token = ?, updated_at = NOW() WHERE id = ?')
+                    ->execute([$displayName, genUuid(), $existingLink['id']]);
             } else {
-                $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, status) VALUES (?, ?, ?, ?, "pending_approval")')
-                    ->execute([genUuid(), $auth['shop_id'], $castId, $displayName]);
+                $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, inbox_token, status) VALUES (?, ?, ?, ?, ?, "pending_approval")')
+                    ->execute([genUuid(), $auth['shop_id'], $castId, $displayName, genUuid()]);
             }
         } else {
             $castId = genUuid();
             $pdo->prepare('INSERT INTO casts (id, email, status) VALUES (?, ?, "invited")')
                 ->execute([$castId, $email]);
-            $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, status) VALUES (?, ?, ?, ?, "pending_approval")')
-                ->execute([genUuid(), $auth['shop_id'], $castId, $displayName]);
+            $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, inbox_token, status) VALUES (?, ?, ?, ?, ?, "pending_approval")')
+                ->execute([genUuid(), $auth['shop_id'], $castId, $displayName, genUuid()]);
         }
 
         $token = bin2hex(random_bytes(32));
