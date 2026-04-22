@@ -3470,9 +3470,12 @@ function renderCastList(casts){
             : '';
         const notifyOn = (c.chat_notify_mode && c.chat_notify_mode !== 'off');
         const notifyToggle = (!isPending && c.status !== 'suspended')
-            ? '<label style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;user-select:none;" title="チャット通知メールのON/OFF">'
-                + '<input type="checkbox" ' + (notifyOn ? 'checked' : '') + ' onchange="toggleCastNotify(\'' + esc(c.id) + '\', this.checked, this)" style="accent-color:#059669;margin:0;cursor:pointer;">'
-                + '<span style="color:' + (notifyOn ? '#059669' : '#999') + ';font-weight:' + (notifyOn ? '700' : '400') + ';">🔔 通知</span>'
+            ? '<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;" title="チャット通知メールのON/OFF">'
+                + '<span class="cht-tg-label" style="font-size:12px;">🔔 通知</span>'
+                + '<span class="cht-tg-switch">'
+                    + '<input type="checkbox" ' + (notifyOn ? 'checked' : '') + ' onchange="toggleCastNotify(\'' + esc(c.id) + '\', this.checked)">'
+                    + '<span class="cht-tg-slider"></span>'
+                + '</span>'
               + '</label>'
             : '';
         return ''
@@ -3642,19 +3645,16 @@ async function resendCastInvite(inviteId){
     }
 }
 
-async function toggleCastNotify(id, enabled, inputEl){
-    const mode = enabled ? 'every' : 'off';
-    const label = inputEl && inputEl.parentElement ? inputEl.parentElement.querySelector('span') : null;
+async function toggleCastNotify(id, enabled){
     try {
-        await castApi('update', { id, chat_notify_mode: mode });
-        if (label) {
-            label.style.color = enabled ? '#059669' : '#999';
-            label.style.fontWeight = enabled ? '700' : '400';
-        }
+        await castApi('update', { id, chat_notify_mode: enabled ? 'every' : 'off' });
         toast(enabled ? '🔔 通知ONにしました' : '🔕 通知OFFにしました');
+        // 状態をDB値で同期: 再取得して再描画 (編集モーダルの select と常に一致させる)
+        await loadCastTab();
     } catch (e) {
-        if (inputEl) inputEl.checked = !enabled;
+        // 失敗時は再取得でUIを巻き戻す
         toast('⚠️ ' + e.message);
+        try { await loadCastTab(); } catch (_) {}
     }
 }
 

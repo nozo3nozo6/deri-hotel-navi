@@ -1418,6 +1418,9 @@ async function sendVisitorMessage(msg) {
 
 // キャストURL返信: /chat/{slug}/?cast=<shop_cast_id>&view=<session_token> の画面から
 // device_token 不要で chat-api の cast-url-reply へ送信 (サーバ側で cast_id 一致検証).
+// PHP INSERT 後、DO にも /owner/reply で通知して訪問者WSにブロードキャストさせる
+// (訪問者は DurableObjectTransport 接続中なので PHP 単独だと届かない).
+// DO→chat-sync.php は UNIQUE(session_id, client_msg_id) で冪等化されるため二重INSERTにはならない.
 async function sendCastReply(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
@@ -1435,6 +1438,14 @@ async function sendCastReply(msg) {
         // owner-reply と同じ形状の batch が返る. applyVisitorBatch は cast view の addMessage 分岐
         // (IS_CAST_VIEW で fromOwner=true 扱い) と整合するので流用可.
         applyVisitorBatch(resp);
+        // 訪問者 WS への配信: DO に broadcast させる (fire-and-forget).
+        // 失敗しても送信自体は成立しているので throw しない.
+        doFetch('/owner/reply', {
+            session_token: state.session_token,
+            message: msg,
+            client_msg_id: clientMsgId,
+            since_id: 0
+        }).catch(() => {});
     } catch (e) {
         showError(e.message);
     } finally {
@@ -2320,26 +2331,20 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応: visualViewport で #chat-root の位置・高さを動的調整 =====
+// ===== iOS キーボード対応: visualViewport で #chat-root の高さだけを動的調整 =====
 // body:fixed だと iOS が焦点移動で一瞬全画面スクロールする挙動が残るので採用しない。
+// 全体 translate も採用しない (画面が一瞬下→上に動く違和感が出る).
 //
-// iOS Safari の挙動:
-//   キーボード表示時、layout viewport は不動のまま visual viewport だけが
-//   下方向にスクロールする。html/body が overflow:hidden でも発生する。
-//   結果として #chat-root(layout 原点に配置) は視界の「上側」へ押し出されて見えなくなる。
-//
-// 対策:
+// 方針:
 //   --chat-vh : visual viewport の高さ → #chat-root の height
-//   --chat-vv-top : visual viewport の offsetTop → #chat-root の translateY
-//   この2つで #chat-root を「visual viewport の上端に常にピッタリ貼り付ける」。
+//   キーボードが出ると chat-root が縮む → 入力欄は flex 末端なので相対的にキーボード上端へ.
+//   ヘッダー・メッセージ領域は基本位置のまま. layout viewport が動いた場合は focusin で scrollTo(0,0) で復旧.
 function setupViewportTracker() {
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
     const apply = () => {
         const h = vv.height;
-        const top = vv.offsetTop || 0;
         document.documentElement.style.setProperty('--chat-vh', h + 'px');
-        document.documentElement.style.setProperty('--chat-vv-top', top + 'px');
     };
     vv.addEventListener('resize', apply);
     vv.addEventListener('scroll', apply);
