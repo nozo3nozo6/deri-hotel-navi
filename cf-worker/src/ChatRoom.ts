@@ -1143,14 +1143,16 @@ export class ChatRoom implements DurableObject {
    */
   private isOwnerViewingToken(token: string): boolean {
     if (!token) return false;
-    // 2026-04-23 ゼロ設計: last_view_at が 45s 以内でないと viewing 扱いしない.
-    // hibernation 復活後の stale attachment (blur 送信前にネット切断 → 永続化された古い値) を排除.
+    // 2026-04-23 (revised): last_view_at が付いていれば 45s 鮮度ゲート, 付いていなければ
+    // 旧 chat.js / 互換 WS なので viewing_session_token 一致のみで viewing とみなす.
+    // (鮮度ゲートを厳格化しすぎて既読が完全に止まるリグレッションを避ける)
     const fresh = Date.now() - 45_000;
     const owners = this.state.getWebSockets('role:owner');
     for (const ws of owners) {
       try {
         const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (a && a.viewing_session_token === token && (a.last_view_at || 0) >= fresh) return true;
+        if (!a || a.viewing_session_token !== token) continue;
+        if (!a.last_view_at || a.last_view_at >= fresh) return true;
       } catch (_) {}
     }
     return false;
@@ -1162,18 +1164,16 @@ export class ChatRoom implements DurableObject {
    */
   private isVisitorViewingToken(token: string): boolean {
     if (!token) return false;
-    // 2026-04-23 ゼロ設計: last_view_at が 45s 以内でないと viewing 扱いしない.
+    // 2026-04-23 (revised): last_view_at が付いていれば 45s 鮮度ゲート, 付いていなければ
+    // 旧 chat.js / 互換 WS なので viewing_session_token 一致のみで viewing とみなす.
     const fresh = Date.now() - 45_000;
     const visitors = this.state.getWebSockets('role:visitor');
     for (const ws of visitors) {
       try {
         const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (
-          a &&
-          a.session_token === token &&
-          a.viewing_session_token === token &&
-          (a.last_view_at || 0) >= fresh
-        ) return true;
+        if (!a) continue;
+        if (a.session_token !== token || a.viewing_session_token !== token) continue;
+        if (!a.last_view_at || a.last_view_at >= fresh) return true;
       } catch (_) {}
     }
     return false;
