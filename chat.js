@@ -1553,7 +1553,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=55', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=56', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -2734,6 +2734,12 @@ function renderInbox() {
         li.addEventListener('click', () => (IS_CAST_INBOX ? openCastThread(s.id) : openOwnerThread(s.id)));
         refs.inboxList.appendChild(li);
     }
+    // 上限30件の注釈: 受信箱は last_activity_at DESC LIMIT 30 なので
+    // 31件目以降の古いスレッドは表示されない. 見落とし防止の案内を末尾に出す.
+    const note = document.createElement('li');
+    note.className = 'inbox-limit-note';
+    note.textContent = t('inbox.limitNote');
+    refs.inboxList.appendChild(note);
 }
 
 async function openOwnerThread(sessionId) {

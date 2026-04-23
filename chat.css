@@ -103,6 +103,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .msg-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;padding-bottom:2px}
 .msg-row.shop .msg-meta{align-items:flex-start}
 .msg-avatar{width:32px;height:32px;border-radius:50%;background-size:cover;background-position:center;background-repeat:no-repeat;flex-shrink:0;align-self:flex-end;margin-bottom:2px;background-color:#e5e0d8}
+.inbox-limit-note{list-style:none;padding:10px 12px;text-align:center;color:#999;font-size:11px;border-top:1px dashed #e5e0d8;margin-top:4px}
 .msg-time{font-size:10px;opacity:.55;white-space:nowrap;color:#555;line-height:1}
 .msg-read{font-size:10px;color:var(--chat-primary);opacity:.85;white-space:nowrap;line-height:1}
 /* 楽観UI: 送信中は半透明, 失敗は赤枠+再送ボタン */
