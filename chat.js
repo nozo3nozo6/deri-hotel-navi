@@ -2381,9 +2381,10 @@ function startVisitorPolling() {
         getSinceId: () => state.last_message_id,
         onBatch: applyVisitorBatch
     });
-    // #2: 訪問者がフォアグラウンドで開いている間, DO に view signal を送る.
-    // shop メッセージ到着時に DO 側で即時既読化 + owner WS へ read push.
-    if (!document.hidden && state.session_token) {
+    // #2: 訪問者がフォアグラウンド かつ ウィンドウにフォーカスがある間だけ
+    // DO に view signal を送る. 別ウィンドウに隠れてるタブは既読対象外.
+    // (document.hidden だけではウィンドウ後ろ隠しを検出できない)
+    if (isWindowActive() && state.session_token) {
         try { state._visitorSub.setView && state._visitorSub.setView(state.session_token); } catch (_) {}
     }
 }
@@ -2656,7 +2657,9 @@ async function openOwnerThread(sessionId) {
     if (!state.selected_session) return;
     // B-1: DO にオーナー presence を通知 (自動既読トリガ).
     //   visitor からの新着は owner WS が受信 → この presence があれば DO が即時 read 反映.
-    if (state._ownerSub && state._ownerSub.setView && state.selected_session.session_token) {
+    //   ウィンドウにフォーカスが無い (別ウィンドウの裏など) 場合は既読対象外にするため setView しない.
+    //   フォーカス復帰時に focus リスナーが setView(token) を再送する.
+    if (state._ownerSub && state._ownerSub.setView && state.selected_session.session_token && isWindowActive()) {
         state._ownerSub.setView(state.selected_session.session_token);
     }
     refs.ownerInbox.classList.add('hidden');
@@ -3496,11 +3499,42 @@ window.addEventListener('pagehide', () => {
     if (_hadTypingValue) { emitTypingStop({ beacon: true }); _hadTypingValue = false; }
     sendOwnerGoOffline();
 });
+// 既読トリガ用のプレゼンス判定:
+// - document.hidden = false だけでは別ウィンドウの裏に隠れているタブを「表示中」扱いしてしまい、
+//   相手が実際に見ていないのに既読が付く (送信した瞬間既読になる) バグになる.
+// - document.hasFocus() 併用で「同じウィンドウが最前面にあるタブ」だけを viewing と判定.
+function isWindowActive() {
+    if (document.hidden) return false;
+    try { return typeof document.hasFocus === 'function' ? document.hasFocus() : true; }
+    catch (_) { return true; }
+}
+
+function updatePresenceFromActivity() {
+    const active = isWindowActive();
+    // 訪問者 presence
+    if (state._visitorSub && state._visitorSub.setView) {
+        try { state._visitorSub.setView(active && state.session_token ? state.session_token : null); } catch (_) {}
+    }
+    // オーナー presence (スレッド選択中のみ)
+    if (state._ownerSub && state._ownerSub.setView) {
+        const tok = state.selected_session && state.selected_session.session_token;
+        try { state._ownerSub.setView(active && tok ? tok : null); } catch (_) {}
+    }
+}
+
+// ウィンドウフォーカスの取得/喪失 (別ウィンドウへの切り替え) で presence を切り替える.
+// visibilitychange はタブ切替/最小化のみ、blur/focus は別ウィンドウへの移動もカバーする.
+window.addEventListener('blur', () => { updatePresenceFromActivity(); });
+window.addEventListener('focus', () => { updatePresenceFromActivity(); });
+
 window.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         // #2: 訪問者 presence を DO 側からクリア (WS close でも消えるが明示).
         if (state._visitorSub && state._visitorSub.setView) {
             try { state._visitorSub.setView(null); } catch (_) {}
+        }
+        if (state._ownerSub && state._ownerSub.setView) {
+            try { state._ownerSub.setView(null); } catch (_) {}
         }
         // #3: 画面が隠れた瞬間 typing 停止を相手に伝える.
         if (_hadTypingValue) { emitTypingStop({ beacon: true }); _hadTypingValue = false; }
@@ -3509,12 +3543,15 @@ window.addEventListener('visibilitychange', () => {
     } else if (state.mode === 'visitor' && state.session_token) {
         startVisitorPolling();
         flushOutbox();
+        updatePresenceFromActivity();
     } else if (state.mode === 'owner') {
         startInboxPolling();
         flushOutbox();
+        updatePresenceFromActivity();
     } else if (state.mode === 'cast_owner') {
         startCastInboxPolling();
         flushOutbox();
+        updatePresenceFromActivity();
     }
 });
 // ネットワーク復帰時に outbox を再試行 (オフライン→オンラインで失敗メッセージを自動リトライ)
