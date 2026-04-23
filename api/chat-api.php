@@ -480,6 +480,7 @@ try {
         case 'mark-read':       handleMarkRead(); break;
         case 'shop-status':     handleShopStatus(); break;
         case 'can-connect':     handleCanConnect(); break;
+        case 'cast-list-public':handleCastListPublic(); break;
         case 'translate':       handleTranslate(); break;
         case 'send':            handleUnifiedSend(); break;
         case 'set-typing':      handleSetTyping(); break;
@@ -981,6 +982,29 @@ function handleCanConnect() {
             'gender_mode' => $shop['gender_mode'] ?? 'men',
         ],
     ]);
+}
+
+// 店舗slugから公開用キャスト一覧を返す（埋込chat下部の指名プルダウン用）。
+// - 店舗が cast_enabled=1、キャスト本人が pending_approval 以外（active 相当）、未削除のみ
+// - 返却は id(shop_casts.id) と display_name のみ。プロフィール画像等は含めない軽量レスポンス
+function handleCastListPublic() {
+    $slug = trim((string)inp('slug', ''));
+    if ($slug === '') err('slug required');
+    $shop = getShopBySlug($slug);
+    if (!$shop) { ok(['casts' => []]); }
+    if ((int)($shop['cast_enabled'] ?? 0) !== 1) { ok(['casts' => []]); }
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        "SELECT sc.id, c.display_name
+         FROM shop_casts sc
+         JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.shop_id = ? AND sc.deleted_at IS NULL
+           AND sc.status = 'active' AND c.status = 'active'
+         ORDER BY sc.sort_order ASC, c.display_name ASC"
+    );
+    $stmt->execute([$shop['id']]);
+    $casts = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    ok(['casts' => $casts]);
 }
 
 function handleShopStatus() {

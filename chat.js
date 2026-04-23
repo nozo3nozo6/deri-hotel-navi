@@ -3810,6 +3810,47 @@ if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     setTimeout(() => showNetworkBanner('offline', t('net.offline') || '📡 オフライン — 接続を待っています'), 100);
 }
 
+// ===== 埋込時の直リンク/キャスト指名フッター =====
+// iframe で埋め込まれている時だけ、chat 下部に「直リンクはこちら ↗」と
+// キャスト指名プルダウンを表示する。どちらも _blank で chat.html を標準ページとして開く。
+// スマホは embed 親スニペットで iframe→ボタン差替されるため、このフッターは主にデスクトップで見える。
+function setupEmbedDirectLinkFooter() {
+    if (!isEmbedded()) return;
+    const el = document.getElementById('embed-direct-link');
+    if (!el) return;
+    const anchor = document.getElementById('embed-direct-link-anchor');
+    // ?cast=&view=... 等の特殊モードでは出さない
+    if (CAST_ID || location.search.includes('cast_inbox=') || location.search.includes('owner=')) return;
+    const directUrl = location.origin + '/chat/' + encodeURIComponent(SLUG) + '/';
+    if (anchor) anchor.href = directUrl;
+    el.classList.remove('hidden');
+
+    // キャスト一覧を chat-api から取得してプルダウンに流し込む（cast 有効店舗のみ）
+    const picker = document.getElementById('embed-cast-picker');
+    const select = document.getElementById('embed-cast-select');
+    if (!picker || !select) return;
+    fetch('/api/chat-api.php?action=cast-list-public&slug=' + encodeURIComponent(SLUG), {
+        credentials: 'omit'
+    }).then(r => r.ok ? r.json() : null).then(data => {
+        if (!data || !Array.isArray(data.casts) || !data.casts.length) return;
+        data.casts.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.display_name || '';
+            select.appendChild(opt);
+        });
+        picker.classList.remove('hidden');
+        select.addEventListener('change', () => {
+            const id = select.value;
+            if (!id) return;
+            const url = directUrl + '?cast=' + encodeURIComponent(id);
+            window.open(url, '_blank', 'noopener');
+            select.value = '';
+        });
+    }).catch(() => {});
+}
+setupEmbedDirectLinkFooter();
+
 // ===== 親iframeへの高さ通知（埋込時のみ） =====
 // chat.html が iframe で埋め込まれた際、親ページが iframe の高さを中身に追従させられるよう
 // ResizeObserver で body の高さを監視し、変化時に postMessage で通知する。

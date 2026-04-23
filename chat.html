@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=90">
+<link rel="stylesheet" href="/chat.css?v=91">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -151,6 +151,18 @@
 
   </div>
 
+  <!-- 埋込時のみ: 直リンク誘導（iframeで動作不調時のフォールバック） -->
+  <div id="embed-direct-link" class="embed-direct-link hidden">
+    <span class="embed-direct-link-label">うまく動かない場合は</span>
+    <a id="embed-direct-link-anchor" href="#" target="_blank" rel="noopener" class="embed-direct-link-anchor">直リンクはこちら ↗</a>
+    <div id="embed-cast-picker" class="embed-cast-picker hidden">
+      <label for="embed-cast-select" class="embed-cast-label">💁 キャスト指名:</label>
+      <select id="embed-cast-select" class="embed-cast-select">
+        <option value="">選択…</option>
+      </select>
+    </div>
+  </div>
+
   <div id="chat-footer" class="chat-footer">
     <select id="lang-select" class="lang-select" aria-label="言語">
       <option value="ja">🇯🇵 日本語入力</option>
@@ -204,6 +216,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=123"></script>
+<script src="/chat.js?v=124"></script>
 </body>
 </html>
