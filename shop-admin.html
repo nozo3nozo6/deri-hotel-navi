@@ -2989,37 +2989,21 @@ function renderChatAdmin(data){
     // postMessage 高さ調整コードのみ埋込タイプごとに別管理（高さ指示時のみ触る）。
     const shopNameRaw = (data.shop_name || '').replace(/-->/g, '--&gt;');
     const tag = shopNameRaw ? (shopNameRaw + '専用 (slug: ' + slug + ')') : ('slug: ' + slug);
-    const iframeId = 'ychat-frame-' + slug.replace(/[^a-z0-9\-]/g, '');
 
     // ① script: chat-widget.js が iframe を右下フローティングで注入（モーダル開閉付き）
     const scriptCode = '<script src="https://yobuho.com/chat-widget.js" data-slug="' + slug + '" async><\/script>';
 
-    // ② iframe: 静的 iframe + 高さ自動調整（chat.html からの postMessage 受信）
-    // ychat:resize → iframe 高さを中身に追従
-    // ychat:input-focus → iOSキーボード表示時に iframe 末尾を画面内へ（親ページ側のスクロール制御）
-    // ychat:enter-fullscreen / ychat:exit-fullscreen → タッチ端末で入力開始/閉じる時に iframe を一時全画面化
-    //   （iOS iframe のキーボード座標系問題を回避。直URLと同じ UX を埋込内で提供）
-    const resizeSnippet = function(frameId, min, max, url) {
-        return '<script>\n' +
-            '(function(){var f=document.getElementById(\'' + frameId + '\');if(!f)return;\n' +
-            'var saved=null;\n' +
-            'function enter(){if(saved)return;saved={style:f.getAttribute(\'style\')||\'\',bodyOverflow:document.body.style.overflow,htmlOverflow:document.documentElement.style.overflow};\n' +
-            'f.style.cssText=\'position:fixed;inset:0;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;z-index:2147483647;background:#fff;\';\n' +
-            'document.body.style.overflow=\'hidden\';document.documentElement.style.overflow=\'hidden\';}\n' +
-            'function exit(){if(!saved)return;f.setAttribute(\'style\',saved.style);document.body.style.overflow=saved.bodyOverflow||\'\';document.documentElement.style.overflow=saved.htmlOverflow||\'\';saved=null;}\n' +
-            'window.addEventListener(\'message\',function(e){if(e.source!==f.contentWindow)return;var d=e.data;if(!d)return;\n' +
-            'if(d.type===\'ychat:resize\'){if(saved)return;var h=Math.max(' + min + ',Math.min(' + max + ',d.h|0));f.style.height=h+\'px\';return;}\n' +
-            'if(d.type===\'ychat:input-focus\'){if(saved)return;try{f.scrollIntoView({block:\'end\',behavior:\'smooth\'});}catch(_){f.scrollIntoView(false);}return;}\n' +
-            'if(d.type===\'ychat:enter-fullscreen\'){enter();return;}\n' +
-            'if(d.type===\'ychat:exit-fullscreen\'){exit();return;}\n' +
-            '});\n' +
-            'window.addEventListener(\'pagehide\',exit);\n' +
-            '})();\n' +
-            '<\/script>';
-    };
+    // ② iframe: 静的 iframe + 外部スクリプト chat-embed.js が postMessage を処理
+    // 外部スクリプト方式の利点:
+    //   - inline script なし → 顧客CMS の description auto-extraction を汚染しない
+    //   - chat-embed.js はサーバー配信（1時間 revalidate）なので改良が全埋込先に自動反映
+    //   - data-ychat-slug/min/max 属性で設定を iframe 側に明示。script 差替え不要
+    // chat-embed.js が受けるメッセージ:
+    //   ychat:resize / input-focus / enter-fullscreen / exit-fullscreen
+    const embedBridgeTag = '<script src="https://yobuho.com/chat-embed.js" async><\/script>';
     const iframeCode =
-        '<iframe id="' + iframeId + '" src="' + publicUrl + '?embed=1" style="width:100%;max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;" title="お問い合わせチャット"><\/iframe>\n' +
-        resizeSnippet(iframeId, 500, 900, publicUrl);
+        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:100%;max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;" title="お問い合わせチャット"><\/iframe>\n' +
+        embedBridgeTag;
 
     // ③ link: 別タブで /chat/slug/ を開くシンプルリンク
     const linkCode = '<a href="' + publicUrl + '" target="_blank" rel="noopener" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#9b2d35,#7a1f27);color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;box-shadow:0 3px 10px rgba(0,0,0,.2);">💬 チャットで問い合わせる<\/a>';
@@ -3027,13 +3011,13 @@ function renderChatAdmin(data){
     // ④ floating: 別タブで /chat/slug/ を開く浮動リンク
     const floatingCode = '<a href="' + publicUrl + '" target="_blank" rel="noopener" style="position:fixed;right:16px;bottom:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#9b2d35,#7a1f27);color:#fff;text-decoration:none;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.22);z-index:9999;" aria-label="チャット">💬<\/a>';
 
-    // ⑤ CMS用インライン: iframe + 高さ調整。iframe許可CMS（ほぼ全て）で動く。
+    // ⑤ CMS用インライン: iframe + 外部スクリプト bridge。② と同じ外部 script 方式。
+    // inline script なしなので CMS の description auto-extraction を汚染しない。
     // script が貼れない極稀なCMS向けに legacy 版（固定高さ iframe のみ）を details 内に別提供。
-    const cmsIframeId = iframeId + '-cms';
     const cmsCode =
         '<!-- YobuChat — ' + tag + ' -->\n' +
-        '<iframe id="' + cmsIframeId + '" src="' + publicUrl + '?embed=1" style="width:100%;max-width:100%;height:640px;border:0;display:block;background:#fff;" title="お問い合わせチャット"><\/iframe>\n' +
-        resizeSnippet(cmsIframeId, 500, 900, publicUrl) + '\n' +
+        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:100%;max-width:100%;height:640px;border:0;display:block;background:#fff;" title="お問い合わせチャット"><\/iframe>\n' +
+        embedBridgeTag + '\n' +
         '<!-- /YobuChat -->';
 
     // 旧版（script 禁止 CMS 用・固定高さ、高さ自動調整なし）
