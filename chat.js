@@ -72,6 +72,10 @@ const CAST_INBOX_TOKEN = getCastInboxToken();
 const RESUME_TOKEN = getResumeToken();
 const IS_CAST_VIEW = !!(CAST_ID && VIEW_TOKEN);
 const IS_CAST_INBOX = !!CAST_INBOX_TOKEN;
+// キャストモード (view / inbox) は入力中の非表示ルールを viewport 問わず適用するため body クラスで識別.
+if (IS_CAST_VIEW || IS_CAST_INBOX) {
+    try { document.body.classList.add('cast-mode'); } catch (_) {}
+}
 if (!SLUG) {
     document.getElementById('chat-root').innerHTML = '<div style="padding:40px;text-align:center;color:#888;">チャットURLが不正です</div>';
     return;

@@ -284,6 +284,16 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
   body.chat-input-focused #chat-footer{display:none}
 }
 
+/* ===== キャストモード: viewport 問わず入力中は画面を広く ===== */
+/* キャストは iframe 埋込/PC返信 etc で viewport が 480px超になるケースがあるため @media 外で適用. */
+body.cast-mode.chat-input-focused #visitor-notify,
+body.cast-mode.chat-input-focused #nickname-area,
+body.cast-mode.chat-input-focused #reservation-hint,
+body.cast-mode.chat-input-focused #visitor-note,
+body.cast-mode.chat-input-focused #cast-view-banner,
+body.cast-mode.chat-input-focused #owner-templates,
+body.cast-mode.chat-input-focused #chat-footer{display:none}
+
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
 .footer-brand{margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 10px;border-radius:14px;font-size:11px;color:#6b5a50;text-decoration:none;background:transparent;transition:background .15s,color .15s;line-height:1.25}
 .footer-brand:hover{background:#f0ede7}
