@@ -170,6 +170,7 @@ const refs = {
     visitorNotifySave: $('visitor-notify-save'),
     visitorNotifyStatus: $('visitor-notify-status'),
     visitorNotifyResend: $('visitor-notify-resend'),
+    visitorNotifyEdit: $('visitor-notify-edit'),
 };
 
 // ===== ユーティリティ =====
@@ -1395,7 +1396,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=54', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=55', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -1856,6 +1857,14 @@ function hydrateVisitorNotify({ email, enabled, verified, pending }) {
         const showResend = enabled && email && !verified && pending;
         refs.visitorNotifyResend.classList.toggle('hidden', !showResend);
     }
+
+    // 匿名感の維持: verified 済みはメール入力欄を畳んで「変更」リンクだけ残す.
+    // これによりチャット画面に自分のメールアドレスが常時表示されなくなる.
+    if (refs.visitorNotify && refs.visitorNotifyEdit) {
+        const collapse = !!(enabled && verified && email);
+        refs.visitorNotify.classList.toggle('verified-collapsed', collapse);
+        refs.visitorNotifyEdit.classList.toggle('hidden', !collapse);
+    }
 }
 
 async function resendVisitorEmailVerify() {
@@ -2104,9 +2113,9 @@ function updateReadMarkers() {
     // 全行に 既読 を付ける旧実装 (id <= threshold) は冗長で画面が汚れるため廃止.
     // 受信者が順次読む → 最新の既読msgへマーカーが移動する挙動になる.
     //
-    // 自分側のクラス: visitor モードは 'visitor', owner/cast_owner は 'shop' として描画.
-    const isOwnerSide = state.mode === 'owner' || state.mode === 'cast_owner';
-    const ownClass = isOwnerSide ? 'shop' : 'visitor';
+    // 自分側のクラスは viewer 役割に関わらず常に POS_SELF.
+    // renderAs は「位置クラス」統一 (POS_SELF='visitor'=右/自分, POS_OTHER='shop'=左/相手).
+    const ownClass = POS_SELF;
     const threshold = state.last_read_own_id || 0;
     const rows = refs.chatMessages.querySelectorAll('.msg-row.' + ownClass);
     // 1) まず全行から既読マーカーを除去
@@ -3128,6 +3137,14 @@ if (refs.visitorNotifySave) {
 }
 if (refs.visitorNotifyResend) {
     refs.visitorNotifyResend.addEventListener('click', resendVisitorEmailVerify);
+}
+if (refs.visitorNotifyEdit) {
+    refs.visitorNotifyEdit.addEventListener('click', () => {
+        // verified-collapsed を解除してメール入力欄を再表示.
+        if (refs.visitorNotify) refs.visitorNotify.classList.remove('verified-collapsed');
+        refs.visitorNotifyEdit.classList.add('hidden');
+        if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.focus();
+    });
 }
 if (refs.visitorNotifyEmail) {
     refs.visitorNotifyEmail.addEventListener('keydown', (e) => {
