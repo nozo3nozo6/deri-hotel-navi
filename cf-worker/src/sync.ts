@@ -59,6 +59,37 @@ export class MysqlSync {
     });
   }
 
+  /**
+   * adopt 時のリロード空白バグ対策: DO storage 空で既存 token が来た時に
+   * MySQL から履歴を取り寄せて DO storage に backfill する.
+   * 返り値: { messages: [{id, sender_type, message, client_msg_id?, sent_at, read_at?, nickname?}],
+   *          session: {nickname, status, blocked, started_at, last_activity_at, closed_at, cast_id} | null }
+   */
+  async fetchHistory(sessionToken: string): Promise<{ messages: any[]; session: any } | null> {
+    if (!this.secret) return null;
+    const url = `${this.baseUrl}/api/chat-sync.php?action=get-history`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Sync-Secret': this.secret,
+        },
+        body: JSON.stringify({ session_token: sessionToken }),
+      });
+      if (!res.ok) {
+        console.warn(`chat-sync(get-history) returned ${res.status}`);
+        return null;
+      }
+      const data = await res.json() as any;
+      if (!data?.ok) return null;
+      return { messages: Array.isArray(data.messages) ? data.messages : [], session: data.session || null };
+    } catch (e) {
+      console.error('chat-sync(get-history) failed', e);
+      return null;
+    }
+  }
+
   private async post(action: string, payload: Record<string, unknown>): Promise<void> {
     if (!this.secret) {
       console.warn('CHAT_SYNC_SECRET not set, skipping mirror');

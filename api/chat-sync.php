@@ -63,6 +63,9 @@ try {
         case 'mark-read':
             handleMarkRead($pdo, $body);
             break;
+        case 'get-history':
+            handleGetHistory($pdo, $body);
+            exit; // 独自レスポンス
         default:
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'unknown_action']);
@@ -180,6 +183,59 @@ function handleMarkRead(PDO $pdo, array $body): void {
     ");
     $nowStr = mysqlDatetime('now');
     $stmt->execute([$nowStr, $token, $target, $upTo]);
+}
+
+/**
+ * DO が空スナップショットになるのを救う. adopt 時に過去メッセージを一括返却.
+ * - セッションが存在しなければ messages=[] を返す (ok=true)
+ * - messages は sent_at 昇順, MySQL の id をそのまま渡す (DO 側が storage key に使う)
+ * - nickname はセッション行の最新値を全 visitor メッセージに付与
+ */
+function handleGetHistory(PDO $pdo, array $body): void {
+    $token = (string)($body['session_token'] ?? '');
+    if (!$token) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'missing_fields']);
+        return;
+    }
+
+    $s = $pdo->prepare('SELECT id, nickname, status, blocked, started_at, last_activity_at, closed_at, cast_id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $s->execute([$token]);
+    $row = $s->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        echo json_encode(['ok' => true, 'messages' => [], 'session' => null]);
+        return;
+    }
+
+    $stmt = $pdo->prepare('
+        SELECT id, sender_type, message, client_msg_id, sent_at, read_at
+        FROM chat_messages
+        WHERE session_id = ?
+        ORDER BY id ASC
+        LIMIT 1000
+    ');
+    $stmt->execute([(int)$row['id']]);
+    $messages = [];
+    while ($m = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $m['id'] = (int)$m['id'];
+        if ($m['sender_type'] === 'visitor' && !empty($row['nickname'])) {
+            $m['nickname'] = (string)$row['nickname'];
+        }
+        $messages[] = $m;
+    }
+    echo json_encode([
+        'ok' => true,
+        'messages' => $messages,
+        'session' => [
+            'nickname' => $row['nickname'] ?? '',
+            'status' => $row['status'] ?? 'open',
+            'blocked' => (int)($row['blocked'] ?? 0),
+            'started_at' => $row['started_at'] ?? null,
+            'last_activity_at' => $row['last_activity_at'] ?? null,
+            'closed_at' => $row['closed_at'] ?? null,
+            'cast_id' => $row['cast_id'] ?? null,
+        ],
+    ]);
 }
 
 /**

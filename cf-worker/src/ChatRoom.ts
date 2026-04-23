@@ -173,6 +173,84 @@ export class ChatRoom implements DurableObject {
     return stub;
   }
 
+  /**
+   * リロード時の空白バグ対策:
+   * DO storage に session が無い (hibernate退避後 / 再デプロイ後 / 古い MySQL-only セッション) 状態で
+   * client が既存 token を持って戻ってきた時、PHP 経由で MySQL の履歴を取り寄せて
+   * DO storage に書き戻す. 併せて msg_counter を MySQL 最大 id まで引き上げ,
+   * 以降 DO が発行する id が MySQL id と衝突しないようにする.
+   *
+   * 冪等: 既に DO storage に同じ id が入っていればスキップ (read_at 保持).
+   * 失敗: ネットワークエラー等は warn のみで握り潰し, 空の storage で継続.
+   */
+  private async backfillFromMysql(sess: ChatSession): Promise<void> {
+    const hist = await this.sync.fetchHistory(sess.session_token);
+    if (!hist || !hist.messages || !hist.messages.length) {
+      // MySQL 側にも履歴が無い → 何もしない (普通の新規同等)
+      if (hist?.session) {
+        // セッション自体のメタデータは反映 (nickname/status 等)
+        this.applyMysqlSessionMeta(sess, hist.session);
+        await this.state.storage.put(`session:${sess.id}`, sess);
+        await this.state.storage.put(`session_by_token:${sess.session_token}`, sess.id);
+      }
+      return;
+    }
+
+    let maxId = 0;
+    for (const row of hist.messages) {
+      const mid = Number(row.id || 0);
+      if (mid <= 0) continue;
+      const existing = await this.state.storage.get<ChatMessage>(`message:${sess.id}:${mid}`);
+      const mirrored: ChatMessage = {
+        id: mid,
+        session_id: sess.id,
+        sender_type: row.sender_type === 'shop' ? 'shop' : 'visitor',
+        message: String(row.message || ''),
+        client_msg_id: row.client_msg_id ? String(row.client_msg_id) : undefined,
+        sent_at: String(row.sent_at || new Date().toISOString()),
+        read_at: row.read_at || existing?.read_at || null,
+      };
+      await this.state.storage.put(`message:${sess.id}:${mid}`, mirrored);
+      if (mirrored.client_msg_id) {
+        await this.state.storage.put(`cmid:${sess.id}:${mirrored.client_msg_id}`, mid);
+      }
+      if (mid > maxId) maxId = mid;
+      if (mirrored.sent_at > sess.last_activity_at) sess.last_activity_at = mirrored.sent_at;
+      // 最新 visitor msg の nickname をセッションに反映
+      if (row.sender_type === 'visitor' && row.nickname && !sess.nickname) {
+        sess.nickname = String(row.nickname);
+      }
+    }
+
+    // counter を MySQL 最大 id に合わせて以降の衝突を回避
+    if (maxId > 0) {
+      const curCounter = (await this.state.storage.get<number>(`msg_counter:${sess.id}`)) || 0;
+      if (maxId > curCounter) {
+        await this.state.storage.put(`msg_counter:${sess.id}`, maxId);
+      }
+    }
+
+    // セッション側のメタ (status/blocked 等) も MySQL と合わせる
+    if (hist.session) {
+      this.applyMysqlSessionMeta(sess, hist.session);
+    }
+    await this.state.storage.put(`session:${sess.id}`, sess);
+    await this.state.storage.put(`session_by_token:${sess.session_token}`, sess.id);
+  }
+
+  private applyMysqlSessionMeta(sess: ChatSession, meta: any): void {
+    if (meta.nickname && !sess.nickname) sess.nickname = String(meta.nickname);
+    if (meta.status === 'closed' && sess.status !== 'closed') {
+      sess.status = 'closed';
+      if (meta.closed_at) sess.closed_at = String(meta.closed_at);
+    }
+    if (meta.blocked) sess.blocked = true;
+    if (meta.started_at && !sess.started_at) sess.started_at = String(meta.started_at);
+    if (meta.last_activity_at && meta.last_activity_at > sess.last_activity_at) {
+      sess.last_activity_at = String(meta.last_activity_at);
+    }
+  }
+
   // ========== Message CRUD ==========
 
   private async saveMessage(sessionId: number, m: ChatMessage): Promise<void> {
@@ -209,7 +287,10 @@ export class ChatRoom implements DurableObject {
   // ========== HTTP handlers ==========
 
   private async httpStartSession(body: any): Promise<Response> {
-    const token: string = body.session_token || crypto.randomUUID();
+    // client が既存 token を送ってきた時のみ「adopt リクエスト」扱い.
+    // token 無し = 完全新規セッション → MySQL backfill 不要.
+    const clientProvidedToken = typeof body.session_token === 'string' && body.session_token.length > 0;
+    const token: string = clientProvidedToken ? body.session_token : crypto.randomUUID();
     const visitorHash: string = body.visitor_hash || '';
     const nickname: string = body.nickname || '';
     const lang: string = body.lang || 'ja';
@@ -249,6 +330,13 @@ export class ChatRoom implements DurableObject {
         cast_name: castInfo.cast_name || null,
       };
       await this.saveSession(sess);
+
+      // クライアントが既存 token を持って戻ってきた場合 (= リロード) は
+      // MySQL 側に履歴があり得る. DO storage が空のままだと WS snapshot が
+      // 空配列を返して画面が真っ白になるため, backfill して DO ↔ MySQL を揃える.
+      if (clientProvidedToken) {
+        await this.backfillFromMysql(sess);
+      }
     } else if (castInfo.cast_id && !sess.cast_id) {
       // retrofit: 既存セッションに cast 情報を付与
       sess.shop_cast_id = castInfo.shop_cast_id || null;
