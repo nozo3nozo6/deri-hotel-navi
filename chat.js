@@ -3856,49 +3856,46 @@ setupEmbedDirectLinkFooter();
 // 直 URL と同じにならない。モバイルでは入力開始時に親 iframe を全画面化し、直 URL と同じ UX を提供する。
 // 親側スニペットは postMessage を受けて iframe を position:fixed;inset:0;z-index:max 化する。
 // デスクトップ (hover:hover) では発動しない（従来どおり埋込サイズで表示）。
-(function setupFullscreenEmbed() {
+// スマホ embed: iframe 内の入力欄タップ時は直URL（standalone）を新タブで開く。
+// iframe + iOS キーボードはコントロール不能な箇所が多く、直URL は既に完動するため
+// そちらへ誘導するのが唯一確実な解。session_token は yobuho.com の localStorage に入っているので
+// 新タブで開いた standalone ページは自動的にセッションを復帰できる（同一オリジン）。
+(function setupMobileEmbedDirectLink() {
     if (!isEmbedded()) return;
     if (typeof window.matchMedia !== 'function') return;
     const isTouch = window.matchMedia('(pointer:coarse)').matches;
     const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-    if (!isTouch || isDesktop) return;
+    if (!isTouch || isDesktop) return; // スマホのみ
 
-    let fullscreenOn = false;
-    const enter = () => {
-        if (fullscreenOn) return;
-        fullscreenOn = true;
-        document.body.classList.add('fullscreen-embed');
-        try { window.parent.postMessage({ type: 'ychat:enter-fullscreen', slug: SLUG }, '*'); } catch (_) {}
-    };
-    const exit = () => {
-        if (!fullscreenOn) return;
-        fullscreenOn = false;
-        document.body.classList.remove('fullscreen-embed');
-        try { window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*'); } catch (_) {}
+    const openDirect = () => {
+        try {
+            const url = location.origin + '/chat/' + encodeURIComponent(SLUG) + '/';
+            window.open(url, '_blank', 'noopener');
+        } catch (_) {}
+        // iframe 側は blur してキーボードを収めておく
+        try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (_) {}
     };
 
-    // 入力欄 focus で enter. document-level focusin(capture) で全 input/textarea を拾う
-    // (iOS manualFocus path や nickname-input 等、refs.input 以外でも確実に発火させる)
-    const fsInputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
-    document.addEventListener('focusin', (e) => {
+    const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+
+    // touchend で open() を呼ぶ必要がある（iOS の popup blocker はユーザー手勢中のみ window.open を許可）
+    // focusin だと focus が async で遅延発火するため popup blocker に引っかかる
+    document.addEventListener('touchend', (e) => {
         if (!e.target || !e.target.matches) return;
-        if (e.target.matches(fsInputSelector)) enter();
-    }, true);
+        if (e.target.matches(inputSelector)) {
+            e.preventDefault(); // focus 自体を止める（キーボードを立ち上げない）
+            openDirect();
+        }
+    }, { capture: true, passive: false });
 
-    // ✕ ボタン tap で exit
-    const btnExit = document.getElementById('btn-fullscreen-exit');
-    if (btnExit) {
-        btnExit.addEventListener('click', (e) => {
+    // 保険: click 時にも発火（タッチ以外の発火経路対策）
+    document.addEventListener('click', (e) => {
+        if (!e.target || !e.target.matches) return;
+        if (e.target.matches(inputSelector)) {
             e.preventDefault();
-            try { if (refs.input) refs.input.blur(); } catch (_) {}
-            exit();
-        });
-    }
-
-    // Esc で exit（ハードウェアキーボード接続時用）
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && fullscreenOn) exit();
-    });
+            openDirect();
+        }
+    }, true);
 })();
 
 // ===== iOS キーボード対応 (LINE方式) =====
