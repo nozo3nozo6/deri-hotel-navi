@@ -24,6 +24,11 @@ a{color:var(--chat-primary);text-decoration:none}
    - offsetTop/transition/top 変更は全て禁止 (keyboard アニメと二重化するため). */
 #chat-root{position:fixed;top:8px;left:8px;right:8px;display:flex;flex-direction:column;height:calc(100svh - 16px - var(--kb-h, 0px));max-height:calc(100svh - 16px - var(--kb-h, 0px));overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transform:translate3d(0,0,0);contain:layout style}
 @media (max-width:480px){#chat-root{top:4px;left:4px;right:4px;height:calc(100svh - 8px - var(--kb-h, 0px));max-height:calc(100svh - 8px - var(--kb-h, 0px));border-radius:10px}}
+/* 埋込時 (iframe内) は iOS Safari の svh 振舞いが不安定なため、
+   JSで vv.height を --embed-h に直読みしてそれを使う.
+   iframe 自体がコンテナなので余白/角丸/影は不要. */
+body.embedded #chat-root{top:0;left:0;right:0;bottom:auto;margin:0;width:100%;height:var(--embed-h, 100%);max-height:var(--embed-h, 100%);border:0;border-radius:0;box-shadow:none}
+@media (max-width:480px){body.embedded #chat-root{top:0;left:0;right:0;height:var(--embed-h, 100%);max-height:var(--embed-h, 100%);border-radius:0}}
 .hidden{display:none!important}
 
 /* ===== ヘッダー ===== */

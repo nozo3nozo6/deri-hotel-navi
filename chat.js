@@ -3911,9 +3911,17 @@ setupEmbedDirectLinkFooter();
     let isClosing = false;
     let closingTimer = null;
     let keyboardOpen = false;
+    const embedded = isEmbedded();
+    // 埋込時は body.embedded を付け、chat-root の高さを vv.height 直読みで制御する.
+    // iframe 内では 100svh が iframe 初期高さに張り付く iOS 挙動があり、
+    // 100svh - kb-h の計算式が破綻する (keyboard 開でヘッダーしか残らない症状).
+    if (embedded) document.body.classList.add('embedded');
 
     const setKbH = (px) => {
         docEl.style.setProperty('--kb-h', px + 'px');
+    };
+    const setEmbedH = (px) => {
+        docEl.style.setProperty('--embed-h', px + 'px');
     };
     const scrollMessagesToBottom = () => {
         // キーボード開閉で chat-messages の高さが変わった直後に最下部へ. LINE UX.
@@ -3930,12 +3938,21 @@ setupEmbedDirectLinkFooter();
     };
     const applyKbH = () => {
         if (isClosing) return;
-        // keyboard 高さ = layout viewport - visual viewport (Android/iOS 共通で成立).
+        // 埋込時は vv.height を直接 --embed-h に流すだけ (svh 式を使わない).
+        if (embedded) {
+            const h = vv ? vv.height : window.innerHeight;
+            setEmbedH(h);
+            const kb0 = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+            const wasOpen = keyboardOpen;
+            keyboardOpen = kb0 > 0;
+            if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
+            return;
+        }
+        // 直URL: 従来通り kb-h を計算.
         const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
         setKbH(kb);
         const wasOpen = keyboardOpen;
         keyboardOpen = kb > 0;
-        // キーボード開いた瞬間に最新メッセージが入力欄に隠れて見える問題を即解消.
         if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
     };
     applyKbH();
@@ -3943,11 +3960,13 @@ setupEmbedDirectLinkFooter();
     if (vv) {
         // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火、同期更新で 1:1 追従.
         vv.addEventListener('resize', applyKbH);
+        if (embedded) vv.addEventListener('scroll', applyKbH);
     }
     window.addEventListener('orientationchange', () => setTimeout(() => {
         isClosing = false;
         applyKbH();
     }, 200));
+    if (embedded) window.addEventListener('resize', applyKbH);
 
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
