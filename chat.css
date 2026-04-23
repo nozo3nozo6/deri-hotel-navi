@@ -222,9 +222,10 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .template-btn-title{font-weight:700;margin-right:4px;font-size:12px;color:var(--chat-primary)}
 
 /* ===== ニックネーム ===== */
-.nickname-area{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border-top:1px solid #e5e0d8}
+.nickname-area{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;border-top:1px solid #e5e0d8;flex-wrap:wrap}
 .nickname-label{font-size:11px;color:#888;flex-shrink:0}
-.nickname-input{flex:1;padding:6px 10px;border:1px solid var(--chat-quick-border);border-radius:14px;font-size:16px;background:#fafafa}
+.nickname-input{flex:1 1 160px;padding:6px 10px;border:1px solid var(--chat-quick-border);border-radius:14px;font-size:16px;background:#fafafa;min-width:0}
+@media (max-width:480px){.nickname-area .visitor-notify-inline{flex-basis:100%;justify-content:flex-end;order:2}}
 .nickname-input:focus{outline:none;border-color:var(--chat-primary);background:#fff}
 .nickname-input.locked{background:#f3efe8;color:#6a6256;cursor:not-allowed;border-style:dashed}
 .nickname-input.locked:focus{background:#f3efe8;border-color:var(--chat-quick-border)}

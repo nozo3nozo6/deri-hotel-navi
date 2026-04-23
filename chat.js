@@ -3805,11 +3805,17 @@ setupEmbedResizeNotifier();
 // ===== iOS キーボード対応 =====
 // CSS の 100dvh (dynamic viewport height) が iOS Safari 16.4+ / Chrome で visual viewport に自動追従するため、
 // visualViewport.resize で --chat-vh を手動更新する方式は廃止 (20-30 回/動作 発火してパタつく).
-// 唯一残す処理: 入力欄にフォーカスが戻った時に、メッセージ末尾が見えるよう scrollTop を調整する.
+//
+// ただし iOS は input フォーカス時に layout viewport を自動スクロール (入力欄を画面内に収めようとする) ため、
+// html/body が overflow:hidden でもチャット全体が画面上方向にズレてヘッダー/履歴が見えなくなる.
+// → focusin で window.scrollTo(0, 0) で即座に復帰.
 document.addEventListener('focusin', (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
+    // iOS の focus 自動スクロールより後に再スクロールが必要なため、即時 + 遅延の2段.
+    try { window.scrollTo(0, 0); } catch (_) {}
     setTimeout(() => {
+        try { window.scrollTo(0, 0); } catch (_) {}
         if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
     }, 300);
 });
