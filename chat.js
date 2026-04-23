@@ -3826,7 +3826,16 @@ setupEmbedResizeNotifier();
     update();
 })();
 
-// 念のため iOS auto-scroll を打ち消す (position:fixed でほぼ発生しないが、稀に window.scrollY > 0 になる).
+// iOS は input focus で隠れ auto-scroll する. body overflow:hidden でも scrollingElement が動き、
+// position:fixed の #chat-root を含む layout viewport 自体がスクロールされ、
+// 「header が下から上に上がってくる」動きに見える.
+// → scroll イベントを全て捕まえて 0 に押し戻す = layout viewport を完全に固定する.
+window.addEventListener('scroll', () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+    }
+}, { passive: true });
+
 document.addEventListener('focusin', (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
