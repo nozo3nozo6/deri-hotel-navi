@@ -3813,12 +3813,32 @@ setupEmbedResizeNotifier();
     const vv = window.visualViewport;
     const docEl = document.documentElement;
     let keyboardOpen = false;
-    let isClosing = false; // キーボード close 中は vv.resize を無視 (即座に full height スナップ済み)
+    let isClosing = false;
+    let lastVvH = vv ? vv.height : window.innerHeight;
+    let closingTimer = null;
 
-    const applyHeight = () => {
-        if (isClosing) return; // close 中は vv 追従しない (遅く見える原因)
-        const h = vv ? vv.height : window.innerHeight;
+    const setVh = (h) => {
         docEl.style.setProperty('--chat-vh', h + 'px');
+    };
+    const snapFull = () => {
+        isClosing = true;
+        setVh(window.innerHeight);
+        if (closingTimer) clearTimeout(closingTimer);
+        // iOS keyboard close アニメ (~300ms) 中は vv 追従しない.
+        closingTimer = setTimeout(() => { isClosing = false; }, 400);
+    };
+    const applyHeight = () => {
+        const h = vv ? vv.height : window.innerHeight;
+        // vv.height が 5px 以上増加 = キーボード下降中 → 即 full height スナップ.
+        // focusout 任せだと iOS で focusout が遅延する場合あるので vv 直接検知で保険.
+        if (h > lastVvH + 5) {
+            lastVvH = h;
+            snapFull();
+            return;
+        }
+        lastVvH = h;
+        if (isClosing) return; // close アニメ中は vv 追従しない
+        setVh(h);
     };
     applyHeight();
 
@@ -3829,16 +3849,18 @@ setupEmbedResizeNotifier();
     } else {
         window.addEventListener('resize', applyHeight);
     }
-    window.addEventListener('orientationchange', () => setTimeout(applyHeight, 200));
+    window.addEventListener('orientationchange', () => setTimeout(() => {
+        isClosing = false;
+        lastVvH = vv ? vv.height : window.innerHeight;
+        applyHeight();
+    }, 200));
 
-    // focusin: input が focus された瞬間に keyboardOpen=true (レイアウト変更なし).
-    // これで iOS auto-scroll が発動する前に scroll listener がアクティブになる.
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) {
             keyboardOpen = true;
-            isClosing = false; // 開き直しなら close フラグ解除
-            // 即座に scroll リセット (iOS が既に scroll 済みの場合のケア).
+            isClosing = false;
+            if (closingTimer) { clearTimeout(closingTimer); closingTimer = null; }
             if (window.scrollY !== 0 || window.scrollX !== 0) {
                 window.scrollTo(0, 0);
             }
@@ -3846,20 +3868,12 @@ setupEmbedResizeNotifier();
     }, true);
     document.addEventListener('focusout', (e) => {
         if (!e.target || !e.target.matches || !e.target.matches(inputSelector)) return;
-        // 次フレームで activeElement を確認してから snap. Send ボタン等で input→input 遷移する場合は snap しない.
+        // focusout が先に発火する場合はこちらで即 snap (vv.resize が来るのを待たない).
         requestAnimationFrame(() => {
             if (document.activeElement && document.activeElement.matches
                 && document.activeElement.matches(inputSelector)) return;
-            // キーボード close 確定: iOS の slide-down アニメを待たずに即 full height.
-            // キーボードは独立して自然に下がっていく. これで open と同じ snap 感が出る.
-            isClosing = true;
             keyboardOpen = false;
-            docEl.style.setProperty('--chat-vh', window.innerHeight + 'px');
-            // close アニメ終了後 (iOS 実測 ~300ms) に vv 追従を再開.
-            setTimeout(() => {
-                isClosing = false;
-                applyHeight();
-            }, 400);
+            snapFull();
         });
     }, true);
 
