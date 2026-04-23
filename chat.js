@@ -3802,78 +3802,34 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応 =====
-// iOS Safari の仕様:
-//   - 100dvh / 100svh / 100vh は全て layout viewport 基準で、キーボード表示で縮まない.
-//   - interactive-widget=resizes-content は Chrome 専用 (Safari は無視).
-//   - input focus で window を自動スクロールして入力欄を可視化 (body overflow:hidden でも html 要素がスクロール).
-//
-// 対策:
-//   1. CSS で #chat-root を position:fixed でビューポートに固定 (auto-scroll の影響を無効化).
-//   2. visualViewport.height を --chat-vh に反映 (キーボード分だけチャット全体を縮める → 入力欄が隠れない).
-//   3. visualViewport.offsetTop を --chat-offset に反映 (visual viewport シフトに追従).
-//   4. CSS transition で 20-30 回/keyboard 発火の resize イベントを滑らかに補間.
-// ===== iOS キーボード対応 (先回り縮小方式) =====
-// 設計思想: iOS の focus 時に input が画面内にあれば viewport シフトが発動しない.
-// キーボードが出る前に chat-root を予測値 (50vh) にガッツリ縮めて
-// 「input 画面内」状態を作ってから focus させる.
-// その後 visualViewport.resize で正確な高さに調整.
+// ===== iOS キーボード対応 (visualViewport のみ) =====
+// 設計思想: キーボード制御は完全に iOS 任せ. JS は visualViewport.height を
+// --chat-vh に反映するだけ. touchstart/focusin での先回り操作は全て禁止
+// (input が指の下から離れる/scroll gesture 誤認で keyboard が出なくなる).
 (function setupViewportSystem(){
     const vv = window.visualViewport;
     const docEl = document.documentElement;
 
-    // 平常時の --chat-vh は window.innerHeight (layout viewport) に固定.
-    // キーボードが閉じてる時 100dvh と同じ.
-    const setRestHeight = () => {
-        docEl.style.setProperty('--chat-vh', window.innerHeight + 'px');
+    const applyHeight = () => {
+        const h = vv ? vv.height : window.innerHeight;
+        docEl.style.setProperty('--chat-vh', h + 'px');
     };
-    setRestHeight();
-    window.addEventListener('resize', setRestHeight);
-    window.addEventListener('orientationchange', () => setTimeout(setRestHeight, 200));
-
-    let keyboardOpen = false;
-    let rafId = null;
+    applyHeight();
 
     if (vv) {
-        // キーボード開いてる時は visualViewport.height に追従 (rAF throttle).
-        const syncToVisualViewport = () => {
-            if (!keyboardOpen) return;
+        let rafId = null;
+        const onVvChange = () => {
             if (rafId) return;
             rafId = requestAnimationFrame(() => {
-                docEl.style.setProperty('--chat-vh', vv.height + 'px');
+                applyHeight();
                 rafId = null;
             });
         };
-        vv.addEventListener('resize', syncToVisualViewport);
+        vv.addEventListener('resize', onVvChange);
+    } else {
+        window.addEventListener('resize', applyHeight);
     }
-
-    // focusin: input が focus された直後に発火 (keyboard が出る前).
-    // この瞬間に chat-root を予測縮小すれば iOS が「input 画面内」と判定して shift しない.
-    // 注意: touchstart で縮めると input 要素が指の下から離れて iOS が tap をキャンセルする.
-    // focusin なら focus は既に commit 済みなので keyboard は必ず出る.
-    const handleFocusIn = (e) => {
-        const t = e.target;
-        if (!t || !t.matches) return;
-        if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password]')) return;
-        keyboardOpen = true;
-        // 55vh に縮める (iOS キーボードは通常 35-45vh なので安全マージン).
-        docEl.style.setProperty('--chat-vh', Math.max(280, window.innerHeight * 0.55) + 'px');
-    };
-    document.addEventListener('focusin', handleFocusIn, true);
-
-    // blur で元に戻す (入力欄から出た時).
-    document.addEventListener('focusout', (e) => {
-        const t = e.target;
-        if (!t || !t.matches) return;
-        if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input')) return;
-        // active な入力要素が無ければ復元.
-        setTimeout(() => {
-            if (!document.activeElement || document.activeElement === document.body) {
-                keyboardOpen = false;
-                setRestHeight();
-            }
-        }, 100);
-    });
+    window.addEventListener('orientationchange', () => setTimeout(applyHeight, 200));
 })();
 
 // ===== 起動 =====
