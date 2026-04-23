@@ -3877,10 +3877,13 @@ setupEmbedDirectLinkFooter();
         try { window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*'); } catch (_) {}
     };
 
-    // 入力欄 focus で enter.（既存 focus listener とは別登録で干渉しない）
-    if (refs.input) {
-        refs.input.addEventListener('focus', enter);
-    }
+    // 入力欄 focus で enter. document-level focusin(capture) で全 input/textarea を拾う
+    // (iOS manualFocus path や nickname-input 等、refs.input 以外でも確実に発火させる)
+    const fsInputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+    document.addEventListener('focusin', (e) => {
+        if (!e.target || !e.target.matches) return;
+        if (e.target.matches(fsInputSelector)) enter();
+    }, true);
 
     // ✕ ボタン tap で exit
     const btnExit = document.getElementById('btn-fullscreen-exit');
