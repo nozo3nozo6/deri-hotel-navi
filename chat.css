@@ -280,7 +280,8 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
   body.chat-input-focused #reservation-hint,
   body.chat-input-focused #visitor-note,
   body.chat-input-focused #cast-view-banner,
-  body.chat-input-focused #owner-templates{display:none}
+  body.chat-input-focused #owner-templates,
+  body.chat-input-focused #chat-footer{display:none}
 }
 
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
