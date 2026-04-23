@@ -2392,8 +2392,15 @@ function applyVisitorBatch(data) {
         // 翻訳: 訪問者入力言語を addMessage より前に更新する.
         // addMessage は state.visitor_input_lang をアンカーに翻訳判定するため、
         // 先に更新しないと初回の非日本語メッセージが翻訳されない (anchor='ja'のまま).
-        if (m.sender_type === 'visitor' && m.source_lang && I18N && I18N[m.source_lang]) {
-            state.visitor_input_lang = String(m.source_lang).toLowerCase();
+        // DB の source_lang が無い/壊れている時は本文から detectLang で補完
+        // (古い lang=currentLang 送信で source_lang='ja' が入ってしまったレガシー対応).
+        if (m.sender_type === 'visitor') {
+            const raw = (m.source_lang || '').toLowerCase();
+            const detected = detectLang(m.message);
+            const lang = (raw && I18N && I18N[raw]) ? raw : detected;
+            if (lang && I18N && I18N[lang]) {
+                state.visitor_input_lang = lang;
+            }
         }
         // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
         // cmid 無しの legacy msg のみ id ベース dedup.
@@ -2914,8 +2921,15 @@ function applyOwnerBatch(data, selectedSid) {
         // オーナー視点: incoming = visitor msg. 訪問者入力言語を addMessage より前に更新.
         // addMessage は state.visitor_input_lang をアンカーに翻訳判定するため、
         // 先に更新しないと初回の非日本語メッセージが翻訳されない (anchor='ja'のまま).
-        if (m.sender_type === 'visitor' && m.source_lang && I18N && I18N[m.source_lang]) {
-            state.visitor_input_lang = String(m.source_lang).toLowerCase();
+        // DB の source_lang が無い/壊れている時は本文から detectLang で補完
+        // (古い lang=currentLang 送信で source_lang='ja' が入ってしまったレガシー対応).
+        if (m.sender_type === 'visitor') {
+            const raw = (m.source_lang || '').toLowerCase();
+            const detected = detectLang(m.message);
+            const lang = (raw && I18N && I18N[raw]) ? raw : detected;
+            if (lang && I18N && I18N[lang]) {
+                state.visitor_input_lang = lang;
+            }
         }
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, true);
