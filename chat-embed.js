@@ -38,18 +38,76 @@
 
         var saved = null;
 
+        // 祖先要素が transform/filter/perspective/will-change/contain を持つと、
+        // その要素が containing block になり position:fixed が viewport に効かない。
+        // (CSS仕様: https://developer.mozilla.org/en-US/docs/Web/CSS/position#fixed)
+        // 祖先の該当プロパティを一時退避→'none'にして、exit で復元する。
+        function neutralizeAncestors() {
+            var list = [];
+            var cur = iframe.parentElement;
+            var stopAt = document.body.parentElement; // html まで
+            while (cur && cur !== stopAt) {
+                var cs = null;
+                try { cs = getComputedStyle(cur); } catch (_) {}
+                if (cs) {
+                    var trapped =
+                        (cs.transform && cs.transform !== 'none') ||
+                        (cs.filter && cs.filter !== 'none') ||
+                        (cs.perspective && cs.perspective !== 'none') ||
+                        (cs.willChange && cs.willChange !== 'auto' &&
+                            /transform|filter|perspective/.test(cs.willChange)) ||
+                        (cs.contain && /paint|layout|strict|content/.test(cs.contain)) ||
+                        (cs.backdropFilter && cs.backdropFilter !== 'none');
+                    if (trapped) {
+                        list.push({
+                            el: cur,
+                            transform: cur.style.transform,
+                            filter: cur.style.filter,
+                            perspective: cur.style.perspective,
+                            willChange: cur.style.willChange,
+                            contain: cur.style.contain,
+                            backdropFilter: cur.style.backdropFilter
+                        });
+                        cur.style.setProperty('transform', 'none', 'important');
+                        cur.style.setProperty('filter', 'none', 'important');
+                        cur.style.setProperty('perspective', 'none', 'important');
+                        cur.style.setProperty('will-change', 'auto', 'important');
+                        cur.style.setProperty('contain', 'none', 'important');
+                        cur.style.setProperty('backdrop-filter', 'none', 'important');
+                    }
+                }
+                cur = cur.parentElement;
+            }
+            return list;
+        }
+
+        function restoreAncestors(list) {
+            for (var i = 0; i < list.length; i++) {
+                var r = list[i];
+                try {
+                    r.el.style.transform = r.transform;
+                    r.el.style.filter = r.filter;
+                    r.el.style.perspective = r.perspective;
+                    r.el.style.willChange = r.willChange;
+                    r.el.style.contain = r.contain;
+                    r.el.style.backdropFilter = r.backdropFilter;
+                } catch (_) {}
+            }
+        }
+
         function enter() {
             if (saved) return;
             saved = {
                 style: iframe.getAttribute('style') || '',
                 bodyOverflow: document.body.style.overflow || '',
-                htmlOverflow: document.documentElement.style.overflow || ''
+                htmlOverflow: document.documentElement.style.overflow || '',
+                ancestors: neutralizeAncestors()
             };
             iframe.style.cssText =
-                'position:fixed;inset:0;top:0;left:0;right:0;bottom:0;' +
-                'width:100vw;height:100dvh;max-width:none;max-height:none;' +
-                'margin:0;border:0;border-radius:0;box-shadow:none;' +
-                'z-index:2147483647;background:#fff;';
+                'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
+                'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
+                'margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;' +
+                'z-index:2147483647!important;background:#fff!important;transform:none!important;';
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
         }
@@ -59,6 +117,7 @@
             iframe.setAttribute('style', saved.style);
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;
+            restoreAncestors(saved.ancestors || []);
             saved = null;
         }
 
