@@ -3851,6 +3851,53 @@ function setupEmbedDirectLinkFooter() {
 }
 setupEmbedDirectLinkFooter();
 
+// ===== iframe 一時フルスクリーン化（タッチデバイス+埋込時のみ） =====
+// iOS Safari 等で iframe 内入力欄にフォーカスすると、座標系の違いでキーボード追従やスクロールが
+// 直 URL と同じにならない。モバイルでは入力開始時に親 iframe を全画面化し、直 URL と同じ UX を提供する。
+// 親側スニペットは postMessage を受けて iframe を position:fixed;inset:0;z-index:max 化する。
+// デスクトップ (hover:hover) では発動しない（従来どおり埋込サイズで表示）。
+(function setupFullscreenEmbed() {
+    if (!isEmbedded()) return;
+    if (typeof window.matchMedia !== 'function') return;
+    const isTouch = window.matchMedia('(pointer:coarse)').matches;
+    const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+    if (!isTouch || isDesktop) return;
+
+    let fullscreenOn = false;
+    const enter = () => {
+        if (fullscreenOn) return;
+        fullscreenOn = true;
+        document.body.classList.add('fullscreen-embed');
+        try { window.parent.postMessage({ type: 'ychat:enter-fullscreen', slug: SLUG }, '*'); } catch (_) {}
+    };
+    const exit = () => {
+        if (!fullscreenOn) return;
+        fullscreenOn = false;
+        document.body.classList.remove('fullscreen-embed');
+        try { window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*'); } catch (_) {}
+    };
+
+    // 入力欄 focus で enter.（既存 focus listener とは別登録で干渉しない）
+    if (refs.input) {
+        refs.input.addEventListener('focus', enter);
+    }
+
+    // ✕ ボタン tap で exit
+    const btnExit = document.getElementById('btn-fullscreen-exit');
+    if (btnExit) {
+        btnExit.addEventListener('click', (e) => {
+            e.preventDefault();
+            try { if (refs.input) refs.input.blur(); } catch (_) {}
+            exit();
+        });
+    }
+
+    // Esc で exit（ハードウェアキーボード接続時用）
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && fullscreenOn) exit();
+    });
+})();
+
 // ===== 親iframeへの高さ通知（埋込時のみ） =====
 // chat.html が iframe で埋め込まれた際、親ページが iframe の高さを中身に追従させられるよう
 // ResizeObserver で body の高さを監視し、変化時に postMessage で通知する。

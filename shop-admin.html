@@ -2997,20 +2997,23 @@ function renderChatAdmin(data){
     // ② iframe: 静的 iframe + 高さ自動調整（chat.html からの postMessage 受信）
     // ychat:resize → iframe 高さを中身に追従
     // ychat:input-focus → iOSキーボード表示時に iframe 末尾を画面内へ（親ページ側のスクロール制御）
-    // スマホ(max-width:640px): iframeのビューポート制約はiOSキーボード+URLバー問題と相性が悪いため
-    //                          直URLボタンに差し替え(_blank)。タップで chat.html を全画面で開く
+    // ychat:enter-fullscreen / ychat:exit-fullscreen → タッチ端末で入力開始/閉じる時に iframe を一時全画面化
+    //   （iOS iframe のキーボード座標系問題を回避。直URLと同じ UX を埋込内で提供）
     const resizeSnippet = function(frameId, min, max, url) {
         return '<script>\n' +
             '(function(){var f=document.getElementById(\'' + frameId + '\');if(!f)return;\n' +
-            'var isMobile=matchMedia(\'(max-width:640px)\').matches;\n' +
-            'if(isMobile){var a=document.createElement(\'a\');a.href=\'' + url + '\';a.target=\'_blank\';a.rel=\'noopener\';\n' +
-            'a.textContent=\'💬 チャットを開く\';\n' +
-            'a.style.cssText=\'display:flex;align-items:center;justify-content:center;min-height:56px;padding:14px 20px;margin:12px auto;max-width:480px;background:linear-gradient(135deg,#9b2d35,#7a1f27);color:#fff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,.15);\';\n' +
-            'f.parentNode.insertBefore(a,f);f.style.display=\'none\';return;}\n' +
+            'var saved=null;\n' +
+            'function enter(){if(saved)return;saved={style:f.getAttribute(\'style\')||\'\',bodyOverflow:document.body.style.overflow,htmlOverflow:document.documentElement.style.overflow};\n' +
+            'f.style.cssText=\'position:fixed;inset:0;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;z-index:2147483647;background:#fff;\';\n' +
+            'document.body.style.overflow=\'hidden\';document.documentElement.style.overflow=\'hidden\';}\n' +
+            'function exit(){if(!saved)return;f.setAttribute(\'style\',saved.style);document.body.style.overflow=saved.bodyOverflow||\'\';document.documentElement.style.overflow=saved.htmlOverflow||\'\';saved=null;}\n' +
             'window.addEventListener(\'message\',function(e){if(e.source!==f.contentWindow)return;var d=e.data;if(!d)return;\n' +
-            'if(d.type===\'ychat:resize\'){var h=Math.max(' + min + ',Math.min(' + max + ',d.h|0));f.style.height=h+\'px\';return;}\n' +
-            'if(d.type===\'ychat:input-focus\'){try{f.scrollIntoView({block:\'end\',behavior:\'smooth\'});}catch(_){f.scrollIntoView(false);}return;}\n' +
+            'if(d.type===\'ychat:resize\'){if(saved)return;var h=Math.max(' + min + ',Math.min(' + max + ',d.h|0));f.style.height=h+\'px\';return;}\n' +
+            'if(d.type===\'ychat:input-focus\'){if(saved)return;try{f.scrollIntoView({block:\'end\',behavior:\'smooth\'});}catch(_){f.scrollIntoView(false);}return;}\n' +
+            'if(d.type===\'ychat:enter-fullscreen\'){enter();return;}\n' +
+            'if(d.type===\'ychat:exit-fullscreen\'){exit();return;}\n' +
             '});\n' +
+            'window.addEventListener(\'pagehide\',exit);\n' +
             '})();\n' +
             '<\/script>';
     };

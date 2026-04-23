@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=91">
+<link rel="stylesheet" href="/chat.css?v=92">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -35,6 +35,8 @@
         </label>
         <span class="toggle-label" data-i18n="owner.notify">通知</span>
       </div>
+      <!-- iframe 埋込フルスクリーン時のみ表示。タップで元のインライン iframe に戻る -->
+      <button type="button" id="btn-fullscreen-exit" class="fullscreen-exit-btn" aria-label="チャットを閉じる">✕</button>
     </div>
   </div>
 
@@ -216,6 +218,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=124"></script>
+<script src="/chat.js?v=125"></script>
 </body>
 </html>
