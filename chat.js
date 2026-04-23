@@ -79,6 +79,9 @@ if (!SLUG) {
 
 const LS_SESSION = 'chat_session_' + SLUG + '_' + (CAST_ID || 'shop');
 const LS_NICKNAME = 'chat_nickname_' + SLUG;
+// 下書き自動保存: 送信前に入力欄の内容を session 単位で保持. リロード/回線断でも復元.
+// キーは LS_SESSION と同じ粒度 (slug + cast/shop). 送信成功 or 明示ログアウトでクリア.
+const LS_DRAFT = 'chat_draft_' + SLUG + '_' + (CAST_ID || 'shop') + (IS_CAST_INBOX ? '_inbox' : '');
 const LS_DEVICE  = 'chat_owner_token';
 // キャスト受信箱 端末登録: URL + device_token の2要素。URL漏洩時の防壁.
 const LS_CAST_DEVICE = CAST_INBOX_TOKEN ? ('cast_device_' + CAST_INBOX_TOKEN) : '';
@@ -181,6 +184,117 @@ function showError(msg) {
     setTimeout(() => refs.error.classList.add('hidden'), 3500);
 }
 function setLoading(on) { refs.root.classList.toggle('loading', on); }
+
+// ===== スクロール・ダウン ボタン =====
+// LINE流: ユーザーが履歴を遡り読み中に新着が届いても画面を勝手にジャンプさせない.
+// 代わりに右下にカウント付きピルを出し、タップで末尾へ飛ぶ.
+// しきい値 NEAR_BOTTOM_PX より上にいる時だけ「未読扱い」でカウントを増やす.
+const NEAR_BOTTOM_PX = 120;
+let _unreadBelowCount = 0;
+let _scrollBottomBtn = null;
+function isNearBottom() {
+    const el = refs.chatMessages;
+    if (!el) return true;
+    return (el.scrollHeight - el.scrollTop - el.clientHeight) < NEAR_BOTTOM_PX;
+}
+function ensureScrollBottomBtn() {
+    if (_scrollBottomBtn) return _scrollBottomBtn;
+    const thread = refs.chatThread;
+    if (!thread) return null;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'scroll-bottom-btn';
+    btn.setAttribute('aria-label', '最新メッセージへ');
+    btn.innerHTML = '<span class="scroll-bottom-arrow" aria-hidden="true">▼</span><span class="scroll-bottom-count hidden">0</span>';
+    btn.addEventListener('click', () => scrollChatToBottom(true));
+    thread.appendChild(btn);
+    _scrollBottomBtn = btn;
+    return btn;
+}
+function updateScrollBottomBtn() {
+    const btn = ensureScrollBottomBtn();
+    if (!btn) return;
+    const near = isNearBottom();
+    if (near) {
+        _unreadBelowCount = 0;
+        btn.classList.remove('visible');
+        const c = btn.querySelector('.scroll-bottom-count');
+        if (c) { c.textContent = '0'; c.classList.add('hidden'); }
+        return;
+    }
+    if (_unreadBelowCount > 0) {
+        btn.classList.add('visible');
+        const c = btn.querySelector('.scroll-bottom-count');
+        if (c) {
+            c.textContent = String(_unreadBelowCount);
+            c.classList.remove('hidden');
+        }
+    } else {
+        btn.classList.add('visible');
+        const c = btn.querySelector('.scroll-bottom-count');
+        if (c) c.classList.add('hidden');
+    }
+}
+function scrollChatToBottom(force) {
+    if (!refs.chatMessages) return;
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    _unreadBelowCount = 0;
+    updateScrollBottomBtn();
+    if (force) {
+        // レイアウト変動 (keyboard, 翻訳描画) による微妙なズレを次tickで補正
+        requestAnimationFrame(() => {
+            if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+        });
+    }
+}
+// 新着到着時: 末尾近くなら auto-scroll、そうでないならボタン表示 + カウント++
+function autoScrollOnIncoming(isSelf) {
+    // 自分の送信は常に末尾へ（LINE流: 送信直後は画面を追従）
+    if (isSelf) { scrollChatToBottom(true); return; }
+    if (isNearBottom()) {
+        scrollChatToBottom(false);
+    } else {
+        _unreadBelowCount++;
+        updateScrollBottomBtn();
+    }
+}
+
+// ===== 下書き自動保存 =====
+// 入力欄の内容を localStorage に保持. 送信成功/ログアウトでクリア.
+// キャスト受信箱など選択セッションが変わるモードでは restoreDraft の呼び元が LS_DRAFT を上書きする前提.
+let _draftSaveTimer = 0;
+function saveDraftNow() {
+    if (!refs.input) return;
+    if (state.mode !== 'visitor') return;
+    const val = String(refs.input.value || '');
+    try {
+        if (val) localStorage.setItem(LS_DRAFT, val);
+        else localStorage.removeItem(LS_DRAFT);
+    } catch (_) {}
+}
+function scheduleDraftSave() {
+    // オーナー/キャスト受信箱モードではセッションを跨いで返信するため、
+    // 共通キーに下書きを溜めるとセッション間で内容が混線する. visitor/cast_view のみ対象.
+    if (state.mode !== 'visitor') return;
+    if (_draftSaveTimer) clearTimeout(_draftSaveTimer);
+    _draftSaveTimer = setTimeout(() => {
+        _draftSaveTimer = 0;
+        saveDraftNow();
+    }, 350);
+}
+function restoreDraft() {
+    if (!refs.input) return;
+    let saved = '';
+    try { saved = localStorage.getItem(LS_DRAFT) || ''; } catch (_) {}
+    if (saved && !refs.input.value) {
+        refs.input.value = saved;
+    }
+}
+function clearDraft() {
+    if (_draftSaveTimer) { clearTimeout(_draftSaveTimer); _draftSaveTimer = 0; }
+    try { localStorage.removeItem(LS_DRAFT); } catch (_) {}
+}
+
 function setThemeMode(mode) {
     const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
     try { document.body.dataset.mode = m; } catch (_) {}
@@ -392,7 +506,8 @@ function addOutgoingOptimistic(cmid, text) {
     if (renderAs === POS_SELF) { row.appendChild(meta); row.appendChild(bubble); }
     else { row.appendChild(bubble); row.appendChild(meta); }
     refs.chatMessages.appendChild(row);
-    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    // 自分送信は常に末尾へ (scroll-bottom カウンタもリセット)
+    scrollChatToBottom(true);
     return row;
 }
 
@@ -1665,6 +1780,9 @@ async function enterVisitorMode() {
         }
     }
 
+    // 下書き復元 (回線断・リロードで消えていた入力を戻す)
+    restoreDraft();
+
     // メール通知 opt-in UI (キャスト指名セッション ?cast= でも訪問者側では有効)
     // visitor-notify ラッパー（メール入力パネル）はトグル ON 時のみ表示. ここでは unhide しない.
 
@@ -1794,6 +1912,9 @@ async function enterCastViewMode() {
     }
     // 入力欄の placeholder を返信用に差し替え
     if (refs.input) refs.input.placeholder = '返信メッセージを入力…';
+
+    // 下書き復元 (キャスト返信画面も同じドラフト方針)
+    restoreDraft();
 
     // 履歴取得 + 新着ポーリング（受付時間外でもメッセージは表示される）
     if (Transport.kind !== 'durable-object') {
@@ -1992,6 +2113,7 @@ function addRestartButton() {
 
 async function restartVisitorSession() {
     try { localStorage.removeItem(LS_SESSION); } catch (_) {}
+    clearDraft();
     stopPolling();
     state.session_token = null;
     state.session_id = 0;
@@ -2099,7 +2221,8 @@ function addMessage(m, _fromOwnerLegacy) {
     if (renderAs === POS_SELF) { row.appendChild(meta); row.appendChild(bubble); }
     else { row.appendChild(bubble); row.appendChild(meta); }
     refs.chatMessages.appendChild(row);
-    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    // LINE流: 自分送信は常に末尾へ. 相手メッセージは末尾近くに居る時のみ追従、遡り読み中はボタン表示.
+    autoScrollOnIncoming(renderAs === POS_SELF);
 
     // 翻訳表示: 相手のメッセージで、言語が viewer 側と異なる場合に自動翻訳
     const isOthers = (renderAs === POS_OTHER);
@@ -2382,6 +2505,7 @@ async function sendVisitorMessage(msg) {
     // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
     addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
+    clearDraft();
     lockVisitorNickname();
     try {
         const resp = await sendUnified(payload);
@@ -2420,6 +2544,7 @@ async function sendCastReply(msg) {
     // cast view 自送信 (位置クラスは positionClassFor が globals から判定)
     addOutgoingOptimistic(clientMsgId, msg);
     refs.input.value = '';
+    clearDraft();
     try {
         const resp = await sendUnified(payload);
         markOptimisticSent(clientMsgId, (resp.messages || []).find(m => m.client_msg_id === clientMsgId));
@@ -3097,13 +3222,26 @@ refs.input.addEventListener('input', () => {
         _hadTypingValue = false;
         emitTypingStop();
     }
+    // 下書き自動保存: 入力のたびに debounce で localStorage へ.
+    scheduleDraftSave();
 });
 refs.input.addEventListener('blur', () => {
     if (_hadTypingValue) {
         _hadTypingValue = false;
         emitTypingStop();
     }
+    // blur 時は debounce を待たず即保存 (タブ切替/画面離脱対策)
+    saveDraftNow();
 });
+// ページ離脱時も確実に保存 (iOS では beforeunload が発火しない事があるため pagehide も付ける)
+window.addEventListener('pagehide', saveDraftNow);
+window.addEventListener('beforeunload', saveDraftNow);
+
+// scroll-to-bottom ボタン: メッセージ領域のスクロール変化で表示更新.
+// passive:true で scroll perf を確保.
+if (refs.chatMessages) {
+    refs.chatMessages.addEventListener('scroll', updateScrollBottomBtn, { passive: true });
+}
 
 if (refs.quickQuestions) {
     refs.quickQuestions.addEventListener('click', (e) => {

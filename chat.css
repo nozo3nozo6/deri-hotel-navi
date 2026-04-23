@@ -150,6 +150,16 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .msg-system{align-self:center;background:#fff8e1;color:#8b6914;padding:6px 12px;border-radius:10px;font-size:12px}
 .chat-system-note{align-self:center;background:rgba(var(--chat-primary-rgb),.08);color:var(--chat-primary);padding:8px 14px;border-radius:12px;font-size:13px;line-height:1.5;text-align:center;max-width:86%;margin:4px 0}
 
+/* ===== スクロール・ダウン ボタン（下にスクロール済みで新着が来た時だけ表示） ===== */
+.chat-thread{position:relative}
+.scroll-bottom-btn{position:absolute;right:16px;bottom:92px;z-index:25;display:inline-flex;align-items:center;gap:6px;padding:6px 12px 6px 10px;background:#fff;color:var(--chat-primary);border:1px solid rgba(var(--chat-primary-rgb),.35);border-radius:18px;font-size:12px;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.12);cursor:pointer;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .18s ease-out,transform .18s ease-out}
+.scroll-bottom-btn.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.scroll-bottom-btn:hover{background:var(--chat-quick-bg)}
+.scroll-bottom-btn .scroll-bottom-arrow{font-size:14px;line-height:1}
+.scroll-bottom-btn .scroll-bottom-count{background:var(--chat-primary);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;min-width:18px;text-align:center;line-height:1.4}
+.scroll-bottom-btn .scroll-bottom-count.hidden{display:none}
+@media (max-width:480px){.scroll-bottom-btn{right:12px;bottom:84px}}
+
 /* ===== 訪問者ノート ===== */
 .chat-note{margin:10px 12px 4px;padding:8px 12px;background:var(--chat-note-bg);border:1px solid var(--chat-note-border);border-radius:8px;font-size:13px;color:var(--chat-note-text);line-height:1.5}
 .chat-note.reception-closed{background:#fdecec;border-color:#f2b5b5;color:#8b2323;font-weight:600}
@@ -176,7 +186,10 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .visitor-notify-resend:disabled{opacity:.5;cursor:wait}
 .visitor-notify-edit{margin-top:4px;background:transparent;color:#888;border:none;padding:2px 4px;font-size:11px;cursor:pointer;text-decoration:underline;align-self:flex-start}
 .visitor-notify-edit:hover{color:var(--chat-primary,#b5627a)}
+.visitor-notify.verified-collapsed{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0 10px}
 .visitor-notify.verified-collapsed .visitor-notify-body{display:none}
+.visitor-notify.verified-collapsed .visitor-notify-status{margin-top:0;padding:0;flex:0 0 auto}
+.visitor-notify.verified-collapsed .visitor-notify-edit{margin-top:0;flex:0 0 auto}
 
 /* ===== クイック質問（1行横スクロール） ===== */
 .quick-questions{background:#fff;border-top:1px solid #e5e0d8;padding:6px 0}

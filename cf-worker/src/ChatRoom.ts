@@ -145,6 +145,34 @@ export class ChatRoom implements DurableObject {
     }
   }
 
+  /**
+   * /broadcast 到達時に DO storage にセッションが無い場合、最小限の stub を作って返す.
+   * PHP 側 (MySQL) が権威なので blocked / started_at 等は触らず、あくまで message 保存用の入れ物.
+   * 既に存在する場合はそのまま返す.
+   */
+  private async ensureSessionStub(token: string, row: any): Promise<ChatSession> {
+    const existing = await this.findSessionByToken(token);
+    if (existing) return existing;
+    const id = await this.nextSessionId();
+    const now = String(row?.sent_at || new Date().toISOString());
+    const stub: ChatSession = {
+      id,
+      session_token: token,
+      visitor_hash: '',
+      nickname: '',
+      lang: '',
+      started_at: now,
+      last_activity_at: now,
+      status: 'open',
+      source: 'standalone',
+      blocked: false,
+    };
+    // MySQL 側を壊さないため sync.upsertSession は呼ばない → storage put のみ.
+    await this.state.storage.put(`session:${id}`, stub);
+    await this.state.storage.put(`session_by_token:${token}`, id);
+    return stub;
+  }
+
   // ========== Message CRUD ==========
 
   private async saveMessage(sessionId: number, m: ChatMessage): Promise<void> {
@@ -159,15 +187,17 @@ export class ChatRoom implements DurableObject {
     }
   }
 
-  private async messagesSince(sessionId: number, sinceId: number, limit = 200): Promise<ChatMessage[]> {
-    const start = `message:${sessionId}:${sinceId + 1}`;
-    const end = `message:${sessionId}:\uffff`;
-    const map = await this.state.storage.list<ChatMessage>({
-      start,
-      end,
-      limit,
-    });
-    return Array.from(map.values());
+  private async messagesSince(sessionId: number, sinceId: number, limit = 1000): Promise<ChatMessage[]> {
+    // storage.list の範囲指定は文字列辞書順なので数値 id では正しく並ばない
+    // (例: "10" は "2" より lex 的に前). prefix で一括取得後に数値ソート & filter する.
+    const prefix = `message:${sessionId}:`;
+    const map = await this.state.storage.list<ChatMessage>({ prefix, limit });
+    const msgs: ChatMessage[] = [];
+    for (const m of map.values()) {
+      if (m && typeof m.id === 'number' && m.id > sinceId) msgs.push(m);
+    }
+    msgs.sort((a, b) => a.id - b.id);
+    return msgs;
   }
 
   private async messageByCmid(sessionId: number, cmid: string): Promise<ChatMessage | null> {
@@ -713,10 +743,41 @@ export class ChatRoom implements DurableObject {
       return this.errJson('missing_fields', 400);
     }
 
+    // DO storage にミラー保存.
+    //   - リロード時 handleWsUpgrade → messagesSince() が空にならないよう snapshot 供給源を作る
+    //   - MySQL id (row.id) をそのまま DO 内 message.id として保存 (DO nextMessageId は使わない)
+    //   - session stub: DO storage に未登録のセッションなら httpOwnerReply と同じパターンで最小 stub を作成
+    //   - client_msg_id が来ていれば cmid マップも張り, 冪等性 & 再送検出に使える
+    const sess = await this.ensureSessionStub(token, row);
+    const mid = Number(row.id || 0);
+    // 既存が有る場合は read_at を保持 (auto-read が先行して read_at を立てていたのを
+    // 後から届いた initial insert の /broadcast で null に戻さないため).
+    const existing = await this.state.storage.get<ChatMessage>(`message:${sess.id}:${mid}`);
+    const mirrored: ChatMessage = {
+      id: mid,
+      session_id: sess.id,
+      sender_type: row.sender_type === 'shop' ? 'shop' : 'visitor',
+      message: String(row.message || ''),
+      client_msg_id: row.client_msg_id ? String(row.client_msg_id) : undefined,
+      sent_at: String(row.sent_at || new Date().toISOString()),
+      read_at: row.read_at || existing?.read_at || null,
+    };
+    await this.state.storage.put(`message:${sess.id}:${mid}`, mirrored);
+    if (mirrored.client_msg_id) {
+      await this.state.storage.put(`cmid:${sess.id}:${mirrored.client_msg_id}`, mid);
+    }
+    // last_activity 更新 (DO inbox の並び順で使う)
+    if (sess.last_activity_at < mirrored.sent_at) {
+      sess.last_activity_at = mirrored.sent_at;
+      await this.state.storage.put(`session:${sess.id}`, sess);
+      await this.state.storage.put(`session_by_token:${sess.session_token}`, sess.id);
+    }
+
     const payload = {
       type: 'message',
       data: row,
       session_token: token,
+      session_id: sess.id,
     };
     const json = JSON.stringify(payload);
 
@@ -747,15 +808,13 @@ export class ChatRoom implements DurableObject {
     // PHP 経由のメッセージ到着時の auto-read:
     //   - visitor 発 → owner が viewing なら read (B-1)
     //   - shop/cast 発 → visitor が viewing なら read (#2, 対称実装)
-    // httpBroadcast の row は MySQL INSERT 直後なので DO storage は触らない (updateStorage=null).
-    if (row) {
-      const upToId = Number(row.id || 0);
-      const upToSentAt = String(row.sent_at || new Date().toISOString());
-      if (row.sender_type === 'visitor') {
-        this.autoReadIfOwnerViewing(token, null, upToId, upToSentAt, null);
-      } else if (row.sender_type === 'shop') {
-        this.autoReadIfVisitorViewing(token, null, upToId, upToSentAt, null);
-      }
+    // DO storage にも mirrored が入ったので updateStorage を渡して read_at を反映させる.
+    const upToId = Number(row.id || 0);
+    const upToSentAt = String(row.sent_at || new Date().toISOString());
+    if (row.sender_type === 'visitor') {
+      this.autoReadIfOwnerViewing(token, sess.id, upToId, upToSentAt, mirrored);
+    } else if (row.sender_type === 'shop') {
+      this.autoReadIfVisitorViewing(token, sess.id, upToId, upToSentAt, mirrored);
     }
 
     return new Response(JSON.stringify({ ok: true, delivered }), {
@@ -785,6 +844,22 @@ export class ChatRoom implements DurableObject {
     const upTo = Number(body?.up_to_id || 0);
     if (!token || (reader !== 'shop' && reader !== 'visitor')) {
       return this.errJson('missing_fields', 400);
+    }
+
+    // DO storage 側の read_at も更新 (リロード時の snapshot で既読マーカーが消えないように).
+    //   - reader='shop'    → sender_type='visitor' の未既読メッセージを一括既読化
+    //   - reader='visitor' → sender_type='shop' の未既読メッセージを一括既読化
+    const sess = await this.findSessionByToken(token);
+    if (sess) {
+      const targetSender: SenderType = reader === 'shop' ? 'visitor' : 'shop';
+      const msgs = await this.messagesSince(sess.id, 0);
+      const now = new Date().toISOString();
+      for (const m of msgs) {
+        if (m.sender_type === targetSender && !m.read_at && (upTo === 0 || m.id <= upTo)) {
+          m.read_at = now;
+          await this.state.storage.put(`message:${sess.id}:${m.id}`, m);
+        }
+      }
     }
 
     // reader='shop' → 通知先 = visitor (自分のメッセージが既読になった)
