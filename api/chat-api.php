@@ -1922,7 +1922,7 @@ function handleTranslate() {
         'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 800],
     ], JSON_UNESCAPED_UNICODE);
 
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
     $opts = [
         'method' => 'POST',
         'header' => "Content-Type: application/json\r\n",
