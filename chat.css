@@ -6,15 +6,16 @@ body[data-mode="women_same"]{--chat-primary:#8a5a9e;--chat-primary-dark:#6b4079;
 body[data-mode="este"]{--chat-primary:#2aa8b8;--chat-primary-dark:#1e7d8a;--chat-primary-rgb:42,168,184;--chat-quick-bg:#dff2f4;--chat-quick-bg-hover:#c7e8eb;--chat-quick-border:#a0d4da;--chat-quick-text:#1e7d8a;--chat-note-bg:#ecf7f9;--chat-note-border:#bfe0e5;--chat-note-text:#1e5a64}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0;height:100dvh;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;color:#222;background:#f7f5f2;-webkit-font-smoothing:antialiased;font-size:16px;overflow:hidden}
-/* キーボード表示時は 100dvh (dynamic viewport height) が iOS Safari / Chrome 共に visual viewport に自動追従する.
-   JS による --chat-vh 動的更新は visualViewport.resize が 20-30 回/動作 発火して画面がパタつくため廃止. */
+/* iOS のキーボードは 100dvh に反映されない (WebKit 仕様: dvh は URL バー show/hide のみ追従).
+   visualViewport API で --chat-vh を更新、CSS transition で 20-30 回の連続更新を滑らかに累積補間する. */
 body{overscroll-behavior:none}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit;padding:0}
 a{color:var(--chat-primary);text-decoration:none}
 
-/* 入力欄は chat-root の flex 最下部に居る = 高さが dvh 追従で縮むと相対的にキーボード上端へ追従する. */
-#chat-root{display:flex;flex-direction:column;height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);overflow:hidden;background:#fff;margin:8px;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15)}
-@media (max-width:480px){#chat-root{margin:4px;height:calc(100dvh - 8px);max-height:calc(100dvh - 8px);border-radius:10px}}
+/* --chat-vh は chat.js が visualViewport.height を反映. 未サポート環境では 100dvh にフォールバック.
+   transition で連続更新のカクつきを滑らかに補間する (以前の直接更新はパタパタに見えた). */
+#chat-root{display:flex;flex-direction:column;height:calc(var(--chat-vh,100dvh) - 16px);max-height:calc(var(--chat-vh,100dvh) - 16px);overflow:hidden;background:#fff;margin:8px;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transition:height 0.2s ease-out,max-height 0.2s ease-out}
+@media (max-width:480px){#chat-root{margin:4px;height:calc(var(--chat-vh,100dvh) - 8px);max-height:calc(var(--chat-vh,100dvh) - 8px);border-radius:10px}}
 .hidden{display:none!important}
 
 /* ===== ヘッダー ===== */
