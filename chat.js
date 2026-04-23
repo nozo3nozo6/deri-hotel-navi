@@ -2348,12 +2348,15 @@ function detectLang(text) {
 
 const _translateCache = new Map();
 async function maybeTranslate(msgDiv, text, from, to) {
+    // 初期ロード時の「最新メッセージが隠れる」対策:
+    // async で翻訳が戻る時にメッセージ高さが伸びる → 事前に末尾近くに居たなら終わったあと再スクロール.
+    const wasNearBottom = isNearBottom();
     const key = from + '|' + to + '|' + text;
     const trDiv = document.createElement('div');
     trDiv.className = 'msg-translation';
     trDiv.textContent = '翻訳中…';
     msgDiv.appendChild(trDiv);
-    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    if (wasNearBottom) scrollChatToBottom(false);
     try {
         let translated = _translateCache.get(key);
         if (!translated) {
@@ -2374,6 +2377,7 @@ async function maybeTranslate(msgDiv, text, from, to) {
         } else {
             trDiv.remove();
         }
+        if (wasNearBottom) scrollChatToBottom(true);
     } catch (e) {
         trDiv.remove();
     }
