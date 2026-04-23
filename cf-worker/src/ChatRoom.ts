@@ -726,11 +726,22 @@ export class ChatRoom implements DurableObject {
     // 初回スナップショット送信 (接続直後に取りこぼし防止)
     if (session) {
       const newer = await this.messagesSince(session.id, sinceId);
+      // 既読マーカー復元: storage 全 visitor メッセージの中で read_at が立っている最大 id.
+      // sinceId > 0 の再接続では newer に既読済みメッセージが含まれない可能性があるため、
+      // sinceId=0 のとき以外は storage 全体を再スキャンする.
+      let lastReadOwnId = 0;
+      const scan = sinceId === 0 ? newer : await this.messagesSince(session.id, 0);
+      for (const m of scan) {
+        if (m.sender_type === 'visitor' && m.read_at && m.id > lastReadOwnId) {
+          lastReadOwnId = m.id;
+        }
+      }
       server.send(JSON.stringify({
         type: 'snapshot',
         messages: newer,
         status: session.status,
         shop_online: this.isShopOnline(),
+        last_read_own_id: lastReadOwnId,
         server_time: new Date().toISOString(),
       }));
     } else if (role === 'owner') {
