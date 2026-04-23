@@ -3857,6 +3857,23 @@ setupEmbedResizeNotifier();
         }, 300);
     }, true);
 
+    // iOS の auto-scroll を根本から抑止: touch/mousedown で default の focus を
+    // 止めて、preventScroll:true で手動 focus する.
+    // これでブラウザが scrollIntoView を起こさないため「下から上」のアニメ自体が出ない.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+        const manualFocus = (e) => {
+            const t = e.target;
+            if (!t || !t.matches || !t.matches(inputSelector)) return;
+            if (document.activeElement === t) return; // 既に focus 済みなら何もしない
+            e.preventDefault();
+            try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); }
+        };
+        document.addEventListener('touchend', manualFocus, true);
+        document.addEventListener('mousedown', manualFocus, true);
+    }
+
     // keyboard 開いてる間の iOS auto-scroll 巻き戻し.
     window.addEventListener('scroll', () => {
         if (!keyboardOpen) return;
