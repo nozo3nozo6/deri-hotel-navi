@@ -3805,9 +3805,9 @@ setupEmbedResizeNotifier();
 // ===== iOS キーボード対応 =====
 // 設計思想:
 //   - JS は visualViewport.height を --chat-vh に反映するだけ.
-//   - keyboard 表示後の iOS auto-scroll (scrollingElement を上に押す)
-//     は後追いで scrollTo(0,0) で巻き戻す. ただし keyboardOpen フラグで
-//     ガード (touch/focus 最中に scroll リセットすると focus chain が壊れる).
+//   - iOS の focus-auto-scroll は focusin 直後に発火するため、
+//     focusin で keyboardOpen フラグを先回りで立てる (レイアウト変更はしない).
+//   - scroll listener は keyboardOpen=true の時だけ scrollTo(0,0) で巻き戻す.
 //   - touchstart/focusin での先回り縮小は禁止 (input が指下から離れて tap キャンセル).
 (function setupViewportSystem(){
     const vv = window.visualViewport;
@@ -3817,8 +3817,6 @@ setupEmbedResizeNotifier();
     const applyHeight = () => {
         const h = vv ? vv.height : window.innerHeight;
         docEl.style.setProperty('--chat-vh', h + 'px');
-        // keyboard 開いてる判定: vv.height < window.innerHeight - 100.
-        keyboardOpen = !!vv && (vv.height < window.innerHeight - 100);
     };
     applyHeight();
 
@@ -3837,9 +3835,29 @@ setupEmbedResizeNotifier();
     }
     window.addEventListener('orientationchange', () => setTimeout(applyHeight, 200));
 
-    // keyboard が開いた後に iOS が scrollingElement を上に押す動きを巻き戻す.
-    // keyboardOpen=true の時だけ発動するので、focus chain への干渉は無い
-    // (focus commit → keyboard 表示 → vv.resize → keyboardOpen=true → scroll listener 発動).
+    // focusin: input が focus された瞬間に keyboardOpen=true (レイアウト変更なし).
+    // これで iOS auto-scroll が発動する前に scroll listener がアクティブになる.
+    const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+    document.addEventListener('focusin', (e) => {
+        if (e.target && e.target.matches && e.target.matches(inputSelector)) {
+            keyboardOpen = true;
+            // 即座に scroll リセット (iOS が既に scroll 済みの場合のケア).
+            if (window.scrollY !== 0 || window.scrollX !== 0) {
+                window.scrollTo(0, 0);
+            }
+        }
+    }, true);
+    document.addEventListener('focusout', (e) => {
+        if (!e.target || !e.target.matches || !e.target.matches(inputSelector)) return;
+        setTimeout(() => {
+            if (!document.activeElement || document.activeElement === document.body
+                || !document.activeElement.matches || !document.activeElement.matches(inputSelector)) {
+                keyboardOpen = false;
+            }
+        }, 300);
+    }, true);
+
+    // keyboard 開いてる間の iOS auto-scroll 巻き戻し.
     window.addEventListener('scroll', () => {
         if (!keyboardOpen) return;
         if (window.scrollY !== 0 || window.scrollX !== 0) {
