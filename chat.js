@@ -3375,6 +3375,12 @@ refs.input.addEventListener('blur', () => {
     }
     // blur 時は debounce を待たず即保存 (タブ切替/画面離脱対策)
     saveDraftNow();
+    // スマホでメッセージ入力にフォーカス中は通知バー等を隠して画面を広く使う (CSS 側で mobile media query).
+    document.body.classList.remove('chat-input-focused');
+});
+refs.input.addEventListener('focus', () => {
+    // スマホでキーボードが出ている間、通知バー (✓通知を有効にしました/メール変更) を隠してチャット表示領域を広げる.
+    document.body.classList.add('chat-input-focused');
 });
 // ページ離脱時も確実に保存 (iOS では beforeunload が発火しない事があるため pagehide も付ける)
 window.addEventListener('pagehide', saveDraftNow);
