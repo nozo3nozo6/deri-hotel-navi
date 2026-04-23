@@ -1894,7 +1894,7 @@ function handleTranslate() {
     $text = trim((string)inp('text', ''));
     $from = strtolower(substr((string)inp('from', ''), 0, 5));
     $to   = strtolower(substr((string)inp('to', 'ja'), 0, 5));
-    $allowed = ['ja','en','zh','ko'];
+    $allowed = ['ja','en','zh','zh-tw','ko'];
     if ($text === '') err('text required');
     if (mb_strlen($text) > 500) $text = mb_substr($text, 0, 500);
     if (!in_array($from, $allowed, true) || !in_array($to, $allowed, true)) err('invalid lang');
@@ -1912,7 +1912,7 @@ function handleTranslate() {
 
     if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') err('Translation not configured', 500);
 
-    $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'ko' => 'Korean'];
+    $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
     $fromName = $langNames[$from] ?? $from;
     $toName   = $langNames[$to]   ?? $to;
     $prompt = "Translate this chat message from {$fromName} to {$toName}. This is a casual chat between a business and a customer — keep the tone natural and conversational. Return ONLY the translated text, with no explanation, no quotes, and no prefix.\n\nMessage:\n{$text}";
