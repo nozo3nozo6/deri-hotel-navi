@@ -3320,6 +3320,11 @@ async function handleOwnerLogout() {
 }
 
 // ===== イベントバインド =====
+// iOS/Android: mousedown/touchstart preventDefault で input の blur を抑止.
+// これが無いと送信ボタンtap→input blur→focusout→--kb-h=0スナップ→chat-root伸張→
+// ボタン位置が変わって click がミスヒット → 1回目の tap で送信されず 2回 tap が必要に.
+// LINE と同じ「キーボード出たまま送信即実行」挙動を担保する.
+refs.sendBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
 refs.sendBtn.addEventListener('click', () => {
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
