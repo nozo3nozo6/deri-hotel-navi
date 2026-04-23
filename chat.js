@@ -3817,12 +3817,12 @@ setupEmbedResizeNotifier();
     const vv = window.visualViewport;
     if (!vv) return; // fallback: CSS の 100dvh に任せる
     const docEl = document.documentElement;
+    // height のみ追従. offsetTop は追従しない: iOS keyboard アニメ中に
+    // 一瞬 >0 になって 0 に戻るため「下から上に動く」違和感が出る.
     const update = () => {
         docEl.style.setProperty('--chat-vh', vv.height + 'px');
-        docEl.style.setProperty('--chat-offset', vv.offsetTop + 'px');
     };
     vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
     update();
 })();
 
