@@ -3802,65 +3802,52 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応 =====
+// ===== iOS キーボード対応 (LINE方式) =====
 // 設計思想:
-//   - JS は visualViewport.height を --chat-vh に反映するだけ.
-//   - iOS の focus-auto-scroll は focusin 直後に発火するため、
-//     focusin で keyboardOpen フラグを先回りで立てる (レイアウト変更はしない).
-//   - scroll listener は keyboardOpen=true の時だけ scrollTo(0,0) で巻き戻す.
-//   - touchstart/focusin での先回り縮小は禁止 (input が指下から離れて tap キャンセル).
+//   - #chat-root は CSS で top/bottom 固定 → 常に全画面サイズ. ヘッダーは絶対に動かない.
+//   - JS は --kb-h (キーボード高さ) を padding-bottom 経由で反映するだけ.
+//     これで中身 (messages/input/footer) だけがキーボード分スライド、LINE/native iOS と同じ.
+//   - close 時は --kb-h を 0 にスナップ (iOS keyboard slide-down を待たない).
+//     chat-root サイズは不変なので flash が絶対に出ない.
 (function setupViewportSystem(){
     const vv = window.visualViewport;
     const docEl = document.documentElement;
-    let keyboardOpen = false;
     let isClosing = false;
-    let lastVvH = vv ? vv.height : window.innerHeight;
     let closingTimer = null;
 
-    const setVh = (h) => {
-        docEl.style.setProperty('--chat-vh', h + 'px');
+    const setKbH = (px) => {
+        docEl.style.setProperty('--kb-h', px + 'px');
     };
-    const snapFull = () => {
+    const snapClose = () => {
         isClosing = true;
-        setVh(window.innerHeight);
+        setKbH(0);
         if (closingTimer) clearTimeout(closingTimer);
         // iOS keyboard close アニメ (~300ms) 中は vv 追従しない.
         closingTimer = setTimeout(() => { isClosing = false; }, 400);
     };
-    const applyHeight = () => {
-        const h = vv ? vv.height : window.innerHeight;
-        // vv.height が 5px 以上増加 = キーボード下降中 → 即 full height スナップ.
-        // focusout 任せだと iOS で focusout が遅延する場合あるので vv 直接検知で保険.
-        if (h > lastVvH + 5) {
-            lastVvH = h;
-            snapFull();
-            return;
-        }
-        lastVvH = h;
-        if (isClosing) return; // close アニメ中は vv 追従しない
-        setVh(h);
+    const applyKbH = () => {
+        if (isClosing) return;
+        // keyboard 高さ = layout viewport - visual viewport (Android/iOS 共通で成立).
+        const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+        setKbH(kb);
     };
-    applyHeight();
+    applyKbH();
 
     if (vv) {
-        // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火するため
-        // 同期更新で 1:1 追従するのが最速.
-        vv.addEventListener('resize', applyHeight);
-    } else {
-        window.addEventListener('resize', applyHeight);
+        // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火、同期更新で 1:1 追従.
+        vv.addEventListener('resize', applyKbH);
     }
     window.addEventListener('orientationchange', () => setTimeout(() => {
         isClosing = false;
-        lastVvH = vv ? vv.height : window.innerHeight;
-        applyHeight();
+        applyKbH();
     }, 200));
 
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) {
-            keyboardOpen = true;
             isClosing = false;
             if (closingTimer) { clearTimeout(closingTimer); closingTimer = null; }
+            // iOS auto-scroll 巻き戻し (念のため — chat-root は top+bottom 固定なので本来不要だが).
             if (window.scrollY !== 0 || window.scrollX !== 0) {
                 window.scrollTo(0, 0);
             }
@@ -3868,13 +3855,10 @@ setupEmbedResizeNotifier();
     }, true);
     document.addEventListener('focusout', (e) => {
         if (!e.target || !e.target.matches || !e.target.matches(inputSelector)) return;
-        // focusout が先に発火する場合はこちらで即 snap (vv.resize が来るのを待たない).
-        requestAnimationFrame(() => {
-            if (document.activeElement && document.activeElement.matches
-                && document.activeElement.matches(inputSelector)) return;
-            keyboardOpen = false;
-            snapFull();
-        });
+        // input→input 遷移は relatedTarget で判定 (rAF は使わない = 即 snap).
+        const next = e.relatedTarget;
+        if (next && next.matches && next.matches(inputSelector)) return;
+        snapClose();
     }, true);
 
     // iOS の auto-scroll を根本から抑止: touch/mousedown で default の focus を
