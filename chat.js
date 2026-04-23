@@ -3802,17 +3802,23 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応 (visualViewport のみ) =====
-// 設計思想: キーボード制御は完全に iOS 任せ. JS は visualViewport.height を
-// --chat-vh に反映するだけ. touchstart/focusin での先回り操作は全て禁止
-// (input が指の下から離れる/scroll gesture 誤認で keyboard が出なくなる).
+// ===== iOS キーボード対応 =====
+// 設計思想:
+//   - JS は visualViewport.height を --chat-vh に反映するだけ.
+//   - keyboard 表示後の iOS auto-scroll (scrollingElement を上に押す)
+//     は後追いで scrollTo(0,0) で巻き戻す. ただし keyboardOpen フラグで
+//     ガード (touch/focus 最中に scroll リセットすると focus chain が壊れる).
+//   - touchstart/focusin での先回り縮小は禁止 (input が指下から離れて tap キャンセル).
 (function setupViewportSystem(){
     const vv = window.visualViewport;
     const docEl = document.documentElement;
+    let keyboardOpen = false;
 
     const applyHeight = () => {
         const h = vv ? vv.height : window.innerHeight;
         docEl.style.setProperty('--chat-vh', h + 'px');
+        // keyboard 開いてる判定: vv.height < window.innerHeight - 100.
+        keyboardOpen = !!vv && (vv.height < window.innerHeight - 100);
     };
     applyHeight();
 
@@ -3830,6 +3836,16 @@ setupEmbedResizeNotifier();
         window.addEventListener('resize', applyHeight);
     }
     window.addEventListener('orientationchange', () => setTimeout(applyHeight, 200));
+
+    // keyboard が開いた後に iOS が scrollingElement を上に押す動きを巻き戻す.
+    // keyboardOpen=true の時だけ発動するので、focus chain への干渉は無い
+    // (focus commit → keyboard 表示 → vv.resize → keyboardOpen=true → scroll listener 発動).
+    window.addEventListener('scroll', () => {
+        if (!keyboardOpen) return;
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+            window.scrollTo(0, 0);
+        }
+    }, { passive: true });
 })();
 
 // ===== 起動 =====
