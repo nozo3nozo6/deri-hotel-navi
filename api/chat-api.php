@@ -471,6 +471,7 @@ try {
         case 'start-session':   handleStartSession(); break;
         case 'send-message':    handleSendMessage(); break;
         case 'poll-messages':   handlePollMessages(); break;
+        case 'mark-read':       handleMarkRead(); break;
         case 'shop-status':     handleShopStatus(); break;
         case 'can-connect':     handleCanConnect(); break;
         case 'translate':       handleTranslate(); break;
@@ -717,22 +718,9 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     $stmt->execute([$sessionId, $sinceId]);
     $messages = $stmt->fetchAll();
 
-    // 既読化: 読む側と逆の sender_type を既読に
-    // visitor視点 = shopの新着を既読 / shop(cast返信等)視点 = visitorの新着を既読
-    if (count($messages) > 0) {
-        $otherSide = $readerRole === 'shop' ? 'visitor' : 'shop';
-        // 既読化対象の MAX(id) を先取り → UPDATE → DO に broadcast (逆側 WS に既読通知)
-        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
-                               WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id > ?");
-        $stmt->execute([$sessionId, $otherSide, $sinceId]);
-        $otherMaxUnread = (int)$stmt->fetchColumn();
-        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
-                       WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id > ?")
-            ->execute([$sessionId, $otherSide, $sinceId]);
-        if ($otherMaxUnread > 0) {
-            broadcastReadToDO($sessionId, $readerRole, $otherMaxUnread);
-        }
-    }
+    // 既読ルール (2026-04-23 ゼロ設計): 暗黙既読を全廃.
+    // poll/send 経路で read_at を自動更新しない.
+    // 既読は「受信者が実際にウィンドウを見ている」状態でのみ付与 (chat.js isWindowActive + DO fresh view signal).
 
     // オンライン状態
     $stmt = $pdo->prepare('SELECT is_online, last_online_at, auto_off_minutes FROM shop_chat_status WHERE shop_id = ?');
@@ -805,6 +793,61 @@ function handlePollMessages() {
     }
 
     respondSessionBatch($pdo, (int)$session['id'], $session['shop_id'], $sinceId, $session['status'], [], $readerRole);
+}
+
+/**
+ * 2026-04-23 ゼロ設計: 明示的 mark-read エンドポイント.
+ * chat.js が isWindowActive() 時のみ叩く. PHP 暗黙既読を全廃したのでこれが唯一の MySQL 既読経路 (DO 経由除く).
+ *   - reader='visitor': session_token 認証 → sender_type='shop' を既読化 + DO broadcast (owner UI 反映)
+ *   - reader='shop':    device_token 認証 → sender_type='visitor' を既読化 + DO broadcast (visitor UI 反映)
+ */
+function handleMarkRead(): void {
+    $reader = (string)inp('reader', '');
+    $upTo = (int)inp('up_to_id', 0);
+    if ($reader !== 'visitor' && $reader !== 'shop') err('invalid reader');
+    $pdo = DB::conn();
+
+    if ($reader === 'visitor') {
+        $token = (string)inp('session_token', '');
+        if ($token === '') err('session_token required');
+        $stmt = $pdo->prepare('SELECT id, shop_id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+        $stmt->execute([$token]);
+        $session = $stmt->fetch();
+        if (!$session) err('Session not found', 404);
+        $sessionId = (int)$session['id'];
+        $targetSender = 'shop';
+    } else {
+        $device = requireDevice();
+        $sessionId = (int)inp('session_id', 0);
+        if ($sessionId <= 0) err('session_id required');
+        $stmt = $pdo->prepare('SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+        $stmt->execute([$sessionId, $device['shop_id']]);
+        if (!$stmt->fetch()) err('Session not found', 404);
+        $targetSender = 'visitor';
+    }
+
+    // 既読化対象の MAX(id) を先取り → UPDATE → DO broadcast
+    if ($upTo > 0) {
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                               WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id <= ?");
+        $stmt->execute([$sessionId, $targetSender, $upTo]);
+        $maxUnread = (int)$stmt->fetchColumn();
+        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                       WHERE session_id = ? AND sender_type = ? AND read_at IS NULL AND id <= ?")
+            ->execute([$sessionId, $targetSender, $upTo]);
+    } else {
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                               WHERE session_id = ? AND sender_type = ? AND read_at IS NULL");
+        $stmt->execute([$sessionId, $targetSender]);
+        $maxUnread = (int)$stmt->fetchColumn();
+        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                       WHERE session_id = ? AND sender_type = ? AND read_at IS NULL")
+            ->execute([$sessionId, $targetSender]);
+    }
+    if ($maxUnread > 0) {
+        broadcastReadToDO($sessionId, $reader, $maxUnread);
+    }
+    ok(['last_read_id' => $maxUnread]);
 }
 
 /**
@@ -1056,18 +1099,8 @@ function handleOwnerInbox() {
             $stmt->execute([$sessionId]);
             $lastReadOwnId = (int)$stmt->fetchColumn();
 
-            // visitor側メッセージを既読に
-            // 先に既読化対象の MAX(id) を取得 → UPDATE → DO に broadcast (visitor WS に既読通知)
-            $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
-                                   WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL");
-            $stmt->execute([$sessionId]);
-            $visitorMaxUnread = (int)$stmt->fetchColumn();
-            $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
-                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
-                ->execute([$sessionId]);
-            if ($visitorMaxUnread > 0) {
-                broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
-            }
+            // 既読ルール (2026-04-23 ゼロ設計): inbox poll では visitor msg を自動既読しない.
+            // 既読は「オーナーが該当スレッドを実際に開いて見ている」時のみ (chat.js mark-read 経由).
         }
     }
 
@@ -1689,18 +1722,8 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     $stmt->execute([$sessionId, $sinceId]);
     $messages = $stmt->fetchAll();
 
-    // オーナー/キャスト返信直後: visitorメッセージを既読化
-    // 先に MAX(id) 取得 → UPDATE → DO broadcast (visitor WS に既読通知)
-    $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
-                           WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL");
-    $stmt->execute([$sessionId]);
-    $visitorMaxUnread = (int)$stmt->fetchColumn();
-    $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
-                   WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
-        ->execute([$sessionId]);
-    if ($visitorMaxUnread > 0) {
-        broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
-    }
+    // 既読ルール (2026-04-23 ゼロ設計): owner-reply 経路で visitor msg を自動既読しない.
+    // 返信=既読とは限らない (通知だけ見て返信するケース). 既読は view signal 経由のみ.
 
     $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
                            WHERE session_id = ? AND sender_type = 'shop' AND read_at IS NOT NULL");

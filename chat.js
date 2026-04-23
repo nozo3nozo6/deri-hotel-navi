@@ -119,6 +119,8 @@ let state = {
     welcome_message: null,
     reservation_hint: null,
     nickname_locked: false,   // 最初の訪問者メッセージ送信後に true: このチャット内ではニックネーム固定
+    // 2026-04-23 翻訳アンカー: 訪問者の入力言語. visitor=ja なら両側翻訳OFF, 非ja なら shop viewer=ja / visitor viewer=visitor_input_lang で翻訳.
+    visitor_input_lang: 'ja',
 };
 
 // ===== DOM refs =====
@@ -1170,9 +1172,14 @@ const PollingTransport = {
         const timer = setInterval(tick, intervalMs || POLL_INTERVAL);
         return {
             stop: () => { active = false; clearInterval(timer); },
-            // #2 symmetric: PollingTransport は poll-messages?session_token= を毎 tick で叩いており
-            // PHP 側で shop→visitor read_at UPDATE + broadcastReadToDO 済み. view signal は不要なので no-op.
+            // 2026-04-23 ゼロ設計: PHP 暗黙既読を全廃したので PollingTransport も明示 mark-read が必須.
+            // view signal は polling では heartbeat 代替がないため no-op (mark-read で毎回明示通知).
             setView: () => {},
+            markRead: (upToId) => {
+                const tok = getSessionToken && getSessionToken();
+                if (!tok) return;
+                api('mark-read', { session_token: tok, up_to_id: upToId || 0, reader: 'visitor' }).catch(() => {});
+            },
         };
     },
 
@@ -1201,9 +1208,18 @@ const PollingTransport = {
         const timer = setInterval(tick, intervalMs || INBOX_INTERVAL);
         return {
             stop: () => { active = false; clearInterval(timer); },
-            // PollingTransport は owner-inbox?session_id= を毎 tick で叩いており
-            // PHP 側で read_at UPDATE + broadcastReadToDO 済み. view signal は不要なので no-op.
+            // 2026-04-23 ゼロ設計: PHP 暗黙既読を全廃したので PollingTransport も明示 mark-read が必須.
             setView: () => {},
+            markRead: (sessionId, upToId) => {
+                const dt = getDeviceToken && getDeviceToken();
+                if (!dt || !sessionId) return;
+                api('mark-read', {
+                    device_token: dt,
+                    session_id: sessionId,
+                    up_to_id: upToId || 0,
+                    reader: 'shop',
+                }).catch(() => {});
+            },
         };
     },
 
@@ -1353,6 +1369,13 @@ const DurableObjectTransport = {
                     ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken }));
                 } catch (_) {}
             },
+            // 2026-04-23 ゼロ設計: isWindowActive() 時のみ chat.js から呼ぶ明示既読.
+            markRead: (upToId) => {
+                if (!ws || ws.readyState !== 1) return;
+                try {
+                    ws.send(JSON.stringify({ type: 'mark-read', up_to_id: upToId || 0 }));
+                } catch (_) {}
+            },
         };
     },
 
@@ -1475,6 +1498,13 @@ const DurableObjectTransport = {
                 if (!ws || ws.readyState !== 1) return;
                 try {
                     ws.send(JSON.stringify({ type: 'view', session_token: currentViewToken }));
+                } catch (_) {}
+            },
+            // 2026-04-23 ゼロ設計: isWindowActive() 時のみ chat.js から呼ぶ明示既読.
+            markRead: (sessionId, upToId) => {
+                if (!ws || ws.readyState !== 1) return;
+                try {
+                    ws.send(JSON.stringify({ type: 'mark-read', session_id: sessionId, up_to_id: upToId || 0 }));
                 } catch (_) {}
             },
         };
@@ -2229,11 +2259,20 @@ function addMessage(m, _fromOwnerLegacy) {
     // LINE流: 自分送信は常に末尾へ. 相手メッセージは末尾近くに居る時のみ追従、遡り読み中はボタン表示.
     autoScrollOnIncoming(renderAs === POS_SELF);
 
-    // 翻訳表示: 相手のメッセージで、言語が viewer 側と異なる場合に自動翻訳
+    // 2026-04-23 翻訳アンカー仕様:
+    //   - visitor_input_lang = 'ja' → 翻訳OFF (お互い日本語、翻訳不要)
+    //   - visitor_input_lang != 'ja' →
+    //       shop viewer (左=相手が visitor の発言) : target='ja' (お店側は日本語で読む)
+    //       visitor viewer (左=相手が shop の返信) : target=visitor_input_lang (訪問者は自分の入力言語で読む)
+    //   - 自分の発言 (POS_SELF) は翻訳しない (原文を残す)
     const isOthers = (renderAs === POS_OTHER);
     const src = ((m.source_lang || '').toLowerCase()) || detectLang(m.message);
-    if (isOthers && src && src !== currentLang && I18N[src] && I18N[currentLang]) {
-        maybeTranslate(bubble, m.message, src, currentLang);
+    const anchor = (state.visitor_input_lang || 'ja').toLowerCase();
+    if (isOthers && src && anchor !== 'ja') {
+        const target = viewerIsShopSide() ? 'ja' : anchor;
+        if (target !== src && I18N[src] && I18N[target]) {
+            maybeTranslate(bubble, m.message, src, target);
+        }
     }
 }
 function updateReadMarkers() {
@@ -2320,6 +2359,10 @@ function applyVisitorBatch(data) {
     let sawVisitorMsg = false;
     let restoredNick = '';
     let addedAny = false;
+    let maxIncomingId = 0;
+    // cast view mode: cast = shop側. incoming = visitor msg.
+    // 通常 visitor mode: incoming = shop msg.
+    const incomingType = IS_CAST_VIEW ? 'visitor' : 'shop';
     for (const m of (data.messages || [])) {
         // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
         // cmid 無しの legacy msg のみ id ベース dedup.
@@ -2331,7 +2374,12 @@ function applyVisitorBatch(data) {
         if (m.sender_type === 'visitor') {
             sawVisitorMsg = true;
             if (!restoredNick && m.nickname) restoredNick = String(m.nickname).trim().slice(0, 20);
+            // 翻訳: 訪問者入力言語を最新で追跡 (visitor_input_lang アンカー方式)
+            if (m.source_lang && (I18N && I18N[m.source_lang])) {
+                state.visitor_input_lang = String(m.source_lang).toLowerCase();
+            }
         }
+        if (m.sender_type === incomingType && m.id > maxIncomingId) maxIncomingId = m.id;
     }
     if (addedAny) sortMessagesByTime();
     // 既存セッション復元: 過去に訪問者メッセージがあればニックネームを固定
@@ -2342,6 +2390,10 @@ function applyVisitorBatch(data) {
     if (typeof data.last_read_own_id !== 'undefined') {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
+    }
+    // 2026-04-23 ゼロ設計: ウィンドウ見てる時のみ incoming msg を明示既読化 (暗黙既読は全廃)
+    if (addedAny && maxIncomingId > 0 && isWindowActive()) {
+        sendMarkReadForCurrentView(maxIncomingId);
     }
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
     updateStatusIndicator(data.shop_online);
@@ -2812,11 +2864,19 @@ function applyOwnerBatch(data, selectedSid) {
     }
     if (!state.selected_session) return;
     let addedAny = false;
+    let maxIncomingId = 0;
     for (const m of (data.messages || [])) {
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, true);
             addedAny = true;
             if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
+        }
+        // オーナー視点: incoming = visitor msg. 訪問者入力言語も追跡.
+        if (m.sender_type === 'visitor') {
+            if (m.id > maxIncomingId) maxIncomingId = m.id;
+            if (m.source_lang && (I18N && I18N[m.source_lang])) {
+                state.visitor_input_lang = String(m.source_lang).toLowerCase();
+            }
         }
     }
     if (addedAny) sortMessagesByTime();
@@ -2825,6 +2885,10 @@ function applyOwnerBatch(data, selectedSid) {
         updateReadMarkers();
     }
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
+    // 2026-04-23 ゼロ設計: オーナーがスレッド表示中かつウィンドウ見てる時のみ visitor msg を既読化
+    if (addedAny && maxIncomingId > 0 && isWindowActive() && state.selected_session) {
+        sendMarkReadForCurrentView(maxIncomingId);
+    }
 }
 
 function startInboxPolling() {
@@ -3517,6 +3581,27 @@ window.addEventListener('pagehide', () => {
 // - document.hidden = false だけでは別ウィンドウの裏に隠れているタブを「表示中」扱いしてしまい、
 //   相手が実際に見ていないのに既読が付く (送信した瞬間既読になる) バグになる.
 // - document.hasFocus() 併用で「同じウィンドウが最前面にあるタブ」だけを viewing と判定.
+// 2026-04-23 ゼロ設計: 明示 mark-read ディスパッチ.
+// モード別に正しい reader で呼び分ける. isWindowActive() は呼び出し側でゲート.
+function sendMarkReadForCurrentView(upToId) {
+    if (!upToId) return;
+    if (state.mode === 'owner' && state.selected_session) {
+        if (state._ownerSub && state._ownerSub.markRead) {
+            try { state._ownerSub.markRead(state.selected_session.id, upToId); } catch (_) {}
+        }
+        return;
+    }
+    if (state.mode === 'visitor' && state.session_token) {
+        if (IS_CAST_VIEW) {
+            // cast view: cast は shop 側として閲覧中. reader='shop' で visitor msg を既読化.
+            api('mark-read', { session_token: state.session_token, up_to_id: upToId, reader: 'shop' }).catch(() => {});
+        } else if (state._visitorSub && state._visitorSub.markRead) {
+            try { state._visitorSub.markRead(upToId); } catch (_) {}
+        }
+        return;
+    }
+}
+
 function isWindowActive() {
     if (document.hidden) return false;
     try { return typeof document.hasFocus === 'function' ? document.hasFocus() : true; }
@@ -3534,7 +3619,30 @@ function updatePresenceFromActivity() {
         const tok = state.selected_session && state.selected_session.session_token;
         try { state._ownerSub.setView(active && tok ? tok : null); } catch (_) {}
     }
+    // 2026-04-23 ゼロ設計: active になった瞬間に catch-up mark-read.
+    // (見てない間に届いた incoming msg を明示的に既読化)
+    if (active && state.last_message_id > 0) {
+        sendMarkReadForCurrentView(state.last_message_id);
+    }
 }
+
+// 2026-04-23: DO 側 last_view_at 鮮度 (45s) を切らさないための view heartbeat.
+// isWindowActive 中は 20s 周期で view signal を再送.
+let _viewHeartbeatTimer = null;
+function ensureViewHeartbeat() {
+    if (_viewHeartbeatTimer) return;
+    _viewHeartbeatTimer = setInterval(() => {
+        if (!isWindowActive()) return;
+        if (state._visitorSub && state._visitorSub.setView && state.session_token) {
+            try { state._visitorSub.setView(state.session_token); } catch (_) {}
+        }
+        if (state._ownerSub && state._ownerSub.setView && state.selected_session) {
+            const tok = state.selected_session.session_token;
+            if (tok) { try { state._ownerSub.setView(tok); } catch (_) {} }
+        }
+    }, 20000);
+}
+ensureViewHeartbeat();
 
 // ウィンドウフォーカスの取得/喪失 (別ウィンドウへの切り替え) で presence を切り替える.
 // visibilitychange はタブ切替/最小化のみ、blur/focus は別ウィンドウへの移動もカバーする.

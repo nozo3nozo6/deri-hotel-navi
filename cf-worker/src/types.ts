@@ -131,4 +131,7 @@ export interface WsAttachment {
   // #2 (visitor): 自分の画面がフォアグラウンドで見えている間 session_token を自己セット.
   // shop/cast メッセージ到着時にこの値があれば即時既読化 + owner WS へ read push.
   viewing_session_token?: string;
+  // 2026-04-23 ゼロ設計: view 信号の鮮度. hibernation 復活後の stale attachment 誤発火防止用.
+  // 'view' 受信時 + 'ping' 受信時に Date.now() を更新. isVisitorViewingToken は 45s 以内を要求.
+  last_view_at?: number;
 }

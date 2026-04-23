@@ -78,6 +78,7 @@ export class ChatRoom implements DurableObject {
         case '/owner/reply':       return this.httpOwnerReply(body);
         case '/owner/inbox':       return this.httpOwnerInbox(body);
         case '/owner/mark-read':   return this.httpOwnerMarkRead(body);
+        case '/visitor/mark-read': return this.httpVisitorMarkRead(body);
         case '/admin/purge':       return this.httpAdminPurge(req, body);
         case '/broadcast':         return this.httpBroadcast(req, body);
         case '/broadcast-read':    return this.httpBroadcastRead(req, body);
@@ -661,13 +662,66 @@ export class ChatRoom implements DurableObject {
 
     const msgs = await this.messagesSince(sid, 0);
     const now = new Date().toISOString();
+    let upToSentAt = '';
     for (const m of msgs) {
       if (m.sender_type === 'visitor' && !m.read_at && (upTo === 0 || m.id <= upTo)) {
         m.read_at = now;
         await this.saveMessage(sid, m);
+        if (m.sent_at > upToSentAt) upToSentAt = m.sent_at;
       }
     }
     this.broadcastToSession(sid, 'visitor', { type: 'read', session_id: sid, up_to_id: upTo });
+    // 2026-04-23 ゼロ設計: MySQL mirror (PHP handleSyncRead が chat_messages.read_at を UPDATE).
+    // 暗黙既読を全廃したので、MySQL 側は明示 mark-read 経路からの mirror で初めて read_at がつく.
+    const sess = await this.state.storage.get<ChatSession>(`session:${sid}`);
+    if (sess && upToSentAt) {
+      this.state.waitUntil(this.sync.markRead(sess.session_token, 'shop', upToSentAt));
+    }
+    return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
+  }
+
+  /**
+   * 2026-04-23 ゼロ設計: visitor 側の明示 mark-read.
+   * chat.js が isWindowActive() 時のみ発火. shop msg の read_at を更新 + owner WS に broadcast.
+   */
+  private async httpVisitorMarkRead(body: any): Promise<Response> {
+    const token = String(body.session_token || '');
+    const upTo = Number(body.up_to_id || 0);
+    if (!token) return this.errJson('missing_fields', 400);
+
+    const sess = await this.findSessionByToken(token);
+    if (!sess) return this.errJson('session_not_found', 404);
+
+    const msgs = await this.messagesSince(sess.id, 0);
+    const now = new Date().toISOString();
+    let upToSentAt = '';
+    for (const m of msgs) {
+      if (m.sender_type === 'shop' && !m.read_at && (upTo === 0 || m.id <= upTo)) {
+        m.read_at = now;
+        await this.saveMessage(sess.id, m);
+        if (m.sent_at > upToSentAt) upToSentAt = m.sent_at;
+      }
+    }
+
+    // owner WS に broadcast (送信者=shop なので owner 側UIに既読マーカー反映)
+    const payload = JSON.stringify({
+      type: 'read',
+      session_token: token,
+      session_id: sess.id,
+      up_to_id: upTo,
+    });
+    const all = this.state.getWebSockets();
+    for (const ws of all) {
+      try {
+        const a = ws.deserializeAttachment() as WsAttachment | null;
+        if (a && a.role === 'owner') ws.send(payload);
+      } catch (_) {}
+    }
+
+    // MySQL mirror (reader='visitor' → sender_type='shop' を既読化)
+    if (upToSentAt) {
+      this.state.waitUntil(this.sync.markRead(token, 'visitor', upToSentAt));
+    }
     return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
   }
 
@@ -790,8 +844,13 @@ export class ChatRoom implements DurableObject {
         }
         break;
       case 'mark-read':
+        // 2026-04-23 ゼロ設計: 明示 mark-read は「今 active view している」クライアントからの要求とみなす.
+        //   owner: thread 切替 / 新msg到着時 / window focus 時に呼ばれる.
+        //   visitor: window focus / 新msg到着時に呼ばれる.
         if (attach.role === 'owner' && data.session_id) {
           await this.httpOwnerMarkRead({ session_id: data.session_id, up_to_id: data.up_to_id });
+        } else if (attach.role === 'visitor' && attach.session_token) {
+          await this.httpVisitorMarkRead({ session_token: attach.session_token, up_to_id: data.up_to_id });
         }
         break;
       case 'view':
@@ -799,15 +858,18 @@ export class ChatRoom implements DurableObject {
         //   visitor 新着メッセージ時に presence 一致すれば自動既読化.
         // #2 (visitor): 自分の画面が visible の間 session_token を自己セット.
         //   shop/cast 新着メッセージ時に presence あれば自動既読化 + owner/cast_inbox に read push.
+        // 2026-04-23: last_view_at を毎回更新 (isViewingToken の鮮度ゲート用).
         if (attach.role === 'owner') {
           const tok = data.session_token ? String(data.session_token) : undefined;
           attach.viewing_session_token = tok;
+          if (tok) attach.last_view_at = Date.now();
           ws.serializeAttachment(attach);
         } else if (attach.role === 'visitor') {
           // visitor は自分の session_token のみ登録可 (他セッションの既読は不可)
           const tok = data.session_token ? String(data.session_token) : undefined;
           if (!tok || tok === attach.session_token) {
             attach.viewing_session_token = tok;
+            if (tok) attach.last_view_at = Date.now();
             ws.serializeAttachment(attach);
           }
         }
@@ -1081,11 +1143,14 @@ export class ChatRoom implements DurableObject {
    */
   private isOwnerViewingToken(token: string): boolean {
     if (!token) return false;
+    // 2026-04-23 ゼロ設計: last_view_at が 45s 以内でないと viewing 扱いしない.
+    // hibernation 復活後の stale attachment (blur 送信前にネット切断 → 永続化された古い値) を排除.
+    const fresh = Date.now() - 45_000;
     const owners = this.state.getWebSockets('role:owner');
     for (const ws of owners) {
       try {
         const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (a && a.viewing_session_token === token) return true;
+        if (a && a.viewing_session_token === token && (a.last_view_at || 0) >= fresh) return true;
       } catch (_) {}
     }
     return false;
@@ -1097,11 +1162,18 @@ export class ChatRoom implements DurableObject {
    */
   private isVisitorViewingToken(token: string): boolean {
     if (!token) return false;
+    // 2026-04-23 ゼロ設計: last_view_at が 45s 以内でないと viewing 扱いしない.
+    const fresh = Date.now() - 45_000;
     const visitors = this.state.getWebSockets('role:visitor');
     for (const ws of visitors) {
       try {
         const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (a && a.session_token === token && a.viewing_session_token === token) return true;
+        if (
+          a &&
+          a.session_token === token &&
+          a.viewing_session_token === token &&
+          (a.last_view_at || 0) >= fresh
+        ) return true;
       } catch (_) {}
     }
     return false;
