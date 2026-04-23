@@ -177,6 +177,8 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .visitor-notify-save{flex:0 0 auto;padding:6px 14px;background:var(--chat-primary);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600}
 .visitor-notify-save:hover{background:var(--chat-primary-dark)}
 .visitor-notify-save:disabled{background:#aaa;cursor:wait}
+.visitor-notify-collapse{flex:0 0 auto;width:28px;height:28px;padding:0;background:transparent;color:#888;border:1px solid #d0cbc2;border-radius:6px;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.visitor-notify-collapse:hover{background:#efebe3;color:#444}
 .visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px;line-height:1.5}
 .visitor-notify-status.ok{color:#2a8a5e}
 .visitor-notify-status.err{color:#a44}
