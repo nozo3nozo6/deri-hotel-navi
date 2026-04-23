@@ -3817,19 +3817,34 @@ setupEmbedResizeNotifier();
     const vv = window.visualViewport;
     if (!vv) return; // fallback: CSS の 100dvh に任せる
     const docEl = document.documentElement;
-    // height のみ追従. offsetTop は追従しない: iOS keyboard アニメ中に
-    // 一瞬 >0 になって 0 に戻るため「下から上に動く」違和感が出る.
+    // rAF throttle: visualViewport は keyboard アニメ中に20-30回発火するが、
+    // 1フレーム1回だけ CSS 変数に反映すれば iOS のアニメと完全同期する.
+    let rafId = null;
     const update = () => {
-        docEl.style.setProperty('--chat-vh', vv.height + 'px');
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+            docEl.style.setProperty('--chat-vh', vv.height + 'px');
+            rafId = null;
+        });
     };
     vv.addEventListener('resize', update);
     update();
 })();
 
-// iOS は input focus で隠れ auto-scroll する. body overflow:hidden でも scrollingElement が動き、
-// position:fixed の #chat-root を含む layout viewport 自体がスクロールされ、
-// 「header が下から上に上がってくる」動きに見える.
-// → scroll イベントを全て捕まえて 0 に押し戻す = layout viewport を完全に固定する.
+// iOS は input focus で document を裏でスクロールする (position:fixed body/html でも起きる).
+// touchstart 段階で先回りして scrollTo(0,0) すれば、iOS の初回 auto-scroll を発生させない.
+const preemptiveScrollLock = (e) => {
+    const t = e.target;
+    if (!t || !t.matches) return;
+    if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input')) return;
+    // touchstart → focus の順で発火するので、この時点で scrollTo(0,0) すると
+    // focus 時の iOS auto-scroll 対象が既に 0 なので実質発動しない.
+    try { window.scrollTo(0, 0); } catch (_) {}
+};
+document.addEventListener('touchstart', preemptiveScrollLock, { capture: true, passive: true });
+document.addEventListener('mousedown', preemptiveScrollLock, { capture: true, passive: true });
+
+// scroll イベントで常時 0 に押し戻す (保険).
 window.addEventListener('scroll', () => {
     if (window.scrollY !== 0 || window.scrollX !== 0) {
         window.scrollTo(0, 0);
@@ -3840,6 +3855,7 @@ document.addEventListener('focusin', (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
     try { window.scrollTo(0, 0); } catch (_) {}
+    requestAnimationFrame(() => { try { window.scrollTo(0, 0); } catch (_) {} });
     setTimeout(() => {
         try { window.scrollTo(0, 0); } catch (_) {}
         if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;

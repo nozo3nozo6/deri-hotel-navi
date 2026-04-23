@@ -5,16 +5,16 @@ body[data-mode="men_same"]{--chat-primary:#2a5a8f;--chat-primary-dark:#1e4268;--
 body[data-mode="women_same"]{--chat-primary:#8a5a9e;--chat-primary-dark:#6b4079;--chat-primary-rgb:138,90,158;--chat-quick-bg:#efe5f5;--chat-quick-bg-hover:#e1d0ec;--chat-quick-border:#c5aed6;--chat-quick-text:#6b4079;--chat-note-bg:#f5ecfa;--chat-note-border:#dcc5ea;--chat-note-text:#5a3466}
 body[data-mode="este"]{--chat-primary:#2aa8b8;--chat-primary-dark:#1e7d8a;--chat-primary-rgb:42,168,184;--chat-quick-bg:#dff2f4;--chat-quick-bg-hover:#c7e8eb;--chat-quick-border:#a0d4da;--chat-quick-text:#1e7d8a;--chat-note-bg:#ecf7f9;--chat-note-border:#bfe0e5;--chat-note-text:#1e5a64}
 *,*::before,*::after{box-sizing:border-box}
-html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;color:#222;background:#f7f5f2;-webkit-font-smoothing:antialiased;font-size:16px;overflow:hidden}
+html,body{margin:0;padding:0;height:100dvh;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;color:#222;background:#f7f5f2;-webkit-font-smoothing:antialiased;font-size:16px;overflow:hidden}
 body{overscroll-behavior:none}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit;padding:0}
 a{color:var(--chat-primary);text-decoration:none}
 
-/* iOS キーボード対応: position:fixed でビューポートに固定 (iOS auto-scroll による押し上げを無効化).
+/* iOS キーボード対応: position:fixed + translate3d で GPU 合成レイヤに固定.
+   これで iOS の native viewport アニメから切り離され、ヘッダーが動かなくなる.
    --chat-vh のみ追従 (height を visualViewport.height に合わせて縮めるだけ).
-   offsetTop は追従しない: iOS keyboard アニメ中に一瞬 >0 になって戻るため「下→上に動く」違和感が出る.
-   transition も付けない: keyboard アニメと二重化するため. */
-#chat-root{position:fixed;top:8px;left:8px;right:8px;display:flex;flex-direction:column;height:calc(var(--chat-vh,100dvh) - 16px);max-height:calc(var(--chat-vh,100dvh) - 16px);overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15)}
+   offsetTop/transition/top 変更は全て禁止: keyboard アニメと二重化するため. */
+#chat-root{position:fixed;top:8px;left:8px;right:8px;display:flex;flex-direction:column;height:calc(var(--chat-vh,100dvh) - 16px);max-height:calc(var(--chat-vh,100dvh) - 16px);overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transform:translate3d(0,0,0);will-change:height;contain:layout style}
 @media (max-width:480px){#chat-root{top:4px;left:4px;right:4px;height:calc(var(--chat-vh,100dvh) - 8px);max-height:calc(var(--chat-vh,100dvh) - 8px);border-radius:10px}}
 .hidden{display:none!important}
 
