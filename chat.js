@@ -2581,11 +2581,14 @@ async function sendVisitorMessage(msg) {
     const wasOffline = !state.is_online;
     // client_msg_id: ネットワーク再送でもサーバー側が同一メッセージと判定 (UNIQUE制約).
     const clientMsgId = uuidv4();
+    // 入力本文から言語を検出. currentLang (UI言語) は参照しない.
+    // memory: feedback_chat_translation_anchor — 翻訳アンカーは「訪問者が打った言語」.
+    const msgLang = detectLang(msg) || currentLang || '';
     const payload = {
         auth: { kind: 'visitor', session_token: state.session_token },
         message: msg,
         nickname: nick || '',
-        lang: currentLang || '',
+        lang: msgLang,
         client_msg_id: clientMsgId,
         since_id: state.last_message_id || 0,
     };
