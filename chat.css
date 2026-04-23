@@ -11,16 +11,19 @@ button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;backgrou
 a{color:var(--chat-primary);text-decoration:none}
 
 /* iOS キーボード対応:
-   - #chat-root は height を `100dvh - margin - --kb-h` に合わせて縮める (キーボード分 = kb-h).
-     flex 子要素 (header/thread/footer) は縮んだ高さに再配分される. padding-bottom 方式は
-     iOS Safari で flex 再レイアウトが不安定になるケースあり (チャットが nickname 入力と
-     overlap) — 明示的に height を縮めるのが最も確実.
+   - #chat-root は height を `100svh - margin - --kb-h` に合わせて縮める (キーボード分 = kb-h).
+     flex 子要素 (header/thread/footer) は縮んだ高さに再配分される.
+   - **100svh を使う理由**: iOS Safari はキーボード close 時に URL bar が再展開される. 100dvh は
+     URL bar 状態で動的に変わるため、chat-root が URL bar アニメに引きずられて二重にリサイズ
+     して見える. 100svh は URL bar 最大表示時の viewport (=最小値で安定) なので、URL bar
+     アニメ中も chat-root サイズ不変になる.
    - top 固定なのでヘッダー位置は不動. キーボードが出ると chat-root 下端が上がる形.
    - close 時は --kb-h を 0 に即スナップ (iOS keyboard slide-down アニメは待たない).
      サイズ変化中の描画崩れは JS 側の isClosing ガードで vv.resize を無視することで回避.
+   - padding-bottom 方式は iOS Safari で flex 再レイアウトが不安定 (2026-04-24 overlap 報告).
    - offsetTop/transition/top 変更は全て禁止 (keyboard アニメと二重化するため). */
-#chat-root{position:fixed;top:8px;left:8px;right:8px;display:flex;flex-direction:column;height:calc(100dvh - 16px - var(--kb-h, 0px));max-height:calc(100dvh - 16px - var(--kb-h, 0px));overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transform:translate3d(0,0,0);contain:layout style}
-@media (max-width:480px){#chat-root{top:4px;left:4px;right:4px;height:calc(100dvh - 8px - var(--kb-h, 0px));max-height:calc(100dvh - 8px - var(--kb-h, 0px));border-radius:10px}}
+#chat-root{position:fixed;top:8px;left:8px;right:8px;display:flex;flex-direction:column;height:calc(100svh - 16px - var(--kb-h, 0px));max-height:calc(100svh - 16px - var(--kb-h, 0px));overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transform:translate3d(0,0,0);contain:layout style}
+@media (max-width:480px){#chat-root{top:4px;left:4px;right:4px;height:calc(100svh - 8px - var(--kb-h, 0px));max-height:calc(100svh - 8px - var(--kb-h, 0px));border-radius:10px}}
 .hidden{display:none!important}
 
 /* ===== ヘッダー ===== */
