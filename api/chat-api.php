@@ -381,9 +381,9 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         : 'https://yobuho.com/shop-admin.html#chat';
 
     if (!empty($session['cast_id'])) {
-        // キャスト担当: shop_casts JOIN casts で email + notify_mode を引く
+        // キャスト担当: shop_casts JOIN casts で email + notify_mode + inbox_token を引く
         $stmt = $pdo->prepare(
-            'SELECT c.email, sc.chat_notify_mode, sc.display_name
+            'SELECT c.email, sc.chat_notify_mode, sc.display_name, sc.inbox_token
              FROM shop_casts sc
              JOIN casts c ON c.id = sc.cast_id
              WHERE sc.shop_id = ? AND sc.cast_id = ? AND sc.status = "active" LIMIT 1'
@@ -394,7 +394,13 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         $notifyTo = (string)$castRow['email'];
         $mode = $castRow['chat_notify_mode'] ?? 'off';
         $recipientLabel = $castRow['display_name'] . '（' . $shop['shop_name'] . '）';
-        $destUrl = 'https://yobuho.com/cast-admin.html#chat';
+        // キャスト受信箱 URL: ?cast_inbox=<inbox_token> (受信箱トップまで、スレッド直リンクはしない)
+        if (!empty($castRow['inbox_token']) && !empty($shop['slug'])) {
+            $destUrl = 'https://yobuho.com/chat/' . $shop['slug'] . '/?cast_inbox=' . rawurlencode($castRow['inbox_token']);
+        } else {
+            // フォールバック (inbox_token 未発行 or slug 未設定)
+            $destUrl = 'https://yobuho.com/cast-admin.html';
+        }
     } else {
         $notifyTo = !empty($shop['notify_email']) ? $shop['notify_email'] : ($shop['email'] ?? '');
         $mode = $shop['notify_mode'] ?? 'first';
@@ -423,7 +429,7 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     // メール送信
     $subject = '【YobuChat】新着メッセージ: ' . $recipientLabel;
     $chatUrl = $destUrl;
-    $openLabel = !empty($session['cast_id']) ? 'キャスト管理画面のチャットタブが開きます' : 'チャット画面が開きます';
+    $openLabel = !empty($session['cast_id']) ? 'キャスト受信箱が開きます' : 'チャット画面が開きます';
     $html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head><body style="margin:0;padding:16px;background:#fff;font-family:sans-serif;">';
     $html .= '<div style="max-width:520px;margin:0 auto;">';
     $html .= '<h2 style="color:#9b2d35;margin:0 0 16px;">YobuChat 新着メッセージ</h2>';
