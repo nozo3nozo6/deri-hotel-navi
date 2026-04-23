@@ -2389,6 +2389,12 @@ function applyVisitorBatch(data) {
     // 通常 visitor mode: incoming = shop msg.
     const incomingType = IS_CAST_VIEW ? 'visitor' : 'shop';
     for (const m of (data.messages || [])) {
+        // 翻訳: 訪問者入力言語を addMessage より前に更新する.
+        // addMessage は state.visitor_input_lang をアンカーに翻訳判定するため、
+        // 先に更新しないと初回の非日本語メッセージが翻訳されない (anchor='ja'のまま).
+        if (m.sender_type === 'visitor' && m.source_lang && I18N && I18N[m.source_lang]) {
+            state.visitor_input_lang = String(m.source_lang).toLowerCase();
+        }
         // cmid があれば常に addMessage に渡す (addMessage 側で cmid dedup).
         // cmid 無しの legacy msg のみ id ベース dedup.
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
@@ -2399,10 +2405,6 @@ function applyVisitorBatch(data) {
         if (m.sender_type === 'visitor') {
             sawVisitorMsg = true;
             if (!restoredNick && m.nickname) restoredNick = String(m.nickname).trim().slice(0, 20);
-            // 翻訳: 訪問者入力言語を最新で追跡 (visitor_input_lang アンカー方式)
-            if (m.source_lang && (I18N && I18N[m.source_lang])) {
-                state.visitor_input_lang = String(m.source_lang).toLowerCase();
-            }
         }
         if (m.sender_type === incomingType && m.id > maxIncomingId) maxIncomingId = m.id;
     }
@@ -2906,18 +2908,18 @@ function applyOwnerBatch(data, selectedSid) {
     let addedAny = false;
     let maxIncomingId = 0;
     for (const m of (data.messages || [])) {
+        // オーナー視点: incoming = visitor msg. 訪問者入力言語を addMessage より前に更新.
+        // addMessage は state.visitor_input_lang をアンカーに翻訳判定するため、
+        // 先に更新しないと初回の非日本語メッセージが翻訳されない (anchor='ja'のまま).
+        if (m.sender_type === 'visitor' && m.source_lang && I18N && I18N[m.source_lang]) {
+            state.visitor_input_lang = String(m.source_lang).toLowerCase();
+        }
         if (m.client_msg_id || !m.id || m.id > state.last_message_id) {
             addMessage(m, true);
             addedAny = true;
             if (m.id) state.last_message_id = Math.max(state.last_message_id, m.id);
         }
-        // オーナー視点: incoming = visitor msg. 訪問者入力言語も追跡.
-        if (m.sender_type === 'visitor') {
-            if (m.id > maxIncomingId) maxIncomingId = m.id;
-            if (m.source_lang && (I18N && I18N[m.source_lang])) {
-                state.visitor_input_lang = String(m.source_lang).toLowerCase();
-            }
-        }
+        if (m.sender_type === 'visitor' && m.id > maxIncomingId) maxIncomingId = m.id;
     }
     if (addedAny) sortMessagesByTime();
     if (typeof data.last_read_own_id !== 'undefined') {
@@ -3814,12 +3816,19 @@ setupEmbedResizeNotifier();
     const docEl = document.documentElement;
     let isClosing = false;
     let closingTimer = null;
+    let keyboardOpen = false;
 
     const setKbH = (px) => {
         docEl.style.setProperty('--kb-h', px + 'px');
     };
+    const scrollMessagesToBottom = () => {
+        // キーボード開閉で chat-messages の高さが変わった直後に最下部へ. LINE UX.
+        const msgs = document.getElementById('chat-messages');
+        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+    };
     const snapClose = () => {
         isClosing = true;
+        keyboardOpen = false;
         setKbH(0);
         if (closingTimer) clearTimeout(closingTimer);
         // iOS keyboard close アニメ (~300ms) 中は vv 追従しない.
@@ -3830,6 +3839,10 @@ setupEmbedResizeNotifier();
         // keyboard 高さ = layout viewport - visual viewport (Android/iOS 共通で成立).
         const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
         setKbH(kb);
+        const wasOpen = keyboardOpen;
+        keyboardOpen = kb > 0;
+        // キーボード開いた瞬間に最新メッセージが入力欄に隠れて見える問題を即解消.
+        if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
     };
     applyKbH();
 
