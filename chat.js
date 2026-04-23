@@ -2276,38 +2276,30 @@ function addMessage(m, _fromOwnerLegacy) {
     }
 }
 function updateReadMarkers() {
-    // LINE 流: 既読マーカーは「最後に既読になった自分のメッセージ」1 行だけに付ける.
-    // 全行に 既読 を付ける旧実装 (id <= threshold) は冗長で画面が汚れるため廃止.
-    // 受信者が順次読む → 最新の既読msgへマーカーが移動する挙動になる.
+    // LINE 式: 既読マーカーは自分側の「id <= threshold」の全行に付ける.
+    // (LINE 実挙動で全ての自分msgに 既読 が並ぶのが確認された仕様.)
     //
     // 自分側のクラスは viewer 役割に関わらず常に POS_SELF.
     // renderAs は「位置クラス」統一 (POS_SELF='visitor'=右/自分, POS_OTHER='shop'=左/相手).
     const ownClass = POS_SELF;
     const threshold = state.last_read_own_id || 0;
     const rows = refs.chatMessages.querySelectorAll('.msg-row.' + ownClass);
-    // 1) まず全行から既読マーカーを除去
-    rows.forEach(row => {
-        const old = row.querySelector('.msg-meta .msg-read');
-        if (old) old.remove();
-    });
-    if (threshold <= 0) return;
-    // 2) threshold 以下で最大 id の行を見つける (= 最後に既読になった自分のmsg)
-    let latestReadRow = null;
-    let latestReadId = 0;
     rows.forEach(row => {
         const id = Number(row.dataset.msgId || 0);
-        if (id > 0 && id <= threshold && id > latestReadId) {
-            latestReadId = id;
-            latestReadRow = row;
+        const existing = row.querySelector('.msg-meta .msg-read');
+        const shouldMark = (threshold > 0 && id > 0 && id <= threshold);
+        if (shouldMark && !existing) {
+            const meta = row.querySelector('.msg-meta');
+            if (meta) {
+                const mark = document.createElement('div');
+                mark.className = 'msg-read';
+                mark.textContent = t('msg.read') || '既読';
+                meta.appendChild(mark);
+            }
+        } else if (!shouldMark && existing) {
+            existing.remove();
         }
     });
-    if (!latestReadRow) return;
-    const meta = latestReadRow.querySelector('.msg-meta');
-    if (!meta) return;
-    const mark = document.createElement('div');
-    mark.className = 'msg-read';
-    mark.textContent = t('msg.read') || '既読';
-    meta.appendChild(mark);
 }
 
 function detectLang(text) {
