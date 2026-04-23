@@ -236,6 +236,13 @@ export class ChatRoom implements DurableObject {
     }
     await this.state.storage.put(`session:${sess.id}`, sess);
     await this.state.storage.put(`session_by_token:${sess.session_token}`, sess.id);
+    // 二重 backfill 回避用マーカー. 以降の adopt ではスキップされる.
+    await this.state.storage.put(`backfilled:${sess.id}`, new Date().toISOString());
+  }
+
+  private async hasBackfilled(sessionId: number): Promise<boolean> {
+    const v = await this.state.storage.get(`backfilled:${sessionId}`);
+    return !!v;
   }
 
   private applyMysqlSessionMeta(sess: ChatSession, meta: any): void {
@@ -337,6 +344,11 @@ export class ChatRoom implements DurableObject {
       if (clientProvidedToken) {
         await this.backfillFromMysql(sess);
       }
+    } else if (clientProvidedToken && !(await this.hasBackfilled(sess.id))) {
+      // 既存 stub セッションだが backfill マーカーが無い場合:
+      // 古い DO バージョンで作られた空 stub (storage にメッセージ無し) を救済.
+      // 冪等 (backfillFromMysql 内で storage.put の id 重複は上書きされない).
+      await this.backfillFromMysql(sess);
     } else if (castInfo.cast_id && !sess.cast_id) {
       // retrofit: 既存セッションに cast 情報を付与
       sess.shop_cast_id = castInfo.shop_cast_id || null;
