@@ -3803,16 +3803,33 @@ function setupEmbedResizeNotifier() {
 setupEmbedResizeNotifier();
 
 // ===== iOS キーボード対応 =====
-// CSS の 100dvh (dynamic viewport height) が iOS Safari 16.4+ / Chrome で visual viewport に自動追従するため、
-// visualViewport.resize で --chat-vh を手動更新する方式は廃止 (20-30 回/動作 発火してパタつく).
+// iOS Safari の仕様:
+//   - 100dvh / 100svh / 100vh は全て layout viewport 基準で、キーボード表示で縮まない.
+//   - interactive-widget=resizes-content は Chrome 専用 (Safari は無視).
+//   - input focus で window を自動スクロールして入力欄を可視化 (body overflow:hidden でも html 要素がスクロール).
 //
-// ただし iOS は input フォーカス時に layout viewport を自動スクロール (入力欄を画面内に収めようとする) ため、
-// html/body が overflow:hidden でもチャット全体が画面上方向にズレてヘッダー/履歴が見えなくなる.
-// → focusin で window.scrollTo(0, 0) で即座に復帰.
+// 対策:
+//   1. CSS で #chat-root を position:fixed でビューポートに固定 (auto-scroll の影響を無効化).
+//   2. visualViewport.height を --chat-vh に反映 (キーボード分だけチャット全体を縮める → 入力欄が隠れない).
+//   3. visualViewport.offsetTop を --chat-offset に反映 (visual viewport シフトに追従).
+//   4. CSS transition で 20-30 回/keyboard 発火の resize イベントを滑らかに補間.
+(function setupViewportTracker(){
+    const vv = window.visualViewport;
+    if (!vv) return; // fallback: CSS の 100dvh に任せる
+    const docEl = document.documentElement;
+    const update = () => {
+        docEl.style.setProperty('--chat-vh', vv.height + 'px');
+        docEl.style.setProperty('--chat-offset', vv.offsetTop + 'px');
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+})();
+
+// 念のため iOS auto-scroll を打ち消す (position:fixed でほぼ発生しないが、稀に window.scrollY > 0 になる).
 document.addEventListener('focusin', (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
-    // iOS の focus 自動スクロールより後に再スクロールが必要なため、即時 + 遅延の2段.
     try { window.scrollTo(0, 0); } catch (_) {}
     setTimeout(() => {
         try { window.scrollTo(0, 0); } catch (_) {}
