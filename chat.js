@@ -3115,13 +3115,20 @@ async function openCastThread(sessionId) {
             device_token: state.cast_device_token,
             session_id: sessionId
         }, 'GET');
+        let maxVisitorId = 0;
         for (const m of (data.messages || [])) {
             addMessage(m, true);
             state.last_message_id = Math.max(state.last_message_id, m.id);
+            if (m.sender_type === 'visitor' && m.id > maxVisitorId) maxVisitorId = m.id;
         }
         if (typeof data.last_read_own_id !== 'undefined') {
             state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
             updateReadMarkers();
+        }
+        // 2026-04-23 ゼロ設計: スレッドを開いた瞬間、見ている visitor msg を明示既読化.
+        // cast-inbox poll は暗黙既読しないため、開封時の1発は必須.
+        if (maxVisitorId > 0 && isWindowActive()) {
+            sendMarkReadForCurrentView(maxVisitorId);
         }
     } catch (e) { showError(e.message); }
 
@@ -3590,21 +3597,46 @@ window.addEventListener('pagehide', () => {
 // - document.hasFocus() 併用で「同じウィンドウが最前面にあるタブ」だけを viewing と判定.
 // 2026-04-23 ゼロ設計: 明示 mark-read ディスパッチ.
 // モード別に正しい reader で呼び分ける. isWindowActive() は呼び出し側でゲート.
+//
+// セッション所有権ルール:
+//   - cast_id IS NULL のセッション → 店舗オーナーが既読権限を持つ
+//   - cast_id IS NOT NULL のセッション → キャスト本人のみが既読権限を持つ
+//   - 店舗オーナーが shop-admin 等で cast セッションを閲覧しても mark-read しない
 function sendMarkReadForCurrentView(upToId) {
     if (!upToId) return;
+
+    // [owner] 店舗オーナー: cast セッションは対象外 (所有権違反防止)
     if (state.mode === 'owner' && state.selected_session) {
+        if (state.selected_session.cast_id) return;  // cast セッションは触らない
         if (state._ownerSub && state._ownerSub.markRead) {
-            // session_token が第一識別子 (chat.js の selected_session.id は MySQL id, DO session_id と不一致).
             const tok = state.selected_session.session_token;
             try { state._ownerSub.markRead(state.selected_session.id, upToId, tok); } catch (_) {}
         }
         return;
     }
+
+    // [cast_owner] キャスト自分用受信箱 (?cast_inbox=<uuid>)
+    if (state.mode === 'cast_owner' && state.selected_session) {
+        api('cast-mark-read', {
+            inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
+            session_id: state.selected_session.id,
+            up_to_id: upToId,
+        }, 'POST').catch(() => {});
+        return;
+    }
+
+    // [visitor] 訪問者 (cast view 含む)
     if (state.mode === 'visitor' && state.session_token) {
-        if (IS_CAST_VIEW) {
-            // cast view: cast は shop 側として閲覧中. reader='shop' で visitor msg を既読化.
-            api('mark-read', { session_token: state.session_token, up_to_id: upToId, reader: 'shop' }).catch(() => {});
+        if (IS_CAST_VIEW && CAST_ID) {
+            // キャストメール返信URL (?cast=&view=): cast-mark-read auth branch B
+            api('cast-mark-read', {
+                session_token: state.session_token,
+                shop_cast_id: CAST_ID,
+                up_to_id: upToId,
+            }, 'POST').catch(() => {});
         } else if (state._visitorSub && state._visitorSub.markRead) {
+            // 通常訪問者: DO WS 経由 mark-read (sender_type='shop' 既読化)
             try { state._visitorSub.markRead(upToId); } catch (_) {}
         }
         return;

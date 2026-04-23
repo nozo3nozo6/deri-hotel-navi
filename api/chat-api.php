@@ -497,6 +497,7 @@ try {
         case 'owner-reply':     handleOwnerReply(); break;
         case 'cast-url-reply':  handleCastUrlReply(); break;
         case 'cast-url-toggle-notify': handleCastUrlToggleNotify(); break;
+        case 'cast-mark-read':          handleCastMarkRead(); break;
         case 'cast-inbox':              handleCastInbox(); break;
         case 'cast-inbox-reply':        handleCastInboxReply(); break;
         case 'cast-inbox-close':        handleCastInboxClose(); break;
@@ -1417,22 +1418,8 @@ function handleCastInbox(): void {
             $stmt->execute([$sessionId]);
             $lastReadOwnId = (int)$stmt->fetchColumn();
 
-            // visitor → 既読
-            // 既読化対象の MAX(id) を先取り → UPDATE → DO に broadcast (visitor WS に既読通知)
-            $stmt = $pdo->prepare(
-                "SELECT COALESCE(MAX(id),0) FROM chat_messages
-                 WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL"
-            );
-            $stmt->execute([$sessionId]);
-            $visitorMaxUnread = (int)$stmt->fetchColumn();
-            $pdo->prepare(
-                "UPDATE chat_messages SET read_at = NOW()
-                 WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL"
-            )->execute([$sessionId]);
-            if ($visitorMaxUnread > 0) {
-                broadcastReadToDO($sessionId, 'shop', $visitorMaxUnread);
-            }
-
+            // 既読ルール (2026-04-23 ゼロ設計): cast-inbox poll では visitor msg を自動既読しない.
+            // 既読は「キャストが該当スレッドを実際に開いて見ている」時のみ (chat.js cast-mark-read 経由).
             $pdo->prepare('UPDATE chat_sessions SET last_owner_heartbeat_at = NOW() WHERE id = ?')
                 ->execute([$sessionId]);
         }
@@ -1453,6 +1440,89 @@ function handleCastInbox(): void {
         'notify_enabled'   => $sc['chat_notify_mode'] !== 'off',
         'server_time'      => date('c'),
     ]);
+}
+
+/**
+ * cast-mark-read: キャストによる明示的 mark-read (2026-04-23 ゼロ設計).
+ *
+ * 2系統の auth を受け付ける (いずれも visitor msg を既読化 + DO broadcast):
+ *   A. inbox_token + session_id   — キャスト自分用受信箱 (?cast_inbox=<uuid>) からの mark-read
+ *   B. session_token + shop_cast_id — キャストメール通知URL (?cast=&view=) からの mark-read
+ *
+ * どちらも sender_type='visitor' を id<=up_to_id で read_at=NOW() + broadcastReadToDO(reader='shop').
+ * 店舗 device_token を持たないキャスト経路の唯一の既読口.
+ */
+function handleCastMarkRead(): void {
+    $upTo = (int)inp('up_to_id', 0);
+    $pdo = DB::conn();
+    $sessionId = 0;
+
+    $inboxToken = trim((string)inp('inbox_token', ''));
+    if ($inboxToken !== '') {
+        // Auth A: cast 受信箱 (inbox_token)
+        $sc = resolveCastInboxToken($inboxToken);
+        if (!$sc) err('invalid or revoked inbox_token', 403);
+        $deviceToken = trim((string)inp('device_token', ''));
+        if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
+        $sessionId = (int)inp('session_id', 0);
+        if ($sessionId <= 0) err('session_id required');
+        $stmt = $pdo->prepare(
+            'SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
+        );
+        $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+        if (!$stmt->fetch()) err('Session not found', 404);
+    } else {
+        // Auth B: cast メール返信URL (session_token + shop_cast_id)
+        $sessionToken = trim((string)inp('session_token', ''));
+        $shopCastId   = trim((string)inp('shop_cast_id', ''));
+        if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
+        if ($shopCastId === '') err('shop_cast_id required');
+
+        $stmt = $pdo->prepare(
+            'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.status AS sc_status, c.status AS cast_status
+             FROM shop_casts sc JOIN casts c ON c.id = sc.cast_id
+             WHERE sc.id = ? LIMIT 1'
+        );
+        $stmt->execute([$shopCastId]);
+        $sc = $stmt->fetch();
+        if (!$sc || $sc['sc_status'] !== 'active' || $sc['cast_status'] !== 'active') {
+            err('キャストが無効です', 403);
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT id, shop_id, cast_id FROM chat_sessions WHERE session_token = ? LIMIT 1'
+        );
+        $stmt->execute([$sessionToken]);
+        $session = $stmt->fetch();
+        if (!$session) err('Session not found', 404);
+        if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
+        if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
+        $sessionId = (int)$session['id'];
+    }
+
+    // 既読化対象の MAX(id) を先取り → UPDATE → DO broadcast (visitor WS に既読通知)
+    if ($upTo > 0) {
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                               WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL AND id <= ?");
+        $stmt->execute([$sessionId, $upTo]);
+        $maxUnread = (int)$stmt->fetchColumn();
+        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                       WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL AND id <= ?")
+            ->execute([$sessionId, $upTo]);
+    } else {
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(id),0) FROM chat_messages
+                               WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL");
+        $stmt->execute([$sessionId]);
+        $maxUnread = (int)$stmt->fetchColumn();
+        $pdo->prepare("UPDATE chat_messages SET read_at = NOW()
+                       WHERE session_id = ? AND sender_type = 'visitor' AND read_at IS NULL")
+            ->execute([$sessionId]);
+    }
+    if ($maxUnread > 0) {
+        broadcastReadToDO($sessionId, 'shop', $maxUnread);
+    }
+    ok(['last_read_id' => $maxUnread]);
 }
 
 /**
