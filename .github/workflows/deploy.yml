@@ -84,9 +84,10 @@ jobs:
           CHAT_RETENTION_SECRET: ${{ secrets.CHAT_RETENTION_SECRET }}
           CHAT_SYNC_SECRET: ${{ secrets.CHAT_SYNC_SECRET }}
           CHAT_NOTIFY_SECRET: ${{ secrets.CHAT_NOTIFY_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           mkdir -p api
-          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\ndefine('CHAT_RETENTION_SECRET', '%s');\ndefine('CHAT_SYNC_SECRET', '%s');\ndefine('CHAT_NOTIFY_SECRET', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$CHAT_RETENTION_SECRET" "$CHAT_SYNC_SECRET" "$CHAT_NOTIFY_SECRET" > api/db-config.php
+          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\ndefine('CHAT_RETENTION_SECRET', '%s');\ndefine('CHAT_SYNC_SECRET', '%s');\ndefine('CHAT_NOTIFY_SECRET', '%s');\ndefine('GEMINI_API_KEY', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$CHAT_RETENTION_SECRET" "$CHAT_SYNC_SECRET" "$CHAT_NOTIFY_SECRET" "$GEMINI_API_KEY" > api/db-config.php
 
       - name: Generate vapid-config.php
         env:

@@ -1910,21 +1910,34 @@ function handleTranslate() {
         return;
     }
 
-    // MyMemory API (free tier: 5000 chars/day anonymous)
-    // Map zh → zh-CN for MyMemory
-    $fromMm = $from === 'zh' ? 'zh-CN' : $from;
-    $toMm   = $to   === 'zh' ? 'zh-CN' : $to;
-    $url = 'https://api.mymemory.translated.net/get?q=' . urlencode($text)
-         . '&langpair=' . urlencode($fromMm . '|' . $toMm);
+    if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') err('Translation not configured', 500);
 
-    $ctx = stream_context_create([
-        'http' => ['timeout' => 6, 'ignore_errors' => true, 'user_agent' => 'yobuho-chat/1.0'],
-        'https' => ['timeout' => 6, 'ignore_errors' => true, 'user_agent' => 'yobuho-chat/1.0']
-    ]);
+    $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'ko' => 'Korean'];
+    $fromName = $langNames[$from] ?? $from;
+    $toName   = $langNames[$to]   ?? $to;
+    $prompt = "Translate this chat message from {$fromName} to {$toName}. This is a casual chat between a business and a customer — keep the tone natural and conversational. Return ONLY the translated text, with no explanation, no quotes, and no prefix.\n\nMessage:\n{$text}";
+
+    $body = json_encode([
+        'contents' => [['parts' => [['text' => $prompt]]]],
+        'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 800],
+    ], JSON_UNESCAPED_UNICODE);
+
+    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
+    $opts = [
+        'method' => 'POST',
+        'header' => "Content-Type: application/json\r\n",
+        'content' => $body,
+        'timeout' => 10,
+        'ignore_errors' => true,
+    ];
+    $ctx = stream_context_create(['http' => $opts, 'https' => $opts]);
     $resp = @file_get_contents($url, false, $ctx);
     if ($resp === false) err('Translation service unreachable', 502);
     $data = json_decode($resp, true);
-    $translated = isset($data['responseData']['translatedText']) ? (string)$data['responseData']['translatedText'] : '';
+    $translated = isset($data['candidates'][0]['content']['parts'][0]['text'])
+        ? trim((string)$data['candidates'][0]['content']['parts'][0]['text'])
+        : '';
+    $translated = trim($translated, " \t\n\r\0\x0B\"'「」『』");
     if ($translated === '' || $translated === $text) err('Translation failed', 502);
 
     $pdo->prepare('INSERT IGNORE INTO chat_translations (cache_key, src_lang, dst_lang, src_text, translated) VALUES (?, ?, ?, ?, ?)')
