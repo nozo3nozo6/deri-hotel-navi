@@ -121,6 +121,9 @@ let state = {
     nickname_locked: false,   // 最初の訪問者メッセージ送信後に true: このチャット内ではニックネーム固定
     // 2026-04-23 翻訳アンカー: 訪問者の入力言語. visitor=ja なら両側翻訳OFF, 非ja なら shop viewer=ja / visitor viewer=visitor_input_lang で翻訳.
     visitor_input_lang: 'ja',
+    // 2026-04-23 アバター: お店/キャストのメッセージバブル左に表示する丸アイコン (訪問者はアイコン無し)
+    shop_avatar_url: null,
+    cast_avatar_url: null,
 };
 
 // ===== DOM refs =====
@@ -2260,9 +2263,31 @@ function addMessage(m, _fromOwnerLegacy) {
     t.textContent = formatTime(m.sent_at);
     meta.appendChild(t);
 
-    // 自分側=時刻を吹き出しの左, 相手側=時刻を吹き出しの右
+    // アバター (2026-04-23): 相手側 (POS_OTHER) かつ sender_type='shop' の時のみ表示.
+    // 訪問者のメッセージ (sender_type='visitor') には表示しない.
+    // キャスト指名セッション: cast_avatar_url を優先, 通常セッション: shop_avatar_url.
+    let avatar = null;
+    if (renderAs === POS_OTHER && m.sender_type === 'shop') {
+        const hasCast = !!(state.selected_session && state.selected_session.cast_id)
+                       || !!state.cast_avatar_url
+                       || IS_CAST_VIEW
+                       || state.mode === 'cast_owner';
+        const url = hasCast ? (state.cast_avatar_url || state.shop_avatar_url)
+                            : state.shop_avatar_url;
+        if (url) {
+            avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.style.backgroundImage = "url('" + String(url).replace(/'/g, "\\'") + "')";
+        }
+    }
+
+    // 自分側=時刻を吹き出しの左, 相手側=アバター+吹き出し+時刻
     if (renderAs === POS_SELF) { row.appendChild(meta); row.appendChild(bubble); }
-    else { row.appendChild(bubble); row.appendChild(meta); }
+    else {
+        if (avatar) row.appendChild(avatar);
+        row.appendChild(bubble);
+        row.appendChild(meta);
+    }
     refs.chatMessages.appendChild(row);
     // LINE流: 自分送信は常に末尾へ. 相手メッセージは末尾近くに居る時のみ追従、遡り読み中はボタン表示.
     autoScrollOnIncoming(renderAs === POS_SELF);
@@ -2391,6 +2416,8 @@ function applyVisitorBatch(data) {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
     }
+    if (typeof data.shop_avatar_url !== 'undefined') state.shop_avatar_url = data.shop_avatar_url || null;
+    if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
     // 2026-04-23 ゼロ設計: ウィンドウ見てる時のみ incoming msg を明示既読化 (暗黙既読は全廃)
     if (addedAny && maxIncomingId > 0 && isWindowActive()) {
         sendMarkReadForCurrentView(maxIncomingId);
@@ -2891,6 +2918,8 @@ function applyOwnerBatch(data, selectedSid) {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
         updateReadMarkers();
     }
+    if (typeof data.shop_avatar_url !== 'undefined') state.shop_avatar_url = data.shop_avatar_url || null;
+    if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
     // 2026-04-23 ゼロ設計: オーナーがスレッド表示中かつウィンドウ見てる時のみ visitor msg を既読化
     if (addedAny && maxIncomingId > 0 && isWindowActive() && state.selected_session) {
@@ -2930,6 +2959,10 @@ async function enterCastOwnerMode() {
     state.notify_enabled = !!data.notify_enabled;
     state.is_online = state.notify_enabled;
     state.inbox_sessions = data.sessions || [];
+    // キャスト自身のアバター: cast_inbox API が返す cast_avatar_url を保持.
+    // 受信箱 → スレッド開封時にこの値を使って自分のメッセージ横に表示（POS_SELF側は非表示だが、
+    // もし cast thread で相手=visitor が閲覧した場合の将来拡張のため保持）
+    if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
     // 店舗ジャンル(gender_mode)に合わせてテーマ適用.
     // data-role="cast" は CSS で店舗オーナーと区別するための装飾フック.
     setThemeMode(data.gender_mode || 'men');
@@ -3125,6 +3158,8 @@ async function openCastThread(sessionId) {
             state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
             updateReadMarkers();
         }
+        if (typeof data.shop_avatar_url !== 'undefined') state.shop_avatar_url = data.shop_avatar_url || null;
+        if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
         // 2026-04-23 ゼロ設計: スレッドを開いた瞬間、見ている visitor msg を明示既読化.
         // cast-inbox poll は暗黙既読しないため、開封時の1発は必須.
         if (maxVisitorId > 0 && isWindowActive()) {

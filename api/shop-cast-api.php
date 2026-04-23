@@ -330,6 +330,14 @@ function handleUpdate() {
     $imgUrl = inp('profile_image_url', null);
     if ($imgUrl !== null) {
         $imgUrl = trim((string)$imgUrl);
+        if ($imgUrl !== '') {
+            // data URL のみ許可（XSS/外部参照防止）。96x96 JPEG quality 0.82 なら ~10KB, base64で ~14KB
+            if (!preg_match('#^data:image/(jpeg|png);base64,#', $imgUrl)) {
+                err('画像形式が正しくありません');
+            }
+            // 上限 90KB (base64 data URL 全体で): 96x96 JPEG想定で十分な余裕
+            if (strlen($imgUrl) > 92160) err('画像サイズが大きすぎます (最大 ~65KB)');
+        }
         $fields[] = 'profile_image_url = ?';
         $values[] = $imgUrl === '' ? null : $imgUrl;
     }

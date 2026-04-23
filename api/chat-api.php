@@ -719,6 +719,9 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
     $stmt->execute([$sessionId, $sinceId]);
     $messages = $stmt->fetchAll();
 
+    // アバター URL (2026-04-23): 相手側のチャット吹き出しアイコン表示用
+    [$shopAvatar, $castAvatar] = fetchSessionAvatars($pdo, $sessionId, $shopId);
+
     // 既読ルール (2026-04-23 ゼロ設計): 暗黙既読を全廃.
     // poll/send 経路で read_at を自動更新しない.
     // 既読は「受信者が実際にウィンドウを見ている」状態でのみ付与 (chat.js isWindowActive + DO fresh view signal).
@@ -764,7 +767,38 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
         'status' => $status,
         'last_read_own_id' => $lastReadOwnId,
         'other_typing' => (bool)$otherTyping,
+        'shop_avatar_url' => $shopAvatar,
+        'cast_avatar_url' => $castAvatar,
     ]));
+}
+
+/**
+ * セッションの相手側アバター URL を取得.
+ * return [shop_avatar_url, cast_avatar_url]
+ *   - shop_avatar_url: shops.thumbnail_url
+ *   - cast_avatar_url: shop_casts.profile_image_url (cast_id ありの時のみ)
+ */
+function fetchSessionAvatars(PDO $pdo, int $sessionId, string $shopId): array {
+    static $cache = [];
+    $key = $sessionId . '|' . $shopId;
+    if (isset($cache[$key])) return $cache[$key];
+
+    $stmt = $pdo->prepare('SELECT thumbnail_url FROM shops WHERE id = ? LIMIT 1');
+    $stmt->execute([$shopId]);
+    $shopAvatar = $stmt->fetchColumn() ?: null;
+
+    $stmt = $pdo->prepare(
+        'SELECT sc.profile_image_url
+         FROM chat_sessions cs
+         JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
+         WHERE cs.id = ? AND cs.cast_id IS NOT NULL
+         LIMIT 1'
+    );
+    $stmt->execute([$sessionId]);
+    $castAvatar = $stmt->fetchColumn() ?: null;
+
+    $cache[$key] = [$shopAvatar, $castAvatar];
+    return $cache[$key];
 }
 
 function handlePollMessages() {
@@ -1102,6 +1136,11 @@ function handleOwnerInbox() {
 
             // 既読ルール (2026-04-23 ゼロ設計): inbox poll では visitor msg を自動既読しない.
             // 既読は「オーナーが該当スレッドを実際に開いて見ている」時のみ (chat.js mark-read 経由).
+
+            // アバター URL (相手側表示用)
+            [$shopAvatar, $castAvatar] = fetchSessionAvatars($pdo, $sessionId, $device['shop_id']);
+            $extra['shop_avatar_url'] = $shopAvatar;
+            $extra['cast_avatar_url'] = $castAvatar;
         }
     }
 
@@ -1425,6 +1464,12 @@ function handleCastInbox(): void {
         }
     }
 
+    // キャスト本人のアバター (セッション内で '自分' = shop 側の吹き出し担当)
+    $castAvatarUrl = null;
+    $stmt = $pdo->prepare('SELECT profile_image_url FROM shop_casts WHERE id = ? LIMIT 1');
+    $stmt->execute([$sc['shop_cast_id']]);
+    $castAvatarUrl = $stmt->fetchColumn() ?: null;
+
     ok([
         'sessions'         => $sessions,
         'messages'         => $messages,
@@ -1438,6 +1483,7 @@ function handleCastInbox(): void {
         'gender_mode'      => $sc['gender_mode'] ?? 'men',
         'notify_mode'      => $sc['chat_notify_mode'],
         'notify_enabled'   => $sc['chat_notify_mode'] !== 'off',
+        'cast_avatar_url'  => $castAvatarUrl,
         'server_time'      => date('c'),
     ]);
 }
@@ -1825,12 +1871,16 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
         broadcastTypingToDO((int)$sessionId, 'shop', false);
     }
 
+    [$shopAvatar, $castAvatar] = fetchSessionAvatars($pdo, $sessionId, $shopId);
+
     okBatch(array_merge($extra, [
         'messages' => $messages,
         'last_read_own_id' => $lastReadOwnId,
         'status' => $status,
         'shop_online' => true,
         'other_typing' => (bool)$otherTyping,
+        'shop_avatar_url' => $shopAvatar,
+        'cast_avatar_url' => $castAvatar,
     ]));
 }
 
