@@ -3325,20 +3325,7 @@ refs.sendBtn.addEventListener('click', () => {
     else sendVisitorMessage(msg);
 });
 
-// IME 確定 Enter の誤送信ガード:
-// - Mac/Chrome 等は IME 確定 Enter の keydown が `isComposing=false` で届く一方、
-//   同タイミングで `keyCode === 229` になることが多い (ブラウザによる).
-// - 一部環境では compositionend 直後の keydown でも 229 が立たないため、
-//   compositionend からの経過時間をフラグで見て 50ms 以内の Enter は無視する.
-let lastCompositionEndAt = 0;
-refs.input.addEventListener('compositionend', () => { lastCompositionEndAt = Date.now(); });
-refs.input.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || e.shiftKey) return;
-    if (e.isComposing || e.keyCode === 229) return;
-    if (Date.now() - lastCompositionEndAt < 50) return; // IME 確定 Enter を誤認しない
-    e.preventDefault();
-    refs.sendBtn.click();
-});
+// LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
 
 // Day 8: typing emit (スロットル付き — 3秒おきに再発火)
 // #3: 値が空になった / blur / 送信時は stop 信号を明示送信.
