@@ -3802,39 +3802,17 @@ function setupEmbedResizeNotifier() {
 }
 setupEmbedResizeNotifier();
 
-// ===== iOS キーボード対応: visualViewport で #chat-root の高さだけを動的調整 =====
-// body:fixed だと iOS が焦点移動で一瞬全画面スクロールする挙動が残るので採用しない。
-// 全体 translate も採用しない (画面が一瞬下→上に動く違和感が出る).
-//
-// 方針:
-//   --chat-vh : visual viewport の高さ → #chat-root の height
-//   キーボードが出ると chat-root が縮む → 入力欄は flex 末端なので相対的にキーボード上端へ.
-//   ヘッダー・メッセージ領域は基本位置のまま. layout viewport が動いた場合は focusin で scrollTo(0,0) で復旧.
-function setupViewportTracker() {
-    if (!window.visualViewport) return;
-    const vv = window.visualViewport;
-    const apply = () => {
-        const h = vv.height;
-        document.documentElement.style.setProperty('--chat-vh', h + 'px');
-    };
-    vv.addEventListener('resize', apply);
-    vv.addEventListener('scroll', apply);
-    // 入力欄にフォーカスが戻るたびに iOS が一瞬 scroll する前に、メッセージ末尾へスクロール
-    // (キーボード表示で messages 領域が小さくなった瞬間、最新メッセージが隠れるのを防ぐ)
-    document.addEventListener('focusin', (e) => {
-        const t = e.target;
-        if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
-        // layout viewport が万一スクロールしていた場合のリカバリ (html/body overflow:hidden でも
-        // ブラウザバー折りたたみ等で body 起点のスクロールが発生することがある).
-        try { window.scrollTo(0, 0); } catch (_) {}
-        setTimeout(() => {
-            try { window.scrollTo(0, 0); } catch (_) {}
-            if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
-        }, 300);
-    });
-    apply();
-}
-setupViewportTracker();
+// ===== iOS キーボード対応 =====
+// CSS の 100dvh (dynamic viewport height) が iOS Safari 16.4+ / Chrome で visual viewport に自動追従するため、
+// visualViewport.resize で --chat-vh を手動更新する方式は廃止 (20-30 回/動作 発火してパタつく).
+// 唯一残す処理: 入力欄にフォーカスが戻った時に、メッセージ末尾が見えるよう scrollTop を調整する.
+document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
+    setTimeout(() => {
+        if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+    }, 300);
+});
 
 // ===== 起動 =====
 init();
