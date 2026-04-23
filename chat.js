@@ -3847,19 +3847,19 @@ setupEmbedResizeNotifier();
         vv.addEventListener('resize', syncToVisualViewport);
     }
 
-    // touchstart: focus より先に発火するので、この瞬間に chat-root を予測縮小.
-    // iOS が focus 時「input 画面内?」をチェックする時に既に縮んでいれば shift しない.
-    const preemptiveShrink = (e) => {
+    // focusin: input が focus された直後に発火 (keyboard が出る前).
+    // この瞬間に chat-root を予測縮小すれば iOS が「input 画面内」と判定して shift しない.
+    // 注意: touchstart で縮めると input 要素が指の下から離れて iOS が tap をキャンセルする.
+    // focusin なら focus は既に commit 済みなので keyboard は必ず出る.
+    const handleFocusIn = (e) => {
         const t = e.target;
         if (!t || !t.matches) return;
         if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password]')) return;
         keyboardOpen = true;
-        // 50vh に縮める (iOS キーボードは通常 35-45vh なので安全マージン).
-        docEl.style.setProperty('--chat-vh', (window.innerHeight * 0.5) + 'px');
-        try { window.scrollTo(0, 0); } catch (_) {}
+        // 55vh に縮める (iOS キーボードは通常 35-45vh なので安全マージン).
+        docEl.style.setProperty('--chat-vh', Math.max(280, window.innerHeight * 0.55) + 'px');
     };
-    document.addEventListener('touchstart', preemptiveShrink, { capture: true, passive: true });
-    document.addEventListener('mousedown', preemptiveShrink, { capture: true, passive: true });
+    document.addEventListener('focusin', handleFocusIn, true);
 
     // blur で元に戻す (入力欄から出た時).
     document.addEventListener('focusout', (e) => {
@@ -3874,13 +3874,6 @@ setupEmbedResizeNotifier();
             }
         }, 100);
     });
-
-    // 念のため scroll を常時 0 に.
-    window.addEventListener('scroll', () => {
-        if (window.scrollY !== 0 || window.scrollX !== 0) {
-            window.scrollTo(0, 0);
-        }
-    }, { passive: true });
 })();
 
 // ===== 起動 =====
