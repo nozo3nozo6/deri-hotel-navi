@@ -5,7 +5,7 @@ body[data-mode="men_same"]{--chat-primary:#2a5a8f;--chat-primary-dark:#1e4268;--
 body[data-mode="women_same"]{--chat-primary:#8a5a9e;--chat-primary-dark:#6b4079;--chat-primary-rgb:138,90,158;--chat-quick-bg:#efe5f5;--chat-quick-bg-hover:#e1d0ec;--chat-quick-border:#c5aed6;--chat-quick-text:#6b4079;--chat-note-bg:#f5ecfa;--chat-note-border:#dcc5ea;--chat-note-text:#5a3466}
 body[data-mode="este"]{--chat-primary:#2aa8b8;--chat-primary-dark:#1e7d8a;--chat-primary-rgb:42,168,184;--chat-quick-bg:#dff2f4;--chat-quick-bg-hover:#c7e8eb;--chat-quick-border:#a0d4da;--chat-quick-text:#1e7d8a;--chat-note-bg:#ecf7f9;--chat-note-border:#bfe0e5;--chat-note-text:#1e5a64}
 *,*::before,*::after{box-sizing:border-box}
-html,body{margin:0;padding:0;height:100dvh;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;color:#222;background:#f7f5f2;-webkit-font-smoothing:antialiased;font-size:16px;overflow:hidden}
+html,body{margin:0;padding:0;height:100svh;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;color:#222;background:#f7f5f2;-webkit-font-smoothing:antialiased;font-size:16px;overflow:hidden;position:fixed;width:100%;top:0;left:0}
 body{overscroll-behavior:none}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit;padding:0}
 a{color:var(--chat-primary);text-decoration:none}
@@ -311,7 +311,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .owner-login-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;animation:fadeIn .2s}
 .owner-login-modal.hidden{display:none}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.owner-login-card{background:#fff;border-radius:12px;width:100%;max-width:380px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:calc(100dvh - 40px);overflow-y:auto}
+.owner-login-card{background:#fff;border-radius:12px;width:100%;max-width:380px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:calc(100svh - 40px);overflow-y:auto}
 .owner-login-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .owner-login-head h2{margin:0;font-size:17px;color:#222}
 .owner-login-close{width:32px;height:32px;border-radius:50%;background:#f2f2f2;color:#666;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer}
