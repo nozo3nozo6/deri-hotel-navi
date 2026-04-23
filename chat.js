@@ -3389,6 +3389,12 @@ refs.input.addEventListener('blur', () => {
 refs.input.addEventListener('focus', () => {
     // スマホでキーボードが出ている間、通知バー (✓通知を有効にしました/メール変更) を隠してチャット表示領域を広げる.
     document.body.classList.add('chat-input-focused');
+    // iframe 埋込時 (②/⑤/①widget モーダル) は親ページが iframe をスクロール追従できないため、
+    // 親に「入力欄にフォーカスした→iframe 末尾を画面内に入れて欲しい」ことを通知する.
+    // 親側スニペットは受信時に iframe.scrollIntoView({block:'end'}) を呼ぶ.
+    if (isEmbedded()) {
+        try { window.parent.postMessage({ type: 'ychat:input-focus', slug: SLUG }, '*'); } catch (_) {}
+    }
 });
 // ページ離脱時も確実に保存 (iOS では beforeunload が発火しない事があるため pagehide も付ける)
 window.addEventListener('pagehide', saveDraftNow);

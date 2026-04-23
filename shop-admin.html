@@ -2995,10 +2995,15 @@ function renderChatAdmin(data){
     const scriptCode = '<script src="https://yobuho.com/chat-widget.js" data-slug="' + slug + '" async><\/script>';
 
     // ② iframe: 静的 iframe + 高さ自動調整（chat.html からの postMessage 受信）
+    // ychat:resize → iframe 高さを中身に追従
+    // ychat:input-focus → iOSキーボード表示時に iframe 末尾を画面内へ（親ページ側のスクロール制御）
     const resizeSnippet = function(frameId, min, max) {
         return '<script>\n' +
             '(function(){var f=document.getElementById(\'' + frameId + '\');if(!f)return;\n' +
-            'window.addEventListener(\'message\',function(e){if(e.source!==f.contentWindow)return;var d=e.data;if(!d||d.type!==\'ychat:resize\')return;var h=Math.max(' + min + ',Math.min(' + max + ',d.h|0));f.style.height=h+\'px\';});\n' +
+            'window.addEventListener(\'message\',function(e){if(e.source!==f.contentWindow)return;var d=e.data;if(!d)return;\n' +
+            'if(d.type===\'ychat:resize\'){var h=Math.max(' + min + ',Math.min(' + max + ',d.h|0));f.style.height=h+\'px\';return;}\n' +
+            'if(d.type===\'ychat:input-focus\'){try{f.scrollIntoView({block:\'end\',behavior:\'smooth\'});}catch(_){f.scrollIntoView(false);}return;}\n' +
+            '});\n' +
             '})();\n' +
             '<\/script>';
     };
