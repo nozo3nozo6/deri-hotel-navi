@@ -12,8 +12,9 @@ a{color:var(--chat-primary);text-decoration:none}
 
 /* iOS キーボード対応: position:fixed でビューポートに固定 (iOS auto-scroll による押し上げを無効化).
    --chat-vh / --chat-offset は chat.js が visualViewport を反映. 未対応環境では 100dvh にフォールバック.
-   transition で resize 連続イベントを滑らかに補間. */
-#chat-root{position:fixed;top:calc(8px + var(--chat-offset,0px));left:8px;right:8px;display:flex;flex-direction:column;height:calc(var(--chat-vh,100dvh) - 16px);max-height:calc(var(--chat-vh,100dvh) - 16px);overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15);transition:height .2s ease-out,max-height .2s ease-out,top .2s ease-out}
+   transition は絶対に付けない: iOS は keyboard アニメ中 ~60fps で resize イベントを発火するので、
+   CSS transition を噛ますと二重アニメになり「下から上へ遅れて追従」する違和感が出る. */
+#chat-root{position:fixed;top:calc(8px + var(--chat-offset,0px));left:8px;right:8px;display:flex;flex-direction:column;height:calc(var(--chat-vh,100dvh) - 16px);max-height:calc(var(--chat-vh,100dvh) - 16px);overflow:hidden;background:#fff;border:1px solid rgba(var(--chat-primary-rgb),.22);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.08),0 2px 8px rgba(var(--chat-primary-rgb),.15)}
 @media (max-width:480px){#chat-root{top:calc(4px + var(--chat-offset,0px));left:4px;right:4px;height:calc(var(--chat-vh,100dvh) - 8px);max-height:calc(var(--chat-vh,100dvh) - 8px);border-radius:10px}}
 .hidden{display:none!important}
 
