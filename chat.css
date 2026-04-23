@@ -186,9 +186,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .visitor-notify-save{flex:0 0 auto;padding:6px 14px;background:var(--chat-primary);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600}
 .visitor-notify-save:hover{background:var(--chat-primary-dark)}
 .visitor-notify-save:disabled{background:#aaa;cursor:wait}
-.visitor-notify-collapse{flex:0 0 auto;width:28px;height:28px;padding:0;background:transparent;color:#888;border:1px solid #d0cbc2;border-radius:6px;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.visitor-notify-collapse:hover{background:#efebe3;color:#444}
-.visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px;line-height:1.5}
+.visitor-notify-close-link{background:transparent;border:none;color:#888;font-size:11px;cursor:pointer;text-decoration:underline;padding:0;line-height:1}
+.visitor-notify-close-link:hover{color:var(--chat-primary,#b5627a)}
+.visitor-notify-status{margin-top:6px;font-size:12px;padding:0 10px;line-height:1.5;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .visitor-notify-status.ok{color:#2a8a5e}
 .visitor-notify-status.err{color:#a44}
 .visitor-notify-status.pending{color:#b07b00;background:#fffaed;border:1px solid #f0d783;border-radius:6px;padding:6px 10px}
@@ -245,8 +245,8 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 
 /* ===== 入力エリア ===== */
 .chat-input-area{display:flex;padding:10px 12px;gap:8px;background:#fff;border-top:1px solid #e5e0d8;flex-shrink:0}
-#chat-input{flex:1;padding:10px 12px;border:1px solid var(--chat-quick-border);border-radius:18px;font-size:16px;resize:none;font-family:inherit;line-height:1.4;max-height:120px}
-#chat-input:focus{outline:none;border-color:var(--chat-primary)}
+#chat-input{flex:1;padding:6px 10px;border:1px solid var(--chat-quick-border);border-radius:14px;font-size:16px;resize:none;font-family:inherit;line-height:1.4;max-height:120px;background:#fafafa}
+#chat-input:focus{outline:none;border-color:var(--chat-primary);background:#fff}
 .send-btn{padding:0 18px;background:var(--chat-primary);color:#fff;border-radius:18px;font-weight:700;font-size:14px}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
 
@@ -273,7 +273,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
   #chat-shop-name{font-size:14px}
   .msg{font-size:14px;max-width:85%}
   .chat-messages{padding:12px}
-  #chat-input{font-size:16px}
+  #chat-input{font-size:16px;padding:5px 8px}
 }
 
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */

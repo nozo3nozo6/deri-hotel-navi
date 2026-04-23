@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=85">
+<link rel="stylesheet" href="/chat.css?v=86">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -71,9 +71,11 @@
       <div id="visitor-notify-body" class="visitor-notify-body">
         <input type="email" id="visitor-notify-email" class="visitor-notify-email" placeholder="your@email.com" maxlength="255" autocomplete="email" inputmode="email">
         <button type="button" id="visitor-notify-save" class="visitor-notify-save" data-i18n="notify.save">登録</button>
-        <button type="button" id="visitor-notify-collapse" class="visitor-notify-collapse hidden" aria-label="閉じる" title="閉じる">✕</button>
       </div>
-      <div id="visitor-notify-status" class="visitor-notify-status hidden"></div>
+      <div id="visitor-notify-status" class="visitor-notify-status hidden">
+        <span id="visitor-notify-status-msg"></span>
+        <button type="button" id="visitor-notify-close-link" class="visitor-notify-close-link hidden" data-i18n="notify.close">確認画面を閉じる</button>
+      </div>
       <button type="button" id="visitor-notify-resend" class="visitor-notify-resend hidden" data-i18n="notify.resend">確認メールを再送</button>
       <button type="button" id="visitor-notify-edit" class="visitor-notify-edit hidden" data-i18n="notify.edit">メールアドレスを変更</button>
     </div>
@@ -202,6 +204,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=118"></script>
+<script src="/chat.js?v=119"></script>
 </body>
 </html>

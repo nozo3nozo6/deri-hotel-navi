@@ -177,9 +177,10 @@ const refs = {
     visitorNotifyEmail: $('visitor-notify-email'),
     visitorNotifySave: $('visitor-notify-save'),
     visitorNotifyStatus: $('visitor-notify-status'),
+    visitorNotifyStatusMsg: $('visitor-notify-status-msg'),
+    visitorNotifyCloseLink: $('visitor-notify-close-link'),
     visitorNotifyResend: $('visitor-notify-resend'),
     visitorNotifyEdit: $('visitor-notify-edit'),
-    visitorNotifyCollapse: $('visitor-notify-collapse'),
 };
 
 // ===== ユーティリティ =====
@@ -1553,7 +1554,7 @@ const LS_LANG = 'chat_lang_' + SLUG;
 let I18N = { ja: { 'load': '読み込み中…' } }; // fetch完了まで最小限
 async function loadI18N() {
     try {
-        const res = await fetch('/chat-i18n.json?v=57', { cache: 'force-cache' });
+        const res = await fetch('/chat-i18n.json?v=58', { cache: 'force-cache' });
         if (res.ok) I18N = await res.json();
     } catch (_) {}
 }
@@ -2011,7 +2012,7 @@ function hydrateVisitorNotify({ email, enabled, verified, pending }) {
     } else if (enabled && verified) {
         showNotifyStatus(t('notify.verified') || '✓ 確認済み — 通知が有効です', 'ok');
     } else if (refs.visitorNotifyStatus) {
-        refs.visitorNotifyStatus.textContent = '';
+        if (refs.visitorNotifyStatusMsg) refs.visitorNotifyStatusMsg.textContent = '';
         refs.visitorNotifyStatus.className = 'visitor-notify-status hidden';
     }
 
@@ -2027,9 +2028,9 @@ function hydrateVisitorNotify({ email, enabled, verified, pending }) {
         const collapse = !!(enabled && verified && email);
         refs.visitorNotify.classList.toggle('verified-collapsed', collapse);
         refs.visitorNotifyEdit.classList.toggle('hidden', !collapse);
-        // 畳まれた状態になるときは ✕ 閉じるボタンも隠す.
-        if (collapse && refs.visitorNotifyCollapse) {
-            refs.visitorNotifyCollapse.classList.add('hidden');
+        // 畳まれた状態になるときは 「確認画面を閉じる」リンクも隠す.
+        if (collapse && refs.visitorNotifyCloseLink) {
+            refs.visitorNotifyCloseLink.classList.add('hidden');
         }
     }
 }
@@ -2065,7 +2066,7 @@ async function loadVisitorNotifyState() {
 
 function showNotifyStatus(msg, kind) {
     if (!refs.visitorNotifyStatus) return;
-    refs.visitorNotifyStatus.textContent = msg || '';
+    if (refs.visitorNotifyStatusMsg) refs.visitorNotifyStatusMsg.textContent = msg || '';
     refs.visitorNotifyStatus.className = 'visitor-notify-status ' + (kind || '');
     refs.visitorNotifyStatus.classList.toggle('hidden', !msg);
 }
@@ -3420,19 +3421,19 @@ if (refs.visitorNotifyResend) {
 }
 if (refs.visitorNotifyEdit) {
     refs.visitorNotifyEdit.addEventListener('click', () => {
-        // verified-collapsed を解除してメール入力欄を再表示. ✕ 閉じるボタンも見せる.
+        // verified-collapsed を解除してメール入力欄を再表示. 「確認画面を閉じる」リンクも見せる.
         if (refs.visitorNotify) refs.visitorNotify.classList.remove('verified-collapsed');
         refs.visitorNotifyEdit.classList.add('hidden');
-        if (refs.visitorNotifyCollapse) refs.visitorNotifyCollapse.classList.remove('hidden');
+        if (refs.visitorNotifyCloseLink) refs.visitorNotifyCloseLink.classList.remove('hidden');
         if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.focus();
     });
 }
-if (refs.visitorNotifyCollapse) {
-    refs.visitorNotifyCollapse.addEventListener('click', () => {
+if (refs.visitorNotifyCloseLink) {
+    refs.visitorNotifyCloseLink.addEventListener('click', () => {
         // 変更せずに畳む: verified-collapsed を戻して「変更」リンクだけ残す.
         if (refs.visitorNotify) refs.visitorNotify.classList.add('verified-collapsed');
         if (refs.visitorNotifyEdit) refs.visitorNotifyEdit.classList.remove('hidden');
-        refs.visitorNotifyCollapse.classList.add('hidden');
+        refs.visitorNotifyCloseLink.classList.add('hidden');
     });
 }
 if (refs.visitorNotifyEmail) {
