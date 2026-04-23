@@ -1210,15 +1210,18 @@ const PollingTransport = {
             stop: () => { active = false; clearInterval(timer); },
             // 2026-04-23 ゼロ設計: PHP 暗黙既読を全廃したので PollingTransport も明示 mark-read が必須.
             setView: () => {},
-            markRead: (sessionId, upToId) => {
+            markRead: (sessionId, upToId, sessionToken) => {
                 const dt = getDeviceToken && getDeviceToken();
-                if (!dt || !sessionId) return;
-                api('mark-read', {
+                if (!dt) return;
+                const body = {
                     device_token: dt,
-                    session_id: sessionId,
                     up_to_id: upToId || 0,
                     reader: 'shop',
-                }).catch(() => {});
+                };
+                if (sessionToken) body.session_token = sessionToken;
+                if (sessionId) body.session_id = sessionId;
+                if (!body.session_token && !body.session_id) return;
+                api('mark-read', body).catch(() => {});
             },
         };
     },
@@ -1501,10 +1504,15 @@ const DurableObjectTransport = {
                 } catch (_) {}
             },
             // 2026-04-23 ゼロ設計: isWindowActive() 時のみ chat.js から呼ぶ明示既読.
-            markRead: (sessionId, upToId) => {
+            // session_token を第一識別子にする (MySQL session_id は DO 内 id と不一致のため).
+            markRead: (sessionId, upToId, sessionToken) => {
                 if (!ws || ws.readyState !== 1) return;
+                const payload = { type: 'mark-read', up_to_id: upToId || 0 };
+                if (sessionToken) payload.session_token = sessionToken;
+                if (sessionId) payload.session_id = sessionId;
+                if (!payload.session_token && !payload.session_id) return;
                 try {
-                    ws.send(JSON.stringify({ type: 'mark-read', session_id: sessionId, up_to_id: upToId || 0 }));
+                    ws.send(JSON.stringify(payload));
                 } catch (_) {}
             },
         };
@@ -2741,9 +2749,11 @@ async function openOwnerThread(sessionId) {
             device_token: state.device_token,
             session_id: sessionId
         }, 'GET');
+        let maxVisitorId = 0;
         for (const m of (data.messages || [])) {
             addMessage(m, true);
             state.last_message_id = Math.max(state.last_message_id, m.id);
+            if (m.sender_type === 'visitor' && m.id > maxVisitorId) maxVisitorId = m.id;
         }
         if (typeof data.last_read_own_id !== 'undefined') {
             state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
@@ -2751,6 +2761,11 @@ async function openOwnerThread(sessionId) {
         }
         state.selected_session.is_blocked = !!data.is_blocked;
         updateBlockButton();
+        // 2026-04-23 ゼロ設計: スレッドを開いた瞬間、見ている visitor msg を明示既読化.
+        // (以前は PHP owner-inbox が暗黙 auto-read していたが、その経路を廃止したため明示必須.)
+        if (maxVisitorId > 0 && isWindowActive()) {
+            sendMarkReadForCurrentView(maxVisitorId);
+        }
     } catch (e) { showError(e.message); }
 
     const isClosed = state.selected_session.status === 'closed';
@@ -3579,7 +3594,9 @@ function sendMarkReadForCurrentView(upToId) {
     if (!upToId) return;
     if (state.mode === 'owner' && state.selected_session) {
         if (state._ownerSub && state._ownerSub.markRead) {
-            try { state._ownerSub.markRead(state.selected_session.id, upToId); } catch (_) {}
+            // session_token が第一識別子 (chat.js の selected_session.id は MySQL id, DO session_id と不一致).
+            const tok = state.selected_session.session_token;
+            try { state._ownerSub.markRead(state.selected_session.id, upToId, tok); } catch (_) {}
         }
         return;
     }

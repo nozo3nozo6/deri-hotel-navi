@@ -433,11 +433,8 @@ export class ChatRoom implements DurableObject {
       // broadcast to connected owner WS (session_token も含める: owner側 selectedSid は MySQL id であり DO session_id と不一致のため token で照合させる)
       this.broadcastToRole('owner', { type: 'message', data: msg, session_id: sess.id, session_token: sess.session_token });
 
-      // B-1: オーナーがそのスレッドを開いている場合、visitor 新着を即時既読化.
-      //   - DO storage の read_at 即セット (owner 側リロード時の unread 計算に反映)
-      //   - visitor WS に type:'read' push (既読マーカー即時表示)
-      //   - MySQL mirror (sync.markRead) を waitUntil で非同期発火
-      this.autoReadIfOwnerViewing(sess.session_token, sess.id, msg.id, msg.sent_at, msg);
+      // 2026-04-23 ゼロ設計: 暗黙 auto-read は廃止. 既読は受信側クライアントが isWindowActive() 時に
+      // 明示 mark-read を打つ 1 経路のみ. ここで auto-read すると「送信直後に既読がフラッシュ」バグ再発.
 
       // メール通知判定 (PHP handleSendMessage と同じロジック):
       //  - off         → 送らない
@@ -656,9 +653,19 @@ export class ChatRoom implements DurableObject {
   }
 
   private async httpOwnerMarkRead(body: any): Promise<Response> {
-    const sid = Number(body.session_id);
+    // 重要: chat.js が渡す session_id は PHP 由来 MySQL id で DO 内 session.id とは不一致.
+    // 正しい DO session を引くため session_token を優先キーにする. session_id は後方互換.
+    const token = String(body.session_token || '');
     const upTo = Number(body.up_to_id || 0);
-    if (!sid) return this.errJson('missing_fields', 400);
+
+    let sess: ChatSession | null = null;
+    if (token) {
+      sess = await this.findSessionByToken(token);
+    } else if (body.session_id) {
+      sess = (await this.state.storage.get<ChatSession>(`session:${Number(body.session_id)}`)) ?? null;
+    }
+    if (!sess) return this.errJson('session_not_found', 404);
+    const sid = sess.id;
 
     const msgs = await this.messagesSince(sid, 0);
     const now = new Date().toISOString();
@@ -670,11 +677,13 @@ export class ChatRoom implements DurableObject {
         if (m.sent_at > upToSentAt) upToSentAt = m.sent_at;
       }
     }
-    this.broadcastToSession(sid, 'visitor', { type: 'read', session_id: sid, up_to_id: upTo });
-    // 2026-04-23 ゼロ設計: MySQL mirror (PHP handleSyncRead が chat_messages.read_at を UPDATE).
-    // 暗黙既読を全廃したので、MySQL 側は明示 mark-read 経路からの mirror で初めて read_at がつく.
-    const sess = await this.state.storage.get<ChatSession>(`session:${sid}`);
-    if (sess && upToSentAt) {
+    this.broadcastToSession(sid, 'visitor', {
+      type: 'read',
+      session_id: sid,
+      session_token: sess.session_token,
+      up_to_id: upTo,
+    });
+    if (upToSentAt) {
       this.state.waitUntil(this.sync.markRead(sess.session_token, 'shop', upToSentAt));
     }
     return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
@@ -844,11 +853,12 @@ export class ChatRoom implements DurableObject {
         }
         break;
       case 'mark-read':
-        // 2026-04-23 ゼロ設計: 明示 mark-read は「今 active view している」クライアントからの要求とみなす.
-        //   owner: thread 切替 / 新msg到着時 / window focus 時に呼ばれる.
-        //   visitor: window focus / 新msg到着時に呼ばれる.
-        if (attach.role === 'owner' && data.session_id) {
-          await this.httpOwnerMarkRead({ session_id: data.session_id, up_to_id: data.up_to_id });
+        if (attach.role === 'owner' && (data.session_token || data.session_id)) {
+          await this.httpOwnerMarkRead({
+            session_token: data.session_token,
+            session_id: data.session_id,
+            up_to_id: data.up_to_id,
+          });
         } else if (attach.role === 'visitor' && attach.session_token) {
           await this.httpVisitorMarkRead({ session_token: attach.session_token, up_to_id: data.up_to_id });
         }
@@ -978,17 +988,8 @@ export class ChatRoom implements DurableObject {
       }
     }
 
-    // PHP 経由のメッセージ到着時の auto-read:
-    //   - visitor 発 → owner が viewing なら read (B-1)
-    //   - shop/cast 発 → visitor が viewing なら read (#2, 対称実装)
-    // DO storage にも mirrored が入ったので updateStorage を渡して read_at を反映させる.
-    const upToId = Number(row.id || 0);
-    const upToSentAt = String(row.sent_at || new Date().toISOString());
-    if (row.sender_type === 'visitor') {
-      this.autoReadIfOwnerViewing(token, sess.id, upToId, upToSentAt, mirrored);
-    } else if (row.sender_type === 'shop') {
-      this.autoReadIfVisitorViewing(token, sess.id, upToId, upToSentAt, mirrored);
-    }
+    // 2026-04-23 ゼロ設計: PHP 経由 broadcast でも DO auto-read はしない.
+    // 既読は受信側クライアントが isWindowActive() 時に明示 mark-read を打つ 1 経路のみ.
 
     return new Response(JSON.stringify({ ok: true, delivered }), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -1179,95 +1180,9 @@ export class ChatRoom implements DurableObject {
     return false;
   }
 
-  /**
-   * B-1: visitor メッセージが届いた時点でオーナーがそのスレッドを開いていれば
-   *   - DO storage の msg.read_at を即時セット (必要なら)
-   *   - visitor WS へ type:'read' broadcast (クライアント UI 即反映)
-   *   - MySQL mirror (sync.markRead) を waitUntil で非同期発火
-   * sessionId は DO 内 id / sessionToken は PHP↔DO 共通鍵.
-   */
-  private autoReadIfOwnerViewing(
-    sessionToken: string,
-    sessionId: number | null,
-    upToId: number,
-    upToSentAt: string,
-    updateStorage: ChatMessage | null,
-  ): void {
-    if (!this.isOwnerViewingToken(sessionToken)) return;
-
-    // 1) DO storage 側の read_at を埋める (httpSendMessage の即時発行分).
-    //    httpBroadcast 経由は PHP が権威なので storage 更新はスキップ.
-    if (updateStorage && sessionId != null && !updateStorage.read_at) {
-      updateStorage.read_at = new Date().toISOString();
-      this.state.waitUntil(this.saveMessage(sessionId, updateStorage));
-    }
-
-    // 2) visitor WS へ read push (session_token で照合).
-    const payload = JSON.stringify({
-      type: 'read',
-      session_token: sessionToken,
-      session_id: sessionId ?? undefined,
-      up_to_id: upToId,
-    });
-    const all = this.state.getWebSockets();
-    for (const ws of all) {
-      try {
-        const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (a && a.role === 'visitor' && a.session_token === sessionToken) {
-          ws.send(payload);
-        }
-      } catch (_) {}
-    }
-
-    // 3) MySQL 反映 (PHP handleMarkRead が chat_messages.read_at を UPDATE).
-    //    reader='shop' → sender_type='visitor' を既読化.
-    if (upToSentAt) {
-      this.state.waitUntil(this.sync.markRead(sessionToken, 'shop', upToSentAt));
-    }
-  }
-
-  /**
-   * #2: shop/cast メッセージが届いた時点で visitor がそのスレッドを開いていれば
-   *   - DO storage の msg.read_at を即時セット (必要なら)
-   *   - owner / cast_inbox WS へ type:'read' broadcast (送信者UIの既読マーカー即時反映)
-   *   - MySQL mirror (sync.markRead reader='visitor') を waitUntil で非同期発火
-   * (B-1 の owner 視点と対称の実装).
-   */
-  private autoReadIfVisitorViewing(
-    sessionToken: string,
-    sessionId: number | null,
-    upToId: number,
-    upToSentAt: string,
-    updateStorage: ChatMessage | null,
-  ): void {
-    if (!this.isVisitorViewingToken(sessionToken)) return;
-
-    // 1) DO storage 側の read_at を埋める (httpSendMessage owner path からの直接呼びのみ).
-    if (updateStorage && sessionId != null && !updateStorage.read_at) {
-      updateStorage.read_at = new Date().toISOString();
-      this.state.waitUntil(this.saveMessage(sessionId, updateStorage));
-    }
-
-    // 2) owner WS に read push (全 owner に配信. owner 側 UI は session_token で自分向け判定).
-    const payload = JSON.stringify({
-      type: 'read',
-      session_token: sessionToken,
-      session_id: sessionId ?? undefined,
-      up_to_id: upToId,
-    });
-    const all = this.state.getWebSockets();
-    for (const ws of all) {
-      try {
-        const a = ws.deserializeAttachment() as WsAttachment | null;
-        if (a && a.role === 'owner') ws.send(payload);
-      } catch (_) {}
-    }
-
-    // 3) MySQL 反映. reader='visitor' → sender_type='shop' を既読化.
-    if (upToSentAt) {
-      this.state.waitUntil(this.sync.markRead(sessionToken, 'visitor', upToSentAt));
-    }
-  }
+  // 2026-04-23 ゼロ設計: autoReadIfOwnerViewing / autoReadIfVisitorViewing は全廃.
+  // 既読は受信側クライアントが isWindowActive() 時に明示 mark-read を打つ 1 経路のみ.
+  // 「送信した瞬間に自分のメッセージが既読化される」バグの原因だった.
 
   private broadcastToSession(sessionId: number, role: WsRole, payload: unknown): void {
     const clients = this.state.getWebSockets(`session:${sessionId}`);
