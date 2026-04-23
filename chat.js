@@ -3857,35 +3857,73 @@ setupEmbedDirectLinkFooter();
 // 親側スニペットは postMessage を受けて iframe を position:fixed;inset:0;z-index:max 化する。
 // デスクトップ (hover:hover) では発動しない（従来どおり埋込サイズで表示）。
 (function setupFullscreenEmbed() {
-    if (!isEmbedded()) return;
-    if (typeof window.matchMedia !== 'function') return;
-    const isTouch = window.matchMedia('(pointer:coarse)').matches;
-    const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-    if (!isTouch || isDesktop) return;
+    // on-screen diagnostic (?diag=1 で ON)
+    const diagMode = new URLSearchParams(location.search).get('diag') === '1';
+    const diag = (msg) => {
+        if (!diagMode) return;
+        let el = document.getElementById('__ychat_diag');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = '__ychat_diag';
+            el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#000c;color:#0f0;font:11px/1.3 monospace;padding:4px 6px;max-height:40vh;overflow:auto;word-break:break-all;pointer-events:none';
+            (document.body || document.documentElement).appendChild(el);
+        }
+        const line = document.createElement('div');
+        line.textContent = '[' + new Date().toTimeString().slice(0, 8) + '] ' + msg;
+        el.appendChild(line);
+        while (el.childNodes.length > 20) el.removeChild(el.firstChild);
+    };
+
+    const embedded = isEmbedded();
+    const hasMM = typeof window.matchMedia === 'function';
+    const isTouch = hasMM ? window.matchMedia('(pointer:coarse)').matches : false;
+    const isDesktop = hasMM ? window.matchMedia('(hover:hover) and (pointer:fine)').matches : false;
+
+    if (diagMode) {
+        diag('chat.js diag ON (iframe-side)');
+        diag('embedded=' + embedded + ' touch=' + isTouch + ' desktop=' + isDesktop);
+    }
+
+    if (!embedded) { diag('ABORT: not embedded'); return; }
+    if (!hasMM) return;
+    if (!isTouch || isDesktop) { diag('ABORT: not-touch or desktop'); return; }
 
     let fullscreenOn = false;
     const enter = () => {
         if (fullscreenOn) return;
         fullscreenOn = true;
         document.body.classList.add('fullscreen-embed');
-        try { window.parent.postMessage({ type: 'ychat:enter-fullscreen', slug: SLUG }, '*'); } catch (_) {}
+        try {
+            window.parent.postMessage({ type: 'ychat:enter-fullscreen', slug: SLUG }, '*');
+            diag('postMessage enter-fullscreen sent');
+        } catch (e) { diag('FAIL postMessage: ' + e.message); }
     };
     const exit = () => {
         if (!fullscreenOn) return;
         fullscreenOn = false;
         document.body.classList.remove('fullscreen-embed');
-        try { window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*'); } catch (_) {}
+        try {
+            window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*');
+            diag('postMessage exit-fullscreen sent');
+        } catch (_) {}
     };
 
-    // 入力欄 focus で enter. document-level focusin(capture) で全 input/textarea を拾う
-    // (iOS manualFocus path や nickname-input 等、refs.input 以外でも確実に発火させる)
     const fsInputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (!e.target || !e.target.matches) return;
+        diag('focusin: ' + (e.target.id || e.target.tagName));
         if (e.target.matches(fsInputSelector)) enter();
     }, true);
 
-    // ✕ ボタン tap で exit
+    // 保険: touchend でも発火（iOS manualFocus path で focus が非同期発火して focusin を取り損なう対策）
+    document.addEventListener('touchend', (e) => {
+        if (!e.target || !e.target.matches) return;
+        if (e.target.matches(fsInputSelector)) {
+            diag('touchend on input -> enter()');
+            enter();
+        }
+    }, { capture: true, passive: true });
+
     const btnExit = document.getElementById('btn-fullscreen-exit');
     if (btnExit) {
         btnExit.addEventListener('click', (e) => {
@@ -3895,10 +3933,11 @@ setupEmbedDirectLinkFooter();
         });
     }
 
-    // Esc で exit（ハードウェアキーボード接続時用）
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && fullscreenOn) exit();
     });
+
+    diag('listeners attached');
 })();
 
 // ===== iOS キーボード対応 (LINE方式) =====

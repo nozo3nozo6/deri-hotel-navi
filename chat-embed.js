@@ -27,9 +27,29 @@
     var DEFAULT_MIN = 500;
     var DEFAULT_MAX = 900;
 
+    // 診断: 顧客HPのURLに ?ychat_diag=1 を付けると on-screen にログ表示
+    var diagMode = false;
+    try { diagMode = /[?&]ychat_diag=1/.test(location.search); } catch (_) {}
+    function diag(msg) {
+        if (!diagMode) return;
+        var el = document.getElementById('__ychat_parent_diag');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = '__ychat_parent_diag';
+            el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:2147483646;background:#002c;color:#0ff;font:11px/1.3 monospace;padding:4px 6px;max-height:30vh;overflow:auto;word-break:break-all;pointer-events:none';
+            (document.body || document.documentElement).appendChild(el);
+        }
+        var line = document.createElement('div');
+        line.textContent = '[' + new Date().toTimeString().slice(0, 8) + '] ' + msg;
+        el.appendChild(line);
+        while (el.childNodes.length > 20) el.removeChild(el.firstChild);
+    }
+    diag('chat-embed.js loaded');
+
     function wire(iframe) {
         if (iframe.__ychatWired) return;
         iframe.__ychatWired = true;
+        diag('wire() slug=' + iframe.getAttribute('data-ychat-slug'));
 
         var min = parseInt(iframe.getAttribute('data-ychat-min'), 10);
         var max = parseInt(iframe.getAttribute('data-ychat-max'), 10);
@@ -125,6 +145,7 @@
             if (e.source !== iframe.contentWindow) return;
             var d = e.data;
             if (!d || typeof d !== 'object') return;
+            diag('recv ' + d.type);
             if (d.type === 'ychat:resize') {
                 if (saved) return; // 全画面中は高さ書換無効
                 var h = d.h | 0;
