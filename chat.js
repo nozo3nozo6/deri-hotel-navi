@@ -2005,6 +2005,9 @@ function hydrateVisitorNotify({ email, enabled, verified, pending }) {
     refs.visitorNotifyToggle.checked = !!enabled;
     if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.value = email || '';
     if (refs.visitorNotify) refs.visitorNotify.classList.toggle('hidden', !enabled);
+    // 既存の verified email を state に保持. OFF→ON 切替時のフォーム再表示を回避.
+    state.visitor_notify_email = email || '';
+    state.visitor_notify_verified = !!(verified && email);
 
     // 状態に応じて persistent ステータス表示
     if (enabled && email && !verified && pending) {
@@ -2024,8 +2027,9 @@ function hydrateVisitorNotify({ email, enabled, verified, pending }) {
 
     // 匿名感の維持: verified 済みはメール入力欄を畳んで「変更」リンクだけ残す.
     // これによりチャット画面に自分のメールアドレスが常時表示されなくなる.
+    // enabled は条件から外す — OFF→ON 再切替時もフォームを出さず再登録不要にするため.
     if (refs.visitorNotify && refs.visitorNotifyEdit) {
-        const collapse = !!(enabled && verified && email);
+        const collapse = !!(verified && email);
         refs.visitorNotify.classList.toggle('verified-collapsed', collapse);
         refs.visitorNotifyEdit.classList.toggle('hidden', !collapse);
         // 畳まれた状態になるときは 「確認画面を閉じる」リンクも隠す.
@@ -3409,9 +3413,11 @@ if (refs.visitorNotifyToggle) {
         if (!on) {
             // OFF は即保存（メアド未入力でも OK）
             saveVisitorNotify();
+        } else if (state.visitor_notify_verified && state.visitor_notify_email) {
+            // 既に確認済みのメアドがある: 再入力不要で即有効化 (PHP 側は同一メール+verified なら verification skip)
+            saveVisitorNotify();
         } else {
-            // ON に切り替えた瞬間はまだメアド未確定なので保存しない.
-            // フォーカスをメアド欄へ誘導してユーザーに入力させる.
+            // 未登録 or 未確認: フォームを見せてメアド入力を促す.
             if (refs.visitorNotifyEmail) {
                 try { refs.visitorNotifyEmail.focus(); } catch (_) {}
             }

@@ -274,8 +274,13 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
   .msg{font-size:14px;max-width:85%}
   .chat-messages{padding:12px}
   #chat-input{font-size:16px;padding:5px 8px}
-  /* スマホでキーボード表示中はメール通知バーを隠してチャット領域を広げる */
-  body.chat-input-focused #visitor-notify{display:none}
+  /* スマホでキーボード表示中はメッセージ欄と入力行以外を隠してチャット領域を最大化 */
+  body.chat-input-focused #visitor-notify,
+  body.chat-input-focused #nickname-area,
+  body.chat-input-focused #reservation-hint,
+  body.chat-input-focused #visitor-note,
+  body.chat-input-focused #cast-view-banner,
+  body.chat-input-focused #owner-templates{display:none}
 }
 
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
