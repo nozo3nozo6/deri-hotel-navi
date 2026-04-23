@@ -3821,15 +3821,10 @@ setupEmbedResizeNotifier();
     applyHeight();
 
     if (vv) {
-        let rafId = null;
-        const onVvChange = () => {
-            if (rafId) return;
-            rafId = requestAnimationFrame(() => {
-                applyHeight();
-                rafId = null;
-            });
-        };
-        vv.addEventListener('resize', onVvChange);
+        // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火するため
+        // 同期更新で 1:1 追従するのが最速. rAF を挟むと close 時に 1 フレーム遅延が累積して
+        // 「戻りが遅い」と感じる.
+        vv.addEventListener('resize', applyHeight);
     } else {
         window.addEventListener('resize', applyHeight);
     }
