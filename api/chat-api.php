@@ -1719,6 +1719,11 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
         foreach ($messages as $m) {
             if ((int)$m['id'] === $newId) {
                 broadcastMessageToDO((string)$shopId, (int)$sessionId, $m);
+                // HTTP owner-reply 経路は DO driven の visitor メール通知が発火しない.
+                // ここで直接 chat-notify-visitor.php を叩く (verified/cooldown/opt-in は PHP 側が判定).
+                if (($m['sender_type'] ?? '') === 'shop') {
+                    sendVisitorEmailNotificationFromPhp((int)$sessionId, $m);
+                }
                 break;
             }
         }
@@ -2817,6 +2822,77 @@ function broadcastToDO(string $shopId, string $sessionToken, array $messageRow):
         error_log('[chat-api] DO broadcast failed: ' . curl_error($ch));
     }
     curl_close($ch);
+}
+
+/**
+ * HTTP owner-reply 経路から訪問者宛メール通知を発火する.
+ * DO WebSocket 経路 (cf-worker/src/ChatRoom.ts:1131) と等価の PHP 版.
+ * chat-notify-visitor.php が verified / cooldown / opt-in を判定するため,
+ * ここは payload 組み立てと HTTP POST のみ行う.
+ */
+function sendVisitorEmailNotificationFromPhp(int $sessionId, array $newMessage): void {
+    $secret = defined('CHAT_NOTIFY_SECRET') ? CHAT_NOTIFY_SECRET : '';
+    if (!$secret) return;
+    $notifyBase = defined('CHAT_NOTIFY_BASE_URL') ? CHAT_NOTIFY_BASE_URL : 'https://yobuho.com';
+
+    try {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare(
+            'SELECT cs.session_token, cs.shop_id, cs.cast_id, s.shop_name, s.slug
+             FROM chat_sessions cs
+             JOIN shops s ON s.id = cs.shop_id
+             WHERE cs.id = ? LIMIT 1'
+        );
+        $stmt->execute([$sessionId]);
+        $row = $stmt->fetch();
+        if (!$row) return;
+
+        $castName = null;
+        $shopCastId = null;
+        if (!empty($row['cast_id'])) {
+            // chat_sessions.cast_id は casts.id を保持. ?cast= URL が期待する shop_casts.id を解決.
+            $stmt = $pdo->prepare(
+                'SELECT id, display_name FROM shop_casts
+                 WHERE shop_id = ? AND cast_id = ? AND deleted_at IS NULL
+                 LIMIT 1'
+            );
+            $stmt->execute([$row['shop_id'], $row['cast_id']]);
+            $cast = $stmt->fetch();
+            if ($cast) {
+                $shopCastId = (string)$cast['id'];
+                $castName = (string)$cast['display_name'];
+            }
+        }
+
+        $payload = json_encode([
+            'secret'        => $secret,
+            'session_token' => (string)$row['session_token'],
+            'shop_name'     => (string)$row['shop_name'],
+            'shop_slug'     => (string)($row['slug'] ?? ''),
+            'cast_name'     => $castName,
+            'shop_cast_id'  => $shopCastId,
+            'message'       => (string)($newMessage['message'] ?? ''),
+            'sent_at'       => (string)($newMessage['sent_at'] ?? ''),
+        ], JSON_UNESCAPED_UNICODE);
+
+        $ch = curl_init($notifyBase . '/api/chat-notify-visitor.php');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_CONNECTTIMEOUT => 2,
+            CURLOPT_TIMEOUT        => 6,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_NOSIGNAL       => true,
+        ]);
+        @curl_exec($ch);
+        if (curl_errno($ch)) {
+            error_log('[chat-api] visitor-notify failed: ' . curl_error($ch));
+        }
+        curl_close($ch);
+    } catch (Throwable $e) {
+        error_log('[chat-api] visitor-notify exception: ' . $e->getMessage());
+    }
 }
 
 /**
