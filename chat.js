@@ -3813,54 +3813,75 @@ setupEmbedResizeNotifier();
 //   2. visualViewport.height を --chat-vh に反映 (キーボード分だけチャット全体を縮める → 入力欄が隠れない).
 //   3. visualViewport.offsetTop を --chat-offset に反映 (visual viewport シフトに追従).
 //   4. CSS transition で 20-30 回/keyboard 発火の resize イベントを滑らかに補間.
-(function setupViewportTracker(){
+// ===== iOS キーボード対応 (先回り縮小方式) =====
+// 設計思想: iOS の focus 時に input が画面内にあれば viewport シフトが発動しない.
+// キーボードが出る前に chat-root を予測値 (50vh) にガッツリ縮めて
+// 「input 画面内」状態を作ってから focus させる.
+// その後 visualViewport.resize で正確な高さに調整.
+(function setupViewportSystem(){
     const vv = window.visualViewport;
-    if (!vv) return; // fallback: CSS の 100dvh に任せる
     const docEl = document.documentElement;
-    // rAF throttle: visualViewport は keyboard アニメ中に20-30回発火するが、
-    // 1フレーム1回だけ CSS 変数に反映すれば iOS のアニメと完全同期する.
-    let rafId = null;
-    const update = () => {
-        if (rafId) return;
-        rafId = requestAnimationFrame(() => {
-            docEl.style.setProperty('--chat-vh', vv.height + 'px');
-            rafId = null;
-        });
+
+    // 平常時の --chat-vh は window.innerHeight (layout viewport) に固定.
+    // キーボードが閉じてる時 100dvh と同じ.
+    const setRestHeight = () => {
+        docEl.style.setProperty('--chat-vh', window.innerHeight + 'px');
     };
-    vv.addEventListener('resize', update);
-    update();
-})();
+    setRestHeight();
+    window.addEventListener('resize', setRestHeight);
+    window.addEventListener('orientationchange', () => setTimeout(setRestHeight, 200));
 
-// iOS は input focus で document を裏でスクロールする (position:fixed body/html でも起きる).
-// touchstart 段階で先回りして scrollTo(0,0) すれば、iOS の初回 auto-scroll を発生させない.
-const preemptiveScrollLock = (e) => {
-    const t = e.target;
-    if (!t || !t.matches) return;
-    if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input')) return;
-    // touchstart → focus の順で発火するので、この時点で scrollTo(0,0) すると
-    // focus 時の iOS auto-scroll 対象が既に 0 なので実質発動しない.
-    try { window.scrollTo(0, 0); } catch (_) {}
-};
-document.addEventListener('touchstart', preemptiveScrollLock, { capture: true, passive: true });
-document.addEventListener('mousedown', preemptiveScrollLock, { capture: true, passive: true });
+    let keyboardOpen = false;
+    let rafId = null;
 
-// scroll イベントで常時 0 に押し戻す (保険).
-window.addEventListener('scroll', () => {
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
+    if (vv) {
+        // キーボード開いてる時は visualViewport.height に追従 (rAF throttle).
+        const syncToVisualViewport = () => {
+            if (!keyboardOpen) return;
+            if (rafId) return;
+            rafId = requestAnimationFrame(() => {
+                docEl.style.setProperty('--chat-vh', vv.height + 'px');
+                rafId = null;
+            });
+        };
+        vv.addEventListener('resize', syncToVisualViewport);
     }
-}, { passive: true });
 
-document.addEventListener('focusin', (e) => {
-    const t = e.target;
-    if (!t || !t.matches || !t.matches('#chat-input, .nickname-input, #cdr-code')) return;
-    try { window.scrollTo(0, 0); } catch (_) {}
-    requestAnimationFrame(() => { try { window.scrollTo(0, 0); } catch (_) {} });
-    setTimeout(() => {
+    // touchstart: focus より先に発火するので、この瞬間に chat-root を予測縮小.
+    // iOS が focus 時「input 画面内?」をチェックする時に既に縮んでいれば shift しない.
+    const preemptiveShrink = (e) => {
+        const t = e.target;
+        if (!t || !t.matches) return;
+        if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password]')) return;
+        keyboardOpen = true;
+        // 50vh に縮める (iOS キーボードは通常 35-45vh なので安全マージン).
+        docEl.style.setProperty('--chat-vh', (window.innerHeight * 0.5) + 'px');
         try { window.scrollTo(0, 0); } catch (_) {}
-        if (refs.chatMessages) refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
-    }, 300);
-});
+    };
+    document.addEventListener('touchstart', preemptiveShrink, { capture: true, passive: true });
+    document.addEventListener('mousedown', preemptiveShrink, { capture: true, passive: true });
+
+    // blur で元に戻す (入力欄から出た時).
+    document.addEventListener('focusout', (e) => {
+        const t = e.target;
+        if (!t || !t.matches) return;
+        if (!t.matches('#chat-input, .nickname-input, #cdr-code, textarea, input')) return;
+        // active な入力要素が無ければ復元.
+        setTimeout(() => {
+            if (!document.activeElement || document.activeElement === document.body) {
+                keyboardOpen = false;
+                setRestHeight();
+            }
+        }, 100);
+    });
+
+    // 念のため scroll を常時 0 に.
+    window.addEventListener('scroll', () => {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+            window.scrollTo(0, 0);
+        }
+    }, { passive: true });
+})();
 
 // ===== 起動 =====
 init();
