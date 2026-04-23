@@ -3813,8 +3813,10 @@ setupEmbedResizeNotifier();
     const vv = window.visualViewport;
     const docEl = document.documentElement;
     let keyboardOpen = false;
+    let isClosing = false; // キーボード close 中は vv.resize を無視 (即座に full height スナップ済み)
 
     const applyHeight = () => {
+        if (isClosing) return; // close 中は vv 追従しない (遅く見える原因)
         const h = vv ? vv.height : window.innerHeight;
         docEl.style.setProperty('--chat-vh', h + 'px');
     };
@@ -3822,8 +3824,7 @@ setupEmbedResizeNotifier();
 
     if (vv) {
         // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火するため
-        // 同期更新で 1:1 追従するのが最速. rAF を挟むと close 時に 1 フレーム遅延が累積して
-        // 「戻りが遅い」と感じる.
+        // 同期更新で 1:1 追従するのが最速.
         vv.addEventListener('resize', applyHeight);
     } else {
         window.addEventListener('resize', applyHeight);
@@ -3836,6 +3837,7 @@ setupEmbedResizeNotifier();
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) {
             keyboardOpen = true;
+            isClosing = false; // 開き直しなら close フラグ解除
             // 即座に scroll リセット (iOS が既に scroll 済みの場合のケア).
             if (window.scrollY !== 0 || window.scrollX !== 0) {
                 window.scrollTo(0, 0);
@@ -3844,12 +3846,21 @@ setupEmbedResizeNotifier();
     }, true);
     document.addEventListener('focusout', (e) => {
         if (!e.target || !e.target.matches || !e.target.matches(inputSelector)) return;
-        setTimeout(() => {
-            if (!document.activeElement || document.activeElement === document.body
-                || !document.activeElement.matches || !document.activeElement.matches(inputSelector)) {
-                keyboardOpen = false;
-            }
-        }, 300);
+        // 次フレームで activeElement を確認してから snap. Send ボタン等で input→input 遷移する場合は snap しない.
+        requestAnimationFrame(() => {
+            if (document.activeElement && document.activeElement.matches
+                && document.activeElement.matches(inputSelector)) return;
+            // キーボード close 確定: iOS の slide-down アニメを待たずに即 full height.
+            // キーボードは独立して自然に下がっていく. これで open と同じ snap 感が出る.
+            isClosing = true;
+            keyboardOpen = false;
+            docEl.style.setProperty('--chat-vh', window.innerHeight + 'px');
+            // close アニメ終了後 (iOS 実測 ~300ms) に vv 追従を再開.
+            setTimeout(() => {
+                isClosing = false;
+                applyHeight();
+            }, 400);
+        });
     }, true);
 
     // iOS の auto-scroll を根本から抑止: touch/mousedown で default の focus を
