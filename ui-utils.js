@@ -22,16 +22,17 @@ function getSiteSuffix() {
 }
 function updatePageTitle(prefix) {
     document.title = prefix + ' | ' + getSiteSuffix();
-    // Update meta description based on mode
+    // SSGページ(portal-seo.php/Astro)ではdescription/og/JSON-LDはビルド時に
+    // URL固有の値が入っているので上書きしない（汎用モード文言で潰すとSEO劣化）
+    const isSSG = !!(document.querySelector('meta[name="x-astro-mode"]') || {}).content;
+    if (isSSG) return;
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     const descMeta = document.querySelector('meta[name="description"]');
     if (descMeta && MODE_DESC_MAP[mode]) descMeta.content = MODE_DESC_MAP[mode];
-    // Update OG tags
     const ogTitle = document.querySelector('meta[property="og:title"]');
     const ogDesc = document.querySelector('meta[property="og:description"]');
     if (ogTitle) ogTitle.content = document.title;
     if (ogDesc && MODE_DESC_MAP[mode]) ogDesc.content = MODE_DESC_MAP[mode];
-    // Update JSON-LD
     const ldScript = document.querySelector('script[type="application/ld+json"]');
     if (ldScript) {
         try {
