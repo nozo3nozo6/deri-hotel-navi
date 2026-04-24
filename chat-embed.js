@@ -75,6 +75,10 @@
     var prefocusedIframe = null;
     // prefocus 後に kb 開が来なかった時の安全復元タイマー
     var prefocusSafetyTimer = null;
+    // input-focus dedupe: 1回の input タップで touchend + focusin の両方が
+    // ychat:input-focus を送ってくるので、200ms 以内の重複を無視.
+    // widget-tap も直後に click で来るが、input-focus が既に align 済みなので 400ms は無視.
+    var lastInputFocusTs = 0;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -164,12 +168,13 @@
         if (prefocusSafetyTimer) clearTimeout(prefocusSafetyTimer);
         prefocusSafetyTimer = setTimeout(function () {
             prefocusSafetyTimer = null;
+            // kb 開通知が 1000ms 以内に来なければ iframe 復元 (kb 真に開かないケース).
+            // activeIframe は null にしない: kb が遅れて開いた時 onVVChange の expandToVV が動くように.
             if (prefocusedIframe === iframe && !lastKbOpen) {
                 diag('prefocus safety fallback: kb never opened');
                 resetIframeHeight(iframe);
-                activeIframe = null;
             }
-        }, 800);
+        }, 1000);
     }
 
     // kb 開通知後の最終サイズ: iframe を (vv.height - stickyInset) に拡大。
@@ -266,6 +271,13 @@
                 return;
             }
             if (d.type === 'ychat:input-focus' || d.type === 'ychat:enter-fullscreen') {
+                // dedupe: touchend(capture) + focusin の 2重発火を抑制
+                var now = Date.now();
+                if (now - lastInputFocusTs < 200) {
+                    diag('input-focus deduped');
+                    return;
+                }
+                lastInputFocusTs = now;
                 activeIframe = iframe;
                 var vv = window.visualViewport;
                 var kbOpen = vv && (window.innerHeight - vv.height) > 100;
@@ -283,6 +295,12 @@
                 return;
             }
             if (d.type === 'ychat:widget-tap') {
+                // input-focus の直後 (400ms 以内) は input-focus 経路が既に align 済み.
+                // ここで alignOnce を重ねると iOS focus-scroll と殴り合って「上→下」ジッター発生.
+                if (Date.now() - lastInputFocusTs < 400) {
+                    diag('widget-tap suppressed (input-focus recent)');
+                    return;
+                }
                 // ウィジェット内任意タップ: iframe top を viewport top にスナップ
                 // kb 開中の input 再タップは input-focus 経路が別途処理するのでここは noop
                 var vv2 = window.visualViewport;
