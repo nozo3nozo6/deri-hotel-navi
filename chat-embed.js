@@ -165,15 +165,27 @@
                               ' scale=' + vv.scale.toFixed(2) : ''));
                 } catch (_) {}
             }
+            var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
             saved = {
                 style: iframe.getAttribute('style') || '',
                 bodyOverflow: document.body.style.overflow || '',
                 htmlOverflow: document.documentElement.style.overflow || '',
-                scrollY: window.scrollY,
+                bodyPosition: document.body.style.position || '',
+                bodyTop: document.body.style.top || '',
+                bodyLeft: document.body.style.left || '',
+                bodyRight: document.body.style.right || '',
+                bodyWidth: document.body.style.width || '',
+                scrollY: scrollY,
                 ancestors: neutralizeAncestors()
             };
-            // スクロールを 0 に戻す（iOS で URL バー動作中の position:fixed 基準ズレ回避）
-            try { window.scrollTo(0, 0); } catch (_) {}
+            // body を position:fixed で凍結（iOS Safari のスクロールアニメ経由で
+            // position:fixed 要素が ~800ms ズレて追従する挙動を回避）
+            // scrollTo(0,0) だと見た目アニメ、body.position:fixed + top:-scrollY なら即時凍結
+            document.body.style.setProperty('position', 'fixed', 'important');
+            document.body.style.setProperty('top', -scrollY + 'px', 'important');
+            document.body.style.setProperty('left', '0', 'important');
+            document.body.style.setProperty('right', '0', 'important');
+            document.body.style.setProperty('width', '100%', 'important');
             iframe.style.cssText =
                 'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
                 'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
@@ -207,9 +219,21 @@
         function exit() {
             if (!saved) return;
             iframe.setAttribute('style', saved.style);
+            // body 凍結の解除（!important を打ち消すため removeProperty で inline 値を消す）
+            document.body.style.removeProperty('position');
+            document.body.style.removeProperty('top');
+            document.body.style.removeProperty('left');
+            document.body.style.removeProperty('right');
+            document.body.style.removeProperty('width');
+            if (saved.bodyPosition) document.body.style.position = saved.bodyPosition;
+            if (saved.bodyTop) document.body.style.top = saved.bodyTop;
+            if (saved.bodyLeft) document.body.style.left = saved.bodyLeft;
+            if (saved.bodyRight) document.body.style.right = saved.bodyRight;
+            if (saved.bodyWidth) document.body.style.width = saved.bodyWidth;
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;
             restoreAncestors(saved.ancestors || []);
+            // body 凍結解除後にスクロール位置復元（凍結中は top:-scrollY で視覚凍結されている）
             try { window.scrollTo(0, saved.scrollY || 0); } catch (_) {}
             saved = null;
         }
