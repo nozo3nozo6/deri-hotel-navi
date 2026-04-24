@@ -209,13 +209,18 @@
     // iOS で vv.resize が kb-close で欠落する既知バグの補完.
     function startExpandVerifyWatch(iframe) {
         if (expandVerifyInterval) clearInterval(expandVerifyInterval);
+        var tickCount = 0;
+        diag('wd: started');
         expandVerifyInterval = setInterval(function () {
+            tickCount++;
             var vv = window.visualViewport;
-            if (!vv) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; return; }
+            if (!vv) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; diag('wd: no vv, stop'); return; }
             var kbH = window.innerHeight - vv.height;
+            // 2s毎にステータスログ (ノイズ抑制)
+            if (tickCount % 4 === 0) diag('wd: tick=' + tickCount + ' kbH=' + Math.round(kbH) + ' ih=' + window.innerHeight + ' vh=' + Math.round(vv.height));
             if (kbH <= 50) {
                 // kb 閉じを検出. vv.resize が来てないので onVVChange を肩代わりする.
-                diag('kb closed (watchdog)');
+                diag('kb closed (watchdog) kbH=' + Math.round(kbH));
                 clearInterval(expandVerifyInterval);
                 expandVerifyInterval = null;
                 if (activeIframe) resetIframeHeight(activeIframe);
