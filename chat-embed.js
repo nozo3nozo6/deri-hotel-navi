@@ -51,6 +51,17 @@
         iframe.__ychatWired = true;
         diag('wire() slug=' + iframe.getAttribute('data-ychat-slug'));
 
+        // 親に ?ychat_diag=1 が付いていれば iframe 側にも &diag=1 を伝播（同時に diag バー点灯）
+        if (diagMode) {
+            try {
+                var src = iframe.getAttribute('src') || '';
+                if (src && !/[?&]diag=1/.test(src)) {
+                    iframe.setAttribute('src', src + (src.indexOf('?') >= 0 ? '&' : '?') + 'diag=1');
+                    diag('propagated diag=1 to iframe src');
+                }
+            } catch (_) {}
+        }
+
         var min = parseInt(iframe.getAttribute('data-ychat-min'), 10);
         var max = parseInt(iframe.getAttribute('data-ychat-max'), 10);
         if (!min || min < 200) min = DEFAULT_MIN;
@@ -94,6 +105,13 @@
                         cur.style.setProperty('will-change', 'auto', 'important');
                         cur.style.setProperty('contain', 'none', 'important');
                         cur.style.setProperty('backdrop-filter', 'none', 'important');
+                        diag('trapped: ' + (cur.tagName || '?') + '.' + (cur.className || '').toString().slice(0, 40) +
+                             ' [' + (cs.transform !== 'none' ? 'transform ' : '') +
+                             (cs.filter !== 'none' ? 'filter ' : '') +
+                             (cs.perspective !== 'none' ? 'perspective ' : '') +
+                             (cs.contain && cs.contain !== 'none' ? 'contain=' + cs.contain + ' ' : '') +
+                             (cs.willChange && cs.willChange !== 'auto' ? 'will-change=' + cs.willChange : '') +
+                             ']');
                     }
                 }
                 cur = cur.parentElement;
@@ -130,6 +148,23 @@
                 'z-index:2147483647!important;background:#fff!important;transform:none!important;';
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
+
+            // 実測診断: enter() 適用後に iframe の computed style を確認
+            // position !== 'fixed' なら cssText が上書きされた or 祖先トラップで効いていない
+            if (diagMode) {
+                requestAnimationFrame(function () {
+                    try {
+                        var cs = getComputedStyle(iframe);
+                        var rect = iframe.getBoundingClientRect();
+                        diag('after enter: pos=' + cs.position +
+                             ' top=' + cs.top + ' w=' + cs.width + ' h=' + cs.height +
+                             ' z=' + cs.zIndex);
+                        diag('rect: x=' + Math.round(rect.x) + ' y=' + Math.round(rect.y) +
+                             ' w=' + Math.round(rect.width) + ' h=' + Math.round(rect.height));
+                        diag('ancestors trapped=' + (saved && saved.ancestors ? saved.ancestors.length : 0));
+                    } catch (e) { diag('diag err: ' + e.message); }
+                });
+            }
         }
 
         function exit() {
