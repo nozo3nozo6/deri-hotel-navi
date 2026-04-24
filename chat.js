@@ -3866,10 +3866,10 @@ setupEmbedDirectLinkFooter();
     const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
     if (!isTouch || isDesktop) return;
 
-    // チャット本体の入力欄のみを対象にする。
-    // nickname/email/認証コード等の事前入力では fit を発動させない
-    // （登録中はキーボード上げ下げのたびに親ページがスクロールすると邪魔になる）.
-    const inputSelector = '#chat-input';
+    // iframe内の全入力欄で fit を発動させる。
+    // 直リンクのスマホアクセスと同じ UX（入力欄がキーボード直上に出る）を
+    // 埋込時にも再現する。nickname/email/認証コード/チャット本体すべて対象.
+    const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     const notifyParent = () => {
         try { window.parent.postMessage({ type: 'ychat:input-focus', slug: SLUG }, '*'); } catch (_) {}
     };

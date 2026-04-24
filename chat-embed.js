@@ -62,50 +62,69 @@
     // 「最後に入力 focus を通知してきた iframe」をアクティブ扱い
     var activeIframe = null;
     var lastKbOpen = false;
-    // kb 開く前の scrollY を記憶 → kb 閉じで元の位置に戻す（通常操作を完全維持）
+    // kb 開く前の scrollY / iframe size を記憶 → kb 閉じで元の状態に戻す
     var savedScrollY = null;
+    var savedIframeStyle = null;
 
-    // iframe 上端を viewport 上端に揃え、「可視領域の高さ」を iframe に送る。
-    // iframe 側の chat.js は --embed-h を受け取った値で上書きし、内部を収縮。
-    // 結果: iframe element 自体は本体ページで初期サイズのまま（レイアウト破壊なし）
-    //       iframe 内部の chat-root だけが可視高に縮む
-    //       → header が viewport top、input が keyboard 直上、両方可視
+    // 【複雑版】iframe element 自体を可視領域の高さに resize。
+    // iframe 上端を viewport 上端に揃える。
+    // iframe 内側の vv.height が自然に可視領域の高さになる（iOS でも機能）
+    // → chat.js の --embed-h 計算が自然に正しくなる（座標計算・postMessage不要）
+    // → iframe の header が viewport top、input が keyboard 直上
     function fitIframeToVisibleArea(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
-        // 開く前の scrollY を保存（まだ保存してなければ）
+        var targetH = Math.floor(vv.height);
+        if (targetH < 100) return;
+        // 状態保存（まだ保存してなければ）
         if (savedScrollY === null) {
             savedScrollY = window.pageYOffset;
         }
+        if (savedIframeStyle === null) {
+            savedIframeStyle = {
+                height: iframe.style.height || '',
+                maxHeight: iframe.style.maxHeight || '',
+                minHeight: iframe.style.minHeight || ''
+            };
+        }
+        // iframe を可視領域の高さに resize
+        iframe.style.setProperty('height', targetH + 'px', 'important');
+        iframe.style.setProperty('max-height', targetH + 'px', 'important');
+        iframe.style.setProperty('min-height', targetH + 'px', 'important');
+        // iframe 上端を viewport 上端に揃える（絶対座標でスクロール）
         var rect = iframe.getBoundingClientRect();
         var desiredTop = vv.offsetTop || 0;
-        // 絶対座標でスクロール → iOS の auto-scroll と scrollBy の誤差を回避
         var absoluteTargetY = window.pageYOffset + (rect.top - desiredTop);
         if (Math.abs(absoluteTargetY - window.pageYOffset) > 1) {
             window.scrollTo(0, absoluteTargetY);
-            // スクロール後の最新 rect を再測定
-            rect = iframe.getBoundingClientRect();
         }
-        // iframe の可視部分 = vv.height - iframe上端より上の見切れ分
-        var effectiveH = vv.height - Math.max(0, rect.top - desiredTop);
-        effectiveH = Math.max(100, Math.min(iframe.offsetHeight, effectiveH));
+        // 念のため chat.js に kb open 通知（scrollMessagesToBottom 発火用）
         try {
-            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: effectiveH }, '*');
-            diag('sent embed-h=' + Math.round(effectiveH) + ' (vv.h=' + Math.round(vv.height) + ' rect.top=' + Math.round(rect.top) + ' scrollY=' + Math.round(window.pageYOffset) + ')');
+            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
+            diag('resize iframe h=' + targetH);
         } catch (_) {}
     }
 
     function resetIframeHeight(iframe) {
-        try {
-            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
-            diag('sent embed-h=null (reset)');
-        } catch (_) {}
-        // kb 開く前の位置に戻す → 「通常操作」を完全維持
+        // iframe size 復元
+        if (savedIframeStyle !== null) {
+            iframe.style.removeProperty('height');
+            iframe.style.removeProperty('max-height');
+            iframe.style.removeProperty('min-height');
+            if (savedIframeStyle.height) iframe.style.height = savedIframeStyle.height;
+            if (savedIframeStyle.maxHeight) iframe.style.maxHeight = savedIframeStyle.maxHeight;
+            if (savedIframeStyle.minHeight) iframe.style.minHeight = savedIframeStyle.minHeight;
+            savedIframeStyle = null;
+        }
+        // scrollY 復元（通常操作を維持）
         if (savedScrollY !== null) {
             window.scrollTo(0, savedScrollY);
-            diag('restored scrollY=' + Math.round(savedScrollY));
             savedScrollY = null;
         }
+        try {
+            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
+            diag('reset');
+        } catch (_) {}
     }
 
     // キーボード開閉の**エッジ**でだけ動く。開いてる最中の手動スクロールは妨害しない。
