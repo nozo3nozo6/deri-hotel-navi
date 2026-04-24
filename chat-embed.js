@@ -12,14 +12,18 @@
  * - data-ychat-slug を持つ全 iframe を自動検出してワイヤリング
  * - data-ychat-min / data-ychat-max でページ単位に高さ範囲を指定可能（省略時 500-900px）
  *
- * UX方針:
- * - iframe は「ページ内の1セクション」扱い。全画面乗っ取りは**しない**
+ * UX方針（ダブルアンカー）:
+ * - iframe は「ページ内の1セクション」扱い。全画面乗っ取り（overlay/reparent/position:fixed）は**しない**
  * - 顧客HPのヘッダー/フッター/他ページ遷移を一切邪魔しない
- * - iframe のサイズもスタイルも変えない（本体ページのレイアウトを破壊しない）
- * - 入力 focus + キーボード開: 親ページをスクロールして iframe 下端を
- *   キーボードの真上（= visualViewport 下端）に揃える → 入力欄がキーボード直上に出る
- *   ユーザーはスワイプで iframe 上部（チャットヘッダー）・本体HPヘッダーを見れる
- * - キーボード閉: 何もしない（ユーザーの自然なスクロール位置を尊重）
+ * - 入力 focus + キーボード開:
+ *     ① 上端アンカー: iframe top を visualViewport top に揃える（チャットヘッダー可視化）
+ *     ② 下端アンカー: iframe height を vv.height に固定 → iframe bottom = キーボード上端
+ *                     （chat.js 側の #chat-root{position:fixed} + --embed-h で入力欄が底辺に貼り付く）
+ *   → 同時成立で「ヘッダー上端 + 入力欄キーボード直上」が得られる
+ *   iOS の focus-scroll 割り込みに対しては 1.2秒 rAF ループ + vv.scroll 監視で連続再アンカー
+ * - キーボード閉（入力外タップ含む）: iframe size を復元した上で、チャットヘッダーを
+ *   viewport top に一度だけアンカー → そこからユーザーが意図的にスクロール
+ * - キーボード開中の手動スクロール: 1.2秒経過後はアンカー停止 → 本体HPヘッダー/フッター閲覧可
  *
  * 注意: iframe 内側 (chat.js) の visualViewport は iOS では iframe 自身の
  * レンダリング高さを返し、キーボード状態を検知できない。そのため「親側」で
@@ -65,23 +69,75 @@
     // kb 開く前の scrollY / iframe size を記憶 → kb 閉じで元の状態に戻す
     var savedScrollY = null;
     var savedIframeStyle = null;
+    // 連続アンカー世代カウンタ（新セッションで旧ループをキャンセル）
+    var alignGen = 0;
+    var vvAlignHandler = null;
 
-    // 【複雑版】iframe element 自体を可視領域の高さに resize。
-    // iframe 上端を viewport 上端にアンカー（scrollIntoView = アンカーリンク相当）。
-    // iOS auto-scroll が後から発火して位置を崩すので rAF + setTimeout で再 align。
-    // iframe 内側の vv.height が自然に可視領域の高さになる（iOS でも機能）
-    // → chat.js の --embed-h 計算が自然に正しくなる
-    // → iframe の header が viewport top、input が keyboard 直上
-    function anchorIframe(iframe) {
-        // scrollIntoView({block:'start'}) は アンカーリンク（<a href="#...">）と同等の挙動。
-        // iOS で最も信頼性の高い「要素を viewport 上端に揃える」方式。
-        try {
-            iframe.scrollIntoView({ block: 'start', behavior: 'instant' });
-        } catch (_) {
-            try { iframe.scrollIntoView({ block: 'start' }); }
-            catch (_e) { try { iframe.scrollIntoView(true); } catch (_ee) {} }
+    // ダブルアンカー: iframe の高さを vv.height に固定 + iframe top を vv.offsetTop に追従。
+    // これで上端=チャットヘッダー、下端=キーボード直上 が同時成立する。
+    // iOS auto-scroll が割り込んでも rAF ループが次フレームで即復元。
+    function alignOnce(iframe) {
+        var vv = window.visualViewport;
+        if (!vv) return 0;
+        var rect = iframe.getBoundingClientRect();
+        // rect.top は layout viewport 基準。vv.offsetTop は visual viewport の offset。
+        // iframe top を visual viewport top に合わせたいので差分を scrollBy で吸収。
+        var drift = rect.top - vv.offsetTop;
+        if (Math.abs(drift) > 0.5) {
+            window.scrollBy(0, drift);
+            return Math.abs(drift);
         }
+        return 0;
     }
+
+    function stopContinuousAlign() {
+        alignGen++; // 走行中の rAF ループを世代カウンタで無効化
+        if (vvAlignHandler && window.visualViewport) {
+            window.visualViewport.removeEventListener('scroll', vvAlignHandler);
+        }
+        vvAlignHandler = null;
+    }
+
+    function startContinuousAlign(iframe, durationMs) {
+        stopContinuousAlign();
+        var mySession = ++alignGen;
+        var deadline = performance.now() + (durationMs || 1200);
+        var stableFrames = 0;
+
+        // rAF 連続補正ループ
+        function tick() {
+            if (mySession !== alignGen) return; // 別セッションに置換された
+            var drift = alignOnce(iframe);
+            if (drift === 0) {
+                // 安定: 10 フレーム連続で drift=0 なら早期終了（CPU節約）
+                if (++stableFrames > 10 && performance.now() > deadline - 600) return;
+            } else {
+                stableFrames = 0;
+            }
+            if (performance.now() < deadline) {
+                requestAnimationFrame(tick);
+            }
+        }
+        requestAnimationFrame(tick);
+
+        // vv.scroll リアクティブ補正（iOS が焦点要素を scroll した瞬間に即復元）
+        vvAlignHandler = function () {
+            if (mySession !== alignGen) return;
+            alignOnce(iframe);
+        };
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('scroll', vvAlignHandler);
+        }
+
+        // durationMs 後に vv.scroll リスナーも外す（その後の手動スクロールを邪魔しない）
+        setTimeout(function () {
+            if (mySession === alignGen && vvAlignHandler && window.visualViewport) {
+                window.visualViewport.removeEventListener('scroll', vvAlignHandler);
+                vvAlignHandler = null;
+            }
+        }, (durationMs || 1200) + 50);
+    }
+
     function fitIframeToVisibleArea(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
@@ -98,26 +154,21 @@
                 minHeight: iframe.style.minHeight || ''
             };
         }
-        // iframe を可視領域の高さに resize
+        // iframe を可視領域の高さに固定（下端 = キーボード直上が自動成立）
         iframe.style.setProperty('height', targetH + 'px', 'important');
         iframe.style.setProperty('max-height', targetH + 'px', 'important');
         iframe.style.setProperty('min-height', targetH + 'px', 'important');
-        // アンカー位置決め: iOS auto-scroll に勝つため即時 + rAF + setTimeout で 5回打つ
-        anchorIframe(iframe);
-        requestAnimationFrame(function () { anchorIframe(iframe); });
-        requestAnimationFrame(function () {
-            requestAnimationFrame(function () { anchorIframe(iframe); });
-        });
-        setTimeout(function () { anchorIframe(iframe); }, 100);
-        setTimeout(function () { anchorIframe(iframe); }, 300);
+        // 連続アンカー開始: 1.2秒の間 iframe top を vv.offsetTop に追従させ続ける
+        startContinuousAlign(iframe, 1200);
         // 念のため chat.js に kb open 通知（scrollMessagesToBottom 発火用）
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
-            diag('anchor+resize h=' + targetH);
+            diag('fit+align h=' + targetH);
         } catch (_) {}
     }
 
     function resetIframeHeight(iframe) {
+        stopContinuousAlign();
         // iframe size 復元
         if (savedIframeStyle !== null) {
             iframe.style.removeProperty('height');
@@ -128,14 +179,17 @@
             if (savedIframeStyle.minHeight) iframe.style.minHeight = savedIframeStyle.minHeight;
             savedIframeStyle = null;
         }
-        // scrollY 復元（通常操作を維持）
-        if (savedScrollY !== null) {
-            window.scrollTo(0, savedScrollY);
-            savedScrollY = null;
-        }
+        // scrollY は復元しない。代わりに iframe top を一度だけ viewport top にアンカー
+        // → チャットヘッダーが先頭表示、その後ユーザーは意図的スクロールで本体HP閲覧可
+        savedScrollY = null;
+        // resize 反映を待つため rAF を挟んでから一発アンカー（その後は追従しない）
+        requestAnimationFrame(function () {
+            alignOnce(iframe);
+            requestAnimationFrame(function () { alignOnce(iframe); });
+        });
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
-            diag('reset');
+            diag('reset+snap-top');
         } catch (_) {}
     }
 
