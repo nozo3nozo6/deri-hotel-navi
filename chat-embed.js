@@ -74,11 +74,45 @@
     // prefocus 済みフラグ（kb 開通知時に expand を発動するかの判定）
     var prefocusedIframe = null;
 
-    // 単発アンカー: iframe top を visual viewport top に合わせる（必要な時だけ scrollBy）
+    // 顧客HPの sticky/fixed トップ要素の下端を検出（y=5 付近を占有する固定要素の最大 bottom）
+    // 例: go-kichi.com はグローバルナビが position:fixed で y=0〜100 を占有。
+    // alignOnce / expandToVV で、このインセット分だけ iframe 位置・高さを調整する。
+    function getStickyTopInset() {
+        if (typeof document.elementsFromPoint !== 'function') return 0;
+        var maxBottom = 0;
+        var samplePoints = [
+            [Math.floor(window.innerWidth * 0.1), 5],
+            [Math.floor(window.innerWidth * 0.5), 5],
+            [Math.floor(window.innerWidth * 0.9), 5]
+        ];
+        for (var i = 0; i < samplePoints.length; i++) {
+            var x = samplePoints[i][0], y = samplePoints[i][1];
+            var els = document.elementsFromPoint(x, y) || [];
+            for (var j = 0; j < els.length; j++) {
+                var el = els[j];
+                if (!el || el === document.documentElement || el === document.body) continue;
+                var cs;
+                try { cs = getComputedStyle(el); } catch (_) { continue; }
+                if (cs.position === 'fixed' || cs.position === 'sticky') {
+                    var rect = el.getBoundingClientRect();
+                    if (rect.top <= 5 && rect.bottom > maxBottom) {
+                        maxBottom = rect.bottom;
+                    }
+                }
+            }
+        }
+        // 過検出防止: viewport の 30% を超えるインセットは無視（ヒーロー要素等に騙されない）
+        return Math.min(maxBottom, Math.floor(window.innerHeight * 0.3));
+    }
+
+    // 単発アンカー: iframe top を「可視領域のトップ（sticky nav の直下）」に合わせる。
+    // 顧客HPが position:fixed のヘッダーを持っている場合も chat-header が隠れないようにする。
     function alignOnce(iframe) {
         var vv = window.visualViewport;
+        var stickyInset = getStickyTopInset();
         var rect = iframe.getBoundingClientRect();
-        var drift = rect.top - (vv ? vv.offsetTop : 0);
+        var targetY = (vv ? vv.offsetTop : 0) + stickyInset;
+        var drift = rect.top - targetY;
         if (Math.abs(drift) > 0.5) {
             window.scrollBy(0, drift);
         }
@@ -102,32 +136,35 @@
     }
 
     // プリフォーカス: iframe を安全サイズに縮めて iOS focus-scroll を不発化 + align
-    // 安全サイズ = innerHeight × 0.35（iPhone 縦 ~230 / 横 ~130）で、最低 150px 保証
+    // 安全サイズ = (innerHeight - stickyInset) × 0.35、最低 150px 保証
     function prefocusForInput(iframe) {
         saveIframeStyle(iframe);
-        var safeH = Math.max(150, Math.floor(window.innerHeight * 0.35));
+        var stickyInset = getStickyTopInset();
+        var usable = Math.max(200, window.innerHeight - stickyInset);
+        var safeH = Math.max(150, Math.floor(usable * 0.35));
         forceHeight(iframe, safeH);
         alignOnce(iframe);
         prefocusedIframe = iframe;
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: safeH }, '*');
-            diag('prefocus h=' + safeH);
+            diag('prefocus h=' + safeH + ' sticky=' + stickyInset);
         } catch (_) {}
     }
 
-    // kb 開通知後の最終サイズ: iframe を vv.height に拡大。上端は prefocus で揃っているので
-    // 下に伸びるだけ → 下端 = キーボード上端、入力欄がキーボード直上に自動配置。
+    // kb 開通知後の最終サイズ: iframe を (vv.height - stickyInset) に拡大。
+    // iframe top = sticky nav 直下、iframe bottom = キーボード上端 → chat-header と入力欄が同時に可視.
     function expandToVV(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
-        var targetH = Math.floor(vv.height);
+        var stickyInset = getStickyTopInset();
+        var targetH = Math.floor(vv.height - stickyInset);
         if (targetH < 100) return;
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
-        alignOnce(iframe); // 保険（prefocus してない経路用）
+        alignOnce(iframe);
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
-            diag('expand h=' + targetH);
+            diag('expand h=' + targetH + ' sticky=' + stickyInset);
         } catch (_) {}
     }
 
