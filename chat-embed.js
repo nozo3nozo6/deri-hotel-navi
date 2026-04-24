@@ -61,6 +61,7 @@
 
     // 「最後に入力 focus を通知してきた iframe」をアクティブ扱い
     var activeIframe = null;
+    var lastKbOpen = false;
 
     // iframe 下端をキーボード上端（= visualViewport 下端）にアラインするようページをスクロール
     function alignIframeAboveKeyboard(iframe) {
@@ -78,22 +79,25 @@
         }
     }
 
-    function onVVResize() {
-        if (!activeIframe) return;
+    // キーボード開閉の**エッジ**でだけ動く。開いてる最中の手動スクロールは妨害しない。
+    function onVVChange() {
         var vv = window.visualViewport;
         if (!vv) return;
         var kbH = window.innerHeight - vv.height;
-        if (kbH > 100) {
-            alignIframeAboveKeyboard(activeIframe);
-        } else {
-            // キーボード閉じた → アクティブ解除のみ。スクロール位置は触らない（ユーザーに委ねる）
+        var kbOpen = kbH > 100;
+        if (kbOpen && !lastKbOpen) {
+            // 閉→開 のエッジ: 一度だけ align
+            if (activeIframe) alignIframeAboveKeyboard(activeIframe);
+        } else if (!kbOpen && lastKbOpen) {
+            // 開→閉 のエッジ: 何もしない（ユーザーの自然なスクロールに委ねる）
             diag('kb closed');
             activeIframe = null;
         }
+        lastKbOpen = kbOpen;
     }
     if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', onVVResize);
-        window.visualViewport.addEventListener('scroll', onVVResize);
+        // resize のみ監視（scroll は手動スクロール妨害の原因になるので監視しない）
+        window.visualViewport.addEventListener('resize', onVVChange);
     }
 
     function wire(iframe) {
