@@ -179,40 +179,74 @@
         var enterFsChangeHandler = null;
 
         function enterFallback() {
-            // enter() 前のビューポート情報をログ
+            // 根本解決: iframe の position:fixed を使わず、DIV オーバーレイを body 直下に
+            // 作り、そこへ iframe を reparent する。iOS Safari は iframe 要素に対する
+            // position:fixed を正しく描画できない（computed top:0px でも実描画 y=79 になる
+            // 既知バグ）ため、DIV を fixed 枠として使い iframe は絶対配置で DIV を満たす。
             if (diagMode) {
                 try {
                     var vv = window.visualViewport;
                     diag('env: iw=' + window.innerWidth + ' ih=' + window.innerHeight +
                          ' sy=' + (window.scrollY | 0) +
-                         ' sc=' + (document.scrollingElement ? document.scrollingElement.scrollTop | 0 : '?') +
                          (vv ? ' vv=' + Math.round(vv.width) + 'x' + Math.round(vv.height) +
-                              '@' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) +
-                              ' scale=' + vv.scale.toFixed(2) : ''));
+                              '@' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) : ''));
                 } catch (_) {}
             }
             var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+
+            // オーバーレイ DIV を body 直下に作成（祖先の containing block 問題を根絶）
+            var overlay = document.createElement('div');
+            overlay.setAttribute('data-ychat-overlay', '1');
+            var osp = function (k, v) { overlay.style.setProperty(k, v, 'important'); };
+            osp('position', 'fixed');
+            osp('top', '0');
+            osp('left', '0');
+            osp('right', '0');
+            osp('bottom', '0');
+            osp('width', '100vw');
+            osp('height', '100dvh');
+            osp('margin', '0');
+            osp('padding', '0');
+            osp('border', '0');
+            osp('background', '#fff');
+            osp('z-index', '2147483647');
+            osp('transform', 'none');
+            osp('will-change', 'auto');
+            osp('contain', 'none');
+            document.body.appendChild(overlay);
+
             saved = {
-                mode: 'fallback',
-                style: iframe.getAttribute('style') || '',
+                mode: 'overlay',
+                iframeStyle: iframe.getAttribute('style') || '',
                 bodyOverflow: document.body.style.overflow || '',
                 htmlOverflow: document.documentElement.style.overflow || '',
                 htmlScrollBehavior: document.documentElement.style.scrollBehavior || '',
                 scrollY: scrollY,
-                ancestors: neutralizeAncestors()
+                iframeParent: iframe.parentElement,
+                iframeNextSibling: iframe.nextSibling,
+                overlay: overlay,
+                ancestors: neutralizeAncestors() // 保険として旧祖先も中和（復元時に戻す）
             };
+
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
             try { window.scrollTo(0, 0); } catch (_) {}
-            // cssText ではなく setProperty で個別に !important を適用
-            // (iOS Safari は cssText 内の !important を一部プロパティで無視するバグあり)
+
+            // iframe を overlay に移動（Safari 16.4+ では reload 無し、
+            // 旧 iOS では reload するが chat 側 localStorage の session_token で自動復元）
+            try {
+                overlay.appendChild(iframe);
+            } catch (e) {
+                diag('reparent threw: ' + (e.message || '?'));
+            }
+
+            // iframe は overlay 内で position:absolute で完全フィル
+            iframe.setAttribute('style', '');
             var sp = function (k, v) { iframe.style.setProperty(k, v, 'important'); };
-            sp('position', 'fixed');
+            sp('position', 'absolute');
             sp('top', '0');
             sp('left', '0');
-            sp('right', '0');
-            sp('bottom', '0');
-            sp('width', '100vw');
-            sp('height', '100dvh');
+            sp('width', '100%');
+            sp('height', '100%');
             sp('max-width', 'none');
             sp('max-height', 'none');
             sp('margin', '0');
@@ -220,30 +254,25 @@
             sp('border', '0');
             sp('border-radius', '0');
             sp('box-shadow', 'none');
-            sp('z-index', '2147483647');
             sp('background', '#fff');
             sp('transform', 'none');
-            sp('translate', 'none');
-            sp('rotate', 'none');
-            sp('scale', 'none');
-            sp('inset', '0');
+            sp('display', 'block');
+
             document.body.style.setProperty('overflow', 'hidden', 'important');
             document.documentElement.style.setProperty('overflow', 'hidden', 'important');
 
-            // 根本原因診断: 我々の inline !important が computed に反映されているか検証
-            // rect.y != 0 かつ computed top == '0px' → iOS 独自の positioning バグ（祖先 CB 以外の要因）
-            // rect.y != 0 かつ computed top != '0px' → 何かが我々の inline !important を上書き
+            // 実測診断: overlay と iframe 両方の rect を記録
             if (diagMode) {
                 var snap = function (when) {
                     try {
-                        var cs = getComputedStyle(iframe);
-                        var rect = iframe.getBoundingClientRect();
+                        var or = overlay.getBoundingClientRect();
+                        var ir = iframe.getBoundingClientRect();
                         var vv = window.visualViewport;
                         var vvInfo = vv ? (' vv@' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop)) : '';
-                        diag(when + ': r=' + Math.round(rect.x) + ',' + Math.round(rect.y) +
-                             ' ' + Math.round(rect.width) + 'x' + Math.round(rect.height) +
-                             ' cs=' + cs.position + ' t:' + cs.top + ' l:' + cs.left +
-                             ' m:' + cs.marginTop + ' tf:' + (cs.transform === 'none' ? 'none' : 'Y') +
+                        diag(when + ': ov=' + Math.round(or.x) + ',' + Math.round(or.y) +
+                             ' ' + Math.round(or.width) + 'x' + Math.round(or.height) +
+                             ' if=' + Math.round(ir.x) + ',' + Math.round(ir.y) +
+                             ' ' + Math.round(ir.width) + 'x' + Math.round(ir.height) +
                              ' sy=' + (window.scrollY | 0) + vvInfo);
                     } catch (e) { diag(when + ' err: ' + e.message); }
                 };
@@ -321,8 +350,35 @@
                 saved = null;
                 return;
             }
-            // fallback モード: iframe/ancestors/scroll の復元
-            iframe.setAttribute('style', saved.style);
+            if (mode === 'overlay') {
+                // overlay モード: iframe を元の位置に戻し、overlay を削除
+                try {
+                    if (saved.iframeParent) {
+                        if (saved.iframeNextSibling && saved.iframeNextSibling.parentNode === saved.iframeParent) {
+                            saved.iframeParent.insertBefore(iframe, saved.iframeNextSibling);
+                        } else {
+                            saved.iframeParent.appendChild(iframe);
+                        }
+                    }
+                } catch (e) { diag('restore reparent threw: ' + (e.message || '?')); }
+                iframe.setAttribute('style', saved.iframeStyle);
+                if (saved.overlay && saved.overlay.parentNode) {
+                    saved.overlay.parentNode.removeChild(saved.overlay);
+                }
+                document.body.style.overflow = saved.bodyOverflow;
+                document.documentElement.style.overflow = saved.htmlOverflow;
+                if (saved.htmlScrollBehavior) {
+                    document.documentElement.style.scrollBehavior = saved.htmlScrollBehavior;
+                } else {
+                    document.documentElement.style.removeProperty('scroll-behavior');
+                }
+                restoreAncestors(saved.ancestors || []);
+                try { window.scrollTo(0, saved.scrollY || 0); } catch (_) {}
+                saved = null;
+                return;
+            }
+            // legacy fallback モード（未使用だが念のため残す）
+            iframe.setAttribute('style', saved.style || '');
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;
             if (saved.htmlScrollBehavior) {
