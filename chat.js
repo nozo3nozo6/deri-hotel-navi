@@ -3891,7 +3891,10 @@ setupEmbedDirectLinkFooter();
 
     // ウィジェット内の任意タップ → 親に通知 → iframe top を viewport top にスナップ
     // （click は scroll-drag では発火しないので、メッセージ area のスクロール操作は邪魔しない）
-    document.addEventListener('click', () => {
+    // 入力欄のクリックは input-focus 経路が処理するので widget-tap は送らない
+    // (両方送ると chat-embed.js の widget-tap fit と input-focus prefocus が競合する)
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
         try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
     }, { capture: true, passive: true });
 })();
@@ -3970,13 +3973,24 @@ setupEmbedDirectLinkFooter();
     if (embedded) {
         window.addEventListener('message', (e) => {
             const d = e.data;
-            if (!d || typeof d !== 'object' || d.type !== 'ychat:embed-h') return;
-            if (typeof d.h === 'number' && d.h > 0) {
-                parentEmbedH = d.h;
-            } else {
-                parentEmbedH = null;
+            if (!d || typeof d !== 'object') return;
+            if (d.type === 'ychat:embed-h') {
+                if (typeof d.h === 'number' && d.h > 0) {
+                    parentEmbedH = d.h;
+                } else {
+                    parentEmbedH = null;
+                }
+                applyKbH();
+                return;
             }
-            applyKbH();
+            if (d.type === 'ychat:blur-input') {
+                // 親から「入力欄 blur して kb を閉じてほしい」要求. widget-tap で fit モードに移る時に使う.
+                try {
+                    const ae = document.activeElement;
+                    if (ae && typeof ae.blur === 'function') ae.blur();
+                } catch (_) {}
+                return;
+            }
         });
     }
 
