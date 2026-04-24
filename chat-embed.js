@@ -75,6 +75,9 @@
     var prefocusedIframe = null;
     // prefocus 後に kb 開が来なかった時の安全復元タイマー
     var prefocusSafetyTimer = null;
+    // expand 後の kb-close 検出 watchdog (iOS で vv.resize が発火しないケース対策).
+    // vv.resize のエッジだけに頼ると, iOS が close 通知を出さなかった時に iframe が縮んだまま固着する.
+    var expandVerifyInterval = null;
     // input-focus dedupe: 1回の input タップで touchend + focusin の両方が
     // ychat:input-focus を送ってくるので、200ms 以内の重複を無視.
     // widget-tap も直後に click で来るが、input-focus が既に align 済みなので 400ms は無視.
@@ -197,10 +200,34 @@
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('expand h=' + targetH + ' sticky=' + stickyInset);
         } catch (_) {}
+        // iOS で vv.resize が kb-close 時に発火しないケースに備え, vv.height を定期確認して
+        // 開→閉 を watchdog で補完する. onVVChange が正常発火すれば resetIframeHeight 側で clearInterval される.
+        startExpandVerifyWatch(iframe);
+    }
+
+    // expand 後の watchdog: 500ms毎に vv.height を確認し, kb 閉じを検知したら reset を発動.
+    // iOS で vv.resize が kb-close で欠落する既知バグの補完.
+    function startExpandVerifyWatch(iframe) {
+        if (expandVerifyInterval) clearInterval(expandVerifyInterval);
+        expandVerifyInterval = setInterval(function () {
+            var vv = window.visualViewport;
+            if (!vv) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; return; }
+            var kbH = window.innerHeight - vv.height;
+            if (kbH <= 50) {
+                // kb 閉じを検出. vv.resize が来てないので onVVChange を肩代わりする.
+                diag('kb closed (watchdog)');
+                clearInterval(expandVerifyInterval);
+                expandVerifyInterval = null;
+                if (activeIframe) resetIframeHeight(activeIframe);
+                activeIframe = null;
+                lastKbOpen = false;
+            }
+        }, 500);
     }
 
     function resetIframeHeight(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
+        if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
         prefocusedIframe = null;
         if (savedIframeStyle !== null) {
             iframe.style.removeProperty('height');
