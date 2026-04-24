@@ -195,7 +195,9 @@
         if (targetH < 100) return;
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
-        alignOnce(iframe);
+        // NOTE: alignOnce (= window.scrollBy) をここで呼ぶと iOS Safari は kb-open 遷移中の
+        // プログラム的 scroll を「ユーザーが kb を閉じたい」と解釈して kb を dismiss する.
+        // prefocus で既に iframe top は正しい位置にあるので, expand は高さ変更のみで足りる.
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('expand h=' + targetH + ' sticky=' + stickyInset);
