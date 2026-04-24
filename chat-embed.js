@@ -115,20 +115,21 @@
             }
         }
 
-        // 親の visualViewport 高さを iframe に postMessage で伝える。
-        // iframe 本体のサイズは 100dvh 固定のまま (縮めようとすると一瞬 0 になって
-        // 真っ白に見える問題があった)、iframe 内の chat.js が --embed-h に反映して
-        // chat-root だけがキーボード分短くなる。
+        // 親の visualViewport にキーボード開閉で iframe 高さを追従させる。
+        // iframe の height を固定 (100dvh) にしておくと、iOS でキーボードが出ても
+        // iframe 本体が縮まず、中の #chat-root (height:100%) も縮まない。
+        // → 入力欄がキーボードの下に隠れる。
+        // 親の visualViewport.height を iframe の height に流すと、iframe 本体が
+        // 縮み、中の chat-root も自動でキーボード分短くなる。
         var vvHandler = null;
-        function sendVv() {
+        function applyVv() {
             if (!saved) return;
             var vv = window.visualViewport;
             var h = vv ? vv.height : window.innerHeight;
-            try {
-                iframe.contentWindow &&
-                    iframe.contentWindow.postMessage({ type: 'ychat:parent-vv', h: h }, '*');
-                diag('send parent-vv h=' + h);
-            } catch (_) {}
+            // top:0 固定のまま bottom を変えると inset:0 との競合があるので bottom:auto も明示
+            iframe.style.setProperty('height', h + 'px', 'important');
+            iframe.style.setProperty('bottom', 'auto', 'important');
+            diag('vv resize h=' + h);
         }
 
         function enter() {
@@ -140,19 +141,19 @@
                 ancestors: neutralizeAncestors()
             };
             iframe.style.cssText =
-                'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
-                'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
+                'position:fixed!important;top:0!important;left:0!important;right:0!important;' +
+                'width:100vw!important;max-width:none!important;max-height:none!important;' +
                 'margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;' +
                 'z-index:2147483647!important;background:#fff!important;transform:none!important;';
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
-            sendVv();
+            applyVv(); // 初期高さ
             if (window.visualViewport) {
-                vvHandler = sendVv;
+                vvHandler = applyVv;
                 window.visualViewport.addEventListener('resize', vvHandler);
                 window.visualViewport.addEventListener('scroll', vvHandler);
             }
-            window.addEventListener('resize', sendVv);
+            window.addEventListener('resize', applyVv);
         }
 
         function exit() {
@@ -162,7 +163,7 @@
                 window.visualViewport.removeEventListener('scroll', vvHandler);
                 vvHandler = null;
             }
-            window.removeEventListener('resize', sendVv);
+            window.removeEventListener('resize', applyVv);
             iframe.setAttribute('style', saved.style);
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;

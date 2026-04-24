@@ -4010,21 +4010,6 @@ setupEmbedDirectLinkFooter();
     }, 200));
     if (embedded) window.addEventListener('resize', applyKbH);
 
-    // 埋込全画面時: 親から vv.height を postMessage で受け、--embed-h を親基準で上書き.
-    // iframe 内の vv はキーボードで縮まないことがあるため、親側の vv が真の高さ.
-    if (embedded) {
-        window.addEventListener('message', (e) => {
-            const d = e && e.data;
-            if (!d || typeof d !== 'object' || d.type !== 'ychat:parent-vv') return;
-            const h = +d.h;
-            if (!isFinite(h) || h < 100) return;
-            setEmbedH(h);
-            const wasOpen = keyboardOpen;
-            keyboardOpen = h < window.innerHeight - 40; // 親高さ < iframe 高さ40px以上 = キーボード開
-            if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
-        });
-    }
-
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) {
