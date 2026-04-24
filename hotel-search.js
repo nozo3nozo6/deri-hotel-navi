@@ -1053,6 +1053,13 @@ function renderLovehoDetail(hotel, reports) {
 function setResultStatus(count, totalCount) {
     const el = document.getElementById('result-status');
     if (!el) return;
+    // SSGページで初期HTMLがあり、かつ0件の場合はステータスを隠す
+    // (「ホテルが見つかりませんでした」がクローラーにソフト404シグナルになる)
+    const hotelListEl = document.getElementById('hotel-list');
+    if (count <= 0 && hotelListEl && hotelListEl.dataset.initial === '1') {
+        el.style.display = 'none';
+        return;
+    }
     el.style.display = 'block';
     if (count <= 0) { el.innerHTML = t('no_results'); return; }
     if (totalCount && totalCount > count) {
@@ -1699,6 +1706,14 @@ function renderHotelCards(hotels, showDistance = false) {
     document.body.classList.add('test-hotel-list-mode');
 
     if (!hotels.length) {
+        // SSGページで初期HTMLが埋め込まれている場合は empty-state で上書きしない
+        // (Googlebotがソフト404判定しないようサーバーサイドコンテンツを保持)
+        if (container.dataset.initial === '1') {
+            allHotels = [];
+            displayedCount = 0;
+            showFilterBar();
+            return;
+        }
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p class="empty-text">${t('no_results')}</p></div>`;
         allHotels = [];
         displayedCount = 0;
@@ -1709,6 +1724,8 @@ function renderHotelCards(hotels, showDistance = false) {
     allHotels = hotels;
     displayedCount = 0;
 
+    // 初回レンダリング以降はサーバー初期HTMLを破棄
+    delete container.dataset.initial;
     container.innerHTML = '';
     loadMoreHotels();
     showFilterBar();

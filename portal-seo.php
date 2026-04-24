@@ -398,6 +398,26 @@ if (!$hotel_id && $pref) {
                 $seo_static .= '</li>';
             }
             $seo_static .= '</ul>';
+
+            // #hotel-list にサーバーサイドで初期ホテルカードを注入
+            // (JS実行で上書きされるが、クローラーは初期HTMLを主要コンテンツとして見る)
+            $initial_hotel_cards = '';
+            foreach ($topHotels as $h) {
+                $hUrl = '/' . $path . '/hotel/' . (int)$h['id'];
+                $hName = $esc_fn($h['name']);
+                $hAddr = !empty($h['address']) ? $esc_fn($h['address']) : '';
+                $hStation = !empty($h['nearest_station']) ? $esc_fn($h['nearest_station']) : '';
+                $initial_hotel_cards .= '<article class="hotel-card hotel-card-lux" style="background:#fff;border:1px solid #e5ddd0;border-radius:12px;padding:16px;margin-bottom:12px;">';
+                $initial_hotel_cards .= '<a href="' . $esc_fn($hUrl) . '" style="text-decoration:none;color:inherit;display:block;">';
+                $initial_hotel_cards .= '<h3 class="hotel-card-name" style="margin:0 0 8px;font-size:16px;font-weight:600;color:#1a1410;">' . $hName . '</h3>';
+                if ($hAddr) {
+                    $initial_hotel_cards .= '<p class="hotel-card-address" style="margin:0 0 6px;font-size:13px;color:#5a4a3a;">📍 ' . $hAddr . '</p>';
+                }
+                if ($hStation) {
+                    $initial_hotel_cards .= '<p class="hotel-card-station" style="margin:0;font-size:12px;color:#8a7a6a;">🚉 ' . $hStation . '</p>';
+                }
+                $initial_hotel_cards .= '</a></article>';
+            }
         }
 
         // 同じエリア内の他の市区町村
@@ -526,6 +546,16 @@ $noscript_content .= '</div></noscript>';
 // <main>内末尾に挿入（静的SEOを主要コンテンツ扱いにしてソフト404回避）
 // noscriptは</main>の外側（従来どおり）
 $html = str_replace('</main>', $seo_static . '</main>' . $noscript_content, $html);
+
+// #hotel-list にサーバーサイドで初期ホテルカードを注入
+// JS実行でAPI 0件になっても renderHotelCards が data-initial=1 を尊重して残す
+if (!empty($initial_hotel_cards)) {
+    $html = str_replace(
+        '<div id="hotel-list" class="hotel-list-container"></div>',
+        '<div id="hotel-list" class="hotel-list-container" data-initial="1">' . $initial_hotel_cards . '</div>',
+        $html
+    );
+}
 
 // --- 出力 ---
 header('Content-Type: text/html; charset=UTF-8');
