@@ -274,6 +274,25 @@
         window.visualViewport.addEventListener('resize', onVVChange);
     }
 
+    // iframe 外タップは parent の pointerdown として発火する（iframe 内タップは iframe で捕捉されて
+    // parent には来ない）。これを 4 つ目の kb-close signal として使う:
+    // ① vv.resize close edge, ② watchdog, ③ input.blur が全て iOS の嘘で無音のレアケース (IMG_8648) のフェイルセーフ。
+    // 遅延 400ms で input.blur / vv.resize に先取り機会を与え、競合時は activeIframe null チェックで二重動作防止。
+    document.addEventListener('pointerdown', function (e) {
+        if (!activeIframe) return;
+        // e.target が iframe 自身 = 境界タップ、中身タップは parent に届かないので安全側で外と見なす
+        var tapTs = Date.now();
+        diag('parent pointerdown outside iframe');
+        setTimeout(function () {
+            if (!activeIframe) { diag('pointerdown reset: already done'); return; }
+            if (lastInputFocusTs > tapTs) { diag('pointerdown reset: refocus detected'); return; }
+            diag('kb closed (pointerdown-outside)');
+            resetIframeHeight(activeIframe);
+            activeIframe = null;
+            lastKbOpen = false;
+        }, 400);
+    }, true);
+
     function wire(iframe) {
         if (iframe.__ychatWired) return;
         iframe.__ychatWired = true;
