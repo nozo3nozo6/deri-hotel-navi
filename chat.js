@@ -3934,15 +3934,20 @@ setupEmbedDirectLinkFooter();
     };
     const applyKbH = () => {
         if (isClosing) return;
-        // 埋込時は vv.height を直接 --embed-h に流すだけ (svh 式を使わない).
+        // 埋込時は 親の override が来ていればそれを優先.
+        // override が無い時は --embed-h を除去して CSS フォールバック (100%) に戻す.
+        // iframe 自身の vv.height を使うと、親で iframe 高さを変えた直後にラグで
+        // 古い値が返り chat-root が縮んだまま残るので、null リセット時は明示的に消す.
         if (embedded) {
-            // 親から override が来ていればそれを優先
-            const h = parentEmbedH !== null ? parentEmbedH : (vv ? vv.height : window.innerHeight);
-            setEmbedH(h);
-            const kb0 = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
             const wasOpen = keyboardOpen;
-            keyboardOpen = (parentEmbedH !== null) || (kb0 > 0);
-            if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
+            if (parentEmbedH !== null) {
+                setEmbedH(parentEmbedH);
+                keyboardOpen = true;
+                if (!wasOpen) scrollMessagesToBottom();
+            } else {
+                docEl.style.removeProperty('--embed-h');
+                keyboardOpen = false;
+            }
             return;
         }
         // 直URL: 従来通り kb-h を計算.
