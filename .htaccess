@@ -283,10 +283,12 @@ RewriteRule ^portal\.html$ /portal-women-same.php [L,QSA]
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Service-Worker-Allowed "/"
   </FilesMatch>
-  # 外部サイト埋込スクリプト: 顧客HPに貼られた後も自動更新できるよう短キャッシュ + 再検証
-  # 1時間で revalidate、ETag ベースで変更時のみ再DL。これで全埋込先が改良版に追従できる。
+  # 外部サイト埋込スクリプト: 顧客HPに貼られた後も自動更新できるよう毎回再検証
+  # no-cache = 使う前に必ず revalidate、ETag 一致なら 304 でほぼ無負荷。
+  # 変更あれば即ダウンロード → 全埋込先が launch 期間中の改良版に追従できる。
+  # (max-age=3600 だとブラウザが 1 時間古いまま固定されて hotfix が届かない)
   <FilesMatch "(chat-widget|chat-embed)\.js$">
-    Header set Cache-Control "public, max-age=3600, must-revalidate"
+    Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>
 
