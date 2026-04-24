@@ -381,10 +381,16 @@
                 // 2回目タップで「kb 既に開いてる」と誤判定して expand に直行してしまう.
                 // lastKbOpen (vv.resize エッジ or input-blur で更新) を併用することで正確な状態把握.
                 var kbOpen = vvKbOpen && lastKbOpen;
-                diag('focus branch: vvKbOpen=' + vvKbOpen + ' lastKbOpen=' + lastKbOpen);
+                diag('focus branch: vvKbOpen=' + vvKbOpen + ' lastKbOpen=' + lastKbOpen + ' fitMode=' + fitMode);
                 if (kbOpen) {
                     // kb 既に開: 直接 expand（他 input への re-focus ケース）
                     expandToVV(iframe);
+                } else if (fitMode) {
+                    // FIT モード中 (widget-tap で sticky-bottom に pin 済): prefocus で縮めない.
+                    // iOS の focus-scroll は iframe top が既に sticky nav 直下にあるので発生しない.
+                    // kb 開通知 (vv.resize) が来たら onVVChange が expandToVV でシュリンク.
+                    // kb 閉じたら onVVChange が fitMode 見て fitToViewport で復帰.
+                    diag('input-focus in fitMode → keep fit, wait for kb');
                 } else if (isIOS) {
                     // iOS で kb まだ閉: prefocus で iframe を縮め focus-scroll を不発化
                     // (kb 開通知が来なければ 800ms で自動復元)
