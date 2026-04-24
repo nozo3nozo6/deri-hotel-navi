@@ -67,10 +67,21 @@
     var savedIframeStyle = null;
 
     // 【複雑版】iframe element 自体を可視領域の高さに resize。
-    // iframe 上端を viewport 上端に揃える。
+    // iframe 上端を viewport 上端にアンカー（scrollIntoView = アンカーリンク相当）。
+    // iOS auto-scroll が後から発火して位置を崩すので rAF + setTimeout で再 align。
     // iframe 内側の vv.height が自然に可視領域の高さになる（iOS でも機能）
-    // → chat.js の --embed-h 計算が自然に正しくなる（座標計算・postMessage不要）
+    // → chat.js の --embed-h 計算が自然に正しくなる
     // → iframe の header が viewport top、input が keyboard 直上
+    function anchorIframe(iframe) {
+        // scrollIntoView({block:'start'}) は アンカーリンク（<a href="#...">）と同等の挙動。
+        // iOS で最も信頼性の高い「要素を viewport 上端に揃える」方式。
+        try {
+            iframe.scrollIntoView({ block: 'start', behavior: 'instant' });
+        } catch (_) {
+            try { iframe.scrollIntoView({ block: 'start' }); }
+            catch (_e) { try { iframe.scrollIntoView(true); } catch (_ee) {} }
+        }
+    }
     function fitIframeToVisibleArea(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
@@ -91,17 +102,18 @@
         iframe.style.setProperty('height', targetH + 'px', 'important');
         iframe.style.setProperty('max-height', targetH + 'px', 'important');
         iframe.style.setProperty('min-height', targetH + 'px', 'important');
-        // iframe 上端を viewport 上端に揃える（絶対座標でスクロール）
-        var rect = iframe.getBoundingClientRect();
-        var desiredTop = vv.offsetTop || 0;
-        var absoluteTargetY = window.pageYOffset + (rect.top - desiredTop);
-        if (Math.abs(absoluteTargetY - window.pageYOffset) > 1) {
-            window.scrollTo(0, absoluteTargetY);
-        }
+        // アンカー位置決め: iOS auto-scroll に勝つため即時 + rAF + setTimeout で 5回打つ
+        anchorIframe(iframe);
+        requestAnimationFrame(function () { anchorIframe(iframe); });
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { anchorIframe(iframe); });
+        });
+        setTimeout(function () { anchorIframe(iframe); }, 100);
+        setTimeout(function () { anchorIframe(iframe); }, 300);
         // 念のため chat.js に kb open 通知（scrollMessagesToBottom 発火用）
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
-            diag('resize iframe h=' + targetH);
+            diag('anchor+resize h=' + targetH);
         } catch (_) {}
     }
 
