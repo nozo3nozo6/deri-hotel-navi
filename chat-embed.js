@@ -81,18 +81,30 @@
                 var cs = null;
                 try { cs = getComputedStyle(cur); } catch (_) {}
                 if (cs) {
+                    // CSS 仕様: position:fixed の containing block を作る祖先プロパティ
+                    // - transform / translate / rotate / scale (個別指定)
+                    // - filter / backdrop-filter
+                    // - perspective
+                    // - will-change に上記のいずれか
+                    // - contain: paint/layout/strict/content/size
                     var trapped =
                         (cs.transform && cs.transform !== 'none') ||
+                        (cs.translate && cs.translate !== 'none') ||
+                        (cs.rotate && cs.rotate !== 'none') ||
+                        (cs.scale && cs.scale !== 'none') ||
                         (cs.filter && cs.filter !== 'none') ||
                         (cs.perspective && cs.perspective !== 'none') ||
                         (cs.willChange && cs.willChange !== 'auto' &&
-                            /transform|filter|perspective/.test(cs.willChange)) ||
-                        (cs.contain && /paint|layout|strict|content/.test(cs.contain)) ||
+                            /transform|translate|rotate|scale|filter|perspective/.test(cs.willChange)) ||
+                        (cs.contain && /paint|layout|strict|content|size/.test(cs.contain)) ||
                         (cs.backdropFilter && cs.backdropFilter !== 'none');
                     if (trapped) {
                         list.push({
                             el: cur,
                             transform: cur.style.transform,
+                            translate: cur.style.translate,
+                            rotate: cur.style.rotate,
+                            scale: cur.style.scale,
                             filter: cur.style.filter,
                             perspective: cur.style.perspective,
                             willChange: cur.style.willChange,
@@ -100,6 +112,9 @@
                             backdropFilter: cur.style.backdropFilter
                         });
                         cur.style.setProperty('transform', 'none', 'important');
+                        cur.style.setProperty('translate', 'none', 'important');
+                        cur.style.setProperty('rotate', 'none', 'important');
+                        cur.style.setProperty('scale', 'none', 'important');
                         cur.style.setProperty('filter', 'none', 'important');
                         cur.style.setProperty('perspective', 'none', 'important');
                         cur.style.setProperty('will-change', 'auto', 'important');
@@ -107,6 +122,9 @@
                         cur.style.setProperty('backdrop-filter', 'none', 'important');
                         diag('trapped: ' + (cur.tagName || '?') + '.' + (cur.className || '').toString().slice(0, 40) +
                              ' [' + (cs.transform !== 'none' ? 'transform ' : '') +
+                             (cs.translate && cs.translate !== 'none' ? 'translate=' + cs.translate + ' ' : '') +
+                             (cs.rotate && cs.rotate !== 'none' ? 'rotate=' + cs.rotate + ' ' : '') +
+                             (cs.scale && cs.scale !== 'none' ? 'scale=' + cs.scale + ' ' : '') +
                              (cs.filter !== 'none' ? 'filter ' : '') +
                              (cs.perspective !== 'none' ? 'perspective ' : '') +
                              (cs.contain && cs.contain !== 'none' ? 'contain=' + cs.contain + ' ' : '') +
@@ -124,6 +142,9 @@
                 var r = list[i];
                 try {
                     r.el.style.transform = r.transform;
+                    r.el.style.translate = r.translate;
+                    r.el.style.rotate = r.rotate;
+                    r.el.style.scale = r.scale;
                     r.el.style.filter = r.filter;
                     r.el.style.perspective = r.perspective;
                     r.el.style.willChange = r.willChange;
