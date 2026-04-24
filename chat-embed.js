@@ -348,6 +348,25 @@
             if (d.type === 'ychat:exit-fullscreen') {
                 return; // no-op（後方互換）
             }
+            if (d.type === 'ychat:input-blur') {
+                // iOS で visualViewport.height が kb 閉じ後も小さいまま残るバグへの確実な対策.
+                // input blur は iOS でも正常に発火するので, これを真の kb-close 信号として使う.
+                // 300ms 後に新しい input-focus が来てなければ reset (別 input への re-focus ケースを除外).
+                var blurTs = Date.now();
+                setTimeout(function () {
+                    if (lastInputFocusTs > blurTs) {
+                        diag('input-blur: refocus detected, keep state');
+                        return;
+                    }
+                    if (activeIframe) {
+                        diag('kb closed (input-blur)');
+                        resetIframeHeight(activeIframe);
+                        activeIframe = null;
+                        lastKbOpen = false;
+                    }
+                }, 300);
+                return;
+            }
         });
     }
 
