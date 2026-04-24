@@ -359,14 +359,12 @@
                 return;
             }
             if (d.type === 'ychat:widget-tap') {
-                // input-focus の直後 (400ms 以内) は input-focus 経路が既に align 済み.
-                // ここで alignOnce を重ねると iOS focus-scroll と殴り合って「上→下」ジッター発生.
+                // input-focus の直後 (400ms 以内) は input-focus 経路が既に処理中.
                 if (Date.now() - lastInputFocusTs < 400) {
                     diag('widget-tap suppressed (input-focus recent)');
                     return;
                 }
-                // input-blur 直後 (600ms 以内) は kb 閉じ遷移中. ここで scrollBy を打つと
-                // iOS の kb close アニメ と殴り合う. reset 側で既に 350ms 後 1発 align 済みなので重複不要.
+                // input-blur 直後 (600ms 以内) は kb 閉じアニメ中. reset 側で 350ms 後 align 予定なので重複不要.
                 if (Date.now() - lastInputBlurTs < 600) {
                     diag('widget-tap suppressed (input-blur recent)');
                     return;
@@ -376,18 +374,22 @@
                     // kb 開中: input-focus 経路で既に処理済み. noop.
                     return;
                 }
-                // kb 閉 + 定常状態: iframe top がヘッダー裏に隠れている時のみ align 発動.
-                // iframe 上端が既に可視範囲にあるならスクロールしない (不要な scrollBy は視覚ノイズになる).
+                // kb 閉 + 定常状態: iframe を viewport に fit させる.
+                // 目的: header=sticky nav 直下、footer=画面下端 になるようにして widget 全体を可視化.
+                // customer が 900px など大きい iframe を置いてるケースで footer が画面外に消える問題への対応.
                 var stickyInset = getStickyTopInset();
-                var rect = iframe.getBoundingClientRect();
-                var targetY = (vv2 ? vv2.offsetTop : 0) + stickyInset;
-                var drift = rect.top - targetY;
-                if (drift < -20 || drift > Math.floor(window.innerHeight * 0.6)) {
-                    // 上端がヘッダー裏 (drift < -20) or 画面下 60% 以下に iframe top がある (drift > 60%) 時のみ snap.
-                    alignOnce(iframe);
-                } else {
-                    diag('widget-tap: iframe visible (drift=' + Math.round(drift) + '), skip align');
-                }
+                var targetH = Math.floor(window.innerHeight - stickyInset);
+                if (targetH < 200) return;
+                saveIframeStyle(iframe);
+                forceHeight(iframe, targetH);
+                alignOnce(iframe);
+                // activeIframe を再セット: pointerdown-outside-iframe (iframe 外タップ)
+                // が検知されたら reset で元の customer 指定サイズに戻す.
+                activeIframe = iframe;
+                try {
+                    iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
+                    diag('widget-tap fit h=' + targetH + ' sticky=' + stickyInset);
+                } catch (_) {}
                 return;
             }
             if (d.type === 'ychat:exit-fullscreen') {
