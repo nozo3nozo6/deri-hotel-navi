@@ -83,9 +83,10 @@
     var lastInputFocusTs = 0;
     // input-blur 直後の timestamp (参考用).
     var lastInputBlurTs = 0;
-    // widget-tap が kb 開中に来た場合: blur-input を投げて kb 閉じを要求し,
-    // kb-close signal (input-blur / vv.resize / watchdog) で reset ではなく fit を発動する.
-    var fitPending = false;
+    // FIT モード: widget-tap (入力欄以外タップ) で viewport fit 状態に入った. sticky.
+    // kb-close signal では reset せず fit を再適用して FIT モードを維持する.
+    // 解除は pointerdown-outside-iframe (顧客HPタップ) のみ.
+    var fitMode = false;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -228,9 +229,8 @@
                 // kb 閉じを検出. vv.resize が来てないので onVVChange を肩代わりする.
                 clearInterval(expandVerifyInterval);
                 expandVerifyInterval = null;
-                if (fitPending && activeIframe) {
-                    fitPending = false;
-                    diag('kb closed (watchdog) → fit (pending)');
+                if (fitMode && activeIframe) {
+                    diag('kb closed (watchdog) → refresh fit');
                     fitToViewport(activeIframe);
                 } else if (activeIframe) {
                     diag('kb closed (watchdog) kbH=' + Math.round(kbH));
@@ -244,7 +244,7 @@
 
     // fit: iframe を viewport に合わせる (header=sticky nav 直下, footer=画面下端).
     // widget-tap (入力欄以外のタップ) で発動. customer が 900px など大きい iframe を置いてる時の
-    // 「footer が画面外」問題の対応. kb 閉じ状態での使用を想定.
+    // 「footer が画面外」問題の対応. kb 開閉に関わらず確実に最終形状へ遷移.
     function fitToViewport(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
@@ -256,6 +256,7 @@
         forceHeight(iframe, targetH);
         alignOnce(iframe);
         activeIframe = iframe;
+        fitMode = true;
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('fit h=' + targetH + ' sticky=' + stickyInset);
@@ -266,6 +267,7 @@
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
         prefocusedIframe = null;
+        fitMode = false;
         if (savedIframeStyle !== null) {
             iframe.style.removeProperty('height');
             iframe.style.removeProperty('max-height');
@@ -294,10 +296,10 @@
             // 閉→開 エッジ: prefocus 縮小後の最終 expand（vv.height に拡大）
             if (activeIframe) expandToVV(activeIframe);
         } else if (!kbOpen && lastKbOpen) {
-            // 開→閉 エッジ: fitPending なら fit, 通常は reset
-            if (fitPending && activeIframe) {
-                fitPending = false;
-                diag('kb closed → fit (pending)');
+            // 開→閉 エッジ
+            if (fitMode && activeIframe) {
+                // FIT モード継続: 高さを現状の innerHeight 基準で再計算 (kb 分の余地を回収)
+                diag('kb closed → refresh fit');
                 fitToViewport(activeIframe);
             } else if (activeIframe) {
                 diag('kb closed');
@@ -325,8 +327,7 @@
             if (!activeIframe) { diag('pointerdown reset: already done'); return; }
             if (lastInputFocusTs > tapTs) { diag('pointerdown reset: refocus detected'); return; }
             diag('kb closed (pointerdown-outside)');
-            // 外タップは reset 優先. fitPending もクリアして fit ではなく reset する.
-            fitPending = false;
+            // 外タップは FIT モード解除 + reset (resetIframeHeight 内で fitMode=false).
             resetIframeHeight(activeIframe);
             activeIframe = null;
             lastKbOpen = false;
@@ -397,20 +398,11 @@
             if (d.type === 'ychat:widget-tap') {
                 // 入力欄のクリックは chat.js 側で widget-tap を送らない (input-focus のみ).
                 // widget-tap が来た = 「入力欄以外のタップ」= 訪問者が widget を fit で見たい意思表示.
-                var vv2 = window.visualViewport;
-                var kbOpenNow = vv2 && (window.innerHeight - vv2.height) > 100;
-                if (kbOpenNow) {
-                    // kb 開中 body タップ: blur-input で kb を閉じさせ, kb-close signal 側で fit 発動.
-                    // iOS は body タップで input を自動 blur しないので明示的に blur 要求を出す.
-                    fitPending = true;
-                    activeIframe = iframe;
-                    try {
-                        iframe.contentWindow.postMessage({ type: 'ychat:blur-input' }, '*');
-                        diag('widget-tap: kb open, requested blur for fit');
-                    } catch (_) {}
-                    return;
-                }
-                // kb 閉: 直接 fit
+                // kb 状態に関わらず常に fit に遷移. kb 開中なら blur-input も送って kb を閉じさせる
+                // (iOS は body タップで input を自動 blur しない). 入力欄既に blur 済みなら blur() は noop.
+                try {
+                    iframe.contentWindow.postMessage({ type: 'ychat:blur-input' }, '*');
+                } catch (_) {}
                 fitToViewport(iframe);
                 return;
             }
@@ -429,9 +421,8 @@
                         diag('input-blur: refocus detected, keep state');
                         return;
                     }
-                    if (fitPending && activeIframe) {
-                        fitPending = false;
-                        diag('kb closed (input-blur) → fit (pending)');
+                    if (fitMode && activeIframe) {
+                        diag('kb closed (input-blur) → refresh fit');
                         fitToViewport(activeIframe);
                         return;
                     }
