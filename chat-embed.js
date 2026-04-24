@@ -73,6 +73,17 @@
     var savedIframeStyle = null;
     // prefocus 済みフラグ（kb 開通知時に expand を発動するかの判定）
     var prefocusedIframe = null;
+    // prefocus 後に kb 開が来なかった時の安全復元タイマー
+    var prefocusSafetyTimer = null;
+
+    // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
+    var isIOS = (function () {
+        var ua = navigator.userAgent || '';
+        if (/iPad|iPhone|iPod/.test(ua)) return true;
+        // iPadOS 13+ は Mac として UA 出てくる
+        if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+        return false;
+    })();
 
     // 顧客HPの sticky/fixed トップ要素の下端を検出（y=5 付近を占有する固定要素の最大 bottom）
     // 例: go-kichi.com はグローバルナビが position:fixed で y=0〜100 を占有。
@@ -137,6 +148,7 @@
 
     // プリフォーカス: iframe を安全サイズに縮めて iOS focus-scroll を不発化 + align
     // 安全サイズ = (innerHeight - stickyInset) × 0.35、最低 150px 保証
+    // 安全タイマー: kb 開通知が 800ms 以内に来なければ自動復元（縮み残りロック防止）
     function prefocusForInput(iframe) {
         saveIframeStyle(iframe);
         var stickyInset = getStickyTopInset();
@@ -149,11 +161,21 @@
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: safeH }, '*');
             diag('prefocus h=' + safeH + ' sticky=' + stickyInset);
         } catch (_) {}
+        if (prefocusSafetyTimer) clearTimeout(prefocusSafetyTimer);
+        prefocusSafetyTimer = setTimeout(function () {
+            prefocusSafetyTimer = null;
+            if (prefocusedIframe === iframe && !lastKbOpen) {
+                diag('prefocus safety fallback: kb never opened');
+                resetIframeHeight(iframe);
+                activeIframe = null;
+            }
+        }, 800);
     }
 
     // kb 開通知後の最終サイズ: iframe を (vv.height - stickyInset) に拡大。
     // iframe top = sticky nav 直下、iframe bottom = キーボード上端 → chat-header と入力欄が同時に可視.
     function expandToVV(iframe) {
+        if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         var vv = window.visualViewport;
         if (!vv) return;
         var stickyInset = getStickyTopInset();
@@ -169,6 +191,7 @@
     }
 
     function resetIframeHeight(iframe) {
+        if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         prefocusedIframe = null;
         if (savedIframeStyle !== null) {
             iframe.style.removeProperty('height');
@@ -249,9 +272,13 @@
                 if (kbOpen) {
                     // kb 既に開: 直接 expand（他 input への re-focus ケース）
                     expandToVV(iframe);
-                } else {
-                    // kb まだ閉: prefocus で iframe を縮め iOS focus-scroll を不発化
+                } else if (isIOS) {
+                    // iOS で kb まだ閉: prefocus で iframe を縮め focus-scroll を不発化
+                    // (kb 開通知が来なければ 800ms で自動復元)
                     prefocusForInput(iframe);
+                } else {
+                    // Android/PC: focus-scroll 問題なし。align だけして kb 開通知を待つ
+                    alignOnce(iframe);
                 }
                 return;
             }
