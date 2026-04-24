@@ -201,28 +201,50 @@
                 scrollY: scrollY,
                 ancestors: neutralizeAncestors()
             };
-            // scrollBehavior:auto を強制してから scrollTo(0,0) でアニメ無しスクロール
             document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
             try { window.scrollTo(0, 0); } catch (_) {}
-            iframe.style.cssText =
-                'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
-                'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
-                'margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;' +
-                'z-index:2147483647!important;background:#fff!important;transform:none!important;' +
-                'translate:none!important;rotate:none!important;scale:none!important;';
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
+            // cssText ではなく setProperty で個別に !important を適用
+            // (iOS Safari は cssText 内の !important を一部プロパティで無視するバグあり)
+            var sp = function (k, v) { iframe.style.setProperty(k, v, 'important'); };
+            sp('position', 'fixed');
+            sp('top', '0');
+            sp('left', '0');
+            sp('right', '0');
+            sp('bottom', '0');
+            sp('width', '100vw');
+            sp('height', '100dvh');
+            sp('max-width', 'none');
+            sp('max-height', 'none');
+            sp('margin', '0');
+            sp('padding', '0');
+            sp('border', '0');
+            sp('border-radius', '0');
+            sp('box-shadow', 'none');
+            sp('z-index', '2147483647');
+            sp('background', '#fff');
+            sp('transform', 'none');
+            sp('translate', 'none');
+            sp('rotate', 'none');
+            sp('scale', 'none');
+            sp('inset', '0');
+            document.body.style.setProperty('overflow', 'hidden', 'important');
+            document.documentElement.style.setProperty('overflow', 'hidden', 'important');
 
-            // 実測診断: 複数タイミングで rect/cs をスナップショット
+            // 根本原因診断: 我々の inline !important が computed に反映されているか検証
+            // rect.y != 0 かつ computed top == '0px' → iOS 独自の positioning バグ（祖先 CB 以外の要因）
+            // rect.y != 0 かつ computed top != '0px' → 何かが我々の inline !important を上書き
             if (diagMode) {
                 var snap = function (when) {
                     try {
                         var cs = getComputedStyle(iframe);
                         var rect = iframe.getBoundingClientRect();
-                        diag(when + ': pos=' + cs.position + ' t=' + cs.top +
-                             ' rect=' + Math.round(rect.x) + ',' + Math.round(rect.y) +
+                        var vv = window.visualViewport;
+                        var vvInfo = vv ? (' vv@' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop)) : '';
+                        diag(when + ': r=' + Math.round(rect.x) + ',' + Math.round(rect.y) +
                              ' ' + Math.round(rect.width) + 'x' + Math.round(rect.height) +
-                             ' z=' + cs.zIndex);
+                             ' cs=' + cs.position + ' t:' + cs.top + ' l:' + cs.left +
+                             ' m:' + cs.marginTop + ' tf:' + (cs.transform === 'none' ? 'none' : 'Y') +
+                             ' sy=' + (window.scrollY | 0) + vvInfo);
                     } catch (e) { diag(when + ' err: ' + e.message); }
                 };
                 requestAnimationFrame(function () {
@@ -239,6 +261,7 @@
             // Fullscreen API を第1選択: containing block / stacking / scroll 問題を完全回避
             // iOS 16.4+ / Android Chrome / Desktop すべてサポート
             var reqFs = iframe.requestFullscreen || iframe.webkitRequestFullscreen;
+            diag('enter() reqFs=' + (reqFs ? 'yes' : 'no'));
             if (reqFs) {
                 try {
                     // allowfullscreen 属性を動的に追加（既存埋込コードに含まれていない場合のため）
