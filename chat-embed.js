@@ -63,20 +63,36 @@
     var activeIframe = null;
     var lastKbOpen = false;
 
-    // iframe 下端をキーボード上端（= visualViewport 下端）にアラインするようページをスクロール
-    function alignIframeAboveKeyboard(iframe) {
+    // iframe 上端を viewport 上端に揃え、「可視領域の高さ」を iframe に送る。
+    // iframe 側の chat.js は --embed-h を受け取った値で上書きし、内部を収縮。
+    // 結果: iframe element 自体は本体ページで 640px のまま（レイアウト破壊なし）
+    //       iframe 内部の chat-root だけが 440px（= 可視高）に縮む
+    //       → header が viewport top、input が keyboard 直上、両方可視
+    function fitIframeToVisibleArea(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
         var rect = iframe.getBoundingClientRect();
-        // getBoundingClientRect は visual viewport 座標。vv.height 下端がキーボード上端。
-        // iframe.bottom を vv.height に合わせたい → rect.bottom - vv.height だけ下にスクロール。
-        var delta = rect.bottom - vv.height;
+        var desiredTop = vv.offsetTop || 0;
+        var delta = rect.top - desiredTop;
         if (Math.abs(delta) > 2) {
             window.scrollBy(0, delta);
-            diag('scroll ' + Math.round(delta) + 'px (rect.bottom=' + Math.round(rect.bottom) + ' vv.h=' + Math.round(vv.height) + ')');
-        } else {
-            diag('aligned (delta=' + Math.round(delta) + ')');
+            // スクロール後の最新 rect
+            rect = iframe.getBoundingClientRect();
         }
+        // iframe の可視部分 = vv.height - 見切れ分
+        var topClip = Math.max(0, desiredTop - rect.top);
+        var effectiveH = Math.max(100, Math.min(iframe.offsetHeight, vv.height - Math.max(0, rect.top - desiredTop) - topClip));
+        try {
+            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: effectiveH }, '*');
+            diag('sent embed-h=' + Math.round(effectiveH) + ' (vv.h=' + Math.round(vv.height) + ' rect.top=' + Math.round(rect.top) + ')');
+        } catch (_) {}
+    }
+
+    function resetIframeHeight(iframe) {
+        try {
+            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
+            diag('sent embed-h=null (reset)');
+        } catch (_) {}
     }
 
     // キーボード開閉の**エッジ**でだけ動く。開いてる最中の手動スクロールは妨害しない。
@@ -86,11 +102,12 @@
         var kbH = window.innerHeight - vv.height;
         var kbOpen = kbH > 100;
         if (kbOpen && !lastKbOpen) {
-            // 閉→開 のエッジ: 一度だけ align
-            if (activeIframe) alignIframeAboveKeyboard(activeIframe);
+            // 閉→開 のエッジ: 一度だけ fit
+            if (activeIframe) fitIframeToVisibleArea(activeIframe);
         } else if (!kbOpen && lastKbOpen) {
-            // 開→閉 のエッジ: 何もしない（ユーザーの自然なスクロールに委ねる）
+            // 開→閉 のエッジ: iframe の --embed-h をリセット
             diag('kb closed');
+            if (activeIframe) resetIframeHeight(activeIframe);
             activeIframe = null;
         }
         lastKbOpen = kbOpen;
@@ -134,10 +151,10 @@
             }
             if (d.type === 'ychat:input-focus' || d.type === 'ychat:enter-fullscreen') {
                 activeIframe = iframe;
-                // キーボードが既に開いていれば即座に align（閉じていれば次の vv.resize で発火）
+                // キーボードが既に開いていれば即座に fit（閉じていれば次の vv.resize で発火）
                 var vv = window.visualViewport;
                 if (vv && (window.innerHeight - vv.height) > 100) {
-                    alignIframeAboveKeyboard(iframe);
+                    fitIframeToVisibleArea(iframe);
                 }
                 return;
             }

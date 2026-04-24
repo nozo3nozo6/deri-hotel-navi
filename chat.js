@@ -3894,6 +3894,10 @@ setupEmbedDirectLinkFooter();
     let isClosing = false;
     let closingTimer = null;
     let keyboardOpen = false;
+    // 親ページから ychat:embed-h で「可視領域の高さ」をもらった時の override 値.
+    // 埋込時、iframe内のvisualViewportはiOSでキーボードを検知できないため、
+    // 親側で計算した値を優先する.
+    let parentEmbedH = null;
     const embedded = isEmbedded();
     // 埋込時は body.embedded を付け、chat-root の高さを vv.height 直読みで制御する.
     // iframe 内では 100svh が iframe 初期高さに張り付く iOS 挙動があり、
@@ -3923,11 +3927,12 @@ setupEmbedDirectLinkFooter();
         if (isClosing) return;
         // 埋込時は vv.height を直接 --embed-h に流すだけ (svh 式を使わない).
         if (embedded) {
-            const h = vv ? vv.height : window.innerHeight;
+            // 親から override が来ていればそれを優先
+            const h = parentEmbedH !== null ? parentEmbedH : (vv ? vv.height : window.innerHeight);
             setEmbedH(h);
             const kb0 = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
             const wasOpen = keyboardOpen;
-            keyboardOpen = kb0 > 0;
+            keyboardOpen = (parentEmbedH !== null) || (kb0 > 0);
             if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
             return;
         }
@@ -3939,6 +3944,21 @@ setupEmbedDirectLinkFooter();
         if (!wasOpen && keyboardOpen) scrollMessagesToBottom();
     };
     applyKbH();
+
+    // 親ページ（chat-embed.js）からの可視領域高さ通知を受ける。
+    // iOS Safari iframe内では親ページのキーボード状態を検知できないので、親が計算した値を反映。
+    if (embedded) {
+        window.addEventListener('message', (e) => {
+            const d = e.data;
+            if (!d || typeof d !== 'object' || d.type !== 'ychat:embed-h') return;
+            if (typeof d.h === 'number' && d.h > 0) {
+                parentEmbedH = d.h;
+            } else {
+                parentEmbedH = null;
+            }
+            applyKbH();
+        });
+    }
 
     if (vv) {
         // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火、同期更新で 1:1 追従.
