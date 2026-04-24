@@ -82,6 +82,8 @@
     // ychat:input-focus を送ってくるので、200ms 以内の重複を無視.
     // widget-tap も直後に click で来るが、input-focus が既に align 済みなので 400ms は無視.
     var lastInputFocusTs = 0;
+    // input-blur 直後 (kb 閉じアニメ中) の widget-tap は scrollBy を打たない.
+    var lastInputBlurTs = 0;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -363,11 +365,28 @@
                     diag('widget-tap suppressed (input-focus recent)');
                     return;
                 }
-                // ウィジェット内任意タップ: iframe top を viewport top にスナップ
-                // kb 開中の input 再タップは input-focus 経路が別途処理するのでここは noop
+                // input-blur 直後 (600ms 以内) は kb 閉じ遷移中. ここで scrollBy を打つと
+                // iOS の kb close アニメ と殴り合う. reset 側で既に 350ms 後 1発 align 済みなので重複不要.
+                if (Date.now() - lastInputBlurTs < 600) {
+                    diag('widget-tap suppressed (input-blur recent)');
+                    return;
+                }
                 var vv2 = window.visualViewport;
-                if (!(vv2 && (window.innerHeight - vv2.height) > 100)) {
+                if (vv2 && (window.innerHeight - vv2.height) > 100) {
+                    // kb 開中: input-focus 経路で既に処理済み. noop.
+                    return;
+                }
+                // kb 閉 + 定常状態: iframe top がヘッダー裏に隠れている時のみ align 発動.
+                // iframe 上端が既に可視範囲にあるならスクロールしない (不要な scrollBy は視覚ノイズになる).
+                var stickyInset = getStickyTopInset();
+                var rect = iframe.getBoundingClientRect();
+                var targetY = (vv2 ? vv2.offsetTop : 0) + stickyInset;
+                var drift = rect.top - targetY;
+                if (drift < -20 || drift > Math.floor(window.innerHeight * 0.6)) {
+                    // 上端がヘッダー裏 (drift < -20) or 画面下 60% 以下に iframe top がある (drift > 60%) 時のみ snap.
                     alignOnce(iframe);
+                } else {
+                    diag('widget-tap: iframe visible (drift=' + Math.round(drift) + '), skip align');
                 }
                 return;
             }
@@ -379,6 +398,7 @@
                 // input blur は iOS でも正常に発火するので, これを真の kb-close 信号として使う.
                 // 300ms 後に新しい input-focus が来てなければ reset (別 input への re-focus ケースを除外).
                 var blurTs = Date.now();
+                lastInputBlurTs = blurTs;
                 // blur 受信時点で lastKbOpen=false にしておく (次の input-focus が誤って kbOpen と判定しないように)
                 lastKbOpen = false;
                 setTimeout(function () {
