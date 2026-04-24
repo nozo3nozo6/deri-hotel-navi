@@ -15,14 +15,21 @@
  * UX方針:
  * - iframe は「ページ内の1セクション」扱い。全画面乗っ取りは**しない**
  * - 顧客HPのヘッダー/フッター/他ページ遷移を一切邪魔しない
- * - 入力 focus 時は iframe 位置にアンカーリンクスクロール（キーボードを避ける）
- * - 内部レイアウトの収縮は chat.js 側が visualViewport で対応（埋込側は関与しない）
+ * - iframe のサイズもスタイルも変えない（本体ページのレイアウトを破壊しない）
+ * - 入力 focus + キーボード開: 親ページをスクロールして iframe 下端を
+ *   キーボードの真上（= visualViewport 下端）に揃える → 入力欄がキーボード直上に出る
+ *   ユーザーはスワイプで iframe 上部（チャットヘッダー）・本体HPヘッダーを見れる
+ * - キーボード閉: 何もしない（ユーザーの自然なスクロール位置を尊重）
+ *
+ * 注意: iframe 内側 (chat.js) の visualViewport は iOS では iframe 自身の
+ * レンダリング高さを返し、キーボード状態を検知できない。そのため「親側」で
+ * スクロール位置を調整する必要がある。
  *
  * chat.html からの postMessage を受信:
  * - ychat:resize          → iframe 高さを中身追従（min/max clamp）
- * - ychat:input-focus     → iframe 末尾を画面内にスクロール（アンカーリンク方式）
- * - ychat:enter-fullscreen → アンカーリンク方式 scroll と同等（後方互換）
- * - ychat:exit-fullscreen  → 何もしない（後方互換の no-op）
+ * - ychat:input-focus     → キーボード開いたら iframe 下端をキーボード上端に揃える
+ * - ychat:enter-fullscreen → 後方互換で input-focus と同一
+ * - ychat:exit-fullscreen  → no-op
  */
 (function () {
     'use strict';
@@ -52,12 +59,41 @@
     }
     diag('chat-embed.js loaded');
 
-    function scrollIframeIntoView(iframe) {
-        // block:'start' で iframe 上端を可視領域の上端へ揃える。
-        // チャットヘッダーが画面上部、入力欄がキーボード直上に来る（内部は chat.js の
-        // visualViewport ハンドラが --embed-h を縮めて自動収縮）。
-        try { iframe.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
-        catch (_) { try { iframe.scrollIntoView(true); } catch (_e) {} }
+    // 「最後に入力 focus を通知してきた iframe」をアクティブ扱い
+    var activeIframe = null;
+
+    // iframe 下端をキーボード上端（= visualViewport 下端）にアラインするようページをスクロール
+    function alignIframeAboveKeyboard(iframe) {
+        var vv = window.visualViewport;
+        if (!vv) return;
+        var rect = iframe.getBoundingClientRect();
+        // getBoundingClientRect は visual viewport 座標。vv.height 下端がキーボード上端。
+        // iframe.bottom を vv.height に合わせたい → rect.bottom - vv.height だけ下にスクロール。
+        var delta = rect.bottom - vv.height;
+        if (Math.abs(delta) > 2) {
+            window.scrollBy(0, delta);
+            diag('scroll ' + Math.round(delta) + 'px (rect.bottom=' + Math.round(rect.bottom) + ' vv.h=' + Math.round(vv.height) + ')');
+        } else {
+            diag('aligned (delta=' + Math.round(delta) + ')');
+        }
+    }
+
+    function onVVResize() {
+        if (!activeIframe) return;
+        var vv = window.visualViewport;
+        if (!vv) return;
+        var kbH = window.innerHeight - vv.height;
+        if (kbH > 100) {
+            alignIframeAboveKeyboard(activeIframe);
+        } else {
+            // キーボード閉じた → アクティブ解除のみ。スクロール位置は触らない（ユーザーに委ねる）
+            diag('kb closed');
+            activeIframe = null;
+        }
+    }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', onVVResize);
+        window.visualViewport.addEventListener('scroll', onVVResize);
     }
 
     function wire(iframe) {
@@ -93,14 +129,16 @@
                 return;
             }
             if (d.type === 'ychat:input-focus' || d.type === 'ychat:enter-fullscreen') {
-                // アンカーリンク方式: iframe 末尾を可視領域内へ（キーボード上に入力欄が来る）
-                // 内部レイアウトの収縮は chat.js が visualViewport で対応
-                scrollIframeIntoView(iframe);
+                activeIframe = iframe;
+                // キーボードが既に開いていれば即座に align（閉じていれば次の vv.resize で発火）
+                var vv = window.visualViewport;
+                if (vv && (window.innerHeight - vv.height) > 100) {
+                    alignIframeAboveKeyboard(iframe);
+                }
                 return;
             }
             if (d.type === 'ychat:exit-fullscreen') {
-                // 全画面化していないので復元不要（後方互換のため no-op）
-                return;
+                return; // no-op（後方互換）
             }
         });
     }
