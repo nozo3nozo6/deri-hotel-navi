@@ -523,8 +523,9 @@ if ($pref && !$hotel_id) {
 }
 $noscript_content .= '</div></noscript>';
 
-// </main>の直後に挿入（静的SEOセクション + noscript）
-$html = str_replace('</main>', '</main>' . $seo_static . $noscript_content, $html);
+// <main>内末尾に挿入（静的SEOを主要コンテンツ扱いにしてソフト404回避）
+// noscriptは</main>の外側（従来どおり）
+$html = str_replace('</main>', $seo_static . '</main>' . $noscript_content, $html);
 
 // --- 出力 ---
 header('Content-Type: text/html; charset=UTF-8');
