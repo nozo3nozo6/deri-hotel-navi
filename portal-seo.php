@@ -33,6 +33,26 @@ if (!$pref && !$hotel_id) {
     exit;
 }
 
+// --- 2セグメントURL正規化: $area が市区町村名なら $city に再代入 ---
+// .htaccess は 2セグメントURL /deli/東京都/渋谷区 を pref+area として渡すが、
+// 実際にエリア名でない場合（市区町村名）は city として扱わないと
+// SEOコンテンツが空になり Google に「代替ページ」「検出未登録」と判定される
+if (!$city && $area && $pref) {
+    $_checkData = @file_get_contents(__DIR__ . '/area-data.json');
+    $_ad = $_checkData ? json_decode($_checkData, true) : [];
+    $_prefAreas = $_ad['pref'][$pref]['areas'] ?? [];
+    $_isRealArea = false;
+    foreach ($_prefAreas as $_aRow) {
+        if (($_aRow[0] ?? '') === $area) { $_isRealArea = true; break; }
+    }
+    if (!$_isRealArea) {
+        // 市区町村として再解釈（canonicalはURLと一致させるため $area は復元しない）
+        $city = $area;
+        $area = '';
+    }
+    unset($_checkData, $_ad, $_prefAreas, $_isRealArea, $_aRow);
+}
+
 // --- モード別定義 ---
 $MODE_SEO = [
     'men' => [
