@@ -53,8 +53,11 @@
     diag('chat-embed.js loaded');
 
     function scrollIframeIntoView(iframe) {
-        try { iframe.scrollIntoView({ block: 'end', behavior: 'smooth' }); }
-        catch (_) { try { iframe.scrollIntoView(false); } catch (_e) {} }
+        // block:'start' で iframe 上端を可視領域の上端へ揃える。
+        // チャットヘッダーが画面上部、入力欄がキーボード直上に来る（内部は chat.js の
+        // visualViewport ハンドラが --embed-h を縮めて自動収縮）。
+        try { iframe.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+        catch (_) { try { iframe.scrollIntoView(true); } catch (_e) {} }
     }
 
     function wire(iframe) {
