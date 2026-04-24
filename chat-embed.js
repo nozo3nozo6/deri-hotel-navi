@@ -75,9 +75,9 @@
         function neutralizeAncestors() {
             var list = [];
             var cur = iframe.parentElement;
-            var stopAt = document.body.parentElement; // html まで
             var idx = 0;
-            while (cur && cur !== stopAt) {
+            // html (documentElement) も含めて traversal（html に transform があるケース対応）
+            while (cur) {
                 var cs = null;
                 try { cs = getComputedStyle(cur); } catch (_) {}
                 var trapStr = '';
@@ -93,6 +93,10 @@
                     if (cs.backdropFilter && cs.backdropFilter !== 'none') trapStr += 'bdf ';
                     if (cs.overflow && cs.overflow !== 'visible') trapStr += 'ovf=' + cs.overflow + ' ';
                     if (cs.clipPath && cs.clipPath !== 'none') trapStr += 'clip ';
+                    if (cs.opacity && cs.opacity !== '1') trapStr += 'op=' + cs.opacity + ' ';
+                    if (cs.isolation && cs.isolation !== 'auto') trapStr += 'iso=' + cs.isolation + ' ';
+                    if (cs.mixBlendMode && cs.mixBlendMode !== 'normal') trapStr += 'mbm=' + cs.mixBlendMode + ' ';
+                    if (cs.mask && cs.mask !== 'none') trapStr += 'mask ';
                 }
                 list.push({
                     el: cur,
@@ -106,9 +110,14 @@
                     contain: cur.style.contain,
                     backdropFilter: cur.style.backdropFilter,
                     overflow: cur.style.overflow,
-                    clipPath: cur.style.clipPath
+                    clipPath: cur.style.clipPath,
+                    opacity: cur.style.opacity,
+                    isolation: cur.style.isolation,
+                    mixBlendMode: cur.style.mixBlendMode,
+                    mask: cur.style.mask,
+                    webkitMask: cur.style.webkitMask
                 });
-                // 無条件中和: 全祖先にかける
+                // 無条件中和: containing block 生成系
                 cur.style.setProperty('transform', 'none', 'important');
                 cur.style.setProperty('translate', 'none', 'important');
                 cur.style.setProperty('rotate', 'none', 'important');
@@ -118,9 +127,19 @@
                 cur.style.setProperty('will-change', 'auto', 'important');
                 cur.style.setProperty('contain', 'none', 'important');
                 cur.style.setProperty('backdrop-filter', 'none', 'important');
-                // overflow/clip-path は containing block は作らないが fixed をクリップしうる
-                cur.style.setProperty('overflow', 'visible', 'important');
+                // clip/clip-path
                 cur.style.setProperty('clip-path', 'none', 'important');
+                cur.style.setProperty('mask', 'none', 'important');
+                cur.style.setProperty('-webkit-mask', 'none', 'important');
+                // stacking context 生成系（z-index max の iframe を埋もれさせない）
+                cur.style.setProperty('opacity', '1', 'important');
+                cur.style.setProperty('isolation', 'auto', 'important');
+                cur.style.setProperty('mix-blend-mode', 'normal', 'important');
+                // overflow: visible（fixed を clip される可能性排除）
+                // ただし html/body は後でまとめて hidden にするので中和対象から外す
+                if (cur !== document.documentElement && cur !== document.body) {
+                    cur.style.setProperty('overflow', 'visible', 'important');
+                }
                 if (trapStr) {
                     diag('[' + idx + '] ' + (cur.tagName || '?') + '.' +
                          (cur.className || '').toString().slice(0, 30) + ' [' + trapStr.trim() + ']');
@@ -128,7 +147,7 @@
                 idx++;
                 cur = cur.parentElement;
             }
-            diag('neutralized ' + list.length + ' ancestors');
+            diag('neutralized ' + list.length + ' ancestors (incl html)');
             return list;
         }
 
@@ -147,12 +166,19 @@
                     r.el.style.backdropFilter = r.backdropFilter;
                     r.el.style.overflow = r.overflow;
                     r.el.style.clipPath = r.clipPath;
+                    r.el.style.opacity = r.opacity;
+                    r.el.style.isolation = r.isolation;
+                    r.el.style.mixBlendMode = r.mixBlendMode;
+                    r.el.style.mask = r.mask;
+                    r.el.style.webkitMask = r.webkitMask;
                 } catch (_) {}
             }
         }
 
-        function enter() {
-            if (saved) return;
+        // 監視: iframe が position:fixed 以外に戻された / rect が viewport 外に動いた場合に警告
+        var enterFsChangeHandler = null;
+
+        function enterFallback() {
             // enter() 前のビューポート情報をログ
             if (diagMode) {
                 try {
@@ -167,25 +193,17 @@
             }
             var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
             saved = {
+                mode: 'fallback',
                 style: iframe.getAttribute('style') || '',
                 bodyOverflow: document.body.style.overflow || '',
                 htmlOverflow: document.documentElement.style.overflow || '',
-                bodyPosition: document.body.style.position || '',
-                bodyTop: document.body.style.top || '',
-                bodyLeft: document.body.style.left || '',
-                bodyRight: document.body.style.right || '',
-                bodyWidth: document.body.style.width || '',
+                htmlScrollBehavior: document.documentElement.style.scrollBehavior || '',
                 scrollY: scrollY,
                 ancestors: neutralizeAncestors()
             };
-            // body を position:fixed で凍結（iOS Safari のスクロールアニメ経由で
-            // position:fixed 要素が ~800ms ズレて追従する挙動を回避）
-            // scrollTo(0,0) だと見た目アニメ、body.position:fixed + top:-scrollY なら即時凍結
-            document.body.style.setProperty('position', 'fixed', 'important');
-            document.body.style.setProperty('top', -scrollY + 'px', 'important');
-            document.body.style.setProperty('left', '0', 'important');
-            document.body.style.setProperty('right', '0', 'important');
-            document.body.style.setProperty('width', '100%', 'important');
+            // scrollBehavior:auto を強制してから scrollTo(0,0) でアニメ無しスクロール
+            document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+            try { window.scrollTo(0, 0); } catch (_) {}
             iframe.style.cssText =
                 'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
                 'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
@@ -216,24 +234,80 @@
             }
         }
 
+        function enter() {
+            if (saved) return;
+            // Fullscreen API を第1選択: containing block / stacking / scroll 問題を完全回避
+            // iOS 16.4+ / Android Chrome / Desktop すべてサポート
+            var reqFs = iframe.requestFullscreen || iframe.webkitRequestFullscreen;
+            if (reqFs) {
+                try {
+                    // allowfullscreen 属性を動的に追加（既存埋込コードに含まれていない場合のため）
+                    iframe.setAttribute('allowfullscreen', '');
+                    iframe.setAttribute('allow', 'fullscreen');
+                    var savedAllow = iframe.getAttribute('allow') || '';
+                    var result = reqFs.call(iframe);
+                    saved = { mode: 'fs-api', savedAllow: savedAllow };
+                    diag('enter via fullscreen API');
+                    // fullscreenchange で ESC 等による外部解除を検知し state 同期
+                    enterFsChangeHandler = function () {
+                        var fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+                        if (!fsEl && saved && saved.mode === 'fs-api') {
+                            diag('fullscreen exited externally');
+                            saved = null;
+                            document.removeEventListener('fullscreenchange', enterFsChangeHandler);
+                            document.removeEventListener('webkitfullscreenchange', enterFsChangeHandler);
+                            // chat 側に exit 通知（入力欄復帰処理）
+                            try { iframe.contentWindow.postMessage({ type: 'ychat:fullscreen-exited' }, '*'); } catch (_) {}
+                        }
+                    };
+                    document.addEventListener('fullscreenchange', enterFsChangeHandler);
+                    document.addEventListener('webkitfullscreenchange', enterFsChangeHandler);
+                    if (result && result.catch) {
+                        result.catch(function (err) {
+                            diag('fs-api rejected: ' + (err.name || '?') + ' ' + (err.message || '?'));
+                            saved = null;
+                            document.removeEventListener('fullscreenchange', enterFsChangeHandler);
+                            document.removeEventListener('webkitfullscreenchange', enterFsChangeHandler);
+                            enterFallback();
+                        });
+                    }
+                    return;
+                } catch (e) {
+                    diag('fs-api threw: ' + (e.message || '?'));
+                }
+            }
+            enterFallback();
+        }
+
         function exit() {
             if (!saved) return;
+            var mode = saved.mode;
+            if (mode === 'fs-api') {
+                // Fullscreen API モード: exitFullscreen で解除（fullscreenchange で後始末）
+                try {
+                    var exitFs = document.exitFullscreen || document.webkitExitFullscreen;
+                    if (exitFs && (document.fullscreenElement || document.webkitFullscreenElement)) {
+                        exitFs.call(document);
+                    }
+                } catch (_) {}
+                if (enterFsChangeHandler) {
+                    document.removeEventListener('fullscreenchange', enterFsChangeHandler);
+                    document.removeEventListener('webkitfullscreenchange', enterFsChangeHandler);
+                    enterFsChangeHandler = null;
+                }
+                saved = null;
+                return;
+            }
+            // fallback モード: iframe/ancestors/scroll の復元
             iframe.setAttribute('style', saved.style);
-            // body 凍結の解除（!important を打ち消すため removeProperty で inline 値を消す）
-            document.body.style.removeProperty('position');
-            document.body.style.removeProperty('top');
-            document.body.style.removeProperty('left');
-            document.body.style.removeProperty('right');
-            document.body.style.removeProperty('width');
-            if (saved.bodyPosition) document.body.style.position = saved.bodyPosition;
-            if (saved.bodyTop) document.body.style.top = saved.bodyTop;
-            if (saved.bodyLeft) document.body.style.left = saved.bodyLeft;
-            if (saved.bodyRight) document.body.style.right = saved.bodyRight;
-            if (saved.bodyWidth) document.body.style.width = saved.bodyWidth;
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;
+            if (saved.htmlScrollBehavior) {
+                document.documentElement.style.scrollBehavior = saved.htmlScrollBehavior;
+            } else {
+                document.documentElement.style.removeProperty('scroll-behavior');
+            }
             restoreAncestors(saved.ancestors || []);
-            // body 凍結解除後にスクロール位置復元（凍結中は top:-scrollY で視覚凍結されている）
             try { window.scrollTo(0, saved.scrollY || 0); } catch (_) {}
             saved = null;
         }
