@@ -69,71 +69,66 @@
 
         var saved = null;
 
-        // 祖先要素が transform/filter/perspective/will-change/contain を持つと、
-        // その要素が containing block になり position:fixed が viewport に効かない。
-        // (CSS仕様: https://developer.mozilla.org/en-US/docs/Web/CSS/position#fixed)
-        // 祖先の該当プロパティを一時退避→'none'にして、exit で復元する。
+        // 祖先要素が transform/filter/perspective/will-change/contain を持つと
+        // containing block になり position:fixed が viewport に効かない。
+        // 検出に頼らず **全ての祖先を無条件に中和**（見逃し防止）。exit で復元。
         function neutralizeAncestors() {
             var list = [];
             var cur = iframe.parentElement;
             var stopAt = document.body.parentElement; // html まで
+            var idx = 0;
             while (cur && cur !== stopAt) {
                 var cs = null;
                 try { cs = getComputedStyle(cur); } catch (_) {}
+                var trapStr = '';
                 if (cs) {
-                    // CSS 仕様: position:fixed の containing block を作る祖先プロパティ
-                    // - transform / translate / rotate / scale (個別指定)
-                    // - filter / backdrop-filter
-                    // - perspective
-                    // - will-change に上記のいずれか
-                    // - contain: paint/layout/strict/content/size
-                    var trapped =
-                        (cs.transform && cs.transform !== 'none') ||
-                        (cs.translate && cs.translate !== 'none') ||
-                        (cs.rotate && cs.rotate !== 'none') ||
-                        (cs.scale && cs.scale !== 'none') ||
-                        (cs.filter && cs.filter !== 'none') ||
-                        (cs.perspective && cs.perspective !== 'none') ||
-                        (cs.willChange && cs.willChange !== 'auto' &&
-                            /transform|translate|rotate|scale|filter|perspective/.test(cs.willChange)) ||
-                        (cs.contain && /paint|layout|strict|content|size/.test(cs.contain)) ||
-                        (cs.backdropFilter && cs.backdropFilter !== 'none');
-                    if (trapped) {
-                        list.push({
-                            el: cur,
-                            transform: cur.style.transform,
-                            translate: cur.style.translate,
-                            rotate: cur.style.rotate,
-                            scale: cur.style.scale,
-                            filter: cur.style.filter,
-                            perspective: cur.style.perspective,
-                            willChange: cur.style.willChange,
-                            contain: cur.style.contain,
-                            backdropFilter: cur.style.backdropFilter
-                        });
-                        cur.style.setProperty('transform', 'none', 'important');
-                        cur.style.setProperty('translate', 'none', 'important');
-                        cur.style.setProperty('rotate', 'none', 'important');
-                        cur.style.setProperty('scale', 'none', 'important');
-                        cur.style.setProperty('filter', 'none', 'important');
-                        cur.style.setProperty('perspective', 'none', 'important');
-                        cur.style.setProperty('will-change', 'auto', 'important');
-                        cur.style.setProperty('contain', 'none', 'important');
-                        cur.style.setProperty('backdrop-filter', 'none', 'important');
-                        diag('trapped: ' + (cur.tagName || '?') + '.' + (cur.className || '').toString().slice(0, 40) +
-                             ' [' + (cs.transform !== 'none' ? 'transform ' : '') +
-                             (cs.translate && cs.translate !== 'none' ? 'translate=' + cs.translate + ' ' : '') +
-                             (cs.rotate && cs.rotate !== 'none' ? 'rotate=' + cs.rotate + ' ' : '') +
-                             (cs.scale && cs.scale !== 'none' ? 'scale=' + cs.scale + ' ' : '') +
-                             (cs.filter !== 'none' ? 'filter ' : '') +
-                             (cs.perspective !== 'none' ? 'perspective ' : '') +
-                             (cs.contain && cs.contain !== 'none' ? 'contain=' + cs.contain + ' ' : '') +
-                             (cs.willChange && cs.willChange !== 'auto' ? 'will-change=' + cs.willChange : '') +
-                             ']');
-                    }
+                    if (cs.transform && cs.transform !== 'none') trapStr += 'transform=' + cs.transform.slice(0, 30) + ' ';
+                    if (cs.translate && cs.translate !== 'none') trapStr += 'translate=' + cs.translate + ' ';
+                    if (cs.rotate && cs.rotate !== 'none') trapStr += 'rotate=' + cs.rotate + ' ';
+                    if (cs.scale && cs.scale !== 'none') trapStr += 'scale=' + cs.scale + ' ';
+                    if (cs.filter && cs.filter !== 'none') trapStr += 'filter ';
+                    if (cs.perspective && cs.perspective !== 'none') trapStr += 'perspective ';
+                    if (cs.willChange && cs.willChange !== 'auto') trapStr += 'wc=' + cs.willChange.slice(0, 20) + ' ';
+                    if (cs.contain && cs.contain !== 'none') trapStr += 'contain=' + cs.contain + ' ';
+                    if (cs.backdropFilter && cs.backdropFilter !== 'none') trapStr += 'bdf ';
+                    if (cs.overflow && cs.overflow !== 'visible') trapStr += 'ovf=' + cs.overflow + ' ';
+                    if (cs.clipPath && cs.clipPath !== 'none') trapStr += 'clip ';
                 }
+                list.push({
+                    el: cur,
+                    transform: cur.style.transform,
+                    translate: cur.style.translate,
+                    rotate: cur.style.rotate,
+                    scale: cur.style.scale,
+                    filter: cur.style.filter,
+                    perspective: cur.style.perspective,
+                    willChange: cur.style.willChange,
+                    contain: cur.style.contain,
+                    backdropFilter: cur.style.backdropFilter,
+                    overflow: cur.style.overflow,
+                    clipPath: cur.style.clipPath
+                });
+                // 無条件中和: 全祖先にかける
+                cur.style.setProperty('transform', 'none', 'important');
+                cur.style.setProperty('translate', 'none', 'important');
+                cur.style.setProperty('rotate', 'none', 'important');
+                cur.style.setProperty('scale', 'none', 'important');
+                cur.style.setProperty('filter', 'none', 'important');
+                cur.style.setProperty('perspective', 'none', 'important');
+                cur.style.setProperty('will-change', 'auto', 'important');
+                cur.style.setProperty('contain', 'none', 'important');
+                cur.style.setProperty('backdrop-filter', 'none', 'important');
+                // overflow/clip-path は containing block は作らないが fixed をクリップしうる
+                cur.style.setProperty('overflow', 'visible', 'important');
+                cur.style.setProperty('clip-path', 'none', 'important');
+                if (trapStr) {
+                    diag('[' + idx + '] ' + (cur.tagName || '?') + '.' +
+                         (cur.className || '').toString().slice(0, 30) + ' [' + trapStr.trim() + ']');
+                }
+                idx++;
                 cur = cur.parentElement;
             }
+            diag('neutralized ' + list.length + ' ancestors');
             return list;
         }
 
@@ -150,41 +145,62 @@
                     r.el.style.willChange = r.willChange;
                     r.el.style.contain = r.contain;
                     r.el.style.backdropFilter = r.backdropFilter;
+                    r.el.style.overflow = r.overflow;
+                    r.el.style.clipPath = r.clipPath;
                 } catch (_) {}
             }
         }
 
         function enter() {
             if (saved) return;
+            // enter() 前のビューポート情報をログ
+            if (diagMode) {
+                try {
+                    var vv = window.visualViewport;
+                    diag('env: iw=' + window.innerWidth + ' ih=' + window.innerHeight +
+                         ' sy=' + (window.scrollY | 0) +
+                         ' sc=' + (document.scrollingElement ? document.scrollingElement.scrollTop | 0 : '?') +
+                         (vv ? ' vv=' + Math.round(vv.width) + 'x' + Math.round(vv.height) +
+                              '@' + Math.round(vv.offsetLeft) + ',' + Math.round(vv.offsetTop) +
+                              ' scale=' + vv.scale.toFixed(2) : ''));
+                } catch (_) {}
+            }
             saved = {
                 style: iframe.getAttribute('style') || '',
                 bodyOverflow: document.body.style.overflow || '',
                 htmlOverflow: document.documentElement.style.overflow || '',
+                scrollY: window.scrollY,
                 ancestors: neutralizeAncestors()
             };
+            // スクロールを 0 に戻す（iOS で URL バー動作中の position:fixed 基準ズレ回避）
+            try { window.scrollTo(0, 0); } catch (_) {}
             iframe.style.cssText =
                 'position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;' +
                 'width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;' +
                 'margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;' +
-                'z-index:2147483647!important;background:#fff!important;transform:none!important;';
+                'z-index:2147483647!important;background:#fff!important;transform:none!important;' +
+                'translate:none!important;rotate:none!important;scale:none!important;';
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
 
-            // 実測診断: enter() 適用後に iframe の computed style を確認
-            // position !== 'fixed' なら cssText が上書きされた or 祖先トラップで効いていない
+            // 実測診断: 複数タイミングで rect/cs をスナップショット
             if (diagMode) {
-                requestAnimationFrame(function () {
+                var snap = function (when) {
                     try {
                         var cs = getComputedStyle(iframe);
                         var rect = iframe.getBoundingClientRect();
-                        diag('after enter: pos=' + cs.position +
-                             ' top=' + cs.top + ' w=' + cs.width + ' h=' + cs.height +
+                        diag(when + ': pos=' + cs.position + ' t=' + cs.top +
+                             ' rect=' + Math.round(rect.x) + ',' + Math.round(rect.y) +
+                             ' ' + Math.round(rect.width) + 'x' + Math.round(rect.height) +
                              ' z=' + cs.zIndex);
-                        diag('rect: x=' + Math.round(rect.x) + ' y=' + Math.round(rect.y) +
-                             ' w=' + Math.round(rect.width) + ' h=' + Math.round(rect.height));
-                        diag('ancestors trapped=' + (saved && saved.ancestors ? saved.ancestors.length : 0));
-                    } catch (e) { diag('diag err: ' + e.message); }
+                    } catch (e) { diag(when + ' err: ' + e.message); }
+                };
+                requestAnimationFrame(function () {
+                    snap('rAF1');
+                    requestAnimationFrame(function () { snap('rAF2'); });
                 });
+                setTimeout(function () { snap('+200ms'); }, 200);
+                setTimeout(function () { snap('+800ms'); }, 800);
             }
         }
 
@@ -194,6 +210,7 @@
             document.body.style.overflow = saved.bodyOverflow;
             document.documentElement.style.overflow = saved.htmlOverflow;
             restoreAncestors(saved.ancestors || []);
+            try { window.scrollTo(0, saved.scrollY || 0); } catch (_) {}
             saved = null;
         }
 
