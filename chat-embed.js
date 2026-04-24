@@ -316,7 +316,12 @@
                 lastInputFocusTs = now;
                 activeIframe = iframe;
                 var vv = window.visualViewport;
-                var kbOpen = vv && (window.innerHeight - vv.height) > 100;
+                var vvKbOpen = vv && (window.innerHeight - vv.height) > 100;
+                // iOS では kb 閉じ後も vv.height が戻らない「嘘をつく」バグがあるので, vv 単独判定だと
+                // 2回目タップで「kb 既に開いてる」と誤判定して expand に直行してしまう.
+                // lastKbOpen (vv.resize エッジ or input-blur で更新) を併用することで正確な状態把握.
+                var kbOpen = vvKbOpen && lastKbOpen;
+                diag('focus branch: vvKbOpen=' + vvKbOpen + ' lastKbOpen=' + lastKbOpen);
                 if (kbOpen) {
                     // kb 既に開: 直接 expand（他 input への re-focus ケース）
                     expandToVV(iframe);
@@ -353,6 +358,8 @@
                 // input blur は iOS でも正常に発火するので, これを真の kb-close 信号として使う.
                 // 300ms 後に新しい input-focus が来てなければ reset (別 input への re-focus ケースを除外).
                 var blurTs = Date.now();
+                // blur 受信時点で lastKbOpen=false にしておく (次の input-focus が誤って kbOpen と判定しないように)
+                lastKbOpen = false;
                 setTimeout(function () {
                     if (lastInputFocusTs > blurTs) {
                         diag('input-blur: refocus detected, keep state');
@@ -362,7 +369,8 @@
                         diag('kb closed (input-blur)');
                         resetIframeHeight(activeIframe);
                         activeIframe = null;
-                        lastKbOpen = false;
+                    } else {
+                        diag('input-blur: activeIframe already null');
                     }
                 }, 300);
                 return;
