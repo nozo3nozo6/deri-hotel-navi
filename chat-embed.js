@@ -89,29 +89,33 @@
         return false;
     })();
 
-    // 顧客HPの sticky/fixed トップ要素の下端を検出（y=5 付近を占有する固定要素の最大 bottom）
-    // 例: go-kichi.com はグローバルナビが position:fixed で y=0〜100 を占有。
-    // alignOnce / expandToVV で、このインセット分だけ iframe 位置・高さを調整する。
+    // 顧客HPの sticky/fixed トップ要素群の最大下端を検出.
+    // 注意: elementsFromPoint(x, y) は「点 (x,y) を含む要素」しか返さない.
+    // 例えば go-kichi.com のように 2層ヘッダー (breadcrumb y=0-30 + nav y=30-130) がある場合、
+    // y=5 だけサンプルすると breadcrumb しか取れず nav を見逃す → stickyInset=30 で nav 裏に iframe 上端が潜る.
+    // → 複数 y (5, 30, 60, 100, 150) で スキャンして最大下端を取る.
     function getStickyTopInset() {
         if (typeof document.elementsFromPoint !== 'function') return 0;
         var maxBottom = 0;
-        var samplePoints = [
-            [Math.floor(window.innerWidth * 0.1), 5],
-            [Math.floor(window.innerWidth * 0.5), 5],
-            [Math.floor(window.innerWidth * 0.9), 5]
-        ];
-        for (var i = 0; i < samplePoints.length; i++) {
-            var x = samplePoints[i][0], y = samplePoints[i][1];
-            var els = document.elementsFromPoint(x, y) || [];
-            for (var j = 0; j < els.length; j++) {
-                var el = els[j];
-                if (!el || el === document.documentElement || el === document.body) continue;
-                var cs;
-                try { cs = getComputedStyle(el); } catch (_) { continue; }
-                if (cs.position === 'fixed' || cs.position === 'sticky') {
-                    var rect = el.getBoundingClientRect();
-                    if (rect.top <= 5 && rect.bottom > maxBottom) {
-                        maxBottom = rect.bottom;
+        var iw = window.innerWidth;
+        var xSamples = [Math.floor(iw * 0.1), Math.floor(iw * 0.5), Math.floor(iw * 0.9)];
+        var ySamples = [5, 30, 60, 100, 150];
+        for (var yi = 0; yi < ySamples.length; yi++) {
+            var y = ySamples[yi];
+            for (var xi = 0; xi < xSamples.length; xi++) {
+                var x = xSamples[xi];
+                var els = document.elementsFromPoint(x, y) || [];
+                for (var j = 0; j < els.length; j++) {
+                    var el = els[j];
+                    if (!el || el === document.documentElement || el === document.body) continue;
+                    var cs;
+                    try { cs = getComputedStyle(el); } catch (_) { continue; }
+                    if (cs.position === 'fixed' || cs.position === 'sticky') {
+                        var rect = el.getBoundingClientRect();
+                        // rect.top が viewport 上端付近 (<=y) = top を覆う固定要素. rect.bottom が最大のものを採用.
+                        if (rect.top <= y && rect.bottom > maxBottom) {
+                            maxBottom = rect.bottom;
+                        }
                     }
                 }
             }
