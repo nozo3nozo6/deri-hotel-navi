@@ -179,11 +179,9 @@
             if (savedIframeStyle.minHeight) iframe.style.minHeight = savedIframeStyle.minHeight;
             savedIframeStyle = null;
         }
-        // resize 反映後に一度だけ snap（以降は追従しない → ユーザーは自由にスクロール）
-        requestAnimationFrame(function () {
-            alignOnce(iframe);
-            requestAnimationFrame(function () { alignOnce(iframe); });
-        });
+        // kb-close アニメ (~300ms) + iOS の自律 scroll が settle してから 1発だけ snap.
+        // rAF 2重発火は scrollBy 連発で「上に行って下に戻る」ジッター原因になるので単発に統一.
+        setTimeout(function () { alignOnce(iframe); }, 350);
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
             diag('reset');
