@@ -375,6 +375,17 @@
                 }
                 lastInputFocusTs = now;
                 activeIframe = iframe;
+                // 初回タップ (fitMode=false) は入力欄タップでも widget-tap と同様に fit へ直行.
+                // kb を開かせず, 訪問者にまず「チャット全体が画面にフィット」した view を見せる.
+                // 2回目以降 (fitMode=true) は通常の input-focus フロー (expand) で kb 上に入力欄を載せる.
+                if (!fitMode) {
+                    diag('first-tap on input → fit (no kb)');
+                    try {
+                        iframe.contentWindow.postMessage({ type: 'ychat:blur-input' }, '*');
+                    } catch (_) {}
+                    fitToViewport(iframe);
+                    return;
+                }
                 var vv = window.visualViewport;
                 var vvKbOpen = vv && (window.innerHeight - vv.height) > 100;
                 // iOS では kb 閉じ後も vv.height が戻らない「嘘をつく」バグがあるので, vv 単独判定だと
