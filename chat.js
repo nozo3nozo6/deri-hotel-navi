@@ -3385,6 +3385,12 @@ refs.input.addEventListener('blur', () => {
     saveDraftNow();
     // スマホでメッセージ入力にフォーカス中は通知バー等を隠して画面を広く使う (CSS 側で mobile media query).
     document.body.classList.remove('chat-input-focused');
+    // iframe 埋込時: 親ページに「入力欄 blur = キーボード閉じる」を通知.
+    // iOS では visualViewport.height が kb 閉じ後も小さいまま残るバグがあり, vv.resize を見るだけでは
+    // kb-close を検出できない. input の blur は iOS でも正常に発火するのでこれを真の close 信号として使う.
+    if (isEmbedded()) {
+        try { window.parent.postMessage({ type: 'ychat:input-blur', slug: SLUG }, '*'); } catch (_) {}
+    }
 });
 refs.input.addEventListener('focus', () => {
     // スマホでキーボードが出ている間、通知バー (✓通知を有効にしました/メール変更) を隠してチャット表示領域を広げる.
