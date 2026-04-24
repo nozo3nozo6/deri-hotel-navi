@@ -365,20 +365,3 @@ body.cast-mode.chat-input-focused #chat-footer{display:none}
 @media (max-width:480px){body.chat-input-focused #embed-direct-link{display:none}}
 body.cast-mode.chat-input-focused #embed-direct-link{display:none}
 
-/* iframe 一時フルスクリーン化（タッチデバイス埋込時専用） */
-/* 親スニペットが iframe を position:fixed;inset:0 にした時、chat.js が body に .fullscreen-embed を付ける */
-.fullscreen-exit-btn{display:none;align-items:center;justify-content:center;min-width:36px;min-height:36px;margin-left:4px;background:rgba(255,255,255,.18);color:#fff;border-radius:50%;font-size:18px;line-height:1;cursor:pointer;border:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.fullscreen-exit-btn:active{background:rgba(255,255,255,.35)}
-body.fullscreen-embed .fullscreen-exit-btn{display:inline-flex}
-/* フルスクリーン中は直リンク誘導は不要（すでに viewport 全体を使えている） */
-body.fullscreen-embed #embed-direct-link{display:none}
-/* スクロールバー等の見た目を直URLとほぼ同一に */
-body.fullscreen-embed{background:#fff}
-/* 全画面化中は body.embedded の --embed-h 拘束(=元の埋込高さ 500-900px)を外して iframe 全体を使う.
-   これを外さないと iframe が 100dvh に広がっても中の #chat-root は埋込時の高さ(500px)のまま.
-   キーボード開時は --kb-h を引いて入力欄が見えるようにする（直URLの #chat-root と同じ振舞い） */
-body.fullscreen-embed.embedded #chat-root{
-    top:0!important;left:0!important;right:0!important;bottom:auto!important;
-    height:calc(100dvh - var(--kb-h, 0px))!important;
-    max-height:calc(100dvh - var(--kb-h, 0px))!important
-}

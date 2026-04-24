@@ -3851,93 +3851,34 @@ function setupEmbedDirectLinkFooter() {
 }
 setupEmbedDirectLinkFooter();
 
-// ===== iframe 一時フルスクリーン化（タッチデバイス+埋込時のみ） =====
-// iOS Safari 等で iframe 内入力欄にフォーカスすると、座標系の違いでキーボード追従やスクロールが
-// 直 URL と同じにならない。モバイルでは入力開始時に親 iframe を全画面化し、直 URL と同じ UX を提供する。
-// 親側スニペットは postMessage を受けて iframe を position:fixed;inset:0;z-index:max 化する。
-// デスクトップ (hover:hover) では発動しない（従来どおり埋込サイズで表示）。
-(function setupFullscreenEmbed() {
-    // on-screen diagnostic (?diag=1 で ON)
-    const diagMode = new URLSearchParams(location.search).get('diag') === '1';
-    const diag = (msg) => {
-        if (!diagMode) return;
-        let el = document.getElementById('__ychat_diag');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = '__ychat_diag';
-            el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#000c;color:#0f0;font:11px/1.3 monospace;padding:4px 6px;max-height:40vh;overflow:auto;word-break:break-all;pointer-events:none';
-            (document.body || document.documentElement).appendChild(el);
-        }
-        const line = document.createElement('div');
-        line.textContent = '[' + new Date().toTimeString().slice(0, 8) + '] ' + msg;
-        el.appendChild(line);
-        while (el.childNodes.length > 20) el.removeChild(el.firstChild);
-    };
-
+// ===== 埋込時の入力フォーカス → 親にアンカースクロール依頼 =====
+// 方針: iframe を全画面化しない（本体ヘッダー/フッター/他ページ遷移を守る）。
+// 入力フォーカス時は親ページ側で iframe.scrollIntoView({block:'end'}) を呼んでもらい、
+// iframe 末尾（入力欄）が可視領域に入るだけにする。内部レイアウトは visualViewport ハンドラが担当。
+// 入力フォーカス時の postMessage は refs.input.focus() ハンドラ内で ychat:input-focus を送信済み.
+// nickname / cdr-code 等の他の入力欄もカバーするため、focusin でも同じメッセージを送る.
+(function setupEmbedInputScroll() {
     const embedded = isEmbedded();
+    if (!embedded) return;
     const hasMM = typeof window.matchMedia === 'function';
-    const isTouch = hasMM ? window.matchMedia('(pointer:coarse)').matches : false;
-    const isDesktop = hasMM ? window.matchMedia('(hover:hover) and (pointer:fine)').matches : false;
-
-    if (diagMode) {
-        diag('chat.js diag ON (iframe-side)');
-        diag('embedded=' + embedded + ' touch=' + isTouch + ' desktop=' + isDesktop);
-    }
-
-    if (!embedded) { diag('ABORT: not embedded'); return; }
     if (!hasMM) return;
-    if (!isTouch || isDesktop) { diag('ABORT: not-touch or desktop'); return; }
+    const isTouch = window.matchMedia('(pointer:coarse)').matches;
+    const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+    if (!isTouch || isDesktop) return;
 
-    let fullscreenOn = false;
-    const enter = () => {
-        if (fullscreenOn) return;
-        fullscreenOn = true;
-        document.body.classList.add('fullscreen-embed');
-        try {
-            window.parent.postMessage({ type: 'ychat:enter-fullscreen', slug: SLUG }, '*');
-            diag('postMessage enter-fullscreen sent');
-        } catch (e) { diag('FAIL postMessage: ' + e.message); }
+    const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+    const notifyParent = () => {
+        try { window.parent.postMessage({ type: 'ychat:input-focus', slug: SLUG }, '*'); } catch (_) {}
     };
-    const exit = () => {
-        if (!fullscreenOn) return;
-        fullscreenOn = false;
-        document.body.classList.remove('fullscreen-embed');
-        try {
-            window.parent.postMessage({ type: 'ychat:exit-fullscreen', slug: SLUG }, '*');
-            diag('postMessage exit-fullscreen sent');
-        } catch (_) {}
-    };
-
-    const fsInputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (!e.target || !e.target.matches) return;
-        diag('focusin: ' + (e.target.id || e.target.tagName));
-        if (e.target.matches(fsInputSelector)) enter();
+        if (e.target.matches(inputSelector)) notifyParent();
     }, true);
-
     // 保険: touchend でも発火（iOS manualFocus path で focus が非同期発火して focusin を取り損なう対策）
     document.addEventListener('touchend', (e) => {
         if (!e.target || !e.target.matches) return;
-        if (e.target.matches(fsInputSelector)) {
-            diag('touchend on input -> enter()');
-            enter();
-        }
+        if (e.target.matches(inputSelector)) notifyParent();
     }, { capture: true, passive: true });
-
-    const btnExit = document.getElementById('btn-fullscreen-exit');
-    if (btnExit) {
-        btnExit.addEventListener('click', (e) => {
-            e.preventDefault();
-            try { if (refs.input) refs.input.blur(); } catch (_) {}
-            exit();
-        });
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && fullscreenOn) exit();
-    });
-
-    diag('listeners attached');
 })();
 
 // ===== iOS キーボード対応 (LINE方式) =====
