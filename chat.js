@@ -3882,6 +3882,12 @@ setupEmbedDirectLinkFooter();
         if (!e.target || !e.target.matches) return;
         if (e.target.matches(inputSelector)) notifyParent();
     }, { capture: true, passive: true });
+
+    // ウィジェット内の任意タップ → 親に通知 → iframe top を viewport top にスナップ
+    // （click は scroll-drag では発火しないので、メッセージ area のスクロール操作は邪魔しない）
+    document.addEventListener('click', () => {
+        try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
+    }, { capture: true, passive: true });
 })();
 
 // ===== iOS キーボード対応 (LINE方式) =====

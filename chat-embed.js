@@ -12,26 +12,29 @@
  * - data-ychat-slug を持つ全 iframe を自動検出してワイヤリング
  * - data-ychat-min / data-ychat-max でページ単位に高さ範囲を指定可能（省略時 500-900px）
  *
- * UX方針（ダブルアンカー）:
- * - iframe は「ページ内の1セクション」扱い。全画面乗っ取り（overlay/reparent/position:fixed）は**しない**
- * - 顧客HPのヘッダー/フッター/他ページ遷移を一切邪魔しない
- * - 入力 focus + キーボード開:
- *     ① 上端アンカー: iframe top を visualViewport top に揃える（チャットヘッダー可視化）
- *     ② 下端アンカー: iframe height を vv.height に固定 → iframe bottom = キーボード上端
- *                     （chat.js 側の #chat-root{position:fixed} + --embed-h で入力欄が底辺に貼り付く）
- *   → 同時成立で「ヘッダー上端 + 入力欄キーボード直上」が得られる
- *   iOS の focus-scroll には競わず即時1発 + vv.scroll 沈黙待ち（150ms quiet / 1.5s hard）後に最終補正
- * - キーボード閉（入力外タップ含む）: iframe size を復元した上で、チャットヘッダーを
- *   viewport top に一度だけアンカー → そこからユーザーが意図的にスクロール
- * - キーボード開中の手動スクロール: settle 後はアンカー停止 → 本体HPヘッダー/フッター閲覧可
+ * UX仕様（リリース確定）:
+ * - iframe は「ページ内の1セクション」扱い。全画面乗っ取り（overlay/reparent/position:fixed）は禁止
+ * - ウィジェット内タップ全般: チャットヘッダーを viewport top にスナップ
+ * - 入力欄タップ: 上記 + 入力欄がキーボード直上
+ * - ウィジェット外（顧客HP）: 通常動作を一切邪魔しない
+ *
+ * 設計原理（iOS と競わない）:
+ * - iOS の focus-scroll は「input を可視領域に入れる」挙動。iframe が tall だと iframe 上端を削ってでも
+ *   input を押し込もうとする → チャットヘッダーが viewport から消える
+ * - 解決: focus 時に iframe を **安全サイズ（innerHeight×0.35、最低150px）に縮める**。
+ *   input は iframe bottom = 可視領域内に自然に収まるので iOS は scroll する必要がない
+ *   → iframe top は viewport top 付近に維持される（競争なし = jitter なし）
+ * - キーボード開通知（vv.resize）が来たら実際の vv.height に拡大。上端固定のまま下に伸びる
+ *   → 上端 = チャットヘッダー、下端 = キーボード上端、入力欄 = キーボード直上（ダブルアンカー自動成立）
  *
  * 注意: iframe 内側 (chat.js) の visualViewport は iOS では iframe 自身の
  * レンダリング高さを返し、キーボード状態を検知できない。そのため「親側」で
- * スクロール位置を調整する必要がある。
+ * iframe サイズを調整する必要がある。
  *
  * chat.html からの postMessage を受信:
  * - ychat:resize          → iframe 高さを中身追従（min/max clamp）
- * - ychat:input-focus     → キーボード開いたら iframe 下端をキーボード上端に揃える
+ * - ychat:widget-tap      → iframe 内任意タップ: iframe top を viewport top にスナップ
+ * - ychat:input-focus     → 入力欄 focus: prefocus 縮小 + 最終 expandToVV（kb 開通知時）
  * - ychat:enter-fullscreen → 後方互換で input-focus と同一
  * - ychat:exit-fullscreen  → no-op
  */
@@ -68,84 +71,68 @@
     var lastKbOpen = false;
     // kb 開く前の iframe size を記憶 → kb 閉じで元の状態に戻す
     var savedIframeStyle = null;
-    // settle 監視の世代管理（新規 fit / reset で旧 settle をキャンセル）
-    var settleGen = 0;
+    // prefocus 済みフラグ（kb 開通知時に expand を発動するかの判定）
+    var prefocusedIframe = null;
 
-    // 単発アンカー: iframe top を visual viewport top に合わせる
+    // 単発アンカー: iframe top を visual viewport top に合わせる（必要な時だけ scrollBy）
     function alignOnce(iframe) {
         var vv = window.visualViewport;
-        if (!vv) return 0;
         var rect = iframe.getBoundingClientRect();
-        var drift = rect.top - vv.offsetTop;
+        var drift = rect.top - (vv ? vv.offsetTop : 0);
         if (Math.abs(drift) > 0.5) {
             window.scrollBy(0, drift);
-            return Math.abs(drift);
         }
-        return 0;
     }
 
-    // iOS の focus-scroll が静まるのを待ってコールバック。
-    // vv.scroll が quietMs 沈黙 = 静まった判定。maxMs でハードデッドライン。
-    // iOS と競わず、向こうが動き終わってから1発アンカーする設計。
-    function waitForScrollSettle(cb, quietMs, maxMs) {
-        var vv = window.visualViewport;
-        if (!vv) { cb(); return; }
-        var mySession = ++settleGen;
-        var deadline = performance.now() + (maxMs || 1500);
-        var quiet = quietMs || 150;
-        var timer = null;
-        var handler = null;
-        var done = false;
-        var finish = function () {
-            if (done) return;
-            done = true;
-            if (timer) clearTimeout(timer);
-            if (handler) vv.removeEventListener('scroll', handler);
-            if (mySession === settleGen) cb();
+    // iframe サイズ記憶（1度だけ）
+    function saveIframeStyle(iframe) {
+        if (savedIframeStyle !== null) return;
+        savedIframeStyle = {
+            height: iframe.style.height || '',
+            maxHeight: iframe.style.maxHeight || '',
+            minHeight: iframe.style.minHeight || ''
         };
-        handler = function () {
-            if (mySession !== settleGen || done) return;
-            if (timer) clearTimeout(timer);
-            var remaining = deadline - performance.now();
-            if (remaining <= 0) { finish(); return; }
-            timer = setTimeout(finish, Math.min(quiet, remaining));
-        };
-        vv.addEventListener('scroll', handler);
-        // scroll が一切来ない場合の保険: すぐ timer を仕掛ける
-        handler();
     }
 
-    function fitIframeToVisibleArea(iframe) {
+    // iframe 高さを強制（!important で顧客HP CSS に勝つ）
+    function forceHeight(iframe, h) {
+        iframe.style.setProperty('height', h + 'px', 'important');
+        iframe.style.setProperty('max-height', h + 'px', 'important');
+        iframe.style.setProperty('min-height', h + 'px', 'important');
+    }
+
+    // プリフォーカス: iframe を安全サイズに縮めて iOS focus-scroll を不発化 + align
+    // 安全サイズ = innerHeight × 0.35（iPhone 縦 ~230 / 横 ~130）で、最低 150px 保証
+    function prefocusForInput(iframe) {
+        saveIframeStyle(iframe);
+        var safeH = Math.max(150, Math.floor(window.innerHeight * 0.35));
+        forceHeight(iframe, safeH);
+        alignOnce(iframe);
+        prefocusedIframe = iframe;
+        try {
+            iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: safeH }, '*');
+            diag('prefocus h=' + safeH);
+        } catch (_) {}
+    }
+
+    // kb 開通知後の最終サイズ: iframe を vv.height に拡大。上端は prefocus で揃っているので
+    // 下に伸びるだけ → 下端 = キーボード上端、入力欄がキーボード直上に自動配置。
+    function expandToVV(iframe) {
         var vv = window.visualViewport;
         if (!vv) return;
         var targetH = Math.floor(vv.height);
         if (targetH < 100) return;
-        if (savedIframeStyle === null) {
-            savedIframeStyle = {
-                height: iframe.style.height || '',
-                maxHeight: iframe.style.maxHeight || '',
-                minHeight: iframe.style.minHeight || ''
-            };
-        }
-        // iframe を可視領域の高さに固定（下端 = キーボード直上が自動成立）
-        iframe.style.setProperty('height', targetH + 'px', 'important');
-        iframe.style.setProperty('max-height', targetH + 'px', 'important');
-        iframe.style.setProperty('min-height', targetH + 'px', 'important');
-        // 即時1発（先手、うまくいけばこれで決まる）
-        alignOnce(iframe);
-        // iOS の追加 scroll が静まるのを待って最終アンカー（取りこぼし保険）
-        waitForScrollSettle(function () {
-            alignOnce(iframe);
-            requestAnimationFrame(function () { alignOnce(iframe); });
-        }, 150, 1500);
+        saveIframeStyle(iframe);
+        forceHeight(iframe, targetH);
+        alignOnce(iframe); // 保険（prefocus してない経路用）
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
-            diag('fit h=' + targetH);
+            diag('expand h=' + targetH);
         } catch (_) {}
     }
 
     function resetIframeHeight(iframe) {
-        settleGen++; // 走行中の settle をキャンセル
+        prefocusedIframe = null;
         if (savedIframeStyle !== null) {
             iframe.style.removeProperty('height');
             iframe.style.removeProperty('max-height');
@@ -155,11 +142,11 @@
             if (savedIframeStyle.minHeight) iframe.style.minHeight = savedIframeStyle.minHeight;
             savedIframeStyle = null;
         }
-        // resize 反映を待ってから一発アンカー（以降は追従しない → 意図的スクロール可）
-        waitForScrollSettle(function () {
+        // resize 反映後に一度だけ snap（以降は追従しない → ユーザーは自由にスクロール）
+        requestAnimationFrame(function () {
             alignOnce(iframe);
             requestAnimationFrame(function () { alignOnce(iframe); });
-        }, 150, 1000);
+        });
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: null }, '*');
             diag('reset');
@@ -173,10 +160,10 @@
         var kbH = window.innerHeight - vv.height;
         var kbOpen = kbH > 100;
         if (kbOpen && !lastKbOpen) {
-            // 閉→開 のエッジ: 一度だけ fit
-            if (activeIframe) fitIframeToVisibleArea(activeIframe);
+            // 閉→開 エッジ: prefocus 縮小後の最終 expand（vv.height に拡大）
+            if (activeIframe) expandToVV(activeIframe);
         } else if (!kbOpen && lastKbOpen) {
-            // 開→閉 のエッジ: iframe の --embed-h をリセット
+            // 開→閉 エッジ: iframe サイズ復元 + snap-to-top
             diag('kb closed');
             if (activeIframe) resetIframeHeight(activeIframe);
             activeIframe = null;
@@ -222,10 +209,23 @@
             }
             if (d.type === 'ychat:input-focus' || d.type === 'ychat:enter-fullscreen') {
                 activeIframe = iframe;
-                // キーボードが既に開いていれば即座に fit（閉じていれば次の vv.resize で発火）
                 var vv = window.visualViewport;
-                if (vv && (window.innerHeight - vv.height) > 100) {
-                    fitIframeToVisibleArea(iframe);
+                var kbOpen = vv && (window.innerHeight - vv.height) > 100;
+                if (kbOpen) {
+                    // kb 既に開: 直接 expand（他 input への re-focus ケース）
+                    expandToVV(iframe);
+                } else {
+                    // kb まだ閉: prefocus で iframe を縮め iOS focus-scroll を不発化
+                    prefocusForInput(iframe);
+                }
+                return;
+            }
+            if (d.type === 'ychat:widget-tap') {
+                // ウィジェット内任意タップ: iframe top を viewport top にスナップ
+                // kb 開中の input 再タップは input-focus 経路が別途処理するのでここは noop
+                var vv2 = window.visualViewport;
+                if (!(vv2 && (window.innerHeight - vv2.height) > 100)) {
+                    alignOnce(iframe);
                 }
                 return;
             }
