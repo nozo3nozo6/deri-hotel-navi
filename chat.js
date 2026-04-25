@@ -306,22 +306,18 @@ function clearDraft() {
     try { localStorage.removeItem(LS_DRAFT); } catch (_) {}
 }
 
-// 送信後の入力欄クリア. iOS Safari は focus 中の input.value='' を IME state corruption として扱い、
-// 以降のキー入力を受け付けなくなる (連続送信できないバグ).
-// setRangeText は input element の text manipulation API で、IME state を保ったまま range を置換できる.
+// 送信後の入力欄クリア.
+// 同期 (click handler 内) で input.value='' すると iOS Safari は IME state corruption として
+// 扱い、以降のキー入力を受け付けなくなる (連続送信できないバグ).
+// setRangeText も同期実行だと paint glitch (placeholder 重なり) を起こす.
+// → rAF で 1フレーム遅延. click event chain が終わってから clear するので IME state も
+// paint も安全. 送信ボタンの mousedown preventDefault で focus は維持されている前提.
 function clearInputPreservingIme() {
     if (!refs.input) return;
-    const len = refs.input.value.length;
-    if (len === 0) return;
-    try {
-        if (typeof refs.input.setRangeText === 'function') {
-            refs.input.setRangeText('', 0, len, 'end');
-        } else {
-            refs.input.value = '';
-        }
-    } catch (_) {
-        try { refs.input.value = ''; } catch (__) {}
-    }
+    if (refs.input.value.length === 0) return;
+    requestAnimationFrame(() => {
+        try { refs.input.value = ''; } catch (_) {}
+    });
 }
 
 function setThemeMode(mode) {
