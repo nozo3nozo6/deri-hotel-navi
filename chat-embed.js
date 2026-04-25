@@ -333,25 +333,11 @@
         window.visualViewport.addEventListener('resize', onVVChange);
     }
 
-    // iframe 外タップは parent の pointerdown として発火する（iframe 内タップは iframe で捕捉されて
-    // parent には来ない）。これを 4 つ目の kb-close signal として使う:
-    // ① vv.resize close edge, ② watchdog, ③ input.blur が全て iOS の嘘で無音のレアケース (IMG_8648) のフェイルセーフ。
-    // 遅延 400ms で input.blur / vv.resize に先取り機会を与え、競合時は activeIframe null チェックで二重動作防止。
-    document.addEventListener('pointerdown', function (e) {
-        if (!activeIframe) return;
-        // e.target が iframe 自身 = 境界タップ、中身タップは parent に届かないので安全側で外と見なす
-        var tapTs = Date.now();
-        diag('parent pointerdown outside iframe');
-        setTimeout(function () {
-            if (!activeIframe) { diag('pointerdown reset: already done'); return; }
-            if (lastInputFocusTs > tapTs) { diag('pointerdown reset: refocus detected'); return; }
-            diag('kb closed (pointerdown-outside)');
-            // 外タップは FIT モード解除 + reset (resetIframeHeight 内で fitMode=false).
-            resetIframeHeight(activeIframe);
-            activeIframe = null;
-            lastKbOpen = false;
-        }, 400);
-    }, true);
+    // (削除) iframe 外タップによる kb-close 補完
+    // 旧仕様では「親 pointerdown = ④番目の kb-close signal (vv.resize/watchdog/input-blur 失敗時の保険)」
+    // として reset を発火していたが、顧客サイトの header/footer 等を 1タップしただけで iframe が
+    // 縮む副作用がユーザー体験を損なう (2026-04-25 ユーザー指摘).
+    // ① vv.resize エッジ ② expandVerifyWatch watchdog ③ input.blur で十分なので削除.
 
     function wire(iframe) {
         if (iframe.__ychatWired) return;

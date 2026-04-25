@@ -3894,19 +3894,19 @@ setupEmbedDirectLinkFooter();
 
     // ウィジェット内の入力欄以外のタップ → 親に通知 + 同期 blur で kb を即閉.
     //
-    // 重要: pointerdown で blur + widget-tap を「即時」発火する.
-    //   - click は iOS で握り潰される (input focus 中の最初のタップは soft kb dismiss に消費)
-    //   - pointerup でも iOS は kb dismiss gesture と判定して pointercancel する事があり pointerup が来ない
-    //   - pointerdown は touch 接地時に必ず発火するので最も信頼できる
-    //
-    // scroll 干渉の許容:
-    //   chat-messages を scroll し始めた瞬間にも widget-tap は発火する.
-    //   widget-tap → fitToViewport(state ③) は kb を閉じて iframe を全画面化するだけなので
-    //   スクロール意図と整合する (kb が出てたら閉じる + 広く読める).
-    //   scroll 中は kb は閉じてる事が多く、blur() は noop.
-    document.addEventListener('pointerdown', (e) => {
-        if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
-        // 即時 blur (iOS pointercancel 対策で pointerup を待たない)
+    // iOS Safari quirk: input focus 中の状態で別要素を最初にタップすると
+    //   - click: 握り潰されて発火しない (kb dismiss gesture に消費)
+    //   - pointerdown: 不発するケースがある (focus 遷移中の touch event を吸収)
+    //   - pointerup: pointercancel で来ない事がある
+    //   - touchstart: 必ず発火する (最も低レイヤ、focus とも独立)
+    // 結論: touchstart (capture, passive) で確実に拾い、blur+widget-tap を即時発火する.
+    // pointerdown は PC (mouse) 用に併設、200ms dedupe で touchstart と二重発火を抑制.
+    let _lastBodyTapTs = 0;
+    const fireBodyTap = (target) => {
+        if (target && target.matches && target.matches(inputSelector)) return;
+        const now = Date.now();
+        if (now - _lastBodyTapTs < 200) return; // touchstart + pointerdown 二重発火抑制
+        _lastBodyTapTs = now;
         try {
             const ae = document.activeElement;
             if (ae && typeof ae.blur === 'function' && ae.matches && ae.matches(inputSelector)) {
@@ -3914,6 +3914,15 @@ setupEmbedDirectLinkFooter();
             }
         } catch (_) {}
         try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
+    };
+    document.addEventListener('touchstart', (e) => {
+        const t = (e.touches && e.touches[0]) ? e.touches[0].target : e.target;
+        fireBodyTap(t);
+    }, { capture: true, passive: true });
+    document.addEventListener('pointerdown', (e) => {
+        // touch device は touchstart で処理済み (mouse のみここに来る)
+        if (e.pointerType === 'touch') return;
+        fireBodyTap(e.target);
     }, { capture: true, passive: true });
 })();
 
