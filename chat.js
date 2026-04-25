@@ -3996,11 +3996,13 @@ setupEmbedDirectLinkFooter();
         closingTimer = setTimeout(() => { isClosing = false; }, 400);
     };
     const applyKbH = () => {
-        if (isClosing) return;
         // 埋込時は 親の override が来ていればそれを優先.
         // override が無い時は --embed-h を除去して CSS フォールバック (100%) に戻す.
         // iframe 自身の vv.height を使うと、親で iframe 高さを変えた直後にラグで
         // 古い値が返り chat-root が縮んだまま残るので、null リセット時は明示的に消す.
+        // NOTE: isClosing ガードは直URLモード専用. 埋込モードでは親が権威なので,
+        // input.blur() 直後の embed-h 受信を isClosing で 400ms ブロックすると
+        // chat-root が前サイズ (319) で固着する致命バグになる (2026-04-25 ユーザー指摘).
         if (embedded) {
             const wasOpen = keyboardOpen;
             if (parentEmbedH !== null) {
@@ -4013,7 +4015,8 @@ setupEmbedDirectLinkFooter();
             }
             return;
         }
-        // 直URL: 従来通り kb-h を計算.
+        // 直URL: 従来通り kb-h を計算 (kb-close アニメ中の flicker 防止に isClosing 適用).
+        if (isClosing) return;
         const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
         setKbH(kb);
         const wasOpen = keyboardOpen;
