@@ -299,6 +299,18 @@ body.cast-mode.chat-input-focused #cast-view-banner,
 body.cast-mode.chat-input-focused #owner-templates,
 body.cast-mode.chat-input-focused #chat-footer{display:none}
 
+/* ===== 埋込モード (iframe): viewport 問わず入力中は画面を広く ===== */
+/* iframe 埋込 (②/⑤/① widget) では親が iframe 高さ = vv.height-stickyInset に縮める.
+   その縮んだ高さに footer (113px) が入ると入力欄が iframe 中央付近に来てしまい、
+   キーボード直上にピタリ来ない. cast-mode と同じく @media 外で footer 等を畳む. */
+body.embedded.chat-input-focused #visitor-notify,
+body.embedded.chat-input-focused #nickname-area,
+body.embedded.chat-input-focused #reservation-hint,
+body.embedded.chat-input-focused #visitor-note,
+body.embedded.chat-input-focused #cast-view-banner,
+body.embedded.chat-input-focused #owner-templates,
+body.embedded.chat-input-focused #chat-footer{display:none}
+
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
 .footer-brand{margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 10px;border-radius:14px;font-size:11px;color:#6b5a50;text-decoration:none;background:transparent;transition:background .15s,color .15s;line-height:1.25}
 .footer-brand:hover{background:#f0ede7}

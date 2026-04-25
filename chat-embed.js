@@ -87,6 +87,13 @@
     // kb-close signal では reset せず fit を再適用して FIT モードを維持する.
     // 解除は pointerdown-outside-iframe (顧客HPタップ) のみ.
     var fitMode = false;
+    // widget-tap 直後の時刻. iOS auto-refocus による spurious kb-open を識別するのに使う.
+    // 0 = widget-tap なし.
+    var lastWidgetTapTs = 0;
+    // 直近の「touch で直接タップされた入力欄 focus」の時刻.
+    // chat.js が input-focus postMessage に source='touch' (touchend) or 'focus' (focusin only) を付けてくるので、
+    // touch 由来の方だけこの timestamp を進める. 'focus' 由来は iOS auto-refocus 疑いがあり信用しない.
+    var lastTouchFocusTs = 0;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -96,6 +103,7 @@
         if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
         return false;
     })();
+
 
     // 顧客HPの sticky/fixed トップ要素群の最大下端を検出.
     // 注意: elementsFromPoint(x, y) は「点 (x,y) を含む要素」しか返さない.
@@ -293,8 +301,19 @@
         var kbH = window.innerHeight - vv.height;
         var kbOpen = kbH > 100;
         if (kbOpen && !lastKbOpen) {
-            // 閉→開 エッジ: prefocus 縮小後の最終 expand（vv.height に拡大）
-            if (activeIframe) expandToVV(activeIframe);
+            // 閉→開 エッジ.
+            // FIT モード中 + widget-tap 直後 (1500ms 以内) の kb-open は iOS の spurious kb-open
+            // (body タップ後の auto-refocus による焼き直し kb 開閉) の疑い. ただし widget-tap 後に
+            // 「真に touch で入力欄をタップ」した場合 (lastTouchFocusTs > lastWidgetTapTs) は本物の
+            // kb-open なので expand を許可する. focus 由来 (auto-refocus) は lastTouchFocusTs を更新しないので
+            // ここで touch が新しいかだけ見れば両ケースを切り分けられる.
+            var sinceWidgetTap = Date.now() - lastWidgetTapTs;
+            var realTouchSinceTap = lastTouchFocusTs > lastWidgetTapTs;
+            if (fitMode && sinceWidgetTap < 1500 && !realTouchSinceTap) {
+                diag('kb-open ignored (fitMode, widget-tap ' + sinceWidgetTap + 'ms ago, no real touch)');
+            } else if (activeIframe) {
+                expandToVV(activeIframe);
+            }
         } else if (!kbOpen && lastKbOpen) {
             // 開→閉 エッジ
             if (fitMode && activeIframe) {
@@ -367,6 +386,18 @@
                 return;
             }
             if (d.type === 'ychat:input-focus' || d.type === 'ychat:enter-fullscreen') {
+                // widget-tap 直後 (1500ms 以内) で かつ d.source === 'focus' の input-focus は
+                // iOS auto-refocus の焼き直し (body タップ後に iOS が直前 input の focus を自動復元).
+                // d.source === 'touch' (touchend) は訪問者が直接入力欄をタップした明確な意図なので,
+                // widget-tap 直後でも処理する (送信ボタン連打 → 直後の入力タップが無効化されるのを防ぐ).
+                var sinceWidgetTap = Date.now() - lastWidgetTapTs;
+                if (sinceWidgetTap < 1500 && d.source !== 'touch') {
+                    diag('input-focus (source=' + (d.source || 'unknown') + ') ignored: widget-tap ' + sinceWidgetTap + 'ms ago, iOS auto-refocus suspected');
+                    return;
+                }
+                if (d.source === 'touch') {
+                    lastTouchFocusTs = Date.now();
+                }
                 // dedupe: touchend(capture) + focusin の 2重発火を抑制
                 var now = Date.now();
                 if (now - lastInputFocusTs < 200) {
@@ -402,6 +433,7 @@
                 return;
             }
             if (d.type === 'ychat:widget-tap') {
+                lastWidgetTapTs = Date.now();
                 // 入力欄のクリックは chat.js 側で widget-tap を送らない (input-focus のみ).
                 // widget-tap が来た = 「入力欄以外のタップ」= 訪問者が widget を fit で見たい意思表示.
                 // kb 状態に関わらず常に fit に遷移. kb 開中なら blur-input も送って kb を閉じさせる

@@ -3876,25 +3876,59 @@ setupEmbedDirectLinkFooter();
     // 直リンクのスマホアクセスと同じ UX（入力欄がキーボード直上に出る）を
     // 埋込時にも再現する。nickname/email/認証コード/チャット本体すべて対象.
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
-    const notifyParent = () => {
-        try { window.parent.postMessage({ type: 'ychat:input-focus', slug: SLUG }, '*'); } catch (_) {}
+    // source を付けて親に送る: 'touch' = 直接タップ(確実にユーザー意図), 'focus' = focusin のみ(iOS auto-refocus の可能性あり).
+    // chat-embed.js は widget-tap 直後の 'focus' は auto-refocus と判定して無視するが 'touch' は通す.
+    const notifyParent = (source) => {
+        try { window.parent.postMessage({ type: 'ychat:input-focus', source: source, slug: SLUG }, '*'); } catch (_) {}
     };
     document.addEventListener('focusin', (e) => {
         if (!e.target || !e.target.matches) return;
-        if (e.target.matches(inputSelector)) notifyParent();
+        if (e.target.matches(inputSelector)) notifyParent('focus');
     }, true);
     // 保険: touchend でも発火（iOS manualFocus path で focus が非同期発火して focusin を取り損なう対策）
+    // source='touch' を付けることで chat-embed.js は「確実にユーザーが入力欄タップした」と識別可能.
     document.addEventListener('touchend', (e) => {
         if (!e.target || !e.target.matches) return;
-        if (e.target.matches(inputSelector)) notifyParent();
+        if (e.target.matches(inputSelector)) notifyParent('touch');
     }, { capture: true, passive: true });
 
     // ウィジェット内の任意タップ → 親に通知 → iframe top を viewport top にスナップ
-    // （click は scroll-drag では発火しないので、メッセージ area のスクロール操作は邪魔しない）
     // 入力欄のクリックは input-focus 経路が処理するので widget-tap は送らない
     // (両方送ると chat-embed.js の widget-tap fit と input-focus prefocus が競合する)
-    document.addEventListener('click', (e) => {
+    // 入力欄が focus 中ならここで同期的に blur する. postMessage で blur-input を
+    // 送っても cross-origin で非同期なため, iOS は widget-tap 後に kb を開いてしまう
+    // (入力欄以外のタップでも auto-refocus で kb 開 → expandToVV でfit破壊). 同期 blur で
+    // iOS の kb 開アニメを発動させない.
+    //
+    // 重要: click ではなく pointerdown を使う.
+    // iOS Safari は input が focus 中の状態で body をタップすると、最初のタップは
+    // soft keyboard の dismissal に消費されて click が発火しない (2タップ目で初めて click).
+    // pointerdown は touch 開始時点で必ず発火するので 1タップで body-tap を検出できる.
+    // また pointerdown は scroll-drag の起点では発火するが、scroll で始まると後続 click は
+    // キャンセルされるだけで pointerdown 自体は発火するため、scroll 操作と区別したい場合は
+    // pointermove / pointercancel で抑制が必要. ここでは widget-tap は「タップ意思表示」
+    // として軽く扱い、scroll でも fit に来てしまうのは許容 (state ③ は kb 閉じ + 全画面表示
+    // なのでスクロール開始 = ユーザーは「広げて読みたい」意図と整合する).
+    let _ptrDownX = 0, _ptrDownY = 0, _ptrDownTs = 0;
+    document.addEventListener('pointerdown', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
+        _ptrDownX = e.clientX;
+        _ptrDownY = e.clientY;
+        _ptrDownTs = Date.now();
+    }, { capture: true, passive: true });
+    document.addEventListener('pointerup', (e) => {
+        if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
+        // scroll/swipe 判定: 移動距離 10px 超 or 押下時間 600ms 超は除外
+        const dx = Math.abs(e.clientX - _ptrDownX);
+        const dy = Math.abs(e.clientY - _ptrDownY);
+        const dt = Date.now() - _ptrDownTs;
+        if (dx > 10 || dy > 10 || dt > 600) return;
+        try {
+            const ae = document.activeElement;
+            if (ae && typeof ae.blur === 'function' && ae.matches && ae.matches(inputSelector)) {
+                ae.blur();
+            }
+        } catch (_) {}
         try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
     }, { capture: true, passive: true });
 })();
