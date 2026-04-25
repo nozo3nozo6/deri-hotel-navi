@@ -311,12 +311,9 @@ function clearDraft() {
 let _hadTypingValue = false;
 
 // 送信後の入力欄クリア.
-// iOS Safari の IME / 合成入力は textarea 要素に紐づく内部 state を持つ. 一度送信した textarea に
-// 対して value='' / setRangeText / rAF defer など、どんな手段でクリアしても state が完全には
-// リセットされず、続けて入力しようとすると「focus しているのに文字が入らない」状態になる
-// (memory: feedback_ios_input_value_clear_ime).
-// → 送信のたびに textarea を新規 clone で丸ごと差し替える. 古い IME state は元要素と一緒に消える.
-// 新要素は user gesture context 内で focus() するので iOS でも kb は維持される.
+// CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
+// 単純な value='' で連続入力できるようになった (textarea swap は副作用でレイアウトが崩れるため撤去).
+// _bindChatInputEvents は初期バインドにも流用するためヘルパとして残す.
 function _bindChatInputEvents(input) {
     input.addEventListener('input', () => {
         if (input.value) {
@@ -349,22 +346,7 @@ function _bindChatInputEvents(input) {
 function clearInputPreservingIme() {
     if (!refs.input) return;
     if (refs.input.value.length === 0) return;
-    const old = refs.input;
-    const parent = old.parentNode;
-    if (!parent) { try { old.value = ''; } catch (_) {} return; }
-    const wasFocused = (document.activeElement === old);
-    const fresh = old.cloneNode(false); // shallow clone (no inner text, no listeners)
-    fresh.value = '';
-    // 重要: 古要素を消す前に新要素を挿入 → focus → 古要素削除 の順.
-    // replaceChild 一発だと old が focus 抜けた瞬間 (kb 閉じ判定) を iOS が拾う可能性があるため、
-    // 「新要素が先に focus」 → 「古要素は既に focus 失っているので removeChild が無害」の順で守る.
-    parent.insertBefore(fresh, old);
-    refs.input = fresh;
-    _bindChatInputEvents(fresh);
-    if (wasFocused) {
-        try { fresh.focus({ preventScroll: true }); } catch (_) { try { fresh.focus(); } catch (__) {} }
-    }
-    parent.removeChild(old);
+    try { refs.input.value = ''; } catch (_) {}
 }
 
 function setThemeMode(mode) {
