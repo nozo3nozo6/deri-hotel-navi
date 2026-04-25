@@ -306,18 +306,65 @@ function clearDraft() {
     try { localStorage.removeItem(LS_DRAFT); } catch (_) {}
 }
 
+// Day 8 typing-stop state. _bindChatInputEvents が closure で参照するため、
+// このモジュールの早い位置で宣言しておく (rebind 後も同じ変数を共有する).
+let _hadTypingValue = false;
+
 // 送信後の入力欄クリア.
-// 同期 (click handler 内) で input.value='' すると iOS Safari は IME state corruption として
-// 扱い、以降のキー入力を受け付けなくなる (連続送信できないバグ).
-// setRangeText も同期実行だと paint glitch (placeholder 重なり) を起こす.
-// → rAF で 1フレーム遅延. click event chain が終わってから clear するので IME state も
-// paint も安全. 送信ボタンの mousedown preventDefault で focus は維持されている前提.
+// iOS Safari の IME / 合成入力は textarea 要素に紐づく内部 state を持つ. 一度送信した textarea に
+// 対して value='' / setRangeText / rAF defer など、どんな手段でクリアしても state が完全には
+// リセットされず、続けて入力しようとすると「focus しているのに文字が入らない」状態になる
+// (memory: feedback_ios_input_value_clear_ime).
+// → 送信のたびに textarea を新規 clone で丸ごと差し替える. 古い IME state は元要素と一緒に消える.
+// 新要素は user gesture context 内で focus() するので iOS でも kb は維持される.
+function _bindChatInputEvents(input) {
+    input.addEventListener('input', () => {
+        if (input.value) {
+            _hadTypingValue = true;
+            emitTyping();
+        } else if (_hadTypingValue) {
+            _hadTypingValue = false;
+            emitTypingStop();
+        }
+        scheduleDraftSave();
+    });
+    input.addEventListener('blur', () => {
+        if (_hadTypingValue) {
+            _hadTypingValue = false;
+            emitTypingStop();
+        }
+        saveDraftNow();
+        document.body.classList.remove('chat-input-focused');
+        if (isEmbedded()) {
+            try { window.parent.postMessage({ type: 'ychat:input-blur', slug: SLUG }, '*'); } catch (_) {}
+        }
+    });
+    input.addEventListener('focus', () => {
+        document.body.classList.add('chat-input-focused');
+        if (isEmbedded()) {
+            try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
+        }
+    });
+}
 function clearInputPreservingIme() {
     if (!refs.input) return;
     if (refs.input.value.length === 0) return;
-    requestAnimationFrame(() => {
-        try { refs.input.value = ''; } catch (_) {}
-    });
+    const old = refs.input;
+    const parent = old.parentNode;
+    if (!parent) { try { old.value = ''; } catch (_) {} return; }
+    const wasFocused = (document.activeElement === old);
+    const fresh = old.cloneNode(false); // shallow clone (no inner text, no listeners)
+    fresh.value = '';
+    // 重要: 古要素を消す前に新要素を挿入 → focus → 古要素削除 の順.
+    // replaceChild 一発だと old が focus 抜けた瞬間 (kb 閉じ判定) を iOS が拾う可能性があるため、
+    // 「新要素が先に focus」 → 「古要素は既に focus 失っているので removeChild が無害」の順で守る.
+    parent.insertBefore(fresh, old);
+    refs.input = fresh;
+    _bindChatInputEvents(fresh);
+    if (wasFocused) {
+        try { fresh.focus({ preventScroll: true }); } catch (_) { try { fresh.focus(); } catch (__) {} }
+    }
+    parent.removeChild(old);
 }
 
 function setThemeMode(mode) {
@@ -3389,45 +3436,9 @@ refs.sendBtn.addEventListener('click', () => {
 
 // Day 8: typing emit (スロットル付き — 3秒おきに再発火)
 // #3: 値が空になった / blur / 送信時は stop 信号を明示送信.
-let _hadTypingValue = false;
-refs.input.addEventListener('input', () => {
-    if (refs.input.value) {
-        _hadTypingValue = true;
-        emitTyping();
-    } else if (_hadTypingValue) {
-        _hadTypingValue = false;
-        emitTypingStop();
-    }
-    // 下書き自動保存: 入力のたびに debounce で localStorage へ.
-    scheduleDraftSave();
-});
-refs.input.addEventListener('blur', () => {
-    if (_hadTypingValue) {
-        _hadTypingValue = false;
-        emitTypingStop();
-    }
-    // blur 時は debounce を待たず即保存 (タブ切替/画面離脱対策)
-    saveDraftNow();
-    // スマホでメッセージ入力にフォーカス中は通知バー等を隠して画面を広く使う (CSS 側で mobile media query).
-    document.body.classList.remove('chat-input-focused');
-    // iframe 埋込時: 親ページに「入力欄 blur = キーボード閉じる」を通知.
-    // iOS では visualViewport.height が kb 閉じ後も小さいまま残るバグがあり, vv.resize を見るだけでは
-    // kb-close を検出できない. input の blur は iOS でも正常に発火するのでこれを真の close 信号として使う.
-    if (isEmbedded()) {
-        try { window.parent.postMessage({ type: 'ychat:input-blur', slug: SLUG }, '*'); } catch (_) {}
-    }
-});
-refs.input.addEventListener('focus', () => {
-    // スマホでキーボードが出ている間、通知バー (✓通知を有効にしました/メール変更) を隠してチャット表示領域を広げる.
-    document.body.classList.add('chat-input-focused');
-    // iframe 埋込時 (②/⑤/①widget モーダル) は親ページが iframe をスクロール追従できないため、
-    // 親に「入力欄にフォーカスした→iframe 末尾を画面内に入れて欲しい」ことを通知する.
-    // 親側スニペットは受信時に iframe.scrollIntoView({block:'end'}) を呼ぶ.
-    if (isEmbedded()) {
-        // source='focus' を付ける. 付けないと chat-embed.js は 'unknown' 扱いで widget-tap 抑制対象になる.
-        try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
-    }
-});
+// イベント定義本体は clearInputPreservingIme と共有させるため _bindChatInputEvents に切り出した.
+// (送信のたびに textarea を clone で差し替えてリスナを再アタッチする運用)
+_bindChatInputEvents(refs.input);
 // ページ離脱時も確実に保存 (iOS では beforeunload が発火しない事があるため pagehide も付ける)
 window.addEventListener('pagehide', saveDraftNow);
 window.addEventListener('beforeunload', saveDraftNow);
