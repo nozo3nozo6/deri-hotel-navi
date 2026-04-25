@@ -163,11 +163,25 @@
         };
     }
 
-    // iframe 高さを強制（!important で顧客HP CSS に勝つ）
+    // iframe 高さを強制（!important で顧客HP CSS に勝つ）.
+    // iOS Safari は kb-close 後に iframe の style.height 変更を即座にリフローしない
+    // ことがある (input-blur → fit(667) を call しても iframe が 319 のまま固まる現象).
+    // offsetHeight を読んで強制的に同期レイアウトを発火し, さらに rAF で再適用する.
     function forceHeight(iframe, h) {
         iframe.style.setProperty('height', h + 'px', 'important');
         iframe.style.setProperty('max-height', h + 'px', 'important');
         iframe.style.setProperty('min-height', h + 'px', 'important');
+        try { void iframe.offsetHeight; } catch (_) {}
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(function () {
+                try {
+                    iframe.style.setProperty('height', h + 'px', 'important');
+                    iframe.style.setProperty('max-height', h + 'px', 'important');
+                    iframe.style.setProperty('min-height', h + 'px', 'important');
+                    void iframe.offsetHeight;
+                } catch (_) {}
+            });
+        }
     }
 
     // プリフォーカス: iframe を「kb 開時の最終サイズ」に近い値まで縮め, iOS focus-scroll を
