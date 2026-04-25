@@ -170,14 +170,17 @@
         iframe.style.setProperty('min-height', h + 'px', 'important');
     }
 
-    // プリフォーカス: iframe を安全サイズに縮めて iOS focus-scroll を不発化 + align
-    // 安全サイズ = (innerHeight - stickyInset) × 0.35、最低 150px 保証
-    // 安全タイマー: kb 開通知が 800ms 以内に来なければ自動復元（縮み残りロック防止）
+    // プリフォーカス: iframe を「kb 開時の最終サイズ」に近い値まで縮め, iOS focus-scroll を
+    // 不発化させつつ jarring な二段階遷移 (例: 707→247→319) を回避する.
+    // 推定 kb 高さ ≈ innerHeight × 0.45 (iPhone 全機種で 0.37-0.46 範囲).
+    // safeH = innerHeight - 推定 kb - stickyInset - 16(buffer). 最低 150px 保証.
+    // 旧仕様 (usable × 0.35) は iframe が小さすぎて「縮んでまた広がる」体感悪化要因 (2026-04-25 修正).
     function prefocusForInput(iframe) {
         saveIframeStyle(iframe);
         var stickyInset = getStickyTopInset();
-        var usable = Math.max(200, window.innerHeight - stickyInset);
-        var safeH = Math.max(150, Math.floor(usable * 0.35));
+        var ih = window.innerHeight;
+        var expectedKbH = Math.floor(ih * 0.45);
+        var safeH = Math.max(150, ih - expectedKbH - stickyInset - 16);
         forceHeight(iframe, safeH);
         alignOnce(iframe);
         prefocusedIframe = iframe;

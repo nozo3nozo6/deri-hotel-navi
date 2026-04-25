@@ -3885,27 +3885,12 @@ setupEmbedDirectLinkFooter();
         if (!e.target || !e.target.matches) return;
         if (e.target.matches(inputSelector)) notifyParent('focus');
     }, true);
-    // 保険: touchend でも発火（iOS manualFocus path で focus が非同期発火して focusin を取り損なう対策）
-    // source='touch' を付けることで chat-embed.js は「確実にユーザーが入力欄タップした」と識別可能.
-    document.addEventListener('touchend', (e) => {
-        if (!e.target || !e.target.matches) return;
-        if (e.target.matches(inputSelector)) notifyParent('touch');
-    }, { capture: true, passive: true });
-
-    // ウィジェット内の入力欄以外のタップ → 親に通知 + 同期 blur で kb を即閉.
-    //
-    // iOS Safari quirk: input focus 中の状態で別要素を最初にタップすると
-    //   - click: 握り潰されて発火しない (kb dismiss gesture に消費)
-    //   - pointerdown: 不発するケースがある (focus 遷移中の touch event を吸収)
-    //   - pointerup: pointercancel で来ない事がある
-    //   - touchstart: 必ず発火する (最も低レイヤ、focus とも独立)
-    // 結論: touchstart (capture, passive) で確実に拾い、blur+widget-tap を即時発火する.
-    // pointerdown は PC (mouse) 用に併設、200ms dedupe で touchstart と二重発火を抑制.
+    // 入力欄以外のタップ → 親に通知 + 同期 blur で kb を即閉.
     let _lastBodyTapTs = 0;
     const fireBodyTap = (target) => {
         if (target && target.matches && target.matches(inputSelector)) return;
         const now = Date.now();
-        if (now - _lastBodyTapTs < 200) return; // touchstart + pointerdown 二重発火抑制
+        if (now - _lastBodyTapTs < 200) return;
         _lastBodyTapTs = now;
         try {
             const ae = document.activeElement;
@@ -3915,12 +3900,54 @@ setupEmbedDirectLinkFooter();
         } catch (_) {}
         try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
     };
+
+    // タップ vs スクロール判定: touchstart で開始位置を記録、touchmove で移動量追跡、
+    // touchend で「ほぼ動いてない」場合のみ tap として処理する.
+    // 旧実装は touchstart で即発火 → スクロール開始時の touchstart も「タップ」扱いされ
+    // iframe が縮む副作用 (2026-04-25 ユーザー指摘).
+    const TAP_MOVE_THRESHOLD = 10; // px
+    const TAP_TIME_THRESHOLD = 600; // ms (long press は除外)
+    let _tapStart = null;
     document.addEventListener('touchstart', (e) => {
-        const t = (e.touches && e.touches[0]) ? e.touches[0].target : e.target;
-        fireBodyTap(t);
+        const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
+        if (!t || !t.target) { _tapStart = null; return; }
+        _tapStart = {
+            x: t.clientX,
+            y: t.clientY,
+            target: t.target,
+            ts: Date.now(),
+            moved: false,
+            isInput: t.target.matches && t.target.matches(inputSelector)
+        };
     }, { capture: true, passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!_tapStart) return;
+        const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
+        if (!t) return;
+        const dx = Math.abs(t.clientX - _tapStart.x);
+        const dy = Math.abs(t.clientY - _tapStart.y);
+        if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) {
+            _tapStart.moved = true;
+        }
+    }, { capture: true, passive: true });
+    document.addEventListener('touchend', (e) => {
+        const start = _tapStart;
+        _tapStart = null;
+        if (!start || start.moved) return;
+        if (Date.now() - start.ts > TAP_TIME_THRESHOLD) return;
+        if (start.isInput) {
+            // 入力欄タップ: source='touch' で chat-embed.js に確実なユーザー意図を伝える
+            notifyParent('touch');
+        } else {
+            fireBodyTap(start.target);
+        }
+    }, { capture: true, passive: true });
+    document.addEventListener('touchcancel', () => {
+        _tapStart = null;
+    }, { capture: true, passive: true });
+
+    // PC (mouse) 用フォールバック. touch device は上記 touch* で処理済み.
     document.addEventListener('pointerdown', (e) => {
-        // touch device は touchstart で処理済み (mouse のみここに来る)
         if (e.pointerType === 'touch') return;
         fireBodyTap(e.target);
     }, { capture: true, passive: true });
