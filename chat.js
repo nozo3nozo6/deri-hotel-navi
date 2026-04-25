@@ -3388,9 +3388,12 @@ refs.sendBtn.addEventListener('touchend', (e) => {
     const rect = refs.sendBtn.getBoundingClientRect();
     if (t.clientX < rect.left || t.clientX > rect.right) return;
     if (t.clientY < rect.top || t.clientY > rect.bottom) return;
-    e.preventDefault(); // click 合成を抑止 (二重発火 + 位置ズレ click を排除)
+    // 注: preventDefault は使わない. iOS の touchend preventDefault は mousedown synth も止めるため,
+    // 上の `mousedown preventDefault` で focus 維持してた仕組みが効かなくなる
+    // → 送信後に input に文字が打てなくなる事故 (2026-04-25 ユーザー報告).
+    // dispatchSend の 500ms 重複ガードで click 合成との二重発火は吸収する.
     dispatchSend();
-}, { passive: false });
+}, { passive: true });
 
 // LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
 
