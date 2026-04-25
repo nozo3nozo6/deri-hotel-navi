@@ -3347,53 +3347,21 @@ async function handleOwnerLogout() {
 }
 
 // ===== イベントバインド =====
-// iOS/Android: mousedown/touchstart preventDefault で input の blur を抑止.
-// これが無いと送信ボタンtap→input blur→focusout→--kb-h=0スナップ→chat-root伸張→
-// ボタン位置が変わって click がミスヒット → 1回目の tap で送信されず 2回 tap が必要に.
-// LINE と同じ「キーボード出たまま送信即実行」挙動を担保する.
+// 送信ボタンは直URLモードと完全に同じ実装にする (embed 専用の touch ハンドラは追加しない).
+// 直URLモードは mousedown preventDefault + click だけで安定動作している.
+// embed モードで送信が効かなくなる事象は body-tap ハンドラ側の interactiveSelector 早期 return で防ぐ.
+//
+// mousedown preventDefault: input からの focus 移動を抑止 → blur しない → focusout 発火しない →
+// --kb-h 不変 → chat-root height 不変 → ボタン位置不変 → click 確実にヒット.
+// (memory: feedback_chat_send_button_no_blur)
 refs.sendBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
-// 送信実行を関数化 (click と touchend 両方から呼ぶため重複ガード付き).
-let _lastSendActionTs = 0;
-const dispatchSend = () => {
-    const now = Date.now();
-    if (now - _lastSendActionTs < 500) return; // touchend → click の二重発火対策
-    _lastSendActionTs = now;
+refs.sendBtn.addEventListener('click', () => {
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
-};
-refs.sendBtn.addEventListener('click', dispatchSend);
-// iOS で click 合成が遅延 / 位置ズレでミスヒットすることがあるため touchend で直接発火.
-// touchstart 位置と touchend 位置が両方ボタン内なら確実にユーザー意図とみなして送信.
-// (touchmove で外に出てたら native の click 抑止に任せる = drag-cancel 動作)
-let _sendTouchStart = null;
-refs.sendBtn.addEventListener('touchstart', (e) => {
-    const t = e.touches && e.touches[0];
-    if (!t) { _sendTouchStart = null; return; }
-    _sendTouchStart = { x: t.clientX, y: t.clientY, ts: Date.now() };
-}, { passive: true });
-refs.sendBtn.addEventListener('touchend', (e) => {
-    const start = _sendTouchStart;
-    _sendTouchStart = null;
-    if (!start) return;
-    const t = (e.changedTouches && e.changedTouches[0]) || null;
-    if (!t) return;
-    const dx = Math.abs(t.clientX - start.x);
-    const dy = Math.abs(t.clientY - start.y);
-    if (dx > 10 || dy > 10) return; // drag は無視
-    if (Date.now() - start.ts > 600) return; // long press は無視
-    // ボタン内で touchend したか (click 合成と同じ判定)
-    const rect = refs.sendBtn.getBoundingClientRect();
-    if (t.clientX < rect.left || t.clientX > rect.right) return;
-    if (t.clientY < rect.top || t.clientY > rect.bottom) return;
-    // 注: preventDefault は使わない. iOS の touchend preventDefault は mousedown synth も止めるため,
-    // 上の `mousedown preventDefault` で focus 維持してた仕組みが効かなくなる
-    // → 送信後に input に文字が打てなくなる事故 (2026-04-25 ユーザー報告).
-    // dispatchSend の 500ms 重複ガードで click 合成との二重発火は吸収する.
-    dispatchSend();
-}, { passive: true });
+});
 
 // LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
 

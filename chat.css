@@ -252,6 +252,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .chat-input-area{display:flex;padding:10px 12px;gap:8px;background:#fff;border-top:1px solid #e5e0d8;flex-shrink:0}
 #chat-input{flex:1;padding:6px 10px;border:1px solid var(--chat-quick-border);border-radius:14px;font-size:16px;resize:none;font-family:inherit;line-height:1.4;max-height:120px;background:#fafafa}
 #chat-input:focus{outline:none;border-color:var(--chat-primary);background:#fff}
+/* textarea の placeholder は仕様上テキスト折返しが起きる. 狭い領域で「メッセージを入力...」が
+   2行目に折返して 1行目末尾が「ー」だけになり、視覚的には「メッセ ジを入力...」と空白挿入されたように見える. */
+#chat-input::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .send-btn{padding:0 18px;background:var(--chat-primary);color:#fff;border-radius:18px;font-weight:700;font-size:14px}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
 
