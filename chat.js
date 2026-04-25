@@ -3399,7 +3399,8 @@ refs.input.addEventListener('focus', () => {
     // 親に「入力欄にフォーカスした→iframe 末尾を画面内に入れて欲しい」ことを通知する.
     // 親側スニペットは受信時に iframe.scrollIntoView({block:'end'}) を呼ぶ.
     if (isEmbedded()) {
-        try { window.parent.postMessage({ type: 'ychat:input-focus', slug: SLUG }, '*'); } catch (_) {}
+        // source='focus' を付ける. 付けないと chat-embed.js は 'unknown' 扱いで widget-tap 抑制対象になる.
+        try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
     }
 });
 // ページ離脱時も確実に保存 (iOS では beforeunload が発火しない事があるため pagehide も付ける)
@@ -3911,13 +3912,23 @@ setupEmbedDirectLinkFooter();
     document.addEventListener('touchstart', (e) => {
         const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
         if (!t || !t.target) { _tapStart = null; return; }
+        // input 判定は matches だけでなく closest() で祖先も見る.
+        // ラッパー要素 (label/wrapper div/sticky-bottom padding 等) を tap した場合でも
+        // 入力欄を tap した意図を取りこぼさない. 取りこぼすと fireBodyTap → widget-tap →
+        // iOS auto-refocus 由来の input-focus が 1500ms 抑制でブロック → kb 開かず.
+        var isInputTarget = false;
+        if (t.target.matches && t.target.matches(inputSelector)) {
+            isInputTarget = true;
+        } else if (t.target.closest && t.target.closest(inputSelector)) {
+            isInputTarget = true;
+        }
         _tapStart = {
             x: t.clientX,
             y: t.clientY,
             target: t.target,
             ts: Date.now(),
             moved: false,
-            isInput: t.target.matches && t.target.matches(inputSelector)
+            isInput: isInputTarget
         };
     }, { capture: true, passive: true });
     document.addEventListener('touchmove', (e) => {
