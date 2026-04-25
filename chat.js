@@ -3892,37 +3892,21 @@ setupEmbedDirectLinkFooter();
         if (e.target.matches(inputSelector)) notifyParent('touch');
     }, { capture: true, passive: true });
 
-    // ウィジェット内の任意タップ → 親に通知 → iframe top を viewport top にスナップ
-    // 入力欄のクリックは input-focus 経路が処理するので widget-tap は送らない
-    // (両方送ると chat-embed.js の widget-tap fit と input-focus prefocus が競合する)
-    // 入力欄が focus 中ならここで同期的に blur する. postMessage で blur-input を
-    // 送っても cross-origin で非同期なため, iOS は widget-tap 後に kb を開いてしまう
-    // (入力欄以外のタップでも auto-refocus で kb 開 → expandToVV でfit破壊). 同期 blur で
-    // iOS の kb 開アニメを発動させない.
+    // ウィジェット内の入力欄以外のタップ → 親に通知 + 同期 blur で kb を即閉.
     //
-    // 重要: click ではなく pointerdown を使う.
-    // iOS Safari は input が focus 中の状態で body をタップすると、最初のタップは
-    // soft keyboard の dismissal に消費されて click が発火しない (2タップ目で初めて click).
-    // pointerdown は touch 開始時点で必ず発火するので 1タップで body-tap を検出できる.
-    // また pointerdown は scroll-drag の起点では発火するが、scroll で始まると後続 click は
-    // キャンセルされるだけで pointerdown 自体は発火するため、scroll 操作と区別したい場合は
-    // pointermove / pointercancel で抑制が必要. ここでは widget-tap は「タップ意思表示」
-    // として軽く扱い、scroll でも fit に来てしまうのは許容 (state ③ は kb 閉じ + 全画面表示
-    // なのでスクロール開始 = ユーザーは「広げて読みたい」意図と整合する).
-    let _ptrDownX = 0, _ptrDownY = 0, _ptrDownTs = 0;
+    // 重要: pointerdown で blur + widget-tap を「即時」発火する.
+    //   - click は iOS で握り潰される (input focus 中の最初のタップは soft kb dismiss に消費)
+    //   - pointerup でも iOS は kb dismiss gesture と判定して pointercancel する事があり pointerup が来ない
+    //   - pointerdown は touch 接地時に必ず発火するので最も信頼できる
+    //
+    // scroll 干渉の許容:
+    //   chat-messages を scroll し始めた瞬間にも widget-tap は発火する.
+    //   widget-tap → fitToViewport(state ③) は kb を閉じて iframe を全画面化するだけなので
+    //   スクロール意図と整合する (kb が出てたら閉じる + 広く読める).
+    //   scroll 中は kb は閉じてる事が多く、blur() は noop.
     document.addEventListener('pointerdown', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
-        _ptrDownX = e.clientX;
-        _ptrDownY = e.clientY;
-        _ptrDownTs = Date.now();
-    }, { capture: true, passive: true });
-    document.addEventListener('pointerup', (e) => {
-        if (e.target && e.target.matches && e.target.matches(inputSelector)) return;
-        // scroll/swipe 判定: 移動距離 10px 超 or 押下時間 600ms 超は除外
-        const dx = Math.abs(e.clientX - _ptrDownX);
-        const dy = Math.abs(e.clientY - _ptrDownY);
-        const dt = Date.now() - _ptrDownTs;
-        if (dx > 10 || dy > 10 || dt > 600) return;
+        // 即時 blur (iOS pointercancel 対策で pointerup を待たない)
         try {
             const ae = document.activeElement;
             if (ae && typeof ae.blur === 'function' && ae.matches && ae.matches(inputSelector)) {

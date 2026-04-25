@@ -416,15 +416,15 @@
                 if (kbOpen) {
                     // kb 既に開: 直接 expand（他 input への re-focus ケース）
                     expandToVV(iframe);
-                } else if (fitMode) {
-                    // FIT モード中 (widget-tap で sticky-bottom に pin 済): prefocus で縮めない.
-                    // iOS の focus-scroll は iframe top が既に sticky nav 直下にあるので発生しない.
-                    // kb 開通知 (vv.resize) が来たら onVVChange が expandToVV でシュリンク.
-                    // kb 閉じたら onVVChange が fitMode 見て fitToViewport で復帰.
-                    diag('input-focus in fitMode → keep fit, wait for kb');
                 } else if (isIOS) {
-                    // iOS で kb まだ閉: prefocus で iframe を縮め focus-scroll を不発化
-                    // (kb 開通知が来なければ 800ms で自動復元)
+                    // iOS は kb まだ閉. fitMode (state ③) であっても必ず prefocus する.
+                    // 旧仕様: fitMode 時は「sticky 下にいるから iOS は scroll しない」と仮定して
+                    // prefocus を skip していた. しかし fit 状態で iframe は全高 (innerHeight-stickyInset
+                    // ~870px) あり、入力欄は iframe 下端付近. ここで iOS は input を kb 上に上げるため
+                    // page を auto-scroll する. iframe top が viewport 上に押し上げられ、その後 expand で
+                    // h=323 にしても iframe 自体が画面外になり「ピタッ」とならない (state ② subsequent 失敗).
+                    // 解決: 常に prefocus で iframe を ~150px に縮めて auto-scroll を不発化させ、
+                    // kb 開通知 (vv.resize) で expandToVV により h=vv.height-stickyInset に拡大する.
                     prefocusForInput(iframe);
                 } else {
                     // Android/PC: focus-scroll 問題なし。align だけして kb 開通知を待つ
