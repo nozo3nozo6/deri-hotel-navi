@@ -258,8 +258,10 @@
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
         prefocusedIframe = null;
         var stickyInset = getStickyTopInset();
-        var targetH = Math.floor(window.innerHeight - stickyInset);
-        if (targetH < 200) return;
+        var ih = window.innerHeight;
+        var targetH = Math.floor(ih - stickyInset);
+        diag('fit() entry ih=' + ih + ' sticky=' + stickyInset + ' targetH=' + targetH);
+        if (targetH < 200) { diag('fit BAILED targetH<200'); return; }
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
         alignOnce(iframe);
@@ -268,7 +270,7 @@
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('fit h=' + targetH + ' sticky=' + stickyInset);
-        } catch (_) {}
+        } catch (e) { diag('fit ERR ' + (e && e.message)); }
     }
 
     function resetIframeHeight(iframe) {
@@ -428,6 +430,16 @@
                     iframe.contentWindow.postMessage({ type: 'ychat:blur-input' }, '*');
                 } catch (_) {}
                 fitToViewport(iframe);
+                // iOS kb-close アニメ中は forceHeight が即反映されない(innerHeight が
+                // kb 分シュリンクしたまま, または render が deferred). kb 完全に閉じた後にもう一度
+                // fit する保険. これで「1タップで広がらない / 2タップ目で広がる」問題を解消.
+                // 350ms = iOS kb-close anim (~250ms) + safety margin.
+                setTimeout(function () {
+                    if (fitMode && activeIframe === iframe) {
+                        diag('widget-tap retry fit (post kb-close)');
+                        fitToViewport(iframe);
+                    }
+                }, 350);
                 return;
             }
             if (d.type === 'ychat:exit-fullscreen') {
