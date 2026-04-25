@@ -3375,6 +3375,14 @@ refs.sendBtn.addEventListener('click', () => {
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
+    // 連続送信のため defensively input に focus を戻す.
+    // mousedown.preventDefault のみでは iOS Safari iframe 文脈で blur が起きるケースが
+    // 確認されている (1通目送信後 input-blur 発火 → kb 閉じ → 2通目入力不可).
+    // この focus() は click handler の user gesture context 内で呼ばれるため、
+    // iOS でも kb を維持/再オープンできる. 既に focus 済みなら no-op.
+    try { refs.input.focus({ preventScroll: true }); } catch (_) {
+        try { refs.input.focus(); } catch (__) {}
+    }
 });
 
 // LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
