@@ -3877,6 +3877,12 @@ setupEmbedDirectLinkFooter();
     // 直リンクのスマホアクセスと同じ UX（入力欄がキーボード直上に出る）を
     // 埋込時にも再現する。nickname/email/認証コード/チャット本体すべて対象.
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+    // インタラクティブ要素 (送信ボタン/各種ボタン/リンク等). これらをタップしたら fireBodyTap で
+    // blur+widget-tap させずに普通の click handler に任せる.
+    // 重要: 送信ボタン (#chat-send) を fireBodyTap 対象にすると ae.blur() で kb 閉じ → kb-close
+    // アニメ中に送信ボタン位置がズレ → click ミスヒットで送信できなくなる
+    // (memory: feedback_chat_send_button_no_blur).
+    const interactiveSelector = 'button, a[href], [role="button"], select, label, summary, input[type=button], input[type=submit], input[type=checkbox], input[type=radio], input[type=file]';
     // source を付けて親に送る: 'touch' = 直接タップ(確実にユーザー意図), 'focus' = focusin のみ(iOS auto-refocus の可能性あり).
     // chat-embed.js は widget-tap 直後の 'focus' は auto-refocus と判定して無視するが 'touch' は通す.
     const notifyParent = (source) => {
@@ -3941,6 +3947,13 @@ setupEmbedDirectLinkFooter();
             _tapStart.moved = true;
         }
     }, { capture: true, passive: true });
+    // 要素が interactive (button/link 等) かどうか. これらは click handler に任せる.
+    const isInteractiveTarget = (el) => {
+        if (!el) return false;
+        if (el.matches && el.matches(interactiveSelector)) return true;
+        if (el.closest && el.closest(interactiveSelector)) return true;
+        return false;
+    };
     document.addEventListener('touchend', (e) => {
         const start = _tapStart;
         _tapStart = null;
@@ -3949,6 +3962,9 @@ setupEmbedDirectLinkFooter();
         if (start.isInput) {
             // 入力欄タップ: source='touch' で chat-embed.js に確実なユーザー意図を伝える
             notifyParent('touch');
+        } else if (isInteractiveTarget(start.target)) {
+            // 送信ボタン等のインタラクティブ要素: blur せず widget-tap も送らず click に任せる
+            return;
         } else {
             fireBodyTap(start.target);
         }
@@ -3960,6 +3976,7 @@ setupEmbedDirectLinkFooter();
     // PC (mouse) 用フォールバック. touch device は上記 touch* で処理済み.
     document.addEventListener('pointerdown', (e) => {
         if (e.pointerType === 'touch') return;
+        if (isInteractiveTarget(e.target)) return;
         fireBodyTap(e.target);
     }, { capture: true, passive: true });
 })();
