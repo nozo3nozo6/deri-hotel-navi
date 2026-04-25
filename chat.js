@@ -306,6 +306,24 @@ function clearDraft() {
     try { localStorage.removeItem(LS_DRAFT); } catch (_) {}
 }
 
+// 送信後の入力欄クリア. iOS Safari は focus 中の input.value='' を IME state corruption として扱い、
+// 以降のキー入力を受け付けなくなる (連続送信できないバグ).
+// setRangeText は input element の text manipulation API で、IME state を保ったまま range を置換できる.
+function clearInputPreservingIme() {
+    if (!refs.input) return;
+    const len = refs.input.value.length;
+    if (len === 0) return;
+    try {
+        if (typeof refs.input.setRangeText === 'function') {
+            refs.input.setRangeText('', 0, len, 'end');
+        } else {
+            refs.input.value = '';
+        }
+    } catch (_) {
+        try { refs.input.value = ''; } catch (__) {}
+    }
+}
+
 function setThemeMode(mode) {
     const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
     try { document.body.dataset.mode = m; } catch (_) {}
@@ -2614,7 +2632,7 @@ async function sendVisitorMessage(msg) {
     };
     // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
     addOutgoingOptimistic(clientMsgId, msg);
-    refs.input.value = '';
+    clearInputPreservingIme();
     clearDraft();
     lockVisitorNickname();
     try {
@@ -2653,7 +2671,7 @@ async function sendCastReply(msg) {
     };
     // cast view 自送信 (位置クラスは positionClassFor が globals から判定)
     addOutgoingOptimistic(clientMsgId, msg);
-    refs.input.value = '';
+    clearInputPreservingIme();
     clearDraft();
     try {
         const resp = await sendUnified(payload);
@@ -2876,7 +2894,7 @@ async function sendOwnerReply(msg) {
     };
     // オーナー自送信 (位置クラスは positionClassFor が globals から判定)
     addOutgoingOptimistic(clientMsgId, msg);
-    refs.input.value = '';
+    clearInputPreservingIme();
     try {
         const r = await sendUnified(payload);
         markOptimisticSent(clientMsgId, (r.messages || []).find(m => m.client_msg_id === clientMsgId));
@@ -3231,7 +3249,7 @@ async function sendCastInboxReply(msg) {
     };
     // キャスト受信箱 自送信 (位置クラスは positionClassFor が globals から判定)
     addOutgoingOptimistic(clientMsgId, msg);
-    refs.input.value = '';
+    clearInputPreservingIme();
     try {
         const r = await sendUnified(payload);
         markOptimisticSent(clientMsgId, (r.messages || []).find(m => m.client_msg_id === clientMsgId));
