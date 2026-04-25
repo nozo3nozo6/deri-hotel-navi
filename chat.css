@@ -252,6 +252,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .chat-input-area{display:flex;padding:10px 12px;gap:8px;background:#fff;border-top:1px solid #e5e0d8;flex-shrink:0}
 #chat-input{flex:1;padding:6px 10px;border:1px solid var(--chat-quick-border);border-radius:14px;font-size:16px;resize:none;font-family:inherit;line-height:1.4;max-height:120px;background:#fafafa}
 #chat-input:focus{outline:none;border-color:var(--chat-primary);background:#fff}
+/* iOS Safari (PWA含む) で、送信後など特定タイミングで input/textarea が focus 状態でも
+   文字入力できなくなるバグの対策. -webkit-user-select:text を明示することで回避できるケースが多い. */
+#chat-root input,#chat-root textarea,.nickname-input,#chat-input,#cdr-code{-webkit-user-select:text !important;-moz-user-select:text;user-select:text;-webkit-touch-callout:default}
 /* textarea の placeholder は仕様上テキスト折返しが起きる. 狭い領域で「メッセージを入力...」が
    2行目に折返して 1行目末尾が「ー」だけになり、視覚的には「メッセ ジを入力...」と空白挿入されたように見える. */
 #chat-input::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
