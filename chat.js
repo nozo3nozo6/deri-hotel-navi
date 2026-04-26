@@ -4257,9 +4257,17 @@ setupEmbedDirectLinkFooter();
         if (embedded) {
             const wasOpen = keyboardOpen;
             if (parentEmbedH !== null) {
+                // embed-h 変動の度に, ユーザーが下端付近にいるなら追従する (LINE風 sticky-bottom).
+                // prefocus(h=338) → expand(h=319) のように複数回 embed-h が来るケースで,
+                // !wasOpen ガードだと expand 時に scroll しないため最新メッセージが下に押し出される
+                // (2026-04-27 ユーザー報告: 入力欄タップで「ですの」「あいうえお」が隠れる).
+                const msgs = document.getElementById('chat-messages');
+                const stickToBottom = msgs
+                    ? (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 120)
+                    : true;
                 setEmbedH(parentEmbedH);
                 keyboardOpen = true;
-                if (!wasOpen) scrollMessagesToBottom();
+                if (!wasOpen || stickToBottom) scrollMessagesToBottom();
             } else {
                 docEl.style.removeProperty('--embed-h');
                 keyboardOpen = false;
