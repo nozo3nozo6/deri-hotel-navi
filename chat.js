@@ -325,13 +325,28 @@ let _recentSentSnapshotTimer = null;
 // _bindChatInputEvents は初期バインドにも流用するためヘルパとして残す.
 function _bindChatInputEvents(input) {
     input.addEventListener('input', () => {
-        // 変換前送信後の iOS IME state restore 検出:
-        // 直近送信 text と完全一致なら IME buffer 再 inject と判定して即クリア.
-        // snapshot は timeout 内は null にしない (iOS は複数回 re-inject するため、
-        //  一度 null にすると 2回目以降を取り逃がす. v=165 → v=166 修正).
-        if (_recentSentSnapshot && input.value === _recentSentSnapshot) {
-            try { input.value = ''; } catch (_) {}
-            return;
+        // 変換前送信後の iOS IME composition buffer 復活対策 (v=167):
+        // iOS は textarea の value を消しても OS レベルで composition buffer を保持しており、
+        // user が再 tap → typing 開始すると compositionstart で snapshot を再 inject する.
+        // ① 完全一致 (value === snapshot): IME buffer 単体復活 → 即クリア
+        // ② prefix 一致 (value.startsWith(snapshot) && longer): snapshot + 新文字 → snapshot 部分だけ剥がす
+        if (_recentSentSnapshot) {
+            if (input.value === _recentSentSnapshot) {
+                try { input.value = ''; } catch (_) {}
+                return;
+            }
+            if (input.value.startsWith(_recentSentSnapshot) && input.value.length > _recentSentSnapshot.length) {
+                const tail = input.value.substring(_recentSentSnapshot.length);
+                try { input.setRangeText(tail, 0, input.value.length, 'end'); } catch (_) {
+                    try { input.value = tail; } catch (__) {}
+                }
+                // snapshot は剥がし終わったので無効化
+                _recentSentSnapshot = null;
+                if (_recentSentSnapshotTimer) {
+                    clearTimeout(_recentSentSnapshotTimer);
+                    _recentSentSnapshotTimer = null;
+                }
+            }
         }
         if (input.value) {
             _hadTypingValue = true;
@@ -344,9 +359,31 @@ function _bindChatInputEvents(input) {
     });
     // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
     input.addEventListener('compositionupdate', (e) => {
-        if (_recentSentSnapshot && e.data && e.data === _recentSentSnapshot) {
+        if (!_recentSentSnapshot || !e.data) return;
+        if (e.data === _recentSentSnapshot) {
             try { input.value = ''; } catch (_) {}
+        } else if (e.data.startsWith(_recentSentSnapshot) && e.data.length > _recentSentSnapshot.length) {
+            const tail = e.data.substring(_recentSentSnapshot.length);
+            try { input.setRangeText(tail, 0, input.value.length, 'end'); } catch (_) {
+                try { input.value = tail; } catch (__) {}
+            }
+            _recentSentSnapshot = null;
+            if (_recentSentSnapshotTimer) {
+                clearTimeout(_recentSentSnapshotTimer);
+                _recentSentSnapshotTimer = null;
+            }
         }
+    });
+    // compositionstart: 直近送信直後の suspicious な composition 開始は readOnly cycle で kill を試行.
+    input.addEventListener('compositionstart', () => {
+        if (!_recentSentSnapshot) return;
+        // 送信直後 3秒以内に compositionstart = iOS が IME buffer を resume している可能性大
+        try {
+            input.readOnly = true;
+            requestAnimationFrame(() => {
+                try { input.readOnly = false; } catch (_) {}
+            });
+        } catch (_) {}
     });
     input.addEventListener('blur', () => {
         if (_imeCommitGuard) return;
@@ -437,7 +474,7 @@ function clearInputPreservingIme() {
     _recentSentSnapshotTimer = setTimeout(() => {
         _recentSentSnapshot = null;
         _recentSentSnapshotTimer = null;
-    }, 3000);
+    }, 5000);  // v=167: 5秒に延長. user が再 tap するまで保護したい
     try {
         // ② selectAll + delete (IME commit を促す)
         try { el.select(); } catch (_) {}
