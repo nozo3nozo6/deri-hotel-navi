@@ -3716,6 +3716,16 @@ if (refs.visitorQuick) {
     });
 }
 
+// chat-input-area の "隙間" (textarea/送信ボタン以外の余白) を tap した時も focus を失わせない.
+// 送信ボタン狙いで少しズレた tap が gap に落ちると blur → chat-input-focused 解除 →
+// レイアウト変動で送信ボタンの位置が動き、続く click が空振りする問題への保険 (v=171).
+if (refs.inputArea) {
+    refs.inputArea.addEventListener('mousedown', (e) => {
+        if (e.target.closest('textarea, input')) return;
+        e.preventDefault();
+    });
+}
+
 if (refs.emojiToggle) {
     refs.emojiToggle.addEventListener('mousedown', (e) => {
         e.preventDefault();
