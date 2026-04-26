@@ -3521,11 +3521,21 @@ if (refs.visitorNotifyToggle) {
             // 既に確認済みのメアドがある: 再入力不要で即有効化 (PHP 側は同一メール+verified なら verification skip)
             saveVisitorNotify();
         } else {
-            // 未登録 or 未確認: フォームを見せてメアド入力を促す.
-            if (refs.visitorNotifyEmail) {
-                try { refs.visitorNotifyEmail.focus(); } catch (_) {}
-            }
+            // 未登録 or 未確認: フォームを見せる. 入力欄の auto-focus は **絶対に呼ばない**.
+            // 理由: iOS Safari + iframe 埋込で programmatic focus() を呼ぶと
+            //   ① focusin → notifyParent('focus') → chat-embed.js が prefocus (iframe 150px に縮小)
+            //   ② iOS が input-only autofill を出す
+            //   ③ vv.resize 後の expandToVV が autofill 干渉で発火せず iframe が 150px で固着
+            //   ④ 結果: メール入力欄が画面外、parent ページが下に見える状態 (2026-04-26 報告)
+            // ユーザー自身が email input を tap した場合は touchend → source='touch' で正常に
+            // prefocus → expand のフルライフサイクルが走るため、auto-focus は不要.
             showNotifyStatus('', '');
+            // メール入力欄を可視範囲にスクロール (chat-messages 内に scroll させる).
+            try {
+                if (refs.visitorNotify && typeof refs.visitorNotify.scrollIntoView === 'function') {
+                    refs.visitorNotify.scrollIntoView({ block: 'end', behavior: 'smooth' });
+                }
+            } catch (_) {}
         }
     });
 }
@@ -3541,7 +3551,13 @@ if (refs.visitorNotifyEdit) {
         if (refs.visitorNotify) refs.visitorNotify.classList.remove('verified-collapsed');
         refs.visitorNotifyEdit.classList.add('hidden');
         if (refs.visitorNotifyCloseLink) refs.visitorNotifyCloseLink.classList.remove('hidden');
-        if (refs.visitorNotifyEmail) refs.visitorNotifyEmail.focus();
+        // programmatic focus() は iframe iOS で iframe 縮小固着を引き起こすので呼ばない.
+        // 入力欄を見える位置にスクロールするだけ.
+        try {
+            if (refs.visitorNotify && typeof refs.visitorNotify.scrollIntoView === 'function') {
+                refs.visitorNotify.scrollIntoView({ block: 'end', behavior: 'smooth' });
+            }
+        } catch (_) {}
     });
 }
 if (refs.visitorNotifyCloseLink) {
