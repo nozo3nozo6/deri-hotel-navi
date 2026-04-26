@@ -388,19 +388,21 @@ function _bindChatInputEvents(input) {
             }
         }
     });
-    // 変換中は送信ボタンを無効化 (v=168 ユーザー提案).
-    // 確定してから送信させる = iOS の IME buffer 復活問題が根本から発生しない.
+    // 変換中は送信ボタンを視覚的に無効化 (v=168→v=178).
+    // ── disabled 属性は付けない (2026-04-27): iOS 絵文字パレットは compositionstart は発火するが
+    // compositionend が抜けることがあり, disabled が解除されず連打が必要になっていた
+    // (memory: feedback_ios_emoji_palette_composition).
+    // 代わりに click handler で value に \p{L}\p{Nd} を含む場合のみ送信ブロック → 純記号/絵文字は通す.
+    // 変換中送信で文字復活問題への根本ガードは「value に文字を含む = 変換中」という条件で同等効果.
     input.addEventListener('compositionstart', () => {
         _isComposing = true;
         if (refs.sendBtn) {
-            refs.sendBtn.disabled = true;
             refs.sendBtn.classList.add('composing');
         }
     });
     input.addEventListener('compositionend', () => {
         _isComposing = false;
         if (refs.sendBtn) {
-            refs.sendBtn.disabled = false;
             refs.sendBtn.classList.remove('composing');
         }
     });
@@ -3585,9 +3587,12 @@ refs.sendBtn.addEventListener('mousedown', (e) => {
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
-    // 変換中送信は禁止 (v=168). disabled でも保険として guard.
-    if (_isComposing) return;
     const msg = refs.input.value;
+    // 変換中ガード (v=178): value に文字 \p{L} or 数字 \p{Nd} を含む場合のみ送信ブロック.
+    // 純記号/絵文字 (👍 / 😊 等) は IME 変換不要なので送信OK.
+    // iOS 絵文字パレットは compositionstart 発火 → compositionend 抜けで _isComposing=true が
+    // 残ることがあるが, value が記号のみなら無視する.
+    if (_isComposing && msg && /[\p{L}\p{Nd}]/u.test(msg)) return;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
