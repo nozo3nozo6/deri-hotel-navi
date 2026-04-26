@@ -90,6 +90,10 @@
     // widget-tap 直後の時刻. iOS auto-refocus による spurious kb-open を識別するのに使う.
     // 0 = widget-tap なし.
     var lastWidgetTapTs = 0;
+    // kb-close エッジを deferred reset するタイマー. 250ms 以内に kb-open が来れば cancel.
+    // 送信時の意図的な blur+focus サイクル (chat.js v=163 / IME強制コミット用) で
+    // iframe が一瞬縮んだまま activeIframe=null されて re-expand 不能になる事故を防ぐ.
+    var kbCloseDeferTimer = null;
     // 直近の「touch で直接タップされた入力欄 focus」の時刻.
     // chat.js が input-focus postMessage に source='touch' (touchend) or 'focus' (focusin only) を付けてくるので、
     // touch 由来の方だけこの timestamp を進める. 'focus' 由来は iOS auto-refocus 疑いがあり信用しない.
@@ -321,6 +325,8 @@
         var kbOpen = kbH > 100;
         if (kbOpen && !lastKbOpen) {
             // 閉→開 エッジ.
+            // 直前の kb-close defer がまだ走っていれば cancel (送信時の brief blur+focus サイクル対応).
+            if (kbCloseDeferTimer) { clearTimeout(kbCloseDeferTimer); kbCloseDeferTimer = null; diag('kb-open cancelled pending close-defer (likely send blur cycle)'); }
             // FIT モード中 + widget-tap 直後 (1500ms 以内) の kb-open は iOS の spurious kb-open
             // (body タップ後の auto-refocus による焼き直し kb 開閉) の疑い. ただし widget-tap 後に
             // 「真に touch で入力欄をタップ」した場合 (lastTouchFocusTs > lastWidgetTapTs) は本物の
@@ -334,16 +340,21 @@
                 expandToVV(activeIframe);
             }
         } else if (!kbOpen && lastKbOpen) {
-            // 開→閉 エッジ
-            if (fitMode && activeIframe) {
-                // FIT モード継続: 高さを現状の innerHeight 基準で再計算 (kb 分の余地を回収)
-                diag('kb closed → refresh fit');
-                fitToViewport(activeIframe);
-            } else if (activeIframe) {
-                diag('kb closed');
-                resetIframeHeight(activeIframe);
-                activeIframe = null;
-            }
+            // 開→閉 エッジ. 250ms 待って kb-open が来なければ本物の close.
+            // 送信時の意図的な blur+focus (IME強制コミット用) は 100ms 以内に kb 再オープンするため、
+            // ここで即座に reset すると activeIframe=null になり re-expand 不能になる.
+            if (kbCloseDeferTimer) clearTimeout(kbCloseDeferTimer);
+            kbCloseDeferTimer = setTimeout(function () {
+                kbCloseDeferTimer = null;
+                if (fitMode && activeIframe) {
+                    diag('kb closed (deferred) → refresh fit');
+                    fitToViewport(activeIframe);
+                } else if (activeIframe) {
+                    diag('kb closed (deferred)');
+                    resetIframeHeight(activeIframe);
+                    activeIframe = null;
+                }
+            }, 250);
         }
         lastKbOpen = kbOpen;
     }
