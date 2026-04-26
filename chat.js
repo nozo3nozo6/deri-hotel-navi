@@ -309,6 +309,9 @@ function clearDraft() {
 // Day 8 typing-stop state. _bindChatInputEvents が closure で参照するため、
 // このモジュールの早い位置で宣言しておく (rebind 後も同じ変数を共有する).
 let _hadTypingValue = false;
+// 送信後 IME コミット用の blur+focus サイクル中は class toggle / parent postMessage を抑止.
+// 抑止しないと chat-input-focused が外れて footer 復活 → 親 iframe 高さ変更 → flicker.
+let _imeCommitGuard = false;
 
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
@@ -326,6 +329,7 @@ function _bindChatInputEvents(input) {
         scheduleDraftSave();
     });
     input.addEventListener('blur', () => {
+        if (_imeCommitGuard) return;
         if (_hadTypingValue) {
             _hadTypingValue = false;
             emitTypingStop();
@@ -337,6 +341,7 @@ function _bindChatInputEvents(input) {
         }
     });
     input.addEventListener('focus', () => {
+        if (_imeCommitGuard) return;
         document.body.classList.add('chat-input-focused');
         if (isEmbedded()) {
             try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
@@ -350,6 +355,12 @@ function _bindChatInputEvents(input) {
 // document.execCommand('insertText', false, '') は iOS Safari が「ユーザー操作」扱いに
 // するため focus / IME state / 描画が全部 native に保たれる (Slack/Discord 系の定番).
 // execCommand 自体は deprecated だが対応は全ブラウザに残っており, この用途では現役.
+//
+// さらに mousedown.preventDefault で focus を維持して送信 → execCommand クリアの組合わせは
+// IME composition state が compositionend 未発火のまま残り「次タップで前回の変換中文字列が
+// 復活する」リーク (2026-04-26 ユーザー報告). 対策として clear 後に programmatic blur+focus
+// を 1 サイクル走らせて compositionend を強制発火させる. この間 _imeCommitGuard を立てて
+// _bindChatInputEvents の blur/focus 副作用 (chat-input-focused / parent postMessage) を抑止.
 function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
@@ -366,6 +377,16 @@ function clearInputPreservingIme() {
             // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
             // 機能停止より遥かにマシ.
             try { el.value = ''; } catch (_) {}
+        }
+        // IME composition commit cycle. blur/focus を user gesture context 内で連続呼び出し
+        // することで iOS Safari に compositionend を発火させつつ keyboard を維持できる
+        // (defensive focus() が click handler でも同様に動作するため通用する想定).
+        if (wasFocused) {
+            _imeCommitGuard = true;
+            try { el.blur(); } catch (_) {}
+            try { el.focus({ preventScroll: true }); } catch (_) {}
+            // focus event 同期発火後に解除. setTimeout(0) でこの tick を抜けてから.
+            setTimeout(() => { _imeCommitGuard = false; }, 0);
         }
     } catch (_) {
         try { el.value = ''; } catch (__) {}
@@ -4053,8 +4074,19 @@ setupEmbedDirectLinkFooter();
     };
     const scrollMessagesToBottom = () => {
         // キーボード開閉で chat-messages の高さが変わった直後に最下部へ. LINE UX.
+        // CSS の --embed-h 変更 → layout reflow が走るのを 1 frame 待つ. 同じ tick で
+        // scrollTop を書くと clientHeight がまだ古い値のため、新しい iframe サイズで
+        // 正しく最下部にならず古い相対位置が残る (2回目 kb-open で起きる). rAF 二重で
+        // layout 確定後に scrollTop を再適用してずれを回収.
         const msgs = document.getElementById('chat-messages');
-        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        if (!msgs) return;
+        msgs.scrollTop = msgs.scrollHeight;
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => {
+                msgs.scrollTop = msgs.scrollHeight;
+                requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
+            });
+        }
     };
     const snapClose = () => {
         isClosing = true;
