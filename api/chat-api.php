@@ -282,13 +282,22 @@ function detectSpam(string $msg, array $recentMessages): ?string {
     if ($len === 0) return 'メッセージが空です';
     if ($len > 500) return 'メッセージが長すぎます（500文字以内）';
 
-    // 1文字のみのメッセージ拒否（記号・絵文字のみも含む）
-    if ($len < 2) return '2文字以上入力してください';
+    // 1文字メッセージは原則拒否. ただし絵文字 (Unicode カテゴリ So/Sk/Sm) のみで構成された
+    // 1文字は祝福/相槌表現として許可 (例: 😊 / 👍 / ✨).
+    if ($len < 2) {
+        if (!preg_match('/^[\p{So}\p{Sk}\p{Sm}]+$/u', $trimmed)) {
+            return '2文字以上入力してください';
+        }
+    }
 
-    // 同一文字の連続（「あああああ」「wwwww」などを弾く）
-    // 4文字以上の同一文字連続があればスパム
-    if (preg_match('/(.)\1{3,}/u', $trimmed)) {
-        return '同じ文字の連続は送信できません';
+    // 同一文字の4連 (「あああああ」「wwwww」) はスパム判定だが,
+    // 絵文字の連続 (「🎉🎉🎉🎉」) は祝福表現として自然なので許可.
+    if (preg_match_all('/(.)\1{3,}/u', $trimmed, $matches)) {
+        foreach ($matches[1] as $c) {
+            if (!preg_match('/^[\p{So}\p{Sk}\p{Sm}]$/u', $c)) {
+                return '同じ文字の連続は送信できません';
+            }
+        }
     }
 
     // 直近メッセージとの類似判定（小変更連投対策）
