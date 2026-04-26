@@ -309,19 +309,16 @@ function clearDraft() {
 // Day 8 typing-stop state. _bindChatInputEvents が closure で参照するため、
 // このモジュールの早い位置で宣言しておく (rebind 後も同じ変数を共有する).
 let _hadTypingValue = false;
-// 送信後 IME コミット用の blur+focus サイクル中は class toggle / parent postMessage を抑止.
+// 送信後 IME コミット用の focus 切替中は class toggle / parent postMessage を抑止.
 // 抑止しないと chat-input-focused が外れて footer 復活 → 親 iframe 高さ変更 → flicker.
 let _imeCommitGuard = false;
-// === DEBUG: IME bug 調査用 (2026-04-26) ===
-window.__YCDBG = (...a) => { try { console.log('[YCDBG]', ...a); } catch (_) {} };
 
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
 // 単純な value='' で連続入力できるようになった (textarea swap は副作用でレイアウトが崩れるため撤去).
 // _bindChatInputEvents は初期バインドにも流用するためヘルパとして残す.
 function _bindChatInputEvents(input) {
-    input.addEventListener('input', (e) => {
-        window.__YCDBG('input', { val: input.value, isComposing: e.isComposing, inputType: e.inputType });
+    input.addEventListener('input', () => {
         if (input.value) {
             _hadTypingValue = true;
             emitTyping();
@@ -332,7 +329,6 @@ function _bindChatInputEvents(input) {
         scheduleDraftSave();
     });
     input.addEventListener('blur', () => {
-        window.__YCDBG('blur', { val: input.value, guard: _imeCommitGuard });
         if (_imeCommitGuard) return;
         if (_hadTypingValue) {
             _hadTypingValue = false;
@@ -345,21 +341,11 @@ function _bindChatInputEvents(input) {
         }
     });
     input.addEventListener('focus', () => {
-        window.__YCDBG('focus', { val: input.value, guard: _imeCommitGuard });
         if (_imeCommitGuard) return;
         document.body.classList.add('chat-input-focused');
         if (isEmbedded()) {
             try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
         }
-    });
-    input.addEventListener('compositionstart', (e) => {
-        window.__YCDBG('compositionstart', { val: input.value, data: e.data });
-    });
-    input.addEventListener('compositionupdate', (e) => {
-        window.__YCDBG('compositionupdate', { val: input.value, data: e.data });
-    });
-    input.addEventListener('compositionend', (e) => {
-        window.__YCDBG('compositionend', { val: input.value, data: e.data });
     });
 }
 // IME composition を強制コミット.
@@ -388,17 +374,11 @@ function getImeCommitTempEl() {
 function commitImeIfNeeded() {
     const el = refs.input;
     if (!el) return;
-    if (document.activeElement !== el) {
-        window.__YCDBG('commitImeIfNeeded: not focused, skip');
-        return;
-    }
-    window.__YCDBG('commitImeIfNeeded: BEFORE swap', { val: el.value });
+    if (document.activeElement !== el) return;
     const tmp = getImeCommitTempEl();
     _imeCommitGuard = true;
     try { tmp.focus(); } catch (_) {}
-    window.__YCDBG('commitImeIfNeeded: AFTER tmp.focus, BEFORE el.focus', { val: el.value, active: document.activeElement === el });
     try { el.focus({ preventScroll: true }); } catch (_) {}
-    window.__YCDBG('commitImeIfNeeded: AFTER el.focus', { val: el.value, active: document.activeElement === el });
     setTimeout(() => { _imeCommitGuard = false; }, 0);
 }
 
@@ -412,7 +392,6 @@ function commitImeIfNeeded() {
 function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
-    window.__YCDBG('clearInputPreservingIme START', { val: el.value });
     if (el.value.length === 0) return;
     try {
         const wasFocused = (document.activeElement === el);
@@ -422,7 +401,6 @@ function clearInputPreservingIme() {
         try { el.select(); } catch (_) {}
         let ok = false;
         try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
-        window.__YCDBG('clearInputPreservingIme execCommand', { ok, val: el.value });
         if (!ok || el.value.length > 0) {
             // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
             // 機能停止より遥かにマシ.
@@ -431,7 +409,6 @@ function clearInputPreservingIme() {
     } catch (_) {
         try { el.value = ''; } catch (__) {}
     }
-    window.__YCDBG('clearInputPreservingIme END', { val: el.value });
 }
 
 function setThemeMode(mode) {
@@ -3483,18 +3460,15 @@ async function handleOwnerLogout() {
 // --kb-h 不変 → chat-root height 不変 → ボタン位置不変 → click 確実にヒット.
 // (memory: feedback_chat_send_button_no_blur)
 refs.sendBtn.addEventListener('mousedown', (e) => {
-    window.__YCDBG('sendBtn mousedown', { val: refs.input.value, active: document.activeElement === refs.input });
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
-    window.__YCDBG('sendBtn click START', { val: refs.input.value, active: document.activeElement === refs.input });
     // IME composition を先に強制コミットしてから value を読む.
     // mousedown.preventDefault で focus 維持型のためコミットが自動発火しない (iOS Safari).
     // コミットせずに value を読むと composing 中の文字列が送信され、かつ次タップで
     // その composition state が復活する 2 段バグ (2026-04-26 報告).
     commitImeIfNeeded();
     const msg = refs.input.value;
-    window.__YCDBG('sendBtn click readValue', { msg });
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
