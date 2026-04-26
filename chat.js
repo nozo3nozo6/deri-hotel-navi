@@ -359,17 +359,7 @@ function _bindChatInputEvents(input) {
             emitTypingStop();
         }
         scheduleDraftSave();
-        // iOS 絵文字パレット入力で compositionend が発火しないバグ保険 (2026-04-27):
-        // value に文字 \p{L} と数字 \p{Nd} が含まれない = 純記号/絵文字のみ → IME 変換は不要なはず.
-        // composition state が残っていれば誤検知なので強制 reset (送信ボタン disabled 解除).
-        // 通常の日本語/英数字入力中は \p{L}\p{Nd} を含むため影響なし.
-        if (_isComposing && input.value && !/[\p{L}\p{Nd}]/u.test(input.value)) {
-            _isComposing = false;
-            if (refs.sendBtn) {
-                refs.sendBtn.disabled = false;
-                refs.sendBtn.classList.remove('composing');
-            }
-        }
+        // v=179: 絵文字専用 reset 削除. 文字/絵文字で挙動を分けないため不要.
     });
     // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
     input.addEventListener('compositionupdate', (e) => {
@@ -495,7 +485,8 @@ function clearInputPreservingIme() {
     _recentSentSnapshotTimer = setTimeout(() => {
         _recentSentSnapshot = null;
         _recentSentSnapshotTimer = null;
-    }, 5000);  // v=167: 5秒に延長. user が再 tap するまで保護したい
+    }, 1500);  // v=179: 5秒→1.5秒. iOS IME re-injection は ms 単位なので十分.
+                // 5秒だと user が同じ絵文字/文字を連投したときに input 自動クリアされ送信できなくなる.
     try {
         // ② selectAll + delete (IME commit を促す)
         try { el.select(); } catch (_) {}
@@ -3587,12 +3578,10 @@ refs.sendBtn.addEventListener('mousedown', (e) => {
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
+    // v=179 (2026-04-27): 文字/絵文字で挙動を分けない. 入力欄の value をそのまま送信する.
+    // 変換中送信→IME buffer 復活問題は snapshot 機構 (clearInputPreservingIme) が引き受ける.
+    // (ユーザー要望: 「あ」と絵文字を同じように扱う)
     const msg = refs.input.value;
-    // 変換中ガード (v=178): value に文字 \p{L} or 数字 \p{Nd} を含む場合のみ送信ブロック.
-    // 純記号/絵文字 (👍 / 😊 等) は IME 変換不要なので送信OK.
-    // iOS 絵文字パレットは compositionstart 発火 → compositionend 抜けで _isComposing=true が
-    // 残ることがあるが, value が記号のみなら無視する.
-    if (_isComposing && msg && /[\p{L}\p{Nd}]/u.test(msg)) return;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
