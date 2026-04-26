@@ -348,6 +348,23 @@ function _bindChatInputEvents(input) {
         }
     });
 }
+// IME composition を強制コミット.
+// mousedown.preventDefault で focus 維持型の送信ボタンを使うと iOS Safari は
+// compositionend を自動発火しないため、value を読む / クリアする前に明示的に
+// blur → focus でコミットさせる必要がある. user gesture context 内なら blur で
+// keyboard が一瞬閉じても直後の focus で再オープン可能.
+// _imeCommitGuard で blur/focus listener の副作用 (chat-input-focused class /
+// parent postMessage) を抑止し flicker を防止.
+function commitImeIfNeeded() {
+    const el = refs.input;
+    if (!el) return;
+    if (document.activeElement !== el) return;
+    _imeCommitGuard = true;
+    try { el.blur(); } catch (_) {}
+    try { el.focus({ preventScroll: true }); } catch (_) {}
+    setTimeout(() => { _imeCommitGuard = false; }, 0);
+}
+
 // iOS Safari の textarea を focus 中に value='' で空にすると
 //  ① placeholder 描画が崩れる (字間バラバラ)
 //  ② IME state が壊れて 再タップするまで文字入力を silently 拒否
@@ -355,12 +372,6 @@ function _bindChatInputEvents(input) {
 // document.execCommand('insertText', false, '') は iOS Safari が「ユーザー操作」扱いに
 // するため focus / IME state / 描画が全部 native に保たれる (Slack/Discord 系の定番).
 // execCommand 自体は deprecated だが対応は全ブラウザに残っており, この用途では現役.
-//
-// さらに mousedown.preventDefault で focus を維持して送信 → execCommand クリアの組合わせは
-// IME composition state が compositionend 未発火のまま残り「次タップで前回の変換中文字列が
-// 復活する」リーク (2026-04-26 ユーザー報告). 対策として clear 後に programmatic blur+focus
-// を 1 サイクル走らせて compositionend を強制発火させる. この間 _imeCommitGuard を立てて
-// _bindChatInputEvents の blur/focus 副作用 (chat-input-focused / parent postMessage) を抑止.
 function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
@@ -377,16 +388,6 @@ function clearInputPreservingIme() {
             // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
             // 機能停止より遥かにマシ.
             try { el.value = ''; } catch (_) {}
-        }
-        // IME composition commit cycle. blur/focus を user gesture context 内で連続呼び出し
-        // することで iOS Safari に compositionend を発火させつつ keyboard を維持できる
-        // (defensive focus() が click handler でも同様に動作するため通用する想定).
-        if (wasFocused) {
-            _imeCommitGuard = true;
-            try { el.blur(); } catch (_) {}
-            try { el.focus({ preventScroll: true }); } catch (_) {}
-            // focus event 同期発火後に解除. setTimeout(0) でこの tick を抜けてから.
-            setTimeout(() => { _imeCommitGuard = false; }, 0);
         }
     } catch (_) {
         try { el.value = ''; } catch (__) {}
@@ -3443,6 +3444,11 @@ async function handleOwnerLogout() {
 // (memory: feedback_chat_send_button_no_blur)
 refs.sendBtn.addEventListener('mousedown', (e) => { e.preventDefault(); });
 refs.sendBtn.addEventListener('click', () => {
+    // IME composition を先に強制コミットしてから value を読む.
+    // mousedown.preventDefault で focus 維持型のためコミットが自動発火しない (iOS Safari).
+    // コミットせずに value を読むと composing 中の文字列が送信され、かつ次タップで
+    // その composition state が復活する 2 段バグ (2026-04-26 報告).
+    commitImeIfNeeded();
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
