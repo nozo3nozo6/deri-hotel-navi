@@ -394,15 +394,27 @@ function clearInputPreservingIme() {
     if (!el) return;
     if (el.value.length === 0) return;
     // 変換前送信 (IME composition 中) の対応:
-    // commitImeIfNeeded の focus swap は同期で走るが、iOS Safari の IME 状態コミット自体は
-    // 非同期 (次の tick) で完了する. 同期で clear すると IME composition が active なまま
-    // execCommand / value='' が silently fail し、文字が field に残る (2026-04-26 報告).
-    // setTimeout(0) で次の tick に遅延させ、IME に commit 時間を与える.
+    // commitImeIfNeeded の focus swap (click handler 内) は同期で走るが、
+    // iOS Safari は **同じ要素への連続 focus 変化を最適化スキップ** するため、
+    // 2通目以降の送信で IME commit が起きないケースがある (2026-04-26 v=159 報告).
+    // 1通目は keyboard 開きたて = フレッシュな IME 状態で swap が効くが、2通目以降は
+    // 前回の swap 痕跡が残って iOS が「focus 変化なし」と判断し compositionend を
+    // 発火させない → composition active のまま clear → execCommand / value='' が
+    // silently fail.
+    //
+    // 修正: setTimeout(0) で 1tick 待って iOS 内部状態を settle させてから、
+    // **再度 focus swap → clear** する. 2回目の swap は fresh tick なので
+    // iOS は別のフォーカス遷移として処理し compositionend が発火する.
     setTimeout(() => {
         if (el.value.length === 0) return;
         try {
             const wasFocused = (document.activeElement === el);
-            if (!wasFocused) {
+            // setTimeout 内で再度 focus swap. click handler の swap が iOS に
+            // skip された場合の保険.
+            const tmp = getImeCommitTempEl();
+            _imeCommitGuard = true;
+            try { tmp.focus(); } catch (_) {}
+            if (wasFocused) {
                 try { el.focus({ preventScroll: true }); } catch (_) {}
             }
             try { el.select(); } catch (_) {}
@@ -413,6 +425,7 @@ function clearInputPreservingIme() {
                 // 機能停止より遥かにマシ.
                 try { el.value = ''; } catch (_) {}
             }
+            setTimeout(() => { _imeCommitGuard = false; }, 0);
         } catch (_) {
             try { el.value = ''; } catch (__) {}
         }
