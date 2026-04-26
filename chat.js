@@ -389,29 +389,44 @@ function commitImeIfNeeded() {
 // document.execCommand('insertText', false, '') は iOS Safari が「ユーザー操作」扱いに
 // するため focus / IME state / 描画が全部 native に保たれる (Slack/Discord 系の定番).
 // execCommand 自体は deprecated だが対応は全ブラウザに残っており, この用途では現役.
+// tmp 要素を毎回新規作成 (iOS Safari の同一要素 focus 最適化スキップ回避).
+// _imeCommitTempEl をキャッシュして使い回すと、3回目以降の送信で iOS が
+// 「同じ要素への focus 変化なし」と判断し compositionend を発火させない (v=160 で観測).
+function makeFreshCommitTempEl() {
+    if (_imeCommitTempEl && _imeCommitTempEl.isConnected) {
+        try { _imeCommitTempEl.remove(); } catch (_) {}
+    }
+    const t = document.createElement('input');
+    t.type = 'text';
+    t.tabIndex = -1;
+    t.setAttribute('aria-hidden', 'true');
+    t.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(t);
+    _imeCommitTempEl = t;
+    return t;
+}
+
 function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
-    // 変換前送信 (IME composition 中) の対応:
-    // commitImeIfNeeded の focus swap (click handler 内) は同期で走るが、
-    // iOS Safari は **同じ要素への連続 focus 変化を最適化スキップ** するため、
-    // 2通目以降の送信で IME commit が起きないケースがある (2026-04-26 v=159 報告).
-    // 1通目は keyboard 開きたて = フレッシュな IME 状態で swap が効くが、2通目以降は
-    // 前回の swap 痕跡が残って iOS が「focus 変化なし」と判断し compositionend を
-    // 発火させない → composition active のまま clear → execCommand / value='' が
-    // silently fail.
+    // 変換前送信 (IME composition 中) の対応 (2026-04-26 報告):
     //
-    // 修正: setTimeout(0) で 1tick 待って iOS 内部状態を settle させてから、
-    // **再度 focus swap → clear** する. 2回目の swap は fresh tick なので
-    // iOS は別のフォーカス遷移として処理し compositionend が発火する.
+    // iOS Safari は **同じ tmp 要素への連続 focus 変化を最適化スキップ** するため、
+    // 単純な commitImeIfNeeded の swap だけでは 3回目以降の送信で IME commit が
+    // 発火せず、execCommand / value='' が silently fail し文字が残る.
+    //
+    // 修正:
+    //   ① setTimeout(0) で 1tick 待って iOS 内部状態を settle
+    //   ② **毎回新規作成した tmp 要素**へ focus swap (iOS の最適化を回避)
+    //   ③ 通常 clear (select → execCommand → value='')
+    //   ④ それでも残っていれば blur+value=''+refocus の brute force fallback
+    //      (キーボードは一瞬閉じるが確実)
     setTimeout(() => {
         if (el.value.length === 0) return;
         try {
             const wasFocused = (document.activeElement === el);
-            // setTimeout 内で再度 focus swap. click handler の swap が iOS に
-            // skip された場合の保険.
-            const tmp = getImeCommitTempEl();
+            const tmp = makeFreshCommitTempEl();
             _imeCommitGuard = true;
             try { tmp.focus(); } catch (_) {}
             if (wasFocused) {
@@ -421,9 +436,17 @@ function clearInputPreservingIme() {
             let ok = false;
             try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
             if (!ok || el.value.length > 0) {
-                // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
-                // 機能停止より遥かにマシ.
                 try { el.value = ''; } catch (_) {}
+            }
+            // 最終手段: それでも残っていれば blur で確実にコミット → value='' → refocus.
+            // iOS Safari は focused な textarea への value 操作を IME composition 中は
+            // 拒否するが、blur で活性が外れれば確実にクリアできる.
+            if (el.value.length > 0) {
+                try { el.blur(); } catch (_) {}
+                try { el.value = ''; } catch (_) {}
+                if (wasFocused) {
+                    try { el.focus({ preventScroll: true }); } catch (_) {}
+                }
             }
             setTimeout(() => { _imeCommitGuard = false; }, 0);
         } catch (_) {
