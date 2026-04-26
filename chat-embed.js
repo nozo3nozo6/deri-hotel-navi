@@ -443,18 +443,18 @@
     // 旧スニペットは width:100%;margin:20px auto で配布されており, vw < max-width のとき
     // auto-margin が 0 になり edge-to-edge になる. 既存埋込先 (顧客HP) で再貼付けせず
     // 自動的にガッターを付与するため chat-embed.js 側で強制する.
-    // box-sizing:border-box + width:calc(100% - 24px) で 12px*2 のガッター.
+    // box-sizing:border-box + width:calc(100% - 16px) で 8px*2 のガッター.
     // PC (vw >= 600) では max-width 制約で iframe < parent となり auto-margin が centering する
     // ので元から問題なし → モバイル (vw < 600) のみ適用.
-    // 既に customer が ml/mr >= 8px を inline 指定済み or width <= calc(100% - 24px) なら touch しない.
+    // 既に customer が ml/mr >= 4px を inline 指定済み or width <= calc(100% - 16px) なら touch しない.
     function ensureGutter(iframe) {
         if (window.innerWidth >= 600) return;
         try {
             var cs = getComputedStyle(iframe);
             var ml = parseFloat(cs.marginLeft) || 0;
             var mr = parseFloat(cs.marginRight) || 0;
-            if (ml >= 8 && mr >= 8) { diag('gutter: skip (margin already ml=' + ml + ' mr=' + mr + ')'); return; }
-            iframe.style.setProperty('width', 'calc(100% - 24px)', 'important');
+            if (ml >= 4 && mr >= 4) { diag('gutter: skip (margin already ml=' + ml + ' mr=' + mr + ')'); return; }
+            iframe.style.setProperty('width', 'calc(100% - 16px)', 'important');
             iframe.style.setProperty('margin-left', 'auto', 'important');
             iframe.style.setProperty('margin-right', 'auto', 'important');
             iframe.style.setProperty('display', 'block', 'important');

@@ -359,6 +359,17 @@ function _bindChatInputEvents(input) {
             emitTypingStop();
         }
         scheduleDraftSave();
+        // iOS 絵文字パレット入力で compositionend が発火しないバグ保険 (2026-04-27):
+        // value に文字 \p{L} と数字 \p{Nd} が含まれない = 純記号/絵文字のみ → IME 変換は不要なはず.
+        // composition state が残っていれば誤検知なので強制 reset (送信ボタン disabled 解除).
+        // 通常の日本語/英数字入力中は \p{L}\p{Nd} を含むため影響なし.
+        if (_isComposing && input.value && !/[\p{L}\p{Nd}]/u.test(input.value)) {
+            _isComposing = false;
+            if (refs.sendBtn) {
+                refs.sendBtn.disabled = false;
+                refs.sendBtn.classList.remove('composing');
+            }
+        }
     });
     // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
     input.addEventListener('compositionupdate', (e) => {
@@ -1860,6 +1871,13 @@ async function init() {
 }
 async function _init() {
     try {
+        // 右下 YobuChat ブランドリンク: モバイルは _self (戻るで戻れる), PC は _blank (新タブ).
+        // (memory: feedback_external_link_target — ハードコード _blank 禁止)
+        if (refs.footerBrand) {
+            const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            refs.footerBrand.target = isTouch ? '_self' : '_blank';
+        }
+
         // ?cast_inbox=<uuid>: キャスト自分用受信箱. オーナー類似UIで cast-inbox 系 API を叩く.
         // 店舗の device_token も shop-auth セッションも使わず URL-only auth.
         // URL に cast_inbox が指定されていれば、トークン形式が不正でも訪問者画面には落とさず明示エラー.
@@ -4104,7 +4122,10 @@ setupEmbedDirectLinkFooter();
     // 重要: 送信ボタン (#chat-send) を fireBodyTap 対象にすると ae.blur() で kb 閉じ → kb-close
     // アニメ中に送信ボタン位置がズレ → click ミスヒットで送信できなくなる
     // (memory: feedback_chat_send_button_no_blur).
-    const interactiveSelector = 'button, a[href], [role="button"], select, label, summary, input[type=button], input[type=submit], input[type=checkbox], input[type=radio], input[type=file]';
+    // #chat-input-area: 入力欄+送信ボタンのコンテナ. gap/padding に落ちた "ニアミス tap" でも
+    // blur させない (v=172). iOS は touchend → mousedown 順なので chat-input-area の
+    // mousedown.preventDefault では touchend での blur を防げないため touch 側で塞ぐ必要がある.
+    const interactiveSelector = '#chat-input-area, button, a[href], [role="button"], select, label, summary, input[type=button], input[type=submit], input[type=checkbox], input[type=radio], input[type=file]';
     // source を付けて親に送る: 'touch' = 直接タップ(確実にユーザー意図), 'focus' = focusin のみ(iOS auto-refocus の可能性あり).
     // chat-embed.js は widget-tap 直後の 'focus' は auto-refocus と判定して無視するが 'touch' は通す.
     const notifyParent = (source) => {
