@@ -393,22 +393,30 @@ function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
-    try {
-        const wasFocused = (document.activeElement === el);
-        if (!wasFocused) {
-            try { el.focus({ preventScroll: true }); } catch (_) {}
+    // 変換前送信 (IME composition 中) の対応:
+    // commitImeIfNeeded の focus swap は同期で走るが、iOS Safari の IME 状態コミット自体は
+    // 非同期 (次の tick) で完了する. 同期で clear すると IME composition が active なまま
+    // execCommand / value='' が silently fail し、文字が field に残る (2026-04-26 報告).
+    // setTimeout(0) で次の tick に遅延させ、IME に commit 時間を与える.
+    setTimeout(() => {
+        if (el.value.length === 0) return;
+        try {
+            const wasFocused = (document.activeElement === el);
+            if (!wasFocused) {
+                try { el.focus({ preventScroll: true }); } catch (_) {}
+            }
+            try { el.select(); } catch (_) {}
+            let ok = false;
+            try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
+            if (!ok || el.value.length > 0) {
+                // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
+                // 機能停止より遥かにマシ.
+                try { el.value = ''; } catch (_) {}
+            }
+        } catch (_) {
+            try { el.value = ''; } catch (__) {}
         }
-        try { el.select(); } catch (_) {}
-        let ok = false;
-        try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
-        if (!ok || el.value.length > 0) {
-            // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
-            // 機能停止より遥かにマシ.
-            try { el.value = ''; } catch (_) {}
-        }
-    } catch (_) {
-        try { el.value = ''; } catch (__) {}
-    }
+    }, 0);
 }
 
 function setThemeMode(mode) {
