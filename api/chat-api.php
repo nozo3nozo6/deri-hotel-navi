@@ -282,25 +282,32 @@ function detectSpam(string $msg, array $recentMessages): ?string {
     if ($len === 0) return 'メッセージが空です';
     if ($len > 500) return 'メッセージが長すぎます（500文字以内）';
 
-    // 1文字メッセージは原則拒否. ただし絵文字 (Unicode カテゴリ So/Sk/Sm) のみで構成された
-    // 1文字は祝福/相槌表現として許可 (例: 😊 / 👍 / ✨).
-    if ($len < 2) {
-        if (!preg_match('/^[\p{So}\p{Sk}\p{Sm}]+$/u', $trimmed)) {
-            return '2文字以上入力してください';
-        }
+    // 純記号/絵文字メッセージか? (文字 \p{L} と数字 \p{Nd} を含まない).
+    // \p{So}|\p{Sk}|\p{Sm} 列挙は Unicode property 漏れがあり (ZWJ/FE0F 込みシーケンスや
+    // 新しめの絵文字), 否定マッチ (= 文字でも数字でもない) の方が頑健.
+    $isSymbolOnly = !preg_match('/[\p{L}\p{Nd}]/u', $trimmed);
+
+    // 1文字メッセージは原則拒否. ただし絵文字/記号のみは祝福/相槌表現として許可
+    // (例: 😊 / 👍 / ✨ / ❤ / ! / ?).
+    if ($len < 2 && !$isSymbolOnly) {
+        return '2文字以上入力してください';
     }
 
     // 同一文字の4連 (「あああああ」「wwwww」) はスパム判定だが,
-    // 絵文字の連続 (「🎉🎉🎉🎉」) は祝福表現として自然なので許可.
+    // 絵文字/記号の連続 (「🎉🎉🎉🎉」「!!!!」) は許可.
     if (preg_match_all('/(.)\1{3,}/u', $trimmed, $matches)) {
         foreach ($matches[1] as $c) {
-            if (!preg_match('/^[\p{So}\p{Sk}\p{Sm}]$/u', $c)) {
+            if (preg_match('/[\p{L}\p{Nd}]/u', $c)) {
                 return '同じ文字の連続は送信できません';
             }
         }
     }
 
-    // 直近メッセージとの類似判定（小変更連投対策）
+    // 直近メッセージとの類似判定（小変更連投対策）.
+    // 純記号/絵文字メッセージは判定スキップ — 👍→😊 や 🎉→🎉🎉 のような
+    // リアクション送信を遮らないため. レート制限 (1秒/10件) で十分.
+    if ($isSymbolOnly) return null;
+
     $normalized = preg_replace('/[\s、。,.!?！？]/u', '', $trimmed);
     $normalized = mb_strtolower($normalized);
     foreach ($recentMessages as $prev) {
@@ -321,7 +328,7 @@ function detectSpam(string $msg, array $recentMessages): ?string {
 
 /**
  * 送信レート制限（visitor側）
- * - 最小送信間隔: 3秒
+ * - 最小送信間隔: 1秒
  * - 1分あたり最大10メッセージ
  */
 function checkVisitorRate(int $sessionId): ?string {
@@ -338,7 +345,7 @@ function checkVisitorRate(int $sessionId): ?string {
     if ((int)$row['recent_count'] >= 10) return '送信頻度が速すぎます。少し時間を空けてから再度お試しください';
     if ($row['last_sent']) {
         $diff = time() - strtotime($row['last_sent']);
-        if ($diff < 3) return '連続送信はできません（3秒以上お待ちください）';
+        if ($diff < 1) return '連続送信はできません（1秒以上お待ちください）';
     }
     return null;
 }
