@@ -326,14 +326,10 @@ let _recentSentSnapshotTimer = null;
 function _bindChatInputEvents(input) {
     input.addEventListener('input', () => {
         // 変換前送信後の iOS IME state restore 検出:
-        // 直近送信 text と完全一致なら IME が composition buffer を復活させたものと判定して即クリア.
-        // (3秒以内のみ. 同一文字を意図的に再入力する false positive を最小化)
+        // 直近送信 text と完全一致なら IME buffer 再 inject と判定して即クリア.
+        // snapshot は timeout 内は null にしない (iOS は複数回 re-inject するため、
+        //  一度 null にすると 2回目以降を取り逃がす. v=165 → v=166 修正).
         if (_recentSentSnapshot && input.value === _recentSentSnapshot) {
-            _recentSentSnapshot = null;
-            if (_recentSentSnapshotTimer) {
-                clearTimeout(_recentSentSnapshotTimer);
-                _recentSentSnapshotTimer = null;
-            }
             try { input.value = ''; } catch (_) {}
             return;
         }
@@ -349,11 +345,6 @@ function _bindChatInputEvents(input) {
     // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
     input.addEventListener('compositionupdate', (e) => {
         if (_recentSentSnapshot && e.data && e.data === _recentSentSnapshot) {
-            _recentSentSnapshot = null;
-            if (_recentSentSnapshotTimer) {
-                clearTimeout(_recentSentSnapshotTimer);
-                _recentSentSnapshotTimer = null;
-            }
             try { input.value = ''; } catch (_) {}
         }
     });
@@ -433,17 +424,14 @@ function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
-    // 戦略 (2026-04-27 v=165 確定版):
-    //   ① gentle clear (select → execCommand insertText → value='') を実行
-    //   ② IME composition 中で silently fail した場合は _pendingClearAfterComposition で
-    //      compositionend で fallback クリア (確定 / キャンセル / 別要素 tap で発火)
-    //   ③ 送信時の el.value を _recentSentSnapshot に記憶. 直後の input/compositionupdate で
-    //      同じ text が再 inject された場合 (= iOS の IME state restore) も即クリア
-    //
-    //   blur 経由の brute force は撤回:
-    //   - iOS Safari が同要素 blur+focus を no-op 最適化するケースが多発
-    //   - blur が効いた時は逆に kb-close edge を引いて chat-embed.js の iframe 縮小→入力ロックを誘発
-    //   - 変換前送信時の値残存は ②③ の non-blocking fallback で吸収する.
+    // 戦略 (2026-04-27 v=166 LINE越え版):
+    //   ① snapshot 記憶: 送信 text を 3秒間 _recentSentSnapshot に保持し、その間の
+    //      input/compositionupdate で値一致すれば即クリア (= iOS IME buffer 再 inject 対策)
+    //   ② execCommand('delete')  — selectAll後の delete は user action 扱いで IME commit を促す
+    //   ③ execCommand('insertText','') — paint/IME state を native に保つ正攻法
+    //   ④ value='' fallback
+    //   ⑤ readOnly toggle — iOS IME composition buffer を強制 reset (focus 維持)
+    //   ⑥ compositionend listener fallback (_pendingClearAfterComposition)
     _recentSentSnapshot = el.value;
     if (_recentSentSnapshotTimer) clearTimeout(_recentSentSnapshotTimer);
     _recentSentSnapshotTimer = setTimeout(() => {
@@ -451,12 +439,29 @@ function clearInputPreservingIme() {
         _recentSentSnapshotTimer = null;
     }, 3000);
     try {
+        // ② selectAll + delete (IME commit を促す)
         try { el.select(); } catch (_) {}
-        let ok = false;
-        try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
-        if (!ok || el.value.length > 0) {
+        try { document.execCommand('delete'); } catch (_) {}
+        // ③ insertText('') fallback
+        if (el.value.length > 0) {
+            try { el.select(); } catch (_) {}
+            try { document.execCommand('insertText', false, ''); } catch (_) {}
+        }
+        // ④ value='' fallback
+        if (el.value.length > 0) {
             try { el.value = ''; } catch (_) {}
         }
+        // ⑤ readOnly toggle: iOS IME composition buffer を強制 reset.
+        //    readOnly=true → false は同期で完結し focus を失わない (キーボードも閉じない、実機検証済).
+        //    blur と違って vv.resize を発火させないため chat-embed.js iframe 縮小も起きない.
+        if (el.value.length > 0) {
+            try {
+                el.readOnly = true;
+                el.value = '';
+                el.readOnly = false;
+            } catch (_) {}
+        }
+        // ⑥ それでも残れば compositionend で拾う
         if (el.value.length > 0) {
             _pendingClearAfterComposition = true;
         }
