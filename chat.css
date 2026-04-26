@@ -317,6 +317,36 @@ body.embedded.chat-input-focused #cast-view-banner,
 body.embedded.chat-input-focused #owner-templates,
 body.embedded.chat-input-focused #chat-footer{display:none}
 
+/* ===== 埋込モード: nickname/email 入力時は対象欄をキーボード直上に固定 =====
+   iframe 高さ = vv.height-stickyInset だと nickname/email は iframe 上方にあり、
+   iOS の input auto-scroll で画面外に押し上げられたり、
+   chat-header の裏に隠れたりして入力できないケースがある.
+   focus-within 中だけ position:absolute; bottom:0 でキーボード直上に持ち上げ、
+   chat-input-area / templates / footer を畳んで前面に出す.
+   ユーザー直接タップ前提 (programmatic focus は memory: feedback_chat_no_programmatic_focus 参照). */
+body.embedded #nickname-area:focus-within,
+body.embedded #visitor-notify:focus-within{
+    position:absolute;
+    bottom:0;
+    left:0;
+    right:0;
+    z-index:10;
+    background:#fff;
+    border-top:1px solid #e5e0d8;
+    box-shadow:0 -4px 12px rgba(0,0,0,.06);
+    margin:0;
+    padding:10px 12px
+}
+body.embedded #nickname-area:focus-within ~ #chat-input-area,
+body.embedded #visitor-notify:focus-within ~ #chat-input-area,
+body.embedded #nickname-area:focus-within ~ #owner-templates,
+body.embedded #visitor-notify:focus-within ~ #owner-templates,
+body.embedded #nickname-area:focus-within ~ #chat-footer,
+body.embedded #visitor-notify:focus-within ~ #chat-footer{display:none}
+/* sticky 化された入力欄に被らないよう chat-messages 下端に余白. :has() は iOS 15.4+ */
+body.embedded #chat-root:has(#nickname-area:focus-within) .chat-messages,
+body.embedded #chat-root:has(#visitor-notify:focus-within) .chat-messages{padding-bottom:90px}
+
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
 .footer-brand{margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 10px;border-radius:14px;font-size:11px;color:#6b5a50;text-decoration:none;background:transparent;transition:background .15s,color .15s;line-height:1.25}
 .footer-brand:hover{background:#f0ede7}
