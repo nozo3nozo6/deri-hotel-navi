@@ -3494,24 +3494,31 @@ refs.sendBtn.addEventListener('mousedown', (e) => {
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
-    // IME composition を先に強制コミットしてから value を読む.
-    // mousedown.preventDefault で focus 維持型のためコミットが自動発火しない (iOS Safari).
-    // コミットせずに value を読むと composing 中の文字列が送信され、かつ次タップで
-    // その composition state が復活する 2 段バグ (2026-04-26 報告).
-    commitImeIfNeeded();
-    const msg = refs.input.value;
+    // ===== IME 強制コミット + 値クリア + refocus を user gesture context 内で sync 実行 =====
+    // (2026-04-27 v=163: setTimeout(0) 経由の clearInputPreservingIme は 2通目以降で
+    //  defensive refocus との timing race により blur が iOS Safari に no-op 化されるため、
+    //  click handler 内で同期実行に切替. キーボードは一瞬閉じるが user gesture context 内なら
+    //  即座に再オープンする.)
+    //
+    // 順序:
+    //   ① el.blur()    — iOS Safari に IME composition を強制コミットさせる唯一確実な手段
+    //   ② msg = el.value — composition がコミット済みなので確定文字列が取れる
+    //   ③ el.value = '' — composition 非アクティブなので silent fail しない
+    //   ④ el.focus()   — keyboard 即再オープン (実測 < 100ms)
+    const el = refs.input;
+    _imeCommitGuard = true;
+    try { el.blur(); } catch (_) {}
+    const msg = el.value;
+    try { el.value = ''; } catch (_) {}
+    try { el.focus({ preventScroll: true }); } catch (_) {
+        try { el.focus(); } catch (__) {}
+    }
+    setTimeout(() => { _imeCommitGuard = false; }, 0);
+
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
-    // 連続送信のため defensively input に focus を戻す.
-    // mousedown.preventDefault のみでは iOS Safari iframe 文脈で blur が起きるケースが
-    // 確認されている (1通目送信後 input-blur 発火 → kb 閉じ → 2通目入力不可).
-    // この focus() は click handler の user gesture context 内で呼ばれるため、
-    // iOS でも kb を維持/再オープンできる. 既に focus 済みなら no-op.
-    try { refs.input.focus({ preventScroll: true }); } catch (_) {
-        try { refs.input.focus(); } catch (__) {}
-    }
 });
 
 // LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
