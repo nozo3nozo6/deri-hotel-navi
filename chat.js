@@ -393,19 +393,29 @@ function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
+    const len = el.value.length;
     try {
         const wasFocused = (document.activeElement === el);
         if (!wasFocused) {
             try { el.focus({ preventScroll: true }); } catch (_) {}
         }
-        try { el.select(); } catch (_) {}
+        // ① setSelectionRange で確実に全選択 (select() より確実、特に focus swap 直後)
+        try { el.setSelectionRange(0, len); } catch (_) {}
+        // ② execCommand('insertText') で「ユーザー操作」扱い paint/value clean (iOS preferred)
         let ok = false;
         try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
-        if (!ok || el.value.length > 0) {
-            // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
-            // 機能停止より遥かにマシ.
+        // ③ それでも残っていれば setRangeText で全範囲消去 (execCommand より低レベル)
+        if (el.value.length > 0) {
+            try { el.setRangeText('', 0, el.value.length, 'end'); } catch (_) {}
+        }
+        // ④ 最後の保険: 直接代入
+        if (el.value.length > 0) {
             try { el.value = ''; } catch (_) {}
         }
+        // ⑤ input event を強制発火: iOS Safari paint glitch 対策 + 内部リスナ (typing-stop / draft 等) 同期
+        try {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (_) {}
     } catch (_) {
         try { el.value = ''; } catch (__) {}
     }
