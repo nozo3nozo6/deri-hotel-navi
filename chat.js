@@ -343,10 +343,33 @@ function _bindChatInputEvents(input) {
         }
     });
 }
+// iOS Safari の textarea を focus 中に value='' で空にすると
+//  ① placeholder 描画が崩れる (字間バラバラ)
+//  ② IME state が壊れて 再タップするまで文字入力を silently 拒否
+// が起きる. -webkit-user-select:text を CSS で当てるだけでは ② が完全には消えない.
+// document.execCommand('insertText', false, '') は iOS Safari が「ユーザー操作」扱いに
+// するため focus / IME state / 描画が全部 native に保たれる (Slack/Discord 系の定番).
+// execCommand 自体は deprecated だが対応は全ブラウザに残っており, この用途では現役.
 function clearInputPreservingIme() {
-    if (!refs.input) return;
-    if (refs.input.value.length === 0) return;
-    try { refs.input.value = ''; } catch (_) {}
+    const el = refs.input;
+    if (!el) return;
+    if (el.value.length === 0) return;
+    try {
+        const wasFocused = (document.activeElement === el);
+        if (!wasFocused) {
+            try { el.focus({ preventScroll: true }); } catch (_) {}
+        }
+        try { el.select(); } catch (_) {}
+        let ok = false;
+        try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
+        if (!ok || el.value.length > 0) {
+            // execCommand 失敗時の fallback: 値だけ直接削除. iOS Safari のバグは出るが
+            // 機能停止より遥かにマシ.
+            try { el.value = ''; } catch (_) {}
+        }
+    } catch (_) {
+        try { el.value = ''; } catch (__) {}
+    }
 }
 
 function setThemeMode(mode) {
