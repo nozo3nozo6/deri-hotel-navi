@@ -146,15 +146,40 @@
 
     // 単発アンカー: iframe top を「可視領域のトップ（sticky nav の直下）」に合わせる。
     // 顧客HPが position:fixed のヘッダーを持っている場合も chat-header が隠れないようにする。
+    //
+    // window.scrollBy が効かない顧客HP (body{overflow:hidden} / scrollable wrapper構造) のケースも
+    // 拾うため、scrollBy の結果を再検証して drift が残っていれば iframe.scrollIntoView でフォールバック.
+    // これがないと go-kichi.com 等で「画面上に親ヘッダーが残ってチャットヘッダーが中途半端」事象が起きる
+    // (2026-04-27 修正).
     function alignOnce(iframe) {
         var vv = window.visualViewport;
         var stickyInset = getStickyTopInset();
-        var rect = iframe.getBoundingClientRect();
         var targetY = (vv ? vv.offsetTop : 0) + stickyInset;
+        var rect = iframe.getBoundingClientRect();
         var drift = rect.top - targetY;
-        if (Math.abs(drift) > 0.5) {
-            window.scrollBy(0, drift);
+        if (Math.abs(drift) <= 0.5) return;
+
+        // primary: window 全体スクロール (body 直下スクロールの一般ケース)
+        window.scrollBy(0, drift);
+        var rect2 = iframe.getBoundingClientRect();
+        var stillDrift = rect2.top - targetY;
+        if (Math.abs(stillDrift) <= 2) {
+            diag('align ok via scrollBy drift=' + Math.round(drift));
+            return;
         }
+
+        // fallback: scrollIntoView が祖先の scrollable container も巻き込んで合わせる.
+        // window.scrollBy で動かなかった = body もしくは祖先 wrapper に overflow 制約あり.
+        try {
+            iframe.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+        } catch (_) {}
+        // scrollIntoView は stickyInset を考慮しないので, スクロール後に inset 分だけ戻す.
+        if (stickyInset > 0) {
+            try { window.scrollBy(0, -stickyInset); } catch (_) {}
+        }
+        var rect3 = iframe.getBoundingClientRect();
+        var finalDrift = rect3.top - targetY;
+        diag('align fallback scrollIntoView drift=' + Math.round(stillDrift) + '→' + Math.round(finalDrift));
     }
 
     // iframe サイズ記憶（1度だけ）
