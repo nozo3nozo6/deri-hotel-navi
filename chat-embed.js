@@ -231,6 +231,11 @@
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: safeH }, '*');
             diag('prefocus h=' + safeH + ' sticky=' + stickyInset);
         } catch (_) {}
+        // deferred re-align: iOS の focus-scroll は alignOnce の後に走るケースがある
+        // (本体ヘッダーが上部にある状態で input タップ → iOS が大きく auto-scroll → iframe top
+        // が viewport top からズレる, IMG_8760). 100ms / 300ms 後に再 align で iOS 後勝ちを上書き.
+        // ガード付き: state 抜けたら noop. alignOnce 内 drift<=0.5 早期 return で連発しても無害.
+        scheduleDeferredRealign(iframe, [100, 300], 'prefocus');
         if (prefocusSafetyTimer) clearTimeout(prefocusSafetyTimer);
         prefocusSafetyTimer = setTimeout(function () {
             prefocusSafetyTimer = null;
@@ -241,6 +246,30 @@
                 resetIframeHeight(iframe);
             }
         }, 1000);
+    }
+
+    // deferred re-align: iOS の focus-scroll / kb-open scroll が settle した後に
+    // alignOnce を再実行して最終位置を上書き. prefocus / expandToVV 両方から呼ばれる.
+    // ガード: 同 iframe が active のまま & 想定 state (prefocus または kb-open) を維持している場合のみ動く.
+    // 連発しても alignOnce 内 drift<=0.5 早期 return で実害なし.
+    function scheduleDeferredRealign(iframe, delays, label) {
+        for (var i = 0; i < delays.length; i++) {
+            (function (d) {
+                setTimeout(function () {
+                    if (label === 'prefocus') {
+                        // prefocus 由来: prefocusedIframe が同じままなら有効.
+                        // (kb 開いて expandToVV が走った場合 prefocusedIframe=null になるので, expand 側 defer に任せる)
+                        if (prefocusedIframe !== iframe) { diag('defer-realign[' + label + ' ' + d + 'ms] skip: state changed'); return; }
+                    } else if (label === 'expand') {
+                        // expand 由来: activeIframe が同じ + kb まだ開いている場合のみ有効.
+                        if (activeIframe !== iframe) { diag('defer-realign[' + label + ' ' + d + 'ms] skip: activeIframe changed'); return; }
+                        if (!lastKbOpen) { diag('defer-realign[' + label + ' ' + d + 'ms] skip: kb closed'); return; }
+                    }
+                    diag('defer-realign[' + label + ' ' + d + 'ms]');
+                    alignOnce(iframe);
+                }, d);
+            })(delays[i]);
+        }
     }
 
     // kb 開通知後の最終サイズ: iframe を (vv.height - stickyInset) に拡大。
@@ -254,13 +283,16 @@
         if (targetH < 100) return;
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
-        // NOTE: alignOnce (= window.scrollBy) をここで呼ぶと iOS Safari は kb-open 遷移中の
+        // NOTE: alignOnce (= window.scrollBy) を expand 直後に呼ぶと iOS Safari は kb-open 遷移中の
         // プログラム的 scroll を「ユーザーが kb を閉じたい」と解釈して kb を dismiss する.
-        // prefocus で既に iframe top は正しい位置にあるので, expand は高さ変更のみで足りる.
+        // → 即時には呼ばず, kb-open transition (~250ms) 終了後に deferred で再 align (300/500ms).
+        // prefocus で iframe top は概ね正しいが, 本体ヘッダー可視時に iOS の追加 auto-scroll が
+        // 走り上端ズレするケースを deferred alignOnce で最終位置を保証.
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('expand h=' + targetH + ' sticky=' + stickyInset);
         } catch (_) {}
+        scheduleDeferredRealign(iframe, [300, 500], 'expand');
         // iOS で vv.resize が kb-close 時に発火しないケースに備え, vv.height を定期確認して
         // 開→閉 を watchdog で補完する. onVVChange が正常発火すれば resetIframeHeight 側で clearInterval される.
         startExpandVerifyWatch(iframe);
@@ -299,8 +331,21 @@
     // fit: iframe を viewport に合わせる (header=sticky nav 直下, footer=画面下端).
     // widget-tap (入力欄以外のタップ) で発動. customer が 900px など大きい iframe を置いてる時の
     // 「footer が画面外」問題の対応. kb 開閉に関わらず確実に最終形状へ遷移.
+    //
+    // kb が実際に開いている時 (vv.height < innerHeight - 100) は innerHeight ベースで
+    // サイズすると iframe が kb の裏に潜り、textarea が見えなくなる. その場合は vv ベースの
+    // expandToVV にフォールバック (input-blur 300ms timer が kb-close 検出をミスったケース対応,
+    // 2026-04-27).
     function fitToViewport(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
+        var vv = window.visualViewport;
+        if (vv && (window.innerHeight - vv.height) > 100) {
+            diag('fit() rerouted to expandToVV (kb still open kbH=' + Math.round(window.innerHeight - vv.height) + ')');
+            activeIframe = iframe;
+            fitMode = true;
+            expandToVV(iframe);
+            return;
+        }
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
         prefocusedIframe = null;
         var stickyInset = getStickyTopInset();
@@ -394,10 +439,36 @@
     // 縮む副作用がユーザー体験を損なう (2026-04-25 ユーザー指摘).
     // ① vv.resize エッジ ② expandVerifyWatch watchdog ③ input.blur で十分なので削除.
 
+    // ensureGutter: モバイルで iframe が viewport 端に張り付くのを防ぐ左右マージン.
+    // 旧スニペットは width:100%;margin:20px auto で配布されており, vw < max-width のとき
+    // auto-margin が 0 になり edge-to-edge になる. 既存埋込先 (顧客HP) で再貼付けせず
+    // 自動的にガッターを付与するため chat-embed.js 側で強制する.
+    // box-sizing:border-box + width:calc(100% - 24px) で 12px*2 のガッター.
+    // PC (vw >= 600) では max-width 制約で iframe < parent となり auto-margin が centering する
+    // ので元から問題なし → モバイル (vw < 600) のみ適用.
+    // 既に customer が ml/mr >= 8px を inline 指定済み or width <= calc(100% - 24px) なら touch しない.
+    function ensureGutter(iframe) {
+        if (window.innerWidth >= 600) return;
+        try {
+            var cs = getComputedStyle(iframe);
+            var ml = parseFloat(cs.marginLeft) || 0;
+            var mr = parseFloat(cs.marginRight) || 0;
+            if (ml >= 8 && mr >= 8) { diag('gutter: skip (margin already ml=' + ml + ' mr=' + mr + ')'); return; }
+            iframe.style.setProperty('width', 'calc(100% - 24px)', 'important');
+            iframe.style.setProperty('margin-left', 'auto', 'important');
+            iframe.style.setProperty('margin-right', 'auto', 'important');
+            iframe.style.setProperty('display', 'block', 'important');
+            iframe.style.setProperty('box-sizing', 'border-box', 'important');
+            diag('gutter applied (vw=' + window.innerWidth + ')');
+        } catch (e) { diag('gutter ERR ' + (e && e.message)); }
+    }
+
     function wire(iframe) {
         if (iframe.__ychatWired) return;
         iframe.__ychatWired = true;
         diag('wire() slug=' + iframe.getAttribute('data-ychat-slug'));
+
+        ensureGutter(iframe);
 
         if (diagMode) {
             try {

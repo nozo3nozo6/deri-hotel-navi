@@ -3002,7 +3002,7 @@ function renderChatAdmin(data){
     //   ychat:resize / input-focus / enter-fullscreen / exit-fullscreen
     const embedBridgeTag = '<script src="https://yobuho.com/chat-embed.js" async><\/script>';
     const iframeCode =
-        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:100%;max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;" title="お問い合わせチャット"><\/iframe>\n' +
+        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:calc(100% - 24px);max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
         embedBridgeTag;
 
     // ③ link: 別タブで /chat/slug/ を開くシンプルリンク
@@ -3016,7 +3016,7 @@ function renderChatAdmin(data){
     // script が貼れない極稀なCMS向けに legacy 版（固定高さ iframe のみ）を details 内に別提供。
     const cmsCode =
         '<!-- YobuChat — ' + tag + ' -->\n' +
-        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:100%;max-width:100%;height:640px;border:0;display:block;background:#fff;" title="お問い合わせチャット"><\/iframe>\n' +
+        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:calc(100% - 24px);max-width:480px;height:640px;border:0;display:block;background:#fff;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
         embedBridgeTag + '\n' +
         '<!-- /YobuChat -->';
 
