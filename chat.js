@@ -369,6 +369,22 @@ function _bindChatInputEvents(input) {
 // keyboard が一瞬閉じても直後の focus で再オープン可能.
 // _imeCommitGuard で blur/focus listener の副作用 (chat-input-focused class /
 // parent postMessage) を抑止し flicker を防止.
+// 隠し input への focus 移動で IME を強制コミット.
+// 同一要素の blur→focus は iOS Safari が「変化なし」と最適化して compositionend を発火しないが、
+// 別要素へ focus を移すと確実にコミットされる (ログで確認済み, 2026-04-26).
+// _imeCommitGuard で _bindChatInputEvents の blur/focus 副作用を抑止し flicker を防止.
+let _imeCommitTempEl = null;
+function getImeCommitTempEl() {
+    if (_imeCommitTempEl && _imeCommitTempEl.isConnected) return _imeCommitTempEl;
+    const t = document.createElement('input');
+    t.type = 'text';
+    t.tabIndex = -1;
+    t.setAttribute('aria-hidden', 'true');
+    t.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(t);
+    _imeCommitTempEl = t;
+    return t;
+}
 function commitImeIfNeeded() {
     const el = refs.input;
     if (!el) return;
@@ -376,12 +392,13 @@ function commitImeIfNeeded() {
         window.__YCDBG('commitImeIfNeeded: not focused, skip');
         return;
     }
-    window.__YCDBG('commitImeIfNeeded: BEFORE blur', { val: el.value });
+    window.__YCDBG('commitImeIfNeeded: BEFORE swap', { val: el.value });
+    const tmp = getImeCommitTempEl();
     _imeCommitGuard = true;
-    try { el.blur(); } catch (_) {}
-    window.__YCDBG('commitImeIfNeeded: AFTER blur, BEFORE focus', { val: el.value, active: document.activeElement === el });
+    try { tmp.focus(); } catch (_) {}
+    window.__YCDBG('commitImeIfNeeded: AFTER tmp.focus, BEFORE el.focus', { val: el.value, active: document.activeElement === el });
     try { el.focus({ preventScroll: true }); } catch (_) {}
-    window.__YCDBG('commitImeIfNeeded: AFTER focus', { val: el.value, active: document.activeElement === el });
+    window.__YCDBG('commitImeIfNeeded: AFTER el.focus', { val: el.value, active: document.activeElement === el });
     setTimeout(() => { _imeCommitGuard = false; }, 0);
 }
 
