@@ -312,6 +312,9 @@ let _hadTypingValue = false;
 // 送信後 IME コミット用の focus 切替中は class toggle / parent postMessage を抑止.
 // 抑止しないと chat-input-focused が外れて footer 復活 → 親 iframe 高さ変更 → flicker.
 let _imeCommitGuard = false;
+// 送信時に IME composition 中で gentle clear が拒否された場合のフラグ.
+// compositionend で拾って遅延クリアする (2026-04-27 v=164).
+let _pendingClearAfterComposition = false;
 
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
@@ -345,6 +348,17 @@ function _bindChatInputEvents(input) {
         document.body.classList.add('chat-input-focused');
         if (isEmbedded()) {
             try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
+        }
+    });
+    // 変換前送信で gentle clear が IME composition に拒否されたケースの fallback.
+    // composition が自然終了 (確定 / キャンセル / blur 等) した瞬間に value を空にする.
+    // (2026-04-27 v=164: blur で IME強制コミットする戦略は iOS Safari の最適化で
+    //  no-op 化されたり kb-close edge を引いて iframe 縮小を起こすため撤回.
+    //  「変換前送信時に文字が残る」UX は許容し、composition 終了時に clean up する方針.)
+    input.addEventListener('compositionend', () => {
+        if (_pendingClearAfterComposition) {
+            _pendingClearAfterComposition = false;
+            try { input.value = ''; } catch (_) {}
         }
     });
 }
@@ -393,53 +407,30 @@ function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
-    // 変換前送信 (IME composition 中) の対応 (2026-04-26 報告, 多数試行):
+    // 戦略 (2026-04-27 v=164 確定版):
+    //   gentle clear (select → execCommand insertText → value='') のみ実行.
+    //   IME composition 中で silently fail した場合は _pendingClearAfterComposition フラグを立て、
+    //   compositionend listener で値を空にする (= 変換確定 / キャンセル / 別要素 tap で自動クリーンアップ).
     //
-    // iOS Safari は **focused な textarea 値の programmatic 書き換えを IME composition 中は
-    // silently 拒否** する. focus swap (cached tmp / fresh tmp 双方) では iOS の最適化で
-    // compositionend が発火せず IME state が commit されないケースが頻発し、execCommand /
-    // value='' のいずれも silently fail.
-    //
-    // 唯一確実なのは **el.blur() で input を unfocus すること**. unfocus すれば iOS は
-    // IME を強制コミットし、value='' も通常通り効く. キーボードは一瞬閉じるが、user gesture
-    // context 内 (click handler 起源 setTimeout) なら直後の el.focus() でキーボードが
-    // 即再オープンする (実測 < 100ms).
-    //
-    // 戦略:
-    //   ① setTimeout(0) で 1tick 待って iOS 内部状態を settle
-    //   ② まず gentle clear (select → execCommand → value='') を試す
-    //      → 非 composition 中ならこれで消える、キーボードも閉じない
-    //   ③ それでも残っていれば blur + value='' + refocus の brute force
-    //      (composition 中の唯一確実な手段)
-    setTimeout(() => {
-        if (el.value.length === 0) return;
-        try {
-            const wasFocused = (document.activeElement === el);
-            if (!wasFocused) {
-                try { el.focus({ preventScroll: true }); } catch (_) {}
-            }
-            // Gentle clear: 非 composition 中ならこれで消える、キーボードも閉じない.
-            try { el.select(); } catch (_) {}
-            let ok = false;
-            try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
-            if (!ok || el.value.length > 0) {
-                try { el.value = ''; } catch (_) {}
-            }
-            // Brute force: composition 中で gentle clear が silently fail したケース.
-            // blur で確実に IME コミット → value='' → refocus で keyboard 即再オープン.
-            if (el.value.length > 0) {
-                _imeCommitGuard = true;
-                try { el.blur(); } catch (_) {}
-                try { el.value = ''; } catch (_) {}
-                if (wasFocused) {
-                    try { el.focus({ preventScroll: true }); } catch (_) {}
-                }
-                setTimeout(() => { _imeCommitGuard = false; }, 0);
-            }
-        } catch (_) {
-            try { el.value = ''; } catch (__) {}
+    //   blur 経由の brute force は撤回:
+    //   - iOS Safari が同要素 blur+focus を no-op 最適化するケースが多発 (compositionend 発火せず)
+    //   - blur が効いた時は逆に kb-close edge を引いて chat-embed.js の iframe 縮小→入力ロックを誘発
+    //   - 「変換前送信時に文字が残る」UX は許容. composition 確定時にクリアされる.
+    try {
+        try { el.select(); } catch (_) {}
+        let ok = false;
+        try { ok = document.execCommand('insertText', false, ''); } catch (_) {}
+        if (!ok || el.value.length > 0) {
+            try { el.value = ''; } catch (_) {}
         }
-    }, 0);
+        if (el.value.length > 0) {
+            // composition 中で programmatic 書き換えが silently 拒否された.
+            // compositionend で fallback クリア.
+            _pendingClearAfterComposition = true;
+        }
+    } catch (_) {
+        try { el.value = ''; } catch (__) {}
+    }
 }
 
 function setThemeMode(mode) {
@@ -3494,27 +3485,13 @@ refs.sendBtn.addEventListener('mousedown', (e) => {
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
-    // ===== IME 強制コミット + 値クリア + refocus を user gesture context 内で sync 実行 =====
-    // (2026-04-27 v=163: setTimeout(0) 経由の clearInputPreservingIme は 2通目以降で
-    //  defensive refocus との timing race により blur が iOS Safari に no-op 化されるため、
-    //  click handler 内で同期実行に切替. キーボードは一瞬閉じるが user gesture context 内なら
-    //  即座に再オープンする.)
-    //
-    // 順序:
-    //   ① el.blur()    — iOS Safari に IME composition を強制コミットさせる唯一確実な手段
-    //   ② msg = el.value — composition がコミット済みなので確定文字列が取れる
-    //   ③ el.value = '' — composition 非アクティブなので silent fail しない
-    //   ④ el.focus()   — keyboard 即再オープン (実測 < 100ms)
-    const el = refs.input;
-    _imeCommitGuard = true;
-    try { el.blur(); } catch (_) {}
-    const msg = el.value;
-    try { el.value = ''; } catch (_) {}
-    try { el.focus({ preventScroll: true }); } catch (_) {
-        try { el.focus(); } catch (__) {}
-    }
-    setTimeout(() => { _imeCommitGuard = false; }, 0);
-
+    // ===== シンプル送信: blur 撤廃、focus 維持、value 読み取り後 send 関数へ =====
+    // (2026-04-27 v=164: v=163 の sync blur は iOS Safari に no-op 最適化されたり
+    //  逆に kb-close edge を引いて chat-embed.js の iframe 縮小→入力ロックを起こしたりで
+    //  挙動が不安定. blur は完全に撤廃し、value のクリアは下流の send 関数内で
+    //  clearInputPreservingIme (gentle clear + compositionend fallback) に任せる.
+    //  変換前送信時に文字が残るケースは composition 終了で自動クリーンアップされる.)
+    const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
