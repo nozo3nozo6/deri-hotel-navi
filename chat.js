@@ -315,6 +315,9 @@ let _imeCommitGuard = false;
 // 送信時に IME composition 中で gentle clear が拒否された場合のフラグ.
 // compositionend で拾って遅延クリアする (2026-04-27 v=164).
 let _pendingClearAfterComposition = false;
+// 変換前送信した text を一時保持. iOS IME state restore で再 inject された場合に即クリア (v=165).
+let _recentSentSnapshot = null;
+let _recentSentSnapshotTimer = null;
 
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
@@ -322,6 +325,18 @@ let _pendingClearAfterComposition = false;
 // _bindChatInputEvents は初期バインドにも流用するためヘルパとして残す.
 function _bindChatInputEvents(input) {
     input.addEventListener('input', () => {
+        // 変換前送信後の iOS IME state restore 検出:
+        // 直近送信 text と完全一致なら IME が composition buffer を復活させたものと判定して即クリア.
+        // (3秒以内のみ. 同一文字を意図的に再入力する false positive を最小化)
+        if (_recentSentSnapshot && input.value === _recentSentSnapshot) {
+            _recentSentSnapshot = null;
+            if (_recentSentSnapshotTimer) {
+                clearTimeout(_recentSentSnapshotTimer);
+                _recentSentSnapshotTimer = null;
+            }
+            try { input.value = ''; } catch (_) {}
+            return;
+        }
         if (input.value) {
             _hadTypingValue = true;
             emitTyping();
@@ -330,6 +345,17 @@ function _bindChatInputEvents(input) {
             emitTypingStop();
         }
         scheduleDraftSave();
+    });
+    // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
+    input.addEventListener('compositionupdate', (e) => {
+        if (_recentSentSnapshot && e.data && e.data === _recentSentSnapshot) {
+            _recentSentSnapshot = null;
+            if (_recentSentSnapshotTimer) {
+                clearTimeout(_recentSentSnapshotTimer);
+                _recentSentSnapshotTimer = null;
+            }
+            try { input.value = ''; } catch (_) {}
+        }
     });
     input.addEventListener('blur', () => {
         if (_imeCommitGuard) return;
@@ -407,15 +433,23 @@ function clearInputPreservingIme() {
     const el = refs.input;
     if (!el) return;
     if (el.value.length === 0) return;
-    // 戦略 (2026-04-27 v=164 確定版):
-    //   gentle clear (select → execCommand insertText → value='') のみ実行.
-    //   IME composition 中で silently fail した場合は _pendingClearAfterComposition フラグを立て、
-    //   compositionend listener で値を空にする (= 変換確定 / キャンセル / 別要素 tap で自動クリーンアップ).
+    // 戦略 (2026-04-27 v=165 確定版):
+    //   ① gentle clear (select → execCommand insertText → value='') を実行
+    //   ② IME composition 中で silently fail した場合は _pendingClearAfterComposition で
+    //      compositionend で fallback クリア (確定 / キャンセル / 別要素 tap で発火)
+    //   ③ 送信時の el.value を _recentSentSnapshot に記憶. 直後の input/compositionupdate で
+    //      同じ text が再 inject された場合 (= iOS の IME state restore) も即クリア
     //
     //   blur 経由の brute force は撤回:
-    //   - iOS Safari が同要素 blur+focus を no-op 最適化するケースが多発 (compositionend 発火せず)
+    //   - iOS Safari が同要素 blur+focus を no-op 最適化するケースが多発
     //   - blur が効いた時は逆に kb-close edge を引いて chat-embed.js の iframe 縮小→入力ロックを誘発
-    //   - 「変換前送信時に文字が残る」UX は許容. composition 確定時にクリアされる.
+    //   - 変換前送信時の値残存は ②③ の non-blocking fallback で吸収する.
+    _recentSentSnapshot = el.value;
+    if (_recentSentSnapshotTimer) clearTimeout(_recentSentSnapshotTimer);
+    _recentSentSnapshotTimer = setTimeout(() => {
+        _recentSentSnapshot = null;
+        _recentSentSnapshotTimer = null;
+    }, 3000);
     try {
         try { el.select(); } catch (_) {}
         let ok = false;
@@ -424,8 +458,6 @@ function clearInputPreservingIme() {
             try { el.value = ''; } catch (_) {}
         }
         if (el.value.length > 0) {
-            // composition 中で programmatic 書き換えが silently 拒否された.
-            // compositionend で fallback クリア.
             _pendingClearAfterComposition = true;
         }
     } catch (_) {
