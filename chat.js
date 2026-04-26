@@ -3685,7 +3685,19 @@ function currentQuickPopup() {
     return state.mode === 'visitor' ? refs.visitorQuick : refs.ownerQuick;
 }
 
+// 絵文字ボタン/popup は mousedown preventDefault で chat-input の focus を維持する.
+// 送信ボタンと同じパターン (memory: feedback_chat_send_button_no_blur).
+// これがないと tap で input が blur → chat-input-focused class が外れて nickname/email 等が再表示
+// → iframe レイアウトが変動 → ボタン位置がズレて popup が次タップを取りこぼす.
+const preventBlurOnQuickBtn = (popup) => {
+    if (!popup) return;
+    popup.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.quick-btn')) e.preventDefault();
+    });
+};
+
 if (refs.ownerQuick) {
+    preventBlurOnQuickBtn(refs.ownerQuick);
     refs.ownerQuick.addEventListener('click', (e) => {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
@@ -3695,6 +3707,7 @@ if (refs.ownerQuick) {
 }
 
 if (refs.visitorQuick) {
+    preventBlurOnQuickBtn(refs.visitorQuick);
     refs.visitorQuick.addEventListener('click', (e) => {
         const btn = e.target.closest('.quick-btn');
         if (!btn) return;
@@ -3704,6 +3717,9 @@ if (refs.visitorQuick) {
 }
 
 if (refs.emojiToggle) {
+    refs.emojiToggle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+    });
     refs.emojiToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         const popup = currentQuickPopup();
