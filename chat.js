@@ -318,6 +318,9 @@ let _pendingClearAfterComposition = false;
 // 変換前送信した text を一時保持. iOS IME state restore で再 inject された場合に即クリア (v=165).
 let _recentSentSnapshot = null;
 let _recentSentSnapshotTimer = null;
+// IME composition 中フラグ. 送信ボタンの disabled 制御用 (v=168, ユーザー提案).
+// 変換確定してから送信させる方式 = iOS IME buffer 問題が根本から発生しない.
+let _isComposing = false;
 
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
@@ -374,16 +377,21 @@ function _bindChatInputEvents(input) {
             }
         }
     });
-    // compositionstart: 直近送信直後の suspicious な composition 開始は readOnly cycle で kill を試行.
+    // 変換中は送信ボタンを無効化 (v=168 ユーザー提案).
+    // 確定してから送信させる = iOS の IME buffer 復活問題が根本から発生しない.
     input.addEventListener('compositionstart', () => {
-        if (!_recentSentSnapshot) return;
-        // 送信直後 3秒以内に compositionstart = iOS が IME buffer を resume している可能性大
-        try {
-            input.readOnly = true;
-            requestAnimationFrame(() => {
-                try { input.readOnly = false; } catch (_) {}
-            });
-        } catch (_) {}
+        _isComposing = true;
+        if (refs.sendBtn) {
+            refs.sendBtn.disabled = true;
+            refs.sendBtn.classList.add('composing');
+        }
+    });
+    input.addEventListener('compositionend', () => {
+        _isComposing = false;
+        if (refs.sendBtn) {
+            refs.sendBtn.disabled = false;
+            refs.sendBtn.classList.remove('composing');
+        }
     });
     input.addEventListener('blur', () => {
         if (_imeCommitGuard) return;
@@ -3559,12 +3567,8 @@ refs.sendBtn.addEventListener('mousedown', (e) => {
     e.preventDefault();
 });
 refs.sendBtn.addEventListener('click', () => {
-    // ===== シンプル送信: blur 撤廃、focus 維持、value 読み取り後 send 関数へ =====
-    // (2026-04-27 v=164: v=163 の sync blur は iOS Safari に no-op 最適化されたり
-    //  逆に kb-close edge を引いて chat-embed.js の iframe 縮小→入力ロックを起こしたりで
-    //  挙動が不安定. blur は完全に撤廃し、value のクリアは下流の send 関数内で
-    //  clearInputPreservingIme (gentle clear + compositionend fallback) に任せる.
-    //  変換前送信時に文字が残るケースは composition 終了で自動クリーンアップされる.)
+    // 変換中送信は禁止 (v=168). disabled でも保険として guard.
+    if (_isComposing) return;
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
