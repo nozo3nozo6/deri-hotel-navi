@@ -105,6 +105,12 @@
     // ケースが発生する (2026-04-27 ユーザー報告 case B).
     var alignWatchdog = null;
     var alignWatchdogStart = 0;
+    // fitToViewport が kb-open で defer された直後の「refresh fit」検出フラグ.
+    // defer→input-blur 300ms timer→refit のフローで, kb-close 中に iOS が host page を
+    // auto-scroll して大きな drift が発生 → 即時 alignOnce(scrollBy) で「ビュンと上に snap」
+    // するのを防ぐ. このフラグが true のときは smooth scroll で最終位置に戻す
+    // (2026-04-27 ユーザー報告: タップしたらスンと位置に戻ればOK).
+    var pendingRefitAfterKbClose = false;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -429,27 +435,54 @@
             diag('fit() deferred: kb still open kbH=' + Math.round(window.innerHeight - vv.height) + ', wait for input-blur');
             activeIframe = iframe;
             fitMode = true;
+            pendingRefitAfterKbClose = true;
             return;
         }
+        var wasDeferred = pendingRefitAfterKbClose;
+        pendingRefitAfterKbClose = false;
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
         prefocusedIframe = null;
         var stickyInset = getStickyTopInset();
         var ih = window.innerHeight;
         var targetH = Math.floor(ih - stickyInset);
-        diag('fit() entry ih=' + ih + ' sticky=' + stickyInset + ' targetH=' + targetH);
+        diag('fit() entry ih=' + ih + ' sticky=' + stickyInset + ' targetH=' + targetH + ' wasDeferred=' + wasDeferred);
         if (targetH < 200) { diag('fit BAILED targetH<200'); return; }
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
-        alignOnce(iframe);
+        if (wasDeferred) {
+            // post-kb-close refresh: iOS が auto-scroll した分の drift を smooth scroll で戻す.
+            // 即時 alignOnce(scrollBy) は snap で「ビュンと上に上がる」と知覚される.
+            // watchdog も起動しない (スムーズ進行中の snap 介入を防ぐ).
+            var targetY = (vv ? vv.offsetTop : 0) + stickyInset;
+            var rect = iframe.getBoundingClientRect();
+            var drift = rect.top - targetY;
+            var minSnapDrift = Math.max(48, Math.floor(window.innerHeight * 0.08));
+            if (Math.abs(drift) >= minSnapDrift) {
+                try {
+                    window.scrollBy({ top: drift, behavior: 'smooth' });
+                    diag('fit smooth-align drift=' + Math.round(drift));
+                } catch (_) {
+                    window.scrollBy(0, drift);
+                    diag('fit smooth-align fallback drift=' + Math.round(drift));
+                }
+            } else {
+                diag('fit smooth-align skip drift=' + Math.round(drift) + ' < ' + minSnapDrift);
+            }
+        } else {
+            alignOnce(iframe);
+        }
         activeIframe = iframe;
         fitMode = true;
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('fit h=' + targetH + ' sticky=' + stickyInset);
         } catch (e) { diag('fit ERR ' + (e && e.message)); }
-        // align watchdog: widget-tap 経路でも顧客サイトの遅延 sticky / 画像読込みによる layout shift で
-        // iframe top がズレるケースを継続修正. 案 C (チャットヘッダー差し掛かり) の安定化に必須.
-        startAlignWatchdog(iframe);
+        if (!wasDeferred) {
+            // align watchdog: widget-tap 経路でも顧客サイトの遅延 sticky / 画像読込みによる layout shift で
+            // iframe top がズレるケースを継続修正. 案 C (チャットヘッダー差し掛かり) の安定化に必須.
+            // ただし wasDeferred=true (smooth scroll 進行中) では watchdog の snap が割り込むため除外.
+            startAlignWatchdog(iframe);
+        }
     }
 
     function resetIframeHeight(iframe) {
