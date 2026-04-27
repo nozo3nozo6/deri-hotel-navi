@@ -426,6 +426,36 @@ function _bindChatInputEvents(input) {
             try { input.value = ''; } catch (_) {}
         }
     });
+    // Enter キーの挙動 (2026-04-27 ユーザー要望、enterkeyhint="send" と連動):
+    //
+    // iOS Japanese 入力では soft kb 右下の表示を端末側が以下の規則で切り替える:
+    //   - IME 変換中 (composition active): 必ず「確定」表示 (enterkeyhint より OS 規則が優先)
+    //   - 入力欄 empty / 確定後 (composition なし): enterkeyhint=send → 「→」表示
+    // この「→」が押された時 (= 確定後の Enter) に送信処理を走らせる.
+    //
+    // 設計:
+    //   - 適用対象は touch device のみ (PC hardware kb の Enter は従来通り改行).
+    //     PC で誤爆 Enter→送信は避けたい (旧 spec: 「Enter→送信は誤爆が多く望ましくない」).
+    //     iOS/Android の soft kb は意図的に「→」を押す動作なので誤爆リスクは低い.
+    //   - 変換中の Enter: IME に渡す (送信させない). _isComposing と e.isComposing の両ガード.
+    //   - Shift+Enter: 改行 (touch でも保険として残す).
+    //   - 通常 Enter (touch + 変換なし + value あり): 送信ボタンと同じ経路で送信.
+    const _isTouchDevice = (typeof window !== 'undefined') && (
+        ('ontouchstart' in window) ||
+        (navigator && navigator.maxTouchPoints > 0)
+    );
+    input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (!_isTouchDevice) return; // PC は従来通り改行
+        if (e.shiftKey) return;
+        if (e.isComposing || _isComposing) return;
+        const val = (input.value || '').trim();
+        if (!val) return;
+        e.preventDefault();
+        if (typeof _doSendFromButton === 'function') {
+            _doSendFromButton();
+        }
+    });
 }
 // IME composition を強制コミット.
 // mousedown.preventDefault で focus 維持型の送信ボタンを使うと iOS Safari は
@@ -3567,28 +3597,50 @@ async function handleOwnerLogout() {
 }
 
 // ===== イベントバインド =====
-// 送信ボタンは直URLモードと完全に同じ実装にする (embed 専用の touch ハンドラは追加しない).
-// 直URLモードは mousedown preventDefault + click だけで安定動作している.
-// embed モードで送信が効かなくなる事象は body-tap ハンドラ側の interactiveSelector 早期 return で防ぐ.
+// 送信ボタンの focus 維持戦略:
 //
-// mousedown preventDefault: input からの focus 移動を抑止 → blur しない → focusout 発火しない →
-// --kb-h 不変 → chat-root height 不変 → ボタン位置不変 → click 確実にヒット.
-// (memory: feedback_chat_send_button_no_blur)
-refs.sendBtn.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-});
-refs.sendBtn.addEventListener('click', () => {
+// iOS Safari の touch tap で input から focus が外れる問題は mousedown preventDefault だけでは
+// 解消しない. iOS では touch event の発火順序が
+//   touchstart → touchend → focus shift → click
+// で, focus shift は touchstart/touchend のタイミングで起きるため mousedown preventDefault は遅すぎる.
+//
+// → touch device は touchstart で focus shift をブロック + touchend で送信を直接実行.
+//   PC mouse は mousedown preventDefault + click で従来通り.
+// (memory: feedback_chat_send_button_no_blur — touch では mousedown 不十分という追記が必要)
+function _doSendFromButton() {
     // v=179 (2026-04-27): 文字/絵文字で挙動を分けない. 入力欄の value をそのまま送信する.
     // 変換中送信→IME buffer 復活問題は snapshot 機構 (clearInputPreservingIme) が引き受ける.
-    // (ユーザー要望: 「あ」と絵文字を同じように扱う)
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
     else sendVisitorMessage(msg);
+}
+let _sendBtnTouched = false;
+refs.sendBtn.addEventListener('touchstart', (e) => {
+    // touch tap で input から focus が外れるのを防ぐ. passive:false 必須.
+    e.preventDefault();
+    _sendBtnTouched = true;
+}, { passive: false });
+refs.sendBtn.addEventListener('touchend', (e) => {
+    // touchend で送信処理を直接実行. 続く click event は preventDefault で抑制.
+    e.preventDefault();
+    _doSendFromButton();
+    // _sendBtnTouched は次の click を skip させるためにそのまま立てておき, 短時間で reset.
+    setTimeout(() => { _sendBtnTouched = false; }, 350);
+});
+refs.sendBtn.addEventListener('mousedown', (e) => {
+    // PC mouse 用: focus shift 抑止.
+    e.preventDefault();
+});
+refs.sendBtn.addEventListener('click', (e) => {
+    // touch 経路で送信済みなら skip (touchend.preventDefault が click を抑制するはずだが
+    // iOS の一部状況で ghost click が来るので二重防御).
+    if (_sendBtnTouched) return;
+    _doSendFromButton();
 });
 
-// LINE 流: Enter は改行、送信は送信ボタンのみ. Enter→送信は誤爆が多く望ましくない.
+// Enter キー処理は _bindChatInputEvents 内 (input リスナ群と co-located).
 
 // Day 8: typing emit (スロットル付き — 3秒おきに再発火)
 // #3: 値が空になった / blur / 送信時は stop 信号を明示送信.
