@@ -546,6 +546,15 @@ function clearInputPreservingIme() {
 function setThemeMode(mode) {
     const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
     try { document.body.dataset.mode = m; } catch (_) {}
+    try { updateCastIconForMode(m); } catch (_) {}
+}
+// 指名ラベルのアイコンを店舗ジャンルに合わせて切替.
+// deli(men)/este/women_same → 女性キャスト, jofu(women)/men_same → 男性キャスト.
+function updateCastIconForMode(mode) {
+    const el = document.getElementById('embed-cast-icon');
+    if (!el) return;
+    const female = (mode === 'men' || mode === 'este' || mode === 'women_same');
+    el.textContent = female ? '💁‍♀️' : '💁‍♂️';
 }
 // MySQL形式("YYYY-MM-DD HH:MM:SS"、JSTとして扱う) と ISO8601("...T...Z" or "...+00:00") の両対応
 function parseChatDate(s) {
@@ -4141,6 +4150,7 @@ function setupEmbedDirectLinkFooter() {
             select.appendChild(opt);
         });
         picker.classList.remove('hidden');
+        try { updateCastIconForMode(document.body.dataset.mode || 'men'); } catch (_) {}
         select.addEventListener('change', () => {
             const id = select.value;
             if (!id) return;
