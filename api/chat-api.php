@@ -136,7 +136,7 @@ function visitorHash(): string {
 
 function getShopBySlug(string $slug): ?array {
     $stmt = DB::conn()->prepare(
-        'SELECT s.id, s.shop_name, s.slug, s.email, s.status, s.gender_mode,
+        'SELECT s.id, s.shop_name, s.slug, s.email, s.status, s.gender_mode, s.cast_enabled,
                 st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
                 st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
