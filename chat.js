@@ -404,10 +404,16 @@ function _bindChatInputEvents(input) {
         }
         saveDraftNow();
         document.body.classList.remove('chat-input-focused');
+        if (isEmbedded()) {
+            try { window.parent.postMessage({ type: 'ychat:input-blur', slug: SLUG }, '*'); } catch (_) {}
+        }
     });
     input.addEventListener('focus', () => {
         if (_imeCommitGuard) return;
         document.body.classList.add('chat-input-focused');
+        if (isEmbedded()) {
+            try { window.parent.postMessage({ type: 'ychat:input-focus', source: 'focus', slug: SLUG }, '*'); } catch (_) {}
+        }
     });
     // 変換前送信で gentle clear が IME composition に拒否されたケースの fallback.
     // composition が自然終了 (確定 / キャンセル / blur 等) した瞬間に value を空にする.
@@ -4146,36 +4152,167 @@ function setupEmbedDirectLinkFooter() {
 }
 setupEmbedDirectLinkFooter();
 
-// ===== 埋込時の入力フォーカス処理 (B+α で削除済) =====
-// 旧仕様: 入力欄 focus 時に親 chat-embed.js に ychat:input-focus / widget-tap を送り,
-// 親側で iframe を縮めて iOS auto-scroll を不発化していた.
-// → iOS の visualViewport は iframe 内では kb を検知できず, 親と子で状態がズレるため,
-//    パッチを重ねるたび別症状 (本体ヘッダー消失 / 中段でガクガク / 2段階遷移) が発生.
-// B+α (2026-04-27): 親は何もしない. iOS デフォルト動作に任せる. この IIFE は完全削除.
-
-// ===== iOS キーボード対応 =====
-// 直URL: #chat-root は position:fixed + visualViewport で全画面追従 (LINE方式).
-//   --kb-h を CSS に流し、中身だけスライド. ヘッダーは動かない.
-// 埋込 (B+α, 2026-04-27): body.embedded class だけ付ける. kb 検知/追従は一切しない.
-//   iframe 内では visualViewport が iOS で kb を検知できず, 親側で代替制御するアプローチは
-//   破綻が多すぎたため放棄. iOS の input-focus auto-scroll に任せる. 詳細は chat-embed.js 参照.
-(function setupViewportSystem(){
+// ===== 埋込時の入力フォーカス → 親にアンカースクロール依頼 =====
+// 方針: iframe を全画面化しない（本体ヘッダー/フッター/他ページ遷移を守る）。
+// 入力フォーカス時は親ページ側で iframe.scrollIntoView({block:'end'}) を呼んでもらい、
+// iframe 末尾（入力欄）が可視領域に入るだけにする。内部レイアウトは visualViewport ハンドラが担当。
+// 入力フォーカス時の postMessage は refs.input.focus() ハンドラ内で ychat:input-focus を送信済み.
+// nickname / cdr-code 等の他の入力欄もカバーするため、focusin でも同じメッセージを送る.
+(function setupEmbedInputScroll() {
     const embedded = isEmbedded();
-    if (embedded) {
-        document.body.classList.add('embedded');
-        return; // 埋込モードでは何もしない
-    }
+    if (!embedded) return;
+    const hasMM = typeof window.matchMedia === 'function';
+    if (!hasMM) return;
+    const isTouch = window.matchMedia('(pointer:coarse)').matches;
+    const isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+    if (!isTouch || isDesktop) return;
 
+    // iframe内の全入力欄で fit を発動させる。
+    // 直リンクのスマホアクセスと同じ UX（入力欄がキーボード直上に出る）を
+    // 埋込時にも再現する。nickname/email/認証コード/チャット本体すべて対象.
+    const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
+    // インタラクティブ要素 (送信ボタン/各種ボタン/リンク等). これらをタップしたら fireBodyTap で
+    // blur+widget-tap させずに普通の click handler に任せる.
+    // 重要: 送信ボタン (#chat-send) を fireBodyTap 対象にすると ae.blur() で kb 閉じ → kb-close
+    // アニメ中に送信ボタン位置がズレ → click ミスヒットで送信できなくなる
+    // (memory: feedback_chat_send_button_no_blur).
+    // #chat-input-area: 入力欄+送信ボタンのコンテナ. gap/padding に落ちた "ニアミス tap" でも
+    // blur させない (v=172). iOS は touchend → mousedown 順なので chat-input-area の
+    // mousedown.preventDefault では touchend での blur を防げないため touch 側で塞ぐ必要がある.
+    const interactiveSelector = '#chat-input-area, button, a[href], [role="button"], select, label, summary, input[type=button], input[type=submit], input[type=checkbox], input[type=radio], input[type=file]';
+    // source を付けて親に送る: 'touch' = 直接タップ(確実にユーザー意図), 'focus' = focusin のみ(iOS auto-refocus の可能性あり).
+    // chat-embed.js は widget-tap 直後の 'focus' は auto-refocus と判定して無視するが 'touch' は通す.
+    const notifyParent = (source) => {
+        try { window.parent.postMessage({ type: 'ychat:input-focus', source: source, slug: SLUG }, '*'); } catch (_) {}
+    };
+    document.addEventListener('focusin', (e) => {
+        if (!e.target || !e.target.matches) return;
+        if (e.target.matches(inputSelector)) notifyParent('focus');
+    }, true);
+    // 入力欄以外のタップ → 親に通知 + 同期 blur で kb を即閉.
+    let _lastBodyTapTs = 0;
+    const fireBodyTap = (target) => {
+        if (target && target.matches && target.matches(inputSelector)) return;
+        const now = Date.now();
+        if (now - _lastBodyTapTs < 200) return;
+        _lastBodyTapTs = now;
+        try {
+            const ae = document.activeElement;
+            if (ae && typeof ae.blur === 'function' && ae.matches && ae.matches(inputSelector)) {
+                ae.blur();
+            }
+        } catch (_) {}
+        try { window.parent.postMessage({ type: 'ychat:widget-tap', slug: SLUG }, '*'); } catch (_) {}
+    };
+
+    // タップ vs スクロール判定: touchstart で開始位置を記録、touchmove で移動量追跡、
+    // touchend で「ほぼ動いてない」場合のみ tap として処理する.
+    // 旧実装は touchstart で即発火 → スクロール開始時の touchstart も「タップ」扱いされ
+    // iframe が縮む副作用 (2026-04-25 ユーザー指摘).
+    const TAP_MOVE_THRESHOLD = 10; // px
+    const TAP_TIME_THRESHOLD = 600; // ms (long press は除外)
+    let _tapStart = null;
+    document.addEventListener('touchstart', (e) => {
+        const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
+        if (!t || !t.target) { _tapStart = null; return; }
+        // input 判定は matches だけでなく closest() で祖先も見る.
+        // ラッパー要素 (label/wrapper div/sticky-bottom padding 等) を tap した場合でも
+        // 入力欄を tap した意図を取りこぼさない. 取りこぼすと fireBodyTap → widget-tap →
+        // iOS auto-refocus 由来の input-focus が 1500ms 抑制でブロック → kb 開かず.
+        var isInputTarget = false;
+        if (t.target.matches && t.target.matches(inputSelector)) {
+            isInputTarget = true;
+        } else if (t.target.closest && t.target.closest(inputSelector)) {
+            isInputTarget = true;
+        }
+        _tapStart = {
+            x: t.clientX,
+            y: t.clientY,
+            target: t.target,
+            ts: Date.now(),
+            moved: false,
+            isInput: isInputTarget
+        };
+    }, { capture: true, passive: true });
+    document.addEventListener('touchmove', (e) => {
+        if (!_tapStart) return;
+        const t = (e.touches && e.touches[0]) ? e.touches[0] : null;
+        if (!t) return;
+        const dx = Math.abs(t.clientX - _tapStart.x);
+        const dy = Math.abs(t.clientY - _tapStart.y);
+        if (dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD) {
+            _tapStart.moved = true;
+        }
+    }, { capture: true, passive: true });
+    // 要素が interactive (button/link 等) かどうか. これらは click handler に任せる.
+    const isInteractiveTarget = (el) => {
+        if (!el) return false;
+        if (el.matches && el.matches(interactiveSelector)) return true;
+        if (el.closest && el.closest(interactiveSelector)) return true;
+        return false;
+    };
+    document.addEventListener('touchend', (e) => {
+        const start = _tapStart;
+        _tapStart = null;
+        if (!start || start.moved) return;
+        if (Date.now() - start.ts > TAP_TIME_THRESHOLD) return;
+        if (start.isInput) {
+            // 入力欄タップ: source='touch' で chat-embed.js に確実なユーザー意図を伝える
+            notifyParent('touch');
+        } else if (isInteractiveTarget(start.target)) {
+            // 送信ボタン等のインタラクティブ要素: blur せず widget-tap も送らず click に任せる
+            return;
+        } else {
+            fireBodyTap(start.target);
+        }
+    }, { capture: true, passive: true });
+    document.addEventListener('touchcancel', () => {
+        _tapStart = null;
+    }, { capture: true, passive: true });
+
+    // PC (mouse) 用フォールバック. touch device は上記 touch* で処理済み.
+    document.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'touch') return;
+        if (isInteractiveTarget(e.target)) return;
+        fireBodyTap(e.target);
+    }, { capture: true, passive: true });
+})();
+
+// ===== iOS キーボード対応 (LINE方式) =====
+// 設計思想:
+//   - #chat-root は CSS で top/bottom 固定 → 常に全画面サイズ. ヘッダーは絶対に動かない.
+//   - JS は --kb-h (キーボード高さ) を padding-bottom 経由で反映するだけ.
+//     これで中身 (messages/input/footer) だけがキーボード分スライド、LINE/native iOS と同じ.
+//   - close 時は --kb-h を 0 にスナップ (iOS keyboard slide-down を待たない).
+//     chat-root サイズは不変なので flash が絶対に出ない.
+(function setupViewportSystem(){
     const vv = window.visualViewport;
     const docEl = document.documentElement;
     let isClosing = false;
     let closingTimer = null;
     let keyboardOpen = false;
+    // 親ページから ychat:embed-h で「可視領域の高さ」をもらった時の override 値.
+    // 埋込時、iframe内のvisualViewportはiOSでキーボードを検知できないため、
+    // 親側で計算した値を優先する.
+    let parentEmbedH = null;
+    const embedded = isEmbedded();
+    // 埋込時は body.embedded を付け、chat-root の高さを vv.height 直読みで制御する.
+    // iframe 内では 100svh が iframe 初期高さに張り付く iOS 挙動があり、
+    // 100svh - kb-h の計算式が破綻する (keyboard 開でヘッダーしか残らない症状).
+    if (embedded) document.body.classList.add('embedded');
 
     const setKbH = (px) => {
         docEl.style.setProperty('--kb-h', px + 'px');
     };
+    const setEmbedH = (px) => {
+        docEl.style.setProperty('--embed-h', px + 'px');
+    };
     const scrollMessagesToBottom = () => {
+        // キーボード開閉で chat-messages の高さが変わった直後に最下部へ. LINE UX.
+        // CSS の --embed-h 変更 → layout reflow が走るのを 1 frame 待つ. 同じ tick で
+        // scrollTop を書くと clientHeight がまだ古い値のため、新しい iframe サイズで
+        // 正しく最下部にならず古い相対位置が残る (2回目 kb-open で起きる). rAF 二重で
+        // layout 確定後に scrollTop を再適用してずれを回収.
         const msgs = document.getElementById('chat-messages');
         if (!msgs) return;
         msgs.scrollTop = msgs.scrollHeight;
@@ -4195,6 +4332,34 @@ setupEmbedDirectLinkFooter();
         closingTimer = setTimeout(() => { isClosing = false; }, 400);
     };
     const applyKbH = () => {
+        // 埋込時は 親の override が来ていればそれを優先.
+        // override が無い時は --embed-h を除去して CSS フォールバック (100%) に戻す.
+        // iframe 自身の vv.height を使うと、親で iframe 高さを変えた直後にラグで
+        // 古い値が返り chat-root が縮んだまま残るので、null リセット時は明示的に消す.
+        // NOTE: isClosing ガードは直URLモード専用. 埋込モードでは親が権威なので,
+        // input.blur() 直後の embed-h 受信を isClosing で 400ms ブロックすると
+        // chat-root が前サイズ (319) で固着する致命バグになる (2026-04-25 ユーザー指摘).
+        if (embedded) {
+            const wasOpen = keyboardOpen;
+            if (parentEmbedH !== null) {
+                // embed-h 変動の度に, ユーザーが下端付近にいるなら追従する (LINE風 sticky-bottom).
+                // prefocus(h=338) → expand(h=319) のように複数回 embed-h が来るケースで,
+                // !wasOpen ガードだと expand 時に scroll しないため最新メッセージが下に押し出される
+                // (2026-04-27 ユーザー報告: 入力欄タップで「ですの」「あいうえお」が隠れる).
+                const msgs = document.getElementById('chat-messages');
+                const stickToBottom = msgs
+                    ? (msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 120)
+                    : true;
+                setEmbedH(parentEmbedH);
+                keyboardOpen = true;
+                if (!wasOpen || stickToBottom) scrollMessagesToBottom();
+            } else {
+                docEl.style.removeProperty('--embed-h');
+                keyboardOpen = false;
+            }
+            return;
+        }
+        // 直URL: 従来通り kb-h を計算 (kb-close アニメ中の flicker 防止に isClosing 適用).
         if (isClosing) return;
         const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
         setKbH(kb);
@@ -4204,19 +4369,49 @@ setupEmbedDirectLinkFooter();
     };
     applyKbH();
 
+    // 親ページ（chat-embed.js）からの可視領域高さ通知を受ける。
+    // iOS Safari iframe内では親ページのキーボード状態を検知できないので、親が計算した値を反映。
+    if (embedded) {
+        window.addEventListener('message', (e) => {
+            const d = e.data;
+            if (!d || typeof d !== 'object') return;
+            if (d.type === 'ychat:embed-h') {
+                if (typeof d.h === 'number' && d.h > 0) {
+                    parentEmbedH = d.h;
+                } else {
+                    parentEmbedH = null;
+                }
+                applyKbH();
+                return;
+            }
+            if (d.type === 'ychat:blur-input') {
+                // 親から「入力欄 blur して kb を閉じてほしい」要求. widget-tap で fit モードに移る時に使う.
+                try {
+                    const ae = document.activeElement;
+                    if (ae && typeof ae.blur === 'function') ae.blur();
+                } catch (_) {}
+                return;
+            }
+        });
+    }
+
     if (vv) {
+        // rAF throttle は付けない: iOS keyboard アニメは 60fps で resize 発火、同期更新で 1:1 追従.
         vv.addEventListener('resize', applyKbH);
+        if (embedded) vv.addEventListener('scroll', applyKbH);
     }
     window.addEventListener('orientationchange', () => setTimeout(() => {
         isClosing = false;
         applyKbH();
     }, 200));
+    if (embedded) window.addEventListener('resize', applyKbH);
 
     const inputSelector = '#chat-input, .nickname-input, #cdr-code, textarea, input[type=text], input[type=email], input[type=password], input[type=tel], input[type=search], input[type=url], input[type=number]';
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.matches && e.target.matches(inputSelector)) {
             isClosing = false;
             if (closingTimer) { clearTimeout(closingTimer); closingTimer = null; }
+            // iOS auto-scroll 巻き戻し (念のため — chat-root は top+bottom 固定なので本来不要だが).
             if (window.scrollY !== 0 || window.scrollX !== 0) {
                 window.scrollTo(0, 0);
             }
@@ -4224,19 +4419,22 @@ setupEmbedDirectLinkFooter();
     }, true);
     document.addEventListener('focusout', (e) => {
         if (!e.target || !e.target.matches || !e.target.matches(inputSelector)) return;
+        // input→input 遷移は relatedTarget で判定 (rAF は使わない = 即 snap).
         const next = e.relatedTarget;
         if (next && next.matches && next.matches(inputSelector)) return;
         snapClose();
     }, true);
 
-    // iOS の auto-scroll を抑止: touch/mousedown で default の focus を止めて preventScroll:true で手動 focus.
+    // iOS の auto-scroll を根本から抑止: touch/mousedown で default の focus を
+    // 止めて、preventScroll:true で手動 focus する.
+    // これでブラウザが scrollIntoView を起こさないため「下から上」のアニメ自体が出ない.
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     if (isIOS) {
         const manualFocus = (e) => {
             const t = e.target;
             if (!t || !t.matches || !t.matches(inputSelector)) return;
-            if (document.activeElement === t) return;
+            if (document.activeElement === t) return; // 既に focus 済みなら何もしない
             e.preventDefault();
             try { t.focus({ preventScroll: true }); } catch (_) { t.focus(); }
         };
@@ -4244,6 +4442,7 @@ setupEmbedDirectLinkFooter();
         document.addEventListener('mousedown', manualFocus, true);
     }
 
+    // keyboard 開いてる間の iOS auto-scroll 巻き戻し.
     window.addEventListener('scroll', () => {
         if (!keyboardOpen) return;
         if (window.scrollY !== 0 || window.scrollX !== 0) {
