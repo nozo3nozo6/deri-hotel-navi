@@ -413,8 +413,12 @@ body.embedded #chat-root:has(#visitor-notify:focus-within) .chat-messages{paddin
 .owner-login-note{margin:4px 0 0;font-size:11px;color:#888;text-align:center;line-height:1.6}
 
 /* 埋込時のみ表示する直リンク誘導（iframeで不調な時のフォールバック） */
-.embed-direct-link{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;background:#fafafa;border-top:1px solid #eee;font-size:12px;color:#777}
+/* チャット本体の終わりを示すため、上端に太めのディバイダー線を入れる */
+.embed-direct-link{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 14px;background:#fafafa;border-top:2px solid #d8d2c8;font-size:12px;color:#777;border-bottom-left-radius:13px;border-bottom-right-radius:13px}
 .embed-direct-link.hidden{display:none}
+/* 直リンク行が表示されている時は chat-footer の角丸を解除して直リンク行に移譲 */
+body:has(#embed-direct-link:not(.hidden)) #chat-footer{border-bottom-left-radius:0;border-bottom-right-radius:0}
+@media (max-width:480px){.embed-direct-link{border-bottom-left-radius:9px;border-bottom-right-radius:9px}}
 .embed-direct-link-label{color:#999;font-size:11px}
 .embed-direct-link-anchor{color:var(--chat-primary);font-weight:700;text-decoration:none;padding:4px 10px;border:1px solid var(--chat-primary);border-radius:14px;font-size:12px;min-height:28px;display:inline-flex;align-items:center}
 .embed-direct-link-anchor:hover{background:var(--chat-primary);color:#fff}

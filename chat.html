@@ -151,18 +151,6 @@
 
   </div>
 
-  <!-- 埋込時のみ: 直リンク誘導（iframeで動作不調時のフォールバック） -->
-  <div id="embed-direct-link" class="embed-direct-link hidden">
-    <span class="embed-direct-link-label">うまく動かない場合は</span>
-    <a id="embed-direct-link-anchor" href="#" target="_blank" rel="noopener" class="embed-direct-link-anchor">直リンクはこちら ↗</a>
-    <div id="embed-cast-picker" class="embed-cast-picker hidden">
-      <label for="embed-cast-select" class="embed-cast-label">💁 キャスト指名:</label>
-      <select id="embed-cast-select" class="embed-cast-select">
-        <option value="">選択…</option>
-      </select>
-    </div>
-  </div>
-
   <div id="chat-footer" class="chat-footer">
     <select id="lang-select" class="lang-select" aria-label="言語">
       <option value="ja">🇯🇵 日本語入力</option>
@@ -184,6 +172,17 @@
         <span class="footer-brand-site">🏨 YobuHo.com</span>
       </span>
     </a>
+  </div>
+
+  <!-- 埋込時のみ: チャット全画面表示リンク + 登録キャスト指名ピッカー -->
+  <div id="embed-direct-link" class="embed-direct-link hidden">
+    <a id="embed-direct-link-anchor" href="#" target="_blank" rel="noopener" class="embed-direct-link-anchor">🔗 チャット全画面表示はこちら ↗</a>
+    <div id="embed-cast-picker" class="embed-cast-picker hidden">
+      <label for="embed-cast-select" class="embed-cast-label">💁 キャスト指名:</label>
+      <select id="embed-cast-select" class="embed-cast-select">
+        <option value="">選択…</option>
+      </select>
+    </div>
   </div>
 
   <button type="button" id="owner-login-link" class="owner-login-link-hidden" hidden></button>
