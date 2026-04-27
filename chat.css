@@ -131,11 +131,12 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .msg-send-status-icon{font-size:12px;line-height:1}
 .msg-retry-btn{background:none;border:none;color:var(--chat-primary);text-decoration:underline;font-size:10px;cursor:pointer;padding:0;margin-left:2px;font-weight:600}
 .msg-retry-btn:hover{opacity:.7}
-.msg-failed-actions{display:inline-flex;gap:6px;margin-left:4px}
+.msg-failed-actions{display:inline-flex;align-items:center;gap:8px;margin-left:4px;flex-wrap:wrap}
 .msg-failed-actions button{background:none;border:none;color:#888;font-size:10px;cursor:pointer;padding:0;text-decoration:underline}
 .msg-failed-actions button:hover{color:#333}
 .msg-failed-actions .msg-act-delete{color:#b44}
 .msg-failed-actions .msg-act-delete:hover{color:#8a2a2a}
+.msg-failed-actions .msg-act-reason{color:#b44;font-size:10px;line-height:1.3}
 /* ネットワーク状態バナー: offline=赤, reconnected=緑 */
 .network-banner{position:fixed;left:50%;transform:translateX(-50%) translateY(-120%);top:8px;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:200;white-space:nowrap;transition:transform .25s ease-out;pointer-events:none;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
 .network-banner.visible{transform:translateX(-50%) translateY(0)}
@@ -226,10 +227,12 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .emoji-toggle:hover{background:#e5e0d8}
 .emoji-toggle.hidden{display:none}
 /* タッチ端末は OS 標準の絵文字キーボードがあるので絵文字ボタン不要.
-   その分 send-btn を広げて誤タップで focus が抜けるのを防ぐ. */
+   その分 send-btn を広げて誤タップで focus が抜けるのを防ぐ.
+   min-height 44px は iOS HIG 推奨タップサイズ. textarea 1行時は input-area が
+   34px 程度しかないため明示しないと送信ボタンも詰まる (2026-04-27 追加). */
 @media (pointer:coarse){
   .emoji-toggle{display:none !important}
-  .send-btn{padding:0 24px;min-width:72px}
+  .send-btn{padding:0 24px;min-width:72px;min-height:44px}
 }
 .emoji-popup{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:6px;display:flex;gap:4px;padding:8px 10px;background:#fff;border:1px solid #e5e0d8;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);z-index:20;flex-wrap:wrap;width:max-content;max-width:calc(100vw - 24px)}
 .emoji-popup.hidden{display:none}
@@ -268,7 +271,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
    2行目に折返して 1行目末尾が「ー」だけになり、視覚的には「メッセ ジを入力...」と空白挿入されたように見える. */
 #chat-input::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .send-btn{padding:0 18px;background:var(--chat-primary);color:#fff;border-radius:18px;font-weight:700;font-size:14px}
+.send-btn::after{content:" ➤";margin-left:4px;font-weight:400;font-size:13px;display:inline-block;transform:translateY(-1px)}
 .send-btn:disabled{background:#ccc;cursor:not-allowed}
+.send-btn:disabled::after{opacity:.7}
 
 /* ===== フッター ===== */
 .chat-footer{position:relative;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fafafa;border-top:1px solid #e5e0d8;flex-wrap:wrap;border-bottom-left-radius:13px;border-bottom-right-radius:13px}

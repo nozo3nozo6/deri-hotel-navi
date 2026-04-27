@@ -98,6 +98,13 @@
     // chat.js が input-focus postMessage に source='touch' (touchend) or 'focus' (focusin only) を付けてくるので、
     // touch 由来の方だけこの timestamp を進める. 'focus' 由来は iOS auto-refocus 疑いがあり信用しない.
     var lastTouchFocusTs = 0;
+    // iOS auto-scroll に対する align watchdog. focus/expand/fit から始動し、最大 2.0s の間 100ms ごとに
+    // alignOnce を呼んで iframe top を sticky 直下にロックする. 連続 5 tick (500ms) 安定したら停止.
+    // これがないと「iframe 中段でユーザーが input を直タップ→iOS auto-scroll が我々の alignOnce 後に
+    // 走り上端ズレ→deferred realign が 500ms までしか張ってないので, 500ms 後の iOS scroll を拾えない」
+    // ケースが発生する (2026-04-27 ユーザー報告 case B).
+    var alignWatchdog = null;
+    var alignWatchdogStart = 0;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -236,6 +243,9 @@
         // が viewport top からズレる, IMG_8760). 100ms / 300ms 後に再 align で iOS 後勝ちを上書き.
         // ガード付き: state 抜けたら noop. alignOnce 内 drift<=0.5 早期 return で連発しても無害.
         scheduleDeferredRealign(iframe, [100, 300], 'prefocus');
+        // watchdog: 100ms 毎に最大 2s 間 drift 監視. case B (iframe 中段で input 直タップ→
+        // iOS auto-scroll が 500ms 以降に走るケース) の上端ズレを継続的に修正.
+        startAlignWatchdog(iframe);
         if (prefocusSafetyTimer) clearTimeout(prefocusSafetyTimer);
         prefocusSafetyTimer = setTimeout(function () {
             prefocusSafetyTimer = null;
@@ -246,6 +256,53 @@
                 resetIframeHeight(iframe);
             }
         }, 1000);
+    }
+
+    // align watchdog: deferred realign の網羅できない iOS auto-scroll 後勝ちを継続的に検出して上書き.
+    // 100ms 毎に drift を測定し >1px なら alignOnce. 連続 5 tick (500ms) drift<=1px で停止.
+    // 最大寿命 2.0s. state (prefocusedIframe / activeIframe) が抜けたら即停止.
+    // 用途: case B (iframe 中段で input 直タップ → iOS auto-scroll が deferred realign window 外で発火).
+    function startAlignWatchdog(iframe) {
+        stopAlignWatchdog();
+        alignWatchdogStart = Date.now();
+        var stableTicks = 0;
+        alignWatchdog = setInterval(function () {
+            var elapsed = Date.now() - alignWatchdogStart;
+            // state 抜けチェック (input-blur / kb close / 別 iframe 切替で停止)
+            if (prefocusedIframe !== iframe && activeIframe !== iframe) {
+                diag('watchdog: state cleared, stop');
+                stopAlignWatchdog();
+                return;
+            }
+            if (elapsed > 2000) {
+                diag('watchdog: timeout 2s, stop');
+                stopAlignWatchdog();
+                return;
+            }
+            var vv = window.visualViewport;
+            var stickyInset = getStickyTopInset();
+            var targetY = (vv ? vv.offsetTop : 0) + stickyInset;
+            var rect = iframe.getBoundingClientRect();
+            var drift = Math.abs(rect.top - targetY);
+            if (drift > 1) {
+                stableTicks = 0;
+                diag('watchdog drift=' + Math.round(drift) + ' realign');
+                alignOnce(iframe);
+            } else {
+                stableTicks++;
+                if (stableTicks >= 5) {
+                    diag('watchdog: stable ' + stableTicks + ' ticks, stop @' + elapsed + 'ms');
+                    stopAlignWatchdog();
+                }
+            }
+        }, 100);
+    }
+
+    function stopAlignWatchdog() {
+        if (alignWatchdog) {
+            clearInterval(alignWatchdog);
+            alignWatchdog = null;
+        }
     }
 
     // deferred re-align: iOS の focus-scroll / kb-open scroll が settle した後に
@@ -293,6 +350,10 @@
             diag('expand h=' + targetH + ' sticky=' + stickyInset);
         } catch (_) {}
         scheduleDeferredRealign(iframe, [300, 500], 'expand');
+        // align watchdog: kb 開アニメ完了後の iOS auto-scroll を継続監視. expandToVV は kb 開遷移中に
+        // window.scrollBy を発火できない (kb dismiss されるリスク) ため、iframe 高さだけ確定させて
+        // top アンカーは watchdog に任せる戦略.
+        startAlignWatchdog(iframe);
         // iOS で vv.resize が kb-close 時に発火しないケースに備え, vv.height を定期確認して
         // 開→閉 を watchdog で補完する. onVVChange が正常発火すれば resetIframeHeight 側で clearInterval される.
         startExpandVerifyWatch(iframe);
@@ -362,11 +423,15 @@
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
             diag('fit h=' + targetH + ' sticky=' + stickyInset);
         } catch (e) { diag('fit ERR ' + (e && e.message)); }
+        // align watchdog: widget-tap 経路でも顧客サイトの遅延 sticky / 画像読込みによる layout shift で
+        // iframe top がズレるケースを継続修正. 案 C (チャットヘッダー差し掛かり) の安定化に必須.
+        startAlignWatchdog(iframe);
     }
 
     function resetIframeHeight(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
+        stopAlignWatchdog();
         prefocusedIframe = null;
         fitMode = false;
         if (savedIframeStyle !== null) {

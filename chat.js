@@ -426,9 +426,30 @@ function _bindChatInputEvents(input) {
             try { input.value = ''; } catch (_) {}
         }
     });
-    // Enter キーは LINE 流: 常に改行 (送信は送信ボタンのみ).
-    // 2026-04-27 一時的に enterkeyhint=send + Enter→送信 を試したが、ユーザー要望で LINE 同等に戻した.
-    // textarea のデフォルト Enter=改行 + enterkeyhint="enter" (iOS soft kb 右下を「改行」表示) で固定.
+    // Enter キー: PC (hover:hover + pointer:fine) のみ Gmail/Slack 流で送信.
+    //   - Enter (修飾なし) → 送信
+    //   - Shift+Enter → 改行 (デフォルト挙動、preventDefault しない)
+    //   - 変換中 (_isComposing / e.isComposing) → 送信しない (ユーザールール: 変換前は送信禁止)
+    // タッチデバイス (スマホ/タブレット) は LINE 流: Enter は常に textarea デフォルト=改行.
+    //   - mobile では Enter→送信は誤爆が多くユーザー却下済み (memory: feedback_chat_enterkeyhint_send).
+    input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        // composition 中は触らない (改行も送信もしない. textarea の確定入力に任せる).
+        if (e.isComposing || _isComposing) return;
+        // 修飾キー: Shift+Enter は改行 (デフォルト). Ctrl/Cmd/Alt+Enter は誤爆防止のため何もしない.
+        if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+        // PC/desktop 判定: hover:hover and pointer:fine = mouse プライマリの環境.
+        // iPad で外付けキーボード使用時も pointer:fine になるが、iPad で Enter=送信は LINE 流で問題なし
+        // という判断 (要望があれば再検討).
+        let isDesktop = false;
+        try {
+            isDesktop = typeof window.matchMedia === 'function'
+                && window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+        } catch (_) {}
+        if (!isDesktop) return;
+        e.preventDefault();
+        _doSendFromButton();
+    });
 }
 // IME composition を強制コミット.
 // mousedown.preventDefault で focus 維持型の送信ボタンを使うと iOS Safari は
@@ -804,14 +825,16 @@ function markOptimisticFailed(cmid, err) {
         // 永続エラー (4xx). 連投ブロック/セッションclosed等、再送しても無駄なので outbox からも破棄.
         dequeueOutbox(cmid);
         clearRetryTimer(cmid);
-        // アクションバー: コピー + 削除 のみ (再送なし).
-        const actions = buildFailedActions(cmid, /*showRetry*/ false);
+        // ユーザールール (2026-04-27): コピーボタンは廃止. 代わりに送信できなかった理由を短文で表示.
+        // reason は server から来た err.message (例: "同じ内容の連投は送信できません").
+        const reason = shortFailReason(err);
+        const actions = buildFailedActions(cmid, /*showRetry*/ false, reason);
         meta.appendChild(status);
         meta.appendChild(actions);
         return;
     }
 
-    // 再送可能: 手動「再送」リンク + アクションバー (コピー/削除).
+    // 再送可能: 手動「再送」リンク + アクションバー (削除のみ).
     const retryBtn = document.createElement('button');
     retryBtn.type = 'button';
     retryBtn.className = 'msg-retry-btn';
@@ -820,10 +843,21 @@ function markOptimisticFailed(cmid, err) {
     status.appendChild(retryBtn);
 
     meta.appendChild(status);
-    meta.appendChild(buildFailedActions(cmid, /*showRetry*/ false));
+    meta.appendChild(buildFailedActions(cmid, /*showRetry*/ false, ''));
 }
 
-function buildFailedActions(cmid, showRetry) {
+// 永続エラー (4xx) の理由を短文に整形. server からの長い文言は適度に切り詰める.
+function shortFailReason(err) {
+    if (!err) return '送信できません';
+    const raw = (err.message || '').trim();
+    if (!raw || /^HTTP\s+\d/i.test(raw)) return '送信できません';
+    // サーバ文言が長すぎる場合は先頭の節 (。/—/( まで) を抽出して短縮.
+    const head = raw.split(/[。．\n\(（—–]/)[0].trim();
+    const text = head || raw;
+    return text.length > 40 ? text.slice(0, 38) + '…' : text;
+}
+
+function buildFailedActions(cmid, showRetry, reasonText) {
     const wrap = document.createElement('div');
     wrap.className = 'msg-failed-actions';
     if (showRetry) {
@@ -834,18 +868,12 @@ function buildFailedActions(cmid, showRetry) {
         retry.addEventListener('click', (e) => { e.stopPropagation(); retryOutbox(cmid); });
         wrap.appendChild(retry);
     }
-    const copy = document.createElement('button');
-    copy.type = 'button';
-    copy.className = 'msg-act-copy';
-    copy.textContent = t('msg.copy') || 'コピー';
-    copy.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const entry = _outbox.get(cmid);
-        const text = entry && entry.text ? entry.text : '';
-        if (!text) return;
-        try { navigator.clipboard.writeText(text); } catch (_) {}
-    });
-    wrap.appendChild(copy);
+    if (reasonText) {
+        const reason = document.createElement('span');
+        reason.className = 'msg-act-reason';
+        reason.textContent = reasonText;
+        wrap.appendChild(reason);
+    }
 
     const del = document.createElement('button');
     del.type = 'button';
@@ -3581,8 +3609,11 @@ async function handleOwnerLogout() {
 //   PC mouse は mousedown preventDefault + click で従来通り.
 // (memory: feedback_chat_send_button_no_blur — touch では mousedown 不十分という追記が必要)
 function _doSendFromButton() {
-    // v=179 (2026-04-27): 文字/絵文字で挙動を分けない. 入力欄の value をそのまま送信する.
-    // 変換中送信→IME buffer 復活問題は snapshot 機構 (clearInputPreservingIme) が引き受ける.
+    // v=182 (2026-04-27): 変換前 (IME composition active) は送信しない.
+    // ユーザールール: 「変換前は送信できないルールでお願いします」.
+    // 確定してから送信ボタンを押してもらう (LINE 同等の UX).
+    // 絵文字パレットなど composition を伴わない入力は v=180 の touch 経路でそのまま 1-tap 送信.
+    if (_isComposing) return;
     const msg = refs.input.value;
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);

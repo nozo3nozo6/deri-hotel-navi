@@ -282,16 +282,7 @@ function detectSpam(string $msg, array $recentMessages): ?string {
     if ($len === 0) return 'メッセージが空です';
     if ($len > 500) return 'メッセージが長すぎます（500文字以内）';
 
-    // 純記号/絵文字メッセージか? (文字 \p{L} と数字 \p{Nd} を含まない).
-    // \p{So}|\p{Sk}|\p{Sm} 列挙は Unicode property 漏れがあり (ZWJ/FE0F 込みシーケンスや
-    // 新しめの絵文字), 否定マッチ (= 文字でも数字でもない) の方が頑健.
     $isSymbolOnly = !preg_match('/[\p{L}\p{Nd}]/u', $trimmed);
-
-    // 1文字メッセージは原則拒否. ただし絵文字/記号のみは祝福/相槌表現として許可
-    // (例: 😊 / 👍 / ✨ / ❤ / ! / ?).
-    if ($len < 2 && !$isSymbolOnly) {
-        return '2文字以上入力してください';
-    }
 
     // 同一文字の4連 (「あああああ」「wwwww」) はスパム判定だが,
     // 絵文字/記号の連続 (「🎉🎉🎉🎉」「!!!!」) は許可.
@@ -303,9 +294,6 @@ function detectSpam(string $msg, array $recentMessages): ?string {
         }
     }
 
-    // 直近メッセージとの類似判定（小変更連投対策）.
-    // 純記号/絵文字メッセージは判定スキップ — 👍→😊 や 🎉→🎉🎉 のような
-    // リアクション送信を遮らないため. レート制限 (1秒/10件) で十分.
     if ($isSymbolOnly) return null;
 
     $normalized = preg_replace('/[\s、。,.!?！？]/u', '', $trimmed);
@@ -314,13 +302,7 @@ function detectSpam(string $msg, array $recentMessages): ?string {
         $prevNorm = preg_replace('/[\s、。,.!?！？]/u', '', (string)$prev);
         $prevNorm = mb_strtolower($prevNorm);
         if ($prevNorm === '' || $normalized === '') continue;
-        // 完全一致 or 一方が他方に含まれる短文連投
         if ($prevNorm === $normalized) return '同じ内容の連投は送信できません';
-        if (mb_strlen($normalized) <= 10 && mb_strlen($prevNorm) <= 10) {
-            if (mb_strpos($normalized, $prevNorm) !== false || mb_strpos($prevNorm, $normalized) !== false) {
-                return '似た内容の連投は送信できません';
-            }
-        }
     }
 
     return null;
@@ -605,7 +587,7 @@ function handleStartSession() {
     }
 
     $vh = visitorHash();
-    if (isBlocked($shop['id'], $vh)) err('この店舗への連絡は停止されています', 403);
+    if (isBlocked($shop['id'], $vh)) err('現在チャットをご利用いただけません', 403);
 
     $limitErr = checkDailySessionLimit($shop['id'], $vh);
     if ($limitErr) err($limitErr, 429);
@@ -664,7 +646,7 @@ function handleSendMessage() {
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
     if ($session['status'] === 'closed') err('このチャットは終了しています', 410);
-    if ((int)$session['blocked'] === 1) err('この店舗への連絡は停止されています', 403);
+    if ((int)$session['blocked'] === 1) err('現在チャットをご利用いただけません', 403);
 
     // 冪等送信: 同じ client_msg_id で過去に送信済みなら、再挿入せず既存を返す.
     // WS再接続中のネットワーク再送でも重複行が作られない.
