@@ -2993,16 +2993,13 @@ function renderChatAdmin(data){
     // ① script: chat-widget.js が iframe を右下フローティングで注入（モーダル開閉付き）
     const scriptCode = '<script src="https://yobuho.com/chat-widget.js" data-slug="' + slug + '" async><\/script>';
 
-    // ② iframe: 静的 iframe + 外部スクリプト chat-embed.js が postMessage を処理
-    // 外部スクリプト方式の利点:
+    // ② iframe: 静的 iframe + 外部スクリプト chat-embed.js (B+α 設計, 2026-04-27)
     //   - inline script なし → 顧客CMS の description auto-extraction を汚染しない
     //   - chat-embed.js はサーバー配信（1時間 revalidate）なので改良が全埋込先に自動反映
-    //   - data-ychat-slug/min/max 属性で設定を iframe 側に明示。script 差替え不要
-    // chat-embed.js が受けるメッセージ:
-    //   ychat:resize / input-focus / enter-fullscreen / exit-fullscreen
+    //   - 親側はサイズ制御せず, iframe は固定高さ (640px) で動く. iOS auto-scroll に任せる.
     const embedBridgeTag = '<script src="https://yobuho.com/chat-embed.js" async><\/script>';
     const iframeCode =
-        '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:calc(100% - 16px);max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
+        '<iframe data-ychat-slug="' + slug + '" src="' + publicUrl + '?embed=1" style="width:calc(100% - 16px);max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
         embedBridgeTag;
 
     // ③ link: 別タブで /chat/slug/ を開くシンプルリンク
