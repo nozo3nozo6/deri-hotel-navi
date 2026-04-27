@@ -158,6 +158,12 @@
     // 拾うため、scrollBy の結果を再検証して drift が残っていれば iframe.scrollIntoView でフォールバック.
     // これがないと go-kichi.com 等で「画面上に親ヘッダーが残ってチャットヘッダーが中途半端」事象が起きる
     // (2026-04-27 修正).
+    //
+    // 微差 drift threshold: drift が viewport の 8% (最低 48px) 以下なら scrollBy しない.
+    // 顧客HP の sticky-hide や Safari URL bar 縮小と alignOnce が交互に発火して
+    // 「本体ヘッダーが retract → stickyInset 変化 → 再 align → さらに retract」のカスケード防止
+    // (2026-04-27 ユーザー報告 IMG_8801→8802: チャットヘッダーが本体ヘッダーを過ぎないで入力タップ→ガクガク+本体ヘッダー消失).
+    // 大きな drift (iOS auto-scroll で chat header が画面外) は引き続き snap する.
     function alignOnce(iframe) {
         var vv = window.visualViewport;
         var stickyInset = getStickyTopInset();
@@ -165,6 +171,12 @@
         var rect = iframe.getBoundingClientRect();
         var drift = rect.top - targetY;
         if (Math.abs(drift) <= 0.5) return;
+
+        var minSnapDrift = Math.max(48, Math.floor(window.innerHeight * 0.08));
+        if (Math.abs(drift) < minSnapDrift) {
+            diag('align skip: minor drift=' + Math.round(drift) + ' < ' + minSnapDrift);
+            return;
+        }
 
         // primary: window 全体スクロール (body 直下スクロールの一般ケース)
         window.scrollBy(0, drift);
@@ -259,13 +271,15 @@
     }
 
     // align watchdog: deferred realign の網羅できない iOS auto-scroll 後勝ちを継続的に検出して上書き.
-    // 100ms 毎に drift を測定し >1px なら alignOnce. 連続 5 tick (500ms) drift<=1px で停止.
+    // 50ms 毎に drift を測定し threshold (alignOnce と同期) を超えたら alignOnce. 連続 3 tick で停止.
     // 最大寿命 2.0s. state (prefocusedIframe / activeIframe) が抜けたら即停止.
     // 用途: case B (iframe 中段で input 直タップ → iOS auto-scroll が deferred realign window 外で発火).
+    // threshold は alignOnce と同じ minSnapDrift を使う = 微差では align しない (sticky-hide カスケード防止).
     function startAlignWatchdog(iframe) {
         stopAlignWatchdog();
         alignWatchdogStart = Date.now();
         var stableTicks = 0;
+        var threshold = Math.max(48, Math.floor(window.innerHeight * 0.08));
         alignWatchdog = setInterval(function () {
             var elapsed = Date.now() - alignWatchdogStart;
             // state 抜けチェック (input-blur / kb close / 別 iframe 切替で停止)
@@ -284,7 +298,7 @@
             var targetY = (vv ? vv.offsetTop : 0) + stickyInset;
             var rect = iframe.getBoundingClientRect();
             var drift = Math.abs(rect.top - targetY);
-            if (drift > 1) {
+            if (drift > threshold) {
                 stableTicks = 0;
                 diag('watchdog drift=' + Math.round(drift) + ' realign');
                 alignOnce(iframe);
@@ -329,14 +343,23 @@
         }
     }
 
-    // kb 開通知後の最終サイズ: iframe を (vv.height - stickyInset) に拡大。
-    // iframe top = sticky nav 直下、iframe bottom = キーボード上端 → chat-header と入力欄が同時に可視.
+    // kb 開通知後の最終サイズ: iframe bottom を vv.bottom に揃える (textarea が kb 上端).
+    // 旧仕様 (targetH = vv.height - stickyInset) は iframe.top が canonical 位置 (= stickyInset)
+    // にいる前提で iframe height を決めていた. しかし alignOnce の threshold (微差 skip) 導入後は
+    // iframe.top が canonical より下に留まるケースがあり, その時 vv.height - stickyInset では
+    // iframe bottom が vv.bottom を 30-50px 越えて textarea が kb 裏に隠れる.
+    // → 実 iframe.top から vv.bottom までを iframe height にする. canonical 位置では結果同等.
     function expandToVV(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         var vv = window.visualViewport;
         if (!vv) return;
         var stickyInset = getStickyTopInset();
-        var targetH = Math.floor(vv.height - stickyInset);
+        var rect = iframe.getBoundingClientRect();
+        var vvBottom = vv.offsetTop + vv.height;
+        var canonicalTop = vv.offsetTop + stickyInset;
+        // iframe.top が canonical 上 (画面外) にいる場合は canonical を採用 (height 過大化を防ぐ).
+        var iframeTop = rect.top < canonicalTop ? canonicalTop : rect.top;
+        var targetH = Math.floor(vvBottom - iframeTop);
         if (targetH < 100) return;
         saveIframeStyle(iframe);
         forceHeight(iframe, targetH);
@@ -347,7 +370,7 @@
         // 走り上端ズレするケースを deferred alignOnce で最終位置を保証.
         try {
             iframe.contentWindow.postMessage({ type: 'ychat:embed-h', h: targetH }, '*');
-            diag('expand h=' + targetH + ' sticky=' + stickyInset);
+            diag('expand h=' + targetH + ' iframeTop=' + Math.round(iframeTop) + ' sticky=' + stickyInset);
         } catch (_) {}
         scheduleDeferredRealign(iframe, [300, 500], 'expand');
         // align watchdog: kb 開アニメ完了後の iOS auto-scroll を継続監視. expandToVV は kb 開遷移中に
@@ -393,18 +416,19 @@
     // widget-tap (入力欄以外のタップ) で発動. customer が 900px など大きい iframe を置いてる時の
     // 「footer が画面外」問題の対応. kb 開閉に関わらず確実に最終形状へ遷移.
     //
-    // kb が実際に開いている時 (vv.height < innerHeight - 100) は innerHeight ベースで
-    // サイズすると iframe が kb の裏に潜り、textarea が見えなくなる. その場合は vv ベースの
-    // expandToVV にフォールバック (input-blur 300ms timer が kb-close 検出をミスったケース対応,
-    // 2026-04-27).
+    // kb が実際に開いている時 (widget-tap 直後): サイズ変更を行わず activeIframe/fitMode フラグだけ
+    // セットして待機. chat.js が ychat:blur-input を受けて textarea blur → ychat:input-blur を
+    // parent に送信 → 300ms 後に input-blur timer が fitToViewport を再実行 → kb 閉じきった状態で
+    // 真の fit が成立する. 旧仕様 (expandToVV にルート) は中間サイズに一旦縮んでから真の fit に
+    // 拡大する 2段階遷移 (= ユーザーには「全体が一瞬上に上がってから定位置に着く」と見える) の原因
+    // (2026-04-27 ユーザー報告 IMG_15:38:36→15:39:13).
     function fitToViewport(iframe) {
         if (prefocusSafetyTimer) { clearTimeout(prefocusSafetyTimer); prefocusSafetyTimer = null; }
         var vv = window.visualViewport;
         if (vv && (window.innerHeight - vv.height) > 100) {
-            diag('fit() rerouted to expandToVV (kb still open kbH=' + Math.round(window.innerHeight - vv.height) + ')');
+            diag('fit() deferred: kb still open kbH=' + Math.round(window.innerHeight - vv.height) + ', wait for input-blur');
             activeIframe = iframe;
             fitMode = true;
-            expandToVV(iframe);
             return;
         }
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
