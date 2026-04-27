@@ -992,13 +992,15 @@ function handleCastListPublic() {
     if (!$shop) { ok(['casts' => []]); }
     if ((int)($shop['cast_enabled'] ?? 0) !== 1) { ok(['casts' => []]); }
     $pdo = DB::conn();
+    // display_name は shop_casts に保持 (casts には無い). 旧クエリは c.display_name 参照で
+    // SQLException を投げ、catch ハンドラ経由で {casts:[]} に縮退していた.
     $stmt = $pdo->prepare(
-        "SELECT sc.id, c.display_name
+        "SELECT sc.id, sc.display_name
          FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
          WHERE sc.shop_id = ? AND sc.deleted_at IS NULL
            AND sc.status = 'active' AND c.status = 'active'
-         ORDER BY sc.sort_order ASC, c.display_name ASC"
+         ORDER BY sc.sort_order ASC, sc.display_name ASC"
     );
     $stmt->execute([$shop['id']]);
     $casts = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];

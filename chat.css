@@ -336,8 +336,12 @@ body.embedded.chat-input-focused #chat-footer{display:none}
    focus-within 中だけ position:absolute; bottom:0 でキーボード直上に持ち上げ、
    chat-input-area / templates / footer を畳んで前面に出す.
    ユーザー直接タップ前提 (programmatic focus は memory: feedback_chat_no_programmatic_focus 参照). */
-body.embedded #nickname-area:focus-within,
-body.embedded #visitor-notify:focus-within{
+/* :focus-within ではなく「テキスト/メール入力にフォーカス時のみ」にスコープ.
+   チェックボックス (visitor-notify-toggle) クリックで :focus-within が立つと
+   nickname-area が position:absolute bottom:0 z-index:10 で浮いてしまい、
+   その下の visitor-notify (メール入力欄) を白背景で覆い隠してしまう. */
+body.embedded #nickname-area:has(input:not([type=checkbox]):focus),
+body.embedded #visitor-notify:has(input:not([type=checkbox]):focus){
     position:absolute;
     bottom:0;
     left:0;
@@ -349,15 +353,15 @@ body.embedded #visitor-notify:focus-within{
     margin:0;
     padding:10px 12px
 }
-body.embedded #nickname-area:focus-within ~ #chat-input-area,
-body.embedded #visitor-notify:focus-within ~ #chat-input-area,
-body.embedded #nickname-area:focus-within ~ #owner-templates,
-body.embedded #visitor-notify:focus-within ~ #owner-templates,
-body.embedded #nickname-area:focus-within ~ #chat-footer,
-body.embedded #visitor-notify:focus-within ~ #chat-footer{display:none}
+body.embedded #nickname-area:has(input:not([type=checkbox]):focus) ~ #chat-input-area,
+body.embedded #visitor-notify:has(input:not([type=checkbox]):focus) ~ #chat-input-area,
+body.embedded #nickname-area:has(input:not([type=checkbox]):focus) ~ #owner-templates,
+body.embedded #visitor-notify:has(input:not([type=checkbox]):focus) ~ #owner-templates,
+body.embedded #nickname-area:has(input:not([type=checkbox]):focus) ~ #chat-footer,
+body.embedded #visitor-notify:has(input:not([type=checkbox]):focus) ~ #chat-footer{display:none}
 /* sticky 化された入力欄に被らないよう chat-messages 下端に余白. :has() は iOS 15.4+ */
-body.embedded #chat-root:has(#nickname-area:focus-within) .chat-messages,
-body.embedded #chat-root:has(#visitor-notify:focus-within) .chat-messages{padding-bottom:90px}
+body.embedded #chat-root:has(#nickname-area input:not([type=checkbox]):focus) .chat-messages,
+body.embedded #chat-root:has(#visitor-notify input:not([type=checkbox]):focus) .chat-messages{padding-bottom:90px}
 
 /* ===== Footer brand (visitor mode, yobuho.com promo) ===== */
 .footer-brand{margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;padding:4px 10px;border-radius:14px;font-size:11px;color:#6b5a50;text-decoration:none;background:transparent;transition:background .15s,color .15s;line-height:1.25}
