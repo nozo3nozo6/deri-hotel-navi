@@ -426,36 +426,9 @@ function _bindChatInputEvents(input) {
             try { input.value = ''; } catch (_) {}
         }
     });
-    // Enter キーの挙動 (2026-04-27 ユーザー要望、enterkeyhint="send" と連動):
-    //
-    // iOS Japanese 入力では soft kb 右下の表示を端末側が以下の規則で切り替える:
-    //   - IME 変換中 (composition active): 必ず「確定」表示 (enterkeyhint より OS 規則が優先)
-    //   - 入力欄 empty / 確定後 (composition なし): enterkeyhint=send → 「→」表示
-    // この「→」が押された時 (= 確定後の Enter) に送信処理を走らせる.
-    //
-    // 設計:
-    //   - 適用対象は touch device のみ (PC hardware kb の Enter は従来通り改行).
-    //     PC で誤爆 Enter→送信は避けたい (旧 spec: 「Enter→送信は誤爆が多く望ましくない」).
-    //     iOS/Android の soft kb は意図的に「→」を押す動作なので誤爆リスクは低い.
-    //   - 変換中の Enter: IME に渡す (送信させない). _isComposing と e.isComposing の両ガード.
-    //   - Shift+Enter: 改行 (touch でも保険として残す).
-    //   - 通常 Enter (touch + 変換なし + value あり): 送信ボタンと同じ経路で送信.
-    const _isTouchDevice = (typeof window !== 'undefined') && (
-        ('ontouchstart' in window) ||
-        (navigator && navigator.maxTouchPoints > 0)
-    );
-    input.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter') return;
-        if (!_isTouchDevice) return; // PC は従来通り改行
-        if (e.shiftKey) return;
-        if (e.isComposing || _isComposing) return;
-        const val = (input.value || '').trim();
-        if (!val) return;
-        e.preventDefault();
-        if (typeof _doSendFromButton === 'function') {
-            _doSendFromButton();
-        }
-    });
+    // Enter キーは LINE 流: 常に改行 (送信は送信ボタンのみ).
+    // 2026-04-27 一時的に enterkeyhint=send + Enter→送信 を試したが、ユーザー要望で LINE 同等に戻した.
+    // textarea のデフォルト Enter=改行 + enterkeyhint="enter" (iOS soft kb 右下を「改行」表示) で固定.
 }
 // IME composition を強制コミット.
 // mousedown.preventDefault で focus 維持型の送信ボタンを使うと iOS Safari は
