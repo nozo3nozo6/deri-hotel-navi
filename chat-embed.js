@@ -290,12 +290,12 @@
                 alignOnce(iframe);
             } else {
                 stableTicks++;
-                if (stableTicks >= 5) {
+                if (stableTicks >= 3) {
                     diag('watchdog: stable ' + stableTicks + ' ticks, stop @' + elapsed + 'ms');
                     stopAlignWatchdog();
                 }
             }
-        }, 100);
+        }, 50);
     }
 
     function stopAlignWatchdog() {

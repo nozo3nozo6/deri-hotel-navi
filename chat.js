@@ -3609,12 +3609,16 @@ async function handleOwnerLogout() {
 //   PC mouse は mousedown preventDefault + click で従来通り.
 // (memory: feedback_chat_send_button_no_blur — touch では mousedown 不十分という追記が必要)
 function _doSendFromButton() {
-    // v=182 (2026-04-27): 変換前 (IME composition active) は送信しない.
-    // ユーザールール: 「変換前は送信できないルールでお願いします」.
-    // 確定してから送信ボタンを押してもらう (LINE 同等の UX).
-    // 絵文字パレットなど composition を伴わない入力は v=180 の touch 経路でそのまま 1-tap 送信.
-    if (_isComposing) return;
+    // v=184 (2026-04-27): 変換前 (実際に IME composition 中) は送信しない.
+    // ただし iOS 絵文字パレットは compositionstart は来るが compositionend が抜ける
+    // (memory: feedback_ios_emoji_palette_composition) → _isComposing が stuck-true に.
+    // 値が純絵文字/記号 (\p{L}\p{Nd} 含まない) の時は composition stuck 扱いで force-reset して送信.
     const msg = refs.input.value;
+    if (_isComposing) {
+        const hasLetter = /[\p{L}\p{Nd}]/u.test(msg);
+        if (hasLetter) return; // 本物の変換中: 送信しない
+        _isComposing = false;  // 絵文字 stuck: 解除して送信
+    }
     if (IS_CAST_VIEW) sendCastReply(msg);
     else if (state.mode === 'cast_owner') sendCastInboxReply(msg);
     else if (state.mode === 'owner') sendOwnerReply(msg);
