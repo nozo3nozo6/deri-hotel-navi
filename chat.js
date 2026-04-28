@@ -4248,9 +4248,12 @@ function setupEmbedDirectLinkFooter() {
     if (anchor) anchor.href = directUrl;
     el.classList.remove('hidden');
 
-    // キャスト一覧を chat-api から取得してチップ <a target="_blank"> の列で出す（cast 有効店舗のみ）.
+    // キャスト一覧を chat-api から取得してチップ <a target="_top"> の列で出す（cast 有効店舗のみ）.
+    // target="_top" の理由 (2026-04-28): _blank だと iOS Safari で新規タブに履歴が無く
+    // 戻るボタンで埋込元 (例: go-kichi.com) に戻れない. _top で親ウィンドウを置換すれば
+    // 履歴に [親ページ → cast ページ] が積まれ、戻るボタンが正しく動作する.
     // 過去に <select> + change → window.open / a.click() を試したが iOS Safari の popup blocker や
-    // iframe sandbox で抑止される事例があり、実ユーザータップの <a target="_blank"> なら必ずブラウザが処理.
+    // iframe sandbox で抑止される事例があり、実ユーザータップの <a> なら必ずブラウザが処理.
     const picker = document.getElementById('embed-cast-picker');
     const list = document.getElementById('embed-cast-list');
     if (!picker || !list) return;
@@ -4263,8 +4266,7 @@ function setupEmbedDirectLinkFooter() {
             if (!c || !c.id) return;
             const a = document.createElement('a');
             a.href = directUrl + '?cast=' + encodeURIComponent(c.id);
-            a.target = '_blank';
-            a.rel = 'noopener';
+            a.target = '_top';
             a.className = 'embed-cast-link';
             a.textContent = c.display_name || '';
             list.appendChild(a);
