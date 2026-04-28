@@ -57,6 +57,9 @@ export interface ChatSession {
   shop_cast_id?: string | null;
   cast_id?: string | null;
   cast_name?: string | null;
+  // キャスト プロフィール画像 (shop_casts.profile_image_url). resolveCast 時に取得して保存し,
+  // adopt 時の WS history 描画前に httpStartSession 応答で client に返す (visitor アバター表示用).
+  cast_avatar_url?: string | null;
 }
 
 // ===== 店舗ステータス =====
@@ -76,6 +79,9 @@ export interface ShopStatus {
   slug: string;
   shop_name: string;
   email: string;
+  // チャット表示用アバター. shops.chat_avatar_url 優先, NULL なら thumbnail_url.
+  // PHP chat-shop-lookup.php が COALESCE 済みで返すため client 側で fallback 不要.
+  chat_avatar_url?: string | null;
 }
 
 // ===== 統一バッチレスポンス (okBatch形状) =====

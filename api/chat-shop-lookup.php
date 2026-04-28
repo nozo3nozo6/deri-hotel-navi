@@ -8,7 +8,8 @@
  * GET: ?slug=xxx or ?shop_id=uuid
  * Response: {shop_id, slug, shop_name, email, notify_email, is_online,
  *            last_online_at, notify_mode, notify_min_interval_minutes,
- *            auto_off_minutes, reception_start, reception_end, welcome_message}
+ *            auto_off_minutes, reception_start, reception_end, welcome_message,
+ *            chat_avatar_url (chat 表示用. shops.chat_avatar_url 優先, NULL なら thumbnail_url)}
  */
 
 require_once __DIR__ . '/db-config.php'; // define(CHAT_SYNC_SECRET) を先に読み込む
@@ -54,6 +55,7 @@ $param = $slug ?: $shopId;
 $pdo = DB::conn();
 $stmt = $pdo->prepare("
     SELECT s.id AS shop_id, s.slug, s.shop_name, s.email,
+           COALESCE(s.chat_avatar_url, s.thumbnail_url) AS chat_avatar_url,
            st.is_online, st.last_online_at,
            st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
            st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint,
@@ -88,6 +90,7 @@ $out = [
     'reception_end' => $row['reception_end'],
     'welcome_message' => $row['welcome_message'],
     'reservation_hint' => $row['reservation_hint'],
+    'chat_avatar_url' => $row['chat_avatar_url'] ?: null,
 ];
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

@@ -137,6 +137,7 @@ function visitorHash(): string {
 function getShopBySlug(string $slug): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email, s.status, s.gender_mode, s.cast_enabled,
+                COALESCE(s.chat_avatar_url, s.thumbnail_url) AS chat_avatar_url,
                 st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
                 st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
@@ -163,13 +164,14 @@ function getShopById(string $shopId): ?array {
 }
 
 /**
- * 実効オンライン判定: is_online=1 のみで判定 (A案/厳格2値ルール)
- * 時間帯制御は受付時間 (reception_start/end) 側で行う。
+ * 実効オンライン判定: is_online=1 (受付トグルON) AND 現在が受付時間内.
+ * トグルだけONで受付時間外でも緑丸が出続ける問題を防ぐため、両方が真の時のみ true.
  * last_online_at は診断用のまま残すが 🟢 表示/メール通知の判定には使わない。
  */
 function effectiveOnline(?array $shop): bool {
     if (!$shop) return false;
-    return (int)($shop['is_online'] ?? 0) === 1;
+    if ((int)($shop['is_online'] ?? 0) !== 1) return false;
+    return isWithinReceptionHours($shop);
 }
 
 /**
@@ -562,7 +564,8 @@ function handleStartSession() {
     if ($adoptToken !== '') {
         $stmt = $pdo->prepare(
             'SELECT cs.id, cs.cast_id, cs.visitor_email, cs.visitor_notify_enabled,
-                    sc.id AS shop_cast_id, sc.display_name AS cast_name, sc.chat_notify_mode
+                    sc.id AS shop_cast_id, sc.display_name AS cast_name, sc.chat_notify_mode,
+                    sc.profile_image_url AS cast_avatar_url
              FROM chat_sessions cs
              LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
              WHERE cs.session_token = ? AND cs.shop_id = ? LIMIT 1'
@@ -581,6 +584,8 @@ function handleStartSession() {
                 'gender_mode'      => $shop['gender_mode'] ?? 'men',
                 'visitor_email'    => (string)($existing['visitor_email'] ?? ''),
                 'visitor_notify_enabled' => (int)$existing['visitor_notify_enabled'] === 1,
+                'shop_avatar_url'  => $shop['chat_avatar_url'] ?: null,
+                'cast_avatar_url'  => $existing['cast_avatar_url'] ?: null,
             ]);
         }
         // 存在しなければ下の新規作成パスにフォールスルー
@@ -595,9 +600,10 @@ function handleStartSession() {
     // キャスト指名: shop_casts.id → cast_id を resolve. 承認済み(active)のみ有効.
     $castId = null;
     $castName = null;
+    $castAvatarUrl = null;
     if ($shopCastId !== '') {
         $stmt = $pdo->prepare(
-            'SELECT sc.cast_id, sc.display_name, sc.status
+            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.status
              FROM shop_casts sc
              WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
         );
@@ -606,6 +612,7 @@ function handleStartSession() {
         if ($row && $row['status'] === 'active') {
             $castId = $row['cast_id'];
             $castName = $row['display_name'];
+            $castAvatarUrl = $row['profile_image_url'] ?: null;
         }
         // 非active (pending_approval/suspended/removed) の場合は cast_id 未設定で続行 (店舗直通に fallback)
     }
@@ -624,6 +631,8 @@ function handleStartSession() {
         'cast_name'     => $castName,
         'is_online'     => effectiveOnline($shop),
         'gender_mode'   => $shop['gender_mode'] ?? 'men',
+        'shop_avatar_url' => $shop['chat_avatar_url'] ?: null,
+        'cast_avatar_url' => $castAvatarUrl,
     ]);
 }
 
@@ -780,7 +789,9 @@ function respondSessionBatch(PDO $pdo, int $sessionId, string $shopId, int $sinc
 /**
  * セッションの相手側アバター URL を取得.
  * return [shop_avatar_url, cast_avatar_url]
- *   - shop_avatar_url: shops.thumbnail_url
+ *   - shop_avatar_url: shops.chat_avatar_url 優先, NULL なら thumbnail_url にフォールバック
+ *     (chat_avatar_url はチャット表示専用. thumbnail_url はリッチ/スタンダード広告から自動同期される
+ *      のでチャット用と分けたいケース向け)
  *   - cast_avatar_url: shop_casts.profile_image_url (cast_id ありの時のみ)
  */
 function fetchSessionAvatars(PDO $pdo, int $sessionId, string $shopId): array {
@@ -788,7 +799,7 @@ function fetchSessionAvatars(PDO $pdo, int $sessionId, string $shopId): array {
     $key = $sessionId . '|' . $shopId;
     if (isset($cache[$key])) return $cache[$key];
 
-    $stmt = $pdo->prepare('SELECT thumbnail_url FROM shops WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT COALESCE(chat_avatar_url, thumbnail_url) AS avatar FROM shops WHERE id = ? LIMIT 1');
     $stmt->execute([$shopId]);
     $shopAvatar = $stmt->fetchColumn() ?: null;
 

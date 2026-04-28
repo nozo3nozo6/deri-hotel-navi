@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=104">
+<link rel="stylesheet" href="/chat.css?v=106">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -176,12 +176,10 @@
 
   <!-- 埋込時のみ: チャット全画面表示リンク + 登録キャスト指名ピッカー -->
   <div id="embed-direct-link" class="embed-direct-link hidden">
-    <a id="embed-direct-link-anchor" href="#" target="_blank" rel="noopener" class="embed-direct-link-anchor">🔗 チャット全画面表示↗</a>
+    <a id="embed-direct-link-anchor" href="#" target="_blank" rel="noopener" class="embed-direct-link-anchor">🔗 チャット全画面表示はコチラ↗</a>
     <div id="embed-cast-picker" class="embed-cast-picker hidden">
-      <label for="embed-cast-select" class="embed-cast-label"><span id="embed-cast-icon">💁</span> 指名:</label>
-      <select id="embed-cast-select" class="embed-cast-select">
-        <option value="">選択…</option>
-      </select>
+      <span class="embed-cast-label"><span id="embed-cast-icon">💁</span> 指名:</span>
+      <div id="embed-cast-list" class="embed-cast-list"></div>
     </div>
   </div>
 
@@ -215,6 +213,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=184"></script>
+<script src="/chat.js?v=194"></script>
 </body>
 </html>

@@ -314,7 +314,7 @@ export class ChatRoom implements DurableObject {
     //   (旧 DO バージョンで作られた「cast 無視」セッションを救済)
     // - 既存セッションで cast_id 設定済み: 変えない（別キャストへの乗っ取り防止）
     const shouldResolveCast = !!(shopCastId && this.shopMeta?.shop_id && (isNew || (sess && !sess.cast_id)));
-    let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string } = {};
+    let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null } = {};
     if (shouldResolveCast) {
       castInfo = await this.resolveCast(this.shopMeta!.shop_id, shopCastId);
     }
@@ -336,6 +336,7 @@ export class ChatRoom implements DurableObject {
         shop_cast_id: castInfo.shop_cast_id || null,
         cast_id: castInfo.cast_id || null,
         cast_name: castInfo.cast_name || null,
+        cast_avatar_url: castInfo.cast_avatar_url ?? null,
       };
       await this.saveSession(sess);
 
@@ -355,7 +356,17 @@ export class ChatRoom implements DurableObject {
       sess.shop_cast_id = castInfo.shop_cast_id || null;
       sess.cast_id = castInfo.cast_id;
       sess.cast_name = castInfo.cast_name || null;
+      sess.cast_avatar_url = castInfo.cast_avatar_url ?? null;
       await this.saveSession(sess);
+    } else if (sess.cast_id && sess.shop_cast_id && (sess.cast_avatar_url === undefined || sess.cast_avatar_url === null) && this.shopMeta?.shop_id) {
+      // 旧 DO バージョンで作られた cast セッションは cast_avatar_url が未設定.
+      // adopt 時に一度だけ resolve して persist する (再 resolve は cast_avatar_url が
+      // 入った時点で発火しなくなる. プロフィール画像更新は次の cast 指名時に反映).
+      const fresh = await this.resolveCast(this.shopMeta.shop_id, sess.shop_cast_id);
+      if (fresh && (fresh.cast_avatar_url || fresh.cast_id)) {
+        sess.cast_avatar_url = fresh.cast_avatar_url ?? null;
+        await this.saveSession(sess);
+      }
     }
 
     return this.okBatch({
@@ -365,12 +376,14 @@ export class ChatRoom implements DurableObject {
       session_token: sess.session_token,
       session_id: sess.id,
       cast_name: sess.cast_name || null,
+      shop_avatar_url: this.shopMeta?.chat_avatar_url ?? null,
+      cast_avatar_url: sess.cast_avatar_url ?? null,
     });
   }
 
-  // shop_casts.id → cast_id + display_name を PHP から解決.
+  // shop_casts.id → cast_id + display_name + profile_image_url を PHP から解決.
   // 承認済み(active)でなければ空を返す（店舗直通にフォールバック）.
-  private async resolveCast(shopId: string, shopCastId: string): Promise<{ shop_cast_id?: string; cast_id?: string; cast_name?: string }> {
+  private async resolveCast(shopId: string, shopCastId: string): Promise<{ shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null }> {
     const base = this.env.NOTIFY_BASE_URL || 'https://yobuho.com';
     const secret = this.env.CHAT_SYNC_SECRET || '';
     if (!secret) return {};
@@ -386,6 +399,7 @@ export class ChatRoom implements DurableObject {
         shop_cast_id: data.shop_cast_id,
         cast_id: data.cast_id,
         cast_name: data.display_name,
+        cast_avatar_url: data.profile_image_url || null,
       };
     } catch (_) {
       return {};
@@ -1225,10 +1239,31 @@ export class ChatRoom implements DurableObject {
   // ========== Helpers ==========
 
   private isShopOnline(): boolean {
-    // A案 (厳格2値ルール): is_online フラグのみで判定。
-    // auto_off_minutes による時間経過オフは廃止 — 時間帯制御は受付時間側で行う。
+    // is_online (受付トグル) AND 現在が受付時間内 の AND 条件のみ true.
+    // 受付時間外でもトグルONなら緑が残る問題を防ぐ (PHP effectiveOnline と同期).
     if (!this.shopMeta) return false;
-    return !!this.shopMeta.is_online;
+    if (!this.shopMeta.is_online) return false;
+    return this.isWithinReceptionHours();
+  }
+
+  private isWithinReceptionHours(): boolean {
+    const start = this.shopMeta?.reception_start;
+    const end = this.shopMeta?.reception_end;
+    if (!start || !end || start === end) return true; // 24h 受付
+    const now = new Date();
+    // Asia/Tokyo の HH:MM を分に変換 (Cloudflare Workers は UTC なので +9h オフセット)
+    const tokyoMs = now.getTime() + 9 * 60 * 60 * 1000;
+    const tokyoNow = new Date(tokyoMs);
+    const hm = tokyoNow.getUTCHours() * 60 + tokyoNow.getUTCMinutes();
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':');
+      return parseInt(h, 10) * 60 + parseInt(m || '0', 10);
+    };
+    const s = toMin(start);
+    const e = toMin(end);
+    if (s < e) return hm >= s && hm < e;
+    // 日跨ぎ (例 18:00-05:00)
+    return hm >= s || hm < e;
   }
 
   private okBatch(extra: Partial<BatchResponse>): Response {

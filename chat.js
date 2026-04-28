@@ -122,7 +122,7 @@ let state = {
     reception_banner_timer: null,
     welcome_message: null,
     reservation_hint: null,
-    nickname_locked: false,   // 最初の訪問者メッセージ送信後に true: このチャット内ではニックネーム固定
+    nickname_locked: false,   // [legacy] 過去は最初の送信後に true で固定. 現在は変更可のため常に false.
     // 2026-04-23 翻訳アンカー: 訪問者の入力言語. visitor=ja なら両側翻訳OFF, 非ja なら shop viewer=ja / visitor viewer=visitor_input_lang で翻訳.
     visitor_input_lang: 'ja',
     // 2026-04-23 アバター: お店/キャストのメッセージバブル左に表示する丸アイコン (訪問者はアイコン無し)
@@ -2118,6 +2118,15 @@ async function enterVisitorMode() {
                 // adopt で得た cast_name を LS に反映（旧バージョンで保存されたセッションを救済）
                 saveVisitorSession();
             }
+            // 2026-04-28: WS 履歴 replay より前にアバター URL を state に反映する.
+            // DO `/session/start` / PHP `start-session` どちらも shop_avatar_url / cast_avatar_url を返すので
+            // adopt 直後に state へ書き込むことで, 後続の addMessage(履歴1件目) が正しいアバターで描画される.
+            if (adopt && typeof adopt.shop_avatar_url !== 'undefined') {
+                state.shop_avatar_url = adopt.shop_avatar_url || null;
+            }
+            if (adopt && typeof adopt.cast_avatar_url !== 'undefined') {
+                state.cast_avatar_url = adopt.cast_avatar_url || null;
+            }
             // adopt レスポンスは verified/pending を含まないため必ず PHP (my-notify-settings) で完全取得.
             // Magic Link 確認状態は UI バッジ表示に必須で、adopt 側のフィールドだけでは不十分.
             loadVisitorNotifyState();
@@ -2134,6 +2143,8 @@ async function enterVisitorMode() {
         state.session_token = s.session_token;
         state.session_id = s.session_id;
         if (s.cast_name) state.cast_name = s.cast_name;
+        if (typeof s.shop_avatar_url !== 'undefined') state.shop_avatar_url = s.shop_avatar_url || null;
+        if (typeof s.cast_avatar_url !== 'undefined') state.cast_avatar_url = s.cast_avatar_url || null;
         saveVisitorSession();
         updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
@@ -2196,6 +2207,8 @@ async function enterCastViewMode() {
             if (adopt.session_id) state.session_id = adopt.session_id;
             if (adopt.cast_name) state.cast_name = adopt.cast_name;
             if (typeof adopt.is_online !== 'undefined') state.is_online = !!adopt.is_online;
+            if (typeof adopt.shop_avatar_url !== 'undefined') state.shop_avatar_url = adopt.shop_avatar_url || null;
+            if (typeof adopt.cast_avatar_url !== 'undefined') state.cast_avatar_url = adopt.cast_avatar_url || null;
             // 通知トグル初期値: chat_notify_mode が 'off' 以外なら ON
             if (typeof adopt.cast_notify_mode !== 'undefined') {
                 const enabled = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
@@ -2377,6 +2390,98 @@ async function saveVisitorNotify() {
     }
 }
 
+// JST 換算で reception_start/end (HH:MM) の受付時間内かを判定. PHP isWithinReceptionHours と同等.
+function isWithinReceptionHoursClient(rs, re, nowDate) {
+    if (!rs || !re || rs === re) return true; // 24h
+    const tokyo = new Date((nowDate || new Date()).getTime() + 9 * 60 * 60 * 1000);
+    const hm = tokyo.getUTCHours() * 60 + tokyo.getUTCMinutes();
+    const toMin = (t) => {
+        const p = String(t).split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1] || '0', 10);
+    };
+    const s = toMin(rs);
+    const e = toMin(re);
+    if (s < e) return hm >= s && hm < e;
+    return hm >= s || hm < e; // 日跨ぎ
+}
+
+// 次の受付境界 (start or end) までの ms. これを過ぎたら状態が逆転する.
+function msUntilNextReceptionBoundary(rs, re, nowDate) {
+    if (!rs || !re || rs === re) return 0;
+    const now = nowDate || new Date();
+    const tokyo = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const curMin = tokyo.getUTCHours() * 60 + tokyo.getUTCMinutes();
+    const curSec = tokyo.getUTCSeconds();
+    const curMs = tokyo.getUTCMilliseconds();
+    const toMin = (t) => {
+        const p = String(t).split(':');
+        return parseInt(p[0], 10) * 60 + parseInt(p[1] || '0', 10);
+    };
+    const s = toMin(rs);
+    const e = toMin(re);
+    // 今 curMin から見て、次に来る s or e (どちらか早い方) までの分数
+    const candidates = [s, e].map(target => {
+        let diff = target - curMin;
+        if (diff <= 0) diff += 24 * 60; // 翌日に持ち越し
+        return diff;
+    });
+    const nextMin = Math.min(...candidates);
+    // 分の境界で発火させたいので、現在の秒/ミリ秒を引く
+    const ms = nextMin * 60 * 1000 - (curSec * 1000 + curMs);
+    return Math.max(ms, 1000); // 最低1秒は空ける (再帰暴走防止)
+}
+
+// 受付境界 (5:00 ぴったり等) で緑丸を即時更新するためのタイマー.
+// 境界に到達したら (a) ローカルで受付時間内/外を再判定し、外なら即offline表示、
+// (b) PHP/DO に can-connect 再問合わせ (公式判定でラベルや next_reception_start も更新).
+let _receptionBoundaryTimer = null;
+function scheduleReceptionBoundaryRefresh() {
+    if (_receptionBoundaryTimer) {
+        clearTimeout(_receptionBoundaryTimer);
+        _receptionBoundaryTimer = null;
+    }
+    if (IS_CAST_VIEW) return; // キャストビューは受付時間と独立 (notify_enabled で判定)
+    const rs = state.reception_start;
+    const re = state.reception_end;
+    if (!rs || !re || rs === re) return; // 24h は境界なし
+    const ms = msUntilNextReceptionBoundary(rs, re);
+    _receptionBoundaryTimer = setTimeout(() => {
+        _receptionBoundaryTimer = null;
+        // (a) 即時ローカル反映: 受付時間外になった瞬間、現在 online 表示中なら offline に.
+        const inHours = isWithinReceptionHoursClient(state.reception_start, state.reception_end);
+        if (!inHours && state.is_online) {
+            updateStatusIndicator(false);
+        }
+        // (b) PHP の公式判定で同期 (緑→消, 灰→緑 両方向). 失敗しても (a) の即時反映で実害なし.
+        try {
+            const params = state.session_token ? { session_token: state.session_token } : { shop_slug: SLUG };
+            api('can-connect', params, 'GET').then(d => {
+                if (!d) return;
+                if (typeof d.shop_online !== 'undefined') updateStatusIndicator(!!d.shop_online);
+                if (typeof d.reception_start !== 'undefined') state.reception_start = d.reception_start || null;
+                if (typeof d.reception_end !== 'undefined') state.reception_end = d.reception_end || null;
+                if (typeof d.next_reception_start !== 'undefined') state.next_reception_start = d.next_reception_start || null;
+            }).catch(() => {});
+        } catch (_) {}
+        // 次の境界をスケジュール (24時間後の同じ HH:MM 等)
+        scheduleReceptionBoundaryRefresh();
+    }, ms);
+}
+
+// タブ非アクティブ時は setTimeout が throttle されるため、復帰時に即時再判定.
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (IS_CAST_VIEW) return;
+    const rs = state.reception_start;
+    const re = state.reception_end;
+    if (!rs || !re || rs === re) return;
+    // 表示中で、かつ受付時間外なら緑を即消す (throttle 中に境界を跨いだケース).
+    const inHours = isWithinReceptionHoursClient(rs, re);
+    if (!inHours && state.is_online) updateStatusIndicator(false);
+    // 念のためタイマーも貼り直す (throttle 後に発火しない可能性に備える).
+    scheduleReceptionBoundaryRefresh();
+});
+
 function updateStatusIndicator(online) {
     state.is_online = online;
     // キャスト指名ビュー: 緑丸はキャスト自身の通知ON/OFFに同期. 営業時間ラベルは出さない.
@@ -2400,6 +2505,8 @@ function updateStatusIndicator(online) {
         const hours = `${formatHM(rs)}-${formatHM(re)}`;
         refs.statusLabel.innerHTML = `<span class="status-label-line">${t('reception.hours')}</span><span class="status-label-line">${hours}</span>`;
     }
+    // 次の受付境界 (5:00 等) でローカル再判定するタイマーを再セット.
+    scheduleReceptionBoundaryRefresh();
 }
 
 function addSystemMessage(text) {
@@ -2408,6 +2515,18 @@ function addSystemMessage(text) {
     div.textContent = text;
     refs.chatMessages.appendChild(div);
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+// セッション終了UIの適用（idempotent）.
+// applyVisitorBatch で status='closed' を受信した時、または送信が 410 で
+// 弾かれた時（次の poll を待たずに即時反映したい）の両方から呼ぶ.
+function applyClosedState() {
+    if (state._closedMsgShown) return;
+    state._closedMsgShown = true;
+    stopPolling();
+    addSystemMessage(t('thread.closedThanks'));
+    if (refs.inputArea) refs.inputArea.classList.add('hidden');
+    if (state.mode === 'visitor' && !IS_CAST_VIEW) addRestartButton();
 }
 
 function addRestartButton() {
@@ -2442,6 +2561,8 @@ async function restartVisitorSession() {
         state.session_token = s.session_token;
         state.session_id = s.session_id;
         if (s.cast_name) state.cast_name = s.cast_name;
+        if (typeof s.shop_avatar_url !== 'undefined') state.shop_avatar_url = s.shop_avatar_url || null;
+        if (typeof s.cast_avatar_url !== 'undefined') state.cast_avatar_url = s.cast_avatar_url || null;
         saveVisitorSession();
         updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
@@ -2689,10 +2810,9 @@ function applyVisitorBatch(data) {
         if (m.sender_type === incomingType && m.id > maxIncomingId) maxIncomingId = m.id;
     }
     if (addedAny) sortMessagesByTime();
-    // 既存セッション復元: 過去に訪問者メッセージがあればニックネームを固定
-    if (state.mode === 'visitor' && sawVisitorMsg && !state.nickname_locked) {
-        if (refs.nicknameInput && restoredNick) refs.nicknameInput.value = restoredNick;
-        lockVisitorNickname();
+    // 既存セッション復元: 過去のニックネームを再入力欄にも反映（変更可、ロックしない）
+    if (state.mode === 'visitor' && sawVisitorMsg && refs.nicknameInput && restoredNick && !refs.nicknameInput.value) {
+        refs.nicknameInput.value = restoredNick;
     }
     if (typeof data.last_read_own_id !== 'undefined') {
         state.last_read_own_id = Math.max(state.last_read_own_id, Number(data.last_read_own_id) || 0);
@@ -2706,15 +2826,7 @@ function applyVisitorBatch(data) {
     }
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
     updateStatusIndicator(data.shop_online);
-    if (data.status === 'closed' && !state._closedMsgShown) {
-        state._closedMsgShown = true;
-        stopPolling();
-        addSystemMessage(t('thread.closedThanks'));
-        refs.inputArea.classList.add('hidden');
-        // 訪問者モードのときのみ「新しいチャットを始める」ボタン表示.
-        // ただしキャスト閲覧専用モードでは、訪問者セッションを勝手に再開させないよう非表示.
-        if (state.mode === 'visitor' && !IS_CAST_VIEW) addRestartButton();
-    }
+    if (data.status === 'closed') applyClosedState();
     if ((data.messages || []).length) saveVisitorSession();
 }
 
@@ -2835,17 +2947,15 @@ function scheduleReceptionReopenCheck() {
     }, wait);
 }
 
+// 過去仕様: 最初の送信後にニックネームを readOnly+locked 表示で固定していた。
+// 変更可に戻したため、空欄なら "匿名" を埋める表示補助のみ残す（送信時に literal "匿名" は空送信に変換）.
 function lockVisitorNickname() {
-    if (state.nickname_locked) return;
-    state.nickname_locked = true;
     const input = refs.nicknameInput;
     if (!input) return;
     const val = String(input.value || '').trim().slice(0, 20);
     if (!val) {
         input.value = t('nickname.anonymous');
     }
-    input.readOnly = true;
-    input.classList.add('locked');
 }
 
 async function sendVisitorMessage(msg) {
@@ -2854,8 +2964,8 @@ async function sendVisitorMessage(msg) {
     let nick = '';
     if (refs.nicknameInput) {
         nick = String(refs.nicknameInput.value || '').trim().slice(0, 20);
-        // ロック済み & 匿名表示になっている場合は空文字で送信（"匿名"という文字列を名前として送らない）
-        if (state.nickname_locked && nick === t('nickname.anonymous')) nick = '';
+        // 表示補助で埋めた "匿名" は名前として送らない（毎送信で再評価. ロック廃止後も同じ判定）.
+        if (nick === t('nickname.anonymous')) nick = '';
     }
     if (nick) { try { localStorage.setItem(LS_NICKNAME, nick); } catch (_) {} }
     const wasOffline = !state.is_online;
@@ -2889,6 +2999,8 @@ async function sendVisitorMessage(msg) {
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
         enqueueOutbox(clientMsgId, { payload, text: msg });
+        // 410 = サーバー側で既に closed. 次の poll を待たず即時にUIを終了状態へ.
+        if (e && e.status === 410) applyClosedState();
     }
 }
 
@@ -2923,6 +3035,7 @@ async function sendCastReply(msg) {
     } catch (e) {
         markOptimisticFailed(clientMsgId, e);
         enqueueOutbox(clientMsgId, { payload, text: msg });
+        if (e && e.status === 410) applyClosedState();
     }
 }
 
@@ -4135,29 +4248,29 @@ function setupEmbedDirectLinkFooter() {
     if (anchor) anchor.href = directUrl;
     el.classList.remove('hidden');
 
-    // キャスト一覧を chat-api から取得してプルダウンに流し込む（cast 有効店舗のみ）
+    // キャスト一覧を chat-api から取得してチップ <a target="_blank"> の列で出す（cast 有効店舗のみ）.
+    // 過去に <select> + change → window.open / a.click() を試したが iOS Safari の popup blocker や
+    // iframe sandbox で抑止される事例があり、実ユーザータップの <a target="_blank"> なら必ずブラウザが処理.
     const picker = document.getElementById('embed-cast-picker');
-    const select = document.getElementById('embed-cast-select');
-    if (!picker || !select) return;
+    const list = document.getElementById('embed-cast-list');
+    if (!picker || !list) return;
     fetch('/api/chat-api.php?action=cast-list-public&slug=' + encodeURIComponent(SLUG), {
         credentials: 'omit'
     }).then(r => r.ok ? r.json() : null).then(data => {
         if (!data || !Array.isArray(data.casts) || !data.casts.length) return;
+        list.innerHTML = '';
         data.casts.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.display_name || '';
-            select.appendChild(opt);
+            if (!c || !c.id) return;
+            const a = document.createElement('a');
+            a.href = directUrl + '?cast=' + encodeURIComponent(c.id);
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.className = 'embed-cast-link';
+            a.textContent = c.display_name || '';
+            list.appendChild(a);
         });
         picker.classList.remove('hidden');
         try { updateCastIconForMode(document.body.dataset.mode || 'men'); } catch (_) {}
-        select.addEventListener('change', () => {
-            const id = select.value;
-            if (!id) return;
-            const url = directUrl + '?cast=' + encodeURIComponent(id);
-            window.open(url, '_blank', 'noopener');
-            select.value = '';
-        });
     }).catch(() => {});
 }
 setupEmbedDirectLinkFooter();

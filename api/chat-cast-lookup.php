@@ -9,7 +9,8 @@
  * Auth: X-Sync-Secret = CHAT_SYNC_SECRET (DO と共有)
  *
  * Response:
- *   200: { ok: true, cast_id: "...", display_name: "...", shop_cast_id: "..." }
+ *   200: { ok: true, cast_id: "...", display_name: "...", shop_cast_id: "...",
+ *          profile_image_url: "..." }
  *        (shop_casts.status = 'active' のときのみ。非 active は ok:false, reason:"inactive")
  *   404: { ok: false, error: "not_found" }
  *   403: { ok: false, error: "forbidden" }
@@ -41,7 +42,7 @@ if ($shopId === '' || $shopCastId === '') {
 try {
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT sc.id AS shop_cast_id, sc.cast_id, sc.display_name, sc.status
+        'SELECT sc.id AS shop_cast_id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.status
          FROM shop_casts sc
          WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
     );
@@ -65,6 +66,7 @@ try {
         'shop_cast_id' => $row['shop_cast_id'],
         'cast_id' => $row['cast_id'],
         'display_name' => $row['display_name'],
+        'profile_image_url' => $row['profile_image_url'] ?: null,
     ]);
 } catch (Throwable $e) {
     error_log('[chat-cast-lookup] ' . $e->getMessage());
