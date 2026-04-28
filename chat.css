@@ -426,10 +426,12 @@ body:has(#embed-direct-link:not(.hidden)) #chat-footer{border-bottom-left-radius
 .embed-direct-link-label{color:#999;font-size:11px}
 .embed-direct-link-anchor{color:var(--chat-primary);font-weight:700;text-decoration:none;padding:4px 10px;border:1px solid var(--chat-primary);border-radius:14px;font-size:12px;min-height:28px;display:inline-flex;align-items:center}
 .embed-direct-link-anchor:hover{background:var(--chat-primary);color:#fff}
-.embed-cast-picker{display:flex;align-items:center;gap:6px;margin-left:auto}
+.embed-cast-picker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-basis:100%;width:100%;max-width:100%;margin-top:4px}
 .embed-cast-picker.hidden{display:none}
-.embed-cast-label{font-size:11px;color:#777}
-.embed-cast-select{padding:4px 8px;border:1px solid #ddd;border-radius:14px;background:#fff;font-size:12px;color:#333;min-height:28px}
+.embed-cast-label{font-size:13px;color:#555;flex-shrink:0;font-weight:600}
+.embed-cast-list{display:flex;gap:8px;flex-wrap:wrap;max-width:100%}
+.embed-cast-link{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--chat-primary);border-radius:16px;background:#fff;color:var(--chat-primary);font-size:14px;font-weight:700;text-decoration:none;min-height:34px;line-height:1.2;transition:background .15s ease,color .15s ease}
+.embed-cast-link:hover,.embed-cast-link:focus-visible{background:var(--chat-primary);color:#fff;outline:none}
 @media (max-width:480px){body.chat-input-focused #embed-direct-link{display:none}}
 body.cast-mode.chat-input-focused #embed-direct-link{display:none}
 
