@@ -1124,6 +1124,7 @@ function handleOwnerInbox() {
 
     // セッション一覧（直近30件、クローズ含む）
     // キャスト指名セッションは受信トレイから除外（shop-admin のキャスト管理タブから閲覧する）
+    // 2026-04-29: 訪問者が1通以上発言したセッションのみ表示（チャットを開いただけでカウントしない仕様変更）
     $stmt = $pdo->prepare(
         'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.visitor_hash, s.nickname, s.cast_id,
                 (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
@@ -1131,6 +1132,7 @@ function handleOwnerInbox() {
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id IS NULL
+           AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")
          ORDER BY s.last_activity_at DESC
          LIMIT 30'
     );
@@ -1454,6 +1456,7 @@ function handleCastInbox(): void {
         ->execute([$sc['shop_cast_id']]);
 
     // 担当セッション一覧 (cast_id 一致のみ)
+    // 2026-04-29: 訪問者が1通以上発言したセッションのみ表示（チャットを開いただけでカウントしない仕様変更）
     $stmt = $pdo->prepare(
         'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at,
                 s.nickname, s.cast_id,
@@ -1462,6 +1465,7 @@ function handleCastInbox(): void {
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id = ?
+           AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")
          ORDER BY s.last_activity_at DESC LIMIT 30'
     );
     $stmt->execute([$sc['shop_id'], $sc['cast_id']]);
