@@ -93,19 +93,31 @@ const faqs = [
       <h2 class="section-title">料金プラン</h2>
       <p class="section-sub">すべての有料プランでリッチ広告(サムネイル+お店様情報)を表示<br>複数エリアへの同時掲載も可能です</p>
       <div class="plan-grid">
-        {plans.map((plan) => (
-          <div class={`plan-card ${plan.tag ? 'plan-tagged' : ''}`} style={plan.tag ? `border-color:${plan.color}` : ''}>
-            {plan.tag && <div class="plan-badge" style={`background:${plan.color}`}>{plan.tag}</div>}
-            <div class="plan-name">{plan.name}</div>
-            {plan.limited && <div class="limit-badge">{plan.limited}</div>}
-            <div class="plan-price">
-              <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月(税込)</span>
+        {plans.map((plan) => {
+          const chatFeatures = plan.features.filter((f) => f.includes('YobuChat'));
+          const otherFeatures = plan.features.filter((f) => !f.includes('YobuChat'));
+          return (
+            <div class={`plan-card ${plan.tag ? 'plan-tagged' : ''}`} style={plan.tag ? `border-color:${plan.color}` : ''}>
+              {plan.tag && <div class="plan-badge" style={`background:${plan.color}`}>{plan.tag}</div>}
+              <div class="plan-name">{plan.name}</div>
+              {plan.limited && <div class="limit-badge">{plan.limited}</div>}
+              <div class="plan-price">
+                <span class="plan-yen">&yen;</span><span class="plan-amount">{plan.price}</span><span class="plan-month">/月(税込)</span>
+              </div>
+              <ul class="plan-features">
+                {otherFeatures.map((f) => <li>{f}</li>)}
+              </ul>
+              {chatFeatures.length > 0 && (
+                <div class="plan-chat-block">
+                  <div class="plan-chat-label">YobuChat 特典</div>
+                  <ul class="plan-chat-features">
+                    {chatFeatures.map((f) => <li>{f.replace(/^💬\s*/, '')}</li>)}
+                  </ul>
+                </div>
+              )}
             </div>
-            <ul class="plan-features">
-              {plan.features.map((f) => <li>{f}</li>)}
-            </ul>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
 
@@ -334,6 +346,25 @@ const faqs = [
   .plan-features { list-style: none; text-align: left; padding: 0; }
   .plan-features li { font-size: 12px; color: #2a2218; padding: 3px 0; padding-left: 16px; position: relative; line-height: 1.5; font-weight: 500; }
   .plan-features li::before { content: ''; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; background: #b5627a; border-radius: 50%; }
+  .plan-chat-block {
+    margin-top: 12px; padding: 10px 10px 8px; border-radius: 8px;
+    background: linear-gradient(135deg, #fff5ec 0%, #fff8e8 100%);
+    border: 1px solid #e8c98a;
+  }
+  .plan-chat-label {
+    font-size: 11px; font-weight: 700; color: #a07a2a; text-align: left;
+    margin-bottom: 4px; letter-spacing: 0.02em;
+  }
+  .plan-chat-label::before { content: '💬 '; }
+  .plan-chat-features { list-style: none; text-align: left; padding: 0; margin: 0; }
+  .plan-chat-features li {
+    font-size: 12px; color: #5a4422; padding: 2px 0; padding-left: 14px;
+    position: relative; line-height: 1.5; font-weight: 500;
+  }
+  .plan-chat-features li::before {
+    content: ''; position: absolute; left: 2px; top: 8px;
+    width: 5px; height: 5px; background: #c9a84c; border-radius: 50%;
+  }
 
   /* Examples */
   .example-section { padding: 32px 0; }

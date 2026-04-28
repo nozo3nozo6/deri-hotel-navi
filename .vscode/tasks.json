@@ -13,6 +13,96 @@
         "focus": false,
         "panel": "dedicated"
       }
+    },
+    {
+      "label": "営業ツール",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "メール",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "SEO",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "Admin",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "ポータル",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "テスト",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "素材",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "chat",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "セキュ",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "サーバー切り替え",
+      "type": "shell",
+      "command": "exec zsh -l",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "echo": false, "reveal": "always", "focus": false, "panel": "dedicated", "showReuseMessage": false, "clear": false },
+      "runOptions": { "runOn": "folderOpen" }
     }
   ]
 }

@@ -1,7 +1,7 @@
 <?php
 /**
  * shop-auth.php — 店舗セッション管理（MySQL版）
- * Actions: login, check, profile, update-thumbnail, update-email, update-slug, lookup-email
+ * Actions: login, check, profile, update-thumbnail, update-chat-avatar, update-email, update-slug, lookup-email
  */
 require_once __DIR__ . '/db.php';
 
@@ -37,6 +37,7 @@ switch ($action) {
     case 'check':            handleCheck(); break;
     case 'profile':          handleProfile(); break;
     case 'update-thumbnail': handleUpdateThumbnail(); break;
+    case 'update-chat-avatar': handleUpdateChatAvatar(); break;
     case 'update-catchphrase': handleUpdateCatchphrase(); break;
     case 'update-ad-info':   handleUpdateAdInfo(); break;
     case 'get-images':       handleGetImages(); break;
@@ -212,6 +213,42 @@ function handleUpdateThumbnail() {
     $pdo = DB::conn();
     $stmt = $pdo->prepare('UPDATE shops SET thumbnail_url = ?, updated_at = NOW() WHERE id = ?');
     $stmt->execute([$thumbnailUrl, $auth['shop_id']]);
+
+    echo json_encode(['success' => true]);
+}
+
+/**
+ * チャット表示用プロフィール画像 (96x96 JPEG data URL).
+ * thumbnail_url とは独立管理. 全プラン利用可.
+ * 空文字 / null → 削除. data URL のみ許可 (XSS/外部参照防止).
+ */
+function handleUpdateChatAvatar() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $avatarUrl = $input['chat_avatar_url'] ?? null;
+    if ($avatarUrl !== null) $avatarUrl = trim((string)$avatarUrl);
+    if ($avatarUrl === '') $avatarUrl = null;
+
+    if ($avatarUrl !== null) {
+        if (!preg_match('#^data:image/(jpeg|png);base64,#', $avatarUrl)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => '画像形式が正しくありません']);
+            return;
+        }
+        // 96x96 JPEG quality 0.82 想定で ~14KB. 上限 90KB (data URL 全体).
+        if (strlen($avatarUrl) > 92160) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => '画像サイズが大きすぎます']);
+            return;
+        }
+    }
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('UPDATE shops SET chat_avatar_url = ?, updated_at = NOW() WHERE id = ?');
+    $stmt->execute([$avatarUrl, $auth['shop_id']]);
 
     echo json_encode(['success' => true]);
 }

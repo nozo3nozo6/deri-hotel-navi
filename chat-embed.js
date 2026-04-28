@@ -106,11 +106,16 @@
     var alignWatchdog = null;
     var alignWatchdogStart = 0;
     // fitToViewport が kb-open で defer された直後の「refresh fit」検出フラグ.
-    // defer→input-blur 300ms timer→refit のフローで, kb-close 中に iOS が host page を
+    // defer→input-blur 500ms timer→refit のフローで, kb-close 中に iOS が host page を
     // auto-scroll して大きな drift が発生 → 即時 alignOnce(scrollBy) で「ビュンと上に snap」
     // するのを防ぐ. このフラグが true のときは smooth scroll で最終位置に戻す
     // (2026-04-27 ユーザー報告: タップしたらスンと位置に戻ればOK).
     var pendingRefitAfterKbClose = false;
+    // 直近 deferred refit (smooth path) を実施した時刻. 250/300/500ms の複数 kb-close signal が
+    // 重複発火するため, この時刻から 600ms 以内の **非 deferred** fit 呼出は forceHeight+alignOnce(snap)
+    // で smooth scroll を上書きしてしまう (= IMG_8817→8818 の中間サイズ→最終サイズの 2段階遷移).
+    // ここで suppress する (2026-04-28 ユーザー報告).
+    var lastFitDeferredTs = 0;
 
     // iOS判定: focus-scroll が問題になるのは iOS のみ。Android/PC では prefocus しない
     var isIOS = (function () {
@@ -438,6 +443,14 @@
             pendingRefitAfterKbClose = true;
             return;
         }
+        // 直近 deferred refit (smooth path) 直後の non-deferred call は redundant.
+        // 250ms (kbCloseDeferTimer) で smooth fit → 300ms (input-blur) で snap fit が overlap し
+        // 中間サイズ→最終サイズの 2段階遷移を起こしていた. 600ms 以内かつ pending=false は
+        // kb-close タイマー連投の二発目以降と判定して skip (smooth path を上書きさせない).
+        if (!pendingRefitAfterKbClose && lastFitDeferredTs && (Date.now() - lastFitDeferredTs) < 600) {
+            diag('fit() suppressed: within 600ms of deferred fit, redundant call');
+            return;
+        }
         var wasDeferred = pendingRefitAfterKbClose;
         pendingRefitAfterKbClose = false;
         if (expandVerifyInterval) { clearInterval(expandVerifyInterval); expandVerifyInterval = null; }
@@ -468,6 +481,10 @@
             } else {
                 diag('fit smooth-align skip drift=' + Math.round(drift) + ' < ' + minSnapDrift);
             }
+            // 後続の input-blur timer / widget-tap retry が同じ iframe で snap fit を
+            // 上書きしないよう, smooth path 完了時刻を記録. fitToViewport entry の guard が
+            // 600ms 以内の non-deferred 呼出を skip するのに使われる.
+            lastFitDeferredTs = Date.now();
         } else {
             alignOnce(iframe);
         }
@@ -672,20 +689,16 @@
                 // widget-tap が来た = 「入力欄以外のタップ」= 訪問者が widget を fit で見たい意思表示.
                 // kb 状態に関わらず常に fit に遷移. kb 開中なら blur-input も送って kb を閉じさせる
                 // (iOS は body タップで input を自動 blur しない). 入力欄既に blur 済みなら blur() は noop.
+                //
+                // 注: 旧仕様では 350ms 後に retry fit を仕掛けていたが, kb 開中の widget-tap は
+                // fitToViewport 内で pendingRefitAfterKbClose=true を立てて defer する設計に変わり,
+                // input-blur or vv.resize エッジで kb 閉鎖を検知して 1回だけ smooth fit が走るため
+                // retry は不要. むしろ retry が smooth path を snap で上書きして 2段階遷移を
+                // 起こす原因になっていた (2026-04-28 ユーザー報告 IMG_8817→8818 で停止).
                 try {
                     iframe.contentWindow.postMessage({ type: 'ychat:blur-input' }, '*');
                 } catch (_) {}
                 fitToViewport(iframe);
-                // iOS kb-close アニメ中は forceHeight が即反映されない(innerHeight が
-                // kb 分シュリンクしたまま, または render が deferred). kb 完全に閉じた後にもう一度
-                // fit する保険. これで「1タップで広がらない / 2タップ目で広がる」問題を解消.
-                // 350ms = iOS kb-close anim (~250ms) + safety margin.
-                setTimeout(function () {
-                    if (fitMode && activeIframe === iframe) {
-                        diag('widget-tap retry fit (post kb-close)');
-                        fitToViewport(iframe);
-                    }
-                }, 350);
                 return;
             }
             if (d.type === 'ychat:exit-fullscreen') {

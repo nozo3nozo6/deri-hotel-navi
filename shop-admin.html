@@ -426,6 +426,20 @@
                   上記URLから貴店の対応エリアまで進み、そのページのURLをコピーすれば、<br>
                   貴店のオフィシャルサイトやSNSに設置できます。ぜひご活用ください。
                 </p>
+                <!-- ■ チャット用プロフィール画像（全プラン） -->
+                <div id="chat-avatar-section" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                    <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:#fafafa;border:1px solid var(--border);border-radius:8px;">
+                        <div style="flex-shrink:0;">
+                            <div id="shop-chat-avatar-preview" style="width:72px;height:72px;border-radius:50%;background:#e5e7eb url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%239ca3af%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/></svg>') center/60% no-repeat;background-color:#e5e7eb;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);background-size:cover;"></div>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">📷 プロフィール画像（チャット表示用）</label>
+                            <input type="file" id="shop-chat-avatar-input" accept="image/jpeg,image/png" style="font-size:12px;width:100%;">
+                            <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">96×96pxに自動リサイズ・JPEG圧縮されます（5〜10KB想定）<br>YobuChat の店舗アイコンに使われます</div>
+                            <button type="button" id="shop-chat-avatar-remove" onclick="clearShopChatAvatar()" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;">画像を削除</button>
+                        </div>
+                    </div>
+                </div>
                 <!-- ■ リッチ広告（有料プランのみ） -->
                 <div id="thumbnail-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
                     <div style="font-size:13px;font-weight:700;margin-bottom:4px;">🖼️ リッチ広告</div>
@@ -1510,7 +1524,72 @@ async function loadStatusCard(){
             }
         }
     }
+    // チャット用プロフィール画像 (全プラン表示)
+    setShopChatAvatarPreview(data.chat_avatar_url || null);
+    const chatAvatarInput = document.getElementById('shop-chat-avatar-input');
+    if (chatAvatarInput) chatAvatarInput.value = '';
 }
+
+function setShopChatAvatarPreview(url){
+    const preview = document.getElementById('shop-chat-avatar-preview');
+    const removeBtn = document.getElementById('shop-chat-avatar-remove');
+    if (!preview) return;
+    if (url) {
+        preview.style.backgroundImage = "url('" + String(url).replace(/'/g, "\\'") + "')";
+        preview.style.backgroundSize = 'cover';
+        if (removeBtn) removeBtn.style.display = 'inline-block';
+    } else {
+        preview.style.backgroundImage = "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%239ca3af%22><path d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/></svg>')";
+        preview.style.backgroundSize = '60%';
+        preview.style.backgroundColor = '#e5e7eb';
+        if (removeBtn) removeBtn.style.display = 'none';
+    }
+}
+
+async function clearShopChatAvatar(){
+    if (!confirm('チャット用プロフィール画像を削除しますか？')) return;
+    try {
+        const res = await fetch('/api/shop-auth.php?action=update-chat-avatar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({chat_avatar_url: null})
+        });
+        const r = await res.json();
+        if (!r.success) { toast('⚠️ ' + (r.error || '削除に失敗しました')); return; }
+        setShopChatAvatarPreview(null);
+        document.getElementById('shop-chat-avatar-input').value = '';
+        toast('✅ 削除しました');
+    } catch (e) { toast('⚠️ 通信エラー'); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('shop-chat-avatar-input');
+    if (!input) return;
+    input.addEventListener('change', async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (!['image/jpeg','image/png'].includes(file.type)) { toast('⚠️ JPG/PNGのみ対応です'); input.value=''; return; }
+        if (file.size > 5 * 1024 * 1024) { toast('⚠️ 5MB以下の画像を選択してください'); input.value=''; return; }
+        try {
+            const dataUrl = await resizeImage(file, 96, 96, 0.82);
+            if (dataUrl.length > 90000) { toast('⚠️ 画像が大きすぎます。別の画像を試してください'); return; }
+            const res = await fetch('/api/shop-auth.php?action=update-chat-avatar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify({chat_avatar_url: dataUrl})
+            });
+            const r = await res.json();
+            if (!r.success) { toast('⚠️ ' + (r.error || '保存に失敗しました')); input.value=''; return; }
+            setShopChatAvatarPreview(dataUrl);
+            toast('✅ 保存しました');
+        } catch (e) {
+            toast('⚠️ 画像の読み込みに失敗しました');
+            input.value = '';
+        }
+    });
+});
 
 async function loadDashboard(){
     try{

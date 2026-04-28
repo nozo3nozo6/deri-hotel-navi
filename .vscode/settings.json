@@ -1,0 +1,16 @@
+{
+  "terminal.integrated.profiles.osx": {
+    "営業ツール": { "path": "zsh", "args": ["-l"], "icon": "megaphone" },
+    "メール": { "path": "zsh", "args": ["-l"], "icon": "mail" },
+    "SEO": { "path": "zsh", "args": ["-l"], "icon": "search" },
+    "Admin": { "path": "zsh", "args": ["-l"], "icon": "shield" },
+    "ポータル": { "path": "zsh", "args": ["-l"], "icon": "globe" },
+    "テスト": { "path": "zsh", "args": ["-l"], "icon": "beaker" },
+    "素材": { "path": "zsh", "args": ["-l"], "icon": "file-media" },
+    "chat": { "path": "zsh", "args": ["-l"], "icon": "comment-discussion" },
+    "セキュ": { "path": "zsh", "args": ["-l"], "icon": "lock" },
+    "サーバー切り替え": { "path": "zsh", "args": ["-l"], "icon": "server" }
+  },
+  "terminal.integrated.enablePersistentSessions": true,
+  "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose"
+}

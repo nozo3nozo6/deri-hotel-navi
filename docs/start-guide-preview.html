@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>YobuHo スタートガイド（プレビュー）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F8F5F0;
+    --card: #FFFFFF;
+    --gold: #C9A961;
+    --rose: #A85A72;
+    --coral: #FF7A59;
+    --text: #222222;
+    --muted: #888888;
+    --border: #E8E3DA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', 'Inter', -apple-system, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  /* Cover */
+  .cover {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 80px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cover-logo {
+    font-family: 'Inter', serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
+  }
+  .cover-sub {
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    margin-bottom: 60px;
+  }
+  .cover-title {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .cover-desc {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 40px;
+  }
+  .cover-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    background: var(--gold);
+    color: white;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+  }
+
+  /* Step */
+  .step {
+    padding: 80px 0 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-of-type { border-bottom: none; }
+  .step-meta {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .step-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .step-desc {
+    font-size: 15px;
+    color: #444;
+    margin-bottom: 32px;
+  }
+
+  /* Screenshot card */
+  .shot {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .shot img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+  }
+  .shot-placeholder {
+    background: linear-gradient(135deg, #FAFAF7 0%, #F0ECE3 100%);
+    min-height: 280px;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+  }
+  .shot-placeholder-icon {
+    font-size: 42px;
+    opacity: 0.5;
+  }
+  .shot-placeholder-label {
+    font-weight: 500;
+    color: #555;
+    font-size: 14px;
+  }
+  .shot-placeholder-hint {
+    max-width: 400px;
+    line-height: 1.6;
+  }
+
+  /* Coral highlight indicator */
+  .hint {
+    margin-top: 20px;
+    padding: 16px 18px;
+    background: #FFF6F2;
+    border-left: 3px solid var(--coral);
+    border-radius: 4px;
+    font-size: 13px;
+    color: #6b3d2e;
+    line-height: 1.6;
+  }
+  .hint b { color: var(--coral); }
+
+  /* Back cover */
+  .support {
+    background: var(--card);
+    margin: 60px 20px;
+    padding: 48px 40px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    text-align: center;
+  }
+  .support h3 {
+    font-size: 22px;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+  .support-item {
+    margin: 12px 0;
+    font-size: 15px;
+    color: #444;
+  }
+  .support-note {
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Header bar (preview only) */
+  .preview-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--rose);
+    color: white;
+    padding: 8px 16px;
+    font-size: 12px;
+    text-align: center;
+    z-index: 1000;
+    letter-spacing: 0.05em;
+  }
+  body { padding-top: 36px; }
+
+  /* TOC */
+  .toc {
+    padding: 60px 0 40px;
+    border-bottom: 1px solid var(--border);
+  }
+  .toc h2 {
+    font-size: 20px;
+    margin-bottom: 24px;
+    color: var(--gold);
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+  }
+  .toc li {
+    counter-increment: toc;
+    padding: 14px 0;
+    border-bottom: 1px dashed var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .toc li:last-child { border-bottom: none; }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 600;
+    min-width: 32px;
+  }
+  .toc-label { font-weight: 500; }
+  .toc-desc { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .cover-logo { font-size: 44px; }
+    .cover-title { font-size: 26px; }
+    .step { padding: 48px 0 24px; }
+    .step-title { font-size: 22px; }
+    .shot { padding: 20px; }
+    .support { margin: 40px 12px; padding: 32px 20px; }
+  }
+
+  /* Section marker for YobuChat */
+  .section-divider {
+    padding: 40px 0 20px;
+    text-align: center;
+    position: relative;
+  }
+  .section-divider::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 2px;
+    background: var(--gold);
+    margin: 0 auto 16px;
+  }
+  .section-divider-title {
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    font-weight: 600;
+  }
+  .section-divider-sub {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-bar">🛠️ スタートガイド プレビュー版（非公開）— Canva入稿前の確認用</div>
+
+<!-- Cover -->
+<div class="container">
+  <section class="cover">
+    <div class="cover-logo">YobuHo</div>
+    <div class="cover-sub">SHOP START GUIDE</div>
+    <div class="cover-title">店舗管理 スタートガイド</div>
+    <div class="cover-desc">最初のホテル情報を登録し、<br>YobuChatで訪問者と会話を始めるまで</div>
+    <div class="cover-badge">約10分で完了</div>
+  </section>
+
+  <!-- TOC -->
+  <section class="toc">
+    <h2>目次</h2>
+    <ol>
+      <li><span class="toc-label">ログインする</span><span class="toc-desc">メール・パスワード</span></li>
+      <li><span class="toc-label">ホテルを検索する</span><span class="toc-desc">エリア / キーワード</span></li>
+      <li><span class="toc-label">「情報登録」をタップ</span><span class="toc-desc">ホテル一覧から選ぶ</span></li>
+      <li><span class="toc-label">呼べる / 呼べない を選ぶ</span><span class="toc-desc">交通費も入力</span></li>
+      <li><span class="toc-label">確認して保存</span><span class="toc-desc">即反映</span></li>
+      <li><span class="toc-label">YobuChatをONにする</span><span class="toc-desc">訪問者チャット開始</span></li>
+      <li><span class="toc-label">受付時間・定型文を設定</span><span class="toc-desc">自動応答もOK</span></li>
+    </ol>
+  </section>
+
+  <!-- Step 1 -->
+  <section class="step">
+    <div class="step-meta">STEP 01 / 07</div>
+    <h2 class="step-title">ログインする</h2>
+    <p class="step-desc">登録時のメールアドレスとパスワードを入力して「ログイン」ボタンをタップしてください。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">🔐</div>
+        <div class="shot-placeholder-label">ログイン画面のスクリーンショット</div>
+        <div class="shot-placeholder-hint">「ログイン」ボタンにコーラル円 + 👆手カーソルを配置</div>
+      </div>
+    </div>
+    <div class="hint"><b>💡 ポイント</b>：パスワードをお忘れの場合は「パスワードをお忘れですか？」から再発行できます。</div>
+  </section>
+
+  <!-- Step 2 -->
+  <section class="step">
+    <div class="step-meta">STEP 02 / 07</div>
+    <h2 class="step-title">ホテルを検索する</h2>
+    <p class="step-desc">ご案内できるエリアを選ぶか、ホテル名・住所で直接検索できます。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">🔍</div>
+        <div class="shot-placeholder-label">検索画面 + エリアボタン</div>
+        <div class="shot-placeholder-hint">検索窓に👆手カーソル／関東等のエリアボタンにコーラル円</div>
+      </div>
+    </div>
+    <div class="hint"><b>💡 ポイント</b>：ご案内実績の登録数が多いほど、該当プラン内で上位に表示されます。</div>
+  </section>
+
+  <!-- Step 3 -->
+  <section class="step">
+    <div class="step-meta">STEP 03 / 07</div>
+    <h2 class="step-title">「情報登録」をタップ</h2>
+    <p class="step-desc">ご案内できるホテルが見つかったら、右下の <b style="color:var(--rose)">📝 情報登録</b> ボタンをタップします。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">🏨</div>
+        <div class="shot-placeholder-label">ホテルカード（1枚だけ切り抜き）</div>
+        <div class="shot-placeholder-hint">右下「📝 情報登録」ボタンにコーラル円 + 👆手カーソル</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4 -->
+  <section class="step">
+    <div class="step-meta">STEP 04 / 07</div>
+    <h2 class="step-title">呼べる / 呼べない を選ぶ</h2>
+    <p class="step-desc">そのホテルにご案内できるかを選び、交通費があれば金額を入力してください。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">✅</div>
+        <div class="shot-placeholder-label">情報登録モーダル（上半分）</div>
+        <div class="shot-placeholder-hint">「✅ 呼べる」ボタンにコーラル円 + 👆手カーソル</div>
+      </div>
+    </div>
+    <div class="hint"><b>💡 ポイント</b>：交通費が発生しない場合は「交通費無料」にチェック。未入力のまま保存もOKです。</div>
+  </section>
+
+  <!-- Step 5 -->
+  <section class="step">
+    <div class="step-meta">STEP 05 / 07</div>
+    <h2 class="step-title">確認して保存する</h2>
+    <p class="step-desc">「確認画面に進む」をタップすれば登録完了です。ポータルに即座に反映されます。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">💾</div>
+        <div class="shot-placeholder-label">情報登録モーダル（下半分）</div>
+        <div class="shot-placeholder-hint">「確認画面に進む」ボタンにコーラル円 + 👆手カーソル</div>
+      </div>
+    </div>
+    <div class="hint"><b>🎉 お疲れさまでした！</b> ここまでで最初のホテル登録は完了です。続いてYobuChatを設定してみましょう。</div>
+  </section>
+
+  <!-- YobuChat section divider -->
+  <div class="section-divider">
+    <div class="section-divider-title">PART 2</div>
+    <div class="section-divider-sub">💬 YobuChatで訪問者と話す</div>
+  </div>
+
+  <!-- Step 6 -->
+  <section class="step">
+    <div class="step-meta">STEP 06 / 07</div>
+    <h2 class="step-title">YobuChatをONにする</h2>
+    <p class="step-desc">管理画面の上部タブ「💬 YobuChat」をタップし、「チャット機能を有効にする」トグルをONにします。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">💬</div>
+        <div class="shot-placeholder-label">YobuChat管理画面（タブ＋有効化トグル）</div>
+        <div class="shot-placeholder-hint">「💬 YobuChat」タブにコーラル円／「有効にする」トグルに👆手カーソル</div>
+      </div>
+    </div>
+    <div class="hint"><b>💡 ポイント</b>：YobuChatをONにすると、ポータルのホテル詳細ページから訪問者がチャットで問い合わせできるようになります。</div>
+  </section>
+
+  <!-- Step 7 -->
+  <section class="step">
+    <div class="step-meta">STEP 07 / 07</div>
+    <h2 class="step-title">受付時間・定型文を設定</h2>
+    <p class="step-desc">受付時間（例: 10:00〜翌3:00）と、よく使う返信（定型文）を登録しておくと対応が格段に楽になります。</p>
+    <div class="shot">
+      <div class="shot-placeholder">
+        <div class="shot-placeholder-icon">⏰</div>
+        <div class="shot-placeholder-label">受付時間設定 + 定型文追加フォーム</div>
+        <div class="shot-placeholder-hint">受付開始・終了時刻の入力欄／「定型文を追加」ボタンにコーラル円</div>
+      </div>
+    </div>
+    <div class="hint"><b>💡 ポイント</b>：通知先メールを設定すれば、新しい問い合わせが入った時に自動で通知が届きます。不在時も見逃しません。</div>
+  </section>
+
+  <!-- Back cover / Support -->
+  <div class="support">
+    <h3>困ったときは</h3>
+    <div class="support-item">📧 <b>メール</b>：hotel@yobuho.com</div>
+    <div class="support-item">💬 <b>お問い合わせフォーム</b>：yobuho.com/contact.html</div>
+    <div class="support-item">📖 <b>プラン紹介・詳細設定</b>：別冊「活用マニュアル」をご参照ください</div>
+    <div class="support-note">© YobuHo — 呼べるホテル検索ポータル</div>
+  </div>
+
+</div>
+
+</body>
+</html>

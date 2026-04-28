@@ -239,7 +239,9 @@ function handleInvite() {
 
             if ($existingLink && $existingLink['status'] === 'removed') {
                 // 再招待: pending_approval に戻して承認日時もクリア. inbox_token は再発行.
-                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, inbox_token = ?, updated_at = NOW() WHERE id = ?')
+                // deleted_at もクリア (cast-list-public が deleted_at IS NULL でフィルタするため、
+                // 残ったままだと再承認後も公開API/指名プルダウンに表示されない).
+                $pdo->prepare('UPDATE shop_casts SET display_name = ?, status = "pending_approval", approved_at = NULL, deleted_at = NULL, inbox_token = ?, updated_at = NOW() WHERE id = ?')
                     ->execute([$displayName, genUuid(), $existingLink['id']]);
             } else {
                 $pdo->prepare('INSERT INTO shop_casts (id, shop_id, cast_id, display_name, inbox_token, status) VALUES (?, ?, ?, ?, ?, "pending_approval")')
