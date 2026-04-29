@@ -3293,6 +3293,10 @@ async function openOwnerThread(sessionId) {
         if (maxVisitorId > 0 && isWindowActive()) {
             sendMarkReadForCurrentView(maxVisitorId);
         }
+        // 2026-04-29: ローカル inbox の unread_count を即座にクリア.
+        // mark-read は async で DB 更新するが、直後にユーザーが back ボタンで inbox に戻ると
+        // 古い unread_count のままバッジが残る. selected_session を 0 に書き換えて視覚的にも即時反映.
+        if (state.selected_session) state.selected_session.unread_count = 0;
     } catch (e) { showError(e.message); }
 
     const isClosed = state.selected_session.status === 'closed';
@@ -3673,6 +3677,8 @@ async function openCastThread(sessionId) {
         if (maxVisitorId > 0 && isWindowActive()) {
             sendMarkReadForCurrentView(maxVisitorId);
         }
+        // 2026-04-29: ローカル inbox 未読バッジを即座にクリア (cast inbox 経路).
+        if (state.selected_session) state.selected_session.unread_count = 0;
     } catch (e) { showError(e.message); }
 
     const isClosed = state.selected_session.status === 'closed';
@@ -4355,6 +4361,10 @@ function setupEmbedDirectLinkFooter() {
     // 履歴に [親ページ → cast ページ] が積まれ、戻るボタンが正しく動作する.
     // 過去に <select> + change → window.open / a.click() を試したが iOS Safari の popup blocker や
     // iframe sandbox で抑止される事例があり、実ユーザータップの <a> なら必ずブラウザが処理.
+    // 2026-04-29: チップは開閉式URL (chat-sheet.html?slug=..&cast=..) に統一.
+    // スマホはシート開閉、PCは新タブで /chat/ にリダイレクトされる UX. /chat/ 直URLより
+    // ホストページに戻りやすい.
+    const sheetUrl = location.origin + '/chat-sheet.html?slug=' + encodeURIComponent(SLUG);
     const picker = document.getElementById('embed-cast-picker');
     const list = document.getElementById('embed-cast-list');
     if (!picker || !list) return;
@@ -4366,7 +4376,7 @@ function setupEmbedDirectLinkFooter() {
         data.casts.forEach(c => {
             if (!c || !c.id) return;
             const a = document.createElement('a');
-            a.href = directUrl + '?cast=' + encodeURIComponent(c.id);
+            a.href = sheetUrl + '&cast=' + encodeURIComponent(c.id);
             a.target = '_top';
             a.className = 'embed-cast-link';
             a.textContent = c.display_name || '';

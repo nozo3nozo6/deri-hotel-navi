@@ -2095,15 +2095,28 @@ function handleOwnerGoOffline() {
 function handleToggleNotify() {
     $device = requireDevice();
     $enabled = (int)inp('enabled', 0) === 1;
-    $mode = $enabled ? 'first' : 'off';
-    // 受付トグルは notify_mode と is_online を同時に切り替える（ユーザーには緑丸=受付中として見える）
-    DB::conn()->prepare(
-        "UPDATE shop_chat_status
-         SET notify_mode = ?,
-             is_online = ?,
-             last_online_at = IF(? = 1, NOW(), last_online_at)
-         WHERE shop_id = ?"
-    )->execute([$mode, $enabled ? 1 : 0, $enabled ? 1 : 0, $device['shop_id']]);
+    // 2026-04-29: トグル ON 時に「設定画面で選んだ first/every」を notify_mode_preference から復元.
+    // 旧実装は ON で常に 'first' に戻していたため、毎メッセージ設定が OFF→ON で消えていた.
+    $pdo = DB::conn();
+    if ($enabled) {
+        $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = COALESCE(notify_mode_preference, 'first'),
+                 is_online = 1,
+                 last_online_at = NOW()
+             WHERE shop_id = ?"
+        )->execute([$device['shop_id']]);
+    } else {
+        $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = 'off',
+                 is_online = 0
+             WHERE shop_id = ?"
+        )->execute([$device['shop_id']]);
+    }
+    $row = $pdo->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
+    $row->execute([$device['shop_id']]);
+    $mode = $row->fetchColumn() ?: ($enabled ? 'first' : 'off');
     ok(['notify_enabled' => $enabled, 'notify_mode' => $mode, 'is_online' => $enabled]);
 }
 
@@ -2113,15 +2126,28 @@ function handleUpdateSettings() {
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
     $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
     $pdo = DB::conn();
-    // notify_mode と is_online は連動（通知トグル連動ルール）
-    $stmt = $pdo->prepare(
-        "UPDATE shop_chat_status
-         SET notify_mode = ?, notify_min_interval_minutes = ?,
-             is_online = IF(? = 'off', 0, 1),
-             last_online_at = IF(? = 'off', last_online_at, NOW())
-         WHERE shop_id = ?"
-    );
-    $stmt->execute([$mode, $interval, $mode, $mode, $device['shop_id']]);
+    // notify_mode と is_online は連動（通知トグル連動ルール）.
+    // 2026-04-29: ユーザーが explicit に first/every を選んだ時は notify_mode_preference にも
+    // 保存し、後でトグル OFF→ON しても消えないようにする.
+    $pref = ($mode === 'off') ? null : $mode;
+    if ($pref !== null) {
+        $stmt = $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?,
+                 is_online = 1,
+                 last_online_at = NOW()
+             WHERE shop_id = ?"
+        );
+        $stmt->execute([$mode, $pref, $interval, $device['shop_id']]);
+    } else {
+        $stmt = $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = 'off', notify_min_interval_minutes = ?,
+                 is_online = 0
+             WHERE shop_id = ?"
+        );
+        $stmt->execute([$interval, $device['shop_id']]);
+    }
     ok(['notify_mode' => $mode, 'notify_min_interval_minutes' => $interval, 'is_online' => $mode !== 'off']);
 }
 
@@ -2322,16 +2348,25 @@ function handleAdminToggleOnline() {
     $stmt->execute([$auth['shop_id']]);
     if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
 
-    // 通知設定トグル: is_online と notify_mode を同時に切り替える
-    // - ON : notify_mode が 'off' なら 'first' に復帰、その他は維持 / is_online=1 / last_online_at=NOW()
-    // - OFF: notify_mode='off' / is_online=0 (メール通知もされなくなる)
-    $pdo->prepare(
-        "UPDATE shop_chat_status
-         SET notify_mode = IF(? = 1, IF(notify_mode = 'off', 'first', notify_mode), 'off'),
-             is_online = ?,
-             last_online_at = IF(? = 1, NOW(), last_online_at)
-         WHERE shop_id = ?"
-    )->execute([$isOnline, $isOnline, $isOnline, $auth['shop_id']]);
+    // 通知設定トグル: is_online と notify_mode を同時に切り替える.
+    // 2026-04-29: ON 時に notify_mode_preference (= 設定画面で選んだ first/every) を復元.
+    // 旧実装は OFF→ON で常に 'first' に戻り、毎メッセージ設定が消える事故あり.
+    if ($isOnline === 1) {
+        $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = IF(notify_mode = 'off', COALESCE(notify_mode_preference, 'first'), notify_mode),
+                 is_online = 1,
+                 last_online_at = NOW()
+             WHERE shop_id = ?"
+        )->execute([$auth['shop_id']]);
+    } else {
+        $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = 'off',
+                 is_online = 0
+             WHERE shop_id = ?"
+        )->execute([$auth['shop_id']]);
+    }
 
     // 切替後の最新 notify_mode を返す (shop-admin のラジオ同期用)
     $row = $pdo->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
@@ -2385,15 +2420,28 @@ function handleAdminSaveSettings() {
 
     $pdo = DB::conn();
     // notify_mode と is_online は常に連動させる（通知トグル連動ルール）:
-    // notify_mode='off' → is_online=0 / それ以外 → is_online=1, last_online_at=NOW()
-    $stmt = $pdo->prepare(
-        "UPDATE shop_chat_status
-         SET notify_mode = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
-             is_online = IF(? = 'off', 0, 1),
-             last_online_at = IF(? = 'off', last_online_at, NOW())
-         WHERE shop_id = ?"
-    );
-    $stmt->execute([$mode, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $mode, $mode, $auth['shop_id']]);
+    // notify_mode='off' → is_online=0 / それ以外 → is_online=1, last_online_at=NOW().
+    // 2026-04-29: 'first'/'every' を選んだ場合は notify_mode_preference にも保存し、
+    // 後でトグル OFF→ON しても消えないようにする.
+    $pref = ($mode === 'off') ? null : $mode;
+    if ($pref !== null) {
+        $stmt = $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
+                 is_online = 1,
+                 last_online_at = NOW()
+             WHERE shop_id = ?"
+        );
+        $stmt->execute([$mode, $pref, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
+    } else {
+        $stmt = $pdo->prepare(
+            "UPDATE shop_chat_status
+             SET notify_mode = 'off', notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
+                 is_online = 0
+             WHERE shop_id = ?"
+        );
+        $stmt->execute([$interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
+    }
     ok([
         'notify_mode' => $mode,
         'notify_min_interval_minutes' => $interval,

@@ -911,6 +911,12 @@
                     <input id="chat-admin-public-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
                     <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-public-url')">コピー</button>
                 </div>
+                <div style="font-size:12px;color:var(--text-3);margin:10px 0 4px;font-weight:600;">🪟 開閉式チャットURL（おすすめ）</div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">SNS/LINE/QR等で共有するURL。スマホは下からシートが開閉、PCは新タブでチャット画面が開きます。</div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                    <input id="chat-admin-sheet-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-sheet-url')">コピー</button>
+                </div>
                 <div style="font-size:13px;font-weight:700;color:var(--text-2);margin:16px 0 4px;">📦 埋め込みコード（<span style="color:#9b2d35;">お客様用</span>・店舗HPに貼り付け）</div>
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">※ お客様がクリック → お客様向けチャット画面が開きます（お店側用ログインではありません）</div>
                 <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">
@@ -1209,7 +1215,7 @@
                 <textarea id="cast-edit-bio" rows="4" maxlength="500" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
             </div>
             <div>
-                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">表示順（小さいほど上位）</label>
+                <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">ソート（小さいほど上位）</label>
                 <input type="number" id="cast-edit-sort" min="0" max="9999" style="width:120px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
             </div>
             <div>
@@ -3058,7 +3064,10 @@ function renderChatAdmin(data){
     const slug = data.slug;
     window._shopSlug = slug; // キャスト埋込コード生成で再利用
     const publicUrl = 'https://yobuho.com/chat/' + encodeURIComponent(slug) + '/';
+    const sheetUrl = 'https://yobuho.com/chat-sheet.html?slug=' + encodeURIComponent(slug);
     document.getElementById('chat-admin-public-url').value = publicUrl;
+    const sheetUrlInput = document.getElementById('chat-admin-sheet-url');
+    if (sheetUrlInput) sheetUrlInput.value = sheetUrl;
     const ownerLink = document.getElementById('chat-admin-owner-link');
     if (ownerLink) ownerLink.href = publicUrl + '?owner=1';
     const ownerUrlInput = document.getElementById('chat-admin-owner-url');
@@ -3758,7 +3767,7 @@ function openCastEdit(id){
             if (!c) { toast('⚠️ キャスト情報が見つかりません'); return; }
             document.getElementById('cast-edit-name').value = c.display_name || '';
             document.getElementById('cast-edit-bio').value = c.bio || '';
-            document.getElementById('cast-edit-sort').value = c.sort_order ?? 100;
+            document.getElementById('cast-edit-sort').value = c.sort_order != null ? c.sort_order : '';
             document.getElementById('cast-edit-status').value = (c.status === 'suspended') ? 'suspended' : 'active';
             document.getElementById('cast-edit-notify-mode').value = c.chat_notify_mode || 'off';
             document.getElementById('cast-edit-notify-email').value = c.chat_notify_email || '';
@@ -3828,7 +3837,7 @@ async function saveCastEdit(){
         id: _castEditingId,
         display_name: name,
         bio: document.getElementById('cast-edit-bio').value,
-        sort_order: Number(document.getElementById('cast-edit-sort').value) || 100,
+        sort_order: (function(){ const v = document.getElementById('cast-edit-sort').value; return v === '' ? null : (Number(v) || 0); })(),
         status: document.getElementById('cast-edit-status').value,
         chat_notify_mode: document.getElementById('cast-edit-notify-mode').value,
         chat_notify_email: notifyEmail
