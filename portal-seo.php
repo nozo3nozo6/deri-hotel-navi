@@ -352,15 +352,15 @@ function loadPrefHotels($pref) {
     return $cache[$pref];
 }
 
-function buildSeoLink($path, $pref, $area = '', $detail = '', $city = '', $label = '', $count = null) {
+function buildSeoLink($path, $pref, $area = '', $detail = '', $city = '', $label = '', $count = null, $accentColor = '#9b2d35') {
     $parts = [rawurlencode($pref)];
     if ($area !== '') $parts[] = rawurlencode($area);
     if ($detail !== '') $parts[] = rawurlencode($detail);
     if ($city !== '') $parts[] = rawurlencode($city);
     $url = 'https://yobuho.com/' . $path . '/' . implode('/', $parts);
-    $countText = $count !== null ? '（' . number_format($count) . '件）' : '';
     $esc = fn($s) => htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    return '<li><a href="' . $esc($url) . '">' . $esc($label) . $countText . '</a></li>';
+    $countText = $count !== null ? '<span style="color:#8a7a6a; font-size:12px; margin-left:4px;">（' . number_format($count) . '件）</span>' : '';
+    return '<a href="' . $esc($url) . '" class="seo-area-card" style="display:block; padding:10px 14px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $accentColor . '; text-decoration:none; font-weight:500; font-size:14px; line-height:1.5; transition:background 0.15s, border-color 0.15s;">' . $esc($label) . $countText . '</a>';
 }
 
 $seo_static = '';
@@ -370,8 +370,24 @@ if (!$hotel_id && $pref) {
     $label = $m['label'];
     $verb = $m['verb'];
 
-    $seo_static .= '<section class="seo-static-content" style="padding:24px 20px; max-width:900px; margin:0 auto; font-size:14px; line-height:1.8;">';
-    $seo_static .= '<h2 style="font-size:18px; margin:0 0 12px;">' . $esc_fn($seo_h1) . '</h2>';
+    // モード別アクセントカラー（SeoBottomSectionと統一）
+    $accentMap = [
+        'men' => '#9b2d35',
+        'women' => '#b5627a',
+        'men_same' => '#2a5a8f',
+        'women_same' => '#8a5a9e',
+        'este' => '#2aa8b8',
+    ];
+    $accent = $accentMap[$mode] ?? '#9b2d35';
+    // グリッド共通スタイル（カード型2〜4列、レスポンシブ）
+    $gridStyle = 'list-style:none; padding:0; margin:0 0 24px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:8px;';
+    // 見出し共通スタイル（左側にアクセントボーダー）
+    $h3Style = 'font-size:16px; margin:24px 0 12px; color:' . $accent . '; border-left:4px solid ' . $accent . '; padding-left:10px; font-weight:600;';
+
+    $seo_static .= '<style>.seo-static-content .seo-area-card:hover{background:#fdf6f0!important;border-color:' . $accent . '!important;}@media(max-width:640px){.seo-static-content{padding:24px 12px!important;}}</style>';
+    $seo_static .= '<section class="seo-static-content" style="background:#faf6f0; padding:32px 16px; margin-top:24px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;">';
+    $seo_static .= '<div style="max-width:900px; margin:0 auto;">';
+    $seo_static .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $accent . '; border-left:4px solid ' . $accent . '; padding-left:10px;">' . $esc_fn($seo_h1) . '</h2>';
 
     if ($city) {
         // --- 市区町村ページ: 上位ホテル10件 + 近隣市区町村リンク ---
@@ -411,17 +427,14 @@ if (!$hotel_id && $pref) {
         $topHotels = array_slice($matched, 0, 10);
 
         if (count($topHotels) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">主要ホテル</h3>';
-            $seo_static .= '<ul style="padding-left:20px; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">主要ホテル</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             foreach ($topHotels as $h) {
                 $hUrl = 'https://yobuho.com/' . $path . '/hotel/' . (int)$h['id'];
-                $seo_static .= '<li><a href="' . $esc_fn($hUrl) . '">' . $esc_fn($h['name']) . '</a>';
-                if (!empty($h['address'])) {
-                    $seo_static .= ' <span style="color:#888; font-size:12px;">' . $esc_fn($h['address']) . '</span>';
-                }
-                $seo_static .= '</li>';
+                $addr = !empty($h['address']) ? '<span style="display:block; color:#8a7a6a; font-size:12px; font-weight:400; margin-top:4px;">' . $esc_fn($h['address']) . '</span>' : '';
+                $seo_static .= '<a href="' . $esc_fn($hUrl) . '" class="seo-area-card" style="display:block; padding:10px 14px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $accent . '; text-decoration:none; font-weight:500; font-size:14px; line-height:1.5;">' . $esc_fn($h['name']) . $addr . '</a>';
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
 
             // #hotel-list にサーバーサイドで初期ホテルカードを注入
             // (JS実行で上書きされるが、クローラーは初期HTMLを主要コンテンツとして見る)
@@ -447,30 +460,30 @@ if (!$hotel_id && $pref) {
         // 同じエリア内の他の市区町村
         if ($areaKey && isset($areaData['area'][$areaKey]['ct'])) {
             $siblings = $areaData['area'][$areaKey]['ct'];
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">' . $esc_fn($area) . 'の他の市区町村</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">' . $esc_fn($area) . 'の他の市区町村</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             $cnt = 0;
             foreach ($siblings as $row) {
                 if ($row[0] === $city || $cnt >= 20) continue;
                 $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total);
+                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total, $accent);
                 $cnt++;
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
     } elseif ($detail && $area) {
         // --- 詳細エリアページ: 配下市区町村 ---
         $detailKey = $pref . "\t" . $area . "\t" . $detail;
         $cities = $areaData['da'][$detailKey]['ct'] ?? [];
-        $seo_static .= '<p>' . $esc_fn($pref . ' ' . $area . ' ' . $detail) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを市区町村別に検索。</p>';
+        $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref . ' ' . $area . ' ' . $detail) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを市区町村別に検索。</p>';
         if (count($cities) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">市区町村一覧</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">市区町村一覧</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             foreach ($cities as $row) {
                 $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, $detail, $row[0], $row[0], $total);
+                $seo_static .= buildSeoLink($path, $pref, $area, $detail, $row[0], $row[0], $total, $accent);
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
     } elseif ($area) {
         // --- エリアページ: 配下の詳細エリア + 市区町村 ---
@@ -478,27 +491,27 @@ if (!$hotel_id && $pref) {
         $areaInfo = $areaData['area'][$areaKey] ?? [];
         $detailsList = $areaInfo['da'] ?? [];
         $cities = $areaInfo['ct'] ?? [];
-        $seo_static .= '<p>' . $esc_fn($pref . ' ' . $area) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを詳細エリア・市区町村別に検索。</p>';
+        $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref . ' ' . $area) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを詳細エリア・市区町村別に検索。</p>';
 
         if (count($detailsList) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">詳細エリア</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">詳細エリア</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             foreach ($detailsList as $row) {
-                $seo_static .= buildSeoLink($path, $pref, $area, $row[0], '', $row[0], $row[1] ?? null);
+                $seo_static .= buildSeoLink($path, $pref, $area, $row[0], '', $row[0], $row[1] ?? null, $accent);
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
         if (count($cities) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">市区町村一覧</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">市区町村一覧</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             $cnt = 0;
             foreach ($cities as $row) {
                 if ($cnt >= 30) break;
                 $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total);
+                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total, $accent);
                 $cnt++;
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
     } elseif ($pref) {
         // --- 都道府県ページ: エリア一覧 + 代表市区町村 ---
@@ -506,19 +519,19 @@ if (!$hotel_id && $pref) {
         $areas = $prefInfo['areas'] ?? [];
         $prefCount = $areaData['prefCounts'][$pref] ?? 0;
 
-        $seo_static .= '<p>' . $esc_fn($pref) . 'で' . $esc_fn($label . $verb) . 'ホテルを地域から検索できます。';
+        $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref) . 'で' . $esc_fn($label . $verb) . 'ホテルを地域から検索できます。';
         if ($prefCount > 0) {
             $seo_static .= '掲載ホテル数: <strong>' . number_format($prefCount) . '件</strong>（ビジネス/シティ/ラブホ含む）。';
         }
         $seo_static .= '利用者の口コミと掲載店舗の案内実績情報から、実際に' . $esc_fn($label . $verb) . 'か判断できます。</p>';
 
         if (count($areas) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">エリアから探す</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">エリアから探す</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             foreach ($areas as $row) {
-                $seo_static .= buildSeoLink($path, $pref, $row[0], '', '', $row[0], $row[1] ?? null);
+                $seo_static .= buildSeoLink($path, $pref, $row[0], '', '', $row[0], $row[1] ?? null, $accent);
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
 
         // 代表市区町村（全エリアから上位を集める）
@@ -544,17 +557,18 @@ if (!$hotel_id && $pref) {
         $topCities = array_slice($allCities, 0, 20, true);
 
         if (count($topCities) > 0) {
-            $seo_static .= '<h3 style="font-size:15px; margin:16px 0 8px;">主要市区町村</h3>';
-            $seo_static .= '<ul style="padding-left:20px; columns:2; margin:0 0 12px;">';
+            $seo_static .= '<h3 style="' . $h3Style . '">主要市区町村</h3>';
+            $seo_static .= '<div style="' . $gridStyle . '">';
             foreach ($topCities as $cityName => $info) {
-                $seo_static .= buildSeoLink($path, $pref, $info['area'], '', $cityName, $cityName, $info['total']);
+                $seo_static .= buildSeoLink($path, $pref, $info['area'], '', $cityName, $cityName, $info['total'], $accent);
             }
-            $seo_static .= '</ul>';
+            $seo_static .= '</div>';
         }
     }
 
     // 共通末尾: 全国ページへの戻りリンク
-    $seo_static .= '<p style="margin-top:16px;"><a href="https://yobuho.com/' . $esc_fn($path) . '/">← ' . $esc_fn($label) . '全国ページへ</a></p>';
+    $seo_static .= '<p style="margin-top:24px;"><a href="https://yobuho.com/' . $esc_fn($path) . '/" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $accent . '; text-decoration:none; font-size:13px; font-weight:500;">← ' . $esc_fn($label) . '全国ページへ</a></p>';
+    $seo_static .= '</div>';
     $seo_static .= '</section>';
 }
 
