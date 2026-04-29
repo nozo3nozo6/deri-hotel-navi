@@ -3665,6 +3665,9 @@ function openCastEmbedCode(shopCastId, displayName){
     if (!slug) { toast('⚠️ 店舗情報の読み込み待ち。少ししてから再度お試しください'); return; }
     const publicUrl = 'https://yobuho.com/chat/' + encodeURIComponent(slug) + '/';
     const castUrl = publicUrl + '?cast=' + encodeURIComponent(shopCastId);
+    // シート版URL: chat-sheet.html?slug=...&cast=... — モバイル(タッチ端末)はシート、PCは /chat/ へ
+    // リダイレクト. 既にお店リンクで chat-sheet.html?slug=... を使っている場合のキャスト指名版.
+    const sheetUrl = 'https://yobuho.com/chat-sheet.html?slug=' + encodeURIComponent(slug) + '&cast=' + encodeURIComponent(shopCastId);
     const label = displayName + 'に相談';
     // ① script: chat-widget.js でフローティングボタン (推奨)
     const scriptCode = '<script src="https://yobuho.com/chat-widget.js" data-slug="' + slug + '" data-cast="' + shopCastId + '" data-label="' + label.replace(/"/g, '&quot;') + '" async><\/script>';
@@ -3709,8 +3712,17 @@ function openCastEmbedCode(shopCastId, displayName){
         +     '<button type="button" class="btn primary" data-cast-embed-copy="_cast-embed-link" style="margin-top:6px;padding:6px 14px;font-size:12px;">コピー</button>'
         +   '</div>'
 
+        +   '<div style="margin-bottom:14px;">'
+        +     '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">シート版URL（お店リンクと同じ形式・推奨）</div>'
+        +     '<div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">スマホはシートUI、PCは新タブ /chat/ へ自動リダイレクト。お店で chat-sheet.html?slug=... を貼っているなら同じ感覚で使えます。</div>'
+        +     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+        +       '<input type="text" readonly class="f-input" value="' + sheetUrl + '" style="flex:1;min-width:240px;font-size:12px;background:#fafafa;" id="_cast-embed-sheet-url">'
+        +       '<button type="button" class="btn" data-cast-embed-copy="_cast-embed-sheet-url" style="padding:6px 14px;font-size:12px;">コピー</button>'
+        +     '</div>'
+        +   '</div>'
+
         +   '<div style="margin-bottom:8px;">'
-        +     '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">直リンクURL</div>'
+        +     '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">直リンクURL（/chat/ 版）</div>'
         +     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
         +       '<input type="text" readonly class="f-input" value="' + castUrl + '" style="flex:1;min-width:240px;font-size:12px;background:#fafafa;" id="_cast-embed-url">'
         +       '<button type="button" class="btn" data-cast-embed-copy="_cast-embed-url" style="padding:6px 14px;font-size:12px;">コピー</button>'
