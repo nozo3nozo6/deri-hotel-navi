@@ -1,0 +1,386 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Footer from '../components/Footer.astro';
+
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
+
+const planSlots = [
+  { name: '投稿リンクプラン', price: '5,500', casts: '5名', tag: '今なら1ヶ月無料' },
+  { name: '市区町村プラン', price: '11,000', casts: '10名', tag: null },
+  { name: 'エリアプラン', price: '33,000', casts: '30名', tag: null },
+  { name: 'ブロック(地域)プラン', price: '55,000', casts: '50名', tag: null },
+  { name: '都道府県プラン', price: '77,000', casts: '70名', tag: null },
+  { name: '地方プラン', price: '110,000', casts: '100名', tag: null },
+  { name: '全国プラン', price: '165,000', casts: '150名', tag: null },
+];
+---
+
+<BaseLayout
+  title="YobuChat | 登録不要・匿名で使えるお店向けチャットツール"
+  description="お客様との匿名チャットツール「YobuChat」。会員登録・アプリ不要、ホームページにコピペ1行で設置可能。自動翻訳・キャスト指名URL対応。投稿リンクプラン1ヶ月無料キャンペーン中。"
+  keywords="YobuChat,風俗 チャットツール,匿名チャット,店舗用チャット,キャスト 指名チャット,デリヘル チャット,女風 チャット,問い合わせフォーム"
+  canonical="https://yobuho.com/yobuchat/"
+  ogTitle="YobuChat | 登録不要・匿名で使えるお店向けチャットツール"
+  ogDescription="お客様の取りこぼしを防ぐ匿名チャット。コピペ1行で導入、自動翻訳・キャスト指名URL対応。"
+  ogUrl="https://yobuho.com/yobuchat/"
+  themeColor="#c9a84c"
+  csp={csp}
+>
+  <Fragment slot="head">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" data-font-async href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
+  </Fragment>
+
+  <div class="yc-page">
+    <header class="yc-header">
+      <span class="yc-logo">💬 YobuChat</span>
+      <span class="yc-tagline">by YobuHo</span>
+    </header>
+
+    <section class="yc-hero">
+      <h1>登録不要・匿名で使える<br>お店専用チャットツール</h1>
+      <p class="yc-hero-sub">「ちょっと聞きたい」を取りこぼさない。<br>電話やLINEに抵抗があるお客様の新規獲得窓口を広げます。</p>
+      <div class="yc-hero-cta">
+        <a href="https://yobuho.com/shop-register/" class="yc-btn yc-btn-primary">店舗登録する（無料）</a>
+        <a href="#features" class="yc-btn yc-btn-secondary">機能を見る</a>
+      </div>
+    </section>
+
+    <section class="yc-campaign">
+      <div class="yc-campaign-inner">
+        <div class="yc-campaign-badge">🎁 キャンペーン実施中</div>
+        <p class="yc-campaign-title">投稿リンクプラン（月額5,500円・税込）が<strong>1ヶ月無料</strong></p>
+        <p class="yc-campaign-deadline">🗓 2026年5月末までのご登録限定</p>
+        <p class="yc-campaign-note">期間中はYobuChat（お店用＋キャスト5名分）も全機能でお試しいただけます。</p>
+      </div>
+    </section>
+
+    <section class="yc-why">
+      <h2>なぜYobuChatが選ばれるのか</h2>
+      <div class="yc-compare">
+        <div class="yc-compare-card yc-compare-other">
+          <h3>❌ 一般的なチャットサービス</h3>
+          <ul>
+            <li>会員登録・アプリインストールが必要</li>
+            <li>「ちょっと聞きたい」だけのお客様が離脱</li>
+            <li>外国人のお客様への対応が難しい</li>
+            <li>導入に専門知識が必要</li>
+          </ul>
+        </div>
+        <div class="yc-compare-card yc-compare-yobuchat">
+          <h3>✅ YobuChat</h3>
+          <ul>
+            <li><strong>登録不要・アプリ不要</strong>でその場で送信</li>
+            <li>匿名なので電話・LINEに抵抗があるお客様も気軽に</li>
+            <li><strong>自動翻訳搭載</strong>（英語・中国語・韓国語など対応）</li>
+            <li>コピペ1行でホームページに設置完了</li>
+          </ul>
+        </div>
+      </div>
+      <p class="yc-why-message">
+        電話しづらくて、つい同じお店ばかり使ってしまうお客様も多いものです。<br>
+        匿名チャットなら気軽に問い合わせられるため、貴店への新規獲得の窓口が大きく広がります。
+      </p>
+    </section>
+
+    <section id="features" class="yc-features">
+      <h2>主な機能</h2>
+      <div class="yc-feature-grid">
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">💬</div>
+          <h3>匿名チャット</h3>
+          <p>お客様は会員登録なしで、その場で匿名メッセージを送信。電話・LINEに抵抗がある層を確実に拾えます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">🌐</div>
+          <h3>自動翻訳</h3>
+          <p>お客様の入力言語を自動判別。英語・中国語・韓国語などのお客様にも、日本語のままご対応いただけます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">👥</div>
+          <h3>キャスト指名URL</h3>
+          <p>キャスト個別のチャットURLを発行可能。SNSプロフィールやSNS投稿に貼って、指名のお客様と直接やり取りできます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">📋</div>
+          <h3>コピペ1行で設置</h3>
+          <p>HTML知識不要。発行されたコードをコピペするだけで、貴店ホームページに「💬 チャットで相談」ボタンが表示されます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">🕐</div>
+          <h3>受付時間設定</h3>
+          <p>営業時間外は自動で「営業時間外」表示に切替。受付中ステータスもワンタップで切替可能。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">📧</div>
+          <h3>メール通知</h3>
+          <p>お客様からメッセージが届くとメールでお知らせ。お店用とキャスト用で通知先を分けられます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">📝</div>
+          <h3>定型文管理</h3>
+          <p>「ご新規様ですか？」「料金は◯円〜」など、よく使う返答を定型文として保存。タップで即送信。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">🛡️</div>
+          <h3>ブロック機能</h3>
+          <p>悪質なお客様はワンタップでブロック可能。再アクセスも自動で防止します。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="yc-embed">
+      <h2>5つの埋め込みパターンに対応</h2>
+      <p class="yc-embed-sub">貴店のホームページ・SNS・各種CMSに最適な形式をお選びいただけます。</p>
+      <div class="yc-embed-list">
+        <div class="yc-embed-item"><span class="yc-embed-num">①</span><div><h3>フローティングボタン</h3><p>右下に💬ボタンが常時表示。タップで全画面チャット。</p></div></div>
+        <div class="yc-embed-item"><span class="yc-embed-num">②</span><div><h3>iframeインライン埋込</h3><p>ページ内の好きな位置にチャット欄を直接表示。</p></div></div>
+        <div class="yc-embed-item"><span class="yc-embed-num">③</span><div><h3>テキストリンク</h3><p>「チャットで相談する」のリンクから別タブで開く。</p></div></div>
+        <div class="yc-embed-item"><span class="yc-embed-num">④</span><div><h3>固定フローティングリンク</h3><p>ページに常駐するリンク型。シンプル設置向け。</p></div></div>
+        <div class="yc-embed-item"><span class="yc-embed-num">⑤</span><div><h3>CMS用インライン</h3><p>WordPress・各種CMSなど、scriptタグが使えない環境でも設置可能。</p></div></div>
+      </div>
+    </section>
+
+    <section class="yc-howto">
+      <h2>導入はかんたん3ステップ</h2>
+      <div class="yc-steps">
+        <div class="yc-step"><span class="yc-step-num">1</span><h3>店舗登録（無料）</h3><p>メールアドレスと届出確認書をアップロード</p></div>
+        <div class="yc-step"><span class="yc-step-num">2</span><h3>YobuChat 有効化</h3><p>管理画面から受付時間・通知メールを設定</p></div>
+        <div class="yc-step"><span class="yc-step-num">3</span><h3>コードを設置</h3><p>発行されたコードをホームページにコピペ</p></div>
+      </div>
+    </section>
+
+    <section class="yc-plans">
+      <h2>プラン別キャスト枠</h2>
+      <p class="yc-plans-sub">全有料プランにYobuChatが標準装備。プランごとにキャスト指名URLの発行可能数が変わります。</p>
+      <div class="yc-plan-table-wrap">
+        <table class="yc-plan-table">
+          <thead><tr><th>プラン</th><th>月額（税込）</th><th>キャスト枠</th></tr></thead>
+          <tbody>
+            {planSlots.map(p => (
+              <tr class={p.tag ? 'yc-plan-highlight' : ''}>
+                <td>
+                  <strong>{p.name}</strong>
+                  {p.tag && <span class="yc-plan-tag">{p.tag}</span>}
+                </td>
+                <td>¥{p.price}</td>
+                <td>お店用 + {p.casts}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="yc-plans-link"><a href="https://yobuho.com/plan/">▶ プラン詳細・比較表を見る</a></p>
+    </section>
+
+    <section class="yc-cta">
+      <h2>まずは1ヶ月無料でお試しください</h2>
+      <p>投稿リンクプランなら、店舗専用ページとYobuChat（お店用＋キャスト5名分）が1ヶ月無料。<br>キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。</p>
+      <a href="https://yobuho.com/shop-register/" class="yc-btn yc-btn-primary yc-btn-large">店舗登録する（無料・最短3分）</a>
+      <p class="yc-cta-note">※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。</p>
+    </section>
+
+    <Footer />
+  </div>
+</BaseLayout>
+
+<style is:global>
+  :root {
+    --yc-bg: #faf8f4;
+    --yc-bg-2: #fff;
+    --yc-bg-3: #f5f2ec;
+    --yc-text: #1a1410;
+    --yc-text-2: #6a5a4a;
+    --yc-text-3: #a09080;
+    --yc-accent: #c9a84c;
+    --yc-accent-deep: #a88828;
+    --yc-rose: #b5627a;
+    --yc-border: rgba(201,168,76,0.25);
+    --yc-shadow: 0 4px 20px rgba(155,130,80,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--yc-bg); color: var(--yc-text);
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    -webkit-font-smoothing: antialiased; line-height: 1.7;
+  }
+
+  .yc-header {
+    background: linear-gradient(135deg, #1a1410 0%, #2e2418 100%);
+    padding: 16px 20px; text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  .yc-logo { font-size: 22px; color: var(--yc-accent); font-weight: 700; letter-spacing: 0.04em; }
+  .yc-tagline { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 300; }
+
+  .yc-hero {
+    background: linear-gradient(135deg, #2e2418 0%, #3a2a1c 50%, #4a3424 100%);
+    padding: 64px 20px; text-align: center; color: #fff;
+  }
+  .yc-hero h1 { font-size: 26px; font-weight: 700; line-height: 1.5; margin-bottom: 18px; }
+  .yc-hero-sub { font-size: 14px; color: rgba(255,255,255,0.78); margin-bottom: 32px; }
+  .yc-hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .yc-btn {
+    display: inline-block; padding: 14px 32px; border-radius: 50px;
+    font-size: 15px; font-weight: 700; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s; letter-spacing: 0.03em;
+  }
+  .yc-btn-primary {
+    background: var(--yc-accent); color: #1a1410;
+    box-shadow: 0 4px 16px rgba(201,168,76,0.4);
+  }
+  .yc-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(201,168,76,0.5); }
+  .yc-btn-secondary {
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  .yc-btn-secondary:hover { background: rgba(255,255,255,0.18); }
+  .yc-btn-large { padding: 18px 44px; font-size: 16px; }
+
+  .yc-campaign {
+    background: linear-gradient(135deg, #fff8e8 0%, #fff3d8 100%);
+    border-top: 3px solid var(--yc-accent);
+    border-bottom: 1px solid var(--yc-border);
+    padding: 36px 20px; text-align: center;
+  }
+  .yc-campaign-badge {
+    display: inline-block; background: var(--yc-rose); color: #fff;
+    padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.05em; margin-bottom: 14px;
+  }
+  .yc-campaign-title { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
+  .yc-campaign-title strong { color: var(--yc-rose); font-size: 22px; }
+  .yc-campaign-deadline { font-size: 13px; color: var(--yc-accent-deep); margin-bottom: 8px; font-weight: 500; }
+  .yc-campaign-note { font-size: 12px; color: var(--yc-text-2); }
+
+  .yc-why { padding: 64px 20px; background: var(--yc-bg-2); }
+  .yc-why h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 36px; }
+  .yc-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin: 0 auto 28px; }
+  .yc-compare-card { padding: 24px 22px; border-radius: 14px; }
+  .yc-compare-other { background: var(--yc-bg-3); border: 1px solid #ddd; }
+  .yc-compare-yobuchat {
+    background: linear-gradient(135deg, #fff8e8 0%, #fdf3d3 100%);
+    border: 2px solid var(--yc-accent); box-shadow: var(--yc-shadow);
+  }
+  .yc-compare-card h3 { font-size: 15px; margin-bottom: 16px; }
+  .yc-compare-other h3 { color: #999; }
+  .yc-compare-yobuchat h3 { color: var(--yc-accent-deep); }
+  .yc-compare-card ul { list-style: none; }
+  .yc-compare-card li {
+    font-size: 13px; padding: 6px 0; color: var(--yc-text-2);
+    border-bottom: 1px dashed rgba(0,0,0,0.06);
+  }
+  .yc-compare-card li:last-child { border-bottom: none; }
+  .yc-compare-yobuchat li { color: var(--yc-text); }
+  .yc-compare-yobuchat strong { color: var(--yc-accent-deep); }
+  .yc-why-message {
+    max-width: 700px; margin: 0 auto; padding: 24px;
+    background: var(--yc-bg-3); border-left: 4px solid var(--yc-rose);
+    border-radius: 6px; font-size: 14px; line-height: 1.9; color: var(--yc-text);
+  }
+
+  .yc-features { padding: 64px 20px; background: var(--yc-bg); }
+  .yc-features h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 36px; }
+  .yc-feature-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .yc-feature-card {
+    background: var(--yc-bg-2); border: 1px solid var(--yc-border);
+    border-radius: 12px; padding: 22px 18px;
+  }
+  .yc-feature-icon { font-size: 32px; margin-bottom: 10px; }
+  .yc-feature-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--yc-accent-deep); }
+  .yc-feature-card p { font-size: 12.5px; color: var(--yc-text-2); line-height: 1.7; }
+
+  .yc-embed { padding: 64px 20px; background: var(--yc-bg-2); }
+  .yc-embed h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .yc-embed-sub { text-align: center; font-size: 13px; color: var(--yc-text-2); margin-bottom: 32px; }
+  .yc-embed-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  .yc-embed-item {
+    display: flex; align-items: flex-start; gap: 16px;
+    background: var(--yc-bg); border: 1px solid var(--yc-border);
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .yc-embed-num {
+    font-size: 24px; font-weight: 700; color: var(--yc-accent);
+    line-height: 1; min-width: 32px;
+  }
+  .yc-embed-item h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .yc-embed-item p { font-size: 12.5px; color: var(--yc-text-2); }
+
+  .yc-howto { padding: 64px 20px; background: var(--yc-bg); }
+  .yc-howto h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 36px; }
+  .yc-steps {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    max-width: 800px; margin: 0 auto;
+  }
+  .yc-step {
+    text-align: center; padding: 28px 20px;
+    background: var(--yc-bg-2); border-radius: 14px;
+    border: 1px solid var(--yc-border);
+  }
+  .yc-step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; background: var(--yc-accent); color: #fff;
+    border-radius: 50%; font-size: 22px; font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .yc-step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .yc-step p { font-size: 13px; color: var(--yc-text-2); }
+
+  .yc-plans { padding: 64px 20px; background: var(--yc-bg-2); }
+  .yc-plans h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .yc-plans-sub { text-align: center; font-size: 13px; color: var(--yc-text-2); margin-bottom: 24px; }
+  .yc-plan-table-wrap { max-width: 720px; margin: 0 auto; overflow-x: auto; }
+  .yc-plan-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--yc-bg); border-radius: 12px; overflow: hidden;
+    box-shadow: var(--yc-shadow);
+  }
+  .yc-plan-table th {
+    background: var(--yc-accent-deep); color: #fff;
+    padding: 12px 14px; font-size: 13px; font-weight: 700;
+    text-align: left;
+  }
+  .yc-plan-table td {
+    padding: 14px; font-size: 13px;
+    border-bottom: 1px solid var(--yc-border);
+  }
+  .yc-plan-table tr:last-child td { border-bottom: none; }
+  .yc-plan-highlight { background: linear-gradient(135deg, #fff8e8 0%, #fdf3d3 100%); }
+  .yc-plan-tag {
+    display: inline-block; margin-left: 8px;
+    background: var(--yc-rose); color: #fff;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 700;
+  }
+  .yc-plans-link { text-align: center; margin-top: 20px; }
+  .yc-plans-link a { color: var(--yc-accent-deep); text-decoration: none; font-weight: 500; font-size: 14px; }
+  .yc-plans-link a:hover { text-decoration: underline; }
+
+  .yc-cta {
+    padding: 72px 20px; text-align: center;
+    background: linear-gradient(135deg, #2e2418 0%, #3a2a1c 100%); color: #fff;
+  }
+  .yc-cta h2 { font-size: 22px; font-weight: 700; margin-bottom: 16px; }
+  .yc-cta p { font-size: 14px; color: rgba(255,255,255,0.78); margin-bottom: 28px; line-height: 1.9; }
+  .yc-cta-note { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 18px; }
+
+  @media (max-width: 768px) {
+    .yc-hero h1 { font-size: 22px; }
+    .yc-compare { grid-template-columns: 1fr; }
+    .yc-feature-grid { grid-template-columns: repeat(2, 1fr); }
+    .yc-steps { grid-template-columns: 1fr; gap: 12px; }
+  }
+  @media (max-width: 480px) {
+    .yc-hero { padding: 48px 16px; }
+    .yc-hero h1 { font-size: 20px; }
+    .yc-feature-grid { grid-template-columns: 1fr; }
+    .yc-btn { padding: 12px 24px; font-size: 14px; }
+    .yc-btn-large { padding: 16px 32px; font-size: 15px; }
+    .yc-plan-table th, .yc-plan-table td { padding: 10px 8px; font-size: 12px; }
+  }
+</style>
