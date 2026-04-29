@@ -2922,32 +2922,12 @@ function formatHM(timeStr) {
 function renderReceptionBanner() {
     const note = refs.visitorNote;
     if (!note) return;
-    if (state.mode !== 'visitor') return;
-    // キャスト指名URL (?cast=) では店舗の受付時間に依存しない.
-    // キャスト個人は受付時間という概念を持たないため「営業時間外」バナーは出さない.
-    if (CAST_ID) {
-        note.classList.remove('reception-closed');
-        note.textContent = '';
-        note.classList.add('hidden');
-        return;
-    }
-    if (state.is_reception_hours !== false) {
-        // 通常時: 常時表示の上部ノートは廃止（挨拶はシステムメッセージで代替）
-        note.classList.remove('reception-closed');
-        note.textContent = '';
-        note.classList.add('hidden');
-        return;
-    }
-    note.classList.remove('hidden');
-    const hours = state.reception_start && state.reception_end
-        ? `${formatHM(state.reception_start)} - ${formatHM(state.reception_end)}`
-        : '';
-    const parts = [t('reception.closed')];
-    if (hours) parts.push(`${t('reception.hours')}: ${hours}`);
-    parts.push(t('reception.sendOk'));
-    note.classList.add('reception-closed');
-    note.textContent = parts.join('  /  ');
-    note.classList.remove('hidden');
+    // 2026-04-29: 「現在受付時間外（送信は受付）」バナーは全廃.
+    // お店/キャスト 両方の訪問者画面で常時非表示. 営業時間情報はヘッダーラベルとシステム
+    // メッセージのみで伝え、入力欄上の常駐バナーは置かない方針に変更.
+    note.classList.remove('reception-closed');
+    note.textContent = '';
+    note.classList.add('hidden');
 }
 
 function scheduleReceptionReopenCheck() {
