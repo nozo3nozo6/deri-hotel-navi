@@ -49,10 +49,12 @@ body.embedded #chat-root{top:0;left:0;right:0;bottom:auto;margin:0;width:100%;he
 .verified-badge.hidden{display:none}
 
 /* 訪問者ヘッダーモード: shop-name を左寄せ + 認証バッジと並べる.
-   body.visitor-header クラスは chat.js enterVisitorMode で付与. */
+   body.visitor-header クラスは chat.js enterVisitorMode で付与.
+   gap:2px は ♥認証バッジ ↔ 店舗名の距離 (訪問者モードでは戻るボタンと
+   訪問者名は hidden なので、実質バッジと店舗名のみが残る). */
 body.visitor-header #chat-header{grid-template-columns:1fr auto}
 body.visitor-header .chat-header-center{display:none}
-body.visitor-header .chat-header-left{justify-self:stretch;flex:1}
+body.visitor-header .chat-header-left{justify-self:stretch;flex:1;gap:2px}
 body.visitor-header .chat-header-left #chat-shop-name{font-size:16px;display:block}
 .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
 .status-dot.online{background:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.8)}
