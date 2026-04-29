@@ -35,10 +35,18 @@ body[data-mode="women"] #sheet {
   background: var(--thb-bg-base);
   border-radius: 24px 24px 0 0;
 }
+/* トップバー (ハンドル+✕ がある領域) は #fff に近い中立色にして
+   「シートの上は本体ページ (yobuho.com) が透けている風」を出す.
+   濃いピンクで揃えると "全部チャット" に見えてシート感が消えるため
+   --thb-bg-soft (#FBF6F2 ≒ クリーム白) を採用. ✕ ボタンの凸シャドウも
+   この明るい背景上で映えるよう陰影を強めに. */
 body[data-mode="women"] #top-bar {
-  background: var(--thb-bg-base);
+  background: var(--thb-bg-soft);
   border-bottom: none;
   box-shadow: 0 4px 12px -6px var(--thb-shadow-dark);
+}
+body[data-mode="women"] #close-btn {
+  background: var(--thb-bg-soft);
 }
 body[data-mode="women"] #handle {
   background: #C9B8B0;
