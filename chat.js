@@ -65,8 +65,24 @@ function getResumeToken() {
     } catch (_) { return ''; }
 }
 
+// キャスト URL HMAC bearer (HIGH 2026-04-29).
+// chat-notify.php がメール通知URLに ?ct=<base64url>&iat=<epoch> で付与.
+// cast-url-* (reply / toggle-notify) を叩く時にそのまま転送し、PHP 側で
+// shop_cast_id + session_token + iat の HMAC として検証される.
+// session_token 漏洩時の cast 名義成りすまし防止.
+function getCastBearer() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const ct = (p.get('ct') || '').trim();
+        const iat = parseInt(p.get('iat') || '0', 10);
+        if (!/^[A-Za-z0-9_\-]{16,64}$/.test(ct) || !Number.isFinite(iat) || iat <= 0) return null;
+        return { ct, iat };
+    } catch (_) { return null; }
+}
+
 const SLUG = getSlug();
 const CAST_ID = getCastParam();
+const CAST_BEARER = getCastBearer();
 const VIEW_TOKEN = getViewToken();
 const CAST_INBOX_TOKEN = getCastInboxToken();
 const RESUME_TOKEN = getResumeToken();
@@ -2907,6 +2923,14 @@ function renderReceptionBanner() {
     const note = refs.visitorNote;
     if (!note) return;
     if (state.mode !== 'visitor') return;
+    // キャスト指名URL (?cast=) では店舗の受付時間に依存しない.
+    // キャスト個人は受付時間という概念を持たないため「営業時間外」バナーは出さない.
+    if (CAST_ID) {
+        note.classList.remove('reception-closed');
+        note.textContent = '';
+        note.classList.add('hidden');
+        return;
+    }
     if (state.is_reception_hours !== false) {
         // 通常時: 常時表示の上部ノートは廃止（挨拶はシステムメッセージで代替）
         note.classList.remove('reception-closed');
@@ -3013,12 +3037,18 @@ async function sendCastReply(msg) {
     msg = String(msg || '').trim();
     if (!msg) return;
     const clientMsgId = uuidv4();
+    const auth = {
+        kind: 'cast_view',
+        session_token: state.session_token,
+        shop_cast_id: CAST_ID,
+    };
+    // HIGH 2026-04-29: メールURL の HMAC bearer を転送.
+    if (CAST_BEARER) {
+        auth.ct = CAST_BEARER.ct;
+        auth.iat = CAST_BEARER.iat;
+    }
     const payload = {
-        auth: {
-            kind: 'cast_view',
-            session_token: state.session_token,
-            shop_cast_id: CAST_ID,
-        },
+        auth,
         message: msg,
         client_msg_id: clientMsgId,
         since_id: state.last_message_id || 0,
@@ -3954,12 +3984,14 @@ refs.onlineToggle.addEventListener('change', async (e) => {
             state.is_online = isOn;
             updateStatusIndicator(isOn);
         } else if (IS_CAST_VIEW) {
-            // キャスト指名ビュー: URL-only auth で自分の chat_notify_mode をトグル
-            await api('cast-url-toggle-notify', {
+            // キャスト指名ビュー: URL-only auth + HMAC bearer (HIGH 2026-04-29)
+            const tnPayload = {
                 session_token: state.session_token,
                 shop_cast_id: CAST_ID,
                 enabled: isOn ? 1 : 0
-            });
+            };
+            if (CAST_BEARER) { tnPayload.ct = CAST_BEARER.ct; tnPayload.iat = CAST_BEARER.iat; }
+            await api('cast-url-toggle-notify', tnPayload);
             state.notify_enabled = isOn;
             // 緑丸をキャスト自身の通知状態に同期
             updateStatusIndicator(state.is_online);
@@ -4131,12 +4163,14 @@ function sendMarkReadForCurrentView(upToId) {
     // [visitor] 訪問者 (cast view 含む)
     if (state.mode === 'visitor' && state.session_token) {
         if (IS_CAST_VIEW && CAST_ID) {
-            // キャストメール返信URL (?cast=&view=): cast-mark-read auth branch B
-            api('cast-mark-read', {
+            // キャストメール返信URL (?cast=&view=): cast-mark-read auth branch B + HMAC bearer
+            const mrPayload = {
                 session_token: state.session_token,
                 shop_cast_id: CAST_ID,
                 up_to_id: upToId,
-            }, 'POST').catch(() => {});
+            };
+            if (CAST_BEARER) { mrPayload.ct = CAST_BEARER.ct; mrPayload.iat = CAST_BEARER.iat; }
+            api('cast-mark-read', mrPayload, 'POST').catch(() => {});
         } else if (state._visitorSub && state._visitorSub.markRead) {
             // 通常訪問者: DO WS 経由 mark-read (sender_type='shop' 既読化)
             try { state._visitorSub.markRead(upToId); } catch (_) {}
