@@ -19,6 +19,14 @@ import type {
 import { buildDefaultRouter } from './notify';
 import { MysqlSync } from './sync';
 import { sendPushToSubject, type PushPayload } from './push';
+import {
+  safeEqual,
+  isOriginAllowed,
+  verifyOwnerDevice,
+  asString,
+  asNonEmpty,
+  asEnum,
+} from './auth';
 
 const HEARTBEAT_INTERVAL_MS = 30_000;        // 30s
 const ALARM_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h retention sweep
@@ -71,6 +79,24 @@ export class ChatRoom implements DurableObject {
     // HTTP: start-session / send-message / owner-reply / can-connect など
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({})) as any;
+      if (!body || typeof body !== 'object') {
+        return this.errJson('invalid_body', 400);
+      }
+
+      // ===== owner / 状態変更系エンドポイントの認証 (CRITICAL 2026-04-29) =====
+      // /owner/reply, /owner/inbox, /owner/mark-read, /session/close は店舗オーナー専用.
+      // device_token 必須化 + PHP verify-device で都度検証.
+      // 旧実装では認証ゼロで誰でも /owner/reply で偽返信ができた.
+      if (
+        path === '/owner/reply' ||
+        path === '/owner/inbox' ||
+        path === '/owner/mark-read' ||
+        path === '/session/close'
+      ) {
+        const auth = await this.requireOwnerAuth(req, body);
+        if (!auth.ok) return this.errJson(auth.error || 'forbidden', auth.status || 401);
+      }
+
       switch (path) {
         case '/session/start':     return this.httpStartSession(body);
         case '/session/send':      return this.httpSendMessage(body);
@@ -87,6 +113,44 @@ export class ChatRoom implements DurableObject {
     }
 
     return new Response('not found', { status: 404 });
+  }
+
+  /**
+   * Owner 系 HTTP エンドポイントの認証.
+   * - X-Shop-Id ヘッダ (Worker Router 側で X-Shop-Meta から付与済み) と
+   *   body.device_token / Authorization: Bearer <device_token> を組合わせて
+   *   PHP verify-device で都度検証.
+   * - 60s メモリキャッシュ (auth.ts).
+   * - PHP 経由 (X-Sync-Secret 持ち) のリクエストは内部信頼チャネルとしてバイパス可
+   *   (今は使われていないが将来 PHP→DO で owner 系を呼ぶ場合の互換).
+   */
+  private async requireOwnerAuth(
+    req: Request,
+    body: any
+  ): Promise<{ ok: true } | { ok: false; error?: string; status?: number }> {
+    // PHP 内部チャネル (X-Sync-Secret 一致) は信頼.
+    const sync = req.headers.get('X-Sync-Secret') || '';
+    const expected = this.env.CHAT_SYNC_SECRET || '';
+    if (expected && safeEqual(sync, expected)) {
+      return { ok: true };
+    }
+
+    const shopId = req.headers.get('X-Shop-Id') || '';
+    if (!shopId) return { ok: false, error: 'shop_unknown', status: 401 };
+
+    // device_token は Authorization: Bearer か body.device_token のどちらか.
+    let deviceToken = '';
+    const authHeader = req.headers.get('Authorization') || '';
+    const m = /^Bearer\s+([A-Za-z0-9._\-]+)$/i.exec(authHeader);
+    if (m) deviceToken = m[1];
+    if (!deviceToken && body && typeof body.device_token === 'string') {
+      deviceToken = body.device_token;
+    }
+    if (!deviceToken) return { ok: false, error: 'unauthenticated', status: 401 };
+
+    const ok = await verifyOwnerDevice(this.env, shopId, deviceToken);
+    if (!ok) return { ok: false, error: 'forbidden', status: 403 };
+    return { ok: true };
   }
 
   // ========== Shop meta ==========
@@ -295,15 +359,34 @@ export class ChatRoom implements DurableObject {
   // ========== HTTP handlers ==========
 
   private async httpStartSession(body: any): Promise<Response> {
-    // client が既存 token を送ってきた時のみ「adopt リクエスト」扱い.
-    // token 無し = 完全新規セッション → MySQL backfill 不要.
-    const clientProvidedToken = typeof body.session_token === 'string' && body.session_token.length > 0;
-    const token: string = clientProvidedToken ? body.session_token : crypto.randomUUID();
-    const visitorHash: string = body.visitor_hash || '';
-    const nickname: string = body.nickname || '';
-    const lang: string = body.lang || 'ja';
-    const source = body.source || 'standalone';
-    const shopCastId: string = (body.cast || '').trim();
+    // ===== 入力検証 (HIGH 2026-04-29) =====
+    // 旧実装は `body.source || 'standalone'` 等で型/長さ検証なし.
+    // MySQL ENUM('portal','widget','standalone') を超える値が入ると 1366 エラー、
+    // VARCHAR の場合は攻撃者ペイロードがそのまま保管される可能性があった.
+
+    // session_token: クライアント既存 token (adopt) があれば検証. 無ければ新規生成.
+    const providedToken = body.session_token;
+    let clientProvidedToken = false;
+    let token: string;
+    if (typeof providedToken === 'string' && providedToken.length > 0) {
+      // UUID 風 (ハイフン入り 36文字 / 32 hex) のみ受理.
+      if (!/^[0-9a-fA-F-]{32,36}$/.test(providedToken) || providedToken.length > 64) {
+        return this.errJson('invalid_token', 400);
+      }
+      token = providedToken;
+      clientProvidedToken = true;
+    } else {
+      token = crypto.randomUUID();
+    }
+
+    // 各フィールドを長さ上限と型で検証. 不正なら空文字 (DB 側で安全に NULL/空として保存).
+    const visitorHash = asString(body.visitor_hash, 128) || '';
+    const nickname = asString(body.nickname, 60) || '';
+    const lang = asString(body.lang, 10) || 'ja';
+    const source = asEnum(body.source, ['portal', 'widget', 'standalone'] as const) || 'standalone';
+    // shop_cast_id: shop_casts.id (UUID). 空 OK (店舗直通).
+    const shopCastIdRaw = typeof body.cast === 'string' ? body.cast.trim() : '';
+    const shopCastId = shopCastIdRaw && /^[0-9a-fA-F-]{32,36}$/.test(shopCastIdRaw) ? shopCastIdRaw : '';
 
     let sess = await this.findSessionByToken(token);
     const isNew = !sess;
@@ -314,10 +397,14 @@ export class ChatRoom implements DurableObject {
     //   (旧 DO バージョンで作られた「cast 無視」セッションを救済)
     // - 既存セッションで cast_id 設定済み: 変えない（別キャストへの乗っ取り防止）
     const shouldResolveCast = !!(shopCastId && this.shopMeta?.shop_id && (isNew || (sess && !sess.cast_id)));
-    let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null } = {};
+    let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null; cast_notify_mode?: string | null } = {};
     if (shouldResolveCast) {
       castInfo = await this.resolveCast(this.shopMeta!.shop_id, shopCastId);
     }
+
+    // cast_notify_mode は session storage に persist しない（キャストが頻繁にトグルする想定で
+    // 毎リクエスト fresh が必要なため). castInfo から最初に得る、無ければ adopt パスで再 resolve.
+    let castNotifyMode: string | null = castInfo.cast_notify_mode ?? null;
 
     if (!sess) {
       const id = await this.nextSessionId();
@@ -358,14 +445,17 @@ export class ChatRoom implements DurableObject {
       sess.cast_name = castInfo.cast_name || null;
       sess.cast_avatar_url = castInfo.cast_avatar_url ?? null;
       await this.saveSession(sess);
-    } else if (sess.cast_id && sess.shop_cast_id && (sess.cast_avatar_url === undefined || sess.cast_avatar_url === null) && this.shopMeta?.shop_id) {
-      // 旧 DO バージョンで作られた cast セッションは cast_avatar_url が未設定.
-      // adopt 時に一度だけ resolve して persist する (再 resolve は cast_avatar_url が
-      // 入った時点で発火しなくなる. プロフィール画像更新は次の cast 指名時に反映).
+    } else if (sess.cast_id && sess.shop_cast_id && this.shopMeta?.shop_id) {
+      // adopt パス: cast セッションは毎回 resolveCast して fresh cast_notify_mode を取る.
+      // - cast_avatar_url が未設定 (旧 DO バージョン) なら同時に persist.
+      // - cast_notify_mode は session に persist しないが、レスポンスには含める.
       const fresh = await this.resolveCast(this.shopMeta.shop_id, sess.shop_cast_id);
-      if (fresh && (fresh.cast_avatar_url || fresh.cast_id)) {
-        sess.cast_avatar_url = fresh.cast_avatar_url ?? null;
-        await this.saveSession(sess);
+      if (fresh) {
+        if (fresh.cast_notify_mode) castNotifyMode = fresh.cast_notify_mode;
+        if ((sess.cast_avatar_url === undefined || sess.cast_avatar_url === null) && (fresh.cast_avatar_url || fresh.cast_id)) {
+          sess.cast_avatar_url = fresh.cast_avatar_url ?? null;
+          await this.saveSession(sess);
+        }
       }
     }
 
@@ -378,12 +468,13 @@ export class ChatRoom implements DurableObject {
       cast_name: sess.cast_name || null,
       shop_avatar_url: this.shopMeta?.chat_avatar_url ?? null,
       cast_avatar_url: sess.cast_avatar_url ?? null,
+      cast_notify_mode: castNotifyMode,
     });
   }
 
-  // shop_casts.id → cast_id + display_name + profile_image_url を PHP から解決.
+  // shop_casts.id → cast_id + display_name + profile_image_url + chat_notify_mode を PHP から解決.
   // 承認済み(active)でなければ空を返す（店舗直通にフォールバック）.
-  private async resolveCast(shopId: string, shopCastId: string): Promise<{ shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null }> {
+  private async resolveCast(shopId: string, shopCastId: string): Promise<{ shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null; cast_notify_mode?: string | null }> {
     const base = this.env.NOTIFY_BASE_URL || 'https://yobuho.com';
     const secret = this.env.CHAT_SYNC_SECRET || '';
     if (!secret) return {};
@@ -400,6 +491,7 @@ export class ChatRoom implements DurableObject {
         cast_id: data.cast_id,
         cast_name: data.display_name,
         cast_avatar_url: data.profile_image_url || null,
+        cast_notify_mode: data.chat_notify_mode || 'off',
       };
     } catch (_) {
       return {};
@@ -752,7 +844,7 @@ export class ChatRoom implements DurableObject {
   private async httpAdminPurge(req: Request, _body: any): Promise<Response> {
     const provided = req.headers.get('X-Sync-Secret') || '';
     const expected = this.env.CHAT_SYNC_SECRET || '';
-    if (!expected || provided !== expected) {
+    if (!safeEqual(provided, expected)) {
       return this.errJson('forbidden', 403);
     }
     // shop_meta は残して他を全消去
@@ -773,9 +865,44 @@ export class ChatRoom implements DurableObject {
     const deviceToken = url.searchParams.get('device') || '';
     const sinceId = Number(url.searchParams.get('since_id') || 0);
 
-    // セッション解決
+    // ===== CSWSH 対策 (CRITICAL 2026-04-29) =====
+    // WebSocket は CORS preflight が効かないため、別途 Origin 検証が必須.
+    // 旧実装は Origin 未検証のため、攻撃者サイトを被害者ブラウザで開かせるだけで
+    // 任意 session に接続できた (Cross-Site WebSocket Hijacking).
+    const origin = req.headers.get('Origin');
+    if (!origin || !isOriginAllowed(origin, this.env)) {
+      return new Response('forbidden_origin', { status: 403 });
+    }
+
+    // role の正当性
+    if (role !== 'visitor' && role !== 'owner') {
+      return new Response('invalid_role', { status: 400 });
+    }
+
+    // ===== owner role の device_token 必須検証 (CRITICAL 2026-04-29) =====
+    // 旧実装は role=owner で接続するだけで全 session の inbox snapshot を受信し、
+    // 偽返信 / mark-read / close-session を実行できた.
+    if (role === 'owner') {
+      const shopId = req.headers.get('X-Shop-Id') || '';
+      if (!shopId) {
+        return new Response('shop_unknown', { status: 401 });
+      }
+      if (!deviceToken) {
+        return new Response('unauthenticated', { status: 401 });
+      }
+      const ok = await verifyOwnerDevice(this.env, shopId, deviceToken);
+      if (!ok) {
+        return new Response('forbidden', { status: 403 });
+      }
+    }
+
+    // セッション解決 (visitor のみ)
     let session: ChatSession | null = null;
-    if (role === 'visitor' && sessionToken) {
+    if (role === 'visitor') {
+      // visitor は session_token (UUID 形式) 必須. 形式不正なら DB lookup する前に reject.
+      if (!sessionToken || !/^[0-9a-fA-F-]{32,36}$/.test(sessionToken)) {
+        return new Response('invalid_token', { status: 400 });
+      }
       session = await this.findSessionByToken(sessionToken);
       if (!session) return new Response('session_not_found', { status: 404 });
       if (session.blocked) return new Response('blocked', { status: 403 });
@@ -837,72 +964,105 @@ export class ChatRoom implements DurableObject {
   // WebSocket から client → server へのメッセージ (Hibernation API)
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== 'string') return;
+    // ===== サイズ上限ガード (DoS 対策) =====
+    // chat msg 本文 500 char + JSON ラッパー余裕で 2KB 以内. 余裕持って 8KB.
+    if (message.length > 8192) return;
+
     let data: any;
     try { data = JSON.parse(message); } catch { return; }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return;
 
-    const attach = ws.deserializeAttachment() as WsAttachment;
+    const attach = ws.deserializeAttachment() as WsAttachment | null;
+    if (!attach) {
+      // hibernation 復活時の attachment 取得失敗 → 接続を閉じて再接続を促す
+      try { ws.close(1011, 'no_attach'); } catch (_) {}
+      return;
+    }
     attach.heartbeat_at = Date.now();
     ws.serializeAttachment(attach);
 
-    switch (data.type) {
+    // 共通ヘルパー: client 入力の文字列バリデーション
+    const dType = asEnum(data.type, ['ping', 'send', 'mark-read', 'view', 'close-session'] as const);
+    if (!dType) return;
+
+    switch (dType) {
       case 'ping':
         ws.send(JSON.stringify({ type: 'pong', t: Date.now() }));
         break;
-      case 'send':
+      case 'send': {
+        const text = asNonEmpty(data.text, 500);
+        const cmid = data.client_msg_id != null ? asString(data.client_msg_id, 64) : undefined;
+        if (!text) return;
         // visitor: {text, client_msg_id} / owner: {session_id, text, client_msg_id}
         if (attach.role === 'visitor' && attach.session_token) {
           await this.httpSendMessage({
             session_token: attach.session_token,
-            message: data.text,
-            client_msg_id: data.client_msg_id,
+            message: text,
+            client_msg_id: cmid || undefined,
             since_id: attach.last_since_id,
           });
         } else if (attach.role === 'owner') {
+          // owner WS は session_token / session_id どちらかで対象 session 指定可.
+          // ただし WS 経由の owner 操作では session_token を優先 (DO ↔ MySQL の id 食い違い対策).
+          const tok = data.session_token != null ? asString(data.session_token, 64) : '';
+          const sid = Number.isFinite(Number(data.session_id)) ? Number(data.session_id) : 0;
+          if (!tok && !sid) return;
           await this.httpOwnerReply({
-            session_id: data.session_id,
-            message: data.text,
-            client_msg_id: data.client_msg_id,
+            session_token: tok || undefined,
+            session_id: sid || undefined,
+            message: text,
+            client_msg_id: cmid || undefined,
             since_id: attach.last_since_id,
           });
         }
         break;
-      case 'mark-read':
-        if (attach.role === 'owner' && (data.session_token || data.session_id)) {
+      }
+      case 'mark-read': {
+        const upTo = Number.isFinite(Number(data.up_to_id)) ? Number(data.up_to_id) : 0;
+        if (attach.role === 'owner') {
+          const tok = data.session_token != null ? asString(data.session_token, 64) : '';
+          const sid = Number.isFinite(Number(data.session_id)) ? Number(data.session_id) : 0;
+          if (!tok && !sid) return;
           await this.httpOwnerMarkRead({
-            session_token: data.session_token,
-            session_id: data.session_id,
-            up_to_id: data.up_to_id,
+            session_token: tok || undefined,
+            session_id: sid || undefined,
+            up_to_id: upTo,
           });
         } else if (attach.role === 'visitor' && attach.session_token) {
-          await this.httpVisitorMarkRead({ session_token: attach.session_token, up_to_id: data.up_to_id });
+          await this.httpVisitorMarkRead({ session_token: attach.session_token, up_to_id: upTo });
         }
         break;
-      case 'view':
+      }
+      case 'view': {
         // B-1 (owner): オーナーが開いているスレッドの session_token を記録.
-        //   visitor 新着メッセージ時に presence 一致すれば自動既読化.
         // #2 (visitor): 自分の画面が visible の間 session_token を自己セット.
-        //   shop/cast 新着メッセージ時に presence あれば自動既読化 + owner/cast_inbox に read push.
-        // 2026-04-23: last_view_at を毎回更新 (isViewingToken の鮮度ゲート用).
+        const tokRaw = data.session_token != null ? asString(data.session_token, 64) : undefined;
         if (attach.role === 'owner') {
-          const tok = data.session_token ? String(data.session_token) : undefined;
-          attach.viewing_session_token = tok;
-          if (tok) attach.last_view_at = Date.now();
+          attach.viewing_session_token = tokRaw || undefined;
+          if (tokRaw) attach.last_view_at = Date.now();
           ws.serializeAttachment(attach);
         } else if (attach.role === 'visitor') {
-          // visitor は自分の session_token のみ登録可 (他セッションの既読は不可)
-          const tok = data.session_token ? String(data.session_token) : undefined;
-          if (!tok || tok === attach.session_token) {
-            attach.viewing_session_token = tok;
-            if (tok) attach.last_view_at = Date.now();
+          // visitor は自分の session_token のみ登録可
+          if (!tokRaw || tokRaw === attach.session_token) {
+            attach.viewing_session_token = tokRaw || undefined;
+            if (tokRaw) attach.last_view_at = Date.now();
             ws.serializeAttachment(attach);
           }
         }
         break;
-      case 'close-session':
-        if (attach.role === 'owner' && data.session_id) {
-          await this.httpCloseSession({ session_id: data.session_id });
+      }
+      case 'close-session': {
+        if (attach.role === 'owner') {
+          const tok = data.session_token != null ? asString(data.session_token, 64) : '';
+          const sid = Number.isFinite(Number(data.session_id)) ? Number(data.session_id) : 0;
+          if (!tok && !sid) return;
+          await this.httpCloseSession({
+            session_token: tok || undefined,
+            session_id: sid || undefined,
+          });
         }
         break;
+      }
     }
   }
 
@@ -930,7 +1090,7 @@ export class ChatRoom implements DurableObject {
   private async httpBroadcast(req: Request, body: any): Promise<Response> {
     const provided = req.headers.get('X-Sync-Secret') || '';
     const expected = this.env.CHAT_SYNC_SECRET || '';
-    if (!expected || provided !== expected) {
+    if (!safeEqual(provided, expected)) {
       return this.errJson('forbidden', 403);
     }
 
@@ -1023,7 +1183,7 @@ export class ChatRoom implements DurableObject {
   private async httpBroadcastRead(req: Request, body: any): Promise<Response> {
     const provided = req.headers.get('X-Sync-Secret') || '';
     const expected = this.env.CHAT_SYNC_SECRET || '';
-    if (!expected || provided !== expected) {
+    if (!safeEqual(provided, expected)) {
       return this.errJson('forbidden', 403);
     }
 
@@ -1098,7 +1258,7 @@ export class ChatRoom implements DurableObject {
   private async httpBroadcastTyping(req: Request, body: any): Promise<Response> {
     const provided = req.headers.get('X-Sync-Secret') || '';
     const expected = this.env.CHAT_SYNC_SECRET || '';
-    if (!expected || provided !== expected) {
+    if (!safeEqual(provided, expected)) {
       return this.errJson('forbidden', 403);
     }
 

@@ -17,6 +17,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mail-utils.php';
+require_once __DIR__ . '/cast-bearer.php';
 if (file_exists(__DIR__ . '/vapid-config.php')) {
     require_once __DIR__ . '/vapid-config.php';
 }
@@ -127,6 +128,37 @@ function err(string $msg, int $code = 400) {
 
 function clientIp(): string {
     return $_SERVER['REMOTE_ADDR'] ?? '';
+}
+
+/**
+ * Cast URL HMAC bearer は api/cast-bearer.php に共通化済み.
+ *  - castUrlBearerSign() / castUrlBearerVerify() / buildCastUrlQuery()
+ *
+ * Origin allowlist 強制 (MEDIUM 2026-04-29).
+ *
+ * メール送信を伴う visitor action (resend-visitor-email-verify / visitor-notify-settings 等) は
+ * `Access-Control-Allow-Origin: *` 配下にあるため、悪意あるサイトから fetch で叩かれる.
+ * CORS preflight は通っても、Origin が allowlist 外なら 403 を返す.
+ *
+ * Origin が空 (curl 等) の場合は通す: 自動化スクリプトで叩く場合があるが、
+ * その場合は session_token / inbox_token を知っている前提で攻撃面は限定.
+ *
+ * yobuho.com + サブドメインのみ許可.
+ */
+function requireSameSiteOrigin(): void {
+    global $allowed_origins;
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if ($origin === '') {
+        // Origin ヘッダなし: ブラウザ fetch 以外 (curl, server-side, native app).
+        // 厳格モードにすると正規ユースケースを壊すため通す.
+        // 攻撃者サイトのブラウザ fetch には必ず Origin が付く.
+        return;
+    }
+    if (!in_array($origin, $allowed_origins, true)) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'forbidden_origin'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 function visitorHash(): string {
@@ -601,9 +633,10 @@ function handleStartSession() {
     $castId = null;
     $castName = null;
     $castAvatarUrl = null;
+    $castNotifyMode = null;
     if ($shopCastId !== '') {
         $stmt = $pdo->prepare(
-            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.status
+            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.chat_notify_mode, sc.status
              FROM shop_casts sc
              WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
         );
@@ -613,6 +646,7 @@ function handleStartSession() {
             $castId = $row['cast_id'];
             $castName = $row['display_name'];
             $castAvatarUrl = $row['profile_image_url'] ?: null;
+            $castNotifyMode = $row['chat_notify_mode'] ?? 'off';
         }
         // 非active (pending_approval/suspended/removed) の場合は cast_id 未設定で続行 (店舗直通に fallback)
     }
@@ -633,6 +667,7 @@ function handleStartSession() {
         'gender_mode'   => $shop['gender_mode'] ?? 'men',
         'shop_avatar_url' => $shop['chat_avatar_url'] ?: null,
         'cast_avatar_url' => $castAvatarUrl,
+        'cast_notify_mode' => $castNotifyMode,
     ]);
 }
 
@@ -1269,12 +1304,24 @@ function handleCastUrlReply() {
     $msg          = trim((string)inp('message', ''));
     $clientMsgId  = (string)inp('client_msg_id', '');
     $sinceId      = (int)inp('since_id', 0);
+    $ct           = trim((string)inp('ct', ''));
+    $iat          = (int)inp('iat', 0);
 
     if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
     if ($shopCastId === '')  err('shop_cast_id required');
     if ($msg === '') err('message required');
     if (mb_strlen($msg) > 1000) err('メッセージが長すぎます');
     if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
+
+    // HIGH 2026-04-29: ct 付きリクエストは厳格検証 (将来必須化予定).
+    // 旧メールリンク互換のため ct なしは grace mode (warn ログのみ).
+    if ($ct !== '') {
+        if (!castUrlBearerVerify($ct, $iat, $shopCastId, $sessionToken)) {
+            err('リンクが無効または期限切れです (発行から60日以上経過)。最新のメール通知から開き直してください', 403);
+        }
+    } else {
+        error_log('[chat-api] cast-url-reply without bearer (legacy link). shop_cast_id=' . $shopCastId);
+    }
 
     $pdo = DB::conn();
 
@@ -1348,9 +1395,20 @@ function handleCastUrlToggleNotify() {
     $sessionToken = trim((string)inp('session_token', ''));
     $shopCastId   = trim((string)inp('shop_cast_id', ''));
     $enabled      = (int)inp('enabled', 0);
+    $ct           = trim((string)inp('ct', ''));
+    $iat          = (int)inp('iat', 0);
 
     if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
     if ($shopCastId === '') err('shop_cast_id required');
+
+    // HIGH 2026-04-29: ct 検証 (cast-url-reply と同様).
+    if ($ct !== '') {
+        if (!castUrlBearerVerify($ct, $iat, $shopCastId, $sessionToken)) {
+            err('リンクが無効または期限切れです (発行から60日以上経過)。最新のメール通知から開き直してください', 403);
+        }
+    } else {
+        error_log('[chat-api] cast-url-toggle-notify without bearer (legacy link). shop_cast_id=' . $shopCastId);
+    }
 
     $pdo = DB::conn();
 
@@ -1567,8 +1625,19 @@ function handleCastMarkRead(): void {
         // Auth B: cast メール返信URL (session_token + shop_cast_id)
         $sessionToken = trim((string)inp('session_token', ''));
         $shopCastId   = trim((string)inp('shop_cast_id', ''));
+        $ct           = trim((string)inp('ct', ''));
+        $iat          = (int)inp('iat', 0);
         if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
         if ($shopCastId === '') err('shop_cast_id required');
+
+        // HIGH 2026-04-29: ct 付きは厳格検証. ct 無しは grace mode (warn ログ).
+        if ($ct !== '') {
+            if (!castUrlBearerVerify($ct, $iat, $shopCastId, $sessionToken)) {
+                err('リンクが無効または期限切れです (発行から60日以上経過)。最新のメール通知から開き直してください', 403);
+            }
+        } else {
+            error_log('[chat-api] cast-mark-read without bearer (legacy link). shop_cast_id=' . $shopCastId);
+        }
 
         $stmt = $pdo->prepare(
             'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.status AS sc_status, c.status AS cast_status
@@ -1793,12 +1862,20 @@ function sendCastInboxAuthMail(string $to, string $displayName, string $code): v
 
 /**
  * cast-inbox-request-code: 認証コード発行 + キャストの登録メール宛に送信.
- * レート制限: 60秒以内の連続リクエスト不可.
+ * レート制限:
+ *  - 同一 shop_cast_id で 60秒以内の連続リクエスト不可 (既存)
+ *  - REMOTE_ADDR 単位で 1分 5回まで (MEDIUM 2026-04-29 IP分散攻撃対策)
+ *  - 同一 shop_cast_id で 1時間 10回まで (MEDIUM 2026-04-29)
  */
 function handleCastInboxRequestCode(): void {
+    requireSameSiteOrigin();
     $token = trim((string)inp('inbox_token', ''));
     $sc = resolveCastInboxToken($token);
     if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    // IP rate limit (1分 5回): 別 inbox_token の分散攻撃にも効く.
+    $ipErr = enforceIpRateLimit('cast-inbox-request-code', 60, 5);
+    if ($ipErr) err($ipErr, 429);
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare('SELECT email FROM casts WHERE id = ? LIMIT 1');
@@ -2690,6 +2767,11 @@ function handleVisitorNotifySettings(): void {
         if ($email === '') err('メールアドレスを入力してください');
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) err('メールアドレスの形式が正しくありません');
         if (strlen($email) > 255) err('メールアドレスが長すぎます');
+        // メール送信を伴う path のみ Origin allowlist + IP rate limit (HIGH/MEDIUM 2026-04-29).
+        // OFF→ON や 別アドレス変更で確認メールが飛ぶため、ここで amplification 攻撃を遮断.
+        requireSameSiteOrigin();
+        $ipErr = enforceIpRateLimit('visitor-notify-enable', 60, 5);
+        if ($ipErr) err($ipErr, 429);
     }
 
     $pdo = DB::conn();
@@ -2767,13 +2849,26 @@ function handleVisitorNotifySettings(): void {
 
 // Resend: 既に保存済みの email を再確認する (UIの「確認メールを再送」ボタン).
 // Session に紐付くメールが既にある場合のみ、新トークン発行＋再送信.
+//
+// レート制限 (HIGH 2026-04-29):
+//   - 直近 60 秒以内に発行された verify_token がある場合は再送拒否.
+//   - 1時間あたり最大 5 回 (visitor_email_verify_expires_at の rolling window で擬似的に判定).
+//   - REMOTE_ADDR ベースの追加レート制限 (1分5回).
+//   旧実装はレート制限ゼロのため、session_token を盗んだ攻撃者が
+//   被害者メールアドレス宛に大量の確認メール送信を引き起こせた.
 function handleResendVisitorEmailVerify(): void {
+    requireSameSiteOrigin();
     $token = trim((string)inp('session_token', ''));
     if ($token === '') err('session_token required');
 
+    // IP レート制限 (1分 5回, 端末/ネットワーク全体).
+    $ipErr = enforceIpRateLimit('resend-visitor-email-verify', 60, 5);
+    if ($ipErr) err($ipErr, 429);
+
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT id, visitor_email, visitor_email_verified
+        'SELECT id, visitor_email, visitor_email_verified,
+                visitor_email_verify_expires_at
          FROM chat_sessions WHERE session_token = ? LIMIT 1'
     );
     $stmt->execute([$token]);
@@ -2790,8 +2885,22 @@ function handleResendVisitorEmailVerify(): void {
         return;
     }
 
+    // 60s cooldown: 直近発行から 60 秒以内なら拒否.
+    // expires_at = issued_at + 24h なので「expires_at が NOW+24h 直近」なら新しい.
+    $expiresAt = (string)($session['visitor_email_verify_expires_at'] ?? '');
+    if ($expiresAt !== '') {
+        $expiresTs = strtotime($expiresAt);
+        if ($expiresTs !== false) {
+            $issuedTs = $expiresTs - 24 * 3600;
+            $elapsed = time() - $issuedTs;
+            if ($elapsed >= 0 && $elapsed < 60) {
+                err('確認メールは送信済みです。受信箱と迷惑メールフォルダをご確認ください（' . (60 - $elapsed) . '秒後に再送できます）', 429);
+            }
+        }
+    }
+
     $verifyToken = bin2hex(random_bytes(32));
-    $expiresAt = date('Y-m-d H:i:s', time() + 24 * 3600);
+    $newExpires = date('Y-m-d H:i:s', time() + 24 * 3600);
 
     $upd = $pdo->prepare(
         'UPDATE chat_sessions
@@ -2799,13 +2908,70 @@ function handleResendVisitorEmailVerify(): void {
              visitor_email_verify_expires_at = ?
          WHERE id = ?'
     );
-    $upd->execute([$verifyToken, $expiresAt, $session['id']]);
+    $upd->execute([$verifyToken, $newExpires, $session['id']]);
 
     $shopSlug = fetchSessionShopSlug((int)$session['id']);
     $mailOk = sendVisitorEmailVerification($email, $verifyToken, $shopSlug, $token);
     if (!$mailOk) err('確認メールの送信に失敗しました。しばらく経ってから再度お試しください', 500);
 
     ok(['verified' => false, 'verification_sent' => true]);
+}
+
+/**
+ * IP ベースのファイルロックレート制限.
+ * 用途: メール送信を伴う action の amplification 攻撃防止.
+ * 戻り値: エラーメッセージ (拒否時) / null (許可).
+ *
+ * 実装: APCu があれば使う / 無ければ /tmp にファイル作成 (シンレンサーバー用フォールバック).
+ * window 内のリクエスト数が limit を超えたら拒否.
+ */
+function enforceIpRateLimit(string $bucket, int $windowSec, int $limit): ?string {
+    $ip = clientIp();
+    if ($ip === '') return null; // CLI / unknown は通す
+    $key = 'rl:' . $bucket . ':' . hash('sha256', $ip);
+
+    // APCu があれば優先 (atomic increment).
+    if (function_exists('apcu_inc')) {
+        $count = apcu_inc($key, 1, $success, $windowSec);
+        if ($success && $count > $limit) {
+            return '送信回数の上限に達しました。しばらく時間を空けてから再度お試しください';
+        }
+        return null;
+    }
+
+    // フォールバック: /tmp にファイルを作成して count++ (file_lock で原子性).
+    $dir = sys_get_temp_dir() . '/yobuho-rl';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    $file = $dir . '/' . preg_replace('/[^a-zA-Z0-9_]/', '_', $key);
+
+    $fp = @fopen($file, 'c+');
+    if (!$fp) return null; // ロック取得不可なら通す (fail-open は意図的, DoS にしないため)
+    if (!flock($fp, LOCK_EX)) { fclose($fp); return null; }
+
+    $now = time();
+    $data = ['ts' => $now, 'count' => 0];
+    $raw = stream_get_contents($fp);
+    if ($raw !== false && $raw !== '') {
+        $parsed = json_decode($raw, true);
+        if (is_array($parsed) && isset($parsed['ts'])) {
+            if ($now - (int)$parsed['ts'] < $windowSec) {
+                $data = ['ts' => (int)$parsed['ts'], 'count' => (int)($parsed['count'] ?? 0)];
+            }
+        }
+    }
+    $data['count']++;
+
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, json_encode($data));
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+
+    if ($data['count'] > $limit) {
+        return '送信回数の上限に達しました。しばらく時間を空けてから再度お試しください';
+    }
+    return null;
 }
 
 // session_id から店舗 slug を取得 (確認メール本文のチャットURL生成用).
@@ -2950,8 +3116,11 @@ function handleUnifiedSend(): void {
 
         case 'cast_view':
             // 必要フィールド: session_token + shop_cast_id (auth), message, client_msg_id, since_id
+            // HMAC bearer (HIGH 2026-04-29): auth.ct + auth.iat があれば昇格して handleCastUrlReply で検証.
             if (!empty($auth['session_token']))  $body['session_token']  = $auth['session_token'];
             if (!empty($auth['shop_cast_id']))   $body['shop_cast_id']   = $auth['shop_cast_id'];
+            if (!empty($auth['ct']))             $body['ct']             = $auth['ct'];
+            if (!empty($auth['iat']))            $body['iat']            = $auth['iat'];
             handleCastUrlReply();
             return;
 

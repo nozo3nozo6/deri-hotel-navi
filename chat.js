@@ -2143,6 +2143,13 @@ async function enterVisitorMode() {
             if (adopt && typeof adopt.cast_avatar_url !== 'undefined') {
                 state.cast_avatar_url = adopt.cast_avatar_url || null;
             }
+            // 2026-04-29: ?cast= 訪問者URLでは緑丸をキャストの notify トグルに同期.
+            // cast_notify_mode が 'off' 以外なら点灯, 'off' なら消灯. 受付時間は無視.
+            if (CAST_ID && adopt && typeof adopt.cast_notify_mode !== 'undefined') {
+                const castOn = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
+                state.notify_enabled = !!castOn;
+                state.is_online = !!castOn;
+            }
             // adopt レスポンスは verified/pending を含まないため必ず PHP (my-notify-settings) で完全取得.
             // Magic Link 確認状態は UI バッジ表示に必須で、adopt 側のフィールドだけでは不十分.
             loadVisitorNotifyState();
@@ -2161,6 +2168,12 @@ async function enterVisitorMode() {
         if (s.cast_name) state.cast_name = s.cast_name;
         if (typeof s.shop_avatar_url !== 'undefined') state.shop_avatar_url = s.shop_avatar_url || null;
         if (typeof s.cast_avatar_url !== 'undefined') state.cast_avatar_url = s.cast_avatar_url || null;
+        // 2026-04-29: ?cast= 訪問者URL は緑丸をキャストの notify_mode に同期 (受付時間無視)
+        if (CAST_ID && typeof s.cast_notify_mode !== 'undefined') {
+            const castOn = s.cast_notify_mode && s.cast_notify_mode !== 'off';
+            state.notify_enabled = !!castOn;
+            state.is_online = !!castOn;
+        }
         saveVisitorSession();
         updateCastHeader();
         addSystemMessage(state.welcome_message || t('visitor.note'));
@@ -2456,7 +2469,7 @@ function scheduleReceptionBoundaryRefresh() {
         clearTimeout(_receptionBoundaryTimer);
         _receptionBoundaryTimer = null;
     }
-    if (IS_CAST_VIEW) return; // キャストビューは受付時間と独立 (notify_enabled で判定)
+    if (IS_CAST_VIEW || CAST_ID) return; // ?cast= URL はキャスト notify_mode 基準で受付時間と独立
     const rs = state.reception_start;
     const re = state.reception_end;
     if (!rs || !re || rs === re) return; // 24h は境界なし
@@ -2500,8 +2513,10 @@ document.addEventListener('visibilitychange', () => {
 
 function updateStatusIndicator(online) {
     state.is_online = online;
-    // キャスト指名ビュー: 緑丸はキャスト自身の通知ON/OFFに同期. 営業時間ラベルは出さない.
-    if (IS_CAST_VIEW) {
+    // 2026-04-29: ?cast= URL (訪問者/閲覧両方) は緑丸をキャストの notify トグルに同期.
+    // キャスト個人は受付時間という概念を持たず、トグル ON/OFF のみで表現する.
+    // IS_CAST_VIEW (?cast=&view=) と CAST_ID (?cast=) のどちらも同じロジックを適用.
+    if (IS_CAST_VIEW || CAST_ID) {
         const castOn = !!state.notify_enabled;
         refs.statusDot.classList.toggle('online', castOn);
         refs.statusDot.classList.toggle('offline', !castOn);

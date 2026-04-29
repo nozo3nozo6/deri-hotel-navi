@@ -42,7 +42,7 @@ if ($shopId === '' || $shopCastId === '') {
 try {
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
-        'SELECT sc.id AS shop_cast_id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.status
+        'SELECT sc.id AS shop_cast_id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.chat_notify_mode, sc.status
          FROM shop_casts sc
          WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
     );
@@ -67,6 +67,7 @@ try {
         'cast_id' => $row['cast_id'],
         'display_name' => $row['display_name'],
         'profile_image_url' => $row['profile_image_url'] ?: null,
+        'chat_notify_mode' => $row['chat_notify_mode'] ?? 'off',
     ]);
 } catch (Throwable $e) {
     error_log('[chat-cast-lookup] ' . $e->getMessage());
