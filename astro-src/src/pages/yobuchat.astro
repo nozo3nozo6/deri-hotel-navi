@@ -85,6 +85,21 @@ const planSlots = [
       </p>
     </section>
 
+    <section class="yc-position">
+      <div class="yc-position-inner">
+        <h2>💡 YobuChat の位置づけ — チャットは「入口」、確定は「電話/LINE」で</h2>
+        <p class="yc-position-lead">
+          YobuChat はあくまで「お問い合わせ」「ご相談」のための窓口です。<br>
+          ご予約の確定・お約束は、これまで通りお店のお電話・LINE等でお受けいただくスタイルを推奨しています。
+        </p>
+        <ul class="yc-position-list">
+          <li>✓ 既存の電話・LINE導線を脅かしません</li>
+          <li>✓ 「ちょっと気になる」段階のお客様だけを追加で拾えます</li>
+          <li>✓ チャットで打ち解けたあと、自然にお電話へ誘導できます</li>
+        </ul>
+      </div>
+    </section>
+
     <section id="features" class="yc-features">
       <h2>主な機能</h2>
       <div class="yc-feature-grid">
@@ -115,8 +130,13 @@ const planSlots = [
         </div>
         <div class="yc-feature-card">
           <div class="yc-feature-icon">📧</div>
-          <h3>メール通知</h3>
+          <h3>メール通知（お店側）</h3>
           <p>お客様からメッセージが届くとメールでお知らせ。お店用とキャスト用で通知先を分けられます。</p>
+        </div>
+        <div class="yc-feature-card">
+          <div class="yc-feature-icon">✉️</div>
+          <h3>お客様もメール通知OK</h3>
+          <p>お客様もメールアドレスを登録すれば、新着返信をメールで受信。「あとで返事がきたら見たい」というお客様も逃しません。</p>
         </div>
         <div class="yc-feature-card">
           <div class="yc-feature-icon">📝</div>
@@ -281,11 +301,39 @@ const planSlots = [
     border-radius: 6px; font-size: 14px; line-height: 1.9; color: var(--yc-text);
   }
 
+  .yc-position {
+    padding: 48px 20px; background: var(--yc-bg);
+    border-top: 1px solid var(--yc-border);
+  }
+  .yc-position-inner {
+    max-width: 760px; margin: 0 auto;
+    background: linear-gradient(135deg, #fff 0%, #fdfaf3 100%);
+    border: 2px solid var(--yc-accent);
+    border-radius: 14px; padding: 32px 28px;
+    box-shadow: var(--yc-shadow);
+  }
+  .yc-position h2 {
+    font-size: 17px; font-weight: 700; color: var(--yc-accent-deep);
+    margin-bottom: 16px; line-height: 1.6; text-align: center;
+  }
+  .yc-position-lead {
+    font-size: 14px; color: var(--yc-text); line-height: 1.9;
+    margin-bottom: 18px; text-align: center;
+  }
+  .yc-position-list {
+    list-style: none; max-width: 480px; margin: 0 auto;
+    padding: 16px 20px; background: var(--yc-bg-3); border-radius: 8px;
+  }
+  .yc-position-list li {
+    font-size: 13.5px; color: var(--yc-text); padding: 6px 0;
+    line-height: 1.7;
+  }
+
   .yc-features { padding: 64px 20px; background: var(--yc-bg); }
   .yc-features h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 36px; }
   .yc-feature-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
-    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    max-width: 960px; margin: 0 auto;
   }
   .yc-feature-card {
     background: var(--yc-bg-2); border: 1px solid var(--yc-border);
