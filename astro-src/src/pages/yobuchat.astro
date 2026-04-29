@@ -215,6 +215,34 @@ const planSlots = [
       <p class="yc-plans-link"><a href="https://yobuho.com/plan/">▶ プラン詳細・比較表を見る</a></p>
     </section>
 
+    <section class="yc-services">
+      <h2>YobuHo シリーズについて</h2>
+      <p class="yc-services-sub">YobuChat は「呼べるホテル検索ポータル YobuHo」が提供するチャットツールです。<br>YobuHo はジャンル別に4つのサブサービスを展開しています。</p>
+      <div class="yc-service-cards">
+        <a href="https://yobuho.com/deli/" class="yc-service-card">
+          <div class="yc-service-icon">♂</div>
+          <h3>Deli YobuHo</h3>
+          <p>デリヘルを呼べるホテル検索</p>
+        </a>
+        <a href="https://yobuho.com/jofu/" class="yc-service-card">
+          <div class="yc-service-icon">♀</div>
+          <h3>Jofu YobuHo</h3>
+          <p>女性用風俗を呼べるホテル検索</p>
+        </a>
+        <a href="https://yobuho.com/este/" class="yc-service-card">
+          <div class="yc-service-icon">💆‍♂️</div>
+          <h3>Este YobuHo</h3>
+          <p>デリエステを呼べるホテル検索</p>
+        </a>
+        <a href="https://yobuho.com/same-m/" class="yc-service-card">
+          <div class="yc-service-icon">⚧</div>
+          <h3>Same YobuHo</h3>
+          <p>同性利用可能なホテル検索</p>
+        </a>
+      </div>
+      <p class="yc-services-link"><a href="https://yobuho.com/">▶ YobuHo トップページを見る</a></p>
+    </section>
+
     <section class="yc-cta">
       <h2>無料プランで今すぐ始められます</h2>
       <p>店舗登録は無料・最短3分。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。<br>無料プランでも認証バッジ・店舗専用URL・ご案内実績の発信が可能です。</p>
@@ -222,7 +250,7 @@ const planSlots = [
       <p class="yc-cta-note">※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。</p>
     </section>
 
-    <Footer />
+    <Footer variant="full" />
   </div>
 </BaseLayout>
 
@@ -465,6 +493,31 @@ const planSlots = [
   .yc-plans-link a { color: var(--yc-accent-deep); text-decoration: none; font-weight: 500; font-size: 14px; }
   .yc-plans-link a:hover { text-decoration: underline; }
 
+  .yc-services { padding: 64px 20px; background: var(--yc-bg); }
+  .yc-services h2 { text-align: center; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .yc-services-sub { text-align: center; font-size: 13px; color: var(--yc-text-2); margin-bottom: 32px; line-height: 1.8; }
+  .yc-service-cards {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    max-width: 900px; margin: 0 auto;
+  }
+  .yc-service-card {
+    display: block; text-align: center;
+    background: var(--yc-bg-2); border: 1px solid var(--yc-border);
+    border-radius: 12px; padding: 22px 16px;
+    text-decoration: none; color: inherit;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .yc-service-card:hover {
+    transform: translateY(-2px); box-shadow: var(--yc-shadow);
+    border-color: var(--yc-accent);
+  }
+  .yc-service-icon { font-size: 28px; margin-bottom: 10px; }
+  .yc-service-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--yc-accent-deep); }
+  .yc-service-card p { font-size: 12px; color: var(--yc-text-2); line-height: 1.6; }
+  .yc-services-link { text-align: center; margin-top: 24px; }
+  .yc-services-link a { color: var(--yc-accent-deep); text-decoration: none; font-weight: 500; font-size: 14px; }
+  .yc-services-link a:hover { text-decoration: underline; }
+
   .yc-cta {
     padding: 72px 20px; text-align: center;
     background: linear-gradient(135deg, #2e2418 0%, #3a2a1c 100%); color: #fff;
@@ -479,6 +532,7 @@ const planSlots = [
     .yc-feature-grid { grid-template-columns: repeat(2, 1fr); }
     .yc-steps { grid-template-columns: 1fr; gap: 12px; }
     .yc-url-type-list { grid-template-columns: 1fr; }
+    .yc-service-cards { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {
     .yc-hero { padding: 48px 16px; }
