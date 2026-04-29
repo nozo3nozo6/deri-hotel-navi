@@ -120,8 +120,8 @@ https://yobuho.com/shop-register/?genre=men
 ▼ サイトはこちら
 https://deli.yobuho.com/
 
-▼ 料金プラン詳細
-https://yobuho.com/plan/
+▼ 料金プラン詳細（キャンペーン情報あり）
+https://yobuho.com/plan-campaign/
 
 まずは無料プランからお試しいただき、効果を実感してください。
 
