@@ -146,8 +146,12 @@ if ($hotel_id) {
         $breadcrumbs[] = ['name' => $hp, 'url' => "https://yobuho.com/{$path}/" . rawurlencode($hp)];
         $breadcrumbs[] = ['name' => $hn, 'url' => $seo_canonical];
     } else {
-        // ホテルが見つからない場合はデフォルト
-        readfile(__DIR__ . '/' . $template);
+        // ホテルが見つからない場合: SEO bottom section を除去してから配信（重複コンテンツ防止）
+        $html = file_get_contents(__DIR__ . '/' . $template);
+        if ($html !== false) {
+            $html = preg_replace('/<section[^>]*data-seo-toponly="1"[^>]*>.*?<\/section>/s', '', $html);
+            echo $html;
+        }
         exit;
     }
 } elseif ($city && $pref) {
