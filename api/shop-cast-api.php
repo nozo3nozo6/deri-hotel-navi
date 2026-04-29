@@ -184,6 +184,12 @@ function handleList() {
     $limit = $planInfo['limit'];
     $used = countActiveCasts($auth['shop_id']);
 
+    // 店舗 slug: shop-admin の埋込コード生成 (openCastEmbedCode) で使用. chat タブ未訪問でも
+    // cast タブ単体で埋込コードが取得できるよう list 応答に同梱.
+    $stmtSlug = $pdo->prepare('SELECT slug FROM shops WHERE id = ? LIMIT 1');
+    $stmtSlug->execute([$auth['shop_id']]);
+    $shopSlug = (string)($stmtSlug->fetchColumn() ?: '');
+
     ok([
         'casts' => $casts,
         'pending_invites' => $pendingInvites,
@@ -191,6 +197,7 @@ function handleList() {
         'cast_used' => $used,
         'cast_remaining' => max(0, $limit - $used),
         'cast_plan_name' => $planInfo['name'],
+        'shop_slug' => $shopSlug,
     ]);
 }
 

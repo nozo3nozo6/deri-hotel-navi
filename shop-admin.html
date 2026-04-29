@@ -3482,6 +3482,8 @@ async function loadCastTab(){
     body.style.display = 'none';
     try {
         const data = await castApi('list', null, 'GET');
+        // 埋込コード生成 (openCastEmbedCode) で使う shop slug を保持. chat タブ未訪問でも参照可能に.
+        if (data.shop_slug) window._shopSlug = data.shop_slug;
         renderCastSummary(data);
         renderCastList(data.casts || []);
         renderCastPending(data.pending_invites || []);
