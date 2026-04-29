@@ -59,6 +59,16 @@ export class MysqlSync {
     });
   }
 
+  // 2026-04-29: id ベースの mark-read. DO storage に message が無くても (broadcast 漏れ等)
+  // MySQL を確実に更新する. owner 側 mark-read で DO storage の sent_at に依存しない経路を作る.
+  async markReadById(sessionToken: string, readerType: 'visitor' | 'shop', upToId: number): Promise<void> {
+    await this.post('mark-read', {
+      session_token: sessionToken,
+      reader: readerType,
+      up_to_id: upToId,
+    });
+  }
+
   /**
    * adopt 時のリロード空白バグ対策: DO storage 空で既存 token が来た時に
    * MySQL から履歴を取り寄せて DO storage に backfill する.

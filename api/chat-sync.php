@@ -163,15 +163,37 @@ function handleUpsertMessage(PDO $pdo, array $body): void {
 function handleMarkRead(PDO $pdo, array $body): void {
     $token = (string)($body['session_token'] ?? '');
     $reader = $body['reader'] ?? '';
-    $upTo = mysqlDatetime($body['up_to_sent_at'] ?? null);
-    if (!$token || !$upTo || !in_array($reader, ['visitor', 'shop'], true)) {
+    if (!$token || !in_array($reader, ['visitor', 'shop'], true)) {
         throw new RuntimeException('missing_fields');
     }
 
     // reader='visitor' なら自分が店舗msgを既読化 → sender_type='shop' を対象に read_at セット
     // reader='shop' ならその逆
     $target = $reader === 'visitor' ? 'shop' : 'visitor';
+    $nowStr = mysqlDatetime('now');
 
+    // 2026-04-29: up_to_id (MySQL message id) と up_to_sent_at の両方を許可.
+    // DO storage に未保存のメッセージでも owner 側 mark-read を確実に MySQL に反映するため、
+    // id ベース経路を追加 (DO は msg.id を MySQL id と揃えているため id 比較で安全).
+    $upToId = isset($body['up_to_id']) ? (int)$body['up_to_id'] : 0;
+    if ($upToId > 0) {
+        $stmt = $pdo->prepare("
+            UPDATE chat_messages cm
+            INNER JOIN chat_sessions cs ON cs.id = cm.session_id
+            SET cm.read_at = ?
+            WHERE cs.session_token = ?
+              AND cm.sender_type = ?
+              AND cm.read_at IS NULL
+              AND cm.id <= ?
+        ");
+        $stmt->execute([$nowStr, $token, $target, $upToId]);
+        return;
+    }
+
+    $upTo = mysqlDatetime($body['up_to_sent_at'] ?? null);
+    if (!$upTo) {
+        throw new RuntimeException('missing_fields');
+    }
     $stmt = $pdo->prepare("
         UPDATE chat_messages cm
         INNER JOIN chat_sessions cs ON cs.id = cm.session_id
@@ -181,7 +203,6 @@ function handleMarkRead(PDO $pdo, array $body): void {
           AND cm.read_at IS NULL
           AND cm.sent_at <= ?
     ");
-    $nowStr = mysqlDatetime('now');
     $stmt->execute([$nowStr, $token, $target, $upTo]);
 }
 

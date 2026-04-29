@@ -775,12 +775,10 @@ export class ChatRoom implements DurableObject {
 
     const msgs = await this.messagesSince(sid, 0);
     const now = new Date().toISOString();
-    let upToSentAt = '';
     for (const m of msgs) {
       if (m.sender_type === 'visitor' && !m.read_at && (upTo === 0 || m.id <= upTo)) {
         m.read_at = now;
         await this.saveMessage(sid, m);
-        if (m.sent_at > upToSentAt) upToSentAt = m.sent_at;
       }
     }
     this.broadcastToSession(sid, 'visitor', {
@@ -789,8 +787,10 @@ export class ChatRoom implements DurableObject {
       session_token: sess.session_token,
       up_to_id: upTo,
     });
-    if (upToSentAt) {
-      this.state.waitUntil(this.sync.markRead(sess.session_token, 'shop', upToSentAt));
+    // 2026-04-29: id ベース sync で DO storage 状態に依存せず MySQL を確実に更新.
+    // DO storage に未到達のメッセージ (broadcast 漏れ等) でも up_to_id <= で正しく既読化.
+    if (upTo > 0) {
+      this.state.waitUntil(this.sync.markReadById(sess.session_token, 'shop', upTo));
     }
     return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
   }
