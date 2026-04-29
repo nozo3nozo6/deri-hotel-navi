@@ -501,15 +501,16 @@ body[data-mode="women"] .status-dot.online{
   box-shadow:0 0 6px rgba(125,211,168,.6);
 }
 body[data-mode="women"] .toggle-switch .slider{
-  background:rgba(0,0,0,.2);
-  box-shadow:inset 1px 1px 2px rgba(0,0,0,.25);
+  background:rgba(0,0,0,.28);
+  box-shadow:inset 1px 1px 3px rgba(0,0,0,.32);
 }
 body[data-mode="women"] .toggle-switch input:checked + .slider{
-  background:rgba(0,0,0,.25);
+  background:var(--thb-status-online);
+  box-shadow:inset 1px 1px 2px rgba(40,90,70,.25),0 0 8px rgba(125,211,168,.4);
 }
 body[data-mode="women"] .toggle-switch .slider::before{
   background:var(--thb-header-text);
-  box-shadow:1px 1px 2px rgba(0,0,0,.2);
+  box-shadow:1px 1px 2px rgba(0,0,0,.25);
 }
 
 /* B-2. 「受信チャット」タイトル行 (.inbox-header) */
