@@ -677,34 +677,58 @@ body[data-mode="women"] #chat-input:focus{
   box-shadow:inset 2px 2px 4px var(--thb-shadow-dark-strong),inset -1px -1px 3px rgba(255,255,255,0.85),0 0 0 2px rgba(184,84,112,0.12);
 }
 
-/* 送信ボタン: ネオモーフ凸 + ローズグラデ塗り (プライマリ強調) */
+/* 送信ボタン: ネオモーフ凸 + ローズグラデ塗り (大げさ・プライマリ強調) */
 body[data-mode="women"] .send-btn{
-  background:linear-gradient(135deg,var(--thb-accent-soft),var(--thb-accent-deep));
+  background:linear-gradient(135deg,var(--thb-accent-soft) 0%,var(--thb-accent) 50%,var(--thb-accent-deep) 100%);
   color:#fff;
-  border-radius:18px;
-  font-weight:700;
-  letter-spacing:.04em;
+  border-radius:22px;
+  font-weight:800;
+  font-size:15px;
+  letter-spacing:.06em;
+  padding:0 22px;
+  min-height:44px;
   box-shadow:
-    3px 3px 7px var(--thb-shadow-dark-strong),
-    -2px -2px 5px var(--thb-shadow-light),
-    inset 0 1px 0 rgba(255,255,255,.25);
-  transition:box-shadow .15s ease,transform .1s ease,filter .15s ease;
+    8px 8px 18px rgba(160,73,96,0.45),
+    -5px -5px 14px rgba(255,255,255,0.95),
+    inset 0 2px 0 rgba(255,255,255,0.35),
+    inset 0 -2px 4px rgba(106,40,56,0.25);
+  text-shadow:0 1px 2px rgba(106,40,56,0.4);
+  transition:box-shadow .18s ease,transform .12s ease,filter .15s ease;
+  position:relative;
+}
+body[data-mode="women"] .send-btn::before{
+  content:"";
+  position:absolute;
+  top:2px;left:8px;right:8px;
+  height:35%;
+  border-radius:18px 18px 50% 50%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.25),rgba(255,255,255,0));
+  pointer-events:none;
 }
 body[data-mode="women"] .send-btn:hover{
-  filter:brightness(1.04);
+  filter:brightness(1.08) saturate(1.1);
+  box-shadow:
+    10px 10px 22px rgba(160,73,96,0.5),
+    -6px -6px 16px rgba(255,255,255,0.95),
+    inset 0 2px 0 rgba(255,255,255,0.4),
+    inset 0 -2px 4px rgba(106,40,56,0.3);
 }
 body[data-mode="women"] .send-btn:active{
-  transform:scale(0.97);
+  transform:scale(0.94);
   box-shadow:
-    inset 2px 2px 5px rgba(106,40,56,0.4),
-    inset -2px -2px 5px rgba(255,255,255,0.15);
+    inset 5px 5px 10px rgba(106,40,56,0.55),
+    inset -3px -3px 8px rgba(255,255,255,0.2),
+    0 1px 3px rgba(160,73,96,0.2);
 }
+body[data-mode="women"] .send-btn:active::before{opacity:0}
 body[data-mode="women"] .send-btn:disabled{
-  background:linear-gradient(135deg,#d4c0c8,#b8a0aa);
+  background:linear-gradient(135deg,#dccbcf,#b8a0aa);
   color:rgba(255,255,255,0.85);
   box-shadow:
-    2px 2px 5px var(--thb-shadow-dark),
-    -1px -1px 3px var(--thb-shadow-light);
+    4px 4px 10px var(--thb-shadow-dark),
+    -2px -2px 6px var(--thb-shadow-light);
+  text-shadow:none;
+  filter:none;
 }
 
 /* ニックネーム / 通知 / 予約ヒント / 入力欄エリア間のセクション境界をハッキリと.
