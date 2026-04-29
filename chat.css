@@ -657,33 +657,96 @@ body[data-mode="women"] .embed-cast-link:active{
   transform:scale(0.98);
 }
 
-/* チャット入力エリア (送信ボタン以外の可読性) */
+/* チャット入力エリア (送信ボタン以外の可読性) — セクション境界メリハリ強化 */
 body[data-mode="women"] .chat-input-area{
-  background:var(--thb-bg-base);
-  border-top:1px solid var(--thb-border-faint);
+  background:var(--thb-bg-soft);
+  border-top:1px solid var(--thb-border-soft);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);
+  padding:12px 14px;
 }
 body[data-mode="women"] #chat-input{
-  background:var(--thb-bg-soft);
-  border-color:var(--thb-border-soft);
+  background:#fff;
+  border:1.5px solid var(--thb-border-soft);
   color:var(--thb-text-primary);
+  border-radius:16px;
+  box-shadow:inset 2px 2px 4px var(--thb-shadow-dark-strong),inset -1px -1px 3px rgba(255,255,255,0.85);
 }
 body[data-mode="women"] #chat-input:focus{
   background:#fff;
   border-color:var(--thb-accent);
+  box-shadow:inset 2px 2px 4px var(--thb-shadow-dark-strong),inset -1px -1px 3px rgba(255,255,255,0.85),0 0 0 2px rgba(184,84,112,0.12);
 }
+
+/* 送信ボタン: ネオモーフ凸 + ローズグラデ塗り (プライマリ強調) */
+body[data-mode="women"] .send-btn{
+  background:linear-gradient(135deg,var(--thb-accent-soft),var(--thb-accent-deep));
+  color:#fff;
+  border-radius:18px;
+  font-weight:700;
+  letter-spacing:.04em;
+  box-shadow:
+    3px 3px 7px var(--thb-shadow-dark-strong),
+    -2px -2px 5px var(--thb-shadow-light),
+    inset 0 1px 0 rgba(255,255,255,.25);
+  transition:box-shadow .15s ease,transform .1s ease,filter .15s ease;
+}
+body[data-mode="women"] .send-btn:hover{
+  filter:brightness(1.04);
+}
+body[data-mode="women"] .send-btn:active{
+  transform:scale(0.97);
+  box-shadow:
+    inset 2px 2px 5px rgba(106,40,56,0.4),
+    inset -2px -2px 5px rgba(255,255,255,0.15);
+}
+body[data-mode="women"] .send-btn:disabled{
+  background:linear-gradient(135deg,#d4c0c8,#b8a0aa);
+  color:rgba(255,255,255,0.85);
+  box-shadow:
+    2px 2px 5px var(--thb-shadow-dark),
+    -1px -1px 3px var(--thb-shadow-light);
+}
+
+/* ニックネーム / 通知 / 予約ヒント / 入力欄エリア間のセクション境界をハッキリと.
+   交互に bg-base / bg-soft でバンディングして視覚分離を演出. */
 body[data-mode="women"] .nickname-area{
   background:var(--thb-bg-base);
-  border-top:1px solid var(--thb-border-faint);
+  border-top:1px solid var(--thb-border-soft);
+  padding:10px 14px;
 }
 body[data-mode="women"] .visitor-notify{
   background:var(--thb-bg-soft);
   border-top:1px solid var(--thb-border-faint);
+  margin:0;
+  padding:10px 14px;
+}
+body[data-mode="women"] #reservation-hint,
+body[data-mode="women"] .reservation-hint,
+body[data-mode="women"] .chat-note{
+  background:linear-gradient(180deg,rgba(184,84,112,0.08),rgba(184,84,112,0.04));
+  border-top:1px solid var(--thb-border-soft);
+  border-bottom:1px solid var(--thb-border-soft);
+  color:var(--thb-text-heading);
+  padding:10px 14px;
+  font-size:12px;
 }
 
-/* ブランド表記 (フッター) */
+/* ブランド表記 (フッター) — A/中切替の親コンテナ #chat-footer */
 body[data-mode="women"] .footer-brand,
 body[data-mode="women"] #chat-footer{
-  background:var(--thb-bg-base);
+  background:var(--thb-bg-soft);
   color:var(--thb-text-muted);
+  border-top:1px solid var(--thb-border-soft);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.5);
+  padding:8px 14px;
+}
+
+/* embed-direct-link (チャット全画面表示+指名) はさらに分離感.
+   背景色を bg-base に戻し、上に強めの境界線+影で「フッター下のオプション領域」感. */
+body[data-mode="women"] .embed-direct-link{
+  background:var(--thb-bg-base);
+  border-top:1.5px solid var(--thb-border-soft);
+  box-shadow:inset 0 2px 4px -2px var(--thb-shadow-dark);
+  padding:14px;
 }
 
