@@ -457,66 +457,17 @@ if (!$hotel_id && $pref) {
             }
         }
 
-        // 同じエリア内の他の市区町村
-        if ($areaKey && isset($areaData['area'][$areaKey]['ct'])) {
-            $siblings = $areaData['area'][$areaKey]['ct'];
-            $seo_static .= '<h3 style="' . $h3Style . '">' . $esc_fn($area) . 'の他の市区町村</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            $cnt = 0;
-            foreach ($siblings as $row) {
-                if ($row[0] === $city || $cnt >= 20) continue;
-                $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total, $accent);
-                $cnt++;
-            }
-            $seo_static .= '</div>';
-        }
+        // 注: 「同じエリア内の他の市区町村」リンク集はメインUI（エリアナビ）と完全重複するため削除済み.
+        //      Googlebot は JS 実行可能なため、メインUIのコンテンツも認識可能.
     } elseif ($detail && $area) {
-        // --- 詳細エリアページ: 配下市区町村 ---
-        $detailKey = $pref . "\t" . $area . "\t" . $detail;
-        $cities = $areaData['da'][$detailKey]['ct'] ?? [];
+        // --- 詳細エリアページ: 説明文のみ. 市区町村リンクはメインUIと重複のため削除済み. ---
         $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref . ' ' . $area . ' ' . $detail) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを市区町村別に検索。</p>';
-        if (count($cities) > 0) {
-            $seo_static .= '<h3 style="' . $h3Style . '">市区町村一覧</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            foreach ($cities as $row) {
-                $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, $detail, $row[0], $row[0], $total, $accent);
-            }
-            $seo_static .= '</div>';
-        }
     } elseif ($area) {
-        // --- エリアページ: 配下の詳細エリア + 市区町村 ---
-        $areaKey = $pref . "\t" . $area;
-        $areaInfo = $areaData['area'][$areaKey] ?? [];
-        $detailsList = $areaInfo['da'] ?? [];
-        $cities = $areaInfo['ct'] ?? [];
+        // --- エリアページ: 説明文のみ. 詳細エリア/市区町村リンクはメインUI(エリアナビ)と重複のため削除済み. ---
         $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref . ' ' . $area) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを詳細エリア・市区町村別に検索。</p>';
-
-        if (count($detailsList) > 0) {
-            $seo_static .= '<h3 style="' . $h3Style . '">詳細エリア</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            foreach ($detailsList as $row) {
-                $seo_static .= buildSeoLink($path, $pref, $area, $row[0], '', $row[0], $row[1] ?? null, $accent);
-            }
-            $seo_static .= '</div>';
-        }
-        if (count($cities) > 0) {
-            $seo_static .= '<h3 style="' . $h3Style . '">市区町村一覧</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            $cnt = 0;
-            foreach ($cities as $row) {
-                if ($cnt >= 30) break;
-                $total = ($row[1] ?? 0) + ($row[2] ?? 0);
-                $seo_static .= buildSeoLink($path, $pref, $area, '', $row[0], $row[0], $total, $accent);
-                $cnt++;
-            }
-            $seo_static .= '</div>';
-        }
     } elseif ($pref) {
-        // --- 都道府県ページ: エリア一覧 + 代表市区町村 ---
+        // --- 都道府県ページ: 説明文のみ. エリア/市区町村リンクはメインUI(エリアナビ)と重複のため削除済み. ---
         $prefInfo = $areaData['pref'][$pref] ?? [];
-        $areas = $prefInfo['areas'] ?? [];
         $prefCount = $areaData['prefCounts'][$pref] ?? 0;
 
         $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref) . 'で' . $esc_fn($label . $verb) . 'ホテルを地域から検索できます。';
@@ -524,46 +475,6 @@ if (!$hotel_id && $pref) {
             $seo_static .= '掲載ホテル数: <strong>' . number_format($prefCount) . '件</strong>（ビジネス/シティ/ラブホ含む）。';
         }
         $seo_static .= '利用者の口コミと掲載店舗の案内実績情報から、実際に' . $esc_fn($label . $verb) . 'か判断できます。</p>';
-
-        if (count($areas) > 0) {
-            $seo_static .= '<h3 style="' . $h3Style . '">エリアから探す</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            foreach ($areas as $row) {
-                $seo_static .= buildSeoLink($path, $pref, $row[0], '', '', $row[0], $row[1] ?? null, $accent);
-            }
-            $seo_static .= '</div>';
-        }
-
-        // 代表市区町村（全エリアから上位を集める）
-        $allCities = [];
-        foreach ($areas as $aRow) {
-            $areaKey = $pref . "\t" . $aRow[0];
-            $cts = $areaData['area'][$areaKey]['ct'] ?? [];
-            foreach ($cts as $c) {
-                $cityName = $c[0];
-                $total = ($c[1] ?? 0) + ($c[2] ?? 0);
-                if (!isset($allCities[$cityName]) || $allCities[$cityName]['total'] < $total) {
-                    $allCities[$cityName] = ['area' => $aRow[0], 'total' => $total];
-                }
-            }
-        }
-        // noArea（エリア無し）の場合は noArea.ct から
-        if (count($allCities) === 0 && isset($areaData['noArea'][$pref]['ct'])) {
-            foreach ($areaData['noArea'][$pref]['ct'] as $c) {
-                $allCities[$c[0]] = ['area' => '', 'total' => ($c[1] ?? 0) + ($c[2] ?? 0)];
-            }
-        }
-        uasort($allCities, fn($a, $b) => $b['total'] <=> $a['total']);
-        $topCities = array_slice($allCities, 0, 20, true);
-
-        if (count($topCities) > 0) {
-            $seo_static .= '<h3 style="' . $h3Style . '">主要市区町村</h3>';
-            $seo_static .= '<div style="' . $gridStyle . '">';
-            foreach ($topCities as $cityName => $info) {
-                $seo_static .= buildSeoLink($path, $pref, $info['area'], '', $cityName, $cityName, $info['total'], $accent);
-            }
-            $seo_static .= '</div>';
-        }
     }
 
     // 共通末尾: 全国ページへの戻りリンク
