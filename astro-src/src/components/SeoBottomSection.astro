@@ -1,0 +1,202 @@
+---
+// SeoBottomSection.astro — ジャンル別SEOコンテンツ（ページ下部に表示）
+// SEO_TOPONLY_START / SEO_TOPONLY_END マーカーで包む。
+// portal-seo.php がサブページ（pref/city/hotel/shop あり）ではこのブロックを除去する。
+const { mode } = Astro.props as { mode: 'men' | 'women' | 'men_same' | 'women_same' | 'este' };
+
+// モード別文言
+const COPY = {
+  men: {
+    path: 'deli',
+    title: 'デリヘルを呼べるホテルとは？',
+    intro: `「デリヘルを呼べるホテル」とは、デリバリーヘルスの女性がフロントを通らずに、または受付の対応のもとで部屋まで入室できるホテルのことです。実は全国のホテルすべてが派遣可能なわけではなく、フロントで断られる、防犯カメラで気付かれて呼び止められる、出禁になるといったトラブルが起きるホテルも少なくありません。`,
+    intro2: `YobuHoでは、実際に利用したユーザーの体験談と、届出確認済みの店舗からの公式情報を組み合わせ、「呼べたホテル」「呼べなかったホテル」を都道府県・市区町村・最寄駅から検索できます。直通エレベーターの有無、カードキー方式、フロント相談の必要性など、入室方法の実績データも確認可能です。`,
+    visitorLabel: '女性',
+    serviceLabel: 'デリヘル',
+  },
+  women: {
+    path: 'jofu',
+    title: '女性用風俗を呼べるホテルとは？',
+    intro: `「女性用風俗（女風）を呼べるホテル」とは、男性セラピストがフロントを通らずに、または受付の対応のもとで部屋まで入室できるホテルのことです。実は全国のホテルすべてがセラピストの派遣を受け入れているわけではなく、フロントで断られる、防犯カメラで気付かれて呼び止められる、出禁になるといったトラブルが起きるホテルも少なくありません。`,
+    intro2: `YobuHoでは、女性ユーザーの実体験と、届出確認済みの女風店舗からの公式情報を組み合わせ、「セラピストを呼べたホテル」「呼べなかったホテル」を都道府県・市区町村・最寄駅から検索できます。直通エレベーターの有無、カードキー方式、フロント相談の必要性など、入室方法の実績データも確認可能です。`,
+    visitorLabel: 'セラピスト',
+    serviceLabel: '女性用風俗',
+  },
+  este: {
+    path: 'este',
+    title: 'デリエステを呼べるホテルとは？',
+    intro: `「デリエステを呼べるホテル」とは、出張型の回春マッサージ・風俗エステ・M性感などのセラピストが、フロントを通らずに、または受付の対応のもとで部屋まで入室できるホテルのことです。マッサージ系サービスは比較的受け入れられやすい傾向がある一方、フロントで断られる・受付で目的を聞かれるなど、ホテルによって対応が分かれます。`,
+    intro2: `YobuHoでは、実際に利用したユーザーの体験談と、届出確認済みの店舗からの公式情報を組み合わせ、「セラピストを呼べたホテル」「呼べなかったホテル」を都道府県・市区町村・最寄駅から検索できます。直通エレベーターの有無、カードキー方式、フロント相談の必要性など、入室方法の実績データも確認可能です。`,
+    visitorLabel: 'セラピスト',
+    serviceLabel: 'デリエステ',
+  },
+  men_same: {
+    path: 'same-m',
+    title: '男性同士で利用できるホテルとは？',
+    intro: `「男性同士で利用できるホテル」とは、ゲイカップルや男性同士の宿泊で、受付で断られたり不審がられたりせず安心してチェックインできるホテルのことです。日本では同性二人の宿泊を明確に拒否するホテルは少ないものの、フロント担当者によって対応が分かれる、「お部屋は本当にお一つでよろしいですか？」と再確認されるなど、利用しづらく感じる場面もあります。`,
+    intro2: `YobuHoでは、実際に利用したユーザーの体験談から、「男性同士でスムーズに利用できたホテル」「対応に問題があったホテル」を都道府県・市区町村・最寄駅から検索できます。一人入室OKのラブホテル情報も合わせて確認できるので、選択肢が広がります。`,
+    visitorLabel: '',
+    serviceLabel: '同性利用',
+  },
+  women_same: {
+    path: 'same-f',
+    title: '女性同士で利用できるホテルとは？',
+    intro: `「女性同士で利用できるホテル」とは、レズビアンカップルや女性同士の宿泊・旅行で、受付で違和感なくチェックインできるホテルのことです。女性二人の宿泊は一般的に許容されやすい一方、ラブホテルを利用する際には「女性同士不可」と明示されているケースがあります。シティホテルやビジネスホテルでも、フロント対応に当たり外れがあります。`,
+    intro2: `YobuHoでは、実際に利用したユーザーの体験談から、「女性同士でスムーズに利用できたホテル」「対応に問題があったホテル」を都道府県・市区町村・最寄駅から検索できます。一人入室OKのラブホテル情報や、女性に優しいホテルの実績データも合わせて確認できます。`,
+    visitorLabel: '',
+    serviceLabel: '同性利用',
+  },
+};
+
+const c = COPY[mode];
+const path = c.path;
+
+// 人気エリアリンク（area-data.json と一致確認済み、2026-04-30）
+const POPULAR_AREAS = [
+  { label: '東京23区', pref: '東京都', area: '東京２３区内' },
+  { label: '横浜', pref: '神奈川県', area: '横浜' },
+  { label: '大阪（梅田・難波）', pref: '大阪府', area: '大阪' },
+  { label: '名古屋', pref: '愛知県', area: '名古屋' },
+  { label: '天神・中洲（福岡）', pref: '福岡県', area: '天神・中洲・薬院・福岡ドーム・糸島' },
+  { label: '札幌', pref: '北海道', area: '札幌' },
+  { label: '仙台', pref: '宮城県', area: '仙台・多賀城・名取' },
+  { label: '京都', pref: '京都府', area: '京都' },
+  { label: '神戸', pref: '兵庫県', area: '神戸・有馬温泉・六甲山' },
+  { label: '船橋・幕張（千葉）', pref: '千葉県', area: '舞浜・浦安・船橋・幕張' },
+  { label: '大宮・浦和（埼玉）', pref: '埼玉県', area: '大宮・浦和・川口・上尾' },
+  { label: '広島', pref: '広島県', area: '広島' },
+];
+
+// FAQ — 「呼べる系」と「同性系」で分岐
+const isCallType = (mode === 'men' || mode === 'women' || mode === 'este');
+
+// 呼べる系FAQ
+const FAQ_CALL = [
+  {
+    q: `ホテルに${c.serviceLabel}を呼べるかどうかは何で決まりますか？`,
+    a: `ホテル側のフロント運用方針と建物の構造によって決まります。直通エレベーターやカードキー方式のホテルは比較的呼びやすく、フロントで全宿泊者を都度チェックする運用のホテルでは難しい傾向があります。同じチェーンでも店舗によって対応が異なるため、個別の実績確認が重要です。`,
+  },
+  {
+    q: '直通・カードキー・フロント相談はそれぞれ何が違いますか？',
+    a: `「直通」はエレベーターから部屋まで誰にも会わず行ける形式。「カードキー」はエレベーターや客室階に部屋カードが必要なため、宿泊者の許可なく入室できません。「フロント相談」は予め受付に${c.visitorLabel || '来訪者'}が来る旨を伝えて承諾を得る方式です。それぞれ呼び方のコツが異なります。`,
+  },
+  {
+    q: 'ビジネスホテルでも呼べますか？',
+    a: `多くのビジネスホテルは部屋利用の自由度が高く、${c.serviceLabel}を呼べる場合があります。ただしチェーンや店舗ごとに方針が違うので、YobuHoでホテル名から実績を検索してから利用することをおすすめします。`,
+  },
+  {
+    q: '呼べないホテルで予約してしまった場合はどうすればいいですか？',
+    a: `キャンセル可能であれば変更が無難です。やむを得ず利用する場合は、近隣の呼べるホテルへ移動するか、出張系の利用に切り替える方法があります。トラブル回避のため、無理に強行しないことが鉄則です。`,
+  },
+  {
+    q: 'ラブホテルなら必ず呼べますか？',
+    a: `必ずではありません。ラブホテルは原則2名以上での利用を想定しており、1名での入室（一人入室）を断っているホテルが多数あります。一人で入れるラブホテルかどうかは、YobuHoのラブホテルタブで確認できます。`,
+  },
+];
+
+// 同性系FAQ
+const FAQ_SAME = [
+  {
+    q: '同性二人での宿泊を断るホテルはありますか？',
+    a: `日本では宿泊を明確に拒否するホテルはごく少数ですが、ラブホテルでは「同性カップル不可」と明記されているケースがあります。シティホテル・ビジネスホテルでは部屋タイプを問わず利用できる場合がほとんどです。`,
+  },
+  {
+    q: 'ダブルベッドのお部屋は予約できますか？',
+    a: `ほとんどのビジネスホテル・シティホテルで予約可能です。チェックイン時に「お部屋は本当にお一つで？」と確認されるケースはありますが、想定内のやりとりです。スムーズにチェックインできたホテルの実績は YobuHo で確認できます。`,
+  },
+  {
+    q: 'ラブホテルは同性同士で利用できますか？',
+    a: `店舗によります。一部のラブホテルは同性カップルNGを明示しており、その場合は入室できません。一方で、シティ感覚のラブホテルや一人入室を許可しているラブホテルは、同性での利用も可能なケースがあります。`,
+  },
+  {
+    q: 'チェックインで気まずい思いをしないコツはありますか？',
+    a: `事前に部屋タイプとベッド構成を予約サイトで確認し、当日は予約番号を提示してスムーズに進めるのが一番です。フロント担当者によって対応が異なる場合があるので、評判の良いホテルを選ぶのが安心です。`,
+  },
+  {
+    q: 'LGBTフレンドリーなホテルはどう探せますか？',
+    a: `YobuHoでは実際に利用したユーザーの体験談から「同性同士でスムーズに利用できたホテル」を絞り込めます。エリア・最寄駅から検索して、口コミ実績のあるホテルを優先的に選ぶのがおすすめです。`,
+  },
+];
+
+const FAQ = isCallType ? FAQ_CALL : FAQ_SAME;
+
+// ホテルタイプ解説
+const HOTEL_TYPES_CALL = [
+  { icon: '🏩', title: 'ラブホテル', desc: '一人入室を許可しているラブホテルなら呼べる可能性が高い。チェックイン方法（フロント対面・自動精算機・部屋直行）で対応が変わるため、一人入室OKの実績を必ず確認してください。' },
+  { icon: '🏢', title: 'ビジネスホテル', desc: '全国チェーン系（APA・東横INN・ルートインなど）は店舗により分かれます。直通エレベーター・カードキー式のビジネスホテルは比較的呼びやすい傾向です。' },
+  { icon: '🏨', title: 'シティホテル', desc: '高級系シティホテル・外資系は防犯体制が厳しくフロント通過が必須なケースが多いため難易度高め。中級〜カジュアル系シティホテルなら呼べることもあります。' },
+  { icon: '🏯', title: '旅館・温泉宿', desc: '仲居さんが部屋まで案内する形式の伝統的旅館では基本不可。ビジネス旅館や和洋折衷の都市型旅館は対応可の場合あり。' },
+];
+
+const HOTEL_TYPES_SAME = [
+  { icon: '🏩', title: 'ラブホテル', desc: '一部に同性カップル不可のホテルあり。一人入室OKのラブホテルや、新世代のシティ寄りラブホテルなら同性利用可能なケースが多いです。' },
+  { icon: '🏢', title: 'ビジネスホテル', desc: 'ダブルベッド/ツインの予約が可能で、チェックインも基本的にスムーズ。フロント対応は店舗・担当者により若干異なります。' },
+  { icon: '🏨', title: 'シティホテル', desc: '高級・外資系は対応に慣れており同性利用がしやすい傾向。記念日や旅行用途に向いています。' },
+  { icon: '🏯', title: '旅館・温泉宿', desc: '貸切風呂付きや個室温泉のある旅館は同性カップルにも人気。事前予約時に部屋タイプを明確に伝えるとスムーズです。' },
+];
+
+const HOTEL_TYPES = isCallType ? HOTEL_TYPES_CALL : HOTEL_TYPES_SAME;
+
+// アクセントカラー（モード別）
+const ACCENT_COLOR = {
+  men: '#9b2d35',
+  women: '#b5627a',
+  men_same: '#2a5a8f',
+  women_same: '#8a5a9e',
+  este: '#2aa8b8',
+}[mode];
+---
+<section class="seo-bottom-section" data-seo-toponly="1" data-mode={mode} aria-labelledby="seo-bottom-title" style={`background:#faf6f0; padding:32px 16px; margin-top:32px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;`}>
+  <div style="max-width:880px; margin:0 auto;">
+
+    <h2 id="seo-bottom-title" style={`font-size:18px; margin:0 0 14px; color:${ACCENT_COLOR}; border-left:4px solid ${ACCENT_COLOR}; padding-left:10px;`}>{c.title}</h2>
+    <p style="margin:0 0 12px;">{c.intro}</p>
+    <p style="margin:0 0 24px;">{c.intro2}</p>
+
+    <h2 style={`font-size:18px; margin:24px 0 12px; color:${ACCENT_COLOR}; border-left:4px solid ${ACCENT_COLOR}; padding-left:10px;`}>よくあるご質問</h2>
+    <div class="seo-faq-list" style="margin-bottom:24px;">
+      {FAQ.map((item) => (
+        <details style="background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:12px 16px; margin-bottom:8px;">
+          <summary style="cursor:pointer; font-weight:600; color:#3a2a1f; outline:none;">{item.q}</summary>
+          <p style="margin:10px 0 0; color:#5a4a3a;">{item.a}</p>
+        </details>
+      ))}
+    </div>
+
+    <h2 style={`font-size:18px; margin:24px 0 12px; color:${ACCENT_COLOR}; border-left:4px solid ${ACCENT_COLOR}; padding-left:10px;`}>人気エリアから探す</h2>
+    <ul class="seo-area-links" style="list-style:none; padding:0; margin:0 0 24px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:8px;">
+      {POPULAR_AREAS.map((a) => (
+        <li>
+          <a href={`/${path}/${encodeURIComponent(a.pref)}/${encodeURIComponent(a.area)}`} style={`display:block; padding:10px 14px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:${ACCENT_COLOR}; text-decoration:none; font-weight:500; transition:background 0.15s;`}>{a.label}</a>
+        </li>
+      ))}
+    </ul>
+
+    <h2 style={`font-size:18px; margin:24px 0 12px; color:${ACCENT_COLOR}; border-left:4px solid ${ACCENT_COLOR}; padding-left:10px;`}>ホテルタイプ別の{isCallType ? '呼びやすさ' : '使いやすさ'}</h2>
+    <div class="seo-hotel-types" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+      {HOTEL_TYPES.map((t) => (
+        <div style="background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:14px 16px;">
+          <h3 style="font-size:15px; margin:0 0 8px; font-weight:600;">
+            <span style="margin-right:6px;" aria-hidden="true">{t.icon}</span>{t.title}
+          </h3>
+          <p style="margin:0; font-size:13px; color:#5a4a3a; line-height:1.7;">{t.desc}</p>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .seo-bottom-section a:hover {
+    background: #fdf6f0 !important;
+  }
+  .seo-bottom-section details[open] summary {
+    margin-bottom: 4px;
+  }
+  @media (max-width: 640px) {
+    .seo-bottom-section {
+      padding: 24px 12px !important;
+    }
+  }
+</style>

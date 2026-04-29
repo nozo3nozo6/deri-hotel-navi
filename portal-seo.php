@@ -27,9 +27,25 @@ $city   = isset($_GET['city'])   ? urldecode($_GET['city'])   : '';
 $hotel_id = isset($_GET['hotel']) ? (int)$_GET['hotel']       : 0;
 $shop   = isset($_GET['shop'])   ? $_GET['shop']              : '';
 
-// SEO不要なケース（パラメータなし = トップページ、店舗ページ）はそのまま出力
+// SEO bottom section（解説/FAQ/人気エリア/ホテルタイプ）の表示制御:
+//   - 真のトップページ（パラメータ全く無し）: 表示する
+//   - 店舗ページ（shop= あり）: 非表示（重複防止）
+//   - サブページ（pref/area/city/hotel あり）: 非表示（重複防止）
+$isPureTopPage = !$pref && !$hotel_id && !$shop;
+
+// SEO不要なケース（パラメータなし or 店舗ページ）はそのまま出力
 if (!$pref && !$hotel_id) {
-    readfile(__DIR__ . '/' . $template);
+    if ($isPureTopPage) {
+        // 真のトップページ: SEO bottom section をそのまま含めて配信
+        readfile(__DIR__ . '/' . $template);
+    } else {
+        // 店舗ページ: SEO bottom section を除去してから配信
+        $html = file_get_contents(__DIR__ . '/' . $template);
+        if ($html !== false) {
+            $html = preg_replace('/<section[^>]*data-seo-toponly="1"[^>]*>.*?<\/section>/s', '', $html);
+            echo $html;
+        }
+    }
     exit;
 }
 
@@ -191,6 +207,10 @@ if ($html === false) {
     http_response_code(500);
     exit;
 }
+
+// サブページ（pref/city/hotel あり）では SEO bottom section（解説/FAQ/人気エリア/ホテルタイプ）を除去.
+// トップページ専用コンテンツのため、市区町村ページ等で重複コンテンツになるのを防ぐ.
+$html = preg_replace('/<section[^>]*data-seo-toponly="1"[^>]*>.*?<\/section>/s', '', $html);
 
 $esc = function($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); };
 

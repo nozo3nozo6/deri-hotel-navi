@@ -5,6 +5,7 @@
  * 既存JS5モジュール + portal-init.js はそのまま読み込む。
  */
 import BaseLayout from './BaseLayout.astro';
+import SeoBottomSection from '../components/SeoBottomSection.astro';
 
 interface Props {
   mode: 'men' | 'women' | 'men_same' | 'women_same' | 'este';
@@ -253,6 +254,7 @@ const jsonLd = [
 
     <main id="main-content">
         <div id="hotel-list" class="hotel-list-container"></div>
+        <SeoBottomSection mode={mode} />
     </main>
 
     <div id="loading-overlay" class="loading-overlay" style="display:none;">
