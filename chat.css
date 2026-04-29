@@ -449,3 +449,235 @@ body:has(#embed-direct-link:not(.hidden)) #chat-footer{border-bottom-left-radius
 @media (max-width:480px){body.chat-input-focused #embed-direct-link{display:none}}
 body.cast-mode.chat-input-focused #embed-direct-link{display:none}
 
+/* ======================================================================
+   jofu (women) ネオモーフ + ピンクベージュ系リファイン (2026-04-29)
+   ======================================================================
+   対象: body[data-mode="women"]. 他モードは従来スタイル維持.
+   レイアウト構造・ID・クラスは触らず、色・影・フォントスタイルのみ上書き.
+   仕様: 文字コントラスト WCAG AA 以上、UI は柔らかい凸シャドウで上品に.
+   ====================================================================== */
+body[data-mode="women"]{
+  --thb-bg-base:#F5EAE4;
+  --thb-bg-soft:#FBF6F2;
+  --thb-bg-shadow:#EFE3DD;
+  --thb-header-from:#B85470;
+  --thb-header-to:#8B3A52;
+  --thb-header-text:#FBE9E7;
+  --thb-accent:#B85470;
+  --thb-accent-soft:#C66B85;
+  --thb-accent-deep:#A04960;
+  --thb-text-primary:#1F0A14;
+  --thb-text-body:#3D1A2A;
+  --thb-text-sub:#8B5666;
+  --thb-text-muted:#A07585;
+  --thb-text-heading:#5C2A38;
+  --thb-status-online:#7DD3A8;
+  --thb-shadow-light:rgba(255,255,255,0.92);
+  --thb-shadow-dark:rgba(180,130,120,0.18);
+  --thb-shadow-dark-strong:rgba(180,130,120,0.22);
+  --thb-border-soft:rgba(184,84,112,0.15);
+  --thb-border-faint:rgba(184,84,112,0.12);
+}
+body[data-mode="women"]{background:var(--thb-bg-shadow)}
+body[data-mode="women"] #chat-root{background:var(--thb-bg-base)}
+
+/* B-1. ヘッダー (店舗名/受付時間/通知トグル) */
+body[data-mode="women"] #chat-header{
+  background:linear-gradient(135deg,var(--thb-header-from) 0%,var(--thb-header-to) 100%);
+  color:var(--thb-header-text);
+}
+body[data-mode="women"] #chat-shop-name{
+  color:var(--thb-header-text);
+  font-weight:600;
+  letter-spacing:.04em;
+}
+body[data-mode="women"] .status-label{
+  color:rgba(251,233,231,.85);
+  font-size:10px;
+}
+body[data-mode="women"] .status-dot.online{
+  background:var(--thb-status-online);
+  width:8px;height:8px;
+  box-shadow:0 0 6px rgba(125,211,168,.6);
+}
+body[data-mode="women"] .toggle-switch .slider{
+  background:rgba(0,0,0,.2);
+  box-shadow:inset 1px 1px 2px rgba(0,0,0,.25);
+}
+body[data-mode="women"] .toggle-switch input:checked + .slider{
+  background:rgba(0,0,0,.25);
+}
+body[data-mode="women"] .toggle-switch .slider::before{
+  background:var(--thb-header-text);
+  box-shadow:1px 1px 2px rgba(0,0,0,.2);
+}
+
+/* B-2. 「受信チャット」タイトル行 (.inbox-header) */
+body[data-mode="women"] .inbox-header{
+  background:var(--thb-bg-base);
+  border-bottom:1px solid var(--thb-border-faint);
+}
+body[data-mode="women"] .inbox-header h2{
+  color:var(--thb-text-heading);
+  font-size:15px;
+  font-weight:600;
+}
+
+/* B-3. 更新/ログアウトボタン (.mini-btn) — 1番目=更新(凸), 2番目=ログアウト(塗り) */
+body[data-mode="women"] .inbox-header-btns{display:flex;gap:8px}
+body[data-mode="women"] .mini-btn{
+  background:var(--thb-bg-base);
+  color:var(--thb-accent);
+  border-radius:14px;
+  padding:7px 14px;
+  font-weight:600;
+  font-size:12px;
+  box-shadow:3px 3px 7px var(--thb-shadow-dark),-3px -3px 7px var(--thb-shadow-light);
+  transition:box-shadow .15s ease,transform .1s ease;
+}
+body[data-mode="women"] .mini-btn:active{
+  box-shadow:inset 2px 2px 5px var(--thb-shadow-dark-strong),inset -2px -2px 5px rgba(255,255,255,.85);
+  transform:scale(0.98);
+}
+/* ログアウトは行末なので :last-child でプライマリ塗りに */
+body[data-mode="women"] .inbox-header-btns .mini-btn:last-child{
+  background:linear-gradient(135deg,var(--thb-accent-soft),var(--thb-accent-deep));
+  color:#fff;
+  box-shadow:2px 2px 5px rgba(160,73,96,.3),-1px -1px 3px rgba(255,255,255,.7);
+}
+body[data-mode="women"] .inbox-header-btns .mini-btn:last-child:active{
+  box-shadow:inset 1px 1px 3px rgba(0,0,0,.2);
+  transform:scale(0.98);
+}
+
+/* B-4. チャットリスト (最重要・可読性優先) */
+body[data-mode="women"] .inbox-list{background:var(--thb-bg-base)}
+body[data-mode="women"] .inbox-item{
+  background:var(--thb-bg-base);
+  padding:14px 16px 12px;
+  border-bottom:1px solid var(--thb-border-soft);
+  line-height:1.6;
+  transition:background .15s ease;
+}
+body[data-mode="women"] .inbox-item:last-child{border-bottom:none}
+body[data-mode="women"] .inbox-item:hover{background:var(--thb-bg-soft)}
+body[data-mode="women"] .inbox-item.unread{
+  background:linear-gradient(90deg,rgba(184,84,112,.06) 0%,var(--thb-bg-base) 100%);
+  border-left:3px solid var(--thb-accent);
+}
+body[data-mode="women"] .inbox-item-title{
+  color:var(--thb-text-primary);
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:.01em;
+  margin-bottom:5px;
+}
+body[data-mode="women"] .inbox-item-preview{
+  color:var(--thb-text-body);
+  font-size:14px;
+  font-weight:500;
+  margin-bottom:5px;
+}
+body[data-mode="women"] .inbox-item-time{
+  color:var(--thb-text-sub);
+  font-size:11px;
+  font-weight:500;
+  margin-top:4px;
+}
+body[data-mode="women"] .inbox-empty{color:var(--thb-text-sub)}
+
+/* B-5. A/中 サイズ切替ボタン (.font-size-btn) */
+body[data-mode="women"] .font-size-btn{
+  background:var(--thb-bg-base);
+  color:var(--thb-text-muted);
+  border:none;
+  border-radius:18px;
+  padding:6px 14px;
+  font-weight:500;
+  box-shadow:3px 3px 7px var(--thb-shadow-dark),-3px -3px 7px var(--thb-shadow-light);
+}
+body[data-mode="women"] .font-size-btn .font-size-icon{
+  color:var(--thb-accent);
+  border-right-color:var(--thb-border-soft);
+}
+body[data-mode="women"] .font-size-btn:hover{background:var(--thb-bg-soft)}
+body[data-mode="women"] .font-size-btn:active{
+  box-shadow:inset 2px 2px 4px var(--thb-shadow-dark-strong),inset -2px -2px 4px rgba(255,255,255,.85);
+  transform:scale(0.98);
+}
+
+/* B-6/B-7. チャット全画面表示ボタン + 指名キャストボタン (.embed-direct-link 系) */
+body[data-mode="women"] .embed-direct-link{
+  background:var(--thb-bg-base);
+  border-top:1px solid var(--thb-border-faint);
+  color:var(--thb-text-sub);
+}
+body[data-mode="women"] .embed-direct-link-anchor{
+  background:var(--thb-bg-base);
+  color:var(--thb-accent);
+  border:1.5px solid var(--thb-accent-soft);
+  border-radius:22px;
+  padding:8px 14px;
+  font-weight:500;
+  box-shadow:3px 3px 7px var(--thb-shadow-dark),-3px -3px 7px var(--thb-shadow-light);
+}
+body[data-mode="women"] .embed-direct-link-anchor:hover{
+  background:var(--thb-bg-soft);
+  color:var(--thb-accent-deep);
+}
+body[data-mode="women"] .embed-direct-link-anchor:active{
+  box-shadow:inset 2px 2px 4px var(--thb-shadow-dark-strong),inset -2px -2px 4px rgba(255,255,255,.85);
+  transform:scale(0.98);
+}
+body[data-mode="women"] .embed-cast-label{
+  color:var(--thb-text-heading);
+  font-weight:600;
+}
+body[data-mode="women"] .embed-cast-link{
+  background:var(--thb-bg-base);
+  color:var(--thb-accent);
+  border:1.5px solid var(--thb-accent-soft);
+  box-shadow:3px 3px 7px var(--thb-shadow-dark),-3px -3px 7px var(--thb-shadow-light);
+  font-weight:600;
+  transition:box-shadow .15s ease,transform .1s ease,background .15s ease,color .15s ease;
+}
+body[data-mode="women"] .embed-cast-link:hover,
+body[data-mode="women"] .embed-cast-link:focus-visible{
+  background:linear-gradient(135deg,var(--thb-accent-soft),var(--thb-accent-deep));
+  color:#fff;
+}
+body[data-mode="women"] .embed-cast-link:active{
+  box-shadow:inset 2px 2px 5px var(--thb-shadow-dark-strong),inset -2px -2px 5px rgba(255,255,255,.85);
+  transform:scale(0.98);
+}
+
+/* チャット入力エリア (送信ボタン以外の可読性) */
+body[data-mode="women"] .chat-input-area{
+  background:var(--thb-bg-base);
+  border-top:1px solid var(--thb-border-faint);
+}
+body[data-mode="women"] #chat-input{
+  background:var(--thb-bg-soft);
+  border-color:var(--thb-border-soft);
+  color:var(--thb-text-primary);
+}
+body[data-mode="women"] #chat-input:focus{
+  background:#fff;
+  border-color:var(--thb-accent);
+}
+body[data-mode="women"] .nickname-area{
+  background:var(--thb-bg-base);
+  border-top:1px solid var(--thb-border-faint);
+}
+body[data-mode="women"] .visitor-notify{
+  background:var(--thb-bg-soft);
+  border-top:1px solid var(--thb-border-faint);
+}
+
+/* ブランド表記 (フッター) */
+body[data-mode="women"] .footer-brand,
+body[data-mode="women"] #chat-footer{
+  background:var(--thb-bg-base);
+  color:var(--thb-text-muted);
+}
+

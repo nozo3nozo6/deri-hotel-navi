@@ -14,6 +14,65 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
 }
 
+/* === jofu (women) ネオモーフ + ピンクベージュ系テーマ ===
+   chat.js setThemeMode が postMessage('ychat:theme', mode) で
+   body.dataset.mode を設定. 他モード (men/men_same/women_same/este)
+   は従来の白基調シートのまま (今回 women のみリファイン). */
+body[data-mode="women"] {
+  --thb-bg-base: #F5EAE4;
+  --thb-bg-soft: #FBF6F2;
+  --thb-bg-shadow: #EFE3DD;
+  --thb-accent: #B85470;
+  --thb-accent-soft: #C66B85;
+  --thb-accent-deep: #A04960;
+  --thb-shadow-light: rgba(255,255,255,0.92);
+  --thb-shadow-dark: rgba(180,130,120,0.18);
+  --thb-shadow-dark-strong: rgba(180,130,120,0.22);
+  --thb-text-sub: #8B5666;
+  background: var(--thb-bg-shadow);
+}
+body[data-mode="women"] #sheet {
+  background: var(--thb-bg-base);
+  border-radius: 24px 24px 0 0;
+}
+body[data-mode="women"] #top-bar {
+  background: var(--thb-bg-base);
+  border-bottom: none;
+  box-shadow: 0 4px 12px -6px var(--thb-shadow-dark);
+}
+body[data-mode="women"] #handle {
+  background: #C9B8B0;
+  box-shadow:
+    inset 1px 1px 2px rgba(160,120,110,0.3),
+    inset -1px -1px 2px rgba(255,255,255,0.5);
+}
+body[data-mode="women"] #close-btn {
+  background: var(--thb-bg-base);
+  color: var(--thb-accent);
+  box-shadow:
+    3px 3px 7px var(--thb-shadow-dark-strong),
+    -3px -3px 7px var(--thb-shadow-light);
+  border-radius: 50%;
+}
+body[data-mode="women"] #close-btn:hover {
+  transform: none;
+  box-shadow:
+    4px 4px 10px var(--thb-shadow-dark-strong),
+    -4px -4px 10px var(--thb-shadow-light);
+}
+body[data-mode="women"] #close-btn:active {
+  transform: scale(0.96);
+  box-shadow:
+    inset 2px 2px 5px var(--thb-shadow-dark-strong),
+    inset -2px -2px 5px rgba(255,255,255,0.85);
+}
+body[data-mode="women"] #chat-frame {
+  background: var(--thb-bg-base);
+}
+body[data-mode="women"] #err-msg {
+  color: var(--thb-text-sub);
+}
+
 /* sheet 全体を visualViewport 追従の position:fixed で配置.
    iOS キーボード時は JS で top/height を vv.offsetTop / vv.height に揃えて
    キーボード上にぴったり収まるようにする. iframe の中 chat.js は
@@ -117,7 +176,7 @@ html, body {
 <div id="sheet" role="dialog" aria-modal="true" aria-label="チャット">
   <div id="top-bar">
     <div id="handle"></div>
-    <button id="close-btn" type="button" aria-label="閉じる">✕</button>
+    <button id="close-btn" type="button" aria-label="閉じる"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <iframe id="chat-frame" title="YobuChat" allow="clipboard-write"></iframe>
   <div id="err-msg" hidden>店舗が指定されていません。</div>
@@ -171,6 +230,21 @@ html, body {
     if (qs.length) src += '?' + qs.join('&');
     frame.src = src;
   }
+
+  // iframe 内 chat.js setThemeMode が postMessage で通知してくる.
+  // body[data-mode] にセットすると CSS で women (jofu) のみネオモーフUIが有効に.
+  // theme-color メタタグもモードに応じて更新 (iOS のステータスバー色).
+  window.addEventListener('message', function (ev) {
+    if (!ev.data || ev.data.type !== 'ychat:theme') return;
+    var allowed = ['men','women','men_same','women_same','este'];
+    if (allowed.indexOf(ev.data.mode) === -1) return;
+    document.body.dataset.mode = ev.data.mode;
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      var color = ev.data.mode === 'women' ? '#F5EAE4' : '#1a1a1a';
+      meta.setAttribute('content', color);
+    }
+  });
 
   // iOS Safari: position:fixed は layout viewport (キーボード裏も含む) 全体に張られるため,
   // キーボード時に sheet 下部 (= 入力欄) が隠れる. visualViewport.resize を listen して

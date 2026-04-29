@@ -563,6 +563,13 @@ function setThemeMode(mode) {
     const m = ['men','women','men_same','women_same','este'].includes(mode) ? mode : 'men';
     try { document.body.dataset.mode = m; } catch (_) {}
     try { updateCastIconForMode(m); } catch (_) {}
+    // chat-sheet.html (親) にもテーマ通知 (women=jofu のネオモーフUI適用に必須).
+    // 直URL/埋込どちらでも安全 (top===self なら NoOp).
+    try {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'ychat:theme', mode: m, slug: SLUG }, '*');
+        }
+    } catch (_) {}
 }
 // 指名ラベルのアイコンを店舗ジャンルに合わせて切替.
 // deli(men)/este/women_same → 女性キャスト, jofu(women)/men_same → 男性キャスト.
