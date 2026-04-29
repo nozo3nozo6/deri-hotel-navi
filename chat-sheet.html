@@ -35,13 +35,12 @@ body[data-mode="women"] #sheet {
   background: var(--thb-bg-base);
   border-radius: 24px 24px 0 0;
 }
-/* トップバー (ハンドル+✕ がある領域) は #fff に近い中立色にして
-   「シートの上は本体ページ (yobuho.com) が透けている風」を出す.
-   濃いピンクで揃えると "全部チャット" に見えてシート感が消えるため
-   --thb-bg-soft (#FBF6F2 ≒ クリーム白) を採用. ✕ ボタンの凸シャドウも
-   この明るい背景上で映えるよう陰影を強めに. */
+/* トップバー (ハンドル+✕ がある領域) は純白にして「シートの上は本体
+   ページ (yobuho.com) が透けている風」を最大化.
+   ✕ ボタンは --thb-bg-soft (クリーム白) のまま残し、白い領域上に
+   ほんのりピンクの凸ボタンが乗る構図でアクセント維持. */
 body[data-mode="women"] #top-bar {
-  background: var(--thb-bg-soft);
+  background: #fff;
   border-bottom: none;
   box-shadow: 0 4px 12px -6px var(--thb-shadow-dark);
 }
