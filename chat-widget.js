@@ -4,6 +4,13 @@
  * 使い方: クライアントHPに1行貼り付け
  *   <script src="https://yobuho.com/chat-widget.js" data-slug="shop-slug" async></script>
  *
+ * キャスト指名版 (キャスト個人ページ用):
+ *   <script src="https://yobuho.com/chat-widget.js" data-slug="shop-slug"
+ *           data-cast="shop_cast_id" data-label="ARASHIに相談" async></script>
+ *   - data-cast=<shop_casts.id> を付けると iframe が ?cast=... 付きで開き、
+ *     キャスト指名チップ（指名: ARASHI / JOE / KYLE）は自動で出ない
+ *   - data-label を付けるとボタンラベルを差し替え（省略時は YobuChat）
+ *
  * 設計方針:
  * - 固有クラス名プレフィックス `ychatw-` で外部CSSとの干渉を最小化
  * - 重要スタイルは !important で保護
@@ -40,7 +47,27 @@
         return;
     }
 
+    // data-cast: shop_casts.id (UUID風 32-36文字 hex+ハイフン). 不正値はサイレントに無視 → 通常版にフォールバック.
+    function getCastId() {
+        if (!script) return '';
+        const v = (script.dataset && script.dataset.cast) || '';
+        if (!v) return '';
+        return /^[0-9a-fA-F-]{32,36}$/.test(v) ? v : '';
+    }
+    // data-label: ボタンラベルのカスタム文言 (例: "ARASHIに相談"). 50文字超は切り詰め.
+    function getButtonLabel() {
+        if (!script || !script.dataset) return '';
+        const v = (script.dataset.label || '').trim();
+        return v.length > 50 ? v.slice(0, 50) : v;
+    }
+
+    const CAST_ID = getCastId();
+    const BTN_LABEL = getButtonLabel() || 'YobuChat';
     const CHAT_URL = 'https://yobuho.com/chat/' + encodeURIComponent(SLUG) + '/';
+    // iframe URL: cast 指定時は ?cast=<id>&embed=1, 通常時は ?embed=1 のみ
+    const IFRAME_URL = CHAT_URL + (CAST_ID
+        ? '?cast=' + encodeURIComponent(CAST_ID) + '&embed=1'
+        : '?embed=1');
 
     // ===== スタイル注入（外部干渉回避: ychatw- プレフィックス + !important） =====
     const CSS = `
@@ -265,8 +292,13 @@
         const btn = document.createElement('button');
         btn.className = 'ychatw-btn';
         btn.type = 'button';
-        btn.setAttribute('aria-label', 'YobuChatを開く');
-        btn.innerHTML = '<span aria-hidden="true">💬</span><span class="ychatw-btn-label">YobuChat</span>';
+        btn.setAttribute('aria-label', BTN_LABEL + 'を開く');
+        // ラベル中の HTML はエスケープして XSS を防止
+        const labelEl = document.createElement('span');
+        labelEl.className = 'ychatw-btn-label';
+        labelEl.textContent = BTN_LABEL;
+        btn.innerHTML = '<span aria-hidden="true">💬</span>';
+        btn.appendChild(labelEl);
 
         // ===== モーダル生成 =====
         const wrap = document.createElement('div');
@@ -291,7 +323,7 @@
 
         function openChat() {
             lastFocused = document.activeElement;
-            if (!iframe.src) iframe.src = CHAT_URL + '?embed=1';
+            if (!iframe.src) iframe.src = IFRAME_URL;
             wrap.classList.add('ychatw-open');
             btn.style.display = 'none';
             document.documentElement.style.overflow = 'hidden';
