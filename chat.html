@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="YobuChat">
-<link rel="stylesheet" href="/chat.css?v=107">
+<link rel="stylesheet" href="/chat.css?v=108">
 </head>
 <body>
 <div id="chat-root" class="loading">
@@ -21,6 +21,10 @@
     <div class="chat-header-left">
       <button type="button" id="btn-header-back" class="header-back hidden" aria-label="受信一覧に戻る">‹</button>
       <span id="chat-visitor-name" class="visitor-name hidden"></span>
+      <svg id="chat-verified-badge" class="verified-badge hidden" viewBox="0 0 24 24" width="20" height="20" aria-label="YobuHo認証" role="img">
+        <path d="M12 21s-7-4.5-9.5-9C1 9 2.5 5 6 5c2 0 3.5 1.2 4 2 1-1 2.3-2 4-2 3.5 0 5 4 3.5 7-2.5 4.5-9.5 9-9.5 9z" fill="#fff"/>
+        <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="var(--chat-primary)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </div>
     <div class="chat-header-center">
       <span id="chat-shop-name">読み込み中…</span>
@@ -213,6 +217,6 @@
   </div>
 </div>
 
-<script src="/chat.js?v=199"></script>
+<script src="/chat.js?v=200"></script>
 </body>
 </html>

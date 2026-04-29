@@ -2063,9 +2063,33 @@ async function _init() {
 }
 
 // ===== 訪問者モード =====
+// 訪問者ヘッダー（shop-name 左寄せ + ♥認証バッジ）の ON/OFF を切り替えるヘルパー.
+// 2026-04-29: 訪問者画面でのみ店舗名/キャスト名の左にYobuHo認証バッジを表示する仕様.
+function enableVisitorHeader() {
+    const badge = document.getElementById('chat-verified-badge');
+    const shopName = document.getElementById('chat-shop-name');
+    const left = document.querySelector('.chat-header-left');
+    if (badge) badge.classList.remove('hidden');
+    if (shopName && left && shopName.parentElement !== left) {
+        left.appendChild(shopName);
+    }
+    document.body.classList.add('visitor-header');
+}
+function disableVisitorHeader() {
+    const badge = document.getElementById('chat-verified-badge');
+    const shopName = document.getElementById('chat-shop-name');
+    const center = document.querySelector('.chat-header-center');
+    if (badge) badge.classList.add('hidden');
+    if (shopName && center && shopName.parentElement !== center) {
+        center.appendChild(shopName);
+    }
+    document.body.classList.remove('visitor-header');
+}
+
 async function enterVisitorMode() {
     refs.shopName.textContent = state.shop_name;
     updateStatusIndicator(state.is_online);
+    enableVisitorHeader();
     refs.ownerToggle.classList.add('hidden');
     // ユーザー側は言語切替を表示
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
@@ -2189,6 +2213,7 @@ async function enterVisitorMode() {
 // 既存訪問者セッションの履歴を見るだけで送信はできない（返信は電話/LINE経由）.
 async function enterCastViewMode() {
     refs.shopName.textContent = state.shop_name;
+    disableVisitorHeader();
     // キャスト本人向け通知トグル (shop_casts.chat_notify_mode). 初期値は adopt 応答でセット.
     refs.ownerToggle.classList.remove('hidden');
     if (refs.langSelect) refs.langSelect.classList.remove('hidden');
@@ -3096,6 +3121,7 @@ function showOfflineNotifiedHint() {
 // ===== オーナーモード =====
 async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
+    disableVisitorHeader();
     refs.ownerToggle.classList.remove('hidden');
     // オーナー側は日本語固定（言語切替はユーザーのみ）
     if (refs.langSelect) {
@@ -3398,6 +3424,7 @@ function startInboxPolling() {
 // UI はオーナー受信箱と同じ (inbox list → thread) を流用. DO は経由せず PHP 直結.
 async function enterCastOwnerMode() {
     state.mode = 'cast_owner';
+    disableVisitorHeader();
     // 端末登録トークンがあれば一緒に送る。未登録 or 無効なら registration_required が返る.
     state.cast_device_token = getCastDeviceToken();
     const data = await api('cast-inbox', {

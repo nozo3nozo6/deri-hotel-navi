@@ -42,6 +42,18 @@ body.embedded #chat-root{top:0;left:0;right:0;bottom:auto;margin:0;width:100%;he
 .visitor-name{font-size:13px;font-weight:600;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .visitor-name.hidden{display:none}
 #chat-shop-name{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%;display:block}
+
+/* YobuHo認証バッジ (♥+✓): 訪問者画面でのみ店舗名/キャスト名の左に表示.
+   白塗りハート + テーマ色チェック で、ジャンル別テーマ色のヘッダー上でも視認性を確保. */
+.verified-badge{width:20px;height:20px;flex-shrink:0;display:inline-block;vertical-align:middle;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15))}
+.verified-badge.hidden{display:none}
+
+/* 訪問者ヘッダーモード: shop-name を左寄せ + 認証バッジと並べる.
+   body.visitor-header クラスは chat.js enterVisitorMode で付与. */
+body.visitor-header #chat-header{grid-template-columns:1fr auto}
+body.visitor-header .chat-header-center{display:none}
+body.visitor-header .chat-header-left{justify-self:stretch;flex:1}
+body.visitor-header .chat-header-left #chat-shop-name{font-size:16px;display:block}
 .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
 .status-dot.online{background:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.8)}
 .status-dot.offline{display:none}
