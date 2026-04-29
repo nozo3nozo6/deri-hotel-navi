@@ -338,6 +338,19 @@ let _recentSentSnapshotTimer = null;
 // 変換確定してから送信させる方式 = iOS IME buffer 問題が根本から発生しない.
 let _isComposing = false;
 
+// 改行で textarea を自動的に伸縮させるヘルパ (2026-04-29).
+// scrollHeight に追従させ、CSS の max-height (120px) で cap. それ以上は内側スクロール.
+// auto → scrollHeight への 2 段階セットが必要 (auto にしないと一度伸びた後縮まない).
+function autoResizeChatInput(el) {
+    if (!el) return;
+    try {
+        el.style.height = 'auto';
+        // borderBoxSizing 込みで scrollHeight が正しく取れる. 最低 1 行分は維持.
+        const next = Math.max(el.scrollHeight, 32);
+        el.style.height = next + 'px';
+    } catch (_) {}
+}
+
 // 送信後の入力欄クリア.
 // CSS 側に `-webkit-user-select:text !important` を入れたことで iOS Safari でも
 // 単純な value='' で連続入力できるようになった (textarea swap は副作用でレイアウトが崩れるため撤去).
@@ -375,6 +388,9 @@ function _bindChatInputEvents(input) {
             emitTypingStop();
         }
         scheduleDraftSave();
+        // 改行で textarea が自動的に伸びるよう scrollHeight 追従.
+        // CSS max-height: 120px が cap として効くので、それ以上はスクロール.
+        autoResizeChatInput(input);
         // v=179: 絵文字専用 reset 削除. 文字/絵文字で挙動を分けないため不要.
     });
     // compositionupdate も同条件で拾う (input event より早く飛ぶケースあり).
@@ -554,6 +570,8 @@ function clearInputPreservingIme() {
         if (el.value.length > 0) {
             _pendingClearAfterComposition = true;
         }
+        // 改行で伸ばした textarea 高さを 1 行分にリセット.
+        autoResizeChatInput(el);
     } catch (_) {
         try { el.value = ''; } catch (__) {}
     }
