@@ -93,9 +93,23 @@ const planSlots = [
           ご予約の確定・お約束は、これまで通りお店のお電話・LINE等でお受けいただくスタイルを推奨しています。
         </p>
         <ul class="yc-position-list">
-          <li>✓ 既存の電話・LINE導線を脅かしません</li>
+          <li>✓ 既存の電話・LINE導線はそのまま活かせます</li>
           <li>✓ 「ちょっと気になる」段階のお客様だけを追加で拾えます</li>
           <li>✓ チャットで打ち解けたあと、自然にお電話へ誘導できます</li>
+        </ul>
+      </div>
+
+      <div class="yc-position-inner yc-position-retention">
+        <h2>🗑️ ログ保持ポリシー — 一定期間で自動削除、プライバシー重視</h2>
+        <p class="yc-position-lead">
+          最終やり取りから約60日経過したチャット履歴は<strong>自動的に削除</strong>されます。<br>
+          店舗様は必要な期間内に履歴を見返して対応でき、
+          お客様も「ログがずっと残る心配がない」安心感のもとで気軽にご利用いただけます。
+        </p>
+        <ul class="yc-position-list">
+          <li>✓ 個人情報保護トレンドに沿った設計</li>
+          <li>✓ お客様の心理的ハードルを下げ、相談数アップに直結</li>
+          <li>✓ 店舗側もログ管理の負担が不要</li>
         </ul>
       </div>
     </section>
@@ -306,12 +320,19 @@ const planSlots = [
     border-top: 1px solid var(--yc-border);
   }
   .yc-position-inner {
-    max-width: 760px; margin: 0 auto;
+    max-width: 760px; margin: 0 auto 20px;
     background: linear-gradient(135deg, #fff 0%, #fdfaf3 100%);
     border: 2px solid var(--yc-accent);
     border-radius: 14px; padding: 32px 28px;
     box-shadow: var(--yc-shadow);
   }
+  .yc-position-inner:last-child { margin-bottom: 0; }
+  .yc-position-retention {
+    background: linear-gradient(135deg, #fff 0%, #f8f0e8 100%);
+    border-color: var(--yc-rose);
+  }
+  .yc-position-retention h2 { color: var(--yc-rose); }
+  .yc-position-retention .yc-position-lead strong { color: var(--yc-rose); font-weight: 700; }
   .yc-position h2 {
     font-size: 17px; font-weight: 700; color: var(--yc-accent-deep);
     margin-bottom: 16px; line-height: 1.6; text-align: center;
