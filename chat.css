@@ -34,6 +34,10 @@ body.embedded #chat-root{top:0;left:0;right:0;bottom:auto;margin:0;width:100%;he
 /* ===== ヘッダー ===== */
 #chat-header{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:12px 6px 12px 16px;background:linear-gradient(135deg,var(--chat-primary) 0%,var(--chat-primary-dark) 100%);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.08);z-index:10;flex-shrink:0;border-top-left-radius:13px;border-top-right-radius:13px}
 @media (max-width:480px){#chat-header{border-top-left-radius:9px;border-top-right-radius:9px}}
+/* 埋込時 (chat-sheet.html iframe / chat-widget モーダル等) は chat-header の角丸を解除.
+   iframe コンテナは矩形なので、角丸が残ると角の隙間に #chat-root の背景色が見えて
+   「親トップバー(白) → 隙間(ピンク) → chat-header(ローズ)」の二重背景になる. */
+body.embedded #chat-header{border-top-left-radius:0;border-top-right-radius:0}
 .chat-header-left{justify-self:start;display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
 .chat-header-center{justify-self:center;display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow:hidden}
 .header-back{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
