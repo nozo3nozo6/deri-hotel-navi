@@ -395,8 +395,11 @@ export class ChatRoom implements DurableObject {
     // - 新規セッション: 必ず resolve
     // - 既存セッションで cast_id 未設定かつ URL に cast 指定あり: retrofit
     //   (旧 DO バージョンで作られた「cast 無視」セッションを救済)
-    // - 既存セッションで cast_id 設定済み: 変えない（別キャストへの乗っ取り防止）
-    const shouldResolveCast = !!(shopCastId && this.shopMeta?.shop_id && (isNew || (sess && !sess.cast_id)));
+    // - 既存セッションで cast_id 設定済み: 変えない（別キャストへの乗っ取り防止. retrofit/上書きは下の if-else で制御）
+    // 2026-04-30: adopt 時にも resolve させて fresh cast_notify_mode を取得.
+    //   旧条件 (isNew || !sess.cast_id) だと adopt で cast_notify_mode=null になり、🟢 が出ない.
+    //   cast_id の上書き防止は下の if-else 分岐で別途守られているため、resolve 自体は緩和して OK.
+    const shouldResolveCast = !!(shopCastId && this.shopMeta?.shop_id);
     let castInfo: { shop_cast_id?: string; cast_id?: string; cast_name?: string; cast_avatar_url?: string | null; cast_notify_mode?: string | null } = {};
     if (shouldResolveCast) {
       castInfo = await this.resolveCast(this.shopMeta!.shop_id, shopCastId);
