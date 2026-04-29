@@ -2198,6 +2198,10 @@ async function enterVisitorMode() {
                 const castOn = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
                 state.notify_enabled = !!castOn;
                 state.is_online = !!castOn;
+                // 2026-04-30: WS ステータスバッチ到着前に dot を即時反映.
+                // 旧実装は updateStatusIndicator を呼ばず、初期描画 (notify_enabled=undefined → 消灯)
+                // のまま放置されていた. キャスト notify ON なのに 🟢 が出ない問題の修正.
+                updateStatusIndicator(state.is_online);
             }
             // adopt レスポンスは verified/pending を含まないため必ず PHP (my-notify-settings) で完全取得.
             // Magic Link 確認状態は UI バッジ表示に必須で、adopt 側のフィールドだけでは不十分.
@@ -2222,6 +2226,7 @@ async function enterVisitorMode() {
             const castOn = s.cast_notify_mode && s.cast_notify_mode !== 'off';
             state.notify_enabled = !!castOn;
             state.is_online = !!castOn;
+            updateStatusIndicator(state.is_online);
         }
         saveVisitorSession();
         updateCastHeader();
