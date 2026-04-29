@@ -5,7 +5,7 @@ import Footer from '../components/Footer.astro';
 const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;";
 
 const planSlots = [
-  { name: '投稿リンクプラン', price: '5,500', casts: '5名', tag: null },
+  { name: '投稿リンクプラン', price: '5,500', casts: '5名', tag: '今なら1ヶ月無料' },
   { name: '市区町村プラン', price: '11,000', casts: '10名', tag: null },
   { name: 'エリアプラン', price: '33,000', casts: '30名', tag: null },
   { name: 'ブロック(地域)プラン', price: '55,000', casts: '50名', tag: null },
@@ -16,13 +16,13 @@ const planSlots = [
 ---
 
 <BaseLayout
-  title="YobuChat | 登録不要・匿名で使えるお店向けチャットツール"
-  description="お客様との匿名チャットツール「YobuChat」。会員登録・アプリ不要、ホームページにコピペ1行で設置可能。自動翻訳・キャスト指名URL対応。"
+  title="【1ヶ月無料】YobuChat キャンペーン | 登録不要・匿名で使えるお店向けチャットツール"
+  description="投稿リンクプラン1ヶ月無料キャンペーン中。お客様との匿名チャットツール「YobuChat」が標準装備。会員登録・アプリ不要、ホームページにコピペ1行で設置可能。"
   keywords="YobuChat,風俗 チャットツール,匿名チャット,店舗用チャット,キャスト 指名チャット,デリヘル チャット,女風 チャット,問い合わせフォーム"
-  canonical="https://yobuho.com/yobuchat/"
-  ogTitle="YobuChat | 登録不要・匿名で使えるお店向けチャットツール"
-  ogDescription="お客様の取りこぼしを防ぐ匿名チャット。コピペ1行で導入、自動翻訳・キャスト指名URL対応。"
-  ogUrl="https://yobuho.com/yobuchat/"
+  canonical="https://yobuho.com/yobuchat-campaign/"
+  ogTitle="【1ヶ月無料】YobuChat キャンペーン"
+  ogDescription="店舗専用ページ＋匿名チャットが1ヶ月無料。コピペ1行で導入、自動翻訳・キャスト指名URL対応。"
+  ogUrl="https://yobuho.com/yobuchat-campaign/"
   themeColor="#c9a84c"
   csp={csp}
 >
@@ -31,6 +31,7 @@ const planSlots = [
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" data-font-async href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
+    <meta name="robots" content="noindex, nofollow">
   </Fragment>
 
   <div class="yc-page">
@@ -45,6 +46,15 @@ const planSlots = [
       <div class="yc-hero-cta">
         <a href="https://yobuho.com/shop-register/" class="yc-btn yc-btn-primary">店舗登録する（無料）</a>
         <a href="#features" class="yc-btn yc-btn-secondary">機能を見る</a>
+      </div>
+    </section>
+
+    <section class="yc-campaign">
+      <div class="yc-campaign-inner">
+        <div class="yc-campaign-badge">🎁 キャンペーン実施中</div>
+        <p class="yc-campaign-title">投稿リンクプラン（月額5,500円・税込）が<strong>1ヶ月無料</strong></p>
+        <p class="yc-campaign-deadline">🗓 2026年5月末までのご登録限定</p>
+        <p class="yc-campaign-note">期間中はYobuChat（お店用＋キャスト5名分）も全機能でお試しいただけます。<br>※キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。</p>
       </div>
     </section>
 
@@ -216,8 +226,8 @@ const planSlots = [
     </section>
 
     <section class="yc-cta">
-      <h2>無料プランで今すぐ始められます</h2>
-      <p>店舗登録は無料・最短3分。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。<br>無料プランでも認証バッジ・店舗専用URL・ご案内実績の発信が可能です。</p>
+      <h2>まずは1ヶ月無料でお試しください</h2>
+      <p>投稿リンクプランなら、店舗専用ページとYobuChat（お店用＋キャスト5名分）が1ヶ月無料。<br>キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。</p>
       <a href="https://yobuho.com/shop-register/" class="yc-btn yc-btn-primary yc-btn-large">店舗登録する（無料・最短3分）</a>
       <p class="yc-cta-note">※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。</p>
     </section>

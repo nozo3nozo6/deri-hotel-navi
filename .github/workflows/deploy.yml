@@ -45,7 +45,7 @@ jobs:
           cd astro-src && npx astro build
           cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html dist/portal-este.html ../
           cp dist/index.html ../index.html
-          cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html dist/plan.html dist/yobuchat.html ../
+          cp dist/legal.html dist/terms.html dist/privacy.html dist/contact.html dist/shop-register.html dist/plan.html dist/yobuchat.html dist/yobuchat-campaign.html ../
           mkdir -p ../guide
           cp dist/guide/*.html ../guide/ 2>/dev/null || true
           for f in dist/partner/*.html; do [ -f "$f" ] && cp "$f" "../partner-$(basename $f)"; done

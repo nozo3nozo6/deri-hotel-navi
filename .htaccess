@@ -90,6 +90,7 @@ RewriteRule ^privacy/?$ /privacy.html [L]
 RewriteRule ^legal/?$ /legal.html [L]
 RewriteRule ^plan/?$ /plan.html [L]
 RewriteRule ^yobuchat/?$ /yobuchat.html [L]
+RewriteRule ^yobuchat-campaign/?$ /yobuchat-campaign.html [L]
 RewriteRule ^shop-register/?$ /shop-register.html [L]
 
 # 営業LP: /partner/slug/ → partner-slug.html
@@ -108,6 +109,8 @@ RewriteCond %{THE_REQUEST} \s/plan\.html [NC]
 RewriteRule ^plan\.html$ /plan/ [R=301,L]
 RewriteCond %{THE_REQUEST} \s/yobuchat\.html [NC]
 RewriteRule ^yobuchat\.html$ /yobuchat/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/yobuchat-campaign\.html [NC]
+RewriteRule ^yobuchat-campaign\.html$ /yobuchat-campaign/ [R=301,L]
 RewriteCond %{THE_REQUEST} \s/shop-register\.html [NC]
 RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
 
