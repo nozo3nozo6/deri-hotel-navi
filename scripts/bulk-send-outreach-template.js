@@ -29,7 +29,7 @@ const RECIPIENTS = [
 
 const TEMPLATES = {
     deli: {
-        subject: '【Deli YobuHo】1ヶ月無料｜店舗専用ページ＆匿名お客様チャット機能つき - デリヘル対応ホテル検索',
+        subject: '【Deli YobuHo】1ヶ月無料｜匿名お客様チャット機能つき＆店舗専用ページ - デリヘル対応ホテル検索',
         body: `ご担当者様
 
 突然のご連絡失礼いたします。
@@ -149,7 +149,7 @@ https://deli.yobuho.com/
 ─────────────────`,
     },
     este: {
-        subject: '【Este YobuHo】1ヶ月無料｜店舗専用ページ＆匿名お客様チャット機能つき - デリエステ対応ホテル検索',
+        subject: '【Este YobuHo】1ヶ月無料｜匿名お客様チャット機能つき＆店舗専用ページ - デリエステ対応ホテル検索',
         body: `ご担当者様
 
 突然のご連絡失礼いたします。
