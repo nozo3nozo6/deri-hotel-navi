@@ -11,6 +11,7 @@
 // =========================================================
 
 import type { Env } from './types';
+import { isAllowedPushEndpoint } from './auth';
 
 export type PushSubjectType = 'shop' | 'cast' | 'visitor';
 
@@ -97,6 +98,13 @@ async function fetchSubscribers(
 // ========== 購読エンドポイント1件に送信 ==========
 
 async function sendOne(env: Env, sub: PushSubscriber, body: Uint8Array): Promise<void> {
+  // SSRF 対策: PHP 側 push-subscribe で endpoint validation が緩い場合に
+  // DO 側でも公式 Push Service ホストのみに制限する.
+  if (!isAllowedPushEndpoint(sub.endpoint)) {
+    // 不正 endpoint は PHP 側の DB を掃除するため unsubscribe を依頼.
+    await unsubscribeRemote(env, sub.endpoint_hash).catch(() => {});
+    throw new Error('endpoint_not_allowed');
+  }
   const uaPublic = b64urlToBytes(sub.p256dh);
   const authSecret = b64urlToBytes(sub.auth);
   if (uaPublic.length !== 65 || uaPublic[0] !== 0x04) {

@@ -9,6 +9,7 @@
 
 import type { Env, ShopStatus, CanConnectResult } from './types';
 import { corsHeaders, corsPreflight, jsonResponse } from './cors';
+import { safeEqual, isContentLengthOk, isUuidLike } from './auth';
 
 export { ChatRoom } from './ChatRoom';
 
@@ -32,6 +33,12 @@ export default {
       return jsonResponse({ ok: true, service: 'yobuchat-do' }, req, env);
     }
 
+    // 全パス共通: Content-Length 上限ガード (DoS 対策).
+    // WebSocket upgrade は GET なので body を持たず、自然にスキップされる.
+    if (req.method === 'POST' && !isContentLengthOk(req)) {
+      return jsonResponse({ ok: false, error: 'payload_too_large' }, req, env, 413);
+    }
+
     // shop_slug or shop_id を特定
     const slug = url.searchParams.get('shop_slug') || url.searchParams.get('slug') || '';
     const shopIdParam = url.searchParams.get('shop_id') || '';
@@ -42,7 +49,22 @@ export default {
 
     // /broadcast・/broadcast-read・/broadcast-typing: PHP→DO リレー. shop_meta 不要のため shop-lookup を短絡.
     // shop_id 前提 (PHP 側が session から解決して渡す) でメタ取得をスキップ.
-    if ((path === '/broadcast' || path === '/broadcast-read' || path === '/broadcast-typing') && shopIdParam) {
+    //
+    // セキュリティ (2026-04-29):
+    //  - secret 検証を idFromName より前に実施 → 任意キーで DO instance を spawn する
+    //    DoS amplification を防ぐ.
+    //  - shop_id は UUID 形式のみ受理 → /broadcast?shop_id=ランダム文字列 で
+    //    DO instance を無限作成されるのを防ぐ.
+    //  - 比較は timing-safe.
+    if (path === '/broadcast' || path === '/broadcast-read' || path === '/broadcast-typing') {
+      const provided = req.headers.get('X-Sync-Secret') || '';
+      const expected = env.CHAT_SYNC_SECRET || '';
+      if (!safeEqual(provided, expected)) {
+        return jsonResponse({ ok: false, error: 'forbidden' }, req, env, 403);
+      }
+      if (!shopIdParam || !isUuidLike(shopIdParam)) {
+        return jsonResponse({ ok: false, error: 'invalid_shop_id' }, req, env, 400);
+      }
       const id = env.CHAT_ROOM.idFromName(shopIdParam);
       const stub = env.CHAT_ROOM.get(id);
       const forward = new Request(req, { headers: new Headers(req.headers) });

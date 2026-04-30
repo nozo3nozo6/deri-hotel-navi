@@ -23,6 +23,7 @@
 
 require_once __DIR__ . '/db-config.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/cast-bearer.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store');
@@ -51,7 +52,9 @@ if (!$expected || !hash_equals($expected, $provided)) {
 }
 
 // ---- 入力検証 ----
-$to = trim((string)($body['to'] ?? ''));
+// HIGH 2026-04-29: $to は body から受け取らず、shop_slug + (任意 cast_id) から DB 必須 lookup.
+// 旧実装は body['to'] を信頼していたため、CHAT_NOTIFY_SECRET 漏洩時に
+// 任意のメールアドレス宛にメール amplification (オープンメールリレー化) が可能だった.
 $shopName = (string)($body['shop_name'] ?? '');
 $shopSlug = preg_replace('/[^a-z0-9\-]/', '', (string)($body['shop_slug'] ?? ''));
 $sessionToken = preg_replace('/[^a-zA-Z0-9\-]/', '', (string)($body['session_token'] ?? ''));
@@ -62,6 +65,13 @@ $castId = trim((string)($body['cast_id'] ?? ''));
 $castName = trim((string)($body['cast_name'] ?? ''));
 $firstInSession = !empty($body['first_in_session']);
 $shopCastIdForUrl = ''; // chat.js の ?cast= は shop_casts.id を期待する
+$to = '';
+
+if ($shopSlug === '') {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'invalid_shop_slug']);
+    exit;
+}
 
 // キャスト指名: casts.email へ宛先差し替え + shop_casts.chat_notify_mode を適用.
 // （active 以外 / mode='off' / mode='first' で既送信のときは店舗既定に落とさず明示的にスキップ）
@@ -114,11 +124,40 @@ if ($castId !== '') {
         echo json_encode(['ok' => false, 'error' => 'cast_lookup_failed']);
         exit;
     }
+} else {
+    // 店舗直通: shop_slug から shops.email / shop_chat_status.notify_email を必須 lookup.
+    try {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare(
+            'SELECT s.email, st.notify_email
+             FROM shops s
+             INNER JOIN shop_chat_status st ON st.shop_id = s.id
+             WHERE s.slug = ? AND s.status = ? LIMIT 1'
+        );
+        $stmt->execute([$shopSlug, 'active']);
+        $shopRow = $stmt->fetch();
+        if (!$shopRow) {
+            echo json_encode(['ok' => true, 'skipped' => 'shop_not_found']);
+            exit;
+        }
+        $notifyEmail = trim((string)($shopRow['notify_email'] ?? ''));
+        $to = $notifyEmail !== '' ? $notifyEmail : trim((string)($shopRow['email'] ?? ''));
+        if ($to === '') {
+            echo json_encode(['ok' => true, 'skipped' => 'shop_no_email']);
+            exit;
+        }
+    } catch (Throwable $e) {
+        error_log('[chat-notify] shop lookup failed: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'shop_lookup_failed']);
+        exit;
+    }
 }
 
 if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'invalid_to']);
+    // 念のため二重チェック (DB のメールが破損していた場合)
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'invalid_resolved_to']);
     exit;
 }
 if (!$message) {
@@ -134,11 +173,13 @@ $shopName = mb_substr($shopName, 0, 80);
 $castName = mb_substr($castName, 0, 40);
 
 // チャット画面URL
-// キャスト指名: ?cast=<shop_cast_id>&view=<session_token> で該当訪問者セッションを閲覧専用表示.
+// キャスト指名: ?cast=<shop_cast_id>&view=<session_token>&ct=<hmac>&iat=<epoch>
+//   ct/iat は cast 専用 HMAC bearer (HIGH 2026-04-29). cast-url-* で検証される.
+//   buildCastUrlQuery() が iat=now() で発行. 60日有効.
 // view= が無いと chat.js は新規訪問者セッションを作るため、キャストが会話を見られなくなる.
 $chatUrl = $castId
     ? (($shopSlug && $shopCastIdForUrl !== '' && $sessionToken !== '')
-        ? 'https://yobuho.com/chat/' . $shopSlug . '/?cast=' . rawurlencode($shopCastIdForUrl) . '&view=' . rawurlencode($sessionToken)
+        ? 'https://yobuho.com/chat/' . $shopSlug . '/?' . buildCastUrlQuery($shopCastIdForUrl, $sessionToken)
         : 'https://yobuho.com/')
     : ($shopSlug
         ? 'https://yobuho.com/chat/' . $shopSlug . '/?owner=1'

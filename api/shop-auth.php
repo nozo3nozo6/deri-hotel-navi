@@ -202,13 +202,50 @@ function handleProfile() {
     echo json_encode($shop, JSON_UNESCAPED_UNICODE);
 }
 
+/**
+ * 店舗画像 URL の安全性検証 (tracking pixel 攻撃対策, MEDIUM 2026-04-29).
+ *
+ * 旧実装: handleUpdateThumbnail / handleAddImage は任意文字列を保存可能 →
+ *   悪意ある店舗が thumbnail_url='https://attacker/track.png?slug=mystore' を保存し、
+ *   訪問者が chat.html / shop-admin / portal を開いた瞬間に attacker サーバーへ
+ *   画像リクエストが飛び、IP/UA/Referer を収集可能だった.
+ *
+ * 許可:
+ *   1) data:image/(jpeg|png|webp);base64,... (アップロード経由)
+ *   2) 同一オリジン (https://yobuho.com/...) の画像 URL
+ *
+ * 戻り値: エラーメッセージ (拒否時) / null (許可).
+ */
+function validateShopImageUrl(?string $url): ?string {
+    if ($url === null || $url === '') return null; // 空 = 削除 (許可)
+    if (preg_match('#^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]{1,5000000}$#', $url)) {
+        // data URL: 上限 ~5MB.
+        if (strlen($url) > 5242880) return '画像サイズが大きすぎます (5MB まで)';
+        return null;
+    }
+    if (preg_match('#^https://yobuho\.com/[A-Za-z0-9._/\-]+\.(jpe?g|png|webp|gif)(\?[A-Za-z0-9._\-=&%]*)?$#i', $url)) {
+        if (strlen($url) > 1024) return '画像 URL が長すぎます';
+        return null;
+    }
+    return '画像形式が正しくありません (アップロード画像または yobuho.com の画像URLのみ許可)';
+}
+
 function handleUpdateThumbnail() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
     $auth = requireShopAuth();
     if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
 
     $input = json_decode(file_get_contents('php://input'), true);
-    $thumbnailUrl = $input['thumbnail_url'] ?? null; // null = 削除
+    $thumbnailUrl = $input['thumbnail_url'] ?? null;
+    if ($thumbnailUrl !== null) $thumbnailUrl = trim((string)$thumbnailUrl);
+    if ($thumbnailUrl === '') $thumbnailUrl = null;
+
+    $valErr = validateShopImageUrl($thumbnailUrl);
+    if ($valErr !== null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => $valErr]);
+        return;
+    }
 
     $pdo = DB::conn();
     $stmt = $pdo->prepare('UPDATE shops SET thumbnail_url = ?, updated_at = NOW() WHERE id = ?');
@@ -308,6 +345,14 @@ function handleAddImage() {
     $usage = $input['usage'] ?? 'rich';
     if (!in_array($usage, ['rich', 'standard'])) $usage = 'rich';
     if (!$imageUrl) { http_response_code(400); echo json_encode(['error' => 'image_url required']); return; }
+    // MEDIUM 2026-04-29: tracking pixel 攻撃対策.
+    // shops.thumbnail_url にもコピーされるため image_url 段階で validation.
+    $valErr = validateShopImageUrl(is_string($imageUrl) ? trim($imageUrl) : null);
+    if ($valErr !== null) {
+        http_response_code(400);
+        echo json_encode(['error' => $valErr]);
+        return;
+    }
     $pdo = DB::conn();
     // usage別の枚数制限（banner_typeと連動）
     if ($usage === 'standard') {
