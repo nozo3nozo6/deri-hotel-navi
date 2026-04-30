@@ -563,6 +563,10 @@
                 inset -2px -2px 6px rgba(255,255,255,0.15);
         }
 
+        /* キャスト一覧 更新ボタン スピンアニメ */
+        @keyframes castRefreshSpin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+        #btn-refresh-cast-list:hover{background:var(--bg-3) !important;border-color:var(--rose) !important;color:var(--rose) !important;}
+
         /* ホテル名フォームヘッダー：ジャンル色 × ゴールドの上品エンボス */
         .form-hotel-name{
             background:linear-gradient(135deg,rgba(var(--neu-accent-rgb),0.10) 0%,rgba(201,169,110,0.10) 100%);
@@ -1450,7 +1454,14 @@
 
             <!-- アクティブキャスト一覧 -->
             <div class="card">
-                <div class="card-title">👥 登録済みキャスト</div>
+                <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                    <span>👥 登録済みキャスト</span>
+                    <button type="button" id="btn-refresh-cast-list" onclick="refreshCastList()" style="font-size:12px;padding:6px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-2);font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;" title="新しく登録したキャストを反映するために再読み込み">
+                        <span id="btn-refresh-cast-icon">🔄</span>
+                        <span>更新</span>
+                    </button>
+                </div>
+                <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">キャストが登録申請してきた場合、こちらの「更新」ボタンを押すと承認待ち一覧に反映されます。</div>
                 <div id="cast-list" style="display:flex;flex-direction:column;gap:10px;"></div>
             </div>
 
@@ -3776,6 +3787,32 @@ async function loadCastTab(){
         body.style.display = 'block';
     } catch (e) {
         loading.innerHTML = '<div style="color:#c33;">読み込みエラー: ' + esc(e.message) + '</div>';
+    }
+}
+
+// 「更新」ボタン: ページ全体をリロードせずキャスト一覧/承認待ちのみ再取得
+async function refreshCastList(){
+    const btn = document.getElementById('btn-refresh-cast-list');
+    const icon = document.getElementById('btn-refresh-cast-icon');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'wait';
+    if (icon) { icon.style.display = 'inline-block'; icon.style.animation = 'castRefreshSpin 0.8s linear infinite'; }
+    try {
+        const data = await castApi('list', null, 'GET');
+        if (data.shop_slug) window._shopSlug = data.shop_slug;
+        renderCastSummary(data);
+        renderCastList(data.casts || []);
+        renderCastPending(data.pending_invites || []);
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('更新に失敗しました: ' + (e && e.message ? e.message : '不明なエラー'), 'error');
+        else alert('更新に失敗しました: ' + (e && e.message ? e.message : '不明なエラー'));
+    } finally {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        if (icon) { icon.style.animation = ''; }
     }
 }
 
