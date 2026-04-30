@@ -16,6 +16,21 @@ const MODE_DESC_MAP = {
     'women_same': '女性同士（レズビアンカップル）で利用できるホテルを全国43,000件以上から検索。LGBTフレンドリーなホテル情報を口コミでチェック。',
     'este': 'デリエステ（風俗エステ・回春マッサージ・M性感）を呼べるホテルを全国43,000件以上から検索。ユーザー口コミと店舗情報で信頼できるホテル情報。'
 };
+// PortalLayout.astro の HERO_DATA と同期. portal-seo.php がホテル詳細URL等で
+// genre-hero-title を SEO H1 ("○○ HOTEL - デリエステを呼べる？口コミ・入室情報") に
+// 書き換えるため、SPA で「全国へ」した時に showJapanPage() がモード別の元の H1 に戻す.
+const MODE_HERO_H1_MAP = {
+    'men': 'デリヘルを呼べるホテル検索',
+    'women': '女性用風俗を呼べるホテル検索',
+    'men_same': '男性同士・ゲイカップルで利用できるホテル検索',
+    'women_same': '女性同士・レズビアンカップルで利用できるホテル検索',
+    'este': 'デリエステを呼べるホテル検索'
+};
+function resetGenreHeroText() {
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+    const h1 = document.getElementById('genre-hero-title');
+    if (h1 && MODE_HERO_H1_MAP[mode]) h1.textContent = MODE_HERO_H1_MAP[mode];
+}
 function getSiteSuffix() {
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     return TITLE_SUFFIX_MAP[mode] || 'YobuHo';

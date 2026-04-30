@@ -128,10 +128,13 @@ function ensurePortalMode() {
     if (st) st.style.display = 'flex';
 }
 
-// 全国ページのみジャンルヒーロー（PortalLayoutで生成済みH1セクション）を表示
+// 全国ページのみジャンルヒーロー（PortalLayoutで生成済みH1セクション）を表示.
+// portal-seo.php がホテル詳細URL等で <h1 id="genre-hero-title"> を SEO H1 に
+// 書き換えるため、show 時はモード別の元のテキストに戻す（resetGenreHeroText は ui-utils.js）.
 function toggleGenreHero(show) {
     const el = document.getElementById('genre-hero');
     if (el) el.style.display = show ? '' : 'none';
+    if (show && typeof resetGenreHeroText === 'function') resetGenreHeroText();
 }
 
 // 全国ページのボトムLP（信頼性カード3枚 + 使い方3ステップ）
