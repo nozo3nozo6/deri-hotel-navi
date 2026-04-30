@@ -264,10 +264,12 @@ $html = preg_replace(
     $html, 1
 );
 
-// <h1> 差し替え（sr-only）
+// <h1> 差し替え（visible hero h1）
+// Astro レイアウトは <h1 class="genre-hero-title" id="genre-hero-title">{hero.h1}</h1> を出力する.
+// サブページ毎にページ固有のH1にすることで Google の重複判定を回避.
 $html = preg_replace(
-    '/<h1 class="sr-only">[^<]*<\/h1>/',
-    '<h1 class="sr-only">' . $esc($seo_h1) . '</h1>',
+    '/<h1 class="genre-hero-title" id="genre-hero-title">[^<]*<\/h1>/',
+    '<h1 class="genre-hero-title" id="genre-hero-title">' . $esc($seo_h1) . '</h1>',
     $html, 1
 );
 
