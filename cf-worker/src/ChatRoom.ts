@@ -773,7 +773,17 @@ export class ChatRoom implements DurableObject {
     } else if (body.session_id) {
       sess = (await this.state.storage.get<ChatSession>(`session:${Number(body.session_id)}`)) ?? null;
     }
-    if (!sess) return this.errJson('session_not_found', 404);
+    // 2026-05-06: DO storage に session が無くても token + upTo があれば MySQL を直接更新する fallback.
+    // DO restart / eviction で session ごと storage が空になったケース (4-29 fix の取りこぼし) で
+    // 既読バッジが残存するのを防ぐ. broadcast/storage 更新は session 不在では不能なので諦め、
+    // MySQL の read_at だけは確実に反映させる.
+    if (!sess) {
+      if (token && upTo > 0) {
+        this.state.waitUntil(this.sync.markReadById(token, 'shop', upTo));
+        return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
+      }
+      return this.errJson('session_not_found', 404);
+    }
     const sid = sess.id;
 
     const msgs = await this.messagesSince(sid, 0);
@@ -808,16 +818,20 @@ export class ChatRoom implements DurableObject {
     if (!token) return this.errJson('missing_fields', 400);
 
     const sess = await this.findSessionByToken(token);
-    if (!sess) return this.errJson('session_not_found', 404);
+    // 2026-05-06: owner 側と同じく DO storage に session が無くても token + upTo で MySQL 直更新.
+    if (!sess) {
+      if (upTo > 0) {
+        this.state.waitUntil(this.sync.markReadById(token, 'visitor', upTo));
+      }
+      return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
+    }
 
     const msgs = await this.messagesSince(sess.id, 0);
     const now = new Date().toISOString();
-    let upToSentAt = '';
     for (const m of msgs) {
       if (m.sender_type === 'shop' && !m.read_at && (upTo === 0 || m.id <= upTo)) {
         m.read_at = now;
         await this.saveMessage(sess.id, m);
-        if (m.sent_at > upToSentAt) upToSentAt = m.sent_at;
       }
     }
 
@@ -836,9 +850,10 @@ export class ChatRoom implements DurableObject {
       } catch (_) {}
     }
 
-    // MySQL mirror (reader='visitor' → sender_type='shop' を既読化)
-    if (upToSentAt) {
-      this.state.waitUntil(this.sync.markRead(token, 'visitor', upToSentAt));
+    // 2026-05-06: id ベース sync に統一. DO storage 状態に依存せず MySQL を確実に更新.
+    // (旧: sent_at ベースだったが DO storage 空のとき upToSentAt が空になり sync が呼ばれなかった)
+    if (upTo > 0) {
+      this.state.waitUntil(this.sync.markReadById(token, 'visitor', upTo));
     }
     return this.okBatch({ messages: [], status: null, shop_online: this.isShopOnline() });
   }
