@@ -178,12 +178,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // 店舗専用URL: /deli/shop/slug/
         canonicalPath += '/shop/' + encodeURIComponent(shopSlugParam);
     } else {
-        // 2セグメントURL /deli/都道府県/市区町村 は parsed.area に市名が入るため
-        // area/detail/city 全部を canonical に含める（URLそのまま維持）
+        // canonical 統一ポリシー: city が決まっていれば常に 2セグ /pref/city に統合
+        // (3/4セグURLからの重複信号を解消、portal-seo.php と同期)
         if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
-        if (parsed.area) canonicalPath += '/' + encodeURIComponent(parsed.area);
-        if (parsed.detail) canonicalPath += '/' + encodeURIComponent(parsed.detail);
-        if (parsed.city) canonicalPath += '/' + encodeURIComponent(parsed.city);
+        if (parsed.city) {
+            canonicalPath += '/' + encodeURIComponent(parsed.city);
+        } else if (parsed.area) {
+            canonicalPath += '/' + encodeURIComponent(parsed.area);
+        }
     }
     var canonicalUrl = 'https://yobuho.com' + canonicalPath;
     document.querySelector('link[rel="canonical"]').setAttribute('href', canonicalUrl);

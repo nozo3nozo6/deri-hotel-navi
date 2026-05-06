@@ -159,13 +159,8 @@ if ($hotel_id) {
     $location = $area ? "{$city}（{$pref} {$area}）" : "{$city}（{$pref}）";
     $seo_title = "{$city}の{$m['label']}{$m['verb']}ホテル｜{$pref} | {$m['suffix']}";
     $seo_desc  = "{$pref}{$city}で{$m['label']}{$m['verb']}ホテルを検索。{$m['desc_detail']}";
-    if ($detail && $area) {
-        $seo_canonical = "https://yobuho.com/{$path}/" . rawurlencode($pref) . '/' . rawurlencode($area) . '/' . rawurlencode($detail) . '/' . rawurlencode($city);
-    } elseif ($area) {
-        $seo_canonical = "https://yobuho.com/{$path}/" . rawurlencode($pref) . '/' . rawurlencode($area) . '/' . rawurlencode($city);
-    } else {
-        $seo_canonical = "https://yobuho.com/{$path}/" . rawurlencode($pref) . '/' . rawurlencode($city);
-    }
+    // canonical は常に 2セグ /pref/city に統一（3/4セグURLからの重複信号を解消）
+    $seo_canonical = "https://yobuho.com/{$path}/" . rawurlencode($pref) . '/' . rawurlencode($city);
     $seo_h1 = "{$city}（{$pref}）の{$m['label']}{$m['verb']}ホテル検索";
     $breadcrumbs[] = ['name' => $pref, 'url' => "https://yobuho.com/{$path}/" . rawurlencode($pref)];
     if ($area) {
