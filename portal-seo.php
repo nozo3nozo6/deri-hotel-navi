@@ -154,6 +154,35 @@ if ($hotel_id) {
         }
         exit;
     }
+} elseif ($shop) {
+    // 店舗専用URL: /jofu/shop/slug/ 等
+    $shopData = null;
+    try {
+        require_once __DIR__ . '/api/db.php';
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare('SELECT shop_name, gender_mode, area, prefecture, slug, status FROM shops WHERE slug = ? AND status = "active" LIMIT 1');
+        $stmt->execute([$shop]);
+        $shopData = $stmt->fetch();
+    } catch (Exception $e) {
+        // DB接続失敗時はデフォルトSEO
+    }
+
+    if ($shopData) {
+        $sn = $shopData['shop_name'];
+        $sa = $shopData['area'] ?? '';
+        $sp = $shopData['prefecture'] ?? '';
+        $sLoc = $sp . ($sa ? ' ' . $sa : '');
+        $seo_title = "{$sn} - {$m['label']}案内可能店舗 | {$m['suffix']}";
+        $seo_desc  = "{$sn}は{$sLoc}を中心に{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。";
+        $seo_canonical = "https://yobuho.com/{$path}/shop/" . rawurlencode($shop) . '/';
+        $seo_h1 = "{$sn} - {$m['label']}案内可能店舗";
+        $breadcrumbs[] = ['name' => $sn, 'url' => $seo_canonical];
+    } else {
+        // 非active/未登録 slug: canonical は shop URL のまま、SEO抑制
+        $seo_canonical = "https://yobuho.com/{$path}/shop/" . rawurlencode($shop) . '/';
+        $seo_title = "{$m['label']}{$m['verb']}ホテル検索 | {$m['suffix']}";
+        $seo_desc  = "{$m['label']}をホテルに{$m['verb']}か地域から検索。{$m['desc_detail']}";
+    }
 } elseif ($city && $pref) {
     // 市区町村ページ
     $location = $area ? "{$city}（{$pref} {$area}）" : "{$city}（{$pref}）";
@@ -539,6 +568,56 @@ if ($hotel_id && isset($hotel) && $hotel) {
 
     // 全国ページへの戻りリンク
     $seo_static .= '<p style="margin-top:24px;"><a href="https://yobuho.com/' . $h_esc($path) . '/" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">← ' . $h_esc($m['label']) . '全国ページへ</a></p>';
+    $seo_static .= '</div>';
+    $seo_static .= '</section>';
+}
+
+// --- 店舗専用ページ: <main> 内に SSR コンテンツを注入 ---
+if ($shop && isset($shopData) && $shopData) {
+    $s_esc = function($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); };
+    $s_accentMap = [
+        'men' => '#9b2d35', 'women' => '#b5627a',
+        'men_same' => '#2a5a8f', 'women_same' => '#8a5a9e',
+        'este' => '#2aa8b8',
+    ];
+    $s_accent = $s_accentMap[$mode] ?? '#9b2d35';
+    $s_h3Style = 'font-size:16px; margin:24px 0 12px; color:' . $s_accent . '; border-left:4px solid ' . $s_accent . '; padding-left:10px; font-weight:600;';
+
+    $s_sn = $shopData['shop_name'];
+    $s_sa = $shopData['area'] ?? '';
+    $s_sp = $shopData['prefecture'] ?? '';
+    $s_loc = $s_sp . ($s_sa ? ' / ' . $s_sa : '');
+
+    $seo_static .= '<style>.seo-static-content .seo-area-card:hover{background:#fdf6f0!important;border-color:' . $s_accent . '!important;}@media(max-width:640px){.seo-static-content{padding:24px 12px!important;}}</style>';
+    $seo_static .= '<section class="seo-static-content" style="background:#faf6f0; padding:32px 16px; margin-top:24px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;">';
+    $seo_static .= '<div style="max-width:900px; margin:0 auto;">';
+    $seo_static .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $s_accent . '; border-left:4px solid ' . $s_accent . '; padding-left:10px;">' . $s_esc($s_sn) . ' - ' . $s_esc($m['label']) . '案内可能店舗</h2>';
+
+    // 店舗情報カード
+    $seo_static .= '<div style="background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:16px; margin-bottom:16px;">';
+    $seo_static .= '<p style="margin:0 0 8px; font-size:13px; color:#8a7a6a;">' . $s_esc($m['label']) . '案内</p>';
+    if ($s_loc) {
+        $seo_static .= '<p style="margin:0; font-size:13px; color:#3a2a1f;">📍 ' . $s_esc($s_loc) . '</p>';
+    }
+    $seo_static .= '</div>';
+
+    // 説明テキスト
+    $seo_static .= '<p style="margin:0 0 16px;">' . $s_esc($s_sn) . 'は' . $s_esc($s_loc) . 'を中心に' . $s_esc($m['label'] . $m['verb']) . '店舗です。';
+    $seo_static .= '案内可能なホテルは利用者の口コミと案内実績から確認できます。直通エレベーター、カードキー、フロント相談など実際の入室方法もチェックできます。</p>';
+
+    // 案内可能エリアへのリンク
+    if ($s_sp) {
+        $seo_static .= '<h3 style="' . $s_h3Style . '">案内可能エリア</h3>';
+        $seo_static .= '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">';
+        $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($s_sp) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $s_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $s_esc($s_sp) . 'の' . $s_esc($m['label']) . '可ホテル一覧</a>';
+        if ($s_sa) {
+            $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($s_sp) . '/' . rawurlencode($s_sa) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $s_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $s_esc($s_sa) . 'エリア</a>';
+        }
+        $seo_static .= '</div>';
+    }
+
+    // 全国ページへの戻りリンク
+    $seo_static .= '<p style="margin-top:24px;"><a href="https://yobuho.com/' . $s_esc($path) . '/" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $s_accent . '; text-decoration:none; font-size:13px; font-weight:500;">← ' . $s_esc($m['label']) . '全国ページへ</a></p>';
     $seo_static .= '</div>';
     $seo_static .= '</section>';
 }
