@@ -164,8 +164,12 @@ if ($hotel_id) {
         $sa = $shopData['area'] ?? '';
         $sp = $shopData['prefecture'] ?? '';
         $sLoc = $sp . ($sa ? ' ' . $sa : '');
-        $seo_title = "{$sn} - {$m['label']}案内可能店舗 | {$m['suffix']}";
-        $seo_desc  = "{$sn}は{$sLoc}を中心に{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。";
+        $seo_title = $sLoc
+            ? "{$sn}（{$sLoc}）- {$m['label']}案内可能店舗 | {$m['suffix']}"
+            : "{$sn} - {$m['label']}案内可能店舗 | {$m['suffix']}";
+        $seo_desc  = $sLoc
+            ? "{$sn}は{$sLoc}で{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。"
+            : "{$sn}は{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。";
         $seo_canonical = "https://yobuho.com/{$path}/shop/" . rawurlencode($shop) . '/';
         $seo_h1 = "{$sn} - {$m['label']}案内可能店舗";
         $breadcrumbs[] = ['name' => $sn, 'url' => $seo_canonical];
@@ -593,8 +597,12 @@ if ($shop && isset($shopData) && $shopData) {
     }
     $seo_static .= '</div>';
 
-    // 説明テキスト
-    $seo_static .= '<p style="margin:0 0 16px;">' . $s_esc($s_sn) . 'は' . $s_esc($s_loc) . 'を中心に' . $s_esc($m['label'] . $m['verb']) . '店舗です。';
+    // 説明テキスト（location あれば「{location}で」、無ければ location 省略）
+    $seo_static .= '<p style="margin:0 0 16px;">' . $s_esc($s_sn) . 'は';
+    if ($s_loc) {
+        $seo_static .= $s_esc($s_loc) . 'で';
+    }
+    $seo_static .= $s_esc($m['label'] . $m['verb']) . '店舗です。';
     $seo_static .= '案内可能なホテルは利用者の口コミと案内実績から確認できます。直通エレベーター、カードキー、フロント相談など実際の入室方法もチェックできます。</p>';
 
     // 案内可能エリアへのリンク
