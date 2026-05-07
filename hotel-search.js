@@ -853,7 +853,9 @@ async function loadDetail(hotelId, isLoveho) {
         }
     } catch(e) {
         console.error('[loadDetail] error:', e);
-        content.innerHTML = `<div class="detail-error">${t('load_error')}<br><span style="font-size:11px;color:#999;">${esc(String(e))}</span></div>`;
+        // SEO 配慮: 「Hotel not found」「読み込みエラー」等の文言は Google にソフト404シグナルとして判定される
+        // エラー時は detail コンテナを非表示にし、main 内の SSR コンテンツ (seo-static-content) を視認可能なままにする
+        content.style.display = 'none';
     }
 }
 
