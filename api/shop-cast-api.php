@@ -556,6 +556,7 @@ function handleChatSessions() {
     $sc = $stmt->fetch();
     if (!$sc) err('cast not found', 404);
 
+    // 訪問者発言1件以上のセッションのみ表示（owner-inbox と同じ仕様、空セッションを除外）
     $stmt = $pdo->prepare(
         'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.nickname,
                 (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
@@ -564,6 +565,7 @@ function handleChatSessions() {
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id) AS msg_count
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id = ?
+           AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")
          ORDER BY s.last_activity_at DESC
          LIMIT 30'
     );
