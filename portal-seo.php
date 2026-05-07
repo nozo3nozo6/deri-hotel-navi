@@ -34,20 +34,12 @@ $shop   = isset($_GET['shop'])   ? $_GET['shop']              : '';
 $isPureTopPage = !$pref && !$hotel_id && !$shop;
 
 // SEO不要なケース（パラメータなし or 店舗ページ）はそのまま出力
-if (!$pref && !$hotel_id) {
-    if ($isPureTopPage) {
-        // 真のトップページ: SEO bottom section をそのまま含めて配信
-        readfile(__DIR__ . '/' . $template);
-    } else {
-        // 店舗ページ: SEO bottom section を除去してから配信
-        $html = file_get_contents(__DIR__ . '/' . $template);
-        if ($html !== false) {
-            $html = preg_replace('/<section[^>]*data-seo-toponly="1"[^>]*>.*?<\/section>/s', '', $html);
-            echo $html;
-        }
-    }
+// 真のトップページ（pref/hotel/shop 全部なし）: SEO bottom section 含めてそのまま配信
+if ($isPureTopPage) {
+    readfile(__DIR__ . '/' . $template);
     exit;
 }
+// 店舗ページ ($shop あり) は早期 exit せず、下の elseif ($shop) ブランチで SEO を生成する
 
 // --- 2セグメントURL正規化: $area が市区町村名なら $city に再代入 ---
 // .htaccess は 2セグメントURL /deli/東京都/渋谷区 を pref+area として渡すが、
