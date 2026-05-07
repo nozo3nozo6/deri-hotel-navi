@@ -46,6 +46,7 @@ switch ($action) {
     case 'switch-banner-mode': handleSwitchBannerMode(); break;
     case 'update-email':     handleUpdateEmail(); break;
     case 'update-slug':      handleUpdateSlug(); break;
+    case 'update-location':  handleUpdateLocation(); break;
     case 'lookup-email':     handleLookupEmail(); break;
     case 'get-fav-areas':    handleGetFavAreas(); break;
     case 'save-fav-areas':   handleSaveFavAreas(); break;
@@ -481,6 +482,33 @@ function handleUpdateSlug() {
     $stmt = $pdo->prepare('UPDATE shops SET slug = ?, updated_at = NOW() WHERE id = ?');
     $stmt->execute([$slug, $auth['shop_id']]);
     echo json_encode(['success' => true, 'slug' => $slug]);
+}
+
+// ===== POST: 営業エリア（prefecture/area）更新 =====
+function handleUpdateLocation() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'POST only']); return; }
+    $auth = requireShopAuth();
+    if (!$auth) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); return; }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    $prefecture = trim($input['prefecture'] ?? '');
+    $area = trim($input['area'] ?? '');
+
+    // 47都道府県（areaは任意なのでバリデーション緩め）
+    $validPrefs = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+    if ($prefecture !== '' && !in_array($prefecture, $validPrefs, true)) {
+        echo json_encode(['success' => false, 'error' => '都道府県名が不正です']);
+        return;
+    }
+    if (mb_strlen($area) > 50) {
+        echo json_encode(['success' => false, 'error' => 'エリア名は50文字以内にしてください']);
+        return;
+    }
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('UPDATE shops SET prefecture = ?, area = ?, updated_at = NOW() WHERE id = ?');
+    $stmt->execute([$prefecture ?: null, $area ?: null, $auth['shop_id']]);
+    echo json_encode(['success' => true, 'prefecture' => $prefecture ?: null, 'area' => $area ?: null]);
 }
 
 function handleLookupEmail() {
