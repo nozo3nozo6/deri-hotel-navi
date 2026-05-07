@@ -480,6 +480,69 @@ if (!$hotel_id && $pref) {
     $seo_static .= '</section>';
 }
 
+// --- ホテル詳細ページ: <main> 内に SSR コンテンツを注入してソフト404を回避 ---
+if ($hotel_id && isset($hotel) && $hotel) {
+    $h_esc = function($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); };
+    $h_accentMap = [
+        'men' => '#9b2d35', 'women' => '#b5627a',
+        'men_same' => '#2a5a8f', 'women_same' => '#8a5a9e',
+        'este' => '#2aa8b8',
+    ];
+    $h_accent = $h_accentMap[$mode] ?? '#9b2d35';
+    $h_h3Style = 'font-size:16px; margin:24px 0 12px; color:' . $h_accent . '; border-left:4px solid ' . $h_accent . '; padding-left:10px; font-weight:600;';
+
+    $h_typeLabels = [
+        'business' => 'ビジネスホテル', 'city' => 'シティホテル',
+        'love_hotel' => 'ラブホテル', 'rental_room' => 'レンタルルーム',
+        'resort' => 'リゾートホテル', 'ryokan' => '旅館',
+        'pension' => 'ペンション', 'minshuku' => '民宿',
+    ];
+    $h_typeLabel = $h_typeLabels[$hotel['hotel_type'] ?? ''] ?? 'ホテル';
+    $h_postal = $hotel['postal_code'] ?? '';
+    $h_tel = $hotel['tel'] ?? '';
+    $h_station = $hotel['nearest_station'] ?? '';
+
+    $seo_static .= '<style>.seo-static-content .seo-area-card:hover{background:#fdf6f0!important;border-color:' . $h_accent . '!important;}@media(max-width:640px){.seo-static-content{padding:24px 12px!important;}}</style>';
+    $seo_static .= '<section class="seo-static-content" style="background:#faf6f0; padding:32px 16px; margin-top:24px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;">';
+    $seo_static .= '<div style="max-width:900px; margin:0 auto;">';
+    $seo_static .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $h_accent . '; border-left:4px solid ' . $h_accent . '; padding-left:10px;">' . $h_esc($hn) . ' - ' . $h_esc($m['label'] . $m['verb']) . '？口コミ・入室情報</h2>';
+
+    // ホテル基本情報カード
+    $seo_static .= '<div style="background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:16px; margin-bottom:16px;">';
+    $seo_static .= '<p style="margin:0 0 8px; font-size:13px; color:#8a7a6a;">' . $h_esc($h_typeLabel) . '</p>';
+    if ($ha) {
+        $seo_static .= '<p style="margin:0 0 6px; font-size:13px; color:#3a2a1f;">📍 ';
+        if ($h_postal) $seo_static .= '〒' . $h_esc($h_postal) . ' ';
+        $seo_static .= $h_esc($ha) . '</p>';
+    }
+    if ($h_station) {
+        $seo_static .= '<p style="margin:0 0 6px; font-size:13px; color:#3a2a1f;">🚉 ' . $h_esc($h_station) . '</p>';
+    }
+    if ($h_tel) {
+        $seo_static .= '<p style="margin:0; font-size:13px; color:#3a2a1f;">📞 ' . $h_esc($h_tel) . '</p>';
+    }
+    $seo_static .= '</div>';
+
+    // 説明テキスト
+    $seo_static .= '<p style="margin:0 0 16px;">' . $h_esc($hn) . '（' . $h_esc($hp . $hc) . '）に' . $h_esc($m['label'] . $m['verb']) . 'か、利用者の口コミと掲載店舗の案内実績から確認できます。直通エレベーター、カードキー、フロント相談など実際の入室方法が分かります。部屋タイプ・時間帯・複数人利用情報も掲載しています。</p>';
+
+    // 同じエリアのホテルへの導線
+    $seo_static .= '<h3 style="' . $h_h3Style . '">同じエリアのホテルを探す</h3>';
+    $seo_static .= '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">';
+    if ($hc && $hp) {
+        $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($hp) . '/' . rawurlencode($hc) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $h_esc($hc) . 'の' . $h_esc($m['label']) . '可ホテル一覧</a>';
+    }
+    if ($hp) {
+        $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($hp) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $h_esc($hp) . '全体</a>';
+    }
+    $seo_static .= '</div>';
+
+    // 全国ページへの戻りリンク
+    $seo_static .= '<p style="margin-top:24px;"><a href="https://yobuho.com/' . $h_esc($path) . '/" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">← ' . $h_esc($m['label']) . '全国ページへ</a></p>';
+    $seo_static .= '</div>';
+    $seo_static .= '</section>';
+}
+
 // --- noscript セクション追加（JSが実行されないクローラー向け） ---
 $noscript_content = '<noscript><div style="padding:20px;max-width:800px;margin:0 auto;">';
 $noscript_content .= '<h2>' . $esc($seo_h1) . '</h2>';
