@@ -165,13 +165,13 @@ if ($hotel_id) {
         $sp = $shopData['prefecture'] ?? '';
         $sLoc = $sp . ($sa ? ' ' . $sa : '');
         $seo_title = $sLoc
-            ? "{$sn}（{$sLoc}）- {$m['label']}案内可能店舗 | {$m['suffix']}"
-            : "{$sn} - {$m['label']}案内可能店舗 | {$m['suffix']}";
+            ? "{$sn}（{$sLoc}拠点）- {$m['label']}派遣店舗 | {$m['suffix']}"
+            : "{$sn} - {$m['label']}派遣店舗 | {$m['suffix']}";
         $seo_desc  = $sLoc
-            ? "{$sn}は{$sLoc}で{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。"
-            : "{$sn}は{$m['label']}{$m['verb']}店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。";
+            ? "{$sn}は{$sLoc}を拠点に{$m['label']}を派遣する店舗です。複数エリアに対応、利用者の口コミと案内実績、対応可能なホテル情報を確認できます。"
+            : "{$sn}は{$m['label']}を派遣する店舗です。利用者の口コミと案内実績、対応可能なホテル情報を確認できます。";
         $seo_canonical = "https://yobuho.com/{$path}/shop/" . rawurlencode($shop) . '/';
-        $seo_h1 = "{$sn} - {$m['label']}案内可能店舗";
+        $seo_h1 = "{$sn} - {$m['label']}派遣店舗";
         $breadcrumbs[] = ['name' => $sn, 'url' => $seo_canonical];
     } else {
         // 非active/未登録 slug: canonical は shop URL のまま、SEO抑制
@@ -582,28 +582,33 @@ if ($shop && isset($shopData) && $shopData) {
     $s_sn = $shopData['shop_name'];
     $s_sa = $shopData['area'] ?? '';
     $s_sp = $shopData['prefecture'] ?? '';
-    $s_loc = $s_sp . ($s_sa ? ' / ' . $s_sa : '');
+    $s_loc = $s_sp . ($s_sa ? ' ' . $s_sa : '');
 
     $seo_static .= '<style>.seo-static-content .seo-area-card:hover{background:#fdf6f0!important;border-color:' . $s_accent . '!important;}@media(max-width:640px){.seo-static-content{padding:24px 12px!important;}}</style>';
     $seo_static .= '<section class="seo-static-content" style="background:#faf6f0; padding:32px 16px; margin-top:24px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;">';
     $seo_static .= '<div style="max-width:900px; margin:0 auto;">';
-    $seo_static .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $s_accent . '; border-left:4px solid ' . $s_accent . '; padding-left:10px;">' . $s_esc($s_sn) . ' - ' . $s_esc($m['label']) . '案内可能店舗</h2>';
+    $seo_static .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $s_accent . '; border-left:4px solid ' . $s_accent . '; padding-left:10px;">' . $s_esc($s_sn) . ' - ' . $s_esc($m['label']) . '派遣店舗</h2>';
 
     // 店舗情報カード
     $seo_static .= '<div style="background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:16px; margin-bottom:16px;">';
-    $seo_static .= '<p style="margin:0 0 8px; font-size:13px; color:#8a7a6a;">' . $s_esc($m['label']) . '案内</p>';
+    $seo_static .= '<p style="margin:0 0 8px; font-size:13px; color:#8a7a6a;">' . $s_esc($m['label']) . '派遣</p>';
     if ($s_loc) {
-        $seo_static .= '<p style="margin:0; font-size:13px; color:#3a2a1f;">📍 ' . $s_esc($s_loc) . '</p>';
+        $seo_static .= '<p style="margin:0; font-size:13px; color:#3a2a1f;">📍 拠点: ' . $s_esc($s_loc) . '</p>';
     }
     $seo_static .= '</div>';
 
-    // 説明テキスト（location あれば「{location}で」、無ければ location 省略）
+    // 説明テキスト（location あれば「{location}を拠点に」、無ければ location 省略）
     $seo_static .= '<p style="margin:0 0 16px;">' . $s_esc($s_sn) . 'は';
     if ($s_loc) {
-        $seo_static .= $s_esc($s_loc) . 'で';
+        $seo_static .= $s_esc($s_loc) . 'を拠点に、';
     }
-    $seo_static .= $s_esc($m['label'] . $m['verb']) . '店舗です。';
-    $seo_static .= '案内可能なホテルは利用者の口コミと案内実績から確認できます。直通エレベーター、カードキー、フロント相談など実際の入室方法もチェックできます。</p>';
+    $seo_static .= $s_esc($m['label']) . 'を派遣する店舗です。';
+    if ($s_loc) {
+        $seo_static .= '複数エリアに対応しており、案内可能なホテルは利用者の口コミと案内実績から確認できます。';
+    } else {
+        $seo_static .= '案内可能なホテルは利用者の口コミと案内実績から確認できます。';
+    }
+    $seo_static .= '直通エレベーター、カードキー、フロント相談など実際の入室方法もチェックできます。</p>';
 
     // 案内可能エリアへのリンク
     if ($s_sp) {
