@@ -23,8 +23,15 @@ $shopName   = trim($input['shop_name'] ?? '');
 $genderMode = $input['gender_mode'] ?? 'men';
 $shopUrl    = trim($input['shop_url'] ?? '');
 $shopTel    = trim($input['shop_tel'] ?? '');
+$prefecture = trim($input['prefecture'] ?? '');
+$area       = trim($input['area'] ?? '');
 $docUrl     = $input['document_url'] ?? null;
 $pwHash     = $input['password_hash'] ?? null;
+
+// 47都道府県のホワイトリスト検証（任意項目なので空はOK）
+$validPrefs = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+if ($prefecture !== '' && !in_array($prefecture, $validPrefs, true)) $prefecture = '';
+$area = mb_substr($area, 0, 50);
 
 if (!$email || !$shopName) { http_response_code(400); echo json_encode(['error' => 'email と shop_name は必須です']); exit; }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { http_response_code(400); echo json_encode(['error' => '無効なメールアドレスです']); exit; }
@@ -79,8 +86,8 @@ $now = date('Y-m-d H:i:s');
 
 if ($existing) {
     // UPDATE
-    $sql = 'UPDATE shops SET shop_name=?, gender_mode=?, shop_url=?, shop_tel=?, document_url=?, status=?, updated_at=?';
-    $params = [$shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, 'registered', $now];
+    $sql = 'UPDATE shops SET shop_name=?, gender_mode=?, shop_url=?, shop_tel=?, prefecture=?, area=?, document_url=?, status=?, updated_at=?';
+    $params = [$shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $prefecture ?: null, $area ?: null, $docUrl, 'registered', $now];
     if ($bcryptHash) { $sql .= ', password_hash=?'; $params[] = $bcryptHash; }
     $sql .= ' WHERE email = ?';
     $params[] = $email;
@@ -93,8 +100,8 @@ if ($existing) {
     // INSERT
     $id = DB::uuid();
     $slug = generateSlug($pdo);
-    $stmt = $pdo->prepare('INSERT INTO shops (id, email, shop_name, gender_mode, shop_url, shop_tel, document_url, password_hash, slug, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-    $stmt->execute([$id, $email, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $docUrl, $bcryptHash, $slug, 'registered', $now, $now]);
+    $stmt = $pdo->prepare('INSERT INTO shops (id, email, shop_name, gender_mode, shop_url, shop_tel, prefecture, area, document_url, password_hash, slug, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+    $stmt->execute([$id, $email, $shopName, $genderMode, $shopUrl ?: null, $shopTel ?: null, $prefecture ?: null, $area ?: null, $docUrl, $bcryptHash, $slug, 'registered', $now, $now]);
 }
 
 $stmt = $pdo->prepare('SELECT * FROM shops WHERE email = ?');

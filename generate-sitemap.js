@@ -53,6 +53,24 @@ function entry(loc, priority, changefreq) {
   return `  <url>\n    <loc>${safeLoc}</loc>\n    <lastmod>${TODAY}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
 }
 
+// 本番 API から active shops 一覧を取得（CI 実行時、本番の最新店舗リストを取得）
+async function fetchShops() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/list-shops-for-sitemap.php`);
+    if (!res.ok) {
+      console.warn(`fetchShops: HTTP ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('fetchShops failed:', e.message);
+    return [];
+  }
+}
+
+(async () => {
+
 const urls = [];
 
 // トップページ
@@ -101,6 +119,17 @@ for (const mode of MODES) {
   }
 }
 
+// 店舗専用URL（active shops のみ、gender_mode から path を解決）
+const shops = await fetchShops();
+let shopUrlCount = 0;
+for (const s of shops) {
+  const mp = MODE_PATH[s.gender_mode];
+  if (!mp || !s.slug) continue;
+  urls.push(entry(`${BASE_URL}/${mp}/shop/${encodeURIComponent(s.slug)}/`, '0.6', 'weekly'));
+  shopUrlCount++;
+}
+console.log(`fetchShops: ${shops.length} shops, ${shopUrlCount} URLs added`);
+
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.join('\n')}
@@ -110,3 +139,5 @@ ${urls.join('\n')}
 const outPath = path.join(__dirname, 'sitemap.xml');
 fs.writeFileSync(outPath, xml, 'utf-8');
 console.log(`sitemap.xml generated: ${urls.length} URLs (${outPath})`);
+
+})();
