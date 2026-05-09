@@ -93,11 +93,11 @@ function toggleFavorite(hotelId) {
     const idx = favs.indexOf(hotelId);
     if (idx >= 0) {
         favs.splice(idx, 1);
-        toast(t('removed_from_favorites'));
+        showToast(t('removed_from_favorites'));
     } else {
-        if (favs.length >= 100) { toast(t('fav_max')); return; }
+        if (favs.length >= 100) { showToast(t('fav_max')); return; }
         favs.push(hotelId);
-        toast(t('added_to_favorites'));
+        showToast(t('added_to_favorites'));
     }
     localStorage.setItem('yobuho_favorites', JSON.stringify(favs));
     document.querySelectorAll(`[data-action="toggleFavorite"][data-hotel-id="${hotelId}"]`).forEach(btn => {
