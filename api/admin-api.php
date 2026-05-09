@@ -127,7 +127,7 @@ try {
 //      （suspended/revision_required 含む全 active 系ステータスが対象）
 function handleMigrateExpiredCampaigns() {
     global $pdo;
-    $del = $pdo->prepare("DELETE FROM shop_contracts WHERE is_campaign = 1 AND expires_at IS NOT NULL AND expires_at < CURDATE()");
+    $del = $pdo->prepare("DELETE FROM shop_contracts WHERE is_campaign = 1 AND expires_at IS NOT NULL AND expires_at <= CURDATE()");
     $del->execute();
     $deletedCount = $del->rowCount();
 
@@ -149,7 +149,7 @@ function handleDashboard() {
     // ダッシュボード読み込み時に期限切れキャンペーン → 無料プラン自動移行を実行
     // (admin が日次で見るため、cron 不要で十分な頻度)
     try {
-        $pdo->exec("DELETE FROM shop_contracts WHERE is_campaign = 1 AND expires_at IS NOT NULL AND expires_at < CURDATE()");
+        $pdo->exec("DELETE FROM shop_contracts WHERE is_campaign = 1 AND expires_at IS NOT NULL AND expires_at <= CURDATE()");
         $pdo->exec("INSERT INTO shop_contracts (shop_id, plan_id, is_campaign, expires_at)
                     SELECT s.id, 1, 0, NULL FROM shops s
                     WHERE s.status IN ('active', 'suspended', 'revision_required')
