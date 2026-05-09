@@ -487,9 +487,10 @@
 
 <div id="success-modal" role="dialog" aria-modal="true" tabindex="-1" class="modal-overlay-success" style="z-index:var(--z-toast);">
   <div class="modal-content-success">
-    <p style="font-size:32px; margin:0 0 16px;">✅</p>
+    <p id="success-modal-icon" style="font-size:32px; margin:0 0 16px;">✅</p>
     <h3 id="success-modal-title" style="margin:0 0 12px;">完了しました</h3>
-    <p id="success-modal-message" style="margin:0 0 24px; color:#666; font-size:14px;"></p>
+    <p id="success-modal-message" style="margin:0 0 16px; color:#666; font-size:14px;"></p>
+    <div id="success-modal-badge" class="reviewer-badge" style="display:none;"></div>
     <button data-action="closeSuccessModal" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
   </div>
 </div>

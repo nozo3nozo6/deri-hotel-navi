@@ -117,5 +117,18 @@ $stmt->execute([
     $ipHash,
 ]);
 
-echo json_encode(['success' => true, 'id' => $id]);
+// 累計投稿数を集計（reports + loveho_reports）— 投稿者感謝バッジ表示用
+$totalPosts = 0;
+if ($fingerprint) {
+    $stmt = $pdo->prepare(
+        'SELECT (
+            (SELECT COUNT(*) FROM reports WHERE fingerprint = ?) +
+            (SELECT COUNT(*) FROM loveho_reports WHERE fingerprint = ?)
+        ) AS total'
+    );
+    $stmt->execute([$fingerprint, $fingerprint]);
+    $totalPosts = (int)$stmt->fetchColumn();
+}
+
+echo json_encode(['success' => true, 'id' => $id, 'total_posts' => $totalPosts]);
 ?>
