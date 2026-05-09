@@ -2181,11 +2181,30 @@ function copyTableSQL(t){navigator.clipboard.writeText(_sqlMap[t]||"").then(()=>
 function showTableMissing(listId,subId,tableName,sql){const sub=document.getElementById(subId);if(sub)sub.textContent="⚠️ テーブル未作成";const el=document.getElementById(listId);if(!el)return;el.innerHTML=`<div style="padding:16px;background:rgba(192,80,80,0.06);border:1px solid rgba(192,80,80,0.22);border-radius:8px;margin-bottom:4px;"><div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;">⚠️ テーブルが存在しません (public.${tableName})</div><div style="font-size:12px;color:var(--ink-3);margin-bottom:10px;">Supabase Dashboard → SQL Editor で以下のSQLを実行してください。実行後、ページをリロードすると表示されます。</div><pre style="background:#1a1a1a;color:#bbb;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:8px;">${esc(sql)}</pre><button class="btn b-btn-gold" data-action="copyTableSQL" data-arg1="${tableName}">📋 SQLをコピー</button></div>`;}
 
 // ===== ドラッグ＆ドロップ（マスター並び替え） =====
+// dispatcher 経由で document に登録されているため、e.currentTarget は document.
+// 実際の cond-row 要素は e.target.closest('[data-dnd-id]') で取得する.
 let _dndSrcId=null,_dndTable=null;
-function dndStart(e,id,table){_dndSrcId=id;_dndTable=table;e.currentTarget.classList.add("dragging");e.dataTransfer.effectAllowed="move";}
-function dndOver(e){e.preventDefault();e.currentTarget.classList.add("drag-over");}
-function dndLeave(e){e.currentTarget.classList.remove("drag-over");}
-function dndEnd(e){e.currentTarget.classList.remove("dragging");document.querySelectorAll(".cond-row.drag-over").forEach(el=>el.classList.remove("drag-over"));}
+function _dndEl(e){return e.target.closest('[data-dnd-id]');}
+function dndStart(e,id,table){
+    _dndSrcId=id;_dndTable=table;
+    const el=_dndEl(e);
+    if(el)el.classList.add("dragging");
+    if(e.dataTransfer)e.dataTransfer.effectAllowed="move";
+}
+function dndOver(e){
+    e.preventDefault();
+    const el=_dndEl(e);
+    if(el)el.classList.add("drag-over");
+}
+function dndLeave(e){
+    const el=_dndEl(e);
+    if(el)el.classList.remove("drag-over");
+}
+function dndEnd(e){
+    const el=_dndEl(e);
+    if(el)el.classList.remove("dragging");
+    document.querySelectorAll(".cond-row.drag-over").forEach(el=>el.classList.remove("drag-over"));
+}
 // ===== 営業メール =====
 const outreachTemplates={
 general:{subject:"【YobuHo】無料で店舗掲載しませんか？ - 呼べるホテル検索ポータル",body:`ご担当者様
@@ -3867,4 +3886,27 @@ async function rejectPlanReq(id){
     toast('✅ 却下しました');loadPlanRequests();loadDashboard();
 }
 
-async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");}
+async function dndDrop(e,targetId){
+    e.preventDefault();
+    const el=_dndEl(e);
+    if(el)el.classList.remove("drag-over");
+    document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));
+    if(_dndSrcId===null||_dndSrcId===targetId)return;
+    let dataArr,renderFn;
+    if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}
+    else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}
+    else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}
+    else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}
+    else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}
+    else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}
+    else return;
+    const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);
+    const tgtIdx=dataArr.findIndex(c=>c.id===targetId);
+    if(srcIdx<0||tgtIdx<0)return;
+    const[moved]=dataArr.splice(srcIdx,1);
+    dataArr.splice(tgtIdx,0,moved);
+    dataArr.forEach((c,i)=>c.sort_order=i+1);
+    renderFn();
+    const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});
+    toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");
+}
