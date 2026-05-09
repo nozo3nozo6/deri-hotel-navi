@@ -1,0 +1,3802 @@
+// ========================================================================
+// イベント委譲ディスパッチャ (CSP unsafe-inline 削除のため)
+// 用法 (shop-admin.js と同じ):
+//   data-action="funcName"                                  →  funcName()
+//   data-action="funcName" data-arg1="x" data-arg2="y"       →  funcName('x','y')
+//   + data-pass-target="1"   →  関数の第1引数に要素を渡す (旧 X(this))
+//   + data-stop-propagation="1" / data-prevent-default="1"
+//   data-overlay-close="closeFn"  →  overlay自身がクリックされた時のみ closeFn()
+//   data-onchange / data-oninput / data-onsubmit            →  各イベント
+//   data-onchange-fn-bool="fn"     →  fn(el.checked)
+//   data-onchange-pwtoggle="id1,id2,..."  →  type を text/password 切替
+//   data-onchange-toggle="id"      →  該当要素 display を切替
+//   data-oninput-numeric="1"       →  数字以外を削除
+// ========================================================================
+document.addEventListener('click', function(e) {
+    const overlay = e.target.closest('[data-overlay-close]');
+    if (overlay && e.target === overlay) {
+        const fn = window[overlay.dataset.overlayClose];
+        if (typeof fn === 'function') fn();
+    }
+});
+document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const fn = window[action];
+    if (typeof fn !== 'function') return;
+    if (el.dataset.stopPropagation === '1') e.stopPropagation();
+    if (el.dataset.preventDefault === '1') e.preventDefault();
+    const args = [];
+    for (let i = 1; el.dataset['arg' + i] !== undefined; i++) {
+        args.push(_coerceArg(el.dataset['arg' + i]));
+    }
+    if (el.dataset.passTarget === '1') args.unshift(el);
+    fn.apply(null, args);
+});
+function _coerceArg(s) {
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    if (s === 'null') return null;
+    if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+    if (/^-?\d+\.\d+$/.test(s)) return parseFloat(s);
+    return s;
+}
+document.addEventListener('change', function(e) {
+    const el = e.target;
+    if (el.dataset.onchange && typeof window[el.dataset.onchange] === 'function') {
+        // data-pref-arg があればそれを最初の引数として渡す（form prefix 用）
+        if (el.dataset.prefArg !== undefined) {
+            window[el.dataset.onchange](el.dataset.prefArg, el);
+        } else {
+            window[el.dataset.onchange](el);
+        }
+    }
+    if (el.dataset.onchangeFnBool && typeof window[el.dataset.onchangeFnBool] === 'function') {
+        window[el.dataset.onchangeFnBool](el.checked);
+    }
+    if (el.dataset.onchangePwtoggle) {
+        el.dataset.onchangePwtoggle.split(',').forEach(id => {
+            const tgt = document.getElementById(id);
+            if (tgt) tgt.type = el.checked ? 'text' : 'password';
+        });
+    }
+    if (el.dataset.onchangeToggle) {
+        const tgt = document.getElementById(el.dataset.onchangeToggle);
+        if (tgt) tgt.style.display = el.checked ? (el.dataset.onchangeToggleShow || 'flex') : 'none';
+    }
+});
+document.addEventListener('input', function(e) {
+    const el = e.target;
+    if (el.dataset.oninput && typeof window[el.dataset.oninput] === 'function') {
+        window[el.dataset.oninput](el);
+    }
+    if (el.dataset.oninputNumeric === '1') {
+        el.value = el.value.replace(/[^0-9]/g, '');
+    }
+});
+document.addEventListener('submit', function(e) {
+    const el = e.target;
+    if (el.dataset.onsubmit && typeof window[el.dataset.onsubmit] === 'function') {
+        window[el.dataset.onsubmit](e);
+    }
+});
+
+// === 元 admin.html lines 1034-1052 (doc preview zoom/pan) ===
+var _dpScale=1,_dpX=0,_dpY=0,_dpDragging=false,_dpStartX=0,_dpStartY=0,_dpMoved=false;
+function _dpUpdateTransform(){document.getElementById('doc-preview-img').style.transform='scale('+_dpScale+') translate('+_dpX+'px,'+_dpY+'px)';}
+function _dpZoom(d){_dpScale=Math.max(0.5,Math.min(5,_dpScale+d));if(_dpScale<=1){_dpX=0;_dpY=0;}_dpUpdateTransform();}
+function _dpReset(){_dpScale=1;_dpX=0;_dpY=0;_dpUpdateTransform();}
+(function(){
+  const c=document.getElementById('doc-preview-container');
+  c.addEventListener('wheel',function(e){e.preventDefault();_dpZoom(e.deltaY<0?0.2:-0.2);},{passive:false});
+  c.addEventListener('dblclick',function(e){e.preventDefault();if(_dpScale>1){_dpReset();}else{_dpZoom(1);}});
+  c.addEventListener('mousedown',function(e){if(e.button!==0)return;_dpDragging=true;_dpMoved=false;_dpStartX=e.clientX;_dpStartY=e.clientY;c.style.cursor='grabbing';e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(!_dpDragging)return;const dx=e.clientX-_dpStartX,dy=e.clientY-_dpStartY;if(Math.abs(dx)>3||Math.abs(dy)>3)_dpMoved=true;_dpX+=(dx/_dpScale);_dpY+=(dy/_dpScale);_dpStartX=e.clientX;_dpStartY=e.clientY;_dpUpdateTransform();});
+  document.addEventListener('mouseup',function(){if(_dpDragging){_dpDragging=false;c.style.cursor='grab';}});
+  // タッチ対応
+  let _tpStart=null;
+  c.addEventListener('touchstart',function(e){if(e.touches.length===1){_tpStart={x:e.touches[0].clientX,y:e.touches[0].clientY};_dpMoved=false;}},{passive:true});
+  c.addEventListener('touchmove',function(e){if(!_tpStart||e.touches.length!==1)return;const dx=e.touches[0].clientX-_tpStart.x,dy=e.touches[0].clientY-_tpStart.y;if(Math.abs(dx)>3||Math.abs(dy)>3)_dpMoved=true;_dpX+=(dx/_dpScale);_dpY+=(dy/_dpScale);_tpStart={x:e.touches[0].clientX,y:e.touches[0].clientY};_dpUpdateTransform();e.preventDefault();},{passive:false});
+  c.addEventListener('touchend',function(){_tpStart=null;});
+})();
+
+
+// === 元 admin.html lines 1207-4880 (admin main) ===
+const AA='/api/admin-api.php';
+async function api(action,body){const r=await fetch(AA+'?action='+action,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(body||{})});if(r.status===401){toast('セッションが切れました。再ログインしてください');setTimeout(()=>location.reload(),1500);return{ok:false,error:'Session expired'};}const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[api] non-JSON response:',r.status,text.substring(0,200));return{ok:false,error:'サーバーエラー ('+r.status+')'};}}
+async function apiGet(action,params=''){const r=await fetch(AA+'?action='+action+(params?'&'+params:''),{credentials:'include'});if(r.status===401){toast('セッションが切れました。再ログインしてください');setTimeout(()=>location.reload(),1500);return null;}const text=await r.text();try{return JSON.parse(text);}catch(e){console.error('[apiGet] non-JSON response:',r.status,text.substring(0,200));return null;}}
+const HOTEL_TYPE_LABELS={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
+const HOTEL_SELECT_COLS="id,name,address,prefecture,major_area,nearest_station,tel,source,hotel_type,postal_code,city,detail_area,latitude,longitude,is_published";
+function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
+function fmtDate(iso){if(!iso)return"—";const s=String(iso).replace('T',' ').replace(/Z$/,'');const m=s.match(/(\d{4})-(\d{2})-(\d{2})\s*(\d{2}):(\d{2})/);if(m)return`${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}`;return s.slice(0,16).replace('T',' ');}
+function jstNow(){const d=new Date();const j=new Date(d.getTime()+((d.getTimezoneOffset()+540)*60000));return j.getFullYear()+'-'+String(j.getMonth()+1).padStart(2,'0')+'-'+String(j.getDate()).padStart(2,'0')+' '+String(j.getHours()).padStart(2,'0')+':'+String(j.getMinutes()).padStart(2,'0')+':'+String(j.getSeconds()).padStart(2,'0');}
+function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function formatPostalCode(el){const digits=el.value.replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
+// ===== 認証（サーバー側PHP認証 via api/auth.php） =====
+function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
+let _currentUser=null;
+async function doLogin(){
+const username=document.getElementById("admin-username").value.trim();
+const password=document.getElementById("admin-password").value;
+if(!username||!password){toast("IDとパスワードを入力してください");return;}
+try{
+const res=await fetch('/api/auth.php?action=login',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+credentials:'include',
+body:JSON.stringify({username,password})
+});
+const data=await res.json();
+if(data.success){
+_currentUser=data.user;
+showAdminPanel(data.user.username);
+}else{
+toast(data.message||'ログインに失敗しました');
+}
+}catch(e){
+toast('通信エラーが発生しました');
+}
+}
+async function doLogout(){
+try{
+await fetch('/api/auth.php?action=logout',{method:'POST',credentials:'include'});
+}catch(e){}
+_currentUser=null;
+location.reload();
+}
+function showAdminPanel(username){
+document.getElementById("login-wrap").style.display="none";
+document.getElementById("hdr").style.display="block";
+document.getElementById("layout").style.display="block";
+document.getElementById("hdr-email").textContent=username;
+loadAll();
+}
+async function checkAuth(){
+try{
+const res=await fetch('/api/auth.php?action=check',{credentials:'include'});
+const data=await res.json();
+if(data.authenticated){
+_currentUser=data.user;
+showAdminPanel(data.user.username);
+}else{
+if(data.reason==='timeout'){toast("セッションの有効期限が切れました。再ログインしてください。");}
+document.getElementById("login-wrap").style.display="flex";
+}
+}catch(e){
+document.getElementById("login-wrap").style.display="flex";
+}
+}
+checkAuth();
+// パスワード変更
+function openPasswordChange(){document.getElementById("pw-change-modal").style.display="flex";document.getElementById("pw-current").value="";document.getElementById("pw-new").value="";document.getElementById("pw-confirm").value="";}
+function closePwChange(){document.getElementById("pw-change-modal").style.display="none";}
+async function changePassword(){
+const cur=document.getElementById("pw-current").value;
+const nw=document.getElementById("pw-new").value;
+const cf=document.getElementById("pw-confirm").value;
+if(!cur||!nw||!cf){toast("すべての項目を入力してください");return;}
+if(nw!==cf){toast("新しいパスワードが一致しません");return;}
+if(nw.length<4){toast("パスワードは4文字以上にしてください");return;}
+try{
+const res=await fetch('/api/auth.php?action=change-password',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+credentials:'include',
+body:JSON.stringify({current_password:cur,new_password:nw})
+});
+const data=await res.json();
+if(!data.success){toast(data.message||"パスワード変更に失敗しました");return;}
+toast("パスワードを変更しました");closePwChange();
+}catch(e){toast("通信エラーが発生しました");}
+}
+
+// ハンバーガーメニュー
+function toggleTabBar(){document.getElementById("tab-bar").classList.toggle("open");}
+function openNav(){toggleTabBar();}
+function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList.remove("open");var ov=document.getElementById("nav-overlay");if(ov)ov.classList.remove("open");}
+function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
+function closeMobileMenu(){closeNav();}
+
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
+function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");if(name==='ngwords')loadNgWords();}
+
+let _ngWords=[];
+async function loadNgWords(){
+  try{const res=await apiGet('ng-words-list');_ngWords=Array.isArray(res)?res:[];renderNgWords();}catch(e){_ngWords=[];renderNgWords();}
+}
+function renderNgWords(){
+  const wrap=document.getElementById('ngwords-list');
+  if(!wrap)return;
+  wrap.innerHTML=_ngWords.map((w,i)=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff0f0;border:1px solid #e8c0c0;border-radius:16px;font-size:12px;">${esc(w)}<button data-action="removeNgWord" data-arg1="${i}" style="background:none;border:none;cursor:pointer;color:#c05050;font-size:14px;padding:0;line-height:1;">×</button></span>`).join('');
+}
+async function addNgWord(){
+  const inp=document.getElementById('new-ngword');const w=inp.value.trim();if(!w)return;
+  if(_ngWords.includes(w)){toast('既に登録済みです');return;}
+  _ngWords.push(w);inp.value='';
+  const res=await api('ng-words-save',{words:_ngWords});
+  if(res&&res.success){renderNgWords();toast('✅ 追加しました');}else{_ngWords.pop();toast('保存エラー');}
+}
+async function removeNgWord(i){
+  if(!confirm('「'+_ngWords[i]+'」を削除しますか？'))return;
+  const removed=_ngWords.splice(i,1);
+  const res=await api('ng-words-save',{words:_ngWords});
+  if(res&&res.success){renderNgWords();toast('🗑 削除しました');}else{_ngWords.splice(i,0,...removed);toast('保存エラー');}
+}
+const sortStates={};
+function doSort(ns,key,renderFn){
+    // renderFn は関数 or 関数名(string)を受け付ける（data-action 経由は string）
+    if(typeof renderFn==='string')renderFn=window[renderFn];
+    if(!sortStates[ns])sortStates[ns]={key:null,asc:true};
+    if(sortStates[ns].key===key)sortStates[ns].asc=!sortStates[ns].asc;
+    else{sortStates[ns].key=key;sortStates[ns].asc=true;}
+    if(typeof renderFn==='function')renderFn();
+}
+// reports タブ用ソート: ページを 0 に戻して renderReports
+function doSortReports(ns,key){repPage=0;doSort(ns,key,renderReports);}
+// doc-preview モーダル閉じる: zoom リセット + display:none
+function _dpClose(){_dpReset();const m=document.getElementById('doc-preview-modal');if(m)m.style.display='none';}
+// レポートフィルタ変更時: ページをリセット + 再描画
+function rerenderReports(){repPage=0;renderReports();}
+// レポート種別フィルタ: 結果フィルタも更新する版
+function rerenderReportsWithKind(){updateResultFilter();repPage=0;renderReports();}
+// パスワード表示切替: data-onchange-pwtoggle で代用も可だが既存関数を保持
+function togglePwVis(checkbox, inputId){
+    if(typeof checkbox==='string'){inputId=checkbox;checkbox=document.activeElement;}
+    const inp=document.getElementById(inputId);
+    if(inp)inp.type=checkbox.checked?'text':'password';
+}
+// reToggleReasons を data-onchange 経由で呼ぶラッパー (el.value を渡す)
+function reToggleReasonsFromEl(el){if(typeof reToggleReasons==='function')reToggleReasons(el.value);}
+// admin form ログイン用 (旧 onsubmit="event.preventDefault();doLogin()")
+function adminFormLogin(e){e.preventDefault();doLogin();}
+function applySortArr(arr,ns){const s=sortStates[ns];if(!s||!s.key)return arr;return[...arr].sort((a,b)=>{let va=a[s.key]??"",vb=b[s.key]??"";if(typeof va==="string"){va=va.toLowerCase();vb=vb.toLowerCase();}if(va<vb)return s.asc?-1:1;if(va>vb)return s.asc?1:-1;return 0;});}
+
+// ===== ダッシュボード =====
+async function loadDashboard(){const d=await apiGet('dashboard');document.getElementById("s-hotels").textContent=(d.hotel_count||0).toLocaleString();document.getElementById("s-reports").textContent=(d.report_count||0).toLocaleString();document.getElementById("s-shops").textContent=(d.shop_count||0).toLocaleString();document.getElementById("s-canrate").textContent=d.report_count?Math.round(d.can_count/d.report_count*100)+"%":"—";const flagCount=d.flag_count||0;const shopPendCount=d.shop_pend_count||0;const hreqPendCount=d.hreq_pend_count||0;const taskEl=document.getElementById("dash-tasks");const tasks=[];if(flagCount>0)tasks.push(`<div class="task-card tc-red" onclick="switchTab('reports');document.getElementById('rep-flag-f').value='flagged';repPage=0;renderReports();"><div class="tc-icon">&#x1F6A9;</div><div class="tc-body"><div class="tc-count">${flagCount}</div><div class="tc-label">報告未対応の投稿</div></div></div>`);if(shopPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('shops');document.getElementById('shop-appr-f').value='registered';renderShops();"><div class="tc-icon">&#x1F3EA;</div><div class="tc-body"><div class="tc-count">${shopPendCount}</div><div class="tc-label">審査待ちの店舗</div></div></div>`);if(hreqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('hotel-requests');"><div class="tc-icon">&#x1F3E8;</div><div class="tc-body"><div class="tc-count">${hreqPendCount}</div><div class="tc-label">未確認の掲載リクエスト</div></div></div>`);const corrPendCount=d.corr_pend_count||0;if(corrPendCount>0)tasks.push(`<div class="task-card tc-orange" onclick="switchTab('hotel-corrections');"><div class="tc-icon">&#x26A0;&#xFE0F;</div><div class="tc-body"><div class="tc-count">${corrPendCount}</div><div class="tc-label">未対応の情報修正</div></div></div>`);const planReqPendCount=d.plan_req_pend_count||0;if(planReqPendCount>0)tasks.push(`<div class="task-card tc-blue" onclick="switchTab('plan-requests');"><div class="tc-icon">&#x1F4CB;</div><div class="tc-body"><div class="tc-count">${planReqPendCount}</div><div class="tc-label">未処理のプラン申込</div></div></div>`);if(tasks.length){taskEl.innerHTML=tasks.join("");taskEl.style.display="grid";}else{taskEl.style.display="none";}
+// ホテル投稿
+const rec=d.recent||[];document.getElementById("dash-sub").textContent=`最新${rec.length}件`;document.getElementById("dash-tbody").innerHTML=rec.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rec.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${r.gender_mode==="women"?"<span class='badge b-women'>♀</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":r.gender_mode==="este"?"<span class='badge b-este'>💆</span>":"<span class='badge b-men'>♂</span>"}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="投稿者名" style="font-size:11px;">${esc(r.poster_name||"匿名")}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`).join("");
+// ラブホ投稿
+const rlh=d.recent_loveho||[];document.getElementById("dash-lh-sub").textContent=`最新${rlh.length}件`;document.getElementById("dash-lh-tbody").innerHTML=rlh.length===0?`<tr class="erow"><td colspan="6">投稿がありません</td></tr>`:rlh.map(r=>{const gm=r.gender_mode;const gmB=gm==="women"?"<span class='badge b-women'>♀</span>":gm==="women_same"?"<span class='badge b-women'>♀♀</span>":gm==="men_same"?"<span class='badge b-men'>♂♂</span>":gm==="este"?"<span class='badge b-este'>💆</span>":"<span class='badge b-men'>♂</span>";const solo=r.solo_entry==="yes"?"<span class='badge b-can'>◯</span>":r.solo_entry==="no"?"<span class='badge b-cant'>✕</span>":"—";return`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${gmB}</td><td data-label="一人入室">${solo}</td><td data-label="投稿者名" style="font-size:11px;">${esc(r.poster_name||"匿名")}</td><td data-label="コメント" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td></tr>`;}).join("");
+// 店舗登録
+const rsh=d.recent_shops||[];const SHOP_GENRE_LABELS2={men:"♂ デリヘル",women:"♀ 女風",este:"💆 エステ",men_same:"♂♂ 同性(男)",women_same:"♀♀ 同性(女)"};const STATUS_LABELS={email_pending:"認証待",registered:"審査待ち",active:"掲載中",suspended:"停止中",revision_required:"不備あり",rejected:"却下",deleted:"削除済み"};document.getElementById("dash-shop-sub").textContent=`最新${rsh.length}件`;document.getElementById("dash-shop-tbody").innerHTML=rsh.length===0?`<tr class="erow"><td colspan="5">店舗がありません</td></tr>`:rsh.map(s=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(s.created_at)}</td><td data-label="店舗名" style="font-size:12px;">${esc(s.shop_name||"—")}</td><td data-label="ジャンル" style="font-size:11px;">${SHOP_GENRE_LABELS2[s.gender_mode]||s.gender_mode||"—"}</td><td data-label="メール" style="font-size:11px;color:var(--ink-3);">${esc(s.email||"—")}</td><td data-label="ステータス"><span class="badge ${s.status==="active"?"b-can":s.status==="registered"?"b-women":"b-cant"}">${STATUS_LABELS[s.status]||s.status}</span></td></tr>`).join("");
+// ホテル編集
+const rhe=d.recent_hotel_edits||[];document.getElementById("dash-hedit-sub").textContent=`最新${rhe.length}件`;document.getElementById("dash-hedit-tbody").innerHTML=rhe.length===0?`<tr class="erow"><td colspan="6">データがありません</td></tr>`:rhe.map(h=>{const dt=h.last_changed||h.updated_at||h.created_at;const isNew=!h.is_edited&&h.source==='manual';const btnCls=isNew?'b-can':'b-women';const btnLbl=isNew?'新規':'編集';return`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(dt)}</td><td data-label="ホテル名" style="font-size:12px;cursor:pointer;color:var(--accent);" data-action="openHotelEditById" data-arg1="${h.id}">${esc(h.name||"—")}</td><td data-label="都道府県" style="font-size:11px;">${esc(h.prefecture||"—")}</td><td data-label="市区町村" style="font-size:11px;">${esc(h.city||"—")}</td><td data-label="タイプ" style="font-size:11px;">${h.hotel_type==="loveho"?"🏩 ラブホ":"🏨 ホテル"}</td><td data-label="操作"><span class="badge ${btnCls}" style="cursor:pointer;" data-action="openHotelEditById" data-arg1="${h.id}">${btnLbl}</span></td></tr>`;}).join("");
+// 掲載リクエスト
+const rhq=d.recent_requests||[];document.getElementById("dash-hreq-sub").textContent=`最新${rhq.length}件`;document.getElementById("dash-hreq-tbody").innerHTML=rhq.length===0?`<tr class="erow"><td colspan="5">リクエストがありません</td></tr>`:rhq.map(r=>`<tr><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;">${esc(r.hotel_name||"—")}</td><td data-label="住所" style="font-size:11px;color:var(--ink-3);">${esc(r.address||"—")}</td><td data-label="タイプ" style="font-size:11px;">${r.hotel_type==="loveho"?"🏩 ラブホ":"🏨 ホテル"}</td><td data-label="ステータス"><span class="badge ${r.status==="confirmed"?"b-can":"b-women"}">${r.status==="confirmed"?"確認済":"未確認"}</span></td></tr>`).join("");
+}
+
+// ===== 店舗管理 =====
+let shopsData=[];
+const SHOP_GENRE_LABELS={men:"♂ デリヘル",women:"♀ 女風",este:"💆 エステ",men_same:"♂♂",women_same:"♀♀"};
+function getShopStatus(s){return s.status||"pending";}
+function shopStatusBadge(s){const st=getShopStatus(s);switch(st){case"email_pending":return'<span class="badge b-email-pending">認証待</span>';case"registered":return'<span class="badge b-registered">準備中</span>';case"active":return'<span class="badge b-active">掲載中</span>';case"suspended":return'<span class="badge b-suspended">停止中</span>';case"denied":return'<span class="badge b-stop">否認</span>';case"revision_required":return'<span class="badge b-revision">不備あり</span>';case"rejected":return'<span class="badge b-stop">却下</span>';case"deleted":return'<span class="badge b-suspended">削除済</span>';default:return'<span class="badge b-free">未確認</span>';}}
+let _campaignShopIds=new Set();
+async function loadShops(){const data=await apiGet('list','table=shops&order=created_at&dir=desc');shopsData=Array.isArray(data)?data:[];try{const sc=await apiGet('list','table=shop_contracts&is_campaign=1');_campaignShopIds=new Set((Array.isArray(sc)?sc:[]).map(c=>String(c.shop_id)));}catch(e){}updateShopBadge();renderShops();}
+function updateShopBadge(){const count=shopsData.filter(s=>getShopStatus(s)==="registered").length;const b=document.getElementById("shop-badge");if(b){if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}}
+function renderShops(){const mF=document.getElementById("shop-mode-f").value;const aF=document.getElementById("shop-appr-f").value;const pF=document.getElementById("shop-plan-f").value;const qF=document.getElementById("shop-search").value.toLowerCase();let data=shopsData.filter(s=>{if(mF&&s.gender_mode!==mF)return false;const st=getShopStatus(s);if(aF){if(aF!==st)return false;}else{if(st==="deleted")return false;}const _planPrice=(contractPlansData.find(p=>p.id===s.plan_id)||{}).price||0;if(pF==="free"&&_planPrice>0)return false;if(pF==="paid"&&_planPrice<=0)return false;if(qF&&!s.shop_name?.toLowerCase().includes(qF)&&!s.email?.toLowerCase().includes(qF)&&!s.shop_tel?.toLowerCase().includes(qF))return false;return true;});data=applySortArr(data,"shops");const regCount=shopsData.filter(s=>getShopStatus(s)==="registered").length;document.getElementById("shops-sub").textContent=`${data.length} 件${regCount>0?" (審査待ち "+regCount+" 件)":""}`;document.getElementById("shops-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="9">該当する店舗がありません</td></tr>`:data.map(s=>{const st=getShopStatus(s);const genreCell=`<span style="font-size:11px;">${SHOP_GENRE_LABELS[s.gender_mode]||"—"}</span>`;const planObj=contractPlansData.find(p=>p.id===s.plan_id);const isCampaignShop=_campaignShopIds.has(String(s.id));const planCell=planObj?`<span style="font-size:11px;">${isCampaignShop?'🎁 ':''}${esc(planObj.name)}</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;const docCell=s.document_url?`<span style="color:#28a745;font-size:11px;">📄 あり</span>`:`<span style="color:var(--ink-3);font-size:11px;">—</span>`;let actionBtns=st==='registered'?'<button class="btn b-btn-gray" style="font-size:10px;background:#fd7e14;color:#fff;" onclick="openShopReview(\''+s.id+'\')">📄 審査</button>':'<button class="btn b-btn-gray" style="font-size:10px;" onclick="openShopReview(\''+s.id+'\')">✏️ 編集</button>';return`<tr><td data-label="登録日" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(s.created_at)}</td><td data-label="店舗名" style="font-weight:500;font-size:13px;">${esc(s.shop_name||"—")}</td><td data-label="ジャンル">${genreCell}</td><td data-label="メール" style="font-size:11px;color:var(--ink-3);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.email||"—")}</td><td data-label="電話番号" style="font-size:11px;color:var(--ink-3);">${esc(s.shop_tel||"—")}</td><td data-label="プラン">${planCell}</td><td data-label="ステータス">${shopStatusBadge(s)}</td><td data-label="届出書">${docCell}</td><td data-label="操作"><div class="btn-row">${actionBtns}</div></td></tr>`;}).join("");}
+async function sendShopEmail(shop,type,extraData={}){if(!shop||!shop.email)return false;const loginUrl="https://yobuho.com/shop-admin.html";const shopName=esc(shop.shop_name||"店舗");const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo (yobuho.com) から自動送信されています。<br>ご不明点は hotel@yobuho.com までお問い合わせください。</p></div>`;let subject="",body="";switch(type){case"approval":{subject="【YobuHo】審査完了・掲載開始のお知らせ";const modePathMap={men:'deli',women:'jofu',este:'este',men_same:'same-m',women_same:'same-f'};const modePath=modePathMap[shop.gender_mode]||'deli';const shopUrl=shop.slug?`https://yobuho.com/${modePath}/shop/${esc(shop.slug)}/`:'';const shopUrlSection=shopUrl?`<div style="background:#f8f6f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 4px;font-weight:bold;">お店様専用URL</p><p style="margin:0;font-size:13px;word-break:break-all;"><a href="${shopUrl}" style="color:#b5627a;">${shopUrl}</a></p><p style="margin:8px 0 0;font-size:11px;color:#888;">オフィシャルサイトやSNSに設置してご活用ください</p></div>`:'';body=header+`<p>届出確認書の審査が完了し、掲載が開始されました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 12px;font-weight:bold;">まずはこの3ステップ</p><table style="font-size:13px;border-collapse:collapse;width:100%;"><tr><td style="padding:6px 8px;vertical-align:top;font-weight:bold;color:#b5627a;width:24px;">①</td><td style="padding:6px 8px;">管理画面にログイン</td></tr><tr><td style="padding:6px 8px;vertical-align:top;font-weight:bold;color:#b5627a;">②</td><td style="padding:6px 8px;">「ホテル検索登録」タブでホテルを検索</td></tr><tr><td style="padding:6px 8px;vertical-align:top;font-weight:bold;color:#b5627a;">③</td><td style="padding:6px 8px;">ご案内実績のあるホテルに情報を登録</td></tr></table><p style="margin:12px 0 0;font-size:13px;color:#5a4a2a;">💡 ご案内可能なエリアのホテルはすべて登録するのがおすすめです。<br>登録数が多いほど検索結果で上位に表示され、集客力がアップします。</p><div style="margin-top:12px;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">管理画面にログイン</a></div><p style="margin:12px 0 0;font-size:12px;color:#888;">ログインID: ${esc(shop.email)}</p></div>${shopUrlSection}<div style="background:#f8f0ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 4px;font-weight:bold;">さらに集客力を高めたい方へ</p><p style="margin:0;font-size:13px;">有料プランでリッチ広告・スタンダード広告を表示できます。管理画面の「プラン申込」タブからいつでもお申込みいただけます。</p><p style="margin:8px 0 0;"><a href="https://yobuho.com/plan/" style="color:#b5627a;font-weight:bold;">▶ 料金プラン詳細</a></p></div>`+footer;break;}case"rejection":subject="【YobuHo】審査結果のお知らせ";body=header+`<p>審査の結果、今回は掲載を見送らせていただくことになりました。</p><div style="background:#fff0f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div>`+footer;break;case"suspension":subject="【YobuHo】掲載停止のお知らせ";body=header+`<p>掲載を停止いたしました。</p>${extraData.reason?'<div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">理由:</p><p style="margin:8px 0 0;">'+esc(extraData.reason)+'</p></div>':''}`+footer;break;case"resumption":subject="【YobuHo】掲載再開のお知らせ";body=header+`<p>掲載を再開いたしました。</p><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div><p>引き続きYobuHoをご利用ください。</p>`+footer;break;case"deficiency":subject="【YobuHo】登録内容の不備について";body=header+`<p>ご登録いただいた内容を確認したところ、以下の不備がございました。</p><div style="background:#fff8e0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;font-weight:bold;">不備の内容:</p><p style="margin:8px 0 0;">${esc(extraData.reason||"")}</p></div><p>お手数ですが、内容を修正の上、再度ご申請をお願いいたします。</p><div style="margin:16px 0;"><a href="https://yobuho.com/shop-register/" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">再申請はこちら</a></div>`+footer;break;case"plan_change":subject="【YobuHo】プラン変更のお知らせ";body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p>${extraData.areas?'<p style="margin:8px 0 0;">掲載エリア: <strong>'+esc(extraData.areas)+'</strong></p>':''}</div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;break;case"plan_campaign":subject="【YobuHo】投稿リンクプラン 1ヶ月無料キャンペーン適用のお知らせ";body=header+`<p>投稿リンクプランの <strong>1ヶ月無料キャンペーン</strong> が適用されました！</p><div style="background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:16px;border-radius:8px;margin:16px 0;border:1px solid #f0d060;"><p style="margin:0;font-size:18px;font-weight:bold;color:#b8860b;">🎁 1ヶ月間無料</p><p style="margin:8px 0 0;">プラン: <strong>${esc(extraData.planName||"投稿リンクプラン")}</strong></p><p style="margin:4px 0 0;">月額: <strong><span style="text-decoration:line-through;color:#888;">¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"5,500"}</span> → ¥0（1ヶ月間お試しください）</strong></p><p style="margin:8px 0 0;font-size:12px;color:#5a4a2a;">キャンペーン期間終了後は、自動的に無料プランへ移行いたします。</p></div><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">無料期間中にできること</p><ul style="margin:0;padding-left:20px;font-size:13px;line-height:2;"><li>ホテル情報を登録するだけで、貴店名が <strong>オフィシャルサイトへのリンク付き</strong> で表示されます</li><li>貴店だけの <strong>専用ページ（専用デザイン）</strong></li><li>店舗投稿日が <strong>毎月自動更新</strong></li><li><strong>💬 YobuChat（匿名チャット）</strong>もお店用＋キャスト5名分まで全機能で利用可能</li></ul></div><div style="margin:16px 0;text-align:center;"><a href="${loginUrl}" style="display:inline-block;padding:14px 40px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;">管理画面にログイン</a></div><p style="font-size:13px;color:#444;">まずは管理画面から「ホテル検索登録」タブでホテル情報を登録してみてください。投稿いただいた情報がポータルに反映されます。</p>`+footer;break;default:return false;}try{const res=await fetch("https://yobuho.com/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:shop.email,subject,body})});const result=await res.json();return result.success||false;}catch(e){console.error("メール送信エラー:",e);return false;}}
+async function deleteShop(id){const _s=shopsData.find(x=>String(x.id)===String(id));const name=_s?(_s.shop_name||_s.email||""):"";if(!confirm("「"+name+"」を削除しますか？\n※データは保持され、後から復活可能です。"))return;const r=await api('update',{table:'shops',id,data:{status:'deleted',deleted_at:jstNow()}});if(!r.ok){toast("削除エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,status:"deleted",deleted_at:jstNow()}:s);updateShopBadge();renderShops();toast("🗑 削除しました（復活可能）");}
+async function deleteShopFromModal(){if(!_srId)return;await deleteShop(_srId);closeShopReview();}
+let _srId=null;
+function openShopReview(id){const s=shopsData.find(s=>String(s.id)===String(id));if(!s)return;_srId=id;document.getElementById("sr-email").textContent=s.email||"—";document.getElementById("sr-name").value=s.shop_name||"";document.getElementById("sr-gender").value=s.gender_mode||"men";document.getElementById("sr-tel").value=s.shop_tel||"";document.getElementById("sr-url").value=s.shop_url||"";document.getElementById("sr-announcement").checked=!!s.show_announcement;
+// 都道府県select初期化+セット
+const prefSel=document.getElementById("sr-prefecture");
+prefSel.innerHTML='<option value="">未設定</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
+prefSel.value=s.prefecture||'';
+updatePrefHint(s.prefecture);
+const wrap=document.getElementById("sr-doc-wrap");const thumbWrap=document.getElementById("sr-doc-thumb-wrap");if(s.document_url){let _docUrls=[];try{const _parsed=JSON.parse(s.document_url);if(Array.isArray(_parsed))_docUrls=_parsed;}catch(e){_docUrls=[s.document_url];}if(!_docUrls.length)_docUrls=[s.document_url];
+wrap.innerHTML='';thumbWrap.innerHTML='';
+_docUrls.forEach((url,i)=>{const isPdf=url.toLowerCase().includes(".pdf");
+if(isPdf){thumbWrap.innerHTML+=`<a href="${esc(url)}" target="_blank" style="font-size:12px;color:#1a73e8;display:block;margin-bottom:4px;">📄 PDF ${i+1}</a>`;}
+else{const wImg=document.createElement('img');wImg.draggable=false;wImg.src=url;wImg.style.cssText='max-width:100%;margin-bottom:8px;display:block;cursor:pointer;';wImg.onclick=function(){document.getElementById('doc-preview-img').src=this.src;_dpReset();document.getElementById('doc-preview-modal').style.display='flex';};wrap.appendChild(wImg);
+const tImg=document.createElement('img');tImg.className='sr-doc-thumb';tImg.title=`クリックで拡大（${i+1}/${_docUrls.length}）`;tImg.src=url;tImg.style.marginRight='4px';tImg.onclick=function(){document.getElementById('doc-preview-img').src=this.src;_dpReset();document.getElementById('doc-preview-modal').style.display='flex';};thumbWrap.appendChild(tImg);}
+});}else{wrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);padding:24px;">書類なし</span>';thumbWrap.innerHTML='<span style="font-size:12px;color:var(--ink-3);">書類なし</span>';}_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;renderEditActions(s,contractPlansData);document.getElementById("action-confirm-panel").style.display="none";document.getElementById("shop-review-modal").style.display="flex";}
+
+function updatePrefHint(pref){
+  const hint=document.getElementById("sr-pref-hint");
+  if(!hint)return;
+  if(pref){
+    hint.textContent='掲載エリア管理で'+pref+'のエリア構造が自動表示されます';
+    hint.style.color='#2e7d32';
+  }else{
+    hint.textContent='設定すると、掲載エリア管理で該当エリアが自動選択されます';
+    hint.style.color='#888';
+  }
+}
+
+async function savePrefecture(){
+  if(!_srId)return;
+  const pref=document.getElementById("sr-prefecture").value;
+  const r=await api('update',{table:'shops',id:_srId,data:{prefecture:pref||null}});
+  if(!r.ok){toast("保存エラー");return;}
+  // ローカルデータ更新
+  shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,prefecture:pref||null}:s);
+  updatePrefHint(pref);
+  toast(pref?'活動エリア: '+pref+' を保存しました':'活動エリアをクリアしました');
+}
+function closeShopReview(){document.getElementById("shop-review-modal").style.display="none";pendingAction=null;_srId=null;_dvReset();}
+let pendingAction=null;
+function renderEditActions(shop,plans){
+const statusNames={email_pending:'認証待',registered:'準備中',active:'掲載中',suspended:'停止中',rejected:'却下',revision_required:'不備あり',deleted:'削除済'};
+const statusColors={email_pending:'#ffc107',registered:'#fd7e14',active:'#28a745',suspended:'#6c757d',rejected:'#dc3545',revision_required:'#e65100',deleted:'#999'};
+const badge=document.getElementById('shop-status-badge');
+badge.textContent=statusNames[shop.status]||shop.status;
+badge.style.cssText='background:'+(statusColors[shop.status]||'#999')+';color:#fff;padding:4px 12px;border-radius:4px;font-size:12px;';
+const statusBtns=document.getElementById('status-action-buttons');
+let html='';
+const st=shop.status;
+if(st!=='active'){html+='<button data-action="startAction" data-arg1="'+shop.id+'" data-arg2="active" data-arg3="approval" data-arg4="✅ 掲載開始（無料プラン）" style="background:#28a745;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">✅ 掲載開始（無料プラン）</button>';}
+if(st==='active'){html+='<button data-action="startAction" data-arg1="'+shop.id+'" data-arg2="suspended" data-arg3="suspension" data-arg4="⏸ 掲載停止" style="background:#6c757d;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⏸ 掲載停止</button>';}
+if(st!=='revision_required'){html+='<button data-action="startAction" data-arg1="'+shop.id+'" data-arg2="revision_required" data-arg3="deficiency" data-arg4="⚠️ 不備あり" style="background:#fd7e14;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">⚠️ 不備あり</button>';}
+if(st!=='rejected'){html+='<button data-action="startAction" data-arg1="'+shop.id+'" data-arg2="rejected" data-arg3="rejection" data-arg4="❌ 却下" style="background:#dc3545;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;">❌ 却下</button>';}
+statusBtns.innerHTML=html;
+const planSection=document.getElementById('plan-section');
+const planBtns=document.getElementById('plan-action-buttons');
+if(shop.status==='active'){
+if(planSection)planSection.style.display='';
+// 複数プラン対応: shop_contractsから現在のプランを取得
+loadShopContracts(shop.id,plans);
+}else{
+if(planSection)planSection.style.display='none';
+planBtns.innerHTML='';
+document.getElementById('shop-plan-badge').textContent='未設定';
+}
+}
+function startAction(shopId,newStatus,type,title){
+pendingAction={shopId,newStatus,type,actionType:'status'};
+var subjectMap={'approval':'【YobuHo】審査完了・掲載開始のお知らせ','suspension':'【YobuHo】掲載停止のお知らせ','deficiency':'【YobuHo】登録内容の不備について','rejection':'【YobuHo】審査結果のお知らせ'};
+var btnColorMap={'approval':'#28a745','suspension':'#6c757d','deficiency':'#fd7e14','rejection':'#dc3545'};
+document.getElementById('action-title').textContent=title;
+document.getElementById('action-email-subject').value=subjectMap[type]||'';
+document.getElementById('action-email-extra').value='';
+document.getElementById('action-send-email').checked=true;
+document.getElementById('action-email-section').style.display='block';
+document.getElementById('action-execute-btn').style.background=btnColorMap[type]||'#0066cc';
+var panel=document.getElementById('action-confirm-panel');
+panel.style.display='block';
+var sc=document.querySelector('.sr-right > div');
+if(sc)setTimeout(function(){sc.scrollTop=sc.scrollHeight;},50);
+}
+function cancelAction(){pendingAction=null;document.getElementById('action-confirm-panel').style.display='none';}
+async function saveShopInfo(){
+    if(!_srId)return;
+    const shopName=document.getElementById('sr-name').value.trim();
+    const shopTel=document.getElementById('sr-tel').value.trim();
+    const shopUrl=document.getElementById('sr-url').value.trim();
+    if(!shopName){toast('店舗名を入力してください');return;}
+    if(!confirm('店舗情報を保存しますか？'))return;
+    const genderMode=document.getElementById('sr-gender').value;
+    const showAnnouncement=document.getElementById('sr-announcement').checked?1:0;
+    const data={shop_name:shopName,gender_mode:genderMode,shop_tel:shopTel||null,shop_url:shopUrl||null,show_announcement:showAnnouncement};
+    const r=await api('update',{table:'shops',id:_srId,data});
+    if(!r.ok){toast('保存エラー');return;}
+    // ad_placementsのmodeも連動更新
+    await api('update-ad-mode',{shop_id:_srId,mode:genderMode});
+    shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...data}:s);
+    renderShops();
+    toast('✅ 店舗情報を保存しました');
+}
+async function executeAction(){
+if(!pendingAction)return;
+var{shopId,actionType}=pendingAction;
+if(!confirm("この操作を実行しますか？"))return;
+try{
+if(actionType==='status'){
+var{newStatus,type}=pendingAction;
+var updateData={status:newStatus};
+// 掲載開始時は無料プランを自動セット
+if(newStatus==='active'){
+var freePlan=contractPlansData.find(function(p){return p.price===0;});
+if(freePlan){updateData.plan_id=freePlan.id;updateData.approved_at=jstNow();}
+}
+var uR=await api('update',{table:'shops',id:shopId,data:updateData});
+if(!uR.ok){toast('更新エラー');pendingAction=null;return;}
+shopsData=shopsData.map(function(s){return String(s.id)===String(shopId)?Object.assign({},s,updateData):s;});
+if(document.getElementById('action-send-email').checked){
+var shop=shopsData.find(s=>String(s.id)===String(shopId));if(shop)shop=Object.assign({},shop,updateData);
+if(shop){var extra=document.getElementById('action-email-extra').value;var ok=await sendShopEmail(shop,type,{reason:extra||undefined});toast(ok?'ステータス更新 + メール送信完了':'ステータス更新完了（メール送信失敗）');}
+}else{toast('ステータス更新完了（メール未送信）');}
+}
+}catch(e){console.error('[executeAction] error:',e);toast('エラーが発生しました: '+e.message);}
+pendingAction=null;
+document.getElementById('action-confirm-panel').style.display='none';
+// モーダルは閉じずに最新状態で更新
+var updatedShop=shopsData.find(function(s){return String(s.id)===String(shopId);});
+if(updatedShop){
+renderEditActions(updatedShop,contractPlansData||[]);
+}
+updateShopBadge();renderShops();
+}
+document.addEventListener('DOMContentLoaded',function(){const cb=document.getElementById('action-send-email');if(cb)cb.addEventListener('change',function(){document.getElementById('action-email-section').style.display=this.checked?'block':'none';});});
+let _dv={scale:1,x:0,y:0,drag:false,sx:0,sy:0,moved:false};
+function _dvApply(){const img=document.querySelector(".sr-doc-viewer img");if(!img)return;img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";img.style.cursor=_dv.scale>1?"grab":"zoom-in";}
+function _dvReset(){_dv.scale=1;_dv.x=0;_dv.y=0;_dv.drag=false;_dv.moved=false;const v=document.getElementById("sr-doc-wrap");if(v)v.classList.remove("dragging");_dvApply();}
+(function(){
+var v=function(){return document.getElementById("sr-doc-wrap");};
+document.addEventListener("click",function(e){var c=v();if(!c||!c.contains(e.target))return;var img=c.querySelector("img");if(!img||!img.contains(e.target))return;if(_dv.moved)return;if(_dv.scale>1){_dv.scale=1;_dv.x=0;_dv.y=0;}else{_dv.scale=2;}; _dvApply();});
+document.addEventListener("wheel",function(e){var c=v();if(!c||!c.contains(e.target))return;var img=c.querySelector("img");if(!img)return;e.preventDefault();var d=e.deltaY>0?-0.15:0.15;_dv.scale=Math.max(1,Math.min(4,_dv.scale+d));if(_dv.scale===1){_dv.x=0;_dv.y=0;}_dvApply();},{passive:false});
+document.addEventListener("mousedown",function(e){var c=v();if(!c||!c.contains(e.target))return;if(_dv.scale<=1)return;_dv.drag=true;_dv.moved=false;_dv.sx=e.clientX-_dv.x;_dv.sy=e.clientY-_dv.y;c.classList.add("dragging");e.preventDefault();});
+document.addEventListener("mousemove",function(e){if(!_dv.drag)return;_dv.x=e.clientX-_dv.sx;_dv.y=e.clientY-_dv.sy;_dv.moved=true;var img=document.querySelector(".sr-doc-viewer img");if(img)img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";});
+document.addEventListener("mouseup",function(){if(!_dv.drag)return;_dv.drag=false;var c=v();if(c)c.classList.remove("dragging");setTimeout(function(){_dv.moved=false;},10);});
+document.addEventListener("touchstart",function(e){var c=v();if(!c||!c.contains(e.target))return;if(_dv.scale<=1)return;_dv.drag=true;_dv.moved=false;_dv.sx=e.touches[0].clientX-_dv.x;_dv.sy=e.touches[0].clientY-_dv.y;},{passive:true});
+document.addEventListener("touchmove",function(e){if(!_dv.drag)return;e.preventDefault();_dv.x=e.touches[0].clientX-_dv.sx;_dv.y=e.touches[0].clientY-_dv.sy;_dv.moved=true;var img=document.querySelector(".sr-doc-viewer img");if(img)img.style.transform="translate("+_dv.x+"px,"+_dv.y+"px) scale("+_dv.scale+")";},{passive:false});
+document.addEventListener("touchend",function(){if(_dv.drag){_dv.drag=false;setTimeout(function(){_dv.moved=false;},10);}});
+})();
+async function saveShopEdit(){if(!_srId)return;if(!confirm("店舗情報を保存しますか？"))return;const name=document.getElementById("sr-name").value.trim();if(!name){toast("店舗名を入力してください");return;}const payload={shop_name:name,gender_mode:document.getElementById("sr-gender").value,shop_tel:document.getElementById("sr-tel").value.trim()||null,shop_url:document.getElementById("sr-url").value.trim()||null};const r=await api('update',{table:'shops',id:_srId,data:payload});if(!r.ok){toast("更新エラー");return;}await api('update-ad-mode',{shop_id:_srId,mode:payload.gender_mode});shopsData=shopsData.map(s=>String(s.id)===String(_srId)?{...s,...payload}:s);updateShopBadge();renderShops();closeShopReview();toast("💾 保存しました");}
+// ===== 掲載エリア管理 =====
+let placementsData=[];
+let _pmShopId=null;
+const PM_LEVEL_LABELS={city:"🏘 市区町村",detail_area:"🔍 エリア",spot:"🏙 ブロック",prefecture:"📌 都道府県",region:"🗾 地方",national:"🌐 全国"};
+
+async function openPlacementModal(shopId){
+  _pmShopId=shopId;
+  const shop=shopsData.find(s=>String(s.id)===String(shopId));
+  document.getElementById("pm-shop-name").textContent=shop?("— "+esc(shop.shop_name||"")):"";
+  document.getElementById("pm-level").value="";
+  document.getElementById("pm-pref").value="";
+  initPmPrefs();
+  // 初期状態: レベル選択のみ表示、他は非表示
+  document.getElementById("pm-level-wrap").style.display='';
+  document.getElementById("pm-pref-wrap").style.display='none';
+  document.getElementById("pm-region-wrap").style.display='none';
+  document.getElementById("pm-area-wrap").style.display='none';
+  document.getElementById("pm-da-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+  document.getElementById("pm-pref-preview").style.display='none';
+  document.getElementById("pm-feedback").style.display='none';
+  await ensureAreaData();
+  // 店舗の都道府県が設定されていれば自動選択は保留（レベル選択後に表示）
+  if(false&&shop&&shop.prefecture){
+    document.getElementById("pm-pref").value=shop.prefecture;
+    await onPmPrefChange();
+  }
+  document.getElementById("placement-modal").style.display="flex";
+  await loadPlacements(shopId);
+}
+let _pendingPlanEmail=null;
+async function closePlacementModal(){
+  const shopId=_pmShopId;
+  document.getElementById("placement-modal").style.display="none";
+  // プラン変更後のエリア設定完了 → メール送信
+  if(_pendingPlanEmail&&shopId){
+    const pe=_pendingPlanEmail;_pendingPlanEmail=null;
+    // 登録済みエリア一覧を取得
+    const areas=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1&order=created_at&dir=desc');
+    const areaList=(areas||[]).map(a=>(PM_LEVEL_LABELS[a.level]||a.level)+': '+a.target_name);
+    const shop=shopsData.find(s=>String(s.id)===String(shopId));
+    if(shop){
+      const areaText=areaList.length?areaList.join('、'):'未設定';
+      const emailType=pe.campaign?'plan_campaign':'plan_change';
+      showPlanMailPreview(shop,emailType,{planName:pe.planName,planPrice:pe.planPrice,areas:areaText});
+    }
+  }
+  if(shopId)loadShopAreaList(shopId);
+  _pmShopId=null;placementsData=[];
+}
+
+async function loadPlacements(shopId){
+  document.getElementById("pm-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">読み込み中...</div>';
+  const data=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&order=created_at&dir=desc');
+  if(data.error){document.getElementById("pm-list").innerHTML=`<div style="color:var(--red);font-size:12px;padding:10px;">取得エラー</div>`;return;}
+  placementsData=Array.isArray(data)?data:[];
+  renderPlacements();
+}
+
+function getSlotStatus(){
+  const limits=window._currentShopLimits||{city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+  const active=placementsData.filter(p=>p.is_active);
+  const used={city:active.filter(p=>p.level==='city').length,detail_area:active.filter(p=>p.level==='detail_area').length,spot:active.filter(p=>p.level==='spot').length,prefecture:active.filter(p=>p.level==='prefecture').length,region:active.filter(p=>p.level==='region').length,national:active.filter(p=>p.level==='national').length};
+  return{limits,used};
+}
+function renderSlotBanner(){
+  const banner=document.getElementById("pm-slot-banner");
+  if(!banner)return;
+  const {limits,used}=getSlotStatus();
+  const items=[{key:'city',label:'市区町村',icon:'🏘'},{key:'detail_area',label:'エリア',icon:'🔍'},{key:'spot',label:'ブロック',icon:'🏙'},{key:'prefecture',label:'都道府県',icon:'📌'},{key:'region',label:'地方',icon:'🗾'},{key:'national',label:'全国',icon:'🌐'}].filter(({key})=>limits[key]>0);
+  if(!items.length){banner.innerHTML='<div style="padding:10px 14px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:12px;color:#856404;">有料プランが未設定です。プランを追加すると掲載枠が利用できます。</div>';return;}
+  banner.innerHTML=items.map(({key,label,icon})=>{
+    const u=used[key],m=limits[key],remain=m-u,pct=Math.round(u/m*100);
+    const barColor=remain<=0?'#d32f2f':remain===1?'#f9a825':'#2e7d32';
+    const bgColor=remain<=0?'#ffebee':remain===1?'#fff8e1':'#e8f5e9';
+    const borderColor=remain<=0?'#ef9a9a':remain===1?'#ffe082':'#a5d6a7';
+    return`<div style="padding:10px 14px;background:${bgColor};border:1px solid ${borderColor};border-radius:8px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;color:#333;">${icon} ${label}</span>
+        <span style="font-size:13px;font-weight:700;color:${barColor};">${remain<=0?'⚠ 上限':'残り '+remain+'枠'}</span>
+      </div>
+      <div style="height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:10px;color:#888;margin-top:3px;text-align:right;">${u} / ${m} 枠使用中</div>
+    </div>`;
+  }).join('');
+}
+function renderPlacements(){
+  const el=document.getElementById("pm-list");
+  renderSlotBanner();
+  updatePmFormSlotHint();
+  if(!placementsData.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:12px;">掲載エリアが登録されていません</div>';return;}
+  el.innerHTML=`<table class="tbl"><thead><tr>
+    <th>レベル</th><th>エリア名</th><th>状態</th><th>操作</th>
+  </tr></thead><tbody>${placementsData.map(p=>{
+    const statusLabel=p.is_active?"✓ 有効":"停止中";
+    const statusStyle=p.is_active?"color:var(--green);font-weight:700;":"color:var(--ink-3);";
+    return`<tr style="${!p.is_active?"opacity:0.6;":""}">
+      <td><span class="badge b-free" style="font-size:10px;">${esc(PM_LEVEL_LABELS[p.level]||p.level)}</span></td>
+      <td style="font-weight:500;">${esc(p.target_name||"（全国）")}</td>
+      <td style="${statusStyle}font-size:11px;">${statusLabel}</td>
+      <td><div class="btn-row">
+        <button class="btn b-btn-gray" data-action="editPlacement" data-arg1="${p.id}">編集</button>
+        <button class="btn ${p.is_active?"b-btn-gray":"b-btn-green"}" data-action="togglePlacement" data-arg1="${p.id}" data-arg2="${p.is_active}">${p.is_active?"停止":"再開"}</button>
+        <button class="btn b-btn-red" data-action="deletePlacement" data-arg1="${p.id}">削除</button>
+      </div></td>
+    </tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+// 掲載レベル→広告タイプの変換マップ（1箇所で管理）
+const LEVEL_TO_AD_TYPE={city:'spot',detail_area:'town',spot:'area',prefecture:'big',region:'region',national:'premium'};
+
+// プランごとの掲載枠数（contract_plansのslots_*カラムから動的構築）
+let PLAN_LIMITS={};
+function buildPlanLimits(){PLAN_LIMITS={};(contractPlansData||[]).forEach(p=>{PLAN_LIMITS[p.id]={city:p.slots_city||0,detail_area:p.slots_detail_area||0,spot:p.slots_spot||0,prefecture:p.slots_prefecture||0,region:p.slots_region||0,national:p.slots_national||0};});}
+
+const MULTI_PLAN_IDS=new Set([2,8,3,4,13]);
+
+async function loadShopContracts(shopId,plans){
+  const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const rows=Array.isArray(contracts)?contracts:[];
+  const activeIds=rows.map(c=>c.plan_id);
+  // countMap: plan_id -> count (通常契約のみ), idMap: plan_id -> [row ids]
+  const countMap={};const idMap={};
+  rows.filter(c=>!c.is_campaign).forEach(c=>{countMap[c.plan_id]=(countMap[c.plan_id]||0)+1;if(!idMap[c.plan_id])idMap[c.plan_id]=[];idMap[c.plan_id].push(c.id);});
+  window._contractIdMap=idMap;
+  // 現在のプラン表示
+  const badgeEl=document.getElementById('shop-plan-badge');
+  if(activeIds.length){
+    const seen={};const names=[];
+    activeIds.forEach(id=>{seen[id]=(seen[id]||0)+1;});
+    Object.keys(seen).forEach(id=>{const p=plans.find(x=>x.id===Number(id));const n=p?p.name:'?';names.push(seen[id]>1?n+' x'+seen[id]:n);});
+    badgeEl.textContent=names.join(' + ');
+  }else{badgeEl.textContent='無料プラン';}
+  // 合計枠数を計算（each row = 1 unit of slots）
+  let totalLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+  rows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(totalLimits).forEach(k=>{totalLimits[k]+=(l[k]||0);});}});
+  const hasPaid=activeIds.some(id=>id>1);
+  // プラン追加/削除ボタン
+  let planHtml='<div style="margin-bottom:8px;font-size:11px;color:var(--ink-3);">複数契約可能なプランは＋/−で数量変更、それ以外はクリックで切替</div>';
+  planHtml+='<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  plans.forEach(p=>{
+    if(p.id===1)return;// 無料プランは表示しない
+    const cnt=countMap[p.id]||0;
+    const isActive=cnt>0;
+    if(MULTI_PLAN_IDS.has(p.id)){
+      // Multi-allowed: +/- UI
+      const bg=cnt>0?'#e8f5e9':'#f8f8f8';const bdr=cnt>0?'1px solid #a5d6a7':'1px solid #ddd';
+      planHtml+=`<div style="background:${bg};border:${bdr};border-radius:6px;padding:6px 10px;font-size:12px;min-width:180px;">`;
+      planHtml+=`<div style="font-weight:600;margin-bottom:4px;">${esc(p.name)}（¥${p.price.toLocaleString()}）</div>`;
+      planHtml+=`<div style="display:flex;align-items:center;gap:8px;">`;
+      planHtml+=`<button onclick="removeOneContract('${shopId}',${p.id})" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:16px;line-height:1;${cnt===0?'opacity:0.3;pointer-events:none':''}">−</button>`;
+      planHtml+=`<span style="font-size:14px;font-weight:700;min-width:20px;text-align:center;">${cnt}</span>`;
+      planHtml+=`<button onclick="addOneContract('${shopId}',${p.id})" style="width:28px;height:28px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;font-size:16px;line-height:1;">＋</button>`;
+      planHtml+=`</div></div>`;
+    }else{
+      // Single-only: toggle button
+      const style=isActive
+        ?'background:#28a745;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
+        :'background:#fff;color:#333;border:1px solid #ddd;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
+      const icon=isActive?'✅ ':'';
+      planHtml+=`<button onclick="toggleShopContract('${shopId}',${p.id},${isActive})" style="${style}">${icon}${esc(p.name)}（¥${p.price.toLocaleString()}）</button>`;
+    }
+  });
+  planHtml+='</div>';
+  // キャンペーン投稿リンクプラン（通常の投稿リンクプランとは独立）
+  const campaignActive=rows.some(c=>c.plan_id===9&&c.is_campaign);
+  const campaignStyle=campaignActive
+    ?'background:#e65100;color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;'
+    :'background:#fff;color:#e65100;border:1px solid #e65100;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:12px;';
+  planHtml+=`<div style="margin-top:10px;display:flex;gap:8px;align-items:center;">`;
+  planHtml+=`<button data-action="applyCampaign" data-arg1="${shopId}" style="${campaignStyle}">${campaignActive?'✅ ':''}🎁 投稿リンクプラン 1ヶ月無料</button>`;
+  planHtml+=`</div>`;
+  // 契約期限一覧（有料プランのみ）
+  const paidRows=rows.filter(c=>c.plan_id>1&&c.expires_at);
+  if(paidRows.length){
+    const today=new Date();today.setHours(0,0,0,0);
+    planHtml+='<div style="margin-top:12px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">';
+    planHtml+='<div style="padding:8px 12px;background:#f5f5f5;border-bottom:1px solid #e0e0e0;font-size:12px;font-weight:700;">📅 契約期限</div>';
+    paidRows.forEach(c=>{
+      const p=plans.find(x=>x.id===c.plan_id);
+      const typeLabel=c.is_campaign?'<span style="background:#fff3cd;color:#b8860b;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;margin-left:4px;">🎁 キャンペーン</span>':'<span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:4px;">通常</span>';
+      const pName=(p?p.name:'プラン'+c.plan_id);
+      const exp=new Date(c.expires_at+'T00:00:00');
+      const diff=Math.ceil((exp-today)/(1000*60*60*24));
+      let statusHtml='';
+      if(diff<0)statusHtml='<span style="color:#d32f2f;font-weight:700;">⚠ 期限切れ</span>';
+      else if(diff<=5)statusHtml=`<span style="color:#e65100;font-weight:700;">⚠ 残り${diff}日</span>`;
+      else statusHtml=`<span style="color:#2e7d32;">残り${diff}日</span>`;
+      planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;gap:8px;">`;
+      planHtml+=`<div style="flex:1;">${esc(pName)}${typeLabel} — <input type="date" value="${c.expires_at}" onchange="setContractExpiry(${c.id},'${shopId}',this.value)" style="font-size:16px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;cursor:pointer;"> ${statusHtml}</div>`;
+      planHtml+=`<button onclick="renewContract(${c.id},'${shopId}')" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+1ヶ月</button>`;
+      planHtml+=`</div>`;
+    });
+    planHtml+='</div>';
+  }
+  // 枠数 + 掲載エリアカード（統合表示）
+  if(hasPaid){
+    planHtml+=`<div style="margin-top:12px;border:1px solid #c8e6c9;border-radius:8px;overflow:hidden;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#e8f5e9;border-bottom:1px solid #c8e6c9;">
+        <div style="font-size:12px;font-weight:700;color:#2e7d32;">📍 掲載エリア</div>
+        <button data-action="openPlacementModal" data-arg1="${shopId}" style="background:#28a745;color:#fff;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">管理する →</button>
+      </div>
+      <div style="padding:10px 12px;min-height:36px;background:#fff;">
+        <div id="sr-area-list" style="font-size:12px;color:var(--ink-3);">読み込み中...</div>
+      </div>
+      <div style="padding:6px 12px;background:#f0f4ff;border-top:1px solid #dde8ff;font-size:11px;color:var(--ink-3);">
+        掲載枠: 🏘市区町村 <strong>${totalLimits.city}</strong>枠${totalLimits.detail_area?' / 🔍エリア <strong>'+totalLimits.detail_area+'</strong>枠':''} / 🏙ブロック <strong>${totalLimits.spot}</strong>枠 / 📌都道府県 <strong>${totalLimits.prefecture}</strong>枠${totalLimits.region?' / 🗾地方 <strong>'+totalLimits.region+'</strong>枠':''}${totalLimits.national?' / 🌐全国 <strong>'+totalLimits.national+'</strong>枠':''}
+      </div>
+    </div>`;
+  }
+  document.getElementById('plan-action-buttons').innerHTML=planHtml;
+  if(hasPaid){loadShopAreaList(shopId);}
+  // _currentShopLimitsをグローバルに保存（エリア追加時の制限チェック用）
+  window._currentShopLimits=totalLimits;
+}
+
+async function renewContract(contractId,shopId){
+  if(!confirm('この契約を1ヶ月更新しますか？'))return;
+  const res=await api('renew-contract',{contract_id:contractId});
+  if(res&&res.success){
+    toast('✅ 更新しました（期限: '+res.expires_at+'）');
+    loadShopContracts(shopId,contractPlansData);
+  }else{toast('更新エラー');}
+}
+
+async function setContractExpiry(contractId,shopId,dateVal){
+  if(!dateVal)return;
+  const res=await api('set-contract-expiry',{contract_id:contractId,expires_at:dateVal});
+  if(res&&res.success){
+    toast('✅ 期限を '+dateVal+' に設定しました');
+    loadShopContracts(shopId,contractPlansData);
+  }else{toast('設定エラー');}
+}
+
+// 掲載エリア+広告の自動作成ヘルパー（全国/地方プラン用）
+async function autoCreatePlacement(shopId,level,targetName,adMode){
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(shopId)+"&level="+encodeURIComponent(level)+"&target_name="+encodeURIComponent(targetName));
+  if(existCheck&&existCheck.length>0)return;
+  await api("insert",{table:"shop_placements",data:{shop_id:shopId,level,target_name:targetName,is_active:true}});
+  const adType=LEVEL_TO_AD_TYPE[level]||level;
+  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(shopId)+"&placement_type="+encodeURIComponent(adType)+"&placement_target="+encodeURIComponent(targetName));
+  if(!adExist||!adExist.length){
+    await api("insert",{table:"ad_placements",data:{shop_id:shopId,placement_type:adType,placement_target:targetName,status:'active',mode:adMode}});
+  }
+}
+
+// shops.plan_idを最高額プランに同期するヘルパー
+async function syncBestPlan(shopId){
+  const updatedContracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const activeContracts=Array.isArray(updatedContracts)?updatedContracts:[];
+  let bestPlanId=1;let bestPrice=0;
+  activeContracts.forEach(c=>{const p=(contractPlansData||[]).find(x=>x.id===c.plan_id);if(p&&p.price>bestPrice){bestPrice=p.price;bestPlanId=p.id;}});
+  await api('update',{table:'shops',id:shopId,data:{plan_id:bestPlanId}});
+  shopsData=shopsData.map(s=>String(s.id)===String(shopId)?{...s,plan_id:bestPlanId}:s);
+  renderShops();
+}
+
+// 単一プラン用トグル（single-only: 無料/投稿リンク/全国）
+async function toggleShopContract(shopId,planId,isActive,mode){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
+  if(isActive){
+    // 解除時: このプランが提供する枠を失った結果、超過する掲載エリアを特定
+    const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+    const afterRows=(Array.isArray(contracts)?contracts:[]).filter(c=>c.plan_id!==planId);
+    let afterLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+    afterRows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
+    const placements=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1');
+    const activePlacements=Array.isArray(placements)?placements:[];
+    let toRemove=[];
+    const levels=['city','detail_area','spot','prefecture','region','national'];
+    levels.forEach(lv=>{
+      const active=activePlacements.filter(p=>p.level===lv);
+      const maxAfter=afterLimits[lv]||0;
+      if(active.length>maxAfter){active.slice(maxAfter).forEach(p=>toRemove.push(p));}
+    });
+    let msg='「'+planName+'」を解除しますか？';
+    if(toRemove.length>0){
+      msg+='\n\n⚠️ 枠数超過のため、以下の掲載エリアも削除されます:\n';
+      toRemove.forEach(p=>{msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;});
+      msg+='\n\n（掲載エリア '+toRemove.length+'件 が削除されます）';
+    }
+    if(!confirm(msg))return;
+    await api('delete',{table:'shop_contracts',filters:{shop_id:shopId,plan_id:planId}});
+    for(const p of toRemove){
+      await api('delete',{table:'shop_placements',id:p.id});
+      const adType=LEVEL_TO_AD_TYPE[p.level]||p.level;
+      await api('delete',{table:'ad_placements',filters:{shop_id:shopId,placement_type:adType,placement_target:p.target_name}});
+    }
+    toast(toRemove.length>0?'プランを解除し、掲載エリア'+toRemove.length+'件を削除しました':'プランを解除しました');
+  }else{
+    if(!confirm('「'+planName+'」を追加しますか？'))return;
+    await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
+    // 全国・地方プラン: 掲載エリア+広告を自動作成
+    if(planInfo){
+      const limits=PLAN_LIMITS[planId]||{};
+      const shop=shopsData.find(s=>String(s.id)===String(shopId));
+      const adMode=shop?shop.gender_mode:'men';
+      if(limits.national>0){
+        await autoCreatePlacement(shopId,'national','全国',adMode);
+      }
+      if(limits.region>0){
+        // 地方プラン: 店舗の都道府県から地方を逆引き
+        const shopPref=shop?.prefecture;
+        if(shopPref){
+          const regionLabel=document.querySelector('#pm-pref option[value="'+shopPref+'"]')?.closest('optgroup')?.label;
+          if(regionLabel)await autoCreatePlacement(shopId,'region',regionLabel,adMode);
+        }
+      }
+    }
+    toast('プランを追加しました');
+  }
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+  if(!isActive&&planInfo&&planInfo.price>0){
+    _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price,campaign:mode==='campaign'};
+  }
+}
+
+// キャンペーン適用（投稿リンクプラン 1ヶ月無料）
+async function applyCampaign(shopId){
+  if(!confirm('投稿リンクプラン（1ヶ月無料キャンペーン）を適用しますか？\n\n💬 YobuChat（匿名チャット・お店用＋キャスト5名分）も全機能で1ヶ月無料利用できます。'))return;
+  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:9,is_campaign:1}});
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+  toast('✅ キャンペーン適用完了');
+  // メール確認モーダル表示
+  const shop=shopsData.find(s=>String(s.id)===String(shopId));
+  if(shop) showPlanMailPreview(shop,'plan_campaign',{planName:'投稿リンクプラン',planPrice:5500});
+}
+
+// プランメール確認モーダル
+let _pmMailData=null;
+function showPlanMailPreview(shop,type,extraData){
+  // sendShopEmailと同じロジックでsubjectとbodyを生成
+  const loginUrl="https://yobuho.com/shop-admin.html";
+  const shopName=esc(shop.shop_name||"店舗");
+  const header=`<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#b5627a;">YobuHo</h2><p>${shopName} 様</p>`;
+  const footer=`<hr style="border:none;border-top:1px solid #eee;margin:20px 0;"><p style="font-size:12px;color:#888;">このメールは YobuHo から自動送信されています。</p></div>`;
+  let subject='',body='';
+  if(type==='plan_campaign'){
+    subject='【YobuHo】投稿リンクプラン 1ヶ月無料キャンペーン適用のお知らせ';
+    body=header+`<p>投稿リンクプランの <strong>1ヶ月無料キャンペーン</strong> が適用されました！</p><div style="background:linear-gradient(135deg,#fff8e1,#fff3cd);padding:16px;border-radius:8px;margin:16px 0;border:1px solid #f0d060;"><p style="margin:0;font-size:18px;font-weight:bold;color:#b8860b;">🎁 1ヶ月間無料</p><p style="margin:8px 0 0;">プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:4px 0 0;">月額: <strong><span style="text-decoration:line-through;color:#888;">¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"5,500"}</span> → ¥0（1ヶ月間お試しください）</strong></p><p style="margin:8px 0 0;font-size:12px;color:#5a4a2a;">キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。</p></div><div style="background:#f0f8f0;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0 0 8px;font-weight:bold;">無料期間中にできること</p><ul style="margin:0;padding-left:20px;font-size:13px;line-height:2;"><li>ホテル情報を登録するだけで、貴店名が <strong>オフィシャルサイトへのリンク付き</strong> で表示されます</li><li>貴店だけの <strong>専用ページ（専用デザイン）</strong></li><li>店舗投稿日が <strong>毎月自動更新</strong></li><li><strong>💬 YobuChat（匿名チャット）</strong>もお店用＋キャスト5名分まで全機能で利用可能</li></ul></div><div style="margin:16px 0;text-align:center;"><a href="${loginUrl}" style="display:inline-block;padding:14px 40px;background:#b5627a;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;">管理画面にログイン</a></div>`+footer;
+  }else{
+    subject='【YobuHo】プラン変更のお知らせ';
+    body=header+`<p>ご契約プランが変更されました。</p><div style="background:#f0f4ff;padding:16px;border-radius:8px;margin:16px 0;"><p style="margin:0;">新プラン: <strong>${esc(extraData.planName||"")}</strong></p><p style="margin:8px 0 0;">月額: <strong>¥${extraData.planPrice?Number(extraData.planPrice).toLocaleString("ja-JP"):"0"}</strong></p>${extraData.areas?'<p style="margin:8px 0 0;">掲載エリア: <strong>'+esc(extraData.areas)+'</strong></p>':''}</div><div style="margin:16px 0;"><a href="${loginUrl}" style="display:inline-block;padding:12px 32px;background:#b5627a;color:#fff;text-decoration:none;border-radius:4px;">管理画面にログイン</a></div>`+footer;
+  }
+  _pmMailData={shop,subject,body};
+  document.getElementById('pm-mail-to').textContent=shop.email;
+  document.getElementById('pm-mail-shop').textContent=shop.shop_name||'—';
+  document.getElementById('pm-mail-subject').textContent=subject;
+  document.getElementById('pm-mail-body').innerHTML=body;
+  document.getElementById('pm-mail-send-btn').disabled=false;
+  document.getElementById('pm-mail-send-btn').textContent='📨 この内容で送信する';
+  document.getElementById('plan-mail-modal').style.display='flex';
+}
+function closePlanMailModal(){document.getElementById('plan-mail-modal').style.display='none';_pmMailData=null;}
+async function doPlanMailSend(){
+  if(!_pmMailData)return;
+  const btn=document.getElementById('pm-mail-send-btn');
+  btn.disabled=true;btn.textContent='送信中...';
+  try{
+    const res=await fetch('/api/send-mail.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:_pmMailData.shop.email,subject:_pmMailData.subject,body:_pmMailData.body})});
+    if(res.ok){btn.textContent='✅ 送信完了';setTimeout(()=>{closePlanMailModal();toast('✅ メール送信完了');},800);}
+    else{btn.textContent='❌ 送信エラー';setTimeout(()=>{btn.disabled=false;btn.textContent='📨 この内容で送信する';},1500);}
+  }catch(e){btn.disabled=false;btn.textContent='📨 この内容で送信する';toast('送信エラー');}
+}
+
+// 複数契約プラン: 1行追加
+async function addOneContract(shopId,planId){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
+  if(!confirm('「'+planName+'」を1枠追加しますか？'))return;
+  await api('insert',{table:'shop_contracts',data:{shop_id:shopId,plan_id:planId}});
+  // 地方プラン: 店舗の都道府県から地方を逆引きして自動配置
+  if(planInfo){
+    const limits=PLAN_LIMITS[planId]||{};
+    const shop=shopsData.find(s=>String(s.id)===String(shopId));
+    const adMode=shop?shop.gender_mode:'men';
+    if(limits.region>0&&shop?.prefecture){
+      const regionLabel=document.querySelector('#pm-pref option[value="'+shop.prefecture+'"]')?.closest('optgroup')?.label;
+      if(regionLabel)await autoCreatePlacement(shopId,'region',regionLabel,adMode);
+    }
+  }
+  toast('「'+planName+'」を追加しました');
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+  if(planInfo&&planInfo.price>0){
+    _pendingPlanEmail={shopId,planName:planInfo.name,planPrice:planInfo.price};
+  }
+}
+
+// 複数契約プラン: 1行削除（最後のrow idを使用）
+async function removeOneContract(shopId,planId){
+  const planInfo=(contractPlansData||[]).find(x=>x.id===planId);
+  const planName=planInfo?planInfo.name:'プラン';
+  const ids=window._contractIdMap&&window._contractIdMap[planId];
+  if(!ids||ids.length===0)return;
+  const rowId=ids[ids.length-1];// 最後の1行を削除
+  // 解除後の枠数を計算して超過チェック
+  const contracts=await apiGet('shop-contracts','shop_id='+encodeURIComponent(shopId));
+  const afterRows=(Array.isArray(contracts)?contracts:[]).filter(c=>c.id!==rowId);
+  let afterLimits={city:0,detail_area:0,spot:0,prefecture:0,region:0,national:0};
+  afterRows.forEach(c=>{const l=PLAN_LIMITS[c.plan_id];if(l){Object.keys(afterLimits).forEach(k=>{afterLimits[k]+=(l[k]||0);});}});
+  const placements=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1');
+  const activePlacements=Array.isArray(placements)?placements:[];
+  let toRemove=[];
+  const levels=['city','detail_area','spot','prefecture','region','national'];
+  levels.forEach(lv=>{
+    const active=activePlacements.filter(p=>p.level===lv);
+    const maxAfter=afterLimits[lv]||0;
+    if(active.length>maxAfter){active.slice(maxAfter).forEach(p=>toRemove.push(p));}
+  });
+  let msg='「'+planName+'」を1枠減らしますか？';
+  if(toRemove.length>0){
+    msg+='\n\n⚠️ 枠数超過のため、以下の掲載エリアも削除されます:\n';
+    toRemove.forEach(p=>{msg+='\n  • '+(PM_LEVEL_LABELS[p.level]||p.level)+' '+p.target_name;});
+    msg+='\n\n（掲載エリア '+toRemove.length+'件 が削除されます）';
+  }
+  if(!confirm(msg))return;
+  await api('delete',{table:'shop_contracts',id:rowId});
+  for(const p of toRemove){
+    await api('delete',{table:'shop_placements',id:p.id});
+    const adType=LEVEL_TO_AD_TYPE[p.level]||p.level;
+    await api('delete',{table:'ad_placements',filters:{shop_id:shopId,placement_type:adType,placement_target:p.target_name}});
+  }
+  toast(toRemove.length>0?'1枠減らし、掲載エリア'+toRemove.length+'件を削除しました':'1枠減らしました');
+  await syncBestPlan(shopId);
+  loadShopContracts(shopId,contractPlansData||[]);
+}
+
+async function loadShopAreaList(shopId){
+  const el=document.getElementById('sr-area-list');
+  if(!el)return;
+  const data=await apiGet('list','table=shop_placements&shop_id='+encodeURIComponent(shopId)+'&is_active=1&order=created_at&dir=desc');
+  if(!data||!data.length||data.error){el.innerHTML='<span style="color:#999;">掲載エリア未設定</span>';return;}
+  el.innerHTML=data.map(a=>`<span style="display:inline-block;padding:3px 10px;margin:2px 4px 2px 0;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:12px;font-size:11px;color:#2e7d32;">${esc(PM_LEVEL_LABELS[a.level]||a.level)} ${esc(a.target_name)}</span>`).join('');
+}
+
+// 都道府県リスト
+const PM_PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+
+// area-data.json キャッシュ
+let _pmAreaData=null;
+async function ensureAreaData(){
+  if(_pmAreaData)return _pmAreaData;
+  try{const r=await fetch('/area-data.json');_pmAreaData=await r.json();return _pmAreaData;}
+  catch(e){console.error('[ensureAreaData]',e);return null;}
+}
+
+function initPmPrefs(){
+  const sel=document.getElementById("pm-pref");
+  sel.innerHTML='<option value="">選択してください</option>'+PM_PREFS.map(p=>`<option value="${p}">${p}</option>`).join('');
+}
+
+function updatePmFormSlotHint(){
+  const hint=document.getElementById("pm-level-hint");
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(!hint)return;
+  const lv=document.getElementById("pm-level").value;
+  const {limits,used}=getSlotStatus();
+  const max=limits[lv]||0;const u=used[lv]||0;const remain=max-u;
+  if(max===0){
+    hint.textContent='このレベルの枠がありません（プラン追加が必要）';hint.style.color='#d32f2f';
+    if(addBtn){addBtn.disabled=true;addBtn.style.opacity='0.5';}
+  }else if(remain<=0){
+    hint.textContent='⚠ 枠の上限に達しています（'+max+'枠中'+u+'枠使用中）';hint.style.color='#d32f2f';
+    if(addBtn&&!_editingPlacementId){addBtn.disabled=true;addBtn.style.opacity='0.5';}
+  }else{
+    hint.textContent='残り '+remain+' 枠（'+max+'枠中'+u+'枠使用中）';hint.style.color='#2e7d32';
+    if(addBtn){addBtn.disabled=false;addBtn.style.opacity='1';}
+  }
+}
+
+// 都道府県のエリア構造をプレビュー表示
+function renderPrefPreview(pref){
+  const el=document.getElementById("pm-pref-preview");
+  if(!el)return;
+  if(!pref||!_pmAreaData){el.style.display='none';return;}
+  const prefEntry=_pmAreaData.pref[pref];
+  if(!prefEntry){el.style.display='none';return;}
+  const areas=prefEntry.areas||[];// [[areaName, count], ...]
+  const totalHotels=_pmAreaData.prefCounts[pref]||0;
+  // エリアごとの市区町村数を集計
+  let areaDetails=[];
+  for(const [aName,aCount] of areas){
+    const aKey=pref+'\t'+aName;
+    const aEntry=_pmAreaData.area[aKey];
+    const cityCount=aEntry&&aEntry.ct?aEntry.ct.length:0;
+    const daCount=aEntry&&aEntry.da?aEntry.da.length:0;
+    const hasDa=daCount>0;
+    areaDetails.push({name:aName,count:aCount,cityCount,daCount,hasDa});
+  }
+  // 上位8エリアを表示、残りは省略
+  const showCount=8;
+  const shown=areaDetails.slice(0,showCount);
+  const remaining=areaDetails.length-showCount;
+
+  let html=`<div style="background:#f8f9ff;border:1px solid #d0d7ff;border-radius:8px;padding:12px 14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-size:13px;font-weight:700;color:#333;">📍 ${esc(pref)} の掲載エリア構造</span>
+      <span style="font-size:11px;color:#666;">全${totalHotels.toLocaleString()}件のホテル</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+
+  for(const a of shown){
+    const sub=a.cityCount>0?a.cityCount+'市区町村':'';
+    const daInfo=a.daCount>0?a.daCount+'エリア':'';
+    html+=`<div style="background:#fff;border:1px solid #e0e4f0;border-radius:6px;padding:6px 10px;font-size:12px;min-width:0;">
+      <div style="font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;">${esc(a.name)}</div>
+      <div style="color:#888;font-size:10px;margin-top:2px;">${a.count}件${daInfo?' · '+daInfo:''}${sub?' · '+sub:''}</div>
+    </div>`;
+  }
+  if(remaining>0){
+    html+=`<div style="display:flex;align-items:center;padding:6px 10px;font-size:11px;color:#888;">他${remaining}エリア</div>`;
+  }
+
+  html+=`</div>
+    <div style="margin-top:10px;font-size:11px;color:#555;line-height:1.5;">
+      掲載レベルの目安:
+      <span style="display:inline-block;background:#e8f5e9;padding:1px 8px;border-radius:4px;margin:0 2px;">📌都道府県</span> = ${esc(pref)}全域
+      <span style="display:inline-block;background:#e3f2fd;padding:1px 8px;border-radius:4px;margin:0 2px;">🏙ブロック</span> = ${shown.length>0?esc(shown[0].name)+'等':'—'}
+      ${shown.some(a=>a.hasDa)?'<span style="display:inline-block;background:#fce4ec;padding:1px 8px;border-radius:4px;margin:0 2px;">🔍エリア</span> = ブロック内の繁華街・地域':''}
+      <span style="display:inline-block;background:#fff3e0;padding:1px 8px;border-radius:4px;margin:0 2px;">🏘市区町村</span> = 各エリア内の市区町村
+    </div>
+  </div>`;
+  el.innerHTML=html;
+  el.style.display='';
+}
+
+function onPmLevelChange(){
+  const lv=document.getElementById("pm-level").value;
+  const prefWrap=document.getElementById("pm-pref-wrap");
+  const areaWrap=document.getElementById("pm-area-wrap");
+  const daWrap=document.getElementById("pm-da-wrap");
+  const cityWrap=document.getElementById("pm-city-wrap");
+  // 全リセット（段階的に表示するため）
+  document.getElementById("pm-pref").value='';
+  document.getElementById("pm-area").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-da").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
+  prefWrap.style.display='none';areaWrap.style.display='none';daWrap.style.display='none';cityWrap.style.display='none';
+  document.getElementById("pm-pref-preview").style.display='none';
+  // ステップ番号を更新
+  updatePmStepLabels(lv);
+  // 地方selectの表示制御
+  const regionWrap=document.getElementById("pm-region-wrap");
+  if(regionWrap)regionWrap.style.display=(lv==='region')?'':'none';
+  if(!lv){updatePmFormSlotHint();return;}
+  // 全国・地方レベルは都道府県選択不要
+  if(lv==='national'||lv==='region'){
+    updatePmFormSlotHint();
+    return;
+  }
+  // 都道府県選択を表示
+  prefWrap.style.display='';
+  updatePmFormSlotHint();
+}
+function updatePmStepLabels(lv){
+  const areaLabel=document.querySelector('#pm-area-wrap .ml');
+  const daLabel=document.getElementById("pm-da-label");
+  const cityLabel=document.getElementById("pm-city-label");
+  if(lv==='city'){
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
+    if(cityLabel)cityLabel.innerHTML='⑤ 市区町村 <span style="color:var(--gold);">*</span>';
+  }else if(lv==='detail_area'){
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
+    if(daLabel)daLabel.innerHTML='⑤ エリア <span style="color:var(--gold);">*</span>';
+  }else if(lv==='spot'){
+    if(areaLabel)areaLabel.innerHTML='④ ブロック <span style="color:var(--gold);">*</span>';
+  }
+}
+
+async function onPmPrefChange(){
+  const pref=document.getElementById("pm-pref").value;
+  const previewEl=document.getElementById("pm-pref-preview");
+  const areaSel=document.getElementById("pm-area");
+  const citySel=document.getElementById("pm-city");
+  const daSel=document.getElementById("pm-da");
+  areaSel.innerHTML='<option value="">選択してください</option>';
+  citySel.innerHTML='<option value="">選択してください</option>';
+  daSel.innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-area-wrap").style.display='none';
+  document.getElementById("pm-da-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+
+  if(!pref){
+    if(previewEl)previewEl.style.display='none';
+    return;
+  }
+
+  await ensureAreaData();
+  // プレビュー表示
+  renderPrefPreview(pref);
+  // レベルに応じて次のステップを表示
+  const lv=document.getElementById("pm-level").value;
+  if(lv==='prefecture'){updatePmFormSlotHint();return;}
+  if(lv==='city'||lv==='detail_area'||lv==='spot'){
+    populateAreaSelect(pref);
+    document.getElementById("pm-area-wrap").style.display='';
+  }
+  updatePmFormSlotHint();
+}
+
+function populateAreaSelect(pref){
+  if(!_pmAreaData||!pref)return;
+  const prefEntry=_pmAreaData.pref[pref];
+  if(!prefEntry)return;
+  const areas=prefEntry.areas||[];
+  const areaSel=document.getElementById("pm-area");
+
+  if(areas.length){
+    areaSel.innerHTML='<option value="">ブロックを選択</option>'+areas.map(([name,count])=>
+      `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
+    ).join('');
+  }
+  // 段階表示: ブロック選択のみ表示。以降はonPmAreaChange/onPmDaChangeで表示
+}
+
+function onPmAreaChange(){
+  const lv=document.getElementById("pm-level").value;
+  const pref=document.getElementById("pm-pref").value;
+  const area=document.getElementById("pm-area").value;
+  // リセット: 下位ステップを非表示
+  document.getElementById("pm-da-wrap").style.display='none';
+  document.getElementById("pm-city-wrap").style.display='none';
+  document.getElementById("pm-da").innerHTML='<option value="">選択してください</option>';
+  document.getElementById("pm-city").innerHTML='<option value="">選択してください</option>';
+  if(!area)return;
+
+  if(lv==='detail_area'){
+    document.getElementById("pm-da-wrap").style.display='';
+    const daSel=document.getElementById("pm-da");
+    if(!pref||!_pmAreaData){
+      daSel.innerHTML='<option value="">← まずブロックを選択</option>';
+      return;
+    }
+    const aKey=pref+'\t'+area;
+    const aEntry=_pmAreaData.area[aKey];
+    if(!aEntry||!aEntry.da||!aEntry.da.length){
+      daSel.innerHTML='<option value="">（エリアなし — 市区町村プランをご利用ください）</option>';
+      return;
+    }
+    // da: [[detailAreaName, hotelCount], ...]
+    daSel.innerHTML='<option value="">エリアを選択</option>'+aEntry.da.map(([name,count])=>
+      `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
+    ).join('');
+    return;
+  }
+
+  if(lv!=='city')return;
+  document.getElementById("pm-city-wrap").style.display='';
+  const citySel=document.getElementById("pm-city");
+
+  if(!pref||!_pmAreaData){
+    citySel.innerHTML='<option value="">← まずブロックを選択</option>';
+    return;
+  }
+
+  const aKey=pref+'\t'+area;
+  const aEntry=_pmAreaData.area[aKey];
+  if(!aEntry||!aEntry.ct||!aEntry.ct.length){
+    citySel.innerHTML='<option value="">（市区町村データなし）</option>';
+    return;
+  }
+  // ct: [[cityName, hotelCount, lovehoCount], ...]
+  citySel.innerHTML='<option value="">市区町村を選択</option>'+aEntry.ct.map(([name,count])=>
+    `<option value="${esc(name)}">${esc(name)}（${count}件）</option>`
+  ).join('');
+}
+function onPmDaChange(){
+  // detail_areaレベルでは詳細エリア選択で完了（市区町村選択不要）
+}
+
+function getPmTargetName(){
+  const lv=document.getElementById("pm-level").value;
+  if(lv==='national')return'全国';
+  if(lv==='region'){const sel=document.getElementById("pm-region");return sel?sel.value:'';}
+  if(lv==='prefecture')return document.getElementById("pm-pref").value;
+  if(lv==='spot')return document.getElementById("pm-area").value;
+  if(lv==='detail_area')return document.getElementById("pm-da").value;
+  if(lv==='city')return document.getElementById("pm-city").value;
+  return'';
+}
+
+async function addPlacement(){
+  if(!_pmShopId)return;if(!confirm("掲載エリアを追加しますか？"))return;
+  const targetName=getPmTargetName();
+  if(!targetName){toast("エリアを選択してください");return;}
+  const level=document.getElementById("pm-level").value;
+  // 重複チェック（同一店舗×同一レベル×同一エリア名は1つまで）
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&target_name="+encodeURIComponent(targetName));
+  if(existCheck&&existCheck.length>0){toast("このエリアは既に登録済みです");return;}
+  // 枠数制限チェック
+  const limits=window._currentShopLimits||{city:0,spot:0,prefecture:0};
+  const maxSlots=limits[level]||0;
+  const currentPlacements=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(level)+"&is_active=1");
+  const currentCount=(currentPlacements||[]).length;
+  if(currentCount>=maxSlots){toast(`${PM_LEVEL_LABELS[level]||level}の掲載枠が上限（${maxSlots}枠）に達しています。プランを追加してください。`);return;}
+  // shop_placements に追加
+  const payload={
+    shop_id:_pmShopId,level,target_name:targetName,is_active:true
+  };
+  const _spir=await api("insert",{table:"shop_placements",data:payload});const error=_spir.ok?null:{message:"error"};
+  if(error){toast("追加エラー: "+error.message);return;}
+  // ad_placements にも追加（ポータル表示用、重複チェック）
+  // ポータルのads.phpが使うplacement_type: city→spot, detail_area→town, spot→area, prefecture→big
+  const adType=LEVEL_TO_AD_TYPE[level]||level;
+  const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
+  const adMode=shop?shop.gender_mode:'men';
+  const adExist=await apiGet("list","table=ad_placements&shop_id="+encodeURIComponent(_pmShopId)+"&placement_type="+encodeURIComponent(adType)+"&placement_target="+encodeURIComponent(targetName));
+  if(!adExist||!adExist.length){
+    await api("insert",{table:"ad_placements",data:{
+      shop_id:_pmShopId,placement_type:adType,placement_target:targetName,
+      status:'active',mode:adMode
+    }});
+  }
+  await loadPlacements(_pmShopId);
+  // フィードバックメッセージ（残り枠数を表示）
+  const {limits:newLimits,used:newUsed}=getSlotStatus();
+  const remain=(newLimits[level]||0)-(newUsed[level]||0);
+  const fb=document.getElementById("pm-feedback");
+  if(fb){
+    if(remain>0){
+      fb.style.display='';fb.style.background='#e8f5e9';fb.style.color='#2e7d32';fb.style.border='1px solid #a5d6a7';
+      fb.textContent='✓ '+targetName+'を追加しました。残り'+remain+'枠 — 続けて追加できます';
+    }else{
+      fb.style.display='';fb.style.background='#fff3cd';fb.style.color='#856404';fb.style.border='1px solid #ffc107';
+      fb.textContent='✓ '+targetName+'を追加しました。'+PM_LEVEL_LABELS[level]+'の枠を全て使い切りました';
+    }
+    setTimeout(()=>{fb.style.display='none';},6000);
+  }
+  // 連続追加しやすいよう、都道府県とレベルは維持し、エリア/市区町村のみリセット
+  if(level==='city'){
+    document.getElementById("pm-city").value="";
+  }else if(level==='detail_area'){
+    document.getElementById("pm-da").value="";
+  }else if(level==='spot'){
+    document.getElementById("pm-area").value="";
+  }
+  // 都道府県レベルの場合はリセット不要（同一都道府県の重複登録はチェック済み）
+}
+
+async function togglePlacement(id,current){
+  if(!confirm(current?"この掲載を無効にしますか？":"この掲載を有効にしますか？"))return;
+  const _spu=await api("update",{table:"shop_placements",id,data:{is_active:!current}});const error=_spu.ok?null:{message:"error"};
+  if(error){toast("更新エラー: "+error.message);return;}
+  placementsData=placementsData.map(p=>p.id===id?{...p,is_active:!current}:p);
+  renderPlacements();toast(current?"⏸ 停止しました":"✅ 再開しました");
+}
+
+async function deletePlacement(id){
+  if(!confirm("このエリアを削除しますか？"))return;
+  const p=placementsData.find(x=>x.id===id);
+  const _spd=await api("delete",{table:"shop_placements",id});const error=_spd.ok?null:{message:"error"};
+  if(error){toast("削除エラー: "+error.message);return;}
+  // ad_placementsからも削除
+  if(p&&_pmShopId){const delAdType=LEVEL_TO_AD_TYPE[p.level]||p.level;await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:delAdType,placement_target:p.target_name}});}
+  placementsData=placementsData.filter(x=>x.id!==id);
+  renderPlacements();toast("🗑 削除しました");
+}
+
+let _editingPlacementId=null;
+async function editPlacement(id){
+  const p=placementsData.find(x=>x.id===id);
+  if(!p)return;
+  _editingPlacementId=id;
+  await ensureAreaData();
+  // target_nameから都道府県/エリアを逆引き
+  let editPref='',editArea='',editDa='';
+  if(p.level==='prefecture'){
+    editPref=p.target_name;
+  }else if(p.level==='spot'){
+    // エリア名→都道府県を逆引き
+    if(_pmAreaData&&_pmAreaData.area){
+      for(const key of Object.keys(_pmAreaData.area)){
+        const [pr,ar]=key.split('\t');
+        if(ar===p.target_name){editPref=pr;editArea=p.target_name;break;}
+      }
+    }
+  }else if(p.level==='detail_area'){
+    // 詳細エリア名→都道府県+エリアを逆引き
+    if(_pmAreaData&&_pmAreaData.da){
+      for(const key of Object.keys(_pmAreaData.da)){
+        const parts=key.split('\t');
+        if(parts[2]===p.target_name){editPref=parts[0];editArea=parts[1];editDa=p.target_name;break;}
+      }
+    }
+  }else if(p.level==='city'){
+    // 市区町村名→都道府県+エリアを逆引き
+    if(_pmAreaData&&_pmAreaData.area){
+      for(const [key,val] of Object.entries(_pmAreaData.area)){
+        if(val.ct&&val.ct.some(([c])=>c===p.target_name)){
+          const [pr,ar]=key.split('\t');
+          editPref=pr;editArea=ar;break;
+        }
+      }
+    }
+  }
+  // フォームをセット
+  document.getElementById("pm-pref").value=editPref;
+  await onPmPrefChange();
+  document.getElementById("pm-level").value=p.level;
+  onPmLevelChange();
+  if(editArea&&(p.level==='spot'||p.level==='city'||p.level==='detail_area')){
+    document.getElementById("pm-area").value=editArea;
+    if(p.level==='city'){onPmAreaChange();setTimeout(()=>{document.getElementById("pm-city").value=p.target_name;},50);}
+    if(p.level==='detail_area'){onPmAreaChange();setTimeout(()=>{document.getElementById("pm-da").value=p.target_name;},50);}
+  }
+  // フォームタイトルとボタンを編集モードに切替
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(addBtn){addBtn.textContent='✏️ エリアを更新';addBtn.onclick=function(){updatePlacement();};}
+  const levelLabel=PM_LEVEL_LABELS[p.level]||p.level;
+  document.getElementById('pm-form-title').textContent='✏️ エリア編集（現在: '+levelLabel+' '+p.target_name+'）';
+  toast('エリアを選択して「エリアを更新」を押してください');
+}
+
+async function updatePlacement(){
+  if(!_editingPlacementId||!_pmShopId)return;if(!confirm("掲載エリアを更新しますか？"))return;
+  const newTargetName=getPmTargetName();
+  if(!newTargetName){toast("エリアを選択してください");return;}
+  const newLevel=document.getElementById("pm-level").value;
+  const oldP=placementsData.find(x=>x.id===_editingPlacementId);
+  // 重複チェック（自分自身は除外）
+  const existCheck=await apiGet("list","table=shop_placements&shop_id="+encodeURIComponent(_pmShopId)+"&level="+encodeURIComponent(newLevel)+"&target_name="+encodeURIComponent(newTargetName));
+  if(existCheck&&existCheck.filter(x=>x.id!==_editingPlacementId).length>0){toast("このエリアは既に登録済みです");return;}
+  // shop_placements更新
+  const _spu2=await api("update",{table:"shop_placements",id:_editingPlacementId,data:{level:newLevel,target_name:newTargetName}});const error=_spu2.ok?null:{message:"error"};
+  if(error){toast("更新エラー: "+error.message);return;}
+  // ad_placements も更新
+  if(oldP){
+    const oldAdType=LEVEL_TO_AD_TYPE[oldP.level]||oldP.level;
+    await api("delete",{table:"ad_placements",filters:{shop_id:_pmShopId,placement_type:oldAdType,placement_target:oldP.target_name}});
+    const newAdType=LEVEL_TO_AD_TYPE[newLevel]||newLevel;
+    const shop=shopsData.find(s=>String(s.id)===String(_pmShopId));
+    await api("insert",{table:"ad_placements",data:{shop_id:_pmShopId,placement_type:newAdType,placement_target:newTargetName,status:'active',mode:shop?shop.gender_mode:'men'}});
+  }
+  toast("✅ エリアを更新しました");
+  _editingPlacementId=null;
+  // フォームを新規追加モードに戻す
+  const addBtn=document.querySelector('#placement-modal .btn-add');
+  if(addBtn){addBtn.textContent='＋ エリアを追加';addBtn.onclick=function(){addPlacement();};}
+  document.getElementById('pm-form-title').textContent='新規エリア追加';
+  await loadPlacements(_pmShopId);
+}
+
+async function togglePlan(id,currentPlan){const newPlan=currentPlan==="paid"?"free":"paid";const r=await api('update',{table:'shops',id,data:{plan:newPlan}});if(!r.ok){toast("更新エラー");return;}shopsData=shopsData.map(s=>String(s.id)===String(id)?{...s,plan:newPlan}:s);renderShops();toast(newPlan==="paid"?"★ 有料掲載に変更":"無料掲載に変更");}
+
+// ===== 投稿管理（統合） =====
+let reportsData=[];
+async function loadReports(){
+  const rAll=await apiGet('reports-all');
+  if(rAll.error){toast("⚠️ レポート取得エラー");return;}
+  const all=rAll.reports||[];
+  const flagged=rAll.flagged||[];
+  const allIds=new Set(all.map(r=>r.id));
+  const extra=flagged.filter(r=>!allIds.has(r.id));
+  const merged=[...extra,...all];
+  merged.sort((a,b)=>{
+    const af=a.flagged_at&&!a.flag_resolved?0:1;
+    const bf=b.flagged_at&&!b.flag_resolved?0:1;
+    return af-bf||new Date(b.created_at)-new Date(a.created_at);
+  });
+  const deliData=merged.map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"deli"}));
+  const shopIdSet=new Set(shopsData.map(s=>String(s.id)).filter(Boolean));
+  const lhData=(rAll.loveho||[]).map(r=>({...r,hotel_mode:r.gender_mode||"men",is_hidden:r.is_hidden||false,_kind:"loveho",can_call:null,conditions:[],poster_type:r.poster_type||(r.shop_id&&shopIdSet.has(String(r.shop_id))?"shop":"user")}));
+  reportsData=[...deliData,...lhData];
+  reportsData.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  console.log("[loadReports]",{deli:deliData.length,loveho:lhData.length,total:reportsData.length});
+  updateFlagBadge();renderReports();
+}
+function updateFlagBadge(){const count=reportsData.filter(r=>r.flagged_at&&!r.flag_resolved).length;console.log("[updateFlagBadge] 未対応報告件数:",count,"/ 総投稿:",reportsData.length);const badge=document.getElementById("rep-badge");if(count>0){badge.style.display="inline";badge.textContent=count;}else badge.style.display="none";}
+async function resolveFlag(id){if(!confirm("対応済みにしますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{flag_resolved:jstNow()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:jstNow()}:r);updateFlagBadge();renderReports();toast("✅ 対応済みにしました");}
+async function unresolveFlag(id){if(!confirm("未対応に戻しますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,flag_resolved:null}:r);updateFlagBadge();renderReports();toast("🔄 未対応に戻しました");}
+let repPage=0;const REP_PER_PAGE=30;
+function updateResultFilter(){
+  const kF=document.getElementById("rep-kind-f")?.value||"";
+  const sel=document.getElementById("rep-result-f");
+  const cur=sel.value;
+  if(kF==="loveho"){
+    sel.innerHTML='<option value="">全結果</option><option value="yes">はい（一人入室）</option><option value="no">いいえ・その他</option>';
+  }else{
+    sel.innerHTML='<option value="">全結果</option><option value="yes">YES</option><option value="no">NO</option>';
+  }
+  // 前の選択値を維持できれば維持
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
+let _repHotelTimer=null;function onRepHotelInput(){clearTimeout(_repHotelTimer);_repHotelTimer=setTimeout(()=>{repPage=0;renderReports();},500);}
+function getRepFiltered(){
+  const kF=document.getElementById("rep-kind-f")?.value||"";
+  const wF=document.getElementById("rep-who-f")?.value||"";
+  const rF=document.getElementById("rep-result-f").value;
+  const vF=document.getElementById("rep-vis-f").value;
+  const fF=document.getElementById("rep-flag-f").value;
+  const hF=document.getElementById("rep-hotel-f")?.value.trim()||"";
+  const modeMap={men_user:"men",women_user:"women",ff_user:"women_same",mm_user:"men_same",este_user:"este"};
+  return reportsData.filter(r=>{
+    if(kF&&r._kind!==kF)return false;
+    if(wF){
+      if(wF.startsWith("shop_free")||wF.startsWith("shop_paid")){
+        if(r.poster_type!=="shop")return false;
+        const shop=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());
+        const _sp=(contractPlansData.find(p=>p.id===shop?.plan_id)||{}).price||0;
+        const isPaid=_sp>0;
+        if(wF.startsWith("shop_free")&&isPaid)return false;
+        if(wF.startsWith("shop_paid")&&!isPaid)return false;
+        const genreSuffix=wF.replace(/^shop_(free|paid)_?/,"");
+        if(genreSuffix){const shopMode=shop?.gender_mode||"";if(shopMode!==genreSuffix)return false;}
+      }
+      else{if(r.poster_type==="shop")return false;const needMode=modeMap[wF];if(needMode&&r.gender_mode!==needMode)return false;}
+    }
+    if(rF==="yes"){
+      if(r._kind==="deli"&&!r.can_call)return false;
+      if(r._kind==="loveho"&&r.solo_entry!=="yes")return false;
+    }
+    if(rF==="no"){
+      if(r._kind==="deli"&&r.can_call)return false;
+      if(r._kind==="loveho"&&r.solo_entry==="yes")return false;
+    }
+    if(vF==="visible"&&r.is_hidden)return false;
+    if(vF==="hidden"&&!r.is_hidden)return false;
+    if(fF==="flagged"&&!(r.flagged_at&&!r.flag_resolved))return false;
+    if(fF==="resolved"&&!(r.flagged_at&&r.flag_resolved))return false;
+    if(hF){const words=hF.split(/[\s　]+/).filter(w=>w.length>0);const name=(r.hotel_name||"").toLowerCase();if(!words.every(w=>name.includes(w.toLowerCase())))return false;}
+    return true;
+  });
+}
+function renderReports(){let data=getRepFiltered();data=applySortArr(data,"reports");const total=data.length;const totalPages=Math.max(1,Math.ceil(total/REP_PER_PAGE));if(repPage>=totalPages)repPage=totalPages-1;const page=data.slice(repPage*REP_PER_PAGE,(repPage+1)*REP_PER_PAGE);console.log("[renderReports]",{filtered:total,page:page.length,flaggedInPage:page.filter(r=>r.flagged_at&&!r.flag_resolved).length});document.getElementById("reports-sub").textContent=`${total} 件`;const pi=document.getElementById("rep-page-info");if(pi)pi.textContent=`${repPage+1} / ${totalPages} ページ`;const prev=document.getElementById("rep-prev");const next=document.getElementById("rep-next");if(prev)prev.disabled=repPage===0;if(next)next.disabled=repPage>=totalPages-1;document.getElementById("reports-tbody").innerHTML=page.length===0?`<tr class="erow"><td colspan="10">該当する投稿がありません</td></tr>`:page.map(r=>{if(r._kind==="loveho"){const gm=r.gender_mode;const _isShopPost=r.poster_type==="shop";const _shopGenreMap={men:"デリヘル",women:"女風",este:"デリエステ",men_same:"同性(男)",women_same:"同性(女)"};const _shopGm=_isShopPost?(()=>{const _s=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());return _s?.gender_mode||gm||"men";})():gm;const gmBadge=_isShopPost?`<span class='badge b-shop'>🏪 ${_shopGenreMap[_shopGm]||"店舗"}</span>`:gm==="women"?"<span class='badge b-women'>♀ ユーザー</span>":gm==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":gm==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":gm==="este"?"<span class='badge b-este'>💆‍♂️ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>";const _lhModeBadge=_isShopPost?`<span class='badge b-shop'>${_shopGenreMap[_shopGm]||"店舗"}</span>`:gm==="women"?"<span class='badge b-women'>♀</span>":gm==="women_same"?"<span class='badge b-women'>♀♀</span>":gm==="men_same"?"<span class='badge b-men'>♂♂</span>":gm==="este"?"<span class='badge b-este'>💆‍♂️</span>":"<span class='badge b-men'>♂</span>";const soloLabel=r.solo_entry==="yes"?"<span class='badge b-can'>一人入室◯</span>":r.solo_entry==="no"?"<span class='badge b-cant'>一人入室✕</span>":"—";const lhFlagHTML=r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" data-action="resolveLhFlag" data-arg1="${r.id}">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" data-action="unresolveLhFlag" data-arg1="${r.id}">未対応に戻す</button>`:"—";const lhRowStyle=`background:rgba(201,168,76,0.04);${r.is_hidden?'opacity:0.45;':''}${r.flagged_at&&!r.flag_resolved?';border-left:3px solid var(--red);background:rgba(192,80,80,0.08);':''}`;return`<tr style="${lhRowStyle}"><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${_lhModeBadge}</td><td data-label="結果">${soloLabel}</td><td data-label="投稿者">${gmBadge}</td><td data-label="投稿者名" style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.poster_name||"匿名")}</td><td data-label="条件" style="font-size:11px;color:var(--ink-3);">${(r.good_points||[]).slice(0,2).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td data-label="報告" style="font-size:11px;min-width:140px;">${lhFlagHTML}</td><td data-label="操作"><div class="btn-row"><button class="btn b-btn-gold" data-action="openRepEdit" data-arg1="${r.id}">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleLhVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" data-action="delLhReportFromList" data-arg1="${r.id}">削除</button></div></td></tr>`;}const isUnresolved=r.flagged_at&&!r.flag_resolved;const rowStyle=r.is_hidden?"opacity:0.45;":"";const rowFlagStyle=isUnresolved?"background:rgba(192,80,80,0.08);border-left:3px solid var(--red);":"";return`<tr style="${rowStyle}${rowFlagStyle}"><td data-label="日時" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td><td data-label="ホテル名" style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.hotel_name||"—")}</td><td data-label="モード">${(()=>{const _sgm={men:"デリヘル",women:"女風",este:"デリエステ",men_same:"同性(男)",women_same:"同性(女)"};if(r.poster_type==="shop"){const _ds=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());const _dm=_ds?.gender_mode||r.gender_mode||"men";return`<span class='badge b-shop'>${_sgm[_dm]||"店舗"}</span>`;}return r.gender_mode==="women"?"<span class='badge b-women'>♀</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂</span>":r.gender_mode==="este"?"<span class='badge b-este'>💆</span>":"<span class='badge b-men'>♂</span>";})()}</td><td data-label="結果"><span class="badge ${r.can_call?"b-can":"b-cant"}">${r.can_call?"呼べた":"呼べなかった"}</span></td><td data-label="投稿者">${(()=>{const _sgm2={men:"デリヘル",women:"女風",este:"デリエステ",men_same:"同性(男)",women_same:"同性(女)"};if(r.poster_type==="shop"){const _ds2=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());const _dm2=_ds2?.gender_mode||r.gender_mode||"men";return`<span class='badge b-shop'>🏪 ${_sgm2[_dm2]||"店舗"}</span>`;}return r.gender_mode==="women"?"<span class='badge b-women'>♀ ユーザー</span>":r.gender_mode==="women_same"?"<span class='badge b-women'>♀♀ ユーザー</span>":r.gender_mode==="men_same"?"<span class='badge b-men'>♂♂ ユーザー</span>":"<span class='badge b-men'>♂ ユーザー</span>";})()}</td><td data-label="投稿者名" style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.poster_name||"匿名")}</td><td data-label="条件" style="font-size:11px;color:var(--ink-3);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.can_call?(r.can_call_reasons||[]):(r.cannot_call_reasons||[])).join(", ")||"—"}</td><td data-label="コメント" style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.comment||"—")}</td><td data-label="報告" style="font-size:11px;min-width:140px;">${r.flagged_at&&!r.flag_resolved?`<span style="color:#c05050;font-weight:700;">🚩 ${esc(r.flag_reason||"（理由なし）")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:"<br>"}<span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-red" style="margin-top:4px;font-size:10px;" data-action="resolveFlag" data-arg1="${r.id}">対応済みにする</button>`:r.flagged_at?`<span style="color:var(--green);font-size:11px;font-weight:600;">✅ 対応済み</span><br><span style="color:var(--ink-3);font-size:10px;">${esc(r.flag_reason||"")}</span>${r.flag_comment?`<br><span style="color:var(--ink-3);font-size:10px;word-break:break-all;">${esc(r.flag_comment)}</span>`:""}<br><span style="color:var(--ink-3);font-size:10px;">${fmtDate(r.flagged_at)}</span><br><button class="btn b-btn-gray" style="margin-top:4px;font-size:10px;" data-action="unresolveFlag" data-arg1="${r.id}">未対応に戻す</button>`:"—"}</td><td data-label="操作"><div class="btn-row"><button class="btn b-btn-gold" data-action="openRepEdit" data-arg1="${r.id}">✏️ 編集</button><button class="btn ${r.is_hidden?"b-btn-green":"b-btn-gray"}" onclick="toggleVis('${r.id}',${r.is_hidden})">${r.is_hidden?"表示":"非表示"}</button><button class="btn b-btn-red" data-action="delReport" data-arg1="${r.id}">削除</button></div></td></tr>`;}).join("");}
+function repChangePage(delta){repPage+=delta;renderReports();}
+function openRepEdit(id){
+  const r=reportsData.find(r=>String(r.id)===String(id));
+  if(!r)return;
+  const kind=r._kind||"deli";
+  document.getElementById("re-id").value=id;
+  document.getElementById("re-kind").value=kind;
+  document.getElementById("re-hotel").textContent=r.hotel_name||"—";
+  document.getElementById("re-poster-name").value=r.poster_name||"";
+  document.getElementById("re-comment").value=r.comment||"";
+  // デリヘル/ラブホセクション切替
+  document.getElementById("re-deli-section").style.display=kind==="deli"?"":"none";
+  document.getElementById("re-loveho-section").style.display=kind==="loveho"?"":"none";
+  if(kind==="deli"){
+    document.getElementById("re-can-call").value=r.can_call?"true":"false";
+    const rtSel=document.getElementById("re-room-type");
+    const rtOpts=roomTypesData.length?roomTypesData.map(t=>t.label):["シングル","セミダブル","ダブル","ツイン","和室","その他"];
+    rtSel.innerHTML='<option value="">未選択</option>'+rtOpts.map(l=>`<option value="${esc(l)}"${r.room_type===l?" selected":""}>${esc(l)}</option>`).join("");
+    if(r.room_type&&!rtOpts.includes(r.room_type)){const o=document.createElement("option");o.value=r.room_type;o.textContent=r.room_type;o.selected=true;rtSel.appendChild(o);}
+    const canLabels=canReasonsData.length?canReasonsData.map(c=>c.label):["直通","カードキー必須","EVフロント階スキップ","フロント相談","ノウハウ","バスタオル依頼推奨","玄関待ち合わせ"];
+    const cannotLabels=cannotReasonsData.length?cannotReasonsData.map(c=>c.label):["フロントSTOP","防犯カメラ確認","深夜外出NG","その他"];
+    const selCan=r.can_call_reasons||[];
+    const selCannot=r.cannot_call_reasons||[];
+    document.getElementById("re-can-cb").innerHTML=canLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCan.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
+    document.getElementById("re-cannot-cb").innerHTML=cannotLabels.map(l=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(l)}"${selCannot.includes(l)?" checked":""}> ${esc(l)}</label>`).join("");
+    reToggleReasons(r.can_call?"true":"false");
+    document.getElementById("re-time-slot").value=r.time_slot||"";
+    // 複数人
+    document.getElementById("re-multi-person").checked=!!r.multi_person;
+    document.getElementById("re-multi-detail").style.display=r.multi_person?'flex':'none';
+    document.getElementById("re-guest-male").value=r.guest_male||'';
+    document.getElementById("re-guest-female").value=r.guest_female||'';
+    document.getElementById("re-multi-fee").checked=!!r.multi_fee;
+  } else {
+    // 雰囲気セレクト
+    const atmSel = document.getElementById("re-lh-atmosphere");
+    const atmOpts = goodPointsData.length ? [...new Set(goodPointsData.filter(g=>g.category==='atmosphere').map(g=>g.label))] : [];
+    // マスターから取得できない場合はフォールバック
+    const atmFallback = ["シンプル・清潔感","ラグジュアリー","アジアン・エスニック","和風","カジュアル","大人向け"];
+    const atmList = atmOpts.length ? atmOpts : atmFallback;
+    atmSel.innerHTML = '<option value="">未選択</option>' + atmList.map(l=>`<option value="${esc(l)}"${r.atmosphere===l?" selected":""}>${esc(l)}</option>`).join("");
+    if(r.atmosphere && !atmList.includes(r.atmosphere)){
+      const o=document.createElement("option"); o.value=r.atmosphere; o.textContent=r.atmosphere; o.selected=true; atmSel.appendChild(o);
+    }
+
+    // 時間帯セレクト（現在の選択肢 + DBにある旧フォーマットも含める）
+    const tsSel = document.getElementById("re-lh-time-slot");
+    const tsFallback = ["早朝（5:00〜8:00）","朝（8:00〜11:00）","昼（11:00〜16:00）","夕方（16:00〜18:00）","夜（18:00〜23:00）","深夜（23:00〜5:00）"];
+    const tsOptions = [...tsFallback];
+    if (r.time_slot && !tsOptions.includes(r.time_slot)) tsOptions.push(r.time_slot);
+    tsSel.innerHTML = '<option value="">未選択</option>' + tsOptions.map(l=>`<option value="${esc(l)}"${r.time_slot===l?" selected":""}>${esc(l)}</option>`).join("");
+
+    // 店舗投稿チェックボックスの状態をセット
+    const isShopPost = r.poster_type === 'shop' || (r.shop_id && shopsData.some(s => String(s.id) === String(r.shop_id)));
+    document.getElementById("re-lh-shop-mode").checked = isShopPost;
+    toggleLhShopMode(isShopPost, r.solo_entry);
+    // multi_person: trueのみ「OK」、falseやnullは「未選択」（ポータルと同じ動作）
+    document.getElementById("re-lh-multi").value = r.multi_person===true?"true":"";
+    document.getElementById("re-lh-multi-fee").checked = !!r.multi_fee;
+
+    // チェックポイント
+    const selGp = r.good_points||[];
+    const gpData = goodPointsData.filter(g=>g.is_active);
+    document.getElementById("re-lh-goodpoints-cb").innerHTML = gpData.map(g=>`<label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;white-space:nowrap;"><input type="checkbox" value="${esc(g.label)}"${selGp.includes(g.label)?" checked":""}> ${esc(g.label)}</label>`).join("");
+  }
+
+  // 投稿者タイプ
+  const _isPosterShop = r.poster_type==="shop";
+  document.getElementById("re-poster-type").value = _isPosterShop ? "shop" : "user";
+  onPosterTypeChange();
+
+  // 性別モード（店舗の場合は店舗のgender_modeを優先）
+  if(_isPosterShop){
+    const _editShop=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());
+    document.getElementById("re-gender-mode").value = _editShop?.gender_mode||r.gender_mode||"men";
+  } else {
+    document.getElementById("re-gender-mode").value = r.gender_mode||"men";
+  }
+
+  // 日時（常に表示）
+  const dt = r.created_at ? String(r.created_at).replace('T',' ').replace(/Z$/,'').slice(0,16).replace(' ','T') : "";
+  document.getElementById("re-created-at").value = dt;
+
+  document.getElementById("report-edit-modal").style.display="flex";
+}
+function reToggleReasons(v){document.getElementById("re-can-wrap").style.display=v==="true"?"":"none";document.getElementById("re-cannot-wrap").style.display=v==="false"?"":"none";}
+function closeRepEditModal(){document.getElementById("report-edit-modal").style.display="none";}
+async function deleteFromEditModal(){
+  const id=document.getElementById("re-id").value;
+  const kind=document.getElementById("re-kind").value||"deli";
+  if(!id)return;
+  closeRepEditModal();
+  if(kind==="loveho"){await delLhReportFromList(id);}else{await delReport(id);}
+}
+function onPosterTypeChange(){
+  const isShop=document.getElementById("re-poster-type").value==="shop";
+  document.getElementById("re-mode-label").textContent=isShop?"ジャンル":"性別モード";
+  if(isShop){
+    // 店舗選択時: poster_nameから店舗を特定し、gender_mode・投稿者名を連動
+    const curName=document.getElementById("re-poster-name").value.trim();
+    const shop=curName?shopsData.find(s=>s.shop_name?.toLowerCase()===curName.toLowerCase()):null;
+    if(shop){
+      document.getElementById("re-gender-mode").value=shop.gender_mode||"men";
+    }
+  }
+}
+function onPosterNameInput(){
+  // 投稿者名変更時、店舗タイプならgender_modeを連動
+  if(document.getElementById("re-poster-type").value!=="shop")return;
+  const name=document.getElementById("re-poster-name").value.trim();
+  const shop=name?shopsData.find(s=>s.shop_name?.toLowerCase()===name.toLowerCase()):null;
+  if(shop){
+    document.getElementById("re-gender-mode").value=shop.gender_mode||"men";
+  }
+}
+async function saveRepEdit(){
+  if(!confirm("口コミの編集内容を保存しますか？"))return;
+  const id=document.getElementById("re-id").value;
+  const kind=document.getElementById("re-kind").value||"deli";
+  const poster_name=document.getElementById("re-poster-name").value.trim();
+  const poster_type=document.getElementById("re-poster-type").value==="shop"?"shop":"user";
+  // 店舗投稿: shop_idを逆引きしてセット、ユーザー投稿: shop_idをクリア
+  let shop_id=null;
+  if(poster_type==="shop"&&poster_name){
+    const _matchShop=shopsData.find(s=>s.shop_name?.toLowerCase()===poster_name.toLowerCase());
+    if(_matchShop)shop_id=_matchShop.id;
+  }
+  const time_slot=document.getElementById("re-time-slot").value.trim()||null;
+  const comment=document.getElementById("re-comment").value.trim()||null;
+  // 日時更新
+  const dateWrap=document.getElementById("re-date-wrap");
+  const newDate=dateWrap.style.display!==""?null:document.getElementById("re-created-at").value;
+  if(kind==="deli"){
+    const can_call=document.getElementById("re-can-call").value==="true";
+    const room_type=document.getElementById("re-room-type").value||null;
+    const can_call_reasons=[...document.querySelectorAll("#re-can-cb input:checked")].map(c=>c.value);
+    const cannot_call_reasons=[...document.querySelectorAll("#re-cannot-cb input:checked")].map(c=>c.value);
+    const gender_mode=document.getElementById("re-gender-mode").value||null;
+    const multi_person=document.getElementById("re-multi-person").checked||false;
+    const multi_fee=multi_person?(document.getElementById("re-multi-fee").checked||false):false;
+    const guest_male=multi_person?(parseInt(document.getElementById("re-guest-male").value)||0):0;
+    const guest_female=multi_person?(parseInt(document.getElementById("re-guest-female").value)||0):0;
+    const payload={can_call,poster_type,poster_name,shop_id,time_slot,room_type,comment,can_call_reasons,cannot_call_reasons,gender_mode,multi_person,multi_fee,guest_male,guest_female};
+    if(newDate)payload.created_at=newDate.replace('T',' ')+':00';
+    const _r=await api("update",{table:"reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
+    reportsData=reportsData.map(r=>String(r.id)===String(id)?{...r,...payload}:r);
+  } else {
+    const atmosphere = document.getElementById("re-lh-atmosphere").value||null;
+    const solo_entry = document.getElementById("re-lh-solo").value||null;
+    const multi_val = document.getElementById("re-lh-multi").value;
+    const multi_person = multi_val==="true"?true:multi_val==="false"?false:null;
+    const time_slot = document.getElementById("re-lh-time-slot").value||null;
+    const good_points = [...document.querySelectorAll("#re-lh-goodpoints-cb input:checked")].map(c=>c.value);
+    const gender_mode = document.getElementById("re-gender-mode").value||"men";
+    const multi_fee = multi_person ? (document.getElementById("re-lh-multi-fee").checked || false) : null;
+    const payload = {atmosphere,solo_entry,multi_person,multi_fee,good_points,poster_type,poster_name,shop_id,time_slot,comment,gender_mode};
+    const newDate2 = document.getElementById("re-created-at").value;
+    if(newDate2) payload.created_at = newDate2.replace('T',' ')+':00';
+    const _r=await api("update",{table:"loveho_reports",id,data:payload});if(!_r.ok){toast("更新エラー");return;}
+    reportsData=reportsData.map(r=>String(r.id)===String(id)&&r._kind==="loveho"?{...r,...payload}:r);
+  }
+  renderReports();closeRepEditModal();toast("✅ 更新しました");
+}
+async function toggleVis(id,cur){if(!confirm(cur?"この投稿を表示に戻しますか？":"この投稿を非表示にしますか？"))return;const rec=reportsData.find(r=>r.id===id);const tbl=rec&&rec._kind==='loveho'?'loveho_reports':'reports';const _r=await api("update",{table:tbl,id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>r.id===id?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+async function delReport(id){if(!confirm("この投稿を削除しますか？元に戻せません。"))return;const _r=await api("delete",{table:"reports",id});if(!_r.ok){toast("削除エラー");return;}reportsData=reportsData.filter(r=>r.id!==id);updateFlagBadge();renderReports();toast("🗑 削除しました");}
+async function delLhReportFromList(id){
+    if(!confirm("このラブホ口コミを削除しますか？元に戻せません。"))return;
+    const _r=await api("delete",{table:"loveho_reports",id});if(!_r.ok){toast("削除エラー");return;}
+    reportsData=reportsData.filter(r=>r.id!==id);
+    updateFlagBadge();
+    renderReports();
+    toast("🗑 削除しました");
+}
+async function resolveLhFlag(id){if(!confirm("対応済みにしますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:jstNow()}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:jstNow()}:r);renderReports();updateFlagBadge();toast("✅ 対応済みにしました");}
+async function unresolveLhFlag(id){if(!confirm("未対応に戻しますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{flag_resolved:null}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,flag_resolved:null}:r);renderReports();updateFlagBadge();toast("⚠️ 未対応に戻しました");}
+async function toggleLhVis(id,cur){if(!confirm(cur?"このラブホ口コミを表示に戻しますか？":"このラブホ口コミを非表示にしますか？"))return;const _r=await api("update",{table:"loveho_reports",id,data:{is_hidden:!cur}});if(!_r.ok){toast("更新エラー");return;}reportsData=reportsData.map(r=>(r._kind==="loveho"&&String(r.id)===String(id))?{...r,is_hidden:!cur}:r);renderReports();toast(cur?"✅ 表示に戻しました":"⏸ 非表示にしました");}
+
+// ===== 投稿種別フィルター =====
+let currentReportType='deli';
+
+// ===== ホテル編集 =====
+let hotelsData=[];let _hotelSearchTimer=null;
+// ===== ジオコーディング =====
+async function geocodeAddress(address){
+  // 前処理: 全角数字→半角、全角ハイフン→半角、余分なスペース削除
+  let normalized=address
+    .replace(/[０-９]/g,s=>String.fromCharCode(s.charCodeAt(0)-0xFEE0))
+    .replace(/[ー−—–]/g,"-")
+    .replace(/\s+/g," ").trim();
+  // 1. Nominatimで試行
+  try{
+    const res=await fetch("https://nominatim.openstreetmap.org/search?"+new URLSearchParams({q:normalized,format:"json",limit:1,countrycodes:"jp"}),{headers:{"Accept-Language":"ja"}});
+    const data=await res.json();
+    if(data.length>0)return{lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};
+  }catch(e){}
+  // 2. 国土地理院APIでフォールバック
+  try{
+    const res2=await fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(normalized));
+    const data2=await res2.json();
+    if(data2.length>0&&data2[0].geometry&&data2[0].geometry.coordinates){
+      return{lat:data2[0].geometry.coordinates[1],lng:data2[0].geometry.coordinates[0]};
+    }
+  }catch(e){}
+  return null;
+}
+async function geocodeAndFill(prefix){
+  const addr=document.getElementById(prefix+"-address").value.trim();
+  if(!addr){toast("住所を入力してからボタンを押してください");return;}
+  const btn=event.target;
+  const origText=btn.textContent;
+  btn.disabled=true;btn.textContent="取得中...";
+  try{
+    const result=await geocodeAddress(addr);
+    if(result){
+      document.getElementById(prefix+"-lat").value=result.lat;
+      document.getElementById(prefix+"-lng").value=result.lng;
+      toast("📍 緯度経度を取得しました");
+    }else{
+      toast("住所から緯度経度を取得できませんでした。手動で入力してください。");
+    }
+  }catch(e){
+    console.error("[geocode]",e);
+    toast("取得エラーが発生しました。手動で入力してください。");
+  }finally{
+    btn.disabled=false;btn.textContent=origText;
+  }
+}
+
+// 地方→都道府県→市区町村 カスケード
+const ADMIN_REGION_MAP=[
+  {label:'北海道',prefs:['北海道']},
+  {label:'東北',prefs:['青森県','岩手県','宮城県','秋田県','山形県','福島県']},
+  {label:'関東',prefs:['茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県']},
+  {label:'北陸',prefs:['富山県','石川県','福井県']},
+  {label:'甲信越',prefs:['新潟県','山梨県','長野県']},
+  {label:'東海',prefs:['岐阜県','静岡県','愛知県','三重県']},
+  {label:'関西',prefs:['滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県']},
+  {label:'中国',prefs:['鳥取県','島根県','岡山県','広島県','山口県']},
+  {label:'四国',prefs:['徳島県','香川県','愛媛県','高知県']},
+  {label:'九州',prefs:['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県']},
+  {label:'沖縄',prefs:['沖縄県']}
+];
+function initRegionSelect(){
+  const sel=document.getElementById("hotel-region-f");
+  ADMIN_REGION_MAP.forEach(r=>{const o=document.createElement("option");o.value=r.label;o.textContent=r.label;sel.appendChild(o);});
+}
+function onRegionChange(){
+  const regionLabel=document.getElementById("hotel-region-f").value;
+  const prefSel=document.getElementById("hotel-pref-f");
+  const citySel=document.getElementById("hotel-city-f");
+  prefSel.innerHTML='<option value="">都道府県を選択</option>';
+  citySel.innerHTML='<option value="">市区町村を選択</option>';
+  citySel.disabled=true;
+  if(!regionLabel){prefSel.disabled=true;fetchHotels();return;}
+  const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);
+  if(region){region.prefs.forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;prefSel.appendChild(o);});}
+  prefSel.disabled=false;
+  fetchHotels();
+}
+async function onHotelPrefChange(){
+  const pref=document.getElementById("hotel-pref-f").value;
+  const citySel=document.getElementById("hotel-city-f");
+  citySel.innerHTML='<option value="">市区町村を選択</option>';
+  if(!pref){citySel.disabled=true;fetchHotels();return;}
+  // DBから該当都道府県の市区町村一覧を取得
+  const cities=await apiGet("hotel-cascades","field=city&pref="+encodeURIComponent(pref));
+  cities.forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;citySel.appendChild(o);});
+  citySel.disabled=cities.length===0;
+  fetchHotels();
+}
+async function loadHotels(){initRegionSelect();fetchHotels();}
+function onHotelSearchInput(){clearTimeout(_hotelSearchTimer);_hotelSearchTimer=setTimeout(fetchHotels,400);}
+async function fetchHotels(){
+  const q=document.getElementById("hotel-search").value.trim();
+  const regionLabel=document.getElementById("hotel-region-f").value;
+  const pF=document.getElementById("hotel-pref-f").value;
+  const cityF=document.getElementById("hotel-city-f").value;
+  const sF=document.getElementById("hotel-source-f").value;
+  const pubF=document.getElementById("hotel-pub-f").value;
+  const hp=new URLSearchParams();
+  if(q)hp.set('q',q.replace(/[%_]/g,''));
+  if(pF)hp.set('pref',pF);
+  else if(regionLabel){const region=ADMIN_REGION_MAP.find(r=>r.label===regionLabel);if(region)hp.set('region_prefs',region.prefs.join(','));}
+  if(cityF)hp.set('city',cityF);
+  if(sF)hp.set('source',sF);
+  if(pubF)hp.set('pub',pubF);
+  const data=await apiGet('hotels-search',hp.toString());hotelsData=data||[];renderHotels();
+}
+function renderHotels(){const data=applySortArr(hotelsData,"hotels");document.getElementById("hotels-sub").textContent=`${data.length} 件`;document.getElementById("hotels-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="7">該当するホテルがありません</td></tr>`:data.map(h=>{const pub=h.is_published!==false;const pubBadge=pub?'<span class="badge b-published">公開中</span>':'<span class="badge b-unpublished">非公開</span>';const pubBtn=pub?`<button class="btn b-btn-gray" onclick="togglePublish(${h.id},true)">非公開にする</button>`:`<button class="btn b-btn-green" onclick="togglePublish(${h.id},false)">公開する</button>`;const srcBadge=h.source==='imported'?'<span class="badge b-active">外部取込</span>':'<span class="badge b-free">手動</span>';return`<tr><td data-label="ホテル名" style="font-weight:500;font-size:13px;">${esc(h.name)}</td><td data-label="都道府県" style="font-size:12px;color:var(--ink-3);">${esc(h.prefecture||"—")}</td><td data-label="市区町村" style="font-size:12px;color:var(--ink-3);">${esc(h.city||"—")}</td><td data-label="最寄り駅" style="font-size:12px;color:var(--ink-3);">${esc(h.nearest_station||"—")}</td><td data-label="ソース">${srcBadge}</td><td data-label="状態">${pubBadge}</td><td data-label="操作"><div class="btn-row">${pubBtn}<button class="btn b-btn-gold" data-action="openEdit" data-arg1="${h.id}">✏️ 編集</button><button class="btn b-btn-red" onclick="deleteHotel(${h.id},'${esc(h.name)}')">削除</button></div></td></tr>`;}).join("");}
+async function openEdit(id){const h=hotelsData.find(h=>h.id===id);if(!h)return;document.getElementById("edit-id").value=h.id;document.getElementById("edit-name").value=h.name||"";document.getElementById("edit-type").value=h.hotel_type||"other";document.getElementById("edit-postal").value=h.postal_code||"";document.getElementById("edit-address").value=h.address||"";document.getElementById("edit-tel").value=h.tel||"";document.getElementById("edit-station").value=h.nearest_station||"";document.getElementById("edit-lat").value=h.latitude||"";document.getElementById("edit-lng").value=h.longitude||"";document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";document.getElementById("hotel-modal").style.display="flex";await prefillAreaSelects("edit",h.prefecture,h.major_area,h.detail_area,h.city);}
+function closeModal(){document.getElementById("hotel-modal").style.display="none";}
+function editToConfirm(){const name=document.getElementById("edit-name").value.trim();if(!name){toast("ホテル名を入力してください");return;}if(!document.getElementById("edit-address").value.trim()){toast("住所を入力してください");return;}if(!document.getElementById("edit-pref").value){toast("都道府県を選択してください");return;}const rows=[["ホテル名",name],["タイプ",HOTEL_TYPE_LABELS[document.getElementById("edit-type").value]||"—"],["郵便番号",document.getElementById("edit-postal").value.trim()||"—"],["都道府県",document.getElementById("edit-pref").value||"—"],["市区町村",document.getElementById("edit-city").value||"—"],["住所",document.getElementById("edit-address").value.trim()||"—"],["電話番号",document.getElementById("edit-tel").value.trim()||"—"],["最寄り駅",document.getElementById("edit-station").value.trim()||"—"],["エリア",document.getElementById("edit-major-area").value||"—"],["詳細エリア",document.getElementById("edit-detail-area").value||"—"],["緯度",document.getElementById("edit-lat").value||"—"],["経度",document.getElementById("edit-lng").value||"—"],];document.getElementById("edit-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");document.getElementById("edit-step1").style.display="none";document.getElementById("edit-step2").style.display="";}
+function editBack(){document.getElementById("edit-step1").style.display="";document.getElementById("edit-step2").style.display="none";}
+async function deleteHotel(id,name){if(!confirm(`「${name}」を削除しますか？\nこのホテルに紐づく投稿データも参照できなくなります。`))return;const _r=await api("delete",{table:"hotels",id});if(!_r.ok){toast("削除エラー");return;}hotelsData=hotelsData.filter(h=>h.id!==id);renderHotels();toast("🗑 削除しました");}
+async function togglePublish(id,current){if(!confirm(current?"このホテルを非公開にしますか？":"このホテルを公開しますか？"))return;const newVal=!current;const _r=await api("update",{table:"hotels",id,data:{is_published:newVal}});if(!_r.ok){toast("更新エラー");return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,is_published:newVal}:h);renderHotels();toast(newVal?"✅ 公開しました（ポータルに表示されます）":"⏸ 非公開にしました（ポータルから非表示になります）");}
+async function saveHotel(){if(!confirm("ホテル情報を保存しますか？"))return;try{const id=parseInt(document.getElementById("edit-id").value);const payload={name:document.getElementById("edit-name").value.trim(),hotel_type:document.getElementById("edit-type").value,postal_code:document.getElementById("edit-postal").value.trim()||null,prefecture:document.getElementById("edit-pref").value||null,city:document.getElementById("edit-city").value||null,address:document.getElementById("edit-address").value.trim()||null,tel:document.getElementById("edit-tel").value.trim()||null,nearest_station:document.getElementById("edit-station").value.trim()||null,major_area:document.getElementById("edit-major-area").value||null,detail_area:document.getElementById("edit-detail-area").value||null,latitude:document.getElementById("edit-lat").value?parseFloat(document.getElementById("edit-lat").value):null,longitude:document.getElementById("edit-lng").value?parseFloat(document.getElementById("edit-lng").value):null,is_edited:true};const _r=await api("update",{table:"hotels",id,data:payload});if(!_r.ok){toast("保存エラー: "+(_r.error||"不明なエラー"));return;}hotelsData=hotelsData.map(h=>h.id===id?{...h,...payload}:h);renderHotels();closeModal();toast("✅ 保存しました");}catch(e){console.error('[saveHotel]',e);toast("保存エラー: "+e.message);}}
+function openAddHotel(){
+  ["add-name","add-postal","add-city","add-address","add-tel","add-station","add-lat","add-lng"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("add-type").value="business";
+  document.getElementById("add-pref").value="";
+  document.getElementById("add-major-area").innerHTML='<option value="">都道府県を先に選択</option>';
+  document.getElementById("add-detail-area").innerHTML='<option value="">（なし）</option>';
+  document.getElementById("add-step1").style.display="";
+  document.getElementById("add-step2").style.display="none";
+  document.getElementById("hotel-add-modal").style.display="flex";
+}
+function closeAddHotel(){document.getElementById("hotel-add-modal").style.display="none";}
+function addHotelToConfirm(){
+  const name=document.getElementById("add-name").value.trim();
+  if(!name){toast("ホテル名を入力してください");return;}
+  if(!document.getElementById("add-address").value.trim()){toast("住所を入力してください");return;}
+  if(!document.getElementById("add-pref").value){toast("都道府県を選択してください");return;}
+  const rows=[
+    ["ホテル名",name],
+    ["タイプ",HOTEL_TYPE_LABELS[document.getElementById("add-type").value]||"—"],
+    ["郵便番号",document.getElementById("add-postal").value.trim()||"—"],
+    ["都道府県",document.getElementById("add-pref").value||"—"],
+    ["市区町村",document.getElementById("add-city").value||"—"],
+    ["住所",document.getElementById("add-address").value.trim()||"—"],
+    ["電話番号",document.getElementById("add-tel").value.trim()||"—"],
+    ["最寄り駅",document.getElementById("add-station").value.trim()||"—"],
+    ["エリア",document.getElementById("add-major-area").value||"—"],
+    ["詳細エリア",document.getElementById("add-detail-area").value||"—"],
+    ["緯度",document.getElementById("add-lat").value||"—"],
+    ["経度",document.getElementById("add-lng").value||"—"],
+  ];
+  document.getElementById("add-confirm-body").innerHTML=rows.map(([l,v])=>`<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">${l}</span><strong>${esc(v)}</strong></div>`).join("");
+  document.getElementById("add-step1").style.display="none";
+  document.getElementById("add-step2").style.display="";
+}
+function addHotelBack(){
+  document.getElementById("add-step1").style.display="";
+  document.getElementById("add-step2").style.display="none";
+}
+async function saveNewHotel(){if(!confirm("新しいホテルを追加しますか？"))return;try{
+  const name=document.getElementById("add-name").value.trim();
+  if(!name){toast("ホテル名を入力してください");return;}
+  const payload={
+    name,
+    hotel_type:document.getElementById("add-type").value,
+    postal_code:document.getElementById("add-postal").value.trim()||null,
+    prefecture:document.getElementById("add-pref").value||null,
+    city:document.getElementById("add-city").value||null,
+    address:document.getElementById("add-address").value.trim()||null,
+    tel:document.getElementById("add-tel").value.trim()||null,
+    nearest_station:document.getElementById("add-station").value.trim()||null,
+    major_area:document.getElementById("add-major-area").value||null,
+    detail_area:document.getElementById("add-detail-area").value||null,
+    latitude:document.getElementById("add-lat").value?parseFloat(document.getElementById("add-lat").value):null,
+    longitude:document.getElementById("add-lng").value?parseFloat(document.getElementById("add-lng").value):null,
+    source:"manual",
+    is_published:document.getElementById("add-publish").checked
+  };
+  // 電話番号で重複チェック
+  if(payload.tel){const telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){const dupArr=await apiGet("hotels-search","q="+encodeURIComponent(payload.tel)+"&pref="+encodeURIComponent(payload.prefecture));const dup=(dupArr||[]).filter(h=>h.tel===payload.tel);if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
+  const insR=await api("insert",{table:"hotels",data:payload});if(!insR.ok){toast("追加エラー: "+(insR.error||""));return;}const data=insR.data;
+  hotelsData.unshift(data);renderHotels();closeAddHotel();toast(payload.is_published?"✅ ホテルを追加・公開しました":"✅ ホテルを追加しました（非公開）");
+}catch(e){console.error('[saveNewHotel]',e);toast("追加エラー: "+e.message);}}
+
+// ===== 都道府県・エリア プルダウン =====
+const PREFECTURES=['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+function initPrefSelect(prefix){
+  const sel=document.getElementById(prefix+"-pref");
+  if(!sel)return;
+  sel.innerHTML='<option value="">選択してください</option>'+PREFECTURES.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+}
+async function onPrefChange(prefix){
+  const pref=document.getElementById(prefix+"-pref").value;
+  const maSel=document.getElementById(prefix+"-major-area");
+  const daSel=document.getElementById(prefix+"-detail-area");
+  const citySel=document.getElementById(prefix+"-city");
+  if(maSel)maSel.innerHTML='<option value="">選択してください</option>';
+  if(daSel)daSel.innerHTML='<option value="">（なし）</option>';
+  if(citySel)citySel.innerHTML='<option value="">エリアを先に選択</option>';
+  if(!pref||!maSel)return;
+  const areas=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
+  areas.forEach(a=>{maSel.innerHTML+='<option value="'+esc(a)+'">'+esc(a)+'</option>';});
+}
+async function onMajorAreaChange(prefix){
+  const pref=document.getElementById(prefix+"-pref").value;
+  const ma=document.getElementById(prefix+"-major-area").value;
+  const daSel=document.getElementById(prefix+"-detail-area");
+  const citySel=document.getElementById(prefix+"-city");
+  if(daSel)daSel.innerHTML='<option value="">（なし）</option>';
+  if(citySel)citySel.innerHTML='<option value="">選択してください</option>';
+  if(!pref||!ma)return;
+  const [details,cities]=await Promise.all([
+    daSel?apiGet('hotel-cascades','field=detail_area&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(ma)):Promise.resolve([]),
+    citySel?apiGet('hotel-cascades','field=city&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(ma)):Promise.resolve([])
+  ]);
+  if(daSel)(details||[]).forEach(d=>{daSel.innerHTML+='<option value="'+esc(d)+'">'+esc(d)+'</option>';});
+  if(citySel)(cities||[]).forEach(c=>{citySel.innerHTML+='<option value="'+esc(c)+'">'+esc(c)+'</option>';});
+}
+async function prefillAreaSelects(prefix,pref,majorArea,detailArea,city){
+  const prefSel=document.getElementById(prefix+"-pref");
+  if(prefSel)prefSel.value=pref||"";
+  if(pref){
+    await onPrefChange(prefix);
+    const maSel=document.getElementById(prefix+"-major-area");
+    if(maSel&&majorArea){
+      maSel.value=majorArea;
+      if(maSel.value!==majorArea){
+        for(let i=0;i<maSel.options.length;i++){if(maSel.options[i].textContent===majorArea){maSel.selectedIndex=i;break;}}
+      }
+    }
+    if(majorArea&&maSel&&maSel.value){
+      await onMajorAreaChange(prefix);
+      const daSel=document.getElementById(prefix+"-detail-area");
+      if(daSel&&detailArea){
+        daSel.value=detailArea;
+        if(daSel.value!==detailArea){
+          for(let i=0;i<daSel.options.length;i++){if(daSel.options[i].textContent===detailArea){daSel.selectedIndex=i;break;}}
+        }
+      }
+      const citySel=document.getElementById(prefix+"-city");
+      if(citySel&&city){
+        citySel.value=city;
+        if(citySel.value!==city){
+          for(let i=0;i<citySel.options.length;i++){if(citySel.options[i].textContent===city){citySel.selectedIndex=i;break;}}
+        }
+      }
+    }
+  }
+}
+
+// ===== マスターデータ（呼べた理由 / 呼べなかった理由 / 部屋タイプ） =====
+let canReasonsData=[];
+async function loadCanReasons(){const data=await apiGet("list","table=can_call_reasons&order=sort_order&dir=asc");canReasonsData=data||[];renderCanReasons();}
+function renderCanReasons(){document.getElementById("can-reasons-sub").textContent=`全 ${canReasonsData.length} 件`;document.getElementById("can-reasons-list").innerHTML=canReasonsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:canReasonsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'can_call_reasons')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editCanReason(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteCanReason(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
+async function addCanReason(){const input=document.getElementById("new-can-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=canReasonsData.length?Math.max(...canReasonsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"can_call_reasons",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;canReasonsData.push(data);renderCanReasons();input.value="";toast("✅ 追加しました");}
+async function editCanReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"can_call_reasons",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}canReasonsData=canReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCanReasons();toast("✅ 更新しました");}
+async function deleteCanReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"can_call_reasons",id:id});if(!_r.ok){toast("削除エラー");return;}canReasonsData=canReasonsData.filter(c=>c.id!==id);renderCanReasons();toast("🗑 削除しました");}
+let cannotReasonsData=[];
+async function loadCannotReasons(){const data=await apiGet("list","table=cannot_call_reasons&order=sort_order&dir=asc");cannotReasonsData=data||[];renderCannotReasons();}
+function renderCannotReasons(){document.getElementById("cannot-reasons-sub").textContent=`全 ${cannotReasonsData.length} 件`;document.getElementById("cannot-reasons-list").innerHTML=cannotReasonsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:cannotReasonsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'cannot_call_reasons')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editCannotReason(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteCannotReason(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
+async function addCannotReason(){const input=document.getElementById("new-cannot-reason");const label=input.value.trim();if(!label){toast("理由を入力してください");return;}const maxOrder=cannotReasonsData.length?Math.max(...cannotReasonsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"cannot_call_reasons",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;cannotReasonsData.push(data);renderCannotReasons();input.value="";toast("✅ 追加しました");}
+async function editCannotReason(id,label){const newLabel=prompt("理由を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"cannot_call_reasons",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}cannotReasonsData=cannotReasonsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderCannotReasons();toast("✅ 更新しました");}
+async function deleteCannotReason(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"cannot_call_reasons",id:id});if(!_r.ok){toast("削除エラー");return;}cannotReasonsData=cannotReasonsData.filter(c=>c.id!==id);renderCannotReasons();toast("🗑 削除しました");}
+let roomTypesData=[];
+async function loadRoomTypes(){const data=await apiGet("list","table=room_types&order=sort_order&dir=asc");roomTypesData=data||[];renderRoomTypes();}
+function renderRoomTypes(){document.getElementById("room-types-sub").textContent=`全 ${roomTypesData.length} 件`;document.getElementById("room-types-list").innerHTML=roomTypesData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:roomTypesData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'room_types')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" onclick="editRoomType(${c.id},'${esc(c.label)}')">編集</button><button class="btn b-btn-red" onclick="deleteRoomType(${c.id},'${esc(c.label)}')">削除</button></div>`).join("");}
+async function addRoomType(){const input=document.getElementById("new-room-type");const label=input.value.trim();if(!label){toast("タイプ名を入力してください");return;}const maxOrder=roomTypesData.length?Math.max(...roomTypesData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"room_types",data:{label,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;roomTypesData.push(data);renderRoomTypes();input.value="";toast("✅ 追加しました");}
+async function editRoomType(id,label){const newLabel=prompt("タイプ名を編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"room_types",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}roomTypesData=roomTypesData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderRoomTypes();toast("✅ 更新しました");}
+async function deleteRoomType(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"room_types",id:id});if(!_r.ok){toast("削除エラー");return;}roomTypesData=roomTypesData.filter(c=>c.id!==id);renderRoomTypes();toast("🗑 削除しました");}
+
+// ===== 店舗サービス =====
+let serviceOptionsData=[];
+const SQL_SERVICE_OPTIONS=`CREATE TABLE IF NOT EXISTS shop_service_options (id serial PRIMARY KEY, name text NOT NULL UNIQUE, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE shop_service_options ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "shop_service_options_select" ON shop_service_options FOR SELECT USING (true);\nCREATE POLICY "shop_service_options_insert" ON shop_service_options FOR INSERT WITH CHECK (true);\nCREATE POLICY "shop_service_options_update" ON shop_service_options FOR UPDATE USING (true);\nCREATE POLICY "shop_service_options_delete" ON shop_service_options FOR DELETE USING (true);`;
+async function loadServiceOptions(){const data=await apiGet("list","table=shop_service_options&order=sort_order&dir=asc");serviceOptionsData=data||[];renderServiceOptions();}
+function renderServiceOptions(){document.getElementById("service-options-sub").textContent=`全 ${serviceOptionsData.length} 件`;document.getElementById("service-options-list").innerHTML=serviceOptionsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:serviceOptionsData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'shop_service_options')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.name)}</span><button class="btn b-btn-gold" onclick="editServiceOption(${c.id},'${esc(c.name)}')">編集</button><button class="btn b-btn-red" onclick="deleteServiceOption(${c.id},'${esc(c.name)}')">削除</button></div>`).join("");}
+async function addServiceOption(){const input=document.getElementById("new-service-option");const name=input.value.trim();if(!name){toast("サービス名を入力してください");return;}const maxOrder=serviceOptionsData.length?Math.max(...serviceOptionsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"shop_service_options",data:{name,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;serviceOptionsData.push(data);renderServiceOptions();input.value="";toast("✅ 追加しました");}
+async function editServiceOption(id,oldName){const newName=prompt("サービス名を編集してください:",oldName);if(!newName||newName.trim()===oldName)return;const _r=await api("update",{table:"shop_service_options",id:id,data:{name:newName.trim()}});if(!_r.ok){toast("更新エラー");return;}serviceOptionsData=serviceOptionsData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderServiceOptions();toast("✅ 更新しました");}
+async function deleteServiceOption(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const _r=await api("delete",{table:"shop_service_options",id:id});if(!_r.ok){toast("削除エラー");return;}serviceOptionsData=serviceOptionsData.filter(c=>c.id!==id);renderServiceOptions();toast("🗑 削除しました");}
+
+// ===== チェックポイント =====
+let goodPointsData=[];
+async function loadGoodPoints(){const data=await apiGet("list","table=loveho_good_points&order=sort_order&dir=asc");if(!Array.isArray(data)){console.error('[loadGoodPoints] unexpected response:',data);goodPointsData=[];} else {goodPointsData=data;}renderGoodPoints();}
+function renderGoodPoints(){document.getElementById("goodpoints-sub").textContent=`全 ${goodPointsData.length} 件`;document.getElementById("goodpoints-list").innerHTML=goodPointsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:goodPointsData.map(c=>{const lbl=c.label||'(ラベル未設定)';return`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_good_points')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})" style="${c.is_active?'':'opacity:0.4;'}"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(lbl)}</span><select onchange="updateGoodPointCategory(${c.id},this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;margin-right:6px;"><option value="設備・お部屋"${c.category==='設備・お部屋'?' selected':''}>設備・お部屋</option><option value="サービス・利便性"${c.category==='サービス・利便性'?' selected':''}>サービス・利便性</option></select><button class="btn b-btn-gold" data-action="toggleGoodPoint" data-arg1="${c.id}" data-arg2="${c.is_active}">${c.is_active?'無効にする':'有効にする'}</button><button class="btn b-btn-gold" onclick="editGoodPoint(${c.id},'${esc(lbl)}')">編集</button><button class="btn b-btn-red" onclick="deleteGoodPoint(${c.id},'${esc(lbl)}')">削除</button></div>`;}).join("");}
+async function addGoodPoint(){const input=document.getElementById("new-goodpoint");const catSel=document.getElementById("new-goodpoint-cat");const label=input.value.trim();if(!label){toast("チェックポイントを入力してください");return;}const category=catSel.value;const maxOrder=goodPointsData.length?Math.max(...goodPointsData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_good_points",data:{label,category,sort_order:maxOrder,is_active:true}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;goodPointsData.push(data);renderGoodPoints();input.value="";toast("✅ 追加しました");}
+async function editGoodPoint(id,label){const newLabel=prompt("チェックポイントを編集してください:",label);if(!newLabel||newLabel.trim()===label)return;const _r=await api("update",{table:"loveho_good_points",id:id,data:{label:newLabel.trim()}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);renderGoodPoints();toast("✅ 更新しました");}
+async function toggleGoodPoint(id,currentActive){if(!confirm(currentActive?"このチェックポイントを無効にしますか？":"このチェックポイントを有効にしますか？"))return;const _r=await api("update",{table:"loveho_good_points",id:id,data:{is_active:!currentActive}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,is_active:!currentActive}:c);renderGoodPoints();toast(currentActive?"⏸ 無効にしました":"✅ 有効にしました");}
+async function deleteGoodPoint(id,label){if(!confirm(`「${label}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_good_points",id:id});if(!_r.ok){toast("削除エラー");return;}goodPointsData=goodPointsData.filter(c=>c.id!==id);renderGoodPoints();toast("🗑 削除しました");}
+async function updateGoodPointCategory(id,category){const _r=await api("update",{table:"loveho_good_points",id:id,data:{category}});if(!_r.ok){toast("更新エラー");return;}goodPointsData=goodPointsData.map(c=>c.id===id?{...c,category}:c);toast("✅ カテゴリを更新しました");}
+
+// ===== ラブホ店舗/ユーザー切替 =====
+function toggleLhShopMode(isShop, currentVal) {
+  const label = document.getElementById("re-lh-solo-label");
+  const sel = document.getElementById("re-lh-solo");
+  const prev = currentVal !== undefined ? currentVal : sel.value;
+  if (isShop) {
+    label.textContent = 'ご案内実績（店舗投稿）';
+    sel.innerHTML = '<option value="">未選択</option><option value="yes">ご案内実績有り</option><option value="no">いいえ</option><option value="together">一緒にチェックインでご案内実績有り</option>';
+  } else {
+    label.textContent = '一人で先に入れる？';
+    sel.innerHTML = '<option value="">未選択</option><option value="yes">はい</option><option value="no">いいえ</option><option value="together">一緒に入った</option><option value="lobby">待合室で待ち合わせ</option><option value="unknown">わからない</option>';
+  }
+  sel.value = prev || '';
+  if (prev && sel.value !== prev) {
+    const o = document.createElement("option"); o.value = prev; o.textContent = prev; o.selected = true; sel.appendChild(o);
+  }
+}
+
+// ===== 雰囲気マスタ =====
+let atmospheresData=[];
+async function loadAtmospheres(){const data=await apiGet("list","table=loveho_atmospheres&order=sort_order&dir=asc");atmospheresData=data||[];renderAtmospheres();}
+function renderAtmospheres(){document.getElementById("atmosphere-sub").textContent=`全 ${atmospheresData.length} 件`;document.getElementById("atmosphere-list").innerHTML=atmospheresData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:atmospheresData.map(c=>`<div class="cond-row" draggable="true" ondragstart="dndStart(event,${c.id},'loveho_atmospheres')" ondragover="dndOver(event)" ondragleave="dndLeave(event)" ondragend="dndEnd(event)" ondrop="dndDrop(event,${c.id})"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span class="cond-label">${esc(c.name)}</span><button class="btn b-btn-gold" onclick="editAtmosphere(${c.id},'${esc(c.name)}')">編集</button><button class="btn b-btn-red" onclick="deleteAtmosphere(${c.id},'${esc(c.name)}')">削除</button></div>`).join("");}
+async function addAtmosphere(){const input=document.getElementById("new-atmosphere");const name=input.value.trim();if(!name){toast("雰囲気を入力してください");return;}const maxOrder=atmospheresData.length?Math.max(...atmospheresData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_atmospheres",data:{name,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;atmospheresData.push(data);renderAtmospheres();input.value="";toast("✅ 追加しました");}
+async function editAtmosphere(id,name){const newName=prompt("雰囲気を編集してください:",name);if(!newName||newName.trim()===name)return;const _r=await api("update",{table:"loveho_atmospheres",id:id,data:{name:newName.trim()}});if(!_r.ok){toast("更新エラー");return;}atmospheresData=atmospheresData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderAtmospheres();toast("✅ 更新しました");}
+async function deleteAtmosphere(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_atmospheres",id:id});if(!_r.ok){toast("削除エラー");return;}atmospheresData=atmospheresData.filter(c=>c.id!==id);renderAtmospheres();toast("🗑 削除しました");}
+
+// ===== 契約プラン =====
+let contractPlansData=[];
+const SQL_CONTRACT_PLANS=`CREATE TABLE IF NOT EXISTS contract_plans (id serial PRIMARY KEY, name text NOT NULL, price integer NOT NULL DEFAULT 0, description text, sort_order integer DEFAULT 0, created_at timestamptz DEFAULT now());\nALTER TABLE contract_plans ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "contract_plans_select" ON contract_plans FOR SELECT USING (true);\nCREATE POLICY "contract_plans_insert" ON contract_plans FOR INSERT WITH CHECK (true);\nCREATE POLICY "contract_plans_update" ON contract_plans FOR UPDATE USING (true);\nCREATE POLICY "contract_plans_delete" ON contract_plans FOR DELETE USING (true);\nINSERT INTO contract_plans (name,price,description,sort_order) VALUES ('無料プラン',0,'基本掲載のみ',1),('Aプラン',5000,'スタンダード掲載',2),('Bプラン',10000,'プレミアム掲載',3);`;
+async function loadContractPlans(){const data=await apiGet("list","table=contract_plans&order=sort_order&dir=asc");contractPlansData=data||[];buildPlanLimits();renderContractPlans();}
+function renderContractPlans(){document.getElementById("plans-sub").textContent=`全 ${contractPlansData.length} 件`;const useCounts={};shopsData.forEach(s=>{if(s.plan_id)useCounts[s.plan_id]=(useCounts[s.plan_id]||0)+1;});document.getElementById("plans-tbody").innerHTML=contractPlansData.length===0?`<tr class="erow"><td colspan="6">プランがありません</td></tr>`:contractPlansData.map(p=>{const cnt=useCounts[p.id]||0;return`<tr><td style="font-weight:500;font-size:13px;">${esc(p.name)}</td><td style="font-size:13px;">¥${p.price.toLocaleString()}</td><td style="font-size:12px;color:var(--ink-3);">${esc(p.description||"—")}</td><td style="text-align:center;font-size:12px;">${p.sort_order}</td><td style="text-align:center;font-size:12px;">${cnt>0?cnt+"店舗":"—"}</td><td><div class="btn-row"><button class="btn b-btn-gold" data-action="editContractPlan" data-arg1="${p.id}">編集</button><button class="btn b-btn-red" data-action="deleteContractPlan" data-arg1="${p.id}"${cnt>0?' disabled style="opacity:0.4;cursor:not-allowed;"':""}>削除</button></div></td></tr>`;}).join("");}
+async function addContractPlan(){const name=document.getElementById("new-plan-name").value.trim();const price=parseInt(document.getElementById("new-plan-price").value)||0;const desc=document.getElementById("new-plan-desc").value.trim()||null;if(!name){toast("プラン名を入力してください");return;}const maxOrder=contractPlansData.length?Math.max(...contractPlansData.map(p=>p.sort_order))+1:1;const _ir=await api("insert",{table:"contract_plans",data:{name,price,description:desc,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;contractPlansData.push(data);renderContractPlans();document.getElementById("new-plan-name").value="";document.getElementById("new-plan-price").value="";document.getElementById("new-plan-desc").value="";toast("✅ プランを追加しました");}
+async function editContractPlan(id){const p=contractPlansData.find(x=>x.id===id);if(!p)return;const newName=prompt("プラン名:",p.name);if(!newName||!newName.trim())return;const newPrice=prompt("月額料金(円):",p.price);if(newPrice===null)return;const newDesc=prompt("説明:",p.description||"");if(newDesc===null)return;const newOrder=prompt("並び順:",p.sort_order);if(newOrder===null)return;const payload={name:newName.trim(),price:parseInt(newPrice)||0,description:newDesc.trim()||null,sort_order:parseInt(newOrder)||p.sort_order};const _cpu=await api("update",{table:"contract_plans",id,data:payload});if(!_cpu.ok){toast("更新エラー");return;}contractPlansData=contractPlansData.map(x=>x.id===id?{...x,...payload}:x);contractPlansData.sort((a,b)=>a.sort_order-b.sort_order);renderContractPlans();toast("✅ 更新しました");}
+async function deleteContractPlan(id){const cnt=shopsData.filter(s=>s.plan_id===id).length;if(cnt>0){toast("⚠️ このプランは"+cnt+"店舗で使用中のため削除できません");return;}const p=contractPlansData.find(x=>x.id===id);if(!confirm(`「${p?p.name:""}」を削除しますか？`))return;const _r=await api("delete",{table:"contract_plans",id:id});if(!_r.ok){toast("削除エラー");return;}contractPlansData=contractPlansData.filter(x=>x.id!==id);renderContractPlans();toast("🗑 削除しました");}
+
+// ===== 掲載リクエスト =====
+const HREQ_TYPE_LABELS={business:"ビジネス",city:"シティ",resort:"リゾート",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
+let hotelRequestsData=[];
+
+async function loadHotelRequests(){
+  const data=await apiGet("list","table=hotel_requests&order=created_at&dir=desc");
+  
+  hotelRequestsData=data||[];
+  updateHreqBadge();renderHotelRequests();
+}
+
+function updateHreqBadge(){const count=hotelRequestsData.filter(r=>r.status==="pending").length;const b=document.getElementById("hreq-badge");if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}
+
+function renderHotelRequests(){
+  const fF=document.getElementById("hreq-status-f").value;
+  let data=hotelRequestsData.filter(r=>!fF||r.status===fF);
+  data=applySortArr(data,"hreq");
+  document.getElementById("hreq-sub").textContent=data.length+" 件";
+  if(data.length===0){
+    document.getElementById("hreq-tbody").innerHTML='<tr class="erow"><td colspan="8">リクエストがありません</td></tr>';
+    return;
+  }
+  document.getElementById("hreq-tbody").innerHTML=data.map(function(r){
+    var id=String(r.id);
+    var isConfirmed=r.status==="confirmed";
+    var statusBadge=isConfirmed?'<span class="badge b-active">✓ 確認済</span>':'<span class="badge b-free">未確認</span>';
+    var toggleBtn=isConfirmed
+      ?'<button class="btn b-btn-gray" onclick="toggleHreqStatus(\''+id+'\')">未確認に戻す</button>'
+      :'<button class="btn b-btn-green" onclick="toggleHreqStatus(\''+id+'\')">確認済</button>';
+    var actionBtns='<div class="btn-row">'+toggleBtn
+      +'<button class="btn b-btn-gold" onclick="openHreqEdit(\''+id+'\')">編集→登録</button>'
+      +'<button class="btn b-btn-red" onclick="deleteHotelRequest(\''+id+'\')">削除</button>'
+      +'</div>';
+    return '<tr>'
+      +'<td style="color:var(--ink-3);font-size:11px;white-space:nowrap;">'+fmtShort(r.created_at)+'</td>'
+      +'<td style="font-weight:500;font-size:13px;">'+esc(r.hotel_name||"—")+'</td>'
+      +'<td style="font-size:11px;color:var(--ink-3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.address||"—")+'</td>'
+      +'<td style="font-size:11px;color:var(--ink-3);">'+esc(r.tel||"—")+'</td>'
+      +'<td style="font-size:11px;">'+esc(HREQ_TYPE_LABELS[r.hotel_type]||r.hotel_type||"—")+'</td>'
+      +'<td style="font-size:11px;color:var(--ink-3);max-width:200px;white-space:pre-wrap;word-break:break-word;">'+esc(r.comment||"—")+'</td>'
+      +'<td>'+statusBadge+'</td>'
+      +'<td>'+actionBtns+'</td>'
+      +'</tr>';
+  }).join("");
+}
+
+async function toggleHreqStatus(id){
+  var r=hotelRequestsData.find(function(r){return String(r.id)===id;});
+  if(!r){toast("データが見つかりません");return;}
+  var newStatus=r.status==="pending"?"confirmed":"pending";
+  var res=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:r.id,data:{status:newStatus}})});
+  if(!res.ok){toast("更新エラー: "+(await res.text()));return;}
+  hotelRequestsData=hotelRequestsData.map(function(x){return String(x.id)===id?Object.assign({},x,{status:newStatus}):x;});
+  updateHreqBadge();renderHotelRequests();
+  toast(newStatus==="confirmed"?"✅ 確認済にしました":"🔄 未確認に戻しました");
+}
+
+function openHreqEdit(id){
+  var r=hotelRequestsData.find(function(r){return String(r.id)===id;});
+  if(!r){toast("データが見つかりません");return;}
+  document.getElementById("hreq-edit-id").value=id;
+  document.getElementById("hreq-edit-label").textContent=r.hotel_name||"";
+  document.getElementById("hreq-edit-name").value=r.hotel_name||"";
+  document.getElementById("hreq-edit-address").value=r.address||"";
+  document.getElementById("hreq-edit-tel").value=r.tel||"";
+  document.getElementById("hreq-edit-type").value=r.hotel_type||"other";
+  document.getElementById("hreq-edit-pref").value="";
+  document.getElementById("hreq-edit-major-area").innerHTML='<option value="">都道府県を先に選択</option>';
+  document.getElementById("hreq-edit-detail-area").innerHTML='<option value="">（なし）</option>';
+  document.getElementById("hreq-edit-station").value="";
+  document.getElementById("hreq-step1").style.display="";
+  document.getElementById("hreq-step2").style.display="none";
+  document.getElementById("hreq-edit-modal").style.display="flex";
+}
+
+function closeHreqEdit(){document.getElementById("hreq-edit-modal").style.display="none";document.getElementById("hreq-step3").style.display="none";_hreqNewHotelId=null;}
+
+function hreqEditToConfirm(){
+  var name=document.getElementById("hreq-edit-name").value.trim();
+  if(!name){toast("ホテル名を入力してください");return;}
+  var addr=document.getElementById("hreq-edit-address").value.trim();
+  if(!addr){toast("住所を入力してください");return;}
+  var pref=document.getElementById("hreq-edit-pref").value;
+  if(!pref){toast("都道府県を選択してください");return;}
+  var typeLabels={business:"ビジネスホテル",city:"シティホテル",resort:"リゾートホテル",ryokan:"旅館",pension:"ペンション",minshuku:"民宿",love_hotel:"🏩 ラブホテル",rental_room:"🏩 レンタルルーム",other:"その他"};
+  var lat=document.getElementById("hreq-edit-lat").value;
+  var lng=document.getElementById("hreq-edit-lng").value;
+  var cityEl=document.getElementById("hreq-edit-city");
+  var cityVal=cityEl?cityEl.value:"";
+  var rows=[
+    ["ホテル名",name],
+    ["タイプ",typeLabels[document.getElementById("hreq-edit-type").value]||"—"],
+    ["郵便番号",document.getElementById("hreq-edit-postal").value.trim()||"—"],
+    ["住所",addr],
+    ["都道府県",pref],
+    ["エリア",document.getElementById("hreq-edit-major-area").value||"—"],
+    ["詳細エリア",document.getElementById("hreq-edit-detail-area").value||"—"],
+    ["市区町村",cityVal||"—"],
+    ["電話番号",document.getElementById("hreq-edit-tel").value.trim()||"—"],
+    ["最寄り駅",document.getElementById("hreq-edit-station").value.trim()||"—"],
+    ["緯度",lat||"—"],
+    ["経度",lng||"—"],
+  ];
+  document.getElementById("hreq-confirm-body").innerHTML=rows.map(function(row){return'<div><span style="color:var(--ink-3);font-size:11px;min-width:80px;display:inline-block;">'+row[0]+'</span><strong>'+esc(row[1])+'</strong></div>';}).join("");
+  document.getElementById("hreq-step1").style.display="none";
+  document.getElementById("hreq-step2").style.display="";
+}
+
+function hreqEditBack(){
+  document.getElementById("hreq-step1").style.display="";
+  document.getElementById("hreq-step2").style.display="none";
+}
+
+let _hreqNewHotelId=null;
+async function saveHreqAsHotel(){
+  var id=document.getElementById("hreq-edit-id").value;
+  var name=document.getElementById("hreq-edit-name").value.trim();
+  if(!name){toast("ホテル名を入力してください");return;}
+  if(!confirm("「"+name+"」をホテルとして登録しますか？"))return;
+  var lat=parseFloat(document.getElementById("hreq-edit-lat").value);
+  var lng=parseFloat(document.getElementById("hreq-edit-lng").value);
+  var cityEl=document.getElementById("hreq-edit-city");
+  var payload={
+    name:name,
+    hotel_type:document.getElementById("hreq-edit-type").value||"other",
+    postal_code:document.getElementById("hreq-edit-postal").value.trim()||null,
+    address:document.getElementById("hreq-edit-address").value.trim()||null,
+    prefecture:document.getElementById("hreq-edit-pref").value||null,
+    major_area:document.getElementById("hreq-edit-major-area").value||null,
+    detail_area:document.getElementById("hreq-edit-detail-area").value||null,
+    city:cityEl?cityEl.value||null:null,
+    tel:document.getElementById("hreq-edit-tel").value.trim()||null,
+    nearest_station:document.getElementById("hreq-edit-station").value.trim()||null,
+    latitude:isNaN(lat)?null:lat,
+    longitude:isNaN(lng)?null:lng,
+    source:"manual",
+    is_published:document.getElementById("hreq-publish").checked
+  };
+  // 電話番号で重複チェック
+  if(payload.tel){var telNorm=payload.tel.replace(/[-\s　・（）()]/g,'');if(telNorm.length>=8){var dupArr=await apiGet("hotels-search","q="+encodeURIComponent(payload.tel)+"&pref="+encodeURIComponent(payload.prefecture||''));var dup=(dupArr||[]).filter(function(h){return h.tel===payload.tel;});if(dup&&dup.length>0){if(!confirm("同じ電話番号のホテルが既に存在します:\n「"+dup[0].name+"」(ID:"+dup[0].id+")\n\nそれでも追加しますか？"))return;}}}
+  var r1=await api('insert',{table:'hotels',data:payload});r1={data:r1.data,error:r1.ok?null:{message:r1.error||''}};
+  if(r1.error){toast("ホテル追加エラー: "+(r1.error.message||''));return;}
+  _hreqNewHotelId=r1.data?r1.data.id:null;
+  var r2=await fetch('/api/admin-api.php?action=update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:id,data:{status:'confirmed'}})});
+  if(!r2.ok){toast("ステータス更新エラー");return;}
+  hotelRequestsData=hotelRequestsData.map(function(r){return String(r.id)===id?Object.assign({},r,{status:"confirmed"}):r;});
+  updateHreqBadge();renderHotelRequests();
+  var pubLabel=payload.is_published?"（公開済み）":"（非公開）";
+  toast("✅ 「"+name+"」をホテルに登録しました"+pubLabel);
+  loadHotels();
+  closeHreqEdit();
+}
+
+async function deleteHotelRequest(id){
+  var r=hotelRequestsData.find(function(r){return String(r.id)===id;});
+  if(!r){toast("データが見つかりません");return;}
+  if(!confirm("「"+r.hotel_name+"」のリクエストを削除しますか？"))return;
+  var res=await fetch('/api/admin-api.php?action=delete',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({table:'hotel_requests',id:r.id})});
+  if(!res.ok){toast("削除エラー: "+(await res.text()));return;}
+  hotelRequestsData=hotelRequestsData.filter(function(r){return String(r.id)!==id;});
+  updateHreqBadge();renderHotelRequests();
+  toast("🗑 削除しました");
+}
+
+// ===== 情報修正リクエスト =====
+const CORR_CAT_LABELS={address:"📍 住所",area:"🗺️ エリア",tel:"📞 電話番号",hotel_name:"🏨 ホテル名",closed:"🚫 閉業",other:"💬 その他"};
+let correctionsData=[];
+
+async function loadCorrections(){
+  const data=await apiGet("list","table=hotel_corrections&order=created_at&dir=desc");
+  correctionsData=data||[];
+  updateCorrBadge();renderCorrections();
+}
+
+function updateCorrBadge(){const count=correctionsData.filter(r=>r.status==="pending").length;const b=document.getElementById("corr-badge");if(count>0){b.style.display="inline";b.textContent=count;}else b.style.display="none";}
+
+function renderCorrections(){
+  const fF=document.getElementById("corr-status-f").value;
+  let data=correctionsData.filter(r=>!fF||r.status===fF);
+  data=applySortArr(data,"corr");
+  document.getElementById("corr-sub").textContent=` (${data.length}件)`;
+  document.getElementById("corr-tbody").innerHTML=data.length===0?`<tr class="erow"><td colspan="6">情報修正リクエストはありません</td></tr>`:data.map(function(r){
+    const statusBadge=r.status==="pending"?'<span class="badge b-email-pending">未対応</span>':r.status==="resolved"?'<span class="badge b-active">対応済</span>':'<span class="badge b-suspended">却下</span>';
+    const catLabel=CORR_CAT_LABELS[r.category]||r.category;
+    let actionBtns='';
+    if(r.status==="pending"){
+      actionBtns='<button class="btn b-btn-gray" style="font-size:10px;background:#28a745;color:#fff;" onclick="resolveCorrection(\''+r.id+'\')">✅ 対応済み</button> <button class="btn b-btn-gray" style="font-size:10px;background:#dc3545;color:#fff;" onclick="rejectCorrection(\''+r.id+'\')">❌ 却下</button>';
+    }else{
+      actionBtns='<button class="btn b-btn-gray" style="font-size:10px;" onclick="reopenCorrection(\''+r.id+'\')">🔄 未対応に戻す</button> <button class="btn b-btn-gray" style="font-size:10px;background:#dc3545;color:#fff;" onclick="deleteCorrection(\''+r.id+'\')">🗑 削除</button>';
+    }
+    return`<tr>
+      <td data-label="申請日" style="white-space:nowrap;color:var(--ink-3);font-size:11px;">${fmtDate(r.created_at)}</td>
+      <td data-label="ホテル名" style="font-size:12px;cursor:pointer;color:var(--accent);" data-action="openHotelEditById" data-arg1="${r.hotel_id}">${esc(r.hotel_name||"—")}</td>
+      <td data-label="カテゴリ" style="font-size:12px;">${catLabel}</td>
+      <td data-label="詳細" style="font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.detail||"")}">${esc(r.detail||"—")}</td>
+      <td data-label="ステータス">${statusBadge}</td>
+      <td data-label="操作"><div class="btn-row">${actionBtns}</div></td>
+    </tr>`;
+  }).join("");
+}
+
+async function resolveCorrection(id){if(!confirm("対応済みにしますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"resolved"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"resolved"}:r);updateCorrBadge();renderCorrections();toast("✅ 対応済みにしました");}
+async function rejectCorrection(id){if(!confirm("却下しますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"rejected"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"rejected"}:r);updateCorrBadge();renderCorrections();toast("❌ 却下しました");}
+async function reopenCorrection(id){if(!confirm("未対応に戻しますか？"))return;const res=await api("update",{table:"hotel_corrections",id:parseInt(id),data:{status:"pending"}});if(!res.ok){toast("更新エラー");return;}correctionsData=correctionsData.map(r=>String(r.id)===String(id)?{...r,status:"pending"}:r);updateCorrBadge();renderCorrections();toast("🔄 未対応に戻しました");}
+async function deleteCorrection(id){if(!confirm("この情報修正リクエストを削除しますか？"))return;const res=await api("delete",{table:"hotel_corrections",id:parseInt(id)});if(!res.ok){toast("削除エラー");return;}correctionsData=correctionsData.filter(r=>String(r.id)!==String(id));updateCorrBadge();renderCorrections();toast("🗑 削除しました");}
+
+function openHotelEditById(hotelId){switchTab("hotels");setTimeout(()=>{const input=document.getElementById("hotel-search");if(input){input.value=String(hotelId);if(typeof fetchHotels==="function")fetchHotels();}},200);}
+
+// ===== テーブル未作成ヘルパー =====
+const SQL_CAN_REASONS=`CREATE TABLE public.can_call_reasons (
+  id BIGSERIAL PRIMARY KEY,
+  label TEXT NOT NULL UNIQUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.can_call_reasons ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read" ON public.can_call_reasons FOR SELECT USING (true);
+INSERT INTO public.can_call_reasons (label, sort_order) VALUES
+  ('直通',1),('カードキー必須',2),('EVフロント階スキップ',3),
+  ('フロント相談',4),('ノウハウ',5),('バスタオル依頼推奨',6),('玄関待ち合わせ',7);`;
+const SQL_CANNOT_REASONS=`CREATE TABLE public.cannot_call_reasons (
+  id BIGSERIAL PRIMARY KEY,
+  label TEXT NOT NULL UNIQUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.cannot_call_reasons ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read" ON public.cannot_call_reasons FOR SELECT USING (true);`;
+const SQL_ROOM_TYPES=`CREATE TABLE public.room_types (
+  id BIGSERIAL PRIMARY KEY,
+  label TEXT NOT NULL UNIQUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.room_types ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read" ON public.room_types FOR SELECT USING (true);
+INSERT INTO public.room_types (label, sort_order) VALUES
+  ('シングル',1),('ダブル',2),('ツイン',3),('和室',4),('スイート',5);`;
+const SQL_HOTEL_REQUESTS=`CREATE TABLE public.hotel_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  hotel_name TEXT NOT NULL,
+  address TEXT,
+  tel TEXT,
+  hotel_type TEXT DEFAULT 'other',
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.hotel_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read" ON public.hotel_requests FOR SELECT USING (true);
+CREATE POLICY "public_insert" ON public.hotel_requests FOR INSERT WITH CHECK (true);
+CREATE POLICY "admin_update" ON public.hotel_requests FOR UPDATE USING (true);
+CREATE POLICY "admin_delete" ON public.hotel_requests FOR DELETE USING (true);`;
+const _sqlMap={can_call_reasons:SQL_CAN_REASONS,cannot_call_reasons:SQL_CANNOT_REASONS,room_types:SQL_ROOM_TYPES,hotel_requests:SQL_HOTEL_REQUESTS,shop_service_options:SQL_SERVICE_OPTIONS,contract_plans:SQL_CONTRACT_PLANS};
+function copyTableSQL(t){navigator.clipboard.writeText(_sqlMap[t]||"").then(()=>toast("✅ SQLをコピーしました")).catch(()=>toast("コピー失敗"));}
+function showTableMissing(listId,subId,tableName,sql){const sub=document.getElementById(subId);if(sub)sub.textContent="⚠️ テーブル未作成";const el=document.getElementById(listId);if(!el)return;el.innerHTML=`<div style="padding:16px;background:rgba(192,80,80,0.06);border:1px solid rgba(192,80,80,0.22);border-radius:8px;margin-bottom:4px;"><div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;">⚠️ テーブルが存在しません (public.${tableName})</div><div style="font-size:12px;color:var(--ink-3);margin-bottom:10px;">Supabase Dashboard → SQL Editor で以下のSQLを実行してください。実行後、ページをリロードすると表示されます。</div><pre style="background:#1a1a1a;color:#bbb;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;margin-bottom:8px;">${esc(sql)}</pre><button class="btn b-btn-gold" data-action="copyTableSQL" data-arg1="${tableName}">📋 SQLをコピー</button></div>`;}
+
+// ===== ドラッグ＆ドロップ（マスター並び替え） =====
+let _dndSrcId=null,_dndTable=null;
+function dndStart(e,id,table){_dndSrcId=id;_dndTable=table;e.currentTarget.classList.add("dragging");e.dataTransfer.effectAllowed="move";}
+function dndOver(e){e.preventDefault();e.currentTarget.classList.add("drag-over");}
+function dndLeave(e){e.currentTarget.classList.remove("drag-over");}
+function dndEnd(e){e.currentTarget.classList.remove("dragging");document.querySelectorAll(".cond-row.drag-over").forEach(el=>el.classList.remove("drag-over"));}
+// ===== 営業メール =====
+const outreachTemplates={
+general:{subject:"【YobuHo】無料で店舗掲載しませんか？ - 呼べるホテル検索ポータル",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+呼べるホテル検索ポータル「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+現在YobuHoでは、全国43,000件以上のホテルについて「呼べるかどうか」の情報を、ユーザーの口コミと掲載店舗様からの情報の両方から提供しております。
+
+この度、貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ 料金プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+呼べるホテル検索ポータル「YobuHo」
+https://yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+deli:{subject:"【Deli YobuHo】貴店専用ページを無料で作りませんか？ - デリヘル対応ホテル検索",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+デリヘル対応ホテル検索サイト「Deli YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「デリヘルを呼べるかどうか」の情報を提供しており、多くのユーザー様にご利用いただいております。
+
+現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/?genre=men
+
+▼ サイトはこちら
+https://deli.yobuho.com/
+
+▼ 料金プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+デリヘル対応ホテル検索「Deli YobuHo」
+https://deli.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+jofu:{subject:"【JoFu YobuHo】女性のお客様の安心につながる無料掲載のご案内",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+女性向け風俗（女風）対応ホテル検索サイト「JoFu YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しております。
+
+女性のお客様にとって、ホテル選びは特に重要です。貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ 女性のお客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して呼べる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/?genre=women
+
+▼ サイトはこちら
+https://jofu.yobuho.com/
+
+▼ 料金プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+女性向け風俗対応ホテル検索「JoFu YobuHo」
+https://jofu.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+este:{subject:"【Este YobuHo】無料で店舗掲載しませんか？ - デリエステ対応ホテル検索",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+デリエステ（回春マッサージ・M性感・風俗エステ）対応ホテル検索サイト「Este YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「デリエステを呼べるかどうか」の情報を提供しております。
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランでできること
+━━━━━━━━━━━━━━━━━━━
+
+✅ お店様名テキスト掲載（口コミに店名表示）
+✅ 認証バッジ付与（信頼性UP）
+✅ お店様専用URL発行（SNS・HP設置可能）
+✅ ホテルごとのご案内実績を公式発信
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/?genre=este
+
+▼ サイトはこちら
+https://este.yobuho.com/
+
+▼ プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+デリエステ対応ホテル検索「Este YobuHo」
+https://este.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+ff:{subject:"【YobuHo】女性同士で利用できるホテル情報の無料掲載のご案内",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+
+女性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
+
+貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して利用できる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/?genre=women_same
+
+▼ サイトはこちら
+https://same.yobuho.com/
+
+▼ 料金プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+同性利用対応ホテル検索「YobuHo」
+https://same.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+mm:{subject:"【YobuHo】男性同士で利用できるホテル情報の無料掲載のご案内",body:`ご担当者様
+
+突然のご連絡失礼いたします。
+同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+
+男性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
+
+貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して利用できる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/?genre=men_same
+
+▼ サイトはこちら
+https://same.yobuho.com/
+
+▼ 料金プラン詳細
+https://yobuho.com/plan/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+同性利用対応ホテル検索「YobuHo」
+https://same.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+line_deli:{subject:"",body:`はじめまして。
+デリヘル対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます！
+※キャンペーン終了後も無料プランで掲載継続OK
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`},
+line_jofu:{subject:"",body:`はじめまして。
+女性向け風俗対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます！
+※キャンペーン終了後も無料プランで掲載継続OK
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`},
+line_este:{subject:"",body:`はじめまして。
+デリエステ対応ホテル検索サイト「YobuHo」の運営です。
+
+貴店に無料で掲載しませんか？というご案内です。
+
+━━━━━━━━━━━━━
+■ 無料でできること
+━━━━━━━━━━━━━
+・貴店だけの専用ページ（URL）を発行
+・ホテル対応情報を公式情報として掲載
+・お客様への案内がスムーズに
+
+今なら投稿リンクプラン（月額5,500円）を
+1ヶ月無料でお試しいただけます！
+※キャンペーン終了後も無料プランで掲載継続OK
+
+▼ 詳細・ご案内
+https://yobuho.com/partner/a3kx9m/
+
+▼ 登録（無料）
+https://yobuho.com/shop-register/
+
+ご不明点はこちらのLINEまたは
+hotel@yobuho.com までお気軽にどうぞ。`},
+form_general:{subject:"無料掲載のご案内 - 呼べるホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - 呼べるホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+呼べるホテル検索ポータル「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+現在YobuHoでは、全国43,000件以上のホテルについて「呼べるかどうか」の情報を、ユーザーの口コミと掲載店舗様からの情報の両方から提供しております。
+
+この度、貴店にも無料でご掲載いただけないかと思い、ご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+呼べるホテル検索ポータル「YobuHo」
+https://yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+form_deli:{subject:"無料掲載のご案内 - デリヘル対応ホテル検索Deli YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - デリヘル対応ホテル検索Deli YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+デリヘル対応ホテル検索サイト「Deli YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「デリヘルを呼べるかどうか」の情報を提供しており、多くのユーザー様にご利用いただいております。
+
+現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://deli.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+デリヘル対応ホテル検索「Deli YobuHo」
+https://deli.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+form_jofu:{subject:"無料掲載のご案内 - 女性向け風俗対応ホテル検索JoFu YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - 女性向け風俗対応ホテル検索JoFu YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+女性向け風俗（女風）対応ホテル検索サイト「JoFu YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「女性向け風俗を呼べるかどうか」の情報を提供しております。
+
+女性のお客様にとって、ホテル選びは特に重要です。貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ 女性のお客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して呼べる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://jofu.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+女性向け風俗対応ホテル検索「JoFu YobuHo」
+https://jofu.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+form_este:{subject:"無料掲載のご案内 - デリエステ対応ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - デリエステ対応ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+デリエステ（回春マッサージ・M性感・風俗エステ）対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「デリエステを呼べるかどうか」の情報を提供しております。
+
+現在、掲載店舗様からのホテル対応情報を募集しており、貴店にも無料でご掲載いただけないかと思いご連絡差し上げました。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます。
+※2026年4月末までにご登録の方が対象です。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感アップ → ご依頼に直結
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら呼べる」という安心感が、貴店への依頼につながります
+・交通費やサービス内容も掲載でき、お客様の不安を事前に解消
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・ユーザーがホテルを検索するたびに、貴店の名前が目に入ります
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://este.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+デリエステ対応ホテル検索「YobuHo」
+https://este.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+form_ff:{subject:"無料掲載のご案内 - 女性同士利用ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - 女性同士利用ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+
+女性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
+
+貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して利用できる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://same.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+同性利用対応ホテル検索「YobuHo」
+https://same.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`},
+form_mm:{subject:"無料掲載のご案内 - 男性同士利用ホテル検索YobuHo",body:`【お名前】
+YobuHo Check-In Partners 営業担当
+
+【メールアドレス】
+hotel@yobuho.com
+
+【件名】
+無料掲載のご案内 - 男性同士利用ホテル検索YobuHo
+
+【お問い合わせ内容】
+ご担当者様
+
+突然のご連絡失礼いたします。
+同性利用対応ホテル検索サイト「YobuHo」を運営しております、YobuHo Check-In Partnersと申します。
+
+当サイトでは、全国43,000件以上のホテルについて「同性同士で利用できるかどうか」の情報を提供しております。
+
+男性同士でのホテル利用は、まだまだ情報が少なく、お客様にとって不安が大きい分野です。
+
+貴店の実際の派遣実績に基づくホテル対応情報をご提供いただくことで、お客様の安心につながり、ご依頼の後押しになります。
+
+━━━━━━━━━━━━━━━━━━━
+■ 貴店だけの専用ページが作れます
+【投稿リンクプラン 1ヶ月無料キャンペーン】
+🗓 2026年4月末までのご登録限定
+━━━━━━━━━━━━━━━━━━━
+
+今なら「投稿リンクプラン（月額5,500円・税込）」を1ヶ月間無料でお試しいただけます！
+キャンペーン期間終了後も、無料プランとしてそのまま掲載を継続いただけます。
+
+・貴店の情報だけが表示される専用ページ（URL）をご用意
+・他店舗の情報は一切表示されず、オフィシャルサイトやSNSにそのまま設置可能
+・ホテル情報ページに貴店名からオフィシャルサイトへ直接リンク
+・掲載ホテルまでの交通費も掲載可（非掲載も可）
+・貴店の公式情報とユーザー口コミの両方が確認できるため、お客様へのご案内がスムーズに。スタッフ間の情報共有にも活用でき、業務効率もアップ
+
+※お試し期間が終わっても、そのまま無料プランでお使いいただけます。
+
+▼▼ 店舗登録はこちら（無料・最短3分）▼▼
+https://yobuho.com/shop-register/
+
+━━━━━━━━━━━━━━━━━━━
+■ お客様の信頼感・安心感アップ
+━━━━━━━━━━━━━━━━━━━
+
+・店舗様からの投稿は「公式情報」として、ユーザー口コミと区別して表示
+・「このホテルなら安心して利用できる」という信頼感が、ご依頼に直結します
+・初めてのお客様の不安を事前に解消できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 認知度アップ・新規顧客の獲得
+━━━━━━━━━━━━━━━━━━━
+
+・ホテル情報を登録するほど、検索結果の上位に表示
+・新規のお客様の目に触れる機会が増え、ご依頼増加が期待できます
+
+━━━━━━━━━━━━━━━━━━━
+■ 無料プランですぐに始められます
+━━━━━━━━━━━━━━━━━━━
+
+費用は一切かかりません。届出確認書をお持ちの店舗様であれば、どなたでもご登録いただけます。
+※当サイトは届出確認書の審査を行い、風営法に基づく届出済みの店舗様のみ掲載しております。
+
+1. 下記URLからメールアドレスを登録
+2. 届出確認書の画像をアップロード
+3. 審査完了後、すぐにご利用開始
+
+▼ 店舗登録はこちら（無料）
+https://yobuho.com/shop-register/
+
+▼ サイトはこちら
+https://same.yobuho.com/
+
+━━━━━━━━━━━━━━━━━━━
+■ 有料プランでさらに集客力アップ
+━━━━━━━━━━━━━━━━━━━
+
+有料プランにアップグレードいただくと、さらに充実した機能をご利用いただけます。
+
+・ホテル情報ページに貴店の店舗名からオフィシャルサイトへ直接リンク（無料プランではリンクなし）
+・対応エリアのホテル一覧に貴店の情報を掲載
+・貴店の投稿が他の無料掲載店舗より優先的に上位表示
+・信頼の証「YobuHo認定店」マークを貴店の投稿に表示
+
+▼ プラン詳細
+https://yobuho.com/plan/
+▼ お問い合わせはこちら
+https://yobuho.com/contact/
+
+まずは無料プランからお試しいただき、効果を実感してください。
+
+ご不明点がございましたら、お気軽にお問い合わせください。
+何卒よろしくお願いいたします。
+
+─────────────────
+YobuHo Check-In Partners
+同性利用対応ホテル検索「YobuHo」
+https://same.yobuho.com/
+お問い合わせ: https://yobuho.com/contact/
+担当窓口: hotel@yobuho.com
+─────────────────`}
+};
+function loadOutreachTemplate(){const k=document.getElementById("outreach-template").value;if(!k||!outreachTemplates[k])return;document.getElementById("outreach-subject").value=outreachTemplates[k].subject;document.getElementById("outreach-body").value=outreachTemplates[k].body;if(k.startsWith('form_'))document.getElementById("outreach-to").value='hotel@yobuho.com';}
+let _ocData=null;
+function previewOutreachEmail(){
+    const to=document.getElementById("outreach-to").value.trim();
+    const shopName=document.getElementById("outreach-shop-name").value.trim();
+    const subject=document.getElementById("outreach-subject").value.trim();
+    const body=document.getElementById("outreach-body").value.trim();
+    const template=document.getElementById("outreach-template").value;
+    if(!to||!subject||!body){toast("メールアドレス、件名、本文は必須です");return;}
+    // バウンス済みアドレスチェック
+    const bouncedRecord=outreachData.find(r=>(r.email||'').toLowerCase()===to.toLowerCase()&&r.status==='bounced');
+    if(bouncedRecord){
+      if(!confirm(`⚠️ このメールアドレス (${to}) は過去にバウンスしています。\n\n${bouncedRecord.notes||''}\n\nそれでも送信しますか？`))return;
+    }
+    _ocData={to,shopName,subject,body,template};
+    document.getElementById("oc-to").textContent=to;
+    document.getElementById("oc-shop").textContent=shopName||"—";
+    document.getElementById("oc-subject").textContent=subject;
+    document.getElementById("oc-body").textContent=body;
+    document.getElementById("oc-send-btn").disabled=false;
+    document.getElementById("oc-send-btn").textContent="📨 この内容で送信する";
+    document.getElementById("outreach-confirm-modal").style.display="flex";
+}
+function closeOutreachConfirm(){document.getElementById("outreach-confirm-modal").style.display="none";_ocData=null;}
+async function doSendOutreachEmail(){
+    if(!_ocData)return;
+    const{to,shopName,subject,body,template}=_ocData;
+    const btn=document.getElementById("oc-send-btn");
+    btn.disabled=true;btn.textContent="送信中...";
+    try{
+        const res=await fetch("/api/send-mail.php",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to,subject,body,from:"hotel@yobuho.com"})});
+        if(res.ok){
+            btn.textContent="✅ 送信完了";
+            await api("insert",{table:"outreach_emails",data:{email:to,shop_name:shopName||null,genre:template||null,notes:subject,status:"sent"}});
+            document.getElementById("outreach-to").value="";
+            document.getElementById("outreach-shop-name").value="";
+            closeOutreachConfirm();
+            await loadOutreachHistory();
+            toast("✅ 送信完了: "+to);
+        }else{
+            const errText=await res.text();
+            btn.textContent="❌ 送信エラー";
+            await api("insert",{table:"outreach_emails",data:{email:to,shop_name:shopName||null,genre:template||null,notes:subject,status:"error"}});
+            loadOutreachHistory();
+            setTimeout(()=>{btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+errText);},1500);
+        }
+    }catch(e){btn.disabled=false;btn.textContent="📨 この内容で送信する";toast("送信エラー: "+e.message);}
+}
+let outreachData=[];
+async function loadOutreachHistory(){const data=await apiGet('list','table=outreach_emails&order=sent_at&dir=desc&limit=500');outreachData=Array.isArray(data)?data:[];renderOutreachHistory();}
+function renderOutreachHistory(){
+  const genreF=document.getElementById("outreach-genre-f")?.value||'';
+  const statusF=document.getElementById("outreach-status-f")?.value||'';
+  const searchF=(document.getElementById("outreach-search")?.value||'').toLowerCase();
+  const tplLabels={general:"全ジャンル共通",deli:"デリヘル",jofu:"女風",este:"デリエステ",ff:"女性同士",mm:"男性同士",line_deli:"📱 LINE(デリヘル)",line_jofu:"📱 LINE(女風)",line_este:"📱 LINE(エステ)",form_general:"📋 フォーム(共通)",form_deli:"📋 フォーム(デリヘル)",form_jofu:"📋 フォーム(女風)",form_este:"📋 フォーム(エステ)",form_ff:"📋 フォーム(女性同士)",form_mm:"📋 フォーム(男性同士)"};
+  let rows=outreachData;
+  if(genreF){
+    if(genreF==='line')rows=rows.filter(r=>(r.genre||'').startsWith('line'));
+    else if(genreF==='form')rows=rows.filter(r=>(r.genre||'').startsWith('form'));
+    else rows=rows.filter(r=>r.genre===genreF||(r.genre||'').endsWith('_'+genreF));
+  }
+  if(statusF)rows=rows.filter(r=>r.status===statusF);
+  if(searchF)rows=rows.filter(r=>(r.shop_name||'').toLowerCase().includes(searchF)||(r.email||'').toLowerCase().includes(searchF));
+  document.getElementById("outreach-sub").textContent=` (${rows.length}/${outreachData.length}件)`;
+  document.getElementById("outreach-history-body").innerHTML=rows.length===0?`<tr class="erow"><td colspan="7">送信履歴がありません</td></tr>`:rows.map(r=>`<tr>
+    <td style="white-space:nowrap;font-size:11px;color:var(--ink-3);">${fmtDate(r.sent_at)}</td>
+    <td style="font-size:12px;">${esc(r.shop_name||"—")}</td>
+    <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.email||"—")}</td>
+    <td style="font-size:11px;">${tplLabels[r.genre]||r.genre||"—"}</td>
+    <td style="font-size:11px;color:var(--ink-3);">${esc(r.area||"—")}</td>
+    <td><span class="badge ${r.status==="sent"?"b-can":r.status==="bounced"?"b-warn":"b-cant"}" title="${esc(r.notes||'')}">${r.status==="sent"?"送信済":r.status==="bounced"?"⚠ バウンス":"エラー"}</span></td>
+    <td><button class="btn b-btn-red" style="font-size:10px;" data-action="deleteOutreach" data-arg1="${r.id}">削除</button></td>
+  </tr>`).join("");
+}
+async function deleteOutreach(id){
+  if(!confirm('この送信履歴を削除しますか？'))return;
+  const r=await api('delete',{table:'outreach_emails',id});
+  if(!r.ok){toast('削除エラー');return;}
+  outreachData=outreachData.filter(x=>x.id!==id);
+  renderOutreachHistory();toast('🗑 削除しました');
+}
+
+// ========== 広告管理 ==========
+let adPlans=[];
+let adCurrentContractId=null;
+let adCurrentPlan=null;
+let adBonusRemaining=0;
+const AD_LEVEL_ORDER=['premium','big','area','town','spot'];
+
+async function loadAdTab(){
+    await loadAdPlans();
+    await loadAdShops();
+    await loadAdContracts();
+    setupSlotCheckPlan();
+}
+
+async function loadAdPlans(){
+    const data=await apiGet('list','table=ad_plans&order=sort_order&dir=asc');
+    
+    adPlans=data||[];
+    document.getElementById('ad-plans-body').innerHTML=adPlans.map(p=>`<tr><td style="font-weight:600;">${esc(p.name)}</td><td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${p.level}</span></td><td>¥${p.price.toLocaleString()}</td><td>${p.bonus_amount?'¥'+p.bonus_amount.toLocaleString():'—'}</td><td>${p.max_slots}</td></tr>`).join('');
+    // プラン選択プルダウン更新
+    const planSel=document.getElementById('ad-plan-select');
+    planSel.innerHTML='<option value="">選択...</option>'+adPlans.map(p=>`<option value="${p.id}">${p.name}（${p.level}）</option>`).join('');
+}
+
+async function loadAdShops(){
+    const data=await apiGet('list','table=shops&status=active&order=shop_name&dir=asc');
+    const sel=document.getElementById('ad-shop-select');
+    sel.innerHTML='<option value="">選択...</option>'+(data||[]).map(s=>`<option value="${s.id}">${esc(s.shop_name)}</option>`).join('');
+}
+
+function previewAdBanner(){
+    const url=document.getElementById('ad-banner-image-url').value.trim();
+    const preview=document.getElementById('ad-banner-preview');
+    const img=document.getElementById('ad-banner-preview-img');
+    if(url){preview.style.display='';img.src=url;img.onerror=function(){preview.style.display='none';};}
+    else{preview.style.display='none';}
+}
+
+async function updateAdForm(){
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    const section=document.getElementById('ad-target-section');
+    if(!plan){section.innerHTML='<span style="color:var(--ink-3);font-size:12px;">プランを選択してください</span>';return;}
+    if(plan.level==='premium'){
+        section.innerHTML='<input type="text" value="全国" readonly class="f-input" id="ad-target-val">';
+    }else{
+        await renderTargetDropdowns(section,'ad',plan.level);
+    }
+}
+
+async function renderTargetDropdowns(container,prefix,level){
+    const prefData=await apiGet('hotel-cascades','field=prefecture');
+    const prefs=(prefData||[]).sort();
+    let html='<select id="'+prefix+'-target-pref" class="f-input" onchange="onAdPrefChange(\''+prefix+'\',\''+level+'\')"><option value="">都道府県を選択</option>'+prefs.map(p=>'<option>'+esc(p)+'</option>').join('')+'</select>';
+    if(level==='area'||level==='town'||level==='spot'){
+        html+='<select id="'+prefix+'-target-major" class="f-input" style="margin-top:6px;display:none;" onchange="onAdMajorChange(\''+prefix+'\',\''+level+'\')"><option value="">エリアを選択</option></select>';
+    }
+    if(level==='town'||level==='spot'){
+        html+='<select id="'+prefix+'-target-detail" class="f-input" style="margin-top:6px;display:none;" onchange="onAdDetailChange(\''+prefix+'\',\''+level+'\')"><option value="">詳細エリアを選択</option></select>';
+    }
+    if(level==='spot'){
+        html+='<select id="'+prefix+'-target-city" class="f-input" style="margin-top:6px;display:none;"><option value="">市区町村を選択</option></select>';
+    }
+    container.innerHTML=html;
+}
+
+async function onAdPrefChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    if(!pref)return;
+    if(level==='big')return; // 都道府県のみ
+    const majorSel=document.getElementById(prefix+'-target-major');
+    if(!majorSel)return;
+    const data=await apiGet('hotel-cascades','field=major_area&pref='+encodeURIComponent(pref));
+    const areas=(data||[]).sort();
+    majorSel.innerHTML='<option value="">エリアを選択</option>'+areas.map(a=>'<option>'+esc(a)+'</option>').join('');
+    majorSel.style.display='';
+    // 下位リセット
+    const detailSel=document.getElementById(prefix+'-target-detail');
+    if(detailSel){detailSel.innerHTML='<option value="">詳細エリアを選択</option>';detailSel.style.display='none';}
+    const citySel=document.getElementById(prefix+'-target-city');
+    if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+}
+
+async function onAdMajorChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    const major=document.getElementById(prefix+'-target-major').value;
+    if(!major)return;
+    if(level==='area')return; // areaはmajor_areaが掲載先
+
+    // detail_areaの有無を確認
+    const data=await apiGet('hotel-cascades','field=detail_area&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major));
+    const details=(data||[]).sort();
+
+    const detailSel=document.getElementById(prefix+'-target-detail');
+    const citySel=document.getElementById(prefix+'-target-city');
+
+    if(details.length>0&&(level==='town'||level==='spot')){
+        // detail_areaがある場合 → detail_areaプルダウンを表示
+        if(detailSel){
+            detailSel.innerHTML='<option value="">詳細エリアを選択</option>'+details.map(d=>'<option>'+esc(d)+'</option>').join('');
+            detailSel.style.display='';
+        }
+        if(citySel){citySel.innerHTML='<option value="">市区町村を選択</option>';citySel.style.display='none';}
+    }else if(level==='spot'){
+        // detail_areaがない場合 → 直接cityプルダウンを表示
+        if(detailSel){detailSel.innerHTML='<option value="">（なし）</option>';detailSel.style.display='none';}
+        if(citySel){
+            const cityData=await apiGet('hotel-cascades','field=city&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major));
+            const cities=(cityData||[]).sort();
+            citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
+            citySel.style.display='';
+        }
+    }else if(level==='town'&&details.length===0){
+        // townでdetail_areaがない場合 → major_areaが掲載先（これ以上の選択不要）
+        if(detailSel){detailSel.style.display='none';}
+    }
+}
+
+async function onAdDetailChange(prefix,level){
+    const pref=document.getElementById(prefix+'-target-pref').value;
+    const major=document.getElementById(prefix+'-target-major').value;
+    const detail=document.getElementById(prefix+'-target-detail').value;
+    if(!detail)return;
+    if(level==='town')return; // townはdetail_areaが掲載先
+
+    // spotの場合 → cityプルダウンを表示
+    const citySel=document.getElementById(prefix+'-target-city');
+    if(!citySel)return;
+    const data=await apiGet('hotel-cascades','field=city&pref='+encodeURIComponent(pref)+'&major_area='+encodeURIComponent(major)+'&detail_area='+encodeURIComponent(detail));
+    const cities=(data||[]).sort();
+    citySel.innerHTML='<option value="">市区町村を選択</option>'+cities.map(c=>'<option>'+esc(c)+'</option>').join('');
+    citySel.style.display='';
+}
+
+function getAdTarget(prefix='ad'){
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!plan)return'';
+    if(plan.level==='premium')return'全国';
+    if(plan.level==='big')return document.getElementById(prefix+'-target-pref')?.value||'';
+    if(plan.level==='area')return document.getElementById(prefix+'-target-major')?.value||'';
+    if(plan.level==='town'){
+        // detail_areaがあればそれ、なければmajor_area
+        const detail=document.getElementById(prefix+'-target-detail');
+        if(detail&&detail.style.display!=='none'&&detail.value)return detail.value;
+        return document.getElementById(prefix+'-target-major')?.value||'';
+    }
+    if(plan.level==='spot')return document.getElementById(prefix+'-target-city')?.value||'';
+    return'';
+}
+
+function getBonusTarget(){
+    const planId=document.getElementById('bonus-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!plan)return'';
+    if(plan.level==='premium')return'全国';
+    const pref=document.getElementById('bonus-target-pref')?.value||'';
+    if(plan.level==='big')return pref;
+    const major=document.getElementById('bonus-target-major')?.value||'';
+    if(plan.level==='area')return major;
+    if(plan.level==='town'){
+        const detail=document.getElementById('bonus-target-detail');
+        if(detail&&detail.style.display!=='none'&&detail.value)return detail.value;
+        return major;
+    }
+    const city=document.getElementById('bonus-target-city')?.value||'';
+    if(plan.level==='spot')return city;
+    return'';
+}
+
+async function createAdContract(){
+    const shopId=document.getElementById('ad-shop-select').value;
+    const planId=document.getElementById('ad-plan-select').value;
+    const plan=adPlans.find(p=>p.id==planId);
+    if(!shopId||!plan){toast('店舗とプランを選択してください');return;}
+    const target=getAdTarget();
+    if(!target){toast('掲載先を選択してください');return;}
+    const startDate=document.getElementById('ad-start-date').value||jstNow().split(' ')[0];
+    const endDate=document.getElementById('ad-end-date').value||null;
+    const adMode=document.getElementById('ad-mode').value||'men';
+
+    // 枠の空き確認
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(plan.level)+'&target='+encodeURIComponent(target));
+    if((_sc.count||0)>=plan.max_slots){toast('この掲載先は満枠です（'+count+'/'+plan.max_slots+'）');return;}
+
+    // 契約登録
+    const _acr=await api('insert',{table:'ad_contracts',data:{shop_id:shopId,ad_plan_id:parseInt(planId),placement_target:target,bonus_remaining:plan.bonus_amount,status:'active',start_date:startDate,end_date:endDate,mode:adMode}});
+    if(!_acr.ok){toast('契約登録エラー');return;}const contract=_acr.data;
+
+    // バナー情報を取得
+    const bannerImageUrl=document.getElementById('ad-banner-image-url').value.trim()||null;
+    const bannerLinkUrl=document.getElementById('ad-banner-link-url').value.trim()||null;
+    const bannerSize=document.getElementById('ad-banner-size').value||'medium';
+    const bannerAlt=document.getElementById('ad-banner-alt').value.trim()||null;
+
+    // メイン掲載枠を登録
+    const placementPayload={shop_id:shopId,ad_plan_id:parseInt(planId),placement_type:plan.level,placement_target:target,is_bonus:false,status:'active',start_date:startDate,end_date:endDate,mode:adMode};
+    if(bannerImageUrl){placementPayload.banner_image_url=bannerImageUrl;placementPayload.banner_link_url=bannerLinkUrl;placementPayload.banner_size=bannerSize;placementPayload.banner_alt=bannerAlt;}
+    const _apr=await api('insert',{table:'ad_placements',data:placementPayload});const pErr=_apr.ok?null:{message:_apr.error||''};
+    if(pErr){toast('掲載枠登録エラー: '+pErr.message);return;}
+
+    toast('✅ 広告契約を登録しました');
+
+    if(plan.bonus_amount>0){
+        showBonusSection(contract.id,plan);
+    }
+    loadAdContracts();
+}
+
+function showBonusSection(contractId,plan){
+    adCurrentContractId=contractId;
+    adCurrentPlan=plan;
+    adBonusRemaining=plan.bonus_amount;
+    document.getElementById('bonus-remaining').textContent='¥'+adBonusRemaining.toLocaleString();
+    // 下位プランのみ表示
+    const planIdx=AD_LEVEL_ORDER.indexOf(plan.level);
+    const lowerPlans=adPlans.filter(p=>AD_LEVEL_ORDER.indexOf(p.level)>planIdx);
+    const bonusPlanSel=document.getElementById('bonus-plan-select');
+    bonusPlanSel.innerHTML='<option value="">選択...</option>'+lowerPlans.map(p=>`<option value="${p.id}" data-price="${p.price}" data-level="${p.level}">${p.name}（¥${p.price.toLocaleString()}）</option>`).join('');
+    document.getElementById('bonus-target-section').innerHTML='';
+    document.getElementById('bonus-placements-list').innerHTML='';
+    document.getElementById('bonus-section').style.display='';
+    bonusPlanSel.onchange=async function(){
+        const bp=adPlans.find(p=>p.id==parseInt(this.value));
+        if(!bp)return;
+        const sec=document.getElementById('bonus-target-section');
+        if(bp.level==='premium'){sec.innerHTML='<input type="text" value="全国" readonly class="f-input">';}
+        else{await renderTargetDropdowns(sec,'bonus',bp.level);}
+    };
+}
+
+async function addBonusPlacement(){
+    if(!adCurrentContractId){toast('契約が選択されていません');return;}
+    if(!confirm("ボーナス掲載を追加しますか？"))return;
+    const bonusPlanId=document.getElementById('bonus-plan-select').value;
+    const bonusPlan=adPlans.find(p=>p.id==parseInt(bonusPlanId));
+    if(!bonusPlan){toast('ボーナスプランを選択してください');return;}
+    if(adBonusRemaining<bonusPlan.price){toast('ボーナス残額が不足しています（残:¥'+adBonusRemaining.toLocaleString()+' / 必要:¥'+bonusPlan.price.toLocaleString()+'）');return;}
+    const target=getBonusTarget();
+    if(!target){toast('掲載先を選択してください');return;}
+
+    // 枠の空き確認
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(bonusPlan.level)+'&target='+encodeURIComponent(target));
+    if((_sc.count||0)>=bonusPlan.max_slots){toast('この掲載先は満枠です（'+count+'/'+bonusPlan.max_slots+'）');return;}
+
+    const shopId=document.getElementById('ad-shop-select').value;
+    const startDate=document.getElementById('ad-start-date').value||jstNow().split(' ')[0];
+    const endDate=document.getElementById('ad-end-date').value||null;
+
+    const adMode=document.getElementById('ad-mode').value||'men';
+    const _bpr=await api('insert',{table:'ad_placements',data:{shop_id:shopId,ad_plan_id:parseInt(bonusPlanId),placement_type:bonusPlan.level,placement_target:target,is_bonus:true,status:'active',start_date:startDate,end_date:endDate,mode:adMode}});const pErr=_bpr.ok?null:{message:_bpr.error||''};
+    if(pErr){toast('ボーナス枠登録エラー: '+pErr.message);return;}
+
+    adBonusRemaining-=bonusPlan.price;
+    await api('update',{table:'ad_contracts',id:adCurrentContractId,data:{bonus_remaining:adBonusRemaining}});
+    document.getElementById('bonus-remaining').textContent='¥'+adBonusRemaining.toLocaleString();
+
+    // リストに追加
+    const list=document.getElementById('bonus-placements-list');
+    list.insertAdjacentHTML('beforeend',`<div style="padding:6px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);margin-top:6px;font-size:12px;">🎁 ${esc(bonusPlan.name)} - ${esc(target)}（¥${bonusPlan.price.toLocaleString()}）</div>`);
+
+    toast('✅ ボーナス枠を追加しました');
+    if(adBonusRemaining<=0){
+        document.getElementById('bonus-section').style.display='none';
+    }
+    loadAdContracts();
+}
+
+async function loadAdContracts(){
+    const statusF=document.getElementById('ad-status-f')?.value||'';
+    const _acl=await apiGet('ad-contracts-list',statusF?'status='+encodeURIComponent(statusF):'');
+    const data=_acl.contracts||[];const error=_acl.error?{message:_acl.error}:null;
+    if(error){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="9">'+esc(error.message)+'</td></tr>';return;}
+    const rows=data||[];
+    document.getElementById('ad-contracts-sub').textContent=' ('+rows.length+'件)';
+
+    if(!rows.length){document.getElementById('ad-contracts-body').innerHTML='<tr class="erow"><td colspan="9">契約がありません</td></tr>';return;}
+
+    // 各契約のplacementsも取得
+    const contractIds=rows.map(r=>r.id);
+    const placements=_acl.placements||[];
+
+    const statusLabels={active:'稼働中',paused:'停止中',cancelled:'解約'};
+    const statusColors={active:'b-can',paused:'b-email-pending',cancelled:'b-cant'};
+
+    document.getElementById('ad-contracts-body').innerHTML=rows.map(r=>{
+        const shopName=r.shops?.shop_name||'—';
+        const planName=r.ad_plans?.name||'—';
+        const planLevel=r.ad_plans?.level||'';
+        const bonusPlaces=(placements||[]).filter(p=>p.shop_id===r.shop_id&&p.is_bonus);
+        const bonusHTML=bonusPlaces.length?'<div style="margin-top:4px;">'+bonusPlaces.map(bp=>`<span style="display:inline-block;font-size:10px;background:var(--gold-bg);border:1px solid var(--gold-border);border-radius:3px;padding:1px 6px;margin:2px;">🎁 ${bp.ad_plans?.name||bp.placement_type} - ${esc(bp.placement_target||'')}</span>`).join('')+'</div>':'';
+        return`<tr>
+            <td style="font-size:12px;">${esc(shopName)}</td>
+            <td><span class="badge" style="background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-bdr);">${esc(planName)}</span></td>
+            <td style="font-size:12px;">${esc(r.placement_target||'—')}${bonusHTML}</td>
+            <td style="font-size:12px;">${({men:'♂男性',women:'♀女性',ff:'♀♀女同士',mm:'♂♂男同士',all:'全モード'})[r.mode]||r.mode||'men'}</td>
+            <td style="font-size:12px;">¥${(r.bonus_remaining||0).toLocaleString()}</td>
+            <td><span class="badge ${statusColors[r.status]||''}">${statusLabels[r.status]||r.status}</span></td>
+            <td style="font-size:11px;white-space:nowrap;">${r.start_date||'—'}</td>
+            <td style="font-size:11px;white-space:nowrap;">${r.end_date||'無期限'}</td>
+            <td style="white-space:nowrap;">
+                ${r.status==='active'?`<button class="btn b-btn-gold" style="font-size:11px;padding:4px 8px;" onclick="toggleAdContract('${r.id}','paused')">停止</button>`:''}
+                ${r.status==='paused'?`<button class="btn b-btn-green" style="font-size:11px;padding:4px 8px;" onclick="toggleAdContract('${r.id}','active')">再開</button>`:''}
+                <button class="btn b-btn-red" style="font-size:11px;padding:4px 8px;" onclick="deleteAdContract('${r.id}','${r.shop_id}')">削除</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function toggleAdContract(contractId,newStatus){
+    if(!confirm(`広告契約を${newStatus==='active'?'有効':'一時停止'}にしますか？`))return;
+    const _atr=await api('ad-toggle-contract',{contract_id:contractId,status:newStatus});const error=_atr.ok?null:{message:_atr.error||''};
+    if(error){toast('更新エラー: '+error.message);return;}
+    // placementsも連動更新
+    if(newStatus==='paused'){
+        // placements paused by ad-toggle-contract
+    }
+    toast('✅ ステータスを更新しました');
+    loadAdContracts();
+}
+
+async function deleteAdContract(contractId,shopId){
+    if(!confirm('この契約と関連する掲載枠を削除しますか？'))return;
+    // handled by ad-delete-contract
+    await api('ad-delete-contract',{contract_id:contractId,shop_id:shopId});
+    toast('✅ 契約を削除しました');
+    loadAdContracts();
+}
+
+function setupSlotCheckPlan(){
+    const sel=document.getElementById('slot-check-plan');
+    sel.innerHTML='<option value="">選択...</option>'+adPlans.map(p=>`<option value="${p.level}" data-max="${p.max_slots}">${p.name}（${p.level}）</option>`).join('');
+}
+
+async function updateSlotCheckTarget(){
+    const level=document.getElementById('slot-check-plan').value;
+    const sel=document.getElementById('slot-check-target');
+    if(!level){sel.innerHTML='<option value="">プランを選択</option>';return;}
+    if(level==='premium'){sel.innerHTML='<option value="全国">全国</option>';return;}
+
+    // 掲載先の候補をad_placementsから取得
+    const data=await apiGet('list','table=ad_placements&placement_type='+encodeURIComponent(level));
+    const targets=[...new Set((data||[]).map(p=>p.placement_target).filter(Boolean))].sort();
+
+    if(level==='big'){
+        const prefData=await apiGet('hotel-cascades','field=prefecture');
+        const allPrefs=(prefData||[]).sort();
+        sel.innerHTML=allPrefs.map(p=>'<option>'+esc(p)+'</option>').join('');
+    }else{
+        sel.innerHTML=targets.length?targets.map(t=>'<option>'+esc(t)+'</option>').join(''):'<option value="">データなし</option>';
+    }
+}
+
+async function checkSlotStatus(){
+    const level=document.getElementById('slot-check-plan').value;
+    const target=document.getElementById('slot-check-target').value;
+    const plan=adPlans.find(p=>p.level===level);
+    if(!level||!target||!plan){toast('プランと掲載先を選択してください');return;}
+
+    const _sc=await apiGet('ad-slot-count','level='+encodeURIComponent(level)+'&target='+encodeURIComponent(target)+'&details=1');
+    const details=_sc.details||[];
+
+    const resultDiv=document.getElementById('slot-status-result');
+    const used=_sc.count||0;
+    const max=plan.max_slots;
+    const pct=Math.round(used/max*100);
+    const barColor=pct>=100?'var(--red)':pct>=60?'#f9a825':'var(--green)';
+
+    let detailHTML='';
+    if(details&&details.length){
+        detailHTML='<div style="margin-top:8px;">'+details.map(d=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">${d.is_bonus?'🎁':'📌'} ${esc(d.shops?.shop_name||'—')} <span style="color:var(--ink-3);font-size:11px;">(${d.start_date||'—'}〜)</span></div>`).join('')+'</div>';
+    }
+
+    resultDiv.innerHTML=`
+        <div style="font-weight:600;margin-bottom:6px;">${esc(plan.name)}枠 - ${esc(target)}: ${used}/${max}枠使用中</div>
+        <div style="background:var(--bg-3);border-radius:4px;height:20px;overflow:hidden;">
+            <div style="background:${barColor};height:100%;width:${Math.min(pct,100)}%;border-radius:4px;transition:width 0.3s;"></div>
+        </div>
+        ${detailHTML}
+    `;
+}
+
+// switchTabにads対応を追加
+const _origSwitchTab=switchTab;
+switchTab=function(name){_origSwitchTab(name);if(name==='ads')loadAdTab();if(name==='plan-requests')loadPlanRequests();};
+
+// ===== プラン申込管理 =====
+let planReqData=[];
+async function loadPlanRequests(){
+    try{
+        const data=await apiGet('plan-requests');
+        planReqData=Array.isArray(data)?data:[];
+    }catch(e){planReqData=[];}
+    updatePlanReqBadge();
+    renderPlanRequests();
+}
+function updatePlanReqBadge(){
+    const cnt=planReqData.filter(r=>r.status==='pending').length;
+    const badge=document.getElementById('planreq-badge');
+    if(badge){badge.textContent=cnt;badge.style.display=cnt>0?'':'none';}
+}
+function renderPlanRequests(){
+    const statusF=document.getElementById('planreq-status-f')?.value||'';
+    let filtered=planReqData;
+    if(statusF)filtered=planReqData.filter(r=>r.status===statusF);
+    document.getElementById('planreq-sub').textContent=`${filtered.length} 件`;
+    const genreMap={men:'♂ デリヘル',women:'♀ 女風',este:'💆 エステ',men_same:'♂♂',women_same:'♀♀'};
+    const stMap={pending:'<span class="badge b-registered">審査中</span>',approved:'<span class="badge b-active">承認済</span>',rejected:'<span class="badge b-stop">却下</span>',cancelled:'<span class="badge b-suspended">キャンセル</span>'};
+    const tbody=document.getElementById('planreq-tbody');
+    if(!filtered.length){tbody.innerHTML='<tr class="erow"><td colspan="8">申込がありません</td></tr>';return;}
+    tbody.innerHTML=filtered.map(r=>{
+        const areas=(r.requested_areas||[]).join(', ')||'未指定';
+        const actions=`<div class="btn-row"><button class="btn b-btn-gray" style="font-size:10px;" data-action="viewPlanReq" data-arg1="${r.id}">👁 表示</button><button class="btn b-btn-gold" style="font-size:10px;" data-action="editPlanReq" data-arg1="${r.id}">✏️ 編集</button><button class="btn b-btn-red" style="font-size:10px;" data-action="deletePlanReq" data-arg1="${r.id}">削除</button></div>`;
+        return`<tr${r.status==='pending'?' style="background:rgba(255,243,224,0.3);"':''}>
+            <td style="font-size:11px;white-space:nowrap;">${fmtDate(r.created_at)}</td>
+            <td style="font-size:12px;font-weight:600;">${esc(r.shop_name||'—')}</td>
+            <td>${genreMap[r.gender_mode]||'—'}</td>
+            <td style="font-weight:600;">${esc(r.plan_name||'—')}</td>
+            <td style="font-size:12px;">¥${Number(r.plan_price||0).toLocaleString()}</td>
+            <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;">${esc(areas)}</td>
+            <td>${stMap[r.status]||r.status}</td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
+}
+function viewPlanReq(id){
+    const r=planReqData.find(x=>x.id===id);if(!r)return;
+    const genreMap={men:'♂ デリヘル',women:'♀ 女風',este:'💆 エステ',men_same:'♂♂ 同性(男)',women_same:'♀♀ 同性(女)'};
+    const stMap={pending:'審査中',approved:'承認済',rejected:'却下',cancelled:'キャンセル'};
+    const areas=(r.requested_areas||[]).join(', ')||'未指定';
+    const contractLink=r.status==='approved'?`\n契約書: /api/contract.php?id=${r.id}`:'';
+    alert(`【プラン申込詳細】\n\n申込日: ${fmtDate(r.created_at)}\n店舗名: ${r.shop_name||'—'}\nジャンル: ${genreMap[r.gender_mode]||'—'}\nプラン: ${r.plan_name||'—'}\n月額: ¥${Number(r.plan_price||0).toLocaleString()}\n希望エリア: ${areas}\nステータス: ${stMap[r.status]||r.status}${r.admin_note?'\n管理メモ: '+r.admin_note:''}${contractLink}`);
+}
+function editPlanReq(id){
+    const r=planReqData.find(x=>x.id===id);if(!r)return;
+    const newStatus=prompt('ステータスを変更してください:\n\npending = 審査中\napproved = 承認済\nrejected = 却下\ncancelled = キャンセル\n\n現在: '+r.status, r.status);
+    if(!newStatus||newStatus===r.status)return;
+    if(!['pending','approved','rejected','cancelled'].includes(newStatus)){toast('無効なステータスです');return;}
+    if(newStatus==='approved'){approvePlanReq(id);return;}
+    if(newStatus==='rejected'){rejectPlanReq(id);return;}
+    (async()=>{
+        const res=await api('review-plan-request',{request_id:id,action:newStatus==='cancelled'?'reject':'approve',admin_note:'ステータス変更: '+newStatus});
+        if(!res.ok){toast('更新エラー');return;}
+        toast('✅ ステータスを更新しました');loadPlanRequests();loadDashboard();
+    })();
+}
+async function deletePlanReq(id){
+    if(!confirm('このプラン申込を削除しますか？（元に戻せません）'))return;
+    const r=await api('delete',{table:'shop_plan_requests',id});
+    if(!r.ok){toast('削除エラー');return;}
+    planReqData=planReqData.filter(x=>x.id!==id);
+    updatePlanReqBadge();renderPlanRequests();
+    toast('🗑 削除しました');
+}
+async function approvePlanReq(id){
+    if(!confirm('このプラン申込を承認しますか？\n（契約が作成され、承認メールが送信されます）'))return;
+    const r=await api('review-plan-request',{request_id:id,action:'approve'});
+    if(!r.ok){toast('承認エラー: '+(r.error||''));return;}
+    toast('✅ 承認しました');loadPlanRequests();loadDashboard();
+}
+async function rejectPlanReq(id){
+    const reason=prompt('却下理由を入力してください（任意）:');
+    if(reason===null)return;
+    if(!confirm('このプラン申込を却下しますか？'))return;
+    const r=await api('review-plan-request',{request_id:id,action:'reject',admin_note:reason});
+    if(!r.ok){toast('却下エラー: '+(r.error||''));return;}
+    toast('✅ 却下しました');loadPlanRequests();loadDashboard();
+}
+
+async function dndDrop(e,targetId){e.preventDefault();e.currentTarget.classList.remove("drag-over");document.querySelectorAll(".cond-row.dragging").forEach(el=>el.classList.remove("dragging"));if(_dndSrcId===null||_dndSrcId===targetId)return;let dataArr,renderFn;if(_dndTable==="can_call_reasons"){dataArr=canReasonsData;renderFn=renderCanReasons;}else if(_dndTable==="cannot_call_reasons"){dataArr=cannotReasonsData;renderFn=renderCannotReasons;}else if(_dndTable==="room_types"){dataArr=roomTypesData;renderFn=renderRoomTypes;}else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}else return;const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);const tgtIdx=dataArr.findIndex(c=>c.id===targetId);if(srcIdx<0||tgtIdx<0)return;const[moved]=dataArr.splice(srcIdx,1);dataArr.splice(tgtIdx,0,moved);dataArr.forEach((c,i)=>c.sort_order=i+1);renderFn();const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");}
