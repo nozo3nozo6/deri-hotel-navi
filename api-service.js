@@ -151,63 +151,50 @@ function _currentGenderMode() {
     return window.MODE || '';
 }
 
-async function fetchReportSummaries(hotelIds) {
-    if (!hotelIds.length) return {};
+// 内部ヘルパー: report-summaries.php をGET優先で叩く
+// 100件以下のとき GET (Cloudflare Edge でキャッシュ可能)、超過時のみ POST にフォールバック
+async function _fetchSummariesAPI(hotelIds, gender) {
+    if (!hotelIds || !hotelIds.length) return null;
     try {
+        if (hotelIds.length <= 100) {
+            const params = new URLSearchParams();
+            params.set('hotel_ids', hotelIds.join(','));
+            if (gender) params.set('gender_mode', gender);
+            const res = await fetch('/api/report-summaries.php?' + params.toString());
+            return res.ok ? await res.json() : null;
+        }
+        // 100件超: 巨大リストはURL長制限を超え得るので POST
         const res = await fetch('/api/report-summaries.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds, gender_mode: _currentGenderMode() }),
+            body: JSON.stringify({ hotel_ids: hotelIds, gender_mode: gender }),
         });
-        if (!res.ok) return {};
-        const data = await res.json();
-        return data.summaries || {};
-    } catch (e) { return {}; }
+        return res.ok ? await res.json() : null;
+    } catch (e) { return null; }
+}
+
+async function fetchReportSummaries(hotelIds) {
+    const data = await _fetchSummariesAPI(hotelIds, _currentGenderMode());
+    return data?.summaries || {};
 }
 
 async function fetchLatestReportDates(hotelIds) {
-    if (!hotelIds.length) return {};
-    try {
-        const res = await fetch('/api/report-summaries.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds, latest_only: true, gender_mode: _currentGenderMode() }),
-        });
-        if (!res.ok) return {};
-        const data = await res.json();
-        return data.latest_dates || {};
-    } catch (e) { return {}; }
+    const data = await _fetchSummariesAPI(hotelIds, _currentGenderMode());
+    return data?.latest_dates || {};
 }
 
 async function fetchHotelsWithSummary(hotels) {
     if (!hotels || !hotels.length) return [];
     const hotelIds = hotels.map(h => h.id);
-    const res = await fetch('/api/report-summaries.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hotel_ids: hotelIds, gender_mode: _currentGenderMode() }),
-    });
-    let summaries = {}, latestMap = {};
-    if (res.ok) {
-        const data = await res.json();
-        summaries = data.summaries || {};
-        latestMap = data.latest_dates || {};
-    }
+    const data = await _fetchSummariesAPI(hotelIds, _currentGenderMode());
+    const summaries = data?.summaries || {};
+    const latestMap = data?.latest_dates || {};
     return hotels.map(h => ({ ...h, summary: summaries[h.id] || null, latestReportAt: latestMap[h.id] || null }));
 }
 
 async function fetchLovehoReviewSummaries(hotelIds) {
-    if (!hotelIds.length) return {};
-    try {
-        const res = await fetch('/api/report-summaries.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hotel_ids: hotelIds, loveho: true, gender_mode: _currentGenderMode() }),
-        });
-        if (!res.ok) return {};
-        const data = await res.json();
-        return data.loveho_summaries || {};
-    } catch (e) { return {}; }
+    const data = await _fetchSummariesAPI(hotelIds, _currentGenderMode());
+    return data?.loveho_summaries || {};
 }
 
 // 呼べた理由マスタ

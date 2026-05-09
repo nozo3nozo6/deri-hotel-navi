@@ -16,6 +16,9 @@ if (in_array($origin, $allowed_origins)) {
 }
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Vary: Origin');
+// 店舗一覧はプラン変更/掲載停止が反映されるまでの最大遅延を許容（120秒）
+header('Cache-Control: public, max-age=120');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }

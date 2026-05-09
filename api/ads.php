@@ -15,6 +15,9 @@ if (in_array($origin, $allowed_origins)) {
 }
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Vary: Origin');
+// 広告配置はプラン変更まで安定（300秒キャッシュ可）
+header('Cache-Control: public, max-age=300');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }

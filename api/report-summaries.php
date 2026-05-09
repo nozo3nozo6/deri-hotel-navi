@@ -1,7 +1,8 @@
 <?php
 /**
  * report-summaries.php — 複数ホテルの口コミサマリー一括取得（MySQL版）
- * POST: { "hotel_ids": [1, 2, 3, ...] }
+ * GET:  ?hotel_ids=1,2,3&gender_mode=men  (Cloudflare Edge Cache 対応)
+ * POST: { "hotel_ids": [1,2,3], "gender_mode": "men" }  (互換性のため残置)
  * Returns: summaries, latest_dates, loveho_summaries
  */
 
@@ -14,16 +15,34 @@ if (in_array($origin, $allowed_origins)) {
 } else {
     header('Access-Control-Allow-Origin: https://yobuho.com');
 }
-header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
+// Cloudflare Edge Cache（GET時のみ有効）+ ブラウザキャッシュ60秒
+// Origin ごとにキャッシュキーを分離するため Vary: Origin
+header('Vary: Origin');
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    header('Cache-Control: public, max-age=60');
+} else {
+    header('Cache-Control: no-store');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'POST'], true)) { http_response_code(405); echo json_encode(['error' => 'Method not allowed']); exit; }
 
 require_once __DIR__ . '/db.php';
 $pdo = DB::conn();
 
-$input = json_decode(file_get_contents('php://input'), true);
+// GET: ?hotel_ids=1,2,3&gender_mode=men
+// POST: { hotel_ids: [...], gender_mode: ... }
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $hotelIdsRaw = $_GET['hotel_ids'] ?? '';
+    $hotelIdsArr = array_filter(array_map('trim', explode(',', (string)$hotelIdsRaw)), 'strlen');
+    $input = ['hotel_ids' => $hotelIdsArr];
+    if (!empty($_GET['gender_mode'])) $input['gender_mode'] = $_GET['gender_mode'];
+} else {
+    $input = json_decode(file_get_contents('php://input'), true);
+}
+
 if (!$input || !isset($input['hotel_ids']) || !is_array($input['hotel_ids'])) {
     http_response_code(400);
     echo json_encode(['error' => 'hotel_ids 配列は必須です']);

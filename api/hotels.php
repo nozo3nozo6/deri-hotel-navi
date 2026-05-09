@@ -26,6 +26,10 @@ if (in_array($origin, $allowed_origins)) {
 }
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Vary: Origin');
+// Cloudflare Edge Cache + ブラウザキャッシュ60秒
+// 投稿後の最大60秒遅延を許容（実体験口コミの更新即時性は重要度低）
+header('Cache-Control: public, max-age=60');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 
