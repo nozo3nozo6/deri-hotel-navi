@@ -141,6 +141,14 @@ function handleMigrateExpiredCampaigns() {
     $ins->execute();
     $insertedCount = $ins->rowCount();
 
+    // shops.plan_id を最高単価の契約に同期
+    $pdo->exec("UPDATE shops s SET plan_id = COALESCE((
+                    SELECT sc.plan_id FROM shop_contracts sc
+                    JOIN contract_plans p ON p.id = sc.plan_id
+                    WHERE sc.shop_id = s.id
+                    ORDER BY p.price DESC, sc.created_at DESC LIMIT 1
+                ), 1)");
+
     echo json_encode(['ok' => true, 'deleted_campaigns' => $deletedCount, 'added_free_plans' => $insertedCount]);
 }
 
@@ -149,11 +157,20 @@ function handleDashboard() {
     // ダッシュボード読み込み時に期限切れキャンペーン → 無料プラン自動移行を実行
     // (admin が日次で見るため、cron 不要で十分な頻度)
     try {
+        // 1. 期限切れ・本日切れキャンペーン契約を削除
         $pdo->exec("DELETE FROM shop_contracts WHERE is_campaign = 1 AND expires_at IS NOT NULL AND expires_at <= CURDATE()");
+        // 2. 契約0件の店舗に無料プラン付与
         $pdo->exec("INSERT INTO shop_contracts (shop_id, plan_id, is_campaign, expires_at)
                     SELECT s.id, 1, 0, NULL FROM shops s
                     WHERE s.status IN ('active', 'suspended', 'revision_required')
                       AND NOT EXISTS (SELECT 1 FROM shop_contracts sc WHERE sc.shop_id = s.id)");
+        // 3. shops.plan_id を「最高単価の契約」に同期（一覧表示で使われるため）
+        $pdo->exec("UPDATE shops s SET plan_id = COALESCE((
+                        SELECT sc.plan_id FROM shop_contracts sc
+                        JOIN contract_plans p ON p.id = sc.plan_id
+                        WHERE sc.shop_id = s.id
+                        ORDER BY p.price DESC, sc.created_at DESC LIMIT 1
+                    ), 1)");
     } catch (Exception $e) {
         error_log('[admin-api] migrate-expired-campaigns failed: ' . $e->getMessage());
     }
