@@ -413,7 +413,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - Leafletマーカータップ拡大: L.divIconのhtml内に44x44pxラッパーdiv追加、iconSize[44,44]に変更
 
 #### 残タスク（新機能 — 要相談）
-- ビジネス3件(MEDIUM): お気に入りホテル、最新24h口コミ、投稿感謝可視化
+- ビジネス3件(MEDIUM): [x]お気に入りホテル完了(cd058f9, 2026-04-13)、最新24h口コミ、投稿感謝可視化
 - パフォーマンス2件(LOW): Service Worker、CSS分割
 - ビジネス3件(LOW): 営業ダッシュボード、メール購読、アクセス追跡
 - 店舗2件: [x]店舗専用URL slug化完了、[x]ラブホタブ店舗差別化完了
@@ -440,7 +440,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - [x] コード品質: 本番フロントエンド(api-service/hotel-search/form-handler/loveho-app)のconsole.log/warn/error全削除
 
 ### MEDIUM（中期対応）
-- [ ] ビジネス: 「お気に入りホテル」機能（localStorage、マイホテルタブ）
+- [x] ビジネス: 「お気に入りホテル」機能（cd058f9, 2026-04-13完了 — localStorage 100件まで、★ボタン+全国ページにお気に入りバー）
 - [ ] ビジネス: 「最新24h口コミ」セクション追加（portal.html エリアナビ直後）
 - [ ] ビジネス: 投稿後の感謝可視化（投稿数カウント、認定レビュアーバッジ）
 - [x] パフォーマンス: Noto Serif JPをwomen/women_sameモードのみ動的読込に変更
