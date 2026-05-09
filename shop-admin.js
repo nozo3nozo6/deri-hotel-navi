@@ -695,12 +695,50 @@ function setBreadcrumb(crumbs){
 }
 
 // ===== お気に入りエリア =====
+// 2026-05-10: レース条件修正 — loadFavAreas が完了する前に addFavArea/removeFavArea が
+// 走ると _favAreas=[] のまま保存して既存DBデータを上書き消失させる潜在バグがあった.
+// 全ての書込前に必ず loadFavAreas を await で完了させる.
 let _favAreas=[];
-async function loadFavAreas(){try{const res=await fetch('/api/shop-auth.php?action=get-fav-areas',{credentials:'include'});_favAreas=await res.json();if(!Array.isArray(_favAreas))_favAreas=[];}catch{_favAreas=[];}}
+let _favAreasLoaded=false;
+let _favAreasLoading=null;
+async function loadFavAreas(){
+    if(_favAreasLoaded)return;
+    if(_favAreasLoading)return _favAreasLoading;
+    _favAreasLoading=(async()=>{
+        try{
+            const res=await fetch('/api/shop-auth.php?action=get-fav-areas',{credentials:'include'});
+            const data=await res.json();
+            _favAreas=Array.isArray(data)?data:[];
+            _favAreasLoaded=true;
+        }catch{
+            // 読込失敗時は loaded フラグ立てない → 次回再試行
+            _favAreas=[];
+        }
+        _favAreasLoading=null;
+    })();
+    return _favAreasLoading;
+}
 function getFavAreas(){return _favAreas;}
 async function saveFavAreas(favs){_favAreas=favs;try{await fetch('/api/shop-auth.php?action=save-fav-areas',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fav_areas:favs})});}catch{}}
-async function addFavArea(fav){const favs=getFavAreas();if(favs.some(f=>f.label===fav.label&&f.pref===fav.pref))return;favs.push(fav);await saveFavAreas(favs);toast('⭐ お気に入りに追加しました');renderFavAreas();}
-async function removeFavArea(idx){const favs=getFavAreas();favs.splice(idx,1);await saveFavAreas(favs);toast('お気に入りから削除しました');renderFavAreas();}
+async function addFavArea(fav){
+    await loadFavAreas();
+    if(!_favAreasLoaded){toast('お気に入りの読込に失敗。再度お試しください');return;}
+    const favs=getFavAreas();
+    if(favs.some(f=>f.label===fav.label&&f.pref===fav.pref))return;
+    favs.push(fav);
+    await saveFavAreas(favs);
+    toast('⭐ お気に入りに追加しました');
+    renderFavAreas();
+}
+async function removeFavArea(idx){
+    await loadFavAreas();
+    if(!_favAreasLoaded){toast('お気に入りの読込に失敗。再度お試しください');return;}
+    const favs=getFavAreas();
+    favs.splice(idx,1);
+    await saveFavAreas(favs);
+    toast('お気に入りから削除しました');
+    renderFavAreas();
+}
 function renderFavAreas(){
     const favs=getFavAreas();
     const el=document.getElementById('fav-areas');
