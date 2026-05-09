@@ -1040,8 +1040,8 @@ function renderLovehoDetail(hotel, reports) {
                 </div>
             </div>
             <div class="lh-form-row"><label class="lh-form-label">${t('time_slot')}</label><select data-onchange-set="lhFormState.time_slot" class="lh-form-select">${selOpts(LH_MASTER.time_slots)}</select></div>
-            <div class="lh-form-row"><label class="lh-form-label">${t('free_comment')}</label><textarea id="lh-comment" rows="3" maxlength="500" oninput="lhFormState.comment=this.value" placeholder="${t('comment_placeholder')}" class="lh-form-select" style="resize:vertical;"></textarea></div>
-            <div class="lh-form-row"><label class="lh-form-label">${t('poster_name_opt')}</label><input type="text" oninput="lhFormState.poster_name=this.value" placeholder="${t('anon_placeholder')}" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">${t('anon_default')}</div></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('free_comment')}</label><textarea id="lh-comment" rows="3" maxlength="500" data-oninput-set="lhFormState.comment" placeholder="${t('comment_placeholder')}" class="lh-form-select" style="resize:vertical;"></textarea></div>
+            <div class="lh-form-row"><label class="lh-form-label">${t('poster_name_opt')}</label><input type="text" data-oninput-set="lhFormState.poster_name" placeholder="${t('anon_placeholder')}" class="lh-form-select"><div class="text-sub3" style="margin-top:4px;">${t('anon_default')}</div></div>
             <button data-action="submitLovehoReport" id="lh-submit-btn" class="lh-submit-btn">${t('confirm_post')}</button>
         </div>
             </div>
@@ -2130,7 +2130,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
         <div style="background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:20px;box-shadow:var(--shadow);">
             <div class="form-group">
                 <label class="form-label">${t('poster_name_opt')}</label>
-                <input type="text" id="form-poster-name" placeholder="${t('anon_placeholder')}" oninput="hotelFormState.poster_name=this.value" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:16px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
+                <input type="text" id="form-poster-name" placeholder="${t('anon_placeholder')}" data-oninput-set="hotelFormState.poster_name" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:16px;background:var(--bg-3);outline:none;color:var(--text-2);box-sizing:border-box;">
             </div>
             <div class="form-group">
                 <label class="form-label">${t('result_label')} <span style="display:inline-flex;align-items:center;padding:2px 8px;background:#c05050;color:#fff;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:0.05em;margin-left:4px;vertical-align:middle;">${t('result_required')}</span></label>
@@ -2195,7 +2195,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
             </div>
             <div class="form-group">
                 <label class="form-label">${t('free_comment')}</label>
-                <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="${t('comment_placeholder')}" oninput="hotelFormState.comment=this.value"></textarea>
+                <textarea class="form-textarea" id="form-comment" maxlength="500" placeholder="${t('comment_placeholder')}" data-oninput-set="hotelFormState.comment"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.7;">※お店名・${castLabel}情報・ホテルの批判・URL・電話番号を含む投稿は非表示となります</div>
             </div>
             <button class="btn-submit" id="btn-submit" data-action="hotelSubmitReport">${t('confirm_post')}</button>

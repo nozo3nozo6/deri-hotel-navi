@@ -392,9 +392,20 @@ document.addEventListener('change', function(e) {
 });
 
 // ── input イベント委譲（oninput属性の代替） ──
+// CSP unsafe-inline 禁止のため、inline oninput="..." の代わりに以下を使う:
+//   data-oninput="関数名"        → 関数を呼出し（e.target を引数に渡す）
+//   data-oninput-set="obj.field" → obj.field = el.value （data-onchange-set と同パターン）
 document.addEventListener('input', function(e) {
-    var action = e.target.dataset.oninput;
-    if (action && typeof window[action] === 'function') window[action]();
+    var el = e.target;
+    var action = el.dataset.oninput;
+    if (action && typeof window[action] === 'function') window[action](el);
+
+    var setKey = el.dataset.oninputSet;
+    if (setKey) {
+        var parts = setKey.split('.');
+        var obj = window[parts[0]];
+        if (obj && parts[1]) obj[parts[1]] = el.value;
+    }
 });
 
 // ── Service Worker 完全廃止: 既存SWをunregister + 全キャッシュ削除 ──
