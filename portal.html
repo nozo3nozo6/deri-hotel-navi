@@ -146,9 +146,13 @@
     </div>
     </nav>
 
-    <!-- タイトル行：タイトル＋「1つ前へ」ボタン -->
+    <!-- タイトル行：タイトル＋お気に入り＋「1つ前へ」ボタン -->
     <div class="area-header">
         <h2 id="area-title">地域を選択</h2>
+        <!-- お気に入り一覧ボタン（件数0なら非表示） -->
+        <button id="fav-btn" class="fav-bar-btn" data-action="showFavoritesPage" style="display:none;" aria-label="お気に入り一覧">
+            ⭐ <span data-i18n="favorites">お気に入り</span> (<span id="fav-count">0</span>)
+        </button>
         <!-- 1つ前へ戻るボタン（初期非表示） -->
         <button id="btn-area-back" class="btn-area-back" data-action="backLevel" aria-label="前のエリアに戻る">
             <span class="back-arrow">←</span>

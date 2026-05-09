@@ -474,15 +474,8 @@ function showJapanPage() {
     container.innerHTML = '';
     container.className = 'area-grid region-level';
 
-    // お気に入りボタン
-    const favCount = typeof getFavorites === 'function' ? getFavorites().length : 0;
-    if (favCount > 0) {
-        const favBar = document.createElement('div');
-        favBar.className = 'fav-bar';
-        favBar.style.gridColumn = '1/-1';
-        favBar.innerHTML = `<button id="fav-btn" class="fav-bar-btn" data-action="showFavoritesPage">⭐ ${t('favorites')} (<span id="fav-count">${favCount}</span>)</button>`;
-        container.appendChild(favBar);
-    }
+    // お気に入りボタンは area-header に常時配置済み (updateFavCount で表示制御)
+    if (typeof updateFavCount === 'function') updateFavCount();
 
     REGION_MAP.forEach((region, i) => {
         const btn = document.createElement('button');

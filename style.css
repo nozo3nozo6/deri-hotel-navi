@@ -2363,8 +2363,30 @@ textarea::placeholder {
 .fav-btn.fav-active { color:#c9a96e; }
 .fav-btn:hover { opacity:0.8; }
 .fav-bar { display:flex;justify-content:center;margin-bottom:12px; }
-.fav-bar-btn { display:inline-flex;align-items:center;gap:6px;padding:8px 20px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;color:#9a8030;font-family:inherit;touch-action:manipulation;transition:background .2s; }
+.fav-bar-btn {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 16px;
+    background:rgba(201,168,76,0.08);
+    border:1px solid rgba(201,168,76,0.3);
+    border-radius:20px;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+    color:#9a8030;
+    font-family:inherit;
+    touch-action:manipulation;
+    transition:background .2s;
+    flex-shrink:0;
+    min-height:44px;
+    white-space:nowrap;
+}
 .fav-bar-btn:hover { background:rgba(201,168,76,0.15); }
+.fav-bar-btn:active { transform:scale(0.97); }
+@media (max-width: 480px) {
+    .fav-bar-btn { padding:6px 12px; font-size:12px; min-height:40px; }
+}
 
 /* スマホ横余白 — 最小限に統一（広告横幅最大化） */
 @media (max-width: 640px) {

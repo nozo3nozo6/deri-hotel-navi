@@ -218,6 +218,9 @@ const jsonLd = [
         </nav>
         <div class="area-header">
             <h2 id="area-title">地域を選択</h2>
+            <button id="fav-btn" class="fav-bar-btn" data-action="showFavoritesPage" style="display:none;" aria-label="お気に入り一覧">
+                &starf; <span data-i18n="favorites">お気に入り</span> (<span id="fav-count">0</span>)
+            </button>
             <button id="btn-area-back" class="btn-area-back" data-action="backLevel" aria-label="前のエリアに戻る">
                 <span class="back-arrow">&larr;</span>
                 <span class="back-text">前へ</span>

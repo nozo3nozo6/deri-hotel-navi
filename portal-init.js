@@ -222,6 +222,9 @@ document.addEventListener('DOMContentLoaded', function() {
             ? 'ホテル名・住所で検索'
             : 'ホテル名・住所で検索（Enterで実行）';
     }
+
+    // お気に入り件数バッジを初期化（hotel-search.js が読み込まれた後に呼ぶ）
+    if (typeof updateFavCount === 'function') updateFavCount();
 });
 
 // ── イベント委譲（onclick属性の代替） ──
