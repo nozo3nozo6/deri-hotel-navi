@@ -484,7 +484,7 @@ async function doSubmitReport() {
         closePostConfirmModal();
         if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('hotel-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('hotel-form-accordion'); }
         if (doBtn) { doBtn.disabled = false; doBtn.textContent = t('confirm_post'); }
-        showPostSuccessModal(result.total_posts || 1);
+        showSuccessModal(t('post_success'), t('review_submitted'));
         if (typeof gtag === 'function') gtag('event', 'review_submit', { hotel_id: currentHotelId, review_type: 'hotel' });
         setTimeout(() => loadDetail(currentHotelId, false), 1500);
     } catch (e) {
@@ -593,10 +593,9 @@ async function doSubmitLovehoReport() {
             if (res.status === 429) { showToast(result.error || t('posting_limit')); return; }
             throw new Error(result.error || 'Submit failed');
         }
-        const okBody = await res.json().catch(() => ({}));
         document.getElementById('lh-confirm-modal').style.display = 'none';
         if (typeof toggleAccordionForm === 'function') { const el = document.getElementById('loveho-form-accordion'); if (el && el.style.display !== 'none') toggleAccordionForm('loveho-form-accordion'); }
-        showPostSuccessModal(okBody.total_posts || 1);
+        showSuccessModal(t('post_success'), t('post_thanks'));
         if (typeof gtag === 'function') gtag('event', 'review_submit', { hotel_id: currentHotelId, review_type: 'loveho' });
         cachedLovehoData = null;
         loadDetail(currentHotelId, true);

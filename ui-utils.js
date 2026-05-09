@@ -122,16 +122,6 @@ const LANG = {
         confirm_post: 'この内容で投稿する',
         review_submitted: '口コミが投稿されました。',
         post_thanks: '口コミを投稿しました。ありがとうございます！',
-        badge_first: '初投稿ありがとうございます！',
-        badge_count: '件目の投稿、ありがとうございます！',
-        badge_unlock_bronze: '🥉 ブロンズバッジ獲得！',
-        badge_unlock_silver: '🥈 シルバーバッジ獲得！',
-        badge_unlock_gold: '🥇 ゴールドバッジ獲得！',
-        badge_unlock_master: '👑 マスターバッジ獲得！',
-        badge_tier_bronze: 'ブロンズレビュアー',
-        badge_tier_silver: 'シルバーレビュアー',
-        badge_tier_gold: 'ゴールドレビュアー',
-        badge_tier_master: 'マスターレビュアー',
         posting_limit: '投稿制限中です。しばらく時間をおいてから再度お試しください。',
         already_posted: 'このホテルへは既に投稿済みです',
         hotel_not_selected: 'ホテルが選択されていません。ページを再読み込みしてください。',
@@ -256,16 +246,6 @@ const LANG = {
         confirm_post: 'Submit this review',
         review_submitted: 'Review submitted.',
         post_thanks: 'Thank you for your review!',
-        badge_first: 'Thanks for your first post!',
-        badge_count: ' review posted. Thank you!',
-        badge_unlock_bronze: '🥉 Bronze Badge Earned!',
-        badge_unlock_silver: '🥈 Silver Badge Earned!',
-        badge_unlock_gold: '🥇 Gold Badge Earned!',
-        badge_unlock_master: '👑 Master Badge Earned!',
-        badge_tier_bronze: 'Bronze Reviewer',
-        badge_tier_silver: 'Silver Reviewer',
-        badge_tier_gold: 'Gold Reviewer',
-        badge_tier_master: 'Master Reviewer',
         posting_limit: 'Posting limit reached. Please try again later.',
         already_posted: 'You have already posted for this hotel',
         hotel_not_selected: 'No hotel selected. Please reload the page.',
@@ -386,16 +366,6 @@ const LANG = {
         confirm_post: '提交此评价',
         review_submitted: '评价已提交。',
         post_thanks: '感谢您的评价！',
-        badge_first: '感谢您的首次投稿！',
-        badge_count: '次投稿，感谢您的支持！',
-        badge_unlock_bronze: '🥉 获得铜牌徽章！',
-        badge_unlock_silver: '🥈 获得银牌徽章！',
-        badge_unlock_gold: '🥇 获得金牌徽章！',
-        badge_unlock_master: '👑 获得大师徽章！',
-        badge_tier_bronze: '铜牌评论员',
-        badge_tier_silver: '银牌评论员',
-        badge_tier_gold: '金牌评论员',
-        badge_tier_master: '大师评论员',
         posting_limit: '提交受限，请稍后再试。',
         already_posted: '已对该酒店发表过评价',
         hotel_not_selected: '未选择酒店，请刷新页面。',
@@ -516,16 +486,6 @@ const LANG = {
         confirm_post: '이 내용으로 제출',
         review_submitted: '리뷰가 제출되었습니다.',
         post_thanks: '리뷰를 남겨주셔서 감사합니다!',
-        badge_first: '첫 투고 감사합니다!',
-        badge_count: '번째 투고, 감사합니다!',
-        badge_unlock_bronze: '🥉 브론즈 배지 획득！',
-        badge_unlock_silver: '🥈 실버 배지 획득！',
-        badge_unlock_gold: '🥇 골드 배지 획득！',
-        badge_unlock_master: '👑 마스터 배지 획득！',
-        badge_tier_bronze: '브론즈 리뷰어',
-        badge_tier_silver: '실버 리뷰어',
-        badge_tier_gold: '골드 리뷰어',
-        badge_tier_master: '마스터 리뷰어',
         posting_limit: '제출 제한 중입니다. 잠시 후 다시 시도하세요.',
         already_posted: '이미 이 호텔에 리뷰를 남겼습니다',
         hotel_not_selected: '호텔이 선택되지 않았습니다. 페이지를 새로고침하세요.',
@@ -823,55 +783,10 @@ function showToast(msg, duration = 2500) {
 function showSuccessModal(title, message) {
     document.getElementById('success-modal-title').textContent = title;
     document.getElementById('success-modal-message').textContent = message || '';
-    const iconEl = document.getElementById('success-modal-icon');
-    if (iconEl) iconEl.textContent = '✅';
-    const badgeEl = document.getElementById('success-modal-badge');
-    if (badgeEl) { badgeEl.style.display = 'none'; badgeEl.innerHTML = ''; }
     document.getElementById('success-modal').style.display = 'flex';
 }
 function closeSuccessModal() {
     document.getElementById('success-modal').style.display = 'none';
-}
-
-// 投稿後の感謝モーダル: 累計件数と達成バッジを表示
-// total_posts は reports + loveho_reports の累積件数（fingerprint 単位）
-function showPostSuccessModal(totalPosts) {
-    const n = parseInt(totalPosts, 10) || 1;
-    const titleEl = document.getElementById('success-modal-title');
-    const msgEl = document.getElementById('success-modal-message');
-    const iconEl = document.getElementById('success-modal-icon');
-    const badgeEl = document.getElementById('success-modal-badge');
-
-    // 階層判定（達成タイミング = unlock 演出）
-    const tier = n >= 100 ? 'master' : n >= 50 ? 'gold' : n >= 20 ? 'silver' : n >= 5 ? 'bronze' : null;
-    const tierIcon = { bronze: '🥉', silver: '🥈', gold: '🥇', master: '👑' };
-    const isUnlock = (n === 5) || (n === 20) || (n === 50) || (n === 100);
-
-    titleEl.textContent = t('post_success');
-    if (n === 1) {
-        if (iconEl) iconEl.textContent = '🌱';
-        msgEl.textContent = t('badge_first');
-    } else {
-        msgEl.textContent = n + (t('badge_count') || '件目の投稿、ありがとうございます！');
-        if (iconEl) iconEl.textContent = isUnlock ? '🎉' : (tier ? tierIcon[tier] : '✅');
-    }
-
-    if (badgeEl) {
-        if (isUnlock) {
-            const unlockKey = 'badge_unlock_' + tier;
-            badgeEl.innerHTML = '<div class="badge-unlock">' + esc(t(unlockKey)) + '</div>'
-                + '<div class="badge-tier">' + esc(t('badge_tier_' + tier)) + '</div>';
-            badgeEl.style.display = 'block';
-        } else if (tier) {
-            badgeEl.innerHTML = '<div class="badge-tier">' + tierIcon[tier] + ' ' + esc(t('badge_tier_' + tier)) + '</div>';
-            badgeEl.style.display = 'block';
-        } else {
-            badgeEl.style.display = 'none';
-            badgeEl.innerHTML = '';
-        }
-    }
-
-    document.getElementById('success-modal').style.display = 'flex';
 }
 
 // モーダル背景クリックで閉じる
