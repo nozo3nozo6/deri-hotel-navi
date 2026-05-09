@@ -413,7 +413,7 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - Leafletマーカータップ拡大: L.divIconのhtml内に44x44pxラッパーdiv追加、iconSize[44,44]に変更
 
 #### 残タスク（新機能 — 要相談）
-- ビジネス3件(MEDIUM): [x]お気に入りホテル完了(cd058f9, 2026-04-13)、最新24h口コミ、投稿感謝可視化
+- ビジネス3件(MEDIUM): [x]お気に入りホテル完了(cd058f9, 2026-04-13)、[skip]最新24h口コミ(2026-05-09 不要判断)、[skip]投稿感謝可視化(2026-05-09 不要判断)
 - パフォーマンス2件(LOW): Service Worker、CSS分割
 - ビジネス3件(LOW): 営業ダッシュボード、メール購読、アクセス追跡
 - 店舗2件: [x]店舗専用URL slug化完了、[x]ラブホタブ店舗差別化完了
@@ -441,8 +441,8 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 
 ### MEDIUM（中期対応）
 - [x] ビジネス: 「お気に入りホテル」機能（cd058f9, 2026-04-13完了 — localStorage 100件まで、★ボタン+全国ページにお気に入りバー）
-- [ ] ビジネス: 「最新24h口コミ」セクション追加（portal.html エリアナビ直後）
-- [ ] ビジネス: 投稿後の感謝可視化（投稿数カウント、認定レビュアーバッジ）
+- [skip] ビジネス: 「最新24h口コミ」セクション追加 — 2026-05-09 不要判断
+- [skip] ビジネス: 投稿後の感謝可視化 — 2026-05-09 不要判断（旧 ddb0689 で実装→545b53d で revert）
 - [x] パフォーマンス: Noto Serif JPをwomen/women_sameモードのみ動的読込に変更
 - [x] パフォーマンス: form-handler.js — onclick属性をdata-action化+portal-init.jsでイベント委譲に移行
 - [x] パフォーマンス: 広告バナー<img>にwidth/height属性+loading="lazy"追加（CLS改善）
