@@ -84,19 +84,18 @@
         .btn-back{display:inline-flex;align-items:center;gap:4px;padding:6px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;margin-bottom:14px;}
         .btn-back:hover{border-color:var(--rose-border);color:var(--text);}
 
-        /* ===== エリアボタングリッド（ビジネスダッシュボード風） ===== */
-        .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
-        .area-btn{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px 14px 22px;background:#ffffff;border:1px solid #e5dfd4;border-radius:8px;cursor:pointer;transition:transform 0.18s ease,box-shadow 0.18s ease,border-color 0.18s ease;text-align:left;overflow:hidden;box-shadow:0 1px 3px rgba(60,45,30,0.05);animation:areaBtnIn 0.3s ease both;}
-        .area-btn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);transition:width 0.2s,background 0.2s;}
-        .area-btn::after{content:"›";position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:20px;font-weight:300;line-height:1;opacity:0;transition:opacity 0.2s,right 0.2s;pointer-events:none;}
-        .area-btn:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 8px 20px rgba(201,169,110,0.22),0 2px 6px rgba(60,45,30,0.08);padding-right:26px;}
-        .area-btn:hover::before{width:5px;background:var(--gold-dim);}
-        .area-btn:hover::after{opacity:1;right:10px;}
-        .area-btn:active{transform:translateY(-1px);}
-        .area-btn .area-name{font-size:14px;font-weight:700;color:#1a1a1a;letter-spacing:0.03em;position:relative;z-index:1;}
-        .area-btn .area-count{font-size:12px;color:#8a6e3c;background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.28);padding:3px 10px;border-radius:4px;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:0.02em;position:relative;z-index:1;transition:background 0.18s,color 0.18s,border-color 0.18s,box-shadow 0.18s;}
-        .area-btn:hover .area-count{background:var(--gold);color:#fff;border-color:var(--gold-dim);box-shadow:0 2px 6px rgba(201,169,110,0.35);}
-        @keyframes areaBtnIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+        /* ===== エリアボタングリッド（ポータルと同一仕様: 常に3カラム + 中央揃えコンパクト） ===== */
+        .area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+        .area-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;padding:13px 8px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:inherit;font-size:0.8rem;font-weight:500;cursor:pointer;transition:all 0.2s ease;text-align:center;min-height:52px;letter-spacing:0.3px;animation:fadeInUp 0.25s ease both;flex-direction:column;}
+        @media(min-width:480px){.area-btn{flex-direction:row;}}
+        .area-btn:hover{background:#fff;border-color:var(--gold);transform:translateY(-1px);box-shadow:0 4px 12px rgba(201,169,110,0.15);}
+        .area-btn:active{transform:translateY(0);box-shadow:none;}
+        .area-btn::after{content:"›";position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-3);transition:color 0.2s;}
+        .area-btn:hover::after{color:var(--gold);}
+        .area-btn .area-name{font-size:0.85rem;font-weight:600;color:var(--text);letter-spacing:0.02em;}
+        .area-btn .area-count{font-size:11px;color:#8a6e3c;background:rgba(201,169,110,0.1);border:1px solid rgba(201,169,110,0.28);padding:2px 8px;border-radius:4px;white-space:nowrap;font-weight:700;font-variant-numeric:tabular-nums;}
+        .area-btn:hover .area-count{background:var(--gold);color:#fff;border-color:var(--gold-dim);}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
 
         /* ===== 検索バー ===== */
         .search-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
