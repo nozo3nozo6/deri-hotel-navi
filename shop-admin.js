@@ -1,3 +1,102 @@
+// ========================================================================
+// イベント委譲ディスパッチャ (CSP unsafe-inline 削除のため)
+// 静的/動的HTMLの data-action="X" / onclick="Y('a','b')" を data-action 化する.
+// 用法:
+//   data-action="funcName"            → data-action="funcName"
+//   onclick="funcName('arg')"       → data-action="funcName" data-arg1="arg"
+//   onclick="funcName('a','b',1)"   → data-action="funcName" data-arg1="a" data-arg2="b" data-arg3="1"
+//   onclick="funcName(123)"         → data-action="funcName" data-arg1="123"  (関数側で型変換)
+//   onclick="event.stopPropagation();funcName()" → + data-stop-propagation="1"
+//   onclick="funcName();return false" / href="#" + 同 → + data-prevent-default="1"
+//   onclick="A();B()" のような複数式は専用関数を切り出す
+// ========================================================================
+// モーダル overlay 自身がクリックされた時だけ閉じる (子要素クリックは無視)
+document.addEventListener('click', function(e) {
+    const overlay = e.target.closest('[data-overlay-close]');
+    if (overlay && e.target === overlay) {
+        const fn = window[overlay.dataset.overlayClose];
+        if (typeof fn === 'function') fn();
+    }
+});
+
+document.addEventListener('click', function(e) {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    const fn = window[action];
+    if (typeof fn !== 'function') return;
+
+    if (el.dataset.stopPropagation === '1') e.stopPropagation();
+    if (el.dataset.preventDefault === '1') e.preventDefault();
+
+    // data-arg1, data-arg2, ... を順に集める
+    // 型変換: "true"/"false"/"null"/数値文字列 は本来の型に変換
+    // （元の inline onclick="X(true)" 等が型を保持して動作するように）
+    const args = [];
+    for (let i = 1; el.dataset['arg' + i] !== undefined; i++) {
+        args.push(_coerceArg(el.dataset['arg' + i]));
+    }
+    // data-pass-target="1" 指定時はクリック要素を args 先頭に追加
+    // （元 onclick="X(this, ...)" の置換用）
+    if (el.dataset.passTarget === '1') args.unshift(el);
+    fn.apply(null, args);
+});
+function _coerceArg(s) {
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    if (s === 'null') return null;
+    if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+    if (/^-?\d+\.\d+$/.test(s)) return parseFloat(s);
+    return s;
+}
+
+// === change イベント委譲 ===
+// data-onchange="関数名"          → 関数を呼ぶ (e.target を渡す)
+// data-onchange-fn-bool="関数名"  → 関数を el.checked で呼ぶ
+// data-onchange-pwtoggle="id1,id2,..." → checkbox: 該当inputのtypeをtext/passwordに切替
+// data-onchange-toggle="id"      → checkbox: 該当要素の display を flex/none で切替
+document.addEventListener('change', function(e) {
+    const el = e.target;
+    if (el.dataset.onchange && typeof window[el.dataset.onchange] === 'function') {
+        window[el.dataset.onchange](el);
+    }
+    if (el.dataset.onchangeFnBool && typeof window[el.dataset.onchangeFnBool] === 'function') {
+        window[el.dataset.onchangeFnBool](el.checked);
+    }
+    if (el.dataset.onchangePwtoggle) {
+        el.dataset.onchangePwtoggle.split(',').forEach(id => {
+            const tgt = document.getElementById(id);
+            if (tgt) tgt.type = el.checked ? 'text' : 'password';
+        });
+    }
+    if (el.dataset.onchangeToggle) {
+        const tgt = document.getElementById(el.dataset.onchangeToggle);
+        if (tgt) tgt.style.display = el.checked ? (el.dataset.onchangeToggleShow || 'flex') : 'none';
+    }
+});
+
+// === input イベント委譲 ===
+// data-oninput="関数名"  → 関数を e.target で呼ぶ
+// data-oninput-numeric="1" → 数字以外を削除（連絡先・分・円等の数値入力欄）
+document.addEventListener('input', function(e) {
+    const el = e.target;
+    if (el.dataset.oninput && typeof window[el.dataset.oninput] === 'function') {
+        window[el.dataset.oninput](el);
+    }
+    if (el.dataset.oninputNumeric === '1') {
+        el.value = el.value.replace(/[^0-9]/g, '');
+    }
+});
+
+// === submit イベント委譲 ===
+// data-onsubmit="関数名"  → 関数を event で呼ぶ（preventDefault は関数側で）
+document.addEventListener('submit', function(e) {
+    const el = e.target;
+    if (el.dataset.onsubmit && typeof window[el.dataset.onsubmit] === 'function') {
+        window[el.dataset.onsubmit](e);
+    }
+});
+
 function toast(msg,d=2500){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),d);}
 function showSuccessModal(title,message){document.getElementById('success-modal-title').textContent=title;document.getElementById('success-modal-message').textContent=message||'';document.getElementById('success-modal').style.display='flex';document.body.style.overflow='hidden';}
 function closeSuccessModal(){document.getElementById('success-modal').style.display='none';document.body.style.overflow='';}
@@ -378,7 +477,7 @@ function renderShopImages(){
     }else{
         el.innerHTML=_shopImages.map(img=>`<div style="position:relative;display:inline-block;">
             <img src="${esc(img.image_url)}" style="width:120px;height:46px;border-radius:6px;border:1px solid var(--border);object-fit:cover;">
-            <button onclick="deleteShopImage(${img.id})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">×</button>
+            <button data-action="deleteShopImage" data-arg1="${img.id}" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#c05050;color:#fff;border:2px solid #fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;">×</button>
         </div>`).join('');
     }
     const limit=_bannerMode==='banner'?1:3;
@@ -392,7 +491,7 @@ function renderPhotoSlots(){
         if(!slot)continue;
         const img=_shopImages[i];
         if(img){
-            slot.innerHTML=`<img src="${esc(img.image_url)}"><span class="photo-slot-num">${labels[i]}</span><button class="photo-slot-del" onclick="event.stopPropagation();deleteShopImage(${img.id})">×</button>`;
+            slot.innerHTML=`<img src="${esc(img.image_url)}"><span class="photo-slot-num">${labels[i]}</span><button class="photo-slot-del" data-action="deleteShopImage" data-arg1="${img.id}" data-stop-propagation="1">×</button>`;
         }else{
             slot.innerHTML=`<span class="photo-slot-num" style="${i===3?'font-size:11px;':''}">${labels[i]}</span>`;
         }
@@ -497,7 +596,7 @@ function renderStdSlot(){
     const slot=document.getElementById('std-thumb-slot');
     if(!slot)return;
     if(_stdImage){
-        slot.innerHTML=`<img src="${esc(_stdImage.image_url)}"><span class="photo-slot-num">+</span><button class="photo-slot-del" onclick="event.stopPropagation();deleteStdImage(${_stdImage.id})">×</button>`;
+        slot.innerHTML=`<img src="${esc(_stdImage.image_url)}"><span class="photo-slot-num">+</span><button class="photo-slot-del" data-action="deleteStdImage" data-arg1="${_stdImage.id}" data-stop-propagation="1">×</button>`;
     }else{
         slot.innerHTML='<span class="photo-slot-num" style="font-size:14px;">+</span>';
     }
@@ -658,7 +757,7 @@ function renderCheckGroup(containerId,items,selectedVals=[]){
     if(!wrap)return;
     wrap.innerHTML=items.map(v=>{
         const checked=selectedVals.includes(v);
-        return`<label class="check-item${checked?" checked":""}" onclick="toggleCheckItem(this)"><input type="checkbox" value="${esc(v)}"${checked?" checked":""}><span class="ci-dot"></span>${esc(v)}</label>`;
+        return`<label class="check-item${checked?" checked":""}" data-action="toggleCheckItem" data-pass-target="1"><input type="checkbox" value="${esc(v)}"${checked?" checked":""}><span class="ci-dot"></span>${esc(v)}</label>`;
     }).join("");
 }
 function toggleCheckItem(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);
@@ -673,7 +772,7 @@ function renderServiceChecks(selectedIds=[]){
     if(!serviceOptions.length){wrap.innerHTML="";return;}
     wrap.innerHTML=serviceOptions.map(s=>{
         const checked=selectedIds.includes(s.id);
-        return`<label class="svc-check${checked?" checked":""}" onclick="toggleSvcCheck(this)"><input type="checkbox" value="${s.id}"${checked?" checked":""}><span class="svc-dot"></span>${esc(s.name)}</label>`;
+        return`<label class="svc-check${checked?" checked":""}" data-action="toggleSvcCheck" data-pass-target="1"><input type="checkbox" value="${s.id}"${checked?" checked":""}><span class="svc-dot"></span>${esc(s.name)}</label>`;
     }).join("");
 }
 function toggleSvcCheck(el){const cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("checked",cb.checked);}
@@ -687,10 +786,17 @@ async function loadRegisteredHotelIds(){
 }
 
 // ===== パンくず =====
+// breadcrumb: c = {label, action, args?}
+//   旧 c.onclick = "showPrefPage(0)" のような文字列は廃止
 function setBreadcrumb(crumbs){
     document.getElementById("breadcrumb").innerHTML=crumbs.map((c,i)=>{
         const isLast=i===crumbs.length-1;
-        return`${i>0?'<span class="breadcrumb-sep">›</span>':''}<span class="breadcrumb-item${isLast?' active':''}"${!isLast&&c.onclick?' style="cursor:pointer" onclick="'+c.onclick+'"':''}>${esc(c.label)}</span>`;
+        let actionAttrs='';
+        if(!isLast&&c.action){
+            actionAttrs=' style="cursor:pointer" data-action="'+esc(c.action)+'"';
+            if(c.args)c.args.forEach((a,j)=>{actionAttrs+=' data-arg'+(j+1)+'="'+esc(a)+'"';});
+        }
+        return`${i>0?'<span class="breadcrumb-sep">›</span>':''}<span class="breadcrumb-item${isLast?' active':''}"${actionAttrs}>${esc(c.label)}</span>`;
     }).join("");
 }
 
@@ -746,7 +852,7 @@ function renderFavAreas(){
     if(!favs.length){el.style.display='none';return;}
     el.style.display='block';
     el.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--text-2,#6a5a4a);margin-bottom:6px;">⭐ お気に入りエリア</div><div style="display:flex;flex-wrap:wrap;gap:6px;">'+
-        favs.map((f,i)=>`<div onclick="navToFav(${i})" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.25);border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:#8a6a20;"><span>${esc(f.label)}</span><span style="font-size:10px;color:var(--text-3,#999);">${esc(f.pref)}</span><button onclick="event.stopPropagation();removeFavArea(${i})" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text-3,#999);padding:0;margin-left:2px;" title="削除">✕</button></div>`).join('')+
+        favs.map((f,i)=>`<div data-action="navToFav" data-arg1="${i}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(201,169,110,0.06);border:1px solid rgba(201,169,110,0.25);border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:#8a6a20;"><span>${esc(f.label)}</span><span style="font-size:10px;color:var(--text-3,#999);">${esc(f.pref)}</span><button data-action="removeFavArea" data-arg1="${i}" data-stop-propagation="1" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text-3,#999);padding:0;margin-left:2px;" title="削除">✕</button></div>`).join('')+
     '</div>';
 }
 function navToFav(idx){
@@ -763,7 +869,7 @@ function buildFavBtn(label,pref,majorArea,detailArea,city){
     const favs=getFavAreas();
     const exists=favs.some(f=>f.label===fav.label&&f.pref===fav.pref&&f.city===fav.city&&f.detailArea===fav.detailArea);
     if(exists)return'';
-    return`<button onclick="event.stopPropagation();addFavArea(${esc(JSON.stringify(fav)).replace(/"/g,'&quot;')})" title="お気に入りエリアに追加" style="display:inline-flex;align-items:center;padding:2px 6px;border:1px solid rgba(201,169,110,0.3);border-radius:50%;background:rgba(201,169,110,0.06);color:#b08030;font-size:12px;cursor:pointer;font-family:inherit;line-height:1;">⭐</button>`;
+    return`<button data-action="addFavArea" data-arg1="${esc(JSON.stringify(fav)).replace(/"/g,'&quot;')}" data-stop-propagation="1" title="お気に入りエリアに追加" style="display:inline-flex;align-items:center;padding:2px 6px;border:1px solid rgba(201,169,110,0.3);border-radius:50%;background:rgba(201,169,110,0.06);color:#b08030;font-size:12px;cursor:pointer;font-family:inherit;line-height:1;">⭐</button>`;
 }
 
 // ===== ナビゲーション =====
@@ -802,79 +908,79 @@ async function showJapanPage(){
     const pc=ad.prefCounts||{};
     const rc=REGION_MAP.map(r=>({label:r.label,count:r.prefs.reduce((s,p)=>s+(pc[p]||0),0)}));
     let h='<div class="area-grid">';
-    rc.forEach((r,i)=>{if(r.count>0)h+=`<div class="area-btn" onclick="showPrefPage(${i})"><span class="area-name">${esc(r.label)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
+    rc.forEach((r,i)=>{if(r.count>0)h+=`<div class="area-btn" data-action="showPrefPage" data-arg1="${i}"><span class="area-name">${esc(r.label)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
     nav.innerHTML=h+'</div>';
 }
 
 async function showPrefPage(ri){
     const region=REGION_MAP[ri];pageStack=[()=>showJapanPage()];
-    setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:region.label}]);
+    setBreadcrumb([{label:"日本全国",action:"showJapanPage"},{label:region.label}]);
     pushNavState({page:'pref',ri});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     const ad=await getAreaData();
     const pc=ad.prefCounts||{};
     const sorted=region.prefs.map(p=>({pref:p,count:pc[p]||0})).filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
-    let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    sorted.forEach(r=>{h+=`<div class="area-btn" onclick="showMajorAreaPage(${ri},'${r.pref}')"><span class="area-name">${esc(r.pref)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
+    let h=`<button class="btn-back" data-action="backLevel">← 前へ</button><div class="area-grid">`;
+    sorted.forEach(r=>{h+=`<div class="area-btn" data-action="showMajorAreaPage" data-arg1="${ri}" data-arg2="${r.pref}"><span class="area-name">${esc(r.pref)}</span><span class="area-count">${r.count.toLocaleString()}件</span></div>`;});
     nav.innerHTML=h+'</div>';
 }
 
 async function showMajorAreaPage(ri,pref){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri)];
-    setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref}]);
+    setBreadcrumb([{label:"日本全国",action:"showJapanPage"},{label:REGION_MAP[ri].label,action:"showPrefPage",args:[ri]},{label:pref}]);
     pushNavState({page:'major',ri,pref});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     const ad=await getAreaData();
     const prefData=ad.pref?.[pref];
     const areas=(prefData?.areas||[]).filter(a=>a[1]>0);
-    let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    areas.forEach(([a,cnt])=>{h+=`<div class="area-btn" onclick="showCityPage(${ri},'${esc(pref)}','${esc(a)}')"><span class="area-name">${esc(a)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(a,pref,a,null,null)}</div>`;});
+    let h=`<button class="btn-back" data-action="backLevel">← 前へ</button><div class="area-grid">`;
+    areas.forEach(([a,cnt])=>{h+=`<div class="area-btn" data-action="showCityPage" data-arg1="${ri}" data-arg2="${esc(pref)}" data-arg3="${esc(a)}"><span class="area-name">${esc(a)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(a,pref,a,null,null)}</div>`;});
     if(!areas.length)h+='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-3);font-size:13px;">エリアデータがありません</div>';
     nav.innerHTML=h+'</div>';
 }
 
 async function showCityPage(ri,pref,majorArea){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri),()=>showMajorAreaPage(ri,pref)];
-    setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea}]);
+    setBreadcrumb([{label:"日本全国",action:"showJapanPage"},{label:REGION_MAP[ri].label,action:"showPrefPage",args:[ri]},{label:pref,action:"showMajorAreaPage",args:[ri,pref]},{label:majorArea}]);
     pushNavState({page:'city',ri,pref,majorArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     const ad=await getAreaData();
     const aKey=pref+'\t'+majorArea;
     const areaInfo=ad.area?.[aKey]||{da:[],ct:[]};
     if(areaInfo.da&&areaInfo.da.length>0){
-        let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        areaInfo.da.forEach(([da,cnt])=>{h+=`<div class="area-btn" onclick="showDetailAreaCities(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(da)}')"><span class="area-name">${esc(da)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(da,pref,majorArea,da,null)}</div>`;});
+        let h=`<button class="btn-back" data-action="backLevel">← 前へ</button><div class="area-grid">`;
+        areaInfo.da.forEach(([da,cnt])=>{h+=`<div class="area-btn" data-action="showDetailAreaCities" data-arg1="${ri}" data-arg2="${esc(pref)}" data-arg3="${esc(majorArea)}" data-arg4="${esc(da)}"><span class="area-name">${esc(da)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(da,pref,majorArea,da,null)}</div>`;});
         nav.innerHTML=h+'</div>';
     }else{
         const cities=(areaInfo.ct||[]).filter(c=>c[1]>0);
-        let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-        cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}',null,'${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,null,c)}</div>`;});
+        let h=`<button class="btn-back" data-action="backLevel">← 前へ</button><div class="area-grid">`;
+        cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" data-action="showHotels" data-arg1="${ri}" data-arg2="${esc(pref)}" data-arg3="${esc(majorArea)}" data-arg4="null" data-arg5="${esc(c)}"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,null,c)}</div>`;});
         nav.innerHTML=h+'</div>';
     }
 }
 
 async function showDetailAreaCities(ri,pref,majorArea,detailArea){
     pageStack=[()=>showJapanPage(),()=>showPrefPage(ri),()=>showMajorAreaPage(ri,pref),()=>showCityPage(ri,pref,majorArea)];
-    setBreadcrumb([{label:"日本全国",onclick:"showJapanPage()"},{label:REGION_MAP[ri].label,onclick:`showPrefPage(${ri})`},{label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`},{label:majorArea,onclick:`showCityPage(${ri},'${pref}','${majorArea}')`},{label:detailArea}]);
+    setBreadcrumb([{label:"日本全国",action:"showJapanPage"},{label:REGION_MAP[ri].label,action:"showPrefPage",args:[ri]},{label:pref,action:"showMajorAreaPage",args:[ri,pref]},{label:majorArea,action:"showCityPage",args:[ri,pref,majorArea]},{label:detailArea}]);
     pushNavState({page:'detail',ri,pref,majorArea,detailArea});
     const nav=document.getElementById("area-nav");nav.innerHTML='<div class="loading">読み込み中...</div>';
     const ad=await getAreaData();
     const daKey=pref+'\t'+majorArea+'\t'+detailArea;
     const daInfo=ad.da?.[daKey]||{ct:[]};
     const cities=(daInfo.ct||[]).filter(c=>c[1]>0);
-    let h=`<button class="btn-back" onclick="backLevel()">← 前へ</button><div class="area-grid">`;
-    cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" onclick="showHotels(${ri},'${esc(pref)}','${esc(majorArea)}','${esc(detailArea)}','${esc(c)}')"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,detailArea,c)}</div>`;});
+    let h=`<button class="btn-back" data-action="backLevel">← 前へ</button><div class="area-grid">`;
+    cities.forEach(([c,cnt])=>{h+=`<div class="area-btn" data-action="showHotels" data-arg1="${ri}" data-arg2="${esc(pref)}" data-arg3="${esc(majorArea)}" data-arg4="${esc(detailArea)}" data-arg5="${esc(c)}"><span class="area-name">${esc(c)}</span><span class="area-count">${cnt.toLocaleString()}件</span>${buildFavBtn(c,pref,majorArea,detailArea,c)}</div>`;});
     nav.innerHTML=h+'</div>';
 }
 
 async function showHotels(ri,pref,majorArea,detailArea,city){
     pushNavState({page:'hotels',ri,pref,majorArea,detailArea,city});
     const region=REGION_MAP[ri];
-    const crumbs=[{label:"日本全国",onclick:"showJapanPage()"}];
-    crumbs.push({label:region.label,onclick:`showPrefPage(${ri})`});
-    if(pref)crumbs.push({label:pref,onclick:`showMajorAreaPage(${ri},'${pref}')`});
-    if(majorArea)crumbs.push({label:majorArea,onclick:`showCityPage(${ri},'${pref}','${majorArea}')`});
-    if(detailArea)crumbs.push({label:detailArea,onclick:`showDetailAreaCities(${ri},'${pref}','${majorArea}','${detailArea}')`});
+    const crumbs=[{label:"日本全国",action:"showJapanPage"}];
+    crumbs.push({label:region.label,action:"showPrefPage",args:[ri]});
+    if(pref)crumbs.push({label:pref,action:"showMajorAreaPage",args:[ri,pref]});
+    if(majorArea)crumbs.push({label:majorArea,action:"showCityPage",args:[ri,pref,majorArea]});
+    if(detailArea)crumbs.push({label:detailArea,action:"showDetailAreaCities",args:[ri,pref,majorArea,detailArea]});
     if(city)crumbs.push({label:city});else{const last=crumbs[crumbs.length-1];delete last.onclick;}
     setBreadcrumb(crumbs);
     const stack=[()=>showJapanPage(),()=>showPrefPage(ri),()=>showMajorAreaPage(ri,pref)];
@@ -907,14 +1013,14 @@ async function showHotels(ri,pref,majorArea,detailArea,city){
         try{const lhRes=await fetch('/api/hotels.php?type=loveho&include_summary=1&limit=1000&pref='+encodeURIComponent(pref)+'&city='+encodeURIComponent(city));loveHotels=await lhRes.json();if(Array.isArray(loveHotels)){loveHotels.sort((a,b)=>{const ca=a.total_reports||0;const cb=b.total_reports||0;if(ca!==cb)return cb-ca;return(a.name||'').localeCompare(b.name||'','ja');});}else{loveHotels=[];}}catch(e){loveHotels=[];}
     }
     const favLabel=city||detailArea||majorArea||pref;
-    let html=`<button class="btn-back" onclick="backLevel()">← 前へ</button>`;
+    let html=`<button class="btn-back" data-action="backLevel">← 前へ</button>`;
     html+=buildFavBtn(favLabel,pref,majorArea,detailArea,city);
     _saHotelPage=0;_saLhPage=0;
     if(pref&&city){
         _saHotels=normalHotels;_saLhHotels=loveHotels;
         html+=`<div style="display:flex;gap:0;border-bottom:1px solid var(--border,#e0d5d0);margin-bottom:12px;">
-            <button onclick="saShowSubTab('hotel')" id="sa-subtab-hotel" style="padding:8px 16px;border:none;border-bottom:2px solid var(--rose,#c47a88);background:transparent;font-size:12px;font-weight:600;color:var(--rose,#c47a88);cursor:pointer;font-family:inherit;">🏨 ホテル (${normalHotels.length})</button>
-            <button onclick="saShowSubTab('loveho')" id="sa-subtab-loveho" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:transparent;font-size:12px;font-weight:600;color:var(--text-3,#999);cursor:pointer;font-family:inherit;">🏩 ラブホ (${loveHotels.length})</button>
+            <button data-action="saShowSubTab" data-arg1="hotel" id="sa-subtab-hotel" style="padding:8px 16px;border:none;border-bottom:2px solid var(--rose,#c47a88);background:transparent;font-size:12px;font-weight:600;color:var(--rose,#c47a88);cursor:pointer;font-family:inherit;">🏨 ホテル (${normalHotels.length})</button>
+            <button data-action="saShowSubTab" data-arg1="loveho" id="sa-subtab-loveho" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:transparent;font-size:12px;font-weight:600;color:var(--text-3,#999);cursor:pointer;font-family:inherit;">🏩 ラブホ (${loveHotels.length})</button>
         </div>`;
         html+=`<div id="sa-subtab-hotel-content">${saPagedCards(normalHotels,0,'sa-subtab-hotel-content','_saHotelPage')}</div>`;
         html+=`<div id="sa-subtab-loveho-content" style="display:none;">${saPagedCards(loveHotels,0,'sa-subtab-loveho-content','_saLhPage')}</div>`;
@@ -935,9 +1041,9 @@ function saPagedCards(hotels,page,containerId,pageVarName){
     const start=page*SA_PAGE_SIZE;const end=Math.min(start+SA_PAGE_SIZE,total);
     const slice=hotels.slice(start,end);
     const pager=total>SA_PAGE_SIZE?`<div style="display:flex;justify-content:center;align-items:center;gap:12px;margin:12px 0;">
-        <button class="btn" style="font-size:12px;" onclick="${pageVarName}--;saRepage('${containerId}','${pageVarName}')" ${page===0?'disabled':''}>← 前へ</button>
+        <button class="btn" style="font-size:12px;" data-action="saPagePrev" data-arg1="${containerId}" data-arg2="${pageVarName}" ${page===0?'disabled':''}>← 前へ</button>
         <span style="font-size:12px;color:var(--text-3);">${start+1}〜${end}件 / ${total}件（${page+1}/${pages}ページ）</span>
-        <button class="btn" style="font-size:12px;" onclick="${pageVarName}++;saRepage('${containerId}','${pageVarName}')" ${page>=pages-1?'disabled':''}>次へ →</button>
+        <button class="btn" style="font-size:12px;" data-action="saPageNext" data-arg1="${containerId}" data-arg2="${pageVarName}" ${page>=pages-1?'disabled':''}>次へ →</button>
     </div>`:'';
     const cards=isLh?lhRenderHotelCards(slice):renderHotelCards(slice);
     return pager+cards+pager;
@@ -957,6 +1063,14 @@ function saRepage(containerId,pageVarName){
     el.innerHTML=saPagedCards(hotels,page,containerId,pageVarName);
     el.scrollIntoView({behavior:'smooth',block:'start'});
 }
+function saPageNext(containerId,pageVarName){
+    if(pageVarName==='_saLhPage')_saLhPage++;else _saHotelPage++;
+    saRepage(containerId,pageVarName);
+}
+function saPagePrev(containerId,pageVarName){
+    if(pageVarName==='_saLhPage')_saLhPage--;else _saHotelPage--;
+    saRepage(containerId,pageVarName);
+}
 function renderHotelCards(hotels){
     if(!hotels.length)return'<div class="loading">ホテルがありません</div>';
     return'<div class="hotel-cards">'+hotels.map((h,i)=>{
@@ -966,8 +1080,8 @@ function renderHotelCards(hotels){
         const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
         const actionBtns=isReg
-            ?`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
-            :`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button>`;
+            ?`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}">投稿削除</button>`
+            :`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">📝 情報登録</button>`;
         return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
@@ -1205,6 +1319,8 @@ let regFilter='all'; // all / hotel / loveho
 let regSortAsc=false; // false=新しい順, true=古い順
 
 function setRegFilter(f,btn){
+    // btn が未指定 (data-action 経由) の場合は data-filter 属性から探す
+    if(!btn)btn=document.querySelector('.reg-tab[data-filter="'+f+'"]');
     regFilter=f;regPage=1;
     document.querySelectorAll('.reg-tab').forEach(t=>t.classList.remove('active'));
     if(btn)btn.classList.add('active');
@@ -1261,19 +1377,19 @@ function renderRegistered(){
         }else if(refreshedAt){
             const canRefresh=Date.now()-refreshedAt.getTime()>30*24*60*60*1000;
             if(canRefresh){
-                refreshHTML=`<button class="btn" style="font-size:10px;padding:2px 8px;background:#1976d2;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;" onclick="refreshDate(${r.hotel_id})">🔄 表示日更新</button>`;
+                refreshHTML=`<button class="btn" style="font-size:10px;padding:2px 8px;background:#1976d2;color:#fff;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;" data-action="refreshDate" data-arg1="${r.hotel_id}">🔄 表示日更新</button>`;
             }else{
                 const nextDate=new Date(refreshedAt.getTime()+30*24*60*60*1000);
                 refreshHTML=`<span style="font-size:10px;color:var(--text-3);white-space:nowrap;">次回: ${nextDate.toLocaleDateString('ja-JP')}</span>`;
             }
         }
         const dateDisplay=`<span style="font-size:11px;color:var(--text-3);white-space:nowrap;">📅 ${dateStr}</span>`;
-        return`<div class="reg-row"><span class="reg-name">${esc(name)}${typeTag}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span>${dateDisplay} ${refreshHTML}<div class="reg-actions"><button class="btn btn-gold" onclick="editRegistered('${r.id}')">編集</button><button class="btn btn-red" onclick="deleteRegistered('${r.id}')">投稿削除</button></div></div>`;
+        return`<div class="reg-row"><span class="reg-name">${esc(name)}${typeTag}</span>${canLabel}<span class="reg-cost">交通費: ${cost}</span>${dateDisplay} ${refreshHTML}<div class="reg-actions"><button class="btn btn-gold" data-action="editRegistered" data-arg1="${r.id}">編集</button><button class="btn btn-red" data-action="deleteRegistered" data-arg1="${r.id}">投稿削除</button></div></div>`;
     }).join("");
     if(totalPages<=1){document.getElementById("pagination").innerHTML="";return;}
-    let pg='<button class="page-btn" onclick="goPage('+(regPage-1)+')"'+(regPage<=1?" disabled":"")+'>←</button>';
-    for(let i=1;i<=totalPages;i++){if(totalPages>7&&Math.abs(i-regPage)>2&&i!==1&&i!==totalPages){if(i===2||i===totalPages-1)pg+='<span class="page-info">...</span>';continue;}pg+=`<button class="page-btn${i===regPage?" active":""}" onclick="goPage(${i})">${i}</button>`;}
-    pg+='<button class="page-btn" onclick="goPage('+(regPage+1)+')"'+(regPage>=totalPages?" disabled":"")+'>→</button>';
+    let pg='<button class="page-btn" data-action="goPage" data-arg1="'+(regPage-1)+'"'+(regPage<=1?" disabled":"")+'>←</button>';
+    for(let i=1;i<=totalPages;i++){if(totalPages>7&&Math.abs(i-regPage)>2&&i!==1&&i!==totalPages){if(i===2||i===totalPages-1)pg+='<span class="page-info">...</span>';continue;}pg+=`<button class="page-btn${i===regPage?" active":""}" data-action="goPage" data-arg1="${i}">${i}</button>`;}
+    pg+='<button class="page-btn" data-action="goPage" data-arg1="'+(regPage+1)+'"'+(regPage>=totalPages?" disabled":"")+'>→</button>';
     document.getElementById("pagination").innerHTML=pg;
 }
 
@@ -1455,8 +1571,8 @@ function lhRenderHotelCards(hotels){
         const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
         const actionBtns=isReg
-            ?`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" onclick="deleteRegistered('${regInfo?.id||''}')">投稿削除</button>`
-            :`<button class="btn btn-rose" onclick="selectHotelById(${h.id})">📝 情報登録</button>`;
+            ?`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}">投稿削除</button>`
+            :`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">📝 情報登録</button>`;
         return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span><span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
@@ -1486,7 +1602,7 @@ async function lhLoadMasters(){
         gpHTML+=`<div style="margin-bottom:14px;">
             <label class="form-label">${catIcons[cat]||'📝'} ${cat} <span class="opt">複数選択可</span></label>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                ${items.map(p=>`<div onclick="lhToggleGP(this,'${esc(p.label)}')" style="cursor:pointer;padding:6px 12px;border:1px solid var(--border,#e0d5d0);border-radius:20px;font-size:12px;background:#fff;user-select:none;">${esc(p.label)}</div>`).join('')}
+                ${items.map(p=>`<div data-action="lhToggleGP" data-pass-target="1" data-arg1="${esc(p.label)}" style="cursor:pointer;padding:6px 12px;border:1px solid var(--border,#e0d5d0);border-radius:20px;font-size:12px;background:#fff;user-select:none;">${esc(p.label)}</div>`).join('')}
             </div>
         </div>`;
     });
@@ -1710,7 +1826,7 @@ function renderPlanGrid(){
         <div class="plan-card-price">&yen;${Number(p.price).toLocaleString()}<small>/月(税込)</small></div>
         <div class="plan-card-desc">${esc(planDescMap[p.id]||p.description||'')}</div>
         <div style="margin-bottom:8px;"><a href="/plan/" target="_blank" style="font-size:11px;color:var(--rose);font-weight:600;">詳細はこちら →</a></div>
-        <button class="btn-apply" onclick="openPlanForm(${p.id},'${esc(p.name)}',${p.price})">このプランに申し込む</button>
+        <button class="btn-apply" data-action="openPlanForm" data-arg1="${p.id}" data-arg2="${esc(p.name)}" data-arg3="${p.price}">このプランに申し込む</button>
     </div>`).join('');
     grid.innerHTML=cardsHtml;
 }
@@ -1754,7 +1870,7 @@ async function loadPlanHistory(){
             const _dm=String(r.created_at||'').replace('T',' ').replace(/Z$/,'').match(/(\d{4})-(\d{2})-(\d{2})/);const date=_dm?`${_dm[1]}/${_dm[2]}/${_dm[3]}`:'—';
             const st=r.status;
             const contractLink=st==='approved'&&r.id?` <a href="/api/contract.php?id=${r.id}" target="_blank" style="color:var(--rose);font-size:11px;">契約書を見る</a>`:'';
-            const cancelBtn=st==='pending'?` <button class="btn" style="font-size:10px;padding:2px 8px;" onclick="cancelPlanRequest(${r.id})">取消</button>`:'';
+            const cancelBtn=st==='pending'?` <button class="btn" style="font-size:10px;padding:2px 8px;" data-action="cancelPlanRequest" data-arg1="${r.id}">取消</button>`:'';
             return`<div class="plan-req-row"><span class="plan-req-badge ${st}">${statusMap[st]||st}</span><span style="font-weight:600;">${esc(r.plan_name)}</span><span style="color:var(--text-3);">${areas}</span><span style="color:var(--text-3);">${date}</span>${contractLink}${cancelBtn}</div>`;
         }).join('');
     }catch(e){el.innerHTML='<div style="color:var(--red);font-size:12px;">取得エラー</div>';}
@@ -1988,7 +2104,7 @@ function renderDeviceList(devices){
                     <div style="font-weight:600;font-size:12px;">${esc(d.device_name || '名称なし')}</div>
                     <div style="font-size:11px;color:var(--text-3);">登録: ${esc(d.created_at || '')} / 最終アクセス: ${esc(d.last_accessed_at || '未使用')}</div>
                 </div>
-                <button class="btn" style="padding:4px 10px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" onclick="revokeDevice(${d.id})">削除</button>
+                <button class="btn" style="padding:4px 10px;font-size:11px;background:#fce4ec;color:#c62828;border-color:#f8bbd0;" data-action="revokeDevice" data-arg1="${d.id}">削除</button>
             </div>
         `).join('');
 
@@ -2035,11 +2151,11 @@ function renderTemplateList(templates){
         const isLast = i === templates.length - 1;
         return `
         <div title="${preview}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px;background:#fce4ec;border:1px solid #f8bbd0;border-radius:16px;font-size:12px;">
-            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isFirst?'opacity:0.3;cursor:not-allowed;':''}" onclick="moveTemplate(${t.id}, -1)" ${isFirst?'disabled':''} aria-label="左へ">◀</button>
+            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isFirst?'opacity:0.3;cursor:not-allowed;':''}" data-action="moveTemplate" data-arg1="${t.id}" data-arg2="-1" ${isFirst?'disabled':''} aria-label="左へ">◀</button>
             <span style="font-weight:600;color:#8a2c4a;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.title)}</span>
-            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isLast?'opacity:0.3;cursor:not-allowed;':''}" onclick="moveTemplate(${t.id}, 1)" ${isLast?'disabled':''} aria-label="右へ">▶</button>
-            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;" onclick='editTemplate(${t.id})' aria-label="編集">編集</button>
-            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;color:#c62828;border:1px solid #f8bbd0;border-radius:10px;" onclick="deleteTemplate(${t.id})" aria-label="削除">×</button>
+            <button class="btn" style="padding:2px 5px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;${isLast?'opacity:0.3;cursor:not-allowed;':''}" data-action="moveTemplate" data-arg1="${t.id}" data-arg2="1" ${isLast?'disabled':''} aria-label="右へ">▶</button>
+            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;border:1px solid #e5a4b7;border-radius:10px;" data-action="editTemplate" data-arg1="${t.id}" aria-label="編集">編集</button>
+            <button class="btn" style="padding:2px 6px;font-size:10px;background:#fff;color:#c62828;border:1px solid #f8bbd0;border-radius:10px;" data-action="deleteTemplate" data-arg1="${t.id}" aria-label="削除">×</button>
         </div>
     `}).join('');
 }
@@ -2079,7 +2195,7 @@ function renderBlockList(blocks){
                 ${lastMsg ? `<div style="font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lastMsg}</div>` : ''}
                 <div style="font-size:10px;color:var(--text-3);">${esc(b.reason || '理由なし')} / ${esc(b.created_at || '')}</div>
             </div>
-            <button class="btn" style="padding:4px 10px;font-size:11px;flex-shrink:0;" onclick="unblockUser(${b.id})">解除</button>
+            <button class="btn" style="padding:4px 10px;font-size:11px;flex-shrink:0;" data-action="unblockUser" data-arg1="${b.id}">解除</button>
         </div>
     `}).join('');
 }
@@ -2311,7 +2427,7 @@ function renderCastSummary(d){
     const planName = (d.cast_plan_name || '').trim();
     const summary = document.getElementById('cast-limit-summary');
     if (limit <= 0) {
-        summary.innerHTML = '<div style="color:#c33;font-weight:600;">現在のプランではキャスト登録ができません。<a href="#" onclick="switchTab(\'plan\');return false;" style="color:var(--rose);">プランをアップグレード →</a></div>';
+        summary.innerHTML = '<div style="color:#c33;font-weight:600;">現在のプランではキャスト登録ができません。<a href="#" data-action="switchTab" data-arg1="plan" data-prevent-default="1" style="color:var(--rose);">プランをアップグレード →</a></div>';
         document.getElementById('cast-invite-btn').disabled = true;
         return;
     }
@@ -2357,7 +2473,7 @@ function renderCastList(casts){
         const lastLogin = c.last_login_at ? ('最終ログイン: ' + formatCastDate(c.last_login_at)) : 'ログイン履歴なし';
         const bio = c.bio ? '<div style="font-size:12px;color:var(--text-3);margin-top:6px;white-space:pre-wrap;">' + esc(c.bio) + '</div>' : '';
         const approveBtn = (isPending && hasPwd)
-            ? '<button type="button" class="btn primary" onclick="approveCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;font-weight:700;">✓ 承認する</button>'
+            ? '<button type="button" class="btn primary" data-action="approveCast" data-arg1="' + esc(c.id) + '" data-arg2="' + esc(c.display_name) + '" style="padding:6px 12px;font-size:12px;font-weight:700;">✓ 承認する</button>'
             : '';
         const pendingHint = (isPending && !hasPwd)
             ? '<div style="font-size:11px;color:#b76500;margin-top:6px;">⚠️ キャスト本人が招待メールのリンクからパスワード設定を完了すると承認ボタンが表示されます。</div>'
@@ -2365,17 +2481,17 @@ function renderCastList(casts){
         const cardBg = isPending ? '#fffdf5' : 'var(--bg-2)';
         const cardBorder = isPending ? '#ffd580' : 'var(--border)';
         const chatBtn = (!isPending)
-            ? '<button type="button" class="btn" onclick="openCastChatViewer(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;">💬 チャット履歴</button>'
+            ? '<button type="button" class="btn" data-action="openCastChatViewer" data-arg1="' + esc(c.id) + '" data-arg2="' + esc(c.display_name) + '" style="padding:6px 12px;font-size:12px;">💬 チャット履歴</button>'
             : '';
         const embedBtn = (!isPending && c.status !== 'suspended')
-            ? '<button type="button" class="btn" onclick="openCastEmbedCode(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;">🔗 埋込コード</button>'
+            ? '<button type="button" class="btn" data-action="openCastEmbedCode" data-arg1="' + esc(c.id) + '" data-arg2="' + esc(c.display_name) + '" style="padding:6px 12px;font-size:12px;">🔗 埋込コード</button>'
             : '';
         const notifyOn = (c.chat_notify_mode && c.chat_notify_mode !== 'off');
         const notifyToggle = (!isPending && c.status !== 'suspended')
             ? '<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;" title="チャット通知メールのON/OFF">'
                 + '<span class="cht-tg-label" style="font-size:12px;">🔔 通知</span>'
                 + '<span class="cht-tg-switch">'
-                    + '<input type="checkbox" ' + (notifyOn ? 'checked' : '') + ' onchange="toggleCastNotify(\'' + esc(c.id) + '\', this.checked)">'
+                    + '<input type="checkbox" ' + (notifyOn ? 'checked' : '') + ' data-onchange="_castNotifyHandler" data-cast-id="' + esc(c.id) + '">'
                     + '<span class="cht-tg-slider"></span>'
                 + '</span>'
               + '</label>'
@@ -2389,8 +2505,8 @@ function renderCastList(casts){
             + notifyToggle
             + chatBtn
             + embedBtn
-            + '<button type="button" class="btn" onclick="openCastEdit(\'' + esc(c.id) + '\')" style="padding:6px 12px;font-size:12px;">✏️ 編集</button>'
-            + '<button type="button" class="btn" onclick="removeCast(\'' + esc(c.id) + '\',\'' + esc(c.display_name) + '\')" style="padding:6px 12px;font-size:12px;color:#c33;">✕ 削除</button>'
+            + '<button type="button" class="btn" data-action="openCastEdit" data-arg1="' + esc(c.id) + '" style="padding:6px 12px;font-size:12px;">✏️ 編集</button>'
+            + '<button type="button" class="btn" data-action="removeCast" data-arg1="' + esc(c.id) + '" data-arg2="' + esc(c.display_name) + '" style="padding:6px 12px;font-size:12px;color:#c33;">✕ 削除</button>'
             + '</div></div>'
             + '<div style="font-size:12px;color:var(--text-3);margin-top:6px;">' + esc(c.email) + ' / ' + esc(lastLogin) + '</div>'
             + bio
@@ -2410,8 +2526,8 @@ function renderCastPending(invites){
         + '<strong>' + esc(iv.display_name) + '</strong> / ' + esc(iv.email)
         + '<div style="font-size:11px;color:var(--text-3);margin-top:2px;">有効期限: ' + formatCastDate(iv.expires_at) + '</div>'
         + '</div>'
-        + '<button type="button" class="btn" onclick="resendCastInvite(\'' + esc(iv.id) + '\')" style="padding:6px 12px;font-size:12px;">📩 再送</button>'
-        + '<button type="button" class="btn" onclick="cancelCastInvite(\'' + esc(iv.id) + '\',\'' + esc(iv.display_name) + '\')" style="padding:6px 12px;font-size:12px;color:#c62828;border-color:#ffcdd2;">✕ 取消</button>'
+        + '<button type="button" class="btn" data-action="resendCastInvite" data-arg1="' + esc(iv.id) + '" style="padding:6px 12px;font-size:12px;">📩 再送</button>'
+        + '<button type="button" class="btn" data-action="cancelCastInvite" data-arg1="' + esc(iv.id) + '" data-arg2="' + esc(iv.display_name) + '" style="padding:6px 12px;font-size:12px;color:#c62828;border-color:#ffcdd2;">✕ 取消</button>'
         + '</div>'
     ).join('');
 }
@@ -2690,6 +2806,8 @@ async function resendCastInvite(inviteId){
     }
 }
 
+// data-onchange ディスパッチャから呼ばれる薄いラッパー (要素から id+checked を取得)
+function _castNotifyHandler(el){toggleCastNotify(el.dataset.castId, el.checked);}
 async function toggleCastNotify(id, enabled){
     try {
         await castApi('update', { id, chat_notify_mode: enabled ? 'every' : 'off' });
@@ -2754,7 +2872,7 @@ async function loadCastChatSessions(){
                 ? '<span style="font-size:10px;padding:1px 6px;background:#eee;color:#666;border-radius:8px;margin-left:6px;">終了</span>'
                 : '';
             return ''
-                + '<div onclick="loadCastChatMessages(' + s.id + ')" style="padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background=\'#fff9fb\'" onmouseout="this.style.background=\'#fff\'">'
+                + '<div data-action="loadCastChatMessages" data-arg1="' + s.id + '" class="cast-chat-session-item" style="padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background .15s;">'
                 + '<div style="display:flex;align-items:center;gap:8px;"><strong style="font-size:14px;">' + esc(nickname) + '</strong>' + statusBadge + '<span style="flex:1;"></span><span style="font-size:11px;color:var(--text-3);">' + esc(when) + '</span></div>'
                 + '<div style="font-size:12px;color:var(--text-2);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(lastMsg) + '</div>'
                 + '<div style="font-size:11px;color:var(--text-3);margin-top:4px;">' + Number(s.msg_count || 0) + ' 件のメッセージ</div>'

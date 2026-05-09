@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <!--
-      CSP: 段階的強化中. 'unsafe-inline' は店舗管理画面の inline onclick 残存のため当面維持.
-      将来: onclick→data-action 移行完了後に 'unsafe-inline' 削除予定.
-      現状でもサードパーティスクリプト/外部送信先は限定（XSS被害の影響範囲を制限）.
+      CSP: script-src 'unsafe-inline' 削除済 (2026-05-10).
+      全 inline onclick/onchange/oninput/onsubmit を data-action 等のイベント委譲に移行.
+      style-src 'unsafe-inline' は inline style="..." が大量にあるため当面維持.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
     <title>店舗管理パネル | Deri Hotel Navi</title>
     <link rel="icon" href="/favicon-shop.ico" type="image/x-icon">
     <link rel="icon" href="/favicon-shop.svg" type="image/svg+xml">
@@ -583,6 +583,7 @@
                 inset -2px -2px 5px var(--neu-light-soft),
                 3px 3px 8px rgba(var(--neu-accent-deep-rgb),0.12);
         }
+        .cast-chat-session-item:hover { background:#fff9fb !important; }
     </style>
 </head>
 <body>
@@ -594,7 +595,7 @@
     <div class="login-card">
         <h2>店舗ログイン</h2>
         <div class="sub">登録時のメールアドレスとパスワードでログインしてください</div>
-        <form id="login-form" onsubmit="handleLogin(event)">
+        <form id="login-form" data-onsubmit="handleLogin">
         <div class="f-group">
             <label class="f-label">メールアドレス</label>
             <input type="email" class="f-input" id="login-email" name="email" autocomplete="email" placeholder="example@shop.com" required>
@@ -602,13 +603,13 @@
         <div class="f-group">
             <label class="f-label">パスワード</label>
             <input type="password" class="f-input" id="login-pw" name="password" autocomplete="current-password" placeholder="パスワード" required>
-            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="document.getElementById('login-pw').type=this.checked?'text':'password'" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" data-onchange-pwtoggle="login-pw" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
         </div>
         <button type="submit" class="btn-login">ログイン</button>
         </form>
         <div class="login-error" id="login-error"></div>
         <div style="text-align:center;margin-top:16px;">
-            <a href="#" onclick="showPasswordReset();return false;" style="font-size:12px;color:var(--rose);text-decoration:none;">パスワードをお忘れですか？</a>
+            <a href="#" data-action="showPasswordReset" data-prevent-default="1" style="font-size:12px;color:var(--rose);text-decoration:none;">パスワードをお忘れですか？</a>
         </div>
     </div>
     <!-- パスワードリセット -->
@@ -621,7 +622,7 @@
                 <input type="email" class="f-input" id="reset-email" placeholder="登録済みのメールアドレス" autocomplete="email">
             </div>
             <div id="reset-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
-            <button class="btn-login" onclick="sendPasswordReset()" id="reset-send-btn">リセットメールを送信</button>
+            <button class="btn-login" data-action="sendPasswordReset" id="reset-send-btn">リセットメールを送信</button>
         </div>
         <div id="pw-reset-step2" style="display:none;">
             <div style="padding:12px 14px;background:var(--rose-bg);border:1px solid var(--rose-border);border-radius:var(--r);color:var(--text-2);font-size:13px;margin-bottom:12px;">認証コードを送信しました。メールをご確認ください。</div>
@@ -636,10 +637,10 @@
             <div class="f-group">
                 <label class="f-label">新しいパスワード（確認）</label>
                 <input class="f-input" type="password" id="reset-new-pw2" placeholder="もう一度入力">
-                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="['reset-new-pw','reset-new-pw2'].forEach(id=>{document.getElementById(id).type=this.checked?'text':'password';})" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
+                <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" data-onchange-pwtoggle="reset-new-pw,reset-new-pw2" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
             </div>
             <div id="reset-step2-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none;"></div>
-            <button class="btn-login" onclick="executePasswordReset()">パスワードを変更</button>
+            <button class="btn-login" data-action="executePasswordReset">パスワードを変更</button>
         </div>
         <div id="pw-reset-step3" style="display:none;">
             <div style="text-align:center;padding:20px 0;">
@@ -649,7 +650,7 @@
             </div>
         </div>
         <div style="text-align:center;margin-top:12px;">
-            <a href="#" onclick="hidePasswordReset();return false;" style="font-size:12px;color:var(--text-3);text-decoration:none;">← ログイン画面に戻る</a>
+            <a href="#" data-action="hidePasswordReset" data-prevent-default="1" style="font-size:12px;color:var(--text-3);text-decoration:none;">← ログイン画面に戻る</a>
         </div>
     </div>
 </div>
@@ -660,7 +661,7 @@
         <div class="hdr-logo"><b>YobuHo</b></div>
         <div class="hdr-shop" id="hdr-shop-name"></div>
         <div class="hdr-right">
-            <button class="btn-logout" onclick="doLogout()">ログアウト</button>
+            <button class="btn-logout" data-action="doLogout">ログアウト</button>
         </div>
     </div>
 </div>
@@ -668,12 +669,12 @@
 <!-- ===== メインコンテンツ ===== -->
 <div class="main-wrap" id="main-wrap">
     <div class="tabs">
-        <button class="tab-btn active" id="tab-btn-settings" onclick="switchTab('settings')">設定</button>
-        <button class="tab-btn" id="tab-btn-search" onclick="switchTab('search')">ホテル検索登録</button>
-        <button class="tab-btn" id="tab-btn-list" onclick="switchTab('list')">登録済み一覧</button>
-        <button class="tab-btn" id="tab-btn-plan" onclick="switchTab('plan')">プラン申込</button>
-        <button class="tab-btn" id="tab-btn-chat" onclick="switchTab('chat')">💬 YobuChat</button>
-        <button class="tab-btn" id="tab-btn-cast" onclick="switchTab('cast')" style="display:none;">💁 キャスト管理</button>
+        <button class="tab-btn active" id="tab-btn-settings" data-action="switchTab" data-arg1="settings">設定</button>
+        <button class="tab-btn" id="tab-btn-search" data-action="switchTab" data-arg1="search">ホテル検索登録</button>
+        <button class="tab-btn" id="tab-btn-list" data-action="switchTab" data-arg1="list">登録済み一覧</button>
+        <button class="tab-btn" id="tab-btn-plan" data-action="switchTab" data-arg1="plan">プラン申込</button>
+        <button class="tab-btn" id="tab-btn-chat" data-action="switchTab" data-arg1="chat">💬 YobuChat</button>
+        <button class="tab-btn" id="tab-btn-cast" data-action="switchTab" data-arg1="cast" style="display:none;">💁 キャスト管理</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -703,7 +704,7 @@
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                     <span style="font-size:12px;color:var(--text-3);min-width:90px;">店舗専用URL:</span>
                     <a id="status-shop-url" href="#" target="_blank" style="font-size:12px;color:var(--rose);word-break:break-all;"></a>
-                    <button onclick="copyShopUrl()" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
+                    <button data-action="copyShopUrl" style="padding:4px 10px;background:var(--bg-3);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">コピー</button>
                 </div>
                 <p style="font-size: 12px; color: #888; margin-top: 8px; line-height: 1.6;">
                   💡 このURLではユーザーの投稿情報と貴店の登録情報のみが表示され、<br>
@@ -728,7 +729,7 @@
                         <span style="font-size:12px;color:var(--text-3);min-width:80px;">エリア:</span>
                         <input type="text" id="location-area" placeholder="例: 大分市・別府（任意）" maxlength="50" style="flex:1;min-width:140px;padding:6px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;">
                     </div>
-                    <button type="button" onclick="saveShopLocation()" style="padding:6px 16px;background:var(--rose);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">保存</button>
+                    <button type="button" data-action="saveShopLocation" style="padding:6px 16px;background:var(--rose);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">保存</button>
                     <span id="location-save-msg" style="margin-left:10px;font-size:12px;color:var(--text-3);"></span>
                 </div>
                 <!-- ■ チャット用プロフィール画像（全プラン） -->
@@ -741,7 +742,7 @@
                             <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">📷 プロフィール画像（チャット表示用）</label>
                             <input type="file" id="shop-chat-avatar-input" accept="image/jpeg,image/png" style="font-size:12px;width:100%;">
                             <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">96×96pxに自動リサイズ・JPEG圧縮されます（5〜10KB想定）<br>YobuChat の店舗アイコンに使われます</div>
-                            <button type="button" id="shop-chat-avatar-remove" onclick="clearShopChatAvatar()" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;">画像を削除</button>
+                            <button type="button" id="shop-chat-avatar-remove" data-action="clearShopChatAvatar" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;">画像を削除</button>
                         </div>
                     </div>
                 </div>
@@ -751,11 +752,11 @@
                     <div style="font-size:10px;color:var(--text-3);margin-bottom:10px;">市区町村プラン以上で表示されるヒーロー画像</div>
                     <div style="display:flex;gap:16px;margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="photos" onchange="switchBannerMode('photos')" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="photos" data-action="switchBannerMode" data-arg1="photos" style="accent-color:var(--rose);">
                             写真3枚（おすすめ）
                         </label>
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="radio" name="banner-mode" value="banner" onchange="switchBannerMode('banner')" style="accent-color:var(--rose);">
+                            <input type="radio" name="banner-mode" value="banner" data-action="switchBannerMode" data-arg1="banner" style="accent-color:var(--rose);">
                             バナー1枚
                         </label>
                     </div>
@@ -763,20 +764,20 @@
                     <div id="banner-mode-photos" style="display:none;">
                         <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">写真: 各375〜435×500px（JPG/PNG）</div>
                         <div style="display:flex;gap:6px;margin-bottom:8px;">
-                            <div id="photo-slot-0" class="photo-slot" onclick="triggerPhotoUpload(0)">
+                            <div id="photo-slot-0" class="photo-slot" data-action="triggerPhotoUpload" data-arg1="0">
                                 <span class="photo-slot-num">1</span>
                             </div>
-                            <div id="photo-slot-1" class="photo-slot" onclick="triggerPhotoUpload(1)">
+                            <div id="photo-slot-1" class="photo-slot" data-action="triggerPhotoUpload" data-arg1="1">
                                 <span class="photo-slot-num">2</span>
                             </div>
-                            <div id="photo-slot-2" class="photo-slot" onclick="triggerPhotoUpload(2)">
+                            <div id="photo-slot-2" class="photo-slot" data-action="triggerPhotoUpload" data-arg1="2">
                                 <span class="photo-slot-num">3</span>
                             </div>
                         </div>
                         <div style="font-size:10px;color:var(--text-3);margin-bottom:10px;">クリックで追加・差し替え</div>
                         <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">背景画像（任意）: 1309×500px推奨<br><span style="font-size:10px;">※未設定の場合、写真の間はテーマカラーの背景になります</span></div>
                         <div style="display:flex;gap:6px;margin-bottom:8px;">
-                            <div id="photo-slot-3" class="photo-slot" style="width:160px;height:62px;" onclick="triggerPhotoUpload(3)">
+                            <div id="photo-slot-3" class="photo-slot" style="width:160px;height:62px;" data-action="triggerPhotoUpload" data-arg1="3">
                                 <span class="photo-slot-num" style="font-size:11px;">背景</span>
                             </div>
                         </div>
@@ -791,7 +792,7 @@
                         <div id="shop-images-add" style="display:flex;gap:8px;align-items:center;">
                             <label style="display:inline-block;padding:8px 16px;background:var(--rose);color:#fff;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;">
                                 バナーをアップロード
-                                <input type="file" id="shop-image-file" accept="image/jpeg,image/png" onchange="onShopImageSelect(this)" style="display:none;">
+                                <input type="file" id="shop-image-file" accept="image/jpeg,image/png" data-onchange="onShopImageSelect" style="display:none;">
                             </label>
                             <span id="shop-images-count" style="font-size:11px;color:var(--text-3);"></span>
                         </div>
@@ -805,7 +806,7 @@
                     <div style="font-size:10px;color:var(--text-3);margin-bottom:10px;">エリア以上のプランで表示されるサムネイル画像</div>
                     <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">サムネイル: 375〜435×500px推奨（JPG/PNG、1枚）</div>
                     <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;">
-                        <div id="std-thumb-slot" class="photo-slot" onclick="triggerStdUpload()">
+                        <div id="std-thumb-slot" class="photo-slot" data-action="triggerStdUpload">
                             <span class="photo-slot-num" style="font-size:14px;">+</span>
                         </div>
                         <input type="file" id="std-upload-input" accept="image/jpeg,image/png" style="display:none;">
@@ -821,7 +822,7 @@
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">営業時間</label>
                         <label style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;font-size:12px;color:var(--text-2);">
-                            <input type="checkbox" id="ad-hours-24h" onchange="toggle24h(this.checked)" style="width:16px;height:16px;accent-color:var(--rose);">
+                            <input type="checkbox" id="ad-hours-24h" data-onchange-fn-bool="toggle24h" style="width:16px;height:16px;accent-color:var(--rose);">
                             24時間営業
                         </label>
                         <div id="ad-hours-selects" style="display:flex;gap:6px;align-items:center;">
@@ -833,14 +834,14 @@
                     <div class="f-group" style="margin-bottom:10px;">
                         <label class="f-label" style="font-size:11px;">最安値・おすすめ料金プラン <span style="color:var(--text-3);font-weight:400;">(半角数字で入力)</span></label>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            <input type="text" id="ad-min-minutes" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="65" class="f-input" style="width:70px;text-align:right;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="text" id="ad-min-minutes" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="65" class="f-input" style="width:70px;text-align:right;" data-oninput-numeric="1">
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">分</span>
-                            <input type="text" id="ad-min-yen" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="10000" class="f-input" style="width:100px;text-align:right;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="text" id="ad-min-yen" inputmode="numeric" pattern="[0-9]*" maxlength="7" placeholder="10000" class="f-input" style="width:100px;text-align:right;" data-oninput-numeric="1">
                             <span style="color:var(--text-3);font-size:13px;flex-shrink:0;">円〜</span>
                         </div>
                     </div>
                     <div style="display:flex;gap:8px;">
-                        <button onclick="saveAdInfo()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
+                        <button data-action="saveAdInfo" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">広告情報を保存</button>
                     </div>
                     <div style="font-size:11px;color:var(--text-3);margin-top:6px;">※有料プランの広告に表示されます <a href="/plan/" target="_blank" style="color:var(--rose);text-decoration:underline;">詳しくはこちら</a></div>
                 </div>
@@ -883,7 +884,7 @@
                     <input class="f-input" type="password" id="settings-email-pw" placeholder="現在のパスワードを入力">
                 </div>
                 <div id="settings-email-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-                <button class="btn btn-rose" onclick="sendEmailVerification()">認証メールを送信</button>
+                <button class="btn btn-rose" data-action="sendEmailVerification">認証メールを送信</button>
             </div>
             <!-- Step2: 認証コード入力 -->
             <div id="email-step2" style="display:none;">
@@ -894,8 +895,8 @@
                 </div>
                 <div id="settings-verify-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
                 <div style="display:flex;gap:8px;">
-                    <button class="btn btn-rose" onclick="verifyAndChangeEmail()">メールアドレスを変更する</button>
-                    <button class="btn" style="background:var(--bg-3);border:1px solid var(--border);" onclick="cancelEmailChange()">キャンセル</button>
+                    <button class="btn btn-rose" data-action="verifyAndChangeEmail">メールアドレスを変更する</button>
+                    <button class="btn" style="background:var(--bg-3);border:1px solid var(--border);" data-action="cancelEmailChange">キャンセル</button>
                 </div>
             </div>
         </div>
@@ -914,9 +915,9 @@
                 <label class="f-label">新しいパスワード（確認）</label>
                 <input class="f-input" type="password" id="settings-new-pw2" placeholder="もう一度入力">
             </div>
-            <label style="display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" onchange="['settings-old-pw','settings-new-pw','settings-new-pw2'].forEach(id=>{document.getElementById(id).type=this.checked?'text':'password';})" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:12px;cursor:pointer;font-size:12px;color:var(--text-3);"><input type="checkbox" data-onchange-pwtoggle="settings-old-pw,settings-new-pw,settings-new-pw2" style="accent-color:var(--rose);cursor:pointer;"> パスワードを表示</label>
             <div id="settings-pw-error" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-            <button class="btn btn-rose" onclick="changePassword()">パスワードを変更</button>
+            <button class="btn btn-rose" data-action="changePassword">パスワードを変更</button>
         </div>
     </div>
 
@@ -926,11 +927,11 @@
             <div class="card-title">ホテル名で検索</div>
             <div class="search-bar">
                 <input class="search-input" id="hotel-keyword" placeholder="ホテル名・住所で検索..." onkeydown="if(event.key==='Enter')textSearch()">
-                <button class="btn-search" onclick="textSearch()">検索</button>
+                <button class="btn-search" data-action="textSearch">検索</button>
             </div>
             <div id="text-search-results"></div>
             <div style="text-align:center;margin-top:12px;">
-                <button onclick="openShopHotelRequest()" style="padding:8px 20px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:inherit;">📝 未掲載ホテル情報提供</button>
+                <button data-action="openShopHotelRequest" style="padding:8px 20px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:inherit;">📝 未掲載ホテル情報提供</button>
             </div>
             <div style="margin-top:16px;padding:12px 16px;background:rgba(181,98,122,0.06);border:1px solid rgba(181,98,122,0.15);border-radius:8px;font-size:12px;color:#3a3020;line-height:1.7;">
                 💡 <strong>ご案内実績の登録数が多いほど、該当プラン内で上位に表示されます。</strong><br>ご案内可能なエリアのホテルはすべて登録するのがおすすめです。
@@ -974,7 +975,7 @@
             <div id="lh-f-gp-wrap"></div>
             <div style="margin-bottom:14px;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="lh-f-multi" onchange="document.getElementById('lh-f-multi-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
+                    <input type="checkbox" id="lh-f-multi" data-onchange-toggle="lh-f-multi-detail" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 複数人で利用もご案内実績あり（任意）</span>
                 </label>
                 <div id="lh-f-multi-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
@@ -1002,7 +1003,7 @@
             <div class="form-group" style="margin-top:18px;">
                 <label class="form-label">交通費 <span class="opt">(任意)</span></label>
                 <div class="transport-fee-group">
-                    <label class="free-check"><input type="checkbox" id="lh-transport-free" onchange="toggleLhTransportFee()"><span>交通費無料</span></label>
+                    <label class="free-check"><input type="checkbox" id="lh-transport-free" data-onchange="toggleLhTransportFee"><span>交通費無料</span></label>
                     <div class="transport-fee-input" id="lh-transport-fee-wrap">
                         <span class="fee-prefix">¥</span>
                         <input type="text" id="lh-form-transport" inputmode="numeric" pattern="[0-9,]*" placeholder="0">
@@ -1015,7 +1016,7 @@
                 <label class="form-label">投稿者名</label>
                 <input type="text" id="lh-f-poster" readonly style="width:100%;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;font-size:16px;background:var(--bg-3,#f5f0eb);font-family:inherit;box-sizing:border-box;color:var(--text-2,#6a5a4a);">
             </div>
-            <button class="btn-submit" id="lh-f-submit" onclick="lhSubmitReport()">口コミを投稿する</button>
+            <button class="btn-submit" id="lh-f-submit" data-action="lhSubmitReport">口コミを投稿する</button>
         </div>
 
         <!-- ===== 情報入力フォーム（portal風） ===== -->
@@ -1029,8 +1030,8 @@
             <div class="form-group">
                 <label class="form-label">呼べる / 呼べない <span class="req">必須</span></label>
                 <div class="toggle-row">
-                    <button class="toggle-btn can" id="btn-can" onclick="setCanCall(true)">✅ 呼べる</button>
-                    <button class="toggle-btn cannot" id="btn-cannot" onclick="setCanCall(false)">❌ 呼べない</button>
+                    <button class="toggle-btn can" id="btn-can" data-action="setCanCall" data-arg1="true">✅ 呼べる</button>
+                    <button class="toggle-btn cannot" id="btn-cannot" data-action="setCanCall" data-arg1="false">❌ 呼べない</button>
                 </div>
             </div>
 
@@ -1062,7 +1063,7 @@
             <div class="form-group" style="margin-top:18px;">
                 <label class="form-label">交通費 <span class="opt">(任意)</span></label>
                 <div class="transport-fee-group">
-                    <label class="free-check"><input type="checkbox" id="transport-free" onchange="toggleTransportFee()"><span>交通費無料</span></label>
+                    <label class="free-check"><input type="checkbox" id="transport-free" data-onchange="toggleTransportFee"><span>交通費無料</span></label>
                     <div class="transport-fee-input" id="transport-fee-wrap">
                         <span class="fee-prefix">¥</span>
                         <input type="text" id="form-transport" inputmode="numeric" pattern="[0-9,]*" placeholder="0">
@@ -1079,7 +1080,7 @@
 
             <div style="margin-bottom:14px;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 12px;border:1px solid var(--border,#e0d5d0);border-radius:8px;background:#fff;user-select:none;">
-                    <input type="checkbox" id="sa-multi-person-check" onchange="document.getElementById('sa-multi-person-detail').style.display=this.checked?'flex':'none';" style="width:16px;height:16px;cursor:pointer;">
+                    <input type="checkbox" id="sa-multi-person-check" data-onchange-toggle="sa-multi-person-detail" style="width:16px;height:16px;cursor:pointer;">
                     <span style="font-size:13px;">👥 複数人で利用もご案内実績あり（任意）</span>
                 </label>
                 <div id="sa-multi-person-detail" style="display:none;flex-direction:column;gap:8px;margin-top:8px;">
@@ -1109,7 +1110,7 @@
                 <textarea class="f-textarea" id="form-memo" placeholder="特記事項があれば入力..."></textarea>
             </div>
 
-            <button class="btn-submit" id="btn-confirm" onclick="showConfirm()">確認画面に進む</button>
+            <button class="btn-submit" id="btn-confirm" data-action="showConfirm">確認画面に進む</button>
         </div>
     </div>
 
@@ -1119,11 +1120,11 @@
             <div class="card-title">登録済みホテル一覧<span class="sub" id="reg-count"></span></div>
             <div class="reg-toolbar">
                 <div class="reg-tabs">
-                    <button class="reg-tab active" data-filter="all" onclick="setRegFilter('all',this)">すべて</button>
-                    <button class="reg-tab" data-filter="hotel" onclick="setRegFilter('hotel',this)">🏨 ホテル</button>
-                    <button class="reg-tab" data-filter="loveho" onclick="setRegFilter('loveho',this)">🏩 ラブホ</button>
+                    <button class="reg-tab active" data-filter="all" data-action="setRegFilter" data-arg1="all">すべて</button>
+                    <button class="reg-tab" data-filter="hotel" data-action="setRegFilter" data-arg1="hotel">🏨 ホテル</button>
+                    <button class="reg-tab" data-filter="loveho" data-action="setRegFilter" data-arg1="loveho">🏩 ラブホ</button>
                 </div>
-                <button class="reg-sort-btn" id="reg-sort-btn" onclick="toggleRegSort()">📅 新しい順</button>
+                <button class="reg-sort-btn" id="reg-sort-btn" data-action="toggleRegSort">📅 新しい順</button>
             </div>
             <div class="reg-list" id="reg-list"></div>
             <div class="pagination" id="pagination"></div>
@@ -1159,8 +1160,8 @@
                 <label for="plan-form-agree" style="font-size:13px;cursor:pointer;"><a href="/terms.html" target="_blank" style="color:var(--rose);font-weight:600;">広告掲載規約</a>に同意する</label>
             </div>
             <div style="margin-top:16px;display:flex;gap:10px;">
-                <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);padding:10px 28px;font-weight:700;font-size:14px;" onclick="submitPlanRequest()">申込を送信する</button>
-                <button class="btn" style="padding:10px 20px;" onclick="closePlanForm()">キャンセル</button>
+                <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);padding:10px 28px;font-weight:700;font-size:14px;" data-action="submitPlanRequest">申込を送信する</button>
+                <button class="btn" style="padding:10px 20px;" data-action="closePlanForm">キャンセル</button>
             </div>
         </div>
         <div class="card" style="margin-top:12px;">
@@ -1214,13 +1215,13 @@
                 <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">ユーザー向けチャット画面（貴店のHPやSNSに貼ってください）</div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                     <input id="chat-admin-public-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
-                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-public-url')">コピー</button>
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-public-url">コピー</button>
                 </div>
                 <div style="font-size:12px;color:var(--text-3);margin:10px 0 4px;font-weight:600;">🪟 開閉式チャットURL（おすすめ）</div>
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">SNS/LINE/QR等で共有するURL。スマホは下からシートが開閉、PCは新タブでチャット画面が開きます。</div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                     <input id="chat-admin-sheet-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
-                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-sheet-url')">コピー</button>
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-sheet-url">コピー</button>
                 </div>
                 <div style="font-size:13px;font-weight:700;color:var(--text-2);margin:16px 0 4px;">📦 埋め込みコード（<span style="color:#9b2d35;">お客様用</span>・店舗HPに貼り付け）</div>
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:8px;">※ お客様がクリック → お客様向けチャット画面が開きます（お店側用ログインではありません）</div>
@@ -1236,7 +1237,7 @@
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>自社HP・WordPress等</strong>でscriptが使える場合（右下に💬ボタンが自動で出る）</div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
                         <textarea id="chat-admin-embed-script" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-script')">コピー</button>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-script">コピー</button>
                     </div>
                 </div>
 
@@ -1244,7 +1245,7 @@
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>scriptが使えないCMS</strong>向け。フリーページの「ソース」モードで貼付</div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
                         <textarea id="chat-admin-embed-iframe" readonly class="f-input" rows="3" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-iframe')">コピー</button>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-iframe">コピー</button>
                     </div>
                 </div>
 
@@ -1252,7 +1253,7 @@
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>シンプルなボタンリンク</strong>（クリックで別タブにチャット）</div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
                         <textarea id="chat-admin-embed-link" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-link')">コピー</button>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-link">コピー</button>
                     </div>
                 </div>
 
@@ -1260,7 +1261,7 @@
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;"><strong>右下固定の💬浮動ボタン</strong>（全ページに置きたい時、フッター等に貼付）</div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
                         <textarea id="chat-admin-embed-floating" readonly class="f-input" rows="2" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-floating')">コピー</button>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-floating">コピー</button>
                     </div>
                 </div>
 
@@ -1269,14 +1270,14 @@
                     <div style="font-size:11px;color:#9b2d35;margin-bottom:6px;">※ CMSのフリーページ「ソース」モードで貼付。<strong>iframe方式なので本家の改修が即時反映</strong></div>
                     <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;">
                         <textarea id="chat-admin-embed-cms" readonly class="f-input" rows="5" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                        <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-cms')">コピー</button>
+                        <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-cms">コピー</button>
                     </div>
                     <details style="margin-top:8px;font-size:11px;color:var(--text-3);">
                         <summary style="cursor:pointer;color:#9b2d35;">うまく動かない場合（script も貼れない超制限CMS向け・固定高さ版）</summary>
                         <div style="margin-top:6px;">上のコードが貼れない場合のみこちらを使用。高さは固定 640px（自動調整なし）。</div>
                         <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;margin-top:6px;">
                             <textarea id="chat-admin-embed-cms-legacy" readonly class="f-input" rows="3" style="flex:1;min-width:220px;font-size:11px;background:#fafafa;font-family:monospace;resize:vertical;"></textarea>
-                            <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-embed-cms-legacy')">コピー</button>
+                            <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-embed-cms-legacy">コピー</button>
                         </div>
                     </details>
                 </div>
@@ -1304,7 +1305,7 @@
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;">お店側用URL（ブックマーク・他端末で開くとき用）</div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
                     <input id="chat-admin-owner-url" type="text" readonly class="f-input" style="flex:1;min-width:220px;font-size:12px;background:#fafafa;">
-                    <button class="btn" style="padding:8px 14px;font-size:12px;" onclick="copyChatUrl('chat-admin-owner-url')">コピー</button>
+                    <button class="btn" style="padding:8px 14px;font-size:12px;" data-action="copyChatUrl" data-arg1="chat-admin-owner-url">コピー</button>
                 </div>
                 <div style="background:#fff8ec;border:1px solid #f0d49a;padding:10px 12px;border-radius:6px;font-size:12px;color:#7a5a20;line-height:1.7;margin-bottom:10px;">
                     ※ URL直リンクでもログイン必須です。<br>
@@ -1319,7 +1320,7 @@
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <input id="chat-register-device-name" class="f-input" placeholder="端末名（例: 店長スマホ / PC）" maxlength="100" style="flex:1;min-width:160px;font-size:13px;">
-                        <button class="btn" style="padding:8px 14px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="registerThisBrowser()">このブラウザを登録</button>
+                        <button class="btn" style="padding:8px 14px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="registerThisBrowser">このブラウザを登録</button>
                     </div>
                     <div id="chat-register-device-hint" style="font-size:11px;color:var(--text-3);margin-top:6px;"></div>
                 </div>
@@ -1346,7 +1347,7 @@
                     <input id="chat-reception-end" type="time" step="300" class="f-input" style="width:110px;">
                     <span style="font-size:11px;color:var(--text-3);">※ 日跨ぎ可 (例 18:00〜05:00)</span>
                 </div>
-                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveChatSettings">設定を保存</button>
             </div>
 
             <!-- ウェルカムメッセージ -->
@@ -1357,7 +1358,7 @@
                 </div>
                 <textarea id="chat-welcome-message" class="f-input" rows="2" maxlength="80" placeholder="匿名でOK。お気軽にご相談ください" style="width:100%;resize:vertical;font-size:13px;line-height:1.6;margin-bottom:6px;"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">最大80文字</div>
-                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveChatSettings">設定を保存</button>
             </div>
 
             <!-- 予約注意ヒント -->
@@ -1368,7 +1369,7 @@
                 </div>
                 <textarea id="chat-reservation-hint" class="f-input" rows="2" maxlength="80" placeholder="💡ご予約･お約束は､お電話またはLINEなどでお願いいたします" style="width:100%;resize:vertical;font-size:13px;line-height:1.6;margin-bottom:6px;"></textarea>
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">最大80文字。絵文字も利用できます。</div>
-                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveChatSettings">設定を保存</button>
             </div>
 
             <!-- 通知設定 -->
@@ -1404,7 +1405,7 @@
                 <div style="font-size:11px;color:var(--text-3);line-height:1.7;margin-bottom:10px;">
                     ※ 上の「通知設定」トグル および チャット画面（お店側）の通知トグルと連動しています。どこから切り替えても同じ状態になります。
                 </div>
-                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveChatSettings()">設定を保存</button>
+                <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveChatSettings">設定を保存</button>
             </div>
 
             <!-- 定型文 -->
@@ -1416,8 +1417,8 @@
                     <textarea id="chat-tpl-content" class="f-input" rows="3" style="resize:vertical;" placeholder="返答内容（最大500文字）" maxlength="500"></textarea>
                     <div style="font-size:11px;color:var(--text-3);">※ 並び順は登録順（新しいものが末尾）に自動設定されます。</div>
                     <div>
-                        <button class="btn" id="chat-tpl-save-btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" onclick="saveTemplate()">追加</button>
-                        <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" onclick="cancelEditTemplate()">キャンセル</button>
+                        <button class="btn" id="chat-tpl-save-btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveTemplate">追加</button>
+                        <button class="btn" id="chat-tpl-cancel-btn" style="padding:8px 16px;display:none;" data-action="cancelEditTemplate">キャンセル</button>
                     </div>
                 </div>
                 <div id="chat-tpl-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -1473,7 +1474,7 @@
                         <input type="email" id="cast-invite-email" placeholder="cast@example.com" autocomplete="off" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;box-sizing:border-box;">
                     </div>
                     <div>
-                        <button type="button" class="btn primary" id="cast-invite-btn" onclick="inviteCast()" style="padding:10px 20px;font-size:14px;font-weight:700;">📩 招待メールを送信</button>
+                        <button type="button" class="btn primary" id="cast-invite-btn" data-action="inviteCast" style="padding:10px 20px;font-size:14px;font-weight:700;">📩 招待メールを送信</button>
                     </div>
                 </div>
             </div>
@@ -1482,7 +1483,7 @@
             <div class="card">
                 <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                     <span>👥 登録済みキャスト</span>
-                    <button type="button" id="btn-refresh-cast-list" onclick="refreshCastList()" style="font-size:12px;padding:6px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-2);font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;" title="新しく登録したキャストを反映するために再読み込み">
+                    <button type="button" id="btn-refresh-cast-list" data-action="refreshCastList" style="font-size:12px;padding:6px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-2);font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;" title="新しく登録したキャストを反映するために再読み込み">
                         <span id="btn-refresh-cast-icon">🔄</span>
                         <span>更新</span>
                     </button>
@@ -1515,7 +1516,7 @@
                     <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:4px;">📷 プロフィール画像（チャット表示用）</label>
                     <input type="file" id="cast-edit-avatar-input" accept="image/jpeg,image/png" style="font-size:12px;width:100%;">
                     <div style="font-size:11px;color:var(--text-3);margin-top:4px;line-height:1.4;">96×96pxに自動リサイズ・JPEG圧縮されます（5〜10KB想定）</div>
-                    <button type="button" id="cast-edit-avatar-remove" onclick="clearCastAvatar()" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;">画像を削除</button>
+                    <button type="button" id="cast-edit-avatar-remove" data-action="clearCastAvatar" style="margin-top:6px;padding:4px 10px;font-size:11px;background:#fff;border:1px solid var(--border);border-radius:4px;cursor:pointer;display:none;">画像を削除</button>
                 </div>
             </div>
             <div>
@@ -1555,8 +1556,8 @@
             </div>
         </div>
         <div class="confirm-btns">
-            <button class="btn-back-confirm" onclick="closeCastEdit()">キャンセル</button>
-            <button class="btn-do-submit" id="cast-edit-save-btn" onclick="saveCastEdit()">保存する</button>
+            <button class="btn-back-confirm" data-action="closeCastEdit">キャンセル</button>
+            <button class="btn-do-submit" id="cast-edit-save-btn" data-action="saveCastEdit">保存する</button>
         </div>
     </div>
 </div>
@@ -1566,8 +1567,8 @@
     <div class="confirm-card" style="max-width:680px;width:95vw;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
         <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg-2);">
             <div id="cast-chat-title" style="font-size:15px;font-weight:700;color:var(--text-1);flex:1;">💬 チャット履歴</div>
-            <button class="btn" id="cast-chat-back-btn" onclick="castChatBackToSessions()" style="display:none;padding:6px 12px;font-size:12px;">← 一覧に戻る</button>
-            <button class="btn" onclick="closeCastChatViewer()" style="padding:6px 12px;font-size:12px;">✕ 閉じる</button>
+            <button class="btn" id="cast-chat-back-btn" data-action="castChatBackToSessions" style="display:none;padding:6px 12px;font-size:12px;">← 一覧に戻る</button>
+            <button class="btn" data-action="closeCastChatViewer" style="padding:6px 12px;font-size:12px;">✕ 閉じる</button>
         </div>
         <div id="cast-chat-sub" style="padding:6px 18px;font-size:12px;color:var(--text-3);background:#fff9fb;border-bottom:1px solid var(--border);">
             👁️ 読み取り専用です。返信はキャスト本人のみが行えます。
@@ -1585,8 +1586,8 @@
         <div class="confirm-sub">内容をご確認の上、送信してください</div>
         <div id="lh-confirm-body"></div>
         <div class="confirm-btns">
-            <button class="btn-back-confirm" onclick="closeLhConfirm()">修正する</button>
-            <button class="btn-do-submit" id="lh-confirm-submit-btn" onclick="doLhSubmitReport()">この内容で投稿する</button>
+            <button class="btn-back-confirm" data-action="closeLhConfirm">修正する</button>
+            <button class="btn-do-submit" id="lh-confirm-submit-btn" data-action="doLhSubmitReport">この内容で投稿する</button>
         </div>
     </div>
 </div>
@@ -1598,8 +1599,8 @@
         <div class="confirm-sub">内容をご確認の上、送信してください</div>
         <div id="confirm-content"></div>
         <div class="confirm-btns">
-            <button class="btn-back-confirm" onclick="closeConfirm()">修正する</button>
-            <button class="btn-do-submit" id="btn-do-submit" onclick="doSubmit()">この内容で保存する</button>
+            <button class="btn-back-confirm" data-action="closeConfirm">修正する</button>
+            <button class="btn-do-submit" id="btn-do-submit" data-action="doSubmit">この内容で保存する</button>
         </div>
     </div>
 </div>
@@ -1609,21 +1610,21 @@
 <script defer src="/shop-admin.js?v=1"></script>
 
 <!-- 編集モーダル -->
-<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto;" onclick="if(event.target===this)closeEditModal()">
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto;" data-overlay-close="closeEditModal">
   <div style="background:#fff;border-radius:16px;max-width:520px;width:100%;padding:24px 20px;box-shadow:0 8px 40px rgba(0,0,0,0.15);margin:40px auto;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-      <button onclick="closeEditModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
+      <button data-action="closeEditModal" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
     </div>
     <div id="edit-modal-content"></div>
   </div>
 </div>
 
 <!-- 未掲載ホテル情報提供モーダル -->
-<div id="sa-hreq-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;padding:20px;" onclick="if(event.target===this)closeShopHotelRequest()">
+<div id="sa-hreq-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;padding:20px;" data-overlay-close="closeShopHotelRequest">
   <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 8px 40px rgba(0,0,0,0.15);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3 style="font-size:16px;font-weight:700;margin:0;">📝 未掲載ホテル情報提供</h3>
-      <button onclick="closeShopHotelRequest()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
+      <button data-action="closeShopHotelRequest" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-3);">✕</button>
     </div>
     <div id="sa-hreq-step1">
       <p style="font-size:12px;color:var(--text-3);margin-bottom:16px;">掲載されていないホテルの情報をお寄せください。確認後、掲載いたします。</p>
@@ -1632,20 +1633,20 @@
       <div style="margin-bottom:12px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">電話番号（任意）</label><input id="sa-hreq-tel" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:16px;margin-top:4px;font-family:inherit;box-sizing:border-box;" placeholder="電話番号"></div>
       <div style="margin-bottom:16px;"><label style="font-size:11px;font-weight:600;color:var(--text-3);">タイプ</label><select id="sa-hreq-type" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-top:4px;font-family:inherit;background:#fff;box-sizing:border-box;"><option value="business">ビジネスホテル</option><option value="city">シティホテル</option><option value="resort">リゾートホテル</option><option value="ryokan">旅館</option><option value="love_hotel">ラブホテル</option><option value="other">その他</option></select></div>
       <div id="sa-hreq-err" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none;"></div>
-      <button onclick="saHreqConfirm()" style="width:100%;padding:12px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">確認画面へ</button>
+      <button data-action="saHreqConfirm" style="width:100%;padding:12px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">確認画面へ</button>
     </div>
     <div id="sa-hreq-step2" style="display:none;">
       <div id="sa-hreq-confirm-body" style="background:var(--bg-3);padding:16px;border-radius:8px;margin-bottom:16px;"></div>
       <div style="display:flex;gap:8px;">
-        <button onclick="saHreqBack()" style="flex:1;padding:10px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">← 戻る</button>
-        <button id="sa-hreq-submit" onclick="saHreqSubmit()" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">送信する</button>
+        <button data-action="saHreqBack" style="flex:1;padding:10px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">← 戻る</button>
+        <button id="sa-hreq-submit" data-action="saHreqSubmit" style="flex:1;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">送信する</button>
       </div>
     </div>
     <div id="sa-hreq-done" style="display:none;text-align:center;padding:20px 0;">
       <div style="font-size:36px;margin-bottom:12px;">✅</div>
       <p style="font-size:14px;font-weight:600;">情報をお寄せいただきありがとうございます</p>
       <p style="font-size:12px;color:var(--text-3);margin-top:8px;">確認後、掲載いたします。</p>
-      <button onclick="closeShopHotelRequest()" style="margin-top:16px;padding:10px 24px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">閉じる</button>
+      <button data-action="closeShopHotelRequest" style="margin-top:16px;padding:10px 24px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">閉じる</button>
     </div>
   </div>
 </div>
@@ -1666,7 +1667,7 @@
     <p style="font-size:32px; margin:0 0 16px;">✅</p>
     <h3 id="success-modal-title" style="margin:0 0 12px;">完了しました</h3>
     <p id="success-modal-message" style="margin:0 0 24px; color:#666; font-size:14px;"></p>
-    <button onclick="closeSuccessModal()" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
+    <button data-action="closeSuccessModal" style="background:#b5627a; color:#fff; border:none; padding:10px 32px; border-radius:6px; font-size:14px; cursor:pointer; font-family:inherit;">閉じる</button>
   </div>
 </div>
 
