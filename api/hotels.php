@@ -17,16 +17,13 @@
 
 header('Content-Type: application/json; charset=UTF-8');
 
-$allowed_origins = ['https://yobuho.com', 'https://deli.yobuho.com', 'https://jofu.yobuho.com', 'https://same.yobuho.com', 'https://loveho.yobuho.com', 'https://este.yobuho.com'];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowed_origins)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-} else {
-    header('Access-Control-Allow-Origin: https://yobuho.com');
-}
+// 公開読み取り専用APIなので CORS は wildcard.
+// Cloudflare Edge Cache が Vary: Origin を扱えない (Origin は forbidden header)
+// ため Origin 別キャッシュ不可. 代わりに ACAO=* で全 origin に同一レスポンス.
+// 認証情報なし・PII なし・データはサイトマップ/SSGページから既に公開済み.
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
-header('Vary: Origin');
 // Cloudflare Edge Cache + ブラウザキャッシュ60秒
 // 投稿後の最大60秒遅延を許容（実体験口コミの更新即時性は重要度低）
 header('Cache-Control: public, max-age=60');

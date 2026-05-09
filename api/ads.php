@@ -6,16 +6,10 @@
 
 header('Content-Type: application/json; charset=UTF-8');
 
-$allowed_origins = ['https://yobuho.com', 'https://deli.yobuho.com', 'https://jofu.yobuho.com', 'https://same.yobuho.com', 'https://loveho.yobuho.com', 'https://este.yobuho.com'];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowed_origins)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-} else {
-    header('Access-Control-Allow-Origin: https://yobuho.com');
-}
+// 公開読み取り専用APIなので CORS は wildcard.
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
-header('Vary: Origin');
 // 広告配置はプラン変更まで安定（300秒キャッシュ可）
 header('Cache-Control: public, max-age=300');
 

@@ -8,18 +8,12 @@
 
 header('Content-Type: application/json; charset=UTF-8');
 
-$allowed_origins = ['https://yobuho.com', 'https://deli.yobuho.com', 'https://jofu.yobuho.com', 'https://same.yobuho.com', 'https://loveho.yobuho.com', 'https://este.yobuho.com'];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowed_origins)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-} else {
-    header('Access-Control-Allow-Origin: https://yobuho.com');
-}
+// 公開読み取り専用APIなので CORS は wildcard.
+// Cloudflare Edge Cache の Origin 別キーが使えないため ACAO=*. 認証情報なし.
+header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST');
 header('Access-Control-Allow-Headers: Content-Type');
-// Cloudflare Edge Cache（GET時のみ有効）+ ブラウザキャッシュ60秒
-// Origin ごとにキャッシュキーを分離するため Vary: Origin
-header('Vary: Origin');
+// GET 時のみ Cloudflare Edge Cache + ブラウザキャッシュ60秒
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     header('Cache-Control: public, max-age=60');
 } else {
