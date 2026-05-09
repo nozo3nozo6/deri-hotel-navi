@@ -827,6 +827,11 @@ async function loadFavAreas(){
 function getFavAreas(){return _favAreas;}
 async function saveFavAreas(favs){_favAreas=favs;try{await fetch('/api/shop-auth.php?action=save-fav-areas',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({fav_areas:favs})});}catch{}}
 async function addFavArea(fav){
+    // dispatcher 経由は JSON 文字列で来るので parse
+    if(typeof fav==='string'){
+        try{fav=JSON.parse(fav);}
+        catch(e){toast('お気に入りデータが不正です');return;}
+    }
     await loadFavAreas();
     if(!_favAreasLoaded){toast('お気に入りの読込に失敗。再度お試しください');return;}
     const favs=getFavAreas();
