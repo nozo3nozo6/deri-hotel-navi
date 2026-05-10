@@ -107,6 +107,17 @@ function countActiveCasts(string $shopId): int {
     return (int)$stmt->fetchColumn();
 }
 
+// 招待上限 = 表示上限 × INVITE_LIMIT_MULTIPLIER（ロスター用バッファ）
+const INVITE_LIMIT_MULTIPLIER = 2;
+
+// 公開表示中のキャスト数（is_visible=1 かつ active かつ未削除）
+function countVisibleCasts(string $shopId): int {
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM shop_casts WHERE shop_id = ? AND status = "active" AND deleted_at IS NULL AND is_visible = 1');
+    $stmt->execute([$shopId]);
+    return (int)$stmt->fetchColumn();
+}
+
 function genUuid(): string {
     $d = random_bytes(16);
     $d[6] = chr((ord($d[6]) & 0x0f) | 0x40);
@@ -144,6 +155,7 @@ switch ($action) {
     case 'invite':          handleInvite(); break;
     case 'approve':         handleApprove(); break;
     case 'update':          handleUpdate(); break;
+    case 'toggle-visible':  handleToggleVisible(); break;
     case 'remove':          handleRemove(); break;
     case 'resend-invite':   handleResendInvite(); break;
     case 'cancel-invite':   handleCancelInvite(); break;
@@ -160,7 +172,7 @@ function handleList() {
     $pdo = DB::conn();
 
     $sql = 'SELECT sc.id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.bio,
-                   sc.status, sc.sort_order, sc.joined_at, sc.approved_at,
+                   sc.status, sc.sort_order, sc.joined_at, sc.approved_at, sc.is_visible,
                    sc.chat_notify_mode, sc.chat_notify_email,
                    c.email, c.status AS cast_status, c.last_login_at,
                    (c.password_hash IS NOT NULL) AS has_password
@@ -183,6 +195,8 @@ function handleList() {
     $planInfo = getCurrentPlanInfo($auth['shop_id']);
     $limit = $planInfo['limit'];
     $used = countActiveCasts($auth['shop_id']);
+    $inviteLimit = $limit * INVITE_LIMIT_MULTIPLIER;
+    $visibleUsed = countVisibleCasts($auth['shop_id']);
 
     // 店舗 slug: shop-admin の埋込コード生成 (openCastEmbedCode) で使用. chat タブ未訪問でも
     // cast タブ単体で埋込コードが取得できるよう list 応答に同梱.
@@ -193,11 +207,17 @@ function handleList() {
     ok([
         'casts' => $casts,
         'pending_invites' => $pendingInvites,
-        'cast_limit' => $limit,
-        'cast_used' => $used,
-        'cast_remaining' => max(0, $limit - $used),
-        'cast_plan_name' => $planInfo['name'],
-        'shop_slug' => $shopSlug,
+        // 表示上限（プラン由来）と現在表示中の人数
+        'cast_limit'      => $limit,           // 表示上限（互換維持）
+        'visible_limit'   => $limit,
+        'visible_used'    => $visibleUsed,
+        'visible_remaining' => max(0, $limit - $visibleUsed),
+        // 招待・登録上限（表示上限 × 倍率）と現在の登録数（active+pending+suspended）
+        'invite_limit'    => $inviteLimit,
+        'cast_used'       => $used,
+        'cast_remaining'  => max(0, $inviteLimit - $used),
+        'cast_plan_name'  => $planInfo['name'],
+        'shop_slug'       => $shopSlug,
     ]);
 }
 
@@ -212,10 +232,12 @@ function handleInvite() {
     if ($displayName === '') err('源氏名を入力してください');
     if (mb_strlen($displayName) > 100) err('源氏名は100文字以内で入力してください');
 
+    // 招待上限 = 表示上限 × INVITE_LIMIT_MULTIPLIER（ロスター用バッファ）
     $limit = getCurrentPlanLimit($auth['shop_id']);
+    $inviteLimit = $limit * INVITE_LIMIT_MULTIPLIER;
     $used = countActiveCasts($auth['shop_id']);
-    if ($used >= $limit) {
-        err("現在のプランではこれ以上 Cast を追加できません（上限 {$limit}名）", 400);
+    if ($used >= $inviteLimit) {
+        err("登録できるキャスト数の上限に達しました（招待上限 {$inviteLimit}名 / 表示上限 {$limit}名×" . INVITE_LIMIT_MULTIPLIER . "）", 400);
     }
 
     $pdo = DB::conn();
@@ -304,6 +326,48 @@ function handleApprove() {
 
     sendApprovalMail($row['email'], $row['display_name'], $shop['shop_name']);
     ok(['message' => 'キャストを承認しました']);
+}
+
+// 表示・非表示の切替.
+//   - active キャストのみ操作可能（pending_approval / suspended は不可）
+//   - is_visible=1 にする時は表示上限（cast_limit）を超えないかチェック
+//   - 同じ値に切り替えても 200 で返す（idempotent）
+function handleToggleVisible() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') err('POST only', 405);
+    $auth = requireAuth();
+    requireCastEnabled($auth['shop_id']);
+
+    $id = (string)inp('id', '');
+    $visibleRaw = inp('is_visible', null);
+    if ($id === '') err('id required');
+    if ($visibleRaw === null) err('is_visible required');
+    $visible = (int)!!$visibleRaw;
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT status, is_visible, deleted_at FROM shop_casts WHERE id = ? AND shop_id = ?');
+    $stmt->execute([$id, $auth['shop_id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) err('Cast not found', 404);
+    if ($row['deleted_at'] !== null) err('削除済みのキャストです', 400);
+    if ($row['status'] !== 'active') err('承認済みキャストのみ表示切替できます', 400);
+
+    // 表示ON にする時のみ上限チェック（OFF は常に許可）
+    if ($visible === 1 && (int)$row['is_visible'] === 0) {
+        $limit = getCurrentPlanLimit($auth['shop_id']);
+        $current = countVisibleCasts($auth['shop_id']);
+        if ($current >= $limit) {
+            err("表示できるキャスト数の上限に達しています（{$limit}名）。他のキャストを非表示にしてから切り替えてください", 400);
+        }
+    }
+
+    $pdo->prepare('UPDATE shop_casts SET is_visible = ?, updated_at = NOW() WHERE id = ?')
+        ->execute([$visible, $id]);
+
+    ok([
+        'is_visible'        => $visible,
+        'visible_used'      => countVisibleCasts($auth['shop_id']),
+        'visible_limit'     => getCurrentPlanLimit($auth['shop_id']),
+    ]);
 }
 
 function handleUpdate() {

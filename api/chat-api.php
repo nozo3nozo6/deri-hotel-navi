@@ -636,19 +636,20 @@ function handleStartSession() {
     $castNotifyMode = null;
     if ($shopCastId !== '') {
         $stmt = $pdo->prepare(
-            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.chat_notify_mode, sc.status
+            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.chat_notify_mode, sc.status, sc.is_visible
              FROM shop_casts sc
              WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
         );
         $stmt->execute([$shopCastId, $shop['id']]);
         $row = $stmt->fetch();
-        if ($row && $row['status'] === 'active') {
+        // 表示中(is_visible=1) かつ active のキャストのみ指名URL受付.
+        // 非表示/非active の場合は cast_id 未設定で続行 (店舗直通に fallback).
+        if ($row && $row['status'] === 'active' && (int)$row['is_visible'] === 1) {
             $castId = $row['cast_id'];
             $castName = $row['display_name'];
             $castAvatarUrl = $row['profile_image_url'] ?: null;
             $castNotifyMode = $row['chat_notify_mode'] ?? 'off';
         }
-        // 非active (pending_approval/suspended/removed) の場合は cast_id 未設定で続行 (店舗直通に fallback)
     }
 
     $token = bin2hex(random_bytes(24));
@@ -1046,6 +1047,7 @@ function handleCastListPublic() {
          JOIN casts c ON c.id = sc.cast_id
          WHERE sc.shop_id = ? AND sc.deleted_at IS NULL
            AND sc.status = 'active' AND c.status = 'active'
+           AND sc.is_visible = 1
          ORDER BY sc.sort_order ASC, sc.display_name ASC"
     );
     $stmt->execute([$shop['id']]);

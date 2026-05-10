@@ -2482,15 +2482,23 @@ async function refreshCastList(){
 }
 
 function renderCastSummary(d){
-    const limit = Number(d.cast_limit) || 0;
-    const used = Number(d.cast_used) || 0;
-    const remaining = Math.max(0, limit - used);
-    const over = used > limit;
-    const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-    const barColor = over ? '#c33' : (pct >= 80 ? '#d97706' : '#059669');
+    // 表示上限（プラン由来）
+    const visibleLimit = Number(d.visible_limit ?? d.cast_limit) || 0;
+    const visibleUsed  = Number(d.visible_used) || 0;
+    const visibleRemaining = Math.max(0, visibleLimit - visibleUsed);
+    const visiblePct = visibleLimit > 0 ? Math.min(100, Math.round((visibleUsed / visibleLimit) * 100)) : 0;
+    const visibleBarColor = visiblePct >= 100 ? '#c33' : (visiblePct >= 80 ? '#d97706' : '#059669');
+
+    // 招待上限（表示上限 × 倍率）
+    const inviteLimit = Number(d.invite_limit) || (visibleLimit * 2);
+    const inviteUsed  = Number(d.cast_used) || 0;
+    const inviteRemaining = Math.max(0, inviteLimit - inviteUsed);
+    const invitePct = inviteLimit > 0 ? Math.min(100, Math.round((inviteUsed / inviteLimit) * 100)) : 0;
+    const inviteBarColor = invitePct >= 100 ? '#c33' : (invitePct >= 80 ? '#d97706' : '#5b8aaa');
+
     const planName = (d.cast_plan_name || '').trim();
     const summary = document.getElementById('cast-limit-summary');
-    if (limit <= 0) {
+    if (visibleLimit <= 0) {
         summary.innerHTML = '<div style="color:#c33;font-weight:600;">現在のプランではキャスト登録ができません。<a href="#" data-action="switchTab" data-arg1="plan" data-prevent-default="1" style="color:var(--rose);">プランをアップグレード →</a></div>';
         document.getElementById('cast-invite-btn').disabled = true;
         return;
@@ -2498,18 +2506,32 @@ function renderCastSummary(d){
     const planBadge = planName
         ? '<span style="font-size:11px;padding:2px 10px;background:#fff5e6;color:#a05a00;border:1px solid #f0d9a8;border-radius:10px;font-weight:700;white-space:nowrap;">' + esc(planName) + '</span>'
         : '';
+
     summary.innerHTML =
-        '<div style="flex:1;min-width:160px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
-        +   '<strong style="font-size:15px;color:var(--text-1);">' + used + ' / ' + limit + ' 名</strong>'
-        +   '<span style="color:var(--text-3);">（残り ' + remaining + ' 枠）</span>'
+        // 表示中（プランの本上限）
+        '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;">'
+        +   '<span style="font-size:11px;font-weight:700;color:#666;letter-spacing:0.04em;min-width:64px;">👁 表示中</span>'
+        +   '<strong style="font-size:15px;color:var(--text-1);">' + visibleUsed + ' / ' + visibleLimit + ' 名</strong>'
+        +   '<span style="color:var(--text-3);font-size:12px;">（残り ' + visibleRemaining + ' 枠）</span>'
         +   planBadge
+        +   '<div style="flex:1 1 240px;min-width:160px;height:8px;background:#eee;border-radius:4px;overflow:hidden;">'
+        +     '<div style="width:' + visiblePct + '%;height:100%;background:' + visibleBarColor + ';transition:width .3s;"></div>'
+        +   '</div>'
         + '</div>'
-        + '<div style="flex:1 1 240px;min-width:160px;height:10px;background:#eee;border-radius:5px;overflow:hidden;">'
-        + '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';transition:width .3s;"></div></div>';
+        // 招待中（表示上限の倍率まで登録可能）
+        + '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:100%;margin-top:8px;">'
+        +   '<span style="font-size:11px;font-weight:700;color:#666;letter-spacing:0.04em;min-width:64px;">📩 登録中</span>'
+        +   '<strong style="font-size:13px;color:var(--text-2);">' + inviteUsed + ' / ' + inviteLimit + ' 名</strong>'
+        +   '<span style="color:var(--text-3);font-size:11px;">（招待・承認待ち含む / 残り ' + inviteRemaining + ' 枠）</span>'
+        +   '<div style="flex:1 1 240px;min-width:160px;height:6px;background:#eee;border-radius:3px;overflow:hidden;">'
+        +     '<div style="width:' + invitePct + '%;height:100%;background:' + inviteBarColor + ';transition:width .3s;opacity:0.7;"></div>'
+        +   '</div>'
+        + '</div>';
+
     const inviteBtn = document.getElementById('cast-invite-btn');
-    inviteBtn.disabled = (remaining <= 0);
-    if (remaining <= 0) {
-        inviteBtn.textContent = '📩 招待メールを送信（枠がいっぱいです）';
+    inviteBtn.disabled = (inviteRemaining <= 0);
+    if (inviteRemaining <= 0) {
+        inviteBtn.textContent = '📩 招待メールを送信（登録枠がいっぱいです）';
     } else {
         inviteBtn.textContent = '📩 招待メールを送信';
     }
@@ -2560,12 +2582,27 @@ function renderCastList(casts){
                 + '</span>'
               + '</label>'
             : '';
+        // 表示・非表示トグル: active キャストのみ操作可能。
+        // 非表示時はポータル指名プルダウン/?cast=URL からブロック（店舗直通fallback）。
+        const isVisible = Number(c.is_visible) === 1;
+        const visibleToggle = (!isPending && c.status === 'active')
+            ? '<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;" title="ポータル/指名URLでの公開ON/OFF（OFF時は店舗直通）">'
+                + '<span class="cht-tg-label" style="font-size:12px;">' + (isVisible ? '👁' : '🙈') + ' 公開</span>'
+                + '<span class="cht-tg-switch">'
+                    + '<input type="checkbox" ' + (isVisible ? 'checked' : '') + ' data-onchange="_castVisibleHandler" data-cast-id="' + esc(c.id) + '">'
+                    + '<span class="cht-tg-slider"></span>'
+                + '</span>'
+              + '</label>'
+            : '';
+        // 非表示状態を視覚化: 行全体の opacity を下げる
+        const cardOpacity = (!isPending && c.status === 'active' && !isVisible) ? '0.62' : '1';
         return ''
-            + '<div style="padding:12px 14px;background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;">'
+            + '<div style="padding:12px 14px;background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;opacity:' + cardOpacity + ';transition:opacity 0.2s;">'
             + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
-            + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + '</div>'
+            + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + (!isPending && c.status === 'active' && !isVisible ? ' <span style="font-size:10px;padding:2px 8px;background:#f0eeec;color:#888;border:1px solid #ddd;border-radius:10px;">非公開</span>' : '') + '</div>'
             + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
             + approveBtn
+            + visibleToggle
             + notifyToggle
             + chatBtn
             + embedBtn
@@ -2872,6 +2909,23 @@ async function resendCastInvite(inviteId){
 
 // data-onchange ディスパッチャから呼ばれる薄いラッパー (要素から id+checked を取得)
 function _castNotifyHandler(el){toggleCastNotify(el.dataset.castId, el.checked);}
+function _castVisibleHandler(el){toggleCastVisible(el.dataset.castId, el.checked, el);}
+
+// 公開ON/OFF切替. ON時に表示上限を超えるとサーバーが400を返す → トーストで通知し再取得で巻き戻す.
+async function toggleCastVisible(id, enabled, el){
+    try {
+        const res = await castApi('toggle-visible', { id, is_visible: enabled ? 1 : 0 });
+        toast(enabled
+            ? '👁 公開しました（表示中: ' + res.visible_used + '/' + res.visible_limit + '）'
+            : '🙈 非公開にしました（表示中: ' + res.visible_used + '/' + res.visible_limit + '）');
+        await loadCastTab();
+    } catch (e) {
+        if (el) el.checked = !enabled; // 即時に巻き戻す（loadCastTab を待たずUI体感を維持）
+        toast('⚠️ ' + e.message);
+        try { await loadCastTab(); } catch (_) {}
+    }
+}
+
 async function toggleCastNotify(id, enabled){
     try {
         await castApi('update', { id, chat_notify_mode: enabled ? 'every' : 'off' });

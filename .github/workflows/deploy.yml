@@ -119,7 +119,7 @@ jobs:
             --exclude='.eslintrc*' --exclude='vitest.config.*' \
             --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' \
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='este.yobuho.com' \
-            --exclude='db-local.js' --exclude='.eslintrc.json' \
+            --exclude='db-local.js' --exclude='apply-migration.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
             --exclude='pagefind' --exclude='master-data.json' \
             --exclude='area-data.json' --exclude='hotel-data' \
