@@ -1082,12 +1082,42 @@ function renderHotelCards(hotels){
         const isReg=registeredHotelIds.has(String(h.id));
         const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':h.hotel_type==='rental_room'?'🏠 レンタルルーム':HOTEL_TYPES[h.hotel_type]?HOTEL_TYPES[h.hotel_type]:'';
         const rc=h.total_reports||0;
-        const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
+        const delay=Math.min(i*0.03,0.3);
+
+        const cardStyle=isReg
+            ?'background:linear-gradient(135deg, #fff8eb 0%, #fdefd4 100%);border:1px solid rgba(156,113,36,0.35);'
+            :'background:#ffffff;border:1px solid #e8e4e0;';
+
+        const stripe=isReg
+            ?'<div class="absolute left-0 top-0 bottom-0 w-[4px] rounded-l-[10px]" style="background:linear-gradient(180deg, #9c7124 0%, #c9a96e 100%);"></div>'
+            :'';
+
+        const statusBadge=isReg
+            ?'<span class="!inline-flex !items-center !gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style="background:#9c7124;color:#fff8eb;border:none;letter-spacing:0.04em;"><span>★</span><span>登録済み</span></span>'
+            :'<span class="!inline-flex !items-center !gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style="background:transparent;color:#7a2c44;border:1px dashed rgba(122,44,68,0.4);">未登録</span>';
+
+        const metaParts=[];
+        if(typeLabel){
+            metaParts.push(`<span class="text-[11px] px-2 py-0.5 rounded-md font-semibold" style="background:rgba(58,20,36,0.06);color:#3a1424;border:1px solid rgba(58,20,36,0.15);">${typeLabel}</span>`);
+        }
+        if(rc>0){
+            metaParts.push(`<span class="inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums" style="color:#7a2c44;"><span>💬</span><span>${rc}</span></span>`);
+        }
+        const metaRow=metaParts.length
+            ?`<div class="flex items-center gap-2 flex-wrap mb-2.5 mt-1.5">${metaParts.join('')}</div>`
+            :'';
+
+        const infoRows=[
+            h.address          ? `<div class="hotel-card-info"><span class="flex-shrink-0 opacity-60">📍</span><span class="flex-1">${esc(h.address)}</span></div>` : '',
+            h.nearest_station  ? `<div class="hotel-card-info"><span class="flex-shrink-0 opacity-60">🚉</span><span class="flex-1">${esc(h.nearest_station)}</span></div>` : ''
+        ].join('');
+
         const actionBtns=isReg
-            ?`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}">投稿削除</button>`
-            :`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">📝 情報登録</button>`;
-        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span>${typeLabel?`<span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>`:''}${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
+            ?`<button class="!inline-flex !items-center !gap-1 px-4 py-2 text-[12px] font-bold rounded-lg transition-all hover:brightness-105 active:translate-y-px shadow-sm hover:shadow-md" style="background:linear-gradient(135deg, #b5627a, #7a2c44);color:#fff8eb;border:none;font-family:inherit;cursor:pointer;" data-action="selectHotelById" data-arg1="${h.id}"><span>✏️</span><span>編集する</span></button><button class="!inline-flex !items-center !gap-1 px-3 py-2 text-[11px] font-medium rounded-lg transition-all hover:bg-[rgba(192,80,80,0.06)]" style="background:transparent;border:1px solid rgba(192,80,80,0.28);color:var(--red);font-family:inherit;cursor:pointer;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}"><span>🗑</span><span>削除</span></button>`
+            :`<button class="!inline-flex !items-center !gap-1.5 px-4 py-2.5 text-[12px] font-bold rounded-lg transition-all hover:brightness-110 active:translate-y-px" style="background:linear-gradient(135deg, #b5627a 0%, #7a2c44 100%);color:#fff;border:none;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(122,44,68,0.22), inset 0 1px 0 rgba(255,255,255,0.18);letter-spacing:0.04em;" data-action="selectHotelById" data-arg1="${h.id}"><span>📝</span><span>情報を登録</span></button>`;
+
+        return`<div class="hotel-card relative" data-reg="${isReg?1:0}" style="${cardStyle}animation-delay:${delay}s">${stripe}<div class="hotel-card-head"><span class="hotel-card-name" style="color:#1a1a1a;">${esc(h.name)}</span>${statusBadge}</div>${metaRow}${infoRows}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
 
@@ -1573,12 +1603,38 @@ function lhRenderHotelCards(hotels){
         const isReg=registeredHotelIds.has(String(h.id));
         const typeLabel=h.hotel_type==='love_hotel'?'🏩 ラブホテル':'🏠 レンタルルーム';
         const rc=h.total_reports||0;
-        const rcBadge=rc>0?`<span style="font-size:10px;color:#b5627a;margin-left:6px;">💬${rc}</span>`:'';
         const regInfo=isReg?regData.find(r=>String(r.hotel_id)===String(h.id)):null;
+        const delay=Math.min(i*0.03,0.3);
+
+        const cardStyle=isReg
+            ?'background:linear-gradient(135deg, #fff8eb 0%, #fdefd4 100%);border:1px solid rgba(156,113,36,0.35);'
+            :'background:#ffffff;border:1px solid #e8e4e0;';
+
+        const stripe=isReg
+            ?'<div class="absolute left-0 top-0 bottom-0 w-[4px] rounded-l-[10px]" style="background:linear-gradient(180deg, #9c7124 0%, #c9a96e 100%);"></div>'
+            :'';
+
+        const statusBadge=isReg
+            ?'<span class="!inline-flex !items-center !gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style="background:#9c7124;color:#fff8eb;border:none;letter-spacing:0.04em;"><span>★</span><span>登録済み</span></span>'
+            :'<span class="!inline-flex !items-center !gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full" style="background:transparent;color:#7a2c44;border:1px dashed rgba(122,44,68,0.4);">未登録</span>';
+
+        const metaParts=[];
+        metaParts.push(`<span class="text-[11px] px-2 py-0.5 rounded-md font-semibold" style="background:rgba(58,20,36,0.06);color:#3a1424;border:1px solid rgba(58,20,36,0.15);">${typeLabel}</span>`);
+        if(rc>0){
+            metaParts.push(`<span class="inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums" style="color:#7a2c44;"><span>💬</span><span>${rc}</span></span>`);
+        }
+        const metaRow=`<div class="flex items-center gap-2 flex-wrap mb-2.5 mt-1.5">${metaParts.join('')}</div>`;
+
+        const infoRows=[
+            h.address          ? `<div class="hotel-card-info"><span class="flex-shrink-0 opacity-60">📍</span><span class="flex-1">${esc(h.address)}</span></div>` : '',
+            h.nearest_station  ? `<div class="hotel-card-info"><span class="flex-shrink-0 opacity-60">🚉</span><span class="flex-1">${esc(h.nearest_station)}</span></div>` : ''
+        ].join('');
+
         const actionBtns=isReg
-            ?`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">✏️ 編集</button><button class="btn" style="background:var(--bg-3);border:1px solid var(--border);color:var(--red);font-size:12px;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}">投稿削除</button>`
-            :`<button class="btn btn-rose" data-action="selectHotelById" data-arg1="${h.id}">📝 情報登録</button>`;
-        return`<div class="hotel-card" style="animation-delay:${Math.min(i*0.03,0.3)}s"><div class="hotel-card-head"><span class="hotel-card-name">${esc(h.name)}</span><span style="font-size:11px;color:var(--text-3);margin-left:6px;">${typeLabel}</span>${rcBadge}${isReg?'<span class="hotel-card-badge">✅ 登録済み</span>':''}</div>${h.address?`<div class="hotel-card-info">📍 ${esc(h.address)}</div>`:''}${h.nearest_station?`<div class="hotel-card-info">🚉 ${esc(h.nearest_station)}</div>`:''}<div class="hotel-card-footer">${actionBtns}</div></div>`;
+            ?`<button class="!inline-flex !items-center !gap-1 px-4 py-2 text-[12px] font-bold rounded-lg transition-all hover:brightness-105 active:translate-y-px shadow-sm hover:shadow-md" style="background:linear-gradient(135deg, #b5627a, #7a2c44);color:#fff8eb;border:none;font-family:inherit;cursor:pointer;" data-action="selectHotelById" data-arg1="${h.id}"><span>✏️</span><span>編集する</span></button><button class="!inline-flex !items-center !gap-1 px-3 py-2 text-[11px] font-medium rounded-lg transition-all hover:bg-[rgba(192,80,80,0.06)]" style="background:transparent;border:1px solid rgba(192,80,80,0.28);color:var(--red);font-family:inherit;cursor:pointer;" data-action="deleteRegistered" data-arg1="${regInfo?.id||''}"><span>🗑</span><span>削除</span></button>`
+            :`<button class="!inline-flex !items-center !gap-1.5 px-4 py-2.5 text-[12px] font-bold rounded-lg transition-all hover:brightness-110 active:translate-y-px" style="background:linear-gradient(135deg, #b5627a 0%, #7a2c44 100%);color:#fff;border:none;font-family:inherit;cursor:pointer;box-shadow:0 4px 12px rgba(122,44,68,0.22), inset 0 1px 0 rgba(255,255,255,0.18);letter-spacing:0.04em;" data-action="selectHotelById" data-arg1="${h.id}"><span>📝</span><span>情報を登録</span></button>`;
+
+        return`<div class="hotel-card relative" data-reg="${isReg?1:0}" style="${cardStyle}animation-delay:${delay}s">${stripe}<div class="hotel-card-head"><span class="hotel-card-name" style="color:#1a1a1a;">${esc(h.name)}</span>${statusBadge}</div>${metaRow}${infoRows}<div class="hotel-card-footer">${actionBtns}</div></div>`;
     }).join("")+'</div>';
 }
 

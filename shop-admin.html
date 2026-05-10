@@ -8,7 +8,7 @@
       全 inline onclick/onchange/oninput/onsubmit を data-action 等のイベント委譲に移行.
       style-src 'unsafe-inline' は inline style="..." が大量にあるため当面維持.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.tailwindcss.com https://www.googletagmanager.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com; img-src 'self' data: https:;">
     <title>店舗管理パネル | YobuHo</title>
     <link rel="icon" href="/favicon-shop.ico" type="image/x-icon">
     <link rel="icon" href="/favicon-shop.svg" type="image/svg+xml">
@@ -18,6 +18,24 @@
     <link rel="preload" as="style" data-font-async href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
     <script src="/font-async.js?v=1"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // CRITICAL: preflight 無効化 — 既存 565 行 CSS を壊さない
+      tailwind.config = {
+        corePlugins: { preflight: false },
+        theme: {
+          extend: {
+            colors: {
+              rose:  { DEFAULT:'#b5627a', dim:'#9a4e65', deep:'#7a2c44', ink:'#3d1424' },
+              gold:  { DEFAULT:'#c9a96e', dim:'#a8894e', rich:'#9c7124' },
+              wine:  { DEFAULT:'#3a1424', soft:'#5a2032' },
+              cream: { DEFAULT:'#fff8eb', warm:'#fdefd4' },
+              ok:    { DEFAULT:'#1f6b42', soft:'rgba(31,107,66,0.08)', edge:'rgba(31,107,66,0.35)' }
+            }
+          }
+        }
+      };
+    </script>
     <style>
         :root {
             --rose:#b5627a;--rose-dim:#9a4e65;--rose-bg:rgba(181,98,122,0.07);--rose-border:rgba(181,98,122,0.22);
@@ -583,6 +601,22 @@
                 3px 3px 8px rgba(var(--neu-accent-deep-rgb),0.12);
         }
         .cast-chat-session-item:hover { background:#fff9fb !important; }
+
+        /* ===== ホテル検索リデザイン補助（Tailwind 併用） ===== */
+        .hotel-card-info{display:flex;align-items:flex-start;gap:8px;line-height:1.55;}
+        .hotel-card-info+.hotel-card-info{margin-top:4px;}
+        /* 登録済みカード（cream/champagne）の hover */
+        .hotel-card[data-reg="1"]:hover{
+            background:linear-gradient(135deg, #fff8eb 0%, #fae3b8 100%) !important;
+            border-color:rgba(156,113,36,0.55) !important;
+        }
+        /* 未登録カード hover */
+        .hotel-card[data-reg="0"]:hover{
+            background:#fffefb !important;
+            border-color:rgba(122,44,68,0.30) !important;
+            transform:translateY(-1px);
+            box-shadow:0 6px 18px rgba(122,44,68,0.10);
+        }
     </style>
 </head>
 <body>
@@ -922,25 +956,52 @@
 
     <!-- ===== ホテル検索登録タブ ===== -->
     <div class="tab-content" id="tab-search">
-        <div class="card">
+
+        <!-- 検索カード -->
+        <div class="card relative overflow-hidden">
             <div class="card-title">ホテル名で検索</div>
+
+            <!-- 検索バー：ボタンを主役に -->
             <div class="search-bar">
-                <input class="search-input" id="hotel-keyword" placeholder="ホテル名・住所で検索..." onkeydown="if(event.key==='Enter')textSearch()">
-                <button class="btn-search" data-action="textSearch">検索</button>
+                <div class="relative flex-1 min-w-[200px]">
+                    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] pointer-events-none select-none" style="color:var(--text-3);">🔍</span>
+                    <input class="search-input !pl-10" id="hotel-keyword" placeholder="ホテル名・住所で検索..." onkeydown="if(event.key==='Enter')textSearch()">
+                </div>
+                <button class="btn-search !px-6 !py-2.5 !text-[14px] !font-bold tracking-wider transition-all hover:!brightness-105 active:translate-y-px" style="background:linear-gradient(135deg, #b5627a 0%, #7a2c44 100%);box-shadow:0 4px 12px rgba(122,44,68,0.28), inset 0 1px 0 rgba(255,255,255,0.18);" data-action="textSearch">検索する</button>
             </div>
+
             <div id="text-search-results"></div>
-            <div style="text-align:center;margin-top:12px;">
-                <button data-action="openShopHotelRequest" style="padding:8px 20px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:inherit;">📝 未掲載ホテル情報提供</button>
+
+            <div class="text-center mt-4">
+                <button data-action="openShopHotelRequest" class="inline-flex items-center gap-1.5 px-5 py-2 text-[12px] font-medium rounded-full transition-all hover:scale-[1.02]" style="background:#fff;border:1.5px dashed rgba(122,44,68,0.3);color:#7a2c44;font-family:inherit;cursor:pointer;">
+                    <span>📝</span><span>未掲載ホテルの情報を提供する</span>
+                </button>
             </div>
-            <div style="margin-top:16px;padding:12px 16px;background:rgba(181,98,122,0.06);border:1px solid rgba(181,98,122,0.15);border-radius:8px;font-size:12px;color:#3a3020;line-height:1.7;">
-                💡 <strong>ご案内実績の登録数が多いほど、該当プラン内で上位に表示されます。</strong><br>ご案内可能なエリアのホテルはすべて登録するのがおすすめです。
+
+            <!-- ヒント Box：wine 背景の callout -->
+            <div class="mt-5 relative overflow-hidden rounded-xl" style="background:linear-gradient(135deg, #3a1424 0%, #5a2032 60%, #7a2c44 100%);box-shadow:0 8px 24px rgba(58,20,36,0.25);">
+                <div class="absolute top-0 inset-x-0 h-[2px]" style="background:linear-gradient(90deg, transparent, #c9a96e 50%, transparent);"></div>
+                <div class="px-5 py-4 flex gap-3.5">
+                    <div class="flex-shrink-0 text-[24px] leading-none mt-0.5">💡</div>
+                    <div class="flex-1 text-[13px] leading-[1.75]">
+                        <div class="font-bold mb-1.5 text-[14px]" style="color:#fff8eb;letter-spacing:0.02em;">
+                            登録数が多いほど<span style="color:#c9a96e;">プラン内で上位表示</span>されます
+                        </div>
+                        <div style="color:rgba(255,248,235,0.78);">
+                            ご案内可能なエリアのホテルはすべて登録するのがおすすめです。
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="card" id="fav-areas" style="display:none;"></div>
 
         <div class="card">
-            <div class="card-title">エリアから探す <span style="font-size:11px;font-weight:400;color:var(--text-3);margin-left:8px;">⭐ でお気に入りエリアに追加できます</span></div>
+            <div class="card-title !flex !items-center">
+                <span>エリアから探す</span>
+                <span class="ml-auto text-[11px] font-normal" style="color:var(--text-3);">⭐ でお気に入り登録</span>
+            </div>
             <div class="breadcrumb" id="breadcrumb"></div>
             <div id="area-nav"></div>
         </div>
