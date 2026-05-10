@@ -40,6 +40,7 @@ const csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.j
             <div class="merit-item"><span class="merit-icon">&#128221;</span><div><strong>「ご案内実績あり」を公式発信</strong><br><span class="merit-desc">実際にご案内できたホテルの実績を店舗公式として投稿。「このホテルならこの店が対応済み」とユーザーに伝わり、予約前の不安を解消して利用につなげます</span></div></div>
             <div class="merit-item"><span class="merit-icon">&#127991;&#65039;</span><div><strong>認定店バッジ付与</strong><br><span class="merit-desc">口コミに「認定店」マークが表示され、信頼性がアップ</span></div></div>
             <div class="merit-item"><span class="merit-icon">&#128279;</span><div><strong>店舗専用URLを発行</strong><br><span class="merit-desc">自店舗の情報だけが表示される専用ページを発行。自社サイトやSNSに貼るだけで「呼べるホテル一覧」が完成。ホテルリストを自分で作る手間なし、交通費や対応情報もまとめて掲載できます</span></div></div>
+            <div class="merit-item"><span class="merit-icon">&#128172;</span><div><strong>YobuChat（訪問者と匿名チャット）が無料で使える</strong><br><span class="merit-desc">店舗専用URLや自社サイト・SNSプロフィールに 1 行コードを貼るだけで、訪問者から匿名チャットで質問・予約相談を受けられます。会員登録・アプリ不要、自動翻訳対応、キャスト指名URLも発行可能。<a href="/yobuchat/" target="_blank" rel="noopener" style="color:var(--rose);font-weight:600;text-decoration:underline;">詳しく見る →</a></span></div></div>
             <div class="merit-item"><span class="merit-icon">&#128202;</span><div><strong>店舗管理画面を利用</strong><br><span class="merit-desc">投稿の管理・編集がいつでも可能。スマホからも操作できます</span></div></div>
             <div class="merit-item"><span class="merit-icon">&#128269;</span><div><strong>全国43,000件以上のホテルに対応</strong><br><span class="merit-desc">対応エリアのホテルを検索して情報を登録できます</span></div></div>
             <div class="merit-item"><span class="merit-icon">&#128176;</span><div><strong>初期費用・月額費用ゼロ</strong><br><span class="merit-desc">完全無料で始められます</span></div></div>
@@ -253,7 +254,7 @@ const dropArea=document.getElementById('file-zone');['dragenter','dragover','dra
         --rose: #b5627a; --rose-dim: #9a4e65; --rose-bg: rgba(181,98,122,0.07); --rose-border: rgba(181,98,122,0.22);
         --bg: #f8f7f5; --bg-2: #ffffff; --bg-3: #f3f1ee;
         --border: #e8e4e0; --border-s: #d5d0cb;
-        --text: #1a1a1a; --text-2: #666666; --text-3: #999999;
+        --text: #1a1a1a; --text-2: #555555; --text-3: #6a6a6a;
         --red: #c05050; --green: #2e8b57; --r: 10px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,7 +275,7 @@ const dropArea=document.getElementById('file-zone');['dragenter','dragover','dra
     .f-input:focus { border-color: var(--rose); background: rgba(181,98,122,0.03); }
     .f-input::placeholder { color: var(--text-3); }
     select.f-input { cursor: pointer; }
-    .f-hint { font-size: 12px; color: #888; margin-top: 5px; }
+    .f-hint { font-size: 12px; color: #555555; margin-top: 5px; }
     .btn-primary { width: 100%; padding: 14px; background: var(--rose); border: none; border-radius: var(--r); color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.8px; transition: background 0.2s, opacity 0.2s; margin-top: 16px; min-height: 48px; }
     .btn-primary:focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
     .btn-primary:hover:not(:disabled) { background: var(--rose-dim); }
@@ -327,7 +328,7 @@ const dropArea=document.getElementById('file-zone');['dragenter','dragover','dra
     .merit-item { display: flex; align-items: flex-start; gap: 10px; }
     .merit-icon { font-size: 20px; flex-shrink: 0; }
     .merit-item strong { color: var(--gold-dim); }
-    .merit-desc { font-size: 13px; color: var(--text-3); }
+    .merit-desc { font-size: 13px; color: var(--text-2); line-height: 1.7; }
     .done-hero { text-align: center; padding: 40px 20px; }
     .done-icon { font-size: 48px; margin-bottom: 16px; }
     .done-title { font-size: 20px; font-weight: 700; margin-bottom: 0; }

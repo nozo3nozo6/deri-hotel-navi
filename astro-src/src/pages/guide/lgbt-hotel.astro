@@ -41,22 +41,25 @@ const jsonLd = {
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Noto Sans JP', sans-serif; background: #f4f7fa; color: #2a2520; line-height: 1.8; }
-      .guide-header { background: linear-gradient(135deg, #2a5a8f 0%, #4a8abf 100%); color: #fff; padding: 48px 20px; text-align: center; }
+      body { font-family: 'Noto Sans JP', sans-serif; background: #f0f4fa; color: #2a2520; line-height: 1.8; }
+      .guide-header { background: linear-gradient(135deg, #2a5a8f 0%, #8a5a9e 100%); color: #fff; padding: 48px 20px; text-align: center; }
       .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-      .guide-header p { font-size: 0.9rem; opacity: 0.9; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.95; }
       .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
-      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #2a5a8f; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #d6e4f0; }
-      .guide-content h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
-      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #2a5a8f; margin: 32px 0 12px; padding: 4px 0 8px 12px; border-left: 4px solid #2a5a8f; border-bottom: 2px solid rgba(42,90,143,0.18); }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; color: #1f4068; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #2a2520; }
       .guide-content ul { margin: 0 0 16px 20px; }
-      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; }
-      .cta-box { background: linear-gradient(135deg, rgba(42,90,143,0.08), rgba(74,138,191,0.08)); border: 1px solid rgba(42,90,143,0.2); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #2a2520; }
+      .guide-content li::marker { color: #2a5a8f; }
+      .guide-content strong { color: #1f4068; }
+      .cta-box { background: linear-gradient(135deg, rgba(42,90,143,0.10), rgba(138,90,158,0.10)); border: 1px solid rgba(42,90,143,0.28); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
       .cta-box a { display: inline-block; background: #2a5a8f; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; margin: 4px; }
       .cta-box a.women-same { background: #8a5a9e; }
       .cta-box a:hover { opacity: 0.9; }
-      .point-card { background: #fff; border: 1px solid #d6e4f0; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+      .point-card { background: #fff; border: 1px solid #d0dceb; border-left: 4px solid #2a5a8f; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(42,90,143,0.06); }
       .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
+      .point-card h3 { color: #2a5a8f; }
     </style>
     <script is:inline type="application/ld+json">
     {
@@ -111,8 +114,8 @@ const jsonLd = {
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">同性カップルで利用できるホテルを検索</p>
-      <a href="//same-m/">男性同士で検索</a>
-      <a href="//same-f/" class="women-same">女性同士で検索</a>
+      <a href="/same-m/">男性同士で検索</a>
+      <a href="/same-f/" class="women-same">女性同士で検索</a>
     </div>
 
     <h2>主要都市のLGBTフレンドリーエリア</h2>
@@ -121,7 +124,7 @@ const jsonLd = {
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">全国43,000件以上のホテルから検索</p>
-      <a href="//same-m/">ホテル検索へ</a>
+      <a href="/same-m/">ホテル検索へ</a>
     </div>
   </div>
 

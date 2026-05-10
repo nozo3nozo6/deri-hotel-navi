@@ -41,21 +41,24 @@ const jsonLd = {
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Noto Sans JP', sans-serif; background: #f0fafb; color: #1a2a2c; line-height: 1.8; }
+      body { font-family: 'Noto Sans JP', sans-serif; background: #ebf8fa; color: #1a2a2c; line-height: 1.8; }
       .guide-header { background: linear-gradient(135deg, #2aa8b8 0%, #5fc7d4 100%); color: #fff; padding: 48px 20px; text-align: center; }
       .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-      .guide-header p { font-size: 0.9rem; opacity: 0.9; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.95; }
       .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
-      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #2aa8b8; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #d6eff2; }
-      .guide-content h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
-      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #1f7d8a; margin: 32px 0 12px; padding: 4px 0 8px 12px; border-left: 4px solid #2aa8b8; border-bottom: 2px solid rgba(42,168,184,0.18); }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; color: #1f7d8a; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #1a2a2c; }
       .guide-content ul { margin: 0 0 16px 20px; }
-      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; }
-      .cta-box { background: linear-gradient(135deg, rgba(42,168,184,0.08), rgba(95,199,212,0.08)); border: 1px solid rgba(42,168,184,0.2); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #1a2a2c; }
+      .guide-content li::marker { color: #2aa8b8; }
+      .guide-content strong { color: #1f7d8a; }
+      .cta-box { background: linear-gradient(135deg, rgba(42,168,184,0.10), rgba(95,199,212,0.10)); border: 1px solid rgba(42,168,184,0.28); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
       .cta-box a { display: inline-block; background: #2aa8b8; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
       .cta-box a:hover { opacity: 0.9; }
-      .point-card { background: #fff; border: 1px solid #d6eff2; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+      .point-card { background: #fff; border: 1px solid #c5e6eb; border-left: 4px solid #2aa8b8; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(42,168,184,0.06); }
       .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
+      .point-card h3 { color: #1f7d8a; }
     </style>
     <script is:inline type="application/ld+json">
     {

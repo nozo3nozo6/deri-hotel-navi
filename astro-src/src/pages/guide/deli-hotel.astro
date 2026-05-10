@@ -41,21 +41,24 @@ const jsonLd = {
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Noto Sans JP', sans-serif; background: #faf8f4; color: #2a2520; line-height: 1.8; }
+      body { font-family: 'Noto Sans JP', sans-serif; background: #fdf3f1; color: #2a2520; line-height: 1.8; }
       .guide-header { background: linear-gradient(135deg, #9b2d35 0%, #c0392b 100%); color: #fff; padding: 48px 20px; text-align: center; }
       .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-      .guide-header p { font-size: 0.9rem; opacity: 0.9; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.95; }
       .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
-      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #9b2d35; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #f0e6d6; }
-      .guide-content h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
-      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #9b2d35; margin: 32px 0 12px; padding: 4px 0 8px 12px; border-left: 4px solid #9b2d35; border-bottom: 2px solid rgba(155,45,53,0.18); }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; color: #6a1f25; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #2a2520; }
       .guide-content ul { margin: 0 0 16px 20px; }
-      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; }
-      .cta-box { background: linear-gradient(135deg, rgba(155,45,53,0.08), rgba(192,57,43,0.08)); border: 1px solid rgba(155,45,53,0.2); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #2a2520; }
+      .guide-content li::marker { color: #9b2d35; }
+      .guide-content strong { color: #6a1f25; }
+      .cta-box { background: linear-gradient(135deg, rgba(155,45,53,0.10), rgba(192,57,43,0.10)); border: 1px solid rgba(155,45,53,0.28); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
       .cta-box a { display: inline-block; background: #c0392b; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
       .cta-box a:hover { opacity: 0.9; }
-      .point-card { background: #fff; border: 1px solid #e8e0d4; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+      .point-card { background: #fff; border: 1px solid #e8d0d2; border-left: 4px solid #9b2d35; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(155,45,53,0.06); }
       .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
+      .point-card h3 { color: #9b2d35; }
     </style>
     <script is:inline type="application/ld+json">
     {
@@ -112,7 +115,7 @@ const jsonLd = {
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">全国43,000件以上のホテルから「呼べるホテル」を検索</p>
-      <a href="//deli/">今すぐ検索する</a>
+      <a href="/deli/">今すぐ検索する</a>
     </div>
 
     <h2>YobuHoの口コミの見方</h2>
@@ -125,7 +128,7 @@ const jsonLd = {
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">口コミで呼べるホテルをチェック</p>
-      <a href="//deli/">ホテル検索へ</a>
+      <a href="/deli/">ホテル検索へ</a>
     </div>
   </div>
 
