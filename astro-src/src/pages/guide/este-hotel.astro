@@ -41,24 +41,28 @@ const jsonLd = {
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap"></noscript>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Noto Sans JP', sans-serif; background: #ebf8fa; color: #1a2a2c; line-height: 1.8; }
-      .guide-header { background: linear-gradient(135deg, #2aa8b8 0%, #5fc7d4 100%); color: #fff; padding: 48px 20px; text-align: center; }
-      .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-      .guide-header p { font-size: 0.9rem; opacity: 0.95; }
+      /* ポータル/este/ と同じパレット: bg=#faf6f0, border=#e8d8c8, text=#1a1410, accent=#2aa8b8 */
+      body { font-family: 'Noto Sans JP', sans-serif; background: #faf6f0; color: #1a1410; line-height: 1.85; }
+      .guide-header { background: linear-gradient(135deg, #1a1410 0%, #1f7d8a 50%, #2aa8b8 100%); color: #fff; padding: 56px 20px; text-align: center; position: relative; overflow: hidden; }
+      .guide-header::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 15% 30%, rgba(76,200,208,0.28) 0%, transparent 50%), radial-gradient(ellipse at 85% 70%, rgba(95,199,212,0.22) 0%, transparent 50%); pointer-events: none; }
+      .guide-header > * { position: relative; z-index: 1; }
+      .guide-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.03em; }
+      .guide-header p { font-size: 0.9rem; opacity: 0.85; color: rgba(255,255,255,0.88); }
       .guide-content { max-width: 720px; margin: 0 auto; padding: 32px 20px; }
-      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #1f7d8a; margin: 32px 0 12px; padding: 4px 0 8px 12px; border-left: 4px solid #2aa8b8; border-bottom: 2px solid rgba(42,168,184,0.18); }
-      .guide-content h3 { font-size: 1rem; font-weight: 600; color: #1f7d8a; margin: 20px 0 8px; }
-      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #1a2a2c; }
+      .guide-content h2 { font-size: 1.2rem; font-weight: 700; color: #1f7d8a; margin: 32px 0 12px; padding: 4px 0 8px 12px; border-left: 4px solid #2aa8b8; }
+      .guide-content h3 { font-size: 1rem; font-weight: 600; color: #1a1410; margin: 20px 0 8px; }
+      .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #3a2a1f; }
       .guide-content ul { margin: 0 0 16px 20px; }
-      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #1a2a2c; }
+      .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #3a2a1f; }
       .guide-content li::marker { color: #2aa8b8; }
       .guide-content strong { color: #1f7d8a; }
-      .cta-box { background: linear-gradient(135deg, rgba(42,168,184,0.10), rgba(95,199,212,0.10)); border: 1px solid rgba(42,168,184,0.28); border-radius: 12px; padding: 24px; text-align: center; margin: 32px 0; }
-      .cta-box a { display: inline-block; background: #2aa8b8; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
-      .cta-box a:hover { opacity: 0.9; }
-      .point-card { background: #fff; border: 1px solid #c5e6eb; border-left: 4px solid #2aa8b8; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(42,168,184,0.06); }
+      .cta-box { background: #fff; border: 1px solid #e8d8c8; border-left: 4px solid #2aa8b8; border-radius: 10px; padding: 24px; text-align: center; margin: 32px 0; box-shadow: 0 2px 8px rgba(26,20,16,0.04); }
+      .cta-box p { color: #1a1410; }
+      .cta-box a { display: inline-block; background: #2aa8b8; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.15s; }
+      .cta-box a:hover { background: #1f7d8a; }
+      .point-card { background: #fff; border: 1px solid #e8d8c8; border-left: 4px solid #2aa8b8; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
       .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
-      .point-card h3 { color: #1f7d8a; }
+      .point-card h3 { color: #1f7d8a; margin-top: 0; }
     </style>
     <script is:inline type="application/ld+json">
     {
