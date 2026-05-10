@@ -109,6 +109,28 @@ const jsonLd = [
         </div>
     </section>
 
+    <section class="guide-section">
+        <h2>詳しく知るためのガイド</h2>
+        <div class="guide-cards">
+            <a href="/guide/deli-hotel.html" class="guide-card">
+                <h3>デリヘルを呼べるホテルの見分け方</h3>
+                <p>カードキー・直通エレベーター・フロント運用の見分け方を解説。</p>
+            </a>
+            <a href="/guide/jofu-hotel.html" class="guide-card">
+                <h3>女風（女性用風俗）を呼べるホテルの選び方</h3>
+                <p>セラピスト派遣可能なホテルの見分け方ガイド。</p>
+            </a>
+            <a href="/guide/lgbt-hotel.html" class="guide-card">
+                <h3>同性カップル・LGBTフレンドリーなホテル</h3>
+                <p>ゲイ・レズビアンカップルが安心して利用できるホテル選び。</p>
+            </a>
+            <a href="/guide/este-hotel.html" class="guide-card">
+                <h3>デリエステ・回春マッサージを呼べるホテル</h3>
+                <p>出張型エステ・M性感を呼べるホテルの見分け方ガイド。</p>
+            </a>
+        </div>
+    </section>
+
     <p class="age-notice">※当サイトは成人向けの情報を含みます。18歳未満および高校生の方はご利用いただけません。</p>
     </main>
 
@@ -284,11 +306,20 @@ __deferRun(function(){
     .trust-icon { font-size: 28px; margin-bottom: 10px; }
     .trust-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--accent-dim); }
     .trust-card p { font-size: 12px; color: var(--text-2); line-height: 1.7; }
+    .guide-section { padding: 40px 20px; background: var(--bg); }
+    .guide-section h2 { text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+    .guide-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 800px; margin: 0 auto; }
+    .guide-card { display: block; background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 16px; text-decoration: none; color: var(--text); transition: border-color 0.15s, transform 0.15s; }
+    .guide-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .guide-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--accent-dim); }
+    .guide-card p { font-size: 12px; color: var(--text-2); line-height: 1.6; margin: 0; }
     .age-notice { text-align: center; color: #999; font-size: 12px; margin: 16px 0; padding: 0 20px; }
     @media (max-width: 640px) {
         .hero { padding: 14px 16px 12px; }
         .hero h1 { font-size: 20px; margin-bottom: 4px; }
         .hero-sub { font-size: 12px; line-height: 1.5; }
         .trust-cards { grid-template-columns: 1fr; gap: 12px; }
+        .guide-cards { grid-template-columns: 1fr; gap: 10px; }
+        .guide-section { padding: 32px 16px; }
     }
 </style>

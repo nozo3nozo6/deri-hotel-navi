@@ -497,6 +497,13 @@ if (!$hotel_id && $pref) {
             $seo_static .= '掲載ホテル数: <strong>' . number_format($prefCount) . '件</strong>（ビジネス/シティ/ラブホ含む）。';
         }
         $seo_static .= '利用者の口コミと掲載店舗の案内実績情報から、実際に' . $esc_fn($label . $verb) . 'か判断できます。</p>';
+
+        // 店舗登録CTAブロック（{pref}の店舗様向け、無料掲載訴求）
+        $seo_static .= '<div style="background:#fff; border:1px solid ' . $accent . '; border-radius:8px; padding:16px 18px; margin:16px 0 8px;">';
+        $seo_static .= '<h3 style="font-size:15px; margin:0 0 8px; color:' . $accent . '; font-weight:600;">' . $esc_fn($pref) . 'の' . $esc_fn($label) . '店舗様へ — 無料で掲載しませんか？</h3>';
+        $seo_static .= '<p style="margin:0 0 12px; font-size:13px; color:#5a4a3a; line-height:1.7;">YobuHoは届出確認済み店舗の<strong>無料掲載</strong>を受付中。成果報酬なし・初期費用ゼロ・店舗専用URL発行で、43,000件以上のホテル情報に対応した集客ページを作れます。</p>';
+        $seo_static .= '<a href="https://yobuho.com/shop-register/" style="display:inline-block; padding:10px 18px; background:' . $accent . '; border-radius:6px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;">店舗登録（無料）→</a>';
+        $seo_static .= '</div>';
     }
 
     // 共通末尾: 全国ページへの戻りリンク
@@ -561,6 +568,20 @@ if ($hotel_id && isset($hotel) && $hotel) {
         $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($hp) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $h_esc($hp) . '全体</a>';
     }
     $seo_static .= '</div>';
+
+    // モード別ガイドへの導線（ロングテール送客）
+    $h_guideMap = [
+        'men'        => ['/guide/deli-hotel.html',  'デリヘルを呼べるホテルの見分け方ガイド'],
+        'women'      => ['/guide/jofu-hotel.html',  '女性用風俗（女風）を呼べるホテルの選び方'],
+        'men_same'   => ['/guide/lgbt-hotel.html',  'LGBTフレンドリーなホテルの探し方ガイド'],
+        'women_same' => ['/guide/lgbt-hotel.html',  'LGBTフレンドリーなホテルの探し方ガイド'],
+        'este'       => ['/guide/este-hotel.html',  'デリエステを呼べるホテルの選び方ガイド'],
+    ];
+    if (isset($h_guideMap[$mode])) {
+        [$h_guideHref, $h_guideLabel] = $h_guideMap[$mode];
+        $seo_static .= '<h3 style="' . $h_h3Style . '">もっと詳しく知る</h3>';
+        $seo_static .= '<a href="' . $h_esc($h_guideHref) . '" class="seo-area-card" style="display:inline-block; padding:10px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $h_esc($h_guideLabel) . ' →</a>';
+    }
 
     // 全国ページへの戻りリンク
     $seo_static .= '<p style="margin-top:24px;"><a href="https://yobuho.com/' . $h_esc($path) . '/" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $h_accent . '; text-decoration:none; font-size:13px; font-weight:500;">← ' . $h_esc($m['label']) . '全国ページへ</a></p>';

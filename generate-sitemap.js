@@ -95,7 +95,7 @@ urls.push(entry(`${BASE_URL}/guide/este-hotel.html`, '0.8', 'weekly'));
 urls.push(entry(`${BASE_URL}/terms/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/privacy/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/contact/`, '0.3', 'monthly'));
-urls.push(entry(`${BASE_URL}/shop-register/`, '0.5', 'monthly'));
+urls.push(entry(`${BASE_URL}/shop-register/`, '0.8', 'weekly'));
 
 // 都道府県 x モード別URL（サブディレクトリ方式）
 for (const mode of MODES) {

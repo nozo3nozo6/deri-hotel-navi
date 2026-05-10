@@ -145,6 +145,31 @@ const ACCENT_COLOR = {
   women_same: '#8a5a9e',
   este: '#2aa8b8',
 }[mode];
+
+// モード別ガイドリンク（ロングテール送客のための「もっと詳しく」セクション）
+const GUIDE_LINKS: Record<string, { href: string; title: string; desc: string }[]> = {
+  men: [
+    { href: '/guide/deli-hotel.html', title: 'デリヘルを呼べるホテルの見分け方・選び方', desc: 'カードキー・直通エレベーター・フロント運用の見分け方を解説。' },
+    { href: '/guide/lgbt-hotel.html', title: '同性カップル・LGBTフレンドリーなホテルの探し方', desc: 'ゲイ・レズビアンカップルが安心して利用できるホテル選び。' },
+  ],
+  women: [
+    { href: '/guide/jofu-hotel.html', title: '女性用風俗（女風）を呼べるホテルの選び方', desc: 'セラピスト派遣可能なホテルの見分け方・選び方ガイド。' },
+    { href: '/guide/lgbt-hotel.html', title: '同性カップル・LGBTフレンドリーなホテルの探し方', desc: 'ゲイ・レズビアンカップルが安心して利用できるホテル選び。' },
+  ],
+  este: [
+    { href: '/guide/este-hotel.html', title: 'デリエステ・回春マッサージを呼べるホテルの選び方', desc: '出張型エステ・M性感を呼べるホテルの見分け方ガイド。' },
+    { href: '/guide/deli-hotel.html', title: 'デリヘルを呼べるホテルの見分け方', desc: '入室方法・カードキー・直通など入り方の参考に。' },
+  ],
+  men_same: [
+    { href: '/guide/lgbt-hotel.html', title: '同性カップル・LGBTフレンドリーなホテルの探し方', desc: 'ゲイカップルが気兼ねなく利用できるホテル選びのコツ。' },
+    { href: '/guide/deli-hotel.html', title: 'デリヘルを呼べるホテルの見分け方', desc: 'カードキー・直通など入室方法の解説。' },
+  ],
+  women_same: [
+    { href: '/guide/lgbt-hotel.html', title: '同性カップル・LGBTフレンドリーなホテルの探し方', desc: 'レズビアンカップルが気兼ねなく利用できるホテル選び。' },
+    { href: '/guide/jofu-hotel.html', title: '女性用風俗を呼べるホテルの選び方', desc: 'セラピスト派遣可能なホテルの見分け方ガイド。' },
+  ],
+};
+const guideLinks = GUIDE_LINKS[mode];
 ---
 <section class="seo-bottom-section" data-seo-toponly="1" data-mode={mode} aria-labelledby="seo-bottom-title" style={`background:#faf6f0; padding:32px 16px; margin-top:32px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;`}>
   <div style="max-width:880px; margin:0 auto;">
@@ -181,6 +206,16 @@ const ACCENT_COLOR = {
           </h3>
           <p style="margin:0; font-size:13px; color:#5a4a3a; line-height:1.7;">{t.desc}</p>
         </div>
+      ))}
+    </div>
+
+    <h2 style={`font-size:18px; margin:32px 0 12px; color:${ACCENT_COLOR}; border-left:4px solid ${ACCENT_COLOR}; padding-left:10px;`}>もっと詳しく知る</h2>
+    <div class="seo-guide-links" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+      {guideLinks.map((g) => (
+        <a href={g.href} style={`display:block; background:#fff; border:1px solid #e8d8c8; border-radius:8px; padding:14px 16px; color:#3a2a1f; text-decoration:none; transition:background 0.15s, border-color 0.15s;`}>
+          <h3 style={`font-size:14px; margin:0 0 6px; font-weight:600; color:${ACCENT_COLOR};`}>{g.title} →</h3>
+          <p style="margin:0; font-size:13px; color:#5a4a3a; line-height:1.6;">{g.desc}</p>
+        </a>
       ))}
     </div>
 
