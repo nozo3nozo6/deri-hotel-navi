@@ -213,12 +213,15 @@ function onLoggedIn(){
     loadDashboard();
 }
 
-// YobuChatタブはテスト店舗のみ表示（本番ローンチ時にこの配列を空にすれば全店舗に開放）
-const CHAT_TAB_TESTERS=['dgqeiw1i'];
+// YobuChatタブは全店舗に公開（本番ローンチ済み）。実際のチャット有効化は shop_chat_status テーブルで制御。
+// 配列に slug を入れるとその店舗のみに制限可能（緊急時のロールバック用）。空 = 全店舗開放。
+const CHAT_TAB_TESTERS=[];
 function applyChatTabVisibility(){
     const btn=document.getElementById('tab-btn-chat');
     if(!btn)return;
-    const allowed=currentShop&&currentShop.slug&&CHAT_TAB_TESTERS.includes(currentShop.slug);
+    const allowed = CHAT_TAB_TESTERS.length === 0
+        ? !!(currentShop && currentShop.slug)
+        : !!(currentShop && currentShop.slug && CHAT_TAB_TESTERS.includes(currentShop.slug));
     btn.style.display=allowed?'':'none';
     if(!allowed){
         const tabContent=document.getElementById('tab-chat');
