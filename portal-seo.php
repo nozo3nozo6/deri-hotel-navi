@@ -558,7 +558,7 @@ if (!$hotel_id && $pref) {
             $neighborCities = array_slice($neighborCities, 0, 7);
 
             if (count($neighborCities) > 0) {
-                $seo_static .= '<h3 style="' . $h3Style . '">近隣エリア（' . $esc_fn($area) . '内）</h3>';
+                $seo_static .= '<h3 style="' . $h3Style . '">近隣エリア（' . $esc_fn($area) . '）</h3>';
                 $seo_static .= '<div style="' . $gridStyle . '">';
                 foreach ($neighborCities as [$nCity, $nCount]) {
                     $nUrl = 'https://yobuho.com/' . $path . '/' . rawurlencode($pref) . '/' . rawurlencode($nCity);
