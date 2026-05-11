@@ -231,11 +231,12 @@ function applyChatTabVisibility(){
     }
 }
 
-// キャスト管理タブはshops.cast_enabled=1の店舗のみ表示（テスト段階は立川秘密基地のみ）
+// キャスト管理タブはプラン連動: cast_limit > 0 のプランに契約中の店舗のみ表示.
+// shop-auth.php profile が cast_eligible / cast_limit を返す.
 function applyCastTabVisibility(){
     const btn=document.getElementById('tab-btn-cast');
     if(!btn)return;
-    const allowed=!!(currentShop&&Number(currentShop.cast_enabled)===1);
+    const allowed=!!(currentShop&&(currentShop.cast_eligible||Number(currentShop.cast_limit)>0));
     btn.style.display=allowed?'':'none';
     if(!allowed){
         const tabContent=document.getElementById('tab-cast');

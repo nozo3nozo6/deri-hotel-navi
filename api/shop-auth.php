@@ -200,6 +200,20 @@ function handleProfile() {
         'contract_plans' => ['name' => $c['name'], 'price' => (int)$c['price']]
     ], $contracts);
 
+    // プラン連動キャスト枠: 契約中 (expires_at NULL or 未来) のプランの中で最大 cast_limit を採用.
+    // 0 = 投稿リンクプラン未満 → shop-admin のキャスト管理タブ非表示.
+    $castStmt = $pdo->prepare(
+        'SELECT COALESCE(MAX(cp.cast_limit), 0) AS cast_limit
+         FROM shop_contracts sc
+         JOIN contract_plans cp ON cp.id = sc.plan_id
+         WHERE sc.shop_id = ?
+           AND (sc.expires_at IS NULL OR sc.expires_at > NOW())'
+    );
+    $castStmt->execute([$auth['shop_id']]);
+    $castLimit = (int)$castStmt->fetchColumn();
+    $shop['cast_limit'] = $castLimit;
+    $shop['cast_eligible'] = $castLimit > 0;
+
     echo json_encode($shop, JSON_UNESCAPED_UNICODE);
 }
 

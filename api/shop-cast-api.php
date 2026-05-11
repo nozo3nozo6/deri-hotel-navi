@@ -3,7 +3,8 @@
  * shop-cast-api.php — 店舗側 Cast 管理 API
  *
  * 全action: PHPセッション認証必須（shop-auth.php のセッション共有）
- * 前提: shops.cast_enabled = 1 (テスト段階は立川秘密基地のみ)
+ * 前提: 投稿リンクプラン以上 (contract_plans.cast_limit > 0) に契約中の店舗のみ利用可
+ *       （旧 shops.cast_enabled 手動フラグはプラン連動ゲートに置換、テスト段階終了）
  *
  * Actions:
  *   - list          : 自店舗の Cast 一覧 + 定員情報
@@ -61,7 +62,7 @@ function requireAuth(): array {
 
 function requireCastEnabled(string $shopId): array {
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, shop_name, cast_enabled FROM shops WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT id, shop_name FROM shops WHERE id = ?');
     $stmt->execute([$shopId]);
     $shop = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$shop) {
@@ -69,9 +70,11 @@ function requireCastEnabled(string $shopId): array {
         echo json_encode(['error' => 'Shop not found']);
         exit;
     }
-    if (!(int)$shop['cast_enabled']) {
+    // プラン連動ゲート: cast_limit > 0 のプランに「契約中」(expires_at NULL or 未来) ならOK.
+    // 旧 shops.cast_enabled 手動フラグの判定は廃止 (テスト段階を脱したため).
+    if (getCurrentPlanLimit($shopId) <= 0) {
         http_response_code(403);
-        echo json_encode(['error' => 'Cast feature not enabled for this shop']);
+        echo json_encode(['error' => 'キャスト機能は投稿リンクプラン以上でご利用いただけます']);
         exit;
     }
     return $shop;
@@ -85,10 +88,12 @@ function getCurrentPlanLimit(string $shopId): int {
 // 複数契約がある場合は cast_limit が最も大きい（同値なら price が高い）プランを「キャスト枠の根拠」として返す.
 function getCurrentPlanInfo(string $shopId): array {
     $pdo = DB::conn();
+    // expires_at NULL または将来日のみ「契約中」とみなす (admin.js の syncBestPlan と同一判定).
     $sql = 'SELECT cp.name, cp.cast_limit
             FROM shop_contracts sc
             JOIN contract_plans cp ON cp.id = sc.plan_id
             WHERE sc.shop_id = ?
+              AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
             ORDER BY cp.cast_limit DESC, cp.price DESC
             LIMIT 1';
     $stmt = $pdo->prepare($sql);
