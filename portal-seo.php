@@ -524,8 +524,32 @@ if (!$hotel_id && $pref) {
             }
         }
 
-        // 注: 「同じエリア内の他の市区町村」リンク集はメインUI（エリアナビ）と完全重複するため削除済み.
-        //      Googlebot は JS 実行可能なため、メインUIのコンテンツも認識可能.
+        // --- 近隣エリア（同じエリア内の他の市区町村） ---
+        // メインUIのエリアナビは折り畳み式UIのため、SEO観点では明示HTMLリンクの方が信頼性が高い.
+        // area-data.json の area[$pref\t$area].ct から自エリア内の他市区町村を取得し、最大7件まで表示.
+        if ($areaKey && isset($areaData['area'][$areaKey]['ct']) && is_array($areaData['area'][$areaKey]['ct'])) {
+            $neighborCities = [];
+            foreach ($areaData['area'][$areaKey]['ct'] as $row) {
+                $cityName = $row[0] ?? '';
+                if (!$cityName || $cityName === $city) continue;
+                $cityCount = ($row[1] ?? 0) + ($row[2] ?? 0);
+                $neighborCities[] = [$cityName, $cityCount];
+            }
+            // 件数の多い順に並べて上位7件
+            usort($neighborCities, fn($a, $b) => $b[1] <=> $a[1]);
+            $neighborCities = array_slice($neighborCities, 0, 7);
+
+            if (count($neighborCities) > 0) {
+                $seo_static .= '<h3 style="' . $h3Style . '">近隣エリア（' . $esc_fn($area) . '内）</h3>';
+                $seo_static .= '<div style="' . $gridStyle . '">';
+                foreach ($neighborCities as [$nCity, $nCount]) {
+                    $nUrl = 'https://yobuho.com/' . $path . '/' . rawurlencode($pref) . '/' . rawurlencode($nCity);
+                    $countText = $nCount > 0 ? '<span style="color:#8a7a6a; font-size:12px; margin-left:4px;">（' . number_format($nCount) . '件）</span>' : '';
+                    $seo_static .= '<a href="' . $esc_fn($nUrl) . '" class="seo-area-card" style="display:block; padding:10px 14px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $accent . '; text-decoration:none; font-weight:500; font-size:14px; line-height:1.5;">' . $esc_fn($nCity) . $countText . '</a>';
+                }
+                $seo_static .= '</div>';
+            }
+        }
     } elseif ($detail && $area) {
         // --- 詳細エリアページ: 説明文のみ. 市区町村リンクはメインUIと重複のため削除済み. ---
         $seo_static .= '<p style="margin:0 0 16px;">' . $esc_fn($pref . ' ' . $area . ' ' . $detail) . 'エリアで' . $esc_fn($label . $verb) . 'ホテルを市区町村別に検索。</p>';

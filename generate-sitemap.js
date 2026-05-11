@@ -98,18 +98,28 @@ urls.push(entry(`${BASE_URL}/privacy/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/contact/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/shop-register/`, '0.8', 'weekly'));
 
-// 都道府県 x モード別URL（サブディレクトリ方式）
+// 主要15都道府県（手書きdescription対応・搭載ホテル数多い）— priority 0.8
+const MAJOR_PREFS = new Set([
+  '東京都', '神奈川県', '埼玉県', '千葉県', '大阪府', '愛知県', '福岡県',
+  '北海道', '宮城県', '兵庫県', '京都府', '広島県', '新潟県', '静岡県', '沖縄県',
+]);
+
+// 都道府県 x モード別URL（規模に応じて出し分け）
+//   - 主要15都道府県: 0.8（搭載ホテル多・検索ボリューム大）
+//   - その他32都道府県: 0.5（地方・低検索ボリューム）
 for (const mode of MODES) {
   const mp = MODE_PATH[mode];
   for (const pref of PREFECTURES) {
-    urls.push(entry(`${BASE_URL}/${mp}/${encodeURIComponent(pref)}`, '0.6', 'daily'));
+    const priority = MAJOR_PREFS.has(pref) ? '0.8' : '0.5';
+    urls.push(entry(`${BASE_URL}/${mp}/${encodeURIComponent(pref)}`, priority, 'daily'));
   }
 }
 
-// 主要都市 x モード別URL（高検索ボリューム）
+// 主要都市 x モード別URL（高検索ボリューム）— priority 0.7（pref トップ層と店舗URLの間）
 for (const mode of MODES) {
   const mp = MODE_PATH[mode];
-  const priority = (mode === 'men' || mode === 'women') ? '0.5' : '0.4';
+  // men/women は需要が高いので 0.7、その他モードは 0.5
+  const priority = (mode === 'men' || mode === 'women') ? '0.7' : '0.5';
   for (const [pref, cities] of Object.entries(MAJOR_CITIES)) {
     for (const city of cities) {
       urls.push(entry(
