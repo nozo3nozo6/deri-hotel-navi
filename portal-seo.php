@@ -459,7 +459,25 @@ if (!$hotel_id && $pref) {
     if ($city) {
         // --- 市区町村ページ: 上位ホテル10件 + 近隣市区町村リンク ---
         $totalInArea = 0;
+        // areaKey 解決: URL に area あり → 即用 / なし → city から所属エリアを逆引き
+        // canonical URL は /pref/city（2セグ）なので URL に area が無いケースが大半.
+        // L-S3 近隣エリアセクションのために、city から area を逆引きする.
         $areaKey = $area ? $pref . "\t" . $area : '';
+        if (!$areaKey && $city && isset($areaData['pref'][$pref]['areas'])) {
+            foreach ($areaData['pref'][$pref]['areas'] as $aRow) {
+                $aName = $aRow[0] ?? '';
+                if (!$aName) continue;
+                $candidateKey = $pref . "\t" . $aName;
+                if (!isset($areaData['area'][$candidateKey]['ct'])) continue;
+                foreach ($areaData['area'][$candidateKey]['ct'] as $cRow) {
+                    if (($cRow[0] ?? '') === $city) {
+                        $areaKey = $candidateKey;
+                        $area = $aName; // 近隣エリア見出し用に保持
+                        break 2;
+                    }
+                }
+            }
+        }
         if ($areaKey && isset($areaData['area'][$areaKey]['ct'])) {
             foreach ($areaData['area'][$areaKey]['ct'] as $row) {
                 if ($row[0] === $city) { $totalInArea = ($row[1] ?? 0) + ($row[2] ?? 0); break; }
