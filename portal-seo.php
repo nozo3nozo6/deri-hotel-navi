@@ -590,6 +590,7 @@ if (!$hotel_id && $pref) {
         $seo_static .= '<h3 style="font-size:15px; margin:0 0 8px; color:' . $accent . '; font-weight:600;">' . $esc_fn($pref) . 'の' . $esc_fn($label) . '店舗様へ — 無料で掲載しませんか？</h3>';
         $seo_static .= '<p style="margin:0 0 12px; font-size:13px; color:#5a4a3a; line-height:1.7;">YobuHoは届出確認済み店舗の<strong>無料掲載</strong>を受付中。成果報酬なし・初期費用ゼロ・店舗専用URL発行で、43,000件以上のホテル情報に対応した集客ページを作れます。</p>';
         $seo_static .= '<a href="https://yobuho.com/shop-register/" style="display:inline-block; padding:10px 18px; background:' . $accent . '; border-radius:6px; color:#fff; text-decoration:none; font-size:13px; font-weight:600;">店舗登録（無料）→</a>';
+        $seo_static .= '<a href="https://yobuho.com/about/" style="display:inline-block; padding:10px 16px; margin-left:8px; background:#fff; border:1px solid ' . $accent . '; border-radius:6px; color:' . $accent . '; text-decoration:none; font-size:13px; font-weight:600;">審査プロセスを見る</a>';
         $seo_static .= '</div>';
     }
 

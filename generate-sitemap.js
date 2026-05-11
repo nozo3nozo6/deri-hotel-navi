@@ -82,6 +82,7 @@ urls.push(entry(`${BASE_URL}/jofu/`, '0.9', 'daily'));
 urls.push(entry(`${BASE_URL}/same-m/`, '0.7', 'weekly'));
 urls.push(entry(`${BASE_URL}/same-f/`, '0.7', 'weekly'));
 urls.push(entry(`${BASE_URL}/este/`, '0.7', 'weekly'));
+urls.push(entry(`${BASE_URL}/loveho/`, '0.8', 'weekly'));
 
 // サブドメインURL削除済み — canonical はパスベースURL（/deli/ 等）に統一
 
