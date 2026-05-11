@@ -249,6 +249,10 @@ function applyCastTabVisibility(){
 async function loadStatusCard(){
     let data;
     try{const pRes=await fetch("/api/shop-auth.php?action=profile",{credentials:'include'});data=await pRes.json();if(!data||data.error)return;currentShop=data;}catch(e){return;}
+    // profile API でしか返らない cast_eligible / cast_limit と最新の plan/契約情報を反映するため、
+    // タブ可視ロジックを再実行 (onLoggedIn 内の初回呼び出しは login/check 応答ベースで古い)
+    applyCastTabVisibility();
+    applyChatTabVisibility();
     const st=data.status||"pending";
     const badgeMap={active:['掲載中','st-active'],registered:['審査中','st-registered'],suspended:['掲載停止中','st-suspended'],rejected:['却下','st-rejected'],revision_required:['不備あり・再申請してください','st-revision'],email_pending:['認証待ち','st-pending']};
     const[label,cls]=badgeMap[st]||['不明','st-suspended'];
