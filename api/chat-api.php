@@ -2273,6 +2273,29 @@ function handleAdminOverview() {
     $shopId = $auth['shop_id'];
     $pdo = DB::conn();
 
+    // プラン連動 lazy provisioning:
+    // 投稿リンクプラン以上（= contract_plans.price > 0 の有料プラン）に「契約中」の
+    // shop_contracts 行が1つでもあれば YobuChat を解放する（無料プラン専用ではない）。
+    // shops.plan_id を見ず shop_contracts を直接見るため、同期タイミングや plan_id 番号付けに依存しない。
+    // expires_at NULL または将来日のみ「契約中」とみなす（admin.js の syncBestPlan と同じ判定）。
+    // notify_mode='off' で行を作るため通知メールは送られず、オーナーが明示的にONにする必要がある
+    // (feedback_chat_notify_default_off ルール準拠)。
+    $gateStmt = $pdo->prepare(
+        'SELECT 1
+         FROM shop_contracts sc
+         JOIN contract_plans cp ON cp.id = sc.plan_id
+         WHERE sc.shop_id = ?
+           AND cp.price > 0
+           AND (sc.expires_at IS NULL OR sc.expires_at > NOW())
+         LIMIT 1'
+    );
+    $gateStmt->execute([$shopId]);
+    if ($gateStmt->fetchColumn()) {
+        $pdo->prepare(
+            'INSERT IGNORE INTO shop_chat_status (shop_id, notify_mode) VALUES (?, "off")'
+        )->execute([$shopId]);
+    }
+
     // 有効化状態取得
     $stmt = $pdo->prepare(
         'SELECT s.slug, s.shop_name, s.email AS shop_email,
