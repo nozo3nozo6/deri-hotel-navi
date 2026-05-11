@@ -1,0 +1,120 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+
+const title = 'YobuHo について｜口コミ審査・店舗届出確認のプロセス';
+const description = 'YobuHo は呼べるホテルを口コミから検索できるポータルサイトです。投稿レート制限・店舗届出確認書の目視審査・フラグ通報など、信頼性を守る仕組みを公開しています。運営方針と編集体制について。';
+const canonical = 'https://yobuho.com/about/';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'AboutPage',
+  'name': title,
+  'description': description,
+  'url': canonical,
+  'inLanguage': 'ja',
+  'mainEntity': {
+    '@type': 'Organization',
+    'name': 'YobuHo Check-In Partners',
+    'url': 'https://yobuho.com/',
+    'logo': 'https://yobuho.com/ogp.png',
+    'email': 'hotel@yobuho.com',
+    'description': '呼べるホテル検索ポータル YobuHo の運営事業者。口コミと店舗届出情報のダブルチェックでホテル情報を提供。',
+    'contactPoint': {
+      '@type': 'ContactPoint',
+      'email': 'hotel@yobuho.com',
+      'contactType': 'customer support',
+      'availableLanguage': ['ja']
+    }
+  }
+};
+---
+
+<LegalLayout
+  title={title}
+  pageTitle="YobuHoについて"
+  description={description}
+  canonical={canonical}
+  jsonLd={jsonLd}
+>
+    <h1>YobuHoについて</h1>
+    <p class="lead">YobuHo は、呼べるホテルを利用者の口コミと店舗の届出情報から検索できるポータルサイトです。「フロントで断られた」「出禁になった」を防ぐため、ユーザーの実体験と届出確認済み店舗の公式情報をダブルチェックで掲載しています。</p>
+
+    <h2>1. YobuHo とは</h2>
+    <p>YobuHo は、デリヘル・女性用風俗（女風）・デリエステ・同性カップル（LGBT）利用など、ジャンル横断で「呼べる／利用できるホテル」を口コミから検索できるサービスです。全国 43,000 件以上のホテル情報を扱い、都道府県・市区町村・最寄駅から絞り込みできます。</p>
+    <ul>
+        <li>取扱規模: 全国 43,000 件以上（ビジネスホテル / シティホテル / ラブホテル / 旅館）</li>
+        <li>対応ジャンル: デリヘル / 女性用風俗 / デリエステ / 男性同士 / 女性同士</li>
+        <li>主な機能: ホテル検索 / 利用者口コミ / 店舗公式情報 / ラブホ口コミ / 地図検索 / GPS 現在地検索</li>
+        <li>利用料金: 利用者・口コミ投稿者は完全無料・登録不要</li>
+    </ul>
+
+    <h2>2. 口コミの信頼性を守る仕組み</h2>
+    <p>YobuHo に掲載される口コミは、複数のレイヤーで信頼性を担保しています。サクラ投稿や自演による情報汚染を防ぎ、ユーザーが「本当に呼べるか」を判断できる情報源を維持するための取り組みです。</p>
+    <ul>
+        <li><strong>投稿レート制限</strong>: 同一 IP からの投稿は 1 日 10 件まで、同一ホテルへの繰り返し投稿は 3 件までに制限。</li>
+        <li><strong>端末識別（フィンガープリント）</strong>: ハッシュ値のみを記録し、元データは保存していません。重複投稿の検知に使用します。</li>
+        <li><strong>店舗 IP 検知</strong>: 店舗側のネットワークからのユーザー口コミ投稿を検知してブロックします（自演防止）。</li>
+        <li><strong>フラグ通報機能</strong>: 不適切な口コミは誰でも報告でき、編集スタッフの確認後に非表示化します。</li>
+        <li><strong>店舗投稿の独立表示</strong>: ユーザー口コミと店舗公式情報は明確に区別して表示（🏪 認定店マーク / 📊 ユーザー口コミ）。</li>
+    </ul>
+
+    <h2>3. 店舗届出確認のプロセス</h2>
+    <p>YobuHo に掲載される店舗（デリヘル・女風・デリエステ等）は、すべて「無店舗型性風俗特殊営業届出確認書」の提出と編集スタッフの目視審査を経て掲載されます。届出のない店舗は掲載できません。</p>
+    <ol class="numbered">
+        <li><strong>店舗登録申請</strong> — 店舗様が <a href="/shop-register/" class="link-accent">店舗登録ページ</a> から店舗情報と届出確認書（最大 3 枚の画像）を申請します。</li>
+        <li><strong>編集スタッフによる目視審査</strong> — 届出確認書の真正性、店舗名・所在地・営業ジャンルの整合性、URL・電話番号の有効性を確認します。</li>
+        <li><strong>承認・差し戻し判定</strong> — 通常 1〜3 営業日で判定。差し戻しの場合は具体的な修正点を明示してご連絡します。</li>
+        <li><strong>認定店バッジ付与</strong> — 承認された店舗には「認定店」マークが口コミ・案内実績情報に表示されます。</li>
+        <li><strong>掲載後の継続確認</strong> — 重大な違反（虚偽情報・違法行為など）が確認された場合は掲載停止・削除を行います。</li>
+    </ol>
+
+    <h2>4. 編集方針・中立性</h2>
+    <p>YobuHo は特定の店舗・チェーン・ホテルを優遇しません。掲載順序は口コミ件数や契約プラン等の客観的な基準に基づいています。以下の編集方針に基づいて運営しています。</p>
+    <ul>
+        <li><strong>中立性</strong> — 広告契約の有無に関わらず、ユーザー口コミの掲載判断に差をつけません。</li>
+        <li><strong>個人情報の取り扱い</strong> — IP アドレス・フィンガープリントはハッシュ値のみ記録し、個人を特定できる形式では保存しません。詳細は <a href="/privacy/" class="link-accent">プライバシーポリシー</a> をご確認ください。</li>
+        <li><strong>違法行為の助長禁止</strong> — 売春防止法・風営法に抵触する内容、未届出店舗の宣伝は掲載しません。</li>
+        <li><strong>年齢制限</strong> — 18 歳未満および高校生の方の利用を禁止しています。</li>
+        <li><strong>口コミの編集権限</strong> — 投稿者本人の同意なく口コミ内容を編集することはありません（明白な違反・スパム・個人情報漏洩を除く）。</li>
+    </ul>
+
+    <h2>5. 運営チーム・お問い合わせ</h2>
+    <table>
+        <tr><th>運営事業者</th><td>YobuHo Check-In Partners</td></tr>
+        <tr><th>サービス名</th><td>YobuHo（ヨブホ）</td></tr>
+        <tr><th>運営開始</th><td>2026 年</td></tr>
+        <tr><th>連絡先</th><td><a href="mailto:hotel@yobuho.com" class="link-accent">hotel@yobuho.com</a></td></tr>
+        <tr><th>特定商取引法表記</th><td><a href="/legal/" class="link-accent">特定商取引法に基づく表記</a></td></tr>
+        <tr><th>利用規約</th><td><a href="/terms/" class="link-accent">利用規約</a></td></tr>
+        <tr><th>プライバシーポリシー</th><td><a href="/privacy/" class="link-accent">プライバシーポリシー</a></td></tr>
+    </table>
+
+    <p class="cta-block">
+        <a href="/contact/" class="link-button">お問い合わせはこちら</a>
+        <a href="/shop-register/" class="link-button link-button-secondary">店舗登録（無料）</a>
+    </p>
+</LegalLayout>
+
+<style>
+    h1 { font-size: 22px; font-weight: 700; color: #1a1410; margin-bottom: 16px; }
+    .lead { font-size: 15px; color: #3a3020; margin-bottom: 32px; line-height: 1.85; padding: 16px 18px; background: #fff; border-left: 4px solid #b5627a; border-radius: 6px; }
+    h2 { font-size: 17px; font-weight: 700; color: #b5627a; margin: 32px 0 12px; padding: 4px 0 6px 12px; border-left: 4px solid #b5627a; }
+    p { margin-bottom: 14px; font-size: 14px; color: #3a3020; line-height: 1.85; }
+    ul, ol.numbered { margin: 12px 0 16px 22px; }
+    li { margin-bottom: 8px; font-size: 14px; color: #3a3020; line-height: 1.8; }
+    li::marker { color: #b5627a; }
+    strong { color: #1a1410; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { text-align: left; vertical-align: top; padding: 12px 14px; background: #f5f2ec; border: 1px solid #e0d5d0; font-size: 13px; font-weight: 600; color: #1a1410; width: 30%; white-space: nowrap; }
+    td { padding: 12px 14px; border: 1px solid #e0d5d0; font-size: 14px; color: #3a3020; }
+    .link-accent { color: #b5627a; text-decoration: underline; font-weight: 600; }
+    .cta-block { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+    .link-button { display: inline-block; padding: 12px 24px; background: #b5627a; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: background 0.15s; }
+    .link-button:hover { background: #9a4e65; }
+    .link-button-secondary { background: #fff; color: #b5627a; border: 1px solid #b5627a; }
+    .link-button-secondary:hover { background: #fdf6f8; }
+    @media (max-width: 640px) {
+        th { width: 38%; padding: 10px 12px; font-size: 12px; }
+        td { padding: 10px 12px; font-size: 13px; }
+    }
+</style>

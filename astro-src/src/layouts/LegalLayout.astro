@@ -9,9 +9,10 @@ interface Props {
   description?: string;
   canonical?: string;
   robots?: string;
+  jsonLd?: any;
 }
 
-const { title, pageTitle, description, canonical, robots } = Astro.props;
+const { title, pageTitle, description, canonical, robots, jsonLd } = Astro.props;
 ---
 
 <BaseLayout
@@ -21,6 +22,7 @@ const { title, pageTitle, description, canonical, robots } = Astro.props;
   robots={robots}
   ogTitle={title}
   themeColor="#b5627a"
+  jsonLd={jsonLd}
 >
     <Fragment slot="head">
         <link rel="preconnect" href="https://fonts.googleapis.com">

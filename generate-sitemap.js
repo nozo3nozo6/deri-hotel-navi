@@ -92,6 +92,7 @@ urls.push(entry(`${BASE_URL}/guide/lgbt-hotel.html`, '0.8', 'weekly'));
 urls.push(entry(`${BASE_URL}/guide/este-hotel.html`, '0.8', 'weekly'));
 
 // 固定ページ
+urls.push(entry(`${BASE_URL}/about/`, '0.6', 'monthly'));
 urls.push(entry(`${BASE_URL}/terms/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/privacy/`, '0.3', 'monthly'));
 urls.push(entry(`${BASE_URL}/contact/`, '0.3', 'monthly'));
