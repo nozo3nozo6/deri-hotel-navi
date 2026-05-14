@@ -4319,10 +4319,44 @@ function updatePresenceFromActivity() {
     if (active && state.last_message_id > 0) {
         sendMarkReadForCurrentView(state.last_message_id);
     }
+    // 2026-05-12: focus 復帰時に owner スレッド状態を HTTP で再同期.
+    // WS が一瞬切断/hibernation していた間に DO→owner WS の 'read' broadcast が
+    // 取りこぼされていた場合の救済 (新着メッセージ + last_read_own_id を確実に反映).
+    if (active) refreshOwnerThreadState();
+}
+
+// 2026-05-12: owner スレッド表示中の defensive HTTP refresh.
+// DO→owner WS の broadcast が届かないケース (WS hibernation / 一瞬切断) で
+// 既読マーカー・新着メッセージ・unread_count を取りこぼした場合、これで自動復旧.
+// focus 復帰時 (updatePresenceFromActivity) + 20s 周期 (ensureViewHeartbeat) で発火.
+let _ownerThreadRefreshing = false;
+async function refreshOwnerThreadState() {
+    if (state.mode !== 'owner') return;
+    if (!state.selected_session) return;
+    if (!isWindowActive()) return;
+    if (!state.device_token) return;
+    if (_ownerThreadRefreshing) return;
+    _ownerThreadRefreshing = true;
+    try {
+        const data = await api('owner-inbox', {
+            device_token: state.device_token,
+            session_id: state.selected_session.id,
+            since_id: state.last_message_id || 0,
+        }, 'GET');
+        // applyOwnerBatch が messages の dedup (cmid + id) と last_read_own_id を一括反映.
+        // 取りこぼした 'read' broadcast はここで last_read_own_id 経由で復元される.
+        applyOwnerBatch({
+            messages: data.messages || [],
+            last_read_own_id: data.last_read_own_id,
+            status: data.status,
+        }, state.selected_session.id);
+    } catch (_) { /* network blip, retry next tick */ }
+    finally { _ownerThreadRefreshing = false; }
 }
 
 // 2026-04-23: DO 側 last_view_at 鮮度 (45s) を切らさないための view heartbeat.
 // isWindowActive 中は 20s 周期で view signal を再送.
+// 2026-05-12: 同じ周期で owner スレッド表示中の HTTP 既読同期も発火 (broadcast 取りこぼし対策).
 let _viewHeartbeatTimer = null;
 function ensureViewHeartbeat() {
     if (_viewHeartbeatTimer) return;
@@ -4335,6 +4369,9 @@ function ensureViewHeartbeat() {
             const tok = state.selected_session.session_token;
             if (tok) { try { state._ownerSub.setView(tok); } catch (_) {} }
         }
+        // owner スレッド表示中の defensive HTTP refresh (broadcast 取りこぼし対策).
+        // refreshOwnerThreadState 内で mode='owner' && selected_session && isWindowActive をチェック.
+        refreshOwnerThreadState();
     }, 20000);
 }
 ensureViewHeartbeat();
