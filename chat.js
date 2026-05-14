@@ -139,6 +139,9 @@ let state = {
     welcome_message: null,
     reservation_hint: null,
     nickname_locked: false,   // [legacy] 過去は最初の送信後に true で固定. 現在は変更可のため常に false.
+    // 2026-05-12: 訪問者が当該セッションで1通でも送信したか. localStorage に永続化し、
+    // リロード/再来訪時に welcome 再表示を抑止する (cast-view や将来の追加welcome path での再発防止).
+    has_sent: false,
     // 2026-04-23 翻訳アンカー: 訪問者の入力言語. visitor=ja なら両側翻訳OFF, 非ja なら shop viewer=ja / visitor viewer=visitor_input_lang で翻訳.
     visitor_input_lang: 'ja',
     // 2026-04-23 アバター: お店/キャストのメッセージバブル左に表示する丸アイコン (訪問者はアイコン無し)
@@ -1751,8 +1754,17 @@ const DurableObjectTransport = {
                         return;
                     }
                     if (data.type === 'inbox') {
-                        // DO の inbox スナップショットは read_at を持たない (PHP 側が権威) ため無視.
-                        // 代わりに PHP owner-inbox を叩いて MySQL 基準の未読状態を取得する.
+                        // DO の inbox スナップショット.
+                        // 2026-05-12: DO 側で last_read_own_id を per-session で計算するように改修済.
+                        // owner WS 再接続時にも broadcast 取りこぼし分の既読マーカーを復元可能.
+                        // 選択中スレッドがあれば、その last_read_own_id を applyOwnerBatch 経由で適用.
+                        if (selectedSid && Array.isArray(data.sessions)) {
+                            const sel = data.sessions.find(s => Number(s.id) === Number(selectedSid));
+                            if (sel && typeof sel.last_read_own_id !== 'undefined') {
+                                onBatch({ messages: [], last_read_own_id: sel.last_read_own_id }, selectedSid);
+                            }
+                        }
+                        // 未選択時は PHP owner-inbox を叩いて MySQL 基準の最新状態を取得 (権威データ).
                         if (!selectedSid) refreshInboxViaPhp();
                         return;
                     }
@@ -2191,6 +2203,8 @@ async function enterVisitorMode() {
         state.last_message_id = 0;
         // 既存セッションのキャスト名をヘッダーに復元（LS_SESSION から優先、無ければ adopt レスポンスで上書き）
         if (saved.cast_name) state.cast_name = saved.cast_name;
+        // 過去に送信済みなら welcome 再表示を抑止 (2026-05-12 Issue C 強化)
+        state.has_sent = !!saved.has_sent;
         // LS に cast_name があれば await 前にヘッダーを即更新（体感速度＋ネットワークエラー時の保険）
         updateCastHeader();
         // DO版では既存 session_token を DO に adopt させる（createIfMissing）
@@ -2373,6 +2387,7 @@ function saveVisitorSession() {
             session_id: state.session_id,
             last_message_id: state.last_message_id,
             cast_name: state.cast_name || null,
+            has_sent: !!state.has_sent,
         }));
     } catch (_) {}
 }
@@ -2628,7 +2643,9 @@ function addSystemMessage(text) {
 
 // 2026-05-12: welcome は「訪問者が初送信したら消える」仕様 (Issue C).
 // dedicated class でマークし、sendVisitorMessage 時に dismissWelcomeMessage() で除去.
+// has_sent が立っている場合 (リロード/復元路) は冒頭から表示しない (再発防止).
 function addWelcomeMessage(text) {
+    if (state.has_sent) return;
     const div = document.createElement('div');
     div.className = 'msg msg-system msg-welcome';
     div.textContent = text;
@@ -3116,7 +3133,9 @@ async function sendVisitorMessage(msg) {
     };
     // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
     // 2026-05-12: 訪問者が送信したら welcome (匿名でOK...) を消す (Issue C).
+    state.has_sent = true;
     dismissWelcomeMessage();
+    saveVisitorSession();  // has_sent をすぐに永続化 (リロード対策)
     addOutgoingOptimistic(clientMsgId, msg);
     clearInputPreservingIme();
     clearDraft();
@@ -4356,7 +4375,6 @@ async function refreshOwnerThreadState() {
 
 // 2026-04-23: DO 側 last_view_at 鮮度 (45s) を切らさないための view heartbeat.
 // isWindowActive 中は 20s 周期で view signal を再送.
-// 2026-05-12: 同じ周期で owner スレッド表示中の HTTP 既読同期も発火 (broadcast 取りこぼし対策).
 let _viewHeartbeatTimer = null;
 function ensureViewHeartbeat() {
     if (_viewHeartbeatTimer) return;
@@ -4369,12 +4387,21 @@ function ensureViewHeartbeat() {
             const tok = state.selected_session.session_token;
             if (tok) { try { state._ownerSub.setView(tok); } catch (_) {} }
         }
-        // owner スレッド表示中の defensive HTTP refresh (broadcast 取りこぼし対策).
-        // refreshOwnerThreadState 内で mode='owner' && selected_session && isWindowActive をチェック.
-        refreshOwnerThreadState();
     }, 20000);
 }
 ensureViewHeartbeat();
+
+// 2026-05-12: owner スレッド既読同期の defensive polling.
+// view heartbeat の 20s と独立した 10s 周期で owner-inbox を叩く.
+// DO→owner WS の 'read' broadcast 取りこぼし時の最大遅延を 20s→10s に短縮.
+let _ownerReadSyncTimer = null;
+function ensureOwnerReadSync() {
+    if (_ownerReadSyncTimer) return;
+    _ownerReadSyncTimer = setInterval(() => {
+        refreshOwnerThreadState();
+    }, 10000);
+}
+ensureOwnerReadSync();
 
 // ウィンドウフォーカスの取得/喪失 (別ウィンドウへの切り替え) で presence を切り替える.
 // visibilitychange はタブ切替/最小化のみ、blur/focus は別ウィンドウへの移動もカバーする.

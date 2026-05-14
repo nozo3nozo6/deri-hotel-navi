@@ -1166,7 +1166,8 @@ function handleOwnerInbox() {
         'SELECT s.id, s.session_token, s.status, s.blocked, s.started_at, s.last_activity_at, s.visitor_hash, s.nickname, s.cast_id,
                 (SELECT message FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_message,
                 (SELECT sender_type FROM chat_messages WHERE session_id = s.id ORDER BY id DESC LIMIT 1) AS last_sender,
-                (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
+                (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count,
+                COALESCE((SELECT MAX(id) FROM chat_messages WHERE session_id = s.id AND sender_type = "shop" AND read_at IS NOT NULL), 0) AS last_read_own_id
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id IS NULL
            AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")

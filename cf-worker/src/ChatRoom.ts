@@ -746,6 +746,14 @@ export class ChatRoom implements DurableObject {
       if (s.cast_id) continue;
       const msgs = await this.messagesSince(s.id, 0);
       const last = msgs[msgs.length - 1];
+      // 2026-05-12: owner 側既読マーカー (shop msg に対する visitor 既読) を per-session で計算.
+      // owner WS 再接続時の inbox snapshot に含めることで、broadcast 取りこぼし時も自動復旧.
+      let lastReadOwnId = 0;
+      for (const m of msgs) {
+        if (m.sender_type === 'shop' && m.read_at && m.id > lastReadOwnId) {
+          lastReadOwnId = m.id;
+        }
+      }
       sessions.push({
         id: s.id,
         session_token: s.session_token,
@@ -755,6 +763,7 @@ export class ChatRoom implements DurableObject {
         last_message: last ? last.message : '',
         last_sender: last ? last.sender_type : null,
         unread_count: msgs.filter((m) => m.sender_type === 'visitor' && !m.read_at).length,
+        last_read_own_id: lastReadOwnId,
       });
     }
     sessions.sort((a, b) => (a.last_activity_at < b.last_activity_at ? 1 : -1));
