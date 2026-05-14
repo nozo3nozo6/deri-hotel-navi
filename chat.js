@@ -1675,11 +1675,20 @@ const DurableObjectTransport = {
                 } catch (_) {}
             },
             // 2026-04-23 ゼロ設計: isWindowActive() 時のみ chat.js から呼ぶ明示既読.
+            // 2026-05-12: WS 未接続時 (mobile sleep / DO hibernation 再起動 / 一時切断) でも
+            // 確実に既読を MySQL に反映させるため HTTP フォールバックを追加. 旧実装は silent drop
+            // していたため owner 側 inbox に未読バッジが残存する事象が再発していた.
             markRead: (upToId) => {
-                if (!ws || ws.readyState !== 1) return;
-                try {
-                    ws.send(JSON.stringify({ type: 'mark-read', up_to_id: upToId || 0 }));
-                } catch (_) {}
+                if (ws && ws.readyState === 1) {
+                    try {
+                        ws.send(JSON.stringify({ type: 'mark-read', up_to_id: upToId || 0 }));
+                        return;
+                    } catch (_) { /* fall through to HTTP */ }
+                }
+                // HTTP フォールバック: PHP handleMarkRead が MySQL 更新 + DO broadcast
+                const tok = (typeof getSessionToken === 'function' && getSessionToken()) || currentViewToken;
+                if (!tok) return;
+                api('mark-read', { reader: 'visitor', session_token: tok, up_to_id: upToId || 0 }).catch(() => {});
             },
         };
     },
@@ -1807,15 +1816,29 @@ const DurableObjectTransport = {
             },
             // 2026-04-23 ゼロ設計: isWindowActive() 時のみ chat.js から呼ぶ明示既読.
             // session_token を第一識別子にする (MySQL session_id は DO 内 id と不一致のため).
+            // 2026-05-12: WS 未接続時の HTTP フォールバック追加 (owner inbox の未読バッジ残存対策).
             markRead: (sessionId, upToId, sessionToken) => {
-                if (!ws || ws.readyState !== 1) return;
-                const payload = { type: 'mark-read', up_to_id: upToId || 0 };
-                if (sessionToken) payload.session_token = sessionToken;
-                if (sessionId) payload.session_id = sessionId;
-                if (!payload.session_token && !payload.session_id) return;
-                try {
-                    ws.send(JSON.stringify(payload));
-                } catch (_) {}
+                const wsPayload = { type: 'mark-read', up_to_id: upToId || 0 };
+                if (sessionToken) wsPayload.session_token = sessionToken;
+                if (sessionId) wsPayload.session_id = sessionId;
+                if (!wsPayload.session_token && !wsPayload.session_id) return;
+                if (ws && ws.readyState === 1) {
+                    try {
+                        ws.send(JSON.stringify(wsPayload));
+                        return;
+                    } catch (_) { /* fall through to HTTP */ }
+                }
+                // HTTP フォールバック: PHP handleMarkRead (reader='shop') が MySQL 更新 + DO broadcast.
+                // device_token + session_id が必須なので chat.js の state から取得.
+                if (!sessionId) return;
+                const deviceTok = (typeof getDeviceToken === 'function' && getDeviceToken()) || (state && state.device_token);
+                if (!deviceTok) return;
+                api('mark-read', {
+                    reader: 'shop',
+                    session_id: sessionId,
+                    up_to_id: upToId || 0,
+                    device_token: deviceTok,
+                }).catch(() => {});
             },
         };
     },
