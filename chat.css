@@ -119,10 +119,11 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 
 /* ===== メッセージエリア ===== */
 .chat-thread{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
-/* justify-content:flex-end → 標準のチャットUI挙動 (LINE/WhatsApp): メッセージは下から積み上がる.
-   空〜少数メッセージ時は welcome msg が入力欄直上に来る. オーバーフロー時は scroll で過去を遡る.
-   旧 flex-start だと空時に welcome が上端に張り付き入力欄まで大きな gap が出る. */
-.chat-messages{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f7f5f2;-webkit-overflow-scrolling:touch;justify-content:flex-end}
+/* 2026-05-12: flex-start に変更 (ユーザー要望「上部から表示、増えたらキーボード上に最新」).
+   - 少数時: メッセージが上端から並ぶ
+   - 多数時: scrollChatToBottom() が新着で発火し最新がキーボード/入力欄の直上に表示される
+   - welcome の上端張り付き問題は「訪問者が送信したら welcome 非表示」の挙動で解消 */
+.chat-messages{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f7f5f2;-webkit-overflow-scrolling:touch;justify-content:flex-start}
 .msg-row{display:flex;align-items:flex-end;gap:6px;max-width:88%}
 .msg-row.visitor{align-self:flex-end;justify-content:flex-end}
 .msg-row.shop{align-self:flex-start;justify-content:flex-start}

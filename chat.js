@@ -2253,7 +2253,7 @@ async function enterVisitorMode() {
         }
         saveVisitorSession();
         updateCastHeader();
-        addSystemMessage(state.welcome_message || t('visitor.note'));
+        addWelcomeMessage(state.welcome_message || t('visitor.note'));
         // 新規セッションは通知設定も空なので UI を初期化のみ
         hydrateVisitorNotify({ email: '', enabled: false });
     }
@@ -2626,6 +2626,21 @@ function addSystemMessage(text) {
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 }
 
+// 2026-05-12: welcome は「訪問者が初送信したら消える」仕様 (Issue C).
+// dedicated class でマークし、sendVisitorMessage 時に dismissWelcomeMessage() で除去.
+function addWelcomeMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'msg msg-system msg-welcome';
+    div.textContent = text;
+    refs.chatMessages.appendChild(div);
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+function dismissWelcomeMessage() {
+    if (!refs.chatMessages) return;
+    refs.chatMessages.querySelectorAll('.msg-welcome').forEach(el => el.remove());
+}
+
 // セッション終了UIの適用（idempotent）.
 // applyVisitorBatch で status='closed' を受信した時、または送信が 410 で
 // 弾かれた時（次の poll を待たずに即時反映したい）の両方から呼ぶ.
@@ -2674,7 +2689,7 @@ async function restartVisitorSession() {
         if (typeof s.cast_avatar_url !== 'undefined') state.cast_avatar_url = s.cast_avatar_url || null;
         saveVisitorSession();
         updateCastHeader();
-        addSystemMessage(state.welcome_message || t('visitor.note'));
+        addWelcomeMessage(state.welcome_message || t('visitor.note'));
         startVisitorPolling();
     } catch (e) {
         showError(e.message || 'エラーが発生しました');
@@ -3100,6 +3115,8 @@ async function sendVisitorMessage(msg) {
         since_id: state.last_message_id || 0,
     };
     // 楽観UI: 送信即バブル描画. 入力欄もクリア (LINE UX).
+    // 2026-05-12: 訪問者が送信したら welcome (匿名でOK...) を消す (Issue C).
+    dismissWelcomeMessage();
     addOutgoingOptimistic(clientMsgId, msg);
     clearInputPreservingIme();
     clearDraft();
