@@ -19,6 +19,28 @@ const SHOP_META_TTL_MS = 60_000; // 60s
 const metaCache = new Map<string, { expires: number; meta: ShopStatus }>();
 
 export default {
+  // 2026-05-16: 受付時間外で保留されたメール通知を 10 分ごとに flush.
+  // wrangler.toml の [triggers] crons = ["*/10 * * * *"] と連動.
+  // 認証: X-Sync-Secret (PHP 側 chat-flush-pending.php と共有).
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    const url = `${env.NOTIFY_BASE_URL}/api/chat-flush-pending.php`;
+    ctx.waitUntil(
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-Sync-Secret': env.CHAT_SYNC_SECRET || '',
+          'Content-Type': 'application/json',
+        },
+      }).then(async (res) => {
+        if (!res.ok) {
+          console.warn(`chat-flush-pending returned ${res.status}: ${await res.text().catch(() => '')}`);
+        }
+      }).catch((e) => {
+        console.error('chat-flush-pending failed', e);
+      })
+    );
+  },
+
   async fetch(req: Request, env: Env): Promise<Response> {
     // CORS preflight
     if (req.method === 'OPTIONS') {

@@ -3136,6 +3136,12 @@ async function sendVisitorMessage(msg) {
     state.has_sent = true;
     dismissWelcomeMessage();
     saveVisitorSession();  // has_sent をすぐに永続化 (リロード対策)
+    // 2026-05-16: 送信は「直前メッセージを読んだ証拠」なので明示的に mark-read 発火.
+    // iOS Safari でリンクから開いた直後 hasFocus()=false で applyVisitorBatch の
+    // mark-read 自動発火が走らなかったケースの保険 (Issue B 再発防止).
+    if (state.last_message_id > 0) {
+        sendMarkReadForCurrentView(state.last_message_id);
+    }
     addOutgoingOptimistic(clientMsgId, msg);
     clearInputPreservingIme();
     clearDraft();
@@ -3414,6 +3420,11 @@ async function sendOwnerReply(msg) {
     // オーナー自送信 (位置クラスは positionClassFor が globals から判定)
     addOutgoingOptimistic(clientMsgId, msg);
     clearInputPreservingIme();
+    // 2026-05-16: 送信は「直前 visitor msg を読んだ証拠」なので明示的に mark-read 発火.
+    // applyOwnerBatch の自動発火が isWindowActive false で取りこぼした場合の保険.
+    if (state.last_message_id > 0) {
+        sendMarkReadForCurrentView(state.last_message_id);
+    }
     try {
         const r = await sendUnified(payload);
         markOptimisticSent(clientMsgId, (r.messages || []).find(m => m.client_msg_id === clientMsgId));

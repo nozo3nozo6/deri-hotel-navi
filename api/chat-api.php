@@ -22,6 +22,10 @@ if (file_exists(__DIR__ . '/vapid-config.php')) {
     require_once __DIR__ . '/vapid-config.php';
 }
 
+// 2026-05-16: chat-flush-pending.php 等から library として include される場合は
+// session/CORS/routing をスキップして function 定義だけを読ませる.
+if (!defined('CHAT_API_LIBRARY_MODE')) {
+
 define('SHOP_SESSION_TIMEOUT', 86400);
 session_set_cookie_params([
     'lifetime' => SHOP_SESSION_TIMEOUT,
@@ -81,6 +85,9 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
+} // end of !CHAT_API_LIBRARY_MODE (setup + CORS guard)
+
 function inp(string $key, $default = null) {
     global $body;
     return $body[$key] ?? $_POST[$key] ?? $_GET[$key] ?? $default;
@@ -441,8 +448,17 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     if (empty($notifyTo)) return;
     if ($mode === 'off') return;
 
-    // 受付時間外はメール送信しない（時間帯制御は受付時間に委ねるルール）
-    if (!isWithinReceptionHours($shop)) return;
+    // 受付時間外はメール送信を保留. 後で受付時間内に flushPendingNotifications で
+    // まとめて送る (キュー方式. 2026-05-16 導入). notified_at はクリアせず、
+    // 当該 session に「保留中」を示すフラグだけ立てる.
+    if (!isWithinReceptionHours($shop)) {
+        try {
+            $pdo = DB::conn();
+            $pdo->prepare('UPDATE chat_sessions SET notify_pending = 1 WHERE id = ?')
+                ->execute([$session['id']]);
+        } catch (Throwable $_) { /* 通知保留失敗は致命的ではない */ }
+        return;
+    }
 
     // A案 (厳格2値ルール): トグル ON の間は画面を見ていてもメール送信する。
 
@@ -494,15 +510,87 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
 
-    // 通知済みフラグ更新
-    $pdo->prepare('UPDATE chat_sessions SET notified_at = NOW() WHERE id = ?')
+    // 通知済みフラグ更新. 同時に保留フラグもクリア (受付時間内通知が走った扱い).
+    $pdo->prepare('UPDATE chat_sessions SET notified_at = NOW(), notify_pending = 0 WHERE id = ?')
         ->execute([$sessionId]);
+}
+
+/**
+ * 2026-05-16: 受付時間外で保留 (notify_pending=1) されたセッションを、受付時間内に flush.
+ * 呼び出しタイミング:
+ *   - 訪問者がメッセージを送るたび (handleSendMessage 冒頭)
+ *   - cf-worker scheduled trigger 経由の chat-flush-pending.php
+ *
+ * 同一セッションで複数メッセージが保留されていても、1セッション=1通の「未読まとめ通知」メールを送る.
+ * 'first' / 'every' モードに関わらずキュー処理: 保留があれば必ず1通は送る. 送信後 notify_pending=0 にする.
+ */
+function flushPendingNotifications(string $shopId): void {
+    $pdo = DB::conn();
+    $shop = getShopById($shopId);
+    if (!$shop) return;
+    // 現時刻が受付時間外なら何もしない (次回 flush で送る).
+    if (!isWithinReceptionHours($shop)) return;
+
+    // notify_pending=1 のセッションを取得 (LIMIT で安全マージン).
+    $stmt = $pdo->prepare(
+        'SELECT id, session_token, cast_id, started_at FROM chat_sessions
+         WHERE shop_id = ? AND notify_pending = 1
+         ORDER BY id ASC LIMIT 50'
+    );
+    $stmt->execute([$shopId]);
+    $pending = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($pending)) return;
+
+    foreach ($pending as $sess) {
+        // 保留中に到着した最新の visitor msg をプレビューとして使う (シンプル)
+        $msgStmt = $pdo->prepare(
+            'SELECT message FROM chat_messages
+             WHERE session_id = ? AND sender_type = "visitor"
+               AND (read_at IS NULL OR id > 0)
+             ORDER BY id DESC LIMIT 1'
+        );
+        $msgStmt->execute([(int)$sess['id']]);
+        $previewMsg = (string)($msgStmt->fetchColumn() ?: '(新着メッセージ)');
+
+        // notified_at と保留フラグを更新 (送信中の二重 flush 防止: notify_pending を先にクリア).
+        $pdo->prepare('UPDATE chat_sessions SET notify_pending = 0 WHERE id = ?')
+            ->execute([(int)$sess['id']]);
+
+        try {
+            // 既存の maybeNotifyShop と同じメール送信ロジックを再利用. session row を再取得して渡す.
+            $rowStmt = $pdo->prepare('SELECT id, session_token, cast_id, notified_at FROM chat_sessions WHERE id = ?');
+            $rowStmt->execute([(int)$sess['id']]);
+            $sessRow = $rowStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$sessRow) continue;
+
+            // mode を 'every' (=必ず送る) で呼び出すため $shop['notify_mode'] を一時上書き.
+            // ただし元の mode が 'off' の場合は送らない (=オーナーが意図的に無効化).
+            if (($shop['notify_mode'] ?? 'off') === 'off') continue;
+
+            // maybeNotifyShop は受付時間チェックで通る (上で確認済) かつ
+            // notify_pending=0 にしたので再帰的に保留にもならない.
+            // ただし 'first' モードで notified_at がセット済みだとスキップされてしまうので
+            // notified_at をクリアしてから呼ぶ (保留分は強制的に送る).
+            $pdo->prepare('UPDATE chat_sessions SET notified_at = NULL WHERE id = ?')
+                ->execute([(int)$sess['id']]);
+            $sessRow['notified_at'] = null;
+
+            maybeNotifyShop($shop, $sessRow, $previewMsg);
+        } catch (Throwable $e) {
+            error_log('[chat-api] flushPendingNotifications failed for session ' . $sess['id'] . ': ' . $e->getMessage());
+            // 失敗時は notify_pending を 1 に戻して次回再試行
+            $pdo->prepare('UPDATE chat_sessions SET notify_pending = 1 WHERE id = ?')
+                ->execute([(int)$sess['id']]);
+        }
+    }
 }
 
 // =========================================================
 // ルーティング
 // =========================================================
 
+// 2026-05-16: library モード (chat-flush-pending.php 等から include) の時は routing 不要.
+if (!defined('CHAT_API_LIBRARY_MODE')) {
 try {
     switch ($action) {
         // Visitor
@@ -573,6 +661,7 @@ try {
     error_log('[chat-api] ' . $e->getMessage());
     err('Internal error: ' . $e->getMessage(), 500);
 }
+} // end of !CHAT_API_LIBRARY_MODE (router guard)
 
 // =========================================================
 // Action handlers — Visitor
@@ -692,6 +781,13 @@ function handleSendMessage() {
     if (!$session) err('Session not found', 404);
     if ($session['status'] === 'closed') err('このチャットは終了しています', 410);
     if ((int)$session['blocked'] === 1) err('現在チャットをご利用いただけません', 403);
+
+    // 2026-05-16: 訪問者の送信は「店舗が稼働中」のシグナル. 受付時間内なら保留中の
+    // メール通知をまとめて flush する (キュー方式の opportunistic trigger).
+    // 受付時間外ならこの関数自体が早期 return するため安全.
+    try {
+        flushPendingNotifications((string)$session['shop_id']);
+    } catch (Throwable $_) { /* 失敗してもメイン処理は続行 */ }
 
     // 冪等送信: 同じ client_msg_id で過去に送信済みなら、再挿入せず既存を返す.
     // WS再接続中のネットワーク再送でも重複行が作られない.

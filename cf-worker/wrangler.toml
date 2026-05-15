@@ -37,3 +37,9 @@ ALLOWED_ORIGINS = "https://yobuho.com,https://deli.yobuho.com,https://jofu.yobuh
 # Observability (CF側の Analytics/Logs を有効化)
 [observability]
 enabled = true
+
+# 2026-05-16: 受付時間外で保留されたメール通知 (notify_pending=1) を 10 分ごとに flush.
+# 受付時間内の shop には chat-flush-pending.php がメール送信を発火させる.
+# Cron Triggers は Free プランでも利用可 (1分単位の精度はないが10分単位なら問題なし).
+[triggers]
+crons = ["*/10 * * * *"]
