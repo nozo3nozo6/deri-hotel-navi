@@ -2961,8 +2961,11 @@ function applyVisitorBatch(data) {
     }
     if (typeof data.shop_avatar_url !== 'undefined') state.shop_avatar_url = data.shop_avatar_url || null;
     if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
-    // 2026-04-23 ゼロ設計: ウィンドウ見てる時のみ incoming msg を明示既読化 (暗黙既読は全廃)
-    if (addedAny && maxIncomingId > 0 && isWindowActive()) {
+    // 2026-05-16 方針変更: isWindowActive() ゲート撤廃.
+    // ユーザー要望「既読したら相手に既読と伝われば、それでいい」を優先.
+    // (iOS Safari の hasFocus()=false で既読が伝わらない事案が続いたため.)
+    // 裏タブで WS push を受けた場合も mark-read が発火するが、それは許容範囲.
+    if (addedAny && maxIncomingId > 0) {
         sendMarkReadForCurrentView(maxIncomingId);
     }
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
@@ -3359,8 +3362,8 @@ async function openOwnerThread(sessionId) {
         state.selected_session.is_blocked = !!data.is_blocked;
         updateBlockButton();
         // 2026-04-23 ゼロ設計: スレッドを開いた瞬間、見ている visitor msg を明示既読化.
-        // (以前は PHP owner-inbox が暗黙 auto-read していたが、その経路を廃止したため明示必須.)
-        if (maxVisitorId > 0 && isWindowActive()) {
+        // 2026-05-16: isWindowActive ゲート撤廃 (クリックして開いた = 明示的閲覧意図).
+        if (maxVisitorId > 0) {
             sendMarkReadForCurrentView(maxVisitorId);
         }
         // 2026-04-29: ローカル inbox の unread_count を即座にクリア.
@@ -3507,8 +3510,9 @@ function applyOwnerBatch(data, selectedSid) {
     if (typeof data.shop_avatar_url !== 'undefined') state.shop_avatar_url = data.shop_avatar_url || null;
     if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
-    // 2026-04-23 ゼロ設計: オーナーがスレッド表示中かつウィンドウ見てる時のみ visitor msg を既読化
-    if (addedAny && maxIncomingId > 0 && isWindowActive() && state.selected_session) {
+    // 2026-04-23 ゼロ設計: オーナーがスレッド表示中なら visitor msg を既読化.
+    // 2026-05-16: isWindowActive ゲート撤廃 (既読を確実に相手に伝える優先).
+    if (addedAny && maxIncomingId > 0 && state.selected_session) {
         sendMarkReadForCurrentView(maxIncomingId);
     }
 }
@@ -3749,7 +3753,8 @@ async function openCastThread(sessionId) {
         if (typeof data.cast_avatar_url !== 'undefined') state.cast_avatar_url = data.cast_avatar_url || null;
         // 2026-04-23 ゼロ設計: スレッドを開いた瞬間、見ている visitor msg を明示既読化.
         // cast-inbox poll は暗黙既読しないため、開封時の1発は必須.
-        if (maxVisitorId > 0 && isWindowActive()) {
+        // 2026-05-16: isWindowActive ゲート撤廃 (cast がスレッド開いた = 明示閲覧意図).
+        if (maxVisitorId > 0) {
             sendMarkReadForCurrentView(maxVisitorId);
         }
         // 2026-04-29: ローカル inbox 未読バッジを即座にクリア (cast inbox 経路).
