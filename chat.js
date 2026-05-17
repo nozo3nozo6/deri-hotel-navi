@@ -1339,6 +1339,11 @@ function ensurePushButton() {
     btn.setAttribute('aria-label', '通知を許可');
     btn.textContent = '🔔 通知を許可';
     btn.addEventListener('click', async () => {
+        // 2026-05-18: iOS Safari 非 PWA モードでは「ホーム画面に追加」ガイドを開く.
+        if (btn.dataset.iosGuide === '1') {
+            openIOSInstallGuide();
+            return;
+        }
         btn.disabled = true;
         if (pushIsSubscribed()) {
             await unsubscribeFromPush();
@@ -1359,11 +1364,74 @@ function placePushButton() {
     return btn;
 }
 
+// 2026-05-18: iOS Safari 検出. iPhone/iPad の Safari は Web Push が PWA standalone 専用 (iOS 16.4+).
+function isIOSSafari() {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) return false;
+    // Chrome on iOS は CriOS, Firefox は FxiOS. Safari 系のみ true.
+    return !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+}
+
+// PWA 単独表示モード判定. iOS Safari standalone は navigator.standalone, 他は display-mode media query.
+function isPWAStandalone() {
+    try {
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+        if (navigator.standalone === true) return true;
+    } catch (_) {}
+    return false;
+}
+
+// iOS PWA 案内モーダル. 既存の Add to Home Screen フローを画面で説明.
+function openIOSInstallGuide() {
+    if (document.getElementById('ios-install-modal')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'ios-install-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s;';
+    overlay.innerHTML = ''
+        + '<div style="background:#fff;border-radius:14px;max-width:380px;padding:24px;font-family:inherit;line-height:1.6;">'
+        +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+        +     '<strong style="font-size:16px;color:#9b2d35;">📲 ホーム画面に追加で通知を受け取る</strong>'
+        +     '<button id="ios-install-close" aria-label="閉じる" style="width:30px;height:30px;border-radius:50%;background:#f2f2f2;border:0;font-size:14px;cursor:pointer;">✕</button>'
+        +   '</div>'
+        +   '<p style="font-size:14px;color:#333;margin:0 0 12px;">iPhone Safari の仕様により、Web プッシュ通知は<strong>ホーム画面に追加したアイコンから開いた時のみ</strong>有効になります（iOS 16.4 以降）。</p>'
+        +   '<ol style="font-size:13px;color:#444;padding-left:22px;margin:0 0 12px;">'
+        +     '<li>下部の <strong>共有ボタン</strong>（中央の四角＋上矢印）をタップ</li>'
+        +     '<li><strong>「ホーム画面に追加」</strong> をタップ</li>'
+        +     '<li>追加されたアイコンから再度開く</li>'
+        +     '<li>本ボタンが「🔔 通知を許可」に変わるので押して許可</li>'
+        +   '</ol>'
+        +   '<p style="font-size:12px;color:#777;margin:0;">※ ホーム画面に追加しなくても、通常のメール通知は引き続き届きます。</p>'
+        + '</div>';
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#ios-install-close').addEventListener('click', close);
+}
+
 function refreshPushButton() {
     const btn = ensurePushButton();
     placePushButton();
 
-    if (!pushSupported()) { btn.classList.add('hidden'); return; }
+    if (!pushSupported()) {
+        // 2026-05-18: iOS Safari 非 PWA → 「ホーム画面に追加」案内に置き換え.
+        // pushSupported() は PushManager 未対応 (= iOS Safari 非 standalone を含む) で false.
+        if (isIOSSafari() && !isPWAStandalone()) {
+            const auth = buildPushAuth();
+            if (auth && _pushConfigCache && _pushConfigCache.enabled !== false) {
+                btn.classList.remove('hidden');
+                btn.textContent = '📲 通知を受け取る';
+                btn.disabled = false;
+                btn.classList.remove('is-on');
+                btn.dataset.iosGuide = '1';
+                return;
+            }
+        }
+        btn.classList.add('hidden');
+        return;
+    }
+    // 通常 path: ガイドモードをクリア
+    delete btn.dataset.iosGuide;
 
     // モード判定: owner / cast_owner / cast_view / visitor で有効。
     // visitor モードでも push は登録できるがセッション期限切れでは無効になるため条件緩め.
