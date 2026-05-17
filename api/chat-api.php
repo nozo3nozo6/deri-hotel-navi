@@ -420,9 +420,11 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         : 'https://yobuho.com/shop-admin.html#chat';
 
     if (!empty($session['cast_id'])) {
-        // キャスト担当: shop_casts JOIN casts で email + notify_mode + inbox_token を引く
+        // キャスト担当: shop_casts JOIN casts で email + notify_mode + notify_email override + inbox_token を引く
+        // 2026-05-17: chat_notify_email (shop-admin で設定する任意の通知先) が指定されていればそれを優先.
+        // chat-notify.php と同じルーティング規則 (DO 経由通知と整合).
         $stmt = $pdo->prepare(
-            'SELECT c.email, sc.chat_notify_mode, sc.display_name, sc.inbox_token
+            'SELECT c.email, sc.chat_notify_mode, sc.chat_notify_email, sc.display_name, sc.inbox_token
              FROM shop_casts sc
              JOIN casts c ON c.id = sc.cast_id
              WHERE sc.shop_id = ? AND sc.cast_id = ? AND sc.status = "active" LIMIT 1'
@@ -430,7 +432,8 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         $stmt->execute([$shopId, $session['cast_id']]);
         $castRow = $stmt->fetch();
         if (!$castRow) return; // 承認待ち/停止中/削除済みには通知しない
-        $notifyTo = (string)$castRow['email'];
+        $overrideEmail = trim((string)($castRow['chat_notify_email'] ?? ''));
+        $notifyTo = $overrideEmail !== '' ? $overrideEmail : (string)$castRow['email'];
         $mode = $castRow['chat_notify_mode'] ?? 'off';
         $recipientLabel = $castRow['display_name'] . '（' . $shop['shop_name'] . '）';
         // キャスト受信箱 URL: ?cast_inbox=<inbox_token> (受信箱トップまで、スレッド直リンクはしない)
