@@ -511,7 +511,17 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+    // 2026-05-17: outlook.jp 配信失敗の調査用. mail() の返り値と宛先を error log に出力.
+    // production の PHP error_log で確認可能 (常時 false なら mail() 自体の問題、true なら配信途中の問題).
+    $mailResult = @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+    error_log(sprintf(
+        '[chat-api] mail to=%s session=%d cast=%s mode=%s result=%s',
+        $notifyTo,
+        $sessionId,
+        !empty($session['cast_id']) ? (string)$session['cast_id'] : 'shop',
+        $mode,
+        $mailResult ? 'true' : 'FALSE'
+    ));
 
     // 通知済みフラグ更新. 同時に保留フラグもクリア (受付時間内通知が走った扱い).
     // 2026-05-17: 防御: notify_pending カラム未存在等の SQL エラーで送信全体を失敗させない.
