@@ -2239,6 +2239,17 @@ async function enterVisitorMode() {
                 // 旧実装は updateStatusIndicator を呼ばず、初期描画 (notify_enabled=undefined → 消灯)
                 // のまま放置されていた. キャスト notify ON なのに 🟢 が出ない問題の修正.
                 updateStatusIndicator(state.is_online);
+            } else if (adopt && !CAST_ID) {
+                // 2026-05-17: 店舗直通の adopt 復元パスでも shop_online/is_online を反映.
+                // DO は shop_online フィールド、PHP は is_online フィールドで返すため両方を見る.
+                // この処理が無いと、既存セッションで再訪問時に 🟢 が永遠に消灯のままだった.
+                const online = (typeof adopt.shop_online !== 'undefined') ? adopt.shop_online
+                              : (typeof adopt.is_online !== 'undefined') ? adopt.is_online
+                              : undefined;
+                if (typeof online !== 'undefined') {
+                    state.is_online = !!online;
+                    updateStatusIndicator(state.is_online);
+                }
             }
             // adopt レスポンスは verified/pending を含まないため必ず PHP (my-notify-settings) で完全取得.
             // Magic Link 確認状態は UI バッジ表示に必須で、adopt 側のフィールドだけでは不十分.
@@ -2264,6 +2275,16 @@ async function enterVisitorMode() {
             state.notify_enabled = !!castOn;
             state.is_online = !!castOn;
             updateStatusIndicator(state.is_online);
+        } else if (!CAST_ID) {
+            // 2026-05-17: 店舗直通の新規セッションでも shop_online/is_online を反映.
+            // DO=shop_online / PHP=is_online を両方見て初期 🟢 を正しく表示.
+            const online = (typeof s.shop_online !== 'undefined') ? s.shop_online
+                          : (typeof s.is_online !== 'undefined') ? s.is_online
+                          : undefined;
+            if (typeof online !== 'undefined') {
+                state.is_online = !!online;
+                updateStatusIndicator(state.is_online);
+            }
         }
         saveVisitorSession();
         updateCastHeader();
