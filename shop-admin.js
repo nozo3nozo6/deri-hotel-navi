@@ -2542,7 +2542,12 @@ function renderCastSummary(d){
     }
 }
 
+// 2026-05-17: ↑↓ 並べ替えで参照するため active キャストの sorted リストを保持.
+let _castsCache = [];
 function renderCastList(casts){
+    _castsCache = casts;
+    // active キャストのみ index を求める (順序変更可能な対象). 表示順は API の ORDER BY に従う.
+    const activeIds = casts.filter(c => c.status === 'active').map(c => c.id);
     const el = document.getElementById('cast-list');
     if (!casts.length) {
         el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px;">まだキャストが登録されていません。上の招待フォームから追加してください。</div>';
@@ -2601,9 +2606,25 @@ function renderCastList(casts){
             : '';
         // 非表示状態を視覚化: 行全体の opacity を下げる
         const cardOpacity = (!isPending && c.status === 'active' && !isVisible) ? '0.62' : '1';
+        // 2026-05-17: ↑↓ 並べ替えボタン (active キャストのみ. 境界のキャストは disable).
+        const activeIdx = activeIds.indexOf(c.id);
+        const isActiveCast = activeIdx >= 0;
+        const isFirstActive = activeIdx === 0;
+        const isLastActive = activeIdx === activeIds.length - 1;
+        const reorderBtns = isActiveCast
+            ? '<div style="display:inline-flex;flex-direction:column;gap:2px;margin-right:4px;">'
+                + '<button type="button" class="btn" data-action="moveCast" data-arg1="' + esc(c.id) + '" data-arg2="up" '
+                + (isFirstActive ? 'disabled style="padding:2px 8px;font-size:11px;line-height:1;opacity:0.3;cursor:not-allowed;"' : 'style="padding:2px 8px;font-size:11px;line-height:1;"')
+                + ' title="上へ">▲</button>'
+                + '<button type="button" class="btn" data-action="moveCast" data-arg1="' + esc(c.id) + '" data-arg2="down" '
+                + (isLastActive ? 'disabled style="padding:2px 8px;font-size:11px;line-height:1;opacity:0.3;cursor:not-allowed;"' : 'style="padding:2px 8px;font-size:11px;line-height:1;"')
+                + ' title="下へ">▼</button>'
+              + '</div>'
+            : '';
         return ''
             + '<div style="padding:12px 14px;background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:8px;opacity:' + cardOpacity + ';transition:opacity 0.2s;">'
             + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+            + reorderBtns
             + '<div style="flex:1;min-width:180px;"><strong style="font-size:14px;color:var(--text-1);">' + esc(c.display_name) + '</strong> ' + statusBadge + (!isPending && c.status === 'active' && !isVisible ? ' <span style="font-size:10px;padding:2px 8px;background:#f0eeec;color:#888;border:1px solid #ddd;border-radius:10px;">非公開</span>' : '') + '</div>'
             + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
             + approveBtn
@@ -2888,6 +2909,49 @@ async function approveCast(id, displayName){
         await loadCastTab();
     } catch (e) {
         toast('⚠️ ' + e.message);
+    }
+}
+
+// 2026-05-17: active キャストの並び替え (↑↓ ボタン経由).
+// 同 status グループ内で sort_order を 10 刻みで再採番 → 該当キャストの位置を入れ替え.
+// sort_order=0 の同点ばかりでも確実に順序が変わる (再採番方式).
+let _movingCast = false;
+async function moveCast(castId, direction){
+    if (_movingCast) return;
+    _movingCast = true;
+    try {
+        const active = (_castsCache || []).filter(c => c.status === 'active');
+        // 現状の順 (API の ORDER BY と同じ): sort_order ASC, joined_at ASC
+        active.sort((a, b) => {
+            const sa = a.sort_order != null ? a.sort_order : 9999;
+            const sb = b.sort_order != null ? b.sort_order : 9999;
+            if (sa !== sb) return sa - sb;
+            return new Date(a.joined_at) - new Date(b.joined_at);
+        });
+        const idx = active.findIndex(c => c.id === castId);
+        if (idx < 0) { toast('⚠️ キャストが見つかりません'); return; }
+        const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= active.length) return; // 境界
+
+        // 配列で swap
+        const tmp = active[idx];
+        active[idx] = active[newIdx];
+        active[newIdx] = tmp;
+
+        // 新順で sort_order を 10 刻み再採番. 既存値と一致する casts はスキップ.
+        const updates = active
+            .map((c, i) => ({ id: c.id, newOrder: i * 10, oldOrder: c.sort_order ?? null }))
+            .filter(u => u.newOrder !== u.oldOrder);
+
+        // 並列で UPDATE (キャスト数 ≤ プラン上限のため軽量)
+        await Promise.all(updates.map(u =>
+            castApi('update', { id: u.id, sort_order: u.newOrder }).catch(() => {})
+        ));
+        await loadCastTab();
+    } catch (e) {
+        toast('⚠️ 並べ替えに失敗しました: ' + (e && e.message || e));
+    } finally {
+        _movingCast = false;
     }
 }
 
