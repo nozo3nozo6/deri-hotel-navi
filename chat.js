@@ -185,6 +185,7 @@ const refs = {
     btnRefresh: $('btn-refresh-inbox'),
     btnBlock: $('btn-block-user'),
     btnCloseSession: $('btn-close-session'),
+    btnReopenSession: $('btn-reopen-session'),
     btnOwnerLogout: $('btn-owner-logout'),
     error: $('chat-error'),
     loginModal: $('owner-login-modal'),
@@ -2171,7 +2172,7 @@ async function enterVisitorMode() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
-    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden'); if (refs.btnReopenSession) refs.btnReopenSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     // キャスト指名URL の訪問者画面では「受付時間 HH:MM-HH:MM」ラベルは出さない.
@@ -2326,7 +2327,7 @@ async function enterCastViewMode() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
-    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden'); if (refs.btnReopenSession) refs.btnReopenSession.classList.add('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     // キャスト視点: 緑丸はキャスト自身の通知ON/OFFで出す. 営業時間ラベルは不要（店舗向け情報）.
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
@@ -2689,6 +2690,54 @@ function applyClosedState() {
     addSystemMessage(t('thread.closedThanks'));
     if (refs.inputArea) refs.inputArea.classList.add('hidden');
     if (state.mode === 'visitor' && !IS_CAST_VIEW) addRestartButton();
+    // 2026-05-17: 60秒毎に can-connect を叩いて店舗/キャストの再開を検知.
+    // 再開されたら applyReopenedState で UI を元に戻す.
+    if (state.mode === 'visitor' && !IS_CAST_VIEW) scheduleReopenCheck();
+}
+
+// 2026-05-17: applyClosedState の逆. 終了済みセッションが再開された時に UI を復帰させる.
+// 訪問者の reopen check (60s polling) で reopen を検知した時、または
+// WS push で status='open' を受け取った時に呼ばれる.
+function applyReopenedState() {
+    if (!state._closedMsgShown) return; // 既に open 状態なら何もしない
+    state._closedMsgShown = false;
+    // 終了メッセージと「新しいチャットを始める」ボタンを除去
+    if (refs.chatMessages) {
+        refs.chatMessages.querySelectorAll('.msg-restart-wrap').forEach(el => el.remove());
+        // 終了 system message も削除 (data-i18n="thread.closedThanks" or 一致するテキスト)
+        refs.chatMessages.querySelectorAll('.msg-system').forEach(el => {
+            const txt = (el.textContent || '').trim();
+            if (txt && (txt === t('thread.closedThanks') || txt.includes('終了') || txt.includes('ありがとうございました'))) {
+                el.remove();
+            }
+        });
+    }
+    // 入力欄を再表示
+    if (refs.inputArea) refs.inputArea.classList.remove('hidden');
+    if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
+    // 再開通知
+    addSystemMessage('💬 チャットが再開されました');
+    // 再開チェックタイマー停止 + 通常 polling 再開
+    clearReopenCheck();
+    startVisitorPolling();
+}
+
+let _reopenCheckTimer = null;
+function scheduleReopenCheck() {
+    clearReopenCheck();
+    _reopenCheckTimer = setInterval(async () => {
+        if (!state.session_token) return clearReopenCheck();
+        try {
+            const data = await api('can-connect', { session_token: state.session_token }, 'GET');
+            // 再開されていれば ok=true (reason='ok') が返る. closed なら reason='closed'.
+            if (data && data.ok === true) {
+                applyReopenedState();
+            }
+        } catch (_) { /* network blip, retry next tick */ }
+    }, 60000); // 60s
+}
+function clearReopenCheck() {
+    if (_reopenCheckTimer) { clearInterval(_reopenCheckTimer); _reopenCheckTimer = null; }
 }
 
 function addRestartButton() {
@@ -2992,6 +3041,8 @@ function applyVisitorBatch(data) {
     if (typeof data.other_typing !== 'undefined') renderTypingIndicator(!!data.other_typing);
     updateStatusIndicator(data.shop_online);
     if (data.status === 'closed') applyClosedState();
+    // 2026-05-17: status が closed → open に切り替わった瞬間に UI を復帰.
+    if (data.status === 'open' && state._closedMsgShown) applyReopenedState();
     if ((data.messages || []).length) saveVisitorSession();
 }
 
@@ -3346,6 +3397,12 @@ async function openOwnerThread(sessionId) {
     if (refs.btnCloseSession) {
         const isClosed = state.selected_session.status === 'closed';
         refs.btnCloseSession.classList.toggle('hidden', isClosed);
+        // 2026-05-17: 終了済みなら「再開」ボタン、開いていれば「終了」ボタン (相互排他).
+        // blocked セッションは再開不可なので両方非表示にする.
+        if (refs.btnReopenSession) {
+            const canReopen = isClosed && !state.selected_session.is_blocked && !state.selected_session.blocked;
+            refs.btnReopenSession.classList.toggle('hidden', !canReopen);
+        }
     }
     refs.ownerTemplates.classList.remove('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
@@ -3735,6 +3792,11 @@ async function openCastThread(sessionId) {
     if (refs.btnCloseSession) {
         const isClosed = state.selected_session.status === 'closed';
         refs.btnCloseSession.classList.toggle('hidden', isClosed);
+        // 2026-05-17: 終了済みなら「再開」ボタン (blocked は不可).
+        if (refs.btnReopenSession) {
+            const canReopen = isClosed && !state.selected_session.is_blocked && !state.selected_session.blocked;
+            refs.btnReopenSession.classList.toggle('hidden', !canReopen);
+        }
     }
     refs.ownerTemplates.classList.add('hidden'); // キャストは店舗定型文を使わない
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
@@ -4193,7 +4255,7 @@ function backToInbox() {
     state.selected_session = null;
     renderTypingIndicator(false);
     if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
-    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
+    if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden'); if (refs.btnReopenSession) refs.btnReopenSession.classList.add('hidden');
     refs.ownerTemplates.classList.add('hidden');
     if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
     if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
@@ -4232,7 +4294,7 @@ refs.btnBlock.addEventListener('click', async () => {
             showError('ブロックしました');
             state.selected_session = null;
             if (refs.btnBlock) refs.btnBlock.classList.add('hidden');
-            if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden');
+            if (refs.btnCloseSession) refs.btnCloseSession.classList.add('hidden'); if (refs.btnReopenSession) refs.btnReopenSession.classList.add('hidden');
             refs.ownerTemplates.classList.add('hidden');
             await showInbox();
         } catch (e) { showError(e.message); }
@@ -4266,6 +4328,36 @@ if (refs.btnCloseSession) refs.btnCloseSession.addEventListener('click', async (
         if (refs.ownerQuick) refs.ownerQuick.classList.add('hidden');
         if (refs.visitorQuick) refs.visitorQuick.classList.add('hidden');
         if (refs.emojiToggle) refs.emojiToggle.classList.add('hidden');
+    } catch (e) { showError(e.message); }
+});
+
+// 2026-05-17: 終了済みチャットを再開 (オーナー + キャスト).
+if (refs.btnReopenSession) refs.btnReopenSession.addEventListener('click', async () => {
+    if (!state.selected_session) return;
+    if (!confirm('このチャットを再開しますか？\n訪問者は次回画面を開いた時から返信できるようになります。')) return;
+    try {
+        if (IS_CAST_INBOX) {
+            await api('cast-inbox-reopen', {
+                inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
+                session_id: state.selected_session.id
+            });
+        } else {
+            await api('reopen-session', {
+                device_token: state.device_token,
+                session_id: state.selected_session.id
+            });
+        }
+        state.selected_session.status = 'open';
+        // ボタン表示反転: 再開 → 終了に戻す
+        refs.btnReopenSession.classList.add('hidden');
+        refs.btnCloseSession.classList.remove('hidden');
+        // 入力欄・テンプレ等を再表示 (close 時に隠していたもの)
+        if (refs.inputArea) refs.inputArea.classList.remove('hidden');
+        if (state.mode === 'owner' && refs.ownerTemplates) refs.ownerTemplates.classList.remove('hidden');
+        if (refs.emojiToggle) refs.emojiToggle.classList.remove('hidden');
+        // システムメッセージ
+        addSystemMessage('💬 チャットを再開しました');
     } catch (e) { showError(e.message); }
 });
 

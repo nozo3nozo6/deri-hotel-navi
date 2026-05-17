@@ -49,7 +49,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-reopen', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -647,6 +647,7 @@ try {
         case 'cast-inbox':              handleCastInbox(); break;
         case 'cast-inbox-reply':        handleCastInboxReply(); break;
         case 'cast-inbox-close':        handleCastInboxClose(); break;
+        case 'cast-inbox-reopen':       handleCastInboxReopen(); break;
         case 'cast-inbox-toggle-notify': handleCastInboxToggleNotify(); break;
         case 'cast-inbox-request-code': handleCastInboxRequestCode(); break;
         case 'cast-inbox-verify-code':  handleCastInboxVerifyCode(); break;
@@ -660,6 +661,7 @@ try {
         case 'block-visitor':   handleBlockVisitor(); break;
         case 'unblock-visitor': handleUnblockVisitor(); break;
         case 'close-session':   handleCloseSession(); break;
+        case 'reopen-session':  handleReopenSession(); break;
         case 'owner-logout':    handleOwnerLogout(); break;
 
         // Owner bootstrap (PHPセッション認証)
@@ -1902,6 +1904,37 @@ function handleCastInboxClose(): void {
 }
 
 /**
+ * 2026-05-17: cast-inbox-reopen: 自分宛の終了済みセッションを再開 (URL-token auth).
+ * 仕様は handleReopenSession と同じ. blocked は不可、status='closed' のみ open に戻す.
+ */
+function handleCastInboxReopen(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT id, status, blocked FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? LIMIT 1'
+    );
+    $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+    $row = $stmt->fetch();
+    if (!$row) err('Session not found', 404);
+    if ((int)$row['blocked'] === 1) err('ブロック中のセッションは再開できません', 400);
+    if ($row['status'] !== 'closed') err('このチャットは終了していません', 400);
+
+    $pdo->prepare("UPDATE chat_sessions SET status = 'open', closed_at = NULL, last_activity_at = NOW() WHERE id = ?")
+        ->execute([$sessionId]);
+
+    ok(['reopened' => true]);
+}
+
+/**
  * cast-inbox-toggle-notify: 通知ON/OFF (URL-token auth).
  */
 function handleCastInboxToggleNotify(): void {
@@ -2357,6 +2390,31 @@ function handleCloseSession() {
         ->execute([$sessionId, $device['shop_id']]);
 
     ok(['closed' => true]);
+}
+
+/**
+ * 2026-05-17: オーナーが終了済みチャットを再開. status='closed' → 'open' へ戻す.
+ *   - blocked=1 のセッションは reopen 不可 (ブロックは unblock-visitor で解除する設計)
+ *   - 60日のリテンション期間内に限る (chat-retention.php が物理削除する前まで)
+ *   - 訪問者側は次回ポーリング / 再訪 / 60秒の reopen check で気付く
+ */
+function handleReopenSession(): void {
+    $device = requireDevice();
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare('SELECT id, status, blocked FROM chat_sessions WHERE id = ? AND shop_id = ? LIMIT 1');
+    $stmt->execute([$sessionId, $device['shop_id']]);
+    $row = $stmt->fetch();
+    if (!$row) err('Session not found', 404);
+    if ((int)$row['blocked'] === 1) err('ブロック中のセッションは再開できません。先にブロックを解除してください。', 400);
+    if ($row['status'] !== 'closed') err('このチャットは終了していません', 400);
+
+    $pdo->prepare("UPDATE chat_sessions SET status = 'open', closed_at = NULL, last_activity_at = NOW() WHERE id = ?")
+        ->execute([$sessionId]);
+
+    ok(['reopened' => true]);
 }
 
 function handleUnblockVisitor() {
