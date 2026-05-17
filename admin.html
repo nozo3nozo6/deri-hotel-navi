@@ -565,7 +565,7 @@
             <div class="card">
                 <div class="card-title">&#x1F3E8; ホテル情報編集<span class="sub" id="hotels-sub"></span><button class="btn b-btn-gold" style="margin-left:auto;" data-action="openAddHotel">＋ ホテル追加</button></div>
                 <div class="filter-bar">
-                    <input class="filter-input" id="hotel-search" type="search" enterkeyhint="search" placeholder="ホテル名・住所で検索（Enter）" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();fetchHotels();}">
+                    <input class="filter-input" id="hotel-search" type="search" enterkeyhint="search" placeholder="ホテル名・住所・電話番号で検索" data-oninput="onHotelSearchInput" onkeydown="if(event.key==='Enter'&&!event.isComposing){event.preventDefault();fetchHotels();}">
                     <select class="filter-select" id="hotel-region-f" data-onchange="onRegionChange"><option value="">全国</option></select>
                     <select class="filter-select" id="hotel-pref-f" data-onchange="onHotelPrefChange" disabled><option value="">都道府県を選択</option></select>
                     <select class="filter-select" id="hotel-city-f" data-onchange="fetchHotels" disabled><option value="">市区町村を選択</option></select>
