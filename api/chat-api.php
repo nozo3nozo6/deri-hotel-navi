@@ -1158,6 +1158,9 @@ function handleCastListPublic() {
     $pdo = DB::conn();
     // display_name は shop_casts に保持 (casts には無い). 旧クエリは c.display_name 参照で
     // SQLException を投げ、catch ハンドラ経由で {casts:[]} に縮退していた.
+    // 2026-05-18: ORDER BY を shop-admin (handleList) と統一. sort_order が同点 (デフォルト 0) の場合
+    // 旧 display_name ASC だとアルファベット順になり、shop-admin の登録順 (joined_at) と並びがズレていた.
+    // ▲▼ ボタンで並べ替えた sort_order を反映しつつ、未並べ替え店舗は登録順で表示する.
     $stmt = $pdo->prepare(
         "SELECT sc.id, sc.display_name
          FROM shop_casts sc
@@ -1165,7 +1168,7 @@ function handleCastListPublic() {
          WHERE sc.shop_id = ? AND sc.deleted_at IS NULL
            AND sc.status = 'active' AND c.status = 'active'
            AND sc.is_visible = 1
-         ORDER BY sc.sort_order ASC, sc.display_name ASC"
+         ORDER BY sc.sort_order ASC, sc.joined_at ASC"
     );
     $stmt->execute([$shop['id']]);
     $casts = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
