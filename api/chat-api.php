@@ -511,8 +511,14 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
 
     // 通知済みフラグ更新. 同時に保留フラグもクリア (受付時間内通知が走った扱い).
-    $pdo->prepare('UPDATE chat_sessions SET notified_at = NOW(), notify_pending = 0 WHERE id = ?')
-        ->execute([$sessionId]);
+    // 2026-05-17: 防御: notify_pending カラム未存在等の SQL エラーで送信全体を失敗させない.
+    // 通知フラグ更新は補助的処理. handleSendMessage の応答失敗 (=「一時的な障害」表示) を防ぐ.
+    try {
+        $pdo->prepare('UPDATE chat_sessions SET notified_at = NOW(), notify_pending = 0 WHERE id = ?')
+            ->execute([$sessionId]);
+    } catch (Throwable $e) {
+        error_log('[chat-api] notify flag update failed (non-fatal): ' . $e->getMessage());
+    }
 }
 
 /**
