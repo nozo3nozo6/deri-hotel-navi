@@ -1558,10 +1558,11 @@ function handleCastUrlToggleNotify() {
     if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
     if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
 
-    // ON→'first' (既存が 'every' なら維持) / OFF→'off'
+    // 2026-05-19: off→ON は 'every' (都度通知) デフォルト. 既存 'every'/'first' は維持.
+    // off→ON で 'first' 固定 → 2通目以降届かない事故対策 (cast-inbox-toggle-notify と同じ修正).
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
     if ($enabled === 1) {
-        $newMode = $currentMode === 'off' ? 'first' : $currentMode;
+        $newMode = $currentMode === 'off' ? 'every' : $currentMode;
     } else {
         $newMode = 'off';
     }
@@ -1955,8 +1956,11 @@ function handleCastInboxToggleNotify(): void {
 
     $enabled = (int)inp('enabled', 0);
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
+    // 2026-05-19: off→ON は 'every' (都度通知) をデフォルトに. 既存が 'every'/'first' ならそれを維持.
+    // 以前は off→'first' 固定だったため、店舗オーナーが 'every' に設定していてもキャスト本人の
+    // トグル OFF→ON で 'first' に書き戻されて2通目以降のメールが届かなくなる事故があった.
     if ($enabled === 1) {
-        $newMode = $currentMode === 'off' ? 'first' : $currentMode;
+        $newMode = $currentMode === 'off' ? 'every' : $currentMode;
     } else {
         $newMode = 'off';
     }
