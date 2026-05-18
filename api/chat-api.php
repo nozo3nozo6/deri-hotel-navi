@@ -16,6 +16,11 @@
  */
 
 require_once __DIR__ . '/db.php';
+// 2026-05-19: db-config.php は db.php 内で lazy load されるが、CHAT_SYNC_SECRET 等の定数は
+// assertSyncSecret や broadcastToDO で DB::conn() より前に参照される. eager load で定義済みにする.
+if (file_exists(__DIR__ . '/db-config.php')) {
+    require_once __DIR__ . '/db-config.php';
+}
 require_once __DIR__ . '/mail-utils.php';
 require_once __DIR__ . '/cast-bearer.php';
 if (file_exists(__DIR__ . '/vapid-config.php')) {
