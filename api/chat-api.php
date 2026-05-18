@@ -54,7 +54,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-reopen', 'cast-inbox-toggle-notify', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-url-toggle-push', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-reopen', 'cast-inbox-toggle-notify', 'cast-inbox-toggle-push', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -196,7 +196,8 @@ function getShopBySlug(string $slug): ?array {
 function getShopById(string $shopId): ?array {
     $stmt = DB::conn()->prepare(
         'SELECT s.id, s.shop_name, s.slug, s.email,
-                st.is_online, st.last_online_at, st.notify_mode, st.notify_min_interval_minutes, st.auto_off_minutes,
+                st.is_online, st.last_online_at, st.notify_mode, st.notify_email_mode, st.notify_push_mode,
+                st.notify_min_interval_minutes, st.auto_off_minutes,
                 st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
          INNER JOIN shop_chat_status st ON st.shop_id = s.id
@@ -425,11 +426,10 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         : 'https://yobuho.com/shop-admin.html#chat';
 
     if (!empty($session['cast_id'])) {
-        // キャスト担当: shop_casts JOIN casts で email + notify_mode + notify_email override + inbox_token を引く
-        // 2026-05-17: chat_notify_email (shop-admin で設定する任意の通知先) が指定されていればそれを優先.
-        // chat-notify.php と同じルーティング規則 (DO 経由通知と整合).
+        // キャスト担当: shop_casts JOIN casts で email + notify_email_mode + notify_email override + inbox_token を引く
+        // 2026-05-19: メール通知判定は notify_email_mode (新カラム) を参照. push は別経路 (fetch-push-subscribers).
         $stmt = $pdo->prepare(
-            'SELECT c.email, sc.chat_notify_mode, sc.chat_notify_email, sc.display_name, sc.inbox_token
+            'SELECT c.email, sc.notify_email_mode, sc.chat_notify_email, sc.display_name, sc.inbox_token
              FROM shop_casts sc
              JOIN casts c ON c.id = sc.cast_id
              WHERE sc.shop_id = ? AND sc.cast_id = ? AND sc.status = "active" LIMIT 1'
@@ -439,7 +439,7 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         if (!$castRow) return; // 承認待ち/停止中/削除済みには通知しない
         $overrideEmail = trim((string)($castRow['chat_notify_email'] ?? ''));
         $notifyTo = $overrideEmail !== '' ? $overrideEmail : (string)$castRow['email'];
-        $mode = $castRow['chat_notify_mode'] ?? 'off';
+        $mode = $castRow['notify_email_mode'] ?? 'off';
         $recipientLabel = $castRow['display_name'] . '（' . $shop['shop_name'] . '）';
         // キャスト受信箱 URL: ?cast_inbox=<inbox_token> (受信箱トップまで、スレッド直リンクはしない)
         if (!empty($castRow['inbox_token']) && !empty($shop['slug'])) {
@@ -450,7 +450,8 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         }
     } else {
         $notifyTo = !empty($shop['notify_email']) ? $shop['notify_email'] : ($shop['email'] ?? '');
-        $mode = $shop['notify_mode'] ?? 'first';
+        // 2026-05-19: 店舗側もメール判定は notify_email_mode を参照 (getShopById 経由).
+        $mode = $shop['notify_email_mode'] ?? $shop['notify_mode'] ?? 'first';
     }
 
     if (empty($notifyTo)) return;
@@ -648,16 +649,19 @@ try {
         case 'owner-reply':     handleOwnerReply(); break;
         case 'cast-url-reply':  handleCastUrlReply(); break;
         case 'cast-url-toggle-notify': handleCastUrlToggleNotify(); break;
+        case 'cast-url-toggle-push':    handleCastUrlTogglePush(); break;
         case 'cast-mark-read':          handleCastMarkRead(); break;
         case 'cast-inbox':              handleCastInbox(); break;
         case 'cast-inbox-reply':        handleCastInboxReply(); break;
         case 'cast-inbox-close':        handleCastInboxClose(); break;
         case 'cast-inbox-reopen':       handleCastInboxReopen(); break;
         case 'cast-inbox-toggle-notify': handleCastInboxToggleNotify(); break;
+        case 'cast-inbox-toggle-push':   handleCastInboxTogglePush(); break;
         case 'cast-inbox-request-code': handleCastInboxRequestCode(); break;
         case 'cast-inbox-verify-code':  handleCastInboxVerifyCode(); break;
         case 'toggle-online':   handleToggleOnline(); break;
         case 'toggle-notify':   handleToggleNotify(); break;
+        case 'toggle-push':     handleTogglePush(); break;
         case 'owner-go-offline': handleOwnerGoOffline(); break;
         case 'update-settings': handleUpdateSettings(); break;
         case 'get-templates':   handleGetTemplates(); break;
@@ -1263,17 +1267,21 @@ function handleVerifyDevice() {
     $token = (string)inp('device_token', '');
     $device = verifyDevice($token);
     if (!$device) err('Invalid device token', 401);
-    // 通知モード取得
-    $stmt = DB::conn()->prepare('SELECT notify_mode FROM shop_chat_status WHERE shop_id = ?');
+    // 通知モード取得 (notify_email_mode を権威、notify_push_mode を独立して返す)
+    $stmt = DB::conn()->prepare('SELECT notify_mode, notify_email_mode, notify_push_mode FROM shop_chat_status WHERE shop_id = ?');
     $stmt->execute([$device['shop_id']]);
-    $notifyMode = $stmt->fetchColumn() ?: 'off';
+    $row = $stmt->fetch() ?: [];
+    $notifyMode = $row['notify_email_mode'] ?? $row['notify_mode'] ?? 'off';
+    $pushMode = $row['notify_push_mode'] ?? 'on';
     ok([
-        'shop_id'     => $device['shop_id'],
-        'shop_name'   => $device['shop_name'],
-        'slug'        => $device['slug'],
-        'gender_mode' => $device['gender_mode'] ?? 'men',
-        'notify_mode' => $notifyMode,
-        'notify_enabled' => $notifyMode !== 'off',
+        'shop_id'         => $device['shop_id'],
+        'shop_name'       => $device['shop_name'],
+        'slug'            => $device['slug'],
+        'gender_mode'     => $device['gender_mode'] ?? 'men',
+        'notify_mode'     => $notifyMode,
+        'notify_enabled'  => $notifyMode !== 'off',
+        'notify_push_mode'=> $pushMode,
+        'push_enabled'    => $pushMode === 'on',
     ]);
 }
 
@@ -1560,6 +1568,7 @@ function handleCastUrlToggleNotify() {
 
     // 2026-05-19: off→ON は 'every' (都度通知) デフォルト. 既存 'every'/'first' は維持.
     // off→ON で 'first' 固定 → 2通目以降届かない事故対策 (cast-inbox-toggle-notify と同じ修正).
+    // メール通知専用. push は別 API (cast-url-toggle-push).
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
     if ($enabled === 1) {
         $newMode = $currentMode === 'off' ? 'every' : $currentMode;
@@ -1567,12 +1576,61 @@ function handleCastUrlToggleNotify() {
         $newMode = 'off';
     }
 
-    $stmt = $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ? WHERE id = ?');
-    $stmt->execute([$newMode, $shopCastId]);
+    $stmt = $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ?, notify_email_mode = ? WHERE id = ?');
+    $stmt->execute([$newMode, $newMode, $shopCastId]);
 
     ok([
         'cast_notify_mode' => $newMode,
         'notify_enabled'   => $newMode !== 'off',
+    ]);
+}
+
+/**
+ * cast-url-toggle-push: アプリ通知 ON/OFF (?cast=&ct=&session_token= 経由).
+ * メールと独立. fetch-push-subscribers で notify_push_mode='on' のみ返す.
+ */
+function handleCastUrlTogglePush(): void {
+    $sessionToken = trim((string)inp('session_token', ''));
+    $shopCastId   = trim((string)inp('shop_cast_id', ''));
+    $enabled      = (int)inp('enabled', 0);
+    $ct           = trim((string)inp('ct', ''));
+    $iat          = (int)inp('iat', 0);
+
+    if ($sessionToken === '' || !preg_match('/^[a-zA-Z0-9\-]{32,64}$/', $sessionToken)) err('session_token required');
+    if ($shopCastId === '') err('shop_cast_id required');
+
+    if ($ct !== '') {
+        if (!castUrlBearerVerify($ct, $iat, $shopCastId, $sessionToken)) {
+            err('リンクが無効または期限切れです', 403);
+        }
+    } else {
+        error_log('[chat-api] cast-url-toggle-push without bearer. shop_cast_id=' . $shopCastId);
+    }
+
+    $pdo = DB::conn();
+    $stmt = $pdo->prepare(
+        'SELECT sc.id, sc.shop_id, sc.cast_id, sc.status AS sc_status, c.status AS cast_status
+         FROM shop_casts sc JOIN casts c ON c.id = sc.cast_id
+         WHERE sc.id = ? LIMIT 1'
+    );
+    $stmt->execute([$shopCastId]);
+    $sc = $stmt->fetch();
+    if (!$sc || $sc['sc_status'] !== 'active' || $sc['cast_status'] !== 'active') err('キャストが無効です', 403);
+
+    $stmt = $pdo->prepare('SELECT shop_id, cast_id FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt->execute([$sessionToken]);
+    $session = $stmt->fetch();
+    if (!$session) err('Session not found', 404);
+    if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
+    if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
+
+    $newMode = $enabled === 1 ? 'on' : 'off';
+    $pdo->prepare('UPDATE shop_casts SET notify_push_mode = ? WHERE id = ?')
+        ->execute([$newMode, $shopCastId]);
+
+    ok([
+        'notify_push_mode' => $newMode,
+        'push_enabled'     => $newMode === 'on',
     ]);
 }
 
@@ -1595,7 +1653,8 @@ function resolveCastInboxToken(string $token): ?array {
     $pdo = DB::conn();
     $stmt = $pdo->prepare(
         'SELECT sc.id AS shop_cast_id, sc.shop_id, sc.cast_id, sc.display_name,
-                sc.chat_notify_mode, sc.status AS sc_status, c.status AS cast_status,
+                sc.chat_notify_mode, sc.notify_email_mode, sc.notify_push_mode,
+                sc.status AS sc_status, c.status AS cast_status,
                 s.slug, s.shop_name, s.gender_mode
          FROM shop_casts sc
          JOIN casts c ON c.id = sc.cast_id
@@ -1713,8 +1772,10 @@ function handleCastInbox(): void {
         'shop_slug'        => $sc['slug'],
         'shop_cast_id'     => $sc['shop_cast_id'],
         'gender_mode'      => $sc['gender_mode'] ?? 'men',
-        'notify_mode'      => $sc['chat_notify_mode'],
-        'notify_enabled'   => $sc['chat_notify_mode'] !== 'off',
+        'notify_mode'      => $sc['notify_email_mode'] ?? $sc['chat_notify_mode'],
+        'notify_enabled'   => ($sc['notify_email_mode'] ?? $sc['chat_notify_mode']) !== 'off',
+        'notify_push_mode' => $sc['notify_push_mode'] ?? 'on',
+        'push_enabled'     => ($sc['notify_push_mode'] ?? 'on') === 'on',
         'cast_avatar_url'  => $castAvatarUrl,
         'server_time'      => date('c'),
     ]);
@@ -1959,6 +2020,7 @@ function handleCastInboxToggleNotify(): void {
     // 2026-05-19: off→ON は 'every' (都度通知) をデフォルトに. 既存が 'every'/'first' ならそれを維持.
     // 以前は off→'first' 固定だったため、店舗オーナーが 'every' に設定していてもキャスト本人の
     // トグル OFF→ON で 'first' に書き戻されて2通目以降のメールが届かなくなる事故があった.
+    // 2026-05-19: メール通知専用カラム notify_email_mode を更新 (push は別 API toggle-push).
     if ($enabled === 1) {
         $newMode = $currentMode === 'off' ? 'every' : $currentMode;
     } else {
@@ -1966,12 +2028,38 @@ function handleCastInboxToggleNotify(): void {
     }
 
     $pdo = DB::conn();
-    $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ? WHERE id = ?')
-        ->execute([$newMode, $sc['shop_cast_id']]);
+    // chat_notify_mode (旧) と notify_email_mode (新) を両方更新. 後方互換のため.
+    $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ?, notify_email_mode = ? WHERE id = ?')
+        ->execute([$newMode, $newMode, $sc['shop_cast_id']]);
 
     ok([
         'cast_notify_mode' => $newMode,
         'notify_enabled'   => $newMode !== 'off',
+    ]);
+}
+
+/**
+ * cast-inbox-toggle-push: アプリ(push)通知 ON/OFF (URL-token auth).
+ * 2026-05-19: メールと独立した制御. fetch-push-subscribers で notify_push_mode='on' のみ返す.
+ */
+function handleCastInboxTogglePush(): void {
+    $token = trim((string)inp('inbox_token', ''));
+    $sc = resolveCastInboxToken($token);
+    if (!$sc) err('invalid or revoked inbox_token', 403);
+
+    $deviceToken = trim((string)inp('device_token', ''));
+    if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+
+    $enabled = (int)inp('enabled', 0);
+    $newMode = $enabled === 1 ? 'on' : 'off';
+
+    $pdo = DB::conn();
+    $pdo->prepare('UPDATE shop_casts SET notify_push_mode = ? WHERE id = ?')
+        ->execute([$newMode, $sc['shop_cast_id']]);
+
+    ok([
+        'notify_push_mode' => $newMode,
+        'push_enabled'     => $newMode === 'on',
     ]);
 }
 
@@ -2260,11 +2348,14 @@ function handleToggleNotify() {
     $enabled = (int)inp('enabled', 0) === 1;
     // 2026-04-29: トグル ON 時に「設定画面で選んだ first/every」を notify_mode_preference から復元.
     // 旧実装は ON で常に 'first' に戻していたため、毎メッセージ設定が OFF→ON で消えていた.
+    // 2026-05-19: notify_mode (旧) と notify_email_mode (新) を両方更新. メール通知の権威カラムは notify_email_mode.
+    //             push (notify_push_mode) は別 API (toggle-push) で独立制御.
     $pdo = DB::conn();
     if ($enabled) {
         $pdo->prepare(
             "UPDATE shop_chat_status
              SET notify_mode = COALESCE(notify_mode_preference, 'first'),
+                 notify_email_mode = COALESCE(notify_mode_preference, 'first'),
                  is_online = 1,
                  last_online_at = NOW()
              WHERE shop_id = ?"
@@ -2273,6 +2364,7 @@ function handleToggleNotify() {
         $pdo->prepare(
             "UPDATE shop_chat_status
              SET notify_mode = 'off',
+                 notify_email_mode = 'off',
                  is_online = 0
              WHERE shop_id = ?"
         )->execute([$device['shop_id']]);
@@ -2283,35 +2375,69 @@ function handleToggleNotify() {
     ok(['notify_enabled' => $enabled, 'notify_mode' => $mode, 'is_online' => $enabled]);
 }
 
+/**
+ * オーナー用 push 通知 ON/OFF (アプリ通知単独制御、受付トグルとは独立).
+ */
+function handleTogglePush() {
+    $device = requireDevice();
+    $enabled = (int)inp('enabled', 0) === 1;
+    $newMode = $enabled ? 'on' : 'off';
+    $pdo = DB::conn();
+    $pdo->prepare('UPDATE shop_chat_status SET notify_push_mode = ? WHERE shop_id = ?')
+        ->execute([$newMode, $device['shop_id']]);
+    ok(['notify_push_mode' => $newMode, 'push_enabled' => $enabled]);
+}
+
 function handleUpdateSettings() {
     $device = requireDevice();
     $mode = (string)inp('notify_mode', 'first');
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
     $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
+    // 2026-05-19: push 通知設定を独立して受け付ける. 指定なしなら現状維持.
+    $pushParam = inp('notify_push_mode', null);
+    $pushMode = null;
+    if ($pushParam !== null) {
+        $pushModeStr = (string)$pushParam;
+        if (!in_array($pushModeStr, ['on', 'off'], true)) err('invalid notify_push_mode');
+        $pushMode = $pushModeStr;
+    }
     $pdo = DB::conn();
     // notify_mode と is_online は連動（通知トグル連動ルール）.
     // 2026-04-29: ユーザーが explicit に first/every を選んだ時は notify_mode_preference にも
     // 保存し、後でトグル OFF→ON しても消えないようにする.
+    // 2026-05-19: notify_mode (旧) と notify_email_mode (新) を両方更新. メール通知の権威は notify_email_mode.
     $pref = ($mode === 'off') ? null : $mode;
     if ($pref !== null) {
         $stmt = $pdo->prepare(
             "UPDATE shop_chat_status
-             SET notify_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?,
+             SET notify_mode = ?, notify_email_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?,
                  is_online = 1,
                  last_online_at = NOW()
              WHERE shop_id = ?"
         );
-        $stmt->execute([$mode, $pref, $interval, $device['shop_id']]);
+        $stmt->execute([$mode, $mode, $pref, $interval, $device['shop_id']]);
     } else {
         $stmt = $pdo->prepare(
             "UPDATE shop_chat_status
-             SET notify_mode = 'off', notify_min_interval_minutes = ?,
+             SET notify_mode = 'off', notify_email_mode = 'off', notify_min_interval_minutes = ?,
                  is_online = 0
              WHERE shop_id = ?"
         );
         $stmt->execute([$interval, $device['shop_id']]);
     }
-    ok(['notify_mode' => $mode, 'notify_min_interval_minutes' => $interval, 'is_online' => $mode !== 'off']);
+    if ($pushMode !== null) {
+        $pdo->prepare('UPDATE shop_chat_status SET notify_push_mode = ? WHERE shop_id = ?')
+            ->execute([$pushMode, $device['shop_id']]);
+    }
+    $cur = $pdo->prepare('SELECT notify_push_mode FROM shop_chat_status WHERE shop_id = ?');
+    $cur->execute([$device['shop_id']]);
+    $curPush = (string)($cur->fetchColumn() ?: 'on');
+    ok([
+        'notify_mode' => $mode,
+        'notify_min_interval_minutes' => $interval,
+        'notify_push_mode' => $curPush,
+        'is_online' => $mode !== 'off'
+    ]);
 }
 
 function handleGetTemplates() {
@@ -2485,7 +2611,8 @@ function handleAdminOverview() {
     // 有効化状態取得
     $stmt = $pdo->prepare(
         'SELECT s.slug, s.shop_name, s.email AS shop_email,
-                st.is_online, st.notify_mode, st.notify_min_interval_minutes, st.last_online_at, st.auto_off_minutes,
+                st.is_online, st.notify_mode, st.notify_email_mode, st.notify_push_mode,
+                st.notify_min_interval_minutes, st.last_online_at, st.auto_off_minutes,
                 st.reception_start, st.reception_end, st.welcome_message, st.reservation_hint, st.notify_email
          FROM shops s
          LEFT JOIN shop_chat_status st ON st.shop_id = s.id
@@ -2533,7 +2660,8 @@ function handleAdminOverview() {
         'slug'       => $row['slug'] ?? '',
         'shop_name'  => $row['shop_name'] ?? '',
         'is_online'  => $enabled ? effectiveOnline($row) : false,
-        'notify_mode'=> $row['notify_mode'] ?? 'off',
+        'notify_mode'=> $row['notify_email_mode'] ?? $row['notify_mode'] ?? 'off',
+        'notify_push_mode' => $row['notify_push_mode'] ?? 'on',
         'notify_min_interval_minutes' => (int)($row['notify_min_interval_minutes'] ?? 3),
         'reception_start' => $row['reception_start'] ?? null,
         'reception_end'   => $row['reception_end'] ?? null,
@@ -2629,32 +2757,50 @@ function handleAdminSaveSettings() {
         }
     }
 
+    // 2026-05-19: push 設定 (notify_push_mode) を独立して受け付け. 指定なしは現状維持.
+    $pushParam = inp('notify_push_mode', null);
+    $pushMode = null;
+    if ($pushParam !== null) {
+        $pushModeStr = (string)$pushParam;
+        if (!in_array($pushModeStr, ['on', 'off'], true)) err('invalid notify_push_mode');
+        $pushMode = $pushModeStr;
+    }
+
     $pdo = DB::conn();
     // notify_mode と is_online は常に連動させる（通知トグル連動ルール）:
     // notify_mode='off' → is_online=0 / それ以外 → is_online=1, last_online_at=NOW().
     // 2026-04-29: 'first'/'every' を選んだ場合は notify_mode_preference にも保存し、
     // 後でトグル OFF→ON しても消えないようにする.
+    // 2026-05-19: notify_mode (旧) と notify_email_mode (新) を両方更新.
     $pref = ($mode === 'off') ? null : $mode;
     if ($pref !== null) {
         $stmt = $pdo->prepare(
             "UPDATE shop_chat_status
-             SET notify_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
+             SET notify_mode = ?, notify_email_mode = ?, notify_mode_preference = ?, notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
                  is_online = 1,
                  last_online_at = NOW()
              WHERE shop_id = ?"
         );
-        $stmt->execute([$mode, $pref, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
+        $stmt->execute([$mode, $mode, $pref, $interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
     } else {
         $stmt = $pdo->prepare(
             "UPDATE shop_chat_status
-             SET notify_mode = 'off', notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
+             SET notify_mode = 'off', notify_email_mode = 'off', notify_min_interval_minutes = ?, reception_start = ?, reception_end = ?, welcome_message = ?, reservation_hint = ?, notify_email = ?,
                  is_online = 0
              WHERE shop_id = ?"
         );
         $stmt->execute([$interval, $rStart, $rEnd, $welcome, $reservationHint, $notifyEmail, $auth['shop_id']]);
     }
+    if ($pushMode !== null) {
+        $pdo->prepare('UPDATE shop_chat_status SET notify_push_mode = ? WHERE shop_id = ?')
+            ->execute([$pushMode, $auth['shop_id']]);
+    }
+    $cur = $pdo->prepare('SELECT notify_push_mode FROM shop_chat_status WHERE shop_id = ?');
+    $cur->execute([$auth['shop_id']]);
+    $curPush = (string)($cur->fetchColumn() ?: 'on');
     ok([
         'notify_mode' => $mode,
+        'notify_push_mode' => $curPush,
         'notify_min_interval_minutes' => $interval,
         'reception_start' => $rStart,
         'reception_end' => $rEnd,
@@ -2992,6 +3138,25 @@ function handleFetchPushSubscribers(): void {
     if ($subjectId === '') err('subject_id required');
 
     $pdo = DB::conn();
+
+    // 2026-05-19: アプリ通知 ON/OFF 判定. notify_push_mode='off' なら空配列を返して push 発火させない.
+    // 訪問者宛 (subject_type='visitor') は判定なし (常に飛ばす).
+    if ($subjectType === 'cast') {
+        // subject_id = casts.id. shop_casts.notify_push_mode='on' の active な所属レコードがあれば送る.
+        $stmt = $pdo->prepare(
+            "SELECT 1 FROM shop_casts
+             WHERE cast_id = ? AND status = 'active' AND notify_push_mode = 'on' AND deleted_at IS NULL
+             LIMIT 1"
+        );
+        $stmt->execute([$subjectId]);
+        if (!$stmt->fetchColumn()) { ok(['subscribers' => []]); return; }
+    } elseif ($subjectType === 'shop') {
+        $stmt = $pdo->prepare("SELECT notify_push_mode FROM shop_chat_status WHERE shop_id = ? LIMIT 1");
+        $stmt->execute([$subjectId]);
+        $mode = (string)($stmt->fetchColumn() ?: 'on');
+        if ($mode === 'off') { ok(['subscribers' => []]); return; }
+    }
+
     $stmt = $pdo->prepare(
         'SELECT endpoint, endpoint_hash, p256dh, auth
          FROM web_push_subscriptions

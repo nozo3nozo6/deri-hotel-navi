@@ -2150,6 +2150,9 @@ function renderChatAdmin(data){
         r.checked = (r.value === initialRadioMode);
     });
     document.getElementById('chat-notify-interval').value = data.notify_min_interval_minutes || 3;
+    // 2026-05-19: アプリ通知 (push) トグルはメールと独立した状態を読み込む.
+    const pushToggle = document.getElementById('chat-push-toggle');
+    if (pushToggle) pushToggle.checked = (data.notify_push_mode || 'on') === 'on';
     const shopEmailText = data.shop_email || (currentShop && currentShop.email) || '';
     document.getElementById('chat-admin-email').textContent = shopEmailText;
     const notifyEmailInput = document.getElementById('chat-notify-email');
@@ -2306,6 +2309,23 @@ async function revokeDevice(id){
         const data = await chatApi('admin-overview', {}, 'GET');
         renderDeviceList(data.devices || []);
     } catch (e) { toast('⚠️ ' + e.message); }
+}
+
+// 2026-05-19: アプリ通知 (push) トグル単独保存. メール設定と独立して即時反映.
+async function saveChatPushToggle(){
+    const tgl = document.getElementById('chat-push-toggle');
+    if (!tgl) return;
+    try {
+        await chatApi('admin-save-settings', {
+            notify_mode: (document.querySelector('input[name="chat-notify-mode"]:checked') || {}).value || 'first',
+            notify_min_interval_minutes: parseInt(document.getElementById('chat-notify-interval').value, 10) || 3,
+            notify_push_mode: tgl.checked ? 'on' : 'off',
+        });
+        toast(tgl.checked ? '✅ アプリ通知をONにしました' : 'アプリ通知をOFFにしました');
+    } catch (e) {
+        toast('⚠️ ' + e.message);
+        tgl.checked = !tgl.checked; // 失敗時は元に戻す
+    }
 }
 
 async function saveChatSettings(){
@@ -2832,8 +2852,9 @@ function openCastEdit(id){
             document.getElementById('cast-edit-bio').value = c.bio || '';
             document.getElementById('cast-edit-sort').value = c.sort_order != null ? c.sort_order : '';
             document.getElementById('cast-edit-status').value = (c.status === 'suspended') ? 'suspended' : 'active';
-            document.getElementById('cast-edit-notify-mode').value = c.chat_notify_mode || 'off';
+            document.getElementById('cast-edit-notify-mode').value = c.notify_email_mode || c.chat_notify_mode || 'off';
             document.getElementById('cast-edit-notify-email').value = c.chat_notify_email || '';
+            document.getElementById('cast-edit-push-toggle').checked = (c.notify_push_mode || 'on') === 'on';
             document.getElementById('cast-edit-default-email').textContent = c.email || '—';
             setCastAvatarPreview(c.profile_image_url || null);
             document.getElementById('cast-edit-avatar-input').value = '';
@@ -2903,6 +2924,7 @@ async function saveCastEdit(){
         sort_order: (function(){ const v = document.getElementById('cast-edit-sort').value; return v === '' ? null : (Number(v) || 0); })(),
         status: document.getElementById('cast-edit-status').value,
         chat_notify_mode: document.getElementById('cast-edit-notify-mode').value,
+        notify_push_mode: document.getElementById('cast-edit-push-toggle').checked ? 'on' : 'off',
         chat_notify_email: notifyEmail
     };
     if (_castEditAvatarData !== null) {

@@ -178,7 +178,7 @@ function handleList() {
 
     $sql = 'SELECT sc.id, sc.cast_id, sc.display_name, sc.profile_image_url, sc.bio,
                    sc.status, sc.sort_order, sc.joined_at, sc.approved_at, sc.is_visible,
-                   sc.chat_notify_mode, sc.chat_notify_email,
+                   sc.chat_notify_mode, sc.notify_email_mode, sc.notify_push_mode, sc.chat_notify_email,
                    c.email, c.status AS cast_status, c.last_login_at,
                    (c.password_hash IS NOT NULL) AS has_password
             FROM shop_casts sc
@@ -433,8 +433,19 @@ function handleUpdate() {
     $notifyMode = inp('chat_notify_mode', null);
     if ($notifyMode !== null) {
         if (!in_array($notifyMode, ['off', 'first', 'every'], true)) err('invalid chat_notify_mode');
+        // 2026-05-19: chat_notify_mode (旧) と notify_email_mode (新) を両方更新.
         $fields[] = 'chat_notify_mode = ?';
         $values[] = $notifyMode;
+        $fields[] = 'notify_email_mode = ?';
+        $values[] = $notifyMode;
+    }
+    // 2026-05-19: アプリ(push)通知 ON/OFF を独立して受け付け.
+    $notifyPush = inp('notify_push_mode', null);
+    if ($notifyPush !== null) {
+        $notifyPushStr = (string)$notifyPush;
+        if (!in_array($notifyPushStr, ['on', 'off'], true)) err('invalid notify_push_mode');
+        $fields[] = 'notify_push_mode = ?';
+        $values[] = $notifyPushStr;
     }
     $notifyEmail = inp('chat_notify_email', null);
     if ($notifyEmail !== null) {

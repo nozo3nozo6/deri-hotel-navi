@@ -1337,6 +1337,8 @@ async function subscribeToPush() {
             },
         }, 'POST');
         markPushSubscribed(r.endpoint_hash || '1');
+        // 2026-05-19: 購読登録に成功したら notify_push_mode='on' を保存. メール設定とは独立.
+        await syncPushMode(true).catch(() => {});
         refreshPushButton();
         return true;
     } catch (e) {
@@ -1363,8 +1365,42 @@ async function unsubscribeFromPush() {
             }
         }
     } catch (_) {}
+    // 2026-05-19: 購読解除時は notify_push_mode='off' に同期 (今後のメッセージで push 発火しなくなる).
+    await syncPushMode(false).catch(() => {});
     clearPushSubscribed();
     refreshPushButton();
+}
+
+/**
+ * 2026-05-19: push 購読の ON/OFF に合わせて DB の notify_push_mode を同期.
+ * メール通知 (chat_notify_mode/notify_email_mode) とは完全独立.
+ */
+async function syncPushMode(enabled) {
+    const auth = buildPushAuth();
+    if (!auth) return;
+    const enabledInt = enabled ? 1 : 0;
+    try {
+        if (auth.kind === 'owner') {
+            await api('toggle-push', { device_token: auth.device_token, enabled: enabledInt }, 'POST');
+        } else if (auth.kind === 'cast_inbox') {
+            await api('cast-inbox-toggle-push', {
+                inbox_token: auth.inbox_token,
+                device_token: auth.device_token,
+                enabled: enabledInt
+            }, 'POST');
+        } else if (auth.kind === 'cast_view') {
+            const payload = {
+                session_token: auth.session_token,
+                shop_cast_id: auth.shop_cast_id,
+                enabled: enabledInt
+            };
+            if (typeof CAST_BEARER !== 'undefined' && CAST_BEARER) {
+                payload.ct = CAST_BEARER.ct; payload.iat = CAST_BEARER.iat;
+            }
+            await api('cast-url-toggle-push', payload, 'POST');
+        }
+        // visitor: 訪問者側は notify_push_mode 概念なし (常に飛ばす)
+    } catch (_) { /* 同期失敗は致命的ではない */ }
 }
 
 function ensurePushButton() {
