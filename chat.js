@@ -4954,7 +4954,13 @@ setupEmbedDirectLinkFooter();
         }
         // 直URL: 従来通り kb-h を計算 (kb-close アニメ中の flicker 防止に isClosing 適用).
         if (isClosing) return;
-        const kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+        let kb = vv ? Math.max(0, window.innerHeight - vv.height) : 0;
+        // 2026-05-19: PWA standalone モードでは window.innerHeight が safe-area を含み
+        // vv.height が含まないため、偽の差分 (~30-60px) が出る → 画面下半分が空く症状.
+        // 実 keyboard は最低でも 150px+ なので、150px 未満は safe-area 差分と見なして 0 に丸める.
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+            || navigator.standalone === true;
+        if (isStandalone && kb < 150) kb = 0;
         setKbH(kb);
         const wasOpen = keyboardOpen;
         keyboardOpen = kb > 0;
