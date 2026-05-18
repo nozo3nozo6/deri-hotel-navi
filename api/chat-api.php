@@ -2864,18 +2864,20 @@ function resolvePushSubject(array $auth): ?array {
             return ['type' => 'visitor', 'id' => $t, 'device_token' => null];
         }
         case 'cast_view': {
+            // 2026-05-19: subject_id は casts.id (DO/PHP規約) に統一. shop_casts.id だと
+            // DO ChatRoom.ts が sess.cast_id (=casts.id) でルックアップする時にマッチしない.
             $token = trim((string)($auth['session_token'] ?? ''));
             $shopCastId = trim((string)($auth['shop_cast_id'] ?? ''));
             if ($token === '' || $shopCastId === '') return null;
             $stmt = $pdo->prepare(
-                'SELECT sc.id FROM chat_sessions s
+                'SELECT sc.cast_id FROM chat_sessions s
                  JOIN shop_casts sc ON sc.cast_id = s.cast_id AND sc.shop_id = s.shop_id
                  WHERE s.session_token = ? AND sc.id = ? AND sc.status = "active" LIMIT 1'
             );
             $stmt->execute([$token, $shopCastId]);
-            $id = (string)($stmt->fetchColumn() ?: '');
-            if ($id === '') return null;
-            return ['type' => 'cast', 'id' => $id, 'device_token' => null];
+            $castId = (string)($stmt->fetchColumn() ?: '');
+            if ($castId === '') return null;
+            return ['type' => 'cast', 'id' => $castId, 'device_token' => null];
         }
         case 'owner': {
             if (!empty($auth['device_token'])) $body['device_token'] = $auth['device_token'];
@@ -2884,12 +2886,14 @@ function resolvePushSubject(array $auth): ?array {
             return ['type' => 'shop', 'id' => (string)$device['shop_id'], 'device_token' => (string)inp('device_token', '')];
         }
         case 'cast_inbox': {
+            // 2026-05-19: subject_id は casts.id (DO/PHP規約) に統一. shop_casts.id だと
+            // DO ChatRoom.ts が sess.cast_id (=casts.id) でルックアップする時にマッチしない事故あり.
             $inbox = trim((string)($auth['inbox_token'] ?? ''));
             $deviceToken = trim((string)($auth['device_token'] ?? ''));
             $sc = resolveCastInboxToken($inbox);
             if (!$sc) return null;
             if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) return null;
-            return ['type' => 'cast', 'id' => (string)$sc['shop_cast_id'], 'device_token' => $deviceToken];
+            return ['type' => 'cast', 'id' => (string)$sc['cast_id'], 'device_token' => $deviceToken];
         }
     }
     return null;
