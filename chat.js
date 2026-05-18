@@ -1195,9 +1195,25 @@ function pushSupported() {
 }
 
 function buildPushAuth() {
-    const payload = buildTypingPayload();
-    if (!payload) return null;
-    return payload.auth;
+    // 2026-05-18: push 購読は店舗/キャスト単位 (スレッド選択不要) なので、
+    // buildTypingPayload (selected_session 必須) の流用をやめて独立した判定を行う.
+    // これにより inbox 一覧表示中のオーナー/キャストも通知ボタンを使える.
+    if (state.mode === 'owner') {
+        if (!state.device_token) return null;
+        return { kind: 'owner', device_token: state.device_token };
+    }
+    if (state.mode === 'cast_owner') {
+        if (typeof CAST_INBOX_TOKEN === 'undefined' || !CAST_INBOX_TOKEN) return null;
+        if (!state.cast_device_token) return null;
+        return { kind: 'cast_inbox', inbox_token: CAST_INBOX_TOKEN, device_token: state.cast_device_token };
+    }
+    if (IS_CAST_VIEW && typeof CAST_ID !== 'undefined' && CAST_ID && state.session_token) {
+        return { kind: 'cast_view', session_token: state.session_token, shop_cast_id: CAST_ID };
+    }
+    if (state.session_token) {
+        return { kind: 'visitor', session_token: state.session_token };
+    }
+    return null;
 }
 
 function b64urlToUint8(b64) {
@@ -1413,25 +1429,25 @@ function refreshPushButton() {
     const btn = ensurePushButton();
     placePushButton();
 
-    if (!pushSupported()) {
-        // 2026-05-18: iOS Safari 非 PWA → 「ホーム画面に追加」案内に置き換え.
-        // pushSupported() は PushManager 未対応 (= iOS Safari 非 standalone を含む) で false.
-        if (isIOSSafari() && !isPWAStandalone()) {
-            const auth = buildPushAuth();
-            if (auth && _pushConfigCache && _pushConfigCache.enabled !== false) {
-                btn.classList.remove('hidden');
-                btn.textContent = '📲 通知を受け取る';
-                btn.disabled = false;
-                btn.classList.remove('is-on');
-                btn.dataset.iosGuide = '1';
-                return;
-            }
+    // 2026-05-18: iOS Safari は PushManager が存在しても非 PWA では実際に購読できない.
+    // pushSupported() より先に iOS 非 PWA を判定し「ホーム画面に追加」案内に分岐.
+    if (isIOSSafari() && !isPWAStandalone()) {
+        const auth = buildPushAuth();
+        if (auth && _pushConfigCache && _pushConfigCache.enabled !== false) {
+            btn.classList.remove('hidden');
+            btn.textContent = '📲 通知を受け取る';
+            btn.disabled = false;
+            btn.classList.remove('is-on');
+            btn.dataset.iosGuide = '1';
+            return;
         }
         btn.classList.add('hidden');
         return;
     }
     // 通常 path: ガイドモードをクリア
     delete btn.dataset.iosGuide;
+
+    if (!pushSupported()) { btn.classList.add('hidden'); return; }
 
     // モード判定: owner / cast_owner / cast_view / visitor で有効。
     // visitor モードでも push は登録できるがセッション期限切れでは無効になるため条件緩め.
@@ -3386,6 +3402,8 @@ async function enterOwnerMode() {
     // shop-admin 側のトグル切替をオーナー画面に反映するため shop-status を定期リフレッシュ
     if (state._ownerStatusTimer) clearInterval(state._ownerStatusTimer);
     state._ownerStatusTimer = setInterval(refreshOwnerStatus, 15000);
+    // 2026-05-18: push 通知ボタン表示判定 (オーナーモード). VAPID config 取得後に refresh.
+    try { await ensurePushConfig(); refreshPushButton(); } catch (_) {}
 }
 
 async function refreshOwnerStatus() {
@@ -3735,6 +3753,8 @@ async function enterCastOwnerMode() {
 
     showCastInbox();
     startCastInboxPolling();
+    // 2026-05-18: push 通知ボタン表示判定 (キャストモード).
+    try { await ensurePushConfig(); refreshPushButton(); } catch (_) {}
 }
 
 // 端末登録フロー: 受信箱URLは盗まれうるので、初回のみキャスト登録メール宛に6桁コードを送って
