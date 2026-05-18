@@ -743,18 +743,38 @@ async function getMasterJson(){
     try{const res=await fetch('/master-data.json');_masterJson=await res.json();}catch(e){_masterJson={};}
     return _masterJson;
 }
+let entryMethods=[]; // {code, label}[] — マスタ管理 (loveho_entry_methods)
 async function loadMasterData(){
     const md=await getMasterJson();
     canReasons=md.can_call_reasons||[];
     cannotReasons=md.cannot_call_reasons||[];
     roomTypes=md.room_types||[];
     serviceOptions=(md.shop_service_options||[]).map(s=>({id:s.id,name:s.name}));
+    entryMethods=(md.loveho?.entry_methods)||[];
+    // フォールバック: マスタ未投入環境向けに最低限のハードコード値を保持 (旧仕様互換)
+    if(!entryMethods.length){
+        entryMethods=[
+            {code:'front',label:'フロント経由(部屋番号を伝えて入室)'},
+            {code:'direct',label:'直接入室(お部屋に直行)'},
+            {code:'lobby',label:'ロビー待ち合わせ'},
+            {code:'waiting',label:'待合室で待ち合わせ'},
+        ];
+    }
 
     // チェックボックスグループ生成
     renderCheckGroup("can-reason-checks",canReasons);
     renderCheckGroup("cant-reason-checks",cannotReasons);
     renderCheckGroup("room-type-checks",roomTypes);
     renderCheckGroup("time-slot-checks",TIME_SLOTS);
+
+    // 入室方法 <select> をマスタから動的生成
+    const emSel=document.getElementById('lh-f-entry-method');
+    if(emSel){
+        const cur=emSel.value;
+        emSel.innerHTML='<option value="">選択してください</option>'+
+            entryMethods.map(em=>`<option value="${esc(em.code)}">${esc(em.label)}</option>`).join('');
+        if(cur)emSel.value=cur;
+    }
 
     // サービス0件なら非表示
     document.getElementById("service-group").style.display=serviceOptions.length>0?"":"none";
@@ -1752,7 +1772,9 @@ function lhSubmitReport(){
     };
     const r=_lhPendingPayload.report;
     const soloMap={yes:'一人で入れた',no:'一人では入れなかった',together:'一緒に入室',lobby:'ロビー待機',unknown:'不明'};
-    const entryMap={front:'フロント経由',direct:'直通',lobby:'ロビー待機',waiting:'外待機'};
+    // 入室方法ラベル: マスタから生成 (loadMasterData 済み前提)。未投入環境向けフォールバック付き.
+    const entryMap=Object.fromEntries((entryMethods||[]).map(em=>[em.code,em.label]));
+    if(!entryMap.front)Object.assign(entryMap,{front:'フロント経由',direct:'直接入室',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'});
     function row(l,v){if(!v)return '';return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="min-width:90px;color:var(--text-3);font-weight:600;">${l}</span><span style="color:var(--text);word-break:break-all;">${esc(String(v))}</span></div>`;}
     const html=row('投稿者名',r.poster_name)+row('一人入室',soloMap[r.solo_entry]||null)+row('入室方法',entryMap[r.entry_method]||null)+row('雰囲気',r.atmosphere)+row('良かった点',r.good_points?r.good_points.join('、'):null)+row('時間帯',r.time_slot)+(r.multi_person?row('複数人利用',`男性${r.guest_male||0}名・女性${r.guest_female||0}名${r.multi_fee?'（追加料金あり）':''}`):'')+((_lhPendingPayload.transport_fee!=null&&_lhPendingPayload.transport_fee!=='')?row('交通費',formatFee(_lhPendingPayload.transport_fee)):'')+row('コメント',r.comment);
     document.getElementById('lh-confirm-body').innerHTML=html;

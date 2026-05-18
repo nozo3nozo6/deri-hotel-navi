@@ -199,7 +199,7 @@ function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList
 function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
 function closeMobileMenu(){closeNav();}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadEntryMethods();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");if(name==='ngwords')loadNgWords();}
 
@@ -1914,6 +1914,45 @@ function renderAtmospheres(){document.getElementById("atmosphere-sub").textConte
 async function addAtmosphere(){const input=document.getElementById("new-atmosphere");const name=input.value.trim();if(!name){toast("雰囲気を入力してください");return;}const maxOrder=atmospheresData.length?Math.max(...atmospheresData.map(c=>c.sort_order))+1:1;const _ir=await api("insert",{table:"loveho_atmospheres",data:{name,sort_order:maxOrder}});if(!_ir.ok){toast("追加エラー");return;}const data=_ir.data;atmospheresData.push(data);renderAtmospheres();input.value="";toast("✅ 追加しました");}
 async function editAtmosphere(id,name){const newName=prompt("雰囲気を編集してください:",name);if(!newName||newName.trim()===name)return;const _r=await api("update",{table:"loveho_atmospheres",id:id,data:{name:newName.trim()}});if(!_r.ok){toast("更新エラー");return;}atmospheresData=atmospheresData.map(c=>c.id===id?{...c,name:newName.trim()}:c);renderAtmospheres();toast("✅ 更新しました");}
 async function deleteAtmosphere(id,name){if(!confirm(`「${name}」を削除しますか？`))return;const _r=await api("delete",{table:"loveho_atmospheres",id:id});if(!_r.ok){toast("削除エラー");return;}atmospheresData=atmospheresData.filter(c=>c.id!==id);renderAtmospheres();toast("🗑 削除しました");}
+
+// ===== 入室方法マスタ (loveho_entry_methods) =====
+// code: loveho_reports.entry_method に保存される値 (英数). label: 画面表示用日本語.
+let entryMethodsData=[];
+async function loadEntryMethods(){const data=await apiGet("list","table=loveho_entry_methods&order=sort_order&dir=asc");entryMethodsData=data||[];renderEntryMethods();}
+function renderEntryMethods(){
+    document.getElementById("entrymethod-sub").textContent=`全 ${entryMethodsData.length} 件`;
+    document.getElementById("entrymethod-list").innerHTML=entryMethodsData.length===0?`<div style="text-align:center;padding:20px;color:var(--ink-3);font-size:13px;">まだ登録されていません</div>`:entryMethodsData.map(c=>`<div class="cond-row" draggable="true" data-dnd-id="${c.id}" data-dnd-type="loveho_entry_methods"><span class="drag-handle">&#9776;</span><span class="cond-order">${c.sort_order}</span><span style="font-family:monospace;font-size:11px;color:var(--ink-3);min-width:60px;">${esc(c.code)}</span><span class="cond-label">${esc(c.label)}</span><button class="btn b-btn-gold" data-action="editEntryMethod" data-arg1="${c.id}" data-arg2="${esc(c.label)}">編集</button><button class="btn b-btn-red" data-action="deleteEntryMethod" data-arg1="${c.id}" data-arg2="${esc(c.code)}" data-arg3="${esc(c.label)}">削除</button></div>`).join("");
+}
+async function addEntryMethod(){
+    const codeInput=document.getElementById("new-entrymethod-code");
+    const labelInput=document.getElementById("new-entrymethod-label");
+    const code=codeInput.value.trim();
+    const label=labelInput.value.trim();
+    if(!code||!label){toast("code とラベル両方を入力してください");return;}
+    if(!/^[a-z0-9_]{2,20}$/.test(code)){toast("code は半角英小文字/数字/_ 2〜20文字で入力してください");return;}
+    if(entryMethodsData.some(x=>x.code===code)){toast("その code は既に登録されています");return;}
+    const maxOrder=entryMethodsData.length?Math.max(...entryMethodsData.map(c=>c.sort_order))+1:1;
+    const _ir=await api("insert",{table:"loveho_entry_methods",data:{code,label,sort_order:maxOrder,is_active:1}});
+    if(!_ir.ok){toast("追加エラー");return;}
+    entryMethodsData.push(_ir.data);renderEntryMethods();
+    codeInput.value="";labelInput.value="";
+    toast("✅ 追加しました");
+}
+async function editEntryMethod(id,label){
+    const newLabel=prompt("ラベルを編集してください:",label);
+    if(!newLabel||newLabel.trim()===label)return;
+    const _r=await api("update",{table:"loveho_entry_methods",id:id,data:{label:newLabel.trim()}});
+    if(!_r.ok){toast("更新エラー");return;}
+    entryMethodsData=entryMethodsData.map(c=>c.id===id?{...c,label:newLabel.trim()}:c);
+    renderEntryMethods();toast("✅ 更新しました");
+}
+async function deleteEntryMethod(id,code,label){
+    if(!confirm(`入室方法「${label}」(code: ${code}) を削除しますか？\n\n⚠️ 既存口コミでこの code が使われている場合、表示は code そのものになります。`))return;
+    const _r=await api("delete",{table:"loveho_entry_methods",id:id});
+    if(!_r.ok){toast("削除エラー");return;}
+    entryMethodsData=entryMethodsData.filter(c=>c.id!==id);
+    renderEntryMethods();toast("🗑 削除しました");
+}
 
 // ===== 契約プラン =====
 let contractPlansData=[];
@@ -3899,6 +3938,7 @@ async function dndDrop(e,targetId){
     else if(_dndTable==="shop_service_options"){dataArr=serviceOptionsData;renderFn=renderServiceOptions;}
     else if(_dndTable==="loveho_good_points"){dataArr=goodPointsData;renderFn=renderGoodPoints;}
     else if(_dndTable==="loveho_atmospheres"){dataArr=atmospheresData;renderFn=renderAtmospheres;}
+    else if(_dndTable==="loveho_entry_methods"){dataArr=entryMethodsData;renderFn=renderEntryMethods;}
     else return;
     const srcIdx=dataArr.findIndex(c=>c.id===_dndSrcId);
     const tgtIdx=dataArr.findIndex(c=>c.id===targetId);

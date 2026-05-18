@@ -211,7 +211,7 @@ const CAN_CALL_REASONS_NARROW = {
 
 let CANNOT_CALL_REASONS = ['フロントSTOP', '防犯カメラ確認', '深夜外出NG', 'その他'];
 let ROOM_TYPES = ['シングル', 'ダブル', 'ツイン', 'スイート', '和室', 'その他'];
-let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [], good_points: [] };
+let LH_MASTER = { atmospheres: [], room_types: [], facilities: [], price_ranges_rest: [], price_ranges_stay: [], time_slots: [], good_points: [], entry_methods: [] };
 
 let _masterDataLoaded = false;
 let _masterDataPromise = null;
@@ -250,6 +250,7 @@ function _applyMasterData(md) {
         if (lh.price_ranges_stay?.length) LH_MASTER.price_ranges_stay = lh.price_ranges_stay;
         if (lh.time_slots?.length) LH_MASTER.time_slots = lh.time_slots;
         if (lh.good_points?.length) LH_MASTER.good_points = lh.good_points;
+        if (lh.entry_methods?.length) LH_MASTER.entry_methods = lh.entry_methods;
     }
 }
 

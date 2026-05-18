@@ -17,6 +17,12 @@ $lhRoomTypes = $pdo->query("SELECT name FROM loveho_room_types ORDER BY sort_ord
 $facilities = $pdo->query("SELECT name FROM loveho_facilities ORDER BY sort_order")->fetchAll(PDO::FETCH_COLUMN);
 $priceRanges = $pdo->query("SELECT name, type FROM loveho_price_ranges ORDER BY sort_order")->fetchAll();
 $timeSlots = $pdo->query("SELECT name FROM loveho_time_slots ORDER BY sort_order")->fetchAll(PDO::FETCH_COLUMN);
+// 入室方法 (フロント経由 / 直接入室 / ロビー待ち合わせ / 駐車場待ち合わせ 等). code は loveho_reports.entry_method に保存される値.
+// テーブル未作成環境でもクラッシュしないよう存在チェック付き.
+$entryMethods = [];
+try {
+    $entryMethods = $pdo->query("SELECT code, label FROM loveho_entry_methods WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { /* テーブル未作成時はスキップ */ }
 $shopServiceOptions = $pdo->query("SELECT id, name FROM shop_service_options WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 
 $masterData = [
@@ -31,6 +37,7 @@ $masterData = [
         'price_ranges_rest' => array_values(array_map(fn($r) => $r['name'], array_filter($priceRanges, fn($r) => $r['type'] === 'rest'))),
         'price_ranges_stay' => array_values(array_map(fn($r) => $r['name'], array_filter($priceRanges, fn($r) => $r['type'] === 'stay'))),
         'time_slots' => $timeSlots,
+        'entry_methods' => $entryMethods,
     ],
     'shop_service_options' => $shopServiceOptions,
     'generated_at' => gmdate('c'),

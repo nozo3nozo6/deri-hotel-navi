@@ -483,6 +483,7 @@
                     <button class="master-tab" id="mt-service" data-action="switchMasterSub" data-arg1="service">🛎 店舗サービス</button>
                     <button class="master-tab" id="mt-goodpoints" data-action="switchMasterSub" data-arg1="goodpoints">📝 チェックポイント</button>
                     <button class="master-tab" id="mt-atmosphere" data-action="switchMasterSub" data-arg1="atmosphere">✨ 雰囲気</button>
+                    <button class="master-tab" id="mt-entrymethod" data-action="switchMasterSub" data-arg1="entrymethod">🚪 入室方法</button>
                     <button class="master-tab" id="mt-ngwords" data-action="switchMasterSub" data-arg1="ngwords">🚫 NGワード</button>
                 </div>
                 <div class="master-sub active" id="msub-can">
@@ -548,6 +549,18 @@
                     <div class="add-row">
                         <input id="new-atmosphere" class="add-input" placeholder="新しい雰囲気を入力..." onkeydown="if(event.key==='Enter')addAtmosphere()">
                         <button class="btn-add" data-action="addAtmosphere">＋ 追加</button>
+                    </div>
+                </div>
+                <div class="master-sub" id="msub-entrymethod">
+                    <div style="font-size:12px;color:var(--ink-3);margin-bottom:8px;" id="entrymethod-sub"></div>
+                    <div style="font-size:11px;color:var(--ink-3);margin-bottom:8px;line-height:1.6;">
+                        💡 code は DB に保存する識別子（半角英数）、label は画面表示用ラベル。新規追加時は両方必須。
+                    </div>
+                    <div class="cond-list" id="entrymethod-list"></div>
+                    <div class="add-row">
+                        <input id="new-entrymethod-code" class="add-input" placeholder="code (例: parking)" style="flex:1;">
+                        <input id="new-entrymethod-label" class="add-input" placeholder="ラベル (例: 駐車場待ち合わせ)" style="flex:2;" onkeydown="if(event.key==='Enter')addEntryMethod()">
+                        <button class="btn-add" data-action="addEntryMethod">＋ 追加</button>
                     </div>
                 </div>
                 <div class="master-sub" id="msub-ngwords">

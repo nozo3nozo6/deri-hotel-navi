@@ -46,13 +46,14 @@ $ALLOWED_TABLES = [
     'hotel_requests', 'hotel_corrections', 'outreach_emails',
     'can_call_reasons', 'cannot_call_reasons', 'room_types',
     'shop_service_options', 'loveho_good_points', 'loveho_atmospheres',
+    'loveho_entry_methods',
     'contract_plans', 'ad_plans', 'shop_plan_requests',
 ];
 
 // ===== マスタデータテーブル（変更時にmaster-data.json再生成） =====
 $MASTER_TABLES = [
     'can_call_reasons', 'cannot_call_reasons', 'room_types',
-    'loveho_good_points', 'loveho_atmospheres',
+    'loveho_good_points', 'loveho_atmospheres', 'loveho_entry_methods',
     'shop_service_options', 'contract_plans',
 ];
 

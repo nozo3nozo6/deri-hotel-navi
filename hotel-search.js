@@ -904,7 +904,14 @@ function renderLovehoDetail(hotel, reports) {
         const fee=_siActive&&_lhSid?lhShopFeeMap[_lhSid]:undefined;
         const feeLabel=formatTransportFee(fee);
         const feeHTML=feeLabel?`<span class="fee-badge">${t('transport_fee')} ${feeLabel}</span>`:'';
-        const entryMethodLabels={front:t('entry_front'),direct:t('entry_direct'),lobby:t('entry_lobby'),waiting:t('entry_waiting')};
+        // 入室方法ラベル: i18n キー (entry_<code>) があれば多言語対応、無ければマスタの label を fallback.
+        // 旧 hardcode 4種 (front/direct/lobby/waiting) は i18n キーあり、新規追加分 (parking/meet 等) はマスタ label を使用.
+        const entryMethodLabels=Object.fromEntries((LH_MASTER.entry_methods||[]).map(em=>{
+            const i18nKey='entry_'+em.code; const i18nVal=t(i18nKey);
+            return [em.code, i18nVal===i18nKey ? em.label : i18nVal];
+        }));
+        // マスタ未投入環境向けフォールバック
+        if(!entryMethodLabels.front)Object.assign(entryMethodLabels,{front:t('entry_front'),direct:t('entry_direct'),lobby:t('entry_lobby'),waiting:t('entry_waiting')});
         const isShopPost = r.poster_type === 'shop' || !!_lhSid;
         const shopSoloEntryHTML = r.solo_entry && isShopPost && _siActive ? (r.solo_entry==='yes' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_yes')}</span>` : r.solo_entry==='together' ? `<span class="round-badge round-badge--solo-entry">${t('solo_entry_together')}</span>` : r.solo_entry==='no' ? `<span class="round-badge round-badge--solo-entry-ng">${t('solo_entry_no')}</span>` : '') : '';
         const soloHTML = r.solo_entry && isShopPost && _siActive && (r.solo_entry==='yes'||r.solo_entry==='together') ? `<span class="round-badge round-badge--solo-can">${t('guide_success')}</span>` : '';
