@@ -1518,8 +1518,37 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
                 clearPushSubscribed();
                 refreshPushButton();
             }
+            // 2026-05-19: 通知タップ後に最新メッセージを即反映 (PWA に戻った瞬間に refresh).
+            if (ev.data.type === 'ychat:push-click') {
+                try {
+                    if (state.mode === 'owner' && typeof showInbox === 'function') {
+                        showInbox();
+                    } else if (state.mode === 'cast_owner' && typeof showCastInbox === 'function') {
+                        showCastInbox();
+                    } else if (state.mode === 'visitor' && typeof pollMessages === 'function') {
+                        pollMessages(false);
+                    }
+                } catch (_) {}
+            }
         } catch (_) {}
     });
+}
+
+// 2026-05-19: 画面が可視に戻った時にバッジをクリア (iOS PWA 16.4+).
+// SW 側 push 時に setAppBadge で累積、ここで clear で 0 に戻す.
+function clearAppBadgeIfSupported() {
+    try {
+        if (typeof navigator !== 'undefined' && 'clearAppBadge' in navigator) {
+            navigator.clearAppBadge().catch(() => {});
+        }
+    } catch (_) {}
+}
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) clearAppBadgeIfSupported();
+    });
+    // 初回ロード時もクリア (通知タップで開いた瞬間に確実にバッジ消す).
+    if (!document.hidden) clearAppBadgeIfSupported();
 }
 
 // 401 device_token無効を検知したら polling を止めて再ログインを促す（reload はしない）

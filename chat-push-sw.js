@@ -44,7 +44,22 @@ self.addEventListener('push', function(event) {
         },
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    // 2026-05-19: アプリアイコンバッジ (iOS PWA 16.4+ / Android Chrome).
+    // 通知数を累積する小さな state を IndexedDB に保持. main 側 (chat.js) が可視時にクリア.
+    function setBadge() {
+        if (!('setAppBadge' in self.navigator || (self.navigator && 'setAppBadge' in self.navigator))) return Promise.resolve();
+        return readBadgeCount().then(function(n) {
+            var next = n + 1;
+            return writeBadgeCount(next).then(function() {
+                try { return self.navigator.setAppBadge(next); } catch (_) { return Promise.resolve(); }
+            });
+        }).catch(function() {});
+    }
+
+    event.waitUntil(Promise.all([
+        self.registration.showNotification(title, options),
+        setBadge()
+    ]));
 });
 
 // 通知クリック: 既存のチャットタブがあればフォーカス、なければ新規オープン
@@ -52,7 +67,18 @@ self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     var targetUrl = (event.notification.data && event.notification.data.url) || '/';
 
-    event.waitUntil(
+    // バッジクリア (累積 0 にする)
+    function clearBadge() {
+        return writeBadgeCount(0).then(function() {
+            try {
+                if (self.navigator && self.navigator.clearAppBadge) return self.navigator.clearAppBadge();
+            } catch (_) {}
+            return Promise.resolve();
+        }).catch(function() {});
+    }
+
+    event.waitUntil(Promise.all([
+        clearBadge(),
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clients) {
             for (var i = 0; i < clients.length; i++) {
                 var c = clients[i];
@@ -71,8 +97,44 @@ self.addEventListener('notificationclick', function(event) {
                 return self.clients.openWindow(targetUrl);
             }
         })
-    );
+    ]));
 });
+
+// ========== Badge カウンタ用 IndexedDB (SW restart 跨いで保持) ==========
+function openBadgeDB() {
+    return new Promise(function(resolve, reject) {
+        var req = indexedDB.open('ychat-badge', 1);
+        req.onupgradeneeded = function() {
+            req.result.createObjectStore('kv');
+        };
+        req.onsuccess = function() { resolve(req.result); };
+        req.onerror = function() { reject(req.error); };
+    });
+}
+function readBadgeCount() {
+    return openBadgeDB().then(function(db) {
+        return new Promise(function(resolve) {
+            try {
+                var tx = db.transaction('kv', 'readonly');
+                var req = tx.objectStore('kv').get('count');
+                req.onsuccess = function() { resolve(Number(req.result) || 0); };
+                req.onerror = function() { resolve(0); };
+            } catch (_) { resolve(0); }
+        });
+    }).catch(function() { return 0; });
+}
+function writeBadgeCount(n) {
+    return openBadgeDB().then(function(db) {
+        return new Promise(function(resolve) {
+            try {
+                var tx = db.transaction('kv', 'readwrite');
+                tx.objectStore('kv').put(n, 'count');
+                tx.oncomplete = function() { resolve(); };
+                tx.onerror = function() { resolve(); };
+            } catch (_) { resolve(); }
+        });
+    }).catch(function() {});
+}
 
 // push購読が無効化された時: サーバーに通知して購読レコード削除
 self.addEventListener('pushsubscriptionchange', function(event) {
