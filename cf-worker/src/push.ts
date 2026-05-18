@@ -44,20 +44,24 @@ export async function sendPushToSubject(
   subjectId: string,
   payload: PushPayload
 ): Promise<void> {
+  console.log('[push-send-start]', { subjectType, subjectId, hasVapidPub: !!env.VAPID_PUBLIC_KEY, hasVapidPriv: !!env.VAPID_PRIVATE_KEY, hasVapidSub: !!env.VAPID_SUBJECT });
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) {
-    // VAPID 未設定: 何もしない (Day 9 の graceful degradation と一貫)
+    console.log('[push-skip] VAPID未設定');
     return;
   }
 
   const subs = await fetchSubscribers(env, subjectType, subjectId);
+  console.log('[push-subs]', { count: subs.length });
   if (!subs.length) return;
 
   const body = new TextEncoder().encode(JSON.stringify(payload));
 
   // 並列送信. 1購読失敗しても他は止めない.
   await Promise.all(
-    subs.map((s) => sendOne(env, s, body).catch((e) => {
-      console.warn('[push] send failed', s.endpoint.slice(0, 60), e?.message || e);
+    subs.map((s) => sendOne(env, s, body).then(() => {
+      console.log('[push-ok]', s.endpoint.slice(0, 60));
+    }).catch((e) => {
+      console.warn('[push-fail]', s.endpoint.slice(0, 60), e?.message || e);
     }))
   );
 }
@@ -391,7 +395,11 @@ function bytes(hex: string): Uint8Array {
 
 function b64urlToBytes(s: string): Uint8Array {
   if (!s) return new Uint8Array(0);
-  const pad = '===='.slice((s.length + 3) % 4);
+  // 2026-05-19: off-by-one bug 修正. '===='.slice((s.length+3)%4) は
+  // L%4=3 のとき 2 chars pad → 全体 89 chars (4 で割り切れず atob INVALID).
+  // 正しくは (4 - L%4) % 4 個の '=' を追加.
+  const padLen = (4 - s.length % 4) % 4;
+  const pad = '='.repeat(padLen);
   const b64 = (s + pad).replace(/-/g, '+').replace(/_/g, '/');
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);

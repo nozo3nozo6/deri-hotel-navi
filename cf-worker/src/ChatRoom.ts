@@ -1196,13 +1196,22 @@ export class ChatRoom implements DurableObject {
     // 旧実装は DO httpSendMessage のみで push 発火していたが、訪問者は HTTP chat-send.php
     // 経由で送信するため /broadcast はこのフローで通る唯一の DO エンドポイント.
     // shop_info は PHP 側から payload で渡される (shop_name + slug).
+    console.log('[push-broadcast]', JSON.stringify({
+      sender_type: mirrored.sender_type,
+      has_shop_info: !!body?.shop_info,
+      shop_name: body?.shop_info?.shop_name,
+      slug: body?.shop_info?.slug,
+      shop_id_header: req.headers.get('X-Shop-Id'),
+      shop_id_query: new URL(req.url).searchParams.get('shop_id'),
+      cast_id: sess.cast_id,
+    }));
     if (mirrored.sender_type === 'visitor') {
       const shopInfo = body?.shop_info as { shop_name?: string; slug?: string } | undefined;
       const shopName = String(shopInfo?.shop_name || '');
       const slug = String(shopInfo?.slug || '');
       const shopIdParam = req.headers.get('X-Shop-Id') || new URL(req.url).searchParams.get('shop_id') || '';
       if (shopName && slug && shopIdParam) {
-        // 簡易 ShopStatus を構築 (push payload 生成だけに使う最小情報).
+        console.log('[push-fire]', { shopIdParam, cast_id: sess.cast_id });
         const fakeShop = { shop_id: shopIdParam, shop_name: shopName, slug: slug } as unknown as ShopStatus;
         const pushPayload = buildVisitorMessagePushPayload(fakeShop, sess, mirrored);
         if (sess.cast_id) {
@@ -1210,6 +1219,8 @@ export class ChatRoom implements DurableObject {
         } else {
           this.state.waitUntil(sendPushToSubject(this.env, 'shop', shopIdParam, pushPayload));
         }
+      } else {
+        console.log('[push-skip]', { shopName, slug, shopIdParam });
       }
     }
 
