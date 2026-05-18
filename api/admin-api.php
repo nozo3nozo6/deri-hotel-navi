@@ -36,6 +36,32 @@ if (time() - ($_SESSION['last_activity'] ?? 0) > SESSION_TIMEOUT) {
 $_SESSION['last_activity'] = time();
 
 $pdo = DB::conn();
+
+// ===== 一回限りの inline bootstrap (idempotent) =====
+// 新規追加マスタテーブルを sql/*.sql の手動適用なしで自動セットアップする.
+// CREATE TABLE IF NOT EXISTS + INSERT IGNORE のため複数回実行しても安全.
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS loveho_entry_methods (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(20) NOT NULL UNIQUE,
+        label VARCHAR(100) NOT NULL,
+        sort_order INT DEFAULT 0,
+        is_active TINYINT(1) DEFAULT 1
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $inserted = $pdo->exec("INSERT IGNORE INTO loveho_entry_methods (code, label, sort_order) VALUES
+        ('front',   'フロント経由(部屋番号を伝えて入室)', 1),
+        ('direct',  '直接入室(お部屋に直行)',            2),
+        ('lobby',   'ロビー待ち合わせ',                  3),
+        ('waiting', '待合室で待ち合わせ',                4),
+        ('parking', '駐車場待ち合わせ',                  5),
+        ('meet',    '待ち合わせ',                        6)");
+    // 初回 seed (新規行があった) 時のみ master-data.json を再生成 → shop-admin <select> に即時反映
+    if ($inserted > 0) {
+        try { ob_start(); include __DIR__ . '/generate-master-data.php'; ob_end_clean(); }
+        catch (Throwable $e) { ob_end_clean(); error_log('[admin-api] master-data regen failed: ' . $e->getMessage()); }
+    }
+} catch (Throwable $e) { error_log('[admin-api] bootstrap loveho_entry_methods failed: ' . $e->getMessage()); }
+
 $action = $_GET['action'] ?? '';
 $input = ($_SERVER['REQUEST_METHOD'] === 'POST') ? (json_decode(file_get_contents('php://input'), true) ?? []) : [];
 
