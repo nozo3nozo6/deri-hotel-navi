@@ -88,6 +88,47 @@ const CAST_INBOX_TOKEN = getCastInboxToken();
 const RESUME_TOKEN = getResumeToken();
 const IS_CAST_VIEW = !!(CAST_ID && VIEW_TOKEN);
 const IS_CAST_INBOX = !!CAST_INBOX_TOKEN;
+
+// 2026-05-18: PWA manifest を動的差替. 静的 chat-manifest.webmanifest は start_url='/chat/' で
+// 店舗 slug が無く 404 になる. 現 URL の slug/cast_inbox 等を含む manifest を Blob 生成して link 差替.
+(function injectDynamicManifest() {
+    try {
+        const slug = SLUG;
+        if (!slug) return; // slug 無しの URL では何もしない (元の static manifest のまま)
+        // 現在の URL を尊重する: cast_inbox_token があれば inbox URL に、それ以外は shop URL に
+        let startUrl;
+        if (CAST_INBOX_TOKEN) {
+            startUrl = '/chat/' + encodeURIComponent(slug) + '/?cast_inbox=' + encodeURIComponent(CAST_INBOX_TOKEN);
+        } else {
+            startUrl = '/chat/' + encodeURIComponent(slug) + '/';
+        }
+        const manifest = {
+            name: 'YobuChat',
+            short_name: 'YobuChat',
+            description: 'YobuHo のお問い合わせチャット',
+            start_url: startUrl,
+            scope: '/chat/' + encodeURIComponent(slug) + '/',
+            display: 'standalone',
+            orientation: 'portrait',
+            background_color: '#ffffff',
+            theme_color: '#b5627a',
+            icons: [
+                { src: '/chat-icon-192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/chat-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+                { src: '/chat-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+            ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+        const url = URL.createObjectURL(blob);
+        let link = document.querySelector('link[rel="manifest"]');
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'manifest';
+            document.head.appendChild(link);
+        }
+        link.href = url;
+    } catch (_) { /* manifest 差替失敗は致命的でない */ }
+})();
 // キャストモード (view / inbox) は入力中の非表示ルールを viewport 問わず適用するため body クラスで識別.
 if (IS_CAST_VIEW || IS_CAST_INBOX) {
     try { document.body.classList.add('cast-mode'); } catch (_) {}
