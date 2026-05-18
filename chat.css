@@ -166,8 +166,10 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .typing-dot:nth-child(2){animation-delay:.18s}
 .typing-dot:nth-child(3){animation-delay:.36s}
 @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
-/* 2026-05-18: chat-footer 配置に変更. font-size-btn と同等の見た目に合わせる. */
-.chat-push-btn{height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;transition:background .15s,border-color .15s}
+/* 2026-05-18: chat-footer のジオメトリ中央に固定配置.
+   position:absolute + left:50% + translateX(-50%) で font-size/footer-brand の幅に依らず真の中央へ.
+   chat-footer は position:relative なので親基準で位置決定. */
+.chat-push-btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;z-index:1;transition:background .15s,border-color .15s}
 .chat-push-btn:hover:not(:disabled){background:#e5e0d8;border-color:var(--chat-primary)}
 .chat-push-btn.is-on{background:var(--chat-primary);color:#fff;border-color:var(--chat-primary)}
 .chat-push-btn.is-on:hover:not(:disabled){opacity:.9}
