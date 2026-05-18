@@ -1460,6 +1460,13 @@ function refreshPushButton() {
     const btn = ensurePushButton();
     placePushButton();
 
+    // 2026-05-19: owner/cast_owner のスレッド表示中は push ボタンを隠す.
+    // 一覧 (inbox) 表示中だけ操作可能にして、画面の混雑を避ける.
+    if ((state.mode === 'owner' || state.mode === 'cast_owner') && state.selected_session) {
+        btn.classList.add('hidden');
+        return;
+    }
+
     // 2026-05-18: iOS Safari は PushManager が存在しても非 PWA では実際に購読できない.
     // pushSupported() より先に iOS 非 PWA を判定し「ホーム画面に追加」案内に分岐.
     if (isIOSSafari() && !isPWAStandalone()) {
@@ -3530,6 +3537,8 @@ function renderInbox() {
 async function openOwnerThread(sessionId) {
     state.selected_session = state.inbox_sessions.find(s => Number(s.id) === Number(sessionId));
     if (!state.selected_session) return;
+    // 2026-05-19: スレッドに入った瞬間 push ボタンを隠す
+    if (typeof refreshPushButton === 'function') refreshPushButton();
     // B-1: DO にオーナー presence を通知 (自動既読トリガ).
     //   visitor からの新着は owner WS が受信 → この presence があれば DO が即時 read 反映.
     //   ウィンドウにフォーカスが無い (別ウィンドウの裏など) 場合は既読対象外にするため setView しない.
@@ -3933,6 +3942,8 @@ function showCastInbox() {
 async function openCastThread(sessionId) {
     state.selected_session = state.inbox_sessions.find(s => Number(s.id) === Number(sessionId));
     if (!state.selected_session) return;
+    // 2026-05-19: スレッドに入った瞬間 push ボタンを隠す
+    if (typeof refreshPushButton === 'function') refreshPushButton();
     refs.ownerInbox.classList.add('hidden');
     refs.chatThread.classList.remove('hidden');
     // キャスト自分用: ブロック権限なし、閉じる権限はあり
@@ -4415,6 +4426,7 @@ function backToInbox() {
         : state.shop_name;
     if (IS_CAST_INBOX) showCastInbox();
     else showInbox();
+    if (typeof refreshPushButton === 'function') refreshPushButton();
 }
 if (refs.btnHeaderBack) refs.btnHeaderBack.addEventListener('click', backToInbox);
 
