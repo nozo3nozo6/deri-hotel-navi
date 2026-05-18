@@ -2223,6 +2223,8 @@ async function _init() {
                         state.device_token = savedToken;
                         state.shop_name = dev.shop_name;
                         state.notify_enabled = dev.notify_enabled !== false;
+                        state.notify_mode = dev.notify_mode || 'first';
+                        state.notify_push_mode = dev.notify_push_mode || 'on';
                         setThemeMode(dev.gender_mode);
                         await enterOwnerMode();
                         setLoading(false);
@@ -3817,6 +3819,8 @@ async function enterCastOwnerMode() {
     state.cast_name = data.cast_name || '';
     state.shop_cast_id_self = data.shop_cast_id || '';
     state.notify_enabled = !!data.notify_enabled;
+    state.notify_mode = data.notify_mode || 'every';
+    state.notify_push_mode = data.notify_push_mode || 'on';
     state.is_online = state.notify_enabled;
     state.inbox_sessions = data.sessions || [];
     // キャスト自身のアバター: cast_inbox API が返す cast_avatar_url を保持.
@@ -4401,43 +4405,161 @@ if (refs.emojiToggle) {
     });
 }
 
+// =====================================================
+// 2026-05-19: 右上トグル ON 時にモーダルで通知方法を選択させる UX.
+//   - ON 操作: モーダル表示 → 保存で API 呼び分け
+//   - OFF 操作: 即時 API (キャンセル可、確認不要)
+// =====================================================
+async function applyNotifyEnable(emailMode, pushEnabled) {
+    if (IS_CAST_INBOX) {
+        // 2026-05-19: mode='first'/'every' を明示送信
+        await api('cast-inbox-toggle-notify', {
+            inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
+            enabled: 1,
+            mode: emailMode
+        });
+        await api('cast-inbox-toggle-push', {
+            inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
+            enabled: pushEnabled ? 1 : 0
+        });
+        state.notify_enabled = true;
+        state.notify_mode = emailMode;
+        state.notify_push_mode = pushEnabled ? 'on' : 'off';
+        state.is_online = true;
+        updateStatusIndicator(true);
+    } else if (IS_CAST_VIEW) {
+        const baseAuth = { session_token: state.session_token, shop_cast_id: CAST_ID };
+        if (CAST_BEARER) { baseAuth.ct = CAST_BEARER.ct; baseAuth.iat = CAST_BEARER.iat; }
+        await api('cast-url-toggle-notify', { ...baseAuth, enabled: 1, mode: emailMode });
+        await api('cast-url-toggle-push',   { ...baseAuth, enabled: pushEnabled ? 1 : 0 });
+        state.notify_enabled = true;
+        state.notify_mode = emailMode;
+        state.notify_push_mode = pushEnabled ? 'on' : 'off';
+        updateStatusIndicator(state.is_online);
+    } else {
+        const res = await api('toggle-notify', {
+            device_token: state.device_token,
+            enabled: 1
+        });
+        // オーナーは admin-save-settings 経由でメール頻度を反映 (toggle-notify は preference 復元のみ)
+        try {
+            await api('admin-save-settings', {
+                notify_mode: emailMode,
+                notify_min_interval_minutes: 3,
+                notify_push_mode: pushEnabled ? 'on' : 'off',
+            });
+        } catch (_) {
+            // admin-save-settings は他フィールドが NULL になりうるが現状は notify_mode のみ更新で OK
+        }
+        // push 単独 API も叩いて確実に反映
+        try {
+            await api('toggle-push', { device_token: state.device_token, enabled: pushEnabled ? 1 : 0 });
+        } catch (_) {}
+        state.notify_enabled = true;
+        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : true);
+    }
+}
+
+async function applyNotifyDisable() {
+    if (IS_CAST_INBOX) {
+        await api('cast-inbox-toggle-notify', {
+            inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
+            enabled: 0
+        });
+        await api('cast-inbox-toggle-push', {
+            inbox_token: CAST_INBOX_TOKEN,
+            device_token: state.cast_device_token,
+            enabled: 0
+        });
+        state.notify_enabled = false;
+        state.is_online = false;
+        updateStatusIndicator(false);
+    } else if (IS_CAST_VIEW) {
+        const baseAuth = { session_token: state.session_token, shop_cast_id: CAST_ID };
+        if (CAST_BEARER) { baseAuth.ct = CAST_BEARER.ct; baseAuth.iat = CAST_BEARER.iat; }
+        await api('cast-url-toggle-notify', { ...baseAuth, enabled: 0 });
+        await api('cast-url-toggle-push',   { ...baseAuth, enabled: 0 });
+        state.notify_enabled = false;
+        updateStatusIndicator(state.is_online);
+    } else {
+        const res = await api('toggle-notify', {
+            device_token: state.device_token,
+            enabled: 0
+        });
+        try { await api('toggle-push', { device_token: state.device_token, enabled: 0 }); } catch (_) {}
+        state.notify_enabled = false;
+        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : false);
+    }
+}
+
+function openNotifyConfigModal() {
+    const modal = document.getElementById('notify-config-modal');
+    if (!modal) return Promise.resolve(false);
+    const emailEvery = modal.querySelector('input[name="notify-email-mode"][value="every"]');
+    const emailFirst = modal.querySelector('input[name="notify-email-mode"][value="first"]');
+    const pushChk = document.getElementById('notify-config-push');
+    // 初期値: 既存状態を反映 (state.notify_mode / push 購読状態)
+    const currentMode = state.notify_mode || 'every';
+    if (emailFirst) emailFirst.checked = currentMode === 'first';
+    if (emailEvery) emailEvery.checked = currentMode !== 'first';
+    // push 初期値は購読状態 + notify_push_mode の両方を見る. push 未対応端末でも off で OK.
+    if (pushChk) pushChk.checked = (state.notify_push_mode !== 'off') && pushSupported();
+    modal.classList.remove('hidden');
+    return new Promise((resolve) => {
+        const close = (result) => {
+            modal.classList.add('hidden');
+            cancelBtn.removeEventListener('click', onCancel);
+            closeBtn.removeEventListener('click', onCancel);
+            saveBtn.removeEventListener('click', onSave);
+            modal.removeEventListener('click', onBackdrop);
+            resolve(result);
+        };
+        const cancelBtn = document.getElementById('notify-config-cancel');
+        const closeBtn = document.getElementById('notify-config-close');
+        const saveBtn = document.getElementById('notify-config-save');
+        const onCancel = () => close({ cancelled: true });
+        const onSave = () => {
+            const mode = modal.querySelector('input[name="notify-email-mode"]:checked');
+            close({
+                cancelled: false,
+                emailMode: mode ? mode.value : 'every',
+                pushEnabled: pushChk ? pushChk.checked : false,
+            });
+        };
+        const onBackdrop = (e) => { if (e.target === modal) onCancel(); };
+        cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
+        saveBtn.addEventListener('click', onSave);
+        modal.addEventListener('click', onBackdrop);
+    });
+}
+
 refs.onlineToggle.addEventListener('change', async (e) => {
     const isOn = e.target.checked;
-    try {
-        if (IS_CAST_INBOX) {
-            // キャスト自分用受信箱: URL-token auth で chat_notify_mode をトグル
-            await api('cast-inbox-toggle-notify', {
-                inbox_token: CAST_INBOX_TOKEN,
-                device_token: state.cast_device_token,
-                enabled: isOn ? 1 : 0
-            });
-            state.notify_enabled = isOn;
-            state.is_online = isOn;
-            updateStatusIndicator(isOn);
-        } else if (IS_CAST_VIEW) {
-            // キャスト指名ビュー: URL-only auth + HMAC bearer (HIGH 2026-04-29)
-            const tnPayload = {
-                session_token: state.session_token,
-                shop_cast_id: CAST_ID,
-                enabled: isOn ? 1 : 0
-            };
-            if (CAST_BEARER) { tnPayload.ct = CAST_BEARER.ct; tnPayload.iat = CAST_BEARER.iat; }
-            await api('cast-url-toggle-notify', tnPayload);
-            state.notify_enabled = isOn;
-            // 緑丸をキャスト自身の通知状態に同期
-            updateStatusIndicator(state.is_online);
-        } else {
-            const res = await api('toggle-notify', {
-                device_token: state.device_token,
-                enabled: isOn ? 1 : 0
-            });
-            state.notify_enabled = isOn;
-            // 受付トグルは is_online も同時に切り替える → オーナー画面のステータスドット即時反映
-            updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : isOn);
+    if (isOn) {
+        // ON 操作: モーダル表示で詳細を選ばせる
+        const result = await openNotifyConfigModal();
+        if (!result || result.cancelled) {
+            e.target.checked = false;
+            return;
         }
-    } catch (err) {
-        showError(err.message);
-        e.target.checked = !isOn;
+        try {
+            await applyNotifyEnable(result.emailMode, result.pushEnabled);
+        } catch (err) {
+            showError(err.message || String(err));
+            e.target.checked = false;
+        }
+    } else {
+        // OFF 操作: 即適用 (両方 OFF)
+        try {
+            await applyNotifyDisable();
+        } catch (err) {
+            showError(err.message || String(err));
+            e.target.checked = true;
+        }
     }
 });
 

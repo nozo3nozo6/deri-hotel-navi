@@ -1566,12 +1566,17 @@ function handleCastUrlToggleNotify() {
     if ((string)$session['shop_id'] !== (string)$sc['shop_id']) err('shop mismatch', 403);
     if ((string)$session['cast_id'] !== (string)$sc['cast_id']) err('cast mismatch', 403);
 
-    // 2026-05-19: off→ON は 'every' (都度通知) デフォルト. 既存 'every'/'first' は維持.
-    // off→ON で 'first' 固定 → 2通目以降届かない事故対策 (cast-inbox-toggle-notify と同じ修正).
-    // メール通知専用. push は別 API (cast-url-toggle-push).
+    // 2026-05-19: off→ON は 'every' デフォルト. mode='first'/'every' で明示指定可 (notify-config モーダル経由).
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
+    $modeParam = inp('mode', null);
     if ($enabled === 1) {
-        $newMode = $currentMode === 'off' ? 'every' : $currentMode;
+        if ($modeParam !== null) {
+            $modeStr = (string)$modeParam;
+            if (!in_array($modeStr, ['first', 'every'], true)) err('invalid mode');
+            $newMode = $modeStr;
+        } else {
+            $newMode = $currentMode === 'off' ? 'every' : $currentMode;
+        }
     } else {
         $newMode = 'off';
     }
@@ -2017,18 +2022,23 @@ function handleCastInboxToggleNotify(): void {
 
     $enabled = (int)inp('enabled', 0);
     $currentMode = (string)($sc['chat_notify_mode'] ?? 'off');
-    // 2026-05-19: off→ON は 'every' (都度通知) をデフォルトに. 既存が 'every'/'first' ならそれを維持.
-    // 以前は off→'first' 固定だったため、店舗オーナーが 'every' に設定していてもキャスト本人の
-    // トグル OFF→ON で 'first' に書き戻されて2通目以降のメールが届かなくなる事故があった.
-    // 2026-05-19: メール通知専用カラム notify_email_mode を更新 (push は別 API toggle-push).
+    // 2026-05-19: off→ON は 'every' デフォルト. mode 引数があれば明示モード指定.
+    // 旧: off→'first' 固定 → 2通目以降届かない事故 → off→'every' に変更.
+    // 拡張: notify-config モーダルで「初回のみ」を選んだ場合に明示的に mode='first' を送る.
+    $modeParam = inp('mode', null);
     if ($enabled === 1) {
-        $newMode = $currentMode === 'off' ? 'every' : $currentMode;
+        if ($modeParam !== null) {
+            $modeStr = (string)$modeParam;
+            if (!in_array($modeStr, ['first', 'every'], true)) err('invalid mode');
+            $newMode = $modeStr;
+        } else {
+            $newMode = $currentMode === 'off' ? 'every' : $currentMode;
+        }
     } else {
         $newMode = 'off';
     }
 
     $pdo = DB::conn();
-    // chat_notify_mode (旧) と notify_email_mode (新) を両方更新. 後方互換のため.
     $pdo->prepare('UPDATE shop_casts SET chat_notify_mode = ?, notify_email_mode = ? WHERE id = ?')
         ->execute([$newMode, $newMode, $sc['shop_cast_id']]);
 

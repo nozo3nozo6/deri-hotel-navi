@@ -194,6 +194,43 @@
   <div id="network-banner" class="network-banner hidden" role="status" aria-live="polite"></div>
 </div>
 
+<!-- Notify-config modal (2026-05-19: 受付トグル ON 時に表示) -->
+<div id="notify-config-modal" class="notify-config-modal hidden" role="dialog" aria-modal="true" aria-labelledby="notify-config-title">
+  <div class="notify-config-card">
+    <div class="notify-config-head">
+      <h2 id="notify-config-title">🔔 通知設定</h2>
+      <button type="button" id="notify-config-close" class="notify-config-close" aria-label="閉じる">✕</button>
+    </div>
+    <p class="notify-config-desc">新着メッセージを受け取る方法を選んでください。</p>
+
+    <div class="notify-config-section">
+      <div class="notify-config-section-title">📧 メール通知</div>
+      <label class="notify-config-radio">
+        <input type="radio" name="notify-email-mode" value="first">
+        <span><strong>初回のみ</strong>（同じユーザーからの続きは送らない）</span>
+      </label>
+      <label class="notify-config-radio">
+        <input type="radio" name="notify-email-mode" value="every" checked>
+        <span><strong>毎回</strong>（新着ごと）</span>
+      </label>
+    </div>
+
+    <div class="notify-config-section">
+      <div class="notify-config-section-title">📱 アプリ通知（Web Push）</div>
+      <label class="notify-config-check">
+        <input type="checkbox" id="notify-config-push" checked>
+        <span>ホーム画面に追加したアプリにプッシュ通知を送る</span>
+      </label>
+      <div class="notify-config-hint">※ アプリ通知を受け取るには、別途「ホーム画面に追加」して通知許可が必要です。</div>
+    </div>
+
+    <div class="notify-config-actions">
+      <button type="button" id="notify-config-cancel" class="notify-config-cancel">キャンセル</button>
+      <button type="button" id="notify-config-save" class="notify-config-save">この設定でONにする</button>
+    </div>
+  </div>
+</div>
+
 <!-- Owner login modal -->
 <div id="owner-login-modal" class="owner-login-modal hidden" role="dialog" aria-modal="true" aria-labelledby="owner-login-title">
   <div class="owner-login-card">
