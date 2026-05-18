@@ -1374,6 +1374,15 @@ function ensurePushButton() {
 function placePushButton() {
     const btn = ensurePushButton();
     if (btn.parentNode) return btn;
+    // 2026-05-18: ヘッダー右ではなくフッターに配置 (店舗名が長いと被るため).
+    // chat-footer の footer-brand の直前に挿入 → フォントサイズボタンとブランドリンクの間.
+    const footer = document.getElementById('chat-footer');
+    const brand = document.getElementById('footer-brand');
+    if (footer && brand) {
+        footer.insertBefore(btn, brand);
+        return btn;
+    }
+    // フォールバック: 旧来通り chat-header 右
     const host = document.querySelector('#chat-header .chat-header-right') || document.getElementById('chat-header');
     if (!host) return btn;
     host.insertBefore(btn, host.firstChild);
