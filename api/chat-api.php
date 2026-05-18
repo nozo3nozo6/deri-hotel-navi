@@ -3415,11 +3415,27 @@ function broadcastToDO(string $shopId, string $sessionToken, array $messageRow):
     $secret = defined('CHAT_SYNC_SECRET') ? CHAT_SYNC_SECRET : '';
     if (!$secret) return;
 
+    // 2026-05-19: shop 名と slug を broadcast payload に含める. DO が Web Push 発火に必要.
+    $shopInfo = null;
+    try {
+        $pdo = DB::conn();
+        $stmt = $pdo->prepare('SELECT shop_name, slug FROM shops WHERE id = ? LIMIT 1');
+        $stmt->execute([$shopId]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $shopInfo = [
+                'shop_name' => (string)$row['shop_name'],
+                'slug'      => (string)$row['slug'],
+            ];
+        }
+    } catch (Throwable $_) { /* shop lookup 失敗時は push なしで broadcast 継続 */ }
+
     $doBase = defined('CHAT_DO_BASE_URL') ? CHAT_DO_BASE_URL : 'https://chat.yobuho.com';
     $url = $doBase . '/broadcast?shop_id=' . urlencode($shopId);
     $payload = [
         'session_token' => $sessionToken,
         'message_row'   => $messageRow,
+        'shop_info'     => $shopInfo,
     ];
     $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
 

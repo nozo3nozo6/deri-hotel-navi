@@ -1192,6 +1192,27 @@ export class ChatRoom implements DurableObject {
     // 2026-04-23 ゼロ設計: PHP 経由 broadcast でも DO auto-read はしない.
     // 既読は受信側クライアントが isWindowActive() 時に明示 mark-read を打つ 1 経路のみ.
 
+    // 2026-05-19: visitor message なら Web Push を発火 (店舗/キャストの購読端末へ).
+    // 旧実装は DO httpSendMessage のみで push 発火していたが、訪問者は HTTP chat-send.php
+    // 経由で送信するため /broadcast はこのフローで通る唯一の DO エンドポイント.
+    // shop_info は PHP 側から payload で渡される (shop_name + slug).
+    if (mirrored.sender_type === 'visitor') {
+      const shopInfo = body?.shop_info as { shop_name?: string; slug?: string } | undefined;
+      const shopName = String(shopInfo?.shop_name || '');
+      const slug = String(shopInfo?.slug || '');
+      const shopIdParam = req.headers.get('X-Shop-Id') || new URL(req.url).searchParams.get('shop_id') || '';
+      if (shopName && slug && shopIdParam) {
+        // 簡易 ShopStatus を構築 (push payload 生成だけに使う最小情報).
+        const fakeShop = { shop_id: shopIdParam, shop_name: shopName, slug: slug } as unknown as ShopStatus;
+        const pushPayload = buildVisitorMessagePushPayload(fakeShop, sess, mirrored);
+        if (sess.cast_id) {
+          this.state.waitUntil(sendPushToSubject(this.env, 'cast', sess.cast_id, pushPayload));
+        } else {
+          this.state.waitUntil(sendPushToSubject(this.env, 'shop', shopIdParam, pushPayload));
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ ok: true, delivered }), {
       headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
