@@ -183,7 +183,7 @@ async function sendOne(env: Env, sub: PushSubscriber, body: Uint8Array): Promise
   // 8) VAPID JWT 署名
   const endpointUrl = new URL(sub.endpoint);
   const aud = `${endpointUrl.protocol}//${endpointUrl.host}`;
-  const jwt = await buildVapidJwt(env.VAPID_PRIVATE_KEY!, env.VAPID_SUBJECT!, aud);
+  const jwt = await buildVapidJwt(env.VAPID_PRIVATE_KEY!, env.VAPID_SUBJECT!, aud, env.VAPID_PUBLIC_KEY!);
 
   // 9) POST to push service
   const res = await fetch(sub.endpoint, {
@@ -211,7 +211,7 @@ async function sendOne(env: Env, sub: PushSubscriber, body: Uint8Array): Promise
 
 // ========== VAPID JWT (ES256) ==========
 
-async function buildVapidJwt(privateKeyB64u: string, subject: string, aud: string): Promise<string> {
+async function buildVapidJwt(privateKeyB64u: string, subject: string, aud: string, publicKeyB64u?: string): Promise<string> {
   const header = { typ: 'JWT', alg: 'ES256' };
   const now = Math.floor(Date.now() / 1000);
   const claims = {
@@ -223,7 +223,9 @@ async function buildVapidJwt(privateKeyB64u: string, subject: string, aud: strin
   const claimsB64 = bytesToB64url(textBytes(JSON.stringify(claims)));
   const signingInput = `${headerB64}.${claimsB64}`;
 
-  const privateKey = await importP256Private(privateKeyB64u);
+  // 2026-05-19: 旧実装 (PKCS8 自前構築) は Apple Push が VapidPkHashMismatch で拒否.
+  // JWK 形式で d + x + y を渡す方が WebCrypto 実装によらず確実. 公開鍵から x, y を取り出して構築.
+  const privateKey = await importP256PrivateJwk(privateKeyB64u, publicKeyB64u!);
   const sig = new Uint8Array(
     await crypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
@@ -233,6 +235,31 @@ async function buildVapidJwt(privateKeyB64u: string, subject: string, aud: strin
   );
   // WebCrypto の ECDSA sign は既に JWT/JWS が要求する raw R||S (64B) 形式を返す.
   return `${signingInput}.${bytesToB64url(sig)}`;
+}
+
+async function importP256PrivateJwk(privateKeyB64u: string, publicKeyB64u: string): Promise<CryptoKey> {
+  // 公開鍵 (base64url encoded uncompressed point: 0x04 || x32 || y32) から x, y を抽出.
+  const pubBytes = b64urlToBytes(publicKeyB64u);
+  if (pubBytes.length !== 65 || pubBytes[0] !== 0x04) {
+    throw new Error('invalid_vapid_pub: must be uncompressed P-256 point (65 bytes, 0x04 prefix)');
+  }
+  const xB64u = bytesToB64url(pubBytes.slice(1, 33));
+  const yB64u = bytesToB64url(pubBytes.slice(33, 65));
+  const jwk: JsonWebKey = {
+    kty: 'EC',
+    crv: 'P-256',
+    d: privateKeyB64u,
+    x: xB64u,
+    y: yB64u,
+    ext: false,
+  };
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
 }
 
 // ========== PHP に unsubscribe 依頼 ==========
@@ -343,9 +370,15 @@ function buildPkcs8P256Private(d: Uint8Array): Uint8Array {
   if (d.length !== 32) throw new Error('d_must_be_32');
 
   // ECPrivateKey inner
-  // 30 len 02 01 01 04 20 <d_32>
+  // 30 25 02 01 01 04 20 <d_32>
+  //   30:    SEQUENCE tag
+  //   25:    SEQUENCE length = 37 = 3(INT 1) + 34(OCTET STRING 32B)
+  //   02 01 01:    INTEGER version=1
+  //   04 20 <d>:   OCTET STRING (32 bytes private scalar)
+  // 2026-05-19 bug fix: 旧コードは長さ 22 (34) 宣言だったが実 content は 37 バイトで不整合
+  // → WebCrypto importKey が "Invalid PKCS8 input" で失敗.
   const ecPriv = concatBytes(
-    bytes('30 22 02 01 01 04 20'),
+    bytes('30 25 02 01 01 04 20'),
     d
   );
   // outer PrivateKeyInfo
