@@ -3536,7 +3536,103 @@ async function showInbox() {
     } catch (e) { showError(e.message); }
 }
 
+// 2026-05-19: LINE風スワイプ削除. 現在スワイプ展開中の li を保持して他行操作時に閉じる.
+let _swipedInboxItem = null;
+function closeSwipedInboxItem() {
+    if (_swipedInboxItem) {
+        _swipedInboxItem.classList.remove('swiped');
+        _swipedInboxItem = null;
+    }
+}
+
+async function deleteInboxSession(sessionId) {
+    if (!confirm('このチャットを削除しますか？\n全メッセージが完全に削除されます。この操作は取り消せません。')) return false;
+    try {
+        if (IS_CAST_INBOX) {
+            await api('delete-session', {
+                inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
+                session_id: sessionId
+            });
+        } else {
+            await api('delete-session', {
+                device_token: state.device_token,
+                session_id: sessionId
+            });
+        }
+        state.inbox_sessions = state.inbox_sessions.filter(x => Number(x.id) !== Number(sessionId));
+        _swipedInboxItem = null;
+        renderInbox();
+        return true;
+    } catch (err) {
+        showError('削除に失敗しました: ' + (err && err.message ? err.message : String(err)));
+        return false;
+    }
+}
+
+function attachSwipeHandlers(li, content, sessionId) {
+    const SWIPE_W = 90; // px (CSS の .inbox-item-actions width と一致)
+    const THRESHOLD = 40; // この距離以上スワイプしたら展開
+    let startX = 0, startY = 0, currentX = 0, isDragging = false, isHorizontal = null;
+
+    const onStart = (e) => {
+        // PC マウスの場合は無視 (CSS hover で対応するため)
+        if (e.type === 'mousedown') return;
+        const t = e.touches ? e.touches[0] : e;
+        startX = t.clientX;
+        startY = t.clientY;
+        currentX = 0;
+        isDragging = true;
+        isHorizontal = null;
+        // 別行が swiped 状態なら先に閉じる
+        if (_swipedInboxItem && _swipedInboxItem !== li) closeSwipedInboxItem();
+    };
+
+    const onMove = (e) => {
+        if (!isDragging) return;
+        const t = e.touches ? e.touches[0] : e;
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        // 最初の数ピクセルで縦/横を判定. 縦スクロールならスワイプ中断.
+        if (isHorizontal === null) {
+            if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+            isHorizontal = Math.abs(dx) > Math.abs(dy);
+            if (!isHorizontal) { isDragging = false; return; }
+        }
+        // 既に swiped 状態なら、開始位置を -SWIPE_W として相対計算
+        const baseOffset = li.classList.contains('swiped') ? -SWIPE_W : 0;
+        let nx = baseOffset + dx;
+        if (nx > 0) nx = 0;
+        if (nx < -SWIPE_W * 1.2) nx = -SWIPE_W * 1.2; // 過剰スワイプ抑止
+        currentX = nx;
+        li.classList.add('swiping');
+        content.style.transform = `translateX(${nx}px)`;
+        e.preventDefault(); // スクロールキャンセル
+    };
+
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        li.classList.remove('swiping');
+        content.style.transform = ''; // class ベースに戻す
+        if (isHorizontal && currentX < -THRESHOLD) {
+            li.classList.add('swiped');
+            _swipedInboxItem = li;
+        } else {
+            li.classList.remove('swiped');
+            if (_swipedInboxItem === li) _swipedInboxItem = null;
+        }
+    };
+
+    // touch event listeners (passive:false で preventDefault 可能に)
+    content.addEventListener('touchstart', onStart, { passive: true });
+    content.addEventListener('touchmove', onMove, { passive: false });
+    content.addEventListener('touchend', onEnd, { passive: true });
+    content.addEventListener('touchcancel', onEnd, { passive: true });
+}
+
 function renderInbox() {
+    closeSwipedInboxItem();
     refs.inboxList.innerHTML = '';
     if (!state.inbox_sessions.length) {
         refs.inboxList.innerHTML = `<li class="inbox-empty">${esc(t('inbox.empty'))}</li>`;
@@ -3548,61 +3644,59 @@ function renderInbox() {
         li.dataset.sessionId = s.id;
         const unread = s.unread_count > 0 ? `<span class="unread-badge">${s.unread_count}</span>` : '';
         const statusBadge = s.status === 'closed' ? `<span style="color:#999;font-size:11px;">${esc(t('inbox.closedTag'))}</span>` : '';
-        // キャスト担当セッションはバッジで一覧からも判別可能に（店舗は閲覧のみ）.
-        // cast_owner モードでは全セッションが自分宛なのでバッジ抑止.
         const castBadge = (s.cast_id && !IS_CAST_INBOX)
             ? `<span style="background:#fff3cd;color:#7a5200;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700;">👤 ${esc(s.cast_name || 'キャスト担当')}</span>`
             : '';
         const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
+        // 構造: li(item) > content(内容) + actions(右の削除ボタン)
         li.innerHTML = `
-            <button type="button" class="inbox-item-delete" aria-label="このチャットを削除" title="削除">✕</button>
-            <div class="inbox-item-title">
-                <span>${displayName} ${statusBadge}${castBadge}</span>${unread}
+            <div class="inbox-item-content">
+                <div class="inbox-item-title">
+                    <span>${displayName} ${statusBadge}${castBadge}</span>${unread}
+                </div>
+                <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
+                <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
             </div>
-            <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
-            <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
+            <div class="inbox-item-actions" aria-hidden="false">
+                <button type="button" class="inbox-item-action-delete" aria-label="このチャットを削除">削除</button>
+            </div>
         `;
-        li.addEventListener('click', (e) => {
-            // 削除ボタンクリック時は行クリック(スレッド開く)を無効化
-            if (e.target.closest('.inbox-item-delete')) return;
+        const content = li.querySelector('.inbox-item-content');
+        const delBtn = li.querySelector('.inbox-item-action-delete');
+
+        // 行クリック (スレッドを開く). スワイプ展開中なら閉じるだけにする.
+        content.addEventListener('click', (e) => {
+            if (li.classList.contains('swiped')) {
+                closeSwipedInboxItem();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
             if (IS_CAST_INBOX) openCastThread(s.id);
             else openOwnerThread(s.id);
         });
-        const delBtn = li.querySelector('.inbox-item-delete');
-        if (delBtn) {
-            delBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (!confirm('このチャットを削除しますか？\n全メッセージが完全に削除されます。この操作は取り消せません。')) return;
-                try {
-                    if (IS_CAST_INBOX) {
-                        await api('delete-session', {
-                            inbox_token: CAST_INBOX_TOKEN,
-                            device_token: state.cast_device_token,
-                            session_id: s.id
-                        });
-                    } else {
-                        await api('delete-session', {
-                            device_token: state.device_token,
-                            session_id: s.id
-                        });
-                    }
-                    // 一覧から即時除去 + 再描画
-                    state.inbox_sessions = state.inbox_sessions.filter(x => Number(x.id) !== Number(s.id));
-                    renderInbox();
-                } catch (err) {
-                    showError('削除に失敗しました: ' + (err && err.message ? err.message : String(err)));
-                }
-            });
-        }
+
+        // 削除ボタン
+        delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await deleteInboxSession(s.id);
+        });
+
+        attachSwipeHandlers(li, content, s.id);
         refs.inboxList.appendChild(li);
     }
-    // 上限30件の注釈: 受信箱は last_activity_at DESC LIMIT 30 なので
-    // 31件目以降の古いスレッドは表示されない. 見落とし防止の案内を末尾に出す.
+    // 上限30件の注釈
     const note = document.createElement('li');
     note.className = 'inbox-limit-note';
     note.textContent = t('inbox.limitNote');
     refs.inboxList.appendChild(note);
 }
+
+// 一覧外をタップしたらスワイプ展開を閉じる (LINE と同じ挙動)
+document.addEventListener('click', (e) => {
+    if (!_swipedInboxItem) return;
+    if (!e.target.closest('.inbox-item')) closeSwipedInboxItem();
+}, true);
 
 async function openOwnerThread(sessionId) {
     state.selected_session = state.inbox_sessions.find(s => Number(s.id) === Number(sessionId));

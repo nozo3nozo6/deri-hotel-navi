@@ -108,15 +108,24 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .inbox-header h2{margin:0;font-size:14px;color:#555}
 .mini-btn{padding:6px 12px;font-size:12px;background:var(--chat-primary);color:#fff;border-radius:4px}
 .inbox-list{list-style:none;margin:0;padding:0}
-.inbox-item{position:relative;padding:14px 44px 14px 16px;border-bottom:1px solid #e5e0d8;background:#fff;cursor:pointer;transition:background .15s}
-.inbox-item:hover{background:#faf7f2}
+/* ===== Inbox row (LINE風スワイプ削除対応) ===== */
+.inbox-item{position:relative;overflow:hidden;border-bottom:1px solid #e5e0d8;background:#fff;list-style:none;touch-action:pan-y}
 .inbox-item.unread{background:#fef8e7;border-left:3px solid #ff9800}
+.inbox-item-content{position:relative;z-index:1;padding:14px 16px;background:inherit;cursor:pointer;transition:transform .25s cubic-bezier(.25,.46,.45,.94),background .15s;will-change:transform}
+.inbox-item-content:hover{background:#faf7f2}
+.inbox-item.swiped .inbox-item-content{transform:translateX(-90px)}
+.inbox-item.swiping .inbox-item-content{transition:none}
 .inbox-item-title{font-size:13px;font-weight:700;color:#333;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
 .inbox-item-preview{font-size:13px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inbox-item-time{font-size:11px;color:#999;margin-top:4px}
-.inbox-item-delete{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.04);color:#aaa;border:none;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background .15s,color .15s;font-family:inherit}
-.inbox-item-delete:hover{background:#fce8e8;color:#c62828}
-.inbox-item-delete:active{background:#f9d6d6}
+.inbox-item-actions{position:absolute;top:0;right:0;bottom:0;width:90px;display:flex;align-items:stretch;z-index:0}
+.inbox-item-action-delete{flex:1;background:#e74c3c;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0}
+.inbox-item-action-delete:hover{background:#c0392b}
+.inbox-item-action-delete:active{background:#a93226}
+/* PC: hover で content を少しスライドして削除ボタンを露出 (タッチデバイスでは無効) */
+@media (hover:hover) and (pointer:fine) {
+  .inbox-item:hover .inbox-item-content{transform:translateX(-90px)}
+}
 .unread-badge{background:#ff3b30;color:#fff;padding:1px 6px;border-radius:10px;font-size:11px;font-weight:700}
 .inbox-empty{padding:40px 16px;text-align:center;color:#888;font-size:14px}
 
