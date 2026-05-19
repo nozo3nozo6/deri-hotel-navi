@@ -111,9 +111,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 /* ===== Inbox row (LINE風スワイプ削除対応) =====
    actions は right:-90px に配置して画面外に出しておく.
    スワイプ時に right:0 にスライドして見える化. transform は使わず安全側. */
-.inbox-item{position:relative;display:block;width:100%;box-sizing:border-box;margin:0;padding:0;border-bottom:1px solid #e5e0d8;background:#fff;list-style:none;touch-action:pan-y;overflow:hidden}
+.inbox-item{position:relative;display:block;width:100%;box-sizing:border-box;margin:0!important;padding:0!important;border-bottom:1px solid #e5e0d8;background:#fff;list-style:none;touch-action:pan-y;overflow:hidden;contain:layout paint}
 .inbox-item.unread{background:#fef8e7;border-left:3px solid #ff9800}
-.inbox-item-content{position:relative;z-index:1;width:100%;box-sizing:border-box;padding:14px 16px;background:inherit;cursor:pointer;transition:transform .25s cubic-bezier(.25,.46,.45,.94),background .15s;will-change:transform}
+.inbox-item-content{position:relative;z-index:1;display:block;width:100%;box-sizing:border-box;margin:0;padding:14px 16px;background:inherit;cursor:pointer;transition:transform .25s cubic-bezier(.25,.46,.45,.94),background .15s;will-change:transform}
 .inbox-item-content:hover{background:#faf7f2}
 .inbox-item.swiped .inbox-item-content{transform:translateX(-90px)}
 .inbox-item.swiping .inbox-item-content{transition:none}
