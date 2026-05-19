@@ -3555,13 +3555,45 @@ function renderInbox() {
             : '';
         const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
         li.innerHTML = `
+            <button type="button" class="inbox-item-delete" aria-label="このチャットを削除" title="削除">✕</button>
             <div class="inbox-item-title">
                 <span>${displayName} ${statusBadge}${castBadge}</span>${unread}
             </div>
             <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
             <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
         `;
-        li.addEventListener('click', () => (IS_CAST_INBOX ? openCastThread(s.id) : openOwnerThread(s.id)));
+        li.addEventListener('click', (e) => {
+            // 削除ボタンクリック時は行クリック(スレッド開く)を無効化
+            if (e.target.closest('.inbox-item-delete')) return;
+            if (IS_CAST_INBOX) openCastThread(s.id);
+            else openOwnerThread(s.id);
+        });
+        const delBtn = li.querySelector('.inbox-item-delete');
+        if (delBtn) {
+            delBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('このチャットを削除しますか？\n全メッセージが完全に削除されます。この操作は取り消せません。')) return;
+                try {
+                    if (IS_CAST_INBOX) {
+                        await api('delete-session', {
+                            inbox_token: CAST_INBOX_TOKEN,
+                            device_token: state.cast_device_token,
+                            session_id: s.id
+                        });
+                    } else {
+                        await api('delete-session', {
+                            device_token: state.device_token,
+                            session_id: s.id
+                        });
+                    }
+                    // 一覧から即時除去 + 再描画
+                    state.inbox_sessions = state.inbox_sessions.filter(x => Number(x.id) !== Number(s.id));
+                    renderInbox();
+                } catch (err) {
+                    showError('削除に失敗しました: ' + (err && err.message ? err.message : String(err)));
+                }
+            });
+        }
         refs.inboxList.appendChild(li);
     }
     // 上限30件の注釈: 受信箱は last_activity_at DESC LIMIT 30 なので

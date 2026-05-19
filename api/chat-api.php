@@ -54,7 +54,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? ($body['action'] ?? '');
 // ---- CORS ----
 // 訪問者アクションはクロスオリジン埋め込み対応（外部CMS埋め込みウィジェット用）
 // オーナー/管理アクションは yobuho.com + サブドメインのみ許可
-$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-url-toggle-push', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-reopen', 'cast-inbox-toggle-notify', 'cast-inbox-toggle-push', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
+$visitor_actions = ['start-session', 'send-message', 'poll-messages', 'shop-status', 'translate', 'can-connect', 'cast-url-reply', 'cast-url-toggle-notify', 'cast-url-toggle-push', 'cast-inbox', 'cast-inbox-reply', 'cast-inbox-close', 'cast-inbox-reopen', 'cast-inbox-toggle-notify', 'cast-inbox-toggle-push', 'cast-inbox-request-code', 'cast-inbox-verify-code', 'delete-session', 'send', 'set-typing', 'push-config', 'push-subscribe', 'push-unsubscribe', 'fetch-push-subscribers', 'push-unsubscribe-by-endpoint', 'visitor-notify-settings', 'my-notify-settings', 'fetch-visitor-notify', 'resend-visitor-email-verify'];
 $allowed_origins = [
     'https://yobuho.com',
     'https://deli.yobuho.com',
@@ -670,6 +670,7 @@ try {
         case 'block-visitor':   handleBlockVisitor(); break;
         case 'unblock-visitor': handleUnblockVisitor(); break;
         case 'close-session':   handleCloseSession(); break;
+        case 'delete-session':  handleDeleteSession(); break;
         case 'reopen-session':  handleReopenSession(); break;
         case 'owner-logout':    handleOwnerLogout(); break;
 
@@ -719,7 +720,7 @@ function handleStartSession() {
                     sc.profile_image_url AS cast_avatar_url
              FROM chat_sessions cs
              LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
-             WHERE cs.session_token = ? AND cs.shop_id = ? LIMIT 1'
+             WHERE cs.session_token = ? AND cs.shop_id = ? AND cs.deleted_at IS NULL LIMIT 1'
         );
         $stmt->execute([$adoptToken, $shop['id']]);
         $existing = $stmt->fetch();
@@ -805,10 +806,11 @@ function handleSendMessage() {
     if ($clientMsgId !== '' && !isValidClientMsgId($clientMsgId)) err('invalid client_msg_id');
 
     $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT id, shop_id, status, blocked, visitor_hash FROM chat_sessions WHERE session_token = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, shop_id, status, blocked, visitor_hash, deleted_at FROM chat_sessions WHERE session_token = ? LIMIT 1');
     $stmt->execute([$token]);
     $session = $stmt->fetch();
     if (!$session) err('Session not found', 404);
+    if (!empty($session['deleted_at'])) err('このチャットは削除されました', 410);
     if ($session['status'] === 'closed') err('このチャットは終了しています', 410);
     if ((int)$session['blocked'] === 1) err('現在チャットをご利用いただけません', 403);
 
@@ -1303,6 +1305,7 @@ function handleOwnerInbox() {
                 COALESCE((SELECT MAX(id) FROM chat_messages WHERE session_id = s.id AND sender_type = "shop" AND read_at IS NOT NULL), 0) AS last_read_own_id
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id IS NULL
+           AND s.deleted_at IS NULL
            AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")
          ORDER BY s.last_activity_at DESC
          LIMIT 30'
@@ -1716,6 +1719,7 @@ function handleCastInbox(): void {
                 (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor" AND read_at IS NULL) AS unread_count
          FROM chat_sessions s
          WHERE s.shop_id = ? AND s.cast_id = ?
+           AND s.deleted_at IS NULL
            AND EXISTS (SELECT 1 FROM chat_messages WHERE session_id = s.id AND sender_type = "visitor")
          ORDER BY s.last_activity_at DESC LIMIT 30'
     );
@@ -2538,6 +2542,46 @@ function handleCloseSession() {
         ->execute([$sessionId, $device['shop_id']]);
 
     ok(['closed' => true]);
+}
+
+/**
+ * 2026-05-19: 受信箱から不要チャットを論理削除 (deleted_at).
+ *   - オーナー: device_token で認証、自店舗の全セッション削除可
+ *   - キャスト: inbox_token + device_token で認証、自分担当 (cast_id) のみ削除可
+ *   - 物理削除はしない (30日後にバッチ削除する設計)
+ */
+function handleDeleteSession() {
+    $sessionId = (int)inp('session_id', 0);
+    if ($sessionId <= 0) err('session_id required');
+
+    $inboxToken = trim((string)inp('inbox_token', ''));
+    $deviceToken = trim((string)inp('device_token', ''));
+    $pdo = DB::conn();
+
+    if ($inboxToken !== '') {
+        // キャスト経路: shop_cast の cast_id 一致のセッションのみ
+        $sc = resolveCastInboxToken($inboxToken);
+        if (!$sc) err('invalid or revoked inbox_token', 403);
+        if (!verifyCastInboxDevice($sc['shop_cast_id'], $deviceToken)) err('端末が登録されていません', 403);
+        $stmt = $pdo->prepare(
+            'SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? AND cast_id = ? AND deleted_at IS NULL LIMIT 1'
+        );
+        $stmt->execute([$sessionId, $sc['shop_id'], $sc['cast_id']]);
+        if (!$stmt->fetchColumn()) err('Session not found', 404);
+        $pdo->prepare('UPDATE chat_sessions SET deleted_at = NOW() WHERE id = ?')->execute([$sessionId]);
+    } else {
+        // オーナー経路
+        $device = verifyDevice($deviceToken);
+        if (!$device) err('Invalid device token', 401);
+        $stmt = $pdo->prepare(
+            'SELECT id FROM chat_sessions WHERE id = ? AND shop_id = ? AND deleted_at IS NULL LIMIT 1'
+        );
+        $stmt->execute([$sessionId, $device['shop_id']]);
+        if (!$stmt->fetchColumn()) err('Session not found', 404);
+        $pdo->prepare('UPDATE chat_sessions SET deleted_at = NOW() WHERE id = ?')->execute([$sessionId]);
+    }
+
+    ok(['deleted' => true]);
 }
 
 /**
