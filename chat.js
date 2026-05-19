@@ -3648,14 +3648,17 @@ function renderInbox() {
             ? `<span style="background:#fff3cd;color:#7a5200;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;font-weight:700;">👤 ${esc(s.cast_name || 'キャスト担当')}</span>`
             : '';
         const displayName = s.nickname ? esc(s.nickname) : `${esc(t('inbox.visitorPrefix'))} #${s.id}`;
-        // 構造: li(item) > content(内容) + actions(右の削除ボタン)
+        // 構造: LINE風レイアウト. 行1=名前+時刻、行2=プレビュー+未読バッジ.
         li.innerHTML = `
             <div class="inbox-item-content">
-                <div class="inbox-item-title">
-                    <span>${displayName} ${statusBadge}${castBadge}</span>${unread}
+                <div class="inbox-item-row1">
+                    <span class="inbox-item-name">${displayName}${statusBadge ? ' ' + statusBadge : ''}${castBadge}</span>
+                    <span class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</span>
                 </div>
-                <div class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</div>
-                <div class="inbox-item-time">${esc(formatTime(s.last_activity_at))}</div>
+                <div class="inbox-item-row2">
+                    <span class="inbox-item-preview">${esc(s.last_sender === 'shop' ? t('inbox.selfPrefix') : '')}${esc(s.last_message || '')}</span>
+                    ${unread}
+                </div>
             </div>
             <div class="inbox-item-actions" aria-hidden="false">
                 <button type="button" class="inbox-item-action-delete" aria-label="このチャットを削除">削除</button>
