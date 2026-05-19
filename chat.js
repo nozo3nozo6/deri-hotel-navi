@@ -2420,14 +2420,14 @@ async function enterVisitorMode() {
                 state.cast_avatar_url = adopt.cast_avatar_url || null;
             }
             // 2026-04-29: ?cast= 訪問者URLでは緑丸をキャストの notify トグルに同期.
-            // cast_notify_mode が 'off' 以外なら点灯, 'off' なら消灯. 受付時間は無視.
+            // 2026-05-20: 「メール通知 OR アプリ通知のいずれかが ON」で 🟢. 受付時間は無視.
             if (CAST_ID && adopt && typeof adopt.cast_notify_mode !== 'undefined') {
-                const castOn = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
-                state.notify_enabled = !!castOn;
-                state.is_online = !!castOn;
+                const emailOn = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
+                const pushOn  = adopt.cast_notify_push_mode && adopt.cast_notify_push_mode !== 'off';
+                const castOn = !!(emailOn || pushOn);
+                state.notify_enabled = castOn;
+                state.is_online = castOn;
                 // 2026-04-30: WS ステータスバッチ到着前に dot を即時反映.
-                // 旧実装は updateStatusIndicator を呼ばず、初期描画 (notify_enabled=undefined → 消灯)
-                // のまま放置されていた. キャスト notify ON なのに 🟢 が出ない問題の修正.
                 updateStatusIndicator(state.is_online);
             } else if (adopt && !CAST_ID) {
                 // 2026-05-17: 店舗直通の adopt 復元パスでも shop_online/is_online を反映.
@@ -2459,11 +2459,14 @@ async function enterVisitorMode() {
         if (s.cast_name) state.cast_name = s.cast_name;
         if (typeof s.shop_avatar_url !== 'undefined') state.shop_avatar_url = s.shop_avatar_url || null;
         if (typeof s.cast_avatar_url !== 'undefined') state.cast_avatar_url = s.cast_avatar_url || null;
-        // 2026-04-29: ?cast= 訪問者URL は緑丸をキャストの notify_mode に同期 (受付時間無視)
+        // 2026-04-29: ?cast= 訪問者URL は緑丸をキャストの notify トグルに同期 (受付時間無視)
+        // 2026-05-20: 「メール OR アプリ通知のいずれかが ON」で 🟢.
         if (CAST_ID && typeof s.cast_notify_mode !== 'undefined') {
-            const castOn = s.cast_notify_mode && s.cast_notify_mode !== 'off';
-            state.notify_enabled = !!castOn;
-            state.is_online = !!castOn;
+            const emailOn = s.cast_notify_mode && s.cast_notify_mode !== 'off';
+            const pushOn  = s.cast_notify_push_mode && s.cast_notify_push_mode !== 'off';
+            const castOn = !!(emailOn || pushOn);
+            state.notify_enabled = castOn;
+            state.is_online = castOn;
             updateStatusIndicator(state.is_online);
         } else if (!CAST_ID) {
             // 2026-05-17: 店舗直通の新規セッションでも shop_online/is_online を反映.
@@ -2541,11 +2544,13 @@ async function enterCastViewMode() {
             if (typeof adopt.is_online !== 'undefined') state.is_online = !!adopt.is_online;
             if (typeof adopt.shop_avatar_url !== 'undefined') state.shop_avatar_url = adopt.shop_avatar_url || null;
             if (typeof adopt.cast_avatar_url !== 'undefined') state.cast_avatar_url = adopt.cast_avatar_url || null;
-            // 通知トグル初期値: chat_notify_mode が 'off' 以外なら ON
+            // 通知トグル初期値: 2026-05-20 「メール OR push のいずれかが ON」で点灯
             if (typeof adopt.cast_notify_mode !== 'undefined') {
-                const enabled = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
-                state.notify_enabled = !!enabled;
-                if (refs.onlineToggle) refs.onlineToggle.checked = !!enabled;
+                const emailOn = adopt.cast_notify_mode && adopt.cast_notify_mode !== 'off';
+                const pushOn  = adopt.cast_notify_push_mode && adopt.cast_notify_push_mode !== 'off';
+                const enabled = !!(emailOn || pushOn);
+                state.notify_enabled = enabled;
+                if (refs.onlineToggle) refs.onlineToggle.checked = enabled;
             }
         }
     } catch (e) {
@@ -4540,54 +4545,73 @@ if (refs.emojiToggle) {
 //   - OFF 操作: 即時 API (キャンセル可、確認不要)
 // =====================================================
 async function applyNotifyEnable(emailMode, pushEnabled) {
+    // 2026-05-20: emailMode='off' はメールだけ OFF とする (push が ON なら main toggle は ON 維持).
+    // toggle-notify enabled=0 でメール OFF, enabled=1 + mode で email 受信モード設定.
+    const emailEnabled = emailMode && emailMode !== 'off';
+    const anyOn = !!(emailEnabled || pushEnabled);  // 🟢 計算用
     if (IS_CAST_INBOX) {
-        // 2026-05-19: mode='first'/'every' を明示送信
-        await api('cast-inbox-toggle-notify', {
-            inbox_token: CAST_INBOX_TOKEN,
-            device_token: state.cast_device_token,
-            enabled: 1,
-            mode: emailMode
-        });
+        if (emailEnabled) {
+            await api('cast-inbox-toggle-notify', {
+                inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
+                enabled: 1,
+                mode: emailMode
+            });
+        } else {
+            await api('cast-inbox-toggle-notify', {
+                inbox_token: CAST_INBOX_TOKEN,
+                device_token: state.cast_device_token,
+                enabled: 0
+            });
+        }
         await api('cast-inbox-toggle-push', {
             inbox_token: CAST_INBOX_TOKEN,
             device_token: state.cast_device_token,
             enabled: pushEnabled ? 1 : 0
         });
-        state.notify_enabled = true;
-        state.notify_mode = emailMode;
+        state.notify_enabled = anyOn;
+        state.notify_mode = emailEnabled ? emailMode : 'off';
         state.notify_push_mode = pushEnabled ? 'on' : 'off';
-        state.is_online = true;
-        updateStatusIndicator(true);
+        state.is_online = anyOn;
+        updateStatusIndicator(anyOn);
     } else if (IS_CAST_VIEW) {
         const baseAuth = { session_token: state.session_token, shop_cast_id: CAST_ID };
         if (CAST_BEARER) { baseAuth.ct = CAST_BEARER.ct; baseAuth.iat = CAST_BEARER.iat; }
-        await api('cast-url-toggle-notify', { ...baseAuth, enabled: 1, mode: emailMode });
+        if (emailEnabled) {
+            await api('cast-url-toggle-notify', { ...baseAuth, enabled: 1, mode: emailMode });
+        } else {
+            await api('cast-url-toggle-notify', { ...baseAuth, enabled: 0 });
+        }
         await api('cast-url-toggle-push',   { ...baseAuth, enabled: pushEnabled ? 1 : 0 });
-        state.notify_enabled = true;
-        state.notify_mode = emailMode;
+        state.notify_enabled = anyOn;
+        state.notify_mode = emailEnabled ? emailMode : 'off';
         state.notify_push_mode = pushEnabled ? 'on' : 'off';
-        updateStatusIndicator(state.is_online);
+        state.is_online = anyOn;
+        updateStatusIndicator(anyOn);
     } else {
+        // 2026-05-20: shop owner で email='off' なら toggle-notify enabled=0 を送って is_online=0 (🟢 OFF).
+        // 仕様: 🟢 は受付時間内 + メール通知 ON のみ. push は 🟢 に影響しない.
         const res = await api('toggle-notify', {
             device_token: state.device_token,
-            enabled: 1
+            enabled: emailEnabled ? 1 : 0
         });
         // オーナーは admin-save-settings 経由でメール頻度を反映 (toggle-notify は preference 復元のみ)
         try {
             await api('admin-save-settings', {
-                notify_mode: emailMode,
+                notify_mode: emailEnabled ? emailMode : 'off',
                 notify_min_interval_minutes: 3,
                 notify_push_mode: pushEnabled ? 'on' : 'off',
             });
         } catch (_) {
             // admin-save-settings は他フィールドが NULL になりうるが現状は notify_mode のみ更新で OK
         }
-        // push 単独 API も叩いて確実に反映
+        // push 単独 API も叩いて確実に反映 (メール状態と独立)
         try {
             await api('toggle-push', { device_token: state.device_token, enabled: pushEnabled ? 1 : 0 });
         } catch (_) {}
-        state.notify_enabled = true;
-        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : true);
+        state.notify_enabled = anyOn;
+        // shop 🟢 はサーバー側 effectiveOnline (is_online=email mode!=off && in hours) を信用. push は影響しない.
+        updateStatusIndicator(res && typeof res.is_online !== 'undefined' ? !!res.is_online : emailEnabled);
     }
 }
 
@@ -4627,13 +4651,15 @@ async function applyNotifyDisable() {
 function openNotifyConfigModal() {
     const modal = document.getElementById('notify-config-modal');
     if (!modal) return Promise.resolve(false);
-    const emailEvery = modal.querySelector('input[name="notify-email-mode"][value="every"]');
+    const emailOff   = modal.querySelector('input[name="notify-email-mode"][value="off"]');
     const emailFirst = modal.querySelector('input[name="notify-email-mode"][value="first"]');
+    const emailEvery = modal.querySelector('input[name="notify-email-mode"][value="every"]');
     const pushChk = document.getElementById('notify-config-push');
-    // 初期値: 既存状態を反映 (state.notify_mode / push 購読状態)
+    // 2026-05-20: 'off' 選択肢追加. 既存状態が 'off' なら 'off' radio を選択.
     const currentMode = state.notify_mode || 'every';
+    if (emailOff)   emailOff.checked   = currentMode === 'off';
     if (emailFirst) emailFirst.checked = currentMode === 'first';
-    if (emailEvery) emailEvery.checked = currentMode !== 'first';
+    if (emailEvery) emailEvery.checked = currentMode !== 'first' && currentMode !== 'off';
     // push 初期値は購読状態 + notify_push_mode の両方を見る. push 未対応端末でも off で OK.
     if (pushChk) pushChk.checked = (state.notify_push_mode !== 'off') && pushSupported();
     modal.classList.remove('hidden');
@@ -4672,6 +4698,17 @@ refs.onlineToggle.addEventListener('change', async (e) => {
         // ON 操作: モーダル表示で詳細を選ばせる
         const result = await openNotifyConfigModal();
         if (!result || result.cancelled) {
+            e.target.checked = false;
+            return;
+        }
+        // 2026-05-20: メール off + push off の組合せは「両方 OFF = トグル OFF」と等価.
+        // 自動的に applyNotifyDisable に振り替えて main toggle も OFF に戻す.
+        if (result.emailMode === 'off' && !result.pushEnabled) {
+            try {
+                await applyNotifyDisable();
+            } catch (err) {
+                showError(err.message || String(err));
+            }
             e.target.checked = false;
             return;
         }

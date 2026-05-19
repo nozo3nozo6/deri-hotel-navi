@@ -716,7 +716,8 @@ function handleStartSession() {
     if ($adoptToken !== '') {
         $stmt = $pdo->prepare(
             'SELECT cs.id, cs.cast_id, cs.visitor_email, cs.visitor_notify_enabled,
-                    sc.id AS shop_cast_id, sc.display_name AS cast_name, sc.chat_notify_mode,
+                    sc.id AS shop_cast_id, sc.display_name AS cast_name,
+                    sc.chat_notify_mode, sc.notify_push_mode,
                     sc.profile_image_url AS cast_avatar_url
              FROM chat_sessions cs
              LEFT JOIN shop_casts sc ON sc.cast_id = cs.cast_id AND sc.shop_id = cs.shop_id
@@ -732,6 +733,8 @@ function handleStartSession() {
                 'cast_name'        => $existing['cast_name'],
                 'shop_cast_id'     => $existing['shop_cast_id'],
                 'cast_notify_mode' => $existing['chat_notify_mode'] ?? null,
+                // 2026-05-20: 🟢 を「email OR push のいずれかが ON」で判定するため push mode も同梱.
+                'cast_notify_push_mode' => $existing['notify_push_mode'] ?? 'on',
                 'is_online'        => effectiveOnline($shop),
                 'gender_mode'      => $shop['gender_mode'] ?? 'men',
                 'visitor_email'    => (string)($existing['visitor_email'] ?? ''),
@@ -754,9 +757,12 @@ function handleStartSession() {
     $castName = null;
     $castAvatarUrl = null;
     $castNotifyMode = null;
+    $castNotifyPushMode = 'on';  // 2026-05-20: 🟢 計算用 (email OR push)
     if ($shopCastId !== '') {
         $stmt = $pdo->prepare(
-            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url, sc.chat_notify_mode, sc.status, sc.is_visible
+            'SELECT sc.cast_id, sc.display_name, sc.profile_image_url,
+                    sc.chat_notify_mode, sc.notify_push_mode,
+                    sc.status, sc.is_visible
              FROM shop_casts sc
              WHERE sc.id = ? AND sc.shop_id = ? LIMIT 1'
         );
@@ -769,6 +775,7 @@ function handleStartSession() {
             $castName = $row['display_name'];
             $castAvatarUrl = $row['profile_image_url'] ?: null;
             $castNotifyMode = $row['chat_notify_mode'] ?? 'off';
+            $castNotifyPushMode = $row['notify_push_mode'] ?? 'on';
         }
     }
 
@@ -789,6 +796,8 @@ function handleStartSession() {
         'shop_avatar_url' => $shop['chat_avatar_url'] ?: null,
         'cast_avatar_url' => $castAvatarUrl,
         'cast_notify_mode' => $castNotifyMode,
+        // 2026-05-20: 🟢 を「email OR push のいずれかが ON」で判定するため push mode も同梱.
+        'cast_notify_push_mode' => $castNotifyPushMode,
     ]);
 }
 
