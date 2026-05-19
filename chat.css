@@ -108,17 +108,21 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .inbox-header h2{margin:0;font-size:14px;color:#555}
 .mini-btn{padding:6px 12px;font-size:12px;background:var(--chat-primary);color:#fff;border-radius:4px}
 .inbox-list{list-style:none;margin:0;padding:0}
-/* ===== Inbox row (LINE風スワイプ削除対応) ===== */
-.inbox-item{position:relative;display:block;overflow:hidden;border-bottom:1px solid #e5e0d8;background:#fff;list-style:none;touch-action:pan-y}
+/* ===== Inbox row (LINE風スワイプ削除対応) =====
+   overflow:hidden に依存せず、actions 自体を画面外 (translateX(100%)) に隠す設計.
+   これで PWA/Safari/iOS の hover/overflow 誤判定でも絶対に常時露出しない. */
+.inbox-item{position:relative;display:block;border-bottom:1px solid #e5e0d8;background:#fff;list-style:none;touch-action:pan-y;overflow:hidden}
 .inbox-item.unread{background:#fef8e7;border-left:3px solid #ff9800}
-.inbox-item-content{position:relative;z-index:1;padding:14px 16px;background:inherit;cursor:pointer;transition:transform .25s cubic-bezier(.25,.46,.45,.94),background .15s;will-change:transform}
+.inbox-item-content{position:relative;z-index:1;padding:14px 16px;background:inherit;cursor:pointer;transition:transform .25s cubic-bezier(.25,.46,.45,.94),background .15s;will-change:transform;transform:translateX(0)}
 .inbox-item-content:hover{background:#faf7f2}
 .inbox-item.swiped .inbox-item-content{transform:translateX(-90px)}
 .inbox-item.swiping .inbox-item-content{transition:none}
 .inbox-item-title{font-size:13px;font-weight:700;color:#333;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
 .inbox-item-preview{font-size:13px;color:#666;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inbox-item-time{font-size:11px;color:#999;margin-top:4px}
-.inbox-item-actions{position:absolute;top:0;right:0;bottom:0;width:90px;display:flex;align-items:stretch;z-index:0}
+.inbox-item-actions{position:absolute;top:0;right:0;bottom:0;width:90px;display:flex;align-items:stretch;z-index:0;transform:translateX(100%);transition:transform .25s cubic-bezier(.25,.46,.45,.94);pointer-events:none}
+.inbox-item.swiped .inbox-item-actions{transform:translateX(0);pointer-events:auto}
+.inbox-item.swiping .inbox-item-actions{transition:none;transform:translateX(0);pointer-events:none}
 .inbox-item-action-delete{flex:1;background:#e74c3c;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0}
 .inbox-item-action-delete:hover{background:#c0392b}
 .inbox-item-action-delete:active{background:#a93226}
