@@ -1399,10 +1399,16 @@
                 </label>
                 <div id="chat-reception-range" style="display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap;margin-bottom:10px;">
                     <span>開始</span>
-                    <input id="chat-reception-start" type="time" step="300" class="f-input" style="width:110px;">
+                    <input id="chat-reception-start" type="hidden">
+                    <select id="chat-reception-start-h" class="f-input" style="width:70px;" aria-label="開始時"></select>
+                    <span>:</span>
+                    <select id="chat-reception-start-m" class="f-input" style="width:70px;" aria-label="開始分"></select>
                     <span>〜 終了</span>
-                    <input id="chat-reception-end" type="time" step="300" class="f-input" style="width:110px;">
-                    <span style="font-size:11px;color:var(--text-3);">※ 日跨ぎ可 (例 18:00〜05:00)</span>
+                    <input id="chat-reception-end" type="hidden">
+                    <select id="chat-reception-end-h" class="f-input" style="width:70px;" aria-label="終了時"></select>
+                    <span>:</span>
+                    <select id="chat-reception-end-m" class="f-input" style="width:70px;" aria-label="終了分"></select>
+                    <span style="font-size:11px;color:var(--text-3);">※ 5 分刻み・日跨ぎ可 (例 18:00〜05:00)</span>
                 </div>
                 <button class="btn" style="padding:8px 16px;background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;" data-action="saveChatSettings">設定を保存</button>
             </div>

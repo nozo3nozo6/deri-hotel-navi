@@ -2386,17 +2386,65 @@ function updateEffectiveNotifyEmailHint(){
     hint.textContent = effective ? ('→ 現在の通知先: ' + effective) : '';
 }
 
+// 2026-05-20: 受付時間ピッカーを 5 分刻みの <select> ベースに置換 (iOS Safari の time picker step 無視対策).
+// hidden input (chat-reception-start/end) には HH:MM 形式で書き込み、既存の保存ロジックと互換維持.
+function _populateReceptionSelects(){
+    const hours = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
+    const minutes = Array.from({length:12}, (_,i) => String(i*5).padStart(2,'0'));
+    [['chat-reception-start-h', hours], ['chat-reception-end-h', hours],
+     ['chat-reception-start-m', minutes], ['chat-reception-end-m', minutes]].forEach(([id, opts]) => {
+        const sel = document.getElementById(id);
+        if (!sel || sel.options.length) return;  // 一度 populate したら再生成しない
+        opts.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+    });
+}
+function _wireReceptionSelects(){
+    // select 変更時に hidden input ('HH:MM') を更新
+    const sync = (prefix) => {
+        const h = document.getElementById('chat-reception-' + prefix + '-h');
+        const m = document.getElementById('chat-reception-' + prefix + '-m');
+        const hidden = document.getElementById('chat-reception-' + prefix);
+        if (h && m && hidden) hidden.value = (h.value || '00') + ':' + (m.value || '00');
+    };
+    ['start','end'].forEach(p => {
+        const h = document.getElementById('chat-reception-' + p + '-h');
+        const m = document.getElementById('chat-reception-' + p + '-m');
+        if (h && !h._wired) { h.addEventListener('change', () => sync(p)); h._wired = true; }
+        if (m && !m._wired) { m.addEventListener('change', () => sync(p)); m._wired = true; }
+    });
+}
+function _setReceptionFromHHMM(prefix, hhmm){
+    const h = document.getElementById('chat-reception-' + prefix + '-h');
+    const m = document.getElementById('chat-reception-' + prefix + '-m');
+    const hidden = document.getElementById('chat-reception-' + prefix);
+    if (!hhmm) { if (hidden) hidden.value = ''; return; }
+    const [hh, mm] = String(hhmm).split(':');
+    if (h) h.value = String(hh || '00').padStart(2,'0');
+    // 既存値が 5 分刻みでない場合 (例 10:03) は最寄りの 5 分単位に丸める
+    let mmNum = parseInt(mm || '0', 10) || 0;
+    mmNum = Math.round(mmNum / 5) * 5;
+    if (mmNum >= 60) mmNum = 55;
+    if (m) m.value = String(mmNum).padStart(2,'0');
+    if (hidden) hidden.value = (h ? h.value : '00') + ':' + (m ? m.value : '00');
+}
+
 function applyReceptionUI(start, end){
+    _populateReceptionSelects();
+    _wireReceptionSelects();
     const is24h = !start || !end;
     document.getElementById('chat-reception-24h').checked = is24h;
-    document.getElementById('chat-reception-start').value = start ? String(start).slice(0,5) : '';
-    document.getElementById('chat-reception-end').value = end ? String(end).slice(0,5) : '';
+    _setReceptionFromHHMM('start', start ? String(start).slice(0,5) : '');
+    _setReceptionFromHHMM('end',   end   ? String(end).slice(0,5)   : '');
     toggleReceptionRange();
 }
 function toggleReceptionRange(){
     const disabled = document.getElementById('chat-reception-24h').checked;
-    document.getElementById('chat-reception-start').disabled = disabled;
-    document.getElementById('chat-reception-end').disabled = disabled;
+    ['chat-reception-start','chat-reception-end',
+     'chat-reception-start-h','chat-reception-start-m',
+     'chat-reception-end-h','chat-reception-end-m'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = disabled;
+    });
     document.getElementById('chat-reception-range').style.opacity = disabled ? '0.5' : '1';
 }
 
