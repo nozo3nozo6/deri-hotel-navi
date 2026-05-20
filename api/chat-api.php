@@ -477,7 +477,7 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     } elseif ($mode === 'every') {
         // 都度モード: 同セッションに対する前回通知から min_interval 分未経過ならスキップ
         if ($session['notified_at']) {
-            $minInterval = max(1, (int)($shop['notify_min_interval_minutes'] ?? 3));
+            $minInterval = max(1, (int)($shop['notify_min_interval_minutes'] ?? 1));
             $elapsed = time() - strtotime($session['notified_at']);
             if ($elapsed < $minInterval * 60) return;
         }
@@ -2415,7 +2415,8 @@ function handleUpdateSettings() {
     $device = requireDevice();
     $mode = (string)inp('notify_mode', 'first');
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
-    $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
+    // 2026-05-20: 既定値 1 分固定 (ユーザー要望). max 60 のクランプは安全策で残す.
+    $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 1)));
     // 2026-05-19: push 通知設定を独立して受け付ける. 指定なしなら現状維持.
     $pushParam = inp('notify_push_mode', null);
     $pushMode = null;
@@ -2725,7 +2726,7 @@ function handleAdminOverview() {
         'is_online'  => $enabled ? effectiveOnline($row) : false,
         'notify_mode'=> $row['notify_email_mode'] ?? $row['notify_mode'] ?? 'off',
         'notify_push_mode' => $row['notify_push_mode'] ?? 'on',
-        'notify_min_interval_minutes' => (int)($row['notify_min_interval_minutes'] ?? 3),
+        'notify_min_interval_minutes' => (int)($row['notify_min_interval_minutes'] ?? 1),
         'reception_start' => $row['reception_start'] ?? null,
         'reception_end'   => $row['reception_end'] ?? null,
         'welcome_message' => $row['welcome_message'] ?? null,
@@ -2781,7 +2782,8 @@ function handleAdminSaveSettings() {
     $auth = requireShopSession();
     $mode = (string)inp('notify_mode', 'first');
     if (!in_array($mode, ['first', 'every', 'off'], true)) err('invalid notify_mode');
-    $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 3)));
+    // 2026-05-20: 既定値 1 分固定 (ユーザー要望). max 60 のクランプは安全策で残す.
+    $interval = max(1, min(60, (int)inp('notify_min_interval_minutes', 1)));
 
     $rStart = inp('reception_start', null);
     $rEnd   = inp('reception_end', null);

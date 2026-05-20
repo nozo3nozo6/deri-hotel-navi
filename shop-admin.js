@@ -2149,7 +2149,8 @@ function renderChatAdmin(data){
     document.querySelectorAll('input[name="chat-notify-mode"]').forEach(r => {
         r.checked = (r.value === initialRadioMode);
     });
-    document.getElementById('chat-notify-interval').value = data.notify_min_interval_minutes || 3;
+    // 2026-05-20: 最小通知間隔は 1 分固定 (hidden input). DB 値が 3 等で残っていても UI 表示は 1.
+    document.getElementById('chat-notify-interval').value = 1;
     // 2026-05-19: アプリ通知 (push) トグルはメールと独立した状態を読み込む.
     const pushToggle = document.getElementById('chat-push-toggle');
     if (pushToggle) pushToggle.checked = (data.notify_push_mode || 'on') === 'on';
@@ -2318,7 +2319,7 @@ async function saveChatPushToggle(){
     try {
         await chatApi('admin-save-settings', {
             notify_mode: (document.querySelector('input[name="chat-notify-mode"]:checked') || {}).value || 'first',
-            notify_min_interval_minutes: parseInt(document.getElementById('chat-notify-interval').value, 10) || 3,
+            notify_min_interval_minutes: 1,  // 2026-05-20: 1 分固定
             notify_push_mode: tgl.checked ? 'on' : 'off',
         });
         toast(tgl.checked ? '✅ アプリ通知をONにしました' : 'アプリ通知をOFFにしました');
@@ -2330,7 +2331,8 @@ async function saveChatPushToggle(){
 
 async function saveChatSettings(){
     const mode = document.querySelector('input[name="chat-notify-mode"]:checked');
-    const interval = parseInt(document.getElementById('chat-notify-interval').value, 10) || 3;
+    // 2026-05-20: 最小通知間隔は 1 分固定 (UI は hidden, ユーザー要望)
+    const interval = 1;
     if (!mode) { toast('通知モードを選択してください'); return; }
 
     const is24h = document.getElementById('chat-reception-24h').checked;

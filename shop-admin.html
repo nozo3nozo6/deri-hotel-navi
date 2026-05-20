@@ -1445,8 +1445,9 @@
                 <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;">※ 通知を止めたい場合は上部「通知設定」のトグルをOFFにしてください（チャット画面からも可）。</div>
                 <div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;">
                     <span>最小通知間隔:</span>
-                    <input id="chat-notify-interval" type="number" min="1" max="60" class="f-input" style="width:70px;text-align:center;">
-                    <span>分</span>
+                    <input id="chat-notify-interval" type="hidden" value="1">
+                    <span style="padding:6px 12px;background:#f5f3ee;border:1px solid var(--border);border-radius:6px;color:var(--text-2);min-width:48px;text-align:center;">1</span>
+                    <span>分（固定）</span>
                 </div>
 
                 <div style="padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;margin-bottom:10px;">
