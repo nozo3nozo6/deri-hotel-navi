@@ -4595,16 +4595,18 @@ async function applyNotifyEnable(emailMode, pushEnabled) {
             device_token: state.device_token,
             enabled: emailEnabled ? 1 : 0
         });
-        // オーナーは admin-save-settings 経由でメール頻度を反映 (toggle-notify は preference 復元のみ)
+        // 2026-05-20: admin-save-settings から update-settings (device_token 認証, notify_mode + interval + push のみ更新)
+        // に切替. admin-save-settings は reception_start/end や welcome_message 等も触るため、chat.js から
+        // それらを送らないと NULL 上書き (24H 化) されていた事象を修正.
+        // 最小通知間隔は 1分固定 (ユーザー要望).
         try {
-            await api('admin-save-settings', {
+            await api('update-settings', {
+                device_token: state.device_token,
                 notify_mode: emailEnabled ? emailMode : 'off',
-                notify_min_interval_minutes: 3,
+                notify_min_interval_minutes: 1,
                 notify_push_mode: pushEnabled ? 'on' : 'off',
             });
-        } catch (_) {
-            // admin-save-settings は他フィールドが NULL になりうるが現状は notify_mode のみ更新で OK
-        }
+        } catch (_) {}
         // push 単独 API も叩いて確実に反映 (メール状態と独立)
         try {
             await api('toggle-push', { device_token: state.device_token, enabled: pushEnabled ? 1 : 0 });
