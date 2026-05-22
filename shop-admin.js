@@ -844,10 +844,9 @@ async function addServiceArea(){
     }));
     items.push(newItem);
     await _saSave(items);
-    // 追加後フォームをリセット (都道府県・レベルは維持)
+    // 2026-05-23: 連続登録ニーズが多いため、追加後も都道府県/エリア/市区町村の選択値は維持.
+    // メインチェックだけはリセット (1 件しか primary になれないため誤押し防止).
     document.getElementById('sa-add-primary').checked = false;
-    if (lvl !== 'pref') document.getElementById('sa-area-sel').value = '';
-    if (lvl === 'city') document.getElementById('sa-city-sel').value = '';
     toast('✓ エリアを追加しました');
 }
 
