@@ -96,6 +96,8 @@ function buildUrl(params) {
     // 店舗モード時にエリアパラメータ+ホテルIDもクエリで維持
     if (SHOP_SLUG && p.pref) qs.set('pref', p.pref);
     if (SHOP_SLUG && p.area) qs.set('area', p.area);
+    // 2026-05-23: 店舗のご案内エリアに詳細エリアを含めるようになったため detail も維持.
+    if (SHOP_SLUG && p.detail) qs.set('detail', p.detail);
     if (SHOP_SLUG && p.city) qs.set('city', p.city);
     if (SHOP_SLUG && p.hotel) qs.set('hotel', p.hotel);
     const qsStr = qs.toString();
