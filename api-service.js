@@ -173,7 +173,9 @@ function renderShopServiceAreaTags() {
         const fw = a.is_primary ? '700' : '500';
         return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:2px;padding:5px 11px;background:${bg};border:1px solid ${bd};border-radius:14px;font-size:12px;font-weight:${fw};color:var(--text,#1a1410);white-space:nowrap;cursor:pointer;touch-action:manipulation;">${star}${label}</button>`;
     }).join('');
-    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--bg-3,#f8f4ee);border-bottom:1px solid var(--border,rgba(0,0,0,0.08));"><span style="font-size:11px;color:var(--text-3,#a09080);font-weight:600;flex-shrink:0;">📍 対応エリア</span>${tags}</div>`;
+    // 2026-05-23: width:100% + box-sizing:border-box を明示してタグ折返しを確実化.
+    // align-items は flex-start で、複数行に折り返した時の縦位置を上揃えにする.
+    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-3,#f8f4ee);border-bottom:1px solid var(--border,rgba(0,0,0,0.08));width:100%;box-sizing:border-box;"><span style="font-size:11px;color:var(--text-3,#a09080);font-weight:600;flex-shrink:0;line-height:24px;">📍 対応エリア</span>${tags}</div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
