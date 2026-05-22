@@ -708,6 +708,7 @@
         <button class="tab-btn" id="tab-btn-plan" data-action="switchTab" data-arg1="plan">プラン申込</button>
         <button class="tab-btn" id="tab-btn-chat" data-action="switchTab" data-arg1="chat">💬 YobuChat</button>
         <button class="tab-btn" id="tab-btn-cast" data-action="switchTab" data-arg1="cast" style="display:none;">💁 キャスト管理</button>
+        <button class="tab-btn" id="tab-btn-areas" data-action="switchTab" data-arg1="areas">📍 対応エリア</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -1663,6 +1664,75 @@
         </div>
     </div>
 </div>
+
+    <!-- ===== 対応エリアタブ ===== -->
+    <div class="tab-content" id="tab-areas">
+        <div class="card">
+            <div class="card-title">📍 対応エリア</div>
+            <div style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:14px;">
+                店舗専用ページ（<code id="sa-shop-url-hint" style="font-size:11px;">/deli/shop/{slug}/</code>）に表示するエリアを設定できます。<br>
+                <strong>メインエリア</strong>を 1 つ指定すると、訪問者が店舗 URL を開いた時に自動でそのエリアに着地します（未設定なら「全国」着地）。<br>
+                それ以外の対応エリアはタグとしてヘッダー直下に表示され、タップで該当エリアの店舗ナビへ遷移します。
+            </div>
+        </div>
+
+        <!-- メインエリアカード -->
+        <div class="card">
+            <div class="card-title">★ メインエリア（店舗トップで最初に表示）</div>
+            <div id="sa-primary-display" style="padding:12px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:10px;">
+                <span id="sa-primary-label" style="font-weight:700;color:var(--text);">未設定（全国着地）</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-3);">
+                下の一覧から「★ メインに設定」を押すと変更できます。
+            </div>
+        </div>
+
+        <!-- エリア追加カード -->
+        <div class="card">
+            <div class="card-title">＋ エリアを追加</div>
+            <div id="sa-add-form" style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+                    <span style="font-weight:600;color:var(--text-2);min-width:80px;">レベル:</span>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                        <input type="radio" name="sa-level" value="pref" checked> 都道府県
+                    </label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                        <input type="radio" name="sa-level" value="area"> エリア
+                    </label>
+                    <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+                        <input type="radio" name="sa-level" value="city"> 市区町村
+                    </label>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+                    <span style="font-weight:600;color:var(--text-2);min-width:80px;">都道府県:</span>
+                    <select id="sa-pref-sel" class="f-input" style="min-width:140px;"><option value="">選択…</option></select>
+                </div>
+                <div id="sa-area-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+                    <span style="font-weight:600;color:var(--text-2);min-width:80px;">エリア:</span>
+                    <select id="sa-area-sel" class="f-input" style="min-width:200px;"><option value="">選択…</option></select>
+                </div>
+                <div id="sa-city-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;">
+                    <span style="font-weight:600;color:var(--text-2);min-width:80px;">市区町村:</span>
+                    <select id="sa-city-sel" class="f-input" style="min-width:160px;"><option value="">選択…</option></select>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+                    <button class="btn" style="background:var(--rose);color:#fff;border-color:var(--rose);font-weight:600;padding:8px 16px;" data-action="addServiceArea">追加</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);cursor:pointer;">
+                        <input type="checkbox" id="sa-add-primary"> ★ メインエリアとして追加
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 対応エリア一覧カード -->
+        <div class="card">
+            <div class="card-title">対応エリア一覧</div>
+            <div id="sa-list-empty" style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">
+                まだエリアが登録されていません。上の「エリアを追加」から登録してください。
+            </div>
+            <div id="sa-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+    </div>
 
 <!-- ===== ラブホ投稿確認モーダル ===== -->
 <div class="confirm-overlay" id="lh-confirm-modal">

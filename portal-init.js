@@ -242,6 +242,10 @@ document.addEventListener('click', function(e) {
         case 'goToNationalTop':
             if (typeof goToNationalTop === 'function') goToNationalTop();
             break;
+        case 'goToShopArea':
+            // 2026-05-21: 店舗専用ページの対応エリアタグ. data-pref/data-area/data-city を持つ.
+            if (typeof goToShopArea === 'function') goToShopArea(target);
+            break;
         case 'changeLang':
             if (typeof changeLang === 'function') changeLang(param);
             break;

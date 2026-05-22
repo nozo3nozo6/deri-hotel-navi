@@ -730,7 +730,205 @@ function switchTab(name){
     if(name==="plan")loadPlanTab();
     if(name==="chat")loadChatAdmin();
     if(name==="cast")loadCastTab();
+    if(name==="areas")loadServiceAreasTab();
     if(name==="settings"&&currentShop){document.getElementById("settings-current-email").textContent=currentShop.email||"";}
+}
+
+// =====================================================
+// 対応エリアタブ (2026-05-21 追加)
+// 店舗専用ページ /deli/shop/{slug}/ に表示するエリアを店舗が登録.
+// メイン (is_primary=1) はトップ着地点. それ以外はタグでヘッダー直下に表示.
+// =====================================================
+let _saAreas = [];
+
+const SA_MODE_PATH = { men:'deli', women:'jofu', este:'este', men_same:'same-m', women_same:'same-f' };
+
+async function loadServiceAreasTab(){
+    if (!currentShop || !currentShop.id) return;
+    // hint URL
+    const path = SA_MODE_PATH[currentShop.gender_mode] || 'deli';
+    const slug = currentShop.slug || '';
+    const urlHint = document.getElementById('sa-shop-url-hint');
+    if (urlHint && slug) urlHint.textContent = `/${path}/shop/${slug}/`;
+
+    // populate pref dropdown
+    const ad = await getAreaData();
+    const prefSel = document.getElementById('sa-pref-sel');
+    if (prefSel && prefSel.options.length <= 1) {
+        Object.keys(ad.pref || {}).forEach(pref => {
+            const o = document.createElement('option'); o.value = pref; o.textContent = pref;
+            prefSel.appendChild(o);
+        });
+    }
+    // wire events (idempotent)
+    if (!prefSel._wired) {
+        prefSel.addEventListener('change', _saOnPrefChange);
+        document.querySelectorAll('input[name="sa-level"]').forEach(r => r.addEventListener('change', _saOnLevelChange));
+        prefSel._wired = true;
+    }
+    _saOnLevelChange();
+    _saOnPrefChange();
+
+    // fetch existing
+    try {
+        const r = await fetch(`/api/shop-service-areas.php?shop_id=${encodeURIComponent(currentShop.id)}`, { credentials: 'include' });
+        if (!r.ok) throw new Error('fetch failed');
+        const d = await r.json();
+        _saAreas = d.areas || [];
+        _saRenderList();
+        _saRenderPrimary();
+    } catch (e) {
+        toast('対応エリアの取得に失敗しました');
+    }
+}
+
+function _saOnLevelChange(){
+    const lvl = (document.querySelector('input[name="sa-level"]:checked') || {}).value || 'pref';
+    document.getElementById('sa-area-row').style.display = (lvl === 'area' || lvl === 'city') ? 'flex' : 'none';
+    document.getElementById('sa-city-row').style.display = (lvl === 'city') ? 'flex' : 'none';
+}
+
+async function _saOnPrefChange(){
+    const ad = await getAreaData();
+    const pref = document.getElementById('sa-pref-sel').value;
+    const areaSel = document.getElementById('sa-area-sel');
+    const citySel = document.getElementById('sa-city-sel');
+    areaSel.innerHTML = '<option value="">選択…</option>';
+    citySel.innerHTML = '<option value="">選択…</option>';
+    if (!pref || !ad.pref || !ad.pref[pref]) return;
+    (ad.pref[pref].areas || []).forEach(([name]) => {
+        const o = document.createElement('option'); o.value = name; o.textContent = name;
+        areaSel.appendChild(o);
+    });
+    if (!areaSel._wired) {
+        areaSel.addEventListener('change', async () => {
+            const pref = document.getElementById('sa-pref-sel').value;
+            const area = areaSel.value;
+            citySel.innerHTML = '<option value="">選択…</option>';
+            if (!pref || !area) return;
+            const ad2 = await getAreaData();
+            const key = pref + '\t' + area;
+            const cities = (ad2.area && ad2.area[key] && ad2.area[key].ct) || [];
+            cities.forEach(([name]) => {
+                const o = document.createElement('option'); o.value = name; o.textContent = name;
+                citySel.appendChild(o);
+            });
+        });
+        areaSel._wired = true;
+    }
+}
+
+async function addServiceArea(){
+    if (!currentShop || !currentShop.id) return;
+    const lvl = (document.querySelector('input[name="sa-level"]:checked') || {}).value || 'pref';
+    const pref = document.getElementById('sa-pref-sel').value;
+    const area = document.getElementById('sa-area-sel').value;
+    const city = document.getElementById('sa-city-sel').value;
+    const asPrimary = document.getElementById('sa-add-primary').checked;
+    if (!pref) { toast('都道府県を選択してください'); return; }
+    if (lvl === 'area' && !area) { toast('エリアを選択してください'); return; }
+    if (lvl === 'city' && (!area || !city)) { toast('エリアと市区町村を選択してください'); return; }
+    // 重複チェック
+    const sameSig = (a, b) => (a.pref||'') === (b.pref||'') && (a.area||'') === (b.area||'') && (a.city||'') === (b.city||'');
+    const newItem = {
+        pref: lvl === 'pref' ? pref : (lvl === 'area' || lvl === 'city' ? pref : null),
+        area: lvl === 'area' ? area : (lvl === 'city' ? area : null),
+        city: lvl === 'city' ? city : null,
+        is_primary: asPrimary,
+        sort_order: _saAreas.length,
+    };
+    if (_saAreas.some(a => sameSig(a, newItem))) { toast('既に登録されています'); return; }
+    const items = _saAreas.map(a => ({
+        id: a.id, pref: a.pref, area: a.area, city: a.city,
+        is_primary: asPrimary ? false : a.is_primary, sort_order: a.sort_order
+    }));
+    items.push(newItem);
+    await _saSave(items);
+    // 追加後フォームをリセット (都道府県・レベルは維持)
+    document.getElementById('sa-add-primary').checked = false;
+    if (lvl !== 'pref') document.getElementById('sa-area-sel').value = '';
+    if (lvl === 'city') document.getElementById('sa-city-sel').value = '';
+    toast('✓ エリアを追加しました');
+}
+
+async function removeServiceArea(id){
+    if (!confirm('このエリアを削除しますか？')) return;
+    try {
+        const r = await fetch('/api/shop-service-areas.php?action=delete', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) throw new Error(d.error || 'delete failed');
+        _saAreas = d.areas || [];
+        _saRenderList(); _saRenderPrimary();
+        toast('🗑️ 削除しました');
+    } catch (e) { toast('削除に失敗しました'); }
+}
+
+async function setPrimaryServiceArea(id){
+    try {
+        const r = await fetch('/api/shop-service-areas.php?action=set-primary', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) throw new Error(d.error || 'failed');
+        _saAreas = d.areas || [];
+        _saRenderList(); _saRenderPrimary();
+        toast('★ メインエリアを変更しました');
+    } catch (e) { toast('変更に失敗しました'); }
+}
+
+async function _saSave(items){
+    try {
+        const r = await fetch('/api/shop-service-areas.php?action=save', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items })
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) throw new Error(d.error || 'save failed');
+        _saAreas = d.areas || [];
+        _saRenderList(); _saRenderPrimary();
+    } catch (e) { toast('保存に失敗しました: ' + e.message); }
+}
+
+function _saRenderPrimary(){
+    const primary = _saAreas.find(a => a.is_primary);
+    const label = document.getElementById('sa-primary-label');
+    if (!label) return;
+    if (primary) {
+        label.textContent = primary.label + (primary.pref && primary.label !== primary.pref ? '（' + primary.pref + '）' : '');
+        label.style.color = 'var(--rose)';
+    } else {
+        label.textContent = '未設定（全国着地）';
+        label.style.color = 'var(--text-3)';
+    }
+}
+
+function _saRenderList(){
+    const wrap = document.getElementById('sa-list');
+    const empty = document.getElementById('sa-list-empty');
+    if (!wrap || !empty) return;
+    if (!_saAreas.length) { wrap.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    wrap.innerHTML = _saAreas.map(a => {
+        const star = a.is_primary
+            ? '<span style="color:#d9a55a;font-weight:700;font-size:16px;">★</span>'
+            : `<button class="btn" style="padding:4px 10px;font-size:11px;background:#fff;color:var(--text-2);border:1px solid var(--border);" data-action="setPrimaryServiceArea" data-arg1="${a.id}">★ メインに</button>`;
+        const detail = [a.pref, a.area, a.city].filter(Boolean).join(' / ');
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${a.is_primary ? '#fff5e6' : 'var(--bg-3)'};border:1px solid ${a.is_primary ? '#e8c98a' : 'var(--border)'};border-radius:8px;">
+            <div style="min-width:28px;text-align:center;">${star}</div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:600;color:var(--text);">${esc(a.label)}</div>
+                <div style="font-size:11px;color:var(--text-3);">${esc(detail)}</div>
+            </div>
+            <button class="btn" style="padding:4px 10px;font-size:11px;background:#fff;color:#c05050;border:1px solid #e0c0c0;" data-action="removeServiceArea" data-arg1="${a.id}">✕ 削除</button>
+        </div>`;
+    }).join('');
 }
 
 // ===== マスターデータ読み込み =====

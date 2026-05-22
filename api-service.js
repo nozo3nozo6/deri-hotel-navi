@@ -145,6 +145,52 @@ function applyShopModeUI() {
         // goToNationalTop の挙動はportal-init.jsのイベント委譲で処理
         // ここでは特に変更不要（デフォルトの全国ページ+shop slug維持はgoToNationalTopで対応）
     }
+    // 2026-05-21: 店舗の対応エリアタグをヘッダー直下に表示 (有料/無料問わず).
+    renderShopServiceAreaTags();
+}
+
+// 店舗専用ページのヘッダー直下に対応エリアタグを表示.
+// 既に挿入済みなら再生成、無ければ新規挿入. 全エリアページから 1 元化呼出.
+function renderShopServiceAreaTags() {
+    if (!_shopParam || !SHOP_DATA) return;
+    const areas = SHOP_DATA.service_areas || [];
+    const existing = document.getElementById('shop-service-areas-bar');
+    if (!areas.length) { if (existing) existing.remove(); return; }
+
+    const header = document.querySelector('header.app-header, header.header, header');
+    if (!header) return;
+    const tags = areas.map(a => {
+        const star = a.is_primary ? '<span style="color:#d9a55a;font-weight:700;margin-right:3px;">★</span>' : '';
+        const label = esc(a.label || a.city || a.area || a.pref || '');
+        const dataAttrs = [
+            a.pref ? `data-pref="${esc(a.pref)}"` : '',
+            a.area ? `data-area="${esc(a.area)}"` : '',
+            a.city ? `data-city="${esc(a.city)}"` : '',
+        ].filter(Boolean).join(' ');
+        const bg = a.is_primary ? '#fff5e6' : 'var(--bg-2,#fff)';
+        const bd = a.is_primary ? '#e8c98a' : 'var(--border,rgba(0,0,0,0.12))';
+        const fw = a.is_primary ? '700' : '500';
+        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:2px;padding:5px 11px;background:${bg};border:1px solid ${bd};border-radius:14px;font-size:12px;font-weight:${fw};color:var(--text,#1a1410);white-space:nowrap;cursor:pointer;touch-action:manipulation;">${star}${label}</button>`;
+    }).join('');
+    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--bg-3,#f8f4ee);border-bottom:1px solid var(--border,rgba(0,0,0,0.08));"><span style="font-size:11px;color:var(--text-3,#a09080);font-weight:600;flex-shrink:0;">📍 対応エリア</span>${tags}</div>`;
+    if (existing) {
+        existing.outerHTML = html;
+    } else {
+        header.insertAdjacentHTML('afterend', html);
+    }
+}
+
+// タグクリック時のナビゲーション (data-action="goToShopArea" 経由).
+function goToShopArea(el) {
+    if (!el || typeof buildUrl !== 'function') return;
+    const target = buildUrl({
+        pref: el.dataset.pref || null,
+        area: el.dataset.area || null,
+        city: el.dataset.city || null,
+    });
+    if (!target) return;
+    history.pushState({}, '', target);
+    if (typeof restoreFromUrl === 'function') restoreFromUrl();
 }
 
 function _currentGenderMode() {
