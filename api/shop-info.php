@@ -5,6 +5,9 @@
  */
 
 header('Content-Type: application/json; charset=UTF-8');
+// 2026-05-23: service_areas を含むため CF/ブラウザキャッシュを無効化 (店舗が更新した瞬間に反映).
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
 
 $allowed_origins = ['https://yobuho.com', 'https://deli.yobuho.com', 'https://jofu.yobuho.com', 'https://same.yobuho.com', 'https://loveho.yobuho.com', 'https://este.yobuho.com'];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
