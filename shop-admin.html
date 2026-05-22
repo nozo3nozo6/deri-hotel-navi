@@ -708,7 +708,7 @@
         <button class="tab-btn" id="tab-btn-plan" data-action="switchTab" data-arg1="plan">プラン申込</button>
         <button class="tab-btn" id="tab-btn-chat" data-action="switchTab" data-arg1="chat">💬 YobuChat</button>
         <button class="tab-btn" id="tab-btn-cast" data-action="switchTab" data-arg1="cast" style="display:none;">💁 キャスト管理</button>
-        <button class="tab-btn" id="tab-btn-areas" data-action="switchTab" data-arg1="areas">📍 対応エリア</button>
+        <button class="tab-btn" id="tab-btn-areas" data-action="switchTab" data-arg1="areas">💁 ご案内エリア</button>
     </div>
 
     <!-- ===== 設定タブ ===== -->
@@ -1665,14 +1665,14 @@
     </div>
 </div>
 
-    <!-- ===== 対応エリアタブ ===== -->
+    <!-- ===== ご案内エリアタブ ===== -->
     <div class="tab-content" id="tab-areas">
         <div class="card">
-            <div class="card-title">📍 対応エリア</div>
+            <div class="card-title">💁 ご案内エリア</div>
             <div style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:14px;">
-                店舗専用ページ（<code id="sa-shop-url-hint" style="font-size:11px;">/deli/shop/{slug}/</code>）に表示するエリアを設定できます。<br>
+                店舗専用ページ（<code id="sa-shop-url-hint" style="font-size:11px;">/deli/shop/{slug}/</code>）の上部にタグとして表示されるエリアを設定できます。<br>
                 <strong>メインエリア</strong>を 1 つ指定すると、訪問者が店舗 URL を開いた時に自動でそのエリアに着地します（未設定なら「全国」着地）。<br>
-                それ以外の対応エリアはタグとしてヘッダー直下に表示され、タップで該当エリアの店舗ナビへ遷移します。
+                その他のエリアはタグとしてヘッダー直下に表示され、タップで該当エリアの店舗ナビへ遷移します。
             </div>
         </div>
 
@@ -1731,9 +1731,9 @@
             </div>
         </div>
 
-        <!-- 対応エリア一覧カード -->
+        <!-- ご案内エリア一覧カード -->
         <div class="card">
-            <div class="card-title">対応エリア一覧</div>
+            <div class="card-title">ご案内エリア一覧</div>
             <div id="sa-list-empty" style="padding:24px;text-align:center;color:var(--text-3);font-size:13px;">
                 まだエリアが登録されていません。上の「エリアを追加」から登録してください。
             </div>

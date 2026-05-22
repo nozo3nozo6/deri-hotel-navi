@@ -160,7 +160,8 @@ function renderShopServiceAreaTags() {
     const header = document.querySelector('header.app-header, header.header, header');
     if (!header) return;
     const tags = areas.map(a => {
-        const star = a.is_primary ? '<span style="color:#d9a55a;font-weight:700;margin-right:3px;">★</span>' : '';
+        const isP = a.is_primary;
+        const star = isP ? '<span style="color:#c89b4f;font-weight:700;margin-right:4px;font-size:14px;line-height:1;">★</span>' : '';
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
@@ -168,14 +169,15 @@ function renderShopServiceAreaTags() {
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
-        const bg = a.is_primary ? '#fff5e6' : 'var(--bg-2,#fff)';
-        const bd = a.is_primary ? '#e8c98a' : 'var(--border,rgba(0,0,0,0.12))';
-        const fw = a.is_primary ? '700' : '500';
-        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:2px;padding:5px 11px;background:${bg};border:1px solid ${bd};border-radius:14px;font-size:12px;font-weight:${fw};color:var(--text,#1a1410);white-space:nowrap;cursor:pointer;touch-action:manipulation;">${star}${label}</button>`;
+        // メインタグ: ゴールド系グラデ + 太字 + シャドウで強調. それ以外: 白背景 + アクセント枠.
+        const tagStyle = isP
+            ? 'padding:7px 14px;background:linear-gradient(135deg,#fff5d8,#ffe9b8);border:1.5px solid #d9a85a;border-radius:18px;font-size:13px;font-weight:700;color:#7a5320;white-space:nowrap;box-shadow:0 2px 6px rgba(216,165,90,0.25);'
+            : 'padding:7px 14px;background:#fff;border:1.5px solid var(--accent,#9b2d35);border-radius:18px;font-size:13px;font-weight:600;color:var(--accent,#9b2d35);white-space:nowrap;';
+        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;touch-action:manipulation;${tagStyle}">${star}${label}</button>`;
     }).join('');
-    // 2026-05-23: width:100% + box-sizing:border-box を明示してタグ折返しを確実化.
-    // align-items は flex-start で、複数行に折り返した時の縦位置を上揃えにする.
-    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--bg-3,#f8f4ee);border-bottom:1px solid var(--border,rgba(0,0,0,0.08));width:100%;box-sizing:border-box;"><span style="font-size:11px;color:var(--text-3,#a09080);font-weight:600;flex-shrink:0;line-height:24px;">📍 対応エリア</span>${tags}</div>`;
+    // 2026-05-23: タイトル変更 (対応エリア → ご案内エリア / 「対応外もある」ニュアンス回避).
+    // 背景にローズ/ゴールドの薄グラデを敷き、ヘッダーから区別できる視認性に強化.
+    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">💁 ご案内エリア</span>${tags}</div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
