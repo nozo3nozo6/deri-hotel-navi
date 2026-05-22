@@ -328,9 +328,10 @@ async function restoreFromUrl() {
         const isBare = !cur.pref && !cur.area && !cur.detail && !cur.city && !cur.hotel && !cur.q && !cur.station;
         if (sa && isBare) {
             const target = buildUrl({
-                pref: sa.pref || null,
-                area: sa.area || null,
-                city: sa.city || null,
+                pref:   sa.pref   || null,
+                area:   sa.area   || null,
+                detail: sa.detail || null,
+                city:   sa.city   || null,
             });
             if (target && target !== window.location.pathname + window.location.search) {
                 history.replaceState({}, '', target);

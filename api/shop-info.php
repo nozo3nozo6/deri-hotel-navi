@@ -72,7 +72,7 @@ foreach ($rows as $row) {
 
 // 2026-05-21: 対応エリア (店舗専用ページのタグ表示 + メインエリア自動遷移用) を同梱.
 $saStmt = $pdo->prepare(
-    'SELECT id, pref, area, city, label, is_primary, sort_order
+    'SELECT id, pref, area, detail, city, label, is_primary, sort_order
      FROM shop_service_areas
      WHERE shop_id = ?
      ORDER BY is_primary DESC, sort_order ASC, id ASC'
@@ -83,6 +83,7 @@ $shop['service_areas'] = array_map(function($r) {
         'id'         => (int)$r['id'],
         'pref'       => $r['pref'],
         'area'       => $r['area'],
+        'detail'     => $r['detail'],
         'city'       => $r['city'],
         'label'      => $r['label'],
         'is_primary' => (int)$r['is_primary'] === 1,

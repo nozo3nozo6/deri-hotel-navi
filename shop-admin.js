@@ -784,32 +784,41 @@ async function loadServiceAreasTab(){
 
 function _saOnLevelChange(){
     const lvl = (document.querySelector('input[name="sa-level"]:checked') || {}).value || 'pref';
-    document.getElementById('sa-area-row').style.display = (lvl === 'area' || lvl === 'city') ? 'flex' : 'none';
-    document.getElementById('sa-city-row').style.display = (lvl === 'city') ? 'flex' : 'none';
+    document.getElementById('sa-area-row').style.display   = (lvl === 'area' || lvl === 'detail' || lvl === 'city') ? 'flex' : 'none';
+    document.getElementById('sa-detail-row').style.display = (lvl === 'detail') ? 'flex' : 'none';
+    document.getElementById('sa-city-row').style.display   = (lvl === 'city') ? 'flex' : 'none';
 }
 
 async function _saOnPrefChange(){
     const ad = await getAreaData();
     const pref = document.getElementById('sa-pref-sel').value;
-    const areaSel = document.getElementById('sa-area-sel');
-    const citySel = document.getElementById('sa-city-sel');
-    areaSel.innerHTML = '<option value="">選択…</option>';
-    citySel.innerHTML = '<option value="">選択…</option>';
+    const areaSel   = document.getElementById('sa-area-sel');
+    const detailSel = document.getElementById('sa-detail-sel');
+    const citySel   = document.getElementById('sa-city-sel');
+    areaSel.innerHTML   = '<option value="">選択…</option>';
+    detailSel.innerHTML = '<option value="">選択…</option>';
+    citySel.innerHTML   = '<option value="">選択…</option>';
     if (!pref || !ad.pref || !ad.pref[pref]) return;
     (ad.pref[pref].areas || []).forEach(([name]) => {
         const o = document.createElement('option'); o.value = name; o.textContent = name;
         areaSel.appendChild(o);
     });
     if (!areaSel._wired) {
+        // 2026-05-23: エリア選択時に詳細エリア + 市区町村の両方を populate.
         areaSel.addEventListener('change', async () => {
             const pref = document.getElementById('sa-pref-sel').value;
             const area = areaSel.value;
+            detailSel.innerHTML = '<option value="">選択…</option>';
             citySel.innerHTML = '<option value="">選択…</option>';
             if (!pref || !area) return;
             const ad2 = await getAreaData();
             const key = pref + '\t' + area;
-            const cities = (ad2.area && ad2.area[key] && ad2.area[key].ct) || [];
-            cities.forEach(([name]) => {
+            const entry = (ad2.area && ad2.area[key]) || {};
+            (entry.da || []).forEach(([name]) => {
+                const o = document.createElement('option'); o.value = name; o.textContent = name;
+                detailSel.appendChild(o);
+            });
+            (entry.ct || []).forEach(([name]) => {
                 const o = document.createElement('option'); o.value = name; o.textContent = name;
                 citySel.appendChild(o);
             });
@@ -821,25 +830,29 @@ async function _saOnPrefChange(){
 async function addServiceArea(){
     if (!currentShop || !currentShop.id) return;
     const lvl = (document.querySelector('input[name="sa-level"]:checked') || {}).value || 'pref';
-    const pref = document.getElementById('sa-pref-sel').value;
-    const area = document.getElementById('sa-area-sel').value;
-    const city = document.getElementById('sa-city-sel').value;
+    const pref   = document.getElementById('sa-pref-sel').value;
+    const area   = document.getElementById('sa-area-sel').value;
+    const detail = document.getElementById('sa-detail-sel').value;
+    const city   = document.getElementById('sa-city-sel').value;
     const asPrimary = document.getElementById('sa-add-primary').checked;
     if (!pref) { toast('都道府県を選択してください'); return; }
-    if (lvl === 'area' && !area) { toast('エリアを選択してください'); return; }
-    if (lvl === 'city' && (!area || !city)) { toast('エリアと市区町村を選択してください'); return; }
-    // 重複チェック
-    const sameSig = (a, b) => (a.pref||'') === (b.pref||'') && (a.area||'') === (b.area||'') && (a.city||'') === (b.city||'');
+    if (lvl === 'area'   && !area) { toast('エリアを選択してください'); return; }
+    if (lvl === 'detail' && (!area || !detail)) { toast('エリアと詳細エリアを選択してください'); return; }
+    if (lvl === 'city'   && (!area || !city)) { toast('エリアと市区町村を選択してください'); return; }
+    // 重複チェック (pref/area/detail/city 4 つの組合せ完全一致で重複扱い)
+    const sameSig = (a, b) => (a.pref||'') === (b.pref||'') && (a.area||'') === (b.area||'')
+                              && (a.detail||'') === (b.detail||'') && (a.city||'') === (b.city||'');
     const newItem = {
-        pref: lvl === 'pref' ? pref : (lvl === 'area' || lvl === 'city' ? pref : null),
-        area: lvl === 'area' ? area : (lvl === 'city' ? area : null),
-        city: lvl === 'city' ? city : null,
+        pref:   (lvl === 'pref' || lvl === 'area' || lvl === 'detail' || lvl === 'city') ? pref : null,
+        area:   (lvl === 'area' || lvl === 'detail' || lvl === 'city') ? area : null,
+        detail: (lvl === 'detail') ? detail : null,
+        city:   (lvl === 'city')   ? city   : null,
         is_primary: asPrimary,
         sort_order: _saAreas.length,
     };
     if (_saAreas.some(a => sameSig(a, newItem))) { toast('既に登録されています'); return; }
     const items = _saAreas.map(a => ({
-        id: a.id, pref: a.pref, area: a.area, city: a.city,
+        id: a.id, pref: a.pref, area: a.area, detail: a.detail, city: a.city,
         is_primary: asPrimary ? false : a.is_primary, sort_order: a.sort_order
     }));
     items.push(newItem);
@@ -918,12 +931,12 @@ function _saRenderList(){
         const star = a.is_primary
             ? '<span style="color:#d9a55a;font-weight:700;font-size:16px;">★</span>'
             : `<button class="btn" style="padding:4px 10px;font-size:11px;background:#fff;color:var(--text-2);border:1px solid var(--border);" data-action="setPrimaryServiceArea" data-arg1="${a.id}">★ メインに</button>`;
-        const detail = [a.pref, a.area, a.city].filter(Boolean).join(' / ');
+        const detailLine = [a.pref, a.area, a.detail, a.city].filter(Boolean).join(' / ');
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${a.is_primary ? '#fff5e6' : 'var(--bg-3)'};border:1px solid ${a.is_primary ? '#e8c98a' : 'var(--border)'};border-radius:8px;">
             <div style="min-width:28px;text-align:center;">${star}</div>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:14px;font-weight:600;color:var(--text);">${esc(a.label)}</div>
-                <div style="font-size:11px;color:var(--text-3);">${esc(detail)}</div>
+                <div style="font-size:11px;color:var(--text-3);">${esc(detailLine)}</div>
             </div>
             <button class="btn" style="padding:4px 10px;font-size:11px;background:#fff;color:#c05050;border:1px solid #e0c0c0;" data-action="removeServiceArea" data-arg1="${a.id}">✕ 削除</button>
         </div>`;

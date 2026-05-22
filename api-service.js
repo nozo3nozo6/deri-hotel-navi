@@ -161,11 +161,12 @@ function renderShopServiceAreaTags() {
     if (!header) return;
     const tags = areas.map(a => {
         const star = a.is_primary ? '<span style="color:#d9a55a;font-weight:700;margin-right:3px;">★</span>' : '';
-        const label = esc(a.label || a.city || a.area || a.pref || '');
+        const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
-            a.pref ? `data-pref="${esc(a.pref)}"` : '',
-            a.area ? `data-area="${esc(a.area)}"` : '',
-            a.city ? `data-city="${esc(a.city)}"` : '',
+            a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
+            a.area   ? `data-area="${esc(a.area)}"`     : '',
+            a.detail ? `data-detail="${esc(a.detail)}"` : '',
+            a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
         const bg = a.is_primary ? '#fff5e6' : 'var(--bg-2,#fff)';
         const bd = a.is_primary ? '#e8c98a' : 'var(--border,rgba(0,0,0,0.12))';
@@ -184,9 +185,10 @@ function renderShopServiceAreaTags() {
 function goToShopArea(el) {
     if (!el || typeof buildUrl !== 'function') return;
     const target = buildUrl({
-        pref: el.dataset.pref || null,
-        area: el.dataset.area || null,
-        city: el.dataset.city || null,
+        pref:   el.dataset.pref   || null,
+        area:   el.dataset.area   || null,
+        detail: el.dataset.detail || null,
+        city:   el.dataset.city   || null,
     });
     if (!target) return;
     history.pushState({}, '', target);

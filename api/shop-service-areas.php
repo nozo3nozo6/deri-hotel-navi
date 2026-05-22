@@ -75,9 +75,10 @@ function sanitizeArea(?string $s): ?string {
     return $s;
 }
 
-function buildLabel(?string $pref, ?string $area, ?string $city): string {
-    // 表示優先度: city > area > pref. 一番具体的なものを label に.
+function buildLabel(?string $pref, ?string $area, ?string $detail, ?string $city): string {
+    // 表示優先度: city > detail > area > pref. 一番具体的なものを label に.
     if ($city) return $city;
+    if ($detail) return $detail;
     if ($area) return $area;
     if ($pref) return $pref;
     return '';
@@ -85,7 +86,7 @@ function buildLabel(?string $pref, ?string $area, ?string $city): string {
 
 function fetchAreas(PDO $pdo, string $shopId): array {
     $stmt = $pdo->prepare(
-        'SELECT id, pref, area, city, label, is_primary, sort_order
+        'SELECT id, pref, area, detail, city, label, is_primary, sort_order
          FROM shop_service_areas
          WHERE shop_id = ?
          ORDER BY is_primary DESC, sort_order ASC, id ASC'
@@ -96,6 +97,7 @@ function fetchAreas(PDO $pdo, string $shopId): array {
             'id'         => (int)$r['id'],
             'pref'       => $r['pref'],
             'area'       => $r['area'],
+            'detail'     => $r['detail'],
             'city'       => $r['city'],
             'label'      => $r['label'],
             'is_primary' => (int)$r['is_primary'] === 1,
@@ -130,11 +132,12 @@ switch ($action) {
         try {
             $primaryCount = 0;
             foreach ($items as $idx => $it) {
-                $pref = sanitizeArea($it['pref'] ?? null);
-                $area = sanitizeArea($it['area'] ?? null);
-                $city = sanitizeArea($it['city'] ?? null);
-                if (!$pref && !$area && !$city) continue;  // 全部空はスキップ
-                $label = buildLabel($pref, $area, $city);
+                $pref   = sanitizeArea($it['pref']   ?? null);
+                $area   = sanitizeArea($it['area']   ?? null);
+                $detail = sanitizeArea($it['detail'] ?? null);
+                $city   = sanitizeArea($it['city']   ?? null);
+                if (!$pref && !$area && !$detail && !$city) continue;  // 全部空はスキップ
+                $label = buildLabel($pref, $area, $detail, $city);
                 $isPrimary = !empty($it['is_primary']) ? 1 : 0;
                 if ($isPrimary) $primaryCount++;
                 if ($primaryCount > 1) $isPrimary = 0;  // 1 行のみ primary 許可
@@ -148,16 +151,16 @@ switch ($action) {
                     if ((string)$owner !== $shopId) continue;
                     $upd = $pdo->prepare(
                         'UPDATE shop_service_areas
-                         SET pref = ?, area = ?, city = ?, label = ?, is_primary = ?, sort_order = ?
+                         SET pref = ?, area = ?, detail = ?, city = ?, label = ?, is_primary = ?, sort_order = ?
                          WHERE id = ?'
                     );
-                    $upd->execute([$pref, $area, $city, $label, $isPrimary, $sortOrder, $id]);
+                    $upd->execute([$pref, $area, $detail, $city, $label, $isPrimary, $sortOrder, $id]);
                 } else {
                     $ins = $pdo->prepare(
-                        'INSERT INTO shop_service_areas (shop_id, pref, area, city, label, is_primary, sort_order)
-                         VALUES (?, ?, ?, ?, ?, ?, ?)'
+                        'INSERT INTO shop_service_areas (shop_id, pref, area, detail, city, label, is_primary, sort_order)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
                     );
-                    $ins->execute([$shopId, $pref, $area, $city, $label, $isPrimary, $sortOrder]);
+                    $ins->execute([$shopId, $pref, $area, $detail, $city, $label, $isPrimary, $sortOrder]);
                 }
             }
             // primary が 1 行になるよう正規化: 最新の primary 以外を 0 に
