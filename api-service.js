@@ -161,9 +161,7 @@ function renderShopServiceAreaTags() {
     if (!header) return;
     const tags = areas.map(a => {
         const isP = a.is_primary;
-        // 2026-05-24: メインタグ強化 — ★を大きく、サイズアップ、「メイン」ラベル付与.
-        const star = isP ? '<span style="color:#c89b4f;font-weight:700;margin-right:6px;font-size:20px;line-height:1;text-shadow:0 1px 2px rgba(216,165,90,0.4);">★</span>' : '';
-        const mainBadge = isP ? '<span style="font-size:10px;font-weight:700;color:#a67533;background:rgba(255,255,255,0.7);padding:2px 7px;border-radius:8px;margin-right:8px;letter-spacing:0.5px;">メイン</span>' : '';
+        const star = isP ? '<span style="color:#c89b4f;font-weight:700;margin-right:4px;font-size:14px;line-height:1;">★</span>' : '';
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
@@ -171,12 +169,11 @@ function renderShopServiceAreaTags() {
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
-        // メインタグ: ゴールド系グラデ + 大きめサイズ + 「メイン」ラベル + 強シャドウ.
-        // それ以外: 白背景 + アクセント枠.
+        // メインタグ: ゴールド系グラデ + 太字 + シャドウで強調. それ以外: 白背景 + アクセント枠.
         const tagStyle = isP
-            ? 'padding:11px 22px;background:linear-gradient(135deg,#fff5d8,#ffd98a);border:2px solid #c89b4f;border-radius:24px;font-size:16px;font-weight:800;color:#5d3d18;white-space:nowrap;box-shadow:0 4px 12px rgba(200,155,79,0.4),inset 0 1px 0 rgba(255,255,255,0.6);'
+            ? 'padding:7px 14px;background:linear-gradient(135deg,#fff5d8,#ffe9b8);border:1.5px solid #d9a85a;border-radius:18px;font-size:13px;font-weight:700;color:#7a5320;white-space:nowrap;box-shadow:0 2px 6px rgba(216,165,90,0.25);'
             : 'padding:7px 14px;background:#fff;border:1.5px solid var(--accent,#9b2d35);border-radius:18px;font-size:13px;font-weight:600;color:var(--accent,#9b2d35);white-space:nowrap;';
-        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:0;cursor:pointer;touch-action:manipulation;${tagStyle}">${star}${mainBadge}${label}</button>`;
+        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;touch-action:manipulation;${tagStyle}">${star}${label}</button>`;
     }).join('');
     // 2026-05-23: タイトル変更 (対応エリア → ご案内エリア / 「対応外もある」ニュアンス回避).
     // 背景にローズ/ゴールドの薄グラデを敷き、ヘッダーから区別できる視認性に強化.
