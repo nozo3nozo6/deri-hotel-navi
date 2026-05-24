@@ -321,25 +321,9 @@ function parseUrlPath() {
 async function restoreFromUrl() {
     const searchTools = document.querySelector('.search-tools');
     if (searchTools) searchTools.style.display = 'flex';
-    // 2026-05-21: 店舗専用ページ着地時のメインエリア自動遷移.
-    // _shopParam があり、URL に pref/area/city/hotel/q/station いずれも無く、SHOP_DATA に primary 行があれば
-    // /jofu/shop/{slug}/?pref=東京都&area=西東京・三多摩 等に history.replaceState で書換.
-    if (typeof _shopParam !== 'undefined' && _shopParam && typeof SHOP_DATA !== 'undefined' && SHOP_DATA) {
-        const sa = (SHOP_DATA.service_areas || []).find(a => a.is_primary);
-        const cur = parseUrlPath();
-        const isBare = !cur.pref && !cur.area && !cur.detail && !cur.city && !cur.hotel && !cur.q && !cur.station;
-        if (sa && isBare) {
-            const target = buildUrl({
-                pref:   sa.pref   || null,
-                area:   sa.area   || null,
-                detail: sa.detail || null,
-                city:   sa.city   || null,
-            });
-            if (target && target !== window.location.pathname + window.location.search) {
-                history.replaceState({}, '', target);
-            }
-        }
-    }
+    // 2026-05-24: 店舗専用ページのメインエリア自動遷移は廃止.
+    // ご案内エリアのタグ (api-service.js renderShopServiceAreaTags) で ★ メインが
+    // 視認できるためタグ 1 タップで遷移可能. デフォルトは全国着地、canonical URL もクリーン.
     const params = parseUrlPath();
     _skipPushState = true;
 

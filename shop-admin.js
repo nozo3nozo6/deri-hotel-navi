@@ -916,7 +916,7 @@ function _saRenderPrimary(){
         label.textContent = primary.label + (primary.pref && primary.label !== primary.pref ? '（' + primary.pref + '）' : '');
         label.style.color = 'var(--rose)';
     } else {
-        label.textContent = '未設定（全国着地）';
+        label.textContent = '未設定';
         label.style.color = 'var(--text-3)';
     }
 }
