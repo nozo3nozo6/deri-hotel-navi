@@ -175,9 +175,9 @@ function renderShopServiceAreaTags() {
             : 'padding:7px 14px;background:#fff;border:1.5px solid var(--accent,#9b2d35);border-radius:18px;font-size:13px;font-weight:600;color:var(--accent,#9b2d35);white-space:nowrap;';
         return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;touch-action:manipulation;${tagStyle}">${star}${label}</button>`;
     }).join('');
-    // 2026-05-23: タイトル変更 (対応エリア → ご案内エリア / 「対応外もある」ニュアンス回避).
-    // 背景にローズ/ゴールドの薄グラデを敷き、ヘッダーから区別できる視認性に強化.
-    const html = `<div id="shop-service-areas-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">💁 ご案内エリア</span>${tags}</div>`;
+    // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
+    // 2 行レイアウト: 1 行目=タイトル+タグ列、2 行目=その他エリア案内 (控えめだが視認できる).
+    const html = `<div id="shop-service-areas-bar" style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span>${tags}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding-left:2px;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
