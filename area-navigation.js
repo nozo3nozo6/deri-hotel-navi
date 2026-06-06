@@ -232,13 +232,11 @@ async function appendRecentShops() {
         const iconMap = { men: '♂', women: '♀', men_same: '♂♂', women_same: '♀♀', este: '💆‍♂️' };
         const _ext = typeof _extTarget !== 'undefined' ? _extTarget : '_blank';
         const lines = shops.map(s => {
-            const _dm = s.approved_at ? String(s.approved_at).replace('T',' ').match(/(\d{4})-(\d{2})-(\d{2})/) : null;
-            const dateStr = _dm ? `${_dm[2]}/${_dm[3]}` : '';
             const icon = iconMap[s.gender_mode] || '♂';
             const name = typeof esc === 'function' ? esc(s.shop_name) : s.shop_name;
             const shopLink = s.shop_url || (s.slug ? `${modePath}shop/${s.slug}/` : '');
             const nameHTML = shopLink ? `<a href="${shopLink}" target="${_ext}" rel="noopener" style="color:var(--accent,#9b2d35);font-weight:600;text-decoration:none;" class="hover-underline">${icon} ${name}</a>` : `<span style="color:var(--accent,#9b2d35);font-weight:600;">${icon} ${name}</span>`;
-            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;"><span style="color:var(--text-3);margin-right:6px;">${dateStr}</span>${nameHTML} <span style="color:var(--text-3);">${t('shop_registered')}</span></div>`;
+            return `<div style="font-size:13px;color:var(--text-2);padding:3px 0;">${nameHTML} <span style="color:var(--text-3);">${t('shop_registered')}</span></div>`;
         }).join('');
         const hlc = document.getElementById('hotel-list');
         if (hlc) {
