@@ -1,0 +1,103 @@
+---
+import '../styles/global.css';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  keywords?: string;
+  ogImage?: string;
+  pathname?: string;
+}
+
+const {
+  title = 'アドミ since2009 吉祥寺デリヘル | 吉祥寺の素人出張デリヘル専門店',
+  description = '吉祥寺のデリヘルならアドミ since2009。33歳までの厳選素人娘をラブホテル・ご自宅までデリバリー。在籍女の子にハズレなしの吉祥寺出張デリヘル専門店です。',
+  keywords = '吉祥寺デリヘル,吉祥寺 出張デリヘル,吉祥寺 素人デリヘル,アドミ 吉祥寺,吉祥寺 風俗',
+  ogImage = 'https://kichifu.com/img/indexbg.jpg',
+  pathname = '/',
+} = Astro.props;
+
+const SITE_URL = 'https://kichifu.com';
+const canonical = `${SITE_URL}${pathname}`;
+const GA_MEASUREMENT_ID = 'G-50Q48YG34Z';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  name: 'アドミ since2009 吉祥寺デリヘル',
+  alternateName: 'Admi 吉祥寺デリヘル',
+  description,
+  url: SITE_URL,
+  telephone: '+81-90-1045-9155',
+  image: ogImage,
+  priceRange: '¥¥',
+  areaServed: {
+    '@type': 'City',
+    name: '吉祥寺',
+  },
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: '武蔵野市',
+    addressRegion: '東京都',
+    addressCountry: 'JP',
+  },
+  foundingDate: '2009',
+};
+---
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <meta name="keywords" content={keywords} />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href={canonical} />
+
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={ogImage} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="アドミ since2009 吉祥寺デリヘル" />
+  <meta property="og:locale" content="ja_JP" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={ogImage} />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="mask-icon" href="/favicon.svg" color="#ff2d55" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <meta name="theme-color" content="#0a0a0a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;500;700&display=swap"
+  />
+
+  <script
+    is:inline
+    async
+    src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+  ></script>
+  <script is:inline define:vars={{ GA_MEASUREMENT_ID }}>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', GA_MEASUREMENT_ID, { anonymize_ip: true });
+  </script>
+
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+</head>
+<body class="bg-zinc-950 text-white overflow-x-hidden">
+  <slot />
+</body>
+</html>

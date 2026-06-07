@@ -34,6 +34,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.ylka
 !.env.example
 
 # PHP認証設定（Service Role Key含む）
@@ -68,3 +69,4 @@ area-data.json
 
 # Claude Code ローカル設定
 .claude/
+.env.ylka-admin

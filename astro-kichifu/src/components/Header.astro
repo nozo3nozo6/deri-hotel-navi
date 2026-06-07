@@ -1,0 +1,24 @@
+---
+const TEL = '090-1045-9155';
+const TEL_RAW = TEL.replace(/-/g, '');
+---
+<header class="fixed top-0 w-full z-50 bg-black/95 backdrop-blur-lg border-b border-pink-500/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="flex items-center gap-3">
+      <div class="text-3xl md:text-4xl font-bold tracking-tighter neon-pink">アドミ</div>
+      <div class="text-sm">
+        <div class="text-pink-400 font-medium">since 2009</div>
+        <div class="text-xs text-zinc-500">吉祥寺</div>
+      </div>
+    </div>
+
+    <a
+      href={`tel:${TEL_RAW}`}
+      class="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 px-5 py-2.5 rounded-full text-sm md:text-base transition-all"
+      aria-label={`電話で問い合わせる ${TEL}`}
+    >
+      <span class="text-lg" aria-hidden="true">📞</span>
+      <span class="font-medium">{TEL}</span>
+    </a>
+  </div>
+</header>

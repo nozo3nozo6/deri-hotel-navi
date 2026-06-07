@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'M PLUS 1p', system-ui, sans-serif;
+}
+
+.hero-bg {
+  background-image: url('/img/indexbg.jpg');
+  background-position: center;
+  background-size: cover;
+}
+
+@media (min-width: 768px) {
+  .hero-bg {
+    background-attachment: fixed;
+  }
+}
+
+.neon-pink {
+  text-shadow: 0 0 15px #ff2d55, 0 0 30px #ff2d55;
+}
