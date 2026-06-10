@@ -48,9 +48,9 @@ const MAJOR_CITIES = {
 };
 
 // URL entry helper
-function entry(loc, priority, changefreq) {
+function entry(loc, priority, changefreq, lastmod = TODAY) {
   const safeLoc = loc.replace(/&/g, '&amp;');
-  return `  <url>\n    <loc>${safeLoc}</loc>\n    <lastmod>${TODAY}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  return `  <url>\n    <loc>${safeLoc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
 }
 
 // 本番 API から active shops 一覧を取得（CI 実行時、本番の最新店舗リストを取得）
@@ -65,6 +65,23 @@ async function fetchShops() {
     return Array.isArray(data) ? data : [];
   } catch (e) {
     console.warn('fetchShops failed:', e.message);
+    return [];
+  }
+}
+
+// 本番 API から口コミ実績のあるホテル一覧を取得（id + 最終投稿日）
+// 43,580件の一括登録は薄いページの大量インデックスになるため、口コミ付きホテルから段階投入
+async function fetchReviewedHotels() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/list-hotels-for-sitemap.php`);
+    if (!res.ok) {
+      console.warn(`fetchReviewedHotels: HTTP ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn('fetchReviewedHotels failed:', e.message);
     return [];
   }
 }
@@ -141,6 +158,21 @@ for (const s of shops) {
   shopUrlCount++;
 }
 console.log(`fetchShops: ${shops.length} shops, ${shopUrlCount} URLs added`);
+
+// ホテル詳細URL（口コミ実績のあるホテルのみ）
+// ユーザー口コミは全ジャンル共通表示のため、メインの /deli/ のみ登録（モード横断の重複URLを避ける）
+const hotels = await fetchReviewedHotels();
+let hotelUrlCount = 0;
+for (const h of hotels) {
+  if (!h.id) continue;
+  const lastmod = (h.lastmod && /^\d{4}-\d{2}-\d{2}/.test(h.lastmod)) ? h.lastmod.slice(0, 10) : TODAY;
+  urls.push(entry(`${BASE_URL}/deli/hotel/${h.id}`, '0.6', 'weekly', lastmod));
+  hotelUrlCount++;
+}
+console.log(`fetchReviewedHotels: ${hotels.length} hotels, ${hotelUrlCount} URLs added`);
+if (urls.length > 49500) {
+  console.warn(`WARNING: sitemap approaching the 50,000 URL limit (${urls.length}) — split into a sitemap index`);
+}
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

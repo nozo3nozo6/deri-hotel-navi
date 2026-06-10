@@ -33,13 +33,9 @@ $shop   = isset($_GET['shop'])   ? $_GET['shop']              : '';
 //   - サブページ（pref/area/city/hotel あり）: 非表示（重複防止）
 $isPureTopPage = !$pref && !$hotel_id && !$shop;
 
-// SEO不要なケース（パラメータなし or 店舗ページ）はそのまま出力
-// 真のトップページ（pref/hotel/shop 全部なし）: SEO bottom section 含めてそのまま配信
-if ($isPureTopPage) {
-    readfile(__DIR__ . '/' . $template);
-    exit;
-}
-// 店舗ページ ($shop あり) は早期 exit せず、下の elseif ($shop) ブランチで SEO を生成する
+// 真のトップページ（pref/hotel/shop 全部なし）は $MODE_SEO 定義後の
+// 「全国トップ: 47都道府県SSRリンク注入」ブランチで処理する（早期 exit しない）
+// 店舗ページ ($shop あり) も早期 exit せず、下の elseif ($shop) ブランチで SEO を生成する
 
 // --- 2セグメントURL正規化: $area が市区町村名なら $city に再代入 ---
 // .htaccess は 2セグメントURL /deli/東京都/渋谷区 を pref+area として渡すが、
@@ -102,6 +98,60 @@ $MODE_SEO = [
 
 $m = $MODE_SEO[$mode] ?? $MODE_SEO['men'];
 $path = $m['path'];
+
+// --- 全国トップ: 47都道府県SSRリンクを <main> 内に注入して配信 ---
+// title/meta/H1 はテンプレート（Astro SSG）のまま変更しない。
+// 内部リンク（クロール経路 + リンクジュース分配）だけを追加する。
+// SPA遷移時は area-navigation.js updateUrl() が .seo-static-content を除去する（既存挙動）。
+if ($isPureTopPage) {
+    $html = file_get_contents(__DIR__ . '/' . $template);
+    if ($html === false) {
+        http_response_code(500);
+        exit;
+    }
+
+    $PREFS_ALL = [
+        '北海道',
+        '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+        '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+        '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県',
+        '岐阜県', '静岡県', '愛知県', '三重県',
+        '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県',
+        '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+        '徳島県', '香川県', '愛媛県', '高知県',
+        '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県',
+        '沖縄県',
+    ];
+    $topAccentMap = [
+        'men' => '#9b2d35', 'women' => '#b5627a',
+        'men_same' => '#2a5a8f', 'women_same' => '#8a5a9e',
+        'este' => '#2aa8b8',
+    ];
+    $topAccent = $topAccentMap[$mode] ?? '#9b2d35';
+    $topEsc = function($s) { return htmlspecialchars($s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); };
+    $areaData = loadAreaData();
+    $prefCounts = $areaData['prefCounts'] ?? [];
+
+    $sec  = '<style>.seo-pref-links .seo-area-card:hover{background:#fdf6f0!important;border-color:' . $topAccent . '!important;}@media(max-width:640px){.seo-pref-links{padding:24px 12px!important;}}</style>';
+    $sec .= '<section class="seo-static-content seo-pref-links" style="background:#faf6f0; padding:32px 16px; margin-top:24px; border-top:1px solid #e8d8c8; font-size:14px; line-height:1.85; color:#3a2a1f;">';
+    $sec .= '<div style="max-width:900px; margin:0 auto;">';
+    $sec .= '<h2 style="font-size:18px; margin:0 0 14px; color:' . $topAccent . '; border-left:4px solid ' . $topAccent . '; padding-left:10px;">都道府県から' . $topEsc($m['label'] . $m['verb']) . 'ホテルを探す</h2>';
+    $sec .= '<p style="margin:0 0 16px;">全国43,000件以上のホテルから、' . $topEsc($m['label'] . $m['verb']) . 'ホテルを都道府県別に検索できます。各都道府県ページでは市区町村・エリア・口コミ実績からさらに絞り込めます。</p>';
+    $sec .= '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px;">';
+    foreach ($PREFS_ALL as $p47) {
+        $cnt = (int)($prefCounts[$p47] ?? 0);
+        $countText = $cnt > 0 ? '<span style="color:#8a7a6a; font-size:12px; margin-left:4px;">（' . number_format($cnt) . '件）</span>' : '';
+        $url = 'https://yobuho.com/' . $path . '/' . rawurlencode($p47);
+        $sec .= '<a href="' . $topEsc($url) . '" class="seo-area-card" style="display:block; padding:10px 14px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $topAccent . '; text-decoration:none; font-weight:500; font-size:14px; line-height:1.5; transition:background 0.15s, border-color 0.15s;">' . $topEsc($p47) . $countText . '</a>';
+    }
+    $sec .= '</div></div></section>';
+
+    $html = str_replace('</main>', $sec . '</main>', $html);
+
+    header('Content-Type: text/html; charset=UTF-8');
+    echo $html;
+    exit;
+}
 
 // --- 主要15都道府県の手書き description（プレースホルダー: {label}{verb}） ---
 // 機械生成パターンの重複を避け、地域固有のランドマーク・繁華街名で SEO 強化.
@@ -509,7 +559,8 @@ if (!$hotel_id && $pref) {
             if ($aLoveho !== $bLoveho) return $aLoveho ? 1 : -1;
             return ($b['review_average'] ?? 0) <=> ($a['review_average'] ?? 0);
         });
-        $topHotels = array_slice($matched, 0, 10);
+        // SSR表示は30件（収集済み$matchedの全件）— orphan化したホテル詳細へのクロール経路を太くする
+        $topHotels = array_slice($matched, 0, 30);
 
         if (count($topHotels) > 0) {
             $seo_static .= '<h3 style="' . $h3Style . '">主要ホテル</h3>';

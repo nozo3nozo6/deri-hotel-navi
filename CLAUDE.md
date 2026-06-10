@@ -58,6 +58,7 @@ deri-hotel-navi/
 │   ├── send-mail.php         メール送信（HTML対応、CORS制限）
 │   ├── shop-auth.php         店舗セッション管理（login/check/profile/thumbnail/email）
 │   ├── shop-hotel-api.php    店舗ホテルCRUD（登録/編集/削除/ラブホ、セッション認証必須）
+│   ├── list-hotels-for-sitemap.php 口コミ実績ありホテルのid+最終投稿日（sitemap生成用）
 │   └── db.php                DB接続ヘルパー（db-config.php読み込み、PDO接続）
 │
 ├── sql/
