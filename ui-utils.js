@@ -20,12 +20,25 @@ const MODE_DESC_MAP = {
 // genre-hero-title を SEO H1 ("○○ HOTEL - デリエステを呼べる？口コミ・入室情報") に
 // 書き換えるため、SPA で「全国へ」した時に showJapanPage() がモード別の元の H1 に戻す.
 const MODE_HERO_H1_MAP = {
-    'men': 'デリヘルを呼べるホテル検索',
+    'men': 'デリヘルを呼べるホテル検索｜ビジネスホテル・シティホテル・ラブホ43,000件の口コミ',
+    'women': '女性用風俗（女風）を呼べるホテル｜セラピスト派遣可能なホテルの口コミ検索',
+    'men_same': '男性同士・ゲイカップルで利用できるホテル検索',
+    'women_same': '女性同士・レズビアンカップルで利用できるホテル検索',
+    'este': 'デリエステを呼べるホテル検索｜回春マッサージ・M性感・風俗エステの口コミ'
+};
+// PortalLayout.astro の MODE_DATA title と同期. 全国トップ表示時の document.title 用
+// （旧: 汎用「全国のホテル検索」がSSGのキーワード入りtitleを上書きしてSEO劣化していた）
+const MODE_TOP_TITLE_MAP = {
+    'men': 'デリヘルを呼べるホテルを口コミで検索・全国43,000件',
     'women': '女性用風俗を呼べるホテル検索',
     'men_same': '男性同士・ゲイカップルで利用できるホテル検索',
     'women_same': '女性同士・レズビアンカップルで利用できるホテル検索',
     'este': 'デリエステを呼べるホテル検索'
 };
+function getTopPageTitle() {
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+    return MODE_TOP_TITLE_MAP[mode] || '全国のホテル検索';
+}
 function resetGenreHeroText() {
     const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
     const h1 = document.getElementById('genre-hero-title');

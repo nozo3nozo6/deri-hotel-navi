@@ -2,27 +2,89 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Footer from '../../components/Footer.astro';
 
-const title = 'デリヘルを呼べるホテルの見分け方・選び方ガイド | YobuHo';
-const description = 'デリヘルをホテルに呼ぶ際のホテル選びのポイントを解説。カードキー式・フロント相談・直通エレベーターなど、派遣可能なホテルの特徴と注意点をまとめました。全国43,000件以上のホテルから検索できます。';
+const title = 'デリヘルを呼べるホテルの見分け方・選び方｜口コミ770件の実データで解説 | YobuHo';
+const description = 'デリヘルを呼べるホテルの見分け方を口コミ770件の実データで解説。シティホテルの呼べた率92%・ビジネスホテル89%。玄関待ち合わせ・直通・カードキーなど入室方法の実績、ホテルタイプ別の呼びやすさ、呼べなかった時の対処法まで。';
 const canonical = 'https://yobuho.com/guide/deli-hotel.html';
 
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Article',
-  'headline': title,
-  'description': description,
-  'mainEntityOfPage': { '@type': 'WebPage', '@id': canonical },
-  'url': canonical,
-  'inLanguage': 'ja',
-  'author': { '@type': 'Organization', 'name': 'YobuHo', 'url': 'https://yobuho.com/' },
-  'publisher': {
-    '@type': 'Organization',
-    'name': 'YobuHo',
-    'logo': { '@type': 'ImageObject', 'url': 'https://yobuho.com/ogp.png' },
+// FAQ（SeoBottomSection の /deli/ トップFAQと重複しない質問のみ）
+const FAQ = [
+  {
+    q: 'デリヘルをホテルに呼ぶのは違法ですか？',
+    a: '届出のある店舗のサービスを成人が利用すること自体は違法ではありません。ただし、ホテルが宿泊者以外の入室を禁止している場合は利用規約違反となり、注意や退室を求められることがあります。トラブルを避けるには、実際に呼べた実績のあるホテルを口コミで確認してから利用するのが確実です。',
   },
-  'image': 'https://yobuho.com/ogp.png',
-  'about': 'デリヘル 呼べる ホテル',
-};
+  {
+    q: '「玄関待ち合わせ」とは何ですか？',
+    a: 'ホテルの玄関（エントランス）の外や付近で女性と合流し、一緒に入室する方法です。YobuHoに投稿された「呼べた」口コミでは最も多く報告されている入室方法で、フロントを単独で通過させる必要がないため、幅広いホテルで使われています。',
+  },
+  {
+    q: '予約サイトで「デリヘルを呼べるホテル」を見分けられますか？',
+    a: '楽天トラベルやじゃらん等の予約サイトには来訪者の可否は記載されません。建物の構造（直通エレベーター・カードキー式）からある程度推測はできますが、確実なのは実際に呼んだ人の口コミです。YobuHoでは予約前にホテル名で実績を検索できます。',
+  },
+  {
+    q: '口コミがまだ無いホテルはどう判断すればいいですか？',
+    a: 'ホテルタイプ別の傾向（カードキー式ビジネスホテルは呼びやすい等）を参考にしつつ、利用予定のデリヘル店舗に直接「このホテルに派遣できますか」と聞くのが確実です。店舗側は近隣ホテルの対応状況を熟知しています。YobuHoの掲載店舗ページからも対応ホテルを確認できます。',
+  },
+  {
+    q: 'もしホテルに気付かれたらどうなりますか？',
+    a: '多くの場合は口頭での注意で済みますが、ホテルによっては追加料金の請求や退室要請、以降の利用をお断りされるケースもあります。だからこそ「呼べなかった」口コミがあるホテルを避け、呼べた実績のあるホテルを選ぶことが重要です。',
+  },
+];
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    'headline': 'デリヘルを呼べるホテルの見分け方・選び方｜口コミ770件の実データで解説',
+    'description': description,
+    'mainEntityOfPage': { '@type': 'WebPage', '@id': canonical },
+    'url': canonical,
+    'inLanguage': 'ja',
+    'datePublished': '2026-03-22',
+    'dateModified': '2026-06-11',
+    'author': { '@type': 'Organization', 'name': 'YobuHo', 'url': 'https://yobuho.com/' },
+    'publisher': {
+      '@type': 'Organization',
+      'name': 'YobuHo',
+      'logo': { '@type': 'ImageObject', 'url': 'https://yobuho.com/ogp.png' },
+    },
+    'image': 'https://yobuho.com/ogp.png',
+    'about': 'デリヘル 呼べる ホテル',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': FAQ.map((f) => ({
+      '@type': 'Question',
+      'name': f.q,
+      'acceptedAnswer': { '@type': 'Answer', 'text': f.a },
+    })),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    'itemListElement': [
+      { '@type': 'ListItem', 'position': 1, 'name': 'ホーム', 'item': 'https://yobuho.com/' },
+      { '@type': 'ListItem', 'position': 2, 'name': 'デリヘルを呼べるホテル検索', 'item': 'https://yobuho.com/deli/' },
+      { '@type': 'ListItem', 'position': 3, 'name': 'デリヘルを呼べるホテルの見分け方・選び方ガイド', 'item': canonical },
+    ],
+  },
+];
+
+// 主要都市リンク（検索ボリューム上位、/deli/ 市区町村ページへ）
+const CITY_LINKS = [
+  { label: '新宿区（歌舞伎町）', pref: '東京都', city: '新宿区' },
+  { label: '渋谷区', pref: '東京都', city: '渋谷区' },
+  { label: '豊島区（池袋）', pref: '東京都', city: '豊島区' },
+  { label: '大阪市北区（梅田）', pref: '大阪府', city: '大阪市北区' },
+  { label: '大阪市中央区（難波）', pref: '大阪府', city: '大阪市中央区' },
+  { label: '名古屋市中区（栄）', pref: '愛知県', city: '名古屋市中区' },
+  { label: '福岡市博多区（中洲）', pref: '福岡県', city: '福岡市博多区' },
+  { label: '札幌市中央区（すすきの）', pref: '北海道', city: '札幌市中央区' },
+  { label: '横浜市中区（関内）', pref: '神奈川県', city: '横浜市中区' },
+  { label: '仙台市青葉区（国分町）', pref: '宮城県', city: '仙台市青葉区' },
+  { label: '広島市中区（流川）', pref: '広島県', city: '広島市中区' },
+  { label: '那覇市（松山）', pref: '沖縄県', city: '那覇市' },
+];
 ---
 
 <BaseLayout
@@ -53,6 +115,7 @@ const jsonLd = {
       .guide-content h3 { font-size: 1rem; font-weight: 600; color: #1a1410; margin: 20px 0 8px; }
       .guide-content p { margin-bottom: 16px; font-size: 0.95rem; color: #3a2a1f; }
       .guide-content ul { margin: 0 0 16px 20px; }
+      .guide-content ol { margin: 0 0 16px 20px; }
       .guide-content li { margin-bottom: 8px; font-size: 0.95rem; color: #3a2a1f; }
       .guide-content li::marker { color: #9b2d35; }
       .guide-content strong { color: #9b2d35; }
@@ -63,72 +126,128 @@ const jsonLd = {
       .point-card { background: #fff; border: 1px solid #e8d8c8; border-left: 4px solid #9b2d35; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
       .point-card .emoji { font-size: 1.5rem; margin-bottom: 8px; }
       .point-card h3 { color: #9b2d35; margin-top: 0; }
+      .data-table { width: 100%; border-collapse: collapse; margin: 0 0 8px; background: #fff; border: 1px solid #e8d8c8; border-radius: 10px; overflow: hidden; font-size: 0.9rem; }
+      .data-table th { background: #9b2d35; color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; }
+      .data-table td { padding: 10px 12px; border-top: 1px solid #e8d8c8; color: #3a2a1f; }
+      .data-table td.num { font-weight: 700; color: #9b2d35; white-space: nowrap; }
+      .data-note { font-size: 0.78rem; color: #8a7a6a; margin-bottom: 16px; }
+      .city-links { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+      .city-links li { margin: 0; }
+      .city-links a { display: block; padding: 10px 14px; background: #fff; border: 1px solid #e8d8c8; border-radius: 6px; color: #9b2d35; text-decoration: none; font-weight: 500; font-size: 0.88rem; transition: background 0.15s, border-color 0.15s; }
+      .city-links a:hover { background: #fdf6f0; border-color: #9b2d35; }
+      .faq-item { background: #fff; border: 1px solid #e8d8c8; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; }
+      .faq-item h3 { color: #9b2d35; margin: 0 0 8px; font-size: 0.95rem; }
+      .faq-item p { margin: 0; font-size: 0.9rem; color: #5a4a3a; }
+      .updated-date { font-size: 0.78rem; color: #8a7a6a; text-align: right; margin-bottom: 16px; }
     </style>
-    <script is:inline type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      "headline": "デリヘルを呼べるホテルの見分け方・選び方ガイド",
-      "description": "デリヘルをホテルに呼ぶ際のホテル選びのポイントを解説",
-      "author": { "@type": "Organization", "name": "YobuHo" },
-      "publisher": { "@type": "Organization", "name": "YobuHo", "url": "https://yobuho.com" },
-      "mainEntityOfPage": "https://yobuho.com/guide/deli-hotel.html"
-    }
-    </script>
   </Fragment>
 
   <div class="guide-header">
     <h1>デリヘルを呼べるホテルの見分け方・選び方ガイド</h1>
-    <p>初めてでも安心。ホテル選びのポイントを徹底解説</p>
+    <p>口コミ770件の実データでわかる、失敗しないホテル選び</p>
   </div>
 
   <div class="guide-content">
-    <p>デリヘルをホテルに呼びたいけど、どのホテルなら大丈夫？断られたらどうしよう？そんな不安を解消するために、呼べるホテルの見分け方と選び方を解説します。</p>
+    <p class="updated-date">最終更新: 2026年6月11日</p>
+
+    <p>デリヘルをホテルに呼びたいけれど、どのホテルなら大丈夫？フロントで断られたらどうしよう？——そんな不安を解消するために、このガイドでは<strong>YobuHoに投稿された口コミ770件の実データ</strong>をもとに、呼べるホテルの見分け方・選び方・入室方法・呼べなかった時の対処法までを解説します。</p>
+
+    <h2>実データで見る「呼べた率」— ホテルタイプ別</h2>
+    <p>YobuHoに投稿されたデリヘル等の口コミ（ユーザー体験談+店舗公式情報）をホテルタイプ別に集計すると、「呼べた」報告の割合は次のとおりです。</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>ホテルタイプ</th><th>呼べた率</th><th>口コミ件数</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>シティホテル</td><td class="num">92%</td><td>296件</td></tr>
+        <tr><td>ビジネスホテル</td><td class="num">89%</td><td>178件</td></tr>
+        <tr><td>旅館</td><td class="num">77%</td><td>26件</td></tr>
+        <tr><td>その他（ペンション等）</td><td class="num">72%</td><td>69件</td></tr>
+      </tbody>
+    </table>
+    <p class="data-note">※ 2026年6月時点のYobuHo投稿口コミの集計。「呼べたホテル」の口コミが投稿されやすい傾向があるため、全ホテルの平均値ではありません。重要なのは率そのものより「<strong>実績のあるホテルを個別に確認する</strong>」ことです。</p>
+    <p>意外に思われるかもしれませんが、<strong>シティホテルの呼べた率はビジネスホテルと同等以上</strong>です。「高級そうだから無理」と決めつけず、個別ホテルの実績を確認する価値があります。一方で同じチェーンでも店舗ごとに対応が分かれるため、「チェーン名」ではなく「そのホテル」の口コミを見ることが失敗しない鉄則です。</p>
 
     <h2>呼べるホテルの3つの特徴</h2>
 
     <div class="point-card">
       <div class="emoji">🔑</div>
       <h3>カードキー式のホテル</h3>
-      <p>フロントを通らずに部屋まで直行できるカードキー式のホテルは、デリヘルを呼びやすいホテルの代表格です。ビジネスホテルチェーンの多くがこの方式を採用しています。</p>
+      <p>フロントを通らずに部屋まで直行できるカードキー式のホテルは、デリヘルを呼びやすいホテルの代表格です。ただしエレベーターの稼働にカードキーが必要なタイプは、宿泊者が迎えに行く「待ち合わせ」が前提になります。YobuHoの口コミでも「カードキー必須」の報告は100件以上あり、入室方法とセットで確認するのが重要です。</p>
     </div>
 
     <div class="point-card">
       <div class="emoji">🛗</div>
       <h3>直通エレベーターがあるホテル</h3>
-      <p>ロビーからフロントを経由せずにエレベーターにアクセスできるホテルは、来客の出入りが自由なため安心です。</p>
+      <p>ロビーからフロントを経由せずにエレベーターへアクセスできるホテルは、来客の出入りが自由なため最もスムーズです。YobuHoの「呼べた」口コミでは<strong>「直通」の報告が約200件</strong>と、玄関待ち合わせに次いで多い入室方法です。</p>
     </div>
 
     <div class="point-card">
       <div class="emoji">📞</div>
       <h3>フロント相談で許可が出るホテル</h3>
-      <p>一部のシティホテルでは、フロントに「来客がある」と伝えれば許可される場合があります。事前に電話で確認するのがおすすめです。</p>
+      <p>一部のシティホテルやビジネスホテルでは、フロントに「来客がある」と伝えれば許可される場合があります。事前に電話やチェックイン時に確認しておくと、当日のトラブルを避けられます。</p>
     </div>
 
-    <h2>ホテル選びで注意すべきポイント</h2>
-    <ul>
-      <li><strong>ラブホテルは確実</strong> — ラブホテルは基本的にデリヘルの受け入れOKです。ただし一部のラブホは断る場合もあるため、口コミで確認しましょう。</li>
-      <li><strong>ビジネスホテルは要確認</strong> — チェーンによって対応が異なります。同じチェーンでも店舗ごとに方針が違うこともあります。</li>
-      <li><strong>高級ホテルは難しい</strong> — セキュリティが厳しいため、事前確認が必須です。</li>
-      <li><strong>口コミが最強の情報源</strong> — 実際に呼んだ人・呼ばれた店舗の口コミが最も信頼できます。</li>
-    </ul>
+    <h2>入室方法の種類 — 実際はどう入っている？</h2>
+    <p>YobuHoの「呼べた」口コミで報告されている入室方法を多い順に並べると、実態が見えてきます。</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>入室方法</th><th>内容</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">1. 玄関待ち合わせ</td><td>ホテル玄関付近で合流して一緒に入室。最も多い方法で、フロント単独通過が不要なため幅広いホテルで有効</td></tr>
+        <tr><td class="num">2. 直通</td><td>女性が単独でエレベーターから部屋へ直行。直通エレベーターのあるホテルで可能</td></tr>
+        <tr><td class="num">3. カードキー対応</td><td>宿泊者がエレベーターまで迎えに行きカードキーで通す。カードキー式ホテルの定番</td></tr>
+        <tr><td class="num">4. エレベーター/ロビー待ち合わせ</td><td>館内の目立たない場所で合流。深夜はフロントの目が厳しくなるホテルでは時間帯の使い分けも</td></tr>
+      </tbody>
+    </table>
+    <p class="data-note">※ YobuHo「呼べた」口コミの呼べた理由タグ集計より（複数選択あり）。</p>
+    <p>ポイントは、<strong>「呼べる/呼べない」の二択ではなく「どの方法なら呼べるか」</strong>で考えることです。直通不可でも玄関待ち合わせなら問題ないホテルは多数あります。YobuHoの口コミには時間帯・部屋タイプ・入室方法がセットで記録されているので、同じ条件の実績を探せます。</p>
 
-    <h2>地域別の傾向</h2>
-    <p>都市部のビジネスホテルは比較的呼びやすい傾向にあります。特に東京・大阪・名古屋・福岡などの繁華街周辺は、デリヘル対応のホテルが多数あります。</p>
-    <p>地方都市でもビジネスホテルチェーンであれば対応していることが多いですが、個人経営のホテルや旅館は事前確認が必要です。</p>
+    <h2>ホテルタイプ別の早見表</h2>
+    <ul>
+      <li><strong>ラブホテル</strong> — 受け入れ率は高いものの「必ず呼べる」わけではありません。一人入室（先に1名でチェックイン）を断るラブホテルも多いため、<a href="/deli/">YobuHoのラブホテルタブ</a>で一人入室実績を確認しましょう。</li>
+      <li><strong>ビジネスホテル</strong> — チェーンによって、さらに同じチェーンでも店舗ごとに対応が異なります。カードキー式・直通エレベーターの有無で呼びやすさが大きく変わります。</li>
+      <li><strong>シティホテル</strong> — 実データでは呼べた率92%と健闘。中級〜カジュアル系は狙い目です。外資系・最高級クラスはセキュリティが厳しく難易度が上がります。</li>
+      <li><strong>旅館・温泉宿</strong> — 仲居さんが部屋まで案内する伝統的旅館は基本不可。都市型のビジネス旅館は対応可の場合があります。</li>
+    </ul>
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">全国43,000件以上のホテルから「呼べるホテル」を検索</p>
       <a href="/deli/">今すぐ検索する</a>
     </div>
 
+    <h2>呼べないホテルだった時の対処法</h2>
+    <ol>
+      <li><strong>キャンセル・変更が可能なら近隣の呼べるホテルへ</strong> — YobuHoで同じ市区町村の実績ありホテルを検索すれば、徒歩圏で見つかることが多いです。</li>
+      <li><strong>店舗に相談する</strong> — デリヘル店舗は近隣ホテルの対応状況を熟知しています。「このホテルはNGだが隣のホテルなら大丈夫」という情報を持っていることも。</li>
+      <li><strong>無理に強行しない</strong> — 呼べないホテルでの強行はトラブル（注意・退室要請・出禁）の元です。「呼べなかった」口コミがあるホテルは素直に避けましょう。</li>
+    </ol>
+
+    <h2>地域別の傾向と主要エリア</h2>
+    <p>都市部・繁華街周辺のホテルは呼べる実績が集まりやすく、選択肢も豊富です。地方都市でもビジネスホテルチェーンであれば対応していることが多いですが、個人経営のホテルや旅館は事前確認が必要です。主要エリアの実績は以下から確認できます。</p>
+    <ul class="city-links">
+      {CITY_LINKS.map((c) => (
+        <li><a href={`/deli/${encodeURIComponent(c.pref)}/${encodeURIComponent(c.city)}`}>{c.label}</a></li>
+      ))}
+    </ul>
+    <p>上記以外の地域も、<a href="/deli/">デリヘルを呼べるホテル検索</a>から47都道府県すべてを市区町村・最寄駅単位で検索できます。</p>
+
+    <h2>よくある質問</h2>
+    {FAQ.map((f) => (
+      <div class="faq-item">
+        <h3>{f.q}</h3>
+        <p>{f.a}</p>
+      </div>
+    ))}
+
     <h2>YobuHoの口コミの見方</h2>
     <p>YobuHoでは、<strong>ユーザー口コミ</strong>と<strong>店舗公式情報</strong>の2種類の情報を掲載しています。</p>
     <ul>
-      <li><strong>ユーザー口コミ（📊）</strong> — 実際にデリヘルを呼んだ利用者の体験談。「呼べた」「呼べなかった」の実績がわかります。</li>
-      <li><strong>店舗公式情報（🏪）</strong> — デリヘル店舗が実際に派遣した実績に基づく情報。信頼度が高いです。</li>
+      <li><strong>ユーザー口コミ（📊）</strong> — 実際にデリヘルを呼んだ利用者の体験談。「呼べた」「呼べなかった」の実績に加え、入室方法・時間帯・部屋タイプがわかります。</li>
+      <li><strong>店舗公式情報（🏪）</strong> — 届出確認済みのデリヘル店舗が実際に派遣した実績に基づく情報。信頼度が高いのが特徴です。</li>
     </ul>
-    <p>両方の情報を確認することで、より確実にホテルを選ぶことができます。</p>
+    <p>両方の情報をダブルチェックすることで、より確実にホテルを選ぶことができます。口コミは匿名で投稿でき、あなたの体験談が次の利用者の助けになります。</p>
 
     <div class="cta-box">
       <p style="margin-bottom: 12px; font-weight: 600;">口コミで呼べるホテルをチェック</p>

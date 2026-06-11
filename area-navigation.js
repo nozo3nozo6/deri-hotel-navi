@@ -465,7 +465,8 @@ function showJapanPage() {
     currentPage = showJapanPage;
     updateUrl({});
     setTitle(t('select_area'));
-    updatePageTitle('全国のホテル検索');
+    // SSG title と同期したモード別キーワード入り title（ui-utils.js MODE_TOP_TITLE_MAP）
+    updatePageTitle(typeof getTopPageTitle === 'function' ? getTopPageTitle() : '全国のホテル検索');
     setBackBtn(false);
     setBreadcrumb([{ label: t('japan') }]);
     toggleGenreHero(true);

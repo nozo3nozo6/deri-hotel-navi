@@ -167,30 +167,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // canonical動的設定（パスベースURL）
-    var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f', este: 'este' };
-    var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
+    // SSGページ(x-astro-mode あり)では portal-seo.php がURL固有のcanonical/og:urlを
+    // SSR出力済みのため再構築しない（過去にJS再構築がareaセグメントを落として
+    // canonical縮退→GSCソフト404を起こした事故の構造的予防）
     var shopSlugParam = urlParams.get('shop');
-    var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
-    if (parsed.hotel) {
-        // ホテル詳細クリーンURL: /deli/hotel/29599
-        canonicalPath += '/hotel/' + parsed.hotel;
-    } else if (shopSlugParam) {
-        // 店舗専用URL: /deli/shop/slug/
-        canonicalPath += '/shop/' + encodeURIComponent(shopSlugParam);
-    } else {
-        // canonical 統一ポリシー: city が決まっていれば常に 2セグ /pref/city に統合
-        // (3/4セグURLからの重複信号を解消、portal-seo.php と同期)
-        if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
-        if (parsed.city) {
-            canonicalPath += '/' + encodeURIComponent(parsed.city);
-        } else if (parsed.area) {
-            canonicalPath += '/' + encodeURIComponent(parsed.area);
+    if (!astroMode) {
+        var modePathMap = { men: 'deli', women: 'jofu', men_same: 'same-m', women_same: 'same-f', este: 'este' };
+        var canonicalPath = '/' + (modePathMap[MODE] || 'deli');
+        var parsed = typeof parseUrlPath === 'function' ? parseUrlPath() : {};
+        if (parsed.hotel) {
+            // ホテル詳細クリーンURL: /deli/hotel/29599
+            canonicalPath += '/hotel/' + parsed.hotel;
+        } else if (shopSlugParam) {
+            // 店舗専用URL: /deli/shop/slug/
+            canonicalPath += '/shop/' + encodeURIComponent(shopSlugParam);
+        } else {
+            // canonical 統一ポリシー: city が決まっていれば常に 2セグ /pref/city に統合
+            // (3/4セグURLからの重複信号を解消、portal-seo.php と同期)
+            if (parsed.pref) canonicalPath += '/' + encodeURIComponent(parsed.pref);
+            if (parsed.city) {
+                canonicalPath += '/' + encodeURIComponent(parsed.city);
+            } else if (parsed.area) {
+                canonicalPath += '/' + encodeURIComponent(parsed.area);
+            }
         }
+        var canonicalUrl = 'https://yobuho.com' + canonicalPath;
+        document.querySelector('link[rel="canonical"]').setAttribute('href', canonicalUrl);
+        var ogUrl = document.querySelector('meta[property="og:url"]');
+        if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
     }
-    var canonicalUrl = 'https://yobuho.com' + canonicalPath;
-    document.querySelector('link[rel="canonical"]').setAttribute('href', canonicalUrl);
-    var ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute('content', canonicalUrl);
 
     // 店舗専用URL判定（api-service.jsのdefer前に実行されるため独自検出）
     var _shopMatch = window.location.pathname.match(/\/shop\/([^/]+)/);
