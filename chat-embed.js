@@ -602,12 +602,48 @@
         } catch (e) { diag('gutter ERR ' + (e && e.message)); }
     }
 
+    // ===== YobuHo掲載店バッジ =====
+    // 埋込iframeの直下に小さな掲載店リンクを表示（店舗の YobuHo ページへ）。
+    // shop-admin の YobuChat タブで OFF にできる（badge-info が enabled:false を返す）。
+    // 静的バッジ（新スニペットに同梱の a[data-ychat-badge]）が既にあれば注入しない。
+    var badgeCache = {};
+    function injectBadge(iframe) {
+        try {
+            if (!window.fetch) return;
+            var slug = iframe.getAttribute('data-ychat-slug');
+            if (!slug) return;
+            if (iframe.getAttribute('data-ychat-badge-off') === '1') return; // 埋込側で明示無効化
+            var sel = 'a[data-ychat-badge="' + slug + '"]';
+            if (document.querySelector(sel)) return;
+            var apply = function (info) {
+                if (!info || !info.enabled || !info.url) return;
+                if (document.querySelector(sel)) return;
+                if (!iframe.parentNode) return;
+                var a = document.createElement('a');
+                a.setAttribute('data-ychat-badge', slug);
+                a.href = info.url;
+                a.target = '_blank';
+                a.rel = 'noopener';
+                a.textContent = info.label || 'YobuHo掲載店';
+                a.style.cssText = 'display:block;width:fit-content;margin:6px auto 0;font-size:11px;line-height:1.4;color:#8a7a6a;text-decoration:none;font-family:sans-serif;';
+                iframe.parentNode.insertBefore(a, iframe.nextSibling);
+                diag('badge injected slug=' + slug);
+            };
+            if (badgeCache[slug]) { apply(badgeCache[slug]); return; }
+            fetch('https://yobuho.com/api/chat-api.php?action=badge-info&shop_slug=' + encodeURIComponent(slug))
+                .then(function (r) { return r.json(); })
+                .then(function (j) { badgeCache[slug] = j; apply(j); })
+                .catch(function () {});
+        } catch (_) {}
+    }
+
     function wire(iframe) {
         if (iframe.__ychatWired) return;
         iframe.__ychatWired = true;
         diag('wire() slug=' + iframe.getAttribute('data-ychat-slug'));
 
         ensureGutter(iframe);
+        injectBadge(iframe);
 
         if (diagMode) {
             try {

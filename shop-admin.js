@@ -2279,8 +2279,16 @@ function renderChatAdmin(data){
     // chat-embed.js が受けるメッセージ:
     //   ychat:resize / input-focus / enter-fullscreen / exit-fullscreen
     const embedBridgeTag = '<script src="https://yobuho.com/chat-embed.js" async><\/script>';
+
+    // YobuHo掲載店バッジ（静的<a> = 被リンクSEO効果最大）。
+    // chat-embed.js は a[data-ychat-badge] が既にあれば自動注入をスキップする（重複防止）
+    const badgePathMap = { men: 'deli', women: 'jofu', este: 'este', men_same: 'same-m', women_same: 'same-f' };
+    const badgeShopUrl = 'https://yobuho.com/' + (badgePathMap[data.gender_mode] || 'deli') + '/shop/' + encodeURIComponent(slug) + '/';
+    const badgeTag = '<a data-ychat-badge="' + slug + '" href="' + badgeShopUrl + '" target="_blank" rel="noopener" style="display:block;width:fit-content;margin:6px auto 0;font-size:11px;line-height:1.4;color:#8a7a6a;text-decoration:none;font-family:sans-serif;">🏨 YobuHo掲載店 — 呼べるホテル検索<\/a>';
+
     const iframeCode =
         '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:calc(100% - 16px);max-width:480px;height:640px;border:0;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:block;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
+        badgeTag + '\n' +
         embedBridgeTag;
 
     // ③ link: 別タブで /chat/slug/ を開くシンプルリンク
@@ -2295,6 +2303,7 @@ function renderChatAdmin(data){
     const cmsCode =
         '<!-- YobuChat — ' + tag + ' -->\n' +
         '<iframe data-ychat-slug="' + slug + '" data-ychat-min="500" data-ychat-max="900" src="' + publicUrl + '?embed=1" style="width:calc(100% - 16px);max-width:480px;height:640px;border:0;display:block;background:#fff;margin:20px auto;box-sizing:border-box;" title="お問い合わせチャット"><\/iframe>\n' +
+        badgeTag + '\n' +
         embedBridgeTag + '\n' +
         '<!-- /YobuChat -->';
 
@@ -2334,6 +2343,21 @@ function renderChatAdmin(data){
         b.onclick = () => showEmbedTab(b.dataset.embedTab);
     });
     showEmbedTab('script');
+
+    // 掲載店バッジ表示トグル（埋込チャット下のYobuHoリンク、デフォルトON）
+    const badgeChk = document.getElementById('chat-admin-badge');
+    if (badgeChk) {
+        badgeChk.checked = (data.show_badge ?? 1) === 1;
+        badgeChk.onchange = async () => {
+            try {
+                const r = await chatApi('admin-toggle-badge', { show_badge: badgeChk.checked ? 1 : 0 });
+                toast(r.show_badge ? '✅ 掲載店バッジを表示します' : '掲載店バッジを非表示にしました（反映まで最大1時間）');
+            } catch (e) {
+                badgeChk.checked = !badgeChk.checked;
+                toast('⚠️ ' + e.message);
+            }
+        };
+    }
 
     // 通知設定トグル: notify_mode != 'off' なら ON 扱い（デフォルトOFF、DBの永続値を反映）
     const onlineChk = document.getElementById('chat-admin-online');

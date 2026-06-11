@@ -915,7 +915,8 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - chat-widget.js — 外部サイト埋込①（`<script>` 1行、右下💬ボタン → クリックで iframe モーダル）
 - chat-embed.js — 外部サイト埋込②/⑤のブリッジ（inline script 廃止版、サーバー配信で全埋込先へ自動更新）
 - chat-i18n.json — 訳文の唯一のソース（chat.js が起動時 fetch）
-- api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/can-connect/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings ほか）
+- api/chat-api.php — 全アクションを集約（start-session/send-message/poll-messages/can-connect/owner-inbox/owner-reply/register-device/verify-device/block-visitor/unblock-visitor/toggle-notify/owner-go-offline/translate/admin-overview/admin-save-settings/badge-info/admin-toggle-badge ほか）
+- 掲載店バッジ（SEO被リンク）: chat-embed.js が埋込iframe直下に「🏨 YobuHo掲載店」リンクを自動注入（badge-info APIで店舗ページURL取得、1hキャッシュ）。新規②/⑤スニペットには静的 a[data-ychat-badge] 同梱（chat-embed.jsは既設なら注入スキップ）。shop_chat_status.show_badge でOFF可（shop-adminにトグル、デフォルトON）
 - shop-admin.html 内 `💬 YobuChat` タブ — 有効化/受付時間/ウェルカムメッセージ/通知先メール/定型文管理、貼付コード生成（①script/②iframe/③link/④floating/⑤CMS用インライン）
 
 ### 埋込アーキテクチャ（iframe 統一 + 外部スクリプトブリッジ、2026-04-24〜）
