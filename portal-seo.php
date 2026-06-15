@@ -12,6 +12,39 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
+// --- fatal 捕捉 + soft fallback ---
+// catch(\Throwable) でも拾えない真の fatal（メモリ枯渇 / 実行時間超過 / parse 等）が
+// 出ると PHP は自動で 500 を返す。Googlebot がこれを踏むと GSC「サーバーエラー(5xx)」に
+// なるため、(1) docroot 外の log/ に記録して次回再発を確実に捕捉し、
+// (2) 出力前ならテンプレートを 200 で返して 5xx の露出自体を防ぐ。
+register_shutdown_function(function () use ($template) {
+    $e = error_get_last();
+    if (!$e || !in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR], true)) {
+        return;
+    }
+    // 記録（log/ は public_html の外＝web 非公開）
+    @error_log(sprintf(
+        "[%s] FATAL: %s in %s:%d | uri=%s | ua=%s\n",
+        date('c'), $e['message'], $e['file'], $e['line'],
+        $_SERVER['REQUEST_URI'] ?? '-', $_SERVER['HTTP_USER_AGENT'] ?? '-'
+    ), 3, __DIR__ . '/../log/seo_fatal.log');
+    // まだ出力していなければ soft fallback（テンプレートを 200 で配信 → 5xx を出さない）
+    if (!headers_sent()) {
+        http_response_code(200);
+        header('Content-Type: text/html; charset=UTF-8');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        $tpl = @file_get_contents(__DIR__ . '/' . $template);
+        if ($tpl !== false) {
+            echo $tpl;
+        } else {
+            // テンプレートすら読めない深刻な状況 → 503 + Retry-After で再クロールを促す
+            // （500 と違い Google は URL を保持して再試行する）
+            http_response_code(503);
+            header('Retry-After: 120');
+        }
+    }
+});
+
 // 二重エンコードURL検出: %25 が含まれていたら正しいURLに301リダイレクト
 $requestUri = $_SERVER['REQUEST_URI'] ?? '';
 if (strpos($requestUri, '%25') !== false) {
@@ -206,8 +239,8 @@ if ($hotel_id) {
         $stmt = $pdo->prepare('SELECT name, address, prefecture, city, hotel_type, postal_code, tel, latitude, longitude, nearest_station FROM hotels WHERE id = ? AND is_published = 1 LIMIT 1');
         $stmt->execute([$hotel_id]);
         $hotel = $stmt->fetch();
-    } catch (Exception $e) {
-        // DB接続失敗時はデフォルトSEOで出力
+    } catch (\Throwable $e) {
+        // DB接続失敗 / Error 系（TypeError等）も含めて握りつぶし、デフォルトSEOで出力（5xx回避）
     }
 
     if ($hotel) {
@@ -239,8 +272,8 @@ if ($hotel_id) {
         $stmt = $pdo->prepare('SELECT shop_name, gender_mode, area, prefecture, slug, status FROM shops WHERE slug = ? AND status = "active" LIMIT 1');
         $stmt->execute([$shop]);
         $shopData = $stmt->fetch();
-    } catch (Exception $e) {
-        // DB接続失敗時はデフォルトSEO
+    } catch (\Throwable $e) {
+        // DB接続失敗 / Error 系も含めて握りつぶし、デフォルトSEOで出力（5xx回避）
     }
 
     if ($shopData) {
