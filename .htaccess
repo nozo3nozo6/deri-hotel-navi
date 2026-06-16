@@ -123,6 +123,20 @@ RewriteRule ^yobuchat-campaign\.html$ /yobuchat-campaign/ [R=301,L]
 RewriteCond %{THE_REQUEST} \s/shop-register\.html [NC]
 RewriteRule ^shop-register\.html$ /shop-register/ [R=301,L]
 
+# ポータルのテンプレート実体(.html)への直アクセス → クリーンURLに301（重複URL解消）
+# ※ /deli/ → portal-men.php は内部リライト(.php)で、portal-seo.php は file_get_contents で
+#    .html を読むだけ。HTTPリクエストとしての portal-*.html は外部直アクセスのみ＝ループ無し。
+RewriteCond %{THE_REQUEST} \s/portal-men\.html [NC]
+RewriteRule ^portal-men\.html$ /deli/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/portal-women\.html [NC]
+RewriteRule ^portal-women\.html$ /jofu/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/portal-men-same\.html [NC]
+RewriteRule ^portal-men-same\.html$ /same-m/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/portal-women-same\.html [NC]
+RewriteRule ^portal-women-same\.html$ /same-f/ [R=301,L]
+RewriteCond %{THE_REQUEST} \s/portal-este\.html [NC]
+RewriteRule ^portal-este\.html$ /este/ [R=301,L]
+
 # ===== サブディレクトリ方式 URL ルーティング =====
 # deli=men, jofu=women, same-m=men_same, same-f=women_same, este=este
 
