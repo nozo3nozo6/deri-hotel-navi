@@ -132,6 +132,41 @@ $MODE_SEO = [
 $m = $MODE_SEO[$mode] ?? $MODE_SEO['men'];
 $path = $m['path'];
 
+// --- 無効URLの404化（クロールトラップ / 薄い自動生成ページ量産の防止）---
+// 背景: /deli/index.html・/deli/wp-login.php・/deli/foobar 等の任意文字列が
+// 「{文字列}のデリヘルを呼べるホテル検索」という 200＋自己canonical のゴミページを
+// 無限生成していた（Googleがindex.html等を試行→薄いページ大量インデックス→
+// サイト全体の品質評価を低下させ、競合ヘッド語で抑制される原因）。
+// 第1セグメント($pref)が実在都道府県でない、または市区町村に該当ホテルが無いURLは 404 に。
+if ($pref || $city) {
+    $_invalidUrl = false;
+    if ($pref) {
+        $_adv = loadAreaData();
+        if (empty($_adv['pref'][$pref])) {
+            $_invalidUrl = true;                       // 例: index.html, wp-login.php, 乱文字列
+        } elseif ($city) {
+            $_cs = cityHotelStats($pref, $city);
+            if ((int)($_cs['total'] ?? 0) === 0) $_invalidUrl = true; // 実在しない市区町村
+        }
+    } else {
+        // pref 無しで city だけ来るのは不正経路
+        $_invalidUrl = true;
+    }
+    if ($_invalidUrl) {
+        http_response_code(404);
+        header('Content-Type: text/html; charset=UTF-8');
+        $_e4 = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        echo '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,follow">'
+           . '<title>ページが見つかりません | YobuHo</title></head>'
+           . '<body style="font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:64px 20px;color:#3a2a1f;">'
+           . '<h1 style="font-size:48px;margin:0 0 8px;">404</h1>'
+           . '<p style="margin:0 0 20px;">お探しのページは見つかりませんでした。</p>'
+           . '<p><a href="https://yobuho.com/' . $_e4($path) . '/" style="color:#9b2d35;font-weight:600;">' . $_e4($m['label']) . '全国ページへ戻る</a></p>'
+           . '</body></html>';
+        exit;
+    }
+}
+
 // --- 全国トップ: 47都道府県SSRリンクを <main> 内に注入して配信 ---
 // title/meta/H1 はテンプレート（Astro SSG）のまま変更しない。
 // 内部リンク（クロール経路 + リンクジュース分配）だけを追加する。
