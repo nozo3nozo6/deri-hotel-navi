@@ -299,11 +299,30 @@ if ($hotel_id) {
 } elseif ($city && $pref) {
     // 市区町村ページ
     $location = $area ? "{$city}（{$pref} {$area}）" : "{$city}（{$pref}）";
-    $seo_title = "{$city}の{$m['label']}{$m['verb']}ホテル｜{$pref} | {$m['suffix']}";
-    // 主要5都市は手書き description を使用、それ以外は機械生成
+    // データ駆動SEO: 当該市区町村の件数・タイプ内訳・主要駅を算出（title/desc/本文/FAQで共用）
+    $cityStats = cityHotelStats($pref, $city);
+    $cityTypeLabels = [
+        'business' => 'ビジネスホテル', 'city' => 'シティホテル', 'resort' => 'リゾートホテル',
+        'ryokan' => '旅館', 'love_hotel' => 'ラブホテル', 'rental_room' => 'レンタルルーム',
+    ];
+    // title: 件数を入れて固有性とクリック誘因を強化（0件なら件数省略）
+    $cityCountLabel = $cityStats['total'] > 0 ? number_format($cityStats['total']) . '件' : '';
+    $seo_title = $cityCountLabel
+        ? "{$city}の{$m['label']}{$m['verb']}ホテル{$cityCountLabel}｜{$pref} | {$m['suffix']}"
+        : "{$city}の{$m['label']}{$m['verb']}ホテル｜{$pref} | {$m['suffix']}";
+    // 主要5都市は手書き description を使用、それ以外はデータ駆動で機械生成
     $cityKey = $pref . '|' . $city;
     if (isset($MAJOR_CITY_DESC[$cityKey])) {
         $seo_desc = $expandDesc($MAJOR_CITY_DESC[$cityKey]);
+    } elseif ($cityStats['total'] > 0) {
+        // 件数＋タイプ内訳（上位2種）＋主要駅 を盛り込み、各市区町村ページを固有化
+        $descTypeParts = [];
+        foreach (array_slice($cityStats['types'], 0, 2, true) as $t => $c) {
+            if (isset($cityTypeLabels[$t])) $descTypeParts[] = $cityTypeLabels[$t] . number_format($c) . '件';
+        }
+        $descTypes = $descTypeParts ? '（' . implode('・', $descTypeParts) . 'など）' : '';
+        $descStation = !empty($cityStats['stations'][0]) ? $cityStats['stations'][0] . '周辺ほか、' : '';
+        $seo_desc = "{$pref}{$city}で{$m['label']}{$m['verb']}ホテルを口コミで検索。掲載" . number_format($cityStats['total']) . "件{$descTypes}。{$descStation}入室方法・部屋タイプ・呼べた実績を確認できます。";
     } else {
         $seo_desc = "{$pref}{$city}で{$m['label']}{$m['verb']}ホテルを検索。{$m['desc_detail']}";
     }
@@ -502,6 +521,47 @@ function loadPrefHotels($pref) {
     return $cache[$pref];
 }
 
+// 市区町村ページのデータ駆動SEO用: 当該市区町村の件数・タイプ内訳・主要駅・上位ホテルを
+// hotel-data/*.json から算出（追加DBクエリ不要）。全市区町村ページを固有コンテンツ化するための土台。
+function cityHotelStats($pref, $city) {
+    static $cache = [];
+    $key = $pref . '|' . $city;
+    if (isset($cache[$key])) return $cache[$key];
+    $hotels = loadPrefHotels($pref);
+    $typeCount = [];      // hotel_type => 件数
+    $stationCount = [];   // 最寄駅 => 件数
+    $list = [];
+    $total = 0;
+    if (is_array($hotels)) {
+        foreach ($hotels as $h) {
+            if (($h['city'] ?? '') !== $city) continue;
+            $total++;
+            $t = $h['hotel_type'] ?? '';
+            if ($t) $typeCount[$t] = ($typeCount[$t] ?? 0) + 1;
+            $st = trim((string)($h['nearest_station'] ?? ''));
+            if ($st !== '') $stationCount[$st] = ($stationCount[$st] ?? 0) + 1;
+            $list[] = $h;
+        }
+    }
+    arsort($typeCount);
+    arsort($stationCount);
+    // 上位ホテル: ラブホ以外を優先、review_average降順
+    usort($list, function ($a, $b) {
+        $al = in_array($a['hotel_type'] ?? '', ['love_hotel', 'rental_room'], true);
+        $bl = in_array($b['hotel_type'] ?? '', ['love_hotel', 'rental_room'], true);
+        if ($al !== $bl) return $al ? 1 : -1;
+        return ($b['review_average'] ?? 0) <=> ($a['review_average'] ?? 0);
+    });
+    $stats = [
+        'total'    => $total,
+        'types'    => $typeCount,                                  // [type=>count] desc
+        'stations' => array_slice(array_keys($stationCount), 0, 5),
+        'top'      => array_slice($list, 0, 30),
+    ];
+    $cache[$key] = $stats;
+    return $stats;
+}
+
 function buildSeoLink($path, $pref, $area = '', $detail = '', $city = '', $label = '', $count = null, $accentColor = '#9b2d35') {
     $parts = [rawurlencode($pref)];
     if ($area !== '') $parts[] = rawurlencode($area);
@@ -571,29 +631,29 @@ if (!$hotel_id && $pref) {
             $totalInArea = 0;
         }
 
-        $seo_static .= '<p>' . $esc_fn($pref . $city) . 'で' . $esc_fn($label . $verb) . 'ホテルを口コミから検索。';
-        $seo_static .= '直通・カードキー・フロント相談など実際の入室実績から判断できます。</p>';
-
-        // 当該市区町村のホテルを hotel-data から抽出（最大10件）
-        $hotels = loadPrefHotels($pref);
-        $matched = [];
-        if (is_array($hotels)) {
-            foreach ($hotels as $h) {
-                if (isset($h['city']) && $h['city'] === $city) {
-                    $matched[] = $h;
-                    if (count($matched) >= 30) break;
-                }
+        // データ駆動の固有プロローグ（件数・タイプ内訳・主要駅）— 全市区町村ページを固有コンテンツ化
+        $cityStats = cityHotelStats($pref, $city);
+        $cityTypeLabelsP = [
+            'business' => 'ビジネスホテル', 'city' => 'シティホテル', 'resort' => 'リゾートホテル',
+            'ryokan' => '旅館', 'love_hotel' => 'ラブホテル', 'rental_room' => 'レンタルルーム',
+        ];
+        if ($cityStats['total'] > 0) {
+            $typeParts = [];
+            foreach (array_slice($cityStats['types'], 0, 4, true) as $t => $c) {
+                if (isset($cityTypeLabelsP[$t])) $typeParts[] = $cityTypeLabelsP[$t] . number_format($c) . '件';
             }
+            $seo_static .= '<p>' . $esc_fn($pref . $city) . 'には' . $esc_fn($label . $verb) . 'か口コミで確認できるホテルを<strong>' . number_format($cityStats['total']) . '件</strong>掲載しています。';
+            if ($typeParts) $seo_static .= '内訳は' . $esc_fn(implode('・', $typeParts)) . '。';
+            $stations3 = array_slice($cityStats['stations'], 0, 3);
+            if ($stations3) $seo_static .= $esc_fn(implode('・', $stations3)) . '周辺に多く、';
+            $seo_static .= '直通エレベーター・カードキー・フロント相談など実際の入室方法と、利用者の呼べた／呼べなかった実績を各ホテルページで確認できます。</p>';
+        } else {
+            $seo_static .= '<p>' . $esc_fn($pref . $city) . 'で' . $esc_fn($label . $verb) . 'ホテルを口コミから検索。';
+            $seo_static .= '直通・カードキー・フロント相談など実際の入室実績から判断できます。</p>';
         }
-        // ラブホ以外を優先、review_average降順
-        usort($matched, function($a, $b) {
-            $aLoveho = in_array($a['hotel_type'] ?? '', ['love_hotel', 'rental_room']);
-            $bLoveho = in_array($b['hotel_type'] ?? '', ['love_hotel', 'rental_room']);
-            if ($aLoveho !== $bLoveho) return $aLoveho ? 1 : -1;
-            return ($b['review_average'] ?? 0) <=> ($a['review_average'] ?? 0);
-        });
-        // SSR表示は30件（収集済み$matchedの全件）— orphan化したホテル詳細へのクロール経路を太くする
-        $topHotels = array_slice($matched, 0, 30);
+
+        // 上位ホテル（cityHotelStats で算出済み: ラブホ以外優先・review降順・最大30件）を再利用
+        $topHotels = $cityStats['top'];
 
         if (count($topHotels) > 0) {
             $seo_static .= '<h3 style="' . $h3Style . '">主要ホテル</h3>';
@@ -651,6 +711,45 @@ if (!$hotel_id && $pref) {
                 }
                 $seo_static .= '</div>';
             }
+        }
+
+        // --- データ駆動FAQ + FAQPage JSON-LD（固有性 & SERP占有面積/CTR向上）---
+        if ($cityStats['total'] > 0) {
+            $faqTopType = '';
+            foreach ($cityStats['types'] as $t => $c) {
+                if (isset($cityTypeLabelsP[$t])) { $faqTopType = $cityTypeLabelsP[$t]; break; }
+            }
+            $faqBrief = [];
+            foreach (array_slice($cityStats['types'], 0, 2, true) as $t => $c) {
+                if (isset($cityTypeLabelsP[$t])) $faqBrief[] = $cityTypeLabelsP[$t] . number_format($c) . '件';
+            }
+            $faqBriefStr = $faqBrief ? implode('・', $faqBrief) . 'など' : '';
+            $lv = $label . $verb;
+            $q1 = $pref . $city . 'で' . $lv . 'ホテルはありますか？';
+            $a1 = $pref . $city . 'では' . $lv . 'か口コミで確認できるホテルを' . number_format($cityStats['total']) . '件掲載しています。'
+                . ($faqBriefStr ? $faqBriefStr . '。' : '')
+                . '利用者の口コミと掲載店舗の案内実績から、実際に' . $lv . 'か確認できます。';
+            $q2 = $city . 'でおすすめのホテルタイプは？';
+            $a2 = $city . 'では' . ($faqTopType ?: 'ホテル') . 'の掲載が最も多くなっています。ホテルごとに' . $lv
+                . 'かは異なるため、各ホテルページで利用者の口コミ（呼べた／呼べなかった）と入室方法（直通・カードキー・フロント相談）を確認するのが確実です。';
+
+            $seo_static .= '<h3 style="' . $h3Style . '">よくあるご質問</h3>';
+            $seo_static .= '<div style="margin-bottom:8px;">';
+            $seo_static .= '<p style="font-weight:600;margin:0 0 4px;color:' . $accent . ';">Q. ' . $esc_fn($q1) . '</p>';
+            $seo_static .= '<p style="margin:0 0 14px;">' . $esc_fn($a1) . '</p>';
+            $seo_static .= '<p style="font-weight:600;margin:0 0 4px;color:' . $accent . ';">Q. ' . $esc_fn($q2) . '</p>';
+            $seo_static .= '<p style="margin:0;">' . $esc_fn($a2) . '</p>';
+            $seo_static .= '</div>';
+
+            $faq_jsonld = json_encode([
+                '@context' => 'https://schema.org',
+                '@type' => 'FAQPage',
+                'mainEntity' => [
+                    ['@type' => 'Question', 'name' => $q1, 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a1]],
+                    ['@type' => 'Question', 'name' => $q2, 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a2]],
+                ],
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $seo_static .= '<script type="application/ld+json">' . $faq_jsonld . '</script>';
         }
     } elseif ($detail && $area) {
         // --- 詳細エリアページ: 説明文のみ. 市区町村リンクはメインUIと重複のため削除済み. ---
