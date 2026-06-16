@@ -132,6 +132,18 @@ $MODE_SEO = [
 $m = $MODE_SEO[$mode] ?? $MODE_SEO['men'];
 $path = $m['path'];
 
+// --- URL正規化: 重複URLを /{path}/ に 301（canonicalの裏付け・クロール効率化）---
+// (a) テンプレート実体への直アクセス /portal-men.php・/portal-men.html 等
+// (b) 末尾スラッシュ無し /deli → /deli/
+// ※ .htaccess の内部リライト時 REQUEST_URI は元URL(/deli/...)のままなのでループしない。
+$_reqPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
+$_reqQ = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+$_reqQ = ($_reqQ !== null && $_reqQ !== '') ? '?' . $_reqQ : '';
+if (preg_match('#^/portal-[a-z-]+\.(php|html)$#', $_reqPath) || $_reqPath === "/{$path}") {
+    header('Location: /' . $path . '/' . $_reqQ, true, 301);
+    exit;
+}
+
 // --- 無効URLの404化（クロールトラップ / 薄い自動生成ページ量産の防止）---
 // 背景: /deli/index.html・/deli/wp-login.php・/deli/foobar 等の任意文字列が
 // 「{文字列}のデリヘルを呼べるホテル検索」という 200＋自己canonical のゴミページを
@@ -290,12 +302,18 @@ if ($hotel_id) {
         $breadcrumbs[] = ['name' => $hp, 'url' => "https://yobuho.com/{$path}/" . rawurlencode($hp)];
         $breadcrumbs[] = ['name' => $hn, 'url' => $seo_canonical];
     } else {
-        // ホテルが見つからない場合: SEO bottom section を除去してから配信（重複コンテンツ防止）
-        $html = file_get_contents(__DIR__ . '/' . $template);
-        if ($html !== false) {
-            $html = preg_replace('/<section[^>]*data-seo-toponly="1"[^>]*>.*?<\/section>/s', '', $html);
-            echo $html;
-        }
+        // ホテルが見つからない（存在しない/非公開ID）: 404 を返してクロール対象から除外。
+        // /deli/hotel/{存在しないID} が 200 で薄いページ化するのを防ぐ。
+        http_response_code(404);
+        header('Content-Type: text/html; charset=UTF-8');
+        $_e4h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        echo '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex,follow">'
+           . '<title>ページが見つかりません | YobuHo</title></head>'
+           . '<body style="font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:64px 20px;color:#3a2a1f;">'
+           . '<h1 style="font-size:48px;margin:0 0 8px;">404</h1>'
+           . '<p style="margin:0 0 20px;">お探しのホテルページは見つかりませんでした。</p>'
+           . '<p><a href="https://yobuho.com/' . $_e4h($path) . '/" style="color:#9b2d35;font-weight:600;">' . $_e4h($m['label']) . '全国ページへ戻る</a></p>'
+           . '</body></html>';
         exit;
     }
 } elseif ($shop) {
