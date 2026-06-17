@@ -1,0 +1,89 @@
+<?php
+// 口コミ風俗情報局 埋込バナー（index / top 共用）
+function fujoho_banners(): void {
+    $id        = SHOP_FUJOHO_ID;
+    $area_link = 'https://fujoho.jp/index.php?p=shop_list&s=2&k=2';
+    $site_link = 'https://fujoho.jp/';
+    $banners   = [
+        [
+            'title'         => 'ヒメ日記',
+            'titleShadow'   => '#ee4bb4',
+            'headerBg'      => '#ff63c8',
+            'btnBg'         => '#cf2d96',
+            'height'        => 235,
+            'contentHeight' => 155,
+            'src'           => "https://fujoho.jp/index.php?p=sp_shop_girl_blog_list&id={$id}&ct=color_diary_pink&iframe=ON2",
+            'headerLink'    => "https://fujoho.jp/index.php?p=shop_girl_blog_list&id={$id}",
+        ],
+        [
+            'title'         => '好評価！',
+            'titleShadow'   => '#29863a',
+            'headerBg'      => '#54ad64',
+            'btnBg'         => '#29863a',
+            'height'        => 300,
+            'contentHeight' => 220,
+            'src'           => "https://fujoho.jp/index.php?p=sp_shop_girl_good_list&id={$id}&od=1&ct=color_iiko_green&iframe=ON2",
+            'headerLink'    => "https://fujoho.jp/index.php?p=shop_girl_good_list&id={$id}&od=1",
+        ],
+        [
+            'title'         => 'すぐヒメ！',
+            'titleShadow'   => '#4f289e',
+            'headerBg'      => '#7449cf',
+            'btnBg'         => '#4f289e',
+            'height'        => 300,
+            'contentHeight' => 220,
+            'src'           => "https://fujoho.jp/index.php?p=sp_shop_info_notime_girl&id={$id}&ct=color_suguhime_purple&iframe=ON2",
+            'headerLink'    => "https://fujoho.jp/index.php?p=shop_info_notime_girl&id={$id}",
+        ],
+    ];
+    ?>
+    <section class="fujoho-section">
+      <div class="neon-room" style="opacity:.6;"></div>
+      <div class="fujoho-wrap">
+        <p class="neon-lav-glow" style="text-align:center;font-size:.75rem;letter-spacing:.35em;margin-bottom:12px;">GIRLS</p>
+        <h2 class="holo-text" style="font-size:1.5rem;font-weight:800;text-align:center;margin-bottom:12px;line-height:1.3;">ヒメたちの最新情報 ♡</h2>
+        <p class="text-mute" style="text-align:center;font-size:.875rem;margin-bottom:40px;">写メ日記・口コミ・すぐご案内できる女の子をチェック</p>
+        <div class="fujoho-grid">
+          <?php foreach ($banners as $b): ?>
+          <div class="fujoho-card">
+            <div class="fujoho_custom_banner" style="position:relative;width:310px;height:<?= (int)$b['height'] ?>px;margin:0 auto;">
+              <a class="fujoho_header_area" target="_top" href="<?= h($b['headerLink']) ?>"
+                 style="height:40px;line-height:40px;padding:0 7px;display:block;background-color:<?= h($b['headerBg']) ?>;text-decoration:none;text-align:left;">
+                <span class="fujoho_banner_title"
+                      style="font-size:16px;font-weight:bold;color:#fff;text-shadow:1px 1px 0 <?= h($b['titleShadow']) ?>;">
+                  <?= h($b['title']) ?>
+                </span>
+                <span class="fujoho_btn_more"
+                      style="border-radius:3px;font-size:12px;color:#fff;height:26px;line-height:26px;display:inline-block;float:right;margin-top:7px;padding:0 6px;letter-spacing:-0.3px;background-color:<?= h($b['btnBg']) ?>;">
+                  もっと見る&raquo;
+                </span>
+              </a>
+              <div class="fujoho_iphone_scroll_size_box"
+                   style="height:<?= (int)$b['contentHeight'] ?>px;margin:0 auto;overflow:auto;-webkit-overflow-scrolling:touch;border-left:solid 1px <?= h($b['headerBg']) ?>;border-right:solid 1px <?= h($b['headerBg']) ?>;">
+                <iframe src="<?= h($b['src']) ?>"
+                        loading="lazy"
+                        title="<?= h($b['title']) ?> - 口コミ風俗情報局"
+                        frameborder="0"
+                        style="width:100%;height:100%;display:block;"></iframe>
+              </div>
+              <div class="fujoho_footer_area"
+                   style="position:absolute;bottom:0;width:100%;padding:10px 0;line-height:19px;text-align:center;color:#fff;background-color:<?= h($b['headerBg']) ?>;text-shadow:1px 1px 0px <?= h($b['titleShadow']) ?>;text-decoration:none;">
+                <div>
+                  <a target="_top" href="<?= h($area_link) ?>"
+                     style="font-size:12px;color:#fff;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;vertical-align:text-bottom;text-decoration:none;">
+                    吉祥寺デリヘル
+                  </a>
+                  <a target="_top" href="<?= h($site_link) ?>"
+                     style="font-size:15px;font-weight:700;color:#fff;margin-left:3px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;vertical-align:text-bottom;text-decoration:none;">
+                    口コミ風俗情報局
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </section>
+    <?php
+}

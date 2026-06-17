@@ -43,7 +43,12 @@ Options -Indexes
   # /news/{id} → /news/detail.php?id={id}
   RewriteRule ^news/([0-9]+)/?$ /news/detail.php?id=$1 [L,QSA]
 
-  # 拡張子なしリクエストを .html に内部マッピング（SSG ページ用）
+  # 拡張子なしリクエストを .php → .html の順で内部マッピング（PHP SSR優先）
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+  RewriteRule ^(.+?)/?$ $1.php [L]
+
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/$1.html -f
