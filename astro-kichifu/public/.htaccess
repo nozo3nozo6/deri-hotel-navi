@@ -1,0 +1,43 @@
+# ============================================================
+# kichifu.com .htaccess  (Apache 2.4 / シンレンサーバー)
+# ============================================================
+AddDefaultCharset UTF-8
+Options -Indexes
+
+# --- 機密ファイルへの直アクセスを遮断 ---
+<FilesMatch "(^\.ht|db-config\.php$|.*\.sample\.php$|\.(env|sql|md|log|bak)$)">
+  Require all denied
+</FilesMatch>
+
+# --- セキュリティヘッダー ---
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# --- キャッシュ方針 ---
+<IfModule mod_headers.c>
+  # HTML は常に最新を取りに行く（Cloudflare 側も DYNAMIC 運用）
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  # ハッシュ付きアセット・画像・フォントは長期キャッシュ
+  <FilesMatch "\.(css|js|mjs|svg|png|jpg|jpeg|webp|gif|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# --- クリーンURL（build.format='file' のため /top → top.html 等を配信） ---
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # 末尾 .html 付き直アクセスは拡張子なしへ 301（重複URL防止）
+  RewriteCond %{THE_REQUEST} \s/+([^.\s?]+)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L]
+  # 拡張子なしリクエストを .html に内部マッピング
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^(.+?)/?$ $1.html [L]
+</IfModule>

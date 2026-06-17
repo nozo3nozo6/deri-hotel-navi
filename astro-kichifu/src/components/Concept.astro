@@ -1,14 +1,32 @@
 ---
+const features = [
+  { icon: '🎀', label: '見かけ33歳まで' },
+  { icon: '💖', label: '在籍ハズレなし' },
+  { icon: '🫧', label: '思いやり重視' },
+  { icon: '👩', label: '素人厳選採用' },
+];
 ---
-<section class="py-16 md:py-20 bg-zinc-900">
-  <div class="max-w-4xl mx-auto px-6">
-    <h2 class="text-3xl md:text-4xl font-bold text-center mb-10 md:mb-12 text-pink-400 leading-tight">
-      吉祥寺で長年の実績を持つ<br />最高のエロと思いやりを演出するデリヘル
+<section class="relative py-20 md:py-24 bg-[var(--bg-1)] overflow-hidden">
+  <div class="neon-room absolute inset-0 opacity-70"></div>
+
+  <div class="relative z-10 max-w-3xl mx-auto px-6">
+    <p class="text-center neon-lav-glow text-xs tracking-[0.35em] mb-4">CONCEPT</p>
+    <h2 class="holo-text text-3xl md:text-4xl font-extrabold text-center mb-10 md:mb-12 leading-tight">
+      最高のエロと思いやりを<br />演出する吉祥寺デリヘル
     </h2>
-    <div class="max-w-none text-base md:text-lg leading-relaxed space-y-5 text-zinc-200">
-      <p>当店は・・・<strong>アドミ since2009 吉祥寺デリヘル &amp; Go To FANTASY</strong></p>
-      <p>ビジュアル×エロさ×思いやりを兼ね揃えた吉祥寺の街で見かけ33歳までの優しい、ちゃんとした女の子のみを厳選採用しています。</p>
-      <p>在籍の女の子にハズレなし！作業的なサービスは一切ございません！</p>
+
+    <div class="glass-card rounded-3xl p-7 md:p-10 text-base md:text-lg leading-relaxed space-y-5 text-[var(--text-soft)]">
+      <p>当店は・・・<strong class="text-[var(--lav-soft)]">アドミ since2009 吉祥寺デリヘル &amp; Go To FANTASY</strong> ♡</p>
+      <p>ビジュアル×エロさ×思いやりを兼ね揃えた吉祥寺の街で、見かけ33歳までの優しい、ちゃんとした女の子のみを厳選採用しています。</p>
+      <p>在籍の女の子にハズレなし！作業的なサービスは一切ございません。</p>
     </div>
+
+    <ul class="flex flex-wrap justify-center gap-3 mt-8">
+      {features.map((f) => (
+        <li class="neon-chip flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium">
+          <span aria-hidden="true">{f.icon}</span>{f.label}
+        </li>
+      ))}
+    </ul>
   </div>
 </section>

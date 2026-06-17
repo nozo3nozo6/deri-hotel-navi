@@ -1,0 +1,90 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import GirlCard from '../components/site/GirlCard.astro';
+import NewsCard from '../components/site/NewsCard.astro';
+import FujohoBanners from '../components/FujohoBanners.astro';
+import { SHOP, FUJOHO } from '../data/shop.ts';
+import { NEWS } from '../data/news.ts';
+import { GIRLS } from '../data/girls.ts';
+
+const latestNews = NEWS.slice(0, 4);
+const newFaces = GIRLS.filter((g) => g.isNew).slice(0, 8);
+const title = `${SHOP.fullName}｜トップ`;
+const description = `${SHOP.catch}の${SHOP.brand}（since${SHOP.since}）。厳選された素人の女の子をラブホテル・ご自宅までデリバリー。最新情報・新人の女の子・本日の出勤はこちら。`;
+---
+<SiteLayout title={title} description={description} pathname="/top">
+  <h1 class="sr-only">{SHOP.fullName} トップ</h1>
+
+  <!-- hero band -->
+  <section class="hero-bg relative min-h-[58vh] flex items-center justify-center overflow-hidden">
+    <div class="hero-scrim absolute inset-0"></div>
+    <span class="sparkle text-xl" style="top:18%;left:12%" aria-hidden="true">✦</span>
+    <span class="sparkle text-base" style="top:26%;left:84%;animation-delay:.7s" aria-hidden="true">✧</span>
+    <span class="sparkle text-lg" style="top:70%;left:88%;animation-delay:1.3s" aria-hidden="true">❤</span>
+
+    <div class="relative z-10 text-center px-6 max-w-3xl mx-auto py-16">
+      <p class="neon-lav-glow text-xs md:text-sm tracking-[0.35em] mb-4">✦ {SHOP.area} ・ SINCE {SHOP.since} ✦</p>
+      <p class="font-script neon-pink-glow text-6xl md:text-7xl leading-none mb-3">{SHOP.brandEn}</p>
+      <h2 class="text-2xl md:text-4xl font-extrabold text-white [text-shadow:0_0_18px_rgba(183,143,255,.5)] mb-5">{SHOP.catch}</h2>
+      <p class="holo-text text-base md:text-lg font-bold mb-8">ハズレなしの素人娘を、あなたのもとへ ♡</p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <button type="button" data-reserve-open class="glossy-pill px-8 py-3.5 rounded-full text-lg font-bold text-white">ご予約はこちら</button>
+        <a href={`tel:${SHOP.telRaw}`} class="text-[var(--text-soft)] hover:text-white text-sm underline underline-offset-4">📞 {SHOP.tel}（受付 {SHOP.reception}）</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- news -->
+  <section class="relative py-16 md:py-20 bg-[var(--bg-1)]">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="text-center mb-8">
+        <p class="holo-text text-sm tracking-[0.3em] font-bold">NEWS</p>
+        <h2 class="text-2xl md:text-3xl font-extrabold text-white">最新情報</h2>
+      </div>
+      <div class="space-y-3">
+        {latestNews.map((item) => <NewsCard item={item} />)}
+      </div>
+      <div class="text-center mt-8">
+        <a href="/news" class="glossy-pill inline-block px-7 py-2.5 rounded-full text-sm font-bold text-white">お知らせをもっと見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- new face -->
+  <section class="relative py-16 md:py-20 bg-[var(--bg-0)]">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-8">
+        <p class="holo-text text-sm tracking-[0.3em] font-bold">NEW FACE</p>
+        <h2 class="text-2xl md:text-3xl font-extrabold text-white">新人の女の子</h2>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+        {newFaces.map((girl) => <GirlCard girl={girl} />)}
+      </div>
+      <div class="text-center mt-10">
+        <a href="/girls" class="glossy-pill inline-block px-7 py-2.5 rounded-full text-sm font-bold text-white">女の子一覧を見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- today's schedule / diary (fujoho 連携) -->
+  <FujohoBanners />
+  <div class="bg-[var(--bg-0)] pb-16 -mt-4">
+    <div class="text-center">
+      <a href={FUJOHO.schedule} target="_blank" rel="noopener" class="glossy-pill inline-block px-7 py-2.5 rounded-full text-sm font-bold text-white">本日の出勤を見る</a>
+    </div>
+  </div>
+
+  <!-- banners -->
+  <section class="bg-[var(--bg-1)] py-14">
+    <div class="max-w-3xl mx-auto px-6 grid gap-4 sm:grid-cols-2">
+      <a href="/system" class="glass-card rounded-2xl p-6 text-center hover:ring-[var(--neon-pink)]/60 transition">
+        <p class="holo-text text-lg font-extrabold mb-1">料金システム</p>
+        <p class="text-sm text-[var(--text-mute)]">時代に合わせた納得プライス</p>
+      </a>
+      <a href={SHOP.lineUrl} target="_blank" rel="noopener" class="rounded-2xl p-6 text-center bg-[#06c755] hover:brightness-110 transition">
+        <p class="text-lg font-extrabold text-white mb-1">LINEで予約</p>
+        <p class="text-sm text-white/85">当日予約はLINEがかんたん♪</p>
+      </a>
+    </div>
+  </section>
+</SiteLayout>

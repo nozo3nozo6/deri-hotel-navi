@@ -1,0 +1,230 @@
+<?php
+require_once __DIR__ . '/_lib.php';
+require_once __DIR__ . '/_upload.php';
+$admin = require_login();
+$shop  = current_shop_id();
+$id    = (int)($_GET['id'] ?? 0);
+
+// ---- マスタ ----
+$cats = db()->prepare('SELECT id, name FROM girl_categories WHERE shop_id=? ORDER BY sort, id');
+$cats->execute([$shop]);
+$cats = $cats->fetchAll();
+
+$opts = db()->prepare('SELECT id, name, is_basic FROM girl_options WHERE shop_id=? ORDER BY is_basic DESC, sort, id');
+$opts->execute([$shop]);
+$opts = $opts->fetchAll();
+
+$profs = db()->prepare('SELECT id, name, type FROM girl_profiles WHERE shop_id=? ORDER BY sort, id');
+$profs->execute([$shop]);
+$profs = $profs->fetchAll();
+$profOpts = [];
+if ($profs) {
+    $po = db()->query('SELECT girl_profile_id, label FROM girl_profile_options ORDER BY sort, id');
+    foreach ($po->fetchAll() as $r) $profOpts[(int)$r['girl_profile_id']][] = $r['label'];
+}
+
+$FLAGS = ['is_newgirl' => '新人', 'is_trial' => '待ち合わせ', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
+
+// ---- 保存 ----
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    csrf_check();
+    $ni = fn(string $k) => ($_POST[$k] ?? '') === '' ? null : (int)$_POST[$k];
+    $name = trim((string)($_POST['name'] ?? ''));
+    if ($name === '') { flash('err', '名前は必須です。'); }
+    else {
+        $fields = [
+            'shop_id' => $shop,
+            'girl_category_id' => $ni('girl_category_id'),
+            'name' => $name, 'age' => $ni('age'),
+            'height' => $ni('height'), 'bust' => $ni('bust'), 'cup' => trim((string)($_POST['cup'] ?? '')),
+            'waist' => $ni('waist'), 'hip' => $ni('hip'),
+            'in_date' => ($_POST['in_date'] ?? '') ?: null,
+            'catch' => trim((string)($_POST['catch'] ?? '')),
+            'comment' => trim((string)($_POST['comment'] ?? '')),
+            'is_display' => isset($_POST['is_display']) ? 1 : 0,
+        ];
+        foreach ($FLAGS as $f => $_) $fields[$f] = isset($_POST[$f]) ? 1 : 0;
+
+        db()->beginTransaction();
+        try {
+            if ($id) {
+                $own = db()->prepare('SELECT id FROM girls WHERE id=? AND shop_id=?');
+                $own->execute([$id, $shop]);
+                if (!$own->fetchColumn()) throw new RuntimeException('not found');
+                $set = implode(', ', array_map(fn($k) => "$k=:$k", array_keys($fields)));
+                $st = db()->prepare("UPDATE girls SET $set WHERE id=:id");
+                $st->execute($fields + ['id' => $id]);
+            } else {
+                $maxSort = db()->prepare('SELECT COALESCE(MAX(sort),0)+1 FROM girls WHERE shop_id=?');
+                $maxSort->execute([$shop]);
+                $fields['sort'] = (int)$maxSort->fetchColumn();
+                $cols = implode(',', array_keys($fields));
+                $ph   = implode(',', array_map(fn($k) => ":$k", array_keys($fields)));
+                db()->prepare("INSERT INTO girls ($cols) VALUES ($ph)")->execute($fields);
+                $id = (int)db()->lastInsertId();
+            }
+
+            // オプション
+            db()->prepare('DELETE FROM girl_option_links WHERE girl_id=?')->execute([$id]);
+            $ins = db()->prepare('INSERT INTO girl_option_links (girl_id, girl_option_id) VALUES (?, ?)');
+            foreach ((array)($_POST['options'] ?? []) as $oid) $ins->execute([$id, (int)$oid]);
+
+            // プロフィール回答（upsert）
+            $up = db()->prepare('INSERT INTO girl_profile_values (girl_id, girl_profile_id, value) VALUES (?,?,?)
+                                 ON DUPLICATE KEY UPDATE value=VALUES(value)');
+            foreach ((array)($_POST['profile'] ?? []) as $pid => $val) $up->execute([$id, (int)$pid, trim((string)$val)]);
+
+            // 画像アップロード（複数）
+            if (!empty($_FILES['images']['name'][0])) {
+                $sortBase = db()->prepare('SELECT COALESCE(MAX(sort),-1)+1 FROM girl_images WHERE girl_id=?');
+                $sortBase->execute([$id]);
+                $s = (int)$sortBase->fetchColumn();
+                $insImg = db()->prepare('INSERT INTO girl_images (girl_id, path, sort) VALUES (?,?,?)');
+                $files = $_FILES['images'];
+                for ($i = 0; $i < count($files['name']); $i++) {
+                    if (($files['error'][$i] ?? 4) !== UPLOAD_ERR_OK) continue;
+                    $one = ['name' => $files['name'][$i], 'type' => $files['type'][$i], 'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]];
+                    $path = save_upload($one, 'girls/' . $shop);
+                    if ($path) $insImg->execute([$id, $path, $s++]);
+                }
+            }
+
+            db()->commit();
+            flash('ok', '保存しました。');
+            redirect('girl-edit.php?id=' . $id);
+        } catch (Throwable $e) {
+            db()->rollBack();
+            flash('err', '保存に失敗しました。');
+        }
+    }
+}
+
+// ---- 読込（編集） ----
+$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch'=>'','comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
+foreach ($FLAGS as $f => $_) $g[$f] = 0;
+$images = []; $linkedOpts = []; $profVals = [];
+if ($id) {
+    $st = db()->prepare('SELECT * FROM girls WHERE id=? AND shop_id=?');
+    $st->execute([$id, $shop]);
+    $g = $st->fetch();
+    if (!$g) { flash('err', '対象が見つかりません。'); redirect('girls.php'); }
+    $im = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id'); $im->execute([$id]); $images = $im->fetchAll();
+    $lo = db()->prepare('SELECT girl_option_id FROM girl_option_links WHERE girl_id=?'); $lo->execute([$id]); $linkedOpts = array_map('intval', array_column($lo->fetchAll(), 'girl_option_id'));
+    $pv = db()->prepare('SELECT girl_profile_id, value FROM girl_profile_values WHERE girl_id=?'); $pv->execute([$id]);
+    foreach ($pv->fetchAll() as $r) $profVals[(int)$r['girl_profile_id']] = $r['value'];
+}
+
+layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
+?>
+<div class="page-head">
+  <h1><?= $id ? '女性を編集' : '女性を登録' ?></h1>
+  <a class="btn" href="/admin/girls.php">← 一覧へ</a>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-grid" style="max-width:880px">
+  <?= csrf_field() ?>
+
+  <div class="card card-pad form-grid">
+    <div class="row2">
+      <div class="field"><label>名前 *</label><input type="text" name="name" value="<?= h($g['name']) ?>" required></div>
+      <div class="field"><label>年齢</label><input type="number" name="age" value="<?= h($g['age']) ?>" min="18" max="99"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>カテゴリー</label>
+        <select name="girl_category_id">
+          <option value="">未選択</option>
+          <?php foreach ($cats as $c): ?><option value="<?= (int)$c['id'] ?>" <?= (int)$g['girl_category_id'] === (int)$c['id'] ? 'selected' : '' ?>><?= h($c['name']) ?></option><?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field"><label>入店日</label><input type="date" name="in_date" value="<?= h($g['in_date']) ?>"></div>
+    </div>
+    <div class="field"><label>キャッチコピー</label><input type="text" name="catch" value="<?= h($g['catch']) ?>" placeholder="清楚系スレンダー美少女 など"></div>
+  </div>
+
+  <div class="card card-pad form-grid">
+    <strong>スリーサイズ</strong>
+    <div class="row2">
+      <div class="field"><label>身長 (T)</label><input type="number" name="height" value="<?= h($g['height']) ?>"></div>
+      <div class="field"><label>バスト (B)</label><input type="number" name="bust" value="<?= h($g['bust']) ?>"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>カップ</label><input type="text" name="cup" value="<?= h($g['cup']) ?>" placeholder="E" maxlength="3"></div>
+      <div class="field"><label>ウエスト (W)</label><input type="number" name="waist" value="<?= h($g['waist']) ?>"></div>
+    </div>
+    <div class="field" style="max-width:50%"><label>ヒップ (H)</label><input type="number" name="hip" value="<?= h($g['hip']) ?>"></div>
+  </div>
+
+  <div class="card card-pad">
+    <strong>属性</strong>
+    <div class="checks" style="margin-top:10px">
+      <?php foreach ($FLAGS as $f => $lbl): ?>
+        <label class="check"><input type="checkbox" name="<?= $f ?>" <?= (int)$g[$f] ? 'checked' : '' ?>> <?= h($lbl) ?></label>
+      <?php endforeach; ?>
+      <label class="check"><input type="checkbox" name="is_display" <?= (int)$g['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
+    </div>
+  </div>
+
+  <?php if ($opts): ?>
+  <div class="card card-pad">
+    <strong>オプション（プレイ項目）</strong>
+    <div class="checks" style="margin-top:10px">
+      <?php foreach ($opts as $o): ?>
+        <label class="check"><input type="checkbox" name="options[]" value="<?= (int)$o['id'] ?>" <?= in_array((int)$o['id'], $linkedOpts, true) ? 'checked' : '' ?>>
+          <?= h($o['name']) ?><?= (int)$o['is_basic'] ? ' <span class="muted">(基本)</span>' : '' ?></label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
+  <?php if ($profs): ?>
+  <div class="card card-pad form-grid">
+    <strong>プロフィール</strong>
+    <?php foreach ($profs as $p): $pid = (int)$p['id']; $val = $profVals[$pid] ?? ''; ?>
+      <div class="field"><label><?= h($p['name']) ?></label>
+        <?php if ($p['type'] === 'list' && !empty($profOpts[$pid])): ?>
+          <select name="profile[<?= $pid ?>]">
+            <option value="">未選択</option>
+            <?php foreach ($profOpts[$pid] as $lab): ?><option <?= $val === $lab ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?>
+          </select>
+        <?php else: ?>
+          <input type="text" name="profile[<?= $pid ?>]" value="<?= h($val) ?>">
+        <?php endif; ?>
+      </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <div class="card card-pad">
+    <strong>画像</strong>
+    <?php if ($images): ?>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">
+        <?php foreach ($images as $im): ?>
+          <div style="position:relative" data-img="<?= (int)$im['id'] ?>">
+            <img src="<?= h($im['path']) ?>" style="width:90px;height:120px;object-fit:cover;border-radius:8px">
+            <button type="button" class="btn btn-sm btn-danger" data-del-img="<?= (int)$im['id'] ?>" style="position:absolute;top:4px;right:4px;padding:2px 7px">✕</button>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <div class="field">
+      <label>画像を追加（複数選択可・自動でWebP縮小）</label>
+      <input type="file" name="images[]" accept="image/*" multiple>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">保存する</button>
+    <a class="btn" href="/admin/girls.php">キャンセル</a>
+  </div>
+</form>
+
+<script>
+const CSRF = '<?= h(csrf_token()) ?>';
+document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('click', async () => {
+  if (!confirm('この画像を削除しますか？')) return;
+  const fd = new FormData(); fd.append('_csrf', CSRF); fd.append('action', 'delete-image'); fd.append('image_id', b.dataset.delImg);
+  const r = await fetch('/admin/girl-actions.php', { method: 'POST', body: fd });
+  if ((await r.json()).ok) b.closest('[data-img]').remove();
+}));
+</script>
+<?php layout_footer(); ?>

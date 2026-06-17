@@ -36,10 +36,21 @@ const banners = [
   },
 ];
 ---
-<section class="py-12 bg-black">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6">
-    <div class="flex flex-col items-center gap-10">
+<section class="relative py-16 md:py-20 bg-[var(--bg-0)] overflow-hidden">
+  <div class="neon-room absolute inset-0 opacity-60"></div>
+
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
+    <p class="text-center neon-lav-glow text-xs tracking-[0.35em] mb-3">GIRLS</p>
+    <h2 class="holo-text text-2xl md:text-3xl font-extrabold text-center mb-3 leading-tight">
+      ヒメたちの最新情報 ♡
+    </h2>
+    <p class="text-center text-[var(--text-mute)] text-sm mb-10">
+      写メ日記・口コミ・すぐご案内できる女の子をチェック
+    </p>
+
+    <div class="flex flex-wrap items-start justify-center gap-8 md:gap-10">
       {banners.map((b) => (
+        <div class="rounded-2xl p-2 bg-white/5 ring-1 ring-[var(--neon-pink)]/30 shadow-[0_12px_40px_-12px_rgba(255,45,155,0.5)]">
         <div
           class="fujoho_custom_banner"
           style={`position:relative;width:310px;height:${b.height}px;margin:0 auto;`}
@@ -96,6 +107,7 @@ const banners = [
               </a>
             </div>
           </div>
+        </div>
         </div>
       ))}
     </div>

@@ -1,0 +1,51 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { SHOP, NAV } from '../data/shop.ts';
+import { GIRLS } from '../data/girls.ts';
+import { NEWS } from '../data/news.ts';
+const title = `サイトマップ｜${SHOP.fullName}`;
+const description = `${SHOP.fullName} のサイトマップ。`;
+---
+<SiteLayout title={title} description={description} pathname="/sitemap">
+  <section class="relative py-12 md:py-16 bg-[var(--bg-1)] min-h-[60vh]">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="text-center mb-10">
+        <p class="holo-text text-sm tracking-[0.3em] font-bold">SITEMAP</p>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-white">サイトマップ</h1>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-8">
+        <div>
+          <h2 class="holo-text font-extrabold mb-3">メインメニュー</h2>
+          <ul class="space-y-2">
+            {NAV.map((n) => (
+              <li>
+                <a href={n.href} target={n.external ? '_blank' : undefined} rel={n.external ? 'noopener' : undefined}
+                   class="text-[var(--text-soft)] hover:text-[var(--neon-pink)] transition-colors">{n.label}</a>
+              </li>
+            ))}
+            <li><a href="/sitemap" class="text-[var(--text-soft)] hover:text-[var(--neon-pink)]">サイトマップ</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h2 class="holo-text font-extrabold mb-3">女の子</h2>
+          <ul class="space-y-2">
+            {GIRLS.map((g) => (
+              <li><a href={`/girls/${g.id}`} class="text-[var(--text-soft)] hover:text-[var(--neon-pink)]">{g.name}（{g.age}）</a></li>
+            ))}
+          </ul>
+        </div>
+
+        <div class="sm:col-span-2">
+          <h2 class="holo-text font-extrabold mb-3">お知らせ</h2>
+          <ul class="space-y-2">
+            {NEWS.map((item) => (
+              <li><a href={`/news/${item.id}`} class="text-[var(--text-soft)] hover:text-[var(--neon-pink)]"><span class="text-[var(--text-mute)] text-xs mr-2">{item.date}</span>{item.title}</a></li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</SiteLayout>

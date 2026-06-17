@@ -1,0 +1,56 @@
+---
+import { SHOP, NAV } from '../../data/shop.ts';
+// デスクトップ用の主要ナビ（全項目はオフキャンバスへ）
+const mainNav = NAV.filter((n) => ['トップ', '女の子一覧', 'スケジュール', '料金システム', 'お知らせ'].includes(n.label));
+---
+<header class="fixed top-0 inset-x-0 z-50 bg-[var(--bg-0)]/85 backdrop-blur-xl border-b border-[var(--neon-pink)]/35">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
+    <!-- brand -->
+    <a href="/top" class="flex items-baseline gap-2 shrink-0" aria-label={`${SHOP.fullName} トップ`}>
+      <span class="font-script neon-pink-glow text-3xl md:text-4xl leading-none">{SHOP.brandEn}</span>
+      <span class="hidden sm:block leading-tight">
+        <span class="block text-[10px] tracking-[0.25em] text-[var(--lav-soft)]">SINCE {SHOP.since}</span>
+        <span class="block text-[10px] text-[var(--text-mute)] whitespace-nowrap">{SHOP.catch}</span>
+      </span>
+    </a>
+
+    <!-- desktop nav -->
+    <nav class="hidden lg:flex items-center gap-6 ml-6 mr-auto">
+      {mainNav.map((n) => (
+        <a
+          href={n.href}
+          target={n.external ? '_blank' : undefined}
+          rel={n.external ? 'noopener' : undefined}
+          class="text-sm font-medium text-[var(--text-soft)] hover:text-[var(--neon-pink)] transition-colors"
+        >{n.label}</a>
+      ))}
+    </nav>
+
+    <!-- reception + tel (desktop) -->
+    <div class="hidden xl:block text-right leading-tight ml-auto mr-1">
+      <div class="text-[11px] text-[var(--text-mute)]">受付 {SHOP.reception}</div>
+      <a href={`tel:${SHOP.telRaw}`} class="text-sm font-bold text-white hover:text-[var(--neon-pink)] transition-colors">
+        <span aria-hidden="true">📞 </span>{SHOP.tel}
+      </a>
+    </div>
+
+    <!-- reserve button -->
+    <button
+      type="button"
+      data-reserve-open
+      class="glossy-pill shrink-0 ml-auto xl:ml-3 px-4 md:px-5 py-2 rounded-full text-sm font-bold text-white whitespace-nowrap"
+    >ご予約</button>
+
+    <!-- hamburger -->
+    <button
+      type="button"
+      data-menu-open
+      class="burger lg:hidden shrink-0 w-11 h-11 flex flex-col items-center justify-center rounded-xl border border-[var(--neon-pink)]/35"
+      aria-label="メニューを開く"
+    >
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+<!-- header の高さ分のスペーサー -->
+<div class="h-16" aria-hidden="true"></div>

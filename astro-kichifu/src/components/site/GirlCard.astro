@@ -1,0 +1,34 @@
+---
+import type { Girl } from '../../data/girls.ts';
+interface Props { girl: Girl; }
+const { girl } = Astro.props;
+const photo = girl.photo ?? '/img/placeholder.svg';
+const size = `T${girl.height} B${girl.bust}(${girl.cup}) W${girl.waist} H${girl.hip}`;
+---
+<a href={`/girls/${girl.id}`} class="group block">
+  <div class="relative overflow-hidden rounded-2xl ring-1 ring-[var(--neon-pink)]/30 shadow-[0_10px_30px_-12px_rgba(255,45,155,0.5)] group-hover:ring-[var(--neon-pink)]/70 transition">
+    <img
+      src={photo}
+      alt={girl.name}
+      width="600" height="800"
+      loading="lazy"
+      class="w-full aspect-[3/4] object-cover group-hover:scale-[1.04] transition-transform duration-300"
+    />
+    {girl.isNew && (
+      <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[11px] font-bold text-white bg-[var(--neon-pink-hot)] shadow">NEW</span>
+    )}
+    <div class="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+      <p class="font-bold text-white leading-tight">
+        {girl.name}<span class="text-xs text-[var(--lav-soft)] ml-1">（{girl.age}）</span>
+      </p>
+      <p class="text-[11px] text-[var(--text-mute)]">{size}</p>
+    </div>
+  </div>
+  {girl.tags && girl.tags.length > 0 && (
+    <div class="flex flex-wrap gap-1 mt-1.5">
+      {girl.tags.slice(0, 3).map((t) => (
+        <span class="neon-chip rounded-full px-2 py-0.5 text-[10px]">{t}</span>
+      ))}
+    </div>
+  )}
+</a>

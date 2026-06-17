@@ -1,0 +1,93 @@
+name: Deploy kichifu.com
+
+# astro-kichifu/ 配下の変更だけで発火（yobuho の deploy.yml とは独立）
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'astro-kichifu/**'
+      - '.github/workflows/deploy-kichifu.yml'
+  workflow_dispatch:
+
+env:
+  REMOTE_HOST: ${{ secrets.SSH_HOST }}
+  REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+  REMOTE_PATH: /home/yobuho/kichifu.com/public_html
+  SSH_PORT: 10022
+  CF_ZONE_ID: 0804b2fd34bd6eda7f833ef80406ded9   # kichifu.com の Cloudflare Zone（非機密）
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p $SSH_PORT $REMOTE_HOST >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Install dependencies
+        run: cd astro-kichifu && npm ci
+
+      - name: Build Astro
+        run: cd astro-kichifu && npx astro build
+
+      - name: Generate api/db-config.php (from Secrets)
+        env:
+          DB_HOST: ${{ secrets.KICHIFU_DB_HOST }}
+          DB_NAME: ${{ secrets.KICHIFU_DB_NAME }}
+          DB_USER: ${{ secrets.KICHIFU_DB_USER }}
+          DB_PASS: ${{ secrets.KICHIFU_DB_PASS }}
+        run: |
+          mkdir -p astro-kichifu/api
+          printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" \
+            "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > astro-kichifu/api/db-config.php
+
+      - name: Deploy static site (dist) via rsync
+        run: |
+          rsync -avz \
+            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
+            astro-kichifu/dist/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
+
+      - name: Deploy PHP (api/) via rsync
+        run: |
+          rsync -avz \
+            --exclude='*.sample.php' \
+            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
+            astro-kichifu/api/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/api/
+
+      - name: Deploy admin (CMS) via rsync
+        run: |
+          rsync -avz \
+            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key" \
+            astro-kichifu/admin/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/admin/
+
+      - name: Purge Cloudflare cache
+        run: |
+          CF_TOKEN=$(echo "${{ secrets.CLOUDFLARE_API_TOKEN }}" | tr -d '[:space:]')
+          RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 \
+            -X POST "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CF_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}' 2>&1) || true
+          echo "Cloudflare response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q '"success":true'; then
+            echo "Cloudflare cache purged"
+          else
+            echo "::warning::Cloudflare purge failed (HTML is DYNAMIC so non-critical): $RESPONSE"
+          fi
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

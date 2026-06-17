@@ -1,35 +1,63 @@
 ---
-const ENTER_URL = 'https://fujoho.jp/index.php?p=shop&id=53179';
+const ENTER_URL = '/top';
+const EXIT_URL = 'https://www.yahoo.co.jp/';
 ---
-<section class="hero-bg min-h-screen flex items-center justify-center relative pt-16 md:pt-0">
-  <div class="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-black/95"></div>
+<section class="hero-bg relative min-h-screen flex items-center justify-center pt-24 pb-16 md:pt-0 overflow-hidden">
+  <!-- neon tint is baked into .hero-bg; this scrim keeps text readable -->
+  <div class="hero-scrim absolute inset-0"></div>
 
-  <div class="relative z-10 text-center px-6 max-w-5xl mx-auto">
-    <h1 class="font-bold mb-12 md:mb-16 tracking-tighter leading-none">
-      <span class="block text-5xl sm:text-6xl md:text-7xl mb-4">
-        <span class="text-white">アドミ</span><br class="md:hidden" />
-        <span class="text-pink-500">since 2009</span>
+  <!-- ambient sparkles -->
+  <span class="sparkle text-2xl" style="top:14%;left:12%;animation-delay:0s" aria-hidden="true">✦</span>
+  <span class="sparkle text-base" style="top:22%;left:80%;animation-delay:.6s" aria-hidden="true">✧</span>
+  <span class="sparkle text-xl" style="top:62%;left:8%;animation-delay:1.1s" aria-hidden="true">✦</span>
+  <span class="sparkle text-lg" style="top:72%;left:86%;animation-delay:1.6s" aria-hidden="true">❤</span>
+  <span class="sparkle text-sm" style="top:40%;left:90%;animation-delay:.9s" aria-hidden="true">✧</span>
+  <span class="sparkle text-base" style="top:18%;left:46%;animation-delay:2.1s" aria-hidden="true">✦</span>
+
+  <div class="relative z-10 text-center px-6 max-w-4xl mx-auto">
+    <!-- eyebrow -->
+    <p class="reveal reveal-1 neon-lav-glow text-sm md:text-base tracking-[0.35em] mb-6 font-medium">
+      ✦ 吉祥寺 ・ SINCE 2009 ✦
+    </p>
+
+    <!-- brand wordmark -->
+    <h1 class="mb-3 leading-none">
+      <span class="reveal reveal-1 font-script flicker neon-pink-glow block text-7xl sm:text-8xl md:text-9xl">
+        Admi
       </span>
-      <span class="block text-3xl sm:text-4xl md:text-5xl font-medium text-zinc-100">
+      <span class="reveal reveal-2 block text-xl md:text-2xl font-semibold tracking-[0.4em] text-[var(--lav-soft)] mt-4 [text-shadow:0_2px_6px_rgba(0,0,0,.95),0_0_16px_rgba(183,143,255,.9)]">
+        ア ド ミ
+      </span>
+      <span class="reveal reveal-2 block text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-5 [text-shadow:0_0_18px_rgba(183,143,255,.5)]">
         吉祥寺デリヘル
       </span>
     </h1>
 
-    <div class="inline-block bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 md:p-12 lg:p-16 shadow-2xl w-full max-w-[420px] mx-auto">
+    <p class="reveal reveal-3 holo-text text-base md:text-xl font-bold mt-4 mb-12 md:mb-14">
+      &amp; Go To FANTASY ♡
+    </p>
+
+    <!-- glass pedestal + neon CTA -->
+    <div class="reveal reveal-3 glass-card rounded-[28px] p-6 md:p-8 w-full max-w-[460px] mx-auto">
+      <p class="text-[var(--text-mute)] text-xs md:text-sm mb-4 tracking-wide">
+        ハズレなしの素人娘をあなたのもとへ
+      </p>
       <a
         href={ENTER_URL}
         rel="noopener"
-        class="block bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white text-xl md:text-2xl lg:text-3xl font-bold py-5 md:py-8 px-8 md:px-24 rounded-2xl transition-all duration-300 hover:scale-[1.03] active:scale-95 text-center"
+        class="cta-enter mx-auto w-full max-w-[360px]"
+        aria-label="18歳以上の方はこちらから入場する"
       >
-        18歳以上の方はこちらから入場
+        <img src="/img/enter.png" alt="18歳以上の方はこちらから入場" width="813" height="312" />
       </a>
     </div>
 
-    <div class="mt-8 md:mt-10">
+    <!-- exit -->
+    <div class="reveal reveal-4 mt-8">
       <a
-        href="https://www.yahoo.co.jp/"
+        href={EXIT_URL}
         rel="noopener"
-        class="text-zinc-400 hover:text-white text-sm md:text-lg underline transition-colors"
+        class="text-[var(--text-mute)] hover:text-white text-xs md:text-sm underline underline-offset-4 transition-colors"
       >
         18歳未満の方はこちらよりご退出ください
       </a>

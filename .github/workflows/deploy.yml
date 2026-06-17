@@ -3,6 +3,8 @@ name: Deploy to Shin Server
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'astro-kichifu/**'   # kichifu は deploy-kichifu.yml が担当（二重デプロイ防止）
   workflow_dispatch:
 
 env:

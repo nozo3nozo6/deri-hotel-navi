@@ -15,6 +15,9 @@ pnpm-debug.log*
 .env
 .env.production
 
+# php secrets (生成物 — デプロイ時に GitHub Secrets から作る。絶対にコミットしない)
+api/db-config.php
+
 # macOS
 .DS_Store
 
