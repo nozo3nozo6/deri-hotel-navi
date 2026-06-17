@@ -28,14 +28,22 @@ Options -Indexes
   </FilesMatch>
 </IfModule>
 
-# --- クリーンURL（build.format='file' のため /top → top.html 等を配信） ---
+# --- クリーンURL -------------------------------------------------------
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
   # 末尾 .html 付き直アクセスは拡張子なしへ 301（重複URL防止）
   RewriteCond %{THE_REQUEST} \s/+([^.\s?]+)\.html[\s?] [NC]
   RewriteRule ^ /%1 [R=301,L]
-  # 拡張子なしリクエストを .html に内部マッピング
+
+  # /girls/{id} → /girls/detail.php?id={id}
+  RewriteRule ^girls/([0-9]+)/?$ /girls/detail.php?id=$1 [L,QSA]
+
+  # /news/{id} → /news/detail.php?id={id}
+  RewriteRule ^news/([0-9]+)/?$ /news/detail.php?id=$1 [L,QSA]
+
+  # 拡張子なしリクエストを .html に内部マッピング（SSG ページ用）
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/$1.html -f
