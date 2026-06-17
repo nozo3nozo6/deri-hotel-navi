@@ -4,11 +4,11 @@ import GirlCard from '../components/site/GirlCard.astro';
 import NewsCard from '../components/site/NewsCard.astro';
 import FujohoBanners from '../components/FujohoBanners.astro';
 import { SHOP, FUJOHO } from '../data/shop.ts';
-import { NEWS } from '../data/news.ts';
-import { GIRLS } from '../data/girls.ts';
+import { fetchNews } from '../data/news.ts';
+import { fetchGirls } from '../data/girls.ts';
 
-const latestNews = NEWS.slice(0, 4);
-const newFaces = GIRLS.filter((g) => g.isNew).slice(0, 8);
+const latestNews = await fetchNews({ limit: 4 });
+const newFaces   = await fetchGirls({ isNew: true, limit: 8 });
 const title = `${SHOP.fullName}｜トップ`;
 const description = `${SHOP.catch}の${SHOP.brand}（since${SHOP.since}）。厳選された素人の女の子をラブホテル・ご自宅までデリバリー。最新情報・新人の女の子・本日の出勤はこちら。`;
 ---

@@ -1,62 +1,39 @@
 // ==========================================================================
-// news.ts — お知らせ/最新情報（暫定: サンプル。将来は CMS + MySQL に置き換え）
-//   thumb 未設定は /img/placeholder.svg を表示
+// news.ts — お知らせ型定義 + API フェッチヘルパー
 // ==========================================================================
 export type News = {
   id: number;
-  date: string;   // 表示用 'YYYY.MM.DD'
   title: string;
   thumb?: string;
-  excerpt: string;
-  body: string;   // 改行区切りの本文（段落）
+  body: string;
+  published_at: string;
+  created_at?: string;
 };
 
-export const NEWS: News[] = [
-  {
-    id: 3184,
-    date: '2026.06.17',
-    title: '無自覚な「天然のエロさ」を持った女子💞『ゆあさん』本日20:30よりご案内スタート！',
-    excerpt: '童顔小柄なピュア美少女♡ 無自覚な「天然のエロさ」をまとった注目の最旬美少女、本日20:30〜立川駅周辺を出発可能です。',
-    body: [
-      'リピーター様急増中の童顔小柄なピュア美少女「ゆあさん」、本日20:30よりご案内スタートです。',
-      'お人形さんのように愛らしい小柄スレンダーボディと、計算のない無邪気な仕草が魅力。ピュアな笑顔の裏に潜む天性の色香に、開始早々ドキドキが止まりません。',
-      '本日のご案内：20:30〜翌2:00（吉祥寺駅周辺を出発可能）。',
-      '🔥 初めてのご指名限定 特別プライス｜60分 11,000円／90分 16,500円／120分 22,000円',
-    ].join('\n\n'),
-  },
-  {
-    id: 3183,
-    date: '2026.06.17',
-    title: '抜群の接客力でお客様評価が高い女子💞『かれんさん』本日18時から出勤！',
-    excerpt: '本指名ランキング常連、圧倒的口コミ評価の絶対的ヒロイン。極上のおもてなしと密着テクで日常の疲れを一瞬で。',
-    body: [
-      '当店の本指名ランキングで常に上位を独走する「かれんさん」、本日18:00より出勤いたします。',
-      'ドアを開けた瞬間に咲くような極上の笑顔と、1分1秒すべてを捧げる接客力。「今まで受けてきた接客は何だったのか」と絶賛の口コミが絶えません。',
-      '本日のご案内：18:00〜翌4:00。じっくり楽しめる90分以上のロングコースがおすすめです。',
-      '🔥 初めてのご指名限定｜60分 11,000円／90分 16,500円／120分 22,000円',
-    ].join('\n\n'),
-  },
-  {
-    id: 3180,
-    date: '2026.06.16',
-    title: '最高のビジュアルと最強のスタイル、超エッチなお姉さん💞『はづきさん』緊急出勤！',
-    excerpt: '奇跡のクビレ×絶品F美乳。理想の“お嫁さん”が魅せる最高峰のエロティシズム。本日11:00〜17:00の緊急出勤。',
-    body: [
-      '皆様の熱いラブコールにお応えして、「はづきさん」が本日11:00〜17:00で緊急出勤いたします。',
-      '洗練された美貌と可憐な笑顔のギャップ、そして服を脱げば現れる奇跡のクビレと絶品Fカップ美乳。清楚な雰囲気からは想像もつかない官能的なプロポーションです。',
-      'ハイレベルなお姉さまを独占できる貴重なチャンス。ご新規様限定クーポンでお得にどうぞ。',
-      '🔥 ご指名初利用 特別クーポン｜60分 11,000円／90分 16,500円／120分 22,000円',
-    ].join('\n\n'),
-  },
-  {
-    id: 3178,
-    date: '2026.06.15',
-    title: '【新人速報】18歳の小柄ロリ系『めいちゃん』デビュー！',
-    excerpt: 'T150・Fカップの奇跡ボディ。あどけなさと豊満さを兼ね備えた当店期待の新人がデビューしました。',
-    body: [
-      '当店期待の新人「めいちゃん」がデビューいたしました。',
-      'T150の小柄ながらFカップという奇跡のギャップ。あどけない笑顔と素直な反応で、はじめての方も安心してお楽しみいただけます。',
-      'デビュー直後の今がねらい目です。ご予約はお早めに。',
-    ].join('\n\n'),
-  },
-];
+const API_BASE = 'https://kichifu.com/api';
+const SHOP_ID  = 1;
+
+export async function fetchNews(opts: { limit?: number } = {}): Promise<News[]> {
+  try {
+    const params = new URLSearchParams({ action: 'list', shop_id: String(SHOP_ID) });
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const res  = await fetch(`${API_BASE}/news.php?${params}`);
+    const json = await res.json();
+    return (json.items ?? []) as News[];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchNewsDetail(id: number): Promise<News | null> {
+  try {
+    const res  = await fetch(`${API_BASE}/news.php?action=detail&shop_id=${SHOP_ID}&id=${id}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.item ?? null) as News | null;
+  } catch {
+    return null;
+  }
+}
+
+export const NEWS: News[] = [];

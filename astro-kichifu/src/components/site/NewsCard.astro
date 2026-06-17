@@ -3,6 +3,8 @@ import type { News } from '../../data/news.ts';
 interface Props { item: News; }
 const { item } = Astro.props;
 const thumb = item.thumb ?? '/img/placeholder.svg';
+const date  = item.published_at ? item.published_at.slice(0, 10).replace(/-/g, '.') : '';
+const excerpt = item.body ? item.body.split('\n\n')[0].slice(0, 80) : '';
 ---
 <a href={`/news/${item.id}`} class="group flex gap-4 p-3 md:p-4 rounded-2xl bg-white/[0.03] ring-1 ring-white/10 hover:ring-[var(--neon-pink)]/50 hover:bg-[var(--neon-pink)]/[0.06] transition">
   <img
@@ -13,8 +15,8 @@ const thumb = item.thumb ?? '/img/placeholder.svg';
     class="w-20 h-20 md:w-28 md:h-28 shrink-0 rounded-xl object-cover ring-1 ring-white/10"
   />
   <div class="min-w-0">
-    <p class="text-xs text-[var(--lav-soft)] mb-1">{item.date}</p>
+    <p class="text-xs text-[var(--lav-soft)] mb-1">{date}</p>
     <h3 class="font-bold text-white leading-snug line-clamp-2 group-hover:text-[var(--neon-pink)]">{item.title}</h3>
-    <p class="text-sm text-[var(--text-mute)] mt-1 line-clamp-2">{item.excerpt}</p>
+    <p class="text-sm text-[var(--text-mute)] mt-1 line-clamp-2">{excerpt}</p>
   </div>
 </a>
