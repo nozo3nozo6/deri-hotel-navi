@@ -4,6 +4,9 @@
 AddDefaultCharset UTF-8
 Options -Indexes
 
+# ルート / は index.php を最優先（旧Astro生成の index.html を上書き）
+DirectoryIndex index.php index.html
+
 # --- 機密ファイルへの直アクセスを遮断 ---
 <FilesMatch "(^\.ht|db-config\.php$|.*\.sample\.php$|\.(env|sql|md|log|bak)$)">
   Require all denied
