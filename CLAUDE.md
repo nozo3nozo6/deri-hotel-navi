@@ -327,6 +327,24 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年6月17日 — モードトップ独自コンテンツ化（重複インデックス対策・SEO）
+#### 背景・原因特定
+- 「デリヘル 呼べる ホテル」で本家が検索に出ない件を調査
+- Cloudflare Bot Fight Mode は **OFF（無罪）**。Block AI bots も OFF。Googlebotブロックは原因ではない
+- GSC実測: インデックス登録済み **3,136ページ**（正常）。サイトは壊れていない。ブランド「YobuHo」「よぶほ」で1位＋サイトリンク表示、ホテル長尾「○○ホテル デリヘル」で3位（老舗の直後）= on-page SEOは強い
+- 結論: 不可視の原因は **authority不足（3ヶ月・被リンクほぼ0・アダルト激戦区）のランキング問題**。加えてモードトップ5ページ(/deli/,/jofu/,/same-m/,/same-f/,/este/)が **ほぼ同一HTML（差54行）→ Googleが重複統合し /deli/ 以外を「代替ページ（適切なcanonicalタグあり）」扱いでインデックスせず**
+- ホテル詳細(/deli/hotel/ID)は1件ごと固有 → 正常にインデックス・ランクしている（固有性があるページは出る、似てるページは消えるの裏付け）
+#### 対策実装（portal-seo.php のみ）
+- トップページSSR処理（$isPureTopPage ブランチ）に `$MODE_TOP_CONTENT` を追加し、ジャンル固有の**導入文・ホテル選びのヒント・FAQ(+FAQPage JSON-LD)** を `<main>` 内にSSR注入して各トップを独自コンテンツ化
+- men(デリヘル=出禁/断られる回避軸)/women(女風=施術・女性の安心軸)/este(デリエステ=施術スペース・シャワー軸)は「呼べるか」型
+- men_same/women_same は **ゲイ風俗/レズ風俗を呼べる ＋ 同性カップル利用のハイブリッド**（"ゲイカップル"等のKWも確保）
+- 共通方針: ビジネス・シティホテル主軸／ラブホテルはサブ
+- 効果: 差分54行→212行、各ページ独自本文 約1,300〜1,530文字、全モードにFAQPage構造化データ
+- canonical/H1/title は変更なし。content未定義モードは従来通り（安全な段階展開構造）
+- 注: N4-A（口コミ0件ホテルのnoindex）は検討するも **見送り**。3,136ページ既登録の状況で一律noindexは大量de-index自爆になるため。N4-C（sitemapを口コミ有りホテルに限定）は既実装済み
+- デプロイ: PR #1 → main squashマージ（自動デプロイ）
+- 反映後タスク: GSC URL検査で各モードトップの「Googleが選択した正規URL」が自身か確認（=5ページ別物認識の答え合わせ）、足りなければ47都道府県グリッドのモード別差別化が次の保険
+
 ### 2026年3月15日 — analysis-report.html 全78件修正完了
 - CRITICAL 6件: APIキー露出、CLAUDE.mdから秘密情報削除、.env gitignore確認、Supabase RLS制限、nullチェック追加、キャッシュバスター更新
 - HIGH 19件: XSS修正(6箇所)、CSP追加(4ファイル)、aria属性、defer読み込み、og:image追加、viewport修正、Escapeキー対応、JSON-LD動的更新等
