@@ -8,9 +8,9 @@ require_once $root . '/_inc/layout.php';
 $pdo = DB::conn();
 
 $st = $pdo->prepare(
-    'SELECT id, title, thumb, body, published_at
+    'SELECT id, title, thumb, body, posted_at
      FROM news WHERE shop_id=? AND is_display=1
-     ORDER BY published_at DESC, id DESC'
+     ORDER BY posted_at DESC, id DESC'
 );
 $st->execute([SHOP_ID_DB]);
 $items = $st->fetchAll();
@@ -39,7 +39,7 @@ site_header();
       <?php if ($items): ?>
         <div class="news-list">
           <?php foreach ($items as $it):
-            $date = $it['published_at'] ? substr(str_replace('-', '.', $it['published_at']), 0, 10) : '';
+            $date = $it['posted_at'] ? substr(str_replace('-', '.', $it['posted_at']), 0, 10) : '';
             $excerpt = $it['body'] ? mb_strimwidth(strip_tags($it['body']), 0, 80, '…') : '';
           ?>
             <a href="/news/<?= (int)$it['id'] ?>" class="news-item">

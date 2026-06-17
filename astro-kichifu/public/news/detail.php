@@ -22,7 +22,7 @@ if (!$it) {
     exit;
 }
 
-$date      = $it['published_at'] ? substr(str_replace('-', '.', $it['published_at']), 0, 10) : '';
+$date      = $it['posted_at'] ? substr(str_replace('-', '.', $it['posted_at']), 0, 10) : '';
 $excerpt   = $it['body'] ? mb_strimwidth(strip_tags($it['body']), 0, 120, '…') : '';
 $title     = h($it['title']) . '｜' . SHOP_FULL_NAME;
 $desc      = $excerpt ?: SHOP_NAME . 'からのお知らせです。';

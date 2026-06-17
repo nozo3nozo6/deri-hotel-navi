@@ -11,7 +11,7 @@ $girlsSt = $pdo->prepare('SELECT id, name FROM girls WHERE shop_id=? AND is_disp
 $girlsSt->execute([SHOP_ID_DB]);
 $girls = $girlsSt->fetchAll();
 
-$newsSt = $pdo->prepare('SELECT id, title FROM news WHERE shop_id=? AND is_display=1 ORDER BY published_at DESC, id DESC LIMIT 20');
+$newsSt = $pdo->prepare('SELECT id, title FROM news WHERE shop_id=? AND is_display=1 ORDER BY posted_at DESC, id DESC LIMIT 20');
 $newsSt->execute([SHOP_ID_DB]);
 $newsItems = $newsSt->fetchAll();
 
