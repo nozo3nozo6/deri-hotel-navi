@@ -54,6 +54,13 @@ jobs:
           printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\n" \
             "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" > astro-kichifu/api/db-config.php
 
+      - name: Generate api/deploy-config.php (from Secrets)
+        env:
+          GITHUB_PAT: ${{ secrets.KICHIFU_GITHUB_PAT }}
+        run: |
+          printf "<?php\ndefine('GITHUB_PAT', '%s');\ndefine('GITHUB_REPO', 'nozo3nozo6/deri-hotel-navi');\ndefine('GITHUB_WORKFLOW', 'deploy-kichifu.yml');\ndefine('GITHUB_BRANCH', 'main');\n" \
+            "$GITHUB_PAT" > astro-kichifu/api/deploy-config.php
+
       - name: Deploy static site (dist) via rsync
         run: |
           rsync -avz \

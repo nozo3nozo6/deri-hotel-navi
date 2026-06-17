@@ -35,22 +35,22 @@ try {
         // オプション
         $opts = DB::conn()->prepare(
             'SELECT go.name FROM girl_option_links gol
-               JOIN girl_options go ON go.id = gol.option_id AND go.shop_id = gol.shop_id
+               JOIN girl_options go ON go.id = gol.girl_option_id AND go.shop_id = gol.shop_id
               WHERE gol.girl_id = ? AND gol.shop_id = ?
               ORDER BY go.sort, go.id'
         );
         $opts->execute([$id, $shop_id]);
         $girl['options'] = array_column($opts->fetchAll(PDO::FETCH_ASSOC), 'name');
 
-        // プロフィール
+        // プロフィール（is_display=1 のみ）
         $profs = DB::conn()->prepare(
             'SELECT gp.name, gp.type, gpv.value
                FROM girl_profile_values gpv
-               JOIN girl_profiles gp ON gp.id = gpv.profile_id AND gp.shop_id = gpv.shop_id
-              WHERE gpv.girl_id = ? AND gpv.shop_id = ?
+               JOIN girl_profiles gp ON gp.id = gpv.girl_profile_id AND gp.shop_id = ?
+              WHERE gpv.girl_id = ? AND gpv.is_display = 1 AND gpv.value != ""
               ORDER BY gp.sort, gp.id'
         );
-        $profs->execute([$id, $shop_id]);
+        $profs->execute([$shop_id, $id]);
         $girl['profiles'] = $profs->fetchAll(PDO::FETCH_ASSOC);
 
         echo DB::jsonEncode(['girl' => $girl]);
@@ -65,7 +65,7 @@ try {
             $params[] = (int)$_GET['category_id'];
         }
         if (!empty($_GET['is_new'])) {
-            $where[]  = 'g.is_newgirl = 1';
+            $where[] = 'g.is_newgirl = 1';
         }
 
         $limit = min((int)($_GET['limit'] ?? 200), 200);

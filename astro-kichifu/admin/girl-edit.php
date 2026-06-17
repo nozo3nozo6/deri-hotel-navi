@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_upload.php';
+require_once __DIR__ . '/_deploy.php';
 $admin = require_login();
 $shop  = current_shop_id();
 $id    = (int)($_GET['id'] ?? 0);
@@ -23,7 +24,7 @@ if ($profs) {
     foreach ($po->fetchAll() as $r) $profOpts[(int)$r['girl_profile_id']][] = $r['label'];
 }
 
-$FLAGS = ['is_newgirl' => '新人', 'is_trial' => '待ち合わせ', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
+$FLAGS = ['is_newgirl' => '新人', 'is_trial' => '体験入店', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
 
 // ---- 保存 ----
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -33,15 +34,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($name === '') { flash('err', '名前は必須です。'); }
     else {
         $fields = [
-            'shop_id' => $shop,
+            'shop_id'          => $shop,
             'girl_category_id' => $ni('girl_category_id'),
-            'name' => $name, 'age' => $ni('age'),
-            'height' => $ni('height'), 'bust' => $ni('bust'), 'cup' => trim((string)($_POST['cup'] ?? '')),
-            'waist' => $ni('waist'), 'hip' => $ni('hip'),
-            'in_date' => ($_POST['in_date'] ?? '') ?: null,
-            'catch' => trim((string)($_POST['catch'] ?? '')),
-            'comment' => trim((string)($_POST['comment'] ?? '')),
-            'is_display' => isset($_POST['is_display']) ? 1 : 0,
+            'name'             => $name,
+            'age'              => $ni('age'),
+            'height'           => $ni('height'),
+            'bust'             => $ni('bust'),
+            'cup'              => trim((string)($_POST['cup'] ?? '')),
+            'waist'            => $ni('waist'),
+            'hip'              => $ni('hip'),
+            'in_date'          => ($_POST['in_date'] ?? '') ?: null,
+            'catch_copy'       => trim((string)($_POST['catch_copy'] ?? '')),
+            'comment'          => trim((string)($_POST['comment'] ?? '')),
+            'is_display'       => isset($_POST['is_display']) ? 1 : 0,
         ];
         foreach ($FLAGS as $f => $_) $fields[$f] = isset($_POST[$f]) ? 1 : 0;
 
@@ -52,8 +57,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $own->execute([$id, $shop]);
                 if (!$own->fetchColumn()) throw new RuntimeException('not found');
                 $set = implode(', ', array_map(fn($k) => "$k=:$k", array_keys($fields)));
-                $st = db()->prepare("UPDATE girls SET $set WHERE id=:id");
-                $st->execute($fields + ['id' => $id]);
+                db()->prepare("UPDATE girls SET $set WHERE id=:id")->execute($fields + ['id' => $id]);
             } else {
                 $maxSort = db()->prepare('SELECT COALESCE(MAX(sort),0)+1 FROM girls WHERE shop_id=?');
                 $maxSort->execute([$shop]);
@@ -66,31 +70,43 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
             // オプション
             db()->prepare('DELETE FROM girl_option_links WHERE girl_id=?')->execute([$id]);
-            $ins = db()->prepare('INSERT INTO girl_option_links (girl_id, girl_option_id) VALUES (?, ?)');
-            foreach ((array)($_POST['options'] ?? []) as $oid) $ins->execute([$id, (int)$oid]);
+            $ins = db()->prepare('INSERT INTO girl_option_links (girl_id, girl_option_id, shop_id) VALUES (?,?,?)');
+            foreach ((array)($_POST['options'] ?? []) as $oid) $ins->execute([$id, (int)$oid, $shop]);
 
-            // プロフィール回答（upsert）
-            $up = db()->prepare('INSERT INTO girl_profile_values (girl_id, girl_profile_id, value) VALUES (?,?,?)
-                                 ON DUPLICATE KEY UPDATE value=VALUES(value)');
-            foreach ((array)($_POST['profile'] ?? []) as $pid => $val) $up->execute([$id, (int)$pid, trim((string)$val)]);
+            // プロフィール回答（upsert）— is_display もまとめて更新
+            $up = db()->prepare(
+                'INSERT INTO girl_profile_values (girl_id, girl_profile_id, value, is_display)
+                 VALUES (?,?,?,?)
+                 ON DUPLICATE KEY UPDATE value=VALUES(value), is_display=VALUES(is_display)'
+            );
+            $profileDisplay = (array)($_POST['profile_display'] ?? []);
+            foreach ((array)($_POST['profile'] ?? []) as $pid => $val) {
+                $disp = isset($profileDisplay[$pid]) ? 1 : 0;
+                $up->execute([$id, (int)$pid, trim((string)$val), $disp]);
+            }
 
             // 画像アップロード（複数）
             if (!empty($_FILES['images']['name'][0])) {
                 $sortBase = db()->prepare('SELECT COALESCE(MAX(sort),-1)+1 FROM girl_images WHERE girl_id=?');
                 $sortBase->execute([$id]);
-                $s = (int)$sortBase->fetchColumn();
+                $s      = (int)$sortBase->fetchColumn();
                 $insImg = db()->prepare('INSERT INTO girl_images (girl_id, path, sort) VALUES (?,?,?)');
-                $files = $_FILES['images'];
+                $files  = $_FILES['images'];
                 for ($i = 0; $i < count($files['name']); $i++) {
                     if (($files['error'][$i] ?? 4) !== UPLOAD_ERR_OK) continue;
-                    $one = ['name' => $files['name'][$i], 'type' => $files['type'][$i], 'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]];
+                    $one = ['name' => $files['name'][$i], 'type' => $files['type'][$i],
+                            'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]];
                     $path = save_upload($one, 'girls/' . $shop);
                     if ($path) $insImg->execute([$id, $path, $s++]);
                 }
             }
 
             db()->commit();
-            flash('ok', '保存しました。');
+
+            // サイト自動リビルド
+            trigger_deploy();
+
+            flash('ok', '保存しました。サイトを更新中です（約1〜2分後に反映）。');
             redirect('girl-edit.php?id=' . $id);
         } catch (Throwable $e) {
             db()->rollBack();
@@ -100,18 +116,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 // ---- 読込（編集） ----
-$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch'=>'','comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
+$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
 foreach ($FLAGS as $f => $_) $g[$f] = 0;
-$images = []; $linkedOpts = []; $profVals = [];
+$images = []; $linkedOpts = []; $profVals = []; $profDisplay = [];
 if ($id) {
     $st = db()->prepare('SELECT * FROM girls WHERE id=? AND shop_id=?');
     $st->execute([$id, $shop]);
     $g = $st->fetch();
     if (!$g) { flash('err', '対象が見つかりません。'); redirect('girls.php'); }
-    $im = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id'); $im->execute([$id]); $images = $im->fetchAll();
-    $lo = db()->prepare('SELECT girl_option_id FROM girl_option_links WHERE girl_id=?'); $lo->execute([$id]); $linkedOpts = array_map('intval', array_column($lo->fetchAll(), 'girl_option_id'));
-    $pv = db()->prepare('SELECT girl_profile_id, value FROM girl_profile_values WHERE girl_id=?'); $pv->execute([$id]);
-    foreach ($pv->fetchAll() as $r) $profVals[(int)$r['girl_profile_id']] = $r['value'];
+    $im = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id');
+    $im->execute([$id]); $images = $im->fetchAll();
+    $lo = db()->prepare('SELECT girl_option_id FROM girl_option_links WHERE girl_id=?');
+    $lo->execute([$id]); $linkedOpts = array_map('intval', array_column($lo->fetchAll(), 'girl_option_id'));
+    $pv = db()->prepare('SELECT girl_profile_id, value, is_display FROM girl_profile_values WHERE girl_id=?');
+    $pv->execute([$id]);
+    foreach ($pv->fetchAll() as $r) {
+        $profVals[(int)$r['girl_profile_id']]    = $r['value'];
+        $profDisplay[(int)$r['girl_profile_id']] = (int)$r['is_display'];
+    }
 }
 
 layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
@@ -138,7 +160,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       </div>
       <div class="field"><label>入店日</label><input type="date" name="in_date" value="<?= h($g['in_date']) ?>"></div>
     </div>
-    <div class="field"><label>キャッチコピー</label><input type="text" name="catch" value="<?= h($g['catch']) ?>" placeholder="清楚系スレンダー美少女 など"></div>
+    <div class="field"><label>キャッチコピー</label><input type="text" name="catch_copy" value="<?= h($g['catch_copy']) ?>" placeholder="清楚系スレンダー美少女 など"></div>
   </div>
 
   <div class="card card-pad form-grid">
@@ -160,7 +182,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <?php foreach ($FLAGS as $f => $lbl): ?>
         <label class="check"><input type="checkbox" name="<?= $f ?>" <?= (int)$g[$f] ? 'checked' : '' ?>> <?= h($lbl) ?></label>
       <?php endforeach; ?>
-      <label class="check"><input type="checkbox" name="is_display" <?= (int)$g['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
+      <label class="check" style="margin-left:auto;color:var(--primary)"><input type="checkbox" name="is_display" <?= (int)$g['is_display'] ? 'checked' : '' ?>> ★ サイトに表示</label>
     </div>
   </div>
 
@@ -179,16 +201,27 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   <?php if ($profs): ?>
   <div class="card card-pad form-grid">
     <strong>プロフィール</strong>
-    <?php foreach ($profs as $p): $pid = (int)$p['id']; $val = $profVals[$pid] ?? ''; ?>
-      <div class="field"><label><?= h($p['name']) ?></label>
-        <?php if ($p['type'] === 'list' && !empty($profOpts[$pid])): ?>
-          <select name="profile[<?= $pid ?>]">
-            <option value="">未選択</option>
-            <?php foreach ($profOpts[$pid] as $lab): ?><option <?= $val === $lab ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?>
-          </select>
-        <?php else: ?>
-          <input type="text" name="profile[<?= $pid ?>]" value="<?= h($val) ?>">
-        <?php endif; ?>
+    <p class="muted" style="margin:0 0 8px;font-size:12px">「表示」のチェックを外すとサイトに表示されません</p>
+    <?php foreach ($profs as $p):
+      $pid  = (int)$p['id'];
+      $val  = $profVals[$pid] ?? '';
+      $disp = $profDisplay[$pid] ?? 1;
+    ?>
+      <div class="field" style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+        <div>
+          <label><?= h($p['name']) ?></label>
+          <?php if ($p['type'] === 'list' && !empty($profOpts[$pid])): ?>
+            <select name="profile[<?= $pid ?>]">
+              <option value="">未選択</option>
+              <?php foreach ($profOpts[$pid] as $lab): ?><option <?= $val === $lab ? 'selected' : '' ?>><?= h($lab) ?></option><?php endforeach; ?>
+            </select>
+          <?php else: ?>
+            <input type="text" name="profile[<?= $pid ?>]" value="<?= h($val) ?>">
+          <?php endif; ?>
+        </div>
+        <label class="check" style="padding-bottom:10px;white-space:nowrap">
+          <input type="checkbox" name="profile_display[<?= $pid ?>]" <?= $disp ? 'checked' : '' ?>> 表示
+        </label>
       </div>
     <?php endforeach; ?>
   </div>
