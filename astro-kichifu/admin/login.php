@@ -42,10 +42,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       <div class="field">
         <label for="u">ユーザー名</label>
         <input id="u" name="username" type="text" autocomplete="username" required autofocus>
+        <p class="field-hint">半角英数字で入力してください</p>
       </div>
       <div class="field">
         <label for="p">パスワード</label>
         <input id="p" name="password" type="password" autocomplete="current-password" required>
+        <p class="field-hint">半角英数字・記号（8文字以上）</p>
       </div>
       <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">ログイン</button>
     </form>

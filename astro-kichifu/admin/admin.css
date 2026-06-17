@@ -143,6 +143,7 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .login-card { background: #fff; border-radius: 16px; padding: 34px 30px; width: 100%; max-width: 380px; box-shadow: 0 20px 60px -20px rgba(0,0,0,.5); }
 .login-card h1 { font-size: 22px; margin: 0 0 4px; }
 .login-card .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
+.field-hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {
