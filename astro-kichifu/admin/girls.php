@@ -38,6 +38,7 @@ layout_header('女性一覧', 'girls.php');
 <div class="page-head">
   <h1>女性一覧 <span class="muted" style="font-size:14px">（<?= number_format($total) ?>名）</span></h1>
   <a class="btn btn-primary" href="/admin/girl-edit.php<?= $cat ? '?cat=' . $cat : '' ?>">＋ 新規登録</a>
+  <a class="btn btn-outline" href="/admin/girls-import.php">📦 CSV一括インポート</a>
 </div>
 
 <div class="tabs">
