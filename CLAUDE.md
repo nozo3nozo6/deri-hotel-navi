@@ -363,6 +363,18 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
   - `重複ページ (選択されなかった正規URL)` 2件: tab=loveho 等のパラメータバリアント、canonical適切につき放置可
 - **KWランキング不振の本質的原因**: サイト開設3ヶ月・被リンクほぼ0・アダルト激戦区 = authority不足。技術的SEOは概ね正常。モードトップ重複問題を今回修正済み。長期的にはコンテンツ蓄積と被リンク獲得が必要
 
+#### GSCインデックス状態確認・インデックス登録リクエスト（2026-06-18）
+- **重複統合の実証**: GSC URL検査で5モードトップの状態を確認
+  - `/deli/` → ✅ インデックス登録済み（代表ページ）
+  - `/same-m/` → ✅ インデックス登録済み（たまたま残った）
+  - `/jofu/` → ❌ 未登録（重複統合でde-indexされていた）
+  - `/same-f/` → ❌ 未登録（重複統合でde-indexされていた）
+  - `/este/` → ❌ 未登録（重複統合でde-indexされていた）
+  - → 「5ページがほぼ同一HTML → Googleが /deli/ を代表に統合」仮説が実証された
+- **対応**: 独自コンテンツ追加済みの3ページ（/jofu/, /same-f/, /este/）をGSCから「インデックス登録をリクエスト」
+- **期待効果**: 1-2週間で再クロール → 各ページの「Googleが選択した正規URL」が自身になれば、5ページが別物として認識されたことが確定
+- **次の保険**: もしまだ /deli/ が正規URL選択されていたら、47都道府県グリッドのモード別差別化を検討
+
 ### 2026年3月15日 — analysis-report.html 全78件修正完了
 - CRITICAL 6件: APIキー露出、CLAUDE.mdから秘密情報削除、.env gitignore確認、Supabase RLS制限、nullチェック追加、キャッシュバスター更新
 - HIGH 19件: XSS修正(6箇所)、CSP追加(4ファイル)、aria属性、defer読み込み、og:image追加、viewport修正、Escapeキー対応、JSON-LD動的更新等
