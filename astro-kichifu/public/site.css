@@ -1107,7 +1107,7 @@ body.lb-open { overflow: hidden; }
 }
 .extras-list li::before { content: '♡'; color: var(--neon-pink); flex-shrink: 0; }
 .system-note {
-  margin-top: 32px;
+  margin-top: 20px;
   padding: 16px 20px;
   border-radius: 12px;
   background: rgba(183,143,255,.07);
@@ -1115,6 +1115,187 @@ body.lb-open { overflow: hidden; }
   font-size: .875rem;
   color: var(--lav-soft);
   line-height: 1.9;
+}
+
+/* === 18b. System / pricing (FANTASY PRICE) ================================ */
+/* FANTASY PRICE バナー */
+.price-banner {
+  text-align: center;
+  padding: 20px 22px;
+  border-radius: 18px;
+  margin-bottom: 32px;
+  background: linear-gradient(135deg, rgba(255,79,216,.16), rgba(183,143,255,.12));
+  border: 1px solid rgba(255,79,216,.40);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 16px 44px -20px rgba(255,45,155,.6);
+}
+.price-banner-en {
+  display: block;
+  font-family: 'Pacifico', cursive;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+.price-banner-jp { display: block; font-size: .875rem; color: var(--lav-soft); }
+
+/* コース料金グループ */
+.price-group { margin-bottom: 32px; }
+.price-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.price-group-title { font-size: 1.0625rem; font-weight: 800; color: #fff; }
+.price-group-desc { font-size: .8125rem; color: var(--text-mute); margin-bottom: 14px; }
+
+.price-table { display: flex; flex-direction: column; gap: 10px; }
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,79,216,.2);
+}
+.price-row-feature {
+  background: linear-gradient(135deg, rgba(255,79,216,.12), rgba(183,143,255,.08));
+  border-color: rgba(255,79,216,.4);
+}
+.price-row-course { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.price-row-time { font-size: 1.0625rem; font-weight: 700; color: #fff; }
+.price-row-cond { font-size: .8125rem; color: var(--text-mute); line-height: 1.5; }
+.price-row-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  flex-shrink: 0;
+}
+.price-was {
+  font-size: .75rem;
+  color: var(--text-mute);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,79,216,.6);
+}
+.price-now {
+  font-size: 1.375rem;
+  font-weight: 800;
+  color: var(--neon-pink);
+  text-shadow: 0 0 14px rgba(255,79,216,.5);
+}
+.price-now small { font-size: .8125rem; font-weight: 700; }
+
+/* 指名料・オプション・キャンセル 共通カード */
+.fee-card {
+  padding: 6px 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,79,216,.2);
+}
+.fee-list { display: flex; flex-direction: column; }
+.fee-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.fee-row:last-child { border-bottom: none; }
+.fee-name { font-size: .9375rem; color: var(--text-soft); display: flex; flex-direction: column; gap: 2px; }
+.fee-name small { font-size: .75rem; color: var(--text-mute); }
+.fee-amount {
+  font-weight: 800;
+  color: var(--neon-pink);
+  flex-shrink: 0;
+  white-space: nowrap;
+  text-shadow: 0 0 12px rgba(255,79,216,.4);
+}
+.fee-amount small { font-size: .75rem; font-weight: 600; color: var(--text-mute); text-shadow: none; }
+
+/* 交通費エリア */
+.zone-list { display: flex; flex-direction: column; gap: 10px; }
+.zone-card {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(183,143,255,.22);
+}
+.zone-fee {
+  display: inline-block;
+  font-weight: 800;
+  color: var(--neon-pink);
+  text-shadow: 0 0 12px rgba(255,79,216,.45);
+  margin-bottom: 4px;
+}
+.zone-area { display: block; font-size: .8125rem; color: var(--text-soft); line-height: 1.7; }
+
+/* キャンセル表 */
+.cancel-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cancel-table th,
+.cancel-table td {
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  font-size: .9375rem;
+  vertical-align: top;
+}
+.cancel-table tr:last-child th,
+.cancel-table tr:last-child td { border-bottom: none; }
+.cancel-table th { text-align: left; color: var(--text-soft); font-weight: 600; width: 50%; }
+.cancel-table td {
+  text-align: right;
+  color: var(--neon-pink);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  padding-left: 12px;
+}
+
+/* ご利用にあたって */
+.notice-box {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(183,143,255,.06);
+  border: 1px solid rgba(183,143,255,.22);
+}
+.notice-list { list-style: none; padding: 0; margin: 0; }
+.notice-list li {
+  position: relative;
+  padding: 6px 0 6px 22px;
+  font-size: .875rem;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+.notice-list li::before {
+  content: '♡';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  color: var(--neon-pink);
+}
+.notice-foot { margin-top: 12px; font-size: .8125rem; color: var(--text-mute); }
+
+/* 料金ページ CTA */
+.system-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 40px;
+  justify-content: center;
+}
+.system-cta-btn {
+  flex: 1;
+  min-width: 180px;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 9999px;
+  font-weight: 700;
+  color: #fff;
 }
 
 /* === 19. Howto (steps) ==================================================== */
