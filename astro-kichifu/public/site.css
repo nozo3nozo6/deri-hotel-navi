@@ -1128,6 +1128,18 @@ body.lb-open { overflow: hidden; }
   border: 1px solid rgba(255,79,216,.40);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 16px 44px -20px rgba(255,45,155,.6);
 }
+.price-banner-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 5px 16px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: #fff;
+  background: linear-gradient(135deg, #ff4fd8, #b78fff);
+  box-shadow: 0 6px 20px -8px rgba(255,45,155,.9), inset 0 1px 0 rgba(255,255,255,.4);
+}
 .price-banner-en {
   display: block;
   font-family: 'Pacifico', cursive;
@@ -1135,7 +1147,7 @@ body.lb-open { overflow: hidden; }
   line-height: 1.1;
   margin-bottom: 6px;
 }
-.price-banner-jp { display: block; font-size: .875rem; color: var(--lav-soft); }
+.price-banner-jp { display: block; font-size: .875rem; color: var(--lav-soft); line-height: 1.6; }
 
 /* コース料金グループ */
 .price-group { margin-bottom: 32px; }
