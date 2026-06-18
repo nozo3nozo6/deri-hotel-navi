@@ -61,7 +61,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         if (!in_array($ext, $imgExts, true)) continue;
         // ファイル名から {名前}_{番号} を抽出
         $base = pathinfo($f->getFilename(), PATHINFO_FILENAME);
-        if (preg_match('/^(.+)_([123])$/', $base, $m)) {
+        if (preg_match('/^(.+?)_?([123])$/', $base, $m)) {
             $imgName = $m[1];
             $imgNum  = (int)$m[2];
             $imageIndex[$imgName][$imgNum] = $f->getPathname();
@@ -236,8 +236,8 @@ admin_head('女の子 一括インポート');
     <strong>ZIPの作り方</strong><br>
     ① 「CSVテンプレートDL」でサンプルCSVをダウンロード<br>
     ② CSV（girls.csv）と画像を同じフォルダに入れてZIP圧縮<br>
-    ③ 画像ファイル名は <code>名前_1.jpg</code>（_2, _3 まで対応）<br>
-    &nbsp;&nbsp;&nbsp;例: <code>橘_1.jpg</code> <code>橘_2.jpg</code> <code>橘_3.jpg</code><br>
+    ③ 画像ファイル名は <code>名前1.jpg</code> または <code>名前_1.jpg</code>（2, 3 まで対応）<br>
+    &nbsp;&nbsp;&nbsp;例: <code>橘1.jpg</code> <code>橘2.jpg</code> <code>橘3.jpg</code><br>
     ④ 対応形式: jpg / png / webp（最大3枚 / 1人）<br>
     ⑤ ZIPサイズ上限: 200MB
   </div>
