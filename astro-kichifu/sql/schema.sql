@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS girls (
   is_tel           TINYINT(1) NOT NULL DEFAULT 0,    -- 電話
   is_inbound       TINYINT(1) NOT NULL DEFAULT 0,    -- インバウンド
   is_genderless    TINYINT(1) NOT NULL DEFAULT 0,    -- ジェンダーレス
-  catch            VARCHAR(160) NOT NULL DEFAULT '',
+  catch_copy       VARCHAR(160) NOT NULL DEFAULT '',
   comment          TEXT         NULL,
   is_display       TINYINT(1) NOT NULL DEFAULT 1,
   sort             INT NOT NULL DEFAULT 0,

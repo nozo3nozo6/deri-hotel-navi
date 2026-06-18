@@ -101,7 +101,7 @@ function site_footer(): void { ?>
     </div>
   </div>
 </div>
-<script src="/site.js"></script>
+<script src="/site.js?v=<?= @filemtime($_SERVER['DOCUMENT_ROOT'] . '/site.js') ?: '1' ?>"></script>
 </body>
 </html>
 <?php } ?>

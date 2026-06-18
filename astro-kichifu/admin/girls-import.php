@@ -77,12 +77,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     while (($row = fgetcsv($handle)) !== false) {
         $rowNum++;
-        // BOM除去
-        if ($rowNum === 1) $row[0] = ltrim($row[0], "\xEF\xBB\xBF");
 
-        // ヘッダー行
+        // ヘッダー行（BOM・引用符・空白を各セルから除去）
+        // ※ BOMがクォートの前にあると fgetcsv が先頭フィールドの引用符を剥がせないため、ここで正規化
         if ($rowNum === 1) {
-            $header = array_map('trim', $row);
+            $header = array_map(fn($c) => trim($c, " \t\n\r\0\x0B\"'\xEF\xBB\xBF"), $row);
             continue;
         }
         if (!$header) continue;
@@ -222,7 +221,7 @@ if (($_GET['dl'] ?? '') === 'csv') {
     exit;
 }
 
-admin_head('女の子 一括インポート');
+layout_header('女の子 一括インポート', 'girls.php');
 ?>
 <div class="toolbar">
   <a href="girls.php" class="btn btn-sm">← 女の子一覧</a>
@@ -282,4 +281,4 @@ admin_head('女の子 一括インポート');
 </div>
 <?php endif; ?>
 
-<?php admin_foot(); ?>
+<?php layout_footer(); ?>

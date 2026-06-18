@@ -28,7 +28,6 @@ $im = $pdo->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY s
 $im->execute([$id]);
 $images = $im->fetchAll();
 $mainPhoto = $images[0]['path'] ?? null;
-$subPhotos = array_slice($images, 1);
 
 // オプション
 $oo = $pdo->prepare(
@@ -78,17 +77,25 @@ site_header();
         <!-- 左: 写真 -->
         <div>
           <?php if ($mainPhoto): ?>
-            <img src="<?= h($mainPhoto) ?>" alt="<?= h($g['name']) ?>"
-                 width="640" height="853" class="girl-main-photo">
+            <div class="girl-main-wrap" data-lightbox-open>
+              <img src="<?= h($mainPhoto) ?>" alt="<?= h($g['name']) ?>"
+                   width="640" height="853" class="girl-main-photo" id="girlMainPhoto">
+              <span class="girl-main-zoom" aria-hidden="true">🔍 タップで拡大</span>
+            </div>
           <?php else: ?>
             <div class="girl-main-photo" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));font-size:4rem;color:rgba(255,79,216,.2)">👤</div>
           <?php endif; ?>
 
-          <?php if ($subPhotos): ?>
+          <?php if (count($images) > 1): ?>
             <div class="girl-sub-photos">
-              <?php foreach ($subPhotos as $sp): ?>
-                <img src="<?= h($sp['path']) ?>" alt="<?= h($g['name']) ?>"
-                     width="200" height="267" loading="lazy" class="girl-sub-photo">
+              <?php foreach ($images as $idx => $img): ?>
+                <button type="button"
+                        class="girl-thumb<?= $idx === 0 ? ' is-active' : '' ?>"
+                        data-girl-thumb data-full="<?= h($img['path']) ?>"
+                        aria-label="<?= h($g['name']) ?> 写真<?= $idx + 1 ?>">
+                  <img src="<?= h($img['path']) ?>" alt="<?= h($g['name']) ?> 写真<?= $idx + 1 ?>"
+                       width="200" height="267" loading="lazy">
+                </button>
               <?php endforeach; ?>
             </div>
           <?php endif; ?>
@@ -180,4 +187,17 @@ site_header();
     </div>
   </section>
 </main>
+
+<!-- ネオン・ライトボックス -->
+<div class="lightbox" id="lightbox" data-lightbox aria-hidden="true" role="dialog" aria-label="<?= h($g['name']) ?> 写真ビューア">
+  <button class="lightbox-close" data-lightbox-close aria-label="閉じる">✕</button>
+  <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真">‹</button>
+  <div class="lightbox-stage">
+    <img class="lightbox-img" id="lightboxImg" src="" alt="<?= h($g['name']) ?>">
+    <span class="lightbox-sparkles" id="lightboxSparkles" aria-hidden="true"></span>
+  </div>
+  <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真">›</button>
+  <div class="lightbox-dots" id="lightboxDots" aria-hidden="true"></div>
+  <div class="lightbox-counter" id="lightboxCounter"></div>
+</div>
 <?php site_footer(); ?>

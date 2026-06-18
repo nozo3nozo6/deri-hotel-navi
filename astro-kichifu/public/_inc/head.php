@@ -26,7 +26,7 @@ function site_head(string $title, string $desc, string $canonical = ''): void {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
 <!-- Styles -->
-<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/site.css?v=<?= @filemtime($_SERVER['DOCUMENT_ROOT'] . '/site.css') ?: '1' ?>">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <!-- GA4 -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-50Q48YG34Z"></script>
