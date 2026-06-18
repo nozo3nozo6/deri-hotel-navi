@@ -97,7 +97,10 @@ function parseList(html) {
     const is_genderless = flags.includes('jend') ? 1 : 0;
     // ex = 待ち合わせ（kichifuに対応カラム無し→無視）
 
-    cards.push({ name, age, height, bust, cup, waist, hip, img, isInternal,
+    // ranking-deli プロフィールID（外部リンクの場合）
+    const rankingId = href.match(/ranking-deli\.jp\/\d+\/shop\/\d+\/(\d+)/)?.[1] ?? '';
+
+    cards.push({ name, age, height, bust, cup, waist, hip, img, href, isInternal, rankingId,
                  is_newgirl, is_tel, is_inbound, is_genderless });
   }
   return cards;
@@ -117,17 +120,38 @@ async function main() {
   // img_key を一意採番（同名衝突回避）
   cards.forEach((c, i) => { c.img_key = 'g' + String(i + 1).padStart(3, '0'); });
 
-  // 画像ダウンロード
-  let imgOk = 0;
+  // 画像ダウンロード（外部=ranking-deliプロフィールから最大3枚 / 内部=一覧サムネ1枚）
+  let imgTotal = 0;
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i];
-    const ext = (c.img.match(/\.(jpg|jpeg|png|webp)(?:\?|$)/i)?.[1] ?? 'jpg').toLowerCase();
-    const dest = path.join(IMG_DIR, `${c.img_key}_1.${ext}`);
-    const ok = await downloadImage(c.img, dest);
-    if (ok) imgOk++;
-    c.imgSaved = ok;
-    console.log(`  [${i + 1}/${cards.length}] ${c.name}（${c.age}）${ok ? '✓' : '✗画像失敗'} ${c.img_key}_1.${ext}`);
-    await sleep(120);
+    let urls = [];
+
+    if (c.rankingId) {
+      try {
+        const phtml = await fetchHtml(c.href);
+        // 本人IDのフル画像だけ（img{N}s_ の小サムネは除外）
+        const re = new RegExp(`https?://fuzoku-images\\.ranking-deli\\.jp/\\d+/${c.rankingId}/img(\\d+)_\\d+\\.(jpg|jpeg|png)`, 'gi');
+        const found = {};
+        let mm;
+        while ((mm = re.exec(phtml)) !== null) {
+          const n = parseInt(mm[1], 10);
+          if (!found[n]) found[n] = mm[0];
+        }
+        urls = Object.keys(found).map(Number).sort((a, b) => a - b).slice(0, 3).map(n => found[n]);
+      } catch (e) { /* プロフィール取得失敗→サムネにフォールバック */ }
+    }
+    if (!urls.length && c.img) urls = [c.img]; // フォールバック（一覧サムネ1枚）
+
+    let saved = 0;
+    for (let n = 0; n < urls.length; n++) {
+      const ext = (urls[n].match(/\.(jpg|jpeg|png|webp)(?:\?|$)/i)?.[1] ?? 'jpg').toLowerCase();
+      const dest = path.join(IMG_DIR, `${c.img_key}_${n + 1}.${ext}`);
+      if (await downloadImage(urls[n], dest)) { saved++; imgTotal++; }
+      await sleep(80);
+    }
+    c.imgSaved = saved;
+    console.log(`  [${i + 1}/${cards.length}] ${c.name}（${c.age}）${saved}枚 ${c.img_key}`);
+    await sleep(150);
   }
 
   // CSV出力
@@ -149,9 +173,10 @@ async function main() {
   cards.forEach(c => { nameCount[c.name] = (nameCount[c.name] || 0) + 1; });
   const dups = Object.entries(nameCount).filter(([, n]) => n > 1);
 
+  const got3 = cards.filter(c => c.imgSaved >= 3).length;
   console.log(`\n✅ 完了`);
   console.log(`  CSV: ${CSV_PATH} (${cards.length}人)`);
-  console.log(`  画像: ${imgOk}/${cards.length} 枚 取得`);
+  console.log(`  画像: 合計${imgTotal}枚（3枚取得できた子: ${got3}/${cards.length}）`);
   if (dups.length) console.log(`  ⚠ 同名（img_keyで区別済み）: ${dups.map(([n, x]) => `${n}×${x}`).join(', ')}`);
 }
 
