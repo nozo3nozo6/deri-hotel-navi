@@ -130,9 +130,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             db()->prepare("INSERT INTO girls ($cols) VALUES ($ph)")->execute($fields);
             $girlId = (int)db()->lastInsertId();
 
-            // 画像（最大3枚）
+            // 画像（最大3枚）— img_key列があればそれで突合（同名衝突回避）、無ければ名前で突合
             $imgCount = 0;
-            $imgs     = $imageIndex[$name] ?? [];
+            $imgKey   = ($data['img_key'] ?? '') !== '' ? $data['img_key'] : $name;
+            $imgs     = $imageIndex[$imgKey] ?? [];
             ksort($imgs); // 1,2,3 順
             foreach ($imgs as $num => $imgPath) {
                 if ($imgCount >= 3) break;
