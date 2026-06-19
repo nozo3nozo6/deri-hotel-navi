@@ -11,6 +11,10 @@ $cats = db()->prepare('SELECT id, name FROM girl_categories WHERE shop_id=? ORDE
 $cats->execute([$shop]);
 $cats = $cats->fetchAll();
 
+$tags = db()->prepare('SELECT id, name FROM girl_image_tags WHERE shop_id=? AND is_active=1 ORDER BY sort, id');
+$tags->execute([$shop]);
+$tags = $tags->fetchAll();
+
 $opts = db()->prepare('SELECT id, name, is_basic FROM girl_options WHERE shop_id=? ORDER BY is_basic DESC, sort, id');
 $opts->execute([$shop]);
 $opts = $opts->fetchAll();
@@ -46,6 +50,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'in_date'          => ($_POST['in_date'] ?? '') ?: null,
             'catch_copy'       => trim((string)($_POST['catch_copy'] ?? '')),
             'comment'          => trim((string)($_POST['comment'] ?? '')),
+            'shop_comment'     => trim((string)($_POST['shop_comment'] ?? '')),
             'is_display'       => isset($_POST['is_display']) ? 1 : 0,
         ];
         foreach ($FLAGS as $f => $_) $fields[$f] = isset($_POST[$f]) ? 1 : 0;
@@ -67,6 +72,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 db()->prepare("INSERT INTO girls ($cols) VALUES ($ph)")->execute($fields);
                 $id = (int)db()->lastInsertId();
             }
+
+            // 特徴タグ
+            db()->prepare('DELETE FROM girl_image_tag_links WHERE girl_id=?')->execute([$id]);
+            $insTag = db()->prepare('INSERT INTO girl_image_tag_links (girl_id, girl_image_tag_id) VALUES (?,?)');
+            foreach ((array)($_POST['tags'] ?? []) as $tid) $insTag->execute([$id, (int)$tid]);
 
             // オプション
             db()->prepare('DELETE FROM girl_option_links WHERE girl_id=?')->execute([$id]);
@@ -116,9 +126,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 // ---- 読込（編集） ----
-$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
+$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','comment'=>'','shop_comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
 foreach ($FLAGS as $f => $_) $g[$f] = 0;
-$images = []; $linkedOpts = []; $profVals = []; $profDisplay = [];
+$images = []; $linkedTags = []; $linkedOpts = []; $profVals = []; $profDisplay = [];
 if ($id) {
     $st = db()->prepare('SELECT * FROM girls WHERE id=? AND shop_id=?');
     $st->execute([$id, $shop]);
@@ -126,6 +136,8 @@ if ($id) {
     if (!$g) { flash('err', '対象が見つかりません。'); redirect('girls.php'); }
     $im = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id');
     $im->execute([$id]); $images = $im->fetchAll();
+    $lt = db()->prepare('SELECT girl_image_tag_id FROM girl_image_tag_links WHERE girl_id=?');
+    $lt->execute([$id]); $linkedTags = array_map('intval', array_column($lt->fetchAll(), 'girl_image_tag_id'));
     $lo = db()->prepare('SELECT girl_option_id FROM girl_option_links WHERE girl_id=?');
     $lo->execute([$id]); $linkedOpts = array_map('intval', array_column($lo->fetchAll(), 'girl_option_id'));
     $pv = db()->prepare('SELECT girl_profile_id, value, is_display FROM girl_profile_values WHERE girl_id=?');
@@ -186,9 +198,20 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     </div>
   </div>
 
+  <?php if ($tags): ?>
+  <div class="card card-pad">
+    <strong>特徴タグ <span class="muted" style="font-weight:400;font-size:12px">（可愛い系・清楚 など。4つ程度がおすすめ）</span></strong>
+    <div class="checks" style="margin-top:10px">
+      <?php foreach ($tags as $t): ?>
+        <label class="check"><input type="checkbox" name="tags[]" value="<?= (int)$t['id'] ?>" <?= in_array((int)$t['id'], $linkedTags, true) ? 'checked' : '' ?>> <?= h($t['name']) ?></label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <?php if ($opts): ?>
   <div class="card card-pad">
-    <strong>オプション（プレイ項目）</strong>
+    <strong>プレイ項目 <span class="muted" style="font-weight:400;font-size:12px">（基本プレイ・オプションプレイ）</span></strong>
     <div class="checks" style="margin-top:10px">
       <?php foreach ($opts as $o): ?>
         <label class="check"><input type="checkbox" name="options[]" value="<?= (int)$o['id'] ?>" <?= in_array((int)$o['id'], $linkedOpts, true) ? 'checked' : '' ?>>
@@ -200,8 +223,8 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
   <?php if ($profs): ?>
   <div class="card card-pad form-grid">
-    <strong>プロフィール</strong>
-    <p class="muted" style="margin:0 0 8px;font-size:12px">「表示」のチェックを外すとサイトに表示されません</p>
+    <strong>女の子に質問（プロフィール）</strong>
+    <p class="muted" style="margin:0 0 8px;font-size:12px">「表示」のチェックを外すとサイトに表示されません。空欄の項目はサイトに出ません</p>
     <?php foreach ($profs as $p):
       $pid  = (int)$p['id'];
       $val  = $profVals[$pid] ?? '';
@@ -226,6 +249,18 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
+
+  <div class="card card-pad form-grid">
+    <strong>コメント</strong>
+    <div class="field">
+      <label>女の子コメント（一言・任意）</label>
+      <textarea name="comment" rows="2" placeholder="本人からの一言メッセージ"><?= h($g['comment']) ?></textarea>
+    </div>
+    <div class="field">
+      <label>店舗コメント（紹介文）</label>
+      <textarea name="shop_comment" rows="8" placeholder="お店からの紹介文。改行はそのまま反映されます"><?= h($g['shop_comment']) ?></textarea>
+    </div>
+  </div>
 
   <div class="card card-pad">
     <strong>画像</strong>

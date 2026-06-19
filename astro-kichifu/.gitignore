@@ -25,3 +25,11 @@ api/db-config.php
 .vscode/
 .idea/
 api/deploy-config.php
+
+# admi移行の生成物（スクレイプ画像/CSV/JSON/Upscayl出力 — 巨大・再生成可能。コードのみ追跡）
+scripts/admi-roster-export/
+scripts/admi-roster-hq/
+scripts/admi-roster-hq-web/
+scripts/admi-export/
+scripts/*.zip
+scripts/*.log

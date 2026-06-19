@@ -29,14 +29,25 @@ $im->execute([$id]);
 $images = $im->fetchAll();
 $mainPhoto = $images[0]['path'] ?? null;
 
-// オプション
+// 特徴タグ
+$tg = $pdo->prepare(
+    'SELECT git.name FROM girl_image_tag_links gitl
+     JOIN girl_image_tags git ON git.id = gitl.girl_image_tag_id
+     WHERE gitl.girl_id=? ORDER BY git.sort ASC, git.id ASC'
+);
+$tg->execute([$id]);
+$imageTags = array_column($tg->fetchAll(), 'name');
+
+// オプション（基本プレイ / オプションプレイに分割）
 $oo = $pdo->prepare(
     'SELECT go.name, go.is_basic FROM girl_option_links gol
      JOIN girl_options go ON go.id = gol.girl_option_id
      WHERE gol.girl_id=? ORDER BY go.is_basic DESC, go.sort ASC, go.id ASC'
 );
 $oo->execute([$id]);
-$options = $oo->fetchAll();
+$options    = $oo->fetchAll();
+$basicPlay  = array_values(array_filter($options, fn($o) => (int)$o['is_basic'] === 1));
+$optionPlay = array_values(array_filter($options, fn($o) => (int)$o['is_basic'] === 0));
 
 // プロフィール
 $pp = $pdo->prepare(
@@ -48,12 +59,17 @@ $pp = $pdo->prepare(
 $pp->execute([SHOP_ID_DB, $id]);
 $profiles = $pp->fetchAll();
 
-// SEO
+// SEO（特徴タグがあれば description に活用）
 $nameAge = $g['name'] . (($g['age']) ? '（' . (int)$g['age'] . '歳）' : '');
 $title   = $nameAge . '｜' . SHOP_FULL_NAME;
-$desc    = $g['catch_copy']
-    ? h($g['name']) . ' — ' . h($g['catch_copy']) . '。' . SHOP_CATCH . 'のアドミで活躍中。'
-    : $g['name'] . '｜' . SHOP_CATCH . 'のアドミ所属。プロフィール・スリーサイズをご覧ください。';
+$tagPhrase = $imageTags ? implode('・', array_slice($imageTags, 0, 4)) : '';
+if ($g['catch_copy']) {
+    $desc = h($g['name']) . ' — ' . h($g['catch_copy']) . '。' . SHOP_CATCH . 'のアドミで活躍中。';
+} elseif ($tagPhrase) {
+    $desc = h($g['name']) . '（' . $tagPhrase . '）。' . SHOP_CATCH . 'のアドミ所属。プロフィール・スリーサイズをご覧ください。';
+} else {
+    $desc = $g['name'] . '｜' . SHOP_CATCH . 'のアドミ所属。プロフィール・スリーサイズをご覧ください。';
+}
 $canonical = 'https://kichifu.com/girls/' . $id;
 
 site_head($title, $desc, $canonical);
@@ -118,6 +134,15 @@ site_header();
             <p class="girl-catch">「<?= h($g['catch_copy']) ?>」</p>
           <?php endif; ?>
 
+          <!-- 特徴タグ -->
+          <?php if ($imageTags): ?>
+          <div class="girl-tags">
+            <?php foreach ($imageTags as $t): ?>
+              <span class="girl-tag-chip"><?= h($t) ?></span>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+
           <!-- スリーサイズ -->
           <?php if ($g['height'] || $g['bust'] || $g['cup'] || $g['waist'] || $g['hip']): ?>
           <p class="section-label">スリーサイズ</p>
@@ -141,9 +166,15 @@ site_header();
           </div>
           <?php endif; ?>
 
-          <!-- プロフィール -->
+          <!-- 店舗からのコメント -->
+          <?php if (!empty($g['shop_comment'])): ?>
+          <p class="section-label">店舗からのコメント</p>
+          <div class="girl-shop-comment"><?= h($g['shop_comment']) ?></div>
+          <?php endif; ?>
+
+          <!-- プロフィール（女の子に質問） -->
           <?php if ($profiles): ?>
-          <p class="section-label">プロフィール</p>
+          <p class="section-label">女の子に質問</p>
           <table class="girl-profile-table">
             <?php foreach ($profiles as $pf): ?>
               <tr>
@@ -154,19 +185,29 @@ site_header();
           </table>
           <?php endif; ?>
 
-          <!-- オプション -->
-          <?php if ($options): ?>
-          <p class="section-label">プレイ項目</p>
+          <!-- 基本プレイ -->
+          <?php if ($basicPlay): ?>
+          <p class="section-label">基本プレイ</p>
           <div class="girl-options">
-            <?php foreach ($options as $o): ?>
+            <?php foreach ($basicPlay as $o): ?>
               <span class="neon-chip"><?= h($o['name']) ?></span>
             <?php endforeach; ?>
           </div>
           <?php endif; ?>
 
-          <!-- コメント -->
-          <?php if ($g['comment']): ?>
-          <p class="section-label">プロフィールコメント</p>
+          <!-- オプションプレイ -->
+          <?php if ($optionPlay): ?>
+          <p class="section-label">オプションプレイ</p>
+          <div class="girl-options">
+            <?php foreach ($optionPlay as $o): ?>
+              <span class="neon-chip is-option"><?= h($o['name']) ?></span>
+            <?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+
+          <!-- 本人からの一言 -->
+          <?php if (!empty($g['comment'])): ?>
+          <p class="section-label"><?= h($g['name']) ?>からの一言</p>
           <div class="comment-box"><?= h($g['comment']) ?></div>
           <?php endif; ?>
 

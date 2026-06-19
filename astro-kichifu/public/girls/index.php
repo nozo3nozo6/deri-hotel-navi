@@ -19,6 +19,7 @@ $girls = $st->fetchAll();
 
 // サムネイル（各女の子の先頭画像）
 $imgMap = [];
+$tagMap = [];
 if ($girls) {
     $ids = array_column($girls, 'id');
     $ph  = implode(',', array_fill(0, count($ids), '?'));
@@ -27,6 +28,14 @@ if ($girls) {
     foreach ($im->fetchAll() as $r) {
         if (!isset($imgMap[$r['girl_id']])) $imgMap[$r['girl_id']] = $r['path'];
     }
+    // 特徴タグ（各カード最大3個表示用）
+    $tg = $pdo->prepare(
+        "SELECT gitl.girl_id, git.name FROM girl_image_tag_links gitl
+         JOIN girl_image_tags git ON git.id = gitl.girl_image_tag_id
+         WHERE gitl.girl_id IN ($ph) ORDER BY git.sort ASC, git.id ASC"
+    );
+    $tg->execute($ids);
+    foreach ($tg->fetchAll() as $r) $tagMap[$r['girl_id']][] = $r['name'];
 }
 
 $title = '女の子一覧｜' . SHOP_FULL_NAME;
@@ -57,10 +66,12 @@ site_header();
           $age   = $g['age'] ? '（' . (int)$g['age'] . '）' : '';
           $cup   = $g['cup'] ? $g['cup'] . 'カップ' : '—';
           $size  = 'T' . ($g['height'] ?: '—') . ' B' . ($g['bust'] ?: '—') . '(' . ($g['cup'] ?: '—') . ') W' . ($g['waist'] ?: '—') . ' H' . ($g['hip'] ?: '—');
-          $tags  = [];
-          if ($g['is_tel'])        $tags[] = '電話';
-          if ($g['is_inbound'])    $tags[] = 'インバウンド';
-          if ($g['is_genderless']) $tags[] = 'ジェンダーレス';
+          $tags  = $tagMap[$g['id']] ?? [];
+          if (!$tags) {
+            if ($g['is_tel'])        $tags[] = '電話';
+            if ($g['is_inbound'])    $tags[] = 'インバウンド';
+            if ($g['is_genderless']) $tags[] = 'ジェンダーレス';
+          }
         ?>
           <a href="/girls/<?= (int)$g['id'] ?>" class="girl-card">
             <div class="girl-card-img-wrap">

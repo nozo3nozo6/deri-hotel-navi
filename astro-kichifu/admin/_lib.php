@@ -109,6 +109,7 @@ function nav_groups(): array {
             ['girls.php', '👩', '女性'],
             ['girl-diaries.php', '📔', '写メ日記'],
             ['girl-categories.php', '🏷️', 'カテゴリー'],
+            ['girl-image-tags.php', '✨', '特徴タグ'],
             ['girl-profiles.php', '📝', 'プロフィール項目'],
             ['girl-options.php', '💋', 'オプション'],
         ],

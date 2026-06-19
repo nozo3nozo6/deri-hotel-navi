@@ -26,6 +26,7 @@ $TABLES = [
     'girl_categories' => [[], false],
     'girl_options' => [[], false],
     'girl_profiles' => [[], false],
+    'girl_image_tags' => [[], false],
 ];
 
 $table = (string)($_POST['table'] ?? '');

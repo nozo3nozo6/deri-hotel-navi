@@ -466,6 +466,10 @@ body.reserve-open .modal-box {
   font-size: 10px;
   line-height: 1.5;
 }
+.neon-chip.is-option {
+  background: rgba(183,143,255,.12);
+  border-color: rgba(183,143,255,.45);
+}
 
 /* neon room (decorative background) */
 .neon-room {
@@ -798,6 +802,25 @@ body.lb-open { overflow: hidden; }
   border-radius: 0 8px 8px 0;
 }
 
+.girl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 24px;
+}
+.girl-tag-chip {
+  display: inline-block;
+  background: linear-gradient(135deg, rgba(255,79,216,.22), rgba(183,143,255,.18));
+  border: 1px solid rgba(255,79,216,.55);
+  color: #fff;
+  border-radius: 9999px;
+  padding: 4px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  box-shadow: 0 0 10px rgba(255,79,216,.25), inset 0 1px 0 rgba(255,255,255,.2);
+}
+
 .section-label {
   font-size: .6875rem;
   letter-spacing: .25em;
@@ -841,6 +864,19 @@ body.lb-open { overflow: hidden; }
   line-height: 1.9;
   font-size: .9375rem;
   white-space: pre-line;
+}
+
+.girl-shop-comment {
+  background: linear-gradient(165deg, rgba(255,79,216,.08), rgba(183,143,255,.05));
+  border: 1px solid rgba(255,79,216,.22);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  color: var(--text-soft);
+  line-height: 1.95;
+  font-size: .9375rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* === 13. News list ======================================================== */
