@@ -1335,6 +1335,37 @@ body.lb-open { overflow: hidden; }
 .step-title { font-size: 1.125rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
 .step-desc  { font-size: .9375rem; color: var(--text-mute); line-height: 1.8; }
 
+/* ご利用施設カード */
+.facility-list { display: flex; flex-direction: column; gap: 18px; }
+.facility-card {
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: rgba(255,79,216,.05);
+  border: 1px solid rgba(255,79,216,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+}
+.facility-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.facility-card-icon { font-size: 1.5rem; line-height: 1; }
+.facility-card-title { font-size: 1.0625rem; font-weight: 700; color: #fff; }
+.facility-card-lead { font-size: .9375rem; color: var(--text-soft); line-height: 1.8; margin: 0 0 8px; }
+.facility-card-body { font-size: .9375rem; color: var(--text-mute); line-height: 1.9; margin: 0; }
+.facility-card-body strong { color: var(--neon-pink); font-weight: 700; }
+.facility-points { list-style: none; padding: 0; margin: 8px 0 12px; }
+.facility-points li {
+  position: relative;
+  padding: 5px 0 5px 22px;
+  font-size: .9375rem;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+.facility-points li::before {
+  content: '♡';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  color: var(--neon-pink);
+}
+
 /* === 20. Contacts (form) ================================================== */
 .contact-form { max-width: 620px; margin: 0 auto; }
 .form-group { margin-bottom: 20px; }
