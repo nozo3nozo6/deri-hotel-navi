@@ -12,7 +12,7 @@ function site_header(): void { ?>
     </a>
     <nav class="site-nav">
       <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子</a>
+      <a href="/girls">すけべな女の子達</a>
       <a href="<?= h(FUJOHO_SCHEDULE) ?>" target="_blank" rel="noopener">スケジュール</a>
       <a href="/system">料金システム</a>
       <a href="/news">お知らせ</a>
@@ -43,7 +43,7 @@ function site_footer(): void { ?>
     <p class="footer-reception">受付時間 <?= h(SHOP_RECEPTION) ?></p>
     <nav class="footer-links">
       <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子</a>
+      <a href="/girls">すけべな女の子達</a>
       <a href="<?= h(FUJOHO_SCHEDULE) ?>" target="_blank" rel="noopener">スケジュール</a>
       <a href="/system">料金システム</a>
       <a href="/howto">ご利用ガイド</a>
@@ -64,7 +64,7 @@ function site_footer(): void { ?>
   </div>
   <nav class="offcanvas-nav">
     <a href="/top">トップ</a>
-    <a href="/girls">すけべな女の子</a>
+    <a href="/girls">すけべな女の子達</a>
     <a href="<?= h(FUJOHO_SCHEDULE) ?>" target="_blank" rel="noopener">スケジュール</a>
     <a href="/system">料金システム</a>
     <a href="/howto">ご利用ガイド</a>

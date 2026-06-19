@@ -145,7 +145,7 @@ site_header();
         <p class="empty-state">現在新人情報はありません</p>
       <?php endif; ?>
       <div class="section-more-wrap">
-        <a href="/girls" class="section-more glossy-pill">すけべな女の子を見る</a>
+        <a href="/girls" class="section-more glossy-pill">すけべな女の子達を見る</a>
       </div>
     </div>
   </section>
