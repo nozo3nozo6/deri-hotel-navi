@@ -1,5 +1,6 @@
 ---
 // Site.astro — 現行 _inc/head.php + _inc/layout.php を Astro に移植（site.css 再利用）
+import { statSync } from 'node:fs';
 import { SHOP, FUJOHO } from '../lib/config';
 
 export interface Props {
@@ -11,6 +12,11 @@ export interface Props {
 const SITE = 'https://kichifu.com';
 const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg` } = Astro.props;
 const canonical = SITE + path;
+
+// キャッシュバスター: site.css/js の mtime（Cloudflareが1年immutableキャッシュするため必須）
+const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
+const cssV = ver('public/site.css');
+const jsV = ver('public/site.js');
 ---
 <!doctype html>
 <html lang="ja">
@@ -31,7 +37,7 @@ const canonical = SITE + path;
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/site.css" />
+<link rel="stylesheet" href={`/site.css?v=${cssV}`} />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-50Q48YG34Z"></script>
 <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-50Q48YG34Z');</script>
@@ -139,6 +145,6 @@ const canonical = SITE + path;
     </div>
   </div>
 </div>
-<script is:inline src="/site.js"></script>
+<script is:inline src={`/site.js?v=${jsV}`}></script>
 </body>
 </html>
