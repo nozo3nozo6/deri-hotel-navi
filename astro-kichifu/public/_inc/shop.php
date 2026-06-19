@@ -1,4 +1,23 @@
 <?php
+// ── エラーログ設定（白画面の事後解析用。訪問者には絶対に表示しない） ──
+// ログは Web 非公開の DocRoot 外（/home/<site>/kichifu.com/php_error.log）に出力
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+    ini_set('error_log', dirname($_SERVER['DOCUMENT_ROOT']) . '/php_error.log');
+}
+error_reporting(E_ALL);
+// 致命エラー（白画面の主因）を確実にログへ。URL・行を添えて後追い可能にする
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        error_log(sprintf(
+            '[FATAL] %s in %s:%d | URI=%s',
+            $e['message'], $e['file'], $e['line'], $_SERVER['REQUEST_URI'] ?? '-'
+        ));
+    }
+});
+
 // 店舗固有設定（shop.ts と同期）
 define('SHOP_NAME',       'アドミ');
 define('SHOP_NAME_EN',    'Admi');
