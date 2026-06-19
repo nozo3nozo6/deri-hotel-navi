@@ -96,7 +96,6 @@ site_header();
             <div class="girl-main-wrap" data-lightbox-open>
               <img src="<?= h($mainPhoto) ?>" alt="<?= h($g['name']) ?>"
                    width="640" height="853" class="girl-main-photo" id="girlMainPhoto">
-              <span class="girl-main-zoom" aria-hidden="true">🔍 タップで拡大</span>
             </div>
           <?php else: ?>
             <div class="girl-main-photo" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));font-size:4rem;color:rgba(255,79,216,.2)">👤</div>
