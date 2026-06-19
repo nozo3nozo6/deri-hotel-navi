@@ -56,7 +56,7 @@ site_header();
 
       <div class="section-head">
         <span class="section-eyebrow holo-text">GIRLS</span>
-        <h1 class="section-title">女の子一覧</h1>
+        <h1 class="section-title">スケベGirls</h1>
       </div>
 
       <?php if ($girls): ?>
