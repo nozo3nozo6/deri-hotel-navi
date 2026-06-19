@@ -895,7 +895,35 @@ body.lb-open { overflow: hidden; }
 .girl-profile-table th { width: 38%; color: var(--lav-soft); font-weight: 600; }
 .girl-profile-table td { color: var(--text-soft); }
 
-.girl-options { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+.girl-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+
+/* エロポイント: プレイ見出し＋チップ（男性向けに強めのネオン演出） */
+.play-label {
+  font-size: .95rem;
+  letter-spacing: .08em;
+  text-transform: none;
+  color: #fff;
+  border-bottom-color: rgba(255,45,155,.55);
+  text-shadow: 0 0 12px rgba(255,45,155,.7);
+}
+.play-label::before { content: "🔥"; margin-right: 7px; }
+.play-chip {
+  display: inline-block;
+  padding: 7px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(255,45,155,.36), rgba(255,79,216,.18));
+  border: 1px solid rgba(255,79,216,.7);
+  box-shadow: 0 0 16px -2px rgba(255,45,155,.65), inset 0 1px 0 rgba(255,255,255,.28);
+  text-shadow: 0 1px 3px rgba(0,0,0,.55);
+}
+.play-chip.is-option {
+  background: linear-gradient(135deg, rgba(183,143,255,.32), rgba(183,143,255,.14));
+  border-color: rgba(183,143,255,.7);
+  box-shadow: 0 0 14px -3px rgba(140,90,220,.6), inset 0 1px 0 rgba(255,255,255,.22);
+}
 
 .comment-box {
   background: rgba(255,79,216,.06);

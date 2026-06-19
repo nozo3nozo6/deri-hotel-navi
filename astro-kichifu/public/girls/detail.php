@@ -185,20 +185,20 @@ site_header();
 
           <!-- 基本プレイ -->
           <?php if ($basicPlay): ?>
-          <p class="section-label">基本プレイ</p>
+          <p class="section-label play-label">基本プレイ</p>
           <div class="girl-options">
             <?php foreach ($basicPlay as $o): ?>
-              <span class="neon-chip"><?= h($o['name']) ?></span>
+              <span class="play-chip"><?= h($o['name']) ?></span>
             <?php endforeach; ?>
           </div>
           <?php endif; ?>
 
           <!-- オプションプレイ -->
           <?php if ($optionPlay): ?>
-          <p class="section-label">オプションプレイ</p>
+          <p class="section-label play-label">オプションプレイ</p>
           <div class="girl-options">
             <?php foreach ($optionPlay as $o): ?>
-              <span class="neon-chip is-option"><?= h($o['name']) ?></span>
+              <span class="play-chip is-option"><?= h($o['name']) ?></span>
             <?php endforeach; ?>
           </div>
           <?php endif; ?>
