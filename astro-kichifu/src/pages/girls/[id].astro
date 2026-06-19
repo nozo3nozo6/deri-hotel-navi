@@ -20,6 +20,16 @@ const profiles = (g?.profiles ?? []) as Array<{ name: string; type?: string; val
 
 const nameAge = g.name + (g.age ? `（${Number(g.age)}歳）` : '');
 const title = `${nameAge}｜${SHOP.fullName}`;
+const canonical = `https://kichifu.com/girls/${id}`;
+const breadcrumbLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://kichifu.com/top' },
+    { '@type': 'ListItem', position: 2, name: 'すけべな女の子達', item: 'https://kichifu.com/girls' },
+    { '@type': 'ListItem', position: 3, name: g.name, item: canonical },
+  ],
+};
 const tagPhrase = imageTags.length ? imageTags.slice(0, 4).join('・') : '';
 let desc;
 if (g.catch_copy) {
@@ -31,8 +41,9 @@ if (g.catch_copy) {
 }
 ---
 <Site title={title} description={desc} path={`/girls/${id}`}>
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbLd)} />
   <main>
-    <section class="page-section">
+    <section class="page-section girl-detail-section">
       <div class="neon-room"></div>
       <div class="wrap-lg" style="position:relative;z-index:1">
 
@@ -41,7 +52,7 @@ if (g.catch_copy) {
           <span class="breadcrumb-sep">›</span>
           <a href="/girls">すけべな女の子達</a>
           <span class="breadcrumb-sep">›</span>
-          <span>{g.name}</span>
+          <span aria-current="page">{g.name}</span>
         </nav>
 
         <div class="girl-detail-wrap">

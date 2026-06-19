@@ -819,6 +819,21 @@ body.lb-open { overflow: hidden; }
   margin-bottom: 12px;
 }
 .girl-detail-age { display: inline; font-size: 1.25rem; color: var(--lav-soft); font-weight: 700; margin-left: 8px; }
+
+/* 女の子詳細: 上余白を詰める + 名前を写真上に大きく中央表示 */
+.girl-detail-section { padding-top: 12px; }
+.girl-detail-section .breadcrumb { margin-top: 0; }
+@media (min-width: 768px) { .girl-detail-section { padding-top: 20px; } }
+.girl-hero-name {
+  text-align: center;
+  font-size: clamp(2.5rem, 12vw, 4rem);
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.08;
+  margin: 6px 0 22px;
+  text-shadow: 0 0 10px rgba(255,79,216,.6), 0 0 26px rgba(255,45,155,.42);
+}
+.girl-hero-age { font-size: .42em; color: var(--lav-soft); font-weight: 700; margin-left: 12px; vertical-align: middle; }
 .girl-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 .girl-flag-chip {
   display: inline-block;

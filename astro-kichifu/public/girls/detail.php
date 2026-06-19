@@ -75,8 +75,17 @@ $canonical = 'https://kichifu.com/girls/' . $id;
 site_head($title, $desc, $canonical);
 site_header();
 ?>
+<script type="application/ld+json"><?= json_encode([
+  '@context' => 'https://schema.org',
+  '@type' => 'BreadcrumbList',
+  'itemListElement' => [
+    ['@type' => 'ListItem', 'position' => 1, 'name' => 'トップ', 'item' => 'https://kichifu.com/top'],
+    ['@type' => 'ListItem', 'position' => 2, 'name' => 'すけべな女の子達', 'item' => 'https://kichifu.com/girls'],
+    ['@type' => 'ListItem', 'position' => 3, 'name' => $g['name'], 'item' => $canonical],
+  ],
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?></script>
 <main>
-  <section class="page-section">
+  <section class="page-section girl-detail-section">
     <div class="neon-room"></div>
     <div class="wrap-lg" style="position:relative;z-index:1">
 
@@ -85,8 +94,10 @@ site_header();
         <span class="breadcrumb-sep">›</span>
         <a href="/girls">すけべな女の子達</a>
         <span class="breadcrumb-sep">›</span>
-        <span><?= h($g['name']) ?></span>
+        <span aria-current="page"><?= h($g['name']) ?></span>
       </nav>
+
+      <h1 class="girl-hero-name"><?= h($g['name']) ?><?php if ($g['age']): ?><span class="girl-hero-age"><?= (int)$g['age'] ?>歳</span><?php endif; ?></h1>
 
       <div class="girl-detail-wrap">
 
@@ -126,7 +137,6 @@ site_header();
             <?php if ($g['is_inbound']): ?><span class="girl-flag-chip">インバウンド</span><?php endif; ?>
             <?php if ($g['is_genderless']): ?><span class="girl-flag-chip">ジェンダーレス</span><?php endif; ?>
           </div>
-          <h1 class="girl-detail-name"><?= h($g['name']) ?><?php if ($g['age']): ?><span class="girl-detail-age"><?= (int)$g['age'] ?>歳</span><?php endif; ?></h1>
 
           <?php if ($g['catch_copy']): ?>
             <p class="girl-catch">「<?= h($g['catch_copy']) ?>」</p>

@@ -23,6 +23,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Astro (static)
+        working-directory: astro-kichifu
+        run: npm ci && npm run build
+
       - name: Setup SSH key
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -62,14 +71,15 @@ jobs:
             "$GITHUB_PAT" > astro-kichifu/api/deploy-config.php
 
       # rsync は一過性のサーバー到達不能（connect timeout 等）でコケるため最大3回リトライ
-      - name: Deploy public/ via rsync
+      # ※ Astro静的フロント(dist/) を配信。--delete無し（api/admin/uploads/旧資産を保全）
+      - name: Deploy dist/ (static front) via rsync
         run: |
           SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
           n=0
-          until rsync -avz -e "$SSH_OPTS" astro-kichifu/public/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/; do
+          until rsync -avz -e "$SSH_OPTS" astro-kichifu/dist/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/; do
             n=$((n+1))
-            if [ "$n" -ge 3 ]; then echo "::error::rsync public/ failed after 3 attempts"; exit 1; fi
-            echo "rsync public/ attempt $n failed, retrying in 15s..."; sleep 15
+            if [ "$n" -ge 3 ]; then echo "::error::rsync dist/ failed after 3 attempts"; exit 1; fi
+            echo "rsync dist/ attempt $n failed, retrying in 15s..."; sleep 15
           done
 
       - name: Deploy PHP (api/) via rsync

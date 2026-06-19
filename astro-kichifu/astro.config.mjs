@@ -6,7 +6,7 @@ export default defineConfig({
   site: 'https://kichifu.com',
   output: 'static',
   build: {
-    format: 'directory',
+    format: 'file',
     inlineStylesheets: 'auto',
   },
   vite: {
