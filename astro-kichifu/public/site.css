@@ -517,8 +517,9 @@ body.reserve-open .modal-box {
   gap: 6px;
   font-size: .8125rem;
   color: var(--text-mute);
-  margin-bottom: 32px;
+  margin: -20px 0 16px;
 }
+@media (min-width: 768px) { .breadcrumb { margin: -28px 0 20px; } }
 .breadcrumb a { color: var(--lav-soft); transition: color .2s; }
 .breadcrumb a:hover { color: var(--neon-pink); }
 .breadcrumb-sep { color: rgba(255,255,255,.25); }
@@ -811,9 +812,10 @@ body.lb-open { overflow: hidden; }
   .lb-spark { display: none; }
 }
 .girl-detail-name {
-  font-size: 1.75rem;
+  font-size: clamp(2.125rem, 8vw, 2.75rem);
   font-weight: 800;
   color: #fff;
+  line-height: 1.15;
   margin-bottom: 4px;
 }
 .girl-detail-age { font-size: .9375rem; color: var(--lav-soft); margin-bottom: 16px; }
