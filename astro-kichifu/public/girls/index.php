@@ -64,8 +64,7 @@ site_header();
         <?php foreach ($girls as $g):
           $photo = $imgMap[$g['id']] ?? null;
           $age    = $g['age'] ? '(' . (int)$g['age'] . ')' : '';
-          $height = $g['height'] ? 'T' . (int)$g['height'] : '';
-          $sizes  = 'B' . ($g['bust'] ?: '—') . '(' . ($g['cup'] ?: '—') . ') W' . ($g['waist'] ?: '—') . ' H' . ($g['hip'] ?: '—');
+          $sizes  = 'T' . ($g['height'] ?: '—') . ' B' . ($g['bust'] ?: '—') . '(' . ($g['cup'] ?: '—') . ') W' . ($g['waist'] ?: '—') . ' H' . ($g['hip'] ?: '—');
           $tags  = $tagMap[$g['id']] ?? [];
           if (!$tags) {
             if ($g['is_tel'])        $tags[] = '電話';
@@ -84,10 +83,7 @@ site_header();
               <?php if ($g['is_newgirl']): ?><span class="girl-card-badge new">NEW</span><?php endif; ?>
               <?php if ($g['is_trial']):   ?><span class="girl-card-badge trial">体験</span><?php endif; ?>
               <div class="girl-card-info">
-                <div class="girl-card-line1">
-                  <span class="girl-card-name"><?= h($g['name']) ?><span class="girl-card-age"><?= h($age) ?></span></span>
-                  <?php if ($height): ?><span class="girl-card-height"><?= h($height) ?></span><?php endif; ?>
-                </div>
+                <p class="girl-card-name"><?= h($g['name']) ?><span class="girl-card-age"><?= h($age) ?></span></p>
                 <p class="girl-card-size"><?= h($sizes) ?></p>
               </div>
             </div>
