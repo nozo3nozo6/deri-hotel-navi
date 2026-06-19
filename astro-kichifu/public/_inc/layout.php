@@ -4,7 +4,7 @@ function site_header(): void { ?>
 <header class="site-header">
   <div class="site-header-inner">
     <a href="/top" class="brand" aria-label="<?= h(SHOP_FULL_NAME) ?> トップ">
-      <span class="brand-script"><?= h(SHOP_NAME_EN) ?></span>
+      <span class="brand-script flicker"><?= h(SHOP_NAME_EN) ?></span>
       <span class="brand-sub">
         <span class="brand-since">SINCE <?= SHOP_SINCE ?></span>
         <span class="brand-catch"><?= h(SHOP_CATCH) ?></span>
@@ -34,7 +34,7 @@ function site_footer(): void { ?>
 <footer class="site-footer">
   <div class="footer-inner">
     <hr class="holo-divider">
-    <p class="footer-brand font-script neon-pink-glow"><?= h(SHOP_NAME_EN) ?></p>
+    <p class="footer-brand font-script neon-pink-glow flicker"><?= h(SHOP_NAME_EN) ?></p>
     <p class="footer-sub">since <?= SHOP_SINCE ?> ・ <?= h(SHOP_CATCH) ?> &amp; Go To FANTASY</p>
     <div class="footer-cta">
       <a href="tel:<?= h(SHOP_TEL_RAW) ?>" class="footer-cta-tel glossy-pill">📞 <?= h(SHOP_TEL) ?></a>
@@ -59,7 +59,7 @@ function site_footer(): void { ?>
 <div class="offcanvas-overlay" data-menu-close></div>
 <div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー">
   <div class="offcanvas-head">
-    <span class="font-script neon-pink-glow offcanvas-brand"><?= h(SHOP_NAME_EN) ?></span>
+    <span class="font-script neon-pink-glow offcanvas-brand flicker"><?= h(SHOP_NAME_EN) ?></span>
     <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる">✕</button>
   </div>
   <nav class="offcanvas-nav">
