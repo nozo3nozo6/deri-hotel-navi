@@ -61,24 +61,36 @@ jobs:
           printf "<?php\ndefine('GITHUB_PAT', '%s');\ndefine('GITHUB_REPO', 'nozo3nozo6/deri-hotel-navi');\ndefine('GITHUB_WORKFLOW', 'deploy-kichifu.yml');\ndefine('GITHUB_BRANCH', 'main');\n" \
             "$GITHUB_PAT" > astro-kichifu/api/deploy-config.php
 
+      # rsync は一過性のサーバー到達不能（connect timeout 等）でコケるため最大3回リトライ
       - name: Deploy public/ via rsync
         run: |
-          rsync -avz \
-            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
-            astro-kichifu/public/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
+          SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          n=0
+          until rsync -avz -e "$SSH_OPTS" astro-kichifu/public/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/; do
+            n=$((n+1))
+            if [ "$n" -ge 3 ]; then echo "::error::rsync public/ failed after 3 attempts"; exit 1; fi
+            echo "rsync public/ attempt $n failed, retrying in 15s..."; sleep 15
+          done
 
       - name: Deploy PHP (api/) via rsync
         run: |
-          rsync -avz \
-            --exclude='*.sample.php' \
-            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
-            astro-kichifu/api/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/api/
+          SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          n=0
+          until rsync -avz --exclude='*.sample.php' -e "$SSH_OPTS" astro-kichifu/api/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/api/; do
+            n=$((n+1))
+            if [ "$n" -ge 3 ]; then echo "::error::rsync api/ failed after 3 attempts"; exit 1; fi
+            echo "rsync api/ attempt $n failed, retrying in 15s..."; sleep 15
+          done
 
       - name: Deploy admin (CMS) via rsync
         run: |
-          rsync -avz \
-            -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
-            astro-kichifu/admin/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/admin/
+          SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          n=0
+          until rsync -avz -e "$SSH_OPTS" astro-kichifu/admin/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/admin/; do
+            n=$((n+1))
+            if [ "$n" -ge 3 ]; then echo "::error::rsync admin/ failed after 3 attempts"; exit 1; fi
+            echo "rsync admin/ attempt $n failed, retrying in 15s..."; sleep 15
+          done
 
       - name: Purge Cloudflare cache
         run: |
