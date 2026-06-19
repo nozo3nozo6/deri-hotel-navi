@@ -28,7 +28,7 @@ try {
         if (!$girl) { http_response_code(404); echo json_encode(['error' => 'not found']); exit; }
 
         // 画像
-        $imgs = DB::conn()->prepare('SELECT path, alt FROM girl_images WHERE girl_id = ? ORDER BY sort, id');
+        $imgs = DB::conn()->prepare('SELECT path FROM girl_images WHERE girl_id = ? ORDER BY sort, id');
         $imgs->execute([$id]);
         $girl['images'] = $imgs->fetchAll(PDO::FETCH_ASSOC);
 
