@@ -1,0 +1,64 @@
+---
+import Site from '../../layouts/Site.astro';
+import { getGirls } from '../../lib/api';
+import { asset, tagEmoji, SHOP } from '../../lib/config';
+
+const girls = await getGirls();
+const title = `すけべな女の子達｜${SHOP.fullName}`;
+const desc = `${SHOP.name}（${SHOP.catch}）に在籍するすけべな女の子達。厳選された女の子をご紹介します。`;
+---
+<Site title={title} description={desc} path="/girls">
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-lg" style="position:relative;z-index:1">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>すけべな女の子達</span>
+        </nav>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">GIRLS</span>
+          <h1 class="section-title">すけべな女の子達</h1>
+        </div>
+
+        {girls.length ? (
+          <div class="girl-grid">
+            {girls.map((g) => {
+              const age = g.age ? `(${g.age})` : '';
+              const sizes = `T${g.height ?? '—'} B${g.bust ?? '—'}(${g.cup ?? '—'}) W${g.waist ?? '—'} H${g.hip ?? '—'}`;
+              const tags = (g.tags ?? []).slice(0, 4);
+              return (
+                <a href={`/girls/${g.id}`} class="girl-card">
+                  <div class="girl-card-img-wrap">
+                    {g.photo
+                      ? <img src={asset(g.photo)} alt={g.name} width="300" height="400" loading="lazy" class="girl-card-img" />
+                      : <div class="girl-card-no-photo">👤</div>}
+                    {g.is_newgirl ? <span class="girl-card-badge new">NEW</span> : null}
+                    {g.is_trial ? <span class="girl-card-badge trial">体験</span> : null}
+                    <div class="girl-card-info">
+                      <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
+                      <p class="girl-card-size">{sizes}</p>
+                    </div>
+                  </div>
+                  {tags.length ? (
+                    <div class="girl-card-tags">
+                      {tags.map((t) => (
+                        <span class="girl-card-tag-ico" title={t} aria-label={t}>{tagEmoji(t)}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </a>
+              );
+            })}
+          </div>
+        ) : (
+          <p class="empty-state">現在表示できる女の子がいません</p>
+        )}
+
+      </div>
+    </section>
+  </main>
+</Site>
