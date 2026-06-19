@@ -213,13 +213,16 @@ site_header();
           <div style="margin-top:32px;display:flex;flex-wrap:wrap;gap:12px">
             <a href="<?= h(SHOP_LINE_URL) ?>" target="_blank" rel="noopener"
                class="footer-cta-line" style="flex:1;min-width:180px;justify-content:center">
-              💬 <?= h($g['name']) ?>に会いたい
+              💬 LINEで予約
             </a>
             <a href="tel:<?= h(SHOP_TEL_RAW) ?>"
                class="glossy-pill footer-cta-tel" style="flex:1;min-width:180px;justify-content:center">
               📞 電話で予約
             </a>
           </div>
+          <p style="text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--neon-pink)">
+            💬 LINE予約なら＜プレイ時間＋10分＞無料！
+          </p>
         </div>
 
       </div><!-- /.girl-detail-wrap -->
