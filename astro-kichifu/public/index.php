@@ -6,7 +6,7 @@ require_once $root . '/_inc/layout.php';
 require_once $root . '/_inc/fujoho.php';
 
 $title = SHOP_NAME . ' since' . SHOP_SINCE . ' | ' . SHOP_CATCH . ' & Go To FANTASY';
-$desc  = SHOP_CATCH . 'の老舗「' . SHOP_NAME . '」。since2009、ハズレなしの素人娘をあなたのもとへ。';
+$desc  = SHOP_CATCH . 'の老舗「' . SHOP_NAME . '」。since2009、ハズレなしのすけべな素人娘をあなたのもとへ。';
 site_head($title, $desc, 'https://kichifu.com/');
 site_header();
 ?>
@@ -53,7 +53,7 @@ site_header();
       <div class="reveal reveal-3 glass-card"
            style="border-radius:28px;padding:24px 20px;max-width:460px;margin:0 auto;">
         <p class="text-mute" style="font-size:.875rem;margin-bottom:20px;letter-spacing:.04em;">
-          ハズレなしの素人娘をあなたのもとへ
+          ハズレなしのすけべな素人娘をあなたのもとへ
         </p>
         <a href="<?= h(FUJOHO_SHOP) ?>" rel="noopener"
            class="cta-enter"
