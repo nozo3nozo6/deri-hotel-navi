@@ -13,26 +13,36 @@
   - フォント: Pacifico（筆記体ネオン）+ M PLUS Rounded 1c（丸ゴシック）
   - ⚠️ 青系は使わない（欲を抑制する色のため）。寒色はラベンダー＝紫で代替
 
-## 構成（ハイブリッド: Astro 静的 + PHP）
+## 構成（Astro静的フロント + PHP API/CMS、全部シンレン同居）
+公開ページは **Astro(SSG)** で配信、データ/管理は **シンレンPHP+MySQL** が同一オリジンで同居（CORS不要）。
+**Cloudflare Pages は不採用**（検討したが ylka.jp と同じ「ローカル build → dist/ rsync」方式に決定）。
+デザインの正は `public/site.css`（Tailwind不使用のスタンドアロン）。`src/styles/global.css` と旧 `src/components/{Header,Hero,Concept,FujohoBanners,Footer}.astro`・`src/layouts/{BaseLayout,SiteLayout}.astro`・`src/data/*.ts` は旧スキャフォルドで**未使用**。
 ```
 astro-kichifu/
 ├── src/
-│   ├── layouts/BaseLayout.astro     SEO一元管理（title/desc/OG/JSON-LD/GA/CSP相当）
-│   ├── components/                  Header / Hero / Concept / FujohoBanners / Footer
-│   ├── pages/index.astro            トップLP
-│   └── styles/global.css            デザイントークン + ネオンアニメ
-├── public/                          静的アセット（ビルドで dist/ に複製）
-│   ├── .htaccess                    セキュリティ/キャッシュ/クリーンURL土台
-│   ├── img/                         indexbg.jpg(コラージュ背景), enter.png(CTA), index-logo.png 等
-│   ├── favicon.svg / robots.txt / sitemap.xml
-├── api/                             PHP（dist には含めず、別rsyncで配信）
-│   ├── db.php                       PDO接続シングルトン + uuid/json/json_out ヘルパー
-│   ├── db-config.sample.php         テンプレ（コミットOK）
-│   ├── db-config.php                ← 生成物。Secretsから作成、gitignore済み（コミット禁止）
-│   └── health.php                   疎通確認 /api/health.php（PHP実行 + DB接続の確認）
+│   ├── layouts/Site.astro           共通レイアウト（head/header/footer/offcanvas/予約モーダル, /site.css+/site.js）
+│   ├── lib/config.ts                店舗定数 / ASSET_ORIGIN / 絵文字tagEmoji（_inc/shop.php と同期）
+│   ├── lib/api.ts                   ビルド時fetch（getGirls/getGirl/getNews/getNewsItem）
+│   ├── components/Fujoho.astro      口コミ風俗情報局バナー（_inc/fujoho.php 移植）
+│   └── pages/                       index/top/system/howto/contacts/sitemap, news/index+[id], girls/index+[id]
+├── public/                          静的アセット＋現行PHPページ(移行元・dist非配信)
+│   ├── site.css / site.js           デザイン本体（Astroが /site.css /site.js で読込）
+│   ├── .htaccess                    Astro静的配信ルーティング（下記「肝」）
+│   ├── *.php / _inc/                旧PHPページ（postbuildでdist除去・サーバー残置はrollback用）
+│   ├── img/ favicon.svg robots.txt sitemap.xml
+├── api/                             PHP JSON API（girls.php/news.php/contact.php/health.php）+ db.php
+│   └── db-config.php                生成物（Secrets由来、gitignore、サーバー保全＝rsync除外）
+├── admin/                           PHP CMS（_lib.php / girls / news / banners / sliders / schedules）
+├── deploy.sh                        ★ローカルデプロイ（build→dist/ rsync＋api/admin、ylka方式）
 ├── astro.config.mjs                 output:'static', build.format:'file'
 └── CLAUDE.md                        このファイル
 ```
+
+## .htaccess の肝（public/.htaccess）
+- `DirectoryIndex index.html index.php`（Astro優先 / index.php はフォールバック）
+- **`DirectorySlash Off`**：`/girls` が `girls/`(詳細ディレクトリ)と衝突し mod_dir が `/girls/` へ301する事故を防ぐ（このサーバーは mod_dir が mod_rewrite より先に走る）
+- `/girls`→`girls.html` / `/news`→`news.html` を明示マッピング、`/admin`→`/admin/` 301、拡張子なし→`.html`
+- `package.json` の `postbuild` が dist から `*.php`/`_inc` を除去（静的配信でPHPソース非露出）
 
 ## URL / ルーティング
 - `output: 'static'` + `build.format: 'file'` → `src/pages/foo.astro` は `dist/foo.html`
@@ -42,13 +52,12 @@ astro-kichifu/
 - トリガー: `main` への push で `astro-kichifu/**` が変わった時のみ（yobuho の deploy.yml は `paths-ignore` で除外済み → 二重デプロイなし）。手動実行(workflow_dispatch)も可
 - 流れ: `npm ci` → `astro build` → `api/db-config.php` を Secrets から生成 → **dist/ を rsync**（静的）→ **api/ を rsync**（PHP、`*.sample.php` は除外）→ Cloudflare パージ
 - rsync は **`--delete` を使わない**（サーバー固有ファイル保全 / api と dist が別配信のため）
-- 手動デプロイ（CI を使わない緊急時）:
+- 流れ(現行): Node→`npm ci && npm run build`(Astro+postbuild) → `dist/` rsync → `api/` rsync(db-config生成・*.sample.php除外) → `admin/` rsync → Cloudflareパージ。ssh-keyscan/rsyncはリトライ済
+- **推奨デプロイ = ローカル `./deploy.sh`**（ylka方式、自分のSSHは安定。GitHubのIPがシンレンSSHに弾かれる時の確実な手段）:
   ```
-  cd astro-kichifu && npm run build
-  rsync -avz -e "ssh -p 10022 -i ~/.ssh/yobuho_deploy" dist/ yobuho@sv6051.wpx.ne.jp:/home/yobuho/kichifu.com/public_html/
-  rsync -avz --exclude='*.sample.php' -e "ssh -p 10022 -i ~/.ssh/yobuho_deploy" api/ yobuho@sv6051.wpx.ne.jp:/home/yobuho/kichifu.com/public_html/api/
-  # ※ 手動時は api/db-config.php を手で用意（コミットされない）
+  cd astro-kichifu && ./deploy.sh      # build → dist/ rsync ＋ api/(秘密除外) ＋ admin/
   ```
+  ※ `db-config.php`/`deploy-config.php` はサーバー保全のため rsync 除外（既存を使う）
 
 ## 必要な GitHub Secrets（リポジトリ deri-hotel-navi）
 - 既存を流用: `SSH_HOST` / `SSH_USERNAME` / `SSH_PRIVATE_KEY`（同一サーバー）/ `CLOUDFLARE_API_TOKEN`
