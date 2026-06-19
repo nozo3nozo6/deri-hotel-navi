@@ -552,18 +552,21 @@ body.reserve-open .modal-box {
 @media (min-width: 640px)  { .girl-grid { grid-template-columns: repeat(3,1fr); } }
 @media (min-width: 1024px) { .girl-grid { grid-template-columns: repeat(4,1fr); } }
 
-.girl-card { display: block; transition: transform .2s; }
-.girl-card:hover { transform: translateY(-3px); }
+.girl-card {
+  display: block;
+  transition: transform .2s, border-color .2s;
+  border-radius: 16px;
+  border: 1px solid rgba(255,79,216,.3);
+  background: rgba(255,79,216,.06);
+  box-shadow: 0 10px 30px -12px rgba(255,45,155,.5);
+  overflow: hidden;
+}
+.girl-card:hover { transform: translateY(-3px); border-color: rgba(255,79,216,.7); }
 
 .girl-card-img-wrap {
   position: relative;
   overflow: hidden;
-  border-radius: 16px;
-  border: 1px solid rgba(255,79,216,.3);
-  box-shadow: 0 10px 30px -12px rgba(255,45,155,.5);
-  transition: border-color .2s;
 }
-.girl-card:hover .girl-card-img-wrap { border-color: rgba(255,79,216,.7); }
 .girl-card-img {
   width: 100%;
   aspect-ratio: 3/4;
@@ -601,7 +604,13 @@ body.reserve-open .modal-box {
 .girl-card-name { font-weight: 700; color: #fff; line-height: 1.3; font-size: .9375rem; }
 .girl-card-age  { font-size: .75rem; color: var(--lav-soft); margin-left: 4px; }
 .girl-card-size { font-size: 11px; color: var(--text-mute); }
-.girl-card-tags { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 8px; }
+.girl-card-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 8px;
+}
 .girl-card-tag-ico {
   width: 28px;
   height: 28px;
