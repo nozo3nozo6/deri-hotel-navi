@@ -44,11 +44,11 @@ try {
         // オプション（基本プレイ / オプションプレイに分割）
         $opts = DB::conn()->prepare(
             'SELECT go.name, go.is_basic FROM girl_option_links gol
-               JOIN girl_options go ON go.id = gol.girl_option_id AND go.shop_id = gol.shop_id
-              WHERE gol.girl_id = ? AND gol.shop_id = ?
+               JOIN girl_options go ON go.id = gol.girl_option_id AND go.shop_id = ?
+              WHERE gol.girl_id = ?
               ORDER BY go.is_basic DESC, go.sort, go.id'
         );
-        $opts->execute([$id, $shop_id]);
+        $opts->execute([$shop_id, $id]);
         $allOpts = $opts->fetchAll(PDO::FETCH_ASSOC);
         $girl['options']     = array_column($allOpts, 'name');
         $girl['basic_play']  = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 1)));
