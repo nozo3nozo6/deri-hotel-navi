@@ -29,10 +29,10 @@ try {
     } else {
         $limit = min((int)($_GET['limit'] ?? 100), 100);
         $st = DB::conn()->prepare(
-            'SELECT id, title, thumb, body, published_at, created_at
+            'SELECT id, title, thumb, body, posted_at
                FROM news
               WHERE shop_id = ? AND is_display = 1
-              ORDER BY published_at DESC, id DESC
+              ORDER BY posted_at DESC, id DESC
               LIMIT ' . $limit
         );
         $st->execute([$shop_id]);

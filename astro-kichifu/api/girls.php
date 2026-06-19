@@ -83,6 +83,26 @@ try {
         $st->execute($params);
         $girls = $st->fetchAll(PDO::FETCH_ASSOC);
 
+        // 特徴タグ（各カードの絵文字アイコン用）を一括取得して紐付け
+        if ($girls) {
+            $ids = array_column($girls, 'id');
+            $ph  = implode(',', array_fill(0, count($ids), '?'));
+            $tg  = DB::conn()->prepare(
+                "SELECT gitl.girl_id, git.name
+                   FROM girl_image_tag_links gitl
+                   JOIN girl_image_tags git ON git.id = gitl.girl_image_tag_id
+                  WHERE gitl.girl_id IN ($ph)
+                  ORDER BY git.sort, git.id"
+            );
+            $tg->execute($ids);
+            $byGirl = [];
+            foreach ($tg->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $byGirl[$r['girl_id']][] = $r['name'];
+            }
+            foreach ($girls as &$g) { $g['tags'] = $byGirl[$g['id']] ?? []; }
+            unset($g);
+        }
+
         echo DB::jsonEncode(['girls' => $girls]);
     }
 } catch (Throwable $e) {
