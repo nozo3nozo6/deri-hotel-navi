@@ -94,6 +94,7 @@ if (g.catch_copy) {
               {g.is_inbound ? <span class="girl-flag-chip">インバウンド</span> : null}
               {g.is_genderless ? <span class="girl-flag-chip">ジェンダーレス</span> : null}
             </div>
+            <p class="girl-detail-name">{g.name}{g.age ? <span class="girl-detail-age">{Number(g.age)}歳</span> : null}</p>
 
             {g.catch_copy ? (
               <p class="girl-catch">「{g.catch_copy}」</p>
