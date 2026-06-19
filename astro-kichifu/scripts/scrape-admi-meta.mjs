@@ -72,17 +72,39 @@ function normOption(name) {
   return OPT_ALIAS[name] ?? name;
 }
 
-// 店舗/女の子コメントは HTMLウィジェット。原文HTMLを保持し、ラッパー見出し・コメント・scriptのみ除去。
+// <div class="X"> の対応する閉じ </div> までの中身を深さカウントで抽出（ネスト対応）
+function extractDivContent(html, openTag) {
+  const start = html.indexOf(openTag);
+  if (start < 0) return null;
+  let i = start + openTag.length;
+  const contentStart = i;
+  let depth = 1;
+  while (i < html.length && depth > 0) {
+    const o = html.indexOf('<div', i);
+    const c = html.indexOf('</div>', i);
+    if (c < 0) break;
+    if (o >= 0 && o < c) { depth++; i = o + 4; }
+    else { depth--; if (depth === 0) return html.slice(contentStart, c); i = c + 6; }
+  }
+  return html.slice(contentStart, i);
+}
+
+// 店舗/女の子コメントは HTMLウィジェット。原文HTMLを保持（ウィジェット本体だけ抽出、script除去）。
 function extractCommentHtml(html) {
   if (!html) return '';
-  // 「ここからコピー」マーカーがあればウィジェット本体だけを抜く（admiのpremium-card等）
+  // 1) 「ここからコピー」マーカーがあればウィジェット本体（admiのpremium-card等）
   const copy = html.match(/<!--\s*ここからコピー\s*-->([\s\S]*?)<!--\s*ここまでコピー\s*-->/);
-  let h = copy ? copy[1] : html;
+  let h;
+  if (copy) {
+    h = copy[1];
+  } else {
+    // 2) ckeditor / commentBase の中身を深さカウントで抽出（後続のページ構造HTMLを巻き込まない）
+    h = extractDivContent(html, '<div class="ckeditor">')
+      ?? extractDivContent(html, '<div class="commentBase">')
+      ?? html;
+  }
   return h
-    .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, '')      // 「店舗からのコメント」見出し
-    .replace(/<div class="commentBase">/g, '')      // admi公開のラッパー開始タグ
-    .replace(/<div class="ckeditor">/g, '')
-    .replace(/<!--[\s\S]*?-->/g, '')                // 残りのHTMLコメント
+    .replace(/<!--[\s\S]*?-->/g, '')                // HTMLコメント
     .replace(/<script[\s\S]*?<\/script>/gi, '')     // scriptは安全のため除去
     .trim();
 }
