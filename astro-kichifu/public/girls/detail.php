@@ -126,8 +126,7 @@ site_header();
             <?php if ($g['is_inbound']): ?><span class="girl-flag-chip">インバウンド</span><?php endif; ?>
             <?php if ($g['is_genderless']): ?><span class="girl-flag-chip">ジェンダーレス</span><?php endif; ?>
           </div>
-          <h1 class="girl-detail-name"><?= h($g['name']) ?></h1>
-          <?php if ($g['age']): ?><p class="girl-detail-age"><?= (int)$g['age'] ?>歳</p><?php endif; ?>
+          <h1 class="girl-detail-name"><?= h($g['name']) ?><?php if ($g['age']): ?><span class="girl-detail-age"><?= (int)$g['age'] ?>歳</span><?php endif; ?></h1>
 
           <?php if ($g['catch_copy']): ?>
             <p class="girl-catch">「<?= h($g['catch_copy']) ?>」</p>
@@ -165,9 +164,9 @@ site_header();
           </div>
           <?php endif; ?>
 
-          <!-- 店舗からのコメント（HTMLウィジェット可・そのまま描画） -->
+          <!-- お店からのメッセージ（HTMLウィジェット可・そのまま描画） -->
           <?php if (!empty($g['shop_comment'])): ?>
-          <p class="section-label">店舗からのコメント</p>
+          <p class="section-label">お店からのメッセージ</p>
           <div class="girl-shop-comment"><?= $g['shop_comment'] ?></div>
           <?php endif; ?>
 

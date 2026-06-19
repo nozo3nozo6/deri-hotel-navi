@@ -816,9 +816,9 @@ body.lb-open { overflow: hidden; }
   font-weight: 800;
   color: #fff;
   line-height: 1.15;
-  margin-bottom: 4px;
+  margin-bottom: 12px;
 }
-.girl-detail-age { font-size: .9375rem; color: var(--lav-soft); margin-bottom: 16px; }
+.girl-detail-age { display: inline; font-size: 1.25rem; color: var(--lav-soft); font-weight: 700; margin-left: 8px; }
 .girl-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 .girl-flag-chip {
   display: inline-block;
