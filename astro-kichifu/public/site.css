@@ -601,20 +601,38 @@ body.reserve-open .modal-box {
   padding: 16px 10px 9px;
   background: linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.78) 45%, transparent 100%);
 }
+.girl-card-line1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
 .girl-card-name {
   font-weight: 800;
   color: #fff;
   line-height: 1.25;
   font-size: 1.0625rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 10px rgba(255,79,216,.5);
 }
-.girl-card-age  { font-size: .8125rem; color: var(--lav-soft); margin-left: 4px; font-weight: 700; }
+.girl-card-age  { font-size: .8125rem; color: var(--lav-soft); margin-left: 3px; font-weight: 700; }
+.girl-card-height {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.98);
+}
 .girl-card-size {
   font-size: 12.5px;
   font-weight: 700;
   color: #fff;
   letter-spacing: .01em;
-  margin-top: 2px;
+  margin-top: 3px;
+  white-space: nowrap;
   text-shadow: 0 1px 4px rgba(0,0,0,.98);
 }
 .girl-card-tags {
