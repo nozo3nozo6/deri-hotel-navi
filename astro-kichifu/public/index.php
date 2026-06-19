@@ -52,6 +52,9 @@ site_header();
 
       <div class="reveal reveal-3 glass-card"
            style="border-radius:28px;padding:24px 20px;max-width:460px;margin:0 auto;">
+        <p class="neon-pink-glow" style="font-size:1.125rem;font-weight:800;line-height:1.5;margin-bottom:8px;">
+          実は、素人が一番すけべ。♡
+        </p>
         <p class="text-mute" style="font-size:.875rem;margin-bottom:20px;letter-spacing:.04em;">
           ハズレなしのすけべな素人娘をあなたのもとへ
         </p>
