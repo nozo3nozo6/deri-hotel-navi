@@ -37,3 +37,8 @@ export async function getNews(): Promise<NewsItem[]> {
   const d = await getJson(`${API_BASE}/news.php?action=list&shop_id=${SHOP_ID}`);
   return d.items ?? [];
 }
+
+export async function getNewsItem(id: number): Promise<NewsItem | null> {
+  const d = await getJson(`${API_BASE}/news.php?action=detail&id=${id}&shop_id=${SHOP_ID}`);
+  return d.item ?? null;
+}

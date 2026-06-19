@@ -32,15 +32,27 @@ try {
         $imgs->execute([$id]);
         $girl['images'] = $imgs->fetchAll(PDO::FETCH_ASSOC);
 
-        // オプション
+        // 特徴タグ
+        $tg = DB::conn()->prepare(
+            'SELECT git.name FROM girl_image_tag_links gitl
+               JOIN girl_image_tags git ON git.id = gitl.girl_image_tag_id
+              WHERE gitl.girl_id = ? ORDER BY git.sort, git.id'
+        );
+        $tg->execute([$id]);
+        $girl['tags'] = array_column($tg->fetchAll(PDO::FETCH_ASSOC), 'name');
+
+        // オプション（基本プレイ / オプションプレイに分割）
         $opts = DB::conn()->prepare(
-            'SELECT go.name FROM girl_option_links gol
+            'SELECT go.name, go.is_basic FROM girl_option_links gol
                JOIN girl_options go ON go.id = gol.girl_option_id AND go.shop_id = gol.shop_id
               WHERE gol.girl_id = ? AND gol.shop_id = ?
-              ORDER BY go.sort, go.id'
+              ORDER BY go.is_basic DESC, go.sort, go.id'
         );
         $opts->execute([$id, $shop_id]);
-        $girl['options'] = array_column($opts->fetchAll(PDO::FETCH_ASSOC), 'name');
+        $allOpts = $opts->fetchAll(PDO::FETCH_ASSOC);
+        $girl['options']     = array_column($allOpts, 'name');
+        $girl['basic_play']  = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 1)));
+        $girl['option_play'] = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 0)));
 
         // プロフィール（is_display=1 のみ）
         $profs = DB::conn()->prepare(
