@@ -866,18 +866,15 @@ body.lb-open { overflow: hidden; }
   white-space: pre-line;
 }
 
+/* 店舗/女の子コメントは HTMLウィジェットをそのまま描画する枠（自前styleを尊重し最小限） */
 .girl-shop-comment {
-  background: linear-gradient(165deg, rgba(255,79,216,.08), rgba(183,143,255,.05));
-  border: 1px solid rgba(255,79,216,.22);
-  border-radius: 14px;
-  padding: 18px 20px;
   margin-bottom: 24px;
   color: var(--text-soft);
   line-height: 1.95;
   font-size: .9375rem;
-  white-space: pre-wrap;
   word-break: break-word;
 }
+.girl-shop-comment img { max-width: 100%; height: auto; }
 
 /* === 13. News list ======================================================== */
 .news-list { display: flex; flex-direction: column; gap: 12px; }

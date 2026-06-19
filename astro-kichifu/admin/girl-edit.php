@@ -251,14 +251,14 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   <?php endif; ?>
 
   <div class="card card-pad form-grid">
-    <strong>コメント</strong>
+    <strong>コメント <span class="muted" style="font-weight:400;font-size:12px">（HTMLコード可。装飾カード等のウィジェットを貼り付けるとそのまま表示されます）</span></strong>
     <div class="field">
-      <label>女の子コメント（一言・任意）</label>
-      <textarea name="comment" rows="2" placeholder="本人からの一言メッセージ"><?= h($g['comment']) ?></textarea>
+      <label>女の子コメント（一言・任意・HTML可）</label>
+      <textarea name="comment" rows="3" placeholder="本人からの一言。HTMLタグやウィジェットコードもそのまま反映されます"><?= h($g['comment']) ?></textarea>
     </div>
     <div class="field">
-      <label>店舗コメント（紹介文）</label>
-      <textarea name="shop_comment" rows="8" placeholder="お店からの紹介文。改行はそのまま反映されます"><?= h($g['shop_comment']) ?></textarea>
+      <label>店舗コメント（紹介文・HTMLウィジェット可）</label>
+      <textarea name="shop_comment" rows="10" placeholder="お店からの紹介文。HTMLコード（装飾カード等のウィジェット）をそのまま貼り付けられます"><?= h($g['shop_comment']) ?></textarea>
     </div>
   </div>
 

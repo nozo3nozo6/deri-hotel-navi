@@ -166,10 +166,10 @@ site_header();
           </div>
           <?php endif; ?>
 
-          <!-- 店舗からのコメント -->
+          <!-- 店舗からのコメント（HTMLウィジェット可・そのまま描画） -->
           <?php if (!empty($g['shop_comment'])): ?>
           <p class="section-label">店舗からのコメント</p>
-          <div class="girl-shop-comment"><?= h($g['shop_comment']) ?></div>
+          <div class="girl-shop-comment"><?= $g['shop_comment'] ?></div>
           <?php endif; ?>
 
           <!-- プロフィール（女の子に質問） -->
@@ -205,10 +205,10 @@ site_header();
           </div>
           <?php endif; ?>
 
-          <!-- 本人からの一言 -->
+          <!-- 本人からの一言（HTMLウィジェット可・そのまま描画） -->
           <?php if (!empty($g['comment'])): ?>
           <p class="section-label"><?= h($g['name']) ?>からの一言</p>
-          <div class="comment-box"><?= h($g['comment']) ?></div>
+          <div class="comment-box"><?= $g['comment'] ?></div>
           <?php endif; ?>
 
           <!-- 予約 CTA -->

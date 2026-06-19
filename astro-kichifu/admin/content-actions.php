@@ -13,35 +13,36 @@ if (!current_admin()) { http_response_code(401); echo json_encode(['ok' => false
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); echo json_encode(['ok' => false]); exit; }
 if (!hash_equals($_SESSION['_csrf'] ?? '', (string)($_POST['_csrf'] ?? ''))) { http_response_code(419); echo json_encode(['ok' => false]); exit; }
 
-// テーブル => [画像カラム配列, is_display有無]
+// テーブル => [画像カラム配列, toggle対象カラム名|null]
 $TABLES = [
-    'news'         => [['thumb'], true],
-    'events'       => [['thumb'], true],
-    'banners'      => [['image'], true],
-    'sliders'      => [['image_pc', 'image_sp'], true],
-    'hotels'       => [['image'], true],
-    'hotel_areas'  => [[], false],
-    'girl_diaries' => [['image'], true],
-    'courses'      => [[], true],
-    'girl_categories' => [[], false],
-    'girl_options' => [[], false],
-    'girl_profiles' => [[], false],
-    'girl_image_tags' => [[], false],
+    'news'            => [['thumb'], 'is_display'],
+    'events'          => [['thumb'], 'is_display'],
+    'banners'         => [['image'], 'is_display'],
+    'sliders'         => [['image_pc', 'image_sp'], 'is_display'],
+    'hotels'          => [['image'], 'is_display'],
+    'hotel_areas'     => [[], null],
+    'girl_diaries'    => [['image'], 'is_display'],
+    'courses'         => [[], 'is_display'],
+    'girl_categories' => [[], null],
+    'girl_options'    => [[], 'is_basic'],
+    'girl_profiles'   => [[], null],
+    'girl_image_tags' => [[], 'is_active'],
 ];
 
 $table = (string)($_POST['table'] ?? '');
 if (!isset($TABLES[$table])) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'table']); exit; }
-[$imgCols, $hasDisplay] = $TABLES[$table];
+[$imgCols, $toggleCol] = $TABLES[$table];
 $shop = current_shop_id();
 $action = $_POST['action'] ?? '';
 
 try {
     switch ($action) {
         case 'toggle':
-            if (!$hasDisplay) throw new RuntimeException('no display');
+            if (!$toggleCol) throw new RuntimeException('no toggle');
             $id = (int)($_POST['id'] ?? 0);
-            db()->prepare("UPDATE `$table` SET is_display = 1 - is_display WHERE id=? AND shop_id=?")->execute([$id, $shop]);
-            $v = db()->prepare("SELECT is_display FROM `$table` WHERE id=? AND shop_id=?");
+            // $toggleCol はホワイトリストの固定値（is_display/is_basic/is_active）のみ
+            db()->prepare("UPDATE `$table` SET `$toggleCol` = 1 - `$toggleCol` WHERE id=? AND shop_id=?")->execute([$id, $shop]);
+            $v = db()->prepare("SELECT `$toggleCol` FROM `$table` WHERE id=? AND shop_id=?");
             $v->execute([$id, $shop]);
             echo json_encode(['ok' => true, 'value' => (int)$v->fetchColumn()]);
             break;

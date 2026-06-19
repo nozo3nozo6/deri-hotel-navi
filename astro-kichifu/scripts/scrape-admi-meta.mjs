@@ -72,26 +72,19 @@ function normOption(name) {
   return OPT_ALIAS[name] ?? name;
 }
 
-// 店舗コメント: HTML → プレーンテキスト（ノイズ除去）。admiのpremium-card / ranking-deliのballoon 両対応。
-function cleanComment(html) {
-  let t = (html ?? '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h\d|li)>/gi, '\n')
-    .replace(/<[^>]+>/g, '');
-  t = decode(t).replace(/[ \t]+/g, ' ');
-  let lines = t.split('\n').map(l => l.trim());
-  const dropPrefix = /^(店舗からのコメント|お店からのメッセージ|NEW CAST|Style\s*:|Bust\s*:|ここからコピー|ここまでコピー)/i;
-  lines = lines.filter(l =>
-    l !== '' &&
-    !dropPrefix.test(l) &&
-    !/^[\s　]*$/.test(l) &&
-    !/^\S{1,10}\s*さん$/.test(l) &&          // 「ことね さん」等の見出し
-    !/^完全業界未経験$/.test(l)
-  );
-  const out = [];
-  for (const l of lines) if (l !== out[out.length - 1]) out.push(l);
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+// 店舗/女の子コメントは HTMLウィジェット。原文HTMLを保持し、ラッパー見出し・コメント・scriptのみ除去。
+function extractCommentHtml(html) {
+  if (!html) return '';
+  // 「ここからコピー」マーカーがあればウィジェット本体だけを抜く（admiのpremium-card等）
+  const copy = html.match(/<!--\s*ここからコピー\s*-->([\s\S]*?)<!--\s*ここまでコピー\s*-->/);
+  let h = copy ? copy[1] : html;
+  return h
+    .replace(/<h3[^>]*>[\s\S]*?<\/h3>/gi, '')      // 「店舗からのコメント」見出し
+    .replace(/<div class="commentBase">/g, '')      // admi公開のラッパー開始タグ
+    .replace(/<div class="ckeditor">/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')                // 残りのHTMLコメント
+    .replace(/<script[\s\S]*?<\/script>/gi, '')     // scriptは安全のため除去
+    .trim();
 }
 
 // ---- 一覧パース（roster.mjs と同一ロジック）----
@@ -120,9 +113,10 @@ function parseAdmiDetail(html) {
   const iconBlock = html.match(/<div class="girlsIcon">([\s\S]*?)<\/div>/)?.[1] ?? '';
   const tags = normTags([...iconBlock.matchAll(/<span>([^<]+)<\/span>/g)].map(x => x[1]));
 
-  // 店舗コメント（girlsCommentArea 〜 「女の子に質問」直前）
-  const caBlock = html.match(/girlsCommentArea">([\s\S]*?)女の子に質問/)?.[1] ?? '';
-  const shop_comment = cleanComment(caBlock);
+  // 店舗コメント（girlsCommentArea 〜 「女の子に質問」直前）。HTMLウィジェットを原文保持。
+  const caBlock = html.match(/girlsCommentArea">([\s\S]*?)<h2 class="girlsDtlSub under">女の子に質問/)?.[1]
+               ?? html.match(/girlsCommentArea">([\s\S]*?)女の子に質問/)?.[1] ?? '';
+  const shop_comment = extractCommentHtml(caBlock);
 
   // 質問
   const qaBlock = html.match(/girlsDtlQA">([\s\S]*?)<\/ul>/)?.[1] ?? '';
@@ -148,9 +142,9 @@ function parseRankingDeli(html) {
   const moreTags   = [...tagBlock.matchAll(/anti-base">([^<]+)</g)].map(x => x[1]);
   const tags = normTags([...genreTags, ...moreTags]);
 
-  // 店舗コメント（shopmessage-body の comment balloon > p）
-  const msg = html.match(/shopmessage-body[\s\S]*?<div class="comment balloon">\s*<p>([\s\S]*?)<\/p>/)?.[1] ?? '';
-  const shop_comment = cleanComment(msg);
+  // 店舗コメント（shopmessage-body の comment balloon）。HTMLウィジェットを原文保持（<br>等を残す）。
+  const msg = html.match(/shopmessage-body[\s\S]*?<div class="comment balloon">([\s\S]*?)<\/div>\s*<\/div>/)?.[1] ?? '';
+  const shop_comment = extractCommentHtml(msg);
 
   // 質問（li.question / li.answer 交互の balloon > p）
   const qaSection = html.match(/<section class="qa[\s\S]*?<\/section>/)?.[0] ?? '';
