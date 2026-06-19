@@ -9,6 +9,7 @@ define('SHOP_TEL',        '090-1045-9155');
 define('SHOP_TEL_RAW',    '09010459155');
 define('SHOP_RECEPTION',  '10:00〜翌5:00');
 define('SHOP_LINE_URL',   'https://line.me/ti/p/L4-1uY6q2e');
+define('SHOP_RECRUIT_URL','https://kanto.qzin.jp/admi2888/?v=official');
 define('SHOP_FUJOHO_ID',  '53179');
 define('SHOP_ID_DB',      1);
 

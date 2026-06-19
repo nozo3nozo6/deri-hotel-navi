@@ -49,6 +49,7 @@ function site_footer(): void { ?>
       <a href="/howto">ご利用ガイド</a>
       <a href="/news">お知らせ</a>
       <a href="<?= h(FUJOHO_DIARY) ?>" target="_blank" rel="noopener">写メ日記</a>
+      <a href="<?= h(SHOP_RECRUIT_URL) ?>" target="_self">求人情報</a>
       <a href="/contacts">お問合せ</a>
     </nav>
     <p class="footer-copy">&copy; <?= SHOP_SINCE ?>-<?= date('Y') ?> <?= h(SHOP_FULL_NAME) ?> All Rights Reserved.</p>
@@ -69,6 +70,7 @@ function site_footer(): void { ?>
     <a href="/howto">ご利用ガイド</a>
     <a href="/news">お知らせ</a>
     <a href="<?= h(FUJOHO_DIARY) ?>" target="_blank" rel="noopener">写メ日記</a>
+    <a href="<?= h(SHOP_RECRUIT_URL) ?>" target="_self">求人情報</a>
     <a href="/contacts">お問合せ</a>
   </nav>
   <div class="offcanvas-foot">
