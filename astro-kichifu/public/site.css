@@ -601,7 +601,21 @@ body.reserve-open .modal-box {
 .girl-card-name { font-weight: 700; color: #fff; line-height: 1.3; font-size: .9375rem; }
 .girl-card-age  { font-size: .75rem; color: var(--lav-soft); margin-left: 4px; }
 .girl-card-size { font-size: 11px; color: var(--text-mute); }
-.girl-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.girl-card-tags { display: flex; flex-wrap: nowrap; gap: 6px; margin-top: 8px; }
+.girl-card-tag-ico {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,79,216,.12);
+  border: 1px solid rgba(255,79,216,.40);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+  font-size: 15px;
+  line-height: 1;
+}
 
 /* === 12. Girl detail ====================================================== */
 .girl-detail-wrap { display: grid; grid-template-columns: 1fr; gap: 32px; }
@@ -1051,6 +1065,9 @@ body.lb-open { overflow: hidden; }
 .reveal-3 { animation-delay: .40s; }
 .reveal-4 { animation-delay: .58s; }
 .flicker  { animation: neon-flicker 6s ease-in-out 1s infinite; }
+.reveal.flicker { opacity: 0; animation: fade-up .8s ease forwards, neon-flicker 6s ease-in-out 1.2s infinite; }
+.reveal-1.flicker { animation-delay: .05s, 1.2s; }
+.reveal-2.flicker { animation-delay: .22s, 1.2s; }
 
 /* === 16. Top page sections ================================================ */
 .top-news-section { background: var(--bg-1); padding: 64px 0; }
@@ -1501,7 +1518,9 @@ textarea.form-control { resize: vertical; min-height: 140px; }
   border-radius: 6px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .holo-text, .reveal, .flicker { animation: none !important; }
-  .reveal { opacity: 1; }
+  /* 登場アニメ・トランジションは減らすが、ブランドロゴのネオン点滅は維持（移動を伴わない光のパルスのため） */
+  .holo-text, .reveal { animation: none !important; }
+  .reveal, .reveal.flicker { opacity: 1 !important; }
+  .flicker { animation: neon-flicker 6s ease-in-out 1s infinite !important; }
   .girl-card-img, .girl-card, .offcanvas, .modal-box { transition: none; }
 }

@@ -37,3 +37,18 @@ define('FUJOHO_SCHEDULE', 'https://fujoho.jp/index.php?p=shop_info&id=' . SHOP_F
 define('FUJOHO_DIARY',    'https://fujoho.jp/index.php?p=shop_girl_blog_list&id=' . SHOP_FUJOHO_ID);
 
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
+
+// 特徴タグ名 → 絵文字アイコン（一覧カードのコンパクト表示用。未定義は ♡）
+function tag_emoji(string $name): string {
+    static $map = [
+        'オススメ' => '⭐', '素人' => '🔰', '未経験' => '🌱', '可愛い系' => '🎀',
+        '綺麗系' => '💎', 'お嬢様' => '👑', '女子大生' => '🎓', 'OL系' => '💼',
+        'セクシー' => '🔥', '清楚' => '🤍', '癒し' => '🍵', 'ギャル系' => '💋',
+        'モデル系' => '📸', 'ロリ系' => '🍭', 'グラマー' => '🍑', 'スレンダー' => '🌿',
+        '美乳' => '🍒', '美脚' => '👠', '巨乳' => '🍈', '色白' => '🌙',
+        '愛嬌抜群' => '😊', 'イチャイチャ系' => '💕', 'テクニシャン' => '✨', '痴女' => '😈',
+        'サービス抜群' => '🎁', '敏感' => '⚡', '濃厚サービス' => '🍯', '天然' => '🍀',
+        'おっとり' => '🌷',
+    ];
+    return $map[$name] ?? '♡';
+}

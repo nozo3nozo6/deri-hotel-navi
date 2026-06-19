@@ -90,8 +90,8 @@ site_header();
             </div>
             <?php if ($tags): ?>
               <div class="girl-card-tags">
-                <?php foreach (array_slice($tags, 0, 3) as $tag): ?>
-                  <span class="neon-chip"><?= h($tag) ?></span>
+                <?php foreach (array_slice($tags, 0, 4) as $tag): ?>
+                  <span class="girl-card-tag-ico" title="<?= h($tag) ?>" aria-label="<?= h($tag) ?>"><?= tag_emoji($tag) ?></span>
                 <?php endforeach; ?>
               </div>
             <?php endif; ?>
