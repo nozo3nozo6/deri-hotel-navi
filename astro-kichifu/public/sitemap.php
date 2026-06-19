@@ -42,7 +42,7 @@ site_header();
           <p class="sitemap-group-title">メインメニュー</p>
           <ul class="sitemap-links">
             <li><a href="/top">トップ</a></li>
-            <li><a href="/girls">女の子一覧</a></li>
+            <li><a href="/girls">すけべGirls</a></li>
             <li><a href="/news">お知らせ</a></li>
             <li><a href="/system">料金システム</a></li>
             <li><a href="/howto">ご利用方法</a></li>
@@ -61,7 +61,7 @@ site_header();
 
         <div>
           <?php if ($girls): ?>
-          <p class="sitemap-group-title">女の子一覧</p>
+          <p class="sitemap-group-title">すけべGirls</p>
           <ul class="sitemap-links">
             <?php foreach ($girls as $g): ?>
             <li><a href="/girls/<?= (int)$g['id'] ?>"><?= h($g['name']) ?></a></li>

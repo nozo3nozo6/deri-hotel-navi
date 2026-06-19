@@ -38,7 +38,7 @@ if ($girls) {
     foreach ($tg->fetchAll() as $r) $tagMap[$r['girl_id']][] = $r['name'];
 }
 
-$title = '女の子一覧｜' . SHOP_FULL_NAME;
+$title = 'すけべGirls｜' . SHOP_FULL_NAME;
 $desc  = SHOP_NAME . '（' . SHOP_CATCH . '）の在籍女の子一覧。厳選された女の子をご紹介します。';
 site_head($title, $desc, 'https://kichifu.com/girls');
 site_header();
@@ -51,12 +51,12 @@ site_header();
       <nav class="breadcrumb">
         <a href="/top">トップ</a>
         <span class="breadcrumb-sep">›</span>
-        <span>女の子一覧</span>
+        <span>すけべGirls</span>
       </nav>
 
       <div class="section-head">
         <span class="section-eyebrow holo-text">GIRLS</span>
-        <h1 class="section-title">スケベGirls</h1>
+        <h1 class="section-title">すけべGirls</h1>
       </div>
 
       <?php if ($girls): ?>

@@ -18,7 +18,7 @@ if (!$g) {
     $desc  = '';
     site_head($title, $desc);
     site_header();
-    echo '<main><div class="wrap-md" style="padding:80px 24px;text-align:center"><p class="empty-state">ページが見つかりません</p><p style="margin-top:24px"><a href="/girls" class="back-link">← 女の子一覧に戻る</a></p></div></main>';
+    echo '<main><div class="wrap-md" style="padding:80px 24px;text-align:center"><p class="empty-state">ページが見つかりません</p><p style="margin-top:24px"><a href="/girls" class="back-link">← すけべGirlsに戻る</a></p></div></main>';
     site_footer();
     exit;
 }
@@ -83,7 +83,7 @@ site_header();
       <nav class="breadcrumb">
         <a href="/top">トップ</a>
         <span class="breadcrumb-sep">›</span>
-        <a href="/girls">女の子一覧</a>
+        <a href="/girls">すけべGirls</a>
         <span class="breadcrumb-sep">›</span>
         <span><?= h($g['name']) ?></span>
       </nav>
