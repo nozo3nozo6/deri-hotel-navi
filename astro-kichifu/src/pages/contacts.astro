@@ -1,0 +1,118 @@
+---
+import Site from '../layouts/Site.astro';
+import { asset, tagEmoji, SHOP, FUJOHO, ASSET_ORIGIN, API_BASE, SHOP_ID } from '../lib/config';
+
+const title = `お問い合わせ｜${SHOP.fullName}`;
+const desc = `${SHOP.name}へのお問い合わせページです。ご予約はLINEまたはお電話が一番スムーズです。`;
+const contactApi = `${ASSET_ORIGIN}/api/contact.php`;
+---
+<Site title={title} description={desc} path="/contacts">
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-md" style="position:relative;z-index:1;">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>お問い合わせ</span>
+        </nav>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">CONTACT</span>
+          <h1 class="section-title">お問い合わせ</h1>
+        </div>
+
+        <!-- 予約はこちら -->
+        <div class="form-alt-cta" style="margin-bottom:40px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,.1);">
+          <p style="font-size:.9375rem;color:var(--text-soft);margin-bottom:16px;font-weight:600;">
+            ご予約・即日のお問い合わせはこちらが一番スムーズです
+          </p>
+          <div class="form-alt-btns">
+            <a href={SHOP.lineUrl} target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:9999px;font-weight:700;color:#fff;background:#06c755;font-size:.9375rem;">
+              💬 LINEで問い合わせ
+            </a>
+            <a href={`tel:${SHOP.telRaw}`}
+               class="glossy-pill"
+               style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:9999px;font-weight:700;color:#fff;font-size:.9375rem;">
+              📞 {SHOP.tel}
+            </a>
+          </div>
+          <p style="font-size:.8125rem;color:var(--text-mute);margin-top:12px;">受付時間 {SHOP.reception}</p>
+        </div>
+
+        <!-- フォーム -->
+        <form method="post" action={contactApi} class="contact-form" novalidate>
+          <input type="text" name="_hp" style="display:none;" tabindex="-1" autocomplete="off">
+
+          <div class="form-group">
+            <label class="form-label" for="cf-name">お名前<span class="form-required">必須</span></label>
+            <input class="form-control" type="text" id="cf-name" name="name"
+                   placeholder="山田 太郎" required maxlength="50"
+                   value="">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="cf-tel">電話番号</label>
+            <input class="form-control" type="tel" id="cf-tel" name="tel"
+                   placeholder="090-1234-5678" maxlength="20"
+                   value="">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="cf-email">メールアドレス</label>
+            <input class="form-control" type="email" id="cf-email" name="email"
+                   placeholder="example@email.com" maxlength="100"
+                   value="">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="cf-message">メッセージ<span class="form-required">必須</span></label>
+            <textarea class="form-control" id="cf-message" name="message"
+                      placeholder="お問い合わせ内容をご記入ください" required maxlength="1000"
+                      rows="6"></textarea>
+          </div>
+
+          <button type="submit" class="form-submit" id="cf-submit">送信する</button>
+        </form>
+        <script is:inline define:vars={{ contactApi }}>
+        (function(){
+          var form = document.querySelector('.contact-form');
+          if (!form) return;
+          form.addEventListener('submit', function(e){
+            e.preventDefault();
+            var btn = document.getElementById('cf-submit');
+            btn.disabled = true;
+            btn.textContent = '送信中…';
+            var fd = new FormData(form);
+            var data = {};
+            fd.forEach(function(v,k){ data[k] = v; });
+            fetch(contactApi, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(data)
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(j){
+              if (j.ok) {
+                form.innerHTML = '<div class="form-done-msg"><p class="holo-text" style="font-size:1.25rem;font-weight:800;margin-bottom:12px;">送信しました ♡</p><p class="text-mute">お問い合わせありがとうございます。内容を確認のうえ、折り返しご連絡いたします。</p></div>';
+              } else {
+                btn.disabled = false;
+                btn.textContent = '送信する';
+                alert('送信に失敗しました。お電話またはLINEにてお問い合わせください。');
+              }
+            })
+            .catch(function(){
+              btn.disabled = false;
+              btn.textContent = '送信する';
+              alert('通信エラーが発生しました。');
+            });
+          });
+        })();
+        </script>
+
+      </div>
+    </section>
+  </main>
+</Site>

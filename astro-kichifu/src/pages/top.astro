@@ -1,0 +1,151 @@
+---
+import Site from '../layouts/Site.astro';
+import Fujoho from '../components/Fujoho.astro';
+import { getGirls, getNews } from '../lib/api';
+import { asset, SHOP, FUJOHO } from '../lib/config';
+
+// 最新お知らせ 4件
+const latestNews = (await getNews()).slice(0, 4);
+
+// 新人の女の子 8件
+const newFaces = (await getGirls()).filter((g) => g.is_newgirl).slice(0, 8);
+
+const title = `${SHOP.fullName} | トップ`;
+const desc = `${SHOP.catch}の老舗「${SHOP.name}」（since${SHOP.since}）。厳選された素人の女の子をラブホテル・ご自宅までデリバリー。最新情報・新人の女の子・本日の出勤はこちら。`;
+---
+<Site title={title} description={desc} path="/top">
+<main>
+
+  <!-- ヒーローバンド ======================================================== -->
+  <section class="hero-bg" style="position:relative;min-height:58vh;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+    <div class="hero-scrim" style="position:absolute;inset:0;pointer-events:none;"></div>
+    <span class="sparkle" style="top:18%;left:12%;font-size:1.25rem;animation-delay:0s"    aria-hidden="true">✦</span>
+    <span class="sparkle" style="top:26%;left:84%;font-size:1rem;animation-delay:.7s"      aria-hidden="true">✧</span>
+    <span class="sparkle" style="top:70%;left:88%;font-size:1.125rem;animation-delay:1.3s" aria-hidden="true">❤</span>
+
+    <div style="position:relative;z-index:1;text-align:center;padding:64px 24px;max-width:760px;margin:0 auto;">
+      <p class="neon-lav-glow" style="font-size:.75rem;letter-spacing:.35em;margin-bottom:16px;">
+        ✦ {SHOP.catch} ・ SINCE {SHOP.since} ✦
+      </p>
+      <p class="font-script neon-pink-glow" style="font-size:clamp(3.5rem,11vw,5.5rem);line-height:1;margin-bottom:12px;">
+        {SHOP.nameEn}
+      </p>
+      <h1 class="holo-text" style="font-size:1.75rem;font-weight:800;margin-bottom:20px;">
+        ハズレなしの素人娘を、あなたのもとへ ♡
+      </h1>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;">
+        <button type="button" data-reserve-open
+                class="glossy-pill"
+                style="padding:12px 32px;border-radius:9999px;font-size:1.0625rem;font-weight:700;color:#fff;border:none;">
+          ご予約はこちら
+        </button>
+        <a href={`tel:${SHOP.telRaw}`}
+           style="font-size:.875rem;color:var(--text-soft);text-decoration:underline;text-underline-offset:4px;">
+          📞 {SHOP.tel}（受付 {SHOP.reception}）
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- お知らせ ============================================================== -->
+  <section class="top-news-section">
+    <div class="wrap-md">
+      <div class="section-head">
+        <span class="section-eyebrow holo-text">NEWS</span>
+        <h2 class="section-title">最新情報</h2>
+      </div>
+      {latestNews.length ? (
+      <div class="news-list">
+        {latestNews.map((it) => {
+          const date = it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+          const excerpt = it.body ? (() => {
+            const plain = it.body.replace(/<[^>]*>/g, '');
+            return plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
+          })() : '';
+          return (
+        <a href={`/news/${it.id}`} class="news-item">
+          {it.thumb
+            ? <img src={asset(it.thumb)} alt="" width="80" height="80" loading="lazy" class="news-thumb" />
+            : <div class="news-no-thumb">📢</div>}
+          <div class="news-meta">
+            <p class="news-date">{date}</p>
+            <h3 class="news-title">{it.title}</h3>
+            {excerpt ? <p class="news-excerpt">{excerpt}</p> : null}
+          </div>
+        </a>
+          );
+        })}
+      </div>
+      ) : (
+        <p class="empty-state">お知らせはまだありません</p>
+      )}
+      <div class="section-more-wrap">
+        <a href="/news" class="section-more glossy-pill">お知らせをもっと見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 新人の女の子 =========================================================== -->
+  <section class="top-girls-section">
+    <div class="wrap-lg">
+      <div class="section-head">
+        <span class="section-eyebrow holo-text">NEW FACE</span>
+        <h2 class="section-title">新人の女の子</h2>
+      </div>
+      {newFaces.length ? (
+      <div class="girl-grid">
+        {newFaces.map((g) => {
+          const age = g.age ? `（${g.age}）` : '';
+          return (
+        <a href={`/girls/${g.id}`} class="girl-card">
+          <div class="girl-card-img-wrap">
+            {g.photo
+              ? <img src={asset(g.photo)} alt={g.name}
+                     width="300" height="400" loading="lazy" class="girl-card-img" />
+              : <div class="girl-card-no-photo">👤</div>}
+            <span class="girl-card-badge new">NEW</span>
+            <div class="girl-card-info">
+              <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
+            </div>
+          </div>
+        </a>
+          );
+        })}
+      </div>
+      ) : (
+        <p class="empty-state">現在新人情報はありません</p>
+      )}
+      <div class="section-more-wrap">
+        <a href="/girls" class="section-more glossy-pill">すけべな女の子達を見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 口コミ風俗情報局 広告バナー =========================================== -->
+  <Fujoho />
+
+  <!-- 出勤リンク -->
+  <div style="background:var(--bg-0);padding:0 0 48px;text-align:center;">
+    <a href={FUJOHO.schedule} target="_blank" rel="noopener"
+       class="section-more glossy-pill">
+      本日の出勤を見る
+    </a>
+  </div>
+
+  <!-- バナーカード =========================================================== -->
+  <section class="top-banner-section">
+    <div class="top-banner-grid">
+      <a href="/system" class="top-banner-card glass-card">
+        <p class="holo-text top-banner-card-title">料金システム</p>
+        <p class="text-mute top-banner-card-sub">時代に合わせた納得プライス</p>
+      </a>
+      <a href={SHOP.lineUrl} target="_blank" rel="noopener"
+         class="top-banner-card" style="background:#06c755;">
+        <p class="top-banner-card-title" style="color:#fff;">LINEで予約</p>
+        <p class="top-banner-card-sub" style="color:rgba(255,255,255,.85);">当日予約はLINEがかんたん♪</p>
+      </a>
+    </div>
+  </section>
+
+</main>
+</Site>

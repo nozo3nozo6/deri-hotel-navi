@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "postbuild": "find dist -name '*.php' -type f -delete && rm -rf dist/_inc",
     "preview": "astro preview",
     "astro": "astro"
   },

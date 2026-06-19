@@ -24,6 +24,7 @@ export const SHOP = {
 
 const FID = SHOP.fujohoId;
 export const FUJOHO = {
+  shop: `https://fujoho.jp/index.php?p=shop&id=${FID}`,
   schedule: `https://fujoho.jp/index.php?p=shop_info&id=${FID}&h=ON`,
   diary: `https://fujoho.jp/index.php?p=shop_girl_blog_list&id=${FID}`,
 };

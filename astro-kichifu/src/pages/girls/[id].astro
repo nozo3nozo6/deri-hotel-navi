@@ -1,0 +1,213 @@
+---
+import Site from '../../layouts/Site.astro';
+import { asset, SHOP } from '../../lib/config';
+import { getGirls, getGirl } from '../../lib/api';
+
+export async function getStaticPaths() {
+  const girls = await getGirls();
+  return girls.map((g) => ({ params: { id: String(g.id) } }));
+}
+
+const { id } = Astro.params;
+const g = await getGirl(Number(id));
+
+const images = (g?.images ?? []) as Array<{ path: string; alt?: string }>;
+const mainPhoto = images[0]?.path ?? null;
+const imageTags = (g?.tags ?? []) as string[];
+const basicPlay = (g?.basic_play ?? []) as string[];
+const optionPlay = (g?.option_play ?? []) as string[];
+const profiles = (g?.profiles ?? []) as Array<{ name: string; type?: string; value: string }>;
+
+const nameAge = g.name + (g.age ? `（${Number(g.age)}歳）` : '');
+const title = `${nameAge}｜${SHOP.fullName}`;
+const tagPhrase = imageTags.length ? imageTags.slice(0, 4).join('・') : '';
+let desc;
+if (g.catch_copy) {
+  desc = `${g.name} — ${g.catch_copy}。${SHOP.catch}のアドミで活躍中。`;
+} else if (tagPhrase) {
+  desc = `${g.name}（${tagPhrase}）。${SHOP.catch}のアドミ所属。プロフィール・スリーサイズをご覧ください。`;
+} else {
+  desc = `${g.name}｜${SHOP.catch}のアドミ所属。プロフィール・スリーサイズをご覧ください。`;
+}
+---
+<Site title={title} description={desc} path={`/girls/${id}`}>
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-lg" style="position:relative;z-index:1">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <a href="/girls">すけべな女の子達</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>{g.name}</span>
+        </nav>
+
+        <div class="girl-detail-wrap">
+
+          <!-- 左: 写真 -->
+          <div>
+            {mainPhoto ? (
+              <div class="girl-main-wrap" data-lightbox-open>
+                <img src={asset(mainPhoto)} alt={g.name}
+                     width="640" height="853" class="girl-main-photo" id="girlMainPhoto" />
+              </div>
+            ) : (
+              <div class="girl-main-photo" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));font-size:4rem;color:rgba(255,79,216,.2)">👤</div>
+            )}
+
+            {images.length > 1 ? (
+              <div class="girl-sub-photos">
+                {images.map((img, idx) => (
+                  <button type="button"
+                          class={`girl-thumb${idx === 0 ? ' is-active' : ''}`}
+                          data-girl-thumb data-full={asset(img.path)}
+                          aria-label={`${g.name} 写真${idx + 1}`}>
+                    <img src={asset(img.path)} alt={`${g.name} 写真${idx + 1}`}
+                         width="200" height="267" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <!-- 右: 詳細 -->
+          <div>
+            <!-- 名前・バッジ -->
+            <div class="girl-flags">
+              {g.is_newgirl ? <span class="girl-flag-chip is-new">NEW</span> : null}
+              {g.is_trial ? <span class="girl-flag-chip is-trial">体験入店</span> : null}
+              {g.is_tel ? <span class="girl-flag-chip">電話</span> : null}
+              {g.is_inbound ? <span class="girl-flag-chip">インバウンド</span> : null}
+              {g.is_genderless ? <span class="girl-flag-chip">ジェンダーレス</span> : null}
+            </div>
+            <h1 class="girl-detail-name">{g.name}{g.age ? <span class="girl-detail-age">{Number(g.age)}歳</span> : null}</h1>
+
+            {g.catch_copy ? (
+              <p class="girl-catch">「{g.catch_copy}」</p>
+            ) : null}
+
+            <!-- 特徴タグ -->
+            {imageTags.length ? (
+              <div class="girl-tags">
+                {imageTags.map((t) => (
+                  <span class="girl-tag-chip">{t}</span>
+                ))}
+              </div>
+            ) : null}
+
+            <!-- スリーサイズ -->
+            {(g.height || g.bust || g.cup || g.waist || g.hip) ? (
+              <Fragment>
+                <p class="section-label">スリーサイズ</p>
+                <div class="girl-size-grid">
+                  <div class="girl-size-item">
+                    <span class="girl-size-label">T</span>
+                    <span class="girl-size-val">{g.height ? Number(g.height) : '—'}</span>
+                  </div>
+                  <div class="girl-size-item">
+                    <span class="girl-size-label">B</span>
+                    <span class="girl-size-val">{g.bust ? Number(g.bust) : '—'}</span>
+                  </div>
+                  <div class="girl-size-item">
+                    <span class="girl-size-label">CUP</span>
+                    <span class="girl-size-val">{g.cup ? g.cup : '—'}</span>
+                  </div>
+                  <div class="girl-size-item">
+                    <span class="girl-size-label">W</span>
+                    <span class="girl-size-val">{g.waist ? Number(g.waist) : '—'}</span>
+                  </div>
+                </div>
+              </Fragment>
+            ) : null}
+
+            <!-- お店からのメッセージ（HTMLウィジェット可・そのまま描画） -->
+            {g.shop_comment ? (
+              <Fragment>
+                <p class="section-label">お店からのメッセージ</p>
+                <div class="girl-shop-comment" set:html={g.shop_comment}></div>
+              </Fragment>
+            ) : null}
+
+            <!-- プロフィール（女の子に質問） -->
+            {profiles.length ? (
+              <Fragment>
+                <p class="section-label">{g.name}さんに質問</p>
+                <table class="girl-profile-table">
+                  {profiles.map((pf) => (
+                    <tr>
+                      <th>{pf.name}</th>
+                      <td>{pf.value}</td>
+                    </tr>
+                  ))}
+                </table>
+              </Fragment>
+            ) : null}
+
+            <!-- 基本プレイ -->
+            {basicPlay.length ? (
+              <Fragment>
+                <p class="section-label play-label">基本プレイ</p>
+                <div class="girl-options">
+                  {basicPlay.map((o) => (
+                    <span class="play-chip">{o}</span>
+                  ))}
+                </div>
+              </Fragment>
+            ) : null}
+
+            <!-- オプションプレイ -->
+            {optionPlay.length ? (
+              <Fragment>
+                <p class="section-label play-label">オプションプレイ</p>
+                <div class="girl-options">
+                  {optionPlay.map((o) => (
+                    <span class="play-chip is-option">{o}</span>
+                  ))}
+                </div>
+              </Fragment>
+            ) : null}
+
+            <!-- 本人からの一言（HTMLウィジェット可・そのまま描画） -->
+            {g.comment ? (
+              <Fragment>
+                <p class="section-label">{g.name}からの一言</p>
+                <div class="comment-box" set:html={g.comment}></div>
+              </Fragment>
+            ) : null}
+
+            <!-- 予約 CTA -->
+            <div style="margin-top:32px;display:flex;flex-wrap:wrap;gap:12px">
+              <a href={`tel:${SHOP.telRaw}`}
+                 class="glossy-pill footer-cta-tel" style="flex:1;min-width:180px;justify-content:center">
+                📞 電話で予約
+              </a>
+              <a href={SHOP.lineUrl} target="_blank" rel="noopener"
+                 class="footer-cta-line" style="flex:1;min-width:180px;justify-content:center">
+                💬 LINEで予約
+              </a>
+            </div>
+            <p style="text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:var(--neon-pink)">
+              💬 LINE予約なら＜プレイ時間＋10分＞無料！
+            </p>
+          </div>
+
+        </div><!-- /.girl-detail-wrap -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ネオン・ライトボックス -->
+  <div class="lightbox" id="lightbox" data-lightbox aria-hidden="true" role="dialog" aria-label={`${g.name} 写真ビューア`}>
+    <button class="lightbox-close" data-lightbox-close aria-label="閉じる">✕</button>
+    <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真">‹</button>
+    <div class="lightbox-stage">
+      <img class="lightbox-img" id="lightboxImg" src="" alt={g.name} />
+      <span class="lightbox-sparkles" id="lightboxSparkles" aria-hidden="true"></span>
+    </div>
+    <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真">›</button>
+    <div class="lightbox-dots" id="lightboxDots" aria-hidden="true"></div>
+    <div class="lightbox-counter" id="lightboxCounter"></div>
+  </div>
+</Site>
