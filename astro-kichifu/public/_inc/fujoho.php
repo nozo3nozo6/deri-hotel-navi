@@ -41,7 +41,7 @@ function fujoho_banners(): void {
       <div class="neon-room" style="opacity:.6;"></div>
       <div class="fujoho-wrap">
         <p class="neon-lav-glow" style="text-align:center;font-size:.75rem;letter-spacing:.35em;margin-bottom:12px;">GIRLS</p>
-        <h2 class="holo-text" style="font-size:1.5rem;font-weight:800;text-align:center;margin-bottom:12px;line-height:1.3;">ヒメたちの最新情報 ♡</h2>
+        <h2 class="holo-text" style="font-size:1.5rem;font-weight:800;text-align:center;margin-bottom:12px;line-height:1.3;">すけべな女の子達の最新情報 ♡</h2>
         <p class="text-mute" style="text-align:center;font-size:.875rem;margin-bottom:40px;">写メ日記・口コミ・すぐご案内できる女の子をチェック</p>
         <div class="fujoho-grid">
           <?php foreach ($banners as $b): ?>
