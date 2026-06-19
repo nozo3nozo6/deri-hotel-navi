@@ -94,15 +94,11 @@ foreach ($meta as $m) {
     $allOpt = array_merge((array)($m['basic_play'] ?? []), (array)($m['option_play'] ?? []));
     if ($allOpt) {
         $pdo->prepare('DELETE FROM girl_option_links WHERE girl_id=?')->execute([$gid]);
-        $insO = $pdo->prepare('INSERT IGNORE INTO girl_option_links (girl_id, girl_option_id, shop_id) VALUES (?,?,?)');
+        $insO = $pdo->prepare('INSERT IGNORE INTO girl_option_links (girl_id, girl_option_id) VALUES (?,?)');
         foreach ($allOpt as $o) {
             $o = trim((string)$o);
-            if ($o === '') continue;
-            if (!isset($optMaster[$o])) {
-                $pdo->prepare('INSERT INTO girl_options (shop_id,name,is_basic,sort) VALUES (?,?,0,999)')->execute([$SHOP, $o]);
-                $optMaster[$o] = (int)$pdo->lastInsertId(); $stat['newOpt']++;
-            }
-            $insO->execute([$gid, $optMaster[$o], $SHOP]);
+            if ($o === '' || !isset($optMaster[$o])) continue;  // 標準オプション(マスタ)一致のみ採用（ranking-deliの独自番号メニュー等のノイズを除外）
+            $insO->execute([$gid, $optMaster[$o]]);
         }
         $stat['opt']++;
     }

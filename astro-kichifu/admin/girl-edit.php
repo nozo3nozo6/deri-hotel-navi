@@ -80,8 +80,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
             // オプション
             db()->prepare('DELETE FROM girl_option_links WHERE girl_id=?')->execute([$id]);
-            $ins = db()->prepare('INSERT INTO girl_option_links (girl_id, girl_option_id, shop_id) VALUES (?,?,?)');
-            foreach ((array)($_POST['options'] ?? []) as $oid) $ins->execute([$id, (int)$oid, $shop]);
+            $ins = db()->prepare('INSERT INTO girl_option_links (girl_id, girl_option_id) VALUES (?,?)');
+            foreach ((array)($_POST['options'] ?? []) as $oid) $ins->execute([$id, (int)$oid]);
 
             // プロフィール回答（upsert）— is_display もまとめて更新
             $up = db()->prepare(
