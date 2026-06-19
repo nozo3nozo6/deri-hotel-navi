@@ -172,7 +172,7 @@ site_header();
 
           <!-- プロフィール（女の子に質問） -->
           <?php if ($profiles): ?>
-          <p class="section-label">女の子に質問</p>
+          <p class="section-label"><?= h($g['name']) ?>さんに質問</p>
           <table class="girl-profile-table">
             <?php foreach ($profiles as $pf): ?>
               <tr>
