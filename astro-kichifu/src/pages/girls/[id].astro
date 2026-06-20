@@ -141,7 +141,7 @@ if (g.catch_copy) {
             <!-- お店からのメッセージ（HTMLウィジェット可・そのまま描画） -->
             {g.shop_comment ? (
               <Fragment>
-                <p class="section-label">お店からのメッセージ</p>
+                <p class="section-label" style="font-size:.95rem;margin-top:32px">お店からのメッセージ</p>
                 <div class="girl-shop-comment" set:html={g.shop_comment}></div>
               </Fragment>
             ) : null}
