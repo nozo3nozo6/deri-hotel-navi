@@ -118,7 +118,7 @@ button { cursor: pointer; }
   padding-left: 9px;
   border-left: 1px solid rgba(255,79,216,.40);
 }
-.brand-since { font-size: 10px; letter-spacing: .34em; color: var(--lav-soft); }
+.brand-since { font-size: 10px; letter-spacing: .12em; color: var(--lav-soft); }
 .brand-catch {
   font-size: 11px;
   font-weight: 700;
