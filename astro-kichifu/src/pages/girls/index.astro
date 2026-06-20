@@ -1,9 +1,20 @@
 ---
+import { statSync } from 'node:fs';
 import Site from '../../layouts/Site.astro';
 import { getGirls } from '../../lib/api';
 import { asset, tagEmoji, SHOP } from '../../lib/config';
 
 const girls = await getGirls();
+// 既定の並び = 入店順 新しい順（登録id降順）。JS側の既定アクティブと一致させる
+girls.sort((a, b) => b.id - a.id);
+
+// 絞り込み用の特徴タグ一覧（出現順ユニーク）
+const allTags: string[] = [];
+girls.forEach((g) => (g.tags ?? []).forEach((t) => { if (!allTags.includes(t)) allTags.push(t); }));
+
+const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
+const jsV = ver('public/girls-filter.js');
+
 const title = `すけべな女の子達｜${SHOP.fullName}`;
 const desc = `${SHOP.name}（${SHOP.catch}）に在籍するすけべな女の子達。厳選された女の子をご紹介します。`;
 ---
@@ -25,35 +36,111 @@ const desc = `${SHOP.name}（${SHOP.catch}）に在籍するすけべな女の�
         </div>
 
         {girls.length ? (
-          <div class="girl-grid">
-            {girls.map((g) => {
-              const age = g.age ? `(${g.age})` : '';
-              const sizes = `T${g.height ?? '—'} B${g.bust ?? '—'}(${g.cup ?? '—'}) W${g.waist ?? '—'} H${g.hip ?? '—'}`;
-              const tags = (g.tags ?? []).slice(0, 4);
-              return (
-                <a href={`/girls/${g.id}`} class="girl-card">
-                  <div class="girl-card-img-wrap">
-                    {g.photo
-                      ? <img src={asset(g.photo)} alt={g.name} width="300" height="400" loading="lazy" class="girl-card-img" />
-                      : <div class="girl-card-no-photo">👤</div>}
-                    {g.is_newgirl ? <span class="girl-card-badge new">NEW</span> : null}
-                    {g.is_trial ? <span class="girl-card-badge trial">体験</span> : null}
-                    <div class="girl-card-info">
-                      <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
-                      <p class="girl-card-size">{sizes}</p>
-                    </div>
-                  </div>
-                  {tags.length ? (
-                    <div class="girl-card-tags">
-                      {tags.map((t) => (
-                        <span class="girl-card-tag-ico" title={t} aria-label={t}>{tagEmoji(t)}</span>
+          <Fragment>
+            <!-- 絞り込み検索 -->
+            <div class="gpanel" id="gfilter">
+              <button class="gpanel-head" type="button" data-gpanel-toggle aria-expanded="false">
+                <span class="gpanel-title"><span aria-hidden="true">🔍</span> 絞り込み検索</span>
+                <span class="gpanel-chev" aria-hidden="true">▾</span>
+              </button>
+              <div class="gpanel-body">
+                <div class="gfield">
+                  <label class="gfield-label" for="gsearch-name">名前で検索</label>
+                  <input type="search" id="gsearch-name" class="gsearch-input" placeholder="名前を入力" enterkeyhint="search" autocomplete="off" />
+                </div>
+                {allTags.length ? (
+                  <div class="gfield">
+                    <span class="gfield-label">特徴タグ（複数選択）</span>
+                    <div class="gtag-list">
+                      {allTags.map((t) => (
+                        <button type="button" class="gtag-chip" data-gtag={t}>{tagEmoji(t)} {t}</button>
                       ))}
                     </div>
-                  ) : null}
-                </a>
-              );
-            })}
-          </div>
+                  </div>
+                ) : null}
+                <div class="gfield gfield-row">
+                  <label class="gcheck"><input type="checkbox" id="gfilter-new" /> <span>新人のみ</span></label>
+                  <button type="button" class="greset" id="gfilter-reset">条件をクリア</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 並び替え -->
+            <div class="gpanel" id="gsort">
+              <button class="gpanel-head" type="button" data-gpanel-toggle aria-expanded="false">
+                <span class="gpanel-title"><span aria-hidden="true">↓↑</span> 並び替え</span>
+                <span class="gpanel-chev" aria-hidden="true">▾</span>
+              </button>
+              <div class="gpanel-body">
+                <div class="gsort-grid">
+                  <div class="gsort-group">
+                    <p class="gsort-label">入店順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn is-active" data-sort="id" data-dir="desc">新しい順</button>
+                      <button type="button" class="gsort-btn" data-sort="id" data-dir="asc">古い順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">身長順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="height" data-dir="desc">高い順</button>
+                      <button type="button" class="gsort-btn" data-sort="height" data-dir="asc">低い順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">バスト順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="bust" data-dir="desc">大きい順</button>
+                      <button type="button" class="gsort-btn" data-sort="bust" data-dir="asc">小さい順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">年齢順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="age" data-dir="desc">高い順</button>
+                      <button type="button" class="gsort-btn" data-sort="age" data-dir="asc">低い順</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="gresult-count" id="gresult-count"></p>
+
+            <div class="girl-grid" id="girl-grid">
+              {girls.map((g) => {
+                const age = g.age ? `(${g.age})` : '';
+                const sizes = `T${g.height ?? '—'} B${g.bust ?? '—'}(${g.cup ?? '—'}) W${g.waist ?? '—'} H${g.hip ?? '—'}`;
+                const tags = (g.tags ?? []).slice(0, 4);
+                return (
+                  <a href={`/girls/${g.id}`} class="girl-card"
+                     data-id={g.id} data-height={g.height ?? 0} data-bust={g.bust ?? 0}
+                     data-age={g.age ?? 0} data-name={g.name} data-new={g.is_newgirl ? 1 : 0}
+                     data-tags={(g.tags ?? []).join('|')}>
+                    <div class="girl-card-img-wrap">
+                      {g.photo
+                        ? <img src={asset(g.photo)} alt={g.name} width="300" height="400" loading="lazy" class="girl-card-img" />
+                        : <div class="girl-card-no-photo">👤</div>}
+                      {g.is_newgirl ? <span class="girl-card-badge new">NEW</span> : null}
+                      {g.is_trial ? <span class="girl-card-badge trial">体験</span> : null}
+                      <div class="girl-card-info">
+                        <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
+                        <p class="girl-card-size">{sizes}</p>
+                      </div>
+                    </div>
+                    {tags.length ? (
+                      <div class="girl-card-tags">
+                        {tags.map((t) => (
+                          <span class="girl-card-tag-ico" title={t} aria-label={t}>{tagEmoji(t)}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </a>
+                );
+              })}
+            </div>
+            <p class="gresult-empty" id="gresult-empty" style="display:none">条件に合う女の子が見つかりませんでした。</p>
+          </Fragment>
         ) : (
           <p class="empty-state">現在表示できる女の子がいません</p>
         )}
@@ -61,4 +148,5 @@ const desc = `${SHOP.name}（${SHOP.catch}）に在籍するすけべな女の�
       </div>
     </section>
   </main>
+  <script is:inline src={`/girls-filter.js?v=${jsV}`}></script>
 </Site>

@@ -657,6 +657,112 @@ body.reserve-open .modal-box {
   line-height: 1;
 }
 
+/* === 11b. 一覧 絞り込み・並び替えパネル ================================== */
+.gpanel {
+  border: 1px solid rgba(255,79,216,.30);
+  border-radius: 14px;
+  background: rgba(255,79,216,.05);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.gpanel-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: left;
+  letter-spacing: .03em;
+}
+.gpanel-title { display: inline-flex; align-items: center; gap: 8px; }
+.gpanel-chev { color: var(--neon-pink); transition: transform .25s; font-size: .8rem; }
+.gpanel.is-open .gpanel-chev { transform: rotate(180deg); }
+.gpanel-body {
+  display: none;
+  padding: 4px 18px 18px;
+  border-top: 1px solid rgba(255,79,216,.18);
+}
+.gpanel.is-open .gpanel-body { display: block; }
+
+.gfield { margin-top: 16px; }
+.gfield-label { display: block; font-size: .8125rem; font-weight: 700; color: var(--lav-soft); margin-bottom: 8px; }
+.gsearch-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,79,216,.35);
+  background: rgba(10,5,16,.6);
+  color: #fff;
+  font-size: 16px;            /* iOSオートズーム防止 */
+}
+.gsearch-input::placeholder { color: var(--text-mute); }
+.gsearch-input:focus { outline: none; border-color: var(--neon-pink); box-shadow: 0 0 0 3px rgba(255,79,216,.18); }
+
+.gtag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.gtag-chip {
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255,79,216,.40);
+  background: rgba(255,79,216,.08);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.gtag-chip.is-active {
+  background: var(--neon-pink-hot);
+  border-color: var(--neon-pink-hot);
+  color: #fff;
+  box-shadow: 0 0 12px -2px rgba(255,45,155,.7);
+}
+.gfield-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gcheck { display: inline-flex; align-items: center; gap: 8px; font-size: .9375rem; font-weight: 700; color: var(--text-soft); }
+.gcheck input { width: 18px; height: 18px; accent-color: var(--neon-pink-hot); }
+.greset {
+  background: none;
+  border: 1px solid rgba(255,79,216,.35);
+  color: var(--lav-soft);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 9999px;
+}
+
+/* 並び替え */
+.gsort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; margin-top: 14px; }
+.gsort-label { font-size: .875rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.gsort-btns { display: flex; gap: 8px; }
+.gsort-btn {
+  flex: 1;
+  padding: 9px 6px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255,79,216,.40);
+  background: rgba(255,79,216,.06);
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.gsort-btn.is-active {
+  background: var(--neon-pink-hot);
+  border-color: var(--neon-pink-hot);
+  color: #fff;
+  box-shadow: 0 0 14px -2px rgba(255,45,155,.75);
+}
+@media (max-width: 520px) {
+  .gsort-grid { grid-template-columns: 1fr; gap: 14px; }
+}
+
+.gresult-count { font-size: .8125rem; color: var(--text-mute); margin: 4px 2px 14px; }
+.gresult-empty { text-align: center; color: var(--text-mute); padding: 40px 0; }
+
 /* === 12. Girl detail ====================================================== */
 .girl-detail-wrap { display: grid; grid-template-columns: 1fr; gap: 32px; }
 @media (min-width: 768px) {
