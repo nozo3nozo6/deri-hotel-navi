@@ -112,7 +112,7 @@ if (g.catch_copy) {
             <!-- スリーサイズ -->
             {(g.height || g.bust || g.cup || g.waist || g.hip) ? (
               <Fragment>
-                <p class="section-label">スリーサイズ</p>
+                <p class="section-label">身長・スリーサイズ</p>
                 <div class="girl-size-grid">
                   <div class="girl-size-item">
                     <span class="girl-size-label">T</span>
@@ -149,7 +149,7 @@ if (g.catch_copy) {
             <!-- プロフィール（女の子に質問） -->
             {profiles.length ? (
               <Fragment>
-                <p class="section-label">{g.name}さんに質問</p>
+                <p class="section-label" style="font-size:.95rem;margin-top:32px">{g.name}さんに質問</p>
                 <table class="girl-profile-table">
                   {profiles.map((pf) => (
                     <tr>
@@ -176,7 +176,7 @@ if (g.catch_copy) {
             <!-- オプションプレイ -->
             {optionPlay.length ? (
               <Fragment>
-                <p class="section-label play-label">オプションプレイ</p>
+                <p class="section-label play-label play-label-option">オプションプレイ</p>
                 <div class="girl-options">
                   {optionPlay.map((o) => (
                     <span class="play-chip is-option">{o}</span>

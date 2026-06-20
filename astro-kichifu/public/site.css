@@ -922,6 +922,7 @@ body.lb-open { overflow: hidden; }
   text-shadow: 0 0 12px rgba(255,45,155,.7);
 }
 .play-label::before { content: "🔥"; margin-right: 7px; }
+.play-label-option::before { content: "✨"; }
 .play-chip {
   display: inline-block;
   padding: 7px 16px;
