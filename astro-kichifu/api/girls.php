@@ -83,7 +83,7 @@ try {
         $limit = min((int)($_GET['limit'] ?? 200), 200);
         $sql = 'SELECT g.id, g.name, g.age, g.height, g.bust, g.cup, g.waist, g.hip,
                        g.catch_copy, g.is_newgirl, g.is_trial, g.is_tel, g.is_inbound, g.is_genderless,
-                       g.girl_category_id, g.sort,
+                       g.girl_category_id, g.sort, g.in_date,
                        gc.name AS category_name,
                        (SELECT path FROM girl_images WHERE girl_id = g.id ORDER BY sort, id LIMIT 1) AS photo
                   FROM girls g

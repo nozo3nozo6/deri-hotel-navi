@@ -10,6 +10,7 @@ export type Girl = {
   is_newgirl: number; is_trial: number; is_tel: number;
   is_inbound: number; is_genderless: number;
   girl_category_id: number | null; category_name: string | null;
+  in_date?: string | null;
   photo: string | null; tags?: string[];
 };
 

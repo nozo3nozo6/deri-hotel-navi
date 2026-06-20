@@ -13,7 +13,7 @@
   var tagBtns = Array.prototype.slice.call(document.querySelectorAll('[data-gtag]'));
   var sortBtns = Array.prototype.slice.call(document.querySelectorAll('.gsort-btn'));
 
-  var state = { sort: 'id', dir: 'desc', name: '', tags: [], newOnly: false };
+  var state = { sort: 'in', dir: 'desc', name: '', tags: [], newOnly: false };
 
   function norm(s) {
     try { return (s || '').normalize('NFKC').toLowerCase(); }
