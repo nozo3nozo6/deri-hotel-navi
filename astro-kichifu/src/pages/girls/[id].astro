@@ -10,8 +10,14 @@ export async function getStaticPaths() {
 
 const { id } = Astro.params;
 const g = await getGirl(Number(id));
+if (!g) {
+  // detail API が 404/500/null（列不在等）→ ビルドを巻き込まず一覧へ退避。
+  // どの id で落ちたかはビルドログに残し、再発時に即特定できるようにする。
+  console.warn(`[girls/[id]] detail取得に失敗したため一覧へリダイレクト: id=${id}`);
+  return Astro.redirect('/girls');
+}
 
-const images = (g?.images ?? []) as Array<{ path: string; alt?: string }>;
+const images = (g.images ?? []) as Array<{ path: string; alt?: string }>;
 const mainPhoto = images[0]?.path ?? null;
 const imageTags = (g?.tags ?? []) as string[];
 const basicPlay = (g?.basic_play ?? []) as string[];
@@ -94,7 +100,6 @@ if (g.catch_copy) {
               {g.is_inbound ? <span class="girl-flag-chip">インバウンド</span> : null}
               {g.is_genderless ? <span class="girl-flag-chip">ジェンダーレス</span> : null}
             </div>
-            <p class="girl-detail-name">{g.name}{g.age ? <span class="girl-detail-age">{Number(g.age)}歳</span> : null}</p>
 
             {g.catch_copy ? (
               <p class="girl-catch">「{g.catch_copy}」</p>

@@ -29,8 +29,15 @@ export async function getGirls(): Promise<Girl[]> {
 }
 
 export async function getGirl(id: number): Promise<any> {
-  const d = await getJson(`${API_BASE}/girls.php?action=detail&id=${id}&shop_id=${SHOP_ID}`);
-  return d.girl ?? null;
+  // detail が 404/500（列不在等）でも throw でビルド全体を巻き込まず null を返す。
+  // 呼び出し側（girls/[id].astro）が null を見て一覧へ退避する。
+  try {
+    const d = await getJson(`${API_BASE}/girls.php?action=detail&id=${id}&shop_id=${SHOP_ID}`);
+    return d.girl ?? null;
+  } catch (e) {
+    console.warn(`[api.getGirl] detail取得失敗 id=${id}: ${(e as Error).message}`);
+    return null;
+  }
 }
 
 export async function getNews(): Promise<NewsItem[]> {
