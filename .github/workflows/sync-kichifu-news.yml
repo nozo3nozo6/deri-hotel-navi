@@ -5,8 +5,7 @@ name: Sync kichifu.com news (admi2888)
 #   （DBだけ更新する cron では静的ページに反映されないため）
 on:
   schedule:
-    - cron: '0 1 * * *'   # 10:00 JST（昼の本日出勤お知らせを拾う）
-    - cron: '0 9 * * *'   # 18:00 JST（夜の本日出勤お知らせを拾う）
+    - cron: '0 * * * *'   # 毎時0分（UTC=JSTで同じ毎時）。新着がある時だけ build/deploy する
   workflow_dispatch:
 
 env:
@@ -47,23 +46,36 @@ jobs:
 
       # サーバー上で admi の最新お知らせを取込み（DB更新＋画像を /uploads/news/ に再ホスト）。
       # db-config.php はサーバー保全のものを使うため、ランナーでの生成は不要。
+      # 定期(毎時)は新着のみ取込。新着が無ければ SYNC_CHANGED=0 → 後続の build/deploy をスキップ
+      # （毎時フルビルドの無駄を防ぐ）。手動実行は --update でフル更新し常に再ビルドする。
       - name: Import admi news on server
+        id: import
         run: |
           SSH_OPTS="-p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then FLAGS="--pages=3 --update"; else FLAGS="--pages=3"; fi
           n=0
-          until ssh $SSH_OPTS $REMOTE_USER@$REMOTE_HOST \
-            'cd '"$REMOTE_PATH"'/api && php import-admi-news.php --pages=3 --update'; do
+          until OUT=$(ssh $SSH_OPTS $REMOTE_USER@$REMOTE_HOST \
+            'cd '"$REMOTE_PATH"'/api && php import-admi-news.php '"$FLAGS"' 2>&1'); do
             n=$((n+1))
-            if [ "$n" -ge 3 ]; then echo "::error::news import failed after 3 attempts"; exit 1; fi
+            if [ "$n" -ge 3 ]; then echo "::error::news import failed after 3 attempts"; echo "$OUT"; exit 1; fi
             echo "import attempt $n failed, retrying in 15s..."; sleep 15
           done
+          echo "$OUT"
+          if echo "$OUT" | grep -q 'SYNC_CHANGED=1'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::新着なし — build/deploy をスキップします"
+          fi
 
-      # 取込後の DB を live API から拾って静的ページを再生成
+      # 取込後の DB を live API から拾って静的ページを再生成（新着があった時のみ）
       - name: Build Astro (static)
+        if: steps.import.outputs.changed == 'true'
         working-directory: astro-kichifu
         run: npm ci && npm run build
 
       - name: Deploy dist/ (static front) via rsync
+        if: steps.import.outputs.changed == 'true'
         run: |
           SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
           n=0
@@ -74,6 +86,7 @@ jobs:
           done
 
       - name: Purge Cloudflare cache
+        if: steps.import.outputs.changed == 'true'
         run: |
           CF_TOKEN=$(echo "${{ secrets.CLOUDFLARE_API_TOKEN }}" | tr -d '[:space:]')
           RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 \

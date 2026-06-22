@@ -207,3 +207,8 @@ foreach ($all as $sid => $rec) {
 echo "\n--- 集計" . ($DRY ? "（DRY-RUN: DB/画像 未変更）" : "") . " ---\n";
 echo "parse:{$sum['parsed']} / 新規:{$sum['inserted']} / 更新:{$sum['updated']} / 画像:{$sum['img']} / スキップ既存:{$sum['skipped']}\n";
 if ($sum['noimg']) echo "画像取得失敗 source_id: " . implode(', ', $sum['noimg']) . "\n";
+
+// CI 用の機械可読フラグ。新規/更新/画像のいずれかがあれば 1（= 再ビルド要）、無ければ 0。
+// sync-kichifu-news.yml がこの行を grep して build/deploy をスキップ判定する。
+$changed = ($sum['inserted'] + $sum['updated'] + $sum['img']) > 0 ? 1 : 0;
+echo "SYNC_CHANGED={$changed}\n";
