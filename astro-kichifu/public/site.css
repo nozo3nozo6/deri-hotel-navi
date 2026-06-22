@@ -662,7 +662,54 @@ body.reserve-open .modal-box {
   letter-spacing: .02em;
 }
 /* ===== 本日の出勤ページ(/schedule) ===== */
-.girl-grid.is-schedule .girl-card { display: none; } /* JSが本日出勤のみ表示 */
+.girl-grid.is-schedule .girl-card { display: none; } /* JSが選択日の出勤のみ表示 */
+
+/* 日付タブ（1週間切替、admi2888 風） */
+.schedule-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 2px 8px;
+  margin-bottom: 16px;
+  scroll-snap-type: x proximity;
+}
+.schedule-tabs::-webkit-scrollbar { display: none; }
+.schedule-tab {
+  flex: 1 0 auto;
+  min-width: 62px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 6px;
+  border-radius: 14px;
+  background: rgba(34,16,58,.7);
+  border: 1.5px solid rgba(183,143,255,.35);
+  color: var(--text-soft);
+  font-weight: 800;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: transform .12s, box-shadow .12s, background .12s, border-color .12s;
+}
+.schedule-tab:hover { border-color: var(--neon-pink); transform: translateY(-1px); }
+.schedule-tab-md { font-size: 1.0625rem; letter-spacing: .02em; }
+.schedule-tab-wd { font-size: .75rem; }
+.schedule-tab.is-sat .schedule-tab-md,
+.schedule-tab.is-sat .schedule-tab-wd { color: var(--lavender); } /* 土＝紫（青は使わない） */
+.schedule-tab.is-sun .schedule-tab-md,
+.schedule-tab.is-sun .schedule-tab-wd { color: var(--neon-pink); } /* 日＝ピンク */
+.schedule-tab.is-active {
+  background: linear-gradient(135deg, var(--neon-pink), var(--neon-pink-hot));
+  border-color: var(--neon-pink);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255,45,155,.5);
+}
+.schedule-tab.is-active .schedule-tab-md,
+.schedule-tab.is-active .schedule-tab-wd { color: #fff; } /* 選択中は曜日色を上書き */
+
 .schedule-date-band {
   background: linear-gradient(135deg, #ff8fd0, #ff4fd8);
   color: #fff;
