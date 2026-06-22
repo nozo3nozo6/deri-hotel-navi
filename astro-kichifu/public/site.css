@@ -1436,12 +1436,11 @@ body.lb-open { overflow: hidden; }
 .bottom-banner-section { background: var(--bg-0); padding: 8px 0 32px; }
 .bottom-banner-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  max-width: 560px;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  max-width: 600px;
   margin: 0 auto;
   padding: 0 16px;
-  align-items: start;
 }
 .bottom-banner-item {
   display: block;
@@ -1453,7 +1452,6 @@ body.lb-open { overflow: hidden; }
 }
 .bottom-banner-item:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(255, 79, 216, .28); }
 .bottom-banner-item img { width: 100%; height: auto; display: block; }
-@media (min-width: 640px) { .bottom-banner-grid { grid-template-columns: repeat(3, 1fr); max-width: 760px; } }
 .top-banner-card {
   display: block;
   border-radius: 20px;
