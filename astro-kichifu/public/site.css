@@ -96,7 +96,7 @@ button { cursor: pointer; }
 /* brand */
 .brand {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 9px;
   flex-shrink: 0;
 }
@@ -105,9 +105,8 @@ button { cursor: pointer; }
   /* 3段ロゴの高さに合わせて大きく。狭い端末では自動縮小して横はみ出しを防ぐ */
   font-size: clamp(1.875rem, calc(45.7vw - 134.5px), 2.875rem);
   line-height: 1;
-  display: flex;
-  align-items: flex-start;
-  margin-top: -8px;
+  /* Pacifico は line box 中心とインク中心が 0.0425em ズレる→ em 単位で光学補正し3段ブロックと中央揃え（フォントサイズ非依存） */
+  transform: translateY(0.0425em);
   color: #fff;
   text-shadow:
     0 0 6px rgba(255,79,216,.9),
