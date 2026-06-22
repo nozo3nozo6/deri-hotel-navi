@@ -1467,6 +1467,8 @@ body.lb-open { overflow: hidden; }
 
 /* 下部バナー（管理画面 /ctrl で設定） */
 .bottom-banner-section { background: var(--bg-0); padding: 8px 0 14px; }
+/* スケジュール確認ボタン ↔ バナーエリアの区切り線（holo-dividerをバナー幅に合わせ中央寄せ） */
+.bottom-banner-divider { width: min(600px, calc(100% - 32px)); margin: 4px auto 22px; }
 .bottom-banner-grid {
   display: grid;
   grid-template-columns: 1fr;
