@@ -25,7 +25,9 @@
         var badge = document.createElement('span');
         badge.className = 'girl-card-shukkin';
         badge.textContent = label;
-        (card.querySelector('.girl-card-img-wrap') || card).appendChild(badge);
+        var info = card.querySelector('.girl-card-info');
+        if (info) info.insertBefore(badge, info.firstChild);  // 名前の上に表示
+        else (card.querySelector('.girl-card-img-wrap') || card).appendChild(badge);
         card.classList.add('is-working');
       });
     })

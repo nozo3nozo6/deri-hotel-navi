@@ -211,6 +211,8 @@ button { cursor: pointer; }
   flex-shrink: 0;
   width: 44px;
   height: 44px;
+  /* 右端の余白を詰めてギリギリに寄せる（inner の右 padding 14px に -8px 食い込ませ実質 6px）。1024px未満のみ表示なのでモバイルヘッダー限定 */
+  margin-right: -8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -675,17 +677,15 @@ body.reserve-open .modal-box {
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
 }
-/* 本日の出勤バッジ（schedule-badge.js が動的付与）写真左上 */
+/* 本日の出勤バッジ（schedule-badge.js が動的付与）名前の上に表示（.girl-card-info の先頭に挿入） */
 .girl-card-shukkin {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
+  display: inline-block;
+  margin-bottom: 5px;
   background: linear-gradient(135deg, #ff4fd8, #ff2d9b);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 9999px;
   box-shadow: 0 2px 8px rgba(255,45,155,.5);
   white-space: nowrap;
