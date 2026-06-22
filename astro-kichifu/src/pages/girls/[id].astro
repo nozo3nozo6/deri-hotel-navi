@@ -1,6 +1,6 @@
 ---
 import Site from '../../layouts/Site.astro';
-import { asset, SHOP } from '../../lib/config';
+import { asset, SHOP, isNewcomer } from '../../lib/config';
 import { getGirls, getGirl } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -94,11 +94,11 @@ if (g.catch_copy) {
           <div>
             <!-- 名前・バッジ -->
             <div class="girl-flags">
-              {g.is_newgirl ? <span class="girl-flag-chip is-new">NEW</span> : null}
-              {g.is_trial ? <span class="girl-flag-chip is-trial">体験入店</span> : null}
-              {g.is_tel ? <span class="girl-flag-chip">電話</span> : null}
-              {g.is_inbound ? <span class="girl-flag-chip">インバウンド</span> : null}
-              {g.is_genderless ? <span class="girl-flag-chip">ジェンダーレス</span> : null}
+              {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" /> : null}
+              {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" /> : null}
+              {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" /> : null}
+              {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" /> : null}
+              {g.is_tel ? <img src="/img/flag-tel.png" class="girl-flag-icon" width="128" height="128" alt="電話" title="電話" /> : null}
             </div>
 
             {g.catch_copy ? (
@@ -204,7 +204,7 @@ if (g.catch_copy) {
                  class="glossy-pill footer-cta-tel" style="flex:1;min-width:180px;justify-content:center">
                 📞 電話で予約
               </a>
-              <a href={SHOP.lineUrl} target="_blank" rel="noopener"
+              <a href={SHOP.lineUrl} target="_self" rel="noopener"
                  class="footer-cta-line" style="flex:1;min-width:180px;justify-content:center">
                 💬 LINEで予約
               </a>

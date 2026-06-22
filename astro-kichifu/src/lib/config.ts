@@ -50,3 +50,13 @@ const TAG_EMOJI: Record<string, string> = {
 export function tagEmoji(name: string): string {
   return TAG_EMOJI[name] ?? '♡';
 }
+
+// 「新人」判定: 入店日(in_date)が3ヶ月未満なら新人（ビルド時基準）。
+// is_newgirl 手動フラグではなく入店日で全ページ統一する。
+export function isNewcomer(inDate?: string | null): boolean {
+  if (!inDate) return false;
+  const cut = new Date();
+  cut.setMonth(cut.getMonth() - 3);
+  const cutStr = cut.toISOString().slice(0, 10); // 3ヶ月前 YYYY-MM-DD
+  return inDate.slice(0, 10) >= cutStr;          // YYYY-MM-DD は辞書順=日付順
+}

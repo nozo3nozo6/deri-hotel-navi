@@ -1,0 +1,44 @@
+---
+// 本日の出勤ページ（today's schedule）
+//   全 girls を GirlCardItem で配置し、schedule-page.js が本日出勤のみ表示＋出勤時間バッジ。
+//   SSG なので毎日変わる出勤はクライアントJSで動的反映（再ビルド不要）。
+import Site from '../layouts/Site.astro';
+import { getGirls } from '../lib/api';
+import GirlCardItem from '../components/GirlCardItem.astro';
+import { SHOP } from '../lib/config';
+import { statSync } from 'node:fs';
+
+const girls = await getGirls();
+const schedV = (() => { try { return String(Math.floor(statSync('public/schedule-page.js').mtimeMs)); } catch { return '1'; } })();
+
+const title = `本日の出勤｜${SHOP.fullName}`;
+const desc = `${SHOP.name}（${SHOP.catch}）本日の出勤情報。出勤中の女の子をチェック。`;
+---
+<Site title={title} description={desc} path="/schedule">
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-lg" style="position:relative;z-index:1">
+
+        <div class="section-more-wrap" style="margin-bottom:28px">
+          <a href="/girls" class="section-more glossy-pill">女の子一覧を見る</a>
+        </div>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">today's schedule</span>
+          <h2 class="section-title">本日の出勤</h2>
+        </div>
+
+        <div class="schedule-date-band" id="schedule-date" aria-live="polite"></div>
+
+        <p class="empty-state" id="schedule-empty" style="display:none">本日の出勤情報は準備中です。</p>
+
+        <div class="girl-grid is-schedule" id="schedule-grid">
+          {girls.map((g) => <GirlCardItem girl={g} />)}
+        </div>
+
+      </div>
+    </section>
+  </main>
+  <script is:inline src={`/schedule-page.js?v=${schedV}`}></script>
+</Site>

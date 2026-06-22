@@ -150,12 +150,29 @@ button { cursor: pointer; }
 .header-tel-num:hover { color: var(--neon-pink); }
 
 /* reserve button */
-.reserve-btn {
+.reserve-stack {
   flex-shrink: 0;
   margin-left: auto;
-  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.reserve-hours {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--lav-soft);
+  text-align: center;
+  white-space: nowrap;
+  letter-spacing: .02em;
+  line-height: 1.2;
+}
+.reserve-btn {
+  flex-shrink: 0;
+  padding: 2px 13px;
   border-radius: 9999px;
-  font-size: .875rem;
+  font-size: .75rem;
+  line-height: 1.25;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -197,7 +214,7 @@ button { cursor: pointer; }
   .site-nav { display: flex; }
   .burger    { display: none; }
   .brand-sub { display: flex; }
-  .reserve-btn { margin-left: 0; }
+  .reserve-stack { margin-left: 0; }
 }
 @media (min-width: 1280px) {
   .header-tel { display: block; }
@@ -412,6 +429,7 @@ body.reserve-open .modal-box {
   gap: 12px;
 }
 .modal-title { font-size: 1.0625rem; font-weight: 800; }
+.modal-sub { font-size: .8125rem; color: var(--text-muted); text-align: center; margin: -4px 0 4px; }
 .modal-close {
   width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
@@ -573,13 +591,15 @@ body.reserve-open .modal-box {
   border: 1px solid rgba(255,79,216,.3);
   background: rgba(255,79,216,.06);
   box-shadow: 0 10px 30px -12px rgba(255,45,155,.5);
-  overflow: hidden;
+  overflow: visible; /* アイコンを右枠外へはみ出させるため。角丸は img-wrap が担保 */
+  position: relative;
 }
 .girl-card:hover { transform: translateY(-3px); border-color: rgba(255,79,216,.7); }
 
 .girl-card-img-wrap {
   position: relative;
   overflow: hidden;
+  border-radius: 16px 16px 0 0; /* カード上角の丸みを維持（card は overflow:visible のため） */
 }
 .girl-card-img {
   width: 100%;
@@ -609,6 +629,61 @@ body.reserve-open .modal-box {
 }
 .girl-card-badge.new   { left: 8px; background: var(--neon-pink-hot); }
 .girl-card-badge.trial { right: 8px; background: var(--neon-lav); }
+/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示） */
+.girl-card-flags {
+  position: absolute;
+  top: 10px;
+  right: -12px; /* 約1/3を右枠外へはみ出させる */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 3;
+}
+.girl-card-flag-icon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
+}
+/* 本日の出勤バッジ（schedule-badge.js が動的付与）写真左上 */
+.girl-card-shukkin {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  background: linear-gradient(135deg, #ff4fd8, #ff2d9b);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(255,45,155,.5);
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
+/* ===== 本日の出勤ページ(/schedule) ===== */
+.girl-grid.is-schedule .girl-card { display: none; } /* JSが本日出勤のみ表示 */
+.schedule-date-band {
+  background: linear-gradient(135deg, #ff8fd0, #ff4fd8);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 12px 8px;
+  margin-bottom: 24px;
+  letter-spacing: .06em;
+  border-radius: 6px;
+}
+.is-schedule .girl-card-worktime {
+  /* 写真の下・タグの上（サイズの下）に通常フローで配置 */
+  background: rgba(255,79,216,.92);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  padding: 6px 4px;
+  letter-spacing: .03em;
+}
 .girl-card-info {
   position: absolute;
   bottom: 0; left: 0; right: 0;
@@ -953,7 +1028,7 @@ body.lb-open { overflow: hidden; }
   text-shadow: 0 0 10px rgba(255,79,216,.6), 0 0 26px rgba(255,45,155,.42);
 }
 .girl-hero-age { font-size: .42em; color: var(--lav-soft); font-weight: 700; margin-left: 12px; vertical-align: middle; }
-.girl-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.girl-flags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; }
 .girl-flag-chip {
   display: inline-block;
   padding: 4px 12px;
@@ -966,6 +1041,13 @@ body.lb-open { overflow: hidden; }
 }
 .girl-flag-chip.is-new  { background: var(--neon-pink-hot); border-color: var(--neon-pink-hot); }
 .girl-flag-chip.is-trial{ background: var(--neon-lav);      border-color: var(--neon-lav); }
+/* 属性アイコン（新人/待ち合わせ/インバウンド/ジェンダーレス/電話）— フラグONのみ表示 */
+.girl-flag-icon {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
 
 .girl-catch {
   font-size: 1rem;
@@ -1261,9 +1343,40 @@ body.lb-open { overflow: hidden; }
 .reveal-2.flicker { animation-delay: .22s, 1.2s; }
 
 /* === 16. Top page sections ================================================ */
-.top-news-section { background: var(--bg-1); padding: 64px 0; }
-.top-girls-section { background: var(--bg-0); padding: 64px 0; }
-.top-banner-section { background: var(--bg-1); padding: 56px 0; }
+.top-news-section { background: var(--bg-1); padding: 10px 0; }
+.top-girls-section { background: var(--bg-0); padding: 10px 0; }
+.top-banner-section { background: var(--bg-1); padding: 34px 0; }
+
+/* Y2K セクショントッパー（ホログラム線＋スパークル、各セクション上部） */
+.section-topper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.section-topper-line {
+  height: 1px;
+  width: clamp(36px, 16vw, 96px);
+  background: linear-gradient(90deg, transparent, var(--neon-pink) 60%, var(--lavender));
+  box-shadow: 0 0 8px rgba(255,79,216,.5);
+}
+.section-topper-line:last-child { transform: scaleX(-1); }
+.section-topper-stars {
+  font-size: .95rem;
+  letter-spacing: .2em;
+  color: var(--lav-soft);
+  text-shadow: 0 0 10px var(--neon-pink-hot), 0 0 4px var(--lavender);
+  white-space: nowrap;
+  animation: topper-twinkle 3.2s ease-in-out infinite;
+}
+@keyframes topper-twinkle {
+  0%, 100% { opacity: 1; text-shadow: 0 0 10px var(--neon-pink-hot), 0 0 4px var(--lavender); }
+  50%      { opacity: .82; text-shadow: 0 0 16px var(--neon-pink-hot), 0 0 7px var(--lavender); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-topper-stars { animation: none; opacity: 1; }
+}
 .top-banner-grid {
   display: grid;
   gap: 16px;
@@ -1282,7 +1395,7 @@ body.lb-open { overflow: hidden; }
 .top-banner-card:hover { filter: brightness(1.08); transform: translateY(-2px); }
 .top-banner-card-title { font-size: 1.125rem; font-weight: 800; margin-bottom: 4px; }
 .top-banner-card-sub   { font-size: .8125rem; opacity: .85; }
-.section-more-wrap { text-align: center; margin-top: 32px; }
+.section-more-wrap { text-align: center; margin-top: 24px; }
 .section-more {
   display: inline-block;
   padding: 10px 28px;
@@ -1293,7 +1406,9 @@ body.lb-open { overflow: hidden; }
 }
 
 /* === 17. FujohoBanners section =========================================== */
-.fujoho-section { background: var(--bg-0); padding: 64px 0; position: relative; overflow: hidden; }
+.fujoho-section { background: var(--bg-0); padding: 10px 0 8px; position: relative; overflow: hidden; }
+/* 口コミ局バナー直後の新人セクションは上の無駄な余白を詰める */
+.fujoho-section + .top-girls-section { padding-top: 10px; }
 .fujoho-wrap {
   position: relative;
   z-index: 1;
@@ -1305,7 +1420,7 @@ body.lb-open { overflow: hidden; }
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 24px;
+  gap: 8px;
 }
 .fujoho-card {
   border-radius: 16px;
@@ -1314,6 +1429,34 @@ body.lb-open { overflow: hidden; }
   border: 1px solid rgba(255,79,216,.30);
   box-shadow: 0 12px 40px -12px rgba(255,45,155,.5);
 }
+.fujoho-scroll-hint { display: none; } /* PCでは非表示 */
+/* スマホは口コミ局バナーを横1行（横スクロール＋スナップ＋スクロール明示） */
+@media (max-width: 640px) {
+  .fujoho-scroll-hint {
+    display: block;
+    text-align: center;
+    font-size: .8125rem;
+    font-weight: 700;
+    color: var(--neon-pink);
+    margin-bottom: 12px;
+    animation: fujoho-hint-swipe 1.5s ease-in-out infinite;
+  }
+  .fujoho-grid {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none; /* Firefox: スクロールバー非表示（スワイプヒントで誘導） */
+  }
+  /* スクロールバーは隠す（常時表示の線が出るため。横スワイプはヒントで案内） */
+  .fujoho-grid::-webkit-scrollbar { display: none; }
+  /* 左揃え＝右端で次バナーがちら見え(peek) */
+  .fujoho-card { flex: 0 0 auto; scroll-snap-align: start; }
+}
+@keyframes fujoho-hint-swipe { 0%,100% { opacity:.55; transform:translateX(-5px); } 50% { opacity:1; transform:translateX(5px); } }
 
 /* === 18. System (courses) ================================================= */
 .course-list { display: flex; flex-direction: column; gap: 12px; }
@@ -1715,3 +1858,38 @@ textarea.form-control { resize: vertical; min-height: 140px; }
   .flicker { animation: neon-flicker 6s ease-in-out 1s infinite !important; }
   .girl-card-img, .girl-card, .offcanvas, .modal-box { transition: none; }
 }
+
+/* ===== 上部バナー（top ヒーロー直下）===== */
+.top-hero-banners { padding: 18px 0 2px; }
+.hero-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.hero-banner { display: block; line-height: 0; }
+.hero-banner img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255,79,216,.28);
+  box-shadow: 0 6px 18px -10px rgba(255,45,155,.5);
+}
+
+/* バナースライダー（top ヒーロー） */
+.hero-slider-section { background: var(--bg-0); }
+.hero-slider { position: relative; overflow: hidden; max-width: 960px; margin: 0 auto; transition: height .35s ease; }
+.hero-slider-track { display: flex; align-items: flex-start; transition: transform .5s ease; }
+.hero-slide { flex: 0 0 100%; line-height: 0; }
+.hero-slide img { width: 100%; height: auto; display: block; }
+.hero-slider-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 38px; height: 38px; border-radius: 9999px;
+  background: rgba(0,0,0,.38); color: #fff; border: none;
+  font-size: 22px; line-height: 1; cursor: pointer; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+}
+.hero-slider-arrow.prev { left: 8px; }
+.hero-slider-arrow.next { right: 8px; }
+.hero-slider-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; z-index: 2; }
+.hero-slider-dot { width: 9px; height: 9px; border-radius: 9999px; background: rgba(255,255,255,.55); border: none; cursor: pointer; padding: 0; transition: width .2s, background .2s; }
+.hero-slider-dot.is-active { background: var(--neon-pink); width: 22px; }

@@ -1,0 +1,43 @@
+---
+// 女の子カード（一覧 /girls と top の新人セクションで共用）
+// data-* 属性は /girls の絞り込み・並び替え(public/girls-filter.js)用。
+// top では girls-filter.js を読まないため未使用だが、付いていても無害。
+import { asset, tagEmoji, isNewcomer } from '../lib/config';
+
+interface Props { girl: any; }
+const { girl: g } = Astro.props;
+
+const age = g.age ? `(${g.age})` : '';
+const sizes = `T${g.height ?? '—'} B${g.bust ?? '—'}(${g.cup ?? '—'}) W${g.waist ?? '—'} H${g.hip ?? '—'}`;
+const tags = (g.tags ?? []).slice(0, 4) as string[];
+// 入店日(YYYYMMDD)を数値化（並び替え data-in 用、未設定は0）
+const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
+---
+<a href={`/girls/${g.id}`} class="girl-card"
+   data-id={g.id} data-in={inNum} data-height={g.height ?? 0} data-bust={g.bust ?? 0}
+   data-age={g.age ?? 0} data-name={g.name} data-new={isNewcomer(g.in_date) ? 1 : 0}
+   data-tags={(g.tags ?? []).join('|')}>
+  <div class="girl-card-img-wrap">
+    {g.photo
+      ? <img src={asset(g.photo)} alt={g.name} width="300" height="400" loading="lazy" class="girl-card-img" />
+      : <div class="girl-card-no-photo">👤</div>}
+    <div class="girl-card-info">
+      <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
+      <p class="girl-card-size">{sizes}</p>
+    </div>
+  </div>
+  <div class="girl-card-flags">
+    {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-card-flag-icon" width="128" height="128" alt="新人" title="新人" loading="lazy" /> : null}
+    {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" loading="lazy" /> : null}
+    {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-card-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" loading="lazy" /> : null}
+    {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" /> : null}
+    {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" /> : null}
+  </div>
+  {tags.length ? (
+    <div class="girl-card-tags">
+      {tags.map((t) => (
+        <span class="girl-card-tag-ico" title={t} aria-label={t}>{tagEmoji(t)}</span>
+      ))}
+    </div>
+  ) : null}
+</a>

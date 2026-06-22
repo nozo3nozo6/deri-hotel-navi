@@ -50,3 +50,12 @@ export async function getNewsItem(id: number): Promise<NewsItem | null> {
   const d = await getJson(`${API_BASE}/news.php?action=detail&id=${id}&shop_id=${SHOP_ID}`);
   return d.item ?? null;
 }
+
+export type Banner = { title: string; url: string; image: string };
+
+export async function getBanners(type: 'top' | 'bottom' = 'top'): Promise<Banner[]> {
+  try {
+    const d = await getJson(`${API_BASE}/banners.php?type=${type}&shop_id=${SHOP_ID}`);
+    return d.banners ?? [];
+  } catch { return []; } // API未配信/失敗時は空でビルドを止めない
+}

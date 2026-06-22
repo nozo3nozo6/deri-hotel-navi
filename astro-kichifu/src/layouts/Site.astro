@@ -55,7 +55,7 @@ const jsV = ver('public/site.js');
     <nav class="site-nav">
       <a href="/top">トップ</a>
       <a href="/girls">すけべな女の子達</a>
-      <a href={FUJOHO.schedule} target="_blank" rel="noopener">スケジュール</a>
+      <a href={FUJOHO.schedule} target="_self" rel="noopener">スケジュール</a>
       <a href="/system">料金システム</a>
       <a href="/news">お知らせ</a>
     </nav>
@@ -63,7 +63,10 @@ const jsV = ver('public/site.js');
       <div class="header-reception">受付 {SHOP.reception}</div>
       <a href={`tel:${SHOP.telRaw}`} class="header-tel-num">📞 {SHOP.tel}</a>
     </div>
-    <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
+    <div class="reserve-stack">
+      <span class="reserve-hours">営業時間 {SHOP.reception}</span>
+      <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
+    </div>
     <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
       <span></span><span></span><span></span>
     </button>
@@ -80,17 +83,17 @@ const jsV = ver('public/site.js');
     <p class="footer-sub">since {SHOP.since} ・ {SHOP.catch} &amp; Go To FANTASY</p>
     <div class="footer-cta">
       <a href={`tel:${SHOP.telRaw}`} class="footer-cta-tel glossy-pill">📞 {SHOP.tel}</a>
-      <a href={SHOP.lineUrl} target="_blank" rel="noopener" class="footer-cta-line">💬 LINEで予約</a>
+      <a href={SHOP.lineUrl} target="_self" rel="noopener" class="footer-cta-line">💬 LINEで予約</a>
     </div>
     <p class="footer-reception">受付時間 {SHOP.reception}</p>
     <nav class="footer-links">
       <a href="/top">トップ</a>
       <a href="/girls">すけべな女の子達</a>
-      <a href={FUJOHO.schedule} target="_blank" rel="noopener">スケジュール</a>
+      <a href={FUJOHO.schedule} target="_self" rel="noopener">スケジュール</a>
       <a href="/system">料金システム</a>
       <a href="/howto">ご利用ガイド</a>
       <a href="/news">お知らせ</a>
-      <a href={FUJOHO.diary} target="_blank" rel="noopener">写メ日記</a>
+      <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
       <a href={SHOP.recruitUrl} target="_self">求人情報</a>
       <a href="/contacts">お問合せ</a>
     </nav>
@@ -107,11 +110,11 @@ const jsV = ver('public/site.js');
   <nav class="offcanvas-nav">
     <a href="/top">トップ</a>
     <a href="/girls">すけべな女の子達</a>
-    <a href={FUJOHO.schedule} target="_blank" rel="noopener">スケジュール</a>
+    <a href={FUJOHO.schedule} target="_self" rel="noopener">スケジュール</a>
     <a href="/system">料金システム</a>
     <a href="/howto">ご利用ガイド</a>
     <a href="/news">お知らせ</a>
-    <a href={FUJOHO.diary} target="_blank" rel="noopener">写メ日記</a>
+    <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
     <a href={SHOP.recruitUrl} target="_self">求人情報</a>
     <a href="/contacts">お問合せ</a>
   </nav>
@@ -127,19 +130,20 @@ const jsV = ver('public/site.js');
       <p class="modal-title holo-text">ご予約方法をお選びください</p>
       <button type="button" class="modal-close" data-reserve-close aria-label="閉じる">✕</button>
     </div>
+    <p class="modal-sub">お問い合わせだけでもお気軽にどうぞ♡</p>
     <div class="reserve-cards">
-      <a href={SHOP.lineUrl} target="_blank" rel="noopener" class="reserve-card">
-        <span class="reserve-icon">💬</span>
-        <span>
-          <span class="reserve-label">LINEで予約</span>
-          <span class="reserve-note">当日予約はLINEがおすすめ！</span>
-        </span>
-      </a>
       <a href={`tel:${SHOP.telRaw}`} class="reserve-card">
         <span class="reserve-icon">📞</span>
         <span>
           <span class="reserve-label">TELで予約</span>
           <span class="reserve-note">明るく優しいスタッフが対応！</span>
+        </span>
+      </a>
+      <a href={SHOP.lineUrl} target="_self" rel="noopener" class="reserve-card">
+        <span class="reserve-icon">💬</span>
+        <span>
+          <span class="reserve-label">LINEで予約</span>
+          <span class="reserve-note">ご予約でプレイ時間＋10分無料！</span>
         </span>
       </a>
     </div>
