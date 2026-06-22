@@ -221,7 +221,14 @@ button { cursor: pointer; }
 }
 
 /* === 6. Footer ============================================================ */
-.site-footer { background: var(--bg-0); padding: 56px 0 32px; }
+.site-footer { background: var(--bg-0); padding: 0 0 32px; }
+.footer-top-divider {
+  height: 2px;
+  border: none;
+  margin: 0 0 48px;
+  background: linear-gradient(90deg, transparent, var(--neon-pink), var(--lavender), transparent);
+  box-shadow: 0 0 14px rgba(255,79,216,.55);
+}
 .footer-inner {
   max-width: 860px;
   margin: 0 auto;
