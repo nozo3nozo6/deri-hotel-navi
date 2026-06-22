@@ -21,7 +21,7 @@ echo "▶ rsync api/（PHP API・秘密ファイル除外）"
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \
   -e "$SSH" api/ "$DEST/api/"
 
-echo "▶ rsync admin/（PHP CMS）"
-rsync -avz -e "$SSH" admin/ "$DEST/admin/"
+echo "▶ rsync ctrl/（PHP CMS、旧admin）"
+rsync -avz -e "$SSH" ctrl/ "$DEST/ctrl/"
 
 echo "✓ Deploy complete → https://kichifu.com/"

@@ -49,7 +49,9 @@ DirectorySlash Off
   RewriteRule ^news/?$  /news.html  [L]
 
   # DirectorySlash Off のため、管理画面はスラッシュ付きに明示誘導
-  RewriteRule ^admin$ /admin/ [R=301,L]
+  RewriteRule ^ctrl$ /ctrl/ [R=301,L]
+  # 旧 /admin/ は /ctrl/ へ恒久リダイレクト（旧URL救済。サーバー上の旧admin/実体は別途手動削除）
+  RewriteRule ^admin(/.*)?$ /ctrl$1 [R=301,L]
 
   # 拡張子なしリクエストを .html へ内部マッピング（存在する時のみ）
   #   例: /top→/top.html, /girls→/girls.html, /girls/123→/girls/123.html
