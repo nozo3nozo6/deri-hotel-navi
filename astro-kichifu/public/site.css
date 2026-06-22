@@ -1510,6 +1510,7 @@ body.lb-open { overflow: hidden; }
   .top-news-section, .top-girls-section, .fujoho-section,
   .fujoho-section + .top-girls-section { padding-top: 0; }
   .section-topper { margin-bottom: 8px; }
+  .section-head { margin-bottom: 16px; }
 }
 
 /* === 18. System (courses) ================================================= */
