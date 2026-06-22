@@ -4,6 +4,7 @@
 (function () {
   'use strict';
   document.querySelectorAll('[data-slider]').forEach(function (slider) {
+    var imgWrap = slider.querySelector('.hero-slider'); // 画像枠（高さ調整対象。矢印/ドットは枠外）
     var track = slider.querySelector('.hero-slider-track');
     var slides = slider.querySelectorAll('.hero-slide');
     if (!track || slides.length < 2) return;
@@ -26,7 +27,7 @@
     // 表示中バナーの高さに slider を合わせる（短いバナー下の余白を解消）
     function setHeight() {
       var h = slides[idx].offsetHeight;
-      if (h) slider.style.height = h + 'px';
+      if (h && imgWrap) imgWrap.style.height = h + 'px';
     }
     function render() {
       track.style.transform = 'translateX(' + (-idx * 100) + '%)';
