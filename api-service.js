@@ -159,6 +159,12 @@ function renderShopServiceAreaTags() {
 
     const header = document.querySelector('header.app-header, header.header, header');
     if (!header) return;
+    // 挿入位置: ジャンルヒーロー(H1)の直後にする.
+    // → 全国ページでは header → ヒーロー(H1) → メインエリア → 地域選択 の順になる.
+    //   ヒーローは全国ページのみ表示(他ページは display:none)なので、エリア/市区町村ページでは
+    //   高さ0のヒーロー直後 = 実質ヘッダー直下となり従来の見た目を維持する.
+    //   ヒーローが無い場合はヘッダー直後にフォールバック.
+    const anchor = document.getElementById('genre-hero') || header;
     const tags = areas.map(a => {
         const isP = a.is_primary;
         const star = isP ? '<span style="color:#c89b4f;font-weight:700;margin-right:4px;font-size:14px;line-height:1;">★</span>' : '';
@@ -181,7 +187,7 @@ function renderShopServiceAreaTags() {
     if (existing) {
         existing.outerHTML = html;
     } else {
-        header.insertAdjacentHTML('afterend', html);
+        anchor.insertAdjacentHTML('afterend', html);
     }
 }
 
