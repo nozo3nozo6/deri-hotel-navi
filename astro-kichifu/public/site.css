@@ -85,7 +85,7 @@ button { cursor: pointer; }
 .site-header-inner {
   max-width: 1344px;
   margin: 0 auto;
-  padding: 0 14px;
+  padding: 0 14px 0 6px;
   height: 100%;
   display: flex;
   align-items: center;
