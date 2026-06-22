@@ -2,6 +2,8 @@
 // Fujoho.astro — 口コミ風俗情報局 埋込バナー（index / top 共用、_inc/fujoho.php 移植）
 // ※ iframe 内部スタイルは口コミ風俗情報局の指定。外枠だけ装飾、内部は変更しない。
 import { SHOP } from '../lib/config';
+import { statSync } from 'node:fs';
+const fujohoSliderV = (() => { try { return String(Math.floor(statSync('public/fujoho-slider.js').mtimeMs)); } catch { return '1'; } })();
 const id = SHOP.fujohoId;
 const areaLink = 'https://fujoho.jp/index.php?p=shop_list&s=2&k=2';
 const siteLink = 'https://fujoho.jp/';
@@ -19,7 +21,7 @@ const banners = [
 ---
 <section class="fujoho-section">
   <div class="neon-room" style="opacity:.6;"></div>
-  <div class="fujoho-wrap">
+  <div class="fujoho-wrap" data-fujoho-slider>
     <div class="section-topper" aria-hidden="true">
       <span class="section-topper-line"></span>
       <span class="section-topper-stars">✦ ⋆ ♡ ⋆ ✦</span>
@@ -58,5 +60,11 @@ const banners = [
         </div>
       ))}
     </div>
+    <div class="fujoho-controls">
+      <button type="button" class="fujoho-arrow prev" data-fujoho-prev aria-label="前のバナー">‹</button>
+      <div class="fujoho-dots" data-fujoho-dots></div>
+      <button type="button" class="fujoho-arrow next" data-fujoho-next aria-label="次のバナー">›</button>
+    </div>
   </div>
 </section>
+<script is:inline src={`/fujoho-slider.js?v=${fujohoSliderV}`}></script>
