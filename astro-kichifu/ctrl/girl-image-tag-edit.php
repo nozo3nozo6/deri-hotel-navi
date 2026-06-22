@@ -31,11 +31,11 @@ if (!$t) { flash('err', '対象が見つかりません。'); redirect('girl-ima
 
 layout_header('特徴タグ編集', 'girl-image-tags.php');
 ?>
-<div class="page-head"><h1>特徴タグ編集</h1><a class="btn" href="/admin/girl-image-tags.php">← 一覧へ</a></div>
+<div class="page-head"><h1>特徴タグ編集</h1><a class="btn" href="/ctrl/girl-image-tags.php">← 一覧へ</a></div>
 <form method="post" class="card card-pad form-grid" style="max-width:520px">
   <?= csrf_field() ?>
   <div class="field"><label>タグ名 *</label><input type="text" name="name" value="<?= h($t['name']) ?>" required maxlength="40"></div>
   <label class="check"><input type="checkbox" name="is_active" <?= (int)$t['is_active'] ? 'checked' : '' ?>> サイトに表示（OFFで選択肢に出ません）</label>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/girl-image-tags.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/girl-image-tags.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>

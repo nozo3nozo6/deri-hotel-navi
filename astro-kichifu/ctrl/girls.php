@@ -37,9 +37,9 @@ layout_header('女性一覧', 'girls.php');
 ?>
 <div class="page-head">
   <h1>女性一覧 <span class="muted" style="font-size:14px">（<?= number_format($total) ?>名）</span></h1>
-  <a class="btn btn-primary" href="/admin/girl-edit.php<?= $cat ? '?cat=' . $cat : '' ?>">＋ 新規登録</a>
-  <a class="btn btn-outline" href="/admin/girls-import.php">📦 CSV一括インポート</a>
-  <a class="btn btn-outline" href="/admin/girls-import-admi.php">📥 admi取込(入店日/表示)</a>
+  <a class="btn btn-primary" href="/ctrl/girl-edit.php<?= $cat ? '?cat=' . $cat : '' ?>">＋ 新規登録</a>
+  <a class="btn btn-outline" href="/ctrl/girls-import.php">📦 CSV一括インポート</a>
+  <a class="btn btn-outline" href="/ctrl/girls-import-admi.php">📥 admi取込(入店日/表示)</a>
 </div>
 
 <div class="tabs">
@@ -83,7 +83,7 @@ layout_header('女性一覧', 'girls.php');
             <div class="rowmenu">
               <button class="rowmenu-btn" type="button">⋯</button>
               <div class="rowmenu-list">
-                <a href="/admin/girl-edit.php?id=<?= (int)$g['id'] ?>">✏️ 編集</a>
+                <a href="/ctrl/girl-edit.php?id=<?= (int)$g['id'] ?>">✏️ 編集</a>
                 <button type="button" class="danger" data-del-id="<?= (int)$g['id'] ?>" data-name="<?= h($g['name']) ?>">🗑 削除</button>
               </div>
             </div>
@@ -101,7 +101,7 @@ const CSRF = '<?= h(csrf_token()) ?>';
 async function act(data) {
   const fd = new FormData(); fd.append('_csrf', CSRF);
   for (const k in data) fd.append(k, data[k]);
-  const r = await fetch('/admin/girl-actions.php', { method: 'POST', body: fd });
+  const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
   return r.json();
 }
 // 表示トグル

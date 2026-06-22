@@ -29,10 +29,10 @@ if (!$c) { flash('err', '対象が見つかりません。'); redirect('girl-cat
 
 layout_header('カテゴリー編集', 'girl-categories.php');
 ?>
-<div class="page-head"><h1>カテゴリー編集</h1><a class="btn" href="/admin/girl-categories.php">← 一覧へ</a></div>
+<div class="page-head"><h1>カテゴリー編集</h1><a class="btn" href="/ctrl/girl-categories.php">← 一覧へ</a></div>
 <form method="post" class="card card-pad form-grid" style="max-width:520px">
   <?= csrf_field() ?>
   <div class="field"><label>カテゴリー名 *</label><input type="text" name="name" value="<?= h($c['name']) ?>" required maxlength="80"></div>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/girl-categories.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/girl-categories.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>

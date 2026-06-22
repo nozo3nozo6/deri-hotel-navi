@@ -52,7 +52,7 @@ layout_header('女性カテゴリー', 'girl-categories.php');
           <td style="cursor:grab;color:#bbb">⠿</td>
           <td><strong><?= h($r['name']) ?></strong></td>
           <td>
-            <a class="btn btn-sm" href="/admin/girl-category-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
+            <a class="btn btn-sm" href="/ctrl/girl-category-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
             <button type="button" class="btn btn-sm btn-danger" data-del-id="<?= (int)$r['id'] ?>" data-name="<?= h($r['name']) ?>">🗑</button>
           </td>
         </tr>
@@ -63,5 +63,5 @@ layout_header('女性カテゴリー', 'girl-categories.php');
 </div>
 
 <script>window.__CSRF = '<?= h(csrf_token()) ?>'; window.__TABLE = 'girl_categories';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

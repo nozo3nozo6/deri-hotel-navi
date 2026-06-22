@@ -12,7 +12,7 @@ layout_header('バナー', 'banners.php');
 ?>
 <div class="page-head">
   <h1>バナー</h1>
-  <a class="btn btn-primary" href="/admin/banner-edit.php?type=<?= $type ?>">＋ 新規作成</a>
+  <a class="btn btn-primary" href="/ctrl/banner-edit.php?type=<?= $type ?>">＋ 新規作成</a>
 </div>
 <div class="tabs">
   <a class="tab <?= $type === 'top' ? 'active' : '' ?>" href="?type=top">上部</a>
@@ -32,7 +32,7 @@ layout_header('バナー', 'banners.php');
           <td><button type="button" class="toggle <?= (int)$b['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$b['id'] ?>"></button></td>
           <td><div class="rowmenu"><button class="rowmenu-btn" type="button">⋯</button>
             <div class="rowmenu-list">
-              <a href="/admin/banner-edit.php?id=<?= (int)$b['id'] ?>">✏️ 編集</a>
+              <a href="/ctrl/banner-edit.php?id=<?= (int)$b['id'] ?>">✏️ 編集</a>
               <button type="button" class="danger" data-del-id="<?= (int)$b['id'] ?>" data-name="バナー">🗑 削除</button>
             </div></div></td>
         </tr>
@@ -42,5 +42,5 @@ layout_header('バナー', 'banners.php');
   </table>
 </div>
 <script>window.__CSRF='<?= h(csrf_token()) ?>';window.__TABLE='banners';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

@@ -23,7 +23,7 @@ $stats = [
 
 <div class="stat-grid">
   <?php foreach ($stats as [$ic, $label, $n, $href]): ?>
-    <a class="stat" href="/admin/<?= $href ?>" style="text-decoration:none;color:inherit">
+    <a class="stat" href="/ctrl/<?= $href ?>" style="text-decoration:none;color:inherit">
       <div class="l"><?= $ic ?> <?= h($label) ?></div>
       <div class="n"><?= $n ?></div>
     </a>
@@ -33,10 +33,10 @@ $stats = [
 <div class="card card-pad" style="margin-top:24px">
   <h2 style="margin-top:0;font-size:16px">クイック操作</h2>
   <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <a class="btn btn-primary" href="/admin/girls.php">＋ 女性を登録</a>
-    <a class="btn" href="/admin/schedules.php">出勤を編集</a>
-    <a class="btn" href="/admin/news.php">お知らせを書く</a>
-    <a class="btn" href="/admin/girl-diaries.php">写メ日記</a>
+    <a class="btn btn-primary" href="/ctrl/girls.php">＋ 女性を登録</a>
+    <a class="btn" href="/ctrl/schedules.php">出勤を編集</a>
+    <a class="btn" href="/ctrl/news.php">お知らせを書く</a>
+    <a class="btn" href="/ctrl/girl-diaries.php">写メ日記</a>
   </div>
 </div>
 <?php layout_footer(); ?>

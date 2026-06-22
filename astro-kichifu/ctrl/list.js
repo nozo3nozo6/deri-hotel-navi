@@ -5,7 +5,7 @@
     const fd = new FormData();
     fd.append('_csrf', CSRF); fd.append('table', TABLE);
     for (const k in data) fd.append(k, data[k]);
-    const r = await fetch('/admin/content-actions.php', { method: 'POST', body: fd });
+    const r = await fetch('/ctrl/content-actions.php', { method: 'POST', body: fd });
     return r.json();
   }
   document.querySelectorAll('[data-toggle-id]').forEach(b => b.addEventListener('click', async () => {

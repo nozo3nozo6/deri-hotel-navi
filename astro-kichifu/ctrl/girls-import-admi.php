@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $pdo->commit();
         flash('ok', "反映しました：{$n}件更新（解析{".count($recs)."}・該当なし".count($nomatch)."・あいまい".count($ambiguous)."）");
-        redirect('/admin/girls-import-admi.php?done=1');
+        redirect('/ctrl/girls-import-admi.php?done=1');
     }
 
     $result = compact('recs','updates','ambiguous','nomatch','missing');
@@ -152,7 +152,7 @@ layout_header('admi取込（入店日・表示）', 'girls.php');
 ?>
 <div class="page-head">
   <h1>admi(MINERVA) 取込 — 入店日・表示/非表示</h1>
-  <a class="btn" href="/admin/girls.php">← 女性一覧</a>
+  <a class="btn" href="/ctrl/girls.php">← 女性一覧</a>
 </div>
 <p class="muted" style="margin-top:-6px">
   admi管理画面の「女性」一覧（<b>全ページ</b>）のHTMLをそのまま貼り付け → プレビュー → 実反映。

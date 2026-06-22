@@ -53,7 +53,7 @@ $optLines = implode("\n", array_column($opt->fetchAll(), 'label'));
 
 layout_header('質問項目を編集', 'girl-profiles.php');
 ?>
-<div class="page-head"><h1>質問項目を編集</h1><a class="btn" href="/admin/girl-profiles.php">← 一覧へ</a></div>
+<div class="page-head"><h1>質問項目を編集</h1><a class="btn" href="/ctrl/girl-profiles.php">← 一覧へ</a></div>
 <form method="post" class="card card-pad form-grid" style="max-width:600px">
   <?= csrf_field() ?>
   <div class="field"><label>質問文 *</label><input type="text" name="name" value="<?= h($p['name']) ?>" required maxlength="160"></div>
@@ -69,7 +69,7 @@ layout_header('質問項目を編集', 'girl-profiles.php');
     <textarea name="options" rows="6" placeholder="A型&#10;B型&#10;O型&#10;AB型&#10;秘密"><?= h($optLines) ?></textarea>
     <p class="muted" style="font-size:12px;margin:4px 0 0">リスト選択のとき、女性の編集画面でここの選択肢から選びます。</p>
   </div>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/girl-profiles.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/girl-profiles.php">キャンセル</a></div>
 </form>
 <script>
   document.getElementById('typeSel').addEventListener('change', function () {

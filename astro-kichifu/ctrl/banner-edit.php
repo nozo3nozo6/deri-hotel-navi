@@ -40,7 +40,7 @@ if ($id) { $s = db()->prepare('SELECT * FROM banners WHERE id=? AND shop_id=?');
 
 layout_header($id ? 'バナーを編集' : 'バナーを作成', 'banners.php');
 ?>
-<div class="page-head"><h1><?= $id ? 'バナーを編集' : 'バナーを作成' ?></h1><a class="btn" href="/admin/banners.php">← 一覧へ</a></div>
+<div class="page-head"><h1><?= $id ? 'バナーを編集' : 'バナーを作成' ?></h1><a class="btn" href="/ctrl/banners.php">← 一覧へ</a></div>
 <form method="post" enctype="multipart/form-data" class="form-grid" style="max-width:680px">
   <?= csrf_field() ?>
   <div class="card card-pad form-grid">
@@ -55,6 +55,6 @@ layout_header($id ? 'バナーを編集' : 'バナーを作成', 'banners.php');
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$b['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
   </div>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/banners.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/banners.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>

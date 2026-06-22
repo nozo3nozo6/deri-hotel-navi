@@ -31,11 +31,11 @@ if (!$o) { flash('err', '対象が見つかりません。'); redirect('girl-opt
 
 layout_header('オプション編集', 'girl-options.php');
 ?>
-<div class="page-head"><h1>オプション編集</h1><a class="btn" href="/admin/girl-options.php">← 一覧へ</a></div>
+<div class="page-head"><h1>オプション編集</h1><a class="btn" href="/ctrl/girl-options.php">← 一覧へ</a></div>
 <form method="post" class="card card-pad form-grid" style="max-width:520px">
   <?= csrf_field() ?>
   <div class="field"><label>項目名 *</label><input type="text" name="name" value="<?= h($o['name']) ?>" required maxlength="80"></div>
   <label class="check"><input type="checkbox" name="is_basic" <?= (int)$o['is_basic'] ? 'checked' : '' ?>> 基本プレイ（OFFでオプションプレイ）</label>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/girl-options.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/girl-options.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>

@@ -152,7 +152,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 ?>
 <div class="page-head">
   <h1><?= $id ? '女性を編集' : '女性を登録' ?></h1>
-  <a class="btn" href="/admin/girls.php">← 一覧へ</a>
+  <a class="btn" href="/ctrl/girls.php">← 一覧へ</a>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="form-grid" style="max-width:880px">
@@ -282,7 +282,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">保存する</button>
-    <a class="btn" href="/admin/girls.php">キャンセル</a>
+    <a class="btn" href="/ctrl/girls.php">キャンセル</a>
   </div>
 </form>
 
@@ -291,7 +291,7 @@ const CSRF = '<?= h(csrf_token()) ?>';
 document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('click', async () => {
   if (!confirm('この画像を削除しますか？')) return;
   const fd = new FormData(); fd.append('_csrf', CSRF); fd.append('action', 'delete-image'); fd.append('image_id', b.dataset.delImg);
-  const r = await fetch('/admin/girl-actions.php', { method: 'POST', body: fd });
+  const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
   if ((await r.json()).ok) b.closest('[data-img]').remove();
 }));
 </script>

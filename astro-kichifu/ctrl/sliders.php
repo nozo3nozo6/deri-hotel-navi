@@ -9,7 +9,7 @@ $rows = $st->fetchAll();
 
 layout_header('スライダー', 'sliders.php');
 ?>
-<div class="page-head"><h1>スライダー</h1><a class="btn btn-primary" href="/admin/slider-edit.php">＋ 新規作成</a></div>
+<div class="page-head"><h1>スライダー</h1><a class="btn btn-primary" href="/ctrl/slider-edit.php">＋ 新規作成</a></div>
 <p class="muted" style="margin:-6px 0 12px">行をドラッグで並べ替え</p>
 <div class="table-wrap">
   <table class="tbl">
@@ -24,7 +24,7 @@ layout_header('スライダー', 'sliders.php');
           <td><button type="button" class="toggle <?= (int)$s['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$s['id'] ?>"></button></td>
           <td><div class="rowmenu"><button class="rowmenu-btn" type="button">⋯</button>
             <div class="rowmenu-list">
-              <a href="/admin/slider-edit.php?id=<?= (int)$s['id'] ?>">✏️ 編集</a>
+              <a href="/ctrl/slider-edit.php?id=<?= (int)$s['id'] ?>">✏️ 編集</a>
               <button type="button" class="danger" data-del-id="<?= (int)$s['id'] ?>" data-name="スライダー">🗑 削除</button>
             </div></div></td>
         </tr>
@@ -34,5 +34,5 @@ layout_header('スライダー', 'sliders.php');
   </table>
 </div>
 <script>window.__CSRF='<?= h(csrf_token()) ?>';window.__TABLE='sliders';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

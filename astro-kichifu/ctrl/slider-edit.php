@@ -42,7 +42,7 @@ if ($id) { $q = db()->prepare('SELECT * FROM sliders WHERE id=? AND shop_id=?');
 
 layout_header($id ? 'スライダーを編集' : 'スライダーを作成', 'sliders.php');
 ?>
-<div class="page-head"><h1><?= $id ? 'スライダーを編集' : 'スライダーを作成' ?></h1><a class="btn" href="/admin/sliders.php">← 一覧へ</a></div>
+<div class="page-head"><h1><?= $id ? 'スライダーを編集' : 'スライダーを作成' ?></h1><a class="btn" href="/ctrl/sliders.php">← 一覧へ</a></div>
 <form method="post" enctype="multipart/form-data" class="form-grid" style="max-width:680px">
   <?= csrf_field() ?>
   <div class="card card-pad form-grid">
@@ -58,6 +58,6 @@ layout_header($id ? 'スライダーを編集' : 'スライダーを作成', 'sl
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$s['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
   </div>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/sliders.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/sliders.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>

@@ -12,7 +12,7 @@ try {
     exit('DB に接続できません。先に DB 作成・schema.sql のインポート・db-config.php の生成（デプロイ）を完了してください。');
 }
 if ($count > 0) {
-    exit('セットアップ済みです。/admin/login.php からログインしてください。');
+    exit('セットアップ済みです。/ctrl/login.php からログインしてください。');
 }
 
 $err = '';
@@ -35,7 +35,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>初回セットアップ | <?= ADMIN_NAME ?></title>
-<link rel="stylesheet" href="/admin/admin.css?v=1">
+<link rel="stylesheet" href="/ctrl/admin.css?v=1">
 </head><body>
 <div class="login-wrap">
   <div class="login-card">

@@ -53,7 +53,7 @@ layout_header('特徴タグ', 'girl-image-tags.php');
           <td><strong><?= h($r['name']) ?></strong></td>
           <td><button type="button" class="toggle <?= (int)$r['is_active'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$r['id'] ?>" aria-label="表示切替"></button></td>
           <td>
-            <a class="btn btn-sm" href="/admin/girl-image-tag-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
+            <a class="btn btn-sm" href="/ctrl/girl-image-tag-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
             <button type="button" class="btn btn-sm btn-danger" data-del-id="<?= (int)$r['id'] ?>" data-name="<?= h($r['name']) ?>">🗑</button>
           </td>
         </tr>
@@ -64,5 +64,5 @@ layout_header('特徴タグ', 'girl-image-tags.php');
 </div>
 
 <script>window.__CSRF = '<?= h(csrf_token()) ?>'; window.__TABLE = 'girl_image_tags';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

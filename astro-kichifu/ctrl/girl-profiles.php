@@ -60,7 +60,7 @@ layout_header('女性プロフィール', 'girl-profiles.php');
           <td><strong><?= h($r['name']) ?></strong></td>
           <td class="muted"><?= $r['type'] === 'list' ? 'リスト選択' : '単一行テキスト' ?></td>
           <td>
-            <a class="btn btn-sm" href="/admin/girl-profile-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
+            <a class="btn btn-sm" href="/ctrl/girl-profile-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
             <button type="button" class="btn btn-sm btn-danger" data-del-id="<?= (int)$r['id'] ?>" data-name="<?= h($r['name']) ?>">🗑</button>
           </td>
         </tr>
@@ -71,5 +71,5 @@ layout_header('女性プロフィール', 'girl-profiles.php');
 </div>
 
 <script>window.__CSRF = '<?= h(csrf_token()) ?>'; window.__TABLE = 'girl_profiles';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

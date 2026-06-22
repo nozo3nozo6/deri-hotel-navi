@@ -160,7 +160,7 @@ function layout_header(string $title, string $active = ''): void {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?= h($title) ?> | <?= ADMIN_NAME ?></title>
-<link rel="stylesheet" href="/admin/admin.css?v=1">
+<link rel="stylesheet" href="/ctrl/admin.css?v=1">
 </head><body>
 <div class="l-wrap">
   <aside class="l-sidebar">
@@ -168,7 +168,7 @@ function layout_header(string $title, string $active = ''): void {
     <?php foreach (nav_groups() as $group => $links): ?>
       <?php if ($group !== ''): ?><div class="s-group"><?= h($group) ?></div><?php endif; ?>
       <?php foreach ($links as [$href, $ic, $label]): ?>
-        <a class="s-link <?= $active === $href ? 'active' : '' ?>" href="/admin/<?= $href ?>"><span class="ic"><?= $ic ?></span><?= h($label) ?></a>
+        <a class="s-link <?= $active === $href ? 'active' : '' ?>" href="/ctrl/<?= $href ?>"><span class="ic"><?= $ic ?></span><?= h($label) ?></a>
       <?php endforeach; ?>
     <?php endforeach; ?>
   </aside>
@@ -190,7 +190,7 @@ function layout_header(string $title, string $active = ''): void {
       <div class="topbar-right">
         <a href="/" target="_blank">サイトを見る ↗</a>
         <span class="muted"><?= h($admin['display_name'] ?: $admin['username']) ?></span>
-        <a href="/admin/logout.php" class="btn btn-sm">ログアウト</a>
+        <a href="/ctrl/logout.php" class="btn btn-sm">ログアウト</a>
       </div>
     </header>
     <main class="l-content">

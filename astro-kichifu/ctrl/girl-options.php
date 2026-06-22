@@ -55,7 +55,7 @@ layout_header('女性オプション', 'girl-options.php');
           <td><strong><?= h($r['name']) ?></strong></td>
           <td><button type="button" class="toggle <?= (int)$r['is_basic'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$r['id'] ?>" aria-label="基本プレイ切替"></button></td>
           <td>
-            <a class="btn btn-sm" href="/admin/girl-option-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
+            <a class="btn btn-sm" href="/ctrl/girl-option-edit.php?id=<?= (int)$r['id'] ?>">✏️</a>
             <button type="button" class="btn btn-sm btn-danger" data-del-id="<?= (int)$r['id'] ?>" data-name="<?= h($r['name']) ?>">🗑</button>
           </td>
         </tr>
@@ -66,5 +66,5 @@ layout_header('女性オプション', 'girl-options.php');
 </div>
 
 <script>window.__CSRF = '<?= h(csrf_token()) ?>'; window.__TABLE = 'girl_options';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

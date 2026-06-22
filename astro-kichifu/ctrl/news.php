@@ -19,7 +19,7 @@ layout_header('お知らせ', 'news.php');
 ?>
 <div class="page-head">
   <h1>お知らせ <span class="muted" style="font-size:14px">（<?= number_format($total) ?>件）</span></h1>
-  <a class="btn btn-primary" href="/admin/news-edit.php">＋ 新規作成</a>
+  <a class="btn btn-primary" href="/ctrl/news-edit.php">＋ 新規作成</a>
 </div>
 <form class="toolbar" method="get">
   <div class="search"><input type="text" name="q" value="<?= h($q) ?>" placeholder="タイトルで検索"></div>
@@ -38,7 +38,7 @@ layout_header('お知らせ', 'news.php');
           <td>
             <div class="rowmenu"><button class="rowmenu-btn" type="button">⋯</button>
               <div class="rowmenu-list">
-                <a href="/admin/news-edit.php?id=<?= (int)$n['id'] ?>">✏️ 編集</a>
+                <a href="/ctrl/news-edit.php?id=<?= (int)$n['id'] ?>">✏️ 編集</a>
                 <button type="button" class="danger" data-del-id="<?= (int)$n['id'] ?>" data-name="<?= h($n['title']) ?>">🗑 削除</button>
               </div>
             </div>
@@ -51,5 +51,5 @@ layout_header('お知らせ', 'news.php');
 </div>
 <?= pager($total, $page, $per, 'q=' . urlencode($q) . '&') ?>
 <script>window.__CSRF='<?= h(csrf_token()) ?>';window.__TABLE='news';</script>
-<script src="/admin/list.js?v=1"></script>
+<script src="/ctrl/list.js?v=1"></script>
 <?php layout_footer(); ?>

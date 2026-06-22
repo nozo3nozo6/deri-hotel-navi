@@ -46,7 +46,7 @@ if ($id) { $s = db()->prepare('SELECT * FROM news WHERE id=? AND shop_id=?'); $s
 
 layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php');
 ?>
-<div class="page-head"><h1><?= $id ? 'お知らせを編集' : 'お知らせを作成' ?></h1><a class="btn" href="/admin/news.php">← 一覧へ</a></div>
+<div class="page-head"><h1><?= $id ? 'お知らせを編集' : 'お知らせを作成' ?></h1><a class="btn" href="/ctrl/news.php">← 一覧へ</a></div>
 <form method="post" enctype="multipart/form-data" class="form-grid" style="max-width:760px">
   <?= csrf_field() ?>
   <div class="card card-pad form-grid">
@@ -63,6 +63,6 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$n['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
   </div>
-  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/admin/news.php">キャンセル</a></div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/news.php">キャンセル</a></div>
 </form>
 <?php layout_footer(); ?>
