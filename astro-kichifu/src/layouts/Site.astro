@@ -104,7 +104,13 @@ const jsV = ver('public/site.js');
 <div class="offcanvas-overlay" data-menu-close></div>
 <div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー">
   <div class="offcanvas-head">
-    <span class="font-script neon-pink-glow offcanvas-brand flicker">{SHOP.nameEn}</span>
+    <a href="/top" class="brand" aria-label={`${SHOP.fullName} トップ`}>
+      <span class="brand-script flicker">{SHOP.nameEn}</span>
+      <span class="brand-sub">
+        <span class="brand-since">吉祥寺デリヘル</span>
+        <span class="brand-catch">アドミ since 2009</span>
+      </span>
+    </a>
     <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる">✕</button>
   </div>
   <nav class="offcanvas-nav">

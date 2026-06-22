@@ -330,7 +330,6 @@ body.menu-open .offcanvas { transform: translateX(0); }
   border-bottom: 1px solid rgba(255,255,255,.1);
   flex-shrink: 0;
 }
-.offcanvas-brand { font-size: 1.875rem; }
 .offcanvas-close {
   width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
