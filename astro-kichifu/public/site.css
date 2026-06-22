@@ -1505,6 +1505,13 @@ body.lb-open { overflow: hidden; }
 }
 @keyframes fujoho-hint-swipe { 0%,100% { opacity:.55; transform:translateX(-5px); } 50% { opacity:1; transform:translateX(5px); } }
 
+/* スマホはセクション見出し上の余白を詰める（最新情報／新人 等の上の無駄な空き解消） */
+@media (max-width: 640px) {
+  .top-news-section, .top-girls-section, .fujoho-section,
+  .fujoho-section + .top-girls-section { padding-top: 0; }
+  .section-topper { margin-bottom: 8px; }
+}
+
 /* === 18. System (courses) ================================================= */
 .course-list { display: flex; flex-direction: column; gap: 12px; }
 .course-row {
