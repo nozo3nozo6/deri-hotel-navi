@@ -85,7 +85,7 @@ button { cursor: pointer; }
 .site-header-inner {
   max-width: 1344px;
   margin: 0 auto;
-  padding: 0 14px;
+  padding: 0 14px 0 6px;
   height: 100%;
   display: flex;
   align-items: center;
@@ -96,7 +96,7 @@ button { cursor: pointer; }
 /* brand */
 .brand {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 9px;
   flex-shrink: 0;
 }
@@ -105,9 +105,8 @@ button { cursor: pointer; }
   /* 3段ロゴの高さに合わせて大きく。狭い端末では自動縮小して横はみ出しを防ぐ */
   font-size: clamp(1.875rem, calc(45.7vw - 134.5px), 2.875rem);
   line-height: 1;
-  display: flex;
-  align-items: flex-start;
-  margin-top: -8px;
+  /* Pacifico は line box 中心とインク中心が 0.0425em ズレる→ em 単位で光学補正し3段ブロックと中央揃え（フォントサイズ非依存） */
+  transform: translateY(0.0425em);
   color: #fff;
   text-shadow:
     0 0 6px rgba(255,79,216,.9),
@@ -212,6 +211,8 @@ button { cursor: pointer; }
   flex-shrink: 0;
   width: 44px;
   height: 44px;
+  /* 右端の余白を詰めてギリギリに寄せる（inner の右 padding 14px に -8px 食い込ませ実質 6px）。1024px未満のみ表示なのでモバイルヘッダー限定 */
+  margin-right: -8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -243,11 +244,11 @@ button { cursor: pointer; }
 /* === 6. Footer ============================================================ */
 .site-footer { background: var(--bg-0); padding: 0 0 32px; }
 .footer-top-divider {
-  height: 2px;
+  height: 1px;
   border: none;
-  margin: 0 0 48px;
-  background: linear-gradient(90deg, transparent, var(--neon-pink), var(--lavender), transparent);
-  box-shadow: 0 0 14px rgba(255,79,216,.55);
+  margin: 48px 0 48px;
+  background: linear-gradient(90deg, transparent 5%, var(--neon-pink) 35%, var(--lavender) 65%, transparent 95%);
+  box-shadow: 0 0 8px rgba(255,79,216,.9), 0 0 20px rgba(255,79,216,.5), 0 0 40px rgba(183,143,255,.3);
 }
 .footer-inner {
   max-width: 860px;
@@ -676,17 +677,15 @@ body.reserve-open .modal-box {
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
 }
-/* 本日の出勤バッジ（schedule-badge.js が動的付与）写真左上 */
+/* 本日の出勤バッジ（schedule-badge.js が動的付与）名前の上に表示（.girl-card-info の先頭に挿入） */
 .girl-card-shukkin {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 3;
+  display: inline-block;
+  margin-bottom: 5px;
   background: linear-gradient(135deg, #ff4fd8, #ff2d9b);
   color: #fff;
   font-size: 12px;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 9999px;
   box-shadow: 0 2px 8px rgba(255,45,155,.5);
   white-space: nowrap;
