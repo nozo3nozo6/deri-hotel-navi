@@ -567,6 +567,54 @@ const LANG = {
 };
 function t(key) { return (LANG[state.lang] || LANG.ja)[key] || key; }
 
+// ジャンル別「最初の口コミ」誘導文（口コミ0件の空状態CTA）
+// 投稿率向上のため window.MODE に応じて文言を出し分ける。place: 'hotel'（ホテル）/ 'loveho'（ラブホ）。
+// 未定義の mode / lang は汎用 no_posts_yet にフォールバック（安全な段階展開）。
+const NO_POSTS_PLACE = {
+    ja: { hotel: 'ホテル', loveho: 'ラブホ' },
+    en: { hotel: 'hotel', loveho: 'love hotel' },
+    zh: { hotel: '酒店', loveho: '情侣酒店' },
+    ko: { hotel: '호텔', loveho: '러브호텔' },
+};
+const NO_POSTS_GENRE = {
+    ja: {
+        men: '💬 この{place}にデリヘルを呼んだ経験を、最初に共有しませんか？',
+        women: '💬 この{place}に女性用風俗（女風）を呼んだ経験を、最初に共有しませんか？',
+        este: '💬 この{place}にデリエステを呼んだ経験を、最初に共有しませんか？',
+        men_same: '💬 この{place}を男性同士で利用した経験を、最初に共有しませんか？',
+        women_same: '💬 この{place}を女性同士で利用した経験を、最初に共有しませんか？',
+    },
+    en: {
+        men: '💬 Be the first to share whether you could call a delivery health (escort) to this {place}.',
+        women: "💬 Be the first to share your experience with women's delivery services at this {place}.",
+        este: '💬 Be the first to share whether you could call a delivery massage (este) to this {place}.',
+        men_same: '💬 Be the first to share your experience using this {place} for a male same-sex visit.',
+        women_same: '💬 Be the first to share your experience using this {place} for a female same-sex visit.',
+    },
+    zh: {
+        men: '💬 成为第一个分享能否在这家{place}叫外送服务（delivery health）的人吧。',
+        women: '💬 成为第一个分享在这家{place}使用女性向风俗经验的人吧。',
+        este: '💬 成为第一个分享能否在这家{place}叫外送按摩（este）的人吧。',
+        men_same: '💬 成为第一个分享男性同性在这家{place}使用经验的人吧。',
+        women_same: '💬 成为第一个分享女性同性在这家{place}使用经验的人吧。',
+    },
+    ko: {
+        men: '💬 이 {place}에 출장 서비스(딜리버리헬스)를 부를 수 있었는지 가장 먼저 공유해보세요.',
+        women: '💬 이 {place}에서 여성용 풍속(여풍)을 이용한 경험을 가장 먼저 공유해보세요.',
+        este: '💬 이 {place}에 출장 마사지(에스테)를 부를 수 있었는지 가장 먼저 공유해보세요.',
+        men_same: '💬 이 {place}을 남성 동성으로 이용한 경험을 가장 먼저 공유해보세요.',
+        women_same: '💬 이 {place}을 여성 동성으로 이용한 경험을 가장 먼저 공유해보세요.',
+    },
+};
+function noPostsYetMsg(place) {
+    const lang = LANG[state.lang] ? state.lang : 'ja';
+    const mode = window.MODE || new URLSearchParams(window.location.search).get('mode') || 'men';
+    const tmpl = (NO_POSTS_GENRE[lang] || {})[mode];
+    if (!tmpl) return t('no_posts_yet');
+    const placeWord = (NO_POSTS_PLACE[lang] || {})[place] || (NO_POSTS_PLACE[lang] || {}).hotel || '';
+    return tmpl.replace('{place}', placeWord);
+}
+
 // マスタデータ翻訳マッピング（DBの日本語値→多言語）
 const MASTER_LANG = {
     en: {

@@ -1005,7 +1005,7 @@ function renderLovehoDetail(hotel, reports) {
         </div>` : (lhShopReports.length === 0 ? `
         <div style="margin-bottom:24px;">
             <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:12px;">💬 ${t('review_list')} (0)</h3>
-            <div style="color:var(--text-3);font-size:13px;">${t('no_posts_yet')}</div>
+            <div style="color:var(--text-3);font-size:13px;">${noPostsYetMsg('loveho')}</div>
         </div>` : '');
 
     // フォームHTML → アコーディオン式
@@ -2052,7 +2052,7 @@ function renderHotelDetail(hotel, reports, summary, shopInfoMap, shopFeeMap) {
     });
     const shopCanCall = shopReports.filter(r => r.can_call).length;
     const shopPct = shopReports.length > 0 ? Math.round(shopCanCall / shopReports.length * 100) : null;
-    const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">${t('no_posts_yet')}</div>`;
+    const noReports = `<div style="text-align:center;padding:16px 0;color:var(--text-3);font-size:12px;">${noPostsYetMsg('hotel')}</div>`;
 
     // 店舗フィルタータブ
     window._shopReports = shopReports;
