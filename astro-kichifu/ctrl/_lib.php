@@ -114,6 +114,7 @@ function nav_groups(): array {
             ['girl-options.php', '💋', 'オプション'],
         ],
         'スケジュール' => [['schedules.php', '📅', '出勤管理']],
+        '媒体連携' => [['suguhime-sync.php', '⚡', 'すぐヒメ同期']],
         'コンテンツ' => [
             ['news.php', '📰', 'お知らせ'],
             ['events.php', '🎉', 'イベント'],
