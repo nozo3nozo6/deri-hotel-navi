@@ -233,7 +233,7 @@ const refs = {
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // チャット本文中の http(s) URL をクリック可能なリンクに変換する.
 // 必ず esc() でHTMLエスケープした後に URL のみを <a> 化する (XSS対策).
-// target="_self" 指定 (要望仕様). 末尾の句読点・閉じ括弧はリンクから除外.
+// target="_blank" で新タブ表示 (iframe埋め込みでもチャットを残したまま開く). 末尾の句読点・閉じ括弧はリンクから除外.
 function linkify(s) {
     const escaped = esc(s);
     // URL に使われる文字種に限定 (日本語等の直後続きで URL に巻き込まない).
@@ -244,7 +244,7 @@ function linkify(s) {
         const tm = url.match(/[)\]。、,.!?]+$/);
         if (tm) { tail = url.slice(url.length - tm[0].length); url = url.slice(0, url.length - tm[0].length); }
         if (!url) return match;
-        return '<a class="msg-link" href="' + url + '" target="_self" rel="noopener noreferrer nofollow">' + url + '</a>' + tail;
+        return '<a class="msg-link" href="' + url + '" target="_blank" rel="noopener noreferrer nofollow">' + url + '</a>' + tail;
     });
 }
 function showError(msg) {
