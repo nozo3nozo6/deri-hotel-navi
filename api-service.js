@@ -185,7 +185,7 @@ function renderShopServiceAreaTags() {
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
-    const html = `<div id="shop-service-areas-bar" style="padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span></div><div class="area-grid">${cards}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding:8px 2px 0;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
+    const html = `<div id="shop-service-areas-bar" style="padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span></div><div class="area-grid" style="align-items:start;">${cards}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding:8px 2px 0;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
