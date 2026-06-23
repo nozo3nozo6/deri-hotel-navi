@@ -231,6 +231,22 @@ const refs = {
 
 // ===== ユーティリティ =====
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// チャット本文中の http(s) URL をクリック可能なリンクに変換する.
+// 必ず esc() でHTMLエスケープした後に URL のみを <a> 化する (XSS対策).
+// target="_self" 指定 (要望仕様). 末尾の句読点・閉じ括弧はリンクから除外.
+function linkify(s) {
+    const escaped = esc(s);
+    // URL に使われる文字種に限定 (日本語等の直後続きで URL に巻き込まない).
+    // esc() 後なので & は &amp; / ' は &#39; に展開済み → いずれも下記文字集合に含まれる.
+    return escaped.replace(/https?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g, function (match) {
+        let url = match, tail = '';
+        // 末尾の句読点・閉じ括弧はリンクから除外 (日本語文中の URL 対策).
+        const tm = url.match(/[)\]。、,.!?]+$/);
+        if (tm) { tail = url.slice(url.length - tm[0].length); url = url.slice(0, url.length - tm[0].length); }
+        if (!url) return match;
+        return '<a class="msg-link" href="' + url + '" target="_self" rel="noopener noreferrer nofollow">' + url + '</a>' + tail;
+    });
+}
 function showError(msg) {
     refs.error.textContent = msg;
     refs.error.classList.remove('hidden');
@@ -813,7 +829,7 @@ function addOutgoingOptimistic(cmid, text) {
 
     const bubble = document.createElement('div');
     bubble.className = 'msg ' + renderAs + ' sending';
-    bubble.textContent = text;
+    bubble.innerHTML = linkify(text);
 
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
@@ -2864,7 +2880,7 @@ function addWelcomeMessage(text) {
     if (state.has_sent) return;
     const div = document.createElement('div');
     div.className = 'msg msg-system msg-welcome';
-    div.textContent = text;
+    div.innerHTML = linkify(text);
     refs.chatMessages.appendChild(div);
     refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
 }
@@ -3049,7 +3065,7 @@ function addMessage(m, _fromOwnerLegacy) {
 
     const bubble = document.createElement('div');
     bubble.className = 'msg ' + renderAs;
-    bubble.textContent = m.message;
+    bubble.innerHTML = linkify(m.message);
 
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
@@ -3166,7 +3182,7 @@ async function maybeTranslate(msgDiv, text, from, to) {
             badge.textContent = '🌐 ' + from.toUpperCase() + '→' + to.toUpperCase();
             const body = document.createElement('div');
             body.className = 'msg-translation-body';
-            body.textContent = translated;
+            body.innerHTML = linkify(translated);
             trDiv.appendChild(badge);
             trDiv.appendChild(body);
         } else {

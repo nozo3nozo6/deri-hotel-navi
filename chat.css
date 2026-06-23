@@ -146,6 +146,9 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .msg{padding:4px 10px;border-radius:14px;line-height:1.45;font-size:15px;word-wrap:break-word;white-space:pre-wrap}
 .msg.visitor{background:var(--chat-primary);color:#fff;border-bottom-right-radius:4px}
 .msg.shop{background:#fff;color:#333;border:1px solid #e5e0d8;border-bottom-left-radius:4px}
+/* チャット本文中のURLリンク: 吹き出しの文字色に追従 + 長いURLは折返し */
+.msg-link{color:inherit;text-decoration:underline;word-break:break-all}
+.msg-welcome .msg-link,.msg-system .msg-link{color:inherit}
 .msg-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;padding-bottom:2px}
 .msg-row.shop .msg-meta{align-items:flex-start}
 .msg-avatar{width:32px;height:32px;border-radius:50%;background-size:cover;background-position:center;background-repeat:no-repeat;flex-shrink:0;align-self:flex-end;margin-bottom:2px;background-color:#e5e0d8}
