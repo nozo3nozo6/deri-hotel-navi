@@ -165,9 +165,11 @@ function renderShopServiceAreaTags() {
     //   高さ0のヒーロー直後 = 実質ヘッダー直下となり従来の見た目を維持する.
     //   ヒーローが無い場合はヘッダー直後にフォールバック.
     const anchor = document.getElementById('genre-hero') || header;
-    const tags = areas.map(a => {
+    // 「地域を選択」と同じカード形式 (.area-grid > .area-btn.has-children) で描画する.
+    // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
+    const cards = areas.map(a => {
         const isP = a.is_primary;
-        const star = isP ? '<span style="color:#c89b4f;font-weight:700;margin-right:4px;font-size:14px;line-height:1;">★</span>' : '';
+        const star = isP ? '★ ' : '';
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
@@ -175,15 +177,15 @@ function renderShopServiceAreaTags() {
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
-        // メインタグ: ゴールド系グラデ + 太字 + シャドウで強調. それ以外: 白背景 + アクセント枠.
-        const tagStyle = isP
-            ? 'padding:7px 14px;background:linear-gradient(135deg,#fff5d8,#ffe9b8);border:1.5px solid #d9a85a;border-radius:18px;font-size:13px;font-weight:700;color:#7a5320;white-space:nowrap;box-shadow:0 2px 6px rgba(216,165,90,0.25);'
-            : 'padding:7px 14px;background:#fff;border:1.5px solid var(--accent,#9b2d35);border-radius:18px;font-size:13px;font-weight:600;color:var(--accent,#9b2d35);white-space:nowrap;';
-        return `<button class="shop-area-tag" data-action="goToShopArea" ${dataAttrs} style="display:inline-flex;align-items:center;gap:3px;cursor:pointer;touch-action:manipulation;${tagStyle}">${star}${label}</button>`;
+        // メイン(★)はゴールド系で強調、それ以外は通常の area-btn カードをそのまま使う.
+        const primaryStyle = isP
+            ? ' style="background:linear-gradient(135deg,#fff5d8,#ffe9b8);border-color:#d9a85a;color:#7a5320;font-weight:700;"'
+            : '';
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs}${primaryStyle}>${star}${label}</button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
-    // 2 行レイアウト: 1 行目=タイトル+タグ列、2 行目=その他エリア案内 (控えめだが視認できる).
-    const html = `<div id="shop-service-areas-bar" style="display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span>${tags}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding-left:2px;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
+    // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
+    const html = `<div id="shop-service-areas-bar" style="padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span></div><div class="area-grid">${cards}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding:8px 2px 0;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
