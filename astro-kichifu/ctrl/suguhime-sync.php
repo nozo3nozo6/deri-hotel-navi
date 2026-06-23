@@ -85,6 +85,21 @@ function fujoho_fetch_suguhime(int $id): array {
     return ['ok' => true, 'as_of' => $asOf, 'list' => $list];
 }
 
+/**
+ * すぐヒメの状況テキストを比較用キーに正規化する。
+ *   「待機中」「今すぐ遊べます」 → 'now'
+ *   「3:50から遊べます」「03:50〜」→ '03:50'（時刻）
+ * これで admi と kichifu の「何時から遊べるか」が一致しているか判定できる。
+ */
+function suguhime_time_key(?string $status): string {
+    if ($status === null || $status === '') return '';
+    if (preg_match('/(\d{1,2})\s*[:：]\s*(\d{2})/u', $status, $m)) {
+        return sprintf('%02d:%02d', (int)$m[1], (int)$m[2]);
+    }
+    if (preg_match('/待機中|今すぐ/u', $status)) return 'now';
+    return trim($status);
+}
+
 $src = fujoho_fetch_suguhime(FUJOHO_SRC_ID); // admi
 $dst = fujoho_fetch_suguhime(FUJOHO_DST_ID); // kichifu
 
@@ -103,7 +118,11 @@ try {
 //   remove   : kichifu すぐヒメに居るが admi にもう居ない → 取消候補
 $rows = [];
 foreach ($src['list'] as $name => $g) {
-    if (isset($dst['list'][$name]))      $state = 'synced';
+    if (isset($dst['list'][$name])) {
+        // 名前は揃っている → さらに「何時から遊べるか」が一致するか比較
+        $state = (suguhime_time_key($g['status']) === suguhime_time_key($dst['list'][$name]['status']))
+            ? 'synced' : 'timediff';
+    }
     elseif (isset($rosterSet[$name]))    $state = 'add';
     else                                 $state = 'noroster';
     $rows[$name] = [
@@ -122,17 +141,20 @@ foreach ($dst['list'] as $name => $g) {
         'state' => 'remove',
     ];
 }
-// 並び: 追加候補 → 在籍なし → 取消候補 → 同期済み の順で目立たせる
-$order = ['add' => 0, 'noroster' => 1, 'remove' => 2, 'synced' => 3];
+// 並び: 追加候補 → 時間更新 → 在籍なし → 取消候補 → 同期済み の順で目立たせる
+$order = ['add' => 0, 'timediff' => 1, 'noroster' => 2, 'remove' => 3, 'synced' => 4];
 uasort($rows, fn($a, $b) => ($order[$a['state']] <=> $order[$b['state']]) ?: strcmp($a['name'], $b['name']));
 
-$nAdd = count(array_filter($rows, fn($r) => $r['state'] === 'add'));
+// 要対応 = 追加候補 + 時間更新（人がすぐ手を打つべき件数）
+$nAct = count(array_filter($rows, fn($r) => $r['state'] === 'add' || $r['state'] === 'timediff'));
 
+// [class, label, 追加style]
 $STATE_BADGE = [
-    'add'      => ['badge-new', '➕ 追加候補'],
-    'noroster' => ['badge-off', '⚠️ 吉祥寺に在籍なし'],
-    'remove'   => ['badge-off', '➖ admiにもう無い（取消候補）'],
-    'synced'   => ['badge-on',  '✅ 同期済み'],
+    'add'      => ['badge-new', '➕ 追加候補', ''],
+    'timediff' => ['badge',     '🕐 時間更新', 'background:#fff3e0;color:#b26a00'],
+    'noroster' => ['badge-off', '⚠️ 吉祥寺に在籍なし', ''],
+    'remove'   => ['badge-off', '➖ admiにもう無い（取消候補）', ''],
+    'synced'   => ['badge-on',  '✅ 同期済み', ''],
 ];
 
 layout_header('すぐヒメ同期', 'suguhime-sync.php');
@@ -163,8 +185,8 @@ layout_header('すぐヒメ同期', 'suguhime-sync.php');
     <div class="n"><?= count($dst['list']) ?><span style="font-size:14px;font-weight:400" class="muted"> 人</span></div>
   </div>
   <div class="stat">
-    <div class="l">➕ 追加すべき人数</div>
-    <div class="n" style="<?= $nAdd ? 'color:var(--accent)' : '' ?>"><?= $nAdd ?><span style="font-size:14px;font-weight:400" class="muted"> 人</span></div>
+    <div class="l">⚡ 要対応（追加＋時間更新）</div>
+    <div class="n" style="<?= $nAct ? 'color:var(--accent)' : '' ?>"><?= $nAct ?><span style="font-size:14px;font-weight:400" class="muted"> 件</span></div>
   </div>
 </div>
 
@@ -174,12 +196,12 @@ layout_header('すぐヒメ同期', 'suguhime-sync.php');
       <tr><th>女の子</th><th><?= h(FUJOHO_SRC_LABEL) ?>の状況</th><th><?= h(FUJOHO_DST_LABEL) ?>の状況</th><th>判定</th></tr>
     </thead>
     <tbody>
-      <?php foreach ($rows as $r): [$cls, $label] = $STATE_BADGE[$r['state']]; ?>
+      <?php foreach ($rows as $r): [$cls, $label, $bstyle] = $STATE_BADGE[$r['state']]; ?>
         <tr>
           <td><strong><?= h($r['name']) ?></strong><?= $r['age'] ? ' <span class="muted">('.(int)$r['age'].')</span>' : '' ?></td>
           <td><?= $r['srcStatus'] !== null ? h($r['srcStatus']) : '<span class="muted">—</span>' ?></td>
           <td><?= $r['dstStatus'] !== null ? h($r['dstStatus']) : '<span class="muted">—</span>' ?></td>
-          <td><span class="badge <?= $cls ?>"><?= h($label) ?></span></td>
+          <td><span class="badge <?= $cls ?>"<?= $bstyle ? ' style="'.h($bstyle).'"' : '' ?>><?= h($label) ?></span></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$rows): ?>
@@ -193,7 +215,8 @@ layout_header('すぐヒメ同期', 'suguhime-sync.php');
   <h2 style="margin-top:0;font-size:15px">使い方</h2>
   <ol style="margin:0;padding-left:20px;line-height:2;color:var(--text)">
     <li><strong>➕ 追加候補</strong>の女の子を、上の「<strong>kichifu 出勤表を開いて設定</strong>」から開く。</li>
-    <li>出勤表で対象の女の子カードの <strong>▼ →「すぐヒメ！に掲載」</strong>→ 何時から遊べるか選択 → 確認画面 → 掲載。</li>
+    <li>出勤表で対象の女の子カードの <strong>▼ →「すぐヒメ！に掲載」</strong>→ <strong>「admi（立川・母艦）の状況」列に出ている時刻</strong>（待機中＝今すぐ／3:50から 等）に合わせて選択 → 確認画面 → 掲載。</li>
+    <li><strong>🕐 時間更新</strong>（名前は揃ってるが時刻がズレ）は、出勤表のすぐヒメ欄 <strong>▼ →「再掲載」</strong>→ 何時から遊べるかを admi に合わせて選び直す。</li>
     <li>戻って「🔄 再チェック」。✅ 同期済み になれば完了。</li>
     <li><strong>➖ 取消候補</strong>は出勤表のすぐヒメ欄 ▼ →「掲載取消」、<strong>⚠️ 在籍なし</strong>は吉祥寺に居ないため同期不可。</li>
   </ol>
