@@ -246,7 +246,7 @@ layout_header('出勤管理', 'schedules.php');
     </span>
     <span>
       <label>並び順</label>
-      <select onchange="location.href='schedules.php?mode=girl&girl_id=<?= $gid ?>&sort='+this.value">
+      <select onchange="location.href='schedules.php?mode=girl&sort='+this.value">
         <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>出勤頻度が高い順</option>
         <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店が新しい順</option>
       </select>
