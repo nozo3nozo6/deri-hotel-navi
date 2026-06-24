@@ -50,6 +50,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'hip'              => $ni('hip'),
             'in_date'          => ($_POST['in_date'] ?? '') ?: null,
             'catch_copy'       => trim((string)($_POST['catch_copy'] ?? '')),
+            'external_url'     => trim((string)($_POST['external_url'] ?? '')),
             'comment'          => trim((string)($_POST['comment'] ?? '')),
             'shop_comment'     => trim((string)($_POST['shop_comment'] ?? '')),
         ];
@@ -131,7 +132,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 // ---- 読込（編集） ----
-$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','comment'=>'','shop_comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
+$g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','external_url'=>'','comment'=>'','shop_comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
 foreach ($FLAGS as $f => $_) $g[$f] = 0;
 $images = []; $linkedTags = []; $linkedOpts = []; $profVals = []; $profDisplay = [];
 $linkedShops = array_map('intval', array_column($allShops, 'id')); // 新規はデフォルト全店チェック
@@ -181,6 +182,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <div class="field"><label>入店日</label><input type="date" name="in_date" value="<?= h($g['in_date']) ?>"></div>
     </div>
     <div class="field"><label>キャッチコピー</label><input type="text" name="catch_copy" value="<?= h($g['catch_copy']) ?>" placeholder="清楚系スレンダー美少女 など"></div>
+    <div class="field"><label>外部サイトURL <span class="muted" style="font-weight:400;font-size:12px">（ranking-deli等のプロフィールURL）</span></label><input type="url" name="external_url" value="<?= h($g['external_url'] ?? '') ?>" placeholder="https://ranking-deli.jp/..."></div>
   </div>
 
   <div class="card card-pad form-grid">
