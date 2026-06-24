@@ -2,6 +2,12 @@
 // 女の子カード（一覧 /girls と top の新人セクションで共用）
 // data-* 属性は /girls の絞り込み・並び替え(public/girls-filter.js)用。
 // top では girls-filter.js を読まないため未使用だが、付いていても無害。
+//
+// admi(立川)専用レイアウト:
+//   - サムネ(写真)クリック → 外部サイト(ranking-deli 等 external_url)へ self 遷移（外部のアクセス数狙い）
+//   - 写真の左側に属性アイコンを縦並び
+//   - 右上（旧・属性の位置）に「公式」= 自サイトのプロフィール(/girls/{id})リンク（見やすい公式版）
+//   - external_url 未設定の子はサムネも公式プロフィールへフォールバック
 import { asset, tagEmoji, isNewcomer } from '../lib/config';
 
 interface Props { girl: any; }
@@ -12,12 +18,14 @@ const sizes = `T${g.height ?? '—'} B${g.bust ?? '—'}(${g.cup ?? '—'}) W${g
 const tags = (g.tags ?? []).slice(0, 4) as string[];
 // 入店日(YYYYMMDD)を数値化（並び替え data-in 用、未設定は0）
 const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
+const officialUrl = `/girls/${g.id}`;
+const thumbUrl = g.external_url || officialUrl; // サムネ=外部優先、無ければ公式
 ---
-<a href={`/girls/${g.id}`} class="girl-card"
+<div class="girl-card"
    data-id={g.id} data-in={inNum} data-height={g.height ?? 0} data-bust={g.bust ?? 0}
    data-age={g.age ?? 0} data-name={g.name} data-new={isNewcomer(g.in_date) ? 1 : 0}
    data-tags={(g.tags ?? []).join('|')}>
-  <div class="girl-card-img-wrap">
+  <a class="girl-card-img-wrap" href={thumbUrl} target="_self">
     {g.photo
       ? <img src={asset(g.photo)} alt={g.name} width="300" height="400" loading="lazy" class="girl-card-img" />
       : <div class="girl-card-no-photo">👤</div>}
@@ -25,7 +33,7 @@ const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, 
       <p class="girl-card-name">{g.name}<span class="girl-card-age">{age}</span></p>
       <p class="girl-card-size">{sizes}</p>
     </div>
-  </div>
+  </a>
   <div class="girl-card-flags">
     {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-card-flag-icon" width="128" height="128" alt="新人" title="新人" loading="lazy" /> : null}
     {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" loading="lazy" /> : null}
@@ -33,6 +41,7 @@ const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, 
     {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" /> : null}
     {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" /> : null}
   </div>
+  <a class="girl-card-official" href={officialUrl} target="_self" aria-label={`${g.name} の公式プロフィール`}>公式</a>
   {tags.length ? (
     <div class="girl-card-tags">
       {tags.map((t) => (
@@ -40,4 +49,4 @@ const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, 
       ))}
     </div>
   ) : null}
-</a>
+</div>

@@ -682,16 +682,35 @@ body.reserve-open .modal-box {
 }
 .girl-card-badge.new   { left: 8px; background: var(--neon-pink-hot); }
 .girl-card-badge.trial { right: 8px; background: var(--neon-lav); }
-/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示） */
+/* 一覧カード左上の属性アイコン縦並び（フラグONのみ表示） */
 .girl-card-flags {
   position: absolute;
   top: 10px;
-  right: -12px; /* 約1/3を右枠外へはみ出させる */
+  left: -12px; /* 約1/3を左枠外へはみ出させる */
   display: flex;
   flex-direction: column;
   gap: 6px;
   z-index: 3;
 }
+/* 右上=旧・属性の位置。公式プロフィール(/girls/{id})への小バッジ（サムネは外部URLへ） */
+.girl-card-official {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  padding: 3px 11px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  color: #fff;
+  text-decoration: none;
+  background: linear-gradient(135deg, #ff4fd8, #a855f7);
+  box-shadow: 0 2px 8px rgba(168,85,247,.55), inset 0 1px 0 rgba(255,255,255,.5);
+  transition: filter .15s, transform .12s;
+}
+.girl-card-official:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.girl-card-official::after { content: " ▶"; font-size: 9px; }
 .girl-card-flag-icon {
   width: 34px;
   height: 34px;
