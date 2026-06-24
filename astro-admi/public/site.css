@@ -692,23 +692,24 @@ body.reserve-open .modal-box {
   gap: 6px;
   z-index: 3;
 }
-/* フッター（旧・特徴タグの位置）= 公式プロフィール(/girls/{id})リンク（サムネは外部URLへ） */
+/* フッター（旧・特徴タグの位置）= 公式プロフィール(/girls/{id})リンク。
+   白背景＝以前 属性/タグを表示していたデザインに合わせる（サムネは外部URLへ） */
 .girl-card-official {
   display: block;
   text-align: center;
   margin: 0;
-  padding: 9px 8px;
+  padding: 10px 8px;
   font-size: 12px;
   font-weight: 800;
   letter-spacing: .03em;
-  color: #fff;
+  color: var(--neon-pink, #ff1493);
   text-decoration: none;
-  background: linear-gradient(135deg, #ff4fd8, #a855f7);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
-  border-radius: 0 0 14px 14px;
-  transition: filter .15s;
+  background: #fff;
+  border-radius: 0 0 15px 15px;
+  border-top: 1px solid rgba(255,79,216,.18);
+  transition: background .15s, color .15s;
 }
-.girl-card-official:hover { filter: brightness(1.08); }
+.girl-card-official:hover { background: rgba(255,79,216,.07); color: #ff2d9b; }
 .girl-card-official::after { content: " ▶"; font-size: 10px; }
 .girl-card-flag-icon {
   width: 34px;
