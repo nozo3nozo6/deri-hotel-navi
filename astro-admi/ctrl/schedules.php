@@ -6,6 +6,10 @@ $shop = current_shop_id();
 $mode = (($_GET['mode'] ?? 'date') === 'girl') ? 'girl' : 'date';
 $sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date'], true) ? $_GET['sort'] : 'freq';
 
+// 全店舗（更新先チェックボックス用。アドミ立川/吉祥寺 をまとめて更新できるように）
+$allShops = db()->query('SELECT id, name, area FROM shops ORDER BY id')->fetchAll();
+$shopIds  = array_map(fn($s) => (int)$s['id'], $allShops);
+
 // ============================================================ POST
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
@@ -17,6 +21,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $own = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
     $clean = function ($t) { return preg_match('/^\d{2}:\d{2}$/', (string)$t) ? $t : null; };
 
+    // 更新先店舗（チェックされた店舗すべてに保存。未選択なら現在の店舗のみ＝安全側）
+    $targets = array_values(array_intersect(array_map('intval', (array)($_POST['shops'] ?? [])), $shopIds));
+    if (!$targets) $targets = [$shop];
+    $shopName = function ($id) use ($allShops) { foreach ($allShops as $s) if ((int)$s['id'] === (int)$id) return $s['name'] . '（' . $s['area'] . '）'; return '#' . $id; };
+    $tlabel = implode('・', array_map($shopName, $targets));
+
+    // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up) {
+        $cnt = 0;
+        foreach ($targets as $sid) {
+            $own->execute([$gid, $sid]);
+            if (!$own->fetchColumn()) continue; // その店に未掲載ならスキップ
+            $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
+            $cnt++;
+        }
+        return $cnt;
+    };
+
     if ($postMode === 'date') {
         // 1日 × 全女性
         $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['date'] ?? '') ? $_POST['date'] : date('Y-m-d');
@@ -26,19 +48,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         foreach ($status as $gid => $stt) {
             $gid = (int)$gid;
             $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
-            $own->execute([$gid, $shop]);
-            if (!$own->fetchColumn()) continue;
             $s = ($stt === 'work') ? $clean($start[$gid] ?? null) : null;
             $e = ($stt === 'work') ? $clean($end[$gid] ?? null) : null;
-            $up->execute(['shop' => $shop, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
+            $saveOne($gid, $date, $stt, $s, $e);
         }
-        flash('ok', $date . ' の出勤を保存しました。');
+        flash('ok', $date . ' の出勤を保存しました（' . $tlabel . '）。');
         redirect('schedules.php?date=' . $date . '&sort=' . $sort);
     } else {
         // 1女性 × 複数日（まとめて登録）
         $gid = (int)($_POST['girl_id'] ?? 0);
-        $own->execute([$gid, $shop]);
-        if (!$gid || !$own->fetchColumn()) { flash('err', '対象の女性が見つかりません。'); redirect('schedules.php?mode=girl&sort=' . $sort); }
+        // どこかの対象店に掲載されていれば許可
+        $okGirl = false;
+        foreach ($targets as $sid) { $own->execute([$gid, $sid]); if ($own->fetchColumn()) { $okGirl = true; break; } }
+        if (!$gid || !$okGirl) { flash('err', '対象の女性が見つかりません。'); redirect('schedules.php?mode=girl&sort=' . $sort); }
         $status = (array)($_POST['status'] ?? []); // key = 日付
         $start  = (array)($_POST['start'] ?? []);
         $end    = (array)($_POST['end'] ?? []);
@@ -48,10 +70,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
             $s = ($stt === 'work') ? $clean($start[$d] ?? null) : null;
             $e = ($stt === 'work') ? $clean($end[$d] ?? null) : null;
-            $up->execute(['shop' => $shop, 'girl' => $gid, 'date' => $d, 'start' => $s, 'end' => $e, 'status' => $stt]);
-            $n++;
+            if ($saveOne($gid, $d, $stt, $s, $e) > 0) $n++;
         }
-        flash('ok', $n . '日分の出勤を保存しました。');
+        flash('ok', $n . '日分の出勤を保存しました（' . $tlabel . '）。');
         redirect('schedules.php?mode=girl&girl_id=' . $gid . '&sort=' . $sort);
     }
 }
@@ -85,7 +106,10 @@ layout_header('出勤管理', 'schedules.php');
   .sched-bulk .btn-mini{padding:6px 12px;font-size:.8rem;border:1px solid var(--accent,#ec4899);color:var(--accent,#ec4899);background:#fff;border-radius:8px;cursor:pointer;font-weight:600}
   .tbl tr.is-off td,.tbl tr.is-undecided td{opacity:.55}
   .day-sat{color:#2563eb}.day-sun{color:#dc2626}
-  .sched-sticky-save{position:sticky;bottom:0;background:#fff;padding:12px 0 2px;margin-top:14px;border-top:1px solid var(--border)}
+  .sched-sticky-save{position:sticky;bottom:0;background:#fff;padding:12px 0 2px;margin-top:14px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .sched-shops{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:.88rem;color:var(--muted,#888)}
+  .sched-shops label{display:inline-flex;gap:5px;align-items:center;color:var(--text,#333);font-weight:600;cursor:pointer}
+  .sched-shops input{width:17px;height:17px;accent-color:var(--accent,#ec4899)}
 </style>
 
 <div class="page-head">
@@ -149,7 +173,14 @@ layout_header('出勤管理', 'schedules.php');
         </tbody>
       </table>
     </div>
-    <div class="sched-sticky-save"><button class="btn btn-primary" type="submit">この日の出勤を保存</button></div>
+    <div class="sched-sticky-save">
+      <div class="sched-shops">更新する店舗:
+        <?php foreach ($allShops as $s): ?>
+          <label><input type="checkbox" name="shops[]" value="<?= (int)$s['id'] ?>" checked> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
+        <?php endforeach; ?>
+      </div>
+      <button class="btn btn-primary" type="submit">この日の出勤を保存</button>
+    </div>
   </form>
 
 <?php else: /* ===================== 女性別まとめ登録 ===================== */ ?>
@@ -243,7 +274,14 @@ layout_header('出勤管理', 'schedules.php');
         </tbody>
       </table>
     </div>
-    <div class="sched-sticky-save"><button class="btn btn-primary" type="submit"><?= h($cur['name']) ?> の出勤を保存</button></div>
+    <div class="sched-sticky-save">
+      <div class="sched-shops">更新する店舗:
+        <?php foreach ($allShops as $s): ?>
+          <label><input type="checkbox" name="shops[]" value="<?= (int)$s['id'] ?>" checked> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
+        <?php endforeach; ?>
+      </div>
+      <button class="btn btn-primary" type="submit"><?= h($cur['name']) ?> の出勤を保存</button>
+    </div>
   </form>
   <script>
   (function () {
