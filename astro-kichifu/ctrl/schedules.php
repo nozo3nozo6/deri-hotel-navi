@@ -10,6 +10,26 @@ $sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date'], true) ? $_GET['sort']
 $allShops = db()->query('SELECT id, name, area FROM shops ORDER BY id')->fetchAll();
 $shopIds  = array_map(fn($s) => (int)$s['id'], $allShops);
 
+// 時刻ピッカー（input type=time は step が picker に効かないため独自 select）。
+//   時=先頭ゼロなし表示（4, 20, 0）/ 分=15分単位（00/15/30/45）。営業は10:00〜翌5:00なので 10→23→0→9 の順。
+//   $name='' なら name 属性なし（一括適用用）。値は "HH:MM"。
+function time_select(string $name, ?string $val, string $key = '', string $id = ''): string {
+    $ch = ($val !== null && $val !== '') ? (int)substr($val, 0, 2) : null;
+    $cm = ($val !== null && $val !== '') ? (int)substr($val, 3, 2) : null;
+    $hours = array_merge(range(10, 23), range(0, 9));
+    $mins  = [0, 15, 30, 45];
+    if ($cm !== null && !in_array($cm, $mins, true)) { $mins[] = $cm; sort($mins); } // 既存の非15分値も失わない
+    $hn = $name === '' ? '' : ' name="' . h($name) . '_h[' . h($key) . ']"';
+    $mn = $name === '' ? '' : ' name="' . h($name) . '_m[' . h($key) . ']"';
+    $idAttr = $id === '' ? '' : ' id="' . h($id) . '"';
+    $o = '<span class="tsel"' . $idAttr . '>';
+    $o .= '<select class="tsel-h"' . $hn . ' aria-label="時"><option value="">--</option>';
+    foreach ($hours as $hh) $o .= '<option value="' . $hh . '"' . ($ch === $hh ? ' selected' : '') . '>' . $hh . '</option>';
+    $o .= '</select><span class="tsel-c">:</span><select class="tsel-m"' . $mn . ' aria-label="分"><option value="">--</option>';
+    foreach ($mins as $mm) $o .= '<option value="' . $mm . '"' . ($cm === $mm ? ' selected' : '') . '>' . sprintf('%02d', $mm) . '</option>';
+    return $o . '</select></span>';
+}
+
 // ============================================================ POST
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
@@ -19,7 +39,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                          ON DUPLICATE KEY UPDATE start_time=VALUES(start_time), end_time=VALUES(end_time), status=VALUES(status)');
     // 掲載店舗チェック（girl_shops）— girls.shop_id ではなく多対多で判定
     $own = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
-    $clean = function ($t) { return preg_match('/^\d{2}:\d{2}$/', (string)$t) ? $t : null; };
+    // 時・分 select から HH:MM を組み立て（どちらか未選択なら null）
+    $mkTime = function ($hh, $mm) {
+        if ($hh === '' || $hh === null || $mm === '' || $mm === null) return null;
+        $hh = (int)$hh; $mm = (int)$mm;
+        if ($hh < 0 || $hh > 23 || $mm < 0 || $mm > 59) return null;
+        return sprintf('%02d:%02d', $hh, $mm);
+    };
 
     // 更新先店舗（チェックされた店舗すべてに保存。未選択なら現在の店舗のみ＝安全側）
     $targets = array_values(array_intersect(array_map('intval', (array)($_POST['shops'] ?? [])), $shopIds));
@@ -43,13 +69,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         // 1日 × 全女性
         $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['date'] ?? '') ? $_POST['date'] : date('Y-m-d');
         $status = (array)($_POST['status'] ?? []);
-        $start  = (array)($_POST['start'] ?? []);
-        $end    = (array)($_POST['end'] ?? []);
+        $sh = (array)($_POST['start_h'] ?? []); $sm = (array)($_POST['start_m'] ?? []);
+        $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
         foreach ($status as $gid => $stt) {
             $gid = (int)$gid;
             $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
-            $s = ($stt === 'work') ? $clean($start[$gid] ?? null) : null;
-            $e = ($stt === 'work') ? $clean($end[$gid] ?? null) : null;
+            $s = ($stt === 'work') ? $mkTime($sh[$gid] ?? '', $sm[$gid] ?? '') : null;
+            $e = ($stt === 'work') ? $mkTime($eh[$gid] ?? '', $em[$gid] ?? '') : null;
             $saveOne($gid, $date, $stt, $s, $e);
         }
         flash('ok', $date . ' の出勤を保存しました（' . $tlabel . '）。');
@@ -62,14 +88,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         foreach ($targets as $sid) { $own->execute([$gid, $sid]); if ($own->fetchColumn()) { $okGirl = true; break; } }
         if (!$gid || !$okGirl) { flash('err', '対象の女性が見つかりません。'); redirect('schedules.php?mode=girl&sort=' . $sort); }
         $status = (array)($_POST['status'] ?? []); // key = 日付
-        $start  = (array)($_POST['start'] ?? []);
-        $end    = (array)($_POST['end'] ?? []);
+        $sh = (array)($_POST['start_h'] ?? []); $sm = (array)($_POST['start_m'] ?? []);
+        $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
         $n = 0;
         foreach ($status as $d => $stt) {
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
             $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
-            $s = ($stt === 'work') ? $clean($start[$d] ?? null) : null;
-            $e = ($stt === 'work') ? $clean($end[$d] ?? null) : null;
+            $s = ($stt === 'work') ? $mkTime($sh[$d] ?? '', $sm[$d] ?? '') : null;
+            $e = ($stt === 'work') ? $mkTime($eh[$d] ?? '', $em[$d] ?? '') : null;
             if ($saveOne($gid, $d, $stt, $s, $e) > 0) $n++;
         }
         flash('ok', $n . '日分の出勤を保存しました（' . $tlabel . '）。');
@@ -110,6 +136,9 @@ layout_header('出勤管理', 'schedules.php');
   .sched-shops{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:.88rem;color:var(--muted,#888)}
   .sched-shops label{display:inline-flex;gap:5px;align-items:center;color:var(--text,#333);font-weight:600;cursor:pointer}
   .sched-shops input{width:17px;height:17px;accent-color:var(--accent,#ec4899)}
+  .tsel{display:inline-flex;align-items:center;gap:3px}
+  .tsel select{padding:6px 4px;border:1px solid var(--border);border-radius:7px;font-size:.95rem;background:#fff}
+  .tsel-c{color:var(--muted,#999);font-weight:700}
 </style>
 
 <div class="page-head">
@@ -165,8 +194,8 @@ layout_header('出勤管理', 'schedules.php');
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
-              <td><input type="time" name="start[<?= (int)$g['id'] ?>]" value="<?= h($cur['start_time'] ? substr($cur['start_time'], 0, 5) : '') ?>"></td>
-              <td><input type="time" name="end[<?= (int)$g['id'] ?>]" value="<?= h($cur['end_time'] ? substr($cur['end_time'], 0, 5) : '') ?>"></td>
+              <td><?= time_select('start', $cur['start_time'] ? substr($cur['start_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
+              <td><?= time_select('end', $cur['end_time'] ? substr($cur['end_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
             </tr>
           <?php endforeach; ?>
           <?php if (!$girls): ?><tr><td colspan="5" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
@@ -246,7 +275,7 @@ layout_header('出勤管理', 'schedules.php');
         <button type="button" class="btn-mini" id="applyStatus">全日に適用</button>
       </span>
       <span class="grp">一括時間
-        <input type="time" id="bulkStart"> 〜 <input type="time" id="bulkEnd">
+        <?= time_select('', null, '', 'bulkStart') ?> 〜 <?= time_select('', null, '', 'bulkEnd') ?>
         <button type="button" class="btn-mini" id="applyTime">出勤日に適用</button>
       </span>
     </div>
@@ -267,8 +296,8 @@ layout_header('出勤管理', 'schedules.php');
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
-              <td><input type="time" name="start[<?= h($d) ?>]" value="<?= h($r['start_time'] ? substr($r['start_time'], 0, 5) : '') ?>"></td>
-              <td><input type="time" name="end[<?= h($d) ?>]" value="<?= h($r['end_time'] ? substr($r['end_time'], 0, 5) : '') ?>"></td>
+              <td><?= time_select('start', $r['start_time'] ? substr($r['start_time'], 0, 5) : null, $d) ?></td>
+              <td><?= time_select('end', $r['end_time'] ? substr($r['end_time'], 0, 5) : null, $d) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -291,13 +320,14 @@ layout_header('出勤管理', 'schedules.php');
       var v = document.getElementById('bulkStatus').value;
       rows().forEach(function (tr) { var s = tr.querySelector('[data-status]'); s.value = v; tr.className = 'is-' + v; });
     });
+    function getT(el) { return { h: el.querySelector('.tsel-h').value, m: el.querySelector('.tsel-m').value }; }
+    function setT(el, t) { if (t.h !== '') el.querySelector('.tsel-h').value = t.h; if (t.m !== '') el.querySelector('.tsel-m').value = t.m; }
     document.getElementById('applyTime').addEventListener('click', function () {
-      var st = document.getElementById('bulkStart').value, en = document.getElementById('bulkEnd').value;
+      var bs = getT(document.getElementById('bulkStart')), be = getT(document.getElementById('bulkEnd'));
       rows().forEach(function (tr) {
         if (tr.querySelector('[data-status]').value !== 'work') return;
-        var ins = tr.querySelectorAll('input[type=time]');
-        if (st) ins[0].value = st;
-        if (en) ins[1].value = en;
+        var ts = tr.querySelectorAll('.tsel');
+        setT(ts[0], bs); setT(ts[1], be);
       });
     });
   })();
