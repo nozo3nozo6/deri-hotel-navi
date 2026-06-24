@@ -132,6 +132,16 @@ const linkBanners = [
       </div>
     </section>
 
+    <!-- 媒体ウィジェット（admi2888 オリジナル：写メ日記/口コミ/ブログ埋込）============= -->
+    <section class="index-widgets">
+      <div class="index-widgets-inner">
+        <iframe src="https://qzin.jp/admi2888/blogwidget?width=320&amp;height=460" title="アドミ立川 ブログ" width="320" height="460" scrolling="no" loading="lazy" seamless></iframe>
+        <iframe src="https://qzin.jp/admi2888/widget?d=0" title="アドミ立川 出勤" width="279" height="400" loading="lazy" seamless></iframe>
+        <iframe src="https://ranking-deli.jp/8/shop/4517/diarywidget/?prev-sp=true&amp;type=3&amp;list=y" title="アドミ立川 写メ日記（駅ちか）" width="340" height="460" frameborder="0" loading="lazy"></iframe>
+        <iframe src="https://ranking-deli.jp/8/shop/4517/review/reviewwidget/" title="アドミ立川 口コミ（駅ちか）" width="240" height="300" frameborder="0" loading="lazy"></iframe>
+      </div>
+    </section>
+
     <!-- 口コミ風俗情報局 広告バナー =========================================== -->
     <Fujoho />
 
@@ -148,6 +158,11 @@ const linkBanners = [
     .index-banners .ib-links .ib img { border-radius: 4px; box-shadow: none; }
     .index-banners .ib-small { max-width: 90px; }
     .index-banners .ib-small img { max-height: 40px; width: auto; }
+
+    .index-widgets { padding: 8px 8px 20px; }
+    .index-widgets-inner { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 14px; max-width: 1000px; margin: 0 auto; }
+    .index-widgets iframe { border: 1px solid rgba(255,79,216,.25); border-radius: 8px; background: #fff; max-width: 100%; }
+    @media (max-width: 360px) { .index-widgets iframe { width: 100% !important; } }
 
     .index-concept { padding: 8px 16px 36px; }
     .index-concept-inner { max-width: 760px; margin: 0 auto; }
