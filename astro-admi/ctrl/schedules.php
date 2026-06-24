@@ -194,8 +194,8 @@ layout_header('出勤管理', 'schedules.php');
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
-              <td><?= time_select('start', $cur['start_time'] ? substr($cur['start_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
-              <td><?= time_select('end', $cur['end_time'] ? substr($cur['end_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
+              <td><?= time_select('start', ($cur['start_time'] ?? null) ? substr($cur['start_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
+              <td><?= time_select('end', ($cur['end_time'] ?? null) ? substr($cur['end_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
             </tr>
           <?php endforeach; ?>
           <?php if (!$girls): ?><tr><td colspan="5" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
@@ -296,8 +296,8 @@ layout_header('出勤管理', 'schedules.php');
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
-              <td><?= time_select('start', $r['start_time'] ? substr($r['start_time'], 0, 5) : null, $d) ?></td>
-              <td><?= time_select('end', $r['end_time'] ? substr($r['end_time'], 0, 5) : null, $d) ?></td>
+              <td><?= time_select('start', ($r['start_time'] ?? null) ? substr($r['start_time'], 0, 5) : null, $d) ?></td>
+              <td><?= time_select('end', ($r['end_time'] ?? null) ? substr($r['end_time'], 0, 5) : null, $d) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
