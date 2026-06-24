@@ -16,9 +16,10 @@
         var w = work[card.getAttribute('data-id')];
         if (!w) return;
         var start = w.start || '', end = w.end || '', label;
+        function fmtT(t) { return t ? t.replace(/^0/, '') : t; }
         if (start && end) {
-          var endLabel = (end < start) ? ('翌' + end) : end; // 終了<開始 = 翌日
-          label = '本日 ' + start + '〜' + endLabel;
+          var endLabel = (end < start) ? ('翌' + fmtT(end)) : fmtT(end); // 終了<開始 = 翌日
+          label = '本日 ' + fmtT(start) + '〜' + endLabel;
         } else {
           label = '本日出勤';
         }

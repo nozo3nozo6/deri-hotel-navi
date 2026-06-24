@@ -46,10 +46,11 @@
       grid.appendChild(card); // 出勤時間の早い順に並べ替え（DOM末尾へ順に）
       shown++;
       var w = work[id], start = w.start || '', end = w.end || '';
-      var endLabel = (start && end && end < start) ? ('翌' + end) : end;
+      function fmtT(t) { return t ? t.replace(/^0/, '') : t; }
+      var endLabel = (start && end && end < start) ? ('翌' + fmtT(end)) : fmtT(end);
       var badge = document.createElement('div');
       badge.className = 'girl-card-worktime';
-      badge.textContent = (start && end ? start + '〜' + endLabel : '出勤');
+      badge.textContent = (start && end ? fmtT(start) + '〜' + endLabel : '出勤');
       var wrap = card.querySelector('.girl-card-img-wrap');
       if (wrap) wrap.insertAdjacentElement('afterend', badge); // 写真の下＝サイズの下・タグの上
       else card.appendChild(badge);
