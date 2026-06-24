@@ -204,6 +204,18 @@ foreach ($all as $sid => $rec) {
         $thumb ? ' 🖼' : '', $DRY ? '(dry)' : '');
 }
 
+// shop_id=1 のニュースを shop_id=2(吉祥寺) にミラー同期（両店同内容）。
+// 画像は shop1 の /uploads を共有参照（再DLしない）。uniq_news_source(shop_id,source_id) で冪等upsert。
+if (!$DRY) {
+    $pdo->exec(
+        'INSERT INTO news (shop_id, source_id, title, body, thumb, posted_at, is_display, sort)
+         SELECT 2, source_id, title, body, thumb, posted_at, is_display, sort FROM news WHERE shop_id = 1
+         ON DUPLICATE KEY UPDATE title=VALUES(title), body=VALUES(body), thumb=VALUES(thumb),
+                                 posted_at=VALUES(posted_at), is_display=VALUES(is_display), modified=NOW()'
+    );
+    echo "shop2(吉祥寺) ミラー同期 完了\n";
+}
+
 echo "\n--- 集計" . ($DRY ? "（DRY-RUN: DB/画像 未変更）" : "") . " ---\n";
 echo "parse:{$sum['parsed']} / 新規:{$sum['inserted']} / 更新:{$sum['updated']} / 画像:{$sum['img']} / スキップ既存:{$sum['skipped']}\n";
 if ($sum['noimg']) echo "画像取得失敗 source_id: " . implode(', ', $sum['noimg']) . "\n";

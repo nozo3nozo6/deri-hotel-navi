@@ -16,7 +16,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit("CLI only\n"); }
 date_default_timezone_set('Asia/Tokyo');
 
 $DRY     = in_array('--dry-run', $argv, true);
-$SHOP_ID = 1;
+$SHOP_IDS = [1, 2]; // 両店(1=立川/2=吉祥寺)へ同内容で書込＝出勤を両フロント同期
 $DAYS    = 7;
 foreach ($argv as $a) { if (preg_match('/^--days=(\d+)$/', $a, $m)) $DAYS = max(1, (int)$m[1]); }
 
@@ -28,10 +28,9 @@ function fetchHtml(string $url): ?string {
     return $h === false ? null : $h;
 }
 
-// kichifu girls の name → id（同名は除外フラグ）
+// 在籍 girls の name → id（共有プール全員。同名は除外フラグ）
 $pdo  = DB::conn();
-$rows = $pdo->prepare('SELECT id, name FROM girls WHERE shop_id = ?');
-$rows->execute([$SHOP_ID]);
+$rows = $pdo->query('SELECT id, name FROM girls');
 $nameToId = [];
 $dupNames = [];
 foreach ($rows->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -84,11 +83,13 @@ for ($i = 0; $i < $DAYS; $i++) {
         $sum['matched']++;
 
         if (!$DRY) {
-            $up->execute([
-                'shop'  => $SHOP_ID, 'girl' => $gid, 'date' => $date,
-                'start' => $start ? $start . ':00' : null,
-                'end'   => $end   ? $end   . ':00' : null,
-            ]);
+            foreach ($SHOP_IDS as $sid) {
+                $up->execute([
+                    'shop'  => $sid, 'girl' => $gid, 'date' => $date,
+                    'start' => $start ? $start . ':00' : null,
+                    'end'   => $end   ? $end   . ':00' : null,
+                ]);
+            }
         }
         $sum['upserted']++;
         echo sprintf("%s  %-10s id=%-4d %s-%s%s\n", $date, $name, $gid, $start ?? '?', $end ?? '?', $DRY ? ' [dry]' : '');
@@ -100,8 +101,10 @@ for ($i = 0; $i < $DAYS; $i++) {
         $sql = "DELETE FROM schedules WHERE shop_id = ? AND work_date = ? AND girl_id NOT IN ($ph)";
         if (!$DRY) {
             $del = $pdo->prepare($sql);
-            $del->execute(array_merge([$SHOP_ID, $date], $admiIds));
-            $sum['removed'] += $del->rowCount();
+            foreach ($SHOP_IDS as $sid) {
+                $del->execute(array_merge([$sid, $date], $admiIds));
+                $sum['removed'] += $del->rowCount();
+            }
         }
     }
 }
