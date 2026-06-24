@@ -181,12 +181,11 @@ layout_header('出勤管理', 'schedules.php');
     <input type="hidden" name="date" value="<?= h($date) ?>">
     <div class="table-wrap" style="border:none">
       <table class="tbl">
-        <thead><tr><th>女性</th><th>出勤<?= h($sortLabel === '出勤頻度順' ? '回数' : '') ?></th><th>状態</th><th>開始</th><th>終了</th></tr></thead>
+        <thead><tr><th>女性</th><th>状態</th><th>開始</th><th>終了</th></tr></thead>
         <tbody>
           <?php foreach ($girls as $g): $cur = $map[(int)$g['id']] ?? null; $stt = $cur['status'] ?? 'undecided'; ?>
             <tr class="is-<?= $stt ?>">
               <td><strong><?= h($g['name']) ?></strong> <span class="muted">(<?= (int)$g['age'] ?>)</span></td>
-              <td class="muted" style="font-size:.85rem"><?= (int)$g['wc'] ?>回</td>
               <td>
                 <select name="status[<?= (int)$g['id'] ?>]" data-status onchange="this.closest('tr').className='is-'+this.value">
                   <option value="undecided" <?= $stt === 'undecided' ? 'selected' : '' ?>>未定</option>
@@ -198,7 +197,7 @@ layout_header('出勤管理', 'schedules.php');
               <td><?= time_select('end', ($cur['end_time'] ?? null) ? substr($cur['end_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
             </tr>
           <?php endforeach; ?>
-          <?php if (!$girls): ?><tr><td colspan="5" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
+          <?php if (!$girls): ?><tr><td colspan="4" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
@@ -240,7 +239,7 @@ layout_header('出勤管理', 'schedules.php');
       <select onchange="location.href='schedules.php?mode=girl&sort=<?= h($sort) ?>&girl_id='+this.value">
         <?php foreach ($girls as $g): ?>
           <option value="<?= (int)$g['id'] ?>" <?= (int)$g['id'] === $gid ? 'selected' : '' ?>>
-            <?= h($g['name']) ?> (<?= (int)$g['age'] ?>)<?= $sort === 'freq' ? '　出勤' . (int)$g['wc'] . '回' : '　入店' . h($g['in_date']) ?>
+            <?= h($g['name']) ?> (<?= (int)$g['age'] ?>)<?= $sort === 'in_date' ? '　入店' . h($g['in_date']) : '' ?>
           </option>
         <?php endforeach; ?>
       </select>
