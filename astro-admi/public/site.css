@@ -653,6 +653,7 @@ body.reserve-open .modal-box {
   position: relative;
   overflow: hidden;
   border-radius: 16px 16px 0 0; /* カード上角の丸みを維持（card は overflow:visible のため） */
+  transform: translateZ(0); /* 子imgの transition:transform で角丸クリップが外れる(WebKit/Chrome)対策。合成レイヤーを持ち上げ確実にクリップ＝上角が四角くならない */
 }
 .girl-card-img {
   width: 100%;
