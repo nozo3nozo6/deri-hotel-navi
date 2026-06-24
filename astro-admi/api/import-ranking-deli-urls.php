@@ -15,7 +15,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit("CLI only\n"); }
 date_default_timezone_set('Asia/Tokyo');
 
 $DRY  = in_array('--dry-run', $argv, true);
-$SHOP = 'https://ranking-deli.jp/tokyo/area39/style2/4517/'; // アドミ立川の ranking-deli 店舗ページ
+$BASE = 'https://ranking-deli.jp/tokyo/area39/style2/4517/girlslist/'; // アドミ立川の女性一覧（全員）
 
 function fetchHtml(string $url): ?string {
     $ctx = stream_context_create(['http' => ['timeout' => 25, 'user_agent' => 'Mozilla/5.0 (compatible; kichifu-sync)']]);
@@ -29,34 +29,38 @@ function leadName(string $s): string {
     return preg_match('/^[ぁ-んァ-ヶー]+/u', $s, $m) ? $m[0] : '';
 }
 
-$html = fetchHtml($SHOP);
-if ($html === null) { fwrite(STDERR, "fetch失敗: $SHOP\n"); exit(1); }
+// /4517/<girl_id>/ への全リンクから name→プロフィールURL を構築（ページ送り対応）
+$map  = []; // name => url（'__DUP__' は同名複数で要手動）
+$seen = []; // rid 重複排除
+for ($p = 1; $p <= 10; $p++) {
+    $url = $p === 1 ? $BASE : $BASE . '?page=' . $p;
+    $html = fetchHtml($url);
+    if ($html === null) { if ($p === 1) { fwrite(STDERR, "fetch失敗: $url\n"); exit(1); } break; }
+    $doc = new DOMDocument();
+    @$doc->loadHTML('<?xml encoding="UTF-8">' . $html);
+    $xp = new DOMXPath($doc);
+    $newCount = 0;
+    foreach ($xp->query('//a[contains(@href, "/4517/")]') as $a) {
+        $href = $a->getAttribute('href');
+        if (!preg_match('#/4517/(\d+)/#', $href, $m)) continue;
+        $rid = $m[1];
+        if (isset($seen[$rid])) continue;
+        $seen[$rid] = true;
+        $newCount++;
 
-$doc = new DOMDocument();
-@$doc->loadHTML('<?xml encoding="UTF-8">' . $html);
-$xp = new DOMXPath($doc);
+        $altNode = $xp->query('.//img/@alt', $a)->item(0);
+        $alt = $altNode ? trim($altNode->nodeValue) : '';
+        $txt = trim(preg_replace('/\s+/u', ' ', $a->textContent));
+        $name = leadName($alt !== '' ? $alt : $txt);
+        if ($name === '') continue;
 
-// /4517/<girl_id>/ への全リンクから name→プロフィールURL を構築
-$map = []; // name => url
-$seen = [];
-foreach ($xp->query('//a[contains(@href, "/4517/")]') as $a) {
-    $href = $a->getAttribute('href');
-    if (!preg_match('#/4517/(\d+)/#', $href, $m)) continue;
-    $rid = $m[1];
-    if (isset($seen[$rid])) continue;
-    $seen[$rid] = true;
-
-    $altNode = $xp->query('.//img/@alt', $a)->item(0);
-    $alt = $altNode ? trim($altNode->nodeValue) : '';
-    $txt = trim(preg_replace('/\s+/u', ' ', $a->textContent));
-    $name = leadName($alt !== '' ? $alt : $txt);
-    if ($name === '') continue;
-
-    // id から正規プロフィールURLを再構築（/report/#... 等の付随リンクを除去）
-    $url = 'https://ranking-deli.jp/tokyo/area39/style2/4517/' . $rid . '/';
-    // 同名は最初の1件のみ採用（後勝ち防止）。重複名は後で要手動。
-    if (!isset($map[$name])) $map[$name] = $url;
-    else $map[$name] = '__DUP__';
+        // id から正規プロフィールURLを再構築（/report/#... 等の付随リンクを除去）
+        $u = 'https://ranking-deli.jp/tokyo/area39/style2/4517/' . $rid . '/';
+        if (!isset($map[$name])) $map[$name] = $u;
+        else $map[$name] = '__DUP__'; // 同名複数は要手動
+    }
+    if ($newCount === 0) break; // これ以上ページなし
+    usleep(300000);
 }
 
 $pdo = DB::conn();
