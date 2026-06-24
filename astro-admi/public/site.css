@@ -644,7 +644,7 @@ body.reserve-open .modal-box {
   border: 1.5px solid rgba(255,79,216,.6);
   background: rgba(255,79,216,.06);
   box-shadow: 0 0 0 1.5px rgba(255,143,214,.45), 0 8px 26px -10px rgba(255,45,155,.6), 0 0 16px rgba(255,79,216,.32);
-  overflow: visible; /* アイコンを右枠外へはみ出させるため。角丸は img-wrap が担保 */
+  overflow: hidden; /* 全コンテンツを border-radius でクリップ＝上角が四角くならない。glow(box-shadow)は外側なので消えない。アイコンは枠内に収める */
   position: relative;
 }
 .girl-card:hover { transform: translateY(-3px); border-color: rgba(255,79,216,.7); }
@@ -683,11 +683,11 @@ body.reserve-open .modal-box {
 }
 .girl-card-badge.new   { left: 8px; background: var(--neon-pink-hot); }
 .girl-card-badge.trial { right: 8px; background: var(--neon-lav); }
-/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示） */
+/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示）。card が overflow:hidden なので枠内に収める */
 .girl-card-flags {
   position: absolute;
   top: 10px;
-  right: -12px; /* 約1/3を右枠外へはみ出させる */
+  right: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
