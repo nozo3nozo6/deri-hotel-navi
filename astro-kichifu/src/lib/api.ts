@@ -59,3 +59,12 @@ export async function getBanners(type: 'top' | 'bottom' = 'top'): Promise<Banner
     return d.banners ?? [];
   } catch { return []; } // API未配信/失敗時は空でビルドを止めない
 }
+
+export type Slider = { title: string; url: string; image_pc: string; image_sp: string };
+
+export async function getSliders(): Promise<Slider[]> {
+  try {
+    const d = await getJson(`${API_BASE}/sliders.php?shop_id=${SHOP_ID}`);
+    return d.sliders ?? [];
+  } catch { return []; } // API未配信/失敗時は空でビルドを止めない
+}
