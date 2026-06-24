@@ -375,6 +375,37 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - **期待効果**: 1-2週間で再クロール → 各ページの「Googleが選択した正規URL」が自身になれば、5ページが別物として認識されたことが確定
 - **次の保険**: もしまだ /deli/ が正規URL選択されていたら、47都道府県グリッドのモード別差別化を検討
 
+### 2026年6月24日 — UX改善（ジャンル別空状態CTA・店舗ページ整形・YobuchatリンクUI）
+
+#### ジャンル別空状態CTA（口コミ0件ホテルの誘導文）
+- **背景**: 口コミ0件のホテル詳細でジャンルに合わない汎用メッセージ「まだ口コミがありません」が表示されていた
+- **実装**: `ui-utils.js` に `noPostsYetMsg(place)` ヘルパー追加
+  - 5ジャンル（men/women/este/men_same/women_same）× 2プレース（hotel/loveho）× 4言語（ja/en/zh/ko）のマトリックス
+  - 例: men+hotel(ja)→「💬 このホテルにデリヘルを呼んだ経験を、最初に共有しませんか？」
+  - モード不明・言語未対応時は既存 `t('no_posts_yet')` にフォールバック
+- **適用箇所**:
+  - `hotel-search.js`: ラブホ空状態 → `noPostsYetMsg('loveho')`
+  - `hotel-search.js`: ホテル空状態 → `noPostsYetMsg('hotel')`
+
+#### 店舗ページ（店舗専用URL）セクション順序・レイアウト修正
+- **順序修正**: メインエリアセクションがH1ヒーローより上に表示されていた問題を修正
+  - `api-service.js` `renderShopServiceAreaTags()`: 挿入アンカーを `header` → `#genre-hero || header` に変更
+  - 表示順: ヘッダー → H1ヒーロー → 📍メインエリア → 地域選択
+- **カード形式統一**: メインエリアのリンク表示をピルタグ → 地域選択と同じカードグリッド形式に変更
+  - クラス: `shop-area-tag` → `area-btn has-children shop-area-card`（既存CSSを再利用）
+  - メインエリア(★)にはゴールドグラデーション装飾（inline style）
+  - グリッドに `align-items:start` を付与し、長い名前のカードで行高さが揃えられる問題を回避
+
+#### YobuChat — メッセージ内URLリンク化
+- **実装**: `chat.js` に `linkify(s)` 関数追加（`esc()` の直後）
+  - XSS安全: `esc()` で先にエスケープ → URLパターンのみ `<a>` タグに変換
+  - URLパターン: `https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+`（厳格文字クラス、日本語誤取込防止）
+  - 末尾句読点（）]。、,.!?）はURLから切り出してテキストとして残す
+  - `target="_blank" rel="noopener noreferrer nofollow"`（予約リンク等、チャットを残したまま開く）
+- **適用箇所**: `addMessage()` / 送信バブル / `addWelcomeMessage()` / `maybeTranslate()` の4箇所
+  - `textContent` → `innerHTML = linkify(text)` に変更
+- **CSS追加** (`chat.css`): `.msg-link{color:inherit;text-decoration:underline;word-break:break-all}`
+
 ### 2026年3月15日 — analysis-report.html 全78件修正完了
 - CRITICAL 6件: APIキー露出、CLAUDE.mdから秘密情報削除、.env gitignore確認、Supabase RLS制限、nullチェック追加、キャッシュバスター更新
 - HIGH 19件: XSS修正(6箇所)、CSP追加(4ファイル)、aria属性、defer読み込み、og:image追加、viewport修正、Escapeキー対応、JSON-LD動的更新等
