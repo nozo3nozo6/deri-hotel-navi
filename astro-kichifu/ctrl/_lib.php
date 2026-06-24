@@ -120,8 +120,6 @@ function nav_groups(): array {
             ['events.php', '🎉', 'イベント'],
             ['banners.php', '🖼️', 'バナー'],
             ['sliders.php', '🎞️', 'スライダー'],
-            ['hotels.php', '🏨', 'ホテル'],
-            ['hotel-areas.php', '📍', 'ホテルエリア'],
         ],
         'メルマガ' => [
             ['mail-magazines.php', '✉️', '配信'],

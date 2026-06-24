@@ -114,13 +114,12 @@ function nav_groups(): array {
             ['girl-options.php', '💋', 'オプション'],
         ],
         'スケジュール' => [['schedules.php', '📅', '出勤管理']],
+        '媒体連携' => [['suguhime-sync.php', '⚡', 'すぐヒメ同期']],
         'コンテンツ' => [
             ['news.php', '📰', 'お知らせ'],
             ['events.php', '🎉', 'イベント'],
             ['banners.php', '🖼️', 'バナー'],
             ['sliders.php', '🎞️', 'スライダー'],
-            ['hotels.php', '🏨', 'ホテル'],
-            ['hotel-areas.php', '📍', 'ホテルエリア'],
         ],
         'メルマガ' => [
             ['mail-magazines.php', '✉️', '配信'],
