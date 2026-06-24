@@ -67,7 +67,7 @@
     for (var i = 0; i < 7; i++) dates.push(jstDate(baseTs + i * 86400000));
     var from = dates[0];
 
-    fetch('/api/schedules.php?action=range&shop_id=1&from=' + from + '&days=7', { cache: 'no-store' })
+    fetch('/api/schedules.php?action=range&shop_id=2&from=' + from + '&days=7', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         var dw = (data && data.days_work) || {};
@@ -96,7 +96,7 @@
   }
 
   // ---- 本日のみ（top など、タブなし。従来動作） ----
-  fetch('/api/schedules.php?action=today&shop_id=1', { cache: 'no-store' })
+  fetch('/api/schedules.php?action=today&shop_id=2', { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) { if (data) render(data.date, data.work); })
     .catch(function () {});

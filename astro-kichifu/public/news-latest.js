@@ -13,7 +13,7 @@
     });
   }
 
-  fetch('/api/news.php?action=list&shop_id=1', { cache: 'no-store' })
+  fetch('/api/news.php?action=list&shop_id=2', { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) {
       if (!data || !data.items) return;

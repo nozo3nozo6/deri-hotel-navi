@@ -6,7 +6,7 @@
 
 export const ASSET_ORIGIN = 'https://kichifu.com';
 export const API_BASE = `${ASSET_ORIGIN}/api`;
-export const SHOP_ID = 1;
+export const SHOP_ID = 2;
 
 export const SHOP = {
   name: 'アドミ',

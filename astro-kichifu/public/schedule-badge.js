@@ -5,7 +5,7 @@
 // ==========================================================================
 (function () {
   'use strict';
-  fetch('/api/schedules.php?action=today&shop_id=1', { cache: 'no-store' })
+  fetch('/api/schedules.php?action=today&shop_id=2', { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (data) {
       if (!data || !data.work) return;
