@@ -104,7 +104,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 // ============================================================ 女性一覧（girl_shops + 出勤頻度 + 並び順）
-$order = ($sort === 'in_date') ? 'g.in_date ASC, g.id' : 'wc DESC, g.in_date ASC, g.id';
+$order = ($sort === 'in_date') ? 'g.in_date DESC, g.id DESC' : 'wc DESC, g.in_date DESC, g.id DESC';
 $gq = db()->prepare(
     'SELECT g.id, g.name, g.age, g.in_date,
             (SELECT COUNT(*) FROM schedules s WHERE s.girl_id = g.id AND s.shop_id = :shop AND s.status = \'work\') AS wc
@@ -170,7 +170,7 @@ layout_header('出勤管理', 'schedules.php');
       <label>並び順</label>
       <select onchange="location.href='schedules.php?mode=date&date=<?= h($date) ?>&sort='+this.value">
         <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>出勤頻度が高い順</option>
-        <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店順</option>
+        <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店が新しい順</option>
       </select>
     </span>
   </div>
@@ -239,7 +239,7 @@ layout_header('出勤管理', 'schedules.php');
       <select onchange="location.href='schedules.php?mode=girl&sort=<?= h($sort) ?>&girl_id='+this.value">
         <?php foreach ($girls as $g): ?>
           <option value="<?= (int)$g['id'] ?>" <?= (int)$g['id'] === $gid ? 'selected' : '' ?>>
-            <?= h($g['name']) ?> (<?= (int)$g['age'] ?>)<?= $sort === 'in_date' ? '　入店' . h($g['in_date']) : '' ?>
+            <?= h($g['name']) ?> (<?= (int)$g['age'] ?>)
           </option>
         <?php endforeach; ?>
       </select>
@@ -248,7 +248,7 @@ layout_header('出勤管理', 'schedules.php');
       <label>並び順</label>
       <select onchange="location.href='schedules.php?mode=girl&girl_id=<?= $gid ?>&sort='+this.value">
         <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>出勤頻度が高い順</option>
-        <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店順</option>
+        <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店が新しい順</option>
       </select>
     </span>
     <span>
