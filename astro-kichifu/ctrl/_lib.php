@@ -104,23 +104,21 @@ function current_shop_id(): int {
 // ---- ナビゲーション定義（MINERVAのIAを踏襲・グループ化）----
 function nav_groups(): array {
     return [
-        '' => [['index.php', '📊', 'ダッシュボード']],
-        '女性' => [
-            ['girls.php', '👩', '女性'],
-            ['girl-diaries.php', '📔', '写メ日記'],
+        '' => [
+            ['index.php', '📊', 'ダッシュボード'],
+            ['schedules.php', '📅', '出勤管理'],
+            ['news.php', '📰', 'お知らせ'],
+            ['girls.php', '👩', 'キャスト'],
+            ['sliders.php', '🎞️', 'スライダー'],
+            ['banners.php', '🖼️', 'バナー'],
+            ['events.php', '🎉', 'イベント'],
             ['girl-categories.php', '🏷️', 'カテゴリー'],
             ['girl-image-tags.php', '✨', '特徴タグ'],
-            ['girl-profiles.php', '📝', 'プロフィール項目'],
             ['girl-options.php', '💋', 'オプション'],
+            ['girl-profiles.php', '📝', 'プロフィール項目'],
+            ['girl-diaries.php', '📔', '写メ日記'],
         ],
-        'スケジュール' => [['schedules.php', '📅', '出勤管理']],
         '媒体連携' => [['suguhime-sync.php', '⚡', 'すぐヒメ同期']],
-        'コンテンツ' => [
-            ['news.php', '📰', 'お知らせ'],
-            ['events.php', '🎉', 'イベント'],
-            ['banners.php', '🖼️', 'バナー'],
-            ['sliders.php', '🎞️', 'スライダー'],
-        ],
         'メルマガ' => [
             ['mail-magazines.php', '✉️', '配信'],
             ['mail-users.php', '👥', '会員'],
