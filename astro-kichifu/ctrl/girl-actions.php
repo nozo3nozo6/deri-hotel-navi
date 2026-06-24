@@ -16,31 +16,39 @@ if (!hash_equals($_SESSION['_csrf'] ?? '', (string)($_POST['_csrf'] ?? ''))) { h
 $shop = current_shop_id();
 $action = $_POST['action'] ?? '';
 
-/** 指定IDの girl が現在の店舗のものか */
-function own_girl(int $id, int $shop): bool {
-    $st = db()->prepare('SELECT 1 FROM girls WHERE id=? AND shop_id=?');
-    $st->execute([$id, $shop]);
+/** 指定IDの girl が存在するか（共有プールなので shop_id フィルタなし）*/
+function own_girl(int $id): bool {
+    $st = db()->prepare('SELECT 1 FROM girls WHERE id=?');
+    $st->execute([$id]);
     return (bool)$st->fetchColumn();
 }
 
 try {
     switch ($action) {
         case 'toggle': {
+            // is_display 廃止 → girl_shops の当該店舗行を追加/削除でトグル
             $id = (int)($_POST['id'] ?? 0);
-            if (!own_girl($id, $shop)) throw new RuntimeException('not found');
-            db()->prepare('UPDATE girls SET is_display = 1 - is_display WHERE id=?')->execute([$id]);
-            $v = db()->prepare('SELECT is_display FROM girls WHERE id=?');
-            $v->execute([$id]);
-            echo json_encode(['ok' => true, 'value' => (int)$v->fetchColumn()]);
+            if (!own_girl($id)) throw new RuntimeException('not found');
+            $exists = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
+            $exists->execute([$id, $shop]);
+            if ($exists->fetchColumn()) {
+                db()->prepare('DELETE FROM girl_shops WHERE girl_id=? AND shop_id=?')->execute([$id, $shop]);
+                $val = 0;
+            } else {
+                db()->prepare('INSERT IGNORE INTO girl_shops (girl_id, shop_id) VALUES (?,?)')->execute([$id, $shop]);
+                $val = 1;
+            }
+            echo json_encode(['ok' => true, 'value' => $val]);
             break;
         }
         case 'delete': {
             $id = (int)($_POST['id'] ?? 0);
-            if (!own_girl($id, $shop)) throw new RuntimeException('not found');
+            if (!own_girl($id)) throw new RuntimeException('not found');
             // 画像の物理削除
             $imgs = db()->prepare('SELECT path FROM girl_images WHERE girl_id=?');
             $imgs->execute([$id]);
             foreach ($imgs->fetchAll() as $r) delete_upload($r['path']);
+            db()->prepare('DELETE FROM girl_shops WHERE girl_id=?')->execute([$id]);
             db()->prepare('DELETE FROM girls WHERE id=?')->execute([$id]); // FKカスケードで子も削除
             echo json_encode(['ok' => true]);
             break;
@@ -48,8 +56,8 @@ try {
         case 'reorder': {
             $ids = $_POST['ids'] ?? [];
             if (!is_array($ids)) throw new RuntimeException('bad');
-            $upd = db()->prepare('UPDATE girls SET sort=? WHERE id=? AND shop_id=?');
-            foreach (array_values($ids) as $i => $id) $upd->execute([$i, (int)$id, $shop]);
+            $upd = db()->prepare('UPDATE girls SET sort=? WHERE id=?');
+            foreach (array_values($ids) as $i => $id) $upd->execute([$i, (int)$id]);
             echo json_encode(['ok' => true]);
             break;
         }

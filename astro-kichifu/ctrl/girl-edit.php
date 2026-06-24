@@ -29,6 +29,7 @@ if ($profs) {
 }
 
 $FLAGS = ['is_newgirl' => '新人', 'is_trial' => '体験入店', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
+$allShops = shops_list();  // 掲載店舗チェック用（☑アドミ立川/☑吉祥寺）
 
 // ---- 保存 ----
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -51,7 +52,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'catch_copy'       => trim((string)($_POST['catch_copy'] ?? '')),
             'comment'          => trim((string)($_POST['comment'] ?? '')),
             'shop_comment'     => trim((string)($_POST['shop_comment'] ?? '')),
-            'is_display'       => isset($_POST['is_display']) ? 1 : 0,
         ];
         foreach ($FLAGS as $f => $_) $fields[$f] = isset($_POST[$f]) ? 1 : 0;
 
@@ -72,6 +72,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 db()->prepare("INSERT INTO girls ($cols) VALUES ($ph)")->execute($fields);
                 $id = (int)db()->lastInsertId();
             }
+
+            // 掲載店舗（girl_shops）。チェックされた店舗のみ
+            db()->prepare('DELETE FROM girl_shops WHERE girl_id=?')->execute([$id]);
+            $insShop = db()->prepare('INSERT INTO girl_shops (girl_id, shop_id) VALUES (?,?)');
+            foreach ((array)($_POST['shops'] ?? []) as $sid) $insShop->execute([$id, (int)$sid]);
 
             // 特徴タグ
             db()->prepare('DELETE FROM girl_image_tag_links WHERE girl_id=?')->execute([$id]);
@@ -129,6 +134,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $g = ['name'=>'','age'=>'','height'=>'','bust'=>'','cup'=>'','waist'=>'','hip'=>'','in_date'=>'','catch_copy'=>'','comment'=>'','shop_comment'=>'','is_display'=>1,'girl_category_id'=>(int)($_GET['cat'] ?? 0)];
 foreach ($FLAGS as $f => $_) $g[$f] = 0;
 $images = []; $linkedTags = []; $linkedOpts = []; $profVals = []; $profDisplay = [];
+$linkedShops = array_map('intval', array_column($allShops, 'id')); // 新規はデフォルト全店チェック
 if ($id) {
     $st = db()->prepare('SELECT * FROM girls WHERE id=? AND shop_id=?');
     $st->execute([$id, $shop]);
@@ -140,6 +146,8 @@ if ($id) {
     $lt->execute([$id]); $linkedTags = array_map('intval', array_column($lt->fetchAll(), 'girl_image_tag_id'));
     $lo = db()->prepare('SELECT girl_option_id FROM girl_option_links WHERE girl_id=?');
     $lo->execute([$id]); $linkedOpts = array_map('intval', array_column($lo->fetchAll(), 'girl_option_id'));
+    $ls = db()->prepare('SELECT shop_id FROM girl_shops WHERE girl_id=?');
+    $ls->execute([$id]); $linkedShops = array_map('intval', array_column($ls->fetchAll(), 'shop_id'));
     $pv = db()->prepare('SELECT girl_profile_id, value, is_display FROM girl_profile_values WHERE girl_id=?');
     $pv->execute([$id]);
     foreach ($pv->fetchAll() as $r) {
@@ -194,7 +202,12 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <?php foreach ($FLAGS as $f => $lbl): ?>
         <label class="check"><input type="checkbox" name="<?= $f ?>" <?= (int)$g[$f] ? 'checked' : '' ?>> <?= h($lbl) ?></label>
       <?php endforeach; ?>
-      <label class="check" style="margin-left:auto;color:var(--primary)"><input type="checkbox" name="is_display" <?= (int)$g['is_display'] ? 'checked' : '' ?>> ★ サイトに表示</label>
+      <span style="margin-left:auto;display:flex;gap:12px;align-items:center">
+        <span class="muted" style="font-size:12px">掲載店舗:</span>
+        <?php foreach ($allShops as $s): ?>
+          <label class="check" style="color:var(--primary)"><input type="checkbox" name="shops[]" value="<?= (int)$s['id'] ?>" <?= in_array((int)$s['id'], $linkedShops, true) ? 'checked' : '' ?>> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
+        <?php endforeach; ?>
+      </span>
     </div>
   </div>
 

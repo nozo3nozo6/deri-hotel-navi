@@ -20,8 +20,8 @@ try {
         $st = DB::conn()->prepare(
             'SELECT g.*, gc.name AS category_name
                FROM girls g
-               LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id AND gc.shop_id = g.shop_id
-              WHERE g.id = ? AND g.shop_id = ? AND g.is_display = 1'
+               LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
+              WHERE g.id = ? AND EXISTS (SELECT 1 FROM girl_shops gs WHERE gs.girl_id = g.id AND gs.shop_id = ?)'
         );
         $st->execute([$id, $shop_id]);
         $girl = $st->fetch(PDO::FETCH_ASSOC);
@@ -44,11 +44,11 @@ try {
         // オプション（基本プレイ / オプションプレイに分割）
         $opts = DB::conn()->prepare(
             'SELECT go.name, go.is_basic FROM girl_option_links gol
-               JOIN girl_options go ON go.id = gol.girl_option_id AND go.shop_id = ?
+               JOIN girl_options go ON go.id = gol.girl_option_id
               WHERE gol.girl_id = ?
               ORDER BY go.is_basic DESC, go.sort, go.id'
         );
-        $opts->execute([$shop_id, $id]);
+        $opts->execute([$id]);
         $allOpts = $opts->fetchAll(PDO::FETCH_ASSOC);
         $girl['options']     = array_column($allOpts, 'name');
         $girl['basic_play']  = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 1)));
@@ -58,18 +58,18 @@ try {
         $profs = DB::conn()->prepare(
             'SELECT gp.name, gp.type, gpv.value
                FROM girl_profile_values gpv
-               JOIN girl_profiles gp ON gp.id = gpv.girl_profile_id AND gp.shop_id = ?
+               JOIN girl_profiles gp ON gp.id = gpv.girl_profile_id
               WHERE gpv.girl_id = ? AND gpv.is_display = 1 AND gpv.value != ""
               ORDER BY gp.sort, gp.id'
         );
-        $profs->execute([$shop_id, $id]);
+        $profs->execute([$id]);
         $girl['profiles'] = $profs->fetchAll(PDO::FETCH_ASSOC);
 
         echo DB::jsonEncode(['girl' => $girl]);
 
     } else {
         // list
-        $where  = ['g.shop_id = ?', 'g.is_display = 1'];
+        $where  = ['EXISTS (SELECT 1 FROM girl_shops gs WHERE gs.girl_id = g.id AND gs.shop_id = ?)'];
         $params = [$shop_id];
 
         if (!empty($_GET['category_id'])) {
@@ -87,7 +87,7 @@ try {
                        gc.name AS category_name,
                        (SELECT path FROM girl_images WHERE girl_id = g.id ORDER BY sort, id LIMIT 1) AS photo
                   FROM girls g
-                  LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id AND gc.shop_id = g.shop_id
+                  LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
                  WHERE ' . implode(' AND ', $where) . '
                  ORDER BY g.sort, g.id
                  LIMIT ' . $limit;

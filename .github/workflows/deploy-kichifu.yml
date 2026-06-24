@@ -9,6 +9,10 @@ on:
       - '.github/workflows/deploy-kichifu.yml'
   workflow_dispatch:
 
+concurrency:
+  group: deploy-kichifu
+  cancel-in-progress: true
+
 env:
   REMOTE_HOST: ${{ secrets.SSH_HOST }}
   REMOTE_USER: ${{ secrets.SSH_USERNAME }}

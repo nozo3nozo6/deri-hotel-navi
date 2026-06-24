@@ -3,17 +3,17 @@ require_once __DIR__ . '/_lib.php';
 $admin = require_login();
 $shop  = current_shop_id();
 
-$cats = db()->prepare('SELECT id, name FROM girl_categories WHERE shop_id=? ORDER BY sort, id');
-$cats->execute([$shop]);
-$cats = $cats->fetchAll();
+// カテゴリは共有マスタ（shop_id スコープなし）
+$cats = db()->query('SELECT id, name FROM girl_categories ORDER BY sort, id')->fetchAll();
 
 $cat  = (int)($_GET['cat'] ?? 0);
 $q    = trim((string)($_GET['q'] ?? ''));
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per  = 20;
 
-$where = ['g.shop_id = ?'];
-$args  = [$shop];
+// 全女性を対象（shop_id フィルタなし）
+$where = ['1=1'];
+$args  = [];
 if ($cat)        { $where[] = 'g.girl_category_id = ?'; $args[] = $cat; }
 if ($q !== '')   { $where[] = 'g.name LIKE ?';          $args[] = '%' . $q . '%'; }
 $wsql = implode(' AND ', $where);
@@ -22,9 +22,13 @@ $cnt = db()->prepare("SELECT COUNT(*) FROM girls g WHERE $wsql");
 $cnt->execute($args);
 $total = (int)$cnt->fetchColumn();
 
+// girl_shops LEFT JOIN で現店舗の掲載状態を取得
 $sql = "SELECT g.*, gc.name AS cat_name,
-          (SELECT path FROM girl_images gi WHERE gi.girl_id=g.id ORDER BY gi.sort, gi.id LIMIT 1) AS thumb
-        FROM girls g LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
+          (SELECT path FROM girl_images gi WHERE gi.girl_id=g.id ORDER BY gi.sort, gi.id LIMIT 1) AS thumb,
+          (gs.girl_id IS NOT NULL) AS in_this_shop
+        FROM girls g
+        LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
+        LEFT JOIN girl_shops gs ON gs.girl_id = g.id AND gs.shop_id = $shop
         WHERE $wsql ORDER BY g.sort, g.id DESC LIMIT $per OFFSET " . (($page - 1) * $per);
 $st = db()->prepare($sql);
 $st->execute($args);
@@ -63,7 +67,7 @@ layout_header('女性一覧', 'girls.php');
     <thead>
       <tr>
         <th style="width:34px"></th><th>画像</th><th>名前(年齢)</th><th>スリーサイズ</th>
-        <th>カテゴリ</th><th>属性</th><th>入店日</th><th>表示</th><th style="width:60px">操作</th>
+        <th>カテゴリ</th><th>属性</th><th>入店日</th><th>当店掲載</th><th style="width:60px">操作</th>
       </tr>
     </thead>
     <tbody id="girlRows">
@@ -78,7 +82,7 @@ layout_header('女性一覧', 'girls.php');
             <?php foreach ($flagMap as [$f, $lbl]) if ((int)$g[$f]) echo '<span class="badge badge-new" style="margin:1px">' . $lbl . '</span>'; ?>
           </td>
           <td class="muted"><?= h($g['in_date'] ?? '—') ?></td>
-          <td><button type="button" class="toggle <?= (int)$g['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$g['id'] ?>" aria-label="表示切替"></button></td>
+          <td><button type="button" class="toggle <?= (int)$g['in_this_shop'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$g['id'] ?>" aria-label="当店掲載切替"></button></td>
           <td>
             <div class="rowmenu">
               <button class="rowmenu-btn" type="button">⋯</button>
