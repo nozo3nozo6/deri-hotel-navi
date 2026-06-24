@@ -826,11 +826,11 @@ body.reserve-open .modal-box {
   white-space: nowrap;
   text-shadow: 0 1px 4px rgba(0,0,0,.98);
 }
-/* 特徴タグは写真の左側に縦並び（旧=フッター横並び） */
+/* 特徴タグは写真の左側に縦並び（旧=フッター横並び）。はみ出さずサムネ内側に収める */
 .girl-card-tags {
   position: absolute;
-  top: 10px;
-  left: -10px;
+  top: 8px;
+  left: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
