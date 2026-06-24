@@ -1,0 +1,70 @@
+---
+import Site from '../../layouts/Site.astro';
+import { SHOP, asset } from '../../lib/config';
+import { getNews, getNewsItem } from '../../lib/api';
+
+export async function getStaticPaths() {
+  const items = await getNews();
+  return items.map((n) => ({ params: { id: String(n.id) } }));
+}
+
+const { id } = Astro.params;
+const it = await getNewsItem(Number(id));
+
+const date = it && it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+const excerpt = it && it.body
+  ? it.body.replace(/<[^>]*>/g, '').slice(0, 120) + (it.body.replace(/<[^>]*>/g, '').length > 120 ? '…' : '')
+  : '';
+const title = it ? `${it.title}｜${SHOP.fullName}` : `ページが見つかりません｜${SHOP.fullName}`;
+const desc = excerpt || `${SHOP.name}からのお知らせです。`;
+
+// 本文: 改行→<p>タグ（元PHP: explode("\n\n") → nl2br(h($p))）
+const paras = it && it.body
+  ? it.body.trim().split('\n\n').map((p) => p.trim()).filter((p) => p)
+  : [];
+---
+{!it ? (
+  <Site title={`ページが見つかりません｜${SHOP.fullName}`} description="" path={`/news/${id}`}>
+    <main>
+      <div class="wrap-md" style="padding:80px 24px;text-align:center">
+        <p class="empty-state">ページが見つかりません</p>
+        <p style="margin-top:24px"><a href="/news" class="back-link">← お知らせ一覧に戻る</a></p>
+      </div>
+    </main>
+  </Site>
+) : (
+  <Site title={title} description={desc} path={`/news/${id}`}>
+    <main>
+      <section class="page-section">
+        <div class="neon-room"></div>
+        <div class="wrap-md" style="position:relative;z-index:1">
+
+          <nav class="breadcrumb">
+            <a href="/top">トップ</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="/news">お知らせ</a>
+            <span class="breadcrumb-sep">›</span>
+            <span>{it.title}</span>
+          </nav>
+
+          <p class="news-detail-date">{date}</p>
+          <h1 class="news-detail-title">{it.title}</h1>
+
+          {it.thumb ? (
+            <img src={asset(it.thumb)} alt=""
+                 width="860" height="400" loading="lazy" class="news-detail-thumb" />
+          ) : null}
+
+          {it.body ? (
+            <div class="prose-neon">
+              {paras.map((p) => (
+                <p set:html={p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;').replace(/\n/g, '<br />')}></p>
+              ))}
+            </div>
+          ) : null}
+
+        </div>
+      </section>
+    </main>
+  </Site>
+)}

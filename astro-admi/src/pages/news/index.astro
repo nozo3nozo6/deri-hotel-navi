@@ -1,0 +1,54 @@
+---
+import Site from '../../layouts/Site.astro';
+import { getNews } from '../../lib/api';
+import { asset, SHOP } from '../../lib/config';
+
+const items = await getNews();
+const title = `お知らせ｜${SHOP.fullName}`;
+const desc = `${SHOP.name}の最新情報、キャンペーン、新人入店情報などをお届けします。`;
+---
+<Site title={title} description={desc} path="/news">
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-md" style="position:relative;z-index:1">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>お知らせ</span>
+        </nav>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">NEWS</span>
+          <h1 class="section-title">お知らせ</h1>
+        </div>
+
+        {items.length ? (
+          <div class="news-list">
+            {items.map((it) => {
+              const date = it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+              const plain = it.body ? it.body.replace(/<[^>]*>/g, '') : '';
+              const excerpt = plain ? (plain.length > 80 ? plain.slice(0, 80) + '…' : plain) : '';
+              return (
+                <a href={`/news/${it.id}`} class="news-item">
+                  {it.thumb
+                    ? <img src={asset(it.thumb)} alt="" width="112" height="112" loading="lazy" class="news-thumb" />
+                    : <div class="news-no-thumb">📢</div>}
+                  <div class="news-meta">
+                    <p class="news-date">{date}</p>
+                    <h2 class="news-title">{it.title}</h2>
+                    {excerpt ? <p class="news-excerpt">{excerpt}</p> : null}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        ) : (
+          <p class="empty-state">お知らせはまだありません</p>
+        )}
+
+      </div>
+    </section>
+  </main>
+</Site>

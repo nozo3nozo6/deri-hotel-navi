@@ -1,0 +1,70 @@
+---
+// Fujoho.astro — 口コミ風俗情報局 埋込バナー（index / top 共用、_inc/fujoho.php 移植）
+// ※ iframe 内部スタイルは口コミ風俗情報局の指定。外枠だけ装飾、内部は変更しない。
+import { SHOP } from '../lib/config';
+import { statSync } from 'node:fs';
+const fujohoSliderV = (() => { try { return String(Math.floor(statSync('public/fujoho-slider.js').mtimeMs)); } catch { return '1'; } })();
+const id = SHOP.fujohoId;
+const areaLink = 'https://fujoho.jp/index.php?p=shop_list&s=2&k=2';
+const siteLink = 'https://fujoho.jp/';
+const banners = [
+  { title: 'ヒメ日記', titleShadow: '#ee4bb4', headerBg: '#ff63c8', btnBg: '#cf2d96', height: 300, contentHeight: 220,
+    src: `https://fujoho.jp/index.php?p=sp_shop_girl_blog_list&id=${id}&ct=color_diary_pink&iframe=ON2`,
+    headerLink: `https://fujoho.jp/index.php?p=shop_girl_blog_list&id=${id}` },
+  { title: '好評価！', titleShadow: '#29863a', headerBg: '#54ad64', btnBg: '#29863a', height: 300, contentHeight: 220,
+    src: `https://fujoho.jp/index.php?p=sp_shop_girl_good_list&id=${id}&od=1&ct=color_iiko_green&iframe=ON2`,
+    headerLink: `https://fujoho.jp/index.php?p=shop_girl_good_list&id=${id}&od=1` },
+  { title: 'すぐヒメ！', titleShadow: '#8a0f4d', headerBg: '#c41f7a', btnBg: '#8a0f4d', height: 300, contentHeight: 220,
+    src: `https://fujoho.jp/index.php?p=sp_shop_info_notime_girl&id=${id}&ct=color_suguhime_purple&iframe=ON2`,
+    headerLink: `https://fujoho.jp/index.php?p=shop_info_notime_girl&id=${id}` },
+];
+---
+<section class="fujoho-section">
+  <div class="neon-room" style="opacity:.6;"></div>
+  <div class="fujoho-wrap" data-fujoho-slider>
+    <div class="section-topper" aria-hidden="true">
+      <span class="section-topper-line"></span>
+      <span class="section-topper-stars">✦ ⋆ ♡ ⋆ ✦</span>
+      <span class="section-topper-line"></span>
+    </div>
+    <p class="neon-lav-glow" style="text-align:center;font-size:.75rem;letter-spacing:.35em;margin-bottom:12px;">GIRLS</p>
+    <h2 class="holo-text" style="font-size:1.5rem;font-weight:800;text-align:center;margin-bottom:12px;line-height:1.3;">すけべな女の子達の最新情報 ♡</h2>
+    <p class="text-mute" style="text-align:center;font-size:.875rem;margin-bottom:20px;">写メ日記・口コミ・すぐご案内できる女の子をチェック</p>
+    <p class="fujoho-scroll-hint" aria-hidden="true">👉 横にスワイプして他のバナーも見る</p>
+    <div class="fujoho-grid">
+      {banners.map((b) => (
+        <div class="fujoho-card">
+          <div class="fujoho_custom_banner" style={`position:relative;width:310px;height:${b.height}px;margin:0 auto;`}>
+            <a class="fujoho_header_area" target="_top" href={b.headerLink}
+               style={`height:40px;line-height:40px;padding:0 7px;display:block;background-color:${b.headerBg};text-decoration:none;text-align:left;`}>
+              <span class="fujoho_banner_title"
+                    style={`font-size:16px;font-weight:bold;color:#fff;text-shadow:1px 1px 0 ${b.titleShadow};`}>{b.title}</span>
+              <span class="fujoho_btn_more"
+                    style={`border-radius:3px;font-size:12px;color:#fff;height:26px;line-height:26px;display:inline-block;float:right;margin-top:7px;padding:0 6px;letter-spacing:-0.3px;background-color:${b.btnBg};`}>もっと見る&raquo;</span>
+            </a>
+            <div class="fujoho_iphone_scroll_size_box"
+                 style={`height:${b.contentHeight}px;margin:0 auto;overflow:auto;-webkit-overflow-scrolling:touch;border-left:solid 1px ${b.headerBg};border-right:solid 1px ${b.headerBg};`}>
+              <iframe src={b.src} loading="lazy" title={`${b.title} - 口コミ風俗情報局`} frameborder="0"
+                      style="width:100%;height:100%;display:block;"></iframe>
+            </div>
+            <div class="fujoho_footer_area"
+                 style={`position:absolute;bottom:0;width:100%;padding:10px 0;line-height:19px;text-align:center;color:#fff;background-color:${b.headerBg};text-shadow:1px 1px 0px ${b.titleShadow};text-decoration:none;`}>
+              <div>
+                <a target="_top" href={areaLink}
+                   style="font-size:12px;color:#fff;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;vertical-align:text-bottom;text-decoration:none;">立川デリヘル</a>
+                <a target="_top" href={siteLink}
+                   style="font-size:15px;font-weight:700;color:#fff;margin-left:3px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;vertical-align:text-bottom;text-decoration:none;">口コミ風俗情報局</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div class="fujoho-controls">
+      <button type="button" class="fujoho-arrow prev" data-fujoho-prev aria-label="前のバナー">‹</button>
+      <div class="fujoho-dots" data-fujoho-dots></div>
+      <button type="button" class="fujoho-arrow next" data-fujoho-next aria-label="次のバナー">›</button>
+    </div>
+  </div>
+</section>
+<script is:inline src={`/fujoho-slider.js?v=${fujohoSliderV}`}></script>

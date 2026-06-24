@@ -1,0 +1,40 @@
+---
+import { SHOP, NAV } from '../../data/shop.ts';
+const YEAR = 2026;
+---
+<footer class="bg-[var(--bg-0)] pt-14 pb-8">
+  <div class="max-w-5xl mx-auto px-6">
+    <hr class="holo-divider mb-10" />
+
+    <div class="text-center">
+      <div class="font-script neon-pink-glow text-4xl mb-1">{SHOP.brandEn}</div>
+      <p class="text-sm text-[var(--text-mute)] mb-6">since {SHOP.since} ・ {SHOP.catch} &amp; Go To FANTASY</p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+        <a href={`tel:${SHOP.telRaw}`} class="glossy-pill inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg font-bold text-white">
+          <span aria-hidden="true">📞</span>{SHOP.tel}
+        </a>
+        <a href={SHOP.lineUrl} target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white bg-[#06c755] hover:brightness-110 transition">
+          <span aria-hidden="true">💬</span>LINEで予約
+        </a>
+      </div>
+      <p class="text-xs text-[var(--text-mute)] mb-8">受付時間 {SHOP.reception}</p>
+
+      <nav class="flex flex-wrap justify-center gap-x-5 gap-y-2 mb-10 text-sm">
+        {NAV.map((n) => (
+          <a
+            href={n.href}
+            target={n.external ? '_blank' : undefined}
+            rel={n.external ? 'noopener' : undefined}
+            class="text-[var(--text-soft)] hover:text-[var(--neon-pink)] transition-colors"
+          >{n.label}</a>
+        ))}
+        <a href="/sitemap" class="text-[var(--text-soft)] hover:text-[var(--neon-pink)] transition-colors">サイトマップ</a>
+      </nav>
+
+      <p class="text-[11px] text-[var(--text-mute)]/70">
+        Copyright © {SHOP.since}-{YEAR} {SHOP.fullName} All Rights Reserved.
+      </p>
+    </div>
+  </div>
+</footer>

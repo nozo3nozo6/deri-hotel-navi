@@ -1,0 +1,31 @@
+---
+import { RESERVE } from '../../data/shop.ts';
+const iconMap: Record<string, string> = { line: '💬', tel: '📞', web: '🌐' };
+---
+<div class="reserve-wrap fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+  <div class="reserve-card glass-card w-full max-w-md rounded-3xl p-6 md:p-7" role="dialog" aria-modal="true" aria-label="ご予約方法">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="holo-text text-xl font-extrabold">ご予約方法をお選びください</h2>
+      <button type="button" data-reserve-close class="w-9 h-9 flex items-center justify-center rounded-lg text-xl text-[var(--lav-soft)] hover:text-white" aria-label="閉じる">✕</button>
+    </div>
+
+    <ul class="space-y-3">
+      {RESERVE.map((r) => (
+        <li>
+          <a
+            href={r.href}
+            target={r.kind !== 'tel' ? '_blank' : undefined}
+            rel={r.kind !== 'tel' ? 'noopener' : undefined}
+            class="flex items-center gap-4 rounded-2xl p-4 bg-white/5 border border-[var(--neon-pink)]/30 hover:border-[var(--neon-pink)]/70 hover:bg-[var(--neon-pink)]/10 transition-colors"
+          >
+            <span class="text-2xl shrink-0" aria-hidden="true">{iconMap[r.kind]}</span>
+            <span class="min-w-0">
+              <span class="block font-bold text-white">{r.label}</span>
+              <span class="block text-xs text-[var(--text-mute)] mt-0.5">{r.note}</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</div>

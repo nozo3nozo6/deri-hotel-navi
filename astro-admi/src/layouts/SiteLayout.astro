@@ -1,0 +1,52 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import SiteHeader from '../components/site/SiteHeader.astro';
+import SiteFooter from '../components/site/SiteFooter.astro';
+import ReserveModal from '../components/site/ReserveModal.astro';
+import OffcanvasMenu from '../components/site/OffcanvasMenu.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  keywords?: string;
+  ogImage?: string;
+  pathname?: string;
+}
+const props = Astro.props;
+---
+<BaseLayout {...props}>
+  <SiteHeader />
+  <main>
+    <slot />
+  </main>
+  <SiteFooter />
+
+  <OffcanvasMenu />
+  <ReserveModal />
+
+  <!-- page top -->
+  <button type="button" data-pagetop class="page-top-btn fixed bottom-5 right-5 z-40 w-11 h-11 rounded-full glossy-pill text-white text-xl flex items-center justify-center" aria-label="ページ上部へ戻る">↑</button>
+
+  <script>
+    const body = document.body;
+    const open = (cls: string) => body.classList.add(cls);
+    const close = (cls: string) => body.classList.remove(cls);
+
+    document.querySelectorAll('[data-menu-open]').forEach((b) => b.addEventListener('click', () => open('menu-open')));
+    document.querySelectorAll('[data-menu-close]').forEach((b) => b.addEventListener('click', () => close('menu-open')));
+    document.querySelectorAll('[data-reserve-open]').forEach((b) => b.addEventListener('click', () => { close('menu-open'); open('reserve-open'); }));
+    document.querySelectorAll('[data-reserve-close]').forEach((b) => b.addEventListener('click', () => close('reserve-open')));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { close('menu-open'); close('reserve-open'); }
+    });
+
+    const pt = document.querySelector('[data-pagetop]');
+    if (pt) {
+      pt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      const onScroll = () => pt.classList.toggle('show', window.scrollY > 400);
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+  </script>
+</BaseLayout>

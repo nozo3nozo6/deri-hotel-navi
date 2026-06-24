@@ -1,0 +1,178 @@
+---
+import Site from '../layouts/Site.astro';
+import Fujoho from '../components/Fujoho.astro';
+import { getGirls, getNews, getBanners } from '../lib/api';
+import { asset, SHOP, FUJOHO, isNewcomer } from '../lib/config';
+import GirlCardItem from '../components/GirlCardItem.astro';
+import { statSync } from 'node:fs';
+const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
+const schedV = ver('public/schedule-badge.js');
+const schedPageV = ver('public/schedule-page.js');
+const bannerSliderV = ver('public/banner-slider.js');
+const newsV = ver('public/news-latest.js');
+
+// 最新お知らせ 4件
+const latestNews = (await getNews()).slice(0, 4);
+
+// 全女の子（本日の出勤セクションは全件hidden配置→JSが本日出勤のみ表示）
+const allGirls = await getGirls();
+// 上部バナー（管理画面 /ctrl で設定、ビルド時取得）
+const topBanners = (await getBanners('top')).filter((b) => b.image);
+// 下部バナー（管理画面 /ctrl で設定、ビルド時取得。画像未設定は除外）
+const bottomBanners = (await getBanners('bottom')).filter((b) => b.image);
+// 新人の女の子 = 入店3ヶ月未満を入店日の新しい順に 8件
+const inNum = (g: any): number => g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
+const newFaces = allGirls
+  .filter((g) => isNewcomer(g.in_date))
+  .sort((a, b) => (inNum(b) - inNum(a)) || (b.id - a.id))
+  .slice(0, 8);
+
+const title = `${SHOP.fullName} | トップ`;
+const desc = `${SHOP.catch}の老舗「${SHOP.name}」（since${SHOP.since}）。厳選された素人の女の子をラブホテル・ご自宅までデリバリー。最新情報・新人の女の子・本日の出勤はこちら。`;
+---
+<Site title={title} description={desc} path="/top">
+<main>
+
+  <!-- ヒーロー = バナースライダー（バナー無し時のみロゴヒーローにフォールバック）== -->
+  {topBanners.length ? (
+  <section class="hero-slider-section" data-slider>
+    <div class="hero-slider">
+      <div class="hero-slider-track">
+        {topBanners.map((b) => (
+          <div class="hero-slide">
+            {b.url
+              ? <a href={b.url} target="_self" rel="noopener"><img src={asset(b.image)} alt={b.title} /></a>
+              : <img src={asset(b.image)} alt={b.title} />}
+          </div>
+        ))}
+      </div>
+    </div>
+    {topBanners.length > 1 ? (
+      <div class="hero-slider-controls">
+        <button type="button" class="hero-slider-arrow prev" data-slider-prev aria-label="前のバナー">‹</button>
+        <div class="hero-slider-dots" data-slider-dots></div>
+        <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のバナー">›</button>
+      </div>
+    ) : null}
+  </section>
+  ) : (
+  <section class="hero-bg" style="position:relative;min-height:46vh;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+    <div class="hero-scrim" style="position:absolute;inset:0;pointer-events:none;"></div>
+    <div style="position:relative;z-index:1;text-align:center;padding:48px 24px;max-width:760px;margin:0 auto;">
+      <p class="font-script neon-pink-glow" style="font-size:clamp(3.5rem,11vw,5.5rem);line-height:1;margin-bottom:12px;">{SHOP.nameEn}</p>
+      <h1 class="holo-text" style="font-size:1.75rem;font-weight:800;margin-bottom:20px;">ハズレなしの素人娘を、あなたのもとへ ♡</h1>
+      <button type="button" data-reserve-open class="glossy-pill" style="padding:12px 32px;border-radius:9999px;font-size:1.0625rem;font-weight:700;color:#fff;border:none;">ご予約はこちら</button>
+    </div>
+  </section>
+  )}
+
+  <!-- お知らせ ============================================================== -->
+  <section class="top-news-section">
+    <div class="wrap-md">
+      <div class="section-topper" aria-hidden="true">
+        <span class="section-topper-line"></span>
+        <span class="section-topper-stars">✦ ⋆ ♡ ⋆ ✦</span>
+        <span class="section-topper-line"></span>
+      </div>
+      <div class="section-head">
+        <span class="section-eyebrow holo-text">NEWS</span>
+        <h2 class="section-title">最新情報</h2>
+      </div>
+      <div class="news-list" id="top-news-list">
+        {latestNews.length ? latestNews.map((it) => {
+          const date = it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+          const excerpt = it.body ? (() => {
+            const plain = it.body.replace(/<[^>]*>/g, '');
+            return plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
+          })() : '';
+          return (
+        <a href={`/news/${it.id}`} class="news-item">
+          {it.thumb
+            ? <img src={asset(it.thumb)} alt="" width="80" height="80" loading="lazy" class="news-thumb" />
+            : <div class="news-no-thumb">📢</div>}
+          <div class="news-meta">
+            <p class="news-date">{date}</p>
+            <h3 class="news-title">{it.title}</h3>
+            {excerpt ? <p class="news-excerpt">{excerpt}</p> : null}
+          </div>
+        </a>
+          );
+        }) : <p class="empty-state">お知らせを読み込み中…</p>}
+      </div>
+      <div class="section-more-wrap">
+        <a href="/news" class="section-more glossy-pill">お知らせをもっと見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 口コミ風俗情報局 広告バナー =========================================== -->
+  <Fujoho />
+
+  <!-- 新人の女の子 =========================================================== -->
+  <section class="top-girls-section">
+    <div class="wrap-lg">
+      <div class="section-topper" aria-hidden="true">
+        <span class="section-topper-line"></span>
+        <span class="section-topper-stars">✦ ⋆ ♡ ⋆ ✦</span>
+        <span class="section-topper-line"></span>
+      </div>
+      <div class="section-head">
+        <span class="section-eyebrow holo-text">NEW FACE</span>
+        <h2 class="section-title">新人の女の子</h2>
+      </div>
+      {newFaces.length ? (
+      <div class="girl-grid">
+        {newFaces.map((g) => <GirlCardItem girl={g} />)}
+      </div>
+      ) : (
+        <p class="empty-state">現在新人情報はありません</p>
+      )}
+      <div class="section-more-wrap">
+        <a href="/girls" class="section-more glossy-pill">すけべな女の子達を見る</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 本日の出勤 ============================================================= -->
+  <section class="top-girls-section">
+    <div class="wrap-lg">
+      <div class="section-topper" aria-hidden="true">
+        <span class="section-topper-line"></span>
+        <span class="section-topper-stars">✦ ⋆ ♡ ⋆ ✦</span>
+        <span class="section-topper-line"></span>
+      </div>
+      <div class="section-head">
+        <span class="section-eyebrow holo-text">today's schedule</span>
+        <h2 class="section-title">本日の出勤</h2>
+      </div>
+      <div class="schedule-date-band" id="schedule-date" aria-live="polite"></div>
+      <p class="empty-state" id="schedule-empty" style="display:none">本日の出勤情報は準備中です。</p>
+      <div class="girl-grid is-schedule" id="schedule-grid">
+        {allGirls.map((g) => <GirlCardItem girl={g} />)}
+      </div>
+      <div class="section-more-wrap">
+        <a href="/schedule" class="section-more glossy-pill">スケジュール確認</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 下部バナー（管理画面 /ctrl で設定）= バナーエリア ====================== -->
+  {bottomBanners.length ? (
+  <section class="bottom-banner-section">
+    <hr class="holo-divider bottom-banner-divider" />
+    <div class="bottom-banner-grid">
+      {bottomBanners.map((b) => (
+        b.url
+          ? <a href={b.url} target="_self" rel="noopener" class="bottom-banner-item"><img src={asset(b.image)} alt={b.title} loading="lazy" /></a>
+          : <span class="bottom-banner-item"><img src={asset(b.image)} alt={b.title} loading="lazy" /></span>
+      ))}
+    </div>
+  </section>
+  ) : null}
+
+  <script is:inline src={`/schedule-badge.js?v=${schedV}`}></script>
+  <script is:inline src={`/schedule-page.js?v=${schedPageV}`}></script>
+  <script is:inline src={`/banner-slider.js?v=${bannerSliderV}`}></script>
+  <script is:inline src={`/news-latest.js?v=${newsV}`}></script>
+</main>
+</Site>

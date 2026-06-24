@@ -1,0 +1,66 @@
+---
+const ENTER_URL = 'https://fujoho.jp/index.php?p=shop&id=53179';
+const EXIT_URL = 'https://www.yahoo.co.jp/';
+---
+<section class="hero-bg relative min-h-screen flex items-center justify-center pt-24 pb-16 md:pt-0 overflow-hidden">
+  <!-- neon tint is baked into .hero-bg; this scrim keeps text readable -->
+  <div class="hero-scrim absolute inset-0"></div>
+
+  <!-- ambient sparkles -->
+  <span class="sparkle text-2xl" style="top:14%;left:12%;animation-delay:0s" aria-hidden="true">✦</span>
+  <span class="sparkle text-base" style="top:22%;left:80%;animation-delay:.6s" aria-hidden="true">✧</span>
+  <span class="sparkle text-xl" style="top:62%;left:8%;animation-delay:1.1s" aria-hidden="true">✦</span>
+  <span class="sparkle text-lg" style="top:72%;left:86%;animation-delay:1.6s" aria-hidden="true">❤</span>
+  <span class="sparkle text-sm" style="top:40%;left:90%;animation-delay:.9s" aria-hidden="true">✧</span>
+  <span class="sparkle text-base" style="top:18%;left:46%;animation-delay:2.1s" aria-hidden="true">✦</span>
+
+  <div class="relative z-10 text-center px-6 max-w-4xl mx-auto">
+    <!-- eyebrow -->
+    <p class="reveal reveal-1 neon-lav-glow text-sm md:text-base tracking-[0.35em] mb-6 font-medium">
+      ✦ 吉祥寺 ・ SINCE 2009 ✦
+    </p>
+
+    <!-- brand wordmark -->
+    <h1 class="mb-3 leading-none">
+      <span class="reveal reveal-1 font-script flicker neon-pink-glow block text-7xl sm:text-8xl md:text-9xl">
+        Admi
+      </span>
+      <span class="reveal reveal-2 block text-xl md:text-2xl font-semibold tracking-[0.4em] text-[var(--lav-soft)] mt-4 [text-shadow:0_2px_6px_rgba(0,0,0,.95),0_0_16px_rgba(255,143,214,.9)]">
+        ア ド ミ
+      </span>
+      <span class="reveal reveal-2 block text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mt-5 [text-shadow:0_0_18px_rgba(255,143,214,.5)]">
+        吉祥寺デリヘル
+      </span>
+    </h1>
+
+    <p class="reveal reveal-3 holo-text text-base md:text-xl font-bold mt-4 mb-12 md:mb-14">
+      &amp; Go To FANTASY ♡
+    </p>
+
+    <!-- glass pedestal + neon CTA -->
+    <div class="reveal reveal-3 glass-card rounded-[28px] p-6 md:p-8 w-full max-w-[460px] mx-auto">
+      <p class="text-[var(--text-mute)] text-xs md:text-sm mb-4 tracking-wide">
+        ハズレなしの素人娘をあなたのもとへ
+      </p>
+      <a
+        href={ENTER_URL}
+        rel="noopener"
+        class="cta-enter mx-auto w-full max-w-[360px]"
+        aria-label="18歳以上の方はこちらから入場する"
+      >
+        <img src="/img/enter.png" alt="18歳以上の方はこちらから入場" width="813" height="312" />
+      </a>
+    </div>
+
+    <!-- exit -->
+    <div class="reveal reveal-4 mt-8">
+      <a
+        href={EXIT_URL}
+        rel="noopener"
+        class="text-[var(--text-mute)] hover:text-white text-xs md:text-sm underline underline-offset-4 transition-colors"
+      >
+        18歳未満の方はこちらよりご退出ください
+      </a>
+    </div>
+  </div>
+</section>

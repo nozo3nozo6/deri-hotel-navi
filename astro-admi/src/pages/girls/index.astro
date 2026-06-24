@@ -1,0 +1,128 @@
+---
+import { statSync } from 'node:fs';
+import Site from '../../layouts/Site.astro';
+import { getGirls } from '../../lib/api';
+import { tagEmoji, SHOP } from '../../lib/config';
+import GirlCardItem from '../../components/GirlCardItem.astro';
+
+const girls = await getGirls();
+// 入店日(YYYYMMDD)を数値化。未設定は0（→idでフォールバック）
+const inNum = (g: any): number => g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
+// 既定の並び = 入店順 新しい順（入店日降順→id降順）。JS側の既定アクティブと一致
+girls.sort((a, b) => (inNum(b) - inNum(a)) || (b.id - a.id));
+
+// 絞り込み用の特徴タグ一覧（出現順ユニーク）
+const allTags: string[] = [];
+girls.forEach((g) => (g.tags ?? []).forEach((t) => { if (!allTags.includes(t)) allTags.push(t); }));
+
+const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
+const jsV = ver('public/girls-filter.js');
+const schedV = ver('public/schedule-badge.js');
+
+const title = `すけべな女の子達｜${SHOP.fullName}`;
+const desc = `${SHOP.name}（${SHOP.catch}）に在籍するすけべな女の子達。厳選された女の子をご紹介します。`;
+---
+<Site title={title} description={desc} path="/girls">
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-lg" style="position:relative;z-index:1">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>すけべな女の子達</span>
+        </nav>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">GIRLS</span>
+          <h1 class="section-title">すけべな女の子達</h1>
+        </div>
+
+        {girls.length ? (
+          <Fragment>
+            <!-- 絞り込み検索 -->
+            <div class="gpanel" id="gfilter">
+              <button class="gpanel-head" type="button" data-gpanel-toggle aria-expanded="false">
+                <span class="gpanel-title"><span aria-hidden="true">🔍</span> 絞り込み検索</span>
+                <span class="gpanel-chev" aria-hidden="true">▾</span>
+              </button>
+              <div class="gpanel-body">
+                <div class="gfield">
+                  <label class="gfield-label" for="gsearch-name">名前で検索</label>
+                  <input type="search" id="gsearch-name" class="gsearch-input" placeholder="名前を入力" enterkeyhint="search" autocomplete="off" />
+                </div>
+                {allTags.length ? (
+                  <div class="gfield">
+                    <span class="gfield-label">特徴タグ（複数選択）</span>
+                    <div class="gtag-list">
+                      {allTags.map((t) => (
+                        <button type="button" class="gtag-chip" data-gtag={t}>{tagEmoji(t)} {t}</button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div class="gfield gfield-row">
+                  <label class="gcheck"><input type="checkbox" id="gfilter-new" /> <span>新人のみ</span></label>
+                  <button type="button" class="greset" id="gfilter-reset">条件をクリア</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 並び替え -->
+            <div class="gpanel" id="gsort">
+              <button class="gpanel-head" type="button" data-gpanel-toggle aria-expanded="false">
+                <span class="gpanel-title"><span aria-hidden="true">↓↑</span> 並び替え</span>
+                <span class="gpanel-chev" aria-hidden="true">▾</span>
+              </button>
+              <div class="gpanel-body">
+                <div class="gsort-grid">
+                  <div class="gsort-group">
+                    <p class="gsort-label">入店順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn is-active" data-sort="in" data-dir="desc">新しい順</button>
+                      <button type="button" class="gsort-btn" data-sort="in" data-dir="asc">古い順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">身長順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="height" data-dir="desc">高い順</button>
+                      <button type="button" class="gsort-btn" data-sort="height" data-dir="asc">低い順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">バスト順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="bust" data-dir="desc">大きい順</button>
+                      <button type="button" class="gsort-btn" data-sort="bust" data-dir="asc">小さい順</button>
+                    </div>
+                  </div>
+                  <div class="gsort-group">
+                    <p class="gsort-label">年齢順</p>
+                    <div class="gsort-btns">
+                      <button type="button" class="gsort-btn" data-sort="age" data-dir="desc">高い順</button>
+                      <button type="button" class="gsort-btn" data-sort="age" data-dir="asc">低い順</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p class="gresult-count" id="gresult-count"></p>
+
+            <div class="girl-grid" id="girl-grid">
+              {girls.map((g) => <GirlCardItem girl={g} />)}
+            </div>
+            <p class="gresult-empty" id="gresult-empty" style="display:none">条件に合う女の子が見つかりませんでした。</p>
+          </Fragment>
+        ) : (
+          <p class="empty-state">現在表示できる女の子がいません</p>
+        )}
+
+      </div>
+    </section>
+  </main>
+  <script is:inline src={`/girls-filter.js?v=${jsV}`}></script>
+  <script is:inline src={`/schedule-badge.js?v=${schedV}`}></script>
+</Site>

@@ -1,0 +1,27 @@
+---
+const TEL = '090-1045-9155';
+const TEL_RAW = TEL.replace(/-/g, '');
+const YEAR = 2026;
+---
+<footer class="bg-[var(--bg-0)] py-14">
+  <div class="max-w-7xl mx-auto px-6">
+    <hr class="holo-divider mb-12" />
+
+    <div class="text-center">
+      <div class="font-script neon-pink-glow text-4xl mb-2">Admi</div>
+      <p class="text-sm text-[var(--text-mute)] mb-8">since 2009 ・ 吉祥寺デリヘル &amp; Go To FANTASY</p>
+
+      <a
+        href={`tel:${TEL_RAW}`}
+        class="glossy-pill inline-flex items-center gap-2 px-6 py-3 rounded-full text-lg font-bold text-white mb-10"
+        aria-label={`電話で問い合わせる ${TEL}`}
+      >
+        <span aria-hidden="true">📞</span>{TEL}
+      </a>
+
+      <p class="text-xs text-[var(--text-mute)]/60">
+        Copyright © 2009-{YEAR} アドミ 吉祥寺デリヘル &amp; Go To FANTASY All Rights Reserved.
+      </p>
+    </div>
+  </div>
+</footer>

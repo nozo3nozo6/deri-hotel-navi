@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+/* ===== Y2K NEON DESIGN TOKENS ===== */
+:root {
+  --bg-0: #0a0510;   /* near-black purple */
+  --bg-1: #160a26;   /* deep 紫紺 */
+  --bg-2: #22103a;   /* card / panel purple */
+  --neon-pink: #ff4fd8;
+  --neon-pink-hot: #ff2d9b;
+  --lavender: #b78fff;
+  --lav-soft: #d9c4ff;
+  --text: #ffffff;
+  --text-soft: #f6ecff;
+  --text-mute: #c6b0e6;
+}
+
+body {
+  font-family: 'M PLUS Rounded 1c', system-ui, sans-serif;
+  background-color: var(--bg-0);
+  color: var(--text);
+}
+
+/* fonts */
+.font-script {
+  font-family: 'Pacifico', cursive;
+  font-weight: 400;
+}
+
+/* ===== hero background (girl collage, neon-tinted & alive) ===== */
+.hero-bg {
+  /* gradient layer multiplies onto the collage -> pink/purple neon wall */
+  background-image:
+    linear-gradient(135deg, rgba(255, 45, 155, 0.42) 0%, rgba(150, 60, 220, 0.46) 55%, rgba(95, 45, 190, 0.5) 100%),
+    url('/img/indexbg.jpg');
+  background-position: center, center;
+  background-size: cover, cover;
+  background-blend-mode: multiply, normal;
+}
+@media (min-width: 768px) {
+  .hero-bg { background-attachment: fixed, fixed; }
+}
+
+/* readability scrim + neon glows over the visible collage */
+.hero-scrim {
+  background:
+    /* top: keep header area legible */
+    linear-gradient(180deg, rgba(10, 5, 16, 0.92) 0%, rgba(10, 5, 16, 0.18) 13%, transparent 22%),
+    /* center: soft dark pool behind the headline + CTA */
+    radial-gradient(78% 60% at 50% 60%, rgba(8, 3, 16, 0.80) 0%, rgba(8, 3, 16, 0.30) 52%, transparent 80%),
+    /* neon accents */
+    radial-gradient(58% 50% at 12% 8%, rgba(255, 79, 216, 0.30), transparent 68%),
+    radial-gradient(55% 50% at 88% 90%, rgba(183, 143, 255, 0.28), transparent 70%),
+    /* bottom: blend into the next section */
+    linear-gradient(0deg, var(--bg-1) 0%, rgba(22, 10, 38, 0.25) 10%, transparent 20%);
+}
+
+/* radial neon room glows layered over everything dark */
+.neon-room {
+  background:
+    radial-gradient(60% 50% at 18% 12%, rgba(255, 79, 216, 0.30), transparent 70%),
+    radial-gradient(55% 50% at 85% 80%, rgba(183, 143, 255, 0.28), transparent 72%),
+    linear-gradient(180deg, rgba(10, 5, 16, 0.72) 0%, rgba(12, 6, 24, 0.86) 45%, rgba(10, 5, 16, 0.96) 100%);
+}
+
+/* ===== neon text ===== */
+.neon-pink-glow {
+  color: #fff;
+  text-shadow:
+    0 0 6px rgba(255, 79, 216, 0.9),
+    0 0 16px rgba(255, 79, 216, 0.7),
+    0 0 34px rgba(255, 45, 155, 0.55);
+}
+.neon-lav-glow {
+  color: var(--lav-soft);
+  text-shadow:
+    0 0 6px rgba(183, 143, 255, 0.85),
+    0 0 18px rgba(183, 143, 255, 0.55);
+}
+
+/* holographic gradient text (pink -> lavender, gently shifting) */
+.holo-text {
+  background: linear-gradient(100deg, var(--neon-pink) 0%, var(--lav-soft) 38%, var(--neon-pink) 70%, var(--lavender) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: holo-shift 8s ease-in-out infinite;
+}
+
+/* ===== glass / panels ===== */
+.glass-card {
+  background: linear-gradient(160deg, rgba(255, 79, 216, 0.08), rgba(183, 143, 255, 0.06));
+  border: 1px solid rgba(255, 79, 216, 0.30);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 18px 60px -20px rgba(255, 45, 155, 0.45);
+}
+
+/* glossy pill (tel button etc.) */
+.glossy-pill {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 79, 216, 0.18));
+  border: 1px solid rgba(255, 79, 216, 0.45);
+  box-shadow: 0 6px 22px -8px rgba(255, 45, 155, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.glossy-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px -8px rgba(255, 45, 155, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* holographic divider line */
+.holo-divider {
+  height: 2px;
+  width: 100%;
+  border: none;
+  background: linear-gradient(90deg, transparent, var(--neon-pink), var(--lavender), transparent);
+  box-shadow: 0 0 12px rgba(255, 79, 216, 0.6);
+}
+
+/* ===== CTA (enter.png) with neon halo + gloss sweep ===== */
+.cta-enter {
+  position: relative;
+  display: inline-block;
+  border-radius: 9999px;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  filter: drop-shadow(0 0 18px rgba(255, 79, 216, 0.65));
+  animation: cta-float 4.5s ease-in-out infinite;
+}
+.cta-enter:hover { transform: scale(1.04); filter: drop-shadow(0 0 30px rgba(255, 79, 216, 0.95)); }
+.cta-enter:active { transform: scale(0.97); }
+.cta-enter img { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+/* gloss sweep overlay */
+.cta-enter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);
+  background-size: 250% 100%;
+  background-position: 200% 0;
+  animation: shine-sweep 4.5s ease-in-out infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* ===== sparkles ===== */
+.sparkle {
+  position: absolute;
+  color: #fff;
+  text-shadow: 0 0 8px var(--neon-pink), 0 0 14px var(--lavender);
+  pointer-events: none;
+  user-select: none;
+  animation: sparkle-twinkle 3.2s ease-in-out infinite;
+}
+
+/* feature chips */
+.neon-chip {
+  background: rgba(255, 79, 216, 0.12);
+  border: 1px solid rgba(255, 79, 216, 0.40);
+  color: var(--text-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* ===== keyframes ===== */
+@keyframes holo-shift {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+}
+@keyframes shine-sweep {
+  0% { background-position: 200% 0; }
+  55%, 100% { background-position: -120% 0; }
+}
+@keyframes cta-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.1) rotate(20deg); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes neon-flicker {
+  0%, 18%, 22%, 25%, 53%, 57%, 100% {
+    text-shadow:
+      0 0 6px rgba(255, 79, 216, 0.9),
+      0 0 16px rgba(255, 79, 216, 0.7),
+      0 0 34px rgba(255, 45, 155, 0.55);
+    opacity: 1;
+  }
+  20%, 24%, 55% { text-shadow: none; opacity: 0.78; }
+}
+
+/* page-load reveal helpers */
+.reveal { opacity: 0; animation: fade-up 0.8s ease forwards; }
+.reveal-1 { animation-delay: 0.05s; }
+.reveal-2 { animation-delay: 0.22s; }
+.reveal-3 { animation-delay: 0.40s; }
+.reveal-4 { animation-delay: 0.58s; }
+
+.flicker { animation: neon-flicker 6s ease-in-out 1s infinite; }
+
+/* ===== site chrome: offcanvas menu / reserve modal / page-top ===== */
+body.menu-open, body.reserve-open { overflow: hidden; }
+
+.offcanvas-backdrop, .reserve-wrap {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+body.menu-open .offcanvas-backdrop,
+body.reserve-open .reserve-wrap { opacity: 1; pointer-events: auto; }
+
+.offcanvas-panel {
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+body.menu-open .offcanvas-panel { transform: translateX(0); }
+
+.reserve-card {
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.3s ease;
+}
+body.reserve-open .reserve-card { transform: translateY(0) scale(1); }
+
+.page-top-btn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.2s ease;
+}
+.page-top-btn.show { opacity: 1; pointer-events: auto; }
+
+/* hamburger lines */
+.burger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--lav-soft);
+  border-radius: 2px;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.burger span + span { margin-top: 5px; }
+
+/* news 本文の可読性（折衷: 装飾はネオン、本文は読みやすく） */
+.prose-neon { color: var(--text-soft); line-height: 1.95; }
+.prose-neon p { margin: 0 0 1.15em; }
+.prose-neon strong { color: var(--lav-soft); }
+
+/* ===== accessibility ===== */
+:focus-visible {
+  outline: 3px solid var(--lav-soft);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo-text, .cta-enter, .cta-enter::after, .sparkle,
+  .reveal, .flicker {
+    animation: none !important;
+  }
+  .reveal { opacity: 1; }
+}

@@ -1,0 +1,76 @@
+# ============================================================
+# kichifu.com .htaccess  (Apache 2.4 / シンレンサーバー)
+#   Astro(SSG) 静的配信 + /api(PHP) + /admin(PHP CMS)
+# ============================================================
+AddDefaultCharset UTF-8
+Options -Indexes
+
+# ルート / は Astro の index.html を最優先（index.php は安全用フォールバック）
+DirectoryIndex index.html index.php
+
+# mod_dir の自動トレイリングスラッシュ301を無効化（/girls 等が girls/ ディレクトリと
+# 衝突して /girls/ に飛ばされるのを防ぎ、下の rewrite で /girls.html へ向ける）
+DirectorySlash Off
+
+# --- 機密ファイルへの直アクセスを遮断 ---
+<FilesMatch "(^\.ht|db-config\.php$|deploy-config\.php$|.*\.sample\.php$|\.(env|sql|md|log|bak)$)">
+  Require all denied
+</FilesMatch>
+
+# --- セキュリティヘッダー ---
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # ★ステージング(biyobu.com)はインデックス禁止。本番admi2888.com化時にこの行を削除する
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+</IfModule>
+
+# ★ステージング限定: Basic認証で外部から完全に隠す（任意・推奨）
+#   有効化するには下記コメントを外し、サーバー上に .htpasswd を作成:
+#     ssh先で: htpasswd -c /home/yobuho/biyobu.com/.htpasswd staging
+#   本番admi2888.com化時はこのブロックごと削除する。
+# <IfModule mod_authn_file.c>
+#   AuthType Basic
+#   AuthName "staging"
+#   AuthUserFile /home/yobuho/biyobu.com/.htpasswd
+#   Require valid-user
+# </IfModule>
+
+# --- キャッシュ方針 ---
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(css|js|mjs|svg|png|jpg|jpeg|webp|gif|ico|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# --- クリーンURL（Astro静的） --------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 末尾 .html 付き直アクセスは拡張子なしへ 301（重複URL防止）
+  RewriteCond %{THE_REQUEST} \s/+([^.\s?]+)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L]
+
+  # 一覧ページは同名サブディレクトリ(girls/ news/)が存在し DirectorySlash で
+  # /girls→/girls/ に飛ばされるため、明示的に .html へ先回りマッピング
+  RewriteRule ^girls/?$ /girls.html [L]
+  RewriteRule ^news/?$  /news.html  [L]
+
+  # DirectorySlash Off のため、管理画面はスラッシュ付きに明示誘導
+  RewriteRule ^ctrl$ /ctrl/ [R=301,L]
+  # 旧 /admin/ は /ctrl/ へ恒久リダイレクト（旧URL救済。サーバー上の旧admin/実体は別途手動削除）
+  RewriteRule ^admin(/.*)?$ /ctrl$1 [R=301,L]
+
+  # 拡張子なしリクエストを .html へ内部マッピング（存在する時のみ）
+  #   例: /top→/top.html, /girls→/girls.html, /girls/123→/girls/123.html
+  #   /api/*.php /admin/*.php /uploads/* は実ファイル(-f)なので素通り
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+  RewriteRule ^(.+?)/?$ $1.html [L]
+</IfModule>
