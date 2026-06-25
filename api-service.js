@@ -169,7 +169,8 @@ function renderShopServiceAreaTags() {
     // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
     // フォントサイズは全カード共通 (.area-btn の 0.8rem を継承). 長いラベルは改行で対応する.
     //   → 1行に押し込むためのフォント縮小をやめ、どのカードも同じ文字サイズに統一.
-    //   → 改行で高さが変わってもグリッドは align-items:start で各カード独立高さ (相互に伸びない).
+    //   → 改行で行数が変わると箱の高さがバラつくため、描画後に
+    //     equalizeShopAreaCards() が全カードを最も高いカードへ高さ統一する.
     const cards = areas.map(a => {
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
@@ -192,6 +193,32 @@ function renderShopServiceAreaTags() {
     } else {
         anchor.insertAdjacentHTML('afterend', html);
     }
+    // 描画後に全カードの高さを最も高いカードへ揃える (フォント均一・改行ありでも箱サイズを統一).
+    requestAnimationFrame(() => requestAnimationFrame(equalizeShopAreaCards));
+    // 画面幅変更(回転・リサイズ)で行数が変わるため再計算 (リスナーは1回だけ登録).
+    if (!window._shopAreaEqualizeBound) {
+        window._shopAreaEqualizeBound = true;
+        let _t;
+        window.addEventListener('resize', () => {
+            clearTimeout(_t);
+            _t = setTimeout(equalizeShopAreaCards, 150);
+        });
+    }
+}
+
+// メインエリアの全カードの高さを、最も高いカード(改行で行数が多いもの)に揃える.
+// → フォントは均一・テキストは改行のまま、箱のサイズだけを統一する.
+//   ビューポート幅で行数が変わるため固定pxではなくブラウザ実測で揃える.
+function equalizeShopAreaCards() {
+    const cards = document.querySelectorAll('#shop-service-areas-bar .shop-area-card');
+    if (!cards.length) return;
+    // まず高さ指定を解除して自然な高さを測る.
+    cards.forEach(btn => { btn.style.minHeight = ''; });
+    let maxH = 0;
+    cards.forEach(btn => { if (btn.offsetHeight > maxH) maxH = btn.offsetHeight; });
+    if (maxH <= 0) return;
+    // 全カードを最大高さに統一 (text は flex で上下中央寄せのまま).
+    cards.forEach(btn => { btn.style.minHeight = maxH + 'px'; });
 }
 
 // タグクリック時のナビゲーション (data-action="goToShopArea" 経由).
