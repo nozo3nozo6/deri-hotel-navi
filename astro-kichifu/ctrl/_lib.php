@@ -171,7 +171,7 @@ function layout_header(string $title, string $active = ''): void {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?= h($title) ?> | <?= ADMIN_NAME ?></title>
-<link rel="stylesheet" href="/ctrl/admin.css?v=1">
+<link rel="stylesheet" href="/ctrl/admin.css?v=<?= @filemtime(__DIR__ . '/admin.css') ?: '1' ?>">
 </head><body>
 <div class="l-wrap">
   <aside class="l-sidebar">
