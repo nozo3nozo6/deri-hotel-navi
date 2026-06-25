@@ -276,7 +276,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
         </div>
       </div>
       <textarea id="comment-source" name="comment" rows="3" placeholder="本人からの一言。HTMLタグやウィジェットコードもそのまま反映されます"><?= h($g['comment']) ?></textarea>
-      <div id="comment-preview" class="body-preview" style="display:none;min-height:60px"></div>
+      <div id="comment-preview" class="body-preview" contenteditable="true" spellcheck="false" style="display:none;min-height:60px"></div>
     </div>
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -287,7 +287,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
         </div>
       </div>
       <textarea id="shop_comment-source" name="shop_comment" rows="10" placeholder="お店からの紹介文。HTMLコード（装飾カード等のウィジェット）をそのまま貼り付けられます"><?= h($g['shop_comment']) ?></textarea>
-      <div id="shop_comment-preview" class="body-preview" style="display:none"></div>
+      <div id="shop_comment-preview" class="body-preview" contenteditable="true" spellcheck="false" style="display:none"></div>
     </div>
   </div>
   <script>
@@ -297,14 +297,28 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     document.getElementById('tab-' + key + '-source').classList.toggle('active', mode === 'source');
     document.getElementById('tab-' + key + '-preview').classList.toggle('active', mode === 'preview');
     if (mode === 'preview') {
-      pre.innerHTML = src.value;
+      pre.innerHTML = src.value;            // ソース → プレビュー
       src.style.display = 'none';
       pre.style.display = 'block';
     } else {
+      src.value = pre.innerHTML;            // プレビューでの編集 → ソースへ反映
       src.style.display = 'block';
       pre.style.display = 'none';
     }
   }
+  // プレビュー編集をリアルタイムでソースへ同期 + 送信時に最新反映
+  ['comment', 'shop_comment'].forEach(function (key) {
+    var pre = document.getElementById(key + '-preview');
+    pre.addEventListener('input', function () {
+      document.getElementById(key + '-source').value = pre.innerHTML;
+    });
+  });
+  document.getElementById('comment-source').closest('form').addEventListener('submit', function () {
+    ['comment', 'shop_comment'].forEach(function (key) {
+      var pre = document.getElementById(key + '-preview');
+      if (pre.style.display !== 'none') document.getElementById(key + '-source').value = pre.innerHTML;
+    });
+  });
   </script>
 
   <div class="card card-pad">

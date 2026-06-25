@@ -76,8 +76,8 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
         </div>
       </div>
       <textarea id="body-source" name="body" rows="10"><?= h($n['body']) ?></textarea>
-      <div id="body-preview" class="body-preview" style="display:none"></div>
-      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">HTMLタグでそのまま投稿できます（admi2888の編集HTML・フォント色・画像・リンク等を貼り付け可）。改行は &lt;br&gt; を使ってください。</p>
+      <div id="body-preview" class="body-preview" contenteditable="true" spellcheck="false" style="display:none"></div>
+      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">HTMLタグでそのまま投稿できます（admi2888の編集HTML・フォント色・画像・リンク等を貼り付け可）。改行は &lt;br&gt; を使ってください。<br><strong>プレビュー</strong>タブでは表示を見ながら直接編集でき、変更はソースに自動反映されます。</p>
     </div>
     <script>
     function bodyTab(mode) {
@@ -86,14 +86,24 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
       document.getElementById('tab-source').classList.toggle('active', mode === 'source');
       document.getElementById('tab-preview').classList.toggle('active', mode === 'preview');
       if (mode === 'preview') {
-        pre.innerHTML = src.value;
+        pre.innerHTML = src.value;            // ソース → プレビュー
         src.style.display = 'none';
         pre.style.display = 'block';
       } else {
+        src.value = pre.innerHTML;            // プレビューでの編集 → ソースへ反映
         src.style.display = 'block';
         pre.style.display = 'none';
       }
     }
+    // プレビュー編集をリアルタイムでソース(textarea)へ同期
+    document.getElementById('body-preview').addEventListener('input', function () {
+      document.getElementById('body-source').value = this.innerHTML;
+    });
+    // 送信時、プレビュー表示中なら最新の編集内容を確実に反映
+    document.getElementById('body-source').closest('form').addEventListener('submit', function () {
+      var pre = document.getElementById('body-preview');
+      if (pre.style.display !== 'none') document.getElementById('body-source').value = pre.innerHTML;
+    });
     </script>
     <div class="field">
       <label>サムネイル画像</label>

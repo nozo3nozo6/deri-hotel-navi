@@ -162,6 +162,9 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
   overflow-wrap: break-word;
 }
 .body-preview img { max-width: 100%; height: auto; border-radius: 6px; }
+/* 編集可能プレビュー（contenteditable）: クリックで直接編集、focusで枠を強調 */
+.body-preview[contenteditable="true"] { cursor: text; }
+.body-preview[contenteditable="true"]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {
