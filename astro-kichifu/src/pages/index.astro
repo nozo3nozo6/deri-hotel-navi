@@ -6,7 +6,7 @@ import Fujoho from '../components/Fujoho.astro';
 const title = `${SHOP.name} since${SHOP.since} | ${SHOP.catch} & Go To FANTASY`;
 const desc = `${SHOP.catch}の老舗「${SHOP.name}」。since2009、ハズレなしのすけべな素人娘をあなたのもとへ。`;
 ---
-<Site title={title} description={desc} path="/">
+<Site title={title} description={desc} path="/" gate={true}>
   <main>
 
     <!-- 年齢確認ゲート ===================================================== -->

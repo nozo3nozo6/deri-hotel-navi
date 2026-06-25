@@ -1366,12 +1366,25 @@ body.lb-open { overflow: hidden; }
   background-image:
     linear-gradient(135deg, rgba(255,45,155,.42) 0%, rgba(150,60,220,.46) 55%, rgba(95,45,190,.5) 100%),
     url('/img/indexbg.jpg');
-  background-position: center, center;
-  background-size: cover, cover;
   background-blend-mode: multiply, normal;
+  /* グリッド画像をズーム表示（fixedだとiOSで%がビューポート基準になり効かないためscrollに固定） */
+  background-attachment: scroll, scroll;
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, 640%;
+  background-position: center, center top;
+  /* 上下左右にゆっくりパン（Ken Burns風）。1層目(gradient)はcenter固定、2層目(画像)のみ動かす */
+  animation: hero-pan 48s ease-in-out infinite;
 }
-@media (min-width: 768px) {
-  .hero-bg { background-attachment: fixed, fixed; }
+@keyframes hero-pan {
+  0%   { background-position: center, 0% 0%; }
+  25%  { background-position: center, 100% 0%; }
+  50%  { background-position: center, 100% 100%; }
+  75%  { background-position: center, 0% 100%; }
+  100% { background-position: center, 0% 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* 端末で視差を減らしていてもブランド演出は維持（ゆっくり化） */
+  .hero-bg { animation: hero-pan 90s ease-in-out infinite; }
 }
 .hero-scrim {
   background:

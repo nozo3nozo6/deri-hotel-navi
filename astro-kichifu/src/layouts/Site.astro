@@ -8,9 +8,10 @@ export interface Props {
   description: string;
   path?: string;       // 例: "/girls"
   ogImage?: string;
+  gate?: boolean;      // 年齢確認ゲート(index)はハンバーガー/戻るボタンを出さない
 }
 const SITE = 'https://kichifu.com';
-const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg` } = Astro.props;
+const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, gate = false } = Astro.props;
 const canonical = SITE + path;
 
 // キャッシュバスター: site.css/js の mtime（Cloudflareが1年immutableキャッシュするため必須）
@@ -69,18 +70,22 @@ const jsV = ver('public/site.js');
       <span class="reserve-time">{SHOP.reception}</span>
       <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
     </div>
-    <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
-      <span></span><span></span><span></span>
-    </button>
+    {!gate && (
+      <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
+        <span></span><span></span><span></span>
+      </button>
+    )}
   </div>
 </header>
 <div class="header-spacer" aria-hidden="true"></div>
 
 <slot />
 
-<div class="back-bar">
-  <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
-</div>
+{!gate && (
+  <div class="back-bar">
+    <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
+  </div>
+)}
 <footer class="site-footer">
   <hr class="footer-top-divider" />
   <div class="footer-inner">
@@ -107,8 +112,8 @@ const jsV = ver('public/site.js');
   </div>
 </footer>
 
-<div class="offcanvas-overlay" data-menu-close></div>
-<div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー">
+<div class="offcanvas-overlay" data-menu-close style={gate ? 'display:none' : undefined}></div>
+<div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー" style={gate ? 'display:none' : undefined}>
   <div class="offcanvas-head">
     <a href="/top" class="brand" aria-label={`${SHOP.fullName} トップ`}>
       <span class="brand-script flicker">{SHOP.nameEn}</span>
