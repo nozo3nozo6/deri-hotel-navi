@@ -19,10 +19,21 @@ export type NewsItem = {
   link_girl_id?: number | null; link_url?: string | null;   // サムネのリンク先（detailで使用、girl優先→url→無し）
 };
 
-async function getJson(url: string): Promise<any> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API ${res.status}: ${url}`);
-  return res.json();
+// FPM が一時枯渇すると空レスポンス(200+0byte)を返すことがある→リトライで吸収
+// （CIビルドは girls/[id] を全件並列fetchするため FPM が瞬間的に枯渇しやすい）
+async function getJson(url: string, retries = 4): Promise<any> {
+  for (let i = 0; ; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`API ${res.status}: ${url}`);
+      const text = await res.text();
+      if (!text) throw new Error(`empty response: ${url}`);
+      return JSON.parse(text);
+    } catch (e) {
+      if (i >= retries) throw e;
+      await new Promise((r) => setTimeout(r, 600 * (i + 1)));   // 0.6/1.2/1.8/2.4s バックオフ
+    }
+  }
 }
 
 export async function getGirls(): Promise<Girl[]> {
