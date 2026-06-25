@@ -8,15 +8,19 @@ export interface Props {
   description: string;
   path?: string;       // 例: "/girls"
   ogImage?: string;
+  hideBack?: boolean;
+  gate?: boolean;      // 年齢認証ゲート(index)= ナビ/ハンバーガー/チャットを出さない（認証クリア後に top 以降へ）
 }
-const SITE = 'https://biyobu.com'; // ステージング / 本番化時に 'https://admi2888.com'
-const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg` } = Astro.props;
+const SITE = 'https://admi2888.com'; // 本番。biyobu(ステージング)も canonical はここ(prod)を指す＝SEO正
+const IS_PROD = import.meta.env.PUBLIC_PROD === '1'; // admi2888本番ビルド(deploy-prod-admi2888.sh)時のみ true。biyobuは未設定=noindex/GA無し
+const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, hideBack = false, gate = false } = Astro.props;
 const canonical = SITE + path;
 
 // キャッシュバスター: site.css/js の mtime（Cloudflareが1年immutableキャッシュするため必須）
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
 const cssV = ver('public/site.css');
 const jsV = ver('public/site.js');
+const favV = ver('public/favicon.svg');
 ---
 <!doctype html>
 <html lang="ja">
@@ -26,7 +30,8 @@ const jsV = ver('public/site.js');
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-<meta name="robots" content="noindex, nofollow" /><!-- ステージング。本番化時に index,follow へ -->
+<meta name="robots" content={IS_PROD ? 'index, follow' : 'noindex, nofollow'} />
+<meta name="google-site-verification" content="ndAzGRDjDiq5WpKQxeQH7qhtel-QoPel6DV4FxwOifw" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
@@ -38,10 +43,14 @@ const jsV = ver('public/site.js');
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href={`/site.css?v=${cssV}`} />
-<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<!-- GA はステージングでは無効化（kichifuのGAを汚さない）。本番admi2888.comでは admi専用のGA4測定IDを入れる -->
-<!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
-<script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXX');</script> -->
+<link rel="icon" href={`/favicon.svg?v=${favV}`} type="image/svg+xml" />
+<!-- GA: 本番(admi2888.com)のみ有効。biyobuステージングでは出さない（kichifu/GAを汚さない） -->
+{IS_PROD && (
+<>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-50Q48YG34Z"></script>
+<script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-50Q48YG34Z');</script>
+</>
+)}
 </head>
 <body>
 <header class="site-header">
@@ -54,6 +63,7 @@ const jsV = ver('public/site.js');
         <span class="brand-catch">アドミ since2002</span>
       </span>
     </a>
+    {!gate && (
     <nav class="site-nav">
       <a href="/top">トップ</a>
       <a href="/girls">すけべな女の子達</a>
@@ -61,10 +71,12 @@ const jsV = ver('public/site.js');
       <a href="/system">料金システム</a>
       <a href="/howto">ご利用ガイド</a>
       <a href="/news">お知らせ</a>
+      <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
       <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self">🏨 ホテル検索</a>
       <a href={SHOP.recruitUrl} target="_self">求人情報</a>
       <a href="/contacts">お問合せ</a>
     </nav>
+    )}
     <div class="header-tel">
       <div class="header-reception">受付 {SHOP.reception}</div>
       <a href={`tel:${SHOP.telRaw}`} class="header-tel-num">📞 {SHOP.tel}</a>
@@ -74,18 +86,22 @@ const jsV = ver('public/site.js');
       <span class="reserve-time">{SHOP.reception}</span>
       <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
     </div>
+    {!gate && (
     <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
       <span></span><span></span><span></span>
     </button>
+    )}
   </div>
 </header>
 <div class="header-spacer" aria-hidden="true"></div>
 
 <slot />
 
+{!hideBack && (
 <div class="back-bar">
   <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
 </div>
+)}
 <footer class="site-footer">
   <hr class="footer-top-divider" />
   <div class="footer-inner">
@@ -114,7 +130,10 @@ const jsV = ver('public/site.js');
   </div>
 </footer>
 
+{!gate && (
 <div class="offcanvas-overlay" data-menu-close></div>
+)}
+{!gate && (
 <div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー">
   <div class="offcanvas-head">
     <a href="/top" class="brand" aria-label={`${SHOP.fullName} トップ`}>
@@ -134,6 +153,7 @@ const jsV = ver('public/site.js');
     <a href="/system">料金システム</a>
     <a href="/howto">ご利用ガイド</a>
     <a href="/news">お知らせ</a>
+    <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
     <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self">🏨 ホテル検索</a>
     <a href={SHOP.recruitUrl} target="_self">求人情報</a>
     <a href="/contacts">お問合せ</a>
@@ -143,6 +163,7 @@ const jsV = ver('public/site.js');
     <a href={`tel:${SHOP.telRaw}`} class="offcanvas-tel-link">📞 {SHOP.tel}<br /><span class="text-mute">(受付 {SHOP.reception})</span></a>
   </div>
 </div>
+)}
 
 <div class="modal-overlay" id="reserve-modal" role="dialog" aria-modal="true" aria-label="ご予約" aria-hidden="true">
   <div class="modal-box">
@@ -176,8 +197,10 @@ const jsV = ver('public/site.js');
     </div>
   </div>
 </div>
+{!gate && (
 <a href="https://yobuho.com/chat-sheet.html?slug=0tkzk670" target="_self"
    class="admi-chat-fab" aria-label="チャットで相談">💬</a>
+)}
 <style is:global>
 .admi-chat-fab {
   position: fixed;

@@ -13,6 +13,10 @@ require_once __DIR__ . '/db.php';
 // Web からの直アクセス禁止（cron / CLI 専用）
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit("CLI only\n"); }
 
+// === 取込停止（2026-06-25）: admi2888.com は内製化(NS切替)済 → 外部スクレイプ取込を廃止 ===
+//  出勤は /ctrl の「出勤管理」（両店チェックで一括保存）で管理する。再開時はこの行を削除。
+if (true) { fwrite(STDERR, "admi2888 schedule import STOPPED (NS migrated; manage via /ctrl)\n"); exit(0); }
+
 date_default_timezone_set('Asia/Tokyo');
 
 $DRY     = in_array('--dry-run', $argv, true);

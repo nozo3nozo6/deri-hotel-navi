@@ -644,20 +644,22 @@ body.reserve-open .modal-box {
   border: 1.5px solid rgba(255,79,216,.6);
   background: rgba(255,79,216,.06);
   box-shadow: 0 0 0 1.5px rgba(255,143,214,.45), 0 8px 26px -10px rgba(255,45,155,.6), 0 0 16px rgba(255,79,216,.32);
-  overflow: hidden; /* 全コンテンツを border-radius でクリップ＝上角が四角くならない。glow(box-shadow)は外側なので消えない。アイコンは枠内に収める */
+  overflow: visible; /* 右の属性アイコンをサムネから半分はみ出させるため。写真の角丸は img-wrap 自身の border-radius+overflow:hidden が、下角はフッターの border-radius が担うのでカードを visible にしても角は四角くならない */
   position: relative;
 }
 .girl-card:hover { transform: translateY(-3px); border-color: rgba(255,79,216,.7); }
 
 .girl-card-img-wrap {
+  display: block; /* <a> はインライン既定→block にしないと aspect-ratio/height:100% が効かずレイアウト崩壊 */
   position: relative;
   overflow: hidden;
-  border-radius: 16px 16px 0 0; /* カード上角の丸みを維持（card は overflow:visible のため） */
+  aspect-ratio: 3/4; /* 写真を 3:4 に固定（高さ確定） */
+  border-radius: 16px 16px 0 0; /* カード上角の丸みを維持 */
   transform: translateZ(0); /* 子imgの transition:transform で角丸クリップが外れる(WebKit/Chrome)対策。合成レイヤーを持ち上げ確実にクリップ＝上角が四角くならない */
 }
 .girl-card-img {
   width: 100%;
-  aspect-ratio: 3/4;
+  height: 100%; /* wrap の aspect-ratio で確定した高さを満たす */
   object-fit: cover;
   transition: transform .3s;
 }
@@ -683,20 +685,21 @@ body.reserve-open .modal-box {
 }
 .girl-card-badge.new   { left: 8px; background: var(--neon-pink-hot); }
 .girl-card-badge.trial { right: 8px; background: var(--neon-lav); }
-/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示）。card が overflow:hidden なので枠内に収める */
+/* 一覧カード右上の属性アイコン縦並び（フラグONのみ表示）。サムネ右端から半分(17px)はみ出す＝Y2Kステッカー風 */
 .girl-card-flags {
   position: absolute;
   top: 10px;
-  right: 8px;
+  right: -17px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  z-index: 3;
+  z-index: 5;
 }
 /* フッター（旧・特徴タグの位置）= 公式プロフィール(/girls/{id})リンク。
    白背景＝以前 属性/タグを表示していたデザインに合わせる（サムネは外部URLへ） */
 .girl-card-official {
   display: block;
+  position: relative;     /* 出勤バッジ(.girl-card-shukkin)を上端＝サイズ帯との境目に絶対配置する基準 */
   text-align: center;
   margin: 0;
   padding: 10px 8px;
@@ -711,17 +714,21 @@ body.reserve-open .modal-box {
   transition: background .15s, color .15s;
 }
 .girl-card-official:hover { background: rgba(255,79,216,.07); color: #ff2d9b; }
-.girl-card-official::after { content: " ▶"; font-size: 10px; }
+.girl-card-official::after { content: "♡"; font-size: 11px; }
 .girl-card-flag-icon {
   width: 34px;
   height: 34px;
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
 }
-/* 本日の出勤バッジ（schedule-badge.js が動的付与）名前の上に表示（.girl-card-info の先頭に挿入） */
+/* 本日の出勤バッジ（schedule-badge.js が 公式プロフ footer 先頭に動的付与）。
+   footer 上端＝スリーサイズと公式プロフの境目に中央リボン配置（absolute=カード高さ非影響＝レイアウト不変） */
 .girl-card-shukkin {
-  display: inline-block;
-  margin-bottom: 5px;
+  position: absolute;     /* .girl-card-official(relative) 基準 */
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);   /* footer 上端の境目に中央＝サイズ帯と公式プロフの間 */
+  z-index: 6;             /* 属性アイコン(z5)より上 */
   background: linear-gradient(135deg, #ff4fd8, #ff2d9b);
   color: #fff;
   font-size: 12px;
@@ -803,10 +810,10 @@ body.reserve-open .modal-box {
   letter-spacing: .03em;
 }
 .girl-card-info {
-  position: absolute;
+  position: absolute;      /* 写真の上にぼかしグラデで重ねる。img-wrap が display:block+aspect-ratio で高さ確定済→iOSでも bottom:0 がズレない */
   bottom: 0; left: 0; right: 0;
-  padding: 16px 10px 9px;
-  background: linear-gradient(to top, rgba(255,79,216,.95) 0%, rgba(160,110,235,.86) 50%, rgba(255,143,214,.2) 82%, transparent 100%);
+  padding: 26px 10px 10px; /* 上を厚めに＝名前を少し上へ＋ぼかしフェード領域を確保 */
+  background: linear-gradient(to top, rgba(255,79,216,.96) 0%, rgba(160,110,235,.9) 50%, rgba(255,143,214,.32) 82%, transparent 100%);
 }
 .girl-card-name {
   font-weight: 800;
@@ -816,7 +823,7 @@ body.reserve-open .modal-box {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-shadow: 0 1px 4px rgba(0,0,0,.95), 0 0 10px rgba(255,79,216,.5);
+  text-shadow: 0 1px 2px rgba(0,0,0,1), 0 1px 5px rgba(0,0,0,.9), 0 0 12px rgba(255,79,216,.45);
 }
 .girl-card-age  { font-size: .8125rem; color: #fff; margin-left: 3px; font-weight: 700; opacity: .92; }
 .girl-card-size {
@@ -1303,7 +1310,7 @@ body.lb-open { overflow: hidden; }
 }
 .news-thumb {
   width: 80px;
-  height: 80px;
+  height: 107px;          /* 基本サムネ比率 3:4（旧 正方形 80x80）*/
   flex-shrink: 0;
   border-radius: 12px;
   object-fit: cover;
@@ -1311,7 +1318,7 @@ body.lb-open { overflow: hidden; }
 }
 .news-no-thumb {
   width: 80px;
-  height: 80px;
+  height: 107px;          /* 3:4 */
   flex-shrink: 0;
   border-radius: 12px;
   background: linear-gradient(160deg, var(--bg-2), var(--bg-1));
@@ -1322,8 +1329,8 @@ body.lb-open { overflow: hidden; }
   border: 1px solid rgba(255,255,255,.1);
 }
 @media (min-width: 768px) {
-  .news-thumb   { width: 112px; height: 112px; }
-  .news-no-thumb{ width: 112px; height: 112px; }
+  .news-thumb   { width: 108px; height: 144px; }   /* 3:4 */
+  .news-no-thumb{ width: 108px; height: 144px; }
 }
 .news-meta  { min-width: 0; }
 .news-date  { font-size: .75rem; color: var(--lav-soft); margin-bottom: 4px; }
@@ -1359,12 +1366,14 @@ body.lb-open { overflow: hidden; }
 @media (min-width: 768px) { .news-detail-title { font-size: 1.75rem; } }
 .news-detail-date { font-size: .875rem; color: var(--lav-soft); margin-bottom: 24px; }
 .news-detail-thumb {
-  width: 100%;
-  max-height: 400px;
-  object-fit: cover;
+  display: block;
+  max-width: 100%;
+  max-height: 560px;       /* 縦長写真でも大きすぎない（PC）。横長は幅100%まで */
+  width: auto;
+  height: auto;            /* 実画像の比率を保つ＝縦長/横長どちらも歪まず切り抜かれない */
+  margin: 0 auto 32px;     /* 中央寄せ */
   border-radius: 16px;
   border: 1px solid rgba(255,79,216,.25);
-  margin-bottom: 32px;
 }
 .prose-neon {
   color: var(--text-soft);
@@ -1379,8 +1388,8 @@ body.lb-open { overflow: hidden; }
   background-image:
     linear-gradient(135deg, rgba(255,45,155,.42) 0%, rgba(150,60,220,.46) 55%, rgba(138,15,77,.5) 100%),
     url('/img/indexbg.jpg');
-  background-position: center, center;
-  background-size: cover, cover;
+  background-position: center, center top;
+  background-size: cover, 200%;
   background-blend-mode: multiply, normal;
 }
 @media (min-width: 768px) {
@@ -1737,6 +1746,9 @@ body.lb-open { overflow: hidden; }
 .price-row-course { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .price-row-time { font-size: 1.0625rem; font-weight: 700; color: #fff; }
 .price-row-cond { font-size: .8125rem; color: var(--text-mute); line-height: 1.5; }
+/* モバイルのみ改行（PCは1行）。例: お泊り「0時〜翌10時」/「（最大10時間）」 */
+.sp-br { display: none; }
+@media (max-width: 640px) { .sp-br { display: inline; } }
 .price-row-amount {
   display: flex;
   flex-direction: column;
@@ -2359,6 +2371,23 @@ body { background-color: var(--bg-0); color: var(--text); }
     linear-gradient(135deg, rgba(255,255,255,.5) 0%, rgba(253,230,248,.4) 55%, rgba(253,242,248,.5) 100%),
     url('/img/indexbg.jpg');
   background-blend-mode: lighten, normal;
+  /* グリッド画像をズーム表示（fixed だと iOS で%がビューポート基準になり効かないため scroll に固定） */
+  background-attachment: scroll, scroll;
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, 640%;
+  background-position: center, center top;
+  /* 上下左右にゆっくりパン（Ken Burns 風）。1層目(gradient)は center 固定、2層目(画像)のみ動かす */
+  animation: hero-pan 48s ease-in-out infinite;
+}
+@keyframes hero-pan {
+  0%   { background-position: center, 0% 0%; }
+  25%  { background-position: center, 100% 0%; }
+  50%  { background-position: center, 100% 100%; }
+  75%  { background-position: center, 0% 100%; }
+  100% { background-position: center, 0% 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg { animation: hero-pan 90s ease-in-out infinite; } /* 端末で視差を減らしていてもブランド演出は維持（ゆっくり化） */
 }
 .hero-scrim {
   background:
@@ -2666,7 +2695,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(244,114,182,.8), 0 0 0 5px rgba(168,85,247,.2), 0 10px 28px -8px rgba(244,114,182,.7);
 }
 .girl-card:nth-child(6n+1) .girl-card-info {
-  background: linear-gradient(to top, rgba(244,114,182,.98) 0%, rgba(168,85,247,.85) 38%, rgba(96,165,250,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(244,114,182,.98) 0%, rgba(168,85,247,.88) 42%, rgba(168,85,247,.45) 76%, transparent 100%);
 }
 
 /* ② パープル */
@@ -2678,7 +2707,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(168,85,247,.85), 0 0 0 5px rgba(96,165,250,.25), 0 10px 28px -8px rgba(168,85,247,.7);
 }
 .girl-card:nth-child(6n+2) .girl-card-info {
-  background: linear-gradient(to top, rgba(168,85,247,.98) 0%, rgba(96,165,250,.85) 38%, rgba(52,211,153,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(168,85,247,.98) 0%, rgba(96,165,250,.88) 42%, rgba(96,165,250,.45) 76%, transparent 100%);
 }
 
 /* ③ ブルー */
@@ -2690,7 +2719,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(96,165,250,.85), 0 0 0 5px rgba(34,211,238,.25), 0 10px 28px -8px rgba(96,165,250,.7);
 }
 .girl-card:nth-child(6n+3) .girl-card-info {
-  background: linear-gradient(to top, rgba(96,165,250,.98) 0%, rgba(34,211,238,.85) 38%, rgba(168,85,247,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(96,165,250,.98) 0%, rgba(34,211,238,.88) 42%, rgba(34,211,238,.45) 76%, transparent 100%);
 }
 
 /* ④ シアン→ミント */
@@ -2702,7 +2731,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(34,211,238,.85), 0 0 0 5px rgba(52,211,153,.25), 0 10px 28px -8px rgba(34,211,238,.65);
 }
 .girl-card:nth-child(6n+4) .girl-card-info {
-  background: linear-gradient(to top, rgba(34,211,238,.98) 0%, rgba(52,211,153,.85) 38%, rgba(251,191,36,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(34,211,238,.98) 0%, rgba(52,211,153,.88) 42%, rgba(52,211,153,.45) 76%, transparent 100%);
 }
 
 /* ⑤ ミント→イエロー */
@@ -2714,7 +2743,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(52,211,153,.85), 0 0 0 5px rgba(251,191,36,.25), 0 10px 28px -8px rgba(52,211,153,.65);
 }
 .girl-card:nth-child(6n+5) .girl-card-info {
-  background: linear-gradient(to top, rgba(52,211,153,.98) 0%, rgba(251,191,36,.7) 38%, rgba(251,113,133,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(52,211,153,.98) 0%, rgba(251,191,36,.78) 42%, rgba(251,191,36,.45) 76%, transparent 100%);
 }
 
 /* ⑥ コーラル→ピンク */
@@ -2726,7 +2755,7 @@ body {
   box-shadow: 0 0 0 2.5px rgba(251,113,133,.85), 0 0 0 5px rgba(244,114,182,.25), 0 10px 28px -8px rgba(251,113,133,.65);
 }
 .girl-card:nth-child(6n) .girl-card-info {
-  background: linear-gradient(to top, rgba(251,113,133,.98) 0%, rgba(244,114,182,.85) 38%, rgba(168,85,247,.18) 65%, transparent 100%);
+  background: linear-gradient(to top, rgba(251,113,133,.98) 0%, rgba(244,114,182,.88) 42%, rgba(244,114,182,.45) 76%, transparent 100%);
 }
 
 /* 名前サイズ帯の文字は常に白+影 */
@@ -2905,9 +2934,10 @@ body {
   .news-item { animation: none; }
   .news-item::before { animation: none; }
   /* ロゴの虹色グラデは色相シフト(移動なし=酔わない)＝ブランド装飾の限定例外として reduce-motion でも維持。
-     PC(reduce-motion OFF)と同じ虹色アニメをスマホでも出す。.flicker の neon-flicker 強制(specificity 0,2,0 で上書き)も外す。 */
+     虹色は ::after に移したので ::after を維持。本体ソリッドは静止でOK（消えない保険） */
+  .brand-script::after { animation: logo-rainbow 2.8s linear infinite !important; }
   .brand-script,
-  .brand-script.flicker { animation: logo-rainbow 2.8s linear infinite !important; }
+  .brand-script.flicker { animation: none !important; }
 }
 
 /* ===========================================================================
@@ -2917,7 +2947,24 @@ body {
   from { background-position: 0% center; }
   to   { background-position: 300% center; }
 }
+/* 本体＝ソリッドピンク（常時可視のフォールバック）。虹色は ::after で上に重ねてアニメさせる。
+   こうすると虹色が iOS 再描画で落ちても、下のソリッドが必ず見える＝ロゴが消えない＋通常は虹色が動く */
 .brand-script {
+  display: inline-block;
+  position: relative;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #ff2d9b;
+  -webkit-text-fill-color: #ff2d9b;
+  text-shadow: 0 0 7px rgba(255,79,216,.55), 0 0 18px rgba(168,85,247,.4);
+  animation: none;          /* 本体は静止ソリッド。動くのは上の ::after 虹色 */
+}
+.brand-script::after {
+  content: "Admi";          /* SHOP.nameEn 固定。本体と完全重ねの虹色レイヤー */
+  position: absolute;
+  left: 0; top: 0;
+  pointer-events: none;
   background: linear-gradient(100deg,
     #ff4fd8 0%, #a855f7 18%, #60a5fa 35%,
     #34d399 50%, #fbbf24 65%, #fb7185 82%, #ff4fd8 100%);
@@ -2925,12 +2972,14 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   text-shadow: none;
-  filter:
-    drop-shadow(0 0 6px rgba(255,79,216,.95))
-    drop-shadow(0 0 18px rgba(168,85,247,.65));
-  animation: logo-rainbow 2.8s linear infinite;
+  will-change: background-position;   /* iOSがアニメ用に安定レイヤーを保持＝重いページでも止まりにくい */
+  animation: logo-rainbow 2.8s linear infinite;   /* 虹色が流れる（reduce-motionでも維持） */
 }
+/* オフキャンバス(メニュー)は閉時 translateX(100%) で画面外に残り、隠れたロゴの虹アニメが回り続けて
+   iOSの合成負荷を上げ、表示中のヘッダーロゴのアニメを止めていた → 隠れロゴのアニメは止める（虹色は静止表示で維持） */
+.offcanvas .brand-script::after { animation: none; will-change: auto; }
 
 /* ===========================================================================
    ▼▼▼ ニュースカード：左線と同色の枠線

@@ -177,6 +177,8 @@ CREATE TABLE IF NOT EXISTS news (
   thumb      VARCHAR(255) NOT NULL DEFAULT '',
   posted_at  DATETIME NULL,
   is_display TINYINT(1) NOT NULL DEFAULT 1,
+  link_girl_id BIGINT UNSIGNED NULL,   -- サムネのリンク先（優先）。/girls/{id} へ。共有プールのため shop 跨ぎでも同一id有効
+  link_url   VARCHAR(500) NULL,         -- girl 未指定時のリンク先URL。両方未指定ならサムネはリンク無し
   sort       INT NOT NULL DEFAULT 0,
   created    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   modified   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

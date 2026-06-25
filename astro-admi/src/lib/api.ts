@@ -16,6 +16,7 @@ export type Girl = {
 
 export type NewsItem = {
   id: number; title: string; thumb: string | null; body: string; posted_at: string;
+  link_girl_id?: number | null; link_url?: string | null;   // サムネのリンク先（detailで使用、girl優先→url→無し）
 };
 
 async function getJson(url: string): Promise<any> {

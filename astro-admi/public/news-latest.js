@@ -25,7 +25,7 @@
         var plain = (it.body || '').replace(/<[^>]*>/g, '');
         var excerpt = plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
         var thumb = it.thumb
-          ? '<img src="' + ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb + '" alt="" width="80" height="80" loading="lazy" class="news-thumb">'
+          ? '<img src="' + ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb + '" alt="" width="80" height="107" loading="lazy" class="news-thumb">'
           : '<div class="news-no-thumb">📢</div>';
         return '<a href="/news/' + encodeURIComponent(it.id) + '" class="news-item">' + thumb +
           '<div class="news-meta"><p class="news-date">' + esc(date) + '</p>' +
