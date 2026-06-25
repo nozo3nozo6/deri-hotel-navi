@@ -30,9 +30,10 @@ rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.
 echo "▶ rsync ctrl/（共有CMS・kichifu と同一コード・DB shop_id で店舗分離）"
 rsync -avz -e "$SSH" ctrl/ "$DEST/ctrl/"
 
-echo "▶ db-config.php（共有DB設定を kichifu からコピー）"
-$SSH "$HOSTSSH" 'f='"$ROOT"'/api/db-config.php; \
-  [ -f "$f" ] || cp /home/yobuho/kichifu.com/public_html/api/db-config.php "$f"; ls -l "$f"'
+echo "▶ db-config.php（共有DB設定を kichifu から【常に】コピー＝同一DB強制）"
+# 旧仕様は [ -f ] || cp（既存があればスキップ）だったが、それだとセットアップ時の別DB設定が残り
+# admi2888 が kichifu と別DBを参照する事故が起きた（掲載状態がサイトごとに分岐）。常にコピーで統一。
+$SSH "$HOSTSSH" 'cp /home/yobuho/kichifu.com/public_html/api/db-config.php '"$ROOT"'/api/db-config.php; ls -l '"$ROOT"'/api/db-config.php'
 
 echo "▶ .htaccess の noindex(X-Robots-Tag) を本番用に除去"
 $SSH "$HOSTSSH" 'sed -i "/X-Robots-Tag .*noindex/d" '"$ROOT"'/.htaccess; echo "残 X-Robots-Tag: $(grep -c X-Robots-Tag '"$ROOT"'/.htaccess || true)"'

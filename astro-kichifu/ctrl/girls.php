@@ -22,17 +22,27 @@ $cnt = db()->prepare("SELECT COUNT(*) FROM girls g WHERE $wsql");
 $cnt->execute($args);
 $total = (int)$cnt->fetchColumn();
 
-// girl_shops LEFT JOIN で現店舗の掲載状態を取得
+// 全女性を取得（掲載状態は girl_shops から後で一括マップ化）
 $sql = "SELECT g.*, gc.name AS cat_name,
-          (SELECT path FROM girl_images gi WHERE gi.girl_id=g.id ORDER BY gi.sort, gi.id LIMIT 1) AS thumb,
-          (gs.girl_id IS NOT NULL) AS in_this_shop
+          (SELECT path FROM girl_images gi WHERE gi.girl_id=g.id ORDER BY gi.sort, gi.id LIMIT 1) AS thumb
         FROM girls g
         LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
-        LEFT JOIN girl_shops gs ON gs.girl_id = g.id AND gs.shop_id = $shop
         WHERE $wsql ORDER BY g.sort, g.id DESC LIMIT $per OFFSET " . (($page - 1) * $per);
 $st = db()->prepare($sql);
 $st->execute($args);
 $rows = $st->fetchAll();
+
+// 掲載状態マップ [girl_id][shop_id]=1 を一括取得（owner=店舗別トグル / staff=自店のみ）
+$shopsAll     = shops_list();          // id, slug, name, area（admi=1 / kichifu=2 …）
+$canManageAll = !$admin['shop_id'];    // 全店 owner は店舗別トグル、staff は自店1トグル
+$shopMap = [];
+if ($rows) {
+    $ids = array_column($rows, 'id');
+    $ph  = implode(',', array_fill(0, count($ids), '?'));
+    $gsq = db()->prepare("SELECT girl_id, shop_id FROM girl_shops WHERE girl_id IN ($ph)");
+    $gsq->execute($ids);
+    foreach ($gsq->fetchAll() as $r) $shopMap[(int)$r['girl_id']][(int)$r['shop_id']] = 1;
+}
 
 $baseQ = 'cat=' . $cat . '&q=' . urlencode($q) . '&';
 $flagMap = [['is_newgirl','新'],['is_trial','待'],['is_tel','電'],['is_inbound','訪'],['is_genderless','G']];
@@ -67,7 +77,7 @@ layout_header('女性一覧', 'girls.php');
     <thead>
       <tr>
         <th style="width:34px"></th><th>画像</th><th>名前(年齢)</th><th>スリーサイズ</th>
-        <th>カテゴリ</th><th>属性</th><th>入店日</th><th>当店掲載</th><th style="width:60px">操作</th>
+        <th>カテゴリ</th><th>属性</th><th>入店日</th><th><?= $canManageAll ? '掲載（店舗別）' : '当店掲載' ?></th><th style="width:60px">操作</th>
       </tr>
     </thead>
     <tbody id="girlRows">
@@ -82,7 +92,21 @@ layout_header('女性一覧', 'girls.php');
             <?php foreach ($flagMap as [$f, $lbl]) if ((int)$g[$f]) echo '<span class="badge badge-new" style="margin:1px">' . $lbl . '</span>'; ?>
           </td>
           <td class="muted"><?= h($g['in_date'] ?? '—') ?></td>
-          <td><button type="button" class="toggle <?= (int)$g['in_this_shop'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$g['id'] ?>" aria-label="当店掲載切替"></button></td>
+          <td>
+            <?php if ($canManageAll): // owner=店舗別トグル ?>
+              <div class="shop-toggles">
+                <?php foreach ($shopsAll as $s): $sid = (int)$s['id']; $on = !empty($shopMap[$g['id']][$sid]); ?>
+                  <span class="shop-toggle">
+                    <span class="shop-toggle-label"><?= h($s['area'] ?: $s['name']) ?></span>
+                    <button type="button" class="toggle <?= $on ? 'on' : '' ?>" data-toggle-id="<?= (int)$g['id'] ?>" data-shop="<?= $sid ?>" aria-label="<?= h($s['area'] ?: $s['name']) ?>掲載切替"></button>
+                  </span>
+                <?php endforeach; ?>
+              </div>
+            <?php else: // staff=自店1トグル ?>
+              <?php $on = !empty($shopMap[$g['id']][$shop]); ?>
+              <button type="button" class="toggle <?= $on ? 'on' : '' ?>" data-toggle-id="<?= (int)$g['id'] ?>" data-shop="<?= $shop ?>" aria-label="当店掲載切替"></button>
+            <?php endif; ?>
+          </td>
           <td>
             <div class="rowmenu">
               <button class="rowmenu-btn" type="button">⋯</button>
@@ -108,9 +132,9 @@ async function act(data) {
   const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
   return r.json();
 }
-// 表示トグル
+// 掲載トグル（data-shop で店舗別に girl_shops 行を追加/削除）
 document.querySelectorAll('[data-toggle-id]').forEach(b => b.addEventListener('click', async () => {
-  const j = await act({ action: 'toggle', id: b.dataset.toggleId });
+  const j = await act({ action: 'toggle', id: b.dataset.toggleId, shop: b.dataset.shop || '' });
   if (j.ok) b.classList.toggle('on', j.value === 1);
 }));
 // 削除

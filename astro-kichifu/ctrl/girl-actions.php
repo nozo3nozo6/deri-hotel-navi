@@ -29,13 +29,25 @@ try {
             // is_display 廃止 → girl_shops の当該店舗行を追加/削除でトグル
             $id = (int)($_POST['id'] ?? 0);
             if (!own_girl($id)) throw new RuntimeException('not found');
+            // 対象店舗: owner は POST shop で任意指定可、staff は自店固定（越境防止）
+            $target = isset($_POST['shop']) && $_POST['shop'] !== '' ? (int)$_POST['shop'] : $shop;
+            if ($admin['shop_id'] && $target !== (int)$admin['shop_id']) {
+                http_response_code(403);
+                echo json_encode(['ok' => false, 'error' => 'forbidden shop']);
+                break;
+            }
+            // 指定店舗が実在するか（不正IDの行作成を防ぐ）
+            $okShop = db()->prepare('SELECT 1 FROM shops WHERE id=?');
+            $okShop->execute([$target]);
+            if (!$okShop->fetchColumn()) throw new RuntimeException('bad shop');
+
             $exists = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
-            $exists->execute([$id, $shop]);
+            $exists->execute([$id, $target]);
             if ($exists->fetchColumn()) {
-                db()->prepare('DELETE FROM girl_shops WHERE girl_id=? AND shop_id=?')->execute([$id, $shop]);
+                db()->prepare('DELETE FROM girl_shops WHERE girl_id=? AND shop_id=?')->execute([$id, $target]);
                 $val = 0;
             } else {
-                db()->prepare('INSERT IGNORE INTO girl_shops (girl_id, shop_id) VALUES (?,?)')->execute([$id, $shop]);
+                db()->prepare('INSERT IGNORE INTO girl_shops (girl_id, shop_id) VALUES (?,?)')->execute([$id, $target]);
                 $val = 1;
             }
             echo json_encode(['ok' => true, 'value' => $val]);

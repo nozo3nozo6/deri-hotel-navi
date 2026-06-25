@@ -145,6 +145,11 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .login-card .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
 .field-hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 
+/* ---------- 店舗別掲載トグル（女性一覧・owner用）---------- */
+.shop-toggles { display: flex; flex-direction: column; gap: 4px; }
+.shop-toggle { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.shop-toggle-label { font-size: 12px; color: var(--muted); min-width: 48px; }
+
 /* ---------- body preview ---------- */
 .body-preview {
   min-height: 200px;
