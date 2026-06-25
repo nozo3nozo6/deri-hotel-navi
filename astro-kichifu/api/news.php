@@ -44,7 +44,7 @@ try {
         $st = DB::conn()->prepare(
             'SELECT id, title, thumb, body, posted_at
                FROM news
-              WHERE shop_id = ? AND is_display = 1
+              WHERE shop_id = ? AND is_display = 1 AND posted_at <= NOW()
               ORDER BY posted_at DESC, id DESC
               LIMIT ' . $limit
         );

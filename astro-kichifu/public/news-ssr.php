@@ -14,7 +14,7 @@ if (!$id) { header('Location: /news'); exit; }
 
 try {
     $st = DB::conn()->prepare(
-        'SELECT * FROM news WHERE id = ? AND shop_id = ? AND is_display = 1'
+        'SELECT * FROM news WHERE id = ? AND shop_id = ? AND is_display = 1 AND posted_at <= NOW()'
     );
     $st->execute([$id, $shop_id]);
     $it = $st->fetch(PDO::FETCH_ASSOC);
