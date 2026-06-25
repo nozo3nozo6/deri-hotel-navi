@@ -43,6 +43,7 @@ const gvV = ver('public/girl-visibility.js');
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-50Q48YG34Z"></script>
 <script is:inline>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-50Q48YG34Z');</script>
+<script is:inline define:vars={{ shopId: SHOP_ID }}>window.__SHOP_ID = shopId;</script>
 </head>
 <body>
 <header class="site-header">
@@ -169,7 +170,6 @@ const gvV = ver('public/girl-visibility.js');
   </div>
 </div>
 <script is:inline src={`/site.js?v=${jsV}`}></script>
-<script is:inline define:vars={{ shopId: SHOP_ID }}>window.__SHOP_ID = shopId;</script>
 <script is:inline src={`/girl-visibility.js?v=${gvV}`}></script>
 </body>
 </html>
