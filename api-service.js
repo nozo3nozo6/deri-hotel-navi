@@ -167,6 +167,26 @@ function renderShopServiceAreaTags() {
     const anchor = document.getElementById('genre-hero') || header;
     // 「地域を選択」と同じカード形式 (.area-grid > .area-btn.has-children) で描画する.
     // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
+    // ラベルの「見た目幅」を概算する (全角=1.0, ・=0.6, ★=1.0, 半角空白=0.3).
+    // → これを基にカードごとにフォントサイズを段階的に縮小し、長いラベルでも1行に収め
+    //   全カードのラベル箱の高さを揃える (改行による高さのばらつきを解消).
+    const effLen = (s) => {
+        let n = 0;
+        for (const ch of s) {
+            if (ch === '・') n += 0.6;
+            else if (ch === ' ' || ch === '　') n += 0.3;
+            else n += 1;
+        }
+        return n;
+    };
+    const fontSizeFor = (s) => {
+        const n = effLen(s);
+        if (n <= 5)   return '0.8rem';
+        if (n <= 6.5) return '0.72rem';
+        if (n <= 8)   return '0.62rem';
+        if (n <= 9.5) return '0.55rem';
+        return '0.5rem';
+    };
     const cards = areas.map(a => {
         const isP = a.is_primary;
         const star = isP ? '★ ' : '';
@@ -177,11 +197,14 @@ function renderShopServiceAreaTags() {
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
+        // 1行に収めるための共通スタイル: 改行禁止 + ラベル長に応じたフォントサイズ.
+        const fs = fontSizeFor(star + (a.label || a.city || a.detail || a.area || a.pref || ''));
+        const baseStyle = `white-space:nowrap;font-size:${fs};`;
         // メイン(★)はゴールド系で強調、それ以外は通常の area-btn カードをそのまま使う.
         const primaryStyle = isP
-            ? ' style="background:linear-gradient(135deg,#fff5d8,#ffe9b8);border-color:#d9a85a;color:#7a5320;font-weight:700;"'
+            ? 'background:linear-gradient(135deg,#fff5d8,#ffe9b8);border-color:#d9a85a;color:#7a5320;font-weight:700;'
             : '';
-        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs}${primaryStyle}>${star}${label}</button>`;
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="${baseStyle}${primaryStyle}">${star}${label}</button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
