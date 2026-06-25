@@ -28,7 +28,7 @@
     var href = isD ? '/diary/' + encodeURIComponent(it.id) : '/news/' + encodeURIComponent(it.id);
     var imgUrl = it.thumb ? (isD ? it.thumb : ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb) : '';
     var thumb = imgUrl
-      ? '<img src="' + imgUrl + '" alt="" width="80" height="80" loading="lazy" class="news-thumb">'
+      ? '<img src="' + imgUrl + '" alt="" width="80" height="107" loading="lazy" class="news-thumb">'
       : '<div class="news-no-thumb">📢</div>';
     var badge = isD ? '<span class="news-diary-badge">写メ日記</span>' : '';
     return '<a href="' + href + '" target="_self" class="news-item">' + thumb +
