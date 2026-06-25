@@ -26,6 +26,19 @@ try {
 
         echo DB::jsonEncode(['item' => $item]);
 
+    } elseif ($action === 'diaries') {
+        // 写メ日記（fujoho 取込）。最新情報に混ぜる用。girl_id があればフロントでプロフURL優先
+        $limit = min((int)($_GET['limit'] ?? 20), 50);
+        $st = DB::conn()->prepare(
+            'SELECT id, source_id, girl_id, girl_name, title, body, image, link_url, posted_at
+               FROM girl_diaries
+              WHERE shop_id = ? AND is_display = 1
+              ORDER BY posted_at DESC, id DESC
+              LIMIT ' . $limit
+        );
+        $st->execute([$shop_id]);
+        echo DB::jsonEncode(['diaries' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+
     } else {
         $limit = min((int)($_GET['limit'] ?? 100), 100);
         $st = DB::conn()->prepare(

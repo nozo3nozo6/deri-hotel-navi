@@ -52,6 +52,19 @@ export async function getNewsItem(id: number): Promise<NewsItem | null> {
   return d.item ?? null;
 }
 
+export type Diary = {
+  id: number; girl_id: number | null; girl_name: string | null;
+  title: string; body: string; image: string; link_url: string | null; posted_at: string;
+};
+
+// 写メ日記（fujoho 取込）。最新情報に混ぜる用。失敗時は空でビルド継続
+export async function getDiaries(limit = 20): Promise<Diary[]> {
+  try {
+    const d = await getJson(`${API_BASE}/news.php?action=diaries&shop_id=${SHOP_ID}&limit=${limit}`);
+    return d.diaries ?? [];
+  } catch { return []; }
+}
+
 export type Banner = { title: string; url: string; image: string };
 
 export async function getBanners(type: 'top' | 'bottom' = 'top'): Promise<Banner[]> {

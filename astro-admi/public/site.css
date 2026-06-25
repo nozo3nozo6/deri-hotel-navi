@@ -3117,3 +3117,6 @@ body {
   }
   .section-topper-stars { animation: topper-twinkle 3.2s ease-in-out infinite !important; }
 }
+
+/* 最新情報の写メ日記バッジ */
+.news-diary-badge { display: inline-block; margin-left: 8px; padding: 1px 9px; border-radius: 9999px; font-size: .6875rem; font-weight: 700; background: linear-gradient(135deg, #ff4fd8, #b78fff); color: #fff; vertical-align: middle; }
