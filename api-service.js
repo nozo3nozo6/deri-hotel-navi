@@ -167,12 +167,31 @@ function renderShopServiceAreaTags() {
     const anchor = document.getElementById('genre-hero') || header;
     // 「地域を選択」と同じカード形式 (.area-grid > .area-btn.has-children) で描画する.
     // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
-    // フォントサイズは全カード共通 (.area-btn の 0.8rem を継承). 長いラベルは改行で対応する.
-    //   → 1行に押し込むためのフォント縮小をやめ、どのカードも同じ文字サイズに統一.
-    //   → 改行で行数が変わると箱の高さがバラつくため、描画後に
-    //     equalizeShopAreaCards() が全カードを最も高いカードへ高さ統一する.
+    // フォントサイズは「文字数が多いラベルほど少し小さく」して見た目のバランスを取る.
+    //   → 文字数の少ないエリア(立川市/相模)は大きめ、多いエリア(新宿・中野・荻窪・四谷)は小さめ.
+    //   → 縮小は緩やか(可読性優先)。長い場合は改行も併用する.
+    //   → 行数差で箱の高さがバラつくため、描画後に equalizeShopAreaCards() で高さ統一する.
+    // ラベルの「見た目の長さ」を概算 (全角=1.0, ・=0.6, 半角空白=0.3).
+    const effLen = (s) => {
+        let n = 0;
+        for (const ch of s) {
+            if (ch === '・') n += 0.6;
+            else if (ch === ' ' || ch === '　') n += 0.3;
+            else n += 1;
+        }
+        return n;
+    };
+    const fontSizeFor = (s) => {
+        const n = effLen(s);
+        if (n <= 4)  return '0.82rem';
+        if (n <= 6)  return '0.74rem';
+        if (n <= 8)  return '0.68rem';
+        if (n <= 10) return '0.62rem';
+        return '0.56rem';
+    };
     const cards = areas.map(a => {
-        const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
+        const raw = a.label || a.city || a.detail || a.area || a.pref || '';
+        const label = esc(raw);
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
             a.area   ? `data-area="${esc(a.area)}"`     : '',
@@ -183,7 +202,8 @@ function renderShopServiceAreaTags() {
         // → メインエリアを目立たせると「ここ以外はおすすめでない」と誤解されるため、
         //   どのエリアも等しく案内可能であることを示す均一デザインにする.
         // 右側に矢印「›」専用の余白(padding-right)を確保 → 改行時も文字が矢印に重ならない.
-        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;">${label}</button>`;
+        const fs = fontSizeFor(raw);
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;font-size:${fs};">${label}</button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
