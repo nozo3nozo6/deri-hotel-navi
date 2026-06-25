@@ -62,11 +62,18 @@ foreach ($pdo->query('SELECT id, name FROM girls')->fetchAll(PDO::FETCH_ASSOC) a
     if (!isset($nameToId[$r['name']])) $nameToId[$r['name']] = (int)$r['id'];
 }
 
+// 既存の取込済み source_id（新規判定用）。新規のみ個別ページから正確な掲載時刻を取得する
+$existingIds = [];
+foreach ($pdo->query("SELECT DISTINCT source_id FROM girl_diaries WHERE source = 'fujoho'")->fetchAll(PDO::FETCH_COLUMN) as $sidv) {
+    $existingIds[(string)$sidv] = 1;
+}
+
 $up = $pdo->prepare(
     'INSERT INTO girl_diaries (shop_id, source, source_id, girl_id, girl_name, title, body, image, link_url, posted_at, is_display)
      VALUES (:shop, \'fujoho\', :sid, :gid, :gname, :title, :body, :image, :link, :posted, 1)
      ON DUPLICATE KEY UPDATE girl_id=VALUES(girl_id), girl_name=VALUES(girl_name), title=VALUES(title),
-       body=VALUES(body), image=VALUES(image), link_url=VALUES(link_url), posted_at=VALUES(posted_at), modified=NOW()'
+       body=VALUES(body), image=VALUES(image), link_url=VALUES(link_url), modified=NOW()'
+     /* posted_at は初回取込の掲載時刻(相対表記からの逆算)で固定。30分cronでの再計算による揺れを防ぐ */
 );
 
 $sum = ['parsed' => 0, 'upserted' => 0, 'matched' => 0, 'unmatched' => []];
@@ -97,8 +104,20 @@ for ($p = 1; $p <= $PAGES; $p++) {
         $bodyN = cls_node($xp, $box, 'shop_contents_main_blog_post_text');
         $body  = $bodyN ? trim(preg_replace('/\s+/u', ' ', $bodyN->textContent)) : '';
 
-        $timeN = cls_node($xp, $box, 'shop_contents_main_blog_img_time');
-        $posted = parse_diary_time($timeN ? $timeN->textContent : '');
+        $link = "https://fujoho.jp/index.php?p=shop_girl_blog&id=$sid&shopId=$FUJOHO_SHOP&girlId=$girlId";
+        // 掲載時刻: 新規は個別ページの絶対時刻(YYYY/MM/DD HH:MM)を採用。既存は再取得しない(posted_at固定)
+        $posted = null;
+        if (!isset($existingIds[(string)$sid])) {
+            $detail = fetchHtml($link);
+            if ($detail !== null && preg_match('#(20\d\d)/(\d{1,2})/(\d{1,2})\s+(\d{1,2}):(\d{2})#', $detail, $dm)) {
+                $posted = sprintf('%04d-%02d-%02d %02d:%02d:00', (int)$dm[1], (int)$dm[2], (int)$dm[3], (int)$dm[4], (int)$dm[5]);
+            }
+            usleep(500000); // 個別ページアクセスの礼儀待ち
+        }
+        if (!$posted) {  // 既存 or 絶対時刻取得失敗 → 相対表記からの逆算でフォールバック
+            $timeN = cls_node($xp, $box, 'shop_contents_main_blog_img_time');
+            $posted = parse_diary_time($timeN ? $timeN->textContent : '');
+        }
 
         $nameN = cls_node($xp, $box, 'shop_contents_main_blog_profile_name');
         // _profile_name は名前＋年齢。最初のテキストノード＝名前
@@ -117,7 +136,6 @@ for ($p = 1; $p <= $PAGES; $p++) {
 
         $gid  = $nameToId[$name] ?? null;
         if ($gid) $sum['matched']++; else if ($name !== '') $sum['unmatched'][$name] = true;
-        $link = "https://fujoho.jp/index.php?p=shop_girl_blog&id=$sid&shopId=$FUJOHO_SHOP&girlId=$girlId";
 
         if (!$DRY) {
             foreach ($SHOP_IDS as $shop) {
