@@ -50,10 +50,10 @@ layout_header($id ? 'スライダーを編集' : 'スライダーを作成', 'sl
     <div class="field"><label>リンクURL</label><input type="text" name="url" value="<?= h($s['url']) ?>" placeholder="/girls/123 や https://..."></div>
     <div class="row2">
       <div class="field"><label>PC画像（横長）</label>
-        <?php if ($s['image_pc']): ?><div style="margin-bottom:8px"><img src="<?= h($s['image_pc']) ?>" style="max-width:100%;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_pc"> 削除</label></div><?php endif; ?>
+        <?php if ($s['image_pc']): ?><div style="margin-bottom:8px"><img src="<?= h(asset_url($s['image_pc'])) ?>" style="max-width:100%;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_pc"> 削除</label></div><?php endif; ?>
         <input type="file" name="image_pc" accept="image/*"></div>
       <div class="field"><label>スマホ画像（縦長）</label>
-        <?php if ($s['image_sp']): ?><div style="margin-bottom:8px"><img src="<?= h($s['image_sp']) ?>" style="max-width:120px;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_sp"> 削除</label></div><?php endif; ?>
+        <?php if ($s['image_sp']): ?><div style="margin-bottom:8px"><img src="<?= h(asset_url($s['image_sp'])) ?>" style="max-width:120px;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_sp"> 削除</label></div><?php endif; ?>
         <input type="file" name="image_sp" accept="image/*"></div>
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$s['is_display'] ? 'checked' : '' ?>> サイトに表示</label>

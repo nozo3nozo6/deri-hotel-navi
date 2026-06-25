@@ -74,7 +74,7 @@ layout_header('女性一覧', 'girls.php');
       <?php foreach ($rows as $g): ?>
         <tr draggable="true" data-id="<?= (int)$g['id'] ?>">
           <td style="cursor:grab;color:#bbb">⠿</td>
-          <td><img class="thumb" src="<?= h($g['thumb'] ?: '/img/placeholder.svg') ?>" alt=""></td>
+          <td><img class="thumb" src="<?= h(asset_url($g['thumb'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
           <td><strong><?= h($g['name']) ?></strong> <span class="muted">(<?= (int)$g['age'] ?>)</span></td>
           <td class="muted">T<?= (int)$g['height'] ?> B<?= (int)$g['bust'] ?>(<?= h($g['cup']) ?>) W<?= (int)$g['waist'] ?> H<?= (int)$g['hip'] ?></td>
           <td><?= h($g['cat_name'] ?? '—') ?></td>

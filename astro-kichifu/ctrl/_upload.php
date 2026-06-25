@@ -27,7 +27,10 @@ function save_upload(array $file, string $subdir, int $maxW = 1000, int $maxH = 
     $dst = imagecreatetruecolor($nw, $nh);
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
-    $root = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/uploads/' . trim($subdir, '/');
+    // 画像は kichifu.com の /uploads に集約保存（admi2888.com/ctrl からのアップも此処へ＝実体分裂を防ぐ）。
+    // UPLOADS_ROOT が無い/未定義のローカル開発時は DOCUMENT_ROOT にフォールバック。
+    $base = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT)) ? UPLOADS_ROOT : rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+    $root = $base . '/uploads/' . trim($subdir, '/');
     if (!is_dir($root)) @mkdir($root, 0755, true);
 
     $useWebp = function_exists('imagewebp');
@@ -42,9 +45,10 @@ function save_upload(array $file, string $subdir, int $maxW = 1000, int $maxH = 
     return '/uploads/' . trim($subdir, '/') . '/' . $name;
 }
 
-/** 物理ファイル削除（/uploads 配下のみ許可） */
+/** 物理ファイル削除（/uploads 配下のみ許可）。保存先と同じ UPLOADS_ROOT 基準で削除する */
 function delete_upload(?string $rel): void {
     if (!$rel || !str_starts_with($rel, '/uploads/')) return;
-    $abs = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . $rel;
+    $base = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT)) ? UPLOADS_ROOT : rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+    $abs = $base . $rel;
     if (is_file($abs)) @unlink($abs);
 }

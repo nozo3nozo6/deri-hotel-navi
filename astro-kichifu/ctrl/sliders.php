@@ -18,7 +18,7 @@ layout_header('スライダー', 'sliders.php');
       <?php foreach ($rows as $s): ?>
         <tr draggable="true" data-id="<?= (int)$s['id'] ?>">
           <td style="cursor:grab;color:#bbb">⠿</td>
-          <td><img class="thumb" style="width:72px;height:40px" src="<?= h($s['image_pc'] ?: '/img/placeholder.svg') ?>" alt=""></td>
+          <td><img class="thumb" style="width:72px;height:40px" src="<?= h(asset_url($s['image_pc'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
           <td><?= h($s['title'] ?: '（無題）') ?></td>
           <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis"><?= h($s['url']) ?></td>
           <td><button type="button" class="toggle <?= (int)$s['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$s['id'] ?>"></button></td>

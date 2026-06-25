@@ -50,7 +50,7 @@ layout_header($id ? 'バナーを編集' : 'バナーを作成', 'banners.php');
     <div class="field"><label>タイトル</label><input type="text" name="title" value="<?= h($b['title']) ?>"></div>
     <div class="field"><label>リンクURL</label><input type="text" name="url" value="<?= h($b['url']) ?>" placeholder="/system や https://..."></div>
     <div class="field"><label>画像</label>
-      <?php if ($b['image']): ?><div style="margin-bottom:8px"><img src="<?= h($b['image']) ?>" style="max-width:240px;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_image"> 画像を削除</label></div><?php endif; ?>
+      <?php if ($b['image']): ?><div style="margin-bottom:8px"><img src="<?= h(asset_url($b['image'])) ?>" style="max-width:240px;border-radius:8px"><br><label class="check" style="margin-top:6px"><input type="checkbox" name="remove_image"> 画像を削除</label></div><?php endif; ?>
       <input type="file" name="image" accept="image/*">
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$b['is_display'] ? 'checked' : '' ?>> サイトに表示</label>

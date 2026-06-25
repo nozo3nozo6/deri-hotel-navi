@@ -98,7 +98,7 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     <div class="field">
       <label>サムネイル画像</label>
       <?php if ($n['thumb']): ?>
-        <div style="margin-bottom:8px"><img src="<?= h($n['thumb']) ?>" style="width:120px;border-radius:8px"><br>
+        <div style="margin-bottom:8px"><img src="<?= h(asset_url($n['thumb'])) ?>" style="width:120px;border-radius:8px"><br>
           <label class="check" style="margin-top:6px"><input type="checkbox" name="remove_thumb"> 画像を削除</label></div>
       <?php endif; ?>
       <input type="file" name="thumb" accept="image/*">

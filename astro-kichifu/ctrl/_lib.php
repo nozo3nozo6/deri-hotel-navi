@@ -10,6 +10,11 @@ require_once __DIR__ . '/../api/db.php';
 const ADMIN_NAME    = 'アドミ CMS';
 const SESSION_TTL   = 28800; // 8h
 
+// 画像は kichifu.com に物理集約し全ドメイン共有（astro lib/config.ts の ASSET_ORIGIN と対）。
+// admi2888.com/ctrl からも此処へ保存・此処から表示するため、ドメインを跨いでも実体が分裂しない。
+const ASSET_ORIGIN  = 'https://kichifu.com';                  // /uploads 画像の配信元（表示用・絶対URL）
+const UPLOADS_ROOT  = '/home/yobuho/kichifu.com/public_html';  // /uploads 物理保存ルート（保存/削除用）
+
 // ---- セッション開始（httponly / SameSite=Strict / https時secure）----
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $https = (($_SERVER['HTTPS'] ?? '') === 'on') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
@@ -24,6 +29,15 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 function db(): PDO { return DB::conn(); }
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function redirect(string $url): void { header('Location: ' . $url); exit; }
+
+// CMS画像URLを解決。/uploads(共有実体)は ASSET_ORIGIN を前置、絶対URLや /img 等ローカルアセットはそのまま。
+// admi2888.com/ctrl で開いても画像は kichifu.com/uploads を指すため壊れない。
+function asset_url(?string $p): string {
+    if (!$p) return '';
+    if (preg_match('#^https?://#', $p)) return $p;
+    if (str_starts_with($p, '/uploads/')) return ASSET_ORIGIN . $p;
+    return $p;
+}
 
 // ---- CSRF ----
 function csrf_token(): string {

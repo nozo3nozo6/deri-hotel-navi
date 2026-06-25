@@ -313,7 +313,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">
         <?php foreach ($images as $im): ?>
           <div style="position:relative" data-img="<?= (int)$im['id'] ?>">
-            <img src="<?= h($im['path']) ?>" style="width:90px;height:120px;object-fit:cover;border-radius:8px">
+            <img src="<?= h(asset_url($im['path'])) ?>" style="width:90px;height:120px;object-fit:cover;border-radius:8px">
             <button type="button" class="btn btn-sm btn-danger" data-del-img="<?= (int)$im['id'] ?>" style="position:absolute;top:4px;right:4px;padding:2px 7px">✕</button>
           </div>
         <?php endforeach; ?>

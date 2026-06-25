@@ -26,7 +26,7 @@ layout_header('バナー', 'banners.php');
       <?php foreach ($rows as $b): ?>
         <tr draggable="true" data-id="<?= (int)$b['id'] ?>">
           <td style="cursor:grab;color:#bbb">⠿</td>
-          <td><img class="thumb" src="<?= h($b['image'] ?: '/img/placeholder.svg') ?>" alt=""></td>
+          <td><img class="thumb" src="<?= h(asset_url($b['image'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
           <td><?= h($b['title'] ?: '（無題）') ?></td>
           <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis"><?= h($b['url']) ?></td>
           <td><button type="button" class="toggle <?= (int)$b['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$b['id'] ?>"></button></td>

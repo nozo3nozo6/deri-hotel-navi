@@ -31,7 +31,7 @@ layout_header('お知らせ', 'news.php');
     <tbody>
       <?php foreach ($rows as $n): ?>
         <tr>
-          <td><img class="thumb" src="<?= h($n['thumb'] ?: '/img/placeholder.svg') ?>" alt=""></td>
+          <td><img class="thumb" src="<?= h(asset_url($n['thumb'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
           <td><?= h($n['title']) ?></td>
           <td class="muted"><?= h($n['posted_at'] ?: $n['created']) ?></td>
           <td><button type="button" class="toggle <?= (int)$n['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$n['id'] ?>"></button></td>
