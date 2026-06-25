@@ -1751,14 +1751,25 @@ body.lb-open { overflow: hidden; }
   line-height: 1.15;
   flex-shrink: 0;
 }
+/* 通常価格→現価格を横並びにして割引感を強調 */
+.price-amount-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
 .price-was {
-  font-size: .75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-mute);
+  opacity: .8;
   text-decoration: line-through;
-  text-decoration-color: rgba(255,79,216,.6);
+  text-decoration-color: #ff5b8f;
+  text-decoration-thickness: 3px;
 }
 .price-now {
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: var(--neon-pink);
   text-shadow: 0 0 14px rgba(255,79,216,.5);
