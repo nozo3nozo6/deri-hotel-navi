@@ -132,10 +132,11 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     </div>
     <div class="field">
       <label>サムネイル画像（現在）</label>
-      <?php if ($n['thumb']): ?>
-        <div style="margin-bottom:8px"><img src="<?= h(asset_url($n['thumb'])) ?>" style="width:120px;border-radius:8px"><br>
-          <label class="check" style="margin-top:6px"><input type="checkbox" name="remove_thumb"> 画像を削除</label></div>
-      <?php endif; ?>
+      <div id="current-thumb-box" style="margin-bottom:8px;<?= $n['thumb'] ? '' : 'display:none' ?>">
+        <img id="current-thumb-img" src="<?= $n['thumb'] ? h(asset_url($n['thumb'])) : '' ?>" style="width:120px;border-radius:8px">
+        <div id="thumb-set-note" style="font-size:.8125rem;color:#2e9e5b;margin-top:4px;display:none">✓ この画像をサムネに設定しました（保存で確定します）</div>
+        <label class="check" style="margin-top:6px"><input type="checkbox" name="remove_thumb"> 画像を削除</label>
+      </div>
       <input type="file" name="thumb" accept="image/*">
       <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">女の子以外のお知らせは、ここで画像を手動アップロード。上で女の子の画像を選んだ場合はそちらが優先されます。</p>
     </div>
@@ -182,6 +183,14 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
           wrap.querySelectorAll('.girl-img-thumb').forEach(function (x) { x.classList.remove('sel'); });
           b.classList.add('sel');
           hidden.value = im.path;   // 選んだ画像を news サムネに（保存時 thumb_from_girl で反映）
+          // 「現在のサムネ」プレビューを即更新（セットされたと一目で分かるように）
+          var box = document.getElementById('current-thumb-box');
+          var cimg = document.getElementById('current-thumb-img');
+          var note = document.getElementById('thumb-set-note');
+          if (cimg) cimg.src = ASSET + im.path;
+          if (box) box.style.display = '';
+          if (note) note.style.display = '';
+          var rm = document.querySelector('input[name=remove_thumb]'); if (rm) rm.checked = false;
         });
         wrap.appendChild(b);
       });
