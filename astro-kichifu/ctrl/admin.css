@@ -145,6 +145,13 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .login-card .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
 .field-hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 
+/* ---------- お知らせ: 女の子の登録画像からサムネ選択 ---------- */
+.girl-img-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.girl-img-thumb { padding: 0; border: 2px solid var(--border); border-radius: 8px; background: none; cursor: pointer; overflow: hidden; line-height: 0; transition: .12s; }
+.girl-img-thumb img { width: 72px; height: 96px; object-fit: cover; display: block; }
+.girl-img-thumb:hover { border-color: var(--accent); }
+.girl-img-thumb.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
 /* ---------- 店舗別掲載トグル（女性一覧・owner用）---------- */
 .shop-toggles { display: flex; flex-direction: column; gap: 4px; }
 .shop-toggle { display: flex; align-items: center; gap: 7px; white-space: nowrap; }

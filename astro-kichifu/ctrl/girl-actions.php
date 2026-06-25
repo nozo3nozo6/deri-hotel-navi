@@ -84,6 +84,18 @@ try {
             echo json_encode(['ok' => true]);
             break;
         }
+        case 'girl-images': {
+            // 女の子の登録画像一覧（お知らせのサムネ選択用）。sort 順で path を返す
+            $gid = (int)($_POST['girl_id'] ?? 0);
+            $imgs = [];
+            if ($gid) {
+                $st = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id');
+                $st->execute([$gid]);
+                $imgs = $st->fetchAll(PDO::FETCH_ASSOC);
+            }
+            echo json_encode(['ok' => true, 'images' => $imgs]);
+            break;
+        }
         default:
             http_response_code(400);
             echo json_encode(['ok' => false, 'error' => 'unknown action']);

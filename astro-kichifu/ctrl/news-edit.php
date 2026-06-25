@@ -14,10 +14,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $cur = null;
         if ($id) { $s = db()->prepare('SELECT * FROM news WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $cur = $s->fetch(); }
         $thumb = $cur['thumb'] ?? '';
-        if (!empty($_POST['remove_thumb'])) { delete_upload($thumb); $thumb = ''; }
+        // news 専用アップロード(/uploads/news/)のみ物理削除可。女の子画像(/uploads/girls/)を参照中は消さない（共有実体保護）
+        $isNewsOwn = fn($p) => is_string($p) && str_starts_with($p, '/uploads/news/');
+        if (!empty($_POST['remove_thumb'])) { if ($isNewsOwn($thumb)) delete_upload($thumb); $thumb = ''; }
+        // 女の子の登録画像を選択した場合（girl_images の path を参照。アップロード不要・リンク先も自動でその子に）
+        $fromGirl = trim((string)($_POST['thumb_from_girl'] ?? ''));
+        if ($fromGirl !== '' && str_starts_with($fromGirl, '/uploads/girls/')) {
+            if ($isNewsOwn($thumb) && $thumb !== $fromGirl) delete_upload($thumb);
+            $thumb = $fromGirl;
+        }
+        // 手動アップロード（最優先で上書き）
         if (($_FILES['thumb']['error'] ?? 4) === UPLOAD_ERR_OK) {
             $new = save_upload($_FILES['thumb'], 'news/' . $shop);
-            if ($new) { delete_upload($thumb); $thumb = $new; }
+            if ($new) { if ($isNewsOwn($thumb)) delete_upload($thumb); $thumb = $new; }
         }
         $data = [
             'shop_id' => $shop, 'title' => $title,
@@ -105,27 +114,83 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
       if (pre.style.display !== 'none') document.getElementById('body-source').value = pre.innerHTML;
     });
     </script>
+    <!-- 女の子のお知らせ: 選択→登録画像クリックでサムネ＆リンク先(プロフ)を同時設定 -->
     <div class="field">
-      <label>サムネイル画像</label>
+      <label>① 女の子を選ぶ（お知らせの主役）</label>
+      <select name="link_girl_id" id="girl-picker">
+        <option value="">— 女の子を選択（手動の場合は未選択）—</option>
+        <?php foreach ($girlOpts as $g): ?>
+          <option value="<?= (int)$g['id'] ?>" <?= (int)($n['link_girl_id'] ?? 0) === (int)$g['id'] ? 'selected' : '' ?>><?= h($g['name']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">選ぶとリンク先が自動でその子のプロフページになります。</p>
+    </div>
+    <div class="field" id="girl-img-field" style="display:none">
+      <label>② 登録画像からサムネを選ぶ</label>
+      <div id="girl-images" class="girl-img-pick"></div>
+      <input type="hidden" name="thumb_from_girl" id="thumb_from_girl" value="">
+    </div>
+    <div class="field">
+      <label>サムネイル画像（現在）</label>
       <?php if ($n['thumb']): ?>
         <div style="margin-bottom:8px"><img src="<?= h(asset_url($n['thumb'])) ?>" style="width:120px;border-radius:8px"><br>
           <label class="check" style="margin-top:6px"><input type="checkbox" name="remove_thumb"> 画像を削除</label></div>
       <?php endif; ?>
       <input type="file" name="thumb" accept="image/*">
+      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">女の子以外のお知らせは、ここで画像を手動アップロード。上で女の子の画像を選んだ場合はそちらが優先されます。</p>
     </div>
     <div class="field">
-      <label>サムネのリンク先（任意）</label>
-      <select name="link_girl_id">
-        <option value="">— ガールズを選択 —</option>
-        <?php foreach ($girlOpts as $g): ?>
-          <option value="<?= (int)$g['id'] ?>" <?= (int)($n['link_girl_id'] ?? 0) === (int)$g['id'] ? 'selected' : '' ?>><?= h($g['name']) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <input type="url" name="link_url" value="<?= h($n['link_url'] ?? '') ?>" placeholder="https://…（ガールズ未選択時のみ使用）" style="margin-top:6px">
-      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">サムネをクリックした時の遷移先。<strong>ガールズ選択が優先</strong>、未選択ならURL、どちらも無ければリンク無し（同じタブで開きます）。</p>
+      <label>手動リンク先URL（女の子を選ばない場合）</label>
+      <input type="url" name="link_url" value="<?= h($n['link_url'] ?? '') ?>" placeholder="https://…">
+      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888"><strong>女の子選択が優先</strong>、未選択ならこのURL、どちらも無ければリンク無し（同じタブで開きます）。</p>
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$n['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
   </div>
   <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/news.php">キャンセル</a></div>
 </form>
+<script>
+(function () {
+  var ASSET = 'https://kichifu.com';
+  var CSRF = '<?= h(csrf_token()) ?>';
+  var picker = document.getElementById('girl-picker');
+  var wrap = document.getElementById('girl-images');
+  var field = document.getElementById('girl-img-field');
+  var hidden = document.getElementById('thumb_from_girl');
+
+  async function loadGirlImages(gid) {
+    wrap.innerHTML = ''; hidden.value = '';
+    if (!gid) { field.style.display = 'none'; return; }
+    field.style.display = '';
+    wrap.innerHTML = '<span class="muted" style="font-size:13px">読み込み中…</span>';
+    var fd = new FormData();
+    fd.append('_csrf', CSRF); fd.append('action', 'girl-images'); fd.append('girl_id', gid);
+    try {
+      var r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
+      var j = await r.json();
+      wrap.innerHTML = '';
+      if (!j.ok || !j.images || !j.images.length) {
+        wrap.innerHTML = '<span class="muted" style="font-size:13px">この子の登録画像がありません（手動アップロードしてください）</span>';
+        return;
+      }
+      j.images.forEach(function (im) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'girl-img-thumb';
+        var img = document.createElement('img');
+        img.src = ASSET + im.path; img.alt = '';
+        b.appendChild(img);
+        b.addEventListener('click', function () {
+          wrap.querySelectorAll('.girl-img-thumb').forEach(function (x) { x.classList.remove('sel'); });
+          b.classList.add('sel');
+          hidden.value = im.path;   // 選んだ画像を news サムネに（保存時 thumb_from_girl で反映）
+        });
+        wrap.appendChild(b);
+      });
+    } catch (e) {
+      wrap.innerHTML = '<span class="muted" style="font-size:13px">読み込みに失敗しました</span>';
+    }
+  }
+  picker.addEventListener('change', function () { loadGirlImages(this.value); });
+  if (picker.value) loadGirlImages(picker.value);   // 編集時、選択済みなら画像表示
+})();
+</script>
 <?php layout_footer(); ?>
