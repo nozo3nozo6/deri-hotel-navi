@@ -48,10 +48,7 @@ const desc = (d.body || '').replace(/<[^>]*>/g, '').slice(0, 100);
 
         {d.body ? <div class="prose-neon" set:html={bodyHtml}></div> : null}
 
-        <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap">
-          {profUrl ? <a href={profUrl} class="section-more glossy-pill">{d.girl_name}のプロフィール</a> : null}
-          <a href="/top" class="back-link">← トップに戻る</a>
-        </div>
+        {profUrl ? <div style="margin-top:32px"><a href={profUrl} class="section-more glossy-pill">{d.girl_name}のプロフィール</a></div> : null}
       </div>
     </section>
   </main>

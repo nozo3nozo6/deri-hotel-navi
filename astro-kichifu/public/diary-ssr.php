@@ -85,13 +85,12 @@ header('Cache-Control: no-store');
         <div class="prose-neon"><?= $bodyOut ?></div>
       <?php endif; ?>
 
-      <p style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap">
-        <?php if ($profUrl): ?><a href="<?= h($profUrl) ?>" class="section-more glossy-pill"><?= h($d['girl_name']) ?>のプロフィール</a><?php endif; ?>
-        <a href="/top" class="back-link">← トップに戻る</a>
-      </p>
+      <?php if ($profUrl): ?><p style="margin-top:32px"><a href="<?= h($profUrl) ?>" class="section-more glossy-pill"><?= h($d['girl_name']) ?>のプロフィール</a></p><?php endif; ?>
     </div>
   </section>
 </main>
+
+<div class="back-bar"><button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button></div>
 
 <footer class="site-footer">
   <hr class="footer-top-divider" />
