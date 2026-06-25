@@ -681,7 +681,6 @@ try {
         // Shop-admin actions (PHPセッション認証)
         case 'admin-overview':         handleAdminOverview(); break;
         case 'admin-toggle-online':    handleAdminToggleOnline(); break;
-        case 'admin-toggle-badge':     handleAdminToggleBadge(); break;
         case 'admin-save-settings':    handleAdminSaveSettings(); break;
         case 'admin-save-template':    handleAdminSaveTemplate(); break;
         case 'admin-delete-template':  handleAdminDeleteTemplate(); break;
@@ -1229,7 +1228,9 @@ function handleBadgeInfo() {
     if ($slug === '') err('shop_slug required');
     header('Cache-Control: public, max-age=3600');
     $shop = getShopBySlug($slug);
-    if (!$shop || (int)($shop['show_badge'] ?? 1) !== 1) {
+    // 掲載店バッジは常時表示（無料チャット利用の対価として YobuHo 被リンクを必須化）。
+    // 店舗側の表示ON/OFFトグルは廃止（2026-06-25）。show_badge カラムは参照しない。
+    if (!$shop) {
         ok(['enabled' => false]);
     }
     $pathMap = ['men' => 'deli', 'women' => 'jofu', 'men_same' => 'same-m', 'women_same' => 'same-f', 'este' => 'este'];
@@ -2764,18 +2765,6 @@ function handleAdminOverview() {
     ]);
 }
 
-// YobuHo掲載店バッジ表示トグル（埋込チャット下のSEOバッジ、デフォルトON）
-function handleAdminToggleBadge() {
-    $auth = requireShopSession();
-    $on = (int)inp('show_badge', 1) === 1 ? 1 : 0;
-    $pdo = DB::conn();
-    $stmt = $pdo->prepare('SELECT 1 FROM shop_chat_status WHERE shop_id = ?');
-    $stmt->execute([$auth['shop_id']]);
-    if (!$stmt->fetchColumn()) err('YobuChatが有効化されていません', 403);
-    $pdo->prepare('UPDATE shop_chat_status SET show_badge = ? WHERE shop_id = ?')
-        ->execute([$on, $auth['shop_id']]);
-    ok(['show_badge' => $on]);
-}
 
 function handleAdminToggleOnline() {
     $auth = requireShopSession();

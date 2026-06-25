@@ -2344,20 +2344,8 @@ function renderChatAdmin(data){
     });
     showEmbedTab('script');
 
-    // 掲載店バッジ表示トグル（埋込チャット下のYobuHoリンク、デフォルトON）
-    const badgeChk = document.getElementById('chat-admin-badge');
-    if (badgeChk) {
-        badgeChk.checked = (data.show_badge ?? 1) === 1;
-        badgeChk.onchange = async () => {
-            try {
-                const r = await chatApi('admin-toggle-badge', { show_badge: badgeChk.checked ? 1 : 0 });
-                toast(r.show_badge ? '✅ 掲載店バッジを表示します' : '掲載店バッジを非表示にしました（反映まで最大1時間）');
-            } catch (e) {
-                badgeChk.checked = !badgeChk.checked;
-                toast('⚠️ ' + e.message);
-            }
-        };
-    }
+    // 掲載店バッジ（埋込チャット下のYobuHoリンク）は常時表示。
+    // 店舗側の表示ON/OFFトグルは廃止（2026-06-25）— 無料チャットの対価として被リンクを必須化。
 
     // 通知設定トグル: notify_mode != 'off' なら ON 扱い（デフォルトOFF、DBの永続値を反映）
     const onlineChk = document.getElementById('chat-admin-online');
