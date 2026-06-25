@@ -1,0 +1,58 @@
+---
+import Site from '../../layouts/Site.astro';
+import { SHOP } from '../../lib/config';
+import { getDiaries } from '../../lib/api';
+
+// 写メ日記の詳細（オフィシャル）。girl_diaries(fujoho取込)から SSG 生成。
+// ビルド後に増えた分は diary-ssr.php（PHP動的フォールバック）が拾う。
+export async function getStaticPaths() {
+  const diaries = await getDiaries(60);
+  return diaries.map((d) => ({ params: { id: String(d.id) }, props: { d } }));
+}
+const { d } = Astro.props;
+
+const date = d.posted_at ? (function (s: string) {
+  const a = s.slice(0, 10).split('-'); const y = +a[0], mo = +a[1], da = +a[2];
+  const w = '日月火水木金土'[new Date(y, mo - 1, da).getDay()];
+  return y + '年' + mo + '月' + da + '日(' + w + ')' + (s.length > 10 ? ' ' + s.slice(11, 16).replace(/^0/, '') : '');
+})(d.posted_at) : '';
+
+const bodyHtml = (d.body || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br />');
+const profUrl = d.girl_id ? `/girls/${d.girl_id}` : null;
+const title = `${d.title}｜${d.girl_name ?? ''}の写メ日記｜${SHOP.fullName}`;
+const desc = (d.body || '').replace(/<[^>]*>/g, '').slice(0, 100);
+---
+<Site title={title} description={desc} path={`/diary/${d.id}`}>
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-md" style="position:relative;z-index:1">
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>写メ日記</span>
+        </nav>
+
+        <p class="news-detail-date">{date}{d.girl_name ? <span style="margin-left:8px">{d.girl_name}</span> : null}</p>
+        <h1 class="news-detail-title">{d.title}</h1>
+
+        {d.image ? (
+          profUrl ? (
+            <a href={profUrl} target="_self" class="news-detail-thumb-link">
+              <img src={d.image} alt={d.girl_name ?? ''} width="480" height="640" loading="lazy" class="news-detail-thumb" />
+            </a>
+          ) : (
+            <img src={d.image} alt={d.girl_name ?? ''} width="480" height="640" loading="lazy" class="news-detail-thumb" />
+          )
+        ) : null}
+
+        {d.body ? <div class="prose-neon" set:html={bodyHtml}></div> : null}
+
+        <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap">
+          {profUrl ? <a href={profUrl} class="section-more glossy-pill">{d.girl_name}のプロフィール</a> : null}
+          <a href="/top" class="back-link">← トップに戻る</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Site>

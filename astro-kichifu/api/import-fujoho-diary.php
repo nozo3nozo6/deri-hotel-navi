@@ -105,19 +105,27 @@ for ($p = 1; $p <= $PAGES; $p++) {
         $body  = $bodyN ? trim(preg_replace('/\s+/u', ' ', $bodyN->textContent)) : '';
 
         $link = "https://fujoho.jp/index.php?p=shop_girl_blog&id=$sid&shopId=$FUJOHO_SHOP&girlId=$girlId";
-        // 掲載時刻: 新規は個別ページの絶対時刻(YYYY/MM/DD HH:MM)を採用。既存は再取得しない(posted_at固定)
-        $posted = null;
+        // 新規は個別ページから 絶対掲載時刻 + 本文フル を取得（オフィシャル日記ページ用）。既存は再取得しない
+        $posted = null; $fullBody = '';
         if (!isset($existingIds[(string)$sid])) {
             $detail = fetchHtml($link);
-            if ($detail !== null && preg_match('#(20\d\d)/(\d{1,2})/(\d{1,2})\s+(\d{1,2}):(\d{2})#', $detail, $dm)) {
-                $posted = sprintf('%04d-%02d-%02d %02d:%02d:00', (int)$dm[1], (int)$dm[2], (int)$dm[3], (int)$dm[4], (int)$dm[5]);
+            if ($detail !== null) {
+                if (preg_match('#(20\d\d)/(\d{1,2})/(\d{1,2})\s+(\d{1,2}):(\d{2})#', $detail, $dm)) {
+                    $posted = sprintf('%04d-%02d-%02d %02d:%02d:00', (int)$dm[1], (int)$dm[2], (int)$dm[3], (int)$dm[4], (int)$dm[5]);
+                }
+                // 本文フル（個別ページ本体 shop_contents_sub_blog_post_text）
+                $ddoc = new DOMDocument(); @$ddoc->loadHTML('<?xml encoding="UTF-8">' . $detail);
+                $dxp = new DOMXPath($ddoc);
+                $bN = cls_node($dxp, $ddoc->documentElement, 'shop_contents_sub_blog_post_text');
+                if ($bN) $fullBody = trim(preg_replace('/[ \t]+/u', ' ', $bN->textContent));
             }
             usleep(500000); // 個別ページアクセスの礼儀待ち
         }
-        if (!$posted) {  // 既存 or 絶対時刻取得失敗 → 相対表記からの逆算でフォールバック
+        if (!$posted) {  // 既存 or 取得失敗 → 相対表記からの逆算でフォールバック
             $timeN = cls_node($xp, $box, 'shop_contents_main_blog_img_time');
             $posted = parse_diary_time($timeN ? $timeN->textContent : '');
         }
+        if ($fullBody !== '') $body = $fullBody;  // 新規は個別ページのフル本文を採用（一覧抜粋を上書き）
 
         $nameN = cls_node($xp, $box, 'shop_contents_main_blog_profile_name');
         // _profile_name は名前＋年齢。最初のテキストノード＝名前

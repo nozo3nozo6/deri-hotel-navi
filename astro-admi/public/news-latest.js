@@ -27,7 +27,7 @@
     var date = fmtDate(it.posted_at);
     var plain = (it.body || '').replace(/<[^>]*>/g, '');
     var excerpt = plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
-    var href = isD ? (it.link_url || (it.girl_id ? '/girls/' + it.girl_id : '#')) : '/news/' + encodeURIComponent(it.id);
+    var href = isD ? '/diary/' + encodeURIComponent(it.id) : '/news/' + encodeURIComponent(it.id);
     var imgUrl = it.thumb ? (isD ? it.thumb : ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb) : '';
     var thumb = imgUrl
       ? '<img src="' + imgUrl + '" alt="" width="80" height="80" loading="lazy" class="news-thumb">'
@@ -49,7 +49,7 @@
       return { kind: 'news', id: n.id, title: n.title, thumb: n.thumb, body: n.body, posted_at: n.posted_at };
     });
     var diaries = ((dd && dd.diaries) || []).map(function (d) {
-      return { kind: 'diary', girl_id: d.girl_id, link_url: d.link_url, title: d.title, thumb: d.image, body: d.body, posted_at: d.posted_at };
+      return { kind: 'diary', id: d.id, girl_id: d.girl_id, link_url: d.link_url, title: d.title, thumb: d.image, body: d.body, posted_at: d.posted_at };
     });
     if (!news.length && !diaries.length) return;   // 両方失敗時は SSG のまま維持
     var feed = [];
