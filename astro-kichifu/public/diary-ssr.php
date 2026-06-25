@@ -13,7 +13,7 @@ $shop_id = (str_contains($host, 'admi') || str_contains($host, 'biyobu')) ? 1 : 
 if (!$id) { header('Location: /top'); exit; }
 
 try {
-    $st = DB::conn()->prepare('SELECT * FROM girl_diaries WHERE id = ? AND shop_id = ? AND is_display = 1');
+    $st = DB::conn()->prepare('SELECT * FROM girl_diaries WHERE id = ? AND shop_id = ? AND is_display = 1 AND posted_at <= NOW()');
     $st->execute([$id, $shop_id]);
     $d = $st->fetch(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {

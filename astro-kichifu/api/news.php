@@ -32,7 +32,7 @@ try {
         $st = DB::conn()->prepare(
             'SELECT id, source_id, girl_id, girl_name, title, body, image, link_url, posted_at
                FROM girl_diaries
-              WHERE shop_id = ? AND is_display = 1
+              WHERE shop_id = ? AND is_display = 1 AND posted_at <= NOW()
               ORDER BY posted_at DESC, id DESC
               LIMIT ' . $limit
         );
