@@ -189,8 +189,6 @@ function renderShopServiceAreaTags() {
         return '0.5rem';
     };
     const cards = areas.map(a => {
-        const isP = a.is_primary;
-        const star = isP ? '★ ' : '';
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
@@ -198,15 +196,14 @@ function renderShopServiceAreaTags() {
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
+        // 全カードを同じ見た目に統一 (★やゴールド強調なし).
+        // → メインエリアを目立たせると「ここ以外はおすすめでない」と誤解されるため、
+        //   どのエリアも等しく案内可能であることを示す均一デザインにする.
         // 1行に収めるための共通スタイル: 改行禁止 + ラベル長に応じた初期フォントサイズ(概算).
-        const fs = fontSizeFor(star + (a.label || a.city || a.detail || a.area || a.pref || ''));
-        // メイン(★)はゴールド系で強調、それ以外は通常の area-btn カードをそのまま使う.
-        const primaryStyle = isP
-            ? 'background:linear-gradient(135deg,#fff5d8,#ffe9b8);border-color:#d9a85a;color:#7a5320;font-weight:700;'
-            : '';
+        const fs = fontSizeFor(a.label || a.city || a.detail || a.area || a.pref || '');
         // 右側に矢印「›」専用の余白(padding-right)を確保 → 中央寄せ文字が矢印に潜らない.
         // ラベルは <span> で包み、フォントサイズはこの span に適用 (実測フィット対象).
-        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;${primaryStyle}"><span class="shop-area-label" style="white-space:nowrap;font-size:${fs};display:inline-block;">${star}${label}</span></button>`;
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;"><span class="shop-area-label" style="white-space:nowrap;font-size:${fs};display:inline-block;">${label}</span></button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
