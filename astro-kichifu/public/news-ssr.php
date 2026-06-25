@@ -30,7 +30,10 @@ if (!$it) {
 
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
-$date      = $it['posted_at'] ? str_replace('-', '.', substr($it['posted_at'], 0, 10)) : '';
+$date      = $it['posted_at']
+    ? str_replace('-', '.', substr($it['posted_at'], 0, 10))
+      . (strlen($it['posted_at']) > 10 ? ' ' . preg_replace('/^0/', '', substr($it['posted_at'], 11, 5)) : '')
+    : '';
 $body      = (string)($it['body'] ?? '');
 $bodyIsHtml = (bool)preg_match('/<[a-z!\/][^>]*>/i', $body);
 $bodyOut   = $bodyIsHtml

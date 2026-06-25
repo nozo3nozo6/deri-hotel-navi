@@ -21,7 +21,7 @@
       if (!items.length) { wrap.innerHTML = '<p class="empty-state">お知らせはまだありません</p>'; return; }
       var ASSET = 'https://kichifu.com';
       wrap.innerHTML = items.map(function (it) {
-        var date = it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+        var date = it.posted_at ? it.posted_at.slice(0, 10).replace(/-/g, '.') + (it.posted_at.length > 10 ? ' ' + it.posted_at.slice(11, 16).replace(/^0/, '') : '') : '';
         var plain = (it.body || '').replace(/<[^>]*>/g, '');
         var excerpt = plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
         var thumb = it.thumb

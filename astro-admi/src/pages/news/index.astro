@@ -27,7 +27,7 @@ const desc = `${SHOP.name}の最新情報、キャンペーン、新人入店情
         {items.length ? (
           <div class="news-list">
             {items.map((it) => {
-              const date = it.posted_at ? it.posted_at.replace(/-/g, '.').slice(0, 10) : '';
+              const date = it.posted_at ? it.posted_at.slice(0, 10).replace(/-/g, '.') + (it.posted_at.length > 10 ? ' ' + it.posted_at.slice(11, 16).replace(/^0/, '') : '') : '';
               const plain = it.body ? it.body.replace(/<[^>]*>/g, '') : '';
               const excerpt = plain ? (plain.length > 80 ? plain.slice(0, 80) + '…' : plain) : '';
               return (
