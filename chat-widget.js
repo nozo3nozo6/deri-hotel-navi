@@ -309,7 +309,7 @@
         wrap.innerHTML =
             '<div class="ychatw-inner">' +
             '<button type="button" class="ychatw-close" aria-label="閉じる">✕</button>' +
-            '<iframe class="ychatw-iframe" src="" title="YobuChat" allow="clipboard-write" loading="lazy"></iframe>' +
+            '<iframe class="ychatw-iframe" title="YobuChat" allow="clipboard-write" loading="lazy"></iframe>' +
             '</div>';
 
         document.body.appendChild(btn);
@@ -323,7 +323,7 @@
 
         function openChat() {
             lastFocused = document.activeElement;
-            if (!iframe.src) iframe.src = IFRAME_URL;
+            if (!iframe.getAttribute('src')) iframe.src = IFRAME_URL;
             wrap.classList.add('ychatw-open');
             btn.style.display = 'none';
             document.documentElement.style.overflow = 'hidden';

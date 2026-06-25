@@ -1168,6 +1168,8 @@ async function fetchHotelsByStation(stationName) {
         sortHotelsByReviews(hotels);
         renderHotelCards(hotels);
         setResultStatus(hotels.length);
+        // GA4: 駅検索の実行を計測（駅名+ヒット件数）
+        if (typeof gtag === 'function') gtag('event', 'search', { search_term: displayName, search_type: 'station', result_count: hotels.length });
 
         // 駅周辺ラブホタブ表示
         showStationLovehoTabs(name, hotels);
@@ -1273,6 +1275,9 @@ async function executeKeywordSearch() {
         const isLoveho = h => h.hotel_type === 'love_hotel' || h.hotel_type === 'rental_room';
         const hotelResults = hotels.filter(h => !isLoveho(h));
         const lovehoResults = hotels.filter(h => isLoveho(h));
+
+        // GA4: 検索実行を計測（検索語+ヒット件数）
+        if (typeof gtag === 'function') gtag('event', 'search', { search_term: keyword, search_type: 'keyword', result_count: hotelResults.length + lovehoResults.length });
 
         // タブ表示
         hideLovehoTabs();
@@ -1940,7 +1945,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
     <div class="detail-wrap">
         <div class="detail-header-row">
             <h2 class="detail-title" style="flex:1;min-width:0;">
-                <a href="${googleSearch}" target="${_extTarget}" rel="noopener">
+                <a href="${googleSearch}" target="${_extTarget}" rel="noopener" data-action="trackClick" data-event="ext_link" data-label="${esc(hotel.name||'')}" data-extra="google_search">
                     ${esc(hotel.name)} ${isLoveho ? '<span style="font-size:14px;">🏩</span>' : ''} <span style="font-size:12px;color:#999;">🔍</span>
                 </a>
             </h2>
@@ -1948,7 +1953,7 @@ function renderDetailPage(hotel, isLoveho, sections) {
         </div>
         <div class="detail-info-box">
             <div class="detail-info-inner">
-                <span class="detail-info-addr">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
+                <span class="detail-info-addr">${hotel.address ? '<a href="' + googleMap + '" target="' + _extTarget + '" rel="noopener" data-action="trackClick" data-event="ext_link" data-label="' + esc(hotel.name||'') + '" data-extra="google_map">📍 ' + esc(hotel.address) + '</a>' : ''}</span>
                 ${hotel.tel ? '<span class="detail-info-tel"><a href="tel:' + esc(hotel.tel.replace(/[^\d+\-]/g,'')) + '" data-action="trackClick" data-event="phone_tap" data-label="' + esc(hotel.name||'') + '" style="color:inherit;text-decoration:none;">📞 ' + esc(hotel.tel) + '</a></span>' : ''}
             </div>
             ${(hotel.nearest_station || hotel.prefecture) ? `<div class="detail-info-sub">
