@@ -1762,8 +1762,7 @@ body.lb-open { overflow: hidden; }
 .price-was {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-mute);
-  opacity: .8;
+  color: #fff;
   text-decoration: line-through;
   text-decoration-color: #ff5b8f;
   text-decoration-thickness: 3px;
