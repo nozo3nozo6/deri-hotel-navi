@@ -167,27 +167,9 @@ function renderShopServiceAreaTags() {
     const anchor = document.getElementById('genre-hero') || header;
     // 「地域を選択」と同じカード形式 (.area-grid > .area-btn.has-children) で描画する.
     // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
-    // ラベルの「見た目幅」を概算する (全角=1.0, ・=0.6, ★=1.0, 半角空白=0.3).
-    // → CSS段階では概算フォントサイズで初期描画し、その後 fitShopAreaLabels() が
-    //   ブラウザ実測でカード幅に合わせて1行に収まる最大フォントへ微調整する.
-    //   (固定remだと狭い画面で矢印の下に文字が潜って欠けるため、実測フィットを併用)
-    const effLen = (s) => {
-        let n = 0;
-        for (const ch of s) {
-            if (ch === '・') n += 0.6;
-            else if (ch === ' ' || ch === '　') n += 0.3;
-            else n += 1;
-        }
-        return n;
-    };
-    const fontSizeFor = (s) => {
-        const n = effLen(s);
-        if (n <= 5)   return '0.8rem';
-        if (n <= 6.5) return '0.72rem';
-        if (n <= 8)   return '0.62rem';
-        if (n <= 9.5) return '0.55rem';
-        return '0.5rem';
-    };
+    // フォントサイズは全カード共通 (.area-btn の 0.8rem を継承). 長いラベルは改行で対応する.
+    //   → 1行に押し込むためのフォント縮小をやめ、どのカードも同じ文字サイズに統一.
+    //   → 改行で高さが変わってもグリッドは align-items:start で各カード独立高さ (相互に伸びない).
     const cards = areas.map(a => {
         const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
@@ -199,11 +181,8 @@ function renderShopServiceAreaTags() {
         // 全カードを同じ見た目に統一 (★やゴールド強調なし).
         // → メインエリアを目立たせると「ここ以外はおすすめでない」と誤解されるため、
         //   どのエリアも等しく案内可能であることを示す均一デザインにする.
-        // 1行に収めるための共通スタイル: 改行禁止 + ラベル長に応じた初期フォントサイズ(概算).
-        const fs = fontSizeFor(a.label || a.city || a.detail || a.area || a.pref || '');
-        // 右側に矢印「›」専用の余白(padding-right)を確保 → 中央寄せ文字が矢印に潜らない.
-        // ラベルは <span> で包み、フォントサイズはこの span に適用 (実測フィット対象).
-        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;"><span class="shop-area-label" style="white-space:nowrap;font-size:${fs};display:inline-block;">${label}</span></button>`;
+        // 右側に矢印「›」専用の余白(padding-right)を確保 → 改行時も文字が矢印に重ならない.
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;">${label}</button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
@@ -213,40 +192,6 @@ function renderShopServiceAreaTags() {
     } else {
         anchor.insertAdjacentHTML('afterend', html);
     }
-    // 描画後にブラウザ実測でフォントサイズをカード幅へフィット.
-    requestAnimationFrame(() => requestAnimationFrame(fitShopAreaLabels));
-    // 画面幅変更(回転・リサイズ)時に再フィット (リスナーは1回だけ登録).
-    if (!window._shopAreaFitBound) {
-        window._shopAreaFitBound = true;
-        let _t;
-        window.addEventListener('resize', () => {
-            clearTimeout(_t);
-            _t = setTimeout(fitShopAreaLabels, 150);
-        });
-    }
-}
-
-// メインエリアのラベルを、カードの実幅に収まる最大フォントへ実測フィットさせる.
-// 矢印「›」(右端・絶対配置)の下に文字が潜らないよう右側に予約幅を確保する.
-function fitShopAreaLabels() {
-    const cards = document.querySelectorAll('#shop-service-areas-bar .shop-area-card');
-    cards.forEach(btn => {
-        const span = btn.querySelector('.shop-area-label');
-        if (!span || !btn.clientWidth) return;
-        // 利用可能幅 = カード内幅(clientWidth) - 左パディング(8) - 右パディング(20, 矢印専用).
-        const avail = btn.clientWidth - 8 - 20;
-        if (avail <= 0) return;
-        const MAX = 12.8; // 0.8rem 相当を上限
-        const MIN = 8;    // 視認性の下限
-        let fs = MAX;
-        span.style.fontSize = fs + 'px';
-        let guard = 0;
-        while (span.offsetWidth > avail && fs > MIN && guard < 60) {
-            fs -= 0.5;
-            span.style.fontSize = fs + 'px';
-            guard++;
-        }
-    });
 }
 
 // タグクリック時のナビゲーション (data-action="goToShopArea" 経由).
