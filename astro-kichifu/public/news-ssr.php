@@ -30,10 +30,12 @@ if (!$it) {
 
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
-$date      = $it['posted_at']
-    ? str_replace('-', '.', substr($it['posted_at'], 0, 10))
-      . (strlen($it['posted_at']) > 10 ? ' ' . preg_replace('/^0/', '', substr($it['posted_at'], 11, 5)) : '')
-    : '';
+$date = '';
+if ($it['posted_at']) {
+    $dp = explode('-', substr($it['posted_at'], 0, 10));   // [2026,06,25]
+    $date = $dp[0] . '.' . (int)($dp[1] ?? 0) . '.' . (int)($dp[2] ?? 0);  // 2026.6.25（月日の先頭0除去）
+    if (strlen($it['posted_at']) > 10) $date .= ' ' . preg_replace('/^0/', '', substr($it['posted_at'], 11, 5)); // 4:00
+}
 $body      = (string)($it['body'] ?? '');
 $bodyIsHtml = (bool)preg_match('/<[a-z!\/][^>]*>/i', $body);
 $bodyOut   = $bodyIsHtml
