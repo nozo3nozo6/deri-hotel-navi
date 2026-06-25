@@ -27,7 +27,7 @@
     var date = fmtDate(it.posted_at);
     var plain = (it.body || '').replace(/<[^>]*>/g, '');
     var excerpt = plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
-    var href = isD ? (it.girl_id ? '/girls/' + it.girl_id : (it.link_url || '#')) : '/news/' + encodeURIComponent(it.id);
+    var href = isD ? (it.link_url || (it.girl_id ? '/girls/' + it.girl_id : '#')) : '/news/' + encodeURIComponent(it.id);
     var imgUrl = it.thumb ? (isD ? it.thumb : ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb) : '';
     var thumb = imgUrl
       ? '<img src="' + imgUrl + '" alt="" width="80" height="80" loading="lazy" class="news-thumb">'
