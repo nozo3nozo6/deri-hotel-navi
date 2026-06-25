@@ -171,6 +171,7 @@ function layout_header(string $title, string $active = ''): void {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?= h($title) ?> | <?= ADMIN_NAME ?></title>
+<link rel="icon" href="/ctrl/favicon.svg?v=<?= @filemtime(__DIR__ . '/favicon.svg') ?: '1' ?>" type="image/svg+xml">
 <link rel="stylesheet" href="/ctrl/admin.css?v=<?= @filemtime(__DIR__ . '/admin.css') ?: '1' ?>">
 </head><body>
 <div class="l-wrap">

@@ -79,9 +79,11 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     <div class="field">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <label style="margin-bottom:0">本文（HTMLソース可）</label>
-        <div class="tabs" style="margin-bottom:0">
+        <div class="tabs" style="margin-bottom:0;align-items:center">
           <button type="button" class="tab active" id="tab-source" onclick="bodyTab('source')">ソース</button>
           <button type="button" class="tab" id="tab-preview" onclick="bodyTab('preview')">プレビュー</button>
+          <button type="button" class="btn btn-sm" id="ins-img-btn" style="display:none;margin-left:8px">🖼 画像を挿入</button>
+          <input type="file" id="ins-img-file" accept="image/*" style="display:none">
         </div>
       </div>
       <textarea id="body-source" name="body" rows="10"><?= h($n['body']) ?></textarea>
@@ -94,6 +96,7 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
       var pre = document.getElementById('body-preview');
       document.getElementById('tab-source').classList.toggle('active', mode === 'source');
       document.getElementById('tab-preview').classList.toggle('active', mode === 'preview');
+      document.getElementById('ins-img-btn').style.display = (mode === 'preview') ? '' : 'none';  // 画像挿入はプレビュー時のみ
       if (mode === 'preview') {
         pre.innerHTML = src.value;            // ソース → プレビュー
         src.style.display = 'none';
@@ -104,15 +107,50 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
         pre.style.display = 'none';
       }
     }
-    // プレビュー編集をリアルタイムでソース(textarea)へ同期
-    document.getElementById('body-preview').addEventListener('input', function () {
-      document.getElementById('body-source').value = this.innerHTML;
-    });
-    // 送信時、プレビュー表示中なら最新の編集内容を確実に反映
-    document.getElementById('body-source').closest('form').addEventListener('submit', function () {
+    (function () {
       var pre = document.getElementById('body-preview');
-      if (pre.style.display !== 'none') document.getElementById('body-source').value = pre.innerHTML;
-    });
+      var src = document.getElementById('body-source');
+      // プレビュー編集をリアルタイムでソース(textarea)へ同期
+      pre.addEventListener('input', function () { src.value = pre.innerHTML; });
+      // 送信時、プレビュー表示中なら最新の編集内容を確実に反映
+      src.closest('form').addEventListener('submit', function () {
+        if (pre.style.display !== 'none') src.value = pre.innerHTML;
+      });
+
+      // カーソル位置を保存（画像をその位置に挿入するため）
+      var savedRange = null;
+      function saveRange() {
+        var s = window.getSelection();
+        if (s.rangeCount && pre.contains(s.anchorNode)) savedRange = s.getRangeAt(0);
+      }
+      pre.addEventListener('keyup', saveRange);
+      pre.addEventListener('mouseup', saveRange);
+      pre.addEventListener('blur', saveRange);
+
+      // 画像挿入: ファイル選択 → アップロード → カーソル位置に <img> を挿入
+      var insBtn = document.getElementById('ins-img-btn');
+      var insFile = document.getElementById('ins-img-file');
+      insBtn.addEventListener('click', function () { insFile.click(); });
+      insFile.addEventListener('change', async function () {
+        if (!this.files[0]) return;
+        var fd = new FormData();
+        fd.append('_csrf', '<?= h(csrf_token()) ?>'); fd.append('image', this.files[0]);
+        insBtn.disabled = true; insBtn.textContent = '⏳ アップロード中…';
+        try {
+          var r = await fetch('/ctrl/upload-image.php', { method: 'POST', body: fd });
+          var j = await r.json();
+          if (j.ok && j.path) {
+            pre.focus();
+            var s = window.getSelection();
+            if (savedRange) { s.removeAllRanges(); s.addRange(savedRange); }  // 保存したカーソル位置に復元
+            document.execCommand('insertHTML', false, '<img src="https://kichifu.com' + j.path + '" style="max-width:100%;height:auto">');
+            src.value = pre.innerHTML;   // ソース同期
+            saveRange();
+          } else { alert('画像のアップロードに失敗しました'); }
+        } catch (e) { alert('画像のアップロードに失敗しました'); }
+        insBtn.disabled = false; insBtn.textContent = '🖼 画像を挿入'; this.value = '';
+      });
+    })();
     </script>
     <!-- 女の子のお知らせ: 選択→登録画像クリックでサムネ＆リンク先(プロフ)を同時設定 -->
     <div class="field">
