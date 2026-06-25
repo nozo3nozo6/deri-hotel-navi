@@ -268,14 +268,44 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   <div class="card card-pad form-grid">
     <strong>コメント <span class="muted" style="font-weight:400;font-size:12px">（HTMLコード可。装飾カード等のウィジェットを貼り付けるとそのまま表示されます）</span></strong>
     <div class="field">
-      <label>女の子コメント（一言・任意・HTML可）</label>
-      <textarea name="comment" rows="3" placeholder="本人からの一言。HTMLタグやウィジェットコードもそのまま反映されます"><?= h($g['comment']) ?></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="margin-bottom:0">女の子コメント（一言・任意・HTML可）</label>
+        <div class="tabs" style="margin-bottom:0">
+          <button type="button" class="tab active" id="tab-comment-source" onclick="previewTab('comment','source')">ソース</button>
+          <button type="button" class="tab" id="tab-comment-preview" onclick="previewTab('comment','preview')">プレビュー</button>
+        </div>
+      </div>
+      <textarea id="comment-source" name="comment" rows="3" placeholder="本人からの一言。HTMLタグやウィジェットコードもそのまま反映されます"><?= h($g['comment']) ?></textarea>
+      <div id="comment-preview" class="body-preview" style="display:none;min-height:60px"></div>
     </div>
     <div class="field">
-      <label>店舗コメント（紹介文・HTMLウィジェット可）</label>
-      <textarea name="shop_comment" rows="10" placeholder="お店からの紹介文。HTMLコード（装飾カード等のウィジェット）をそのまま貼り付けられます"><?= h($g['shop_comment']) ?></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="margin-bottom:0">店舗コメント（紹介文・HTMLウィジェット可）</label>
+        <div class="tabs" style="margin-bottom:0">
+          <button type="button" class="tab active" id="tab-shop_comment-source" onclick="previewTab('shop_comment','source')">ソース</button>
+          <button type="button" class="tab" id="tab-shop_comment-preview" onclick="previewTab('shop_comment','preview')">プレビュー</button>
+        </div>
+      </div>
+      <textarea id="shop_comment-source" name="shop_comment" rows="10" placeholder="お店からの紹介文。HTMLコード（装飾カード等のウィジェット）をそのまま貼り付けられます"><?= h($g['shop_comment']) ?></textarea>
+      <div id="shop_comment-preview" class="body-preview" style="display:none"></div>
     </div>
   </div>
+  <script>
+  function previewTab(key, mode) {
+    var src = document.getElementById(key + '-source');
+    var pre = document.getElementById(key + '-preview');
+    document.getElementById('tab-' + key + '-source').classList.toggle('active', mode === 'source');
+    document.getElementById('tab-' + key + '-preview').classList.toggle('active', mode === 'preview');
+    if (mode === 'preview') {
+      pre.innerHTML = src.value;
+      src.style.display = 'none';
+      pre.style.display = 'block';
+    } else {
+      src.style.display = 'block';
+      pre.style.display = 'none';
+    }
+  }
+  </script>
 
   <div class="card card-pad">
     <strong>画像</strong>

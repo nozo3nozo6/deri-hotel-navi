@@ -60,4 +60,9 @@ DirectorySlash Off
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/$1.html -f
   RewriteRule ^(.+?)/?$ $1.html [L]
+
+  # /news/[id] の静的 .html が未生成の場合 PHP で動的フォールバック
+  #   ctrl/から新規ニュース追加後にビルドしなくても詳細ページが表示される
+  #   ※ 上の generic ルールが [L] で止まるため、ここに来るのは .html 未生成時のみ
+  RewriteRule ^news/([0-9]+)/?$ /news-ssr.php?id=$1 [L]
 </IfModule>

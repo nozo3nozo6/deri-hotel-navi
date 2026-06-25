@@ -17,6 +17,12 @@ require_once __DIR__ . '/db.php';
 // Web からの直アクセス禁止（cron / CLI 専用）
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit("CLI only\n"); }
 
+// === 取込停止（2026-06-25）: admi2888.com は内製化(NS切替)済 → 外部スクレイプ取込を廃止 ===
+//  お知らせは /ctrl の「お知らせ」で管理する。再開時はこの行を削除。
+//  ※ shop1→shop2 のニュースミラーもこの停止で止まる。両店に同じお知らせを出す運用が必要なら
+//    news-edit.php に「両店に保存」チェックを追加して対応する（要相談）。
+if (true) { fwrite(STDERR, "admi2888 news import STOPPED (NS migrated; manage via /ctrl)\n"); exit(0); }
+
 date_default_timezone_set('Asia/Tokyo');
 
 $DRY     = in_array('--dry-run', $argv, true);
@@ -120,6 +126,8 @@ $pdo = DB::conn();
 // 冪等化用カラムを自己マイグレーション（MariaDB 10.11 は IF NOT EXISTS 対応）
 try { $pdo->exec('ALTER TABLE news ADD COLUMN IF NOT EXISTS source_id VARCHAR(64) NULL AFTER shop_id'); } catch (Throwable $e) {}
 try { $pdo->exec('ALTER TABLE news ADD UNIQUE INDEX IF NOT EXISTS uniq_news_source (shop_id, source_id)'); } catch (Throwable $e) {}
+// サムネのリンク先カラム（CMSで設定）。ここで自己マイグレーション＝cron実行で列が確実に存在する
+try { $pdo->exec('ALTER TABLE news ADD COLUMN IF NOT EXISTS link_girl_id BIGINT UNSIGNED NULL, ADD COLUMN IF NOT EXISTS link_url VARCHAR(500) NULL'); } catch (Throwable $e) {}
 
 // admi 一覧を複数ページ取得（source_id でユニーク化）
 $all = [];
@@ -208,10 +216,11 @@ foreach ($all as $sid => $rec) {
 // 画像は shop1 の /uploads を共有参照（再DLしない）。uniq_news_source(shop_id,source_id) で冪等upsert。
 if (!$DRY) {
     $pdo->exec(
-        'INSERT INTO news (shop_id, source_id, title, body, thumb, posted_at, is_display, sort)
-         SELECT 2, source_id, title, body, thumb, posted_at, is_display, sort FROM news WHERE shop_id = 1
+        'INSERT INTO news (shop_id, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url)
+         SELECT 2, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url FROM news WHERE shop_id = 1
          ON DUPLICATE KEY UPDATE title=VALUES(title), body=VALUES(body), thumb=VALUES(thumb),
-                                 posted_at=VALUES(posted_at), is_display=VALUES(is_display), modified=NOW()'
+                                 posted_at=VALUES(posted_at), is_display=VALUES(is_display),
+                                 link_girl_id=VALUES(link_girl_id), link_url=VALUES(link_url), modified=NOW()'
     );
     echo "shop2(吉祥寺) ミラー同期 完了\n";
 }

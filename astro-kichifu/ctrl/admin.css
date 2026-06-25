@@ -145,6 +145,19 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .login-card .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
 .field-hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 
+/* ---------- body preview ---------- */
+.body-preview {
+  min-height: 200px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+}
+.body-preview img { max-width: 100%; height: auto; border-radius: 6px; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 860px) {
   .l-sidebar { transform: translateX(-100%); }
