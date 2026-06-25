@@ -1765,6 +1765,36 @@ body.lb-open { overflow: hidden; }
 }
 .price-now small { font-size: .8125rem; font-weight: 700; }
 
+/* 人気No.1カード強調＋人気バッジ＋OFFバッジ（biyobu系を黒地ネオン・温色に調整：青不使用） */
+.price-row-popular {
+  box-shadow: 0 0 0 2px rgba(255,79,216,.7), 0 8px 28px -8px rgba(255,79,216,.45);
+}
+.price-popular-badge {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #ff4fd8, #b78fff);
+  color: #fff;
+  margin-right: 6px;
+  vertical-align: middle;
+  text-shadow: none;
+}
+.price-off-badge {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #ffb347, #ff7eb3);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.25);
+}
+
 /* 指名料・オプション・キャンセル 共通カード */
 .fee-card {
   padding: 6px 18px;
