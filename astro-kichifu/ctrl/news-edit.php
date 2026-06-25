@@ -59,7 +59,7 @@ if ($id) { $s = db()->prepare('SELECT * FROM news WHERE id=? AND shop_id=?'); $s
 // サムネのリンク先プルダウン用: この店舗に掲載中の在籍（共有プール girl_shops）。
 // 並びは schedules.php と同じ「出勤頻度が高い順 → 入店が新しい順 → id降順」
 $gs = db()->prepare(
-    'SELECT g.id, g.name,
+    'SELECT g.id, g.name, g.in_date,
             (SELECT COUNT(*) FROM schedules s WHERE s.girl_id = g.id AND s.shop_id = :shop AND s.status = \'work\') AS wc
        FROM girls g
       WHERE EXISTS (SELECT 1 FROM girl_shops gs WHERE gs.girl_id = g.id AND gs.shop_id = :shop2) AND g.is_display = 1
@@ -117,10 +117,17 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     <!-- 女の子のお知らせ: 選択→登録画像クリックでサムネ＆リンク先(プロフ)を同時設定 -->
     <div class="field">
       <label>① 女の子を選ぶ（お知らせの主役）</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <span class="muted" style="font-size:13px">並び替え</span>
+        <select id="girl-sort" style="width:auto;flex:none">
+          <option value="freq">出勤頻度が高い順</option>
+          <option value="indate">入店が新しい順</option>
+        </select>
+      </div>
       <select name="link_girl_id" id="girl-picker">
         <option value="">— 女の子を選択（手動の場合は未選択）—</option>
         <?php foreach ($girlOpts as $g): ?>
-          <option value="<?= (int)$g['id'] ?>" <?= (int)($n['link_girl_id'] ?? 0) === (int)$g['id'] ? 'selected' : '' ?>><?= h($g['name']) ?></option>
+          <option value="<?= (int)$g['id'] ?>" data-wc="<?= (int)$g['wc'] ?>" data-indate="<?= h(str_replace('-', '', substr((string)($g['in_date'] ?? ''), 0, 10))) ?>" <?= (int)($n['link_girl_id'] ?? 0) === (int)$g['id'] ? 'selected' : '' ?>><?= h($g['name']) ?></option>
         <?php endforeach; ?>
       </select>
       <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">選ぶとリンク先が自動でその子のプロフページになります。</p>
@@ -200,6 +207,23 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
   }
   picker.addEventListener('change', function () { loadGirlImages(this.value); });
   if (picker.value) loadGirlImages(picker.value);   // 編集時、選択済みなら画像表示
+
+  // 並び替え（出勤頻度が高い順 / 入店が新しい順）— option を JS で並べ替え
+  var sortSel = document.getElementById('girl-sort');
+  function sortGirls(mode) {
+    var ph = picker.options[0];   // 「— 女の子を選択 —」プレースホルダは先頭固定
+    var opts = Array.prototype.slice.call(picker.options).filter(function (o) { return o.value; });
+    opts.sort(function (a, b) {
+      var inB = parseInt(b.dataset.indate || '0', 10), inA = parseInt(a.dataset.indate || '0', 10);
+      if (mode === 'indate') return inB - inA;                       // 入店が新しい順
+      var d = (parseInt(b.dataset.wc || '0', 10)) - (parseInt(a.dataset.wc || '0', 10));
+      return d !== 0 ? d : inB - inA;                                // 出勤頻度が高い順 → 入店が新しい順
+    });
+    picker.innerHTML = '';
+    picker.appendChild(ph);
+    opts.forEach(function (o) { picker.appendChild(o); });           // selected 状態は option に残るので選択維持
+  }
+  sortSel.addEventListener('change', function () { sortGirls(this.value); });
 })();
 </script>
 <?php layout_footer(); ?>
