@@ -25,8 +25,6 @@
   function card(it) {
     var isD = it.kind === 'diary';
     var date = fmtDate(it.posted_at);
-    var plain = (it.body || '').replace(/<[^>]*>/g, '');
-    var excerpt = plain.length > 40 ? plain.slice(0, 40) + '…' : plain;
     var href = isD ? '/diary/' + encodeURIComponent(it.id) : '/news/' + encodeURIComponent(it.id);
     var imgUrl = it.thumb ? (isD ? it.thumb : ASSET + (String(it.thumb).charAt(0) === '/' ? '' : '/') + it.thumb) : '';
     var thumb = imgUrl
@@ -36,7 +34,6 @@
     return '<a href="' + href + '" target="_self" class="news-item">' + thumb +
       '<div class="news-meta"><p class="news-date">' + esc(date) + badge + '</p>' +
       '<h3 class="news-title">' + esc(it.title) + '</h3>' +
-      (excerpt ? '<p class="news-excerpt">' + esc(excerpt) + '</p>' : '') +
       '</div></a>';
   }
 
