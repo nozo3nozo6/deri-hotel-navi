@@ -27,7 +27,7 @@ const desc = `${SHOP.name}の最新情報、キャンペーン、新人入店情
         {items.length ? (
           <div class="news-list">
             {items.map((it) => {
-              const date = it.posted_at ? it.posted_at.slice(0, 10).split('-').map(function (x, i) { return i ? parseInt(x, 10) : x; }).join('.') + (it.posted_at.length > 10 ? ' ' + it.posted_at.slice(11, 16).replace(/^0/, '') : '') : '';
+              const date = it.posted_at ? (function (s) { var d = s.slice(0, 10).split('-'), y = +d[0], mo = +d[1], da = +d[2], w = '日月火水木金土'[new Date(y, mo - 1, da).getDay()]; return y + '年' + mo + '月' + da + '日(' + w + ')' + (s.length > 10 ? ' ' + s.slice(11, 16).replace(/^0/, '') : ''); })(it.posted_at) : '';
               const plain = it.body ? it.body.replace(/<[^>]*>/g, '') : '';
               const excerpt = plain ? (plain.length > 80 ? plain.slice(0, 80) + '…' : plain) : '';
               return (

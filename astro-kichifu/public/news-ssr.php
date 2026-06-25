@@ -33,8 +33,10 @@ function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'
 $date = '';
 if ($it['posted_at']) {
     $dp = explode('-', substr($it['posted_at'], 0, 10));   // [2026,06,25]
-    $date = $dp[0] . '.' . (int)($dp[1] ?? 0) . '.' . (int)($dp[2] ?? 0);  // 2026.6.25（月日の先頭0除去）
-    if (strlen($it['posted_at']) > 10) $date .= ' ' . preg_replace('/^0/', '', substr($it['posted_at'], 11, 5)); // 4:00
+    $y = (int)$dp[0]; $mo = (int)($dp[1] ?? 0); $da = (int)($dp[2] ?? 0);
+    $w = ['日', '月', '火', '水', '木', '金', '土'][(int)date('w', mktime(0, 0, 0, $mo, $da, $y))];
+    $date = $y . '年' . $mo . '月' . $da . '日(' . $w . ')';   // 2026年6月25日(木)
+    if (strlen($it['posted_at']) > 10) $date .= ' ' . preg_replace('/^0/', '', substr($it['posted_at'], 11, 5)); // 20:30
 }
 $body      = (string)($it['body'] ?? '');
 $bodyIsHtml = (bool)preg_match('/<[a-z!\/][^>]*>/i', $body);
