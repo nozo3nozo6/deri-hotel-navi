@@ -23,9 +23,10 @@ PUBLIC_PROD=1 npm run build
 echo "▶ rsync dist/（静的フロント）"
 rsync -avz -e "$SSH" dist/ "$DEST/"
 
-echo "▶ rsync api/（PHP API・秘密ファイル除外）"
+echo "▶ rsync api/（PHP API・秘密ファイル除外）— kichifu と共有(同一DB・同一ロジック)につき astro-kichifu/api を正にする"
+# 旧 astro-admi/api/ は古いコピーで diaries 等が欠落 → 取込/配信の不整合の元。常に kichifu の api/ を配信する。
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \
-  -e "$SSH" api/ "$DEST/api/"
+  -e "$SSH" ../astro-kichifu/api/ "$DEST/api/"
 
 echo "▶ rsync ctrl/（共有CMS・kichifu と同一コード・DB shop_id で店舗分離）"
 rsync -avz -e "$SSH" ctrl/ "$DEST/ctrl/"
