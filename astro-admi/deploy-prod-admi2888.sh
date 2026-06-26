@@ -35,7 +35,7 @@ rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.
   -e "$SSH" ../astro-kichifu/ctrl/ "$DEST/ctrl/"
 
 echo "▶ rsync public/*.php（SSRフォールバック: postbuildでdistから削除されるため別途デプロイ）"
-rsync -avz -e "$SSH" ../astro-kichifu/public/news-ssr.php ../astro-kichifu/public/diary-ssr.php "$DEST/"
+rsync -avz -e "$SSH" ../astro-kichifu/public/news-ssr.php ../astro-kichifu/public/diary-ssr.php ../astro-kichifu/public/_ssr-shell.php "$DEST/"
 
 echo "▶ db-config.php（共有DB設定を kichifu から【常に】コピー＝同一DB強制）"
 # 旧仕様は [ -f ] || cp（既存があればスキップ）だったが、それだとセットアップ時の別DB設定が残り

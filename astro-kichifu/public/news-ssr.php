@@ -3,6 +3,7 @@
 // news-ssr.php — Astro SSG に含まれない新規ニュースの動的フォールバック
 //   .htaccess: news/[id].html が存在しない場合のみ到達する
 //   shop_id はドメインで自動判定（admi系=1 / kichifu系=2）
+//   head/header/footer は _ssr-shell.php（Site.astro と同一）に集約
 // ============================================================
 require_once __DIR__ . '/api/db.php';
 
@@ -28,18 +29,7 @@ if (!$it) {
     exit;
 }
 
-function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-// 画像は admi2888.com に物理集約（_lib.php の ASSET_ORIGIN と同じ方針。kichifu側はsymlink）
-const ASSET_ORIGIN = 'https://admi2888.com';
-function asset_url(?string $p): string {
-    if (!$p) return '';
-    if (str_starts_with($p, 'http')) {
-        // 旧 kichifu.com/uploads の絶対URL → admi2888 に正規化（実体はadmi2888が正）
-        return preg_replace('#https?://kichifu\.com(/uploads/)#', ASSET_ORIGIN . '$1', $p);
-    }
-    if (str_starts_with($p, '/uploads/')) return ASSET_ORIGIN . $p;
-    return $p;
-}
+require __DIR__ . '/_ssr-shell.php';   // $SSR（店舗設定）＋ ssr_head/ssr_header/ssr_footer/asset_url/ssr_h を定義
 
 $date = '';
 if ($it['posted_at']) {
@@ -55,35 +45,15 @@ $bodyOut   = $bodyIsHtml
     ? $body
     : nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8'));
 // 本文HTML内の画像パスを admi2888 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
-$bodyOut = preg_replace('#https?://kichifu\.com(/uploads/)#', ASSET_ORIGIN . '$1', $bodyOut);   // 旧kichifu絶対→admi2888
-$bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', ASSET_ORIGIN . '$1', $bodyOut);               // 相対→admi2888
+$bodyOut = preg_replace('#https?://kichifu\.com(/uploads/)#', 'https://admi2888.com$1', $bodyOut);   // 旧kichifu絶対→admi2888
+$bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', 'https://admi2888.com$1', $bodyOut);              // 相対→admi2888
 
-// キャノニカルは自分自身
+$desc = mb_strimwidth(strip_tags($body), 0, 120, '…');
+
 header('Cache-Control: no-store');
-?><!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title><?= h($it['title']) ?></title>
-<meta name="description" content="<?= h(mb_strimwidth(strip_tags($body), 0, 120, '…')) ?>" />
-<meta name="robots" content="noindex" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/site.css?v=<?= @filemtime(__DIR__ . '/site.css') ?: '1' ?>" />
-</head>
-<body>
-<header class="site-header">
-  <div class="site-header-inner">
-    <a href="/top" class="brand" style="text-decoration:none">
-      <span class="brand-script flicker">Admi</span>
-    </a>
-    <div class="header-tel"></div>
-  </div>
-</header>
-<div class="header-spacer" aria-hidden="true"></div>
-
+ssr_head($SSR, $it['title'], $desc);
+ssr_header($SSR);
+?>
 <main>
   <section class="page-section">
     <div class="neon-room"></div>
@@ -93,14 +63,14 @@ header('Cache-Control: no-store');
         <span class="breadcrumb-sep">›</span>
         <a href="/news">お知らせ</a>
         <span class="breadcrumb-sep">›</span>
-        <span><?= h($it['title']) ?></span>
+        <span><?= ssr_h($it['title']) ?></span>
       </nav>
 
-      <p class="news-detail-date"><?= h($date) ?></p>
-      <h1 class="news-detail-title"><?= h($it['title']) ?></h1>
+      <p class="news-detail-date"><?= ssr_h($date) ?></p>
+      <h1 class="news-detail-title"><?= ssr_h($it['title']) ?></h1>
 
       <?php if ($it['thumb']): ?>
-        <img src="<?= h(asset_url($it['thumb'])) ?>" alt=""
+        <img src="<?= ssr_h(asset_url($it['thumb'])) ?>" alt=""
              loading="lazy" class="news-detail-thumb" />
       <?php endif; ?>
 
@@ -114,13 +84,5 @@ header('Cache-Control: no-store');
     </div>
   </section>
 </main>
-
-<footer class="site-footer">
-  <hr class="footer-top-divider" />
-  <div class="footer-inner">
-    <p><a href="/news" class="back-link">← お知らせ一覧</a></p>
-  </div>
-</footer>
-<script src="/site.js"></script>
-</body>
-</html>
+<?php
+ssr_footer($SSR);

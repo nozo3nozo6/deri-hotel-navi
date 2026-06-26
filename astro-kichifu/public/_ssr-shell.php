@@ -1,0 +1,208 @@
+<?php
+// ============================================================
+// _ssr-shell.php — news-ssr.php / diary-ssr.php 共通の head/header/footer/offcanvas/予約モーダル
+//   Site.astro と同じ見た目・動作にするための単一ソース（news/diary SSR間のドリフト防止）。
+//   呼び出し側で $shop_id を確定してから require する。直アクセスは関数定義のみで無害。
+//   画像実体は admi2888.com に物理集約（kichifu はsymlink）→ asset_url() は admi2888 絶対URL化。
+// ============================================================
+
+if (!isset($shop_id)) { $shop_id = 2; }
+
+// 店舗別設定（admi=1 / kichifu=2）。Site.astro / lib/config.ts と同期。
+$SSR_SHOPS = [
+    1 => [
+        'tel' => '042-528-2888', 'telRaw' => '0425282888', 'reception' => '10:00〜翌5:00',
+        'since' => 2002, 'catch' => '立川デリヘル', 'genre' => 'すけべな素人専門店',
+        'brandCatch' => 'アドミ since2002',
+        'fullName' => 'アドミ since2002 立川デリヘル & Go To FANTASY 東京本店',
+        'line' => 'https://line.me/ti/p/L4-1uY6q2e',
+        'recruit' => 'https://kanto.qzin.jp/admi2888/?v=official',
+        'fid' => '57', 'ga' => 'G-50Q48YG34Z',
+    ],
+    2 => [
+        'tel' => '090-1045-9155', 'telRaw' => '09010459155', 'reception' => '10:00〜翌5:00',
+        'since' => 2009, 'catch' => '吉祥寺デリヘル', 'genre' => 'すけべな素人専門店',
+        'brandCatch' => 'アドミ since2009',
+        'fullName' => 'アドミ since2009 吉祥寺デリヘル & Go To FANTASY',
+        'line' => 'https://line.me/ti/p/L4-1uY6q2e',
+        'recruit' => 'https://kanto.qzin.jp/admi2888/?v=official',
+        'fid' => '53179', 'ga' => 'G-VJ1TW4WBYN',
+    ],
+];
+$SSR = $SSR_SHOPS[$shop_id] ?? $SSR_SHOPS[2];
+$SSR['_id']        = $shop_id;
+$SSR['nameEn']     = 'Admi';
+$SSR['fjSchedule'] = "https://fujoho.jp/index.php?p=shop_info&id={$SSR['fid']}&h=ON";
+$SSR['fjDiary']    = "https://fujoho.jp/index.php?p=shop_girl_blog_list&id={$SSR['fid']}";
+
+if (!function_exists('ssr_h')) {
+    function ssr_h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('asset_url')) {
+    // 画像の正は admi2888.com（_lib.php / news-latest.js と同方針）。旧 kichifu 絶対URL・相対 /uploads/ を admi2888 に正規化。
+    function asset_url(?string $p): string {
+        if (!$p) return '';
+        if (str_starts_with($p, 'http')) {
+            return preg_replace('#https?://kichifu\.com(/uploads/)#', 'https://admi2888.com$1', $p);
+        }
+        if (str_starts_with($p, '/uploads/')) return 'https://admi2888.com' . $p;
+        return $p;
+    }
+}
+
+// <head> ～ <body> 開始まで出力
+function ssr_head(array $S, string $title, string $desc): void {
+    $cssV = @filemtime(__DIR__ . '/site.css') ?: '1';
+    ?><!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title><?= ssr_h($title) ?></title>
+<meta name="description" content="<?= ssr_h($desc) ?>" />
+<meta name="robots" content="noindex, follow" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/site.css?v=<?= $cssV ?>" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<script async src="https://www.googletagmanager.com/gtag/js?id=<?= ssr_h($S['ga']) ?>"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?= ssr_h($S['ga']) ?>');</script>
+<script>window.__SHOP_ID=<?= (int)$S['_id'] ?>;</script>
+</head>
+<body>
+<?php
+}
+
+// ヘッダー（Site.astro と同一構造: ロゴ＋キャッチ＋ナビ＋電話＋予約＋ハンバーガー）
+function ssr_header(array $S): void {
+    ?>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a href="/top" class="brand" aria-label="<?= ssr_h($S['fullName']) ?> トップ">
+      <span class="brand-script flicker"><?= ssr_h($S['nameEn']) ?></span>
+      <span class="brand-sub">
+        <span class="brand-since"><?= ssr_h($S['catch']) ?></span>
+        <span class="brand-genre"><?= ssr_h($S['genre']) ?></span>
+        <span class="brand-catch"><?= ssr_h($S['brandCatch']) ?></span>
+      </span>
+    </a>
+    <nav class="site-nav">
+      <a href="/top">トップ</a>
+      <a href="/girls">すけべな女の子達</a>
+      <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
+      <a href="/system">料金システム</a>
+      <a href="/news">お知らせ</a>
+    </nav>
+    <div class="header-tel">
+      <div class="header-reception">受付 <?= ssr_h($S['reception']) ?></div>
+      <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="header-tel-num">📞 <?= ssr_h($S['tel']) ?></a>
+    </div>
+    <div class="reserve-stack">
+      <span class="reserve-hours">営業時間</span>
+      <span class="reserve-time"><?= ssr_h($S['reception']) ?></span>
+      <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
+    </div>
+    <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+<div class="header-spacer" aria-hidden="true"></div>
+<?php
+}
+
+// 戻るバー＋フッター＋オフキャンバス＋予約モーダル＋site.js（Site.astro と同一）
+function ssr_footer(array $S): void {
+    $jsV  = @filemtime(__DIR__ . '/site.js') ?: '1';
+    $year = date('Y');
+    ?>
+<div class="back-bar">
+  <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
+</div>
+<footer class="site-footer">
+  <hr class="footer-top-divider" />
+  <div class="footer-inner">
+    <p class="footer-brand font-script neon-pink-glow flicker"><?= ssr_h($S['nameEn']) ?></p>
+    <p class="footer-sub">since <?= ssr_h($S['since']) ?> ・ <?= ssr_h($S['catch']) ?> &amp; Go To FANTASY</p>
+    <div class="footer-cta">
+      <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="footer-cta-tel glossy-pill">📞 電話で予約</a>
+      <a href="<?= ssr_h($S['line']) ?>" target="_self" rel="noopener" class="footer-cta-line">💬 LINEで予約</a>
+      <p class="footer-cta-note">💝 LINEのご予約で<span class="footer-cta-note-em">プレイ時間＋10分無料</span>！</p>
+    </div>
+    <p class="footer-reception">受付時間 <?= ssr_h($S['reception']) ?></p>
+    <nav class="footer-links">
+      <a href="/top">トップ</a>
+      <a href="/girls">すけべな女の子達</a>
+      <a href="/schedule" target="_self">スケジュール</a>
+      <a href="/system">料金システム</a>
+      <a href="/howto">ご利用ガイド</a>
+      <a href="/news">お知らせ</a>
+      <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
+      <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
+      <a href="/contacts">お問合せ</a>
+    </nav>
+    <p class="footer-copy">&copy; <?= ssr_h($S['since']) ?>-<?= $year ?> <?= ssr_h($S['fullName']) ?> All Rights Reserved.</p>
+  </div>
+</footer>
+
+<div class="offcanvas-overlay" data-menu-close></div>
+<div class="offcanvas" id="offcanvas" role="navigation" aria-label="メニュー">
+  <div class="offcanvas-head">
+    <a href="/top" class="brand" aria-label="<?= ssr_h($S['fullName']) ?> トップ">
+      <span class="brand-script flicker"><?= ssr_h($S['nameEn']) ?></span>
+      <span class="brand-sub">
+        <span class="brand-since"><?= ssr_h($S['catch']) ?></span>
+        <span class="brand-genre"><?= ssr_h($S['genre']) ?></span>
+        <span class="brand-catch"><?= ssr_h($S['brandCatch']) ?></span>
+      </span>
+    </a>
+    <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる">✕</button>
+  </div>
+  <nav class="offcanvas-nav">
+    <a href="/top">トップ</a>
+    <a href="/girls">すけべな女の子達</a>
+    <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
+    <a href="/system">料金システム</a>
+    <a href="/howto">ご利用ガイド</a>
+    <a href="/news">お知らせ</a>
+    <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
+    <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
+    <a href="/contacts">お問合せ</a>
+  </nav>
+  <div class="offcanvas-foot">
+    <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open>ご予約はこちら</button>
+    <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="offcanvas-tel-link">📞 <?= ssr_h($S['tel']) ?><br /><span class="text-mute">(受付 <?= ssr_h($S['reception']) ?>)</span></a>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reserve-modal" role="dialog" aria-modal="true" aria-label="ご予約" aria-hidden="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <p class="modal-title holo-text">ご予約方法をお選びください</p>
+      <button type="button" class="modal-close" data-reserve-close aria-label="閉じる">✕</button>
+    </div>
+    <p class="modal-sub">お問い合わせだけでもお気軽にどうぞ♡</p>
+    <div class="reserve-cards">
+      <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="reserve-card">
+        <span class="reserve-icon">📞</span>
+        <span>
+          <span class="reserve-label">TELで予約</span>
+          <span class="reserve-note">明るく優しいスタッフが対応！</span>
+        </span>
+      </a>
+      <a href="<?= ssr_h($S['line']) ?>" target="_self" rel="noopener" class="reserve-card">
+        <span class="reserve-icon">💬</span>
+        <span>
+          <span class="reserve-label">LINEで予約</span>
+          <span class="reserve-note">ご予約でプレイ時間＋10分無料！</span>
+        </span>
+      </a>
+    </div>
+  </div>
+</div>
+<script src="/site.js?v=<?= $jsV ?>"></script>
+</body>
+</html>
+<?php
+}

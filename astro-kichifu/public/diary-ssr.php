@@ -3,6 +3,7 @@
 // diary-ssr.php — Astro SSG に含まれない新規写メ日記の動的フォールバック
 //   .htaccess: diary/[id].html が存在しない場合のみ到達する
 //   shop_id はドメインで自動判定（admi系=1 / kichifu系=2）
+//   head/header/footer は _ssr-shell.php（Site.astro と同一）に集約
 // ============================================================
 require_once __DIR__ . '/api/db.php';
 
@@ -22,7 +23,7 @@ try {
 
 if (!$d) { http_response_code(404); header('Location: /top'); exit; }
 
-function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+require __DIR__ . '/_ssr-shell.php';   // $SSR（店舗設定）＋ ssr_head/ssr_header/ssr_footer/ssr_h を定義
 
 $date = '';
 if ($d['posted_at']) {
@@ -35,32 +36,13 @@ if ($d['posted_at']) {
 $body    = (string)($d['body'] ?? '');
 $bodyOut = nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8'));
 $profUrl = $d['girl_id'] ? '/girls/' . (int)$d['girl_id'] : null;
+$desc    = mb_strimwidth(strip_tags($body), 0, 120, '…');
+$title   = $d['title'] . '｜' . $d['girl_name'] . 'の写メ日記';
 
 header('Cache-Control: no-store');
-?><!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title><?= h($d['title']) ?>｜<?= h($d['girl_name']) ?>の写メ日記</title>
-<meta name="description" content="<?= h(mb_strimwidth(strip_tags($body), 0, 120, '…')) ?>" />
-<meta name="robots" content="noindex" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/site.css?v=<?= @filemtime(__DIR__ . '/site.css') ?: '1' ?>" />
-</head>
-<body>
-<header class="site-header">
-  <div class="site-header-inner">
-    <a href="/top" class="brand" style="text-decoration:none">
-      <span class="brand-script flicker">Admi</span>
-    </a>
-    <div class="header-tel"></div>
-  </div>
-</header>
-<div class="header-spacer" aria-hidden="true"></div>
-
+ssr_head($SSR, $title, $desc);
+ssr_header($SSR);
+?>
 <main>
   <section class="page-section">
     <div class="neon-room"></div>
@@ -71,12 +53,12 @@ header('Cache-Control: no-store');
         <span>写メ日記</span>
       </nav>
 
-      <p class="news-detail-date"><?= h($date) ?><?php if ($d['girl_name']): ?><span style="margin-left:8px"><?= h($d['girl_name']) ?></span><?php endif; ?></p>
-      <h1 class="news-detail-title"><?= h($d['title']) ?></h1>
+      <p class="news-detail-date"><?= ssr_h($date) ?><?php if ($d['girl_name']): ?><span style="margin-left:8px"><?= ssr_h($d['girl_name']) ?></span><?php endif; ?></p>
+      <h1 class="news-detail-title"><?= ssr_h($d['title']) ?></h1>
 
       <?php if ($d['image']): ?>
-        <?php if ($profUrl): ?><a href="<?= h($profUrl) ?>"><?php endif; ?>
-        <img src="<?= h($d['image']) ?>" alt="<?= h($d['girl_name']) ?>"
+        <?php if ($profUrl): ?><a href="<?= ssr_h($profUrl) ?>"><?php endif; ?>
+        <img src="<?= ssr_h($d['image']) ?>" alt="<?= ssr_h($d['girl_name']) ?>"
              loading="lazy" class="news-detail-thumb" style="max-width:100%;height:auto;border-radius:12px;margin:20px 0" />
         <?php if ($profUrl): ?></a><?php endif; ?>
       <?php endif; ?>
@@ -85,19 +67,9 @@ header('Cache-Control: no-store');
         <div class="prose-neon"><?= $bodyOut ?></div>
       <?php endif; ?>
 
-      <?php if ($profUrl): ?><p style="margin-top:32px"><a href="<?= h($profUrl) ?>" class="section-more glossy-pill"><?= h($d['girl_name']) ?>のプロフィール</a></p><?php endif; ?>
+      <?php if ($profUrl): ?><p style="margin-top:32px"><a href="<?= ssr_h($profUrl) ?>" class="section-more glossy-pill"><?= ssr_h($d['girl_name']) ?>のプロフィール</a></p><?php endif; ?>
     </div>
   </section>
 </main>
-
-<div class="back-bar"><button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button></div>
-
-<footer class="site-footer">
-  <hr class="footer-top-divider" />
-  <div class="footer-inner">
-    <p><a href="/top" class="back-link">← トップ</a></p>
-  </div>
-</footer>
-<script src="/site.js"></script>
-</body>
-</html>
+<?php
+ssr_footer($SSR);
