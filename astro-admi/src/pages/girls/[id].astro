@@ -2,6 +2,9 @@
 import Site from '../../layouts/Site.astro';
 import { asset, SHOP, isNewcomer } from '../../lib/config';
 import { getGirls, getGirl } from '../../lib/api';
+import { statSync } from 'node:fs';
+const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
+const girlRefreshV = ver('public/girl-detail-refresh.js');
 
 export async function getStaticPaths() {
   const girls = await getGirls();
@@ -62,7 +65,7 @@ if (g.catch_copy) {
 
         <h1 class="girl-detail-name" style="text-align:center;margin:4px 0 20px" aria-current="page">{g.name}{g.age ? <span class="girl-detail-age">{Number(g.age)}歳</span> : null}</h1>
 
-        <div class="girl-detail-wrap">
+        <div class="girl-detail-wrap" data-girl-id={g.id}>
 
           <!-- 左: 写真 -->
           <div>
@@ -217,4 +220,7 @@ if (g.catch_copy) {
     <div class="lightbox-dots" id="lightboxDots" aria-hidden="true"></div>
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>
+
+  <!-- CTRL編集を即反映: 読込時にAPIから最新の店舗コメント/一言/キャッチを取得し差し替え（デプロイ不要） -->
+  <script is:inline src={`/girl-detail-refresh.js?v=${girlRefreshV}`}></script>
 </Site>
