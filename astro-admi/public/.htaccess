@@ -60,6 +60,9 @@ DirectorySlash Off
   # /girls→/girls/ に飛ばされるため、明示的に .html へ先回りマッピング
   RewriteRule ^girls/?$ /girls.html [L]
   RewriteRule ^news/?$  /news.html  [L]
+  # /news/[id] の静的 .html が未生成の場合 PHP で動的フォールバック
+  RewriteRule ^news/([0-9]+)/?$ /news-ssr.php?id=$1 [L]
+  RewriteRule ^diary/([0-9]+)/?$ /diary-ssr.php?id=$1 [L]
 
   # DirectorySlash Off のため、管理画面はスラッシュ付きに明示誘導
   RewriteRule ^ctrl$ /ctrl/ [R=301,L]

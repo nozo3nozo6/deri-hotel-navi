@@ -1346,12 +1346,14 @@ body.lb-open { overflow: hidden; }
 @media (min-width: 768px) { .news-detail-title { font-size: 1.75rem; } }
 .news-detail-date { font-size: .875rem; color: var(--lav-soft); margin-bottom: 24px; }
 .news-detail-thumb {
-  width: 100%;
-  max-height: 400px;
-  object-fit: cover;
+  display: block;
+  max-width: 100%;
+  max-height: 560px;         /* 縦長写真でも大きすぎない（PC）。横長は幅100%まで */
+  width: auto;
+  height: auto;              /* 実画像の比率を保つ＝縦長/横長どちらも歪まず切り抜かれない */
+  margin: 0 auto 32px;       /* 中央寄せ */
   border-radius: 16px;
   border: 1px solid rgba(255,79,216,.25);
-  margin-bottom: 32px;
 }
 .prose-neon {
   color: var(--text-soft);

@@ -66,7 +66,7 @@ header('Cache-Control: no-store');
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/site.css" />
+<link rel="stylesheet" href="/site.css?v=<?= @filemtime(__DIR__ . '/site.css') ?: '1' ?>" />
 </head>
 <body>
 <header class="site-header">
@@ -96,7 +96,7 @@ header('Cache-Control: no-store');
 
       <?php if ($it['thumb']): ?>
         <img src="<?= h(asset_url($it['thumb'])) ?>" alt=""
-             loading="lazy" class="news-detail-thumb" style="max-width:100%;height:auto;border-radius:12px;margin:20px 0" />
+             loading="lazy" class="news-detail-thumb" />
       <?php endif; ?>
 
       <?php if ($body): ?>
