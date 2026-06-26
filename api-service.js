@@ -165,80 +165,27 @@ function renderShopServiceAreaTags() {
     //   高さ0のヒーロー直後 = 実質ヘッダー直下となり従来の見た目を維持する.
     //   ヒーローが無い場合はヘッダー直後にフォールバック.
     const anchor = document.getElementById('genre-hero') || header;
-    // 「地域を選択」と同じカード形式 (.area-grid > .area-btn.has-children) で描画する.
-    // → 白背景カード + 右側「›」矢印で全国の地域選択グリッドと統一感を出す.
-    // フォントサイズは「文字数が多いラベルほど少し小さく」して見た目のバランスを取る.
-    //   → 文字数の少ないエリア(立川市/相模)は大きめ、多いエリア(新宿・中野・荻窪・四谷)は小さめ.
-    //   → 縮小は緩やか(可読性優先)。長い場合は改行も併用する.
-    //   → 行数差で箱の高さがバラつくため、描画後に equalizeShopAreaCards() で高さ統一する.
-    // ラベルの「見た目の長さ」を概算 (全角=1.0, ・=0.6, 半角空白=0.3).
-    const effLen = (s) => {
-        let n = 0;
-        for (const ch of s) {
-            if (ch === '・') n += 0.6;
-            else if (ch === ' ' || ch === '　') n += 0.3;
-            else n += 1;
-        }
-        return n;
-    };
-    const fontSizeFor = (s) => {
-        const n = effLen(s);
-        if (n <= 4)  return '0.82rem';
-        if (n <= 6)  return '0.74rem';
-        if (n <= 8)  return '0.68rem';
-        if (n <= 10) return '0.62rem';
-        return '0.56rem';
-    };
+    // 全国エリア選択カードと完全に同じ見た目にする: area-grid col-2 + 素の area-btn has-children.
+    // → 特別なフォント縮小・高さ統一・余白調整は一切しない（全国ページのカードと統一）.
     const cards = areas.map(a => {
-        const raw = a.label || a.city || a.detail || a.area || a.pref || '';
-        const label = esc(raw);
+        const label = esc(a.label || a.city || a.detail || a.area || a.pref || '');
         const dataAttrs = [
             a.pref   ? `data-pref="${esc(a.pref)}"`     : '',
             a.area   ? `data-area="${esc(a.area)}"`     : '',
             a.detail ? `data-detail="${esc(a.detail)}"` : '',
             a.city   ? `data-city="${esc(a.city)}"`     : '',
         ].filter(Boolean).join(' ');
-        // 全カードを同じ見た目に統一 (★やゴールド強調なし).
-        // → メインエリアを目立たせると「ここ以外はおすすめでない」と誤解されるため、
-        //   どのエリアも等しく案内可能であることを示す均一デザインにする.
-        // 右側に矢印「›」専用の余白(padding-right)を確保 → 改行時も文字が矢印に重ならない.
-        const fs = fontSizeFor(raw);
-        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs} style="padding-left:8px;padding-right:20px;font-size:${fs};">${label}</button>`;
+        return `<button class="area-btn has-children shop-area-card" data-action="goToShopArea" ${dataAttrs}>${label}</button>`;
     }).join('');
     // 2026-05-25: 「メインエリア」リネーム + 「その他エリアもお問い合わせ可能」のサブ行を追加.
     // 2026-06-22: タグ列 → 地域選択と同じカードグリッド (.area-grid) に変更.
-    const html = `<div id="shop-service-areas-bar" style="padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span></div><div class="area-grid" style="align-items:start;">${cards}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding:8px 2px 0;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
+    // 2026-06-26: 特別装飾を撤去し全国エリア選択（area-grid col-2）と完全統一.
+    const html = `<div id="shop-service-areas-bar" style="padding:12px 14px;background:linear-gradient(135deg,#fff8ec 0%,#fdf0f3 100%);border-bottom:2px solid var(--accent,#9b2d35);width:100%;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;color:var(--accent,#9b2d35);font-weight:700;flex-shrink:0;letter-spacing:0.5px;">📍 メインエリア</span></div><div class="area-grid col-2">${cards}</div><div style="font-size:11px;color:var(--text-3,#a09080);font-weight:500;padding:8px 2px 0;">※ その他のエリアもお気軽にお問い合わせください</div></div>`;
     if (existing) {
         existing.outerHTML = html;
     } else {
         anchor.insertAdjacentHTML('afterend', html);
     }
-    // 描画後に全カードの高さを最も高いカードへ揃える (フォント均一・改行ありでも箱サイズを統一).
-    requestAnimationFrame(() => requestAnimationFrame(equalizeShopAreaCards));
-    // 画面幅変更(回転・リサイズ)で行数が変わるため再計算 (リスナーは1回だけ登録).
-    if (!window._shopAreaEqualizeBound) {
-        window._shopAreaEqualizeBound = true;
-        let _t;
-        window.addEventListener('resize', () => {
-            clearTimeout(_t);
-            _t = setTimeout(equalizeShopAreaCards, 150);
-        });
-    }
-}
-
-// メインエリアの全カードの高さを、最も高いカード(改行で行数が多いもの)に揃える.
-// → フォントは均一・テキストは改行のまま、箱のサイズだけを統一する.
-//   ビューポート幅で行数が変わるため固定pxではなくブラウザ実測で揃える.
-function equalizeShopAreaCards() {
-    const cards = document.querySelectorAll('#shop-service-areas-bar .shop-area-card');
-    if (!cards.length) return;
-    // まず高さ指定を解除して自然な高さを測る.
-    cards.forEach(btn => { btn.style.minHeight = ''; });
-    let maxH = 0;
-    cards.forEach(btn => { if (btn.offsetHeight > maxH) maxH = btn.offsetHeight; });
-    if (maxH <= 0) return;
-    // 全カードを最大高さに統一 (text は flex で上下中央寄せのまま).
-    cards.forEach(btn => { btn.style.minHeight = maxH + 'px'; });
 }
 
 // タグクリック時のナビゲーション (data-action="goToShopArea" 経由).
