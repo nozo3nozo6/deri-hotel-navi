@@ -32,6 +32,20 @@ export const FUJOHO = {
   diary: `https://fujoho.jp/index.php?p=shop_girl_blog_list&id=${FID}`,
 };
 
+// お知らせ本文の電話番号を「閲覧店舗の番号」に統一する。
+//   立川(admi)と吉祥寺(kichifu)は別店舗だが、CTRLの2店舗掲載で一方が登録した本文が
+//   もう一方にも反映される。本文CTAに登録店の電話が直書きされているため、表示する店舗の
+//   番号へ置換しないと他店番号が出てしまう。全店の電話を当店番号に寄せる。
+const ALL_TELS = ['042-528-2888', '090-1045-9155'];      // 立川 / 吉祥寺（整形）
+const ALL_TELS_RAW = ['0425282888', '09010459155'];     // 立川 / 吉祥寺（tel:用raw）
+export function localizeBody(html: string): string {
+  if (!html) return html;
+  let s = html;
+  for (const t of ALL_TELS) s = s.split(t).join(SHOP.tel);
+  for (const t of ALL_TELS_RAW) s = s.split(t).join(SHOP.telRaw);
+  return s;
+}
+
 // 画像パス（/uploads/...）をシンレン配信のフルURLにする
 export function asset(path: string | null | undefined): string {
   if (!path) return '';

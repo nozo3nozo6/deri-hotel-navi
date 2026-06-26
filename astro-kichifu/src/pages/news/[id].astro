@@ -1,6 +1,6 @@
 ---
 import Site from '../../layouts/Site.astro';
-import { SHOP, asset, ASSET_ORIGIN } from '../../lib/config';
+import { SHOP, asset, ASSET_ORIGIN, localizeBody } from '../../lib/config';
 import { getNews, getNewsItem } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -28,9 +28,11 @@ const bodyPlain = it && it.body
   ? it.body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br />')
   : '';
 // 本文HTML内の画像パスを ASSET_ORIGIN(admi2888) 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
-const bodyHtml = (bodyIsHtml ? (it?.body ?? '') : bodyPlain)
-  .replace(/https?:\/\/kichifu\.com(\/uploads\/)/g, `${ASSET_ORIGIN}$1`)   // 旧kichifu絶対→admi2888
-  .replace(/(["'])\/uploads\//g, `$1${ASSET_ORIGIN}/uploads/`);            // 相対→admi2888
+const bodyHtml = localizeBody(                                            // 本文の電話を当店番号に統一（他店登録の2店舗掲載対策）
+  (bodyIsHtml ? (it?.body ?? '') : bodyPlain)
+    .replace(/https?:\/\/kichifu\.com(\/uploads\/)/g, `${ASSET_ORIGIN}$1`)  // 旧kichifu絶対→admi2888
+    .replace(/(["'])\/uploads\//g, `$1${ASSET_ORIGIN}/uploads/`)           // 相対→admi2888
+);
 ---
 {!it ? (
   <Site title={`ページが見つかりません｜${SHOP.fullName}`} description="" path={`/news/${id}`}>

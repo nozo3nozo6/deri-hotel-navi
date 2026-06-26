@@ -38,6 +38,18 @@ $SSR['fjDiary']    = "https://fujoho.jp/index.php?p=shop_girl_blog_list&id={$SSR
 if (!function_exists('ssr_h')) {
     function ssr_h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 }
+if (!function_exists('ssr_localize_body')) {
+    // お知らせ本文の電話番号を「閲覧店舗の番号」に統一する。
+    //   立川/吉祥寺は別店舗だが CTRL の2店舗掲載で一方の本文がもう一方にも反映され、本文CTAに
+    //   登録店の電話が直書きされている。表示店の番号へ置換しないと他店番号が出る（吉祥寺記事に立川042）。
+    //   Astro 側 localizeBody() と同ロジック（SSGとSSRで挙動を一致させる）。
+    function ssr_localize_body(string $html, array $S): string {
+        if ($html === '') return $html;
+        $html = str_replace(['042-528-2888', '090-1045-9155'], $S['tel'], $html);   // 整形
+        $html = str_replace(['0425282888', '09010459155'], $S['telRaw'], $html);    // tel:用raw
+        return $html;
+    }
+}
 if (!function_exists('asset_url')) {
     // 画像の正は admi2888.com（_lib.php / news-latest.js と同方針）。旧 kichifu 絶対URL・相対 /uploads/ を admi2888 に正規化。
     function asset_url(?string $p): string {

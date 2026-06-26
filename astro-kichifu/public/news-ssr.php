@@ -47,6 +47,7 @@ $bodyOut   = $bodyIsHtml
 // 本文HTML内の画像パスを admi2888 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
 $bodyOut = preg_replace('#https?://kichifu\.com(/uploads/)#', 'https://admi2888.com$1', $bodyOut);   // 旧kichifu絶対→admi2888
 $bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', 'https://admi2888.com$1', $bodyOut);              // 相対→admi2888
+$bodyOut = ssr_localize_body($bodyOut, $SSR);   // 本文の電話を当店番号に統一（他店登録の2店舗掲載対策）
 
 $desc = mb_strimwidth(strip_tags($body), 0, 120, '…');
 
