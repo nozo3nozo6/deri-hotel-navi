@@ -1,0 +1,259 @@
+---
+import Site from '../layouts/Site.astro';
+import { SHOP } from '../lib/config';
+
+const title = `求人情報｜${SHOP.fullName}｜立川 高収入バイト 18〜33歳`;
+const desc = `${SHOP.name}の女性求人。体験入店日給75,000円保証・入店支援金23,000円・全額日払い。95年生まれの女性店長が運営。未経験8割・身バレ対策20年・顔出しNG可。週1〜・完全自由出勤。LINEで質問だけでもOK。`;
+
+/* ── 求人データ（編集はこのブロックだけでOK） ──────────────────────────
+   ※ 応募受け口は LINE 中心。旧業者の admi2002fantasy@gmail.com は使わない
+     （ロックアウト済み・Site.astro 参照）。LINE ID / 番号はここで差し替え。 */
+const recruit = {
+  lineId: 'okekanji',
+  lineUrl: 'https://line.me/ti/p/~okekanji', // ID追加ディープリンク（ID変更時はlineIdと両方更新）
+};
+
+// ヒーローの数字ハイライト
+const heroStats = [
+  { num: '75,000', unit: '円', label: '体験入店 日給保証' },
+  { num: '23,000', unit: '円', label: '入店支援金' },
+  { num: '62.9', unit: '%', label: '最大バック率' },
+];
+
+// 3つの安心（女性が一番見るところ）
+const anchors = [
+  { icon: '🛡️', title: '身バレ対策、20年。', text: '創業以来ずっと「バレない」を最優先。顔出し完全NGでも、写真公開なしでも大丈夫。源氏名厳守・本名不要・アリバイ対策まで徹底します。' },
+  { icon: '👩', title: '運営は、女性店長。', text: '95年生まれ・同世代の女性店長があなたの相談相手。男性スタッフに言いにくいことも、女性目線で一緒に考えます。' },
+  { icon: '🌱', title: '在籍の約7割が未経験スタート。', text: '在籍23人中15人が「初めて」から。研修も講師も用意しているので、何も分からなくて大丈夫。あなたのペースで始められます。' },
+];
+
+// お給料
+const payRows = [
+  { course: '60分コース',  back: '12,100円〜' },
+  { course: '90分コース',  back: '15,100円〜' },
+  { course: '120分コース', back: '18,100円〜' },
+];
+const trial = [
+  { time: '3時間', amount: '37,800円' },
+  { time: '6時間', amount: '75,600円' },
+  { time: '10時間', amount: '126,500円' },
+];
+
+// 身バレ・プライバシー対策
+const privacy = [
+  '顔出し完全NGでOK（写真公開なしでも在籍できます）',
+  '顔写真はモザイク・ボカシ・修正で安心加工',
+  '源氏名で勤務・本名は一切不要',
+  'アリバイ対策（在籍証明・給与明細の発行）あり',
+  'キャスト同士の個人情報共有は厳禁ルール',
+  '個人情報保護の専用ブースで面接',
+];
+
+// 待遇・メリット
+const merits = [
+  { icon: '🚉', title: '駅徒歩2分', text: 'JR立川駅北口すぐ。通勤も帰りもラクで安全。' },
+  { icon: '🛋️', title: '個室待機', text: '個室＋フリールーム完備。待機中も気をつかわず過ごせます。' },
+  { icon: '💴', title: '全額日払い', text: '働いたその日に全額お渡し。すぐに必要な分も安心。' },
+  { icon: '🧺', title: '雑費ゼロ', text: '衛生用品・衣装はすべて無料。お仕事用下着も3着までプレゼント。' },
+  { icon: '🚗', title: '送迎あり', text: '終電対応の送迎で、夜遅くなっても帰り道が安心。' },
+  { icon: '💆', title: '無料マッサージ', text: '整体師在籍。待機中の疲れを無料でほぐせます。' },
+  { icon: '📚', title: '研修・講師制度', text: '立ち居振る舞い・サービス・SNSまで、女性講師が丁寧に。' },
+  { icon: '🏥', title: '社会保険完備', text: '長く続けたい方も安心の体制を用意しています。' },
+];
+
+// 働き方
+const workstyle = [
+  { icon: '📅', title: '完全自由出勤', text: 'シフトの縛りなし。働きたい日に、働きたいぶんだけ。' },
+  { icon: '🗓️', title: '週1日からOK', text: '本業・学業・育児のすき間でも。Wワーク・副業歓迎。' },
+  { icon: '🕙', title: '時間も自由', text: '朝10時〜翌5時の間で、あなたの都合に合わせて選べます。' },
+  { icon: '👯', title: 'お友達と一緒OK', text: '一人だと不安…なら、お友達と一緒に面接に来ても大丈夫。' },
+];
+
+// 面接の流れ
+const flow = [
+  { step: '01', title: 'まずはLINEで連絡', text: '「求人を見ました」とひとことでOK。質問だけ・相談だけでも大歓迎です。' },
+  { step: '02', title: '日程を相談', text: 'あなたの都合に合わせて面接日を決めます。即日・体験入店も相談OK。' },
+  { step: '03', title: '個室で面接', text: '女性スタッフが対応。お給料・働き方・不安なことを何でも聞いてください。' },
+  { step: '04', title: '体験入店', text: 'いきなり本入店でなくてOK。体験して、合うかどうかを確かめてから決められます。' },
+];
+
+// FAQ（FAQPage 構造化データにも使用）
+const faqs = [
+  { q: '未経験でも本当に大丈夫ですか？', a: '大丈夫です。在籍の約7割が未経験スタートで、女性講師による研修やモニター体験を用意しています。最初は誰でも不安なので、あなたのペースで少しずつ覚えていけます。' },
+  { q: '身バレ・顔バレが心配です。', a: '顔出し完全NGでお仕事できます。写真公開なしでも在籍可能で、掲載写真はモザイク・ボカシ・修正で加工します。源氏名勤務・本名不要・アリバイ対策まで、20年の身バレ対策ノウハウで守ります。' },
+  { q: 'ノルマや罰金はありますか？', a: 'ありません。完全自由出勤で、出勤日数や本数のノルマもなし。働きたい日に、働きたいぶんだけで大丈夫です。' },
+  { q: 'どのくらい稼げますか？', a: '体験入店は日給保証で、3時間37,800円〜・10時間126,500円。バック率は最大62.9%、入店支援金23,000円もあり、全額日払いでお渡しします。' },
+  { q: 'Wワーク・学生でもできますか？', a: '週1日からOKなので、本業・学業のすき間でも働けます。副業・Wワークも歓迎しています。' },
+  { q: '友達と一緒に応募してもいいですか？', a: 'もちろんOKです。一人だと不安な方は、お友達と一緒に面接にお越しください。' },
+];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+/* ───────────────────────────────────────────────────────────────────── */
+---
+<Site title={title} description={desc} path="/recruit">
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} is:inline />
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-md" style="position:relative;z-index:1;">
+
+        <nav class="breadcrumb">
+          <a href="/top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>求人情報</span>
+        </nav>
+
+        {/* ───── HERO ───── */}
+        <div class="rc-hero">
+          <span class="rc-hero-eyebrow holo-text">RECRUIT｜立川 高収入バイト</span>
+          <h1 class="rc-hero-title">ゆとり世代の女性が、<br />ちゃんと稼げるお店。</h1>
+          <p class="rc-hero-lead">18〜33歳・未経験歓迎。<br class="sp-br" />身バレ対策20年、運営は同世代の女性店長。<br />「まずは話だけ」でも大丈夫です。</p>
+          <div class="rc-stats">
+            {heroStats.map((s) => (
+            <div class="rc-stat">
+              <span class="rc-stat-num">{s.num}<small>{s.unit}</small></span>
+              <span class="rc-stat-label">{s.label}</span>
+            </div>
+            ))}
+          </div>
+          <div class="rc-hero-cta">
+            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line">💬 LINEで応募・相談する</a>
+            <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel">📞 電話で応募（{SHOP.reception}）</a>
+            <p class="rc-hero-note">質問だけ・相談だけでも大歓迎です ♡</p>
+          </div>
+        </div>
+
+        {/* ───── 3つの安心 ───── */}
+        <h2 class="section-label">あなたが一番不安なことから、お話しします</h2>
+        <div class="rc-anchor-list">
+          {anchors.map((a) => (
+          <div class="rc-anchor">
+            <span class="rc-anchor-icon" aria-hidden="true">{a.icon}</span>
+            <div class="rc-anchor-body">
+              <h3 class="rc-anchor-title">{a.title}</h3>
+              <p class="rc-anchor-text">{a.text}</p>
+            </div>
+          </div>
+          ))}
+        </div>
+
+        {/* ───── お給料 ───── */}
+        <h2 class="section-label" style="margin-top:44px;">お給料</h2>
+        <div class="rc-pay">
+          <p class="rc-pay-head"><span aria-hidden="true">💖</span> 体験入店は<strong>日給保証</strong>。初日から、しっかり。</p>
+          <div class="rc-trial">
+            {trial.map((t) => (
+            <div class="rc-trial-card">
+              <span class="rc-trial-time">{t.time}</span>
+              <span class="rc-trial-amount">{t.amount}</span>
+            </div>
+            ))}
+          </div>
+          <div class="fee-card" style="margin-top:18px;">
+            <div class="fee-list">
+              {payRows.map((p) => (
+              <div class="fee-row">
+                <span class="fee-name">{p.course}</span>
+                <span class="fee-amount">バック {p.back}</span>
+              </div>
+              ))}
+            </div>
+          </div>
+          <div class="system-note">
+            ※ バック率は <strong>54.5〜62.9%</strong>、機動ボーナスは70%以上などプランを自由に選べます。<br />
+            ※ <strong>入店支援金23,000円</strong> 支給・<strong>全額日払い</strong>対応。
+          </div>
+        </div>
+
+        {/* ───── 身バレ・プライバシー対策 ───── */}
+        <h2 class="section-label" style="margin-top:44px;">身バレ・プライバシー対策</h2>
+        <div class="rc-safe">
+          <p class="rc-safe-lead">「絶対に知られたくない」を、20年かけて守ってきました。</p>
+          <ul class="rc-safe-list">
+            {privacy.map((p) => (
+            <li class="rc-safe-item"><span class="rc-check" aria-hidden="true">✓</span>{p}</li>
+            ))}
+          </ul>
+        </div>
+
+        {/* ───── 待遇・メリット ───── */}
+        <h2 class="section-label" style="margin-top:44px;">待遇・福利厚生</h2>
+        <div class="rc-grid">
+          {merits.map((m) => (
+          <div class="rc-card">
+            <span class="rc-card-icon" aria-hidden="true">{m.icon}</span>
+            <span class="rc-card-title">{m.title}</span>
+            <span class="rc-card-text">{m.text}</span>
+          </div>
+          ))}
+        </div>
+
+        {/* ───── 働き方 ───── */}
+        <h2 class="section-label" style="margin-top:44px;">働き方</h2>
+        <div class="rc-grid rc-grid-2">
+          {workstyle.map((w) => (
+          <div class="rc-card">
+            <span class="rc-card-icon" aria-hidden="true">{w.icon}</span>
+            <span class="rc-card-title">{w.title}</span>
+            <span class="rc-card-text">{w.text}</span>
+          </div>
+          ))}
+        </div>
+
+        {/* ───── 面接の流れ ───── */}
+        <h2 class="section-label" style="margin-top:44px;">応募〜面接の流れ</h2>
+        <div class="rc-flow">
+          {flow.map((f) => (
+          <div class="rc-flow-step">
+            <span class="rc-flow-num">{f.step}</span>
+            <div class="rc-flow-body">
+              <h3 class="rc-flow-title">{f.title}</h3>
+              <p class="rc-flow-text">{f.text}</p>
+            </div>
+          </div>
+          ))}
+        </div>
+        <div class="system-note"><span aria-hidden="true">🌸</span> 「面接だけ」「体験だけ」で終わっても大丈夫。無理な勧誘は一切しません。</div>
+
+        {/* ───── FAQ ───── */}
+        <h2 class="section-label" style="margin-top:44px;">よくある質問</h2>
+        <div class="rc-faq">
+          {faqs.map((f) => (
+          <details class="rc-faq-item">
+            <summary class="rc-faq-q"><span class="rc-faq-mark" aria-hidden="true">Q</span>{f.q}</summary>
+            <p class="rc-faq-a">{f.a}</p>
+          </details>
+          ))}
+        </div>
+
+        {/* ───── 応募CTA（大） ───── */}
+        <div class="rc-cta">
+          <span class="rc-cta-eyebrow holo-text">ENTRY</span>
+          <p class="rc-cta-title">まずは、ひとこと送ってみませんか？</p>
+          <p class="rc-cta-text">「求人を見ました」だけでOK。<br />あなたのペースに合わせて、女性スタッフがお答えします。</p>
+          <div class="rc-cta-btns">
+            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line">💬 LINEで応募・相談</a>
+            <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel">📞 {SHOP.tel}</a>
+          </div>
+          <p class="rc-cta-line-id">LINE ID：<strong>{recruit.lineId}</strong>（IDで検索 → 友だち追加）</p>
+          <p class="rc-cta-foot">受付 {SHOP.reception}／18歳未満・高校生不可</p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  {/* ───── 追従CTAバー（スマホ） ───── */}
+  <div class="rc-sticky" aria-label="応募">
+    <a href={`tel:${SHOP.telRaw}`} class="rc-sticky-tel"><span aria-hidden="true">📞</span><span>電話</span></a>
+    <a href={recruit.lineUrl} target="_self" rel="noopener" class="rc-sticky-line"><span aria-hidden="true">💬</span><span>LINEで応募する</span></a>
+  </div>
+</Site>

@@ -3166,3 +3166,131 @@ body {
 
 /* 最新情報の写メ日記バッジ */
 .news-diary-badge { display: inline-block; margin-right: 8px; padding: 1px 9px; border-radius: 9999px; font-size: .6875rem; font-weight: 700; background: linear-gradient(135deg, #ff4fd8, #b78fff); color: #fff; vertical-align: middle; }
+
+/* ===========================================================================
+   求人ページ (/recruit) — RECRUIT LP
+   18〜33歳女性向け。既存ガーリーネオン世界観で統一。スマホ最優先。
+   =========================================================================== */
+
+/* HERO */
+.rc-hero {
+  text-align: center;
+  background: linear-gradient(160deg, var(--bg-1) 0%, #fff 60%, var(--bg-1) 100%);
+  border: 1px solid rgba(236,72,153,.22);
+  border-radius: 22px;
+  padding: 30px 20px 26px;
+  margin-bottom: 38px;
+  box-shadow: 0 10px 34px rgba(236,72,153,.12);
+}
+.rc-hero-eyebrow { display: block; font-weight: 800; font-size: .8rem; letter-spacing: .12em; margin-bottom: 12px; }
+.rc-hero-title { font-size: 1.55rem; font-weight: 800; line-height: 1.4; color: var(--text); letter-spacing: .01em; }
+@media (min-width: 768px) { .rc-hero-title { font-size: 2.1rem; } }
+.rc-hero-lead { margin-top: 14px; font-size: .95rem; line-height: 1.85; color: var(--text-soft); }
+.rc-stats { display: flex; gap: 10px; justify-content: center; margin: 22px 0 6px; flex-wrap: wrap; }
+.rc-stat {
+  flex: 1 1 0; min-width: 96px; max-width: 170px;
+  background: #fff; border: 1px solid rgba(192,132,252,.3);
+  border-radius: 16px; padding: 14px 8px;
+  box-shadow: 0 4px 14px rgba(192,132,252,.14);
+}
+.rc-stat-num { display: block; font-size: 1.6rem; font-weight: 800; line-height: 1.1; color: var(--neon-pink-hot); }
+.rc-stat-num small { font-size: .85rem; font-weight: 700; margin-left: 1px; }
+.rc-stat-label { display: block; margin-top: 5px; font-size: .7rem; font-weight: 600; color: var(--text-mute); }
+.rc-hero-cta { margin-top: 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.rc-hero-note { font-size: .78rem; color: var(--text-mute); margin-top: 2px; }
+
+/* 共通ボタン */
+.rc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; max-width: 340px; padding: 14px 20px; border-radius: 9999px; font-weight: 800; font-size: 1rem; text-align: center; transition: transform .15s, box-shadow .2s; }
+.rc-btn:active { transform: translateY(1px); }
+.rc-btn-line { color: #fff; background: linear-gradient(180deg, #f9a8d4, #ec4899); box-shadow: 0 8px 22px -8px rgba(236,72,153,.55), inset 0 1px 0 rgba(255,255,255,.55); }
+.rc-btn-tel {
+  background: #fff; color: var(--neon-pink-hot);
+  border: 2px solid var(--neon-pink);
+}
+.rc-btn-tel:hover { background: var(--bg-1); }
+
+/* 3つの安心 */
+.rc-anchor-list { display: flex; flex-direction: column; gap: 14px; }
+.rc-anchor {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: #fff; border: 1px solid rgba(236,72,153,.18);
+  border-radius: 16px; padding: 18px 16px;
+  box-shadow: 0 4px 14px rgba(236,72,153,.08);
+}
+.rc-anchor-icon { font-size: 1.9rem; line-height: 1; flex-shrink: 0; }
+.rc-anchor-title { font-size: 1.05rem; font-weight: 800; color: var(--neon-pink-hot); margin-bottom: 5px; }
+.rc-anchor-text { font-size: .9rem; line-height: 1.8; color: var(--text-soft); }
+
+/* お給料 */
+.rc-pay-head { font-size: 1rem; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 14px; }
+.rc-pay-head strong { color: var(--neon-pink-hot); }
+.rc-trial { display: flex; gap: 10px; }
+.rc-trial-card {
+  flex: 1; text-align: center;
+  background: linear-gradient(160deg, #fff, var(--bg-1));
+  border: 1px solid rgba(192,132,252,.3); border-radius: 14px; padding: 14px 6px;
+}
+.rc-trial-time { display: block; font-size: .8rem; font-weight: 700; color: var(--lav-soft); }
+.rc-trial-amount { display: block; margin-top: 4px; font-size: 1.15rem; font-weight: 800; color: var(--neon-pink-hot); }
+
+/* 身バレ対策 */
+.rc-safe {
+  background: linear-gradient(160deg, #fff, var(--bg-1));
+  border: 1px solid rgba(192,132,252,.3); border-radius: 18px; padding: 20px 18px;
+}
+.rc-safe-lead { font-size: .98rem; font-weight: 700; color: var(--text); text-align: center; margin-bottom: 14px; }
+.rc-safe-list { display: flex; flex-direction: column; gap: 10px; }
+.rc-safe-item { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; line-height: 1.6; color: var(--text-soft); }
+.rc-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-pink), var(--lavender)); color: #fff; font-size: .78rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+
+/* メリット/働き方グリッド */
+.rc-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+@media (min-width: 768px) { .rc-grid { grid-template-columns: repeat(4, 1fr); } .rc-grid-2 { grid-template-columns: repeat(4, 1fr); } }
+.rc-card {
+  display: flex; flex-direction: column; gap: 4px; text-align: center;
+  background: #fff; border: 1px solid rgba(236,72,153,.16); border-radius: 14px;
+  padding: 16px 10px; box-shadow: 0 3px 10px rgba(236,72,153,.07);
+}
+.rc-card-icon { font-size: 1.7rem; line-height: 1; }
+.rc-card-title { font-size: .92rem; font-weight: 800; color: var(--neon-pink-hot); margin-top: 4px; }
+.rc-card-text { font-size: .76rem; line-height: 1.65; color: var(--text-soft); }
+
+/* 面接の流れ */
+.rc-flow { display: flex; flex-direction: column; gap: 0; }
+.rc-flow-step { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px dashed rgba(192,132,252,.35); }
+.rc-flow-step:last-child { border-bottom: none; }
+.rc-flow-num { flex-shrink: 0; font-size: 1.4rem; font-weight: 800; color: var(--neon-pink); width: 40px; }
+.rc-flow-title { font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.rc-flow-text { font-size: .88rem; line-height: 1.75; color: var(--text-soft); }
+
+/* FAQ */
+.rc-faq { display: flex; flex-direction: column; gap: 10px; }
+.rc-faq-item { background: #fff; border: 1px solid rgba(236,72,153,.18); border-radius: 14px; overflow: hidden; }
+.rc-faq-q { display: flex; gap: 10px; align-items: center; padding: 14px 16px; font-size: .92rem; font-weight: 700; color: var(--text); cursor: pointer; list-style: none; }
+.rc-faq-q::-webkit-details-marker { display: none; }
+.rc-faq-q::after { content: '＋'; margin-left: auto; color: var(--neon-pink); font-weight: 800; }
+.rc-faq-item[open] .rc-faq-q::after { content: '−'; }
+.rc-faq-mark { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-pink), var(--lavender)); color: #fff; font-size: .8rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.rc-faq-a { padding: 0 16px 16px 50px; font-size: .88rem; line-height: 1.8; color: var(--text-soft); }
+
+/* 応募CTA（大） */
+.rc-cta {
+  margin-top: 44px; text-align: center;
+  background: linear-gradient(160deg, var(--bg-2) 0%, var(--bg-1) 50%, #fff 100%);
+  border: 1px solid rgba(236,72,153,.28); border-radius: 22px;
+  padding: 30px 20px; box-shadow: 0 10px 30px rgba(236,72,153,.14);
+}
+.rc-cta-eyebrow { display: block; font-weight: 800; font-size: .8rem; letter-spacing: .14em; margin-bottom: 8px; }
+.rc-cta-title { font-size: 1.3rem; font-weight: 800; color: var(--text); line-height: 1.45; }
+.rc-cta-text { margin-top: 10px; font-size: .92rem; line-height: 1.8; color: var(--text-soft); }
+.rc-cta-btns { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.rc-cta-line-id { margin-top: 14px; font-size: .85rem; color: var(--text-soft); }
+.rc-cta-line-id strong { color: var(--neon-pink-hot); letter-spacing: .02em; }
+.rc-cta-foot { margin-top: 8px; font-size: .76rem; color: var(--text-mute); }
+
+/* 追従CTAバー（スマホのみ） */
+.rc-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; display: flex; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,249,251,.9); backdrop-filter: blur(8px); border-top: 1px solid rgba(236,72,153,.25); }
+.rc-sticky a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 9999px; font-weight: 800; padding: 12px 8px; }
+.rc-sticky-tel { flex: 0 0 84px; background: #fff; color: var(--neon-pink-hot); border: 2px solid var(--neon-pink); font-size: .85rem; }
+.rc-sticky-line { flex: 1; color: #fff; font-size: .98rem; background: linear-gradient(180deg, #f9a8d4, #ec4899); box-shadow: 0 6px 18px -6px rgba(236,72,153,.6); }
+@media (min-width: 768px) { .rc-sticky { display: none; } }
