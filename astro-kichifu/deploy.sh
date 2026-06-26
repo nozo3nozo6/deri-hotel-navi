@@ -21,8 +21,8 @@ echo "▶ rsync api/（PHP API・秘密ファイル除外）"
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \
   -e "$SSH" api/ "$DEST/api/"
 
-echo "▶ rsync ctrl/（PHP CMS、旧admin）"
-rsync -avz -e "$SSH" ctrl/ "$DEST/ctrl/"
+# ctrl/（CMS）は kichifu には配信しない。CMSは admi2888.com/ctrl に一本化（kichifu.com/ctrlは廃止・admi2888へ301）。
+# ctrl コードの正は astro-kichifu/ctrl/ で、admi2888 へは deploy-prod-admi2888.sh が配信する。
 
 echo "▶ rsync public/*.php（SSRフォールバック: postbuildでdistから削除されるため別途デプロイ）"
 rsync -avz -e "$SSH" public/news-ssr.php public/diary-ssr.php "$DEST/"

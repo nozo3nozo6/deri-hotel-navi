@@ -48,10 +48,10 @@ DirectorySlash Off
   RewriteRule ^girls/?$ /girls.html [L]
   RewriteRule ^news/?$  /news.html  [L]
 
-  # DirectorySlash Off のため、管理画面はスラッシュ付きに明示誘導
-  RewriteRule ^ctrl$ /ctrl/ [R=301,L]
-  # 旧 /admin/ は /ctrl/ へ恒久リダイレクト（旧URL救済。サーバー上の旧admin/実体は別途手動削除）
-  RewriteRule ^admin(/.*)?$ /ctrl$1 [R=301,L]
+  # CMS(/ctrl)は admi2888.com に一本化。kichifu.com/ctrl・/admin は admi2888 へ恒久リダイレクト
+  # （kichifu側の ctrl 実体は廃止。旧ブックマーク救済のため301で誘導）
+  RewriteRule ^ctrl(/.*)?$  https://admi2888.com/ctrl$1 [R=301,L]
+  RewriteRule ^admin(/.*)?$ https://admi2888.com/ctrl$1 [R=301,L]
 
   # 拡張子なしリクエストを .html へ内部マッピング（存在する時のみ）
   #   例: /top→/top.html, /girls→/girls.html, /girls/123→/girls/123.html

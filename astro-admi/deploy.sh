@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
-# admi2888.com 本番デプロイ（★NS切替後のみ使用）
-#   Astroビルド → dist/ をシンレン public_html へ rsync。--delete 不使用。
-#   ⚠️ 本番デプロイ前に config を本番値へ戻すこと:
-#       - src/lib/config.ts   : ASSET_ORIGIN='https://admi2888.com'（共有ロスターのshop_id確定）
-#       - astro.config.mjs    : site='https://admi2888.com'
-#       - src/layouts/Site.astro: SITE=admi2888.com / robots=index,follow / GA=admi専用ID
-#       - public/.htaccess    : X-Robots-Tag noindex 行を削除
-#   ※ 検証は ./deploy-staging.sh（biyobu.com）を使う。
+# ⛔ 廃止: このスクリプトは使わない。本番デプロイは ./deploy-prod-admi2888.sh を使う。
+#   理由（2026-06-26 事故）: このスクリプトは
+#     - .htaccess の staging用 noindex(X-Robots-Tag) を除去せず配信 → admi2888が突然 noindex 化
+#     - astro-admi/ctrl・api（古いフォーク）を配信 → 共有CMS/APIが旧版に巻き戻る
+#   正しい本番デプロイ deploy-prod-admi2888.sh は noindex除去 + ctrl/api を astro-kichifu から配信する。
 # ============================================================
+echo "⛔ deploy.sh は廃止。本番は ./deploy-prod-admi2888.sh を使ってください（noindex除去・正ctrl/api配信）。" >&2
+exit 1
+
 set -euo pipefail
 cd "$(dirname "$0")"
 
