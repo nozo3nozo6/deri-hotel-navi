@@ -1,6 +1,6 @@
 ---
 import Site from '../../layouts/Site.astro';
-import { SHOP, asset } from '../../lib/config';
+import { SHOP, asset, ASSET_ORIGIN } from '../../lib/config';
 import { getNews, getNewsItem } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -27,6 +27,9 @@ const bodyIsHtml = !!(it && it.body && /<[a-z!/][^>]*>/i.test(it.body));
 const bodyPlain = it && it.body
   ? it.body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br />')
   : '';
+// 本文HTML内の /uploads/ 相対パス → kichifu.com 絶対URL（画像を別ドメインでも表示）
+const bodyHtml = (bodyIsHtml ? (it?.body ?? '') : bodyPlain)
+  .replace(/(["'])\/uploads\//g, `$1${ASSET_ORIGIN}/uploads/`);
 ---
 {!it ? (
   <Site title={`ページが見つかりません｜${SHOP.fullName}`} description="" path={`/news/${id}`}>
@@ -59,16 +62,16 @@ const bodyPlain = it && it.body
             thumbLink ? (
               <a href={thumbLink} target="_self" class="news-detail-thumb-link">
                 <img src={asset(it.thumb)} alt=""
-                     width="480" height="640" loading="lazy" class="news-detail-thumb" />
+                     loading="lazy" class="news-detail-thumb" />
               </a>
             ) : (
               <img src={asset(it.thumb)} alt=""
-                   width="480" height="640" loading="lazy" class="news-detail-thumb" />
+                   loading="lazy" class="news-detail-thumb" />
             )
           ) : null}
 
           {it.body ? (
-            <div class="prose-neon" set:html={bodyIsHtml ? it.body : bodyPlain}></div>
+            <div class="prose-neon" set:html={bodyHtml}></div>
           ) : null}
 
         </div>
