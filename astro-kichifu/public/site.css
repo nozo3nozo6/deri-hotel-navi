@@ -542,9 +542,9 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
 .iconlegend-head { text-align: center; margin-bottom: 12px; }
 .iconlegend-eyebrow { display: block; font-weight: 800; color: var(--neon-pink); font-size: .95rem; letter-spacing: .03em; }
 .iconlegend-hint { display: block; font-size: .72rem; color: var(--text-mute); margin-top: 3px; }
-.iconlegend-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.iconlegend-row { display: flex; flex-wrap: nowrap; justify-content: center; gap: 12px; }
 .iconlegend-btn {
-  width: 58px; height: 58px; flex-shrink: 0;
+  flex: 0 1 58px; aspect-ratio: 1 / 1; min-width: 0;   /* スマホでも1行: 幅が足りなければ縮小・正方形維持 */
   display: flex; align-items: center; justify-content: center;
   border-radius: 16px; cursor: pointer;
   background: #fff;
@@ -558,7 +558,7 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
   border-color: var(--neon-pink);
   box-shadow: 0 8px 22px rgba(236,72,153,.34);
 }
-.iconlegend-btn img { width: 40px; height: 40px; object-fit: contain; pointer-events: none; }
+.iconlegend-btn img { width: 70%; height: 70%; object-fit: contain; pointer-events: none; }
 /* モーダル内の凡例アイテム（.reserve-card を流用＝両テーマ自動対応） */
 .iconlegend-item-icon { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }
 .iconlegend-item.is-active {
