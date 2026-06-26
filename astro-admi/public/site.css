@@ -488,17 +488,25 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
 .modal-title { font-size: 1.0625rem; font-weight: 800; }
 .modal-sub { font-size: .8125rem; color: var(--text-mute); text-align: center; margin: -4px 0 4px; }
 .modal-close {
-  width: 36px; height: 36px;
+  width: 48px; height: 48px;
+  margin: -8px -8px -8px 0;          /* タップ域を広げつつ見た目位置は維持 */
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  border-radius: 8px;
-  font-size: 1.125rem;
+  border-radius: 50%;
+  font-size: 1.75rem; line-height: 1;
   color: var(--lav-soft);
-  background: none;
-  border: none;
-  transition: color .2s;
+  background: rgba(255,79,216,.12);
+  border: 1.5px solid rgba(255,79,216,.35);
+  cursor: pointer;
+  transition: color .2s, background .2s, border-color .2s, transform .15s;
+  touch-action: manipulation;
 }
-.modal-close:hover { color: #fff; }
+.modal-close:hover, .modal-close:active {
+  color: #fff;
+  background: rgba(255,79,216,.28);
+  border-color: rgba(255,79,216,.7);
+  transform: scale(1.06);
+}
 .reserve-cards { display: flex; flex-direction: column; gap: 12px; }
 .reserve-card {
   display: flex;

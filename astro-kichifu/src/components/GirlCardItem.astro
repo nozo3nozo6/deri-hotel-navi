@@ -29,9 +29,9 @@ const inNum = g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, 
   <div class="girl-card-flags">
     {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-card-flag-icon" width="128" height="128" alt="新人" title="新人" loading="lazy" /> : null}
     {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" loading="lazy" /> : null}
+    {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" /> : null}
     {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-card-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" loading="lazy" /> : null}
     {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" /> : null}
-    {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" /> : null}
   </div>
   {tags.length ? (
     <div class="girl-card-tags">
