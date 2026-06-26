@@ -212,17 +212,20 @@ foreach ($all as $sid => $rec) {
         $thumb ? ' 🖼' : '', $DRY ? '(dry)' : '');
 }
 
-// shop_id=1 のニュースを shop_id=2(吉祥寺) にミラー同期（両店同内容）。
+// shop_id=1 の【取込ニュースのみ】を shop_id=2(吉祥寺) にミラー同期（両店同内容）。
+// ※ source_id が数値(=admi2888取込ID)の行だけ対象。手動投稿(/ctrl)は source_id が 'm…' or NULL で
+//   ミラー対象外＝CTRLの「掲載店舗」チェックで店舗別に制御する（NULL行の重複生成バグも同時に解消）。
 // 画像は shop1 の /uploads を共有参照（再DLしない）。uniq_news_source(shop_id,source_id) で冪等upsert。
 if (!$DRY) {
     $pdo->exec(
-        'INSERT INTO news (shop_id, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url)
-         SELECT 2, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url FROM news WHERE shop_id = 1
+        "INSERT INTO news (shop_id, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url)
+         SELECT 2, source_id, title, body, thumb, posted_at, is_display, sort, link_girl_id, link_url
+           FROM news WHERE shop_id = 1 AND source_id REGEXP '^[0-9]+$'
          ON DUPLICATE KEY UPDATE title=VALUES(title), body=VALUES(body), thumb=VALUES(thumb),
                                  posted_at=VALUES(posted_at), is_display=VALUES(is_display),
-                                 link_girl_id=VALUES(link_girl_id), link_url=VALUES(link_url), modified=NOW()'
+                                 link_girl_id=VALUES(link_girl_id), link_url=VALUES(link_url), modified=NOW()"
     );
-    echo "shop2(吉祥寺) ミラー同期 完了\n";
+    echo "shop2(吉祥寺) ミラー同期 完了（取込ニュースのみ）\n";
 }
 
 echo "\n--- 集計" . ($DRY ? "（DRY-RUN: DB/画像 未変更）" : "") . " ---\n";

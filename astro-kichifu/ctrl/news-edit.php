@@ -2,34 +2,47 @@
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_upload.php';
 require_login();
-$shop = current_shop_id();
+$admin    = current_admin();
+$isOwner  = empty($admin['shop_id']);                 // 全店ownerのみ複数店舗を選べる（staffは自店固定）
+$shop     = current_shop_id();
+$allShops = shops_list();
+$allShopIds = array_map(fn($s) => (int)$s['id'], $allShops);
 $id = (int)($_GET['id'] ?? 0);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
     $title = trim((string)($_POST['title'] ?? ''));
+    // 掲載店舗: owner=チェックされた店舗 / staff=自店固定
+    $targetShops = $isOwner
+        ? array_values(array_intersect(array_map('intval', (array)($_POST['shops'] ?? [])), $allShopIds))
+        : [(int)$admin['shop_id']];
     if ($title === '') { flash('err', 'タイトルは必須です。'); }
+    elseif (!$targetShops) { flash('err', '掲載店舗を1つ以上選択してください。'); }
     else {
-        // 既存読み込み（画像差し替え判定用）
+        // 編集の起点（現在店舗の行）。画像差し替え判定 + リンクキー継承に使う
         $cur = null;
         if ($id) { $s = db()->prepare('SELECT * FROM news WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $cur = $s->fetch(); }
+
+        // リンクキー(source_id): 両店の行を1つのお知らせとして紐づける。
+        // 取込(admi2888)は数値ID、手動投稿は synthetic 'm…'（ミラー対象外・チェックで制御）。
+        $linkKey = $cur['source_id'] ?? null;
+        if ($linkKey === null || $linkKey === '') $linkKey = 'm' . bin2hex(random_bytes(6));
+
+        // サムネ（全店で共有。物理は /uploads/news/ のみ削除可。女の子画像 /uploads/girls/ は共有実体のため消さない）
         $thumb = $cur['thumb'] ?? '';
-        // news 専用アップロード(/uploads/news/)のみ物理削除可。女の子画像(/uploads/girls/)を参照中は消さない（共有実体保護）
         $isNewsOwn = fn($p) => is_string($p) && str_starts_with($p, '/uploads/news/');
         if (!empty($_POST['remove_thumb'])) { if ($isNewsOwn($thumb)) delete_upload($thumb); $thumb = ''; }
-        // 女の子の登録画像を選択した場合（girl_images の path を参照。アップロード不要・リンク先も自動でその子に）
         $fromGirl = trim((string)($_POST['thumb_from_girl'] ?? ''));
         if ($fromGirl !== '' && str_starts_with($fromGirl, '/uploads/girls/')) {
             if ($isNewsOwn($thumb) && $thumb !== $fromGirl) delete_upload($thumb);
             $thumb = $fromGirl;
         }
-        // 手動アップロード（最優先で上書き）
         if (($_FILES['thumb']['error'] ?? 4) === UPLOAD_ERR_OK) {
             $new = save_upload($_FILES['thumb'], 'news/' . $shop);
             if ($new) { if ($isNewsOwn($thumb)) delete_upload($thumb); $thumb = $new; }
         }
-        $data = [
-            'shop_id' => $shop, 'title' => $title,
+        $fields = [
+            'title' => $title,
             'body' => (string)($_POST['body'] ?? ''),
             'thumb' => $thumb,
             'posted_at' => ($_POST['posted_at'] ?? '') ? str_replace('T', ' ', $_POST['posted_at']) . ':00' : null,
@@ -37,24 +50,51 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'link_girl_id' => ($_POST['link_girl_id'] ?? '') !== '' ? (int)$_POST['link_girl_id'] : null,
             'link_url' => trim((string)($_POST['link_url'] ?? '')) !== '' ? trim((string)$_POST['link_url']) : null,
             'is_display' => isset($_POST['is_display']) ? 1 : 0,
+            'source_id' => $linkKey,
         ];
         try {
-            if ($id && $cur) {
-                $set = implode(',', array_map(fn($k) => "$k=:$k", array_keys($data)));
-                db()->prepare("UPDATE news SET $set WHERE id=:id")->execute($data + ['id' => $id]);
-            } else {
-                $cols = implode(',', array_keys($data)); $ph = implode(',', array_map(fn($k) => ":$k", array_keys($data)));
-                db()->prepare("INSERT INTO news ($cols) VALUES ($ph)")->execute($data);
-                $id = (int)db()->lastInsertId();
+            db()->beginTransaction();
+            foreach ($allShopIds as $sid) {
+                // この店舗の既存行（linkKey一致 or 編集起点の行=旧source_id NULL）
+                $ex = db()->prepare('SELECT id FROM news WHERE shop_id=? AND source_id=? LIMIT 1');
+                $ex->execute([$sid, $linkKey]);
+                $exId = (int)($ex->fetchColumn() ?: 0);
+                if (!$exId && $id && $sid === $shop && $cur) $exId = $id;
+
+                if (in_array($sid, $targetShops, true)) {
+                    $row = $fields + ['shop_id' => $sid];
+                    if ($exId) {
+                        $set = implode(',', array_map(fn($k) => "$k=:$k", array_keys($row)));
+                        db()->prepare("UPDATE news SET $set WHERE id=:id")->execute($row + ['id' => $exId]);
+                    } else {
+                        $cols = implode(',', array_keys($row)); $ph = implode(',', array_map(fn($k) => ":$k", array_keys($row)));
+                        db()->prepare("INSERT INTO news ($cols) VALUES ($ph)")->execute($row);
+                    }
+                } elseif ($exId) {
+                    // チェックを外した店舗 → その店舗の行を削除（物理サムネは他店共有のため消さない）
+                    db()->prepare('DELETE FROM news WHERE id=?')->execute([$exId]);
+                }
             }
+            db()->commit();
             flash('ok', '保存しました。');
             redirect('news.php');
-        } catch (Throwable $e) { flash('err', '保存に失敗しました。'); }
+        } catch (Throwable $e) { if (db()->inTransaction()) db()->rollBack(); flash('err', '保存に失敗しました。'); }
     }
 }
 
-$n = ['title' => '', 'body' => '', 'thumb' => '', 'posted_at' => date('Y-m-d\TH:i'), 'is_display' => 1, 'link_girl_id' => null, 'link_url' => ''];
+$n = ['title' => '', 'body' => '', 'thumb' => '', 'posted_at' => date('Y-m-d\TH:i'), 'is_display' => 1, 'link_girl_id' => null, 'link_url' => '', 'source_id' => null];
 if ($id) { $s = db()->prepare('SELECT * FROM news WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $n = $s->fetch(); if (!$n) { flash('err', '対象が見つかりません。'); redirect('news.php'); } $n['posted_at'] = $n['posted_at'] ? str_replace(' ', 'T', substr($n['posted_at'], 0, 16)) : ''; }
+
+// 掲載店舗チェックの初期状態: 新規=全店ON / 編集=同 source_id を持つ店舗（旧source_id NULLの手動投稿は現在店舗のみ）
+if (!$id) {
+    $checkedShops = $allShopIds;
+} elseif (!empty($n['source_id'])) {
+    $cs = db()->prepare('SELECT DISTINCT shop_id FROM news WHERE source_id=?');
+    $cs->execute([$n['source_id']]);
+    $checkedShops = array_map('intval', array_column($cs->fetchAll(), 'shop_id'));
+} else {
+    $checkedShops = [(int)$n['shop_id']];
+}
 
 // サムネのリンク先プルダウン用: この店舗に掲載中の在籍（共有プール girl_shops）。
 // 並びは schedules.php と同じ「出勤頻度が高い順 → 入店が新しい順 → id降順」
@@ -190,6 +230,17 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
       <input type="url" name="link_url" value="<?= h($n['link_url'] ?? '') ?>" placeholder="https://…">
       <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888"><strong>女の子選択が優先</strong>、未選択ならこのURL、どちらも無ければリンク無し（同じタブで開きます）。</p>
     </div>
+    <?php if ($isOwner): ?>
+    <div class="field">
+      <label>掲載店舗</label>
+      <div class="checks">
+        <?php foreach ($allShops as $s): ?>
+          <label class="check" style="color:var(--primary)"><input type="checkbox" name="shops[]" value="<?= (int)$s['id'] ?>" <?= in_array((int)$s['id'], $checkedShops, true) ? 'checked' : '' ?>> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
+        <?php endforeach; ?>
+      </div>
+      <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">チェックした店舗のサイトに掲載されます（デフォルトは両方ON）。外すとその店舗からは削除されます。</p>
+    </div>
+    <?php endif; ?>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$n['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
   </div>
   <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/news.php">キャンセル</a></div>
