@@ -2975,7 +2975,7 @@ body {
   .news-item { animation: none; }
   .news-item::before { animation: none; }
   /* ロゴの虹色グラデは色相シフト(移動なし=酔わない)＝ブランド装飾の限定例外として reduce-motion でも維持。
-     虹色は ::after に移したので ::after を維持。本体ソリッドは静止でOK（消えない保険） */
+     虹色は ::after（前面）に当てているので ::after の rainbow を維持。本体は静止ソリッド（点滅 flicker は止める）。 */
   .brand-script::after { animation: logo-rainbow 2.8s linear infinite !important; }
   .brand-script,
   .brand-script.flicker { animation: none !important; }
@@ -2988,8 +2988,10 @@ body {
   from { background-position: 0% center; }
   to   { background-position: 300% center; }
 }
-/* 本体＝ソリッドピンク（常時可視のフォールバック）。虹色は ::after で上に重ねてアニメさせる。
-   こうすると虹色が iOS 再描画で落ちても、下のソリッドが必ず見える＝ロゴが消えない＋通常は虹色が動く */
+/* 本体＝ソリッドピンク（iOSで虹が落ちた時の保険・背面）。虹色は ::after で前面に重ねてアニメさせる。
+   ★グローは「前面の ::after（虹）」に付け、本体（背面ソリッド）はグロー無しにする＝
+   旧構造（本体にグロー）だと本体と::afterの微小ズレでグローがはみ出し「i のドットがピンクと虹に割れて」見えた。
+   グローを前面虹に移し本体をグロー無しにすると、背面ソリッドの覗きが極小の細線だけになり目立たない。 */
 .brand-script {
   display: inline-block;
   position: relative;
@@ -2998,11 +3000,11 @@ body {
   background-clip: border-box;
   color: #ff2d9b;
   -webkit-text-fill-color: #ff2d9b;
-  text-shadow: 0 0 7px rgba(255,79,216,.55), 0 0 18px rgba(168,85,247,.4);
-  animation: none;          /* 本体は静止ソリッド。動くのは上の ::after 虹色 */
+  text-shadow: none;          /* グローは前面 ::after に移譲。本体はグロー無し＝覗きが目立たない */
+  animation: none;
 }
 .brand-script::after {
-  content: "Admi";          /* SHOP.nameEn 固定。本体と完全重ねの虹色レイヤー */
+  content: "Admi";          /* SHOP.nameEn 固定。本体と完全重ねの虹色レイヤー（前面）＋ネオングロー */
   position: absolute;
   left: 0; top: 0;
   pointer-events: none;
@@ -3014,12 +3016,12 @@ body {
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  text-shadow: none;
+  text-shadow: 0 0 7px rgba(255,79,216,.55), 0 0 18px rgba(168,85,247,.4);   /* ネオングローは前面虹に */
   will-change: background-position;   /* iOSがアニメ用に安定レイヤーを保持＝重いページでも止まりにくい */
   animation: logo-rainbow 2.8s linear infinite;   /* 虹色が流れる（reduce-motionでも維持） */
 }
 /* オフキャンバス(メニュー)は閉時 translateX(100%) で画面外に残り、隠れたロゴの虹アニメが回り続けて
-   iOSの合成負荷を上げ、表示中のヘッダーロゴのアニメを止めていた → 隠れロゴのアニメは止める（虹色は静止表示で維持） */
+   iOSの合成負荷を上げ、表示中のヘッダーロゴのアニメを止めていた → 隠れロゴの虹アニメは止める（虹色は静止表示で維持） */
 .offcanvas .brand-script::after { animation: none; will-change: auto; }
 
 /* ===========================================================================
