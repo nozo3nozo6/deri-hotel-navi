@@ -1,7 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /ctrl/
 Disallow: /admin/
+Disallow: /api/
 Disallow: /cgi-bin/
 Disallow: /tmp/
 
-Sitemap: https://kichifu.com/sitemap.xml
+Sitemap: https://admi2888.com/sitemap-index.xml
