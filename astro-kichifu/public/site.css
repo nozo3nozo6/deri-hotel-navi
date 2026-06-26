@@ -1317,7 +1317,7 @@ body.lb-open { overflow: hidden; }
 .news-list { display: flex; flex-direction: column; gap: 12px; }
 .news-item {
   display: flex;
-  align-items: center;
+  align-items: stretch;       /* メタをサムネ高さに合わせる→日付=上段, タイトル=中段に配置 */
   gap: 14px;
   padding: 10px 14px;
   border-radius: 16px;
@@ -1353,9 +1353,10 @@ body.lb-open { overflow: hidden; }
   .news-thumb   { width: 84px; height: 104px; }
   .news-no-thumb{ width: 84px; height: 104px; }
 }
-.news-meta  { min-width: 0; }
-.news-date  { font-size: .75rem; color: var(--lav-soft); margin-bottom: 4px; }
+.news-meta  { min-width: 0; display: flex; flex-direction: column; }
+.news-date  { font-size: .75rem; color: var(--lav-soft); margin-bottom: 4px; }   /* 上段（先頭） */
 .news-title {
+  margin: auto 0;             /* 日付の下の残り空間で中段（縦中央）に */
   font-weight: 700;
   color: #fff;
   line-height: 1.4;
