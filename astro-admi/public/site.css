@@ -453,7 +453,7 @@ body.menu-open .offcanvas { transform: translateX(0); }
   pointer-events: none;
   transition: opacity .3s ease;
 }
-body.reserve-open .modal-overlay {
+body.reserve-open #reserve-modal {
   opacity: 1;
   pointer-events: auto;
 }
@@ -471,9 +471,13 @@ body.reserve-open .modal-overlay {
   transform: translateY(16px) scale(.98);
   transition: transform .3s ease;
 }
-body.reserve-open .modal-box {
+body.reserve-open #reserve-modal .modal-box {
   transform: translateY(0) scale(1);
 }
+/* アイコンの見かた（凡例）モーダル — reserve と同じ仕組みを #icons-modal にスコープ */
+body.icons-open { overflow: hidden; }
+body.icons-open #icons-modal { opacity: 1; pointer-events: auto; }
+body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
 .modal-head {
   display: flex;
   align-items: center;
@@ -513,6 +517,35 @@ body.reserve-open .modal-box {
 .reserve-icon  { font-size: 1.5rem; flex-shrink: 0; }
 .reserve-label { display: block; font-weight: 700; color: #fff; }
 .reserve-note  { display: block; font-size: .75rem; color: var(--text-mute); margin-top: 2px; }
+
+/* ===== アイコンの見かた（凡例 / トップのボタン〜出勤の間） ===== */
+.top-iconlegend-section { padding: 4px 0 14px; }
+.iconlegend-head { text-align: center; margin-bottom: 12px; }
+.iconlegend-eyebrow { display: block; font-weight: 800; color: var(--neon-pink); font-size: .95rem; letter-spacing: .03em; }
+.iconlegend-hint { display: block; font-size: .72rem; color: var(--text-mute); margin-top: 3px; }
+.iconlegend-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.iconlegend-btn {
+  width: 58px; height: 58px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; cursor: pointer;
+  background: #fff;
+  border: 1.5px solid rgba(236,72,153,.35);
+  box-shadow: 0 5px 14px rgba(236,72,153,.18);
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+  touch-action: manipulation;
+}
+.iconlegend-btn:hover, .iconlegend-btn:active {
+  transform: translateY(-2px) scale(1.06);
+  border-color: var(--neon-pink);
+  box-shadow: 0 8px 22px rgba(236,72,153,.34);
+}
+.iconlegend-btn img { width: 40px; height: 40px; object-fit: contain; pointer-events: none; }
+/* モーダル内の凡例アイテム（.reserve-card を流用＝両テーマ自動対応） */
+.iconlegend-item-icon { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }
+.iconlegend-item.is-active {
+  border-color: var(--neon-pink) !important;
+  box-shadow: 0 0 0 2px rgba(236,72,153,.5);
+}
 
 /* === 9. Components ======================================================== */
 

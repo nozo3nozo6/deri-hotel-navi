@@ -3,6 +3,7 @@
 
   var body  = document.body;
   var modal = document.getElementById('reserve-modal');
+  var iconsModal = document.getElementById('icons-modal');
   var lb    = document.getElementById('lightbox');
 
   var reduceMotion = window.matchMedia &&
@@ -156,6 +157,29 @@
       if (modal) modal.setAttribute('aria-hidden', 'true');
       return;
     }
+
+    // アイコンの見かた（凡例）モーダル
+    var iconsTrigger = t.closest('[data-icons-open]');
+    if (iconsTrigger) {
+      body.classList.remove('menu-open');
+      body.classList.add('icons-open');
+      if (iconsModal) {
+        iconsModal.setAttribute('aria-hidden', 'false');
+        var key = iconsTrigger.getAttribute('data-icon-key');
+        var items = iconsModal.querySelectorAll('.iconlegend-item');
+        for (var qi = 0; qi < items.length; qi++) {
+          items[qi].classList.toggle('is-active', !!key && items[qi].getAttribute('data-icon-key') === key);
+        }
+        var active = key && iconsModal.querySelector('.iconlegend-item.is-active');
+        if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+      }
+      return;
+    }
+    if (t.closest('[data-icons-close]') || t === iconsModal) {
+      body.classList.remove('icons-open');
+      if (iconsModal) iconsModal.setAttribute('aria-hidden', 'true');
+      return;
+    }
   });
 
   // ---- スワイプ（モバイル）----
@@ -183,6 +207,8 @@
     if (e.key !== 'Escape') return;
     body.classList.remove('menu-open');
     body.classList.remove('reserve-open');
+    body.classList.remove('icons-open');
     if (modal) modal.setAttribute('aria-hidden', 'true');
+    if (iconsModal) iconsModal.setAttribute('aria-hidden', 'true');
   });
 })();
