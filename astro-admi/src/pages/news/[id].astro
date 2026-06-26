@@ -27,9 +27,10 @@ const bodyIsHtml = !!(it && it.body && /<[a-z!/][^>]*>/i.test(it.body));
 const bodyPlain = it && it.body
   ? it.body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br />')
   : '';
-// 本文HTML内の /uploads/ 相対パス → kichifu.com 絶対URL（画像を別ドメインでも表示）
+// 本文HTML内の画像パスを ASSET_ORIGIN(admi2888) 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
 const bodyHtml = (bodyIsHtml ? (it?.body ?? '') : bodyPlain)
-  .replace(/(["'])\/uploads\//g, `$1${ASSET_ORIGIN}/uploads/`);
+  .replace(/https?:\/\/kichifu\.com(\/uploads\/)/g, `${ASSET_ORIGIN}$1`)   // 旧kichifu絶対→admi2888
+  .replace(/(["'])\/uploads\//g, `$1${ASSET_ORIGIN}/uploads/`);            // 相対→admi2888
 ---
 {!it ? (
   <Site title={`ページが見つかりません｜${SHOP.fullName}`} description="" path={`/news/${id}`}>

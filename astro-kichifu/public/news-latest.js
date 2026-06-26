@@ -9,7 +9,7 @@
   var wrap = document.getElementById('top-news-list');
   if (!wrap) return;
   var shop = window.__SHOP_ID || 2;
-  var ASSET = 'https://kichifu.com';
+  var ASSET = 'https://admi2888.com';   // 画像配信元（admi2888が正・kichifuはsymlink）
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {

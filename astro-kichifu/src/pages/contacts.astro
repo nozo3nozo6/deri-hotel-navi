@@ -4,7 +4,7 @@ import { asset, tagEmoji, SHOP, FUJOHO, ASSET_ORIGIN, API_BASE, SHOP_ID } from '
 
 const title = `お問い合わせ｜${SHOP.fullName}`;
 const desc = `${SHOP.name}へのお問い合わせページです。ご予約はLINEまたはお電話が一番スムーズです。`;
-const contactApi = `${ASSET_ORIGIN}/api/contact.php`;
+const contactApi = `${API_BASE}/contact.php`;   // 自サイトAPI（同一オリジン＝CORS不要）
 ---
 <Site title={title} description={desc} path="/contacts">
   <main>

@@ -1,11 +1,12 @@
 // ==========================================================================
 // config.ts — Astro版の店舗定数・APIベース・絵文字マップ（_inc/shop.php と同期）
-//   ※ 画像/APIはシンレン(PHP)が配信。移行中は kichifu.com、
-//     ドメイン切替後は api.kichifu.com に ASSET_ORIGIN を変えるだけ。
+//   ※ 画像(/uploads)は admi2888.com が物理的に正（kichifu側はsymlinkで同一実体）。
+//     ASSET_ORIGIN=admi2888.com で全画像を admi2888 主体に統一（CTRL更新が両サイト即反映）。
+//   ※ API は各サイト自身（同一オリジン＝CORS不要・ビルド独立）。
 // ==========================================================================
 
-export const ASSET_ORIGIN = 'https://kichifu.com';
-export const API_BASE = `${ASSET_ORIGIN}/api`;
+export const ASSET_ORIGIN = 'https://admi2888.com';   // 画像/uploads の配信元（admi2888が正）
+export const API_BASE = 'https://kichifu.com/api';     // データ取得元＝kichifu自身（同一オリジン）
 export const SHOP_ID: number = Number(import.meta.env.PUBLIC_SHOP_ID ?? 2);
 
 export const SHOP = {

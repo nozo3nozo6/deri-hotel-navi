@@ -183,7 +183,7 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
             pre.focus();
             var s = window.getSelection();
             if (savedRange) { s.removeAllRanges(); s.addRange(savedRange); }  // 保存したカーソル位置に復元
-            document.execCommand('insertHTML', false, '<img src="https://kichifu.com' + j.path + '" style="max-width:100%;height:auto">');
+            document.execCommand('insertHTML', false, '<img src="https://admi2888.com' + j.path + '" style="max-width:100%;height:auto">');
             src.value = pre.innerHTML;   // ソース同期
             saveRange();
           } else { alert('画像のアップロードに失敗しました'); }
@@ -247,7 +247,7 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
 </form>
 <script>
 (function () {
-  var ASSET = 'https://kichifu.com';
+  var ASSET = 'https://admi2888.com';
   var CSRF = '<?= h(csrf_token()) ?>';
   var picker = document.getElementById('girl-picker');
   var wrap = document.getElementById('girl-images');

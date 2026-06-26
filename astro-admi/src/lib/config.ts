@@ -1,16 +1,13 @@
 // ==========================================================================
 // config.ts — admi2888.com（立川本店）Astro版の店舗定数・APIベース・絵文字マップ
 //   ※ astro-kichifu からの複製。店舗定数(SHOP)を admi に差し替え済み。
-//   【ステージング(biyobu.com)構成】
-//     - ASSET_ORIGIN = kichifu.com … 既存の共有データ/画像/API をそのまま利用
-//     - SHOP_ID = 1 … 共有ロスター（admi本店の在籍120人。「在籍は両店共有」方針）
-//   【本番(admi2888.com)化時に変更】
-//     - ASSET_ORIGIN → 'https://admi2888.com'（同居の api/ + DB を参照）
-//     - SHOP_ID → 共有ロスターをどの shop_id に置くか確定後に調整
+//   ※ 本番(admi2888.com)＝画像/uploads・API・DB の正。画像実体は admi2888 に物理集約
+//     （kichifu側は symlink で同一実体を共有）。ASSET_ORIGIN=admi2888 で全画像を admi2888 主体に。
+//   ※ API は自サイト admi2888.com（同一オリジン）。SHOP_ID=1（立川・共有ロスター）。
 // ==========================================================================
 
-export const ASSET_ORIGIN = 'https://kichifu.com';
-export const API_BASE = `${ASSET_ORIGIN}/api`;
+export const ASSET_ORIGIN = 'https://admi2888.com';    // 画像/uploads の配信元（admi2888が正）
+export const API_BASE = 'https://admi2888.com/api';     // データ取得元＝admi2888自身（同一オリジン）
 export const SHOP_ID = 1;
 
 export const SHOP = {

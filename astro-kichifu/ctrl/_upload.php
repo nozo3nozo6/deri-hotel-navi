@@ -27,7 +27,8 @@ function save_upload(array $file, string $subdir, int $maxW = 1000, int $maxH = 
     $dst = imagecreatetruecolor($nw, $nh);
     imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
 
-    // 画像は kichifu.com の /uploads に集約保存（admi2888.com/ctrl からのアップも此処へ＝実体分裂を防ぐ）。
+    // 画像は admi2888.com の /uploads に集約保存（UPLOADS_ROOT=admi2888。kichifu側はsymlinkで同一実体）。
+    // どちらのドメインの /ctrl からアップしても admi2888 の実体に保存＝両サイト即反映・実体分裂を防ぐ。
     // UPLOADS_ROOT が無い/未定義のローカル開発時は DOCUMENT_ROOT にフォールバック。
     $base = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT)) ? UPLOADS_ROOT : rtrim($_SERVER['DOCUMENT_ROOT'], '/');
     $root = $base . '/uploads/' . trim($subdir, '/');

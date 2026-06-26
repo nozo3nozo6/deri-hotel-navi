@@ -29,11 +29,15 @@ if (!$it) {
 }
 
 function h($s): string { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-// 画像は kichifu.com に物理集約（_lib.php の ASSET_ORIGIN と同じ方針）
+// 画像は admi2888.com に物理集約（_lib.php の ASSET_ORIGIN と同じ方針。kichifu側はsymlink）
+const ASSET_ORIGIN = 'https://admi2888.com';
 function asset_url(?string $p): string {
     if (!$p) return '';
-    if (str_starts_with($p, 'http')) return $p;
-    if (str_starts_with($p, '/uploads/')) return 'https://kichifu.com' . $p;
+    if (str_starts_with($p, 'http')) {
+        // 旧 kichifu.com/uploads の絶対URL → admi2888 に正規化（実体はadmi2888が正）
+        return preg_replace('#https?://kichifu\.com(/uploads/)#', ASSET_ORIGIN . '$1', $p);
+    }
+    if (str_starts_with($p, '/uploads/')) return ASSET_ORIGIN . $p;
     return $p;
 }
 
@@ -50,8 +54,9 @@ $bodyIsHtml = (bool)preg_match('/<[a-z!\/][^>]*>/i', $body);
 $bodyOut   = $bodyIsHtml
     ? $body
     : nl2br(htmlspecialchars($body, ENT_QUOTES, 'UTF-8'));
-// 本文HTML内の /uploads/ 相対パス → kichifu.com 絶対URLに変換（admi2888.comで画像が出ない対策）
-$bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', 'https://kichifu.com$1', $bodyOut);
+// 本文HTML内の画像パスを admi2888 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
+$bodyOut = preg_replace('#https?://kichifu\.com(/uploads/)#', ASSET_ORIGIN . '$1', $bodyOut);   // 旧kichifu絶対→admi2888
+$bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', ASSET_ORIGIN . '$1', $bodyOut);               // 相対→admi2888
 
 // キャノニカルは自分自身
 header('Cache-Control: no-store');
