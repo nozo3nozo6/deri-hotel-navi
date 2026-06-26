@@ -200,7 +200,7 @@ function layout_header(string $title, string $active = ''): void {
         <span class="muted"><?php foreach ($shops as $s) if ((int)$s['id'] === $curShop) echo h($s['area'] . ' ' . $s['name']); ?></span>
       <?php endif; ?>
       <div class="topbar-right">
-        <a href="https://biyobu.com/" target="_blank">アドミ ↗</a>
+        <a href="https://admi2888.com/" target="_blank">アドミ ↗</a>
         <a href="https://kichifu.com/" target="_blank">吉祥寺 ↗</a>
         <span class="muted"><?= h($admin['display_name'] ?: $admin['username']) ?></span>
         <a href="/ctrl/logout.php" class="btn btn-sm">ログアウト</a>
