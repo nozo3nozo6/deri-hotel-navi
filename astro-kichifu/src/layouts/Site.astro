@@ -9,10 +9,30 @@ export interface Props {
   path?: string;       // 例: "/girls"
   ogImage?: string;
   gate?: boolean;      // 年齢確認ゲート(index)はハンバーガー/戻るボタンを出さない
+  noindex?: boolean;   // 個別ページをnoindexにする（例: 写メ日記詳細=fujoho原典の転載でindex対象外、内部リンクはfollow）
 }
 const SITE = 'https://kichifu.com';
-const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, gate = false } = Astro.props;
+const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, gate = false, noindex = false } = Astro.props;
 const canonical = SITE + path;
+const robotsContent = noindex ? 'noindex, follow' : 'index, follow';
+// 構造化データ（LocalBusiness）: エンティティ強化・ローカルSEO（吉祥寺アドミ）
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  '@id': SITE + '/#business',
+  name: SHOP.name,
+  legalName: SHOP.fullName,
+  url: SITE,
+  telephone: SHOP.tel,
+  image: `${SITE}/img/og-image.jpg`,
+  areaServed: '吉祥寺',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: '武蔵野市',
+    addressRegion: '東京都',
+    addressCountry: 'JP',
+  },
+};
 
 // キャッシュバスター: site.css/js の mtime（Cloudflareが1年immutableキャッシュするため必須）
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
@@ -28,7 +48,7 @@ const gvV = ver('public/girl-visibility.js');
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-<meta name="robots" content="index, follow" />
+<meta name="robots" content={robotsContent} />
 <meta property="og:type" content="website" />
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
@@ -36,6 +56,7 @@ const gvV = ver('public/girl-visibility.js');
 <meta property="og:image" content={ogImage} />
 <meta property="og:site_name" content={SHOP.fullName} />
 <meta name="twitter:card" content="summary_large_image" />
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />

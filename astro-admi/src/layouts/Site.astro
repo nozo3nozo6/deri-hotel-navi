@@ -10,11 +10,32 @@ export interface Props {
   ogImage?: string;
   hideBack?: boolean;
   gate?: boolean;      // 年齢認証ゲート(index)= ナビ/ハンバーガー/チャットを出さない（認証クリア後に top 以降へ）
+  noindex?: boolean;   // 個別ページをnoindexにする（例: 写メ日記詳細=fujoho原典の転載でindex対象外、内部リンクはfollow）
 }
 const SITE = 'https://admi2888.com'; // 本番。biyobu(ステージング)も canonical はここ(prod)を指す＝SEO正
 const IS_PROD = import.meta.env.PUBLIC_PROD === '1'; // admi2888本番ビルド(deploy-prod-admi2888.sh)時のみ true。biyobuは未設定=noindex/GA無し
-const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, hideBack = false, gate = false } = Astro.props;
+const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, hideBack = false, gate = false, noindex = false } = Astro.props;
 const canonical = SITE + path;
+// robots: 非本番=全noindex / noindex prop=このページのみnoindex(内部リンクはfollow) / それ以外=index,follow
+const robotsContent = !IS_PROD ? 'noindex, nofollow' : (noindex ? 'noindex, follow' : 'index, follow');
+// 構造化データ（LocalBusiness）: エンティティ強化・ローカルSEO
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  '@id': SITE + '/#business',
+  name: SHOP.name,
+  legalName: SHOP.fullName,
+  url: SITE,
+  telephone: SHOP.tel,
+  image: `${SITE}/img/og-image.jpg`,
+  areaServed: SHOP.area,
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: SHOP.area,
+    addressRegion: '東京都',
+    addressCountry: 'JP',
+  },
+};
 
 // キャッシュバスター: site.css/js の mtime（Cloudflareが1年immutableキャッシュするため必須）
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
@@ -31,7 +52,7 @@ const gvV = ver('public/girl-visibility.js');
 <title>{title}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={canonical} />
-<meta name="robots" content={IS_PROD ? 'index, follow' : 'noindex, nofollow'} />
+<meta name="robots" content={robotsContent} />
 <meta name="google-site-verification" content="ndAzGRDjDiq5WpKQxeQH7qhtel-QoPel6DV4FxwOifw" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content={title} />
@@ -40,6 +61,7 @@ const gvV = ver('public/girl-visibility.js');
 <meta property="og:image" content={ogImage} />
 <meta property="og:site_name" content={SHOP.fullName} />
 <meta name="twitter:card" content="summary_large_image" />
+{IS_PROD && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />

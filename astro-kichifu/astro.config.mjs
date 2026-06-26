@@ -13,7 +13,8 @@ export default defineConfig({
   integrations: [
     // 全ページ（静的 + girls/news/diary 全件）を自動でサイトマップ化 → dist/sitemap-index.xml(+sitemap-0.xml)
     sitemap({
-      filter: (page) => !page.includes('/sitemap'),
+      // index対象のみ。人間用HTMLサイトマップ(/sitemap)と noindex の写メ日記(/diary/)は除外。
+      filter: (page) => !page.includes('/sitemap') && !page.includes('/diary/'),
     }),
   ],
   vite: {

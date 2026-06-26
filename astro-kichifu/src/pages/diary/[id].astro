@@ -22,7 +22,7 @@ const profUrl = d.girl_id ? `/girls/${d.girl_id}` : null;
 const title = `${d.title}｜${d.girl_name ?? ''}の写メ日記｜${SHOP.fullName}`;
 const desc = (d.body || '').replace(/<[^>]*>/g, '').slice(0, 100);
 ---
-<Site title={title} description={desc} path={`/diary/${d.id}`}>
+<Site title={title} description={desc} path={`/diary/${d.id}`} noindex={true}>
   <main>
     <section class="page-section">
       <div class="neon-room"></div>
