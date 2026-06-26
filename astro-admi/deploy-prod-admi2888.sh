@@ -34,6 +34,9 @@ echo "▶ rsync ctrl/（共有CMS）— api と同様 kichifu を正にする（
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \
   -e "$SSH" ../astro-kichifu/ctrl/ "$DEST/ctrl/"
 
+echo "▶ rsync public/*.php（SSRフォールバック: postbuildでdistから削除されるため別途デプロイ）"
+rsync -avz -e "$SSH" ../astro-kichifu/public/news-ssr.php ../astro-kichifu/public/diary-ssr.php "$DEST/"
+
 echo "▶ db-config.php（共有DB設定を kichifu から【常に】コピー＝同一DB強制）"
 # 旧仕様は [ -f ] || cp（既存があればスキップ）だったが、それだとセットアップ時の別DB設定が残り
 # admi2888 が kichifu と別DBを参照する事故が起きた（掲載状態がサイトごとに分岐）。常にコピーで統一。

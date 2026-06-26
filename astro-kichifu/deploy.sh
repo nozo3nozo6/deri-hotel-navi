@@ -24,6 +24,9 @@ rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.
 echo "▶ rsync ctrl/（PHP CMS、旧admin）"
 rsync -avz -e "$SSH" ctrl/ "$DEST/ctrl/"
 
+echo "▶ rsync public/*.php（SSRフォールバック: postbuildでdistから削除されるため別途デプロイ）"
+rsync -avz -e "$SSH" public/news-ssr.php public/diary-ssr.php "$DEST/"
+
 echo "▶ サーバーに残る旧 sitemap.xml を削除（rsync --delete無し運用。@astrojs/sitemap は sitemap-index.xml を出すので旧 sitemap.xml は不要・誤配信の元）"
 $SSH 'yobuho@sv6051.wpx.ne.jp' 'rm -f /home/yobuho/kichifu.com/public_html/sitemap.xml; echo "sitemap: $(ls /home/yobuho/kichifu.com/public_html/sitemap*.xml 2>/dev/null | tr "\n" " ")"'
 
