@@ -140,7 +140,12 @@ for ($p = 1; $p <= $PAGES; $p++) {
         // サムネ画像（img_girl_blog の直リンク）
         $img = '';
         $imgNode = $xp->query('.//img[contains(@src, "img_girl_blog")]/@src', $box)->item(0);
-        if ($imgNode) $img = trim($imgNode->nodeValue);
+        if ($imgNode) {
+            $img = trim($imgNode->nodeValue);
+            // fujoho は _180(180px) と _360(360px) を配信。Retina/PC で 180px は粗く見えるため
+            // 2倍解像度の _360 に差し替える（全画像で _360 配信を確認済み・2026-06-26）。
+            $img = preg_replace('/_180(\.jpe?g)$/i', '_360$1', $img);
+        }
 
         $gid  = $nameToId[$name] ?? null;
         if ($gid) $sum['matched']++; else if ($name !== '') $sum['unmatched'][$name] = true;
