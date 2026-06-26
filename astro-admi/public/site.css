@@ -2975,9 +2975,7 @@ body {
   .sparkle { animation: none; }
   .news-item { animation: none; }
   .news-item::before { animation: none; }
-  /* ロゴの虹色グラデは色相シフト(移動なし=酔わない)＝ブランド装飾の限定例外として reduce-motion でも維持。
-     虹色は ::after（前面）に当てているので ::after の rainbow を維持。本体は静止ソリッド（点滅 flicker は止める）。 */
-  .brand-script::after { animation: logo-rainbow 2.8s linear infinite !important; }
+  /* ロゴは静的虹（本体1枚・アニメ無）になったので reduce-motion でも変化なし。点滅 flicker のみ止める。 */
   .brand-script,
   .brand-script.flicker { animation: none !important; }
 }
@@ -2998,34 +2996,19 @@ body {
 .brand-script {
   display: inline-block;
   position: relative;
-  background: none;
-  -webkit-background-clip: border-box;
-  background-clip: border-box;
-  color: transparent;
-  -webkit-text-fill-color: transparent;   /* 本体は透明＝前面::after虹からの覗きゼロ＝ドットが割れない */
-  text-shadow: none;
-  animation: none;
-}
-.brand-script::after {
-  content: "Admi";          /* SHOP.nameEn 固定。本体と完全重ねの虹色レイヤー（前面）＋ネオングロー */
-  position: absolute;
-  left: 0; top: 0;
-  pointer-events: none;
   background: linear-gradient(100deg,
     #ff4fd8 0%, #a855f7 18%, #60a5fa 35%,
     #34d399 50%, #fbbf24 65%, #fb7185 82%, #ff4fd8 100%);
-  background-size: 300% auto;
+  background-size: 100% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 7px rgba(255,79,216,.55), 0 0 18px rgba(168,85,247,.4);   /* ネオングローは前面虹に */
-  will-change: background-position;   /* iOSがアニメ用に安定レイヤーを保持＝重いページでも止まりにくい */
-  animation: logo-rainbow 2.8s linear infinite;   /* 虹色が流れる（reduce-motionでも維持） */
+  text-shadow: 0 1px 2px rgba(90,30,110,.20);   /* 淡背景での輪郭・ドット視認用の控えめ影 */
+  animation: none;
 }
-/* オフキャンバス(メニュー)は閉時 translateX(100%) で画面外に残り、隠れたロゴの虹アニメが回り続けて
-   iOSの合成負荷を上げ、表示中のヘッダーロゴのアニメを止めていた → 隠れロゴの虹アニメは止める（虹色は静止表示で維持） */
-.offcanvas .brand-script::after { animation: none; will-change: auto; }
+/* 旧2層（虹::after前面）は廃止。虹は本体1枚で表示するため ::after は出さない＝割れ無し */
+.brand-script::after { content: none; }
 
 /* ===========================================================================
    ▼▼▼ ニュースカード：左線と同色の枠線
