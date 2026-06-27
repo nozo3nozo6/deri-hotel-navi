@@ -16,6 +16,8 @@ const SITE = 'https://admi2888.com'; // 本番。biyobu(ステージング)も c
 const IS_PROD = import.meta.env.PUBLIC_PROD === '1'; // admi2888本番ビルド(deploy-prod-admi2888.sh)時のみ true。biyobuは未設定=noindex/GA無し
 const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, hideBack = false, gate = false, noindex = false } = Astro.props;
 const canonical = SITE + path;
+// SEOキーワード（全ページ共通）。「おすすめ／オススメ」を含む立川デリヘル系の検索語を網羅。
+const keywords = `${SHOP.catch},${SHOP.area} デリヘル おすすめ,${SHOP.area} 風俗 おすすめ,デリヘル おすすめ,おすすめ,オススメ,${SHOP.area} デリバリーヘルス,素人 デリヘル ${SHOP.area},${SHOP.name}`;
 // robots: 非本番=全noindex / noindex prop=このページのみnoindex(内部リンクはfollow) / それ以外=index,follow
 const robotsContent = !IS_PROD ? 'noindex, nofollow' : (noindex ? 'noindex, follow' : 'index, follow');
 // 構造化データ（LocalBusiness）: エンティティ強化・ローカルSEO
@@ -51,6 +53,7 @@ const gvV = ver('public/girl-visibility.js');
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{title}</title>
 <meta name="description" content={description} />
+<meta name="keywords" content={keywords} />
 <link rel="canonical" href={canonical} />
 <meta name="robots" content={robotsContent} />
 <!-- 旧業者(admi2002fantasy@gmail.com)のGSC所有権メタタグを削除（2026-06-26、ロックアウト）。現所有権はドメインプロパティのDNS TXTで認証済み。 -->
