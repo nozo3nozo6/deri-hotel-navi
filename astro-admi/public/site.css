@@ -3290,3 +3290,29 @@ body {
 .rc-sticky-tel { flex: 0 0 84px; background: #fff; color: var(--neon-pink-hot); border: 2px solid var(--neon-pink); font-size: .85rem; }
 .rc-sticky-line { flex: 1; color: #fff; font-size: .98rem; background: linear-gradient(180deg, #f9a8d4, #ec4899); box-shadow: 0 6px 18px -6px rgba(236,72,153,.6); }
 @media (min-width: 768px) { .rc-sticky { display: none; } }
+
+/* ── 求人ページ: 画像・装飾の追加 ── */
+/* HERO 背景コラージュ＋ヴェール */
+.rc-hero { position: relative; overflow: hidden; }
+.rc-hero-bg { position: absolute; inset: 0; background: url('/img/indexbg.jpg') center/cover; opacity: .14; }
+.rc-hero-veil { position: absolute; inset: 0; background: linear-gradient(165deg, rgba(252,231,243,.86) 0%, rgba(255,255,255,.78) 55%, rgba(249,207,231,.86) 100%); }
+.rc-hero-inner { position: relative; z-index: 1; }
+
+/* キラキラ装飾（SVG） */
+.rc-ornament { position: absolute; z-index: 1; pointer-events: none; filter: drop-shadow(0 2px 6px rgba(236,72,153,.3)); }
+.rc-ornament-1 { width: 52px; height: 52px; top: 14px; right: 16px; animation: rc-twinkle 3.4s ease-in-out infinite; }
+.rc-ornament-2 { width: 34px; height: 34px; bottom: 18px; left: 18px; animation: rc-twinkle 2.6s ease-in-out infinite .6s; }
+@keyframes rc-twinkle { 0%,100% { transform: scale(1) rotate(0); opacity: .85; } 50% { transform: scale(1.18) rotate(10deg); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rc-ornament { animation: none !important; } }
+
+/* 店内ギャラリー */
+.rc-gallery { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 600px) { .rc-gallery { grid-template-columns: repeat(3, 1fr); } }
+.rc-shot { margin: 0; background: #fff; border: 1px solid rgba(236,72,153,.18); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(236,72,153,.08); }
+.rc-shot-img { display: block; width: 100%; height: 200px; object-fit: cover; }
+.rc-shot-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 200px; background: linear-gradient(160deg, var(--bg-1), var(--bg-2)); border-bottom: 1px dashed rgba(192,132,252,.4); }
+.rc-shot-ph-icon { font-size: 2.2rem; opacity: .7; }
+.rc-shot-ph-text { font-size: .8rem; font-weight: 700; color: var(--text-mute); }
+.rc-shot-cap { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; }
+.rc-shot-label { font-size: .95rem; font-weight: 800; color: var(--neon-pink-hot); }
+.rc-shot-note { font-size: .78rem; line-height: 1.5; color: var(--text-soft); }

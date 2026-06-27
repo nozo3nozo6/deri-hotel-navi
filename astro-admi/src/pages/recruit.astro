@@ -87,6 +87,13 @@ const faqs = [
   { q: '友達と一緒に応募してもいいですか？', a: 'もちろんOKです。一人だと不安な方は、お友達と一緒に面接にお越しください。' },
 ];
 
+// 店内・設備の実写ギャラリー（写真を撮ったら src に /img/xxx.jpg を入れるだけで表示に切替）
+const gallery = [
+  { src: '', label: '個室待機ルーム', note: '一人でゆっくり過ごせる空間' },
+  { src: '', label: '個室の面接ブース', note: 'プライバシー保護・女性スタッフ対応' },
+  { src: '', label: '送迎・立川駅すぐ', note: '終電後も安心の送迎あり' },
+];
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
@@ -113,6 +120,11 @@ const jsonLd = {
 
         {/* ───── HERO ───── */}
         <div class="rc-hero">
+          <div class="rc-hero-bg" aria-hidden="true"></div>
+          <div class="rc-hero-veil" aria-hidden="true"></div>
+          <svg class="rc-ornament rc-ornament-1" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 6c2 9 7 14 18 16-11 2-16 7-18 16-2-9-7-14-18-16 11-2 16-7 18-16z" fill="url(#rcg)"/><defs><linearGradient id="rcg" x1="0" y1="0" x2="60" y2="60"><stop offset="0" stop-color="#f9a8d4"/><stop offset="1" stop-color="#c084fc"/></linearGradient></defs></svg>
+          <svg class="rc-ornament rc-ornament-2" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 5c1.3 6 4.7 9.3 12 10.7-7.3 1.3-10.7 4.7-12 10.7-1.3-6-4.7-9.3-12-10.7C15.3 14.3 18.7 11 20 5z" fill="#fbcfe8"/></svg>
+          <div class="rc-hero-inner">
           <span class="rc-hero-eyebrow holo-text">RECRUIT｜立川 高収入バイト</span>
           <h1 class="rc-hero-title">ゆとり世代の女性が、<br />ちゃんと稼げるお店。</h1>
           <p class="rc-hero-lead">18〜33歳・未経験歓迎。<br class="sp-br" />身バレ対策20年、運営は同世代の女性店長。<br />「まずは話だけ」でも大丈夫です。</p>
@@ -128,6 +140,7 @@ const jsonLd = {
             <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line">💬 LINEで応募・相談する</a>
             <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel">📞 電話で応募（{SHOP.reception}）</a>
             <p class="rc-hero-note">質問だけ・相談だけでも大歓迎です ♡</p>
+          </div>
           </div>
         </div>
 
@@ -193,6 +206,22 @@ const jsonLd = {
             <span class="rc-card-title">{m.title}</span>
             <span class="rc-card-text">{m.text}</span>
           </div>
+          ))}
+        </div>
+
+        {/* ───── 店内・設備（実写ギャラリー） ───── */}
+        <h2 class="section-label" style="margin-top:44px;">お店の雰囲気・設備</h2>
+        <div class="rc-gallery">
+          {gallery.map((g) => (
+          <figure class="rc-shot">
+            {g.src
+              ? <img class="rc-shot-img" src={g.src} alt={g.label} loading="lazy" width="280" height="200" />
+              : <div class="rc-shot-ph" aria-hidden="true"><span class="rc-shot-ph-icon">📷</span><span class="rc-shot-ph-text">写真準備中</span></div>}
+            <figcaption class="rc-shot-cap">
+              <span class="rc-shot-label">{g.label}</span>
+              <span class="rc-shot-note">{g.note}</span>
+            </figcaption>
+          </figure>
           ))}
         </div>
 
