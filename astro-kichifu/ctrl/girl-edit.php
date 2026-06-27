@@ -185,6 +185,20 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <div class="field"><label>外部サイトURL <span class="muted" style="font-weight:400;font-size:12px">（ranking-deli等のプロフィールURL）</span></label><input type="url" name="external_url" value="<?= h($g['external_url'] ?? '') ?>" placeholder="https://ranking-deli.jp/..."></div>
   </div>
 
+  <div class="card card-pad">
+    <strong>掲載店舗</strong>
+    <span class="muted" style="font-weight:400;font-size:12px;margin-left:8px">ONにした店舗のサイトに表示されます（立川だけ／吉祥寺だけ も可）</span>
+    <div style="display:flex;flex-wrap:wrap;gap:14px 32px;margin-top:14px">
+      <?php foreach ($allShops as $s): ?>
+        <label class="shop-toggle" style="gap:10px;cursor:pointer">
+          <input type="checkbox" class="shop-toggle-cb" name="shops[]" value="<?= (int)$s['id'] ?>" <?= in_array((int)$s['id'], $linkedShops, true) ? 'checked' : '' ?>>
+          <span class="toggle" aria-hidden="true"></span>
+          <span style="font-size:14px;font-weight:600;color:var(--text)"><?= h($s['name']) ?><span class="muted" style="font-weight:400">（<?= h($s['area']) ?>）</span></span>
+        </label>
+      <?php endforeach; ?>
+    </div>
+  </div>
+
   <div class="card card-pad form-grid">
     <strong>スリーサイズ</strong>
     <div class="row2">
@@ -204,12 +218,6 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <?php foreach ($FLAGS as $f => $lbl): ?>
         <label class="check"><input type="checkbox" name="<?= $f ?>" <?= (int)$g[$f] ? 'checked' : '' ?>> <?= h($lbl) ?></label>
       <?php endforeach; ?>
-      <span style="margin-left:auto;display:flex;gap:12px;align-items:center">
-        <span class="muted" style="font-size:12px">掲載店舗:</span>
-        <?php foreach ($allShops as $s): ?>
-          <label class="check" style="color:var(--primary)"><input type="checkbox" name="shops[]" value="<?= (int)$s['id'] ?>" <?= in_array((int)$s['id'], $linkedShops, true) ? 'checked' : '' ?>> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
-        <?php endforeach; ?>
-      </span>
     </div>
   </div>
 

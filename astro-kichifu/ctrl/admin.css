@@ -156,6 +156,12 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .shop-toggles { display: flex; flex-direction: column; gap: 4px; }
 .shop-toggle { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .shop-toggle-label { font-size: 12px; color: var(--muted); min-width: 48px; }
+/* 編集フォーム用: チェックボックスをトグルスイッチ見た目に（フォーム送信はそのまま shops[]） */
+.shop-toggle-cb { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.shop-toggle-cb + .toggle { cursor: pointer; }
+.shop-toggle-cb:checked + .toggle { background: var(--ok); }
+.shop-toggle-cb:checked + .toggle::after { left: 21px; }
+.shop-toggle-cb:focus-visible + .toggle { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* ---------- body preview ---------- */
 .body-preview {
