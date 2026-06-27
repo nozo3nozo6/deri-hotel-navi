@@ -2975,7 +2975,9 @@ body {
   .sparkle { animation: none; }
   .news-item { animation: none; }
   .news-item::before { animation: none; }
-  /* ロゴは静的虹（本体1枚・アニメ無）になったので reduce-motion でも変化なし。点滅 flicker のみ止める。 */
+  /* ロゴの虹色グラデは色相シフト(移動なし=酔わない)＝ブランド装飾の限定例外として reduce-motion でも維持。
+     虹色は ::after に移したので ::after を維持。本体ソリッドは静止でOK（消えない保険） */
+  .brand-script::after { animation: logo-rainbow 2.8s linear infinite !important; }
   .brand-script,
   .brand-script.flicker { animation: none !important; }
 }
@@ -2987,28 +2989,39 @@ body {
   from { background-position: 0% center; }
   to   { background-position: 300% center; }
 }
-/* 虹色は ::after（前面）1枚だけで見せる。本体テキストは透明にして「箱のサイズ決め」だけに使う。
-   ★なぜ本体を透明にするか: 本体(インライン text)と ::after(absolute) は配置モデルが違い必ず微小ズレし、
-     本体にソリッド色やグローを残すと、ズレた本体が前面虹からはみ出して「i のドットがピンクと虹に割れて」見えた
-     （GPUレイヤー化やtransformでも揃わない＝本質的なズレ）。本体を完全透明にすると覗きがゼロ＝ドットが綺麗。
-   ※トレードオフ: 旧2層の「iOSで虹が落ちても本体ソリッドで消えない保険」は無くす。代わりに ::after の
-     will-change で虹レイヤーを安定化（消失が出たら別途、覗かないフォールバックを再検討）。color はレガシー保険。 */
+/* 本体＝ソリッドピンク（常時可視のフォールバック）。虹色は ::after で上に重ねてアニメさせる。
+   こうすると虹色が iOS 再描画で落ちても、下のソリッドが必ず見える＝ロゴが消えない＋通常は虹色が動く */
 .brand-script {
   display: inline-block;
   position: relative;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #ff2d9b;
+  -webkit-text-fill-color: #ff2d9b;
+  text-shadow: 0 0 7px rgba(255,79,216,.55), 0 0 18px rgba(168,85,247,.4);
+  animation: none;          /* 本体は静止ソリッド。動くのは上の ::after 虹色 */
+}
+.brand-script::after {
+  content: "Admi";          /* SHOP.nameEn 固定。本体と完全重ねの虹色レイヤー */
+  position: absolute;
+  left: 0; top: 0;
+  pointer-events: none;
   background: linear-gradient(100deg,
     #ff4fd8 0%, #a855f7 18%, #60a5fa 35%,
     #34d399 50%, #fbbf24 65%, #fb7185 82%, #ff4fd8 100%);
-  background-size: 100% 100%;
+  background-size: 300% auto;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 1px 2px rgba(90,30,110,.20);   /* 淡背景での輪郭・ドット視認用の控えめ影 */
-  animation: none;
+  text-shadow: none;
+  will-change: background-position;   /* iOSがアニメ用に安定レイヤーを保持＝重いページでも止まりにくい */
+  animation: logo-rainbow 2.8s linear infinite;   /* 虹色が流れる（reduce-motionでも維持） */
 }
-/* 旧2層（虹::after前面）は廃止。虹は本体1枚で表示するため ::after は出さない＝割れ無し */
-.brand-script::after { content: none; }
+/* オフキャンバス(メニュー)は閉時 translateX(100%) で画面外に残り、隠れたロゴの虹アニメが回り続けて
+   iOSの合成負荷を上げ、表示中のヘッダーロゴのアニメを止めていた → 隠れロゴのアニメは止める（虹色は静止表示で維持） */
+.offcanvas .brand-script::after { animation: none; will-change: auto; }
 
 /* ===========================================================================
    ▼▼▼ ニュースカード：左線と同色の枠線
