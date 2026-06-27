@@ -29,13 +29,13 @@ const profiles = (g?.profiles ?? []) as Array<{ name: string; type?: string; val
 
 const nameAge = g.name + (g.age ? `（${Number(g.age)}歳）` : '');
 const title = `${nameAge}｜${SHOP.fullName}`;
-const canonical = `https://kichifu.com/girls/${id}`;
+const canonical = `https://admi2888.com/girls/${id}`;
 const breadcrumbLd = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://kichifu.com/top' },
-    { '@type': 'ListItem', position: 2, name: 'すけべな女の子達', item: 'https://kichifu.com/girls' },
+    { '@type': 'ListItem', position: 1, name: 'トップ', item: 'https://admi2888.com/top' },
+    { '@type': 'ListItem', position: 2, name: 'すけべな女の子達', item: 'https://admi2888.com/girls' },
     { '@type': 'ListItem', position: 3, name: g.name, item: canonical },
   ],
 };
