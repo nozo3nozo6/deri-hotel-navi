@@ -48,8 +48,12 @@ astro-kichifu/
 - `output: 'static'` + `build.format: 'file'` → `src/pages/foo.astro` は `dist/foo.html`
 - 複数ページ化したらクリーンURL（`/foo` → `foo.html`）を `public/.htaccess` の該当ブロックを有効化して対応
 
-## デプロイ（GitHub Actions: `.github/workflows/deploy-kichifu.yml`）
-- トリガー: `main` への push で `astro-kichifu/**` が変わった時のみ（yobuho の deploy.yml は `paths-ignore` で除外済み → 二重デプロイなし）。手動実行(workflow_dispatch)も可
+## デプロイ（kichifu/admi はローカル一本化・2026-06-27〜）
+- **kichifu.com = ローカル `./deploy.sh` 一本化／admi2888.com = ローカル `./deploy-prod-admi2888.sh` 一本化**。push時の自動Actionsデプロイは廃止。
+  - `deploy-kichifu.yml` は **`on: workflow_dispatch` のみ**（push自動デプロイ撤去＝二重デプロイ＆「未コミットの deploy.sh を Actions が旧mainで上書き」事故を根絶。緊急時のみ手動実行）。
+  - `deploy.yml`(yobuho) の `paths-ignore` に `astro-kichifu/**` と `astro-admi/**` を追加＝admi/kichifu のpushで yobuho を誤デプロイしない。
+  - yobuho.com は引き続き `deploy.yml`(Actions, push自動)＝CIで CACHE_HASH/?v= 置換するため Actions 必須（手動rsync不可）。
+- 旧トリガー(`main` push で `astro-kichifu/**`)＝Actionsデプロイは廃止。GitHub→シンレンSSHが弾かれやすく Actions 自体が不安定だったのも理由。
 - 流れ: `npm ci` → `astro build` → `api/db-config.php` を Secrets から生成 → **dist/ を rsync**（静的）→ **api/ を rsync**（PHP、`*.sample.php` は除外）→ Cloudflare パージ
 - rsync は **`--delete` を使わない**（サーバー固有ファイル保全 / api と dist が別配信のため）
 - 流れ(現行): Node→`npm ci && npm run build`(Astro+postbuild) → `dist/` rsync → `api/` rsync(db-config生成・*.sample.php除外) → `admin/` rsync → Cloudflareパージ。ssh-keyscan/rsyncはリトライ済

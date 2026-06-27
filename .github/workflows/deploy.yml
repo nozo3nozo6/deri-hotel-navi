@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - 'astro-kichifu/**'   # kichifu は deploy-kichifu.yml が担当（二重デプロイ防止）
+      - 'astro-kichifu/**'   # kichifu はローカル ./deploy.sh に一本化（push自動デプロイ無し）
+      - 'astro-admi/**'      # admi   はローカル ./deploy-prod-admi2888.sh に一本化（yobuhoデプロイを誤起動しない）
+      - '.github/**'         # CI設定の変更だけで yobuho を無駄にデプロイしない（必要なら workflow_dispatch で手動）
   workflow_dispatch:
 
 env:

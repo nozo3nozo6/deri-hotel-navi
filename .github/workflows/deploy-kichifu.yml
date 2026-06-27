@@ -1,12 +1,9 @@
 name: Deploy kichifu.com
 
-# astro-kichifu/ 配下の変更だけで発火（yobuho の deploy.yml とは独立）
+# kichifu/admi はローカルデプロイに一本化（kichifu=./deploy.sh / admi=./deploy-prod-admi2888.sh）。
+# push 時の自動デプロイは廃止＝二重デプロイ＆「未コミットの deploy.sh を Actions が旧 main で上書き」事故を防ぐ。
+# GitHub→シンレンSSH が弾かれやすく Actions 自体が不安定なのも理由。必要時だけ手動実行(workflow_dispatch)。
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'astro-kichifu/**'
-      - '.github/workflows/deploy-kichifu.yml'
   workflow_dispatch:
 
 concurrency:
