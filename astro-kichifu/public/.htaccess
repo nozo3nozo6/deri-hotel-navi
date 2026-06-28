@@ -48,6 +48,11 @@ DirectorySlash Off
   RewriteRule ^girls/?$ /girls.html [L]
   RewriteRule ^news/?$  /news.html  [L]
 
+  # /news/[id] は常に PHP(news-ssr.php)で動的配信＝CTRLでの編集が即HPに反映（ビルド済み静的htmlは使わない）。admi2888と挙動統一。
+  #   ★この位置が肝：下の汎用 .html ルールより前に置く。後ろだとビルド済み静的htmlが優先され、編集してもデプロイまで古いまま反映されない。
+  #   SSRは is_display=1 かつ posted_at<=NOW の公開済みのみ表示（予約投稿は時刻まで404＝公開後に200）。
+  RewriteRule ^news/([0-9]+)/?$ /news-ssr.php?id=$1 [L]
+
   # CMS(/ctrl)は admi2888.com に一本化。kichifu.com/ctrl・/admin は admi2888 へ恒久リダイレクト
   # （kichifu側の ctrl 実体は廃止。旧ブックマーク救済のため301で誘導）
   RewriteRule ^ctrl(/.*)?$  https://admi2888.com/ctrl$1 [R=301,L]
@@ -60,11 +65,6 @@ DirectorySlash Off
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{DOCUMENT_ROOT}/$1.html -f
   RewriteRule ^(.+?)/?$ $1.html [L]
-
-  # /news/[id] の静的 .html が未生成の場合 PHP で動的フォールバック
-  #   ctrl/から新規ニュース追加後にビルドしなくても詳細ページが表示される
-  #   ※ 上の generic ルールが [L] で止まるため、ここに来るのは .html 未生成時のみ
-  RewriteRule ^news/([0-9]+)/?$ /news-ssr.php?id=$1 [L]
 
   # /diary/[id] の静的 .html が未生成の場合 PHP で動的フォールバック（cron取込後の新規日記用）
   RewriteRule ^diary/([0-9]+)/?$ /diary-ssr.php?id=$1 [L]

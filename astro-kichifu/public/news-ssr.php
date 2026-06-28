@@ -7,6 +7,10 @@
 // ============================================================
 require_once __DIR__ . '/api/db.php';
 
+// 注意: news/[id] は .htaccess で常に news-ssr.php に流す（常時SSR＝CTRL編集が反映される）。
+// ただしシンレンXアクセラレータ（origin側キャッシュ）は no-store/Set-Cookie を無視して
+// 出力を数十秒〜数分キャッシュするため、編集が即時ではなく「少し遅れて」反映される。
+// 完全な即時反映が必要なら、サーバーパネルで kichifu の Xアクセラレータを OFF（admi2888と同じ）にする。
 $id      = (int)($_GET['id'] ?? 0);
 $host    = $_SERVER['HTTP_HOST'] ?? '';
 $shop_id = (str_contains($host, 'admi') || str_contains($host, 'biyobu')) ? 1 : 2;
