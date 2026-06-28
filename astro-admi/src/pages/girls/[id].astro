@@ -5,6 +5,7 @@ import { getGirls, getGirl } from '../../lib/api';
 import { statSync } from 'node:fs';
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
 const girlRefreshV = ver('public/girl-detail-refresh.js');
+const schedWeekV = ver('public/schedule-week.js');
 
 export async function getStaticPaths() {
   const girls = await getGirls();
@@ -193,6 +194,12 @@ if (g.catch_copy) {
               </Fragment>
             ) : null}
 
+            <!-- 週間出勤予定（オプションの下・schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
+            <div id="girl-week" class="girl-week" data-girl-id={g.id} style="display:none">
+              <p class="section-label">📅 週間出勤予定</p>
+              <div class="gw-body"></div>
+            </div>
+
             <!-- 本人からの一言（HTMLウィジェット可・そのまま描画） -->
             {g.comment ? (
               <Fragment>
@@ -223,4 +230,6 @@ if (g.catch_copy) {
 
   <!-- CTRL編集を即反映: 読込時にAPIから最新の店舗コメント/一言/キャッチを取得し差し替え（デプロイ不要） -->
   <script is:inline src={`/girl-detail-refresh.js?v=${girlRefreshV}`}></script>
+  <!-- 週間出勤予定（同一オリジンAPIから取得して #girl-week に描画） -->
+  <script is:inline src={`/schedule-week.js?v=${schedWeekV}`}></script>
 </Site>

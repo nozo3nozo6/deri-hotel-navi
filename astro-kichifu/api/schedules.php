@@ -35,6 +35,29 @@ try {
         exit;
     }
 
+    if ($action === 'girl-week') {
+        // 1女性の週間出勤（プロフィールページ用）。営業日5時基準の「今日」から N 日。
+        //   出勤/休み/未定 を区別して返す（status ＋ start/end）。
+        $gid  = (int)($_GET['girl_id'] ?? 0);
+        $days = min(max((int)($_GET['days'] ?? 7), 1), 14);
+        $from = date('Y-m-d', time() - 5 * 3600);
+        $to   = date('Y-m-d', strtotime("$from +" . ($days - 1) . " day"));
+        $sch  = [];
+        if ($gid) {
+            $st = $pdo->prepare(
+                "SELECT work_date, status, TIME_FORMAT(start_time,'%H:%i') AS start, TIME_FORMAT(end_time,'%H:%i') AS end
+                   FROM schedules
+                  WHERE shop_id = ? AND girl_id = ? AND work_date BETWEEN ? AND ?"
+            );
+            $st->execute([$shop_id, $gid, $from, $to]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                $sch[$r['work_date']] = ['status' => $r['status'], 'start' => $r['start'], 'end' => $r['end']];
+            }
+        }
+        echo json_encode(['from' => $from, 'days' => $days, 'schedule' => $sch], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     // 既定: today（営業日は朝5時区切り。5時前は前日を当日扱い）
     $date = date('Y-m-d', time() - 5 * 3600);
     $st = $pdo->prepare(

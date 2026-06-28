@@ -1292,6 +1292,29 @@ body.lb-open { overflow: hidden; }
   box-shadow: 0 0 14px -3px rgba(140,90,220,.6), inset 0 1px 0 rgba(255,255,255,.22);
 }
 
+/* 週間出勤予定（プロフィール、オプションの下） */
+.girl-week { margin-bottom: 24px; }
+.gw-body { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.gw-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 14px; border-radius: 12px;
+  background: rgba(183,143,255,.10);
+  border: 1px solid rgba(255,79,216,.16);
+}
+.gw-row.is-today {
+  background: linear-gradient(135deg, rgba(255,79,216,.16), rgba(183,143,255,.18));
+  border-color: rgba(255,79,216,.55);
+  box-shadow: 0 0 16px -4px rgba(255,79,216,.5), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.gw-date { font-size: .9rem; font-weight: 600; color: var(--text-soft); }
+.gw-date b { color: var(--neon-pink); margin-right: 3px; font-weight: 800; }
+.gw-date.gw-sat { color: #b78fff; }
+.gw-date.gw-sun { color: #ff4fd8; }
+.gw-time { font-size: .95rem; font-weight: 800; color: var(--neon-pink); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.gw-off { font-size: .9rem; font-weight: 700; color: var(--lav-soft); }
+.gw-none { color: var(--lav-soft); opacity: .65; }
+.gw-empty { padding: 14px; text-align: center; color: var(--lav-soft); font-size: .9rem; }
+
 .comment-box {
   background: rgba(255,79,216,.06);
   border: 1px solid rgba(255,79,216,.2);
