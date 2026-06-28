@@ -16,7 +16,7 @@ export const SHOP = {
   since: 2002,
   area: '立川',
   catch: '立川デリヘル',
-  fullName: 'アドミ since2002 立川デリヘル & Go To FANTASY 東京本店',
+  fullName: 'アドミsince2002立川デリヘル&Go To FANTASY東京本店',  // 正式店名（広告媒体=口コミ局/シティヘブン/風俗じゃぱん と完全一致）
   tel: '042-528-2888',
   telRaw: '0425282888',
   reception: '10:00〜翌5:00',

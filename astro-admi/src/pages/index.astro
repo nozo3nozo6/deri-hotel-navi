@@ -3,8 +3,8 @@ import Site from '../layouts/Site.astro';
 import { SHOP, FUJOHO } from '../lib/config';
 import Fujoho from '../components/Fujoho.astro';
 
-const title = `${SHOP.name} since${SHOP.since}｜${SHOP.catch} おすすめ＆Go To FANTASY`;
-const desc = `${SHOP.catch}の老舗「${SHOP.name}」。since${SHOP.since}、ハズレなしのすけべな素人娘をあなたのもとへ。`;
+const title = SHOP.fullName;   // 正式店名（広告媒体と完全一致＝ブランド検索/サイトリンク強化）
+const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」。since${SHOP.since}、ハズレなしのすけべな素人娘をあなたのもとへ。立川で人気・オススメのデリヘルです。`;
 const yearsInBusiness = new Date().getFullYear() - SHOP.since;
 
 // admi2888 オリジナルの外部媒体バナー（SEO相互リンク＋集客）。画像は各広告サーバー直リンク。
