@@ -333,4 +333,23 @@ layout_header('出勤管理', 'schedules.php');
   </script>
   <?php endif; ?>
 <?php endif; ?>
+
+<script>
+(function () {
+  // 開始/終了の時間を「--」以外に選んだら、その行を自動で「出勤」にする（両モード共通）。
+  // 状態を未定のまま時間だけ入れて保存→未定で保存される事故を防ぐ。
+  document.querySelectorAll('table.tbl tbody tr').forEach(function (tr) {
+    var st = tr.querySelector('[data-status]');
+    if (!st) return;
+    tr.querySelectorAll('.tsel-h, .tsel-m').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        if (sel.value !== '' && st.value !== 'work') {
+          st.value = 'work';
+          tr.className = 'is-work';
+        }
+      });
+    });
+  });
+})();
+</script>
 <?php layout_footer(); ?>
