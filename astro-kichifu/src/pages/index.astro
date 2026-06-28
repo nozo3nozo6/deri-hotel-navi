@@ -3,7 +3,7 @@ import Site from '../layouts/Site.astro';
 import { SHOP, FUJOHO } from '../lib/config';
 import Fujoho from '../components/Fujoho.astro';
 
-const title = `${SHOP.name} since${SHOP.since} | ${SHOP.catch} & Go To FANTASY`;
+const title = SHOP.fullName;   // 正式店名（広告媒体と完全一致＝ブランド検索/サイトリンク強化）
 const desc = `${SHOP.catch}の老舗「${SHOP.name}」。since2009、ハズレなしのすけべな素人娘をあなたのもとへ。`;
 const yearsInBusiness = new Date().getFullYear() - SHOP.since;
 ---

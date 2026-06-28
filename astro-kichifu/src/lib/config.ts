@@ -14,7 +14,7 @@ export const SHOP = {
   nameEn: 'Admi',
   since: 2009,
   catch: '吉祥寺デリヘル',
-  fullName: 'アドミ since2009 吉祥寺デリヘル & Go To FANTASY',
+  fullName: 'アドミsince2009吉祥寺デリヘル&Go To FANTASY東京吉祥寺店',  // 正式店名（広告媒体と完全一致）
   tel: '090-1045-9155',
   telRaw: '09010459155',
   reception: '10:00〜翌5:00',
