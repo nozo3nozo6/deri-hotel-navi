@@ -336,8 +336,15 @@ layout_header('出勤管理', 'schedules.php');
 
 <script>
 (function () {
-  // 開始/終了の時間を「--」以外に選んだら、その行を自動で「出勤」にする（両モード共通）。
-  // 状態を未定のまま時間だけ入れて保存→未定で保存される事故を防ぐ。
+  // ① 時(左)を選んだら、分(右)が未選択のとき自動で「00」にする（全ピッカー＝行＋一括時間）。
+  document.querySelectorAll('.tsel').forEach(function (cell) {
+    var h = cell.querySelector('.tsel-h'), m = cell.querySelector('.tsel-m');
+    if (h && m) h.addEventListener('change', function () {
+      if (h.value !== '' && m.value === '') m.value = '0';   // 分の「00」は option value="0"
+    });
+  });
+  // ② 開始/終了の時間を「--」以外にしたら、その行を自動で「出勤」にする（両モード共通）。
+  //    状態を未定のまま時間だけ入れて保存→未定で保存される事故を防ぐ。
   document.querySelectorAll('table.tbl tbody tr').forEach(function (tr) {
     var st = tr.querySelector('[data-status]');
     if (!st) return;
