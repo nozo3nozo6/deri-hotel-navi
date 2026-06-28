@@ -357,6 +357,26 @@ layout_header('出勤管理', 'schedules.php');
       });
     });
   });
+  // ③ 保存時チェック：「出勤」の行で開始・終了どちらかが「--」なら保存を中止して注意。
+  document.querySelectorAll('form').forEach(function (form) {
+    if (!form.querySelector('[data-status]')) return;
+    form.addEventListener('submit', function (e) {
+      var bad = 0, first = null;
+      form.querySelectorAll('.tsel-h, .tsel-m').forEach(function (s) { s.style.outline = ''; });
+      form.querySelectorAll('tbody tr').forEach(function (tr) {
+        var st = tr.querySelector('[data-status]');
+        if (!st || st.value !== 'work') return;
+        tr.querySelectorAll('.tsel-h, .tsel-m').forEach(function (sel) {
+          if (sel.value === '') { sel.style.outline = '2px solid #e11d48'; bad++; if (!first) first = sel; }
+        });
+      });
+      if (bad) {
+        e.preventDefault();
+        alert('「出勤」の行で開始・終了の時間が未入力（--）の箇所があります。\n赤枠の時間を選んでから保存してください。');
+        if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    });
+  });
 })();
 </script>
 <?php layout_footer(); ?>
