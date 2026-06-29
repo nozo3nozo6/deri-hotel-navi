@@ -14,19 +14,21 @@ $SSR_SHOPS = [
         'tel' => '042-528-2888', 'telRaw' => '0425282888', 'reception' => '10:00〜翌5:00',
         'since' => 2002, 'catch' => '立川デリヘル', 'genre' => 'すけべな素人専門店',
         'brandCatch' => 'アドミ since2002',
-        'fullName' => 'アドミ since2002 立川デリヘル & Go To FANTASY 東京本店',
+        'fullName' => 'アドミsince2002立川デリヘル&Go To FANTASY東京本店',
         'line' => 'https://line.me/ti/p/L4-1uY6q2e',
         'recruit' => 'https://kanto.qzin.jp/admi2888/?v=official',
         'fid' => '57', 'ga' => 'G-50Q48YG34Z',
+        'news_url' => 'https://ranking-deli.jp/tokyo/area39/style2/4517/news/', 'show_contact' => false,
     ],
     2 => [
         'tel' => '090-1045-9155', 'telRaw' => '09010459155', 'reception' => '10:00〜翌5:00',
         'since' => 2009, 'catch' => '吉祥寺デリヘル', 'genre' => 'すけべな素人専門店',
         'brandCatch' => 'アドミ since2009',
-        'fullName' => 'アドミ since2009 吉祥寺デリヘル & Go To FANTASY',
+        'fullName' => 'アドミsince2009吉祥寺デリヘル&Go To FANTASY東京吉祥寺店',
         'line' => 'https://line.me/ti/p/L4-1uY6q2e',
         'recruit' => 'https://kanto.qzin.jp/admi2888/?v=official',
         'fid' => '53179', 'ga' => 'G-VJ1TW4WBYN',
+        'news_url' => '/news', 'show_contact' => true,
     ],
 ];
 $SSR = $SSR_SHOPS[$shop_id] ?? $SSR_SHOPS[2];
@@ -104,7 +106,7 @@ function ssr_header(array $S): void {
       <a href="/girls">すけべな女の子達</a>
       <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
       <a href="/system">料金システム</a>
-      <a href="/news">お知らせ</a>
+      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
     </nav>
     <div class="header-tel">
       <div class="header-reception">受付 <?= ssr_h($S['reception']) ?></div>
@@ -149,10 +151,10 @@ function ssr_footer(array $S): void {
       <a href="/schedule" target="_self">スケジュール</a>
       <a href="/system">料金システム</a>
       <a href="/howto">ご利用ガイド</a>
-      <a href="/news">お知らせ</a>
+      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
       <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
       <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
-      <a href="/contacts">お問合せ</a>
+      <?php if ($S['show_contact'] ?? true): ?><a href="/contacts">お問合せ</a><?php endif; ?>
     </nav>
     <p class="footer-copy">&copy; <?= ssr_h($S['since']) ?>-<?= $year ?> <?= ssr_h($S['fullName']) ?> All Rights Reserved.</p>
   </div>
@@ -177,10 +179,10 @@ function ssr_footer(array $S): void {
     <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
     <a href="/system">料金システム</a>
     <a href="/howto">ご利用ガイド</a>
-    <a href="/news">お知らせ</a>
+    <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
     <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
     <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
-    <a href="/contacts">お問合せ</a>
+    <?php if ($S['show_contact'] ?? true): ?><a href="/contacts">お問合せ</a><?php endif; ?>
   </nav>
   <div class="offcanvas-foot">
     <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open>ご予約はこちら</button>
