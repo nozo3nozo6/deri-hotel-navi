@@ -11,15 +11,13 @@ $q    = trim((string)($_GET['q'] ?? ''));
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per  = 20;
 
-// 並び替え: manual=ドラッグ順(g.sort) / freq=出勤頻度が高い順 / indate=入店が新しい順
-$sort = $_GET['sort'] ?? 'manual';
-if (!in_array($sort, ['manual', 'freq', 'indate'], true)) $sort = 'manual';
+// 並び替え: freq=出勤頻度が高い順 / indate=入店が新しい順（既定=freq）
+$sort = $_GET['sort'] ?? 'freq';
+if (!in_array($sort, ['freq', 'indate'], true)) $sort = 'freq';
 $orderSql = [
-    'manual' => 'g.sort, g.id DESC',
     'freq'   => 'wc DESC, g.in_date DESC, g.id DESC', // 出勤頻度高い順 → 入店新しい順
     'indate' => 'g.in_date DESC, g.id DESC',
 ][$sort];
-$canDrag = ($sort === 'manual'); // ドラッグ並べ替えは手動順モードのみ
 
 // 全女性を対象（shop_id フィルタなし）
 $where = ['1=1'];
@@ -81,9 +79,9 @@ layout_header('女性一覧', 'girls.php');
     <input type="text" name="q" value="<?= h($q) ?>" placeholder="名前で検索">
   </div>
   <button class="btn" type="submit">検索</button>
-  <span class="muted" style="margin-left:auto;font-size:13px">並び替え</span>
+  <div style="flex-basis:100%;height:0"></div><!-- 改行: 並び替えを名前検索の下へ -->
+  <span class="muted" style="font-size:13px">並び替え</span>
   <select name="sort" onchange="this.form.submit()" style="width:auto;flex:none">
-    <option value="manual" <?= $sort === 'manual' ? 'selected' : '' ?>>手動（ドラッグ順）</option>
     <option value="freq"   <?= $sort === 'freq'   ? 'selected' : '' ?>>出勤頻度が高い順</option>
     <option value="indate" <?= $sort === 'indate' ? 'selected' : '' ?>>入店が新しい順</option>
   </select>
@@ -99,12 +97,8 @@ layout_header('女性一覧', 'girls.php');
     </thead>
     <tbody id="girlRows">
       <?php foreach ($rows as $g): ?>
-        <tr<?= $canDrag ? ' draggable="true"' : '' ?> data-id="<?= (int)$g['id'] ?>">
-          <?php if ($canDrag): ?>
-            <td style="cursor:grab;color:#bbb">⠿</td>
-          <?php else: ?>
-            <td class="muted" style="text-align:center;font-size:12px" title="出勤回数"><?= (int)$g['wc'] ?>回</td>
-          <?php endif; ?>
+        <tr data-id="<?= (int)$g['id'] ?>">
+          <td class="muted" style="text-align:center;font-size:12px" title="出勤回数"><?= $sort === 'freq' ? (int)$g['wc'] . '回' : '' ?></td>
           <td><img class="thumb" src="<?= h(asset_url($g['thumb'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
           <td><strong><?= h($g['name']) ?></strong> <span class="muted">(<?= (int)$g['age'] ?>)</span></td>
           <td class="muted">T<?= (int)$g['height'] ?> B<?= (int)$g['bust'] ?>(<?= h($g['cup']) ?>) W<?= (int)$g['waist'] ?> H<?= (int)$g['hip'] ?></td>
@@ -164,23 +158,5 @@ document.querySelectorAll('[data-del-id]').forEach(b => b.addEventListener('clic
   const j = await act({ action: 'delete', id: b.dataset.delId });
   if (j.ok) b.closest('tr').remove();
 }));
-// ドラッグ並べ替え（手動順モードのみ）
-<?php if ($canDrag): ?>
-const tb = document.getElementById('girlRows');
-let dragEl = null;
-tb.addEventListener('dragstart', e => { dragEl = e.target.closest('tr'); e.dataTransfer.effectAllowed = 'move'; });
-tb.addEventListener('dragover', e => {
-  e.preventDefault();
-  const t = e.target.closest('tr');
-  if (!t || t === dragEl) return;
-  const rect = t.getBoundingClientRect();
-  tb.insertBefore(dragEl, (e.clientY - rect.top) / rect.height < 0.5 ? t : t.nextSibling);
-});
-tb.addEventListener('drop', async e => {
-  e.preventDefault();
-  const ids = [...tb.querySelectorAll('tr[data-id]')].map(r => r.dataset.id);
-  await act({ action: 'reorder', ...Object.fromEntries(ids.map((id, i) => [`ids[${i}]`, id])) });
-});
-<?php endif; ?>
 </script>
 <?php layout_footer(); ?>
