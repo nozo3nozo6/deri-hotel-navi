@@ -122,7 +122,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // サイト自動リビルド
             trigger_deploy();
 
-            flash('ok', '保存しました。サイトを更新中です（約1〜2分後に反映）。');
+            flash('ok', '保存しました。ページをリロードすると即時反映されます。');
             redirect('girl-edit.php?id=' . $id);
         } catch (Throwable $e) {
             db()->rollBack();
@@ -332,10 +332,12 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   <div class="card card-pad">
     <strong>画像</strong>
     <?php if ($images): ?>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0">
+      <p class="muted" style="margin:6px 0 0;font-size:.85em">ドラッグで並べ替えできます。左上の番号が表示順（<strong>①がメイン写真</strong>）。</p>
+      <div id="img-sort" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0">
         <?php foreach ($images as $im): ?>
-          <div style="position:relative" data-img="<?= (int)$im['id'] ?>">
-            <img src="<?= h(asset_url($im['path'])) ?>" style="width:90px;height:120px;object-fit:cover;border-radius:8px">
+          <div style="position:relative;cursor:grab" data-img="<?= (int)$im['id'] ?>" draggable="true">
+            <img src="<?= h(asset_url($im['path'])) ?>" style="width:90px;height:120px;object-fit:cover;border-radius:8px;pointer-events:none">
+            <span class="img-order-no" style="position:absolute;top:4px;left:4px;min-width:20px;height:20px;line-height:20px;text-align:center;background:rgba(0,0,0,.7);color:#fff;border-radius:10px;font-size:.78em;font-weight:700;padding:0 4px"></span>
             <button type="button" class="btn btn-sm btn-danger" data-del-img="<?= (int)$im['id'] ?>" style="position:absolute;top:4px;right:4px;padding:2px 7px">✕</button>
           </div>
         <?php endforeach; ?>
@@ -355,11 +357,57 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
 <script>
 const CSRF = '<?= h(csrf_token()) ?>';
+const imgSort = document.getElementById('img-sort');
+
+// 表示順の番号（①②③…）を振り直す
+function renumberImages() {
+  if (!imgSort) return;
+  const C = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+  [...imgSort.querySelectorAll('[data-img] .img-order-no')].forEach((el, i) => {
+    el.textContent = i < C.length ? C[i] : (i + 1);
+  });
+}
+renumberImages();
+
+// 並べ替え結果を即保存（girl_images.sort 更新）
+async function saveImageOrder() {
+  if (!imgSort) return;
+  const ids = [...imgSort.querySelectorAll('[data-img]')].map(d => d.dataset.img);
+  const fd = new FormData();
+  fd.append('_csrf', CSRF); fd.append('action', 'reorder-images');
+  ids.forEach((id, i) => fd.append('ids[' + i + ']', id));
+  await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
+}
+
+// ドラッグ並べ替え（flex-wrap グリッド対応）
+if (imgSort) {
+  let drag = null;
+  imgSort.addEventListener('dragstart', e => {
+    drag = e.target.closest('[data-img]');
+    if (drag) { drag.style.opacity = '.4'; e.dataTransfer.effectAllowed = 'move'; }
+  });
+  imgSort.addEventListener('dragend', () => { if (drag) drag.style.opacity = ''; drag = null; });
+  imgSort.addEventListener('dragover', e => {
+    e.preventDefault();
+    const t = e.target.closest('[data-img]');
+    if (!t || t === drag || !drag) return;
+    const r = t.getBoundingClientRect();
+    // 同一行は横位置、行をまたぐ時も中心X基準で前後判定
+    const after = (e.clientX - r.left) / r.width > 0.5;
+    imgSort.insertBefore(drag, after ? t.nextSibling : t);
+  });
+  imgSort.addEventListener('drop', async e => {
+    e.preventDefault();
+    renumberImages();
+    await saveImageOrder();
+  });
+}
+
 document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('click', async () => {
   if (!confirm('この画像を削除しますか？')) return;
   const fd = new FormData(); fd.append('_csrf', CSRF); fd.append('action', 'delete-image'); fd.append('image_id', b.dataset.delImg);
   const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
-  if ((await r.json()).ok) b.closest('[data-img]').remove();
+  if ((await r.json()).ok) { b.closest('[data-img]').remove(); renumberImages(); await saveImageOrder(); }
 }));
 </script>
 <?php layout_footer(); ?>

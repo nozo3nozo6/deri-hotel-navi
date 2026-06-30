@@ -1,7 +1,7 @@
 <?php
 // ==========================================================================
 // girl-actions.php — 女性まわりの非同期アクション（JSON）
-//   POST: action=toggle|delete|reorder|delete-image （+ _csrf）
+//   POST: action=toggle|delete|reorder|delete-image|reorder-images|girl-images （+ _csrf）
 //   全て current_shop に属するレコードのみ操作可（越境防止）
 // ==========================================================================
 require_once __DIR__ . '/_lib.php';
@@ -81,6 +81,16 @@ try {
             if ($path === false) throw new RuntimeException('not found');
             db()->prepare('DELETE FROM girl_images WHERE id=?')->execute([$imgId]);
             delete_upload($path);
+            echo json_encode(['ok' => true]);
+            break;
+        }
+        case 'reorder-images': {
+            // 女性編集の画像並べ替え。ids[] の順に girl_images.sort を更新（店舗所有のみ）
+            $ids = $_POST['ids'] ?? [];
+            if (!is_array($ids)) throw new RuntimeException('bad');
+            // 自店舗の画像だけ更新（JOIN girls で shop_id スコープ）
+            $upd = db()->prepare('UPDATE girl_images gi JOIN girls g ON g.id=gi.girl_id SET gi.sort=? WHERE gi.id=? AND g.shop_id=?');
+            foreach (array_values($ids) as $i => $imgId) $upd->execute([$i, (int)$imgId, $shop]);
             echo json_encode(['ok' => true]);
             break;
         }
