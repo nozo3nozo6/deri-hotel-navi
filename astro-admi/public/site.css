@@ -1640,6 +1640,7 @@ body.lb-open { overflow: hidden; }
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: flex-start; /* 高さの異なるバナー（ヒメ割300/口コミ235等）を上揃え */
   gap: 8px;
 }
 .fujoho-card {
