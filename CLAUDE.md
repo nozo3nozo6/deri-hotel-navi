@@ -327,6 +327,24 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年6月27日 — astro-admi オリジナル求人ページ /recruit 新設（画像付き）
+#### 背景・方針
+- 参考: 求人ジン admi2888（kanto.qzin.jp/admi2888）。ターゲット=18〜33歳女性、目的=面接応募の最大化
+- 従来ナビの「求人情報」は外部の求人ジン(SHOP.recruitUrl)へ外部遷移していた → 自サイト内のオリジナルLP /recruit に置き換え（SEO・回遊・独自性）
+- 女性向け風俗求人LPの鉄則3軸で設計: ①不安解消を最優先（身バレ/顔出し/未経験）②具体数字で信頼 ③応募ハードルを下げる（LINEで質問だけOK・友達と一緒OK・常時追従CTA）
+#### 実装（astro-admi）
+- `src/pages/recruit.astro` 新設（既存 Site レイアウト + site.css で世界観統一、編集用データブロックを先頭に集約）
+- 構成: ヒーロー（体験日給75,000円/支援金23,000円/最大バック62.9%を数字カード）→ 3つの安心（身バレ対策20年/女性店長/未経験7割）→ お給料（体験日給保証3h/6h/10h+コース別バック+全額日払い）→ 身バレ・プライバシー対策→ 待遇8項目→ 店内ギャラリー→ 働き方4項目→ 面接の流れ→ FAQ(FAQPage構造化データ)→ 大型CTA+スマホ追従バー
+- 受け口は LINE中心+電話。**旧業者 admi2002fantasy@gmail.com は不使用**（ロックアウト済み・Site.astro参照）。LINE ID=okekanji はページ先頭 recruit データブロックで差し替え可
+- ナビ3箇所（ヘッダー/フッター/ハンバーガー）の「求人情報」を SHOP.recruitUrl(外部) → /recruit に変更
+- SEOキーワード(keywords)・LocalBusiness alternateName 追加は Site.astro 側で別途反映
+#### 画像
+- ヒーロー背景: 既存コラージュ public/img/indexbg.jpg を不透明度14%+ピンクヴェールで敷く（可読性維持、在籍多数の雰囲気）
+- ブランド装飾: キラキラSVG 2点（prefers-reduced-motion でアニメOFF）
+- 「お店の雰囲気・設備」実写ギャラリー枠3つ（個室待機/面接ブース/送迎）: gallery データブロックの src 未設定時は「📷 写真準備中」プレースホルダ、src に /img/xxx.jpg を入れるだけで実写へ自動切替
+- CSS は public/site.css 末尾に rc-* 一式を追記
+- デプロイ: deploy-prod-admi2888.sh で admi2888.com 本番反映済み。公開URL https://admi2888.com/recruit
+
 ### 2026年6月17日 — モードトップ独自コンテンツ化（重複インデックス対策・SEO）
 #### 背景・原因特定
 - 「デリヘル 呼べる ホテル」で本家が検索に出ない件を調査

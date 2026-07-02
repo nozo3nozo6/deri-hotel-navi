@@ -262,9 +262,6 @@ const gvV = ver('public/girl-visibility.js');
 }
 </style>
 <script is:inline src={`/site.js?v=${jsV}`}></script>
-{/* girl-visibility.js は admi2888 の Xアクセラレータ API キャッシュ問題が解決するまで一時停止。
-    admi2888 は CF 非経由で /api/girls.php が古いままキャッシュされ、最新 SSG カードを古い API で
-    誤 remove するため（さら/すず/はる/まや 消失）。Cloudflare 経由化で API キャッシュが解消したら
-    下記を復活する: <script is:inline src={`/girl-visibility.js?v=${gvV}`}></script> */}
+<script is:inline src={`/girl-visibility.js?v=${gvV}`}></script>
 </body>
 </html>
