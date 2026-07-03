@@ -689,9 +689,13 @@ function handleRenewContract() {
     $row = $stmt->fetch();
     if (!$row) { http_response_code(404); echo json_encode(['error' => 'Contract not found']); return; }
 
-    // 基準日: expires_atが過去なら今日から、未来ならexpires_atから +1ヶ月
+    // 延長月数（1/3/6/12のみ許可、省略時1）
+    $months = (int)($input['months'] ?? 1);
+    if (!in_array($months, [1, 3, 6, 12], true)) $months = 1;
+
+    // 基準日: expires_atが過去なら今日から、未来ならexpires_atから +Nヶ月
     $base = $row['expires_at'] && $row['expires_at'] >= date('Y-m-d') ? $row['expires_at'] : date('Y-m-d');
-    $newExpires = date('Y-m-d', strtotime($base . ' +1 month'));
+    $newExpires = date('Y-m-d', strtotime($base . ' +' . $months . ' month'));
 
     $stmt = $pdo->prepare('UPDATE shop_contracts SET expires_at = ? WHERE id = ?');
     $stmt->execute([$newExpires, $contractId]);

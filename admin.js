@@ -712,7 +712,12 @@ async function loadShopContracts(shopId,plans){
       else statusHtml=`<span style="color:#2e7d32;">残り${diff}日</span>`;
       planHtml+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:12px;gap:8px;">`;
       planHtml+=`<div style="flex:1;">${esc(pName)}${typeLabel} — <input type="date" value="${c.expires_at}" data-onchange="setContractExpiryFromEl" data-cid="${c.id}" data-shop-id="${shopId}" style="font-size:16px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;cursor:pointer;"> ${statusHtml}</div>`;
-      planHtml+=`<button data-action="renewContract" data-arg1="${c.id}" data-arg2="${shopId}" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+1ヶ月</button>`;
+      planHtml+=`<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">`;
+      planHtml+=`<button data-action="renewContract" data-arg1="${c.id}" data-arg2="${shopId}" data-arg3="1" style="background:#1976d2;color:#fff;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+1ヶ月</button>`;
+      planHtml+=`<button data-action="renewContract" data-arg1="${c.id}" data-arg2="${shopId}" data-arg3="3" style="background:#fff;color:#1976d2;border:1px solid #1976d2;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+3</button>`;
+      planHtml+=`<button data-action="renewContract" data-arg1="${c.id}" data-arg2="${shopId}" data-arg3="6" style="background:#fff;color:#1976d2;border:1px solid #1976d2;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+6</button>`;
+      planHtml+=`<button data-action="renewContract" data-arg1="${c.id}" data-arg2="${shopId}" data-arg3="12" style="background:#fff;color:#1976d2;border:1px solid #1976d2;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap;">+12</button>`;
+      planHtml+=`</div>`;
       planHtml+=`</div>`;
     });
     planHtml+='</div>';
@@ -738,11 +743,12 @@ async function loadShopContracts(shopId,plans){
   window._currentShopLimits=totalLimits;
 }
 
-async function renewContract(contractId,shopId){
-  if(!confirm('この契約を1ヶ月更新しますか？'))return;
-  const res=await api('renew-contract',{contract_id:contractId});
+async function renewContract(contractId,shopId,months){
+  const m=[1,3,6,12].includes(months)?months:1;
+  if(!confirm('この契約を'+m+'ヶ月更新しますか？'))return;
+  const res=await api('renew-contract',{contract_id:contractId,months:m});
   if(res&&res.success){
-    toast('✅ 更新しました（期限: '+res.expires_at+'）');
+    toast('✅ '+m+'ヶ月更新しました（期限: '+res.expires_at+'）');
     loadShopContracts(shopId,contractPlansData);
   }else{toast('更新エラー');}
 }
