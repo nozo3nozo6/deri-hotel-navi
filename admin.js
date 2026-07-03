@@ -152,6 +152,9 @@ document.getElementById("hdr").style.display="block";
 document.getElementById("layout").style.display="block";
 document.getElementById("hdr-email").textContent=username;
 loadAll();
+// URLハッシュから前回のタブを復元（#reports 等）
+var h=(location.hash||"").replace("#","");
+if(h&&h!=="dashboard"&&document.getElementById("tab-"+h))switchTab(h);
 }
 async function checkAuth(){
 try{
@@ -200,7 +203,29 @@ function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=doc
 function closeMobileMenu(){closeNav();}
 
 function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadEntryMethods();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
-function switchTab(name){document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));document.getElementById("tab-"+name).classList.add("active");var tl=document.getElementById("tl-"+name);if(tl)tl.classList.add("active");closeNav();}
+function switchTab(name){
+  if(!document.getElementById("tab-"+name))name="dashboard";
+  document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab-link").forEach(n=>n.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  var tl=document.getElementById("tl-"+name);
+  if(tl){
+    tl.classList.add("active");
+    // その他メニュー内のタブなら親の「その他」ボタンもハイライト
+    if(tl.closest("#more-menu")){var tm=document.getElementById("tl-more");if(tm)tm.classList.add("active");}
+  }
+  var mm=document.getElementById("more-menu");if(mm)mm.classList.remove("open");
+  if(name==="inbox")renderInbox();
+  // 現在タブをURLに反映（リロード・ブックマークで同じタブに戻れる）
+  try{history.replaceState(null,"","#"+name);}catch(e){}
+  closeNav();
+}
+function toggleMoreMenu(){var mm=document.getElementById("more-menu");if(mm)mm.classList.toggle("open");}
+// その他メニューの外側クリックで閉じる
+document.addEventListener("click",function(e){
+  var tm=document.getElementById("tab-more");var mm=document.getElementById("more-menu");
+  if(mm&&mm.classList.contains("open")&&tm&&!tm.contains(e.target))mm.classList.remove("open");
+});
 function switchMasterSub(name){document.querySelectorAll(".master-sub").forEach(s=>s.classList.remove("active"));document.querySelectorAll(".master-tab").forEach(t=>t.classList.remove("active"));document.getElementById("msub-"+name).classList.add("active");document.getElementById("mt-"+name).classList.add("active");if(name==='ngwords')loadNgWords();}
 
 let _ngWords=[];
@@ -1387,26 +1412,31 @@ function updateResultFilter(){
 let _repHotelTimer=null;function onRepHotelInput(){clearTimeout(_repHotelTimer);_repHotelTimer=setTimeout(()=>{repPage=0;renderReports();},500);}
 function getRepFiltered(){
   const kF=document.getElementById("rep-kind-f")?.value||"";
-  const wF=document.getElementById("rep-who-f")?.value||"";
+  const pF=document.getElementById("rep-poster-f")?.value||"";
+  const gF=document.getElementById("rep-genre-f")?.value||"";
   const rF=document.getElementById("rep-result-f").value;
   const vF=document.getElementById("rep-vis-f").value;
   const fF=document.getElementById("rep-flag-f").value;
   const hF=document.getElementById("rep-hotel-f")?.value.trim()||"";
-  const modeMap={men_user:"men",women_user:"women",ff_user:"women_same",mm_user:"men_same",este_user:"este"};
   return reportsData.filter(r=>{
     if(kF&&r._kind!==kF)return false;
-    if(wF){
-      if(wF.startsWith("shop_free")||wF.startsWith("shop_paid")){
-        if(r.poster_type!=="shop")return false;
-        const shop=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());
+    // 投稿者(全員/ユーザー/店舗/無料店/有料店) × ジャンル の2軸フィルタ
+    if(pF||gF){
+      const isShopPost=r.poster_type==="shop";
+      if(pF==="user"&&isShopPost)return false;
+      if((pF==="shop"||pF==="shop_free"||pF==="shop_paid")&&!isShopPost)return false;
+      let shop=null;
+      if(isShopPost)shop=r.shop_id?shopsData.find(s=>String(s.id)===String(r.shop_id)):shopsData.find(s=>s.shop_name?.toLowerCase()===r.poster_name?.toLowerCase());
+      if(pF==="shop_free"||pF==="shop_paid"){
         const _sp=(contractPlansData.find(p=>p.id===shop?.plan_id)||{}).price||0;
         const isPaid=_sp>0;
-        if(wF.startsWith("shop_free")&&isPaid)return false;
-        if(wF.startsWith("shop_paid")&&!isPaid)return false;
-        const genreSuffix=wF.replace(/^shop_(free|paid)_?/,"");
-        if(genreSuffix){const shopMode=shop?.gender_mode||"";if(shopMode!==genreSuffix)return false;}
+        if(pF==="shop_free"&&isPaid)return false;
+        if(pF==="shop_paid"&&!isPaid)return false;
       }
-      else{if(r.poster_type==="shop")return false;const needMode=modeMap[wF];if(needMode&&r.gender_mode!==needMode)return false;}
+      if(gF){
+        if(isShopPost){if((shop?.gender_mode||"")!==gF)return false;}
+        else{if(r.gender_mode!==gF)return false;}
+      }
     }
     if(rF==="yes"){
       if(r._kind==="deli"&&!r.can_call)return false;
@@ -3958,3 +3988,61 @@ async function dndDrop(e,targetId){
     const _rr=await api("reorder",{table:_dndTable,items:dataArr.map(c=>({id:c.id,sort_order:c.sort_order}))});
     toast(_rr.ok?"✅ 順番を保存しました":"⚠️ 並び替えエラー");
 }
+
+// =========================================================
+// 📥 未対応キュー（フラグ/審査待ち店舗/掲載リク/情報修正/プラン申込を集約）
+// =========================================================
+function inboxItems(){
+  return{
+    flags:(reportsData||[]).filter(r=>r.flagged_at&&!r.flag_resolved),
+    shops:(shopsData||[]).filter(s=>getShopStatus(s)==="registered"),
+    hreqs:(hotelRequestsData||[]).filter(r=>r.status==="pending"),
+    corrs:(correctionsData||[]).filter(r=>r.status==="pending"),
+    plans:(planReqData||[]).filter(r=>r.status==="pending"),
+  };
+}
+function updateInboxBadge(){
+  const it=inboxItems();
+  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length;
+  const b=document.getElementById("inbox-badge");
+  if(b){if(total>0){b.style.display="inline-flex";b.textContent=total;}else b.style.display="none";}
+  // 未対応タブを開いている時はリストも即時更新
+  const panel=document.getElementById("tab-inbox");
+  if(panel&&panel.classList.contains("active"))renderInbox();
+}
+function _inboxSection(title,items,rowsHtml,goTabAction){
+  if(!items.length)return"";
+  const more=items.length>8?`<div style="padding:10px 12px;font-size:11px;color:var(--ink-3);">他 ${items.length-8} 件は「タブで開く」から確認できます</div>`:"";
+  return`<div class="card" style="padding:0;overflow:hidden;"><div class="card-title" style="padding:14px 16px 10px;margin-bottom:0;">${title}<span class="sub">(${items.length}件)</span><button class="btn b-btn-gray" style="margin-left:auto;font-size:11px;" data-action="${goTabAction}">タブで開く →</button></div>${rowsHtml}${more}</div>`;
+}
+function renderInbox(){
+  const el=document.getElementById("inbox-content");
+  if(!el)return;
+  const it=inboxItems();
+  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length;
+  if(total===0){el.innerHTML='<div class="card" style="text-align:center;padding:48px 20px;"><div style="font-size:40px;margin-bottom:12px;">🎉</div><div style="font-size:14px;font-weight:700;">未対応のタスクはありません</div><div style="font-size:12px;color:var(--ink-3);margin-top:6px;">フラグ報告・店舗審査・掲載リクエスト・情報修正・プラン申込がここに集まります</div></div>';return;}
+  const genreMap={men:"♂ デリヘル",women:"♀ 女風",este:"💆 エステ",men_same:"♂♂ 同性(男)",women_same:"♀♀ 同性(女)"};
+  const catLabels=typeof CORR_CAT_LABELS!=="undefined"?CORR_CAT_LABELS:{};
+  let html="";
+  html+=_inboxSection("🚩 報告未対応の投稿",it.flags,it.flags.slice(0,8).map(r=>
+    `<div class="inbox-row" data-action="inboxGoFlag"><span>${r._kind==="loveho"?"🏩":"🏨"}</span><strong>${esc(r.hotel_name||"—")}</strong><span style="color:var(--ink-3);">${esc(r.poster_name||"匿名")}</span>${r.flag_reason?`<span class="badge b-cant" style="font-size:10px;">${esc(r.flag_reason)}</span>`:""}<span class="ib-date">${fmtDate(r.flagged_at)}</span></div>`).join(""),"dashGoToFlaggedReports");
+  html+=_inboxSection("🏪 審査待ちの店舗",it.shops,it.shops.slice(0,8).map(s=>
+    `<div class="inbox-row" data-action="inboxGoShop" data-arg1="${esc(String(s.id))}"><strong>${esc(s.shop_name||"—")}</strong><span style="color:var(--ink-3);">${genreMap[s.gender_mode]||s.gender_mode||"—"}</span><span style="color:var(--ink-3);font-size:11px;">${esc(s.email||"")}</span><span class="ib-date">${fmtDate(s.created_at)}</span></div>`).join(""),"dashGoToPendingShops");
+  html+=_inboxSection("🏨 未確認の掲載リクエスト",it.hreqs,it.hreqs.slice(0,8).map(r=>
+    `<div class="inbox-row" data-action="inboxGoHreq" data-arg1="${esc(String(r.id))}"><strong>${esc(r.hotel_name||"—")}</strong><span style="color:var(--ink-3);font-size:11px;">${esc(r.address||"")}</span><span class="ib-date">${fmtDate(r.created_at)}</span></div>`).join(""),"dashGoToHotelRequests");
+  html+=_inboxSection("⚠️ 未対応の情報修正",it.corrs,it.corrs.slice(0,8).map(r=>
+    `<div class="inbox-row" data-action="inboxGoCorr"><strong>${esc(r.hotel_name||"—")}</strong><span class="badge b-women" style="font-size:10px;">${esc(catLabels[r.category]||r.category||"")}</span><span class="ib-date">${fmtDate(r.created_at)}</span></div>`).join(""),"dashGoToCorrections");
+  html+=_inboxSection("📋 未処理のプラン申込",it.plans,it.plans.slice(0,8).map(r=>
+    `<div class="inbox-row" data-action="inboxGoPlan"><strong>${esc(r.shop_name||"—")}</strong><span style="color:var(--ink-3);">${genreMap[r.gender_mode]||"—"}</span><span style="color:var(--ink-3);font-size:11px;">${esc((r.requested_areas||[]).join(", ")||"")}</span><span class="ib-date">${fmtDate(r.created_at)}</span></div>`).join(""),"dashGoToPlanRequests");
+  el.innerHTML=html;
+}
+function inboxGoFlag(){dashGoToFlaggedReports();}
+function inboxGoShop(id){switchTab("shops");openShopReview(id);}
+function inboxGoHreq(id){switchTab("hotel-requests");openHreqEdit(id);}
+function inboxGoCorr(){switchTab("hotel-corrections");}
+function inboxGoPlan(){switchTab("plan-requests");}
+// 既存の各バッジ更新に相乗りして未対応合計バッジも更新
+["updateFlagBadge","updateShopBadge","updateHreqBadge","updateCorrBadge","updatePlanReqBadge"].forEach(fn=>{
+  const orig=window[fn];
+  if(typeof orig==="function")window[fn]=function(){orig.apply(null,arguments);updateInboxBadge();};
+});
