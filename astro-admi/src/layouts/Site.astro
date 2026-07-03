@@ -17,7 +17,8 @@ const IS_PROD = import.meta.env.PUBLIC_PROD === '1'; // admi2888本番ビルド(
 const { title, description, path = '/', ogImage = `${SITE}/img/og-image.jpg`, hideBack = false, gate = false, noindex = false } = Astro.props;
 const canonical = SITE + path;
 // SEOキーワード（全ページ共通）。「おすすめ／オススメ」を含む立川デリヘル系の検索語を網羅。
-const keywords = `${SHOP.catch},${SHOP.area} デリヘル おすすめ,${SHOP.area} 風俗 おすすめ,デリヘル おすすめ,おすすめ,オススメ,${SHOP.area} デリバリーヘルス,素人 デリヘル ${SHOP.area},${SHOP.name}`;
+// 複合KW（立川アドミ/アドミ立川・おすすめ語順両方・ひらがな/カタカナ）も明示（2026-07-03 語順SEO調査より）。
+const keywords = `${SHOP.catch},${SHOP.area} デリヘル おすすめ,${SHOP.area} 風俗 おすすめ,デリヘル おすすめ,おすすめ,オススメ,${SHOP.area} デリバリーヘルス,素人 デリヘル ${SHOP.area},${SHOP.name},${SHOP.area}${SHOP.name},${SHOP.name}${SHOP.area},${SHOP.area}おすすめデリヘル,おすすめ${SHOP.area}デリヘル,${SHOP.area}オススメデリヘル,オススメ${SHOP.area}デリヘル`;
 // robots: 非本番=全noindex / noindex prop=このページのみnoindex(内部リンクはfollow) / それ以外=index,follow
 const robotsContent = !IS_PROD ? 'noindex, nofollow' : (noindex ? 'noindex, follow' : 'index, follow');
 // 構造化データ（LocalBusiness）: エンティティ強化・ローカルSEO
@@ -26,12 +27,22 @@ const jsonLd = {
   '@type': 'LocalBusiness',
   '@id': SITE + '/#business',
   name: SHOP.fullName,
-  alternateName: SHOP.name,
+  // 通称を配列で明示（Web上の通称「立川アドミ」/TikTok名「アドミ立川」を同一エンティティに束ねる）
+  alternateName: [SHOP.name, `${SHOP.area}${SHOP.name}`, `${SHOP.name}${SHOP.area}`],
   legalName: SHOP.fullName,
   url: SITE,
   telephone: SHOP.tel,
   image: `${SITE}/img/og-image.jpg`,
   areaServed: SHOP.area,
+  // 公式アカウント・広告媒体の店舗ページ（エンティティ統合。特にTikTokは「アドミ立川」名義）
+  sameAs: [
+    'https://www.tiktok.com/@admi_girl',
+    'https://fujoho.jp/index.php?p=shop_info&id=57',
+    'https://ranking-deli.jp/8/shop/4517/',
+    'https://www.cityheaven.net/tokyo/A1330/A133001/adomi2002_gtf/',
+    'https://fuzoku.jp/admi2888/',
+    'https://deli-fuzoku.jp/admi2888/',
+  ],
   address: {
     '@type': 'PostalAddress',
     addressLocality: SHOP.area,
