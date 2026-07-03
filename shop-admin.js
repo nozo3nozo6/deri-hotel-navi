@@ -208,7 +208,7 @@ function onLoggedIn(){
     loadMasterData();
     loadRegisteredHotelIds();
     loadRegisteredHotels();
-    loadFavAreas().then(()=>showJapanPage());
+    loadFavAreas().then(()=>restoreNavFromHash());
     loadStatusCard();
     loadDashboard();
 }
@@ -725,6 +725,8 @@ function switchTab(name){
     document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
     document.getElementById("tab-"+name).classList.add("active");
     document.getElementById("tab-btn-"+name).classList.add("active");
+    // タブをURLに反映（リロード復帰用）。searchタブは showJapanPage 側の pushNavState が #page=... を書く
+    if(name!=="search"){try{history.replaceState(null,"","#tab="+name);}catch(e){}}
     if(name==="search"){document.getElementById("hotel-keyword").value="";document.getElementById("text-search-results").innerHTML="";document.getElementById("lh-form-card").style.display="none";showJapanPage();}
     if(name==="list")loadRegisteredHotels();
     if(name==="plan")loadPlanTab();
@@ -1123,9 +1125,53 @@ function pushNavState(state){
     if(_skipPush)return;
     history.pushState(state,'',"#"+Object.entries(state).filter(([k,v])=>v!=null).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&'));
 }
+
+// リロード時にURLハッシュから前回の場所を復元（ポータルの restoreFromUrl と同等の挙動）
+// #tab=list 等のタブ、#page=city&ri=..&pref=.. 等のエリアナビ階層の両方に対応。
+function restoreNavFromHash(){
+    const h=(location.hash||"").replace(/^#/,"");
+    const p=new URLSearchParams(h);
+    const tab=p.get("tab");
+    const page=p.get("page");
+    // タブ復元（非表示タブ=プラン非対応のchat/cast等はスキップ）
+    if(tab&&tab!=="settings"&&document.getElementById("tab-"+tab)&&document.getElementById("tab-btn-"+tab)){
+        const btn=document.getElementById("tab-btn-"+tab);
+        if(btn.style.display!=="none"){switchTab(tab);return;}
+    }
+    // エリアナビ復元（検索タブを開いて該当階層まで直行）
+    if(page&&page!=="japan"){
+        const ri=parseInt(p.get("ri"),10);
+        const pref=p.get("pref")||"";
+        const majorArea=p.get("majorArea")||"";
+        const detailArea=p.get("detailArea")||"";
+        const city=p.get("city")||"";
+        _skipPush=true;
+        try{
+            switchTab("search");
+            if(page==="pref"&&!isNaN(ri))showPrefPage(ri);
+            else if(page==="major"&&!isNaN(ri)&&pref)showMajorAreaPage(ri,pref);
+            else if(page==="city"&&!isNaN(ri)&&pref&&majorArea)showCityPage(ri,pref,majorArea);
+            else if(page==="detail"&&!isNaN(ri)&&pref&&majorArea&&detailArea)showDetailAreaCities(ri,pref,majorArea,detailArea);
+            else if(page==="hotels"&&!isNaN(ri)&&pref)showHotels(ri,pref,majorArea||null,detailArea||null,city||null);
+        }finally{_skipPush=false;}
+        return;
+    }
+    // ハッシュなし: 従来どおり全国ページを背景描画
+    showJapanPage();
+}
 window.addEventListener('popstate',function(e){
     _skipPush=true;
     const s=e.state;
+    // エリアナビの履歴を戻る時、別タブ表示中なら検索タブを可視化（showJapanPageリセットは避けて直接切替）
+    if(s&&s.page){
+        const tc=document.getElementById("tab-search");
+        if(tc&&!tc.classList.contains("active")){
+            document.querySelectorAll(".tab-content").forEach(el=>el.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(el=>el.classList.remove("active"));
+            tc.classList.add("active");
+            document.getElementById("tab-btn-search").classList.add("active");
+        }
+    }
     if(!s||!s.page){showJapanPage();}
     else if(s.page==='pref')showPrefPage(s.ri);
     else if(s.page==='major')showMajorAreaPage(s.ri,s.pref);
