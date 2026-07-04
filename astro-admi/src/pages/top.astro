@@ -60,9 +60,10 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <!-- ページh1: スライダー時はビジュアルヒーローに見出しが無いため sr-only で常時設置（h1不在対策・2026-07-03） -->
   <h1 class="sr-only">{SHOP.fullName}｜立川アドミ（アドミ立川）── 立川でおすすめのデリヘル</h1>
 
-  <!-- ヒーロー = スライダー（/ctrl のスライダーで管理。無い時のみロゴヒーローにフォールバック）== -->
-  {sliders.length ? (
-  <section class="hero-slider-section" data-slider>
+  <!-- ヒーロー = スライダー（/ctrl のスライダーで管理）。
+       0枚でもセクションを常設し、登録直後に slider-latest.js が client 補正（0→1枚目も即反映）。
+       0枚時はスライダー非表示＋下のロゴヒーローfallbackを表示（slider-latest.js が切替） == -->
+  <section class="hero-slider-section" data-slider style={sliders.length ? '' : 'display:none'}>
     <div class="hero-slider">
       <div class="hero-slider-track">
         {sliders.map((s) => {
@@ -79,16 +80,13 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
         })}
       </div>
     </div>
-    {sliders.length > 1 ? (
-      <div class="hero-slider-controls">
-        <button type="button" class="hero-slider-arrow prev" data-slider-prev aria-label="前のスライド">‹</button>
-        <div class="hero-slider-dots" data-slider-dots></div>
-        <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のスライド">›</button>
-      </div>
-    ) : null}
+    <div class="hero-slider-controls" style={sliders.length > 1 ? '' : 'display:none'}>
+      <button type="button" class="hero-slider-arrow prev" data-slider-prev aria-label="前のスライド">‹</button>
+      <div class="hero-slider-dots" data-slider-dots></div>
+      <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のスライド">›</button>
+    </div>
   </section>
-  ) : (
-  <section class="hero-bg" style="position:relative;min-height:46vh;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+  <section class="hero-bg hero-fallback" style={`position:relative;min-height:46vh;align-items:center;justify-content:center;overflow:hidden;display:${sliders.length ? 'none' : 'flex'};`}>
     <div class="hero-scrim" style="position:absolute;inset:0;pointer-events:none;"></div>
     <div style="position:relative;z-index:1;text-align:center;padding:48px 24px;max-width:760px;margin:0 auto;">
       <p class="font-script neon-pink-glow" style="font-size:clamp(3.5rem,11vw,5.5rem);line-height:1;margin-bottom:12px;">{SHOP.nameEn}</p>
@@ -96,7 +94,6 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
       <button type="button" data-reserve-open class="glossy-pill" style="padding:12px 32px;border-radius:9999px;font-size:1.0625rem;font-weight:700;color:#fff;border:none;">ご予約はこちら</button>
     </div>
   </section>
-  )}
 
   <!-- お知らせ ============================================================== -->
   <section class="top-news-section">

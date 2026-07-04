@@ -9,9 +9,11 @@
 (function () {
   'use strict';
   var slider = document.querySelector('[data-slider]');
-  if (!slider) return; // SSGが0枚(ロゴヒーローfallback)の時はセクション自体が無い→デプロイで反映
+  if (!slider) return;
   var track = slider.querySelector('.hero-slider-track');
   if (!track) return;
+  var fallback = document.querySelector('.hero-fallback'); // 0枚時のロゴヒーロー
+  var controls = slider.querySelector('.hero-slider-controls');
 
   var shop = window.__SHOP_ID || 1;
   var ASSET = 'https://admi2888.com';
@@ -50,6 +52,10 @@
       if (curr.length === next.length && curr.every(function (u, i) { return u === next[i]; })) return;
 
       track.innerHTML = live.map(slideHtml).join('');
+      // 0枚SSG(ロゴfallback)→ スライダーを表示しfallbackを隠す（0→1枚目の即反映）
+      slider.style.display = '';
+      if (fallback) fallback.style.display = 'none';
+      if (controls) controls.style.display = live.length > 1 ? '' : 'none'; // 2枚以上で操作を出す
       if (typeof window.__initHeroSliders === 'function') window.__initHeroSliders();
     })
     .catch(function () { /* 通信失敗時は SSG のまま */ });
