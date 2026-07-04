@@ -11,6 +11,7 @@
 //     php import-fujoho-diary.php --dry-run   … DB変更せず結果表示
 //     php import-fujoho-diary.php --pages=2   … 取込ページ数（既定1）
 //     php import-fujoho-diary.php --keep=200  … girl_diaries(source=fujoho) を最新200件に剪定
+//     php import-fujoho-diary.php --repair     … DB内の抜粋止まり日記(body末尾…)を個別ページから全文再取得
 // ==========================================================================
 require_once __DIR__ . '/db.php';
 
@@ -18,6 +19,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit("CLI only\n"); }
 date_default_timezone_set('Asia/Tokyo');
 
 $DRY     = in_array('--dry-run', $argv, true);
+$REPAIR  = in_array('--repair', $argv, true);
 $SHOP_IDS = [1, 2];                 // 両店に取込（共有）
 $FUJOHO_SHOP = 57;                  // 立川アドミ
 $PAGES   = 1;
@@ -54,6 +56,21 @@ function cls_node(DOMXPath $xp, DOMNode $ctx, string $cls): ?DOMNode {
     return $xp->query('.//*[contains(concat(" ", normalize-space(@class), " "), " ' . $cls . ' ")]', $ctx)->item(0);
 }
 
+// 個別日記ページ(shop_girl_blog&id=)からフル本文を抽出。
+// メイン日記の本文は main_profile_girl_blog_text に入る（2026-07-05 構造確認。
+// 旧参照先 shop_contents_sub_blog_post_text は現在「下部の他日記一覧の抜粋」なのでフォールバック扱い）。
+function extract_full_body(string $detailHtml): string {
+    $doc = new DOMDocument();
+    @$doc->loadHTML('<?xml encoding="UTF-8">' . $detailHtml);
+    $xp = new DOMXPath($doc);
+    $n = cls_node($xp, $doc->documentElement, 'main_profile_girl_blog_text')
+      ?? cls_node($xp, $doc->documentElement, 'shop_contents_sub_blog_post_text');
+    if (!$n) return '';
+    $t = preg_replace('/[ \t]+/u', ' ', $n->textContent);
+    $t = preg_replace('/\n{3,}/u', "\n\n", $t);  // <p><br/></p> 連打による空行の連発を1つに圧縮
+    return trim($t);
+}
+
 $pdo  = DB::conn();
 
 // 女の子名 → id（共有プール全員。同名は最初の1人）
@@ -68,12 +85,41 @@ foreach ($pdo->query("SELECT DISTINCT source_id FROM girl_diaries WHERE source =
     $existingIds[(string)$sidv] = 1;
 }
 
+// ---- --repair: 抜粋止まり(bodyが…で終わる)日記を個別ページから全文再取得して更新 ----------
+if ($REPAIR) {
+    $rows = $pdo->query(
+        "SELECT source_id, MIN(link_url) AS link_url, MAX(CHAR_LENGTH(body)) AS maxlen
+           FROM girl_diaries WHERE source='fujoho' AND body LIKE '%…'
+          GROUP BY source_id"
+    )->fetchAll(PDO::FETCH_ASSOC);
+    echo "repair対象: " . count($rows) . " 日記\n";
+    $updSt = $pdo->prepare("UPDATE girl_diaries SET body=?, modified=NOW() WHERE source='fujoho' AND source_id=?");
+    $fixed = 0; $skip = 0;
+    foreach ($rows as $r) {
+        $html = fetchHtml($r['link_url']);
+        $full = $html !== null ? extract_full_body($html) : '';
+        if ($full !== '' && mb_strlen($full) > (int)$r['maxlen']) {
+            if (!$DRY) $updSt->execute([$full, $r['source_id']]);  // 両店(shop1/2)まとめて更新
+            $fixed++;
+            echo sprintf("fix  %-10s len %d → %d\n", $r['source_id'], $r['maxlen'], mb_strlen($full));
+        } else {
+            $skip++;
+            echo sprintf("skip %-10s (取得失敗 or 全文=抜粋)\n", $r['source_id']);
+        }
+        usleep(600000); // 個別ページアクセスの礼儀待ち
+    }
+    echo "--- repair 完了" . ($DRY ? "（DRY-RUN: DB未変更）" : "") . ": fix=$fixed skip=$skip ---\n";
+    exit(0);
+}
+
 $up = $pdo->prepare(
     'INSERT INTO girl_diaries (shop_id, source, source_id, girl_id, girl_name, title, body, image, link_url, posted_at, is_display)
      VALUES (:shop, \'fujoho\', :sid, :gid, :gname, :title, :body, :image, :link, :posted, 1)
      ON DUPLICATE KEY UPDATE girl_id=VALUES(girl_id), girl_name=VALUES(girl_name), title=VALUES(title),
-       body=VALUES(body), image=VALUES(image), link_url=VALUES(link_url), modified=NOW()'
-     /* posted_at は初回取込の掲載時刻(相対表記からの逆算)で固定。30分cronでの再計算による揺れを防ぐ */
+       body=IF(CHAR_LENGTH(VALUES(body)) > CHAR_LENGTH(body), VALUES(body), body),
+       image=VALUES(image), link_url=VALUES(link_url), modified=NOW()'
+     /* posted_at は初回取込の掲載時刻(相対表記からの逆算)で固定。30分cronでの再計算による揺れを防ぐ。
+        body は長い方を保持: 既存フル本文を毎cronの一覧抜粋(…付き)が巻き戻すのを防ぐ（2026-07-05 全文表示バグ修正） */
 );
 
 $sum = ['parsed' => 0, 'upserted' => 0, 'matched' => 0, 'unmatched' => []];
@@ -113,11 +159,8 @@ for ($p = 1; $p <= $PAGES; $p++) {
                 if (preg_match('#(20\d\d)/(\d{1,2})/(\d{1,2})\s+(\d{1,2}):(\d{2})#', $detail, $dm)) {
                     $posted = sprintf('%04d-%02d-%02d %02d:%02d:00', (int)$dm[1], (int)$dm[2], (int)$dm[3], (int)$dm[4], (int)$dm[5]);
                 }
-                // 本文フル（個別ページ本体 shop_contents_sub_blog_post_text）
-                $ddoc = new DOMDocument(); @$ddoc->loadHTML('<?xml encoding="UTF-8">' . $detail);
-                $dxp = new DOMXPath($ddoc);
-                $bN = cls_node($dxp, $ddoc->documentElement, 'shop_contents_sub_blog_post_text');
-                if ($bN) $fullBody = trim(preg_replace('/[ \t]+/u', ' ', $bN->textContent));
+                // 本文フル（個別ページ本体 main_profile_girl_blog_text、旧クラスへフォールバック）
+                $fullBody = extract_full_body($detail);
             }
             usleep(500000); // 個別ページアクセスの礼儀待ち
         }
