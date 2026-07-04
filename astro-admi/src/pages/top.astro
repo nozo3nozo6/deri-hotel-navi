@@ -9,6 +9,7 @@ const ver = (f: string): string => { try { return String(Math.floor(statSync(f).
 const schedV = ver('public/schedule-badge.js');
 const schedPageV = ver('public/schedule-page.js');
 const bannerSliderV = ver('public/banner-slider.js');
+const sliderLatestV = ver('public/slider-latest.js');
 const newsV = ver('public/news-latest.js');
 
 // 女の子カードのアイコン（フラグ）の見かた＝凡例。タップでモーダル説明。
@@ -223,6 +224,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <script is:inline src={`/schedule-badge.js?v=${schedV}`}></script>
   <script is:inline src={`/schedule-page.js?v=${schedPageV}`}></script>
   <script is:inline src={`/banner-slider.js?v=${bannerSliderV}`}></script>
+  <script is:inline src={`/slider-latest.js?v=${sliderLatestV}`}></script>
   <script is:inline src={`/news-latest.js?v=${newsV}`}></script>
 </main>
 
