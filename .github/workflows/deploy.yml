@@ -36,18 +36,11 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          # ssh-keyscan は一過性でコケるためリトライ（取れなくても rsync 側の accept-new で復旧）
-          for i in 1 2 3 4 5; do
-            if ssh-keyscan -p "$SSH_PORT" -T 20 "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null && [ -s ~/.ssh/known_hosts ]; then
-              echo "ssh-keyscan ok (attempt $i)"
-              break
-            fi
-            echo "ssh-keyscan attempt $i failed, retrying in 5s..."
-            sleep 5
-          done
-          if [ ! -s ~/.ssh/known_hosts ]; then
-            echo "::warning::ssh-keyscan could not fetch host key; relying on StrictHostKeyChecking=accept-new"
-          fi
+          # ssh-keyscan は StrictHostKeyChecking=accept-new があるため必須ではない。
+          # サーバー到達不能時にここで数分空転すると rsync のリトライ時間を食い潰すため、
+          # 1回だけ短時間(8秒)で試し、取れなくても即続行する（実接続の耐久は rsync 側の長時間リトライに任せる）。
+          ssh-keyscan -p "$SSH_PORT" -T 8 "$REMOTE_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          [ -s ~/.ssh/known_hosts ] && echo "ssh-keyscan ok" || echo "::notice::ssh-keyscan skipped; relying on StrictHostKeyChecking=accept-new"
 
       - name: Install dependencies (root)
         run: npm ci
@@ -121,8 +114,11 @@ jobs:
 
       - name: Deploy code via rsync
         run: |
-          # rsync は一過性のサーバー到達不能（connect timeout 等）でコケるため最大3回リトライ（kichifu と同方式）
-          SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          # rsync は sv6051 のSSHポートが数分間まるごと到達不能になる瞬断でコケるため、
+          # 6回・指数バックオフ(15/30/60/90/120秒 = 約5分)でリトライし、1回の実行内で瞬断を乗り切る。
+          # ConnectTimeout は 20 秒に短縮し、失敗を早く検知して次のリトライへ回す。
+          SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+          RETRY_DELAYS="15 30 60 90 120"
           n=0
           until rsync -avz \
             --exclude='.git*' --exclude='node_modules' --exclude='.github' \
@@ -145,8 +141,9 @@ jobs:
             -e "$SSH_OPTS" \
             ./ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/; do
             n=$((n+1))
-            if [ "$n" -ge 3 ]; then echo "::error::rsync code failed after 3 attempts"; exit 1; fi
-            echo "rsync code attempt $n failed, retrying in 15s..."; sleep 15
+            d=$(echo "$RETRY_DELAYS" | cut -d' ' -f"$n")
+            if [ -z "$d" ]; then echo "::error::rsync code failed after $n attempts (server SSH unreachable)"; exit 1; fi
+            echo "rsync code attempt $n failed, retrying in ${d}s..."; sleep "$d"
           done
 
       - name: Deploy subdomain LP files
