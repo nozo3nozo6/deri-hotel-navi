@@ -104,8 +104,14 @@
 
         /* ===== エリアボタングリッド（ポータルと同一仕様: 常に3カラム + 中央揃えコンパクト） ===== */
         /* エリアカード: フロント(ポータル)と同じ「名前=左・件数バッジ=右」のカード形式 */
+        /* 角丸はジャンルのデザイン言語に合わせる: men=シャープ 〜 women=丸い */
+        body[data-mode="men"]{--area-r:3px;}
+        body[data-mode="men_same"]{--area-r:5px;}
+        body[data-mode="este"]{--area-r:10px;}
+        body[data-mode="women"]{--area-r:14px;}
+        body[data-mode="women_same"]{--area-r:14px;}
         .area-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
-        .area-btn{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:13px 14px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--rose);border-radius:10px;color:var(--text);font-family:inherit;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.2s ease;text-align:left;min-height:54px;animation:fadeInUp 0.25s ease both;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+        .area-btn{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:13px 14px;background:var(--bg-2);border:1px solid var(--border);border-left:3px solid var(--rose);border-radius:var(--area-r,10px);color:var(--text);font-family:inherit;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.2s ease;text-align:left;min-height:54px;animation:fadeInUp 0.25s ease both;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
         .area-btn:hover{background:#fff;border-color:var(--rose);border-left-color:var(--rose-dim);transform:translateY(-2px);box-shadow:0 6px 18px rgba(181,98,122,0.15);}
         .area-btn:active{transform:translateY(0);box-shadow:none;}
         .area-btn .area-name{flex:1;text-align:left;font-size:0.9rem;font-weight:700;color:var(--text);letter-spacing:0.02em;}
@@ -295,7 +301,7 @@
 
         @media(max-width:640px){
             .area-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;}
-            .area-btn{padding:12px 12px 12px 16px;border-radius:10px;}
+            .area-btn{padding:12px 12px 12px 16px;border-radius:var(--area-r,10px);}
             .area-btn .area-name{font-size:12px;}
             .area-btn .area-count{font-size:10px;padding:2px 8px;}
             .form-row{flex-direction:column;}
