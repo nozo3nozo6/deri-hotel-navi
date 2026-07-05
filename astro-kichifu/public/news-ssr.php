@@ -61,7 +61,7 @@ $thumbLink = !empty($it['link_girl_id'])
     : (!empty($it['link_url']) ? $it['link_url'] : null);
 
 header('Cache-Control: no-store');
-ssr_head($SSR, $it['title'], $desc);
+ssr_head($SSR, $it['title'], $desc, false, ssr_canonical($SSR, '/news/' . $id));  // お知らせ=index
 ssr_header($SSR);
 ?>
 <main>

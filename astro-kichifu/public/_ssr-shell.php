@@ -64,8 +64,20 @@ if (!function_exists('asset_url')) {
     }
 }
 
+// 正規URL: 店舗ドメイン + パス（www無し・https）。shop_id で確定＝Host偽装耐性。
+if (!function_exists('ssr_canonical')) {
+    function ssr_canonical(array $S, string $path): string {
+        $host = ((int)($S['_id'] ?? 2) === 1) ? 'admi2888.com' : 'kichifu.com';
+        return 'https://' . $host . $path;
+    }
+}
+
 // <head> ～ <body> 開始まで出力
-function ssr_head(array $S, string $title, string $desc): void {
+//   $noindex=true でこのページのみ noindex,follow（写メ日記=fujoho転載でindex対象外）。既定=index,follow。
+//   $canonical を渡すと canonical/og:url を出力（未指定＝出さない）。
+//   ⚠️ news は index、diary のみ noindex。以前 robots を noindex 固定にしていたため
+//      常時SSR配信の /news/* が全て noindex になり GSC 除外された（2026-07-05 修正）。
+function ssr_head(array $S, string $title, string $desc, bool $noindex = false, string $canonical = ''): void {
     $cssV = @filemtime(__DIR__ . '/site.css') ?: '1';
     ?><!doctype html>
 <html lang="ja">
@@ -74,7 +86,11 @@ function ssr_head(array $S, string $title, string $desc): void {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title><?= ssr_h($title) ?></title>
 <meta name="description" content="<?= ssr_h($desc) ?>" />
-<meta name="robots" content="noindex, follow" />
+<meta name="robots" content="<?= $noindex ? 'noindex, follow' : 'index, follow' ?>" />
+<?php if ($canonical !== '') : ?>
+<link rel="canonical" href="<?= ssr_h($canonical) ?>" />
+<meta property="og:url" content="<?= ssr_h($canonical) ?>" />
+<?php endif; ?>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet" />

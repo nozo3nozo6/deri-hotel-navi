@@ -40,7 +40,7 @@ $desc    = mb_strimwidth(strip_tags($body), 0, 120, '…');
 $title   = $d['title'] . '｜' . $d['girl_name'] . 'の写メ日記';
 
 header('Cache-Control: no-store');
-ssr_head($SSR, $title, $desc);
+ssr_head($SSR, $title, $desc, true, ssr_canonical($SSR, '/diary/' . $id));  // 写メ日記=noindex(fujoho転載), canonicalは自己参照
 ssr_header($SSR);
 ?>
 <main>
