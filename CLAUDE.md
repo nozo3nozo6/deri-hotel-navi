@@ -327,6 +327,33 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年7月5日 — GSC 404対応・admin/shop-admin UX改善・デプロイSSH瞬断耐性強化
+
+#### GSC「ページのインデックス登録」404/ソフト404 対応
+- **原因特定**: GSC 404の大半は portal-seo.php の「実在しない都道府県・市区町村＝薄い自動生成ページを404化」仕様（クロールトラップ防止）で**意図的404＝正常**。修正対象は1系統のみ
+- **真因（サイトマップ由来の404）**: generate-sitemap.js の `MAJOR_CITIES` に bare `相模原市`（政令市・ホテルは区単位格納で city="相模原市" は0件）があり、`/este/神奈川県/相模原市` 等を全5モードで出力 → portal-seo.phpが正しく404 → **サイトマップが404するURLをGoogleに送っていた**
+- **対策**: サイトマップ生成時に `area-data.json`（area[pref\tmajorArea].ct）から実在(pref,city)集合を構築し、`MAJOR_CITIES` の各市を照合。掲載0件市は自動除外（取得失敗時は全出力にフォールバック）。相模原市に限らず今後の市名不一致も自動防止。本番sitemapで相模原市消滅を確認済み
+- 他の404（3セグ大阪の旧URL・旧portal.html?mode=・旧サブドメインAPI・ソフト404新潟市）は全てサイトマップ外＝意図的404で自然消滅待ち
+
+#### admin.html UX改善（A〜D）
+- **A. 📥未対応タブ新設**: フラグ報告/審査待ち店舗/掲載リク/情報修正/プラン申込を1画面集約。合計件数バッジ、行クリックで各対応画面へ直行。既存バッジ更新関数に相乗りして自動更新（inbox系関数を admin.js 末尾に追加）
+- **B. タブ再編 10→6**: ダッシュボード/📥未対応/投稿管理/ホテル編集/ショップ管理/その他▾。低頻度6タブ（掲載リク・情報修正・プラン申込・マスタ・広告・営業メール）を「その他▾」ドロップダウンに格納（モバイルはドロワーでリスト展開）
+- **C. 投稿管理フィルタ2軸化**: 17択の巨大セレクト → 「投稿者(rep-poster-f: 全員/ユーザー/店舗全/無料店/有料店)」×「ジャンル(rep-genre-f: 5択)」に分解。getRepFiltered の絞り込みロジックも2軸化
+- **D. タブURL化**: switchTab で `#tab名` を history.replaceState、showAdminPanel でハッシュ復元 → リロード/ブックマークで同じタブに復帰
+- **契約期限の延長ボタン拡張**: 「+1ヶ月」に加え +3/+6/+12。renew-contract APIに months(1/3/6/12のみ許可)追加
+
+#### shop-admin.html UX改善
+- **リロードで位置復元**: pushNavState/popstate（戻る）は既存だったがリロード時は全国ページに戻っていた。restoreNavFromHash() 追加で `#page=city&ri=..&pref=..`（エリア階層）/`#tab=list`（タブ）から該当階層へ直行（ポータルの restoreFromUrl 相当）
+- **エリアカードをフロント統一**: 中央寄せ+常時›矢印 → 「名前=左(flex:1)/件数バッジ=右端」の白背景カード＋ローズ左アクセント＋ホバーリフト
+- **角丸をジャンル別に可変**: body[data-mode]別に `--area-r`（men=3/men_same=5/este=10/women・women_same=14px）。デザイン言語(men=シャープ〜women=丸い)に合わせる。data-modeは loadStatusCard で設定済み
+
+#### デプロイ SSH瞬断耐性強化（deploy.yml）
+- **背景**: sv6051のSSHポート10022が実行中に数分間まるごと到達不能になる瞬断で、rsync配信が頻繁に失敗（週3回）。従来の耐久は約4-5分でその窓内に復帰しないと失敗
+- **Setup SSH key**: ssh-keyscan の20秒×5回(約2分)空転を撤廃 → 1回8秒で即続行（accept-newがあるため必須ではない。空転がrsyncのリトライ時間を食っていた）
+- **Deploy rsync**: リトライ 3回(約2.5分) → 6回・指数バックオフ(15/30/60/90/120秒=約5分)。ConnectTimeout 30→20秒
+- **効果**: 1回の実行内で約5-6分の瞬断を吸収 → 手動再実行がほぼ不要
+- **pull型デプロイ検討→見送り**: サーバー診断の結果 **Node.js無し**（Astro/Pagefindビルド不可）・public_htmlはgit管理外。配信HTMLはAstroビルド生成物のため「サーバーがpull→ビルド」は不成立。完全pull型は不可、ハイブリッド(Webhook+deployブランチ+git pull over HTTPS)は可能だがPagefindの循環依存が残り複雑。**まずrsync強化(Path A)で1-2週間様子見**の判断。git✅/php✅/GitHubへのHTTPS✅なので、将来ハイブリッド化する余地はある
+
 ### 2026年6月27日 — astro-admi オリジナル求人ページ /recruit 新設（画像付き）
 #### 背景・方針
 - 参考: 求人ジン admi2888（kanto.qzin.jp/admi2888）。ターゲット=18〜33歳女性、目的=面接応募の最大化
