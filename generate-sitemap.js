@@ -86,6 +86,33 @@ async function fetchReviewedHotels() {
   }
 }
 
+// 本番 area-data.json から「実在する(pref,city)」の集合を構築する。
+// 目的: 掲載ホテルが0件の市区町村URL（例: /este/神奈川県/相模原市 ← 政令市で
+//       ホテルは区単位格納のため bare 市名は0件）をサイトマップから除外し、
+//       portal-seo.php の 404（薄いページ抑止仕様）と衝突しないようにする。
+// area-data.json の構造: { area: { "pref\tmajorArea": { ct: [[city, reg, lh], ...] } } }
+async function fetchValidPrefCitySet() {
+  try {
+    const res = await fetch(`${BASE_URL}/area-data.json`);
+    if (!res.ok) { console.warn(`fetchValidPrefCitySet: HTTP ${res.status} — 市区町村URLの検証をスキップ`); return null; }
+    const ad = await res.json();
+    const set = new Set();
+    const area = ad && ad.area ? ad.area : {};
+    for (const key of Object.keys(area)) {
+      const pref = key.split('\t')[0];
+      const ct = (area[key] && area[key].ct) || [];
+      for (const row of ct) {
+        const city = Array.isArray(row) ? row[0] : row;
+        if (pref && city) set.add(pref + '\t' + city);
+      }
+    }
+    return set.size ? set : null;
+  } catch (e) {
+    console.warn('fetchValidPrefCitySet failed:', e.message, '— 市区町村URLの検証をスキップ');
+    return null;
+  }
+}
+
 (async () => {
 
 const urls = [];
@@ -134,12 +161,20 @@ for (const mode of MODES) {
 }
 
 // 主要都市 x モード別URL（高検索ボリューム）— priority 0.7（pref トップ層と店舗URLの間）
+// 掲載ホテルが実在する市区町村のみ出力（0件市は portal-seo.php が404を返すため除外）。
+const validPrefCity = await fetchValidPrefCitySet();
+let skippedCityUrls = 0;
 for (const mode of MODES) {
   const mp = MODE_PATH[mode];
   // men/women は需要が高いので 0.7、その他モードは 0.5
   const priority = (mode === 'men' || mode === 'women') ? '0.7' : '0.5';
   for (const [pref, cities] of Object.entries(MAJOR_CITIES)) {
     for (const city of cities) {
+      // 検証セットが取得できた場合のみ実在チェック（取得失敗時は従来通り全出力）
+      if (validPrefCity && !validPrefCity.has(pref + '\t' + city)) {
+        if (mode === MODES[0]) { console.warn(`  sitemap: skip 0件市区町村 ${pref}/${city}`); skippedCityUrls++; }
+        continue;
+      }
       urls.push(entry(
         `${BASE_URL}/${mp}/${encodeURIComponent(pref)}/${encodeURIComponent(city)}`,
         priority, 'daily'
@@ -147,6 +182,7 @@ for (const mode of MODES) {
     }
   }
 }
+if (validPrefCity) console.log(`市区町村URL検証: ${validPrefCity.size} 実在市区町村 / スキップした主要都市 ${skippedCityUrls} 件`);
 
 // 店舗専用URL（active shops のみ、gender_mode から path を解決）
 const shops = await fetchShops();
