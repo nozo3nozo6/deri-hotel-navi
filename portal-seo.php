@@ -1120,9 +1120,8 @@ if ($shop && isset($shopData) && $shopData) {
         $seo_static .= '<h3 style="' . $s_h3Style . '">案内可能エリア</h3>';
         $seo_static .= '<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">';
         $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($s_sp) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $s_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $s_esc($s_sp) . 'の' . $s_esc($m['label']) . '可ホテル一覧</a>';
-        if ($s_sa) {
-            $seo_static .= '<a href="https://yobuho.com/' . $path . '/' . rawurlencode($s_sp) . '/' . rawurlencode($s_sa) . '" class="seo-area-card" style="display:inline-block; padding:8px 16px; background:#fff; border:1px solid #e8d8c8; border-radius:6px; color:' . $s_accent . '; text-decoration:none; font-size:13px; font-weight:500;">' . $s_esc($s_sa) . 'エリア</a>';
-        }
+        // 店舗の area フィールド（自由入力寄り。例「立川」）は実在する2セグURLと一致せず404になるため、
+        // エリアリンクは出さない（都道府県リンクのみ。都道府県は必ず有効URL）。2026-07-06
         $seo_static .= '</div>';
     }
 
