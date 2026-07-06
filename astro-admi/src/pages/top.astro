@@ -25,7 +25,7 @@ const ICON_LEGEND = [
 // 最新情報 = 手動お知らせ(news) のみ・上位6件（2026-07-06 写メ日記マージを撤去。
 //   最新情報に日記を混ぜるとポイント対象の口コミ局ヒメ日記ウィジェットがクリックされなくなるため。
 //   写メ日記は最新情報の下の <HimeDiary> ウィジェットに集約）
-const feed = (await getNews()).slice(0, 6);
+const feed = (await getNews()).slice(0, 3);
 
 // 全女の子（本日の出勤セクションは全件hidden配置→JSが本日出勤のみ表示）
 const allGirls = await getGirls();

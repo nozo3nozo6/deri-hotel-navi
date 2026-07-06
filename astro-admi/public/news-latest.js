@@ -73,7 +73,7 @@
       if (!news.length) return;   // 失敗/空時は SSG のまま維持
 
       if (topWrap) {
-        topWrap.innerHTML = news.slice(0, 6).map(topCard).join('');
+        topWrap.innerHTML = news.slice(0, 3).map(topCard).join('');
       }
       if (archWrap) {
         var tw = +archWrap.getAttribute('data-thumb-w') || 108;
