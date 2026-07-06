@@ -554,7 +554,7 @@ function showLhConfirmModal() {
         ${row('雰囲気', s.atmosphere)}
         ${row('良かった点', s.good_points.length ? s.good_points.join('、') : null)}
         ${row(t('time_slot'), s.time_slot)}
-        ${s.multi_person ? row('複数人利用', `男性${s.guest_male || 0}名・女性${s.guest_female || 0}名${s.multi_fee ? '（追加料金あり）' : ''}`) : ''}
+        ${s.multi_person ? row('複数人利用', `${[(s.guest_male > 0 ? `男性${s.guest_male}名` : ''), (s.guest_female > 0 ? `女性${s.guest_female}名` : '')].filter(Boolean).join('・')}${s.multi_fee ? '（追加料金あり）' : ''}`) : ''}
         ${row(t('free_comment'), s.comment || null)}
     `;
     document.getElementById('lh-confirm-content').innerHTML = content;

@@ -2064,7 +2064,7 @@ function lhSubmitReport(){
     const entryMap=Object.fromEntries((entryMethods||[]).map(em=>[em.code,em.label]));
     if(!entryMap.front)Object.assign(entryMap,{front:'フロント経由',direct:'直接入室',lobby:'ロビー待ち合わせ',waiting:'待合室で待ち合わせ'});
     function row(l,v){if(!v)return '';return `<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span style="min-width:90px;color:var(--text-3);font-weight:600;">${l}</span><span style="color:var(--text);word-break:break-all;">${esc(String(v))}</span></div>`;}
-    const html=row('投稿者名',r.poster_name)+row('一人入室',soloMap[r.solo_entry]||null)+row('入室方法',entryMap[r.entry_method]||null)+row('雰囲気',r.atmosphere)+row('良かった点',r.good_points?r.good_points.join('、'):null)+row('時間帯',r.time_slot)+(r.multi_person?row('複数人利用',`男性${r.guest_male||0}名・女性${r.guest_female||0}名${r.multi_fee?'（追加料金あり）':''}`):'')+((_lhPendingPayload.transport_fee!=null&&_lhPendingPayload.transport_fee!=='')?row('交通費',formatFee(_lhPendingPayload.transport_fee)):'')+row('コメント',r.comment);
+    const html=row('投稿者名',r.poster_name)+row('一人入室',soloMap[r.solo_entry]||null)+row('入室方法',entryMap[r.entry_method]||null)+row('雰囲気',r.atmosphere)+row('良かった点',r.good_points?r.good_points.join('、'):null)+row('時間帯',r.time_slot)+(r.multi_person?row('複数人利用',`${[(r.guest_male>0?`男性${r.guest_male}名`:''),(r.guest_female>0?`女性${r.guest_female}名`:'')].filter(Boolean).join('・')}${r.multi_fee?'（追加料金あり）':''}`):'')+((_lhPendingPayload.transport_fee!=null&&_lhPendingPayload.transport_fee!=='')?row('交通費',formatFee(_lhPendingPayload.transport_fee)):'')+row('コメント',r.comment);
     document.getElementById('lh-confirm-body').innerHTML=html;
     document.getElementById('lh-confirm-modal').classList.add('active');
 }
