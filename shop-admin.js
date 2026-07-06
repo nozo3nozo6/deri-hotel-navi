@@ -896,6 +896,29 @@ async function setPrimaryServiceArea(id){
     } catch (e) { toast('変更に失敗しました'); }
 }
 
+// メインエリアの並べ替え（↑↓）。ローカルで即時入替 → reorder API で sort_order を永続化。
+async function moveServiceArea(id, dir){
+    const i = _saAreas.findIndex(a => String(a.id) === String(id));
+    if (i < 0) return;
+    const j = i + (dir === 'up' ? -1 : 1);
+    if (j < 0 || j >= _saAreas.length) return;
+    const arr = _saAreas.slice();
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    _saAreas = arr;
+    _saRenderList(); // 即時反映（体感を良く）
+    try {
+        const r = await fetch('/api/shop-service-areas.php?action=reorder', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: _saAreas.map(a => a.id) })
+        });
+        const d = await r.json();
+        if (!r.ok || !d.success) throw new Error(d.error || 'reorder failed');
+        _saAreas = d.areas || _saAreas;
+        _saRenderList(); _saRenderPrimary();
+    } catch (e) { toast('並べ替えに失敗しました'); loadServiceAreasTab(); }
+}
+
 async function _saSave(items){
     try {
         const r = await fetch('/api/shop-service-areas.php?action=save', {
@@ -929,12 +952,21 @@ function _saRenderList(){
     if (!wrap || !empty) return;
     if (!_saAreas.length) { wrap.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    wrap.innerHTML = _saAreas.map(a => {
+    const n = _saAreas.length;
+    wrap.innerHTML = _saAreas.map((a, idx) => {
         const star = a.is_primary
             ? '<span style="color:#d9a55a;font-weight:700;font-size:16px;">★</span>'
             : `<button class="btn" style="padding:4px 10px;font-size:11px;background:#fff;color:var(--text-2);border:1px solid var(--border);" data-action="setPrimaryServiceArea" data-arg1="${a.id}">★ メインに</button>`;
+        // 並べ替え ↑↓（先頭は↑無効、末尾は↓無効）
+        const upDisabled = idx === 0, downDisabled = idx === n - 1;
+        const btnBase = 'width:28px;height:26px;padding:0;font-size:14px;line-height:1;background:#fff;border:1px solid var(--border);border-radius:6px;';
+        const reorderBtns = `<div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+            <button class="btn" style="${btnBase}color:${upDisabled ? 'var(--text-3)' : 'var(--rose)'};${upDisabled ? 'opacity:0.4;cursor:default;' : ''}" ${upDisabled ? 'disabled' : ''} data-action="moveServiceArea" data-arg1="${a.id}" data-arg2="up" title="上へ">▲</button>
+            <button class="btn" style="${btnBase}color:${downDisabled ? 'var(--text-3)' : 'var(--rose)'};${downDisabled ? 'opacity:0.4;cursor:default;' : ''}" ${downDisabled ? 'disabled' : ''} data-action="moveServiceArea" data-arg1="${a.id}" data-arg2="down" title="下へ">▼</button>
+        </div>`;
         const detailLine = [a.pref, a.area, a.detail, a.city].filter(Boolean).join(' / ');
         return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${a.is_primary ? '#fff5e6' : 'var(--bg-3)'};border:1px solid ${a.is_primary ? '#e8c98a' : 'var(--border)'};border-radius:8px;">
+            ${reorderBtns}
             <div style="min-width:28px;text-align:center;">${star}</div>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:14px;font-weight:600;color:var(--text);">${esc(a.label)}</div>

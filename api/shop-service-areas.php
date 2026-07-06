@@ -86,10 +86,11 @@ function buildLabel(?string $pref, ?string $area, ?string $detail, ?string $city
 
 function fetchAreas(PDO $pdo, string $shopId): array {
     $stmt = $pdo->prepare(
+        // 表示順は店舗が並べ替えた sort_order を最優先（is_primary は着地点フラグのみで順序に影響させない）
         'SELECT id, pref, area, detail, city, label, is_primary, sort_order
          FROM shop_service_areas
          WHERE shop_id = ?
-         ORDER BY is_primary DESC, sort_order ASC, id ASC'
+         ORDER BY sort_order ASC, id ASC'
     );
     $stmt->execute([$shopId]);
     return array_map(function($r) {
