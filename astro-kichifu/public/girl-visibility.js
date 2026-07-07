@@ -41,6 +41,15 @@
       .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
       .replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  // 新しい写真をバックグラウンドでプリロードしてから src を差し替える。
+  //   直接 src を書き換えるとダウンロード中は空白/壊れた画像アイコンが一瞬見えるため、
+  //   読込完了後に一度で切り替える（旧写真→新写真がシームレスに見える）。
+  function preloadThenSwap(imgEl, newSrc) {
+    var pre = new Image();
+    pre.onload = function () { imgEl.src = newSrc; };
+    pre.onerror = function () {}; // 読込失敗時は現状（旧写真）を維持
+    pre.src = newSrc;
+  }
 
   // GirlCardItem.astro と同一構造の HTML を生成
   function buildCard(g) {
@@ -140,19 +149,23 @@
         var img = c.querySelector('img.girl-card-img');
         if (newSrc && img) {
           // SSGの絶対URLと比較（ASSET_ORIGIN='https://admi2888.com' で統一済み）
-          if (img.src !== newSrc) img.src = newSrc;
+          if (img.src !== newSrc) preloadThenSwap(img, newSrc);
         } else if (newSrc && !img) {
-          // 写真なし→写真あり（新規アップ）
+          // 写真なし→写真あり（新規アップ）。プリロード後に挿入（無写真プレースホルダの空白期間を最小化）
           var noPhoto = c.querySelector('.girl-card-no-photo');
           if (noPhoto) {
-            var newImg = document.createElement('img');
-            newImg.src = newSrc;
-            newImg.alt = esc(g.name || '');
-            newImg.width = 300;
-            newImg.height = 400;
-            newImg.loading = 'lazy';
-            newImg.className = 'girl-card-img';
-            noPhoto.replaceWith(newImg);
+            var pre = new Image();
+            pre.onload = pre.onerror = function () {
+              var newImg = document.createElement('img');
+              newImg.src = newSrc;
+              newImg.alt = esc(g.name || '');
+              newImg.width = 300;
+              newImg.height = 400;
+              newImg.loading = 'lazy';
+              newImg.className = 'girl-card-img';
+              noPhoto.replaceWith(newImg);
+            };
+            pre.src = newSrc;
           }
         }
       });

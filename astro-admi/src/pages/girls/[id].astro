@@ -215,6 +215,10 @@ if (g.catch_copy) {
     </section>
   </main>
 
+  <!-- 女の子詳細（コメント/画像ギャラリー）を即時反映。.girl-detail-wrap 直後に配置し、
+       ライトボックスモーダル等より前に実行させる（2026-07-08、チラつき軽減の一環） -->
+  <script is:inline src={`/girl-detail-refresh.js?v=${girlRefreshV}`}></script>
+
   <!-- ネオン・ライトボックス -->
   <div class="lightbox" id="lightbox" data-lightbox aria-hidden="true" role="dialog" aria-label={`${g.name} 写真ビューア`}>
     <button class="lightbox-close" data-lightbox-close aria-label="閉じる">✕</button>
@@ -228,8 +232,6 @@ if (g.catch_copy) {
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>
 
-  <!-- CTRL編集を即反映: 読込時にAPIから最新の店舗コメント/一言/キャッチを取得し差し替え（デプロイ不要） -->
-  <script is:inline src={`/girl-detail-refresh.js?v=${girlRefreshV}`}></script>
   <!-- 週間出勤予定（同一オリジンAPIから取得して #girl-week に描画） -->
   <script is:inline src={`/schedule-week.js?v=${schedWeekV}`}></script>
 </Site>

@@ -56,7 +56,6 @@ const ver = (f: string): string => { try { return String(Math.floor(statSync(f).
 const cssV = ver('public/site.css');
 const jsV = ver('public/site.js');
 const favV = ver('public/favicon.svg');
-const gvV = ver('public/girl-visibility.js');
 ---
 <!doctype html>
 <html lang="ja">
@@ -273,6 +272,5 @@ const gvV = ver('public/girl-visibility.js');
 }
 </style>
 <script is:inline src={`/site.js?v=${jsV}`}></script>
-<script is:inline src={`/girl-visibility.js?v=${gvV}`}></script>
 </body>
 </html>

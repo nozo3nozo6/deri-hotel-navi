@@ -39,7 +39,6 @@ const jsonLd = {
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
 const cssV = ver('public/site.css');
 const jsV = ver('public/site.js');
-const gvV = ver('public/girl-visibility.js');
 ---
 <!doctype html>
 <html lang="ja">
@@ -192,6 +191,5 @@ const gvV = ver('public/girl-visibility.js');
   </div>
 </div>
 <script is:inline src={`/site.js?v=${jsV}`}></script>
-<script is:inline src={`/girl-visibility.js?v=${gvV}`}></script>
 </body>
 </html>

@@ -26,6 +26,29 @@
       .replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  // 新しい画像をバックグラウンドでプリロードしてから src を差し替える。
+  //   直接 src を書き換えるとダウンロード中は空白/壊れた画像アイコンが一瞬見えるため、
+  //   読込完了後に一度で切り替える（旧画像→新画像がシームレスに見える）。
+  function preloadThenSwap(imgEl, newSrc) {
+    var pre = new Image();
+    pre.onload = function () { imgEl.src = newSrc; };
+    pre.onerror = function () {}; // 読込失敗時は現状（旧画像）を維持
+    pre.src = newSrc;
+  }
+  // 複数画像をまとめてプリロード。全て読込完了(または失敗)、もしくはタイムアウトでコールバック。
+  function preloadAll(urls, cb) {
+    if (!urls.length) { cb(); return; }
+    var remaining = urls.length, done = false;
+    var timer = setTimeout(finish, 4000); // 保険: 遅延・失敗で無限に待たない
+    urls.forEach(function (u) {
+      var im = new Image();
+      im.onload = im.onerror = tick;
+      im.src = u;
+    });
+    function tick() { remaining--; if (remaining <= 0) finish(); }
+    function finish() { if (done) return; done = true; clearTimeout(timer); cb(); }
+  }
+
   fetch('/api/girls.php?action=detail&id=' + encodeURIComponent(id) + '&shop_id=' + shop, { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
@@ -44,32 +67,37 @@
     var urls = images.map(function (im) { return asset(im.path); }).filter(Boolean);
     if (!urls.length) return; // 画像なし→SSGのまま
 
-    // メイン写真を先頭画像に
+    // メイン写真を先頭画像に（プリロード後に瞬時切替＝ダウンロード中の空白/崩れを防ぐ）
     var main = document.getElementById('girlMainPhoto');
-    if (main && main.getAttribute('src') !== urls[0]) main.src = urls[0];
+    if (main && main.getAttribute('src') !== urls[0]) preloadThenSwap(main, urls[0]);
 
     if (urls.length < 2) return; // サブ無し（1枚）→メインのみで完了
 
     // 既存サムネの並びと一致なら触らない（チラつき防止）
     var sub = root.querySelector('.girl-sub-photos');
+    var isNewSub = !sub;
     if (sub) {
       var cur = [].map.call(sub.querySelectorAll('[data-girl-thumb]'), function (b) { return b.getAttribute('data-full'); });
       if (cur.length === urls.length && cur.every(function (u, i) { return u === urls[i]; })) return;
-    } else {
-      // SSGが1枚で .girl-sub-photos 未生成 → メイン写真の直後に作る
-      var wrap = main && main.closest('.girl-main-wrap');
-      var col = wrap && wrap.parentElement;
-      if (!col) return;
-      sub = document.createElement('div');
-      sub.className = 'girl-sub-photos';
-      wrap.insertAdjacentElement('afterend', sub);
     }
 
-    sub.innerHTML = urls.map(function (u, i) {
-      return '<button type="button" class="girl-thumb' + (i === 0 ? ' is-active' : '') + '"' +
-        ' data-girl-thumb data-full="' + esc(u) + '" aria-label="' + esc(name) + ' 写真' + (i + 1) + '">' +
-        '<img src="' + esc(u) + '" alt="' + esc(name) + ' 写真' + (i + 1) + '" width="200" height="267" loading="lazy"></button>';
-    }).join('');
+    // 全サムネをプリロードしてから一括で差し替え（1枚ずつ読み込まれる途中の崩れを防ぐ）
+    preloadAll(urls, function () {
+      if (isNewSub) {
+        // SSGが1枚で .girl-sub-photos 未生成 → メイン写真の直後に作る
+        var wrap = main && main.closest('.girl-main-wrap');
+        var col = wrap && wrap.parentElement;
+        if (!col) return;
+        sub = document.createElement('div');
+        sub.className = 'girl-sub-photos';
+        wrap.insertAdjacentElement('afterend', sub);
+      }
+      sub.innerHTML = urls.map(function (u, i) {
+        return '<button type="button" class="girl-thumb' + (i === 0 ? ' is-active' : '') + '"' +
+          ' data-girl-thumb data-full="' + esc(u) + '" aria-label="' + esc(name) + ' 写真' + (i + 1) + '">' +
+          '<img src="' + esc(u) + '" alt="' + esc(name) + ' 写真' + (i + 1) + '" width="200" height="267" loading="lazy"></button>';
+      }).join('');
+    });
   }
 
   // set:html 系セクション（ラベル<p.section-label> + 本文<div.cls>）を最新へ。

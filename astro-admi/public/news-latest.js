@@ -39,6 +39,29 @@
       .replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
     return plain ? (plain.length > 80 ? plain.slice(0, 80) + '…' : plain) : '';
   }
+  // 表示中と同じ並び/内容なら再描画しない（ほとんどのページ表示では内容不変＝チラつきゼロ）
+  function signatureOf(items) { return items.map(function (it) { return it.id; }).join(','); }
+  function currentSignature(wrap) {
+    return [].map.call(wrap.querySelectorAll('.news-item'), function (a) {
+      var m = (a.getAttribute('href') || '').match(/\/news\/(\d+)/);
+      return m ? m[1] : '';
+    }).join(',');
+  }
+  // サムネ画像をまとめてプリロードしてからコールバック（読込中の空白/崩れを防ぐ）。
+  // 全て読込完了(または失敗)、もしくはタイムアウトで進行。
+  function preloadAll(urls, cb) {
+    urls = urls.filter(Boolean);
+    if (!urls.length) { cb(); return; }
+    var remaining = urls.length, done = false;
+    var timer = setTimeout(finish, 4000);
+    urls.forEach(function (u) {
+      var im = new Image();
+      im.onload = im.onerror = tick;
+      im.src = u;
+    });
+    function tick() { remaining--; if (remaining <= 0) finish(); }
+    function finish() { if (done) return; done = true; clearTimeout(timer); cb(); }
+  }
 
   // top: 小サムネ・h3・抜粋なし
   function topCard(it) {
@@ -73,12 +96,21 @@
       if (!news.length) return;   // 失敗/空時は SSG のまま維持
 
       if (topWrap) {
-        topWrap.innerHTML = news.slice(0, 3).map(topCard).join('');
+        var topList = news.slice(0, 3);
+        if (signatureOf(topList) !== currentSignature(topWrap)) {
+          preloadAll(topList.map(function (it) { return imgUrlOf(it.thumb); }), function () {
+            topWrap.innerHTML = topList.map(topCard).join('');
+          });
+        }
       }
       if (archWrap) {
         var tw = +archWrap.getAttribute('data-thumb-w') || 108;
         var th = +archWrap.getAttribute('data-thumb-h') || 144;
-        archWrap.innerHTML = news.map(function (it) { return archCard(it, tw, th); }).join('');
+        if (signatureOf(news) !== currentSignature(archWrap)) {
+          preloadAll(news.map(function (it) { return imgUrlOf(it.thumb); }), function () {
+            archWrap.innerHTML = news.map(function (it) { return archCard(it, tw, th); }).join('');
+          });
+        }
         var empty = document.getElementById('news-empty');
         if (empty) empty.style.display = 'none';
       }
