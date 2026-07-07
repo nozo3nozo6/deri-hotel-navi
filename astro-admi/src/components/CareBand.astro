@@ -1,0 +1,57 @@
+---
+// CareBand.astro — ヒーロー直下の「気配り」訴求バンド。
+//   お釣りをキャストが持参する＝待たせない気配り、を上品に伝える差別化メッセージ（2026-07-08）。
+//   glass-card + CSSカラー変数で admi(明) / kichifu(暗) 両テーマに自動追従。
+---
+<section class="care-band-section" aria-label="当店のこだわり">
+  <div class="care-band glass-card">
+    <span class="care-band-icon" aria-hidden="true">👛</span>
+    <div class="care-band-body">
+      <h2 class="care-band-title">待たせない、という<span class="care-band-em">おもてなし</span>。</h2>
+      <p class="care-band-lead">お会計のお釣りは、<strong>キャストがその場でご用意。</strong></p>
+      <p class="care-band-note">&ldquo;お釣りはドライバーが帰りに&rdquo;——そんな待ち時間も気まずさも、アドミにはありません。細かいところまで、あなたとの時間を大切にしたいから ♡</p>
+    </div>
+  </div>
+</section>
+<style>
+  .care-band-section { padding: 10px 16px 6px; position: relative; z-index: 1; }
+  .care-band {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    max-width: 660px;
+    margin: 0 auto;
+    padding: 18px 22px;
+    border-radius: 22px;
+  }
+  .care-band-icon {
+    font-size: 2.6rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    filter: drop-shadow(0 2px 6px rgba(255, 79, 216, .45));
+  }
+  .care-band-body { min-width: 0; }
+  .care-band-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.45;
+    color: var(--text-soft);
+    margin-bottom: 6px;
+  }
+  .care-band-em { color: var(--neon-pink); }
+  .care-band-lead {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    margin-bottom: 6px;
+  }
+  .care-band-lead strong { color: var(--neon-pink); }
+  .care-band-note {
+    font-size: .8rem;
+    line-height: 1.85;
+    color: var(--text-mute);
+  }
+  @media (max-width: 640px) {
+    .care-band { flex-direction: column; text-align: center; gap: 10px; padding: 18px; }
+  }
+</style>

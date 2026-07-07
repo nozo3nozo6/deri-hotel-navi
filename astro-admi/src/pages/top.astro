@@ -2,6 +2,7 @@
 import Site from '../layouts/Site.astro';
 import Fujoho from '../components/Fujoho.astro';
 import HimeDiary from '../components/HimeDiary.astro';
+import CareBand from '../components/CareBand.astro';
 import { getGirls, getNews, getBanners, getSliders } from '../lib/api';
 import { asset, SHOP, FUJOHO, isNewcomer } from '../lib/config';
 import GirlCardItem from '../components/GirlCardItem.astro';
@@ -90,6 +91,9 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
        目に見えて表示されてから新しい画像に差し替わる「チラつき」が起きていた（2026-07-07 修正）。 -->
   <script is:inline src={`/banner-slider.js?v=${bannerSliderV}`}></script>
   <script is:inline src={`/slider-latest.js?v=${sliderLatestV}`}></script>
+
+  <!-- こだわり訴求バンド（ヒーロー直下）＝お釣りもキャストが持参＝待たせない気配り -->
+  <CareBand />
 
   <!-- お知らせ ============================================================== -->
   <section class="top-news-section">
