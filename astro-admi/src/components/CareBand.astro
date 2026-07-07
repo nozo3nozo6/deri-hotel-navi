@@ -43,11 +43,11 @@
     line-height: 1.85;
     color: var(--text-mute);
   }
-  /* スマホはコンパクトに（アイコン小・行間/余白/文字を詰める。内容は同じ） */
+  /* スマホもアイコン左・文字は右に回り込む横並び（コンパクトに詰める。内容は同じ） */
   @media (max-width: 640px) {
     .care-band-section { padding: 8px 14px 4px; }
-    .care-band { flex-direction: column; text-align: center; gap: 5px; padding: 14px 16px; border-radius: 18px; }
-    .care-band-icon { font-size: 1.9rem; }
+    .care-band { align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 18px; }
+    .care-band-icon { font-size: 1.9rem; margin-top: 1px; }
     .care-band-lead { font-size: .92rem; line-height: 1.45; margin-bottom: 4px; }
     .care-band-note { font-size: .74rem; line-height: 1.6; }
   }
