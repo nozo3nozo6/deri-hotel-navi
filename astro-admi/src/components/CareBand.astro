@@ -9,7 +9,7 @@
     <div class="care-band-body">
       <h2 class="care-band-title">待たせない、という<span class="care-band-em">おもてなし</span>。</h2>
       <p class="care-band-lead">お会計のお釣りは、<strong>キャストがその場でご用意。</strong></p>
-      <p class="care-band-note">&ldquo;お釣りはドライバーが帰りに&rdquo;——そんな待ち時間も気まずさも、アドミにはありません。細かいところまで、あなたとの時間を大切にしたいから ♡</p>
+      <p class="care-band-note">『お釣りはドライバーが帰りに』——そんな待ち時間も気まずさも、アドミにはありません。細かいところまで、あなたとの時間を大切にしたいから ♡</p>
     </div>
   </div>
 </section>
@@ -51,7 +51,13 @@
     line-height: 1.85;
     color: var(--text-mute);
   }
+  /* スマホはコンパクトに（アイコン小・行間/余白/文字を詰める。内容は同じ） */
   @media (max-width: 640px) {
-    .care-band { flex-direction: column; text-align: center; gap: 10px; padding: 18px; }
+    .care-band-section { padding: 8px 14px 4px; }
+    .care-band { flex-direction: column; text-align: center; gap: 5px; padding: 14px 16px; border-radius: 18px; }
+    .care-band-icon { font-size: 1.9rem; }
+    .care-band-title { font-size: 1.02rem; line-height: 1.35; margin-bottom: 3px; }
+    .care-band-lead { font-size: .86rem; line-height: 1.4; margin-bottom: 4px; }
+    .care-band-note { font-size: .74rem; line-height: 1.6; }
   }
 </style>
