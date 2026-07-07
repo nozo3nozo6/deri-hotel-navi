@@ -63,9 +63,12 @@
   }
   .care-band-toggle {
     margin-left: auto;
+    margin-right: -4px;                /* もう少し右端へ寄せる */
     flex: 0 0 auto;
     color: var(--neon-pink);
-    font-size: .95rem;
+    font-size: 1.3rem;                 /* 大きく（視認性・押しやすさ） */
+    line-height: 1;
+    padding: 4px 2px;                  /* タップ域を少し拡大 */
     transition: transform .2s ease;
   }
   .care-band[open] .care-band-toggle { transform: rotate(180deg); }
