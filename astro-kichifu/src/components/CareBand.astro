@@ -1,52 +1,75 @@
 ---
-// CareBand.astro — ヒーロー直下の「気配り」訴求バンド。
-//   お釣りをキャストが持参する＝待たせない気配り、を上品に伝える差別化メッセージ（2026-07-08）。
-//   glass-card + CSSカラー変数で admi(明) / kichifu(暗) 両テーマに自動追従。
-//   アイコンは float:left で、テキストは右→アイコンの下へ回り込む。
+// CareBand.astro — ヒーロー直下の「気配り」訴求バンド（折りたたみ1行方式・2026-07-08）。
+//   常時は1行のピル（👛 お釣りもキャストがその場で用意 ▾）、タップで詳細が開く <details>。
+//   JSなし・キーボード操作対応。glass-card + CSSカラー変数で admi(明)/kichifu(暗) 両テーマ自動追従。
 ---
 <section class="care-band-section" aria-label="当店のこだわり">
-  <div class="care-band glass-card">
-    <span class="care-band-icon" aria-hidden="true">👛</span>
-    <p class="care-band-lead">お会計のお釣りは、<strong>キャストがその場でご用意。</strong></p>
+  <details class="care-band glass-card">
+    <summary class="care-band-summary">
+      <span class="care-band-icon" aria-hidden="true">👛</span>
+      <span class="care-band-lead">お釣りも<strong>キャストがその場でご用意</strong></span>
+      <span class="care-band-toggle" aria-hidden="true">▾</span>
+    </summary>
     <p class="care-band-note">『お釣りはドライバーが帰りに』——そんな待ち時間も気まずさも、アドミにはありません。細かいところまで、あなたとの時間を大切にしたいから ♡</p>
-  </div>
+  </details>
 </section>
 <style>
-  .care-band-section { padding: 10px 16px 6px; position: relative; z-index: 1; }
+  .care-band-section { padding: 8px 16px 4px; position: relative; z-index: 1; }
   .care-band {
     max-width: 660px;
     margin: 0 auto;
-    padding: 18px 22px;
-    border-radius: 22px;
+    border-radius: 16px;
+    overflow: hidden;
   }
-  .care-band::after { content: ''; display: block; clear: both; } /* float内包（clearfix） */
+  .care-band-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    cursor: pointer;
+    list-style: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .care-band-summary::-webkit-details-marker { display: none; } /* デフォルト三角を消す */
   .care-band-icon {
-    float: left;               /* テキストが右→アイコン下へ回り込む */
-    font-size: 2.6rem;
+    font-size: 1.5rem;
     line-height: 1;
-    margin: 2px 16px 4px 0;
-    filter: drop-shadow(0 2px 6px rgba(255, 79, 216, .45));
+    flex: 0 0 auto;
+    filter: drop-shadow(0 1px 4px rgba(255, 79, 216, .45));
   }
   .care-band-lead {
-    font-size: 1.05rem;
+    font-size: .9rem;
     font-weight: 800;
-    line-height: 1.5;
+    line-height: 1.3;
     color: var(--text-soft);
-    margin: 0 0 6px;
+    min-width: 0;
+    white-space: nowrap;          /* 常時1行（はみ出す時のみ…） */
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .care-band-lead strong { color: var(--neon-pink); }
+  .care-band-toggle {
+    margin-left: auto;
+    flex: 0 0 auto;
+    color: var(--neon-pink);
+    font-size: .95rem;
+    transition: transform .2s ease;
+  }
+  .care-band[open] .care-band-toggle { transform: rotate(180deg); }
   .care-band-note {
-    font-size: .8rem;
-    line-height: 1.85;
+    font-size: .78rem;
+    line-height: 1.75;
     color: var(--text-mute);
     margin: 0;
+    padding: 0 16px 13px;
   }
-  /* スマホはコンパクトに（アイコン小・行間/余白/文字を詰める。回り込みは同じ） */
-  @media (max-width: 640px) {
-    .care-band-section { padding: 8px 14px 4px; }
-    .care-band { padding: 14px 16px; border-radius: 18px; }
-    .care-band-icon { font-size: 1.9rem; margin: 1px 12px 3px 0; }
-    .care-band-lead { font-size: .92rem; line-height: 1.45; margin-bottom: 4px; }
-    .care-band-note { font-size: .74rem; line-height: 1.6; }
+  @media (min-width: 641px) {
+    .care-band-icon { font-size: 1.7rem; }
+    .care-band-lead { font-size: 1rem; }
+    .care-band-summary { padding: 12px 20px; }
+    .care-band-note { font-size: .82rem; padding: 0 20px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .care-band-toggle { transition: none; }
   }
 </style>
