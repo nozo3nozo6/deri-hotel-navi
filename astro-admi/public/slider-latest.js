@@ -39,17 +39,39 @@
     return '<div class="hero-slide">' + inner + '</div>';
   }
 
+  // 差分判定用の署名。画像URL＋リンクURL＋タイトルまで含めて比較するので、
+  // 画像を変えずにリンク/タイトルだけ編集した場合も検出できる（Astroのattr自動エスケープは
+  // getAttribute で元の値にデコードされるため、SSG側とAPI側の署名は損失なく一致する）。
+  function liveSig(live) {
+    return live.map(function (s) {
+      return assetUrl(s.image_pc || s.image_sp) + '|' + (s.url || '') + '|' + (s.title || '');
+    }).join('~~');
+  }
+  function currSig() {
+    return [].map.call(track.querySelectorAll('.hero-slide'), function (sl) {
+      var im = sl.querySelector('img'), a = sl.querySelector('a');
+      return (im ? (im.getAttribute('src') || '') : '') + '|' +
+             (a ? (a.getAttribute('href') || '') : '') + '|' +
+             (im ? (im.getAttribute('alt') || '') : '');
+    }).join('~~');
+  }
+
   fetch('/api/sliders.php?shop_id=' + encodeURIComponent(shop), { cache: 'no-store' })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
       if (!d || !Array.isArray(d.sliders)) return;              // 失敗時は SSG のまま
       var live = d.sliders.filter(function (s) { return s.image_pc || s.image_sp; });
-      if (!live.length) return;                                  // 全消しは触らない（SSG維持）
 
-      var curr = [].map.call(track.querySelectorAll('.hero-slide img'), function (im) { return im.getAttribute('src'); });
-      var next = live.map(function (s) { return assetUrl(s.image_pc || s.image_sp); });
-      // 枚数・並び・URL が完全一致なら触らない（チラつき防止）
-      if (curr.length === next.length && curr.every(function (u, i) { return u === next[i]; })) return;
+      // 全消し／最後の1枚の削除・非表示 → スライダーを隠しロゴfallbackを表示（古いスライドを残さない）
+      if (!live.length) {
+        if (track.children.length) track.innerHTML = '';
+        slider.style.display = 'none';
+        if (fallback) fallback.style.display = '';
+        return;
+      }
+
+      // 画像・リンク・タイトルまで含めて完全一致なら触らない（チラつき防止）
+      if (liveSig(live) === currSig()) return;
 
       track.innerHTML = live.map(slideHtml).join('');
       // 0枚SSG(ロゴfallback)→ スライダーを表示しfallbackを隠す（0→1枚目の即反映）
