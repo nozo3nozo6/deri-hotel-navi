@@ -8,11 +8,13 @@
     <summary class="care-band-summary">
       <span class="care-band-icon" aria-hidden="true">👛</span>
       <span class="care-band-lead">お釣りは<strong>その場でご用意</strong></span>
+      <span class="care-band-heart" aria-hidden="true">♥</span>
       <span class="care-band-toggle" aria-hidden="true">▾</span>
     </summary>
     <div class="care-band-note">
-      <p>当店では女の子がお釣り用の小銭を持参し、お会計はその場で完了します。『お釣りはドライバーが帰りに』という待ち時間も、お金のやり取りの気まずさもございません。</p>
-      <p>これは、お客様に余計なご不安やお気遣いをおかけしないため。そして、スムーズにスケジュールを進行することで、以降のご予約のお客様をお待たせせず、女の子が一人でも多くの方とお会いするための心づかいでもあります。ドライバーへの現金お支払いにまつわるトラブルのご心配もなく、安心してお過ごしいただけます。細かなところまで丁寧に——それがアドミのおもてなしです ♡</p>
+      <p>当店では女の子がお釣り用のお札と小銭を持参し、お会計はその場で完了します。『お釣りはドライバーが帰りに』という待ち時間も、お金のやり取りの気まずさもございません。</p>
+      <p>これは、お客様に余計なご不安やお気遣いをおかけしないため。そして、スムーズにスケジュールを進行することで、以降のご予約のお客様をお待たせせず、女の子が一人でも多くの方とお会いするための心づかいでもあります。</p>
+      <p>ドライバーへの現金お支払いにまつわるトラブルのご心配もなく、安心してお過ごしいただけます。細かなところまで丁寧に——それがアドミのおもてなしです ♡</p>
     </div>
   </details>
 </section>
@@ -51,6 +53,14 @@
     text-overflow: ellipsis;
   }
   .care-band-lead strong { color: var(--neon-pink); }
+  .care-band-heart {
+    flex: 0 0 auto;
+    margin-left: -3px;                 /* テキスト直後に寄せる */
+    color: var(--neon-pink);
+    font-size: 1rem;
+    line-height: 1;
+    text-shadow: 0 0 6px rgba(255, 79, 216, .45);
+  }
   .care-band-toggle {
     margin-left: auto;
     flex: 0 0 auto;
