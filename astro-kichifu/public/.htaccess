@@ -32,8 +32,8 @@ DirectorySlash Off
   <FilesMatch "\.(svg|png|jpg|jpeg|webp|gif|ico|woff2?)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
-  <!-- JS/CSS: ?v=キャッシュバスター付きのみ1年immutable。付いていないURL直アクセスは
-       no-cache（デプロイ後もCloudflare/ブラウザに古いJSが永久に残るのを防ぐ、2026-07-08） -->
+  # JS/CSS: ?v=キャッシュバスター付きのみ1年immutable。付いていないURL直アクセスは
+  # no-cache（デプロイ後もCloudflare/ブラウザに古いJSが永久に残るのを防ぐ、2026-07-08）
   <IfModule mod_setenvif.c>
     SetEnvIf Query_String "^v=" HAS_VERSION
   </IfModule>
