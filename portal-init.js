@@ -284,6 +284,13 @@ document.addEventListener('click', function(e) {
             e.preventDefault();
             if (typeof openHotelFromMap === 'function') openHotelFromMap(parseInt(target.dataset.hotelId), target.dataset.isLoveho === '1');
             break;
+        case 'retryLoadDetail':
+            // ホテル詳細の読み込み失敗画面の「🔄 再読み込み」ボタン
+            if (typeof retryLoadDetail === 'function') retryLoadDetail(target);
+            break;
+        case 'closeHotelPanel':
+            if (typeof closeHotelPanel === 'function') closeHotelPanel();
+            break;
         case 'openFlagModal':
             if (target.dataset.stop) e.stopPropagation();
             if (typeof openFlagModal === 'function') openFlagModal(target.dataset.reportId);

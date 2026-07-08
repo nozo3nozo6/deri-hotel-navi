@@ -698,6 +698,27 @@ function openLovehoDetail(hotelId) {
 // ==========================================================================
 // 統一詳細ローダー（ホテル/ラブホ共通）
 // ==========================================================================
+// hotel-detail.php を最大3回リトライして取得。4xx（存在しないホテル等）は即 null、
+// ネットワーク断・5xx は 600ms/1200ms 空けて再試行（スマホ回線の瞬断・一時的なサーバー負荷対策）。
+async function fetchHotelDetailWithRetry(hotelId, type) {
+    for (let i = 0; i < 3; i++) {
+        try {
+            const res = await fetch(`/api/hotel-detail.php?hotel_id=${hotelId}&type=${type}`);
+            if (res.ok) return await res.json();
+            if (res.status >= 400 && res.status < 500) return null; // 恒久エラーはリトライ無意味
+        } catch (e) { /* ネットワークエラー → リトライ */ }
+        if (i < 2) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+    throw new Error('network');
+}
+
+// エラー画面の「🔄 再読み込み」ボタン（portal-init.js のイベント委譲から呼ばれる）
+function retryLoadDetail(el) {
+    const id = parseInt(el.dataset.hotelId);
+    if (!id) return;
+    loadDetail(id, el.dataset.isLoveho === '1');
+}
+
 async function loadDetail(hotelId, isLoveho) {
     const content = getDetailContainer();
     content.innerHTML = `<div class="detail-loading">${t('loading')}</div>`;
@@ -706,12 +727,10 @@ async function loadDetail(hotelId, isLoveho) {
         if (isLoveho) await loadLhMasters();
         else await loadMasterData();
 
-        // データ取得（PHP API経由）
+        // データ取得（PHP API経由、リトライ付き）
         const detailType = isLoveho ? 'loveho' : 'hotel';
-        const detailRes = await fetch(`/api/hotel-detail.php?hotel_id=${hotelId}&type=${detailType}`);
-        if (!detailRes.ok) throw new Error('Hotel not found');
-        const detailData = await detailRes.json();
-        if (!detailData.hotel) throw new Error('Hotel not found');
+        const detailData = await fetchHotelDetailWithRetry(hotelId, detailType);
+        if (!detailData || !detailData.hotel) throw new Error('Hotel not found');
         const hotel = detailData.hotel;
         let reports = detailData.reports || [];
 
@@ -853,9 +872,23 @@ async function loadDetail(hotelId, isLoveho) {
         }
     } catch(e) {
         console.error('[loadDetail] error:', e);
-        // SEO 配慮: 「Hotel not found」「読み込みエラー」等の文言は Google にソフト404シグナルとして判定される
-        // エラー時は detail コンテナを非表示にし、main 内の SSR コンテンツ (seo-static-content) を視認可能なままにする
-        content.style.display = 'none';
+        // SEO 配慮: 初回ロード（SSR コンテンツあり = クローラーが見るケース）では
+        // 「Hotel not found」等の文言がソフト404シグナルになるため、従来通り detail コンテナを
+        // 非表示にして main 内の SSR コンテンツ (seo-static-content) を見せる。
+        // SPA 遷移中（SSR コンテンツは updateUrl で除去済み）は非表示にすると完全な空白画面に
+        // なってしまうため、エラー案内 + 再読み込みボタンを表示する（2026-07-08 スマホ空白画面対策）。
+        if (document.querySelector('.seo-static-content')) {
+            content.style.display = 'none';
+        } else {
+            const notFound = e && e.message === 'Hotel not found';
+            content.innerHTML = `
+                <div style="padding:48px 20px;text-align:center;">
+                    <div style="font-size:34px;margin-bottom:10px;">${notFound ? '🏨' : '📡'}</div>
+                    <p style="font-size:14px;color:var(--text-2,#6a5a4a);margin:0 0 18px;line-height:1.7;">${notFound ? 'このホテルの情報が見つかりませんでした。' : '読み込みに失敗しました。<br>通信環境をご確認のうえ、再度お試しください。'}</p>
+                    ${notFound ? '' : `<button data-action="retryLoadDetail" data-hotel-id="${hotelId}" data-is-loveho="${isLoveho ? 1 : 0}" style="padding:11px 28px;border:none;border-radius:8px;background:var(--accent,#9b2d35);color:#fff;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation;">🔄 再読み込み</button>`}
+                    <div style="margin-top:14px;"><button data-action="closeHotelPanel" style="background:none;border:none;color:var(--accent,#9b2d35);font-size:13px;text-decoration:underline;cursor:pointer;touch-action:manipulation;">← 一覧に戻る</button></div>
+                </div>`;
+        }
     }
 }
 
