@@ -1,141 +1,187 @@
 /* ==========================================================================
-   テーマ — 男性モード（デリヘル）サンセットバーガンディ × パッションピンク
+   テーマ — 男性モード（デリヘル）「ミッドナイト・グラン」
+   深夜1時のホテルバー: 墨黒〜温チャコール地 / シャンパンゴールドの線 / 深紅はCTAのみ
+   ==========================================================================
+   TOKENS:
+     bg        : #191216   ページ地（温色ニアブラック）
+     bg-deep   : #120c0f   ヒーロー・フッターの最深部
+     surface   : #221a1f   カード面（チャコール）
+     surface-2 : #2a2026   面の持ち上げ（input・chip）
+     text      : #efe8e0   本文（温オフホワイト）
+     text-sub  : #b5a99d   サブテキスト（温グレー）
+     text-dim  : #9a8e83   日付・注記
+     gold      : #c9a86a   シャンパンゴールド（線と文字のみ、面塗り禁止）
+     gold-hi   : #e2c98c   ゴールド輝度高（hover・focus）
+     crimson   : #a03448   深紅（プライマリCTAのみ）
+     ok-green  : #82c9a0   翡翠（店舗提供・可）
+     info-blue : #85aed8   スチールブルー（ユーザー口コミ）
+     ng-wine   : #d9909a   ワインレッド（呼べなかった・不可）
    ========================================================================== */
 [data-mode="men"] {
-    --accent: #c94870;
-    --accent-light: #d96a8e;
-    --accent-dim: #a83860;
-    --accent-bg: rgba(201,72,112,0.08);
-    --accent-glow: rgba(201,72,112,0.18);
-    --border: rgba(201,72,112,0.18);
-    --border-strong: rgba(201,72,112,0.38);
-    --card-shadow: 0 2px 16px rgba(201,72,112,0.08), 0 1px 4px rgba(0,0,0,0.06);
-    --card-shadow-hover: 0 8px 32px rgba(201,72,112,0.15), 0 2px 8px rgba(0,0,0,0.09);
-    --bg-3: #fff0f4;
-    --text-3: #a8456b;
+    --accent: #c9a86a;
+    --accent-light: #e2c98c;
+    --accent-dim: #d9bd85;
+    --accent-bg: rgba(201,168,106,0.08);
+    --accent-glow: rgba(201,168,106,0.20);
+    --border: rgba(201,168,106,0.22);
+    --border-strong: rgba(201,168,106,0.45);
+    --card-shadow: inset 0 1px 0 rgba(239,232,224,0.05), 0 16px 36px -20px rgba(0,0,0,0.9);
+    --card-shadow-hover: inset 0 1px 0 rgba(239,232,224,0.06), 0 22px 44px -20px rgba(0,0,0,0.95), 0 2px 22px -6px rgba(201,168,106,0.22);
+    --bg: #191216;
+    --bg-2: #221a1f;
+    --bg-3: #2a2026;
+    --bg-4: #332830;
+    --text: #efe8e0;
+    --text-2: #b5a99d;
+    --text-3: #9a8e83;
 }
 
-body[data-mode="men"],
-body[data-mode="men"] * {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif !important;
-    font-style: normal !important;
+/* 本文はゴシック（見出しのみ明朝 — 下で個別指定） */
+body[data-mode="men"] {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
 }
+body[data-mode="men"] ::selection { background: rgba(201,168,106,0.35); color: #efe8e0; }
+
+/* ロゴ: セリフ+広字間、emはゴールド（イタリック無し） */
+body[data-mode="men"] .logo-text,
+body[data-mode="men"] .header-title {
+    font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif !important;
+    font-style: normal !important;
+    letter-spacing: 0.14em;
+    font-weight: 500 !important;
+}
+body[data-mode="men"] .logo-text em { color: #c9a86a !important; font-style: normal !important; }
+
 body[data-mode="men"] .hotel-price-value {
     font-weight: 700 !important;
     letter-spacing: 0.3px !important;
 }
-body[data-mode="men"] .logo-text,
-body[data-mode="men"] .header-title {
-    font-family: 'Cormorant Garamond', 'Noto Sans JP', sans-serif !important;
-    font-style: italic !important;
-}
 
-/* ==========================================================================
-   === 新デザイン 2026-04-15 サンセットバーガンディ × パッションピンク ===
-   ========================================================================== */
-
-/* body 背景 */
+/* ── body 地: 温色ニアブラック ── */
 body[data-mode="men"].portal-page {
-    background: #faf5f0 !important;
-    color: #2a1a2e !important;
+    background:
+        radial-gradient(ellipse 120% 60% at 50% -8%, rgba(201,168,106,0.045) 0%, transparent 60%),
+        linear-gradient(180deg, #1b1418 0%, #191216 40%, #171015 100%) !important;
+    color: #efe8e0 !important;
 }
 
-/* ── ヘッダー（サンセットバーガンディ） ── */
+/* ── ヘッダー: バーカウンターの静けさ ── */
 body[data-mode="men"] .portal-header {
-    background: linear-gradient(135deg, #3a1a24 0%, #5a2a38 35%, #7a3448 65%, #8a3a4e 100%) !important;
-    border-bottom: 2px solid #c94870 !important;
-    box-shadow: 0 2px 14px rgba(90,42,56,0.35) !important;
+    background: linear-gradient(180deg, #140e12 0%, #191216 100%) !important;
+    border-bottom: 1px solid rgba(201,168,106,0.30) !important;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.6), 0 14px 34px -18px rgba(0,0,0,0.8) !important;
     position: relative;
 }
-body[data-mode="men"] .portal-header::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse at 75% 30%, rgba(201,72,112,0.12) 0%, transparent 55%);
-}
+body[data-mode="men"] .portal-header::after { display: none; }
 body[data-mode="men"] .logo-text,
 body[data-mode="men"] .logo-text b {
-    color: #fff !important;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    color: #efe8e0 !important;
+    text-shadow: 0 1px 12px rgba(201,168,106,0.18);
 }
 body[data-mode="men"] .btn-to-gate,
 body[data-mode="men"] .mode-toggle,
 body[data-mode="men"] .lang-toggle {
-    background: rgba(255,255,255,0.12) !important;
-    border: 1px solid rgba(255,255,255,0.2) !important;
-    color: #fff !important;
+    background: rgba(239,232,224,0.03) !important;
+    border: 1px solid rgba(201,168,106,0.26) !important;
+    color: #d8cec3 !important;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
-body[data-mode="men"] .btn-to-gate .btn-gate-text { color: #fff !important; }
+body[data-mode="men"] .btn-to-gate:hover,
+body[data-mode="men"] .mode-toggle:hover,
+body[data-mode="men"] .lang-toggle:hover {
+    border-color: rgba(226,201,140,0.65) !important;
+    color: #efe8e0 !important;
+    background: rgba(201,168,106,0.07) !important;
+}
+body[data-mode="men"] .btn-to-gate .btn-gate-text { color: #c9a86a !important; letter-spacing: 0.18em; }
 
-/* ── ヒーローバナー（温感グラデ） ── */
-body[data-mode="men"] .hero-banner {
+/* ドロップダウンメニュー（モード/言語） */
+body[data-mode="men"] .mode-menu,
+body[data-mode="men"] .lang-menu {
+    background: #221a1f !important;
+    border: 1px solid rgba(201,168,106,0.30) !important;
+    box-shadow: 0 12px 30px -10px rgba(0,0,0,0.9) !important;
+}
+body[data-mode="men"] .mode-menu-item,
+body[data-mode="men"] .lang-menu-item { color: #d8cec3 !important; }
+body[data-mode="men"] .mode-menu-item:hover,
+body[data-mode="men"] .lang-menu-item:hover { background: rgba(201,168,106,0.08) !important; color: #efe8e0 !important; }
+body[data-mode="men"] .mode-menu-item.active,
+body[data-mode="men"] .lang-menu-item.active { color: #e2c98c !important; }
+
+/* ── ジャンルヒーロー: 最深部の闇 + 控えめな金の灯 ──
+   注: 右上の深紅glowは「深紅=CTA専用」規律の意図的な唯一の例外（彩度10%の環境光） */
+body[data-mode="men"] .genre-hero,
+body[data-mode="men"] .genre-hero-men {
     background:
-        radial-gradient(ellipse at 20% 50%, rgba(201,72,112,0.15) 0%, transparent 60%),
-        radial-gradient(ellipse at 85% 100%, rgba(201,72,112,0.10) 0%, transparent 50%),
-        linear-gradient(135deg, #8a3a4e 0%, #a04860 40%, #8a3a52 70%, #6d2e40 100%) !important;
-    padding: 14px 16px 12px !important;
-    text-align: center;
-    color: #fff !important;
-    border-bottom: 1px solid rgba(201,72,112,0.35) !important;
-    position: relative;
+        radial-gradient(ellipse 70% 90% at 50% 118%, rgba(201,168,106,0.13) 0%, transparent 62%),
+        radial-gradient(ellipse 45% 55% at 82% -10%, rgba(160,52,72,0.10) 0%, transparent 60%),
+        linear-gradient(180deg, #120c0f 0%, #150e12 55%, #191216 100%) !important;
+    border-bottom: 1px solid rgba(201,168,106,0.22) !important;
 }
-body[data-mode="men"] .hero-banner h2 { color: #fff !important; }
-body[data-mode="men"] .hero-banner p { color: rgba(255,255,255,0.75) !important; }
-@media (min-width: 640px) {
-    body[data-mode="men"] .hero-banner { padding: 16px 24px 14px !important; }
+body[data-mode="men"] .genre-hero-title {
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: #f2ece4 !important;
 }
+body[data-mode="men"] .genre-hero-title::after {
+    content: '';
+    display: block;
+    width: 44px; height: 1px;
+    margin: 14px auto 0;
+    background: linear-gradient(90deg, transparent, #c9a86a 20%, #e2c98c 50%, #c9a86a 80%, transparent);
+}
+body[data-mode="men"] .genre-hero-sub { color: #b5a99d !important; letter-spacing: 0.03em; }
 
-/* ── エリアセクション（赤みクリームグラデ） ── */
+/* ── エリアセクション ── */
 body[data-mode="men"] .area-section {
-    background: linear-gradient(180deg, #fdfaf6 0%, #fbf2ed 100%) !important;
-    border: 1px solid #ecdfe4 !important;
-    border-top: 3px solid #c94870 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.08), inset 0 -2px 0 0 #c94870, inset 0 5px 0 -3px #c94870 !important;
+    background: linear-gradient(180deg, #251c22 0%, #221a1f 100%) !important;
+    border: 1px solid rgba(239,232,224,0.10) !important;
+    border-top: 1px solid rgba(201,168,106,0.42) !important;
+    border-radius: 3px !important;
+    box-shadow: inset 0 1px 0 rgba(239,232,224,0.04), 0 18px 40px -22px rgba(0,0,0,0.85) !important;
     margin: 16px auto !important;
     padding: 24px 20px 20px !important;
     max-width: 1100px !important;
 }
 body[data-mode="men"] .area-header h2 {
-    color: #2a1a2e !important;
-    border-left: 4px solid #c94870 !important;
-    padding-left: 12px !important;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+    font-weight: 600 !important;
+    color: #efe8e0 !important;
+    border-left: 1px solid #c9a86a !important;
+    padding-left: 14px !important;
     border-bottom: none !important;
     padding-bottom: 0 !important;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.16em;
 }
-body[data-mode="men"] .breadcrumb-item { color: #c94870 !important; font-weight: 600; }
-body[data-mode="men"] .breadcrumb-item.active { color: #2a1a2e !important; }
+body[data-mode="men"] .breadcrumb-item { color: #c9a86a !important; font-weight: 600; letter-spacing: 0.08em; }
+body[data-mode="men"] .breadcrumb-item.active { color: #efe8e0 !important; }
+body[data-mode="men"] .breadcrumb-sep { color: #6a5c62; }
 
-/* ── エリアボタン（横崩れ防止 + 赤みアクセント） ── */
+/* ── エリアボタン: チャコール面 + ゴールド下罫 ── */
 body[data-mode="men"] .area-btn {
-    background: #fff !important;
-    border: 1px solid #ebb5c7 !important;
-    border-radius: 4px !important;
+    background: linear-gradient(180deg, #281f25 0%, #241b21 100%) !important;
+    border: 1px solid rgba(239,232,224,0.08) !important;
+    border-bottom: 1px solid rgba(201,168,106,0.38) !important;
+    border-radius: 2px !important;
     padding: 18px 40px 18px 20px !important;
     font-size: 15px !important;
     font-weight: 700 !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.08) !important;
+    box-shadow: inset 0 1px 0 rgba(239,232,224,0.04), 0 3px 10px -4px rgba(0,0,0,0.7) !important;
     position: relative;
-    color: #2a1a2e !important;
+    color: #e6ddd2 !important;
     letter-spacing: 0.05em;
     overflow: hidden;
-    transition: all 0.15s ease !important;
+    transition: border-color 0.25s, color 0.25s, box-shadow 0.25s, background 0.25s !important;
 }
-body[data-mode="men"] .area-btn::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 4px; height: 100%;
-    background: #c94870;
-    transition: width 0.2s ease;
-}
-body[data-mode="men"] .area-btn:hover::before { width: 100%; background: #c94870; opacity: 0.08; }
+body[data-mode="men"] .area-btn::before { display: none; }
 body[data-mode="men"] .area-btn:hover {
-    border-color: #c94870 !important;
-    color: #c94870 !important;
-    box-shadow: 0 3px 0 rgba(201,72,112,0.2) !important;
+    background: linear-gradient(180deg, #2e242b 0%, #292026 100%) !important;
+    border-color: rgba(201,168,106,0.30) !important;
+    border-bottom-color: #e2c98c !important;
+    color: #f4eee6 !important;
+    box-shadow: inset 0 1px 0 rgba(239,232,224,0.06), 0 6px 18px -6px rgba(0,0,0,0.8), 0 1px 10px -2px rgba(201,168,106,0.25) !important;
     transform: translateY(-1px) !important;
 }
 body[data-mode="men"] .area-btn::after {
@@ -145,12 +191,13 @@ body[data-mode="men"] .area-btn::after {
     top: 50%;
     transform: translateY(-50%);
     font-size: 22px;
-    color: #c94870;
+    color: #c9a86a;
     font-weight: 300;
-    transition: transform 0.2s;
+    transition: transform 0.2s, color 0.2s;
 }
 body[data-mode="men"] .area-btn:hover::after {
     transform: translateY(-50%) translateX(3px);
+    color: #e2c98c;
 }
 
 /* エリアボタン横崩れ防止（pc: flex化・city-name nowrap） */
@@ -215,7 +262,7 @@ body[data-mode="men"] .area-btn:hover::after {
         padding: 0 8px !important;
         max-width: 100% !important;
     }
-    body[data-mode="men"] .hotel-card-lux { border-radius: 6px !important; }
+    body[data-mode="men"] .hotel-card-lux { border-radius: 3px !important; }
     body[data-mode="men"] .info-links-bar,
     body[data-mode="men"] .recent-shops-section {
         margin: 8px 0 !important;
@@ -234,120 +281,149 @@ body[data-mode="men"] .area-btn > .city-count::before {
     font-size: 0.95em;
 }
 
-/* ── 検索ボックス ── */
+/* ── 検索ボックス: バックバーの琥珀の光 ── */
 body[data-mode="men"] .search-tools {
-    background: linear-gradient(180deg, #fdfaf6 0%, #fbf2ed 100%) !important;
-    border: 1px solid #ecdfe4 !important;
-    border-top: 3px solid #c94870 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.08) !important;
+    background: #221a1f !important;
+    border: 1px solid rgba(239,232,224,0.10) !important;
+    border-radius: 3px !important;
+    box-shadow: 0 18px 40px -22px rgba(0,0,0,0.85) !important;
     margin: 16px auto !important;
     padding: 20px 20px 22px !important;
     max-width: 1100px !important;
 }
 body[data-mode="men"] .search-wrapper,
 body[data-mode="men"] .station-search-wrapper {
-    background: #fff !important;
-    border: 1.5px solid #c94870 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.08) !important;
+    background: #191216 !important;
+    border: 1px solid rgba(201,168,106,0.32) !important;
+    border-radius: 2px !important;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5) !important;
     padding: 2px 6px !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 body[data-mode="men"] .search-wrapper:focus-within,
 body[data-mode="men"] .station-search-wrapper:focus-within {
-    border-color: #c94870 !important;
-    box-shadow: 0 3px 0 rgba(201,72,112,0.2), 0 0 0 2px rgba(201,72,112,0.12) !important;
+    border-color: #e2c98c !important;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(226,201,140,0.35), 0 0 18px -4px rgba(201,168,106,0.30) !important;
 }
+body[data-mode="men"] .search-wrapper input,
+body[data-mode="men"] .station-search-wrapper input { color: #efe8e0 !important; caret-color: #e2c98c; }
+body[data-mode="men"] .search-wrapper input::placeholder,
+body[data-mode="men"] .station-search-wrapper input::placeholder { color: #8d8178 !important; opacity: 1; }
+body[data-mode="men"] .search-clear { color: #b5a99d; }
 
-/* ── ホテルカード ── */
+/* ── ホテルカード: チャコールのヴェルヴェット ── */
 body[data-mode="men"] .hotel-card-lux {
-    background: linear-gradient(180deg, #fdfaf6 0%, #fbf2ed 100%) !important;
-    border: 1px solid #ecdfe4 !important;
-    border-left: 4px solid #c94870 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.08) !important;
-    color: #2a1a2e;
+    background: linear-gradient(180deg, #251c22 0%, #221a1f 100%) !important;
+    border: 1px solid rgba(239,232,224,0.09) !important;
+    border-top: 1px solid rgba(201,168,106,0.40) !important;
+    border-radius: 3px !important;
+    box-shadow: inset 0 1px 0 rgba(239,232,224,0.05), 0 16px 36px -20px rgba(0,0,0,0.9) !important;
+    color: #efe8e0;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s !important;
 }
 body[data-mode="men"] .hotel-card-lux:hover {
-    border-color: #c94870 !important;
-    box-shadow: 0 4px 0 rgba(201,72,112,0.2) !important;
+    border-color: rgba(201,168,106,0.24) !important;
+    border-top-color: #e2c98c !important;
+    box-shadow: inset 0 1px 0 rgba(239,232,224,0.06), 0 22px 44px -20px rgba(0,0,0,0.95), 0 2px 22px -6px rgba(201,168,106,0.22) !important;
     transform: translateY(-1px);
 }
 body[data-mode="men"] .hotel-name {
-    color: #2a1a2e !important;
-    font-weight: 700 !important;
+    font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif !important;
+    color: #f2ece4 !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em;
 }
-body[data-mode="men"] .hotel-card-lux a[href^="tel:"] {
-    color: #c94870 !important;
-}
+body[data-mode="men"] .hotel-card-lux a[href^="tel:"] { color: #c8ab77 !important; }
 
-/* ── CTAボタン ── */
+/* ── CTAボタン: 深紅グラデ + ゴールドヘアライン（唯一の面色） ── */
 body[data-mode="men"] .card-action-btn--h-primary {
-    background: linear-gradient(135deg, #c94870 0%, #a83860 100%) !important;
-    color: #fff !important;
+    background: linear-gradient(180deg, #a83a4f 0%, #8e2c40 55%, #7c2537 100%) !important;
+    border: 1px solid rgba(201,168,106,0.55) !important;
+    color: #f7f0e8 !important;
+    letter-spacing: 0.06em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 20px -8px rgba(124,37,55,0.8) !important;
+}
+body[data-mode="men"] .card-action-btn--h-primary:hover {
+    filter: brightness(1.12);
+    border-color: #e2c98c !important;
 }
 body[data-mode="men"] .card-action-btn--h-secondary {
     background: transparent !important;
-    border: 1.5px solid rgba(201,72,112,0.35) !important;
-    color: #c94870 !important;
+    border: 1px solid rgba(201,168,106,0.42) !important;
+    color: #d9bd85 !important;
+    letter-spacing: 0.06em;
+}
+body[data-mode="men"] .card-action-btn--h-secondary:hover {
+    border-color: #e2c98c !important;
+    color: #efe8e0 !important;
+    background: rgba(201,168,106,0.07) !important;
 }
 body[data-mode="men"] .load-more-btn {
-    background: linear-gradient(180deg, #c94870 0%, #a83860 100%) !important;
-    color: #fff !important;
-    border: 1px solid #c94870 !important;
-    border-radius: 4px !important;
+    background: linear-gradient(180deg, #a83a4f 0%, #8e2c40 55%, #7c2537 100%) !important;
+    color: #f7f0e8 !important;
+    border: 1px solid rgba(201,168,106,0.55) !important;
+    border-radius: 2px !important;
     letter-spacing: 0.1em;
 }
-body[data-mode="men"] .load-more-btn:hover {
-    background: linear-gradient(180deg, #d96a8e 0%, #c41659 100%) !important;
-}
+body[data-mode="men"] .load-more-btn:hover { filter: brightness(1.12); }
 
 /* ── 口コミカード ── */
 body[data-mode="men"] .review-card {
-    border-radius: 4px !important;
-    border: 1px solid #ecdfe4 !important;
-    background: #faf6f0 !important;
+    border-radius: 2px !important;
+    border: 1px solid rgba(239,232,224,0.09) !important;
+    border-left: 1px solid rgba(201,168,106,0.45) !important;
+    background: #221a1f !important;
+    box-shadow: 0 12px 28px -18px rgba(0,0,0,0.85) !important;
 }
 
 /* ── info-links-bar（CTAリンク） ── */
 body[data-mode="men"] .info-links-bar {
-    background: #fff !important;
-    border: 1px solid #ecdfe4 !important;
-    border-radius: 10px !important;
+    background: transparent !important;
+    border: none !important;
+    border-top: 1px solid rgba(239,232,224,0.08) !important;
+    border-bottom: 1px solid rgba(239,232,224,0.08) !important;
+    border-radius: 0 !important;
     margin: 12px auto !important;
     max-width: 1100px !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.06) !important;
+    box-shadow: none !important;
 }
 body[data-mode="men"] .info-links-bar a {
-    border-radius: 4px !important;
-    border: 1.5px solid #c94870 !important;
-    background: #fff !important;
-    color: #c94870 !important;
+    border-radius: 2px !important;
+    border: 1px solid rgba(201,168,106,0.38) !important;
+    background: rgba(201,168,106,0.04) !important;
+    color: #d9bd85 !important;
     padding: 10px 20px !important;
     font-weight: 600 !important;
-    box-shadow: 0 2px 0 rgba(201,72,112,0.15) !important;
+    letter-spacing: 0.05em;
+    box-shadow: none !important;
 }
 body[data-mode="men"] .info-links-bar a:hover {
-    background: #c94870 !important;
-    color: #fff !important;
-    box-shadow: 0 3px 0 rgba(201,72,112,0.3) !important;
+    border-color: #e2c98c !important;
+    background: rgba(201,168,106,0.10) !important;
+    color: #efe8e0 !important;
+    box-shadow: none !important;
 }
 
 /* ── 最近の店舗登録セクション ── */
 body[data-mode="men"] .recent-shops-section {
-    background: linear-gradient(135deg,#fff9fb 0%,#fff0f5 100%) !important;
-    border: 1px solid #fad0dd !important;
-    border-left: 4px solid #c94870 !important;
-    box-shadow: 0 1px 4px rgba(201,72,112,0.08) !important;
+    background: linear-gradient(180deg, #251c22 0%, #221a1f 100%) !important;
+    border: 1px solid rgba(239,232,224,0.10) !important;
+    border-left: 1px solid rgba(201,168,106,0.45) !important;
+    box-shadow: 0 12px 28px -18px rgba(0,0,0,0.85) !important;
 }
 
-/* ── フッター ── */
+/* ── フッター: 閉店後の灯り ── */
 body[data-mode="men"] footer {
-    background: #3a1a24 !important;
-    border-top: 2px solid #c94870 !important;
+    background: linear-gradient(180deg, #191216 0%, #120c0f 100%) !important;
+    border-top: 1px solid rgba(201,168,106,0.30) !important;
 }
+body[data-mode="men"] .footer-link { color: #b5a99d !important; letter-spacing: 0.04em; }
+body[data-mode="men"] .footer-link:hover { color: #e2c98c !important; }
+body[data-mode="men"] .footer-separator { color: #4a3f45 !important; }
+body[data-mode="men"] .footer-copy { color: #8d8178 !important; letter-spacing: 0.06em; }
+body[data-mode="men"] .footer-seo-text { color: #7d7168 !important; }
 
-/* ── ホテル一覧ページで検索コンパクト化 ── */
+/* ── ホテル一覧表示時の検索コンパクト化 ── */
 body[data-mode="men"].test-hotel-list-mode .search-tools {
     padding: 10px 12px !important;
     gap: 6px !important;
@@ -375,4 +451,18 @@ body[data-mode="men"].test-hotel-list-mode .search-tools-header { display: none 
     body[data-mode="men"] .info-links-bar { max-width: 1100px !important; margin: 16px auto !important; }
     body[data-mode="men"] .recent-shops-section { max-width: 1100px !important; margin: 16px auto !important; }
     body[data-mode="men"] .area-grid { grid-template-columns: repeat(4, 1fr) !important; }
+}
+
+/* ── モーション配慮 ── */
+@media (prefers-reduced-motion: reduce) {
+    body[data-mode="men"] .area-btn,
+    body[data-mode="men"] .area-btn::after,
+    body[data-mode="men"] .hotel-card-lux,
+    body[data-mode="men"] .search-wrapper,
+    body[data-mode="men"] .station-search-wrapper,
+    body[data-mode="men"] .btn-to-gate,
+    body[data-mode="men"] .mode-toggle,
+    body[data-mode="men"] .lang-toggle { transition: none !important; }
+    body[data-mode="men"] .hotel-card-lux:hover,
+    body[data-mode="men"] .area-btn:hover { transform: none !important; }
 }
