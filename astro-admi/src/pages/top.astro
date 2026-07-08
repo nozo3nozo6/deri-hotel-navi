@@ -2,8 +2,7 @@
 import Site from '../layouts/Site.astro';
 import Fujoho from '../components/Fujoho.astro';
 import HimeDiary from '../components/HimeDiary.astro';
-import CareBand from '../components/CareBand.astro';
-import HotelCallBand from '../components/HotelCallBand.astro';
+import AssureTabs from '../components/AssureTabs.astro';
 import { getGirls, getNews, getBanners, getSliders } from '../lib/api';
 import { asset, SHOP, FUJOHO, isNewcomer } from '../lib/config';
 import GirlCardItem from '../components/GirlCardItem.astro';
@@ -93,10 +92,8 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <script is:inline src={`/banner-slider.js?v=${bannerSliderV}`}></script>
   <script is:inline src={`/slider-latest.js?v=${sliderLatestV}`}></script>
 
-  <!-- こだわり訴求バンド（ヒーロー直下）＝お釣りもキャストが持参＝待たせない気配り -->
-  <CareBand />
-  <!-- 安心バンド第2弾＝そのホテル呼べる？（実績・情報蓄積／呼ぶ前のひと確認／YobuHo検索導線） -->
-  <HotelCallBand />
+  <!-- 安心タブ（ヒーロー直下）＝👛お釣りその場｜🏨そのホテル呼べる？ を1行タブに統合 -->
+  <AssureTabs />
 
   <!-- お知らせ ============================================================== -->
   <section class="top-news-section">
