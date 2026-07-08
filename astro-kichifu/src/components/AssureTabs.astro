@@ -1,28 +1,39 @@
 ---
-// AssureTabs.astro — 安心バンド2枚（CareBand=お釣り / HotelCallBand=呼べる？）を1行のタブに統合（2026-07-09）。
-//   1枚のカード上部に左右2タブ（👛お釣り｜🏨呼べる？）、タップしたタブの内容だけ下に展開。
-//   同じタブを再タップで閉じる（既定は両方閉じ＝従来の折りたたみと同じ省スペース）。
+// AssureTabs.astro — 安心バンド群を1枚のタブUIに統合（2026-07-09、タブ見た目化）。
+//   1枚のカード上部にタブ列（👛お釣り｜🏨呼べる？…今後追加予定）、タップしたタブの内容だけ下に展開。
+//   同じタブを再タップで閉じる（既定は全タブ閉じ＝省スペース）。見た目は「タブトレイに浮くタブ」方式:
+//   非アクティブはタブトレイ(--bg-1)に沈み、アクティブは --bg-0 で浮き上がりパネルとシームレスに接続。
 //   段落ごとY2Kカラー（hot pink / lavender / ホログラムグラデ）・両テーマ自動追従は従来のまま。
 //   YobuHoボタンは SHOP.yobuhoUrl がある店舗のみ表示（kichifu は空＝非表示・後日設定）。
 //   ※ 訪問者向けコピーは欧文クォート " を使わず 『』「」を使用（フロント規約）。
 //   ※ スクリプトは Astro が外部モジュール化するため CSP inline 問題なし。
+//   ※ タブを追加する場合: TABS配列に1件足す→下のpanels配列にも同じkeyで1件足すだけでOK
+//     （.asr-tabはflex:1 1 0で均等割り、3〜4枚まではこのままレイアウトが破綻しない設計）。
 import { SHOP } from '../lib/config';
 const yobuhoUrl = SHOP.yobuhoUrl;
+
+const TABS = [
+  { key: 'care', icon: '👛', label: 'お釣りは<strong>その場で</strong>' },
+  { key: 'hotel', icon: '🏨', label: 'その<strong>ホテル、呼べる？</strong>' },
+];
 ---
 <section class="asr-section" aria-label="当店のこだわり・ホテルのご相談">
   <div class="asr glass-card" data-asr-root>
-    <div class="asr-tabs">
-      <button type="button" class="asr-tab" data-asr="care" aria-expanded="false" aria-controls="asr-panel-care">
-        <span class="asr-tab-icon" aria-hidden="true">👛</span>
-        <span class="asr-tab-label">お釣りは<strong>その場で</strong></span>
-        <span class="asr-tab-toggle" aria-hidden="true">▾</span>
-      </button>
-      <span class="asr-sep" aria-hidden="true"></span>
-      <button type="button" class="asr-tab" data-asr="hotel" aria-expanded="false" aria-controls="asr-panel-hotel">
-        <span class="asr-tab-icon" aria-hidden="true">🏨</span>
-        <span class="asr-tab-label">その<strong>ホテル、呼べる？</strong></span>
-        <span class="asr-tab-toggle" aria-hidden="true">▾</span>
-      </button>
+    <div class="asr-tabs" role="tablist">
+      {TABS.map((t) => (
+        <button
+          type="button"
+          class="asr-tab"
+          data-asr={t.key}
+          role="tab"
+          aria-selected="false"
+          aria-expanded="false"
+          aria-controls={`asr-panel-${t.key}`}
+        >
+          <span class="asr-tab-icon" aria-hidden="true">{t.icon}</span>
+          <span class="asr-tab-label" set:html={t.label} />
+        </button>
+      ))}
     </div>
 
     <div class="asr-panel" id="asr-panel-care" data-asr-panel="care" hidden>
@@ -55,11 +66,16 @@ const yobuhoUrl = SHOP.yobuhoUrl;
       tab.addEventListener('click', () => {
         const key = tab.getAttribute('data-asr');
         const wasOpen = tab.classList.contains('is-open');
-        tabs.forEach((t) => { t.classList.remove('is-open'); t.setAttribute('aria-expanded', 'false'); });
+        tabs.forEach((t) => {
+          t.classList.remove('is-open');
+          t.setAttribute('aria-expanded', 'false');
+          t.setAttribute('aria-selected', 'false');
+        });
         panels.forEach((p) => { p.hidden = true; });
         if (!wasOpen && key) {
           tab.classList.add('is-open');
           tab.setAttribute('aria-expanded', 'true');
+          tab.setAttribute('aria-selected', 'true');
           const panel = root.querySelector<HTMLElement>(`[data-asr-panel="${key}"]`);
           if (panel) panel.hidden = false;
         }
@@ -75,15 +91,13 @@ const yobuhoUrl = SHOP.yobuhoUrl;
     border-radius: 16px;
     overflow: hidden;
   }
-  /* ---- 1行タブ ---- */
+  /* ---- タブトレイ（非アクティブ=沈む／アクティブ=浮いてパネルと同化） ---- */
   .asr-tabs {
     display: flex;
     align-items: stretch;
-  }
-  .asr-sep {
-    flex: 0 0 1px;
-    background: rgba(255, 79, 216, .3);
-    margin: 9px 0;
+    gap: 4px;
+    padding: 7px 7px 0;
+    background: var(--bg-1);
   }
   .asr-tab {
     flex: 1 1 0;
@@ -92,52 +106,66 @@ const yobuhoUrl = SHOP.yobuhoUrl;
     align-items: center;
     justify-content: center;   /* タイトル中央揃え（従来踏襲） */
     gap: 5px;
-    padding: 12px 5px;
-    background: none;
+    padding: 10px 5px 11px;
+    background: transparent;
     border: none;
+    border-radius: 10px 10px 0 0;
     cursor: pointer;
     font-family: inherit;
+    position: relative;
     -webkit-tap-highlight-color: transparent;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .asr-tab::after {
+    /* アクティブタブの下線バー（タブらしさの要） */
+    content: '';
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 0;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: transparent;
     transition: background .15s ease;
   }
-  .asr-tab.is-open { background: rgba(255, 79, 216, .08); }
+  .asr-tab.is-open {
+    background: var(--bg-0);
+    box-shadow: 0 -3px 10px -2px rgba(255, 79, 216, .22);
+  }
+  .asr-tab.is-open::after {
+    background: linear-gradient(90deg, var(--neon-pink-hot), var(--lav-soft));
+  }
   .asr-tab-icon {
     font-size: 1.2rem;
     line-height: 1;
     flex: 0 0 auto;
+    opacity: .72;
     filter: drop-shadow(0 1px 4px rgba(255, 79, 216, .45));
+    transition: opacity .15s ease;
   }
+  .asr-tab.is-open .asr-tab-icon { opacity: 1; }
   .asr-tab-label {
     font-size: .78rem;
     font-weight: 800;
     line-height: 1.3;
-    color: var(--text-soft);
+    color: var(--text-mute);   /* 非アクティブは沈んだ色 */
     min-width: 0;
     white-space: nowrap;       /* 常時1行（はみ出す時のみ…） */
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color .15s ease;
   }
-  .asr-tab-label strong { color: var(--neon-pink); }
-  .asr-tab-toggle {
-    display: none;             /* 狭幅ではスペース優先で▾非表示（is-openの背景で状態表示） */
-    flex: 0 0 auto;
-    color: var(--neon-pink);
-    font-size: 1rem;
-    line-height: 1;
-    transition: transform .2s ease;
-  }
-  .asr-tab.is-open .asr-tab-toggle { transform: rotate(180deg); }
-  @media (min-width: 420px) {
-    .asr-tab-toggle { display: block; }
-  }
-  /* ---- 展開パネル（本文はモーダル風カード時と同スタイル） ---- */
+  .asr-tab.is-open .asr-tab-label { color: var(--text-soft); }
+  .asr-tab-label strong { color: inherit; }
+  .asr-tab.is-open .asr-tab-label strong { color: var(--neon-pink); }
+  /* ---- 展開パネル（アクティブタブと同じ --bg-0 でシームレスに接続） ---- */
   .asr-panel {
     font-size: .86rem;
     line-height: 1.85;
     color: var(--text-mute);
     margin: 0;
-    padding: 6px 16px 14px;
-    border-top: 1px solid rgba(255, 79, 216, .22);
+    padding: 14px 16px 16px;
+    background: var(--bg-0);
   }
   .asr-panel p { margin: 0; }
   .asr-panel p + p { margin-top: .85em; }
@@ -172,18 +200,18 @@ const yobuhoUrl = SHOP.yobuhoUrl;
   .asr-cta-arrow { font-weight: 900; margin-left: 1px; }
   /* ---- 狭幅・PC調整 ---- */
   @media (max-width: 374px) {
-    .asr-tab { gap: 4px; padding: 12px 4px; }
+    .asr-tab { gap: 4px; padding: 10px 4px 11px; }
     .asr-tab-label { font-size: .72rem; }
     .asr-tab-icon { font-size: 1.1rem; }
   }
   @media (min-width: 641px) {
-    .asr-tab { gap: 8px; padding: 14px 12px; }
+    .asr-tab { gap: 8px; padding: 13px 12px 14px; }
     .asr-tab-icon { font-size: 1.45rem; }
     .asr-tab-label { font-size: .95rem; }
-    .asr-panel { font-size: .94rem; padding: 8px 20px 16px; }
+    .asr-panel { font-size: .94rem; padding: 16px 20px 18px; }
     .asr-cta { font-size: .96rem; padding: 11px 26px; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .asr-tab, .asr-tab-toggle, .asr-cta { transition: none; }
+    .asr-tab, .asr-tab-icon, .asr-tab-label, .asr-tab::after, .asr-cta { transition: none; }
   }
 </style>
