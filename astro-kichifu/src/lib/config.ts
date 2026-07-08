@@ -21,6 +21,7 @@ export const SHOP = {
   lineUrl: 'https://line.me/ti/p/L4-1uY6q2e',
   recruitUrl: 'https://kanto.qzin.jp/admi2888/?v=official',
   fujohoId: '53179',
+  yobuhoUrl: '', // 吉祥寺の YobuHo 店舗URL（後日設定。空の間はホテル検索ボタン非表示）
 };
 
 const FID = SHOP.fujohoId;

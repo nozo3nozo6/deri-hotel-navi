@@ -23,6 +23,7 @@ export const SHOP = {
   lineUrl: 'https://line.me/ti/p/L4-1uY6q2e',
   recruitUrl: 'https://kanto.qzin.jp/admi2888/?v=official',
   fujohoId: '57',
+  yobuhoUrl: 'https://yobuho.com/deli/shop/0tkzk670/', // 呼べるホテル検索 YobuHo の当店ページ（空ならボタン非表示）
 };
 
 const FID = SHOP.fujohoId;
