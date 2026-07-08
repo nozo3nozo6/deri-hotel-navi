@@ -14,6 +14,7 @@ const gvV = ver('public/girl-visibility.js');
 const bannerSliderV = ver('public/banner-slider.js');
 const sliderLatestV = ver('public/slider-latest.js');
 const newsV = ver('public/news-latest.js');
+const bannerLatestV = ver('public/banner-latest.js');
 
 // 女の子カードのアイコン（フラグ）の見かた＝凡例。タップでモーダル説明。
 const ICON_LEGEND = [
@@ -216,9 +217,9 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
        古い写真/削除済みカードが目に見える時間が長かった（2026-07-08 修正） -->
   <script is:inline src={`/girl-visibility.js?v=${gvV}`}></script>
 
-  <!-- 下部バナー（管理画面 /ctrl で設定）= バナーエリア ====================== -->
-  {bottomBanners.length ? (
-  <section class="bottom-banner-section">
+  <!-- 下部バナー（管理画面 /ctrl で設定）= バナーエリア ======================
+       0枚でもセクションを常設し、banner-latest.js が client 補正（0→1枚目/差し替え/全消しも即反映） -->
+  <section class="bottom-banner-section" data-bottom-banners style={bottomBanners.length ? '' : 'display:none'}>
     <hr class="holo-divider bottom-banner-divider" />
     <div class="bottom-banner-grid">
       {bottomBanners.map((b) => (
@@ -228,7 +229,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
       ))}
     </div>
   </section>
-  ) : null}
+  <script is:inline src={`/banner-latest.js?v=${bannerLatestV}`}></script>
 
   <script is:inline src={`/schedule-badge.js?v=${schedV}`}></script>
   <script is:inline src={`/schedule-page.js?v=${schedPageV}`}></script>

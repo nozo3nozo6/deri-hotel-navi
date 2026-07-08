@@ -77,4 +77,9 @@ DirectorySlash Off
 
   # /diary/[id] の静的 .html が未生成の場合 PHP で動的フォールバック（cron取込後の新規日記用）
   RewriteRule ^diary/([0-9]+)/?$ /diary-ssr.php?id=$1 [L]
+
+  # /girls/[id] の静的 .html が未生成（=CTRLで新規登録直後）の場合 PHP で動的フォールバック
+  #   既存女性=SSG（girl-detail-refresh.jsで即時補正）/ 新規女性=girls-ssr.php＝登録直後から404にならない
+  RewriteCond %{DOCUMENT_ROOT}/girls/$1.html !-f
+  RewriteRule ^girls/([0-9]+)/?$ /girls-ssr.php?id=$1 [L]
 </IfModule>
