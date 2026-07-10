@@ -15,7 +15,7 @@ const yobuhoUrl = SHOP.yobuhoUrl;
 const TABS = [
   { key: 'care', icon: '👛', i18nKey: 'asr_tab_care_html', label: 'お釣りは<strong>その場で</strong>' },
   { key: 'hotel', icon: '🏨', i18nKey: 'asr_tab_hotel_html', label: 'その<strong>ホテル、呼べる？</strong>' },
-  { key: 'lang', icon: '🌐', i18nKey: 'asr_tab_lang', label: 'Language' },
+  { key: 'lang', icon: '🌐', i18nKey: 'asr_tab_lang', label: '言語' },
 ];
 
 // Language タブ内の国旗スイッチャー（ylka.jp と同じ5言語）。クリックは i18n.js が
@@ -138,6 +138,9 @@ const LANGS = [
     -webkit-tap-highlight-color: transparent;
     transition: background .15s ease, transform .15s ease;
   }
+  /* 言語タブは幅を内容ぶんに狭め、左2タブ(お釣り/ホテル)に余白を回す＝日本語ラベルの…を減らす */
+  .asr-tab[data-asr="lang"] { flex: 0 1 auto; }
+  .asr-tab[data-asr="lang"] .asr-tab-label { white-space: nowrap; }
   .asr-tab::after {
     /* アクティブタブの下線バー（タブらしさの要） */
     content: '';
