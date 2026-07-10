@@ -48,9 +48,9 @@ ssr_header($SSR);
     <div class="neon-room"></div>
     <div class="wrap-md" style="position:relative;z-index:1">
       <nav class="breadcrumb">
-        <a href="/top">トップ</a>
+        <a href="/top" data-i18n="nav_top">トップ</a>
         <span class="breadcrumb-sep">›</span>
-        <span>写メ日記</span>
+        <span data-i18n="nav_diary">写メ日記</span>
       </nav>
 
       <p class="news-detail-date"><?= ssr_h($date) ?><?php if ($d['girl_name']): ?><span style="margin-left:8px"><?= ssr_h($d['girl_name']) ?></span><?php endif; ?></p>
@@ -67,7 +67,7 @@ ssr_header($SSR);
         <div class="prose-neon"><?= $bodyOut ?></div>
       <?php endif; ?>
 
-      <?php if ($profUrl): ?><p style="margin-top:32px"><a href="<?= ssr_h($profUrl) ?>" class="section-more glossy-pill"><?= ssr_h($d['girl_name']) ?>のプロフィール</a></p><?php endif; ?>
+      <?php if ($profUrl): ?><p style="margin-top:32px"><a href="<?= ssr_h($profUrl) ?>" class="section-more glossy-pill"><?= ssr_h($d['girl_name']) ?><span data-i18n="diary_profile_suffix">のプロフィール</span></a></p><?php endif; ?>
     </div>
   </section>
 </main>

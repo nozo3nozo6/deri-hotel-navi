@@ -122,9 +122,9 @@ ssr_header($SSR);
     <div class="wrap-lg" style="position:relative;z-index:1">
 
       <nav class="breadcrumb">
-        <a href="/top">トップ</a>
+        <a href="/top" data-i18n="nav_top">トップ</a>
         <span class="breadcrumb-sep">›</span>
-        <a href="/girls">すけべな女の子達</a>
+        <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
         <span class="breadcrumb-sep">›</span>
       </nav>
 
@@ -159,25 +159,25 @@ ssr_header($SSR);
         <!-- 右: 詳細 -->
         <div>
           <div class="girl-flags">
-            <?php if ($isNew): ?><img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" /><?php endif; ?>
-            <?php if (!empty($g['is_trial'])): ?><img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" /><?php endif; ?>
-            <?php if (!empty($g['is_inbound'])): ?><img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" /><?php endif; ?>
-            <?php if (!empty($g['is_genderless'])): ?><img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" /><?php endif; ?>
-            <?php if (!empty($g['is_tel'])): ?><img src="/img/flag-tel.png" class="girl-flag-icon" width="128" height="128" alt="電話" title="電話" /><?php endif; ?>
+            <?php if ($isNew): ?><img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" /><?php endif; ?>
+            <?php if (!empty($g['is_trial'])): ?><img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" data-i18n-attr="alt=flag_machiawase, title=flag_machiawase" /><?php endif; ?>
+            <?php if (!empty($g['is_inbound'])): ?><img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" data-i18n-attr="alt=flag_inbound, title=flag_inbound" /><?php endif; ?>
+            <?php if (!empty($g['is_genderless'])): ?><img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" data-i18n-attr="alt=flag_genderless, title=flag_genderless" /><?php endif; ?>
+            <?php if (!empty($g['is_tel'])): ?><img src="/img/flag-tel.png" class="girl-flag-icon" width="128" height="128" alt="電話" title="電話" data-i18n-attr="alt=flag_tel, title=flag_tel" /><?php endif; ?>
           </div>
 
           <?php if (!empty($g['catch_copy'])): ?>
-          <p class="girl-catch">「<?= ssr_h($g['catch_copy']) ?>」</p>
+          <p class="girl-catch">「<span data-i18n-dynamic><?= ssr_h($g['catch_copy']) ?></span>」</p>
           <?php endif; ?>
 
           <?php if ($tags): ?>
           <div class="girl-tags">
-            <?php foreach ($tags as $t): ?><span class="girl-tag-chip"><?= ssr_h($t) ?></span><?php endforeach; ?>
+            <?php foreach ($tags as $t): ?><span class="girl-tag-chip" data-i18n-dynamic><?= ssr_h($t) ?></span><?php endforeach; ?>
           </div>
           <?php endif; ?>
 
           <?php if ($g['height'] || $g['bust'] || $g['cup'] || $g['waist'] || $g['hip']): ?>
-          <p class="section-label">身長・スリーサイズ</p>
+          <p class="section-label" data-i18n="girl_sizes_label">身長・スリーサイズ</p>
           <div class="girl-size-grid">
             <div class="girl-size-item"><span class="girl-size-label">T</span><span class="girl-size-val"><?= $g['height'] ? (int)$g['height'] : '—' ?></span></div>
             <div class="girl-size-item"><span class="girl-size-label">B</span><span class="girl-size-val"><?= $g['bust'] ? (int)$g['bust'] : '—' ?></span></div>
@@ -188,42 +188,42 @@ ssr_header($SSR);
           <?php endif; ?>
 
           <?php if ($shopComment !== ''): ?>
-          <p class="section-label" style="font-size:.95rem;margin-top:32px">お店からのメッセージ</p>
-          <div class="girl-shop-comment"><?= $shopComment ?></div>
+          <p class="section-label" style="font-size:.95rem;margin-top:32px" data-i18n="girl_shop_message_label">お店からのメッセージ</p>
+          <div class="girl-shop-comment" data-i18n-dynamic><?= $shopComment ?></div>
           <?php endif; ?>
 
           <?php if ($profiles): ?>
-          <p class="section-label" style="font-size:.95rem;margin-top:32px"><?= ssr_h($g['name']) ?>さんに質問</p>
+          <p class="section-label" style="font-size:.95rem;margin-top:32px" data-i18n-dynamic><?= ssr_h($g['name']) ?>さんに質問</p>
           <table class="girl-profile-table">
             <?php foreach ($profiles as $pf): ?>
-            <tr><th><?= ssr_h($pf['name']) ?></th><td><?= ssr_h($pf['value']) ?></td></tr>
+            <tr><th data-i18n-dynamic><?= ssr_h($pf['name']) ?></th><td data-i18n-dynamic><?= ssr_h($pf['value']) ?></td></tr>
             <?php endforeach; ?>
           </table>
           <?php endif; ?>
 
           <?php if ($basicPlay): ?>
-          <p class="section-label play-label">基本プレイ</p>
+          <p class="section-label play-label" data-i18n="girl_basic_play_label">基本プレイ</p>
           <div class="girl-options">
-            <?php foreach ($basicPlay as $o): ?><span class="play-chip"><?= ssr_h($o) ?></span><?php endforeach; ?>
+            <?php foreach ($basicPlay as $o): ?><span class="play-chip" data-i18n-dynamic><?= ssr_h($o) ?></span><?php endforeach; ?>
           </div>
           <?php endif; ?>
 
           <?php if ($optionPlay): ?>
-          <p class="section-label play-label play-label-option">オプションプレイ</p>
+          <p class="section-label play-label play-label-option" data-i18n="girl_option_play_label">オプションプレイ</p>
           <div class="girl-options">
-            <?php foreach ($optionPlay as $o): ?><span class="play-chip is-option"><?= ssr_h($o) ?></span><?php endforeach; ?>
+            <?php foreach ($optionPlay as $o): ?><span class="play-chip is-option" data-i18n-dynamic><?= ssr_h($o) ?></span><?php endforeach; ?>
           </div>
           <?php endif; ?>
 
           <!-- 週間出勤予定（schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
           <div id="girl-week" class="girl-week" data-girl-id="<?= (int)$g['id'] ?>" style="display:none">
-            <p class="section-label">📅 週間出勤予定</p>
+            <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
             <div class="gw-body"></div>
           </div>
 
           <?php if ($ownComment !== ''): ?>
-          <p class="section-label"><?= ssr_h($g['name']) ?>からの一言</p>
-          <div class="comment-box"><?= $ownComment ?></div>
+          <p class="section-label" data-i18n-dynamic><?= ssr_h($g['name']) ?>からの一言</p>
+          <div class="comment-box" data-i18n-dynamic><?= $ownComment ?></div>
           <?php endif; ?>
 
         </div>
@@ -234,13 +234,13 @@ ssr_header($SSR);
 
 <!-- ネオン・ライトボックス（site.js がイベント委譲で駆動） -->
 <div class="lightbox" id="lightbox" data-lightbox aria-hidden="true" role="dialog" aria-label="<?= ssr_h($g['name']) ?> 写真ビューア">
-  <button class="lightbox-close" data-lightbox-close aria-label="閉じる">✕</button>
-  <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真">‹</button>
+  <button class="lightbox-close" data-lightbox-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
+  <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真" data-i18n-attr="aria-label=lightbox_prev">‹</button>
   <div class="lightbox-stage">
     <img class="lightbox-img" id="lightboxImg" src="" alt="<?= ssr_h($g['name']) ?>" />
     <span class="lightbox-sparkles" id="lightboxSparkles" aria-hidden="true"></span>
   </div>
-  <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真">›</button>
+  <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真" data-i18n-attr="aria-label=lightbox_next">›</button>
   <div class="lightbox-dots" id="lightboxDots" aria-hidden="true"></div>
   <div class="lightbox-counter" id="lightboxCounter"></div>
 </div>

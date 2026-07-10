@@ -69,15 +69,15 @@ ssr_header($SSR);
     <div class="neon-room"></div>
     <div class="wrap-md" style="position:relative;z-index:1">
       <nav class="breadcrumb">
-        <a href="/top">トップ</a>
+        <a href="/top" data-i18n="nav_top">トップ</a>
         <span class="breadcrumb-sep">›</span>
-        <a href="/news">お知らせ</a>
+        <a href="/news" data-i18n="nav_news">お知らせ</a>
         <span class="breadcrumb-sep">›</span>
-        <span><?= ssr_h($it['title']) ?></span>
+        <span data-i18n-dynamic><?= ssr_h($it['title']) ?></span>
       </nav>
 
       <p class="news-detail-date"><?= ssr_h($date) ?></p>
-      <h1 class="news-detail-title"><?= ssr_h($it['title']) ?></h1>
+      <h1 class="news-detail-title" data-i18n-dynamic><?= ssr_h($it['title']) ?></h1>
 
       <?php if ($it['thumb']): ?>
         <?php if ($thumbLink): ?>
@@ -92,11 +92,11 @@ ssr_header($SSR);
       <?php endif; ?>
 
       <?php if ($body): ?>
-        <div class="prose-neon"><?= $bodyOut ?></div>
+        <div class="prose-neon" data-i18n-dynamic><?= $bodyOut ?></div>
       <?php endif; ?>
 
       <p style="margin-top:40px">
-        <a href="/news" class="back-link">← お知らせ一覧に戻る</a>
+        <a href="/news" class="back-link" data-i18n="news_back_to_list">← お知らせ一覧に戻る</a>
       </p>
     </div>
   </section>
