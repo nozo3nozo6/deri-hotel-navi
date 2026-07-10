@@ -51,6 +51,10 @@ $bodyOut   = $bodyIsHtml
 // 本文HTML内の画像パスを admi2888 絶対URLに正規化（旧kichifu絶対 + 相対 両対応）
 $bodyOut = preg_replace('#https?://kichifu\.com(/uploads/)#', 'https://admi2888.com$1', $bodyOut);   // 旧kichifu絶対→admi2888
 $bodyOut = preg_replace('#(?<=["\'])(/uploads/)#', 'https://admi2888.com$1', $bodyOut);              // 相対→admi2888
+// 本文中の「自サイト(admi2888/kichifu)への絶対リンク」を相対化＝閲覧中サイト内に留める（img srcの/uploads/は除外）。
+//   2店舗共有本文で別ドメイン絶対URLが入っても admi→kichifu / kichifu→admi のクロスサイト遷移を防ぐ。
+$bodyOut = preg_replace('#href="https?://(?:www\.)?(?:admi2888|kichifu)\.com(/(?!uploads/)[^"]*)"#i', 'href="$1"', $bodyOut);
+$bodyOut = preg_replace('#href="https?://(?:www\.)?(?:admi2888|kichifu)\.com"#i', 'href="/"', $bodyOut);
 $bodyOut = ssr_localize_body($bodyOut, $SSR);   // 本文の電話を当店番号に統一（他店登録の2店舗掲載対策）
 
 $desc = mb_strimwidth(strip_tags($body), 0, 120, '…');
@@ -59,6 +63,11 @@ $desc = mb_strimwidth(strip_tags($body), 0, 120, '…');
 $thumbLink = !empty($it['link_girl_id'])
     ? '/girls/' . (int)$it['link_girl_id']
     : (!empty($it['link_url']) ? $it['link_url'] : null);
+// 手動URLが自サイト絶対URLなら相対化（クロスサイト遷移防止）
+if ($thumbLink) {
+    $thumbLink = preg_replace('#^https?://(?:www\.)?(?:admi2888|kichifu)\.com(?=/|$)#i', '', $thumbLink);
+    if ($thumbLink === '') $thumbLink = '/';
+}
 
 header('Cache-Control: no-store');
 ssr_head($SSR, $it['title'], $desc, false, ssr_canonical($SSR, '/news/' . $id));  // お知らせ=index

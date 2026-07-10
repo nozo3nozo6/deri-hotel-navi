@@ -26,17 +26,24 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
+  // 自サイト(admi2888/kichifu)への絶対URLは相対パス化＝閲覧中サイト内に留める（config.ts localUrl と同じ）
+  function localUrl(u) {
+    if (!u) return '';
+    var rel = String(u).replace(/^https?:\/\/(www\.)?(admi2888\.com|kichifu\.com)(?=\/|$)/i, '');
+    return rel === '' ? '/' : rel;
+  }
   // top.astro の bottom-banner-item と同一構造
   function itemHtml(b) {
     var img = '<img src="' + esc(assetUrl(b.image)) + '" alt="' + esc(b.title) + '" loading="lazy" />';
     return b.url
-      ? '<a href="' + esc(b.url) + '" target="_self" rel="noopener" class="bottom-banner-item">' + img + '</a>'
+      ? '<a href="' + esc(localUrl(b.url)) + '" target="_self" rel="noopener" class="bottom-banner-item">' + img + '</a>'
       : '<span class="bottom-banner-item">' + img + '</span>';
   }
   // 差分判定用の署名（画像URL＋リンクURL＋タイトル）。slider-latest.js と同方式。
   function liveSig(live) {
     return live.map(function (b) {
-      return assetUrl(b.image) + '|' + (b.url || '') + '|' + (b.title || '');
+      // href は localUrl 適用後の値で描画されるので、署名も同じ値で比較（毎回再描画を防ぐ）
+      return assetUrl(b.image) + '|' + localUrl(b.url) + '|' + (b.title || '');
     }).join('~~');
   }
   function currSig() {

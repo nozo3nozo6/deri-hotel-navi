@@ -1,6 +1,6 @@
 ---
 import Site from '../../layouts/Site.astro';
-import { SHOP, asset, ASSET_ORIGIN, localizeBody } from '../../lib/config';
+import { SHOP, asset, ASSET_ORIGIN, localizeBody, localUrl } from '../../lib/config';
 import { getNews, getNewsItem } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -12,7 +12,7 @@ const { id } = Astro.params;
 const it = await getNewsItem(Number(id));
 
 // サムネのリンク先: ガールズ優先 → URL → どちらも無ければ null（リンク無し）
-const thumbLink = it ? (it.link_girl_id ? `/girls/${it.link_girl_id}` : (it.link_url || null)) : null;
+const thumbLink = it ? (it.link_girl_id ? `/girls/${it.link_girl_id}` : (it.link_url ? localUrl(it.link_url) : null)) : null;
 
 const date = it && it.posted_at ? (function (s) { var d = s.slice(0, 10).split('-'), y = +d[0], mo = +d[1], da = +d[2], w = '日月火水木金土'[new Date(y, mo - 1, da).getDay()]; return y + '年' + mo + '月' + da + '日(' + w + ')' + (s.length > 10 ? ' ' + s.slice(11, 16).replace(/^0/, '') : ''); })(it.posted_at) : '';
 const excerpt = it && it.body

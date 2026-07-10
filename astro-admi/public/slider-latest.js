@@ -28,6 +28,12 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
+  // 自サイト(admi2888/kichifu)への絶対URLは相対パス化＝閲覧中サイト内に留める（config.ts localUrl と同じ）
+  function localUrl(u) {
+    if (!u) return '';
+    var rel = String(u).replace(/^https?:\/\/(www\.)?(admi2888\.com|kichifu\.com)(?=\/|$)/i, '');
+    return rel === '' ? '/' : rel;
+  }
   // top.astro の hero-slide と同一構造（image_sp あれば <picture>）
   function slideHtml(s) {
     var pc = assetUrl(s.image_pc || s.image_sp);
@@ -35,7 +41,7 @@
     var img = sp
       ? '<picture><source media="(max-width:640px)" srcset="' + esc(sp) + '"><img src="' + esc(pc) + '" alt="' + esc(s.title) + '"></picture>'
       : '<img src="' + esc(pc) + '" alt="' + esc(s.title) + '">';
-    var inner = s.url ? '<a href="' + esc(s.url) + '" target="_self" rel="noopener">' + img + '</a>' : img;
+    var inner = s.url ? '<a href="' + esc(localUrl(s.url)) + '" target="_self" rel="noopener">' + img + '</a>' : img;
     return '<div class="hero-slide">' + inner + '</div>';
   }
 
@@ -44,7 +50,8 @@
   // getAttribute で元の値にデコードされるため、SSG側とAPI側の署名は損失なく一致する）。
   function liveSig(live) {
     return live.map(function (s) {
-      return assetUrl(s.image_pc || s.image_sp) + '|' + (s.url || '') + '|' + (s.title || '');
+      // href は localUrl 適用後の値で描画されるので、署名も同じ値で比較（毎回再描画を防ぐ）
+      return assetUrl(s.image_pc || s.image_sp) + '|' + localUrl(s.url) + '|' + (s.title || '');
     }).join('~~');
   }
   function currSig() {

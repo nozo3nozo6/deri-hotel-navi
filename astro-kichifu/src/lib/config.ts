@@ -53,6 +53,15 @@ export function asset(path: string | null | undefined): string {
   return ASSET_ORIGIN + (path.startsWith('/') ? path : '/' + path);
 }
 
+// リンクURLの正規化: 自サイト(admi2888.com / kichifu.com)への絶対URLは相対パス化し、
+//   常に「閲覧中のサイト内」に留める。CTRLで別ドメインの絶対URLが入っても、2店舗共有データでも、
+//   admi→kichifu / kichifu→admi のクロスサイト遷移を防ぐ。外部URL(ranking-deli等)はそのまま。
+export function localUrl(u: string | null | undefined): string {
+  if (!u) return '';
+  const rel = u.replace(/^https?:\/\/(www\.)?(admi2888\.com|kichifu\.com)(?=\/|$)/i, '');
+  return rel === '' ? '/' : rel;
+}
+
 // 特徴タグ名 → 絵文字アイコン（_inc/shop.php tag_emoji と同期）
 const TAG_EMOJI: Record<string, string> = {
   'オススメ': '⭐', '素人': '🔰', '未経験': '🌱', '可愛い系': '🎀',

@@ -4,7 +4,7 @@ import Fujoho from '../components/Fujoho.astro';
 import HimeDiary from '../components/HimeDiary.astro';
 import AssureTabs from '../components/AssureTabs.astro';
 import { getGirls, getNews, getBanners, getSliders } from '../lib/api';
-import { asset, SHOP, FUJOHO, isNewcomer } from '../lib/config';
+import { asset, localUrl, SHOP, FUJOHO, isNewcomer } from '../lib/config';
 import GirlCardItem from '../components/GirlCardItem.astro';
 import { statSync } from 'node:fs';
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
@@ -66,7 +66,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
           );
           return (
             <div class="hero-slide">
-              {s.url ? <a href={s.url} target="_self" rel="noopener">{img}</a> : img}
+              {s.url ? <a href={localUrl(s.url)} target="_self" rel="noopener">{img}</a> : img}
             </div>
           );
         })}
@@ -224,7 +224,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
     <div class="bottom-banner-grid">
       {bottomBanners.map((b) => (
         b.url
-          ? <a href={b.url} target="_self" rel="noopener" class="bottom-banner-item"><img src={asset(b.image)} alt={b.title} loading="lazy" /></a>
+          ? <a href={localUrl(b.url)} target="_self" rel="noopener" class="bottom-banner-item"><img src={asset(b.image)} alt={b.title} loading="lazy" /></a>
           : <span class="bottom-banner-item"><img src={asset(b.image)} alt={b.title} loading="lazy" /></span>
       ))}
     </div>
