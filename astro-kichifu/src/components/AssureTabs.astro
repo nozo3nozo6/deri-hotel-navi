@@ -167,8 +167,32 @@ const TABS = [
     padding: 14px 16px 16px;
     background: var(--bg-0);
   }
-  .asr-panel p { margin: 0; }
-  .asr-panel p + p { margin-top: .85em; }
+  .asr-panel p { margin: 0; position: relative; }
+  .asr-panel p + p { margin-top: 1.5em; padding-top: 1.4em; }
+  /* 段落の切れ目＝改行部分に可愛い区切りライン（グラデーション＋中央ハート、section-topperと同じ意匠のミニ版） */
+  .asr-panel p + p::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-pink-hot) 25%, var(--lav-soft) 50%, var(--neon-pink-hot) 75%, transparent);
+  }
+  .asr-panel p + p::after {
+    content: '♡';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -52%);
+    font-size: .6rem;
+    line-height: 1;
+    color: var(--neon-pink);
+    background: var(--bg-0);
+    background-clip: border-box;      /* 3段落目(ホログラムグラデ文字)の background-clip:text が継承されないよう明示リセット */
+    -webkit-text-fill-color: var(--neon-pink); /* 同上、-webkit-text-fill-color:transparent の継承で♡が消えるのを防ぐ */
+    padding: 0 7px;
+  }
   /* 段落ごとのY2Kカラー（両テーマで可読な変数のみ使用） */
   .asr-panel p:nth-of-type(1) { color: var(--neon-pink-hot); font-weight: 600; }
   .asr-panel p:nth-of-type(2) { color: var(--lav-soft); font-weight: 600; }
