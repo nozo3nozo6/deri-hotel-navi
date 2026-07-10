@@ -139,6 +139,13 @@ body[data-mode="men"] .genre-hero-title {
 }
 @keyframes men-marker { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
 body[data-mode="men"] .genre-hero-sub { color: #5a555a !important; }
+/* モバイル: マストヘッド添字を1行に収める */
+@media (max-width: 640px) {
+    body[data-mode="men"] .genre-hero-inner::before {
+        font-size: 8px;
+        letter-spacing: 0.2em;
+    }
+}
 
 /* ── エリアセクション: 頭に黒2px上罫（誌面の段組罫） ── */
 body[data-mode="men"] .area-section {
@@ -182,7 +189,8 @@ body[data-mode="men"] .fav-bar-btn {
 }
 body[data-mode="men"] .fav-bar-btn:hover { color: #c73364 !important; border-color: #c73364 !important; }
 
-/* ── エリアボタン: 白面 + 黒細罫、hoverでピンク下罫がスッと伸びる ── */
+/* ── エリアボタン: 白面 + 黒細罫、左下に常時ショートマーカー ──
+   2層背景: [1]全幅スイープ(hover/activeで0%→100%) [2]常時44pxのピンク線（静的意匠、スマホでも見える） */
 body[data-mode="men"] .area-btn {
     background-color: #ffffff !important;
     border: 1px solid #1a171a !important;
@@ -195,20 +203,31 @@ body[data-mode="men"] .area-btn {
     color: #1a171a !important;
     letter-spacing: 0.03em;
     overflow: hidden;
-    background-image: linear-gradient(#e8517e, #e8517e) !important;
+    background-image: linear-gradient(#e8517e, #e8517e), linear-gradient(#e8517e, #e8517e) !important;
     background-repeat: no-repeat !important;
-    background-position: left bottom !important;
-    background-size: 0% 3px !important;
+    background-position: left bottom, left bottom !important;
+    background-size: 0% 3px, 44px 3px !important;
     transition: background-size 0.25s, box-shadow 0.25s !important;
 }
 body[data-mode="men"] .area-btn::before { display: none !important; }
-body[data-mode="men"] .area-btn:hover {
-    border-color: #1a171a !important;
-    color: #1a171a !important;
-    background-size: 100% 3px !important;
-    box-shadow: 4px 4px 0 rgba(232,81,126,0.16) !important;
-    transform: none !important;
+/* ホバー演出はマウス環境のみ（タッチのスティッキーホバー防止） */
+@media (hover: hover) {
+    body[data-mode="men"] .area-btn:hover {
+        border-color: #1a171a !important;
+        color: #1a171a !important;
+        background-size: 100% 3px, 44px 3px !important;
+        box-shadow: 4px 4px 0 rgba(232,81,126,0.16) !important;
+        transform: none !important;
+    }
+    body[data-mode="men"] .area-btn:hover::after { color: #c73364; }
 }
+/* タッチ: 押した瞬間にピンクの線が走る + 押し込み */
+body[data-mode="men"] .area-btn:active {
+    background-size: 100% 3px, 44px 3px !important;
+    box-shadow: 2px 2px 0 rgba(232,81,126,0.20) !important;
+    transform: translateY(1px) !important;
+}
+body[data-mode="men"] .area-btn:active::after { color: #c73364; }
 body[data-mode="men"] .area-btn::after {
     content: '›';
     position: absolute;
@@ -220,7 +239,26 @@ body[data-mode="men"] .area-btn::after {
     font-weight: 300;
     transition: color 0.2s;
 }
-body[data-mode="men"] .area-btn:hover::after { color: #c73364; }
+
+/* ── 地域グリッド（全国ページ）: 雑誌の目次番号 01–11 を常時表示 ── */
+body[data-mode="men"] .area-grid.region-level { counter-reset: region-idx; }
+body[data-mode="men"] .area-grid.region-level .area-btn { counter-increment: region-idx; }
+body[data-mode="men"] .area-grid.region-level .area-btn::before {
+    content: counter(region-idx, decimal-leading-zero) !important;
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    background: none !important;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11px;
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: 0.22em;
+    line-height: 1;
+    color: #c73364;
+    margin: 0 0 4px 0;
+}
 
 /* エリアボタン横崩れ防止（pc: flex化・city-name nowrap） */
 @media (min-width: 641px) {
@@ -331,6 +369,15 @@ body[data-mode="men"] .hotel-card-lux {
     color: #1a171a;
     transition: box-shadow 0.25s, transform 0.25s !important;
 }
+/* 左下の常時ショートマーカー（静的意匠、スマホでも見える） */
+body[data-mode="men"] .hotel-card-lux::before {
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 44px; height: 3px;
+    background: #e8517e;
+    z-index: 1;
+}
 body[data-mode="men"] .hotel-card-lux::after {
     content: '';
     position: absolute;
@@ -340,13 +387,19 @@ body[data-mode="men"] .hotel-card-lux::after {
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.3s cubic-bezier(.6,0,.2,1);
+    z-index: 2;
 }
-body[data-mode="men"] .hotel-card-lux:hover {
-    border-color: #1a171a !important;
-    box-shadow: 6px 6px 0 rgba(26,23,26,0.08) !important;
-    transform: translateY(-2px);
+@media (hover: hover) {
+    body[data-mode="men"] .hotel-card-lux:hover {
+        border-color: #1a171a !important;
+        box-shadow: 6px 6px 0 rgba(26,23,26,0.08) !important;
+        transform: translateY(-2px);
+    }
+    body[data-mode="men"] .hotel-card-lux:hover::after { transform: scaleX(1); }
 }
-body[data-mode="men"] .hotel-card-lux:hover::after { transform: scaleX(1); }
+/* タッチ: 押した瞬間に全幅ピンク線 */
+body[data-mode="men"] .hotel-card-lux:active::after { transform: scaleX(1); transition-duration: 0.15s; }
+body[data-mode="men"] .hotel-card-lux:active { box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important; }
 body[data-mode="men"] .hotel-name { color: #1a171a !important; font-weight: 700 !important; }
 body[data-mode="men"] .hotel-card-lux a[href^="tel:"] { color: #c73364 !important; }
 
@@ -357,22 +410,33 @@ body[data-mode="men"] .card-action-btn--h-primary {
     color: #ffffff !important;
     border-radius: 2px !important;
 }
-body[data-mode="men"] .card-action-btn--h-primary:hover { background: #ad2a58 !important; border-color: #ad2a58 !important; }
+@media (hover: hover) {
+    body[data-mode="men"] .card-action-btn--h-primary:hover { background: #ad2a58 !important; border-color: #ad2a58 !important; }
+}
+body[data-mode="men"] .card-action-btn--h-primary:active { background: #ad2a58 !important; border-color: #ad2a58 !important; transform: translateY(1px); }
 body[data-mode="men"] .card-action-btn--h-secondary {
     background-color: #ffffff !important;
     border: 1px solid #1a171a !important;
     color: #1a171a !important;
     border-radius: 2px !important;
-    background-image: linear-gradient(#e8517e, #e8517e) !important;
+    background-image: linear-gradient(#e8517e, #e8517e), linear-gradient(#e8517e, #e8517e) !important;
     background-repeat: no-repeat !important;
-    background-position: left bottom !important;
-    background-size: 0% 3px !important;
+    background-position: left bottom, left bottom !important;
+    background-size: 0% 3px, 28px 3px !important;
     transition: background-size 0.25s, color 0.2s, border-color 0.2s !important;
 }
-body[data-mode="men"] .card-action-btn--h-secondary:hover {
-    background-size: 100% 3px !important;
+@media (hover: hover) {
+    body[data-mode="men"] .card-action-btn--h-secondary:hover {
+        background-size: 100% 3px, 28px 3px !important;
+        color: #c73364 !important;
+        border-color: #c73364 !important;
+    }
+}
+body[data-mode="men"] .card-action-btn--h-secondary:active {
+    background-size: 100% 3px, 28px 3px !important;
     color: #c73364 !important;
     border-color: #c73364 !important;
+    transform: translateY(1px);
 }
 body[data-mode="men"] .load-more-btn {
     background: #c73364 !important;
@@ -381,7 +445,10 @@ body[data-mode="men"] .load-more-btn {
     border-radius: 2px !important;
     letter-spacing: 0.08em;
 }
-body[data-mode="men"] .load-more-btn:hover { background: #ad2a58 !important; }
+@media (hover: hover) {
+    body[data-mode="men"] .load-more-btn:hover { background: #ad2a58 !important; }
+}
+body[data-mode="men"] .load-more-btn:active { background: #ad2a58 !important; transform: translateY(1px); }
 
 /* ── 口コミカード: 黒2px上罫のエディトリアル・ノート ── */
 body[data-mode="men"] .review-card {
@@ -411,11 +478,18 @@ body[data-mode="men"] .info-links-bar a {
     box-shadow: none !important;
     transition: color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
 }
-body[data-mode="men"] .info-links-bar a:hover {
+@media (hover: hover) {
+    body[data-mode="men"] .info-links-bar a:hover {
+        color: #c73364 !important;
+        border-color: #c73364 !important;
+        background: #ffffff !important;
+        box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important;
+    }
+}
+body[data-mode="men"] .info-links-bar a:active {
     color: #c73364 !important;
     border-color: #c73364 !important;
-    background: #ffffff !important;
-    box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important;
+    transform: translateY(1px);
 }
 
 /* ── 最近の店舗登録セクション ── */

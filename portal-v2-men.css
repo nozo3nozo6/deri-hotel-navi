@@ -252,10 +252,10 @@
         font-size: 15px !important;
         font-weight: 700 !important;
         box-shadow: none !important;
-        background-image: linear-gradient(#e8517e, #e8517e) !important;
+        background-image: linear-gradient(#e8517e, #e8517e), linear-gradient(#e8517e, #e8517e) !important;
         background-repeat: no-repeat !important;
-        background-position: left bottom !important;
-        background-size: 0% 3px !important;
+        background-position: left bottom, left bottom !important;
+        background-size: 0% 3px, 44px 3px !important;
         transition: background-size 0.25s, box-shadow 0.25s !important;
         position: relative;
         text-align: left !important;
@@ -315,14 +315,22 @@
         .area-btn::after { right: 10px !important; top: 50% !important; }
     }
     .area-btn::before { display: none !important; }
-    .area-btn:hover {
-        border-color: #1a171a !important;
-        color: #1a171a !important;
-        background-size: 100% 3px !important;
-        box-shadow: 4px 4px 0 rgba(232,81,126,0.16) !important;
-        transform: none !important;
+    @media (hover: hover) {
+        .area-btn:hover {
+            border-color: #1a171a !important;
+            color: #1a171a !important;
+            background-size: 100% 3px, 44px 3px !important;
+            box-shadow: 4px 4px 0 rgba(232,81,126,0.16) !important;
+            transform: none !important;
+        }
+        .area-btn:hover::after { color: #c73364; }
     }
-    .area-btn:active { transform: translateY(1px) !important; }
+    .area-btn:active {
+        background-size: 100% 3px, 44px 3px !important;
+        box-shadow: 2px 2px 0 rgba(232,81,126,0.20) !important;
+        transform: translateY(1px) !important;
+    }
+    .area-btn:active::after { color: #c73364; }
     .area-btn::after {
         content: '›';
         position: absolute;
@@ -334,7 +342,26 @@
         font-weight: 300;
         transition: color 0.2s;
     }
-    .area-btn:hover::after { color: #c73364; }
+
+    /* ── 地域グリッド: 雑誌の目次番号 01–11（theme-men.cssの定義が高詳細度で勝つ。ここは保険） ── */
+    body[data-mode="men"] .area-grid.region-level { counter-reset: region-idx; }
+    body[data-mode="men"] .area-grid.region-level .area-btn { counter-increment: region-idx; }
+    body[data-mode="men"] .area-grid.region-level .area-btn::before {
+        content: counter(region-idx, decimal-leading-zero) !important;
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        background: none !important;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 11px;
+        font-weight: 700;
+        font-style: italic;
+        letter-spacing: 0.22em;
+        line-height: 1;
+        color: #c73364;
+        margin: 0 0 4px 0;
+    }
 
     /* ── ホテル一覧ページでは検索セクションをコンパクト化 ── */
     body.test-hotel-list-mode .search-tools {
@@ -372,21 +399,32 @@
         border: 1px solid #c73364 !important;
         color: #ffffff !important;
     }
-    .card-action-btn--h-primary:hover { background: #ad2a58 !important; border-color: #ad2a58 !important; }
+    @media (hover: hover) {
+        .card-action-btn--h-primary:hover { background: #ad2a58 !important; border-color: #ad2a58 !important; }
+    }
+    .card-action-btn--h-primary:active { background: #ad2a58 !important; border-color: #ad2a58 !important; transform: translateY(1px); }
     .card-action-btn--h-secondary {
         background-color: #ffffff !important;
         border: 1px solid #1a171a !important;
         color: #1a171a !important;
-        background-image: linear-gradient(#e8517e, #e8517e) !important;
+        background-image: linear-gradient(#e8517e, #e8517e), linear-gradient(#e8517e, #e8517e) !important;
         background-repeat: no-repeat !important;
-        background-position: left bottom !important;
-        background-size: 0% 3px !important;
+        background-position: left bottom, left bottom !important;
+        background-size: 0% 3px, 28px 3px !important;
         transition: background-size 0.25s, color 0.2s, border-color 0.2s !important;
     }
-    .card-action-btn--h-secondary:hover {
-        background-size: 100% 3px !important;
+    @media (hover: hover) {
+        .card-action-btn--h-secondary:hover {
+            background-size: 100% 3px, 28px 3px !important;
+            color: #c73364 !important;
+            border-color: #c73364 !important;
+        }
+    }
+    .card-action-btn--h-secondary:active {
+        background-size: 100% 3px, 28px 3px !important;
         color: #c73364 !important;
         border-color: #c73364 !important;
+        transform: translateY(1px);
     }
     .hotel-card-lux .hotel-info,
     .hotel-card-lux a[href^="tel:"] { color: #c73364 !important; }
@@ -409,6 +447,14 @@
         transition: box-shadow 0.25s, transform 0.25s !important;
         color: #1a171a;
     }
+    .hotel-card-lux::before {
+        content: '';
+        position: absolute;
+        left: 0; bottom: 0;
+        width: 44px; height: 3px;
+        background: #e8517e;
+        z-index: 1;
+    }
     .hotel-card-lux::after {
         content: '';
         position: absolute;
@@ -418,13 +464,18 @@
         transform: scaleX(0);
         transform-origin: left;
         transition: transform 0.3s cubic-bezier(.6,0,.2,1);
+        z-index: 2;
     }
-    .hotel-card-lux:hover {
-        border-color: #1a171a !important;
-        box-shadow: 6px 6px 0 rgba(26,23,26,0.08) !important;
-        transform: translateY(-2px);
+    @media (hover: hover) {
+        .hotel-card-lux:hover {
+            border-color: #1a171a !important;
+            box-shadow: 6px 6px 0 rgba(26,23,26,0.08) !important;
+            transform: translateY(-2px);
+        }
+        .hotel-card-lux:hover::after { transform: scaleX(1); }
     }
-    .hotel-card-lux:hover::after { transform: scaleX(1); }
+    .hotel-card-lux:active::after { transform: scaleX(1); transition-duration: 0.15s; }
+    .hotel-card-lux:active { box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important; }
     .hotel-name {
         font-size: 15px !important;
         color: #1a171a !important;
@@ -516,12 +567,19 @@
         transition: color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
         box-shadow: none !important;
     }
-    .info-links-bar a:hover {
+    @media (hover: hover) {
+        .info-links-bar a:hover {
+            border-color: #c73364 !important;
+            background: #ffffff !important;
+            color: #c73364 !important;
+            box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important;
+            transform: none;
+        }
+    }
+    .info-links-bar a:active {
         border-color: #c73364 !important;
-        background: #ffffff !important;
         color: #c73364 !important;
-        box-shadow: 3px 3px 0 rgba(232,81,126,0.16) !important;
-        transform: none;
+        transform: translateY(1px);
     }
 
     /* ── ホテルリスト全体の余白 ── */
@@ -550,7 +608,10 @@
         box-shadow: none !important;
         letter-spacing: 0.08em;
     }
-    .load-more-btn:hover { background: #ad2a58 !important; }
+    @media (hover: hover) {
+        .load-more-btn:hover { background: #ad2a58 !important; }
+    }
+    .load-more-btn:active { background: #ad2a58 !important; transform: translateY(1px); }
 
     /* ── 詳細ページ ── */
     #hotel-detail-content { padding: 0 4px; }
