@@ -36,11 +36,11 @@ const thumbUrl = g.external_url || officialUrl; // サムネ=外部優先、無�
     </div>
   </a>
   <div class="girl-card-flags">
-    {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-card-flag-icon" width="128" height="128" alt="新人" title="新人" loading="lazy" /> : null}
-    {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" loading="lazy" /> : null}
-    {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" /> : null}
-    {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-card-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" loading="lazy" /> : null}
-    {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" /> : null}
+    {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-card-flag-icon" width="128" height="128" alt="新人" title="新人" loading="lazy" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" /> : null}
+    {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" loading="lazy" data-i18n-attr="alt=flag_machiawase, title=flag_machiawase" /> : null}
+    {g.is_tel ? <img src="/img/flag-tel.png" class="girl-card-flag-icon" width="128" height="128" alt="電話" title="電話" loading="lazy" data-i18n-attr="alt=flag_tel, title=flag_tel" /> : null}
+    {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-card-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" loading="lazy" data-i18n-attr="alt=flag_inbound, title=flag_inbound" /> : null}
+    {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" data-i18n-attr="alt=flag_genderless, title=flag_genderless" /> : null}
   </div>
   {tags.length ? (
     <div class="girl-card-tags">
@@ -49,5 +49,5 @@ const thumbUrl = g.external_url || officialUrl; // サムネ=外部優先、無�
       ))}
     </div>
   ) : null}
-  <a class="girl-card-official" href={officialUrl} target="_self" aria-label={`${g.name} のオフィシャルプロフィール`}>オフィシャルプロフ</a>
+  <a class="girl-card-official" href={officialUrl} target="_self" aria-label={`${g.name} のオフィシャルプロフィール`} data-i18n="girl_official_profile">オフィシャルプロフ</a>
 </div>

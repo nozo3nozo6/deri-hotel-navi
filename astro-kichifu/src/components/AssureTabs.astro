@@ -13,11 +13,22 @@ import { SHOP } from '../lib/config';
 const yobuhoUrl = SHOP.yobuhoUrl;
 
 const TABS = [
-  { key: 'care', icon: '👛', label: 'お釣りは<strong>その場で</strong>' },
-  { key: 'hotel', icon: '🏨', label: 'その<strong>ホテル、呼べる？</strong>' },
+  { key: 'care', icon: '👛', i18nKey: 'asr_tab_care_html', label: 'お釣りは<strong>その場で</strong>' },
+  { key: 'hotel', icon: '🏨', i18nKey: 'asr_tab_hotel_html', label: 'その<strong>ホテル、呼べる？</strong>' },
+  { key: 'lang', icon: '🌐', i18nKey: 'asr_tab_lang', label: 'Language' },
+];
+
+// Language タブ内の国旗スイッチャー（ylka.jp と同じ5言語）。クリックは i18n.js が
+// document 全体でイベント委譲するため、ここに data-lang-btn を置くだけで機能する。
+const LANGS = [
+  { code: 'ja', flag: '🇯🇵', name: '日本語' },
+  { code: 'en', flag: '🇺🇸', name: 'English' },
+  { code: 'zh-CN', flag: '🇨🇳', name: '简体中文' },
+  { code: 'zh-TW', flag: '🇹🇼', name: '繁體中文' },
+  { code: 'ko', flag: '🇰🇷', name: '한국어' },
 ];
 ---
-<section class="asr-section" aria-label="当店のこだわり・ホテルのご相談">
+<section class="asr-section" aria-label="当店のこだわり・ホテルのご相談・言語切替">
   <div class="asr glass-card" data-asr-root>
     <div class="asr-tabs" role="tablist">
       {TABS.map((t) => (
@@ -31,28 +42,39 @@ const TABS = [
           aria-controls={`asr-panel-${t.key}`}
         >
           <span class="asr-tab-icon" aria-hidden="true">{t.icon}</span>
-          <span class="asr-tab-label" set:html={t.label} />
+          <span class="asr-tab-label" data-i18n-html={t.i18nKey} set:html={t.label} />
         </button>
       ))}
     </div>
 
     <div class="asr-panel" id="asr-panel-care" data-asr-panel="care" hidden>
-      <p>当店では女の子がお釣り用のお札と小銭を持参し、お会計はその場で完了します。『お釣りはドライバーが帰りに』という待ち時間も、お金のやり取りの気まずさもございません。</p>
-      <p>これは、お客様に余計なご不安やお気遣いをおかけしないため。そして、スムーズにスケジュールを進行することで、以降のご予約のお客様をお待たせせず、女の子が一人でも多くの方とお会いするための心づかいでもあります。</p>
-      <p>ドライバーへの現金お支払いにまつわるトラブルのご心配もなく、安心してお楽しみいただけます。細かなところまで丁寧に——それがアドミのおもてなしです ♡</p>
+      <p data-i18n="asr_care_p1">当店では女の子がお釣り用のお札と小銭を持参し、お会計はその場で完了します。『お釣りはドライバーが帰りに』という待ち時間も、お金のやり取りの気まずさもございません。</p>
+      <p data-i18n="asr_care_p2">これは、お客様に余計なご不安やお気遣いをおかけしないため。そして、スムーズにスケジュールを進行することで、以降のご予約のお客様をお待たせせず、女の子が一人でも多くの方とお会いするための心づかいでもあります。</p>
+      <p data-i18n="asr_care_p3">ドライバーへの現金お支払いにまつわるトラブルのご心配もなく、安心してお楽しみいただけます。細かなところまで丁寧に——それがアドミのおもてなしです ♡</p>
     </div>
 
     <div class="asr-panel" id="asr-panel-hotel" data-asr-panel="hotel" hidden>
-      <p>数えきれないご案内の一件ずつが、アドミのホテル情報になっています。『直通で行けるホテル』『お迎えが必要なホテル』『フロントNGのホテル』——地域ごとの最新事情を日々把握し、更新し続けています。だから『あのホテル、呼べる？』に、その場ではっきりお答えできます。</p>
-      <p>ホテルによっては、手配したあとで『実は呼べなかった』とわかることも。思わぬキャンセル料が発生してしまう場合もあるようです。そうならないための『呼ぶ前のひと確認』を、どうぞお役立てください。</p>
-      <p>ご利用のあるなしにかかわらず、『このホテルは大丈夫？』のご質問だけでも大歓迎。お迎えの要否やお部屋までの行き方まで、どうぞお気軽にお問い合わせください。</p>
+      <p data-i18n="asr_hotel_p1">数えきれないご案内の一件ずつが、アドミのホテル情報になっています。『直通で行けるホテル』『お迎えが必要なホテル』『フロントNGのホテル』——地域ごとの最新事情を日々把握し、更新し続けています。だから『あのホテル、呼べる？』に、その場ではっきりお答えできます。</p>
+      <p data-i18n="asr_hotel_p2">ホテルによっては、手配したあとで『実は呼べなかった』とわかることも。思わぬキャンセル料が発生してしまう場合もあるようです。そうならないための『呼ぶ前のひと確認』を、どうぞお役立てください。</p>
+      <p data-i18n="asr_hotel_p3">ご利用のあるなしにかかわらず、『このホテルは大丈夫？』のご質問だけでも大歓迎。お迎えの要否やお部屋までの行き方まで、どうぞお気軽にお問い合わせください。</p>
       {yobuhoUrl && (
         <div class="asr-cta-wrap">
           <a class="asr-cta" href={yobuhoUrl} target="_self" rel="noopener">
-            <span aria-hidden="true">🏨</span>ホテル検索は<span class="asr-cta-arrow" aria-hidden="true">→</span>
+            <span aria-hidden="true">🏨</span><span data-i18n="asr_cta_hotel_search">ホテル検索は</span><span class="asr-cta-arrow" aria-hidden="true">→</span>
           </a>
         </div>
       )}
+    </div>
+
+    <div class="asr-panel asr-panel-lang" id="asr-panel-lang" data-asr-panel="lang" hidden>
+      <div class="asr-lang-grid" role="group" aria-label="Language / 言語">
+        {LANGS.map((l) => (
+          <button type="button" class="asr-lang-btn" data-lang-btn={l.code}>
+            <span class="asr-lang-flag" aria-hidden="true">{l.flag}</span>
+            <span class="asr-lang-name">{l.name}</span>
+          </button>
+        ))}
+      </div>
     </div>
   </div>
 </section>
@@ -222,20 +244,57 @@ const TABS = [
   }
   .asr-cta:hover { transform: translateY(-1px); box-shadow: 0 7px 22px rgba(255, 79, 216, .5); }
   .asr-cta-arrow { font-weight: 900; margin-left: 1px; }
-  /* ---- 狭幅・PC調整 ---- */
+  /* ---- Language タブの国旗スイッチャー（is-active は i18n.js が data-lang-btn 全要素に付与） ---- */
+  .asr-lang-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .asr-lang-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255, 79, 216, .22);
+    background: var(--bg-1);
+    cursor: pointer;
+    font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .asr-lang-btn:hover { transform: translateY(-1px); }
+  .asr-lang-btn.is-active {
+    background: linear-gradient(135deg, rgba(255, 79, 216, .18), rgba(183, 143, 255, .16));
+    border-color: var(--neon-pink);
+    box-shadow: 0 2px 10px rgba(255, 79, 216, .25);
+  }
+  .asr-lang-flag { font-size: 1.6rem; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .25)); }
+  .asr-lang-name { font-size: .72rem; font-weight: 700; color: var(--text-mute); }
+  .asr-lang-btn.is-active .asr-lang-name { color: var(--neon-pink-hot); }
+  /* ---- 狭幅・PC調整（3タブ化に伴いラベルをさらに縮小） ---- */
+  @media (max-width: 419px) {
+    .asr-tab { gap: 3px; padding: 10px 3px 11px; }
+    .asr-tab-label { font-size: .68rem; }
+    .asr-tab-icon { font-size: 1.05rem; }
+  }
   @media (max-width: 374px) {
-    .asr-tab { gap: 4px; padding: 10px 4px 11px; }
-    .asr-tab-label { font-size: .72rem; }
-    .asr-tab-icon { font-size: 1.1rem; }
+    .asr-tab { gap: 2px; padding: 9px 2px 10px; }
+    .asr-tab-label { font-size: .62rem; }
+    .asr-tab-icon { font-size: 1rem; }
   }
   @media (min-width: 641px) {
-    .asr-tab { gap: 8px; padding: 13px 12px 14px; }
+    .asr-tab { gap: 8px; padding: 13px 10px 14px; }
     .asr-tab-icon { font-size: 1.45rem; }
     .asr-tab-label { font-size: .95rem; }
     .asr-panel { font-size: .94rem; padding: 16px 20px 18px; }
     .asr-cta { font-size: .96rem; padding: 11px 26px; }
+    .asr-lang-grid { grid-template-columns: repeat(5, 1fr); }
+    .asr-lang-flag { font-size: 1.8rem; }
+    .asr-lang-name { font-size: .78rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .asr-tab, .asr-tab-icon, .asr-tab-label, .asr-tab::after, .asr-cta { transition: none; }
+    .asr-tab, .asr-tab-icon, .asr-tab-label, .asr-tab::after, .asr-cta, .asr-lang-btn { transition: none; }
   }
 </style>

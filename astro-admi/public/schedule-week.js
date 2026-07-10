@@ -11,6 +11,8 @@
   if (!gid) return;
   var shop = window.__SHOP_ID || 1;
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  // 訳文つきの短い断片をspanで包む（admiI18n.reapplyで現在の言語に即置換される）
+  function i18nSpan(key, fallback) { return '<span data-i18n="' + key + '">' + fallback + '</span>'; }
 
   function fmtT(t) { return t ? t.replace(/^0/, '') : t; }          // 09:00 → 9:00
   function wdIndex(ymd) { return new Date(ymd + 'T00:00:00Z').getUTCDay(); }
@@ -34,11 +36,11 @@
         var timeHtml, cls;
         if (info && info.status === 'work' && info.start) {
           nWork++;
-          var endL = (info.end && info.end < info.start) ? '翌' + fmtT(info.end) : fmtT(info.end);
+          var endL = (info.end && info.end < info.start) ? i18nSpan('schedule_next_day_prefix', '翌') + fmtT(info.end) : fmtT(info.end);
           timeHtml = '<span class="gw-time">' + fmtT(info.start) + '〜' + (info.end ? endL : '') + '</span>';
           cls = 'is-work';
         } else if (info && info.status === 'off') {
-          timeHtml = '<span class="gw-off">お休み</span>';
+          timeHtml = '<span class="gw-off" data-i18n="schedule_week_off">お休み</span>';
           cls = 'is-off';
         } else {
           timeHtml = '<span class="gw-none">‑</span>';
@@ -46,16 +48,17 @@
         }
         var dayCls = wd === 0 ? 'gw-sun' : (wd === 6 ? 'gw-sat' : '');
         rows += '<div class="gw-row ' + cls + (i === 0 ? ' is-today' : '') + '">'
-              + '<span class="gw-date ' + dayCls + '">' + (i === 0 ? '<b>本日</b> ' : '') + md + '（' + WD[wd] + '）</span>'
+              + '<span class="gw-date ' + dayCls + '">' + (i === 0 ? '<b data-i18n="schedule_badge_today_prefix">本日</b> ' : '') + md + '（' + WD[wd] + '）</span>'
               + timeHtml + '</div>';
       }
       var body = box.querySelector('.gw-body');
       if (nWork === 0) {
-        body.innerHTML = '<div class="gw-empty">今週の出勤予定はまだ登録されていません。</div>';
+        body.innerHTML = '<div class="gw-empty" data-i18n="schedule_week_empty">今週の出勤予定はまだ登録されていません。</div>';
       } else {
         body.innerHTML = rows;
       }
       box.style.display = '';
+      if (window.admiI18n) window.admiI18n.reapply(); // 挿入分に選択中の言語を即適用
     })
     .catch(function () { box.style.display = 'none'; });
 })();

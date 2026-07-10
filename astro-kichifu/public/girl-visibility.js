@@ -68,11 +68,11 @@
       : '<div class="girl-card-no-photo">👤</div>';
 
     var flagsHtml = '';
-    if (isNew)             flagsHtml += '<img src="/img/flag-newgirl.png"   class="girl-card-flag-icon" width="128" height="128" alt="新人"           title="新人"           loading="lazy" />';
-    if (g.is_trial)        flagsHtml += '<img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ"      title="待ち合わせ"      loading="lazy" />';
-    if (g.is_tel)          flagsHtml += '<img src="/img/flag-tel.png"        class="girl-card-flag-icon" width="128" height="128" alt="電話"            title="電話"            loading="lazy" />';
-    if (g.is_inbound)      flagsHtml += '<img src="/img/flag-inbound.png"    class="girl-card-flag-icon" width="128" height="128" alt="インバウンド"    title="インバウンド"    loading="lazy" />';
-    if (g.is_genderless)   flagsHtml += '<img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" />';
+    if (isNew)             flagsHtml += '<img src="/img/flag-newgirl.png"   class="girl-card-flag-icon" width="128" height="128" alt="新人"           title="新人"           loading="lazy" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" />';
+    if (g.is_trial)        flagsHtml += '<img src="/img/flag-machiawase.png" class="girl-card-flag-icon" width="128" height="128" alt="待ち合わせ"      title="待ち合わせ"      loading="lazy" data-i18n-attr="alt=flag_machiawase, title=flag_machiawase" />';
+    if (g.is_tel)          flagsHtml += '<img src="/img/flag-tel.png"        class="girl-card-flag-icon" width="128" height="128" alt="電話"            title="電話"            loading="lazy" data-i18n-attr="alt=flag_tel, title=flag_tel" />';
+    if (g.is_inbound)      flagsHtml += '<img src="/img/flag-inbound.png"    class="girl-card-flag-icon" width="128" height="128" alt="インバウンド"    title="インバウンド"    loading="lazy" data-i18n-attr="alt=flag_inbound, title=flag_inbound" />';
+    if (g.is_genderless)   flagsHtml += '<img src="/img/flag-genderless.png" class="girl-card-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" loading="lazy" data-i18n-attr="alt=flag_genderless, title=flag_genderless" />';
 
     var tagsHtml = tags.length
       ? '<div class="girl-card-tags">' + tags.map(function (t) {
@@ -99,7 +99,7 @@
       '<div class="girl-card-flags">' + flagsHtml + '</div>' +
       tagsHtml +
       '<a class="girl-card-official" href="/girls/' + esc(g.id) + '" target="_self"' +
-        ' aria-label="' + esc(g.name) + ' のオフィシャルプロフィール">オフィシャルプロフ</a>' +
+        ' aria-label="' + esc(g.name) + ' のオフィシャルプロフィール" data-i18n="girl_official_profile">オフィシャルプロフ</a>' +
     '</div>';
   }
 
@@ -211,20 +211,27 @@
         }
 
         // 属性フラグ（順序: 新人→待ち合わせ→電話→インバウンド→ジェンダーレス、GirlCardItem.astroと同一）
+        //   比較キーは img の src（flag-xxx.png）で行う。alt/titleはi18n.jsが言語切替時に
+        //   書き換えるため、alt値ベースの比較だと英語モードで毎回誤検知＝無駄な再構築が起きてしまう。
         var flagsBox = c.querySelector('.girl-card-flags');
         if (flagsBox) {
-          var wantKeys = [];
-          if (isNew)           wantKeys.push('新人');
-          if (g.is_trial)      wantKeys.push('待ち合わせ');
-          if (g.is_tel)        wantKeys.push('電話');
-          if (g.is_inbound)    wantKeys.push('インバウンド');
-          if (g.is_genderless) wantKeys.push('ジェンダーレス');
-          var curKeys = [].map.call(flagsBox.querySelectorAll('img'), function (i) { return i.getAttribute('alt') || ''; });
-          if (wantKeys.join('|') !== curKeys.join('|')) {
-            var FLAG_IMG = { '新人': 'flag-newgirl', '待ち合わせ': 'flag-machiawase', '電話': 'flag-tel', 'インバウンド': 'flag-inbound', 'ジェンダーレス': 'flag-genderless' };
-            flagsBox.innerHTML = wantKeys.map(function (k) {
-              return '<img src="/img/' + FLAG_IMG[k] + '.png" class="girl-card-flag-icon" width="128" height="128" alt="' + k + '" title="' + k + '" loading="lazy" />';
+          var FLAG_DEFS = [
+            { on: isNew,             slug: 'newgirl',     label: '新人',           i18n: 'flag_newgirl' },
+            { on: !!g.is_trial,      slug: 'machiawase',  label: '待ち合わせ',      i18n: 'flag_machiawase' },
+            { on: !!g.is_tel,        slug: 'tel',         label: '電話',           i18n: 'flag_tel' },
+            { on: !!g.is_inbound,    slug: 'inbound',     label: 'インバウンド',    i18n: 'flag_inbound' },
+            { on: !!g.is_genderless, slug: 'genderless',  label: 'ジェンダーレス', i18n: 'flag_genderless' },
+          ];
+          var wantDefs = FLAG_DEFS.filter(function (d) { return d.on; });
+          var curSlugs = [].map.call(flagsBox.querySelectorAll('img'), function (i) {
+            var m = (i.getAttribute('src') || '').match(/flag-([a-z]+)\.png/);
+            return m ? m[1] : '';
+          });
+          if (wantDefs.map(function (d) { return d.slug; }).join('|') !== curSlugs.join('|')) {
+            flagsBox.innerHTML = wantDefs.map(function (d) {
+              return '<img src="/img/flag-' + d.slug + '.png" class="girl-card-flag-icon" width="128" height="128" alt="' + d.label + '" title="' + d.label + '" loading="lazy" data-i18n-attr="alt=' + d.i18n + ', title=' + d.i18n + '" />';
             }).join('');
+            if (window.admiI18n) window.admiI18n.reapply(); // 新規挿入分に選択中の言語を即適用
           }
         }
 
@@ -252,6 +259,8 @@
           }
         }
       });
+
+      if (window.admiI18n) window.admiI18n.reapply(); // 新規追加カード(buildCard)等に選択中の言語を即適用
     })
     .catch(function () {}); // 通信失敗時は SSG 表示を維持
 })();

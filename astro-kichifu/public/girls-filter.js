@@ -20,6 +20,11 @@
     catch (e) { return (s || '').toLowerCase(); }
   }
   function num(el, key) { return parseInt(el.getAttribute('data-' + key) || '0', 10) || 0; }
+  // 「該当 {n} 人」はi18n.js辞書のテンプレ文字列（{n}をプレースホルダー置換）。i18n.js未ロード/失敗時は日本語固定。
+  function fmtCount(n) {
+    var tpl = (window.admiI18n && window.admiI18n.t('girls_result_count')) || '該当 {n} 人';
+    return tpl.replace('{n}', String(n));
+  }
 
   function apply() {
     var q = norm(state.name);
@@ -46,9 +51,10 @@
     });
     visible.forEach(function (c) { grid.appendChild(c); });
 
-    if (countEl) countEl.textContent = '該当 ' + visible.length + ' 人';
+    if (countEl) countEl.textContent = fmtCount(visible.length);
     if (emptyEl) emptyEl.style.display = visible.length ? 'none' : '';
   }
+  window.addEventListener('admi:langchange', apply); // 言語切替時に「該当 N 人」等のラベルを再翻訳
 
   document.querySelectorAll('[data-gpanel-toggle]').forEach(function (btn) {
     btn.addEventListener('click', function () {

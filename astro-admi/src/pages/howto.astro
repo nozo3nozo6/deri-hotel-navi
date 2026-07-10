@@ -64,46 +64,46 @@ const facilities = [
       <div class="wrap-md" style="position:relative;z-index:1;">
 
         <nav class="breadcrumb">
-          <a href="/top">トップ</a>
+          <a href="/top" data-i18n="nav_top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <span>ご利用ガイド</span>
+          <span data-i18n="nav_howto">ご利用ガイド</span>
         </nav>
 
         <div class="section-head">
           <span class="section-eyebrow holo-text">HOW TO</span>
-          <h1 class="section-title">ご利用ガイド</h1>
+          <h1 class="section-title" data-i18n="nav_howto">ご利用ガイド</h1>
         </div>
 
         {/* ご予約の流れ */}
-        <h2 class="section-label">ご予約の流れ</h2>
+        <h2 class="section-label" data-i18n="howto_steps_label">ご予約の流れ</h2>
         <div class="steps-list">
-          {steps.map((s) => (
+          {steps.map((s, i) => (
             <div class="step-row">
               <div class="step-num">{s.num}</div>
               <div class="step-body">
-                <p class="step-title">{s.icon} {s.title}</p>
-                <p class="step-desc">{s.desc}</p>
+                <p class="step-title"><span aria-hidden="true">{s.icon}</span> <span data-i18n={`howto_step${i + 1}_title`}>{s.title}</span></p>
+                <p class="step-desc" data-i18n={`howto_step${i + 1}_desc`}>{s.desc}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* ご利用施設 */}
-        <h2 class="section-label" style="margin-top:48px;">ご利用施設</h2>
+        <h2 class="section-label" style="margin-top:48px;" data-i18n="howto_facilities_label">ご利用施設</h2>
         <div class="facility-list">
-          {facilities.map((f) => (
+          {facilities.map((f, i) => (
             <div class="facility-card">
               <div class="facility-card-head">
                 <span class="facility-card-icon" aria-hidden="true">{f.icon}</span>
-                <span class="facility-card-title">{f.title}</span>
+                <span class="facility-card-title" data-i18n={`howto_facility${i + 1}_title`}>{f.title}</span>
               </div>
-              {f.lead && <p class="facility-card-lead">{f.lead}</p>}
+              {f.lead && <p class="facility-card-lead" data-i18n={i === 1 ? 'howto_facility2_lead_tachikawa' : `howto_facility${i + 1}_lead`}>{f.lead}</p>}
               {f.points.length > 0 && (
                 <ul class="facility-points">
-                  {f.points.map((p) => <li>{p}</li>)}
+                  {f.points.map((p, pi) => <li data-i18n={`howto_facility${i + 1}_point${pi + 1}`}>{p}</li>)}
                 </ul>
               )}
-              <p class="facility-card-body" set:html={f.body}></p>
+              <p class="facility-card-body" data-i18n-html={`howto_facility${i + 1}_body`} set:html={f.body}></p>
             </div>
           ))}
         </div>

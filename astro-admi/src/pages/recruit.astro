@@ -115,7 +115,7 @@ const jsonLd = {
         <nav class="breadcrumb">
           <a href="/top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <span>求人情報</span>
+          <span data-i18n="nav_recruit">求人情報</span>
         </nav>
 
         {/* ───── HERO ───── */}
@@ -125,140 +125,140 @@ const jsonLd = {
           <svg class="rc-ornament rc-ornament-1" viewBox="0 0 60 60" aria-hidden="true"><path d="M30 6c2 9 7 14 18 16-11 2-16 7-18 16-2-9-7-14-18-16 11-2 16-7 18-16z" fill="url(#rcg)"/><defs><linearGradient id="rcg" x1="0" y1="0" x2="60" y2="60"><stop offset="0" stop-color="#f9a8d4"/><stop offset="1" stop-color="#c084fc"/></linearGradient></defs></svg>
           <svg class="rc-ornament rc-ornament-2" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 5c1.3 6 4.7 9.3 12 10.7-7.3 1.3-10.7 4.7-12 10.7-1.3-6-4.7-9.3-12-10.7C15.3 14.3 18.7 11 20 5z" fill="#fbcfe8"/></svg>
           <div class="rc-hero-inner">
-          <span class="rc-hero-eyebrow holo-text">RECRUIT｜立川 高収入バイト</span>
-          <h1 class="rc-hero-title">ゆとり世代の女性が、<br />ちゃんと稼げるお店。</h1>
-          <p class="rc-hero-lead">18〜33歳・未経験歓迎。<br class="sp-br" />身バレ対策20年、運営は同世代の女性店長。<br />「まずは話だけ」でも大丈夫です。</p>
+          <span class="rc-hero-eyebrow holo-text" data-i18n="recruit_hero_eyebrow">RECRUIT｜立川 高収入バイト</span>
+          <h1 class="rc-hero-title" data-i18n-html="recruit_hero_title_html">ゆとり世代の女性が、<br />ちゃんと稼げるお店。</h1>
+          <p class="rc-hero-lead" data-i18n-html="recruit_hero_lead_html">18〜33歳・未経験歓迎。<br class="sp-br" />身バレ対策20年、運営は同世代の女性店長。<br />「まずは話だけ」でも大丈夫です。</p>
           <div class="rc-stats">
-            {heroStats.map((s) => (
+            {heroStats.map((s, i) => (
             <div class="rc-stat">
               <span class="rc-stat-num">{s.num}<small>{s.unit}</small></span>
-              <span class="rc-stat-label">{s.label}</span>
+              <span class="rc-stat-label" data-i18n={`recruit_stat_label_${i + 1}`}>{s.label}</span>
             </div>
             ))}
           </div>
           <div class="rc-hero-cta">
-            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line">💬 LINEで応募・相談する</a>
-            <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel">📞 電話で応募（{SHOP.reception}）</a>
-            <p class="rc-hero-note">質問だけ・相談だけでも大歓迎です ♡</p>
+            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line" data-i18n="recruit_hero_cta_line">💬 LINEで応募・相談する</a>
+            <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel"><span data-i18n="recruit_hero_cta_tel">📞 電話で応募</span>（{SHOP.reception}）</a>
+            <p class="rc-hero-note" data-i18n="recruit_hero_note">質問だけ・相談だけでも大歓迎です ♡</p>
           </div>
           </div>
         </div>
 
         {/* ───── 3つの安心 ───── */}
-        <h2 class="section-label">あなたが一番不安なことから、お話しします</h2>
+        <h2 class="section-label" data-i18n="recruit_section_anchor_heading">あなたが一番不安なことから、お話しします</h2>
         <div class="rc-anchor-list">
-          {anchors.map((a) => (
+          {anchors.map((a, i) => (
           <div class="rc-anchor">
             <span class="rc-anchor-icon" aria-hidden="true">{a.icon}</span>
             <div class="rc-anchor-body">
-              <h3 class="rc-anchor-title">{a.title}</h3>
-              <p class="rc-anchor-text">{a.text}</p>
+              <h3 class="rc-anchor-title" data-i18n={`recruit_anchor${i + 1}_title`}>{a.title}</h3>
+              <p class="rc-anchor-text" data-i18n={`recruit_anchor${i + 1}_text`}>{a.text}</p>
             </div>
           </div>
           ))}
         </div>
 
         {/* ───── お給料 ───── */}
-        <h2 class="section-label" style="margin-top:44px;">お給料</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_pay_heading">お給料</h2>
         <div class="rc-pay">
-          <p class="rc-pay-head"><span aria-hidden="true">💖</span> 体験入店は<strong>日給保証</strong>。初日から、しっかり。</p>
+          <p class="rc-pay-head" data-i18n-html="recruit_pay_head_html"><span aria-hidden="true">💖</span> 体験入店は<strong>日給保証</strong>。初日から、しっかり。</p>
           <div class="rc-trial">
-            {trial.map((t) => (
+            {trial.map((t, i) => (
             <div class="rc-trial-card">
-              <span class="rc-trial-time">{t.time}</span>
+              <span class="rc-trial-time" data-i18n={`recruit_trial_time_${i + 1}`}>{t.time}</span>
               <span class="rc-trial-amount">{t.amount}</span>
             </div>
             ))}
           </div>
           <div class="fee-card" style="margin-top:18px;">
             <div class="fee-list">
-              {payRows.map((p) => (
+              {payRows.map((p, i) => (
               <div class="fee-row">
-                <span class="fee-name">{p.course}</span>
-                <span class="fee-amount">バック {p.back}</span>
+                <span class="fee-name" data-i18n={`recruit_pay_course_${i + 1}`}>{p.course}</span>
+                <span class="fee-amount"><span data-i18n="recruit_pay_back_label">バック</span> {p.back}</span>
               </div>
               ))}
             </div>
           </div>
-          <div class="system-note">
+          <div class="system-note" data-i18n-html="recruit_pay_note_html">
             ※ バック率は <strong>54.5〜62.9%</strong>、機動ボーナスは70%以上などプランを自由に選べます。<br />
             ※ <strong>入店支援金23,000円</strong> 支給・<strong>全額日払い</strong>対応。
           </div>
         </div>
 
         {/* ───── 身バレ・プライバシー対策 ───── */}
-        <h2 class="section-label" style="margin-top:44px;">身バレ・プライバシー対策</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_safety_heading">身バレ・プライバシー対策</h2>
         <div class="rc-safe">
-          <p class="rc-safe-lead">「絶対に知られたくない」を、20年かけて守ってきました。</p>
+          <p class="rc-safe-lead" data-i18n="recruit_safety_lead">「絶対に知られたくない」を、20年かけて守ってきました。</p>
           <ul class="rc-safe-list">
-            {privacy.map((p) => (
-            <li class="rc-safe-item"><span class="rc-check" aria-hidden="true">✓</span>{p}</li>
+            {privacy.map((p, i) => (
+            <li class="rc-safe-item"><span class="rc-check" aria-hidden="true">✓</span><span data-i18n={`recruit_privacy_${i + 1}`}>{p}</span></li>
             ))}
           </ul>
         </div>
 
         {/* ───── 待遇・メリット ───── */}
-        <h2 class="section-label" style="margin-top:44px;">待遇・福利厚生</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_merit_heading">待遇・福利厚生</h2>
         <div class="rc-grid">
-          {merits.map((m) => (
+          {merits.map((m, i) => (
           <div class="rc-card">
             <span class="rc-card-icon" aria-hidden="true">{m.icon}</span>
-            <span class="rc-card-title">{m.title}</span>
-            <span class="rc-card-text">{m.text}</span>
+            <span class="rc-card-title" data-i18n={`recruit_merit${i + 1}_title`}>{m.title}</span>
+            <span class="rc-card-text" data-i18n={`recruit_merit${i + 1}_text`}>{m.text}</span>
           </div>
           ))}
         </div>
 
         {/* ───── 店内・設備（実写ギャラリー） ───── */}
-        <h2 class="section-label" style="margin-top:44px;">お店の雰囲気・設備</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_gallery_heading">お店の雰囲気・設備</h2>
         <div class="rc-gallery">
-          {gallery.map((g) => (
+          {gallery.map((g, i) => (
           <figure class="rc-shot">
             {g.src
               ? <img class="rc-shot-img" src={g.src} alt={g.label} loading="lazy" width="280" height="200" />
-              : <div class="rc-shot-ph" aria-hidden="true"><span class="rc-shot-ph-icon">📷</span><span class="rc-shot-ph-text">写真準備中</span></div>}
+              : <div class="rc-shot-ph" aria-hidden="true"><span class="rc-shot-ph-icon">📷</span><span class="rc-shot-ph-text" data-i18n="recruit_gallery_ph_text">写真準備中</span></div>}
             <figcaption class="rc-shot-cap">
-              <span class="rc-shot-label">{g.label}</span>
-              <span class="rc-shot-note">{g.note}</span>
+              <span class="rc-shot-label" data-i18n={`recruit_gallery${i + 1}_label`}>{g.label}</span>
+              <span class="rc-shot-note" data-i18n={`recruit_gallery${i + 1}_note`}>{g.note}</span>
             </figcaption>
           </figure>
           ))}
         </div>
 
         {/* ───── 働き方 ───── */}
-        <h2 class="section-label" style="margin-top:44px;">働き方</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_workstyle_heading">働き方</h2>
         <div class="rc-grid rc-grid-2">
-          {workstyle.map((w) => (
+          {workstyle.map((w, i) => (
           <div class="rc-card">
             <span class="rc-card-icon" aria-hidden="true">{w.icon}</span>
-            <span class="rc-card-title">{w.title}</span>
-            <span class="rc-card-text">{w.text}</span>
+            <span class="rc-card-title" data-i18n={`recruit_workstyle${i + 1}_title`}>{w.title}</span>
+            <span class="rc-card-text" data-i18n={`recruit_workstyle${i + 1}_text`}>{w.text}</span>
           </div>
           ))}
         </div>
 
         {/* ───── 面接の流れ ───── */}
-        <h2 class="section-label" style="margin-top:44px;">応募〜面接の流れ</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_flow_heading">応募〜面接の流れ</h2>
         <div class="rc-flow">
-          {flow.map((f) => (
+          {flow.map((f, i) => (
           <div class="rc-flow-step">
             <span class="rc-flow-num">{f.step}</span>
             <div class="rc-flow-body">
-              <h3 class="rc-flow-title">{f.title}</h3>
-              <p class="rc-flow-text">{f.text}</p>
+              <h3 class="rc-flow-title" data-i18n={`recruit_flow${i + 1}_title`}>{f.title}</h3>
+              <p class="rc-flow-text" data-i18n={`recruit_flow${i + 1}_text`}>{f.text}</p>
             </div>
           </div>
           ))}
         </div>
-        <div class="system-note"><span aria-hidden="true">🌸</span> 「面接だけ」「体験だけ」で終わっても大丈夫。無理な勧誘は一切しません。</div>
+        <div class="system-note"><span aria-hidden="true">🌸</span> <span data-i18n="recruit_flow_note">「面接だけ」「体験だけ」で終わっても大丈夫。無理な勧誘は一切しません。</span></div>
 
         {/* ───── FAQ ───── */}
-        <h2 class="section-label" style="margin-top:44px;">よくある質問</h2>
+        <h2 class="section-label" style="margin-top:44px;" data-i18n="recruit_section_faq_heading">よくある質問</h2>
         <div class="rc-faq">
-          {faqs.map((f) => (
+          {faqs.map((f, i) => (
           <details class="rc-faq-item">
-            <summary class="rc-faq-q"><span class="rc-faq-mark" aria-hidden="true">Q</span>{f.q}</summary>
-            <p class="rc-faq-a">{f.a}</p>
+            <summary class="rc-faq-q"><span class="rc-faq-mark" aria-hidden="true">Q</span><span data-i18n={`recruit_faq${i + 1}_q`}>{f.q}</span></summary>
+            <p class="rc-faq-a" data-i18n={`recruit_faq${i + 1}_a`}>{f.a}</p>
           </details>
           ))}
         </div>
@@ -266,14 +266,14 @@ const jsonLd = {
         {/* ───── 応募CTA（大） ───── */}
         <div class="rc-cta">
           <span class="rc-cta-eyebrow holo-text">ENTRY</span>
-          <p class="rc-cta-title">まずは、ひとこと送ってみませんか？</p>
-          <p class="rc-cta-text">「求人を見ました」だけでOK。<br />あなたのペースに合わせて、女性スタッフがお答えします。</p>
+          <p class="rc-cta-title" data-i18n="recruit_cta_title">まずは、ひとこと送ってみませんか？</p>
+          <p class="rc-cta-text" data-i18n-html="recruit_cta_text_html">「求人を見ました」だけでOK。<br />あなたのペースに合わせて、女性スタッフがお答えします。</p>
           <div class="rc-cta-btns">
-            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line">💬 LINEで応募・相談</a>
+            <a href={recruit.lineUrl} target="_self" rel="noopener" class="glossy-pill rc-btn rc-btn-line" data-i18n="recruit_cta_btn_line">💬 LINEで応募・相談</a>
             <a href={`tel:${SHOP.telRaw}`} class="rc-btn rc-btn-tel">📞 {SHOP.tel}</a>
           </div>
-          <p class="rc-cta-line-id">LINE ID：<strong>{recruit.lineId}</strong>（IDで検索 → 友だち追加）</p>
-          <p class="rc-cta-foot">受付 {SHOP.reception}／18歳未満・高校生不可</p>
+          <p class="rc-cta-line-id"><span data-i18n="recruit_cta_line_id_prefix">LINE ID：</span><strong>{recruit.lineId}</strong><span data-i18n="recruit_cta_line_id_suffix">（IDで検索 → 友だち追加）</span></p>
+          <p class="rc-cta-foot"><span data-i18n="header_reception_label">受付</span> {SHOP.reception}<span data-i18n="recruit_cta_foot_suffix">／18歳未満・高校生不可</span></p>
         </div>
 
       </div>
@@ -282,7 +282,7 @@ const jsonLd = {
 
   {/* ───── 追従CTAバー（スマホ） ───── */}
   <div class="rc-sticky" aria-label="応募">
-    <a href={`tel:${SHOP.telRaw}`} class="rc-sticky-tel"><span aria-hidden="true">📞</span><span>電話</span></a>
-    <a href={recruit.lineUrl} target="_self" rel="noopener" class="rc-sticky-line"><span aria-hidden="true">💬</span><span>LINEで応募する</span></a>
+    <a href={`tel:${SHOP.telRaw}`} class="rc-sticky-tel"><span aria-hidden="true">📞</span><span data-i18n="recruit_sticky_tel">電話</span></a>
+    <a href={recruit.lineUrl} target="_self" rel="noopener" class="rc-sticky-line"><span aria-hidden="true">💬</span><span data-i18n="recruit_sticky_line">LINEで応募する</span></a>
   </div>
 </Site>

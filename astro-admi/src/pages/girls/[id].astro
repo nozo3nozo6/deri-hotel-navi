@@ -58,9 +58,9 @@ if (g.catch_copy) {
       <div class="wrap-lg" style="position:relative;z-index:1">
 
         <nav class="breadcrumb">
-          <a href="/top">トップ</a>
+          <a href="/top" data-i18n="nav_top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <a href="/girls">すけべな女の子達</a>
+          <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
           <span class="breadcrumb-sep">›</span>
         </nav>
 
@@ -98,22 +98,22 @@ if (g.catch_copy) {
           <div>
             <!-- 名前・バッジ -->
             <div class="girl-flags">
-              {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" /> : null}
-              {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" /> : null}
-              {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" /> : null}
-              {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" /> : null}
-              {g.is_tel ? <img src="/img/flag-tel.png" class="girl-flag-icon" width="128" height="128" alt="電話" title="電話" /> : null}
+              {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" /> : null}
+              {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" data-i18n-attr="alt=flag_machiawase, title=flag_machiawase" /> : null}
+              {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" data-i18n-attr="alt=flag_inbound, title=flag_inbound" /> : null}
+              {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" data-i18n-attr="alt=flag_genderless, title=flag_genderless" /> : null}
+              {g.is_tel ? <img src="/img/flag-tel.png" class="girl-flag-icon" width="128" height="128" alt="電話" title="電話" data-i18n-attr="alt=flag_tel, title=flag_tel" /> : null}
             </div>
 
             {g.catch_copy ? (
-              <p class="girl-catch">「{g.catch_copy}」</p>
+              <p class="girl-catch">「<span data-i18n-dynamic>{g.catch_copy}</span>」</p>
             ) : null}
 
             <!-- 特徴タグ -->
             {imageTags.length ? (
               <div class="girl-tags">
                 {imageTags.map((t) => (
-                  <span class="girl-tag-chip">{t}</span>
+                  <span class="girl-tag-chip" data-i18n-dynamic>{t}</span>
                 ))}
               </div>
             ) : null}
@@ -121,7 +121,7 @@ if (g.catch_copy) {
             <!-- スリーサイズ -->
             {(g.height || g.bust || g.cup || g.waist || g.hip) ? (
               <Fragment>
-                <p class="section-label">身長・スリーサイズ</p>
+                <p class="section-label" data-i18n="girl_sizes_label">身長・スリーサイズ</p>
                 <div class="girl-size-grid">
                   <div class="girl-size-item">
                     <span class="girl-size-label">T</span>
@@ -150,20 +150,20 @@ if (g.catch_copy) {
             <!-- お店からのメッセージ（HTMLウィジェット可・そのまま描画） -->
             {g.shop_comment ? (
               <Fragment>
-                <p class="section-label" style="font-size:.95rem;margin-top:32px">お店からのメッセージ</p>
-                <div class="girl-shop-comment" set:html={g.shop_comment}></div>
+                <p class="section-label" style="font-size:.95rem;margin-top:32px" data-i18n="girl_shop_message_label">お店からのメッセージ</p>
+                <div class="girl-shop-comment" data-i18n-dynamic set:html={g.shop_comment}></div>
               </Fragment>
             ) : null}
 
             <!-- プロフィール（女の子に質問） -->
             {profiles.length ? (
               <Fragment>
-                <p class="section-label" style="font-size:.95rem;margin-top:32px">{g.name}さんに質問</p>
+                <p class="section-label" style="font-size:.95rem;margin-top:32px" data-i18n-dynamic>{g.name}さんに質問</p>
                 <table class="girl-profile-table">
                   {profiles.map((pf) => (
                     <tr>
-                      <th>{pf.name}</th>
-                      <td>{pf.value}</td>
+                      <th data-i18n-dynamic>{pf.name}</th>
+                      <td data-i18n-dynamic>{pf.value}</td>
                     </tr>
                   ))}
                 </table>
@@ -173,10 +173,10 @@ if (g.catch_copy) {
             <!-- 基本プレイ -->
             {basicPlay.length ? (
               <Fragment>
-                <p class="section-label play-label">基本プレイ</p>
+                <p class="section-label play-label" data-i18n="girl_basic_play_label">基本プレイ</p>
                 <div class="girl-options">
                   {basicPlay.map((o) => (
-                    <span class="play-chip">{o}</span>
+                    <span class="play-chip" data-i18n-dynamic>{o}</span>
                   ))}
                 </div>
               </Fragment>
@@ -185,10 +185,10 @@ if (g.catch_copy) {
             <!-- オプションプレイ -->
             {optionPlay.length ? (
               <Fragment>
-                <p class="section-label play-label play-label-option">オプションプレイ</p>
+                <p class="section-label play-label play-label-option" data-i18n="girl_option_play_label">オプションプレイ</p>
                 <div class="girl-options">
                   {optionPlay.map((o) => (
-                    <span class="play-chip is-option">{o}</span>
+                    <span class="play-chip is-option" data-i18n-dynamic>{o}</span>
                   ))}
                 </div>
               </Fragment>
@@ -196,15 +196,15 @@ if (g.catch_copy) {
 
             <!-- 週間出勤予定（オプションの下・schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
             <div id="girl-week" class="girl-week" data-girl-id={g.id} style="display:none">
-              <p class="section-label">📅 週間出勤予定</p>
+              <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
               <div class="gw-body"></div>
             </div>
 
             <!-- 本人からの一言（HTMLウィジェット可・そのまま描画） -->
             {g.comment ? (
               <Fragment>
-                <p class="section-label">{g.name}からの一言</p>
-                <div class="comment-box" set:html={g.comment}></div>
+                <p class="section-label" data-i18n-dynamic>{g.name}からの一言</p>
+                <div class="comment-box" data-i18n-dynamic set:html={g.comment}></div>
               </Fragment>
             ) : null}
 
@@ -221,13 +221,13 @@ if (g.catch_copy) {
 
   <!-- ネオン・ライトボックス -->
   <div class="lightbox" id="lightbox" data-lightbox aria-hidden="true" role="dialog" aria-label={`${g.name} 写真ビューア`}>
-    <button class="lightbox-close" data-lightbox-close aria-label="閉じる">✕</button>
-    <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真">‹</button>
+    <button class="lightbox-close" data-lightbox-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
+    <button class="lightbox-nav lightbox-prev" data-lightbox-prev aria-label="前の写真" data-i18n-attr="aria-label=lightbox_prev">‹</button>
     <div class="lightbox-stage">
       <img class="lightbox-img" id="lightboxImg" src="" alt={g.name} />
       <span class="lightbox-sparkles" id="lightboxSparkles" aria-hidden="true"></span>
     </div>
-    <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真">›</button>
+    <button class="lightbox-nav lightbox-next" data-lightbox-next aria-label="次の写真" data-i18n-attr="aria-label=lightbox_next">›</button>
     <div class="lightbox-dots" id="lightboxDots" aria-hidden="true"></div>
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>

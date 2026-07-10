@@ -38,8 +38,8 @@ const bodyHtml = localizeBody(                                            // 本
   <Site title={`ページが見つかりません｜${SHOP.fullName}`} description="" path={`/news/${id}`}>
     <main>
       <div class="wrap-md" style="padding:80px 24px;text-align:center">
-        <p class="empty-state">ページが見つかりません</p>
-        <p style="margin-top:24px"><a href="/news" class="back-link">← お知らせ一覧に戻る</a></p>
+        <p class="empty-state" data-i18n="news_not_found">ページが見つかりません</p>
+        <p style="margin-top:24px"><a href="/news" class="back-link" data-i18n="news_back_to_list">← お知らせ一覧に戻る</a></p>
       </div>
     </main>
   </Site>
@@ -51,15 +51,15 @@ const bodyHtml = localizeBody(                                            // 本
         <div class="wrap-md" style="position:relative;z-index:1">
 
           <nav class="breadcrumb">
-            <a href="/top">トップ</a>
+            <a href="/top" data-i18n="nav_top">トップ</a>
             <span class="breadcrumb-sep">›</span>
-            <a href="/news">お知らせ</a>
+            <a href="/news" data-i18n="nav_news">お知らせ</a>
             <span class="breadcrumb-sep">›</span>
-            <span>{it.title}</span>
+            <span data-i18n-dynamic>{it.title}</span>
           </nav>
 
           <p class="news-detail-date">{date}</p>
-          <h1 class="news-detail-title">{it.title}</h1>
+          <h1 class="news-detail-title" data-i18n-dynamic>{it.title}</h1>
 
           {it.thumb ? (
             thumbLink ? (
@@ -74,7 +74,7 @@ const bodyHtml = localizeBody(                                            // 本
           ) : null}
 
           {it.body ? (
-            <div class="prose-neon" set:html={bodyHtml}></div>
+            <div class="prose-neon" data-i18n-dynamic set:html={bodyHtml}></div>
           ) : null}
 
         </div>

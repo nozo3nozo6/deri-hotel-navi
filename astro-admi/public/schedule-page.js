@@ -12,6 +12,8 @@
   var tabsEl = document.getElementById('schedule-tabs');
 
   var WD = ['日', '月', '火', '水', '木', '金', '土'];
+  // 訳文つきの短い断片をspanで包む（admiI18n.reapplyで現在の言語に即置換される）
+  function i18nSpan(key, fallback) { return '<span data-i18n="' + key + '">' + fallback + '</span>'; }
 
   // 出勤時間 早い順（営業日は朝5時区切り：5時未満は翌日＝遅い扱い）
   function sortKey(t) {
@@ -34,7 +36,7 @@
     var dateEl = document.getElementById('schedule-date');
     if (dateEl && dateStr) {
       var wd = WD[wdIndex(dateStr)], p = dateStr.split('-');
-      dateEl.textContent = 'アドミ ' + parseInt(p[1], 10) + '月' + parseInt(p[2], 10) + '日（' + wd + '）';
+      dateEl.innerHTML = i18nSpan('schedule_day_band_brand', 'アドミ') + ' ' + parseInt(p[1], 10) + '月' + parseInt(p[2], 10) + '日（' + wd + '）';
     }
 
     var ids = Object.keys(work).sort(function (a, b) { return sortKey(work[a].start) - sortKey(work[b].start); });
@@ -47,10 +49,10 @@
       shown++;
       var w = work[id], start = w.start || '', end = w.end || '';
       function fmtT(t) { return t ? t.replace(/^0/, '') : t; }
-      var endLabel = (start && end && end < start) ? ('翌' + fmtT(end)) : fmtT(end);
+      var endLabel = (start && end && end < start) ? (i18nSpan('schedule_next_day_prefix', '翌') + fmtT(end)) : fmtT(end);
       var badge = document.createElement('div');
       badge.className = 'girl-card-worktime';
-      badge.textContent = (start && end ? fmtT(start) + '〜' + endLabel : '出勤');
+      badge.innerHTML = (start && end ? fmtT(start) + '〜' + endLabel : i18nSpan('schedule_worktime_label', '出勤'));
       var wrap = card.querySelector('.girl-card-img-wrap');
       if (wrap) wrap.insertAdjacentElement('afterend', badge); // 写真の下＝サイズの下・タグの上
       else card.appendChild(badge);
@@ -58,6 +60,7 @@
 
     var e = document.getElementById('schedule-empty');
     if (e) e.style.display = shown === 0 ? '' : 'none';
+    if (window.admiI18n) window.admiI18n.reapply(); // 新規挿入分に選択中の言語を即適用
   }
 
   // ---- 週表示（/schedule、タブあり） ----

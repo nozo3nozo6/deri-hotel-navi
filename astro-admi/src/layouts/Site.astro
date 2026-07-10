@@ -56,6 +56,8 @@ const ver = (f: string): string => { try { return String(Math.floor(statSync(f).
 const cssV = ver('public/site.css');
 const jsV = ver('public/site.js');
 const favV = ver('public/favicon.svg');
+const i18nV = ver('public/i18n.js');
+const contentI18nV = ver('public/content-i18n.js');
 ---
 <!doctype html>
 <html lang="ja">
@@ -103,28 +105,28 @@ const favV = ver('public/favicon.svg');
     </a>
     {!gate && (
     <nav class="site-nav">
-      <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子達</a>
-      <a href={FUJOHO.schedule} target="_self" rel="noopener">スケジュール</a>
-      <a href="/system">料金システム</a>
-      <a href="/howto">ご利用ガイド</a>
-      <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener">お知らせ</a>
-      <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
-      <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self">🏨 ホテル検索</a>
-      <a href="/recruit">求人情報</a>
+      <a href="/top" data-i18n="nav_top">トップ</a>
+      <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+      <a href={FUJOHO.schedule} target="_self" rel="noopener" data-i18n="nav_schedule">スケジュール</a>
+      <a href="/system" data-i18n="nav_system">料金システム</a>
+      <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+      <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
+      <a href={FUJOHO.diary} target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
+      <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self" data-i18n="nav_hotel_search">🏨 ホテル検索</a>
+      <a href="/recruit" data-i18n="nav_recruit">求人情報</a>
     </nav>
     )}
     <div class="header-tel">
-      <div class="header-reception">受付 {SHOP.reception}</div>
+      <div class="header-reception"><span data-i18n="header_reception_label">受付</span> {SHOP.reception}</div>
       <a href={`tel:${SHOP.telRaw}`} class="header-tel-num">📞 {SHOP.tel}</a>
     </div>
     <div class="reserve-stack">
-      <span class="reserve-hours">営業時間</span>
+      <span class="reserve-hours" data-i18n="reserve_hours_label">営業時間</span>
       <span class="reserve-time">{SHOP.reception}</span>
-      <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
+      <button type="button" class="glossy-pill reserve-btn" data-reserve-open data-i18n="btn_reserve">ご予約</button>
     </div>
     {!gate && (
-    <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
+    <button type="button" class="burger" data-menu-open aria-label="メニューを開く" data-i18n-attr="aria-label=menu_open_label">
       <span></span><span></span><span></span>
     </button>
     )}
@@ -136,7 +138,7 @@ const favV = ver('public/favicon.svg');
 
 {!hideBack && (
 <div class="back-bar">
-  <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
+  <button type="button" class="back-bar-btn" onclick="history.back()" data-i18n="btn_back">← 前へ戻る</button>
 </div>
 )}
 <footer class="site-footer">
@@ -145,22 +147,22 @@ const favV = ver('public/favicon.svg');
     <p class="footer-brand font-script neon-pink-glow flicker">{SHOP.nameEn}</p>
     <p class="footer-sub">since {SHOP.since} ・ {SHOP.catch} &amp; Go To FANTASY</p>
     <div class="footer-cta">
-      <a href={`tel:${SHOP.telRaw}`} class="footer-cta-tel glossy-pill">📞 電話で予約</a>
-      <a href={SHOP.lineUrl} target="_self" rel="noopener" class="footer-cta-line">💬 LINEで予約</a>
-      <p class="footer-cta-note">💝 LINEのご予約で<span class="footer-cta-note-em">プレイ時間＋10分無料</span>！</p>
-      <a href="https://yobuho.com/chat-sheet.html?slug=0tkzk670" target="_self" class="footer-cta-chat">💭 チャットで相談</a>
-      <p class="footer-cta-chat-note">登録不要です！お気軽に。</p>
+      <a href={`tel:${SHOP.telRaw}`} class="footer-cta-tel glossy-pill" data-i18n="footer_cta_tel">📞 電話で予約</a>
+      <a href={SHOP.lineUrl} target="_self" rel="noopener" class="footer-cta-line" data-i18n="footer_cta_line">💬 LINEで予約</a>
+      <p class="footer-cta-note" data-i18n-html="footer_cta_note_html">💝 LINEのご予約で<span class="footer-cta-note-em">プレイ時間＋10分無料</span>！</p>
+      <a href="https://yobuho.com/chat-sheet.html?slug=0tkzk670" target="_self" class="footer-cta-chat" data-i18n="footer_cta_chat">💭 チャットで相談</a>
+      <p class="footer-cta-chat-note" data-i18n="footer_cta_chat_note">登録不要です！お気軽に。</p>
     </div>
-    <p class="footer-reception">受付時間 {SHOP.reception}</p>
+    <p class="footer-reception"><span data-i18n="footer_reception_label">受付時間</span> {SHOP.reception}</p>
     <nav class="footer-links">
-      <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子達</a>
-      <a href="/schedule" target="_self">スケジュール</a>
-      <a href="/system">料金システム</a>
-      <a href="/howto">ご利用ガイド</a>
-      <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener">お知らせ</a>
-      <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
-      <a href="/recruit">求人情報</a>
+      <a href="/top" data-i18n="nav_top">トップ</a>
+      <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+      <a href="/schedule" target="_self" data-i18n="nav_schedule">スケジュール</a>
+      <a href="/system" data-i18n="nav_system">料金システム</a>
+      <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+      <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
+      <a href={FUJOHO.diary} target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
+      <a href="/recruit" data-i18n="nav_recruit">求人情報</a>
     </nav>
     <p class="footer-copy">&copy; {SHOP.since}-{new Date().getFullYear()} {SHOP.fullName} All Rights Reserved.</p>
   </div>
@@ -180,22 +182,22 @@ const favV = ver('public/favicon.svg');
         <span class="brand-catch">アドミ since2002</span>
       </span>
     </a>
-    <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる">✕</button>
+    <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
   </div>
   <nav class="offcanvas-nav">
-    <a href="/top">トップ</a>
-    <a href="/girls">すけべな女の子達</a>
-    <a href={FUJOHO.schedule} target="_self" rel="noopener">スケジュール</a>
-    <a href="/system">料金システム</a>
-    <a href="/howto">ご利用ガイド</a>
-    <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener">お知らせ</a>
-    <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>
-    <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self">🏨 ホテル検索</a>
-    <a href="/recruit">求人情報</a>
+    <a href="/top" data-i18n="nav_top">トップ</a>
+    <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+    <a href={FUJOHO.schedule} target="_self" rel="noopener" data-i18n="nav_schedule">スケジュール</a>
+    <a href="/system" data-i18n="nav_system">料金システム</a>
+    <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+    <a href="https://ranking-deli.jp/tokyo/area39/style2/4517/news/" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
+    <a href={FUJOHO.diary} target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
+    <a href="https://yobuho.com/deli/shop/0tkzk670/" target="_self" data-i18n="nav_hotel_search">🏨 ホテル検索</a>
+    <a href="/recruit" data-i18n="nav_recruit">求人情報</a>
   </nav>
   <div class="offcanvas-foot">
-    <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open>ご予約はこちら</button>
-    <a href={`tel:${SHOP.telRaw}`} class="offcanvas-tel-link">📞 {SHOP.tel}<br /><span class="text-mute">(受付 {SHOP.reception})</span></a>
+    <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open data-i18n="offcanvas_reserve_btn">ご予約はこちら</button>
+    <a href={`tel:${SHOP.telRaw}`} class="offcanvas-tel-link">📞 {SHOP.tel}<br /><span class="text-mute">(<span data-i18n="header_reception_label">受付</span> {SHOP.reception})</span></a>
   </div>
 </div>
 )}
@@ -203,30 +205,30 @@ const favV = ver('public/favicon.svg');
 <div class="modal-overlay" id="reserve-modal" role="dialog" aria-modal="true" aria-label="ご予約" aria-hidden="true">
   <div class="modal-box">
     <div class="modal-head">
-      <p class="modal-title holo-text">ご予約方法をお選びください</p>
-      <button type="button" class="modal-close" data-reserve-close aria-label="閉じる">✕</button>
+      <p class="modal-title holo-text" data-i18n="modal_reserve_title">ご予約方法をお選びください</p>
+      <button type="button" class="modal-close" data-reserve-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
     </div>
-    <p class="modal-sub">お問い合わせだけでもお気軽にどうぞ♡</p>
+    <p class="modal-sub" data-i18n="modal_reserve_sub">お問い合わせだけでもお気軽にどうぞ♡</p>
     <div class="reserve-cards">
       <a href={`tel:${SHOP.telRaw}`} class="reserve-card">
         <span class="reserve-icon">📞</span>
         <span>
-          <span class="reserve-label">TELで予約</span>
-          <span class="reserve-note">明るく優しいスタッフが対応！</span>
+          <span class="reserve-label" data-i18n="modal_tel_label">TELで予約</span>
+          <span class="reserve-note" data-i18n="modal_tel_note">明るく優しいスタッフが対応！</span>
         </span>
       </a>
       <a href={SHOP.lineUrl} target="_self" rel="noopener" class="reserve-card">
         <span class="reserve-icon">💬</span>
         <span>
-          <span class="reserve-label">LINEで予約</span>
-          <span class="reserve-note">ご予約でプレイ時間＋10分無料！</span>
+          <span class="reserve-label" data-i18n="modal_line_label">LINEで予約</span>
+          <span class="reserve-note" data-i18n="modal_line_note">ご予約でプレイ時間＋10分無料！</span>
         </span>
       </a>
       <a href="https://yobuho.com/chat-sheet.html?slug=0tkzk670" target="_self" class="reserve-card">
         <span class="reserve-icon">💭</span>
         <span>
-          <span class="reserve-label">チャットで相談</span>
-          <span class="reserve-note">登録不要です！お気軽に。</span>
+          <span class="reserve-label" data-i18n="modal_chat_label">チャットで相談</span>
+          <span class="reserve-note" data-i18n="modal_chat_note">登録不要です！お気軽に。</span>
         </span>
       </a>
     </div>
@@ -234,7 +236,7 @@ const favV = ver('public/favicon.svg');
 </div>
 {!gate && (
 <a href="https://yobuho.com/chat-sheet.html?slug=0tkzk670" target="_self"
-   class="admi-chat-fab" aria-label="チャットで相談">💬</a>
+   class="admi-chat-fab" aria-label="チャットで相談" data-i18n-attr="aria-label=chat_fab_label">💬</a>
 )}
 <style is:global>
 .admi-chat-fab {
@@ -272,5 +274,8 @@ const favV = ver('public/favicon.svg');
 }
 </style>
 <script is:inline src={`/site.js?v=${jsV}`}></script>
+<!-- 多言語対応: i18n.js(静的UIラベル・言語切替の中枢) → content-i18n.js(動的コンテンツの機械翻訳) の順で読込必須 -->
+<script is:inline src={`/i18n.js?v=${i18nV}`}></script>
+<script is:inline src={`/content-i18n.js?v=${contentI18nV}`}></script>
 </body>
 </html>

@@ -79,6 +79,8 @@ if (!function_exists('ssr_canonical')) {
 //      常時SSR配信の /news/* が全て noindex になり GSC 除外された（2026-07-05 修正）。
 function ssr_head(array $S, string $title, string $desc, bool $noindex = false, string $canonical = ''): void {
     $cssV = @filemtime(__DIR__ . '/site.css') ?: '1';
+    $i18nV = @filemtime(__DIR__ . '/i18n.js') ?: '1';
+    $contentI18nV = @filemtime(__DIR__ . '/content-i18n.js') ?: '1';
     ?><!doctype html>
 <html lang="ja">
 <head>
@@ -99,6 +101,9 @@ function ssr_head(array $S, string $title, string $desc, bool $noindex = false, 
 <script async src="https://www.googletagmanager.com/gtag/js?id=<?= ssr_h($S['ga']) ?>"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','<?= ssr_h($S['ga']) ?>');</script>
 <script>window.__SHOP_ID=<?= (int)$S['_id'] ?>;</script>
+<!-- 多言語対応: i18n.js(静的UIラベル・言語切替の中枢) → content-i18n.js(動的コンテンツの機械翻訳)。Site.astroと同期 -->
+<script src="/i18n.js?v=<?= $i18nV ?>"></script>
+<script src="/content-i18n.js?v=<?= $contentI18nV ?>"></script>
 </head>
 <body>
 <?php
@@ -118,22 +123,22 @@ function ssr_header(array $S): void {
       </span>
     </a>
     <nav class="site-nav">
-      <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子達</a>
-      <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
-      <a href="/system">料金システム</a>
-      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
+      <a href="/top" data-i18n="nav_top">トップ</a>
+      <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+      <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener" data-i18n="nav_schedule">スケジュール</a>
+      <a href="/system" data-i18n="nav_system">料金システム</a>
+      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
     </nav>
     <div class="header-tel">
-      <div class="header-reception">受付 <?= ssr_h($S['reception']) ?></div>
+      <div class="header-reception"><span data-i18n="header_reception_label">受付</span> <?= ssr_h($S['reception']) ?></div>
       <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="header-tel-num">📞 <?= ssr_h($S['tel']) ?></a>
     </div>
     <div class="reserve-stack">
-      <span class="reserve-hours">営業時間</span>
+      <span class="reserve-hours" data-i18n="reserve_hours_label">営業時間</span>
       <span class="reserve-time"><?= ssr_h($S['reception']) ?></span>
-      <button type="button" class="glossy-pill reserve-btn" data-reserve-open>ご予約</button>
+      <button type="button" class="glossy-pill reserve-btn" data-reserve-open data-i18n="btn_reserve">ご予約</button>
     </div>
-    <button type="button" class="burger" data-menu-open aria-label="メニューを開く">
+    <button type="button" class="burger" data-menu-open aria-label="メニューを開く" data-i18n-attr="aria-label=menu_open_label">
       <span></span><span></span><span></span>
     </button>
   </div>
@@ -148,7 +153,7 @@ function ssr_footer(array $S): void {
     $year = date('Y');
     ?>
 <div class="back-bar">
-  <button type="button" class="back-bar-btn" onclick="history.back()">← 前へ戻る</button>
+  <button type="button" class="back-bar-btn" onclick="history.back()" data-i18n="btn_back">← 前へ戻る</button>
 </div>
 <footer class="site-footer">
   <hr class="footer-top-divider" />
@@ -156,21 +161,21 @@ function ssr_footer(array $S): void {
     <p class="footer-brand font-script neon-pink-glow flicker"><?= ssr_h($S['nameEn']) ?></p>
     <p class="footer-sub">since <?= ssr_h($S['since']) ?> ・ <?= ssr_h($S['catch']) ?> &amp; Go To FANTASY</p>
     <div class="footer-cta">
-      <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="footer-cta-tel glossy-pill">📞 電話で予約</a>
-      <a href="<?= ssr_h($S['line']) ?>" target="_self" rel="noopener" class="footer-cta-line">💬 LINEで予約</a>
-      <p class="footer-cta-note">💝 LINEのご予約で<span class="footer-cta-note-em">プレイ時間＋10分無料</span>！</p>
+      <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="footer-cta-tel glossy-pill" data-i18n="footer_cta_tel">📞 電話で予約</a>
+      <a href="<?= ssr_h($S['line']) ?>" target="_self" rel="noopener" class="footer-cta-line" data-i18n="footer_cta_line">💬 LINEで予約</a>
+      <p class="footer-cta-note" data-i18n-html="footer_cta_note_html">💝 LINEのご予約で<span class="footer-cta-note-em">プレイ時間＋10分無料</span>！</p>
     </div>
-    <p class="footer-reception">受付時間 <?= ssr_h($S['reception']) ?></p>
+    <p class="footer-reception"><span data-i18n="footer_reception_label">受付時間</span> <?= ssr_h($S['reception']) ?></p>
     <nav class="footer-links">
-      <a href="/top">トップ</a>
-      <a href="/girls">すけべな女の子達</a>
-      <a href="/schedule" target="_self">スケジュール</a>
-      <a href="/system">料金システム</a>
-      <a href="/howto">ご利用ガイド</a>
-      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
-      <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
-      <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
-      <?php if ($S['show_contact'] ?? true): ?><a href="/contacts">お問合せ</a><?php endif; ?>
+      <a href="/top" data-i18n="nav_top">トップ</a>
+      <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+      <a href="/schedule" target="_self" data-i18n="nav_schedule">スケジュール</a>
+      <a href="/system" data-i18n="nav_system">料金システム</a>
+      <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+      <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
+      <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
+      <a href="<?= ssr_h($S['recruit']) ?>" target="_self" data-i18n="nav_recruit">求人情報</a>
+      <?php if ($S['show_contact'] ?? true): ?><a href="/contacts" data-i18n="nav_contacts">お問合せ</a><?php endif; ?>
     </nav>
     <p class="footer-copy">&copy; <?= ssr_h($S['since']) ?>-<?= $year ?> <?= ssr_h($S['fullName']) ?> All Rights Reserved.</p>
   </div>
@@ -187,45 +192,45 @@ function ssr_footer(array $S): void {
         <span class="brand-catch"><?= ssr_h($S['brandCatch']) ?></span>
       </span>
     </a>
-    <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる">✕</button>
+    <button type="button" class="offcanvas-close" data-menu-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
   </div>
   <nav class="offcanvas-nav">
-    <a href="/top">トップ</a>
-    <a href="/girls">すけべな女の子達</a>
-    <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener">スケジュール</a>
-    <a href="/system">料金システム</a>
-    <a href="/howto">ご利用ガイド</a>
-    <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener">お知らせ</a>
-    <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener">写メ日記</a>
-    <a href="<?= ssr_h($S['recruit']) ?>" target="_self">求人情報</a>
-    <?php if ($S['show_contact'] ?? true): ?><a href="/contacts">お問合せ</a><?php endif; ?>
+    <a href="/top" data-i18n="nav_top">トップ</a>
+    <a href="/girls" data-i18n="nav_girls">すけべな女の子達</a>
+    <a href="<?= ssr_h($S['fjSchedule']) ?>" target="_self" rel="noopener" data-i18n="nav_schedule">スケジュール</a>
+    <a href="/system" data-i18n="nav_system">料金システム</a>
+    <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+    <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
+    <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
+    <a href="<?= ssr_h($S['recruit']) ?>" target="_self" data-i18n="nav_recruit">求人情報</a>
+    <?php if ($S['show_contact'] ?? true): ?><a href="/contacts" data-i18n="nav_contacts">お問合せ</a><?php endif; ?>
   </nav>
   <div class="offcanvas-foot">
-    <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open>ご予約はこちら</button>
-    <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="offcanvas-tel-link">📞 <?= ssr_h($S['tel']) ?><br /><span class="text-mute">(受付 <?= ssr_h($S['reception']) ?>)</span></a>
+    <button type="button" class="glossy-pill offcanvas-reserve-btn" data-reserve-open data-i18n="offcanvas_reserve_btn">ご予約はこちら</button>
+    <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="offcanvas-tel-link">📞 <?= ssr_h($S['tel']) ?><br /><span class="text-mute">(<span data-i18n="header_reception_label">受付</span> <?= ssr_h($S['reception']) ?>)</span></a>
   </div>
 </div>
 
 <div class="modal-overlay" id="reserve-modal" role="dialog" aria-modal="true" aria-label="ご予約" aria-hidden="true">
   <div class="modal-box">
     <div class="modal-head">
-      <p class="modal-title holo-text">ご予約方法をお選びください</p>
-      <button type="button" class="modal-close" data-reserve-close aria-label="閉じる">✕</button>
+      <p class="modal-title holo-text" data-i18n="modal_reserve_title">ご予約方法をお選びください</p>
+      <button type="button" class="modal-close" data-reserve-close aria-label="閉じる" data-i18n-attr="aria-label=menu_close_label">✕</button>
     </div>
-    <p class="modal-sub">お問い合わせだけでもお気軽にどうぞ♡</p>
+    <p class="modal-sub" data-i18n="modal_reserve_sub">お問い合わせだけでもお気軽にどうぞ♡</p>
     <div class="reserve-cards">
       <a href="tel:<?= ssr_h($S['telRaw']) ?>" class="reserve-card">
         <span class="reserve-icon">📞</span>
         <span>
-          <span class="reserve-label">TELで予約</span>
-          <span class="reserve-note">明るく優しいスタッフが対応！</span>
+          <span class="reserve-label" data-i18n="modal_tel_label">TELで予約</span>
+          <span class="reserve-note" data-i18n="modal_tel_note">明るく優しいスタッフが対応！</span>
         </span>
       </a>
       <a href="<?= ssr_h($S['line']) ?>" target="_self" rel="noopener" class="reserve-card">
         <span class="reserve-icon">💬</span>
         <span>
-          <span class="reserve-label">LINEで予約</span>
-          <span class="reserve-note">ご予約でプレイ時間＋10分無料！</span>
+          <span class="reserve-label" data-i18n="modal_line_label">LINEで予約</span>
+          <span class="reserve-note" data-i18n="modal_line_note">ご予約でプレイ時間＋10分無料！</span>
         </span>
       </a>
     </div>

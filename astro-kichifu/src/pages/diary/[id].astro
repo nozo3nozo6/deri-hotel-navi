@@ -28,9 +28,9 @@ const desc = (d.body || '').replace(/<[^>]*>/g, '').slice(0, 100);
       <div class="neon-room"></div>
       <div class="wrap-md" style="position:relative;z-index:1">
         <nav class="breadcrumb">
-          <a href="/top">トップ</a>
+          <a href="/top" data-i18n="nav_top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <span>写メ日記</span>
+          <span data-i18n="nav_diary">写メ日記</span>
         </nav>
 
         <p class="news-detail-date">{date}{d.girl_name ? <span style="margin-left:8px">{d.girl_name}</span> : null}</p>
@@ -48,7 +48,7 @@ const desc = (d.body || '').replace(/<[^>]*>/g, '').slice(0, 100);
 
         {d.body ? <div class="prose-neon" set:html={bodyHtml}></div> : null}
 
-        {profUrl ? <div style="margin-top:32px"><a href={profUrl} class="section-more glossy-pill">{d.girl_name}のプロフィール</a></div> : null}
+        {profUrl ? <div style="margin-top:32px"><a href={profUrl} class="section-more glossy-pill">{d.girl_name}<span data-i18n="diary_profile_suffix">のプロフィール</span></a></div> : null}
       </div>
     </section>
   </main>

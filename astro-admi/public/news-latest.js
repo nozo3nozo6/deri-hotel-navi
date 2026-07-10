@@ -64,6 +64,7 @@
   }
 
   // top: 小サムネ・h3・抜粋なし
+  // data-i18n-dynamic = content-i18n.js の翻訳対象（お知らせタイトルはCTRL自由入力の動的コンテンツ）
   function topCard(it) {
     var img = imgUrlOf(it.thumb);
     var thumb = img
@@ -71,7 +72,7 @@
       : '<div class="news-no-thumb">📢</div>';
     return '<a href="/news/' + encodeURIComponent(it.id) + '" target="_self" class="news-item">' + thumb +
       '<div class="news-meta"><p class="news-date">' + esc(fmtDate(it.posted_at)) + '</p>' +
-      '<h3 class="news-title">' + esc(it.title) + '</h3>' +
+      '<h3 class="news-title" data-i18n-dynamic>' + esc(it.title) + '</h3>' +
       '</div></a>';
   }
 
@@ -84,8 +85,8 @@
     var ex = excerptOf(it.body);
     return '<a href="/news/' + encodeURIComponent(it.id) + '" target="_self" class="news-item">' + thumb +
       '<div class="news-meta"><p class="news-date">' + esc(fmtDate(it.posted_at)) + '</p>' +
-      '<h2 class="news-title">' + esc(it.title) + '</h2>' +
-      (ex ? '<p class="news-excerpt">' + esc(ex) + '</p>' : '') +
+      '<h2 class="news-title" data-i18n-dynamic>' + esc(it.title) + '</h2>' +
+      (ex ? '<p class="news-excerpt" data-i18n-dynamic>' + esc(ex) + '</p>' : '') +
       '</div></a>';
   }
 
@@ -100,6 +101,7 @@
         if (signatureOf(topList) !== currentSignature(topWrap)) {
           preloadAll(topList.map(function (it) { return imgUrlOf(it.thumb); }), function () {
             topWrap.innerHTML = topList.map(topCard).join('');
+            if (window.applyContentI18n) window.applyContentI18n(); // 新規挿入分に選択中の言語を即適用
           });
         }
       }
@@ -109,6 +111,7 @@
         if (signatureOf(news) !== currentSignature(archWrap)) {
           preloadAll(news.map(function (it) { return imgUrlOf(it.thumb); }), function () {
             archWrap.innerHTML = news.map(function (it) { return archCard(it, tw, th); }).join('');
+            if (window.applyContentI18n) window.applyContentI18n();
           });
         }
         var empty = document.getElementById('news-empty');

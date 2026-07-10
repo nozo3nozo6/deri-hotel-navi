@@ -19,14 +19,14 @@ const desc = `${SHOP.name}の最新情報、キャンペーン、新人入店情
       <div class="wrap-md" style="position:relative;z-index:1">
 
         <nav class="breadcrumb">
-          <a href="/top">トップ</a>
+          <a href="/top" data-i18n="nav_top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <span>お知らせ</span>
+          <span data-i18n="nav_news">お知らせ</span>
         </nav>
 
         <div class="section-head">
           <span class="section-eyebrow holo-text">NEWS</span>
-          <h1 class="section-title">お知らせ</h1>
+          <h1 class="section-title" data-i18n="nav_news">お知らせ</h1>
         </div>
 
         <div class="news-list" id="news-archive-list" data-thumb-w="112" data-thumb-h="112">
@@ -42,14 +42,14 @@ const desc = `${SHOP.name}の最新情報、キャンペーン、新人入店情
                   : <div class="news-no-thumb">📢</div>}
                 <div class="news-meta">
                   <p class="news-date">{date}</p>
-                  <h2 class="news-title">{it.title}</h2>
-                  {excerpt ? <p class="news-excerpt">{excerpt}</p> : null}
+                  <h2 class="news-title" data-i18n-dynamic>{it.title}</h2>
+                  {excerpt ? <p class="news-excerpt" data-i18n-dynamic>{excerpt}</p> : null}
                 </div>
               </a>
             );
           })}
         </div>
-        {feed.length === 0 ? <p class="empty-state" id="news-empty">お知らせはまだありません</p> : null}
+        {feed.length === 0 ? <p class="empty-state" id="news-empty" data-i18n="news_empty">お知らせはまだありません</p> : null}
 
       </div>
     </section>

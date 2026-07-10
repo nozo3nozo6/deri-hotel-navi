@@ -55,33 +55,33 @@ const cancels = [
       <div class="wrap-md" style="position:relative;z-index:1;">
 
         <nav class="breadcrumb">
-          <a href="/top">トップ</a>
+          <a href="/top" data-i18n="nav_top">トップ</a>
           <span class="breadcrumb-sep">›</span>
-          <span>料金システム</span>
+          <span data-i18n="nav_system">料金システム</span>
         </nav>
 
         <div class="section-head">
           <span class="section-eyebrow holo-text">SYSTEM</span>
-          <h1 class="section-title">料金システム</h1>
+          <h1 class="section-title" data-i18n="nav_system">料金システム</h1>
         </div>
 
         {/* FANTASY PRICE バナー */}
         <div class="price-banner">
-          <span class="price-banner-badge"><span aria-hidden="true">🌸</span> オフィシャルサイトをご覧の方限定</span>
+          <span class="price-banner-badge"><span aria-hidden="true">🌸</span> <span data-i18n="system_banner_badge">オフィシャルサイトをご覧の方限定</span></span>
           <span class="price-banner-en holo-text">FANTASY PRICE</span>
-          <span class="price-banner-jp">通常料金からの特別割引価格でご案内中。<br>非日常的なひとときを、ゆっくりとお楽しみください。</span>
+          <span class="price-banner-jp" data-i18n-html="system_banner_desc">通常料金からの特別割引価格でご案内中。<br>非日常的なひとときを、ゆっくりとお楽しみください。</span>
         </div>
 
         {/* コース料金（biyobu立川と同一・1グループ） */}
-        <h2 class="section-label">コース料金</h2>
+        <h2 class="section-label" data-i18n="system_course_title">コース料金</h2>
         <div class="price-group">
           <div class="price-table">
-            {prices.map((p) => (
+            {prices.map((p, i) => (
             <div class={`price-row${p.popular ? ' price-row-popular' : ''}`}>
               <span class="price-row-course">
                 <span class="price-row-time">
-                  {p.popular ? <span class="price-popular-badge">人気 No.1</span> : null}
-                  {p.time}
+                  {p.popular ? <span class="price-popular-badge" data-i18n="system_popular_badge">人気 No.1</span> : null}
+                  <span data-i18n={`system_price${i + 1}_time`}>{p.time}</span>
                 </span>
               </span>
               <span class="price-row-amount">
@@ -95,61 +95,61 @@ const cancels = [
             ))}
           </div>
           <div class="system-note">
-            ※ 180分コース以上はコースの組み合わせでご利用いただけます。<br>
-            <span class="text-mute">[例] 180分＝90分コース×2／300分＝150分コース×2</span><br>
-            ※ この場合、指名料も×2・×3…となります。<br>
-            ※ ご自宅でご利用のお客様は、バスタオルのご用意をお願いしております。ご予約時にご要望をいただければ1枚お持ちすることも可能ですが、状況によりご用意できない場合もございます。
+            <span data-i18n="system_note_combo1">※ 180分コース以上はコースの組み合わせでご利用いただけます。</span><br>
+            <span class="text-mute" data-i18n="system_note_combo_example">[例] 180分＝90分コース×2／300分＝150分コース×2</span><br>
+            <span data-i18n="system_note_combo2">※ この場合、指名料も×2・×3…となります。</span><br>
+            <span data-i18n="system_note_towel">※ ご自宅でご利用のお客様は、バスタオルのご用意をお願いしております。ご予約時にご要望をいただければ1枚お持ちすることも可能ですが、状況によりご用意できない場合もございます。</span>
           </div>
         </div>
 
         {/* ③ お泊まり */}
         <div class="price-group">
           <div class="price-group-head">
-            <span class="price-group-title"><span aria-hidden="true">🌙</span> お泊まりコース</span>
+            <span class="price-group-title"><span aria-hidden="true">🌙</span> <span data-i18n="system_overnight_title">お泊まりコース</span></span>
           </div>
-          <p class="price-group-desc">0時〜翌10時の間、最大10時間でのご利用となります。</p>
+          <p class="price-group-desc" data-i18n="system_overnight_desc">0時〜翌10時の間、最大10時間でのご利用となります。</p>
           <div class="price-table">
             <div class="price-row price-row-feature">
               <span class="price-row-course">
-                <span class="price-row-time">お泊り</span>
-                <span class="price-row-cond">0時〜翌10時(最大10時間)</span>
+                <span class="price-row-time" data-i18n="system_overnight_label">お泊り</span>
+                <span class="price-row-cond" data-i18n-html="system_overnight_cond">0時〜翌10時(最大10時間)</span>
               </span>
               <span class="price-row-amount">
                 <span class="price-now"><small>¥</small>88,000</span>
               </span>
             </div>
           </div>
-          <div class="system-note">
+          <div class="system-note" data-i18n-html="system_overnight_note">
             ※ 10時間の間でお好きな時間にご利用いただけます。<br>
             ※ 本指名の場合は「本指名料×2」、指名がある場合は「指名料×2」となります。
           </div>
         </div>
 
         {/* 指名料・延長 */}
-        <h2 class="section-label">指名料・延長</h2>
+        <h2 class="section-label" data-i18n="system_fee_title">指名料・延長</h2>
         <div class="fee-card">
           <div class="fee-list">
-            {fees.map((f) => (
+            {fees.map((f, i) => (
             <div class="fee-row">
               <span class="fee-name">
-                {f.name}
-                {f.note ? <small>{f.note}</small> : null}
+                <span data-i18n={`system_fee${i + 1}_name`}>{f.name}</span>
+                {f.note ? <small data-i18n={`system_fee${i + 1}_note`}>{f.note}</small> : null}
               </span>
-              <span class="fee-amount">{f.amount}{f.unit ? <small>{f.unit}</small> : null}</span>
+              <span class="fee-amount">{f.amount}{f.unit ? <small data-i18n={`system_fee${i + 1}_unit`}>{f.unit}</small> : null}</span>
             </div>
             ))}
           </div>
         </div>
 
         {/* オプション */}
-        <h2 class="section-label" style="margin-top:40px;">オプション</h2>
+        <h2 class="section-label" style="margin-top:40px;" data-i18n="system_option_title">オプション</h2>
         <div class="fee-card">
           <div class="fee-list">
-            {options.map((o) => (
+            {options.map((o, i) => (
             <div class="fee-row">
               <span class="fee-name">
-                {o.name}
-                {o.note ? <small>{o.note}</small> : null}
+                <span data-i18n={`system_option${i + 1}_name`}>{o.name}</span>
+                {o.note ? <small data-i18n={`system_option${i + 1}_note`}>{o.note}</small> : null}
               </span>
               <span class="fee-amount">{o.amount}</span>
             </div>
@@ -157,90 +157,90 @@ const cancels = [
           </div>
         </div>
         <div class="system-note">
-          <span aria-hidden="true">🎁</span> 120分コースのご利用でオモチャ1つ無料、150分コースのご利用でオモチャ全て無料！
+          <span aria-hidden="true">🎁</span> <span data-i18n="system_note_toy">120分コースのご利用でオモチャ1つ無料、150分コースのご利用でオモチャ全て無料！</span>
         </div>
 
         {/* 交通費 */}
-        <h2 class="section-label" style="margin-top:40px;">交通費</h2>
+        <h2 class="section-label" style="margin-top:40px;" data-i18n="system_zone_title">交通費</h2>
         <div class="zone-list">
           {zones.map((z) => (
           <div class="zone-card">
-            <span class="zone-fee">{z.fee} エリア</span>
+            <span class="zone-fee">{z.fee} <span data-i18n="system_zone_suffix">エリア</span></span>
             <span class="zone-area">{z.area}</span>
           </div>
           ))}
         </div>
-        <div class="system-note">
+        <div class="system-note" data-i18n="system_note_zone">
           ※ 「〜」表記のエリアは目的地までの距離により変動します。詳しい交通費はお電話・LINEにてご確認ください。
         </div>
 
         {/* キャンセル */}
-        <h2 class="section-label" style="margin-top:40px;">ご変更・キャンセル</h2>
+        <h2 class="section-label" style="margin-top:40px;" data-i18n="system_cancel_title">ご変更・キャンセル</h2>
         <div class="fee-card">
           <table class="cancel-table">
             <tbody>
-              {cancels.map((c) => (
+              {cancels.map((c, i) => (
               <tr>
-                <th>{c.when}</th>
-                <td>{c.fee}</td>
+                <th data-i18n={`system_cancel${i + 1}_when`}>{c.when}</th>
+                <td data-i18n={`system_cancel${i + 1}_fee`}>{c.fee}</td>
               </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div class="system-note">
+        <div class="system-note" data-i18n-html="system_note_cancel">
           ※ キャンセル料は3日以内にクレジットまたは銀行振込にてお支払いをお願いいたします。<br>
           ※ ご予約のキャンセルは、他のお客様・キャストへの影響も大きいため、できる限りお避けください。
         </div>
 
         {/* 利用規約 */}
-        <h2 class="section-label" style="margin-top:40px;">利用規約</h2>
-        <p class="terms-subtitle">当店ご利用のお客様への注意事項</p>
+        <h2 class="section-label" style="margin-top:40px;" data-i18n="system_terms_title">利用規約</h2>
+        <p class="terms-subtitle" data-i18n="system_terms_subtitle">当店ご利用のお客様への注意事項</p>
         <div class="notice-box">
-          <h3 class="terms-head">◇はじめに</h3>
-          <p class="terms-text">当店を利用される方は、事前に以下のご利用条件をお読みいただき、利用された場合は、ご利用規約に同意されたものとさせていただきます。当店は、ご利用規約を変更することがあります。その際にはこのご利用規約の改訂版を掲載することとしますので、ご利用の都度、最新の内容をご確認いただきますよう、お願い申し上げます。</p>
+          <h3 class="terms-head" data-i18n="system_terms_head1">◇はじめに</h3>
+          <p class="terms-text" data-i18n="system_terms_intro">当店を利用される方は、事前に以下のご利用条件をお読みいただき、利用された場合は、ご利用規約に同意されたものとさせていただきます。当店は、ご利用規約を変更することがあります。その際にはこのご利用規約の改訂版を掲載することとしますので、ご利用の都度、最新の内容をご確認いただきますよう、お願い申し上げます。</p>
 
-          <h3 class="terms-head">◇規約</h3>
-          <p class="terms-text">キャストが安心してより良いサービスを提供できる様、これらの禁止事項を厳守下さい。</p>
+          <h3 class="terms-head" data-i18n="system_terms_head2">◇規約</h3>
+          <p class="terms-text" data-i18n="system_terms_rules_lead">キャストが安心してより良いサービスを提供できる様、これらの禁止事項を厳守下さい。</p>
           <ul class="notice-list">
-            <li>20歳未満の方の利用</li>
+            <li data-i18n="system_terms_li1">20歳未満の方の利用</li>
             <li>
-              本番行為及び要求、またはそれに付帯する行為
-              <span class="terms-note">当店では本番行為は一切禁止しております。</span>
+              <span data-i18n="system_terms_li2">本番行為及び要求、またはそれに付帯する行為</span>
+              <span class="terms-note" data-i18n="system_terms_li2_note">当店では本番行為は一切禁止しております。</span>
             </li>
-            <li>当店のサービスメニューにない過剰なサービス要求や、キャストの嫌がる(痛がる)行為</li>
+            <li data-i18n="system_terms_li3">当店のサービスメニューにない過剰なサービス要求や、キャストの嫌がる(痛がる)行為</li>
             <li>
-              盗聴、盗撮行為
-              <span class="terms-note">万一発見した場合、犯罪行為として警察に通報させて頂きます。カメラ付き携帯での撮影も同様ですので、ご注意ください。</span>
+              <span data-i18n="system_terms_li4">盗聴、盗撮行為</span>
+              <span class="terms-note" data-i18n="system_terms_li4_note">万一発見した場合、犯罪行為として警察に通報させて頂きます。カメラ付き携帯での撮影も同様ですので、ご注意ください。</span>
             </li>
-            <li>女性に対するスカウト等の引き抜き行為、または同業関係者の利用</li>
-            <li>暴力団関係者、またはそれに準ずる方の利用</li>
-            <li>薬物(大麻・覚醒剤・シンナー等)を使用されている方の利用</li>
-            <li>泥酔状態の方の利用</li>
+            <li data-i18n="system_terms_li5">女性に対するスカウト等の引き抜き行為、または同業関係者の利用</li>
+            <li data-i18n="system_terms_li6">暴力団関係者、またはそれに準ずる方の利用</li>
+            <li data-i18n="system_terms_li7">薬物(大麻・覚醒剤・シンナー等)を使用されている方の利用</li>
+            <li data-i18n="system_terms_li8">泥酔状態の方の利用</li>
             <li>
-              性病・その他の伝染病に感染している方の利用
-              <span class="terms-note">プレイ前のシャワー(全身及び局部の洗浄)やうがい等を拒否する方も同様です。</span>
+              <span data-i18n="system_terms_li9">性病・その他の伝染病に感染している方の利用</span>
+              <span class="terms-note" data-i18n="system_terms_li9_note">プレイ前のシャワー(全身及び局部の洗浄)やうがい等を拒否する方も同様です。</span>
             </li>
-            <li>その他、当店スタッフが『相応しくない』と判断させて頂いた方の利用</li>
-            <li>当店スタッフやキャストに対する暴言や暴力等があった場合</li>
-            <li>当店を通さずに会おうとした、または会った方（店外デート、愛人契約等）</li>
-            <li>個人的な割引要求、無料延長などの強要があった場合</li>
-            <li>その他、キャストの嫌がる言動があった場合</li>
+            <li data-i18n="system_terms_li10">その他、当店スタッフが『相応しくない』と判断させて頂いた方の利用</li>
+            <li data-i18n="system_terms_li11">当店スタッフやキャストに対する暴言や暴力等があった場合</li>
+            <li data-i18n="system_terms_li12">当店を通さずに会おうとした、または会った方（店外デート、愛人契約等）</li>
+            <li data-i18n="system_terms_li13">個人的な割引要求、無料延長などの強要があった場合</li>
+            <li data-i18n="system_terms_li14">その他、キャストの嫌がる言動があった場合</li>
           </ul>
-          <p class="terms-text terms-strong">引き抜き行為が発覚した場合には罰則として100万円のお支払いになりますのでご注意下さい。</p>
+          <p class="terms-text terms-strong" data-i18n="system_terms_penalty">引き抜き行為が発覚した場合には罰則として100万円のお支払いになりますのでご注意下さい。</p>
 
-          <h3 class="terms-head">最終のご確認</h3>
-          <p class="terms-text">※上記に一つでも該当する場合、当店利用をご遠慮頂きます。</p>
-          <p class="terms-text">※尚サービス中でも上記該当が発覚した場合、ただちにサービスを中断致します。</p>
-          <p class="terms-text">尚、その際の利用料金の返金には一切応じませんのでご了承下さい。</p>
-          <p class="terms-text">更に、その後の当店利用を一切ご遠慮頂くと共に、会員登録も抹消致します。</p>
-          <p class="terms-text">※お店が必要と判断した場合、身分証を提示の上、所轄の警察署に同行頂きます。</p>
-          <p class="terms-text">予めご了承下さいますようお願い申し上げます。</p>
+          <h3 class="terms-head" data-i18n="system_terms_head3">最終のご確認</h3>
+          <p class="terms-text" data-i18n="system_terms_final1">※上記に一つでも該当する場合、当店利用をご遠慮頂きます。</p>
+          <p class="terms-text" data-i18n="system_terms_final2">※尚サービス中でも上記該当が発覚した場合、ただちにサービスを中断致します。</p>
+          <p class="terms-text" data-i18n="system_terms_final3">尚、その際の利用料金の返金には一切応じませんのでご了承下さい。</p>
+          <p class="terms-text" data-i18n="system_terms_final4">更に、その後の当店利用を一切ご遠慮頂くと共に、会員登録も抹消致します。</p>
+          <p class="terms-text" data-i18n="system_terms_final5">※お店が必要と判断した場合、身分証を提示の上、所轄の警察署に同行頂きます。</p>
+          <p class="terms-text" data-i18n="system_terms_final6">予めご了承下さいますようお願い申し上げます。</p>
 
-          <p class="notice-foot">ご不明な点はお気軽にお問い合わせください。</p>
+          <p class="notice-foot" data-i18n="system_terms_contact_note">ご不明な点はお気軽にお問い合わせください。</p>
         </div>
 
-        <div class="system-note">
+        <div class="system-note" data-i18n-html="system_note_footer">
           ※ 料金はすべて税込です。<br>
           ※ 料金・エリアは予告なく変更となる場合がございます。
         </div>
@@ -248,10 +248,10 @@ const cancels = [
         {/* CTA */}
         <div class="system-cta">
           <a href={SHOP.lineUrl} target="_self" rel="noopener" class="footer-cta-line system-cta-btn">
-            <span aria-hidden="true">💬</span> LINEで予約
+            <span aria-hidden="true">💬</span> <span data-i18n="system_cta_line">LINEで予約</span>
           </a>
           <a href={`tel:${SHOP.telRaw}`} class="glossy-pill footer-cta-tel system-cta-btn">
-            <span aria-hidden="true">📞</span> 電話で予約
+            <span aria-hidden="true">📞</span> <span data-i18n="system_cta_tel">電話で予約</span>
           </a>
         </div>
 

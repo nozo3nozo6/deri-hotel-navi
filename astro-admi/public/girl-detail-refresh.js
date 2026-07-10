@@ -69,11 +69,15 @@
       syncCatch(g.catch_copy);
       syncTags(g.tags || []);
       syncSizes(g);
-      syncHtml('girl-shop-comment', 'お店からのメッセージ', g.shop_comment);
+      syncHtml('girl-shop-comment', 'お店からのメッセージ', g.shop_comment, false, 'girl_shop_message_label');
       syncProfiles(g.profiles || [], g.name || '');
       syncPlays(g.basic_play || [], g.option_play || []);
-      syncHtml('comment-box', (g.name || '') + 'からの一言', g.comment);
+      syncHtml('comment-box', (g.name || '') + 'からの一言', g.comment, true);
       syncGallery(g.images || [], g.name || '');
+      // 上記どれかがDOMのテキストを書き換えた可能性があるため、原文キャッシュを全リセットして
+      // 現在選択中の言語で再翻訳＋静的ラベルの再適用を一括実行（個々の関数での個別呼び出しは不要）。
+      if (window.admiI18n) window.admiI18n.reapply();
+      if (window.applyContentI18n) window.applyContentI18n(true);
     })
     .catch(function () { /* API失敗時はSSGのまま */ });
 
@@ -90,21 +94,27 @@
   }
 
   // ---- 属性フラグ（順序: 新人→待ち合わせ→インバウンド→ジェンダーレス→電話、[id].astroと同一） ----
+  //   比較キーは img の src（flag-xxx.png）で行う。alt/titleはi18n.jsが言語切替時に書き換えるため、
+  //   alt値ベースの比較だと英語モードで毎回誤検知＝無駄な再構築が起きてしまう。
   function syncFlags(g) {
     var box = root.querySelector('.girl-flags');
     if (!box) return;
-    var want = [];
-    if (isNewcomer(g.in_date)) want.push('新人');
-    if (g.is_trial)            want.push('待ち合わせ');
-    if (g.is_inbound)          want.push('インバウンド');
-    if (g.is_genderless)       want.push('ジェンダーレス');
-    if (g.is_tel)              want.push('電話');
-    var cur = [].map.call(box.querySelectorAll('img'), function (i) { return i.getAttribute('alt') || ''; });
-    if (want.join('|') === cur.join('|')) return;
-    var FLAG_IMG = { '新人': 'flag-newgirl', '待ち合わせ': 'flag-machiawase', 'インバウンド': 'flag-inbound', 'ジェンダーレス': 'flag-genderless', '電話': 'flag-tel' };
-    box.innerHTML = want.map(function (k) {
-      return '<img src="/img/' + FLAG_IMG[k] + '.png" class="girl-flag-icon" width="128" height="128" alt="' + k + '" title="' + k + '" />';
-    }).join('');
+    var FLAG_DEFS = [
+      { on: isNewcomer(g.in_date), slug: 'newgirl',    label: '新人',           i18n: 'flag_newgirl' },
+      { on: !!g.is_trial,          slug: 'machiawase', label: '待ち合わせ',      i18n: 'flag_machiawase' },
+      { on: !!g.is_inbound,        slug: 'inbound',    label: 'インバウンド',    i18n: 'flag_inbound' },
+      { on: !!g.is_genderless,     slug: 'genderless', label: 'ジェンダーレス', i18n: 'flag_genderless' },
+      { on: !!g.is_tel,            slug: 'tel',        label: '電話',           i18n: 'flag_tel' },
+    ];
+    var wantDefs = FLAG_DEFS.filter(function (d) { return d.on; });
+    var curSlugs = [].map.call(box.querySelectorAll('img'), function (i) {
+      var m = (i.getAttribute('src') || '').match(/flag-([a-z]+)\.png/);
+      return m ? m[1] : '';
+    });
+    if (wantDefs.map(function (d) { return d.slug; }).join('|') === curSlugs.join('|')) return;
+    box.innerHTML = wantDefs.map(function (d) {
+      return '<img src="/img/flag-' + d.slug + '.png" class="girl-flag-icon" width="128" height="128" alt="' + d.label + '" title="' + d.label + '" data-i18n-attr="alt=' + d.i18n + ', title=' + d.i18n + '" />';
+    }).join(''); // 翻訳属性の適用は呼び出し元(fetch末尾)で一括 reapply()
   }
 
   // ---- 特徴タグ（.girl-tags チップ） ----
@@ -113,7 +123,7 @@
     var cur = box ? [].map.call(box.querySelectorAll('.girl-tag-chip'), function (s) { return s.textContent; }) : [];
     if (tags.join('|') === cur.join('|')) { if (box) box.style.display = ''; return; }
     if (!tags.length) { if (box) box.style.display = 'none'; return; }
-    var html = tags.map(function (t) { return '<span class="girl-tag-chip">' + esc(t) + '</span>'; }).join('');
+    var html = tags.map(function (t) { return '<span class="girl-tag-chip" data-i18n-dynamic>' + esc(t) + '</span>'; }).join('');
     if (box) {
       box.innerHTML = html;
       box.style.display = '';
@@ -156,6 +166,7 @@
     if (!anchor) return;
     var p = document.createElement('p');
     p.className = 'section-label';
+    p.setAttribute('data-i18n', 'girl_sizes_label');
     p.textContent = '身長・スリーサイズ';
     var div = document.createElement('div');
     div.className = 'girl-size-grid';
@@ -167,6 +178,7 @@
   }
 
   // ---- プロフィール（女の子に質問）テーブル ----
+  //   ラベルは名前を含む動的文字列のため data-i18n-dynamic（固定UI辞書ではなく翻訳API）で扱う。
   function syncProfiles(profiles, name) {
     var table = root.querySelector('.girl-profile-table');
     var labelText = name + 'さんに質問';
@@ -178,12 +190,15 @@
     if (table) {
       var lbl = prevLabel(table);
       if (!profiles.length) { table.style.display = 'none'; if (lbl) lbl.style.display = 'none'; return; }
-      if (lbl && lbl.textContent !== labelText) lbl.textContent = labelText;   // 名前変更時にラベルも追従
+      if (lbl) {
+        lbl.setAttribute('data-i18n-dynamic', '');
+        if (lbl.textContent !== labelText) lbl.textContent = labelText;   // 名前変更時にラベルも追従
+        lbl.style.display = '';
+      }
       table.style.display = '';
-      if (lbl) lbl.style.display = '';
       if (sig === cur) return;
       table.innerHTML = profiles.map(function (p) {
-        return '<tr><th>' + esc(p.name) + '</th><td>' + esc(p.value) + '</td></tr>';
+        return '<tr><th data-i18n-dynamic>' + esc(p.name) + '</th><td data-i18n-dynamic>' + esc(p.value) + '</td></tr>';
       }).join('');
       return;
     }
@@ -194,11 +209,12 @@
     var p2 = document.createElement('p');
     p2.className = 'section-label';
     p2.style.cssText = 'font-size:.95rem;margin-top:32px';
+    p2.setAttribute('data-i18n-dynamic', '');
     p2.textContent = labelText;
     table = document.createElement('table');
     table.className = 'girl-profile-table';
     table.innerHTML = profiles.map(function (p) {
-      return '<tr><th>' + esc(p.name) + '</th><td>' + esc(p.value) + '</td></tr>';
+      return '<tr><th data-i18n-dynamic>' + esc(p.name) + '</th><td data-i18n-dynamic>' + esc(p.value) + '</td></tr>';
     }).join('');
     anchor.insertAdjacentElement('beforebegin', p2);
     p2.insertAdjacentElement('afterend', table);
@@ -229,7 +245,7 @@
       if (label) label.style.display = 'none';
       return;
     }
-    var html = items.map(function (o) { return '<span class="' + chipCls + '">' + esc(o) + '</span>'; }).join('');
+    var html = items.map(function (o) { return '<span class="' + chipCls + '" data-i18n-dynamic>' + esc(o) + '</span>'; }).join('');
     if (box) {
       box.innerHTML = html;
       box.style.display = '';
@@ -241,6 +257,7 @@
     if (!anchor) return;
     var p = document.createElement('p');
     p.className = 'section-label play-label' + (isOption ? ' play-label-option' : '');
+    p.setAttribute('data-i18n', isOption ? 'girl_option_play_label' : 'girl_basic_play_label');
     p.textContent = isOption ? 'オプションプレイ' : '基本プレイ';
     var div = document.createElement('div');
     div.className = 'girl-options';
@@ -290,9 +307,12 @@
 
   // set:html 系セクション（ラベル<p.section-label> + 本文<div.cls>）を最新へ。
   //   既存あり→innerHTML差し替え / 空に編集→セクション非表示 / 無→追加（末尾.girl-detail本文列）
-  function syncHtml(cls, label, html) {
+  //   isDynamicLabel=true（例:「○○からの一言」）はラベルに名前を含む動的文字列のため
+  //   data-i18n-dynamic（翻訳API）で扱う。false（例:「お店からのメッセージ」）は固定UI辞書(labelKey)。
+  function syncHtml(cls, label, html, isDynamicLabel, labelKey) {
     html = html == null ? '' : String(html);
     var el = root.querySelector('.' + cls);
+    el && el.setAttribute('data-i18n-dynamic', '');
     if (el) {
       var lbl = prevLabel(el);
       if (html === '') {                       // 内容が空になった→ラベルごと隠す
@@ -304,6 +324,7 @@
       el.style.display = '';
       if (lbl) {
         lbl.style.display = '';
+        if (isDynamicLabel) lbl.setAttribute('data-i18n-dynamic', ''); else lbl.setAttribute('data-i18n', labelKey);
         if (lbl.textContent !== label) lbl.textContent = label;   // 名前変更時に「○○からの一言」等も追従
       }
       return;
@@ -317,21 +338,30 @@
     var p = document.createElement('p');
     p.className = 'section-label';
     p.style.cssText = 'font-size:.95rem;margin-top:32px';
+    if (isDynamicLabel) p.setAttribute('data-i18n-dynamic', ''); else p.setAttribute('data-i18n', labelKey);
     p.textContent = label;
     var div = document.createElement('div');
     div.className = cls;
+    div.setAttribute('data-i18n-dynamic', '');
     div.innerHTML = html;
     col.appendChild(p);
     col.appendChild(div);
   }
 
+  // 鉤括弧「」はi18n翻訳対象から外し、中身だけ data-i18n-dynamic の span に入れる
+  //   （[id].astro と同一構造。鉤括弧ごと翻訳APIに渡すと括弧が消える/崩れるリスクがあるため）。
+  //   翻訳の適用は呼び出し元(fetch末尾)で一括 applyContentI18n(true) される。
   function syncCatch(text) {
     text = text == null ? '' : String(text).trim();
     var el = root.querySelector('.girl-catch');
     if (el) {
       if (text === '') { el.style.display = 'none'; return; }
-      var want = '「' + text + '」';
-      if (el.textContent !== want) el.textContent = want;
+      var span = el.querySelector('[data-i18n-dynamic]');
+      if (span) {
+        if (span.textContent !== text) span.textContent = text;
+      } else {
+        el.innerHTML = '「<span data-i18n-dynamic>' + esc(text) + '</span>」';
+      }
       el.style.display = '';
       return;
     }
@@ -341,7 +371,7 @@
     if (!anchor) return;
     el = document.createElement('p');
     el.className = 'girl-catch';
-    el.textContent = '「' + text + '」';
+    el.innerHTML = '「<span data-i18n-dynamic>' + esc(text) + '</span>」';
     anchor.insertAdjacentElement('afterend', el);
   }
 
