@@ -90,7 +90,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
         <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のスライド">›</button>
       </div>
       <details class="hero-lang">
-        <summary class="hero-lang-btn"><span aria-hidden="true">🌐</span> Lang<span class="hero-lang-caret" aria-hidden="true">▾</span></summary>
+        <summary class="hero-lang-btn" aria-label="Language / 言語"><span aria-hidden="true">🌐</span></summary>
         <div class="hero-lang-menu" role="group" aria-label="Language / 言語">
           {LANGS.map((l) => (
             <button type="button" class="hero-lang-item" data-lang-btn={l.code}>
@@ -138,23 +138,23 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <AssureTabs />
 
   <style>
-    /* スライダー操作列＝右端に🌐Langを常設。矢印/ドットは残り幅の中央(.hero-slider-nav)。
-       flexで同一行に共存させ、幅が足りない時は自動的に詰まる＝絶対配置と違い物理的に重ならない。
+    /* スライダー操作列＝矢印/ドット(.hero-slider-nav)は列の中央に固定。🌐Langは丸アイコンのみで
+       右端に絶対配置（矢印ボタンと同サイズの円＝視覚的に統一、幅が小さいので狭幅でも衝突しない）。
        操作列は常時表示・min-heightで高さ保持（1枚時に矢印が消えてもLangが浮かない）。 */
-    .hero-slider-controls { position: relative; min-height: 44px; display: flex; align-items: center; gap: 10px; }
-    .hero-slider-nav { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1 1 auto; min-width: 0; }
-    .hero-lang { position: relative; flex: 0 0 auto; margin-left: auto; z-index: 70; }
+    .hero-slider-controls { position: relative; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+    .hero-slider-nav { display: flex; align-items: center; justify-content: center; gap: 16px; }
+    .hero-lang { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 70; }
     .hero-lang-btn {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 6px 12px; border-radius: 999px;
-      background: var(--bg-1); border: 1.5px solid rgba(255, 79, 216, .35);
-      color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .8rem; line-height: 1;
-      cursor: pointer; list-style: none; white-space: nowrap;
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 9999px;
+      background: rgba(255, 79, 216, .14); border: 1px solid rgba(255, 79, 216, .45);
+      font-size: 18px; line-height: 1; cursor: pointer; list-style: none;
       -webkit-tap-highlight-color: transparent;
+      transition: background .2s, transform .12s;
     }
+    .hero-lang-btn:hover { background: rgba(255, 79, 216, .28); }
+    .hero-lang-btn:active { transform: scale(.92); }
     .hero-lang-btn::-webkit-details-marker { display: none; }
-    .hero-lang-caret { font-size: .75rem; margin-left: 1px; transition: transform .2s ease; }
-    .hero-lang[open] .hero-lang-caret { transform: rotate(180deg); }
     .hero-lang-menu {
       position: absolute; right: 0; top: calc(100% + 6px);
       background: var(--bg-0); border: 1px solid rgba(255, 79, 216, .28);
@@ -173,16 +173,8 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
     .hero-lang-flag { font-size: 1.35rem; line-height: 1; }
     .hero-lang-name { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
     .hero-lang-item.is-active .hero-lang-name { color: var(--neon-pink-hot); }
-    @media (min-width: 641px) {
-      .hero-lang-btn { font-size: .88rem; padding: 7px 14px; }
-    }
-    /* 狭幅: 矢印/ドットの間隔とLangボタンを詰めて1行に収める（320px級でも重ならない） */
-    @media (max-width: 400px) {
-      .hero-slider-nav { gap: 8px; }
-      .hero-lang-btn { padding: 6px 9px; font-size: .74rem; }
-    }
     @media (prefers-reduced-motion: reduce) {
-      .hero-lang-caret { transition: none; }
+      .hero-lang-btn { transition: none; }
     }
   </style>
 
