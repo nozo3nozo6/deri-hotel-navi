@@ -16,6 +16,16 @@ const sliderLatestV = ver('public/slider-latest.js');
 const newsV = ver('public/news-latest.js');
 const bannerLatestV = ver('public/banner-latest.js');
 
+// 言語スイッチャー（🌐 Lang）＝スライダー操作列の右端。クリックは i18n.js が document 全体で
+//   イベント委譲するため data-lang-btn を置くだけで機能。開閉は <details>（JS最小）。
+const LANGS = [
+  { code: 'ja', flag: '🇯🇵', name: '日本語' },
+  { code: 'en', flag: '🇺🇸', name: 'English' },
+  { code: 'zh-CN', flag: '🇨🇳', name: '简体中文' },
+  { code: 'zh-TW', flag: '🇹🇼', name: '繁體中文' },
+  { code: 'ko', flag: '🇰🇷', name: '한국어' },
+];
+
 // 女の子カードのアイコン（フラグ）の見かた＝凡例。タップでモーダル説明。
 const ICON_LEGEND = [
   { key: 'newgirl',    img: '/img/flag-newgirl.png',    title: '新人女性', desc: '新しく仲間入りした女性です！いち早く会えるチャンスをお見逃しなく。' },
@@ -72,10 +82,24 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
         })}
       </div>
     </div>
-    <div class="hero-slider-controls" style={sliders.length > 1 ? '' : 'display:none'}>
-      <button type="button" class="hero-slider-arrow prev" data-slider-prev aria-label="前のスライド">‹</button>
-      <div class="hero-slider-dots" data-slider-dots></div>
-      <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のスライド">›</button>
+    <!-- 操作列は常時表示（右端に🌐Langを常設）。矢印+ドットだけスライド数で出し入れ -->
+    <div class="hero-slider-controls">
+      <div class="hero-slider-nav" style={sliders.length > 1 ? '' : 'display:none'}>
+        <button type="button" class="hero-slider-arrow prev" data-slider-prev aria-label="前のスライド">‹</button>
+        <div class="hero-slider-dots" data-slider-dots></div>
+        <button type="button" class="hero-slider-arrow next" data-slider-next aria-label="次のスライド">›</button>
+      </div>
+      <details class="hero-lang">
+        <summary class="hero-lang-btn"><span aria-hidden="true">🌐</span> Lang<span class="hero-lang-caret" aria-hidden="true">▾</span></summary>
+        <div class="hero-lang-menu" role="group" aria-label="Language / 言語">
+          {LANGS.map((l) => (
+            <button type="button" class="hero-lang-item" data-lang-btn={l.code}>
+              <span class="hero-lang-flag" aria-hidden="true">{l.flag}</span>
+              <span class="hero-lang-name">{l.name}</span>
+            </button>
+          ))}
+        </div>
+      </details>
     </div>
   </section>
   <section class="hero-bg hero-fallback" style={`position:relative;min-height:46vh;align-items:center;justify-content:center;overflow:hidden;display:${sliders.length ? 'none' : 'flex'};`}>
@@ -93,8 +117,68 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <script is:inline src={`/banner-slider.js?v=${bannerSliderV}`}></script>
   <script is:inline src={`/slider-latest.js?v=${sliderLatestV}`}></script>
 
+  <!-- 🌐Langドロップダウン: 言語選択で閉じる＋外側クリックで閉じる（<details>・Astro外部化でCSP安全） -->
+  <script>
+    document.addEventListener('click', (e) => {
+      const target = e.target as Element | null;
+      if (!target || !target.closest) return;
+      const picked = target.closest('.hero-lang [data-lang-btn]');
+      if (picked) {
+        const d = picked.closest('details.hero-lang') as HTMLDetailsElement | null;
+        if (d) d.open = false;
+        return;
+      }
+      document.querySelectorAll<HTMLDetailsElement>('details.hero-lang[open]').forEach((d) => {
+        if (!d.contains(target)) d.open = false;
+      });
+    });
+  </script>
+
   <!-- 安心タブ（ヒーロー直下）＝👛お釣りその場｜🏨そのホテル呼べる？ を1行タブに統合 -->
   <AssureTabs />
+
+  <style>
+    /* スライダー操作列＝右端に🌐Langを常設。矢印/ドットは中央(.hero-slider-navで出し入れ)。
+       操作列は常時表示・min-heightで高さ保持（1枚時に矢印が消えてもLangが浮かない）。 */
+    .hero-slider-controls { position: relative; min-height: 44px; }
+    .hero-slider-nav { display: flex; align-items: center; justify-content: center; gap: 16px; }
+    .hero-lang { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 70; }
+    .hero-lang-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px 12px; border-radius: 999px;
+      background: var(--bg-1); border: 1.5px solid rgba(255, 79, 216, .35);
+      color: var(--text-soft); font-family: inherit; font-weight: 800; font-size: .8rem; line-height: 1;
+      cursor: pointer; list-style: none; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .hero-lang-btn::-webkit-details-marker { display: none; }
+    .hero-lang-caret { font-size: .75rem; margin-left: 1px; transition: transform .2s ease; }
+    .hero-lang[open] .hero-lang-caret { transform: rotate(180deg); }
+    .hero-lang-menu {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: var(--bg-0); border: 1px solid rgba(255, 79, 216, .28);
+      border-radius: 14px; box-shadow: 0 12px 30px -8px rgba(255, 45, 155, .4);
+      padding: 6px; display: flex; flex-direction: column; gap: 2px;
+      z-index: 60; min-width: 156px;
+    }
+    .hero-lang-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 12px; border-radius: 10px;
+      background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left;
+      -webkit-tap-highlight-color: transparent; transition: background .12s ease;
+    }
+    .hero-lang-item:hover { background: var(--bg-1); }
+    .hero-lang-item.is-active { background: linear-gradient(135deg, rgba(255, 79, 216, .16), rgba(183, 143, 255, .14)); }
+    .hero-lang-flag { font-size: 1.35rem; line-height: 1; }
+    .hero-lang-name { font-size: .82rem; font-weight: 700; color: var(--text-soft); }
+    .hero-lang-item.is-active .hero-lang-name { color: var(--neon-pink-hot); }
+    @media (min-width: 641px) {
+      .hero-lang-btn { font-size: .88rem; padding: 7px 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-lang-caret { transition: none; }
+    }
+  </style>
 
   <!-- お知らせ ============================================================== -->
   <section class="top-news-section">

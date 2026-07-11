@@ -12,23 +12,13 @@
 import { SHOP } from '../lib/config';
 const yobuhoUrl = SHOP.yobuhoUrl;
 
+// 言語切替(🌐 Lang)はヒーロー下のスライダー操作列の右端に移設（top.astro）。ここは安心タブ2つに専念。
 const TABS = [
   { key: 'care', icon: '👛', i18nKey: 'asr_tab_care_html', label: 'お釣りは<strong>その場で</strong>' },
   { key: 'hotel', icon: '🏨', i18nKey: 'asr_tab_hotel_html', label: 'その<strong>ホテル、呼べる？</strong>' },
-  { key: 'lang', icon: '🌐', i18nKey: 'asr_tab_lang', label: '言語' },
-];
-
-// Language タブ内の国旗スイッチャー（ylka.jp と同じ5言語）。クリックは i18n.js が
-// document 全体でイベント委譲するため、ここに data-lang-btn を置くだけで機能する。
-const LANGS = [
-  { code: 'ja', flag: '🇯🇵', name: '日本語' },
-  { code: 'en', flag: '🇺🇸', name: 'English' },
-  { code: 'zh-CN', flag: '🇨🇳', name: '简体中文' },
-  { code: 'zh-TW', flag: '🇹🇼', name: '繁體中文' },
-  { code: 'ko', flag: '🇰🇷', name: '한국어' },
 ];
 ---
-<section class="asr-section" aria-label="当店のこだわり・ホテルのご相談・言語切替">
+<section class="asr-section" aria-label="当店のこだわり・ホテルのご相談">
   <div class="asr glass-card" data-asr-root>
     <div class="asr-tabs" role="tablist">
       {TABS.map((t) => (
@@ -64,17 +54,6 @@ const LANGS = [
           </a>
         </div>
       )}
-    </div>
-
-    <div class="asr-panel asr-panel-lang" id="asr-panel-lang" data-asr-panel="lang" hidden>
-      <div class="asr-lang-grid" role="group" aria-label="Language / 言語">
-        {LANGS.map((l) => (
-          <button type="button" class="asr-lang-btn" data-lang-btn={l.code}>
-            <span class="asr-lang-flag" aria-hidden="true">{l.flag}</span>
-            <span class="asr-lang-name">{l.name}</span>
-          </button>
-        ))}
-      </div>
     </div>
   </div>
 </section>
@@ -138,9 +117,6 @@ const LANGS = [
     -webkit-tap-highlight-color: transparent;
     transition: background .15s ease, transform .15s ease;
   }
-  /* 言語タブは幅を内容ぶんに狭め、左2タブ(お釣り/ホテル)に余白を回す＝日本語ラベルの…を減らす */
-  .asr-tab[data-asr="lang"] { flex: 0 1 auto; }
-  .asr-tab[data-asr="lang"] .asr-tab-label { white-space: nowrap; }
   .asr-tab::after {
     /* アクティブタブの下線バー（タブらしさの要） */
     content: '';
@@ -247,57 +223,20 @@ const LANGS = [
   }
   .asr-cta:hover { transform: translateY(-1px); box-shadow: 0 7px 22px rgba(255, 79, 216, .5); }
   .asr-cta-arrow { font-weight: 900; margin-left: 1px; }
-  /* ---- Language タブの国旗スイッチャー（is-active は i18n.js が data-lang-btn 全要素に付与） ---- */
-  .asr-lang-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .asr-lang-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 10px 6px;
-    border-radius: 12px;
-    border: 1.5px solid rgba(255, 79, 216, .22);
-    background: var(--bg-1);
-    cursor: pointer;
-    font-family: inherit;
-    -webkit-tap-highlight-color: transparent;
-    transition: background .15s ease, border-color .15s ease, transform .15s ease;
-  }
-  .asr-lang-btn:hover { transform: translateY(-1px); }
-  .asr-lang-btn.is-active {
-    background: linear-gradient(135deg, rgba(255, 79, 216, .18), rgba(183, 143, 255, .16));
-    border-color: var(--neon-pink);
-    box-shadow: 0 2px 10px rgba(255, 79, 216, .25);
-  }
-  .asr-lang-flag { font-size: 1.6rem; line-height: 1; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .25)); }
-  .asr-lang-name { font-size: .72rem; font-weight: 700; color: var(--text-mute); }
-  .asr-lang-btn.is-active .asr-lang-name { color: var(--neon-pink-hot); }
-  /* ---- 狭幅・PC調整（3タブ化に伴いラベルをさらに縮小） ---- */
-  @media (max-width: 419px) {
+  /* ---- 狭幅・PC調整（2タブ＝均等半分。ラベルは基本フル表示） ---- */
+  @media (max-width: 374px) {
     .asr-tab { gap: 3px; padding: 10px 3px 11px; }
-    .asr-tab-label { font-size: .68rem; }
+    .asr-tab-label { font-size: .72rem; }
     .asr-tab-icon { font-size: 1.05rem; }
   }
-  @media (max-width: 374px) {
-    .asr-tab { gap: 2px; padding: 9px 2px 10px; }
-    .asr-tab-label { font-size: .62rem; }
-    .asr-tab-icon { font-size: 1rem; }
-  }
   @media (min-width: 641px) {
-    .asr-tab { gap: 8px; padding: 13px 10px 14px; }
+    .asr-tab { gap: 8px; padding: 13px 12px 14px; }
     .asr-tab-icon { font-size: 1.45rem; }
     .asr-tab-label { font-size: .95rem; }
     .asr-panel { font-size: .94rem; padding: 16px 20px 18px; }
     .asr-cta { font-size: .96rem; padding: 11px 26px; }
-    .asr-lang-grid { grid-template-columns: repeat(5, 1fr); }
-    .asr-lang-flag { font-size: 1.8rem; }
-    .asr-lang-name { font-size: .78rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .asr-tab, .asr-tab-icon, .asr-tab-label, .asr-tab::after, .asr-cta, .asr-lang-btn { transition: none; }
+    .asr-tab, .asr-tab-icon, .asr-tab-label, .asr-tab::after, .asr-cta { transition: none; }
   }
 </style>

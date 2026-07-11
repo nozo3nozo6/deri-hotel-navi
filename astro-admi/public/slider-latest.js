@@ -13,7 +13,8 @@
   var track = slider.querySelector('.hero-slider-track');
   if (!track) return;
   var fallback = document.querySelector('.hero-fallback'); // 0枚時のロゴヒーロー
-  var controls = slider.querySelector('.hero-slider-controls');
+  var controls = slider.querySelector('.hero-slider-controls'); // 常時表示(右端に🌐Lang)
+  var nav = slider.querySelector('.hero-slider-nav');           // 矢印+ドット群（2枚以上で表示）
 
   var shop = window.__SHOP_ID || 1;
   var ASSET = 'https://admi2888.com';
@@ -84,7 +85,8 @@
       // 0枚SSG(ロゴfallback)→ スライダーを表示しfallbackを隠す（0→1枚目の即反映）
       slider.style.display = '';
       if (fallback) fallback.style.display = 'none';
-      if (controls) controls.style.display = live.length > 1 ? '' : 'none'; // 2枚以上で操作を出す
+      // 操作列(controls)は常時表示のまま。矢印+ドット群(nav)だけ2枚以上で表示（🌐Langは常に右端に残す）
+      if (nav) nav.style.display = live.length > 1 ? '' : 'none';
       if (typeof window.__initHeroSliders === 'function') window.__initHeroSliders();
     })
     .catch(function () { /* 通信失敗時は SSG のまま */ });
