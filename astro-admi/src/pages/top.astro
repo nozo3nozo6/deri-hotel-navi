@@ -138,11 +138,12 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
   <AssureTabs />
 
   <style>
-    /* スライダー操作列＝右端に🌐Langを常設。矢印/ドットは中央(.hero-slider-navで出し入れ)。
+    /* スライダー操作列＝右端に🌐Langを常設。矢印/ドットは残り幅の中央(.hero-slider-nav)。
+       flexで同一行に共存させ、幅が足りない時は自動的に詰まる＝絶対配置と違い物理的に重ならない。
        操作列は常時表示・min-heightで高さ保持（1枚時に矢印が消えてもLangが浮かない）。 */
-    .hero-slider-controls { position: relative; min-height: 44px; }
-    .hero-slider-nav { display: flex; align-items: center; justify-content: center; gap: 16px; }
-    .hero-lang { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 70; }
+    .hero-slider-controls { position: relative; min-height: 44px; display: flex; align-items: center; gap: 10px; }
+    .hero-slider-nav { display: flex; align-items: center; justify-content: center; gap: 14px; flex: 1 1 auto; min-width: 0; }
+    .hero-lang { position: relative; flex: 0 0 auto; margin-left: auto; z-index: 70; }
     .hero-lang-btn {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 6px 12px; border-radius: 999px;
@@ -174,6 +175,11 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
     .hero-lang-item.is-active .hero-lang-name { color: var(--neon-pink-hot); }
     @media (min-width: 641px) {
       .hero-lang-btn { font-size: .88rem; padding: 7px 14px; }
+    }
+    /* 狭幅: 矢印/ドットの間隔とLangボタンを詰めて1行に収める（320px級でも重ならない） */
+    @media (max-width: 400px) {
+      .hero-slider-nav { gap: 8px; }
+      .hero-lang-btn { padding: 6px 9px; font-size: .74rem; }
     }
     @media (prefers-reduced-motion: reduce) {
       .hero-lang-caret { transition: none; }
