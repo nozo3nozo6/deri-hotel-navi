@@ -126,6 +126,13 @@ function nav_groups(): array {
             ['schedules.php', '📅', '出勤管理'],
             ['news.php', '📰', 'お知らせ'],
             ['girls.php', '👩', 'キャスト'],
+        ],
+        // 媒体連携は頻用のためスライダーより上に配置（2026-07-12 ユーザー指示）
+        '媒体連携' => [
+            ['play-availability.php', '⏰', '最速で遊べる時間'],
+            ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
+        ],
+        'コンテンツ' => [
             ['sliders.php', '🎞️', 'スライダー'],
             ['banners.php', '🖼️', 'バナー'],
             ['events.php', '🎉', 'イベント'],
@@ -134,10 +141,6 @@ function nav_groups(): array {
             ['girl-options.php', '💋', 'オプション'],
             ['girl-profiles.php', '📝', 'プロフィール項目'],
             ['girl-diaries.php', '📔', '写メ日記'],
-        ],
-        '媒体連携' => [
-            ['play-availability.php', '⏰', '最速で遊べる時間'],
-            ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
         ],
         'メルマガ' => [
             ['mail-magazines.php', '✉️', '配信'],
