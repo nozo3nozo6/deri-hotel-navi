@@ -56,10 +56,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $hh = $_POST['pa_h'][$gid] ?? '';
         $mm = $_POST['pa_m'][$gid] ?? '';
         if ($hh === '' || $mm === '') { flash('err', $gname . ': 時と分を選択してください。'); redirect('play-availability.php'); }
-        $ts = strtotime(date('Y-m-d') . sprintf(' %02d:%02d:00', (int)$hh, (int)$mm));
-        if ($ts < time()) $ts = strtotime('+1 day', $ts);   // 過去時刻→翌日扱い（過去にしたい時は「今すぐ」）
+        // 営業日（10:00〜翌5:00・5時区切り）で解釈: 10〜23時=当営業日 / 0〜9時=その深夜側（翌暦日）。
+        // 過去時刻はそのまま保存（=「その時刻から遊べる」が既に来ている → プレビュー/媒体上は「今すぐ遊べる」。情報局と同じ解釈）
+        $hh = (int)$hh; $mm = (int)$mm;
+        $bizDate = date('Y-m-d', time() - 5 * 3600);
+        $dateStr = ($hh >= 10) ? $bizDate : date('Y-m-d', strtotime($bizDate . ' +1 day'));
+        $ts = strtotime($dateStr . sprintf(' %02d:%02d:00', $hh, $mm));
         $upsert->execute([$shop, $gid, date('Y-m-d H:i:00', $ts), $by]);
-        flash('ok', $gname . ': ' . date('n/j H:i', $ts) . ' から遊べる、で保存しました。');
+        flash('ok', $gname . ': ' . ($ts <= time()
+            ? date('n/j H:i', $ts) . ' から遊べる（時刻が来ているので「今すぐ遊べる」表示）で保存しました。'
+            : date('n/j H:i', $ts) . ' から遊べる、で保存しました。'));
     } elseif ($action === 'now') {
         $ts = intdiv(time(), 300) * 300;                     // 5分切り下げ → play_at<=now で即「今すぐ」
         $upsert->execute([$shop, $gid, date('Y-m-d H:i:00', $ts), $by]);
@@ -152,8 +158,9 @@ layout_header('最速で遊べる時間', 'play-availability.php');
 
 <div class="pa-help">
   <b>この画面が正データです。</b>保存すると各媒体のbotがここを読んで自動反映します（この画面から媒体へ直接投稿はしません）。
-  時刻は5分刻み。<b>「今すぐ」＝現在時刻を5分単位に切り下げて保存</b>（即「今すぐ遊べる」になります）。
-  時刻指定で過去の時刻を選ぶと翌日扱いになります。
+  時刻は5分刻み・「その時刻から遊べる」の意味です。<b>過ぎた時刻を設定してもOK</b>＝すでに遊べる時間が来ている、として「🔥今すぐ遊べる（即姫）」表示になります。
+  0〜9時台の時刻は深夜側（翌日の未明）として扱います。
+  ※「今すぐ」ボタン＝現在時刻を即姫として保存するショートカットです（媒体への同期ボタンではありません。同期はbotが自動で行います）。
   <table>
     <tr><th>媒体</th><th>反映</th></tr>
     <tr><td>口コミ情報局</td><td>変更時＋3分ごと自動再更新（bot）</td></tr>
