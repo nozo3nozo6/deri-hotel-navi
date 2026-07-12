@@ -62,30 +62,37 @@ try {
         }
 
         $st = DB::conn()->prepare(
-            'SELECT pa.girl_id, g.name, pa.play_at, pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
-                    mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id
+            'SELECT pa.girl_id, g.name, pa.play_at, pa.shift_end_at, pa.himewari_enabled, pa.himewari_minutes,
+                    pa.himewari_price, pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
+                    mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no
                FROM play_availability pa
                JOIN girls g ON g.id = pa.girl_id
                LEFT JOIN girl_media_ids mi ON mi.shop_id = pa.shop_id AND mi.girl_id = pa.girl_id
               WHERE ' . implode(' AND ', $where) . '
-              ORDER BY pa.play_at, pa.girl_id'
+              ORDER BY pa.play_at IS NULL, pa.play_at, pa.girl_id'
         );
         $st->execute($params);
         $items = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $items[] = [
-                'cast_id'    => (int)$r['girl_id'],
-                'name'       => $r['name'],
-                'play_at'    => iso($r['play_at']),
-                'status'     => $r['status'],
-                'list_flag'  => (bool)$r['list_flag'],
-                'note'       => $r['note'],
-                'updated_at' => iso($r['updated_at']),
-                'updated_by' => $r['updated_by'],
-                'media_ids'  => [
+                'cast_id'          => (int)$r['girl_id'],
+                'name'             => $r['name'],
+                'play_at'          => iso($r['play_at']),
+                'shift_end_at'     => iso($r['shift_end_at']),
+                'himewari_enabled' => (bool)$r['himewari_enabled'],
+                'himewari_minutes' => $r['himewari_minutes'] !== null ? (int)$r['himewari_minutes'] : null,
+                'himewari_price'   => $r['himewari_price']   !== null ? (int)$r['himewari_price']   : null,
+                'status'           => $r['status'],
+                'list_flag'        => (bool)$r['list_flag'],
+                'note'             => $r['note'],
+                'updated_at'       => iso($r['updated_at']),
+                'updated_by'       => $r['updated_by'],
+                'media_ids'        => [
                     'fujoho'   => $r['fujoho_girl_id'],
                     'ekichika' => $r['ekichika_girl_id'],
                     'heaven'   => $r['heaven_member_id'],
+                    'fuzoku'   => $r['fuzoku_girl_no'],
+                    'deli'     => $r['deli_girl_no'],
                 ],
             ];
         }
@@ -108,49 +115,78 @@ try {
         $status = $body['status'] ?? 'active';
         if (!in_array($status, ['active', 'cleared'], true)) { http_response_code(400); echo json_encode(['error' => 'bad status']); exit; }
 
+        // 5分刻み丸めヘルパー（情報局スロット準拠）。空/未指定は null。不正は false。
+        $floor5 = function ($v) {
+            if ($v === null || $v === '') return null;
+            $ts = strtotime((string)$v);
+            if ($ts === false) return false;
+            return date('Y-m-d H:i:00', intdiv($ts, 300) * 300);
+        };
+
+        // play_at: 指定あり→丸め / 未指定→既存維持（NULL可＝ヒメ割のみのキャストもある）
+        $playAtProvided = array_key_exists('play_at', $body);
         $playAt = null;
-        if (isset($body['play_at']) && $body['play_at'] !== '') {
-            $ts = strtotime((string)$body['play_at']);
-            if ($ts === false) { http_response_code(400); echo json_encode(['error' => 'bad play_at']); exit; }
-            $ts = intdiv($ts, 300) * 300;                    // 5分刻みに切り下げ（情報局スロット準拠）
-            $playAt = date('Y-m-d H:i:00', $ts);
+        if ($playAtProvided) {
+            $playAt = $floor5($body['play_at']);
+            if ($playAt === false) { http_response_code(400); echo json_encode(['error' => 'bad play_at']); exit; }
         }
 
-        if ($status === 'active' && $playAt === null) {
-            // active なのに play_at 無し → 既存行の再activeのみ許可
-            $cur = DB::conn()->prepare('SELECT play_at FROM play_availability WHERE shop_id=? AND girl_id=?');
-            $cur->execute([$shopId, $castId]);
-            $playAt = $cur->fetchColumn();
-            if (!$playAt) { http_response_code(400); echo json_encode(['error' => 'play_at required']); exit; }
-        }
+        $by = isset($body['updated_by']) ? mb_substr((string)$body['updated_by'], 0, 64) : 'api';
 
-        $listFlag = isset($body['list_flag']) ? (int)(bool)$body['list_flag'] : 1;
-        $note     = isset($body['note']) ? mb_substr((string)$body['note'], 0, 255) : null;
-        $by       = isset($body['updated_by']) ? mb_substr((string)$body['updated_by'], 0, 64) : 'api';
+        // 既存行（partial更新のため）
+        $cur = DB::conn()->prepare('SELECT * FROM play_availability WHERE shop_id=? AND girl_id=?');
+        $cur->execute([$shopId, $castId]);
+        $existing = $cur->fetch(PDO::FETCH_ASSOC) ?: null;
 
-        if ($status === 'cleared' && $playAt === null) {
-            // クリアのみ: 既存行の status を cleared に（行が無ければ何もせず ok）
-            $st = DB::conn()->prepare('UPDATE play_availability SET status="cleared", updated_by=? WHERE shop_id=? AND girl_id=?');
-            $st->execute([$by, $shopId, $castId]);
+        // クリアのみ（play_at/himewari等を触らずステータスだけ）
+        if ($status === 'cleared' && !$playAtProvided && !array_key_exists('himewari_enabled', $body)
+            && !array_key_exists('shift_end_at', $body)) {
+            if ($existing) {
+                $st = DB::conn()->prepare('UPDATE play_availability SET status="cleared", updated_by=? WHERE shop_id=? AND girl_id=?');
+                $st->execute([$by, $shopId, $castId]);
+            }
         } else {
+            // マージ: 指定フィールドは body、未指定は既存（無ければデフォルト）
+            $finalPlayAt = $playAtProvided ? $playAt : ($existing['play_at'] ?? null);
+            $listFlag = array_key_exists('list_flag', $body) ? (int)(bool)$body['list_flag'] : (int)($existing['list_flag'] ?? 1);
+            $note     = array_key_exists('note', $body) ? mb_substr((string)$body['note'], 0, 255) : ($existing['note'] ?? null);
+
+            // ヒメ割フィールド
+            $shiftEnd = $existing['shift_end_at'] ?? null;
+            if (array_key_exists('shift_end_at', $body)) {
+                $shiftEnd = $floor5($body['shift_end_at']);
+                if ($shiftEnd === false) { http_response_code(400); echo json_encode(['error' => 'bad shift_end_at']); exit; }
+            }
+            $hwEnabled = array_key_exists('himewari_enabled', $body) ? (int)(bool)$body['himewari_enabled'] : (int)($existing['himewari_enabled'] ?? 0);
+            $hwMin = $existing['himewari_minutes'] ?? null;
+            if (array_key_exists('himewari_minutes', $body)) $hwMin = ($body['himewari_minutes'] === null || $body['himewari_minutes'] === '') ? null : (int)$body['himewari_minutes'];
+            $hwPrice = $existing['himewari_price'] ?? null;
+            if (array_key_exists('himewari_price', $body)) $hwPrice = ($body['himewari_price'] === null || $body['himewari_price'] === '') ? null : (int)$body['himewari_price'];
+
             $st = DB::conn()->prepare(
-                'INSERT INTO play_availability (shop_id, girl_id, play_at, status, list_flag, note, updated_by)
-                 VALUES (?,?,?,?,?,?,?)
-                 ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), status=VALUES(status),
-                     list_flag=VALUES(list_flag), note=COALESCE(VALUES(note), note), updated_by=VALUES(updated_by)'
+                'INSERT INTO play_availability
+                   (shop_id, girl_id, play_at, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), shift_end_at=VALUES(shift_end_at),
+                     himewari_enabled=VALUES(himewari_enabled), himewari_minutes=VALUES(himewari_minutes),
+                     himewari_price=VALUES(himewari_price), status=VALUES(status),
+                     list_flag=VALUES(list_flag), note=VALUES(note), updated_by=VALUES(updated_by)'
             );
-            $st->execute([$shopId, $castId, $playAt, $status, $listFlag, $note, $by]);
+            $st->execute([$shopId, $castId, $finalPlayAt, $shiftEnd, $hwEnabled, $hwMin, $hwPrice, $status, $listFlag, $note, $by]);
         }
 
         // 保存後の最新を返す
-        $st = DB::conn()->prepare('SELECT girl_id, play_at, status, list_flag, note, updated_at FROM play_availability WHERE shop_id=? AND girl_id=?');
+        $st = DB::conn()->prepare('SELECT girl_id, play_at, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_at FROM play_availability WHERE shop_id=? AND girl_id=?');
         $st->execute([$shopId, $castId]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
         echo DB::jsonEncode([
             'ok'   => true,
             'item' => $r ? [
-                'cast_id' => (int)$r['girl_id'], 'play_at' => iso($r['play_at']), 'status' => $r['status'],
-                'list_flag' => (bool)$r['list_flag'], 'note' => $r['note'], 'updated_at' => iso($r['updated_at']),
+                'cast_id' => (int)$r['girl_id'], 'play_at' => iso($r['play_at']),
+                'shift_end_at' => iso($r['shift_end_at']), 'himewari_enabled' => (bool)$r['himewari_enabled'],
+                'himewari_minutes' => $r['himewari_minutes'] !== null ? (int)$r['himewari_minutes'] : null,
+                'himewari_price' => $r['himewari_price'] !== null ? (int)$r['himewari_price'] : null,
+                'status' => $r['status'], 'list_flag' => (bool)$r['list_flag'], 'note' => $r['note'], 'updated_at' => iso($r['updated_at']),
             ] : null,
         ]);
         exit;
