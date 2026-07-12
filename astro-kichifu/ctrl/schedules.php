@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/_lib.php';
-require_login();
+$admin = require_login();
 $shop = current_shop_id();
 
 $mode = (($_GET['mode'] ?? 'date') === 'girl') ? 'girl' : 'date';
@@ -53,14 +53,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $shopName = function ($id) use ($allShops) { foreach ($allShops as $s) if ((int)$s['id'] === (int)$id) return $s['name'] . '（' . $s['area'] . '）'; return '#' . $id; };
     $tlabel = implode('・', array_map($shopName, $targets));
 
+    // 出勤終了 → ヒメ割期限(play_availability.shift_end_at)の連動（CLAUDE-SHIFT-SYNC.md 必須1）。
+    //   ヒメ割の意味＝「出勤終了までに遊ぶ」なので、本日営業日の出勤(work)の終了時刻を保存したら
+    //   同一キャストの shift_end_at を同じ日時に揃える。himewari_enabled のON/OFFに関わらず揃える
+    //   （OFF中も揃えておくと次回ONの初期値がそのまま使える）。
+    //   既存の play_availability 行がある場合のみ UPDATE（即姫もヒメ割も未設定の子に空行は作らない）。
+    //   同値なら no-op ＝ updated_at を動かさない（botの無駄な再反映を防ぐ）。play_at には触らない。
+    $bizToday   = date('Y-m-d', time() - 5 * 3600);   // 営業日（朝5時区切り）
+    $syncBy     = 'shift:' . ($admin['username'] ?? 'ctrl');
+    $syncShiftEnd = db()->prepare(
+        'UPDATE play_availability SET shift_end_at = :e1, updated_by = :by
+          WHERE shop_id = :shop AND girl_id = :girl
+            AND (shift_end_at IS NULL OR shift_end_at <> :e2)'
+    );
+
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShiftEnd, $syncBy) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
             if (!$own->fetchColumn()) continue; // その店に未掲載ならスキップ
             $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
             $cnt++;
+            // 本日営業日の出勤(work・終了時刻あり)のみ shift_end_at を連動更新
+            if ($date === $bizToday && $stt === 'work' && $e !== null) {
+                $eh = (int)substr($e, 0, 2);
+                $endDate = ($eh >= 10) ? $date : date('Y-m-d', strtotime($date . ' +1 day'));   // 0〜9時=深夜側(翌暦日)
+                $endAt = $endDate . ' ' . substr($e, 0, 5) . ':00';
+                $syncShiftEnd->execute([':e1' => $endAt, ':by' => $syncBy, ':shop' => $sid, ':girl' => $gid, ':e2' => $endAt]);
+            }
         }
         return $cnt;
     };

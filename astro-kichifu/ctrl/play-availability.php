@@ -96,7 +96,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                  himewari_minutes=VALUES(himewari_minutes), himewari_price=VALUES(himewari_price), updated_by=VALUES(updated_by)'
         );
         $st->execute([$shop, $gid, $endAt, $enabled, $min, $price, $by]);
-        flash('ok', $gname . ': ヒメ割を' . ($enabled ? ('ON（' . ($endAt ? date('H:i', strtotime($endAt)) . 'まで' : '終了時刻未設定') . '）') : 'OFF') . 'で保存しました。');
+
+        // 逆方向連動（CLAUDE-SHIFT-SYNC.md 任意4）: ヒメ割期限＝出勤終了なので、本日営業日の
+        // 出勤(work)行が存在すれば end_time も同じ時刻に更新（同値なら no-op＝ループしない）。
+        // 出勤が未登録の子に勝手に出勤行は作らない。play_at には触らない。
+        $schedNote = '';
+        if ($endAt !== null) {
+            $newEnd = substr($endAt, 11, 5) . ':00';
+            $bd = date('Y-m-d', time() - 5 * 3600);
+            $us = db()->prepare(
+                'UPDATE schedules SET end_time = :e1
+                  WHERE shop_id = :shop AND girl_id = :girl AND work_date = :d AND status = "work"
+                    AND (end_time IS NULL OR end_time <> :e2)'
+            );
+            $us->execute([':e1' => $newEnd, ':shop' => $shop, ':girl' => $gid, ':d' => $bd, ':e2' => $newEnd]);
+            if ($us->rowCount() > 0) {
+                $schedNote = ' 出勤表の終了時刻も ' . substr($newEnd, 0, 5) . ' に更新しました。';
+            }
+        }
+        flash('ok', $gname . ': ヒメ割を' . ($enabled ? ('ON（' . ($endAt ? date('H:i', strtotime($endAt)) . 'まで' : '終了時刻未設定') . '）') : 'OFF') . 'で保存しました。' . $schedNote);
     } elseif ($action === 'media') {
         $f  = trim((string)($_POST['fujoho'] ?? ''));
         $e  = trim((string)($_POST['ekichika'] ?? ''));
@@ -190,7 +208,8 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   時刻は5分刻み・「その時刻から遊べる」の意味です。<b>過ぎた時刻を設定してもOK</b>＝すでに遊べる時間が来ている、として「🔥今すぐ遊べる（即姫）」表示になります。
   0〜9時台の時刻は深夜側（翌日の未明）として扱います。
   ※「今すぐ」ボタン＝現在時刻を即姫として保存するショートカットです（媒体への同期ボタンではありません。同期はbotが自動で行います）。
-  <b>ヒメ割</b>＝終了時刻（出勤終わり）までの割引。情報局のみ・別枠です（即姫とは独立して設定できます）。
+  <b>即姫（時刻設定・今すぐ）＝「遊べる開始時刻」</b>です。出勤終了・ヒメ割期限とは別で、互いに影響しません。
+  <b>ヒメ割＝期限（出勤終了）までの割引</b>。情報局のみ・即姫とは独立。<b>出勤表と連動</b>：出勤表で本日の終了時刻を変えるとヒメ割期限も追従し、ここで期限を変えると本日の出勤表の終了も更新されます。
   <b>媒体ID</b>：情報局は名前一致でbotが自動解決するので<b>通常は空欄でOK</b>（同名がいる時だけ手入力で指定）。駅ちか・ヘブン・風じゃ・デリじゃは入力が必要です（未設定の媒体はbotがスキップ）。
   <table>
     <tr><th>媒体</th><th>反映（すべて別botが自動）</th></tr>
