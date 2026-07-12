@@ -175,6 +175,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   .pa-media form { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; align-items:center; }
   .pa-media input { width:100px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; font-size:.75rem; }
   .pa-media label { font-size:.68rem; color:#64748b; }
+  .pa-optional { display:inline-block; margin-left:4px; font-size:.62rem; background:#dcfce7; color:#16a34a; border-radius:99px; padding:0 6px; font-weight:700; }
   .tsel select { padding:4px 4px; border:1px solid #cbd5e1; border-radius:6px; font-size:.82rem; }
   .tsel-c { margin:0 2px; }
   @media (max-width: 720px) {
@@ -190,6 +191,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   0〜9時台の時刻は深夜側（翌日の未明）として扱います。
   ※「今すぐ」ボタン＝現在時刻を即姫として保存するショートカットです（媒体への同期ボタンではありません。同期はbotが自動で行います）。
   <b>ヒメ割</b>＝終了時刻（出勤終わり）までの割引。情報局のみ・別枠です（即姫とは独立して設定できます）。
+  <b>媒体ID</b>：情報局は名前一致でbotが自動解決するので<b>通常は空欄でOK</b>（同名がいる時だけ手入力で指定）。駅ちか・ヘブン・風じゃ・デリじゃは入力が必要です（未設定の媒体はbotがスキップ）。
   <table>
     <tr><th>媒体</th><th>反映（すべて別botが自動）</th></tr>
     <tr><td>口コミ情報局 すぐヒメ</td><td>変更時＋3分ごと自動再更新</td></tr>
@@ -277,7 +279,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="media">
           <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
-          <label>情報局<br><input name="fujoho" value="<?= h($g['fujoho_girl_id'] ?? '') ?>" placeholder="girl_id"></label>
+          <label>情報局<span class="pa-optional">任意・自動</span><br><input name="fujoho" value="<?= h($g['fujoho_girl_id'] ?? '') ?>" placeholder="通常は空欄でOK"></label>
           <label>駅ちか<br><input name="ekichika" value="<?= h($g['ekichika_girl_id'] ?? '') ?>" placeholder="girl_id"></label>
           <label>ヘブン<br><input name="heaven" value="<?= h($g['heaven_member_id'] ?? '') ?>" placeholder="c_member_id"></label>
           <label>風じゃ<br><input name="fuzoku" value="<?= h($g['fuzoku_girl_no'] ?? '') ?>" placeholder="girl_no"></label>
