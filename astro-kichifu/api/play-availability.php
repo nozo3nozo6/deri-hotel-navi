@@ -9,10 +9,17 @@
 //         PLAY_API_KEY 未定義/空 → 503（未設定=機能OFF、GEMINI_API_KEYと同じ流儀）。
 //
 //   GET  /api/play-availability.php?shop_id=1[&status=active|cleared|all][&updated_since=ISO8601][&cast_id=N]
-//        → {items:[{cast_id,name,play_at,status,list_flag,note,updated_at,media_ids:{fujoho,ekichika,heaven}}],server_time}
-//        play_at/updated_at は ISO8601 +09:00。status 既定=active。updated_since は「その時刻以降(含む)」。
-//   PUT/POST /api/play-availability.php?shop_id=1&cast_id=N  body(JSON): {play_at?,status?,list_flag?,note?}
-//        → upsert。play_at は ISO8601（+09:00推奨）。status=cleared のみでクリア可。
+//        → {items:[{cast_id,name,play_at,shift_start_at,shift_end_at,shift_business_date,himewari_*,status,
+//                    list_flag,note,updated_at,media_ids:{fujoho,ekichika,heaven,fuzoku,deli}}],server_time}
+//        日時は ISO8601 +09:00。status 既定=active。updated_since は「その時刻以降(含む)」。
+//        ★ shift_start_at/shift_end_at/shift_business_date は本日営業日（朝5時区切り）の出勤表(schedules)
+//          から直接導出＝出勤表が正。休み/出勤なし→null。本日出勤があるキャストは play_availability 行が
+//          無くても items に出る（その場合 play_at=null, status=active, updated_at=null）。
+//          深夜跨ぎは実datetime（0〜9時台=翌暦日）で start < end が常に成立。
+//   PUT/POST /api/play-availability.php?shop_id=1&cast_id=N  body(JSON): {play_at?,status?,list_flag?,note?,
+//        himewari_minutes?,himewari_price?}（部分更新）→ upsert。play_at は ISO8601（+09:00推奨）。
+//        status=cleared のみでクリア可。ヒメ割の分・円は null 可＝bot既定70分/11000円。
+//        ※ shift_* は出勤表が正なので PUT では受けても GET には反映されない（出勤表を編集すること）。
 //   ※ パスパラメータ形式（/{cast_id}）はシンレンApacheのリライト都合でクエリ形式に統一。
 // ==========================================================================
 require_once __DIR__ . '/db.php';
@@ -50,44 +57,76 @@ try {
         $status = $_GET['status'] ?? 'active';
         if (!in_array($status, ['active', 'cleared', 'all'], true)) $status = 'active';
 
-        $where  = ['pa.shop_id = ?'];
-        $params = [$shopId];
-        if ($castId)              { $where[] = 'pa.girl_id = ?';     $params[] = $castId; }
-        if ($status !== 'all')    { $where[] = 'pa.status = ?';      $params[] = $status; }
+        // 出勤帯（shift_start_at/shift_end_at/shift_business_date）は本日営業日（朝5時区切り）の
+        // 出勤表(schedules)から**直接導出**する（CLAUDE-SCHEDULE-API.md）。
+        //   - 事前登録された出勤・削除・休みが常に正確に反映される（保存フック漏れが構造的に起きない）
+        //   - 本日出勤があるキャストは play_availability 行が無くても items に出る（出勤表のみ載せたい子）
+        //   - 休み/出勤なし → 両方 null
+        $bizDate = date('Y-m-d', time() - 5 * 3600);
+
+        $where  = ['gs.shop_id = ?'];
+        $joinParams  = [$shopId, $shopId, $shopId, $bizDate];   // JOIN句のプレースホルダ（pa.shop / mi.shop / s.shop / s.date）
+        $whereParams = [$shopId];                                // WHERE句のプレースホルダ（先頭= gs.shop_id）
+        if ($castId) { $where[] = 'g.id = ?'; $whereParams[] = $castId; }
+        if ($status === 'all') {
+            $where[] = '(pa.id IS NOT NULL OR s.girl_id IS NOT NULL)';
+        } elseif ($status === 'cleared') {
+            $where[] = 'pa.status = ?';
+            $whereParams[] = 'cleared';
+        } else { // active: pa行がactive、または pa行なしでも本日出勤あり（仮想active）
+            $where[] = '(pa.status = ? OR (pa.id IS NULL AND s.girl_id IS NOT NULL))';
+            $whereParams[] = 'active';
+        }
         if (!empty($_GET['updated_since'])) {
             $ts = strtotime((string)$_GET['updated_since']);
             if ($ts === false) { http_response_code(400); echo json_encode(['error' => 'bad updated_since']); exit; }
             $where[] = 'pa.updated_at >= ?';
-            $params[] = date('Y-m-d H:i:s', $ts);
+            $whereParams[] = date('Y-m-d H:i:s', $ts);
         }
 
         $st = DB::conn()->prepare(
-            'SELECT pa.girl_id, g.name, pa.play_at, pa.shift_end_at, pa.himewari_enabled, pa.himewari_minutes,
-                    pa.himewari_price, pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
+            'SELECT g.id AS girl_id, g.name,
+                    pa.id AS pa_id, pa.play_at, pa.himewari_enabled, pa.himewari_minutes, pa.himewari_price,
+                    pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
+                    s.work_date AS w_date, s.start_time AS w_start, s.end_time AS w_end,
                     mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no
-               FROM play_availability pa
-               JOIN girls g ON g.id = pa.girl_id
-               LEFT JOIN girl_media_ids mi ON mi.shop_id = pa.shop_id AND mi.girl_id = pa.girl_id
+               FROM girls g
+               JOIN girl_shops gs ON gs.girl_id = g.id
+               LEFT JOIN play_availability pa ON pa.girl_id = g.id AND pa.shop_id = ?
+               LEFT JOIN girl_media_ids mi   ON mi.girl_id = g.id AND mi.shop_id = ?
+               LEFT JOIN schedules s ON s.girl_id = g.id AND s.shop_id = ? AND s.work_date = ? AND s.status = "work"
               WHERE ' . implode(' AND ', $where) . '
-              ORDER BY pa.play_at IS NULL, pa.play_at, pa.girl_id'
+              ORDER BY pa.play_at IS NULL, pa.play_at, g.id'
         );
-        $st->execute($params);
+        $st->execute(array_merge($joinParams, $whereParams));
+
+        // 出勤 TIME → 実datetime（0〜9時台=翌暦日の深夜側。start<end が常に成立）
+        $shiftDt = function (?string $wDate, ?string $t): ?string {
+            if (!$wDate || !$t) return null;
+            $h = (int)substr($t, 0, 2);
+            $d = ($h >= 10) ? $wDate : date('Y-m-d', strtotime($wDate . ' +1 day'));
+            return $d . ' ' . substr($t, 0, 5) . ':00';
+        };
+
         $items = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $hasPa = $r['pa_id'] !== null;
             $items[] = [
-                'cast_id'          => (int)$r['girl_id'],
-                'name'             => $r['name'],
-                'play_at'          => iso($r['play_at']),
-                'shift_end_at'     => iso($r['shift_end_at']),
-                'himewari_enabled' => (bool)$r['himewari_enabled'],
-                'himewari_minutes' => $r['himewari_minutes'] !== null ? (int)$r['himewari_minutes'] : null,
-                'himewari_price'   => $r['himewari_price']   !== null ? (int)$r['himewari_price']   : null,
-                'status'           => $r['status'],
-                'list_flag'        => (bool)$r['list_flag'],
-                'note'             => $r['note'],
-                'updated_at'       => iso($r['updated_at']),
-                'updated_by'       => $r['updated_by'],
-                'media_ids'        => [
+                'cast_id'             => (int)$r['girl_id'],
+                'name'                => $r['name'],
+                'play_at'             => $hasPa ? iso($r['play_at']) : null,
+                'shift_start_at'      => iso($shiftDt($r['w_date'], $r['w_start'])),
+                'shift_end_at'        => iso($shiftDt($r['w_date'], $r['w_end'])),
+                'shift_business_date' => $r['w_date'] ?: null,
+                'himewari_enabled'    => $hasPa ? (bool)$r['himewari_enabled'] : false,   // 廃止方針・bot非参照（互換のため残置）
+                'himewari_minutes'    => ($hasPa && $r['himewari_minutes'] !== null) ? (int)$r['himewari_minutes'] : null,
+                'himewari_price'      => ($hasPa && $r['himewari_price']   !== null) ? (int)$r['himewari_price']   : null,
+                'status'              => $hasPa ? $r['status'] : 'active',
+                'list_flag'           => $hasPa ? (bool)$r['list_flag'] : true,
+                'note'                => $hasPa ? $r['note'] : null,
+                'updated_at'          => $hasPa ? iso($r['updated_at']) : null,
+                'updated_by'          => $hasPa ? $r['updated_by'] : null,
+                'media_ids'           => [
                     'fujoho'   => $r['fujoho_girl_id'],
                     'ekichika' => $r['ekichika_girl_id'],
                     'heaven'   => $r['heaven_member_id'],

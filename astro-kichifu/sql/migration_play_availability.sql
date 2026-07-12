@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS play_availability (
   shop_id    INT NOT NULL,
   girl_id    INT NOT NULL,
   play_at          DATETIME NULL,                             -- 最速で遊べる時刻（即姫・JST・5分刻み）。NULL=即姫未設定
+  shift_start_at   DATETIME NULL,                             -- 本日出勤の開始（出勤表の写し・情報局出勤表bot用）
   shift_end_at     DATETIME NULL,                             -- ヒメ割期限（出勤終了時刻・までに遊ぶ）→ 情報局 gidi_dlt
   himewari_enabled TINYINT(1) NOT NULL DEFAULT 0,             -- ヒメ割を出すか
   himewari_minutes INT NULL,                                  -- ヒメ割 分数（NULL=bot店舗デフォルト70）
@@ -42,6 +43,8 @@ CREATE TABLE IF NOT EXISTS girl_media_ids (
 
 -- 既存テーブルへの後付け（2026-07-13・P1ヒメ割 + P2 fuzoku/deli 追加。MariaDB 10.11）
 ALTER TABLE play_availability MODIFY play_at DATETIME NULL;
+-- P5 出勤帯API（2026-07-13後半）: 本日出勤の開始を保持（出勤表の写し。GETは schedules から直接導出するので監査/変更検知用）
+ALTER TABLE play_availability ADD COLUMN IF NOT EXISTS shift_start_at DATETIME NULL AFTER play_at;
 ALTER TABLE play_availability
   ADD COLUMN IF NOT EXISTS shift_end_at DATETIME NULL AFTER play_at,
   ADD COLUMN IF NOT EXISTS himewari_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER shift_end_at,

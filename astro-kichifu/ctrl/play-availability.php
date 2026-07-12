@@ -75,46 +75,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $st->execute([$by, $shop, $gid]);
         flash('ok', $gname . ': クリアしました（媒体側は bot が取消します）。');
     } elseif ($action === 'himewari') {
-        // ヒメ割（情報局のみ）: 終了時刻(shift_end_at)＝出勤終了までに遊ぶ／有効フラグ／分数・価格(任意)。
-        //   play_at(即姫)とは独立。行が無ければ status=active・play_at=NULL で新規作成し、ヒメ割だけ設定。
-        $enabled = isset($_POST['hw_enabled']) ? 1 : 0;
-        $eh = $_POST['hw_h'][$gid] ?? '';
-        $em = $_POST['hw_m'][$gid] ?? '';
-        $endAt = null;
-        if ($eh !== '' && $em !== '') {
-            $eh = (int)$eh; $em = (int)$em;
-            $bd = date('Y-m-d', time() - 5 * 3600);                       // 営業日5時区切り
-            $ds = ($eh >= 10) ? $bd : date('Y-m-d', strtotime($bd . ' +1 day'));  // 0〜9時=深夜側(翌暦日)
-            $endAt = date('Y-m-d H:i:00', strtotime($ds . sprintf(' %02d:%02d:00', $eh, $em)));
-        }
-        $min = ($_POST['hw_min'] ?? '') !== '' ? (int)$_POST['hw_min'] : null;
+        // ヒメ割（情報局のみ・CLAUDE-HIMEWARI-AUTO.md）: 編集できるのは「分」「円」だけ。
+        //   ON/OFFは廃止（本日出勤があれば自動掲載・出勤終了で自動取消＝bot側は shift_end_at と現在時刻のみで判断）。
+        //   期限＝出勤表の終了と連動（APIが出勤表から直接導出）。ここでは終了時刻を触らない。
+        //   分・円は NULL 可＝bot既定 70分/11000円。play_at(即姫)とは独立。
+        $min   = ($_POST['hw_min'] ?? '') !== '' ? (int)$_POST['hw_min'] : null;
         $price = ($_POST['hw_price'] ?? '') !== '' ? (int)$_POST['hw_price'] : null;
         $st = db()->prepare(
-            'INSERT INTO play_availability (shop_id, girl_id, play_at, status, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, updated_by)
-             VALUES (?,?,NULL,"active",?,?,?,?,?)
-             ON DUPLICATE KEY UPDATE shift_end_at=VALUES(shift_end_at), himewari_enabled=VALUES(himewari_enabled),
-                 himewari_minutes=VALUES(himewari_minutes), himewari_price=VALUES(himewari_price), updated_by=VALUES(updated_by)'
+            'INSERT INTO play_availability (shop_id, girl_id, play_at, status, himewari_minutes, himewari_price, updated_by)
+             VALUES (?,?,NULL,"active",?,?,?)
+             ON DUPLICATE KEY UPDATE himewari_minutes=VALUES(himewari_minutes),
+                 himewari_price=VALUES(himewari_price), updated_by=VALUES(updated_by)'
         );
-        $st->execute([$shop, $gid, $endAt, $enabled, $min, $price, $by]);
-
-        // 逆方向連動（CLAUDE-SHIFT-SYNC.md 任意4）: ヒメ割期限＝出勤終了なので、本日営業日の
-        // 出勤(work)行が存在すれば end_time も同じ時刻に更新（同値なら no-op＝ループしない）。
-        // 出勤が未登録の子に勝手に出勤行は作らない。play_at には触らない。
-        $schedNote = '';
-        if ($endAt !== null) {
-            $newEnd = substr($endAt, 11, 5) . ':00';
-            $bd = date('Y-m-d', time() - 5 * 3600);
-            $us = db()->prepare(
-                'UPDATE schedules SET end_time = :e1
-                  WHERE shop_id = :shop AND girl_id = :girl AND work_date = :d AND status = "work"
-                    AND (end_time IS NULL OR end_time <> :e2)'
-            );
-            $us->execute([':e1' => $newEnd, ':shop' => $shop, ':girl' => $gid, ':d' => $bd, ':e2' => $newEnd]);
-            if ($us->rowCount() > 0) {
-                $schedNote = ' 出勤表の終了時刻も ' . substr($newEnd, 0, 5) . ' に更新しました。';
-            }
-        }
-        flash('ok', $gname . ': ヒメ割を' . ($enabled ? ('ON（' . ($endAt ? date('H:i', strtotime($endAt)) . 'まで' : '終了時刻未設定') . '）') : 'OFF') . 'で保存しました。' . $schedNote);
+        $st->execute([$shop, $gid, $min, $price, $by]);
+        flash('ok', $gname . ': ヒメ割の分・円を保存しました（' . ($min ?? 70) . '分 / ' . number_format($price ?? 11000) . '円' . ($min === null && $price === null ? '＝既定値' : '') . '）。期限は出勤表の終了と連動します。');
     } elseif ($action === 'media') {
         $f  = trim((string)($_POST['fujoho'] ?? ''));
         $e  = trim((string)($_POST['ekichika'] ?? ''));
@@ -194,6 +168,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   .pa-media input { width:100px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; font-size:.75rem; }
   .pa-media label { font-size:.68rem; color:#64748b; }
   .pa-optional { display:inline-block; margin-left:4px; font-size:.62rem; background:#dcfce7; color:#16a34a; border-radius:99px; padding:0 6px; font-weight:700; }
+  .pa-hw-note { margin-top:6px; font-size:.7rem; color:#64748b; line-height:1.5; max-width:230px; }
   .tsel select { padding:4px 4px; border:1px solid #cbd5e1; border-radius:6px; font-size:.82rem; }
   .tsel-c { margin:0 2px; }
   @media (max-width: 720px) {
@@ -209,7 +184,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   0〜9時台の時刻は深夜側（翌日の未明）として扱います。
   ※「今すぐ」ボタン＝現在時刻を即姫として保存するショートカットです（媒体への同期ボタンではありません。同期はbotが自動で行います）。
   <b>即姫（時刻設定・今すぐ）＝「遊べる開始時刻」</b>です。出勤終了・ヒメ割期限とは別で、互いに影響しません。
-  <b>ヒメ割＝期限（出勤終了）までの割引</b>。情報局のみ・即姫とは独立。<b>出勤表と連動</b>：出勤表で本日の終了時刻を変えるとヒメ割期限も追従し、ここで期限を変えると本日の出勤表の終了も更新されます。
+  <b>ヒメ割＝本日出勤があれば自動掲載</b>（情報局のみ・即姫とは独立・ON/OFF操作は不要です）。期限＝本日出勤の終了時刻に自動連動し、出勤終了を過ぎるとbotが自動取消します。<b>終了を変えたいときは出勤表を編集</b>してください。ここで変更できるのは分・円だけ（未設定は70分/11,000円）。
   <b>媒体ID</b>：情報局は名前一致でbotが自動解決するので<b>通常は空欄でOK</b>（同名がいる時だけ手入力で指定）。駅ちか・ヘブン・風じゃ・デリじゃは入力が必要です（未設定の媒体はbotがスキップ）。
   <table>
     <tr><th>媒体</th><th>反映（すべて別botが自動）</th></tr>
@@ -264,21 +239,25 @@ layout_header('最速で遊べる時間', 'play-availability.php');
     </td>
     <td>
       <?php
-        $hwOn = (int)($g['himewari_enabled'] ?? 0) === 1;
-        // ヒメ割終了時刻の初期値: 設定済み→それ / 未設定→本日出勤の終了時刻を候補に
-        $hwVal = $g['shift_end_at'] ? substr($g['shift_end_at'], 11, 5) : ($g['work_end'] ? substr($g['work_end'], 0, 5) : null);
-        $hwSummary = $hwOn ? ('ON ' . ($g['shift_end_at'] ? date('H:i', strtotime($g['shift_end_at'])) . 'まで' : '時刻未設定')) : 'OFF';
+        // ヒメ割＝本日出勤があれば自動掲載（ON/OFF廃止・CLAUDE-HIMEWARI-AUTO.md）。
+        // 期限＝出勤表の終了と連動（読み取り専用）。編集できるのは分・円のみ。
+        $hwMin = $g['himewari_minutes'] !== null ? (int)$g['himewari_minutes'] : 70;
+        $hwPrice = $g['himewari_price'] !== null ? (int)$g['himewari_price'] : 11000;
+        if ($g['work_end']) {
+            $hwSummary = '〜' . substr($g['work_end'], 0, 5) . '・' . $hwMin . '分/' . number_format($hwPrice) . '円';
+            $hwCls = 'pa-hw-on';
+        } else {
+            $hwSummary = '本日出勤なし';
+            $hwCls = '';
+        }
       ?>
       <details class="pa-media">
-        <summary class="<?= $hwOn ? 'pa-hw-on' : '' ?>"><?= h($hwSummary) ?></summary>
+        <summary class="<?= $hwCls ?>"><?= h($hwSummary) ?></summary>
+        <div class="pa-hw-note">期限＝<b>出勤表の終了と連動</b><?= $g['work_end'] ? '（本日 ' . h(substr($g['work_end'], 0, 5)) . ' まで）' : '（本日出勤なし＝掲載されません）' ?>。終了を変えるときは出勤表を編集してください。</div>
         <form method="post">
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="himewari">
           <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
-          <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;color:#334155;">
-            <input type="checkbox" name="hw_enabled" value="1" <?= $hwOn ? 'checked' : '' ?>> ヒメ割を出す
-          </label>
-          <label>終了時刻<br><?= pa_time_select('hw', $hwVal, (string)$g['id']) ?></label>
           <label>分<br><input name="hw_min" value="<?= h($g['himewari_minutes'] ?? '') ?>" placeholder="70" style="width:56px"></label>
           <label>円<br><input name="hw_price" value="<?= h($g['himewari_price'] ?? '') ?>" placeholder="11000" style="width:72px"></label>
           <button type="submit" class="pa-btn">保存</button>
