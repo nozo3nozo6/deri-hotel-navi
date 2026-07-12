@@ -128,9 +128,15 @@ $rows = db()->prepare(
 $rows->execute([':shop1' => $shop, ':shop2' => $shop, ':shop3' => $shop, ':shop4' => $shop, ':bd' => $bizDate]);
 $girls = $rows->fetchAll(PDO::FETCH_ASSOC);
 
-// プレビュー文言（情報局と同じ考え方）
-function pa_preview(?string $playAt, ?string $status): array {
+// プレビュー文言（情報局と同じ考え方）。$shiftEndDt=play_availability.shift_end_at（出勤保存の
+//   たびにP3で自動同期される永続カラム。s.end_time(本日bizDateのみJOIN)ではなくこちらを使う理由:
+//   営業日切替直後(朝5時〜)は s.work_date=:今日bizDate のJOINが前日分の出勤にヒットしなくなり
+//   終了判定が丸ごとスキップされ、古いplay_atが「今すぐ遊べる」のまま残り続けるバグがあったため。
+//   終了時刻を過ぎていたら play_at が残っていても「―」表示にする（DBのplay_atは変更しない・
+//   表示のみ。出勤が終わった後に古い時刻がいつまでも見え続けて紛らわしい問題への対応）。
+function pa_preview(?string $playAt, ?string $status, ?string $shiftEndDt): array {
     if (!$playAt || $status !== 'active') return ['—', 'pa-none'];
+    if ($shiftEndDt && strtotime($shiftEndDt) <= time()) return ['—', 'pa-none'];
     $ts = strtotime($playAt);
     if ($ts <= time()) return ['🔥 今すぐ遊べる（即姫）', 'pa-now'];
     $label = (date('Y-m-d', $ts) === date('Y-m-d')) ? date('H:i', $ts) : date('n/j H:i', $ts);
@@ -205,7 +211,13 @@ layout_header('最速で遊べる時間', 'play-availability.php');
     <th>更新</th>
     <th>媒体ID</th>
   </tr>
-  <?php foreach ($girls as $g): [$prev, $cls] = pa_preview($g['play_at'], $g['status']); ?>
+  <?php foreach ($girls as $g):
+    $shiftEndDt = $g['shift_end_at'] ?? null;                         // 永続カラム（P3同期・営業日境界の影響を受けない）
+    $endPassed  = $shiftEndDt && strtotime($shiftEndDt) <= time();    // 出勤終了を過ぎたか
+    [$prev, $cls] = pa_preview($g['play_at'], $g['status'], $shiftEndDt);
+    // 時刻セレクトのプリセット値も、出勤終了を過ぎていたら --:-- にする（プレビューと連動）
+    $paPreset = ($g['status'] === 'active' && $g['play_at'] && !$endPassed) ? substr($g['play_at'], 11, 5) : null;
+  ?>
   <tr>
     <td class="pa-name">
       <?= h($g['name']) ?>
@@ -220,7 +232,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="set">
           <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
-          <?= pa_time_select('pa', $g['status'] === 'active' && $g['play_at'] ? substr($g['play_at'], 11, 5) : null, (string)$g['id']) ?>
+          <?= pa_time_select('pa', $paPreset, (string)$g['id']) ?>
           <button type="submit" class="pa-btn">時刻設定</button>
         </form>
         <form method="post">
@@ -233,7 +245,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="clear">
           <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
-          <button type="submit" class="pa-btn pa-btn-clear">クリア</button>
+          <button type="submit" class="pa-btn pa-btn-clear" onclick="return confirm('<?= h(addslashes($g['name'])) ?>の即姫設定をクリアしますか？');">クリア</button>
         </form>
       </div>
     </td>

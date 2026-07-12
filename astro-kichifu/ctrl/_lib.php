@@ -171,6 +171,11 @@ function pager(int $total, int $page, int $per, string $baseQuery = ''): string 
 // レイアウト（共通シェル）
 // ==========================================================================
 function layout_header(string $title, string $active = ''): void {
+    // CTRLは常に最新DB状態を反映すべき管理画面。キャッシュ制御ヘッダーが無いと、モバイル
+    // Safari等がPOST後のredirect先(GET)を積極的にキャッシュし、保存/クリア操作直後に古い
+    // 表示のまま見えることがある（2026-07-13 発覚: play-availabilityのクリアが反映されない報告）。
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
     $admin = require_login();
     $shops = shops_list();
     $curShop = current_shop_id();
