@@ -135,7 +135,10 @@ function nav_groups(): array {
             ['girl-profiles.php', '📝', 'プロフィール項目'],
             ['girl-diaries.php', '📔', '写メ日記'],
         ],
-        '媒体連携' => [['suguhime-sync.php', '⚡', 'すぐヒメ同期']],
+        '媒体連携' => [
+            ['play-availability.php', '⏰', '最速で遊べる時間'],
+            ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
+        ],
         'メルマガ' => [
             ['mail-magazines.php', '✉️', '配信'],
             ['mail-users.php', '👥', '会員'],
