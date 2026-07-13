@@ -271,7 +271,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
       ?>
       <details class="pa-media">
         <summary class="<?= $hwCls ?>"><?= h($hwSummary) ?></summary>
-        <div class="pa-hw-note">期限＝<b>出勤表の終了と連動</b><?= $g['work_end'] ? '（本日 ' . h(substr($g['work_end'], 0, 5)) . ' まで）' : '（本日出勤なし＝掲載されません）' ?>。終了を変えるときは出勤表を編集してください。</div>
+        <div class="pa-hw-note">期限＝<b>出勤表の終了と連動</b><?= $g['work_end'] ? '（本日 ' . h(substr($g['work_end'], 0, 5)) . ' まで）' : '（本日出勤なし＝掲載されません）' ?>。本日の出勤終了を変えるときは <a href="schedules.php">出勤管理（本日営業日）</a> で編集してください（この画面の即姫時刻では変わりません）。</div>
         <form method="post">
           <?= csrf_field() ?>
           <input type="hidden" name="action" value="himewari">

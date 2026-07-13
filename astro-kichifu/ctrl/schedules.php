@@ -116,7 +116,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
     if ($postMode === 'date') {
         // 1日 × 全女性
-        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['date'] ?? '') ? $_POST['date'] : date('Y-m-d');
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['date'] ?? '') ? $_POST['date'] : $bizToday;
         $status = (array)($_POST['status'] ?? []);
         $sh = (array)($_POST['start_h'] ?? []); $sm = (array)($_POST['start_m'] ?? []);
         $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
@@ -203,8 +203,11 @@ layout_header('出勤管理', 'schedules.php');
 
 <?php if ($mode === 'date'): ?>
 <?php
-    $date = $_GET['date'] ?? date('Y-m-d');
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = date('Y-m-d');
+    // 既定は「本日営業日」（朝5時区切り）。深夜0〜4時台に暦日デフォルトだと翌営業日のページが
+    // 開き、スタッフが「本日の終了時刻」のつもりで明日の行を編集する事故が起きる（2026-07-14 0:06 実例）。
+    $bizNow = date('Y-m-d', time() - 5 * 3600);
+    $date = $_GET['date'] ?? $bizNow;
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = $bizNow;
     $sc = db()->prepare('SELECT girl_id, start_time, end_time, status FROM schedules WHERE shop_id=? AND work_date=?');
     $sc->execute([$shop, $date]);
     $map = [];
@@ -216,6 +219,12 @@ layout_header('出勤管理', 'schedules.php');
       <label>日付</label>
       <input type="date" value="<?= h($date) ?>" onchange="location.href='schedules.php?mode=date&sort=<?= h($sort) ?>&date='+this.value">
       <strong class="<?= $wdi === 6 ? 'day-sat' : ($wdi === 0 ? 'day-sun' : '') ?>">（<?= $WD[$wdi] ?>）</strong>
+      <?php if ($date === $bizNow): ?>
+        <strong style="color:#0a7d4f;background:#e6f7ef;border-radius:4px;padding:2px 8px;margin-left:4px">本日（営業日）</strong>
+      <?php else: ?>
+        <a href="schedules.php?mode=date&sort=<?= h($sort) ?>&date=<?= h($bizNow) ?>" style="margin-left:4px">→ 本日（営業日）に戻る</a>
+      <?php endif; ?>
+      <span class="muted" style="display:block;font-size:.8em;margin-top:2px">※深夜0〜4時台の「本日」は前日の日付です（営業日は朝5時区切り）</span>
     </span>
     <span>
       <label>並び順</label>
@@ -272,7 +281,7 @@ layout_header('出勤管理', 'schedules.php');
 
     // 期間: 今日から28日（4週間）
     $DAYS = 28;
-    $from = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'] ?? '') ? $_GET['from'] : date('Y-m-d');
+    $from = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'] ?? '') ? $_GET['from'] : date('Y-m-d', time() - 5 * 3600);   // 本日営業日起点（5時区切り）
     $baseTs = strtotime($from);
     $dates = [];
     for ($i = 0; $i < $DAYS; $i++) $dates[] = date('Y-m-d', $baseTs + $i * 86400);
