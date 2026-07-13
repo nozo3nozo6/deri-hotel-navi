@@ -76,13 +76,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         return $d . ' ' . substr($t, 0, 5) . ':00';
     };
 
+    // 本日営業日の出勤が実際に変わったキャスト → 保存後に bot へ Webhook 通知（WEBHOOK-CTRL.md）。
+    //   schedules の upsert rowCount>0（insert=1/update=2、同値no-op=0）で変更判定
+    //   ＝ play_availability 行が無い子（APIは schedules 直接導出で出る）も取りこぼさない。
+    $webhookTargets = [];   // "sid:gid" => [sid, gid]
+
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $syncBy, $shiftDt) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $syncBy, $shiftDt, &$webhookTargets) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
             if (!$own->fetchColumn()) continue; // その店に未掲載ならスキップ
             $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
+            $changed = $up->rowCount() > 0;
             $cnt++;
             // 本日営業日の保存のみ shift_start_at/shift_end_at を連動更新（work=時刻セット / 休み・未定=NULL）
             if ($date === $bizToday) {
@@ -90,9 +96,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $endAt   = ($stt === 'work') ? $shiftDt($e, $date) : null;
                 $syncShift->execute([':s1' => $startAt, ':e1' => $endAt, ':by' => $syncBy,
                                      ':shop' => $sid, ':girl' => $gid, ':s2' => $startAt, ':e2' => $endAt]);
+                if ($changed) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid];
             }
         }
         return $cnt;
+    };
+
+    // 保存完了後に本日分の変更を bot へ通知（best-effort・失敗しても保存は成功のまま）
+    $notifyShiftWebhooks = function () use (&$webhookTargets) {
+        if (!$webhookTargets) return;
+        require_once __DIR__ . '/../api/media-webhook.php';
+        $nameQ = db()->prepare('SELECT name FROM girls WHERE id=?');
+        $names = [];
+        foreach ($webhookTargets as [$sid, $gid]) {
+            if (!isset($names[$gid])) { $nameQ->execute([$gid]); $names[$gid] = (string)$nameQ->fetchColumn(); }
+            media_webhook_notify((int)$sid, (int)$gid, $names[$gid], ['shift_start_at', 'shift_end_at'], 'shift');
+        }
     };
 
     if ($postMode === 'date') {
@@ -108,6 +127,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $e = ($stt === 'work') ? $mkTime($eh[$gid] ?? '', $em[$gid] ?? '') : null;
             $saveOne($gid, $date, $stt, $s, $e);
         }
+        $notifyShiftWebhooks();
         flash('ok', $date . ' の出勤を保存しました（' . $tlabel . '）。');
         redirect('schedules.php?date=' . $date . '&sort=' . $sort);
     } else {
@@ -128,6 +148,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $e = ($stt === 'work') ? $mkTime($eh[$d] ?? '', $em[$d] ?? '') : null;
             if ($saveOne($gid, $d, $stt, $s, $e) > 0) $n++;
         }
+        $notifyShiftWebhooks();
         flash('ok', $n . '日分の出勤を保存しました（' . $tlabel . '）。');
         redirect('schedules.php?mode=girl&girl_id=' . $gid . '&sort=' . $sort);
     }

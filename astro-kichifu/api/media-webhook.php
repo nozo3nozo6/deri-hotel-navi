@@ -1,0 +1,61 @@
+<?php
+// ==========================================================================
+// media-webhook.php — CTRL → 媒体bot Webhook 送信ヘルパー
+//   契約: official-media-update/references/WEBHOOK-CTRL.md（2026-07-13）
+//   CTRL で play_availability / 本日出勤 を変更したら bot に「変わったよ」信号を
+//   POST する。bot が 202 で受けてキュー→数秒で 出勤表/ヒメ割/すぐヒメ/駅ちか等を実行。
+//   媒体への直接POSTはしない（媒体操作は bot の持ち場）。
+//
+//   秘密鍵: db-config.php の PLAY_MEDIA_WEBHOOK_SECRET（bot config の webhook.secret と同値）。
+//           未定義/空 → 送信スキップ（機能OFF、PLAY_API_KEY と同じ流儀）。
+//   失敗しても呼び出し元の保存は成功のまま（best-effort、bot の cron が保険）。
+// ==========================================================================
+declare(strict_types=1);
+
+require_once __DIR__ . '/db-config.php';   // 定数は DB接続前に明示 require（db.php は遅延読込）
+
+const PLAY_MEDIA_WEBHOOK_URL = 'https://tk2-409-45785.vs.sakura.ne.jp/official-media-hooks/play-availability-changed.php';
+
+/**
+ * bot へ変更通知を送る（best-effort・例外を投げない）。
+ * @param int      $shopId  店舗（立川=1 / 吉祥寺=2）
+ * @param int      $castId  girls.id
+ * @param string   $name    表示名（bot ログ・only_names 絞り用）
+ * @param string[] $changed 変わったフィールド名（'play_at','status','shift_end_at','himewari_minutes' 等）
+ * @param string   $source  'ctrl' / 'shift' 等
+ */
+function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl'): void {
+    if (!defined('PLAY_MEDIA_WEBHOOK_SECRET') || PLAY_MEDIA_WEBHOOK_SECRET === '') return; // 未設定=OFF
+    try {
+        $payload = json_encode([
+            'event'      => 'play_availability.changed',
+            'shop_id'    => $shopId,
+            'cast_id'    => $castId,
+            'name'       => $name,
+            'changed'    => array_values($changed),
+            'updated_at' => date('c'),
+            'source'     => $source,
+        ], JSON_UNESCAPED_UNICODE);
+        $ch = curl_init(PLAY_MEDIA_WEBHOOK_URL);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Webhook-Secret: ' . PLAY_MEDIA_WEBHOOK_SECRET,
+            ],
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_TIMEOUT        => 5,
+        ]);
+        $res  = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $err  = curl_error($ch);
+        curl_close($ch);
+        if ($res === false || $code >= 400) {
+            error_log('[media-webhook] failed http=' . $code . ' err=' . $err . ' cast=' . $castId . ' changed=' . implode(',', $changed));
+        }
+    } catch (Throwable $e) {
+        error_log('[media-webhook] exception: ' . $e->getMessage());
+    }
+}

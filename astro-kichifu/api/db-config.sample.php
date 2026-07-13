@@ -19,3 +19,10 @@ define('DB_PASS', 'your_db_password');
 //   未設定でもサイトは正常動作（未翻訳＝原文表示にフォールバックするのみ）。
 //   deri-hotel-navi(yobuho.com) の GEMINI_API_KEY とは別物（kichifu/admiは別サーバー資産）。
 // define('GEMINI_API_KEY', 'your_gemini_api_key');
+
+// 媒体bot連携 API（api/play-availability.php の X-Api-Key）。未設定=機能OFF(503)。
+// define('PLAY_API_KEY', 'your_play_api_key');
+
+// CTRL→媒体bot Webhook（api/media-webhook.php）。bot config.php の webhook.secret と同一値にする。
+//   未設定=送信スキップ（bot cron が保険で拾う）。契約: official-media-update/references/WEBHOOK-CTRL.md
+// define('PLAY_MEDIA_WEBHOOK_SECRET', 'same_as_bot_webhook_secret');

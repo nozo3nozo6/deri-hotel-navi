@@ -11,6 +11,7 @@
 //   関連: sql/migration_play_availability.sql / references: official-ui-brief-for-claude.md
 // ==========================================================================
 require_once __DIR__ . '/_lib.php';
+require_once __DIR__ . '/../api/media-webhook.php';   // 保存後に bot へ変更通知（WEBHOOK-CTRL.md）
 $admin = require_login();
 $shop  = current_shop_id();
 date_default_timezone_set('Asia/Tokyo');
@@ -66,14 +67,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         flash('ok', $gname . ': ' . ($ts <= time()
             ? date('n/j H:i', $ts) . ' から遊べる（時刻が来ているので「今すぐ遊べる」表示）で保存しました。'
             : date('n/j H:i', $ts) . ' から遊べる、で保存しました。'));
+        media_webhook_notify($shop, $gid, $gname, ['play_at', 'status']);
     } elseif ($action === 'now') {
         $ts = intdiv(time(), 300) * 300;                     // 5分切り下げ → play_at<=now で即「今すぐ」
         $upsert->execute([$shop, $gid, date('Y-m-d H:i:00', $ts), $by]);
         flash('ok', $gname . ': 「今すぐ遊べる（即姫）」で保存しました。');
+        media_webhook_notify($shop, $gid, $gname, ['play_at', 'status']);
     } elseif ($action === 'clear') {
         $st = db()->prepare('UPDATE play_availability SET status="cleared", updated_by=? WHERE shop_id=? AND girl_id=?');
         $st->execute([$by, $shop, $gid]);
         flash('ok', $gname . ': クリアしました（媒体側は bot が取消します）。');
+        media_webhook_notify($shop, $gid, $gname, ['play_at', 'status']);
     } elseif ($action === 'himewari') {
         // ヒメ割（情報局のみ・CLAUDE-HIMEWARI-AUTO.md）: 編集できるのは「分」「円」だけ。
         //   ON/OFFは廃止（本日出勤があれば自動掲載・出勤終了で自動取消＝bot側は shift_end_at と現在時刻のみで判断）。
@@ -89,6 +93,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         );
         $st->execute([$shop, $gid, $min, $price, $by]);
         flash('ok', $gname . ': ヒメ割の分・円を保存しました（' . ($min ?? 70) . '分 / ' . number_format($price ?? 11000) . '円' . ($min === null && $price === null ? '＝既定値' : '') . '）。期限は出勤表の終了と連動します。');
+        media_webhook_notify($shop, $gid, $gname, ['himewari_minutes', 'himewari_price']);
     } elseif ($action === 'media') {
         $f  = trim((string)($_POST['fujoho'] ?? ''));
         $e  = trim((string)($_POST['ekichika'] ?? ''));
@@ -104,6 +109,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         );
         $st->execute([$shop, $gid, $f !== '' ? $f : null, $e !== '' ? $e : null, $hv !== '' ? $hv : null, $fz !== '' ? $fz : null, $dl !== '' ? $dl : null]);
         flash('ok', $gname . ': 媒体IDを保存しました。');
+        media_webhook_notify($shop, $gid, $gname, ['media_ids']);   // 不明フィールド→bot側は全ジョブ推定（媒体IDの張り替え直後に再反映させる）
     }
     redirect('play-availability.php');
 }
