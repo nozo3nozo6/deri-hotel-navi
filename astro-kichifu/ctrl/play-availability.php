@@ -166,10 +166,11 @@ function pa_preview(?string $playAt, ?string $status, bool $endPassed): array {
 layout_header('最速で遊べる時間', 'play-availability.php');
 ?>
 <style>
-  .pa-help { background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:12px 16px; font-size:.82rem; line-height:1.7; margin-bottom:16px; }
-  .pa-help table { border-collapse:collapse; margin-top:6px; }
-  .pa-help th, .pa-help td { border:1px solid #a7e3d9; padding:3px 10px; font-size:.78rem; text-align:left; }
-  .pa-help th { background:#e0f6f1; }
+  .pa-refreshbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#fff7ed; border:1px solid #fdba74; border-radius:10px; padding:10px 14px; margin-bottom:14px; }
+  .pa-refresh-btn { display:inline-flex; align-items:center; gap:6px; background:#ea580c; color:#fff; border:none; border-radius:8px; padding:9px 18px; font-size:.9rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .pa-refresh-btn:hover { background:#c2410c; }
+  .pa-refresh-note { font-size:.78rem; color:#9a3412; line-height:1.5; }
+  .pa-refresh-time { font-size:.72rem; color:#c2410c; font-weight:700; white-space:nowrap; }
   .pa-table { width:100%; border-collapse:collapse; background:#fff; }
   .pa-table th, .pa-table td { border-bottom:1px solid #e5e7eb; padding:8px 10px; font-size:.85rem; vertical-align:middle; text-align:left; }
   .pa-table th { background:#f8fafc; font-size:.75rem; color:#475569; }
@@ -204,22 +205,10 @@ layout_header('最速で遊べる時間', 'play-availability.php');
 
 <h1>⏰ 最速で遊べる時間</h1>
 
-<div class="pa-help">
-  <b>この画面が正データです。</b>保存すると各媒体のbotがここを読んで自動反映します（この画面から媒体へ直接投稿はしません）。
-  時刻は5分刻み・「その時刻から遊べる」の意味です。<b>過ぎた時刻を設定してもOK</b>＝すでに遊べる時間が来ている、として「🔥今すぐ遊べる（即姫）」表示になります。
-  0〜9時台の時刻は深夜側（翌日の未明）として扱います。
-  ※「今すぐ」ボタン＝現在時刻を即姫として保存するショートカットです（媒体への同期ボタンではありません。同期はbotが自動で行います）。
-  <b>即姫（時刻設定・今すぐ）＝「遊べる開始時刻」</b>です。出勤終了・ヒメ割期限とは別で、互いに影響しません。
-  <b>ヒメ割＝本日出勤があれば自動掲載</b>（情報局のみ・即姫とは独立・ON/OFF操作は不要です）。期限＝本日出勤の終了時刻に自動連動し、出勤終了を過ぎるとbotが自動取消します。<b>終了を変えたいときは出勤表を編集</b>してください。ここで変更できるのは分・円だけ（未設定は70分/11,000円）。
-  <b>媒体ID</b>：情報局は名前一致でbotが自動解決するので<b>通常は空欄でOK</b>（同名がいる時だけ手入力で指定）。駅ちか・ヘブン・風じゃ・デリじゃは入力が必要です（未設定の媒体はbotがスキップ）。
-  <table>
-    <tr><th>媒体</th><th>反映（すべて別botが自動）</th></tr>
-    <tr><td>口コミ情報局 すぐヒメ</td><td>変更時＋3分ごと自動再更新</td></tr>
-    <tr><td>口コミ情報局 ヒメ割</td><td>終了時刻ベース・1分ごと自動再更新</td></tr>
-    <tr><td>駅ちか 即ヒメ</td><td>変更時＋45分ごと</td></tr>
-    <tr><td>ヘブン 即ヒメ</td><td>1日10回まで・ここぞで手動</td></tr>
-    <tr><td>風じゃ／デリじゃ</td><td>READY・45分ごと</td></tr>
-  </table>
+<div class="pa-refreshbar">
+  <button type="button" class="pa-refresh-btn" onclick="location.reload()">🔄 最新の状態に更新</button>
+  <span class="pa-refresh-time">表示: <?= date('n/j H:i:s') ?> 時点</span>
+  <span class="pa-refresh-note">別のブラウザ・スマホで変更されている場合があります。<b>操作の前にこのボタンで最新化</b>してください（古い画面のまま保存すると上書きされます）。</span>
 </div>
 
 <table class="pa-table">
