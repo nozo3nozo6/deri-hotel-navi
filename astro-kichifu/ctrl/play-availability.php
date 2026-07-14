@@ -134,15 +134,29 @@ $rows = db()->prepare(
 $rows->execute([':shop1' => $shop, ':shop2' => $shop, ':shop3' => $shop, ':shop4' => $shop, ':bd' => $bizDate]);
 $girls = $rows->fetchAll(PDO::FETCH_ASSOC);
 
-// プレビュー文言（情報局と同じ考え方）。$shiftEndDt=play_availability.shift_end_at（出勤保存の
-//   たびにP3で自動同期される永続カラム。s.end_time(本日bizDateのみJOIN)ではなくこちらを使う理由:
-//   営業日切替直後(朝5時〜)は s.work_date=:今日bizDate のJOINが前日分の出勤にヒットしなくなり
-//   終了判定が丸ごとスキップされ、古いplay_atが「今すぐ遊べる」のまま残り続けるバグがあったため。
-//   終了時刻を過ぎていたら play_at が残っていても「―」表示にする（DBのplay_atは変更しない・
-//   表示のみ。出勤が終わった後に古い時刻がいつまでも見え続けて紛らわしい問題への対応）。
-function pa_preview(?string $playAt, ?string $status, ?string $shiftEndDt): array {
+// 「出勤終了を過ぎたか」の判定（陳腐化した play_at を「―」表示に抑制する用）。
+//   優先1: 本日営業日の出勤表 s.end_time（work行がJOINで取れていれば最も新鮮＝事前登録にも追従）。
+//          end 0〜9時台=翌暦日として実datetime化。end未入力(null)なら期限なし＝隠さない。
+//   優先2: 本日work行が無い場合のみ pa.shift_end_at（永続カラム）。営業日切替直後(朝5時〜)に
+//          前日分がJOINから消えても、前日の古い終了時刻(過去)で正しく「―」にできる。
+//   ※ shift_end_at 単独判定にすると逆の事故が起きる（2026-07-14 実例: 事前登録した本日出勤
+//     20:30〜04:00 は本日中の出勤保存が無く永続カラムが前日の 03:30 のまま → 過去扱いで
+//     play_at=20:30 の宣伝設定が「―」に抑制され「登録されない」ように見えた）。両方を併用する。
+function pa_shift_end_passed(?string $workEnd, ?string $shiftEndDt, string $bizDate): bool {
+    if ($workEnd !== null && $workEnd !== '') {
+        $h = (int)substr($workEnd, 0, 2);
+        $d = ($h >= 10) ? $bizDate : date('Y-m-d', strtotime($bizDate . ' +1 day'));
+        return strtotime($d . ' ' . substr($workEnd, 0, 5) . ':00') <= time();
+    }
+    if ($shiftEndDt) return strtotime($shiftEndDt) <= time();
+    return false;
+}
+
+// プレビュー文言（情報局と同じ考え方）。$endPassed=出勤終了を過ぎたら play_at が残っていても
+//   「―」表示にする（DBのplay_atは変更しない・表示のみ）。
+function pa_preview(?string $playAt, ?string $status, bool $endPassed): array {
     if (!$playAt || $status !== 'active') return ['—', 'pa-none'];
-    if ($shiftEndDt && strtotime($shiftEndDt) <= time()) return ['—', 'pa-none'];
+    if ($endPassed) return ['—', 'pa-none'];
     $ts = strtotime($playAt);
     if ($ts <= time()) return ['🔥 今すぐ遊べる（即姫）', 'pa-now'];
     $label = (date('Y-m-d', $ts) === date('Y-m-d')) ? date('H:i', $ts) : date('n/j H:i', $ts);
@@ -218,9 +232,9 @@ layout_header('最速で遊べる時間', 'play-availability.php');
     <th>媒体ID</th>
   </tr>
   <?php foreach ($girls as $g):
-    $shiftEndDt = $g['shift_end_at'] ?? null;                         // 永続カラム（P3同期・営業日境界の影響を受けない）
-    $endPassed  = $shiftEndDt && strtotime($shiftEndDt) <= time();    // 出勤終了を過ぎたか
-    [$prev, $cls] = pa_preview($g['play_at'], $g['status'], $shiftEndDt);
+    // 出勤終了を過ぎたか（本日出勤表を最優先・無ければ永続カラム。詳細は pa_shift_end_passed 参照）
+    $endPassed = pa_shift_end_passed($g['work_end'] ?? null, $g['shift_end_at'] ?? null, $bizDate);
+    [$prev, $cls] = pa_preview($g['play_at'], $g['status'], $endPassed);
     // 時刻セレクトのプリセット値も、出勤終了を過ぎていたら --:-- にする（プレビューと連動）
     $paPreset = ($g['status'] === 'active' && $g['play_at'] && !$endPassed) ? substr($g['play_at'], 11, 5) : null;
   ?>
