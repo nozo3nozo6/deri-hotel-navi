@@ -111,10 +111,17 @@ try {
         $items = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
             $hasPa = $r['pa_id'] !== null;
+            // 陳腐化ガード: play_at が本日出勤開始より前を指すなら null 扱い（前営業日の即姫の残骸。
+            //   出勤開始前に「遊べる」は無効＝botが誤って「今すぐ即姫」を出さないようにする。CTRL側は
+            //   出勤保存時に DB からクリアするが、再保存前の端境でも API では出さない二重防御）。
+            $shiftStart = $shiftDt($r['w_date'], $r['w_start']);
+            $playAtRaw  = ($hasPa && $r['play_at'] !== null
+                && !($shiftStart !== null && strtotime($r['play_at']) < strtotime($shiftStart)))
+                ? $r['play_at'] : null;
             $items[] = [
                 'cast_id'             => (int)$r['girl_id'],
                 'name'                => $r['name'],
-                'play_at'             => $hasPa ? iso($r['play_at']) : null,
+                'play_at'             => iso($playAtRaw),
                 'shift_start_at'      => iso($shiftDt($r['w_date'], $r['w_start'])),
                 'shift_end_at'        => iso($shiftDt($r['w_date'], $r['w_end'])),
                 'shift_business_date' => $r['w_date'] ?: null,

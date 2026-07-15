@@ -68,6 +68,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
           WHERE shop_id = :shop AND girl_id = :girl
             AND (COALESCE(shift_start_at, "") <> COALESCE(:s2, "") OR COALESCE(shift_end_at, "") <> COALESCE(:e2, ""))'
     );
+    // 陳腐化した即姫(play_at)のクリア: 新しい出勤開始より前を指す play_at は前営業日の残骸
+    //   （出勤開始前に「遊べる」は論理矛盾）。出勤登録しただけで前日の即姫が「今すぐ遊べる」として
+    //   復活する事故を防ぐ（2026-07-15 実例: 21:00出勤登録で前日の play_at=02:30 が即姫復活）。
+    //   status は触らない（ヒメ割は shift_end_at で継続）。play_at<新開始 のときだけ NULL 化。
+    $clearStalePlay = db()->prepare(
+        'UPDATE play_availability SET play_at = NULL, updated_by = :by
+          WHERE shop_id = :shop AND girl_id = :girl AND play_at IS NOT NULL AND play_at < :start'
+    );
     // 出勤TIME(HH:MM[:SS]) → 実datetime（0〜9時台=翌暦日の深夜側。start<end が常に成立）
     $shiftDt = function (?string $t, string $date): ?string {
         if ($t === null || $t === '') return null;
@@ -82,7 +90,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $webhookTargets = [];   // "sid:gid" => [sid, gid]
 
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $syncBy, $shiftDt, &$webhookTargets) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $clearStalePlay, $syncBy, $shiftDt, &$webhookTargets) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
@@ -96,6 +104,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $endAt   = ($stt === 'work') ? $shiftDt($e, $date) : null;
                 $syncShift->execute([':s1' => $startAt, ':e1' => $endAt, ':by' => $syncBy,
                                      ':shop' => $sid, ':girl' => $gid, ':s2' => $startAt, ':e2' => $endAt]);
+                // 出勤開始が確定したら、その開始より前を指す陳腐化 play_at を掃除（前日の即姫の持ち越し防止）
+                if ($startAt !== null) {
+                    $clearStalePlay->execute([':by' => $syncBy, ':shop' => $sid, ':girl' => $gid, ':start' => $startAt]);
+                }
                 if ($changed) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid];
             }
         }

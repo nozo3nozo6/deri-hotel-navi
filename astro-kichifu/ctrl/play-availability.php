@@ -223,9 +223,17 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   <?php foreach ($girls as $g):
     // 出勤終了を過ぎたか（本日出勤表を最優先・無ければ永続カラム。詳細は pa_shift_end_passed 参照）
     $endPassed = pa_shift_end_passed($g['work_end'] ?? null, $g['shift_end_at'] ?? null, $bizDate);
-    [$prev, $cls] = pa_preview($g['play_at'], $g['status'], $endPassed);
+    // 陳腐化した即姫を抑制: play_at が本日出勤開始より前を指すなら無効（前営業日の残骸）。
+    //   通常は出勤保存時にDBからクリアされるが、端境で残っていても即姫表示しない保険。
+    $playAt = $g['play_at'];
+    if ($playAt && $g['work_start']) {
+        $wh = (int)substr($g['work_start'], 0, 2);
+        $wd = ($wh >= 10) ? $bizDate : date('Y-m-d', strtotime($bizDate . ' +1 day'));
+        if (strtotime($playAt) < strtotime($wd . ' ' . substr($g['work_start'], 0, 5) . ':00')) $playAt = null;
+    }
+    [$prev, $cls] = pa_preview($playAt, $g['status'], $endPassed);
     // 時刻セレクトのプリセット値も、出勤終了を過ぎていたら --:-- にする（プレビューと連動）
-    $paPreset = ($g['status'] === 'active' && $g['play_at'] && !$endPassed) ? substr($g['play_at'], 11, 5) : null;
+    $paPreset = ($g['status'] === 'active' && $playAt && !$endPassed) ? substr($playAt, 11, 5) : null;
   ?>
   <tr>
     <td class="pa-name">
