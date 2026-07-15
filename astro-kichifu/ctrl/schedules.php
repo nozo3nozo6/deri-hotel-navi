@@ -68,13 +68,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
           WHERE shop_id = :shop AND girl_id = :girl
             AND (COALESCE(shift_start_at, "") <> COALESCE(:s2, "") OR COALESCE(shift_end_at, "") <> COALESCE(:e2, ""))'
     );
-    // 陳腐化した即姫(play_at)のクリア: 新しい出勤開始より前を指す play_at は前営業日の残骸
-    //   （出勤開始前に「遊べる」は論理矛盾）。出勤登録しただけで前日の即姫が「今すぐ遊べる」として
-    //   復活する事故を防ぐ（2026-07-15 実例: 21:00出勤登録で前日の play_at=02:30 が即姫復活）。
-    //   status は触らない（ヒメ割は shift_end_at で継続）。play_at<新開始 のときだけ NULL 化。
-    $clearStalePlay = db()->prepare(
-        'UPDATE play_availability SET play_at = NULL, updated_by = :by
-          WHERE shop_id = :shop AND girl_id = :girl AND play_at IS NOT NULL AND play_at < :start'
+    // ルールA（CLAUDE-PLAY-AT-SHIFT-RULES.md）: 出勤開始を「今すぐ(play_at)」より後ろにずらしたら
+    //   play_at を新しい出勤開始に合わせる（出勤前に遊べるは論理矛盾＝前日の残骸 or 後倒しの取り残し）。
+    //   条件: active・play_at not null・play_at < 新開始。play_at>=開始（=前倒し/終了のみ変更/正常値）は不変。
+    //   status/shift_end_at は触らない。出勤開始は5分刻みセレクト値そのまま（丸め済み＝開始より前にしない）。
+    $alignPlay = db()->prepare(
+        'UPDATE play_availability SET play_at = :start, updated_by = :by
+          WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
+            AND play_at IS NOT NULL AND play_at < :start2'
+    );
+    // ルールB（同）: 出勤取消（休み/未定＝出勤帯が無くなる）で「今すぐ」もリセット。
+    //   ★ syncShift（shift_* を NULL 化）より前に判定＝「出勤帯があった active 行」だけを対象にする。
+    //   即姫のみ（元々 shift 両 null）の行は巻き込まない（回帰: 出勤なしで play だけの子は触らない）。
+    $cancelPlay = db()->prepare(
+        'UPDATE play_availability SET play_at = NULL, status = "cleared", updated_by = :by
+          WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
+            AND (shift_start_at IS NOT NULL OR shift_end_at IS NOT NULL)'
     );
     // 出勤TIME(HH:MM[:SS]) → 実datetime（0〜9時台=翌暦日の深夜側。start<end が常に成立）
     $shiftDt = function (?string $t, string $date): ?string {
@@ -87,10 +96,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     // 本日営業日の出勤が実際に変わったキャスト → 保存後に bot へ Webhook 通知（WEBHOOK-CTRL.md）。
     //   schedules の upsert rowCount>0（insert=1/update=2、同値no-op=0）で変更判定
     //   ＝ play_availability 行が無い子（APIは schedules 直接導出で出る）も取りこぼさない。
-    $webhookTargets = [];   // "sid:gid" => [sid, gid]
+    $webhookTargets = [];   // "sid:gid" => [sid, gid, changedFields[]]
 
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $clearStalePlay, $syncBy, $shiftDt, &$webhookTargets) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $syncBy, $shiftDt, &$webhookTargets) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
@@ -102,13 +111,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             if ($date === $bizToday) {
                 $startAt = ($stt === 'work') ? $shiftDt($s, $date) : null;
                 $endAt   = ($stt === 'work') ? $shiftDt($e, $date) : null;
+                $changedFields = [];
+
+                // ルールB は syncShift の前に判定（shift_* が NULL 化される前の「出勤帯あり」を見る）
+                if ($stt !== 'work') {
+                    $cancelPlay->execute([':by' => $syncBy, ':shop' => $sid, ':girl' => $gid]);
+                    if ($cancelPlay->rowCount() > 0) { $changedFields[] = 'play_at'; $changedFields[] = 'status'; }
+                }
+
                 $syncShift->execute([':s1' => $startAt, ':e1' => $endAt, ':by' => $syncBy,
                                      ':shop' => $sid, ':girl' => $gid, ':s2' => $startAt, ':e2' => $endAt]);
-                // 出勤開始が確定したら、その開始より前を指す陳腐化 play_at を掃除（前日の即姫の持ち越し防止）
+                if ($changed) { $changedFields[] = 'shift_start_at'; $changedFields[] = 'shift_end_at'; }
+
+                // ルールA: 出勤開始が play_at より後ろなら play_at を開始に合わせる
                 if ($startAt !== null) {
-                    $clearStalePlay->execute([':by' => $syncBy, ':shop' => $sid, ':girl' => $gid, ':start' => $startAt]);
+                    $alignPlay->execute([':start' => $startAt, ':start2' => $startAt, ':by' => $syncBy, ':shop' => $sid, ':girl' => $gid]);
+                    if ($alignPlay->rowCount() > 0) $changedFields[] = 'play_at';
                 }
-                if ($changed) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid];
+
+                if ($changedFields) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid, array_values(array_unique($changedFields))];
             }
         }
         return $cnt;
@@ -120,9 +141,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         require_once __DIR__ . '/../api/media-webhook.php';
         $nameQ = db()->prepare('SELECT name FROM girls WHERE id=?');
         $names = [];
-        foreach ($webhookTargets as [$sid, $gid]) {
+        foreach ($webhookTargets as [$sid, $gid, $changed]) {
             if (!isset($names[$gid])) { $nameQ->execute([$gid]); $names[$gid] = (string)$nameQ->fetchColumn(); }
-            media_webhook_notify((int)$sid, (int)$gid, $names[$gid], ['shift_start_at', 'shift_end_at'], 'shift');
+            media_webhook_notify((int)$sid, (int)$gid, $names[$gid], $changed, 'shift');   // shift_* / play_at / status を含む
         }
     };
 
