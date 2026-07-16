@@ -142,7 +142,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         );
         $st->execute([$shop, $gid, $f !== '' ? $f : null, $e !== '' ? $e : null, $hv !== '' ? $hv : null, $fz !== '' ? $fz : null, $dl !== '' ? $dl : null]);
         flash('ok', $gname . ': 媒体IDを保存しました。');
-        $notify(['media_ids']);   // 不明フィールド→bot側は全ジョブ推定（媒体IDの張り替え直後に再反映させる）
+        // 媒体ID(girl_media_ids)は営業日と無関係な即時データなので、明日行からの保存でも常に通知する
+        media_webhook_notify($shop, $gid, $gname, ['media_ids']);   // 不明フィールド→bot側は全ジョブ推定（張り替え直後に再反映させる）
     }
     redirect('play-availability.php' . (isset($_POST['view']) && in_array($_POST['view'], ['today', 'tomorrow'], true) ? '?view=' . $_POST['view'] : ''));
 }
@@ -407,17 +408,18 @@ layout_header('最速で遊べる時間', 'play-availability.php');
         // 期限＝出勤表の終了と連動（読み取り専用）。編集できるのは分・円のみ。
         $hwMin = $g['himewari_minutes'] !== null ? (int)$g['himewari_minutes'] : 70;
         $hwPrice = $g['himewari_price'] !== null ? (int)$g['himewari_price'] : 11000;
+        $dayw = $isNext ? '明日' : '本日';   // この行の営業日ラベル
         if ($g['work_end']) {
             $hwSummary = '〜' . substr($g['work_end'], 0, 5) . '・' . $hwMin . '分/' . number_format($hwPrice) . '円';
             $hwCls = 'pa-hw-on';
         } else {
-            $hwSummary = '本日出勤なし';
+            $hwSummary = $dayw . '出勤なし';
             $hwCls = '';
         }
       ?>
       <details class="pa-media">
         <summary class="<?= $hwCls ?>"><?= h($hwSummary) ?></summary>
-        <div class="pa-hw-note">期限＝<b>出勤表の終了と連動</b><?= $g['work_end'] ? '（本日 ' . h(substr($g['work_end'], 0, 5)) . ' まで）' : '（本日出勤なし＝掲載されません）' ?>。本日の出勤終了を変えるときは <a href="schedules.php">出勤管理（本日営業日）</a> で編集してください（この画面の即姫時刻では変わりません）。</div>
+        <div class="pa-hw-note">期限＝<b>出勤表の終了と連動</b><?= $g['work_end'] ? '（' . h($dayw) . ' ' . h(substr($g['work_end'], 0, 5)) . ' まで）' : '（' . h($dayw) . '出勤なし＝掲載されません）' ?>。出勤終了を変えるときは <a href="schedules.php">出勤管理</a> で編集してください（この画面の即姫時刻では変わりません）。</div>
         <form method="post">
           <?= csrf_field() ?>
           <?= $bdFields($g) ?>
