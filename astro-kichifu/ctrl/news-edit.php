@@ -122,36 +122,95 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
         <div class="tabs" style="margin-bottom:0;align-items:center">
           <button type="button" class="tab active" id="tab-source" onclick="bodyTab('source')">ソース</button>
           <button type="button" class="tab" id="tab-preview" onclick="bodyTab('preview')">プレビュー</button>
+          <button type="button" class="tab" id="tab-plain" onclick="bodyTab('plain')">📋 コピペ用テキスト</button>
           <button type="button" class="btn btn-sm" id="ins-img-btn" style="display:none;margin-left:8px">🖼 画像を挿入</button>
           <input type="file" id="ins-img-file" accept="image/*" style="display:none">
         </div>
       </div>
       <textarea id="body-source" name="body" rows="10"><?= h($n['body']) ?></textarea>
       <div id="body-preview" class="body-preview" contenteditable="true" spellcheck="false" style="display:none"></div>
+      <!-- コピペ用テキスト: HTML/CSSが使えない媒体へ貼るためのプレーンテキスト。name属性なし＝保存対象外（表示専用） -->
+      <div id="body-plain" style="display:none">
+        <textarea id="body-plain-text" rows="14" readonly style="width:100%;font-family:inherit;background:#f8fafc"></textarea>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
+          <button type="button" class="btn btn-primary btn-sm" id="copy-plain-btn">📋 テキストをコピー</button>
+          <span class="hint" style="font-size:.8125rem;color:#888">装飾・画像を除いた本文だけを抽出します（リンクはURLを併記）。他媒体への宣伝コピペ用・<b>保存されません</b>。</span>
+        </div>
+      </div>
       <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">HTMLタグでそのまま投稿できます（admi2888の編集HTML・フォント色・画像・リンク等を貼り付け可）。改行は &lt;br&gt; を使ってください。<br><strong>プレビュー</strong>タブでは表示を見ながら直接編集でき、変更はソースに自動反映されます。</p>
     </div>
     <script>
+    // HTML本文 → コピペ用プレーンテキスト（CSSが効かない媒体へ貼る用）
+    //   ・<style>/<script>/コメント/画像は落とす（テキストにできない装飾）
+    //   ・ブロック要素と<br>は改行、<a>はリンク文言の下にURLを併記（他媒体でも辿れるように）
+    //   ・&nbsp;→空白、行頭行末の空白と3行以上の空行を圧縮
+    function htmlToPlainText(html) {
+      var box = document.createElement('div');
+      box.innerHTML = html;
+      box.querySelectorAll('style,script').forEach(function (el) { el.remove(); });
+      var BLOCK = /^(DIV|P|H[1-6]|LI|TR|SECTION|ARTICLE|HEADER|FOOTER|BLOCKQUOTE|PRE|TABLE|UL|OL|FIGURE)$/;
+      var out = '';
+      (function walk(node) {
+        node.childNodes.forEach(function (n) {
+          if (n.nodeType === 3) { out += n.nodeValue.replace(/\s+/g, ' '); return; }  // テキスト（連続空白は1つに）
+          if (n.nodeType !== 1) return;                                               // コメント等は無視
+          var tag = n.tagName;
+          if (tag === 'BR')  { out += '\n'; return; }
+          if (tag === 'HR')  { out += '\n────────\n'; return; }
+          if (tag === 'IMG') { return; }
+          var block = BLOCK.test(tag);
+          if (block) out += '\n';
+          walk(n);
+          if (tag === 'A') {
+            var href = n.getAttribute('href') || '';
+            if (/^https?:\/\//i.test(href)) out += '\n' + href;
+          }
+          if (block) out += '\n';
+        });
+      })(box);
+      return out.replace(/\u00a0/g, ' ')   // &nbsp; → 半角空白
+                .split('\n').map(function (s) { return s.trim(); }).join('\n')
+                .replace(/\n{3,}/g, '\n\n').trim();
+    }
+
     function bodyTab(mode) {
       var src = document.getElementById('body-source');
       var pre = document.getElementById('body-preview');
-      document.getElementById('tab-source').classList.toggle('active', mode === 'source');
-      document.getElementById('tab-preview').classList.toggle('active', mode === 'preview');
+      var pln = document.getElementById('body-plain');
+      // プレビュー表示中の編集は、どのタブへ移るときも先にソースへ確定（編集内容を失わない）
+      if (pre.style.display !== 'none') src.value = pre.innerHTML;
+      ['source', 'preview', 'plain'].forEach(function (m) {
+        document.getElementById('tab-' + m).classList.toggle('active', mode === m);
+      });
       document.getElementById('ins-img-btn').style.display = (mode === 'preview') ? '' : 'none';  // 画像挿入はプレビュー時のみ
-      if (mode === 'preview') {
-        pre.innerHTML = src.value;            // ソース → プレビュー
-        src.style.display = 'none';
-        pre.style.display = 'block';
-      } else {
-        src.value = pre.innerHTML;            // プレビューでの編集 → ソースへ反映
-        src.style.display = 'block';
-        pre.style.display = 'none';
-      }
+      src.style.display = (mode === 'source')  ? 'block' : 'none';
+      pre.style.display = (mode === 'preview') ? 'block' : 'none';
+      pln.style.display = (mode === 'plain')   ? 'block' : 'none';
+      if (mode === 'preview') pre.innerHTML = src.value;                                          // ソース → プレビュー
+      if (mode === 'plain')   document.getElementById('body-plain-text').value = htmlToPlainText(src.value);
     }
     (function () {
       var pre = document.getElementById('body-preview');
       var src = document.getElementById('body-source');
       // プレビュー編集をリアルタイムでソース(textarea)へ同期
       pre.addEventListener('input', function () { src.value = pre.innerHTML; });
+
+      // コピペ用テキストをクリップボードへ（非対応/失敗時は選択状態にして手動コピーへ誘導）
+      var copyBtn = document.getElementById('copy-plain-btn');
+      copyBtn.addEventListener('click', function () {
+        var ta = document.getElementById('body-plain-text');
+        var done = function () {
+          copyBtn.textContent = '✓ コピーしました';
+          setTimeout(function () { copyBtn.textContent = '📋 テキストをコピー'; }, 2000);
+        };
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);   // iOS Safari 対策
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(ta.value).then(done, function () { document.execCommand('copy'); done(); });
+        } else {
+          document.execCommand('copy'); done();
+        }
+      });
       // 送信時、プレビュー表示中なら最新の編集内容を確実に反映
       src.closest('form').addEventListener('submit', function () {
         if (pre.style.display !== 'none') src.value = pre.innerHTML;
