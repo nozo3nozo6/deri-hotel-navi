@@ -69,9 +69,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             AND (COALESCE(shift_start_at, "") <> COALESCE(:s2, "") OR COALESCE(shift_end_at, "") <> COALESCE(:e2, ""))'
     );
     // ルールA（CLAUDE-PLAY-AT-SHIFT-RULES.md）: 出勤開始を「今すぐ(play_at)」より後ろにずらしたら
-    //   play_at を新しい出勤開始に合わせる（出勤前に遊べるは論理矛盾＝前日の残骸 or 後倒しの取り残し）。
-    //   条件: active・play_at not null・play_at < 新開始。play_at>=開始（=前倒し/終了のみ変更/正常値）は不変。
+    //   play_at を新しい出勤開始に合わせる。
+    //   ★ 発火は「開始が実際に変わったとき」だけ（仕様のトリガ=shift_start_at の更新／やらないこと=
+    //     終了だけの変更で play_at を変える）。開始据え置きの再保存でも発火させると、出勤開始前に
+    //     「今すぐ」で先に宣伝している play_at（21:00出勤に20:45）を勝手に21:00へ動かしてしまう。
+    //   条件: 開始が変化・active・play_at not null・play_at < 新開始。前倒しは play_at>=開始 で自然に不変。
     //   status/shift_end_at は触らない。出勤開始は5分刻みセレクト値そのまま（丸め済み＝開始より前にしない）。
+    $getStart = db()->prepare('SELECT shift_start_at FROM play_availability WHERE shop_id=? AND girl_id=?');
     $alignPlay = db()->prepare(
         'UPDATE play_availability SET play_at = :start, updated_by = :by
           WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
@@ -101,7 +105,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $webhookTargets = [];   // "sid:gid" => [sid, gid, changedFields[]]
 
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $syncBy, $shiftDt, &$webhookTargets) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $getStart, $syncBy, $shiftDt, &$webhookTargets) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
@@ -114,6 +118,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $startAt = ($stt === 'work') ? $shiftDt($s, $date) : null;
                 $endAt   = ($stt === 'work') ? $shiftDt($e, $date) : null;
                 $changedFields = [];
+                // ルールA用: 変更前の出勤開始（syncShift で上書きされる前に読む）
+                $oldStart = null;
+                if ($stt === 'work') { $getStart->execute([$sid, $gid]); $oldStart = $getStart->fetchColumn() ?: null; }
 
                 // ルールB は syncShift の前に判定（shift_* が NULL 化される前の「出勤帯あり」を見る）
                 if ($stt !== 'work') {
@@ -125,8 +132,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                                      ':shop' => $sid, ':girl' => $gid, ':s2' => $startAt, ':e2' => $endAt]);
                 if ($changed) { $changedFields[] = 'shift_start_at'; $changedFields[] = 'shift_end_at'; }
 
-                // ルールA: 出勤開始が play_at より後ろなら play_at を開始に合わせる
-                if ($startAt !== null) {
+                // ルールA: 出勤開始が「変わって」かつ play_at より後ろなら play_at を開始に合わせる
+                if ($startAt !== null && $startAt !== $oldStart) {
                     $alignPlay->execute([':start' => $startAt, ':start2' => $startAt, ':by' => $syncBy, ':shop' => $sid, ':girl' => $gid]);
                     if ($alignPlay->rowCount() > 0) $changedFields[] = 'play_at';
                 }
