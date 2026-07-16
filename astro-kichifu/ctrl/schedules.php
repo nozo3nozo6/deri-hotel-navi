@@ -80,8 +80,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     // ルールB（同）: 出勤取消（休み/未定＝出勤帯が無くなる）で「今すぐ」もリセット。
     //   ★ syncShift（shift_* を NULL 化）より前に判定＝「出勤帯があった active 行」だけを対象にする。
     //   即姫のみ（元々 shift 両 null）の行は巻き込まない（回帰: 出勤なしで play だけの子は触らない）。
+    //   reception_closed（受付終了＝出勤中のまま即ヒメ停止）も解除する: 出勤自体が無くなれば受付終了は無意味で、
+    //   cleared に受付終了フラグが残ると再出勤時に「出勤したのに受付終了のまま」になるため。
     $cancelPlay = db()->prepare(
-        'UPDATE play_availability SET play_at = NULL, status = "cleared", updated_by = :by
+        'UPDATE play_availability SET play_at = NULL, reception_closed = 0, status = "cleared", updated_by = :by
           WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
             AND (shift_start_at IS NOT NULL OR shift_end_at IS NOT NULL)'
     );

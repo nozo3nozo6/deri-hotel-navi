@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS play_availability (
   shop_id    INT NOT NULL,
   girl_id    INT NOT NULL,
   play_at          DATETIME NULL,                             -- 最速で遊べる時刻（即姫・JST・5分刻み）。NULL=即姫未設定
+  reception_closed TINYINT(1) NOT NULL DEFAULT 0,             -- 受付終了（出勤中のまま即ヒメ系だけ止める。出勤解除とは別）
   shift_start_at   DATETIME NULL,                             -- 本日出勤の開始（出勤表の写し・情報局出勤表bot用）
   shift_end_at     DATETIME NULL,                             -- ヒメ割期限（出勤終了時刻・までに遊ぶ）→ 情報局 gidi_dlt
   himewari_enabled TINYINT(1) NOT NULL DEFAULT 0,             -- ヒメ割を出すか
@@ -53,3 +54,11 @@ ALTER TABLE play_availability
 ALTER TABLE girl_media_ids
   ADD COLUMN IF NOT EXISTS fuzoku_girl_no VARCHAR(32) NULL AFTER heaven_member_id,
   ADD COLUMN IF NOT EXISTS deli_girl_no VARCHAR(32) NULL AFTER fuzoku_girl_no;
+
+-- 受付終了（2026-07-16・CLAUDE-UKETSUKE-SHURYO.md）: 出勤表は残したまま即ヒメ/接客/待機だけ止める。
+--   ★ status ENUM に足さず独立カラムにした理由: status=cleared は「出勤取消/クリア」で使用済みかつ
+--     API GET の既定フィルタが status=active のため、受付終了を status に混ぜると一覧から落ち、
+--     bot がヒメ割・出勤表を維持すべき対象を見失う。「出勤の有無」と「受付の可否」は直交する概念。
+--   受付終了 = reception_closed=1 AND play_at IS NULL AND status='active'（shift_* は残す）
+--   出勤解除 = shift_* なし（schedules に work 行なし）→ 別機能
+ALTER TABLE play_availability ADD COLUMN IF NOT EXISTS reception_closed TINYINT(1) NOT NULL DEFAULT 0 AFTER play_at;

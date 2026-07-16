@@ -23,11 +23,14 @@ const PLAY_MEDIA_WEBHOOK_URL = 'https://tk2-409-45785.vs.sakura.ne.jp/official-m
  * @param string   $name    表示名（bot ログ・only_names 絞り用）
  * @param string[] $changed 変わったフィールド名（'play_at','status','shift_end_at','himewari_minutes' 等）
  * @param string   $source  'ctrl' / 'shift' 等
+ * @param string[] $jobs    実行ジョブの明示（省略時は bot が changed から推定）。
+ *                          受付終了のように「出勤表・ヒメ割は絶対に触らせない」場合は必ず明示する
+ *                          （changed に bot の推定表にない語が混ざると "不明→全ジョブ" になり得るため）。
  */
-function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl'): void {
+function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl', array $jobs = []): void {
     if (!defined('PLAY_MEDIA_WEBHOOK_SECRET') || PLAY_MEDIA_WEBHOOK_SECRET === '') return; // 未設定=OFF
     try {
-        $payload = json_encode([
+        $body = [
             'event'      => 'play_availability.changed',
             'shop_id'    => $shopId,
             'cast_id'    => $castId,
@@ -35,7 +38,9 @@ function media_webhook_notify(int $shopId, int $castId, string $name, array $cha
             'changed'    => array_values($changed),
             'updated_at' => date('c'),
             'source'     => $source,
-        ], JSON_UNESCAPED_UNICODE);
+        ];
+        if ($jobs) $body['jobs'] = array_values($jobs);
+        $payload = json_encode($body, JSON_UNESCAPED_UNICODE);
         $ch = curl_init(PLAY_MEDIA_WEBHOOK_URL);
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,

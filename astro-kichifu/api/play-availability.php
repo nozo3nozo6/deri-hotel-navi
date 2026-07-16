@@ -9,17 +9,20 @@
 //         PLAY_API_KEY 未定義/空 → 503（未設定=機能OFF、GEMINI_API_KEYと同じ流儀）。
 //
 //   GET  /api/play-availability.php?shop_id=1[&status=active|cleared|all][&updated_since=ISO8601][&cast_id=N]
-//        → {items:[{cast_id,name,play_at,shift_start_at,shift_end_at,shift_business_date,himewari_*,status,
-//                    list_flag,note,updated_at,media_ids:{fujoho,ekichika,heaven,fuzoku,deli}}],server_time}
+//        → {items:[{cast_id,name,play_at,reception_closed,shift_start_at,shift_end_at,shift_business_date,
+//                    himewari_*,status,list_flag,note,updated_at,media_ids:{fujoho,ekichika,heaven,fuzoku,deli}}],server_time}
 //        日時は ISO8601 +09:00。status 既定=active。updated_since は「その時刻以降(含む)」。
 //        ★ shift_start_at/shift_end_at/shift_business_date は本日営業日（朝5時区切り）の出勤表(schedules)
 //          から直接導出＝出勤表が正。休み/出勤なし→null。本日出勤があるキャストは play_availability 行が
 //          無くても items に出る（その場合 play_at=null, status=active, updated_at=null）。
 //          深夜跨ぎは実datetime（0〜9時台=翌暦日）で start < end が常に成立。
-//   PUT/POST /api/play-availability.php?shop_id=1&cast_id=N  body(JSON): {play_at?,status?,list_flag?,note?,
-//        himewari_minutes?,himewari_price?}（部分更新）→ upsert。play_at は ISO8601（+09:00推奨）。
+//   PUT/POST /api/play-availability.php?shop_id=1&cast_id=N  body(JSON): {play_at?,reception_closed?,status?,
+//        list_flag?,note?,himewari_minutes?,himewari_price?}（部分更新）→ upsert。play_at は ISO8601（+09:00推奨）。
 //        status=cleared のみでクリア可。ヒメ割の分・円は null 可＝bot既定70分/11000円。
 //        ※ shift_* は出勤表が正なので PUT では受けても GET には反映されない（出勤表を編集すること）。
+//   ★ 受付終了（CLAUDE-UKETSUKE-SHURYO.md）= {"status":"active","play_at":null,"reception_closed":true}
+//        出勤(shift_*)は残る＝媒体の出勤表・ヒメ割は維持し、即ヒメ/接客/待機だけ止める（出勤解除とは別物）。
+//        連動: reception_closed=true → play_at は必ず null / play_at に時刻を入れる → reception_closed=false（再開）。
 //   ※ パスパラメータ形式（/{cast_id}）はシンレンApacheのリライト都合でクエリ形式に統一。
 // ==========================================================================
 require_once __DIR__ . '/db.php';
@@ -86,7 +89,7 @@ try {
 
         $st = DB::conn()->prepare(
             'SELECT g.id AS girl_id, g.name,
-                    pa.id AS pa_id, pa.play_at, pa.himewari_enabled, pa.himewari_minutes, pa.himewari_price,
+                    pa.id AS pa_id, pa.play_at, pa.reception_closed, pa.himewari_enabled, pa.himewari_minutes, pa.himewari_price,
                     pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
                     s.work_date AS w_date, s.start_time AS w_start, s.end_time AS w_end,
                     mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no
@@ -122,6 +125,10 @@ try {
                 'cast_id'             => (int)$r['girl_id'],
                 'name'                => $r['name'],
                 'play_at'             => iso($playAtRaw),
+                // 受付終了（CLAUDE-UKETSUKE-SHURYO.md）: 出勤(shift_*)は残したまま即ヒメ/接客/待機だけ止める。
+                //   true のとき bot は sugu_hime取消 / ekichika(sokuiku解除+playing OFF) / heaven(ensureStandbyOffのみ)
+                //   / fuzoku・deli(NOTAVAILABLE) を実行し、schedule(出勤表)・himewari(ヒメ割)は触らない。
+                'reception_closed'    => $hasPa ? (bool)$r['reception_closed'] : false,
                 'shift_start_at'      => iso($shiftDt($r['w_date'], $r['w_start'])),
                 'shift_end_at'        => iso($shiftDt($r['w_date'], $r['w_end'])),
                 'shift_business_date' => $r['w_date'] ?: null,
@@ -184,8 +191,17 @@ try {
         $cur->execute([$shopId, $castId]);
         $existing = $cur->fetch(PDO::FETCH_ASSOC) ?: null;
 
+        // 受付終了フラグ（CLAUDE-UKETSUKE-SHURYO.md）。status には混ぜない（GET既定 status=active から
+        //   落ちると bot がヒメ割・出勤表の対象を見失うため）。指定なし→既存維持。
+        //   連動: reception_closed=true → play_at は必ず null（受付終了＝即姫なし）
+        //         play_at に非nullを設定 → reception_closed=false（＝再開。§2.4「今すぐ/play_at再設定で復帰」）
+        $rcProvided = array_key_exists('reception_closed', $body);
+        $rcClosed   = $rcProvided ? (int)(bool)$body['reception_closed'] : (int)($existing['reception_closed'] ?? 0);
+        if ($rcProvided && $rcClosed) { $playAtProvided = true; $playAt = null; }
+        if ($playAtProvided && $playAt !== null) $rcClosed = 0;
+
         // クリアのみ（play_at/himewari等を触らずステータスだけ）
-        if ($status === 'cleared' && !$playAtProvided && !array_key_exists('himewari_enabled', $body)
+        if ($status === 'cleared' && !$playAtProvided && !$rcProvided && !array_key_exists('himewari_enabled', $body)
             && !array_key_exists('shift_end_at', $body)) {
             if ($existing) {
                 $st = DB::conn()->prepare('UPDATE play_availability SET status="cleared", updated_by=? WHERE shop_id=? AND girl_id=?');
@@ -211,24 +227,26 @@ try {
 
             $st = DB::conn()->prepare(
                 'INSERT INTO play_availability
-                   (shop_id, girl_id, play_at, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_by)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                 ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), shift_end_at=VALUES(shift_end_at),
+                   (shop_id, girl_id, play_at, reception_closed, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), reception_closed=VALUES(reception_closed),
+                     shift_end_at=VALUES(shift_end_at),
                      himewari_enabled=VALUES(himewari_enabled), himewari_minutes=VALUES(himewari_minutes),
                      himewari_price=VALUES(himewari_price), status=VALUES(status),
                      list_flag=VALUES(list_flag), note=VALUES(note), updated_by=VALUES(updated_by)'
             );
-            $st->execute([$shopId, $castId, $finalPlayAt, $shiftEnd, $hwEnabled, $hwMin, $hwPrice, $status, $listFlag, $note, $by]);
+            $st->execute([$shopId, $castId, $finalPlayAt, $rcClosed, $shiftEnd, $hwEnabled, $hwMin, $hwPrice, $status, $listFlag, $note, $by]);
         }
 
         // 保存後の最新を返す
-        $st = DB::conn()->prepare('SELECT girl_id, play_at, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_at FROM play_availability WHERE shop_id=? AND girl_id=?');
+        $st = DB::conn()->prepare('SELECT girl_id, play_at, reception_closed, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_at FROM play_availability WHERE shop_id=? AND girl_id=?');
         $st->execute([$shopId, $castId]);
         $r = $st->fetch(PDO::FETCH_ASSOC);
         echo DB::jsonEncode([
             'ok'   => true,
             'item' => $r ? [
                 'cast_id' => (int)$r['girl_id'], 'play_at' => iso($r['play_at']),
+                'reception_closed' => (bool)$r['reception_closed'],
                 'shift_end_at' => iso($r['shift_end_at']), 'himewari_enabled' => (bool)$r['himewari_enabled'],
                 'himewari_minutes' => $r['himewari_minutes'] !== null ? (int)$r['himewari_minutes'] : null,
                 'himewari_price' => $r['himewari_price'] !== null ? (int)$r['himewari_price'] : null,
