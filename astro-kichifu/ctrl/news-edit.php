@@ -53,13 +53,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'source_id' => $linkKey,
         ];
         try {
+            $notifyNews = [];   // 保存成功後に bot へ通知する [shop_id, news_id, changed[]]（CLAUDE-NEWS-API.md §5）
             db()->beginTransaction();
             foreach ($allShopIds as $sid) {
                 // この店舗の既存行（linkKey一致 or 編集起点の行=旧source_id NULL）
-                $ex = db()->prepare('SELECT id FROM news WHERE shop_id=? AND source_id=? LIMIT 1');
+                $ex = db()->prepare('SELECT id, title, body, thumb, posted_at, is_display FROM news WHERE shop_id=? AND source_id=? LIMIT 1');
                 $ex->execute([$sid, $linkKey]);
-                $exId = (int)($ex->fetchColumn() ?: 0);
-                if (!$exId && $id && $sid === $shop && $cur) $exId = $id;
+                $exRow = $ex->fetch() ?: null;
+                $exId  = (int)($exRow['id'] ?? 0);
+                if (!$exId && $id && $sid === $shop && $cur) { $exId = $id; $exRow = $cur; }
 
                 if (in_array($sid, $targetShops, true)) {
                     $row = $fields + ['shop_id' => $sid];
@@ -69,13 +71,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     } else {
                         $cols = implode(',', array_keys($row)); $ph = implode(',', array_map(fn($k) => ":$k", array_keys($row)));
                         db()->prepare("INSERT INTO news ($cols) VALUES ($ph)")->execute($row);
+                        $exId = (int)db()->lastInsertId();
+                    }
+                    // 公開に関わる保存だけ通知（送らない: 下書きのみの保存＝前後とも非公開）
+                    $wasPub = $exRow && (int)$exRow['is_display'] === 1;
+                    $nowPub = (int)$fields['is_display'] === 1;
+                    if ($nowPub || $wasPub) {
+                        $chg = [];
+                        if (!$exRow || $exRow['title'] !== $fields['title'])         $chg[] = 'title';
+                        if (!$exRow || $exRow['body'] !== $fields['body'])           $chg[] = 'body_html';
+                        if (!$exRow || $exRow['thumb'] !== $fields['thumb'])         $chg[] = 'image_url';
+                        if (!$exRow || $exRow['posted_at'] !== $fields['posted_at']) $chg[] = 'publish_at';
+                        if (!$exRow || (int)$exRow['is_display'] !== (int)$fields['is_display']) $chg[] = 'status';
+                        if ($chg) $notifyNews[] = [$sid, $exId, $chg];
                     }
                 } elseif ($exId) {
                     // チェックを外した店舗 → その店舗の行を削除（物理サムネは他店共有のため消さない）
                     db()->prepare('DELETE FROM news WHERE id=?')->execute([$exId]);
+                    if ((int)($exRow['is_display'] ?? 0) === 1) $notifyNews[] = [$sid, $exId, ['status']];   // 公開中だった→非公開化を通知
                 }
             }
             db()->commit();
+            // コミット後に bot へ通知（best-effort・失敗しても保存は成功のまま）
+            if ($notifyNews) {
+                require_once __DIR__ . '/../api/media-webhook.php';
+                foreach ($notifyNews as [$nsid, $nid, $nchg]) media_webhook_notify_news($nsid, $nid, $nchg);
+            }
             flash('ok', '保存しました。');
             redirect('news.php');
         } catch (Throwable $e) { if (db()->inTransaction()) db()->rollBack(); flash('err', '保存に失敗しました。'); }

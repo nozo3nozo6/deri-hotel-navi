@@ -28,18 +28,39 @@ const PLAY_MEDIA_WEBHOOK_URL = 'https://tk2-409-45785.vs.sakura.ne.jp/official-m
  *                          （changed に bot の推定表にない語が混ざると "不明→全ジョブ" になり得るため）。
  */
 function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl', array $jobs = []): void {
+    $body = [
+        'event'      => 'play_availability.changed',
+        'shop_id'    => $shopId,
+        'cast_id'    => $castId,
+        'name'       => $name,
+        'changed'    => array_values($changed),
+        'updated_at' => date('c'),
+        'source'     => $source,
+    ];
+    if ($jobs) $body['jobs'] = array_values($jobs);
+    media_webhook_send($body);
+}
+
+/**
+ * お知らせ変更を bot へ通知（CLAUDE-NEWS-API.md §5）。情報局「速報！」ジョブ用。
+ * 送る: 下書き→公開 / 本文・画像・publish_at 変更 / 非公開化。下書きのみの保存では呼ばないこと。
+ */
+function media_webhook_notify_news(int $shopId, int $newsId, array $changed, string $source = 'ctrl'): void {
+    media_webhook_send([
+        'event'      => 'news.changed',
+        'shop_id'    => $shopId,
+        'news_id'    => $newsId,
+        'changed'    => array_values($changed),
+        'updated_at' => date('c'),
+        'source'     => $source,
+        'jobs'       => ['fujoho_sokuho'],
+    ]);
+}
+
+/** 汎用送信（best-effort・例外を投げない）。payload はイベントごとに組み立て済みのもの。 */
+function media_webhook_send(array $body): void {
     if (!defined('PLAY_MEDIA_WEBHOOK_SECRET') || PLAY_MEDIA_WEBHOOK_SECRET === '') return; // 未設定=OFF
     try {
-        $body = [
-            'event'      => 'play_availability.changed',
-            'shop_id'    => $shopId,
-            'cast_id'    => $castId,
-            'name'       => $name,
-            'changed'    => array_values($changed),
-            'updated_at' => date('c'),
-            'source'     => $source,
-        ];
-        if ($jobs) $body['jobs'] = array_values($jobs);
         $payload = json_encode($body, JSON_UNESCAPED_UNICODE);
         $ch = curl_init(PLAY_MEDIA_WEBHOOK_URL);
         curl_setopt_array($ch, [
@@ -58,7 +79,7 @@ function media_webhook_notify(int $shopId, int $castId, string $name, array $cha
         $err  = curl_error($ch);
         curl_close($ch);
         if ($res === false || $code >= 400) {
-            error_log('[media-webhook] failed http=' . $code . ' err=' . $err . ' cast=' . $castId . ' changed=' . implode(',', $changed));
+            error_log('[media-webhook] failed http=' . $code . ' err=' . $err . ' payload=' . $payload);
         }
     } catch (Throwable $e) {
         error_log('[media-webhook] exception: ' . $e->getMessage());
