@@ -134,7 +134,7 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
         <textarea id="body-plain-text" rows="14" readonly style="width:100%;font-family:inherit;background:#f8fafc"></textarea>
         <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap">
           <button type="button" class="btn btn-primary btn-sm" id="copy-plain-btn">📋 テキストをコピー</button>
-          <span class="hint" style="font-size:.8125rem;color:#888">装飾・画像を除いた本文だけを抽出します（リンクはURLを併記）。他媒体への宣伝コピペ用・<b>保存されません</b>。</span>
+          <span class="hint" style="font-size:.8125rem;color:#888">装飾・画像・<b>URLを除いた</b>本文だけを抽出します（URLがあると登録できない媒体があるため）。他媒体への宣伝コピペ用・<b>保存されません</b>。</span>
         </div>
       </div>
       <p class="hint" style="margin-top:6px;font-size:.8125rem;color:#888">HTMLタグでそのまま投稿できます（admi2888の編集HTML・フォント色・画像・リンク等を貼り付け可）。改行は &lt;br&gt; を使ってください。<br><strong>プレビュー</strong>タブでは表示を見ながら直接編集でき、変更はソースに自動反映されます。</p>
@@ -142,7 +142,8 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     <script>
     // HTML本文 → コピペ用プレーンテキスト（CSSが効かない媒体へ貼る用）
     //   ・<style>/<script>/コメント/画像は落とす（テキストにできない装飾）
-    //   ・ブロック要素と<br>は改行、<a>はリンク文言の下にURLを併記（他媒体でも辿れるように）
+    //   ・ブロック要素と<br>は改行、<a>はリンク文言だけ残す
+    //   ・URLは全部消す（リンク先も本文中の裸URLも）＝URLが入っていると登録できない媒体があるため
     //   ・&nbsp;→空白、行頭行末の空白と3行以上の空行を圧縮
     function htmlToPlainText(html) {
       var box = document.createElement('div');
@@ -160,15 +161,16 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
           if (tag === 'IMG') { return; }
           var block = BLOCK.test(tag);
           if (block) out += '\n';
-          walk(n);
-          if (tag === 'A') {
-            var href = n.getAttribute('href') || '';
-            if (/^https?:\/\//i.test(href)) out += '\n' + href;
-          }
+          walk(n);                                   // <a> はリンク文言だけ残す（href は出さない）
           if (block) out += '\n';
         });
       })(box);
-      return out.replace(/\u00a0/g, ' ')   // &nbsp; → 半角空白
+      // URL除去の文字クラスは chat.js の linkify と同じ（日本語を巻き込まずURLの末尾で止まる）
+      var URL_RE = /https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+/gi;
+      var WWW_RE = /\bwww\.[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=%]+/gi;
+      return out.replace(/\u00a0/g, ' ')                  // &nbsp; → 半角空白
+                .replace(URL_RE, '').replace(WWW_RE, '')   // リンク先も本文中の裸URLも削除
+                .replace(/[ \t]{2,}/g, ' ')                // URL削除で空いた連続空白を詰める
                 .split('\n').map(function (s) { return s.trim(); }).join('\n')
                 .replace(/\n{3,}/g, '\n\n').trim();
     }
