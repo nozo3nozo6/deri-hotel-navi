@@ -65,7 +65,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $syncBy     = 'shift:' . ($admin['username'] ?? 'ctrl');
     $syncShift = db()->prepare(
         'UPDATE play_availability SET shift_start_at = :s1, shift_end_at = :e1, updated_by = :by
-          WHERE shop_id = :shop AND girl_id = :girl
+          WHERE shop_id = :shop AND girl_id = :girl AND shift_business_date = :bd
             AND (COALESCE(shift_start_at, "") <> COALESCE(:s2, "") OR COALESCE(shift_end_at, "") <> COALESCE(:e2, ""))'
     );
     // ルールA（CLAUDE-PLAY-AT-SHIFT-RULES.md）: 出勤開始を「今すぐ(play_at)」より後ろにずらしたら
@@ -75,10 +75,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     //     「今すぐ」で先に宣伝している play_at（21:00出勤に20:45）を勝手に21:00へ動かしてしまう。
     //   条件: 開始が変化・active・play_at not null・play_at < 新開始。前倒しは play_at>=開始 で自然に不変。
     //   status/shift_end_at は触らない。出勤開始は5分刻みセレクト値そのまま（丸め済み＝開始より前にしない）。
-    $getStart = db()->prepare('SELECT shift_start_at FROM play_availability WHERE shop_id=? AND girl_id=?');
+    $getStart = db()->prepare('SELECT shift_start_at FROM play_availability WHERE shop_id=? AND girl_id=? AND shift_business_date=?');
     $alignPlay = db()->prepare(
         'UPDATE play_availability SET play_at = :start, updated_by = :by
-          WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
+          WHERE shop_id = :shop AND girl_id = :girl AND shift_business_date = :bd AND status = "active"
             AND play_at IS NOT NULL AND play_at < :start2'
     );
     // ルールB（同）: 出勤取消（休み/未定＝出勤帯が無くなる）で「今すぐ」もリセット。
@@ -88,7 +88,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     //   cleared に受付終了フラグが残ると再出勤時に「出勤したのに受付終了のまま」になるため。
     $cancelPlay = db()->prepare(
         'UPDATE play_availability SET play_at = NULL, reception_closed = 0, status = "cleared", updated_by = :by
-          WHERE shop_id = :shop AND girl_id = :girl AND status = "active"
+          WHERE shop_id = :shop AND girl_id = :girl AND shift_business_date = :bd AND status = "active"
             AND (shift_start_at IS NOT NULL OR shift_end_at IS NOT NULL)'
     );
     // 出勤TIME(HH:MM[:SS]) → 実datetime（0〜9時台=翌暦日の深夜側。start<end が常に成立）
@@ -113,32 +113,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
             $changed = $up->rowCount() > 0;
             $cnt++;
-            // 本日営業日の保存のみ shift_start_at/shift_end_at を連動更新（work=時刻セット / 休み・未定=NULL）
-            if ($date === $bizToday) {
+            // play_availability はその営業日(=work_date)の行と連動（work=時刻セット / 休み・未定=NULL）。
+            //   ※ 案A（営業日ごとに1行）になったので本日に限らず保存した営業日の行を同期できる。
+            //     行が無ければ何も起きない（空行は作らない）。Webhook は本日(D)の変更時のみ送る
+            //     ＝明日(D+1)の仕込みは bot が無視するため（朝5:01の rollover が D 昇格後に同期）。
+            {
                 $startAt = ($stt === 'work') ? $shiftDt($s, $date) : null;
                 $endAt   = ($stt === 'work') ? $shiftDt($e, $date) : null;
                 $changedFields = [];
                 // ルールA用: 変更前の出勤開始（syncShift で上書きされる前に読む）
                 $oldStart = null;
-                if ($stt === 'work') { $getStart->execute([$sid, $gid]); $oldStart = $getStart->fetchColumn() ?: null; }
+                if ($stt === 'work') { $getStart->execute([$sid, $gid, $date]); $oldStart = $getStart->fetchColumn() ?: null; }
 
                 // ルールB は syncShift の前に判定（shift_* が NULL 化される前の「出勤帯あり」を見る）
                 if ($stt !== 'work') {
-                    $cancelPlay->execute([':by' => $syncBy, ':shop' => $sid, ':girl' => $gid]);
+                    $cancelPlay->execute([':by' => $syncBy, ':shop' => $sid, ':girl' => $gid, ':bd' => $date]);
                     if ($cancelPlay->rowCount() > 0) { $changedFields[] = 'play_at'; $changedFields[] = 'status'; }
                 }
 
                 $syncShift->execute([':s1' => $startAt, ':e1' => $endAt, ':by' => $syncBy,
-                                     ':shop' => $sid, ':girl' => $gid, ':s2' => $startAt, ':e2' => $endAt]);
+                                     ':shop' => $sid, ':girl' => $gid, ':bd' => $date, ':s2' => $startAt, ':e2' => $endAt]);
                 if ($changed) { $changedFields[] = 'shift_start_at'; $changedFields[] = 'shift_end_at'; }
 
                 // ルールA: 出勤開始が「変わって」かつ play_at より後ろなら play_at を開始に合わせる
                 if ($startAt !== null && $startAt !== $oldStart) {
-                    $alignPlay->execute([':start' => $startAt, ':start2' => $startAt, ':by' => $syncBy, ':shop' => $sid, ':girl' => $gid]);
+                    $alignPlay->execute([':start' => $startAt, ':start2' => $startAt, ':by' => $syncBy, ':shop' => $sid, ':girl' => $gid, ':bd' => $date]);
                     if ($alignPlay->rowCount() > 0) $changedFields[] = 'play_at';
                 }
 
-                if ($changedFields) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid, array_values(array_unique($changedFields))];
+                if ($changedFields && $date === $bizToday) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid, array_values(array_unique($changedFields))];
             }
         }
         return $cnt;

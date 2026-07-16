@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS play_availability (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   shop_id    INT NOT NULL,
   girl_id    INT NOT NULL,
+  shift_business_date DATE NOT NULL,                          -- 営業日（朝5時区切り＝schedules.work_date と同じ粒度）
   play_at          DATETIME NULL,                             -- 最速で遊べる時刻（即姫・JST・5分刻み）。NULL=即姫未設定
   reception_closed TINYINT(1) NOT NULL DEFAULT 0,             -- 受付終了（出勤中のまま即ヒメ系だけ止める。出勤解除とは別）
   shift_start_at   DATETIME NULL,                             -- 本日出勤の開始（出勤表の写し・情報局出勤表bot用）
@@ -25,7 +26,7 @@ CREATE TABLE IF NOT EXISTS play_availability (
   updated_by VARCHAR(64) DEFAULT NULL,                      -- 操作者（admins.username）
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- bot変更検知用
-  UNIQUE KEY uq_shop_girl (shop_id, girl_id),
+  UNIQUE KEY uq_shop_girl_date (shop_id, girl_id, shift_business_date),   -- 1キャスト×1営業日=最大1行
   KEY idx_poll (shop_id, status, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -62,3 +63,13 @@ ALTER TABLE girl_media_ids
 --   受付終了 = reception_closed=1 AND play_at IS NULL AND status='active'（shift_* は残す）
 --   出勤解除 = shift_* なし（schedules に work 行なし）→ 別機能
 ALTER TABLE play_availability ADD COLUMN IF NOT EXISTS reception_closed TINYINT(1) NOT NULL DEFAULT 0 AFTER play_at;
+
+-- 本日/明日の仕込み対応（2026-07-16・CLAUDE-NEXT-DAY-PREP.md 案A）: 営業日ごとに1行持つ。
+--   これで「明日の即姫/受付終了」を今夜のうちに保存できる。bot は shift_business_date が現在営業日(D)の
+--   行だけを媒体へ適用し、D+1 の行は無視する（朝5:01の business-day-rollover.php で force 同期）。
+--   ※ schedules.work_date 自体が営業日（朝5時区切り）なので、営業日の粒度は完全に一致する。
+ALTER TABLE play_availability ADD COLUMN IF NOT EXISTS shift_business_date DATE NULL AFTER girl_id;
+UPDATE play_availability SET shift_business_date = DATE(NOW() - INTERVAL 5 HOUR) WHERE shift_business_date IS NULL;  -- 既存行=現在営業日へ寄せる
+ALTER TABLE play_availability MODIFY shift_business_date DATE NOT NULL;
+ALTER TABLE play_availability DROP INDEX uq_shop_girl;                                    -- (shop,girl) → (shop,girl,営業日)
+ALTER TABLE play_availability ADD UNIQUE KEY uq_shop_girl_date (shop_id, girl_id, shift_business_date);
