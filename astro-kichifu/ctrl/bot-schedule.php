@@ -20,8 +20,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $in = [
         'enabled'          => isset($_POST['enabled']) ? 1 : 0,
         'daily_limit'      => (int)($_POST['daily_limit'] ?? 35),
-        'min_interval_sec' => (int)($_POST['min_interval_sec'] ?? 60),
         'schedule'         => $times,
+        // min_interval_sec は 2026-07-18 廃止（bot は時刻表どおりのみ実行）。UIから入力欄も削除。
+        //   既存値は save 側でそのまま維持される（送らない＝既存維持）。
     ];
     $res = bot_schedule_save(db(), $shop, BS_JOB, $in, $admin['username'] ?? 'ctrl');
     if (isset($res['error'])) {
@@ -60,9 +61,10 @@ layout_header('駅ちか 上位表示オート', 'bot-schedule.php');
 <h1>📈 駅ちか 上位表示オート</h1>
 
 <div class="bs-help">
-  駅ちか管理画面の「<b>掲載順位を上げる</b>」を、指定した時刻に自動実行します（bot が代行）。<br>
-  1日最大 <b>38回</b>（媒体上限）、連続実行は最低 <b>1分</b> 空けます。エリア・市区町村・駅の<b>店舗一覧</b>で上位に出やすくなります。<br>
-  ※ 駅ちかの「ニュース更新」とは別枠です。保存すると次回のbot巡回（毎分）から反映されます。
+  駅ちか管理画面の「<b>掲載順位を上げる</b>」を、<b>下に指定した時刻ちょうど</b>に自動実行します（bot が代行）。<br>
+  1日の回数は<b>時刻リストの件数</b>です（最大 <b>38回</b>・媒体上限）。<b>指定時刻を過ぎた枠はスキップ</b>します（後からまとめて実行することはありません）。<br>
+  エリア・市区町村・駅の<b>店舗一覧</b>で上位に出やすくなります。<br>
+  ※ 駅ちかの「ニュース更新」とは別枠です。保存すると次回のbot巡回（毎分の見張り）から反映されます。
 </div>
 
 <form method="post" class="bs-card">
@@ -73,14 +75,11 @@ layout_header('駅ちか 上位表示オート', 'bot-schedule.php');
   </div>
   <div class="bs-row">
     <label class="lbl">1日の回数</label>
-    <input class="bs-num" type="number" name="daily_limit" min="1" max="38" value="<?= (int)$cfg['daily_limit'] ?>"> 回（1〜38・媒体上限38）
-  </div>
-  <div class="bs-row">
-    <label class="lbl">最短間隔</label>
-    <input class="bs-num" type="number" name="min_interval_sec" min="60" step="10" value="<?= (int)$cfg['min_interval_sec'] ?>"> 秒（60以上・媒体注意）
+    <input class="bs-num" type="number" name="daily_limit" min="1" max="38" value="<?= (int)$cfg['daily_limit'] ?>"> 回まで（1〜38・媒体上限38。実際は下の時刻リストの件数で実行）
   </div>
   <div class="bs-row" style="display:block">
     <label class="lbl" style="display:block;margin-bottom:6px">実行時刻（HH:MM を改行かカンマ区切りで）</label>
+    <div class="bs-meta" style="margin:0 0 6px">1行1時刻。<b>その時刻の分に1回だけ</b>実行します（例: <code>03:16</code> → 毎日 3時16分）。</div>
     <div class="bs-presets">
       <button type="button" class="bs-preset" data-preset="35">既定35枠を入れる</button>
       <button type="button" class="bs-preset" data-preset="sort">昇順に整える</button>

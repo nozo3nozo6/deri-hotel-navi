@@ -7,8 +7,10 @@
 //   ★ ファイル名 bot-schedule.php 固定（bot が sibling 解決で GET する）。
 //
 //   GET ?shop_id=1&job=ekichika_bulktop → 設定1件。未設定は 404（bot は config 既定で継続）
-//   PUT ?shop_id=1&job=ekichika_bulktop  body(JSON): {enabled?,daily_limit?,min_interval_sec?,schedule?}
+//   PUT ?shop_id=1&job=ekichika_bulktop  body(JSON): {enabled?,daily_limit?,schedule?}
 //        → 部分更新・検証/正規化/clamp して保存し、最新状態(GETと同形)を返す。
+//   ※ min_interval_sec: deprecated 2026-07-18 — bot は schedule の HH:MM ちょうどに1回POSTし、
+//     過ぎた枠はスキップ（60秒連打はしない）。GET/PUT では後方互換で残るが bot は無視する。
 // ==========================================================================
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';

@@ -18,7 +18,10 @@ const BOT_SCHEDULE_PRESET_35 = [
 ];
 
 const BOT_SCHEDULE_MAX_LIMIT = 38;   // 媒体上限（駅ちか N/38回）
-const BOT_SCHEDULE_MIN_INTERVAL = 60; // 連続禁止の最短間隔（媒体注意）
+// min_interval_sec: deprecated 2026-07-18 — bot は時刻表(schedule)どおりのみ実行し、この値は読まない。
+//   （旧: 遅れを毎分連打で追いつく際の連続抑制に使用 → 現: 過ぎた枠はスキップ）。
+//   API/DBには後方互換で残すが CTRL UI から入力欄は削除。既定値のみここで保持。
+const BOT_SCHEDULE_MIN_INTERVAL = 60;
 
 /**
  * HH:MM 配列を検証・正規化（ゼロ埋め・重複除去・昇順）。不正な要素が1つでもあれば false。
