@@ -101,7 +101,6 @@ $cfg = $row ? bot_schedule_to_json($row) : [
     'enabled' => true, 'mode' => $jm['default_mode'], 'interval_min' => $jm['default_interval'],
     'daily_limit' => $jm['default_limit'], 'schedule' => [], 'updated_at' => null, 'updated_by' => null,
 ];
-$scheduleText = implode("\n", $cfg['schedule']);
 $meta = $JOBS[$job];
 $isInterval = !empty($jm['interval']);                       // この job が周期モードを扱えるか
 $curMode = $cfg['mode'] ?? 'schedule';                       // 現在の保存モード
@@ -119,7 +118,14 @@ layout_header('媒体自動更新', 'bot-schedule.php');
   .bs-row label.lbl { font-weight:700; font-size:.9rem; min-width:110px; }
   .bs-toggle { display:inline-flex; align-items:center; gap:8px; font-weight:700; }
   .bs-num { width:80px; padding:7px 9px; border:1px solid #cbd5e1; border-radius:8px; }
-  .bs-times { width:100%; min-height:200px; font-family:ui-monospace,monospace; font-size:.9rem; line-height:1.6; padding:10px; border:1px solid #cbd5e1; border-radius:8px; }
+  .bs-addrow { display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .bs-addrow select { padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:1rem; }
+  .bs-colon { font-weight:700; color:#64748b; }
+  .bs-chips { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 6px; min-height:34px; }
+  .bs-chip { display:inline-flex; align-items:center; gap:6px; background:#f0fdfa; border:1px solid #99f6e4; color:#0f766e; border-radius:99px; padding:5px 6px 5px 12px; font-size:.9rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bs-chip button { border:none; background:#fff; color:#94a3b8; border-radius:99px; width:22px; height:22px; line-height:1; cursor:pointer; font-size:.8rem; font-weight:700; }
+  .bs-chip button:hover { background:#fee2e2; color:#dc2626; }
+  .bs-chips-empty { font-size:.8rem; color:#94a3b8; align-self:center; }
   .bs-count { font-size:.8rem; color:#0d9488; font-weight:700; }
   .bs-presets { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
   .bs-preset { border:1px solid #cbd5e1; background:#f8fafc; border-radius:8px; padding:5px 12px; font-size:.78rem; cursor:pointer; }
@@ -168,16 +174,22 @@ layout_header('媒体自動更新', 'bot-schedule.php');
   <?php endif; ?>
 
   <div class="bs-row" style="display:block" id="bs-schedule-block">
-    <label class="lbl" style="display:block;margin-bottom:6px">実行時刻（HH:MM を改行かカンマ区切りで）</label>
-    <div class="bs-meta" style="margin:0 0 6px">1行1時刻。<b>その時刻の分に1回だけ</b>実行します（例: <code>22:45</code> → 毎日 22時45分）。</div>
+    <label class="lbl" style="display:block;margin-bottom:6px">実行時刻</label>
+    <div class="bs-meta" style="margin:0 0 6px"><b>その時刻の分に1回だけ</b>実行します（例: 22:45 → 毎日 22時45分）。時刻はプルダウンで追加、✕で削除できます。</div>
+    <div class="bs-addrow">
+      <select id="bs-add-h" aria-label="時"><?php for ($hh = 0; $hh < 24; $hh++): ?><option value="<?= $hh ?>"><?= sprintf('%02d', $hh) ?></option><?php endfor; ?></select>
+      <span class="bs-colon">:</span>
+      <select id="bs-add-m" aria-label="分"><?php for ($mm = 0; $mm < 60; $mm++): ?><option value="<?= $mm ?>"><?= sprintf('%02d', $mm) ?></option><?php endfor; ?></select>
+      <button type="button" class="btn btn-primary btn-sm" id="bs-add-btn">＋ この時刻を追加</button>
+    </div>
     <div class="bs-presets">
       <button type="button" class="bs-preset" data-preset="default"><?= h($meta['preset_label']) ?></button>
-      <button type="button" class="bs-preset" data-preset="sort">昇順に整える</button>
       <button type="button" class="bs-preset" data-preset="clear">全消し</button>
     </div>
-    <textarea class="bs-times" id="bs-times" name="schedule_text" spellcheck="false" placeholder="10:00&#10;12:00&#10;18:00"><?= h($scheduleText) ?></textarea>
+    <div class="bs-chips" id="bs-chips"></div>
     <div class="bs-count" id="bs-count"></div>
-    <div class="bs-meta">保存時に自動で「重複除去・ゼロ埋め・昇順」に整えます。回数を超えた分は早い時刻を優先して切り詰めます。</div>
+    <input type="hidden" name="schedule_text" id="bs-times" value="<?= h(implode(',', $cfg['schedule'])) ?>">
+    <div class="bs-meta">追加すると自動で時刻順に並びます（重複は追加されません）。回数を超えた分は保存時に早い時刻を優先して切り詰めます。</div>
   </div>
   <?php if ($cfg['updated_at']): ?>
     <div class="bs-meta">最終更新: <?= h(date('Y/n/j H:i', strtotime($cfg['updated_at']))) ?><?= $cfg['updated_by'] ? ' / ' . h($cfg['updated_by']) : '' ?></div>
@@ -186,34 +198,56 @@ layout_header('媒体自動更新', 'bot-schedule.php');
 </form>
 
 <script>
+  // 時刻リスト＝プルダウン追加＋チップ削除方式（手入力の書式ミスをなくす・2026-07-18 店長要望）。
+  //   正データは hidden #bs-times（カンマ区切り HH:MM）＝サーバー側の受け口は従来と同じ。
   var PRESET = <?= json_encode(array_values($meta['preset'])) ?>;
-  var ta = document.getElementById('bs-times');
+  var hidden = document.getElementById('bs-times');
+  var chipsEl = document.getElementById('bs-chips');
   var countEl = document.getElementById('bs-count');
-  function parse(text) {
-    return (text || '').replace(/[：]/g, ':').replace(/[、　]/g, ' ')
-      .split(/[\s,]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+  var times = (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+  function render() {
+    times.sort();                                   // "HH:MM" は辞書順=時刻順
+    hidden.value = times.join(',');
+    chipsEl.innerHTML = '';
+    if (!times.length) {
+      chipsEl.innerHTML = '<span class="bs-chips-empty">時刻がありません。上のプルダウンから追加してください。</span>';
+    } else {
+      times.forEach(function (t) {
+        var chip = document.createElement('span');
+        chip.className = 'bs-chip';
+        chip.appendChild(document.createTextNode(t));
+        var del = document.createElement('button');
+        del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label', t + ' を削除');
+        del.addEventListener('click', function () {
+          times = times.filter(function (x) { return x !== t; });
+          render();
+        });
+        chip.appendChild(del);
+        chipsEl.appendChild(chip);
+      });
+    }
+    countEl.textContent = '現在 ' + times.length + ' 件';
   }
-  function updateCount() { countEl.textContent = '現在 ' + parse(ta.value).length + ' 件'; }
-  ta.addEventListener('input', updateCount);
+
+  var addBtn = document.getElementById('bs-add-btn');
+  if (addBtn) addBtn.addEventListener('click', function () {
+    var h = document.getElementById('bs-add-h').value;
+    var m = document.getElementById('bs-add-m').value;
+    var t = ('0' + h).slice(-2) + ':' + ('0' + m).slice(-2);
+    if (times.indexOf(t) === -1) times.push(t);     // 重複は追加しない
+    render();
+  });
+
   document.querySelectorAll('.bs-preset').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var p = btn.getAttribute('data-preset');
-      if (p === 'default') ta.value = PRESET.join('\n');
-      else if (p === 'clear') ta.value = '';
-      else if (p === 'sort') {
-        var seen = {}, good = [], bad = [];
-        parse(ta.value).forEach(function (t) {
-          var m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(t);
-          if (m) { var v = (m[1].length < 2 ? '0' + m[1] : m[1]) + ':' + m[2]; if (!seen[v]) { seen[v] = 1; good.push(v); } }
-          else bad.push(t);
-        });
-        good.sort();
-        ta.value = good.concat(bad).join('\n');
-      }
-      updateCount();
+      if (p === 'default') times = PRESET.slice();
+      else if (p === 'clear') times = [];
+      render();
     });
   });
-  updateCount();
+  render();
 
   // 実行方式ラジオで「間隔（分）」と「時刻リスト」の表示を切替（interval系タブのみ）
   var modeRadios = document.querySelectorAll('[data-bs-mode]');
