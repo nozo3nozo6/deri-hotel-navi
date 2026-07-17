@@ -7,7 +7,7 @@
 // ==========================================================================
 declare(strict_types=1);
 
-// bot と同一の既定35枠プリセット（CTRLの「既定」ボタン・初回シード用。夜ピーク厚め）
+// bot と同一の既定35枠プリセット（駅ちか上位表示・CTRLの「既定」ボタン/初回シード用。夜ピーク厚め）
 const BOT_SCHEDULE_PRESET_35 = [
     '00:15', '00:50', '01:30', '02:15',
     '10:00', '10:35', '11:10', '11:45', '12:20', '12:55',
@@ -17,7 +17,23 @@ const BOT_SCHEDULE_PRESET_35 = [
     '22:05', '22:25', '22:45', '23:10', '23:35', '23:55',
 ];
 
-const BOT_SCHEDULE_MAX_LIMIT = 38;   // 媒体上限（駅ちか N/38回）
+// 風じゃ/デリじゃ速報の既定10枠（bot config と同一）。CLAUDE-BOT-SCHEDULE-NEWS.md §1.1
+const BOT_SCHEDULE_NEWS_10 = [
+    '00:30', '10:00', '12:00', '14:30', '17:00',
+    '18:30', '20:00', '21:30', '22:45', '23:50',
+];
+
+// 対応 job の定義（未知 job は 404）。job ごとに媒体上限・既定件数・既定プリセット・UIラベルが違う。
+//   ekichika_bulktop=駅ちか上位表示(1〜38) / fuzoku_news=風じゃ速報, deli_news=デリじゃ速報(1〜10)
+function bot_schedule_job_meta(string $job): ?array {
+    static $meta = [
+        'ekichika_bulktop' => ['label' => '駅ちか 上位表示', 'max' => 38, 'default_limit' => 35, 'default_schedule' => BOT_SCHEDULE_PRESET_35],
+        'fuzoku_news'      => ['label' => '風じゃ 速報',     'max' => 10, 'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10],
+        'deli_news'        => ['label' => 'デリじゃ 速報',   'max' => 10, 'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10],
+    ];
+    return $meta[$job] ?? null;
+}
+function bot_schedule_jobs(): array { return ['ekichika_bulktop', 'fuzoku_news', 'deli_news']; }
 // min_interval_sec: deprecated 2026-07-18 — bot は時刻表(schedule)どおりのみ実行し、この値は読まない。
 //   （旧: 遅れを毎分連打で追いつく際の連続抑制に使用 → 現: 過ぎた枠はスキップ）。
 //   API/DBには後方互換で残すが CTRL UI から入力欄は削除。既定値のみここで保持。
@@ -78,13 +94,15 @@ function bot_schedule_to_json(array $row): array {
  * @return array  成功=to_json形+['_trimmed'=>int]、失敗=['error'=>string,'code'=>int]
  */
 function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string $by): array {
+    $jm = bot_schedule_job_meta($job);
+    if (!$jm) return ['error' => 'unknown job', 'code' => 404];   // 既知 job のみ保存可
     $cur = bot_schedule_fetch($pdo, $shopId, $job);
 
-    // 既存 or 既定
+    // 既存 or job別の既定
     $enabled  = $cur ? (int)$cur['enabled'] : 1;
-    $limit    = $cur ? (int)$cur['daily_limit'] : 35;
+    $limit    = $cur ? (int)$cur['daily_limit'] : $jm['default_limit'];
     $interval = $cur ? (int)$cur['min_interval_sec'] : BOT_SCHEDULE_MIN_INTERVAL;
-    $sched    = $cur ? (json_decode((string)$cur['schedule_json'], true) ?: []) : BOT_SCHEDULE_PRESET_35;
+    $sched    = $cur ? (json_decode((string)$cur['schedule_json'], true) ?: []) : $jm['default_schedule'];
 
     if (array_key_exists('enabled', $in))          $enabled = (int)(bool)$in['enabled'];
     if (array_key_exists('daily_limit', $in))      $limit   = (int)$in['daily_limit'];
@@ -98,9 +116,9 @@ function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string
         $sched = $norm;
     }
 
-    // clamp
-    $limit    = max(1, min(BOT_SCHEDULE_MAX_LIMIT, $limit));               // 1〜38
-    $interval = max(BOT_SCHEDULE_MIN_INTERVAL, $interval);                 // 60以上
+    // clamp（daily_limit の上限は job 別: 駅ちか38 / 風じゃ・デリじゃ10）
+    $limit    = max(1, min($jm['max'], $limit));
+    $interval = max(BOT_SCHEDULE_MIN_INTERVAL, $interval);                 // deprecated だが保持のため下限維持
     $trimmed = 0;
     if (count($sched) > $limit) { $trimmed = count($sched) - $limit; $sched = array_slice($sched, 0, $limit); }  // 早い時刻優先で trim
 

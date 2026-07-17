@@ -131,7 +131,7 @@ function nav_groups(): array {
         '媒体連携' => [
             ['play-availability.php', '⏰', '最速で遊べる時間'],
             ['news-slots.php', '📡', '媒体固定枠'],
-            ['bot-schedule.php', '📈', '駅ちか上位表示'],
+            ['bot-schedule.php', '🔄', '媒体自動更新'],
             ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
         ],
         'コンテンツ' => [
