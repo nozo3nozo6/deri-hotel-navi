@@ -24,16 +24,24 @@ const BOT_SCHEDULE_NEWS_10 = [
 ];
 
 // 対応 job の定義（未知 job は 404）。job ごとに媒体上限・既定件数・既定プリセット・UIラベルが違う。
-//   ekichika_bulktop=駅ちか上位表示(1〜38) / fuzoku_news=風じゃ速報, deli_news=デリじゃ速報(1〜10)
+//   固定時刻系(interval=false): ekichika_bulktop(1〜38) / fuzoku_news, deli_news(1〜10) — schedule の HH:MM で実行。
+//   周期系(interval=true): fujoho_sokuho=情報局速報, ekichika_news=駅ちかニュース — 一定間隔(分)で5枠ローテ。
+//     既定 mode=interval・interval_min=10・daily_limit=0(無制限)・schedule=[]。mode=schedule への切替も可。
+//   ※ CTRL/DBは interval_min(分)で持つ。bot は interval_min*60 を refresh_interval_sec として読む。
 function bot_schedule_job_meta(string $job): ?array {
     static $meta = [
-        'ekichika_bulktop' => ['label' => '駅ちか 上位表示', 'max' => 38, 'default_limit' => 35, 'default_schedule' => BOT_SCHEDULE_PRESET_35],
-        'fuzoku_news'      => ['label' => '風じゃ 速報',     'max' => 10, 'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10],
-        'deli_news'        => ['label' => 'デリじゃ 速報',   'max' => 10, 'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10],
+        'ekichika_bulktop' => ['label' => '駅ちか 上位表示', 'max' => 38,  'default_limit' => 35, 'default_schedule' => BOT_SCHEDULE_PRESET_35, 'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
+        'fuzoku_news'      => ['label' => '風じゃ 速報',     'max' => 10,  'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10,  'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
+        'deli_news'        => ['label' => 'デリじゃ 速報',   'max' => 10,  'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10,  'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
+        'fujoho_sokuho'    => ['label' => '情報局 速報',     'max' => 300, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true],
+        'ekichika_news'    => ['label' => '駅ちか ニュース', 'max' => 300, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true],
     ];
     return $meta[$job] ?? null;
 }
-function bot_schedule_jobs(): array { return ['ekichika_bulktop', 'fuzoku_news', 'deli_news']; }
+function bot_schedule_jobs(): array { return ['ekichika_bulktop', 'fuzoku_news', 'deli_news', 'fujoho_sokuho', 'ekichika_news']; }
+
+const BOT_SCHEDULE_INTERVAL_MIN = 1;   // 間隔の下限（分）
+const BOT_SCHEDULE_INTERVAL_MAX = 120; // 間隔の上限（分）
 // min_interval_sec: deprecated 2026-07-18 — bot は時刻表(schedule)どおりのみ実行し、この値は読まない。
 //   （旧: 遅れを毎分連打で追いつく際の連続抑制に使用 → 現: 過ぎた枠はスキップ）。
 //   API/DBには後方互換で残すが CTRL UI から入力欄は削除。既定値のみここで保持。
@@ -74,14 +82,17 @@ function bot_schedule_fetch(PDO $pdo, int $shopId, string $job): ?array {
 function bot_schedule_to_json(array $row): array {
     $sched = json_decode((string)$row['schedule_json'], true);
     if (!is_array($sched)) $sched = [];
+    $mode = ($row['mode'] ?? '') !== '' ? $row['mode'] : 'schedule';   // 既存行の後方互換
     return [
         'ok'               => true,
         'job'              => $row['job'],
         'shop_id'          => (int)$row['shop_id'],
         'enabled'          => (bool)$row['enabled'],
-        'daily_limit'      => (int)$row['daily_limit'],
-        'min_interval_sec' => (int)$row['min_interval_sec'],
+        'mode'             => $mode,                                                            // interval | schedule
+        'interval_min'     => $row['interval_min'] !== null ? (int)$row['interval_min'] : null, // mode=interval で有効
+        'daily_limit'      => (int)$row['daily_limit'],                                         // 0=無制限（interval系）
         'schedule'         => $sched,
+        'min_interval_sec' => (int)$row['min_interval_sec'],   // deprecated（bot無視）
         'updated_at'       => date('Y-m-d\TH:i:sP', strtotime($row['updated_at'])),
         'updated_by'       => $row['updated_by'] ?? null,
     ];
@@ -100,6 +111,8 @@ function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string
 
     // 既存 or job別の既定
     $enabled  = $cur ? (int)$cur['enabled'] : 1;
+    $mode     = $cur ? (($cur['mode'] ?? '') !== '' ? $cur['mode'] : 'schedule') : $jm['default_mode'];
+    $intMin   = $cur ? ($cur['interval_min'] !== null ? (int)$cur['interval_min'] : null) : $jm['default_interval'];
     $limit    = $cur ? (int)$cur['daily_limit'] : $jm['default_limit'];
     $interval = $cur ? (int)$cur['min_interval_sec'] : BOT_SCHEDULE_MIN_INTERVAL;
     $sched    = $cur ? (json_decode((string)$cur['schedule_json'], true) ?: []) : $jm['default_schedule'];
@@ -107,6 +120,12 @@ function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string
     if (array_key_exists('enabled', $in))          $enabled = (int)(bool)$in['enabled'];
     if (array_key_exists('daily_limit', $in))      $limit   = (int)$in['daily_limit'];
     if (array_key_exists('min_interval_sec', $in)) $interval = (int)$in['min_interval_sec'];
+    if (array_key_exists('mode', $in)) {
+        if (!in_array($in['mode'], ['interval', 'schedule'], true)) return ['error' => 'mode must be interval|schedule', 'code' => 400];
+        if (!$jm['interval'] && $in['mode'] === 'interval') return ['error' => 'this job does not support interval mode', 'code' => 400];
+        $mode = $in['mode'];
+    }
+    if (array_key_exists('interval_min', $in)) $intMin = (int)$in['interval_min'];
 
     $rawSched = $in['schedule'] ?? $in['times'] ?? null;   // times は別名として受理
     if ($rawSched !== null) {
@@ -116,18 +135,30 @@ function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string
         $sched = $norm;
     }
 
-    // clamp（daily_limit の上限は job 別: 駅ちか38 / 風じゃ・デリじゃ10）
-    $limit    = max(1, min($jm['max'], $limit));
-    $interval = max(BOT_SCHEDULE_MIN_INTERVAL, $interval);                 // deprecated だが保持のため下限維持
+    // モード別の検証・clamp
+    $interval = max(BOT_SCHEDULE_MIN_INTERVAL, $interval);   // deprecated だが列保持のため下限維持
     $trimmed = 0;
-    if (count($sched) > $limit) { $trimmed = count($sched) - $limit; $sched = array_slice($sched, 0, $limit); }  // 早い時刻優先で trim
+    if ($mode === 'interval') {
+        // 周期系: interval_min を 1〜120 clamp（欠落なら既定10）。daily_limit 0=無制限（0〜max）。schedule は任意
+        if ($intMin === null) $intMin = $jm['default_interval'] ?? 10;
+        $intMin = max(BOT_SCHEDULE_INTERVAL_MIN, min(BOT_SCHEDULE_INTERVAL_MAX, $intMin));
+        $limit  = max(0, min($jm['max'], $limit));
+    } else {
+        // 固定時刻系: schedule 必須（空は 400）。daily_limit は 0=無制限(=時刻リスト全件) / それ以外は 1〜max。
+        //   超過分は早い時刻優先で trim（無制限のときは trim しない）。
+        if (empty($sched)) return ['error' => 'schedule required for mode=schedule', 'code' => 400];
+        $intMin = null;   // schedule モードでは interval_min を持たない
+        $limit  = ($limit <= 0) ? 0 : min($jm['max'], $limit);
+        if ($limit > 0 && count($sched) > $limit) { $trimmed = count($sched) - $limit; $sched = array_slice($sched, 0, $limit); }
+    }
 
     $pdo->prepare(
-        'INSERT INTO bot_schedules (shop_id, job, enabled, daily_limit, min_interval_sec, schedule_json, updated_by)
-         VALUES (?,?,?,?,?,?,?)
-         ON DUPLICATE KEY UPDATE enabled=VALUES(enabled), daily_limit=VALUES(daily_limit),
-             min_interval_sec=VALUES(min_interval_sec), schedule_json=VALUES(schedule_json), updated_by=VALUES(updated_by)'
-    )->execute([$shopId, $job, $enabled, $limit, $interval, json_encode(array_values($sched)), $by]);
+        'INSERT INTO bot_schedules (shop_id, job, enabled, mode, interval_min, daily_limit, min_interval_sec, schedule_json, updated_by)
+         VALUES (?,?,?,?,?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE enabled=VALUES(enabled), mode=VALUES(mode), interval_min=VALUES(interval_min),
+             daily_limit=VALUES(daily_limit), min_interval_sec=VALUES(min_interval_sec),
+             schedule_json=VALUES(schedule_json), updated_by=VALUES(updated_by)'
+    )->execute([$shopId, $job, $enabled, $mode, $intMin, $limit, $interval, json_encode(array_values($sched)), $by]);
 
     $out = bot_schedule_to_json(bot_schedule_fetch($pdo, $shopId, $job));
     $out['_trimmed'] = $trimmed;

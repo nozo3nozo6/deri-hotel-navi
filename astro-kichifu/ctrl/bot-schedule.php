@@ -40,6 +40,22 @@ $JOBS = [
         'preset' => BOT_SCHEDULE_NEWS_10,
         'preset_label' => '既定10枠を入れる',
     ],
+    'fujoho_sokuho' => [
+        'tab'    => '情報局 速報',
+        'h1'     => '📣 情報局 速報オート',
+        'help'   => '情報局の「<b>速報！</b>」を5枠ローテで自動投稿します。<b>一定間隔</b>（初期10分）か、<b>指定時刻</b>のどちらかで実行できます。'
+                  . '<br>1日の上限 <b>0＝無制限</b>（媒体が拒否するまで）。本文は「お知らせ」最新1件と固定枠のローテです。',
+        'preset' => BOT_SCHEDULE_NEWS_10,
+        'preset_label' => '既定10枠を入れる',
+    ],
+    'ekichika_news' => [
+        'tab'    => '駅ちか ニュース',
+        'h1'     => '🗞️ 駅ちか ニュースオート',
+        'help'   => '駅ちか管理のニュース5カテゴリを順番に更新します。<b>一定間隔</b>（初期10分）か<b>指定時刻</b>で周期を変えられます（上限なし）。'
+                  . '<br>※「掲載順位を上げる」（駅ちか上位表示タブ）とは別機能です。',
+        'preset' => BOT_SCHEDULE_NEWS_10,
+        'preset_label' => '既定10枠を入れる',
+    ],
 ];
 
 $job = (string)($_GET['job'] ?? 'ekichika_bulktop');
@@ -49,19 +65,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
     $pjob = (string)($_POST['job'] ?? '');
     if (!isset($JOBS[$pjob])) { flash('err', '対象が不正です。'); redirect('bot-schedule.php'); }
-    $times = bot_schedule_parse_text((string)($_POST['schedule_text'] ?? ''));
+    $jmp = bot_schedule_job_meta($pjob);
+    $mode = ($jmp['interval'] && ($_POST['mode'] ?? '') === 'interval') ? 'interval'
+          : ($jmp['interval'] ? 'schedule' : 'schedule');   // 固定時刻系は常に schedule
     $in = [
         'enabled'     => isset($_POST['enabled']) ? 1 : 0,
-        'daily_limit' => (int)($_POST['daily_limit'] ?? 10),
-        'schedule'    => $times,
-        // min_interval_sec は 2026-07-18 廃止（bot は時刻表どおりのみ実行）。UIから入力欄なし＝既存維持。
+        'daily_limit' => (int)($_POST['daily_limit'] ?? ($jmp['default_limit'] ?? 10)),
+        // min_interval_sec は 2026-07-18 廃止（UIから入力欄なし＝既存維持）。
     ];
+    if ($jmp['interval']) $in['mode'] = $mode;
+    if ($mode === 'interval') {
+        $in['interval_min'] = (int)($_POST['interval_min'] ?? 10);
+    } else {
+        $in['schedule'] = bot_schedule_parse_text((string)($_POST['schedule_text'] ?? ''));
+    }
     $res = bot_schedule_save(db(), $shop, $pjob, $in, $admin['username'] ?? 'ctrl');
     if (isset($res['error'])) {
         flash('err', '保存できませんでした: ' . $res['error'] . '（時刻は HH:MM 形式で入力してください）');
     } else {
-        $msg = $JOBS[$pjob]['tab'] . ' を保存しました（' . count($res['schedule']) . '件の時刻・' . ($res['enabled'] ? 'ON' : 'OFF') . '）。次回のbot巡回から反映されます。';
-        if (!empty($res['_trimmed'])) $msg .= ' ※日次回数(' . $res['daily_limit'] . ')を超えた ' . $res['_trimmed'] . ' 件は早い時刻を優先して切り詰めました。';
+        if (($res['mode'] ?? '') === 'interval') {
+            $lim = (int)$res['daily_limit'];
+            $msg = $JOBS[$pjob]['tab'] . ' を保存しました（' . $res['interval_min'] . '分間隔・' . ($lim === 0 ? '上限なし' : '1日' . $lim . '回まで') . '・' . ($res['enabled'] ? 'ON' : 'OFF') . '）。次回のbot巡回から反映されます。';
+        } else {
+            $msg = $JOBS[$pjob]['tab'] . ' を保存しました（' . count($res['schedule']) . '件の時刻・' . ($res['enabled'] ? 'ON' : 'OFF') . '）。次回のbot巡回から反映されます。';
+            if (!empty($res['_trimmed'])) $msg .= ' ※日次回数(' . $res['daily_limit'] . ')を超えた ' . $res['_trimmed'] . ' 件は早い時刻を優先して切り詰めました。';
+        }
         flash('ok', $msg);
     }
     redirect('bot-schedule.php?job=' . urlencode($pjob));
@@ -70,10 +98,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $jm  = bot_schedule_job_meta($job);
 $row = bot_schedule_fetch(db(), $shop, $job);
 $cfg = $row ? bot_schedule_to_json($row) : [
-    'enabled' => true, 'daily_limit' => $jm['default_limit'], 'schedule' => [], 'updated_at' => null, 'updated_by' => null,
+    'enabled' => true, 'mode' => $jm['default_mode'], 'interval_min' => $jm['default_interval'],
+    'daily_limit' => $jm['default_limit'], 'schedule' => [], 'updated_at' => null, 'updated_by' => null,
 ];
 $scheduleText = implode("\n", $cfg['schedule']);
 $meta = $JOBS[$job];
+$isInterval = !empty($jm['interval']);                       // この job が周期モードを扱えるか
+$curMode = $cfg['mode'] ?? 'schedule';                       // 現在の保存モード
+$curIntMin = $cfg['interval_min'] !== null ? (int)$cfg['interval_min'] : ($jm['default_interval'] ?? 10);
 
 layout_header('媒体自動更新', 'bot-schedule.php');
 ?>
@@ -112,11 +144,30 @@ layout_header('媒体自動更新', 'bot-schedule.php');
     <label class="lbl">自動実行</label>
     <label class="bs-toggle"><input type="checkbox" name="enabled" value="1" <?= $cfg['enabled'] ? 'checked' : '' ?>> ON にする（OFFにすると bot はこの媒体を更新しません）</label>
   </div>
+
+  <?php if ($isInterval): ?>
+  <div class="bs-row">
+    <label class="lbl">実行方式</label>
+    <label class="bs-toggle" style="font-weight:600"><input type="radio" name="mode" value="interval" <?= $curMode !== 'schedule' ? 'checked' : '' ?> data-bs-mode> 一定間隔</label>
+    <label class="bs-toggle" style="font-weight:600"><input type="radio" name="mode" value="schedule" <?= $curMode === 'schedule' ? 'checked' : '' ?> data-bs-mode> 指定時刻リスト</label>
+  </div>
+  <div class="bs-row" id="bs-interval-row">
+    <label class="lbl">間隔</label>
+    <input class="bs-num" type="number" name="interval_min" min="1" max="120" value="<?= (int)$curIntMin ?>"> 分ごと（1〜120分）
+    <span class="bs-meta" style="margin:0">※ 5分など10分未満にする場合は bot の巡回周期も合わせる必要があります（担当に連絡）。</span>
+  </div>
+  <div class="bs-row">
+    <label class="lbl">1日の上限</label>
+    <input class="bs-num" type="number" name="daily_limit" min="0" max="<?= (int)$jm['max'] ?>" value="<?= (int)$cfg['daily_limit'] ?>"> 回（<b>0＝無制限</b>・最大<?= (int)$jm['max'] ?>）
+  </div>
+  <?php else: ?>
   <div class="bs-row">
     <label class="lbl">1日の回数</label>
     <input class="bs-num" type="number" name="daily_limit" min="1" max="<?= (int)$jm['max'] ?>" value="<?= (int)$cfg['daily_limit'] ?>"> 回まで（1〜<?= (int)$jm['max'] ?>・実際は下の時刻リストの件数で実行）
   </div>
-  <div class="bs-row" style="display:block">
+  <?php endif; ?>
+
+  <div class="bs-row" style="display:block" id="bs-schedule-block">
     <label class="lbl" style="display:block;margin-bottom:6px">実行時刻（HH:MM を改行かカンマ区切りで）</label>
     <div class="bs-meta" style="margin:0 0 6px">1行1時刻。<b>その時刻の分に1回だけ</b>実行します（例: <code>22:45</code> → 毎日 22時45分）。</div>
     <div class="bs-presets">
@@ -163,6 +214,20 @@ layout_header('媒体自動更新', 'bot-schedule.php');
     });
   });
   updateCount();
+
+  // 実行方式ラジオで「間隔（分）」と「時刻リスト」の表示を切替（interval系タブのみ）
+  var modeRadios = document.querySelectorAll('[data-bs-mode]');
+  var intervalRow = document.getElementById('bs-interval-row');
+  var scheduleBlock = document.getElementById('bs-schedule-block');
+  function applyMode() {
+    if (!modeRadios.length) return;   // 固定時刻系タブは常に時刻リストのみ（切替なし）
+    var m = document.querySelector('[data-bs-mode]:checked');
+    var isInterval = m && m.value === 'interval';
+    if (intervalRow) intervalRow.style.display = isInterval ? '' : 'none';
+    if (scheduleBlock) scheduleBlock.style.display = isInterval ? 'none' : 'block';
+  }
+  modeRadios.forEach(function (r) { r.addEventListener('change', applyMode); });
+  applyMode();
 </script>
 
 <?php layout_footer(); ?>

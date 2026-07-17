@@ -2,7 +2,9 @@
 // ==========================================================================
 // bot-schedule.php — bot 自動実行スケジュールAPI（CLAUDE-EKICHIKA-BULKTOP.md / -NEWS.md）
 //   媒体自動更新の時刻表を配信。bot(Grok)が毎分 GET し enabled/daily_limit/schedule を読む。
-//   対応 job: ekichika_bulktop(駅ちか上位表示・1〜38) / fuzoku_news(風じゃ速報) / deli_news(デリじゃ速報)（各1〜10）。
+//   対応 job: ekichika_bulktop(駅ちか上位表示・1〜38) / fuzoku_news, deli_news(速報・各1〜10)＝固定時刻(mode=schedule)。
+//            fujoho_sokuho(情報局速報) / ekichika_news(駅ちかニュース)＝周期(mode=interval・interval_min分・上限0=無制限)。
+//   mode=interval は interval_min(1〜120分)で5枠ローテ、mode=schedule は schedule の HH:MM で実行。
 //   認証: X-Api-Key または Authorization: Bearer ＝ PLAY_API_KEY（他のOfficial APIと同一）。
 //   ★ ファイル名 bot-schedule.php 固定（bot が sibling 解決で GET する）。
 //
