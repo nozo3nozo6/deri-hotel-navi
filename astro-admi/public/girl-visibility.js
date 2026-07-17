@@ -144,6 +144,22 @@
       addMissing(schedGrid, null);                                         // schedule: 全員（schedule-page.jsがhide/show）
       addMissing(newGrid, function (g) { return isNewcomer(g.in_date); }); // top新人セクション: 新人のみ
 
+      // top新人セクションはSSGと同じ規則（入店日の新しい順・最大8件）に整える。
+      //   addMissing は末尾appendのため、デプロイ後に登録された一番新しい子が最後尾に
+      //   表示されてしまう（2026-07-18 むぎ実例）。data-in(=YYYYMMDD数値)で並べ替え、
+      //   9件目以降は除去（次のデプロイでSSGが同じ8件を焼き込むのと同じ見え方にする）。
+      if (newGrid) {
+        var cards = Array.prototype.slice.call(newGrid.querySelectorAll('.girl-card[data-id]'));
+        cards.sort(function (a, b) {
+          return (parseInt(b.getAttribute('data-in') || '0', 10) - parseInt(a.getAttribute('data-in') || '0', 10))
+              || (parseInt(b.getAttribute('data-id') || '0', 10) - parseInt(a.getAttribute('data-id') || '0', 10));
+        });
+        cards.forEach(function (c, i) {
+          if (i >= 8) { c.remove(); return; }
+          newGrid.appendChild(c);   // appendChild は既存ノードの移動＝ソート順に並び直す
+        });
+      }
+
       // 3+4. 既存カードの写真＋文字情報を最新化（CTRL編集を即反映）
       document.querySelectorAll('.girl-card[data-id]').forEach(function (c) {
         var g = liveMap[c.getAttribute('data-id')];
