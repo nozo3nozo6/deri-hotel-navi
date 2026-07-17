@@ -200,7 +200,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 // ============================================================ 女性一覧（girl_shops + 出勤頻度 + 並び順）
-$order = ($sort === 'in_date') ? 'g.in_date DESC, g.id DESC' : 'wc DESC, g.in_date DESC, g.id DESC';
+// 出勤頻度順の「日付で登録」画面では、表示中の日付に出勤しているキャストを最上位に
+//   （時間変更などの操作をしやすくする・2026-07-18 店長要望）。入店順や girl モードには影響させない。
+$schedBiz      = date('Y-m-d', time() - 5 * 3600);   // 本日営業日（朝5時区切り）
+$schedViewDate = ($mode === 'date' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['date'] ?? '')) ? $_GET['date'] : $schedBiz;
+$workTop = ($sort !== 'in_date' && $mode === 'date')
+    ? "(NOT EXISTS (SELECT 1 FROM schedules sw WHERE sw.girl_id = g.id AND sw.shop_id = :shopw AND sw.work_date = :vdate AND sw.status = 'work')), "
+    : '';   // 0=表示日に出勤あり(先頭) / 1=なし。その中では従来どおり wc DESC
+$order = ($sort === 'in_date') ? 'g.in_date DESC, g.id DESC' : $workTop . 'wc DESC, g.in_date DESC, g.id DESC';
 $gq = db()->prepare(
     'SELECT g.id, g.name, g.age, g.in_date,
             (SELECT COUNT(*) FROM schedules s WHERE s.girl_id = g.id AND s.shop_id = :shop AND s.status = \'work\') AS wc
@@ -208,7 +215,9 @@ $gq = db()->prepare(
        JOIN girl_shops gs ON gs.girl_id = g.id AND gs.shop_id = :shop2
       ORDER BY ' . $order
 );
-$gq->execute(['shop' => $shop, 'shop2' => $shop]);
+$params = ['shop' => $shop, 'shop2' => $shop];
+if ($workTop !== '') { $params['shopw'] = $shop; $params['vdate'] = $schedViewDate; }
+$gq->execute($params);
 $girls = $gq->fetchAll();
 
 $WD = ['日', '月', '火', '水', '木', '金', '土'];
