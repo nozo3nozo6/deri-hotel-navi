@@ -458,4 +458,15 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   <?php endforeach; ?>
 </table>
 
+<script>
+  // 時(左)を選んだら、分(右)が未選択のとき自動で「00」にする（出勤表 schedules.php と同じUX）。
+  //   分の「00」は option value="0"。既に分が選ばれている場合は上書きしない。
+  document.querySelectorAll('.tsel').forEach(function (cell) {
+    var h = cell.querySelector('.tsel-h'), m = cell.querySelector('.tsel-m');
+    if (h && m) h.addEventListener('change', function () {
+      if (h.value !== '' && m.value === '') m.value = '0';
+    });
+  });
+</script>
+
 <?php layout_footer(); ?>
