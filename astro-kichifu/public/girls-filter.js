@@ -4,7 +4,8 @@
   var grid = document.getElementById('girl-grid');
   if (!grid) return;
 
-  var cards = Array.prototype.slice.call(grid.querySelectorAll('.girl-card'));
+  // カードは毎回DOMから取り直す（girl-visibility.js が後から追加する新規の子も絞り込み/並び替え対象にする）
+  function allCards() { return Array.prototype.slice.call(grid.querySelectorAll('.girl-card')); }
   var countEl = document.getElementById('gresult-count');
   var emptyEl = document.getElementById('gresult-empty');
   var nameInput = document.getElementById('gsearch-name');
@@ -29,7 +30,7 @@
   function apply() {
     var q = norm(state.name);
     var visible = [];
-    cards.forEach(function (c) {
+    allCards().forEach(function (c) {
       var ok = true;
       if (q && norm(c.getAttribute('data-name')).indexOf(q) === -1) ok = false;
       if (ok && state.newOnly && c.getAttribute('data-new') !== '1') ok = false;

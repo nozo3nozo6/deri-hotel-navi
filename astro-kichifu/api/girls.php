@@ -89,7 +89,7 @@ try {
                   FROM girls g
                   LEFT JOIN girl_categories gc ON gc.id = g.girl_category_id
                  WHERE ' . implode(' AND ', $where) . '
-                 ORDER BY g.sort, g.id
+                 ORDER BY (g.in_date IS NULL), g.in_date DESC, g.id DESC
                  LIMIT ' . $limit;
         $st = DB::conn()->prepare($sql);
         $st->execute($params);
