@@ -65,3 +65,45 @@ function news_html_to_text(string $html, bool $withUrls = true): string {
     $out = preg_replace("/\n{3,}/", "\n\n", $out);
     return trim($out);
 }
+
+/**
+ * HTML本文からURLだけを除去する（駅ちか用: CSS・レイアウトは残すがURLは掲載不可）。
+ *   - <a> は <span> に変換（style/class 等の見た目属性は維持・href/target/rel だけ捨てる）
+ *     ＝ボタン風にデザインされたリンクも見た目そのまま文言だけ残る
+ *   - テキスト中の裸URL(http(s)://・www.)も削除（文字クラスは chat.js linkify と同じ）
+ *   - それ以外のタグ・インラインCSS・<style> はそのまま
+ */
+function news_html_strip_urls(string $html): string {
+    if (trim($html) === '') return '';
+    $doc = new DOMDocument();
+    @$doc->loadHTML('<?xml encoding="utf-8"?><div id="__news_root">' . $html . '</div>',
+        LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NONET);
+    $root = $doc->getElementById('__news_root');
+    if (!$root) return $html;
+
+    // <a> → <span>（子孫のaも含めて全部。NodeListはliveなので配列化してから処理）
+    $anchors = [];
+    foreach ($root->getElementsByTagName('a') as $a) $anchors[] = $a;
+    foreach ($anchors as $a) {
+        $span = $doc->createElement('span');
+        foreach ($a->attributes as $attr) {
+            if (in_array(strtolower($attr->name), ['href', 'target', 'rel'], true)) continue;
+            $span->setAttribute($attr->name, $attr->value);
+        }
+        while ($a->firstChild) $span->appendChild($a->firstChild);
+        $a->parentNode->replaceChild($span, $a);
+    }
+
+    // テキストノード中の裸URLを削除（<style>/<script>内は触らない＝CSSのurl()等を壊さない）
+    $xp = new DOMXPath($doc);
+    foreach ($xp->query('//text()[not(ancestor::style) and not(ancestor::script)]', $root) as $t) {
+        $v = preg_replace('#https?://[A-Za-z0-9\-._~:/?\#\[\]@!$&\'()*+,;=%]+#i', '', $t->nodeValue);
+        $v = preg_replace('#\bwww\.[A-Za-z0-9\-._~:/?\#\[\]@!$&\'()*+,;=%]+#i', '', $v);
+        if ($v !== $t->nodeValue) $t->nodeValue = $v;
+    }
+
+    // ルートの中身だけをHTMLとして書き出し
+    $out = '';
+    foreach ($root->childNodes as $child) $out .= $doc->saveHTML($child);
+    return $out;
+}

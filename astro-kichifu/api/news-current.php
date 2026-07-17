@@ -6,6 +6,8 @@
 //   認証: X-Api-Key または Authorization: Bearer ＝ db-config.php の PLAY_API_KEY（play-availabilityと同一）。
 //
 //   GET ?shop_id=1                 → 公開中の最新1件（該当なし item=null）
+//   媒体別自動整形: body_html=駅ちか用(CSS可・URL除去) / body_text=情報局用(CSS不可・URL併記) /
+//                   body_html_raw=元HTML（2026-07-17 店長指示）
 //   GET ?shop_id=1&id=277          → 単体取得（公開窓の判定はせず status で返す・仕様§4.3）
 //   GET ...&urls=0                 → body_text からURLを全削除（コピペ用タブと同一。URL不可媒体向け）
 //
@@ -59,7 +61,12 @@ function news_item_json(array $r, bool $withUrls): array {
         'id'         => (int)$r['id'],
         'shop_id'    => (int)$r['shop_id'],
         'title'      => (string)$r['title'],
-        'body_html'  => (string)($r['body'] ?? ''),
+        // 媒体別の自動整形（2026-07-17 店長指示）:
+        //   body_html = 駅ちか用: CSS可・URL不可 → URL除去版（<a>はstyle維持のまま<span>化＋裸URL削除）
+        //   body_text = 情報局用: CSS不可・URL可 → プレーン抽出＋リンクURL併記（既定）
+        //   body_html_raw = 編集画面の元HTML（そのまま。必要な媒体・デバッグ用）
+        'body_html'  => news_html_strip_urls((string)($r['body'] ?? '')),
+        'body_html_raw' => (string)($r['body'] ?? ''),
         'body_text'  => $bodyText,
         'image_url'  => news_image_url($r['thumb'] ?? null),
         'publish_at' => $iso($r['posted_at']),

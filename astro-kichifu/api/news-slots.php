@@ -6,6 +6,8 @@
 //   認証: X-Api-Key または Authorization: Bearer ＝ PLAY_API_KEY（news-current と同一）。
 //
 //   GET ?shop_id=1              → 3キーすべて返す（未登録でも enabled:false + 空で返す・仕様§3.2ルール1）
+//   媒体別自動整形: body_html=駅ちか用(CSS可・URL除去) / body_text=情報局用(CSS不可・URL併記) /
+//                   body_html_raw=元HTML（2026-07-17 店長指示）
 //   GET ?shop_id=1&key=shinjin  → 1枠のみ（デバッグ用・仕様§3.3）
 //   GET ...&urls=0              → body_text からURL全削除（既定はリンクURL併記）
 //
@@ -63,7 +65,10 @@ try {
             'key'        => $k,
             'label'      => $label,
             'title'      => (string)($r['title'] ?? ''),
-            'body_html'  => (string)($r['body_html'] ?? ''),
+            // 媒体別の自動整形（news-current と同じ・2026-07-17 店長指示）:
+            //   body_html = 駅ちか用（CSS可・URL除去）/ body_text = 情報局用（CSS不可・URL併記）
+            'body_html'  => $r ? news_html_strip_urls((string)($r['body_html'] ?? '')) : '',
+            'body_html_raw' => (string)($r['body_html'] ?? ''),
             'body_text'  => $r ? news_html_to_text((string)($r['body_html'] ?? ''), $withUrls) : '',
             'image_url'  => slot_image_url($r['image'] ?? null),
             'enabled'    => $r ? (bool)$r['is_enabled'] : false,   // 未登録=enabled:false（仕様§3.2ルール1）
