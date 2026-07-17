@@ -146,21 +146,18 @@
 
       // 並びは「入店日が新しい順」（2026-07-18 店長指示）。addMissing は末尾appendのため、
       //   デプロイ後に登録された子が最後尾に表示されてしまう（むぎ実例）。data-in(=YYYYMMDD数値)
-      //   降順→id降順で並べ替える。maxCards>0 なら超過分を除去（top新人=SSGと同じ8件制限）。
-      function sortByInDate(grid, maxCards) {
+      //   降順→id降順で並べ替える。件数上限なし＝新人セクションも入店3ヶ月未満なら全員表示。
+      function sortByInDate(grid) {
         if (!grid) return;
         var cards = Array.prototype.slice.call(grid.querySelectorAll('.girl-card[data-id]'));
         cards.sort(function (a, b) {
           return (parseInt(b.getAttribute('data-in') || '0', 10) - parseInt(a.getAttribute('data-in') || '0', 10))
               || (parseInt(b.getAttribute('data-id') || '0', 10) - parseInt(a.getAttribute('data-id') || '0', 10));
         });
-        cards.forEach(function (c, i) {
-          if (maxCards > 0 && i >= maxCards) { c.remove(); return; }
-          grid.appendChild(c);   // appendChild は既存ノードの移動＝ソート順に並び直す
-        });
+        cards.forEach(function (c) { grid.appendChild(c); });   // appendChild は既存ノードの移動＝ソート順に並び直す
       }
-      sortByInDate(newGrid, 8);    // top新人セクション（入店日新しい順・最大8件）
-      sortByInDate(mainGrid, 0);   // /girls 全員一覧（初期表示も入店日新しい順。girls-filter.jsの既定ソートと同一規則）
+      sortByInDate(newGrid);    // top新人セクション（入店3ヶ月未満・入店日新しい順・全員）
+      sortByInDate(mainGrid);   // /girls 全員一覧（初期表示も入店日新しい順。girls-filter.jsの既定ソートと同一規則）
       // schedGrid は schedule-page.js が出勤開始時刻順に並べ替えるため触らない
 
       // 3+4. 既存カードの写真＋文字情報を最新化（CTRL編集を即反映）

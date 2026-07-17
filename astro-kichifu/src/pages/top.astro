@@ -46,12 +46,11 @@ const allGirls = await getGirls();
 const sliders = (await getSliders()).filter((s) => s.image_pc || s.image_sp);
 // 下部バナー（管理画面 /ctrl で設定、ビルド時取得。画像未設定は除外）
 const bottomBanners = (await getBanners('bottom')).filter((b) => b.image);
-// 新人の女の子 = 入店3ヶ月未満を入店日の新しい順に 8件
+// 新人の女の子 = 入店3ヶ月未満を入店日の新しい順に全員（件数上限なし・2026-07-18 店長指示）
 const inNum = (g: any): number => g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
 const newFaces = allGirls
   .filter((g) => isNewcomer(g.in_date))
-  .sort((a, b) => (inNum(b) - inNum(a)) || (b.id - a.id))
-  .slice(0, 8);
+  .sort((a, b) => (inNum(b) - inNum(a)) || (b.id - a.id));
 
 const title = `${SHOP.fullName}｜吉祥寺でおすすめ`;   // 正式店名 + おすすめKW（admiと統一）
 const desc = `${SHOP.catch}の老舗「${SHOP.name}」（since${SHOP.since}）。厳選された素人の女の子をラブホテル・ご自宅までデリバリー。最新情報・新人の女の子・本日の出勤はこちら。`;
