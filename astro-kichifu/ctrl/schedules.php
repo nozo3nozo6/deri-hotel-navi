@@ -255,11 +255,53 @@ layout_header('出勤管理', 'schedules.php');
   .tsel{display:inline-flex;align-items:center;gap:3px}
   .tsel select{padding:6px 4px;border:1px solid var(--border);border-radius:7px;font-size:.95rem;background:#fff}
   .tsel-c{color:var(--muted,#999);font-weight:700}
+  .media-sync{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:.86rem;line-height:1.7}
+  .media-sync summary{cursor:pointer;font-weight:700;color:#166534;font-size:.92rem;list-style:none}
+  .media-sync summary::-webkit-details-marker{display:none}
+  .media-sync summary::before{content:'▶';font-size:.7em;margin-right:6px;color:#16a34a}
+  .media-sync[open] summary::before{content:'▼'}
+  .media-sync table{border-collapse:collapse;margin:10px 0 4px;width:100%;max-width:560px}
+  .media-sync th,.media-sync td{border:1px solid #bbf7d0;padding:6px 10px;text-align:left;font-size:.85rem}
+  .media-sync th{background:#dcfce7;color:#166534}
+  .media-sync td.days{font-weight:700;color:#15803d;white-space:nowrap}
+  .media-sync .note{color:#3f6212;margin-top:6px}
+  .media-sync .warn{color:#9a3412}
 </style>
 
 <div class="page-head">
   <h1>出勤管理</h1>
 </div>
+
+<?php
+  // 媒体自動同期の案内（各媒体の同期範囲を動的な最終日つきで明示）。
+  //   日付はローリング（毎日1日ずつ先へ）。cap=フォーム上限（今日+N日先）。当日Dは既存の当日同期が担当。
+  $bizD = date('Y-m-d', time() - 5 * 3600);
+  $mediaSync = [
+    ['情報局',   27],
+    ['ヘブン',   13],
+    ['風じゃ',   13],
+    ['デリじゃ', 13],
+    ['駅ちか',    6],
+  ];
+  $fmtJ = function (string $ymd): string { $t = strtotime($ymd); return date('n/j', $t) . '（' . ['日','月','火','水','木','金','土'][(int)date('w', $t)] . '）'; };
+?>
+<details class="media-sync">
+  <summary>📡 各媒体への自動同期について（同期される日数）</summary>
+  <p>CTRLで出勤を保存すると、<strong>変更した女性だけ</strong>が各媒体へ自動反映されます（当日分は即時、未来日分も保存した瞬間＋定期巡回）。媒体ごとに反映できる日数の上限が違います。</p>
+  <table>
+    <tr><th>媒体</th><th>同期される範囲</th><th>今日時点の最終日</th></tr>
+    <?php foreach ($mediaSync as [$name, $cap]): $end = date('Y-m-d', strtotime($bizD . ' +' . $cap . ' day')); ?>
+    <tr>
+      <td><?= h($name) ?></td>
+      <td class="days">今日〜<?= $cap ?>日先</td>
+      <td><?= h($fmtJ($end)) ?> まで</td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  <p class="note">※ 日付は<strong>毎日1日ずつ先へずれます</strong>（ローリング）。駅ちかだけ1週間先までなのは媒体フォームの制約です（CTRLには28日先まで登録可。駅ちかは日付が近づいたら順次反映）。</p>
+  <p class="note warn">※「休み」＝媒体からも消える／「未定」＝媒体は今のまま（触らない）。媒体から出勤を消したいときは<strong>「休み」</strong>にしてください。</p>
+  <p class="note">※ 対応媒体: 情報局・駅ちか・シティヘブン・風俗じゃぱん・デリヘルじゃぱん。新しい女性は各媒体に在籍登録されていれば自動でひも付きます（同名の子のみ手動設定が必要）。</p>
+</details>
 
 <div class="sched-tabs">
   <a class="sched-tab <?= $mode === 'date' ? 'is-active' : '' ?>" href="schedules.php?mode=date&sort=<?= h($sort) ?>">📅 日付で登録</a>
