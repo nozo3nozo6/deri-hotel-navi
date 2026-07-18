@@ -164,9 +164,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         foreach ($webhookTargets as [$sid, $gid, $changed]) {
             media_webhook_notify((int)$sid, (int)$gid, $nm($gid), $changed, 'shift');   // 当日: shift_* / play_at / status
         }
-        // 未来日変更 → 週間出勤同期を明示ジョブで起動（bot はドレインで jobs を重複排除して1回実行）。
+        // 未来日変更 → 各媒体の週間出勤同期を明示ジョブで起動（bot はドレインで jobs を重複排除して1回実行）。
         foreach ($weekTargets as [$sid, $gid]) {
-            media_webhook_notify((int)$sid, (int)$gid, $nm($gid), ['shift'], 'shift', ['fujoho_schedule_week']);
+            media_webhook_notify((int)$sid, (int)$gid, $nm($gid), ['shift'], 'shift', ['fujoho_schedule_week', 'ekichika_schedule_week']);
         }
     };
 
