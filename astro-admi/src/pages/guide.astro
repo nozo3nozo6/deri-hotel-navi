@@ -1,0 +1,165 @@
+---
+// guide.astro — 立川デリヘル利用ガイド（SEOロングテール向け読み物ページ）
+//   「立川 デリヘル 初めて」「立川 デリヘル ホテル」「立川 デリヘル 相場」等の検索受け皿。
+//   /howto（手順説明）と役割分担: こちらは立川という街に紐づく解説記事＋FAQ（FAQPage構造化データ）。
+import Site from '../layouts/Site.astro';
+import { SHOP, FUJOHO } from '../lib/config';
+
+const title = `立川デリヘル利用ガイド｜初めての呼び方・ホテル・料金相場｜${SHOP.fullName}`;
+const desc = '立川でデリヘルを利用する方法を老舗店が解説。初めての予約の流れ、立川駅周辺のホテル（ラブホ・ビジネスホテル・レンタルルーム）への呼び方、自宅派遣エリア、料金相場、よくある質問まで。since2002のアドミ（立川アドミ）がわかりやすくご案内します。';
+/* ── FAQ（FAQPage構造化データと本文の両方に使う） ─────────────────────── */
+const faqs = [
+  {
+    q: '立川駅周辺のビジネスホテルにも呼べますか？',
+    a: 'ホテルによって可否が分かれます。フロントで止められてしまうホテルもありますが、当店は立川エリアの「呼べるホテル・呼べないホテル」の事前情報を把握しております。ご予約の際に宿泊先をお伝えいただければ、その場でご案内できますのでお気軽にご相談ください。',
+  },
+  {
+    q: '初めてで不安です。予約の電話では何を伝えればいいですか？',
+    a: '「ご希望の女の子（またはタイプ）」「ご利用場所（ご自宅かホテルか）」「ご希望のコース時間」の3点だけで大丈夫です。あとはスタッフが順番にお伺いしますので、慣れていなくても心配いりません。LINEでのご予約・ご相談も可能です。',
+  },
+  {
+    q: '深夜でも利用できますか？',
+    a: `受付時間は${SHOP.reception}です。終電後の深夜帯もご利用いただけますので、お仕事帰りや飲み会のあとでもお気軽にお問い合わせください。`,
+  },
+  {
+    q: '料金は総額でいくらかかりますか？',
+    a: '基本コースは60分16,500円からで、これにご指名料、エリアに応じた交通費が加わります。表示以外の追加費用を後から請求することはありません。詳しくは料金システムのページをご覧ください。',
+  },
+  {
+    q: '自宅に呼ぶときに用意するものはありますか？',
+    a: 'バスタオルを1枚ご用意いただけると助かります。難しい場合はご予約時にお申し付けいただければ、当店からお持ちすることも可能です（状況によりご用意できない場合もございます）。',
+  },
+  {
+    q: '予約なしの当日利用はできますか？',
+    a: '当日のご利用も大歓迎です。ご連絡いただいた時点で出勤中の女の子から最短でご案内します。お目当ての女の子がいる場合は、出勤スケジュールを確認のうえ早めのご予約がおすすめです。',
+  },
+];
+
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+---
+<Site title={title} description={desc} path="/guide">
+  <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} is:inline />
+  <main>
+    <section class="page-section">
+      <div class="neon-room"></div>
+      <div class="wrap-md guide-wrap" style="position:relative;z-index:1;">
+
+        <nav class="breadcrumb">
+          <a href="/top" data-i18n="nav_top">トップ</a>
+          <span class="breadcrumb-sep">›</span>
+          <span>立川デリヘル利用ガイド</span>
+        </nav>
+
+        <div class="section-head">
+          <span class="section-eyebrow holo-text">GUIDE</span>
+          <h1 class="section-title">立川デリヘル利用ガイド</h1>
+        </div>
+
+        <p class="guide-lead">
+          「立川でデリヘルを呼んでみたいけれど、何から始めればいいのかわからない」——そんな方のためのガイドページです。
+          since{SHOP.since}から立川で営業を続けるデリヘル『アドミ』（地元では『立川アドミ』『アドミ立川』の愛称で親しまれています）が、
+          初めての予約の流れ、ホテル・ご自宅それぞれの利用方法、料金の目安まで、実際の現場を知る老舗店の目線でわかりやすく解説します。
+        </p>
+
+        <h2 class="guide-h2">立川はデリヘルが利用しやすい街</h2>
+        <p>
+          立川は多摩エリア最大級の繁華街で、立川駅の北口・南口ともにラブホテル、ビジネスホテル、レンタルルームが充実しています。
+          「泊まりの出張ついでに」「終電を逃した夜に」「自宅は避けたいから駅近のホテルで」——どのパターンにも対応できる環境が揃っているのが立川の強みです。
+          もちろんご自宅への派遣も可能で、立川市内はもちろん周辺の市にもお伺いしています。
+        </p>
+
+        <h2 class="guide-h2">初めてでも簡単、ご利用の流れ</h2>
+        <p>ご利用はたった3ステップです。</p>
+        <ol class="guide-steps">
+          <li><strong>お電話またはLINEでご連絡</strong> — ご希望の女の子（またはタイプ）と時間帯をお聞かせください。</li>
+          <li><strong>ご利用場所とコースを決める</strong> — ご自宅かホテルか、ご利用エリアとコース時間をお伝えください。</li>
+          <li><strong>女の子の到着を待つだけ</strong> — ドライバースタッフができる限りお待たせしないようお届けします。</li>
+        </ol>
+        <p>
+          さらに詳しい手順やお支払い方法については<a href="/howto">ご利用ガイド（予約の流れ）</a>をご覧ください。
+          はじめての方でも、スタッフが一つずつお伺いしますので緊張しなくて大丈夫です。
+        </p>
+
+        <h2 class="guide-h2">立川のホテルに呼ぶ場合</h2>
+        <p>
+          ホテル利用は大きく分けて<strong>ラブホテル・ビジネスホテル・レンタルルーム</strong>の3種類。
+          コスパを最優先するならレンタルルーム、非日常感を楽しむならラブホテルがおすすめです。
+        </p>
+        <p>
+          注意したいのはビジネスホテルで、フロントの方針によっては女性の入館を止められる場合があります。
+          当店は立川エリアの「デリヘルを呼べるホテル・呼べないホテル」の情報を日々の実績から把握していますので、
+          宿泊先が決まっている方はご予約時にホテル名をお伝えください。呼べるホテルを口コミから探したい方は、
+          呼べるホテル検索サイト<a href={SHOP.yobuhoUrl} target="_self">YobuHoの当店ページ</a>も参考になります。
+        </p>
+
+        <h2 class="guide-h2">ご自宅・立川周辺エリアへの派遣</h2>
+        <p>
+          ご自宅利用を選ばれるお客様は全体の半数以上。ホテル代がかからず、時間を気にせずゆっくり過ごせるのが人気の理由です。
+          立川市内のほか、国立・国分寺・日野・昭島・東大和・武蔵村山など周辺エリアにもお伺いしています。
+          エリアごとの交通費はご予約時にご案内しますので、まずはお気軽にお問い合わせください。
+        </p>
+
+        <h2 class="guide-h2">立川デリヘルの料金相場と当店の料金</h2>
+        <p>
+          立川エリアのデリヘルの相場は、スタンダードなお店で60分15,000円〜20,000円前後が目安です。
+          当店は<strong>60分16,500円から</strong>の明朗会計で、コース料金・指名料・交通費以外の追加費用は一切ありません。
+          <a href="https://line.me/ti/p/L4-1uY6q2e" target="_self" rel="noopener">LINEでのご予約ならプレイ時間＋10分無料</a>の特典もあります。
+          コース別の詳しい料金と割引は<a href="/system">料金システム</a>をご覧ください。
+        </p>
+
+        <h2 class="guide-h2">失敗しないお店選びのポイント</h2>
+        <p>
+          立川には多くのデリヘルがありますが、選ぶ際は「在籍写真と実際のギャップ」「口コミの内容」「営業年数」の3点をチェックするのがおすすめです。
+          当店は<strong>{SHOP.since}年創業・立川で20年以上</strong>続く素人専門店。長く営業できているのは、写真と実物のギャップを作らない在籍管理と、
+          リピーター様に支えられてきた証だと自負しています。実際の雰囲気は<a href="/girls">在籍の女の子一覧</a>や
+          <a href={FUJOHO.diary} target="_self" rel="noopener">写メ日記</a>でご確認いただけます。
+        </p>
+
+        <h2 class="guide-h2">よくある質問</h2>
+        <div class="rc-faq">
+          {faqs.map((f, i) => (
+            <details class="rc-faq-item" open={i === 0}>
+              <summary class="rc-faq-q"><span class="rc-faq-mark">Q</span>{f.q}</summary>
+              <p class="rc-faq-a">{f.a}</p>
+            </details>
+          ))}
+        </div>
+
+        <div class="guide-cta">
+          <p class="guide-cta-lead">立川でデリヘルを呼ぶなら、まずはお気軽にご相談ください。</p>
+          <a href={`tel:${SHOP.telRaw}`} class="glossy-pill guide-cta-btn">📞 {SHOP.tel}（受付 {SHOP.reception}）</a>
+          <p class="guide-cta-sub"><a href="/girls">本日ご案内できる女の子を見る →</a></p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <style>
+    .guide-wrap { max-width: 760px; }
+    .guide-lead { font-size: .92rem; line-height: 2; color: var(--text-soft); margin-bottom: 8px; }
+    .guide-h2 {
+      font-size: 1.0625rem; font-weight: 800; line-height: 1.6;
+      color: var(--neon-pink, #ff1493);
+      margin: 40px 0 14px; padding-bottom: 8px;
+      border-bottom: 2px solid rgba(255, 79, 216, .25);
+    }
+    .guide-wrap p { font-size: .9rem; line-height: 1.95; color: var(--text-soft); margin-bottom: 12px; }
+    .guide-wrap p a, .guide-steps a { color: var(--neon-pink, #ff1493); text-decoration: underline; }
+    .guide-steps { margin: 0 0 12px; padding-left: 1.4em; }
+    .guide-steps li { font-size: .9rem; line-height: 1.9; color: var(--text-soft); margin-bottom: 8px; }
+    .guide-cta { text-align: center; margin: 44px 0 8px; }
+    .guide-cta-lead { font-weight: 700; margin-bottom: 14px; }
+    .guide-cta-btn { display: inline-block; padding: 13px 26px; font-size: .95rem; }
+    .guide-cta-sub { margin-top: 14px; font-size: .88rem; }
+    .guide-cta-sub a { color: var(--neon-pink, #ff1493); text-decoration: underline; }
+  </style>
+</Site>

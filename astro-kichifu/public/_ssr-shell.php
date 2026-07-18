@@ -172,6 +172,7 @@ function ssr_footer(array $S): void {
       <a href="/schedule" target="_self" data-i18n="nav_schedule">スケジュール</a>
       <a href="/system" data-i18n="nav_system">料金システム</a>
       <a href="/howto" data-i18n="nav_howto">ご利用ガイド</a>
+      <?php if (($S['_id'] ?? 2) === 1): ?><a href="/guide">立川デリヘルガイド</a><?php endif; ?>
       <a href="<?= ssr_h($S['news_url'] ?? '/news') ?>" target="_self" rel="noopener" data-i18n="nav_news">お知らせ</a>
       <a href="<?= ssr_h($S['fjDiary']) ?>" target="_self" rel="noopener" data-i18n="nav_diary">写メ日記</a>
       <a href="<?= ssr_h($S['recruit']) ?>" target="_self" data-i18n="nav_recruit">求人情報</a>
