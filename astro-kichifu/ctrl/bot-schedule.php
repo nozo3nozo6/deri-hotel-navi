@@ -56,6 +56,15 @@ $JOBS = [
         'preset' => BOT_SCHEDULE_NEWS_10,
         'preset_label' => '既定10枠を入れる',
     ],
+    'kyoku_wari' => [
+        'tab'    => '情報局 局割！',
+        'h1'     => '💸 情報局 局割！（きょくわり）再掲載オート',
+        'help'   => '情報局の「<b>局割！（きょくわり）</b>」を<b>一定間隔</b>（初期10分）で自動再掲載します（掲載開始で一覧の先頭に上がります）。'
+                  . '<br>有効期限は毎回 <b>開始＝実行時刻・終了＝24時間後</b>、掲載開始日＝開始と同じで自動設定します。'
+                  . '<br>媒体側の1日上限（プラン依存・現在<b>最大100回</b>）に達すると bot が自動検知してその日はスキップします（エラーになりません）。',
+        'preset' => [],
+        'preset_label' => '',
+    ],
 ];
 
 $job = (string)($_GET['job'] ?? 'ekichika_bulktop');
@@ -66,8 +75,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $pjob = (string)($_POST['job'] ?? '');
     if (!isset($JOBS[$pjob])) { flash('err', '対象が不正です。'); redirect('bot-schedule.php'); }
     $jmp = bot_schedule_job_meta($pjob);
-    $mode = ($jmp['interval'] && ($_POST['mode'] ?? '') === 'interval') ? 'interval'
-          : ($jmp['interval'] ? 'schedule' : 'schedule');   // 固定時刻系は常に schedule
+    $mode = !empty($jmp['interval_only']) ? 'interval'                                        // interval専用job（局割）は常に interval
+          : (($jmp['interval'] && ($_POST['mode'] ?? '') === 'interval') ? 'interval'
+          : 'schedule');   // 固定時刻系は常に schedule
     $in = [
         'enabled'     => isset($_POST['enabled']) ? 1 : 0,
         'daily_limit' => (int)($_POST['daily_limit'] ?? ($jmp['default_limit'] ?? 10)),
@@ -103,6 +113,7 @@ $cfg = $row ? bot_schedule_to_json($row) : [
 ];
 $meta = $JOBS[$job];
 $isInterval = !empty($jm['interval']);                       // この job が周期モードを扱えるか
+$isIntervalOnly = !empty($jm['interval_only']);              // interval専用（局割: 時刻リストUIなし）
 $curMode = $cfg['mode'] ?? 'schedule';                       // 現在の保存モード
 $curIntMin = $cfg['interval_min'] !== null ? (int)$cfg['interval_min'] : ($jm['default_interval'] ?? 10);
 
@@ -152,11 +163,13 @@ layout_header('媒体自動更新', 'bot-schedule.php');
   </div>
 
   <?php if ($isInterval): ?>
+  <?php if (!$isIntervalOnly): ?>
   <div class="bs-row">
     <label class="lbl">実行方式</label>
     <label class="bs-toggle" style="font-weight:600"><input type="radio" name="mode" value="interval" <?= $curMode !== 'schedule' ? 'checked' : '' ?> data-bs-mode> 一定間隔</label>
     <label class="bs-toggle" style="font-weight:600"><input type="radio" name="mode" value="schedule" <?= $curMode === 'schedule' ? 'checked' : '' ?> data-bs-mode> 指定時刻リスト</label>
   </div>
+  <?php endif; ?>
   <div class="bs-row" id="bs-interval-row">
     <label class="lbl">間隔</label>
     <input class="bs-num" type="number" name="interval_min" min="1" max="120" value="<?= (int)$curIntMin ?>"> 分ごと（1〜120分）
@@ -173,6 +186,7 @@ layout_header('媒体自動更新', 'bot-schedule.php');
   </div>
   <?php endif; ?>
 
+  <?php if (!$isIntervalOnly): ?>
   <div class="bs-row" style="display:block" id="bs-schedule-block">
     <label class="lbl" style="display:block;margin-bottom:6px">実行時刻</label>
     <div class="bs-meta" style="margin:0 0 6px"><b>その時刻の分に1回だけ</b>実行します（例: 22:45 → 毎日 22時45分）。時刻はプルダウンで追加、✕で削除できます。</div>
@@ -191,6 +205,7 @@ layout_header('媒体自動更新', 'bot-schedule.php');
     <input type="hidden" name="schedule_text" id="bs-times" value="<?= h(implode(',', $cfg['schedule'])) ?>">
     <div class="bs-meta">追加すると自動で時刻順に並びます（重複は追加されません）。回数を超えた分は保存時に早い時刻を優先して切り詰めます。</div>
   </div>
+  <?php endif; ?>
   <?php if ($cfg['updated_at']): ?>
     <div class="bs-meta">最終更新: <?= h(date('Y/n/j H:i', strtotime($cfg['updated_at']))) ?><?= $cfg['updated_by'] ? ' / ' . h($cfg['updated_by']) : '' ?></div>
   <?php endif; ?>
@@ -204,9 +219,11 @@ layout_header('媒体自動更新', 'bot-schedule.php');
   var hidden = document.getElementById('bs-times');
   var chipsEl = document.getElementById('bs-chips');
   var countEl = document.getElementById('bs-count');
-  var times = (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  // interval専用タブ（局割）は時刻リストUI自体を描画しない＝hidden不在。以降の時刻リストJSはスキップ
+  var times = hidden ? (hidden.value || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [];
 
   function render() {
+    if (!hidden || !chipsEl) return;                // interval専用タブは時刻リスト無し
     times.sort();                                   // "HH:MM" は辞書順=時刻順
     hidden.value = times.join(',');
     chipsEl.innerHTML = '';

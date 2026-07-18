@@ -27,6 +27,8 @@ const BOT_SCHEDULE_NEWS_10 = [
 //   固定時刻系(interval=false): ekichika_bulktop(1〜38) / fuzoku_news, deli_news(1〜10) — schedule の HH:MM で実行。
 //   周期系(interval=true): fujoho_sokuho=情報局速報, ekichika_news=駅ちかニュース — 一定間隔(分)で5枠ローテ。
 //     既定 mode=interval・interval_min=10・daily_limit=0(無制限)・schedule=[]。mode=schedule への切替も可。
+//   interval専用(interval_only=true): kyoku_wari=情報局 局割!再掲載 — 一定間隔のみ（時刻リストなし）。
+//     媒体側上限(1日100回・プラン依存)は bot がフォームの掲載回数表示から自動検知してスキップ。
 //   ※ CTRL/DBは interval_min(分)で持つ。bot は interval_min*60 を refresh_interval_sec として読む。
 function bot_schedule_job_meta(string $job): ?array {
     static $meta = [
@@ -35,10 +37,11 @@ function bot_schedule_job_meta(string $job): ?array {
         'deli_news'        => ['label' => 'デリじゃ 速報',   'max' => 10,  'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10,  'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
         'fujoho_sokuho'    => ['label' => '情報局 速報',     'max' => 300, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true],
         'ekichika_news'    => ['label' => '駅ちか ニュース', 'max' => 300, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true],
+        'kyoku_wari'       => ['label' => '情報局 局割！',   'max' => 150, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true, 'interval_only' => true],
     ];
     return $meta[$job] ?? null;
 }
-function bot_schedule_jobs(): array { return ['ekichika_bulktop', 'fuzoku_news', 'deli_news', 'fujoho_sokuho', 'ekichika_news']; }
+function bot_schedule_jobs(): array { return ['ekichika_bulktop', 'fuzoku_news', 'deli_news', 'fujoho_sokuho', 'ekichika_news', 'kyoku_wari']; }
 
 const BOT_SCHEDULE_INTERVAL_MIN = 1;   // 間隔の下限（分）
 const BOT_SCHEDULE_INTERVAL_MAX = 120; // 間隔の上限（分）
@@ -123,6 +126,7 @@ function bot_schedule_save(PDO $pdo, int $shopId, string $job, array $in, string
     if (array_key_exists('mode', $in)) {
         if (!in_array($in['mode'], ['interval', 'schedule'], true)) return ['error' => 'mode must be interval|schedule', 'code' => 400];
         if (!$jm['interval'] && $in['mode'] === 'interval') return ['error' => 'this job does not support interval mode', 'code' => 400];
+        if (!empty($jm['interval_only']) && $in['mode'] === 'schedule') return ['error' => 'this job supports interval mode only', 'code' => 400];
         $mode = $in['mode'];
     }
     if (array_key_exists('interval_min', $in)) $intMin = (int)$in['interval_min'];
