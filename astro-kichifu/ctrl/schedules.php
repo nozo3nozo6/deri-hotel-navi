@@ -102,10 +102,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     // 本日営業日の出勤が実際に変わったキャスト → 保存後に bot へ Webhook 通知（WEBHOOK-CTRL.md）。
     //   schedules の upsert rowCount>0（insert=1/update=2、同値no-op=0）で変更判定
     //   ＝ play_availability 行が無い子（APIは schedules 直接導出で出る）も取りこぼさない。
-    $webhookTargets = [];   // "sid:gid" => [sid, gid, changedFields[]]
+    $webhookTargets = [];   // "sid:gid" => [sid, gid, changedFields[]]（当日D＝即姫/出勤の即時同期用）
+    $weekTargets = [];      // "sid:gid" => [sid, gid]（未来日 D+1〜 の変更＝媒体の週間出勤同期用）
 
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $getStart, $syncBy, $shiftDt, &$webhookTargets) {
+    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $getStart, $syncBy, $shiftDt, &$webhookTargets, &$weekTargets) {
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
@@ -142,20 +143,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
 
                 if ($changedFields && $date === $bizToday) $webhookTargets[$sid . ':' . $gid] = [$sid, $gid, array_values(array_unique($changedFields))];
+                // 未来日（D+1〜）の出勤行が変わったら媒体の週間出勤同期（fujoho_schedule_week）を起動。
+                //   当日Dは上の即姫/出勤Webhookが担当。週間jobは D+1〜D+cap を各媒体の最大日数ぶん反映。
+                if ($changed && $date > $bizToday) $weekTargets[$sid . ':' . $gid] = [$sid, $gid];
             }
         }
         return $cnt;
     };
 
     // 保存完了後に本日分の変更を bot へ通知（best-effort・失敗しても保存は成功のまま）
-    $notifyShiftWebhooks = function () use (&$webhookTargets) {
-        if (!$webhookTargets) return;
+    $notifyShiftWebhooks = function () use (&$webhookTargets, &$weekTargets) {
+        if (!$webhookTargets && !$weekTargets) return;
         require_once __DIR__ . '/../api/media-webhook.php';
         $nameQ = db()->prepare('SELECT name FROM girls WHERE id=?');
         $names = [];
-        foreach ($webhookTargets as [$sid, $gid, $changed]) {
+        $nm = function ($gid) use (&$names, $nameQ) {
             if (!isset($names[$gid])) { $nameQ->execute([$gid]); $names[$gid] = (string)$nameQ->fetchColumn(); }
-            media_webhook_notify((int)$sid, (int)$gid, $names[$gid], $changed, 'shift');   // shift_* / play_at / status を含む
+            return $names[$gid];
+        };
+        foreach ($webhookTargets as [$sid, $gid, $changed]) {
+            media_webhook_notify((int)$sid, (int)$gid, $nm($gid), $changed, 'shift');   // 当日: shift_* / play_at / status
+        }
+        // 未来日変更 → 週間出勤同期を明示ジョブで起動（bot はドレインで jobs を重複排除して1回実行）。
+        foreach ($weekTargets as [$sid, $gid]) {
+            media_webhook_notify((int)$sid, (int)$gid, $nm($gid), ['shift'], 'shift', ['fujoho_schedule_week']);
         }
     };
 
