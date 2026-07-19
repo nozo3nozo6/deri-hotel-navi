@@ -299,7 +299,24 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   .tsel select { padding:4px 4px; border:1px solid #cbd5e1; border-radius:6px; font-size:.82rem; }
   .tsel-c { margin:0 2px; }
   @media (max-width: 720px) {
-    .pa-table th:nth-child(5), .pa-table td:nth-child(5) { display:none; } /* 更新情報はスマホ非表示（ヒメ割列追加でズレたため5列目に） */
+    /* スマホ: 横長テーブル → 1行=1カードに積む（横スクロール解消）。ヘッダ行は隠し、各セルに data-label を見出し表示 */
+    .pa-table, .pa-table tbody, .pa-table tr, .pa-table td { display:block; width:100%; box-sizing:border-box; }
+    .pa-table tr:first-child { display:none; }                               /* 見出し行は非表示（各セルの data-label で代替） */
+    .pa-table td:nth-child(5) { display:none; }                              /* 「更新」はスマホ非表示（情報過多回避） */
+    .pa-table tr { border:1px solid #e2e8f0; border-radius:14px; margin-bottom:14px; padding:6px 2px 2px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .pa-table td { border:none; border-top:1px dashed #eef2f7; padding:11px 14px; }
+    .pa-table td.pa-name { border-top:none; font-size:1.05rem; padding-bottom:6px; }
+    .pa-table td.pa-name .pa-work { display:inline-block; margin:4px 0 0 0; font-size:.72rem; }
+    .pa-table td::before { content:attr(data-label); display:block; font-size:.68rem; color:#94a3b8; font-weight:700; margin-bottom:6px; letter-spacing:.02em; }
+    .pa-table td.pa-name::before { display:none; }                           /* 名前セルは見出し不要 */
+    .pa-prev { white-space:normal; font-size:1rem; }
+    .pa-forms { gap:10px; }
+    .pa-forms form { gap:8px; }
+    .pa-btn { padding:9px 16px; font-size:.85rem; }                          /* タップしやすく拡大 */
+    .pa-btn-now, .pa-btn-close, .pa-btn-clear { flex:1 1 auto; text-align:center; }
+    .tsel select { padding:8px 6px; font-size:1rem; }                        /* iOS 16px未満のズーム回避も兼ねる */
+    .pa-media input { width:120px; padding:8px; font-size:16px; }
+    .pa-hw-note { max-width:none; }
   }
 </style>
 
@@ -364,8 +381,8 @@ layout_header('最速で遊べる時間', 'play-availability.php');
         <span class="<?= $wkCls ?>"><?= h($wkLabel) ?></span>
       <?php endif; ?>
     </td>
-    <td class="pa-prev <?= $cls ?>"><?= h($prev) ?></td>
-    <td>
+    <td class="pa-prev <?= $cls ?>" data-label="現在の設定"><?= h($prev) ?></td>
+    <td data-label="操作">
       <div class="pa-forms">
         <form method="post">
           <?= csrf_field() ?>
@@ -402,7 +419,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
         </form>
       </div>
     </td>
-    <td>
+    <td data-label="ヒメ割（情報局のみ）">
       <?php
         // ヒメ割＝本日出勤があれば自動掲載（ON/OFF廃止・CLAUDE-HIMEWARI-AUTO.md）。
         // 期限＝出勤表の終了と連動（読み取り専用）。編集できるのは分・円のみ。
@@ -431,12 +448,12 @@ layout_header('最速で遊べる時間', 'play-availability.php');
         </form>
       </details>
     </td>
-    <td class="pa-meta">
+    <td class="pa-meta" data-label="更新">
       <?php if ($g['updated_at']): ?>
         <?= h(date('n/j H:i', strtotime($g['updated_at']))) ?><?= $g['updated_by'] ? '<br>' . h($g['updated_by']) : '' ?>
       <?php else: ?>—<?php endif; ?>
     </td>
-    <td>
+    <td data-label="媒体ID">
       <?php $hasMedia = $g['fujoho_girl_id'] || $g['ekichika_girl_id'] || $g['heaven_member_id'] || $g['fuzoku_girl_no'] || $g['deli_girl_no']; ?>
       <details class="pa-media">
         <summary><?= $hasMedia ? '設定済み ✏️' : '未設定 ＋' ?></summary>
