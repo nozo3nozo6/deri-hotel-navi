@@ -28,8 +28,13 @@ try {
 }
 
 if (!$g) {
+    // 存在しないid（旧MINERVAサイトの残骸URL等）は純粋な404。
+    //   旧実装は 404 の直後に Location を送っていたため実際は302に化けていた（news-ssr.php と同じ問題）。
     http_response_code(404);
-    header('Location: /girls');
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>404 Not Found</title></head>'
+        . '<body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>404</h1><p>お探しのページは見つかりませんでした。</p>'
+        . '<p><a href="/girls">在籍一覧へ</a> ／ <a href="/top">トップへ</a></p></body></html>';
     exit;
 }
 

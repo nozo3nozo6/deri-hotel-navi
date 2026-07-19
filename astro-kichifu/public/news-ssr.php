@@ -28,8 +28,24 @@ try {
 }
 
 if (!$it) {
+    // 予約投稿（idは実在するが posted_at 未来）だけは一覧へ302＝公開前は完全に隠す（公開時刻が来れば200）。
+    $exists = false;
+    try {
+        $st2 = DB::conn()->prepare('SELECT 1 FROM news WHERE id = ? AND shop_id = ? AND is_display = 1');
+        $st2->execute([$id, $shop_id]);
+        $exists = (bool)$st2->fetchColumn();
+    } catch (Throwable $e) {
+    }
+    if ($exists) { header('Location: /news'); exit; }
+    // 存在しないid（旧MINERVAサイトの残骸URL等）は純粋な404。
+    //   ※ 旧実装は http_response_code(404) の直後に Location を送っていたため実際は302になっていた
+    //     （PHPはLocation付きレスポンスを302で上書き）。GSC「ページにリダイレクトがあります」301件の主因。
+    //     404にすることでGoogleが旧URLを早く忘れる（リダイレクト扱いより整理が速い）。
     http_response_code(404);
-    header('Location: /news');
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>404 Not Found</title></head>'
+        . '<body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>404</h1><p>お探しのページは見つかりませんでした。</p>'
+        . '<p><a href="/news">お知らせ一覧へ</a> ／ <a href="/top">トップへ</a></p></body></html>';
     exit;
 }
 
