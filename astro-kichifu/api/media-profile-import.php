@@ -7,8 +7,11 @@
 //
 //   認証: X-Api-Key = PLAY_API_KEY。
 //   GET  ?action=targets&media=fuzoku → {items:{media_id: girl_id,...}}  ※girl_media_ids のDB紐付け分
+//        fuzoku/deli は edit_id（girledit 内部ID）も返す。管理no(girl_no)とは別体系（278=ことね誤爆の教訓）
 //   POST body {media, overwrite?:0|1, items:[{media_id, name?, catch?, comment?}]}
 //        → media_id を girl_media_ids で girl_id に解決し upsert。結果集計を返す。
+//   POST ?action=save-edit-ids body {media:fuzoku|deli, items:[{girl_id, edit_id}]}
+//        → bot が名前解決した girledit 内部IDを girl_media_ids へ永続化（次回から解決不要）
 // ==========================================================================
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/db-config.php';
@@ -40,8 +43,10 @@ try {
         $media = (string)($_GET['media'] ?? '');
         if (!isset($MEDIA_COL[$media])) { http_response_code(400); echo json_encode(['error' => 'bad media']); exit; }
         $col = $MEDIA_COL[$media];
+        $editCol = ($media === 'fuzoku' || $media === 'deli') ? "{$media}_edit_id" : null;
+        $editSel = $editCol ? ", mi.{$editCol} AS edit_id" : '';
         $st = DB::conn()->prepare(
-            "SELECT mi.girl_id, mi.{$col} AS media_id, g.name
+            "SELECT mi.girl_id, mi.{$col} AS media_id, g.name{$editSel}
                FROM girl_media_ids mi
                JOIN girls g ON g.id = mi.girl_id AND g.is_display = 1
               WHERE mi.shop_id = ? AND mi.{$col} IS NOT NULL AND mi.{$col} <> ''"
@@ -49,9 +54,30 @@ try {
         $st->execute([$shopId]);
         $items = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
-            $items[(string)$r['media_id']] = ['girl_id' => (int)$r['girl_id'], 'name' => $r['name']];
+            $item = ['girl_id' => (int)$r['girl_id'], 'name' => $r['name']];
+            if ($editCol) $item['edit_id'] = (string)($r['edit_id'] ?? '');
+            $items[(string)$r['media_id']] = $item;
         }
         echo DB::jsonEncode(['ok' => true, 'media' => $media, 'count' => count($items), 'items' => $items]);
+        exit;
+    }
+
+    // POST ?action=save-edit-ids: bot が解決した girledit 内部IDの書き戻し（fuzoku/deli のみ）
+    if (($_GET['action'] ?? '') === 'save-edit-ids') {
+        $body = json_decode(file_get_contents('php://input') ?: '', true);
+        $media = (string)($body['media'] ?? '');
+        if ($media !== 'fuzoku' && $media !== 'deli') { http_response_code(400); echo json_encode(['error' => 'media must be fuzoku|deli']); exit; }
+        $editCol = "{$media}_edit_id";
+        $up = DB::conn()->prepare("UPDATE girl_media_ids SET {$editCol} = ? WHERE shop_id = ? AND girl_id = ?");
+        $saved = 0;
+        foreach ((array)($body['items'] ?? []) as $it) {
+            $gid = (int)($it['girl_id'] ?? 0);
+            $eid = preg_replace('/\D+/', '', (string)($it['edit_id'] ?? ''));
+            if (!$gid || $eid === '') continue;
+            $up->execute([$eid, $shopId, $gid]);
+            $saved += $up->rowCount() > 0 ? 1 : 0;
+        }
+        echo DB::jsonEncode(['ok' => true, 'saved' => $saved]);
         exit;
     }
 
