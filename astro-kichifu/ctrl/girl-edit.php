@@ -117,6 +117,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
             }
 
+            // 媒体用1枚目（レインボー枠版）: オフィシャルには出さず、媒体（情報局/駅ちか/ヘブン/風じゃ/デリじゃ）の
+            //   メイン写真としてだけ使う。2枚目以降はオフィシャルの画像（girl_images）と共通＝媒体登録パックで配布。
+            $curMediaTop = db()->prepare('SELECT media_top_image FROM girls WHERE id=?');
+            $curMediaTop->execute([$id]);
+            $oldMediaTop = (string)($curMediaTop->fetchColumn() ?: '');
+            if (!empty($_POST['media_top_delete']) && $oldMediaTop !== '') {
+                db()->prepare('UPDATE girls SET media_top_image=NULL WHERE id=?')->execute([$id]);
+                @unlink(UPLOADS_ROOT . $oldMediaTop);
+                $oldMediaTop = '';
+            }
+            if (($_FILES['media_top']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $mtPath = save_upload($_FILES['media_top'], 'girls/' . $shop);
+                if ($mtPath) {
+                    db()->prepare('UPDATE girls SET media_top_image=? WHERE id=?')->execute([$mtPath, $id]);
+                    if ($oldMediaTop !== '' && $oldMediaTop !== $mtPath) @unlink(UPLOADS_ROOT . $oldMediaTop);
+                }
+            }
+
             db()->commit();
 
             // サイト自動リビルド
@@ -328,6 +346,32 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     });
   });
   </script>
+
+  <div class="card card-pad" style="border:1px solid #c4b5fd;background:#faf5ff">
+    <strong>📣 媒体用1枚目（レインボー枠版）</strong>
+    <p class="muted" style="margin:6px 0 10px;font-size:.85em">
+      媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）の<strong>メイン写真専用</strong>です。オフィシャルサイトには表示されません。<br>
+      2枚目以降は下の「画像」（オフィシャルと共通）を媒体にもそのまま使います。
+      <?php if ($id): ?>→ <a href="girl-media-pack.php?id=<?= (int)$id ?>"><strong>📦 媒体登録用の写真セットを一括ダウンロード</strong></a>（媒体用1枚目＋2枚目以降を番号順のzipで）<?php endif; ?>
+    </p>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <?php if (!empty($g['media_top_image'])): ?>
+        <div style="position:relative">
+          <img src="<?= h(asset_url($g['media_top_image'])) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid #a78bfa">
+          <span style="position:absolute;top:4px;left:4px;background:#7c3aed;color:#fff;border-radius:8px;font-size:.68em;font-weight:700;padding:1px 7px">媒体①</span>
+        </div>
+      <?php else: ?>
+        <div style="width:110px;height:147px;border:2px dashed #c4b5fd;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:.75em;text-align:center">未設定<br>（媒体①は<br>オフィシャル①を使用）</div>
+      <?php endif; ?>
+      <div class="field" style="flex:1;min-width:220px">
+        <label><?= !empty($g['media_top_image']) ? '差し替え' : 'アップロード' ?>（自動でWebP縮小）</label>
+        <input type="file" name="media_top" accept="image/*">
+        <?php if (!empty($g['media_top_image'])): ?>
+          <label style="display:block;margin-top:8px;font-size:.85em"><input type="checkbox" name="media_top_delete" value="1"> この媒体用1枚目を削除する</label>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
 
   <div class="card card-pad">
     <strong>画像</strong>
