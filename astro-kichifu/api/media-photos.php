@@ -5,7 +5,7 @@
 //   bot が「どのキャストに、どの順で、どの画像を」アップすべきかを確定できるようにする。
 //
 //   並び順（写真パックと同一）:
-//     slot 1 = 媒体用1枚目(media_top_image)。未設定ならオフィシャル①
+//     slot 1 = 媒体用1枚目(media_top_image。設定されていれば解像度不問で採用)。未設定ならオフィシャル①
 //     slot 2〜 = オフィシャル②以降（media_top があるときオフィシャル①は媒体に出さない＝除外）
 //   媒体フォームは JPEG が安全なため、保存形式(WebP)から JPEG 変換して配る。
 //
@@ -42,25 +42,22 @@ $uploadsBase = is_dir('/home/yobuho/admi2888.com/public_html/uploads')
 
 /**
  * media_top + official からアップ順の path 配列を作る（girl-media-pack.php と同一ルール）。
- * ただし写真「同期(push)」用途では、情報局から取り込んだ低解像度プレビュー(240x320)を
- * 媒体へ押し戻すと画質が劣化するため、media_top は幅400px以上（＝店長が手動アップした
- * 高解像度の媒体用1枚目）のときだけ slot1 に採用する。低解像度なら公式①から通常配列。
+ * 媒体用1枚目(media_top_image)は店長が「媒体のメイン写真」として明示的に設定した画像なので、
+ * 設定されていれば解像度に関わらず slot1 に採用する（画質は店長の責任＝CTRLで実寸を表示して判断）。
+ * 実ファイルが無い/画像として読めない場合のみ除外して公式①にフォールバック。
  */
 function ordered_photo_paths(string $mediaTop, array $official, string $uploadsBase): array
 {
     $mediaTop = trim($mediaTop);
-    if ($mediaTop !== '') {
-        $info = @getimagesize($uploadsBase . $mediaTop);
-        if (!$info || (int)$info[0] < 400) {
-            $mediaTop = ''; // 取り込みプレビュー等の低解像度は push しない
-        }
+    if ($mediaTop !== '' && !@getimagesize($uploadsBase . $mediaTop)) {
+        $mediaTop = ''; // ファイル欠損/非画像のみ除外
     }
     $paths = [];
     if ($mediaTop !== '') {
-        $paths[] = $mediaTop;                     // slot1 = 媒体用1枚目（高解像度のみ）
-        foreach (array_slice($official, 1) as $p) $paths[] = $p; // slot2〜 = 公式②以降（公式①は除外）
+        $paths[] = $mediaTop;                     // slot1 = 媒体用1枚目（レインボー枠版）
+        foreach (array_slice($official, 1) as $p) $paths[] = $p; // slot2〜 = 公式②以降（公式①は媒体に出さない）
     } else {
-        foreach ($official as $p) $paths[] = $p;  // media_top 無し/低解像度 = 公式①から全部
+        foreach ($official as $p) $paths[] = $p;  // media_top 無し = 公式①から全部
     }
     return array_values(array_filter($paths, static fn ($p) => trim((string)$p) !== ''));
 }

@@ -451,10 +451,17 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <?php if ($id): ?>→ <a href="girl-media-pack.php?id=<?= (int)$id ?>"><strong>📦 媒体登録用の写真セットを一括ダウンロード</strong></a>（媒体用1枚目＋2枚目以降を番号順のzipで）<?php endif; ?>
     </p>
     <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-      <?php if (!empty($g['media_top_image'])): ?>
+      <?php if (!empty($g['media_top_image'])):
+        // 実寸を表示（媒体へそのまま配信されるため、低解像度なら差し替えを促す）
+        $mtAbs = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT) ? UPLOADS_ROOT : rtrim($_SERVER['DOCUMENT_ROOT'], '/')) . $g['media_top_image'];
+        $mtDim = @getimagesize($mtAbs);
+        $mtW = $mtDim ? (int)$mtDim[0] : 0; $mtH = $mtDim ? (int)$mtDim[1] : 0;
+        $mtLow = $mtW > 0 && $mtW < 480;
+      ?>
         <div style="position:relative">
-          <img src="<?= h(asset_url($g['media_top_image'])) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid #a78bfa">
+          <img src="<?= h(asset_url($g['media_top_image'])) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid <?= $mtLow ? '#f59e0b' : '#a78bfa' ?>">
           <span style="position:absolute;top:4px;left:4px;background:#7c3aed;color:#fff;border-radius:8px;font-size:.68em;font-weight:700;padding:1px 7px">媒体①</span>
+          <?php if ($mtW): ?><span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;font-size:.62em;padding:1px 5px"><?= $mtW ?>×<?= $mtH ?></span><?php endif; ?>
         </div>
       <?php else: ?>
         <div style="width:110px;height:147px;border:2px dashed #c4b5fd;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:.75em;text-align:center">未設定<br>（媒体①は<br>オフィシャル①を使用）</div>
@@ -462,6 +469,11 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <div class="field" style="flex:1;min-width:220px">
         <label><?= !empty($g['media_top_image']) ? '差し替え' : 'アップロード' ?>（自動でWebP縮小）</label>
         <input type="file" name="media_top" accept="image/*">
+        <?php if (!empty($mtLow)): ?>
+          <p style="margin:8px 0 0;font-size:.8em;color:#b45309;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:6px 8px">
+            ⚠ この画像は<strong><?= $mtW ?>×<?= $mtH ?></strong>と低解像度です（媒体から取り込んだプレビュー）。媒体にはこのまま配信されるので、<strong>きれいに見せるなら高解像度のレインボー枠版に差し替え</strong>てください。
+          </p>
+        <?php endif; ?>
         <?php if (!empty($g['media_top_image'])): ?>
           <label style="display:block;margin-top:8px;font-size:.85em"><input type="checkbox" name="media_top_delete" value="1"> この媒体用1枚目を削除する</label>
         <?php endif; ?>
