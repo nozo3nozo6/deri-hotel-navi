@@ -32,6 +32,10 @@ try {
         $imgs->execute([$id]);
         $girl['images'] = $imgs->fetchAll(PDO::FETCH_ASSOC);
 
+        // お店コメントのテキスト化（媒体プロフィール同期のデータ源。速報と同じ整形＝news_html_to_text）
+        require_once __DIR__ . '/_html-text.php';
+        $girl['shop_comment_text'] = news_html_to_text((string)($girl['shop_comment'] ?? ''));
+
         // 媒体別プロフィール（キャッチ/コメント。未設定媒体は共通値を使う＝bot同期のデータ源）
         $mp = DB::conn()->prepare('SELECT media, field, value FROM girl_media_profiles WHERE girl_id = ?');
         $mp->execute([$id]);

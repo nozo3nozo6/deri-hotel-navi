@@ -155,7 +155,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // サイト自動リビルド
             trigger_deploy();
 
-            flash('ok', '保存しました。ページをリロードすると即時反映されます。');
+            if (!empty($_POST['save_and_sync'])) {
+                // 保存後に媒体プロフィール同期を bot へ即時キック（情報局・駅ちか・ヘブン。
+                // bot はフォーム現行値と比較し差分のある子だけ保存＝他の子への影響なし）
+                require_once __DIR__ . '/../api/media-webhook.php';
+                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], ['profile'], 'ctrl', ['profile_sync']);
+                flash('ok', '保存しました。媒体プロフィール同期を開始しました（情報局・駅ちか・ヘブン、数分で反映）。風じゃ/デリじゃは自動同期不可のため手動でお願いします。');
+            } else {
+                flash('ok', '保存しました。ページをリロードすると即時反映されます。');
+            }
             redirect('girl-edit.php?id=' . $id);
         } catch (Throwable $e) {
             db()->rollBack();
@@ -379,32 +387,6 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   });
   </script>
 
-  <div class="card card-pad" style="border:1px solid #c4b5fd;background:#faf5ff">
-    <strong>📣 媒体用1枚目（レインボー枠版）</strong>
-    <p class="muted" style="margin:6px 0 10px;font-size:.85em">
-      媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）の<strong>メイン写真専用</strong>です。オフィシャルサイトには表示されません。<br>
-      2枚目以降は下の「画像」（オフィシャルと共通）を媒体にもそのまま使います。
-      <?php if ($id): ?>→ <a href="girl-media-pack.php?id=<?= (int)$id ?>"><strong>📦 媒体登録用の写真セットを一括ダウンロード</strong></a>（媒体用1枚目＋2枚目以降を番号順のzipで）<?php endif; ?>
-    </p>
-    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-      <?php if (!empty($g['media_top_image'])): ?>
-        <div style="position:relative">
-          <img src="<?= h(asset_url($g['media_top_image'])) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid #a78bfa">
-          <span style="position:absolute;top:4px;left:4px;background:#7c3aed;color:#fff;border-radius:8px;font-size:.68em;font-weight:700;padding:1px 7px">媒体①</span>
-        </div>
-      <?php else: ?>
-        <div style="width:110px;height:147px;border:2px dashed #c4b5fd;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:.75em;text-align:center">未設定<br>（媒体①は<br>オフィシャル①を使用）</div>
-      <?php endif; ?>
-      <div class="field" style="flex:1;min-width:220px">
-        <label><?= !empty($g['media_top_image']) ? '差し替え' : 'アップロード' ?>（自動でWebP縮小）</label>
-        <input type="file" name="media_top" accept="image/*">
-        <?php if (!empty($g['media_top_image'])): ?>
-          <label style="display:block;margin-top:8px;font-size:.85em"><input type="checkbox" name="media_top_delete" value="1"> この媒体用1枚目を削除する</label>
-        <?php endif; ?>
-      </div>
-    </div>
-  </div>
-
   <div class="card card-pad" style="border:1px solid #99f6e4;background:#f0fdfa">
     <strong>📝 媒体別プロフィール（キャッチ・コメント）</strong>
     <p class="muted" style="margin:6px 0 10px;font-size:.85em">
@@ -459,8 +441,37 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   });
   </script>
 
+  <div class="card card-pad" style="border:1px solid #c4b5fd;background:#faf5ff">
+    <strong>📣 媒体用1枚目（レインボー枠版）</strong>
+    <p class="muted" style="margin:6px 0 10px;font-size:.85em">
+      媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）の<strong>メイン写真専用</strong>です。オフィシャルサイトには表示されません。<br>
+      2枚目以降は下の「オフィシャル画像」の②以降を媒体にもそのまま使います。
+      <?php if ($id): ?>→ <a href="girl-media-pack.php?id=<?= (int)$id ?>"><strong>📦 媒体登録用の写真セットを一括ダウンロード</strong></a>（媒体用1枚目＋2枚目以降を番号順のzipで）<?php endif; ?>
+    </p>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <?php if (!empty($g['media_top_image'])): ?>
+        <div style="position:relative">
+          <img src="<?= h(asset_url($g['media_top_image'])) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid #a78bfa">
+          <span style="position:absolute;top:4px;left:4px;background:#7c3aed;color:#fff;border-radius:8px;font-size:.68em;font-weight:700;padding:1px 7px">媒体①</span>
+        </div>
+      <?php else: ?>
+        <div style="width:110px;height:147px;border:2px dashed #c4b5fd;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#a78bfa;font-size:.75em;text-align:center">未設定<br>（媒体①は<br>オフィシャル①を使用）</div>
+      <?php endif; ?>
+      <div class="field" style="flex:1;min-width:220px">
+        <label><?= !empty($g['media_top_image']) ? '差し替え' : 'アップロード' ?>（自動でWebP縮小）</label>
+        <input type="file" name="media_top" accept="image/*">
+        <?php if (!empty($g['media_top_image'])): ?>
+          <label style="display:block;margin-top:8px;font-size:.85em"><input type="checkbox" name="media_top_delete" value="1"> この媒体用1枚目を削除する</label>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
   <div class="card card-pad">
-    <strong>画像</strong>
+    <strong>オフィシャル画像</strong>
+    <p class="muted" style="margin:6px 0 0;font-size:.85em">
+      <strong>①（1枚目）はオフィシャルサイト専用</strong>のメイン写真です（媒体の1枚目は上のレインボー枠版を使用）。<strong>②以降はオフィシャル・媒体共通</strong>で使います。
+    </p>
     <?php if ($images): ?>
       <p class="muted" style="margin:6px 0 0;font-size:.85em">ドラッグで並べ替えできます。左上の番号が表示順（<strong>①がメイン写真</strong>）。</p>
       <div id="img-sort" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0">
@@ -481,8 +492,21 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">保存する</button>
+    <?php if ($id): ?>
+      <button class="btn" type="submit" name="save_and_sync" value="1"
+              style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
+              onclick="return confirm('保存して、キャッチ/コメントを媒体（情報局・駅ちか・ヘブン）へ同期します。よろしいですか？\n※媒体側の現行文と差分がある場合のみ上書きされます')">
+        📤 保存して媒体へ同期
+      </button>
+    <?php endif; ?>
     <a class="btn" href="/ctrl/girls.php">キャンセル</a>
   </div>
+  <?php if ($id): ?>
+    <p class="muted" style="font-size:.8em;margin-top:6px">
+      「保存して媒体へ同期」＝ 情報局・駅ちか・ヘブンのキャッチ/コメントをこの画面の内容（媒体別欄があればそれ優先、無ければ共通文）に更新します。
+      風じゃ/デリじゃは媒体側の制限で自動同期できません（手動コピペ、写真は写真パックDLをご利用ください）。
+    </p>
+  <?php endif; ?>
 </form>
 
 <script>
