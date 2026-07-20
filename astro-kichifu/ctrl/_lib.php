@@ -130,6 +130,7 @@ function nav_groups(): array {
         // 媒体連携は頻用のためスライダーより上に配置（2026-07-12 ユーザー指示）
         '媒体連携' => [
             ['play-availability.php', '⏰', '最速で遊べる時間'],
+            ['media-sync.php', '🔗', '媒体ID同期'],
             ['news-slots.php', '📡', '媒体固定枠'],
             ['bot-schedule.php', '🔄', '媒体自動更新'],
             ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
