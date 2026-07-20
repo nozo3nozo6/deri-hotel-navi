@@ -155,14 +155,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // サイト自動リビルド
             trigger_deploy();
 
-            if (!empty($_POST['save_and_sync'])) {
-                // 保存後に媒体同期を bot へ即時キック（テキスト=profile_sync / 写真=photo_sync、5媒体）。
+            $syncMode = (string)($_POST['save_and_sync'] ?? '');
+            if ($syncMode !== '') {
+                // 保存後に媒体同期を bot へ即時キック。同期対象を店長が選べる:
+                //   both=テキスト+写真 / profile=コメント(キャッチ/コメント)のみ / photo=写真のみ。
                 // どちらも bot 側で差分検知（プロフ=フォーム現行値比較 / 写真=set_hash指紋）し、
                 // 変わった子・変わった項目だけ反映＝他の子や未変更項目には影響なし。写真の並べ替え/削除は
-                // AJAXで別保存されるが、photo_sync は保存時に必ず投げて set_hash が現在のDB状態で判定する。
+                // AJAXで別保存されるが、photo_sync は保存時に投げれば set_hash が現在のDB状態で判定する。
+                [$jobs, $changed, $what] = match ($syncMode) {
+                    'profile' => [['profile_sync'], ['profile'], 'コメント（キャッチ/コメント）'],
+                    'photo'   => [['photo_sync'], ['photo'], '写真'],
+                    default   => [['profile_sync', 'photo_sync'], ['profile', 'photo'], 'コメント＋写真'],
+                };
                 require_once __DIR__ . '/../api/media-webhook.php';
-                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], ['profile', 'photo'], 'ctrl', ['profile_sync', 'photo_sync']);
-                flash('ok', '保存しました。媒体へ同期を開始しました（テキスト＋写真・5媒体、数分で反映）。写真は変更があった子だけ差し替わります。');
+                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], $changed, 'ctrl', $jobs);
+                flash('ok', "保存しました。媒体へ「{$what}」の同期を開始しました（5媒体・数分で反映）。変更があった子・項目だけ反映されます。");
             } else {
                 flash('ok', '保存しました。ページをリロードすると即時反映されます。');
             }
@@ -507,18 +514,32 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">保存する</button>
     <?php if ($id): ?>
-      <button class="btn" type="submit" name="save_and_sync" value="1"
-              style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
-              onclick="return confirm('保存して、キャッチ/コメント＋写真を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ上書きされます（写真も変更があった子だけ差し替え）')">
-        📤 保存して媒体へ同期
-      </button>
+      <span style="display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:4px">
+        <span style="font-size:.8em;color:#0d9488;font-weight:700">📤 保存して媒体へ同期:</span>
+        <button class="btn" type="submit" name="save_and_sync" value="both"
+                style="border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700"
+                onclick="return confirm('保存して、コメント＋写真の両方を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます')">
+          両方
+        </button>
+        <button class="btn" type="submit" name="save_and_sync" value="profile"
+                style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
+                onclick="return confirm('保存して、コメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？')">
+          💬 コメントのみ
+        </button>
+        <button class="btn" type="submit" name="save_and_sync" value="photo"
+                style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
+                onclick="return confirm('保存して、写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります')">
+          🖼 写真のみ
+        </button>
+      </span>
     <?php endif; ?>
     <a class="btn" href="/ctrl/girls.php">キャンセル</a>
   </div>
   <?php if ($id): ?>
     <p class="muted" style="font-size:.8em;margin-top:6px">
-      「保存して媒体へ同期」＝ 全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）に、キャッチ/コメント（媒体別欄があればそれ優先、無ければ共通文）と<strong>写真</strong>をこの画面の内容へ更新します。
-      写真は「媒体用1枚目（あれば）＋オフィシャル②以降」の順で反映。<strong>変更があった子・項目だけ差し替わります</strong>（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
+      全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へこの画面の内容を同期します。同期する内容を選べます:<br>
+      <strong>両方</strong>＝コメント＋写真 ／ <strong>💬 コメントのみ</strong>＝キャッチ/コメントだけ（写真は触らない） ／ <strong>🖼 写真のみ</strong>＝写真だけ（コメントは触らない）。<br>
+      コメント＝媒体別欄があればそれ優先、無ければ共通文。写真＝「媒体用1枚目（あれば）＋オフィシャル②以降」の順。いずれも<strong>変更があった子・項目だけ反映</strong>されます（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
       写真パックDL（📦）は手動登録したいとき用に残しています。
     </p>
   <?php endif; ?>
