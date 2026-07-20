@@ -513,35 +513,29 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
   <div class="form-actions">
     <button class="btn btn-primary" type="submit">保存する</button>
-    <?php if ($id): ?>
-      <span style="display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:4px">
-        <span style="font-size:.8em;color:#0d9488;font-weight:700">📤 保存して媒体へ同期:</span>
-        <button class="btn" type="submit" name="save_and_sync" value="both"
-                style="border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700"
-                onclick="return confirm('保存して、コメント＋写真の両方を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます')">
-          両方
-        </button>
-        <button class="btn" type="submit" name="save_and_sync" value="profile"
-                style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
-                onclick="return confirm('保存して、コメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？')">
-          💬 コメントのみ
-        </button>
-        <button class="btn" type="submit" name="save_and_sync" value="photo"
-                style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
-                onclick="return confirm('保存して、写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります')">
-          🖼 写真のみ
-        </button>
-      </span>
-    <?php endif; ?>
     <a class="btn" href="/ctrl/girls.php">キャンセル</a>
   </div>
+
   <?php if ($id): ?>
-    <p class="muted" style="font-size:.8em;margin-top:6px">
-      全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へこの画面の内容を同期します。同期する内容を選べます:<br>
-      <strong>両方</strong>＝コメント＋写真 ／ <strong>💬 コメントのみ</strong>＝キャッチ/コメントだけ（写真は触らない） ／ <strong>🖼 写真のみ</strong>＝写真だけ（コメントは触らない）。<br>
-      コメント＝媒体別欄があればそれ優先、無ければ共通文。写真＝「媒体用1枚目（あれば）＋オフィシャル②以降」の順。いずれも<strong>変更があった子・項目だけ反映</strong>されます（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
-      写真パックDL（📦）は手動登録したいとき用に残しています。
-    </p>
+    <div class="card card-pad" style="border:1px solid #99f6e4;background:#f0fdfa;margin-top:14px">
+      <strong style="color:#0d9488">📤 保存して媒体へ同期</strong>
+      <p class="muted" style="font-size:.8em;margin:6px 0 10px">
+        全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へこの画面の内容を同期します。まず同期する内容を選び、確定ボタンを押してください。<br>
+        <strong>両方</strong>＝コメント＋写真 ／ <strong>💬 コメントのみ</strong>＝キャッチ/コメントだけ（写真は触らない） ／ <strong>🖼 写真のみ</strong>＝写真だけ（コメントは触らない）。<br>
+        コメント＝媒体別欄があればそれ優先、無ければ共通文。写真＝「媒体用1枚目（あれば）＋オフィシャル②以降」の順。いずれも<strong>変更があった子・項目だけ反映</strong>されます（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
+        写真パックDL（📦）は手動登録したいとき用に残しています。
+      </p>
+      <div id="sync-mode-picker" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn sync-mode-btn" data-mode="both">両方</button>
+        <button type="button" class="btn sync-mode-btn" data-mode="profile">💬 コメントのみ</button>
+        <button type="button" class="btn sync-mode-btn" data-mode="photo">🖼 写真のみ</button>
+      </div>
+      <input type="hidden" name="save_and_sync" id="save_and_sync" value="">
+      <button class="btn" type="submit" id="sync-confirm-btn" disabled
+              style="margin-top:12px;border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700;opacity:.5;cursor:not-allowed">
+        選択してください
+      </button>
+    </div>
   <?php endif; ?>
 </form>
 
@@ -599,5 +593,35 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
   const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
   if ((await r.json()).ok) { b.closest('[data-img]').remove(); renumberImages(); await saveImageOrder(); }
 }));
+
+// 媒体同期: 選択→確定の2段階（誤タップ防止）
+(() => {
+  const picker = document.getElementById('sync-mode-picker');
+  if (!picker) return;
+  const hidden = document.getElementById('save_and_sync');
+  const confirmBtn = document.getElementById('sync-confirm-btn');
+  const LABEL = { both: '両方（コメント＋写真）', profile: 'コメントのみ', photo: '写真のみ' };
+  const CONFIRM_MSG = {
+    both: '保存して、コメント＋写真の両方を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます',
+    profile: '保存して、コメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？',
+    photo: '保存して、写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります',
+  };
+  picker.querySelectorAll('.sync-mode-btn').forEach(btn => btn.addEventListener('click', () => {
+    picker.querySelectorAll('.sync-mode-btn').forEach(b => b.classList.remove('sync-mode-active'));
+    btn.classList.add('sync-mode-active');
+    hidden.value = btn.dataset.mode;
+    confirmBtn.disabled = false;
+    confirmBtn.style.opacity = '1';
+    confirmBtn.style.cursor = 'pointer';
+    confirmBtn.textContent = '📤 「' + LABEL[btn.dataset.mode] + '」で同期する';
+  }));
+  confirmBtn.addEventListener('click', (e) => {
+    if (!hidden.value || !confirm(CONFIRM_MSG[hidden.value])) e.preventDefault();
+  });
+})();
 </script>
+<style>
+.sync-mode-btn { border: 1px solid #99f6e4; background: #fff; color: #0d9488; font-weight: 700; }
+.sync-mode-btn.sync-mode-active { border-color: #0d9488; background: #0d9488; color: #fff; }
+</style>
 <?php layout_footer(); ?>
