@@ -198,12 +198,13 @@ if ($id) {
     foreach ($mp->fetchAll() as $r) { $mediaProf[$r['media']][$r['field']] = $r['value']; }
 }
 // 媒体ごとの文字数制限（2026-07-20 実フォーム調査。null=明確な上限なし＝カウンタのみ）
+//   風じゃ紹介文=15字（placeholder「15文字以内で入力してください」実測）。デリじゃは紹介文欄なし=PR文のみ。
 $MEDIA_PROF_DEF = [
     'fujoho'   => ['label' => '情報局',   'catch' => ['キャッチコピー', 30],  'comment' => ['コメント', null]],
     'ekichika' => ['label' => '駅ちか',   'catch' => ['キャッチコピー', 15],  'comment' => ['コメント', 300]],
     'heaven'   => ['label' => 'ヘブン',   'catch' => ['キャッチコピー', null], 'comment' => ['コメント/PR', null]],
-    'fuzoku'   => ['label' => '風じゃ',   'catch' => ['紹介文', null],         'comment' => ['PR文', null]],
-    'deli'     => ['label' => 'デリじゃ', 'catch' => ['紹介文', null],         'comment' => ['PR文', null]],
+    'fuzoku'   => ['label' => '風じゃ',   'catch' => ['紹介文', 15],           'comment' => ['PR文', null]],
+    'deli'     => ['label' => 'デリじゃ', 'catch' => null,                     'comment' => ['PR文', null]],
 ];
 
 layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
@@ -417,7 +418,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
           <?php if (!empty($mediaProf[$mkey])): ?><span style="color:#0d9488;font-size:.85em;margin-left:6px">✎ 専用文あり</span>
           <?php else: ?><span style="color:#94a3b8;font-size:.8em;margin-left:6px">共通文を使用</span><?php endif; ?>
         </summary>
-        <?php foreach (['catch', 'comment'] as $fkey): [$flabel, $fmax] = $md[$fkey]; $fval = (string)($mediaProf[$mkey][$fkey] ?? ''); ?>
+        <?php foreach (['catch', 'comment'] as $fkey): if (empty($md[$fkey])) continue; [$flabel, $fmax] = $md[$fkey]; $fval = (string)($mediaProf[$mkey][$fkey] ?? ''); ?>
           <div class="field" style="margin-top:8px">
             <label style="font-size:.85em">
               <?= h($md['label']) ?>用<?= h($flabel) ?><?= $fmax ? "（{$fmax}文字まで）" : '（文字数制限なし）' ?>
