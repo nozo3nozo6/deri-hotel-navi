@@ -32,6 +32,14 @@ try {
         $imgs->execute([$id]);
         $girl['images'] = $imgs->fetchAll(PDO::FETCH_ASSOC);
 
+        // 媒体別プロフィール（キャッチ/コメント。未設定媒体は共通値を使う＝bot同期のデータ源）
+        $mp = DB::conn()->prepare('SELECT media, field, value FROM girl_media_profiles WHERE girl_id = ?');
+        $mp->execute([$id]);
+        $girl['media_profiles'] = [];
+        foreach ($mp->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $girl['media_profiles'][$r['media']][$r['field']] = $r['value'];
+        }
+
         // 特徴タグ
         $tg = DB::conn()->prepare(
             'SELECT git.name FROM girl_image_tag_links gitl

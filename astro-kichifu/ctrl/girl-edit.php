@@ -117,6 +117,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
             }
 
+            // 媒体別プロフィール（キャッチ/コメント）: 媒体の文字数制限に合わせた専用値。
+            //   空欄=行削除（共通のキャッチ/コメントを自動使用）。girl_media_profiles に upsert。
+            $mpUp  = db()->prepare('INSERT INTO girl_media_profiles (girl_id, media, field, value) VALUES (?,?,?,?)
+                                    ON DUPLICATE KEY UPDATE value=VALUES(value)');
+            $mpDel = db()->prepare('DELETE FROM girl_media_profiles WHERE girl_id=? AND media=? AND field=?');
+            foreach ((array)($_POST['media_profile'] ?? []) as $mkey => $fields2) {
+                if (!in_array($mkey, ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli'], true)) continue;
+                foreach ((array)$fields2 as $fkey => $val) {
+                    if (!in_array($fkey, ['catch', 'comment'], true)) continue;
+                    $val = trim((string)$val);
+                    if ($val === '') { $mpDel->execute([$id, $mkey, $fkey]); }
+                    else { $mpUp->execute([$id, $mkey, $fkey, $val]); }
+                }
+            }
+
             // 媒体用1枚目（レインボー枠版）: オフィシャルには出さず、媒体（情報局/駅ちか/ヘブン/風じゃ/デリじゃ）の
             //   メイン写真としてだけ使う。2枚目以降はオフィシャルの画像（girl_images）と共通＝媒体登録パックで配布。
             $curMediaTop = db()->prepare('SELECT media_top_image FROM girls WHERE id=?');
@@ -174,6 +189,22 @@ if ($id) {
         $profDisplay[(int)$r['girl_profile_id']] = (int)$r['is_display'];
     }
 }
+
+// 媒体別プロフィール（キャッチ/コメント）読込
+$mediaProf = [];   // media => field => value
+if ($id) {
+    $mp = db()->prepare('SELECT media, field, value FROM girl_media_profiles WHERE girl_id=?');
+    $mp->execute([$id]);
+    foreach ($mp->fetchAll() as $r) { $mediaProf[$r['media']][$r['field']] = $r['value']; }
+}
+// 媒体ごとの文字数制限（2026-07-20 実フォーム調査。null=明確な上限なし＝カウンタのみ）
+$MEDIA_PROF_DEF = [
+    'fujoho'   => ['label' => '情報局',   'catch' => ['キャッチコピー', 30],  'comment' => ['コメント', null]],
+    'ekichika' => ['label' => '駅ちか',   'catch' => ['キャッチコピー', 15],  'comment' => ['コメント', 300]],
+    'heaven'   => ['label' => 'ヘブン',   'catch' => ['キャッチコピー', null], 'comment' => ['コメント/PR', null]],
+    'fuzoku'   => ['label' => '風じゃ',   'catch' => ['紹介文', null],         'comment' => ['PR文', null]],
+    'deli'     => ['label' => 'デリじゃ', 'catch' => ['紹介文', null],         'comment' => ['PR文', null]],
+];
 
 layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 ?>
@@ -372,6 +403,60 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       </div>
     </div>
   </div>
+
+  <div class="card card-pad" style="border:1px solid #99f6e4;background:#f0fdfa">
+    <strong>📝 媒体別プロフィール（キャッチ・コメント）</strong>
+    <p class="muted" style="margin:6px 0 10px;font-size:.85em">
+      媒体ごとの<strong>文字数制限に合わせた専用文</strong>を登録できます。<strong>空欄の媒体は上の共通キャッチ/コメントを自動で使います</strong>（超過分は同期時に自動カット）。<br>
+      名前・年齢・サイズ・Q&Aプロフィールは共通項目からそのまま各媒体形式に変換されるため、ここでの入力は不要です。
+    </p>
+    <?php foreach ($MEDIA_PROF_DEF as $mkey => $md): ?>
+      <details style="margin-bottom:8px;background:#fff;border:1px solid #ccfbf1;border-radius:8px;padding:8px 12px" <?= !empty($mediaProf[$mkey]) ? 'open' : '' ?>>
+        <summary style="cursor:pointer;font-weight:700;font-size:.9em">
+          <?= h($md['label']) ?>用
+          <?php if (!empty($mediaProf[$mkey])): ?><span style="color:#0d9488;font-size:.85em;margin-left:6px">✎ 専用文あり</span>
+          <?php else: ?><span style="color:#94a3b8;font-size:.8em;margin-left:6px">共通文を使用</span><?php endif; ?>
+        </summary>
+        <?php foreach (['catch', 'comment'] as $fkey): [$flabel, $fmax] = $md[$fkey]; $fval = (string)($mediaProf[$mkey][$fkey] ?? ''); ?>
+          <div class="field" style="margin-top:8px">
+            <label style="font-size:.85em">
+              <?= h($md['label']) ?>用<?= h($flabel) ?><?= $fmax ? "（{$fmax}文字まで）" : '（文字数制限なし）' ?>
+              <span class="mp-count" style="color:#94a3b8;font-size:.9em;margin-left:6px"></span>
+            </label>
+            <?php if ($fkey === 'catch'): ?>
+              <input type="text" name="media_profile[<?= $mkey ?>][catch]" value="<?= h($fval) ?>"
+                     <?= $fmax ? 'maxlength="' . (int)$fmax . '"' : '' ?> data-mp-max="<?= (int)($fmax ?? 0) ?>"
+                     placeholder="空欄=共通キャッチ<?= $fmax ? '（' . $fmax . '文字に自動カット）' : '' ?>を使用">
+            <?php else: ?>
+              <textarea name="media_profile[<?= $mkey ?>][comment]" rows="3"
+                        <?= $fmax ? 'maxlength="' . (int)$fmax . '"' : '' ?> data-mp-max="<?= (int)($fmax ?? 0) ?>"
+                        placeholder="空欄=共通コメント<?= $fmax ? '（' . $fmax . '文字に自動カット）' : '' ?>を使用"><?= h($fval) ?></textarea>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </details>
+    <?php endforeach; ?>
+  </div>
+  <script>
+  // 媒体別フィールドの残り文字数カウンター
+  document.querySelectorAll('[data-mp-max]').forEach(function (el) {
+    var max = parseInt(el.getAttribute('data-mp-max'), 10);
+    var label = el.closest('.field').querySelector('.mp-count');
+    function upd() {
+      var len = el.value.length;
+      if (max > 0) {
+        label.textContent = '（' + len + '/' + max + '文字）';
+        label.style.color = len > max ? '#dc2626' : (len > max * 0.9 ? '#d97706' : '#94a3b8');
+      } else if (len > 0) {
+        label.textContent = '（' + len + '文字）';
+      } else {
+        label.textContent = '';
+      }
+    }
+    el.addEventListener('input', upd);
+    upd();
+  });
+  </script>
 
   <div class="card card-pad">
     <strong>画像</strong>
