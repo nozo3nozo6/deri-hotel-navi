@@ -155,24 +155,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             // サイト自動リビルド
             trigger_deploy();
 
-            $syncMode = (string)($_POST['save_and_sync'] ?? '');
-            if ($syncMode !== '') {
-                // 保存後に媒体同期を bot へ即時キック。同期対象を店長が選べる:
-                //   both=テキスト+写真 / profile=コメント(キャッチ/コメント)のみ / photo=写真のみ。
-                // どちらも bot 側で差分検知（プロフ=フォーム現行値比較 / 写真=set_hash指紋）し、
-                // 変わった子・変わった項目だけ反映＝他の子や未変更項目には影響なし。写真の並べ替え/削除は
-                // AJAXで別保存されるが、photo_sync は保存時に投げれば set_hash が現在のDB状態で判定する。
-                [$jobs, $changed, $what] = match ($syncMode) {
-                    'profile' => [['profile_sync'], ['profile'], 'コメント（キャッチ/コメント）'],
-                    'photo'   => [['photo_sync'], ['photo'], '写真'],
-                    default   => [['profile_sync', 'photo_sync'], ['profile', 'photo'], 'コメント＋写真'],
-                };
-                require_once __DIR__ . '/../api/media-webhook.php';
-                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], $changed, 'ctrl', $jobs);
-                flash('ok', "保存しました。媒体へ「{$what}」の同期を開始しました（5媒体・数分で反映）。変更があった子・項目だけ反映されます。");
-            } else {
-                flash('ok', '保存しました。ページをリロードすると即時反映されます。');
-            }
+            flash('ok', '保存しました。ページをリロードすると即時反映されます。');
             redirect('girl-edit.php?id=' . $id);
         } catch (Throwable $e) {
             db()->rollBack();
@@ -515,12 +498,13 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <button class="btn btn-primary" type="submit">保存する</button>
     <a class="btn" href="/ctrl/girls.php">キャンセル</a>
   </div>
+</form>
 
   <?php if ($id): ?>
     <div class="card card-pad" style="border:1px solid #99f6e4;background:#f0fdfa;margin-top:14px">
-      <strong style="color:#0d9488">📤 保存して媒体へ同期</strong>
+      <strong style="color:#0d9488">🔄 保存済みの内容を媒体へ同期</strong>
       <p class="muted" style="font-size:.8em;margin:6px 0 10px">
-        全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へこの画面の内容を同期します。まず同期する内容を選び、確定ボタンを押してください。<br>
+        <strong>DBに保存されている現在の内容</strong>（未保存の編集は含みません。先に上の「保存する」を押してください）を、全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。まず同期する内容を選び、確定ボタンを押してください。<br>
         <strong>両方</strong>＝コメント＋写真 ／ <strong>💬 コメントのみ</strong>＝キャッチ/コメントだけ（写真は触らない） ／ <strong>🖼 写真のみ</strong>＝写真だけ（コメントは触らない）。<br>
         コメント＝媒体別欄があればそれ優先、無ければ共通文。写真＝「媒体用1枚目（あれば）＋オフィシャル②以降」の順。いずれも<strong>変更があった子・項目だけ反映</strong>されます（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
         写真パックDL（📦）は手動登録したいとき用に残しています。
@@ -530,14 +514,13 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
         <button type="button" class="btn sync-mode-btn" data-mode="profile">💬 コメントのみ</button>
         <button type="button" class="btn sync-mode-btn" data-mode="photo">🖼 写真のみ</button>
       </div>
-      <input type="hidden" name="save_and_sync" id="save_and_sync" value="">
-      <button class="btn" type="submit" id="sync-confirm-btn" disabled
-              style="margin-top:12px;border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700;opacity:.5;cursor:not-allowed">
+      <button type="button" id="sync-confirm-btn" disabled
+              style="margin-top:12px;padding:8px 16px;border-radius:8px;border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700;opacity:.5;cursor:not-allowed">
         選択してください
       </button>
+      <p id="sync-result" class="muted" style="font-size:.8em;margin-top:8px;display:none"></p>
     </div>
   <?php endif; ?>
-</form>
 
 <script>
 const CSRF = '<?= h(csrf_token()) ?>';
@@ -594,29 +577,62 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
   if ((await r.json()).ok) { b.closest('[data-img]').remove(); renumberImages(); await saveImageOrder(); }
 }));
 
-// 媒体同期: 選択→確定の2段階（誤タップ防止）
+// 保存済みの内容を媒体へ同期: 選択→確定の2段階（誤タップ防止）。フォーム保存とは独立したAJAX
+// （bot は DB の現在値を読むため、この操作自体は何も保存しない＝押す前に必ず「保存する」を済ませておくこと）
 (() => {
   const picker = document.getElementById('sync-mode-picker');
   if (!picker) return;
-  const hidden = document.getElementById('save_and_sync');
+  const girlId = <?= (int)$id ?>;
   const confirmBtn = document.getElementById('sync-confirm-btn');
+  const resultEl = document.getElementById('sync-result');
+  let selectedMode = '';
   const LABEL = { both: '両方（コメント＋写真）', profile: 'コメントのみ', photo: '写真のみ' };
   const CONFIRM_MSG = {
-    both: '保存して、コメント＋写真の両方を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます',
-    profile: '保存して、コメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？',
-    photo: '保存して、写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります',
+    both: '保存済みの内容（コメント＋写真）を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます',
+    profile: '保存済みのコメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？',
+    photo: '保存済みの写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります',
   };
   picker.querySelectorAll('.sync-mode-btn').forEach(btn => btn.addEventListener('click', () => {
     picker.querySelectorAll('.sync-mode-btn').forEach(b => b.classList.remove('sync-mode-active'));
     btn.classList.add('sync-mode-active');
-    hidden.value = btn.dataset.mode;
+    selectedMode = btn.dataset.mode;
     confirmBtn.disabled = false;
     confirmBtn.style.opacity = '1';
     confirmBtn.style.cursor = 'pointer';
-    confirmBtn.textContent = '📤 「' + LABEL[btn.dataset.mode] + '」で同期する';
+    confirmBtn.textContent = '🔄 「' + LABEL[selectedMode] + '」を同期する';
+    resultEl.style.display = 'none';
   }));
-  confirmBtn.addEventListener('click', (e) => {
-    if (!hidden.value || !confirm(CONFIRM_MSG[hidden.value])) e.preventDefault();
+  confirmBtn.addEventListener('click', async () => {
+    if (!selectedMode || !confirm(CONFIRM_MSG[selectedMode])) return;
+    confirmBtn.disabled = true;
+    confirmBtn.style.cursor = 'wait';
+    const prevText = confirmBtn.textContent;
+    confirmBtn.textContent = '送信中…';
+    try {
+      const fd = new FormData();
+      fd.append('_csrf', CSRF);
+      fd.append('action', 'sync-media');
+      fd.append('girl_id', girlId);
+      fd.append('mode', selectedMode);
+      const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
+      const j = await r.json();
+      resultEl.style.display = 'block';
+      if (j.ok) {
+        resultEl.style.color = '#0d9488';
+        resultEl.textContent = '✅ 同期を開始しました。数分で反映されます。';
+      } else {
+        resultEl.style.color = '#dc2626';
+        resultEl.textContent = '⚠ 送信に失敗しました。もう一度お試しください。';
+      }
+    } catch (e) {
+      resultEl.style.display = 'block';
+      resultEl.style.color = '#dc2626';
+      resultEl.textContent = '⚠ 通信エラーが発生しました。';
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.style.cursor = 'pointer';
+      confirmBtn.textContent = prevText;
+    }
   });
 })();
 </script>

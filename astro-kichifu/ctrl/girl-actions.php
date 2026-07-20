@@ -94,6 +94,26 @@ try {
             echo json_encode(['ok' => true]);
             break;
         }
+        case 'sync-media': {
+            // 保存済み（DB上）の内容を媒体へ同期。フォーム保存とは独立したアクション
+            // （bot は Official API 経由で現在の DB 値を読むため、未保存の編集は反映されない＝仕様どおり）。
+            $gid = (int)($_POST['girl_id'] ?? 0);
+            $mode = (string)($_POST['mode'] ?? '');
+            if (!own_girl($gid)) throw new RuntimeException('not found');
+            $nameSt = db()->prepare('SELECT name FROM girls WHERE id=?');
+            $nameSt->execute([$gid]);
+            $gname = (string)($nameSt->fetchColumn() ?: '');
+            [$jobs, $changed] = match ($mode) {
+                'profile' => [['profile_sync'], ['profile']],
+                'photo'   => [['photo_sync'], ['photo']],
+                'both'    => [['profile_sync', 'photo_sync'], ['profile', 'photo']],
+                default   => throw new RuntimeException('bad mode'),
+            };
+            require_once __DIR__ . '/../api/media-webhook.php';
+            media_webhook_notify($shop, $gid, $gname, $changed, 'ctrl', $jobs);
+            echo json_encode(['ok' => true]);
+            break;
+        }
         case 'girl-images': {
             // 女の子の登録画像一覧（お知らせのサムネ選択用）。sort 順で path を返す
             $gid = (int)($_POST['girl_id'] ?? 0);
