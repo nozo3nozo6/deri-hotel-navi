@@ -118,13 +118,16 @@ try {
     $editCol = ($media === 'fuzoku' || $media === 'deli') ? "{$media}_edit_id" : null;
     $editSel = $editCol ? ", mi.{$editCol} AS edit_id" : '';
 
+    // webhook 1人分を軽くするため girl_id フィルタ対応（省略時=紐付け全件）
+    $onlyGirl = (int)($_GET['girl_id'] ?? 0);
+    $girlCond = $onlyGirl > 0 ? ' AND mi.girl_id = ?' : '';
     $st = DB::conn()->prepare(
         "SELECT mi.girl_id, mi.{$col} AS media_id, g.name, g.media_top_image{$editSel}
            FROM girl_media_ids mi
            JOIN girls g ON g.id = mi.girl_id AND g.is_display = 1
-          WHERE mi.shop_id = ? AND mi.{$col} IS NOT NULL AND mi.{$col} <> ''"
+          WHERE mi.shop_id = ? AND mi.{$col} IS NOT NULL AND mi.{$col} <> ''{$girlCond}"
     );
-    $st->execute([$shopId]);
+    $st->execute($onlyGirl > 0 ? [$shopId, $onlyGirl] : [$shopId]);
     $rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
     $imStmt = DB::conn()->prepare('SELECT path FROM girl_images WHERE girl_id = ? ORDER BY sort, id');

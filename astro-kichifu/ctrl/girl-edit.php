@@ -156,11 +156,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             trigger_deploy();
 
             if (!empty($_POST['save_and_sync'])) {
-                // 保存後に媒体プロフィール同期を bot へ即時キック（情報局・駅ちか・ヘブン。
-                // bot はフォーム現行値と比較し差分のある子だけ保存＝他の子への影響なし）
+                // 保存後に媒体同期を bot へ即時キック（テキスト=profile_sync / 写真=photo_sync、5媒体）。
+                // どちらも bot 側で差分検知（プロフ=フォーム現行値比較 / 写真=set_hash指紋）し、
+                // 変わった子・変わった項目だけ反映＝他の子や未変更項目には影響なし。写真の並べ替え/削除は
+                // AJAXで別保存されるが、photo_sync は保存時に必ず投げて set_hash が現在のDB状態で判定する。
                 require_once __DIR__ . '/../api/media-webhook.php';
-                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], ['profile'], 'ctrl', ['profile_sync']);
-                flash('ok', '保存しました。媒体プロフィール同期を開始しました（情報局・駅ちか・ヘブン・風じゃ・デリじゃ、数分で反映）。');
+                media_webhook_notify($shop, (int)$id, (string)$_POST['name'], ['profile', 'photo'], 'ctrl', ['profile_sync', 'photo_sync']);
+                flash('ok', '保存しました。媒体へ同期を開始しました（テキスト＋写真・5媒体、数分で反映）。写真は変更があった子だけ差し替わります。');
             } else {
                 flash('ok', '保存しました。ページをリロードすると即時反映されます。');
             }
@@ -495,7 +497,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <?php if ($id): ?>
       <button class="btn" type="submit" name="save_and_sync" value="1"
               style="border:1px solid #99f6e4;background:#f0fdfa;color:#0d9488;font-weight:700"
-              onclick="return confirm('保存して、キャッチ/コメントを媒体（情報局・駅ちか・ヘブン）へ同期します。よろしいですか？\n※媒体側の現行文と差分がある場合のみ上書きされます')">
+              onclick="return confirm('保存して、キャッチ/コメント＋写真を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ上書きされます（写真も変更があった子だけ差し替え）')">
         📤 保存して媒体へ同期
       </button>
     <?php endif; ?>
@@ -503,8 +505,9 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
   </div>
   <?php if ($id): ?>
     <p class="muted" style="font-size:.8em;margin-top:6px">
-      「保存して媒体へ同期」＝ 全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）のキャッチ/コメントをこの画面の内容（媒体別欄があればそれ優先、無ければ共通文）に更新します。
-      写真は自動同期されません（写真パックDLで手動登録してください）。デリじゃはPR文のみ（紹介文欄なし）。
+      「保存して媒体へ同期」＝ 全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）に、キャッチ/コメント（媒体別欄があればそれ優先、無ければ共通文）と<strong>写真</strong>をこの画面の内容へ更新します。
+      写真は「媒体用1枚目（あれば）＋オフィシャル②以降」の順で反映。<strong>変更があった子・項目だけ差し替わります</strong>（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
+      写真パックDL（📦）は手動登録したいとき用に残しています。
     </p>
   <?php endif; ?>
 </form>
