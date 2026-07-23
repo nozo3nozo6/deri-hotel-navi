@@ -29,6 +29,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $data['sort'] = (int)$m->fetchColumn();
             $cols = implode(',', array_keys($data)); $ph = implode(',', array_map(fn($k) => ":$k", array_keys($data)));
             db()->prepare("INSERT INTO banners ($cols) VALUES ($ph)")->execute($data);
+            $id = (int)db()->lastInsertId();
+        }
+        // 表示店舗（banner_shops）。チェックされた実在店舗のみ（girl_shops と同作法）
+        $shopIds = array_values(array_unique(array_map('intval', (array)($_POST['shops'] ?? []))));
+        db()->prepare('DELETE FROM banner_shops WHERE banner_id=?')->execute([$id]);
+        if ($shopIds) {
+            $okShop = db()->prepare('SELECT 1 FROM shops WHERE id=?');
+            $insBS  = db()->prepare('INSERT IGNORE INTO banner_shops (banner_id, shop_id) VALUES (?,?)');
+            foreach ($shopIds as $sid) { $okShop->execute([$sid]); if ($okShop->fetchColumn()) $insBS->execute([$id, $sid]); }
         }
         flash('ok', '保存しました。');
         redirect('banners.php?type=' . $data['type']);
@@ -37,6 +46,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
 $b = ['type' => ($_GET['type'] ?? 'top'), 'title' => '', 'url' => '', 'image' => '', 'is_display' => 1];
 if ($id) { $s = db()->prepare('SELECT * FROM banners WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $b = $s->fetch(); if (!$b) { flash('err', '対象が見つかりません。'); redirect('banners.php'); } }
+
+// 表示店舗（新規＝両店デフォルトON / 編集＝現在の banner_shops）
+$allShops = shops_list();
+$linkedShops = array_map('intval', array_column($allShops, 'id'));
+if ($id) {
+    $ls = db()->prepare('SELECT shop_id FROM banner_shops WHERE banner_id=?');
+    $ls->execute([$id]);
+    $linkedShops = array_map('intval', array_column($ls->fetchAll(), 'shop_id'));
+}
 
 layout_header($id ? 'バナーを編集' : 'バナーを作成', 'banners.php');
 ?>
@@ -54,6 +72,19 @@ layout_header($id ? 'バナーを編集' : 'バナーを作成', 'banners.php');
       <input type="file" name="image" accept="image/*">
     </div>
     <label class="check"><input type="checkbox" name="is_display" <?= (int)$b['is_display'] ? 'checked' : '' ?>> サイトに表示</label>
+  </div>
+  <div class="card card-pad">
+    <strong>表示店舗</strong>
+    <span class="muted" style="font-weight:400;font-size:12px;margin-left:8px">ONにした店舗のサイトに表示されます（立川だけ／吉祥寺だけ も可）</span>
+    <div style="display:flex;flex-wrap:wrap;gap:14px 32px;margin-top:14px">
+      <?php foreach ($allShops as $sh): ?>
+        <label class="shop-toggle" style="gap:10px;cursor:pointer">
+          <input type="checkbox" class="shop-toggle-cb" name="shops[]" value="<?= (int)$sh['id'] ?>" <?= in_array((int)$sh['id'], $linkedShops, true) ? 'checked' : '' ?>>
+          <span class="toggle" aria-hidden="true"></span>
+          <span style="font-size:14px;font-weight:600;color:var(--text)"><?= h($sh['area']) ?><span class="muted" style="font-weight:400">（<?= h($sh['name']) ?>）</span></span>
+        </label>
+      <?php endforeach; ?>
+    </div>
   </div>
   <div class="form-actions"><button class="btn btn-primary" type="submit">保存する</button><a class="btn" href="/ctrl/banners.php">キャンセル</a></div>
 </form>

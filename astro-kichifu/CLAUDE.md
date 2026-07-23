@@ -2,6 +2,21 @@
 
 吉祥寺デリヘル「アドミ」の公式サイト。yobuho / ylka とは独立した別プロジェクト（同じ sv6051 サーバーに同居）。
 
+## 実装履歴（2026-07-23）— スライダー/バナーに「表示店舗」トグル（立川・吉祥寺、キャストと同方式）
+
+スタッフ報告「admi2888のCTRLで設定したスライダーバナーが kichifu.com/top に反映されない」の恒久対応。
+- **直近原因（応急）**: kichifu(shop2)のスライダー「イベント」「高収入求人」が消滅した `/uploads/banners/1/` を参照し画像404 → 立川(shop1)の同名スライダーの正常な `/uploads/sliders/1/` パスへDB直接UPDATEで修復。
+- **本質**: スライダー/バナーは shop_id で完全分離（立川と吉祥寺で別レコード）＝「両店に出したい1枚」を1回で登録できず、店ごとに二重登録が必要だった。
+- **恒久対応（キャスト girl_shops と同じ多対多 junction 方式）**:
+  - **DB**（`sql/migration_slider_banner_shops.sql`、両サイト共有DBで実行済み）: `slider_shops(slider_id,shop_id)` / `banner_shops(banner_id,shop_id)` 新設（PK複合・FK ON DELETE CASCADE=親削除で junction 自動削除）。既存行は「自店のみ表示」でバックフィル＝**現状の挙動を完全維持（無回帰）**。
+  - **オーナー店 vs 表示先の分離**: `sliders/banners.shop_id`＝**オーナー店（CTRL一覧の所属・上部ドロップダウンで決定・据え置き）**、`*_shops` junction＝**表示先店舗（立川/吉祥寺トグル、デフォ両店ON）**。＝「立川で登録→吉祥寺トグルOFFで立川専用」「ドロップダウンを吉祥寺に切替えて登録→吉祥寺の一覧に入る」がユーザー要望どおり成立。
+  - **CTRL**（`ctrl/slider-edit.php`・`ctrl/banner-edit.php`）: girl-edit と同じ `.shop-toggle` トグルカード「表示店舗」を追加。保存時に junction を DELETE→INSERT（実在店舗のみ）。新規=両店デフォルトON／編集=現 junction 読込。一覧（`ctrl/sliders.php`・`ctrl/banners.php`）に「表示先」列（両店／◯◯のみ／表示先なし の色付きバッジ `.disp-badge`）。**一覧クエリはオーナー店基準のまま**（各店が自店のリストを管理）。
+  - **表示API**（`api/sliders.php`・`api/banners.php`、両サイト配信）: `WHERE shop_id=?` → `WHERE EXISTS(*_shops で shop_id 一致)` に変更。これが表示先を決める。`is_display=1` は従来どおり別軸のON/OFF。
+- **配信**: PHPのみ＝直接rsync（api→admi2888/kichifu 両方、ctrl→admi2888 のみ）。Astroビルド不要。
+- **本番検証 全PASS**: API各店5件維持（無回帰）／テスト用スライダー「吉祥寺のみ」設定→立川API除外・吉祥寺API包含／FK CASCADEで削除時 junction 自動消去／CTRL全ページ 302(login)＝fatal無し。
+- ⚠️ ソート順の注意: 立川owner・両店表示の行と吉祥寺owner行が同一サイトに混在すると sort 値が別系列で交錯しうる（tie は id 順）。現状は既存行が全て単店表示なので発生せず。cross表示を多用し始めたら店ごとに sort 調整が必要。
+- ⚠️ 未コミット（他セッションの作業中ファイルとツリー混在のため）。フル再デプロイ（deploy.sh/deploy-prod）が走ると git 上の旧版で上書きされうる → この6ファイル(+sql)は要コミット。
+
 ## Stack
 - Frontend: Astro 5 (SSG) + Tailwind v4 (@tailwindcss/vite)
   - ※ Astro 6 + Tailwind v4 は Rolldown の `tsconfigPaths` エラーでビルド不可 → **Astro 5 固定**
