@@ -10,7 +10,9 @@
 //   本日/明日（CLAUDE-NEXT-DAY-PREP.md 案A）: 今夜のうちに明日(D+1)の即姫を仕込める。
 //     一覧の表示営業日は §4 のロジックで自動選択（本日出勤が終了前=本日 / 終わった or 無い=明日）。
 //     明日行の保存では Webhook を送らない（bot は D+1 を無視。朝5:01の rollover が D 昇格後に force 同期）。
-//     「今すぐ」「受付終了」は"いま"の操作なので本日行のみ（明日は時刻設定で仕込む）。
+//     「今すぐ」は"いま"の操作なので本日行のみ（明日は時刻設定で仕込む）。
+//     「受付終了」は明日行でも可（人気の子は前日のうちに予約が埋まる＝事前に受付終了を仕込める。
+//      2026-07-25 店長指示）。明日行のフラグは朝5:01の rollover で D 昇格後に媒体へ反映される。
 //   関連: sql/migration_play_availability.sql / references: official-ui-brief-for-claude.md
 // ==========================================================================
 require_once __DIR__ . '/_lib.php';
@@ -51,6 +53,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         if ($isNext) return;
         media_webhook_notify($shop, $gid, $gname, $changed, 'ctrl', $jobs);
     };
+    // 即姫コアを共有キャストの他店舗へファンアウト（立川で設定→吉祥寺も自動連動）。
+    //   CTRL は play_availability を DB直接書き込みするため、ここで同伴店舗(girl_shops)へコピーする
+    //   （api/play-availability.php のファンアウトは CTRL 経路を通らないため）。play_at/reception_closed/status
+    //   のみ。himewari(店別料金)は各店のまま。各店の sugu_hime cron が数十秒で拾って媒体へ反映。
+    $fanout = function (int $gid, string $bd) use ($shop, $by) {
+        try {
+            $pv = db()->prepare('SELECT play_at, reception_closed, status FROM play_availability WHERE shop_id=? AND girl_id=? AND shift_business_date=?');
+            $pv->execute([$shop, $gid, $bd]);
+            $row = $pv->fetch(PDO::FETCH_ASSOC);
+            if (!$row) return;
+            $sib = db()->prepare('SELECT shop_id FROM girl_shops WHERE girl_id=? AND shop_id<>?');
+            $sib->execute([$gid, $shop]);
+            $siblings = $sib->fetchAll(PDO::FETCH_COLUMN);
+            if (!$siblings) return;
+            $fo = db()->prepare(
+                'INSERT INTO play_availability (shop_id, girl_id, shift_business_date, play_at, reception_closed, status, updated_by)
+                 VALUES (?,?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), reception_closed=VALUES(reception_closed), status=VALUES(status), updated_by=VALUES(updated_by)'
+            );
+            foreach ($siblings as $sid) {
+                $fo->execute([(int)$sid, $gid, $bd, $row['play_at'], $row['reception_closed'], $row['status'], $by . ':fanout']);
+            }
+        } catch (Throwable $e) {
+            error_log('ctrl play-availability fanout: ' . $e->getMessage());
+        }
+    };
 
     // girl が当店掲載中か（越境防止）
     $own = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
@@ -86,31 +114,47 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 ? date('n/j H:i', $ts) . ' から遊べる（時刻が来ているので「今すぐ遊べる」表示）で保存しました。'
                 : date('n/j H:i', $ts) . ' から遊べる、で保存しました。')));
         $notify(['play_at', 'status']);
+        $fanout($gid, $bd);
     } elseif ($action === 'now') {
         if ($isNext) { flash('err', $gname . ': 「今すぐ」は本日のみです（明日は時刻設定で仕込んでください）。'); redirect('play-availability.php'); }
         $ts = intdiv(time(), 300) * 300;                     // 5分切り下げ → play_at<=now で即「今すぐ」
         $upsert->execute([$shop, $gid, $bd, date('Y-m-d H:i:00', $ts), $by]);
         flash('ok', $gname . ': 「今すぐ遊べる（即姫）」で保存しました。');
         $notify(['play_at', 'status']);
+        $fanout($gid, $bd);
     } elseif ($action === 'close') {
         // 受付終了（CLAUDE-UKETSUKE-SHURYO.md）: 出勤(shift_*)は残したまま即姫だけ止める＝出勤解除とは別。
         //   status は active のまま（GET既定 status=active から落とすと bot がヒメ割・出勤表の対象を見失う）。
         //   jobs を明示＝schedule(出勤表)/himewari(ヒメ割)は絶対に起動させない（媒体の出勤表とヒメ割は維持）。
-        if ($isNext) { flash('err', $gname . ': 「受付終了」は本日のみです。'); redirect('play-availability.php'); }
+        //   明日行にも設定できる（人気の子は前日のうちに予約が埋まるため事前に仕込む・2026-07-25 店長指示）。
+        //   明日行は Webhook を送らない（bot は D+1 を無視）。朝5:01 の rollover が D 昇格後に force 同期する。
         $st = db()->prepare(
             'INSERT INTO play_availability (shop_id, girl_id, shift_business_date, play_at, reception_closed, status, updated_by)
              VALUES (?,?,?,NULL,1,"active",?)
              ON DUPLICATE KEY UPDATE play_at=NULL, reception_closed=1, status="active", updated_by=VALUES(updated_by)'
         );
         $st->execute([$shop, $gid, $bd, $by]);
-        flash('ok', $gname . ': 受付終了にしました（出勤はそのまま／即ヒメ・接客・待機のみ停止。ヒメ割は掲載継続）。');
+        flash('ok', $gname . ': ' . ($isNext
+            ? '明日ぶんを受付終了で仕込みました（明日の朝5時以降に媒体へ自動反映／出勤・ヒメ割はそのまま）。'
+            : '受付終了にしました（出勤はそのまま／即ヒメ・接客・待機のみ停止。ヒメ割は掲載継続）。'));
         $notify(['play_at', 'status', 'reception_closed'], ['sugu_hime', 'ekichika', 'heaven', 'fuzoku', 'deli']);
+        $fanout($gid, $bd);
+    } elseif ($action === 'reopen') {
+        // 受付再開（明日行用）: 受付終了フラグだけ解除して未設定に戻す。
+        //   本日行は「今すぐ」ボタンが受付再開を兼ねる（play_at=現在時刻）が、明日に"いま"は無いので
+        //   フラグ解除のみ。改めて遊べる時刻を入れたいときは時刻設定を使う。
+        $st = db()->prepare('UPDATE play_availability SET reception_closed=0, status="active", updated_by=? WHERE shop_id=? AND girl_id=? AND shift_business_date=?');
+        $st->execute([$by, $shop, $gid, $bd]);
+        flash('ok', $gname . ': ' . $dayLbl . 'の受付終了を解除しました（時刻設定で遊べる時刻を入れられます）。');
+        $notify(['play_at', 'status', 'reception_closed'], ['sugu_hime', 'ekichika', 'heaven', 'fuzoku', 'deli']);
+        $fanout($gid, $bd);
     } elseif ($action === 'clear') {
         // 即姫クリア（受付終了フラグも解除＝cleared と受付終了が同時に立つ曖昧な状態を作らない）
         $st = db()->prepare('UPDATE play_availability SET status="cleared", reception_closed=0, updated_by=? WHERE shop_id=? AND girl_id=? AND shift_business_date=?');
         $st->execute([$by, $shop, $gid, $bd]);
         flash('ok', $gname . ': ' . $dayLbl . 'の設定をクリアしました' . ($isNext ? '。' : '（媒体側は bot が取消します）。'));
         $notify(['play_at', 'status', 'reception_closed']);
+        $fanout($gid, $bd);
     } elseif ($action === 'himewari') {
         // ヒメ割（情報局のみ・CLAUDE-HIMEWARI-AUTO.md）: 編集できるのは「分」「円」だけ。
         //   ON/OFFは廃止（本日出勤があれば自動掲載・出勤終了で自動取消＝bot側は shift_end_at と現在時刻のみで判断）。
@@ -337,7 +381,7 @@ layout_header('最速で遊べる時間', 'play-availability.php');
 </div>
 
 <?php if ($view === 'tomorrow'): ?>
-  <div class="pa-next-note">📅 <b>明日（<?= h(date('n/j', strtotime($nextDate))) ?>）の仕込み</b>です。ここで保存した即姫は<b>媒体にはまだ出ません</b>。明日の朝5時を過ぎると自動で「本日」になり、botが媒体へ反映します。<br>※「今すぐ」「受付終了」は“いまの操作”なので本日のみです。明日は<b>時刻設定</b>で仕込んでください。</div>
+  <div class="pa-next-note">📅 <b>明日（<?= h(date('n/j', strtotime($nextDate))) ?>）の仕込み</b>です。ここで保存した即姫は<b>媒体にはまだ出ません</b>。明日の朝5時を過ぎると自動で「本日」になり、botが媒体へ反映します。<br>※「今すぐ」は“いまの操作”なので本日のみです。明日は<b>時刻設定</b>で仕込んでください。<br>※<b>🚫 受付終了</b>は明日ぶんも仕込めます（予約で埋まった子を前日のうちに受付終了にしておけます）。明日の朝5時以降に媒体へ反映され、出勤表・ヒメ割はそのまま残ります。</div>
 <?php endif; ?>
 
 <table class="pa-table">
@@ -364,7 +408,9 @@ layout_header('最速で遊べる時間', 'play-availability.php');
                  || strtotime($playAt) >= strtotime($rowBd . ' 05:00:00 +1 day'))) $playAt = null;
     // 受付終了（出勤は継続・即ヒメ系のみ停止）は即姫プレビューより優先して表示
     $rcClosed = !empty($g['reception_closed']);
-    [$prev, $cls] = $rcClosed ? ['🚫 受付終了（出勤中）', 'pa-closed'] : pa_preview($playAt, $g['status'], $endPassed);
+    [$prev, $cls] = $rcClosed
+        ? [$isNext ? '🚫 受付終了（明日ぶんを仕込み済み）' : '🚫 受付終了（出勤中）', 'pa-closed']
+        : pa_preview($playAt, $g['status'], $endPassed);
     // 時刻セレクトのプリセット値も、出勤終了を過ぎていたら --:-- にする（プレビューと連動）
     $paPreset = (!$rcClosed && $g['status'] === 'active' && $playAt && !$endPassed) ? substr($playAt, 11, 5) : null;
     // 出勤バッジ: 本日=緑「本日 21:00〜01:00」/ 明日=青「明日 18:00〜02:00」/ 本日終了済=グレー
@@ -401,13 +447,22 @@ layout_header('最速で遊べる時間', 'play-availability.php');
           <button type="submit" class="pa-btn pa-btn-now"><?= $rcClosed ? '受付再開（今すぐ）' : '今すぐ' ?></button>
         </form>
         <?php endif; ?>
-        <?php if (!$isNext && $g['work_start'] && !$endPassed && !$rcClosed): /* 出勤中のみ。受付終了＝出勤は残して即ヒメ系だけ止める（退勤・出勤クリアとは別） */ ?>
+        <?php if ($g['work_start'] && !$endPassed && !$rcClosed): /* 出勤がある行のみ。受付終了＝出勤は残して即ヒメ系だけ止める（退勤・出勤クリアとは別）。明日行は「予約で埋まった子」の事前仕込み */ ?>
         <form method="post">
           <?= csrf_field() ?>
           <?= $bdFields($g) ?>
           <input type="hidden" name="action" value="close">
           <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
-          <button type="submit" class="pa-btn pa-btn-close" onclick="return confirm('<?= h(addslashes($g['name'])) ?>を受付終了にしますか？\n\n・出勤（本日<?= h(substr($g['work_start'], 0, 5)) ?>〜）はそのまま残ります\n・即ヒメ／接客／待機だけ停止します\n・ヒメ割は掲載を続けます\n・再開は「今すぐ」か時刻設定でOK');">🚫 受付終了</button>
+          <button type="submit" class="pa-btn pa-btn-close" onclick="return confirm('<?= h(addslashes($g['name'])) ?>を<?= $isNext ? '明日ぶん' : '' ?>受付終了にしますか？\n\n・出勤（<?= $isNext ? '明日' : '本日' ?><?= h(substr($g['work_start'], 0, 5)) ?>〜）はそのまま残ります\n・即ヒメ／接客／待機だけ停止します\n・ヒメ割は掲載を続けます<?= $isNext ? '\n・媒体へは明日の朝5時以降に自動反映されます\n・解除は「受付再開」でOK' : '\n・再開は「今すぐ」か時刻設定でOK' ?>');">🚫 受付終了<?= $isNext ? '（明日）' : '' ?></button>
+        </form>
+        <?php endif; ?>
+        <?php if ($isNext && $rcClosed): /* 明日行には「今すぐ（＝受付再開）」が無いので、フラグ解除専用のボタンを出す */ ?>
+        <form method="post">
+          <?= csrf_field() ?>
+          <?= $bdFields($g) ?>
+          <input type="hidden" name="action" value="reopen">
+          <input type="hidden" name="girl_id" value="<?= (int)$g['id'] ?>">
+          <button type="submit" class="pa-btn pa-btn-now" onclick="return confirm('<?= h(addslashes($g['name'])) ?>の明日ぶんの受付終了を解除しますか？\n\n・出勤はそのままです\n・遊べる時刻は「時刻設定」で入れてください');">受付再開</button>
         </form>
         <?php endif; ?>
         <form method="post">

@@ -134,6 +134,7 @@ function nav_groups(): array {
             ['news-slots.php', '📡', '媒体固定枠'],
             ['bot-schedule.php', '🔄', '媒体自動更新'],
             ['suguhime-sync.php', '⚡', 'すぐヒメ同期'],
+            ['media-accounts.php', '🔐', '媒体アカウント'],
         ],
         'コンテンツ' => [
             ['sliders.php', '🎞️', 'スライダー'],

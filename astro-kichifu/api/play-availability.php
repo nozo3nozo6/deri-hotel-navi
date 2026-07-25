@@ -88,7 +88,8 @@ try {
                     pa.id AS pa_id, pa.play_at, pa.reception_closed, pa.himewari_enabled, pa.himewari_minutes, pa.himewari_price,
                     pa.status, pa.list_flag, pa.note, pa.updated_at, pa.updated_by,
                     s.work_date AS w_date, s.start_time AS w_start, s.end_time AS w_end,
-                    mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no
+                    mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no,
+                    mi.fucolle_girl_id, mi.manzoku_girl_id, mi.mensv_girl_id
                FROM girls g
                JOIN girl_shops gs ON gs.girl_id = g.id
                LEFT JOIN play_availability pa ON pa.girl_id = g.id AND pa.shop_id = ? AND pa.shift_business_date = ?
@@ -171,6 +172,9 @@ try {
                     'heaven'   => $r['heaven_member_id'],
                     'fuzoku'   => $r['fuzoku_girl_no'],
                     'deli'     => $r['deli_girl_no'],
+                    'fucolle'  => $r['fucolle_girl_id'],
+                    'manzoku'  => $r['manzoku_girl_id'],
+                    'mensv'    => $r['mensv_girl_id'],
                 ],
             ];
         }
@@ -269,6 +273,36 @@ try {
                      list_flag=VALUES(list_flag), note=VALUES(note), updated_by=VALUES(updated_by)'
             );
             $st->execute([$shopId, $castId, $putBd, $finalPlayAt, $rcClosed, $shiftEnd, $hwEnabled, $hwMin, $hwPrice, $status, $listFlag, $note, $by]);
+        }
+
+        // ===== 案a: 即姫を共有キャストの他店舗へファンアウト（立川で設定 → 吉祥寺も自動連動）=====
+        //   女性は共有プール(girl_shops)。物理的な「呼べる時刻」は同一なので、即姫コア
+        //   (play_at / reception_closed / shift_end_at / status / list_flag) を同伴店舗へコピーする。
+        //   himewari（店別料金）と note は各店のまま（UPDATE句で触らない・新規行は既定値）。
+        //   追加処理であり、失敗しても主書き込み（当店の即姫）には一切影響させない（try/catch隔離）。
+        try {
+            $prim = DB::conn()->prepare('SELECT play_at, reception_closed, shift_end_at, status, list_flag FROM play_availability WHERE shop_id=? AND girl_id=? AND shift_business_date=?');
+            $prim->execute([$shopId, $castId, $putBd]);
+            $pv = $prim->fetch(PDO::FETCH_ASSOC);
+            if ($pv) {
+                $sib = DB::conn()->prepare('SELECT shop_id FROM girl_shops WHERE girl_id=? AND shop_id<>?');
+                $sib->execute([$castId, $shopId]);
+                $siblings = $sib->fetchAll(PDO::FETCH_COLUMN);
+                if ($siblings) {
+                    $fo = DB::conn()->prepare(
+                        'INSERT INTO play_availability
+                           (shop_id, girl_id, shift_business_date, play_at, reception_closed, shift_end_at, himewari_enabled, himewari_minutes, himewari_price, status, list_flag, note, updated_by)
+                         VALUES (?,?,?,?,?,?,0,NULL,NULL,?,?,NULL,?)
+                         ON DUPLICATE KEY UPDATE play_at=VALUES(play_at), reception_closed=VALUES(reception_closed),
+                             shift_end_at=VALUES(shift_end_at), status=VALUES(status), list_flag=VALUES(list_flag), updated_by=VALUES(updated_by)'
+                    );
+                    foreach ($siblings as $sShop) {
+                        $fo->execute([(int)$sShop, $castId, $putBd, $pv['play_at'], $pv['reception_closed'], $pv['shift_end_at'], $pv['status'], $pv['list_flag'], $by . ':fanout']);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('play-availability fanout failed: ' . $e->getMessage());
         }
 
         // 保存後の最新を返す

@@ -107,11 +107,70 @@ try {
                 'profile' => [['profile_sync'], ['profile']],
                 'photo'   => [['photo_sync'], ['photo']],
                 'both'    => [['profile_sync', 'photo_sync'], ['profile', 'photo']],
+                // 媒体へ新規登録（bot GirlCreate）: 未登録なら作成＋ID紐付け＋写真、登録済みならスキップ（冪等）。
+                // 現状は情報局のみ対応。girl_shops の全店舗へ飛ぶので立川57・吉祥寺53179 とも登録される。
+                'create'  => [['girl_create'], ['create']],
                 default   => throw new RuntimeException('bad mode'),
             };
+            // 媒体チェック（UI: モード選択→店舗別媒体チェック→確定）。
+            // 値は "店舗ID:媒体キー"（例 "1:fujoho"=情報局立川 / "2:ekichika"=駅ちか吉祥寺）。
+            // 同名媒体でも立川・吉祥寺は別アカウントのため店舗別に webhook の media を分けて送る。
+            // ヘブンは単体（立川アカウントのみ）= "1:heaven"。allowlist 外は無視。
+            // 全モード8媒体対応（2026-07-25）: フーコレ/マンゾク/メンズバも 両方/コメント/写真 の同期対象。
+            // bot 側は既存5媒体=ProfileSync/PhotoSync、追加3媒体=ExtraMediaSync（未掲載→新規登録・掲載済→更新）。
+            $MEDIA_ALL = ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli', 'fucolle', 'manzoku', 'mensv'];
+            $mediaAvail = $MEDIA_ALL;
+            $mediaByShop = [];   // shop_id => [媒体キー...]
+            foreach ((array)($_POST['media'] ?? []) as $mv) {
+                if (!preg_match('/^([12]):([a-z]+)$/', (string)$mv, $mm)) continue;
+                $msid = (int)$mm[1];
+                $mkey = $mm[2];
+                if (!in_array($mkey, $mediaAvail, true)) continue;
+                $mediaByShop[$msid][] = $mkey;
+            }
+            $mediaByShop = array_map(static fn($a) => array_values(array_unique($a)), $mediaByShop);
+            if ($mediaByShop === []) throw new RuntimeException('no media selected');
             require_once __DIR__ . '/../api/media-webhook.php';
-            media_webhook_notify($shop, $gid, $gname, $changed, 'ctrl', $jobs);
-            echo json_encode(['ok' => true]);
+            // 女性は共有プール。その子が在籍する店舗(girl_shops) ∩ チェックされた店舗 に webhook を送り、
+            // 各通に「その店舗でチェックされた媒体」だけを明示する（bot 側 profile_sync/photo_sync/girl_create が絞る）。
+            $shopSt = db()->prepare('SELECT shop_id FROM girl_shops WHERE girl_id=?');
+            $shopSt->execute([$gid]);
+            $girlShops = array_values(array_unique(array_map('intval', $shopSt->fetchAll(PDO::FETCH_COLUMN))));
+            if (!$girlShops) $girlShops = [$shop];
+            // 同期1回分の識別子。立川・吉祥寺の2通に同じIDを載せ、bot が結果POSTでそのまま返す。
+            // 連続で別の子を同期できるUIなので、これが無いと別の子の結果を表示してしまう。
+            $reqId = 'ctrl_' . bin2hex(random_bytes(9));
+            $notifyShops = [];
+            foreach ($girlShops as $sid) {
+                if (empty($mediaByShop[$sid])) continue;   // その店舗の媒体が未チェック → 送らない
+                media_webhook_notify($sid, $gid, $gname, $changed, 'ctrl', $jobs, $mediaByShop[$sid], $reqId);
+                $notifyShops[] = $sid;
+            }
+            if ($notifyShops === []) throw new RuntimeException('no media selected');
+            echo json_encode(['ok' => true, 'request_id' => $reqId, 'notified_shops' => $notifyShops, 'media' => $mediaByShop]);
+            break;
+        }
+        case 'sync-status': {
+            // 同期結果のポーリング。bot が media-profile-import.php?action=sync-result で書いた
+            // media_sync_results を request_id で引く（他人のクリックの結果は返らない）。
+            // テーブルが未作成（bot からの結果がまだ一度も来ていない）ケースは空配列で返す。
+            $reqId = trim((string)($_POST['request_id'] ?? ''));
+            $gid   = (int)($_POST['girl_id'] ?? 0);
+            if ($reqId === '' || !own_girl($gid)) throw new RuntimeException('bad request');
+            $rows = [];
+            try {
+                $st = db()->prepare(
+                    'SELECT shop_id, media, status, media_id, detail
+                       FROM media_sync_results
+                      WHERE request_id = ? AND girl_id = ?
+                      ORDER BY shop_id, media'
+                );
+                $st->execute([$reqId, $gid]);
+                $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Throwable $e) {
+                $rows = [];   // 未作成テーブル等は「まだ結果なし」と同義
+            }
+            echo json_encode(['ok' => true, 'results' => $rows]);
             break;
         }
         case 'girl-images': {

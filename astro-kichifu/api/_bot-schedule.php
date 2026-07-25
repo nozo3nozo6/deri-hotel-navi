@@ -24,7 +24,7 @@ const BOT_SCHEDULE_NEWS_10 = [
 ];
 
 // 対応 job の定義（未知 job は 404）。job ごとに媒体上限・既定件数・既定プリセット・UIラベルが違う。
-//   固定時刻系(interval=false): ekichika_bulktop(1〜38) / fuzoku_news, deli_news(1〜10) — schedule の HH:MM で実行。
+//   固定時刻系(interval=false): ekichika_bulktop(1〜43) / fuzoku_news, deli_news(1〜10) — schedule の HH:MM で実行。
 //   周期系(interval=true): fujoho_sokuho=情報局速報, ekichika_news=駅ちかニュース — 一定間隔(分)で5枠ローテ。
 //     既定 mode=interval・interval_min=10・daily_limit=0(無制限)・schedule=[]。mode=schedule への切替も可。
 //   interval専用(interval_only=true): kyoku_wari=情報局 局割!再掲載 — 一定間隔のみ（時刻リストなし）。
@@ -32,7 +32,7 @@ const BOT_SCHEDULE_NEWS_10 = [
 //   ※ CTRL/DBは interval_min(分)で持つ。bot は interval_min*60 を refresh_interval_sec として読む。
 function bot_schedule_job_meta(string $job): ?array {
     static $meta = [
-        'ekichika_bulktop' => ['label' => '駅ちか 上位表示', 'max' => 38,  'default_limit' => 35, 'default_schedule' => BOT_SCHEDULE_PRESET_35, 'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
+        'ekichika_bulktop' => ['label' => '駅ちか 上位表示', 'max' => 43,  'default_limit' => 35, 'default_schedule' => BOT_SCHEDULE_PRESET_35, 'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
         'fuzoku_news'      => ['label' => '風じゃ 速報',     'max' => 10,  'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10,  'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
         'deli_news'        => ['label' => 'デリじゃ 速報',   'max' => 10,  'default_limit' => 10, 'default_schedule' => BOT_SCHEDULE_NEWS_10,  'default_mode' => 'schedule', 'default_interval' => null, 'interval' => false],
         'fujoho_sokuho'    => ['label' => '情報局 速報',     'max' => 300, 'default_limit' => 0,  'default_schedule' => [],                     'default_mode' => 'interval', 'default_interval' => 10,   'interval' => true],

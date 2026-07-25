@@ -26,8 +26,16 @@ const PLAY_MEDIA_WEBHOOK_URL = 'https://tk2-409-45785.vs.sakura.ne.jp/official-m
  * @param string[] $jobs    実行ジョブの明示（省略時は bot が changed から推定）。
  *                          受付終了のように「出勤表・ヒメ割は絶対に触らせない」場合は必ず明示する
  *                          （changed に bot の推定表にない語が混ざると "不明→全ジョブ" になり得るため）。
+ * @param string[] $media   媒体の絞り込み（CTRL同期ボタンの媒体チェック。空=全媒体の従来動作）。
+ *                          キー: fujoho/ekichika/heaven/fuzoku/deli/fucolle/manzoku/mensv。
+ *                          bot 側は profile_sync/photo_sync/girl_create のみこのフィルタを参照する。
+ * @param string   $requestId 同期1回分の識別子（CTRL同期ボタン1クリック＝1個）。bot はこれをそのまま
+ *                          結果POST（media-profile-import.php?action=sync-result）に載せて返す。
+ *                          空 → bot は結果を返さない（同期本体は動く）。
+ *                          複数キャストを続けて同期できるUIのため、突合キーが無いと別の子の結果を
+ *                          表示する事故になる（契約: GROK-TO-CLAUDE-sync-result-contract-2026-07-25.md）。
  */
-function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl', array $jobs = []): void {
+function media_webhook_notify(int $shopId, int $castId, string $name, array $changed, string $source = 'ctrl', array $jobs = [], array $media = [], string $requestId = ''): void {
     $body = [
         'event'      => 'play_availability.changed',
         'shop_id'    => $shopId,
@@ -38,6 +46,8 @@ function media_webhook_notify(int $shopId, int $castId, string $name, array $cha
         'source'     => $source,
     ];
     if ($jobs) $body['jobs'] = array_values($jobs);
+    if ($media) $body['media'] = array_values($media);
+    if ($requestId !== '') $body['request_id'] = $requestId;
     media_webhook_send($body);
 }
 

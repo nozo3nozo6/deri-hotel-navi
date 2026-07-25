@@ -89,8 +89,10 @@ try {
         $girlId = (int)($_GET['girl_id'] ?? 0);
         $slot = (int)($_GET['slot'] ?? 0);
         if (!$girlId || $slot < 1) { http_response_code(400); echo 'bad params'; exit; }
-        $g = DB::conn()->prepare('SELECT media_top_image FROM girls WHERE id = ? AND shop_id = ?');
-        $g->execute([$girlId, $shopId]);
+        // 女性は共有プール（girls.shop_id は主店舗のみ）。掲載店判定は girl_shops 多対多で行う
+        // （旧: girls.shop_id=? だと吉祥寺(shop_id=2)の共有キャストが404になり写真同期不能だった 2026-07-23）
+        $g = DB::conn()->prepare('SELECT g.media_top_image FROM girls g JOIN girl_shops gs ON gs.girl_id = g.id AND gs.shop_id = ? WHERE g.id = ?');
+        $g->execute([$shopId, $girlId]);
         $row = $g->fetch(PDO::FETCH_ASSOC);
         if (!$row) { http_response_code(404); echo 'not found'; exit; }
         $im = DB::conn()->prepare('SELECT path FROM girl_images WHERE girl_id = ? ORDER BY sort, id');

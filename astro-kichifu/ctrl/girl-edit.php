@@ -201,7 +201,7 @@ if ($id) {
 //   風じゃ紹介文=15字（placeholder「15文字以内で入力してください」実測）。デリじゃは紹介文欄なし=PR文のみ。
 $MEDIA_PROF_DEF = [
     'fujoho'   => ['label' => '情報局',   'catch' => ['キャッチコピー', 30],  'comment' => ['コメント', null]],
-    'ekichika' => ['label' => '駅ちか',   'catch' => ['キャッチコピー', 15],  'comment' => ['コメント', 300]],
+    'ekichika' => ['label' => '駅ちか',   'catch' => ['キャッチコピー', 15],  'comment' => ['コメント', 2000]],
     'heaven'   => ['label' => 'ヘブン',   'catch' => ['キャッチコピー', null], 'comment' => ['コメント/PR', null]],
     'fuzoku'   => ['label' => '風じゃ',   'catch' => ['紹介文', 15],           'comment' => ['PR文', null]],
     'deli'     => ['label' => 'デリじゃ', 'catch' => null,                     'comment' => ['PR文', null]],
@@ -504,7 +504,7 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <div class="card card-pad" style="border:1px solid #99f6e4;background:#f0fdfa;margin-top:14px">
       <strong style="color:#0d9488">🔄 保存済みの内容を媒体へ同期</strong>
       <p class="muted" style="font-size:.8em;margin:6px 0 10px">
-        <strong>DBに保存されている現在の内容</strong>（未保存の編集は含みません。先に上の「保存する」を押してください）を、全5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。まず同期する内容を選び、確定ボタンを押してください。<br>
+        <strong>DBに保存されている現在の内容</strong>（未保存の編集は含みません。先に上の「保存する」を押してください）を媒体へ同期します。①同期する内容を選ぶ → ②媒体をチェック（デフォルト全チェック）→ ③確定ボタン、の流れです。<br>
         <strong>両方</strong>＝コメント＋写真 ／ <strong>💬 コメントのみ</strong>＝キャッチ/コメントだけ（写真は触らない） ／ <strong>🖼 写真のみ</strong>＝写真だけ（コメントは触らない）。<br>
         コメント＝媒体別欄があればそれ優先、無ければ共通文。写真＝「媒体用1枚目（あれば）＋オフィシャル②以降」の順。いずれも<strong>変更があった子・項目だけ反映</strong>されます（未変更はそのまま）。デリじゃはPR文のみ（紹介文欄なし）。
         写真パックDL（📦）は手動登録したいとき用に残しています。
@@ -513,12 +513,48 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
         <button type="button" class="btn sync-mode-btn" data-mode="both">両方</button>
         <button type="button" class="btn sync-mode-btn" data-mode="profile">💬 コメントのみ</button>
         <button type="button" class="btn sync-mode-btn" data-mode="photo">🖼 写真のみ</button>
+        <button type="button" class="btn sync-mode-btn" data-mode="create" style="border-color:#f59e0b">🆕 媒体へ新規登録</button>
+      </div>
+      <?php
+        // 媒体チェックは店舗別（同名媒体でも立川と吉祥寺は別アカウント）。ヘブンのみ単体（立川アカウントのみ・吉祥寺は掲載なし）。
+        $syncShops = array_values(array_intersect([1, 2], ($linkedShops ?? []) ?: [1, 2]));
+        if ($syncShops === []) $syncShops = [1, 2];
+        $SYNC_SHOP_NAMES = [1 => '立川', 2 => '吉祥寺'];
+        $SYNC_MEDIA_ROW = [
+          ['fujoho', '情報局'], ['ekichika', '駅ちか'], ['fuzoku', '風じゃ'], ['deli', 'デリじゃ'],
+          ['fucolle', 'フーコレ', true], ['manzoku', 'マンゾク', true], ['mensv', 'メンズバ', true],
+        ];
+      ?>
+      <div id="sync-media-picker" style="display:none;margin-top:10px;padding:10px;border:1px dashed #5eead4;border-radius:8px;background:#fff">
+        <div style="font-size:.78em;color:#0d9488;font-weight:700;margin-bottom:6px">同期する媒体（チェックした媒体だけ反映されます。同名媒体でも立川・吉祥寺は別アカウントです）</div>
+        <?php foreach ($syncShops as $ssid): ?>
+        <div style="display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+          <span style="font-size:.78em;font-weight:700;color:#134e4a;min-width:52px"><?= h($SYNC_SHOP_NAMES[$ssid]) ?></span>
+          <?php foreach ($SYNC_MEDIA_ROW as $mrow): ?>
+          <label class="sync-media-cb">
+            <input type="checkbox" value="<?= $ssid ?>:<?= h($mrow[0]) ?>" checked> <?= h($mrow[1]) ?><?= h($SYNC_SHOP_NAMES[$ssid]) ?>
+          </label>
+          <?php endforeach; ?>
+        </div>
+        <?php endforeach; ?>
+        <?php if (in_array(1, $syncShops, true)): ?>
+        <div style="display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:.78em;font-weight:700;color:#134e4a;min-width:52px">単体</span>
+          <label class="sync-media-cb"><input type="checkbox" value="1:heaven" checked> ヘブン</label>
+        </div>
+        <?php endif; ?>
+        <div style="margin-top:6px">
+          <button type="button" id="sync-media-all" class="btn" style="font-size:.72em;padding:2px 10px">全てチェック</button>
+          <button type="button" id="sync-media-none" class="btn" style="font-size:.72em;padding:2px 10px">全て外す</button>
+        </div>
       </div>
       <button type="button" id="sync-confirm-btn" disabled
               style="margin-top:12px;padding:8px 16px;border-radius:8px;border:1px solid #14b8a6;background:#0d9488;color:#fff;font-weight:700;opacity:.5;cursor:not-allowed">
         選択してください
       </button>
       <p id="sync-result" class="muted" style="font-size:.8em;margin-top:8px;display:none"></p>
+      <!-- 媒体別の結果チップ（bot からの sync-result を request_id で突合して表示） -->
+      <div id="sync-chips" style="margin-top:8px;display:none"></div>
     </div>
   <?php endif; ?>
 
@@ -585,25 +621,127 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
   const girlId = <?= (int)$id ?>;
   const confirmBtn = document.getElementById('sync-confirm-btn');
   const resultEl = document.getElementById('sync-result');
+  const mediaPicker = document.getElementById('sync-media-picker');
   let selectedMode = '';
-  const LABEL = { both: '両方（コメント＋写真）', profile: 'コメントのみ', photo: '写真のみ' };
+  const LABEL = { both: '両方（コメント＋写真）', profile: 'コメントのみ', photo: '写真のみ', create: '媒体へ新規登録' };
+  const MEDIA_LABEL = { fujoho: '情報局', ekichika: '駅ちか', heaven: 'ヘブン', fuzoku: '風じゃ', deli: 'デリじゃ', fucolle: 'フーコレ', manzoku: 'マンゾク', mensv: 'メンズバ' };
+  const SHOP_LABEL = { '1': '立川', '2': '吉祥寺' };
+  // 値は "店舗ID:媒体キー"（例 "1:fujoho"=情報局立川）。ヘブンは単体（"1:heaven"）
+  const mediaName = v => {
+    const [sid, key] = v.split(':');
+    return key === 'heaven' ? 'ヘブン' : (MEDIA_LABEL[key] || key) + (SHOP_LABEL[sid] || '');
+  };
   const CONFIRM_MSG = {
-    both: '保存済みの内容（コメント＋写真）を5媒体（情報局・駅ちか・ヘブン・風じゃ・デリじゃ）へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます',
-    profile: '保存済みのコメント（キャッチ/コメント）のみを5媒体へ同期します。写真は変更しません。よろしいですか？',
-    photo: '保存済みの写真のみを5媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります',
+    both: '保存済みの内容（コメント＋写真）を選択した媒体へ同期します。よろしいですか？\n※媒体側と差分がある子・項目だけ反映されます',
+    profile: '保存済みのコメント（キャッチ/コメント）のみを選択した媒体へ同期します。写真は変更しません。よろしいですか？',
+    photo: '保存済みの写真のみを選択した媒体へ同期します。コメントは変更しません。よろしいですか？\n※写真は変更があった子だけ差し替わります',
+    create: 'この子を選択した媒体に新規登録します。\n名前・年齢・サイズ・入店日・キャッチ・コメント・プレイ項目・質問Q&A・写真が登録されます。\n※既に登録済みの媒体はスキップされます（二重登録なし）。よろしいですか？',
+  };
+  // 表示中のチェック済み媒体キーを返す（create以外はフーコレ/マンゾク/メンズバを含めない）
+  const selectedMedia = () =>
+    [...mediaPicker.querySelectorAll('.sync-media-cb')]
+      .filter(l => l.style.display !== 'none')
+      .map(l => l.querySelector('input'))
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+  const updateConfirm = () => {
+    const n = selectedMode ? selectedMedia().length : 0;
+    const ok = selectedMode && n > 0;
+    confirmBtn.disabled = !ok;
+    confirmBtn.style.opacity = ok ? '1' : '.5';
+    confirmBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+    confirmBtn.textContent = !selectedMode ? '選択してください'
+      : n === 0 ? '媒体を選んでください'
+      : '🔄 「' + LABEL[selectedMode] + '」を' + n + '媒体へ同期する';
   };
   picker.querySelectorAll('.sync-mode-btn').forEach(btn => btn.addEventListener('click', () => {
     picker.querySelectorAll('.sync-mode-btn').forEach(b => b.classList.remove('sync-mode-active'));
     btn.classList.add('sync-mode-active');
     selectedMode = btn.dataset.mode;
-    confirmBtn.disabled = false;
-    confirmBtn.style.opacity = '1';
-    confirmBtn.style.cursor = 'pointer';
-    confirmBtn.textContent = '🔄 「' + LABEL[selectedMode] + '」を同期する';
+    // モード選択→媒体チェック（デフォルト全チェック）→確定 の流れ
+    mediaPicker.style.display = 'block';
+    mediaPicker.querySelectorAll('.sync-media-cb').forEach(l => {
+      l.querySelector('input').checked = true;
+    });
     resultEl.style.display = 'none';
+    updateConfirm();
   }));
+  mediaPicker.addEventListener('change', updateConfirm);
+  document.getElementById('sync-media-all').addEventListener('click', () => {
+    mediaPicker.querySelectorAll('.sync-media-cb input').forEach(cb => { cb.checked = true; });
+    updateConfirm();
+  });
+  document.getElementById('sync-media-none').addEventListener('click', () => {
+    mediaPicker.querySelectorAll('.sync-media-cb input').forEach(cb => { cb.checked = false; });
+    updateConfirm();
+  });
+  // ── 同期結果の受け取り（bot → media-profile-import.php?action=sync-result → media_sync_results）
+  //    request_id で突合するので、続けて別の子を同期しても結果が混ざらない。
+  //    bot 側は best-effort（結果POSTが失敗しても同期本体は成功）なので、
+  //    結果が来ないこと自体は失敗を意味しない。タイムアウトは「不明」として明示する。
+  const chipsEl = document.getElementById('sync-chips');
+  const STATUS_STYLE = {
+    created: { bg: '#ecfdf5', bd: '#6ee7b7', fg: '#047857', icon: '🆕', word: '登録' },
+    skipped: { bg: '#f8fafc', bd: '#cbd5e1', fg: '#475569', icon: '➖', word: 'スキップ' },
+    failed:  { bg: '#fef2f2', bd: '#fca5a5', fg: '#b91c1c', icon: '⚠', word: '失敗' },
+    pending: { bg: '#fffbeb', bd: '#fcd34d', fg: '#92400e', icon: '⏳', word: '待機中' },
+    unknown: { bg: '#f8fafc', bd: '#cbd5e1', fg: '#64748b', icon: '❔', word: '結果不明' },
+  };
+  let pollTimer = null;
+  const renderChips = (expected, byKey, done) => {
+    const parts = expected.map(v => {
+      const r = byKey[v];
+      const s = STATUS_STYLE[r ? r.status : (done ? 'unknown' : 'pending')] || STATUS_STYLE.unknown;
+      const detail = r && r.detail ? r.detail : '';
+      return '<span class="sync-chip" style="background:' + s.bg + ';border-color:' + s.bd + ';color:' + s.fg + '"'
+        + (detail ? ' title="' + detail.replace(/"/g, '&quot;') + '"' : '')
+        + '>' + s.icon + ' ' + mediaName(v) + '<b>' + s.word + '</b></span>';
+    });
+    const failed = expected.filter(v => byKey[v] && byKey[v].status === 'failed');
+    let note = '';
+    if (done) {
+      note = failed.length
+        ? '<div style="margin-top:6px;font-size:.78em;color:#b91c1c;font-weight:700">⚠ '
+          + failed.map(v => mediaName(v)).join('・')
+          + ' が失敗しました。媒体の公開ページで本人か確認してください（同名の別人に紐付いていないか）。</div>'
+        : '<div style="margin-top:6px;font-size:.78em;color:#475569">結果が「結果不明」のままの媒体は、bot からの結果通知が届かなかっただけの可能性があります（同期自体は実行されています）。媒体側をご確認ください。</div>';
+    }
+    chipsEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap">' + parts.join('') + '</div>' + note;
+    chipsEl.style.display = 'block';
+  };
+  const pollResults = (requestId, expected) => {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    const byKey = {};
+    renderChips(expected, byKey, false);
+    const started = Date.now();
+    const tick = async () => {
+      try {
+        const fd = new FormData();
+        fd.append('_csrf', CSRF);
+        fd.append('action', 'sync-status');
+        fd.append('girl_id', girlId);
+        fd.append('request_id', requestId);
+        const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (j.ok) {
+          // 結果は shop_id + media で返る。UIのチェック値 "店舗ID:媒体キー" に合わせる
+          (j.results || []).forEach(row => { byKey[row.shop_id + ':' + row.media] = row; });
+        }
+      } catch (e) { /* ポーリング失敗は無視（次のtickで回復） */ }
+      const allIn = expected.every(v => byKey[v]);
+      const timeout = Date.now() - started > 5 * 60 * 1000;   // 5分で打ち切り
+      renderChips(expected, byKey, allIn || timeout);
+      if (allIn || timeout) { clearInterval(pollTimer); pollTimer = null; }
+    };
+    pollTimer = setInterval(tick, 4000);
+    setTimeout(tick, 2500);
+  };
+
   confirmBtn.addEventListener('click', async () => {
-    if (!selectedMode || !confirm(CONFIRM_MSG[selectedMode])) return;
+    const media = selectedMedia();
+    if (!selectedMode || media.length === 0) return;
+    const mediaNames = media.map(mediaName).join('・');
+    if (!confirm('対象媒体: ' + mediaNames + '\n\n' + CONFIRM_MSG[selectedMode])) return;
     confirmBtn.disabled = true;
     confirmBtn.style.cursor = 'wait';
     const prevText = confirmBtn.textContent;
@@ -614,12 +752,14 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
       fd.append('action', 'sync-media');
       fd.append('girl_id', girlId);
       fd.append('mode', selectedMode);
+      media.forEach(k => fd.append('media[]', k));
       const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
       const j = await r.json();
       resultEl.style.display = 'block';
       if (j.ok) {
         resultEl.style.color = '#0d9488';
         resultEl.textContent = '✅ 同期を開始しました。数分で反映されます。';
+        if (j.request_id) pollResults(j.request_id, media);
       } else {
         resultEl.style.color = '#dc2626';
         resultEl.textContent = '⚠ 送信に失敗しました。もう一度お試しください。';
@@ -639,5 +779,11 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
 <style>
 .sync-mode-btn { border: 1px solid #99f6e4; background: #fff; color: #0d9488; font-weight: 700; }
 .sync-mode-btn.sync-mode-active { border-color: #0d9488; background: #0d9488; color: #fff; }
+.sync-media-cb { display: inline-flex; align-items: center; gap: 4px; font-size: .82em; color: #134e4a; font-weight: 600; cursor: pointer; padding: 3px 6px; border-radius: 6px; }
+.sync-media-cb:hover { background: #f0fdfa; }
+.sync-media-cb input { accent-color: #0d9488; width: 15px; height: 15px; }
+.sync-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .76em; font-weight: 600;
+             border: 1px solid; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.sync-chip b { font-weight: 800; }
 </style>
 <?php layout_footer(); ?>

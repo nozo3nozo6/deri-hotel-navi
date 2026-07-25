@@ -62,7 +62,8 @@ try {
 
     $sql =
         'SELECT s.girl_id, g.name, s.work_date, s.start_time, s.end_time, s.status,
-                mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no
+                mi.fujoho_girl_id, mi.ekichika_girl_id, mi.heaven_member_id, mi.fuzoku_girl_no, mi.deli_girl_no,
+                mi.fucolle_girl_id, mi.manzoku_girl_id, mi.mensv_girl_id
            FROM schedules s
            JOIN girls g            ON g.id = s.girl_id
            LEFT JOIN girl_media_ids mi ON mi.girl_id = s.girl_id AND mi.shop_id = :shop
@@ -87,6 +88,9 @@ try {
                     'heaven'   => $r['heaven_member_id'],
                     'fuzoku'   => $r['fuzoku_girl_no'],
                     'deli'     => $r['deli_girl_no'],
+                    'fucolle'  => $r['fucolle_girl_id'],
+                    'manzoku'  => $r['manzoku_girl_id'],
+                    'mensv'    => $r['mensv_girl_id'],
                 ],
                 'days'      => [],
             ];
