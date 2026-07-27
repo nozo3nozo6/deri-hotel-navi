@@ -161,6 +161,9 @@ try {
             $grow  = $nameSt->fetch(PDO::FETCH_ASSOC) ?: [];
             $gname = (string)($grow['name'] ?? '');
 
+            // hide=媒体側で非表示（一時退店・戻せる） / delete=媒体から削除（戻せない）
+            $delMode = ((string)($_POST['mode'] ?? 'delete')) === 'hide' ? 'hide' : 'delete';
+            $job = $delMode === 'hide' ? 'girl_hide' : 'girl_delete';
             $MEDIA_ALL = ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli', 'fucolle', 'manzoku', 'mensv'];
             $mediaByShop = [];
             foreach ((array)($_POST['media'] ?? []) as $mv) {
@@ -180,11 +183,11 @@ try {
             $reqId = 'ctrl_' . bin2hex(random_bytes(9));
             $notify = [];
             foreach (array_keys($mediaByShop) as $sid) {
-                media_webhook_notify($sid, $gid, $gname, ['delete'], 'ctrl', ['girl_delete'], $mediaByShop[$sid], $reqId);
+                media_webhook_notify($sid, $gid, $gname, [$delMode], 'ctrl', [$job], $mediaByShop[$sid], $reqId);
                 $notify[] = $sid;
             }
             echo json_encode([
-                'ok' => true, 'request_id' => $reqId, 'notified_shops' => $notify, 'media' => $mediaByShop,
+                'ok' => true, 'request_id' => $reqId, 'mode' => $delMode, 'notified_shops' => $notify, 'media' => $mediaByShop,
                 'warn_still_displayed' => (int)($grow['is_display'] ?? 0) === 1,
             ]);
             break;

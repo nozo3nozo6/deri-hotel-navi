@@ -101,7 +101,7 @@ try {
         $gid   = (int)($body['girl_id'] ?? 0);
         $mode  = (string)($body['mode'] ?? '');
         if ($reqId === '' || !$gid) { http_response_code(400); echo json_encode(['error' => 'request_id and girl_id required']); exit; }
-        if (!in_array($mode, ['create', 'profile', 'photo', 'both', 'delete'], true)) $mode = 'create';
+        if (!in_array($mode, ['create', 'profile', 'photo', 'both', 'delete', 'hide'], true)) $mode = 'create';
         // 遅延作成（他テーブル同様、マイグレーション不要にしておく）
         DB::conn()->exec(
             'CREATE TABLE IF NOT EXISTS media_sync_results (
