@@ -231,7 +231,20 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       </div>
       <div class="field"><label>入店日</label><input type="date" name="in_date" value="<?= h($g['in_date']) ?>"></div>
     </div>
-    <div class="field"><label>キャッチコピー</label><input type="text" name="catch_copy" value="<?= h($g['catch_copy']) ?>" placeholder="清楚系スレンダー美少女 など"></div>
+    <div class="field"><label>キャッチコピー</label><input type="text" name="catch_copy" value="<?= h($g['catch_copy']) ?>" placeholder="清楚系スレンダー美少女 など">
+      <?php
+        // 媒体別に専用文が入っている媒体は、この共通キャッチを編集しても反映されない
+        // （同期は「媒体別があればそれ優先、無ければ共通文」）。画面に出ないと
+        // 「同期されない」という誤解になるため明示する（2026-07-27 店長指摘）。
+        $ovCatch = [];
+        foreach ($MEDIA_PROF_DEF as $mk => $md) {
+            if (!empty($md['catch']) && trim((string)($mediaProf[$mk]['catch'] ?? '')) !== '') $ovCatch[] = $md['label'];
+        }
+        if ($ovCatch):
+      ?>
+      <p class="override-note">⚠️ <strong><?= h(implode('・', $ovCatch)) ?></strong> は<strong>下の「媒体別プロフィール」の専用文が優先</strong>されます。ここを直しても、その媒体には反映されません（変えたい場合は下の該当欄を編集してください）。</p>
+      <?php endif; ?>
+    </div>
     <div class="field"><label>外部サイトURL <span class="muted" style="font-weight:400;font-size:12px">（ranking-deli等のプロフィールURL）</span></label><input type="url" name="external_url" value="<?= h($g['external_url'] ?? '') ?>" placeholder="https://ranking-deli.jp/..."></div>
   </div>
 
@@ -346,6 +359,15 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       </div>
       <textarea id="shop_comment-source" name="shop_comment" rows="10" placeholder="お店からの紹介文。HTMLコード（装飾カード等のウィジェット）をそのまま貼り付けられます"><?= h($g['shop_comment']) ?></textarea>
       <div id="shop_comment-preview" class="body-preview" contenteditable="true" spellcheck="false" style="display:none"></div>
+      <?php
+        $ovCmt = [];
+        foreach ($MEDIA_PROF_DEF as $mk => $md) {
+            if (!empty($md['comment']) && trim((string)($mediaProf[$mk]['comment'] ?? '')) !== '') $ovCmt[] = $md['label'];
+        }
+        if ($ovCmt):
+      ?>
+      <p class="override-note">⚠️ <strong><?= h(implode('・', $ovCmt)) ?></strong> は<strong>下の「媒体別プロフィール」の専用文が優先</strong>されます。ここを直しても、その媒体には反映されません。</p>
+      <?php endif; ?>
     </div>
   </div>
   <script>
@@ -390,6 +412,9 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
         <summary style="cursor:pointer;font-weight:700;font-size:.9em">
           <?= h($md['label']) ?>用
           <?php if (!empty($mediaProf[$mkey])): ?><span style="color:#0d9488;font-size:.85em;margin-left:6px">✎ 専用文あり</span>
+          <?php $pv = trim((string)($mediaProf[$mkey]['catch'] ?? '')); if ($pv !== ''): ?>
+            <span class="muted" style="font-weight:400;font-size:.82em;margin-left:6px">「<?= h(mb_substr($pv, 0, 24)) ?><?= mb_strlen($pv) > 24 ? '…' : '' ?>」</span>
+          <?php endif; ?>
           <?php else: ?><span style="color:#94a3b8;font-size:.8em;margin-left:6px">共通文を使用</span><?php endif; ?>
         </summary>
         <?php foreach (['catch', 'comment'] as $fkey): if (empty($md[$fkey])) continue; [$flabel, $fmax] = $md[$fkey]; $fval = (string)($mediaProf[$mkey][$fkey] ?? ''); ?>
@@ -782,6 +807,9 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
 .sync-media-cb { display: inline-flex; align-items: center; gap: 4px; font-size: .82em; color: #134e4a; font-weight: 600; cursor: pointer; padding: 3px 6px; border-radius: 6px; }
 .sync-media-cb:hover { background: #f0fdfa; }
 .sync-media-cb input { accent-color: #0d9488; width: 15px; height: 15px; }
+/* 共通キャッチ/コメントが媒体別の専用文に上書きされる旨の注意書き */
+.override-note { margin: 6px 0 0; padding: 7px 10px; font-size: .78rem; line-height: 1.6;
+                 background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; color: #92400e; }
 .sync-chip { display: inline-flex; align-items: center; gap: 4px; font-size: .76em; font-weight: 600;
              border: 1px solid; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
 .sync-chip b { font-weight: 800; }

@@ -111,7 +111,7 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 /* row action menu */
 .rowmenu { position: relative; }
 .rowmenu-btn { border: 1px solid var(--border); background:#fff; border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
-.rowmenu-list { position: absolute; right: 0; top: 38px; background:#fff; border:1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); min-width: 140px; display: none; z-index: 10; overflow: hidden; }
+.rowmenu-list { position: absolute; right: 0; top: 38px; background:#fff; border:1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); min-width: 140px; display: none; z-index: 1001; overflow: hidden; }
 .rowmenu.open .rowmenu-list { display: block; }
 .rowmenu-list a, .rowmenu-list button { display: flex; width: 100%; gap: 8px; padding: 9px 14px; background: none; border: none; text-align: left; cursor: pointer; color: var(--text); }
 .rowmenu-list a:hover, .rowmenu-list button:hover { background: var(--surface-2); text-decoration: none; }

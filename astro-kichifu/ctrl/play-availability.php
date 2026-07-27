@@ -316,6 +316,11 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   .pa-viewtab { border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:8px; padding:6px 14px; font-size:.8rem; font-weight:700; text-decoration:none; white-space:nowrap; }
   .pa-viewtab.is-active { background:#0d9488; border-color:#0d9488; color:#fff; }
   .pa-viewtab-note { font-size:.75rem; color:#94a3b8; }
+  .pa-media-support { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; font-size:.78rem; color:#475569; margin-bottom:12px; line-height:1.6; }
+  .pa-media-support > summary { cursor:pointer; font-weight:700; color:#334155; }
+  .pa-media-support p { margin:8px 0 6px; }
+  .pa-media-support ul { margin:0; padding-left:1.2em; }
+  .pa-media-support li { margin-bottom:4px; }
   .pa-next-note { background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; padding:8px 12px; font-size:.78rem; color:#3730a3; margin-bottom:12px; line-height:1.6; }
   .pa-prev { font-weight:700; white-space:nowrap; }
   .pa-now { color:#dc2626; }
@@ -379,6 +384,17 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   <a class="pa-viewtab <?= $view === 'tomorrow' ? 'is-active' : '' ?>" href="play-availability.php?view=tomorrow">明日 (<?= date('n/j', strtotime($nextDate)) ?>)</a>
   <span class="pa-viewtab-note"><?= $view === 'auto' ? '本日の出勤が終わった子は自動で「明日」を表示します' : ($view === 'tomorrow' ? '全員を明日（' . h(date('n/j', strtotime($nextDate))) . '）の設定として表示中' : '全員を本日（' . h(date('n/j', strtotime($bizDate))) . '）の設定として表示中') ?></span>
 </div>
+
+<!-- 即ヒメの媒体対応表。メンズバは媒体の管理画面に即ヒメ/待機の登録機能が存在しない（2026-07-26 店長確認）。
+     「メンズバだけ出ない＝バグ」と誤解されるのを防ぐため、対応/非対応をここで明示する。 -->
+<details class="pa-media-support">
+  <summary>📡 「今から遊べる」が反映される媒体</summary>
+  <p>この画面の設定は、<strong>即ヒメ機能がある媒体だけ</strong>に反映されます（出勤情報は下記に関わらず全媒体へ同期されます）。</p>
+  <ul>
+    <li><strong>反映される</strong>：情報局／駅ちか／シティヘブン／風俗じゃぱん／デリヘルじゃぱん／フーコレ（待機登録）／マンゾク（即ヒメ）</li>
+    <li><strong>反映されない</strong>：<strong>メンズバ</strong> — 媒体側に即ヒメ・待機を登録する機能がありません。<strong>出勤情報のみ連動</strong>します（設定漏れや不具合ではありません）。</li>
+  </ul>
+</details>
 
 <?php if ($view === 'tomorrow'): ?>
   <div class="pa-next-note">📅 <b>明日（<?= h(date('n/j', strtotime($nextDate))) ?>）の仕込み</b>です。ここで保存した即姫は<b>媒体にはまだ出ません</b>。明日の朝5時を過ぎると自動で「本日」になり、botが媒体へ反映します。<br>※「今すぐ」は“いまの操作”なので本日のみです。明日は<b>時刻設定</b>で仕込んでください。<br>※<b>🚫 受付終了</b>は明日ぶんも仕込めます（予約で埋まった子を前日のうちに受付終了にしておけます）。明日の朝5時以降に媒体へ反映され、出勤表・ヒメ割はそのまま残ります。</div>

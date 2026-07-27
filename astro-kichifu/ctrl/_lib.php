@@ -236,12 +236,37 @@ function layout_footer(): void {
 </div>
 <script>
   document.querySelectorAll('[data-nav-toggle]').forEach(b => b.addEventListener('click', () => document.body.classList.toggle('nav-open')));
-  // 行アクションメニュー開閉
+  // 行アクションメニュー開閉。
+  // 親の .table-wrap が overflow-x:auto（= y も auto 扱い）なので、absolute のままだと
+  // メニューが切り取られる。特に絞り込みで1行だけになると下に余白が無く全く見えない。
+  // → 開くときだけ position:fixed にして、ボタンの画面座標から配置する。
+  const placeRowMenu = (menu) => {
+    const btn = menu.querySelector('.rowmenu-btn');
+    const list = menu.querySelector('.rowmenu-list');
+    if (!btn || !list) return;
+    const r = btn.getBoundingClientRect();
+    list.style.position = 'fixed';
+    list.style.right = 'auto';
+    const w = list.offsetWidth || 150;
+    // 右端からはみ出さないように寄せる
+    list.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+    // 下に入らなければボタンの上に出す
+    const h = list.offsetHeight || 90;
+    list.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - 4 - h) : r.bottom + 4) + 'px';
+  };
+  const closeRowMenus = () => document.querySelectorAll('.rowmenu.open').forEach(m => m.classList.remove('open'));
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.rowmenu-btn');
     document.querySelectorAll('.rowmenu.open').forEach(m => { if (!btn || m !== btn.closest('.rowmenu')) m.classList.remove('open'); });
-    if (btn) btn.closest('.rowmenu').classList.toggle('open');
+    if (!btn) return;
+    const menu = btn.closest('.rowmenu');
+    const opening = !menu.classList.contains('open');
+    menu.classList.toggle('open');
+    if (opening) placeRowMenu(menu);
   });
+  // 位置が固定なのでスクロール・リサイズしたら閉じる（追従させると重い＆ずれる）
+  window.addEventListener('scroll', closeRowMenus, true);
+  window.addEventListener('resize', closeRowMenus);
 </script>
 </body></html>
 <?php
