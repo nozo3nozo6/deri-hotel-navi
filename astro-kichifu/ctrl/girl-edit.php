@@ -584,15 +584,15 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
     <!-- 媒体からの取り下げ（退店・誤登録用）。同期とは別カードにする＝誤操作防止。
          bot 側は src/GirlDelete.php（girl_delete ジョブ）。
-         対応: 駅ちか/フーコレ/マンゾク/メンズバ。情報局・風じゃ・デリじゃ・ヘブンは未対応でスキップを返す。 -->
+         対応: 情報局/駅ちか/フーコレ/マンゾク/メンズバ。風じゃ・デリじゃ・ヘブンは未対応でスキップを返す。 -->
     <div class="card card-pad" style="border:1px solid #fca5a5;background:#fef2f2;margin-top:14px">
       <strong style="color:#b91c1c">🗑 媒体から取り下げる（退店・誤登録）</strong>
       <p class="muted" style="font-size:.8em;margin:6px 0 10px">
         選んだ媒体からこの子の掲載を<strong>削除</strong>します。<strong>元に戻せない媒体がほとんどです</strong>（メンズバ・マンゾク・駅ちかは復元不可を確認済み）。<br>
         先に上の「掲載（店舗別）」をOFFにして保存し、<strong>同期対象から外してから</strong>実行してください。掲載中のまま消すと、次の同期で作り直されることがあります。<br>
         <strong>初期状態はすべて未チェック</strong>です。消す媒体だけを選んでください。<br>
-        いま自動で削除できるのは <strong>駅ちか・フーコレ・マンゾク・メンズバ</strong> です。
-        <strong>情報局・風じゃ・デリじゃ・ヘブン</strong>はまだ対応しておらず、チェックしても「スキップ」と表示されます（媒体側の管理画面から手動で削除してください）。
+        いま自動で削除できるのは <strong>情報局・駅ちか・フーコレ・マンゾク・メンズバ</strong> です。
+        <strong>風じゃ・デリじゃ・ヘブン</strong>はまだ対応しておらず、チェックしても「スキップ」と表示されます（媒体側の管理画面から手動で削除してください）。
       </p>
       <div id="del-media-picker" style="padding:10px;border:1px dashed #fca5a5;border-radius:8px;background:#fff">
         <?php foreach ($syncShops as $ssid): ?>
