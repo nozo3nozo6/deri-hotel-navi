@@ -48,10 +48,15 @@ try {
         $col = $MEDIA_COL[$media];
         $editCol = ($media === 'fuzoku' || $media === 'deli') ? "{$media}_edit_id" : null;
         $editSel = $editCol ? ", mi.{$editCol} AS edit_id" : '';
+        // include_hidden=1: 非掲載の子も返す。媒体からの取り下げ（girl_delete）は
+        // 「掲載OFF → 削除」の順で行うため、対象は必ず is_display=0 になっている。
+        // 通常の同期は掲載中だけを対象にしたいので、既定は従来どおり is_display=1 のみ。
+        $inclHidden = (string)($_GET['include_hidden'] ?? '') === '1';
+        $dispCond = $inclHidden ? '' : ' AND g.is_display = 1';
         $st = DB::conn()->prepare(
             "SELECT mi.girl_id, mi.{$col} AS media_id, g.name{$editSel}
                FROM girl_media_ids mi
-               JOIN girls g ON g.id = mi.girl_id AND g.is_display = 1
+               JOIN girls g ON g.id = mi.girl_id{$dispCond}
               WHERE mi.shop_id = ? AND mi.{$col} IS NOT NULL AND mi.{$col} <> ''"
         );
         $st->execute([$shopId]);
