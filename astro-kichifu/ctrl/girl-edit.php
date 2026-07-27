@@ -582,8 +582,11 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <div id="sync-chips" style="margin-top:8px;display:none"></div>
     </div>
 
-    <!-- 媒体からの取り下げ（退店・誤登録用）。同期とは別カードにする＝誤操作防止 -->
-    <div class="card card-pad" style="border:1px solid #fca5a5;background:#fef2f2;margin-top:14px">
+    <!-- 媒体からの取り下げ（退店・誤登録用）。同期とは別カードにする＝誤操作防止。
+         bot 側の girl_delete ジョブが未実装のため、いまは非表示にしている
+         （押しても何も起きず誤解を招くため。Grok の実装後に display:none を外すだけで有効化できる）。
+         依頼書: official-media-update/references/GROK-BRIEF-girl-delete-job-2026-07-27.md -->
+    <div class="card card-pad" style="display:none;border:1px solid #fca5a5;background:#fef2f2;margin-top:14px">
       <strong style="color:#b91c1c">🗑 媒体から取り下げる（退店・誤登録）</strong>
       <p class="muted" style="font-size:.8em;margin:6px 0 10px">
         選んだ媒体からこの子の掲載を<strong>削除</strong>します。<strong>元に戻せない媒体がほとんどです</strong>（メンズバ・マンゾク・駅ちかは復元不可を確認済み）。<br>
