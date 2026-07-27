@@ -581,6 +581,40 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
       <!-- 媒体別の結果チップ（bot からの sync-result を request_id で突合して表示） -->
       <div id="sync-chips" style="margin-top:8px;display:none"></div>
     </div>
+
+    <!-- 媒体からの取り下げ（退店・誤登録用）。同期とは別カードにする＝誤操作防止 -->
+    <div class="card card-pad" style="border:1px solid #fca5a5;background:#fef2f2;margin-top:14px">
+      <strong style="color:#b91c1c">🗑 媒体から取り下げる（退店・誤登録）</strong>
+      <p class="muted" style="font-size:.8em;margin:6px 0 10px">
+        選んだ媒体からこの子の掲載を<strong>削除</strong>します。<strong>元に戻せない媒体がほとんどです</strong>（メンズバ・マンゾク・駅ちかは復元不可を確認済み）。<br>
+        先に上の「掲載（店舗別）」をOFFにして保存し、<strong>同期対象から外してから</strong>実行してください。掲載中のまま消すと、次の同期で作り直されることがあります。<br>
+        <strong>初期状態はすべて未チェック</strong>です。消す媒体だけを選んでください。
+      </p>
+      <div id="del-media-picker" style="padding:10px;border:1px dashed #fca5a5;border-radius:8px;background:#fff">
+        <?php foreach ($syncShops as $ssid): ?>
+        <div style="display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+          <span style="font-size:.78em;font-weight:700;color:#7f1d1d;min-width:52px"><?= h($SYNC_SHOP_NAMES[$ssid]) ?></span>
+          <?php foreach ($SYNC_MEDIA_ROW as $mrow): ?>
+          <label class="del-media-cb">
+            <input type="checkbox" value="<?= $ssid ?>:<?= h($mrow[0]) ?>"> <?= h($mrow[1]) ?><?= h($SYNC_SHOP_NAMES[$ssid]) ?>
+          </label>
+          <?php endforeach; ?>
+        </div>
+        <?php endforeach; ?>
+        <?php if (in_array(1, $syncShops, true)): ?>
+        <div style="display:flex;gap:4px 12px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:.78em;font-weight:700;color:#7f1d1d;min-width:52px">単体</span>
+          <label class="del-media-cb"><input type="checkbox" value="1:heaven"> ヘブン</label>
+        </div>
+        <?php endif; ?>
+      </div>
+      <button type="button" id="del-confirm-btn" disabled
+              style="margin-top:12px;padding:8px 16px;border-radius:8px;border:1px solid #dc2626;background:#dc2626;color:#fff;font-weight:700;opacity:.5;cursor:not-allowed">
+        媒体を選んでください
+      </button>
+      <p id="del-result" class="muted" style="font-size:.8em;margin-top:8px;display:none"></p>
+      <div id="del-chips" style="margin-top:8px;display:none"></div>
+    </div>
   <?php endif; ?>
 
 <script>
@@ -705,15 +739,18 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
   //    bot 側は best-effort（結果POSTが失敗しても同期本体は成功）なので、
   //    結果が来ないこと自体は失敗を意味しない。タイムアウトは「不明」として明示する。
   const chipsEl = document.getElementById('sync-chips');
+  const chipsElDel = document.getElementById('del-chips');
   const STATUS_STYLE = {
     created: { bg: '#ecfdf5', bd: '#6ee7b7', fg: '#047857', icon: '🆕', word: '登録' },
+    deleted: { bg: '#fef2f2', bd: '#fca5a5', fg: '#b91c1c', icon: '🗑', word: '削除' },
     skipped: { bg: '#f8fafc', bd: '#cbd5e1', fg: '#475569', icon: '➖', word: 'スキップ' },
     failed:  { bg: '#fef2f2', bd: '#fca5a5', fg: '#b91c1c', icon: '⚠', word: '失敗' },
     pending: { bg: '#fffbeb', bd: '#fcd34d', fg: '#92400e', icon: '⏳', word: '待機中' },
     unknown: { bg: '#f8fafc', bd: '#cbd5e1', fg: '#64748b', icon: '❔', word: '結果不明' },
   };
   let pollTimer = null;
-  const renderChips = (expected, byKey, done) => {
+  const renderChips = (expected, byKey, done, el) => {
+    const target = el || chipsEl;
     const parts = expected.map(v => {
       const r = byKey[v];
       const s = STATUS_STYLE[r ? r.status : (done ? 'unknown' : 'pending')] || STATUS_STYLE.unknown;
@@ -731,13 +768,13 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
           + ' が失敗しました。媒体の公開ページで本人か確認してください（同名の別人に紐付いていないか）。</div>'
         : '<div style="margin-top:6px;font-size:.78em;color:#475569">結果が「結果不明」のままの媒体は、bot からの結果通知が届かなかっただけの可能性があります（同期自体は実行されています）。媒体側をご確認ください。</div>';
     }
-    chipsEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap">' + parts.join('') + '</div>' + note;
-    chipsEl.style.display = 'block';
+    target.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap">' + parts.join('') + '</div>' + note;
+    target.style.display = 'block';
   };
-  const pollResults = (requestId, expected) => {
+  const pollResults = (requestId, expected, el) => {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     const byKey = {};
-    renderChips(expected, byKey, false);
+    renderChips(expected, byKey, false, el);
     const started = Date.now();
     const tick = async () => {
       try {
@@ -755,12 +792,65 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
       } catch (e) { /* ポーリング失敗は無視（次のtickで回復） */ }
       const allIn = expected.every(v => byKey[v]);
       const timeout = Date.now() - started > 5 * 60 * 1000;   // 5分で打ち切り
-      renderChips(expected, byKey, allIn || timeout);
+      renderChips(expected, byKey, allIn || timeout, el);
       if (allIn || timeout) { clearInterval(pollTimer); pollTimer = null; }
     };
     pollTimer = setInterval(tick, 4000);
     setTimeout(tick, 2500);
   };
+
+  // ── 媒体からの取り下げ（削除）。同期とは別ボタン・初期は全部未チェック。
+  //    元に戻せない媒体が多いため、確認は2段階にする。
+  const delPicker = document.getElementById('del-media-picker');
+  const delBtn = document.getElementById('del-confirm-btn');
+  const delResult = document.getElementById('del-result');
+  if (delPicker) {
+    const delSelected = () =>
+      [...delPicker.querySelectorAll('.del-media-cb input')].filter(cb => cb.checked).map(cb => cb.value);
+    const updateDel = () => {
+      const n = delSelected().length;
+      delBtn.disabled = n === 0;
+      delBtn.style.opacity = n ? '1' : '.5';
+      delBtn.style.cursor = n ? 'pointer' : 'not-allowed';
+      delBtn.textContent = n ? '🗑 ' + n + '媒体から取り下げる' : '媒体を選んでください';
+    };
+    delPicker.addEventListener('change', updateDel);
+    updateDel();
+    delBtn.addEventListener('click', async () => {
+      const media = delSelected();
+      if (!media.length) return;
+      const names = media.map(mediaName).join('・');
+      if (!confirm('次の媒体から「<?= h($g['name']) ?>」の掲載を削除します。\n\n' + names
+        + '\n\n※ ほとんどの媒体で元に戻せません。よろしいですか？')) return;
+      if (!confirm('最終確認です。\n\n' + names + ' から削除します。\n本当に実行しますか？')) return;
+      delBtn.disabled = true; delBtn.style.cursor = 'wait';
+      const prev = delBtn.textContent; delBtn.textContent = '送信中…';
+      try {
+        const fd = new FormData();
+        fd.append('_csrf', CSRF);
+        fd.append('action', 'delete-media');
+        fd.append('girl_id', girlId);
+        media.forEach(k => fd.append('media[]', k));
+        const r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
+        const j = await r.json();
+        delResult.style.display = 'block';
+        if (j.ok) {
+          delResult.style.color = '#b91c1c';
+          delResult.textContent = '✅ 取り下げを開始しました。数分で反映されます。';
+          if (j.request_id) pollResults(j.request_id, media, chipsElDel);
+        } else {
+          delResult.style.color = '#dc2626';
+          delResult.textContent = '⚠ 送信に失敗しました（' + (j.error || '不明') + '）。';
+        }
+      } catch (e) {
+        delResult.style.display = 'block';
+        delResult.style.color = '#dc2626';
+        delResult.textContent = '⚠ 通信エラーが発生しました。';
+      } finally {
+        delBtn.disabled = false; delBtn.style.cursor = 'pointer'; delBtn.textContent = prev;
+      }
+    });
+  }
 
   confirmBtn.addEventListener('click', async () => {
     const media = selectedMedia();
@@ -807,6 +897,9 @@ document.querySelectorAll('[data-del-img]').forEach(b => b.addEventListener('cli
 .sync-media-cb { display: inline-flex; align-items: center; gap: 4px; font-size: .82em; color: #134e4a; font-weight: 600; cursor: pointer; padding: 3px 6px; border-radius: 6px; }
 .sync-media-cb:hover { background: #f0fdfa; }
 .sync-media-cb input { accent-color: #0d9488; width: 15px; height: 15px; }
+.del-media-cb { display: inline-flex; align-items: center; gap: 4px; font-size: .82em; color: #7f1d1d; font-weight: 600; cursor: pointer; padding: 3px 6px; border-radius: 6px; }
+.del-media-cb:hover { background: #fef2f2; }
+.del-media-cb input { accent-color: #dc2626; width: 15px; height: 15px; }
 /* 共通キャッチ/コメントが媒体別の専用文に上書きされる旨の注意書き */
 .override-note { margin: 6px 0 0; padding: 7px 10px; font-size: .78rem; line-height: 1.6;
                  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; color: #92400e; }

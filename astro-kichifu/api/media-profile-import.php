@@ -96,7 +96,7 @@ try {
         $gid   = (int)($body['girl_id'] ?? 0);
         $mode  = (string)($body['mode'] ?? '');
         if ($reqId === '' || !$gid) { http_response_code(400); echo json_encode(['error' => 'request_id and girl_id required']); exit; }
-        if (!in_array($mode, ['create', 'profile', 'photo', 'both'], true)) $mode = 'create';
+        if (!in_array($mode, ['create', 'profile', 'photo', 'both', 'delete'], true)) $mode = 'create';
         // 遅延作成（他テーブル同様、マイグレーション不要にしておく）
         DB::conn()->exec(
             'CREATE TABLE IF NOT EXISTS media_sync_results (
@@ -128,7 +128,8 @@ try {
             $mk = (string)($r['media'] ?? '');
             if (!isset($MEDIA_COL[$mk])) continue;                        // 未知の媒体キーは無視
             $stt = strtolower(trim((string)($r['status'] ?? '')));
-            if (!in_array($stt, ['created', 'skipped', 'failed'], true)) $stt = 'failed';
+            // deleted は girl_delete（媒体からの取り下げ）用
+            if (!in_array($stt, ['created', 'skipped', 'failed', 'deleted'], true)) $stt = 'failed';
             $mid = trim((string)($r['media_id'] ?? ''));
             $up->execute([
                 $reqId, $shopId, $mk, $gid, $mode, $stt,

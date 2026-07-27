@@ -150,6 +150,45 @@ try {
             echo json_encode(['ok' => true, 'request_id' => $reqId, 'notified_shops' => $notifyShops, 'media' => $mediaByShop]);
             break;
         }
+        case 'delete-media': {
+            // 媒体からの取り下げ（退店・誤登録）。bot の girl_delete ジョブを起動する。
+            // 掲載中のまま消すと次の同期で作り直されるため、girls.is_display=1 のときは警告を返す
+            // （実行自体は止めない。判断は運用側）。
+            $gid = (int)($_POST['girl_id'] ?? 0);
+            if (!own_girl($gid)) throw new RuntimeException('not found');
+            $nameSt = db()->prepare('SELECT name, is_display FROM girls WHERE id=?');
+            $nameSt->execute([$gid]);
+            $grow  = $nameSt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $gname = (string)($grow['name'] ?? '');
+
+            $MEDIA_ALL = ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli', 'fucolle', 'manzoku', 'mensv'];
+            $mediaByShop = [];
+            foreach ((array)($_POST['media'] ?? []) as $mv) {
+                if (!preg_match('/^([12]):([a-z]+)$/', (string)$mv, $mm)) continue;
+                if (!in_array($mm[2], $MEDIA_ALL, true)) continue;
+                $mediaByShop[(int)$mm[1]][] = $mm[2];
+            }
+            $mediaByShop = array_map(static fn($a) => array_values(array_unique($a)), $mediaByShop);
+            if ($mediaByShop === []) throw new RuntimeException('no media selected');
+
+            require_once __DIR__ . '/../api/media-webhook.php';
+            $shopSt = db()->prepare('SELECT shop_id FROM girl_shops WHERE girl_id=?');
+            $shopSt->execute([$gid]);
+            $girlShops = array_values(array_unique(array_map('intval', $shopSt->fetchAll(PDO::FETCH_COLUMN))));
+            // 取り下げは「掲載を外した後」に実行するのが正しい流れ＝girl_shops が空になっている。
+            // そのため同期と違い、girl_shops ではなく「チェックされた店舗」へ送る。
+            $reqId = 'ctrl_' . bin2hex(random_bytes(9));
+            $notify = [];
+            foreach (array_keys($mediaByShop) as $sid) {
+                media_webhook_notify($sid, $gid, $gname, ['delete'], 'ctrl', ['girl_delete'], $mediaByShop[$sid], $reqId);
+                $notify[] = $sid;
+            }
+            echo json_encode([
+                'ok' => true, 'request_id' => $reqId, 'notified_shops' => $notify, 'media' => $mediaByShop,
+                'warn_still_displayed' => (int)($grow['is_display'] ?? 0) === 1,
+            ]);
+            break;
+        }
         case 'sync-status': {
             // 同期結果のポーリング。bot が media-profile-import.php?action=sync-result で書いた
             // media_sync_results を request_id で引く（他人のクリックの結果は返らない）。
