@@ -23,6 +23,26 @@ PUBLIC_PROD=1 npm run build
 echo "▶ rsync dist/（静的フロント）"
 rsync -avz -e "$SSH" dist/ "$DEST/"
 
+echo "▶ 旧ページの掃除（dist に無くなった girls/ news/ の .html をサーバーから削除）"
+# rsync --delete を使わない運用（uploads 等を守るため）の副作用で、退店・削除したキャストの
+# /girls/{id}.html がサーバーに残り続け、非掲載なのに 200 を返す「幽霊ページ」になっていた。
+# （2026-07-28 実測: girls 10件。GSC「クロール済み-インデックス未登録」の一因）
+# girls/ news/ は完全にビルド生成物なので、dist に無い .html は消して安全。
+for d in girls news; do
+  [ -d "dist/$d" ] || continue
+  ls "dist/$d" 2>/dev/null | grep '\.html$' | sort > "/tmp/_keep_$d.txt"
+  $SSH "$HOSTSSH" "ls $ROOT/$d 2>/dev/null | grep '\\.html\$' | sort" > "/tmp/_srv_$d.txt" || true
+  comm -13 "/tmp/_keep_$d.txt" "/tmp/_srv_$d.txt" > "/tmp/_del_$d.txt"
+  n=$(wc -l < "/tmp/_del_$d.txt" | tr -d ' '); keep=$(wc -l < "/tmp/_keep_$d.txt" | tr -d ' ')
+  if [ "$n" = "0" ]; then echo "  $d/: 削除対象なし"; continue; fi
+  # 安全弁: ビルド結果より削除数が多い/同等なら異常（ビルド失敗等）とみなして中止
+  if [ "$keep" -gt 0 ] && [ "$n" -ge "$keep" ]; then
+    echo "  ❌ $d/: 削除対象 $n 件 ≥ ビルド $keep 件。異常のため掃除を中止"; exit 1
+  fi
+  echo "  $d/: $n 件を削除 → $(tr '\n' ' ' < "/tmp/_del_$d.txt")"
+  tr '\n' '\0' < "/tmp/_del_$d.txt" | $SSH "$HOSTSSH" "cd $ROOT/$d && xargs -0 -r rm -f"
+done
+
 echo "▶ rsync api/（PHP API・秘密ファイル除外）— kichifu と共有(同一DB・同一ロジック)につき astro-kichifu/api を正にする"
 # 旧 astro-admi/api/ は古いコピーで diaries 等が欠落 → 取込/配信の不整合の元。常に kichifu の api/ を配信する。
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \

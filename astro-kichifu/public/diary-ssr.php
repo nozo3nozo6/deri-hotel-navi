@@ -21,7 +21,17 @@ try {
     $d = null;
 }
 
-if (!$d) { http_response_code(404); header('Location: /top'); exit; }
+if (!$d) {
+    // 404 の直後に Location を送ると PHP が 302 に化ける（＝GSC「ページにリダイレクトがあります」の主因。
+    // 2026-07-28 実測 461件の大半が /diary/ と /news/。news-ssr / girls-ssr は修正済みで diary だけ残っていた）。
+    // 非表示・予約投稿前・削除済みの日記は素直に 404 を返す。
+    http_response_code(404);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>404 Not Found</title></head>'
+        . '<body style="font-family:sans-serif;text-align:center;padding:60px 20px;"><h1>404</h1><p>お探しのページは見つかりませんでした。</p>'
+        . '<p><a href="/girls">在籍一覧へ</a> ／ <a href="/top">トップへ</a></p></body></html>';
+    exit;
+}
 
 require __DIR__ . '/_ssr-shell.php';   // $SSR（店舗設定）＋ ssr_head/ssr_header/ssr_footer/ssr_h を定義
 

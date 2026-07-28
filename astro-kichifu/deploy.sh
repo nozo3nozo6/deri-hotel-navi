@@ -17,6 +17,27 @@ npm run build
 echo "▶ rsync dist/（静的フロント＋.htaccess）"
 rsync -avz -e "$SSH" dist/ "$DEST/"
 
+echo "▶ 旧ページの掃除（dist に無くなった girls/ news/ の .html をサーバーから削除）"
+# rsync --delete を使わない運用（uploads 等を守るため）の副作用で、退店・削除したキャストの
+# /girls/{id}.html がサーバーに残り続け、非掲載なのに 200 を返す「幽霊ページ」になっていた。
+# （2026-07-28 実測: 両サイトとも girls 10件。GSC「クロール済み-インデックス未登録」の一因）
+# girls/ news/ は完全にビルド生成物なので、dist に無い .html は消して安全。
+KHOST="${DEST%%:*}"; KROOT="${DEST#*:}"
+for d in girls news; do
+  [ -d "dist/$d" ] || continue
+  ls "dist/$d" 2>/dev/null | grep '\.html$' | sort > "/tmp/_kkeep_$d.txt"
+  $SSH "$KHOST" "ls $KROOT/$d 2>/dev/null | grep '\\.html\$' | sort" > "/tmp/_ksrv_$d.txt" || true
+  comm -13 "/tmp/_kkeep_$d.txt" "/tmp/_ksrv_$d.txt" > "/tmp/_kdel_$d.txt"
+  n=$(wc -l < "/tmp/_kdel_$d.txt" | tr -d ' '); keep=$(wc -l < "/tmp/_kkeep_$d.txt" | tr -d ' ')
+  if [ "$n" = "0" ]; then echo "  $d/: 削除対象なし"; continue; fi
+  # 安全弁: ビルド結果より削除数が多い/同等なら異常（ビルド失敗等）とみなして中止
+  if [ "$keep" -gt 0 ] && [ "$n" -ge "$keep" ]; then
+    echo "  ❌ $d/: 削除対象 $n 件 ≥ ビルド $keep 件。異常のため掃除を中止"; exit 1
+  fi
+  echo "  $d/: $n 件を削除 → $(tr '\n' ' ' < "/tmp/_kdel_$d.txt")"
+  tr '\n' '\0' < "/tmp/_kdel_$d.txt" | $SSH "$KHOST" "cd $KROOT/$d && xargs -0 -r rm -f"
+done
+
 echo "▶ rsync api/（PHP API・秘密ファイル除外）"
 rsync -avz --exclude='db-config.php' --exclude='deploy-config.php' --exclude='*.sample.php' \
   -e "$SSH" api/ "$DEST/api/"
