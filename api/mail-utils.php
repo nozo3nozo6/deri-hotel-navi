@@ -8,7 +8,21 @@
 //   - From: YobuHo <hotel@yobuho.com>
 //   - envelope sender (-f hotel@yobuho.com) で SPF alignment
 // を揃える。DMARC p=reject 下でもGmailのAIフィルタに「transactional」と認識させやすくする。
+//
+// 2026-08-01: 送信経路を SMTP AUTH 優先に変更。
+//   mail() はローカル sendmail への直接注入のため Received に
+//   "(Postfix, from userid 20014)" が残り、共有IPと相まって Apple/iCloud に
+//   554 5.7.1 [HM08] で拒否される（または受理後サイレント破棄される）ことを実測。
+//   同条件でも Web メール（SMTP AUTH）経由なら iCloud へ正常配信されたため、
+//   同じ submission 経路を使う。SMTP 未設定・失敗時は従来の mail() に自動フォールバック。
 // ==========================================================================
+
+// SMTP 認証情報は db-config.php（deploy.yml が GitHub Secrets から生成）に定義される。
+// ローカル開発環境等で存在しない場合は SMTP を使わず mail() にフォールバックする。
+if (!defined('SMTP_HOST') && is_readable(__DIR__ . '/db-config.php')) {
+    require_once __DIR__ . '/db-config.php';
+}
+require_once __DIR__ . '/smtp-send.php';
 
 /**
  * HTMLメールを multipart/alternative で送信する。
@@ -45,6 +59,14 @@ function sendTransactionalMail(string $to, string $subject, string $htmlBody): b
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+
+    // 経路1: SMTP AUTH（submission/587）。Web メールと同じ経路で、iCloud への配信実績あり。
+    $smtpErr = null;
+    if (smtpSendMail($to, $encodedSubject, $headers, $mimeBody, $smtpErr)) {
+        return true;
+    }
+    // 経路2: フォールバック。SMTP 未設定・接続失敗時も配信を止めない。
+    error_log('[mail-utils] SMTP send failed, falling back to mail(): ' . (string)$smtpErr);
     return @mail($to, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
 }
 

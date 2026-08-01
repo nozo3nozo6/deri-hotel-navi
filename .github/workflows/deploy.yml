@@ -94,9 +94,16 @@ jobs:
           CHAT_NOTIFY_SECRET: ${{ secrets.CHAT_NOTIFY_SECRET }}
           CAST_URL_BEARER_SECRET: ${{ secrets.CAST_URL_BEARER_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # SMTP AUTH 送信用（未設定なら mail() にフォールバックするので任意）
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
           mkdir -p api
           printf "<?php\ndefine('DB_HOST', '%s');\ndefine('DB_NAME', '%s');\ndefine('DB_USER', '%s');\ndefine('DB_PASS', '%s');\ndefine('CHAT_RETENTION_SECRET', '%s');\ndefine('CHAT_SYNC_SECRET', '%s');\ndefine('CHAT_NOTIFY_SECRET', '%s');\ndefine('CAST_URL_BEARER_SECRET', '%s');\ndefine('GEMINI_API_KEY', '%s');\n" "$DB_HOST" "$DB_NAME" "$DB_USER" "$DB_PASS" "$CHAT_RETENTION_SECRET" "$CHAT_SYNC_SECRET" "$CHAT_NOTIFY_SECRET" "$CAST_URL_BEARER_SECRET" "$GEMINI_API_KEY" > api/db-config.php
+          # SMTP 設定は Secrets 未登録でも壊れないよう空文字で定義（smtp-send.php が空判定して mail() に戻す）
+          printf "define('SMTP_HOST', '%s');\ndefine('SMTP_PORT', '%s');\ndefine('SMTP_USER', '%s');\ndefine('SMTP_PASS', '%s');\n" "${SMTP_HOST:-sv6051.wpx.ne.jp}" "${SMTP_PORT:-587}" "${SMTP_USER:-hotel@yobuho.com}" "$SMTP_PASS" >> api/db-config.php
 
       - name: Generate vapid-config.php
         env:
