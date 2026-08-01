@@ -101,11 +101,12 @@ if ($action === 'get' && $method === 'GET') {
 if ($action === 'find-by-phone' && $method === 'GET') {
     $phone = trim($_GET['phone'] ?? '');
     if ($phone === '') errorResponse('phone required', 400);
-    // 旧システムから移行した phone は数字のみで保存されている。
-    // 入力側はハイフン付き(090-1234-5678)のことがあるため、数字だけに正規化して照合する
-    $digits = preg_replace('/\D+/', '', $phone);
-    $stmt = $pdo->prepare("SELECT * FROM ops_customers WHERE phone = ? OR phone = ? LIMIT 1");
-    $stmt->execute([$phone, $digits]);
+    // 入力のハイフン・全角の有無に関わらず同じ顧客に当てる（opsNormPhone で数字のみに揃える）。
+    // 保存済み側に区切りが混ざっていても拾えるよう、列側も除去して比較する。
+    $digits = opsNormPhone($phone);
+    if ($digits === '') { jsonResponse(['customer' => null]); }
+    $stmt = $pdo->prepare("SELECT * FROM ops_customers WHERE " . opsPhoneMatchSql('phone') . " ORDER BY visit_count DESC, id LIMIT 1");
+    $stmt->execute([$digits]);
     jsonResponse(['customer' => $stmt->fetch() ?: null]);
 }
 
@@ -119,7 +120,7 @@ if ($action === 'create' && $method === 'POST') {
     $stmt->execute([
         $name,
         trim($b['name_kana'] ?? '') ?: null,
-        trim($b['phone'] ?? '') ?: null,
+        opsNormPhone($b['phone'] ?? '') ?: null,   // 数字のみで保存（同一顧客判定のキー）
         trim($b['email'] ?? '') ?: null,
         $b['gender'] ?? null,
         !empty($b['default_hotel_id']) ? (int)$b['default_hotel_id'] : null,
@@ -140,6 +141,7 @@ if ($action === 'update' && $method === 'POST') {
             $cols[]  = "$k = ?";
             $v = $b[$k];
             if ($k === 'default_hotel_id') $v = $v ? (int)$v : null;
+            elseif ($k === 'phone') { $v = opsNormPhone(is_string($v) ? $v : ''); if ($v === '') $v = null; }
             elseif (is_string($v)) { $v = trim($v); if ($v === '') $v = null; }
             $vals[] = $v;
         }

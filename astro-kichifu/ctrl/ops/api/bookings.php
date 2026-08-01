@@ -168,13 +168,16 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
 
     // ============ 電話番号で顧客自動UPSERT ============
     $customerId = !empty($b['customer_id']) ? (int)$b['customer_id'] : null;
-    $phone = trim($b['customer_phone_snapshot'] ?? '');
+    // 電話番号は数字のみに正規化して扱う。ハイフン付きのまま保存・検索すると、
+    // 旧オペレーションから移行した顧客（数字のみで保存）と突き合わず、
+    // 同じ人が新規顧客として二重登録される（2026-08-02 統一）
+    $phone = opsNormPhone($b['customer_phone_snapshot'] ?? '');
     $name  = trim($b['customer_name_snapshot'] ?? '');
     $email = trim($b['customer_email_snapshot'] ?? '');
 
     if (!$customerId && $phone !== '') {
-        // 電話番号で既存検索
-        $cs = $pdo->prepare("SELECT id, name FROM ops_customers WHERE phone = ? LIMIT 1");
+        // 電話番号で既存検索（保存側に区切りが混ざっていても拾う。実績のある方を優先）
+        $cs = $pdo->prepare("SELECT id, name FROM ops_customers WHERE " . opsPhoneMatchSql('phone') . " ORDER BY visit_count DESC, id LIMIT 1");
         $cs->execute([$phone]);
         $existing = $cs->fetch();
         if ($existing) {

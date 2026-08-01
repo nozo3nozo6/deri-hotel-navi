@@ -60,6 +60,31 @@ function errorResponse(string $message, int $code = 400) {
     jsonResponse(['error' => $message], $code);
 }
 
+// ==========================================================================
+// 電話番号の正規化（顧客の同一判定キー）
+//   保存・検索とも「数字のみ」に統一する。旧オペレーションから移行した
+//   27,981件は数字のみで入っているため、ハイフン付きのまま保存すると
+//   同じ人が別顧客として二重登録される（2026-08-02 に発覚し統一）。
+//   全角数字・ハイフン・空白・括弧・国番号(+81)を吸収する。
+// ==========================================================================
+function opsNormPhone(?string $raw): string {
+    $s = (string)$raw;
+    if ($s === '') return '';
+    // 全角数字・全角記号を半角へ
+    $s = mb_convert_kana($s, 'as', 'UTF-8');
+    $s = preg_replace('/\D+/', '', $s) ?? '';
+    // 国番号 +81 / 0081 → 先頭0 の国内表記に寄せる
+    if (str_starts_with($s, '0081')) $s = '0' . substr($s, 4);
+    elseif (str_starts_with($s, '81') && strlen($s) >= 11) $s = '0' . substr($s, 2);
+    return $s;
+}
+
+// 保存済みの値に区切り文字が混ざっていても引き当てるための SQL 断片。
+// 例: WHERE " . opsPhoneMatchSql('phone') . " と使い、値は数字のみを渡す。
+function opsPhoneMatchSql(string $col): string {
+    return "REPLACE(REPLACE(REPLACE(REPLACE({$col}, '-', ''), ' ', ''), '(', ''), ')', '') = ?";
+}
+
 // 致命的エラー(parse以外の実行時 fatal)で空の 200/500 ボディが返るのを防ぐ。
 // JSON でエラーを返しつつ、原因を公開ディレクトリ外のログに残して後から特定できるようにする。
 $GLOBALS['__ylka_json_sent'] = $GLOBALS['__ylka_json_sent'] ?? false;
