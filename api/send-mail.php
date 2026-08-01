@@ -89,8 +89,11 @@ $headers .= "Reply-To: hotel@yobuho.com\r\n";
 $headers .= "MIME-Version: 1.0\r\n";
 $headers .= "Content-Type: multipart/alternative; boundary=\"" . $boundary . "\"\r\n";
 
-// Envelope-From（Return-Path）を yobuho.com に設定（SPF alignment対策）
-$result = mail($to, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+// 2026-08-01: mail() 直呼び → sendMimeMail() に統一（SMTP AUTH 優先経路）。
+//   mail() のローカル注入は Apple/iCloud に [HM08] で拒否されるため、全送信経路を集約する。
+//   Envelope-From（SPF alignment）と mail() フォールバックは sendMimeMail 側で担保。
+require_once __DIR__ . '/mail-utils.php';
+$result = sendMimeMail($to, $subject, $mimeBody, $headers);
 
 if ($result) {
     echo json_encode(['success' => true, 'message' => 'メール送信完了']);

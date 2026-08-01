@@ -18,6 +18,10 @@
 - MySQL (MariaDB): シンレンタルサーバー上、api/db-config.phpで接続情報定義（deploy.ymlでGitHub Secretsから生成）
 - ローカル接続: SSHトンネル（ssh -p 10022 -L 3307:localhost:3306）+ db-local.js
 - SMTP: hotel@yobuho.com（sv6051.wpx.ne.jp:587）— Magic Linkテンプレートカスタマイズ済み
+- **メール送信は必ず `sendMimeMail()`（api/mail-utils.php）経由**。生の `mail()` は使わない。
+  SMTP AUTH（587+STARTTLS、api/smtp-send.php）で送信し、未設定・失敗時のみ `mail()` にフォールバック。
+  `mail()` 直送は Apple/iCloud に `554 5.7.1 [HM08]` で拒否される（2026-08-01 の修正履歴参照）。
+  必要 Secret: `SMTP_PASS`（他は既定値）
 
 ## Project Structure
 ```
@@ -327,6 +331,52 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年8月1日 — メール送信を SMTP AUTH に統一（iCloud 配信不能の根本解決）
+
+#### 症状
+`@icloud.com` 宛のメールが `554 5.7.1 [HM08] Message rejected due to local policy` で拒否され続けていた。
+キャスト受信箱の端末認証コードが届かず、該当キャストがログイン不能に。
+バウンス履歴（`~/yobuho.com/mail/yobuho.com/hotel@yobuho.com/new/`）を調べると **6/8 以降、複数の iCloud 宛で継続発生**。
+旧サーバー sv6825 時代は 0 件で、**4/21 の sv6051 移行後にのみ発生**していた。
+
+#### 切り分けの経緯（誤診を含む記録 — 同じ回り道を避けるため）
+1. ~~MIME 不正が原因~~ → CTE 欠落等を修正したが **HM08 は解消せず**（形式は原因ではなかった）
+2. ~~SPF/DKIM/DMARC 未設定~~ → **3つとも設定済み・pass**（Google の DMARC レポートで確認済み）
+3. ~~IP がブラックリスト入り~~ → **60 件中 0 件でクリーン**（MXToolbox）
+4. ~~受信者アドレス個別のブロック~~ → **自分の iCloud アドレスでも再現**したため否定
+5. ✅ **送信経路が原因** → 決定打は次の A/B:
+   - `php mail()` 経由（sv6051） → **HM08 で拒否**
+   - **Web メール（SMTP AUTH）経由（同一サーバ・同一IP・同一 From）** → **正常配信**
+
+#### 根本原因
+`mail()` はローカルの sendmail にメッセージを直接注入するため、
+`Received: by sv6051.wpx.ne.jp (Postfix, from userid 20014)` が残り、
+受信側から「SMTP 認証を伴わないスクリプト送信」であることが露見する。
+これが**共有ホスティングの IP と組み合わさると Apple/iCloud のポリシー判定で拒否**される。
+（ヘッダを整えると HM08 は消えるが、今度は受理後にサイレント破棄され受信箱に届かない）
+
+#### 対策（実装）
+- **`api/smtp-send.php` 新設** — 依存ライブラリ無しの SMTP AUTH 送信（submission/587 + STARTTLS + AUTH LOGIN）。
+  composer 未使用のため自己完結実装。ヘッダインジェクション防止、行頭ドットのエスケープ（RFC5321 4.5.2）、
+  CRLF 正規化、複数行応答の解析、TLS 必須、資格情報をログに出さない設計。
+- **`api/mail-utils.php`** — `sendMimeMail()` を新設し、**全メール送信をこの1関数に集約**。
+  SMTP を優先し、未設定・接続失敗時は従来の `mail()` に自動フォールバック（段階導入・障害耐性）。
+  Message-ID 未指定なら `@yobuho.com` で補完（MTA 生成だと `@sv6051.wpx.ne.jp` になり From とドメイン不一致）。
+- **統合した送信元**: `sendTransactionalMail()` / `chat-api.php`（訪問者通知・キャスト認証コード）/
+  `chat-notify.php`（オーナー宛通知）/ `send-mail.php`（汎用送信）。生の `mail()` はフォールバック1箇所のみ。
+- **`deploy.yml`** — `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` を db-config.php に生成。
+  `SMTP_PASS` のみ GitHub Secrets 必須（他は既定値 `sv6051.wpx.ne.jp` / `587` / `hotel@yobuho.com`）。
+
+#### 結果
+本番で `sendTransactionalMail()` 経由の iCloud 宛テストが**受信成功**。外部SMTPサービスへの移行は不要だった。
+
+#### 教訓・今後の注意
+- **サーバー内から送るメールは必ず `sendMimeMail()` 経由にすること。** 生の `mail()` を新規に書かない。
+- バウンスは `hotel@yobuho.com` のメールボックスに溜まるだけで**誰も気づけない**（今回 約2ヶ月放置された）。
+  調査時は `grep -l -i "icloud" ~/yobuho.com/mail/yobuho.com/hotel@yobuho.com/new/*` で履歴を追える。
+- 配信調査の初手は「**同じ内容を別経路で送って比較**」。認証・形式・ブラックリストを先に疑うと回り道になる。
+- Apple はエラーコードの意味を非公開・FBL/ダッシュボードも無し。窓口は `icloudadmin@apple.com` のみ。
+
 ### 2026年7月5日 — GSC 404対応・admin/shop-admin UX改善・デプロイSSH瞬断耐性強化
 
 #### GSC「ページのインデックス登録」404/ソフト404 対応

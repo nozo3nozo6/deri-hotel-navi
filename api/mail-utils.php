@@ -58,6 +58,29 @@ function sendTransactionalMail(string $to, string $subject, string $htmlBody): b
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
+    return sendMimeMail($to, $subject, $mimeBody, $headers);
+}
+
+/**
+ * 組み立て済み MIME メールを共通の送信経路で送る低レベル API。
+ *
+ * 独自の MIME 構造を持つ送信元（チャット通知など、text/plain だけ・独自の本文組み立てを
+ * したい箇所）が、sendTransactionalMail と同じ経路・同じ品質で送るための入口。
+ * 全メールをこの1関数に集約することで、送信経路の変更が一箇所で済む。
+ *
+ * Message-ID が未指定の場合は yobuho.com ドメインで補う（MTA が生成すると
+ * sv6051.wpx.ne.jp になり From とドメイン不一致になるため）。
+ *
+ * @param string $to       宛先
+ * @param string $subject  生の件名（内部で RFC2047 エンコードする）
+ * @param string $mimeBody 組み立て済み本文
+ * @param string $headers  CRLF 区切りのヘッダ群（To/Subject/Date は含めない）
+ */
+function sendMimeMail(string $to, string $subject, string $mimeBody, string $headers): bool {
+    if (stripos($headers, 'Message-ID:') === false) {
+        $messageId = '<' . bin2hex(random_bytes(16)) . '.' . time() . '@yobuho.com>';
+        $headers = rtrim($headers, "\r\n") . "\r\nMessage-ID: {$messageId}\r\n";
+    }
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 
     // 経路1: SMTP AUTH（submission/587）。Web メールと同じ経路で、iCloud への配信実績あり。

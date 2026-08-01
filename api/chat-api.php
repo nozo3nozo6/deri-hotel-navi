@@ -516,10 +516,10 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    // 2026-05-17: outlook.jp 配信失敗の調査用. mail() の返り値と宛先を error log に出力.
-    // production の PHP error_log で確認可能 (常時 false なら mail() 自体の問題、true なら配信途中の問題).
-    $mailResult = @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+    // 2026-05-17: outlook.jp 配信失敗の調査用. 送信結果と宛先を error log に出力.
+    // 2026-08-01: mail() 直呼び → sendMimeMail() に統一（SMTP AUTH 優先経路）。
+    //   mail() のローカル注入は Apple/iCloud に [HM08] で拒否されるため、全送信経路を集約する。
+    $mailResult = sendMimeMail($notifyTo, $subject, $mimeBody, $headers);
     error_log(sprintf(
         '[chat-api] mail to=%s session=%d cast=%s mode=%s result=%s',
         $notifyTo,
