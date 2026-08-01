@@ -27,20 +27,21 @@ if ($action === 'list' && $method === 'GET') {
         // 電話のゆれ吸収は「電話番号らしい入力」のときだけ。住所（例: 立川市錦町6-4-10）から
         // 数字を抜くと "6410" になり、無関係な番号に部分一致してしまう
         $kwPhone = preg_match('/^[0-9０-９\-\s()（）＋+]+$/u', $kw) ? opsNormPhone($kw) : '';
-        $where[] = '(c.name LIKE ? OR c.name_kana LIKE ? OR c.phone LIKE ? OR c.email LIKE ?'
-                 . ' OR c.default_location LIKE ?'
-                 . ($kwAddr  !== '' ? ' OR c.location_norm LIKE ?' : '')
-                 . ($kwPhone !== '' ? ' OR c.phone LIKE ?' : '')
+        $where[] = '(c.name LIKE ? OR c.name_kana LIKE ? OR c.phone LIKE ? OR c.phone2 LIKE ? OR c.email LIKE ?'
+                 . ' OR c.default_location LIKE ? OR c.default_location2 LIKE ?'
+                 . ($kwAddr  !== '' ? ' OR c.location_norm LIKE ? OR c.location_norm2 LIKE ?' : '')
+                 . ($kwPhone !== '' ? ' OR c.phone LIKE ? OR c.phone2 LIKE ?' : '')
                  . ' OR c.notes LIKE ?)';
-        $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
-        $params[] = "%{$kw}%";
-        if ($kwAddr  !== '') $params[] = "%{$kwAddr}%";
-        if ($kwPhone !== '') $params[] = "%{$kwPhone}%";
+        $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
+        $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
+        if ($kwAddr  !== '') { $params[] = "%{$kwAddr}%";  $params[] = "%{$kwAddr}%"; }
+        if ($kwPhone !== '') { $params[] = "%{$kwPhone}%"; $params[] = "%{$kwPhone}%"; }
         $params[] = "%{$kw}%";
     }
     // visit_count はレガシー値. 実際の予約件数 (キャンセル/無連絡を除く) を集計して返す
     // customer_id 直接紐付け + 電話番号一致 (レガシー未紐付け対策) の両方をカウント
-    $sql = "SELECT c.id, c.name, c.name_kana, c.phone, c.email, c.gender, c.default_hotel_id, c.default_location,
+    $sql = "SELECT c.id, c.name, c.name_kana, c.phone, c.phone2, c.email, c.gender, c.default_hotel_id,
+                   c.default_location, c.default_location2,
                    c.visit_count, c.last_visit_at, c.created_at,
                    (SELECT COUNT(DISTINCT b.id) FROM ops_bookings b
                       WHERE (b.customer_id = c.id
@@ -119,8 +120,11 @@ if ($action === 'find-by-phone' && $method === 'GET') {
     // 保存済み側に区切りが混ざっていても拾えるよう、列側も除去して比較する。
     $digits = opsNormPhone($phone);
     if ($digits === '') { jsonResponse(['customer' => null]); }
-    $stmt = $pdo->prepare("SELECT * FROM ops_customers WHERE " . opsPhoneMatchSql('phone') . " ORDER BY visit_count DESC, id LIMIT 1");
-    $stmt->execute([$digits]);
+    // 2台持ちのお客様がいるため phone / phone2 の両方で引き当てる
+    $stmt = $pdo->prepare("SELECT * FROM ops_customers
+                            WHERE " . opsPhoneMatchSql('phone') . " OR " . opsPhoneMatchSql('phone2') . "
+                            ORDER BY visit_count DESC, id LIMIT 1");
+    $stmt->execute([$digits, $digits]);
     jsonResponse(['customer' => $stmt->fetch() ?: null]);
 }
 
@@ -128,19 +132,24 @@ if ($action === 'create' && $method === 'POST') {
     $b = readJsonBody();
     $name = trim($b['name'] ?? '');
     if ($name === '') errorResponse('name required', 400);
-    $loc = trim($b['default_location'] ?? '');
+    $loc  = trim($b['default_location'] ?? '');
+    $loc2 = trim($b['default_location2'] ?? '');
     $stmt = $pdo->prepare("INSERT INTO ops_customers
-        (name, name_kana, phone, email, gender, default_hotel_id, default_location, location_norm, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        (name, name_kana, phone, phone2, email, gender, default_hotel_id,
+         default_location, location_norm, default_location2, location_norm2, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $name,
         trim($b['name_kana'] ?? '') ?: null,
-        opsNormPhone($b['phone'] ?? '') ?: null,   // 数字のみで保存（同一顧客判定のキー）
+        opsNormPhone($b['phone'] ?? '') ?: null,    // 数字のみで保存（同一顧客判定のキー）
+        opsNormPhone($b['phone2'] ?? '') ?: null,   // 2台持ち用。照合は phone / phone2 の両方で行う
         trim($b['email'] ?? '') ?: null,
         $b['gender'] ?? null,
         !empty($b['default_hotel_id']) ? (int)$b['default_hotel_id'] : null,
         $loc ?: null,
         opsNormAddress($loc) ?: null,   // 検索用（表記ゆれ吸収）。表示は default_location が正
+        $loc2 ?: null,
+        opsNormAddress($loc2) ?: null,
         trim($b['notes'] ?? '') ?: null,
     ]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
@@ -150,14 +159,15 @@ if ($action === 'update' && $method === 'POST') {
     $b  = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
-    $allow = ['name','name_kana','phone','email','gender','default_hotel_id','default_location','notes','pledge_images'];
+    $allow = ['name','name_kana','phone','phone2','email','gender','default_hotel_id',
+              'default_location','default_location2','notes','pledge_images'];
     $cols  = []; $vals = [];
     foreach ($allow as $k) {
         if (array_key_exists($k, $b)) {
             $cols[]  = "$k = ?";
             $v = $b[$k];
             if ($k === 'default_hotel_id') $v = $v ? (int)$v : null;
-            elseif ($k === 'phone') { $v = opsNormPhone(is_string($v) ? $v : ''); if ($v === '') $v = null; }
+            elseif ($k === 'phone' || $k === 'phone2') { $v = opsNormPhone(is_string($v) ? $v : ''); if ($v === '') $v = null; }
             elseif (is_string($v)) { $v = trim($v); if ($v === '') $v = null; }
             $vals[] = $v;
         }
@@ -165,6 +175,10 @@ if ($action === 'update' && $method === 'POST') {
     if (array_key_exists('default_location', $b)) {
         $cols[] = 'location_norm = ?';
         $vals[] = opsNormAddress(is_string($b['default_location']) ? $b['default_location'] : '') ?: null;
+    }
+    if (array_key_exists('default_location2', $b)) {
+        $cols[] = 'location_norm2 = ?';
+        $vals[] = opsNormAddress(is_string($b['default_location2']) ? $b['default_location2'] : '') ?: null;
     }
     if (!$cols) errorResponse('nothing to update', 400);
     $vals[] = $id;

@@ -1771,12 +1771,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="cmPhone">電話番号</label><input type="text" id="cmPhone"></div>
-        <div class="field"><label for="cmEmail">メール</label><input type="text" id="cmEmail"></div>
+        <div class="field"><label for="cmPhone2">電話番号 2（2台持ちの方）</label><input type="text" id="cmPhone2" placeholder="任意"></div>
       </div>
+      <div class="field"><label for="cmEmail">メール</label><input type="text" id="cmEmail"></div>
       <div class="field"><label for="cmGender">性別</label>
         <select id="cmGender"><option value="">未設定</option><option value="male">男性</option><option value="female">女性</option><option value="other">その他</option></select>
       </div>
       <div class="field"><label for="cmLocation">よく使う場所</label><input type="text" id="cmLocation" placeholder="例: 立川駅前のホテル○○"></div>
+      <div class="field"><label for="cmLocation2">よく使う場所 2</label><input type="text" id="cmLocation2" placeholder="任意（自宅とセカンドハウスなど）"></div>
       <div class="field"><label for="cmNotes">メモ（内部）</label><textarea id="cmNotes" placeholder="苦手な施術、好みなど"></textarea></div>
       <!-- 誓約書 アップロード -->
       <div class="field" id="cmPledgeField">

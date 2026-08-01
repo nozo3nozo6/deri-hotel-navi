@@ -3724,9 +3724,11 @@
         document.getElementById('cmName').value = c.name || '';
         document.getElementById('cmKana').value = c.name_kana || '';
         document.getElementById('cmPhone').value = c.phone || '';
+        document.getElementById('cmPhone2').value = c.phone2 || '';
         document.getElementById('cmEmail').value = c.email || '';
         document.getElementById('cmGender').value = c.gender || '';
         document.getElementById('cmLocation').value = c.default_location || '';
+        document.getElementById('cmLocation2').value = c.default_location2 || '';
         document.getElementById('cmNotes').value = c.notes || '';
         // 会員証（スタンプカード）URL: トークン既発行なら即表示
         if (c.member_token) showMemberUrl('https://ylka.jp/member.html?t=' + c.member_token);
@@ -3808,7 +3810,7 @@
         }
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
-      ['cmName','cmKana','cmPhone','cmEmail','cmGender','cmLocation','cmNotes'].forEach(i => document.getElementById(i).value = '');
+      ['cmName','cmKana','cmPhone','cmPhone2','cmEmail','cmGender','cmLocation','cmLocation2','cmNotes'].forEach(i => document.getElementById(i).value = '');
       cmPledgesState = [];
       renderCmPledges();
     }
@@ -3908,9 +3910,13 @@
     const name = document.getElementById('cmName').value.trim();
     if (!name) { toast('お名前を入力してください', 'err'); return; }
     const payload = {
-      name, name_kana: document.getElementById('cmKana').value, phone: document.getElementById('cmPhone').value,
+      name, name_kana: document.getElementById('cmKana').value,
+      phone: document.getElementById('cmPhone').value,
+      phone2: document.getElementById('cmPhone2').value,
       email: document.getElementById('cmEmail').value, gender: document.getElementById('cmGender').value,
-      default_location: document.getElementById('cmLocation').value, notes: document.getElementById('cmNotes').value,
+      default_location: document.getElementById('cmLocation').value,
+      default_location2: document.getElementById('cmLocation2').value,
+      notes: document.getElementById('cmNotes').value,
       pledge_images: JSON.stringify(cmPledgesState || []),
     };
     try {

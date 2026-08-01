@@ -177,8 +177,11 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
 
     if (!$customerId && $phone !== '') {
         // 電話番号で既存検索（保存側に区切りが混ざっていても拾う。実績のある方を優先）
-        $cs = $pdo->prepare("SELECT id, name FROM ops_customers WHERE " . opsPhoneMatchSql('phone') . " ORDER BY visit_count DESC, id LIMIT 1");
-        $cs->execute([$phone]);
+        // 2台持ちのお客様がいるため、2件目(phone2)からの着信でも同じ顧客に当てる
+        $cs = $pdo->prepare("SELECT id, name FROM ops_customers
+                              WHERE " . opsPhoneMatchSql('phone') . " OR " . opsPhoneMatchSql('phone2') . "
+                              ORDER BY visit_count DESC, id LIMIT 1");
+        $cs->execute([$phone, $phone]);
         $existing = $cs->fetch();
         if ($existing) {
             $customerId = (int)$existing['id'];
