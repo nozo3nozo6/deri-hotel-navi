@@ -4,7 +4,11 @@
 //
 // Actions:
 //   GET  ?action=list            一覧（公開API: is_active=1のみ、認証なしでもOK）
-//   POST ?action=create          {name, duration_min, price, description, sort_order}
+//   POST ?action=create          {name, duration_min, price, cast_reward, description, sort_order}
+//
+//   cast_reward = このコース1本あたりのキャスト報酬（円）。
+//   admi は歩合率(%)ではなくコースごとの固定額で報酬を決める運用のため、
+//   ops_admin_users.commission_rate ではなくこの列を使う。
 //   POST ?action=update          {id, ...}
 //   POST ?action=delete          {id}  (owner only)
 //   POST ?action=toggle-active   {id, is_active}
@@ -21,7 +25,7 @@ if ($action === 'list' && $method === 'GET') {
     $includeInactive = !empty($_GET['include_inactive']);
     try {
         $pdo = getPdo();
-        $sql = "SELECT id, name, duration_min, price, description, bg_image_url, sort_order, is_active
+        $sql = "SELECT id, name, duration_min, price, cast_reward, description, bg_image_url, sort_order, is_active
                 FROM ops_courses "
                 . ($includeInactive ? '' : 'WHERE is_active = 1 ')
                 . "ORDER BY sort_order, id";
@@ -42,10 +46,11 @@ if ($action === 'create' && $method === 'POST') {
     $name = trim($b['name'] ?? '');
     $dur = (int)($b['duration_min'] ?? 0);
     if ($name === '' || $dur <= 0) errorResponse('name and duration_min required', 400);
-    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, description, sort_order, is_active)
-                   VALUES (?, ?, ?, ?, ?, 1)")->execute([
+    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, cast_reward, description, sort_order, is_active)
+                   VALUES (?, ?, ?, ?, ?, ?, 1)")->execute([
         $name, $dur,
         isset($b['price']) && $b['price'] !== '' ? (int)$b['price'] : null,
+        isset($b['cast_reward']) && $b['cast_reward'] !== '' ? (int)$b['cast_reward'] : null,
         trim($b['description'] ?? '') ?: null,
         (int)($b['sort_order'] ?? 100),
     ]);
@@ -57,11 +62,11 @@ if ($action === 'update' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
     $cols = []; $vals = [];
-    foreach (['name', 'duration_min', 'price', 'description', 'bg_image_url', 'sort_order', 'is_active'] as $k) {
+    foreach (['name', 'duration_min', 'price', 'cast_reward', 'description', 'bg_image_url', 'sort_order', 'is_active'] as $k) {
         if (array_key_exists($k, $b)) {
             $cols[] = "$k = ?";
             $v = $b[$k];
-            if (in_array($k, ['duration_min', 'price', 'sort_order', 'is_active'], true)) {
+            if (in_array($k, ['duration_min', 'price', 'cast_reward', 'sort_order', 'is_active'], true)) {
                 $v = ($v === '' || $v === null) ? null : (int)$v;
             } elseif (is_string($v)) {
                 $v = trim($v); if ($v === '') $v = null;

@@ -716,6 +716,7 @@
   // ===== スタッフ編集モーダル =====
   let editingStaffId = null;
   let editingStaffRole = 'staff';
+  let editingStaffIsCast = false;   // CTRL同期のキャスト(girl_idあり)を編集中か
   let editingStaffUsername = '';
   let editingThumbData = null;  // 新サムネ Base64
 
@@ -730,8 +731,16 @@
     editingStaffUsername = u.username || '';
     const esEmail = document.getElementById('esEmail');
     if (esEmail) esEmail.value = u.username || '';
-    const esRate = document.getElementById('esRate');
-    if (esRate) esRate.value = (u.commission_rate != null ? parseFloat(u.commission_rate) : 50);
+    // CTRL から同期したキャスト(girl_id あり)は権限=キャスト固定。
+    // 権限/兼任/歩合率はスタッフ管理でのみ扱う
+    const isCast = u.girl_id != null && u.girl_id !== '';
+    editingStaffIsCast = isCast;
+    const staffOnly = document.getElementById('esStaffOnlyFields');
+    if (staffOnly) staffOnly.style.display = isCast ? 'none' : '';
+    const castNote = document.getElementById('esCastNote');
+    if (castNote) castNote.style.display = isCast ? '' : 'none';
+    document.querySelector('.mh-title').textContent = isCast ? 'キャスト編集' : 'スタッフ編集';
+
     const esCanDrive = document.getElementById('esCanDrive');
     if (esCanDrive) esCanDrive.checked = Number(u.can_drive) === 1;
     const esIsTherapist = document.getElementById('esIsTherapist');
@@ -779,11 +788,12 @@
     const name = document.getElementById('esName').value.trim();
     if (!name) { toast('表示名を入力してください', 'err'); return; }
     const payload = { id: editingStaffId, display_name: name, thumbnail_url: editingThumbData };
-    const esRate = document.getElementById('esRate');
-    if (esRate && esRate.value !== '') payload.commission_rate = Math.max(0, Math.min(100, parseFloat(esRate.value) || 0));
-    payload.can_drive = document.getElementById('esCanDrive')?.checked ? 1 : 0;
-    payload.is_therapist = document.getElementById('esIsTherapist')?.checked ? 1 : 0;
-    payload.is_office = document.getElementById('esIsOffice')?.checked ? 1 : 0;
+    // キャストは権限=キャスト固定・兼任/歩合率なし。該当項目は送らず現状維持にする
+    if (!editingStaffIsCast) {
+      payload.can_drive = document.getElementById('esCanDrive')?.checked ? 1 : 0;
+      payload.is_therapist = document.getElementById('esIsTherapist')?.checked ? 1 : 0;
+      payload.is_office = document.getElementById('esIsOffice')?.checked ? 1 : 0;
+    }
     // メール(=ログインID) 変更時のみ送信
     const emailVal = (document.getElementById('esEmail')?.value || '').trim();
     if (emailVal && emailVal !== editingStaffUsername) {
@@ -791,7 +801,8 @@
       payload.email = emailVal;
     }
     // 自分以外なら role も送信
-    if (Number(currentUser?.id) !== Number(editingStaffId)) {
+    // キャストは role=staff 固定（権限UIを出していないので送らない）
+    if (!editingStaffIsCast && Number(currentUser?.id) !== Number(editingStaffId)) {
       payload.role = editingStaffRole;
     }
     try {
@@ -1490,12 +1501,23 @@
   // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、出張費は片道max(½,850)を送迎分だけ店取り
   // pm(payment_method) がクレジットのときはカード手数料のキャスト負担分を差し引く
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
-  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride) {
+  // コース名から、マスタに登録された「キャスト報酬」を引く（admi 方式）。
+  // 未登録・見つからない場合は null を返し、歩合率(%)方式にフォールバックする。
+  function courseCastReward(courseName) {
+    if (!courseName) return null;
+    const c = (coursesCache || []).find(x => String(x.name) === String(courseName));
+    if (!c || c.cast_reward == null || c.cast_reward === '') return null;
+    return parseInt(c.cast_reward, 10) || 0;
+  }
+  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName) {
     if (rewardOverride !== undefined && rewardOverride !== null && rewardOverride !== '') return parseInt(rewardOverride, 10) || 0;
     const lateT = backDrv ? 0 : late;
     let transT = 0;
     if (trans > 0) { const perLeg = Math.max(Math.floor(trans / 2), 850); let shop = (goDrv ? perLeg : 0) + (backDrv ? perLeg : 0); if (shop > trans) shop = trans; transT = trans - shop; }
-    return Math.floor((price - late) * rate / 100) + lateT + transT - cardFeeSelf(price, trans, pm);
+    // admi: マスタのコース別「キャスト報酬」を優先。無ければ従来の歩合率(%)で算出
+    const fixed = courseCastReward(courseName);
+    const base = (fixed !== null) ? fixed : Math.floor((price - late) * rate / 100);
+    return base + lateT + transT - cardFeeSelf(price, trans, pm);
   }
   // 時刻のテキスト表示は実時刻・0埋めなし（例 02:00→2:00）。24h+表記(displayTime)は位置計算・ソート専用
   function fmtTimeDisp(t) { return String(t || '').slice(0, 5).replace(/^0/, ''); }
@@ -1526,7 +1548,7 @@
     const netOf = (b) => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
       const amt = price + trans;
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       return amt - reward;
     };
     const netTotal = earned.reduce((s, b) => s + netOf(b), 0);
@@ -1565,7 +1587,7 @@
     earned.forEach(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
       const amt = price + trans;
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       const net = amt - reward;
       const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span><span style="white-space:nowrap;"><b>${yen(net)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span></div>
         <div style="margin-top:.35rem;"><span class="chain-now-badge">📍 <b>${escapeHtml(netHolderOf(b))}</b></span></div>`;
@@ -1739,7 +1761,7 @@
       const rate = Number(b.commission_rate);
       const hasRate = b.commission_rate != null && b.commission_rate !== '' && !Number.isNaN(rate);
       const amt = price + trans;
-      if (b.reward_paid_at && hasRate) return amt - calcReward(price, late, trans, rate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override);
+      if (b.reward_paid_at && hasRate) return amt - calcReward(price, late, trans, rate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name);
       return amt;
     };
     const unc = data.uncollected || [];
@@ -1850,7 +1872,7 @@
       if (isNonCash(b)) return 0;                                                  // カード/振込は現金を預からない
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
       const amt = price + trans;
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       if (b.reward_paid_at) return amt - reward;                                   // 報酬確定 → 残額（入金分）
       if (b.shop_settled && b.settle_kind === 'net') return amt - reward;          // 旧データ互換
       return amt;                                                                   // 全額のまま
@@ -1912,7 +1934,7 @@
         return;
       }
       // 入金分（店の取り分）= 全額 − 報酬。報酬は本人の歩合で算出
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       const net = amt - reward;
       const hops = byBooking[b.id] || [];
       const legacyHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
@@ -2001,7 +2023,7 @@
                           : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : Number(b.assigned_admin_id));
     const items = earned.map(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       totalReward += reward;
       let statusHtml;
       if (b.reward_paid_at) {
@@ -2137,7 +2159,7 @@
         dayJobs.forEach(b => {
           const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
           const amt = price + trans;
-          const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override) : 0;
+          const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
           if (hasRate) heldReward += rw;
           if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
         });
@@ -4301,6 +4323,7 @@
           <div class="bi-name">${escapeHtml(c.name)} ${Number(c.is_active) ? '' : '<span style="color:var(--red);font-size:.78rem;">[無効]</span>'}</div>
           <div class="bi-meta">
             ${c.price ? `<span>💴 ¥${Number(c.price).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">料金未設定</span>'}
+            ${c.cast_reward != null && c.cast_reward !== '' ? `<span>💰 報酬 ¥${Number(c.cast_reward).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">報酬未設定</span>'}
             ${c.description ? `<span>${escapeHtml(c.description)}</span>` : ''}
             <span>表示順: ${c.sort_order}</span>
           </div>
@@ -4375,6 +4398,7 @@
       document.getElementById('coName').value = c.name || '';
       document.getElementById('coDuration').value = c.duration_min || 60;
       document.getElementById('coPrice').value = c.price || '';
+      document.getElementById('coCastReward').value = (c.cast_reward != null ? c.cast_reward : '');
       document.getElementById('coDescription').value = c.description || '';
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
       setBgImagePreview(c.bg_image_url || '');
@@ -4382,6 +4406,7 @@
       document.getElementById('coName').value = '';
       document.getElementById('coDuration').value = 60;
       document.getElementById('coPrice').value = '';
+      document.getElementById('coCastReward').value = '';
       document.getElementById('coDescription').value = '';
       document.getElementById('coIsActive').checked = true;
       setBgImagePreview('');
@@ -4459,6 +4484,7 @@
     const payload = {
       name, duration_min: dur,
       price: document.getElementById('coPrice').value,
+      cast_reward: document.getElementById('coCastReward').value,
       description: document.getElementById('coDescription').value,
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
     };

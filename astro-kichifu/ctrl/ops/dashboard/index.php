@@ -1396,7 +1396,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div class="field"><label for="coName">コース名</label><input type="text" id="coName" placeholder="例: 60分コース"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="coDuration">時間（分）</label><input type="number" id="coDuration" min="5" step="5" placeholder="60"></div>
-        <div class="field"><label for="coPrice">税込料金（円）</label><input type="number" id="coPrice" min="0" step="100" placeholder="9900"></div>
+        <div class="field"><label for="coPrice">コース料金（円・税込）</label><input type="number" id="coPrice" min="0" step="100" placeholder="18000"></div>
+      </div>
+      <div class="field">
+        <label for="coCastReward">キャスト報酬（円）</label>
+        <input type="number" id="coCastReward" min="0" step="100" placeholder="9000">
+        <span class="hint">このコース1本あたり、キャストに支払う金額。空欄なら報酬0で計算します</span>
       </div>
       <div class="field"><label for="coDescription">説明（任意）</label><input type="text" id="coDescription" placeholder="例: もみほぐし／ヘッドスパ等を組み合わせ"></div>
       <!-- 背景画像 (トップページのメニューカードに表示) -->
@@ -2180,7 +2185,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
     <!-- 👤 報酬 -->
     <div class="ac-panel" id="ac-payroll" style="display:none;">
-      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = コース料金（割引後・延長含む）×歩合率 ＋ 出張費（自走分）＋ 深夜料金。<b>出張費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
+      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = <b>マスタでコースごとに設定したキャスト報酬</b> ＋ 出張費（自走分）＋ 深夜料金。<b>出張費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
       <div id="payTotal" style="margin-bottom:1rem;"></div>
       <div id="payResult"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
     </div>
@@ -2382,39 +2387,39 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
         <span class="hint">PNG/JPG/WebP、512px推奨。自動でリサイズします</span>
       </div>
-      <div class="field">
-        <label>権限</label>
-        <div class="em-status" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr));">
-          <button class="sbtn v-visited" data-es-role="staff" type="button">キャスト</button>
-          <button class="sbtn v-unset" data-es-role="driver" type="button">ドライバー</button>
-          <button class="sbtn v-unset" data-es-role="office" type="button">内勤スタッフ</button>
-          <button class="sbtn v-inquiry" data-es-role="manager" type="button">店長</button>
-          <button class="sbtn v-unavailable" data-es-role="owner" type="button">オーナー</button>
+      <!-- 権限・兼任・歩合率は「スタッフ管理」専用。キャスト編集では出さない。
+           admi のキャストは全員 role=staff 固定で、報酬はマスタのコース別
+           「キャスト報酬」で決まるため歩合率(%)は使わない。 -->
+      <div id="esStaffOnlyFields" style="display:none;">
+        <div class="field">
+          <label>権限</label>
+          <div class="em-status" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr));">
+            <button class="sbtn v-visited" data-es-role="staff" type="button">キャスト</button>
+            <button class="sbtn v-unset" data-es-role="driver" type="button">ドライバー</button>
+            <button class="sbtn v-unset" data-es-role="office" type="button">内勤スタッフ</button>
+            <button class="sbtn v-inquiry" data-es-role="manager" type="button">店長</button>
+            <button class="sbtn v-unavailable" data-es-role="owner" type="button">オーナー</button>
+          </div>
+          <span class="hint" id="esRoleHint"></span>
         </div>
-        <span class="hint" id="esRoleHint"></span>
-      </div>
-      <div class="field">
-        <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
-          <input type="checkbox" id="esIsTherapist" style="width:18px;height:18px;cursor:pointer;">
-          <span>💆 キャスト業務も兼任する</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
-          <input type="checkbox" id="esIsOffice" style="width:18px;height:18px;cursor:pointer;">
-          <span>🪪 内勤業務も兼任する</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
-          <input type="checkbox" id="esCanDrive" style="width:18px;height:18px;cursor:pointer;">
-          <span>🚗 送迎ドライバーも兼任する</span>
-        </label>
-      </div>
-      <div class="field">
-        <label for="esRate">歩合率（%）</label>
-        <div style="display:flex;align-items:center;gap:.5rem;">
-          <input type="number" id="esRate" min="0" max="100" step="1" value="50" style="flex:1;min-width:0;">
-          <span style="font-weight:700;color:var(--ink-soft);flex-shrink:0;">%</span>
+        <div class="field">
+          <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
+            <input type="checkbox" id="esIsTherapist" style="width:18px;height:18px;cursor:pointer;">
+            <span>💆 キャスト業務も兼任する</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
+            <input type="checkbox" id="esIsOffice" style="width:18px;height:18px;cursor:pointer;">
+            <span>🪪 内勤業務も兼任する</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
+            <input type="checkbox" id="esCanDrive" style="width:18px;height:18px;cursor:pointer;">
+            <span>🚗 送迎ドライバーも兼任する</span>
+          </label>
         </div>
-        <span class="hint">報酬 = コース料金×この率 ＋ 深夜料金（全額）＋ 出張費（全額）</span>
+      </div>
+      <div class="field" id="esCastNote" style="display:none;">
+        <span class="hint">プロフィール（名前・写真・入店日など）の編集は <a href="/ctrl/girls.php">CTRL のキャスト管理</a> から。ここでの変更は運営画面の表示にだけ使われます。<br>報酬は「マスタ」タブのコースごとに設定した<strong>キャスト報酬</strong>で計算されます。</span>
       </div>
     </div>
     <div class="modal-footer">
