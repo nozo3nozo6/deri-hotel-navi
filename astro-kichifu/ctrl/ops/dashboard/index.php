@@ -1170,7 +1170,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   </div>
 
   <div class="tl-toolbar" style="margin-top:2rem;">
-    <div class="tl-title">施術コース管理<span class="tl-sub">予約モーダルで選べるコースを編集</span></div>
+    <div class="tl-title">コース管理<span class="tl-sub">予約モーダルで選べるコースを編集</span></div>
     <div class="tl-nav">
       <button class="tl-add" id="coAddNew">+ コース追加</button>
     </div>
@@ -1301,28 +1301,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     </div>
     <div class="modal-body">
       <div class="field"><label for="coName">コース名</label><input type="text" id="coName" placeholder="例: 60分コース"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+      <!-- 時間・料金・報酬は1行（入力が短く、横並びの方が関係が見やすい） -->
+      <div style="display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:.7rem;">
         <div class="field"><label for="coDuration">時間（分）</label><input type="number" id="coDuration" min="5" step="5" placeholder="60"></div>
-        <div class="field"><label for="coPrice">コース料金（円・税込）</label><input type="number" id="coPrice" min="0" step="100" placeholder="18000"></div>
-      </div>
-      <div class="field">
-        <label for="coCastReward">キャスト報酬（円）</label>
-        <input type="number" id="coCastReward" min="0" step="100" placeholder="9000">
-        <span class="hint">このコース1本あたり、キャストに支払う金額。空欄なら報酬0で計算します</span>
-      </div>
-      <div class="field"><label for="coDescription">説明（任意）</label><input type="text" id="coDescription" placeholder="例: もみほぐし／ヘッドスパ等を組み合わせ"></div>
-      <!-- 背景画像 (トップページのメニューカードに表示) -->
-      <div class="field" id="coBgImageWrap">
-        <label>背景画像 <span class="hint" style="font-weight:400;">推奨 1600×1200 (4:3)、5MB まで、自動で WebP に変換・縮小</span></label>
-        <div id="coBgImagePreview" style="margin-top:.4rem;display:none;">
-          <img id="coBgImagePreviewImg" style="width:100%;max-width:280px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--gray);">
-          <div style="margin-top:.4rem;display:flex;gap:.5rem;">
-            <button type="button" class="btn-secondary" id="coBgImageReplace" style="padding:.4rem .8rem;font-size:.85rem;">差し替え</button>
-            <button type="button" class="btn-secondary" id="coBgImageDelete" style="padding:.4rem .8rem;font-size:.85rem;color:var(--red);border-color:var(--red);">削除</button>
-          </div>
-        </div>
-        <input type="file" id="coBgImageFile" accept="image/jpeg,image/png,image/webp" style="margin-top:.4rem;">
-        <div id="coBgImageStatus" style="margin-top:.4rem;font-size:.82rem;color:var(--ink-soft);"></div>
+        <div class="field"><label for="coPrice">コース料金（円）</label><input type="number" id="coPrice" min="0" step="100" placeholder="18000"></div>
+        <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="number" id="coCastReward" min="0" step="100" placeholder="9000"></div>
       </div>
       <div class="field"><label><input type="checkbox" id="coIsActive" checked style="width:auto;margin-right:.4rem;"> このコースを有効にする（予約モーダルで選択可能）</label><span class="hint">並び順は一覧でドラッグして変更できます</span></div>
     </div>
@@ -1686,7 +1669,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div class="field"><label for="cmLocation">よく使う場所</label><input type="text" id="cmLocation" placeholder="例: 立川駅前のホテル○○"></div>
       <div class="field"><label for="cmLocation2">よく使う場所 2</label><input type="text" id="cmLocation2" placeholder="任意（自宅とセカンドハウスなど）"></div>
-      <div class="field"><label for="cmNotes">メモ（内部）</label><textarea id="cmNotes" placeholder="苦手な施術、好みなど"></textarea></div>
+      <div class="field"><label for="cmNotes">メモ（内部）</label><textarea id="cmNotes" placeholder="苦手なプレイ、好みなど"></textarea></div>
       <!-- 誓約書 アップロード -->
       <div class="field" id="cmPledgeField">
         <label>誓約書</label>

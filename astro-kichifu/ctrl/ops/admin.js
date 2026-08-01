@@ -1353,7 +1353,7 @@
     lines.push('ドライバー: ' + drv);
     lines.push('日付: ' + fmtBizDate(b));
     lines.push('お客様: ' + cust + ' 様');
-    if (st && et) lines.push('施術: ' + st + '〜' + et);
+    if (st && et) lines.push('接客: ' + st + '〜' + et);
     // コース（何分）・指名・料金
     const nomLabel = { first: '初指名', regular: '本指名', free: 'フリー' }[b.nomination_type] || '';
     const courseBits = [b.course_name, nomLabel].filter(Boolean).join('・');
@@ -1708,7 +1708,7 @@
             <b>${x.pickup ? escapeHtml(x.pickup) : '—'}</b> <span style="font-size:.82rem;">${escapeHtml(x.therapist)}</span>
             <div style="font-size:.74rem;color:var(--ink-soft);">${escapeHtml(x.customer || '—')}${x.place ? '・' + escapeHtml(x.place) : ''}${x.room ? ' ' + escapeHtml(x.room) : ''}</div>
           </div>
-          <div style="font-size:.72rem;color:var(--ink-soft);white-space:nowrap;">施術 ${escapeHtml(x.start_time)}〜${escapeHtml(x.end_time)}</div>
+          <div style="font-size:.72rem;color:var(--ink-soft);white-space:nowrap;">接客 ${escapeHtml(x.start_time)}〜${escapeHtml(x.end_time)}</div>
         </div>`).join('');
     };
     const custodyHtml = d.custody.length
@@ -4355,7 +4355,6 @@
           <div class="bi-meta">
             ${c.price ? `<span>💴 ¥${Number(c.price).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">料金未設定</span>'}
             ${c.cast_reward != null && c.cast_reward !== '' ? `<span>💰 報酬 ¥${Number(c.cast_reward).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">報酬未設定</span>'}
-            ${c.description ? `<span>${escapeHtml(c.description)}</span>` : ''}
             <span>表示順: ${c.sort_order}</span>
           </div>
         </div>
@@ -4430,83 +4429,17 @@
       document.getElementById('coDuration').value = c.duration_min || 60;
       document.getElementById('coPrice').value = c.price || '';
       document.getElementById('coCastReward').value = (c.cast_reward != null ? c.cast_reward : '');
-      document.getElementById('coDescription').value = c.description || '';
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
-      setBgImagePreview(c.bg_image_url || '');
     } else {
       document.getElementById('coName').value = '';
       document.getElementById('coDuration').value = 60;
       document.getElementById('coPrice').value = '';
       document.getElementById('coCastReward').value = '';
-      document.getElementById('coDescription').value = '';
       document.getElementById('coIsActive').checked = true;
-      setBgImagePreview('');
     }
     openModal('courseModal');
   }
 
-  // 背景画像プレビュー / ファイル入力の表示制御
-  function setBgImagePreview(url) {
-    const preview = document.getElementById('coBgImagePreview');
-    const fileInput = document.getElementById('coBgImageFile');
-    const status = document.getElementById('coBgImageStatus');
-    if (url) {
-      // キャッシュバスター付き
-      document.getElementById('coBgImagePreviewImg').src = url + '?t=' + Date.now();
-      preview.style.display = '';
-      fileInput.style.display = 'none';
-    } else {
-      preview.style.display = 'none';
-      fileInput.style.display = '';
-      fileInput.value = '';
-    }
-    if (status) status.textContent = '';
-  }
-
-  // ファイル選択 → アップロード (course_id 必須)
-  async function uploadBgImage(file) {
-    if (!editingCourseId) {
-      toast('先にコースを保存してから画像をアップロードしてください', 'err');
-      return;
-    }
-    const status = document.getElementById('coBgImageStatus');
-    status.textContent = 'アップロード中...';
-    const fd = new FormData();
-    fd.append('course_id', String(editingCourseId));
-    fd.append('image', file);
-    try {
-      const res = await fetch('/ctrl/ops/api/courses-upload.php', {
-        method: 'POST', body: fd, credentials: 'include',
-      });
-      const d = await res.json();
-      if (!d.ok) throw new Error(d.error || 'upload failed');
-      // キャッシュ更新 + プレビュー反映
-      const c = coursesCache.find(x => x.id === editingCourseId);
-      if (c) c.bg_image_url = d.url;
-      setBgImagePreview(d.url);
-      status.textContent = `✓ アップロード完了 (${Math.round(d.size / 1024)} KB)`;
-      status.style.color = 'var(--green)';
-      setTimeout(() => { status.textContent = ''; status.style.color = ''; }, 3000);
-    } catch (e) {
-      status.textContent = '失敗: ' + e.message;
-      status.style.color = 'var(--red)';
-      toast('アップロード失敗: ' + e.message, 'err');
-    }
-  }
-
-  // 画像削除 (DB の bg_image_url を NULL に)
-  async function deleteBgImage() {
-    if (!editingCourseId || !confirm('背景画像を削除しますか？')) return;
-    try {
-      await apiPost('/courses.php?action=update', { id: editingCourseId, bg_image_url: null });
-      const c = coursesCache.find(x => x.id === editingCourseId);
-      if (c) c.bg_image_url = null;
-      setBgImagePreview('');
-      toast('✓ 削除しました', 'ok');
-    } catch (e) {
-      toast('削除失敗: ' + e.message, 'err');
-    }
-  }
   async function saveCourse() {
     const name = document.getElementById('coName').value.trim();
     const dur = parseInt(document.getElementById('coDuration').value, 10);
@@ -4516,7 +4449,6 @@
       name, duration_min: dur,
       price: document.getElementById('coPrice').value,
       cast_reward: document.getElementById('coCastReward').value,
-      description: document.getElementById('coDescription').value,
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
     };
     // 新規時のみ末尾の sort_order をセット（既存編集時は変えない、ドラッグで並び替え）
@@ -4652,7 +4584,7 @@
     bookings:    { label: '予約管理',     desc: '予約一覧の閲覧と編集' },
     customers:   { label: '顧客管理',     desc: '顧客情報の閲覧・編集' },
     shifts:      { label: '内勤・送迎シフト', desc: '内勤スタッフ・ドライバーのスケジュール登録（キャストの出勤はCTRLの出勤管理が正）' },
-    courses:     { label: 'コース',       desc: '施術コースの追加・編集' },
+    courses:     { label: 'コース',       desc: 'コースの追加・編集' },
     hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
     payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・店長のみ・固定）' },
@@ -6932,15 +6864,6 @@
     document.getElementById('hotelBackToMaster')?.addEventListener('click', () => switchView('courses'));
     document.getElementById('openStationMgr')?.addEventListener('click', () => switchView('stations'));
     document.getElementById('stationBackToMaster')?.addEventListener('click', () => switchView('courses'));
-    // 背景画像アップロード
-    document.getElementById('coBgImageFile').addEventListener('change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (file) uploadBgImage(file);
-    });
-    document.getElementById('coBgImageReplace').addEventListener('click', () => {
-      document.getElementById('coBgImageFile').click();
-    });
-    document.getElementById('coBgImageDelete').addEventListener('click', deleteBgImage);
     // 入室方法マスタ
     document.getElementById('emaAddNew')?.addEventListener('click', () => openEntryMethodModal(null));
     document.getElementById('emaSave')?.addEventListener('click', saveEntryMethod);
