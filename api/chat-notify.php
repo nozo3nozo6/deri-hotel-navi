@@ -208,16 +208,21 @@ $textBody = <<<TXT
 TXT;
 
 // mail() で送信 (UTF-8 Base64 件名)
+// 2026-08-01: MIME-Version ヘッダが無く、Content-Type/CTE が形式上無効な状態だった
+// （RFC2045: MIME-Version 非表示のメッセージは非MIME扱い＝日本語UTF-8が正しく解釈されない）。
+// MIME-Version を追加し、本文も 8bit 生送出から base64 に変更して厳格な受信側での
+// スパム/ポリシー判定を避ける。
 $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
 $headers = [
     'From: YobuChat <hotel@yobuho.com>',
     'Reply-To: hotel@yobuho.com',
+    'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
+    'Content-Transfer-Encoding: base64',
     'X-Mailer: YobuChat-DO',
 ];
 
-$ok = @mail($to, $encodedSubject, $textBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+$ok = @mail($to, $encodedSubject, chunk_split(base64_encode($textBody)), implode("\r\n", $headers), '-f hotel@yobuho.com');
 
 if (!$ok) {
     http_response_code(500);
