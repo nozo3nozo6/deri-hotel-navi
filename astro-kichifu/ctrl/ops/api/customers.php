@@ -21,8 +21,22 @@ if ($action === 'list' && $method === 'GET') {
     $where = [];
     $params = [];
     if ($kw !== '') {
-        $where[] = '(c.name LIKE ? OR c.name_kana LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)';
+        // 住所は表記ゆれ（全角/ハイフン/空白）を吸収するため location_norm で突き合わせる。
+        // 電話はハイフン付きで打たれても当たるよう数字のみでも比較。メモ（旧IDや媒体を保全）も対象。
+        $kwAddr = opsNormAddress($kw);
+        // 電話のゆれ吸収は「電話番号らしい入力」のときだけ。住所（例: 立川市錦町6-4-10）から
+        // 数字を抜くと "6410" になり、無関係な番号に部分一致してしまう
+        $kwPhone = preg_match('/^[0-9０-９\-\s()（）＋+]+$/u', $kw) ? opsNormPhone($kw) : '';
+        $where[] = '(c.name LIKE ? OR c.name_kana LIKE ? OR c.phone LIKE ? OR c.email LIKE ?'
+                 . ' OR c.default_location LIKE ?'
+                 . ($kwAddr  !== '' ? ' OR c.location_norm LIKE ?' : '')
+                 . ($kwPhone !== '' ? ' OR c.phone LIKE ?' : '')
+                 . ' OR c.notes LIKE ?)';
         $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
+        $params[] = "%{$kw}%";
+        if ($kwAddr  !== '') $params[] = "%{$kwAddr}%";
+        if ($kwPhone !== '') $params[] = "%{$kwPhone}%";
+        $params[] = "%{$kw}%";
     }
     // visit_count はレガシー値. 実際の予約件数 (キャンセル/無連絡を除く) を集計して返す
     // customer_id 直接紐付け + 電話番号一致 (レガシー未紐付け対策) の両方をカウント
@@ -114,9 +128,10 @@ if ($action === 'create' && $method === 'POST') {
     $b = readJsonBody();
     $name = trim($b['name'] ?? '');
     if ($name === '') errorResponse('name required', 400);
+    $loc = trim($b['default_location'] ?? '');
     $stmt = $pdo->prepare("INSERT INTO ops_customers
-        (name, name_kana, phone, email, gender, default_hotel_id, default_location, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        (name, name_kana, phone, email, gender, default_hotel_id, default_location, location_norm, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $name,
         trim($b['name_kana'] ?? '') ?: null,
@@ -124,7 +139,8 @@ if ($action === 'create' && $method === 'POST') {
         trim($b['email'] ?? '') ?: null,
         $b['gender'] ?? null,
         !empty($b['default_hotel_id']) ? (int)$b['default_hotel_id'] : null,
-        trim($b['default_location'] ?? '') ?: null,
+        $loc ?: null,
+        opsNormAddress($loc) ?: null,   // 検索用（表記ゆれ吸収）。表示は default_location が正
         trim($b['notes'] ?? '') ?: null,
     ]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
@@ -145,6 +161,10 @@ if ($action === 'update' && $method === 'POST') {
             elseif (is_string($v)) { $v = trim($v); if ($v === '') $v = null; }
             $vals[] = $v;
         }
+    }
+    if (array_key_exists('default_location', $b)) {
+        $cols[] = 'location_norm = ?';
+        $vals[] = opsNormAddress(is_string($b['default_location']) ? $b['default_location'] : '') ?: null;
     }
     if (!$cols) errorResponse('nothing to update', 400);
     $vals[] = $id;
