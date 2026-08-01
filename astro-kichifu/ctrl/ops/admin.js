@@ -3745,14 +3745,28 @@
           histEl.style.display = 'block';
           const STATUS_LABEL = { inquiry:'問合せ', reserved:'予約', pre_reserved:'事前予約', on_hold:'保留', pending:'保留', completed:'✓完了', cancelled:'キャンセル', no_show:'無連絡' };
           const CHAT_STATUS_LABEL = { open:'対応中', closed:'終了', archived:'保管' };
+          // ご利用履歴: いつ・キャスト・コース・金額・メモ が一目で分かる形（店長要望 2026-08-02）
           const bookingHtml = bookings.length === 0 ? '' : `
             <div style="margin-bottom:.8rem;">
-              <div style="font-weight:700;color:var(--deep);margin-bottom:.3rem;font-size:.88rem;">📅 予約履歴 (${bookings.length}件)</div>
-              ${bookings.map(b => `
-                <div class="cm-hist-row" data-booking-id="${b.id}" style="padding:.4rem .5rem;border-bottom:1px dashed var(--gray);cursor:pointer;border-radius:6px;">
-                  <div style="font-size:.85rem;">${escapeHtml(formatDate(bizDateOf(b.booking_date, b.start_time || '00:00')))} ${(b.start_time||'').substring(0,5)} <span style="color:var(--sea);font-weight:600;">${escapeHtml(b.course_name||'')}</span></div>
-                  <div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(b.hotel_name_snapshot || b.hotel_name || '')} ・ ${STATUS_LABEL[b.status] || b.status}${b.staff_name ? ' ・ 👤'+escapeHtml(b.staff_name) : ''}</div>
-                </div>`).join('')}
+              <div style="font-weight:700;color:var(--deep);margin-bottom:.3rem;font-size:.88rem;">📅 ご利用履歴 (${bookings.length}件)</div>
+              ${bookings.map(b => {
+                const total = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
+                const memo = (b.notes || '').trim();
+                const stCls = b.status === 'completed' ? 'color:var(--green,#2e7d32);'
+                            : (b.status === 'cancelled' || b.status === 'no_show') ? 'color:var(--red,#c0392b);' : 'color:var(--ink-soft);';
+                return `
+                <div class="cm-hist-row" data-booking-id="${b.id}" style="padding:.45rem .5rem;border-bottom:1px dashed var(--gray);cursor:pointer;border-radius:6px;">
+                  <div style="font-size:.85rem;display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;">
+                    <span style="font-weight:600;">${escapeHtml(formatDate(bizDateOf(b.booking_date, b.start_time || '00:00')))} ${(b.start_time||'').substring(0,5)}</span>
+                    ${b.staff_name ? `<span>👤 ${escapeHtml(b.staff_name)}</span>` : ''}
+                    <span style="color:var(--sea);font-weight:600;">${escapeHtml(b.course_name||'')}</span>
+                    ${total > 0 ? `<span style="font-weight:700;">💰 ¥${total.toLocaleString()}</span>` : ''}
+                    <span style="font-size:.75rem;${stCls}">${STATUS_LABEL[b.status] || b.status}</span>
+                  </div>
+                  <div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(b.hotel_name_snapshot || b.hotel_name || '')}</div>
+                  ${memo ? `<div style="font-size:.78rem;color:var(--ink-soft);background:var(--foam,#f5f2ee);border-radius:6px;padding:.25rem .5rem;margin-top:.25rem;white-space:pre-wrap;">📝 ${escapeHtml(memo)}</div>` : ''}
+                </div>`;
+              }).join('')}
             </div>`;
           const chatHtml = chats.length === 0 ? '<div style="font-size:.78rem;color:var(--ink-soft);">💬 チャット履歴なし</div>' : `
             <div>
