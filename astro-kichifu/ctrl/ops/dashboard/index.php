@@ -19,9 +19,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ADMI運営">
-<!-- 管理画面 favicon: コーラル系で公開サイトと区別 -->
-<link rel="icon" href="/favicon-admin.ico" sizes="any">
-<link rel="apple-touch-icon" href="/apple-touch-icon-admin.png">
+<!-- 店舗運営(オペレーション) favicon: 青白系の「A」。CTRL本体(コーラル)と区別 -->
+<link rel="icon" href="/ctrl/ops/favicon.svg?v=<?= @filemtime(__DIR__ . '/../favicon.svg') ?: '1' ?>" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1014,7 +1013,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="tab-btn" data-view="customers">顧客管理</button>
       <button class="tab-btn" data-view="shifts">シフト</button>
       <button class="tab-btn" data-view="courses">マスタ</button>
-      <button class="tab-btn" data-view="column" style="display:none;">📝 コラム</button>
       <button class="tab-btn" data-view="chat" style="display:none;">💬 チャット<span id="chatUnreadBadge" class="tab-badge" style="display:none;">0</span></button>
       <button class="tab-btn" data-view="staffboard" style="display:none;">👥 キャスト管理</button>
       <button class="tab-btn" data-view="payroll" style="display:none;">💰 経理</button>
@@ -1871,84 +1869,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="btn-secondary" id="smDelete" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red);">削除</button>
       <button class="btn-secondary" data-close="shiftModal">キャンセル</button>
       <button class="btn-primary" id="smSave">保存</button>
-    </div>
-  </div>
-</div>
-
-<!-- コラム ビュー -->
-<div class="view" id="view-column">
-  <div class="tl-toolbar">
-    <div class="tl-title">📝 コラム<span class="tl-sub">公開ブログ（/column/）の記事を投稿・編集。Googleビジネス投稿の転記にも</span></div>
-    <div class="tl-nav">
-      <a href="/column/" target="_blank" rel="noopener" class="btn-secondary" style="padding:.5rem 1rem;font-size:.85rem;text-decoration:none;">公開ページを見る ↗</a>
-      <button class="tl-add" id="colAddNew" type="button">+ 新規記事</button>
-    </div>
-  </div>
-  <div class="staff-main" style="max-width:920px;">
-    <div id="columnList" class="bk-list"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
-  </div>
-
-  <!-- コラム記事 編集モーダル -->
-  <div class="modal-overlay" id="columnModal">
-    <div class="modal" style="max-width:760px;">
-      <div class="modal-header">
-        <div><div class="mh-title" id="colModalTitle">記事を作成</div></div>
-        <button class="modal-close" data-close="columnModal">×</button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="colId">
-        <div class="field"><label for="colTitle">タイトル <span style="color:var(--red);">*</span></label><input type="text" id="colTitle" placeholder="例: 施術メニュー紹介 ・もみほぐし"></div>
-        <div class="field" id="colUrlRow" style="display:none;">
-          <label>公開URL</label>
-          <a id="colUrlLink" href="#" target="_blank" rel="noopener" style="color:var(--sea);font-family:monospace;font-size:.85rem;word-break:break-all;text-decoration:none;"></a>
-          <div class="hint" style="font-size:.78rem;color:var(--ink-soft);margin-top:.2rem;">URLは自動で発行されます（入力不要）。GBP投稿のボタンにこのURLを貼れます。</div>
-        </div>
-        <div class="field">
-          <label for="colCategory">カテゴリ</label>
-          <select id="colCategory">
-            <option value="">（未設定）</option>
-            <option value="利用ガイド">利用ガイド</option>
-            <option value="お悩み・ケア">お悩み・ケア</option>
-            <option value="メニュー紹介">メニュー紹介</option>
-            <option value="地域・エリア">地域・エリア</option>
-          </select>
-        </div>
-        <div class="field"><label for="colExcerpt">抜粋（一覧・検索結果の説明文に使用・120字程度）</label><textarea id="colExcerpt" rows="2" placeholder="一覧カードと meta description に使われます"></textarea></div>
-        <div class="field">
-          <label>アイキャッチ画像 <span class="hint" style="font-weight:400;">推奨 1600×1200、自動 WebP 化</span></label>
-          <div id="colHeroPreview" style="margin-top:.4rem;display:none;">
-            <img id="colHeroPreviewImg" style="width:100%;max-width:320px;aspect-ratio:16/10;object-fit:cover;border-radius:8px;border:1px solid var(--gray);">
-            <div style="margin-top:.4rem;display:flex;gap:.5rem;">
-              <button type="button" class="btn-secondary" id="colHeroReplace" style="padding:.4rem .8rem;font-size:.85rem;">差し替え</button>
-              <button type="button" class="btn-secondary" id="colHeroDelete" style="padding:.4rem .8rem;font-size:.85rem;color:var(--red);border-color:var(--red);">削除</button>
-            </div>
-          </div>
-          <input type="file" id="colHeroFile" accept="image/jpeg,image/png,image/webp" style="margin-top:.4rem;">
-          <input type="hidden" id="colHeroUrl">
-          <div id="colHeroStatus" style="margin-top:.4rem;font-size:.82rem;color:var(--ink-soft);"></div>
-        </div>
-        <div class="field">
-          <label for="colBody">本文（Markdown）</label>
-          <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:.3rem;">## 見出し / ### 小見出し / **太字** / - 箇条書き / [リンク](URL) / 空行で段落</div>
-          <textarea id="colBody" rows="14" style="font-family:monospace;line-height:1.7;" placeholder="立川・多摩エリア 出張リラクゼーション YLKA（イルカ）です🐬&#10;&#10;## もみほぐしとは&#10;..."></textarea>
-        </div>
-        <div class="field">
-          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
-            <input type="checkbox" id="colPublished" style="width:auto;margin:0;"> 公開する（チェックを外すと下書き）
-          </label>
-        </div>
-        <details style="margin-top:.4rem;">
-          <summary style="cursor:pointer;color:var(--sea);font-size:.88rem;">プレビュー（本文の表示イメージ）</summary>
-          <div id="colPreview" style="border:1px solid var(--gray);border-radius:8px;padding:1rem;margin-top:.5rem;line-height:1.9;background:#fff;"></div>
-        </details>
-      </div>
-      <div class="modal-footer" style="justify-content:space-between;">
-        <button class="btn-secondary" id="colDelete" type="button" style="color:var(--red);border-color:var(--red);">削除</button>
-        <div style="display:flex;gap:.5rem;">
-          <button class="btn-secondary" data-close="columnModal">キャンセル</button>
-          <button class="btn-primary" id="colSave" type="button">保存</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>

@@ -4979,7 +4979,6 @@
     shifts:      { label: 'シフト',       desc: 'シフト登録・編集' },
     courses:     { label: 'コース',       desc: '施術コースの追加・編集' },
     hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
-    column:      { label: '📝 コラム',    desc: '公開ブログ記事の投稿・編集（オーナー・店長）' },
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
     payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・店長のみ・固定）' },
     settlement:  { label: '💴 入金',      desc: '自分の店舗への受け渡し確認（スタッフ本人）' },
@@ -5008,7 +5007,6 @@
       settlement:  ['owner', 'manager', 'office', 'staff', 'driver'],
       staff:       ['owner', 'manager'],
       permissions: ['owner'],
-      column:      ['owner', 'manager'],
     };
     // 管理タブ(マネージャー管理モードで出すもの)の可否判定
     const managerCanSee = (t) => {
@@ -5101,7 +5099,6 @@
     Object.entries(TAB_INFO).forEach(([key, info]) => {
       const defaultAllowed = (key === 'chat') ? [...chatDefault]
                            : (key === 'settlement') ? [...settlementDefault]
-                           : (key === 'column') ? ['owner','manager']
                            : ['owner','manager','staff'];
       if (driverDefault[key]) defaultAllowed.push('driver');
       if (officeDefault[key] && !defaultAllowed.includes('office')) defaultAllowed.push('office');
@@ -5368,178 +5365,11 @@
     else if (name === 'shifts') loadShifts();
     else if (name === 'courses') { loadCourses(); loadEntryMethods(); loadTreatmentMenus(); loadCampaigns(); }
     else if (name === 'stations') loadStations();
-    else if (name === 'column' && userCanSeeTab('column')) loadColumns();
     else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
     else if (name === 'chat' && userCanSeeTab('chat')) loadChatInbox();
     else if (name === 'staffboard' && userCanSeeTab('staffboard')) loadStaffBoard();
     else if (name === 'payroll' && userCanSeeTab('payroll')) loadAccounting();
     else if (name === 'settlement') loadMySettlements();
-  }
-
-  // ============ 📝 コラム ============
-  let columnsCache = [];
-
-  // PHP 側 api/lib/md.php と同等の軽量 Markdown サブセット（プレビュー用）
-  function colMdToHtml(md) {
-    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const inline = (s) => s
-      .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;border-radius:8px;">')
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
-    const lines = esc((md || '').replace(/\r\n?/g, '\n')).split('\n');
-    let html = '', para = [], list = [];
-    const fp = () => { if (para.length) { html += '<p>' + inline(para.join('<br>')) + '</p>'; para = []; } };
-    const fl = () => { if (list.length) { html += '<ul>' + list.map(li => '<li>' + inline(li) + '</li>').join('') + '</ul>'; list = []; } };
-    for (const raw of lines) {
-      const t = raw.trim();
-      if (t === '') { fp(); fl(); continue; }
-      if (/^(-{3,}|_{3,}|\*{3,})$/.test(t)) { fp(); fl(); html += '<hr>'; continue; }
-      let m;
-      if ((m = t.match(/^###\s+(.+)$/))) { fp(); fl(); html += '<h3>' + inline(m[1].trim()) + '</h3>'; continue; }
-      if ((m = t.match(/^##\s+(.+)$/)))  { fp(); fl(); html += '<h2>' + inline(m[1].trim()) + '</h2>'; continue; }
-      if ((m = t.match(/^&gt;\s?(.*)$/))) { fp(); fl(); html += '<blockquote>' + inline(m[1].trim()) + '</blockquote>'; continue; }
-      if ((m = t.match(/^(?:-|・)\s+(.+)$/))) { fp(); list.push(m[1].trim()); continue; }
-      fl(); para.push(t);
-    }
-    fp(); fl();
-    return html;
-  }
-
-  async function loadColumns() {
-    const el = document.getElementById('columnList');
-    el.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
-    try {
-      const d = await api('/columns.php?action=list&include_drafts=1');
-      columnsCache = d.columns || [];
-      renderColumns();
-    } catch (e) {
-      el.innerHTML = '<div class="view-empty">読み込み失敗: ' + escapeHtml(e.message) + '</div>';
-    }
-  }
-
-  function renderColumns() {
-    const el = document.getElementById('columnList');
-    if (!columnsCache.length) {
-      el.innerHTML = '<div class="view-empty"><div class="ve-icon">📝</div>記事はまだありません。「+ 新規記事」から作成してください。</div>';
-      return;
-    }
-    el.innerHTML = columnsCache.map(c => {
-      const pub = c.status === 'published';
-      const d = c.published_at || c.updated_at;
-      const dateStr = d ? new Date(String(d).replace(' ', 'T')).toLocaleDateString('ja-JP') : '';
-      const badge = pub
-        ? '<span style="color:var(--green);font-size:.74rem;border:1px solid var(--green);border-radius:50px;padding:.05rem .5rem;">公開</span>'
-        : '<span style="color:var(--ink-soft);font-size:.74rem;border:1px solid var(--gray);border-radius:50px;padding:.05rem .5rem;">下書き</span>';
-      return `
-      <div class="bk-row" data-col-id="${c.id}" style="grid-template-columns:1fr auto;cursor:pointer;">
-        <div class="bk-info">
-          <div class="bi-name">${escapeHtml(c.title)} ${badge}</div>
-          <div class="bi-meta">
-            ${c.category ? `<span>🏷 ${escapeHtml(c.category)}</span>` : ''}
-            <span>🔗 /column/${escapeHtml(c.slug)}/</span>
-            ${dateStr ? `<span>📅 ${dateStr}</span>` : ''}
-          </div>
-        </div>
-        <div style="align-self:center;color:var(--sea);font-size:.85rem;">編集 ›</div>
-      </div>`;
-    }).join('');
-    el.querySelectorAll('[data-col-id]').forEach(row => {
-      row.addEventListener('click', () => openColumnEditor(Number(row.dataset.colId)));
-    });
-  }
-
-  function setColHeroPreview(url) {
-    const wrap = document.getElementById('colHeroPreview');
-    const img = document.getElementById('colHeroPreviewImg');
-    document.getElementById('colHeroUrl').value = url || '';
-    if (url) { img.src = url; wrap.style.display = ''; }
-    else { img.src = ''; wrap.style.display = 'none'; }
-  }
-
-  function colUpdatePreview() {
-    document.getElementById('colPreview').innerHTML = colMdToHtml(document.getElementById('colBody').value || '');
-  }
-
-  async function openColumnEditor(id) {
-    document.getElementById('colModalTitle').textContent = id ? '記事を編集' : '記事を作成';
-    document.getElementById('colDelete').style.display = id ? 'inline-flex' : 'none';
-    document.getElementById('colHeroStatus').textContent = '';
-    document.getElementById('colHeroStatus').style.color = '';
-    let c = { id: 0, slug: '', title: '', excerpt: '', body_md: '', category: '', hero_image: '', status: 'draft' };
-    if (id) {
-      try { const d = await api('/columns.php?action=get&id=' + id); c = d.column; }
-      catch (e) { toast('読み込み失敗: ' + e.message, 'err'); return; }
-    }
-    document.getElementById('colId').value = c.id || '';
-    document.getElementById('colTitle').value = c.title || '';
-    // 公開URL表示（既存記事のみ・slug は自動）
-    const urlRow = document.getElementById('colUrlRow');
-    const urlLink = document.getElementById('colUrlLink');
-    if (c.slug) {
-      const u = 'https://ylka.jp/column/' + c.slug + '/';
-      urlLink.href = u; urlLink.textContent = u;
-      urlRow.style.display = '';
-    } else {
-      urlRow.style.display = 'none';
-    }
-    document.getElementById('colCategory').value = c.category || '';
-    document.getElementById('colExcerpt').value = c.excerpt || '';
-    document.getElementById('colBody').value = c.body_md || '';
-    document.getElementById('colPublished').checked = c.status === 'published';
-    setColHeroPreview(c.hero_image || '');
-    colUpdatePreview();
-    document.getElementById('colHeroFile').value = '';
-    document.getElementById('columnModal').classList.add('show');
-  }
-
-  async function uploadColumnHero(file) {
-    const status = document.getElementById('colHeroStatus');
-    status.textContent = 'アップロード中...'; status.style.color = '';
-    const fd = new FormData(); fd.append('image', file);
-    try {
-      const res = await fetch('/ctrl/ops/api/columns-upload.php', { method: 'POST', body: fd, credentials: 'include' });
-      const d = await res.json();
-      if (!d.ok) throw new Error(d.error || 'upload failed');
-      setColHeroPreview(d.url);
-      status.textContent = `✓ アップロード完了 (${Math.round(d.size / 1024)} KB)`;
-      status.style.color = 'var(--green)';
-    } catch (e) {
-      status.textContent = '失敗: ' + e.message; status.style.color = 'var(--red)';
-    }
-  }
-
-  async function saveColumn() {
-    const title = document.getElementById('colTitle').value.trim();
-    if (!title) { toast('タイトルは必須です', 'err'); return; }
-    // slug は送らない（新規=サーバーが自動採番、既存=現状維持）
-    const payload = {
-      id: Number(document.getElementById('colId').value) || 0,
-      title,
-      excerpt: document.getElementById('colExcerpt').value.trim(),
-      body_md: document.getElementById('colBody').value,
-      category: document.getElementById('colCategory').value,
-      hero_image: document.getElementById('colHeroUrl').value,
-      status: document.getElementById('colPublished').checked ? 'published' : 'draft',
-    };
-    try {
-      await apiPost('/columns.php?action=save', payload);
-      toast('保存しました', 'ok');
-      closeModal('columnModal');
-      loadColumns();
-    } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
-  }
-
-  async function deleteColumn() {
-    const id = Number(document.getElementById('colId').value);
-    if (!id) return;
-    if (!confirm('この記事を削除しますか？（公開ページからも消えます）')) return;
-    try {
-      await apiPost('/columns.php?action=delete', { id });
-      toast('削除しました', 'ok');
-      closeModal('columnModal');
-      loadColumns();
-    } catch (e) { toast('削除失敗: ' + e.message, 'err'); }
   }
 
   // ============ 💰 経理 ============
@@ -7417,18 +7247,6 @@
         endEl.disabled = checked;
       });
     }
-
-    // ========== コラム管理イベント ==========
-    document.getElementById('colAddNew')?.addEventListener('click', () => openColumnEditor(null));
-    document.getElementById('colSave')?.addEventListener('click', saveColumn);
-    document.getElementById('colDelete')?.addEventListener('click', deleteColumn);
-    document.getElementById('colBody')?.addEventListener('input', colUpdatePreview);
-    document.getElementById('colHeroFile')?.addEventListener('change', e => {
-      const f = e.target.files && e.target.files[0];
-      if (f) uploadColumnHero(f);
-    });
-    document.getElementById('colHeroReplace')?.addEventListener('click', () => document.getElementById('colHeroFile').click());
-    document.getElementById('colHeroDelete')?.addEventListener('click', () => { setColHeroPreview(''); });
 
     // ========== コース管理イベント ==========
     document.getElementById('coAddNew').addEventListener('click', () => openCourseModal(null));
