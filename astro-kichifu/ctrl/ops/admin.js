@@ -2077,7 +2077,7 @@
     const bizDay = fmtDate(tlCurrentDate);
 
     // ヘッダー: スタッフ列 + 24時間スロット (10:00 〜 翌09:00)
-    let html = '<div class="tl-grid"><div class="tl-head staff-col">スタッフ</div>';
+    let html = '<div class="tl-grid"><div class="tl-head staff-col">キャスト</div>';
     for (let h = 10; h < 34; h++) {
       const displayH = h % 24;
       const isNext = h >= 24;
@@ -2096,16 +2096,29 @@
         .filter(b => bizDateOf(b.booking_date, b.start_time) === bizDay && b.assigned_admin_id)
         .map(b => Number(b.assigned_admin_id))
     );
+    // その営業日の出勤開始時刻（早い順の並べ替えに使う）。営業日は10:00始まりなので
+    // 0〜9時開始は「翌日側＝遅い」とみなして +24h して比較する
+    const shiftStartRank = (uid) => {
+      const s = tlShifts.find(x => String(x.shift_date).slice(0, 10) === bizDay && Number(x.admin_user_id) === Number(uid));
+      if (!s || !s.start_time) return 9999;              // 出勤なし（予約だけある人）は最後
+      const [hh, mm] = String(s.start_time).split(':').map(Number);
+      return ((hh < 10 ? hh + 24 : hh) * 60) + (mm || 0);
+    };
     const visibleStaff = adminUsersAll.filter(u =>
       isTherapistCapable(u) && (dayShiftUserIds.has(Number(u.id)) || dayBookingUserIds.has(Number(u.id)))
-    );
+    ).sort((a, b) => {
+      // 出勤時間が早い順に上から。同時刻は元の並び（並び順→名前）を維持
+      const d = shiftStartRank(a.id) - shiftStartRank(b.id);
+      if (d !== 0) return d;
+      return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+    });
     if (adminUsersAll.length === 0) {
-      html += `<div class="tl-staff" style="grid-column:1/-1;text-align:center;padding:2rem;">スタッフが登録されていません</div>`;
+      html += `<div class="tl-staff" style="grid-column:1/-1;text-align:center;padding:2rem;">キャストが登録されていません</div>`;
     } else {
       // シフト or 既存予約あるスタッフ + 「未割当」擬似行
       const usersWithUnassigned = [
         ...visibleStaff,
-        { id: 0, display_name: '未割当・チャット申込', role: 'unassigned' },
+        { id: 0, display_name: 'キャスト未割当', role: 'unassigned' },
       ];
       // キャスト報酬の算出（モジュール共通の calcReward を使用）
       const tlReward = calcReward;

@@ -12,6 +12,8 @@
 //   owner: 全員のシフト編集可（admin_user_id 指定可）
 // ==========================================================================
 require_once __DIR__ . '/auth-guard.php';
+require_once __DIR__ . '/_cast-sync.php';    // 出勤の紐付け先（キャスト行）を先に揃える
+require_once __DIR__ . '/_shift-sync.php';   // CTRL の schedules → ops_shifts
 
 $pdo    = getPdo();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -21,6 +23,11 @@ if ($action === 'range' && $method === 'GET') {
     $from = $_GET['from'] ?? date('Y-m-d');
     $to   = $_GET['to']   ?? date('Y-m-d', strtotime('+10 days'));
     $adminId = isset($_GET['admin_id']) ? (int)$_GET['admin_id'] : 0;
+
+    // 出勤の入力は CTRL(/ctrl/schedules.php) が正。表示前に差分だけ取り込む
+    $shopId = current_shop_id();
+    ops_sync_casts_if_changed($shopId);
+    ops_sync_shifts_if_changed($shopId, $from, $to);
 
     $where = ['s.shift_date BETWEEN ? AND ?'];
     $params = [$from, $to];
