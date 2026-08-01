@@ -1,3 +1,11 @@
+<?php
+// キャッシュバスターは admin.js の更新時刻から自動生成する。
+// 固定文字列(?v=20260716b)のままだと、admin.js を直しても各端末が古いJSを
+// 掴み続ける（2026-08-02: 出勤トグルの「終了」が反映されない事象の原因）。
+// CTRL 本体の admin.css / list.js と同じ filemtime 方式に揃えた。
+$APP_VERSION = (string)(@filemtime(__DIR__ . '/../admin.js') ?: '1');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+?>
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -2501,8 +2509,8 @@
 <div class="toast" id="toast"></div>
 <div class="min-dock" id="minDock"></div>
 
-<script>window.__APP_VERSION__='20260716b';</script>
-<script src="/ctrl/ops/admin.js?v=20260716b"></script>
+<script>window.__APP_VERSION__='<?= htmlspecialchars($APP_VERSION, ENT_QUOTES, 'UTF-8') ?>';</script>
+<script src="/ctrl/ops/admin.js?v=<?= htmlspecialchars($APP_VERSION, ENT_QUOTES, 'UTF-8') ?>"></script>
 
 </body>
 </html>

@@ -6802,7 +6802,7 @@
     try {
       const current = String(window.__APP_VERSION__ || '');
       if (!current) return false;
-      const res = await fetch('/ctrl/ops/version.json?t=' + Date.now(), { cache: 'no-store' });
+      const res = await fetch('/ctrl/ops/version.php?t=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) return false;
       const data = await res.json();
       const latest = String((data && data.v) || '');
