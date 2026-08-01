@@ -14,6 +14,12 @@
 //
 //   時間未入力の work は 10:00-翌5:00（営業時間いっぱい）として扱う。
 //   CTRL 側で消された・未定に戻された出勤は ops からも消す（同期元が正）。
+//
+//   ただし ops 側のタイムラインで「終了/休み/予定」に手動で切り替えた行
+//   （status !== 'available'）は上書き・削除しない。CTRL が正なのは時間だけで、
+//   状態は ops 側の当日運用（終了操作など）を優先する。これを守らないと、
+//   他のキャストの出勤を編集しただけで差分同期が走り、既に押した「終了」が
+//   available に戻ってタイムラインの先頭へ復活してしまう。
 // ==========================================================================
 declare(strict_types=1);
 
@@ -79,13 +85,14 @@ function ops_sync_shifts(int $shopId, string $from, string $to): array {
             continue;
         }
         $c = $cur[$key];
-        if ($c['start_time'] !== $start || $c['end_time'] !== $end
-            || $c['status'] !== $status || (string)$c['note'] !== $note) {
+        if ($c['status'] !== 'available') continue;   // 手動オーバーライドは触らない
+        if ($c['start_time'] !== $start || $c['end_time'] !== $end || (string)$c['note'] !== $note) {
             $upd->execute([$start, $end, $status, $note, (int)$c['id']]);
             $updated++;
         }
     }
     foreach ($cur as $key => $c) {
+        if ($c['status'] !== 'available') continue;   // 手動オーバーライドは消さない
         if (!isset($want[$key])) { $del->execute([(int)$c['id']]); $removed++; }
     }
 

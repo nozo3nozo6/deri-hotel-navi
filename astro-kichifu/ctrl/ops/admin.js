@@ -1477,7 +1477,7 @@
   async function setStaffAttendance(adminId, status) {
     try {
       await apiPost('/shifts.php?action=set-attendance', { admin_user_id: adminId, shift_date: fmtDate(tlCurrentDate), status });
-      toast(status === 'off' ? '休みにしました' : '出勤にしました', 'ok');
+      toast(status === 'off' ? '休みにしました' : status === 'done' ? '終了にしました' : status === 'tentative' ? '予定にしました' : '出勤にしました', 'ok');
       await loadTimeline(true);
     } catch (e) { toast('更新失敗: ' + e.message, 'err'); }
   }
@@ -2101,6 +2101,7 @@
     const shiftStartRank = (uid) => {
       const s = tlShifts.find(x => String(x.shift_date).slice(0, 10) === bizDay && Number(x.admin_user_id) === Number(uid));
       if (!s || !s.start_time) return 9999;              // 出勤なし（予約だけある人）は最後
+      if (s.status === 'done') return 1e9;               // 終了はその日の一番下へ
       const [hh, mm] = String(s.start_time).split(':').map(Number);
       return ((hh < 10 ? hh + 24 : hh) * 60) + (mm || 0);
     };
@@ -2123,9 +2124,9 @@
       // キャスト報酬の算出（モジュール共通の calcReward を使用）
       const tlReward = calcReward;
       // 出勤状態の3ステート: available=出勤 / tentative=予定 / off=休み（タップで順に切替）
-      const ATT_NEXT  = { available: 'off', off: 'tentative', tentative: 'available' };
-      const ATT_LABEL = { available: '出勤', off: '休み', tentative: '予定' };
-      const ATT_BG    = { available: 'var(--sea)', off: '#c0392b', tentative: '#a0aab4' };
+      const ATT_NEXT  = { available: 'done', done: 'off', off: 'tentative', tentative: 'available' };
+      const ATT_LABEL = { available: '出勤', done: '終了', off: '休み', tentative: '予定' };
+      const ATT_BG    = { available: 'var(--sea)', done: '#7a7a7a', off: '#c0392b', tentative: '#a0aab4' };
       usersWithUnassigned.forEach(u => {
         const roleLabel = u.role === 'owner' ? 'オーナー'
                         : u.role === 'manager' ? '店長'
@@ -2320,7 +2321,7 @@
         const sel = document.createElement('select');
         sel.className = 'tl-att-sel tl-att-' + state;
         sel.setAttribute('data-admin', adminId);
-        ['available:出勤', 'tentative:予定', 'off:休み'].forEach(pair => {
+        ['available:出勤', 'done:終了', 'tentative:予定', 'off:休み'].forEach(pair => {
           const v = pair.split(':')[0], l = pair.split(':')[1];
           const opt = document.createElement('option');
           opt.value = v; opt.textContent = l;
@@ -5098,6 +5099,7 @@
       const yenN = (n) => '¥' + Number(n || 0).toLocaleString();
       const attBadge = isOff ? '<span class="th-att-badge off">休み</span>'
                      : shStatus === 'available' ? '<span class="th-att-badge on">● 出勤</span>'
+                     : shStatus === 'done' ? '<span class="th-att-badge off">終了</span>'
                      : shStatus === 'tentative' ? '<span class="th-att-badge tentative">仮シフト</span>'
                      : '<span class="th-att-badge none">シフト未登録</span>';
 

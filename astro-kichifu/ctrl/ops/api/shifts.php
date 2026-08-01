@@ -104,7 +104,7 @@ if ($action === 'set-attendance' && $method === 'POST') {
     $b = readJsonBody();
     $adminId   = isset($b['admin_user_id']) ? (int)$b['admin_user_id'] : currentUserId();
     $shiftDate = $b['shift_date'] ?? '';
-    $status    = in_array($b['status'] ?? '', ['available', 'off', 'tentative'], true) ? $b['status'] : 'available';
+    $status    = in_array($b['status'] ?? '', ['available', 'off', 'tentative', 'done'], true) ? $b['status'] : 'available';
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDate)) errorResponse('invalid shift_date', 400);
     if (!isOwner() && $adminId !== currentUserId()) errorResponse('forbidden', 403);
     $st = $pdo->prepare("SELECT id FROM ops_shifts WHERE admin_user_id=? AND shift_date=? ORDER BY id LIMIT 1");
