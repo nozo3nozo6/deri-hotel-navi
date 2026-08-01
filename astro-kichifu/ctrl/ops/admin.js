@@ -2096,23 +2096,12 @@
         .filter(b => bizDateOf(b.booking_date, b.start_time) === bizDay && b.assigned_admin_id)
         .map(b => Number(b.assigned_admin_id))
     );
-    // その営業日の出勤開始時刻（早い順の並べ替えに使う）。営業日は10:00始まりなので
-    // 0〜9時開始は「翌日側＝遅い」とみなして +24h して比較する
-    const shiftStartRank = (uid) => {
-      const s = tlShifts.find(x => String(x.shift_date).slice(0, 10) === bizDay && Number(x.admin_user_id) === Number(uid));
-      if (!s || !s.start_time) return 9999;              // 出勤なし（予約だけある人）は最後
-      if (s.status === 'done') return 1e9;               // 終了はその日の一番下へ
-      const [hh, mm] = String(s.start_time).split(':').map(Number);
-      return ((hh < 10 ? hh + 24 : hh) * 60) + (mm || 0);
-    };
-    const visibleStaff = adminUsersAll.filter(u =>
-      isTherapistCapable(u) && (dayShiftUserIds.has(Number(u.id)) || dayBookingUserIds.has(Number(u.id)))
-    ).sort((a, b) => {
-      // 出勤時間が早い順に上から。同時刻は元の並び（並び順→名前）を維持
-      const d = shiftStartRank(a.id) - shiftStartRank(b.id);
-      if (d !== 0) return d;
-      return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
-    });
+    // 並び順は予約モーダルの担当プルダウンと共通（sortCastsByShift）。
+    // 出勤開始が早い順 → 終了は最後 → 同着は sort_order
+    const visibleStaff = sortCastsByShift(
+      adminUsersAll.filter(u =>
+        isTherapistCapable(u) && (dayShiftUserIds.has(Number(u.id)) || dayBookingUserIds.has(Number(u.id)))),
+      tlShifts, bizDay);
     if (adminUsersAll.length === 0) {
       html += `<div class="tl-staff" style="grid-column:1/-1;text-align:center;padding:2rem;">キャストが登録されていません</div>`;
     } else {
@@ -2478,6 +2467,65 @@
     });
   }
 
+  // ---- その営業日の出勤キャスト（タイムラインと予約モーダルで並び順を共有）----
+  // 並び順の規約: 出勤開始が早い順 → 終了(done)は最後 → 同着は sort_order
+  // タイムラインとプルダウンで別々に実装すると必ずズレるので、必ずここを経由する
+  function shiftForDay(shifts, bizDay, uid) {
+    return (shifts || []).find(s =>
+      String(s.shift_date).slice(0, 10) === bizDay && Number(s.admin_user_id) === Number(uid)) || null;
+  }
+  function castDayRank(shifts, bizDay, uid) {
+    const s = shiftForDay(shifts, bizDay, uid);
+    if (!s || !s.start_time) return 9999;   // 出勤なし（予約だけある人）は最後
+    if (s.status === 'done') return 1e9;    // 終了はその日の一番下へ
+    const [hh, mm] = String(s.start_time).split(':').map(Number);
+    return ((hh < 10 ? hh + 24 : hh) * 60) + (mm || 0);
+  }
+  function sortCastsByShift(users, shifts, bizDay) {
+    return users.slice().sort((a, b) => {
+      const d = castDayRank(shifts, bizDay, a.id) - castDayRank(shifts, bizDay, b.id);
+      if (d !== 0) return d;
+      return (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0);
+    });
+  }
+  // 指定営業日のシフト。タイムラインで表示中の日なら取得済みのものを使う
+  async function shiftsForDay(bizDay) {
+    if (bizDay && bizDay === fmtDate(tlCurrentDate) && tlShifts.length) return tlShifts;
+    if (!bizDay) return [];
+    try {
+      const d = await api(`/shifts.php?action=range&from=${bizDay}&to=${bizDay}`);
+      return d.shifts || [];
+    } catch (e) { return []; }
+  }
+  // 担当プルダウン: その日に出勤しているキャストだけを、タイムラインと同じ並びで出す。
+  // 休み(off)は除外。既に割り当て済みのキャストは、その日出勤していなくても
+  // 選択が消えないよう必ず残す（過去予約の編集で担当が飛ぶのを防ぐ）
+  async function populateCastSelect(bizDay, mustIncludeId) {
+    const adSel = bel('bmAdminId');
+    if (!adSel) return;
+    const keep = String(mustIncludeId || adSel.value || '');
+    const shifts = await shiftsForDay(bizDay);
+    const all = adminUsersAll || [];
+    const onDuty = all.filter(u => {
+      if (!isTherapistCapable(u)) return false;
+      const s = shiftForDay(shifts, bizDay, u.id);
+      return !!s && s.status !== 'off';
+    });
+    if (keep && !onDuty.some(u => String(u.id) === keep)) {
+      const assigned = all.find(u => String(u.id) === keep);
+      if (assigned) onDuty.push(assigned);
+    }
+    const list = sortCastsByShift(onDuty, shifts, bizDay);
+    adSel.innerHTML = '<option value="">— 未割当 —</option>' +
+      list.map(u => {
+        const s = shiftForDay(shifts, bizDay, u.id);
+        const time = (s && s.start_time && s.end_time)
+          ? `（${String(s.start_time).slice(0, 5)}〜${String(s.end_time).slice(0, 5)}${s.status === 'done' ? ' 終了' : ''}）` : '';
+        return `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}${time}</option>`;
+      }).join('');
+    if (keep) adSel.value = keep;
+  }
+
   // ========== Booking modal ==========
   async function ensureSelectsLoaded() {
     if (hotelsForSelect.length === 0) {
@@ -2497,11 +2545,8 @@
       } catch (e) {}
     }
     const usersForSel = adminUsersAll.length ? adminUsersAll : [{ id: currentUser.id, display_name: currentUser.display_name, username: currentUser.email, role: currentUser.role }];
-    // 担当キャスト = ドライバー/内勤スタッフを除く (接客を行うのは staff/manager/owner、または is_therapist 兼任者)
-    const adSel = bel('bmAdminId');
-    adSel.innerHTML = '<option value="">— 未割当 —</option>' +
-      usersForSel.filter(u => (u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u))
-        .map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
+    // 担当キャストの選択肢は日付が決まってから populateCastSelect() が入れる
+    // （その日の出勤者だけに絞るため。ここで全員を入れると一瞬全件が見えてしまう）
     // ドライバー = role=driver、または can_drive 兼任者（行き/帰りで別ドライバー可）
     const drvOpts = '<option value="">未定(自走)</option>' +
       usersForSel.filter(u => isDriverCapable(u))
@@ -2827,6 +2872,8 @@
         } else if (locType === 'other') {
           bel('bmOtherLoc').value = (b.hotel_name_snapshot || '').replace(OTHER_PREFIX, '');
         }
+        // 担当プルダウンはその日の出勤者だけ。割当済みの担当は出勤外でも残す
+        await populateCastSelect(bel('bmDate').value, b.assigned_admin_id || '');
         bel('bmAdminId').value = b.assigned_admin_id || '';
         // 送迎ドライバーはタイムラインで操作（モーダルでは扱わない）
         bel('bmStatus').value = b.status || 'reserved';
@@ -2929,6 +2976,8 @@
         bel('bmCustomerPhone').value = prefill.phone;
         await lookupCustomerByPhone();
       }
+      // 担当プルダウンはその日の出勤者だけ（タイムラインの担当行から作成した場合はその人を保持）
+      await populateCastSelect(bel('bmDate').value, prefill?.adminId || '');
       bel('bmAdminId').value = prefill?.adminId || '';
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
@@ -7460,6 +7509,8 @@
     });
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
     bel('bmAdminId').addEventListener('change', e => autoStatusOnAssign());
+    // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
+    bel('bmDate')?.addEventListener('change', e => populateCastSelect(e.target.value, bel('bmAdminId').value));
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
     bel('bmCancelType')?.addEventListener('change', updateBookingTotal);
     bel('bmCancelFee')?.addEventListener('input', updateBookingTotal);
