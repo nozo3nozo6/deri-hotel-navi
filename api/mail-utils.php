@@ -31,8 +31,16 @@ function sendTransactionalMail(string $to, string $subject, string $htmlBody): b
     $mimeBody .= chunk_split(base64_encode($htmlBody)) . "\r\n";
     $mimeBody .= "--{$boundary}--\r\n";
 
+    // Message-ID を yobuho.com ドメインで明示付与する。
+    // 未指定だと MTA が送信サーバのホスト名（sv6051.wpx.ne.jp）で生成し、From ヘッダの
+    // ドメインと不一致になる。iCloud/Apple は RFC5322 準拠とドメイン一貫性を要求するため
+    // （Postmaster ガイドライン）、From と揃えて弱いマイナス signal を消す。
+    // sendmail は Message-ID が既にある場合は上書きしないので重複しない。
+    $messageId = '<' . bin2hex(random_bytes(16)) . '.' . time() . '@yobuho.com>';
+
     $headers  = "From: YobuHo <hotel@yobuho.com>\r\n";
     $headers .= "Reply-To: hotel@yobuho.com\r\n";
+    $headers .= "Message-ID: {$messageId}\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
