@@ -135,6 +135,10 @@ try {
         case 'review-plan-request': handleReviewPlanRequest(); break;
         case 'migrate-expired-campaigns': handleMigrateExpiredCampaigns(); break;
 
+        // ===== メール配信失敗（バウンス）=====
+        case 'mail-bounces':         handleMailBounces(); break;
+        case 'resolve-mail-bounce':  handleResolveMailBounce(); break;
+
         default:
             http_response_code(400);
             echo json_encode(['error' => 'Unknown action: ' . $action]);
@@ -143,6 +147,45 @@ try {
     error_log('[admin-api] ' . $action . ' error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'サーバーエラーが発生しました']);
+}
+
+// ===================================================================
+// メール配信失敗（バウンス）
+// ===================================================================
+// api/scan-bounces.php が cron で記録した配信失敗を管理画面に出す。
+// 2026-08-01: iCloud 宛の配信停止に約2ヶ月気づけなかった反省から追加。
+// テーブルが未作成（sql/mail_bounces.sql 未適用）でも管理画面を壊さないよう、
+// エラー時は空配列を返す。
+function handleMailBounces() {
+    global $pdo;
+    try {
+        $rows = $pdo->query(
+            "SELECT id, recipient, status_code, diagnostic, orig_subject, bounced_at, resolved
+             FROM mail_bounces
+             WHERE resolved = 0
+             ORDER BY bounced_at DESC, id DESC
+             LIMIT 100"
+        )->fetchAll();
+        echo json_encode($rows, JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        error_log('[admin-api] mail-bounces (table missing?): ' . $e->getMessage());
+        echo json_encode([]);
+    }
+}
+
+// 管理者が「確認済み」にする
+function handleResolveMailBounce() {
+    global $pdo;
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id = (int)($input['id'] ?? 0);
+    if ($id <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'id required']);
+        return;
+    }
+    $stmt = $pdo->prepare('UPDATE mail_bounces SET resolved = 1, resolved_at = NOW() WHERE id = ?');
+    $stmt->execute([$id]);
+    echo json_encode(['success' => true, 'updated' => $stmt->rowCount()]);
 }
 
 // ===================================================================
