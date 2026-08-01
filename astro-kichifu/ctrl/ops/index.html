@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>管理者ログイン｜ADMI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0a3d52;--sea:#1d7a9c;--aqua:#5bbcd4;--aqua-light:#a8e0ea;
+    --foam:#eef9fb;--ink:#173842;--ink-soft:#4a6670;--white:#ffffff;--coral:#ff9a76;
+    --red:#dc3545;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'Zen Maru Gothic',sans-serif;color:var(--ink);
+    background:linear-gradient(165deg,var(--deep) 0%,var(--sea) 60%,var(--aqua) 100%);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:2rem;-webkit-font-smoothing:antialiased;
+  }
+  .en{font-family:'Outfit',sans-serif;}
+
+  .login-card{
+    background:var(--white);border-radius:24px;padding:3rem 2.4rem;
+    box-shadow:0 30px 60px rgba(7,43,58,.35);width:100%;max-width:420px;
+  }
+  .logo{display:flex;align-items:center;justify-content:center;gap:.6rem;margin-bottom:.4rem;}
+  .logo svg{width:32px;height:32px;color:var(--deep);}
+  .logo .name{font-family:'Outfit';font-weight:700;font-size:1.9rem;letter-spacing:.32em;color:var(--deep);}
+  .logo .jp{font-size:.7rem;letter-spacing:.3em;color:var(--ink-soft);}
+  .subtitle{text-align:center;color:var(--sea);font-family:'Outfit';font-weight:500;letter-spacing:.3em;font-size:.78rem;text-transform:uppercase;margin-bottom:2rem;}
+
+  form{display:flex;flex-direction:column;gap:1.1rem;}
+  .field label{display:block;color:var(--ink-soft);font-size:.86rem;margin-bottom:.4rem;font-weight:500;}
+  .field input{
+    width:100%;padding:.95rem 1rem;border:1.5px solid rgba(91,188,212,.4);
+    border-radius:12px;font-family:'Zen Maru Gothic';font-size:16px;color:var(--ink);
+    background:var(--white);transition:all .2s;-webkit-appearance:none;
+  }
+  .field input:focus{outline:none;border-color:var(--sea);box-shadow:0 0 0 3px rgba(91,188,212,.18);}
+  button[type="submit"]{
+    background:var(--coral);color:var(--white);border:none;
+    padding:1rem;border-radius:50px;font-family:'Zen Maru Gothic';
+    font-size:1rem;font-weight:600;letter-spacing:.05em;cursor:pointer;
+    transition:all .25s;box-shadow:0 10px 26px rgba(255,154,118,.35);
+    margin-top:.6rem;
+  }
+  button[type="submit"]:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 32px rgba(255,154,118,.45);}
+  button[type="submit"]:disabled{opacity:.55;cursor:not-allowed;}
+
+  .alert{
+    margin-top:1rem;padding:.85rem 1rem;border-radius:10px;
+    font-size:.88rem;display:none;
+  }
+  .alert.err{background:#fdecea;color:var(--red);border:1px solid rgba(220,53,69,.25);}
+  .alert.show{display:block;}
+
+  .home-link{
+    display:block;text-align:center;margin-top:1.6rem;
+    color:var(--ink-soft);text-decoration:none;font-size:.82rem;letter-spacing:.05em;
+  }
+  .home-link:hover{color:var(--sea);}
+
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:.5rem;vertical-align:middle;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="logo">
+    <svg viewBox="0 0 100 100" fill="none"><path d="M20 55 Q30 25 60 30 Q85 34 82 55 Q70 50 60 58 Q72 62 70 72 Q55 60 45 66 Q40 50 20 55Z" fill="currentColor"/><circle cx="62" cy="42" r="3" fill="#fff"/></svg>
+    <span class="name en">ADMI</span>
+  </div>
+  <p class="subtitle en">Admin Console</p>
+
+  <form id="loginForm">
+    <div class="field">
+      <label for="email">メールアドレス</label>
+      <input type="email" id="email" name="email" required autocomplete="username" placeholder="example@gmail.com">
+    </div>
+    <div class="field">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button type="submit" id="btnLogin">ログイン</button>
+    <div class="alert err" id="alertErr"></div>
+  </form>
+
+  <a href="/" class="home-link">← サイトトップへ戻る</a>
+</div>
+
+<script>
+  const form = document.getElementById('loginForm');
+  const btn = document.getElementById('btnLogin');
+  const alertErr = document.getElementById('alertErr');
+
+  // 既にログイン済みならダッシュボードへ
+  (async () => {
+    try {
+      const res = await fetch('/ctrl/ops/api/auth.php?action=check', { credentials: 'include' });
+      const data = await res.json();
+      if (data.logged_in) location.href = 'dashboard';
+    } catch (e) {}
+  })();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    alertErr.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>ログイン中...';
+
+    try {
+      const res = await fetch('/ctrl/ops/api/auth.php?action=login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.logged_in) {
+        location.href = 'dashboard';
+      } else {
+        const msg = res.status === 429
+          ? 'ログイン試行回数が多すぎます。15分後に再度お試しください。'
+          : 'メールアドレスまたはパスワードが正しくありません';
+        alertErr.textContent = msg;
+        alertErr.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'ログイン';
+      }
+    } catch (e) {
+      alertErr.textContent = '接続エラー。時間をおいて再度お試しください。';
+      alertErr.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'ログイン';
+    }
+  });
+</script>
+
+</body>
+</html>
