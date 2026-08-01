@@ -101,8 +101,11 @@ if ($action === 'get' && $method === 'GET') {
 if ($action === 'find-by-phone' && $method === 'GET') {
     $phone = trim($_GET['phone'] ?? '');
     if ($phone === '') errorResponse('phone required', 400);
-    $stmt = $pdo->prepare("SELECT * FROM ops_customers WHERE phone = ? LIMIT 1");
-    $stmt->execute([$phone]);
+    // 旧システムから移行した phone は数字のみで保存されている。
+    // 入力側はハイフン付き(090-1234-5678)のことがあるため、数字だけに正規化して照合する
+    $digits = preg_replace('/\D+/', '', $phone);
+    $stmt = $pdo->prepare("SELECT * FROM ops_customers WHERE phone = ? OR phone = ? LIMIT 1");
+    $stmt->execute([$phone, $digits]);
     jsonResponse(['customer' => $stmt->fetch() ?: null]);
 }
 
