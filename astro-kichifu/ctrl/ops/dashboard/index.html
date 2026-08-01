@@ -51,7 +51,7 @@
   .tab-btn.active{color:var(--deep);border-bottom-color:var(--coral);}
   .tab-btn.owner-only{display:none;}
   body.is-owner .tab-btn.owner-only{display:block;}
-  /* 店長: 名前プルダウンでモード切替（マネージャー管理 / セラピスト管理） */
+  /* 店長: 名前プルダウンでモード切替（マネージャー管理 / キャスト管理） */
   .user-menu{position:relative;}
   .user-name-btn{display:flex;align-items:center;gap:.3rem;background:transparent;border:none;color:var(--ink-soft);font-size:.85rem;font-weight:600;padding:.3rem .2rem;cursor:default;}
   .user-menu.has-modes .user-name-btn{cursor:pointer;padding:.3rem .7rem;border:1.5px solid var(--gray);border-radius:50px;}
@@ -487,10 +487,10 @@
     .recv-panel{flex:none;width:100%;max-height:320px;position:static;margin-top:.6rem;}
     .tl-split .tl-wrap{padding:.6rem 0;width:100%;}
   }
-  /* 👥 セラピスト管理（role=staff 一覧。.staff-table/.staff-row を流用） */
+  /* 👥 キャスト管理（role=staff 一覧。.staff-table/.staff-row を流用） */
   #view-staffboard .staff-main{max-width:1060px;}
   #staffBoard{overflow-x:auto;}
-  /* 🪪 セラピスト専用マイページ */
+  /* 🪪 キャスト専用マイページ */
   #view-therapist .staff-main{max-width:760px;}
   .th-grid{display:grid;gap:1rem;}
   .th-card{background:#fff;border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.1rem;}
@@ -1008,7 +1008,7 @@
       <button class="tab-btn" data-view="courses">マスタ</button>
       <button class="tab-btn" data-view="column" style="display:none;">📝 コラム</button>
       <button class="tab-btn" data-view="chat" style="display:none;">💬 チャット<span id="chatUnreadBadge" class="tab-badge" style="display:none;">0</span></button>
-      <button class="tab-btn" data-view="staffboard" style="display:none;">👥 セラピスト管理</button>
+      <button class="tab-btn" data-view="staffboard" style="display:none;">👥 キャスト管理</button>
       <button class="tab-btn" data-view="payroll" style="display:none;">💰 経理</button>
       <button class="tab-btn" data-view="settlement" style="display:none;">💴 入金</button>
       <button class="tab-btn" data-view="staff" style="display:none;">スタッフ管理</button>
@@ -1022,7 +1022,7 @@
         </button>
         <div class="user-dropdown" id="userDropdown">
           <button type="button" class="user-dd-item" data-mode="manager">🏢 マネージャー管理</button>
-          <button type="button" class="user-dd-item" data-mode="therapist">💆 セラピスト管理</button>
+          <button type="button" class="user-dd-item" data-mode="therapist">💆 キャスト管理</button>
         </div>
       </div>
       <button class="btn-logout" id="btnLogout">ログアウト</button>
@@ -1030,7 +1030,7 @@
   </div>
 </header>
 
-<!-- ========== 入口ビュー（店長: マネージャー管理 / セラピスト管理 の2択） ========== -->
+<!-- ========== 入口ビュー（店長: マネージャー管理 / キャスト管理 の2択） ========== -->
 <div class="view" id="view-entry">
   <div class="entry-wrap">
     <h2 class="entry-title">管理メニュー</h2>
@@ -1043,7 +1043,7 @@
       </button>
       <button type="button" class="entry-card" data-mode="therapist">
         <span class="entry-ico">💆</span>
-        <span class="entry-name">セラピスト管理</span>
+        <span class="entry-name">キャスト管理</span>
         <span class="entry-desc">自分の予約・お客様・シフト・入金（マイページ）</span>
       </button>
     </div>
@@ -1423,7 +1423,7 @@
         <div class="mh-sub" id="bmSub"></div>
       </div>
       <div class="bm-head-ss" style="display:flex;gap:.4rem;align-items:center;flex:1;justify-content:center;padding:0 .9rem;">
-        <select id="bmAdminId" title="担当セラピスト" style="padding:.4rem .5rem;border:1.5px solid var(--gray);border-radius:7px;font-size:.82rem;max-width:120px;background:#fff;"><option value="">担当 —</option></select>
+        <select id="bmAdminId" title="担当キャスト" style="padding:.4rem .5rem;border:1.5px solid var(--gray);border-radius:7px;font-size:.82rem;max-width:120px;background:#fff;"><option value="">担当 —</option></select>
         <select id="bmStatus" title="ステータス" style="padding:.4rem .5rem;border:1.5px solid var(--gray);border-radius:7px;font-size:.82rem;max-width:120px;background:#fff;">
           <option value="inquiry">問合せ</option>
           <option value="reserved">予約</option>
@@ -1653,7 +1653,7 @@
         <select id="bmCancelType">
           <option value="customer">お客様都合</option>
           <option value="shop">店都合</option>
-          <option value="therapist">セラピスト都合</option>
+          <option value="therapist">キャスト都合</option>
           <option value="other">その他</option>
         </select>
         <textarea id="bmCancelReason" placeholder="詳細(任意)" style="margin-top:.4rem;"></textarea>
@@ -1663,7 +1663,7 @@
             <input type="number" id="bmCancelFee" min="0" step="100" placeholder="例: 9900" style="width:100%;box-sizing:border-box;">
           </div>
           <div style="flex:1;min-width:120px;">
-            <label for="bmCancelReward" style="font-size:.78rem;">うちセラピスト報酬（円）</label>
+            <label for="bmCancelReward" style="font-size:.78rem;">うちキャスト報酬（円）</label>
             <input type="number" id="bmCancelReward" min="0" step="100" placeholder="例: 4950" style="width:100%;box-sizing:border-box;">
           </div>
         </div>
@@ -1690,7 +1690,7 @@
   </div>
 </div>
 
-<!-- ========== オーダー詳細（セラピスト用） モーダル ========== -->
+<!-- ========== オーダー詳細（キャスト用） モーダル ========== -->
 <div class="modal-overlay" id="orderDetailModal">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
@@ -2086,18 +2086,19 @@
   </main>
 </div>
 
-<!-- 👥 セラピスト管理 ビュー（当日の売上・件数・報酬・出勤） -->
+<!-- 👥 キャスト管理 ビュー（当日の売上・件数・報酬・出勤） -->
 <div class="view" id="view-staffboard">
   <main class="staff-main">
     <div class="staff-head">
-      <h2>👥 セラピスト管理</h2>
-      <button class="btn-primary-coral" id="btnAddTherapist">＋ セラピストを追加</button>
+      <h2>👥 キャスト管理</h2>
+      <a class="btn-primary-coral" href="/ctrl/girls.php" style="text-decoration:none;">＋ キャストを登録（CTRL）</a>
+      <button class="btn-ghost" id="btnSyncCasts" type="button" title="CTRL で登録・編集した内容をここに取り込みます">🔄 CTRL から取り込み</button>
     </div>
     <div class="staff-table" id="staffBoard"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
   </main>
 </div>
 
-<!-- 🪪 セラピスト専用マイページ -->
+<!-- 🪪 キャスト専用マイページ -->
 <div class="view" id="view-therapist">
   <main class="staff-main">
     <div class="staff-head" style="margin-bottom:1rem;">
@@ -2143,7 +2144,7 @@
     <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:.2rem 0 1rem;">
       <div id="acPeriodLabel" style="font-weight:700;color:var(--deep);font-size:1.05rem;"></div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:.4rem;">
-        <label style="font-size:.85rem;color:var(--ink-soft);">セラピスト</label>
+        <label style="font-size:.85rem;color:var(--ink-soft);">キャスト</label>
         <select id="acTherapist" style="padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.9rem;max-width:55vw;">
           <option value="">全体</option>
         </select>
@@ -2171,7 +2172,7 @@
 
     <!-- 👤 報酬 -->
     <div class="ac-panel" id="ac-payroll" style="display:none;">
-      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = コース料金（割引後・延長含む）×歩合率 ＋ 出張費（自走分）＋ 深夜料金。<b>出張費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額セラピスト。</p>
+      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = コース料金（割引後・延長含む）×歩合率 ＋ 出張費（自走分）＋ 深夜料金。<b>出張費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
       <div id="payTotal" style="margin-bottom:1rem;"></div>
       <div id="payResult"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
     </div>
@@ -2199,7 +2200,7 @@
   </main>
 </div>
 
-<!-- 👤 担当したお客様（セラピスト本人） -->
+<!-- 👤 担当したお客様（キャスト本人） -->
 <div class="view" id="view-myclients">
   <main class="staff-main" style="max-width:760px;">
     <div class="staff-head"><h2>👤 担当したお客様</h2></div>
@@ -2304,7 +2305,7 @@
       <div class="field" id="csRoleField">
         <label>権限</label>
         <div class="em-status" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr));">
-          <button class="sbtn v-visited active" data-role-btn data-role="staff" type="button">セラピスト</button>
+          <button class="sbtn v-visited active" data-role-btn data-role="staff" type="button">キャスト</button>
           <button class="sbtn v-unset" data-role-btn data-role="driver" type="button">ドライバー</button>
           <button class="sbtn v-unset" data-role-btn data-role="office" type="button">内勤スタッフ</button>
           <button class="sbtn v-inquiry" data-role-btn data-role="manager" type="button">店長</button>
@@ -2315,7 +2316,7 @@
         <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
           <input type="checkbox" id="csIsTherapist" style="width:18px;height:18px;cursor:pointer;">
-          <span>💆 セラピスト業務も兼任する</span>
+          <span>💆 キャスト業務も兼任する</span>
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
           <input type="checkbox" id="csIsOffice" style="width:18px;height:18px;cursor:pointer;">
@@ -2376,7 +2377,7 @@
       <div class="field">
         <label>権限</label>
         <div class="em-status" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr));">
-          <button class="sbtn v-visited" data-es-role="staff" type="button">セラピスト</button>
+          <button class="sbtn v-visited" data-es-role="staff" type="button">キャスト</button>
           <button class="sbtn v-unset" data-es-role="driver" type="button">ドライバー</button>
           <button class="sbtn v-unset" data-es-role="office" type="button">内勤スタッフ</button>
           <button class="sbtn v-inquiry" data-es-role="manager" type="button">店長</button>
@@ -2388,7 +2389,7 @@
         <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
           <input type="checkbox" id="esIsTherapist" style="width:18px;height:18px;cursor:pointer;">
-          <span>💆 セラピスト業務も兼任する</span>
+          <span>💆 キャスト業務も兼任する</span>
         </label>
         <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
           <input type="checkbox" id="esIsOffice" style="width:18px;height:18px;cursor:pointer;">
@@ -2467,7 +2468,7 @@
         <label>入室方法（複数選択可）</label>
         <input type="hidden" id="emEntry">
         <div id="emEntryChips" class="em-entry-chips"></div>
-        <span class="hint">セラピストが当日どう入室するかの案内（複数選択可、コース管理タブで編集）</span>
+        <span class="hint">キャストが当日どう入室するかの案内（複数選択可、コース管理タブで編集）</span>
       </div>
       <input type="hidden" id="emRoomRec">
       <div class="field">

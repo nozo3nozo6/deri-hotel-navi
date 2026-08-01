@@ -17,6 +17,7 @@
 // ==========================================================================
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/_ctrl-session.php';   // CTRL のログインを流用（ops 独自ログインは廃止）
+require_once __DIR__ . '/_cast-sync.php';      // CTRL の girls → ops のキャスト行へ同期
 
 setCorsHeaders();
 
@@ -182,8 +183,14 @@ if ($action === 'bulk-status' && $method === 'POST') {
 // =================================================================
 if ($action === 'admin-users' && $method === 'GET') {
     requireOwner();
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, commission_rate, created_at FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    ops_sync_casts_if_changed(current_shop_id());
+    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, commission_rate, girl_id, created_at FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
     jsonResponse(['users' => $rows]);
+}
+
+// CTRL のキャストを手動で取り込み直す（girls.php で登録した直後など）
+if ($action === 'sync-casts' && $method === 'POST') {
+    jsonResponse(['ok' => true] + ops_sync_casts(current_shop_id()));
 }
 
 // 全ロール (内勤スタッフ含む) 向け: タイムライン/予約モーダル等で使う最小スタッフリスト
@@ -194,7 +201,8 @@ if ($action === 'staff-list' && $method === 'GET') {
     //     セッションを直接参照する（requireOwnerOrManager と同じ方式）。これを関数化すると
     //     非owner（manager/office/driver）でこの行が Fatal になり JSON が壊れる原因になった。
     $withRate = in_array($_SESSION['ylka_admin_role'] ?? '', ['owner', 'manager'], true);
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order" . ($withRate ? ", commission_rate" : "") . " FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    ops_sync_casts_if_changed(current_shop_id());
+    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, girl_id" . ($withRate ? ", commission_rate" : "") . " FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
     jsonResponse(['users' => $rows]);
 }
 
@@ -284,10 +292,10 @@ if ($action === 'admin-update' && $method === 'POST') {
 
 // =================================================================
 // 報酬集計（owner / manager 専用）
-// セラピスト報酬 = コース(price−深夜)×歩合 + 深夜料金(全額) + 出張費のセラピスト取り分
-// 出張費: 自走分は全額セラピスト。送迎(ドライバー割当)した片道ごとに max(出張費/2, 850円) を店が取得（上限=出張費総額）
+// キャスト報酬 = コース(price−深夜)×歩合 + 深夜料金(全額) + 出張費のキャスト取り分
+// 出張費: 自走分は全額キャスト。送迎(ドライバー割当)した片道ごとに max(出張費/2, 850円) を店が取得（上限=出張費総額）
 // =================================================================
-// 出張費のセラピスト取り分（送迎=ドライバー割当した片道は店が max(出張費/2,850) を取得、残りがセラピスト）
+// 出張費のキャスト取り分（送迎=ドライバー割当した片道は店が max(出張費/2,850) を取得、残りがキャスト）
 function ylkaTherapistTransport(int $transport, bool $goDriver, bool $backDriver): int {
     if ($transport <= 0) return 0;
     $perLeg = max((int)floor($transport / 2), 850);
@@ -295,20 +303,20 @@ function ylkaTherapistTransport(int $transport, bool $goDriver, bool $backDriver
     if ($shop > $transport) $shop = $transport; // 出張費総額を超えない
     return $transport - $shop;
 }
-// セラピスト報酬 = コース(price−深夜)×歩合 + 深夜全額 + 出張費のセラピスト取り分
+// キャスト報酬 = コース(price−深夜)×歩合 + 深夜全額 + 出張費のキャスト取り分
 function ylkaReward(int $price, int $late, int $transport, float $rate, bool $goDriver, bool $backDriver): int {
-    // 深夜料金: 帰りのお迎え(backDriver)があれば全額お店（深夜のドライバー手当のため）。なければ全額セラピスト
+    // 深夜料金: 帰りのお迎え(backDriver)があれば全額お店（深夜のドライバー手当のため）。なければ全額キャスト
     $lateTherapist = $backDriver ? 0 : $late;
     return (int)floor(($price - $late) * $rate / 100) + $lateTherapist + ylkaTherapistTransport($transport, $goDriver, $backDriver);
 }
-// クレジット決済のカード手数料のうち「セラピスト負担分」= 売上全額 ×（手数料率 ÷ 2）%。
-// カード手数料（平均3%）はお店とセラピストで半分ずつ負担（各1.5%）。現金・振込は0。
+// クレジット決済のカード手数料のうち「キャスト負担分」= 売上全額 ×（手数料率 ÷ 2）%。
+// カード手数料（平均3%）はお店とキャストで半分ずつ負担（各1.5%）。現金・振込は0。
 function ylkaCardFeeTherapist(int $sales, ?string $pm, float $cardFeeRate): int {
     if ($pm !== 'credit' && $pm !== 'card') return 0;
     return (int)floor($sales * ($cardFeeRate / 2) / 100);
 }
 // 1予約の [売上, 報酬] を返す。お客様都合キャンセルは手入力のキャンセル料/報酬、それ以外は通常計算（予約時点で計上）。
-// カード決済は $cardFeeRate>0 のとき、セラピスト負担分のカード手数料を報酬から差し引く。
+// カード決済は $cardFeeRate>0 のとき、キャスト負担分のカード手数料を報酬から差し引く。
 function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
     if (($r['status'] ?? '') === 'cancelled') {
         return [(int)($r['cancellation_fee'] ?? 0), (int)($r['cancellation_reward'] ?? 0)];
@@ -322,7 +330,7 @@ function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
     $reward -= ylkaCardFeeTherapist($sales, $r['payment_method'] ?? null, $cardFeeRate);
     return [$sales, $reward];
 }
-// 経理の絞り込みセラピストID（0=全体）
+// 経理の絞り込みキャストID（0=全体）
 function ylkaReqTherapistId(): int {
     return isset($_GET['therapist_id']) && $_GET['therapist_id'] !== '' ? max(0, (int)$_GET['therapist_id']) : 0;
 }
@@ -381,7 +389,7 @@ if ($action === 'payroll' && $method === 'GET') {
         $courseReward = (int)floor($courseFee * $rate / 100);
         $tTherapist = ylkaTherapistTransport($trans, $hasGo, $hasBack);
         $lateTherapist = $hasBack ? 0 : $late;   // 帰りお迎えあり→深夜料金は店
-        $cardFeeSelf = ylkaCardFeeTherapist($base, $r['payment_method'] ?? null, $cardRate); // カード決済のセラピスト負担
+        $cardFeeSelf = ylkaCardFeeTherapist($base, $r['payment_method'] ?? null, $cardRate); // カード決済のキャスト負担
         $reward = $courseReward + $lateTherapist + $tTherapist - $cardFeeSelf;
         // 報酬の手入力オーバーライドがあれば置き換え（内訳(course_reward等)は参考値として自動計算のまま残す）
         if (isset($r['reward_override']) && $r['reward_override'] !== null && $r['reward_override'] !== '') {
@@ -441,7 +449,7 @@ function getCardFeeRate(PDO $pdo): float {
 }
 
 if ($action === 'card-fee-get' && $method === 'GET') {
-    // 手数料率は機密ではなく、報酬計算のセラピスト負担分表示に staff も参照するため全ログイン管理者に開放
+    // 手数料率は機密ではなく、報酬計算のキャスト負担分表示に staff も参照するため全ログイン管理者に開放
     jsonResponse(['card_fee_rate' => getCardFeeRate($pdo)]);
 }
 
@@ -607,7 +615,7 @@ if ($action === 'driver-log-upsert' && $method === 'POST') {
 // 経理: 損益サマリー（owner / manager）
 // 売上 = 完了予約の price + transport_fee（支払方法別に集計）
 // カード手数料 = カード売上 × 手数料率
-// 報酬 = 完了予約 (price+transport) × 各セラピスト歩合
+// 報酬 = 完了予約 (price+transport) × 各キャスト歩合
 // 経費 = expenses の合計
 // 粗利 = 売上 − カード手数料 − 報酬 − 経費
 // =================================================================
@@ -670,7 +678,7 @@ if ($action === 'accounting-summary' && $method === 'GET') {
         $rewardTotal += $rwReward;
     }
 
-    // 経費合計 + カテゴリ別（経費は店全体の費用。セラピスト絞り込み時は個人に紐付かないため0）
+    // 経費合計 + カテゴリ別（経費は店全体の費用。キャスト絞り込み時は個人に紐付かないため0）
     $expenseByCat = [];
     $expenseTotal = 0;
     if (!$tid) {
@@ -1022,7 +1030,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
 //   受領済 = スタッフ確認 または 店舗確認 のいずれか（どちらか一方でOK）
 // =================================================================
 
-// 指定期間の (日, セラピスト) 別 店入金額合計を算出
+// 指定期間の (日, キャスト) 別 店入金額合計を算出
 function ylkaComputeShopAmounts(PDO $pdo, string $from, string $to): array {
     $stmt = $pdo->prepare(
         "SELECT b.booking_date, b.assigned_admin_id, b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
@@ -1052,7 +1060,7 @@ function ylkaComputeShopAmountOne(PDO $pdo, string $date, int $tid): int {
     return $m[$date . '|' . $tid]['shop'] ?? 0;
 }
 
-// 集金行を組み立て（$onlyTid 指定時はそのセラピストのみ）
+// 集金行を組み立て（$onlyTid 指定時はそのキャストのみ）
 function ylkaSettlementRows(PDO $pdo, string $from, string $to, ?int $onlyTid): array {
     $map = ylkaComputeShopAmounts($pdo, $from, $to);
 
@@ -1179,7 +1187,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
 }
 
 // 受領確認トグル（side=therapist|shop）
-// セラピスト本人が担当したお客様一覧（自分の予約のみから集計）。電話・お店の顧客メモは含めない。お仕事メモ(bookings.notes)は本人のものなので含む
+// キャスト本人が担当したお客様一覧（自分の予約のみから集計）。電話・お店の顧客メモは含めない。お仕事メモ(bookings.notes)は本人のものなので含む
 if ($action === 'my-customers' && $method === 'GET') {
     $me = (int)($_SESSION['ylka_admin_id'] ?? 0);
     if ($me <= 0) errorResponse('unauthorized', 401);

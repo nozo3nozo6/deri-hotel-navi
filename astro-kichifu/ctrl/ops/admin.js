@@ -599,7 +599,7 @@
     }
   }
 
-  // スタッフ行 HTML（スタッフ管理 / セラピスト管理 共通）
+  // スタッフ行 HTML（スタッフ管理 / キャスト管理 共通）
   // opts.drag: ドラッグ並び替え可（owner のみ）、opts.actions: 編集/PW/削除ボタン表示（owner のみ）
   function staffRowHtml(u, { drag = false, actions = false } = {}) {
     const me = currentUser ? Number(currentUser.id) : 0;
@@ -610,10 +610,10 @@
     const thumb = u.thumbnail_url
       ? `<img src="${escapeAttr(u.thumbnail_url)}" alt="" style="width:40px;height:50px;border-radius:10px;object-fit:cover;">`
       : `<div style="width:40px;height:50px;border-radius:10px;background:linear-gradient(135deg,var(--aqua),var(--sea));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.1rem;">${escapeHtml((u.display_name || u.username || '?').substring(0, 1))}</div>`;
-    const roleLabel = u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '店長' : u.role === 'office' ? '内勤スタッフ' : u.role === 'driver' ? 'ドライバー' : 'セラピスト';
-    // 主ロールとは別の兼任（例: 橘=店長＋セラピスト兼任＋内勤兼任）をラベルに追記
+    const roleLabel = u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '店長' : u.role === 'office' ? '内勤スタッフ' : u.role === 'driver' ? 'ドライバー' : 'キャスト';
+    // 主ロールとは別の兼任（例: 橘=店長＋キャスト兼任＋内勤兼任）をラベルに追記
     const concurrentLabels = [];
-    if (u.role !== 'staff' && Number(u.is_therapist) === 1) concurrentLabels.push('セラピスト');
+    if (u.role !== 'staff' && Number(u.is_therapist) === 1) concurrentLabels.push('キャスト');
     if (u.role !== 'office' && Number(u.is_office) === 1) concurrentLabels.push('内勤');
     if (u.role !== 'driver' && Number(u.can_drive) === 1) concurrentLabels.push('ドライバー');
     const roleLabelFull = roleLabel + (concurrentLabels.length ? `（${concurrentLabels.join('・')}兼任）` : '');
@@ -653,7 +653,7 @@
     if (isOwner) setupStaffSortable('staffTable');
   }
 
-  // セラピスト管理タブ = role=staff、または is_therapist 兼任者（例: 橘=manager+is_therapist）の一覧
+  // キャスト管理タブ = role=staff、または is_therapist 兼任者（例: 橘=manager+is_therapist）の一覧
   function renderTherapistBoard() {
     const el = document.getElementById('staffBoard');
     if (!el) return;
@@ -661,7 +661,7 @@
     const addBtn = document.getElementById('btnAddTherapist');
     if (addBtn) addBtn.style.display = isOwner ? '' : 'none';
     const ths = allUsers.filter(u => isTherapistCapable(u));
-    if (!ths.length) { el.innerHTML = '<p style="color:var(--ink-soft);padding:1.5rem 0;text-align:center;">セラピストが登録されていません。</p>'; return; }
+    if (!ths.length) { el.innerHTML = '<p style="color:var(--ink-soft);padding:1.5rem 0;text-align:center;">キャストが登録されていません。</p>'; return; }
     el.innerHTML = ths.map(u => staffRowHtml(u, { drag: isOwner, actions: isOwner })).join('');
     if (isOwner) setupStaffSortable('staffBoard');
   }
@@ -943,7 +943,7 @@
   }
   let tlCurrentDate = getBusinessDayDate();  // 1日分のタイムライン (営業日基準)
   let adminUsersAll = [];      // {id, username, display_name, role}
-  let CARD_FEE_RATE = 3;       // クレジット手数料率(%)。init で card-fee-get から取得。半分がセラピスト負担
+  let CARD_FEE_RATE = 3;       // クレジット手数料率(%)。init で card-fee-get から取得。半分がキャスト負担
   const NOMINATION_FEES = { first: 0, regular: 0, free: 0 };  // 指名料(固定額)。init で nomination-fees-get から取得
   const nominationFeeFor = (type) => NOMINATION_FEES[type] || 0;
   let tlBookings = [];
@@ -1255,7 +1255,7 @@
     renderReceptionList(bizDay);
 
     try {
-      // タイムラインはセラピスト(isTherapistCapable)のみ表示 (内勤/ドライバー専任は行に出さない)
+      // タイムラインはキャスト(isTherapistCapable)のみ表示 (内勤/ドライバー専任は行に出さない)
       //   - owner: admin-users (将来編集用、フル属性)
       //   - その他 (office/manager/driver): staff-list (read-only、最小属性)
       const urlUsers = currentUser?.role === 'owner' ? '/admin-api.php?action=admin-users' : '/admin-api.php?action=staff-list';
@@ -1482,13 +1482,13 @@
     } catch (e) { toast('更新失敗: ' + e.message, 'err'); }
   }
 
-  // クレジット決済のセラピスト負担カード手数料 = 売上全額(price+trans) ×(手数料率÷2)%。現金/振込は0
+  // クレジット決済のキャスト負担カード手数料 = 売上全額(price+trans) ×(手数料率÷2)%。現金/振込は0
   function cardFeeSelf(price, trans, pm) {
     if (pm !== 'credit' && pm !== 'card') return 0;
     return Math.floor(((price || 0) + (trans || 0)) * (CARD_FEE_RATE / 2) / 100);
   }
-  // セラピスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、出張費は片道max(½,850)を送迎分だけ店取り
-  // pm(payment_method) がクレジットのときはカード手数料のセラピスト負担分を差し引く
+  // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、出張費は片道max(½,850)を送迎分だけ店取り
+  // pm(payment_method) がクレジットのときはカード手数料のキャスト負担分を差し引く
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
   function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride) {
     if (rewardOverride !== undefined && rewardOverride !== null && rewardOverride !== '') return parseInt(rewardOverride, 10) || 0;
@@ -1732,7 +1732,7 @@
     const nameOf = (id, name, uname) => name || uname || ('#' + id);
     let html = '';
 
-    // ─ 預り金の保有状況（本日出勤のセラピスト・内勤・ドライバーを名簿ベースで表示） ─
+    // ─ 預り金の保有状況（本日出勤のキャスト・内勤・ドライバーを名簿ベースで表示） ─
     // 報酬確定済み（渡し済み/本人確保）の予約は残額（全額−報酬）で計上
     const heldAmtOf = (b) => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
@@ -1750,7 +1750,7 @@
       if (!byHolderId[hId]) byHolderId[hId] = [];
       byHolderId[hId].push(b);
     });
-    // 本日出勤の名簿: シフト「出勤」中 or 本日の担当予約ありの セラピスト/内勤/ドライバー
+    // 本日出勤の名簿: シフト「出勤」中 or 本日の担当予約ありの キャスト/内勤/ドライバー
     const cashBizDay = fmtDate(tlCurrentDate);
     const onDutyIds = new Set();
     tlShifts.forEach(s => {
@@ -2090,7 +2090,7 @@
         .filter(s => String(s.shift_date).slice(0, 10) === bizDay) // shift_date=営業日規約で直照合。available/off/tentative 全て（休みも薄く表示）
         .map(s => Number(s.admin_user_id))
     );
-    // シフトが入っているスタッフ + 既に予約が割り当てられているスタッフ（セラピスト兼任のみ。内勤/ドライバー専任は除外）
+    // シフトが入っているスタッフ + 既に予約が割り当てられているスタッフ（キャスト兼任のみ。内勤/ドライバー専任は除外）
     const dayBookingUserIds = new Set(
       tlBookings
         .filter(b => bizDateOf(b.booking_date, b.start_time) === bizDay && b.assigned_admin_id)
@@ -2107,7 +2107,7 @@
         ...visibleStaff,
         { id: 0, display_name: '未割当・チャット申込', role: 'unassigned' },
       ];
-      // セラピスト報酬の算出（モジュール共通の calcReward を使用）
+      // キャスト報酬の算出（モジュール共通の calcReward を使用）
       const tlReward = calcReward;
       // 出勤状態の3ステート: available=出勤 / tentative=予定 / off=休み（タップで順に切替）
       const ATT_NEXT  = { available: 'off', off: 'tentative', tentative: 'available' };
@@ -2119,7 +2119,7 @@
                         : u.role === 'office' ? '🪪 内勤スタッフ'
                         : u.role === 'driver' ? '🚗ドライバー'
                         : u.role === 'unassigned' ? '📅 担当未割当'
-                        : 'セラピスト';
+                        : 'キャスト';
         // その日の担当予約（キャンセル/無連絡/休憩を除く＝予約時点の計上基準）→ 件数と預り金に使用
         const dayJobs = (u.role !== 'unassigned')
           ? tlBookings.filter(b => bizDateOf(b.booking_date, b.start_time) === bizDay && Number(b.assigned_admin_id) === Number(u.id)
@@ -2139,7 +2139,7 @@
           if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
         });
         const canHolder = currentUser?.role === 'owner' || currentUser?.role === 'manager';
-        // 担当セラピスト行のみ数値を表示（0でも ¥0 を表示）。ドライバー/内勤/未割当は非表示（is_therapist兼任者は表示）
+        // 担当キャスト行のみ数値を表示（0でも ¥0 を表示）。ドライバー/内勤/未割当は非表示（is_therapist兼任者は表示）
         const showSales = u.id && u.role !== 'unassigned' && ((u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u));
         // 右BOX: 件数 / 預り金 / 報酬 / 入金（報酬・入金は歩合のある owner/manager のみ。入金=店受取、クリックで受け渡し状況）
         const nyukinRow = !hasRate ? '' : (canHolder
@@ -2157,7 +2157,7 @@
                 : `<div class="tl-m"><span class="tl-m-l">報酬</span><span class="tl-m-v">${yen(heldReward)}</span></div>`) : '')
             + nyukinRow
           : '';
-        // 役職ラベルは機能的な driver / 未割当 / 内勤 のみ表示（店長・オーナー・セラピストは非表示）
+        // 役職ラベルは機能的な driver / 未割当 / 内勤 のみ表示（店長・オーナー・キャストは非表示）
         const roleMini = (u.role === 'driver' || u.role === 'unassigned' || u.role === 'office') ? `<span class="role-mini">${roleLabel}</span>` : '';
         // 出勤状態トグル（owner/manager が操作）。3ステート: 予定→出勤→休み→予定
         const myShift = (u.id && u.role !== 'unassigned') ? tlShifts.find(s => Number(s.admin_user_id) === Number(u.id) && String(s.shift_date).slice(0, 10) === bizDay) : null;
@@ -2416,7 +2416,7 @@
       } else {
         list = list.filter(b => !isBk(b));
       }
-      // ロール別: ドライバーは自分の送迎予約のみ. owner/manager/office は全件（セラピストは予約タブ不可視）
+      // ロール別: ドライバーは自分の送迎予約のみ. owner/manager/office は全件（キャストは予約タブ不可視）
       if ((currentUser?.role || '') === 'driver') {
         list = list.filter(b => Number(b.driver_id) === Number(currentUser.id) || Number(b.back_driver_id) === Number(currentUser.id));
       }
@@ -2483,7 +2483,7 @@
       } catch (e) {}
     }
     const usersForSel = adminUsersAll.length ? adminUsersAll : [{ id: currentUser.id, display_name: currentUser.display_name, username: currentUser.email, role: currentUser.role }];
-    // 担当セラピスト = ドライバー/内勤スタッフを除く (施術を行うのは staff/manager/owner、または is_therapist 兼任者)
+    // 担当キャスト = ドライバー/内勤スタッフを除く (接客を行うのは staff/manager/owner、または is_therapist 兼任者)
     const adSel = bel('bmAdminId');
     adSel.innerHTML = '<option value="">— 未割当 —</option>' +
       usersForSel.filter(u => (u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u))
@@ -2561,7 +2561,7 @@
       }
     }
   }
-  // 担当セラピストが選ばれたら、ステータスが「問合せ」のときのみ自動で「予約」に切替える
+  // 担当キャストが選ばれたら、ステータスが「問合せ」のときのみ自動で「予約」に切替える
   // （完了・キャンセル等、既に確定した状態は上書きしない）
   function autoStatusOnAssign() {
     const adSel = bel('bmAdminId');
@@ -2919,7 +2919,7 @@
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
       if (bel('bmCounseling')) bel('bmCounseling').checked = true;  // カウンセリング+10分はデフォルトON
-      // デフォルト: 担当セラピスト未割当なら「問合せ」、既に割当済み(タイムラインの担当行から作成)なら「予約」
+      // デフォルト: 担当キャスト未割当なら「問合せ」、既に割当済み(タイムラインの担当行から作成)なら「予約」
       bel('bmStatus').value = prefill?.adminId ? 'reserved' : 'inquiry';
       bel('bmSub').textContent = '';
     }
@@ -2988,7 +2988,7 @@
     if (totalRow) totalRow.style.display = checked ? 'none' : 'flex';
   }
 
-  // ============== オーダー詳細（セラピスト用 読み取り専用） ==============
+  // ============== オーダー詳細（キャスト用 読み取り専用） ==============
   // ステータス表示は bookingStatusLabel() に統一（旧 STATUS_LABEL は廃止）
   let currentOrderId = null;
   async function openOrderDetailModal(id) {
@@ -3028,7 +3028,7 @@
       setText('odPrice', b.price ? `¥${Number(b.price).toLocaleString()}` : '');
       setText('odTransport', (b.transport_fee != null && b.transport_fee !== '') ? `¥${Number(b.transport_fee).toLocaleString()}` : '');
       setText('odCustomerName', b.customer_name || b.customer_name_snapshot || '');
-      // 電話番号はセラピスト(staff)には非表示（行ごと隠す＋APIでも返さない）
+      // 電話番号はキャスト(staff)には非表示（行ごと隠す＋APIでも返さない）
       const phoneRow = document.getElementById('odPhoneRow');
       if (currentUser?.role === 'staff') {
         if (phoneRow) phoneRow.style.display = 'none';
@@ -3238,7 +3238,7 @@
       else if (hotel.startsWith(OTHER_PREFIX)) loc = hotel.replace(OTHER_PREFIX, '');
       lines.push(`■ 訪問先：${loc}${b.room_number ? ' ' + b.room_number + '号室' : ''}`);
     }
-    if (b.therapist_name) lines.push(`■ 担当セラピスト：${b.therapist_name}`);
+    if (b.therapist_name) lines.push(`■ 担当キャスト：${b.therapist_name}`);
     lines.push('');
     lines.push('当日はどうぞよろしくお願いいたします。');
     lines.push('ご変更・ご不明な点はお気軽にご連絡ください。');
@@ -3294,7 +3294,7 @@
     }
     const baseForCopy = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
     const lateForCopy = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
-    // 担当セラピスト名 (select の表示テキスト、未割当は除外)
+    // 担当キャスト名 (select の表示テキスト、未割当は除外)
     const adSel = bel('bmAdminId');
     const adOpt = adSel?.options[adSel.selectedIndex];
     const therapistName = (adSel?.value && adOpt) ? (adOpt.dataset?.name || adOpt.text || '').trim() : '';
@@ -4872,9 +4872,9 @@
     hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
     column:      { label: '📝 コラム',    desc: '公開ブログ記事の投稿・編集（オーナー・店長）' },
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
-    payroll:     { label: '💰 経理',      desc: '各セラピストの報酬集計（オーナー・店長のみ・固定）' },
+    payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・店長のみ・固定）' },
     settlement:  { label: '💴 入金',      desc: '自分の店舗への受け渡し確認（スタッフ本人）' },
-    staffboard:  { label: '👥 セラピスト管理', desc: '当日の売上・件数・報酬・出勤（オーナー・店長）' },
+    staffboard:  { label: '👥 キャスト管理', desc: '当日の売上・件数・報酬・出勤（オーナー・店長）' },
     staff:       { label: 'スタッフ管理', desc: 'スタッフアカウントの追加・削除（必ずownerを含む）' },
     permissions: { label: '権限管理',     desc: 'このページ自体（必ずownerを含む）' },
   };
@@ -4911,9 +4911,9 @@
       }
       return tabPermissions[t].includes(role);
     };
-    // セラピスト(staff)は「マイページ」1タブのみ。お客様/シフト/入金はマイページ内のボタンから開く
+    // キャスト(staff)は「マイページ」1タブのみ。お客様/シフト/入金はマイページ内のボタンから開く
     if (role === 'staff') return tab === 'therapist';
-    // 店長(manager) = 店長兼セラピスト。モードで出し分け（入口/マネージャー管理/セラピスト管理）
+    // 店長(manager) = 店長兼キャスト。モードで出し分け（入口/マネージャー管理/キャスト管理）
     if (role === 'manager') {
       if (managerMode === 'therapist') return tab === 'therapist';
       if (managerMode === 'manager') return managerCanSee(tab);
@@ -4934,7 +4934,7 @@
     });
   }
 
-  // ===== 店長(manager)専用: 名前プルダウンで マネージャー管理 / セラピスト管理 を切替 =====
+  // ===== 店長(manager)専用: 名前プルダウンで マネージャー管理 / キャスト管理 を切替 =====
   function updateModeSwitch() {
     const menu = document.getElementById('userMenu');
     const caret = document.getElementById('userCaret');
@@ -4983,7 +4983,7 @@
       <div class="perm-cell">オーナー</div>
       <div class="perm-cell">店長</div>
       <div class="perm-cell">🪪 内勤</div>
-      <div class="perm-cell">セラピスト</div>
+      <div class="perm-cell">キャスト</div>
       <div class="perm-cell">🚗ドライバー</div>
     </div>`;
     // チャットはデフォルトでオーナー＋店長＋内勤のみ (お客様対応用)
@@ -5032,7 +5032,7 @@
   }
 
   // ========== View switching ==========
-  // 👥 セラピスト管理（role=staff の登録一覧＋追加/編集）。owner/manager 閲覧、追加/編集は owner のみ
+  // 👥 キャスト管理（role=staff の登録一覧＋追加/編集）。owner/manager 閲覧、追加/編集は owner のみ
   async function loadStaffBoard() {
     const el = document.getElementById('staffBoard');
     if (!el) return;
@@ -5046,7 +5046,7 @@
     }
   }
 
-  // 追加/編集/削除後、両タブ（スタッフ管理＋セラピスト管理）を再描画
+  // 追加/編集/削除後、両タブ（スタッフ管理＋キャスト管理）を再描画
   async function reloadStaffData() {
     try {
       const data = await api('/admin-api.php?action=' + staffListEndpoint());
@@ -5056,7 +5056,7 @@
     renderTherapistBoard();
   }
 
-  // 🪪 セラピスト専用マイページ（出勤切替＋出勤時間表示・予約[日ナビ]・実績[月ナビ]・シフト申請）
+  // 🪪 キャスト専用マイページ（出勤切替＋出勤時間表示・予約[日ナビ]・実績[月ナビ]・シフト申請）
   let thBookDate = null;   // 予約セクションの表示日 YYYY-MM-DD
   let thMonth = null;      // 実績セクションの表示月 YYYY-MM
   const _parseYmd = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
@@ -5117,7 +5117,7 @@
 
       el.innerHTML = `<div class="th-grid">${attHtml}<div class="th-card" id="thBookCard"></div><div class="th-card" id="thPerfCard"></div>${shiftHtml}</div>`;
 
-      // 出勤/休みの自己切替は廃止（セラピストは閲覧のみ・出勤はシフトで管理）
+      // 出勤/休みの自己切替は廃止（キャストは閲覧のみ・出勤はシフトで管理）
       document.getElementById('thToClients')?.addEventListener('click', () => switchView('myclients'));
       document.getElementById('thToShifts')?.addEventListener('click', () => switchView('shifts'));
       // 入金明細は「今日」を表示してから開く
@@ -5477,7 +5477,7 @@
     const label = acFmtPeriodLabel(from, to);
     el.textContent = label ? `📅 ${label}` : '';
   }
-  // 経理: セラピスト絞り込みセレクタ（全タブ共通）
+  // 経理: キャスト絞り込みセレクタ（全タブ共通）
   async function acPopulateTherapists() {
     const sel = document.getElementById('acTherapist');
     if (!sel) return;
@@ -5562,7 +5562,7 @@
       </div>`;
     const catRows = (d.expense_by_category || []).map(c =>
       row(`　・${escapeHtml(c.category)}`, yen(c.amount), { sub:true })).join('');
-    // 店舗売上 = お客様総額 − セラピスト報酬（＝セラピストから店が受け取る額）
+    // 店舗売上 = お客様総額 − キャスト報酬（＝キャストから店が受け取る額）
     const shopSales = (s.total || 0) - (d.reward_total || 0);
     document.getElementById('ac-summary').innerHTML = `
       <div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1.1rem 1.3rem;max-width:560px;">
@@ -5576,8 +5576,8 @@
         ${row('クレジット', yen(s.credit), { sub:true })}
         ${row('銀行振込', yen(s.bank), { sub:true })}
         ${s.unset ? row('支払方法 未設定', yen(s.unset), { sub:true }) : ''}
-        ${row('セラピスト報酬', yen(d.reward_total), { minus:true })}
-        ${row('＝ 店舗売上（セラピストからの入金）', yen(shopSales), { big:true, border:true })}
+        ${row('キャスト報酬', yen(d.reward_total), { minus:true })}
+        ${row('＝ 店舗売上（キャストからの入金）', yen(shopSales), { big:true, border:true })}
         ${row(`クレジット手数料 <button id="acCardFeeBtn" type="button" style="margin-left:.4rem;background:transparent;border:1px solid var(--gray);border-radius:6px;padding:.1rem .5rem;font-size:.75rem;color:var(--ink-soft);cursor:pointer;">${parseFloat(d.card_fee_rate)}% 変更</button>`, yen(d.card_fee), { minus:true })}
         ${row(`指名料 <button id="acNominationFeeBtn" type="button" style="margin-left:.4rem;background:transparent;border:1px solid var(--gray);border-radius:6px;padding:.1rem .5rem;font-size:.75rem;color:var(--ink-soft);cursor:pointer;">設定</button>`, `<span style="font-size:.78rem;color:var(--ink-soft);font-weight:500;">初¥${NOMINATION_FEES.first.toLocaleString()} / 本¥${NOMINATION_FEES.regular.toLocaleString()} / フリー¥${NOMINATION_FEES.free.toLocaleString()}</span>`, { sub:true })}
         ${row(`経費合計`, yen(d.expense_total), { minus:true })}
@@ -5887,7 +5887,7 @@
     document.getElementById('msTo').value = fmt(to);
     document.querySelectorAll('.ms-range').forEach(b => b.classList.toggle('active', b.dataset.range === range));
   }
-  // 👤 担当したお客様（セラピスト本人。自分の予約から集計・電話/お店の顧客メモは出さない）
+  // 👤 担当したお客様（キャスト本人。自分の予約から集計・電話/お店の顧客メモは出さない）
   let _mcData = [];
   let _mcInit = false;
   async function loadMyClients() {
@@ -6833,7 +6833,7 @@
       return;
     }
 
-    // クレジット手数料率を取得（報酬計算のセラピスト負担分に使用）
+    // クレジット手数料率を取得（報酬計算のキャスト負担分に使用）
     try {
       const cf = await api('/admin-api.php?action=card-fee-get');
       if (cf && cf.card_fee_rate != null) CARD_FEE_RATE = parseFloat(cf.card_fee_rate) || CARD_FEE_RATE;
@@ -6848,9 +6848,9 @@
     await loadPermissions();
     applyTabVisibility();
 
-    // セラピスト(staff)は専用マイページに自動分岐
+    // キャスト(staff)は専用マイページに自動分岐
     if (currentUser?.role === 'staff') switchView('therapist');
-    // 店長(manager)はログイン直後に入口画面（マネージャー管理 / セラピスト管理 の2択）
+    // 店長(manager)はログイン直後に入口画面（マネージャー管理 / キャスト管理 の2択）
     if (currentUser?.role === 'manager') showManagerEntry();
     updateModeSwitch();
 
@@ -6959,7 +6959,7 @@
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
 
-    // 店長: 入口カード / 名前プルダウン（マネージャー管理 ⇔ セラピスト管理）
+    // 店長: 入口カード / 名前プルダウン（マネージャー管理 ⇔ キャスト管理）
     document.querySelectorAll('#view-entry [data-mode], #userDropdown [data-mode]').forEach(btn => {
       btn.addEventListener('click', () => setManagerMode(btn.dataset.mode));
     });
@@ -6986,13 +6986,29 @@
       const roleField = document.getElementById('csRoleField');
       if (roleField) roleField.style.display = lockStaff ? 'none' : '';
       const title = document.getElementById('csTitle');
-      if (title) title.textContent = lockStaff ? 'セラピストを追加' : 'スタッフを追加';
+      if (title) title.textContent = lockStaff ? 'キャストを追加' : 'スタッフを追加';
       openModal('createStaffModal');
     }
     // スタッフ管理ボタン（運営側 = 権限選択あり）
     document.getElementById('btnAddStaff').addEventListener('click', () => openCreateStaff(false));
-    // セラピスト管理ボタン（role=staff 固定）
-    document.getElementById('btnAddTherapist')?.addEventListener('click', () => openCreateStaff(true));
+    // キャストの登録は CTRL の /ctrl/girls.php が正。ここでは取り込み直しだけ行う
+    document.getElementById('btnSyncCasts')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = '取り込み中…';
+      try {
+        const r = await api('/admin-api.php?action=sync-casts', { method: 'POST' });
+        toast(`キャストを取り込みました（新規 ${r.added} / 更新 ${r.updated} / 非表示 ${r.hidden}）`);
+        adminUsersAll = [];       // キャッシュを空にして次回再取得させる
+        await loadStaffBoard();
+      } catch (err) {
+        toast('取り込みに失敗しました: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
     document.querySelectorAll('[data-role-btn]').forEach(b => {
       b.addEventListener('click', () => {
         createRole = b.dataset.role;
@@ -7113,7 +7129,7 @@
       return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
-    // スタッフ操作（スタッフ管理 / セラピスト管理 共通）
+    // スタッフ操作（スタッフ管理 / キャスト管理 共通）
     function handleStaffRowClick(e) {
       const btn = e.target.closest('button[data-action]');
       if (!btn || btn.disabled) return;
@@ -7427,7 +7443,7 @@
       bel('bmCancelWrap').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
       updateBookingTotal();
     });
-    // 担当セラピスト選択 → 問合せ状態なら自動で「予約」へ（セラピストが決まった＝実予約成立）
+    // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
     bel('bmAdminId').addEventListener('change', e => autoStatusOnAssign());
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
     bel('bmCancelType')?.addEventListener('change', updateBookingTotal);

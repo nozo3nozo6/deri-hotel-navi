@@ -42,7 +42,7 @@ function driverScopeWhere(): array {
     return ['', []];
 }
 
-// セラピスト(staff)権限の場合、自分が担当する予約のみに絞り込むフィルタ（他セラピストの予約閲覧を防止）
+// キャスト(staff)権限の場合、自分が担当する予約のみに絞り込むフィルタ（他キャストの予約閲覧を防止）
 function staffScopeWhere(): array {
     if (currentUserRole() === 'staff' && currentUserId() > 0) {
         return ['b.assigned_admin_id = ?', [currentUserId()]];
@@ -50,7 +50,7 @@ function staffScopeWhere(): array {
     return ['', []];
 }
 
-// セラピスト(staff)には顧客連絡先(電話/メール)を返さない（個人情報保護）。owner/manager/office は従来どおり
+// キャスト(staff)には顧客連絡先(電話/メール)を返さない（個人情報保護）。owner/manager/office は従来どおり
 function stripContactForStaff(array $rows): array {
     if (currentUserRole() !== 'staff') return $rows;
     foreach (array_keys($rows) as $i) {
@@ -140,11 +140,11 @@ if ($action === 'get' && $method === 'GET') {
     if ($drvW && (int)($row['driver_id'] ?? 0) !== $myDrvId && (int)($row['back_driver_id'] ?? 0) !== $myDrvId) {
         errorResponse('forbidden', 403);
     }
-    // セラピスト(staff)は自分担当の予約のみ閲覧可
+    // キャスト(staff)は自分担当の予約のみ閲覧可
     if (currentUserRole() === 'staff' && (int)($row['assigned_admin_id'] ?? 0) !== currentUserId()) {
         errorResponse('forbidden', 403);
     }
-    // セラピストには顧客連絡先(電話/メール)を返さない（個人情報保護）
+    // キャストには顧客連絡先(電話/メール)を返さない（個人情報保護）
     if (currentUserRole() === 'staff') {
         unset($row['customer_phone'], $row['customer_phone_snapshot'], $row['customer_email_snapshot'], $row['customer_notes']);
     }
@@ -393,7 +393,7 @@ if ($action === 'set-note' && $method === 'POST') {
     // driver はメモ編集不可。staff は自分の担当予約のみ。owner/manager/office は全件可
     if ($role === 'driver') errorResponse('forbidden', 403);
     if ($role === 'staff' && (int)$cur['assigned_admin_id'] !== (int)($_SESSION['ylka_admin_id'] ?? 0)) errorResponse('forbidden', 403);
-    // セラピストの「お仕事メモ」は予約単位(bookings.notes)に保存。顧客紐づけメモ(customers.notes)はお店の顧客管理でのみ編集
+    // キャストの「お仕事メモ」は予約単位(bookings.notes)に保存。顧客紐づけメモ(customers.notes)はお店の顧客管理でのみ編集
     $pdo->prepare("UPDATE ops_bookings SET notes = ?, updated_at = NOW() WHERE id = ?")->execute([$note !== '' ? $note : null, $id]);
     jsonResponse(['ok' => true]);
 }

@@ -28,7 +28,7 @@ if ($action === 'range' && $method === 'GET') {
         $where[] = 's.admin_user_id = ?';
         $params[] = $adminId;
     }
-    // セラピスト(staff)は自分のシフトのみ（admin_id 指定があっても本人に固定）。owner/manager/office は全員閲覧可
+    // キャスト(staff)は自分のシフトのみ（admin_id 指定があっても本人に固定）。owner/manager/office は全員閲覧可
     if (currentUserRole() === 'staff') {
         $where[] = 's.admin_user_id = ?';
         $params[] = currentUserId();
