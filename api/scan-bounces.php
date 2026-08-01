@@ -44,14 +44,26 @@ if (!hash_equals($secret, (string)($_GET['key'] ?? ''))) {
 }
 
 // --- メールボックスの場所 ---
-// public_html/api から見て ../../mail/yobuho.com/hotel@yobuho.com/new
-$maildir = defined('BOUNCE_MAILDIR') && BOUNCE_MAILDIR !== ''
-    ? BOUNCE_MAILDIR
-    : __DIR__ . '/../../mail/yobuho.com/hotel@yobuho.com/new';
+// public_html/api から見て ../../mail/yobuho.com/hotel@yobuho.com
+// Maildir はメールを開くと new/（未読）から cur/（既読）へ移動するため、必ず両方を見る。
+// （new/ だけを見ていると、管理者がメールを確認した時点で検出できなくなる）
+$maildirBase = defined('BOUNCE_MAILDIR') && BOUNCE_MAILDIR !== ''
+    ? rtrim(BOUNCE_MAILDIR, '/')
+    : __DIR__ . '/../../mail/yobuho.com/hotel@yobuho.com';
 
-if (!is_dir($maildir) || !is_readable($maildir)) {
+$scanDirs = [];
+foreach (['new', 'cur'] as $sub) {
+    $d = $maildirBase . '/' . $sub;
+    if (is_dir($d) && is_readable($d)) $scanDirs[] = $d;
+}
+// BOUNCE_MAILDIR が new/cur を持たない単一ディレクトリを指している場合（テスト用途など）
+if (!$scanDirs && is_dir($maildirBase) && is_readable($maildirBase)) {
+    $scanDirs[] = $maildirBase;
+}
+
+if (!$scanDirs) {
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'maildir not readable', 'path' => $maildir]);
+    echo json_encode(['ok' => false, 'error' => 'maildir not readable', 'path' => $maildirBase]);
     exit;
 }
 
@@ -133,29 +145,35 @@ try {
 
     $scanned = 0; $inserted = 0; $skipped = 0;
 
-    $files = scandir($maildir) ?: [];
-    // 新しい順に見る（大量に溜まっていても直近から処理できる）
-    rsort($files);
+    foreach ($scanDirs as $dir) {
+        $files = scandir($dir) ?: [];
+        // 新しい順に見る（大量に溜まっていても直近から処理できる）
+        rsort($files);
 
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') continue;
-        $path = $maildir . '/' . $file;
-        if (!is_file($path) || !is_readable($path)) continue;
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            $path = $dir . '/' . $file;
+            if (!is_file($path) || !is_readable($path)) continue;
 
-        $scanned++;
+            $scanned++;
 
-        // バウンス通知は数KB程度。巨大ファイルは通常メールなので先頭のみ読む
-        $raw = @file_get_contents($path, false, null, 0, 64 * 1024);
-        if ($raw === false) { $skipped++; continue; }
+            // バウンス通知は数KB程度。巨大ファイルは通常メールなので先頭のみ読む
+            $raw = @file_get_contents($path, false, null, 0, 64 * 1024);
+            if ($raw === false) { $skipped++; continue; }
 
-        $b = parseBounce($raw);
-        if ($b === null) { $skipped++; continue; }
+            $b = parseBounce($raw);
+            if ($b === null) { $skipped++; continue; }
 
-        $ins->execute([
-            $b['recipient'], $b['status_code'], $b['diagnostic'],
-            $b['orig_subject'], $b['bounced_at'], mb_substr($file, 0, 255),
-        ]);
-        if ($ins->rowCount() > 0) $inserted++;
+            // Maildir は new/ → cur/ 移動時にファイル名へ ":2,S" 等のフラグを付けるため、
+            // それを剥がした部分を一意キーにする（同じメールを2回登録しないため）。
+            $key = explode(':', $file, 2)[0];
+
+            $ins->execute([
+                $b['recipient'], $b['status_code'], $b['diagnostic'],
+                $b['orig_subject'], $b['bounced_at'], mb_substr($key, 0, 255),
+            ]);
+            if ($ins->rowCount() > 0) $inserted++;
+        }
     }
 
     // 未確認の恒久的失敗（5.x.x）件数 — 監視に使う
