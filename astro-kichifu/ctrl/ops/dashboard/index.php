@@ -1011,7 +1011,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="tab-btn active" data-view="timeline">📅 タイムライン</button>
       <button class="tab-btn" data-view="bookings">予約管理</button>
       <button class="tab-btn" data-view="customers">顧客管理</button>
-      <button class="tab-btn" data-view="shifts">シフト</button>
+      <button class="tab-btn" data-view="shifts">内勤・送迎シフト</button>
       <button class="tab-btn" data-view="courses">マスタ</button>
       <button class="tab-btn" data-view="chat" style="display:none;">💬 チャット<span id="chatUnreadBadge" class="tab-badge" style="display:none;">0</span></button>
       <button class="tab-btn" data-view="staffboard" style="display:none;">👥 キャスト管理</button>
@@ -1143,7 +1143,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 <!-- ========== シフト管理ビュー ========== -->
 <div class="view" id="view-shifts">
   <div class="sh-toolbar">
-    <div class="tl-title" id="shTitle">シフト</div>
+    <div class="tl-title" id="shTitle">内勤・送迎シフト</div>
     <div class="tl-nav">
       <div class="sh-mode-toggle" role="tablist" style="display:inline-flex;border:1.5px solid var(--gray);border-radius:8px;overflow:hidden;">
         <button id="shModeTimetable" class="sh-mode-btn is-active" role="tab" type="button">📋 タイムテーブル</button>

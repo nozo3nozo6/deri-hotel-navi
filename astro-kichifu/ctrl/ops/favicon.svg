@@ -1,21 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#123a52"/>
-      <stop offset="100%" stop-color="#04141f"/>
-    </radialGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="1.4" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4fc3f7"/>
+      <stop offset="100%" stop-color="#1e88e5"/>
+    </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <!-- 店舗運営(オペレーション)は青白系の「A」。CTRL本体(ティール)・フロント(ピンク)と区別 -->
+  <!-- 店舗運営(オペレーション)は爽やかな青の「A」。CTRL本体(ティール/黒)・フロント(ピンク)と区別 -->
   <text x="32" y="46" text-anchor="middle"
         font-family="'Helvetica Neue', Arial, system-ui, sans-serif"
         font-weight="900" font-size="40" letter-spacing="-2"
-        fill="#eaf4ff" filter="url(#glow)">A</text>
+        fill="#ffffff">A</text>
 </svg>

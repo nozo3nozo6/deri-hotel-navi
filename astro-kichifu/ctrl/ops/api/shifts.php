@@ -69,6 +69,12 @@ if ($action === 'upsert' && $method === 'POST') {
     $adminId = isset($b['admin_user_id']) ? (int)$b['admin_user_id'] : currentUserId();
     if (!isOwner() && $adminId !== currentUserId()) errorResponse('staff can only edit own shifts', 403);
 
+    // キャスト(CTRLで同期されるgirl_id持ち)の出勤は /ctrl/schedules.php が正。
+    // ここでの手入力を許すと二重の入力元ができてしまうため、内勤/ドライバーのみ受け付ける
+    $gid = $pdo->prepare("SELECT girl_id FROM ops_admin_users WHERE id = ?");
+    $gid->execute([$adminId]);
+    if ($gid->fetchColumn()) errorResponse('キャストの出勤は CTRL の出勤管理（/ctrl/schedules.php）で登録してください', 400);
+
     if ($id > 0) {
         // 既存編集時、所有者チェック
         $own = $pdo->prepare('SELECT admin_user_id FROM ops_shifts WHERE id = ?');

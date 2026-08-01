@@ -4003,10 +4003,21 @@
     if (currentUser?.role === 'owner' && document.getElementById('shStaffFilter').options.length <= 1) {
       try {
         const d = await api('/admin-api.php?action=admin-users');
+        // キャストの出勤は CTRL(/ctrl/schedules.php)が正なのでここには出さない。
+        // シフトは内勤スタッフ・ドライバーのスケジュール登録専用
+        const targets = (d.users || []).filter(u => isOfficeCapable(u) || isDriverCapable(u));
         const sel = document.getElementById('shStaffFilter');
         sel.style.display = 'inline-block';
-        sel.innerHTML = '<option value="">全スタッフ</option>' + d.users.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
+        sel.innerHTML = '<option value="">全スタッフ</option>' + targets.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
         syncShiftStaffFilterForMode();
+        if (targets.length === 0) {
+          const msg = '<div class="view-empty">内勤スタッフ・ドライバーがまだ登録されていません。<br>'
+                    + '「スタッフ管理」で追加すると、ここでスケジュールを登録できます。<br>'
+                    + '<span style="font-size:.85rem;color:var(--ink-soft);">※ キャストの出勤は CTRL の「出勤管理」で登録してください</span></div>';
+          document.getElementById('shTimetable').innerHTML = msg;
+          document.getElementById('shCalendar').innerHTML = msg;
+          return;
+        }
       } catch (e) {}
     }
 
@@ -4042,7 +4053,7 @@
 
     const start = new Date(shCurrent.getFullYear(), shCurrent.getMonth(), shCurrent.getDate());
     const end = addDays(start, 9);  // 10日分
-    document.getElementById('shTitle').textContent = `シフト ${fmtDate(start)} 〜 ${fmtDate(end)}`;
+    document.getElementById('shTitle').textContent = `内勤・送迎シフト ${fmtDate(start)} 〜 ${fmtDate(end)}`;
 
     try {
       const params = new URLSearchParams({ from: fmtDate(start), to: fmtDate(end) });
@@ -4976,7 +4987,7 @@
     timeline:    { label: 'タイムライン', desc: '日次予約タイムラインの閲覧・操作' },
     bookings:    { label: '予約管理',     desc: '予約一覧の閲覧と編集' },
     customers:   { label: '顧客管理',     desc: '顧客情報の閲覧・編集' },
-    shifts:      { label: 'シフト',       desc: 'シフト登録・編集' },
+    shifts:      { label: '内勤・送迎シフト', desc: '内勤スタッフ・ドライバーのスケジュール登録（キャストの出勤はCTRLの出勤管理が正）' },
     courses:     { label: 'コース',       desc: '施術コースの追加・編集' },
     hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
