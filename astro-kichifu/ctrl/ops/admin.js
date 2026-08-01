@@ -6874,8 +6874,13 @@
     await Promise.all([loadStats(), loadCities(), loadHotels()]);
 
     document.getElementById('btnLogout').addEventListener('click', async () => {
-      try { await fetch(API + '/auth.php?action=logout', { method: 'POST', credentials: 'include' }); } catch (e) {}
-      location.href = location.pathname.replace(/\/dashboard\/?$/, '/');
+      // ops は CTRL のログインを使うので、ログアウトも CTRL 側で行う
+      let to = '/ctrl/logout.php';
+      try {
+        const r = await fetch(API + '/auth.php?action=logout', { method: 'POST', credentials: 'include' }).then(r => r.json());
+        if (r && r.redirect) to = r.redirect;
+      } catch (e) {}
+      location.href = to;
     });
 
     let filterTimer;

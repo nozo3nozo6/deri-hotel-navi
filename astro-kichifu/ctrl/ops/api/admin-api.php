@@ -16,29 +16,13 @@
 //   NULL         未設定
 // ==========================================================================
 require_once __DIR__ . '/db.php';
-
-// 30日継続ログイン
-@ini_set('session.gc_maxlifetime', 30 * 86400);
-@ini_set('session.cookie_lifetime', 30 * 86400);
-session_set_cookie_params([
-    'lifetime' => 30 * 86400,
-    'path'     => '/',
-    'secure'   => true,
-    'httponly' => true,
-    'samesite' => 'Strict',
-]);
-session_name('ADMI_OPS_SID');
-session_start();
+require_once __DIR__ . '/_ctrl-session.php';   // CTRL のログインを流用（ops 独自ログインは廃止）
 
 setCorsHeaders();
 
-// 認証チェック (30日継続ログイン)
-if (empty($_SESSION['ylka_admin_id']) || time() - ($_SESSION['last_activity'] ?? 0) > 30 * 86400) {
-    $_SESSION = [];
-    session_destroy();
+if (!ops_current_user()) {
     errorResponse('unauthorized', 401);
 }
-$_SESSION['last_activity'] = time();
 
 function requireOwner(): void {
     if (($_SESSION['ylka_admin_role'] ?? '') !== 'owner') {
