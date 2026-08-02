@@ -2830,6 +2830,7 @@
   async function populateCastSelect(bizDay, mustIncludeId) {
     const adSel = bel('bmAdminId');
     if (!adSel) return;
+    wireCastSelectLabel(adSel);
     const keep = String(mustIncludeId || adSel.value || '');
     const shifts = await shiftsForDay(bizDay);
     const all = adminUsersAll || [];
@@ -2848,9 +2849,36 @@
         const s = shiftForDay(shifts, bizDay, u.id);
         const time = (s && s.start_time && s.end_time)
           ? `（${String(s.start_time).slice(0, 5)}〜${String(s.end_time).slice(0, 5)}${s.status === 'done' ? ' 終了' : ''}）` : '';
-        return `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}${time}</option>`;
+        const name = escapeHtml(u.display_name || u.username);
+        // 開いている一覧は出勤時間つき、閉じている時は名前だけ（狭いヘッダーで切れるため）
+        return `<option value="${u.id}" data-short="${escapeAttr(u.display_name || u.username)}" data-full="${escapeAttr((u.display_name || u.username) + time)}">${name}${time}</option>`;
       }).join('');
     if (keep) adSel.value = keep;
+    castSelectCollapse(adSel);
+  }
+
+  // 担当プルダウンの表示切替。
+  //   閉じている時 … 名前だけ（ヘッダーの狭い枠で「あおい（15:30〜」と切れてしまうため）
+  //   開いている時 … 名前＋出勤時間（誰が何時までいるか見て選べるように）
+  // ネイティブ select は開閉で別テキストを持てないので、option の文字自体を差し替える。
+  function castSelectExpand(sel) {
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => { if (o.dataset.full) o.textContent = o.dataset.full; });
+  }
+  function castSelectCollapse(sel) {
+    if (!sel) return;
+    castSelectExpand(sel);   // 一旦すべて戻してから、選択中だけ短くする
+    const o = sel.selectedOptions[0];
+    if (o && o.dataset.short) o.textContent = o.dataset.short;
+  }
+  function wireCastSelectLabel(sel) {
+    if (!sel || sel.dataset.labelWired) return;
+    sel.dataset.labelWired = '1';
+    // mousedown/touchstart はプルダウンが開く直前に来るので、そこで時間つきに戻す
+    ['mousedown', 'touchstart', 'focus', 'keydown'].forEach(ev =>
+      sel.addEventListener(ev, () => castSelectExpand(sel)));
+    ['change', 'blur'].forEach(ev =>
+      sel.addEventListener(ev, () => castSelectCollapse(sel)));
   }
 
   // ========== Booking modal ==========
@@ -3191,6 +3219,7 @@
         // 担当プルダウンはその日の出勤者だけ。割当済みの担当は出勤外でも残す
         await populateCastSelect(bel('bmDate').value, b.assigned_admin_id || '');
         bel('bmAdminId').value = b.assigned_admin_id || '';
+        castSelectCollapse(bel('bmAdminId'));
         renderCastAlert();
         // 送迎ドライバーはタイムラインで操作（モーダルでは扱わない）
         bel('bmStatus').value = b.status || 'reserved';
@@ -3298,6 +3327,7 @@
       // 担当プルダウンはその日の出勤者だけ（タイムラインの担当行から作成した場合はその人を保持）
       await populateCastSelect(bel('bmDate').value, prefill?.adminId || '');
       bel('bmAdminId').value = prefill?.adminId || '';
+      castSelectCollapse(bel('bmAdminId'));
       renderCastAlert();
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
