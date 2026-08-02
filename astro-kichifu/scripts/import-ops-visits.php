@@ -69,8 +69,10 @@ printf("  reserve=%d income=%d course=%d hotel=%d cast=%d\n",
     count($reserve), count($income), count($courses), count($hotels), count($casts));
 
 // ---- マップ構築
-$incMap = [];   // income_id => [customer_id, memo]
-foreach ($income as $r) $incMap[(int)$r['id']] = [(string)$r['customer_id'], trim((string)$r['memo'])];
+$incMap = [];   // income_id => [customer_id, memo, shop_id]
+foreach ($income as $r) {
+    $incMap[(int)$r['id']] = [(string)$r['customer_id'], trim((string)$r['memo']), (int)$r['shop_id']];
+}
 
 $courseMap = []; $courseMin = [];
 foreach ($courses as $r) { $courseMap[(string)$r['id']] = trim((string)$r['name']); $courseMin[(string)$r['id']] = (int)$r['time']; }
@@ -104,7 +106,7 @@ $statLabel = fn(string $s): string => $s === '9' ? 'completed' : ($s === '0' ? '
 foreach ($reserve as $r) {
     $iid = (int)$r['income_id'];
     if (!isset($incMap[$iid])) { $skip['income']++; continue; }
-    [$cid, $memo] = $incMap[$iid];
+    [$cid, $memo, $shopId] = $incMap[$iid];
     if (!isset($legacyMap[$cid])) { $skip['cust']++; continue; }
     $d = (string)$r['playDate'];
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) || str_starts_with($d, '0000')) { $skip['date']++; continue; }
@@ -153,6 +155,11 @@ foreach ($reserve as $r) {
         'room'             => mb_substr(trim((string)$r['hotel_room']), 0, 20),
         'memo'             => implode("\n", $memoParts),
         'status'           => $statLabel((string)$r['stat']),
+        // 店舗・指名は名称マスタ（mst_shop / mst_nominate）が未入手。IDだけ保全しておき、
+        // マスタが届いたら表示名を付けるだけで済むようにする。
+        'legacy_shop_id'     => $shopId,
+        'legacy_nominate_id' => (int)$r['nominate_id'],
+        'nominate_price'     => (int)$r['nominate_price'],
         'legacy_income_id' => $iid,
     ];
 }
@@ -186,6 +193,9 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
     hotel_name VARCHAR(100) NOT NULL DEFAULT '',
     hotel_city VARCHAR(40) NOT NULL DEFAULT '',
     place_type VARCHAR(10) NOT NULL DEFAULT 'unknown',
+    legacy_shop_id INT NOT NULL DEFAULT 0,
+    legacy_nominate_id INT NOT NULL DEFAULT 0,
+    nominate_price INT NOT NULL DEFAULT 0,
     room VARCHAR(20) NOT NULL DEFAULT '',
     memo TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'completed',
@@ -198,23 +208,30 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
 $cols = $pdo->query('SHOW COLUMNS FROM ops_legacy_visits')->fetchAll(PDO::FETCH_COLUMN);
 if (!in_array('hotel_city', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN hotel_city VARCHAR(40) NOT NULL DEFAULT '' AFTER hotel_name");
 if (!in_array('place_type', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN place_type VARCHAR(10) NOT NULL DEFAULT 'unknown' AFTER hotel_city");
+if (!in_array('legacy_shop_id', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN legacy_shop_id INT NOT NULL DEFAULT 0");
+if (!in_array('legacy_nominate_id', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN legacy_nominate_id INT NOT NULL DEFAULT 0");
+if (!in_array('nominate_price', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN nominate_price INT NOT NULL DEFAULT 0");
 
 // 再実行で内容を更新できるよう upsert（取り込みルールを直したら流し直せる）
 $ins = $pdo->prepare("INSERT INTO ops_legacy_visits
-    (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, hotel_city, place_type, room, memo, status, legacy_income_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+    (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, hotel_city, place_type, room, memo, status,
+     legacy_shop_id, legacy_nominate_id, nominate_price, legacy_income_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE
       customer_id=VALUES(customer_id), visit_at=VALUES(visit_at), cast_name=VALUES(cast_name),
       course_name=VALUES(course_name), course_minutes=VALUES(course_minutes), total_price=VALUES(total_price),
       hotel_name=VALUES(hotel_name), hotel_city=VALUES(hotel_city), place_type=VALUES(place_type),
-      room=VALUES(room), memo=VALUES(memo), status=VALUES(status)");
+      room=VALUES(room), memo=VALUES(memo), status=VALUES(status),
+      legacy_shop_id=VALUES(legacy_shop_id), legacy_nominate_id=VALUES(legacy_nominate_id),
+      nominate_price=VALUES(nominate_price)");
 $pdo->beginTransaction();
 $n = 0;
 foreach ($rows as $x) {
     $ins->execute([
         $x['customer_id'], $x['visit_at'], $x['cast_name'], $x['course_name'], $x['course_minutes'],
         $x['total_price'], $x['hotel_name'], $x['hotel_city'], $x['place_type'], $x['room'],
-        $x['memo'], $x['status'], $x['legacy_income_id'],
+        $x['memo'], $x['status'], $x['legacy_shop_id'], $x['legacy_nominate_id'], $x['nominate_price'],
+        $x['legacy_income_id'],
     ]);
     $n += $ins->rowCount();
 }

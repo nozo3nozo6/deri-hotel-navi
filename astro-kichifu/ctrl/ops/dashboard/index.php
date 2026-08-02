@@ -379,7 +379,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-toggle:hover{background:#e8f5f8;}
   .bm-history-toggle .bm-history-chev{flex-shrink:0;transition:transform .15s;color:var(--ink-soft);}
   .bm-history-toggle[aria-expanded="true"] .bm-history-chev{transform:rotate(180deg);}
-  .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;max-height:220px;overflow-y:auto;background:#fff;}
+  .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;background:#fff;overflow:hidden;}
   .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#7a5a2a;line-height:1.5;}
   .bm-history-row{padding:.5rem .7rem;border-bottom:1px dashed var(--gray);}
   .bm-history-row:last-child{border-bottom:none;}
@@ -395,6 +395,26 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-row .bm-hr-status.ng{background:rgba(220,53,69,.1);color:var(--red);}
   .bm-history-row .bm-hr-memo{font-size:.74rem;color:#7a5a2a;margin-top:.25rem;line-height:1.5;}
   .bm-history-empty{padding:.7rem;font-size:.8rem;color:var(--ink-soft);text-align:center;}
+  /* ご利用履歴の表（旧システムの一覧に合わせた見せ方。狭い画面は横スクロール） */
+  .hist-tbl-wrap{overflow:auto;-webkit-overflow-scrolling:touch;max-height:min(46vh,320px);}
+  .hist-tbl{width:100%;border-collapse:collapse;font-size:.78rem;white-space:nowrap;}
+  .hist-tbl th{position:sticky;top:0;z-index:1;background:var(--deep);color:#fff;font-weight:700;
+               padding:.4rem .55rem;text-align:left;font-size:.72rem;letter-spacing:.02em;}
+  .hist-tbl td{padding:.4rem .55rem;border-bottom:1px dashed var(--gray);vertical-align:top;color:var(--ink);}
+  .hist-tbl tr:last-child td{border-bottom:none;}
+  .hist-tbl tr.is-legacy td{background:#fcfbf9;}
+  .hist-tbl tr.clickable{cursor:pointer;}
+  .hist-tbl tr.clickable:hover td{background:var(--foam);}
+  .hist-tbl .ht-date{color:var(--ink-soft);font-weight:600;}
+  .hist-tbl .ht-course{color:var(--sea);font-weight:600;}
+  .hist-tbl .ht-price{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+  .hist-tbl .ht-memo{white-space:pre-wrap;color:#7a5a2a;min-width:11rem;max-width:20rem;}
+  .hist-tbl .ht-place{color:var(--ink-soft);}
+  .hist-tbl .ht-kind{font-weight:700;font-size:.7rem;padding:.1rem .45rem;border-radius:20px;
+                     background:var(--foam);color:var(--ink-soft);white-space:nowrap;}
+  .hist-tbl .ht-kind.ok{background:rgba(58,154,96,.13);color:var(--green);}
+  .hist-tbl .ht-kind.ng{background:rgba(220,53,69,.1);color:var(--red);}
+  .hist-tbl .ht-old{font-size:.62rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .25rem;margin-left:.25rem;}
   /* ホテル選択: ネイティブ矢印の予約幅が広くスマホでホテル名が見切れるため、細いカスタム矢印に置き換えて文字幅を確保 */
   .modal-body select.bm-tight-select{-webkit-appearance:none!important;appearance:none!important;padding-right:1.6rem!important;background-color:var(--white)!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23173842' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right .55rem center!important;background-size:10px 6px!important;}
   .bm-date::-webkit-datetime-edit-text:first-child{display:none;}

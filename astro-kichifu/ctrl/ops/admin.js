@@ -2561,6 +2561,83 @@
     return (shifts || []).find(s =>
       String(s.shift_date).slice(0, 10) === bizDay && Number(s.admin_user_id) === Number(uid)) || null;
   }
+  // ===== ご利用履歴の表（顧客詳細・予約モーダルで共通） =====
+  // 旧システムの一覧と同じ「区分/利用日/キャスト/コース/指名/料金/場所/メモ」の並び。
+  // 旧予約(legacy)と OPS予約(booking)を同じ表に混ぜて時系列で見せる。
+  const HIST_STATUS = {
+    inquiry: ['問合せ', ''], reserved: ['予約', ''], pre_reserved: ['事前予約', ''],
+    on_hold: ['保留', ''], pending: ['保留', ''],
+    completed: ['完了', 'ok'], cancelled: ['キャンセル', 'ng'], no_show: ['無連絡', 'ng'],
+    other: ['その他', ''],
+  };
+  const HIST_NOM = { first: '初指名', regular: '本指名', free: 'フリー' };
+
+  /** 予約(b)・旧履歴(v) を時系列（新しい順）に混ぜる */
+  function mergeHistoryRows(bookings, legacy) {
+    return [
+      ...(bookings || []).map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
+      ...(legacy || []).map(v => ({ t: String(v.visit_at), kind: 'l', v })),
+    ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
+  }
+
+  /** 日付「8/8(土)」＋時刻「10:15」 */
+  function histDateCell(dateStr, timeStr) {
+    const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return escapeHtml(String(dateStr || ''));
+    const dow = ['日','月','火','水','木','金','土'][new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`).getDay()] || '';
+    const hm = String(timeStr || '').substring(0, 5);
+    return `${parseInt(m[2],10)}/${parseInt(m[3],10)}${dow ? `(${dow})` : ''}` + (hm ? ` <span style="color:var(--deep);font-weight:700;">${escapeHtml(hm)}</span>` : '');
+  }
+
+  /**
+   * 履歴テーブルのHTML。
+   * @param rows mergeHistoryRows の結果
+   * @param opts {clickable:boolean} 行クリックで予約を開くか（顧客詳細のみ true）
+   */
+  function renderHistoryTable(rows, opts) {
+    const clickable = !!(opts && opts.clickable);
+    if (!rows.length) return '<div class="bm-history-empty">ご利用履歴はありません</div>';
+    const body = rows.map(row => {
+      let kind, date, cast, course, nom, price, place, memo, legacyTag, bid = '';
+      if (row.kind === 'l') {
+        const v = row.v;
+        const st = HIST_STATUS[v.status] || [v.status, ''];
+        kind = st; date = histDateCell(String(v.visit_at).substring(0, 10), String(v.visit_at).substring(11, 16));
+        cast = v.cast_name || ''; course = v.course_name || '';
+        nom = '';                       // 旧データの指名区分は名称マスタ未入手（IDのみ保全）
+        price = parseInt(v.total_price, 10) || 0;
+        place = legacyPlaceLabel(v); memo = (v.memo || '').trim();
+        legacyTag = '<span class="ht-old">旧</span>';
+      } else {
+        const b = row.b;
+        const st = HIST_STATUS[b.status] || [b.status, ''];
+        kind = st; date = histDateCell(bizDateOf(b.booking_date, b.start_time || '00:00'), b.start_time);
+        cast = b.staff_name || ''; course = b.course_name || '';
+        nom = HIST_NOM[b.nomination_type] || '';
+        price = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
+        const hotel = b.hotel_name_snapshot || b.hotel_name || '';
+        place = hotel ? '🏨 ' + hotel : '';
+        memo = (b.notes || '').trim();
+        legacyTag = '';
+        bid = b.id;
+      }
+      return `
+      <tr class="${row.kind === 'l' ? 'is-legacy' : ''}${clickable && bid ? ' clickable' : ''}"${clickable && bid ? ` data-booking-id="${bid}"` : ''}>
+        <td><span class="ht-kind ${kind[1]}">${escapeHtml(kind[0])}</span>${legacyTag}</td>
+        <td class="ht-date">${date}</td>
+        <td>${escapeHtml(cast)}</td>
+        <td class="ht-course">${escapeHtml(course)}</td>
+        <td>${escapeHtml(nom)}</td>
+        <td class="ht-price">${price > 0 ? '¥' + price.toLocaleString() : ''}</td>
+        <td class="ht-place">${escapeHtml(place)}</td>
+        <td class="ht-memo">${escapeHtml(memo)}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="hist-tbl-wrap"><table class="hist-tbl">
+      <thead><tr><th>区分</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>場所</th><th>メモ</th></tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+  }
+
   // 旧履歴の「場所」表示。ホテルは市区町村つき（どこで利用したかが一目で分かるように）
   function legacyPlaceLabel(v, opts) {
     const compact = !!(opts && opts.compact);
@@ -2834,14 +2911,6 @@
       const legacy = d.legacy_visits || [];   // 旧システムの利用履歴（2017-10〜2026-07）
       if (visitCount <= 0 && !notesTrim && rows.length === 0 && legacy.length === 0) { hide(); return; }
       const mdDate = (s) => { const m = String(s || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${parseInt(m[1], 10)}/${parseInt(m[2], 10)}` : escapeHtml(s || ''); };
-      const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
-      const mdDowDate = (s) => {
-        const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!m) return escapeHtml(s || '');
-        const dt = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
-        const dow = isNaN(dt.getTime()) ? '' : DOW_LABELS[dt.getDay()];
-        return `${parseInt(m[2], 10)}/${parseInt(m[3], 10)}` + (dow ? `(${dow})` : '');
-      };
       // 「前回」は OPS予約と旧履歴の両方から最新の完了を拾う（8/1直後は旧履歴側が直近になる）
       const lastCompleted = rows.find(b => b.status === 'completed');
       const lastLegacy = legacy.find(v => v.status === 'completed');
@@ -2856,49 +2925,10 @@
       summaryEl.textContent = visitCount > 0
         ? `リピーター・ご利用${visitCount}回` + lastLabel
         : (notesTrim ? '📝 メモ・予約履歴あり' : `予約履歴 ${rows.length + legacy.length}件`);
-      const STATUS_LABEL = { inquiry: '問合せ', reserved: '予約', pre_reserved: '事前予約', on_hold: '保留', pending: '保留', completed: '✓完了', cancelled: 'キャンセル', no_show: '無連絡' };
-      const STATUS_CLASS = { completed: 'ok', cancelled: 'ng', no_show: 'ng' };
-      const NOM_LABEL = { first: '初指名', regular: '本指名', free: 'フリー' };
       const noteHtml = notesTrim ? `<div class="bm-history-note">📝 ${escapeHtml(notesTrim)}</div>` : '';
-      // 旧履歴も同じ行形式で時系列マージ（新しい順・パネル肥大防止で30行まで）
-      const mergedRows = [
-        ...rows.map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
-        ...legacy.map(v => ({ t: String(v.visit_at), kind: 'l', v })),
-      ].sort((a, b) => b.t.localeCompare(a.t)).slice(0, 30);
-      const legacyRowHtml = (v) => {
-        const price = parseInt(v.total_price, 10) || 0;
-        const subBits = [
-          price > 0 ? '💰 ¥' + price.toLocaleString() : '',
-          v.cast_name ? '👤 ' + escapeHtml(v.cast_name) : '',
-          legacyPlaceLabel(v, { compact: true }) ? escapeHtml(legacyPlaceLabel(v, { compact: true })) : '',
-        ].filter(Boolean).join('　');
-        const st = v.status === 'completed' ? '✓完了' : (v.status === 'cancelled' ? 'キャンセル' : 'その他');
-        const stCls = v.status === 'completed' ? ' ok' : (v.status === 'cancelled' ? ' ng' : '');
-        const memo = (v.memo || '').trim();
-        return `
-        <div class="bm-history-row">
-          <div class="bm-hr-top"><span class="bm-hr-date">${mdDowDate(v.visit_at)}</span><span class="bm-hr-sep">・</span><span class="bm-hr-time">${escapeHtml(String(v.visit_at).substring(11, 16))}</span><span class="bm-hr-sep">〜</span><span class="bm-hr-course">${escapeHtml(v.course_name || '')}</span>${subBits ? `<span class="bm-hr-meta">${subBits}</span>` : ''}<span class="bm-hr-status${stCls}">${st}</span></div>
-          ${memo ? `<div class="bm-hr-memo">📝 ${escapeHtml(memo)}</div>` : ''}
-        </div>`;
-      };
-      const rowsHtml = mergedRows.length === 0 ? '<div class="bm-history-empty">他の予約履歴はありません</div>' : mergedRows.map(row => {
-        if (row.kind === 'l') return legacyRowHtml(row.v);
-        const b = row.b;
-        const priceTotal = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
-        const nomLabel = NOM_LABEL[b.nomination_type] || '';
-        const subBits = [
-          priceTotal > 0 ? '💰 ¥' + priceTotal.toLocaleString() : '',
-          b.staff_name ? '👤 ' + escapeHtml(b.staff_name) : '',
-          nomLabel ? '🎫 ' + nomLabel : '',
-        ].filter(Boolean).join('　');
-        const bookingNote = (b.notes || '').trim();
-        const statusCls = STATUS_CLASS[b.status] || '';
-        return `
-        <div class="bm-history-row">
-          <div class="bm-hr-top"><span class="bm-hr-date">${mdDowDate(bizDateOf(b.booking_date, b.start_time || '00:00'))}</span><span class="bm-hr-sep">・</span><span class="bm-hr-time">${escapeHtml((b.start_time || '').substring(0, 5))}</span><span class="bm-hr-sep">〜</span><span class="bm-hr-course">${escapeHtml(b.course_name || '')}</span>${subBits ? `<span class="bm-hr-meta">${subBits}</span>` : ''}<span class="bm-hr-status${statusCls ? ' ' + statusCls : ''}">${STATUS_LABEL[b.status] || escapeHtml(b.status || '')}</span></div>
-          ${bookingNote ? `<div class="bm-hr-memo">📝 ${escapeHtml(bookingNote)}</div>` : ''}
-        </div>`;
-      }).join('');
+      // 旧システムの一覧と同じ表形式。件数が多いので直近30件まで
+      const mergedRows = mergeHistoryRows(rows, legacy).slice(0, 30);
+      const rowsHtml = renderHistoryTable(mergedRows, { clickable: false });
       panelEl.innerHTML = noteHtml + rowsHtml;
     } catch (e) {
       if (historyReqSeq[suffix] !== mySeq) return;
@@ -3868,57 +3898,13 @@
         const listEl = document.getElementById('cmHistoryList');
         if (bookings.length > 0 || legacy.length > 0 || chats.length > 0) {
           histEl.style.display = 'block';
-          const STATUS_LABEL = { inquiry:'問合せ', reserved:'予約', pre_reserved:'事前予約', on_hold:'保留', pending:'保留', completed:'✓完了', cancelled:'キャンセル', no_show:'無連絡' };
-          const LEGACY_STATUS = { completed:'✓完了', cancelled:'キャンセル', other:'その他' };
           const CHAT_STATUS_LABEL = { open:'対応中', closed:'終了', archived:'保管' };
-          // ご利用履歴: いつ・キャスト・コース・金額・メモ が一目で分かる形（店長要望 2026-08-02）
-          // OPSの予約と旧システムの履歴を1本の時系列（新しい順）にマージする
-          const merged = [
-            ...bookings.map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
-            ...legacy.map(v => ({ t: v.visit_at, kind: 'l', v })),
-          ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
+          // ご利用履歴: 旧システムの一覧と同じ表形式（区分/利用日/キャスト/コース/指名/料金/場所/メモ）
+          const merged = mergeHistoryRows(bookings, legacy);
           const bookingHtml = merged.length === 0 ? '' : `
             <div style="margin-bottom:.8rem;">
               <div style="font-weight:700;color:var(--deep);margin-bottom:.3rem;font-size:.88rem;">📅 ご利用履歴 (${merged.length}件)</div>
-              ${merged.map(row => {
-                if (row.kind === 'l') {
-                  const v = row.v;
-                  const memo = (v.memo || '').trim();
-                  const stCls = v.status === 'completed' ? 'color:var(--green,#2e7d32);'
-                              : v.status === 'cancelled' ? 'color:var(--red,#c0392b);' : 'color:var(--ink-soft);';
-                  const price = parseInt(v.total_price, 10) || 0;
-                  return `
-                <div style="padding:.45rem .5rem;border-bottom:1px dashed var(--gray);border-radius:6px;">
-                  <div style="font-size:.85rem;display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;">
-                    <span style="font-weight:600;">${escapeHtml(String(v.visit_at).substring(0, 16))}</span>
-                    ${v.cast_name ? `<span>👤 ${escapeHtml(v.cast_name)}</span>` : ''}
-                    <span style="color:var(--sea);font-weight:600;">${escapeHtml(v.course_name || '')}</span>
-                    ${price > 0 ? `<span style="font-weight:700;">💰 ¥${price.toLocaleString()}</span>` : ''}
-                    <span style="font-size:.75rem;${stCls}">${LEGACY_STATUS[v.status] || v.status}</span>
-                    <span style="font-size:.68rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .3rem;">旧</span>
-                  </div>
-                  ${legacyPlaceLabel(v) ? `<div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(legacyPlaceLabel(v))}</div>` : ''}
-                  ${memo ? `<div style="font-size:.78rem;color:var(--ink-soft);background:var(--foam,#f5f2ee);border-radius:6px;padding:.25rem .5rem;margin-top:.25rem;white-space:pre-wrap;">📝 ${escapeHtml(memo)}</div>` : ''}
-                </div>`;
-                }
-                const b = row.b;
-                const total = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
-                const memo = (b.notes || '').trim();
-                const stCls = b.status === 'completed' ? 'color:var(--green,#2e7d32);'
-                            : (b.status === 'cancelled' || b.status === 'no_show') ? 'color:var(--red,#c0392b);' : 'color:var(--ink-soft);';
-                return `
-                <div class="cm-hist-row" data-booking-id="${b.id}" style="padding:.45rem .5rem;border-bottom:1px dashed var(--gray);cursor:pointer;border-radius:6px;">
-                  <div style="font-size:.85rem;display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;">
-                    <span style="font-weight:600;">${escapeHtml(formatDate(bizDateOf(b.booking_date, b.start_time || '00:00')))} ${(b.start_time||'').substring(0,5)}</span>
-                    ${b.staff_name ? `<span>👤 ${escapeHtml(b.staff_name)}</span>` : ''}
-                    <span style="color:var(--sea);font-weight:600;">${escapeHtml(b.course_name||'')}</span>
-                    ${total > 0 ? `<span style="font-weight:700;">💰 ¥${total.toLocaleString()}</span>` : ''}
-                    <span style="font-size:.75rem;${stCls}">${STATUS_LABEL[b.status] || b.status}</span>
-                  </div>
-                  <div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(b.hotel_name_snapshot || b.hotel_name || '')}</div>
-                  ${memo ? `<div style="font-size:.78rem;color:var(--ink-soft);background:var(--foam,#f5f2ee);border-radius:6px;padding:.25rem .5rem;margin-top:.25rem;white-space:pre-wrap;">📝 ${escapeHtml(memo)}</div>` : ''}
-                </div>`;
-              }).join('')}
+              ${renderHistoryTable(merged, { clickable: true })}
             </div>`;
           const chatHtml = chats.length === 0 ? '<div style="font-size:.78rem;color:var(--ink-soft);">💬 チャット履歴なし</div>' : `
             <div>
@@ -3938,7 +3924,7 @@
             </div>`;
           listEl.innerHTML = bookingHtml + chatHtml;
           // 予約行クリック → 予約モーダルへ
-          listEl.querySelectorAll('.cm-hist-row').forEach(row => {
+          listEl.querySelectorAll('tr.clickable[data-booking-id]').forEach(row => {
             row.addEventListener('click', () => {
               closeModal('customerModal');
               openBookingModal(Number(row.dataset.bookingId));
