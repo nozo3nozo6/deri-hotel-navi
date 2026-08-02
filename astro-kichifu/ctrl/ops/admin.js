@@ -4199,8 +4199,9 @@
     const el = document.getElementById('customerList');
     el.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
     const kw = document.getElementById('cuKeyword').value.trim();
+    const sort = document.getElementById('cuSort')?.value || 'recent';
     try {
-      const d = await api('/customers.php?action=list' + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
+      const d = await api('/customers.php?action=list&sort=' + sort + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
       customersList = d.customers || [];
       renderCustomers();
     } catch (e) {
@@ -4214,13 +4215,16 @@
       return;
     }
     el.innerHTML = customersList.map(c => {
-      // 実際の予約件数 (actual_booking_count) を優先表示. 無ければ visit_count フォールバック
-      const cnt = (c.actual_booking_count != null) ? Number(c.actual_booking_count) : Number(c.visit_count || 0);
+      // 利用回数は旧システムの実績＋OPSの予約の合計（OPS分だけだと全員0回に見えてしまう）
+      const cnt = (c.total_visits != null)
+        ? Number(c.total_visits)
+        : Number(c.visit_count || 0) + Number(c.actual_booking_count || 0);
+      const last = c.last_visit_at ? String(c.last_visit_at).slice(0, 10).replace(/-/g, '/') : '';
       return `
       <div class="cu-row" data-customer-id="${c.id}">
         <div class="cu-name">${escapeHtml(c.name)}${c.name_kana ? `<span class="kana">${escapeHtml(c.name_kana)}</span>` : ''}</div>
-        <div class="cu-contact">${c.phone ? '📞 ' + escapeHtml(c.phone) : ''} ${c.email ? '✉️ ' + escapeHtml(c.email) : ''}</div>
-        <div class="cu-visits"><b>${cnt}</b><br>回</div>
+        <div class="cu-contact">${c.phone ? '📞 ' + escapeHtml(c.phone) : ''} ${c.email ? '✉️ ' + escapeHtml(c.email) : ''}${last ? `<span class="cu-last">最終 ${escapeHtml(last)}</span>` : ''}</div>
+        <div class="cu-visits"><b>${cnt.toLocaleString()}</b><br>回</div>
         <div class="cu-actions"><button>編集</button></div>
       </div>`;
     }).join('');
@@ -7407,6 +7411,7 @@
     document.getElementById('cuAddNew').addEventListener('click', () => openCustomerModal(null));
     let cuTimer;
     document.getElementById('cuKeyword').addEventListener('input', () => { clearTimeout(cuTimer); cuTimer = setTimeout(loadCustomers, 300); });
+    document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
     document.getElementById('cmSave').addEventListener('click', saveCustomer);
     document.getElementById('cmDelete').addEventListener('click', deleteCustomer);
     document.getElementById('cmMemberBtn')?.addEventListener('click', async () => {

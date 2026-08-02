@@ -38,18 +38,27 @@ if ($action === 'list' && $method === 'GET') {
         if ($kwPhone !== '') { $params[] = "%{$kwPhone}%"; $params[] = "%{$kwPhone}%"; }
         $params[] = "%{$kw}%";
     }
-    // visit_count はレガシー値. 実際の予約件数 (キャンセル/無連絡を除く) を集計して返す
-    // customer_id 直接紐付け + 電話番号一致 (レガシー未紐付け対策) の両方をカウント
+    // 利用回数 = 旧システムの実績(visit_count) ＋ OPSの予約(キャンセル/無連絡を除く)。
+    //   visit_count は import-ops-visits.php が ops_legacy_visits の完了実績から再計算した値。
+    //   OPS分は customer_id 直接紐付け + 電話番号一致（レガシー未紐付け対策）の両方を数える。
+    // 並び順: recent=最近の利用（既定） / count=利用回数
+    $sort = ($_GET['sort'] ?? 'recent') === 'count' ? 'count' : 'recent';
+    $orderBy = $sort === 'count'
+        ? 'total_visits DESC, c.last_visit_at DESC, c.id DESC'
+        // last_visit_at が NULL（利用実績なし）は末尾へ
+        : 'c.last_visit_at IS NULL, c.last_visit_at DESC, c.id DESC';
+    $bookingCountSql = "(SELECT COUNT(DISTINCT b.id) FROM ops_bookings b
+                           WHERE (b.customer_id = c.id
+                                  OR (c.phone IS NOT NULL AND c.phone <> '' AND b.customer_phone_snapshot = c.phone))
+                             AND b.status NOT IN ('cancelled','no_show'))";
     $sql = "SELECT c.id, c.name, c.name_kana, c.phone, c.phone2, c.email, c.gender, c.default_hotel_id,
                    c.default_location, c.default_location2,
                    c.visit_count, c.last_visit_at, c.created_at,
-                   (SELECT COUNT(DISTINCT b.id) FROM ops_bookings b
-                      WHERE (b.customer_id = c.id
-                             OR (c.phone IS NOT NULL AND c.phone <> '' AND b.customer_phone_snapshot = c.phone))
-                        AND b.status NOT IN ('cancelled','no_show')) AS actual_booking_count
+                   {$bookingCountSql} AS actual_booking_count,
+                   (COALESCE(c.visit_count, 0) + {$bookingCountSql}) AS total_visits
             FROM ops_customers c
             " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
-            ORDER BY c.last_visit_at DESC, c.id DESC
+            ORDER BY {$orderBy}
             LIMIT 500";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);

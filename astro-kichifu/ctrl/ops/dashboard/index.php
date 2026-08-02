@@ -405,6 +405,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
+  .cu-last{margin-left:.6rem;font-size:.74rem;color:var(--ink-soft);}
   .map-links{display:inline-flex;gap:.3rem;flex-wrap:wrap;vertical-align:middle;}
   .map-link{display:inline-block;padding:.22rem .55rem;border:1.5px solid var(--gray);border-radius:6px;
     background:#fff;color:var(--deep);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;
@@ -1215,6 +1216,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <div class="tl-title">顧客一覧</div>
     <div class="tl-nav">
       <input type="search" id="cuKeyword" placeholder="名前・電話・メールで検索" style="padding:.5rem .8rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;">
+      <select id="cuSort" title="並び順" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:#fff;">
+        <option value="recent">最近の利用順</option>
+        <option value="count">利用回数順</option>
+      </select>
       <button class="tl-add" id="cuAddNew">+ 新規顧客</button>
     </div>
   </div>
