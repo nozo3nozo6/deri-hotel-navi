@@ -79,11 +79,13 @@ function ordered_photo_paths(string $mediaTop, array $official, string $uploadsB
  * → 店舗ごとに品質を1段ずらし、見た目は同じで画素が違う画像を配る。
  *   吉祥寺(2)=90 は既にアップ済みの分と揃えるため据え置き、立川(1)をずらす。
  * v=1,2… は「同じ絵をさらに作り直した版」。bot が万一それでも拒否されたとき用の逃げ道。
+ * 2段ずつ下げるのは、作り直し版が【他店の既定品質と同じ値】に着地して
+ * 新たな衝突を生むのを防ぐため（1段ずつだと 吉祥寺v=1=89 が 立川の既定と一致してしまう）。
  */
 function media_jpeg_quality(int $shopId, int $variant = 0): int
 {
     $base = [1 => 89, 2 => 90][$shopId] ?? max(80, 91 - $shopId);
-    return max(75, $base - max(0, $variant));
+    return max(75, $base - 2 * max(0, $variant));
 }
 
 /** 画像ファイル → JPEG バイト（WebP/PNG/JPEG対応。girl-media-pack.php と同一の並び・変換） */
