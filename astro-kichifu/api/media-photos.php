@@ -63,20 +63,27 @@ function ordered_photo_paths(string $mediaTop, array $official, string $uploadsB
 }
 
 /**
- * 作り直し版の JPEG 品質。既定(v=0)は 90 で、従来と同じバイト列を返す。
+ * 店舗ごとの JPEG 品質（+ 作り直し版 v=N）。
  *
- * 情報局は「同じ画像の再登録」を『重複画像になっています』で拒否する。この判定は
- * ファイルのバイト列ではなく展開後の画素で行われる（末尾へのバイト追加や
- * COM セグメント挿入では回避できない）。一方、別の設定で作り直した JPEG は通る
- * （2026-08-02「えな」の立川で実測。3枠とも拒否 → 作り直したら一発で通った）。
+ * 情報局は「同じ画像の再登録」を『重複画像になっています』で拒否する。判定は
+ * ファイルのバイト列ではなく展開後の画素で行われ（末尾へのバイト追加や COM 挿入では
+ * 回避できない）、**店舗をまたいで**効く。立川と吉祥寺は同じキャスト＝同じ写真を
+ * 共有しているため、両店に同一バイトを配ると先に上げた店が勝ち、後の店は弾かれる。
  *
- * なぜ立川がその画像を「既に知っている」と判断したのかは未特定。
- * ただし「作り直せば通る」は再現するので、bot が拒否を食らったときに
- * v=1,2… と作り直し版を要求して抜けられるようにしておく。
+ * 【証拠】情報局の保存ファイル名に入っている時刻を復元すると、吉祥寺の直後に走った
+ * 立川のアップは軒並み保存されていなかった（ここあ: 吉祥寺 7/27 19:37 に対し立川は
+ * 7/15 のまま／はな: 同 7/27 19:38 に対し立川は 7/12 のまま）。bot のログは旧実装の
+ * 誤判定で「成功」と出ていたため、長らく気づけなかった。唯一通ったいちかは両店が
+ * 同じ秒に上げており、競合をすり抜けただけ。
+ *
+ * → 店舗ごとに品質を1段ずらし、見た目は同じで画素が違う画像を配る。
+ *   吉祥寺(2)=90 は既にアップ済みの分と揃えるため据え置き、立川(1)をずらす。
+ * v=1,2… は「同じ絵をさらに作り直した版」。bot が万一それでも拒否されたとき用の逃げ道。
  */
-function media_jpeg_quality(int $variant): int
+function media_jpeg_quality(int $shopId, int $variant = 0): int
 {
-    return max(80, 90 - max(0, $variant));
+    $base = [1 => 89, 2 => 90][$shopId] ?? max(80, 91 - $shopId);
+    return max(75, $base - max(0, $variant));
 }
 
 /** 画像ファイル → JPEG バイト（WebP/PNG/JPEG対応。girl-media-pack.php と同一の並び・変換） */
@@ -116,7 +123,7 @@ try {
         $im->execute([$girlId]);
         $paths = ordered_photo_paths((string)$row["media_top_image"], array_column($im->fetchAll(PDO::FETCH_ASSOC), "path"), $uploadsBase);
         if (!isset($paths[$slot - 1])) { http_response_code(404); echo 'no such slot'; exit; }
-        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1], media_jpeg_quality((int)($_GET['v'] ?? 0)));
+        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1], media_jpeg_quality($shopId, (int)($_GET['v'] ?? 0)));
         if ($bytes === null) { http_response_code(500); echo 'convert failed'; exit; }
         header('Content-Type: image/jpeg');
         header('Content-Length: ' . strlen($bytes));
