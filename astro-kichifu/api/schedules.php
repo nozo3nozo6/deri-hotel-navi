@@ -51,6 +51,13 @@ try {
             );
             $st->execute([$shop_id, $gid, $from, $to]);
             foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                // ops_only（サイトに載せない出勤）は【未定】に丸め、時刻も返さない。
+                // ここは認証なしで誰でも叩ける公開APIなので、生の状態を返すと
+                // 画面に出していなくても出勤日と時間が丸見えになる（身内バレ・ストーカー対策）。
+                if ($r['status'] === 'ops_only') {
+                    $sch[$r['work_date']] = ['status' => 'undecided', 'start' => null, 'end' => null];
+                    continue;
+                }
                 $sch[$r['work_date']] = ['status' => $r['status'], 'start' => $r['start'], 'end' => $r['end']];
             }
         }

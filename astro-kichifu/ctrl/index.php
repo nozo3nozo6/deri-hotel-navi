@@ -14,7 +14,8 @@ function dash_count(string $sql, int $shop): string {
 }
 $stats = [
     ['👩', '在籍女性',       dash_count('SELECT COUNT(*) FROM girls WHERE shop_id=? AND is_display=1', $shop), 'girls.php'],
-    ['📅', '本日の出勤',     dash_count('SELECT COUNT(*) FROM schedules WHERE shop_id=? AND work_date=CURDATE() AND status="work"', $shop), 'schedules.php'],
+    // 「OPSのみ」＝サイト・媒体に出さない出勤も、実際に稼働するので人数に含める
+    ['📅', '本日の出勤',     dash_count('SELECT COUNT(*) FROM schedules WHERE shop_id=? AND work_date=CURDATE() AND status IN ("work","ops_only")', $shop), 'schedules.php'],
     ['📰', 'お知らせ',       dash_count('SELECT COUNT(*) FROM news WHERE shop_id=?', $shop), 'news.php'],
     ['📨', '未読の問合せ',   dash_count('SELECT COUNT(*) FROM contacts WHERE shop_id=? AND is_read=0', $shop), 'contacts.php'],
 ];

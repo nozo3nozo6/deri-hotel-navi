@@ -3,6 +3,20 @@ require_once __DIR__ . '/_lib.php';
 $admin = require_login();
 $shop = current_shop_id();
 
+// 出勤の状態。
+//   work      … 通常の出勤（サイト・媒体に出る）
+//   ops_only  … 出勤するが【どこにも公開しない】。オペレーションのタイムラインにだけ出す。
+//               身内バレ・ストーカー対策で「サイトに載せずに働く」ケース用。
+//               公開API(api/schedules.php, api/schedule-range.php)は未定に丸めて時刻も返さない。
+//   off       … 休み / undecided … 未定
+const SCHEDULE_STATUSES = ['work', 'ops_only', 'off', 'undecided'];
+const SCHEDULE_STATUS_LABELS = ['undecided' => '未定', 'work' => '出勤', 'ops_only' => 'OPSのみ', 'off' => '休み'];
+
+/** 時刻を持つ状態か（出勤・OPSのみ は時刻あり、休み・未定は時刻なし） */
+function schedule_status_has_time(string $status): bool {
+    return $status === 'work' || $status === 'ops_only';
+}
+
 $mode = (($_GET['mode'] ?? 'date') === 'girl') ? 'girl' : 'date';
 $sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date'], true) ? $_GET['sort'] : 'freq';
 
@@ -178,9 +192,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
         foreach ($status as $gid => $stt) {
             $gid = (int)$gid;
-            $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
-            $s = ($stt === 'work') ? $mkTime($sh[$gid] ?? '', $sm[$gid] ?? '') : null;
-            $e = ($stt === 'work') ? $mkTime($eh[$gid] ?? '', $em[$gid] ?? '') : null;
+            $stt = in_array($stt, SCHEDULE_STATUSES, true) ? $stt : 'undecided';
+            $s = schedule_status_has_time($stt) ? $mkTime($sh[$gid] ?? '', $sm[$gid] ?? '') : null;
+            $e = schedule_status_has_time($stt) ? $mkTime($eh[$gid] ?? '', $em[$gid] ?? '') : null;
             $saveOne($gid, $date, $stt, $s, $e);
         }
         $notifyShiftWebhooks();
@@ -199,9 +213,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $n = 0;
         foreach ($status as $d => $stt) {
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
-            $stt = in_array($stt, ['work', 'off', 'undecided'], true) ? $stt : 'undecided';
-            $s = ($stt === 'work') ? $mkTime($sh[$d] ?? '', $sm[$d] ?? '') : null;
-            $e = ($stt === 'work') ? $mkTime($eh[$d] ?? '', $em[$d] ?? '') : null;
+            $stt = in_array($stt, SCHEDULE_STATUSES, true) ? $stt : 'undecided';
+            $s = schedule_status_has_time($stt) ? $mkTime($sh[$d] ?? '', $sm[$d] ?? '') : null;
+            $e = schedule_status_has_time($stt) ? $mkTime($eh[$d] ?? '', $em[$d] ?? '') : null;
             if ($saveOne($gid, $d, $stt, $s, $e) > 0) $n++;
         }
         $notifyShiftWebhooks();
@@ -247,6 +261,8 @@ layout_header('出勤管理', 'schedules.php');
   .sched-bulk .grp{display:flex;gap:6px;align-items:center;font-size:.85rem}
   .sched-bulk .btn-mini{padding:6px 12px;font-size:.8rem;border:1px solid var(--accent,#ec4899);color:var(--accent,#ec4899);background:#fff;border-radius:8px;cursor:pointer;font-weight:600}
   .tbl tr.is-off td,.tbl tr.is-undecided td{opacity:.55}
+  .tbl tr.is-ops_only td{background:#faf3fd}
+  .tbl tr.is-ops_only td:first-child::after{content:'🔒 非公開';display:block;font-size:11px;color:#7d4a95}
   .day-sat{color:#2563eb}.day-sun{color:#dc2626}
   .sched-sticky-save{position:sticky;bottom:0;background:#fff;padding:12px 0 2px;margin-top:14px;border-top:1px solid var(--border);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
   .sched-shops{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:.88rem;color:var(--muted,#888)}
@@ -357,6 +373,7 @@ layout_header('出勤管理', 'schedules.php');
                 <select name="status[<?= (int)$g['id'] ?>]" data-status onchange="this.closest('tr').className='is-'+this.value">
                   <option value="undecided" <?= $stt === 'undecided' ? 'selected' : '' ?>>未定</option>
                   <option value="work" <?= $stt === 'work' ? 'selected' : '' ?>>出勤</option>
+                  <option value="ops_only" <?= $stt === 'ops_only' ? 'selected' : '' ?>>OPSのみ</option>
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
@@ -436,7 +453,7 @@ layout_header('出勤管理', 'schedules.php');
       <strong style="font-size:.9rem"><?= h($cur['name']) ?> の <?= $DAYS ?>日分をまとめて登録</strong>
       <span class="grp">一括状態
         <select id="bulkStatus">
-          <option value="work">出勤</option><option value="off">休み</option><option value="undecided">未定</option>
+          <option value="work">出勤</option><option value="ops_only">OPSのみ</option><option value="off">休み</option><option value="undecided">未定</option>
         </select>
         <button type="button" class="btn-mini" id="applyStatus">全日に適用</button>
       </span>
@@ -459,6 +476,7 @@ layout_header('出勤管理', 'schedules.php');
                 <select name="status[<?= h($d) ?>]" data-status onchange="this.closest('tr').className='is-'+this.value">
                   <option value="undecided" <?= $stt === 'undecided' ? 'selected' : '' ?>>未定</option>
                   <option value="work" <?= $stt === 'work' ? 'selected' : '' ?>>出勤</option>
+                  <option value="ops_only" <?= $stt === 'ops_only' ? 'selected' : '' ?>>OPSのみ</option>
                   <option value="off" <?= $stt === 'off' ? 'selected' : '' ?>>休み</option>
                 </select>
               </td>
@@ -479,6 +497,8 @@ layout_header('出勤管理', 'schedules.php');
     </div>
   </form>
   <script>
+  // 時刻を持つ状態（出勤・OPSのみ）。休み・未定は時刻を扱わない
+  function HAS_TIME(v) { return v === 'work' || v === 'ops_only'; }
   (function () {
     var f = document.getElementById('girlForm');
     function rows() { return f.querySelectorAll('tbody tr'); }
@@ -491,7 +511,7 @@ layout_header('出勤管理', 'schedules.php');
     document.getElementById('applyTime').addEventListener('click', function () {
       var bs = getT(document.getElementById('bulkStart')), be = getT(document.getElementById('bulkEnd'));
       rows().forEach(function (tr) {
-        if (tr.querySelector('[data-status]').value !== 'work') return;
+        if (!HAS_TIME(tr.querySelector('[data-status]').value)) return;
         var ts = tr.querySelectorAll('.tsel');
         setT(ts[0], bs); setT(ts[1], be);
       });
@@ -502,6 +522,8 @@ layout_header('出勤管理', 'schedules.php');
 <?php endif; ?>
 
 <script>
+  // 時刻を持つ状態（出勤・OPSのみ）。休み・未定は時刻を扱わない
+  function HAS_TIME(v) { return v === 'work' || v === 'ops_only'; }
 (function () {
   // ① 時(左)を選んだら、分(右)が未選択のとき自動で「00」にする（全ピッカー＝行＋一括時間）。
   document.querySelectorAll('.tsel').forEach(function (cell) {
@@ -532,7 +554,7 @@ layout_header('出勤管理', 'schedules.php');
       form.querySelectorAll('.tsel-h, .tsel-m').forEach(function (s) { s.style.outline = ''; });
       form.querySelectorAll('tbody tr').forEach(function (tr) {
         var st = tr.querySelector('[data-status]');
-        if (!st || st.value !== 'work') return;
+        if (!st || !HAS_TIME(st.value)) return;
         tr.querySelectorAll('.tsel-h, .tsel-m').forEach(function (sel) {
           if (sel.value === '') { sel.style.outline = '2px solid #e11d48'; bad++; if (!first) first = sel; }
         });

@@ -601,6 +601,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-m-time{padding-bottom:.14rem;margin-bottom:.14rem;border-bottom:1px dashed var(--gray);}
   .tl-m-time .tl-m-l{color:var(--deep);}
   .tl-m-time .tl-m-v{font-size:.82rem;letter-spacing:.01em;}
+  /* サイト・媒体に出していない出勤（CTRLで「OPSのみ」を選んだ日） */
+  .tl-m-private .tl-m-l{color:#7d4a95;}
+  .tl-m-private .tl-m-v{color:#7d4a95;font-size:.72rem;letter-spacing:.02em;}
   .tl-m-wave{margin:0 .15em;color:var(--ink-soft);font-weight:600;}
   button.tl-staff-sales.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;-webkit-tap-highlight-color:rgba(232,93,47,.25);}
   button.tl-staff-sales.tl-m .tl-m-l,button.tl-staff-sales.tl-m .tl-m-v{color:var(--coral);}

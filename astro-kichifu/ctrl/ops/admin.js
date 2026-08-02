@@ -2198,10 +2198,16 @@
               : `<span class="tl-staff-thumb tl-staff-thumb-ph">${escapeHtml(String(u.display_name || '?').slice(0,1))}</span>`)
           : '';
         // 出勤時間はシフト登録時に表示（アイコンなし）
+        // 🔒＝CTRLの出勤を「OPSのみ」で登録した日。サイトにも媒体にも出していないので、
+        //     スタッフが公開情報と誤解して案内しないよう明示する
+        const isPrivateShift = !!(myShift && Number(myShift.is_private) === 1);
+        const privateTag = isPrivateShift
+          ? `<div class="tl-m tl-m-private" title="サイト・媒体には出していない出勤です"><span class="tl-m-l">🔒</span><span class="tl-m-v">サイト非掲載</span></div>`
+          : '';
         const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
           ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${String(myShift.start_time).slice(0,5)}<span class="tl-m-wave">〜</span>${String(myShift.end_time).slice(0,5)}</span></div>`
           : '';
-        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${roleMini}${metricsHtml}</div></div></div>`;
+        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 
         // この行の予約とシフト（営業日基準）
         // ドライバー行では driver_id=自分の予約、未割当行では assigned_admin_id=null/0 の予約
@@ -2499,7 +2505,8 @@
   function castDayRank(shifts, bizDay, uid) {
     const s = shiftForDay(shifts, bizDay, uid);
     if (!s || !s.start_time) return 9999;   // 出勤なし（予約だけある人）は最後
-    if (s.status === 'done') return 1e9;    // 終了はその日の一番下へ
+    if (s.status === 'off') return 2e9;     // 休みは終了より下（一番下）
+    if (s.status === 'done') return 1e9;    // 終了は出勤中の下へ
     const [hh, mm] = String(s.start_time).split(':').map(Number);
     return ((hh < 10 ? hh + 24 : hh) * 60) + (mm || 0);
   }

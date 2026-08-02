@@ -95,9 +95,12 @@ try {
                 'days'      => [],
             ];
         }
-        $work = $r['status'] === 'work';
+        // ops_only（サイトに載せない出勤）は【未定】に丸めて時刻も出さない。
+        // これは bot が媒体へ出勤を送るための取得口なので、生の状態を渡すと媒体側に出てしまう。
+        $status = $r['status'] === 'ops_only' ? 'undecided' : $r['status'];
+        $work = $status === 'work';
         $items[$gid]['days'][$r['work_date']] = [
-            'status'   => $r['status'],
+            'status'   => $status,
             'start_at' => $work ? $iso($shiftDt($r['work_date'], $r['start_time'])) : null,
             'end_at'   => $work ? $iso($shiftDt($r['work_date'], $r['end_time'])) : null,
         ];
