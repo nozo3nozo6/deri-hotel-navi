@@ -339,7 +339,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal.draggable .modal-close{position:absolute;top:.85rem;right:.7rem;z-index:5;}
   /* ヘッダー内 担当/ステータス: 縮小可能にして×を押し出さない */
   .bm-head-ss{min-width:0;}
-  .bm-head-ss select{min-width:0;}
+  /* 担当キャスト・ステータスはタイトルのすぐ右に左寄せ（中央寄せだと視線が飛ぶ） */
+  .bm-head-ss{justify-content:flex-start!important;padding-left:1rem!important;}
+  /* 本文の入力欄と同じ濃さに揃える。既定色のままだと薄くて読みにくかった */
+  .bm-head-ss select{min-width:0;color:var(--ink);font-weight:600;}
+  .bm-head-ss select:has(option[value=""]:checked){color:var(--ink-soft);font-weight:400;}
 
   /* 最小化バー (画面右下に表示) */
   .min-dock{position:fixed;right:1rem;bottom:1rem;z-index:300;display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;pointer-events:none;}
