@@ -106,9 +106,21 @@ if ($action === 'get' && $method === 'GET') {
         $chatSessions = $cs->fetchAll();
     } catch (Throwable $e) { /* テーブル無し */ }
 
+    // 旧システムの利用履歴（2017-10〜2026-07 取り込み分。import-ops-visits.php 参照）
+    $legacyVisits = [];
+    try {
+        $lv = $pdo->prepare("SELECT visit_at, cast_name, course_name, course_minutes,
+                                    total_price, hotel_name, room, memo, status
+                             FROM ops_legacy_visits WHERE customer_id = ?
+                             ORDER BY visit_at DESC LIMIT 400");
+        $lv->execute([$id]);
+        $legacyVisits = $lv->fetchAll();
+    } catch (Throwable $e) { /* テーブル無し */ }
+
     jsonResponse([
         'customer'      => $cust,
         'bookings'      => $bs->fetchAll(),
+        'legacy_visits' => $legacyVisits,
         'chat_sessions' => $chatSessions,
     ]);
 }

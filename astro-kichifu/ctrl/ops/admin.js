@@ -2817,7 +2817,8 @@
       const visitCount = parseInt(c.visit_count, 10) || 0;
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
-      if (visitCount <= 0 && !notesTrim && rows.length === 0) { hide(); return; }
+      const legacy = d.legacy_visits || [];   // 旧システムの利用履歴（2017-10〜2026-07）
+      if (visitCount <= 0 && !notesTrim && rows.length === 0 && legacy.length === 0) { hide(); return; }
       const mdDate = (s) => { const m = String(s || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${parseInt(m[1], 10)}/${parseInt(m[2], 10)}` : escapeHtml(s || ''); };
       const DOW_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
       const mdDowDate = (s) => {
@@ -2827,15 +2828,48 @@
         const dow = isNaN(dt.getTime()) ? '' : DOW_LABELS[dt.getDay()];
         return `${parseInt(m[2], 10)}/${parseInt(m[3], 10)}` + (dow ? `(${dow})` : '');
       };
+      // 「前回」は OPS予約と旧履歴の両方から最新の完了を拾う（8/1直後は旧履歴側が直近になる）
       const lastCompleted = rows.find(b => b.status === 'completed');
+      const lastLegacy = legacy.find(v => v.status === 'completed');
+      let lastLabel = '';
+      const bKey = lastCompleted ? `${lastCompleted.booking_date} ${lastCompleted.start_time || '00:00'}` : '';
+      const lKey = lastLegacy ? String(lastLegacy.visit_at) : '';
+      if (bKey >= lKey && lastCompleted) {
+        lastLabel = `（前回 ${mdDate(bizDateOf(lastCompleted.booking_date, lastCompleted.start_time || '00:00'))} ${lastCompleted.course_name || ''}）`;
+      } else if (lastLegacy) {
+        lastLabel = `（前回 ${mdDate(lastLegacy.visit_at)} ${lastLegacy.course_name || ''}${lastLegacy.cast_name ? ' ' + lastLegacy.cast_name : ''}）`;
+      }
       summaryEl.textContent = visitCount > 0
-        ? `リピーター・ご利用${visitCount}回` + (lastCompleted ? `（前回 ${mdDate(bizDateOf(lastCompleted.booking_date, lastCompleted.start_time || '00:00'))} ${lastCompleted.course_name || ''}）` : '')
-        : (notesTrim ? '📝 メモ・予約履歴あり' : `予約履歴 ${rows.length}件`);
+        ? `リピーター・ご利用${visitCount}回` + lastLabel
+        : (notesTrim ? '📝 メモ・予約履歴あり' : `予約履歴 ${rows.length + legacy.length}件`);
       const STATUS_LABEL = { inquiry: '問合せ', reserved: '予約', pre_reserved: '事前予約', on_hold: '保留', pending: '保留', completed: '✓完了', cancelled: 'キャンセル', no_show: '無連絡' };
       const STATUS_CLASS = { completed: 'ok', cancelled: 'ng', no_show: 'ng' };
       const NOM_LABEL = { first: '初指名', regular: '本指名', free: 'フリー' };
       const noteHtml = notesTrim ? `<div class="bm-history-note">📝 ${escapeHtml(notesTrim)}</div>` : '';
-      const rowsHtml = rows.length === 0 ? '<div class="bm-history-empty">他の予約履歴はありません</div>' : rows.map(b => {
+      // 旧履歴も同じ行形式で時系列マージ（新しい順・パネル肥大防止で30行まで）
+      const mergedRows = [
+        ...rows.map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
+        ...legacy.map(v => ({ t: String(v.visit_at), kind: 'l', v })),
+      ].sort((a, b) => b.t.localeCompare(a.t)).slice(0, 30);
+      const legacyRowHtml = (v) => {
+        const price = parseInt(v.total_price, 10) || 0;
+        const subBits = [
+          price > 0 ? '💰 ¥' + price.toLocaleString() : '',
+          v.cast_name ? '👤 ' + escapeHtml(v.cast_name) : '',
+          v.hotel_name ? '🏨 ' + escapeHtml(v.hotel_name) : '',
+        ].filter(Boolean).join('　');
+        const st = v.status === 'completed' ? '✓完了' : (v.status === 'cancelled' ? 'キャンセル' : 'その他');
+        const stCls = v.status === 'completed' ? ' ok' : (v.status === 'cancelled' ? ' ng' : '');
+        const memo = (v.memo || '').trim();
+        return `
+        <div class="bm-history-row">
+          <div class="bm-hr-top"><span class="bm-hr-date">${mdDowDate(v.visit_at)}</span><span class="bm-hr-sep">・</span><span class="bm-hr-time">${escapeHtml(String(v.visit_at).substring(11, 16))}</span><span class="bm-hr-sep">〜</span><span class="bm-hr-course">${escapeHtml(v.course_name || '')}</span>${subBits ? `<span class="bm-hr-meta">${subBits}</span>` : ''}<span class="bm-hr-status${stCls}">${st}</span></div>
+          ${memo ? `<div class="bm-hr-memo">📝 ${escapeHtml(memo)}</div>` : ''}
+        </div>`;
+      };
+      const rowsHtml = mergedRows.length === 0 ? '<div class="bm-history-empty">他の予約履歴はありません</div>' : mergedRows.map(row => {
+        if (row.kind === 'l') return legacyRowHtml(row.v);
+        const b = row.b;
         const priceTotal = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
         const nomLabel = NOM_LABEL[b.nomination_type] || '';
         const subBits = [
@@ -3812,20 +3846,48 @@
         if (!Array.isArray(cmPledgesState)) cmPledgesState = [];
         renderCmPledges();
 
-        // 予約履歴 + チャット履歴を統合表示
+        // 予約履歴（OPS） + 旧システム履歴 + チャット履歴を統合表示
         const bookings = d.bookings || [];
+        const legacy = d.legacy_visits || [];   // 2017-10〜2026-07 の取り込み分（import-ops-visits.php）
         const chats = d.chat_sessions || [];
         const histEl = document.getElementById('cmHistory');
         const listEl = document.getElementById('cmHistoryList');
-        if (bookings.length > 0 || chats.length > 0) {
+        if (bookings.length > 0 || legacy.length > 0 || chats.length > 0) {
           histEl.style.display = 'block';
           const STATUS_LABEL = { inquiry:'問合せ', reserved:'予約', pre_reserved:'事前予約', on_hold:'保留', pending:'保留', completed:'✓完了', cancelled:'キャンセル', no_show:'無連絡' };
+          const LEGACY_STATUS = { completed:'✓完了', cancelled:'キャンセル', other:'その他' };
           const CHAT_STATUS_LABEL = { open:'対応中', closed:'終了', archived:'保管' };
           // ご利用履歴: いつ・キャスト・コース・金額・メモ が一目で分かる形（店長要望 2026-08-02）
-          const bookingHtml = bookings.length === 0 ? '' : `
+          // OPSの予約と旧システムの履歴を1本の時系列（新しい順）にマージする
+          const merged = [
+            ...bookings.map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
+            ...legacy.map(v => ({ t: v.visit_at, kind: 'l', v })),
+          ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
+          const bookingHtml = merged.length === 0 ? '' : `
             <div style="margin-bottom:.8rem;">
-              <div style="font-weight:700;color:var(--deep);margin-bottom:.3rem;font-size:.88rem;">📅 ご利用履歴 (${bookings.length}件)</div>
-              ${bookings.map(b => {
+              <div style="font-weight:700;color:var(--deep);margin-bottom:.3rem;font-size:.88rem;">📅 ご利用履歴 (${merged.length}件)</div>
+              ${merged.map(row => {
+                if (row.kind === 'l') {
+                  const v = row.v;
+                  const memo = (v.memo || '').trim();
+                  const stCls = v.status === 'completed' ? 'color:var(--green,#2e7d32);'
+                              : v.status === 'cancelled' ? 'color:var(--red,#c0392b);' : 'color:var(--ink-soft);';
+                  const price = parseInt(v.total_price, 10) || 0;
+                  return `
+                <div style="padding:.45rem .5rem;border-bottom:1px dashed var(--gray);border-radius:6px;">
+                  <div style="font-size:.85rem;display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;">
+                    <span style="font-weight:600;">${escapeHtml(String(v.visit_at).substring(0, 16))}</span>
+                    ${v.cast_name ? `<span>👤 ${escapeHtml(v.cast_name)}</span>` : ''}
+                    <span style="color:var(--sea);font-weight:600;">${escapeHtml(v.course_name || '')}</span>
+                    ${price > 0 ? `<span style="font-weight:700;">💰 ¥${price.toLocaleString()}</span>` : ''}
+                    <span style="font-size:.75rem;${stCls}">${LEGACY_STATUS[v.status] || v.status}</span>
+                    <span style="font-size:.68rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .3rem;">旧</span>
+                  </div>
+                  ${(v.hotel_name || v.room) ? `<div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(v.hotel_name || '')}${v.room ? ' ' + escapeHtml(v.room) + '号室' : ''}</div>` : ''}
+                  ${memo ? `<div style="font-size:.78rem;color:var(--ink-soft);background:var(--foam,#f5f2ee);border-radius:6px;padding:.25rem .5rem;margin-top:.25rem;white-space:pre-wrap;">📝 ${escapeHtml(memo)}</div>` : ''}
+                </div>`;
+                }
+                const b = row.b;
                 const total = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
                 const memo = (b.notes || '').trim();
                 const stCls = b.status === 'completed' ? 'color:var(--green,#2e7d32);'
