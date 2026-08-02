@@ -110,7 +110,8 @@ if ($action === 'get' && $method === 'GET') {
     $legacyVisits = [];
     try {
         $lv = $pdo->prepare("SELECT visit_at, cast_name, course_name, course_minutes,
-                                    total_price, hotel_name, hotel_city, place_type, room, memo, status
+                                    total_price, hotel_name, hotel_city, place_type, room, memo, status,
+                                    shop_name, nominate_name
                              FROM ops_legacy_visits WHERE customer_id = ?
                              ORDER BY visit_at DESC LIMIT 400");
         $lv->execute([$id]);

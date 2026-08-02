@@ -2598,15 +2598,16 @@
     const clickable = !!(opts && opts.clickable);
     if (!rows.length) return '<div class="bm-history-empty">ご利用履歴はありません</div>';
     const body = rows.map(row => {
-      let kind, date, cast, course, nom, price, place, memo, legacyTag, bid = '';
+      let kind, date, cast, course, nom, price, place, memo, legacyTag, shop, bid = '';
       if (row.kind === 'l') {
         const v = row.v;
         const st = HIST_STATUS[v.status] || [v.status, ''];
         kind = st; date = histDateCell(String(v.visit_at).substring(0, 10), String(v.visit_at).substring(11, 16));
         cast = v.cast_name || ''; course = v.course_name || '';
-        nom = '';                       // 旧データの指名区分は名称マスタ未入手（IDのみ保全）
+        nom = v.nominate_name || '';
         price = parseInt(v.total_price, 10) || 0;
         place = legacyPlaceLabel(v); memo = (v.memo || '').trim();
+        shop = v.shop_name || '';
         legacyTag = '<span class="ht-old">旧</span>';
       } else {
         const b = row.b;
@@ -2618,12 +2619,14 @@
         const hotel = b.hotel_name_snapshot || b.hotel_name || '';
         place = hotel ? '🏨 ' + hotel : '';
         memo = (b.notes || '').trim();
+        shop = 'アドミ';   // OPSの予約は当店のみ
         legacyTag = '';
         bid = b.id;
       }
       return `
       <tr class="${row.kind === 'l' ? 'is-legacy' : ''}${clickable && bid ? ' clickable' : ''}"${clickable && bid ? ` data-booking-id="${bid}"` : ''}>
         <td><span class="ht-kind ${kind[1]}">${escapeHtml(kind[0])}</span>${legacyTag}</td>
+        <td class="ht-place">${escapeHtml(shop)}</td>
         <td class="ht-date">${date}</td>
         <td>${escapeHtml(cast)}</td>
         <td class="ht-course">${escapeHtml(course)}</td>
@@ -2634,7 +2637,7 @@
       </tr>`;
     }).join('');
     return `<div class="hist-tbl-wrap"><table class="hist-tbl">
-      <thead><tr><th>区分</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>場所</th><th>メモ</th></tr></thead>
+      <thead><tr><th>区分</th><th>店舗</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>場所</th><th>メモ</th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
   }
 

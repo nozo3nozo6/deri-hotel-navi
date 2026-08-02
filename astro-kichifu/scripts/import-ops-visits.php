@@ -65,8 +65,11 @@ $income  = csv_rows($dir . '/trn_income.csv');
 $courses = csv_rows($dir . '/mst_course.csv');
 $hotels  = csv_rows($dir . '/mst_hotel.csv');
 $casts   = csv_rows($dir . '/mst_cast.csv');
-printf("  reserve=%d income=%d course=%d hotel=%d cast=%d\n",
-    count($reserve), count($income), count($courses), count($hotels), count($casts));
+// 任意（2026-08-02 後追いで入手）: 指名区分・店舗の名称マスタ。無ければ名前は空のまま
+$nominates = is_file($dir . '/mst_nominate.csv') ? csv_rows($dir . '/mst_nominate.csv') : [];
+$shops     = is_file($dir . '/mst_shop.csv')     ? csv_rows($dir . '/mst_shop.csv')     : [];
+printf("  reserve=%d income=%d course=%d hotel=%d cast=%d nominate=%d shop=%d\n",
+    count($reserve), count($income), count($courses), count($hotels), count($casts), count($nominates), count($shops));
 
 // ---- マップ構築
 $incMap = [];   // income_id => [customer_id, memo, shop_id]
@@ -90,6 +93,11 @@ foreach ($casts as $r) {
     $n = preg_split('/[（(\s　]/u', $n)[0];
     if ($n !== '') $castMap[(string)$r['id']] = $n;
 }
+
+$nomMap = [];
+foreach ($nominates as $r) $nomMap[(string)$r['id']] = trim((string)$r['name']);
+$shopMap = [];
+foreach ($shops as $r) $shopMap[(string)$r['id']] = trim((string)$r['name']);
 
 // 旧顧客ID → ops_customers.id（notes の「旧ID:」から）
 $legacyMap = [];
@@ -158,7 +166,9 @@ foreach ($reserve as $r) {
         // 店舗・指名は名称マスタ（mst_shop / mst_nominate）が未入手。IDだけ保全しておき、
         // マスタが届いたら表示名を付けるだけで済むようにする。
         'legacy_shop_id'     => $shopId,
+        'shop_name'          => mb_substr($shopMap[(string)$shopId] ?? '', 0, 50),
         'legacy_nominate_id' => (int)$r['nominate_id'],
+        'nominate_name'      => mb_substr($nomMap[(string)$r['nominate_id']] ?? '', 0, 50),
         'nominate_price'     => (int)$r['nominate_price'],
         'legacy_income_id' => $iid,
     ];
@@ -194,7 +204,9 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
     hotel_city VARCHAR(40) NOT NULL DEFAULT '',
     place_type VARCHAR(10) NOT NULL DEFAULT 'unknown',
     legacy_shop_id INT NOT NULL DEFAULT 0,
+    shop_name VARCHAR(50) NOT NULL DEFAULT '',
     legacy_nominate_id INT NOT NULL DEFAULT 0,
+    nominate_name VARCHAR(50) NOT NULL DEFAULT '',
     nominate_price INT NOT NULL DEFAULT 0,
     room VARCHAR(20) NOT NULL DEFAULT '',
     memo TEXT,
@@ -211,18 +223,21 @@ if (!in_array('place_type', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_vis
 if (!in_array('legacy_shop_id', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN legacy_shop_id INT NOT NULL DEFAULT 0");
 if (!in_array('legacy_nominate_id', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN legacy_nominate_id INT NOT NULL DEFAULT 0");
 if (!in_array('nominate_price', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN nominate_price INT NOT NULL DEFAULT 0");
+if (!in_array('shop_name', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN shop_name VARCHAR(50) NOT NULL DEFAULT '' AFTER legacy_shop_id");
+if (!in_array('nominate_name', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN nominate_name VARCHAR(50) NOT NULL DEFAULT '' AFTER legacy_nominate_id");
 
 // 再実行で内容を更新できるよう upsert（取り込みルールを直したら流し直せる）
 $ins = $pdo->prepare("INSERT INTO ops_legacy_visits
     (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, hotel_city, place_type, room, memo, status,
-     legacy_shop_id, legacy_nominate_id, nominate_price, legacy_income_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     legacy_shop_id, shop_name, legacy_nominate_id, nominate_name, nominate_price, legacy_income_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE
       customer_id=VALUES(customer_id), visit_at=VALUES(visit_at), cast_name=VALUES(cast_name),
       course_name=VALUES(course_name), course_minutes=VALUES(course_minutes), total_price=VALUES(total_price),
       hotel_name=VALUES(hotel_name), hotel_city=VALUES(hotel_city), place_type=VALUES(place_type),
       room=VALUES(room), memo=VALUES(memo), status=VALUES(status),
-      legacy_shop_id=VALUES(legacy_shop_id), legacy_nominate_id=VALUES(legacy_nominate_id),
+      legacy_shop_id=VALUES(legacy_shop_id), shop_name=VALUES(shop_name),
+      legacy_nominate_id=VALUES(legacy_nominate_id), nominate_name=VALUES(nominate_name),
       nominate_price=VALUES(nominate_price)");
 $pdo->beginTransaction();
 $n = 0;
@@ -230,7 +245,8 @@ foreach ($rows as $x) {
     $ins->execute([
         $x['customer_id'], $x['visit_at'], $x['cast_name'], $x['course_name'], $x['course_minutes'],
         $x['total_price'], $x['hotel_name'], $x['hotel_city'], $x['place_type'], $x['room'],
-        $x['memo'], $x['status'], $x['legacy_shop_id'], $x['legacy_nominate_id'], $x['nominate_price'],
+        $x['memo'], $x['status'], $x['legacy_shop_id'], $x['shop_name'],
+        $x['legacy_nominate_id'], $x['nominate_name'], $x['nominate_price'],
         $x['legacy_income_id'],
     ]);
     $n += $ins->rowCount();
