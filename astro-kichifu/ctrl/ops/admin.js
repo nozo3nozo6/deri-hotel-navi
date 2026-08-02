@@ -598,16 +598,28 @@
   // 住所を打つ/貼るたびに、都道府県は左のセレクトへ、市区町村は上の欄へ自動で振り分ける。
   // 市区町村を手で直した後は上書きしない（住所から判定できないホテルがあるため）。
   let emCityTouched = false;
+  let emAddrAutoFilled = '';   // 市区町村から住所へ自動で入れた文字列（上書き判定用）
   function wireAddressAutofill() {
     const addr = document.getElementById('emAddress');
     const pref = document.getElementById('emPref');
     const city = document.getElementById('emCity');
     if (!addr || addr.dataset.wired) return;
     addr.dataset.wired = '1';
-    city?.addEventListener('input', () => { emCityTouched = true; });
+    city?.addEventListener('input', () => {
+      emCityTouched = true;
+      // 市区町村を打ち終えたら、住所の頭にも同じ市区町村を入れておく。
+      // 「あきる野市」まで打てば住所は「あきる野市」から始まり、続きの番地だけ打てばよい。
+      const c = city.value.trim();
+      if (!/[市区町村]$/.test(c)) return;                       // 入力途中は触らない
+      if (addr.value === '' || addr.value === emAddrAutoFilled) {
+        addr.value = c;
+        emAddrAutoFilled = c;
+      }
+    });
     addr.addEventListener('input', () => {
+      emAddrAutoFilled = '';                                   // 手で書き足したら以後は自動で触らない
       const { pref: p, rest } = splitAddress(addr.value);
-      if (p) { pref.value = p; addr.value = rest; }        // 都道府県付きで貼られたら左へ移す
+      if (p) { pref.value = p; addr.value = rest; }             // 都道府県付きで貼られたら左へ移す
       if (!emCityTouched && city) {
         const c = pickCityFromAddress(addr.value);
         if (c) city.value = c;
@@ -630,6 +642,7 @@
     }
     document.getElementById('emTel').value = hotel.tel || '';
     emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
+    emAddrAutoFilled = '';
     wireAddressAutofill();
     editingHotel = hotel;
     editingStatus = hotel.status || '';
