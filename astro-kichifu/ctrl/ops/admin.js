@@ -635,6 +635,7 @@
   // 市区町村を手で直した後は上書きしない（住所から判定できないホテルがあるため）。
   let emCityTouched = false;
   let emAddrAutoFilled = '';   // 市区町村から住所へ自動で入れた文字列（上書き判定用）
+  let emCityPrev = '';         // 直前に選ばれていた市区町村（選び直し時に住所の頭を差し替える）
   function wireAddressAutofill() {
     const addr = document.getElementById('emAddress');
     const city = document.getElementById('emCity');
@@ -642,13 +643,21 @@
     addr.dataset.wired = '1';
     city?.addEventListener('change', () => {
       emCityTouched = true;
-      // 市区町村を選んだら住所の頭にも入れておく。続きの番地だけ打てばよい
+      // 市区町村を選んだら住所の頭にも入れておく。続きの番地だけ打てばよい。
+      //   住所が空          → その市区町村を入れる
+      //   前の市区町村で始まる → その部分だけ差し替える（選び直しの修正）
       const c = city.value.trim();
+      const prev = emCityPrev;
+      emCityPrev = c;
       if (!c) return;
       if (addr.value === '' || addr.value === emAddrAutoFilled) {
         addr.value = c;
-        emAddrAutoFilled = c;
+      } else if (prev && addr.value.startsWith(prev)) {
+        addr.value = c + addr.value.slice(prev.length);
+      } else {
+        return;   // 関係ない住所が入っている時は触らない
       }
+      emAddrAutoFilled = addr.value;
     });
     addr.addEventListener('input', () => {
       emAddrAutoFilled = '';                                   // 手で書き足したら以後は自動で触らない
@@ -676,6 +685,7 @@
     document.getElementById('emTel').value = hotel.tel || '';
     emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
     emAddrAutoFilled = '';
+    emCityPrev = hotel.city || '';
     wireAddressAutofill();
     editingHotel = hotel;
     editingStatus = hotel.status || '';
