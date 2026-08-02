@@ -1395,6 +1395,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="modal-close" data-close="bookingModal">×</button>
     </div>
     <div class="modal-body">
+      <!-- 担当キャストの注意事項。担当を選んだ瞬間に一番上で目に入る位置に置く -->
+      <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
       <label id="bmBreakModeLabel" style="display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:.88rem;cursor:pointer;background:linear-gradient(135deg,#fff8ef,#ffeada);color:#a85a3a;padding:.55rem .75rem;border-radius:10px;margin-bottom:1rem;border:1px solid #f3c9a8;">
         <input type="checkbox" id="bmBreakMode"> 💤 休憩・私用予定として登録(公開ページには「ご予約済」のみ表示)
       </label>
@@ -1520,7 +1522,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media is-line"><input type="checkbox" name="bmMedia" value="line"><span>LINE予約 ＋10分</span></label>
         </div>
       </div>
-      <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
           <select id="bmCourse" class="bm-tight-select">
