@@ -237,7 +237,9 @@
     '国立市',              // 2.9
     '日野市',              // 3.4
     '国分寺市',            // 4.6
+    '東大和市',            // 5.4
     '昭島市',              // 5.5
+    '武蔵村山市',          // 6.2
     '小平市',              // 6.4
     '府中市',              // 6.5
     '多摩市',              // 7.4
@@ -288,6 +290,40 @@
       '伊勢原市', '横浜市', '秦野市', '藤沢市', '茅ヶ崎市', '平塚市', '小田原市',
     ],
   };
+  // 市区町村 → 都道府県。市区町村を選べば都道府県は決まるので、画面では都道府県を出さない。
+  // （旧データは住所に県名が無い所沢市・狭山市などが「東京都」で取り込まれていた）
+  const CITY_PREF = (() => {
+    const m = {};
+    CITY_PROXIMITY.forEach(c => { m[c] = '東京都'; });
+    (CITY_REGIONS.tokyo23 || []).forEach(c => { m[c] = '東京都'; });
+    (CITY_REGIONS.saitama || []).forEach(c => { m[c] = '埼玉県'; });
+    (CITY_REGIONS.kanagawa || []).forEach(c => { m[c] = '神奈川県'; });
+    return m;
+  })();
+  function prefOfCity(city) { return CITY_PREF[String(city || '').trim()] || ''; }
+  /** 市区町村セレクトの中身（都道府県ごとにグループ分け）。現在値が一覧に無ければ末尾に足す */
+  function cityOptionsHtml(current) {
+    const cur = String(current || '').trim();
+    const groups = [
+      ['多摩・立川周辺', CITY_PROXIMITY],
+      ['東京23区', CITY_REGIONS.tokyo23 || []],
+      ['埼玉県', CITY_REGIONS.saitama || []],
+      ['神奈川県', CITY_REGIONS.kanagawa || []],
+    ];
+    let html = '<option value="">— 選択 —</option>';
+    let found = false;
+    groups.forEach(([label, list]) => {
+      html += `<optgroup label="${escapeAttr(label)}">`;
+      list.forEach(c => {
+        if (c === cur) found = true;
+        html += `<option value="${escapeAttr(c)}"${c === cur ? ' selected' : ''}>${escapeHtml(c)}</option>`;
+      });
+      html += '</optgroup>';
+    });
+    if (cur && !found) html += `<optgroup label="その他"><option value="${escapeAttr(cur)}" selected>${escapeHtml(cur)}</option></optgroup>`;
+    return html;
+  }
+
   function currentCityRegion() {
     const r = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"]:checked`);
     return r ? r.value : 'main';
@@ -601,16 +637,14 @@
   let emAddrAutoFilled = '';   // 市区町村から住所へ自動で入れた文字列（上書き判定用）
   function wireAddressAutofill() {
     const addr = document.getElementById('emAddress');
-    const pref = document.getElementById('emPref');
     const city = document.getElementById('emCity');
     if (!addr || addr.dataset.wired) return;
     addr.dataset.wired = '1';
-    city?.addEventListener('input', () => {
+    city?.addEventListener('change', () => {
       emCityTouched = true;
-      // 市区町村を打ち終えたら、住所の頭にも同じ市区町村を入れておく。
-      // 「あきる野市」まで打てば住所は「あきる野市」から始まり、続きの番地だけ打てばよい。
+      // 市区町村を選んだら住所の頭にも入れておく。続きの番地だけ打てばよい
       const c = city.value.trim();
-      if (!/[市区町村]$/.test(c)) return;                       // 入力途中は触らない
+      if (!c) return;
       if (addr.value === '' || addr.value === emAddrAutoFilled) {
         addr.value = c;
         emAddrAutoFilled = c;
@@ -619,10 +653,11 @@
     addr.addEventListener('input', () => {
       emAddrAutoFilled = '';                                   // 手で書き足したら以後は自動で触らない
       const { pref: p, rest } = splitAddress(addr.value);
-      if (p) { pref.value = p; addr.value = rest; }             // 都道府県付きで貼られたら左へ移す
+      if (p) addr.value = rest;                                // 都道府県付きで貼られたら落とす
       if (!emCityTouched && city) {
         const c = pickCityFromAddress(addr.value);
-        if (c) city.value = c;
+        // 一覧にある市区町村のときだけ選ぶ（無ければ選択なしのまま＝取り違えない）
+        if (c && [...city.options].some(o => o.value === c)) city.value = c;
       }
     });
   }
@@ -633,13 +668,11 @@
     const isNew = !hotel;
     if (isNew) hotel = { id: 0, name: '', city: '', address: '', tel: '' };
     document.getElementById('emName').value = hotel.name || '';
-    document.getElementById('emCity').value = hotel.city || '';
-    {
-      // 住所に都道府県が入っていれば左のセレクトへ寄せる（表記が混在しているため）
-      const sp = splitAddress(hotel.address || '');
-      document.getElementById('emPref').value = sp.pref || hotel.prefecture || '東京都';
-      document.getElementById('emAddress').value = sp.rest;
-    }
+    const cityEl = document.getElementById('emCity');
+    cityEl.innerHTML = cityOptionsHtml(hotel.city || '');
+    cityEl.value = hotel.city || '';
+    // 住所欄は「市区町村から番地まで」。都道府県が付いていたら剥がす
+    document.getElementById('emAddress').value = splitAddress(hotel.address || '').rest;
     document.getElementById('emTel').value = hotel.tel || '';
     emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
     emAddrAutoFilled = '';
@@ -647,7 +680,7 @@
     editingHotel = hotel;
     editingStatus = hotel.status || '';
     document.getElementById('emTitle').textContent = isNew ? 'ホテルを追加' : hotel.name;
-    document.getElementById('emSub').textContent = isNew ? '' : `${hotel.city || ''} ${hotel.address || ''}`;
+    document.getElementById('emSub').textContent = isNew ? '' : `${hotel.prefecture || ''}${hotel.address || ''}`;
     document.querySelectorAll('#emStatus .sbtn').forEach(b => {
       b.classList.toggle('active', (b.dataset.status || '') === editingStatus);
     });
@@ -687,12 +720,13 @@
     const name = document.getElementById('emName').value.trim();
     if (!name) { toast('ホテル名を入力してください', 'err'); return; }
     try {
-      const prefVal = document.getElementById('emPref').value;
+      const cityVal = document.getElementById('emCity').value.trim();
+      const prefVal = prefOfCity(cityVal) || editingHotel.prefecture || '東京都';
       const addrVal = document.getElementById('emAddress').value.trim();
       const r = await apiPost('/admin-api.php?action=hotel-save', {
         id: editingHotel.id || 0,
         name,
-        city: document.getElementById('emCity').value.trim(),
+        city: cityVal,
         prefecture: prefVal,
         address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
@@ -700,7 +734,7 @@
       if (!editingHotel.id) editingHotel.id = r.id;   // 新規は採番された id を使う
       Object.assign(editingHotel, {
         name,
-        city: document.getElementById('emCity').value.trim(),
+        city: cityVal,
         prefecture: prefVal,
         address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
