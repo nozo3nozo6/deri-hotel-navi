@@ -490,7 +490,7 @@
           </div>
           <div class="row-info">
             <div class="row-name">${escapeHtml(h.name)}</div>
-            ${h.address ? `<div class="row-addr">${escapeHtml(h.address)}</div>` : ''}
+            ${h.address ? `<div class="row-addr">${escapeHtml((h.prefecture || '') + h.address)}</div>` : ''}
             <div class="row-meta">
               ${h.city ? `<span><b>市区:</b> ${escapeHtml(h.city)}</span>` : ''}
               ${h.nearest_station ? `<span><b>駅:</b> ${escapeHtml(h.nearest_station)}</span>` : ''}
@@ -578,6 +578,43 @@
     }
   }
 
+  // 住所から都道府県・市区町村を切り出す（住所欄は「市区町村から番地まで」を持つ）
+  const OPS_PREFS = ['東京都', '埼玉県', '神奈川県', '千葉県', '山梨県'];
+  function splitAddress(addr) {
+    let s = String(addr || '').trim();
+    let pref = '';
+    for (const p of OPS_PREFS) if (s.startsWith(p)) { pref = p; s = s.slice(p.length).trim(); break; }
+    return { pref, rest: s };
+  }
+  /** 「市区町村」だけを取り出す。郡→市→区→町村の順（羽村市→羽村 のような取り違えを防ぐ） */
+  function pickCityFromAddress(addr) {
+    const { rest } = splitAddress(addr);
+    let m = rest.match(/^(.+?郡.+?[町村])/);   if (m) return m[1];
+    m = rest.match(/^(.+?市)/);                if (m) return m[1];
+    m = rest.match(/^(.+?区)/);                if (m) return m[1];
+    m = rest.match(/^(.+?[町村])/);            if (m) return m[1];
+    return '';
+  }
+  // 住所を打つ/貼るたびに、都道府県は左のセレクトへ、市区町村は上の欄へ自動で振り分ける。
+  // 市区町村を手で直した後は上書きしない（住所から判定できないホテルがあるため）。
+  let emCityTouched = false;
+  function wireAddressAutofill() {
+    const addr = document.getElementById('emAddress');
+    const pref = document.getElementById('emPref');
+    const city = document.getElementById('emCity');
+    if (!addr || addr.dataset.wired) return;
+    addr.dataset.wired = '1';
+    city?.addEventListener('input', () => { emCityTouched = true; });
+    addr.addEventListener('input', () => {
+      const { pref: p, rest } = splitAddress(addr.value);
+      if (p) { pref.value = p; addr.value = rest; }        // 都道府県付きで貼られたら左へ移す
+      if (!emCityTouched && city) {
+        const c = pickCityFromAddress(addr.value);
+        if (c) city.value = c;
+      }
+    });
+  }
+
   // --- Modal ---
   // hotel が null のときは「新規ホテル追加」として開く
   function openEdit(hotel) {
@@ -585,8 +622,15 @@
     if (isNew) hotel = { id: 0, name: '', city: '', address: '', tel: '' };
     document.getElementById('emName').value = hotel.name || '';
     document.getElementById('emCity').value = hotel.city || '';
-    document.getElementById('emAddress').value = hotel.address || '';
+    {
+      // 住所に都道府県が入っていれば左のセレクトへ寄せる（表記が混在しているため）
+      const sp = splitAddress(hotel.address || '');
+      document.getElementById('emPref').value = sp.pref || hotel.prefecture || '東京都';
+      document.getElementById('emAddress').value = sp.rest;
+    }
     document.getElementById('emTel').value = hotel.tel || '';
+    emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
+    wireAddressAutofill();
     editingHotel = hotel;
     editingStatus = hotel.status || '';
     document.getElementById('emTitle').textContent = isNew ? 'ホテルを追加' : hotel.name;
@@ -630,18 +674,22 @@
     const name = document.getElementById('emName').value.trim();
     if (!name) { toast('ホテル名を入力してください', 'err'); return; }
     try {
+      const prefVal = document.getElementById('emPref').value;
+      const addrVal = document.getElementById('emAddress').value.trim();
       const r = await apiPost('/admin-api.php?action=hotel-save', {
         id: editingHotel.id || 0,
         name,
         city: document.getElementById('emCity').value.trim(),
-        address: document.getElementById('emAddress').value.trim(),
+        prefecture: prefVal,
+        address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
       });
       if (!editingHotel.id) editingHotel.id = r.id;   // 新規は採番された id を使う
       Object.assign(editingHotel, {
         name,
         city: document.getElementById('emCity').value.trim(),
-        address: document.getElementById('emAddress').value.trim(),
+        prefecture: prefVal,
+        address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
       });
     } catch (e) { toast('ホテル情報の保存に失敗: ' + e.message, 'err'); return; }

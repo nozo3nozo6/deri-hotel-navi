@@ -230,8 +230,13 @@ if (($action === 'hotel-save') && $method === 'POST') {
     $city = mb_substr(trim((string)($body['city'] ?? '')), 0, 50);
     $addr = mb_substr(trim((string)($body['address'] ?? '')), 0, 500);
     $tel  = mb_substr(preg_replace('/[^0-9\-]/', '', (string)($body['tel'] ?? '')) ?? '', 0, 30);
-    // 住所の先頭に都道府県があればそれを、無ければ東京都（当店の営業圏）
-    $pref = preg_match('/^(..[都道府県]|.{3}県)/u', $addr, $m) ? $m[1] : '東京都';
+    // 都道府県は画面のセレクトから受け取る（住所欄は市区町村から番地まで）。
+    // 住所側にも都道府県が付いていたら剥がして二重表記にしない。
+    $prefList = ['東京都', '埼玉県', '神奈川県', '千葉県', '山梨県'];
+    $pref = in_array((string)($body['prefecture'] ?? ''), $prefList, true) ? (string)$body['prefecture'] : '東京都';
+    foreach ($prefList as $pfx) {
+        if (str_starts_with($addr, $pfx)) { $pref = $pfx; $addr = trim(mb_substr($addr, mb_strlen($pfx))); break; }
+    }
 
     if ($id > 0) {
         $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');

@@ -2396,7 +2396,18 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div class="field">
         <label for="emAddress">住所</label>
-        <input type="text" id="emAddress" placeholder="例: 東京都立川市曙町2-21-15">
+        <!-- 都道府県は左に固定表示（住所欄には市区町村から書く）。住所を貼り付けたら自動で振り分ける -->
+        <div style="display:flex;gap:.5rem;align-items:stretch;">
+          <select id="emPref" style="flex:0 0 7.5rem;">
+            <option value="東京都">東京都</option>
+            <option value="埼玉県">埼玉県</option>
+            <option value="神奈川県">神奈川県</option>
+            <option value="千葉県">千葉県</option>
+            <option value="山梨県">山梨県</option>
+          </select>
+          <input type="text" id="emAddress" placeholder="例: 立川市曙町2-21-15" style="flex:1;">
+        </div>
+        <span class="hint">都道府県付きで貼り付けても、自動で左に振り分けます。市区町村も住所から自動で入ります</span>
       </div>
       <div class="field">
         <label>対応ステータス</label>
