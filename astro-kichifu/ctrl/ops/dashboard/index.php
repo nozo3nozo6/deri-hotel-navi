@@ -403,6 +403,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media input{width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0;}
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
+  .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  .btn-del{background:#fff;border:1.5px solid #f0b4b4;color:var(--red);border-radius:7px;padding:.3rem .6rem;
+    font-size:.75rem;font-weight:700;cursor:pointer;touch-action:manipulation;}
+  .btn-del:hover{background:#fff4f4;}
   .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#6b4d20;line-height:1.6;}
   .bm-history-note .bhn-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
   .bm-history-note .bhn-title{font-weight:700;font-size:.76rem;color:#6b4d20;flex:1;min-width:0;}
@@ -1887,6 +1891,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="btn-bulk-inquiry" data-bulk="inquiry">要問合せ</button>
       <button class="btn-bulk-unavailable" data-bulk="unavailable">不可</button>
       <button class="btn-bulk-unset" data-bulk="unset">未設定</button>
+      <button class="btn-bulk-delete" id="btnBulkDelete">リストから削除</button>
       <button class="btn-bulk-clear" id="btnBulkClear">選択解除</button>
     </div>
   </div>
@@ -1896,6 +1901,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   <div class="results-bar">
     <div class="count"><b id="resultCount">0</b>件のホテル</div>
     <div class="count" id="filterNote"></div>
+    <button id="btnHotelAdd" class="btn-edit" style="margin-left:auto;">＋ ホテルを追加</button>
   </div>
   <div id="hotelList"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
 </main>
@@ -2371,6 +2377,26 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="modal-close" id="emClose">×</button>
     </div>
     <div class="modal-body">
+      <!-- ホテルそのものの情報（ops_hotels）。ここまでは新規追加でも使う -->
+      <div class="field">
+        <label for="emName">ホテル名</label>
+        <input type="text" id="emName" placeholder="例: シティ">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+        <div class="field">
+          <label for="emCity">市区町村</label>
+          <input type="text" id="emCity" placeholder="例: 立川市">
+          <span class="hint">予約画面の絞り込みに使います</span>
+        </div>
+        <div class="field">
+          <label for="emTel">電話番号</label>
+          <input type="tel" id="emTel" placeholder="例: 042-527-8383">
+        </div>
+      </div>
+      <div class="field">
+        <label for="emAddress">住所</label>
+        <input type="text" id="emAddress" placeholder="例: 東京都立川市曙町2-21-15">
+      </div>
       <div class="field">
         <label>対応ステータス</label>
         <div class="em-status" id="emStatus">

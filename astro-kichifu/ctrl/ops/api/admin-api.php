@@ -219,6 +219,62 @@ if ($action === 'cast-note-update' && $method === 'POST') {
     jsonResponse(['ok' => true]);
 }
 
+// ホテルそのもの（名前・住所・市区町村・TEL）の作成／更新。
+//   ops_ylka_hotel_info（ステータスや交通費）は update-info が担当。ここは ops_hotels 側。
+if (($action === 'hotel-save') && $method === 'POST') {
+    requireOwnerOrManager();
+    $body = json_decode(file_get_contents('php://input'), true);
+    $id   = (int)($body['id'] ?? 0);
+    $name = trim((string)($body['name'] ?? ''));
+    if ($name === '') errorResponse('name required', 400);
+    $city = mb_substr(trim((string)($body['city'] ?? '')), 0, 50);
+    $addr = mb_substr(trim((string)($body['address'] ?? '')), 0, 500);
+    $tel  = mb_substr(preg_replace('/[^0-9\-]/', '', (string)($body['tel'] ?? '')) ?? '', 0, 30);
+    // 住所の先頭に都道府県があればそれを、無ければ東京都（当店の営業圏）
+    $pref = preg_match('/^(..[都道府県]|.{3}県)/u', $addr, $m) ? $m[1] : '東京都';
+
+    if ($id > 0) {
+        $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');
+        $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $id]);
+        jsonResponse(['ok' => true, 'id' => $id]);
+    }
+    $st = $pdo->prepare("INSERT INTO ops_hotels (name, address, prefecture, city, hotel_type, source, tel, is_published, is_edited, created_at, updated_at)
+                         VALUES (?,?,?,?,'love_hotel','manual',?,1,1,NOW(),NOW())");
+    $st->execute([mb_substr($name, 0, 255), $addr, $pref, $city, $tel ?: null]);
+    jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+}
+
+// ホテルをリストから外す（YLKA由来の民宿など、アドミでは使わないものを消すため）。
+//   予約で使われているホテルは【消さずに非表示】にする。履歴の hotel_id が迷子になるのを防ぐ。
+//   使われていないものは実削除（ops_ylka_hotel_info も一緒に）。
+if ($action === 'hotel-delete' && $method === 'POST') {
+    requireOwnerOrManager();
+    $body = json_decode(file_get_contents('php://input'), true);
+    $ids  = array_values(array_filter(array_map('intval', (array)($body['hotel_ids'] ?? [])), fn($v) => $v > 0));
+    if (!$ids) errorResponse('hotel_ids required', 400);
+
+    $in = implode(',', array_fill(0, count($ids), '?'));
+    // 予約から参照されている id
+    $used = [];
+    $st = $pdo->prepare("SELECT DISTINCT hotel_id FROM ops_bookings WHERE hotel_id IN ($in)");
+    $st->execute($ids);
+    foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $v) $used[(int)$v] = true;
+
+    $deleted = 0; $hidden = 0;
+    $pdo->beginTransaction();
+    $hide = $pdo->prepare('UPDATE ops_hotels SET is_published = 0, updated_at = NOW() WHERE id = ?');
+    $delI = $pdo->prepare('DELETE FROM ops_ylka_hotel_info WHERE hotel_id = ?');
+    $delH = $pdo->prepare('DELETE FROM ops_hotels WHERE id = ?');
+    foreach ($ids as $id) {
+        if (isset($used[$id])) { $hide->execute([$id]); $hidden++; continue; }
+        $delI->execute([$id]);
+        $delH->execute([$id]);
+        $deleted++;
+    }
+    $pdo->commit();
+    jsonResponse(['ok' => true, 'deleted' => $deleted, 'hidden' => $hidden]);
+}
+
 if ($action === 'admin-create' && $method === 'POST') {
     requireOwner();
     $body         = json_decode(file_get_contents('php://input'), true);

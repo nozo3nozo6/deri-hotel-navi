@@ -464,6 +464,7 @@
           </div>
           <div class="row-actions">
             <button class="btn-edit" data-action="edit" data-id="${h.id}">編集</button>
+            <button class="btn-del" data-action="delete" data-id="${h.id}" title="リストから外す">削除</button>
           </div>
         </div>`;
     }).join('');
@@ -504,6 +505,25 @@
     }
   }
 
+  // --- 削除（リストから外す） ---
+  // 使わないホテル（YLKA由来の民宿など）を消すため。
+  // 予約で使われているものはサーバー側で【非表示】に切り替わる（履歴の hotel_id を壊さない）。
+  async function deleteHotels(ids, label) {
+    if (!ids.length) return;
+    if (!confirm(`${label}をリストから削除します。よろしいですか？\n（予約で使用中のホテルは削除せず非表示にします）`)) return;
+    try {
+      const r = await apiPost('/admin-api.php?action=hotel-delete', { hotel_ids: ids });
+      const msg = [r.deleted ? `${r.deleted}件を削除` : '', r.hidden ? `${r.hidden}件は使用中のため非表示` : '']
+        .filter(Boolean).join(' / ');
+      toast('✓ ' + (msg || '対象なし'), 'ok');
+      ids.forEach(id => selectedIds.delete(id));
+      hotelsForSelect = [];   // 予約モーダルのホテル候補も次回読み直す
+      await Promise.all([loadHotels(), loadStats()]);
+    } catch (e) {
+      toast('削除に失敗: ' + e.message, 'err');
+    }
+  }
+
   // --- Bulk ---
   async function bulkSetStatus(status) {
     if (selectedIds.size === 0) return;
@@ -521,11 +541,18 @@
   }
 
   // --- Modal ---
+  // hotel が null のときは「新規ホテル追加」として開く
   function openEdit(hotel) {
+    const isNew = !hotel;
+    if (isNew) hotel = { id: 0, name: '', city: '', address: '', tel: '' };
+    document.getElementById('emName').value = hotel.name || '';
+    document.getElementById('emCity').value = hotel.city || '';
+    document.getElementById('emAddress').value = hotel.address || '';
+    document.getElementById('emTel').value = hotel.tel || '';
     editingHotel = hotel;
     editingStatus = hotel.status || '';
-    document.getElementById('emTitle').textContent = hotel.name;
-    document.getElementById('emSub').textContent = `${hotel.city || ''} ${hotel.address || ''}`;
+    document.getElementById('emTitle').textContent = isNew ? 'ホテルを追加' : hotel.name;
+    document.getElementById('emSub').textContent = isNew ? '' : `${hotel.city || ''} ${hotel.address || ''}`;
     document.querySelectorAll('#emStatus .sbtn').forEach(b => {
       b.classList.toggle('active', (b.dataset.status || '') === editingStatus);
     });
@@ -561,6 +588,26 @@
   }
   async function saveEdit() {
     if (!editingHotel) return;
+    // 先にホテル本体（名前・市区町村・住所・TEL）を保存。新規ならここで id が採番される
+    const name = document.getElementById('emName').value.trim();
+    if (!name) { toast('ホテル名を入力してください', 'err'); return; }
+    try {
+      const r = await apiPost('/admin-api.php?action=hotel-save', {
+        id: editingHotel.id || 0,
+        name,
+        city: document.getElementById('emCity').value.trim(),
+        address: document.getElementById('emAddress').value.trim(),
+        tel: document.getElementById('emTel').value.trim(),
+      });
+      if (!editingHotel.id) editingHotel.id = r.id;   // 新規は採番された id を使う
+      Object.assign(editingHotel, {
+        name,
+        city: document.getElementById('emCity').value.trim(),
+        address: document.getElementById('emAddress').value.trim(),
+        tel: document.getElementById('emTel').value.trim(),
+      });
+    } catch (e) { toast('ホテル情報の保存に失敗: ' + e.message, 'err'); return; }
+
     const payload = {
       hotel_id: editingHotel.id,
       status: editingStatus === '' ? null : editingStatus,
@@ -582,10 +629,10 @@
         guide_note: payload.guide_note || null,
         internal_memo: payload.internal_memo || null,
       });
-      renderHotels();
-      loadStats();
+      hotelsForSelect = [];   // 予約モーダルのホテル候補を次回読み直す
       closeEdit();
       toast('✓ 保存しました', 'ok');
+      await Promise.all([loadHotels(), loadStats()]);   // 新規追加も一覧に出す
     } catch (e) {
       toast('保存失敗: ' + e.message, 'err');
     }
@@ -6848,6 +6895,12 @@
       if (editBtn) {
         const h = allHotels.find(x => x.id === Number(editBtn.dataset.id));
         if (h) openEdit(h);
+        return;
+      }
+      const delBtn = e.target.closest('[data-action="delete"]');
+      if (delBtn) {
+        const h = allHotels.find(x => x.id === Number(delBtn.dataset.id));
+        if (h) deleteHotels([h.id], `「${h.name}」`);
       }
     });
     document.getElementById('hotelList').addEventListener('change', e => {
@@ -6866,6 +6919,10 @@
     document.querySelectorAll('[data-bulk]').forEach(btn => {
       btn.addEventListener('click', () => bulkSetStatus(btn.dataset.bulk));
     });
+    document.getElementById('btnBulkDelete')?.addEventListener('click', () => {
+      deleteHotels(Array.from(selectedIds), `選択中の${selectedIds.size}件`);
+    });
+    document.getElementById('btnHotelAdd')?.addEventListener('click', () => openEdit(null));
     document.getElementById('btnBulkClear').addEventListener('click', () => {
       selectedIds.clear();
       document.querySelectorAll('.rowSelect').forEach(cb => cb.checked = false);
