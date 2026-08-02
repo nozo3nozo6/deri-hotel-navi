@@ -63,22 +63,20 @@ function ordered_photo_paths(string $mediaTop, array $official, string $uploadsB
 }
 
 /**
- * 店舗ごとの JPEG 品質。
+ * 作り直し版の JPEG 品質。既定(v=0)は 90 で、従来と同じバイト列を返す。
  *
- * 情報局は「同じ画像の再登録」を拒否する（『重複画像になっています』）。この判定は
- * ファイルのバイト列ではなく展開後の画素で行われ、しかも【店舗をまたいで】効く。
- * 立川と吉祥寺は同じキャストを共有＝同じ写真なので、両店に同一バイトを配ると
- * 先にアップした店が勝ち、後の店は何度送っても永久にはじかれる。
- * 実際 2026-08-02「えな」は吉祥寺が9秒先に成功し、立川は3枠とも拒否＝写真ゼロだった。
- * （bot 側は拒否を「既存と同一＝送る必要なし」と誤解して成功扱いにしていたため気づけなかった）
+ * 情報局は「同じ画像の再登録」を『重複画像になっています』で拒否する。この判定は
+ * ファイルのバイト列ではなく展開後の画素で行われる（末尾へのバイト追加や
+ * COM セグメント挿入では回避できない）。一方、別の設定で作り直した JPEG は通る
+ * （2026-08-02「えな」の立川で実測。3枠とも拒否 → 作り直したら一発で通った）。
  *
- * → 店舗ごとに品質を1段ずらし、見た目は同じで画素が違う画像を配る。
- *   吉祥寺(2)=90 は既にアップ済みの分と揃えるため据え置き、立川(1)をずらす。
+ * なぜ立川がその画像を「既に知っている」と判断したのかは未特定。
+ * ただし「作り直せば通る」は再現するので、bot が拒否を食らったときに
+ * v=1,2… と作り直し版を要求して抜けられるようにしておく。
  */
-function media_jpeg_quality(int $shopId): int
+function media_jpeg_quality(int $variant): int
 {
-    $map = [1 => 89, 2 => 90];
-    return $map[$shopId] ?? max(80, 91 - $shopId);
+    return max(80, 90 - max(0, $variant));
 }
 
 /** 画像ファイル → JPEG バイト（WebP/PNG/JPEG対応。girl-media-pack.php と同一の並び・変換） */
@@ -118,7 +116,7 @@ try {
         $im->execute([$girlId]);
         $paths = ordered_photo_paths((string)$row["media_top_image"], array_column($im->fetchAll(PDO::FETCH_ASSOC), "path"), $uploadsBase);
         if (!isset($paths[$slot - 1])) { http_response_code(404); echo 'no such slot'; exit; }
-        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1], media_jpeg_quality($shopId));
+        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1], media_jpeg_quality((int)($_GET['v'] ?? 0)));
         if ($bytes === null) { http_response_code(500); echo 'convert failed'; exit; }
         header('Content-Type: image/jpeg');
         header('Content-Length: ' . strlen($bytes));
