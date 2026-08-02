@@ -381,6 +381,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-toggle[aria-expanded="true"] .bm-history-chev{transform:rotate(180deg);}
   .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;background:#fff;overflow:hidden;}
   /* お客様メモ（顧客に紐づく。キャストには伝えない内容）。予約メモ #bmNotes とは別物 */
+  /* 媒体・予約経路のチェック群 */
+  .bm-media-list{display:flex;flex-wrap:wrap;gap:.35rem;}
+  .bm-media{display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .6rem;border:1.5px solid var(--gray);
+    border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer;
+    touch-action:manipulation;}
+  .bm-media input{width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0;}
+  .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
+  .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#6b4d20;line-height:1.6;}
   .bm-history-note .bhn-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
   .bm-history-note .bhn-title{font-weight:700;font-size:.76rem;color:#6b4d20;flex:1;min-width:0;}
@@ -1494,6 +1502,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
 
+      <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
+      <div class="field" id="bmMediaField">
+        <label>媒体・予約経路 <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">LINE予約は＋10分(無料)</span></label>
+        <div class="bm-media-list">
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="heaven"><span>ヘブン</span></label>
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="fuzoku"><span>風じゃ</span></label>
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="deli"><span>デリじゃ</span></label>
+          <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
+          <label class="bm-media is-line"><input type="checkbox" name="bmMedia" value="line"><span>LINE予約 ＋10分</span></label>
+        </div>
+      </div>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
           <select id="bmCourse" class="bm-tight-select">
@@ -1513,10 +1534,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           </select>
         </div>
       </div>
-      <label class="field" id="bmCounselingField" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;padding:.6rem .8rem;background:linear-gradient(135deg,var(--foam),#fff);border:1.5px solid var(--aqua-light,#bfe3e8);border-radius:8px;font-size:.9rem;font-weight:600;color:var(--deep);margin-top:-.2rem;">
-        <input type="checkbox" id="bmCounseling" checked style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
-        <span>🗣️ カウンセリング ＋10分(無料)</span>
-      </label>
       <div class="field" id="bmBreakDurField" style="display:none;"><label for="bmBreakDur">休憩時間</label>
         <select id="bmBreakDur">
           <option value="">選択</option>

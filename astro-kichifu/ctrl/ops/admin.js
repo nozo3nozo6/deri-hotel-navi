@@ -123,7 +123,7 @@
         withBmSuffix('-2', () => { updateEndTime(); autoToggleLateNight(); });
       } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmCampaign-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmNomination-2' || e.target.id === 'bmTransport-2') {
         withBmSuffix('-2', updateBookingTotal);
-      } else if (e.target.id === 'bmCounseling-2') {
+      } else if (e.target.name === 'bmMedia-2') {
         withBmSuffix('-2', updateEndTime);
       } else if (e.target.id === 'bmExtCount-2') {
         withBmSuffix('-2', () => { updateEndTime(); updateBookingTotal(); });
@@ -1125,9 +1125,31 @@
     return parseInt(v, 10);
   }
   // 終了時刻を再計算して表示更新
-  // カウンセリング +10分（チェックON時のみ・コース選択時のみ）
-  function counselingExtra() {
-    return (bel('bmCounseling')?.checked && !bel('bmBreakMode')?.checked) ? 10 : 0;
+  // 媒体・予約経路（複数可）。ylka のカウンセリング+10分と違い、アドミは
+  // 【LINE予約のときだけ +10分(無料)】。既定は未チェック（店長運用 2026-08-02）
+  const BM_MEDIA_KEYS = ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli', 'other', 'line'];
+  const BM_MEDIA_LABEL = {
+    fujoho: '情報局', ekichika: '駅ちか', heaven: 'ヘブン', fuzoku: '風じゃ',
+    deli: 'デリじゃ', other: 'その他', line: 'LINE予約',
+  };
+  function mediaCheckboxes() {
+    const modal = document.getElementById('bookingModal' + activeBmSuffix);
+    return modal ? modal.querySelectorAll('input[name^="bmMedia"]') : [];
+  }
+  function getBmMedia() {
+    return Array.from(mediaCheckboxes()).filter(c => c.checked).map(c => c.value);
+  }
+  function setBmMedia(list) {
+    const set = new Set(String(list || '').split(',').map(s => s.trim()).filter(Boolean));
+    mediaCheckboxes().forEach(c => { c.checked = set.has(c.value); });
+  }
+  function mediaLabels(list) {
+    return String(list || '').split(',').map(s => s.trim()).filter(Boolean)
+      .map(k => BM_MEDIA_LABEL[k] || k).join('・');
+  }
+  /** LINE予約特典 +10分 */
+  function lineBonusExtra() {
+    return (getBmMedia().includes('line') && !bel('bmBreakMode')?.checked) ? 10 : 0;
   }
   // 延長回数（30分×n）
   function extCount() {
@@ -1215,7 +1237,7 @@
       try { updateFooterStatus(); } catch(e) {}
       return;
     }
-    const extra = isBreak ? 0 : (counselingExtra() + extMinutes());
+    const extra = isBreak ? 0 : (lineBonusExtra() + extMinutes());
     const totalMin = baseMin + extra;
     const end = calcEndExtTime(sh, sm, totalMin);
     bel('bmEndDisplay').textContent = end;
@@ -3077,9 +3099,7 @@
         const em = parseInt(String(b.end_time).substring(3, 5), 10);
         bel('bmStartHour').value = sh;
         bel('bmStartMin').value = sm;
-        // カウンセリングフラグ復元（旧データ=null は ON 既定）
-        const hasCoun = (b.counseling == null) ? true : (Number(b.counseling) === 1);
-        if (bel('bmCounseling')) bel('bmCounseling').checked = hasCoun;
+        setBmMedia(b.media || '');
         // コース復元: course_name からマスタを照合（端数や旧カスタムは分数で照合）
         let courseMin = null;
         if (b.course_name) {
@@ -3230,7 +3250,7 @@
       bel('bmAdminId').value = prefill?.adminId || '';
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
-      if (bel('bmCounseling')) bel('bmCounseling').checked = true;  // カウンセリング+10分はデフォルトON
+      setBmMedia('');   // 媒体・予約経路は既定で未チェック
       // デフォルト: 担当キャスト未割当なら「問合せ」、既に割当済み(タイムラインの担当行から作成)なら「予約」
       bel('bmStatus').value = prefill?.adminId ? 'reserved' : 'inquiry';
       bel('bmSub').textContent = '';
@@ -3295,7 +3315,7 @@
     const bkF = document.getElementById('bmBackEnabled')?.closest('.field');
     if (bkF) bkF.style.display = checked ? 'none' : '';
     // 休憩は接客ではないため、料金・特典・支払い関連もまとめて非表示（日付/開始/終了・カウンセリング・延長・休憩時間・エリア・メモのみ表示）
-    ['bmCampaignField','bmStampField','bmLateNightField'].forEach(id => {
+    ['bmCampaignField','bmStampField','bmLateNightField','bmMediaField'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = checked ? 'none' : 'flex';
     });
@@ -3482,7 +3502,8 @@
     if (date || st) lines.push(`日時: ${date}${date && st ? ' ' : ''}${st}${st && et ? '〜' + et : ''}${dur}`);
     if (b.course_name) {
       const priceTxt = b.price ? ` ¥${Number(b.price).toLocaleString()}` : '';
-      lines.push(`コース: ${b.course_name}${priceTxt}${b.counseling ? '（＋カウンセリング10分無料）' : ''}${b.extension_count ? `（延長${b.ext_unit_min || 30}分×${b.extension_count}）` : ''}`);
+      const lineBonus = String(b.media || '').split(',').includes('line');
+      lines.push(`コース: ${b.course_name}${priceTxt}${lineBonus ? '（＋LINE予約特典10分無料）' : ''}${b.extension_count ? `（延長${b.ext_unit_min || 30}分×${b.extension_count}）` : ''}`);
     } else if (b.price) {
       lines.push(`料金: ¥${Number(b.price).toLocaleString()}`);
     }
@@ -3537,7 +3558,8 @@
     lines.push('下記の内容で承りました。');
     lines.push('');
     if (dateStr || st) lines.push(`■ 日時：${dateStr}${dateStr && st ? ' ' : ''}${st}${st && et ? '〜' + et : ''}`);
-    if (b.course_name) lines.push(`■ コース：${b.course_name}${b.counseling ? ' ＋ カウンセリング10分（無料）' : ''}${b.extension_count ? ` ＋ 延長${b.ext_unit_min || 30}分×${b.extension_count}` : ''}`);
+    if (b.course_name) lines.push(`■ コース：${b.course_name}${String(b.media || '').split(',').includes('line') ? ' ＋ LINE予約特典10分（無料）' : ''}${b.extension_count ? ` ＋ 延長${b.ext_unit_min || 30}分×${b.extension_count}` : ''}`);
+    if (b.media) lines.push(`■ 媒体：${mediaLabels(b.media)}`);
     const priceNum = Number(b.price) || 0;
     const transNum = (b.transport_fee != null && b.transport_fee !== '') ? Number(b.transport_fee) : 0;
     const discNum = Number(b.discount) || 0;
@@ -3718,7 +3740,7 @@
       transport_fee: bel('bmTransport').value,
       hotel_name_snapshot: hotelSnap,
       room_number: roomNum,
-      counseling: bel('bmCounseling')?.checked,
+      media: getBmMedia().join(','),
       extension_count: extCount(),
       ext_unit_min: _extUnit.min,
       notes: bel('bmNotes').value,
@@ -3763,7 +3785,7 @@
       name = bel('bmCustomerName').value.trim();
       if (!name) { toast('お名前を入力してください', 'err'); return; }
       // 終了時刻はカウンセリング+10分を加算（コース名・料金は totalMin のまま）
-      totalEnd = totalStart + totalMin + counselingExtra() + extMinutes();
+      totalEnd = totalStart + totalMin + lineBonusExtra() + extMinutes();
       eh = Math.floor(totalEnd / 60) % 24;
       em = totalEnd % 60;
     }
@@ -3849,7 +3871,7 @@
       payment_method: isBreak ? null : (bel('bmPayment')?.value || null),
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeFor(bel('bmNomination')?.value),
-      counseling: (!isBreak && bel('bmCounseling')?.checked) ? 1 : 0,
+      media: isBreak ? '' : getBmMedia().join(','),
       notes: isBreak ? ('[休憩] ' + bel('bmNotes').value).trim() : bel('bmNotes').value,
       reward_override: (() => {
         const raw = String(bel('bmRewardOverride')?.value || '').replace(/[^\d]/g, '');
@@ -7209,9 +7231,8 @@
         updateBookingTotal();
       }
     });
-    // カウンセリング+10分チェック: 終了時刻を再計算
-    const counCb = bel('bmCounseling');
-    if (counCb) counCb.addEventListener('change', updateEndTime);
+    // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
+    mediaCheckboxes().forEach(cb => cb.addEventListener('change', updateEndTime));
     // 延長回数: 終了時刻と合計を再計算
     const extSel = bel('bmExtCount');
     if (extSel) extSel.addEventListener('change', () => { updateEndTime(); updateBookingTotal(); });

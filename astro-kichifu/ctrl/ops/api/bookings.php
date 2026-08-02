@@ -13,6 +13,14 @@
 // ==========================================================================
 require_once __DIR__ . '/auth-guard.php';
 
+/** 媒体・予約経路の正規化（許可キーのみ・重複除去・順序固定） */
+function ops_normalize_media($raw): string {
+    $allow = ['fujoho', 'ekichika', 'heaven', 'fuzoku', 'deli', 'other', 'line'];
+    $in = is_array($raw) ? $raw : explode(',', (string)$raw);
+    $in = array_map(static fn($s) => trim((string)$s), $in);
+    return implode(',', array_values(array_intersect($allow, array_unique($in))));
+}
+
 $pdo    = getPdo();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
@@ -22,7 +30,7 @@ function bookingSelectColumns(): string {
         b.id, b.customer_id, b.customer_name_snapshot, b.customer_phone_snapshot, b.customer_email_snapshot,
         b.assigned_admin_id, b.driver_id, b.back_driver_id, b.hotel_id, b.hotel_name_snapshot, b.display_city, b.room_number,
         b.booking_date, b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.pickup_go_mailed_at, b.pickup_back_mailed_at,
-        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.late_fee, b.transport_fee, b.payment_method, b.counseling, b.extension_count,
+        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.late_fee, b.transport_fee, b.payment_method, b.counseling, b.media, b.extension_count,
         b.status, b.service_ended_at, b.source, b.notes, b.cancellation_reason, b.cancellation_reason_type, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.shop_settled, b.shop_settled_by, b.settle_kind, b.reward_paid_at, b.reward_paid_by, b.counseling_sheet_url, b.held_by, b.created_at, b.updated_at,
         c.name AS customer_name, c.phone AS customer_phone, c.notes AS customer_notes,
         h.name AS hotel_name, h.city AS hotel_city, h.address AS hotel_address,
@@ -223,7 +231,11 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'late_fee'                => max(0, (int)($b['late_fee'] ?? 0)),
         'transport_fee'           => isset($b['transport_fee']) && $b['transport_fee'] !== '' ? (int)$b['transport_fee'] : null,
         'payment_method'          => in_array($b['payment_method'] ?? '', ['cash','credit','bank'], true) ? $b['payment_method'] : null,
-        'counseling'              => !empty($b['counseling']) ? 1 : 0,
+        // 媒体・予約経路（複数可・カンマ区切り）。LINE予約のときだけ +10分(無料)
+        'media'                   => ops_normalize_media($b['media'] ?? ''),
+        // counseling は「+10分が付いたか」を表す既存フラグ。根拠は LINE予約に変わったので
+        // media から導出して入れる（集計や旧表示が壊れないように残置）
+        'counseling'              => in_array('line', explode(',', ops_normalize_media($b['media'] ?? '')), true) ? 1 : 0,
         'extension_count'         => max(0, (int)($b['extension_count'] ?? 0)),
         'status'                  => in_array($b['status'] ?? '', ['inquiry','reserved','pre_reserved','on_hold','completed','cancelled','no_show'], true) ? $b['status'] : 'reserved',
         'shop_settled'            => !empty($b['shop_settled']) ? 1 : 0,
