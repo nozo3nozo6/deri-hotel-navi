@@ -62,8 +62,27 @@ function ordered_photo_paths(string $mediaTop, array $official, string $uploadsB
     return array_values(array_filter($paths, static fn ($p) => trim((string)$p) !== ''));
 }
 
-/** 画像ファイル → JPEG バイト（WebP/PNG/JPEG対応、q90。girl-media-pack.php と同一） */
-function to_jpeg_bytes(string $absPath): ?string
+/**
+ * 店舗ごとの JPEG 品質。
+ *
+ * 情報局は「同じ画像の再登録」を拒否する（『重複画像になっています』）。この判定は
+ * ファイルのバイト列ではなく展開後の画素で行われ、しかも【店舗をまたいで】効く。
+ * 立川と吉祥寺は同じキャストを共有＝同じ写真なので、両店に同一バイトを配ると
+ * 先にアップした店が勝ち、後の店は何度送っても永久にはじかれる。
+ * 実際 2026-08-02「えな」は吉祥寺が9秒先に成功し、立川は3枠とも拒否＝写真ゼロだった。
+ * （bot 側は拒否を「既存と同一＝送る必要なし」と誤解して成功扱いにしていたため気づけなかった）
+ *
+ * → 店舗ごとに品質を1段ずらし、見た目は同じで画素が違う画像を配る。
+ *   吉祥寺(2)=90 は既にアップ済みの分と揃えるため据え置き、立川(1)をずらす。
+ */
+function media_jpeg_quality(int $shopId): int
+{
+    $map = [1 => 89, 2 => 90];
+    return $map[$shopId] ?? max(80, 91 - $shopId);
+}
+
+/** 画像ファイル → JPEG バイト（WebP/PNG/JPEG対応。girl-media-pack.php と同一の並び・変換） */
+function to_jpeg_bytes(string $absPath, int $quality = 90): ?string
 {
     if (!is_file($absPath)) return null;
     $info = @getimagesize($absPath);
@@ -76,7 +95,7 @@ function to_jpeg_bytes(string $absPath): ?string
     };
     if (!$src) return null;
     ob_start();
-    imagejpeg($src, null, 90);
+    imagejpeg($src, null, $quality);
     imagedestroy($src);
     $bytes = ob_get_clean();
     return $bytes !== false && $bytes !== '' ? $bytes : null;
@@ -99,7 +118,7 @@ try {
         $im->execute([$girlId]);
         $paths = ordered_photo_paths((string)$row["media_top_image"], array_column($im->fetchAll(PDO::FETCH_ASSOC), "path"), $uploadsBase);
         if (!isset($paths[$slot - 1])) { http_response_code(404); echo 'no such slot'; exit; }
-        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1]);
+        $bytes = to_jpeg_bytes($uploadsBase . $paths[$slot - 1], media_jpeg_quality($shopId));
         if ($bytes === null) { http_response_code(500); echo 'convert failed'; exit; }
         header('Content-Type: image/jpeg');
         header('Content-Length: ' . strlen($bytes));
