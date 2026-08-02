@@ -131,6 +131,16 @@ const linkBanners = [
             </a>
           ))}
         </div>
+        {/* マンゾク相互リンク（媒体提供のコード。バナー＋テキストリンク2本がセット） */}
+        <div class="ib-manzoku">
+          <a href="https://www.manzoku.or.jp/tokyo/a115/shop-list/" target="_self" rel="noopener" class="ib ib-big">
+            <img src="https://www.manzoku.or.jp/images/common/mz-banner-600.jpg" alt="立川の風俗ならマンゾクにお任せ！" loading="lazy" />
+          </a>
+          <p class="ib-manzoku-links">
+            <a href="https://www.manzoku.or.jp/tokyo/" target="_self" rel="noopener">東京風俗</a>
+            <a href="https://www.manzoku.or.jp/tokyo/a115/shop-list/bz9/" target="_self" rel="noopener">立川デリヘル</a>
+          </p>
+        </div>
       </div>
     </section>
 
@@ -172,6 +182,10 @@ const linkBanners = [
     .index-banners .ib-links .ib img { border-radius: 4px; box-shadow: none; }
     .index-banners .ib-small { max-width: 90px; }
     .index-banners .ib-small img { max-height: 40px; width: auto; }
+    .index-banners .ib-manzoku { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .index-banners .ib-manzoku-links { margin: 0; font-size: 12px; text-align: center; display: flex; gap: 10px; justify-content: center; }
+    .index-banners .ib-manzoku-links a { color: var(--text-soft, #f6ecff); text-decoration: none; }
+    .index-banners .ib-manzoku-links a:hover { text-decoration: underline; }
 
     .index-widgets { padding: 8px 8px 20px; }
     .index-widgets-inner { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 14px; max-width: 1000px; margin: 0 auto; }

@@ -109,6 +109,16 @@ const yearsInBusiness = new Date().getFullYear() - SHOP.since;
         <a class="index-media-banner-card" href="https://deli-fuzoku.jp/tokyo/kichijoji_area/" target="_blank">
           <img src="https://ad.deli-fuzoku.jp/img/bnr_sp_sample_delifuzoku.gif" width="640" height="80" border="0" loading="lazy" alt="吉祥寺のデリヘルを検索するなら【デリヘルじゃぱん】">
         </a>
+        {/* マンゾク相互リンク（媒体提供のコード。バナー＋テキストリンク2本がセット） */}
+        <div class="index-media-banner-card mz-card">
+          <a href="https://www.manzoku.or.jp/tokyo/a363/shop-list/" target="_self" rel="noopener">
+            <img src="https://www.manzoku.or.jp/images/common/mz-banner-600.jpg" width="600" border="0" loading="lazy" alt="吉祥寺の風俗ならマンゾクにお任せ！">
+          </a>
+          <p class="mz-links">
+            <a href="https://www.manzoku.or.jp/tokyo/" target="_self" rel="noopener">東京風俗</a>
+            <a href="https://www.manzoku.or.jp/tokyo/a363/shop-list/bz9/" target="_self" rel="noopener">吉祥寺デリヘル</a>
+          </p>
+        </div>
       </div>
     </section>
 
@@ -139,5 +149,9 @@ const yearsInBusiness = new Date().getFullYear() - SHOP.since;
     }
     .index-media-banner-card:hover { border-color: rgba(255,79,216,.4); background: rgba(255,255,255,.07); transform: translateY(-1px); }
     .index-media-banner-card img { display: block; max-width: 100%; height: auto; border-radius: 4px; margin: 0 auto; }
+    .mz-card:hover { transform: none; }
+    .mz-links { margin: 6px 0 0; font-size: 12px; text-align: center; display: flex; gap: 10px; justify-content: center; }
+    .mz-links a { color: var(--text-soft, #f6ecff); text-decoration: none; }
+    .mz-links a:hover { text-decoration: underline; }
   </style>
 </Site>
