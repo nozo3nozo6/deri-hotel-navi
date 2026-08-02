@@ -17,13 +17,18 @@ npm run build
 echo "▶ rsync dist/（静的フロント＋.htaccess）"
 rsync -avz -e "$SSH" dist/ "$DEST/"
 
-echo "▶ 旧ページの掃除（dist に無くなった girls/ news/ の .html をサーバーから削除）"
+echo "▶ 旧ページの掃除（dist に無くなった girls/ の .html をサーバーから削除）"
 # rsync --delete を使わない運用（uploads 等を守るため）の副作用で、退店・削除したキャストの
 # /girls/{id}.html がサーバーに残り続け、非掲載なのに 200 を返す「幽霊ページ」になっていた。
 # （2026-07-28 実測: 両サイトとも girls 10件。GSC「クロール済み-インデックス未登録」の一因）
-# girls/ news/ は完全にビルド生成物なので、dist に無い .html は消して安全。
+# girls/ は完全にビルド生成物なので、dist に無い .html は消して安全。
+#
+# news/ は対象外。.htaccess で /news/[id] を常に news-ssr.php に回しており
+# news/*.html は配信されない＝幽霊ページにならない（2026-08-02 実測で確認）。
+# しかもビルドは最新100件しか出さない（api/news.php の list が min(limit,100)）ため、
+# 掃除対象にすると毎回「削除数 > ビルド数」で安全弁が誤作動していた。
 KHOST="${DEST%%:*}"; KROOT="${DEST#*:}"
-for d in girls news; do
+for d in girls; do
   [ -d "dist/$d" ] || continue
   ls "dist/$d" 2>/dev/null | grep '\.html$' | sort > "/tmp/_kkeep_$d.txt"
   $SSH "$KHOST" "ls $KROOT/$d 2>/dev/null | grep '\\.html\$' | sort" > "/tmp/_ksrv_$d.txt" || true
