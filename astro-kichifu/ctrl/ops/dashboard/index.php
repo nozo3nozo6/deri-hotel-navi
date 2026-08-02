@@ -404,6 +404,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* 住所: 市区町村は固定表示（プルダウン連動）＋続きだけ手入力。1つの入力欄に見えるよう囲う */
+  .addr-combo{display:flex;align-items:stretch;border:1.5px solid var(--gray);border-radius:8px;background:var(--white);overflow:hidden;}
+  .addr-combo:focus-within{border-color:var(--sea);}
+  .addr-city{display:flex;align-items:center;padding:.7rem .6rem .7rem .85rem;background:var(--foam);color:var(--ink-soft);
+    font-size:16px;font-weight:600;white-space:nowrap;border-right:1.5px dashed var(--gray);}
+  .addr-city.is-empty{color:var(--ink-soft);opacity:.6;font-weight:400;}
+  .addr-combo input{border:none!important;border-radius:0!important;background:transparent!important;flex:1;min-width:0;}
+  .addr-combo input:focus{outline:none;}
   .row-addr{font-size:.78rem;color:var(--ink-soft);margin-top:.1rem;}
   .btn-del{background:#fff;border:1.5px solid #f0b4b4;color:var(--red);border-radius:7px;padding:.3rem .6rem;
     font-size:.75rem;font-weight:700;cursor:pointer;touch-action:manipulation;}
@@ -2397,8 +2405,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div class="field">
         <label for="emAddress">住所</label>
-        <input type="text" id="emAddress" placeholder="例: 立川市曙町2-21-15">
-        <span class="hint">都道府県は市区町村から決まるので不要です。住所を貼り付ければ市区町村も自動で入ります</span>
+        <!-- 市区町村は上のプルダウンが正。ここでは編集させず、続きの町名・番地だけ手入力する -->
+        <div class="addr-combo">
+          <span class="addr-city" id="emAddrCity">市区町村を選択</span>
+          <input type="text" id="emAddress" placeholder="例: 曙町2-21-15">
+        </div>
+        <span class="hint">灰色の部分は上の市区町村と連動します。都道府県付きで貼り付けても自動で振り分けます</span>
       </div>
       <div class="field">
         <label>対応ステータス</label>

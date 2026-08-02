@@ -634,41 +634,33 @@
   // 住所を打つ/貼るたびに、都道府県は左のセレクトへ、市区町村は上の欄へ自動で振り分ける。
   // 市区町村を手で直した後は上書きしない（住所から判定できないホテルがあるため）。
   let emCityTouched = false;
-  let emAddrAutoFilled = '';   // 市区町村から住所へ自動で入れた文字列（上書き判定用）
-  let emCityPrev = '';         // 直前に選ばれていた市区町村（選び直し時に住所の頭を差し替える）
+  /** 市区町村の固定表示を更新する */
+  function renderAddrCity() {
+    const el = document.getElementById('emAddrCity');
+    const c = (document.getElementById('emCity')?.value || '').trim();
+    if (!el) return;
+    el.textContent = c || '市区町村を選択';
+    el.classList.toggle('is-empty', !c);
+  }
+  // 住所欄には市区町村より後ろだけを入れる（市区町村はプルダウンが正）。
+  // 都道府県・市区町村付きで貼り付けられた時だけ、こちらで剥がして振り分ける。
   function wireAddressAutofill() {
     const addr = document.getElementById('emAddress');
     const city = document.getElementById('emCity');
     if (!addr || addr.dataset.wired) return;
     addr.dataset.wired = '1';
-    city?.addEventListener('change', () => {
-      emCityTouched = true;
-      // 市区町村を選んだら住所の頭にも入れておく。続きの番地だけ打てばよい。
-      //   住所が空          → その市区町村を入れる
-      //   前の市区町村で始まる → その部分だけ差し替える（選び直しの修正）
-      const c = city.value.trim();
-      const prev = emCityPrev;
-      emCityPrev = c;
-      if (!c) return;
-      if (addr.value === '' || addr.value === emAddrAutoFilled) {
-        addr.value = c;
-      } else if (prev && addr.value.startsWith(prev)) {
-        addr.value = c + addr.value.slice(prev.length);
-      } else {
-        return;   // 関係ない住所が入っている時は触らない
-      }
-      // 「まだ市区町村しか入っていない」状態のときだけ、次回まるごと差し替えてよい。
-      // 番地まで入っている値を覚えると、次に選び直した時に住所が消えてしまう
-      emAddrAutoFilled = (addr.value === c) ? c : '';
-    });
+    city?.addEventListener('change', () => { emCityTouched = true; renderAddrCity(); });
     addr.addEventListener('input', () => {
-      emAddrAutoFilled = '';                                   // 手で書き足したら以後は自動で触らない
-      const { pref: p, rest } = splitAddress(addr.value);
-      if (p) addr.value = rest;                                // 都道府県付きで貼られたら落とす
-      if (!emCityTouched && city) {
-        const c = pickCityFromAddress(addr.value);
-        // 一覧にある市区町村のときだけ選ぶ（無ければ選択なしのまま＝取り違えない）
-        if (c && [...city.options].some(o => o.value === c)) city.value = c;
+      const { pref, rest } = splitAddress(addr.value);
+      if (!pref && !/^(.+?[市区町村])/.test(addr.value)) return;   // 町名だけの通常入力は触らない
+      const c = pickCityFromAddress(addr.value);
+      if (c && city && [...city.options].some(o => o.value === c)) {
+        city.value = c;
+        emCityTouched = true;
+        addr.value = rest.slice(c.length);      // 住所欄からは市区町村を落とす
+        renderAddrCity();
+      } else if (pref) {
+        addr.value = rest;                      // 都道府県だけは落とす
       }
     });
   }
@@ -682,13 +674,17 @@
     const cityEl = document.getElementById('emCity');
     cityEl.innerHTML = cityOptionsHtml(hotel.city || '');
     cityEl.value = hotel.city || '';
-    // 住所欄は「市区町村から番地まで」。都道府県が付いていたら剥がす
-    document.getElementById('emAddress').value = splitAddress(hotel.address || '').rest;
+    // 住所欄は「市区町村より後ろ」だけ。都道府県と市区町村は剥がして固定表示に回す
+    {
+      let rest = splitAddress(hotel.address || '').rest;
+      const c = (hotel.city || '').trim();
+      if (c && rest.startsWith(c)) rest = rest.slice(c.length);
+      document.getElementById('emAddress').value = rest;
+    }
     document.getElementById('emTel').value = hotel.tel || '';
     emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
-    emAddrAutoFilled = '';
-    emCityPrev = hotel.city || '';
     wireAddressAutofill();
+    renderAddrCity();
     editingHotel = hotel;
     editingStatus = hotel.status || '';
     document.getElementById('emTitle').textContent = isNew ? 'ホテルを追加' : hotel.name;
@@ -734,7 +730,8 @@
     try {
       const cityVal = document.getElementById('emCity').value.trim();
       const prefVal = prefOfCity(cityVal) || editingHotel.prefecture || '東京都';
-      const addrVal = document.getElementById('emAddress').value.trim();
+      // 保存する住所は「市区町村＋入力欄」。表示と保存で形が変わらないようここで結合する
+      const addrVal = (cityVal + document.getElementById('emAddress').value.trim()).trim();
       const r = await apiPost('/admin-api.php?action=hotel-save', {
         id: editingHotel.id || 0,
         name,
