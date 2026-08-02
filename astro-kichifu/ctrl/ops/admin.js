@@ -4494,6 +4494,89 @@
       if (el) el.innerHTML = '<div class="view-empty">読み込み失敗</div>';
     }
   }
+
+  // ↓ 施術メニュー/キャンペーン削除時に巻き込んで消してしまった分を復元（2026-08-02）
+  //   入室方法マスタの描画・編集。これが無いとタイムライン初期化が例外で止まる
+  function renderEntryMethods() {
+    const el = document.getElementById('entryMethodList');
+    if (!el) return;
+    if (entryMethodsCache.length === 0) {
+      el.innerHTML = '<div class="view-empty">入室方法がありません</div>';
+      return;
+    }
+    el.innerHTML = entryMethodsCache.map(e => `
+      <div class="bk-row sortable" draggable="true" data-em-id="${e.id}" style="grid-template-columns:auto 1fr auto;">
+        <div class="drag-handle" title="ドラッグで並び替え">⋮⋮</div>
+        <div class="bk-info">
+          <div class="bi-name">${escapeHtml(e.label)} ${Number(e.is_active) ? '' : '<span style="color:var(--red);font-size:.78rem;">[無効]</span>'}</div>
+        </div>
+        <button class="btn-edit" data-em-edit="${e.id}">編集</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-em-edit]').forEach(b => {
+      b.addEventListener('click', ev => { ev.stopPropagation(); openEntryMethodModal(Number(b.dataset.emEdit)); });
+    });
+    el.querySelectorAll('.bk-row').forEach(row => {
+      row.addEventListener('click', ev => {
+        if (ev.target.closest('button, .drag-handle')) return;
+        openEntryMethodModal(Number(row.dataset.emId));
+      });
+    });
+    setupEntryMethodSortable();
+  }
+  function openEntryMethodModal(id) {
+    editingEntryMethodId = id;
+    document.getElementById('emaTitle').textContent = id ? '入室方法を編集' : '新規入室方法';
+    document.getElementById('emaDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
+    if (id) {
+      const e = entryMethodsCache.find(x => x.id === id);
+      if (!e) return;
+      document.getElementById('emaCode').value = e.code || '';
+      document.getElementById('emaLabel').value = e.label || '';
+      document.getElementById('emaIsActive').checked = Number(e.is_active) === 1;
+    } else {
+      document.getElementById('emaCode').value = '';
+      document.getElementById('emaLabel').value = '';
+      document.getElementById('emaIsActive').checked = true;
+    }
+    openModal('entryMethodModal');
+  }
+  async function saveEntryMethod() {
+    const label = document.getElementById('emaLabel').value.trim();
+    if (!label) { toast('表示ラベルを入力してください', 'err'); return; }
+    // 編集時は code を変更しない（既存ホテルの紐付け維持）
+    // 新規時: code を自動生成（em_XXXXX 形式）
+    const payload = {
+      label,
+      is_active: document.getElementById('emaIsActive').checked ? 1 : 0,
+    };
+    if (!editingEntryMethodId) {
+      payload.code = 'em_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+    }
+    if (!editingEntryMethodId) {
+      const maxOrder = entryMethodsCache.reduce((max, e) => Math.max(max, Number(e.sort_order || 0)), 0);
+      payload.sort_order = maxOrder + 10;
+    }
+    try {
+      if (editingEntryMethodId) {
+        await apiPost('/entry-methods.php?action=update', { id: editingEntryMethodId, ...payload });
+        toast('✓ 更新しました', 'ok');
+      } else {
+        await apiPost('/entry-methods.php?action=create', payload);
+        toast('✓ 追加しました', 'ok');
+      }
+      closeModal('entryMethodModal');
+      await loadEntryMethods();
+    } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+  }
+  async function deleteEntryMethod() {
+    if (!editingEntryMethodId || !confirm('この入室方法を削除しますか？\n既にホテルに設定されている場合、その表示は影響を受けます。')) return;
+    try {
+      await apiPost('/entry-methods.php?action=delete', { id: editingEntryMethodId });
+      toast('✓ 削除しました', 'ok');
+      closeModal('entryMethodModal');
+      await loadEntryMethods();
+    } catch (e) { toast('削除失敗: ' + e.message, 'err'); }
+  }
   // ========== 駅マスタ管理 ==========
   let stationsCache = [];
   let editingStationId = null;
