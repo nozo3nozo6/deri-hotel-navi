@@ -404,6 +404,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
+  .map-links{display:inline-flex;gap:.3rem;flex-wrap:wrap;vertical-align:middle;}
+  .map-link{display:inline-block;padding:.22rem .55rem;border:1.5px solid var(--gray);border-radius:6px;
+    background:#fff;color:var(--deep);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;
+    touch-action:manipulation;}
+  .map-link:hover{background:var(--foam);border-color:var(--sea);}
+  .map-link-sm{margin-left:.3rem;padding:.06rem .38rem;font-size:.66rem;font-weight:600;color:var(--ink-soft);}
   /* 住所: 市区町村は固定表示（プルダウン連動）＋続きだけ手入力。1つの入力欄に見えるよう囲う */
   .addr-combo{display:flex;align-items:stretch;border:1.5px solid var(--gray);border-radius:8px;background:var(--white);overflow:hidden;}
   .addr-combo:focus-within{border-color:var(--sea);}
@@ -2410,6 +2417,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <span class="addr-city" id="emAddrCity">市区町村を選択</span>
           <input type="text" id="emAddress" placeholder="例: 曙町2-21-15">
         </div>
+        <div id="emMapLinks" style="margin-top:.45rem;"></div>
         <span class="hint">灰色の部分は上の市区町村と連動します。都道府県付きで貼り付けても自動で振り分けます</span>
       </div>
       <div class="field">

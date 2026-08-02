@@ -526,7 +526,7 @@
           </div>
           <div class="row-info">
             <div class="row-name">${escapeHtml(h.name)}</div>
-            ${h.address ? `<div class="row-addr">${escapeHtml((h.prefecture || '') + h.address)}</div>` : ''}
+            ${h.address ? `<div class="row-addr">${escapeHtml((h.prefecture || '') + h.address)}${mapLinksHtml(h.prefecture, h.address, { small: true })}</div>` : ''}
             <div class="row-meta">
               ${h.city ? `<span><b>市区:</b> ${escapeHtml(h.city)}</span>` : ''}
               ${h.nearest_station ? `<span><b>駅:</b> ${escapeHtml(h.nearest_station)}</span>` : ''}
@@ -634,6 +634,23 @@
   // 住所を打つ/貼るたびに、都道府県は左のセレクトへ、市区町村は上の欄へ自動で振り分ける。
   // 市区町村を手で直した後は上書きしない（住所から判定できないホテルがあるため）。
   let emCityTouched = false;
+  // 住所から地図アプリへのリンク。ドライバーへの案内・場所確認用。
+  // 検索語は「都道府県＋住所」。ホテル名は「シティ」等が多く別の場所を指しかねないので入れない。
+  // 管理画面なので別タブで開く（編集中の内容を失わないため）。
+  function mapLinksHtml(prefecture, address, opts) {
+    const q = ((prefecture || '') + (address || '')).trim();
+    if (!q) return '';
+    const e = encodeURIComponent(q);
+    const cls = (opts && opts.small) ? ' map-link-sm' : '';
+    const a = (href, label) =>
+      `<a class="map-link${cls}" href="${href}" target="_blank" rel="noopener" title="${escapeAttr(q)}">${label}</a>`;
+    return '<span class="map-links">'
+      + a(`https://www.google.com/maps/search/?api=1&query=${e}`, 'Google')
+      + a(`https://map.yahoo.co.jp/search?q=${e}`, 'Yahoo')
+      + a(`https://maps.apple.com/?q=${e}`, 'Apple')
+      + '</span>';
+  }
+
   /** 市区町村の固定表示を更新する */
   function renderAddrCity() {
     const el = document.getElementById('emAddrCity');
@@ -641,6 +658,16 @@
     if (!el) return;
     el.textContent = c || '市区町村を選択';
     el.classList.toggle('is-empty', !c);
+    renderEmMapLinks();
+  }
+  /** 編集中の住所に対する地図リンクを出し直す */
+  function renderEmMapLinks() {
+    const box = document.getElementById('emMapLinks');
+    if (!box) return;
+    const city = (document.getElementById('emCity')?.value || '').trim();
+    const rest = (document.getElementById('emAddress')?.value || '').trim();
+    const pref = prefOfCity(city) || (editingHotel && editingHotel.prefecture) || '';
+    box.innerHTML = (city || rest) ? mapLinksHtml(pref, city + rest) : '';
   }
   // 住所欄には市区町村より後ろだけを入れる（市区町村はプルダウンが正）。
   // 都道府県・市区町村付きで貼り付けられた時だけ、こちらで剥がして振り分ける。
@@ -662,7 +689,9 @@
       } else if (pref) {
         addr.value = rest;                      // 都道府県だけは落とす
       }
+      renderEmMapLinks();
     });
+    addr.addEventListener('blur', renderEmMapLinks);
   }
 
   // --- Modal ---
