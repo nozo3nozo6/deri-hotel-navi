@@ -80,9 +80,14 @@ foreach ($income as $r) {
 $courseMap = []; $courseMin = [];
 foreach ($courses as $r) { $courseMap[(string)$r['id']] = trim((string)$r['name']); $courseMin[(string)$r['id']] = (int)$r['time']; }
 
+// ホテル名の末尾に付いている「1100円」等は交通費の目安を名前に書き込んだもので、
+// 店の名前ではない（216/442件）。場所と交通費は分けて見せたいので名前からは落とす。
+//   ※ [0-9] で半角のみ。\d だと「Jハウス１2200円」の全角「１」まで食って別店舗と混ざる
 $hotelMap = [];   // id => [name, city]
 foreach ($hotels as $r) {
-    $hotelMap[(string)$r['id']] = [trim((string)$r['name']), trim((string)($r['addr_1'] ?? ''))];
+    $name = trim((string)$r['name']);
+    $name = trim((string)preg_replace('/[ 　]*[0-9]{3,5}円[ 　]*$/u', '', $name));
+    $hotelMap[(string)$r['id']] = [$name, trim((string)($r['addr_1'] ?? ''))];
 }
 
 // キャスト: 先頭の名前部分のみ（（/空白/管理メモを除去）
@@ -170,6 +175,8 @@ foreach ($reserve as $r) {
         'legacy_nominate_id' => (int)$r['nominate_id'],
         'nominate_name'      => mb_substr($nomMap[(string)$r['nominate_id']] ?? '', 0, 50),
         'nominate_price'     => (int)$r['nominate_price'],
+        // 交通費はその予約で実際に請求した額（ホテル名に書かれた目安とは一致しないことが多い）
+        'transport_fee'      => (int)$r['trans_price'],
         'legacy_income_id' => $iid,
     ];
 }
@@ -208,6 +215,7 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
     legacy_nominate_id INT NOT NULL DEFAULT 0,
     nominate_name VARCHAR(50) NOT NULL DEFAULT '',
     nominate_price INT NOT NULL DEFAULT 0,
+    transport_fee INT NOT NULL DEFAULT 0,
     room VARCHAR(20) NOT NULL DEFAULT '',
     memo TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'completed',
@@ -225,12 +233,13 @@ if (!in_array('legacy_nominate_id', $cols, true)) $pdo->exec("ALTER TABLE ops_le
 if (!in_array('nominate_price', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN nominate_price INT NOT NULL DEFAULT 0");
 if (!in_array('shop_name', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN shop_name VARCHAR(50) NOT NULL DEFAULT '' AFTER legacy_shop_id");
 if (!in_array('nominate_name', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN nominate_name VARCHAR(50) NOT NULL DEFAULT '' AFTER legacy_nominate_id");
+if (!in_array('transport_fee', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN transport_fee INT NOT NULL DEFAULT 0");
 
 // 再実行で内容を更新できるよう upsert（取り込みルールを直したら流し直せる）
 $ins = $pdo->prepare("INSERT INTO ops_legacy_visits
     (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, hotel_city, place_type, room, memo, status,
-     legacy_shop_id, shop_name, legacy_nominate_id, nominate_name, nominate_price, legacy_income_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     legacy_shop_id, shop_name, legacy_nominate_id, nominate_name, nominate_price, transport_fee, legacy_income_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON DUPLICATE KEY UPDATE
       customer_id=VALUES(customer_id), visit_at=VALUES(visit_at), cast_name=VALUES(cast_name),
       course_name=VALUES(course_name), course_minutes=VALUES(course_minutes), total_price=VALUES(total_price),
@@ -238,7 +247,7 @@ $ins = $pdo->prepare("INSERT INTO ops_legacy_visits
       room=VALUES(room), memo=VALUES(memo), status=VALUES(status),
       legacy_shop_id=VALUES(legacy_shop_id), shop_name=VALUES(shop_name),
       legacy_nominate_id=VALUES(legacy_nominate_id), nominate_name=VALUES(nominate_name),
-      nominate_price=VALUES(nominate_price)");
+      nominate_price=VALUES(nominate_price), transport_fee=VALUES(transport_fee)");
 $pdo->beginTransaction();
 $n = 0;
 foreach ($rows as $x) {
@@ -246,7 +255,7 @@ foreach ($rows as $x) {
         $x['customer_id'], $x['visit_at'], $x['cast_name'], $x['course_name'], $x['course_minutes'],
         $x['total_price'], $x['hotel_name'], $x['hotel_city'], $x['place_type'], $x['room'],
         $x['memo'], $x['status'], $x['legacy_shop_id'], $x['shop_name'],
-        $x['legacy_nominate_id'], $x['nominate_name'], $x['nominate_price'],
+        $x['legacy_nominate_id'], $x['nominate_name'], $x['nominate_price'], $x['transport_fee'],
         $x['legacy_income_id'],
     ]);
     $n += $ins->rowCount();

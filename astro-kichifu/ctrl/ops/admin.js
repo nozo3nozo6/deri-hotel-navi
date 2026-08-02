@@ -2598,7 +2598,7 @@
     const clickable = !!(opts && opts.clickable);
     if (!rows.length) return '<div class="bm-history-empty">ご利用履歴はありません</div>';
     const body = rows.map(row => {
-      let kind, date, cast, course, nom, price, place, memo, legacyTag, shop, bid = '';
+      let kind, date, cast, course, nom, price, trans, place, memo, legacyTag, shop, bid = '';
       if (row.kind === 'l') {
         const v = row.v;
         const st = HIST_STATUS[v.status] || [v.status, ''];
@@ -2606,6 +2606,7 @@
         cast = v.cast_name || ''; course = v.course_name || '';
         nom = v.nominate_name || '';
         price = parseInt(v.total_price, 10) || 0;
+        trans = parseInt(v.transport_fee, 10) || 0;
         place = legacyPlaceLabel(v); memo = (v.memo || '').trim();
         shop = v.shop_name || '';
         legacyTag = '<span class="ht-old">旧</span>';
@@ -2615,7 +2616,8 @@
         kind = st; date = histDateCell(bizDateOf(b.booking_date, b.start_time || '00:00'), b.start_time);
         cast = b.staff_name || ''; course = b.course_name || '';
         nom = HIST_NOM[b.nomination_type] || '';
-        price = (parseInt(b.price, 10) || 0) + (parseInt(b.transport_fee, 10) || 0);
+        trans = parseInt(b.transport_fee, 10) || 0;
+        price = (parseInt(b.price, 10) || 0) + trans;   // 料金は交通費込みの総額
         const hotel = b.hotel_name_snapshot || b.hotel_name || '';
         place = hotel ? '🏨 ' + hotel : '';
         memo = (b.notes || '').trim();
@@ -2632,12 +2634,13 @@
         <td class="ht-course">${escapeHtml(course)}</td>
         <td>${escapeHtml(nom)}</td>
         <td class="ht-price">${price > 0 ? '¥' + price.toLocaleString() : ''}</td>
+        <td class="ht-price ht-trans">${trans > 0 ? '¥' + trans.toLocaleString() : ''}</td>
         <td class="ht-place">${escapeHtml(place)}</td>
         <td class="ht-memo">${escapeHtml(memo)}</td>
       </tr>`;
     }).join('');
     return `<div class="hist-tbl-wrap"><table class="hist-tbl">
-      <thead><tr><th>区分</th><th>店舗</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>場所</th><th>メモ</th></tr></thead>
+      <thead><tr><th>区分</th><th>店舗</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>交通費</th><th>場所</th><th>メモ</th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
   }
 
