@@ -778,7 +778,7 @@
     const box = bel('bmCastAlert');
     if (!box) return;
     const id = bel('bmAdminId')?.value;
-    const u = id ? allUsers.find(x => Number(x.id) === Number(id)) : null;
+    const u = id ? findStaffUser(id) : null;
     const note = (u?.cast_notes || '').trim();
     box.style.display = note ? 'block' : 'none';
     box.textContent = note ? `⚠️ ${u.display_name || ''}：${note}` : '';
@@ -791,9 +791,17 @@
   let editingStaffUsername = '';
   let editingThumbData = null;  // 新サムネ Base64
 
+  // スタッフ/キャストの参照。allUsers は「スタッフ管理」を開いた時だけ埋まるため、
+  // タイムラインから呼ぶと空で何も起きなかった。タイムライン用の adminUsersAll も見る。
+  function findStaffUser(id) {
+    const n = Number(id);
+    return allUsers.find(x => Number(x.id) === n)
+        || adminUsersAll.find(x => Number(x.id) === n)
+        || null;
+  }
   function openEditStaffModal(id) {
-    const u = allUsers.find(x => Number(x.id) === Number(id));
-    if (!u) return;
+    const u = findStaffUser(id);
+    if (!u) { toast('スタッフ情報を読み込めませんでした', 'err'); return; }
     editingStaffId = u.id;
     editingStaffRole = u.role;
     editingThumbData = u.thumbnail_url || null;
@@ -871,8 +879,12 @@
     if (noteEl) {
       try {
         await apiPost('/admin-api.php?action=cast-note-update', { id: editingStaffId, cast_notes: noteEl.value });
-        const u0 = allUsers.find(x => Number(x.id) === Number(editingStaffId));
-        if (u0) u0.cast_notes = noteEl.value.trim();
+        const note = noteEl.value.trim();
+        [allUsers, adminUsersAll].forEach(list => {
+          const u0 = list.find(x => Number(x.id) === Number(editingStaffId));
+          if (u0) u0.cast_notes = note;
+        });
+        try { renderTimeline(); } catch (_) {}
       } catch (e) { toast('注意事項の保存に失敗しました', 'err'); return; }
     }
     if (currentUser?.role !== 'owner') {   // 他項目は owner 専用。店長は注意事項だけ保存して終了
