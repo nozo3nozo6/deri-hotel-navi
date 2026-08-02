@@ -4220,10 +4220,14 @@
         ? Number(c.total_visits)
         : Number(c.visit_count || 0) + Number(c.actual_booking_count || 0);
       const last = c.last_visit_at ? String(c.last_visit_at).slice(0, 10).replace(/-/g, '/') : '';
+      // 行き先: 住所があれば住所、無ければ直近に使ったホテル（自宅派遣かホテルかが一目で分かる）
+      const loc = (c.default_location || '').trim()
+        ? `🏠 ${escapeHtml(c.default_location.trim())}`
+        : ((c.last_hotel || '').trim() ? `🏨 ${escapeHtml(c.last_hotel.trim())}` : '');
       return `
       <div class="cu-row" data-customer-id="${c.id}">
         <div class="cu-name">${escapeHtml(c.name)}${c.name_kana ? `<span class="kana">${escapeHtml(c.name_kana)}</span>` : ''}</div>
-        <div class="cu-contact">${c.phone ? '📞 ' + escapeHtml(c.phone) : ''} ${c.email ? '✉️ ' + escapeHtml(c.email) : ''}${last ? `<span class="cu-last">最終 ${escapeHtml(last)}</span>` : ''}</div>
+        <div class="cu-contact">${c.phone ? '📞 ' + escapeHtml(c.phone) : ''} ${c.email ? '✉️ ' + escapeHtml(c.email) : ''}${last ? `<span class="cu-last">最終 ${escapeHtml(last)}</span>` : ''}${loc ? `<div class="cu-loc">${loc}</div>` : ''}</div>
         <div class="cu-visits"><b>${cnt.toLocaleString()}</b><br>回</div>
         <div class="cu-actions"><button>編集</button></div>
       </div>`;

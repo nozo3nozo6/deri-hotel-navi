@@ -51,9 +51,20 @@ if ($action === 'list' && $method === 'GET') {
                            WHERE (b.customer_id = c.id
                                   OR (c.phone IS NOT NULL AND c.phone <> '' AND b.customer_phone_snapshot = c.phone))
                              AND b.status NOT IN ('cancelled','no_show'))";
+    // 直近に使ったホテル。OPSの予約があればそちらが新しい（旧実績は2026-07まで）ので優先。
+    // 自宅派遣のお客様は空になるので、画面側は住所→ホテルの順に出す。
+    $lastHotelSql = "COALESCE(
+        (SELECT COALESCE(NULLIF(h2.name, ''), b2.hotel_name_snapshot) FROM ops_bookings b2
+           LEFT JOIN ops_hotels h2 ON h2.id = b2.hotel_id
+          WHERE b2.customer_id = c.id AND (b2.hotel_id IS NOT NULL OR b2.hotel_name_snapshot <> '')
+          ORDER BY b2.booking_date DESC, b2.start_time DESC LIMIT 1),
+        (SELECT CONCAT_WS(' ', lv.hotel_city, lv.hotel_name) FROM ops_legacy_visits lv
+          WHERE lv.customer_id = c.id AND lv.place_type = 'hotel' AND lv.hotel_name <> ''
+          ORDER BY lv.visit_at DESC LIMIT 1))";
     $sql = "SELECT c.id, c.name, c.name_kana, c.phone, c.phone2, c.email, c.gender, c.default_hotel_id,
                    c.default_location, c.default_location2,
                    c.visit_count, c.last_visit_at, c.created_at,
+                   {$lastHotelSql} AS last_hotel,
                    {$bookingCountSql} AS actual_booking_count,
                    (COALESCE(c.visit_count, 0) + {$bookingCountSql}) AS total_visits
             FROM ops_customers c

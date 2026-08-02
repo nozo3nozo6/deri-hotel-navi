@@ -405,6 +405,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
+  .cu-loc{margin-top:.2rem;font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cu-last{margin-left:.6rem;font-size:.74rem;color:var(--ink-soft);}
   .map-links{display:inline-flex;gap:.3rem;flex-wrap:wrap;vertical-align:middle;}
   .map-link{display:inline-block;padding:.22rem .55rem;border:1.5px solid var(--gray);border-radius:6px;
