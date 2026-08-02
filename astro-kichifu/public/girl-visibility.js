@@ -133,10 +133,17 @@
         grid.querySelectorAll('.girl-card[data-id]').forEach(function (c) {
           existing[c.getAttribute('data-id')] = 1;
         });
+        // 出勤グリッドが既に描画済みなら、足すカードは隠した状態で入れる。
+        // 表示/並びは schedule-page.js の再描画（admi:girls-synced）が決める
+        var hideNew = grid.getAttribute('data-schedule-rendered') === '1';
         d.girls.forEach(function (g) {
           if (existing[String(g.id)]) return;
           if (filterFn && !filterFn(g)) return;
           grid.insertAdjacentHTML('beforeend', buildCard(g));
+          if (hideNew) {
+            var added = grid.lastElementChild;
+            if (added && added.classList.contains('girl-card')) added.style.display = 'none';
+          }
         });
       }
 
@@ -159,6 +166,9 @@
       sortByInDate(newGrid);    // top新人セクション（入店3ヶ月未満・入店日新しい順・全員）
       sortByInDate(mainGrid);   // /girls 全員一覧（初期表示も入店日新しい順。girls-filter.jsの既定ソートと同一規則）
       // schedGrid は schedule-page.js が出勤開始時刻順に並べ替えるため触らない
+
+      // カードが出揃ったことを通知。schedule-page.js がこれを受けて出勤表示を描き直す
+      document.dispatchEvent(new CustomEvent('admi:girls-synced'));
 
       // 3+4. 既存カードの写真＋文字情報を最新化（CTRL編集を即反映）
       document.querySelectorAll('.girl-card[data-id]').forEach(function (c) {

@@ -37,7 +37,9 @@ for d in girls news; do
   if [ "$n" = "0" ]; then echo "  $d/: 削除対象なし"; continue; fi
   # 安全弁: ビルド結果より削除数が多い/同等なら異常（ビルド失敗等）とみなして中止
   if [ "$keep" -gt 0 ] && [ "$n" -ge "$keep" ]; then
-    echo "  ❌ $d/: 削除対象 $n 件 ≥ ビルド $keep 件。異常のため掃除を中止"; exit 1
+    # 掃除は後片付けであってデプロイの本体ではない。異常を検知したらその d だけ飛ばし、
+    # 配信そのものは止めない（2026-08-02: kichifu の news で発動しデプロイが中断した）
+    echo "  ⚠ $d/: 削除対象 $n 件 ≥ ビルド $keep 件。異常の可能性があるため掃除を見送り"; continue
   fi
   echo "  $d/: $n 件を削除 → $(tr '\n' ' ' < "/tmp/_del_$d.txt")"
   tr '\n' '\0' < "/tmp/_del_$d.txt" | $SSH "$HOSTSSH" "cd $ROOT/$d && xargs -0 -r rm -f"

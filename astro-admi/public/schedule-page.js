@@ -25,9 +25,15 @@
   function jstDate(ts) { return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }); } // YYYY-MM-DD
   function wdIndex(d) { return new Date(d + 'T00:00:00Z').getUTCDay(); }
 
+  // 直近の描画内容。girl-visibility.js がカードを注ぎ足した後に描き直すため保持する
+  var lastRender = null;
+
   // 選択日の出勤をグリッドに描画
   function render(dateStr, work) {
     work = work || {};
+    lastRender = { date: dateStr, work: work };
+    // 「もう描画済み」の目印。girl-visibility.js は以後に足すカードを display:none で入れる
+    grid.setAttribute('data-schedule-rendered', '1');
     // 既存バッジ除去 & 全カード非表示（日切替対応）
     grid.querySelectorAll('.girl-card-worktime').forEach(function (b) { b.remove(); });
     grid.querySelectorAll('.girl-card').forEach(function (c) { c.style.display = 'none'; });
@@ -62,6 +68,14 @@
     if (e) e.style.display = shown === 0 ? '' : 'none';
     if (window.admiI18n) window.admiI18n.reapply(); // 新規挿入分に選択中の言語を即適用
   }
+
+  // girl-visibility.js が SSG に無い女性のカードを足し終えたら、その分を含めて描き直す。
+  //   ビルド後に登録された女性（例: 2026-08-02 えな/るり）のカードは静的HTMLに無いため、
+  //   両スクリプトの完了順によって「本日の出勤」が 2名/4名 と揺れていた（2026-08-02 修正）。
+  //   どちらが先でも最終結果が同じになるよう、注ぎ足し完了イベントで再描画する。
+  document.addEventListener('admi:girls-synced', function () {
+    if (lastRender) render(lastRender.date, lastRender.work);
+  });
 
   // ---- 週表示（/schedule、タブあり） ----
   if (tabsEl) {
