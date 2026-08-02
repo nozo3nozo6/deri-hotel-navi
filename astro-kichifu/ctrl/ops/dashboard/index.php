@@ -371,7 +371,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal-body .field{margin-bottom:1.1rem;min-width:0;}
   .modal-body label{display:block;color:var(--ink);font-size:.88rem;font-weight:600;margin-bottom:.4rem;}
   .modal-body .hint{display:block;color:var(--ink-soft);font-size:.78rem;margin-top:.25rem;line-height:1.5;}
-  .modal-body input:not([type="checkbox"]):not([type="radio"]),.modal-body select,.modal-body textarea{width:100%;min-width:0;box-sizing:border-box;padding:.7rem .85rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;color:var(--ink);background:var(--white);}
+  .modal-body input:not([type="checkbox"]):not([type="radio"]),.modal-body select,.modal-body textarea{width:100%;min-width:0;box-sizing:border-box;padding:.7rem .85rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;color:var(--ink);background:var(--white);font-weight:600;}
+  /* 入力済みの値と入力例（プレースホルダ）の濃さが同じで見分けにくかったため、
+     値は濃く太く・例は薄く細くしてはっきり差をつける（店長指摘 2026-08-03） */
+  .modal-body input::placeholder,.modal-body textarea::placeholder{color:var(--ink-soft);opacity:.45;font-weight:400;}
+  /* 未選択の select（先頭の「選択」「— すべて —」等）も入力例と同じ扱いで薄く */
+  .modal-body select:has(option[value=""]:checked){color:var(--ink-soft);font-weight:400;}
   /* 日付入力: 年は表示しない（内部値はYYYY-MM-DDのまま保持）*/
   .bm-date::-webkit-datetime-edit-year-field{display:none;}
   /* リピーター履歴バー: 電話番号で顧客がヒットしたときだけ表示、タップで開閉（読み取り専用） */
