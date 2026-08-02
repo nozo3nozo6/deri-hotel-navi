@@ -2337,7 +2337,7 @@
         const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
           ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${String(myShift.start_time).slice(0,5)}<span class="tl-m-wave">〜</span>${String(myShift.end_time).slice(0,5)}</span></div>`
           : '';
-        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
+        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" data-cast-edit="${u.id}" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 
         // この行の予約とシフト（営業日基準）
         // ドライバー行では driver_id=自分の予約、未割当行では assigned_admin_id=null/0 の予約

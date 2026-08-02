@@ -384,7 +384,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 担当キャストの注意事項（猫アレルギー等）。予約を取る前に必ず目に入る位置に出す */
   .bm-cast-alert{margin:.1rem 0 .2rem;padding:.5rem .7rem;border:1.5px solid #f0b4b4;border-radius:8px;
     background:#fff4f4;color:#a5342f;font-size:.82rem;font-weight:600;line-height:1.55;white-space:pre-wrap;}
-  .tl-staff-alert{display:inline-block;margin-left:.2rem;color:#c0392b;font-size:.8rem;cursor:help;}
+  .tl-staff-alert{display:inline-block;margin-left:.2rem;color:#c0392b;font-size:.8rem;cursor:pointer;}
   .tl-staff-thumb{cursor:pointer;}
   /* 媒体・予約経路のチェック群 */
   .bm-media-list{display:flex;flex-wrap:wrap;gap:.35rem;}
