@@ -380,7 +380,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-toggle .bm-history-chev{flex-shrink:0;transition:transform .15s;color:var(--ink-soft);}
   .bm-history-toggle[aria-expanded="true"] .bm-history-chev{transform:rotate(180deg);}
   .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;background:#fff;overflow:hidden;}
-  .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#7a5a2a;line-height:1.5;}
+  .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#7a5a2a;line-height:1.6;}
+  .bm-history-note .bhn-main{white-space:pre-wrap;font-weight:600;}
+  .bm-history-note .bhn-meta{white-space:pre-wrap;margin-top:.4rem;padding-top:.35rem;
+    border-top:1px dotted rgba(122,90,42,.28);font-size:.7rem;line-height:1.5;color:rgba(122,90,42,.6);}
   .bm-history-row{padding:.5rem .7rem;border-bottom:1px dashed var(--gray);}
   .bm-history-row:last-child{border-bottom:none;}
   /* PC/スマホともに必ず1行に収める: 日付/曜日/時刻/担当・料金・ステータスは固定表示、コース名が幅不足時に省略される */

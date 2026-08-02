@@ -2561,6 +2561,23 @@
     return (shifts || []).find(s =>
       String(s.shift_date).slice(0, 10) === bizDay && Number(s.admin_user_id) === Number(uid)) || null;
   }
+  // 顧客メモは「店長が書いた本文」と「旧システムからの移行情報」が同じ欄に同居している。
+  // さらに改行が潰れて全部1行に見えていたため読みにくかった（店長指摘 2026-08-02）。
+  // 本文を主役に出し、移行情報（統合された別登録・旧ID・初回/最終担当）は控えめに分ける。
+  const NOTE_META_HEAD = /^(【同番号の別登録を統合】|─ 旧システム移行|初回担当[:：]|最終担当[:：])/;
+  function renderCustomerNote(notes) {
+    const lines = String(notes || '').split('\n');
+    let metaAt = lines.findIndex(l => NOTE_META_HEAD.test(l.trim()));
+    // 統合行は本文が複数行に渡ることがあるので、見つけた行以降はすべて移行情報として扱う
+    const main = (metaAt === -1 ? lines : lines.slice(0, metaAt)).join('\n').trim();
+    const meta = (metaAt === -1 ? [] : lines.slice(metaAt)).join('\n').trim();
+    if (!main && !meta) return '';
+    return '<div class="bm-history-note">'
+      + (main ? `<div class="bhn-main">📝 ${escapeHtml(main)}</div>` : '')
+      + (meta ? `<div class="bhn-meta">${escapeHtml(meta)}</div>` : '')
+      + '</div>';
+  }
+
   // ===== ご利用履歴の表（顧客詳細・予約モーダルで共通） =====
   // 並び: 区分/利用日/キャスト/コース/指名/料金/交通費/場所/メモ/店舗。
   // 店舗は現状ほぼ「アドミ」一択で見る必要が薄いため一番右（旧データには他店舗も混在）。
@@ -2932,7 +2949,7 @@
       summaryEl.textContent = visitCount > 0
         ? `リピーター・ご利用${visitCount}回` + lastLabel
         : (notesTrim ? '📝 メモ・予約履歴あり' : `予約履歴 ${rows.length + legacy.length}件`);
-      const noteHtml = notesTrim ? `<div class="bm-history-note">📝 ${escapeHtml(notesTrim)}</div>` : '';
+      const noteHtml = renderCustomerNote(notesTrim);
       // 旧システムの一覧と同じ表形式。件数が多いので直近30件まで
       const mergedRows = mergeHistoryRows(rows, legacy).slice(0, 30);
       const rowsHtml = renderHistoryTable(mergedRows, { clickable: false });
