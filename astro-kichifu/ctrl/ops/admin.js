@@ -138,6 +138,8 @@
         withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
       } else if (e.target.id === 'bmCity-2') {
         withBmSuffix('-2', () => populateHotelSelect(e.target.value));
+      } else if (e.target.id === 'bmHotelId-2') {
+        withBmSuffix('-2', () => applyHotelTransportFee(e.target.value));
       } else if (e.target.id === 'bmStatus-2') {
         document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
         withBmSuffix('-2', updateBookingTotal);
@@ -311,6 +313,25 @@
     const r = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"][value="${reg}"]`);
     if (r && !r.checked) { r.checked = true; populateCitySelect(reg); }
   }
+  // ホテルを選んだら、そのホテルに登録してある交通費を初期値として入れる。
+  // 実績では同じホテルでも回により ¥0〜¥2,200 と揺れるので、あくまで初期値（手で変えられる）。
+  function applyHotelTransportFee(hotelId) {
+    const sel = bel('bmTransport');
+    if (!sel || !hotelId) return;
+    const h = hotelsForSelect.find(x => Number(x.id) === Number(hotelId));
+    const raw = h ? h.transport_fee : null;
+    if (raw === null || raw === undefined || raw === '') return;   // 未登録のホテルは触らない
+    const fee = String(parseInt(raw, 10) || 0);
+    if (![...sel.options].some(o => o.value === fee)) {
+      const o = document.createElement('option');
+      o.value = fee;
+      o.textContent = `¥${Number(fee).toLocaleString()}`;
+      sel.appendChild(o);
+    }
+    sel.value = fee;
+    try { updateBookingTotal(); } catch (e) {}
+  }
+
   // ホテルselectを市区町村で絞り込み
   function populateHotelSelect(filterCity) {
     const sel = bel('bmHotelId');
@@ -7323,6 +7344,8 @@
     });
     // 市区町村変更 → ホテル絞り込み
     bel('bmCity').addEventListener('change', e => populateHotelSelect(e.target.value));
+    // ホテル変更 → そのホテルの交通費を初期値に入れる
+    bel('bmHotelId')?.addEventListener('change', e => applyHotelTransportFee(e.target.value));
     // ステータス変更 → キャンセル理由欄の表示制御＋合計注記更新
     bel('bmStatus').addEventListener('change', e => {
       bel('bmCancelWrap').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
