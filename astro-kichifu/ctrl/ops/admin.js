@@ -657,7 +657,9 @@
       } else {
         return;   // 関係ない住所が入っている時は触らない
       }
-      emAddrAutoFilled = addr.value;
+      // 「まだ市区町村しか入っていない」状態のときだけ、次回まるごと差し替えてよい。
+      // 番地まで入っている値を覚えると、次に選び直した時に住所が消えてしまう
+      emAddrAutoFilled = (addr.value === c) ? c : '';
     });
     addr.addEventListener('input', () => {
       emAddrAutoFilled = '';                                   // 手で書き足したら以後は自動で触らない
