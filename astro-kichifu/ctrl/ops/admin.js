@@ -2562,7 +2562,8 @@
       String(s.shift_date).slice(0, 10) === bizDay && Number(s.admin_user_id) === Number(uid)) || null;
   }
   // ===== ご利用履歴の表（顧客詳細・予約モーダルで共通） =====
-  // 旧システムの一覧と同じ「区分/利用日/キャスト/コース/指名/料金/場所/メモ」の並び。
+  // 並び: 区分/利用日/キャスト/コース/指名/料金/交通費/場所/メモ/店舗。
+  // 店舗は現状ほぼ「アドミ」一択で見る必要が薄いため一番右（旧データには他店舗も混在）。
   // 旧予約(legacy)と OPS予約(booking)を同じ表に混ぜて時系列で見せる。
   const HIST_STATUS = {
     inquiry: ['問合せ', ''], reserved: ['予約', ''], pre_reserved: ['事前予約', ''],
@@ -2628,7 +2629,6 @@
       return `
       <tr class="${row.kind === 'l' ? 'is-legacy' : ''}${clickable && bid ? ' clickable' : ''}"${clickable && bid ? ` data-booking-id="${bid}"` : ''}>
         <td><span class="ht-kind ${kind[1]}">${escapeHtml(kind[0])}</span>${legacyTag}</td>
-        <td class="ht-place">${escapeHtml(shop)}</td>
         <td class="ht-date">${date}</td>
         <td>${escapeHtml(cast)}</td>
         <td class="ht-course">${escapeHtml(course)}</td>
@@ -2637,10 +2637,11 @@
         <td class="ht-price ht-trans">${trans > 0 ? '¥' + trans.toLocaleString() : ''}</td>
         <td class="ht-place">${escapeHtml(place)}</td>
         <td class="ht-memo">${escapeHtml(memo)}</td>
+        <td class="ht-shop">${escapeHtml(shop)}</td>
       </tr>`;
     }).join('');
     return `<div class="hist-tbl-wrap"><table class="hist-tbl">
-      <thead><tr><th>区分</th><th>店舗</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>交通費</th><th>場所</th><th>メモ</th></tr></thead>
+      <thead><tr><th>区分</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>交通費</th><th>場所</th><th>メモ</th><th>店舗</th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
   }
 

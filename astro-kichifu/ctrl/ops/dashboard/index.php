@@ -411,6 +411,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .hist-tbl .ht-memo{white-space:pre-wrap;color:#7a5a2a;min-width:11rem;max-width:20rem;}
   .hist-tbl .ht-place{color:var(--ink-soft);}
   .hist-tbl .ht-trans{font-weight:600;color:var(--ink-soft);}
+  .hist-tbl .ht-shop{color:var(--ink-soft);font-size:.72rem;}
   .hist-tbl .ht-kind{font-weight:700;font-size:.7rem;padding:.1rem .45rem;border-radius:20px;
                      background:var(--foam);color:var(--ink-soft);white-space:nowrap;}
   .hist-tbl .ht-kind.ok{background:rgba(58,154,96,.13);color:var(--green);}
