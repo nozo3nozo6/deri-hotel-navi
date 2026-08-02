@@ -1391,10 +1391,21 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <input type="hidden" id="bmEnd">
         </div>
       </div>
-      <!-- 市区町村(ホテル絞込) | 訪問先タイプ -->
+      <!-- 市区町村のエリア切替（メイン=多摩／23区／埼玉／神奈川。いずれも立川駅から近い順） -->
+      <div class="field" id="bmCityRegionField">
+        <label>市区町村のエリア</label>
+        <div style="display:flex;gap:.3rem;background:var(--foam);padding:.4rem;border-radius:10px;">
+          <label class="loc-tab"><input type="radio" name="bmCityRegion" value="main" checked><span>メイン</span></label>
+          <label class="loc-tab"><input type="radio" name="bmCityRegion" value="tokyo23"><span>23区</span></label>
+          <label class="loc-tab"><input type="radio" name="bmCityRegion" value="saitama"><span>埼玉</span></label>
+          <label class="loc-tab"><input type="radio" name="bmCityRegion" value="kanagawa"><span>神奈川</span></label>
+        </div>
+      </div>
+      <!-- 市区町村 | 訪問先タイプ -->
+      <!-- 市区町村は訪問先タイプを切り替えても残す（ホテル→自宅に変えるたびに選び直すのが手間なため） -->
       <div id="bmLocTypeRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
-        <div class="field loc-section" data-loc="hotel">
-          <label for="bmCity">市区町村で絞り込み</label>
+        <div class="field" id="bmCityField">
+          <label for="bmCity">市区町村</label>
           <select id="bmCity"><option value="">— すべて —</option></select>
         </div>
         <div class="field">

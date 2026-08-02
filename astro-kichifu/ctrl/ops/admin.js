@@ -134,6 +134,8 @@
           const price = opt && opt.dataset.price;
           if (price) { bel('bmPrice').value = price; autoToggleLateNight(); updateBookingTotal(); }
         });
+      } else if (e.target.name === 'bmCityRegion-2') {
+        withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
       } else if (e.target.id === 'bmCity-2') {
         withBmSuffix('-2', () => populateHotelSelect(e.target.value));
       } else if (e.target.id === 'bmStatus-2') {
@@ -244,13 +246,49 @@
       return ra !== rb ? ra - rb : a.localeCompare(b, 'ja');
     });
   }
-  // 市区町村selectをホテルリストから動的生成（立川市→近い順）
-  function populateCitySelect() {
+  // メイン以外のエリア。いずれも立川駅からの距離が近い順（区役所・市役所の位置で概算）。
+  //   ホテルの登録が無い市区町村も選べるようにするため、ホテル一覧からではなく固定リストで持つ
+  //   （選んだ市区町村にホテルが無ければ、ホテル名は手入力すればよい）。
+  const CITY_REGIONS = {
+    tokyo23: [
+      '杉並区', '練馬区', '世田谷区', '中野区', '渋谷区', '新宿区', '目黒区', '板橋区',
+      '豊島区', '北区', '品川区', '文京区', '千代田区', '港区', '大田区', '中央区',
+      '台東区', '荒川区', '墨田区', '足立区', '江東区', '葛飾区', '江戸川区',
+    ],
+    saitama: [
+      '所沢市', '入間市', '狭山市', '新座市', '志木市', '朝霞市', '和光市', '飯能市',
+      '入間郡三芳町', 'ふじみ野市', '富士見市', '日高市', '川越市', '鶴ヶ島市', '坂戸市',
+      '戸田市', '蕨市', '川口市', 'さいたま市', '上尾市',
+    ],
+    kanagawa: [
+      '相模原市', '座間市', '大和市', '厚木市', '海老名市', '綾瀬市', '川崎市',
+      '伊勢原市', '横浜市', '秦野市', '藤沢市', '茅ヶ崎市', '平塚市', '小田原市',
+    ],
+  };
+  function currentCityRegion() {
+    const r = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"]:checked`);
+    return r ? r.value : 'main';
+  }
+  // 市区町村select。メイン=ホテル一覧から動的生成（立川市→近い順）、他=固定リスト
+  function populateCitySelect(region) {
     const sel = bel('bmCity');
     if (!sel) return;
-    const cities = sortCitiesByProximity([...new Set(hotelsForSelect.map(h => h.city).filter(Boolean))]);
+    const keep = sel.value;
+    const reg = region || currentCityRegion();
+    const cities = (reg === 'main')
+      ? sortCitiesByProximity([...new Set(hotelsForSelect.map(h => h.city).filter(Boolean))])
+      : (CITY_REGIONS[reg] || []);
     sel.innerHTML = '<option value="">— すべて —</option>' +
       cities.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+    if (keep && cities.includes(keep)) sel.value = keep;   // 同じ市区町村が新しいエリアにもあれば維持
+  }
+  // 市区町村の値から、それが属するエリアのタブを選び直す（既存予約を開いた時など）
+  function syncCityRegionTab(city) {
+    if (!city) return;
+    let reg = 'main';
+    for (const [k, list] of Object.entries(CITY_REGIONS)) if (list.includes(city)) { reg = k; break; }
+    const r = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"][value="${reg}"]`);
+    if (r && !r.checked) { r.checked = true; populateCitySelect(reg); }
   }
   // ホテルselectを市区町村で絞り込み
   function populateHotelSelect(filterCity) {
@@ -2883,6 +2921,7 @@
           // ホテルの市区町村も復元
           const h = hotelsForSelect.find(x => Number(x.id) === Number(b.hotel_id));
           if (h && h.city) {
+            syncCityRegionTab(h.city);   // 23区などの予約を開いたらエリアタブも合わせる
             bel('bmCity').value = h.city;
             populateHotelSelect(h.city);
           } else {
@@ -2983,6 +3022,8 @@
       const campCbNew = bel('bmCampaign');
       if (campCbNew) campCbNew.checked = true;
       updateBookingTotal();
+      const mainRegion = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"][value="main"]`);
+      if (mainRegion) { mainRegion.checked = true; populateCitySelect('main'); }
       bel('bmCity').value = '';
       populateHotelSelect('');
       switchLocSection('hotel');
@@ -3062,6 +3103,11 @@
     document.querySelectorAll('.loc-section').forEach(el => el.style.display = checked ? 'none' : '');
     const locTypeField = document.querySelector('input[name="bmLocType"]')?.closest('.field');
     if (locTypeField) locTypeField.style.display = checked ? 'none' : '';
+    // 市区町村は loc-section ではなくなった（訪問先タイプを変えても残す）ので、休憩モードでは個別に隠す
+    ['bmCityField', 'bmCityRegionField'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = checked ? 'none' : '';
+    });
     // ドライバー欄 + 送迎関連
     const drvF = document.getElementById('bmDriverId')?.closest('.field');
     if (drvF) drvF.style.display = checked ? 'none' : '';
@@ -7036,6 +7082,10 @@
     // 訪問先タイプ切替
     document.querySelectorAll('input[name="bmLocType"]').forEach(r => {
       r.addEventListener('change', () => switchLocSection(r.value));
+    });
+    // 市区町村のエリア切替 → 市区町村を組み直す
+    document.querySelectorAll('input[name="bmCityRegion"]').forEach(r => {
+      r.addEventListener('change', () => { populateCitySelect(r.value); populateHotelSelect(bel('bmCity').value); });
     });
     // 市区町村変更 → ホテル絞り込み
     bel('bmCity').addEventListener('change', e => populateHotelSelect(e.target.value));
