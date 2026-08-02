@@ -380,10 +380,23 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-toggle .bm-history-chev{flex-shrink:0;transition:transform .15s;color:var(--ink-soft);}
   .bm-history-toggle[aria-expanded="true"] .bm-history-chev{transform:rotate(180deg);}
   .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;background:#fff;overflow:hidden;}
-  .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#7a5a2a;line-height:1.6;}
-  .bm-history-note .bhn-main{white-space:pre-wrap;font-weight:600;}
-  .bm-history-note .bhn-meta{white-space:pre-wrap;margin-top:.4rem;padding-top:.35rem;
-    border-top:1px dotted rgba(122,90,42,.28);font-size:.7rem;line-height:1.5;color:rgba(122,90,42,.6);}
+  /* お客様メモ（顧客に紐づく。キャストには伝えない内容）。予約メモ #bmNotes とは別物 */
+  .bm-history-note{padding:.55rem .7rem;background:#fff8ef;border-bottom:1px dashed var(--gray);font-size:.78rem;color:#6b4d20;line-height:1.6;}
+  .bm-history-note .bhn-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
+  .bm-history-note .bhn-title{font-weight:700;font-size:.76rem;color:#6b4d20;flex:1;min-width:0;}
+  .bm-history-note .bhn-sub{margin-left:.4rem;font-weight:500;font-size:.68rem;color:#9a7a45;}
+  .bm-history-note .bhn-btn{border:1.5px solid #d8c3a0;background:#fff;color:#6b4d20;border-radius:7px;
+    padding:.22rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .bm-history-note .bhn-btn:hover{background:#fdf3e3;}
+  .bm-history-note .bhn-btn.primary{background:var(--deep);border-color:var(--deep);color:#fff;}
+  .bm-history-note .bhn-main{white-space:pre-wrap;font-weight:600;color:#5c3f18;}
+  .bm-history-note .bhn-empty{color:#9a7a45;font-size:.74rem;}
+  .bm-history-note .bhn-ta{width:100%;border:1.5px solid #d8c3a0;border-radius:8px;padding:.45rem .55rem;
+    font-size:16px;line-height:1.5;background:#fff;color:var(--ink);resize:vertical;}
+  .bm-history-note .bhn-actions{display:flex;justify-content:flex-end;gap:.4rem;margin-top:.4rem;}
+  /* 移行情報は補助情報だが、読めないと意味がないのでコントラストは確保する */
+  .bm-history-note .bhn-meta{white-space:pre-wrap;margin-top:.45rem;padding-top:.4rem;
+    border-top:1px dotted #d8c3a0;font-size:.72rem;line-height:1.55;color:#8a6a3a;}
   .bm-history-row{padding:.5rem .7rem;border-bottom:1px dashed var(--gray);}
   .bm-history-row:last-child{border-bottom:none;}
   /* PC/スマホともに必ず1行に収める: 日付/曜日/時刻/担当・料金・ステータスは固定表示、コース名が幅不足時に省略される */
@@ -1611,7 +1624,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
         <div style="font-size:.74rem;color:var(--ink-soft);margin-top:.3rem;">※「お客様都合」のときのみ売上・報酬に計上されます（他の理由は計上しません）</div>
       </div>
-      <div class="field"><label for="bmNotes">メモ</label><textarea id="bmNotes"></textarea></div>
+      <div class="field"><label for="bmNotes">この予約のメモ <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">キャスト・ドライバーへ</span></label><textarea id="bmNotes" placeholder="キャストやドライバーに伝えたいこと（この予約かぎり）"></textarea></div>
       <div class="field bm-customer-only">
         <label for="bmCustomerEmail">メール(任意)</label>
         <input type="email" id="bmCustomerEmail" placeholder="example@gmail.com">
@@ -1708,7 +1721,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div class="field"><label for="cmLocation">よく使う場所</label><input type="text" id="cmLocation" placeholder="例: 立川駅前のホテル○○"></div>
       <div class="field"><label for="cmLocation2">よく使う場所 2</label><input type="text" id="cmLocation2" placeholder="任意（自宅とセカンドハウスなど）"></div>
-      <div class="field"><label for="cmNotes">メモ（内部）</label><textarea id="cmNotes" placeholder="苦手なプレイ、好みなど"></textarea></div>
+      <div class="field"><label for="cmNotes">お客様メモ <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">キャストには伝えない</span></label><textarea id="cmNotes" placeholder="苦手なプレイ、好み、注意点など（このお客様にずっと付くメモ）"></textarea></div>
       <!-- 誓約書 アップロード -->
       <div class="field" id="cmPledgeField">
         <label>誓約書</label>

@@ -2564,18 +2564,71 @@
   // 顧客メモは「店長が書いた本文」と「旧システムからの移行情報」が同じ欄に同居している。
   // さらに改行が潰れて全部1行に見えていたため読みにくかった（店長指摘 2026-08-02）。
   // 本文を主役に出し、移行情報（統合された別登録・旧ID・初回/最終担当）は控えめに分ける。
+  //
+  // 【メモ2種類の役割】混同しないこと（店長の運用 2026-08-02）
+  //   お客様メモ（ops_customers.notes）… そのお客様にずっと付いて回るメモ。
+  //       キャストには伝えない内容を書く場所。予約モーダルからも編集・追加できる。
+  //   予約メモ（ops_bookings.notes, #bmNotes）… その予約1件かぎり。
+  //       キャストやドライバーに伝えたいことを書く場所。
+  //
   const NOTE_META_HEAD = /^(【同番号の別登録を統合】|─ 旧システム移行|初回担当[:：]|最終担当[:：])/;
-  function renderCustomerNote(notes) {
+  /** お客様メモを「本文」と「旧システムの移行情報」に割る。編集時は本文だけを触らせる */
+  function splitCustomerNote(notes) {
     const lines = String(notes || '').split('\n');
-    let metaAt = lines.findIndex(l => NOTE_META_HEAD.test(l.trim()));
     // 統合行は本文が複数行に渡ることがあるので、見つけた行以降はすべて移行情報として扱う
-    const main = (metaAt === -1 ? lines : lines.slice(0, metaAt)).join('\n').trim();
-    const meta = (metaAt === -1 ? [] : lines.slice(metaAt)).join('\n').trim();
-    if (!main && !meta) return '';
+    const metaAt = lines.findIndex(l => NOTE_META_HEAD.test(l.trim()));
+    return {
+      main: (metaAt === -1 ? lines : lines.slice(0, metaAt)).join('\n').trim(),
+      meta: (metaAt === -1 ? [] : lines.slice(metaAt)).join('\n').trim(),
+    };
+  }
+  function customerNoteHead(withEdit) {
+    return '<div class="bhn-head"><span class="bhn-title">👤 お客様メモ'
+      + '<span class="bhn-sub">キャストには伝えない</span></span>'
+      + (withEdit ? '<button type="button" class="bhn-btn" data-note-edit>✏️ 編集</button>' : '')
+      + '</div>';
+  }
+  function renderCustomerNote(notes) {
+    const { main, meta } = splitCustomerNote(notes);
     return '<div class="bm-history-note">'
-      + (main ? `<div class="bhn-main">📝 ${escapeHtml(main)}</div>` : '')
+      + customerNoteHead(true)
+      + (main ? `<div class="bhn-main">${escapeHtml(main)}</div>`
+              : '<div class="bhn-empty">（未記入）— 編集から追加できます</div>')
       + (meta ? `<div class="bhn-meta">${escapeHtml(meta)}</div>` : '')
       + '</div>';
+  }
+  /** 予約モーダルの履歴パネル内で、お客様メモを編集できるようにする */
+  function wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes) {
+    const rerender = () => {
+      const host = panelEl.querySelector('.bm-history-note');
+      if (!host) return;
+      host.outerHTML = renderCustomerNote(getNotes());
+      wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes);
+    };
+    const editBtn = panelEl.querySelector('[data-note-edit]');
+    if (!editBtn) return;
+    editBtn.addEventListener('click', () => {
+      const host = panelEl.querySelector('.bm-history-note');
+      const { main, meta } = splitCustomerNote(getNotes());
+      host.innerHTML = customerNoteHead(false)
+        + `<textarea class="bhn-ta" rows="4" placeholder="キャストには伝えない、このお客様の情報">${escapeHtml(main)}</textarea>`
+        + '<div class="bhn-actions"><button type="button" class="bhn-btn" data-note-cancel>キャンセル</button>'
+        + '<button type="button" class="bhn-btn primary" data-note-save>保存</button></div>'
+        + (meta ? `<div class="bhn-meta">${escapeHtml(meta)}</div>` : '');
+      const ta = host.querySelector('.bhn-ta');
+      ta.focus();
+      host.querySelector('[data-note-cancel]').addEventListener('click', rerender);
+      host.querySelector('[data-note-save]').addEventListener('click', async () => {
+        // 移行情報は編集させず、そのまま末尾に戻す（旧IDなどを消さないため）
+        const next = [ta.value.trim(), meta].filter(Boolean).join('\n');
+        try {
+          await apiPost('/customers.php?action=update', { id: customerId, notes: next });
+          setNotes(next);
+          toast('✓ お客様メモを保存しました', 'ok');
+          rerender();
+        } catch (e) { toast('保存に失敗しました', 'err'); }
+      });
+    });
   }
 
   // ===== ご利用履歴の表（顧客詳細・予約モーダルで共通） =====
@@ -2933,7 +2986,7 @@
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
       const legacy = d.legacy_visits || [];   // 旧システムの利用履歴（2017-10〜2026-07）
-      if (visitCount <= 0 && !notesTrim && rows.length === 0 && legacy.length === 0) { hide(); return; }
+      // 履歴もメモも無い新規客でも、お客様メモを書けるようパネルは出す
       const mdDate = (s) => { const m = String(s || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${parseInt(m[1], 10)}/${parseInt(m[2], 10)}` : escapeHtml(s || ''); };
       // 「前回」は OPS予約と旧履歴の両方から最新の完了を拾う（8/1直後は旧履歴側が直近になる）
       const lastCompleted = rows.find(b => b.status === 'completed');
@@ -2946,14 +2999,17 @@
       } else if (lastLegacy) {
         lastLabel = `（前回 ${mdDate(lastLegacy.visit_at)} ${lastLegacy.course_name || ''}${lastLegacy.cast_name ? ' ' + lastLegacy.cast_name : ''}）`;
       }
+      const histCount = rows.length + legacy.length;
       summaryEl.textContent = visitCount > 0
         ? `リピーター・ご利用${visitCount}回` + lastLabel
-        : (notesTrim ? '📝 メモ・予約履歴あり' : `予約履歴 ${rows.length + legacy.length}件`);
-      const noteHtml = renderCustomerNote(notesTrim);
+        : (notesTrim ? '📝 お客様メモあり' : (histCount > 0 ? `予約履歴 ${histCount}件` : '新規のお客様'));
+      let curNotes = notesTrim;
+      const noteHtml = renderCustomerNote(curNotes);
       // 旧システムの一覧と同じ表形式。件数が多いので直近30件まで
       const mergedRows = mergeHistoryRows(rows, legacy).slice(0, 30);
       const rowsHtml = renderHistoryTable(mergedRows, { clickable: false });
       panelEl.innerHTML = noteHtml + rowsHtml;
+      wireCustomerNoteEdit(panelEl, customerId, () => curNotes, v => { curNotes = v; });
     } catch (e) {
       if (historyReqSeq[suffix] !== mySeq) return;
       summaryEl.textContent = 'リピーター履歴（読み込み失敗）';
