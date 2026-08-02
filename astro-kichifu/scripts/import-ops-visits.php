@@ -21,7 +21,8 @@
 //     マスタで補完する時は先頭の名前部分だけ使う（（や空白で切る）。
 //   - 金額は cash + card（実際の回収額）。コース料金の内訳合算より確実。
 //   - stat: 9=completed(35,625) / 0=cancelled(1,789) / その他=other(469)
-//   - legacy_income_id UNIQUE + INSERT IGNORE で再実行しても重複しない。
+//   - 場所は hotel_id → mst_hotel（名前＋市区町村）。ホテル以外は place_id=1 が自宅。
+//   - legacy_income_id UNIQUE + upsert なので、ルールを直して何度でも流し直せる。
 //   - 実行後、ops_customers の visit_count / first_visit_at / last_visit_at を
 //     completed 実績から再計算して上書きする。
 // ==========================================================================
@@ -74,8 +75,10 @@ foreach ($income as $r) $incMap[(int)$r['id']] = [(string)$r['customer_id'], tri
 $courseMap = []; $courseMin = [];
 foreach ($courses as $r) { $courseMap[(string)$r['id']] = trim((string)$r['name']); $courseMin[(string)$r['id']] = (int)$r['time']; }
 
-$hotelMap = [];
-foreach ($hotels as $r) $hotelMap[(string)$r['id']] = trim((string)$r['name']);
+$hotelMap = [];   // id => [name, city]
+foreach ($hotels as $r) {
+    $hotelMap[(string)$r['id']] = [trim((string)$r['name']), trim((string)($r['addr_1'] ?? ''))];
+}
 
 // キャスト: 先頭の名前部分のみ（（/空白/管理メモを除去）
 $castMap = [];
@@ -117,7 +120,22 @@ foreach ($reserve as $r) {
     }
 
     $total = (int)$r['cash'] + (int)$r['card'];
-    $hotelName = $hotelMap[(string)$r['hotel_id']] ?? '';
+
+    // 場所: hotel_id があればホテル。無ければ place_id で判定。
+    //   place_id=1 は【自宅】。2026-08-02 検証: place_id=1 の 12,832件は 99% が顧客住所を
+    //   持つ一方、ホテル利用 23,259件では 7% しか持たない＝自宅派遣で確定。
+    //   place_id=2/3（38件）は用途不明なので「その他」。どちらも無い 1,754件は不明のまま。
+    [$hotelName, $hotelCity] = $hotelMap[(string)$r['hotel_id']] ?? ['', ''];
+    $pid = (string)$r['place_id'];
+    if ($hotelName !== '') {
+        $placeType = 'hotel';
+    } elseif ($pid === '1') {
+        $placeType = 'home';
+    } elseif ($pid !== '' && $pid !== '0') {
+        $placeType = 'other';
+    } else {
+        $placeType = 'unknown';
+    }
     $memoParts = [];
     if ($memo !== '') $memoParts[] = $memo;
     if (trim((string)$r['adjust_memo']) !== '') $memoParts[] = '調整: ' . trim((string)$r['adjust_memo']);
@@ -130,6 +148,8 @@ foreach ($reserve as $r) {
         'course_minutes'   => $courseMin[(string)$r['course_id']] ?? null,
         'total_price'      => $total,
         'hotel_name'       => mb_substr($hotelName, 0, 100),
+        'hotel_city'       => mb_substr($hotelCity, 0, 40),
+        'place_type'       => $placeType,
         'room'             => mb_substr(trim((string)$r['hotel_room']), 0, 20),
         'memo'             => implode("\n", $memoParts),
         'status'           => $statLabel((string)$r['stat']),
@@ -140,6 +160,8 @@ $byStatus = array_count_values(array_column($rows, 'status'));
 printf("== 取り込み対象 %d 件（スキップ: income欠落=%d 顧客不明=%d 日付不正=%d）\n",
     count($rows), $skip['income'], $skip['cust'], $skip['date']);
 print('   状態: ' . json_encode($byStatus, JSON_UNESCAPED_UNICODE) . "\n");
+$byPlace = array_count_values(array_column($rows, 'place_type'));
+echo '   場所: ' . json_encode($byPlace, JSON_UNESCAPED_UNICODE) . "\n";
 $named = count(array_filter($rows, fn($x) => $x['cast_name'] !== ''));
 printf("   キャスト名あり: %d / コース名あり: %d / メモあり: %d\n",
     $named,
@@ -162,6 +184,8 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
     course_minutes INT NULL,
     total_price INT NOT NULL DEFAULT 0,
     hotel_name VARCHAR(100) NOT NULL DEFAULT '',
+    hotel_city VARCHAR(40) NOT NULL DEFAULT '',
+    place_type VARCHAR(10) NOT NULL DEFAULT 'unknown',
     room VARCHAR(20) NOT NULL DEFAULT '',
     memo TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'completed',
@@ -170,20 +194,33 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS ops_legacy_visits (
     KEY idx_cust (customer_id, visit_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-$ins = $pdo->prepare("INSERT IGNORE INTO ops_legacy_visits
-    (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, room, memo, status, legacy_income_id)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+// 既存テーブルに後から足した列を補う
+$cols = $pdo->query('SHOW COLUMNS FROM ops_legacy_visits')->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array('hotel_city', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN hotel_city VARCHAR(40) NOT NULL DEFAULT '' AFTER hotel_name");
+if (!in_array('place_type', $cols, true)) $pdo->exec("ALTER TABLE ops_legacy_visits ADD COLUMN place_type VARCHAR(10) NOT NULL DEFAULT 'unknown' AFTER hotel_city");
+
+// 再実行で内容を更新できるよう upsert（取り込みルールを直したら流し直せる）
+$ins = $pdo->prepare("INSERT INTO ops_legacy_visits
+    (customer_id, visit_at, cast_name, course_name, course_minutes, total_price, hotel_name, hotel_city, place_type, room, memo, status, legacy_income_id)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+      customer_id=VALUES(customer_id), visit_at=VALUES(visit_at), cast_name=VALUES(cast_name),
+      course_name=VALUES(course_name), course_minutes=VALUES(course_minutes), total_price=VALUES(total_price),
+      hotel_name=VALUES(hotel_name), hotel_city=VALUES(hotel_city), place_type=VALUES(place_type),
+      room=VALUES(room), memo=VALUES(memo), status=VALUES(status)");
 $pdo->beginTransaction();
 $n = 0;
 foreach ($rows as $x) {
     $ins->execute([
         $x['customer_id'], $x['visit_at'], $x['cast_name'], $x['course_name'], $x['course_minutes'],
-        $x['total_price'], $x['hotel_name'], $x['room'], $x['memo'], $x['status'], $x['legacy_income_id'],
+        $x['total_price'], $x['hotel_name'], $x['hotel_city'], $x['place_type'], $x['room'],
+        $x['memo'], $x['status'], $x['legacy_income_id'],
     ]);
     $n += $ins->rowCount();
 }
 $pdo->commit();
-echo "INSERT: {$n} 件（既存スキップ " . (count($rows) - $n) . "）\n";
+// rowCount: 新規=1 / 更新=2 / 同値=0 なので件数そのものではなく処理数を出す
+echo '処理: ' . count($rows) . " 件（DB反映 {$n}）\n";
 
 // ---- 顧客の visit_count / first / last を completed 実績で再計算
 echo "== 顧客統計を再計算 ==\n";

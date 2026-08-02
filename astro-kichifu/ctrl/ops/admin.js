@@ -2561,6 +2561,20 @@
     return (shifts || []).find(s =>
       String(s.shift_date).slice(0, 10) === bizDay && Number(s.admin_user_id) === Number(uid)) || null;
   }
+  // 旧履歴の「場所」表示。ホテルは市区町村つき（どこで利用したかが一目で分かるように）
+  function legacyPlaceLabel(v, opts) {
+    const compact = !!(opts && opts.compact);
+    if (v.place_type === 'hotel' || v.hotel_name) {
+      const city = (v.hotel_city || '').trim();
+      const room = (v.room || '').trim();
+      const name = (v.hotel_name || '').trim();
+      return '🏨 ' + [city, name].filter(Boolean).join(' ') + (room && !compact ? ' ' + room + '号室' : '');
+    }
+    if (v.place_type === 'home') return '🏠 自宅';
+    if (v.place_type === 'other') return '📍 その他';
+    return '';
+  }
+
   function castDayRank(shifts, bizDay, uid) {
     const s = shiftForDay(shifts, bizDay, uid);
     if (!s || !s.start_time) return 9999;   // 出勤なし（予約だけある人）は最後
@@ -2856,7 +2870,7 @@
         const subBits = [
           price > 0 ? '💰 ¥' + price.toLocaleString() : '',
           v.cast_name ? '👤 ' + escapeHtml(v.cast_name) : '',
-          v.hotel_name ? '🏨 ' + escapeHtml(v.hotel_name) : '',
+          legacyPlaceLabel(v, { compact: true }) ? escapeHtml(legacyPlaceLabel(v, { compact: true })) : '',
         ].filter(Boolean).join('　');
         const st = v.status === 'completed' ? '✓完了' : (v.status === 'cancelled' ? 'キャンセル' : 'その他');
         const stCls = v.status === 'completed' ? ' ok' : (v.status === 'cancelled' ? ' ng' : '');
@@ -3883,7 +3897,7 @@
                     <span style="font-size:.75rem;${stCls}">${LEGACY_STATUS[v.status] || v.status}</span>
                     <span style="font-size:.68rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .3rem;">旧</span>
                   </div>
-                  ${(v.hotel_name || v.room) ? `<div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(v.hotel_name || '')}${v.room ? ' ' + escapeHtml(v.room) + '号室' : ''}</div>` : ''}
+                  ${legacyPlaceLabel(v) ? `<div style="font-size:.75rem;color:var(--ink-soft);">${escapeHtml(legacyPlaceLabel(v))}</div>` : ''}
                   ${memo ? `<div style="font-size:.78rem;color:var(--ink-soft);background:var(--foam,#f5f2ee);border-radius:6px;padding:.25rem .5rem;margin-top:.25rem;white-space:pre-wrap;">📝 ${escapeHtml(memo)}</div>` : ''}
                 </div>`;
                 }
