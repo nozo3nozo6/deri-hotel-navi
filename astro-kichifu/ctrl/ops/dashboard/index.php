@@ -381,6 +381,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-history-toggle[aria-expanded="true"] .bm-history-chev{transform:rotate(180deg);}
   .bm-history-panel{margin-top:.4rem;border:1.5px solid var(--gray);border-radius:10px;background:#fff;overflow:hidden;}
   /* お客様メモ（顧客に紐づく。キャストには伝えない内容）。予約メモ #bmNotes とは別物 */
+  /* 担当キャストの注意事項（猫アレルギー等）。予約を取る前に必ず目に入る位置に出す */
+  .bm-cast-alert{margin:.1rem 0 .2rem;padding:.5rem .7rem;border:1.5px solid #f0b4b4;border-radius:8px;
+    background:#fff4f4;color:#a5342f;font-size:.82rem;font-weight:600;line-height:1.55;white-space:pre-wrap;}
+  .tl-staff-alert{display:inline-block;margin-left:.2rem;color:#c0392b;font-size:.8rem;cursor:help;}
+  .tl-staff-thumb{cursor:pointer;}
   /* 媒体・予約経路のチェック群 */
   .bm-media-list{display:flex;flex-wrap:wrap;gap:.35rem;}
   .bm-media{display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .6rem;border:1.5px solid var(--gray);
@@ -1515,6 +1520,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media is-line"><input type="checkbox" name="bmMedia" value="line"><span>LINE予約 ＋10分</span></label>
         </div>
       </div>
+      <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
           <select id="bmCourse" class="bm-tight-select">
@@ -2244,7 +2250,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   <div class="modal">
     <div class="modal-header">
       <div>
-        <div class="mh-title">スタッフ編集</div>
+        <div class="mh-title" id="esTitle">スタッフ編集</div>
         <div class="mh-sub" id="esSub"></div>
       </div>
       <button class="modal-close" data-close="editStaffModal">×</button>
@@ -2253,6 +2259,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div class="field">
         <label for="esName">表示名</label>
         <input type="text" id="esName" placeholder="例: 山田 太郎">
+      </div>
+      <div class="field" id="esCastNotesField">
+        <label for="esCastNotes">⚠️ 注意事項 <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">予約を取る前に確認すること</span></label>
+        <textarea id="esCastNotes" rows="3" placeholder="例: 猫アレルギー / 犬NG / 喫煙者NG / 自宅NG"></textarea>
+        <span class="hint">担当キャストに選ぶと、予約画面に赤で表示されます</span>
       </div>
       <div class="field">
         <label for="esEmail">メールアドレス（ログインID兼 送迎メール送信先）</label>

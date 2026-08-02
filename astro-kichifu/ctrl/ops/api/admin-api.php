@@ -184,7 +184,7 @@ if ($action === 'bulk-status' && $method === 'POST') {
 if ($action === 'admin-users' && $method === 'GET') {
     requireOwner();
     ops_sync_casts_if_changed(current_shop_id());
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, commission_rate, girl_id, created_at FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, commission_rate, girl_id, cast_notes, created_at FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
     jsonResponse(['users' => $rows]);
 }
 
@@ -202,8 +202,21 @@ if ($action === 'staff-list' && $method === 'GET') {
     //     非owner（manager/office/driver）でこの行が Fatal になり JSON が壊れる原因になった。
     $withRate = in_array($_SESSION['ylka_admin_role'] ?? '', ['owner', 'manager'], true);
     ops_sync_casts_if_changed(current_shop_id());
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, girl_id" . ($withRate ? ", commission_rate" : "") . " FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, girl_id, cast_notes" . ($withRate ? ", commission_rate" : "") . " FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
     jsonResponse(['users' => $rows]);
+}
+
+// キャストの注意事項（猫アレルギー等・予約を取る前に確認するもの）。
+// 受付で気づいた点をその場で足せるよう、admin-update(owner限定)とは別に店長も許可する。
+if ($action === 'cast-note-update' && $method === 'POST') {
+    requireOwnerOrManager();
+    $body = json_decode(file_get_contents('php://input'), true);
+    $id   = (int)($body['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid id', 400);
+    $note = trim((string)($body['cast_notes'] ?? ''));
+    $st = $pdo->prepare('UPDATE ops_admin_users SET cast_notes = ? WHERE id = ?');
+    $st->execute([$note !== '' ? mb_substr($note, 0, 2000) : null, $id]);
+    jsonResponse(['ok' => true]);
 }
 
 if ($action === 'admin-create' && $method === 'POST') {

@@ -142,7 +142,7 @@
         document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.id === 'bmAdminId-2') {
-        withBmSuffix('-2', autoStatusOnAssign);
+        withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); });
       } else if (e.target.id === 'bmCancelType-2' || e.target.id === 'bmCancelFee-2') {
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.name === 'bmLocType-2') {
@@ -772,6 +772,18 @@
     });
   }
 
+  // 担当キャストの注意事項（猫アレルギー等）を予約モーダルに出す。
+  // 「予約を取る前に確認したい」ものなので、コースより上の目立つ位置に赤帯で表示する。
+  function renderCastAlert() {
+    const box = bel('bmCastAlert');
+    if (!box) return;
+    const id = bel('bmAdminId')?.value;
+    const u = id ? allUsers.find(x => Number(x.id) === Number(id)) : null;
+    const note = (u?.cast_notes || '').trim();
+    box.style.display = note ? 'block' : 'none';
+    box.textContent = note ? `⚠️ ${u.display_name || ''}：${note}` : '';
+  }
+
   // ===== スタッフ編集モーダル =====
   let editingStaffId = null;
   let editingStaffRole = 'staff';
@@ -798,7 +810,17 @@
     if (staffOnly) staffOnly.style.display = isCast ? 'none' : '';
     const castNote = document.getElementById('esCastNote');
     if (castNote) castNote.style.display = isCast ? '' : 'none';
-    document.querySelector('.mh-title').textContent = isCast ? 'キャスト編集' : 'スタッフ編集';
+    const esTitle = document.getElementById('esTitle');
+    if (esTitle) esTitle.textContent = isCast ? 'キャスト編集' : 'スタッフ編集';
+
+    const esNotes = document.getElementById('esCastNotes');
+    if (esNotes) esNotes.value = u.cast_notes || '';
+    // 注意事項は店長も編集できる（cast-note-update）。それ以外の項目は owner 専用
+    const canEditAll = currentUser?.role === 'owner';
+    ['esName', 'esEmail', 'esThumbFile', 'esThumbRemove'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.disabled = !canEditAll; el.style.opacity = canEditAll ? 1 : .55; }
+    });
 
     const esCanDrive = document.getElementById('esCanDrive');
     if (esCanDrive) esCanDrive.checked = Number(u.can_drive) === 1;
@@ -844,6 +866,21 @@
 
   async function saveStaffEdit() {
     if (!editingStaffId) return;
+    // 注意事項は owner/manager どちらでも保存できる（受付中に気づいた点を足せるように）
+    const noteEl = document.getElementById('esCastNotes');
+    if (noteEl) {
+      try {
+        await apiPost('/admin-api.php?action=cast-note-update', { id: editingStaffId, cast_notes: noteEl.value });
+        const u0 = allUsers.find(x => Number(x.id) === Number(editingStaffId));
+        if (u0) u0.cast_notes = noteEl.value.trim();
+      } catch (e) { toast('注意事項の保存に失敗しました', 'err'); return; }
+    }
+    if (currentUser?.role !== 'owner') {   // 他項目は owner 専用。店長は注意事項だけ保存して終了
+      toast('✓ 注意事項を保存しました', 'ok');
+      closeModal('editStaffModal');
+      try { renderCastAlert(); } catch (_) {}
+      return;
+    }
     const name = document.getElementById('esName').value.trim();
     if (!name) { toast('表示名を入力してください', 'err'); return; }
     const payload = { id: editingStaffId, display_name: name, thumbnail_url: editingThumbData };
@@ -2275,8 +2312,8 @@
           : '';
         const tlThumb = (u.id && u.role !== 'unassigned')
           ? (u.thumbnail_url
-              ? `<img src="${escapeAttr(u.thumbnail_url)}" class="tl-staff-thumb" alt="" loading="lazy">`
-              : `<span class="tl-staff-thumb tl-staff-thumb-ph">${escapeHtml(String(u.display_name || '?').slice(0,1))}</span>`)
+              ? `<img src="${escapeAttr(u.thumbnail_url)}" class="tl-staff-thumb" data-cast-edit="${u.id}" title="クリックでキャスト編集" alt="" loading="lazy">`
+              : `<span class="tl-staff-thumb tl-staff-thumb-ph" data-cast-edit="${u.id}" title="クリックでキャスト編集">${escapeHtml(String(u.display_name || '?').slice(0,1))}</span>`)
           : '';
         // 出勤時間はシフト登録時に表示（アイコンなし）
         // 🔒＝CTRLの出勤を「OPSのみ」で登録した日。サイトにも媒体にも出していないので、
@@ -2288,7 +2325,7 @@
         const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
           ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${String(myShift.start_time).slice(0,5)}<span class="tl-m-wave">〜</span>${String(myShift.end_time).slice(0,5)}</span></div>`
           : '';
-        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
+        html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 
         // この行の予約とシフト（営業日基準）
         // ドライバー行では driver_id=自分の予約、未割当行では assigned_admin_id=null/0 の予約
@@ -3142,6 +3179,7 @@
         // 担当プルダウンはその日の出勤者だけ。割当済みの担当は出勤外でも残す
         await populateCastSelect(bel('bmDate').value, b.assigned_admin_id || '');
         bel('bmAdminId').value = b.assigned_admin_id || '';
+        renderCastAlert();
         // 送迎ドライバーはタイムラインで操作（モーダルでは扱わない）
         bel('bmStatus').value = b.status || 'reserved';
         bel('bmCancelType').value = b.cancellation_reason_type || 'customer';
@@ -3248,6 +3286,7 @@
       // 担当プルダウンはその日の出勤者だけ（タイムラインの担当行から作成した場合はその人を保持）
       await populateCastSelect(bel('bmDate').value, prefill?.adminId || '');
       bel('bmAdminId').value = prefill?.adminId || '';
+      renderCastAlert();
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
       setBmMedia('');   // 媒体・予約経路は既定で未チェック
@@ -7279,7 +7318,7 @@
       updateBookingTotal();
     });
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
-    bel('bmAdminId').addEventListener('change', e => autoStatusOnAssign());
+    bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); });
     // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
     bel('bmDate')?.addEventListener('change', e => populateCastSelect(e.target.value, bel('bmAdminId').value));
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
@@ -7292,6 +7331,12 @@
     // タイムラインのスタッフ列「売上」クリック → 保有者モーダル（document 委譲・1回のみ）
     document.addEventListener('click', (e) => {
       if (!e.target.closest) return;
+      // サムネイルクリックでキャスト編集（注意事項をその場で確認・追記できるように）
+      const ce = e.target.closest('[data-cast-edit]');
+      if (ce && ['owner', 'manager'].includes(currentUser?.role)) {
+        openEditStaffModal(Number(ce.dataset.castEdit));
+        return;
+      }
       const sb = e.target.closest('.tl-staff-sales[data-admin]');
       if (sb) { openHolderModal(Number(sb.dataset.admin)); return; }
       const rb = e.target.closest('.tl-staff-reward[data-admin]');
