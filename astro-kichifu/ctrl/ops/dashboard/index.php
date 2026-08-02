@@ -2430,13 +2430,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <input type="hidden" id="emRoomRec">
       <div class="field">
-        <label>出張費</label>
-        <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;cursor:pointer;font-weight:500;">
-          <input type="checkbox" id="emTransportFree" style="width:auto;">
-          <span>🆓 出張費 無料</span>
-        </label>
-        <input type="text" inputmode="numeric" data-money placeholder="例: 1000（円）"id="emTransportFee">
-        <span class="hint">「無料」にチェック=0円表示／数値=その金額／空欄=表示なし</span>
+        <label for="emTransportFee">出張費</label>
+        <!-- 予約モーダルの出張費と同じ550円刻み。無料(0円)と未設定(表示なし)は別物 -->
+        <select id="emTransportFee">
+          <option value="">— 未設定（表示なし）—</option>
+          <option value="0">🆓 無料（¥0）</option>
+          <option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
+        </select>
+        <span class="hint">ホテルを選ぶと、予約画面の出張費にこの金額が初期値で入ります</span>
       </div>
       <div class="field">
         <label for="emGuide">公開ガイドノート</label>

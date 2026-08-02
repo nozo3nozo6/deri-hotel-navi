@@ -696,24 +696,20 @@
     // チップ再描画（hidden value を読み取って active 状態を反映）
     populateEntryMethodSelect();
     document.getElementById('emRoomRec').value = hotel.room_type_recommended || '';
-    // 出張費: 0=無料、null=未設定、数値=その金額
-    const tf = hotel.transport_fee;
-    const freeChk = document.getElementById('emTransportFree');
-    const feeInput = document.getElementById('emTransportFee');
-    if (tf === 0 || tf === '0') {
-      freeChk.checked = true;
-      feeInput.value = '';
-      feeInput.disabled = true;
-    } else {
-      freeChk.checked = false;
-      setMoney(feeInput, (tf === null || tf === undefined || tf === '') ? '' : tf);
-      feeInput.disabled = false;
+    // 出張費（セレクト）: ''=未設定、0=無料、数値=その金額
+    {
+      const feeSel = document.getElementById('emTransportFee');
+      const tf = hotel.transport_fee;
+      const v = (tf === null || tf === undefined || tf === '') ? '' : String(parseInt(tf, 10) || 0);
+      // 550円刻みに無い金額（旧データ）は選択肢として一時的に足してから選ぶ
+      if (v !== '' && ![...feeSel.options].some(o => o.value === v)) {
+        const o = document.createElement('option');
+        o.value = v;
+        o.textContent = `¥${Number(v).toLocaleString()}（登録時の金額）`;
+        feeSel.appendChild(o);
+      }
+      feeSel.value = v;
     }
-    // 連動: 無料チェックで数値欄を disable
-    freeChk.onchange = () => {
-      feeInput.disabled = freeChk.checked;
-      if (freeChk.checked) feeInput.value = '';
-    };
     document.getElementById('emGuide').value = hotel.guide_note || '';
     document.getElementById('emMemo').value = hotel.internal_memo || '';
     document.getElementById('editModal').classList.add('show');
@@ -755,9 +751,9 @@
       status: editingStatus === '' ? null : editingStatus,
       entry_method: document.getElementById('emEntry').value,
       room_type_recommended: document.getElementById('emRoomRec').value.trim(),
-      transport_fee: document.getElementById('emTransportFree').checked
-        ? 0
-        : moneyVal('emTransportFee'),
+      transport_fee: document.getElementById('emTransportFee').value === ''
+        ? null
+        : Number(document.getElementById('emTransportFee').value),
       guide_note: document.getElementById('emGuide').value.trim(),
       internal_memo: document.getElementById('emMemo').value.trim(),
     };
