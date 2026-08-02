@@ -404,6 +404,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  .row-addr{font-size:.78rem;color:var(--ink-soft);margin-top:.1rem;}
   .btn-del{background:#fff;border:1.5px solid #f0b4b4;color:var(--red);border-radius:7px;padding:.3rem .6rem;
     font-size:.75rem;font-weight:700;cursor:pointer;touch-action:manipulation;}
   .btn-del:hover{background:#fff4f4;}
@@ -1323,12 +1324,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div class="field"><label>駅名</label><div id="stName" style="font-weight:700;color:var(--deep);padding:.5rem 0;"></div></div>
       <div class="field">
         <label for="stBaseFee">基本交通費（円）</label>
-        <input type="number" id="stBaseFee" min="0" step="100" placeholder="例: 1100">
+        <input type="text" inputmode="numeric" data-money placeholder="例: 1100"id="stBaseFee">
         <span class="hint">この駅エリアの基本交通費。0=無料、+距離追加(1km超 +¥550/km)</span>
       </div>
       <div class="field">
         <label for="stFareTachikawa">立川駅からの運賃（円）</label>
-        <input type="number" id="stFareTachikawa" min="0" step="10" placeholder="例: 220">
+        <input type="text" inputmode="numeric" data-money placeholder="例: 220"id="stFareTachikawa">
         <span class="hint">参考用。空欄=未設定</span>
       </div>
     </div>
@@ -1371,8 +1372,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <!-- 時間・料金・報酬は1行（入力が短く、横並びの方が関係が見やすい） -->
       <div style="display:grid;grid-template-columns:1fr 1.2fr 1.2fr;gap:.7rem;">
         <div class="field"><label for="coDuration">時間（分）</label><input type="number" id="coDuration" min="5" step="5" placeholder="60"></div>
-        <div class="field"><label for="coPrice">コース料金（円）</label><input type="number" id="coPrice" min="0" step="100" placeholder="18000"></div>
-        <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="number" id="coCastReward" min="0" step="100" placeholder="9000"></div>
+        <div class="field"><label for="coPrice">コース料金（円）</label><input type="text" inputmode="numeric" data-money placeholder="18000"id="coPrice"></div>
+        <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="text" inputmode="numeric" data-money placeholder="9000"id="coCastReward"></div>
       </div>
       <div class="field"><label><input type="checkbox" id="coIsActive" checked style="width:auto;margin-right:.4rem;"> このコースを有効にする（予約モーダルで選択可能）</label><span class="hint">並び順は一覧でドラッグして変更できます</span></div>
     </div>
@@ -1588,7 +1589,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
-        <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" id="bmPrice"></div>
+        <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" data-money id="bmPrice"></div>
         <div class="field"><label for="bmTransport">出張費(円)</label>
           <select id="bmTransport"><option value="0">なし(¥0)</option><option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option></select>
         </div>
@@ -1630,8 +1631,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <!-- 微調整用の手入力オーバーライド（空欄なら従来通り自動計算。入力すると合計・報酬をその値に置き換える） -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
-        <div class="field"><label for="bmDepositOverride">預り金(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" id="bmDepositOverride" placeholder="空欄なら自動計算"></div>
-        <div class="field"><label for="bmRewardOverride">報酬(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" id="bmRewardOverride" placeholder="空欄なら自動計算"></div>
+        <div class="field"><label for="bmDepositOverride">預り金(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" data-money id="bmDepositOverride" placeholder="空欄なら自動計算"></div>
+        <div class="field"><label for="bmRewardOverride">報酬(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" data-money id="bmRewardOverride" placeholder="空欄なら自動計算"></div>
       </div>
       <!-- 合計 (コース料金 + 出張費 + 深夜料金) — 自動計算。預り金の手入力があればそちらを優先表示 -->
       <div id="bmTotalRow" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.7rem 1rem;background:linear-gradient(135deg,var(--foam),#fff);border:1.5px solid var(--aqua-light);border-radius:10px;margin-top:-.2rem;">
@@ -1652,11 +1653,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div style="margin-top:.5rem;display:flex;gap:.5rem;flex-wrap:wrap;">
           <div style="flex:1;min-width:120px;">
             <label for="bmCancelFee" style="font-size:.78rem;">キャンセル料（円）</label>
-            <input type="number" id="bmCancelFee" min="0" step="100" placeholder="例: 9900" style="width:100%;box-sizing:border-box;">
+            <input type="text" inputmode="numeric" data-money placeholder="例: 9900" style="width:100%;box-sizing:border-box;"id="bmCancelFee">
           </div>
           <div style="flex:1;min-width:120px;">
             <label for="bmCancelReward" style="font-size:.78rem;">うちキャスト報酬（円）</label>
-            <input type="number" id="bmCancelReward" min="0" step="100" placeholder="例: 4950" style="width:100%;box-sizing:border-box;">
+            <input type="text" inputmode="numeric" data-money placeholder="例: 4950" style="width:100%;box-sizing:border-box;"id="bmCancelReward">
           </div>
         </div>
         <div style="font-size:.74rem;color:var(--ink-soft);margin-top:.3rem;">※「お客様都合」のときのみ売上・報酬に計上されます（他の理由は計上しません）</div>
@@ -2166,7 +2167,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="expDate">日付</label><input type="date" id="expDate"></div>
-        <div class="field"><label for="expAmount">金額（円）</label><input type="number" id="expAmount" min="0" step="100" placeholder="10000"></div>
+        <div class="field"><label for="expAmount">金額（円）</label><input type="text" inputmode="numeric" data-money placeholder="10000"id="expAmount"></div>
       </div>
       <div class="field">
         <label for="expCategory">カテゴリ</label>
@@ -2420,7 +2421,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <input type="checkbox" id="emTransportFree" style="width:auto;">
           <span>🆓 出張費 無料</span>
         </label>
-        <input type="number" id="emTransportFee" min="0" step="100" placeholder="例: 1000（円）">
+        <input type="text" inputmode="numeric" data-money placeholder="例: 1000（円）"id="emTransportFee">
         <span class="hint">「無料」にチェック=0円表示／数値=その金額／空欄=表示なし</span>
       </div>
       <div class="field">

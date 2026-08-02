@@ -132,7 +132,7 @@
           updateEndTime();
           const opt = e.target.selectedOptions[0];
           const price = opt && opt.dataset.price;
-          if (price) { bel('bmPrice').value = price; autoToggleLateNight(); updateBookingTotal(); }
+          if (price) { setMoney('bmPrice', price); autoToggleLateNight(); updateBookingTotal(); }
         });
       } else if (e.target.name === 'bmCityRegion-2') {
         withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
@@ -344,6 +344,42 @@
     if (selectedValue && list.some(h => Number(h.id) === Number(selectedValue))) sel.value = selectedValue;
   }
 
+  // ===== 金額入力のカンマ表示（OPS共通ルール 2026-08-03）=====
+  // 金額欄は data-money を付けた text 入力。type=number はカンマを表示できないため使わない。
+  // 表示は「2,200」、読み取りは moneyVal() で数字だけにして使う。
+  //   ※ 値を入れる時は setMoney() を通すこと。直接 .value に入れるとカンマが付かない
+  function moneyDigits(v) { return String(v ?? '').replace(/[^\d]/g, ''); }
+  /** 入力欄の金額を数値で取る（未入力は null） */
+  function moneyVal(el) {
+    if (typeof el === 'string') el = bel(el) || document.getElementById(el);
+    if (!el) return null;
+    const d = moneyDigits(el.value);
+    return d === '' ? null : parseInt(d, 10);
+  }
+  /** 入力欄に金額を入れる（カンマ付きで表示） */
+  function setMoney(el, v) {
+    if (typeof el === 'string') el = bel(el) || document.getElementById(el);
+    if (!el) return;
+    const d = moneyDigits(v);
+    el.value = d === '' ? '' : Number(d).toLocaleString();
+  }
+  /** 入力中の整形。カーソルは「右から数えた位置」で保つ（カンマが増減してもズレない） */
+  function formatMoneyInput(el) {
+    const before = el.value;
+    const fromRight = before.length - (el.selectionStart ?? before.length);
+    const d = moneyDigits(before);
+    el.value = d === '' ? '' : Number(d).toLocaleString();
+    if (document.activeElement === el) {
+      const pos = Math.max(0, el.value.length - fromRight);
+      try { el.setSelectionRange(pos, pos); } catch (e) {}
+    }
+  }
+  // 動的に増える欄にも効くよう document 委譲で一度だけ張る
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (el && el.matches && el.matches('input[data-money]')) formatMoneyInput(el);
+  });
+
   // --- API helpers ---
   async function api(path, opts = {}) {
     const res = await fetch(API + path, { credentials: 'include', ...opts });
@@ -454,9 +490,11 @@
           </div>
           <div class="row-info">
             <div class="row-name">${escapeHtml(h.name)}</div>
+            ${h.address ? `<div class="row-addr">${escapeHtml(h.address)}</div>` : ''}
             <div class="row-meta">
               ${h.city ? `<span><b>市区:</b> ${escapeHtml(h.city)}</span>` : ''}
               ${h.nearest_station ? `<span><b>駅:</b> ${escapeHtml(h.nearest_station)}</span>` : ''}
+              ${h.transport_fee !== null && h.transport_fee !== undefined && h.transport_fee !== '' ? `<span><b>交通費:</b> ¥${Number(h.transport_fee).toLocaleString()}</span>` : ''}
               ${h.hotel_type ? `<span class="badge-mini">${hotelTypeLabel(h.hotel_type)}</span>` : ''}
               ${h.entry_method ? `<span class="badge-mini">${entryMethodLabel(h.entry_method)}</span>` : ''}
               ${h.internal_memo ? `<span title="${escapeAttr(h.internal_memo)}">📝</span>` : ''}
@@ -570,7 +608,7 @@
       feeInput.disabled = true;
     } else {
       freeChk.checked = false;
-      feeInput.value = (tf === null || tf === undefined || tf === '') ? '' : tf;
+      setMoney(feeInput, (tf === null || tf === undefined || tf === '') ? '' : tf);
       feeInput.disabled = false;
     }
     // 連動: 無料チェックで数値欄を disable
@@ -615,7 +653,7 @@
       room_type_recommended: document.getElementById('emRoomRec').value.trim(),
       transport_fee: document.getElementById('emTransportFree').checked
         ? 0
-        : (document.getElementById('emTransportFee').value !== '' ? Number(document.getElementById('emTransportFee').value) : null),
+        : moneyVal('emTransportFee'),
       guide_note: document.getElementById('emGuide').value.trim(),
       internal_memo: document.getElementById('emMemo').value.trim(),
     };
@@ -652,7 +690,7 @@
     return m ? m[1] : null;
   }
   function escapeAttr(s) { return escapeHtml(s); }
-  function hotelTypeLabel(t) { return { city:'シティ', business:'ビジネス', ryokan:'旅館', other:'その他', resort:'リゾート', minshuku:'民宿' }[t] || t; }
+  function hotelTypeLabel(t) { return { city:'シティ', business:'ビジネス', ryokan:'旅館', other:'その他', resort:'リゾート', minshuku:'民宿', love_hotel:'ラブホ', love:'ラブホ', rental_room:'レンタルルーム' }[t] || t; }
   // 接客ライフサイクル状態: 未(pending) → 始(started) → 確(ended)。cancelled/no_show は対象外(null)
   // started/ended は内部的に status='completed'（経理計上は開始時点）。ended は service_ended_at 有無で判定
   function svcState(b) {
@@ -3263,13 +3301,13 @@
         bel('bmStatus').value = b.status || 'reserved';
         bel('bmCancelType').value = b.cancellation_reason_type || 'customer';
         bel('bmCancelReason').value = b.cancellation_reason || '';
-        bel('bmCancelFee').value = b.cancellation_fee ?? '';
-        bel('bmCancelReward').value = b.cancellation_reward ?? '';
+        setMoney('bmCancelFee', b.cancellation_fee ?? '');
+        setMoney('bmCancelReward', b.cancellation_reward ?? '');
         bel('bmCancelWrap').style.display = b.status === 'cancelled' ? 'block' : 'none';
         // コース料金はコースマスタの基本料金を入れる（保存値は延長/深夜込みのため二重計上を防ぐ）
         const courseOptEl = opt ? [...bel('bmCourse').options].find(o => o.value === String(courseMin)) : null;
         const basePrice = courseOptEl?.dataset?.price;
-        bel('bmPrice').value = basePrice ? basePrice : (b.price || '');
+        setMoney('bmPrice', basePrice ? basePrice : (b.price || ''));
         // 出張費セレクトに無い金額(旧・手入力データ等)なら選択肢として一時追加してから復元する
         {
           const transSel = bel('bmTransport');
@@ -3286,7 +3324,7 @@
         if (bel('bmNomination')) bel('bmNomination').value = b.nomination_type || '';
         // 預り金は都度の手入力のため常に空欄（既存の報酬オーバーライドのみ編集時に復元）
         if (bel('bmDepositOverride')) bel('bmDepositOverride').value = '';
-        if (bel('bmRewardOverride')) bel('bmRewardOverride').value = (b.reward_override != null ? b.reward_override : '');
+        if (bel('bmRewardOverride')) setMoney('bmRewardOverride', b.reward_override != null ? b.reward_override : '');
         bel('bmNotes').value = b.notes || '';
         // 深夜料金・キャンペーン割引を保存値から復元（bmPrice はコース基本料金＝通常価格）。
         // 保存 price = 基本 + 深夜 + 延長 − 割引 − スタンプ。スタンプは保存されないため 0 とみなし逆算する。
@@ -3346,8 +3384,8 @@
       bel('bmDate').value = prefill?.date || fmtDate(getBusinessDayDate());  // 日付欄は営業日基準（深夜0-10時は前営業日）。保存時に開始時刻からカレンダー日へ変換
       bel('bmCancelType').value = 'customer';
       bel('bmCancelReason').value = '';
-      bel('bmCancelFee').value = '';
-      bel('bmCancelReward').value = '';
+      setMoney('bmCancelFee', '');
+      setMoney('bmCancelReward', '');
       bel('bmCancelWrap').style.display = 'none';
       // 開始時刻 prefill (0-23h で渡される)
       const sh = prefill?.startHour ?? 14;
@@ -3966,8 +4004,8 @@
       status: isBreak ? 'confirmed' : bel('bmStatus').value,
       cancellation_reason_type: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelType').value : null,
       cancellation_reason: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelReason').value : null,
-      cancellation_fee: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? (bel('bmCancelFee').value || null) : null,
-      cancellation_reward: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? (bel('bmCancelReward').value || null) : null,
+      cancellation_fee: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelFee') : null,
+      cancellation_reward: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelReward') : null,
       price: (() => {
         if (isBreak) return 0;
         // 預り金の手入力があれば自動計算をまるごと上書き（出張費込み・微調整用）
@@ -4783,14 +4821,14 @@
       if (!c) return;
       document.getElementById('coName').value = c.name || '';
       document.getElementById('coDuration').value = c.duration_min || 60;
-      document.getElementById('coPrice').value = c.price || '';
-      document.getElementById('coCastReward').value = (c.cast_reward != null ? c.cast_reward : '');
+      setMoney('coPrice', c.price || '');
+      setMoney('coCastReward', c.cast_reward != null ? c.cast_reward : '');
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
     } else {
       document.getElementById('coName').value = '';
       document.getElementById('coDuration').value = 60;
-      document.getElementById('coPrice').value = '';
-      document.getElementById('coCastReward').value = '';
+      setMoney('coPrice', '');
+      setMoney('coCastReward', '');
       document.getElementById('coIsActive').checked = true;
     }
     openModal('courseModal');
@@ -4803,8 +4841,8 @@
     if (!dur || dur < 5) { toast('時間（分）を5以上で入力してください', 'err'); return; }
     const payload = {
       name, duration_min: dur,
-      price: document.getElementById('coPrice').value,
-      cast_reward: document.getElementById('coCastReward').value,
+      price: moneyVal('coPrice'),
+      cast_reward: moneyVal('coCastReward'),
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
     };
     // 新規時のみ末尾の sort_order をセット（既存編集時は変えない、ドラッグで並び替え）
@@ -5000,14 +5038,14 @@
     if (!s) return;
     editingStationId = id;
     document.getElementById('stName').textContent = s.name + '駅';
-    document.getElementById('stBaseFee').value = s.base_fee || 0;
-    document.getElementById('stFareTachikawa').value = (s.fare_from_tachikawa === null || s.fare_from_tachikawa === undefined) ? '' : s.fare_from_tachikawa;
+    setMoney('stBaseFee', s.base_fee || 0);
+    setMoney('stFareTachikawa', (s.fare_from_tachikawa === null || s.fare_from_tachikawa === undefined) ? '' : s.fare_from_tachikawa);
     openModal('stationModal');
   }
   async function saveStation() {
     if (!editingStationId) return;
-    const baseFee = Number(document.getElementById('stBaseFee').value) || 0;
-    const fareVal = document.getElementById('stFareTachikawa').value;
+    const baseFee = moneyVal('stBaseFee') || 0;
+    const fareVal = moneyDigits(document.getElementById('stFareTachikawa').value);
     const fare = fareVal === '' ? null : Math.max(0, Number(fareVal));
     try {
       await apiPost('/stations.php?action=update', { id: editingStationId, base_fee: baseFee, fare_from_tachikawa: fare });
@@ -6053,7 +6091,7 @@
     editingExpenseId = exp ? exp.id : null;
     document.getElementById('expTitle').textContent = exp ? '経費を編集' : '経費を追加';
     document.getElementById('expDate').value = exp ? String(exp.expense_date).substring(0,10) : (acPeriod().to || acPeriod().from || '');
-    document.getElementById('expAmount').value = exp ? exp.amount : '';
+    setMoney('expAmount', exp ? exp.amount : '');
     document.getElementById('expCategory').value = exp ? exp.category : '広告費';
     document.getElementById('expVendor').value = exp ? (exp.vendor || '') : '';
     document.getElementById('expMemo').value = exp ? (exp.memo || '') : '';
@@ -6064,7 +6102,7 @@
     const payload = {
       id: editingExpenseId || 0,
       expense_date: document.getElementById('expDate').value,
-      amount: parseInt(document.getElementById('expAmount').value, 10) || 0,
+      amount: moneyVal('expAmount') || 0,
       category: document.getElementById('expCategory').value,
       vendor: document.getElementById('expVendor').value.trim(),
       memo: document.getElementById('expMemo').value.trim(),
@@ -7354,7 +7392,7 @@
       const price = opt && opt.dataset.price;
       if (price) {
         // コース選択時はベース料金 (=コース料金) を入れて合計を再計算
-        bel('bmPrice').value = price;
+        setMoney('bmPrice', price);
         autoToggleLateNight();
         updateBookingTotal();
       }
