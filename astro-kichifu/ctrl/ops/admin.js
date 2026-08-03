@@ -215,6 +215,27 @@
 
   // ===== Location helpers (ホテル / 自宅 / その他) =====
   const HOME_PREFIX = '【自宅】';
+  // 自宅の場所は「住所」と「建物名・部屋番号」の2欄。保存は半角スペースで1本に結合する。
+  // 旧データは ' / ' 区切りなので、読むときは両方に対応する。
+  const HOME_SEP = ' ';
+  /** 「住所＋建物」の1本の文字列を [住所, 建物] に分ける。番地（数字・ハイフン・丁目/番/号）までが住所 */
+  function splitAddressBuilding(full) {
+    const t = String(full || '').trim();
+    if (!t) return ['', ''];
+    if (t.includes(' / ')) {                    // 旧形式はそのまま素直に割る
+      const p = t.split(' / ');
+      return [p[0].trim(), p.slice(1).join(' / ').trim()];
+    }
+    const m = t.match(/^(.*?[0-9０-９][0-9０-９\-－‐ー―]*(?:(?:丁目|番地|丁|番|号)[0-9０-９\-－‐ー―]*)*)[\s　]*(.*)$/u);
+    if (!m) return [t, ''];
+    return [m[1].trim(), (m[2] || '').trim()];
+  }
+  /** [住所, 建物] を保存用の1本に結合（建物が空なら住所だけ） */
+  function joinAddressBuilding(addr, bld) {
+    const a = String(addr || '').trim();
+    const b = String(bld || '').trim();
+    return b ? a + HOME_SEP + b : a;
+  }
   const OTHER_PREFIX = '【その他】';
 
   function detectLocType(hotelId, snapshot) {
@@ -254,7 +275,9 @@
       return;
     }
     switchLocSection('home');
-    bel('bmHomeAddress').value = addr;
+    const [pAddr, pBld] = splitAddressBuilding(addr);
+    bel('bmHomeAddress').value = pAddr;
+    bel('bmHomeBuilding').value = pBld;
     // 市区町村も住所から合わせる（エリアタブごと）。プルダウンに無い市はそのまま
     const city = extractCityFromAddress(addr);
     if (city) {
@@ -1820,7 +1843,7 @@
     let mapAddr = b.hotel_address || '';
     if (!mapAddr) {
       const snap = b.hotel_name_snapshot || '';
-      if (snap.startsWith(HOME_PREFIX)) mapAddr = snap.slice(HOME_PREFIX.length).split(' / ')[0].trim();
+      if (snap.startsWith(HOME_PREFIX)) mapAddr = splitAddressBuilding(snap.slice(HOME_PREFIX.length))[0];
     }
     if (mapAddr) {
       lines.push('住所: ' + mapAddr);
@@ -3542,11 +3565,9 @@
           bel('bmHotelName').value = b.hotel_id ? '' : (b.hotel_name_snapshot || '');
           bel('bmRoom').value = b.room_number || '';
         } else if (locType === 'home') {
-          const raw = (b.hotel_name_snapshot || '').replace(HOME_PREFIX, '');
-          // " / " で住所と建物を分割
-          const parts = raw.split(' / ');
-          bel('bmHomeAddress').value = parts[0] || '';
-          bel('bmHomeBuilding').value = parts[1] || '';
+          const [rAddr, rBld] = splitAddressBuilding((b.hotel_name_snapshot || '').replace(HOME_PREFIX, ''));
+          bel('bmHomeAddress').value = rAddr;
+          bel('bmHomeBuilding').value = rBld;
         } else if (locType === 'other') {
           bel('bmOtherLoc').value = (b.hotel_name_snapshot || '').replace(OTHER_PREFIX, '');
         }
@@ -4047,7 +4068,7 @@
     } else if (locType === 'home') {
       const addr = bel('bmHomeAddress').value.trim();
       const bld = bel('bmHomeBuilding').value.trim();
-      hotelSnap = HOME_PREFIX + addr + (bld ? ' / ' + bld : '');
+      hotelSnap = HOME_PREFIX + joinAddressBuilding(addr, bld);
     } else if (locType === 'other') {
       hotelSnap = OTHER_PREFIX + bel('bmOtherLoc').value.trim();
     }
@@ -4132,7 +4153,7 @@
     } else if (locType === 'home') {
       const addr = bel('bmHomeAddress').value.trim();
       const bld = bel('bmHomeBuilding').value.trim();
-      hotelSnap = HOME_PREFIX + addr + (bld ? ' / ' + bld : '');
+      hotelSnap = HOME_PREFIX + joinAddressBuilding(addr, bld);
     } else if (locType === 'other') {
       hotelSnap = OTHER_PREFIX + bel('bmOtherLoc').value.trim();
     }
@@ -4238,7 +4259,7 @@
         const addr = bel('bmHomeAddress').value.trim();
         const bld = bel('bmHomeBuilding').value.trim();
         if (!addr) { toast('住所を入力してください', 'err'); return; }
-        hotelSnapshot = HOME_PREFIX + addr + (bld ? ' / ' + bld : '');
+        hotelSnapshot = HOME_PREFIX + joinAddressBuilding(addr, bld);
         displayCity = extractCityFromAddress(addr);
       } else if (locType === 'other') {
         const other = bel('bmOtherLoc').value.trim();

@@ -405,6 +405,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-card-paid:has(input:checked){border-color:#a7ddb8;background:#eefaf1;color:#1d6b39;}
   .bm-card-paid-at{margin-left:auto;font-weight:500;font-size:.76rem;opacity:.85;}
   .bm-card-fee{font-size:.8rem;font-weight:600;color:var(--ink-soft);margin-top:.35rem;text-align:right;}
+  /* 自宅の場所: 住所｜建物 を1行に。狭い画面では素直に縦積み */
+  .bm-home-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;}
+  @media(max-width:560px){.bm-home-row{grid-template-columns:1fr;gap:0;}}
   #bmMediaField{display:block;}
   .bm-media-label{display:block;white-space:nowrap;margin-bottom:.4rem;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
@@ -1563,16 +1566,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
       <!-- 自宅・オフィス -->
       <div class="loc-section" data-loc="home" style="display:none;">
-        <div class="field">
-          <label for="bmHomeAddress">住所</label>
-          <input type="text" id="bmHomeAddress" placeholder="例: 東京都立川市曙町1-1-1">
-          <!-- リピーターの「よく使う場所」を自動入力したときの案内（手入力したら消える） -->
-          <span class="hint" id="bmUsualLocNote" style="display:none;color:#1d6b39;font-weight:600;"></span>
+        <!-- 住所と建物は1行に並べる（番地までと建物名を分けて打つほうが速い・店長判断 2026-08-04） -->
+        <div class="bm-home-row">
+          <div class="field">
+            <label for="bmHomeAddress">住所</label>
+            <input type="text" id="bmHomeAddress" placeholder="例: 立川市曙町1-1-1">
+          </div>
+          <div class="field">
+            <label for="bmHomeBuilding">建物名・部屋番号・階数など</label>
+            <input type="text" id="bmHomeBuilding" placeholder="例: ○○マンション 305号室">
+          </div>
         </div>
-        <div class="field">
-          <label for="bmHomeBuilding">建物名・部屋番号・階数など</label>
-          <input type="text" id="bmHomeBuilding" placeholder="例: ○○マンション 305号室">
-        </div>
+        <!-- リピーターの「よく使う場所」を自動入力したときの案内（手入力したら消える） -->
+        <span class="hint" id="bmUsualLocNote" style="display:none;color:#1d6b39;font-weight:600;margin-top:-.6rem;margin-bottom:1.1rem;"></span>
       </div>
 
       <!-- その他 -->
