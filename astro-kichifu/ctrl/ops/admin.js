@@ -2577,7 +2577,7 @@
           ? `<div class="tl-m tl-m-private" title="サイト・媒体には出していない出勤です"><span class="tl-m-l">🔒</span><span class="tl-m-v">サイト非掲載</span></div>`
           : '';
         const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
-          ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${String(myShift.start_time).slice(0,5)}<span class="tl-m-wave">〜</span>${String(myShift.end_time).slice(0,5)}</span></div>`
+          ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${hhmm(myShift.start_time)}<span class="tl-m-wave">〜</span>${hhmm(myShift.end_time)}</span></div>`
           : '';
         html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" data-cast-edit="${u.id}" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 
@@ -3026,6 +3026,12 @@
     return `<div class="hist-tbl-wrap"><table class="hist-tbl">
       <thead><tr><th>区分</th><th>利用日</th><th>キャスト</th><th>コース</th><th>指名</th><th>料金</th><th>交通費</th><th>場所</th><th>メモ</th><th>店舗</th></tr></thead>
       <tbody>${body}</tbody></table></div>`;
+  }
+
+  /** 時刻表示。頭の0は落とす（05:00 → 5:00）。分はそのまま */
+  function hhmm(v) {
+    const s = String(v || '').slice(0, 5);
+    return /^0\d:/.test(s) ? s.slice(1) : s;
   }
 
   // 旧履歴の「場所」表示。ホテルは市区町村つき（どこで利用したかが一目で分かるように）

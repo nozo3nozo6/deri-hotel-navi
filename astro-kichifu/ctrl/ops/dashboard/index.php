@@ -676,11 +676,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-att-sel.tl-att-off{background-color:#c0392b;}
   .tl-att-sel.tl-att-tentative{background-color:#a0aab4;}
   .tl-staff-left .tl-staff-name{font-size:.78rem;word-break:break-word;text-align:center;}
-  .tl-m{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;font-size:.72rem;line-height:1.25;}
+  .tl-m{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;font-size:.72rem;line-height:1.25;
+        padding-bottom:.16rem;border-bottom:1px dotted var(--gray);}
+  .tl-staff-info > .tl-m:last-child{border-bottom:none;padding-bottom:0;}
   .tl-m-l{color:var(--ink-soft);font-weight:600;flex-shrink:0;}
   .tl-m-v{font-weight:800;color:var(--deep);font-family:'Outfit',sans-serif;white-space:nowrap;text-align:right;}
   /* 時間行: 数値の上に置き、薄い区切り線でスケジュールと金額を分ける */
-  .tl-m-time{padding-bottom:.14rem;margin-bottom:.14rem;border-bottom:1px dashed var(--gray);}
+  .tl-m-time{padding-bottom:.16rem;margin-bottom:.1rem;border-bottom:1px dashed var(--gray);}
   .tl-m-time .tl-m-l{color:var(--deep);}
   .tl-m-time .tl-m-v{font-size:.82rem;letter-spacing:.01em;}
   /* サイト・媒体に出していない出勤（CTRLで「OPSのみ」を選んだ日） */
