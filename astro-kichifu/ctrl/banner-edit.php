@@ -13,8 +13,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $cur = null;
     if ($id) { $s = db()->prepare("SELECT b.* FROM banners b WHERE b.id=? AND $scope"); $s->execute(array_merge([$id], $scopeBind)); $cur = $s->fetch(); }
     $image = $cur['image'] ?? '';
-    if (!empty($_POST['remove_image'])) { delete_upload($image); $image = ''; }
-    if (($_FILES['image']['error'] ?? 4) === UPLOAD_ERR_OK) { $new = save_upload($_FILES['image'], 'banners/' . $shop, 1200, 1200); if ($new) { delete_upload($image); $image = $new; } }
+    // 同じ画像を他の行も指している場合があるので実体削除は delete_upload_safe 経由
+    if (!empty($_POST['remove_image'])) { delete_upload_safe($image, 'banners', $id); $image = ''; }
+    if (($_FILES['image']['error'] ?? 4) === UPLOAD_ERR_OK) { $new = save_upload($_FILES['image'], 'banners/' . $shop, 1200, 1200); if ($new) { delete_upload_safe($image, 'banners', $id); $image = $new; } }
     $data = [
         // shop_id は「作った店」の記録。表示先は banner_shops で決まるので owner は移さない
         'shop_id' => $cur ? (int)$cur['shop_id'] : $shop,

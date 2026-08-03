@@ -3,7 +3,7 @@
 // content-actions.php — 汎用 非同期アクション（JSON）
 //   ホワイトリストのテーブルに対し toggle / delete / reorder
 //   table名は必ずホワイトリストのキー経由でのみSQLに渡す（注入防止）
-//   全て shop_id スコープ
+//   スコープは $TABLES の第3要素で決める（自店のみ / 共有 / 表示先基準）
 // ==========================================================================
 require_once __DIR__ . '/_lib.php';
 require_once __DIR__ . '/_upload.php';
@@ -22,7 +22,7 @@ $TABLES = [
     'news'            => [['thumb'], 'is_display', true],
     'events'          => [['thumb'], 'is_display', true],
     'banners'         => [['image'], 'is_display', ['banner_shops', 'banner_id']],
-    'sliders'         => [['image_pc', 'image_sp'], 'is_display', ['slider_shops', 'slider_id']],
+    'sliders'         => [['image_pc', 'image_sp'], 'is_display', false],   // 全店共通の1本（出し先は表示店舗トグル）
     'hotels'          => [['image'], 'is_display', true],
     'hotel_areas'     => [[], null, true],
     'girl_diaries'    => [['image'], 'is_display', true],
@@ -67,7 +67,9 @@ try {
             if ($imgCols) {
                 $sel = db()->prepare('SELECT ' . implode(',', $imgCols) . " FROM `$table` WHERE id=?$whereShop");
                 $sel->execute($bindShop($id));
-                if ($row = $sel->fetch()) foreach ($imgCols as $c) delete_upload($row[$c] ?? null);
+                // 同じ画像を他の行が指していることがある（例: 高収入求人の立川/吉祥寺）。
+                // 実体を消すと残った行が画像404になるため delete_upload_safe で判定する。
+                if ($row = $sel->fetch()) foreach ($imgCols as $c) delete_upload_safe($row[$c] ?? null, $table, $id);
             }
             db()->prepare("DELETE FROM `$table` WHERE id=?$whereShop")->execute($bindShop($id));
             echo json_encode(['ok' => true]);

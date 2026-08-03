@@ -5,19 +5,18 @@ require_login();
 $shop = current_shop_id();
 $id = (int)($_GET['id'] ?? 0);
 
-// 編集できるのは「自店のサイトに出る行」＋「自店が作った表示先なしの行」（一覧と同じスコープ）
-[$scope, $scopeBind] = display_scope_sql('s', 'slider_shops', 'slider_id', $shop);
-
+// スライダーは全店共通の一覧。どの行もどちらの店からも編集できる（出し先は表示店舗トグルで決まる）
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
     $cur = null;
-    if ($id) { $s = db()->prepare("SELECT s.* FROM sliders s WHERE s.id=? AND $scope"); $s->execute(array_merge([$id], $scopeBind)); $cur = $s->fetch(); }
+    if ($id) { $s = db()->prepare('SELECT * FROM sliders WHERE id=?'); $s->execute([$id]); $cur = $s->fetch(); }
     $imgPc = $cur['image_pc'] ?? '';
     $imgSp = $cur['image_sp'] ?? '';
-    if (!empty($_POST['remove_pc'])) { delete_upload($imgPc); $imgPc = ''; }
-    if (!empty($_POST['remove_sp'])) { delete_upload($imgSp); $imgSp = ''; }
-    if (($_FILES['image_pc']['error'] ?? 4) === UPLOAD_ERR_OK) { $n = save_upload($_FILES['image_pc'], 'sliders/' . $shop, 1600, 900); if ($n) { delete_upload($imgPc); $imgPc = $n; } }
-    if (($_FILES['image_sp']['error'] ?? 4) === UPLOAD_ERR_OK) { $n = save_upload($_FILES['image_sp'], 'sliders/' . $shop, 1080, 1350); if ($n) { delete_upload($imgSp); $imgSp = $n; } }
+    // 同じ画像を他の行も指している場合があるので実体削除は delete_upload_safe 経由
+    if (!empty($_POST['remove_pc'])) { delete_upload_safe($imgPc, 'sliders', $id); $imgPc = ''; }
+    if (!empty($_POST['remove_sp'])) { delete_upload_safe($imgSp, 'sliders', $id); $imgSp = ''; }
+    if (($_FILES['image_pc']['error'] ?? 4) === UPLOAD_ERR_OK) { $n = save_upload($_FILES['image_pc'], 'sliders/' . $shop, 1600, 900); if ($n) { delete_upload_safe($imgPc, 'sliders', $id); $imgPc = $n; } }
+    if (($_FILES['image_sp']['error'] ?? 4) === UPLOAD_ERR_OK) { $n = save_upload($_FILES['image_sp'], 'sliders/' . $shop, 1080, 1350); if ($n) { delete_upload_safe($imgSp, 'sliders', $id); $imgSp = $n; } }
     $data = [
         // shop_id は「作った店」の記録。表示先は slider_shops で決まるので、他店が作った行を
         // 編集しても owner は移さない（新規作成時のみ自店になる）。
@@ -60,7 +59,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 $s = ['title' => '', 'url' => '', 'image_pc' => '', 'image_sp' => '', 'is_display' => 1];
-if ($id) { $q = db()->prepare("SELECT s.* FROM sliders s WHERE s.id=? AND $scope"); $q->execute(array_merge([$id], $scopeBind)); $s = $q->fetch(); if (!$s) { flash('err', '対象が見つかりません。'); redirect('sliders.php'); } }
+if ($id) { $q = db()->prepare('SELECT * FROM sliders WHERE id=?'); $q->execute([$id]); $s = $q->fetch(); if (!$s) { flash('err', '対象が見つかりません。'); redirect('sliders.php'); } }
 
 // 表示店舗（新規＝両店デフォルトON / 編集＝現在の slider_shops）と店舗別リンクURL
 $allShops = shops_list();

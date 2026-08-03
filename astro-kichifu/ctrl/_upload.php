@@ -53,3 +53,34 @@ function delete_upload(?string $rel): void {
     $abs = $base . $rel;
     if (is_file($abs)) @unlink($abs);
 }
+
+// 同じ画像ファイルを複数のレコードが指していることがある（店舗ごとに行を複製した名残など）。
+// 例: スライダーの「高収入求人」は立川・吉祥寺の2行が同一の /uploads/sliders/1/xxx.webp を参照。
+// 片方を削除したときに実体まで消すと、もう片方が画像404になる。
+const UPLOAD_IMAGE_REFS = [
+    'sliders' => ['image_pc', 'image_sp'],
+    'banners' => ['image'],
+];
+
+/** その画像を（自分以外の）レコードがまだ使っているか。テーブル/カラム名は上の定数のみ */
+function upload_in_use(?string $rel, string $selfTable = '', int $selfId = 0): bool {
+    if (!$rel || !str_starts_with($rel, '/uploads/')) return false;
+    foreach (UPLOAD_IMAGE_REFS as $table => $cols) {
+        foreach ($cols as $col) {
+            $sql = "SELECT COUNT(*) FROM `$table` WHERE `$col` = ?";
+            $bind = [$rel];
+            if ($table === $selfTable && $selfId > 0) { $sql .= ' AND id <> ?'; $bind[] = $selfId; }
+            $st = db()->prepare($sql);
+            $st->execute($bind);
+            if ((int)$st->fetchColumn() > 0) return true;
+        }
+    }
+    return false;
+}
+
+/** 他が使っていないときだけ実体を消す。行の削除・画像の差し替え/削除は必ずこちらを使う */
+function delete_upload_safe(?string $rel, string $selfTable = '', int $selfId = 0): void {
+    if (!$rel) return;
+    if (upload_in_use($rel, $selfTable, $selfId)) return;
+    delete_upload($rel);
+}
