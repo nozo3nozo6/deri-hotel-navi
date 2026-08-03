@@ -1157,6 +1157,8 @@ launch前にAPI/DB/フロントを移行前提に整備済み。
 
 ### DBテーブル（sql/chat_tables.sql）
 - chat_sessions — 匿名訪問者セッション（session_token、shop_id、status=open/closed、blocked）
+  ※ 保持ポリシー（2026-08-03〜）: **自動終了なし**（旧: 48時間無応答で自動close → 廃止）。
+    close の入口は手動のみ（訪問者 close-session / オーナー終了 / ブロック）。closed から60日で完全削除は維持（chat-retention.php）
 - chat_messages — メッセージ（sender_type=visitor/shop、read_at）
 - shop_chat_templates — 店舗定型文
 - shop_chat_status — 有効化 + is_online + notify_mode + reception_start/end + welcome_message + notify_email（shop-chat-status にレコードあり = チャット機能ON）

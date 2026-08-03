@@ -3,7 +3,9 @@
 // chat-retention.php — YobuChat データ保持ポリシー適用
 //
 // ポリシー:
-//   1) openセッション: 48時間 last_activity_at 無更新なら status='closed', closed_at=NOW()
+//   1) openセッション: 自動終了しない（2026-08-03 変更）。
+//      店舗・訪問者のどちらかが手動で終了するまでやりとりを保持する。
+//      （旧仕様: 48時間 last_activity_at 無更新で自動 close — 会話継続の妨げになるため廃止）
 //   2) closedセッション: closed_at から60日経過で DELETE（FK CASCADE で messages も削除）
 //   3) 削除済みキャスト: shop_casts.deleted_at から60日経過で物理削除
 //      + 他店舗参照の無い casts は孤児として同時削除
@@ -44,16 +46,9 @@ if (!hash_equals(CHAT_RETENTION_SECRET, $provided)) {
 try {
     $pdo = DB::conn();
 
-    // 1) 48時間無応答のopenセッションをcloseに
-    //    （訪問者/店舗どちらの最終活動からも計算できるよう last_activity_at を使う）
-    $stmt = $pdo->prepare("
-        UPDATE chat_sessions
-           SET status = 'closed', closed_at = NOW()
-         WHERE status = 'open'
-           AND last_activity_at < DATE_SUB(NOW(), INTERVAL 48 HOUR)
-    ");
-    $stmt->execute();
-    $closed = $stmt->rowCount();
+    // 1) openセッションの自動終了は行わない（2026-08-03 廃止）
+    //    手動終了（訪問者 close-session / オーナー終了 / ブロック）のみが close の入口。
+    $closed = 0;
 
     // 2) closedから60日経過したセッションを削除
     //    FK ON DELETE CASCADE で chat_messages も自動削除される
