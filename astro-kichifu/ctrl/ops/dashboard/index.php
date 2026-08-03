@@ -814,6 +814,22 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .cu-name{font-weight:700;font-size:1rem;color:var(--ink);}
   .cu-name .kana{font-size:.78rem;color:var(--ink-soft);font-weight:400;margin-left:.4rem;}
   .cu-contact{font-size:.85rem;color:var(--ink-soft);}
+  /* NG登録（出禁・要注意・キャスト別NG） */
+  .ng-badge{display:inline-block;font-size:.68rem;font-weight:700;padding:.1rem .5rem;border-radius:50px;margin-left:.4rem;vertical-align:middle;white-space:nowrap;}
+  .ng-badge.lv2{background:#fdecee;color:var(--red);border:1px solid #f5c2c7;}
+  .ng-badge.lv1{background:#fff4e6;color:#b1601f;border:1px solid #f5d5b0;}
+  .ng-badge.cast{background:#f2f1fb;color:#5a4bad;border:1px solid #d6d2f0;}
+  .ng-box{margin-top:.9rem;padding:.85rem .9rem;border:1.5px solid #f5d5b0;border-radius:12px;background:#fffaf3;}
+  .ng-box.is-ng{border-color:#f5c2c7;background:#fef7f8;}
+  .ng-cast-list{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.45rem;}
+  .ng-cast-list:empty{display:none;}
+  .ng-chip{display:inline-flex;align-items:center;gap:.35rem;background:#fff;border:1.5px solid #d6d2f0;color:#5a4bad;font-size:.82rem;font-weight:600;padding:.3rem .5rem .3rem .7rem;border-radius:50px;}
+  .ng-chip button{border:none;background:none;color:#8d86bd;font-size:1rem;line-height:1;cursor:pointer;padding:0 .1rem;}
+  .ng-chip button:hover{color:var(--red);}
+  /* 予約モーダルの警告帯（キャスト注意事項と同じ場所に積む） */
+  .bm-ng-alert{display:none;margin-bottom:.6rem;padding:.6rem .8rem;border-radius:10px;font-size:.85rem;font-weight:600;line-height:1.5;}
+  .bm-ng-alert.lv2{background:#fdecee;border:1.5px solid #f5c2c7;color:#a12530;}
+  .bm-ng-alert.lv1{background:#fff4e6;border:1.5px solid #f5d5b0;color:#8a4a12;}
   .cu-visits{text-align:center;font-family:'Outfit';font-size:.92rem;color:var(--sea);font-weight:600;}
   .cu-visits b{font-size:1.3rem;color:var(--deep);}
   .cu-actions{display:flex;gap:.4rem;}
@@ -1223,6 +1239,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <option value="recent">最近の利用順</option>
         <option value="count">利用回数順</option>
       </select>
+      <select id="cuNg" title="NG絞り込み" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:#fff;">
+        <option value="">全員</option>
+        <option value="ng">NGのみ</option>
+      </select>
       <button class="tl-add" id="cuAddNew">+ 新規顧客</button>
     </div>
   </div>
@@ -1432,6 +1452,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="modal-close" data-close="bookingModal">×</button>
     </div>
     <div class="modal-body">
+      <!-- NG登録の警告。電話番号で顧客が当たった瞬間・担当を選んだ瞬間に一番上で目に入る位置 -->
+      <div id="bmNgAlert" class="bm-ng-alert"></div>
+      <div id="bmNgCastAlert" class="bm-ng-alert"></div>
       <!-- 担当キャストの注意事項。担当を選んだ瞬間に一番上で目に入る位置に置く -->
       <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
       <label id="bmBreakModeLabel" style="display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:.88rem;cursor:pointer;background:linear-gradient(135deg,#fff8ef,#ffeada);color:#a85a3a;padding:.55rem .75rem;border-radius:10px;margin-bottom:1rem;border:1px solid #f3c9a8;">
@@ -1783,6 +1806,26 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div class="field"><label for="cmLocation">よく使う場所</label><input type="text" id="cmLocation" placeholder="例: 立川駅前のホテル○○"></div>
       <div class="field"><label for="cmLocation2">よく使う場所 2</label><input type="text" id="cmLocation2" placeholder="任意（自宅とセカンドハウスなど）"></div>
       <div class="field"><label for="cmNotes">お客様メモ <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">キャストには伝えない</span></label><textarea id="cmNotes" placeholder="苦手なプレイ、好み、注意点など（このお客様にずっと付くメモ）"></textarea></div>
+      <!-- NG登録: 予約を取る瞬間に赤帯で出るので、メモに文章で書くより先にこちらへ -->
+      <div class="ng-box" id="cmNgBox">
+        <div class="field">
+          <label for="cmNgLevel">NG登録</label>
+          <select id="cmNgLevel">
+            <option value="0">通常のお客様</option>
+            <option value="1">要注意（受けるが気をつける）</option>
+            <option value="2">出禁（お店として受けない）</option>
+          </select>
+        </div>
+        <div class="field" id="cmNgReasonField" style="display:none;">
+          <label for="cmNgReason">理由 <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">予約のときに一緒に出ます</span></label>
+          <input type="text" id="cmNgReason" placeholder="例: キャンセル料未払・無理やり脱がす行為">
+        </div>
+        <div class="field">
+          <label>NGキャスト <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">このお客様に出さない女性</span></label>
+          <div id="cmNgCastList" class="ng-cast-list"></div>
+          <select id="cmNgCastAdd"><option value="">＋ キャストを追加</option></select>
+        </div>
+      </div>
       <!-- 誓約書 アップロード -->
       <div class="field" id="cmPledgeField">
         <label>誓約書</label>

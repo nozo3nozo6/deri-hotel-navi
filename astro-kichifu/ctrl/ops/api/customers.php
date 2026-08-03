@@ -8,7 +8,12 @@
 //   POST ?action=create                {name, name_kana, phone, email, gender, default_hotel_id, default_location, notes}
 //   POST ?action=update                {id, ...}
 //   POST ?action=delete                {id}
-//   GET  ?action=find-by-phone&phone=  電話番号で1件特定（リピーター判定用）
+//   GET  ?action=find-by-phone&phone=  電話番号で1件特定（リピーター判定用・NG情報つき）
+//
+// NG登録（2026-08-03）:
+//   ng_level 0=通常 / 1=要注意 / 2=出禁（お店として受けるか）
+//   ops_customer_ng_casts = このお客様に出さないキャスト（予約のキャスト選択で警告）
+//   これまで「お客様メモ」に文章で書いていたものを、予約を取る瞬間に機械的に出せるようにしたもの。
 // ==========================================================================
 require_once __DIR__ . '/auth-guard.php';
 
@@ -41,6 +46,10 @@ if ($action === 'list' && $method === 'GET') {
     // 利用回数 = 旧システムの実績(visit_count) ＋ OPSの予約(キャンセル/無連絡を除く)。
     //   visit_count は import-ops-visits.php が ops_legacy_visits の完了実績から再計算した値。
     //   OPS分は customer_id 直接紐付け + 電話番号一致（レガシー未紐付け対策）の両方を数える。
+    // NG絞り込み: ng=ng → 出禁/要注意のみ（キャスト別NGだけの人も拾う）
+    if (($_GET['ng'] ?? '') === 'ng') {
+        $where[] = '(c.ng_level > 0 OR EXISTS (SELECT 1 FROM ops_customer_ng_casts nc WHERE nc.customer_id = c.id))';
+    }
     // 並び順: recent=最近の利用（既定） / count=利用回数
     $sort = ($_GET['sort'] ?? 'recent') === 'count' ? 'count' : 'recent';
     $orderBy = $sort === 'count'
@@ -64,6 +73,8 @@ if ($action === 'list' && $method === 'GET') {
     $sql = "SELECT c.id, c.name, c.name_kana, c.phone, c.phone2, c.email, c.gender, c.default_hotel_id,
                    c.default_location, c.default_location2,
                    c.visit_count, c.last_visit_at, c.created_at,
+                   c.ng_level, c.ng_reason,
+                   (SELECT COUNT(*) FROM ops_customer_ng_casts nc WHERE nc.customer_id = c.id) AS ng_cast_count,
                    {$lastHotelSql} AS last_hotel,
                    {$bookingCountSql} AS actual_booking_count,
                    (COALESCE(c.visit_count, 0) + {$bookingCountSql}) AS total_visits
@@ -138,12 +149,44 @@ if ($action === 'get' && $method === 'GET') {
         $legacyVisits = $lv->fetchAll();
     } catch (Throwable $e) { /* テーブル無し */ }
 
+    // このお客様に出さないキャスト（退職などで消えた分は JOIN で落ちる）
+    $ng = $pdo->prepare("SELECT nc.cast_admin_id, nc.reason, au.display_name
+                         FROM ops_customer_ng_casts nc
+                         JOIN ops_admin_users au ON au.id = nc.cast_admin_id
+                         WHERE nc.customer_id = ?
+                         ORDER BY au.sort_order, au.id");
+    $ng->execute([$id]);
+
     jsonResponse([
         'customer'      => $cust,
         'bookings'      => $bs->fetchAll(),
         'legacy_visits' => $legacyVisits,
         'chat_sessions' => $chatSessions,
+        'ng_casts'      => $ng->fetchAll(),
     ]);
+}
+
+/**
+ * NGキャストを丸ごと入れ替える。理由は既存分を引き継ぐ（画面から理由だけ消えないように）。
+ * $ids は ops_admin_users.id の配列。実在しないIDは黙って捨てる。
+ */
+function opsSaveNgCasts(PDO $pdo, int $customerId, array $ids): void {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+    $prev = [];
+    $q = $pdo->prepare("SELECT cast_admin_id, reason FROM ops_customer_ng_casts WHERE customer_id = ?");
+    $q->execute([$customerId]);
+    foreach ($q->fetchAll() as $r) $prev[(int)$r['cast_admin_id']] = $r['reason'];
+
+    $pdo->prepare("DELETE FROM ops_customer_ng_casts WHERE customer_id = ?")->execute([$customerId]);
+    if (!$ids) return;
+    $ok  = $pdo->prepare("SELECT 1 FROM ops_admin_users WHERE id = ?");
+    $ins = $pdo->prepare("INSERT INTO ops_customer_ng_casts (customer_id, cast_admin_id, reason, created_at)
+                          VALUES (?, ?, ?, NOW())");
+    foreach ($ids as $cid) {
+        $ok->execute([$cid]);
+        if (!$ok->fetchColumn()) continue;
+        $ins->execute([$customerId, $cid, $prev[$cid] ?? null]);
+    }
 }
 
 if ($action === 'find-by-phone' && $method === 'GET') {
@@ -158,7 +201,15 @@ if ($action === 'find-by-phone' && $method === 'GET') {
                             WHERE " . opsPhoneMatchSql('phone') . " OR " . opsPhoneMatchSql('phone2') . "
                             ORDER BY visit_count DESC, id LIMIT 1");
     $stmt->execute([$digits, $digits]);
-    jsonResponse(['customer' => $stmt->fetch() ?: null]);
+    $cust = $stmt->fetch() ?: null;
+    // 予約を取る瞬間に警告を出すため、NGキャストのIDもここで返す（追加の往復をさせない）
+    $ngCastIds = [];
+    if ($cust) {
+        $ng = $pdo->prepare("SELECT cast_admin_id FROM ops_customer_ng_casts WHERE customer_id = ?");
+        $ng->execute([(int)$cust['id']]);
+        $ngCastIds = array_map('intval', $ng->fetchAll(PDO::FETCH_COLUMN));
+    }
+    jsonResponse(['customer' => $cust, 'ng_cast_ids' => $ngCastIds]);
 }
 
 if ($action === 'create' && $method === 'POST') {
@@ -167,10 +218,12 @@ if ($action === 'create' && $method === 'POST') {
     if ($name === '') errorResponse('name required', 400);
     $loc  = trim($b['default_location'] ?? '');
     $loc2 = trim($b['default_location2'] ?? '');
+    $ngLevel = max(0, min(2, (int)($b['ng_level'] ?? 0)));
     $stmt = $pdo->prepare("INSERT INTO ops_customers
         (name, name_kana, phone, phone2, email, gender, default_hotel_id,
-         default_location, location_norm, default_location2, location_norm2, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+         default_location, location_norm, default_location2, location_norm2, notes,
+         ng_level, ng_reason, ng_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $name,
         trim($b['name_kana'] ?? '') ?: null,
@@ -184,8 +237,13 @@ if ($action === 'create' && $method === 'POST') {
         $loc2 ?: null,
         opsNormAddress($loc2) ?: null,
         trim($b['notes'] ?? '') ?: null,
+        $ngLevel,
+        $ngLevel > 0 ? (trim($b['ng_reason'] ?? '') ?: null) : null,
+        $ngLevel > 0 ? date('Y-m-d H:i:s') : null,
     ]);
-    jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+    $newId = (int)$pdo->lastInsertId();
+    if (array_key_exists('ng_cast_ids', $b)) opsSaveNgCasts($pdo, $newId, (array)$b['ng_cast_ids']);
+    jsonResponse(['ok' => true, 'id' => $newId]);
 }
 
 if ($action === 'update' && $method === 'POST') {
@@ -193,7 +251,7 @@ if ($action === 'update' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
     $allow = ['name','name_kana','phone','phone2','email','gender','default_hotel_id',
-              'default_location','default_location2','notes','pledge_images'];
+              'default_location','default_location2','notes','pledge_images','ng_reason'];
     $cols  = []; $vals = [];
     foreach ($allow as $k) {
         if (array_key_exists($k, $b)) {
@@ -213,7 +271,18 @@ if ($action === 'update' && $method === 'POST') {
         $cols[] = 'location_norm2 = ?';
         $vals[] = opsNormAddress(is_string($b['default_location2']) ? $b['default_location2'] : '') ?: null;
     }
-    if (!$cols) errorResponse('nothing to update', 400);
+    // NG区分。0に戻したら理由と日時も消す。0→1/2 になったときだけ ng_at を打つ（登録日を保つ）
+    if (array_key_exists('ng_level', $b)) {
+        $lv = max(0, min(2, (int)$b['ng_level']));
+        $cur = $pdo->prepare("SELECT ng_level FROM ops_customers WHERE id = ?");
+        $cur->execute([$id]);
+        $was = (int)$cur->fetchColumn();
+        $cols[] = 'ng_level = ?'; $vals[] = $lv;
+        if ($lv === 0) { $cols[] = 'ng_reason = NULL'; $cols[] = 'ng_at = NULL'; }
+        elseif ($was === 0) { $cols[] = 'ng_at = ?'; $vals[] = date('Y-m-d H:i:s'); }
+    }
+    if (array_key_exists('ng_cast_ids', $b)) opsSaveNgCasts($pdo, $id, (array)$b['ng_cast_ids']);
+    if (!$cols) { jsonResponse(['ok' => true]); }
     $vals[] = $id;
     $pdo->prepare("UPDATE ops_customers SET " . implode(', ', $cols) . " WHERE id = ?")->execute($vals);
     jsonResponse(['ok' => true]);
@@ -224,6 +293,7 @@ if ($action === 'delete' && $method === 'POST') {
     $b  = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
+    $pdo->prepare("DELETE FROM ops_customer_ng_casts WHERE customer_id = ?")->execute([$id]);
     $pdo->prepare("DELETE FROM ops_customers WHERE id = ?")->execute([$id]);
     jsonResponse(['ok' => true]);
 }

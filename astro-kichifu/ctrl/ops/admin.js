@@ -144,7 +144,7 @@
         document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.id === 'bmAdminId-2') {
-        withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); });
+        withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); });
       } else if (e.target.id === 'bmCancelType-2' || e.target.id === 'bmCancelFee-2') {
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.name === 'bmLocType-2') {
@@ -1009,6 +1009,48 @@
         }
       });
     });
+  }
+
+  // 予約モーダルのNG警告。電話番号でお客様が当たった時点と、担当キャストを選んだ時点の
+  // 両方で出す（どちらが先でも気づけるように）。モーダル①②で別々に持つ。
+  const bmNg = { '': null, '-2': null };   // {level, reason, castIds:[]}
+
+  function setBookingNg(info) {
+    bmNg[activeBmSuffix] = info;
+    renderNgAlert();
+  }
+  /** 電話番号からNG情報だけ取り直す（予約編集を開いたとき用。名前欄などは触らない） */
+  async function refreshBookingNg(phone) {
+    const p = String(phone || '').trim();
+    if (!p) { setBookingNg(null); return; }
+    try {
+      const d = await api('/customers.php?action=find-by-phone&phone=' + encodeURIComponent(p));
+      setBookingNg(d.customer
+        ? { level: Number(d.customer.ng_level || 0), reason: d.customer.ng_reason || '', castIds: d.ng_cast_ids || [] }
+        : null);
+    } catch (e) { setBookingNg(null); }
+  }
+
+  function renderNgAlert() {
+    const ng = bmNg[activeBmSuffix];
+    const box = bel('bmNgAlert');
+    const castBox = bel('bmNgCastAlert');
+    if (box) {
+      const lv = Number(ng?.level || 0);
+      box.className = 'bm-ng-alert' + (lv ? ' lv' + lv : '');
+      box.style.display = lv ? 'block' : 'none';
+      box.textContent = lv
+        ? `⚠️ ${lv === 2 ? '出禁' : '要注意'}のお客様です${ng.reason ? '（' + ng.reason + '）' : ''}`
+        : '';
+    }
+    if (castBox) {
+      const id = Number(bel('bmAdminId')?.value || 0);
+      const hit = id && (ng?.castIds || []).map(Number).includes(id);
+      const u = hit ? findStaffUser(id) : null;
+      castBox.className = 'bm-ng-alert' + (hit ? ' lv2' : '');
+      castBox.style.display = hit ? 'block' : 'none';
+      castBox.textContent = hit ? `⚠️ ${u?.display_name || ''} はこのお客様NGです` : '';
+    }
   }
 
   // 担当キャストの注意事項（猫アレルギー等）を予約モーダルに出す。
@@ -3345,11 +3387,12 @@
   // 電話番号 blur で既存顧客検索
   async function lookupCustomerByPhone() {
     const phone = bel('bmCustomerPhone').value.trim();
-    if (!phone) { loadCustomerHistory(null); return; }
+    if (!phone) { setBookingNg(null); loadCustomerHistory(null); return; }
     try {
       const d = await api('/customers.php?action=find-by-phone&phone=' + encodeURIComponent(phone));
       if (d.customer) {
         bel('bmCustomerId').value = d.customer.id;
+        setBookingNg({ level: Number(d.customer.ng_level || 0), reason: d.customer.ng_reason || '', castIds: d.ng_cast_ids || [] });
         const nameField = bel('bmCustomerName');
         if (!nameField.value.trim()) nameField.value = d.customer.name || '';
         const emailField = bel('bmCustomerEmail');
@@ -3357,6 +3400,7 @@
         loadCustomerHistory(d.customer.id, getEditingBookingId());
       } else {
         bel('bmCustomerId').value = '';
+        setBookingNg(null);
         loadCustomerHistory(null);
       }
     } catch (e) {}
@@ -3384,6 +3428,7 @@
         bel('bmCustomerName').value = b.customer_name || b.customer_name_snapshot || '';
         bel('bmCustomerPhone').value = b.customer_phone || b.customer_phone_snapshot || '';
         bel('bmCustomerEmail').value = b.customer_email_snapshot || '';
+        refreshBookingNg(b.customer_phone || b.customer_phone_snapshot || '');
         loadCustomerHistory(b.customer_id || null, id);
         // カレンダー日基準でそのまま表示
         bel('bmDate').value = bizDateOf(b.booking_date, b.start_time || '00:00');  // 日付欄は営業日で表示（深夜0-10時は前日）
@@ -3532,6 +3577,7 @@
       const sm = prefill?.startMin ?? 0;
       bel('bmStartHour').value = sh;
       bel('bmStartMin').value = sm;
+      setBookingNg(null);   // 前に開いたお客様のNG警告が残らないように
       updateEndTime();  // コース未選択なので「—」
       // 開始時刻が深夜帯なら自動で深夜料金チェック ON (料金はまだ 0 なので加算しても影響なし)
       autoToggleLateNight();
@@ -4174,6 +4220,17 @@
         return raw !== '' ? parseInt(raw, 10) : null;
       })(),
     };
+    // NGのお客様・NGキャストの組み合わせは、保存の直前にもう一度確認する（登録自体は止めない）
+    const ng = bmNg[activeBmSuffix];
+    if (!isBreak && ng) {
+      const warn = [];
+      if (Number(ng.level) > 0) warn.push(`${Number(ng.level) === 2 ? '出禁' : '要注意'}のお客様です${ng.reason ? '（' + ng.reason + '）' : ''}`);
+      const aId = Number(bel('bmAdminId').value || 0);
+      if (aId && (ng.castIds || []).map(Number).includes(aId)) {
+        warn.push(`${findStaffUser(aId)?.display_name || '担当キャスト'} はこのお客様NGです`);
+      }
+      if (warn.length && !confirm('⚠️ ' + warn.join('\n⚠️ ') + '\n\nこのまま登録しますか？')) return;
+    }
     try {
       const editId = getEditingBookingId();
       if (editId) {
@@ -4206,13 +4263,69 @@
   }
 
   // ========== Customers ==========
+  // ===== NG登録 =====
+  // 出禁/要注意（お店として受けるか）と、キャスト別NG（この客にこの女性を出さない）の2本立て。
+  // これまで「お客様メモ」に文章で書いていたため、予約を取る瞬間に気づけなかった。
+  const NG_LABEL = { 1: '要注意', 2: '出禁' };
+
+  /** 一覧の名前の右に出すバッジ */
+  function ngBadges(c) {
+    const lv = Number(c.ng_level || 0);
+    const casts = Number(c.ng_cast_count || 0);
+    let out = '';
+    if (lv > 0) out += `<span class="ng-badge lv${lv}">${NG_LABEL[lv]}</span>`;
+    if (casts > 0) out += `<span class="ng-badge cast">キャストNG ${casts}</span>`;
+    return out;
+  }
+
+  let cmNgCasts = [];   // [{cast_admin_id, display_name}] 編集中のNGキャスト
+
+  function renderCmNgCasts() {
+    const box = document.getElementById('cmNgCastList');
+    if (!box) return;
+    box.innerHTML = cmNgCasts.map(n => `
+      <span class="ng-chip">${escapeHtml(n.display_name || '(不明)')}
+        <button type="button" data-ng-cast-remove="${n.cast_admin_id}" aria-label="外す">×</button>
+      </span>`).join('');
+    box.querySelectorAll('[data-ng-cast-remove]').forEach(b => {
+      b.addEventListener('click', () => {
+        const id = Number(b.dataset.ngCastRemove);
+        cmNgCasts = cmNgCasts.filter(n => Number(n.cast_admin_id) !== id);
+        renderCmNgCasts();
+        populateCmNgCastSelect();
+      });
+    });
+  }
+
+  /** 追加プルダウン: 既にNGにしているキャストは出さない */
+  function populateCmNgCastSelect() {
+    const sel = document.getElementById('cmNgCastAdd');
+    if (!sel) return;
+    const taken = new Set(cmNgCasts.map(n => Number(n.cast_admin_id)));
+    const casts = (adminUsersAll || []).filter(u => isTherapistCapable(u) && !taken.has(Number(u.id)));
+    sel.innerHTML = '<option value="">＋ キャストを追加</option>'
+      + casts.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username || '')}</option>`).join('');
+  }
+
+  /** 区分に応じて理由欄と枠の色を出し分ける */
+  function syncCmNgBox() {
+    const lv = Number(document.getElementById('cmNgLevel')?.value || 0);
+    const reason = document.getElementById('cmNgReasonField');
+    const box = document.getElementById('cmNgBox');
+    if (reason) reason.style.display = lv > 0 ? '' : 'none';
+    if (box) box.classList.toggle('is-ng', lv === 2);
+  }
+
   async function loadCustomers() {
     const el = document.getElementById('customerList');
     el.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
     const kw = document.getElementById('cuKeyword').value.trim();
     const sort = document.getElementById('cuSort')?.value || 'recent';
+    const ng = document.getElementById('cuNg')?.value || '';
     try {
-      const d = await api('/customers.php?action=list&sort=' + sort + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
+      const d = await api('/customers.php?action=list&sort=' + sort
+        + (ng ? '&ng=' + ng : '')
+        + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
       customersList = d.customers || [];
       renderCustomers();
     } catch (e) {
@@ -4237,7 +4350,7 @@
         : ((c.last_hotel || '').trim() ? `🏨 ${escapeHtml(c.last_hotel.trim())}` : '');
       return `
       <div class="cu-row" data-customer-id="${c.id}">
-        <div class="cu-name">${escapeHtml(c.name)}${c.name_kana ? `<span class="kana">${escapeHtml(c.name_kana)}</span>` : ''}</div>
+        <div class="cu-name">${escapeHtml(c.name)}${c.name_kana ? `<span class="kana">${escapeHtml(c.name_kana)}</span>` : ''}${ngBadges(c)}</div>
         <div class="cu-contact">${c.phone ? '📞 ' + escapeHtml(c.phone) : ''} ${c.email ? '✉️ ' + escapeHtml(c.email) : ''}${last ? `<span class="cu-last">最終 ${escapeHtml(last)}</span>` : ''}${loc ? `<div class="cu-loc">${loc}</div>` : ''}</div>
         <div class="cu-visits"><b>${cnt.toLocaleString()}</b><br>回</div>
         <div class="cu-actions"><button>編集</button></div>
@@ -4260,6 +4373,7 @@
 
   async function openCustomerModal(id) {
     editingCustomerId = id;
+    await ensureSelectsLoaded();   // NGキャストの選択肢に adminUsersAll が要る
     document.getElementById('cmTitle').textContent = id ? '顧客編集' : '新規顧客';
     document.getElementById('cmDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
     document.getElementById('cmHistory').style.display = 'none';
@@ -4288,6 +4402,12 @@
         document.getElementById('cmLocation').value = c.default_location || '';
         document.getElementById('cmLocation2').value = c.default_location2 || '';
         document.getElementById('cmNotes').value = c.notes || '';
+        document.getElementById('cmNgLevel').value = String(c.ng_level || 0);
+        document.getElementById('cmNgReason').value = c.ng_reason || '';
+        cmNgCasts = (d.ng_casts || []).map(n => ({ cast_admin_id: Number(n.cast_admin_id), display_name: n.display_name }));
+        syncCmNgBox();
+        renderCmNgCasts();
+        populateCmNgCastSelect();
         // 会員証（スタンプカード）URL: トークン既発行なら即表示
         if (c.member_token) showMemberUrl('https://ylka.jp/member.html?t=' + c.member_token);
         // 誓約書 復元
@@ -4352,7 +4472,12 @@
         }
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
-      ['cmName','cmKana','cmPhone','cmPhone2','cmEmail','cmGender','cmLocation','cmLocation2','cmNotes'].forEach(i => document.getElementById(i).value = '');
+      ['cmName','cmKana','cmPhone','cmPhone2','cmEmail','cmGender','cmLocation','cmLocation2','cmNotes','cmNgReason'].forEach(i => document.getElementById(i).value = '');
+      document.getElementById('cmNgLevel').value = '0';
+      cmNgCasts = [];
+      syncCmNgBox();
+      renderCmNgCasts();
+      populateCmNgCastSelect();
       cmPledgesState = [];
       renderCmPledges();
     }
@@ -4460,6 +4585,9 @@
       default_location2: document.getElementById('cmLocation2').value,
       notes: document.getElementById('cmNotes').value,
       pledge_images: JSON.stringify(cmPledgesState || []),
+      ng_level: Number(document.getElementById('cmNgLevel').value || 0),
+      ng_reason: document.getElementById('cmNgReason').value,
+      ng_cast_ids: cmNgCasts.map(n => Number(n.cast_admin_id)),
     };
     try {
       if (editingCustomerId) {
@@ -7426,6 +7554,18 @@
     let cuTimer;
     document.getElementById('cuKeyword').addEventListener('input', () => { clearTimeout(cuTimer); cuTimer = setTimeout(loadCustomers, 300); });
     document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
+    document.getElementById('cuNg')?.addEventListener('change', loadCustomers);
+    // NG登録: 区分を変えたら理由欄の出し入れ、プルダウンで選んだキャストをチップに積む
+    document.getElementById('cmNgLevel')?.addEventListener('change', syncCmNgBox);
+    document.getElementById('cmNgCastAdd')?.addEventListener('change', e => {
+      const id = Number(e.target.value || 0);
+      e.target.value = '';
+      if (!id || cmNgCasts.some(n => Number(n.cast_admin_id) === id)) return;
+      const u = findStaffUser(id);
+      cmNgCasts.push({ cast_admin_id: id, display_name: u?.display_name || u?.username || '' });
+      renderCmNgCasts();
+      populateCmNgCastSelect();
+    });
     document.getElementById('cmSave').addEventListener('click', saveCustomer);
     document.getElementById('cmDelete').addEventListener('click', deleteCustomer);
     document.getElementById('cmMemberBtn')?.addEventListener('click', async () => {
@@ -7595,7 +7735,7 @@
       updateBookingTotal();
     });
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
-    bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); });
+    bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); });
     // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
     bel('bmDate')?.addEventListener('change', e => populateCastSelect(e.target.value, bel('bmAdminId').value));
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
