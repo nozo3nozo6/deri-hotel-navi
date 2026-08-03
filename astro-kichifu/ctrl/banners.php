@@ -4,8 +4,10 @@ require_login();
 $shop = current_shop_id();
 $type = ($_GET['type'] ?? 'top') === 'bottom' ? 'bottom' : 'top';
 
-$st = db()->prepare('SELECT * FROM banners WHERE shop_id=? AND type=? ORDER BY sort, id');
-$st->execute([$shop, $type]);
+// 一覧は「今見ている店のサイトに出るもの」＋「自店が作った表示先なしの行」（スライダーと同じ考え方）
+[$scope, $bind] = display_scope_sql('b', 'banner_shops', 'banner_id', $shop);
+$st = db()->prepare("SELECT * FROM banners b WHERE b.type=? AND $scope ORDER BY b.sort, b.id");
+$st->execute(array_merge([$type], $bind));
 $rows = $st->fetchAll();
 
 // 表示先店舗（banner_shops）を行ごとに集計

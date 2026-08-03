@@ -118,6 +118,19 @@ function current_shop_id(): int {
     return $row ? (int)$row['id'] : 1;
 }
 
+// ---- 「この店のサイトに出るもの」スコープ（表示店舗トグルを持つテーブル用）----
+// sliders / banners は 1行 = 1コンテンツ で、表示先は slider_shops / banner_shops のトグルで決まる。
+// 一覧を owner(shop_id) で絞ると「他店が作って自店にも出している行」が管理画面から見えず、
+// 消したつもりのバナーがサイトに残り続ける（2026-08-03 吉祥寺のスライダー8枚問題）。
+// そこで一覧・編集・削除のスコープを「自店に表示される行」＋「自店が作った表示先なしの行」に統一する。
+//   $alias: 対象テーブルの別名（例 's'）/ $link: 中間テーブル名 / $fk: 中間テーブルの外部キー列
+// 戻り値: [SQL断片, バインド値] — SQL断片は AND で連結して使う
+function display_scope_sql(string $alias, string $link, string $fk, int $shop): array {
+    $sql = "(EXISTS (SELECT 1 FROM `$link` l1 WHERE l1.`$fk` = $alias.id AND l1.shop_id = ?)"
+         . " OR ($alias.shop_id = ? AND NOT EXISTS (SELECT 1 FROM `$link` l2 WHERE l2.`$fk` = $alias.id)))";
+    return [$sql, [$shop, $shop]];
+}
+
 // ---- ナビゲーション定義（MINERVAのIAを踏襲・グループ化）----
 function nav_groups(): array {
     return [

@@ -13,13 +13,16 @@ if (!current_admin()) { http_response_code(401); echo json_encode(['ok' => false
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); echo json_encode(['ok' => false]); exit; }
 if (!hash_equals($_SESSION['_csrf'] ?? '', (string)($_POST['_csrf'] ?? ''))) { http_response_code(419); echo json_encode(['ok' => false]); exit; }
 
-// テーブル => [画像カラム配列, toggle対象カラム名|null, shop_scopedか]
-// マスタ系（girl_categories/options/profiles/image_tags）は共有プールのため shop_scoped=false
+// テーブル => [画像カラム配列, toggle対象カラム名|null, スコープ]
+//   true  … shop_id で自店のみ
+//   false … 共有マスタ（girl_categories/options/profiles/image_tags）でスコープなし
+//   [中間テーブル, 外部キー] … 表示店舗トグルを持つもの。「自店のサイトに出る行」を対象にする
+//     （owner で絞ると他店が作った行を消せず、サイトに残り続ける — display_scope_sql 参照）
 $TABLES = [
     'news'            => [['thumb'], 'is_display', true],
     'events'          => [['thumb'], 'is_display', true],
-    'banners'         => [['image'], 'is_display', true],
-    'sliders'         => [['image_pc', 'image_sp'], 'is_display', true],
+    'banners'         => [['image'], 'is_display', ['banner_shops', 'banner_id']],
+    'sliders'         => [['image_pc', 'image_sp'], 'is_display', ['slider_shops', 'slider_id']],
     'hotels'          => [['image'], 'is_display', true],
     'hotel_areas'     => [[], null, true],
     'girl_diaries'    => [['image'], 'is_display', true],
@@ -32,13 +35,20 @@ $TABLES = [
 
 $table = (string)($_POST['table'] ?? '');
 if (!isset($TABLES[$table])) { http_response_code(400); echo json_encode(['ok' => false, 'error' => 'table']); exit; }
-[$imgCols, $toggleCol, $shopScoped] = $TABLES[$table];
+[$imgCols, $toggleCol, $scopeDef] = $TABLES[$table];
 $shop = current_shop_id();
 $action = $_POST['action'] ?? '';
 
-// shop_scoped テーブルは WHERE id=? AND shop_id=?、共有マスタは WHERE id=? のみ
-$whereShop = $shopScoped ? ' AND shop_id=?' : '';
-$bindShop  = fn(int $id) => $shopScoped ? [$id, $shop] : [$id];
+// スコープ定義から WHERE 断片とバインドを組み立てる（テーブル名は全てホワイトリスト由来）
+$whereShop = ''; $scopeBind = [];
+if ($scopeDef === true) {
+    $whereShop = ' AND shop_id=?'; $scopeBind = [$shop];
+} elseif (is_array($scopeDef)) {
+    [$linkTbl, $linkFk] = $scopeDef;
+    [$sql, $scopeBind] = display_scope_sql("`$table`", $linkTbl, $linkFk, $shop);
+    $whereShop = ' AND ' . $sql;
+}
+$bindShop = fn(int $id) => array_merge([$id], $scopeBind);
 
 try {
     switch ($action) {

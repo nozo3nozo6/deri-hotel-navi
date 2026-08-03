@@ -5,15 +5,19 @@ require_login();
 $shop = current_shop_id();
 $id = (int)($_GET['id'] ?? 0);
 
+// 編集できるのは「自店のサイトに出る行」＋「自店が作った表示先なしの行」（一覧と同じスコープ）
+[$scope, $scopeBind] = display_scope_sql('b', 'banner_shops', 'banner_id', $shop);
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
     $cur = null;
-    if ($id) { $s = db()->prepare('SELECT * FROM banners WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $cur = $s->fetch(); }
+    if ($id) { $s = db()->prepare("SELECT b.* FROM banners b WHERE b.id=? AND $scope"); $s->execute(array_merge([$id], $scopeBind)); $cur = $s->fetch(); }
     $image = $cur['image'] ?? '';
     if (!empty($_POST['remove_image'])) { delete_upload($image); $image = ''; }
     if (($_FILES['image']['error'] ?? 4) === UPLOAD_ERR_OK) { $new = save_upload($_FILES['image'], 'banners/' . $shop, 1200, 1200); if ($new) { delete_upload($image); $image = $new; } }
     $data = [
-        'shop_id' => $shop,
+        // shop_id は「作った店」の記録。表示先は banner_shops で決まるので owner は移さない
+        'shop_id' => $cur ? (int)$cur['shop_id'] : $shop,
         'type' => ($_POST['type'] ?? 'top') === 'bottom' ? 'bottom' : 'top',
         'title' => trim((string)($_POST['title'] ?? '')),
         'url' => trim((string)($_POST['url'] ?? '')),
@@ -45,7 +49,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 $b = ['type' => ($_GET['type'] ?? 'top'), 'title' => '', 'url' => '', 'image' => '', 'is_display' => 1];
-if ($id) { $s = db()->prepare('SELECT * FROM banners WHERE id=? AND shop_id=?'); $s->execute([$id, $shop]); $b = $s->fetch(); if (!$b) { flash('err', '対象が見つかりません。'); redirect('banners.php'); } }
+if ($id) { $s = db()->prepare("SELECT b.* FROM banners b WHERE b.id=? AND $scope"); $s->execute(array_merge([$id], $scopeBind)); $b = $s->fetch(); if (!$b) { flash('err', '対象が見つかりません。'); redirect('banners.php'); } }
 
 // 表示店舗（新規＝両店デフォルトON / 編集＝現在の banner_shops）
 $allShops = shops_list();
