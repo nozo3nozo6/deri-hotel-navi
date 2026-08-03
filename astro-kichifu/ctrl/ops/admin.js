@@ -225,10 +225,45 @@
     return 'hotel';  // 自由入力のホテル名
   }
   function switchLocSection(type) {
-    document.querySelectorAll('.loc-section').forEach(el => {
+    const modal = document.getElementById('bookingModal' + activeBmSuffix) || document;
+    modal.querySelectorAll('.loc-section').forEach(el => {
       el.style.display = el.dataset.loc === type ? 'block' : 'none';
     });
-    document.querySelectorAll('input[name="bmLocType"]').forEach(r => r.checked = r.value === type);
+    modal.querySelectorAll(`input[name="bmLocType${activeBmSuffix}"]`).forEach(r => r.checked = r.value === type);
+  }
+
+  // ===== いつもの場所の自動入力 =====
+  // 電話番号でお客様が当たったとき、顧客登録の「よく使う場所」（＝ご自宅の住所が多い）を
+  // 訪問先に自動セットする。基本ご自宅利用のお客様で毎回住所を打ち直さなくて済むように。
+  // 稀にホテル利用もあるので、あくまで初期値＝「ホテル」タブに切り替えれば普通にホテル選択。
+  // 場所を少しでも触っていたら何もしない（オペレーターの入力を消さない）。
+  function prefillUsualLocation(c) {
+    const note = bel('bmUsualLocNote');
+    const addr = String(c?.default_location || '').trim();
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    const untouched = locType === 'hotel'
+      && !bel('bmHotelId')?.value
+      && !(bel('bmHotelName')?.value || '').trim()
+      && !(bel('bmRoom')?.value || '').trim()
+      && !(bel('bmHomeAddress')?.value || '').trim()
+      && !(bel('bmOtherLoc')?.value || '').trim();
+    if (!addr || !untouched || bel('bmBreakMode')?.checked) {
+      if (note && !addr) note.style.display = 'none';
+      return;
+    }
+    switchLocSection('home');
+    bel('bmHomeAddress').value = addr;
+    // 市区町村も住所から合わせる（エリアタブごと）。プルダウンに無い市はそのまま
+    const city = extractCityFromAddress(addr);
+    if (city) {
+      syncCityRegionTab(city);
+      const citySel = bel('bmCity');
+      if (citySel && [...citySel.options].some(o => o.value === city)) citySel.value = city;
+    }
+    if (note) {
+      note.style.display = 'block';
+      note.textContent = '📍 いつもの場所を自動入力しました（ホテル利用のときは「ホテル」タブへ）';
+    }
   }
   // メインエリア（多摩）。立川駅からの直線距離が近い順。
   //   距離は各市区町村の役所の位置で概算（カッコ内はおおよその km）。
@@ -3424,6 +3459,7 @@
       if (d.customer) {
         bel('bmCustomerId').value = d.customer.id;
         setBookingNg({ level: Number(d.customer.ng_level || 0), reason: d.customer.ng_reason || '', castIds: d.ng_cast_ids || [] });
+        prefillUsualLocation(d.customer);
         const nameField = bel('bmCustomerName');
         if (!nameField.value.trim()) nameField.value = d.customer.name || '';
         const emailField = bel('bmCustomerEmail');
@@ -3601,6 +3637,8 @@
       bel('bmCity').value = '';
       populateHotelSelect('');
       switchLocSection('hotel');
+      const usualNote = bel('bmUsualLocNote');
+      if (usualNote) usualNote.style.display = 'none';
       bel('bmDate').value = prefill?.date || fmtDate(getBusinessDayDate());  // 日付欄は営業日基準（深夜0-10時は前営業日）。保存時に開始時刻からカレンダー日へ変換
       bel('bmCancelType').value = 'customer';
       bel('bmCancelReason').value = '';
@@ -7605,6 +7643,12 @@
     document.getElementById('cuAddNew').addEventListener('click', () => openCustomerModal(null));
     let cuTimer;
     document.getElementById('cuKeyword').addEventListener('input', () => { clearTimeout(cuTimer); cuTimer = setTimeout(loadCustomers, 300); });
+    document.addEventListener('input', e => {
+      if (e.target.id === 'bmHomeAddress' || e.target.id === 'bmHomeAddress-2') {
+        const n = document.getElementById('bmUsualLocNote' + (e.target.id.endsWith('-2') ? '-2' : ''));
+        if (n) n.style.display = 'none';
+      }
+    });
     document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
     document.getElementById('cuNg')?.addEventListener('change', loadCustomers);
     // NG登録: 区分を変えたら理由欄の出し入れ、プルダウンで選んだキャストをチップに積む

@@ -1566,6 +1566,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field">
           <label for="bmHomeAddress">住所</label>
           <input type="text" id="bmHomeAddress" placeholder="例: 東京都立川市曙町1-1-1">
+          <!-- リピーターの「よく使う場所」を自動入力したときの案内（手入力したら消える） -->
+          <span class="hint" id="bmUsualLocNote" style="display:none;color:#1d6b39;font-weight:600;"></span>
         </div>
         <div class="field">
           <label for="bmHomeBuilding">建物名・部屋番号・階数など</label>
