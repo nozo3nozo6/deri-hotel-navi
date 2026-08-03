@@ -1998,8 +1998,8 @@
     document.getElementById('holderModalTitle').textContent = `${me.display_name || me.username || ''} の入金（店入金分）`;
     // 入金分（店取り分）= 全額 − 報酬
     const netOf = (b) => {
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-      const amt = price + trans;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
+      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
       const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       return amt - reward;
     };
@@ -2037,8 +2037,8 @@
       <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:.7rem;">入金分（預り金 − 報酬）を誰がいくら持っているかを表示します。お金のやり取りが終わったお仕事は「精算確定」で締めてください。</div>${batchSettleBtn}`;
     if (!earned.length) html += '<p style="color:var(--ink-soft);">この日の入金はありません。</p>';
     earned.forEach(b => {
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-      const amt = price + trans;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
+      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
       const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       const net = amt - reward;
       const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span><span style="white-space:nowrap;"><b>${yen(net)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span></div>
@@ -2209,10 +2209,10 @@
     // ─ 預り金の保有状況（本日出勤のキャスト・内勤・ドライバーを名簿ベースで表示） ─
     // 報酬確定済み（渡し済み/本人確保）の予約は残額（全額−報酬）で計上
     const heldAmtOf = (b) => {
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const rate = Number(b.commission_rate);
       const hasRate = b.commission_rate != null && b.commission_rate !== '' && !Number.isNaN(rate);
-      const amt = price + trans;
+      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
       if (b.reward_paid_at && hasRate) return amt - calcReward(price, late, trans, rate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name);
       return amt;
     };
@@ -2322,8 +2322,8 @@
     // 予約1件の「いま預り金として残っている額」: 報酬が確定（渡し済み/本人確保）なら残額（全額−報酬）
     const heldAmountOf = (b) => {
       if (isNonCash(b)) return 0;                                                  // カード/振込は現金を預からない
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-      const amt = price + trans;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
+      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
       const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       if (b.reward_paid_at) return amt - reward;                                   // 報酬確定 → 残額（入金分）
       if (b.shop_settled && b.settle_kind === 'net') return amt - reward;          // 旧データ互換
@@ -2372,8 +2372,8 @@
     if (!earned.length) html += '<p style="color:var(--ink-soft);">この日の預り金はありません。</p>';
 
     earned.forEach(b => {
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-      const amt = price + trans;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
+      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
       // カード/振込決済: 現金の預かりなし。受け渡しUIは出さずバッジのみ
       if (isNonCash(b)) {
         html += `<div style="border:1px solid var(--gray);border-radius:10px;padding:.6rem;margin-bottom:.5rem;opacity:.8;">
@@ -2474,7 +2474,7 @@
     const holderOf = (b) => (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
                           : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : Number(b.assigned_admin_id));
     const items = earned.map(b => {
-      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
+      const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
       totalReward += reward;
       let statusHtml;
@@ -2609,8 +2609,8 @@
         // 預り金・入金分は現金決済のみ（カード/振込は現金を預からない）。報酬は全決済で発生
         let heldSales = 0, heldReward = 0, heldShop = 0;
         dayJobs.forEach(b => {
-          const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0;
-          const amt = price + trans;
+          const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
+          const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
           const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
           if (hasRate) heldReward += rw;
           if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
@@ -5940,7 +5940,7 @@
   }
   function renderAcSummary(d) {
     const s = d.sales || { cash:0, credit:0, bank:0, unset:0, total:0, count:0 };
-    const bd = d.breakdown || { course:0, late:0, transport:0 };
+    const bd = d.breakdown || { course:0, late:0, transport:0, card:0 };
     const subhead = (t) => `<div style="font-size:.72rem;color:var(--ink-soft);padding:.35rem 0 .1rem 1.2rem;letter-spacing:.04em;">${t}</div>`;
     const row = (label, val, opt = {}) => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:${opt.big?'.8rem 0':'.45rem 0'};${opt.border?'border-top:1.5px solid var(--gray);':''}${opt.sub?'padding-left:1.2rem;':''}">
@@ -5958,6 +5958,7 @@
         ${row('コース料金', yen(bd.course), { sub:true })}
         ${row('深夜料金', yen(bd.late), { sub:true })}
         ${row('出張費', yen(bd.transport), { sub:true })}
+        ${bd.card ? row(`カード手数料（お客様上乗せ ${CARD_SURCHARGE_RATE}%）`, yen(bd.card), { sub:true }) : ''}
         ${subhead('支払方法')}
         ${row('現金', yen(s.cash), { sub:true })}
         ${row('クレジット', yen(s.credit), { sub:true })}

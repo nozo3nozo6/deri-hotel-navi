@@ -395,7 +395,8 @@ function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
     if (($r['status'] ?? '') === 'cancelled') {
         return [(int)($r['cancellation_fee'] ?? 0), (int)($r['cancellation_reward'] ?? 0)];
     }
-    $sales = (int)($r['price'] ?? 0) + (int)($r['transport_fee'] ?? 0);
+    // 売上 = コース料金 + 出張費 + クレジットの手数料上乗せ分（お客様から受け取る総額）
+    $sales = (int)($r['price'] ?? 0) + (int)($r['transport_fee'] ?? 0) + (int)($r['card_fee'] ?? 0);
     // 報酬の手入力オーバーライドがあればそちらを優先（微調整用。カード手数料差引は適用しない＝入力額そのまま）
     if (isset($r['reward_override']) && $r['reward_override'] !== null && $r['reward_override'] !== '') {
         return [$sales, (int)$r['reward_override']];
@@ -427,7 +428,7 @@ if ($action === 'payroll' && $method === 'GET') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   errorResponse('invalid to', 400);
 
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.assigned_admin_id,
-                   b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.payment_method,
+                   b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
                    b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override,
                    au.display_name, au.username, au.commission_rate, au.sort_order
             FROM ops_bookings b
@@ -622,7 +623,7 @@ if ($action === 'driver-day' && $method === 'GET') {
     // このドライバーが現在保有している預り金（未精算）
     $cardRate = getCardFeeRate($pdo);
     $cst = $pdo->prepare(
-        "SELECT b.id, b.customer_name_snapshot, b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id,
+        "SELECT b.id, b.customer_name_snapshot, b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id,
                 b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, b.settle_kind,
                 au.commission_rate, au.display_name AS therapist_name, au.username AS therapist_username
          FROM ops_bookings b
@@ -722,7 +723,7 @@ if ($action === 'accounting-summary' && $method === 'GET') {
 
     // 売上（支払方法別）。card は旧データ互換でクレジット扱い
     $sales = ['cash' => 0, 'credit' => 0, 'bank' => 0, 'unset' => 0, 'total' => 0, 'count' => 0];
-    $st = $pdo->prepare("SELECT payment_method, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) END),0) AS amt
+    $st = $pdo->prepare("SELECT payment_method, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END),0) AS amt
                          FROM ops_bookings
                          WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak
                          GROUP BY payment_method");
@@ -740,19 +741,20 @@ if ($action === 'accounting-summary' && $method === 'GET') {
     // 料金内訳（コース料金 / 深夜料金 / 出張費）— 売上と同じ絞り込み条件。price=コース+深夜が合算済みなので course=price−late
     $bt = $pdo->prepare("SELECT COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price - COALESCE(late_fee,0) END),0) AS course,
                                 COALESCE(SUM(CASE WHEN status='cancelled' THEN 0 ELSE COALESCE(late_fee,0) END),0) AS late,
-                                COALESCE(SUM(CASE WHEN status='cancelled' THEN 0 ELSE COALESCE(transport_fee,0) END),0) AS transport
+                                COALESCE(SUM(CASE WHEN status='cancelled' THEN 0 ELSE COALESCE(transport_fee,0) END),0) AS transport,
+                                COALESCE(SUM(CASE WHEN status='cancelled' THEN 0 ELSE COALESCE(card_fee,0) END),0) AS card
                          FROM ops_bookings
                          WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak");
     $bt->execute(array_merge([$from, $to], $tArg));
     $bd = $bt->fetch();
-    $breakdown = ['course' => (int)$bd['course'], 'late' => (int)$bd['late'], 'transport' => (int)$bd['transport']];
+    $breakdown = ['course' => (int)$bd['course'], 'late' => (int)$bd['late'], 'transport' => (int)$bd['transport'], 'card' => (int)$bd['card']];
 
     $rate = getCardFeeRate($pdo);
     // 手数料はクレジットのみ
     $cardFee = (int)floor($sales['credit'] * $rate / 100);
 
     // 報酬合計
-    $rwst = $pdo->prepare("SELECT b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+    $rwst = $pdo->prepare("SELECT b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
                            FROM ops_bookings b JOIN ops_admin_users au ON au.id = b.assigned_admin_id
                            WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.assigned_admin_id IS NOT NULL
                              AND $bizDayB BETWEEN ? AND ?$tCondB$noBreakB");
@@ -809,19 +811,19 @@ if ($action === 'sales' && $method === 'GET') {
 
     // コース別
     $byCourse = $pdo->prepare("SELECT COALESCE(course_name,'(未設定)') AS course, COUNT(*) AS cnt,
-                                      COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) END),0) AS amt
+                                      COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END),0) AS amt
                                FROM ops_bookings WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak
                                GROUP BY course_name ORDER BY amt DESC");
     $byCourse->execute(array_merge([$from, $to], $tArg));
 
     // 日別（営業日基準）
-    $byDay = $pdo->prepare("SELECT $bizDay AS d, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) END),0) AS amt
+    $byDay = $pdo->prepare("SELECT $bizDay AS d, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END),0) AS amt
                             FROM ops_bookings WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak
                             GROUP BY d ORDER BY d");
     $byDay->execute(array_merge([$from, $to], $tArg));
 
     // 支払方法別
-    $byPay = $pdo->prepare("SELECT payment_method AS pm, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) END),0) AS amt
+    $byPay = $pdo->prepare("SELECT payment_method AS pm, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END),0) AS amt
                             FROM ops_bookings WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak
                             GROUP BY payment_method");
     $byPay->execute(array_merge([$from, $to], $tArg));
@@ -849,7 +851,7 @@ if ($action === 'settlements' && $method === 'GET') {
     $tCondB = $tid ? ' AND b.assigned_admin_id = ?' : '';
     $tArg = $tid ? [$tid] : [];
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by,
                    au.display_name, au.username, au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username
@@ -1118,7 +1120,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
 // 指定期間の (日, キャスト) 別 店入金額合計を算出
 function ylkaComputeShopAmounts(PDO $pdo, string $from, string $to): array {
     $stmt = $pdo->prepare(
-        "SELECT b.booking_date, b.assigned_admin_id, b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+        "SELECT b.booking_date, b.assigned_admin_id, b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
          FROM ops_bookings b
          LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
          WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.booking_date BETWEEN ? AND ?
@@ -1238,7 +1240,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
     // 経理は予約時点で計上＝キャンセル/無連絡以外の全予約を集計（未/始/終は無関係, 2026-06-17）
     $statusWhere = "(b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))";
     $stmt = $pdo->prepare("SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by, b.reward_paid_at, b.reward_paid_by,
                    au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username
