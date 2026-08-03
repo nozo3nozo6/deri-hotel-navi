@@ -396,6 +396,18 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-staff-alert{display:inline-block;margin-left:.2rem;color:#c0392b;font-size:.8rem;cursor:pointer;}
   .tl-staff-thumb{cursor:pointer;}
   /* 媒体・予約経路のチェック群 */
+  /* ラベルが2行になるとチェック群が右に押し出されて不揃いに見えたので、ラベルは1行で上に置く */
+  /* クレジット決済: 手数料の内訳と決済確認チェック */
+  .bm-card-paid{display:flex;align-items:center;gap:.4rem;margin-top:.55rem;padding:.5rem .7rem;
+    border:1.5px solid #f5d5b0;background:#fffaf3;border-radius:8px;font-size:.85rem;font-weight:600;
+    color:#8a4a12;cursor:pointer;}
+  .bm-card-paid input{width:18px;height:18px;cursor:pointer;flex-shrink:0;margin:0;}
+  .bm-card-paid:has(input:checked){border-color:#a7ddb8;background:#eefaf1;color:#1d6b39;}
+  .bm-card-paid-at{margin-left:auto;font-weight:500;font-size:.76rem;opacity:.85;}
+  .bm-card-fee{font-size:.8rem;font-weight:600;color:var(--ink-soft);margin-top:.35rem;text-align:right;}
+  #bmMediaField{display:block;}
+  .bm-media-label{display:block;white-space:nowrap;margin-bottom:.4rem;}
+  .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   .bm-media-list{display:flex;flex-wrap:wrap;gap:.35rem;}
   .bm-media{display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .6rem;border:1.5px solid var(--gray);
     border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer;
@@ -1571,7 +1583,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
       <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
       <div class="field" id="bmMediaField">
-        <label>媒体・予約経路 <span style="font-weight:500;font-size:.72rem;color:var(--ink-soft);">LINE予約は＋10分(無料)</span></label>
+        <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約は＋10分(無料)</span></label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>
@@ -1674,6 +1686,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <button class="sbtn v-unset" data-pay-btn data-pay="bank" type="button">🏦 銀行振込</button>
           <button class="sbtn v-unset" data-pay-btn data-pay="" type="button">未設定</button>
         </div>
+        <!-- 稀に決済が通らないことがあるため、通ったかどうかを1件ずつ記録する -->
+        <label class="bm-card-paid" id="bmCardPaidWrap" style="display:none;">
+          <input type="checkbox" id="bmCardPaid">
+          <span>✅ 決済を確認した</span>
+          <span class="bm-card-paid-at" id="bmCardPaidAt"></span>
+        </label>
       </div>
       <!-- 微調整用の手入力オーバーライド（空欄なら従来通り自動計算。入力すると合計・報酬をその値に置き換える） -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
@@ -1685,6 +1703,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <span style="font-weight:700;color:var(--deep);font-size:.95rem;">💰 合計</span>
         <span id="bmTotal" style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.2rem;color:var(--deep);">¥0</span>
       </div>
+      <div id="bmCardFeeNote" class="bm-card-fee" style="display:none;"></div>
       <div id="bmCancelNote" style="display:none;font-size:.78rem;font-weight:700;margin-top:.35rem;text-align:right;"></div>
       <!-- キャンセル時のみ -->
       <div class="field" id="bmCancelWrap" style="display:none;">

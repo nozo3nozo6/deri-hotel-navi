@@ -522,9 +522,20 @@ function getCardFeeRate(PDO $pdo): float {
     return $v === false ? 3.0 : (float)$v;
 }
 
+/** クレジット決済でお客様の合計に上乗せする手数料率(%)。card_fee_rate（キャスト負担の計算用）とは別物 */
+function getCardSurchargeRate(PDO $pdo): float {
+    $st = $pdo->prepare("SELECT setting_value FROM ops_admin_settings WHERE setting_key = 'card_surcharge_rate'");
+    $st->execute();
+    $v = $st->fetchColumn();
+    return $v === false ? 10.0 : (float)$v;
+}
+
 if ($action === 'card-fee-get' && $method === 'GET') {
     // 手数料率は機密ではなく、報酬計算のキャスト負担分表示に staff も参照するため全ログイン管理者に開放
-    jsonResponse(['card_fee_rate' => getCardFeeRate($pdo)]);
+    jsonResponse([
+        'card_fee_rate' => getCardFeeRate($pdo),
+        'card_surcharge_rate' => getCardSurchargeRate($pdo),
+    ]);
 }
 
 if ($action === 'card-fee-set' && $method === 'POST') {

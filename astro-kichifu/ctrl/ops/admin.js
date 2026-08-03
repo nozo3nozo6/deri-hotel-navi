@@ -33,6 +33,7 @@
     modal.querySelectorAll('[data-pay-btn]').forEach(b => b.classList.toggle('active', b.dataset.pay === pm));
     const hidden = modal.querySelector('[data-pay-hidden]');
     if (hidden) hidden.value = pm;
+    try { syncCardUi(); } catch (_) { /* 初期化前に呼ばれた場合 */ }
   }
   // fn が async の場合、最初の await で fn() が pending Promise を返して制御を戻すため、
   // 同期の try/finally だと fn の非同期処理が終わる前に activeBmSuffix が戻ってしまう
@@ -1347,6 +1348,8 @@
   let tlCurrentDate = getBusinessDayDate();  // 1日分のタイムライン (営業日基準)
   let adminUsersAll = [];      // {id, username, display_name, role}
   let CARD_FEE_RATE = 3;       // クレジット手数料率(%)。init で card-fee-get から取得。半分がキャスト負担
+  // クレジット決済でお客様の合計に上乗せする手数料率(%)。上の CARD_FEE_RATE(キャスト負担用)とは別物
+  let CARD_SURCHARGE_RATE = 10;
   const NOMINATION_FEES = { first: 0, regular: 0, free: 0 };  // 指名料(固定額)。init で nomination-fees-get から取得
   const nominationFeeFor = (type) => NOMINATION_FEES[type] || 0;
   let tlBookings = [];
@@ -3188,6 +3191,24 @@
     const ratio = Math.min(rewardMin, courseMin) / courseMin;
     return Math.floor(postCampaignCourse * ratio);
   }
+  /** クレジット決済でお客様の合計に上乗せする手数料。現金/振込は0 */
+  function cardSurcharge(subtotal) {
+    if (bel('bmPayment')?.value !== 'credit') return 0;
+    return Math.floor((subtotal || 0) * CARD_SURCHARGE_RATE / 100);
+  }
+  /** 支払方法に応じて決済確認チェックと手数料の内訳を出し入れする */
+  function syncCardUi() {
+    const isCredit = bel('bmPayment')?.value === 'credit';
+    const wrap = bel('bmCardPaidWrap');
+    if (wrap) wrap.style.display = isCredit ? 'flex' : 'none';
+    if (!isCredit) {
+      const chk = bel('bmCardPaid');
+      if (chk) chk.checked = false;
+      const at = bel('bmCardPaidAt');
+      if (at) at.textContent = '';
+    }
+    updateBookingTotal();
+  }
   function updateBookingTotal() {
     const priceEl = bel('bmPrice');
     const transportEl = bel('bmTransport');
@@ -3198,6 +3219,7 @@
     const hasDepositOverride = depositOverrideRaw !== '';
     const amtEl = bel('bmCampaignAmt');
     const stampEl = bel('bmStampAmt');
+    let surchargeShown = 0;
     if (hasDepositOverride) {
       totalEl.textContent = '¥' + (parseInt(depositOverrideRaw, 10) || 0).toLocaleString();
       if (amtEl) amtEl.textContent = '';
@@ -3210,11 +3232,20 @@
       const discount = campaignDiscount(price);
       const stamp = stampDiscount(price - discount);
       const nomFee = bel('bmBreakMode')?.checked ? 0 : nominationFeeFor(bel('bmNomination')?.value);
-      const total = price + transport + lateNight + ext + nomFee - discount - stamp;
-      totalEl.textContent = '¥' + total.toLocaleString();
+      const subtotal = price + transport + lateNight + ext + nomFee - discount - stamp;
+      const surcharge = cardSurcharge(subtotal);
+      totalEl.textContent = '¥' + (subtotal + surcharge).toLocaleString();
       // 割引額をチェック横に表示
       if (amtEl) amtEl.textContent = discount > 0 ? `(−¥${discount.toLocaleString()})` : '';
       if (stampEl) stampEl.textContent = stamp > 0 ? `−¥${stamp.toLocaleString()}` : '';
+      surchargeShown = surcharge;
+    }
+    // カード手数料の内訳。手入力の預り金を使うときは「その額が最終」なので出さない
+    const feeNote = bel('bmCardFeeNote');
+    if (feeNote) {
+      const show = !hasDepositOverride && surchargeShown > 0;
+      feeNote.style.display = show ? 'block' : 'none';
+      feeNote.textContent = show ? `うち 💳 カード手数料 +${CARD_SURCHARGE_RATE}% ¥${surchargeShown.toLocaleString()}` : '';
     }
     // キャンセル時の計上注記（合計は元料金のまま表示し、計上の有無/額を明示）
     const noteEl = bel('bmCancelNote');
@@ -3506,6 +3537,10 @@
           if (transSel) transSel.value = transVal;
         }
         setBmPayment(b.payment_method || '');
+        const paidChk = bel('bmCardPaid');
+        if (paidChk) paidChk.checked = !!b.card_paid_at;
+        const paidAt = bel('bmCardPaidAt');
+        if (paidAt) paidAt.textContent = b.card_paid_at ? String(b.card_paid_at).slice(0, 16).replace('T', ' ') : '';
         if (bel('bmNomination')) bel('bmNomination').value = b.nomination_type || '';
         // 預り金は都度の手入力のため常に空欄（既存の報酬オーバーライドのみ編集時に復元）
         if (bel('bmDepositOverride')) bel('bmDepositOverride').value = '';
@@ -4211,6 +4246,20 @@
       transport_fee: isBreak ? 0 : (String(bel('bmDepositOverride')?.value || '').replace(/[^\d]/g, '') !== '' ? 0 : bel('bmTransport').value),
       extension_count: isBreak ? 0 : extCount(),
       payment_method: isBreak ? null : (bel('bmPayment')?.value || null),
+      // クレジットのときお客様の合計に上乗せした手数料。合計 = price + transport_fee + card_fee
+      card_fee: (() => {
+        if (isBreak || bel('bmPayment')?.value !== 'credit') return 0;
+        const depositRaw = String(bel('bmDepositOverride')?.value || '').replace(/[^\d]/g, '');
+        if (depositRaw !== '') return 0;   // 手入力の預り金＝それが最終額なので上乗せしない
+        const base = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
+        const late = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
+        const nomFee = nominationFeeFor(bel('bmNomination')?.value);
+        const disc = campaignDiscount(base);
+        const stamp = stampDiscount(base - disc);
+        const trans = parseInt(String(bel('bmTransport').value || '').replace(/[^\d]/g, ''), 10) || 0;
+        return cardSurcharge(base + trans + late + extAmount() + nomFee - disc - stamp);
+      })(),
+      card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeFor(bel('bmNomination')?.value),
       media: isBreak ? '' : getBmMedia().join(','),
@@ -7137,6 +7186,7 @@
     try {
       const cf = await api('/admin-api.php?action=card-fee-get');
       if (cf && cf.card_fee_rate != null) CARD_FEE_RATE = parseFloat(cf.card_fee_rate) || CARD_FEE_RATE;
+      if (cf && cf.card_surcharge_rate != null) CARD_SURCHARGE_RATE = parseFloat(cf.card_surcharge_rate) || CARD_SURCHARGE_RATE;
     } catch (e) {}
     // 指名料（初指名/本指名/フリーの固定額）を取得（予約合計への加算・フッターサマリー内訳に使用）
     try {
@@ -7163,6 +7213,8 @@
       const modal = btn.closest('.modal-overlay');
       const hidden = modal ? modal.querySelector('[data-pay-hidden]') : null;
       if (hidden) hidden.value = btn.dataset.pay;
+      // クレジット⇔他 の切替で、手数料の内訳と決済確認チェックを出し入れする
+      withBmSuffix(modal?.id === 'bookingModal-2' ? '-2' : '', () => syncCardUi());
     });
 
     // PWA でアプリ起動時にバッジクリア (通知をタップしなかった場合の対応)
