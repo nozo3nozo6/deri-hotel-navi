@@ -54,12 +54,21 @@ function delete_upload(?string $rel): void {
     if (is_file($abs)) @unlink($abs);
 }
 
-// 同じ画像ファイルを複数のレコードが指していることがある（店舗ごとに行を複製した名残など）。
-// 例: スライダーの「高収入求人」は立川・吉祥寺の2行が同一の /uploads/sliders/1/xxx.webp を参照。
-// 片方を削除したときに実体まで消すと、もう片方が画像404になる。
+// 同じ画像ファイルを複数のレコードが指していることがある。
+//   例1: スライダーの「高収入求人」は立川・吉祥寺の2行が同一ファイルを参照
+//   例2: お知らせ(news)のサムネは速報の自動投稿がキャスト写真(girl_images)を直接参照する
+//        → お知らせ削除でキャスト本体の写真が消える事故（2026-08-04 ゆあで発生）
+// 片方を削除したときに実体まで消すと、残った参照が画像404になる。
+// 画像を参照しうる全テーブルをここに列挙し、削除前に必ず突合する。
 const UPLOAD_IMAGE_REFS = [
-    'sliders' => ['image_pc', 'image_sp'],
-    'banners' => ['image'],
+    'sliders'      => ['image_pc', 'image_sp'],
+    'banners'      => ['image'],
+    'girl_images'  => ['path'],
+    'girls'        => ['media_top_image'],
+    'news'         => ['thumb'],
+    'events'       => ['thumb'],
+    'girl_diaries' => ['image'],
+    'hotels'       => ['image'],
 ];
 
 /** その画像を（自分以外の）レコードがまだ使っているか。テーブル/カラム名は上の定数のみ */

@@ -56,12 +56,15 @@ try {
         case 'delete': {
             $id = (int)($_POST['id'] ?? 0);
             if (!own_girl($id)) throw new RuntimeException('not found');
-            // 画像の物理削除
+            // 画像パスを控えてから行を消し、そのあとで実体を整理する
+            // （先に実体を消そうとすると自分の girl_images 行がまだ在って「使用中」と誤判定される）
             $imgs = db()->prepare('SELECT path FROM girl_images WHERE girl_id=?');
             $imgs->execute([$id]);
-            foreach ($imgs->fetchAll() as $r) delete_upload($r['path']);
+            $paths = array_column($imgs->fetchAll(), 'path');
             db()->prepare('DELETE FROM girl_shops WHERE girl_id=?')->execute([$id]);
             db()->prepare('DELETE FROM girls WHERE id=?')->execute([$id]); // FKカスケードで子も削除
+            // news 等が参照中の写真は実体を残す（過去のお知らせのサムネを404にしない）
+            foreach ($paths as $pt) delete_upload_safe($pt);
             echo json_encode(['ok' => true]);
             break;
         }
@@ -80,7 +83,7 @@ try {
             $path = $st->fetchColumn();
             if ($path === false) throw new RuntimeException('not found');
             db()->prepare('DELETE FROM girl_images WHERE id=?')->execute([$imgId]);
-            delete_upload($path);
+            delete_upload_safe($path, 'girl_images', $imgId ?? 0);
             echo json_encode(['ok' => true]);
             break;
         }
