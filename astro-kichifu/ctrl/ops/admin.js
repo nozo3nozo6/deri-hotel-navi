@@ -911,7 +911,11 @@
     if (u.role !== 'office' && Number(u.is_office) === 1) concurrentLabels.push('内勤');
     if (u.role !== 'driver' && Number(u.can_drive) === 1) concurrentLabels.push('ドライバー');
     const roleLabelFull = roleLabel + (concurrentLabels.length ? `（${concurrentLabels.join('・')}兼任）` : '');
-    const rateMeta = ((u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u)) && u.commission_rate != null ? `歩合 ${parseFloat(u.commission_rate)}% ・ ` : '';
+    // CTRL同期のキャスト(girl_id あり)は報酬をマスタのコース別「キャスト報酬」で決めるため
+    // 歩合率は使わない＝一覧にも出さない（編集画面でも扱っていない）
+    const isCastRow = u.girl_id != null && u.girl_id !== '';
+    const rateMeta = (!isCastRow && ((u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u)) && u.commission_rate != null)
+      ? `歩合 ${parseFloat(u.commission_rate)}% ・ ` : '';
     const metaText = u.created_at ? `${rateMeta}登録: ${formatDate(u.created_at)}` : (rateMeta || '&nbsp;');
     // ドライバー(専任 or 兼任)には送迎・勤務実績の詳細ボタン
     const isDriverRow = isDriverCapable(u);
