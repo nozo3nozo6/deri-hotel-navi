@@ -241,13 +241,15 @@
     const note = bel('bmUsualLocNote');
     const addr = String(c?.default_location || '').trim();
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
-    const untouched = locType === 'hotel'
-      && !bel('bmHotelId')?.value
+    // 「まだ場所を何も入れていない」＝どの欄も空。タブがホテル/自宅のどちらを向いていても入れる
+    // （自宅タブに切り替えただけで住所が空、というのが一番多い。ここを弾いていて出なかった）
+    const untouched = !bel('bmHotelId')?.value
       && !(bel('bmHotelName')?.value || '').trim()
       && !(bel('bmRoom')?.value || '').trim()
       && !(bel('bmHomeAddress')?.value || '').trim()
       && !(bel('bmOtherLoc')?.value || '').trim();
-    if (!addr || !untouched || bel('bmBreakMode')?.checked) {
+    // 「その他」を自分で選んでいるときは意図があるので触らない
+    if (!addr || !untouched || locType === 'other' || bel('bmBreakMode')?.checked) {
       if (note && !addr) note.style.display = 'none';
       return;
     }
@@ -3406,6 +3408,9 @@
       const d = await api('/customers.php?action=get&id=' + customerId);
       if (historyReqSeq[suffix] !== mySeq) return;  // その間に新しい呼び出しが発生済み→この古い結果は破棄
       const c = d.customer || {};
+      // 顧客が確定したこの時点でも「いつもの場所」を試す（電話blur以外の経路をここで拾う）。
+      // 既存予約を開いたときは場所が復元済み＝untouchedでないので何も起きない。
+      withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
       const visitCount = parseInt(c.visit_count, 10) || 0;
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
