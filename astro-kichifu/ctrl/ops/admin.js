@@ -1181,8 +1181,9 @@
       toast('パスワードは8文字以上必要です', 'err');
       return;
     }
-    const csRate = document.getElementById('csRate');
-    const rate = csRate && csRate.value !== '' ? Math.max(0, Math.min(100, parseFloat(csRate.value) || 0)) : 50;
+    // 歩合率の入力欄は廃止（報酬はマスタのコース別「キャスト報酬」で決まる）。
+    // DB のカラムは残っているので既定値だけ入れておく
+    const rate = 50;
     try {
       await apiPost('/admin-api.php?action=admin-create', {
         email, password, display_name: displayName, role: createRole, commission_rate: rate,
@@ -7155,7 +7156,6 @@
       { const cd = document.getElementById('csCanDrive'); if (cd) cd.checked = false; }
       { const it = document.getElementById('csIsTherapist'); if (it) it.checked = false; }
       { const io = document.getElementById('csIsOffice'); if (io) io.checked = false; }
-      const csRate = document.getElementById('csRate'); if (csRate) csRate.value = 50;
       createRole = 'staff';
       document.querySelectorAll('[data-role-btn]').forEach(b => b.classList.toggle('active', b.dataset.role === 'staff'));
       const roleField = document.getElementById('csRoleField');

@@ -2267,14 +2267,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <span>🚗 送迎ドライバーも兼任する</span>
         </label>
       </div>
-      <div class="field">
-        <label for="csRate">歩合率（%）</label>
-        <div style="display:flex;align-items:center;gap:.5rem;">
-          <input type="number" id="csRate" min="0" max="100" step="1" value="50" style="flex:1;min-width:0;">
-          <span style="font-weight:700;color:var(--ink-soft);flex-shrink:0;">%</span>
-        </div>
-        <span class="hint">報酬 = コース料金×この率 ＋ 深夜料金（全額）＋ 出張費（全額）。経理タブで集計</span>
-      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" data-close="createStaffModal">キャンセル</button>
