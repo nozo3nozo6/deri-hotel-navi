@@ -409,16 +409,23 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 自宅の場所: 住所｜建物 を1行に。狭い画面では素直に縦積み */
   .bm-home-row{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;}
   @media(max-width:560px){.bm-home-row{grid-template-columns:1fr;gap:0;}}
-  #bmMediaField{display:block;}
-  .bm-media-label{display:block;white-space:nowrap;margin-bottom:.4rem;}
+  /* id ではなく class で当てる: 2枚目の予約モーダルは clone で id に -2 が付き、
+     #bmMediaField 指定が外れてレイアウトが崩れていた（2026-08-05 店長指摘） */
+  .bm-media-field{display:block;}
+  .bm-media-label{display:block;white-space:normal;margin-bottom:.4rem;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
-  .bm-media-list{display:flex;flex-wrap:wrap;gap:.35rem;}
-  .bm-media{display:inline-flex;align-items:center;gap:.3rem;padding:.35rem .6rem;border:1.5px solid var(--gray);
+  /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
+  .bm-media-list{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
+  @media(max-width:400px){.bm-media-list{grid-template-columns:repeat(2,1fr);}}
+  .bm-media{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.45rem .5rem;border:1.5px solid var(--gray);
     border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer;
-    touch-action:manipulation;}
+    touch-action:manipulation;white-space:nowrap;}
   .bm-media input{width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0;}
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
-  .bm-media.is-line:has(input:checked){border-color:#06c755;background:#eafaf0;color:#0a7a3a;}
+  /* LINE予約は他の媒体と性質が違う（＋10分の特典つき自社導線）ので、常に緑で区別する */
+  .bm-media.is-line{grid-column:1/-1;border-color:#9edcb8;background:#eafaf0;color:#0a7a3a;}
+  .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
+  .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
   .cu-loc{margin-top:.2rem;font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1694,7 +1701,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
 
       <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
-      <div class="field" id="bmMediaField">
+      <div class="field bm-media-field" id="bmMediaField">
         <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約／ご新規様の媒体経由は＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
