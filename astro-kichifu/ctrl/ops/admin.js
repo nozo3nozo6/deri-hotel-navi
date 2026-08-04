@@ -1791,7 +1791,9 @@
     }
     const courseSel = bel('bmCourse');
     const opt = courseSel?.options?.[courseSel.selectedIndex];
-    const course = opt?.dataset?.name || '';
+    // ＋10分が付いているときは、それが分かる表記にする（差し替えコースがあればその名前）
+    let course = opt ? bmCourseName(opt) : '';
+    if (course && lineBonusExtra() > 0) course += ' ＋10分';
     const nomSel = bel('bmNomination');
     const nom = nomSel?.value ? (nomSel.options[nomSel.selectedIndex]?.text || '') : '';
     let head = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
