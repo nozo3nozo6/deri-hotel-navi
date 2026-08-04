@@ -428,8 +428,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     .bm-media-list .bm-media input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
     /* 選択時は枠を太らせず内側の影で示す（太らせると幅が変わって文字が切れる） */
     .bm-media-list .bm-media:has(input:checked){box-shadow:inset 0 0 0 1px currentColor;font-weight:700;}
-    .bm-media-list .bm-media.is-line{padding:.45rem .6rem;gap:.3rem;}
-    .bm-media-list .bm-media.is-line input{position:static;opacity:1;width:16px;height:16px;pointer-events:auto;}
   }
   /* チップは <label> なので、スマホ幅の `.field label`(0,1,1) に負けないよう
      `.bm-media-list .bm-media`(0,2,0) で指定する（font-size が効かず文字が切れていた） */
@@ -439,7 +437,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media input{width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0;}
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   /* LINE予約は他の媒体と性質が違う（＋10分の特典つき自社導線）ので、常に緑で区別する */
-  .bm-media-list .bm-media.is-line{grid-column:1/-1;justify-content:flex-start;border-color:#9edcb8;background:#eafaf0;color:#0a7a3a;}
+  .bm-media-list .bm-media.is-line{border-color:#9edcb8;background:#eafaf0;color:#0a7a3a;}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
@@ -1832,7 +1830,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fuzoku"><span>風じゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="deli"><span>デリじゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
-          <label class="bm-media is-line"><input type="checkbox" name="bmMedia" value="line"><span>LINE予約 ＋10分</span></label>
+          <label class="bm-media is-line" title="LINE予約は＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
         </div>
       </div>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
