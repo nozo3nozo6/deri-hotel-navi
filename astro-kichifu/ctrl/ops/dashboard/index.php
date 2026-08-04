@@ -831,6 +831,47 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bk-status.s-completed:not(.svc-ended){background:#d6f1f6;color:#1d7a8c;}  /* 接客中(始)=ティール、接客完了(確)は緑のまま */
   .bk-status.s-cancelled{background:#f1f1f1;color:#888;}
   .bk-status.s-no_show{background:#fde5e1;color:#a04030;}
+  .bk-status.s-other{background:#f1f1f1;color:#888;}
+  /* 旧履歴の「完了」は接客ライフサイクル(始/確)を持たないので、常に完了色(緑) */
+  .bkt-row.is-legacy .bk-status.s-completed{background:#d9efd5;color:#3a7547;}
+
+  /* 予約一覧の表組み（日付/時間/お客様/キャスト/分/場所/金額/状態）。
+     .bk-row はマスタ一覧でも使い回しているので、予約一覧だけ .bkt-* で独立させる */
+  .bkt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .bkt{min-width:880px;}
+  .bkt-head,.bkt-row{display:grid;
+    grid-template-columns:4.6rem 5.6rem minmax(6rem,1.1fr) minmax(4.5rem,.75fr) 4.6rem minmax(9rem,1.7fr) 6rem 5.6rem 3.6rem;
+    gap:.75rem;align-items:center;padding:.6rem .9rem;}
+  .bkt-head{background:var(--foam);border-radius:8px;
+    font-size:.72rem;font-weight:700;color:var(--ink-soft);letter-spacing:.04em;padding-top:.45rem;padding-bottom:.45rem;}
+  .bkt-head .c{text-align:center;} .bkt-head .r{text-align:right;}
+  .bkt-row{border-bottom:1px solid var(--gray);cursor:pointer;transition:background .15s;}
+  .bkt-row:last-child{border-bottom:none;}
+  .bkt-row:hover{background:var(--foam);}
+  .bkt-row.is-legacy{background:#fbfbfa;cursor:default;}
+  .bkt-row.is-legacy:hover{background:#fbfbfa;}
+  .bkt-row>div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bkt-date{font-family:'Outfit';font-size:.98rem;font-weight:700;color:var(--deep);font-variant-numeric:tabular-nums;}
+  .bkt-date small{font-family:'Zen Maru Gothic';font-size:.72rem;font-weight:600;color:var(--ink-soft);margin-left:.1em;}
+  .bkt-time{font-family:'Outfit';font-size:.92rem;font-weight:600;color:var(--sea);font-variant-numeric:tabular-nums;}
+  .bkt-time small{font-size:.8rem;color:var(--ink-soft);font-weight:500;}
+  .bkt-cust{font-size:.95rem;font-weight:700;color:var(--ink);}
+  .bkt-cast{font-size:.88rem;font-weight:600;color:var(--deep);}
+  .bkt-min{text-align:center;color:var(--ink-soft);}
+  .bkt-min b{font-family:'Outfit';font-size:.98rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .bkt-min small{font-size:.72rem;margin-left:.05em;}
+  .bkt-min .bkt-tag{display:block;font-size:.66rem;color:var(--sea);line-height:1.2;}
+  .bkt-place{font-size:.85rem;color:var(--ink-soft);}
+  .bkt-price{text-align:right;font-family:'Outfit';font-size:.95rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
+  .bkt-st{overflow:visible!important;}
+  .bkt-st .bk-status{display:inline-block;padding:.22rem .5rem;font-size:.68rem;white-space:nowrap;}
+  .bkt-act{text-align:right;overflow:visible!important;}
+  .bkt-row.is-legacy .bkt-date,.bkt-row.is-legacy .bkt-cust,.bkt-row.is-legacy .bkt-price{color:var(--ink-soft);}
+  @media(max-width:780px){
+    .bkt{min-width:820px;}
+    .bkt-head,.bkt-row{gap:.55rem;padding:.55rem .6rem;}
+    .bkt-cust{font-size:.9rem;} .bkt-place{font-size:.8rem;}
+  }
 
   /* ============== Customer View ============== */
   .cu-table{background:var(--white);border-radius:14px;padding:.5rem;box-shadow:0 3px 12px rgba(10,61,82,.05);}

@@ -3135,63 +3135,88 @@
       el.innerHTML = '<div class="view-empty"><div class="ve-icon">📋</div>予約はまだありません</div>';
       return;
     }
-    el.innerHTML = merged.map(row => row.k === 'l' ? renderLegacyRow(row.v) : renderBookingRow(row.v)).join('');
+    // 列の並び（店長指定 2026-08-05）: 日付 / 時間 / お客様 / キャスト / 分 / 場所 / 金額
+    el.innerHTML = `<div class="bkt-wrap"><div class="bkt">
+      <div class="bkt-head">
+        <span>日付</span><span>時間</span><span>お客様</span><span>キャスト</span>
+        <span class="c">分</span><span>場所</span><span class="r">金額</span><span>状態</span><span></span>
+      </div>
+      ${merged.map(row => row.k === 'l' ? renderLegacyRow(row.v) : renderBookingRow(row.v)).join('')}
+    </div></div>`;
     wireBookingsList(el);
+  }
+
+  /** 「120分」「イベント120分」→ [分, 呼び名]。分が書かれていなければ分は空 */
+  function splitCourseLabel(name) {
+    const s = String(name || '').trim();
+    const m = s.match(/(\d+)\s*分/);
+    const tag = s.replace(/(\d+)\s*分/, '').replace(/[（(]\s*[)）]/g, '').replace(/\s+/g, ' ').trim();
+    return [m ? m[1] : '', tag];
+  }
+  /** 開始〜終了の分数（24時超え表記 25:00 などにも対応） */
+  function minutesBetween(st, et) {
+    const p = (v) => { const a = String(v || '').split(':'); return (parseInt(a[0], 10) || 0) * 60 + (parseInt(a[1], 10) || 0); };
+    const s = p(st), e = p(et);
+    if (!st || !et) return 0;
+    return e >= s ? e - s : e + 1440 - s;
+  }
+  /** 分セル。コース名に分が無ければ開始〜終了から出す。呼び名（イベント等）は小さく添える */
+  function bktMinCell(courseName, st, et) {
+    let [min, tag] = splitCourseLabel(courseName);
+    if (!min && (st || et)) { const d = minutesBetween(st, et); if (d > 0) min = String(d); }
+    if (!min && !tag) return '';
+    return (min ? `<b>${escapeHtml(min)}</b><small>分</small>` : '')
+         + (tag ? `<span class="bkt-tag">${escapeHtml(tag)}</span>` : '');
+  }
+  /** 日付セル「8/2(土)」 */
+  function bktDateCell(ymd) {
+    const m = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return escapeHtml(String(ymd || ''));
+    const dow = ['日','月','火','水','木','金','土'][new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`).getDay()] || '';
+    return `${parseInt(m[2], 10)}/${parseInt(m[3], 10)}<small>(${dow})</small>`;
   }
 
   /** 旧システムの利用履歴の行（読み取り専用・「旧」バッジ付き） */
   function renderLegacyRow(v) {
     const at = String(v.visit_at || '');
-    const dateMD = at.substring(5, 10).replace('-', '/');
-    const hm = at.substring(11, 16);
     const st = HIST_STATUS[v.status] || [v.status || '', ''];
     const name = v.customer_name || '匿名';
     const place = legacyPlaceLabel(v, { compact: true });
     const price = (parseInt(v.total_price, 10) || 0) + (parseInt(v.transport_fee, 10) || 0);
-    return `<div class="bk-row is-legacy">
-      <div class="bk-date-col">
-        <div class="bd-date">${dateMD}</div>
-        <div class="bd-time">${escapeHtml(hm)}</div>
-      </div>
-      <div class="bk-info">
-        <div class="bi-name">${escapeHtml(name)} <span class="ht-old">旧</span></div>
-        <div class="bi-meta">
-          ${place ? `<span>${escapeHtml(place)}</span>` : ''}
-          ${v.course_name ? `<span>📋 ${escapeHtml(v.course_name)}</span>` : ''}
-          ${v.cast_name ? `<span>👤 ${escapeHtml(v.cast_name)}</span>` : ''}
-          ${price ? `<span>💴 ¥${price.toLocaleString()}</span>` : ''}
-        </div>
-      </div>
-      <div class="bk-status s-${escapeHtml(v.status || 'other')}">${escapeHtml(st[0])}</div>
-      <div class="bk-actions"></div>
+    return `<div class="bkt-row is-legacy">
+      <div class="bkt-date">${bktDateCell(at.substring(0, 10))}</div>
+      <div class="bkt-time">${escapeHtml(at.substring(11, 16))}</div>
+      <div class="bkt-cust">${escapeHtml(name)} <span class="ht-old">旧</span></div>
+      <div class="bkt-cast">${escapeHtml(v.cast_name || '')}</div>
+      <div class="bkt-min">${bktMinCell(v.course_name, '', '')}</div>
+      <div class="bkt-place">${escapeHtml(place)}</div>
+      <div class="bkt-price">${price ? '¥' + price.toLocaleString() : ''}</div>
+      <div class="bkt-st"><span class="bk-status s-${escapeHtml(v.status || 'other')}">${escapeHtml(st[0])}</span></div>
+      <div class="bkt-act"></div>
     </div>`;
   }
 
   function renderBookingRow(b) {
-    return [b].map(b => {
-      const name = b.customer_name || b.customer_name_snapshot || '匿名';
-      const hotel = b.hotel_name || b.hotel_name_snapshot || '';
-      const dateMD = b.booking_date ? bizDateOf(b.booking_date, b.start_time || '00:00').substring(5).replace('-','/') : '';
-      const svc = svcState(b);                       // 始(接客中)/確(接客完了) 出し分け用
-      const stLabel = bookingStatusLabel(b);
-      return `<div class="bk-row" data-booking-id="${b.id}">
-        <div class="bk-date-col">
-          <div class="bd-date">${dateMD}</div>
-          <div class="bd-time">${b.start_time.substring(0,5)}-${b.end_time.substring(0,5)}</div>
-        </div>
-        <div class="bk-info">
-          <div class="bi-name">${escapeHtml(name)}</div>
-          <div class="bi-meta">
-            ${hotel ? `<span>🏨 ${escapeHtml(hotel)}${b.room_number ? ' #' + escapeHtml(b.room_number) : ''}</span>` : ''}
-            ${b.course_name ? `<span>📋 ${escapeHtml(b.course_name)}</span>` : ''}
-            ${b.staff_name ? `<span>👤 ${escapeHtml(b.staff_name)}</span>` : ''}
-            ${b.price ? `<span>💴 ¥${Number(b.price).toLocaleString()}</span>` : ''}
-          </div>
-        </div>
-        <div class="bk-status s-${b.status}${svc === 'ended' ? ' svc-ended' : ''}">${stLabel}</div>
-        <div class="bk-actions"><button class="btn-edit" data-edit-booking="${b.id}">編集</button></div>
-      </div>`;
-    }).join('');
+    const name = b.customer_name || b.customer_name_snapshot || '匿名';
+    const hotel = b.hotel_name || b.hotel_name_snapshot || '';
+    const city = (b.display_city || b.hotel_city || '').trim();
+    // 場所: 自宅/その他は接頭辞を落として素の文言に。ホテルは「市区町村 ホテル名 #部屋」
+    let place = '';
+    if (hotel.startsWith(HOME_PREFIX)) place = '🏠 ' + hotel.slice(HOME_PREFIX.length);
+    else if (hotel.startsWith(OTHER_PREFIX)) place = '📍 ' + hotel.slice(OTHER_PREFIX.length);
+    else if (hotel) place = '🏨 ' + [city, hotel].filter(Boolean).join(' ') + (b.room_number ? ' #' + b.room_number : '');
+    const svc = svcState(b);                       // 始(接客中)/確(接客完了) 出し分け用
+    return `<div class="bkt-row" data-booking-id="${b.id}">
+      <div class="bkt-date">${bktDateCell(bizDateOf(b.booking_date, b.start_time || '00:00'))}</div>
+      <div class="bkt-time">${String(b.start_time || '').substring(0,5)}<small>-${String(b.end_time || '').substring(0,5)}</small></div>
+      <div class="bkt-cust">${escapeHtml(name)}</div>
+      <div class="bkt-cast">${escapeHtml(b.staff_name || '')}</div>
+      <div class="bkt-min">${bktMinCell(b.course_name, b.start_time, b.end_time)}</div>
+      <div class="bkt-place">${escapeHtml(place)}</div>
+      <div class="bkt-price">${b.price ? '¥' + Number(b.price).toLocaleString() : ''}</div>
+      <div class="bkt-st"><span class="bk-status s-${b.status}${svc === 'ended' ? ' svc-ended' : ''}">${bookingStatusLabel(b)}</span></div>
+      <div class="bkt-act"><button class="btn-edit" data-edit-booking="${b.id}">編集</button></div>
+    </div>`;
   }
 
   function wireBookingsList(el) {
@@ -3199,7 +3224,7 @@
       btn.addEventListener('click', e => { e.stopPropagation(); openBookingModal(Number(btn.dataset.editBooking)); });
     });
     // 旧履歴の行は開く先が無いのでクリック対象にしない
-    el.querySelectorAll('.bk-row[data-booking-id]').forEach(row => {
+    el.querySelectorAll('.bkt-row[data-booking-id]').forEach(row => {
       row.addEventListener('click', () => openBookingModal(Number(row.dataset.bookingId)));
     });
   }
