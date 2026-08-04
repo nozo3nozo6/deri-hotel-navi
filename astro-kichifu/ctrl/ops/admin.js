@@ -138,13 +138,8 @@
         withBmSuffix('-2', () => { updateEndTime(); syncDealBadges(); });
       } else if (e.target.id === 'bmExtCount-2') {
         withBmSuffix('-2', () => { updateEndTime(); updateBookingTotal(); });
-      } else if (e.target.id === 'bmCourse-2') {
-        withBmSuffix('-2', () => {
-          updateEndTime();
-          const opt = e.target.selectedOptions[0];
-          const price = opt && opt.dataset.price;
-          if (price) { setMoney('bmPrice', price); autoToggleLateNight(); updateBookingTotal(); }
-        });
+      } else if (e.target.id === 'bmCourse-2' || e.target.id === 'bmCourse2-2') {
+        withBmSuffix('-2', () => { updateEndTime(); applyCoursePrice(); autoToggleLateNight(); });
       } else if (e.target.name === 'bmCityRegion-2') {
         withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
       } else if (e.target.id === 'bmCity-2') {
@@ -1507,8 +1502,18 @@
   // コースselect: option value=duration_min or 'custom'。dataset.name でコース名
   function courseToMinutes() {
     const b = bonusCourse();
-    if (b) return parseInt(b.duration_min, 10) || 0;
-    return parseInt(bel('bmCourse').value || '0', 10);
+    const first = b ? (parseInt(b.duration_min, 10) || 0) : (parseInt(bel('bmCourse').value || '0', 10) || 0);
+    return first + course2Minutes();
+  }
+  /** 組み合わせ2本目の分数（未選択なら0） */
+  function course2Minutes() {
+    return parseInt(bel('bmCourse2')?.value || '0', 10) || 0;
+  }
+  /** 組み合わせ2本目の選択肢（未選択なら null） */
+  function course2Opt() {
+    const sel = bel('bmCourse2');
+    if (!sel || !sel.value) return null;
+    return sel.options[sel.selectedIndex] || null;
   }
   /**
    * ＋10分（無料）が付く条件。媒体・LINE予約のどれかにチェックが入っていれば付く
@@ -1537,20 +1542,38 @@
    */
   function bmCourseName(opt) {
     const b = bonusCourse();
-    if (b) return b.name;
-    const base = (opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '';
-    return base && lineBonusExtra() > 0 ? base + ' ＋10分' : base;
+    let base = b ? b.name : ((opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '');
+    const o2 = course2Opt();
+    if (base && o2) base += ' ＋ ' + ((o2.dataset && o2.dataset.name) || o2.text || '');
+    if (base && !b && lineBonusExtra() > 0) base += ' ＋10分';
+    return base;
+  }
+  /** いまのコース選択（＋10分の差し替え・組み合わせ2本目を含む）の合計料金。取れなければ null */
+  function coursePriceSum() {
+    const sel = bel('bmCourse');
+    const opt = sel && sel.options[sel.selectedIndex];
+    if (!sel || !sel.value || !opt) return null;
+    const b = bonusCourse();
+    const p1 = b ? (b.price != null ? parseInt(b.price, 10) || 0 : null)
+                 : (opt.dataset && opt.dataset.price !== '' ? parseInt(opt.dataset.price, 10) || 0 : null);
+    if (p1 === null) return null;
+    const o2 = course2Opt();
+    const p2 = o2 && o2.dataset && o2.dataset.price !== '' ? parseInt(o2.dataset.price, 10) || 0 : 0;
+    return p1 + p2;
+  }
+  /** コース選択が変わったら基本料金を入れ直す */
+  function applyCoursePrice() {
+    const sum = coursePriceSum();
+    if (sum === null) return;
+    setMoney('bmPrice', String(sum));
+    updateBookingTotal();
   }
   /** ＋10分コースを持つコースのときだけ、媒体チェックの切替に合わせて料金を入れ直す */
   function applyBonusCoursePrice() {
     const sel = bel('bmCourse');
     const opt = sel && sel.options[sel.selectedIndex];
     if (!sel || !sel.value || !opt || !opt.dataset || !opt.dataset.bonusId) return;
-    const b = bonusCourse();
-    const price = b ? (b.price != null ? String(b.price) : '') : (opt.dataset.price || '');
-    if (price === '') return;
-    setMoney('bmPrice', price);
-    updateBookingTotal();
+    applyCoursePrice();
   }
   // bmCourse select を coursesCache から動的生成
   function populateCourseSelect() {
@@ -1568,6 +1591,13 @@
     });
     sel.innerHTML = html;
     if (selectedValue) sel.value = selectedValue;
+    // 2本目（組み合わせ）。180分以上は単独コースが無く「90＋90」のように足す運用
+    const sel2 = bel('bmCourse2');
+    if (sel2) {
+      const prev2 = sel2.value;
+      sel2.innerHTML = '<option value="">＋ 組み合わせなし</option>' + html.replace('<option value="">選択</option>', '');
+      if (prev2) sel2.value = prev2;
+    }
     // 延長フィールドの説明を更新
     const ext = document.getElementById('bmExtInfo' + activeBmSuffix) || document.getElementById('bmExtInfo');
     if (ext) ext.textContent = _extUnit.price ? `1回 +${_extUnit.min}分 / +¥${_extUnit.price.toLocaleString()}` : '';
@@ -3929,16 +3959,29 @@
         setBmMedia(b.media || '');
         // コース復元: course_name からマスタを照合（端数や旧カスタムは分数で照合）
         let courseMin = null;
+        let course2Min = null;
         if (b.course_name) {
-          // 保存名には「＋10分」が付くことがあるので、マスタ照合の前に落とす
+          // 保存名は「90分コース ＋ 90分コース ＋10分」の形になりうる。
+          // 末尾の「＋10分」を落としてから ＋ で分解し、1本目/2本目に割り当てる
           const cname = String(b.course_name).replace(/\s*＋\s*10\s*分\s*$/, '').trim();
-          const cm = (coursesCache || []).find(c => c.name === cname);
-          if (cm) courseMin = parseInt(cm.duration_min, 10);
-          else { const mm = cname.match(/(\d+)\s*分/); if (mm) courseMin = parseInt(mm[1], 10); }
+          const toMin = (nm) => {
+            const cm = (coursesCache || []).find(c => c.name === nm);
+            if (cm) return parseInt(cm.duration_min, 10);
+            const mm = String(nm).match(/(\d+)\s*分/);
+            return mm ? parseInt(mm[1], 10) : null;
+          };
+          const parts = cname.split(/\s*[＋+]\s*/).map(x => x.trim()).filter(Boolean);
+          if (parts.length) courseMin = toMin(parts[0]);
+          if (parts.length > 1) course2Min = toMin(parts[1]);
         }
         // マスタに一致する分数があれば選択、無ければ未選択（カスタムは廃止）
         const opt = courseMin != null && [...bel('bmCourse').options].find(o => o.value === String(courseMin));
         bel('bmCourse').value = opt ? String(courseMin) : '';
+        const sel2r = bel('bmCourse2');
+        if (sel2r) {
+          const opt2 = course2Min != null && [...sel2r.options].find(o => o.value === String(course2Min));
+          sel2r.value = opt2 ? String(course2Min) : '';
+        }
         // 延長回数の復元
         if (bel('bmExtCount')) bel('bmExtCount').value = String(b.extension_count || 0);
         updateEndTime();
@@ -4059,7 +4102,7 @@
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
       // リセット
-      ['bmCustomerId','bmCustomerName','bmCustomerPhone','bmCustomerEmail','bmCourse','bmNomination','bmCustomMin','bmBreakDur','bmBreakCustomMin','bmBreakCity','bmHotelId','bmHotelName','bmRoom','bmHomeAddress','bmHomeBuilding','bmOtherLoc','bmPrice','bmNotes','bmStampReward','bmDepositOverride','bmRewardOverride'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+      ['bmCustomerId','bmCustomerName','bmCustomerPhone','bmCustomerEmail','bmCourse','bmCourse2','bmNomination','bmCustomMin','bmBreakDur','bmBreakCustomMin','bmBreakCity','bmHotelId','bmHotelName','bmRoom','bmHomeAddress','bmHomeBuilding','bmOtherLoc','bmPrice','bmNotes','bmStampReward','bmDepositOverride','bmRewardOverride'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
       if (bel('bmTransport')) bel('bmTransport').value = '0';  // select化: 「なし(¥0)」がデフォルト
       loadCustomerHistory(null);
       // デフォルト: キャンペーン割引ON・深夜料金OFF
@@ -8402,16 +8445,16 @@
     bel('bmStartHour').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
     bel('bmStartMin').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
     bel('bmCourse').addEventListener('change', () => {
-      const sel = bel('bmCourse');
       updateEndTime();
-      const opt = sel.selectedOptions[0];
-      const price = opt && opt.dataset.price;
-      if (price) {
-        // コース選択時はベース料金 (=コース料金) を入れて合計を再計算
-        setMoney('bmPrice', price);
-        autoToggleLateNight();
-        updateBookingTotal();
-      }
+      // コース選択時はベース料金（1本目＋組み合わせ2本目）を入れて合計を再計算
+      applyCoursePrice();
+      autoToggleLateNight();
+    });
+    const course2Sel = bel('bmCourse2');
+    if (course2Sel) course2Sel.addEventListener('change', () => {
+      updateEndTime();
+      applyCoursePrice();
+      autoToggleLateNight();
     });
     // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
     mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); applyBonusCoursePrice(); syncDealBadges(); }));

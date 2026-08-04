@@ -1845,6 +1845,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
             <option value="90">90分コース</option>
             <option value="120">120分コース</option>
           </select>
+          <!-- 180分以上は単独コースが無く「90＋90」のように組み合わせる運用。2本目をここで選ぶ -->
+          <select id="bmCourse2" class="bm-tight-select" style="margin-top:.4rem;">
+            <option value="">＋ 組み合わせなし</option>
+          </select>
         </div>
         <div class="field" id="bmNominationField">
           <label for="bmNomination">指名方法</label>
