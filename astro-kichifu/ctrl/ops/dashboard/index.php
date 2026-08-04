@@ -343,7 +343,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 担当キャスト・ステータスはタイトルのすぐ右に左寄せ（中央寄せだと視線が飛ぶ） */
   .bm-head-ss{justify-content:flex-start!important;padding-left:1rem!important;}
   /* 本文の入力欄と同じ濃さに揃える。既定色のままだと薄くて読みにくかった */
-  .bm-head-ss select{min-width:0;color:var(--ink);font-weight:600;}
+  /* 本文の入力欄と同じ大きさ・同じ濃さに揃える（ヘッダーだけ小さいと別物に見える） */
+  .bm-head-ss select{min-width:0;flex:1;max-width:190px;color:var(--ink);font-weight:600;
+    padding:.7rem .85rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:var(--white);
+    font-family:'Zen Maru Gothic';}
   .bm-head-ss select:has(option[value=""]:checked){color:var(--ink-soft);font-weight:400;}
 
   /* 最小化バー (画面右下に表示) */
@@ -1631,6 +1634,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="text" inputmode="numeric" data-money placeholder="9000"id="coCastReward"></div>
       </div>
       <div class="field">
+        <label for="coHotelPrice">ホテル料金（円）</label>
+        <input type="text" inputmode="numeric" data-money placeholder="11000" id="coHotelPrice">
+        <span class="hint">予約で「🏨 ホテル料金」にチェックを入れたとき、この料金に置き換えます（空欄なら通常料金から一律 −¥5,500）</span>
+      </div>
+      <div class="field">
         <label for="coBonusCourse">＋10分のときのコース</label>
         <select id="coBonusCourse"><option value="">なし（終了時刻を10分のばすだけ）</option></select>
         <span class="hint">媒体・LINE予約にチェックが入って＋10分が付くとき、このコースに差し替えます（コース名・料金・報酬もそのコースの値になります）</span>
@@ -1678,8 +1686,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="mh-sub" id="bmSub"></div>
       </div>
       <div class="bm-head-ss" style="display:flex;gap:.4rem;align-items:center;flex:1;justify-content:center;padding:0 .9rem;">
-        <select id="bmAdminId" title="担当キャスト" style="padding:.4rem .5rem;border:1.5px solid var(--gray);border-radius:7px;font-size:.82rem;max-width:120px;background:#fff;"><option value="">担当 —</option></select>
-        <select id="bmStatus" title="ステータス" style="padding:.4rem .5rem;border:1.5px solid var(--gray);border-radius:7px;font-size:.82rem;max-width:120px;background:#fff;">
+        <select id="bmAdminId" title="担当キャスト"><option value="">担当 —</option></select>
+        <select id="bmStatus" title="ステータス">
           <option value="inquiry">問合せ</option>
           <option value="reserved">予約</option>
           <option value="pre_reserved">事前予約</option>
@@ -1835,7 +1843,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
         <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
-        <span>🏨 ホテル料金 <b>−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
+        <span>🏨 ホテル料金 <b id="bmHotelFirstAmt">−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
       </label>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
