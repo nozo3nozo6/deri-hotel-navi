@@ -25,7 +25,7 @@ if ($action === 'list' && $method === 'GET') {
     $includeInactive = !empty($_GET['include_inactive']);
     try {
         $pdo = getPdo();
-        $sql = "SELECT id, name, duration_min, price, cast_reward, description, bg_image_url, sort_order, is_active
+        $sql = "SELECT id, name, duration_min, price, cast_reward, bonus_course_id, description, bg_image_url, sort_order, is_active
                 FROM ops_courses "
                 . ($includeInactive ? '' : 'WHERE is_active = 1 ')
                 . "ORDER BY sort_order, id";
@@ -46,11 +46,13 @@ if ($action === 'create' && $method === 'POST') {
     $name = trim($b['name'] ?? '');
     $dur = (int)($b['duration_min'] ?? 0);
     if ($name === '' || $dur <= 0) errorResponse('name and duration_min required', 400);
-    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, cast_reward, description, sort_order, is_active)
-                   VALUES (?, ?, ?, ?, ?, ?, 1)")->execute([
+    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, cast_reward, bonus_course_id, description, sort_order, is_active)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 1)")->execute([
         $name, $dur,
         isset($b['price']) && $b['price'] !== '' ? (int)$b['price'] : null,
         isset($b['cast_reward']) && $b['cast_reward'] !== '' ? (int)$b['cast_reward'] : null,
+        // ＋10分（媒体・LINEチェック時）に差し替えるコース。未設定なら従来どおり終了時刻を10分延ばすだけ
+        isset($b['bonus_course_id']) && $b['bonus_course_id'] !== '' ? (int)$b['bonus_course_id'] : null,
         trim($b['description'] ?? '') ?: null,
         (int)($b['sort_order'] ?? 100),
     ]);
@@ -62,11 +64,11 @@ if ($action === 'update' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
     $cols = []; $vals = [];
-    foreach (['name', 'duration_min', 'price', 'cast_reward', 'description', 'bg_image_url', 'sort_order', 'is_active'] as $k) {
+    foreach (['name', 'duration_min', 'price', 'cast_reward', 'bonus_course_id', 'description', 'bg_image_url', 'sort_order', 'is_active'] as $k) {
         if (array_key_exists($k, $b)) {
             $cols[] = "$k = ?";
             $v = $b[$k];
-            if (in_array($k, ['duration_min', 'price', 'cast_reward', 'sort_order', 'is_active'], true)) {
+            if (in_array($k, ['duration_min', 'price', 'cast_reward', 'bonus_course_id', 'sort_order', 'is_active'], true)) {
                 $v = ($v === '' || $v === null) ? null : (int)$v;
             } elseif (is_string($v)) {
                 $v = trim($v); if ($v === '') $v = null;
@@ -75,6 +77,10 @@ if ($action === 'update' && $method === 'POST') {
         }
     }
     if (!$cols) errorResponse('nothing to update', 400);
+    // 自分自身を＋10分コースに指定すると無限に自分を指すので弾く
+    if (array_key_exists('bonus_course_id', $b) && (int)$b['bonus_course_id'] === $id) {
+        errorResponse('bonus_course_id cannot be itself', 400);
+    }
     $vals[] = $id;
     $pdo->prepare("UPDATE ops_courses SET " . implode(', ', $cols) . " WHERE id = ?")->execute($vals);
     jsonResponse(['ok' => true]);

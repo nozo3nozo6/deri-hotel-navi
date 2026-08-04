@@ -1504,7 +1504,48 @@
   }
   // コースselect: option value=duration_min or 'custom'。dataset.name でコース名
   function courseToMinutes() {
+    const b = bonusCourse();
+    if (b) return parseInt(b.duration_min, 10) || 0;
     return parseInt(bel('bmCourse').value || '0', 10);
+  }
+  /**
+   * ＋10分（媒体・LINEチェック）が付く条件かどうか。
+   * LINE予約は常に、媒体経由はご新規様のときだけ。重なっても1回ぶん。
+   */
+  function bonusApplies() {
+    if (bel('bmBreakMode')?.checked) return false;
+    const m = getBmMedia();
+    if (m.includes('line')) return true;
+    return bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line');
+  }
+  /**
+   * ＋10分が付くとき、選択中コースに「＋10分のときのコース」が設定されていればそれを返す。
+   * 差し替えたときは分数・料金・コース名ごとそのコースの値を使う（10分の追加はしない）。
+   */
+  function bonusCourse() {
+    if (!bonusApplies()) return null;
+    const sel = bel('bmCourse');
+    const opt = sel && sel.options[sel.selectedIndex];
+    const bid = opt && opt.dataset ? opt.dataset.bonusId : '';
+    if (!bid) return null;
+    return (coursesCache || []).find(c => String(c.id) === String(bid)) || null;
+  }
+  /** 保存・コピーに使うコース名。＋10分コースに差し替わっていればそちらの名前 */
+  function bmCourseName(opt) {
+    const b = bonusCourse();
+    if (b) return b.name;
+    return (opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '';
+  }
+  /** ＋10分コースを持つコースのときだけ、媒体チェックの切替に合わせて料金を入れ直す */
+  function applyBonusCoursePrice() {
+    const sel = bel('bmCourse');
+    const opt = sel && sel.options[sel.selectedIndex];
+    if (!sel || !sel.value || !opt || !opt.dataset || !opt.dataset.bonusId) return;
+    const b = bonusCourse();
+    const price = b ? (b.price != null ? String(b.price) : '') : (opt.dataset.price || '');
+    if (price === '') return;
+    setMoney('bmPrice', price);
+    updateBookingTotal();
   }
   // bmCourse select を coursesCache から動的生成
   function populateCourseSelect() {
@@ -1518,7 +1559,7 @@
         return;
       }
       const priceTag = c.price ? ` (¥${Number(c.price).toLocaleString()})` : '';
-      html += `<option value="${c.duration_min}" data-name="${escapeAttr(c.name)}" data-price="${c.price || ''}">${escapeHtml(c.name)}${priceTag}</option>`;
+      html += `<option value="${c.duration_min}" data-name="${escapeAttr(c.name)}" data-price="${c.price || ''}" data-bonus-id="${c.bonus_course_id || ''}">${escapeHtml(c.name)}${priceTag}</option>`;
     });
     sel.innerHTML = html;
     if (selectedValue) sel.value = selectedValue;
@@ -1679,7 +1720,7 @@
     }
     // ＋10分の適用表示
     const p10 = bel('bmPlus10Badge');
-    if (p10) p10.style.display = lineBonusExtra() > 0 ? 'inline-block' : 'none';
+    if (p10) p10.style.display = bonusApplies() ? 'inline-block' : 'none';
     // 指名方法のヒント（初対面なら初指名、2回目以降なら本指名）
     const nomHint = bel('bmNomHint');
     if (nomHint) {
@@ -1701,13 +1742,11 @@
     updateBookingTotal();
   }
 
-  /** +10分(無料): LINE予約、または ご新規様×媒体経由（その他含む）。重なっても10分まで */
+  /** +10分(無料): LINE予約、または ご新規様×媒体経由（その他含む）。重なっても10分まで。
+   *  ただし「＋10分のときのコース」が設定されたコースは、そのコースの分数に既に含まれるので0を返す */
   function lineBonusExtra() {
-    if (bel('bmBreakMode')?.checked) return 0;
-    const m = getBmMedia();
-    if (m.includes('line')) return 10;
-    if (bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line')) return 10;
-    return 0;
+    if (!bonusApplies()) return 0;
+    return bonusCourse() ? 0 : 10;
   }
   // 延長回数（30分×n）
   function extCount() {
@@ -4414,7 +4453,7 @@
     const endTxt = bel('bmEnd').value || '';
     const courseSel = bel('bmCourse');
     const courseOpt = courseSel?.options[courseSel.selectedIndex];
-    let courseName = courseOpt?.dataset?.name || courseOpt?.text || '';
+    let courseName = bmCourseName(courseOpt);
     if (courseSel?.value === 'custom') courseName = `カスタム ${bel('bmCustomMin').value}分`;
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value
       || document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
@@ -4500,7 +4539,7 @@
     const endTxt = bel('bmEnd').value || '';
     const courseSel = bel('bmCourse');
     const courseOpt = courseSel?.options[courseSel.selectedIndex];
-    let courseName = courseOpt?.dataset?.name || courseOpt?.text || '';
+    let courseName = bmCourseName(courseOpt);
     if (courseSel?.value === 'custom') courseName = `カスタム ${bel('bmCustomMin').value}分`;
     // 訪問先文字列構築
     const locType = document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
@@ -4601,7 +4640,7 @@
     // コース表示名（dataset.name から取得、selectのtextに料金が含まれるため）
     const courseSelect = bel('bmCourse');
     const opt = courseSelect.options[courseSelect.selectedIndex];
-    let courseName = opt?.dataset?.name || opt?.text || '';
+    let courseName = bmCourseName(opt);
     if (courseSelect.value === 'custom') courseName = `カスタム${totalMin}分`;
     if (isBreak) courseName = '休憩';
     // ロケーション処理
@@ -5501,7 +5540,9 @@
       el.innerHTML = '<div class="view-empty">コースがありません</div>';
       return;
     }
-    el.innerHTML = coursesCache.map(c => `
+    el.innerHTML = coursesCache.map(c => {
+      const bonus = c.bonus_course_id ? coursesCache.find(x => Number(x.id) === Number(c.bonus_course_id)) : null;
+      return `
       <div class="bk-row sortable" draggable="true" data-course-id="${c.id}" style="grid-template-columns:auto auto 1fr auto;">
         <div class="drag-handle" title="ドラッグで並び替え">⋮⋮</div>
         <div class="bk-date-col"><div class="bd-date">${c.duration_min}</div><div class="bd-time">分</div></div>
@@ -5510,11 +5551,13 @@
           <div class="bi-meta">
             ${c.price ? `<span>💴 ¥${Number(c.price).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">料金未設定</span>'}
             ${c.cast_reward != null && c.cast_reward !== '' ? `<span>💰 報酬 ¥${Number(c.cast_reward).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">報酬未設定</span>'}
+            ${bonus ? `<span style="color:#0d7a4a;">＋10分時: ${escapeHtml(bonus.name)}</span>` : ''}
             <span>表示順: ${c.sort_order}</span>
           </div>
         </div>
         <button class="btn-edit" data-course-edit="${c.id}">編集</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     el.querySelectorAll('[data-course-edit]').forEach(b => {
       b.addEventListener('click', e => { e.stopPropagation(); openCourseModal(Number(b.dataset.courseEdit)); });
     });
@@ -5573,6 +5616,19 @@
       });
     });
   }
+  /** 「＋10分のときのコース」の選択肢。自分自身と延長は除く */
+  function populateBonusCourseSelect(selfId, current) {
+    const sel = document.getElementById('coBonusCourse');
+    if (!sel) return;
+    let html = '<option value="">なし（終了時刻を10分のばすだけ）</option>';
+    coursesCache.forEach(c => {
+      if (Number(c.id) === Number(selfId) || /延長/.test(c.name)) return;
+      html += `<option value="${c.id}">${escapeHtml(c.name)}（${c.duration_min}分${c.price ? ' ¥' + Number(c.price).toLocaleString() : ''}）</option>`;
+    });
+    sel.innerHTML = html;
+    sel.value = current != null && current !== '' ? String(current) : '';
+  }
+
   function openCourseModal(id) {
     editingCourseId = id;
     document.getElementById('coTitle').textContent = id ? 'コース編集' : '新規コース';
@@ -5584,12 +5640,14 @@
       document.getElementById('coDuration').value = c.duration_min || 60;
       setMoney('coPrice', c.price || '');
       setMoney('coCastReward', c.cast_reward != null ? c.cast_reward : '');
+      populateBonusCourseSelect(id, c.bonus_course_id);
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
     } else {
       document.getElementById('coName').value = '';
       document.getElementById('coDuration').value = 60;
       setMoney('coPrice', '');
       setMoney('coCastReward', '');
+      populateBonusCourseSelect(0, '');
       document.getElementById('coIsActive').checked = true;
     }
     openModal('courseModal');
@@ -5604,6 +5662,7 @@
       name, duration_min: dur,
       price: moneyVal('coPrice'),
       cast_reward: moneyVal('coCastReward'),
+      bonus_course_id: document.getElementById('coBonusCourse')?.value || '',
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
     };
     // 新規時のみ末尾の sort_order をセット（既存編集時は変えない、ドラッグで並び替え）
@@ -8334,7 +8393,7 @@
       }
     });
     // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
-    mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); syncDealBadges(); }));
+    mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); applyBonusCoursePrice(); syncDealBadges(); }));
     // 延長回数: 終了時刻と合計を再計算
     const extSel = bel('bmExtCount');
     if (extSel) extSel.addEventListener('change', () => { updateEndTime(); updateBookingTotal(); });

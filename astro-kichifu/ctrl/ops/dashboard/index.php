@@ -411,12 +411,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   @media(max-width:560px){.bm-home-row{grid-template-columns:1fr;gap:0;}}
   /* id ではなく class で当てる: 2枚目の予約モーダルは clone で id に -2 が付き、
      #bmMediaField 指定が外れてレイアウトが崩れていた（2026-08-05 店長指摘） */
-  .bm-media-field{display:block;}
-  .bm-media-label{display:block;white-space:normal;margin-bottom:.4rem;}
+  /* 1列のグリッドで「ラベルの下にチェック群」を確定させる。
+     block だけだと親要素の指定に負けてラベルが左・チェック群が右の2段組みになる場合があった */
+  .bm-media-field{display:grid!important;grid-template-columns:1fr!important;gap:.4rem;}
+  .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
+  /* PC・スマホとも常に3列＝媒体6つがちょうど2行に収まる（狭い画面でも列を減らさない） */
   .bm-media-list{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
-  @media(max-width:400px){.bm-media-list{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:420px){
+    .bm-media-list{gap:.3rem;}
+    .bm-media{padding:.45rem .25rem;font-size:.76rem;gap:.2rem;}
+    .bm-media input{width:15px;height:15px;}
+  }
   .bm-media{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.45rem .5rem;border:1.5px solid var(--gray);
     border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer;
     touch-action:manipulation;white-space:nowrap;}
@@ -1615,6 +1622,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field"><label for="coDuration">時間（分）</label><input type="number" id="coDuration" min="5" step="5" placeholder="60"></div>
         <div class="field"><label for="coPrice">コース料金（円）</label><input type="text" inputmode="numeric" data-money placeholder="18000"id="coPrice"></div>
         <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="text" inputmode="numeric" data-money placeholder="9000"id="coCastReward"></div>
+      </div>
+      <div class="field">
+        <label for="coBonusCourse">＋10分のときのコース</label>
+        <select id="coBonusCourse"><option value="">なし（終了時刻を10分のばすだけ）</option></select>
+        <span class="hint">媒体・LINE予約にチェックが入って＋10分が付くとき、このコースに差し替えます（コース名・料金・報酬もそのコースの値になります）</span>
       </div>
       <div class="field"><label><input type="checkbox" id="coIsActive" checked style="width:auto;margin-right:.4rem;"> このコースを有効にする（予約モーダルで選択可能）</label><span class="hint">並び順は一覧でドラッグして変更できます</span></div>
     </div>
