@@ -1632,12 +1632,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
 
-      <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
-      <div class="field" id="bmOptionField">
-        <label class="bm-media-label">オプション<span class="bm-media-note" id="bmOptionSum"></span></label>
-        <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
-      </div>
-
       <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
       <div class="field" id="bmMediaField">
         <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約／ご新規様の媒体経由は＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
@@ -1686,6 +1680,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <span class="hint" style="margin-top:.3rem;">5分単位 / カスタムの場合のみ</span>
         </div>
       </div>
+      <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
+      <div class="field" id="bmOptionField">
+        <label class="bm-media-label">オプション<span class="bm-media-note" id="bmOptionSum"></span></label>
+        <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
+      </div>
+
       <div class="field" id="bmExtField"><label>延長（追加加算）</label>
         <div style="display:flex;align-items:center;gap:.5rem;">
           <span style="font-weight:600;color:var(--ink);white-space:nowrap;">延長30分 ✕</span>
