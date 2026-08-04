@@ -1904,7 +1904,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <span class="hint" style="margin-top:.3rem;">未入力なら「立川」と表示されます。例: 八王子市 → 八王子</span>
       </div>
       <!-- キャンペーン割引 — チェックでコース料金 10%OFF -->
-      <label id="bmCampaignField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#ffeef0,#fff);border:1.5px solid #f0a0ad;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#a82a44;margin-top:-.2rem;">
+      <label id="bmCampaignField" style="display:none;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#ffeef0,#fff);border:1.5px solid #f0a0ad;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#a82a44;margin-top:-.2rem;">
         <input type="checkbox" id="bmCampaign" style="width:18px;height:18px;cursor:pointer;">
         <span>🎁 キャンペーン割引 <b>コース料金 10%OFF</b> <span id="bmCampaignAmt" style="font-weight:500;opacity:.8;"></span></span>
       </label>

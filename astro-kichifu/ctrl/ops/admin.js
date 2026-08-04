@@ -128,7 +128,9 @@
       } else if (e.target.id === 'bmHotelFirst-2') {
         bmHotelFirstTouched['-2'] = true;
         withBmSuffix('-2', updateBookingTotal);
-      } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmCampaign-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmTransport-2') {
+      } else if (e.target.id === 'bmCampaign-2') {
+        withBmSuffix('-2', () => { updateBookingTotal(); syncCampaignFieldVisibility(); });
+      } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmTransport-2') {
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.id === 'bmNomination-2') {
         withBmSuffix('-2', () => { updateBookingTotal(); syncDealBadges(); });
@@ -3601,6 +3603,16 @@
   function campaignDiscount(base) {
     return bel('bmCampaign')?.checked ? Math.floor(base * CAMPAIGN_RATE) : 0;
   }
+  /**
+   * キャンペーン割引は YLKA 向けの仕組みで、アドミでは使わない（店長判断 2026-08-05）。
+   * ただし過去に割引が入って保存された予約もあるため、開いたときに割引が乗っている場合だけ
+   * 外せるように出す。新規予約では常に非表示・OFF。
+   */
+  function syncCampaignFieldVisibility() {
+    const f = bel('bmCampaignField');
+    const cb = bel('bmCampaign');
+    if (f) f.style.display = (cb && cb.checked) ? 'flex' : 'none';
+  }
   // スタンプ特典: コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。
   // 特典時間 ≥ コース時間なら全額無料 (円未満切り捨て)。延長・出張費・深夜料金は対象外。
   function stampDiscount(postCampaignCourse) {
@@ -4010,6 +4022,7 @@
           const isBoth = !!opt && expectDisc > 0 && Math.abs(impliedDisc - (expectDisc + HOTEL_FIRST_DISCOUNT)) <= 2;
           if (campCbEdit) campCbEdit.checked = isBoth || (isCamp && !isHf);
           if (hfCbEdit) hfCbEdit.checked = isBoth || (isHf && !isCamp);
+          syncCampaignFieldVisibility();
           // 保存済みの状態を自動判定で動かさない
           bmHotelFirstTouched[activeBmSuffix] = true;
         }
@@ -4047,7 +4060,8 @@
       const lateCb = bel('bmLateNight');
       if (lateCb) lateCb.checked = false;
       const campCbNew = bel('bmCampaign');
-      if (campCbNew) campCbNew.checked = true;
+      if (campCbNew) campCbNew.checked = false;   // アドミではキャンペーン割引を使わない
+      syncCampaignFieldVisibility();
       const hfCbNew = bel('bmHotelFirst');
       if (hfCbNew) hfCbNew.checked = false;
       setBmOptionIds([]);
@@ -4155,10 +4169,11 @@
     const bkF = document.getElementById('bmBackEnabled')?.closest('.field');
     if (bkF) bkF.style.display = checked ? 'none' : '';
     // 休憩は接客ではないため、料金・特典・支払い関連もまとめて非表示（日付/開始/終了・カウンセリング・延長・休憩時間・エリア・メモのみ表示）
-    ['bmCampaignField','bmHotelFirstField','bmStampField','bmLateNightField','bmMediaField','bmOptionField'].forEach(id => {
+    ['bmHotelFirstField','bmStampField','bmLateNightField','bmMediaField','bmOptionField'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = checked ? 'none' : 'flex';
     });
+    if (checked) { const cf = bel('bmCampaignField'); if (cf) cf.style.display = 'none'; } else { syncCampaignFieldVisibility(); }
     const paymentF = document.getElementById('bmPaymentField');
     if (paymentF) paymentF.style.display = checked ? 'none' : '';
     const totalRow = document.getElementById('bmTotalRow');
@@ -8402,7 +8417,7 @@
     if (lateCb) lateCb.addEventListener('change', updateBookingTotal);
     // キャンペーン割引チェック: 合計を再計算
     const campCb = bel('bmCampaign');
-    if (campCb) campCb.addEventListener('change', updateBookingTotal);
+    if (campCb) campCb.addEventListener('change', () => { updateBookingTotal(); syncCampaignFieldVisibility(); });
     // 初回ホテル特別料金: 手で触ったら自動チェックを止める
     const hfCb = bel('bmHotelFirst');
     if (hfCb) hfCb.addEventListener('change', () => { bmHotelFirstTouched[activeBmSuffix] = true; updateBookingTotal(); });
