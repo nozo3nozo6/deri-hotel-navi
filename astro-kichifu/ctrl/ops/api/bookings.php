@@ -93,7 +93,32 @@ if ($action === 'range' && $method === 'GET') {
             ORDER BY b.booking_date, b.start_time";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    jsonResponse(['bookings' => stripContactForStaff($stmt->fetchAll())]);
+    $out = ['bookings' => stripContactForStaff($stmt->fetchAll())];
+
+    // 旧システムから取り込んだ利用履歴も同じ一覧に混ぜる（include_legacy=1）。
+    // ドライバー／キャストは自分の担当ぶんだけを見る画面なので対象外（旧履歴に担当の紐付けが無い）。
+    $role = currentUserRole();
+    if (!empty($_GET['include_legacy']) && !in_array($role, ['driver', 'staff'], true)) {
+        $lw = []; $lp = [];
+        if ($kw !== '') {
+            $lw[] = '(c.name LIKE ? OR v.cast_name LIKE ? OR v.hotel_name LIKE ?)';
+            $lp[] = "%{$kw}%"; $lp[] = "%{$kw}%"; $lp[] = "%{$kw}%";
+        }
+        if ($status !== '') { $lw[] = 'v.status = ?'; $lp[] = $status; }
+        if ($date !== '')   { $lw[] = 'DATE(v.visit_at) = ?'; $lp[] = $date; }
+        $lsql = "SELECT v.id, v.customer_id, v.visit_at, v.cast_name, v.course_name, v.total_price,
+                        v.hotel_name, v.hotel_city, v.place_type, v.room, v.memo, v.status,
+                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name
+                   FROM ops_legacy_visits v
+                   LEFT JOIN ops_customers c ON c.id = v.customer_id
+                 " . ($lw ? 'WHERE ' . implode(' AND ', $lw) : '') . "
+                 ORDER BY v.visit_at DESC
+                 LIMIT 200";
+        $ls = $pdo->prepare($lsql);
+        $ls->execute($lp);
+        $out['legacy_visits'] = $ls->fetchAll();
+    }
+    jsonResponse($out);
 }
 
 if ($action === 'list' && $method === 'GET') {
@@ -125,7 +150,32 @@ if ($action === 'list' && $method === 'GET') {
             LIMIT 200";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    jsonResponse(['bookings' => stripContactForStaff($stmt->fetchAll())]);
+    $out = ['bookings' => stripContactForStaff($stmt->fetchAll())];
+
+    // 旧システムから取り込んだ利用履歴も同じ一覧に混ぜる（include_legacy=1）。
+    // ドライバー／キャストは自分の担当ぶんだけを見る画面なので対象外（旧履歴に担当の紐付けが無い）。
+    $role = currentUserRole();
+    if (!empty($_GET['include_legacy']) && !in_array($role, ['driver', 'staff'], true)) {
+        $lw = []; $lp = [];
+        if ($kw !== '') {
+            $lw[] = '(c.name LIKE ? OR v.cast_name LIKE ? OR v.hotel_name LIKE ?)';
+            $lp[] = "%{$kw}%"; $lp[] = "%{$kw}%"; $lp[] = "%{$kw}%";
+        }
+        if ($status !== '') { $lw[] = 'v.status = ?'; $lp[] = $status; }
+        if ($date !== '')   { $lw[] = 'DATE(v.visit_at) = ?'; $lp[] = $date; }
+        $lsql = "SELECT v.id, v.customer_id, v.visit_at, v.cast_name, v.course_name, v.total_price,
+                        v.hotel_name, v.hotel_city, v.place_type, v.room, v.memo, v.status,
+                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name
+                   FROM ops_legacy_visits v
+                   LEFT JOIN ops_customers c ON c.id = v.customer_id
+                 " . ($lw ? 'WHERE ' . implode(' AND ', $lw) : '') . "
+                 ORDER BY v.visit_at DESC
+                 LIMIT 200";
+        $ls = $pdo->prepare($lsql);
+        $ls->execute($lp);
+        $out['legacy_visits'] = $ls->fetchAll();
+    }
+    jsonResponse($out);
 }
 
 if ($action === 'get' && $method === 'GET') {

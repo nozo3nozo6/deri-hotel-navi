@@ -1437,6 +1437,7 @@
   let tlShifts = [];
   let hotelsForSelect = [];    // selectで使う簡易ホテル一覧
   let bookingsList = [];
+  let legacyVisitsList = [];   // 予約一覧に混ぜる旧システムの利用履歴
   let customersList = [];
   // primary('')/secondary('-2') それぞれで別の予約を編集できるため、suffix別に保持する
   const editingBookingIdBySuffix = { '': null, '-2': null };
@@ -3094,9 +3095,12 @@
     if (kw) params.set('keyword', kw);
     // 'break' は status ではなく course_name 判定なので API には送らずクライアント側で絞り込む
     if (st && st !== 'break') params.set('status', st);
+    // 旧システムから取り込んだ利用履歴も混ぜる（休憩フィルタのときは対象外）
+    if (st !== 'break') params.set('include_legacy', '1');
     try {
       const data = await api('/bookings.php?action=list&' + params.toString());
       let list = data.bookings || [];
+      legacyVisitsList = st === 'break' ? [] : (data.legacy_visits || []);
       const isBk = (b) => b.course_name === '休憩' || b.customer_name_snapshot === '【休憩】';
       // 休憩フィルタ: 'break' 選択時は休憩のみ、それ以外（全/特定ステータス）は休憩を除外
       if (st === 'break') {
@@ -3116,11 +3120,55 @@
   }
   function renderBookingsList() {
     const el = document.getElementById('bookingList');
-    if (bookingsList.length === 0) {
+    // OPSの予約と旧システムの利用履歴を、日時の新しい順に1本の並びにする
+    const merged = [
+      ...bookingsList.map(b => ({
+        k: 'b', v: b,
+        at: bizDateOf(b.booking_date, b.start_time || '00:00') + ' ' + String(b.start_time || '00:00').substring(0, 5),
+      })),
+      ...(legacyVisitsList || []).map(v => ({
+        k: 'l', v,
+        at: String(v.visit_at || '').substring(0, 10) + ' ' + String(v.visit_at || '').substring(11, 16),
+      })),
+    ].sort((a, b) => b.at.localeCompare(a.at));
+    if (merged.length === 0) {
       el.innerHTML = '<div class="view-empty"><div class="ve-icon">📋</div>予約はまだありません</div>';
       return;
     }
-    el.innerHTML = bookingsList.map(b => {
+    el.innerHTML = merged.map(row => row.k === 'l' ? renderLegacyRow(row.v) : renderBookingRow(row.v)).join('');
+    wireBookingsList(el);
+  }
+
+  /** 旧システムの利用履歴の行（読み取り専用・「旧」バッジ付き） */
+  function renderLegacyRow(v) {
+    const at = String(v.visit_at || '');
+    const dateMD = at.substring(5, 10).replace('-', '/');
+    const hm = at.substring(11, 16);
+    const st = HIST_STATUS[v.status] || [v.status || '', ''];
+    const name = v.customer_name || '匿名';
+    const place = legacyPlaceLabel(v, { compact: true });
+    const price = (parseInt(v.total_price, 10) || 0) + (parseInt(v.transport_fee, 10) || 0);
+    return `<div class="bk-row is-legacy">
+      <div class="bk-date-col">
+        <div class="bd-date">${dateMD}</div>
+        <div class="bd-time">${escapeHtml(hm)}</div>
+      </div>
+      <div class="bk-info">
+        <div class="bi-name">${escapeHtml(name)} <span class="ht-old">旧</span></div>
+        <div class="bi-meta">
+          ${place ? `<span>${escapeHtml(place)}</span>` : ''}
+          ${v.course_name ? `<span>📋 ${escapeHtml(v.course_name)}</span>` : ''}
+          ${v.cast_name ? `<span>👤 ${escapeHtml(v.cast_name)}</span>` : ''}
+          ${price ? `<span>💴 ¥${price.toLocaleString()}</span>` : ''}
+        </div>
+      </div>
+      <div class="bk-status s-${escapeHtml(v.status || 'other')}">${escapeHtml(st[0])}</div>
+      <div class="bk-actions"></div>
+    </div>`;
+  }
+
+  function renderBookingRow(b) {
+    return [b].map(b => {
       const name = b.customer_name || b.customer_name_snapshot || '匿名';
       const hotel = b.hotel_name || b.hotel_name_snapshot || '';
       const dateMD = b.booking_date ? bizDateOf(b.booking_date, b.start_time || '00:00').substring(5).replace('-','/') : '';
@@ -3144,10 +3192,14 @@
         <div class="bk-actions"><button class="btn-edit" data-edit-booking="${b.id}">編集</button></div>
       </div>`;
     }).join('');
+  }
+
+  function wireBookingsList(el) {
     el.querySelectorAll('[data-edit-booking]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); openBookingModal(Number(btn.dataset.editBooking)); });
     });
-    el.querySelectorAll('.bk-row').forEach(row => {
+    // 旧履歴の行は開く先が無いのでクリック対象にしない
+    el.querySelectorAll('.bk-row[data-booking-id]').forEach(row => {
       row.addEventListener('click', () => openBookingModal(Number(row.dataset.bookingId)));
     });
   }

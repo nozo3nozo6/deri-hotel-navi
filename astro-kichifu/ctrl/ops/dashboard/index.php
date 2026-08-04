@@ -495,6 +495,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .hist-tbl .ht-kind.ok{background:rgba(58,154,96,.13);color:var(--green);}
   .hist-tbl .ht-kind.ng{background:rgba(220,53,69,.1);color:var(--red);}
   .hist-tbl .ht-old{font-size:.62rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .25rem;margin-left:.25rem;}
+  /* 予約一覧に混ぜた旧システムの利用履歴（読み取り専用なので少し落とす） */
+  .bk-row .ht-old{font-size:.62rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .25rem;margin-left:.25rem;vertical-align:middle;}
+  .bk-row.is-legacy{background:#fbfbfa;cursor:default;}
+  .bk-row.is-legacy .bd-date,.bk-row.is-legacy .bi-name{color:var(--ink-soft);}
   /* ホテル選択: ネイティブ矢印の予約幅が広くスマホでホテル名が見切れるため、細いカスタム矢印に置き換えて文字幅を確保 */
   .modal-body select.bm-tight-select{-webkit-appearance:none!important;appearance:none!important;padding-right:1.6rem!important;background-color:var(--white)!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23173842' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right .55rem center!important;background-size:10px 6px!important;}
   .bm-date::-webkit-datetime-edit-text:first-child{display:none;}
