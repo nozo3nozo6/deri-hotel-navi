@@ -1492,6 +1492,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           </div>
         </div>
       </div>
+      <!-- ご新規様バッジ。電話で照合して当店の利用実績が無いときだけ出す（会員様は履歴が出るので不要） -->
+      <div id="bmNewBadge" style="display:none;margin:-.4rem 0 1.1rem;padding:.5rem .8rem;border-radius:8px;
+           background:linear-gradient(135deg,#fff6e5,#fff);border:1.5px solid #e8b96a;color:#8a5a12;font-size:.85rem;font-weight:700;">
+        🌟 ご新規様 <span style="font-weight:500;opacity:.85;">— 媒体経由なら＋10分(無料)、ホテル利用なら初回特別料金の対象です</span>
+      </div>
       <!-- リピーター履歴（電話番号で顧客がヒットしたときのみ表示・読み取り専用） -->
       <div class="bm-customer-only" id="bmHistoryWrap" style="display:none;margin:-.4rem 0 1.1rem;">
         <button type="button" id="bmHistoryToggle" class="bm-history-toggle" aria-expanded="false">
@@ -1593,7 +1598,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
       <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
       <div class="field" id="bmMediaField">
-        <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約は＋10分(無料)</span></label>
+        <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約／ご新規様の媒体経由は＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>
@@ -1621,6 +1626,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
             <option value="regular">本指名</option>
             <option value="free">フリー</option>
           </select>
+          <!-- 履歴から「そのキャストと初対面か」を見て、初指名/本指名の取り違えに気づけるようにする -->
+          <span class="hint" id="bmNomHint" style="display:none;color:#8a5a12;font-weight:600;"></span>
         </div>
       </div>
       <div class="field" id="bmBreakDurField" style="display:none;"><label for="bmBreakDur">休憩時間</label>
@@ -1670,6 +1677,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <label id="bmCampaignField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#ffeef0,#fff);border:1.5px solid #f0a0ad;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#a82a44;margin-top:-.2rem;">
         <input type="checkbox" id="bmCampaign" style="width:18px;height:18px;cursor:pointer;">
         <span>🎁 キャンペーン割引 <b>コース料金 10%OFF</b> <span id="bmCampaignAmt" style="font-weight:500;opacity:.8;"></span></span>
+      </label>
+      <!-- 初回ホテル特別料金 — ホテル利用×そのキャストと初対面で コース料金から一律5,500円引き。
+           コースが何分でも、90+90の組み合わせでも 1予約につき1回だけ。担当・訪問先・お客様が
+           決まると自動でチェックが入る（手で触ったら以後は自動で動かさない） -->
+      <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:-.2rem;">
+        <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
+        <span>🏨 初回ホテル特別料金 <b>−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
       </label>
       <!-- スタンプ特典 — コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。特典時間≥コース時間なら全額無料 -->
       <div id="bmStampField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#fff0f6,#fff);border:1.5px solid #e7a6c4;border-radius:8px;font-size:.88rem;font-weight:600;color:#9a3a6a;margin-top:-.2rem;">

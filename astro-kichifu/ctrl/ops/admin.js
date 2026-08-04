@@ -1589,7 +1589,7 @@
     const st = bmCust[activeBmSuffix];
     // ご新規様バッジ（電話で照合して見つからなかったとき）
     const badge = bel('bmNewBadge');
-    if (badge) badge.style.display = st.isNew === true ? 'block' : 'none';
+    if (badge) badge.style.display = (st.isNew === true && !bel('bmBreakMode')?.checked) ? 'block' : 'none';
     // 特別料金の自動チェック（手で触っていなければ）
     const cb = bel('bmHotelFirst');
     if (cb && !bmHotelFirstTouched[activeBmSuffix]) cb.checked = hotelFirstEligible();
@@ -3871,7 +3871,7 @@
     const bkF = document.getElementById('bmBackEnabled')?.closest('.field');
     if (bkF) bkF.style.display = checked ? 'none' : '';
     // 休憩は接客ではないため、料金・特典・支払い関連もまとめて非表示（日付/開始/終了・カウンセリング・延長・休憩時間・エリア・メモのみ表示）
-    ['bmCampaignField','bmStampField','bmLateNightField','bmMediaField'].forEach(id => {
+    ['bmCampaignField','bmHotelFirstField','bmStampField','bmLateNightField','bmMediaField'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = checked ? 'none' : 'flex';
     });
