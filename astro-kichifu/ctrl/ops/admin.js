@@ -121,7 +121,10 @@
     });
     modal2.addEventListener('change', e => {
       if (e.target.id === 'bmStartHour-2' || e.target.id === 'bmStartMin-2') {
+        bmStartTouched['-2'] = true;
         withBmSuffix('-2', () => { updateEndTime(); autoToggleLateNight(); });
+      } else if (e.target.id === 'bmDate-2') {
+        withBmSuffix('-2', applyDefaultStartOnDateChange);
       } else if (e.target.id === 'bmHotelFirst-2') {
         bmHotelFirstTouched['-2'] = true;
         withBmSuffix('-2', updateBookingTotal);
@@ -1410,6 +1413,19 @@
     if (now.getHours() < 10) d.setDate(d.getDate() - 1);
     return d;
   }
+  /**
+   * 新規予約の開始時刻の既定値。
+   *   その営業日（＝今まさに受けている日）なら現在時刻に近い値、
+   *   別の日を選んだら開店の10:00。手で入れた時刻は上書きしない側で制御する。
+   * 深夜0〜9時台は前営業日の扱いなので、その時間帯も「今日」として現在時刻を返す。
+   */
+  function defaultStartFor(dateStr) {
+    const biz = fmtDate(getBusinessDayDate());
+    if (dateStr && dateStr !== biz) return { h: 10, m: 0 };   // 別の日 → 開店時刻
+    const now = new Date();
+    return { h: now.getHours(), m: now.getMinutes() };
+  }
+
   let tlCurrentDate = getBusinessDayDate();  // 1日分のタイムライン (営業日基準)
   let adminUsersAll = [];      // {id, username, display_name, role}
   let CARD_FEE_RATE = 3;       // クレジット手数料率(%)。init で card-fee-get から取得。半分がキャスト負担
@@ -1610,6 +1626,8 @@
   const bmCust = { '': { isNew: null, castNames: null }, '-2': { isNew: null, castNames: null } };
   // 特別料金チェックを手で触ったら自動では動かさない
   const bmHotelFirstTouched = { '': false, '-2': false };
+  // 開始時刻を手で触ったか。触っていなければ日付の変更に追従して既定値を入れ直す
+  const bmStartTouched = { '': false, '-2': false };
 
   function resetBmCust() {
     bmCust[activeBmSuffix] = { isNew: null, castNames: null };
@@ -1770,6 +1788,18 @@
     const totalNum = parseInt(total.replace(/[^\d]/g, ''), 10) || 0;
     setOut(segs.join('　'), totalNum > 0 ? total : '');
   }
+  /** 日付を変えたとき、時刻を手で触っていなければ既定値（今日=現在時刻／別日=10:00）に合わせる */
+  function applyDefaultStartOnDateChange() {
+    if (bmStartTouched[activeBmSuffix] || bel('bmBreakMode')?.checked) return;
+    const def = defaultStartFor(bel('bmDate')?.value);
+    const hSel = bel('bmStartHour');
+    const mSel = bel('bmStartMin');
+    if (hSel) hSel.value = def.h;
+    if (mSel) mSel.value = def.m;
+    updateEndTime();
+    autoToggleLateNight();
+  }
+
   function updateEndTime() {
     const sh = bel('bmStartHour').value;
     const sm = bel('bmStartMin').value;
@@ -3704,6 +3734,7 @@
         const em = parseInt(String(b.end_time).substring(3, 5), 10);
         bel('bmStartHour').value = sh;
         bel('bmStartMin').value = sm;
+        bmStartTouched[activeBmSuffix] = true;   // 保存済みの時刻は日付変更で書き換えない
         setBmMedia(b.media || '');
         // コース復元: course_name からマスタを照合（端数や旧カスタムは分数で照合）
         let courseMin = null;
@@ -3861,11 +3892,14 @@
       setMoney('bmCancelFee', '');
       setMoney('bmCancelReward', '');
       bel('bmCancelWrap').style.display = 'none';
-      // 開始時刻 prefill (0-23h で渡される)
-      const sh = prefill?.startHour ?? 14;
-      const sm = prefill?.startMin ?? 0;
+      // 開始時刻。タイムラインの枠から作った場合はその時刻、そうでなければ
+      // 「今日なら現在時刻／別の日なら10:00」を既定にする
+      const def = defaultStartFor(bel('bmDate').value);
+      const sh = prefill?.startHour ?? def.h;
+      const sm = prefill?.startMin ?? def.m;
       bel('bmStartHour').value = sh;
       bel('bmStartMin').value = sm;
+      bmStartTouched[activeBmSuffix] = false;
       setBookingNg(null);   // 前に開いたお客様のNG警告が残らないように
       updateEndTime();  // コース未選択なので「—」
       // 開始時刻が深夜帯なら自動で深夜料金チェック ON (料金はまだ 0 なので加算しても影響なし)
@@ -8139,8 +8173,8 @@
     // リピーター履歴バーの開閉
     bel('bmHistoryToggle')?.addEventListener('click', toggleHistoryPanel);
     // 予約モーダル: 時刻/コース/休憩時間 変更時に終了時刻再計算
-    bel('bmStartHour').addEventListener('change', () => { updateEndTime(); autoToggleLateNight(); });
-    bel('bmStartMin').addEventListener('change', () => { updateEndTime(); autoToggleLateNight(); });
+    bel('bmStartHour').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
+    bel('bmStartMin').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
     bel('bmCourse').addEventListener('change', () => {
       const sel = bel('bmCourse');
       updateEndTime();
@@ -8208,7 +8242,10 @@
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
     bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); syncDealBadges(); });
     // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
-    bel('bmDate')?.addEventListener('change', e => populateCastSelect(e.target.value, bel('bmAdminId').value));
+    bel('bmDate')?.addEventListener('change', e => {
+      applyDefaultStartOnDateChange();
+      populateCastSelect(e.target.value, bel('bmAdminId').value);
+    });
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
     bel('bmCancelType')?.addEventListener('change', updateBookingTotal);
     bel('bmCancelFee')?.addEventListener('input', updateBookingTotal);
