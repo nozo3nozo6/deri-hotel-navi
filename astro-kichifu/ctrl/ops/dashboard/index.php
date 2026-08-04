@@ -838,9 +838,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 予約一覧の表組み（日付/時間/お客様/キャスト/分/場所/金額/状態）。
      .bk-row はマスタ一覧でも使い回しているので、予約一覧だけ .bkt-* で独立させる */
   .bkt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  .bkt{min-width:880px;}
+  .bkt{min-width:1020px;}
   .bkt-head,.bkt-row{display:grid;
-    grid-template-columns:4.6rem 5.6rem minmax(6rem,1.1fr) minmax(4.5rem,.75fr) 4.6rem minmax(9rem,1.7fr) 6rem 5.6rem 3.6rem;
+    grid-template-columns:4.6rem 5.6rem minmax(6rem,1.1fr) 7.4rem minmax(4.5rem,.75fr) 4.6rem minmax(9rem,1.6fr) 6rem 5.6rem 3.6rem;
     gap:.75rem;align-items:center;padding:.6rem .9rem;}
   .bkt-head{background:var(--foam);border-radius:8px;
     font-size:.72rem;font-weight:700;color:var(--ink-soft);letter-spacing:.04em;padding-top:.45rem;padding-bottom:.45rem;}
@@ -848,14 +848,20 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bkt-row{border-bottom:1px solid var(--gray);cursor:pointer;transition:background .15s;}
   .bkt-row:last-child{border-bottom:none;}
   .bkt-row:hover{background:var(--foam);}
-  .bkt-row.is-legacy{background:#fbfbfa;cursor:default;}
-  .bkt-row.is-legacy:hover{background:#fbfbfa;}
+  .bkt-row.is-legacy{background:#fbfbfa;}
+  .bkt-row.is-legacy:hover{background:#f4f6f5;}
   .bkt-row>div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .bkt-date{font-family:'Outfit';font-size:.98rem;font-weight:700;color:var(--deep);font-variant-numeric:tabular-nums;}
   .bkt-date small{font-family:'Zen Maru Gothic';font-size:.72rem;font-weight:600;color:var(--ink-soft);margin-left:.1em;}
   .bkt-time{font-family:'Outfit';font-size:.92rem;font-weight:600;color:var(--sea);font-variant-numeric:tabular-nums;}
   .bkt-time small{font-size:.8rem;color:var(--ink-soft);font-weight:500;}
   .bkt-cust{font-size:.95rem;font-weight:700;color:var(--ink);}
+  .bkt-tel{font-family:'Outfit';font-size:.85rem;color:var(--ink-soft);font-variant-numeric:tabular-nums;letter-spacing:.01em;}
+  /* 旧履歴の詳細モーダル（読み取り専用） */
+  #legacyDetailModal .modal-footer{justify-content:space-between;align-items:center;}
+  #legacyDetailModal .lg-note{font-size:.78rem;color:var(--ink-soft);}
+  #legacyDetailModal .mh-title .ht-old{margin-left:.35rem;}
+  .lg-memo{white-space:pre-wrap;color:#7a5a2a;}
   .bkt-cast{font-size:.88rem;font-weight:600;color:var(--deep);}
   .bkt-min{text-align:center;color:var(--ink-soft);}
   .bkt-min b{font-family:'Outfit';font-size:.98rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
@@ -1864,6 +1870,22 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <div id="bmFooterSummary" class="bm-summary-bar">
       <span id="bmSummaryMain" class="bm-sum-main"></span>
       <span id="bmSummaryTotal" class="bm-sum-total"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 旧システムの利用履歴 詳細（読み取り専用） モーダル ==========
+     旧履歴は編集できないデータなので、予約編集ページと同じ見た目で中身だけ見せる -->
+<div class="modal-overlay" id="legacyDetailModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div><div class="mh-title">📋 ご利用内容 <span class="ht-old">旧</span></div><div class="mh-sub" id="lgSub"></div></div>
+      <button class="modal-close" data-close="legacyDetailModal">×</button>
+    </div>
+    <div class="modal-body" id="lgBody"></div>
+    <div class="modal-footer">
+      <span class="lg-note">旧システムから取り込んだ記録のため編集できません</span>
+      <button class="btn-secondary" data-close="legacyDetailModal">閉じる</button>
     </div>
   </div>
 </div>

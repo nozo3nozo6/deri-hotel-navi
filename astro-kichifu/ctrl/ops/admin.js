@@ -3135,10 +3135,11 @@
       el.innerHTML = '<div class="view-empty"><div class="ve-icon">📋</div>予約はまだありません</div>';
       return;
     }
-    // 列の並び（店長指定 2026-08-05）: 日付 / 時間 / お客様 / キャスト / 分 / 場所 / 金額
+    // 列の並び（店長指定 2026-08-05）: 日付 / 時間 / お客様 / 電話 / キャスト / 分 / 場所 / 金額
+    _legacyRowMap = {};
     el.innerHTML = `<div class="bkt-wrap"><div class="bkt">
       <div class="bkt-head">
-        <span>日付</span><span>時間</span><span>お客様</span><span>キャスト</span>
+        <span>日付</span><span>時間</span><span>お客様</span><span>電話</span><span>キャスト</span>
         <span class="c">分</span><span>場所</span><span class="r">金額</span><span>状態</span><span></span>
       </div>
       ${merged.map(row => row.k === 'l' ? renderLegacyRow(row.v) : renderBookingRow(row.v)).join('')}
@@ -3168,6 +3169,13 @@
     return (min ? `<b>${escapeHtml(min)}</b><small>分</small>` : '')
          + (tag ? `<span class="bkt-tag">${escapeHtml(tag)}</span>` : '');
   }
+  /** 電話番号は必ず半角で出す（旧システムから来たデータに全角が混ざっている） */
+  function toHalfWidth(s) {
+    return String(s || '')
+      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/[－‐‑–—ー―]/g, '-')
+      .trim();
+  }
   /** 日付セル「8/2(土)」 */
   function bktDateCell(ymd) {
     const m = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -3183,17 +3191,58 @@
     const name = v.customer_name || '匿名';
     const place = legacyPlaceLabel(v, { compact: true });
     const price = (parseInt(v.total_price, 10) || 0) + (parseInt(v.transport_fee, 10) || 0);
-    return `<div class="bkt-row is-legacy">
+    _legacyRowMap[v.id] = v;
+    return `<div class="bkt-row is-legacy" data-legacy-id="${v.id}">
       <div class="bkt-date">${bktDateCell(at.substring(0, 10))}</div>
       <div class="bkt-time">${escapeHtml(at.substring(11, 16))}</div>
       <div class="bkt-cust">${escapeHtml(name)} <span class="ht-old">旧</span></div>
+      <div class="bkt-tel">${escapeHtml(toHalfWidth(v.customer_phone || ''))}</div>
       <div class="bkt-cast">${escapeHtml(v.cast_name || '')}</div>
       <div class="bkt-min">${bktMinCell(v.course_name, '', '')}</div>
       <div class="bkt-place">${escapeHtml(place)}</div>
       <div class="bkt-price">${price ? '¥' + price.toLocaleString() : ''}</div>
       <div class="bkt-st"><span class="bk-status s-${escapeHtml(v.status || 'other')}">${escapeHtml(st[0])}</span></div>
-      <div class="bkt-act"></div>
+      <div class="bkt-act"><button class="btn-edit" data-view-legacy="${v.id}">内容</button></div>
     </div>`;
+  }
+
+  // 旧履歴の詳細モーダル用（一覧を描くたびに詰め直す）
+  let _legacyRowMap = {};
+
+  /** 旧システムの利用履歴を、予約編集ページと同じ見た目で読み取り専用に開く */
+  function openLegacyDetail(id) {
+    const v = _legacyRowMap[id];
+    if (!v) return;
+    const at = String(v.visit_at || '');
+    const st = HIST_STATUS[v.status] || [v.status || '', ''];
+    const price = parseInt(v.total_price, 10) || 0;
+    const trans = parseInt(v.transport_fee, 10) || 0;
+    const row = (label, val, cls) => val
+      ? `<div class="od-row"><div class="od-label">${label}</div><div class="od-value${cls ? ' ' + cls : ''}">${val}</div></div>`
+      : '';
+    const hr = '<hr style="border:0;border-top:1px solid var(--gray);margin:.7rem 0;">';
+    document.getElementById('lgSub').textContent =
+      `${at.substring(0, 10).replace(/-/g, '/')} ${at.substring(11, 16)}`;
+    document.getElementById('lgBody').innerHTML = [
+      row('日時', `${bktDateCell(at.substring(0, 10))} ${escapeHtml(at.substring(11, 16))}`),
+      row('ステータス', `<span class="bk-status s-${escapeHtml(v.status || 'other')}">${escapeHtml(st[0])}</span>`),
+      hr,
+      row('お客様', escapeHtml(v.customer_name || '匿名')),
+      row('電話', escapeHtml(toHalfWidth(v.customer_phone || ''))),
+      hr,
+      row('キャスト', escapeHtml(v.cast_name || '')),
+      row('指名', escapeHtml(v.nominate_name || '')),
+      row('コース', escapeHtml(v.course_name || '')),
+      row('料金', price ? '¥' + price.toLocaleString() : ''),
+      row('交通費', trans ? '¥' + trans.toLocaleString() : ''),
+      row('合計', price + trans ? `<b>¥${(price + trans).toLocaleString()}</b>` : ''),
+      hr,
+      row('訪問先', escapeHtml(legacyPlaceLabel(v, { compact: true }))),   // 部屋番号は次の行で別に出す
+      row('部屋番号', escapeHtml(v.room || '')),
+      row('店舗', escapeHtml(v.shop_name || '')),
+      (v.memo || '').trim() ? hr + row('メモ', escapeHtml(v.memo.trim()), 'lg-memo') : '',
+    ].join('');
+    openModal('legacyDetailModal');
   }
 
   function renderBookingRow(b) {
@@ -3210,6 +3259,7 @@
       <div class="bkt-date">${bktDateCell(bizDateOf(b.booking_date, b.start_time || '00:00'))}</div>
       <div class="bkt-time">${String(b.start_time || '').substring(0,5)}<small>-${String(b.end_time || '').substring(0,5)}</small></div>
       <div class="bkt-cust">${escapeHtml(name)}</div>
+      <div class="bkt-tel">${escapeHtml(toHalfWidth(b.customer_phone || b.customer_phone_snapshot || ''))}</div>
       <div class="bkt-cast">${escapeHtml(b.staff_name || '')}</div>
       <div class="bkt-min">${bktMinCell(b.course_name, b.start_time, b.end_time)}</div>
       <div class="bkt-place">${escapeHtml(place)}</div>
@@ -3223,9 +3273,15 @@
     el.querySelectorAll('[data-edit-booking]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); openBookingModal(Number(btn.dataset.editBooking)); });
     });
-    // 旧履歴の行は開く先が無いのでクリック対象にしない
     el.querySelectorAll('.bkt-row[data-booking-id]').forEach(row => {
       row.addEventListener('click', () => openBookingModal(Number(row.dataset.bookingId)));
+    });
+    // 旧履歴は編集できないので、同じ見た目の読み取り専用モーダルで中身だけ見せる
+    el.querySelectorAll('[data-view-legacy]').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); openLegacyDetail(btn.dataset.viewLegacy); });
+    });
+    el.querySelectorAll('.bkt-row[data-legacy-id]').forEach(row => {
+      row.addEventListener('click', () => openLegacyDetail(row.dataset.legacyId));
     });
   }
 

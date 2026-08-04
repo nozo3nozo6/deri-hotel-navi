@@ -108,7 +108,7 @@ if ($action === 'range' && $method === 'GET') {
         if ($date !== '')   { $lw[] = 'DATE(v.visit_at) = ?'; $lp[] = $date; }
         $lsql = "SELECT v.id, v.customer_id, v.visit_at, v.cast_name, v.course_name, v.total_price,
                         v.hotel_name, v.hotel_city, v.place_type, v.room, v.memo, v.status,
-                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name
+                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name, c.phone AS customer_phone
                    FROM ops_legacy_visits v
                    LEFT JOIN ops_customers c ON c.id = v.customer_id
                  " . ($lw ? 'WHERE ' . implode(' AND ', $lw) : '') . "
@@ -165,7 +165,7 @@ if ($action === 'list' && $method === 'GET') {
         if ($date !== '')   { $lw[] = 'DATE(v.visit_at) = ?'; $lp[] = $date; }
         $lsql = "SELECT v.id, v.customer_id, v.visit_at, v.cast_name, v.course_name, v.total_price,
                         v.hotel_name, v.hotel_city, v.place_type, v.room, v.memo, v.status,
-                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name
+                        v.nominate_name, v.transport_fee, v.shop_name, c.name AS customer_name, c.phone AS customer_phone
                    FROM ops_legacy_visits v
                    LEFT JOIN ops_customers c ON c.id = v.customer_id
                  " . ($lw ? 'WHERE ' . implode(' AND ', $lw) : '') . "
