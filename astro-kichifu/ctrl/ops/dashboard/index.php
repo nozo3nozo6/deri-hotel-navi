@@ -1719,7 +1719,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <!-- ご新規様バッジ。電話で照合して当店の利用実績が無いときだけ出す（会員様は履歴が出るので不要） -->
       <div id="bmNewBadge" style="display:none;margin:-.4rem 0 1.1rem;padding:.5rem .8rem;border-radius:8px;
            background:linear-gradient(135deg,#fff6e5,#fff);border:1.5px solid #e8b96a;color:#8a5a12;font-size:.85rem;font-weight:700;">
-        🌟 ご新規様 <span style="font-weight:500;opacity:.85;">— 媒体経由なら＋10分(無料)、ホテル利用なら初回特別料金の対象です</span>
+        🌟 ご新規様 <span style="font-weight:500;opacity:.85;">— ホテル利用なら初回特別料金の対象です</span>
       </div>
       <!-- リピーター履歴（電話番号で顧客がヒットしたときのみ表示・読み取り専用） -->
       <div class="bm-customer-only" id="bmHistoryWrap" style="display:none;margin:-.4rem 0 1.1rem;">
@@ -1820,9 +1820,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
 
-      <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->
+      <!-- 流入媒体・予約経路。どれかにチェックが入ると＋10分(無料)（アドミの特典。既定は未チェック） -->
       <div class="field bm-media-field" id="bmMediaField">
-        <label class="bm-media-label">媒体<span class="bm-media-note">・LINE予約／ご新規様の媒体経由は＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
+        <label class="bm-media-label">媒体<span class="bm-media-note">・チェックが入ると＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>
@@ -1830,7 +1830,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fuzoku"><span>風じゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="deli"><span>デリじゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
-          <label class="bm-media is-line" title="LINE予約は＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
+          <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
         </div>
       </div>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">

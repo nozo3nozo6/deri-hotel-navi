@@ -1511,14 +1511,12 @@
     return parseInt(bel('bmCourse').value || '0', 10);
   }
   /**
-   * ＋10分（媒体・LINEチェック）が付く条件かどうか。
-   * LINE予約は常に、媒体経由はご新規様のときだけ。重なっても1回ぶん。
+   * ＋10分（無料）が付く条件。媒体・LINE予約のどれかにチェックが入っていれば付く
+   * （新規/会員は問わない。店長指定 2026-08-05）。いくつ入れても10分は1回ぶん。
    */
   function bonusApplies() {
     if (bel('bmBreakMode')?.checked) return false;
-    const m = getBmMedia();
-    if (m.includes('line')) return true;
-    return bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line');
+    return getBmMedia().length > 0;
   }
   /**
    * ＋10分が付くとき、選択中コースに「＋10分のときのコース」が設定されていればそれを返す。
@@ -1744,7 +1742,7 @@
     updateBookingTotal();
   }
 
-  /** +10分(無料): LINE予約、または ご新規様×媒体経由（その他含む）。重なっても10分まで。
+  /** +10分(無料): 媒体・LINE予約のどれかにチェックが入っていれば。重なっても10分まで。
    *  ただし「＋10分のときのコース」が設定されたコースは、そのコースの分数に既に含まれるので0を返す */
   function lineBonusExtra() {
     if (!bonusApplies()) return 0;
