@@ -1307,6 +1307,17 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <div id="courseList" class="bk-list"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
   </div>
 
+  <!-- オプション管理（ローター・バイブ等。予約モーダルで選ぶと合計に加算される） -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
+    <div class="tl-title">オプション管理<span class="tl-sub">予約モーダルで選べるオプションを編集</span></div>
+    <div class="tl-nav">
+      <button class="tl-add" id="opAddNew">+ オプション追加</button>
+    </div>
+  </div>
+  <div class="staff-main" style="max-width:900px;">
+    <div id="optionList" class="bk-list"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
+  </div>
+
   <!-- 入室方法マスタ -->
   <div class="tl-toolbar" style="margin-top:2rem;">
     <div class="tl-title">入室方法マスタ<span class="tl-sub">ホテル編集モーダルの入室方法プルダウンを編集</span></div>
@@ -1441,6 +1452,30 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="btn-secondary" id="coDelete" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red);">削除</button>
       <button class="btn-secondary" data-close="courseModal">キャンセル</button>
       <button class="btn-primary" id="coSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== オプション 作成/編集モーダル ========== -->
+<div class="modal-overlay" id="optionModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div><div class="mh-title" id="opTitle">新規オプション</div></div>
+      <button class="modal-close" data-close="optionModal">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label for="opName">オプション名</label><input type="text" id="opName" placeholder="例: ローター"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+        <div class="field"><label for="opPrice">料金（円）</label><input type="text" inputmode="numeric" data-money placeholder="1000" id="opPrice"></div>
+        <div class="field"><label for="opCastReward">キャスト報酬（円）</label><input type="text" inputmode="numeric" data-money placeholder="500" id="opCastReward">
+          <span class="hint">空欄なら店の取り分（報酬に加算しません）</span></div>
+      </div>
+      <div class="field"><label><input type="checkbox" id="opIsActive" checked style="width:auto;margin-right:.4rem;"> このオプションを有効にする（予約モーダルで選択可能）</label><span class="hint">並び順は一覧でドラッグして変更できます</span></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="opDelete" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red);">削除</button>
+      <button class="btn-secondary" data-close="optionModal">キャンセル</button>
+      <button class="btn-primary" id="opSave">保存</button>
     </div>
   </div>
 </div>
@@ -1594,6 +1629,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label for="bmOtherLoc">場所の詳細</label>
           <textarea id="bmOtherLoc" placeholder="場所の詳細を自由に記入"></textarea>
         </div>
+      </div>
+
+      <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
+      <div class="field" id="bmOptionField">
+        <label class="bm-media-label">オプション<span class="bm-media-note" id="bmOptionSum"></span></label>
+        <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
       </div>
 
       <!-- 流入媒体・予約経路。LINE予約だけ ＋10分(無料) が付く（アドミの特典。既定は未チェック） -->

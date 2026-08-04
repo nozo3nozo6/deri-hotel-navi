@@ -370,6 +370,33 @@ if ($action === 'admin-update' && $method === 'POST') {
 // 出張費: 自走分は全額キャスト。送迎(ドライバー割当)した片道ごとに max(出張費/2, 850円) を店が取得（上限=出張費総額）
 // =================================================================
 // 出張費のキャスト取り分（送迎=ドライバー割当した片道は店が max(出張費/2,850) を取得、残りがキャスト）
+/**
+ * 予約の menu_items（「ローター¥1,000 / バイブ¥1,000」形式のテキスト）から
+ * オプションのキャスト報酬合計を出す。cast_reward 未設定のオプションは店の取り分＝0円。
+ * マスタは一度だけ読んで使い回す（明細ループから毎行呼ばれるため）。
+ */
+function opsOptionReward(?string $menuItems): int {
+    static $master = null;
+    $txt = trim((string)$menuItems);
+    if ($txt === '') return 0;
+    if ($master === null) {
+        $master = [];
+        try {
+            foreach (getPdo()->query('SELECT name, cast_reward FROM ops_options') as $o) {
+                $name = trim((string)$o['name']);
+                if ($name !== '' && $o['cast_reward'] !== null && $o['cast_reward'] !== '') {
+                    $master[$name] = (int)$o['cast_reward'];
+                }
+            }
+        } catch (Throwable $e) { $master = []; }
+    }
+    $sum = 0;
+    foreach ($master as $name => $reward) {
+        if (mb_strpos($txt, $name) !== false) $sum += $reward;
+    }
+    return $sum;
+}
+
 function ylkaTherapistTransport(int $transport, bool $goDriver, bool $backDriver): int {
     if ($transport <= 0) return 0;
     $perLeg = max((int)floor($transport / 2), 850);
@@ -428,7 +455,7 @@ if ($action === 'payroll' && $method === 'GET') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   errorResponse('invalid to', 400);
 
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.assigned_admin_id,
-                   b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
+                   b.customer_name_snapshot, b.course_name, b.menu_items, b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
                    b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override,
                    au.display_name, au.username, au.commission_rate, au.sort_order
             FROM ops_bookings b
@@ -461,7 +488,10 @@ if ($action === 'payroll' && $method === 'GET') {
         $base = (int)$r['price'] + $trans;  // お客様総額（対象売上）
         $hasGo = !empty($r['driver_id']); $hasBack = !empty($r['back_driver_id']);
         $courseFee = (int)$r['price'] - $late;
-        $courseReward = (int)floor($courseFee * $rate / 100);
+        // オプション（ローター等）のキャスト報酬。menu_items のテキストに残した名前で
+        // ops_options を引き、cast_reward が設定されているものだけ加算する（未設定＝店の取り分）。
+        $optionReward = opsOptionReward($r['menu_items'] ?? null);
+        $courseReward = (int)floor($courseFee * $rate / 100) + $optionReward;
         $tTherapist = ylkaTherapistTransport($trans, $hasGo, $hasBack);
         $lateTherapist = $hasBack ? 0 : $late;   // 帰りお迎えあり→深夜料金は店
         $cardFeeSelf = ylkaCardFeeTherapist($base, $r['payment_method'] ?? null, $cardRate); // カード決済のキャスト負担

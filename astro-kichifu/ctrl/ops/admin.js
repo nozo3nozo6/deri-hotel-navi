@@ -1548,6 +1548,63 @@
     return String(list || '').split(',').map(s => s.trim()).filter(Boolean)
       .map(k => BM_MEDIA_LABEL[k] || k).join('・');
   }
+  // ===== 予約モーダルのオプション（ローター等） =====
+  /** 有効なオプションをチェックボックスで描画（両モーダル） */
+  function renderBmOptions() {
+    ['', '-2'].forEach(sfx => {
+      const wrap = document.getElementById('bmOptionList' + sfx);
+      if (!wrap) return;
+      const active = optionsCache.filter(o => Number(o.is_active) === 1);
+      if (!active.length) {
+        wrap.innerHTML = '<span class="hint">オプションが登録されていません（マスタタブで追加できます）</span>';
+        return;
+      }
+      const checked = new Set(bmOptionIds(sfx));
+      wrap.innerHTML = active.map(o => `
+        <label class="bm-media"><input type="checkbox" name="bmOption${sfx}" value="${o.id}"${checked.has(o.id) ? ' checked' : ''}><span>${escapeHtml(o.name)} ¥${Number(o.price || 0).toLocaleString()}</span></label>`).join('');
+    });
+    updateBmOptionSum();
+  }
+  /** いま選ばれているオプションID（サフィックス省略時はアクティブなモーダル） */
+  function bmOptionIds(sfx) {
+    const s = sfx === undefined ? activeBmSuffix : sfx;
+    const wrap = document.getElementById('bmOptionList' + s);
+    if (!wrap) return [];
+    return [...wrap.querySelectorAll('input:checked')].map(i => Number(i.value));
+  }
+  function setBmOptionIds(ids) {
+    const wrap = bel('bmOptionList');
+    if (!wrap) return;
+    const set = new Set((ids || []).map(Number));
+    wrap.querySelectorAll('input').forEach(i => { i.checked = set.has(Number(i.value)); });
+    updateBmOptionSum();
+  }
+  /** オプション合計（料金） */
+  function optionTotal() {
+    if (bel('bmBreakMode')?.checked) return 0;
+    const ids = new Set(bmOptionIds());
+    return optionsCache.filter(o => ids.has(Number(o.id))).reduce((n, o) => n + (Number(o.price) || 0), 0);
+  }
+  /** オプションのキャスト報酬合計（未設定は店の取り分＝0） */
+  function optionReward() {
+    if (bel('bmBreakMode')?.checked) return 0;
+    const ids = new Set(bmOptionIds());
+    return optionsCache.filter(o => ids.has(Number(o.id)))
+      .reduce((n, o) => n + (o.cast_reward != null && o.cast_reward !== '' ? Number(o.cast_reward) : 0), 0);
+  }
+  /** 保存用テキスト（menu_items）。「ローター¥1,000 / バイブ¥1,000」 */
+  function optionText() {
+    const ids = new Set(bmOptionIds());
+    return optionsCache.filter(o => ids.has(Number(o.id)))
+      .map(o => o.name + '¥' + Number(o.price || 0).toLocaleString()).join(' / ');
+  }
+  function updateBmOptionSum() {
+    const el = bel('bmOptionSum');
+    if (!el) return;
+    const t = optionTotal();
+    el.textContent = t > 0 ? `・選択中 ¥${t.toLocaleString()}` : '';
+  }
+
   // 予約モーダルごとの「このお客様」情報。isNew: true=ご新規様 / false=会員様 / null=不明（電話未入力等）
   // castNames: 過去に利用したキャスト名の集合（OPS予約の担当名＋旧システムの源氏名）
   const bmCust = { '': { isNew: null, castNames: null }, '-2': { isNew: null, castNames: null } };
@@ -3383,8 +3440,9 @@
       const discount = campaignDiscount(price);
       const stamp = stampDiscount(price - discount);
       const hf = hotelFirstDiscount();
+      const opt = optionTotal();
       const nomFee = bel('bmBreakMode')?.checked ? 0 : nominationFeeFor(bel('bmNomination')?.value);
-      const subtotal = price + transport + lateNight + ext + nomFee - discount - stamp - hf;
+      const subtotal = price + transport + lateNight + ext + nomFee + opt - discount - stamp - hf;
       const surcharge = cardSurcharge(subtotal);
       totalEl.textContent = '¥' + (subtotal + surcharge).toLocaleString();
       // 割引額をチェック横に表示
@@ -3608,6 +3666,8 @@
   async function openBookingModal(id, prefill) {
     await ensureSelectsLoaded();
     await ensureCoursesLoaded();
+    await ensureOptionsLoaded();
+    renderBmOptions();
     // 開くたびに現在のモーダル(primary/-2)の bmCourse を最新の option(data-price付き)で再生成。
     // ensureCoursesLoaded は cache 済みだと populate を呼ばないため、ここで明示的に保証する
     populateCourseSelect();
@@ -3712,6 +3772,13 @@
         if (bel('bmDepositOverride')) bel('bmDepositOverride').value = '';
         if (bel('bmRewardOverride')) setMoney('bmRewardOverride', b.reward_override != null ? b.reward_override : '');
         bel('bmNotes').value = b.notes || '';
+        // オプションは menu_items にテキストで保存している。名前で照合して選択を復元する
+        // （マスタから消えたオプションは復元されないが、記録のテキストは残る）
+        {
+          const txt = String(b.menu_items || '');
+          const ids = optionsCache.filter(o => o.name && txt.includes(o.name)).map(o => o.id);
+          setBmOptionIds(ids);
+        }
         // 深夜料金・キャンペーン割引を保存値から復元（bmPrice はコース基本料金＝通常価格）。
         // 保存 price = 基本 + 深夜 + 延長 − 割引 − スタンプ。スタンプは保存されないため 0 とみなし逆算する。
         const stampSelEdit = bel('bmStampReward');
@@ -3770,6 +3837,7 @@
       if (campCbNew) campCbNew.checked = true;
       const hfCbNew = bel('bmHotelFirst');
       if (hfCbNew) hfCbNew.checked = false;
+      setBmOptionIds([]);
       resetBmCust();
       try { syncDealBadges(); } catch (_) {}
       updateBookingTotal();
@@ -3871,7 +3939,7 @@
     const bkF = document.getElementById('bmBackEnabled')?.closest('.field');
     if (bkF) bkF.style.display = checked ? 'none' : '';
     // 休憩は接客ではないため、料金・特典・支払い関連もまとめて非表示（日付/開始/終了・カウンセリング・延長・休憩時間・エリア・メモのみ表示）
-    ['bmCampaignField','bmHotelFirstField','bmStampField','bmLateNightField','bmMediaField'].forEach(id => {
+    ['bmCampaignField','bmHotelFirstField','bmStampField','bmLateNightField','bmMediaField','bmOptionField'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = checked ? 'none' : 'flex';
     });
@@ -4424,7 +4492,7 @@
         const nomFee = nominationFeeFor(bel('bmNomination')?.value);
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
-        return base + late + extAmount() + nomFee - disc - stamp - hotelFirstDiscount();  // コース + 深夜 + 延長 + 指名料 − 各割引
+        return base + late + extAmount() + nomFee + optionTotal() - disc - stamp - hotelFirstDiscount();  // コース + 深夜 + 延長 + 指名料 + オプション − 各割引
       })(),
       late_fee: isBreak ? 0 : (bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0),
       // 預り金の手入力があれば出張費込みで上書きするため、出張費は0にして二重計上を防ぐ
@@ -4442,12 +4510,13 @@
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
         const trans = parseInt(String(bel('bmTransport').value || '').replace(/[^\d]/g, ''), 10) || 0;
-        return cardSurcharge(base + trans + late + extAmount() + nomFee - disc - stamp - hotelFirstDiscount());
+        return cardSurcharge(base + trans + late + extAmount() + nomFee + optionTotal() - disc - stamp - hotelFirstDiscount());
       })(),
       card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeFor(bel('bmNomination')?.value),
       media: isBreak ? '' : getBmMedia().join(','),
+      menu_items: isBreak ? '' : optionText(),
       plus10: isBreak ? false : lineBonusExtra() > 0,
       notes: isBreak ? ('[休憩] ' + bel('bmNotes').value).trim() : bel('bmNotes').value,
       reward_override: (() => {
@@ -5385,6 +5454,145 @@
     } catch (e) { toast('削除失敗: ' + e.message, 'err'); }
   }
 
+  // ========== オプション管理（ローター・バイブ等） ==========
+  // 予約モーダルで選ぶと合計に加算される。キャスト報酬はオプションごとの固定額（空欄＝店の取り分）。
+  let optionsCache = [];
+  let optionsLoaded = false;
+  let editingOptionId = null;
+
+  async function ensureOptionsLoaded(force) {
+    if (optionsLoaded && !force) return;
+    try {
+      const d = await api('/options.php?action=list&include_inactive=1');
+      optionsCache = d.options || [];
+      optionsLoaded = true;
+      renderBmOptions();
+    } catch (e) { optionsCache = []; }
+  }
+
+  async function loadOptions() {
+    const el = document.getElementById('optionList');
+    if (el) el.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
+    await ensureOptionsLoaded(true);
+    renderOptions();
+  }
+
+  function renderOptions() {
+    const el = document.getElementById('optionList');
+    if (!el) return;
+    if (optionsCache.length === 0) {
+      el.innerHTML = '<div class="view-empty">オプションがありません</div>';
+      return;
+    }
+    el.innerHTML = optionsCache.map(o => `
+      <div class="bk-row sortable" draggable="true" data-option-id="${o.id}" style="grid-template-columns:auto 1fr auto;">
+        <div class="drag-handle" title="ドラッグで並び替え">⋮⋮</div>
+        <div class="bk-info">
+          <div class="bi-name">${escapeHtml(o.name)} ${Number(o.is_active) ? '' : '<span style="color:var(--red);font-size:.78rem;">[無効]</span>'}</div>
+          <div class="bi-meta">
+            <span>💴 ¥${Number(o.price || 0).toLocaleString()}</span>
+            ${o.cast_reward != null && o.cast_reward !== '' ? `<span>💰 報酬 ¥${Number(o.cast_reward).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">報酬なし（店の取り分）</span>'}
+            <span>表示順: ${o.sort_order}</span>
+          </div>
+        </div>
+        <button class="btn-edit" data-option-edit="${o.id}">編集</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-option-edit]').forEach(b => {
+      b.addEventListener('click', e => { e.stopPropagation(); openOptionModal(Number(b.dataset.optionEdit)); });
+    });
+    el.querySelectorAll('.bk-row').forEach(row => {
+      row.addEventListener('click', e => {
+        if (e.target.closest('button, .drag-handle')) return;
+        openOptionModal(Number(row.dataset.optionId));
+      });
+    });
+    setupOptionSortable();
+  }
+
+  function setupOptionSortable() {
+    const list = document.getElementById('optionList');
+    if (!list) return;
+    let dragSrc = null;
+    list.querySelectorAll('.sortable').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        dragSrc = row; row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+        row.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+      });
+      row.addEventListener('drop', async e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        list.insertBefore(dragSrc, before ? row : row.nextSibling);
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+        const ids = [...list.querySelectorAll('.bk-row')].map(r => Number(r.dataset.optionId));
+        try { await apiPost('/options.php?action=reorder', { ids }); await ensureOptionsLoaded(true); renderOptions(); }
+        catch (err) { toast('並び替えに失敗: ' + err.message, 'err'); }
+      });
+    });
+  }
+
+  function openOptionModal(id) {
+    editingOptionId = id || null;
+    document.getElementById('opTitle').textContent = id ? 'オプションを編集' : '新規オプション';
+    document.getElementById('opDelete').style.display = id ? '' : 'none';
+    const o = id ? optionsCache.find(x => x.id === id) : null;
+    document.getElementById('opName').value = o ? (o.name || '') : '';
+    setMoney('opPrice', o ? (o.price || '') : '');
+    setMoney('opCastReward', o && o.cast_reward != null ? o.cast_reward : '');
+    document.getElementById('opIsActive').checked = o ? Number(o.is_active) === 1 : true;
+    openModal('optionModal');
+  }
+
+  async function saveOption() {
+    const name = document.getElementById('opName').value.trim();
+    if (!name) { toast('オプション名を入力してください', 'err'); return; }
+    const payload = {
+      name,
+      price: moneyVal('opPrice') || 0,
+      cast_reward: moneyVal('opCastReward'),
+      is_active: document.getElementById('opIsActive').checked ? 1 : 0,
+    };
+    if (!editingOptionId) {
+      payload.sort_order = optionsCache.reduce((m, o) => Math.max(m, Number(o.sort_order || 0)), 0) + 10;
+    }
+    try {
+      if (editingOptionId) {
+        await apiPost('/options.php?action=update', { id: editingOptionId, ...payload });
+        toast('✓ 更新しました', 'ok');
+      } else {
+        await apiPost('/options.php?action=create', payload);
+        toast('✓ 追加しました', 'ok');
+      }
+      closeModal('optionModal');
+      await ensureOptionsLoaded(true);
+      renderOptions();
+    } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+  }
+
+  async function deleteOption() {
+    if (!editingOptionId || !confirm('このオプションを削除しますか？\n既存予約に記録済みの内容は消えません。')) return;
+    try {
+      await apiPost('/options.php?action=delete', { id: editingOptionId });
+      toast('✓ 削除しました', 'ok');
+      closeModal('optionModal');
+      await ensureOptionsLoaded(true);
+      renderOptions();
+    } catch (e) { toast('削除失敗: ' + e.message, 'err'); }
+  }
+
   // ========== 入室方法マスタ ==========
   let editingEntryMethodId = null;
   async function loadEntryMethods() {
@@ -5958,7 +6166,7 @@
     else if (name === 'bookings') loadBookings();
     else if (name === 'customers') loadCustomers();
     else if (name === 'shifts') loadShifts();
-    else if (name === 'courses') { loadCourses(); loadEntryMethods(); }
+    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); }
     else if (name === 'stations') loadStations();
     else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
     else if (name === 'chat' && userCanSeeTab('chat')) loadChatInbox();
@@ -7877,6 +8085,14 @@
 
     // ========== コース管理イベント ==========
     document.getElementById('coAddNew').addEventListener('click', () => openCourseModal(null));
+    document.getElementById('opAddNew')?.addEventListener('click', () => openOptionModal(null));
+    document.getElementById('opSave')?.addEventListener('click', saveOption);
+    document.getElementById('opDelete')?.addEventListener('click', deleteOption);
+    // オプションのチェック → 合計を再計算（動的生成なので委譲）
+    document.addEventListener('change', e => {
+      if (e.target.name === 'bmOption') { updateBmOptionSum(); updateBookingTotal(); }
+      else if (e.target.name === 'bmOption-2') withBmSuffix('-2', () => { updateBmOptionSum(); updateBookingTotal(); });
+    });
     document.getElementById('coSave').addEventListener('click', saveCourse);
     document.getElementById('coDelete').addEventListener('click', deleteCourse);
     // ホテル管理（マスタ内から開く）
