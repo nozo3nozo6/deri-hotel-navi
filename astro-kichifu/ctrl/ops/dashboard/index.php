@@ -1833,6 +1833,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
         </div>
       </div>
+      <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
+        <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
+        <span>🏨 ホテル料金 <b>−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
+      </label>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
           <select id="bmCourse" class="bm-tight-select">
@@ -1911,10 +1915,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <!-- 初回ホテル特別料金 — ホテル利用×そのキャストと初対面で コース料金から一律5,500円引き。
            コースが何分でも、90+90の組み合わせでも 1予約につき1回だけ。担当・訪問先・お客様が
            決まると自動でチェックが入る（手で触ったら以後は自動で動かさない） -->
-      <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:-.2rem;">
-        <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
-        <span>🏨 初回ホテル特別料金 <b>−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
-      </label>
       <!-- スタンプ特典 — コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。特典時間≥コース時間なら全額無料 -->
       <div id="bmStampField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#fff0f6,#fff);border:1.5px solid #e7a6c4;border-radius:8px;font-size:.88rem;font-weight:600;color:#9a3a6a;margin-top:-.2rem;">
         <span>🎟️ スタンプ特典</span>

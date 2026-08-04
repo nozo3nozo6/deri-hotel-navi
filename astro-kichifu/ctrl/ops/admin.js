@@ -1530,11 +1530,16 @@
     if (!bid) return null;
     return (coursesCache || []).find(c => String(c.id) === String(bid)) || null;
   }
-  /** 保存・コピーに使うコース名。＋10分コースに差し替わっていればそちらの名前 */
+  /**
+   * 保存・コピー・要約に使うコース名。
+   * ・「＋10分のときのコース」に差し替わっていれば、そのコース名（分数が名前に入っている）
+   * ・そうでなく＋10分が付くときは「60分コース ＋10分」のように付けて記録に残す（店長指定 2026-08-05）
+   */
   function bmCourseName(opt) {
     const b = bonusCourse();
     if (b) return b.name;
-    return (opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '';
+    const base = (opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '';
+    return base && lineBonusExtra() > 0 ? base + ' ＋10分' : base;
   }
   /** ＋10分コースを持つコースのときだけ、媒体チェックの切替に合わせて料金を入れ直す */
   function applyBonusCoursePrice() {
@@ -1791,9 +1796,8 @@
     }
     const courseSel = bel('bmCourse');
     const opt = courseSel?.options?.[courseSel.selectedIndex];
-    // ＋10分が付いているときは、それが分かる表記にする（差し替えコースがあればその名前）
-    let course = opt ? bmCourseName(opt) : '';
-    if (course && lineBonusExtra() > 0) course += ' ＋10分';
+    // コース名は bmCourseName() が＋10分ぶんまで面倒を見る（保存される名前と同じ表記）
+    const course = opt ? bmCourseName(opt) : '';
     const nomSel = bel('bmNomination');
     const nom = nomSel?.value ? (nomSel.options[nomSel.selectedIndex]?.text || '') : '';
     let head = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
@@ -3926,9 +3930,11 @@
         // コース復元: course_name からマスタを照合（端数や旧カスタムは分数で照合）
         let courseMin = null;
         if (b.course_name) {
-          const cm = (coursesCache || []).find(c => c.name === b.course_name);
+          // 保存名には「＋10分」が付くことがあるので、マスタ照合の前に落とす
+          const cname = String(b.course_name).replace(/\s*＋\s*10\s*分\s*$/, '').trim();
+          const cm = (coursesCache || []).find(c => c.name === cname);
           if (cm) courseMin = parseInt(cm.duration_min, 10);
-          else { const mm = String(b.course_name).match(/(\d+)\s*分/); if (mm) courseMin = parseInt(mm[1], 10); }
+          else { const mm = cname.match(/(\d+)\s*分/); if (mm) courseMin = parseInt(mm[1], 10); }
         }
         // マスタに一致する分数があれば選択、無ければ未選択（カスタムは廃止）
         const opt = courseMin != null && [...bel('bmCourse').options].find(o => o.value === String(courseMin));
@@ -4369,7 +4375,7 @@
     const _stamp = Number(b.stamp_discount) || 0;
     if (_stamp > 0) lines.push(`🎟️スタンプ特典: -¥${_stamp.toLocaleString()}`);
     const _hf = Number(b.hotel_first_discount) || 0;
-    if (_hf > 0) lines.push(`🏨初回ホテル特別料金: -¥${_hf.toLocaleString()}`);
+    if (_hf > 0) lines.push(`🏨ホテル料金: -¥${_hf.toLocaleString()}`);
     if (b.price && (_trans > 0 || _disc > 0 || _stamp > 0 || _hf > 0)) lines.push(`合計: ¥${(Number(b.price) + _trans - _disc - _stamp - _hf).toLocaleString()}`);
     const phone = b.customer_phone || b.customer_phone_snapshot || '';
     if (phone) lines.push(`電話: ${phone}`);
@@ -4426,7 +4432,7 @@
     const stampNum = Number(b.stamp_discount) || 0;
     if (stampNum > 0) lines.push(`■ スタンプ特典：-¥${stampNum.toLocaleString()}`);
     const hfNum = Number(b.hotel_first_discount) || 0;
-    if (hfNum > 0) lines.push(`■ 初回ホテル特別料金：-¥${hfNum.toLocaleString()}`);
+    if (hfNum > 0) lines.push(`■ ホテル料金：-¥${hfNum.toLocaleString()}`);
     if (priceNum && (transNum > 0 || discNum > 0 || stampNum > 0 || hfNum > 0)) lines.push(`■ 合計：¥${(priceNum + transNum - discNum - stampNum - hfNum).toLocaleString()}（税込）`);
     // 訪問先 (内部プレフィックスは外して表示)
     const hotel = b.hotel_name_snapshot || b.hotel_name || '';
