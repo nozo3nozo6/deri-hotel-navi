@@ -536,11 +536,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-toolbar .tl-title{font-size:1.15rem;font-weight:700;color:var(--deep);}
   .tl-toolbar .tl-title .tl-sub{display:block;font-size:.72rem;color:var(--ink-soft);font-weight:400;margin-top:.2rem;letter-spacing:.05em;}
   .tl-toolbar .tl-nav{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;}
-  /* 顧客一覧: 検索群はタイトルのすぐ右（左寄せ）。右端まで飛ばさない
-     ＝目線の移動が少なく、画面が広いほど離れる問題も起きない */
-  #view-customers .tl-toolbar{justify-content:flex-start;gap:1rem;}
-  #view-customers .tl-toolbar .tl-nav{flex:1;}
-  #view-customers .tl-toolbar .tl-nav #cuAddNew{margin-left:auto;}
+  /* 検索群はタイトルのすぐ右に置く（画面が広いほど右端へ離れていくと目線が飛ぶため）。
+     新規追加ボタンだけは従来どおり右端に逃がす */
+  #view-customers .tl-toolbar,#view-bookings .tl-toolbar{justify-content:flex-start;gap:1rem;}
+  #view-customers .tl-toolbar .tl-nav,#view-bookings .tl-toolbar .tl-nav{flex:1;}
+  #view-customers .tl-toolbar .tl-nav #cuAddNew,
+  #view-bookings .tl-toolbar .tl-nav #bkAddNew{margin-left:auto;}
   .tl-toolbar .tl-nav button{background:var(--foam);border:1.5px solid var(--gray);padding:.45rem .8rem;border-radius:8px;font-size:.85rem;cursor:pointer;}
   .tl-toolbar .tl-nav button:hover{background:var(--aqua);color:#fff;border-color:var(--aqua);}
   .tl-toolbar .tl-nav input[type="date"]{padding:.42rem .7rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.9rem;font-family:'Outfit';}
