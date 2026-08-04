@@ -480,7 +480,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .hist-tbl tr.is-legacy td{background:#fcfbf9;}
   .hist-tbl tr.clickable{cursor:pointer;}
   .hist-tbl tr.clickable:hover td{background:var(--foam);}
-  .hist-tbl .ht-date{color:var(--ink-soft);font-weight:600;}
+  .hist-tbl .ht-date{color:var(--ink-soft);font-weight:600;white-space:nowrap;}
+  /* 西暦は月日の邪魔をしないよう小さく添える（旧システムの履歴は数年分あるため必要） */
+  .hist-tbl .ht-year{color:var(--gray);font-weight:600;font-size:.82em;margin-right:.28em;}
   .hist-tbl .ht-course{color:var(--sea);font-weight:600;}
   .hist-tbl .ht-price{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
   .hist-tbl .ht-memo{white-space:pre-wrap;color:#7a5a2a;min-width:11rem;max-width:20rem;}

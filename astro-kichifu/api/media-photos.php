@@ -34,6 +34,11 @@ $MEDIA_COL = [
     'heaven'   => 'heaven_member_id',
     'fuzoku'   => 'fuzoku_girl_no',
     'deli'     => 'deli_girl_no',
+    // フーコレ/マンゾク/メンズバ（ExtraMediaSync が使う。targets が引けないと
+    // 写真同期が「対象なし」になり、メイン1枚しか載らない状態が続く）
+    'fucolle'  => 'fucolle_girl_id',
+    'manzoku'  => 'manzoku_girl_id',
+    'mensv'    => 'mensv_girl_id',
 ];
 $shopId = (int)($_GET['shop_id'] ?? 1);
 $uploadsBase = is_dir('/home/yobuho/admi2888.com/public_html/uploads')

@@ -122,10 +122,15 @@
     modal2.addEventListener('change', e => {
       if (e.target.id === 'bmStartHour-2' || e.target.id === 'bmStartMin-2') {
         withBmSuffix('-2', () => { updateEndTime(); autoToggleLateNight(); });
-      } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmCampaign-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmNomination-2' || e.target.id === 'bmTransport-2') {
+      } else if (e.target.id === 'bmHotelFirst-2') {
+        bmHotelFirstTouched['-2'] = true;
         withBmSuffix('-2', updateBookingTotal);
+      } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmCampaign-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmTransport-2') {
+        withBmSuffix('-2', updateBookingTotal);
+      } else if (e.target.id === 'bmNomination-2') {
+        withBmSuffix('-2', () => { updateBookingTotal(); syncDealBadges(); });
       } else if (e.target.name === 'bmMedia-2') {
-        withBmSuffix('-2', updateEndTime);
+        withBmSuffix('-2', () => { updateEndTime(); syncDealBadges(); });
       } else if (e.target.id === 'bmExtCount-2') {
         withBmSuffix('-2', () => { updateEndTime(); updateBookingTotal(); });
       } else if (e.target.id === 'bmCourse-2') {
@@ -145,11 +150,11 @@
         document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.id === 'bmAdminId-2') {
-        withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); });
+        withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); syncDealBadges(); });
       } else if (e.target.id === 'bmCancelType-2' || e.target.id === 'bmCancelFee-2') {
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.name === 'bmLocType-2') {
-        withBmSuffix('-2', () => switchLocSection(e.target.value));
+        withBmSuffix('-2', () => { switchLocSection(e.target.value); syncDealBadges(); });
       } else if (e.target.id === 'bmBreakMode-2') {
         withBmSuffix('-2', () => setBreakMode(e.target.checked));
       } else if (e.target.id === 'bmBreakDur-2') {
@@ -1543,9 +1548,90 @@
     return String(list || '').split(',').map(s => s.trim()).filter(Boolean)
       .map(k => BM_MEDIA_LABEL[k] || k).join('・');
   }
-  /** LINE予約特典 +10分 */
+  // 予約モーダルごとの「このお客様」情報。isNew: true=ご新規様 / false=会員様 / null=不明（電話未入力等）
+  // castNames: 過去に利用したキャスト名の集合（OPS予約の担当名＋旧システムの源氏名）
+  const bmCust = { '': { isNew: null, castNames: null }, '-2': { isNew: null, castNames: null } };
+  // 特別料金チェックを手で触ったら自動では動かさない
+  const bmHotelFirstTouched = { '': false, '-2': false };
+
+  function resetBmCust() {
+    bmCust[activeBmSuffix] = { isNew: null, castNames: null };
+    bmHotelFirstTouched[activeBmSuffix] = false;
+    const badge = bel('bmNewBadge');
+    if (badge) badge.style.display = 'none';
+  }
+
+  /** 選択中の担当キャスト名 */
+  function selectedCastName() {
+    const sel = bel('bmAdminId');
+    const opt = sel?.options[sel.selectedIndex];
+    return sel?.value && opt ? String(opt.dataset?.name || opt.text || '').trim() : '';
+  }
+
+  /** ホテル利用×初対面キャスト＝特別料金の対象か。不明（電話未入力など）は対象外 */
+  function hotelFirstEligible() {
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    if (locType !== 'hotel' || bel('bmBreakMode')?.checked) return false;
+    const st = bmCust[activeBmSuffix];
+    if (st.isNew === true) return true;   // ご新規様はどのキャストとも初対面
+    if (st.isNew === false && st.castNames) {
+      const nm = selectedCastName();
+      return nm !== '' && !st.castNames.has(nm);
+    }
+    return false;
+  }
+  function hotelFirstDiscount() {
+    return (bel('bmHotelFirst')?.checked && !bel('bmBreakMode')?.checked) ? HOTEL_FIRST_DISCOUNT : 0;
+  }
+
+  /** 新規/会員・訪問先・担当・媒体が変わるたびに特典まわりを同期する */
+  function syncDealBadges() {
+    const st = bmCust[activeBmSuffix];
+    // ご新規様バッジ（電話で照合して見つからなかったとき）
+    const badge = bel('bmNewBadge');
+    if (badge) badge.style.display = st.isNew === true ? 'block' : 'none';
+    // 特別料金の自動チェック（手で触っていなければ）
+    const cb = bel('bmHotelFirst');
+    if (cb && !bmHotelFirstTouched[activeBmSuffix]) cb.checked = hotelFirstEligible();
+    // ヒント: なぜ対象/対象外か
+    const hint = bel('bmHotelFirstHint');
+    if (hint) {
+      const nm = selectedCastName();
+      if (st.isNew === true) hint.textContent = '（ご新規様）';
+      else if (st.isNew === false && st.castNames && nm) hint.textContent = st.castNames.has(nm) ? `（${nm} は2回目以降）` : `（${nm} と初対面）`;
+      else hint.textContent = '';
+    }
+    // ＋10分の適用表示
+    const p10 = bel('bmPlus10Badge');
+    if (p10) p10.style.display = lineBonusExtra() > 0 ? 'inline-block' : 'none';
+    // 指名方法のヒント（初対面なら初指名、2回目以降なら本指名）
+    const nomHint = bel('bmNomHint');
+    if (nomHint) {
+      const nm = selectedCastName();
+      const nomVal = bel('bmNomination')?.value;
+      let txt = '';
+      if (nm && (nomVal === 'first' || nomVal === 'regular')) {
+        const first = st.isNew === true || (st.isNew === false && st.castNames && !st.castNames.has(nm));
+        const known = st.isNew !== null && (st.isNew === true || st.castNames);
+        if (known) {
+          if (first && nomVal === 'regular') txt = `💡 ${nm} とは初対面 → 初指名（¥${NOMINATION_FEES.first.toLocaleString()}）では？`;
+          if (!first && nomVal === 'first') txt = `💡 ${nm} は2回目以降 → 本指名（¥${NOMINATION_FEES.regular.toLocaleString()}）では？`;
+        }
+      }
+      nomHint.textContent = txt;
+      nomHint.style.display = txt ? 'block' : 'none';
+    }
+    updateEndTime();
+    updateBookingTotal();
+  }
+
+  /** +10分(無料): LINE予約、または ご新規様×媒体経由（その他含む）。重なっても10分まで */
   function lineBonusExtra() {
-    return (getBmMedia().includes('line') && !bel('bmBreakMode')?.checked) ? 10 : 0;
+    if (bel('bmBreakMode')?.checked) return 0;
+    const m = getBmMedia();
+    if (m.includes('line')) return 10;
+    if (bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line')) return 10;
+    return 0;
   }
   // 延長回数（30分×n）
   function extCount() {
@@ -3075,7 +3161,9 @@
     if (!m) return escapeHtml(String(dateStr || ''));
     const dow = ['日','月','火','水','木','金','土'][new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`).getDay()] || '';
     const hm = String(timeStr || '').substring(0, 5);
-    return `${parseInt(m[2],10)}/${parseInt(m[3],10)}${dow ? `(${dow})` : ''}` + (hm ? ` <span style="color:var(--deep);font-weight:700;">${escapeHtml(hm)}</span>` : '');
+    // 旧システムからの履歴は数年分あるので西暦も出す（年は小さく添える）
+    return `<span class="ht-year">${m[1]}</span>${parseInt(m[2],10)}/${parseInt(m[3],10)}${dow ? `(${dow})` : ''}`
+      + (hm ? ` <span style="color:var(--deep);font-weight:700;">${escapeHtml(hm)}</span>` : '');
   }
 
   /**
@@ -3237,6 +3325,9 @@
   // 深夜料金 (+¥3,300) — チェックは合計表示のみに反映 (bmPrice はコース料金のまま)
   const LATE_NIGHT_FEE = 3300;
   const CAMPAIGN_RATE = 0.1;  // キャンペーン割引: コース料金の 10%OFF (通常→オープニング特価と一致)
+  // 初回ホテル特別料金: ホテル利用×そのキャストと初対面のとき、コース料金から一律5,500円引き。
+  // コースが何分でも・90+90の組み合わせでも、1予約につき1回だけ（店長判断 2026-08-04）。
+  const HOTEL_FIRST_DISCOUNT = 5500;
   // コース料金に対する割引額 (10%, 円未満切り捨て)
   function campaignDiscount(base) {
     return bel('bmCampaign')?.checked ? Math.floor(base * CAMPAIGN_RATE) : 0;
@@ -3291,8 +3382,9 @@
       const ext = extAmount();
       const discount = campaignDiscount(price);
       const stamp = stampDiscount(price - discount);
+      const hf = hotelFirstDiscount();
       const nomFee = bel('bmBreakMode')?.checked ? 0 : nominationFeeFor(bel('bmNomination')?.value);
-      const subtotal = price + transport + lateNight + ext + nomFee - discount - stamp;
+      const subtotal = price + transport + lateNight + ext + nomFee - discount - stamp - hf;
       const surcharge = cardSurcharge(subtotal);
       totalEl.textContent = '¥' + (subtotal + surcharge).toLocaleString();
       // 割引額をチェック横に表示
@@ -3434,6 +3526,16 @@
       // 顧客が確定したこの時点でも「いつもの場所」を試す（電話blur以外の経路をここで拾う）。
       // 既存予約を開いたときは場所が復元済み＝untouchedでないので何も起きない。
       withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
+      // 新規/会員と「過去に会ったキャスト」を特典判定用に保持
+      {
+        const doneRows = (d.bookings || []).filter(x => !['cancelled', 'no_show', 'inquiry'].includes(String(x.status)));
+        const names = new Set();
+        doneRows.forEach(x => { const n = String(x.staff_name || '').trim(); if (n) names.add(n); });
+        (d.legacy_visits || []).forEach(x => { const n = String(x.cast_name || '').trim(); if (n) names.add(n); });
+        const total = (parseInt(c.visit_count, 10) || 0) + doneRows.length;
+        bmCust[suffix] = { isNew: total === 0, castNames: names };
+        withBmSuffix(suffix, () => { try { syncDealBadges(); } catch (_) {} });
+      }
       const visitCount = parseInt(c.visit_count, 10) || 0;
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
@@ -3481,7 +3583,7 @@
   // 電話番号 blur で既存顧客検索
   async function lookupCustomerByPhone() {
     const phone = bel('bmCustomerPhone').value.trim();
-    if (!phone) { setBookingNg(null); loadCustomerHistory(null); return; }
+    if (!phone) { setBookingNg(null); resetBmCust(); try { syncDealBadges(); } catch (_) {} loadCustomerHistory(null); return; }
     try {
       const d = await api('/customers.php?action=find-by-phone&phone=' + encodeURIComponent(phone));
       if (d.customer) {
@@ -3496,6 +3598,8 @@
       } else {
         bel('bmCustomerId').value = '';
         setBookingNg(null);
+        bmCust[activeBmSuffix] = { isNew: true, castNames: new Set() };   // 登録なし＝ご新規様
+        try { syncDealBadges(); } catch (_) {}
         loadCustomerHistory(null);
       }
     } catch (e) {}
@@ -3615,12 +3719,19 @@
         const lateCbEdit = bel('bmLateNight');
         if (lateCbEdit) lateCbEdit.checked = Number(b.late_fee) > 0;   // 深夜料金は late_fee 列で確定
         const campCbEdit = bel('bmCampaign');
-        if (campCbEdit) {
+        const hfCbEdit = bel('bmHotelFirst');
+        {
           const baseVal = parseInt(String(basePrice || b.price || '0').replace(/[^\d]/g, ''), 10) || 0;
           const impliedDisc = baseVal + (Number(b.late_fee) || 0) + extAmount() - (Number(b.price) || 0);
           const expectDisc = Math.floor(baseVal * CAMPAIGN_RATE);
-          // コースがマスタに一致し、逆算した割引が 10% とほぼ一致すればキャンペーン適用済み
-          campCbEdit.checked = !!opt && expectDisc > 0 && Math.abs(impliedDisc - expectDisc) <= 2;
+          // 逆算した割引額から キャンペーン(10%) / 初回ホテル(−5,500) / 両方 を推定
+          const isCamp = !!opt && expectDisc > 0 && Math.abs(impliedDisc - expectDisc) <= 2;
+          const isHf = Math.abs(impliedDisc - HOTEL_FIRST_DISCOUNT) <= 2;
+          const isBoth = !!opt && expectDisc > 0 && Math.abs(impliedDisc - (expectDisc + HOTEL_FIRST_DISCOUNT)) <= 2;
+          if (campCbEdit) campCbEdit.checked = isBoth || (isCamp && !isHf);
+          if (hfCbEdit) hfCbEdit.checked = isBoth || (isHf && !isCamp);
+          // 保存済みの状態を自動判定で動かさない
+          bmHotelFirstTouched[activeBmSuffix] = true;
         }
         updateBookingTotal();
         bel('bmSub').textContent = b.customer_name || b.customer_name_snapshot || '';
@@ -3657,6 +3768,10 @@
       if (lateCb) lateCb.checked = false;
       const campCbNew = bel('bmCampaign');
       if (campCbNew) campCbNew.checked = true;
+      const hfCbNew = bel('bmHotelFirst');
+      if (hfCbNew) hfCbNew.checked = false;
+      resetBmCust();
+      try { syncDealBadges(); } catch (_) {}
       updateBookingTotal();
       const mainRegion = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"][value="main"]`);
       if (mainRegion) { mainRegion.checked = true; populateCitySelect('main'); }
@@ -3954,7 +4069,9 @@
     if (_disc > 0) lines.push(`🎁キャンペーン割引: -¥${_disc.toLocaleString()}`);
     const _stamp = Number(b.stamp_discount) || 0;
     if (_stamp > 0) lines.push(`🎟️スタンプ特典: -¥${_stamp.toLocaleString()}`);
-    if (b.price && (_trans > 0 || _disc > 0 || _stamp > 0)) lines.push(`合計: ¥${(Number(b.price) + _trans - _disc - _stamp).toLocaleString()}`);
+    const _hf = Number(b.hotel_first_discount) || 0;
+    if (_hf > 0) lines.push(`🏨初回ホテル特別料金: -¥${_hf.toLocaleString()}`);
+    if (b.price && (_trans > 0 || _disc > 0 || _stamp > 0 || _hf > 0)) lines.push(`合計: ¥${(Number(b.price) + _trans - _disc - _stamp - _hf).toLocaleString()}`);
     const phone = b.customer_phone || b.customer_phone_snapshot || '';
     if (phone) lines.push(`電話: ${phone}`);
     const hotel = b.hotel_name_snapshot || b.hotel_name || '';
@@ -4009,7 +4126,9 @@
     if (discNum > 0) lines.push(`■ キャンペーン割引：-¥${discNum.toLocaleString()}`);
     const stampNum = Number(b.stamp_discount) || 0;
     if (stampNum > 0) lines.push(`■ スタンプ特典：-¥${stampNum.toLocaleString()}`);
-    if (priceNum && (transNum > 0 || discNum > 0 || stampNum > 0)) lines.push(`■ 合計：¥${(priceNum + transNum - discNum - stampNum).toLocaleString()}（税込）`);
+    const hfNum = Number(b.hotel_first_discount) || 0;
+    if (hfNum > 0) lines.push(`■ 初回ホテル特別料金：-¥${hfNum.toLocaleString()}`);
+    if (priceNum && (transNum > 0 || discNum > 0 || stampNum > 0 || hfNum > 0)) lines.push(`■ 合計：¥${(priceNum + transNum - discNum - stampNum - hfNum).toLocaleString()}（税込）`);
     // 訪問先 (内部プレフィックスは外して表示)
     const hotel = b.hotel_name_snapshot || b.hotel_name || '';
     if (hotel) {
@@ -4088,6 +4207,7 @@
       price: baseForCopy + lateForCopy,
       discount: campaignDiscount(baseForCopy),
       stamp_discount: stampDiscount(baseForCopy - campaignDiscount(baseForCopy)),
+      hotel_first_discount: hotelFirstDiscount(),
       transport_fee: bel('bmTransport').value,
       hotel_name_snapshot: hotelSnap,
       room_number: roomNum,
@@ -4167,6 +4287,7 @@
     const baseForCopy = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
     const lateForCopy = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
     const discForCopy = campaignDiscount(baseForCopy);
+    const hfForCopy = hotelFirstDiscount();
     const b = {
       customer_name_snapshot: bel('bmCustomerName').value.trim(),
       customer_phone_snapshot: bel('bmCustomerPhone').value.trim(),
@@ -4303,7 +4424,7 @@
         const nomFee = nominationFeeFor(bel('bmNomination')?.value);
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
-        return base + late + extAmount() + nomFee - disc - stamp;  // コース + 深夜 + 延長 + 指名料 − キャンペーン割引 − スタンプ特典
+        return base + late + extAmount() + nomFee - disc - stamp - hotelFirstDiscount();  // コース + 深夜 + 延長 + 指名料 − 各割引
       })(),
       late_fee: isBreak ? 0 : (bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0),
       // 預り金の手入力があれば出張費込みで上書きするため、出張費は0にして二重計上を防ぐ
@@ -4321,12 +4442,13 @@
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
         const trans = parseInt(String(bel('bmTransport').value || '').replace(/[^\d]/g, ''), 10) || 0;
-        return cardSurcharge(base + trans + late + extAmount() + nomFee - disc - stamp);
+        return cardSurcharge(base + trans + late + extAmount() + nomFee - disc - stamp - hotelFirstDiscount());
       })(),
       card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeFor(bel('bmNomination')?.value),
       media: isBreak ? '' : getBmMedia().join(','),
+      plus10: isBreak ? false : lineBonusExtra() > 0,
       notes: isBreak ? ('[休憩] ' + bel('bmNotes').value).trim() : bel('bmNotes').value,
       reward_override: (() => {
         const raw = String(bel('bmRewardOverride')?.value || '').replace(/[^\d]/g, '');
@@ -7809,7 +7931,7 @@
       }
     });
     // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
-    mediaCheckboxes().forEach(cb => cb.addEventListener('change', updateEndTime));
+    mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); syncDealBadges(); }));
     // 延長回数: 終了時刻と合計を再計算
     const extSel = bel('bmExtCount');
     if (extSel) extSel.addEventListener('change', () => { updateEndTime(); updateBookingTotal(); });
@@ -7819,12 +7941,15 @@
     // キャンペーン割引チェック: 合計を再計算
     const campCb = bel('bmCampaign');
     if (campCb) campCb.addEventListener('change', updateBookingTotal);
+    // 初回ホテル特別料金: 手で触ったら自動チェックを止める
+    const hfCb = bel('bmHotelFirst');
+    if (hfCb) hfCb.addEventListener('change', () => { bmHotelFirstTouched[activeBmSuffix] = true; updateBookingTotal(); });
     // スタンプ特典: 合計を再計算
     const stampSel = bel('bmStampReward');
     if (stampSel) stampSel.addEventListener('change', updateBookingTotal);
     // 指名方法: 指名料を合計へ反映
     const nomSel = bel('bmNomination');
-    if (nomSel) nomSel.addEventListener('change', updateBookingTotal);
+    if (nomSel) nomSel.addEventListener('change', () => { updateBookingTotal(); syncDealBadges(); });
     // 料金の手入力・出張費の選択で合計再計算
     bel('bmPrice').addEventListener('input', updateBookingTotal);
     bel('bmTransport').addEventListener('change', updateBookingTotal);
@@ -7842,7 +7967,7 @@
 
     // 訪問先タイプ切替
     document.querySelectorAll('input[name="bmLocType"]').forEach(r => {
-      r.addEventListener('change', () => switchLocSection(r.value));
+      r.addEventListener('change', () => { switchLocSection(r.value); syncDealBadges(); });
     });
     // 市区町村のエリア切替 → 市区町村を組み直す
     document.querySelectorAll('input[name="bmCityRegion"]').forEach(r => {
@@ -7858,7 +7983,7 @@
       updateBookingTotal();
     });
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
-    bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); });
+    bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); syncDealBadges(); });
     // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
     bel('bmDate')?.addEventListener('change', e => populateCastSelect(e.target.value, bel('bmAdminId').value));
     // キャンセル理由/料金 変更 → 合計注記（計上額）を更新
