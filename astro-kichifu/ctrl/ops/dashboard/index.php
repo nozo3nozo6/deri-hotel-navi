@@ -321,10 +321,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal.draggable .modal-header{cursor:grab;user-select:none;background:linear-gradient(180deg,var(--foam),#fff);border-radius:18px 18px 0 0;position:sticky;top:0;z-index:2;padding-right:5rem;}
   .modal.draggable .modal-header::before{content:"⋮⋮";position:absolute;top:1rem;left:50%;transform:translateX(-50%);color:var(--ink-soft);font-size:.7rem;letter-spacing:.3em;opacity:.6;}
   /* 予約内容サマリーバー: ヘッダー同様にモーダル下端へ固定（ボタン行は通常スクロール） */
-  .bm-summary-bar{position:sticky;bottom:0;z-index:3;display:none;align-items:center;justify-content:space-between;gap:.8rem;padding:.7rem 1.4rem;background:linear-gradient(0deg,var(--foam),#fff);border-top:1.5px solid var(--aqua-light,#bfe3e8);border-radius:0 0 18px 18px;box-shadow:0 -4px 12px rgba(7,43,58,.08);}
+  /* 高さを取りすぎないよう詰める（入力中は常に見える帯なので圧迫感を減らす） */
+  .bm-summary-bar{position:sticky;bottom:0;z-index:3;display:none;align-items:center;justify-content:space-between;gap:.6rem;padding:.45rem 1.1rem;background:linear-gradient(0deg,var(--foam),#fff);border-top:1.5px solid var(--aqua-light,#bfe3e8);border-radius:0 0 18px 18px;box-shadow:0 -4px 12px rgba(7,43,58,.08);}
   .bm-summary-bar.show{display:flex;}
-  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:1rem;font-weight:600;color:var(--ink);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .bm-summary-bar .bm-sum-total{flex-shrink:0;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.5rem;color:var(--deep);white-space:nowrap;}
+  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:.86rem;font-weight:600;color:var(--ink);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bm-summary-bar .bm-sum-total{flex-shrink:0;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.2rem;color:var(--deep);white-space:nowrap;}
   .modal.draggable.dragging{transition:none;}
   .modal.draggable.dragging .modal-header{cursor:grabbing;}
 

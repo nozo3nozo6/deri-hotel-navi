@@ -1736,7 +1736,7 @@
     const course = opt?.dataset?.name || '';
     const nomSel = bel('bmNomination');
     const nom = nomSel?.value ? (nomSel.options[nomSel.selectedIndex]?.text || '') : '';
-    let head = `📅 ${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
+    let head = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
     const meta = [course, nom].filter(Boolean).join('・');
     if (meta) head += `（${meta}）`;
     segs.push(head);
@@ -1755,13 +1755,20 @@
       place = (bel('bmOtherLoc')?.value || '').trim().split('\n')[0];
     }
     if (place) segs.push(`📍 ${place}`);
-    // 料金内訳: コース料金・指名料・出張費（0円の項目も含めて常に表示）
+    // 料金内訳。0円の項目は出さない（未入力のうちは「¥0・¥0・¥0」が並んで邪魔なため）
     const coursePrice = parseInt(String(bel('bmPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const nomFee = nominationFeeFor(bel('bmNomination')?.value);
     const transportFee = parseInt(String(bel('bmTransport')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
-    segs.push(`コース料金¥${coursePrice.toLocaleString()}・指名料¥${nomFee.toLocaleString()}・出張費¥${transportFee.toLocaleString()}`);
+    const optFee = optionTotal();
+    const parts = [];
+    if (coursePrice) parts.push(`コース¥${coursePrice.toLocaleString()}`);
+    if (nomFee) parts.push(`指名¥${nomFee.toLocaleString()}`);
+    if (optFee) parts.push(`オプ¥${optFee.toLocaleString()}`);
+    if (transportFee) parts.push(`出張¥${transportFee.toLocaleString()}`);
+    if (parts.length) segs.push(parts.join('・'));
     const total = (bel('bmTotal')?.textContent || '').trim();
-    setOut(segs.join('　'), total ? `合計 ${total}` : '');
+    const totalNum = parseInt(total.replace(/[^\d]/g, ''), 10) || 0;
+    setOut(segs.join('　'), totalNum > 0 ? total : '');
   }
   function updateEndTime() {
     const sh = bel('bmStartHour').value;
