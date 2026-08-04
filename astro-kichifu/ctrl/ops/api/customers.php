@@ -36,12 +36,13 @@ if ($action === 'list' && $method === 'GET') {
                  . ' OR c.default_location LIKE ? OR c.default_location2 LIKE ?'
                  . ($kwAddr  !== '' ? ' OR c.location_norm LIKE ? OR c.location_norm2 LIKE ?' : '')
                  . ($kwPhone !== '' ? ' OR c.phone LIKE ? OR c.phone2 LIKE ?' : '')
-                 . ' OR c.notes LIKE ?)';
+                 . ' OR c.notes LIKE ? OR c.ng_reason LIKE ?)';
         $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
         $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
         if ($kwAddr  !== '') { $params[] = "%{$kwAddr}%";  $params[] = "%{$kwAddr}%"; }
         if ($kwPhone !== '') { $params[] = "%{$kwPhone}%"; $params[] = "%{$kwPhone}%"; }
-        $params[] = "%{$kw}%";
+        $params[] = "%{$kw}%";   // notes
+        $params[] = "%{$kw}%";   // ng_reason
     }
     // 利用回数 = 旧システムの実績(visit_count) ＋ OPSの予約(キャンセル/無連絡を除く)。
     //   visit_count は import-ops-visits.php が ops_legacy_visits の完了実績から再計算した値。
@@ -63,8 +64,16 @@ if ($action === 'list' && $method === 'GET') {
         $params[] = $vFrom; $params[] = $vTo; $params[] = $vFrom; $params[] = $vTo;
     }
     // NG絞り込み: ng=ng → 出禁/要注意のみ（キャスト別NGだけの人も拾う）
-    if (($_GET['ng'] ?? '') === 'ng') {
+    // ng=ng   … NG登録がある人（出禁/要注意 or キャスト別NG）
+    // ng=memo … メモに「NG」「出禁」等が書かれている人。旧システムから移行した注意情報は
+    //           NG欄ではなくメモの文章として入っているため、こちらでないと拾えない
+    $ngMode = $_GET['ng'] ?? '';
+    if ($ngMode === 'ng') {
         $where[] = '(c.ng_level > 0 OR EXISTS (SELECT 1 FROM ops_customer_ng_casts nc WHERE nc.customer_id = c.id))';
+    } elseif ($ngMode === 'memo') {
+        $where[] = "(c.ng_level > 0 OR EXISTS (SELECT 1 FROM ops_customer_ng_casts nc WHERE nc.customer_id = c.id)"
+                 . " OR c.notes LIKE '%NG%' OR c.notes LIKE '%ng%' OR c.notes LIKE '%出禁%'"
+                 . " OR c.notes LIKE '%要注意%' OR c.notes LIKE '%注意%' OR c.ng_reason <> '')";
     }
     // 並び順: recent=最近の利用（既定） / count=利用回数
     $sort = ($_GET['sort'] ?? 'recent') === 'count' ? 'count' : 'recent';

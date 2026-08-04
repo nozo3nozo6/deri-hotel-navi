@@ -536,6 +536,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-toolbar .tl-title{font-size:1.15rem;font-weight:700;color:var(--deep);}
   .tl-toolbar .tl-title .tl-sub{display:block;font-size:.72rem;color:var(--ink-soft);font-weight:400;margin-top:.2rem;letter-spacing:.05em;}
   .tl-toolbar .tl-nav{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;}
+  /* 顧客一覧: 検索群はタイトルのすぐ右（左寄せ）。右端まで飛ばさない
+     ＝目線の移動が少なく、画面が広いほど離れる問題も起きない */
+  #view-customers .tl-toolbar{justify-content:flex-start;gap:1rem;}
+  #view-customers .tl-toolbar .tl-nav{flex:1;}
+  #view-customers .tl-toolbar .tl-nav #cuAddNew{margin-left:auto;}
   .tl-toolbar .tl-nav button{background:var(--foam);border:1.5px solid var(--gray);padding:.45rem .8rem;border-radius:8px;font-size:.85rem;cursor:pointer;}
   .tl-toolbar .tl-nav button:hover{background:var(--aqua);color:#fff;border-color:var(--aqua);}
   .tl-toolbar .tl-nav input[type="date"]{padding:.42rem .7rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.9rem;font-family:'Outfit';}
@@ -1266,7 +1271,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button type="button" id="cuVisitClear" title="日付の絞り込みを解除" style="display:none;padding:.45rem .7rem;border:1.5px solid var(--gray);border-radius:8px;background:#fff;font-size:.85rem;cursor:pointer;">✕ 日付</button>
       <select id="cuNg" title="NG絞り込み" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:#fff;">
         <option value="">全員</option>
-        <option value="ng">NGのみ</option>
+        <option value="ng">NG登録のみ</option>
+        <option value="memo">NG・注意（メモ含む）</option>
       </select>
       <button class="tl-add" id="cuAddNew">+ 新規顧客</button>
     </div>
