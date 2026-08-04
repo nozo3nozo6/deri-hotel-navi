@@ -4719,9 +4719,13 @@
     const kw = document.getElementById('cuKeyword').value.trim();
     const sort = document.getElementById('cuSort')?.value || 'recent';
     const ng = document.getElementById('cuNg')?.value || '';
+    const vd = document.getElementById('cuVisitDate')?.value || '';
+    const clr = document.getElementById('cuVisitClear');
+    if (clr) clr.style.display = vd ? '' : 'none';
     try {
       const d = await api('/customers.php?action=list&sort=' + sort
         + (ng ? '&ng=' + ng : '')
+        + (vd ? '&visit_date=' + encodeURIComponent(vd) : '')
         + (kw ? '&keyword=' + encodeURIComponent(kw) : ''));
       customersList = d.customers || [];
       renderCustomers();
@@ -8100,6 +8104,12 @@
       }
     });
     document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
+    document.getElementById('cuVisitDate')?.addEventListener('change', loadCustomers);
+    document.getElementById('cuVisitClear')?.addEventListener('click', () => {
+      const el = document.getElementById('cuVisitDate');
+      if (el) el.value = '';
+      loadCustomers();
+    });
     document.getElementById('cuNg')?.addEventListener('change', loadCustomers);
     // NG登録: 区分を変えたら理由欄の出し入れ、プルダウンで選んだキャストをチップに積む
     document.getElementById('cmNgLevel')?.addEventListener('change', syncCmNgBox);

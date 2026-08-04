@@ -1261,6 +1261,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <option value="recent">最近の利用順</option>
         <option value="count">利用回数順</option>
       </select>
+      <!-- 利用日で絞る（OPSの予約＋旧システムの利用履歴の両方を見る）。空欄なら絞らない -->
+      <input type="date" id="cuVisitDate" title="この日に利用があったお客様" style="padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:#fff;">
+      <button type="button" id="cuVisitClear" title="日付の絞り込みを解除" style="display:none;padding:.45rem .7rem;border:1.5px solid var(--gray);border-radius:8px;background:#fff;font-size:.85rem;cursor:pointer;">✕ 日付</button>
       <select id="cuNg" title="NG絞り込み" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:16px;background:#fff;">
         <option value="">全員</option>
         <option value="ng">NGのみ</option>

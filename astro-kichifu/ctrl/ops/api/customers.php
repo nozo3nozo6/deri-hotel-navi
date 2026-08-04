@@ -46,6 +46,22 @@ if ($action === 'list' && $method === 'GET') {
     // 利用回数 = 旧システムの実績(visit_count) ＋ OPSの予約(キャンセル/無連絡を除く)。
     //   visit_count は import-ops-visits.php が ops_legacy_visits の完了実績から再計算した値。
     //   OPS分は customer_id 直接紐付け + 電話番号一致（レガシー未紐付け対策）の両方を数える。
+    // 日付で絞る: visit_date=YYYY-MM-DD（その日に利用があったお客様）。
+    // OPSの予約と旧システムの利用履歴の両方を見る（範囲は visit_date_to で指定可）。
+    $vFrom = trim($_GET['visit_date'] ?? '');
+    $vTo   = trim($_GET['visit_date_to'] ?? '') ?: $vFrom;
+    if ($vFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $vFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $vTo)) {
+        $where[] = '(EXISTS (SELECT 1 FROM ops_bookings bd
+                              WHERE (bd.customer_id = c.id
+                                     OR (c.phone IS NOT NULL AND c.phone <> \'\' AND bd.customer_phone_snapshot = c.phone))
+                                AND bd.booking_date BETWEEN ? AND ?
+                                AND bd.status NOT IN (\'cancelled\',\'no_show\'))
+                    OR EXISTS (SELECT 1 FROM ops_legacy_visits lvd
+                              WHERE lvd.customer_id = c.id
+                                AND DATE(lvd.visit_at) BETWEEN ? AND ?
+                                AND lvd.status = \'completed\'))';
+        $params[] = $vFrom; $params[] = $vTo; $params[] = $vFrom; $params[] = $vTo;
+    }
     // NG絞り込み: ng=ng → 出禁/要注意のみ（キャスト別NGだけの人も拾う）
     if (($_GET['ng'] ?? '') === 'ng') {
         $where[] = '(c.ng_level > 0 OR EXISTS (SELECT 1 FROM ops_customer_ng_casts nc WHERE nc.customer_id = c.id))';
