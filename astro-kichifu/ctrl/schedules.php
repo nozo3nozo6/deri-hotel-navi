@@ -17,7 +17,8 @@ function schedule_status_has_time(string $status): bool {
     return $status === 'work' || $status === 'ops_only';
 }
 
-$mode = (($_GET['mode'] ?? 'date') === 'girl') ? 'girl' : 'date';
+// date … 1日×全女性で登録 / girl … 1女性×28日で登録 / grid … 10日先までの一覧（見るだけ）
+$mode = in_array($_GET['mode'] ?? 'date', ['girl', 'grid'], true) ? $_GET['mode'] : 'date';
 $sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date'], true) ? $_GET['sort'] : 'freq';
 
 // 全店舗（更新先チェックボックス用。アドミ立川/吉祥寺 をまとめて更新できるように）
@@ -282,6 +283,53 @@ layout_header('出勤管理', 'schedules.php');
   .media-sync td.days{font-weight:700;color:#15803d;white-space:nowrap}
   .media-sync .note{color:#3f6212;margin-top:6px}
   .media-sync .warn{color:#9a3412}
+
+  /* ===== 10日先まで一覧（見るだけ）===== */
+  .grid-note{font-size:.85rem;color:var(--muted,#888);margin-bottom:10px}
+  .sched-toolbar .btn-mini{display:inline-block;padding:6px 12px;font-size:.8rem;border:1px solid var(--accent,#ec4899);
+                           color:var(--accent,#ec4899);background:#fff;border-radius:8px;text-decoration:none;font-weight:600;margin-right:6px}
+  .sched-toolbar .btn-mini:hover{background:var(--accent,#ec4899);color:#fff}
+  /* 角丸は容器側に持たせる（Safari は sticky セルに border-radius があると欠ける）。
+     左右 padding も持たせない（sticky 左列の裏に中身が透ける） */
+  .grid-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:12px}
+  .grid-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:.86rem}
+  .grid-tbl th,.grid-tbl td{border-bottom:1px solid var(--border);padding:7px 6px;text-align:center;white-space:nowrap}
+  .grid-tbl tbody tr:last-child th,.grid-tbl tbody tr:last-child td{border-bottom:none}
+  .grid-tbl thead th{background:var(--bg-1,#faf7fb);font-weight:700;color:var(--text,#333);line-height:1.35}
+  .grid-tbl thead th a{text-decoration:none;color:inherit;font-weight:700}
+  .grid-tbl thead th a:hover{text-decoration:underline}
+  .grid-tbl thead th small{font-weight:600;font-size:.76em;margin-left:1px}
+  .grid-tbl thead th .gd-count{display:block;font-size:.72rem;font-weight:600;color:var(--muted,#999);margin-top:1px}
+  .grid-tbl thead th .gd-count i{font-style:normal;color:#7d4a95}
+  /* 女性名は横スクロールしても残す */
+  .grid-tbl .gd-name{position:sticky;left:0;z-index:1;background:#fff;text-align:left;min-width:8.5rem;
+                     box-shadow:1px 0 0 var(--border)}
+  .grid-tbl thead .gd-name{z-index:2;background:var(--bg-1,#faf7fb)}
+  .grid-tbl .gd-c{min-width:4.4rem;line-height:1.25;color:var(--muted,#999)}
+  .grid-tbl .gd-c.s-work{background:#fdf2f8;color:var(--text,#333)}
+  .grid-tbl .gd-c.s-ops_only{background:#faf3fd;color:#7d4a95}
+  .grid-tbl .gd-c.s-off{background:#f6f6f6;color:#a1a1aa;font-weight:600}
+  .grid-tbl .gd-c.is-today{box-shadow:inset 0 0 0 2px var(--accent,#d6218a)}
+  .grid-tbl thead th.is-today{background:var(--accent-soft,#fce7f3)}
+  .grid-tbl .gd-t{display:block;font-weight:700}
+  .grid-tbl .gd-t2{display:block;font-size:.82em;opacity:.75}
+  .grid-tbl .gd-t2::before{content:'〜'}
+  .grid-tbl .gd-lock{font-size:.7rem}
+  .grid-tbl .gd-un{opacity:.45}
+  .grid-tbl .gd-total{background:var(--bg-1,#faf7fb);font-weight:700;min-width:3.2rem}
+  .grid-tbl .gd-total small{font-weight:600;font-size:.78em;color:var(--muted,#999);margin-left:1px}
+  .grid-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:.8rem;color:var(--muted,#888)}
+  .grid-legend .lg{display:inline-block;width:13px;height:13px;border-radius:4px;border:1px solid var(--border);margin-right:5px;vertical-align:-2px}
+  .grid-legend .lg.s-work{background:#fdf2f8}
+  .grid-legend .lg.s-ops_only{background:#faf3fd}
+  .grid-legend .lg.s-off{background:#f6f6f6}
+  .grid-legend .lg.s-undecided{background:#fff}
+  .grid-legend i{font-style:normal;color:#7d4a95}
+  @media (max-width:640px){
+    .grid-tbl{font-size:.8rem}
+    .grid-tbl .gd-name{min-width:6.5rem}
+    .grid-tbl .gd-c{min-width:3.9rem}
+  }
 </style>
 
 <div class="page-head">
@@ -322,9 +370,118 @@ layout_header('出勤管理', 'schedules.php');
 <div class="sched-tabs">
   <a class="sched-tab <?= $mode === 'date' ? 'is-active' : '' ?>" href="schedules.php?mode=date&sort=<?= h($sort) ?>">📅 日付で登録</a>
   <a class="sched-tab <?= $mode === 'girl' ? 'is-active' : '' ?>" href="schedules.php?mode=girl&sort=<?= h($sort) ?>">👤 女性別まとめ登録</a>
+  <a class="sched-tab <?= $mode === 'grid' ? 'is-active' : '' ?>" href="schedules.php?mode=grid&sort=<?= h($sort) ?>">📊 10日先まで一覧</a>
 </div>
 
-<?php if ($mode === 'date'): ?>
+<?php if ($mode === 'grid'): /* ===================== 10日先まで一覧（見るだけ） ===================== */ ?>
+<?php
+    // 先の予定を一望するための読み取り専用ビュー。登録は「日付で登録」「女性別まとめ登録」で行う。
+    $DAYS  = 10;
+    $from  = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'] ?? '') ? $_GET['from'] : $schedBiz;
+    $baseTs = strtotime($from);
+    $dates = [];
+    for ($i = 0; $i < $DAYS; $i++) $dates[] = date('Y-m-d', $baseTs + $i * 86400);
+
+    $gm = [];   // [girl_id][work_date] = 行
+    if ($girls) {
+        $sc = db()->prepare('SELECT girl_id, work_date, start_time, end_time, status
+                               FROM schedules WHERE shop_id=? AND work_date BETWEEN ? AND ?');
+        $sc->execute([$shop, $dates[0], end($dates)]);
+        foreach ($sc->fetchAll() as $r) $gm[(int)$r['girl_id']][$r['work_date']] = $r;
+    }
+    // 日ごとの人数（公開される「出勤」と、非公開の「OPSのみ」は分けて数える）
+    $dayWork = $dayOps = array_fill_keys($dates, 0);
+    $girlWork = [];
+    foreach ($girls as $g) {
+        $gid = (int)$g['id'];
+        $girlWork[$gid] = 0;
+        foreach ($dates as $d) {
+            $s = $gm[$gid][$d]['status'] ?? 'undecided';
+            if ($s === 'work')          { $dayWork[$d]++; $girlWork[$gid]++; }
+            elseif ($s === 'ops_only')  { $dayOps[$d]++;  $girlWork[$gid]++; }
+        }
+    }
+    // 「04:00」→「4:00」。先頭ゼロだけ落とす（00:30 が :30 にならないように）
+    $hm = fn(?string $t): string => $t ? (int)substr($t, 0, 2) . ':' . substr($t, 3, 2) : '';
+    $prev = date('Y-m-d', $baseTs - $DAYS * 86400);
+    $next = date('Y-m-d', $baseTs + $DAYS * 86400);
+?>
+  <div class="sched-toolbar">
+    <span>
+      <label>開始日</label>
+      <input type="date" value="<?= h($from) ?>" onchange="location.href='schedules.php?mode=grid&sort=<?= h($sort) ?>&from='+this.value">
+      <?php if ($from !== $schedBiz): ?>
+        <a href="schedules.php?mode=grid&sort=<?= h($sort) ?>" style="margin-left:6px">→ 本日から</a>
+      <?php endif; ?>
+    </span>
+    <span>
+      <a class="btn-mini" href="schedules.php?mode=grid&sort=<?= h($sort) ?>&from=<?= h($prev) ?>">← 前の<?= $DAYS ?>日</a>
+      <a class="btn-mini" href="schedules.php?mode=grid&sort=<?= h($sort) ?>&from=<?= h($next) ?>">次の<?= $DAYS ?>日 →</a>
+    </span>
+    <span>
+      <label>並び順</label>
+      <select onchange="location.href='schedules.php?mode=grid&from=<?= h($from) ?>&sort='+this.value">
+        <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>出勤頻度が高い順</option>
+        <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店が新しい順</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="grid-note">見るだけのページです。直すときは日付の見出し（<strong>8/5(火)</strong> の部分）を押すと、その日の登録画面が開きます。</div>
+
+  <div class="grid-wrap">
+    <table class="grid-tbl">
+      <thead>
+        <tr>
+          <th class="gd-name">女性</th>
+          <?php foreach ($dates as $d): $wdi = (int)date('w', strtotime($d)); ?>
+            <th class="<?= $d === $schedBiz ? 'is-today' : '' ?>">
+              <a href="schedules.php?mode=date&sort=<?= h($sort) ?>&date=<?= h($d) ?>" class="<?= $wdi === 6 ? 'day-sat' : ($wdi === 0 ? 'day-sun' : '') ?>">
+                <?= (int)substr($d, 5, 2) ?>/<?= (int)substr($d, 8, 2) ?><small>(<?= $WD[$wdi] ?>)</small>
+              </a>
+              <span class="gd-count"><?= $dayWork[$d] ?>人<?= $dayOps[$d] ? '<i>+' . $dayOps[$d] . '</i>' : '' ?></span>
+            </th>
+          <?php endforeach; ?>
+          <th class="gd-total" title="出勤＋OPSのみ の日数">出勤計</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($girls as $g): $gid = (int)$g['id']; ?>
+          <tr>
+            <td class="gd-name"><strong><?= h($g['name']) ?></strong> <span class="muted">(<?= (int)$g['age'] ?>)</span></td>
+            <?php foreach ($dates as $d):
+              $r   = $gm[$gid][$d] ?? null;
+              $stt = $r['status'] ?? 'undecided';
+              $today = $d === $schedBiz ? ' is-today' : '';
+            ?>
+              <td class="gd-c s-<?= $stt ?><?= $today ?>">
+                <?php if ($stt === 'work' || $stt === 'ops_only'): ?>
+                  <?php if ($stt === 'ops_only'): ?><span class="gd-lock" title="OPSのみ（サイト・媒体には出ません）">🔒</span><?php endif; ?>
+                  <span class="gd-t"><?= h($hm($r['start_time'] ?? null)) ?></span>
+                  <span class="gd-t2"><?= h($hm($r['end_time'] ?? null)) ?></span>
+                <?php elseif ($stt === 'off'): ?>
+                  休
+                <?php else: ?>
+                  <span class="gd-un">−</span>
+                <?php endif; ?>
+              </td>
+            <?php endforeach; ?>
+            <td class="gd-total"><?= $girlWork[$gid] ?><small>日</small></td>
+          </tr>
+        <?php endforeach; ?>
+        <?php if (!$girls): ?><tr><td colspan="<?= $DAYS + 2 ?>" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid-legend">
+    <span><i class="lg s-work"></i>出勤</span>
+    <span><i class="lg s-ops_only"></i>OPSのみ（🔒 サイト・媒体には出ません）</span>
+    <span><i class="lg s-off"></i>休み（媒体からも消えます）</span>
+    <span><i class="lg s-undecided"></i>未定（媒体は今のまま）</span>
+    <span class="muted">見出しの人数は「出勤」の数、<i>+N</i> は OPSのみの数です</span>
+  </div>
+
+<?php elseif ($mode === 'date'): ?>
 <?php
     // 既定は「本日営業日」（朝5時区切り）。深夜0〜4時台に暦日デフォルトだと翌営業日のページが
     // 開き、スタッフが「本日の終了時刻」のつもりで明日の行を編集する事故が起きる（2026-07-14 0:06 実例）。
