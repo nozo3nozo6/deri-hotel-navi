@@ -711,13 +711,18 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-att-sel.tl-att-off{background-color:#c0392b;}
   .tl-att-sel.tl-att-tentative{background-color:#a0aab4;}
   .tl-staff-left .tl-staff-name{font-size:.78rem;word-break:break-word;text-align:center;}
-  /* 時間・件数・預り金・報酬・入金分の全行に下線（最後の行にも引く） */
+  /* 時間・件数・預り金・報酬・入金分の全行に下線（最後の行にも引く）。
+     線はキャスト欄の左端から右端まで通す。border だと右半分（金額側）にしか引けないので、
+     擬似要素をセル幅いっぱいに伸ばし、写真・名前・出勤ボタンはその上に重ねる */
   .tl-m{display:flex;justify-content:space-between;align-items:baseline;gap:.4rem;font-size:.72rem;line-height:1.25;
-        padding-bottom:.16rem;margin-bottom:.1rem;border-bottom:1px dotted var(--gray);}
+        padding-bottom:.16rem;margin-bottom:.1rem;position:relative;}
+  .tl-m::after{content:'';position:absolute;left:calc(-64px - .53rem);right:-.25rem;bottom:0;z-index:0;
+        border-bottom:1px solid var(--gray);}
+  .tl-staff-left{position:relative;z-index:1;}
+  body[data-theme="soft"] .tl-m::after{border-bottom-color:#dfe3df;}
   .tl-m-l{color:var(--ink-soft);font-weight:600;flex-shrink:0;}
   .tl-m-v{font-weight:800;color:var(--deep);font-family:'Outfit',sans-serif;white-space:nowrap;text-align:right;}
   /* 時間行: 数値の上に置き、薄い区切り線でスケジュールと金額を分ける */
-  .tl-m-time{border-bottom-style:dotted;}
   .tl-m-time .tl-m-l{color:var(--deep);}
   .tl-m-time .tl-m-v{font-size:.82rem;letter-spacing:.01em;}
   /* サイト・媒体に出していない出勤（CTRLで「OPSのみ」を選んだ日） */
