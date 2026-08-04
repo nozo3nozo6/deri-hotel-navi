@@ -2758,10 +2758,13 @@
 
     // ヘッダー: スタッフ列 + 24時間スロット (10:00 〜 翌09:00)
     let html = '<div class="tl-grid"><div class="tl-head staff-col">キャスト</div>';
+    // 今この時間、という目印。表示中の営業日が本日のときだけ出す（一日中見る画面で今どこかを見失わないため）
+    const _nh = new Date().getHours();
+    const nowH = bizDay === fmtDate(getBusinessDayDate()) ? (_nh < 10 ? _nh + 24 : _nh) : -1;
     for (let h = 10; h < 34; h++) {
       const displayH = h % 24;
       const isNext = h >= 24;
-      html += `<div class="tl-head"><span class="tl-hour ${isNext?'next-day':''}">${('0'+displayH).slice(-2)}:00</span></div>`;
+      html += `<div class="tl-head${h === nowH ? ' is-now' : ''}"><span class="tl-hour ${isNext?'next-day':''}">${('0'+displayH).slice(-2)}:00</span></div>`;
     }
 
     // スタッフ行: その営業日にシフトがあるスタッフのみ表示

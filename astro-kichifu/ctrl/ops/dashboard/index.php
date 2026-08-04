@@ -818,6 +818,78 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-time-pop .ttp-copy{margin-top:.4rem;width:100%;border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
   .tl-time-pop .ttp-copy:hover{filter:brightness(1.08);}
 
+  /* ============================================================
+     目に優しい配色（body[data-theme="soft"]）
+     一日中見るタイムライン向け。予約ブロックを「濃い塗り＋白文字」から
+     「淡い地＋濃い同系色の文字＋左4pxの色帯」へ反転する。
+     ・純白の地と純黒の文字を避ける（眩しさ・にじみを減らす）
+     ・罫線を弱め、升目のうるささを落とす
+     ・高彩度は「今の時間」の1か所だけに絞る
+     ヘッダーの 🌿 ボタンで従来配色に戻せる（localStorage に保存）
+     ============================================================ */
+  body[data-theme="soft"]{background:#f6f7f5;color:#23292b;}
+  body[data-theme="soft"] .tl-grid{background:#e4e7e4;}
+  body[data-theme="soft"] .tl-cell{background:#fdfdfc;}
+  body[data-theme="soft"] .tl-cell:hover{background:#eef1ed;}
+  body[data-theme="soft"] .tl-cell.shift-bg{background:linear-gradient(180deg,#edf3ef,#f8faf8);}
+  body[data-theme="soft"] .tl-head{background:#2d4a52;}
+  body[data-theme="soft"] .tl-head.staff-col{background:#243d44;}
+  body[data-theme="soft"] .tl-head .tl-hour.next-day{color:#a9ccd1;}
+  body[data-theme="soft"] .tl-staff{background:#fdfdfc;color:#23292b;}
+  body[data-theme="soft"] .tl-toolbar{background:#fbfbfa;}
+  /* 今この時間の列（本日を見ているときだけ付く）。画面で唯一の高彩度 */
+  .tl-head.is-now{background:#c4503f;position:relative;}
+  .tl-head.is-now::after{content:'';position:absolute;left:0;right:0;bottom:-2px;height:2px;background:#c4503f;}
+  body[data-theme="soft"] .tl-head.is-now{background:#c4503f;}
+
+  /* 予約ブロック本体 */
+  body[data-theme="soft"] .tl-booking{background:#f1f2f0;color:#3a4247;border-left:4px solid #9aa3a0;
+    box-shadow:0 1px 3px rgba(20,30,25,.10);}
+  body[data-theme="soft"] .tl-booking:hover{box-shadow:0 3px 9px rgba(20,30,25,.20);}
+  body[data-theme="soft"] .tl-booking.s-inquiry{background:#eef1f5;color:#3f5164;border-left-color:#7d94ab;}
+  body[data-theme="soft"] .tl-booking.s-reserved{background:#fdeee4;color:#8f4318;border-left-color:#d9743c;}
+  body[data-theme="soft"] .tl-booking.s-pre_reserved{background:#f4ecf8;color:#5b3f73;border-left-color:#9b6db0;}
+  body[data-theme="soft"] .tl-booking.s-on_hold,
+  body[data-theme="soft"] .tl-booking.s-pending{background:#fdf4dd;color:#6f5210;border-left-color:#e0a92f;}
+  body[data-theme="soft"] .tl-booking.s-completed{background:#e4f1ee;color:#1b6152;border-left-color:#2e9c81;}
+  body[data-theme="soft"] .tl-booking.svc-ended{background:#e9f0e2;color:#3a6330;border-left-color:#5c9a48;}
+  body[data-theme="soft"] .tl-booking.s-cancelled{background:#f1f1ef;color:#767d79;border-left-color:#b9beba;}
+  body[data-theme="soft"] .tl-booking.s-no_show{background:#fbebe9;color:#98392f;border-left-color:#cd6357;}
+  /* 中の部品は白文字前提だったので、地の色を継ぐように置き換える */
+  body[data-theme="soft"] .tl-booking .bk-top{background:rgba(255,255,255,.66);color:inherit;}
+  body[data-theme="soft"] .tl-booking .bk-top:hover{background:rgba(255,255,255,.95);}
+  body[data-theme="soft"] .tl-booking .bk-name{color:inherit;border-color:rgba(0,0,0,.16);}
+  body[data-theme="soft"] .tl-booking .bk-name:hover{background:rgba(255,255,255,.65);}
+  body[data-theme="soft"] .tl-booking .bk-place,
+  body[data-theme="soft"] .tl-booking .bk-venue{color:inherit;}
+  body[data-theme="soft"] .tl-booking .bk-meet{color:inherit;border-color:currentColor;}
+  body[data-theme="soft"] .tl-booking .bk-meet.on{background:#1f7a45;color:#fff;border-color:#1f7a45;}
+  body[data-theme="soft"] .tl-booking .bk-svc-sel{color:inherit;border-color:currentColor;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555c60' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-started,
+  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-ended{background-color:#1f7a45;color:#fff;border-color:#1f7a45;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  body[data-theme="soft"] .tl-booking .bk-go,
+  body[data-theme="soft"] .tl-booking .bk-back{background:rgba(255,255,255,.62);color:inherit;}
+  body[data-theme="soft"] .tl-booking .bk-go:hover,
+  body[data-theme="soft"] .tl-booking .bk-back:hover{background:rgba(255,255,255,.95);}
+  body[data-theme="soft"] .tl-booking .bk-go.mailed,
+  body[data-theme="soft"] .tl-booking .bk-back.mailed{background:#f0c23f;color:#4a3600;}
+  body[data-theme="soft"] .tl-booking .bk-go.mailed:hover,
+  body[data-theme="soft"] .tl-booking .bk-back.mailed:hover{background:#e8b526;}
+  /* 一覧・カード類も地と罫線だけ合わせる（文字色は元のまま＝読みやすさは変えない） */
+  body[data-theme="soft"] .bk-list,
+  body[data-theme="soft"] .cu-table,
+  body[data-theme="soft"] .staff-card,
+  body[data-theme="soft"] .card{background:#fdfdfc;}
+  body[data-theme="soft"] .bkt-row,
+  body[data-theme="soft"] .cu-row{border-bottom-color:#e7eae7;}
+  /* 配色切り替えボタン */
+  .btn-theme{background:transparent;border:1.5px solid var(--gray);border-radius:8px;padding:.3rem .5rem;
+    font-size:.95rem;line-height:1;cursor:pointer;}
+  .btn-theme:hover{background:var(--foam);}
+  @media(max-width:600px){.btn-theme{display:none;}}
+
   /* ============== Booking View ============== */
   .bk-list{background:var(--white);border-radius:14px;padding:.5rem;box-shadow:0 3px 12px rgba(10,61,82,.05);}
   .bk-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:.9rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--gray);align-items:center;}
@@ -1182,7 +1254,30 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   button,select,input[type="checkbox"],input[type="radio"]{touch-action:manipulation;}
 </style>
 </head>
-<body>
+<body data-theme="soft">
+<script>
+// 配色の切り替え。既定は「目に優しい配色(soft)」。🌿 ボタンで従来配色に戻せる。
+// 描画前に適用したいのでここに置く（後ろだと一瞬ちらつく）。
+(function () {
+  try { if (localStorage.getItem('opsTheme') === 'classic') document.body.dataset.theme = ''; } catch (e) {}
+  document.addEventListener('DOMContentLoaded', function () {
+    var b = document.getElementById('btnTheme');
+    if (!b) return;
+    var sync = function () {
+      var soft = document.body.dataset.theme === 'soft';
+      b.textContent = soft ? '🌿' : '🎨';
+      b.title = soft ? '目に優しい配色（押すと従来の配色に戻します）' : '従来の配色（押すと目に優しい配色にします）';
+    };
+    sync();
+    b.addEventListener('click', function () {
+      var soft = document.body.dataset.theme === 'soft';
+      document.body.dataset.theme = soft ? '' : 'soft';
+      try { localStorage.setItem('opsTheme', soft ? 'classic' : 'soft'); } catch (e) {}
+      sync();
+    });
+  });
+})();
+</script>
 
 <header>
   <div class="header-inner">
@@ -1216,6 +1311,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <button type="button" class="user-dd-item" data-mode="therapist">💆 キャスト管理</button>
         </div>
       </div>
+      <button class="btn-theme" id="btnTheme" type="button" title="配色を切り替え（目に優しい配色 / 従来の配色）">🌿</button>
       <button class="btn-logout" id="btnLogout">ログアウト</button>
     </div>
   </div>
