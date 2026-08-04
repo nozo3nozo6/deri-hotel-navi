@@ -19,7 +19,10 @@ function schedule_status_has_time(string $status): bool {
 
 // date … 1日×全女性で登録 / girl … 1女性×28日で登録 / grid … 10日先までの一覧（見るだけ）
 $mode = in_array($_GET['mode'] ?? 'date', ['girl', 'grid'], true) ? $_GET['mode'] : 'date';
-$sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date'], true) ? $_GET['sort'] : 'freq';
+// freq … 通算の出勤回数が多い順 / in_date … 入店が新しい順 / range … 表示中10日の出勤が多い順（一覧のみ）
+$sort = in_array($_GET['sort'] ?? '', ['freq', 'in_date', 'range'], true) ? $_GET['sort'] : 'freq';
+if ($sort === 'range' && $mode !== 'grid') $sort = 'freq';   // 登録タブには期間の概念が無い
+if ($mode === 'grid' && !isset($_GET['sort'])) $sort = 'range';   // 一覧の既定は「この10日」
 
 // 全店舗（更新先チェックボックス用。アドミ立川/吉祥寺 をまとめて更新できるように）
 $allShops = db()->query('SELECT id, name, area FROM shops ORDER BY id')->fetchAll();
@@ -48,7 +51,8 @@ function time_select(string $name, ?string $val, string $key = '', string $id = 
 // ============================================================ POST
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
-    $postMode = (($_POST['mode'] ?? 'date') === 'girl') ? 'girl' : 'date';
+    // date … 1日×全女性 / girl … 1女性×28日 / cell … 一覧のマス目1つ（JSON応答）
+    $postMode = in_array($_POST['mode'] ?? 'date', ['girl', 'cell'], true) ? $_POST['mode'] : 'date';
     $up = db()->prepare('INSERT INTO schedules (shop_id, girl_id, work_date, start_time, end_time, status)
                          VALUES (:shop,:girl,:date,:start,:end,:status)
                          ON DUPLICATE KEY UPDATE start_time=VALUES(start_time), end_time=VALUES(end_time), status=VALUES(status)');
@@ -184,6 +188,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             media_webhook_notify((int)$sid, (int)$gid, $nm($gid), ['shift'], 'shift', ['fujoho_schedule_week', 'ekichika_schedule_week', 'heaven_schedule_week', 'fuzoku_schedule_week', 'deli_schedule_week']);
         }
     };
+
+    if ($postMode === 'cell') {
+        // 「10日先まで一覧」のマス目を1つだけ更新（JSONで返す）。
+        // 保存経路は $saveOne / $notifyShiftWebhooks 共通＝媒体同期の挙動は他タブと完全に同じ。
+        header('Content-Type: application/json; charset=utf-8');
+        $gid  = (int)($_POST['girl_id'] ?? 0);
+        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_POST['date'] ?? '') ? $_POST['date'] : '';
+        $stt  = in_array($_POST['status'] ?? '', SCHEDULE_STATUSES, true) ? $_POST['status'] : '';
+        if (!$gid || $date === '' || $stt === '') { http_response_code(400); exit(json_encode(['error' => '入力が不正です。'])); }
+        $okGirl = false;
+        foreach ($targets as $sid) { $own->execute([$gid, $sid]); if ($own->fetchColumn()) { $okGirl = true; break; } }
+        if (!$okGirl) { http_response_code(403); exit(json_encode(['error' => '対象の女性が見つかりません。'])); }
+        $s = $e = null;
+        if (schedule_status_has_time($stt)) {
+            $s = $mkTime($_POST['start_h'] ?? '', $_POST['start_m'] ?? '');
+            $e = $mkTime($_POST['end_h'] ?? '', $_POST['end_m'] ?? '');
+            // 出勤なのに時刻が欠けた保存は他タブでも止めている（未定扱いで消える事故を防ぐ）
+            if ($s === null || $e === null) { http_response_code(400); exit(json_encode(['error' => '開始と終了の時間を選んでください。'])); }
+        }
+        $saveOne($gid, $date, $stt, $s, $e);
+        $notifyShiftWebhooks();
+        exit(json_encode(['ok' => true, 'status' => $stt, 'start' => $s, 'end' => $e, 'shops' => $tlabel]));
+    }
 
     if ($postMode === 'date') {
         // 1日 × 全女性
@@ -325,6 +352,25 @@ layout_header('出勤管理', 'schedules.php');
   .grid-legend .lg.s-off{background:#f6f6f6}
   .grid-legend .lg.s-undecided{background:#fff}
   .grid-legend i{font-style:normal;color:#7d4a95}
+  .grid-shops{margin:0 0 10px}
+  .grid-tbl .gd-c{cursor:pointer}
+  .grid-tbl .gd-c:hover{filter:brightness(.96)}
+  .grid-tbl .gd-c:focus-visible{outline:2px solid var(--accent,#d6218a);outline-offset:-2px}
+  .grid-tbl .gd-c.is-editing{box-shadow:inset 0 0 0 2px var(--accent,#d6218a)}
+  /* マス目の編集パネル */
+  .cell-pop{position:absolute;z-index:60;background:#fff;border:1px solid var(--border);border-radius:12px;
+            box-shadow:0 12px 32px -8px rgba(16,24,40,.28);padding:10px 12px 12px;min-width:250px}
+  .cell-pop[hidden]{display:none}
+  .cell-pop .cp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.9rem;margin-bottom:8px}
+  .cell-pop .cp-head button{border:none;background:none;font-size:1.1rem;line-height:1;color:var(--muted,#888);cursor:pointer;padding:0 2px}
+  .cell-pop .cp-st{display:flex;gap:5px;margin-bottom:9px;flex-wrap:wrap}
+  .cell-pop .cp-st button{flex:1;min-width:62px;padding:6px 4px;font-size:.8rem;font-weight:600;cursor:pointer;
+                          border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted,#6b7280)}
+  .cell-pop .cp-st button.is-on{background:var(--accent,#d6218a);border-color:var(--accent,#d6218a);color:#fff}
+  .cell-pop .cp-time{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+  .cell-pop .cp-wave{color:var(--muted,#999)}
+  .cell-pop .cp-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .cell-pop .cp-msg{font-size:.76rem;color:var(--danger,#e0395e)}
   @media (max-width:640px){
     .grid-tbl{font-size:.8rem}
     .grid-tbl .gd-name{min-width:6.5rem}
@@ -373,9 +419,9 @@ layout_header('出勤管理', 'schedules.php');
   <a class="sched-tab <?= $mode === 'grid' ? 'is-active' : '' ?>" href="schedules.php?mode=grid&sort=<?= h($sort) ?>">📊 10日先まで一覧</a>
 </div>
 
-<?php if ($mode === 'grid'): /* ===================== 10日先まで一覧（見るだけ） ===================== */ ?>
+<?php if ($mode === 'grid'): /* ===================== 10日先まで一覧 ===================== */ ?>
 <?php
-    // 先の予定を一望するための読み取り専用ビュー。登録は「日付で登録」「女性別まとめ登録」で行う。
+    // 先の予定を一望するビュー。マス目クリックでその場で出勤を追加・変更できる（POST mode=cell）。
     $DAYS  = 10;
     $from  = preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['from'] ?? '') ? $_GET['from'] : $schedBiz;
     $baseTs = strtotime($from);
@@ -401,6 +447,16 @@ layout_header('出勤管理', 'schedules.php');
             elseif ($s === 'ops_only')  { $dayOps[$d]++;  $girlWork[$gid]++; }
         }
     }
+    // 「この10日の出勤が多い順」— SQLの通算 wc ではなく、いま表示している期間で並べ替える。
+    // 同数のときは元の並び（通算の出勤頻度→入店順）を保つので、安定ソートで順位だけ差し替える。
+    if ($sort === 'range') {
+        $idx = [];
+        foreach ($girls as $i => $g) $idx[(int)$g['id']] = $i;
+        usort($girls, function ($a, $b) use ($girlWork, $idx) {
+            $d = $girlWork[(int)$b['id']] <=> $girlWork[(int)$a['id']];
+            return $d !== 0 ? $d : $idx[(int)$a['id']] <=> $idx[(int)$b['id']];
+        });
+    }
     // 「04:00」→「4:00」。先頭ゼロだけ落とす（00:30 が :30 にならないように）
     $hm = fn(?string $t): string => $t ? (int)substr($t, 0, 2) . ':' . substr($t, 3, 2) : '';
     $prev = date('Y-m-d', $baseTs - $DAYS * 86400);
@@ -421,13 +477,21 @@ layout_header('出勤管理', 'schedules.php');
     <span>
       <label>並び順</label>
       <select onchange="location.href='schedules.php?mode=grid&from=<?= h($from) ?>&sort='+this.value">
-        <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>出勤頻度が高い順</option>
+        <option value="range" <?= $sort === 'range' ? 'selected' : '' ?>>この<?= $DAYS ?>日の出勤が多い順</option>
+        <option value="freq" <?= $sort === 'freq' ? 'selected' : '' ?>>通算の出勤が多い順</option>
         <option value="in_date" <?= $sort === 'in_date' ? 'selected' : '' ?>>入店が新しい順</option>
       </select>
     </span>
   </div>
 
-  <div class="grid-note">見るだけのページです。直すときは日付の見出し（<strong>8/5(火)</strong> の部分）を押すと、その日の登録画面が開きます。</div>
+  <div class="grid-note">
+    マス目を押すとその場で出勤を追加・変更できます。日付の見出し（<strong><?= (int)substr($dates[0], 5, 2) ?>/<?= (int)substr($dates[0], 8, 2) ?></strong> の部分）を押すと、その日をまとめて登録する画面が開きます。
+  </div>
+  <div class="sched-shops grid-shops">更新する店舗:
+    <?php foreach ($allShops as $s): ?>
+      <label><input type="checkbox" class="cp-shop" value="<?= (int)$s['id'] ?>" checked> <?= h($s['name']) ?>（<?= h($s['area']) ?>）</label>
+    <?php endforeach; ?>
+  </div>
 
   <div class="grid-wrap">
     <table class="grid-tbl">
@@ -447,14 +511,19 @@ layout_header('出勤管理', 'schedules.php');
       </thead>
       <tbody>
         <?php foreach ($girls as $g): $gid = (int)$g['id']; ?>
-          <tr>
+          <tr data-gid="<?= $gid ?>">
             <td class="gd-name"><strong><?= h($g['name']) ?></strong> <span class="muted">(<?= (int)$g['age'] ?>)</span></td>
             <?php foreach ($dates as $d):
               $r   = $gm[$gid][$d] ?? null;
               $stt = $r['status'] ?? 'undecided';
               $today = $d === $schedBiz ? ' is-today' : '';
+              $st5 = ($r['start_time'] ?? null) ? substr($r['start_time'], 0, 5) : '';
+              $et5 = ($r['end_time']   ?? null) ? substr($r['end_time'], 0, 5)   : '';
             ?>
-              <td class="gd-c s-<?= $stt ?><?= $today ?>">
+              <td class="gd-c s-<?= $stt ?><?= $today ?>" tabindex="0" role="button"
+                  data-gid="<?= $gid ?>" data-name="<?= h($g['name']) ?>" data-date="<?= h($d) ?>"
+                  data-label="<?= (int)substr($d, 5, 2) ?>/<?= (int)substr($d, 8, 2) ?>(<?= $WD[(int)date('w', strtotime($d))] ?>)"
+                  data-st="<?= $stt ?>" data-s="<?= h($st5) ?>" data-e="<?= h($et5) ?>">
                 <?php if ($stt === 'work' || $stt === 'ops_only'): ?>
                   <?php if ($stt === 'ops_only'): ?><span class="gd-lock" title="OPSのみ（サイト・媒体には出ません）">🔒</span><?php endif; ?>
                   <span class="gd-t"><?= h($hm($r['start_time'] ?? null)) ?></span>
@@ -462,7 +531,7 @@ layout_header('出勤管理', 'schedules.php');
                 <?php elseif ($stt === 'off'): ?>
                   休
                 <?php else: ?>
-                  <span class="gd-un">−</span>
+                  <span class="gd-un">＋</span>
                 <?php endif; ?>
               </td>
             <?php endforeach; ?>
@@ -480,6 +549,151 @@ layout_header('出勤管理', 'schedules.php');
     <span><i class="lg s-undecided"></i>未定（媒体は今のまま）</span>
     <span class="muted">見出しの人数は「出勤」の数、<i>+N</i> は OPSのみの数です</span>
   </div>
+
+  <!-- マス目クリックで開く編集パネル（保存は mode=cell の JSON エンドポイント） -->
+  <div class="cell-pop" id="cellPop" hidden>
+    <div class="cp-head"><strong id="cpTitle"></strong><button type="button" id="cpClose" aria-label="閉じる">×</button></div>
+    <div class="cp-st" id="cpSt">
+      <button type="button" data-st="work">出勤</button>
+      <button type="button" data-st="ops_only">OPSのみ</button>
+      <button type="button" data-st="off">休み</button>
+      <button type="button" data-st="undecided">未定</button>
+    </div>
+    <div class="cp-time" id="cpTime">
+      <?= time_select('', null, '', 'cpStart') ?><span class="cp-wave">〜</span><?= time_select('', null, '', 'cpEnd') ?>
+    </div>
+    <div class="cp-foot">
+      <span class="cp-msg" id="cpMsg"></span>
+      <button type="button" class="btn btn-primary" id="cpSave">保存</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    var CSRF  = <?= json_encode(csrf_token()) ?>;
+    var pop   = document.getElementById('cellPop');
+    var wrap  = document.querySelector('.grid-wrap');
+    var cell  = null;                       // いま編集中のマス
+    var stCur = 'undecided';
+    document.body.appendChild(pop);         // 座標は画面基準で出すので、位置指定のある祖先から外す
+
+    function T(id) { var e = document.getElementById(id); return { h: e.querySelector('.tsel-h'), m: e.querySelector('.tsel-m') }; }
+    var S = T('cpStart'), E = T('cpEnd');
+    function setT(t, v) { t.h.value = v ? String(parseInt(v.slice(0, 2), 10)) : ''; t.m.value = v ? String(parseInt(v.slice(3, 5), 10)) : ''; }
+    function getT(t) { return { h: t.h.value, m: t.m.value }; }
+    function hasTime(v) { return v === 'work' || v === 'ops_only'; }
+    function fmt(v) { return v ? parseInt(v.slice(0, 2), 10) + ':' + v.slice(3, 5) : ''; }
+
+    function paintStatus() {
+      pop.querySelectorAll('#cpSt button').forEach(function (b) { b.classList.toggle('is-on', b.dataset.st === stCur); });
+      document.getElementById('cpTime').style.display = hasTime(stCur) ? '' : 'none';
+    }
+
+    function open(td) {
+      cell = td;
+      stCur = td.dataset.st || 'undecided';
+      document.getElementById('cpTitle').textContent = td.dataset.name + '　' + td.dataset.label;
+      document.getElementById('cpMsg').textContent = '';
+      setT(S, td.dataset.s); setT(E, td.dataset.e);
+      paintStatus();
+      pop.hidden = false;
+      // マスの真下に出す。画面からはみ出すときは内側へ寄せる
+      var r = td.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+      var left = r.left + window.scrollX + r.width / 2 - w / 2;
+      left = Math.max(8 + window.scrollX, Math.min(left, window.scrollX + document.documentElement.clientWidth - w - 8));
+      var top = r.bottom + window.scrollY + 6;
+      if (r.bottom + h + 12 > window.innerHeight) top = r.top + window.scrollY - h - 6;
+      pop.style.left = left + 'px'; pop.style.top = Math.max(8, top) + 'px';
+      document.querySelectorAll('.gd-c.is-editing').forEach(function (c) { c.classList.remove('is-editing'); });
+      td.classList.add('is-editing');
+    }
+    function close() {
+      pop.hidden = true; cell = null;
+      document.querySelectorAll('.gd-c.is-editing').forEach(function (c) { c.classList.remove('is-editing'); });
+    }
+
+    // 保存後にマスの見た目を描き直す（ページ再読み込みなしで反映）
+    function repaint(td, st, s, e) {
+      td.dataset.st = st; td.dataset.s = s || ''; td.dataset.e = e || '';
+      td.className = td.className.replace(/\bs-\w+/, 's-' + st);
+      if (hasTime(st)) {
+        td.innerHTML = (st === 'ops_only' ? '<span class="gd-lock" title="OPSのみ（サイト・媒体には出ません）">🔒</span>' : '')
+          + '<span class="gd-t">' + fmt(s) + '</span><span class="gd-t2">' + fmt(e) + '</span>';
+      } else {
+        td.innerHTML = st === 'off' ? '休' : '<span class="gd-un">＋</span>';
+      }
+      recount();
+    }
+    // 見出しの人数と右端の日数を数え直す
+    function recount() {
+      var rows = wrap.querySelectorAll('tbody tr[data-gid]');
+      var cols = wrap.querySelectorAll('thead th .gd-count');
+      var work = [], ops = [];
+      for (var i = 0; i < cols.length; i++) { work[i] = 0; ops[i] = 0; }
+      rows.forEach(function (tr) {
+        var cs = tr.querySelectorAll('.gd-c'), n = 0;
+        cs.forEach(function (c, i) {
+          if (c.dataset.st === 'work') { work[i]++; n++; }
+          else if (c.dataset.st === 'ops_only') { ops[i]++; n++; }
+        });
+        var t = tr.querySelector('.gd-total');
+        if (t) t.innerHTML = n + '<small>日</small>';
+      });
+      cols.forEach(function (el, i) { el.innerHTML = work[i] + '人' + (ops[i] ? '<i>+' + ops[i] + '</i>' : ''); });
+    }
+
+    wrap.addEventListener('click', function (e) {
+      var td = e.target.closest('.gd-c');
+      if (td) { e.stopPropagation(); open(td); }
+    });
+    wrap.addEventListener('keydown', function (e) {
+      var td = e.target.closest('.gd-c');
+      if (td && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(td); }
+    });
+    document.getElementById('cpSt').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-st]');
+      if (!b) return;
+      stCur = b.dataset.st;
+      // 「出勤」に切り替えたとき時間が空なら、同じ女性の直近の出勤時間を引き継ぐ（毎回選び直さなくて済む）
+      if (hasTime(stCur) && !S.h.value && cell) {
+        var sib = cell.parentNode.querySelectorAll('.gd-c');
+        for (var i = 0; i < sib.length; i++) {
+          if (sib[i] !== cell && sib[i].dataset.s) { setT(S, sib[i].dataset.s); setT(E, sib[i].dataset.e); break; }
+        }
+      }
+      paintStatus();
+    });
+    document.getElementById('cpClose').addEventListener('click', close);
+    document.addEventListener('click', function (e) { if (!pop.hidden && !pop.contains(e.target)) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    document.getElementById('cpSave').addEventListener('click', function () {
+      if (!cell) return;
+      var msg = document.getElementById('cpMsg');
+      var s = getT(S), e = getT(E);
+      if (hasTime(stCur) && (s.h === '' || s.m === '' || e.h === '' || e.m === '')) {
+        msg.textContent = '開始と終了の時間を選んでください。'; return;
+      }
+      var shops = Array.prototype.map.call(document.querySelectorAll('.cp-shop:checked'), function (c) { return c.value; });
+      if (!shops.length) { msg.textContent = '更新する店舗にチェックを入れてください。'; return; }
+      var fd = new FormData();
+      fd.append('_csrf', CSRF); fd.append('mode', 'cell');
+      fd.append('girl_id', cell.dataset.gid); fd.append('date', cell.dataset.date); fd.append('status', stCur);
+      fd.append('start_h', s.h); fd.append('start_m', s.m); fd.append('end_h', e.h); fd.append('end_m', e.m);
+      shops.forEach(function (v) { fd.append('shops[]', v); });
+      var btn = this, td = cell;
+      btn.disabled = true; msg.textContent = '保存中...';
+      fetch('schedules.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (!res.ok || res.j.error) { msg.textContent = res.j.error || '保存できませんでした。'; return; }
+          repaint(td, res.j.status, res.j.start, res.j.end);
+          close();
+        })
+        .catch(function () { btn.disabled = false; msg.textContent = '通信に失敗しました。'; });
+    });
+  })();
+  </script>
 
 <?php elseif ($mode === 'date'): ?>
 <?php
