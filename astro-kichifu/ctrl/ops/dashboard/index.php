@@ -322,9 +322,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal.draggable .modal-header::before{content:"⋮⋮";position:absolute;top:1rem;left:50%;transform:translateX(-50%);color:var(--ink-soft);font-size:.7rem;letter-spacing:.3em;opacity:.6;}
   /* 予約内容サマリーバー: ヘッダー同様にモーダル下端へ固定（ボタン行は通常スクロール） */
   /* 高さを取りすぎないよう詰める（入力中は常に見える帯なので圧迫感を減らす） */
-  .bm-summary-bar{position:sticky;bottom:0;z-index:3;display:none;align-items:center;justify-content:space-between;gap:.6rem;padding:.45rem 1.1rem;background:linear-gradient(0deg,var(--foam),#fff);border-top:1.5px solid var(--aqua-light,#bfe3e8);border-radius:0 0 18px 18px;box-shadow:0 -4px 12px rgba(7,43,58,.08);}
+  .bm-summary-bar{position:sticky;bottom:0;z-index:3;display:none;align-items:flex-start;justify-content:space-between;gap:.6rem;padding:.45rem 1.1rem;background:linear-gradient(0deg,var(--foam),#fff);border-top:1.5px solid var(--aqua-light,#bfe3e8);border-radius:0 0 18px 18px;box-shadow:0 -4px 12px rgba(7,43,58,.08);}
   .bm-summary-bar.show{display:flex;}
-  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:.86rem;font-weight:600;color:var(--ink);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* 省略せず全部出す（2段以上になってもよい＝店長要望 2026-08-05）。
+     伸びすぎたときだけ帯の中でスクロールさせる */
+  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:.86rem;font-weight:600;color:var(--ink);line-height:1.45;
+    white-space:normal;overflow-wrap:anywhere;max-height:4.4em;overflow-y:auto;}
   .bm-summary-bar .bm-sum-total{flex-shrink:0;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.2rem;color:var(--deep);white-space:nowrap;}
   .modal.draggable.dragging{transition:none;}
   .modal.draggable.dragging .modal-header{cursor:grabbing;}
@@ -1695,6 +1698,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <option value="completed">接客完了</option>
           <option value="cancelled">キャンセル</option>
           <option value="no_show">無連絡</option>
+          <option value="break">💤 休憩・私用</option>
         </select>
       </div>
       <button class="modal-minimize" title="最小化(フッターへ)" data-minimize="bookingModal">＿</button>
@@ -1706,7 +1710,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div id="bmNgCastAlert" class="bm-ng-alert"></div>
       <!-- 担当キャストの注意事項。担当を選んだ瞬間に一番上で目に入る位置に置く -->
       <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
-      <label id="bmBreakModeLabel" style="display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:.88rem;cursor:pointer;background:linear-gradient(135deg,#fff8ef,#ffeada);color:#a85a3a;padding:.55rem .75rem;border-radius:10px;margin-bottom:1rem;border:1px solid #f3c9a8;">
+      <label id="bmBreakModeLabel" style="display:none;align-items:center;gap:.5rem;font-weight:700;font-size:.88rem;cursor:pointer;background:linear-gradient(135deg,#fff8ef,#ffeada);color:#a85a3a;padding:.55rem .75rem;border-radius:10px;margin-bottom:1rem;border:1px solid #f3c9a8;">
         <input type="checkbox" id="bmBreakMode"> 💤 休憩・私用予定として登録(公開ページには「ご予約済」のみ表示)
       </label>
       <input type="hidden" id="bmCustomerId" value="">

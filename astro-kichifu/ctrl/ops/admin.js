@@ -155,6 +155,12 @@
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.name === 'bmLocType-2') {
         withBmSuffix('-2', () => { switchLocSection(e.target.value); syncDealBadges(); });
+      } else if (e.target.id === 'bmStatus-2') {
+        withBmSuffix('-2', () => {
+          const cb = bel('bmBreakMode');
+          const want = e.target.value === 'break';
+          if (cb && cb.checked !== want) { cb.checked = want; setBreakMode(want); }
+        });
       } else if (e.target.id === 'bmBreakMode-2') {
         withBmSuffix('-2', () => setBreakMode(e.target.checked));
       } else if (e.target.id === 'bmBreakDur-2') {
@@ -1918,17 +1924,42 @@
       place = (bel('bmOtherLoc')?.value || '').trim().split('\n')[0];
     }
     if (place) segs.push(`📍 ${place}`);
+    // お客様・担当キャスト・媒体（2段になってもいいので省略しない＝店長要望 2026-08-05）
+    const custName = (bel('bmCustomerName')?.value || '').trim();
+    if (custName) segs.push(`👤 ${custName} 様`);
+    const adminSel = bel('bmAdminId');
+    const castName = adminSel?.value ? (adminSel.options[adminSel.selectedIndex]?.text || '').replace(/^担当\s*/, '') : '';
+    if (castName && castName !== '—') segs.push(`💁 ${castName}`);
+    const med = mediaLabels(getBmMedia().join(','));
+    if (med) segs.push(`📣 ${med}`);
     // 料金内訳。0円の項目は出さない（未入力のうちは「¥0・¥0・¥0」が並んで邪魔なため）
     const coursePrice = parseInt(String(bel('bmPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const nomFee = nominationFeeFor(bel('bmNomination')?.value);
     const transportFee = parseInt(String(bel('bmTransport')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const optFee = optionTotal();
+    const extFee = extAmount();
+    const lateFee = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
+    const hfOff = hotelFirstDiscount();
+    const campOff = campaignDiscount(coursePrice);
+    const stampOff = stampDiscount(coursePrice - campOff);
+    const cardFee = (() => {
+      const t = (bel('bmTotal')?.textContent || '').replace(/[^\d]/g, '');
+      return bel('bmPayment')?.value === 'credit' && t ? cardSurcharge(coursePrice + transportFee + lateFee + extFee + nomFee + optFee - campOff - stampOff - hfOff) : 0;
+    })();
     const parts = [];
     if (coursePrice) parts.push(`コース¥${coursePrice.toLocaleString()}`);
     if (nomFee) parts.push(`指名¥${nomFee.toLocaleString()}`);
-    if (optFee) parts.push(`オプ¥${optFee.toLocaleString()}`);
+    if (optFee) parts.push(`オプ¥${optFee.toLocaleString()}（${optionText() || ''}）`.replace('（）', ''));
+    if (extFee) parts.push(`延長×${extCount()}¥${extFee.toLocaleString()}`);
+    if (lateFee) parts.push(`深夜¥${lateFee.toLocaleString()}`);
     if (transportFee) parts.push(`出張¥${transportFee.toLocaleString()}`);
+    if (hfOff) parts.push(`ホテル−¥${hfOff.toLocaleString()}`);
+    if (campOff) parts.push(`キャンペーン−¥${campOff.toLocaleString()}`);
+    if (stampOff) parts.push(`スタンプ−¥${stampOff.toLocaleString()}`);
+    if (cardFee) parts.push(`カード+¥${cardFee.toLocaleString()}`);
     if (parts.length) segs.push(parts.join('・'));
+    const pay = bel('bmPayment')?.value;
+    if (pay) segs.push(pay === 'credit' ? '💳 カード' : '💴 現金');
     const total = (bel('bmTotal')?.textContent || '').trim();
     const totalNum = parseInt(total.replace(/[^\d]/g, ''), 10) || 0;
     setOut(segs.join('　'), totalNum > 0 ? total : '');
@@ -4152,6 +4183,7 @@
         if (breakChk && isBreakRow) {
           breakChk.checked = true;
           setBreakMode(true);
+          if (bel('bmStatus')) bel('bmStatus').value = 'break';
           // 休憩エリア復元
           if (bel('bmBreakCity')) bel('bmBreakCity').value = b.display_city || '';
           // 休憩時間 = 終了 − 開始（跨ぎ考慮）
@@ -4825,7 +4857,7 @@
       display_city: displayCity,
       room_number: roomNumber,
       assigned_admin_id: bel('bmAdminId').value || null,
-      status: isBreak ? 'confirmed' : bel('bmStatus').value,
+      status: (isBreak || bel('bmStatus').value === 'break') ? 'confirmed' : bel('bmStatus').value,
       cancellation_reason_type: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelType').value : null,
       cancellation_reason: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelReason').value : null,
       cancellation_fee: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelFee') : null,
@@ -8548,6 +8580,13 @@
     // スタンプ特典: 合計を再計算
     const stampSel = bel('bmStampReward');
     if (stampSel) stampSel.addEventListener('change', updateBookingTotal);
+    // ステータスの「💤 休憩・私用」で休憩モードに入る（独立したチェック行は廃止してここに集約）
+    const stSel = bel('bmStatus');
+    if (stSel) stSel.addEventListener('change', () => {
+      const cb = bel('bmBreakMode');
+      const want = stSel.value === 'break';
+      if (cb && cb.checked !== want) { cb.checked = want; setBreakMode(want); }
+    });
     // 指名方法: 指名料を合計へ反映
     const nomSel = bel('bmNomination');
     if (nomSel) nomSel.addEventListener('change', () => { updateBookingTotal(); syncDealBadges(); });
