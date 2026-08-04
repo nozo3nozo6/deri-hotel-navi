@@ -417,20 +417,29 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
-  /* PC・スマホとも常に2列（狭い画面でも列を増減させない） */
-  .bm-media-list{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;}
-  @media(max-width:420px){
-    .bm-media-list{gap:.3rem;}
-    .bm-media{padding:.45rem .25rem;font-size:.76rem;gap:.2rem;}
-    .bm-media input{width:15px;height:15px;}
+  /* PC・スマホとも2行に収める: 1行目=媒体6つ / 2行目=LINE予約（全幅）。
+     狭い画面でも折り返さないよう、文字と余白を詰めて6列を維持する */
+  .bm-media-list{display:grid;grid-template-columns:repeat(6,1fr);gap:.4rem;}
+  /* 狭い画面では6つ横並びにチェック□を置く幅が無いので、□は隠して枠の色で選択を示す
+     （選ぶと枠が濃くなり地が色づく）。LINE予約は全幅なので□をそのまま残す */
+  @media(max-width:520px){
+    .bm-media-list{gap:.22rem;}
+    .bm-media-list .bm-media{padding:.45rem .05rem;font-size:.66rem;gap:0;min-width:0;}
+    .bm-media-list .bm-media input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
+    /* 選択時は枠を太らせず内側の影で示す（太らせると幅が変わって文字が切れる） */
+    .bm-media-list .bm-media:has(input:checked){box-shadow:inset 0 0 0 1px currentColor;font-weight:700;}
+    .bm-media-list .bm-media.is-line{padding:.45rem .6rem;gap:.3rem;}
+    .bm-media-list .bm-media.is-line input{position:static;opacity:1;width:16px;height:16px;pointer-events:auto;}
   }
-  .bm-media{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.45rem .5rem;border:1.5px solid var(--gray);
+  /* チップは <label> なので、スマホ幅の `.field label`(0,1,1) に負けないよう
+     `.bm-media-list .bm-media`(0,2,0) で指定する（font-size が効かず文字が切れていた） */
+  .bm-media-list .bm-media{display:flex;align-items:center;justify-content:center;gap:.3rem;padding:.45rem .5rem;border:1.5px solid var(--gray);
     border-radius:8px;background:#fff;font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer;
-    touch-action:manipulation;white-space:nowrap;}
+    touch-action:manipulation;white-space:nowrap;margin-bottom:0;}
   .bm-media input{width:16px;height:16px;cursor:pointer;flex-shrink:0;margin:0;}
   .bm-media:has(input:checked){border-color:var(--deep);background:var(--foam);color:var(--deep);}
   /* LINE予約は他の媒体と性質が違う（＋10分の特典つき自社導線）ので、常に緑で区別する */
-  .bm-media.is-line{grid-column:1/-1;border-color:#9edcb8;background:#eafaf0;color:#0a7a3a;}
+  .bm-media-list .bm-media.is-line{grid-column:1/-1;justify-content:flex-start;border-color:#9edcb8;background:#eafaf0;color:#0a7a3a;}
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
