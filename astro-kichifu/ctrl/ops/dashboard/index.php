@@ -417,8 +417,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
-  /* PC・スマホとも常に3列＝媒体6つがちょうど2行に収まる（狭い画面でも列を減らさない） */
-  .bm-media-list{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;}
+  /* PC・スマホとも常に2列（狭い画面でも列を増減させない） */
+  .bm-media-list{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem;}
   @media(max-width:420px){
     .bm-media-list{gap:.3rem;}
     .bm-media{padding:.45rem .25rem;font-size:.76rem;gap:.2rem;}
