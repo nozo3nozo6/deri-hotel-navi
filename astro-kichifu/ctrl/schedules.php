@@ -414,9 +414,14 @@ layout_header('出勤管理', 'schedules.php');
 </details>
 
 <div class="sched-tabs">
-  <a class="sched-tab <?= $mode === 'date' ? 'is-active' : '' ?>" href="schedules.php?mode=date&sort=<?= h($sort) ?>">📅 日付で登録</a>
-  <a class="sched-tab <?= $mode === 'girl' ? 'is-active' : '' ?>" href="schedules.php?mode=girl&sort=<?= h($sort) ?>">👤 女性別まとめ登録</a>
-  <a class="sched-tab <?= $mode === 'grid' ? 'is-active' : '' ?>" href="schedules.php?mode=grid&sort=<?= h($sort) ?>">📊 10日先まで一覧</a>
+<?php
+  // タブ間で sort を持ち回さない。登録タブに range は無く、一覧の既定は range なので、
+  // 持ち回すとタブを移った瞬間に既定が上書きされて「並び替わらない」ように見える（2026-08-05 店長指摘）。
+  $tabSort = $sort === 'range' ? '' : '&sort=' . h($sort);
+?>
+  <a class="sched-tab <?= $mode === 'date' ? 'is-active' : '' ?>" href="schedules.php?mode=date<?= $tabSort ?>">📅 日付で登録</a>
+  <a class="sched-tab <?= $mode === 'girl' ? 'is-active' : '' ?>" href="schedules.php?mode=girl<?= $tabSort ?>">👤 女性別まとめ登録</a>
+  <a class="sched-tab <?= $mode === 'grid' ? 'is-active' : '' ?>" href="schedules.php?mode=grid">📊 10日先まで一覧</a>
 </div>
 
 <?php if ($mode === 'grid'): /* ===================== 10日先まで一覧 ===================== */ ?>
@@ -500,7 +505,7 @@ layout_header('出勤管理', 'schedules.php');
           <th class="gd-name">女性</th>
           <?php foreach ($dates as $d): $wdi = (int)date('w', strtotime($d)); ?>
             <th class="<?= $d === $schedBiz ? 'is-today' : '' ?>">
-              <a href="schedules.php?mode=date&sort=<?= h($sort) ?>&date=<?= h($d) ?>" class="<?= $wdi === 6 ? 'day-sat' : ($wdi === 0 ? 'day-sun' : '') ?>">
+              <a href="schedules.php?mode=date<?= $tabSort ?>&date=<?= h($d) ?>" class="<?= $wdi === 6 ? 'day-sat' : ($wdi === 0 ? 'day-sun' : '') ?>">
                 <?= (int)substr($d, 5, 2) ?>/<?= (int)substr($d, 8, 2) ?><small>(<?= $WD[$wdi] ?>)</small>
               </a>
               <span class="gd-count"><?= $dayWork[$d] ?>人<?= $dayOps[$d] ? '<i>+' . $dayOps[$d] . '</i>' : '' ?></span>
