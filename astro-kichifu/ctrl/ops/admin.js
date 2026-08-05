@@ -316,7 +316,10 @@
     if (city) {
       syncCityRegionTab(city);
       const citySel = bel('bmCity');
-      if (citySel && [...citySel.options].some(o => o.value === city)) citySel.value = city;
+      if (citySel && [...citySel.options].some(o => o.value === city)) {
+        citySel.value = city;
+        populateHotelSelect(city);   // ホテルタブに切り替えたとき絞り込み済みにしておく
+      }
     }
     if (note) {
       note.style.display = 'block';
@@ -442,6 +445,7 @@
     for (const [k, list] of Object.entries(CITY_REGIONS)) if (list.includes(city)) { reg = k; break; }
     const r = document.querySelector(`input[name="bmCityRegion${activeBmSuffix}"][value="${reg}"]`);
     if (r && !r.checked) { r.checked = true; populateCitySelect(reg); }
+    populateHotelSelect(city);   // 市区町村が変わったらホテル一覧も絞り直す
   }
   // ホテルを選んだら、そのホテルに登録してある交通費を初期値として入れる。
   // 実績では同じホテルでも回により ¥0〜¥2,200 と揺れるので、あくまで初期値（手で変えられる）。
@@ -509,6 +513,10 @@
 
   function populateHotelSelect(filterCity) {
     const sel = bel('bmHotelId');
+    if (!sel) return;
+    // 引数なしで呼ばれたら、いま選ばれている市区町村で絞る。
+    // （市区町村だけ変えて一覧を絞り直し忘れる事故を防ぐ。''を渡せば従来どおり全件）
+    if (filterCity === undefined) filterCity = bel('bmCity')?.value || '';
     const selectedValue = sel.value;
     const list = filterCity
       ? hotelsForSelect.filter(h => h.city === filterCity)
