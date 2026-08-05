@@ -383,7 +383,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .loc-tab input{display:none;}
   .loc-tab:hover{background:#f6fbfc;}
   .loc-tab:has(input:checked){background:linear-gradient(135deg,var(--aqua),var(--sea));color:#fff;border-color:var(--sea);font-weight:600;}
-  .modal-header{padding:1.4rem 1.6rem 1rem;border-bottom:1px solid var(--gray);position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;z-index:1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;}
+  .modal-header{padding:1.4rem 1.6rem .5rem;border-bottom:1px solid var(--gray);position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;z-index:1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;}
   .modal-header .mh-title{font-size:1.1rem;font-weight:700;line-height:1.4;}
   .modal-header .mh-sub{font-size:.82rem;color:var(--ink-soft);margin-top:.25rem;}
   .modal-close{background:transparent;border:none;font-size:1.4rem;color:var(--ink-soft);line-height:1;padding:.3rem;border-radius:8px;cursor:pointer;}
@@ -470,13 +470,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal-header{--hdr-pl:1.6rem;--hdr-pr:1.6rem;}
   .modal.draggable .modal-header{--hdr-pr:5rem;}
   .bm-cast-alert-head{flex:0 0 calc(100% + var(--hdr-pl) + var(--hdr-pr));order:9;
-    margin:.55rem calc(-1 * var(--hdr-pr)) -1rem calc(-1 * var(--hdr-pl));
+    margin:.3rem calc(-1 * var(--hdr-pr)) -.5rem calc(-1 * var(--hdr-pl));
     padding:.32rem var(--hdr-pr) .32rem var(--hdr-pl);
     background:#fff4f4;border-top:1px solid #f3d3cf;color:#a5342f;font-size:.76rem;font-weight:700;line-height:1.5;}
   @media(max-width:640px){
     .modal-header{--hdr-pl:1.1rem;--hdr-pr:1.1rem;}
     .modal.draggable .modal-header{--hdr-pr:3.4rem;}
-    .bm-cast-alert-head{font-size:.72rem;margin-top:.45rem;margin-bottom:-.8rem;}
+    .bm-cast-alert-head{font-size:.72rem;margin-top:.28rem;margin-bottom:-.5rem;}
   }
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
   .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
@@ -1202,7 +1202,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     /* モーダル */
     .modal-overlay{padding:0!important;align-items:flex-end;}
     .modal{max-width:100%!important;width:100%!important;border-radius:16px 16px 0 0!important;max-height:92dvh!important;}
-    .modal-header{padding:1rem 1.1rem .8rem!important;}
+    .modal-header{padding:1rem 1.1rem .5rem!important;}
     .modal.draggable .modal-header{padding-right:3.4rem!important;}
     /* スマホでは _ と × を小さく */
     .modal.draggable .modal-minimize{font-size:1rem!important;top:.7rem!important;right:1.9rem!important;padding:.15rem .3rem!important;}
