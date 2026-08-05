@@ -4008,20 +4008,25 @@
       // 顧客が確定したこの時点でも「いつもの場所」を試す（電話blur以外の経路をここで拾う）。
       // 既存予約を開いたときは場所が復元済み＝untouchedでないので何も起きない。
       withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
-      // 新規/会員と「過去に会ったキャスト」を特典判定用に保持
+      // ご利用回数と「過去に会ったキャスト」は、実際のオーダーから数える。
+      // キャンセル・無連絡は利用に数えない＝そのキャストとは会っていないまま（店長方針 2026-08-05）。
+      const COUNTED = (st) => !['cancelled', 'no_show', 'inquiry'].includes(String(st));
+      // いま編集中の予約は「その人の過去の利用」ではないので除く（1回目なのに2回目と出ていた）
+      const curRow = (d.bookings || []).find(x => Number(x.id) === Number(excludeBookingId));
+      const usedCount = Math.max(0,
+        (d.usage ? (parseInt(d.usage.legacy, 10) || 0) + (parseInt(d.usage.ops, 10) || 0) : 0)
+        - (curRow && COUNTED(curRow.status) ? 1 : 0));
       {
-        // いま編集中の予約は「その人の過去の利用」ではないので除く（1回目なのに2回目と出ていた）
         const doneRows = (d.bookings || [])
           .filter(x => Number(x.id) !== Number(excludeBookingId))
-          .filter(x => !['cancelled', 'no_show', 'inquiry'].includes(String(x.status)));
+          .filter(x => COUNTED(x.status));
         const names = new Set();
         doneRows.forEach(x => { const n = String(x.staff_name || '').trim(); if (n) names.add(n); });
-        (d.legacy_visits || []).forEach(x => { const n = String(x.cast_name || '').trim(); if (n) names.add(n); });
-        const total = (parseInt(c.visit_count, 10) || 0) + doneRows.length;
-        bmCust[suffix] = { isNew: total === 0, castNames: names };
+        (d.legacy_visits || []).filter(x => COUNTED(x.status))
+          .forEach(x => { const n = String(x.cast_name || '').trim(); if (n) names.add(n); });
+        bmCust[suffix] = { isNew: usedCount === 0, castNames: names };
         withBmSuffix(suffix, () => { try { syncDealBadges(); } catch (_) {} });
       }
-      const visitCount = parseInt(c.visit_count, 10) || 0;
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
       const legacy = d.legacy_visits || [];   // 旧システムの利用履歴（2017-10〜2026-07）
@@ -4038,9 +4043,6 @@
       } else if (lastLegacy) {
         lastLabel = `（前回 ${mdDate(lastLegacy.visit_at)} ${lastLegacy.course_name || ''}${lastLegacy.cast_name ? ' ' + lastLegacy.cast_name : ''}）`;
       }
-      // ご利用回数 = 旧システムの実績 ＋ OPSの予約（いま編集中のぶんは除く／キャンセル等は数えない）
-      const opsDone = rows.filter(b => !['cancelled', 'no_show', 'inquiry'].includes(String(b.status))).length;
-      const usedCount = visitCount + opsDone;
       const histCount = rows.length + legacy.length;
       summaryEl.textContent = usedCount > 0
         ? `リピーター・ご利用${usedCount}回` + lastLabel

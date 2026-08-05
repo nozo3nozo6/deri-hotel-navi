@@ -182,8 +182,21 @@ if ($action === 'get' && $method === 'GET') {
                          ORDER BY au.sort_order, au.id");
     $ng->execute([$id]);
 
+    // ご利用回数は「実際のオーダー」から数える（保存カウンタは使わない）。
+    // キャンセル・無連絡は利用に数えない＝そのキャストとは会っていない扱い（店長方針 2026-08-05）。
+    // 一覧の LIMIT に左右されないよう、件数だけはSQLで数えて返す。
+    $uq = $pdo->prepare("SELECT
+        (SELECT COUNT(*) FROM ops_legacy_visits l
+          WHERE l.customer_id = ? AND l.status NOT IN ('cancelled','no_show')) AS legacy_used,
+        (SELECT COUNT(DISTINCT b.id) FROM ops_bookings b
+          WHERE (b.customer_id = ? OR (? <> '' AND b.customer_phone_snapshot = ?))
+            AND b.status NOT IN ('cancelled','no_show','inquiry')) AS ops_used");
+    $uq->execute([$id, $id, $phone, $phone]);
+    $usage = $uq->fetch() ?: ['legacy_used' => 0, 'ops_used' => 0];
+
     jsonResponse([
         'customer'      => $cust,
+        'usage'         => ['legacy' => (int)$usage['legacy_used'], 'ops' => (int)$usage['ops_used']],
         'bookings'      => $bs->fetchAll(),
         'legacy_visits' => $legacyVisits,
         'chat_sessions' => $chatSessions,
