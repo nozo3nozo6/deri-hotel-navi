@@ -457,6 +457,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* 同時編集ロックの注意帯（別端末が編集中＝読み取り専用） */
+  .bm-lock-notice{margin-bottom:1rem;padding:.6rem .8rem;background:#fff4f4;border:1.5px solid #e7a6a0;
+    border-radius:8px;font-size:.85rem;font-weight:700;color:#a5342f;line-height:1.5;}
   /* 予約モーダル: 選んだホテルの住所・TEL・入室方法＋地図リンク */
   .bm-hotel-addr{margin:-.5rem 0 1.1rem;padding:.55rem .75rem;background:var(--foam);border:1px solid var(--aqua-light,#bfe3e8);
     border-radius:8px;font-size:.82rem;line-height:1.6;color:var(--ink);}

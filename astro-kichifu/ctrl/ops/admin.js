@@ -1427,7 +1427,11 @@
       draggable.style.margin = '';
     }
   }
-  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  function closeModal(id) {
+    if (id === 'bookingModal') releaseBookingLock('');
+    else if (id === 'bookingModal-2') releaseBookingLock('-2');
+    document.getElementById(id).classList.remove('show');
+  }
 
   // ドラッグ可能モーダルのセットアップ（モジュール読み込み時1回だけ）
   function setupDraggableModals() {
@@ -1521,6 +1525,80 @@
   const editingBookingIdBySuffix = { '': null, '-2': null };
   const getEditingBookingId = () => editingBookingIdBySuffix[activeBmSuffix] ?? null;
   const setEditingBookingId = (v) => { editingBookingIdBySuffix[activeBmSuffix] = v; };
+
+  // ===== 予約の同時編集ロック =====
+  // モーダルを開いたらサーバーにロックを立て、他の端末は読み取り専用で開く。
+  // 30秒ごとに延長・90秒で自動失効（閉じ忘れ・スリープ対策）。
+  // すり抜けた場合の砦は保存時の expected_updated_at チェック（サーバー側 409）。
+  const _bmLockToken = 'lk' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const _bmLock = { '': null, '-2': null };
+  const _bmLoadedUpdatedAt = { '': '', '-2': '' };
+
+  function applyBookingLockUi(suffix, lockedBy) {
+    const belS = (i) => document.getElementById(i + suffix);
+    let note = belS('bmLockNotice');
+    if (lockedBy) {
+      if (!note) {
+        const body = document.querySelector(`#bookingModal${suffix} .modal-body`);
+        if (body) {
+          note = document.createElement('div');
+          note.id = 'bmLockNotice' + suffix;
+          note.className = 'bm-lock-notice';
+          body.prepend(note);
+        }
+      }
+      if (note) {
+        note.textContent = `⚠️ ${lockedBy}さんがこの予約を編集中です（読み取り専用で表示しています）`;
+        note.style.display = 'block';
+      }
+    } else if (note) {
+      note.style.display = 'none';
+    }
+    ['bmSave', 'bmDelete'].forEach(i => { const el = belS(i); if (el) el.disabled = !!lockedBy; });
+  }
+
+  function releaseBookingLock(suffix) {
+    const st = _bmLock[suffix];
+    _bmLock[suffix] = null;
+    if (st && st.timer) clearInterval(st.timer);
+    if (st && !st.readonly) apiPost('/bookings.php?action=unlock', { id: st.id, token: _bmLockToken }).catch(() => {});
+    applyBookingLockUi(suffix, null);
+  }
+
+  async function acquireBookingLock(id) {
+    const suffix = activeBmSuffix;
+    releaseBookingLock(suffix);
+    let denied = null;
+    try {
+      const r = await apiPost('/bookings.php?action=lock', { id, token: _bmLockToken });
+      if (r && r.ok === false) denied = r.locked_by || '別の端末';
+    } catch (e) { /* 通信失敗はロックなしで続行（保存時チェックが砦） */ }
+    const st = { id, timer: null, readonly: !!denied };
+    _bmLock[suffix] = st;
+    if (!denied) {
+      st.timer = setInterval(() => {
+        apiPost('/bookings.php?action=lock', { id, token: _bmLockToken }).then(r => {
+          if (r && r.ok === false) {   // 失効の隙に他端末へ渡った → こちらを読み取り専用に落とす
+            st.readonly = true;
+            applyBookingLockUi(suffix, r.locked_by || '別の端末');
+            clearInterval(st.timer); st.timer = null;
+          }
+        }).catch(() => {});
+      }, 30000);
+    }
+    applyBookingLockUi(suffix, denied);
+  }
+
+  // ページを離れるときは即返す（失効を待たせない）
+  window.addEventListener('pagehide', () => {
+    ['', '-2'].forEach(sfx => {
+      const st = _bmLock[sfx];
+      if (st && !st.readonly && navigator.sendBeacon) {
+        navigator.sendBeacon(API + '/bookings.php?action=unlock',
+          new Blob([JSON.stringify({ id: st.id, token: _bmLockToken })], { type: 'application/json' }));
+      }
+    });
+  });
   let editingCustomerId = null;
   let editingShiftId = null;
   let shCurrent = new Date();
@@ -2210,7 +2288,7 @@
       if (delta === 0 && !alsoStart) { closeTimeAdjust(); return; }
       pop.querySelectorAll('button').forEach(x => { x.disabled = true; });
       try {
-        if (delta !== 0) await apiPost('/bookings.php?action=shift-time', { id, delta });
+        if (delta !== 0) await apiPost('/bookings.php?action=shift-time', { id, delta, expected_updated_at: (b.updated_at || '') });
         if (alsoStart) {
           await apiPost('/bookings.php?action=set-service', { id: Number(id), state: 'started' });
           toast(`▶ ${h}:${('0' + m).slice(-2)} で開始（経理に計上）`, 'ok');
@@ -3272,7 +3350,7 @@
           const next = sel.value;
           sel.disabled = true;
           try {
-            await apiPost('/bookings.php?action=set-service', { id: Number(id), state: next });
+            await apiPost('/bookings.php?action=set-service', { id: Number(id), state: next, expected_updated_at: (_tlBookingMap[id]?.updated_at || '') });
             toast(next === 'started' ? '▶ 開始（経理に計上）' : next === 'ended' ? '■ 終了' : '未開始に戻しました', 'ok');
             loadTimeline(true);
           } catch (err) { toast('更新失敗: ' + err.message, 'err'); sel.disabled = false; }
@@ -4107,6 +4185,8 @@
     // ensureCoursesLoaded は cache 済みだと populate を呼ばないため、ここで明示的に保証する
     populateCourseSelect();
     setEditingBookingId(id);
+    if (id) acquireBookingLock(id);           // 既存予約 → 編集ロック（他端末は読み取り専用）
+    else { releaseBookingLock(activeBmSuffix); _bmLoadedUpdatedAt[activeBmSuffix] = ''; }
     const labelSuffix = activeBmSuffix === '-2' ? '（②）' : (document.getElementById('bookingModal-2')?.classList.contains('show') ? '（①）' : '');
     bel('bmTitle').textContent = (id ? '予約編集' : '新規予約') + labelSuffix;
     bel('bmDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
@@ -4118,6 +4198,7 @@
       try {
         const d = await api('/bookings.php?action=get&id=' + id);
         const b = d.booking;
+        _bmLoadedUpdatedAt[activeBmSuffix] = b.updated_at || '';   // 保存時の追い越しチェック用
         bel('bmCustomerId').value = b.customer_id || '';
         bel('bmCustomerName').value = b.customer_name || b.customer_name_snapshot || '';
         bel('bmCustomerPhone').value = b.customer_phone || b.customer_phone_snapshot || '';
@@ -4854,6 +4935,8 @@
   }
 
   async function saveBooking() {
+    const lockSt = _bmLock[activeBmSuffix];
+    if (lockSt && lockSt.readonly) { toast('別の端末が編集中のため保存できません（読み取り専用）', 'err'); return; }
     const isBreak = bel('bmBreakMode')?.checked;
     let totalMin;
     let phone = '', name = '';
@@ -5000,7 +5083,7 @@
     try {
       const editId = getEditingBookingId();
       if (editId) {
-        await apiPost('/bookings.php?action=update', { id: editId, ...payload });
+        await apiPost('/bookings.php?action=update', { id: editId, expected_updated_at: _bmLoadedUpdatedAt[activeBmSuffix] || '', ...payload });
         toast('✓ 更新しました', 'ok');
       } else {
         await apiPost('/bookings.php?action=create', payload);

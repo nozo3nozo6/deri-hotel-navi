@@ -67,6 +67,21 @@ function stripContactForStaff(array $rows): array {
     return $rows;
 }
 
+/**
+ * 追い越しチェック（楽観ロック）。開いた時点の updated_at を添えて保存し、
+ * その間に別端末が保存していたら 409 で止める。expected が空なら何もしない
+ * （新規作成・タイムラインの連続操作）。updated_at は ON UPDATE current_timestamp() で自動更新。
+ */
+function opsGuardNotOvertaken(PDO $pdo, int $id, string $expected): void {
+    if ($expected === '' || $id <= 0) return;
+    $q = $pdo->prepare("SELECT updated_at FROM ops_bookings WHERE id = ?");
+    $q->execute([$id]);
+    $cur = (string)$q->fetchColumn();
+    if ($cur !== '' && $cur !== $expected) {
+        errorResponse('他の端末で更新されています。開き直して最新の内容を確認してください。', 409);
+    }
+}
+
 if ($action === 'range' && $method === 'GET') {
     $from = $_GET['from'] ?? date('Y-m-d');
     $to   = $_GET['to']   ?? date('Y-m-d', strtotime('+10 days'));
@@ -325,6 +340,7 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
     }
 
     if ($isUpdate) {
+        opsGuardNotOvertaken($pdo, $id, trim((string)($b['expected_updated_at'] ?? '')));
         $cols = []; $vals = [];
         foreach ($fields as $k => $v) { $cols[] = "$k = ?"; $vals[] = $v; }
         $vals[] = $id;
@@ -417,6 +433,7 @@ if ($action === 'shift-time' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     $delta = (int)($b['delta'] ?? 0);
     if ($id <= 0 || $delta === 0 || abs($delta) > 240) errorResponse('invalid params', 400);
+    opsGuardNotOvertaken($pdo, $id, trim((string)($b['expected_updated_at'] ?? '')));
     $st = $pdo->prepare("SELECT start_time, end_time, pickup_go_time, pickup_back_time FROM ops_bookings WHERE id = ?");
     $st->execute([$id]);
     $row = $st->fetch();
@@ -498,6 +515,7 @@ if ($action === 'set-service' && $method === 'POST') {
     if ($role === 'driver') errorResponse('forbidden', 403);
     $b  = readJsonBody();
     $id = (int)($b['id'] ?? 0);
+    opsGuardNotOvertaken($pdo, $id, trim((string)($b['expected_updated_at'] ?? '')));
     $state = $b['state'] ?? '';
     if ($id <= 0 || !in_array($state, ['pending', 'started', 'ended'], true)) {
         errorResponse('invalid params', 400);
@@ -539,6 +557,50 @@ if ($action === 'set-service' && $method === 'POST') {
         }
     }
     jsonResponse(['ok' => true, 'state' => $state]);
+}
+
+// =================================================================
+// 編集ロック: 予約編集モーダルを開いている端末を記録し、別端末の同時編集を防ぐ。
+// クライアントは開いている間 30秒ごとに lock を呼び直して延長し、
+// 90秒延長が来なければ自動失効（ブラウザを閉じた・スリープ等でロックが残らないように）。
+// すり抜けた場合の砦は opsGuardNotOvertaken（保存時の追い越しチェック）。
+// =================================================================
+if ($action === 'lock' && $method === 'POST') {
+    $b = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    $token = substr(trim((string)($b['token'] ?? '')), 0, 64);
+    if ($id <= 0 || $token === '') errorResponse('invalid params', 400);
+    $pdo->prepare("DELETE FROM ops_booking_locks WHERE renewed_at < NOW() - INTERVAL 90 SECOND")->execute();
+    $cur = $pdo->prepare("SELECT session_token, locked_by_name FROM ops_booking_locks WHERE booking_id = ?");
+    $cur->execute([$id]);
+    $row = $cur->fetch();
+    if ($row && $row['session_token'] !== $token) {
+        jsonResponse(['ok' => false, 'locked_by' => $row['locked_by_name'] ?: '別の端末']);
+    }
+    $uid = currentUserId();
+    $name = '';
+    if ($uid > 0) {
+        $nq = $pdo->prepare("SELECT display_name FROM ops_admin_users WHERE id = ?");
+        $nq->execute([$uid]);
+        $name = (string)$nq->fetchColumn();
+    }
+    $pdo->prepare("INSERT INTO ops_booking_locks (booking_id, session_token, locked_by, locked_by_name, locked_at, renewed_at)
+                   VALUES (?, ?, ?, ?, NOW(), NOW())
+                   ON DUPLICATE KEY UPDATE session_token = VALUES(session_token), locked_by = VALUES(locked_by),
+                                           locked_by_name = VALUES(locked_by_name), renewed_at = NOW()")
+        ->execute([$id, $token, $uid ?: null, $name ?: null]);
+    jsonResponse(['ok' => true]);
+}
+
+if ($action === 'unlock' && $method === 'POST') {
+    // モーダルを閉じたとき・ページを離れるとき（sendBeacon）に呼ばれる
+    $b = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    $token = substr(trim((string)($b['token'] ?? '')), 0, 64);
+    if ($id > 0 && $token !== '') {
+        $pdo->prepare("DELETE FROM ops_booking_locks WHERE booking_id = ? AND session_token = ?")->execute([$id, $token]);
+    }
+    jsonResponse(['ok' => true]);
 }
 
 if ($action === 'delete' && $method === 'POST') {
