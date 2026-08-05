@@ -511,7 +511,7 @@
       const q = encodeURIComponent(addressForMap(full));
       const txt = [
         `${h.name}${bel('bmRoom')?.value ? ' ' + bel('bmRoom').value + '号室' : ''}`,
-        `住所: ${addressForMap(full)}`,
+        `住所: ${full}`,
         h.tel ? `TEL: ${h.tel}` : '',
         h.entry_method ? `入室: ${entryMethodLabel(h.entry_method)}` : '',
         h.guide_note ? `案内: ${h.guide_note}` : '',
@@ -2467,15 +2467,15 @@
     if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString() + (transN ? '（交通費込）' : ''));
     if (place) lines.push('場所: ' + place);
     // 住所: ホテルは hotel_address、自宅は snapshot 内の住所部を使う。地図アプリで開けるようリンク付き
-    // 地図リンクが別の場所を指さないよう、住所は番地まで（ビル名・部屋番号は「場所」行に出る）
-    let mapAddr = addressForMap(b.hotel_address || '');
-    if (!mapAddr) {
+    // 読む行はフル住所（現地でビル名が手がかりになる）。地図リンクだけ番地までにする
+    let fullAddr = composeAddress('', (b.display_city || b.hotel_city || ''), (b.hotel_address || ''));
+    if (!fullAddr) {
       const snap = b.hotel_name_snapshot || '';
-      if (snap.startsWith(HOME_PREFIX)) mapAddr = addressForMap(snap.slice(HOME_PREFIX.length));
+      if (snap.startsWith(HOME_PREFIX)) fullAddr = snap.slice(HOME_PREFIX.length).trim();
     }
-    if (mapAddr) {
-      lines.push('住所: ' + mapAddr);
-      const q = encodeURIComponent(mapAddr);
+    if (fullAddr) {
+      lines.push('住所: ' + fullAddr);
+      const q = encodeURIComponent(addressForMap(fullAddr));
       lines.push('Googleマップ: https://www.google.com/maps/search/?api=1&query=' + q);
       lines.push('Yahoo!マップ: https://map.yahoo.co.jp/search?q=' + q);
       lines.push('Appleマップ: https://maps.apple.com/?q=' + q);
