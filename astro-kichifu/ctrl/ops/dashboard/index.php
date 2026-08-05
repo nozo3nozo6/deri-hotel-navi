@@ -860,7 +860,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   body[data-theme="soft"] .tl-head{background:#2d4a52;}
   body[data-theme="soft"] .tl-head.staff-col{background:#243d44;}
   body[data-theme="soft"] .tl-head .tl-hour.next-day{color:#a9ccd1;}
-  body[data-theme="soft"] .tl-staff{background:#fdfdfc;color:#23292b;}
+  body[data-theme="soft"] .tl-staff:not(.tl-staff-unassigned){background:#fdfdfc;color:#23292b;}
+  /* 未割当行は目印なので色は残す（彩度だけ落とす） */
+  body[data-theme="soft"] .tl-staff-unassigned{background:linear-gradient(135deg,#f7f3ec,#fdf1e8);color:#c06a44;}
   body[data-theme="soft"] .tl-toolbar{background:#fbfbfa;}
   /* 今この時間の列（本日を見ているときだけ付く）。画面で唯一の高彩度 */
   .tl-head.is-now{background:#c4503f;position:relative;}
