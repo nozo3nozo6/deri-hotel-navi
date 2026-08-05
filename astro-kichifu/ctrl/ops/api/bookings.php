@@ -337,7 +337,9 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         $newId = (int)$pdo->lastInsertId();
         // 顧客の利用履歴も更新
         if ($fields['customer_id'] && $fields['status'] === 'completed') {
-            $pdo->prepare("UPDATE ops_customers SET visit_count = visit_count + 1, last_visit_at = NOW(),
+            // visit_count は「旧システムの実績」専用。OPSの予約は customers.php 側で毎回数えるので、
+            // ここで足すと二重に数えられる（未に戻して始め直すたびに増えていた）。時刻だけ更新する。
+            $pdo->prepare("UPDATE ops_customers SET last_visit_at = NOW(),
                            first_visit_at = COALESCE(first_visit_at, NOW()) WHERE id = ?")
                 ->execute([$fields['customer_id']]);
         }
@@ -457,7 +459,9 @@ if ($action === 'set-status' && $method === 'POST') {
     if ($status === 'completed' && !$wasCompleted) {
         $cid = (int)($prevRow['customer_id'] ?? 0);
         if ($cid > 0) {
-            $pdo->prepare("UPDATE ops_customers SET visit_count = visit_count + 1, last_visit_at = NOW(),
+            // visit_count は「旧システムの実績」専用。OPSの予約は customers.php 側で毎回数えるので、
+            // ここで足すと二重に数えられる（未に戻して始め直すたびに増えていた）。時刻だけ更新する。
+            $pdo->prepare("UPDATE ops_customers SET last_visit_at = NOW(),
                            first_visit_at = COALESCE(first_visit_at, NOW()) WHERE id = ?")->execute([$cid]);
         }
     }
@@ -528,7 +532,9 @@ if ($action === 'set-service' && $method === 'POST') {
     if (in_array($state, ['started', 'ended'], true) && !$wasCompleted) {
         $cid = (int)($cur['customer_id'] ?? 0);
         if ($cid > 0) {
-            $pdo->prepare("UPDATE ops_customers SET visit_count = visit_count + 1, last_visit_at = NOW(),
+            // visit_count は「旧システムの実績」専用。OPSの予約は customers.php 側で毎回数えるので、
+            // ここで足すと二重に数えられる（未に戻して始め直すたびに増えていた）。時刻だけ更新する。
+            $pdo->prepare("UPDATE ops_customers SET last_visit_at = NOW(),
                            first_visit_at = COALESCE(first_visit_at, NOW()) WHERE id = ?")->execute([$cid]);
         }
     }

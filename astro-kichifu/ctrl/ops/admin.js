@@ -4010,7 +4010,10 @@
       withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
       // 新規/会員と「過去に会ったキャスト」を特典判定用に保持
       {
-        const doneRows = (d.bookings || []).filter(x => !['cancelled', 'no_show', 'inquiry'].includes(String(x.status)));
+        // いま編集中の予約は「その人の過去の利用」ではないので除く（1回目なのに2回目と出ていた）
+        const doneRows = (d.bookings || [])
+          .filter(x => Number(x.id) !== Number(excludeBookingId))
+          .filter(x => !['cancelled', 'no_show', 'inquiry'].includes(String(x.status)));
         const names = new Set();
         doneRows.forEach(x => { const n = String(x.staff_name || '').trim(); if (n) names.add(n); });
         (d.legacy_visits || []).forEach(x => { const n = String(x.cast_name || '').trim(); if (n) names.add(n); });
@@ -4035,9 +4038,12 @@
       } else if (lastLegacy) {
         lastLabel = `（前回 ${mdDate(lastLegacy.visit_at)} ${lastLegacy.course_name || ''}${lastLegacy.cast_name ? ' ' + lastLegacy.cast_name : ''}）`;
       }
+      // ご利用回数 = 旧システムの実績 ＋ OPSの予約（いま編集中のぶんは除く／キャンセル等は数えない）
+      const opsDone = rows.filter(b => !['cancelled', 'no_show', 'inquiry'].includes(String(b.status))).length;
+      const usedCount = visitCount + opsDone;
       const histCount = rows.length + legacy.length;
-      summaryEl.textContent = visitCount > 0
-        ? `リピーター・ご利用${visitCount}回` + lastLabel
+      summaryEl.textContent = usedCount > 0
+        ? `リピーター・ご利用${usedCount}回` + lastLabel
         : (notesTrim ? '📝 お客様メモあり' : (histCount > 0 ? `予約履歴 ${histCount}件` : '新規のお客様'));
       let curNotes = notesTrim;
       const noteHtml = renderCustomerNote(curNotes);
