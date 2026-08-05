@@ -433,7 +433,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   /* ＋10分は自動で入るが、媒体を見ていないお客様など外したい場合があるのでチェックで操作できる */
-  .bm-plus10{display:inline-flex;align-items:center;gap:.3rem;margin-left:.6rem;padding:.15rem .55rem;
+  .bm-plus10{display:inline-flex;justify-self:start;align-items:center;gap:.35rem;margin-top:.1rem;padding:.3rem .75rem;
     border:1.5px solid #9ad8bb;background:#f2fbf6;border-radius:999px;cursor:pointer;
     font-size:.76rem;font-weight:700;color:#0d7a4a;vertical-align:middle;}
   .bm-plus10 input{width:14px;height:14px;margin:0;cursor:pointer;accent-color:#0d7a4a;}
@@ -464,10 +464,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
   /* 担当キャストの注意事項（ヘッダー・小さく1行） */
-  .bm-cast-alert-head{flex:1;min-width:0;margin-right:.6rem;padding:.28rem .6rem;border-radius:8px;
-    background:#fff4f4;border:1px solid #e7a6a0;color:#a5342f;font-size:.74rem;font-weight:700;
-    line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  @media(max-width:640px){.bm-cast-alert-head{font-size:.68rem;padding:.22rem .45rem;}}
+  .bm-cast-alert-head{padding:.3rem 1.6rem;background:#fff4f4;border-bottom:1px solid #f0cbc7;
+    color:#a5342f;font-size:.76rem;font-weight:700;line-height:1.5;}
+  @media(max-width:640px){.bm-cast-alert-head{font-size:.72rem;padding:.28rem 1.1rem;}}
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
   .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
   .bm-hf-warn.is-block{color:#a5342f;}
@@ -1790,11 +1789,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <option value="break">💤 休憩・私用</option>
         </select>
       </div>
-      <!-- 担当キャストの注意事項。ヘッダーに小さく出す（本文の一等地は使わない） -->
-      <div id="bmCastAlert" class="bm-cast-alert-head" style="display:none;"></div>
       <button class="modal-minimize" title="最小化(フッターへ)" data-minimize="bookingModal">＿</button>
       <button class="modal-close" data-close="bookingModal">×</button>
     </div>
+    <!-- 担当キャストの注意事項。ヘッダーの下に細い帯で（担当欄を細らせない） -->
+    <div id="bmCastAlert" class="bm-cast-alert-head" style="display:none;"></div>
     <div class="modal-body">
       <!-- NG登録の警告。電話番号で顧客が当たった瞬間・担当を選んだ瞬間に一番上で目に入る位置 -->
       <div id="bmNgAlert" class="bm-ng-alert"></div>
@@ -1926,7 +1925,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
       <!-- 流入媒体・予約経路。どれかにチェックが入ると＋10分(無料)（アドミの特典。既定は未チェック） -->
       <div class="field bm-media-field" id="bmMediaField">
-        <label class="bm-media-label">媒体<label id="bmPlus10Field" class="bm-plus10" title="お店が初めてのお客様の媒体経由、またはLINE予約に＋10分。手で外せます"><input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span></label></label>
+        <label class="bm-media-label">媒体</label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>
@@ -1936,6 +1935,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
           <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
         </div>
+        <label id="bmPlus10Field" class="bm-plus10" title="お店が初めてのお客様の媒体経由、またはLINE予約に＋10分。手で外せます">
+          <input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span>
+        </label>
       </div>
       <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
         <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">

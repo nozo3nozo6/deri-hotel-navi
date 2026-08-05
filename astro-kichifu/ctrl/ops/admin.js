@@ -138,7 +138,8 @@
         bmPlus10Touched['-2'] = true;
         withBmSuffix('-2', () => { updateEndTime(); applyBonusCoursePrice(); updateBookingTotal(); });
       } else if (e.target.name === 'bmMedia-2') {
-        withBmSuffix('-2', () => { updateEndTime(); syncDealBadges(); });
+        bmPlus10Touched['-2'] = false;
+        withBmSuffix('-2', () => { syncDealBadges(); updateEndTime(); });
       } else if (e.target.id === 'bmExtCount-2') {
         withBmSuffix('-2', () => { updateEndTime(); updateBookingTotal(); });
       } else if (e.target.id === 'bmCourse-2' || e.target.id === 'bmCourse2-2') {
@@ -9028,7 +9029,12 @@
       updateEndTime(); applyBonusCoursePrice(); updateBookingTotal();
     });
     // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
-    mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); applyBonusCoursePrice(); syncDealBadges(); }));
+    // 媒体を変えたら＋10分の自動判定をやり直す（LINEを入れたら自動で付く）。
+    // そのあと手で外せば、次に媒体を触るまではその指定が残る
+    mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => {
+      bmPlus10Touched[activeBmSuffix] = false;
+      syncDealBadges(); updateEndTime(); applyBonusCoursePrice();
+    }));
     // 延長回数: 終了時刻と合計を再計算
     const extSel = bel('bmExtCount');
     if (extSel) extSel.addEventListener('change', () => { updateEndTime(); updateBookingTotal(); });
