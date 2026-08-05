@@ -4440,7 +4440,10 @@
         const hfCbEdit = bel('bmHotelFirst');
         {
           const baseVal = parseInt(String(basePrice || b.price || '0').replace(/[^\d]/g, ''), 10) || 0;
-          const impliedDisc = baseVal + (Number(b.late_fee) || 0) + extAmount() - (Number(b.price) || 0);
+          // 保存 price = コース + 深夜 + 延長 + 指名料 + オプション − 各割引。
+          // 指名料とオプションを足し忘れると割引額を取り違える（指名料が0円の間は表面化しなかった）
+          const impliedDisc = baseVal + (Number(b.late_fee) || 0) + extAmount()
+            + nominationFeeFor(b.nomination_type) + optionTotal() - (Number(b.price) || 0);
           const expectDisc = Math.floor(baseVal * CAMPAIGN_RATE);
           // 逆算した割引額から キャンペーン(10%) / 初回ホテル(−5,500) / 両方 を推定
           const isCamp = !!opt && expectDisc > 0 && Math.abs(impliedDisc - expectDisc) <= 2;
