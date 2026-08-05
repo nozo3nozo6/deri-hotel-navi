@@ -30,7 +30,7 @@ function bookingSelectColumns(): string {
         b.id, b.customer_id, b.customer_name_snapshot, b.customer_phone_snapshot, b.customer_email_snapshot,
         b.assigned_admin_id, b.driver_id, b.back_driver_id, b.hotel_id, b.hotel_name_snapshot, b.display_city, b.room_number,
         b.booking_date, b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.pickup_go_mailed_at, b.pickup_back_mailed_at,
-        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.card_paid_at, b.counseling, b.media, b.extension_count,
+        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.hotel_price_applied, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.card_paid_at, b.counseling, b.media, b.extension_count,
         b.status, b.service_ended_at, b.source, b.notes, b.cancellation_reason, b.cancellation_reason_type, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.shop_settled, b.shop_settled_by, b.settle_kind, b.reward_paid_at, b.reward_paid_by, b.counseling_sheet_url, b.held_by, b.created_at, b.updated_at,
         c.name AS customer_name, c.phone AS customer_phone, c.notes AS customer_notes,
         h.name AS hotel_name, h.city AS hotel_city, h.address AS hotel_address,
@@ -293,6 +293,9 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'nomination_fee'          => max(0, (int)($b['nomination_fee'] ?? 0)),
         'menu_items'              => trim($b['menu_items'] ?? '') ?: null,
         'price'                   => isset($b['price']) && $b['price'] !== '' ? (int)$b['price'] : null,
+        // ホテル料金を適用したか。開いたときの復元とキャスト報酬の判定に使う
+        // （金額からの逆算は指名料・オプションが増えるたびに壊れるので、事実として持つ）
+        'hotel_price_applied'     => !empty($b['hotel_price_applied']) ? 1 : 0,
         'late_fee'                => max(0, (int)($b['late_fee'] ?? 0)),
         'transport_fee'           => isset($b['transport_fee']) && $b['transport_fee'] !== '' ? (int)$b['transport_fee'] : null,
         'payment_method'          => in_array($b['payment_method'] ?? '', ['cash','credit','bank'], true) ? $b['payment_method'] : null,

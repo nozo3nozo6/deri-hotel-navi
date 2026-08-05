@@ -562,6 +562,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bk-row .ht-old{font-size:.62rem;color:var(--ink-soft);border:1px solid var(--gray);border-radius:4px;padding:0 .25rem;margin-left:.25rem;vertical-align:middle;}
   .bk-row.is-legacy{background:#fbfbfa;cursor:default;}
   .bk-row.is-legacy .bd-date,.bk-row.is-legacy .bi-name{color:var(--ink-soft);}
+  /* 手入力のホテル名: 普段は畳む。中身が入っているときは開いた状態で復元する */
+  .bm-freehotel{margin-bottom:1.1rem;}
+  .bm-freehotel > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;
+    color:var(--sea);font-size:.82rem;font-weight:600;padding:.25rem 0;user-select:none;}
+  .bm-freehotel > summary::-webkit-details-marker{display:none;}
+  .bm-freehotel > summary::before{content:'＋';font-weight:700;}
+  .bm-freehotel[open] > summary::before{content:'−';}
+  .bm-freehotel[open] > summary{margin-bottom:.4rem;}
+  .bm-freehotel > summary:hover{text-decoration:underline;}
   /* ホテル選択: ネイティブ矢印の予約幅が広くスマホでホテル名が見切れるため、細いカスタム矢印に置き換えて文字幅を確保 */
   .modal-body select.bm-tight-select{-webkit-appearance:none!important;appearance:none!important;padding-right:1.6rem!important;background-color:var(--white)!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23173842' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right .55rem center!important;background-size:10px 6px!important;}
   .bm-date::-webkit-datetime-edit-text:first-child{display:none;}
@@ -1702,11 +1711,20 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field"><label for="coPrice">コース料金（円）</label><input type="text" inputmode="numeric" data-money placeholder="18000"id="coPrice"></div>
         <div class="field"><label for="coCastReward">キャスト報酬（円）</label><input type="text" inputmode="numeric" data-money placeholder="9000"id="coCastReward"></div>
       </div>
-      <div class="field">
-        <label for="coHotelPrice">ホテル料金（円）</label>
-        <input type="text" inputmode="numeric" data-money placeholder="11000" id="coHotelPrice">
-        <span class="hint">予約で「🏨 ホテル料金」にチェックを入れたとき、この料金に置き換えます（空欄なら通常料金から一律 −¥5,500）</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+        <div class="field">
+          <label for="coHotelPrice">ホテル料金（円）</label>
+          <input type="text" inputmode="numeric" data-money placeholder="11000" id="coHotelPrice">
+        </div>
+        <div class="field">
+          <label for="coHotelCastReward">ホテル料金のキャスト報酬（円）</label>
+          <input type="text" inputmode="numeric" data-money placeholder="7000" id="coHotelCastReward">
+        </div>
       </div>
+      <p class="hint" style="margin:-.7rem 0 1.1rem;">
+        予約で「🏨 ホテル料金」にチェックを入れたとき、料金と報酬をこの値に置き換えます。
+        料金が空欄なら通常料金から一律 −¥5,500、報酬が空欄なら通常の報酬をそのまま使います。
+      </p>
       <div class="field">
         <label for="coBonusCourse">＋10分のときのコース</label>
         <select id="coBonusCourse"><option value="">なし（終了時刻を10分のばすだけ）</option></select>
@@ -1869,10 +1887,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
         <!-- 選んだホテルの住所・TEL・入室方法と地図リンク（ドライバーへの案内用） -->
         <div id="bmHotelAddr" class="bm-hotel-addr" style="display:none;"></div>
-        <div class="field">
-          <label for="bmHotelName">ホテル名(手入力 / リストにない場合)</label>
+        <!-- リストに無いホテルを打つのは稀なので、普段は畳んでおく（クリックで開く） -->
+        <details class="field bm-freehotel" id="bmHotelNameWrap">
+          <summary>ホテル名を手入力（リストにない場合）</summary>
           <input type="text" id="bmHotelName" placeholder="例: ○○ホテル立川店">
-        </div>
+        </details>
       </div>
 
       <!-- 自宅・オフィス -->

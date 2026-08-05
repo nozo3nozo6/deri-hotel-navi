@@ -844,6 +844,13 @@
       + '</span>';
   }
 
+  /** 手入力のホテル名: 中身があるときだけ開いておく（普段は畳む） */
+  function syncFreeHotelWrap() {
+    const wrap = bel('bmHotelNameWrap');
+    if (!wrap) return;
+    wrap.open = !!(bel('bmHotelName')?.value || '').trim();
+  }
+
   /** 市区町村の固定表示を更新する */
   function renderAddrCity() {
     const el = document.getElementById('emAddrCity');
@@ -2593,19 +2600,31 @@
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
   // コース名から、マスタに登録された「キャスト報酬」を引く（admi 方式）。
   // 未登録・見つからない場合は null を返し、歩合率(%)方式にフォールバックする。
-  function courseCastReward(courseName) {
+  function courseCastReward(courseName, hotelApplied) {
     if (!courseName) return null;
-    const c = (coursesCache || []).find(x => String(x.name) === String(courseName));
-    if (!c || c.cast_reward == null || c.cast_reward === '') return null;
-    return parseInt(c.cast_reward, 10) || 0;
+    // 保存名は「60分コース ＋10分」「90分コース ＋ 90分コース」の形になりうるので、
+    // ＋10分を落として ＋ で分解し、各コースの報酬を足す
+    const cname = String(courseName).replace(/\s*＋\s*10\s*分\s*$/, '').trim();
+    const parts = cname.split(/\s*[＋+]\s*/).map(x => x.trim()).filter(Boolean);
+    let total = null;
+    parts.forEach(nm => {
+      const c = (coursesCache || []).find(x => String(x.name) === nm);
+      if (!c) return;
+      // ホテル料金を適用した予約は、そのコースの「ホテル料金のキャスト報酬」を使う（未設定なら通常）
+      let v = null;
+      if (hotelApplied && c.hotel_cast_reward != null && c.hotel_cast_reward !== '') v = parseInt(c.hotel_cast_reward, 10) || 0;
+      else if (c.cast_reward != null && c.cast_reward !== '') v = parseInt(c.cast_reward, 10) || 0;
+      if (v !== null) total = (total || 0) + v;
+    });
+    return total;
   }
-  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName) {
+  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName, hotelApplied) {
     if (rewardOverride !== undefined && rewardOverride !== null && rewardOverride !== '') return parseInt(rewardOverride, 10) || 0;
     const lateT = backDrv ? 0 : late;
     let transT = 0;
     if (trans > 0) { const perLeg = Math.max(Math.floor(trans / 2), 850); let shop = (goDrv ? perLeg : 0) + (backDrv ? perLeg : 0); if (shop > trans) shop = trans; transT = trans - shop; }
     // admi: マスタのコース別「キャスト報酬」を優先。無ければ従来の歩合率(%)で算出
-    const fixed = courseCastReward(courseName);
+    const fixed = courseCastReward(courseName, hotelApplied);
     const base = (fixed !== null) ? fixed : Math.floor((price - late) * rate / 100);
     return base + lateT + transT - cardFeeSelf(price, trans, pm);
   }
@@ -3252,7 +3271,7 @@
         dayJobs.forEach(b => {
           const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
           const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-          const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+          const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name, Number(b.hotel_price_applied) === 1) : 0;
           if (hasRate) heldReward += rw;
           if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
         });
@@ -4382,6 +4401,7 @@
           bel('bmHotelId').value = b.hotel_id || '';
           renderBmHotelAddr();
           bel('bmHotelName').value = b.hotel_id ? '' : (b.hotel_name_snapshot || '');
+          syncFreeHotelWrap();   // 手入力で登録された予約は開いた状態で出す
           bel('bmRoom').value = b.room_number || '';
         } else if (locType === 'home') {
           const [rAddr, rBld] = splitAddressBuilding((b.hotel_name_snapshot || '').replace(HOME_PREFIX, ''));
@@ -4455,7 +4475,9 @@
           const isHf = Math.abs(impliedDisc - hfDelta) <= 2;
           const isBoth = !!opt && expectDisc > 0 && Math.abs(impliedDisc - (expectDisc + hfDelta)) <= 2;
           if (campCbEdit) campCbEdit.checked = isBoth || (isCamp && !isHf);
-          if (hfCbEdit) hfCbEdit.checked = isBoth || (isHf && !isCamp);
+          // 保存されたフラグが立っていればそれが正。立っていない旧データだけ金額から逆算する
+          const savedHf = Number(b.hotel_price_applied) === 1;
+          if (hfCbEdit) hfCbEdit.checked = savedHf || (isBoth || (isHf && !isCamp));
           syncCampaignFieldVisibility();
           // 保存済みの状態を自動判定で動かさない
           bmHotelFirstTouched[activeBmSuffix] = true;
@@ -4505,6 +4527,7 @@
       syncCampaignFieldVisibility();
       const hfCbNew = bel('bmHotelFirst');
       if (hfCbNew) hfCbNew.checked = false;
+      syncFreeHotelWrap();
       const p10New = bel('bmPlus10');
       if (p10New) p10New.checked = false;
       bmPlus10Touched[activeBmSuffix] = false;
@@ -5152,6 +5175,7 @@
       display_city: displayCity,
       room_number: roomNumber,
       assigned_admin_id: bel('bmAdminId').value || null,
+      hotel_price_applied: (!isBreak && bel('bmHotelFirst')?.checked) ? 1 : 0,
       status: (isBreak || bel('bmStatus').value === 'break') ? 'confirmed' : bel('bmStatus').value,
       cancellation_reason_type: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelType').value : null,
       cancellation_reason: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelReason').value : null,
@@ -6012,7 +6036,7 @@
           <div class="bi-meta">
             ${c.price ? `<span>💴 ¥${Number(c.price).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">料金未設定</span>'}
             ${c.cast_reward != null && c.cast_reward !== '' ? `<span>💰 報酬 ¥${Number(c.cast_reward).toLocaleString()}</span>` : '<span style="color:var(--ink-soft);">報酬未設定</span>'}
-            ${c.hotel_price != null && c.hotel_price !== '' ? `<span style="color:#28468a;">🏨 ホテル ¥${Number(c.hotel_price).toLocaleString()}</span>` : ''}
+            ${c.hotel_price != null && c.hotel_price !== '' ? `<span style="color:#28468a;">🏨 ホテル ¥${Number(c.hotel_price).toLocaleString()}${c.hotel_cast_reward != null && c.hotel_cast_reward !== '' ? ` / 報酬 ¥${Number(c.hotel_cast_reward).toLocaleString()}` : ''}</span>` : ''}
             ${bonus ? `<span style="color:#0d7a4a;">＋10分時: ${escapeHtml(bonus.name)}</span>` : ''}
             <span>表示順: ${c.sort_order}</span>
           </div>
@@ -6103,6 +6127,7 @@
       setMoney('coPrice', c.price || '');
       setMoney('coCastReward', c.cast_reward != null ? c.cast_reward : '');
       setMoney('coHotelPrice', c.hotel_price != null ? c.hotel_price : '');
+      setMoney('coHotelCastReward', c.hotel_cast_reward != null ? c.hotel_cast_reward : '');
       populateBonusCourseSelect(id, c.bonus_course_id);
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
     } else {
@@ -6111,6 +6136,7 @@
       setMoney('coPrice', '');
       setMoney('coCastReward', '');
       setMoney('coHotelPrice', '');
+      setMoney('coHotelCastReward', '');
       populateBonusCourseSelect(0, '');
       document.getElementById('coIsActive').checked = true;
     }
@@ -6128,6 +6154,7 @@
       cast_reward: moneyVal('coCastReward'),
       bonus_course_id: document.getElementById('coBonusCourse')?.value || '',
       hotel_price: moneyVal('coHotelPrice'),
+      hotel_cast_reward: moneyVal('coHotelCastReward'),
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
     };
     // 新規時のみ末尾の sort_order をセット（既存編集時は変えない、ドラッグで並び替え）
