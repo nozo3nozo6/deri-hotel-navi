@@ -145,22 +145,21 @@
       } else if (e.target.id === 'bmCity-2') {
         withBmSuffix('-2', () => { populateHotelSelect(e.target.value); onCityChangedForHome(); });
       } else if (e.target.id === 'bmHotelId-2') {
-        withBmSuffix('-2', () => applyHotelTransportFee(e.target.value));
+        withBmSuffix('-2', () => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
       } else if (e.target.id === 'bmStatus-2') {
         document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
-        withBmSuffix('-2', updateBookingTotal);
+        withBmSuffix('-2', () => {
+          const cb = bel('bmBreakMode');
+          const want = e.target.value === 'break';
+          if (cb && cb.checked !== want) { cb.checked = want; setBreakMode(want); }
+          updateBookingTotal();
+        });
       } else if (e.target.id === 'bmAdminId-2') {
         withBmSuffix('-2', () => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); syncDealBadges(); });
       } else if (e.target.id === 'bmCancelType-2' || e.target.id === 'bmCancelFee-2') {
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.name === 'bmLocType-2') {
         withBmSuffix('-2', () => { switchLocSection(e.target.value); syncDealBadges(); });
-      } else if (e.target.id === 'bmStatus-2') {
-        withBmSuffix('-2', () => {
-          const cb = bel('bmBreakMode');
-          const want = e.target.value === 'break';
-          if (cb && cb.checked !== want) { cb.checked = want; setBreakMode(want); }
-        });
       } else if (e.target.id === 'bmBreakMode-2') {
         withBmSuffix('-2', () => setBreakMode(e.target.checked));
       } else if (e.target.id === 'bmBreakDur-2') {
@@ -464,6 +463,50 @@
   }
 
   // ホテルselectを市区町村で絞り込み
+  /**
+   * 選んだホテルの住所・TEL・入室方法と地図リンクを出す。
+   * ドライバーへ送る文面にも同じ内容が入るので、ここで先に確認できるようにする。
+   */
+  function renderBmHotelAddr() {
+    const box = bel('bmHotelAddr');
+    if (!box) return;
+    const hid = bel('bmHotelId')?.value;
+    const h = hid ? (hotelsForSelect || []).find(x => Number(x.id) === Number(hid)) : null;
+    if (!h) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    const city = (h.city || '').trim();
+    const addr = (h.address || '').trim();
+    const full = (city + addr).trim();
+    const pref = (typeof prefOfCity === 'function' ? prefOfCity(city) : '') || '';
+    const bits = [];
+    if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(pref + full)}</span>`
+      + mapLinksHtml(pref, full, { small: true })
+      + `<button type="button" class="bha-copy" data-bha-copy>コピー</button></div>`);
+    const sub = [];
+    if (h.tel) sub.push(`TEL ${escapeHtml(h.tel)}`);
+    if (h.nearest_station) sub.push(`${escapeHtml(h.nearest_station)}駅`);
+    if (h.entry_method) sub.push(`入室 ${escapeHtml(entryMethodLabel(h.entry_method))}`);
+    if (sub.length) bits.push(`<div class="bha-line"><span class="bha-l">情報</span><span>${sub.join('　')}</span></div>`);
+    if (h.guide_note) bits.push(`<div class="bha-line"><span class="bha-l">案内</span><span>${escapeHtml(h.guide_note)}</span></div>`);
+    if (!bits.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.innerHTML = bits.join('');
+    box.style.display = 'block';
+    const cp = box.querySelector('[data-bha-copy]');
+    if (cp) cp.addEventListener('click', () => {
+      const q = encodeURIComponent(pref + full);
+      const txt = [
+        `${h.name}${bel('bmRoom')?.value ? ' ' + bel('bmRoom').value + '号室' : ''}`,
+        `住所: ${pref}${full}`,
+        h.tel ? `TEL: ${h.tel}` : '',
+        h.entry_method ? `入室: ${entryMethodLabel(h.entry_method)}` : '',
+        h.guide_note ? `案内: ${h.guide_note}` : '',
+        `Googleマップ: https://www.google.com/maps/search/?api=1&query=${q}`,
+        `Yahoo!マップ: https://map.yahoo.co.jp/search?q=${q}`,
+        `Appleマップ: https://maps.apple.com/?q=${q}`,
+      ].filter(Boolean).join('\n');
+      copyTextToClipboard(txt).then(ok => toast(ok ? '✓ ホテル情報をコピーしました' : 'コピーに失敗しました', ok ? 'ok' : 'err'));
+    });
+  }
+
   function populateHotelSelect(filterCity) {
     const sel = bel('bmHotelId');
     const selectedValue = sel.value;
@@ -473,6 +516,7 @@
     sel.innerHTML = '<option value="">— 選択しない（下に手入力） —</option>' +
       list.map(h => `<option value="${h.id}">${escapeHtml(h.name)}${h.nearest_station ? ' (' + escapeHtml(h.nearest_station) + '駅)' : ''}</option>`).join('');
     if (selectedValue && list.some(h => Number(h.id) === Number(selectedValue))) sel.value = selectedValue;
+    renderBmHotelAddr();
   }
 
   // ===== 金額入力のカンマ表示（OPS共通ルール 2026-08-03）=====
@@ -2206,6 +2250,7 @@
       const q = encodeURIComponent(mapAddr);
       lines.push('Googleマップ: https://www.google.com/maps/search/?api=1&query=' + q);
       lines.push('Yahoo!マップ: https://map.yahoo.co.jp/search?q=' + q);
+      lines.push('Appleマップ: https://maps.apple.com/?q=' + q);
     }
     const driverId = Number(isGo ? (b.driver_id || 0) : (b.back_driver_id || 0));
     const subject = `${isGo ? '【送迎 行き（送り）】' : '【送迎 帰り（迎え）】'}${cust}様 ${fmtBizDate(b)}${st ? ' ' + st : ''}`;
@@ -4100,6 +4145,7 @@
             populateHotelSelect('');
           }
           bel('bmHotelId').value = b.hotel_id || '';
+          renderBmHotelAddr();
           bel('bmHotelName').value = b.hotel_id ? '' : (b.hotel_name_snapshot || '');
           bel('bmRoom').value = b.room_number || '';
         } else if (locType === 'home') {
@@ -8655,7 +8701,7 @@
     // 市区町村変更 → ホテル絞り込み
     bel('bmCity').addEventListener('change', e => { populateHotelSelect(e.target.value); onCityChangedForHome(); });
     // ホテル変更 → そのホテルの交通費を初期値に入れる
-    bel('bmHotelId')?.addEventListener('change', e => applyHotelTransportFee(e.target.value));
+    bel('bmHotelId')?.addEventListener('change', e => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
     // ステータス変更 → キャンセル理由欄の表示制御＋合計注記更新
     bel('bmStatus').addEventListener('change', e => {
       bel('bmCancelWrap').style.display = e.target.value === 'cancelled' ? 'block' : 'none';

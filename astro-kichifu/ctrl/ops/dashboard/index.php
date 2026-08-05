@@ -447,6 +447,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* 予約モーダル: 選んだホテルの住所・TEL・入室方法＋地図リンク */
+  .bm-hotel-addr{margin:-.5rem 0 1.1rem;padding:.55rem .75rem;background:var(--foam);border:1px solid var(--aqua-light,#bfe3e8);
+    border-radius:8px;font-size:.82rem;line-height:1.6;color:var(--ink);}
+  .bm-hotel-addr .bha-line{display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;}
+  .bm-hotel-addr .bha-l{color:var(--ink-soft);font-weight:600;font-size:.76rem;flex-shrink:0;}
+  .bm-hotel-addr .bha-copy{margin-left:auto;border:1.5px solid var(--sea);background:#fff;color:var(--sea);
+    border-radius:7px;padding:.2rem .6rem;font-size:.76rem;font-weight:700;cursor:pointer;}
+  .bm-hotel-addr .bha-copy:hover{background:var(--sea);color:#fff;}
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
   .cu-loc{margin-top:.2rem;font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cu-last{margin-left:.6rem;font-size:.74rem;color:var(--ink-soft);}
@@ -1803,6 +1811,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
             <input type="text" id="bmRoom" placeholder="例: 305">
           </div>
         </div>
+        <!-- 選んだホテルの住所・TEL・入室方法と地図リンク（ドライバーへの案内用） -->
+        <div id="bmHotelAddr" class="bm-hotel-addr" style="display:none;"></div>
         <div class="field">
           <label for="bmHotelName">ホテル名(手入力 / リストにない場合)</label>
           <input type="text" id="bmHotelName" placeholder="例: ○○ホテル立川店">
