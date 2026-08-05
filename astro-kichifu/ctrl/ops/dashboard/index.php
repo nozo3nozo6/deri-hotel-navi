@@ -1822,7 +1822,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <option value="reserved">予約</option>
           <option value="pre_reserved">事前予約</option>
           <option value="on_hold">保留</option>
-          <option value="completed">接客完了</option>
+          <!-- ここは「予約そのものの状態」だけを扱う。接客が終わったかはタイムラインの「終」で分かるので
+               接客完了は選択肢に出さない。接客完了の予約は「予約」と表示し、保存時に元の状態へ戻す（admin.js bmKeptStatus） -->
           <option value="cancelled">キャンセル</option>
           <option value="no_show">無連絡</option>
           <option value="break">💤 休憩・私用</option>
@@ -2035,29 +2036,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
       <div class="field" id="bmOptionField">
-        <label class="bm-media-label">オプション<span class="bm-media-note" id="bmOptionSum"></span></label>
+        <label class="bm-media-label">OP<span class="bm-media-note" id="bmOptionSum"></span></label>
         <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
       </div>
 
-      <div class="field" id="bmExtField"><label>延長（追加加算）</label>
-        <div style="display:flex;align-items:center;gap:.5rem;">
-          <span style="font-weight:600;color:var(--ink);white-space:nowrap;">延長30分 ✕</span>
-          <select id="bmExtCount" style="max-width:6em;">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-          </select>
-          <span class="hint" id="bmExtInfo" style="margin-top:0;"></span>
-        </div>
-      </div>
+      <!-- 延長（追加加算）は廃止（店長指定 2026-08-06）。時間を延ばすときは組み合わせコースで選ぶ。
+           JS側は要素が無ければ延長0回として扱う（extCount / extAmount） -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" data-money id="bmPrice"></div>
         <div class="field"><label for="bmTransport">交通費(円)</label>

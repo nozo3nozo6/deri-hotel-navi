@@ -1141,7 +1141,8 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
 
 // =================================================================
 // 現金まとめサマリー
-//   uncollected: completed & shop_settled=0 — 誰が預り金を持っているか
+//   uncollected: 予約として成立しているぶん（キャンセル/無連絡/問合せ以外）& shop_settled=0
+//   — 誰が預り金を持っているか。売上・集金と同じ条件（店長指定 2026-08-06「予約で売上計上」）
 // =================================================================
 if ($action === 'cash-summary' && $method === 'GET') {
     requireOwnerOrManager();
@@ -1155,7 +1156,9 @@ if ($action === 'cash-summary' && $method === 'GET') {
         FROM ops_bookings b
         LEFT JOIN ops_admin_users u ON u.id = b.assigned_admin_id
         LEFT JOIN ops_admin_users h ON h.id = b.held_by
-        WHERE b.status = 'completed' AND b.shop_settled = 0
+        WHERE (b.status NOT IN ('cancelled','no_show','inquiry')
+               OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))
+          AND b.shop_settled = 0
           AND (b.payment_method IS NULL OR b.payment_method NOT IN ('credit','card','bank'))" . ylkaExcludeBreakSql('b') . "
         ORDER BY b.booking_date DESC, b.start_time DESC
     ")->fetchAll(PDO::FETCH_ASSOC);

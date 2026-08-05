@@ -2092,6 +2092,10 @@
   // 特別料金チェックを手で触ったら自動では動かさない
   const bmHotelFirstTouched = { '': false, '-2': false };
   const bmPlus10Touched = { '': false, '-2': false };   // ＋10分を手で触ったら自動判定を止める
+  // 予約編集のステータスは「予約そのものの状態」だけを扱う。接客の進み具合（始／終）は
+  // タイムラインのバッジで見るので選択肢に出さない（店長指定 2026-08-06）。
+  // ただし接客完了の予約を開いて保存したときに、その状態を消してしまわないよう元の値を覚えておく。
+  const bmKeptStatus = { '': null, '-2': null };
   // 開始時刻を手で触ったか。触っていなければ日付の変更に追従して既定値を入れ直す
   const bmStartTouched = { '': false, '-2': false };
 
@@ -4594,7 +4598,9 @@
         bel('bmAdminId').value = b.assigned_admin_id || '';
         renderCastAlert();
         // 送迎ドライバーはタイムラインで操作（モーダルでは扱わない）
-        bel('bmStatus').value = b.status || 'reserved';
+        // 接客完了は予約としては「予約」。終わっているかはタイムラインの「終」で分かる
+        bmKeptStatus[activeBmSuffix] = b.status === 'completed' ? 'completed' : null;
+        bel('bmStatus').value = b.status === 'completed' ? 'reserved' : (b.status || 'reserved');
         bel('bmCancelType').value = b.cancellation_reason_type || 'customer';
         bel('bmCancelReason').value = b.cancellation_reason || '';
         setMoney('bmCancelFee', b.cancellation_fee ?? '');
@@ -4752,6 +4758,7 @@
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
       setBmMedia('');   // 媒体・予約経路は既定で未チェック
       // デフォルト: 担当キャスト未割当なら「問合せ」、既に割当済み(タイムラインの担当行から作成)なら「予約」
+      bmKeptStatus[activeBmSuffix] = null;
       bel('bmStatus').value = prefill?.adminId ? 'reserved' : 'inquiry';
       bel('bmSub').textContent = '';
     }
@@ -5355,7 +5362,13 @@
       room_number: roomNumber,
       assigned_admin_id: bel('bmAdminId').value || null,
       hotel_price_applied: (!isBreak && bel('bmHotelFirst')?.checked) ? 1 : 0,
-      status: (isBreak || bel('bmStatus').value === 'break') ? 'confirmed' : bel('bmStatus').value,
+      // 接客完了の予約を「予約」と表示しているだけなので、そのまま保存されたら元に戻す
+      //（キャンセル等に変えたときはその値を使う）
+      status: (isBreak || bel('bmStatus').value === 'break')
+        ? 'confirmed'
+        : (bmKeptStatus[activeBmSuffix] === 'completed' && bel('bmStatus').value === 'reserved'
+            ? 'completed'
+            : bel('bmStatus').value),
       cancellation_reason_type: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelType').value : null,
       cancellation_reason: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelReason').value : null,
       cancellation_fee: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelFee') : null,
