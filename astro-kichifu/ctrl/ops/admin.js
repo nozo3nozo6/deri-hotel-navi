@@ -127,7 +127,7 @@
         withBmSuffix('-2', applyDefaultStartOnDateChange);
       } else if (e.target.id === 'bmHotelFirst-2') {
         bmHotelFirstTouched['-2'] = true;
-        withBmSuffix('-2', () => { populateCourseSelect(); updateBookingTotal(); });
+        withBmSuffix('-2', () => { populateCourseSelect(); applyCoursePrice(); updateBookingTotal(); });
       } else if (e.target.id === 'bmCampaign-2') {
         withBmSuffix('-2', () => { updateBookingTotal(); syncCampaignFieldVisibility(); });
       } else if (e.target.id === 'bmLateNight-2' || e.target.id === 'bmStampReward-2' || e.target.id === 'bmTransport-2') {
@@ -872,7 +872,7 @@
     // チップ再描画（hidden value を読み取って active 状態を反映）
     populateEntryMethodSelect();
     document.getElementById('emRoomRec').value = hotel.room_type_recommended || '';
-    // 出張費（セレクト）: ''=未設定、0=無料、数値=その金額
+    // 交通費（セレクト）: ''=未設定、0=無料、数値=その金額
     {
       const feeSel = document.getElementById('emTransportFee');
       const tf = hotel.transport_fee;
@@ -1635,8 +1635,13 @@
     const opt = sel && sel.options[sel.selectedIndex];
     if (!sel || !sel.value || !opt) return null;
     const b = bonusCourse();
-    const p1 = b ? (b.price != null ? parseInt(b.price, 10) || 0 : null)
-                 : (opt.dataset && opt.dataset.price !== '' ? parseInt(opt.dataset.price, 10) || 0 : null);
+    const row = firstCourseRow();
+    const useHotel = !!(bel('bmHotelFirst')?.checked && !bel('bmBreakMode')?.checked
+      && row && row.hotel_price != null && row.hotel_price !== '');
+    let p1;
+    if (useHotel) p1 = parseInt(row.hotel_price, 10) || 0;
+    else if (b) p1 = b.price != null ? parseInt(b.price, 10) || 0 : null;
+    else p1 = (opt.dataset && opt.dataset.price !== '') ? parseInt(opt.dataset.price, 10) || 0 : null;
     if (p1 === null) return null;
     const o2 = course2Opt();
     const p2 = o2 && o2.dataset && o2.dataset.price !== '' ? parseInt(o2.dataset.price, 10) || 0 : 0;
@@ -1840,8 +1845,16 @@
     }
     return HOTEL_FIRST_DISCOUNT;
   }
+  /**
+   * ホテル料金の「引き」。コース管理でホテル料金を設定してあるコースは、コース料金欄を
+   * その金額に置き換える方式なので引きは0（二重に引かない）。
+   * 未設定のコースだけ従来どおり一律5,500円を引く。
+   */
   function hotelFirstDiscount() {
-    return (bel('bmHotelFirst')?.checked && !bel('bmBreakMode')?.checked) ? hotelDeltaForCurrentCourse() : 0;
+    if (!bel('bmHotelFirst')?.checked || bel('bmBreakMode')?.checked) return 0;
+    const row = firstCourseRow();
+    if (row && row.hotel_price != null && row.hotel_price !== '') return 0;
+    return HOTEL_FIRST_DISCOUNT;
   }
 
   /** 新規/会員・訪問先・担当・媒体が変わるたびに特典まわりを同期する */
@@ -1867,7 +1880,7 @@
     const cb = bel('bmHotelFirst');
     if (cb && !bmHotelFirstTouched[activeBmSuffix] && !hfLock) {
       const next = hotelFirstEligible();
-      if (cb.checked !== next) { cb.checked = next; populateCourseSelect(); }
+      if (cb.checked !== next) { cb.checked = next; populateCourseSelect(); applyCoursePrice(); }
     }
     // ヒント: なぜ対象/対象外か
     const hint = bel('bmHotelFirstHint');
@@ -1923,11 +1936,14 @@
     if (!fs) return;
     const mainEl = bel('bmSummaryMain');
     const totalEl = bel('bmSummaryTotal');
-    const setOut = (txt, totalTxt) => {
-      if (mainEl) mainEl.textContent = txt;
+    // 1本の長い行だと読みづらいので、意味の固まりごとに行を分けて出す（店長要望 2026-08-05）
+    const setOut = (rows, totalTxt) => {
+      const list = Array.isArray(rows) ? rows.filter(Boolean) : (rows ? [rows] : []);
+      if (mainEl) mainEl.innerHTML = list.map(r => `<span class="fs-row">${r}</span>`).join('');
       if (totalEl) totalEl.textContent = totalTxt || '';
-      fs.classList.toggle('show', !!(txt || totalTxt));
+      fs.classList.toggle('show', !!(list.length || totalTxt));
     };
+    const lbl = (t) => `<span class="fs-l">${t}</span>`;
     const sh = bel('bmStartHour')?.value;
     const sm = bel('bmStartMin')?.value;
     if (sh === undefined || sh === '' || sh === null) { setOut(''); return; }
@@ -1945,10 +1961,8 @@
     const isBreak = bel('bmBreakMode')?.checked;
     const segs = [];
     if (isBreak) {
-      segs.push(`💤 休憩 ${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim());
       const city = (bel('bmBreakCity')?.value || '').trim();
-      if (city) segs.push(`📍 ${city}`);
-      setOut(segs.join('　'));
+      setOut([`💤 休憩　${escapeHtml(`${dateDisp} ${timeDisp}`.trim())}`, city ? `📍 ${escapeHtml(city)}` : '']);
       return;
     }
     const courseSel = bel('bmCourse');
@@ -1957,10 +1971,7 @@
     const course = opt ? bmCourseName(opt) : '';
     const nomSel = bel('bmNomination');
     const nom = nomSel?.value ? (nomSel.options[nomSel.selectedIndex]?.text || '') : '';
-    let head = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
-    const meta = [course, nom].filter(Boolean).join('・');
-    if (meta) head += `（${meta}）`;
-    segs.push(head);
+    const timeLine = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value
       || document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
     let place = '';
@@ -1975,15 +1986,10 @@
     } else {
       place = (bel('bmOtherLoc')?.value || '').trim().split('\n')[0];
     }
-    if (place) segs.push(`📍 ${place}`);
-    // お客様・担当キャスト・媒体（2段になってもいいので省略しない＝店長要望 2026-08-05）
     const custName = (bel('bmCustomerName')?.value || '').trim();
-    if (custName) segs.push(`👤 ${custName} 様`);
     const adminSel = bel('bmAdminId');
     const castName = adminSel?.value ? (adminSel.options[adminSel.selectedIndex]?.text || '').replace(/^担当\s*/, '') : '';
-    if (castName && castName !== '—') segs.push(`💁 ${castName}`);
     const med = mediaLabels(getBmMedia().join(','));
-    if (med) segs.push(`📣 ${med}`);
     // 料金内訳。0円の項目は出さない（未入力のうちは「¥0・¥0・¥0」が並んで邪魔なため）
     const coursePrice = parseInt(String(bel('bmPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const nomFee = nominationFeeFor(bel('bmNomination')?.value);
@@ -2004,17 +2010,31 @@
     if (optFee) parts.push(`オプ¥${optFee.toLocaleString()}（${optionText() || ''}）`.replace('（）', ''));
     if (extFee) parts.push(`延長×${extCount()}¥${extFee.toLocaleString()}`);
     if (lateFee) parts.push(`深夜¥${lateFee.toLocaleString()}`);
-    if (transportFee) parts.push(`出張¥${transportFee.toLocaleString()}`);
+    if (transportFee) parts.push(`交通¥${transportFee.toLocaleString()}`);
     if (hfOff) parts.push(`ホテル−¥${hfOff.toLocaleString()}`);
     if (campOff) parts.push(`キャンペーン−¥${campOff.toLocaleString()}`);
     if (stampOff) parts.push(`スタンプ−¥${stampOff.toLocaleString()}`);
     if (cardFee) parts.push(`カード+¥${cardFee.toLocaleString()}`);
-    if (parts.length) segs.push(parts.join('・'));
     const pay = bel('bmPayment')?.value;
-    if (pay) segs.push(pay === 'credit' ? '💳 カード' : '💴 現金');
     const total = (bel('bmTotal')?.textContent || '').trim();
     const totalNum = parseInt(total.replace(/[^\d]/g, ''), 10) || 0;
-    setOut(segs.join('　'), totalNum > 0 ? total : '');
+    // 1行目=日時とコース / 2行目=お客様・キャスト・場所・媒体 / 3行目=料金の内訳
+    const row1 = [
+      timeLine ? `<b>${escapeHtml(timeLine)}</b>` : '',
+      course ? `${lbl('コース')}${escapeHtml(course)}` : '',
+      nom ? `${lbl('指名')}${escapeHtml(nom)}` : '',
+    ].filter(Boolean).join('<i class="fs-sep"></i>');
+    const row2 = [
+      custName ? `${lbl('お客様')}${escapeHtml(custName)} 様` : '',
+      castName && castName !== '—' ? `${lbl('キャスト')}${escapeHtml(castName)}` : '',
+      place ? `${lbl('場所')}${escapeHtml(place)}` : '',
+      med ? `${lbl('媒体')}${escapeHtml(med)}` : '',
+    ].filter(Boolean).join('<i class="fs-sep"></i>');
+    const row3 = [
+      parts.length ? parts.map(x => escapeHtml(x)).join('<i class="fs-sep"></i>') : '',
+      pay ? (pay === 'credit' ? '💳 カード' : '💴 現金') : '',
+    ].filter(Boolean).join('<i class="fs-sep"></i>');
+    setOut([row1, row2, row3], totalNum > 0 ? total : '');
   }
   /** 日付を変えたとき、時刻を手で触っていなければ既定値（今日=現在時刻／別日=10:00）に合わせる */
   function applyDefaultStartOnDateChange() {
@@ -2245,7 +2265,7 @@
     if (courseBits) lines.push('コース: ' + courseBits);
     const priceN = parseInt(b.price, 10) || 0;
     const transN = parseInt(b.transport_fee, 10) || 0;
-    if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString() + (transN ? '（出張費込）' : ''));
+    if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString() + (transN ? '（交通費込）' : ''));
     if (place) lines.push('場所: ' + place);
     // 住所: ホテルは hotel_address、自宅は snapshot 内の住所部を使う。地図アプリで開けるようリンク付き
     let mapAddr = b.hotel_address || '';
@@ -2384,7 +2404,7 @@
     if (pm !== 'credit' && pm !== 'card') return 0;
     return Math.floor(((price || 0) + (trans || 0)) * (CARD_FEE_RATE / 2) / 100);
   }
-  // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、出張費は片道max(½,850)を送迎分だけ店取り
+  // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、交通費は片道max(½,850)を送迎分だけ店取り
   // pm(payment_method) がクレジットのときはカード手数料のキャスト負担分を差し引く
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
   // コース名から、マスタに登録された「キャスト報酬」を引く（admi 方式）。
@@ -3801,7 +3821,7 @@
     if (f) f.style.display = (cb && cb.checked) ? 'flex' : 'none';
   }
   // スタンプ特典: コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。
-  // 特典時間 ≥ コース時間なら全額無料 (円未満切り捨て)。延長・出張費・深夜料金は対象外。
+  // 特典時間 ≥ コース時間なら全額無料 (円未満切り捨て)。延長・交通費・深夜料金は対象外。
   function stampDiscount(postCampaignCourse) {
     const rewardMin = parseInt(bel('bmStampReward')?.value || '0', 10) || 0;
     if (!rewardMin || postCampaignCourse <= 0) return 0;
@@ -4178,7 +4198,7 @@
         const courseOptEl = opt ? [...bel('bmCourse').options].find(o => o.value === String(courseMin)) : null;
         const basePrice = courseOptEl?.dataset?.price;
         setMoney('bmPrice', basePrice ? basePrice : (b.price || ''));
-        // 出張費セレクトに無い金額(旧・手入力データ等)なら選択肢として一時追加してから復元する
+        // 交通費セレクトに無い金額(旧・手入力データ等)なら選択肢として一時追加してから復元する
         {
           const transSel = bel('bmTransport');
           const transVal = String(b.transport_fee || 0);
@@ -4229,6 +4249,8 @@
           syncCampaignFieldVisibility();
           // 保存済みの状態を自動判定で動かさない
           bmHotelFirstTouched[activeBmSuffix] = true;
+          populateCourseSelect();
+          if (hfCbEdit?.checked) applyCoursePrice();   // ホテル料金ならコース料金欄もその金額に
         }
         updateBookingTotal();
         bel('bmSub').textContent = b.customer_name || b.customer_name_snapshot || '';
@@ -4626,7 +4648,7 @@
     const transNum = (b.transport_fee != null && b.transport_fee !== '') ? Number(b.transport_fee) : 0;
     const discNum = Number(b.discount) || 0;
     if (priceNum) lines.push(`■ 料金：¥${priceNum.toLocaleString()}（税込）`);
-    if (transNum > 0) lines.push(`■ 出張費：¥${transNum.toLocaleString()}`);
+    if (transNum > 0) lines.push(`■ 交通費：¥${transNum.toLocaleString()}`);
     if (discNum > 0) lines.push(`■ キャンペーン割引：-¥${discNum.toLocaleString()}`);
     const stampNum = Number(b.stamp_discount) || 0;
     if (stampNum > 0) lines.push(`■ スタンプ特典：-¥${stampNum.toLocaleString()}`);
@@ -4918,7 +4940,7 @@
       cancellation_reward: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelReward') : null,
       price: (() => {
         if (isBreak) return 0;
-        // 預り金の手入力があれば自動計算をまるごと上書き（出張費込み・微調整用）
+        // 預り金の手入力があれば自動計算をまるごと上書き（交通費込み・微調整用）
         const depositRaw = String(bel('bmDepositOverride')?.value || '').replace(/[^\d]/g, '');
         if (depositRaw !== '') return parseInt(depositRaw, 10) || 0;
         // コース料金欄が空ならコースマスタの基本料金で補完
@@ -4931,7 +4953,7 @@
         return base + late + extAmount() + nomFee + optionTotal() - disc - stamp - hotelFirstDiscount();  // コース + 深夜 + 延長 + 指名料 + オプション − 各割引
       })(),
       late_fee: isBreak ? 0 : (bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0),
-      // 預り金の手入力があれば出張費込みで上書きするため、出張費は0にして二重計上を防ぐ
+      // 預り金の手入力があれば交通費込みで上書きするため、交通費は0にして二重計上を防ぐ
       transport_fee: isBreak ? 0 : (String(bel('bmDepositOverride')?.value || '').replace(/[^\d]/g, '') !== '' ? 0 : bel('bmTransport').value),
       extension_count: isBreak ? 0 : extCount(),
       payment_method: isBreak ? null : (bel('bmPayment')?.value || null),
@@ -6816,7 +6838,7 @@
         ${subhead('料金内訳')}
         ${row('コース料金', yen(bd.course), { sub:true })}
         ${row('深夜料金', yen(bd.late), { sub:true })}
-        ${row('出張費', yen(bd.transport), { sub:true })}
+        ${row('交通費', yen(bd.transport), { sub:true })}
         ${bd.card ? row(`カード手数料（お客様上乗せ ${CARD_SURCHARGE_RATE}%）`, yen(bd.card), { sub:true }) : ''}
         ${subhead('支払方法')}
         ${row('現金', yen(s.cash), { sub:true })}
@@ -7429,7 +7451,7 @@
                 <td style="padding:.3rem .4rem;text-align:right;">${yen(x.base)}</td>
                 <td style="padding:.3rem .4rem;text-align:right;font-weight:700;color:var(--coral);">${yen(x.reward)}</td>
               </tr>
-              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_fee || 0)}×${parseFloat(t.rate)}% = ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 出張費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}${x.card_fee_self > 0 ? ` <span style="color:var(--sea);">− 💳カード手数料 ${yen(x.card_fee_self)}</span>` : ''}</td></tr>`).join('')}
+              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_fee || 0)}×${parseFloat(t.rate)}% = ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 交通費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}${x.card_fee_self > 0 ? ` <span style="color:var(--sea);">− 💳カード手数料 ${yen(x.card_fee_self)}</span>` : ''}</td></tr>`).join('')}
             </tbody>
           </table>
         </div>
@@ -8669,7 +8691,7 @@
     if (campCb) campCb.addEventListener('change', () => { updateBookingTotal(); syncCampaignFieldVisibility(); });
     // 初回ホテル特別料金: 手で触ったら自動チェックを止める
     const hfCb = bel('bmHotelFirst');
-    if (hfCb) hfCb.addEventListener('change', () => { bmHotelFirstTouched[activeBmSuffix] = true; populateCourseSelect(); updateBookingTotal(); });
+    if (hfCb) hfCb.addEventListener('change', () => { bmHotelFirstTouched[activeBmSuffix] = true; populateCourseSelect(); applyCoursePrice(); updateBookingTotal(); });
     // スタンプ特典: 合計を再計算
     const stampSel = bel('bmStampReward');
     if (stampSel) stampSel.addEventListener('change', updateBookingTotal);
@@ -8683,7 +8705,7 @@
     // 指名方法: 指名料を合計へ反映
     const nomSel = bel('bmNomination');
     if (nomSel) nomSel.addEventListener('change', () => { updateBookingTotal(); syncDealBadges(); });
-    // 料金の手入力・出張費の選択で合計再計算
+    // 料金の手入力・交通費の選択で合計再計算
     bel('bmPrice').addEventListener('input', updateBookingTotal);
     bel('bmTransport').addEventListener('change', updateBookingTotal);
     bel('bmDepositOverride')?.addEventListener('input', updateBookingTotal);

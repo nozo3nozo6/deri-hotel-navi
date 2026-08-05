@@ -326,8 +326,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-summary-bar.show{display:flex;}
   /* 省略せず全部出す（2段以上になってもよい＝店長要望 2026-08-05）。
      伸びすぎたときだけ帯の中でスクロールさせる */
-  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:.86rem;font-weight:600;color:var(--ink);line-height:1.45;
-    white-space:normal;overflow-wrap:anywhere;max-height:4.4em;overflow-y:auto;}
+  .bm-summary-bar .bm-sum-main{flex:1;min-width:0;font-size:.84rem;font-weight:600;color:var(--ink);line-height:1.5;
+    white-space:normal;overflow-wrap:anywhere;max-height:5.4em;overflow-y:auto;}
+  /* 意味の固まりごとに改行（1行目=日時とコース / 2行目=お客様・場所 / 3行目=料金） */
+  .bm-summary-bar .fs-row{display:block;}
+  .bm-summary-bar .fs-row + .fs-row{color:var(--ink-soft);font-weight:500;font-size:.8rem;}
+  .bm-summary-bar .fs-l{color:var(--ink-soft);font-weight:600;font-size:.72rem;margin-right:.2em;}
+  .bm-summary-bar .fs-row + .fs-row .fs-l{opacity:.8;}
+  .bm-summary-bar .fs-sep{display:inline-block;width:1px;height:.85em;background:var(--gray);margin:0 .55em;vertical-align:-.1em;}
   .bm-summary-bar .bm-sum-total{flex-shrink:0;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.2rem;color:var(--deep);white-space:nowrap;}
   .modal.draggable.dragging{transition:none;}
   .modal.draggable.dragging .modal-header{cursor:grabbing;}
@@ -1927,7 +1933,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" data-money id="bmPrice"></div>
-        <div class="field"><label for="bmTransport">出張費(円)</label>
+        <div class="field"><label for="bmTransport">交通費(円)</label>
           <select id="bmTransport"><option value="0">なし(¥0)</option><option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option></select>
         </div>
       </div>
@@ -1980,7 +1986,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field"><label for="bmDepositOverride">預り金(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" data-money id="bmDepositOverride" placeholder="空欄なら自動計算"></div>
         <div class="field"><label for="bmRewardOverride">報酬(手入力・自動計算を上書き)</label><input type="text" inputmode="numeric" data-money id="bmRewardOverride" placeholder="空欄なら自動計算"></div>
       </div>
-      <!-- 合計 (コース料金 + 出張費 + 深夜料金) — 自動計算。預り金の手入力があればそちらを優先表示 -->
+      <!-- 合計 (コース料金 + 交通費 + 深夜料金) — 自動計算。預り金の手入力があればそちらを優先表示 -->
       <div id="bmTotalRow" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.7rem 1rem;background:linear-gradient(135deg,var(--foam),#fff);border:1.5px solid var(--aqua-light);border-radius:10px;margin-top:-.2rem;">
         <span style="font-weight:700;color:var(--deep);font-size:.95rem;">💰 合計</span>
         <span id="bmTotal" style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.2rem;color:var(--deep);">¥0</span>
@@ -2297,7 +2303,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 <div class="view" id="view-stations">
   <div style="padding:.2rem 0 .6rem;"><button class="btn-secondary" id="stationBackToMaster" type="button" style="padding:.45rem .9rem;font-size:.88rem;">← マスタへ戻る</button></div>
   <div class="tl-toolbar">
-    <div class="tl-title">🚉 駅マスタ・基本交通費<span class="tl-sub">立川から往復運賃の安い順。各駅の基本交通費を設定（出張費シミュレーション用）</span></div>
+    <div class="tl-title">🚉 駅マスタ・基本交通費<span class="tl-sub">立川から往復運賃の安い順。各駅の基本交通費を設定（交通費シミュレーション用）</span></div>
   </div>
   <div class="staff-main" style="max-width:900px;">
     <div id="stationList" class="bk-list"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
@@ -2474,7 +2480,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
     <!-- 👤 報酬 -->
     <div class="ac-panel" id="ac-payroll" style="display:none;">
-      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = <b>マスタでコースごとに設定したキャスト報酬</b> ＋ 出張費（自走分）＋ 深夜料金。<b>出張費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
+      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = <b>マスタでコースごとに設定したキャスト報酬</b> ＋ 交通費（自走分）＋ 深夜料金。<b>交通費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
       <div id="payTotal" style="margin-bottom:1rem;"></div>
       <div id="payResult"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
     </div>
@@ -2798,14 +2804,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <input type="hidden" id="emRoomRec">
       <div class="field">
-        <label for="emTransportFee">出張費</label>
-        <!-- 予約モーダルの出張費と同じ550円刻み。無料(0円)と未設定(表示なし)は別物 -->
+        <label for="emTransportFee">交通費</label>
+        <!-- 予約モーダルの交通費と同じ550円刻み。無料(0円)と未設定(表示なし)は別物 -->
         <select id="emTransportFee">
           <option value="">— 未設定（表示なし）—</option>
           <option value="0">🆓 無料（¥0）</option>
           <option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
         </select>
-        <span class="hint">ホテルを選ぶと、予約画面の出張費にこの金額が初期値で入ります</span>
+        <span class="hint">ホテルを選ぶと、予約画面の交通費にこの金額が初期値で入ります</span>
       </div>
       <div class="field">
         <label for="emGuide">公開ガイドノート</label>
