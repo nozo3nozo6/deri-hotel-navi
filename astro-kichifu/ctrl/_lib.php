@@ -71,6 +71,9 @@ function render_flash(): string {
 function current_admin(): ?array {
     static $cache = false;            // リクエスト内メモ化（DB照会の重複回避）
     if ($cache !== false) return $cache;
+    // セッションが無い/切れた場合でも、信頼済み端末のCookieがあれば黙って復帰する
+    // （毎回のログイン操作を無くすための仕組み。端末の登録は初回のみ・認証コード必須）
+    if (empty($_SESSION['admin_id'])) { try_device_login(); }
     if (empty($_SESSION['admin_id'])) return $cache = null;
     if ((time() - ($_SESSION['admin_seen'] ?? 0)) > SESSION_TTL) { logout_session(); return $cache = null; }
     $_SESSION['admin_seen'] = time();
@@ -96,12 +99,117 @@ function login_session(array $a): void {
     $_SESSION['shop_id']    = $a['shop_id'] ? (int)$a['shop_id'] : null;
 }
 function logout_session(): void {
+    // 端末Cookieは消さない。消すと「ログアウト＝端末登録の取り消し」になってしまい、
+    // 次回また認証コードが必要になる。端末の解除は端末一覧から明示的に行う
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $p = session_get_cookie_params();
         setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'] ?? '', $p['secure'], $p['httponly']);
     }
     session_destroy();
+}
+
+// ==========================================================================
+// 信頼済み端末（Trusted device）
+//   初回だけ パスワード＋メールの6桁コード で端末を登録し、以後その端末は
+//   ログイン操作なしで入れる。パスワードが漏れても未登録の端末からは入れない。
+//   端末Cookieは httponly / SameSite=Lax（管理画面のみで使うため外部からは送られない）。
+//   有効期限は90日で、使うたびに延長（スライディング）。紛失時は端末一覧から解除。
+// ==========================================================================
+const DEVICE_COOKIE = 'KICHIFU_DEVICE';
+const DEVICE_TTL_DAYS = 90;
+
+function device_cookie_set(string $token): void {
+    $https = (($_SERVER['HTTPS'] ?? '') === 'on') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    setcookie(DEVICE_COOKIE, $token, [
+        'expires'  => time() + DEVICE_TTL_DAYS * 86400,
+        'path'     => '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+        'secure'   => $https,
+    ]);
+}
+function device_cookie_clear(): void {
+    setcookie(DEVICE_COOKIE, '', ['expires' => time() - 42000, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
+}
+function device_ua(): string { return substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255); }
+function device_ip(): string { return substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45); }
+
+/** いまの端末Cookieに対応する有効な端末行（無ければ null） */
+function current_device(?int $adminId = null): ?array {
+    $tok = (string)($_COOKIE[DEVICE_COOKIE] ?? '');
+    if ($tok === '') return null;
+    $sql = 'SELECT * FROM admin_trusted_devices WHERE token_hash = ? AND expires_at > NOW()';
+    $args = [hash('sha256', $tok)];
+    if ($adminId !== null) { $sql .= ' AND admin_id = ?'; $args[] = $adminId; }
+    try {
+        $st = db()->prepare($sql);
+        $st->execute($args);
+        return $st->fetch() ?: null;
+    } catch (Throwable $e) { return null; }   // テーブル未作成でも従来どおり動かす
+}
+
+/** 端末Cookieだけでセッションを復帰させる（ログイン操作なし）
+ *  明示的にログアウトした端末は auto_disabled_at が立っていて自動復帰しない
+ *  （そうしないとログアウトしてもすぐ入り直ってしまい、ログアウトが機能しない）。
+ *  次回パスワードで入り直せば解除される（信頼済みなので認証コードは不要）。 */
+function try_device_login(): bool {
+    $d = current_device();
+    if (!$d || !empty($d['auto_disabled_at'])) return false;
+    try {
+        $st = db()->prepare('SELECT id, shop_id, username, display_name, role, password_hash FROM admins WHERE id = ?');
+        $st->execute([$d['admin_id']]);
+        $a = $st->fetch();
+        if (!$a) return false;
+        login_session($a);
+        device_touch((int)$d['id']);
+        return true;
+    } catch (Throwable $e) { return false; }
+}
+
+/** 使うたびに最終利用と有効期限を更新（スライディング90日）。自動復帰の停止も解除する */
+function device_touch(int $deviceId): void {
+    try {
+        db()->prepare('UPDATE admin_trusted_devices
+                          SET last_used_at = NOW(), last_ip = ?, user_agent = ?, auto_disabled_at = NULL,
+                              expires_at = DATE_ADD(NOW(), INTERVAL ' . DEVICE_TTL_DAYS . ' DAY)
+                        WHERE id = ?')->execute([device_ip(), device_ua(), $deviceId]);
+    } catch (Throwable $e) {}
+}
+
+/** ログアウト時: この端末の自動復帰だけ止める（端末の登録自体は残す） */
+function device_pause_auto_login(): void {
+    $tok = (string)($_COOKIE[DEVICE_COOKIE] ?? '');
+    if ($tok === '') return;
+    try {
+        db()->prepare('UPDATE admin_trusted_devices SET auto_disabled_at = NOW() WHERE token_hash = ?')
+            ->execute([hash('sha256', $tok)]);
+    } catch (Throwable $e) {}
+}
+
+/** 端末を登録して Cookie を発行する。戻り値は端末ID */
+function device_register(int $adminId, string $name): int {
+    $token = bin2hex(random_bytes(32));
+    $name  = trim($name) !== '' ? mb_substr(trim($name), 0, 60) : '名称未設定の端末';
+    db()->prepare('INSERT INTO admin_trusted_devices
+                     (admin_id, token_hash, device_name, created_at, last_used_at, expires_at, last_ip, user_agent)
+                   VALUES (?, ?, ?, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL ' . DEVICE_TTL_DAYS . ' DAY), ?, ?)')
+        ->execute([$adminId, hash('sha256', $token), $name, device_ip(), device_ua()]);
+    device_cookie_set($token);
+    return (int)db()->lastInsertId();
+}
+
+/** 認証コードのメール送信。宛先が無ければ false（画面側で案内する） */
+function device_send_code(array $admin, string $code): bool {
+    $to = trim((string)($admin['email'] ?? ''));
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+    $subject = '=?UTF-8?B?' . base64_encode('【' . ADMIN_NAME . '】ログイン認証コード') . '?=';
+    $body = "管理画面にログインするための認証コードです。\n\n"
+          . "    {$code}\n\n"
+          . "10分間有効です。心当たりがない場合はこのメールを破棄し、パスワードを変更してください。\n"
+          . '接続元IP: ' . device_ip() . "\n";
+    $headers = "From: no-reply@admi2888.com\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    return (bool)@mail($to, $subject, $body, $headers);
 }
 
 // ---- 店舗（マルチテナント）----
@@ -168,6 +276,7 @@ function nav_groups(): array {
             ['mail-users.php', '👥', '会員'],
         ],
         '管理' => [
+            ['devices.php', '🔒', '端末とログイン'],
             ['contacts.php', '📨', 'お問い合わせ'],
             ['courses.php', '💴', '料金'],
             ['configs.php', '⚙️', '設定'],
