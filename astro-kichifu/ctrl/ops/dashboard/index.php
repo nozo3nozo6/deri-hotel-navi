@@ -470,13 +470,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .modal-header{--hdr-pl:1.6rem;--hdr-pr:1.6rem;}
   .modal.draggable .modal-header{--hdr-pr:5rem;}
   .bm-cast-alert-head{flex:0 0 calc(100% + var(--hdr-pl) + var(--hdr-pr));order:9;
-    margin:.3rem calc(-1 * var(--hdr-pr)) -.5rem calc(-1 * var(--hdr-pl));
+    margin:1px calc(-1 * var(--hdr-pr)) -.5rem calc(-1 * var(--hdr-pl));
     padding:.32rem var(--hdr-pr) .32rem var(--hdr-pl);
     background:#fff4f4;border-top:1px solid #f3d3cf;color:#a5342f;font-size:.76rem;font-weight:700;line-height:1.5;}
   @media(max-width:640px){
     .modal-header{--hdr-pl:1.1rem;--hdr-pr:1.1rem;}
     .modal.draggable .modal-header{--hdr-pr:3.4rem;}
-    .bm-cast-alert-head{font-size:.72rem;margin-top:.28rem;margin-bottom:-.5rem;}
+    .bm-cast-alert-head{font-size:.72rem;margin-top:1px;margin-bottom:-.5rem;}
   }
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
   .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
