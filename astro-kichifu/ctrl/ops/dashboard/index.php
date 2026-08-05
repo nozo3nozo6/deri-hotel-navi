@@ -330,8 +330,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     white-space:normal;overflow-wrap:anywhere;max-height:5.4em;overflow-y:auto;}
   /* 意味の固まりごとに改行（1行目=日時とコース / 2行目=お客様・場所 / 3行目=料金） */
   .bm-summary-bar .fs-row{display:block;}
-  .bm-summary-bar .fs-row + .fs-row{color:var(--ink-soft);font-weight:500;font-size:.8rem;}
+  .bm-summary-bar .fs-row + .fs-row + .fs-row{color:var(--ink-soft);font-weight:600;font-size:.82rem;}
   .bm-summary-bar .fs-l{color:var(--ink-soft);font-weight:600;font-size:.72rem;margin-right:.2em;}
+  /* 金額の内訳: 「名前 ¥金額」を1つの固まりとして扱う（折り返しても分断されない） */
+  .bm-summary-bar .fs-item{display:inline-block;white-space:nowrap;}
+  .bm-summary-bar .fs-item .fs-n{color:var(--ink-soft);font-weight:600;margin-right:.35em;}
+  .bm-summary-bar .fs-item b{font-family:'Outfit',sans-serif;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;}
   .bm-summary-bar .fs-row + .fs-row .fs-l{opacity:.8;}
   .bm-summary-bar .fs-sep{display:inline-block;width:1px;height:.85em;background:var(--gray);margin:0 .55em;vertical-align:-.1em;}
   .bm-summary-bar .bm-sum-total{flex-shrink:0;font-family:'Outfit',sans-serif;font-weight:800;font-size:1.2rem;color:var(--deep);white-space:nowrap;}

@@ -1959,7 +1959,6 @@
     }
     const timeDisp = `${startStr}〜${endStr}`;
     const isBreak = bel('bmBreakMode')?.checked;
-    const segs = [];
     if (isBreak) {
       const city = (bel('bmBreakCity')?.value || '').trim();
       setOut([`💤 休憩　${escapeHtml(`${dateDisp} ${timeDisp}`.trim())}`, city ? `📍 ${escapeHtml(city)}` : '']);
@@ -1971,26 +1970,9 @@
     const course = opt ? bmCourseName(opt) : '';
     const nomSel = bel('bmNomination');
     const nom = nomSel?.value ? (nomSel.options[nomSel.selectedIndex]?.text || '') : '';
-    const timeLine = `${dateDisp} ${timeDisp}`.replace(/\s+/g, ' ').trim();
-    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value
-      || document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
-    let place = '';
-    if (locType === 'hotel') {
-      const hid = bel('bmHotelId')?.value;
-      if (hid) { const h = (hotelsForSelect || []).find(x => Number(x.id) === Number(hid)); place = h ? h.name : ''; }
-      else place = (bel('bmHotelName')?.value || '').trim();
-      const room = (bel('bmRoom')?.value || '').trim();
-      if (place && room) place += ` ${room}`;
-    } else if (locType === 'home') {
-      place = (bel('bmHomeAddress')?.value || '').trim();
-    } else {
-      place = (bel('bmOtherLoc')?.value || '').trim().split('\n')[0];
-    }
-    const custName = (bel('bmCustomerName')?.value || '').trim();
-    const adminSel = bel('bmAdminId');
-    const castName = adminSel?.value ? (adminSel.options[adminSel.selectedIndex]?.text || '').replace(/^担当\s*/, '') : '';
-    const med = mediaLabels(getBmMedia().join(','));
-    // 料金内訳。0円の項目は出さない（未入力のうちは「¥0・¥0・¥0」が並んで邪魔なため）
+    // 店長指定の並び（2026-08-05）: 開始時刻だけ / 金額の内訳 / お客様・キャスト。
+    // 終了時刻・場所・媒体・支払方法はここには出さない（本文で見えるため）
+    const startLine = `${dateDisp} ${startStr}〜`.replace(/\s+/g, ' ').trim();
     const coursePrice = parseInt(String(bel('bmPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const nomFee = nominationFeeFor(bel('bmNomination')?.value);
     const transportFee = parseInt(String(bel('bmTransport')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
@@ -2000,41 +1982,37 @@
     const hfOff = hotelFirstDiscount();
     const campOff = campaignDiscount(coursePrice);
     const stampOff = stampDiscount(coursePrice - campOff);
-    const cardFee = (() => {
-      const t = (bel('bmTotal')?.textContent || '').replace(/[^\d]/g, '');
-      return bel('bmPayment')?.value === 'credit' && t ? cardSurcharge(coursePrice + transportFee + lateFee + extFee + nomFee + optFee - campOff - stampOff - hfOff) : 0;
-    })();
-    const parts = [];
-    if (coursePrice) parts.push(`コース¥${coursePrice.toLocaleString()}`);
-    if (nomFee) parts.push(`指名¥${nomFee.toLocaleString()}`);
-    if (optFee) parts.push(`オプ¥${optFee.toLocaleString()}（${optionText() || ''}）`.replace('（）', ''));
-    if (extFee) parts.push(`延長×${extCount()}¥${extFee.toLocaleString()}`);
-    if (lateFee) parts.push(`深夜¥${lateFee.toLocaleString()}`);
-    if (transportFee) parts.push(`交通¥${transportFee.toLocaleString()}`);
-    if (hfOff) parts.push(`ホテル−¥${hfOff.toLocaleString()}`);
-    if (campOff) parts.push(`キャンペーン−¥${campOff.toLocaleString()}`);
-    if (stampOff) parts.push(`スタンプ−¥${stampOff.toLocaleString()}`);
-    if (cardFee) parts.push(`カード+¥${cardFee.toLocaleString()}`);
-    const pay = bel('bmPayment')?.value;
+    const cardFee = bel('bmPayment')?.value === 'credit'
+      ? cardSurcharge(coursePrice + transportFee + lateFee + extFee + nomFee + optFee - campOff - stampOff - hfOff)
+      : 0;
+    const yenTag = (label, amount, sign) =>
+      `<span class="fs-item"><span class="fs-n">${escapeHtml(label)}</span><b>${sign || ''}¥${Math.abs(amount).toLocaleString()}</b></span>`;
+    const money = [];
+    if (course && coursePrice) money.push(yenTag(course, coursePrice));
+    else if (course) money.push(`<span class="fs-item"><span class="fs-n">${escapeHtml(course)}</span></span>`);
+    if (nom && nomFee) money.push(yenTag(nom, nomFee));
+    if (optFee) money.push(yenTag(optionText() || 'オプション', optFee));
+    if (extFee) money.push(yenTag(`延長×${extCount()}`, extFee));
+    if (lateFee) money.push(yenTag('深夜料金', lateFee));
+    if (transportFee) money.push(yenTag('交通費', transportFee));
+    if (hfOff) money.push(yenTag('ホテル料金', hfOff, '−'));
+    if (campOff) money.push(yenTag('キャンペーン', campOff, '−'));
+    if (stampOff) money.push(yenTag('スタンプ', stampOff, '−'));
+    if (cardFee) money.push(yenTag('カード手数料', cardFee, '+'));
     const total = (bel('bmTotal')?.textContent || '').trim();
     const totalNum = parseInt(total.replace(/[^\d]/g, ''), 10) || 0;
-    // 1行目=日時とコース / 2行目=お客様・キャスト・場所・媒体 / 3行目=料金の内訳
-    const row1 = [
-      timeLine ? `<b>${escapeHtml(timeLine)}</b>` : '',
-      course ? `${lbl('コース')}${escapeHtml(course)}` : '',
-      nom ? `${lbl('指名')}${escapeHtml(nom)}` : '',
-    ].filter(Boolean).join('<i class="fs-sep"></i>');
-    const row2 = [
-      custName ? `${lbl('お客様')}${escapeHtml(custName)} 様` : '',
-      castName && castName !== '—' ? `${lbl('キャスト')}${escapeHtml(castName)}` : '',
-      place ? `${lbl('場所')}${escapeHtml(place)}` : '',
-      med ? `${lbl('媒体')}${escapeHtml(med)}` : '',
-    ].filter(Boolean).join('<i class="fs-sep"></i>');
-    const row3 = [
-      parts.length ? parts.map(x => escapeHtml(x)).join('<i class="fs-sep"></i>') : '',
-      pay ? (pay === 'credit' ? '💳 カード' : '💴 現金') : '',
-    ].filter(Boolean).join('<i class="fs-sep"></i>');
-    setOut([row1, row2, row3], totalNum > 0 ? total : '');
+    const custName = (bel('bmCustomerName')?.value || '').trim();
+    const adminSel = bel('bmAdminId');
+    const castName = adminSel?.value ? (adminSel.options[adminSel.selectedIndex]?.text || '').replace(/^担当\s*/, '') : '';
+    const who = [
+      custName ? `${escapeHtml(custName)} 様` : '',
+      castName && castName !== '—' ? `💁 ${escapeHtml(castName)}` : '',
+    ].filter(Boolean).join('　');
+    setOut([
+      startLine ? `<b>${escapeHtml(startLine)}</b>` : '',
+      money.join('<i class="fs-sep"></i>'),
+      who,
+    ], totalNum > 0 ? total : '');
   }
   /** 日付を変えたとき、時刻を手で触っていなければ既定値（今日=現在時刻／別日=10:00）に合わせる */
   function applyDefaultStartOnDateChange() {
