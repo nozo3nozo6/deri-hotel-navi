@@ -2190,7 +2190,8 @@
     pop.className = 'tl-time-pop';
     pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">開始時刻</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
       <div class="ttp-time"><select class="ttp-sel ttp-h" aria-label="時">${hOpts}</select><span class="ttp-c">:</span><select class="ttp-sel ttp-m" aria-label="分">${mOpts}</select></div>
-      <button type="button" class="ttp-apply">この時刻に変更</button>`;
+      <button type="button" class="ttp-apply">この時刻に変更</button>
+      <button type="button" class="ttp-apply ttp-start">この時刻で始</button>`;
     document.body.appendChild(pop);
     pop.querySelector('.ttp-close').addEventListener('click', (ev) => { ev.stopPropagation(); closeTimeAdjust(); });
     const r = anchor.getBoundingClientRect();
@@ -2198,23 +2199,33 @@
     pop.style.left = (r.left + window.scrollX) + 'px';
     const pr = pop.getBoundingClientRect();
     if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
-    const btn = pop.querySelector('.ttp-apply');
-    btn.addEventListener('click', async (ev) => {
-      ev.stopPropagation();
+    // 「この時刻に変更」＝時間だけ動かす / 「この時刻で始」＝時間を合わせて接客開始（始）にする
+    const applyTime = async (alsoStart, btn) => {
       const h = parseInt(pop.querySelector('.ttp-h').value, 10);
       const m = parseInt(pop.querySelector('.ttp-m').value, 10);
       // ずらす分数。日をまたぐ選び方（19:05→2:00 など）は近い方向へ寄せる
       let delta = (h * 60 + m) - cur;
       if (delta > 720) delta -= 1440;
       if (delta < -720) delta += 1440;
-      if (delta === 0) { closeTimeAdjust(); return; }
-      btn.disabled = true;
+      if (delta === 0 && !alsoStart) { closeTimeAdjust(); return; }
+      pop.querySelectorAll('button').forEach(x => { x.disabled = true; });
       try {
-        await apiPost('/bookings.php?action=shift-time', { id, delta });
+        if (delta !== 0) await apiPost('/bookings.php?action=shift-time', { id, delta });
+        if (alsoStart) {
+          await apiPost('/bookings.php?action=set-service', { id: Number(id), state: 'started' });
+          toast(`▶ ${h}:${('0' + m).slice(-2)} で開始（経理に計上）`, 'ok');
+        }
         closeTimeAdjust();
         loadTimeline(true);
-      } catch (e) { toast('変更失敗: ' + e.message, 'err'); closeTimeAdjust(); }
-    });
+      } catch (e) {
+        toast('変更失敗: ' + e.message, 'err');
+        closeTimeAdjust();
+      }
+    };
+    const btn = pop.querySelector('.ttp-apply:not(.ttp-start)');
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); applyTime(false, btn); });
+    const btnStart = pop.querySelector('.ttp-start');
+    btnStart.addEventListener('click', (ev) => { ev.stopPropagation(); applyTime(true, btnStart); });
     setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
   }
 

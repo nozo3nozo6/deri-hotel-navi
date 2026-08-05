@@ -863,6 +863,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-time-pop .ttp-apply{margin-top:.5rem;width:100%;border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
   .tl-time-pop .ttp-apply:hover{filter:brightness(1.08);}
   .tl-time-pop .ttp-apply:disabled{opacity:.6;cursor:default;}
+  /* 「この時刻で始」＝接客開始まで一気に。開始は経理に計上されるので緑で区別する */
+  .tl-time-pop .ttp-start{margin-top:.4rem;border-color:#1f7a45;background:#1f7a45;}
   .tl-time-pop .ttp-mail{margin-top:.5rem;width:100%;border:1.5px solid var(--coral,#e8896b);background:var(--coral,#e8896b);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
   .tl-time-pop .ttp-mail:hover{filter:brightness(1.08);}
   .tl-time-pop .ttp-copy{margin-top:.4rem;width:100%;border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
