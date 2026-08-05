@@ -432,6 +432,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-field{display:grid!important;grid-template-columns:1fr!important;gap:.4rem;}
   .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
+  /* ＋10分は自動で入るが、媒体を見ていないお客様など外したい場合があるのでチェックで操作できる */
+  .bm-plus10{display:inline-flex;align-items:center;gap:.3rem;margin-left:.6rem;padding:.15rem .55rem;
+    border:1.5px solid #9ad8bb;background:#f2fbf6;border-radius:999px;cursor:pointer;
+    font-size:.76rem;font-weight:700;color:#0d7a4a;vertical-align:middle;}
+  .bm-plus10 input{width:14px;height:14px;margin:0;cursor:pointer;accent-color:#0d7a4a;}
+  .bm-plus10:has(input:checked){background:#d9f3e4;border-color:#4bb583;}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
   /* PC・スマホとも2行に収める: 1行目=媒体6つ / 2行目=LINE予約（全幅）。
      狭い画面でも折り返さないよう、文字と余白を詰めて6列を維持する */
@@ -465,6 +471,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     border-radius:8px;font-size:.82rem;line-height:1.6;color:var(--ink);}
   .bm-hotel-addr .bha-line{display:flex;flex-wrap:wrap;gap:.2rem .6rem;align-items:baseline;}
   .bm-hotel-addr .bha-l{color:var(--ink-soft);font-weight:600;font-size:.76rem;flex-shrink:0;}
+  .bm-hotel-addr .bha-route{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.45rem;
+    padding-top:.45rem;border-top:1px dashed var(--aqua-light,#bfe3e8);}
+  .bm-hotel-addr .bha-origin{flex:1;min-width:150px;padding:.35rem .55rem!important;border:1.5px solid var(--gray);
+    border-radius:7px;font-size:.8rem!important;background:#fff;}
+  .bm-hotel-addr .bha-go{border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:7px;
+    padding:.35rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+  .bm-hotel-addr .bha-go:hover{filter:brightness(1.08);}
+  .bm-hotel-addr .bha-office{background:none;border:none;color:var(--sea);font-size:.72rem;cursor:pointer;
+    text-decoration:underline;padding:0;white-space:nowrap;}
   .bm-hotel-addr .bha-copy{margin-left:auto;border:1.5px solid var(--sea);background:#fff;color:var(--sea);
     border-radius:7px;padding:.2rem .6rem;font-size:.76rem;font-weight:700;cursor:pointer;}
   .bm-hotel-addr .bha-copy:hover{background:var(--sea);color:#fff;}
@@ -1551,6 +1566,23 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <div id="entryMethodList" class="bk-list"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
   </div>
 
+  <!-- 事務所の住所（ルート案内の既定の出発地） -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
+    <div class="tl-title">事務所の住所<span class="tl-sub">予約画面のルート案内で、出発地の初期値に使います</span></div>
+  </div>
+  <div class="staff-main" style="max-width:900px;">
+    <div class="bk-list" style="padding:1rem 1.1rem;">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="officeAddress" placeholder="例: 東京都立川市曙町2-11-2"
+               style="flex:1;min-width:240px;padding:.65rem .8rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.95rem;">
+        <button class="btn-edit" id="officeAddressSave" type="button">保存</button>
+      </div>
+      <p class="hint" style="margin-top:.5rem;">
+        キャストがいまいる場所を入れ直せば、そこからのルートに切り替わります（入れた場所はその端末が覚えます）。
+      </p>
+    </div>
+  </div>
+
 </div>
 
 <!-- ========== 売上の保有者モーダル（タイムラインの「売上」クリック・ビュー外に配置） ========== -->
@@ -1763,7 +1795,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <!-- ご新規様バッジ。電話で照合して当店の利用実績が無いときだけ出す（会員様は履歴が出るので不要） -->
       <div id="bmNewBadge" style="display:none;margin:-.4rem 0 1.1rem;padding:.5rem .8rem;border-radius:8px;
            background:linear-gradient(135deg,#fff6e5,#fff);border:1.5px solid #e8b96a;color:#8a5a12;font-size:.85rem;font-weight:700;">
-        🌟 ご新規様 <span style="font-weight:500;opacity:.85;">— ホテル利用なら初回特別料金の対象です</span>
+        🌟 ご新規様 <span style="font-weight:500;opacity:.85;">— 当店のご利用が初めてのお客様です</span>
       </div>
       <!-- リピーター履歴（電話番号で顧客がヒットしたときのみ表示・読み取り専用） -->
       <div class="bm-customer-only" id="bmHistoryWrap" style="display:none;margin:-.4rem 0 1.1rem;">
@@ -1868,7 +1900,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
       <!-- 流入媒体・予約経路。どれかにチェックが入ると＋10分(無料)（アドミの特典。既定は未チェック） -->
       <div class="field bm-media-field" id="bmMediaField">
-        <label class="bm-media-label">媒体<span class="bm-media-note">・チェックが入ると＋10分(無料)</span><span id="bmPlus10Badge" style="display:none;margin-left:.5rem;font-size:.74rem;font-weight:700;color:#0d7a4a;background:#e8f8ef;border:1px solid #9ad8bb;border-radius:999px;padding:1px 8px;">＋10分 適用中</span></label>
+        <label class="bm-media-label">媒体<label id="bmPlus10Field" class="bm-plus10" title="お店が初めてのお客様の媒体経由、またはLINE予約に＋10分。手で外せます"><input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span></label></label>
         <div class="bm-media-list">
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fujoho"><span>情報局</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="ekichika"><span>駅ちか</span></label>

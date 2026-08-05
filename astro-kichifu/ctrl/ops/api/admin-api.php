@@ -592,6 +592,28 @@ function getNominationFees(PDO $pdo): array {
     return $out;
 }
 
+// 汎用の店舗設定（許可キーのみ）。いまは事務所の住所（ルート案内の既定の出発地）。
+const OPS_SETTING_KEYS = ['office_address'];
+
+if ($action === 'setting-get' && $method === 'GET') {
+    $k = (string)($_GET['key'] ?? '');
+    if (!in_array($k, OPS_SETTING_KEYS, true)) errorResponse('unknown key', 400);
+    $q = $pdo->prepare("SELECT setting_value FROM ops_admin_settings WHERE setting_key = ?");
+    $q->execute([$k]);
+    jsonResponse(['key' => $k, 'value' => (string)($q->fetchColumn() ?: '')]);
+}
+
+if ($action === 'setting-set' && $method === 'POST') {
+    requireOwnerOrManager();
+    $body = json_decode(file_get_contents('php://input'), true);
+    $k = (string)($body['key'] ?? '');
+    if (!in_array($k, OPS_SETTING_KEYS, true)) errorResponse('unknown key', 400);
+    $v = mb_substr(trim((string)($body['value'] ?? '')), 0, 190);
+    $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES (?, ?)
+                   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")->execute([$k, $v]);
+    jsonResponse(['ok' => true, 'key' => $k, 'value' => $v]);
+}
+
 if ($action === 'nomination-fees-get' && $method === 'GET') {
     jsonResponse(['nomination_fees' => getNominationFees($pdo)]);
 }

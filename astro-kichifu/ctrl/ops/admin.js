@@ -134,6 +134,9 @@
         withBmSuffix('-2', updateBookingTotal);
       } else if (e.target.id === 'bmNomination-2') {
         withBmSuffix('-2', () => { updateBookingTotal(); syncDealBadges(); });
+      } else if (e.target.id === 'bmPlus10-2') {
+        bmPlus10Touched['-2'] = true;
+        withBmSuffix('-2', () => { updateEndTime(); applyBonusCoursePrice(); updateBookingTotal(); });
       } else if (e.target.name === 'bmMedia-2') {
         withBmSuffix('-2', () => { updateEndTime(); syncDealBadges(); });
       } else if (e.target.id === 'bmExtCount-2') {
@@ -483,7 +486,6 @@
     const pref = (typeof prefOfCity === 'function' ? prefOfCity(city) : '') || '';
     const bits = [];
     if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(pref + full)}</span>`
-      + mapLinksHtml(pref, full, { small: true })
       + `<button type="button" class="bha-copy" data-bha-copy>コピー</button></div>`);
     const sub = [];
     if (h.tel) sub.push(`TEL ${escapeHtml(h.tel)}`);
@@ -491,6 +493,16 @@
     if (h.entry_method) sub.push(`入室 ${escapeHtml(entryMethodLabel(h.entry_method))}`);
     if (sub.length) bits.push(`<div class="bha-line"><span class="bha-l">情報</span><span>${sub.join('　')}</span></div>`);
     if (h.guide_note) bits.push(`<div class="bha-line"><span class="bha-l">案内</span><span>${escapeHtml(h.guide_note)}</span></div>`);
+    // ルート案内: キャストがいまいる場所 → 訪問先。所要時間はGoogleマップ側で出る
+    if (full) {
+      const origin = bmRouteOrigin();
+      bits.push(`<div class="bha-route">
+        <span class="bha-l">出発</span>
+        <input type="text" class="bha-origin" value="${escapeAttr(origin)}" placeholder="いまキャストがいる場所（住所・駅名）">
+        <button type="button" class="bha-office" data-bha-office>事務所</button>
+        <button type="button" class="bha-go" data-bha-route>🚗 ルート</button>
+      </div>`);
+    }
     if (!bits.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.innerHTML = bits.join('');
     box.style.display = 'block';
@@ -509,6 +521,56 @@
       ].filter(Boolean).join('\n');
       copyTextToClipboard(txt).then(ok => toast(ok ? '✓ ホテル情報をコピーしました' : 'コピーに失敗しました', ok ? 'ok' : 'err'));
     });
+    const originEl = box.querySelector('.bha-origin');
+    // 出発地は端末ごとに覚える（毎回打ち直さなくて済むように）
+    if (originEl) originEl.addEventListener('change', () => {
+      try { localStorage.setItem('opsRouteOrigin', originEl.value.trim()); } catch (_) {}
+    });
+    const officeBtn = box.querySelector('[data-bha-office]');
+    if (officeBtn) officeBtn.addEventListener('click', () => {
+      if (originEl) originEl.value = _officeAddress || '';
+      try { localStorage.removeItem('opsRouteOrigin'); } catch (_) {}
+      if (!_officeAddress) toast('事務所の住所が未設定です（マスタ → 事務所の住所）', 'err');
+    });
+    const goBtn = box.querySelector('[data-bha-route]');
+    if (goBtn) goBtn.addEventListener('click', () => {
+      const from = (originEl?.value || '').trim();
+      const to = pref + full;
+      if (!from) { toast('出発地を入力してください', 'err'); originEl?.focus(); return; }
+      const url = 'https://www.google.com/maps/dir/?api=1'
+        + '&origin=' + encodeURIComponent(from)
+        + '&destination=' + encodeURIComponent(to)
+        + '&travelmode=driving';
+      window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  // 事務所の住所（ルート案内の既定の出発地）。init とマスタタブで読み込む
+  let _officeAddress = '';
+  async function loadOfficeAddress() {
+    const el = document.getElementById('officeAddress');
+    if (!el) return;
+    try {
+      const d = await api('/admin-api.php?action=setting-get&key=office_address');
+      _officeAddress = (d && d.value) || '';
+      el.value = _officeAddress;
+    } catch (e) {}
+    const btn = document.getElementById('officeAddressSave');
+    if (btn && !btn.dataset.wired) {
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', async () => {
+        try {
+          const d = await apiPost('/admin-api.php?action=setting-set', { key: 'office_address', value: el.value.trim() });
+          _officeAddress = (d && d.value) || '';
+          toast('✓ 事務所の住所を保存しました', 'ok');
+        } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+      });
+    }
+  }
+  /** 出発地の初期値: 端末で最後に使った場所 → 無ければ事務所 */
+  function bmRouteOrigin() {
+    try { const v = localStorage.getItem('opsRouteOrigin'); if (v) return v; } catch (_) {}
+    return _officeAddress || '';
   }
 
   function populateHotelSelect(filterCity) {
@@ -1675,12 +1737,23 @@
     return sel.options[sel.selectedIndex] || null;
   }
   /**
-   * ＋10分（無料）が付く条件。媒体・LINE予約のどれかにチェックが入っていれば付く
-   * （新規/会員は問わない。店長指定 2026-08-05）。いくつ入れても10分は1回ぶん。
+   * ＋10分（無料）を付けるかどうか。チェックボックスの状態がそのまま答え。
+   * 自動で入る条件（店長指定 2026-08-05）:
+   *   ・LINE予約のお客様
+   *   ・当店が初めてのお客様が媒体を見て来たとき
+   * ただし「お店が初めてでも媒体を見ていない」ときなど外したい場合があるので、
+   * 手でチェックを触ったら以後そちらを優先する。
    */
   function bonusApplies() {
     if (bel('bmBreakMode')?.checked) return false;
-    return getBmMedia().length > 0;
+    return !!bel('bmPlus10')?.checked;
+  }
+  /** 自動判定の答え（チェックを手で触っていないときだけ反映する） */
+  function plus10Auto() {
+    if (bel('bmBreakMode')?.checked) return false;
+    const m = getBmMedia();
+    if (m.includes('line')) return true;
+    return bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line');
   }
   /**
    * ＋10分が付くとき、選択中コースに「＋10分のときのコース」が設定されていればそれを返す。
@@ -1872,6 +1945,7 @@
   const bmCust = { '': { isNew: null, castNames: null }, '-2': { isNew: null, castNames: null } };
   // 特別料金チェックを手で触ったら自動では動かさない
   const bmHotelFirstTouched = { '': false, '-2': false };
+  const bmPlus10Touched = { '': false, '-2': false };   // ＋10分を手で触ったら自動判定を止める
   // 開始時刻を手で触ったか。触っていなければ日付の変更に追従して既定値を入れ直す
   const bmStartTouched = { '': false, '-2': false };
 
@@ -1971,9 +2045,12 @@
     // ホテル料金の引き額（コース管理の「ホテル料金」があればその差額）
     const hfAmt = bel('bmHotelFirstAmt');
     if (hfAmt) hfAmt.textContent = '−¥' + hotelDeltaForCurrentCourse().toLocaleString();
-    // ＋10分の適用表示
-    const p10 = bel('bmPlus10Badge');
-    if (p10) p10.style.display = bonusApplies() ? 'inline-block' : 'none';
+    // ＋10分: 手で触っていなければ自動判定を反映する
+    const p10 = bel('bmPlus10');
+    if (p10 && !bmPlus10Touched[activeBmSuffix]) {
+      const next = plus10Auto();
+      if (p10.checked !== next) { p10.checked = next; updateEndTime(); }
+    }
     // 指名方法のヒント（初対面なら初指名、2回目以降なら本指名）
     const nomHint = bel('bmNomHint');
     if (nomHint) {
@@ -4334,6 +4411,10 @@
           syncCampaignFieldVisibility();
           // 保存済みの状態を自動判定で動かさない
           bmHotelFirstTouched[activeBmSuffix] = true;
+          // ＋10分はコース名の末尾に記録している（「60分コース ＋10分」）ので、そこから戻す
+          const p10Edit = bel('bmPlus10');
+          if (p10Edit) p10Edit.checked = /＋\s*10\s*分\s*$/.test(String(b.course_name || ''));
+          bmPlus10Touched[activeBmSuffix] = true;
           populateCourseSelect();
           if (hfCbEdit?.checked) applyCoursePrice();   // ホテル料金ならコース料金欄もその金額に
         }
@@ -4376,6 +4457,9 @@
       syncCampaignFieldVisibility();
       const hfCbNew = bel('bmHotelFirst');
       if (hfCbNew) hfCbNew.checked = false;
+      const p10New = bel('bmPlus10');
+      if (p10New) p10New.checked = false;
+      bmPlus10Touched[activeBmSuffix] = false;
       setBmOptionIds([]);
       resetBmCust();
       try { syncDealBadges(); } catch (_) {}
@@ -6778,7 +6862,7 @@
     else if (name === 'bookings') loadBookings();
     else if (name === 'customers') loadCustomers();
     else if (name === 'shifts') loadShifts();
-    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); }
+    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); }
     else if (name === 'stations') loadStations();
     else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
     else if (name === 'chat' && userCanSeeTab('chat')) loadChatInbox();
@@ -8200,6 +8284,11 @@
       const nf = await api('/admin-api.php?action=nomination-fees-get');
       if (nf && nf.nomination_fees) Object.assign(NOMINATION_FEES, nf.nomination_fees);
     } catch (e) {}
+    // 事務所の住所（ルート案内の既定の出発地）
+    try {
+      const oa = await api('/admin-api.php?action=setting-get&key=office_address');
+      _officeAddress = (oa && oa.value) || '';
+    } catch (e) {}
 
     // 権限取得 → タブ表示制御
     await loadPermissions();
@@ -8764,6 +8853,12 @@
       updateEndTime();
       applyCoursePrice();
       autoToggleLateNight();
+    });
+    // ＋10分のチェック: 手で触ったら自動判定を止める
+    const p10Cb = bel('bmPlus10');
+    if (p10Cb) p10Cb.addEventListener('change', () => {
+      bmPlus10Touched[activeBmSuffix] = true;
+      updateEndTime(); applyBonusCoursePrice(); updateBookingTotal();
     });
     // 媒体・予約経路: LINE予約で +10分 になるので終了時刻を再計算
     mediaCheckboxes().forEach(cb => cb.addEventListener('change', () => { updateEndTime(); applyBonusCoursePrice(); syncDealBadges(); }));
