@@ -9,6 +9,8 @@
 //   媒体別自動整形: body_html=駅ちか用(CSS可・URL除去) / body_text=情報局用(CSS不可・URL併記) /
 //                   body_html_raw=元HTML（2026-07-17 店長指示）
 //   GET ?shop_id=1&id=277          → 単体取得（公開窓の判定はせず status で返す・仕様§4.3）
+//   GET ?shop_id=1&since=...&limit=10 → since 以降に公開されたぶんを古い順で items[]（2026-08-06 追加）
+//     マンゾク/メンズバ/フーコレの「1日N件」枠へ、その営業日ぶんをまとめて載せるために使う。
 //   GET ...&urls=0                 → body_text からURLを全削除（コピペ用タブと同一。URL不可媒体向け）
 //
 //   選定ロジック（仕様§4.1）: shop_id一致 AND 公開中(is_display=1) AND posted_at<=now
@@ -88,6 +90,35 @@ try {
         $r = $st->fetch(PDO::FETCH_ASSOC);
         if (!$r) { http_response_code(404); echo json_encode(['error' => 'not found']); exit; }
         $item = news_item_json($r, $withUrls);
+    } elseif (isset($_GET['since']) && $_GET['since'] !== '') {
+        // 一覧取得: since 以降に公開されたぶんを古い順（媒体の「1日N件」ぶんをまとめて拾う用）
+        // 例) ?shop_id=1&since=2026-08-06T05:00:00&limit=10&urls=0
+        $sinceRaw = (string)$_GET['since'];
+        $ts = strtotime($sinceRaw);
+        if ($ts === false) { http_response_code(400); echo json_encode(['error' => 'invalid since']); exit; }
+        $limit = (int)($_GET['limit'] ?? 20);
+        if ($limit < 1) $limit = 1;
+        if ($limit > 50) $limit = 50;
+        $st = DB::conn()->prepare(
+            'SELECT * FROM news
+              WHERE shop_id = ? AND is_display = 1 AND posted_at IS NOT NULL
+                AND posted_at <= NOW() AND posted_at >= ?
+              ORDER BY posted_at ASC, id ASC
+              LIMIT ' . $limit
+        );
+        $st->execute([$shopId, date('Y-m-d H:i:s', $ts)]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $one = news_item_json($r, $withUrls);
+            unset($one['_fingerprint']);
+            $items[] = $one;
+        }
+        echo DB::jsonEncode([
+            'items'       => $items,
+            'since'       => date('Y-m-d\TH:i:sP', $ts),
+            'server_time' => date('Y-m-d\TH:i:sP'),
+        ]);
+        exit;
     } else {
         // 最新1件（仕様§4.1）
         $st = DB::conn()->prepare(

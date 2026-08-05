@@ -588,6 +588,32 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-freehotel > summary:hover{text-decoration:underline;}
   /* ホテル選択: ネイティブ矢印の予約幅が広くスマホでホテル名が見切れるため、細いカスタム矢印に置き換えて文字幅を確保 */
   .modal-body select.bm-tight-select{-webkit-appearance:none!important;appearance:none!important;padding-right:1.6rem!important;background-color:var(--white)!important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23173842' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:right .55rem center!important;background-size:10px 6px!important;}
+  /* 予約編集モーダル: PCは左=お客様と場所／右=料金の2段組み。項目の大きさは据え置きで横に広げるだけ。
+     1180px未満（タブレット・スマホ）では従来どおり1列に戻る */
+  .bm-cols{min-width:0;}
+  @media (min-width:1180px){
+    .modal.bm-modal{max-width:1120px!important;}
+    .bm-modal .bm-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem;align-items:start;}
+    .bm-modal .bm-col{min-width:0;}
+    .bm-modal .bm-col + .bm-col{border-left:1px solid var(--gray);padding-left:1.5rem;}
+  }
+  /* 開始時刻の 時／分。Windowsはネイティブ矢印が太く「33」が欠けるので、細い矢印に置き換えて数字の幅を確保する */
+  .modal-body select.bm-time-select{-webkit-appearance:none!important;appearance:none!important;
+    padding-left:.45rem!important;padding-right:1rem!important;text-align:center!important;text-align-last:center!important;
+    font-variant-numeric:tabular-nums;background-color:var(--white)!important;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23173842' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+    background-repeat:no-repeat!important;background-position:right .3rem center!important;background-size:9px 5px!important;}
+  .modal-body select.bm-time-select option{text-align:left;}
+  /* コース欄の金額メモ（指名方法の下の空きを使う）。上=基本コース／下=組み合わせ／計 */
+  .bm-ccalc{margin-top:.45rem;border:1.5px solid var(--gray);border-radius:8px;background:linear-gradient(180deg,#fbfdfe,var(--white));
+            padding:.4rem .6rem;font-size:.82rem;line-height:1.5;}
+  .bm-ccalc-r{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;}
+  .bm-ccalc-r > span{color:var(--ink-soft);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bm-ccalc-r > b{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .bm-ccalc-r.bm-cc-off > span,.bm-ccalc-r.bm-cc-off > b{color:var(--ink-soft);font-weight:600;opacity:.6;}
+  .bm-ccalc-sum{margin-top:.3rem;padding-top:.3rem;border-top:1px dashed var(--gray);}
+  .bm-ccalc-sum > span{color:var(--ink);}
+  .bm-ccalc-sum > b{font-size:1rem;color:var(--sea);}
   .bm-date::-webkit-datetime-edit-text:first-child{display:none;}
   .modal-body textarea{resize:vertical;min-height:70px;font-family:'Zen Maru Gothic';}
   .modal-body input:focus,.modal-body select:focus,.modal-body textarea:focus{outline:none;border-color:var(--sea);}
@@ -813,7 +839,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   button.tl-staff-sales.tl-m .tl-m-l,button.tl-staff-sales.tl-m .tl-m-v{color:var(--coral);}
   /* 預り金（青・クリックで受け渡し履歴） */
   button.tl-staff-held.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;text-align:left;-webkit-tap-highlight-color:rgba(29,122,156,.2);}
-  button.tl-staff-held.tl-m .tl-m-v{text-decoration:underline dotted;text-underline-offset:2px;}
+  button.tl-staff-held.tl-m .tl-m-v{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:2px;}
   button.tl-staff-held.tl-m .tl-m-l,button.tl-staff-held.tl-m .tl-m-v{color:var(--sea);}
   /* 報酬（緑・背景/枠なし）。預り金=青・報酬=緑・入金分=コーラルで色分け */
   button.tl-staff-reward.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;-webkit-tap-highlight-color:rgba(58,154,96,.2);}
@@ -1738,7 +1764,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <p class="hint" style="margin:-.7rem 0 1.1rem;">
         予約で「🏨 ホテル料金」にチェックを入れたとき、料金と報酬をこの値に置き換えます。
-        料金が空欄なら通常料金から一律 −¥5,500、報酬が空欄なら通常の報酬をそのまま使います。
+        <b>料金が空欄のコースはホテル料金の対象外</b>になり、予約側でチェックできません（お泊りコースなど）。
+        報酬だけ空欄なら通常の報酬をそのまま使います。
       </p>
       <div class="field">
         <label for="coBonusCourse">＋10分のときのコース</label>
@@ -1746,6 +1773,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <span class="hint">媒体・LINE予約にチェックが入って＋10分が付くとき、このコースに差し替えます（コース名・料金・報酬もそのコースの値になります）</span>
       </div>
       <div class="field"><label><input type="checkbox" id="coIsActive" checked style="width:auto;margin-right:.4rem;"> このコースを有効にする（予約モーダルで選択可能）</label><span class="hint">並び順は一覧でドラッグして変更できます</span></div>
+      <div class="field"><label><input type="checkbox" id="coIsCombinable" checked style="width:auto;margin-right:.4rem;"> 組み合わせコースの部品に使う</label><span class="hint">180分以上を「90＋90」のように組むときの材料にします。延長・お泊りなど単独で使うコースは外してください</span></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="coDelete" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red);">削除</button>
@@ -1781,7 +1809,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 <!-- ========== 予約 作成/編集モーダル（ドラッグ可能 + 背景透過） ========== -->
 <div class="modal-overlay transparent" id="bookingModal">
-  <div class="modal draggable" style="max-width:600px;">
+  <div class="modal draggable bm-modal" style="max-width:600px;">
     <div class="modal-header">
       <div style="flex-shrink:0;">
         <div class="mh-title" id="bmTitle">新規予約</div>
@@ -1813,6 +1841,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <input type="checkbox" id="bmBreakMode"> 💤 休憩・私用予定として登録(公開ページには「ご予約済」のみ表示)
       </label>
       <input type="hidden" id="bmCustomerId" value="">
+      <!-- PCでは左=お客様と場所／右=料金の2段組み。狭い画面では今までどおり1列に戻る（.bm-cols） -->
+      <div class="bm-cols">
+      <div class="bm-col">
       <!-- 電話番号 | お名前 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field bm-customer-only">
@@ -1849,9 +1880,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="field">
           <label>開始</label>
           <div class="time-input" style="display:flex;gap:.3rem;align-items:center;">
-            <select id="bmStartHour" style="flex:1;min-width:0;"></select>
+            <select id="bmStartHour" class="bm-time-select" style="flex:1;min-width:0;"></select>
             <span style="font-weight:700;color:var(--ink-soft);flex-shrink:0;">時</span>
-            <select id="bmStartMin" style="flex:1;min-width:0;"></select>
+            <select id="bmStartMin" class="bm-time-select" style="flex:1;min-width:0;"></select>
             <span style="font-weight:700;color:var(--ink-soft);flex-shrink:0;">分</span>
           </div>
         </div>
@@ -1934,6 +1965,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
 
+      </div><!-- /.bm-col 左（お客様・日時・場所） -->
+      <div class="bm-col"><!-- 右（媒体・コース・料金） -->
       <!-- 流入媒体・予約経路。どれかにチェックが入ると＋10分(無料)（アドミの特典。既定は未チェック） -->
       <div class="field bm-media-field" id="bmMediaField">
         <label class="bm-media-label">媒体</label>
@@ -1979,6 +2012,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           </select>
           <!-- 履歴から「そのキャストと初対面か」を見て、初指名/本指名の取り違えに気づけるようにする -->
           <span class="hint" id="bmNomHint" style="display:none;color:#8a5a12;font-weight:600;"></span>
+          <!-- 左のコース欄（上＝基本コース／下＝組み合わせ）の金額をその場で読めるようにする -->
+          <div class="bm-ccalc" id="bmCourseCalc" style="display:none;">
+            <div id="bmCcRows"></div>
+            <div class="bm-ccalc-r bm-ccalc-sum"><span>計</span><b id="bmCcTotal">—</b></div>
+          </div>
         </div>
       </div>
       <div class="field" id="bmBreakDurField" style="display:none;"><label for="bmBreakDur">休憩時間</label>
@@ -2035,9 +2073,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <input type="checkbox" id="bmCampaign" style="width:18px;height:18px;cursor:pointer;">
         <span>🎁 キャンペーン割引 <b>コース料金 10%OFF</b> <span id="bmCampaignAmt" style="font-weight:500;opacity:.8;"></span></span>
       </label>
-      <!-- 初回ホテル特別料金 — ホテル利用×そのキャストと初対面で コース料金から一律5,500円引き。
-           コースが何分でも、90+90の組み合わせでも 1予約につき1回だけ。担当・訪問先・お客様が
-           決まると自動でチェックが入る（手で触ったら以後は自動で動かさない） -->
+      <!-- ホテル料金 — ホテル利用×そのキャストと初対面で、コース管理の「ホテル料金」に置き換える。
+           組み合わせは一番長い1本だけ。ホテル料金を設定していないコース（お泊り等）は対象外。
+           担当・訪問先・お客様が決まると自動でチェックが入る（手で触ったら以後は自動で動かさない） -->
       <!-- スタンプ特典 — コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。特典時間≥コース時間なら全額無料 -->
       <div id="bmStampField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#fff0f6,#fff);border:1.5px solid #e7a6c4;border-radius:8px;font-size:.88rem;font-weight:600;color:#9a3a6a;margin-top:-.2rem;">
         <span>🎟️ スタンプ特典</span>
@@ -2109,6 +2147,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <label for="bmCustomerEmail">メール(任意)</label>
         <input type="email" id="bmCustomerEmail" placeholder="example@gmail.com">
       </div>
+      </div><!-- /.bm-col 右 -->
+      </div><!-- /.bm-cols -->
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="bmDelete" style="margin-right:auto;display:none;color:var(--red);border-color:var(--red);">削除</button>

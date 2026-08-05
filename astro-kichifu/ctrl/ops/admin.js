@@ -1778,27 +1778,71 @@
     const base = b ? b.name : ((opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '');
     return base && !b && lineBonusExtra() > 0 ? base + ' ＋10分' : base;
   }
-  /** いまのコース選択（＋10分の差し替え・組み合わせ2本目を含む）の合計料金。取れなければ null */
-  function coursePriceSum() {
-    const o2first = course2Opt();
-    if (o2first) return parseInt(o2first.dataset.price, 10) || 0;
+  /**
+   * 1本目（基本）のコース料金。＋10分の差し替えとホテル料金を反映して返す。
+   * 選べていなければ null。{ price, hotel, name }
+   */
+  function courseBasePrice() {
     const sel = bel('bmCourse');
     const opt = sel && sel.options[sel.selectedIndex];
     if (!sel || !sel.value || !opt) return null;
     const b = bonusCourse();
-    const o2c = course2Opt();
-    if (o2c) return parseInt(o2c.dataset.price, 10) || 0;   // 組み合わせを選んでいればそれが全体の料金
+    const nameOf = (o) => (o && o.dataset && o.dataset.name) || (o && o.text) || '';
     const row = firstCourseRow();
     const useHotel = !!(bel('bmHotelFirst')?.checked && !bel('bmBreakMode')?.checked
       && row && row.hotel_price != null && row.hotel_price !== '');
-    let p1;
-    if (useHotel) p1 = parseInt(row.hotel_price, 10) || 0;
-    else if (b) p1 = b.price != null ? parseInt(b.price, 10) || 0 : null;
-    else p1 = (opt.dataset && opt.dataset.price !== '') ? parseInt(opt.dataset.price, 10) || 0 : null;
-    if (p1 === null) return null;
+    if (useHotel) return { price: parseInt(row.hotel_price, 10) || 0, hotel: true, name: b ? b.name : nameOf(opt) };
+    if (b) return { price: b.price != null ? parseInt(b.price, 10) || 0 : null, hotel: false, name: b.name };
+    const p = (opt.dataset && opt.dataset.price !== '') ? parseInt(opt.dataset.price, 10) || 0 : null;
+    return { price: p, hotel: false, name: nameOf(opt) };
+  }
+  /** いまのコース選択（＋10分の差し替え・組み合わせ2本目を含む）の合計料金。取れなければ null */
+  function coursePriceSum() {
     const o2 = course2Opt();
-    const p2 = o2 && o2.dataset && o2.dataset.price !== '' ? parseInt(o2.dataset.price, 10) || 0 : 0;
-    return p1 + p2;
+    if (o2) return parseInt(o2.dataset.price, 10) || 0;   // 組み合わせを選んでいればそれが全体の料金
+    const base = courseBasePrice();
+    if (!base || base.price === null) return null;
+    return base.price;
+  }
+  /**
+   * コース欄の金額メモ（指名方法の下）。
+   * お客様にそのまま説明できるよう、組み合わせは1本ずつ並べる。
+   *   90分コース  ¥16,500
+   *   90分コース  ¥16,500
+   *   計          ¥33,000
+   */
+  function updateCourseCalc() {
+    const box = bel('bmCourseCalc');
+    if (!box) return;
+    const yen = (n) => '¥' + (Number(n) || 0).toLocaleString();
+    const o2   = course2Opt();
+    const base = courseBasePrice();
+    if (bel('bmBreakMode')?.checked || (!base && !o2)) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    let lines = [];
+    const add = lineBonusExtra();   // 無料の＋10分（コース差し替えのときは0）
+    if (o2) {
+      try { lines = JSON.parse(o2.dataset.lines || '[]'); } catch (e) { lines = []; }
+      if (!lines.length) lines = [{ name: o2.dataset.name || '組み合わせ', price: parseInt(o2.dataset.price, 10) || 0 }];
+      // 組み合わせは本数ぶん並んでいるので、＋10分は別行にして「無料」だと分かるようにする
+      if (add > 0) lines.push({ name: `＋${add}分サービス`, price: 0 });
+    } else if (base && base.price !== null) {
+      // ＋10分が付くときは「70分（60＋10）」と読み上げられる形にする
+      const m = parseInt(bel('bmCourse')?.value || '0', 10) || 0;
+      const name = add > 0
+        ? (m ? `${m + add}分（${m}＋${add}）` : `${base.name || 'コース'} ＋${add}分`)
+        : (base.name || 'コース');
+      lines = [{ name, price: base.price, hotel: base.hotel }];
+    }
+    const rows = bel('bmCcRows');
+    if (rows) {
+      rows.innerHTML = lines.map(l =>
+        `<div class="bm-ccalc-r"><span>${l.hotel ? '🏨 ' : ''}${escapeHtml(l.name || '')}</span><b>${yen(l.price)}</b></div>`
+      ).join('') || '<div class="bm-ccalc-r bm-cc-off"><span>コース</span><b>—</b></div>';
+    }
+    const sum = coursePriceSum();
+    const tEl = bel('bmCcTotal');
+    if (tEl) tEl.textContent = sum === null ? '—' : yen(sum);
   }
   /** コース選択が変わったら基本料金を入れ直す */
   function applyCoursePrice() {
@@ -1827,17 +1871,17 @@
     const sel2 = bel('bmCourse2');
     if (!sel2) return;
     const prev2 = sel2.value;
-    // 使える単位: 通常コース（150分まで）＋ 延長30分。組み合わせは通常料金で組む
+    // 使える単位はコース管理で「組み合わせコースの部品に使う」を入れたコースだけ。
+    // 延長・お泊りコースは単独で使うものなので材料にしない（店長指定 2026-08-06）
     const units = [];
-    (coursesCache || []).filter(c => c.is_active == 1).forEach(c => {
+    (coursesCache || []).filter(c => c.is_active == 1 && Number(c.is_combinable) !== 0).forEach(c => {
       const min = parseInt(c.duration_min, 10) || 0;
       const price = parseInt(c.price, 10) || 0;
       if (min <= 0 || !price) return;
-      const isExt = /延長/.test(c.name);
       units.push({
-        min, price, name: c.name, isExt,
-        label: isExt ? '延長30' : String(min),
-        hotel: (!isExt && c.hotel_price != null && c.hotel_price !== '') ? (parseInt(c.hotel_price, 10) || 0) : null,
+        min, price, name: c.name,
+        label: String(min),
+        hotel: (c.hotel_price != null && c.hotel_price !== '') ? (parseInt(c.hotel_price, 10) || 0) : null,
       });
     });
     const step = 30;
@@ -1866,12 +1910,15 @@
       if (cur) best[t] = cur;
     }
     // ホテル料金が効いているときは、いちばん長いコース1本だけ特別料金・残りは通常料金
-    const comboPrice = (parts) => {
-      let total = parts.reduce((n, x) => n + x.price, 0);
-      if (!hotelFirstOn) return total;
-      const target = parts.filter(x => x.hotel !== null).sort((a, b) => b.min - a.min)[0];
-      if (target) total -= (target.price - target.hotel);
-      return total;
+    /** 1本ずつの料金（お客様への説明にそのまま使う）。{name, price, hotel} の配列 */
+    const comboLines = (parts) => {
+      const target = hotelFirstOn ? parts.filter(x => x.hotel !== null).sort((a, b) => b.min - a.min)[0] : null;
+      let used = false;
+      return parts.map(x => {
+        const hit = !used && target && x === target;
+        if (hit) used = true;
+        return { name: x.name, price: hit ? x.hotel : x.price, hotel: !!hit };
+      });
     };
     // 180分以上だけ出す（それ未満は1本目のコースで選ぶ）
     let opts = '<option value="">＋ 組み合わせなし</option>';
@@ -1879,10 +1926,12 @@
       const b = best[t];
       if (!b || b.parts.length < 2) continue;
       const parts = b.parts.slice().sort((x, y) => y.min - x.min);
-      const price = comboPrice(parts);
+      const lines = comboLines(parts);
+      const price = lines.reduce((n, x) => n + x.price, 0);
       const combo = parts.map(x => x.label).join('＋');
       const names = parts.map(x => x.name).join(' ＋ ');
-      opts += `<option value="${t}" data-name="${escapeAttr(names)}" data-price="${price}" data-parts="${parts.length}">`
+      opts += `<option value="${t}" data-name="${escapeAttr(names)}" data-price="${price}" data-parts="${parts.length}"`
+            + ` data-lines="${escapeAttr(JSON.stringify(lines))}">`
             + `${t}分（${escapeHtml(combo)}） ¥${price.toLocaleString()}</option>`;
     }
     sel2.innerHTML = opts;
@@ -2083,8 +2132,8 @@
     return nm ? (coursesCache || []).find(c => c.name === nm) || null : null;
   }
   /**
-   * ホテル料金の引き。コース管理の「ホテル料金」が入っていれば 通常料金 − ホテル料金、
-   * 未設定なら従来どおり一律 5,500円。組み合わせでも1本目のぶんだけ（＝1回）。
+   * ホテル料金でいくら安くなるか（表示用）。コース管理の「ホテル料金」との差額。
+   * ホテル料金を設定していないコース（お泊りコース等）は対象外なので0。
    */
   function hotelDeltaForCurrentCourse() {
     const c = firstCourseRow();
@@ -2092,20 +2141,31 @@
       const d = (parseInt(c.price, 10) || 0) - (parseInt(c.hotel_price, 10) || 0);
       return d > 0 ? d : 0;
     }
-    return HOTEL_FIRST_DISCOUNT;
+    return 0;
   }
   /**
-   * ホテル料金の「引き」。コース管理でホテル料金を設定してあるコースは、コース料金欄を
-   * その金額に置き換える方式なので引きは0（二重に引かない）。
-   * 未設定のコースだけ従来どおり一律5,500円を引く。
+   * そのコースがホテル料金の対象かどうか（コース管理でホテル料金を入れてあるか）。
+   * 組み合わせは構成コースのどれかに入っていれば対象。コース未選択のうちは触らせる。
+   */
+  function hotelPriceAvailable() {
+    const o2 = course2Opt();
+    if (o2) {
+      return String(o2.dataset.name || '').split(' ＋ ').some(n => {
+        const c = (coursesCache || []).find(x => x.name === n);
+        return !!(c && c.hotel_price != null && c.hotel_price !== '');
+      });
+    }
+    const sel = bel('bmCourse');
+    if (!sel || !sel.value) return true;
+    const row = firstCourseRow();
+    return !!(row && row.hotel_price != null && row.hotel_price !== '');
+  }
+  /**
+   * ホテル料金の「引き」は常に0。ホテル料金はコース料金欄をその金額に**置き換える**方式で、
+   * 組み合わせも料金にホテル料金が織り込み済みなので、ここで引くと二重になる。
    */
   function hotelFirstDiscount() {
-    if (!bel('bmHotelFirst')?.checked || bel('bmBreakMode')?.checked) return 0;
-    const o2c = course2Opt();
-    if (o2c) return parseInt(o2c.dataset.price, 10) || 0;   // 組み合わせを選んでいればそれが全体の料金
-    const row = firstCourseRow();
-    if (row && row.hotel_price != null && row.hotel_price !== '') return 0;
-    return HOTEL_FIRST_DISCOUNT;
+    return 0;
   }
 
   /** 新規/会員・訪問先・担当・媒体が変わるたびに特典まわりを同期する */
@@ -2117,26 +2177,31 @@
     // 本指名＝そのキャストとは2回目以降なのでホテル料金は対象外。押せないようにして外す
     const nomNow = bel('bmNomination')?.value || '';
     const hfLock = nomNow === 'regular' && !bel('bmBreakMode')?.checked;
+    // お泊りコースのようにホテル料金を設定していないコースも対象外
+    const hfNA = !hotelPriceAvailable();
+    const hfOff = hfLock || hfNA;
     const hfField = bel('bmHotelFirstField');
     const hfInput = bel('bmHotelFirst');
     if (hfInput) {
-      hfInput.disabled = hfLock;
+      hfInput.disabled = hfOff;
       // 先にチェックしてから本指名にした場合は外す。黙って消えると気づけないので知らせる
-      if (hfLock && hfInput.checked) {
+      if (hfOff && hfInput.checked) {
         hfInput.checked = false;
-        try { toast('本指名（2回目以降）のためホテル料金を外しました', 'err'); } catch (_) {}
+        try { toast(hfLock ? '本指名（2回目以降）のためホテル料金を外しました' : 'このコースはホテル料金の設定がないため外しました', 'err'); } catch (_) {}
       }
     }
     if (hfField) {
-      hfField.style.opacity = hfLock ? '.55' : '';
-      hfField.style.cursor = hfLock ? 'not-allowed' : 'pointer';
-      hfField.title = hfLock ? '本指名（2回目以降）のためホテル料金は対象外です' : '';
+      hfField.style.opacity = hfOff ? '.55' : '';
+      hfField.style.cursor = hfOff ? 'not-allowed' : 'pointer';
+      hfField.title = hfLock ? '本指名（2回目以降）のためホテル料金は対象外です'
+                    : hfNA ? 'このコースはコース管理でホテル料金を設定していません' : '';
     }
     // チェックする前に条件が分かるよう、指名方法に応じた注意をその場に出す
     const hfWarn = bel('bmHotelFirstWarn');
     if (hfWarn) {
       let w = '';
       if (hfLock) w = '⚠️ 本指名（そのキャストが2回目以降）のため対象外です';
+      else if (hfNA) w = '⚠️ このコースはホテル料金の設定がありません（対象外）';
       else if (nomNow === '') w = '※ ホテル利用 × そのキャストが初めてのお客様のみ対象です（本指名は対象外）';
       hfWarn.textContent = w;
       hfWarn.style.display = w ? 'block' : 'none';
@@ -2144,7 +2209,7 @@
     }
     // 特別料金の自動チェック（手で触っていなければ）
     const cb = bel('bmHotelFirst');
-    if (cb && !bmHotelFirstTouched[activeBmSuffix] && !hfLock) {
+    if (cb && !bmHotelFirstTouched[activeBmSuffix] && !hfOff) {
       const next = hotelFirstEligible();
       if (cb.checked !== next) { cb.checked = next; populateCourseSelect(); applyCoursePrice(); }
     }
@@ -2158,7 +2223,7 @@
     }
     // ホテル料金の引き額（コース管理の「ホテル料金」があればその差額）
     const hfAmt = bel('bmHotelFirstAmt');
-    if (hfAmt) hfAmt.textContent = '−¥' + hotelDeltaForCurrentCourse().toLocaleString();
+    if (hfAmt) hfAmt.textContent = hfNA ? '（このコースは設定なし）' : '−¥' + hotelDeltaForCurrentCourse().toLocaleString();
     // ＋10分: 手で触っていなければ自動判定を反映する
     const p10 = bel('bmPlus10');
     if (p10 && !bmPlus10Touched[activeBmSuffix]) {
@@ -4124,9 +4189,8 @@
   // 深夜料金 (+¥3,300) — チェックは合計表示のみに反映 (bmPrice はコース料金のまま)
   const LATE_NIGHT_FEE = 3300;
   const CAMPAIGN_RATE = 0.1;  // キャンペーン割引: コース料金の 10%OFF (通常→オープニング特価と一致)
-  // 初回ホテル特別料金: ホテル利用×そのキャストと初対面のとき、コース料金から一律5,500円引き。
-  // コースが何分でも・90+90の組み合わせでも、1予約につき1回だけ（店長判断 2026-08-04）。
-  const HOTEL_FIRST_DISCOUNT = 5500;
+  // ホテル料金: ホテル利用×そのキャストと初対面のとき、コース管理の hotel_price に**置き換える**。
+  // 引き算はしない（hotelFirstDiscount は常に0）。hotel_price 未設定のコースは対象外。
   // コース料金に対する割引額 (10%, 円未満切り捨て)
   function campaignDiscount(base) {
     return bel('bmCampaign')?.checked ? Math.floor(base * CAMPAIGN_RATE) : 0;
@@ -4226,6 +4290,7 @@
         noteEl.style.display = 'none';
       }
     }
+    updateCourseCalc();   // コース欄の金額メモ（合計を触るところは必ずここを通る）
   }
   // 担当キャストが選ばれたら、ステータスが「問合せ」のときのみ自動で「予約」に切替える
   // （完了・キャンセル等、既に確定した状態は上書きしない）
@@ -6244,6 +6309,7 @@
       setMoney('coHotelCastReward', c.hotel_cast_reward != null ? c.hotel_cast_reward : '');
       populateBonusCourseSelect(id, c.bonus_course_id);
       document.getElementById('coIsActive').checked = Number(c.is_active) === 1;
+      document.getElementById('coIsCombinable').checked = Number(c.is_combinable) !== 0;
     } else {
       document.getElementById('coName').value = '';
       document.getElementById('coDuration').value = 60;
@@ -6253,6 +6319,7 @@
       setMoney('coHotelCastReward', '');
       populateBonusCourseSelect(0, '');
       document.getElementById('coIsActive').checked = true;
+      document.getElementById('coIsCombinable').checked = true;
     }
     openModal('courseModal');
   }
@@ -6270,6 +6337,7 @@
       hotel_price: moneyVal('coHotelPrice'),
       hotel_cast_reward: moneyVal('coHotelCastReward'),
       is_active: document.getElementById('coIsActive').checked ? 1 : 0,
+      is_combinable: document.getElementById('coIsCombinable').checked ? 1 : 0,
     };
     // 新規時のみ末尾の sort_order をセット（既存編集時は変えない、ドラッグで並び替え）
     if (!editingCourseId) {

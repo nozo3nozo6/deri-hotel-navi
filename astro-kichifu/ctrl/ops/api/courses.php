@@ -25,7 +25,7 @@ if ($action === 'list' && $method === 'GET') {
     $includeInactive = !empty($_GET['include_inactive']);
     try {
         $pdo = getPdo();
-        $sql = "SELECT id, name, duration_min, price, cast_reward, bonus_course_id, hotel_price, hotel_cast_reward, description, bg_image_url, sort_order, is_active
+        $sql = "SELECT id, name, duration_min, price, cast_reward, bonus_course_id, hotel_price, hotel_cast_reward, description, bg_image_url, sort_order, is_active, is_combinable
                 FROM ops_courses "
                 . ($includeInactive ? '' : 'WHERE is_active = 1 ')
                 . "ORDER BY sort_order, id";
@@ -46,19 +46,22 @@ if ($action === 'create' && $method === 'POST') {
     $name = trim($b['name'] ?? '');
     $dur = (int)($b['duration_min'] ?? 0);
     if ($name === '' || $dur <= 0) errorResponse('name and duration_min required', 400);
-    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, cast_reward, bonus_course_id, hotel_price, hotel_cast_reward, description, sort_order, is_active)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, 1)")->execute([
+    // 列と ? の数を必ず合わせること（列11 = ?×10 + is_active の 1）
+    $pdo->prepare("INSERT INTO ops_courses (name, duration_min, price, cast_reward, bonus_course_id, hotel_price, hotel_cast_reward, description, sort_order, is_combinable, is_active)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)")->execute([
         $name, $dur,
         isset($b['price']) && $b['price'] !== '' ? (int)$b['price'] : null,
         isset($b['cast_reward']) && $b['cast_reward'] !== '' ? (int)$b['cast_reward'] : null,
         // ＋10分（媒体・LINEチェック時）に差し替えるコース。未設定なら従来どおり終了時刻を10分延ばすだけ
         isset($b['bonus_course_id']) && $b['bonus_course_id'] !== '' ? (int)$b['bonus_course_id'] : null,
-        // ホテル利用のときの料金。空なら通常料金から一律5,500円引きの従来動作
+        // ホテル利用のときの料金。空ならそのコースはホテル料金の対象外
         isset($b['hotel_price']) && $b['hotel_price'] !== '' ? (int)$b['hotel_price'] : null,
         // ホテル料金のときのキャスト報酬。空なら通常の報酬をそのまま使う
         isset($b['hotel_cast_reward']) && $b['hotel_cast_reward'] !== '' ? (int)$b['hotel_cast_reward'] : null,
         trim($b['description'] ?? '') ?: null,
         (int)($b['sort_order'] ?? 100),
+        // 組み合わせコースの部品として使うか（延長・お泊りなどは0）
+        isset($b['is_combinable']) ? ((int)$b['is_combinable'] ? 1 : 0) : 1,
     ]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
 }
@@ -68,11 +71,11 @@ if ($action === 'update' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
     $cols = []; $vals = [];
-    foreach (['name', 'duration_min', 'price', 'cast_reward', 'bonus_course_id', 'hotel_price', 'hotel_cast_reward', 'description', 'bg_image_url', 'sort_order', 'is_active'] as $k) {
+    foreach (['name', 'duration_min', 'price', 'cast_reward', 'bonus_course_id', 'hotel_price', 'hotel_cast_reward', 'description', 'bg_image_url', 'sort_order', 'is_active', 'is_combinable'] as $k) {
         if (array_key_exists($k, $b)) {
             $cols[] = "$k = ?";
             $v = $b[$k];
-            if (in_array($k, ['duration_min', 'price', 'cast_reward', 'bonus_course_id', 'hotel_price', 'hotel_cast_reward', 'sort_order', 'is_active'], true)) {
+            if (in_array($k, ['duration_min', 'price', 'cast_reward', 'bonus_course_id', 'hotel_price', 'hotel_cast_reward', 'sort_order', 'is_active', 'is_combinable'], true)) {
                 $v = ($v === '' || $v === null) ? null : (int)$v;
             } elseif (is_string($v)) {
                 $v = trim($v); if ($v === '') $v = null;
