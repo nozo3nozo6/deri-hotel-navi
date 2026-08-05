@@ -856,6 +856,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-time-pop .ttp-close{background:transparent;border:none;font-size:1.2rem;line-height:1;color:var(--ink-soft);cursor:pointer;padding:0 .25rem;border-radius:6px;}
   .tl-time-pop .ttp-close:hover{background:var(--foam);color:var(--ink);}
   .tl-time-pop .ttp-sel{border:1.5px solid var(--gray);background:var(--white);border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:1rem;color:var(--deep);cursor:pointer;font-family:'Zen Maru Gothic';min-width:160px;display:block;}
+  /* 開始時刻: 時と分を別に選ぶ（分は1分刻み） */
+  .tl-time-pop .ttp-time{display:flex;align-items:center;gap:.35rem;}
+  .tl-time-pop .ttp-time .ttp-sel{min-width:0;flex:1;text-align:center;padding:.45rem .35rem;}
+  .tl-time-pop .ttp-c{font-weight:800;color:var(--ink-soft);}
+  .tl-time-pop .ttp-apply{margin-top:.5rem;width:100%;border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
+  .tl-time-pop .ttp-apply:hover{filter:brightness(1.08);}
+  .tl-time-pop .ttp-apply:disabled{opacity:.6;cursor:default;}
   .tl-time-pop .ttp-mail{margin-top:.5rem;width:100%;border:1.5px solid var(--coral,#e8896b);background:var(--coral,#e8896b);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}
   .tl-time-pop .ttp-mail:hover{filter:brightness(1.08);}
   .tl-time-pop .ttp-copy{margin-top:.4rem;width:100%;border:1.5px solid var(--sea);background:var(--sea);color:#fff;border-radius:8px;padding:.45rem .6rem;font-weight:700;font-size:.85rem;cursor:pointer;}

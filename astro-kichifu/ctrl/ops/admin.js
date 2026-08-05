@@ -2180,19 +2180,17 @@
     if (!b) return;
     const toMin = (t) => { const p = String(t).split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); };
     const cur = toMin(b.start_time);
-    // 現在時刻を中心に ±90分・5分刻みのプルダウン
-    let opts = '';
-    for (let d = -90; d <= 90; d += 5) {
-      const m = cur + d;
-      if (m < 0) continue;
-      const hh = Math.floor(m / 60) % 24, mm = m % 60;
-      const label = hh + ':' + ('0' + mm).slice(-2);
-      opts += `<option value="${d}" ${d === 0 ? 'selected' : ''}>${label}${d === 0 ? '(現在)' : ''}</option>`;
-    }
+    // 時と分を別々に選ぶ（分は1分刻み）。営業は10:00〜翌9:00なので時は 10→23→0→9 の順
+    const curH = Math.floor(cur / 60) % 24, curM = cur % 60;
+    const hours = [...Array(14).keys()].map(i => i + 10).concat([...Array(10).keys()]);
+    const hOpts = hours.map(h => `<option value="${h}"${h === curH ? ' selected' : ''}>${h}</option>`).join('');
+    const mOpts = [...Array(60).keys()].map(m => `<option value="${m}"${m === curM ? ' selected' : ''}>${('0' + m).slice(-2)}</option>`).join('');
     const pop = document.createElement('div');
     pop.id = 'tlTimePop';
     pop.className = 'tl-time-pop';
-    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">開始時刻</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div><select class="ttp-sel">${opts}</select>`;
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">開始時刻</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <div class="ttp-time"><select class="ttp-sel ttp-h" aria-label="時">${hOpts}</select><span class="ttp-c">:</span><select class="ttp-sel ttp-m" aria-label="分">${mOpts}</select></div>
+      <button type="button" class="ttp-apply">この時刻に変更</button>`;
     document.body.appendChild(pop);
     pop.querySelector('.ttp-close').addEventListener('click', (ev) => { ev.stopPropagation(); closeTimeAdjust(); });
     const r = anchor.getBoundingClientRect();
@@ -2200,12 +2198,17 @@
     pop.style.left = (r.left + window.scrollX) + 'px';
     const pr = pop.getBoundingClientRect();
     if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
-    const sel = pop.querySelector('.ttp-sel');
-    sel.addEventListener('change', async (ev) => {
+    const btn = pop.querySelector('.ttp-apply');
+    btn.addEventListener('click', async (ev) => {
       ev.stopPropagation();
-      const delta = parseInt(ev.target.value, 10);
+      const h = parseInt(pop.querySelector('.ttp-h').value, 10);
+      const m = parseInt(pop.querySelector('.ttp-m').value, 10);
+      // ずらす分数。日をまたぐ選び方（19:05→2:00 など）は近い方向へ寄せる
+      let delta = (h * 60 + m) - cur;
+      if (delta > 720) delta -= 1440;
+      if (delta < -720) delta += 1440;
       if (delta === 0) { closeTimeAdjust(); return; }
-      sel.disabled = true;
+      btn.disabled = true;
       try {
         await apiPost('/bookings.php?action=shift-time', { id, delta });
         closeTimeAdjust();
