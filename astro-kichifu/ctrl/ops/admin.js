@@ -6046,6 +6046,45 @@
     });
     setupEntryMethodSortable();
   }
+  /**
+   * 入室方法の並び替え（コース・オプションと同じドラッグ方式）。
+   * 2026-08-02 の一括削除で巻き込まれて消えており、renderEntryMethods() の末尾で
+   * ReferenceError になって「読み込み失敗」と出ていた（2026-08-05 修復）。
+   */
+  function setupEntryMethodSortable() {
+    const list = document.getElementById('entryMethodList');
+    if (!list) return;
+    let dragSrc = null;
+    list.querySelectorAll('.sortable').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        dragSrc = row; row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+        row.classList.add(before ? 'drag-over-top' : 'drag-over-bottom');
+      });
+      row.addEventListener('drop', async e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        list.insertBefore(dragSrc, before ? row : row.nextSibling);
+        list.querySelectorAll('.drag-over-top, .drag-over-bottom').forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+        const ids = [...list.querySelectorAll('.bk-row')].map(r => Number(r.dataset.emId));
+        try { await apiPost('/entry-methods.php?action=reorder', { ids }); await loadEntryMethods(); }
+        catch (err) { toast('並び替えに失敗: ' + err.message, 'err'); }
+      });
+    });
+  }
   function openEntryMethodModal(id) {
     editingEntryMethodId = id;
     document.getElementById('emaTitle').textContent = id ? '入室方法を編集' : '新規入室方法';
