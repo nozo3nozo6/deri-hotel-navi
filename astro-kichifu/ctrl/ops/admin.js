@@ -1827,29 +1827,31 @@
     const sel2 = bel('bmCourse2');
     if (!sel2) return;
     const prev2 = sel2.value;
-    // 使える単位: 通常コース（ホテル料金が効いていればその金額）＋ 延長30分
+    // 使える単位: 通常コース（150分まで）＋ 延長30分。組み合わせは通常料金で組む
     const units = [];
     (coursesCache || []).filter(c => c.is_active == 1).forEach(c => {
       const min = parseInt(c.duration_min, 10) || 0;
-      if (min <= 0) return;
+      const price = parseInt(c.price, 10) || 0;
+      if (min <= 0 || !price) return;
       const isExt = /延長/.test(c.name);
-      const useHotel = !isExt && hotelFirstOn && c.hotel_price != null && c.hotel_price !== '';
-      const price = useHotel ? (parseInt(c.hotel_price, 10) || 0) : (parseInt(c.price, 10) || 0);
-      if (!price) return;
-      units.push({ min, price, name: c.name, label: isExt ? '延長30' : String(min), isExt });
+      units.push({
+        min, price, name: c.name, isExt,
+        label: isExt ? '延長30' : String(min),
+        hotel: (!isExt && c.hotel_price != null && c.hotel_price !== '') ? (parseInt(c.hotel_price, 10) || 0) : null,
+      });
     });
     const step = 30;
-    // 分数ごとの最安。同額なら本数が少ない方、それも同じなら均等に割れている方
+    // 本数がいちばん少ない組み合わせを優先。同数なら安い方、それも同じなら均等に割れている方
     // （180分は 120＋60 と 90＋90 が同額。店の言い方に合わせて 90＋90 を採る）
     const spread = (parts) => {
       if (!parts.length) return 0;
       const mins = parts.map(x => x.min);
       return Math.max(...mins) - Math.min(...mins);
     };
-    const better = (a, b) => {          // a が b より良ければ true
+    const better = (a, b) => {
       if (!b) return true;
-      if (a.price !== b.price) return a.price < b.price;
       if (a.parts.length !== b.parts.length) return a.parts.length < b.parts.length;
+      if (a.price !== b.price) return a.price < b.price;
       return spread(a.parts) < spread(b.parts);
     };
     const best = { 0: { price: 0, parts: [] } };
@@ -1863,20 +1865,41 @@
       });
       if (cur) best[t] = cur;
     }
+    // ホテル料金が効いているときは、いちばん長いコース1本だけ特別料金・残りは通常料金
+    const comboPrice = (parts) => {
+      let total = parts.reduce((n, x) => n + x.price, 0);
+      if (!hotelFirstOn) return total;
+      const target = parts.filter(x => x.hotel !== null).sort((a, b) => b.min - a.min)[0];
+      if (target) total -= (target.price - target.hotel);
+      return total;
+    };
     // 180分以上だけ出す（それ未満は1本目のコースで選ぶ）
     let opts = '<option value="">＋ 組み合わせなし</option>';
     for (let t = 180; t <= COMBO_MAX_MIN; t += step) {
       const b = best[t];
       if (!b || b.parts.length < 2) continue;
       const parts = b.parts.slice().sort((x, y) => y.min - x.min);
+      const price = comboPrice(parts);
       const combo = parts.map(x => x.label).join('＋');
       const names = parts.map(x => x.name).join(' ＋ ');
-      opts += `<option value="${t}" data-name="${escapeAttr(names)}" data-price="${b.price}">`
-            + `${t}分（${escapeHtml(combo)}） ¥${b.price.toLocaleString()}</option>`;
+      opts += `<option value="${t}" data-name="${escapeAttr(names)}" data-price="${price}" data-parts="${parts.length}">`
+            + `${t}分（${escapeHtml(combo)}） ¥${price.toLocaleString()}</option>`;
     }
     sel2.innerHTML = opts;
     if (prev2 && [...sel2.options].some(o => o.value === prev2)) sel2.value = prev2;
     syncComboUi();
+  }
+
+  /** 指名料の本数。組み合わせコースはその本数ぶん（90＋90なら2倍）かかる */
+  function nominationCount() {
+    const o2 = course2Opt();
+    const n = o2 && o2.dataset ? parseInt(o2.dataset.parts, 10) : 1;
+    return n > 0 ? n : 1;
+  }
+  /** この予約の指名料の合計 */
+  function nominationFeeTotal() {
+    if (bel('bmBreakMode')?.checked) return 0;
+    return nominationFeeFor(bel('bmNomination')?.value) * nominationCount();
   }
 
   /** 組み合わせを選んでいる間は、1本目のコース欄は使わない（合計はそちらで決まる） */
@@ -2220,7 +2243,7 @@
     // 終了時刻・場所・媒体・支払方法はここには出さない（本文で見えるため）
     const startLine = `${dateDisp} ${startStr}〜`.replace(/\s+/g, ' ').trim();
     const coursePrice = parseInt(String(bel('bmPrice')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
-    const nomFee = nominationFeeFor(bel('bmNomination')?.value);
+    const nomFee = nominationFeeTotal();
     const transportFee = parseInt(String(bel('bmTransport')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
     const optFee = optionTotal();
     const extFee = extAmount();
@@ -4170,7 +4193,7 @@
       const stamp = stampDiscount(price - discount);
       const hf = hotelFirstDiscount();
       const opt = optionTotal();
-      const nomFee = bel('bmBreakMode')?.checked ? 0 : nominationFeeFor(bel('bmNomination')?.value);
+      const nomFee = nominationFeeTotal();
       const subtotal = price + transport + lateNight + ext + nomFee + opt - discount - stamp - hf;
       const surcharge = cardSurcharge(subtotal);
       totalEl.textContent = '¥' + (subtotal + surcharge).toLocaleString();
@@ -5281,7 +5304,7 @@
         let base = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
         if (!base) base = parseInt(opt?.dataset?.price || '0', 10) || 0;
         const late = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
-        const nomFee = nominationFeeFor(bel('bmNomination')?.value);
+        const nomFee = nominationFeeTotal();
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
         return base + late + extAmount() + nomFee + optionTotal() - disc - stamp - hotelFirstDiscount();  // コース + 深夜 + 延長 + 指名料 + オプション − 各割引
@@ -5298,7 +5321,7 @@
         if (depositRaw !== '') return 0;   // 手入力の預り金＝それが最終額なので上乗せしない
         const base = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
         const late = bel('bmLateNight')?.checked ? LATE_NIGHT_FEE : 0;
-        const nomFee = nominationFeeFor(bel('bmNomination')?.value);
+        const nomFee = nominationFeeTotal();
         const disc = campaignDiscount(base);
         const stamp = stampDiscount(base - disc);
         const trans = parseInt(String(bel('bmTransport').value || '').replace(/[^\d]/g, ''), 10) || 0;
@@ -5306,7 +5329,7 @@
       })(),
       card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
-      nomination_fee: isBreak ? 0 : nominationFeeFor(bel('bmNomination')?.value),
+      nomination_fee: isBreak ? 0 : nominationFeeTotal(),
       media: isBreak ? '' : getBmMedia().join(','),
       menu_items: isBreak ? '' : optionText(),
       plus10: isBreak ? false : lineBonusExtra() > 0,

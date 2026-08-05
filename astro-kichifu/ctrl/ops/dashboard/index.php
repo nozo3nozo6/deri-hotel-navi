@@ -383,7 +383,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .loc-tab input{display:none;}
   .loc-tab:hover{background:#f6fbfc;}
   .loc-tab:has(input:checked){background:linear-gradient(135deg,var(--aqua),var(--sea));color:#fff;border-color:var(--sea);font-weight:600;}
-  .modal-header{padding:1.4rem 1.6rem 1rem;border-bottom:1px solid var(--gray);position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;}
+  .modal-header{padding:1.4rem 1.6rem 1rem;border-bottom:1px solid var(--gray);position:sticky;top:0;background:#fff;border-radius:20px 20px 0 0;z-index:1;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem;}
   .modal-header .mh-title{font-size:1.1rem;font-weight:700;line-height:1.4;}
   .modal-header .mh-sub{font-size:.82rem;color:var(--ink-soft);margin-top:.25rem;}
   .modal-close{background:transparent;border:none;font-size:1.4rem;color:var(--ink-soft);line-height:1;padding:.3rem;border-radius:8px;cursor:pointer;}
@@ -437,6 +437,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     border:1.5px solid #9ad8bb;background:#f2fbf6;border-radius:999px;cursor:pointer;
     font-size:.76rem;font-weight:700;color:#0d7a4a;vertical-align:middle;}
   .bm-plus10 input{width:14px;height:14px;margin:0;cursor:pointer;accent-color:#0d7a4a;}
+  .bm-plus10-note{display:block;margin-top:.25rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);line-height:1.5;}
   .bm-plus10:has(input:checked){background:#d9f3e4;border-color:#4bb583;}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
   /* PC・スマホとも2行に収める: 1行目=媒体6つ / 2行目=LINE予約（全幅）。
@@ -464,9 +465,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
   /* 担当キャストの注意事項（ヘッダー・小さく1行） */
-  .bm-cast-alert-head{padding:.3rem 1.6rem;background:#fff4f4;border-bottom:1px solid #f0cbc7;
-    color:#a5342f;font-size:.76rem;font-weight:700;line-height:1.5;}
-  @media(max-width:640px){.bm-cast-alert-head{font-size:.72rem;padding:.28rem 1.1rem;}}
+  /* 固定ヘッダーの中の2行目。ヘッダーの左右パディング（右は×ボタンぶん広い）を
+     打ち消して端まで伸ばす。--hdr-pl / --hdr-pr を変えればここも追従する */
+  .modal-header{--hdr-pl:1.6rem;--hdr-pr:1.6rem;}
+  .modal.draggable .modal-header{--hdr-pr:5rem;}
+  .bm-cast-alert-head{flex:0 0 calc(100% + var(--hdr-pl) + var(--hdr-pr));order:9;
+    margin:.55rem calc(-1 * var(--hdr-pr)) -1rem calc(-1 * var(--hdr-pl));
+    padding:.32rem var(--hdr-pr) .32rem var(--hdr-pl);
+    background:#fff4f4;border-top:1px solid #f3d3cf;color:#a5342f;font-size:.76rem;font-weight:700;line-height:1.5;}
+  @media(max-width:640px){
+    .modal-header{--hdr-pl:1.1rem;--hdr-pr:1.1rem;}
+    .modal.draggable .modal-header{--hdr-pr:3.4rem;}
+    .bm-cast-alert-head{font-size:.72rem;margin-top:.45rem;margin-bottom:-.8rem;}
+  }
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
   .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
   .bm-hf-warn.is-block{color:#a5342f;}
@@ -1791,9 +1802,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <button class="modal-minimize" title="最小化(フッターへ)" data-minimize="bookingModal">＿</button>
       <button class="modal-close" data-close="bookingModal">×</button>
+      <!-- 担当キャストの注意事項。固定ヘッダーの中の2行目（スクロールしても残る） -->
+      <div id="bmCastAlert" class="bm-cast-alert-head" style="display:none;"></div>
     </div>
-    <!-- 担当キャストの注意事項。ヘッダーの下に細い帯で（担当欄を細らせない） -->
-    <div id="bmCastAlert" class="bm-cast-alert-head" style="display:none;"></div>
     <div class="modal-body">
       <!-- NG登録の警告。電話番号で顧客が当たった瞬間・担当を選んだ瞬間に一番上で目に入る位置 -->
       <div id="bmNgAlert" class="bm-ng-alert"></div>
@@ -1935,9 +1946,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
           <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
         </div>
-        <label id="bmPlus10Field" class="bm-plus10" title="お店が初めてのお客様の媒体経由、またはLINE予約に＋10分。手で外せます">
+        <label id="bmPlus10Field" class="bm-plus10">
           <input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span>
         </label>
+        <span class="bm-plus10-note">LINE予約／ご新規様の媒体経由に自動で付きます（媒体を見ていないお客様などは外せます）</span>
       </div>
       <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
         <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
