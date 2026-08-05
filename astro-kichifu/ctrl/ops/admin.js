@@ -2226,7 +2226,7 @@
     let place = b.hotel_name || b.hotel_name_snapshot || '';
     if (place.startsWith(HOME_PREFIX)) place = '自宅 ' + place.slice(HOME_PREFIX.length);
     else if (place.startsWith(OTHER_PREFIX)) place = place.slice(OTHER_PREFIX.length);
-    if (b.room_number) place += ' / ' + b.room_number;
+    if (b.room_number) place += ' 『' + b.room_number + '』';   // 部屋番号は見落とさないよう括弧で囲む
     const drvRaw = isGo ? b.driver_name : b.back_driver_name;
     const drv = drvRaw || ('自走' + (b.staff_name ? '（' + b.staff_name + '）' : ''));
     const st = b.start_time ? wrapHM(String(b.start_time).slice(0, 5)) : '';
@@ -2236,7 +2236,8 @@
     lines.push('ドライバー: ' + drv);
     lines.push('日付: ' + fmtBizDate(b));
     lines.push('お客様: ' + cust + ' 様');
-    if (st && et) lines.push('接客: ' + st + '〜' + et);
+    // 行き＝キャストが着く時間、帰り＝迎えに行く時間。ドライバーが自分の動きとして読めるラベルにする
+    if (st && et) lines.push((isGo ? '到着見込み: ' : 'お迎え予定: ') + st + '〜' + et);
     // コース（何分）・指名・料金
     const nomLabel = { first: '初指名', regular: '本指名', free: 'フリー' }[b.nomination_type] || '';
     const courseBits = [b.course_name, nomLabel].filter(Boolean).join('・');
