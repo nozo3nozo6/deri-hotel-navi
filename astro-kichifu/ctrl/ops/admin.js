@@ -4010,6 +4010,9 @@
       withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
       // ご利用回数と「過去に会ったキャスト」は、実際のオーダーから数える。
       // キャンセル・無連絡は利用に数えない＝そのキャストとは会っていないまま（店長方針 2026-08-05）。
+      // 予約ステータスで1回と判断する（店長方針 2026-08-05）。
+      // 数える: 予約 / 事前予約 / 保留 / 接客中・接客完了
+      // 数えない: 問合せ（まだ予約ではない） / キャンセル / 無連絡 / 休憩
       const COUNTED = (st) => !['cancelled', 'no_show', 'inquiry'].includes(String(st));
       // いま編集中の予約は「その人の過去の利用」ではないので除く（1回目なのに2回目と出ていた）
       const curRow = (d.bookings || []).find(x => Number(x.id) === Number(excludeBookingId));

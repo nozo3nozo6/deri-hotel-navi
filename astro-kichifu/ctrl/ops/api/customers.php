@@ -190,7 +190,9 @@ if ($action === 'get' && $method === 'GET') {
           WHERE l.customer_id = ? AND l.status NOT IN ('cancelled','no_show')) AS legacy_used,
         (SELECT COUNT(DISTINCT b.id) FROM ops_bookings b
           WHERE (b.customer_id = ? OR (? <> '' AND b.customer_phone_snapshot = ?))
-            AND b.status NOT IN ('cancelled','no_show','inquiry')) AS ops_used");
+            AND b.status NOT IN ('cancelled','no_show','inquiry')
+            AND COALESCE(b.course_name,'') <> '休憩'
+            AND COALESCE(b.customer_name_snapshot,'') <> '【休憩】') AS ops_used");
     $uq->execute([$id, $id, $phone, $phone]);
     $usage = $uq->fetch() ?: ['legacy_used' => 0, 'ops_used' => 0];
 
