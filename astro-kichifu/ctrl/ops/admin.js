@@ -2236,8 +2236,8 @@
     lines.push('ドライバー: ' + drv);
     lines.push('日付: ' + fmtBizDate(b));
     lines.push('お客様: ' + cust + ' 様');
-    // 行き＝キャストが着く時間、帰り＝迎えに行く時間。ドライバーが自分の動きとして読めるラベルにする
-    if (st && et) lines.push((isGo ? '到着見込み: ' : 'お迎え予定: ') + st + '〜' + et);
+    // 行き＝キャストが着く時間、帰り＝迎えに行く時間（帰りは店長指定の並びで「時刻＋お迎え予定」）
+    if (st && et) lines.push(isGo ? `到着見込み: ${st}〜${et}` : `${st}〜${et}お迎え予定`);
     // コース（何分）・指名・料金
     const nomLabel = { first: '初指名', regular: '本指名', free: 'フリー' }[b.nomination_type] || '';
     const courseBits = [b.course_name, nomLabel].filter(Boolean).join('・');
