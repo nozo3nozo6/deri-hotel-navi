@@ -463,6 +463,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* 担当キャストの注意事項（ヘッダー・小さく1行） */
+  .bm-cast-alert-head{flex:1;min-width:0;margin-right:.6rem;padding:.28rem .6rem;border-radius:8px;
+    background:#fff4f4;border:1px solid #e7a6a0;color:#a5342f;font-size:.74rem;font-weight:700;
+    line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  @media(max-width:640px){.bm-cast-alert-head{font-size:.68rem;padding:.22rem .45rem;}}
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
   .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
   .bm-hf-warn.is-block{color:#a5342f;}
@@ -1785,6 +1790,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <option value="break">💤 休憩・私用</option>
         </select>
       </div>
+      <!-- 担当キャストの注意事項。ヘッダーに小さく出す（本文の一等地は使わない） -->
+      <div id="bmCastAlert" class="bm-cast-alert-head" style="display:none;"></div>
       <button class="modal-minimize" title="最小化(フッターへ)" data-minimize="bookingModal">＿</button>
       <button class="modal-close" data-close="bookingModal">×</button>
     </div>
@@ -1792,8 +1799,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <!-- NG登録の警告。電話番号で顧客が当たった瞬間・担当を選んだ瞬間に一番上で目に入る位置 -->
       <div id="bmNgAlert" class="bm-ng-alert"></div>
       <div id="bmNgCastAlert" class="bm-ng-alert"></div>
-      <!-- 担当キャストの注意事項。担当を選んだ瞬間に一番上で目に入る位置に置く -->
-      <div id="bmCastAlert" class="bm-cast-alert" style="display:none;"></div>
       <label id="bmBreakModeLabel" style="display:none;align-items:center;gap:.5rem;font-weight:700;font-size:.88rem;cursor:pointer;background:linear-gradient(135deg,#fff8ef,#ffeada);color:#a85a3a;padding:.55rem .75rem;border-radius:10px;margin-bottom:1rem;border:1px solid #f3c9a8;">
         <input type="checkbox" id="bmBreakMode"> 💤 休憩・私用予定として登録(公開ページには「ご予約済」のみ表示)
       </label>
@@ -1948,6 +1953,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <select id="bmCourse2" class="bm-tight-select" style="margin-top:.4rem;">
             <option value="">＋ 組み合わせなし</option>
           </select>
+          <span class="hint" id="bmComboNote" style="display:none;color:var(--sea);"></span>
         </div>
         <div class="field" id="bmNominationField">
           <label for="bmNomination">指名方法</label>

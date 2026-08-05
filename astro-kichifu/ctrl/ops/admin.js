@@ -142,7 +142,7 @@
       } else if (e.target.id === 'bmExtCount-2') {
         withBmSuffix('-2', () => { updateEndTime(); updateBookingTotal(); });
       } else if (e.target.id === 'bmCourse-2' || e.target.id === 'bmCourse2-2') {
-        withBmSuffix('-2', () => { updateEndTime(); applyCoursePrice(); autoToggleLateNight(); syncDealBadges(); });
+        withBmSuffix('-2', () => { syncComboUi(); updateEndTime(); applyCoursePrice(); autoToggleLateNight(); syncDealBadges(); });
       } else if (e.target.name === 'bmCityRegion-2') {
         withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
       } else if (e.target.id === 'bmCity-2') {
@@ -1258,13 +1258,15 @@
   // 注: adminUsersAll は一度読んだらキャッシュされるため、注意事項を書き足した直後に
   //     別画面から開くと古い値のことがある。保存時に両キャッシュを更新している。
   function renderCastAlert() {
-    const box = bel('bmCastAlert');
+    // 担当キャストの注意事項はヘッダーに小さく出す（本文の一等地を使わない・店長指定 2026-08-05）
+    const box = bel('bmCastAlertHead') || bel('bmCastAlert');
     if (!box) return;
     const id = bel('bmAdminId')?.value;
     const u = id ? findStaffUser(id) : null;
     const note = (u?.cast_notes || '').trim();
     box.style.display = note ? 'block' : 'none';
-    box.textContent = note ? `⚠️ ${u.display_name || ''}：${note}` : '';
+    box.textContent = note ? `⚠️ ${note}` : '';
+    box.title = note ? `${u.display_name || ''}：${note}` : '';
   }
 
   // ===== スタッフ編集モーダル =====
@@ -1713,11 +1715,12 @@
   }
   // コースselect: option value=duration_min or 'custom'。dataset.name でコース名
   function courseToMinutes() {
+    const combo = course2Minutes();
+    if (combo) return combo;   // 組み合わせを選んでいればそれが全体の分数
     const b = bonusCourse();
-    const first = b ? (parseInt(b.duration_min, 10) || 0) : (parseInt(bel('bmCourse').value || '0', 10) || 0);
-    return first + course2Minutes();
+    return b ? (parseInt(b.duration_min, 10) || 0) : (parseInt(bel('bmCourse').value || '0', 10) || 0);
   }
-  /** 組み合わせ2本目の分数（未選択なら0） */
+  /** 組み合わせコースの合計分数（未選択なら0） */
   function course2Minutes() {
     return parseInt(bel('bmCourse2')?.value || '0', 10) || 0;
   }
@@ -1764,19 +1767,26 @@
    * ・そうでなく＋10分が付くときは「60分コース ＋10分」のように付けて記録に残す（店長指定 2026-08-05）
    */
   function bmCourseName(opt) {
-    const b = bonusCourse();
-    let base = b ? b.name : ((opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '');
     const o2 = course2Opt();
-    if (base && o2) base += ' ＋ ' + ((o2.dataset && o2.dataset.name) || o2.text || '');
-    if (base && !b && lineBonusExtra() > 0) base += ' ＋10分';
-    return base;
+    if (o2) {
+      // 組み合わせコース。中身（90分コース ＋ 90分コース）をそのまま記録する
+      const nm = (o2.dataset && o2.dataset.name) || o2.text || '';
+      return nm && lineBonusExtra() > 0 ? nm + ' ＋10分' : nm;
+    }
+    const b = bonusCourse();
+    const base = b ? b.name : ((opt && opt.dataset && opt.dataset.name) || (opt && opt.text) || '');
+    return base && !b && lineBonusExtra() > 0 ? base + ' ＋10分' : base;
   }
   /** いまのコース選択（＋10分の差し替え・組み合わせ2本目を含む）の合計料金。取れなければ null */
   function coursePriceSum() {
+    const o2first = course2Opt();
+    if (o2first) return parseInt(o2first.dataset.price, 10) || 0;
     const sel = bel('bmCourse');
     const opt = sel && sel.options[sel.selectedIndex];
     if (!sel || !sel.value || !opt) return null;
     const b = bonusCourse();
+    const o2c = course2Opt();
+    if (o2c) return parseInt(o2c.dataset.price, 10) || 0;   // 組み合わせを選んでいればそれが全体の料金
     const row = firstCourseRow();
     const useHotel = !!(bel('bmHotelFirst')?.checked && !bel('bmBreakMode')?.checked
       && row && row.hotel_price != null && row.hotel_price !== '');
@@ -1804,6 +1814,84 @@
     applyCoursePrice();
   }
   // bmCourse select を coursesCache から動的生成
+  /**
+   * 組み合わせコース（180分〜10時間・30分刻み）の選択肢を作る。
+   * 180分以上の単独コースは無く「90＋90」のように足す運用なので、
+   * 登録済みコース＋延長30分の組み合わせから **いちばん安くなる組み合わせ** を分数ごとに計算して並べる。
+   * 例: 180分 → 90＋90（¥33,000）／150＋延長30（¥41,800）より安いのでこちらを採用。
+   * 組み合わせには割引が無いので、コース欄とは別の段（2つ目のプルダウン）に置く。
+   */
+  const COMBO_MAX_MIN = 600;   // 10時間
+  function populateComboSelect(hotelFirstOn) {
+    const sel2 = bel('bmCourse2');
+    if (!sel2) return;
+    const prev2 = sel2.value;
+    // 使える単位: 通常コース（ホテル料金が効いていればその金額）＋ 延長30分
+    const units = [];
+    (coursesCache || []).filter(c => c.is_active == 1).forEach(c => {
+      const min = parseInt(c.duration_min, 10) || 0;
+      if (min <= 0) return;
+      const isExt = /延長/.test(c.name);
+      const useHotel = !isExt && hotelFirstOn && c.hotel_price != null && c.hotel_price !== '';
+      const price = useHotel ? (parseInt(c.hotel_price, 10) || 0) : (parseInt(c.price, 10) || 0);
+      if (!price) return;
+      units.push({ min, price, name: c.name, label: isExt ? '延長30' : String(min), isExt });
+    });
+    const step = 30;
+    // 分数ごとの最安。同額なら本数が少ない方、それも同じなら均等に割れている方
+    // （180分は 120＋60 と 90＋90 が同額。店の言い方に合わせて 90＋90 を採る）
+    const spread = (parts) => {
+      if (!parts.length) return 0;
+      const mins = parts.map(x => x.min);
+      return Math.max(...mins) - Math.min(...mins);
+    };
+    const better = (a, b) => {          // a が b より良ければ true
+      if (!b) return true;
+      if (a.price !== b.price) return a.price < b.price;
+      if (a.parts.length !== b.parts.length) return a.parts.length < b.parts.length;
+      return spread(a.parts) < spread(b.parts);
+    };
+    const best = { 0: { price: 0, parts: [] } };
+    for (let t = step; t <= COMBO_MAX_MIN; t += step) {
+      let cur = null;
+      units.forEach(u => {
+        const prev = best[t - u.min];
+        if (!prev) return;
+        const cand = { price: prev.price + u.price, parts: prev.parts.concat([u]) };
+        if (better(cand, cur)) cur = cand;
+      });
+      if (cur) best[t] = cur;
+    }
+    // 180分以上だけ出す（それ未満は1本目のコースで選ぶ）
+    let opts = '<option value="">＋ 組み合わせなし</option>';
+    for (let t = 180; t <= COMBO_MAX_MIN; t += step) {
+      const b = best[t];
+      if (!b || b.parts.length < 2) continue;
+      const parts = b.parts.slice().sort((x, y) => y.min - x.min);
+      const combo = parts.map(x => x.label).join('＋');
+      const names = parts.map(x => x.name).join(' ＋ ');
+      opts += `<option value="${t}" data-name="${escapeAttr(names)}" data-price="${b.price}">`
+            + `${t}分（${escapeHtml(combo)}） ¥${b.price.toLocaleString()}</option>`;
+    }
+    sel2.innerHTML = opts;
+    if (prev2 && [...sel2.options].some(o => o.value === prev2)) sel2.value = prev2;
+    syncComboUi();
+  }
+
+  /** 組み合わせを選んでいる間は、1本目のコース欄は使わない（合計はそちらで決まる） */
+  function syncComboUi() {
+    const sel = bel('bmCourse');
+    const sel2 = bel('bmCourse2');
+    const on = !!(sel2 && sel2.value);
+    if (sel) { sel.disabled = on; sel.style.opacity = on ? '.5' : ''; }
+    const note = bel('bmComboNote');
+    if (note) {
+      const o = on ? sel2.options[sel2.selectedIndex] : null;
+      note.textContent = o ? `${o.dataset.name}（コース欄は使いません）` : '';
+      note.style.display = o ? 'block' : 'none';
+    }
+  }
+
   function populateCourseSelect() {
     const sel = bel('bmCourse');
     if (!sel) return;
@@ -1824,13 +1912,7 @@
     });
     sel.innerHTML = html;
     if (selectedValue) sel.value = selectedValue;
-    // 2本目（組み合わせ）。180分以上は単独コースが無く「90＋90」のように足す運用
-    const sel2 = bel('bmCourse2');
-    if (sel2) {
-      const prev2 = sel2.value;
-      sel2.innerHTML = '<option value="">＋ 組み合わせなし</option>' + html.replace('<option value="">選択</option>', '');
-      if (prev2) sel2.value = prev2;
-    }
+    populateComboSelect(hotelFirstOn);
     // 延長フィールドの説明を更新
     const ext = document.getElementById('bmExtInfo' + activeBmSuffix) || document.getElementById('bmExtInfo');
     if (ext) ext.textContent = _extUnit.price ? `1回 +${_extUnit.min}分 / +¥${_extUnit.price.toLocaleString()}` : '';
@@ -1995,6 +2077,8 @@
    */
   function hotelFirstDiscount() {
     if (!bel('bmHotelFirst')?.checked || bel('bmBreakMode')?.checked) return 0;
+    const o2c = course2Opt();
+    if (o2c) return parseInt(o2c.dataset.price, 10) || 0;   // 組み合わせを選んでいればそれが全体の料金
     const row = firstCourseRow();
     if (row && row.hotel_price != null && row.hotel_price !== '') return 0;
     return HOTEL_FIRST_DISCOUNT;
@@ -2044,9 +2128,9 @@
     const hint = bel('bmHotelFirstHint');
     if (hint) {
       const nm = selectedCastName();
-      if (st.isNew === true) hint.textContent = '（ご新規様）';
+      if (st.isNew === true) hint.textContent = '（初めてのキャスト限定）';
       else if (st.isNew === false && st.castNames && nm) hint.textContent = st.castNames.has(nm) ? `（${nm} は2回目以降）` : `（${nm} と初対面）`;
-      else hint.textContent = '';
+      else hint.textContent = '（初めてのキャスト限定）';
     }
     // ホテル料金の引き額（コース管理の「ホテル料金」があればその差額）
     const hfAmt = bel('bmHotelFirstAmt');
@@ -2624,8 +2708,9 @@
     let transT = 0;
     if (trans > 0) { const perLeg = Math.max(Math.floor(trans / 2), 850); let shop = (goDrv ? perLeg : 0) + (backDrv ? perLeg : 0); if (shop > trans) shop = trans; transT = trans - shop; }
     // admi: マスタのコース別「キャスト報酬」を優先。無ければ従来の歩合率(%)で算出
-    const fixed = courseCastReward(courseName, hotelApplied);
-    const base = (fixed !== null) ? fixed : Math.floor((price - late) * rate / 100);
+    // 報酬はコース管理の固定額のみ（歩合率は使わない・店長方針 2026-08-05）。
+    // 未設定のコースは0円。マスタに入れるまで報酬は出ない
+    const base = courseCastReward(courseName, hotelApplied) || 0;
     return base + lateT + transT - cardFeeSelf(price, trans, pm);
   }
   // 時刻のテキスト表示は実時刻・0埋めなし（例 02:00→2:00）。24h+表記(displayTime)は位置計算・ソート専用
@@ -4370,8 +4455,12 @@
             return mm ? parseInt(mm[1], 10) : null;
           };
           const parts = cname.split(/\s*[＋+]\s*/).map(x => x.trim()).filter(Boolean);
-          if (parts.length) courseMin = toMin(parts[0]);
-          if (parts.length > 1) course2Min = toMin(parts[1]);
+          if (parts.length === 1) {
+            courseMin = toMin(parts[0]);
+          } else if (parts.length > 1) {
+            // 組み合わせコースは合計分数で1つの選択肢になっている
+            course2Min = parts.reduce((n, nm) => n + (toMin(nm) || 0), 0);
+          }
         }
         // マスタに一致する分数があれば選択、無ければ未選択（カスタムは廃止）
         const opt = courseMin != null && [...bel('bmCourse').options].find(o => o.value === String(courseMin));
@@ -4381,6 +4470,7 @@
           const opt2 = course2Min != null && [...sel2r.options].find(o => o.value === String(course2Min));
           sel2r.value = opt2 ? String(course2Min) : '';
         }
+        syncComboUi();
         // 延長回数の復元
         if (bel('bmExtCount')) bel('bmExtCount').value = String(b.extension_count || 0);
         updateEndTime();
@@ -8925,9 +9015,11 @@
     });
     const course2Sel = bel('bmCourse2');
     if (course2Sel) course2Sel.addEventListener('change', () => {
+      syncComboUi();
       updateEndTime();
       applyCoursePrice();
       autoToggleLateNight();
+      syncDealBadges();
     });
     // ＋10分のチェック: 手で触ったら自動判定を止める
     const p10Cb = bel('bmPlus10');
