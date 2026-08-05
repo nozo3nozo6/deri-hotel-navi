@@ -48,6 +48,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 try { db()->prepare('UPDATE admins SET last_login_at = NOW() WHERE id = ?')->execute([$a['id']]); } catch (Throwable $e) {}
                 redirect('index.php');
             }
+            // 端末認証がOFFの間は、従来どおりパスワードだけで入れる（メール未到達の保険）
+            if (!DEVICE_AUTH_ENABLED) {
+                login_session($a);
+                try { db()->prepare('UPDATE admins SET last_login_at = NOW() WHERE id = ?')->execute([$a['id']]); } catch (Throwable $e) {}
+                redirect('index.php');
+            }
             // 未登録の端末 → 認証コードを発行してメール送信
             $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $sent = device_send_code($a, $code);
@@ -152,10 +158,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         </div>
         <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">ログイン</button>
       </form>
+      <?php if (DEVICE_AUTH_ENABLED): ?>
       <p class="field-hint" style="margin-top:1rem;text-align:center;line-height:1.6">
         初めての端末では、メールに届く認証コードの入力が必要です。<br>
         一度登録した端末は、次回からログイン操作なしで開けます。
       </p>
+      <?php endif; ?>
     <?php endif; ?>
   </div>
 </div>

@@ -93,6 +93,13 @@ layout_header('端末とログイン', 'devices.php');
 <div class="page-head"><h1>端末とログイン</h1></div>
 <?= render_flash() ?>
 
+<?php if (!DEVICE_AUTH_ENABLED): ?>
+<div class="flash flash-err" style="margin-bottom:14px;line-height:1.7">
+  <b>いま端末認証は止めています。</b>ユーザー名とパスワードだけでログインできます。<br>
+  認証コードのメールが届くことを確認してから有効にします（<code>ctrl/_lib.php</code> の
+  <code>DEVICE_AUTH_ENABLED</code> を <code>true</code> に）。
+</div>
+<?php endif; ?>
 <div class="dv-note">
   <b>登録した端末は、次に開いたときログイン操作なしで入れます。</b><br>
   初めての端末だけ、パスワードに加えてメールに届く6桁コードの入力が必要です。

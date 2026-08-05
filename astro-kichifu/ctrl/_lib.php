@@ -116,6 +116,10 @@ function logout_session(): void {
 //   端末Cookieは httponly / SameSite=Lax（管理画面のみで使うため外部からは送られない）。
 //   有効期限は90日で、使うたびに延長（スライディング）。紛失時は端末一覧から解除。
 // ==========================================================================
+// 端末認証のON/OFF。false の間は従来どおり「ユーザー名＋パスワード」だけで入れる。
+// メール（認証コード）の到達を確認してから true に戻すこと。
+// ※ false でも登録済み端末の自動復帰は効くので、ログイン操作は増えない。
+const DEVICE_AUTH_ENABLED = false;
 const DEVICE_COOKIE = 'KICHIFU_DEVICE';
 const DEVICE_TTL_DAYS = 90;
 
@@ -208,8 +212,14 @@ function device_send_code(array $admin, string $code): bool {
           . "    {$code}\n\n"
           . "10分間有効です。心当たりがない場合はこのメールを破棄し、パスワードを変更してください。\n"
           . '接続元IP: ' . device_ip() . "\n";
-    $headers = "From: no-reply@admi2888.com\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-    return (bool)@mail($to, $subject, $body, $headers);
+    // envelope sender（-f）を必ず渡す。省くと差出人がサーバー既定になり SPF が揃わず、
+    // Gmail で迷惑メール判定・拒否になる（yobuho で同じ事故あり）
+    $from = 'no-reply@admi2888.com';
+    $headers = "From: " . ADMIN_NAME . " <{$from}>\r\n"
+             . "Reply-To: {$from}\r\n"
+             . "Content-Type: text/plain; charset=UTF-8\r\n"
+             . "X-Mailer: admi-ctrl\r\n";
+    return (bool)@mail($to, $subject, $body, $headers, '-f ' . $from);
 }
 
 // ---- 店舗（マルチテナント）----
