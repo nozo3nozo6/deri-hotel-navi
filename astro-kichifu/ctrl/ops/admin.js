@@ -485,8 +485,7 @@
     const pref = (typeof prefOfCity === 'function' ? prefOfCity(city) : '') || '';
     const full = composeAddress(pref, city, addr);   // 建物名は入れない・重複させない
     const bits = [];
-    if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(full)}</span>`
-      + `<button type="button" class="bha-copy" data-bha-copy>コピー</button></div>`);
+    if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(full)}</span></div>`);
     const sub = [];
     if (h.tel) sub.push(`TEL ${escapeHtml(h.tel)}`);
     if (h.nearest_station) sub.push(`${escapeHtml(h.nearest_station)}駅`);
@@ -506,21 +505,6 @@
     if (!bits.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.innerHTML = bits.join('');
     box.style.display = 'block';
-    const cp = box.querySelector('[data-bha-copy]');
-    if (cp) cp.addEventListener('click', () => {
-      const q = encodeURIComponent(addressForMap(full));
-      const txt = [
-        `${h.name}${bel('bmRoom')?.value ? ' ' + bel('bmRoom').value + '号室' : ''}`,
-        `住所: ${full}`,
-        h.tel ? `TEL: ${h.tel}` : '',
-        h.entry_method ? `入室: ${entryMethodLabel(h.entry_method)}` : '',
-        h.guide_note ? `案内: ${h.guide_note}` : '',
-        `Googleマップ: https://www.google.com/maps/search/?api=1&query=${q}`,
-        `Yahoo!マップ: https://map.yahoo.co.jp/search?q=${q}`,
-        `Appleマップ: https://maps.apple.com/?q=${q}`,
-      ].filter(Boolean).join('\n');
-      copyTextToClipboard(txt).then(ok => toast(ok ? '✓ ホテル情報をコピーしました' : 'コピーに失敗しました', ok ? 'ok' : 'err'));
-    });
     const originEl = box.querySelector('.bha-origin');
     // 出発地は端末ごとに覚える（毎回打ち直さなくて済むように）
     if (originEl) originEl.addEventListener('change', () => {

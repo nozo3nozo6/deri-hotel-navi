@@ -483,9 +483,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-hotel-addr .bha-go:hover{filter:brightness(1.08);}
   .bm-hotel-addr .bha-office{background:none;border:none;color:var(--sea);font-size:.72rem;cursor:pointer;
     text-decoration:underline;padding:0;white-space:nowrap;}
-  .bm-hotel-addr .bha-copy{margin-left:auto;border:1.5px solid var(--sea);background:#fff;color:var(--sea);
-    border-radius:7px;padding:.2rem .6rem;font-size:.76rem;font-weight:700;cursor:pointer;}
-  .bm-hotel-addr .bha-copy:hover{background:var(--sea);color:#fff;}
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
   .cu-loc{margin-top:.2rem;font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cu-last{margin-left:.6rem;font-size:.74rem;color:var(--ink-soft);}
