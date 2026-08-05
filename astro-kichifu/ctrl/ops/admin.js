@@ -2399,6 +2399,23 @@
     setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
   }
 
+  /** タイムラインの予約から「住所」だけを取り出す（ナビにそのまま貼れる形） */
+  function bookingAddressText(id) {
+    const b = _tlBookingMap[id];
+    if (!b) return '';
+    let addr = (b.hotel_address || '').trim();
+    if (addr) {
+      // マスタ住所に市区町村が入っていない登録もあるので、無ければ前に付ける
+      const city = (b.display_city || b.hotel_city || '').trim();
+      if (city && !addr.includes(city)) addr = city + addr;
+      return addr;
+    }
+    const snap = (b.hotel_name_snapshot || '').trim();
+    if (snap.startsWith(HOME_PREFIX)) return splitAddressBuilding(snap.slice(HOME_PREFIX.length)).filter(Boolean).join(' ');
+    if (snap.startsWith(OTHER_PREFIX)) return snap.slice(OTHER_PREFIX.length).split('\n')[0].trim();
+    return '';
+  }
+
   // 下段クリック → 送迎情報をクリップボードへ（LINE等でドライバーに送る）
   // 送迎情報テキスト＋件名＋対象ドライバーIDを生成（コピー / メール送信で共用）
   function buildPickupInfo(id, dir) {
@@ -3383,7 +3400,7 @@
                   <span class="bk-name" data-bk-edit="${b.id}">${escapeHtml(name)}</span>
                   ${canMeet ? `<span class="bk-svc-ph" data-svc-ph="${b.id}" data-svc-state="${svc}"></span>` : ''}
                 </div>
-                ${isBreakRow ? '' : `<div class="bk-place">${escapeHtml(placeShort)}</div><div class="bk-venue">${escapeHtml(venue)}</div>`}
+                ${isBreakRow ? '' : `<div class="bk-place" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(placeShort)}</div><div class="bk-venue" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(venue)}</div>`}
                 ${!isBreakRow
                   ? `<div class="bk-bottom">
                        <button class="bk-go${goMailed ? ' mailed' : ''}" data-bk-go="${b.id}" title="行き: ドライバー指定・送迎情報をコピー">${goCell}</button>
@@ -3470,6 +3487,15 @@
       el.addEventListener('click', e => {
         e.stopPropagation();
         openBookingModal(Number(el.dataset.bkEdit));
+      });
+    });
+    // 3〜4段目 地名・場所 → 住所をコピー（ナビや案内にそのまま貼れるように）
+    grid.querySelectorAll('[data-bk-addr]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const addr = bookingAddressText(Number(el.dataset.bkAddr));
+        if (!addr) { toast('住所が登録されていません', 'err'); return; }
+        copyTextToClipboard(addr).then(ok => toast(ok ? '📋 ' + addr : 'コピーに失敗しました', ok ? 'ok' : 'err'));
       });
     });
     // 上段 時間 → ±調整ポップ

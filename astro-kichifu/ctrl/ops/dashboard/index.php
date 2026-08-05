@@ -859,9 +859,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-booking .bk-svc-sel.svc-started,.tl-booking .bk-svc-sel.svc-ended{background-color:#fff;color:#1f7a45;border-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%231f7a45' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
   .tl-booking .bk-svc-sel option{color:#173842;background:#fff;}
   /* 3段目: 地名（市区町村・接尾辞なし、中央揃え） */
-  .tl-booking .bk-place{font-size:.66rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;}
+  .tl-booking .bk-place{font-size:.66rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;cursor:pointer;}
   /* 4段目: 場所（ご自宅 / ホテル名、中央揃え） */
-  .tl-booking .bk-venue{font-size:.64rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;opacity:.95;}
+  .tl-booking .bk-venue{font-size:.64rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;opacity:.95;cursor:pointer;}
+  /* 住所コピーできることが分かるよう、触れたら下線 */
+  .tl-booking .bk-place:hover,.tl-booking .bk-venue:hover{text-decoration:underline dotted;text-underline-offset:2px;}
   /* 5段目: ドライバー名（左=行き / 右=帰り、クリックで送迎コピー） */
   .tl-booking .bk-bottom{display:flex;gap:2px;}
   .tl-booking .bk-go,.tl-booking .bk-back{flex:1;min-width:0;border:none;border-radius:4px;background:rgba(255,255,255,.25);color:#fff;font-size:.64rem;font-weight:700;line-height:1.15;padding:2px 3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
