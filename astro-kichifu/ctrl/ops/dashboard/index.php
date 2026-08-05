@@ -463,6 +463,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media.is-line:has(input:checked){border-color:#06c755;background:#d6f5e3;color:#06682f;}
   .bm-media.is-line input{accent-color:#06c755;}
   .bulk-actions .btn-bulk-delete{background:var(--red);border-color:var(--red);color:#fff;}
+  /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
+  .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
+  .bm-hf-warn.is-block{color:#a5342f;}
   /* 同時編集ロックの注意帯（別端末が編集中＝読み取り専用） */
   .bm-lock-notice{margin-bottom:1rem;padding:.6rem .8rem;background:#fff4f4;border:1.5px solid #e7a6a0;
     border-radius:8px;font-size:.85rem;font-weight:700;color:#a5342f;line-height:1.5;}
@@ -1913,7 +1916,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
         <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
-        <span>🏨 ホテル料金 <b id="bmHotelFirstAmt">−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span></span>
+        <span>🏨 ホテル料金 <b id="bmHotelFirstAmt">−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span><span id="bmHotelFirstWarn" class="bm-hf-warn" style="display:none;"></span></span>
       </label>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>

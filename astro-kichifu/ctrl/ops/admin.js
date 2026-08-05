@@ -2016,17 +2016,32 @@
     const badge = bel('bmNewBadge');
     if (badge) badge.style.display = (st.isNew === true && !bel('bmBreakMode')?.checked) ? 'block' : 'none';
     // 本指名＝そのキャストとは2回目以降なのでホテル料金は対象外。押せないようにして外す
-    const hfLock = bel('bmNomination')?.value === 'regular' && !bel('bmBreakMode')?.checked;
+    const nomNow = bel('bmNomination')?.value || '';
+    const hfLock = nomNow === 'regular' && !bel('bmBreakMode')?.checked;
     const hfField = bel('bmHotelFirstField');
     const hfInput = bel('bmHotelFirst');
     if (hfInput) {
       hfInput.disabled = hfLock;
-      if (hfLock && hfInput.checked) hfInput.checked = false;
+      // 先にチェックしてから本指名にした場合は外す。黙って消えると気づけないので知らせる
+      if (hfLock && hfInput.checked) {
+        hfInput.checked = false;
+        try { toast('本指名（2回目以降）のためホテル料金を外しました', 'err'); } catch (_) {}
+      }
     }
     if (hfField) {
-      hfField.style.opacity = hfLock ? '.45' : '';
+      hfField.style.opacity = hfLock ? '.55' : '';
       hfField.style.cursor = hfLock ? 'not-allowed' : 'pointer';
       hfField.title = hfLock ? '本指名（2回目以降）のためホテル料金は対象外です' : '';
+    }
+    // チェックする前に条件が分かるよう、指名方法に応じた注意をその場に出す
+    const hfWarn = bel('bmHotelFirstWarn');
+    if (hfWarn) {
+      let w = '';
+      if (hfLock) w = '⚠️ 本指名（そのキャストが2回目以降）のため対象外です';
+      else if (nomNow === '') w = '※ ホテル利用 × そのキャストが初めてのお客様のみ対象です（本指名は対象外）';
+      hfWarn.textContent = w;
+      hfWarn.style.display = w ? 'block' : 'none';
+      hfWarn.classList.toggle('is-block', hfLock);
     }
     // 特別料金の自動チェック（手で触っていなければ）
     const cb = bel('bmHotelFirst');
