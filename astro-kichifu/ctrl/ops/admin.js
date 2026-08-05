@@ -482,10 +482,10 @@
     if (!h) { box.style.display = 'none'; box.innerHTML = ''; return; }
     const city = (h.city || '').trim();
     const addr = (h.address || '').trim();
-    const full = (city + addr).trim();
     const pref = (typeof prefOfCity === 'function' ? prefOfCity(city) : '') || '';
+    const full = composeAddress(pref, city, addr);   // 建物名は入れない・重複させない
     const bits = [];
-    if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(pref + full)}</span>`
+    if (full) bits.push(`<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(full)}</span>`
       + `<button type="button" class="bha-copy" data-bha-copy>コピー</button></div>`);
     const sub = [];
     if (h.tel) sub.push(`TEL ${escapeHtml(h.tel)}`);
@@ -508,10 +508,10 @@
     box.style.display = 'block';
     const cp = box.querySelector('[data-bha-copy]');
     if (cp) cp.addEventListener('click', () => {
-      const q = encodeURIComponent(pref + full);
+      const q = encodeURIComponent(addressForMap(full));
       const txt = [
         `${h.name}${bel('bmRoom')?.value ? ' ' + bel('bmRoom').value + '号室' : ''}`,
-        `住所: ${pref}${full}`,
+        `住所: ${addressForMap(full)}`,
         h.tel ? `TEL: ${h.tel}` : '',
         h.entry_method ? `入室: ${entryMethodLabel(h.entry_method)}` : '',
         h.guide_note ? `案内: ${h.guide_note}` : '',
@@ -535,7 +535,7 @@
     const goBtn = box.querySelector('[data-bha-route]');
     if (goBtn) goBtn.addEventListener('click', () => {
       const from = (originEl?.value || '').trim();
-      const to = pref + full;
+      const to = addressForMap(full);
       if (!from) { toast('出発地を入力してください', 'err'); originEl?.focus(); return; }
       const url = 'https://www.google.com/maps/dir/?api=1'
         + '&origin=' + encodeURIComponent(from)
@@ -2399,19 +2399,38 @@
     setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
   }
 
+  /**
+   * 都道府県・市区町村・住所から1本の住所文字列を作る。
+   * すでに含まれているものは足さない（「東京都立川市立川市錦町…」のような重複を防ぐ）。
+   * 建物名・部屋番号は入れない（地図アプリが別の場所を探してしまうため）。
+   */
+  function composeAddress(pref, city, addr) {
+    let out = String(addr || '').trim();
+    if (!out) return '';
+    const c = String(city || '').trim();
+    if (c && !out.includes(c)) out = c + out;
+    const p = String(pref || '').trim();
+    if (p && !out.startsWith(p)) out = p + out;
+    return out;
+  }
+
+  /**
+   * 地図・ナビに渡す住所。番地までで切る（ビル名・部屋番号があると
+   * Googleマップが別の場所を探してしまうため。店長指定 2026-08-05）
+   */
+  function addressForMap(full) {
+    return splitAddressBuilding(String(full || ''))[0] || '';
+  }
+
   /** タイムラインの予約から「住所」だけを取り出す（ナビにそのまま貼れる形） */
   function bookingAddressText(id) {
     const b = _tlBookingMap[id];
     if (!b) return '';
-    let addr = (b.hotel_address || '').trim();
-    if (addr) {
-      // マスタ住所に市区町村が入っていない登録もあるので、無ければ前に付ける
-      const city = (b.display_city || b.hotel_city || '').trim();
-      if (city && !addr.includes(city)) addr = city + addr;
-      return addr;
-    }
+    const addr = (b.hotel_address || '').trim();
+    if (addr) return addressForMap(composeAddress('', (b.display_city || b.hotel_city || ''), addr));
     const snap = (b.hotel_name_snapshot || '').trim();
-    if (snap.startsWith(HOME_PREFIX)) return splitAddressBuilding(snap.slice(HOME_PREFIX.length)).filter(Boolean).join(' ');
+    // 自宅は「住所」だけ。建物名・部屋番号は地図アプリが誤検索するので入れない
+    if (snap.startsWith(HOME_PREFIX)) return addressForMap(snap.slice(HOME_PREFIX.length));
     if (snap.startsWith(OTHER_PREFIX)) return snap.slice(OTHER_PREFIX.length).split('\n')[0].trim();
     return '';
   }
@@ -2448,10 +2467,11 @@
     if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString() + (transN ? '（交通費込）' : ''));
     if (place) lines.push('場所: ' + place);
     // 住所: ホテルは hotel_address、自宅は snapshot 内の住所部を使う。地図アプリで開けるようリンク付き
-    let mapAddr = b.hotel_address || '';
+    // 地図リンクが別の場所を指さないよう、住所は番地まで（ビル名・部屋番号は「場所」行に出る）
+    let mapAddr = addressForMap(b.hotel_address || '');
     if (!mapAddr) {
       const snap = b.hotel_name_snapshot || '';
-      if (snap.startsWith(HOME_PREFIX)) mapAddr = splitAddressBuilding(snap.slice(HOME_PREFIX.length))[0];
+      if (snap.startsWith(HOME_PREFIX)) mapAddr = addressForMap(snap.slice(HOME_PREFIX.length));
     }
     if (mapAddr) {
       lines.push('住所: ' + mapAddr);
