@@ -2853,6 +2853,11 @@
   // 現金を預からない決済（カード/振込）。預り金・入金分の「現金の所在」追跡から除外する
   const NON_CASH_PM = ['credit', 'card', 'bank'];
   const isNonCash = (b) => NON_CASH_PM.includes(String(b.payment_method || ''));
+  // 預り金の既定の保有者 = 帰りのお迎え担当（ドライバー）。お迎えが無ければ担当キャスト本人。
+  // キャストは接客後にお迎えのドライバーへ現金を渡す運用のため（店長指定 2026-08-07）。
+  // held_by（受け渡しで明示的に記録された保有者）があればそちらが優先。
+  const defaultHolderOf = (b) => (b && b.back_driver_id != null && b.back_driver_id !== '')
+    ? Number(b.back_driver_id) : Number(b && b.assigned_admin_id);
   const pmBadge = (b) => String(b.payment_method) === 'bank' ? '🏦 振込' : '💳 カード';
   // 兼任判定: role(主ロール)に加え is_therapist/is_office/can_drive の兼任フラグも見る（例: 橘=role manager だが is_therapist/is_office 兼任）
   const isTherapistCapable = (u) => u.role === 'staff' || Number(u.is_therapist) === 1;
@@ -2907,7 +2912,7 @@
       if (isNonCash(b)) return `${pmBadge(b)}入金`;
       if (b.held_by != null && b.held_by !== '') return nameOf(b.held_by);
       if (b.shop_settled && b.shop_settled_by) return nameOf(b.shop_settled_by);
-      return nameOf(b.assigned_admin_id);
+      return nameOf(defaultHolderOf(b));
     };
     // 誰が入金分をいくら持っているか（人別合計）。精算確定済みは別枠
     const netHolderTotals = new Map();
@@ -2951,7 +2956,7 @@
       } else {
         let handoffUi = '';
         if (!isNonCash(b) && !b.reward_paid_at && meHasRate) {
-          const curHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : Number(b.assigned_admin_id);
+          const curHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
           const opts = people.filter(p => Number(p.id) !== curHolder)
             .map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('');
           handoffUi = `<select class="net-to" data-id="${b.id}" style="flex:1;min-width:0;padding:.35rem .4rem;border:1.5px solid var(--gray);border-radius:8px;"><option value="">渡す先…</option>${opts}</select>
@@ -3118,7 +3123,7 @@
     // 現在の保有者ID別に集計（held_by優先、未設定なら担当本人）
     const byHolderId = {};
     unc.forEach(b => {
-      const hId = Number(b.held_by != null ? b.held_by : b.assigned_admin_id);
+      const hId = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
       if (!byHolderId[hId]) byHolderId[hId] = [];
       byHolderId[hId].push(b);
     });
@@ -3234,7 +3239,7 @@
         const paidFull = b.reward_paid_at && b.settle_kind !== 'net';
         return orShop(paidFull ? (b.reward_paid_by ?? b.shop_settled_by) : b.shop_settled_by);
       }
-      return nameOf((b.held_by != null && b.held_by !== '') ? b.held_by : b.assigned_admin_id);
+      return nameOf((b.held_by != null && b.held_by !== '') ? b.held_by : defaultHolderOf(b));
     };
     const total = earned.reduce((s, b) => s + heldAmountOf(b), 0);
     const cashCount = earned.filter(b => !isNonCash(b)).length;
@@ -3254,7 +3259,7 @@
     // 本人がいま持っている分をまとめて誰かに渡す（現金のみ）
     const holdableList = earned.filter(b => {
       if (isNonCash(b)) return false;
-      const h = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : Number(b.assigned_admin_id);
+      const h = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
       return h === Number(adminId);
     });
     const batchPeople = people.filter(p => Number(p.id) !== Number(adminId));
@@ -3288,7 +3293,7 @@
       const net = amt - reward;
       const hops = byBooking[b.id] || [];
       const legacyHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
-                          : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : Number(b.assigned_admin_id));
+                          : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : defaultHolderOf(b));
       const curHolder = hops.length ? Number(hops[hops.length - 1].to_admin_id) : legacyHolder;
       // チェーン（担当→…→現在の保有者）。保有者は下のバッジで明示
       let chain = `<span class="chain-node start">${escapeHtml(nameOf(b.assigned_admin_id))}<small>担当</small></span>`;
@@ -3370,7 +3375,7 @@
     let totalReward = 0, unpaidReward = 0;
     const unpaidIds = [];
     const holderOf = (b) => (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
-                          : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : Number(b.assigned_admin_id));
+                          : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : defaultHolderOf(b));
     const items = earned.map(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;

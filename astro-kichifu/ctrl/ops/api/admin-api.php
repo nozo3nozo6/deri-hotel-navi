@@ -26,6 +26,20 @@ if (!ops_current_user()) {
     errorResponse('unauthorized', 401);
 }
 
+/**
+ * 預り金の既定の保有者 = 帰りのお迎え担当（ドライバー）。お迎えが無ければ担当キャスト本人。
+ * キャストは接客後にお迎えのドライバーへ現金を渡す運用のため（店長指定 2026-08-07）。
+ * held_by（受け渡しで明示的に記録された保有者）がある場合はそちらが優先。
+ *
+ * @param array<string,mixed> $row assigned_admin_id / back_driver_id を含む行
+ */
+function opsDefaultHolder(array $row): int {
+    if (isset($row['back_driver_id']) && $row['back_driver_id'] !== null && $row['back_driver_id'] !== '') {
+        return (int)$row['back_driver_id'];
+    }
+    return (int)($row['assigned_admin_id'] ?? 0);
+}
+
 function requireOwner(): void {
     if (($_SESSION['ylka_admin_role'] ?? '') !== 'owner') {
         errorResponse('owner role required', 403);
@@ -711,12 +725,14 @@ if ($action === 'driver-day' && $method === 'GET') {
                 au.commission_rate, au.display_name AS therapist_name, au.username AS therapist_username
          FROM ops_bookings b
          LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
-         WHERE b.held_by = ? AND (b.shop_settled IS NULL OR b.shop_settled = 0)
+         WHERE (b.held_by = ? OR (b.held_by IS NULL AND b.back_driver_id = ?))
+           AND (b.shop_settled IS NULL OR b.shop_settled = 0)
            AND (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status='cancelled' AND b.cancellation_reason_type='customer'))
            AND $bizDay = ?" . ylkaExcludeBreakSql('b') . "
          ORDER BY b.start_time"
     );
-    $cst->execute([$did, $date]);
+    // held_by 未設定でも「帰りのお迎え担当」なら既定でその人が持っている扱い（opsDefaultHolder と同じ考え方）
+    $cst->execute([$did, $did, $date]);
     $custody = []; $custodyTotal = 0;
     foreach ($cst->fetchAll() as $r) {
         list($sales, $reward) = ylkaRowSalesReward($r, $cardRate);
@@ -937,10 +953,12 @@ if ($action === 'settlements' && $method === 'GET') {
                    b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by,
                    au.display_name, au.username, au.commission_rate,
-                   h.display_name AS holder_name, h.username AS holder_username
+                   h.display_name AS holder_name, h.username AS holder_username,
+                   bd.display_name AS back_drv_name, bd.username AS back_drv_username
             FROM ops_bookings b
             LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
             LEFT JOIN ops_admin_users h ON h.id = b.held_by
+            LEFT JOIN ops_admin_users bd ON bd.id = b.back_driver_id
             WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND " . ylkaBizDayExpr('b') . " BETWEEN ? AND ?$tCondB" . ylkaExcludeBreakSql('b') . "
             ORDER BY b.shop_settled ASC, b.booking_date DESC, b.start_time DESC";
     $stmt = $pdo->prepare($sql);
@@ -952,7 +970,12 @@ if ($action === 'settlements' && $method === 'GET') {
         [$sales, $reward] = ylkaRowSalesReward($r, $cardRate);
         $shop   = $sales - $reward;
         $settled = (int)$r['shop_settled'] === 1;
-        $heldBy = ($r['held_by'] !== null && $r['held_by'] !== '') ? (int)$r['held_by'] : null;
+        // held_by が無ければ「帰りのお迎え担当」が既定の保有者（opsDefaultHolder と同じ考え方）
+        $heldBy = ($r['held_by'] !== null && $r['held_by'] !== '') ? (int)$r['held_by']
+                : (($r['back_driver_id'] !== null && $r['back_driver_id'] !== '') ? (int)$r['back_driver_id'] : null);
+        $holderName = ($r['held_by'] !== null && $r['held_by'] !== '')
+            ? ($r['holder_name'] ?: $r['holder_username'] ?: null)
+            : ($r['back_drv_name'] ?: $r['back_drv_username'] ?: null);
         $rows[] = [
             'id'        => (int)$r['id'],
             'date'      => $r['booking_date'],
@@ -968,7 +991,7 @@ if ($action === 'settlements' && $method === 'GET') {
             'settled_at'=> $r['shop_settled_at'],
             'assigned_admin_id' => (int)$r['assigned_admin_id'],
             'held_by'   => $heldBy,
-            'holder'    => $heldBy ? ($r['holder_name'] ?: $r['holder_username'] ?: ('#' . $heldBy)) : null,
+            'holder'    => $heldBy ? ($holderName ?: ('#' . $heldBy)) : null,
         ];
         if ($settled) { $sum['settled'] += $shop; $sum['settled_count']++; }
         else { $sum['unsettled'] += $shop; $sum['unsettled_count']++; }
@@ -1047,12 +1070,12 @@ if ($action === 'booking-handoff-add' && $method === 'POST') {
     $id = (int)($body['booking_id'] ?? 0);
     $to = (int)($body['to_admin_id'] ?? 0);
     if ($id <= 0 || $to <= 0) errorResponse('invalid params', 400);
-    $st = $pdo->prepare("SELECT assigned_admin_id, held_by, shop_settled FROM ops_bookings WHERE id = ?");
+    $st = $pdo->prepare("SELECT assigned_admin_id, back_driver_id, held_by, shop_settled FROM ops_bookings WHERE id = ?");
     $st->execute([$id]);
     $row = $st->fetch(PDO::FETCH_ASSOC);
     if (!$row) errorResponse('booking not found', 404);
     if ((int)$row['shop_settled'] === 1) errorResponse('already settled', 400);
-    $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : (int)$row['assigned_admin_id'];
+    $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : opsDefaultHolder($row);
     if ($from === $to) errorResponse('same holder', 400);
     $me = (int)($_SESSION['ylka_admin_id'] ?? 0);
     $pdo->prepare("INSERT INTO ops_booking_handoffs (booking_id, from_admin_id, to_admin_id, created_by) VALUES (?,?,?,?)")
@@ -1123,11 +1146,11 @@ if ($action === 'booking-net-handoff' && $method === 'POST') {
     $id = (int)($body['id'] ?? 0);
     $to = (int)($body['to_admin_id'] ?? 0);
     if ($id <= 0 || $to <= 0) errorResponse('invalid params', 400);
-    $st = $pdo->prepare("SELECT assigned_admin_id, held_by FROM ops_bookings WHERE id = ?");
+    $st = $pdo->prepare("SELECT assigned_admin_id, back_driver_id, held_by FROM ops_bookings WHERE id = ?");
     $st->execute([$id]);
     $row = $st->fetch(PDO::FETCH_ASSOC);
     if (!$row) errorResponse('booking not found', 404);
-    $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : (int)$row['assigned_admin_id'];
+    $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : opsDefaultHolder($row);
     if ($from === $to) errorResponse('same holder', 400);
     $me = (int)($_SESSION['ylka_admin_id'] ?? 0) ?: null;
     $pdo->beginTransaction();
@@ -1153,7 +1176,7 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
     $to   = (int)($body['to_admin_id'] ?? 0);
     if (!$ids || $to <= 0) errorResponse('invalid params', 400);
     $me = (int)($_SESSION['ylka_admin_id'] ?? 0) ?: null;
-    $sel = $pdo->prepare("SELECT id, assigned_admin_id, held_by FROM ops_bookings WHERE id = ?");
+    $sel = $pdo->prepare("SELECT id, assigned_admin_id, back_driver_id, held_by FROM ops_bookings WHERE id = ?");
     $ins = $pdo->prepare("INSERT INTO ops_booking_handoffs (booking_id, from_admin_id, to_admin_id, created_by) VALUES (?,?,?,?)");
     $upd = $pdo->prepare("UPDATE ops_bookings SET held_by = ? WHERE id = ?");
     $n = 0;
@@ -1161,7 +1184,7 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
         $sel->execute([$id]);
         $row = $sel->fetch(PDO::FETCH_ASSOC);
         if (!$row) continue;
-        $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : (int)$row['assigned_admin_id'];
+        $from = ($row['held_by'] !== null && $row['held_by'] !== '') ? (int)$row['held_by'] : opsDefaultHolder($row);
         if ($from === $to) continue;  // すでにその人が保有
         $ins->execute([$id, $from, $to, $me]);
         $upd->execute([$to, $id]);
@@ -1329,9 +1352,11 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
                    b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by, b.reward_paid_at, b.reward_paid_by,
                    au.commission_rate,
-                   h.display_name AS holder_name, h.username AS holder_username
+                   h.display_name AS holder_name, h.username AS holder_username,
+                   bd.display_name AS back_drv_name, bd.username AS back_drv_username
             FROM ops_bookings b LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
             LEFT JOIN ops_admin_users h ON h.id = b.held_by
+            LEFT JOIN ops_admin_users bd ON bd.id = b.back_driver_id
             WHERE $statusWhere AND " . ylkaBizDayExpr('b') . " BETWEEN ? AND ? AND b.assigned_admin_id = ?" . ylkaExcludeBreakSql('b') . "
             ORDER BY b.shop_settled ASC, b.booking_date DESC, b.start_time DESC");
     $stmt->execute([$from, $to, $me]);
@@ -1343,7 +1368,12 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
         [$sales, $reward] = ylkaRowSalesReward($r, $cardRate);
         $shop = $sales - $reward;
         $settled = (int)$r['shop_settled'] === 1;
-        $heldBy = ($r['held_by'] !== null && $r['held_by'] !== '') ? (int)$r['held_by'] : null;
+        // held_by が無ければ「帰りのお迎え担当」が既定の保有者（opsDefaultHolder と同じ考え方）
+        $heldBy = ($r['held_by'] !== null && $r['held_by'] !== '') ? (int)$r['held_by']
+                : (($r['back_driver_id'] !== null && $r['back_driver_id'] !== '') ? (int)$r['back_driver_id'] : null);
+        $holderName = ($r['held_by'] !== null && $r['held_by'] !== '')
+            ? ($r['holder_name'] ?: $r['holder_username'] ?: null)
+            : ($r['back_drv_name'] ?: $r['back_drv_username'] ?: null);
         $rows[] = ['id' => (int)$r['id'], 'date' => $r['booking_date'], 'time' => substr((string)$r['start_time'], 0, 5),
                    'customer' => $r['customer_name_snapshot'], 'course' => $r['course_name'],
                    'sales' => $sales, 'reward' => $reward, 'payment_method' => $r['payment_method'],
@@ -1351,7 +1381,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
                    'assigned_admin_id' => (int)$r['assigned_admin_id'],
                    'reward_paid_at' => $r['reward_paid_at'], 'reward_paid_by' => $r['reward_paid_by'] !== null ? (int)$r['reward_paid_by'] : null,
                    'held_by' => $heldBy,
-                   'holder' => $heldBy ? ($r['holder_name'] ?: $r['holder_username'] ?: ('#' . $heldBy)) : null];
+                   'holder' => $heldBy ? ($holderName ?: ('#' . $heldBy)) : null];
         if ($settled) { $sum['settled'] += $shop; $sum['settled_count']++; }
         else { $sum['unsettled'] += $shop; $sum['unsettled_count']++; }
         $sum['count']++; $sum['sales_total'] += $sales; $sum['reward_total'] += $reward;
