@@ -1201,9 +1201,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .sh-day .sd-date.sun{color:#c44;}
   .sh-day .sd-date.sat{color:#27a;}
   .sh-day .sd-shifts{margin-top:.3rem;display:flex;flex-direction:column;gap:.15rem;}
-  .sh-shift-pill{font-size:.7rem;padding:.15rem .4rem;border-radius:5px;background:linear-gradient(135deg,var(--aqua),var(--sea));color:#fff;line-height:1.3;}
-  .sh-shift-pill.s-off{background:#cdd2d6;color:#fff;}
-  .sh-shift-pill.s-tentative{background:#ffd9bf;color:#a45;}
+  /* グラデーション+白文字は読みにくいので、地は薄く・文字は濃い同系色に統一（店長指摘 2026-08-07「OPSは各所見やすく」） */
+  .sh-shift-pill{font-size:.72rem;font-weight:700;padding:.18rem .45rem;border-radius:5px;line-height:1.35;
+    background:#ddeff4;color:#0d5e70;border-left:3px solid #1d7a9c;}
+  .sh-shift-pill.s-off{background:#eceeef;color:#5a6268;border-left-color:#9aa3a8;}
+  .sh-shift-pill.s-tentative{background:#fde9d9;color:#8a4a12;border-left-color:#e08636;}
   .sh-timetable{padding:1rem 1.5rem;max-width:1100px;margin:0 auto;}
   .sh-tt-row{display:grid;grid-template-columns:130px 120px 60px 120px 120px 1fr 90px;gap:.6rem;align-items:center;padding:.7rem .85rem;background:#fff;border-radius:10px;margin-bottom:.5rem;box-shadow:0 1px 4px rgba(10,61,82,.06);transition:all .15s;border-left:4px solid transparent;}
   .sh-tt-row .sh-tt-24h{display:flex;align-items:center;justify-content:center;gap:.25rem;font-size:.78rem;font-weight:600;color:var(--deep);cursor:pointer;user-select:none;padding:.4rem;border:1.5px solid var(--gray);border-radius:8px;background:#fff;}
