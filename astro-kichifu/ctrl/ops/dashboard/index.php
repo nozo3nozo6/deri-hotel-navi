@@ -1161,6 +1161,18 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .sh-tt-row.is-off-only .sh-tt-24h,.sh-tt-row.is-off-only .sh-tt-start,.sh-tt-row.is-off-only .sh-tt-end{display:none;}
   .sh-toolbar{background:#fff;padding:1rem 1.5rem;border-bottom:1px solid var(--gray);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.7rem;}
   .sh-toolbar select{padding:.45rem .85rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.9rem;}
+  /* 一括設定バー。タイムテーブルの直前に置き、表示中の10日ぶんへまとめて反映する */
+  .sh-bulk{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--foam);
+    border-bottom:1px solid var(--gray);padding:.7rem 1.5rem;}
+  .sh-bulk-title{font-weight:700;color:var(--deep);font-size:.88rem;white-space:nowrap;}
+  .sh-bulk-chips{display:inline-flex;gap:.3rem;}
+  .sh-bulk select{padding:.4rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.85rem;background:#fff;}
+  .sh-bulk .btn-primary{padding:.45rem 1rem;font-size:.85rem;}
+  @media(max-width:640px){
+    .sh-bulk{padding:.6rem .8rem;}
+    .sh-bulk-title{width:100%;}
+    .sh-bulk select{flex:1;min-width:0;}
+  }
   .sh-mode-btn{background:#fff;color:var(--ink-soft);border:none;padding:.5rem 1rem;font-size:.84rem;font-weight:600;cursor:pointer;transition:all .15s;}
   .sh-mode-btn:hover{background:var(--foam);}
   .sh-mode-btn.is-active{background:var(--deep);color:#fff;}
@@ -1601,6 +1613,26 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button id="shToday">今日から</button>
       <button id="shNext">次へ →</button>
     </div>
+  </div>
+  <!-- 一括設定: 同じ時間の日が多いので、表示中の10日ぶんをまとめて登録する（店長要望 2026-08-07） -->
+  <div class="sh-bulk" id="shBulk" style="display:none;">
+    <span class="sh-bulk-title">まとめて設定</span>
+    <div class="sh-bulk-chips" id="shBulkStatus">
+      <button type="button" class="sh-tt-stchip is-on" data-bulk-status="available">🟢 出勤</button>
+      <button type="button" class="sh-tt-stchip" data-bulk-status="tentative">🟡 仮</button>
+      <button type="button" class="sh-tt-stchip" data-bulk-status="off">⚫ 休み</button>
+    </div>
+    <label class="sh-tt-24h" title="10:00〜翌10:00 (24時間)"><input type="checkbox" id="shBulk24h">24H</label>
+    <select id="shBulkStart"></select>
+    <span style="color:var(--ink-soft);">〜</span>
+    <select id="shBulkEnd"></select>
+    <select id="shBulkDays">
+      <option value="all">表示中の10日すべて</option>
+      <option value="weekday">平日のみ（月〜金）</option>
+      <option value="weekend">土日のみ</option>
+      <option value="unreg">未登録の日だけ</option>
+    </select>
+    <button type="button" class="btn-primary" id="shBulkApply">この内容で反映</button>
   </div>
   <div id="shTimetable" class="sh-timetable"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
   <div id="shCalendar" class="sh-calendar" style="display:none;"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>

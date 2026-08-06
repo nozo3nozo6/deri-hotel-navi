@@ -5882,6 +5882,8 @@
     document.getElementById('shModeTimetable').classList.toggle('is-active', mode === 'timetable');
     document.getElementById('shModeCalendar').classList.toggle('is-active', mode === 'calendar');
     document.getElementById('shTimetable').style.display = mode === 'timetable' ? '' : 'none';
+    const bulkBar = document.getElementById('shBulk');
+    if (bulkBar) bulkBar.style.display = mode === 'timetable' ? '' : 'none';
     document.getElementById('shCalendar').style.display = mode === 'calendar' ? '' : 'none';
     // スタッフフィルタの「全スタッフ」オプションは表示モードで出し分け
     //   - タイムテーブル: 1日1行で1人分しか登録できないので「全スタッフ」非表示
@@ -6006,9 +6008,94 @@
       const d = await api('/shifts.php?action=range&' + params.toString());
       shCachedShifts = d.shifts || [];
       renderShiftTimetable(start, shCachedShifts, targetAdminId);
+      setupShiftBulk();
     } catch (e) {
       tt.innerHTML = '<div class="view-empty">読み込み失敗</div>';
     }
+  }
+
+  // ===== 一括設定（表示中の10日ぶんをまとめて登録）=====
+  let _shBulkInit = false;
+  function setupShiftBulk() {
+    const bar = document.getElementById('shBulk');
+    if (!bar) return;
+    // タイムテーブル表示かつ 1人ぶんを見ているときだけ出す（カレンダーは全員表示なので対象外）
+    bar.style.display = (shViewMode === 'timetable') ? '' : 'none';
+    if (_shBulkInit) return;
+    _shBulkInit = true;
+    const fill = (id, opts, sel) => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = opts.map(o => `<option value="${o.val}"${o.val === sel ? ' selected' : ''}>${o.label}</option>`).join('');
+    };
+    fill('shBulkStart', shiftTimeOptions(true), '10:00');
+    fill('shBulkEnd', shiftTimeOptions(false), '22:00');
+
+    document.querySelectorAll('#shBulkStatus [data-bulk-status]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#shBulkStatus [data-bulk-status]').forEach(c => c.classList.remove('is-on'));
+        chip.classList.add('is-on');
+        // 休みは時間を使わないので入力を伏せる
+        const isOff = chip.dataset.bulkStatus === 'off';
+        ['shBulk24h', 'shBulkStart', 'shBulkEnd'].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.disabled = isOff;
+          (el.closest('label') || el).style.opacity = isOff ? '.4' : '1';
+        });
+      });
+    });
+    const cb24 = document.getElementById('shBulk24h');
+    if (cb24) cb24.addEventListener('change', () => {
+      ['shBulkStart', 'shBulkEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = cb24.checked; });
+    });
+    document.getElementById('shBulkApply')?.addEventListener('click', applyShiftBulk);
+  }
+
+  async function applyShiftBulk() {
+    const targetAdminId = shSelectedStaff || currentUser?.id;
+    if (!targetAdminId) { toast('スタッフを選んでください', 'err'); return; }
+    const status = document.querySelector('#shBulkStatus .is-on')?.dataset.bulkStatus || 'available';
+    const is24h = document.getElementById('shBulk24h')?.checked;
+    const start = is24h ? '10:00' : (document.getElementById('shBulkStart')?.value || '10:00');
+    const end = is24h ? '10:00' : (document.getElementById('shBulkEnd')?.value || '22:00');
+    const scope = document.getElementById('shBulkDays')?.value || 'all';
+
+    // 画面に出ている10日の行から対象を絞る（未登録だけ／平日だけ 等）
+    const rows = [...document.querySelectorAll('#shTimetable .sh-tt-row')].filter(row => {
+      const d = _parseYmd(row.dataset.date);
+      const dow = d.getDay();
+      if (scope === 'weekday') return dow >= 1 && dow <= 5;
+      if (scope === 'weekend') return dow === 0 || dow === 6;
+      if (scope === 'unreg') return row.classList.contains('is-unreg');
+      return true;
+    });
+    if (!rows.length) { toast('対象の日がありません', 'err'); return; }
+
+    const staffName = document.getElementById('shStaffFilter')?.selectedOptions?.[0]?.textContent || '自分';
+    const label = status === 'off' ? '休み' : `${status === 'tentative' ? '仮シフト' : '出勤'} ${is24h ? '24時間' : start + '〜' + end}`;
+    if (!confirm(`${staffName} の ${rows.length}日ぶんを「${label}」にします。\n既に登録済みの日も上書きします。よろしいですか？`)) return;
+
+    const btn = document.getElementById('shBulkApply');
+    if (btn) { btn.disabled = true; btn.textContent = '反映中…'; }
+    let ok = 0; let ng = 0;
+    // 連打で媒体側APIのように詰まらないよう、1件ずつ順番に投げる
+    for (const row of rows) {
+      const payload = {
+        shift_date: row.dataset.date,
+        start_time: start,
+        end_time: end,
+        status,
+        note: row.querySelector('.sh-tt-memo')?.value.trim() || '',
+      };
+      const existingId = row.dataset.shiftId ? Number(row.dataset.shiftId) : 0;
+      if (existingId) payload.id = existingId;
+      if (canManageShifts() && targetAdminId) payload.admin_user_id = targetAdminId;
+      try { await apiPost('/shifts.php?action=upsert', payload); ok++; }
+      catch (e) { ng++; }
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'この内容で反映'; }
+    toast(ng ? `${ok}日を反映（${ng}日は失敗）` : `✓ ${ok}日ぶんを反映しました`, ng ? 'err' : 'ok');
+    loadShiftsTimetable();
   }
 
   function renderShiftTimetable(startDate, shifts, targetAdminId) {
