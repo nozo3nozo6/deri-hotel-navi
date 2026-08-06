@@ -5938,16 +5938,20 @@
   const canManageShifts = () => ['owner', 'manager', 'office'].includes(currentUser?.role);
 
   async function loadShifts() {
-    if (canManageShifts() && document.getElementById('shStaffFilter').options.length <= 1) {
+    // 一度作ったら作り直さない作りだと、古い一覧（キャストが混ざった状態）が残るので毎回組み直す
+    if (canManageShifts()) {
       try {
         // staff-list は全ロールで使える（admin-users は owner 限定なので manager/office で 403 になる）
         const d = await api('/admin-api.php?action=staff-list');
         // キャストの出勤は CTRL(/ctrl/schedules.php)が正なのでここには出さない。
-        // それ以外のスタッフ（内勤・ドライバー・管理者・オーナー）は全員ここで組む（店長指定 2026-08-07）
-        const targets = (d.users || []).filter(u => !u.girl_id);
+        // 権限=キャスト、またはCTRL同期のキャスト(girl_id あり)はどちらも除外する。
+        // それ以外（内勤・ドライバー・管理者・オーナー）は全員ここで組む（店長指定 2026-08-07）
+        const targets = (d.users || []).filter(u => u.role !== 'staff' && !u.girl_id);
         const sel = document.getElementById('shStaffFilter');
+        const keep = sel.value;
         sel.style.display = 'inline-block';
         sel.innerHTML = '<option value="">全スタッフ</option>' + targets.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
+        if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
         syncShiftStaffFilterForMode();
         if (targets.length === 0) {
           const msg = '<div class="view-empty">キャスト以外のスタッフがまだ登録されていません。<br>'
