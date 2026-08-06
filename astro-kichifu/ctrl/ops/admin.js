@@ -1105,19 +1105,16 @@
     const thumb = u.thumbnail_url
       ? `<img src="${escapeAttr(u.thumbnail_url)}" alt="" style="width:40px;height:50px;border-radius:10px;object-fit:cover;">`
       : `<div style="width:40px;height:50px;border-radius:10px;background:linear-gradient(135deg,var(--aqua),var(--sea));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1.1rem;">${escapeHtml((u.display_name || u.username || '?').substring(0, 1))}</div>`;
-    const roleLabel = u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '店長' : u.role === 'office' ? '内勤スタッフ' : u.role === 'driver' ? 'ドライバー' : 'キャスト';
+    const roleLabel = u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '管理者' : u.role === 'office' ? '内勤スタッフ' : u.role === 'driver' ? 'ドライバー' : 'キャスト';
     // 主ロールとは別の兼任（例: 橘=店長＋キャスト兼任＋内勤兼任）をラベルに追記
     const concurrentLabels = [];
     if (u.role !== 'staff' && Number(u.is_therapist) === 1) concurrentLabels.push('キャスト');
     if (u.role !== 'office' && Number(u.is_office) === 1) concurrentLabels.push('内勤');
     if (u.role !== 'driver' && Number(u.can_drive) === 1) concurrentLabels.push('ドライバー');
     const roleLabelFull = roleLabel + (concurrentLabels.length ? `（${concurrentLabels.join('・')}兼任）` : '');
-    // CTRL同期のキャスト(girl_id あり)は報酬をマスタのコース別「キャスト報酬」で決めるため
-    // 歩合率は使わない＝一覧にも出さない（編集画面でも扱っていない）
-    const isCastRow = u.girl_id != null && u.girl_id !== '';
-    const rateMeta = (!isCastRow && ((u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u)) && u.commission_rate != null)
-      ? `歩合 ${parseFloat(u.commission_rate)}% ・ ` : '';
-    const metaText = u.created_at ? `${rateMeta}登録: ${formatDate(u.created_at)}` : (rateMeta || '&nbsp;');
+    // 報酬はマスタのコース別「キャスト報酬」で決まるので歩合率(%)は使わない＝一覧にも出さない
+    //（店長指定 2026-08-06）
+    const metaText = u.created_at ? `登録: ${formatDate(u.created_at)}` : '&nbsp;';
     // ドライバー(専任 or 兼任)には送迎・勤務実績の詳細ボタン
     const isDriverRow = isDriverCapable(u);
     const driverBtn = isDriverRow ? `<button class="sr-driver" data-action="driver-detail" data-id="${u.id}" type="button" style="margin-top:.3rem;padding:.28rem .7rem;font-size:.74rem;font-weight:700;border:1.5px solid var(--sea);color:var(--sea);background:#fff;border-radius:50px;cursor:pointer;">🚗 送迎・勤務</button>` : '';
@@ -1304,6 +1301,9 @@
     if (staffOnly) staffOnly.style.display = isCast ? 'none' : '';
     const castNote = document.getElementById('esCastNote');
     if (castNote) castNote.style.display = isCast ? '' : 'none';
+    // 注意事項は「予約を取る前にキャストについて確認すること」なのでキャスト編集のときだけ出す
+    const notesField = document.getElementById('esCastNotesField');
+    if (notesField) notesField.style.display = isCast ? '' : 'none';
     const esTitle = document.getElementById('esTitle');
     if (esTitle) esTitle.textContent = isCast ? 'キャスト編集' : 'スタッフ編集';
 
@@ -1323,6 +1323,7 @@
     const esIsOffice = document.getElementById('esIsOffice');
     if (esIsOffice) esIsOffice.checked = Number(u.is_office) === 1;
     document.querySelectorAll('[data-es-role]').forEach(b => b.classList.toggle('active', b.dataset.esRole === u.role));
+    syncConcurrentFields('es', u.role);
     const me = Number(currentUser?.id) === Number(u.id);
     document.getElementById('esRoleHint').textContent = me ? '⚠️ 自分自身の権限は変更できません' : '';
     document.querySelectorAll('[data-es-role]').forEach(b => { b.disabled = me; b.style.opacity = me ? .5 : 1; });
@@ -2814,6 +2815,27 @@
   const pmBadge = (b) => String(b.payment_method) === 'bank' ? '🏦 振込' : '💳 カード';
   // 兼任判定: role(主ロール)に加え is_therapist/is_office/can_drive の兼任フラグも見る（例: 橘=role manager だが is_therapist/is_office 兼任）
   const isTherapistCapable = (u) => u.role === 'staff' || Number(u.is_therapist) === 1;
+
+  /**
+   * 権限に応じて兼任チェックの出し分けをする（店長指定 2026-08-07）。
+   *   ドライバー … 送迎のみ。兼任は無し
+   *   内勤スタッフ・管理者・オーナー … もともと内勤業務なので「内勤兼任」は出さない。送迎兼任だけ選べる
+   *   キャスト … 両方選べる
+   * 隠した項目のチェックは外して、実態と保存値がずれないようにする。
+   */
+  function syncConcurrentFields(prefix, role) {
+    const wrap = document.getElementById(prefix + 'ConcurrentField');
+    const officeRow = document.getElementById(prefix + 'OfficeRow');
+    const officeCb = document.getElementById(prefix === 'cs' ? 'csIsOffice' : 'esIsOffice');
+    const driveCb = document.getElementById(prefix === 'cs' ? 'csCanDrive' : 'esCanDrive');
+    const isDriver = role === 'driver';
+    const isOfficeSide = role === 'office' || role === 'manager' || role === 'owner';
+    if (wrap) wrap.style.display = isDriver ? 'none' : '';
+    if (officeRow) officeRow.style.display = (isDriver || isOfficeSide) ? 'none' : '';
+    if (officeCb && (isDriver || isOfficeSide)) officeCb.checked = false;
+    if (driveCb && isDriver) driveCb.checked = false;
+  }
+
   const isOfficeCapable = (u) => u.role === 'office' || Number(u.is_office) === 1;
   const isDriverCapable = (u) => u.role === 'driver' || Number(u.can_drive) === 1;
 
@@ -3430,7 +3452,7 @@
       const ATT_BG    = { available: 'var(--sea)', done: '#7a7a7a', off: '#c0392b', tentative: '#a0aab4' };
       usersWithUnassigned.forEach(u => {
         const roleLabel = u.role === 'owner' ? 'オーナー'
-                        : u.role === 'manager' ? '店長'
+                        : u.role === 'manager' ? '管理者'
                         : u.role === 'office' ? '🪪 内勤スタッフ'
                         : u.role === 'driver' ? '🚗ドライバー'
                         : u.role === 'unassigned' ? '📅 担当未割当'
@@ -4930,6 +4952,28 @@
       if (sheetName) sheetName.textContent = '未選択';
       if (sheetSave) sheetSave.style.display = 'none';
 
+      // キャスト個別のお客様メモ（本人専用・お客様に紐づく）。キャストかつ顧客が特定できるときだけ出す
+      const cnRow = document.getElementById('odCastNoteRow');
+      if (cnRow) {
+        const canNote = currentUser?.role === 'staff' && b.customer_id;
+        cnRow.style.display = canNote ? '' : 'none';
+        if (canNote) {
+          const ta = document.getElementById('odCastNote');
+          if (ta) {
+            ta.value = '';
+            api('/customers.php?action=cast-note&customer_id=' + b.customer_id)
+              .then(r => { ta.value = r.note || ''; }).catch(() => {});
+          }
+          const saveBtn = document.getElementById('odCastNoteSave');
+          if (saveBtn) saveBtn.onclick = async () => {
+            try {
+              await apiPost('/customers.php?action=cast-note-save', { customer_id: b.customer_id, note: ta?.value || '' });
+              toast('✓ メモを保存しました', 'ok');
+            } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+          };
+        }
+      }
+
       // 読み取り専用ビュー: 接客の開始/終了はマイページ一覧のボタンで行うため、このモーダルでは状態変更しない
       const compBtn = document.getElementById('odComplete');
       if (compBtn) compBtn.style.display = 'none';
@@ -5576,6 +5620,26 @@
     editingCustomerId = id;
     await ensureSelectsLoaded();   // NGキャストの選択肢に adminUsersAll が要る
     document.getElementById('cmTitle').textContent = id ? '顧客編集' : '新規顧客';
+    // キャストのお客様メモ（内勤スタッフ以上のみ）。開くたびに取り直す
+    const cnWrap = document.getElementById('cmCastNotes');
+    if (cnWrap) {
+      cnWrap.style.display = 'none';
+      const cnRole = currentUser?.role;
+      if (id && ['office', 'manager', 'owner'].includes(cnRole)) {
+        api('/customers.php?action=cast-note&customer_id=' + id).then(r => {
+          const list = r.notes || [];
+          if (!list.length) return;
+          const listEl = document.getElementById('cmCastNotesList');
+          if (listEl) listEl.innerHTML = list.map(n =>
+            `<div style="padding:.45rem .6rem;border:1px solid var(--gray);border-radius:8px;margin-bottom:.4rem;background:#fbfcfb;">
+               <b style="color:var(--deep);">${escapeHtml(n.cast_name || '(退職キャスト)')}</b>
+               <span style="font-size:.72rem;color:var(--ink-soft);margin-left:.4rem;">${escapeHtml(String(n.updated_at || '').slice(0, 16))}</span>
+               <div style="margin-top:.2rem;white-space:pre-wrap;">${escapeHtml(n.note || '')}</div>
+             </div>`).join('');
+          cnWrap.style.display = '';
+        }).catch(() => {});
+      }
+    }
     document.getElementById('cmDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
     document.getElementById('cmHistory').style.display = 'none';
     // 会員証リンク（既存顧客のみ）
@@ -6749,9 +6813,9 @@
     courses:     { label: 'コース',       desc: 'コースの追加・編集' },
     hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
-    payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・店長のみ・固定）' },
+    payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・管理者のみ・固定）' },
     settlement:  { label: '💴 入金',      desc: '自分の店舗への受け渡し確認（スタッフ本人）' },
-    staffboard:  { label: '👥 キャスト管理', desc: '当日の売上・件数・報酬・出勤（オーナー・店長）' },
+    staffboard:  { label: '👥 キャスト管理', desc: '当日の売上・件数・報酬・出勤（オーナー・管理者）' },
     staff:       { label: 'スタッフ管理', desc: 'スタッフアカウントの追加・削除（必ずownerを含む）' },
     permissions: { label: '権限管理',     desc: 'このページ自体（必ずownerを含む）' },
   };
@@ -6857,7 +6921,7 @@
     let html = `<div class="perm-row header">
       <div>タブ</div>
       <div class="perm-cell">オーナー</div>
-      <div class="perm-cell">店長</div>
+      <div class="perm-cell">管理者</div>
       <div class="perm-cell">🪪 内勤</div>
       <div class="perm-cell">キャスト</div>
       <div class="perm-cell">🚗ドライバー</div>
@@ -7027,7 +7091,7 @@
 
     // 営業日 d は カレンダー d の10:00〜カレンダー d+1 の10:00 → 2日分取得して bizDateOf で絞る
     const nextD = fmtDate(addDays(dObj, 1));
-    const res = await api(`/bookings.php?action=range&from=${d}&to=${nextD}&admin_id=${me}`).catch(() => ({ bookings: [] }));
+    const res = await api(`/bookings.php?action=range&from=${d}&to=${nextD}&admin_id=${me}&with_repeat=1`).catch(() => ({ bookings: [] }));
     const dispT = (b, t) => t ? displayTime(b.booking_date, String(t).slice(0, 5), d) : '';  // 深夜は24h+表記（02:00→26:00）
     const bizMin = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
     const bookings = (res.bookings || [])
@@ -7045,6 +7109,18 @@
                    : (isToday && svc === 'started') ? `<button class="btn-primary-coral th-svc-btn" data-svc-end="${b.id}" data-svc-desc="${escapeAttr(svcDesc)}">■ 終了</button>`
                    : '';
       const isBreakRow = (b.course_name === '休憩') || (b.customer_name_snapshot === '【休憩】');
+      // リピーター表示: お店として何回目か＋自分と会ったことがあるか（回数は予約ステータス基準）
+      let repeatTag = '';
+      if (!isBreakRow && b.repeat_shop_count != null) {
+        const shopN = Number(b.repeat_shop_count) || 0;
+        const withMe = Number(b.repeat_with_me) || 0;
+        // この予約自身も1件に数えられているので、「これまで」は -1 して考える
+        const isNew = shopN <= 1;
+        const meTag = withMe <= 1 ? 'あなたと初対面' : `あなたと${withMe}回目`;
+        repeatTag = isNew
+          ? '<span class="th-rep new">🆕 ご新規様</span>'
+          : `<span class="th-rep">♻ ${shopN}回目</span><span class="th-rep me">${meTag}</span>`;
+      }
       // 表示は実時刻・0埋めなし（2:00 等）。並び順のみ営業日基準（深夜は最後）
       const stTime = fmtTimeDisp(b.start_time);
       const etTime = fmtTimeDisp(b.end_time);
@@ -7055,7 +7131,7 @@
           <div>${escapeHtml(b.course_name || '—')}</div>
           ${isBreakRow
             ? (etTime ? `<div style="color:var(--ink-soft);font-size:.82rem;">${stTime} 〜 ${etTime}</div>` : '')
-            : `${place ? `<div style="color:var(--ink-soft);font-size:.82rem;">${escapeHtml(place)}</div>` : ''}${badge}`}
+            : `${place ? `<div style="color:var(--ink-soft);font-size:.82rem;">${escapeHtml(place)}</div>` : ''}${repeatTag}${badge}`}
         </div>
         ${isBreakRow ? '' : action}
         ${isBreakRow ? '' : '<span class="th-book-chev" aria-hidden="true">›</span>'}
@@ -7074,7 +7150,7 @@
     // 誤操作防止: 開始/終了は確認ダイアログを挟む（本人は巻き戻せない一方通行のため）
     card.querySelectorAll('[data-svc-start]').forEach(btn => btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!confirm(`「${btn.dataset.svcDesc}」の接客を開始しますか？`)) return;
+      if (!confirm(`「${btn.dataset.svcDesc}」の接客を開始しますか？\n※ いま押した時刻が開始時刻として記録されます`)) return;
       svcAction(btn.dataset.svcStart, 'started', '▶ 接客を開始しました');
     }));
     card.querySelectorAll('[data-svc-end]').forEach(btn => btn.addEventListener('click', (e) => {
@@ -7641,11 +7717,36 @@
             <span class="mc-bk-date">${md(bkBizDate(b))} ${bkBizTime(b)}</span> ${escapeHtml(b.course || '—')}
             ${b.notes ? `<div class="mc-bk-note">📝 ${escapeHtml(b.notes)}</div>` : ''}
           </div>`).join('')}
+          ${c.customer_id ? `<div class="mc-note-wrap" data-cid="${c.customer_id}">
+            <div style="font-size:.78rem;font-weight:700;color:var(--deep);margin:.5rem 0 .25rem;">🗒 私のお客様メモ <span style="font-weight:500;color:var(--ink-soft);">（他のキャストには見えません）</span></div>
+            <textarea class="mc-note" rows="2" placeholder="例: 会話は控えめが好み" style="width:100%;box-sizing:border-box;font-size:16px;"></textarea>
+            <button class="btn-secondary mc-note-save" type="button" style="margin-top:.3rem;font-size:.78rem;">メモを保存</button>
+          </div>` : ''}
         </div>
       </div>`).join('');
-    el.querySelectorAll('.mc-card').forEach(card => card.addEventListener('click', () => {
+    el.querySelectorAll('.mc-card').forEach(card => card.addEventListener('click', (e) => {
+      if (e.target.closest('.mc-note-wrap')) return;   // メモ入力中に畳まない
       const d = card.querySelector('.mc-detail');
-      if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';
+      if (!d) return;
+      const opening = d.style.display === 'none';
+      d.style.display = opening ? 'block' : 'none';
+      // 開いたときに自分のメモを読み込む（1回だけ）
+      const wrap = card.querySelector('.mc-note-wrap');
+      if (opening && wrap && !wrap.dataset.loaded) {
+        wrap.dataset.loaded = '1';
+        const ta = wrap.querySelector('.mc-note');
+        api('/customers.php?action=cast-note&customer_id=' + wrap.dataset.cid)
+          .then(r => { if (ta) ta.value = r.note || ''; }).catch(() => {});
+      }
+    }));
+    el.querySelectorAll('.mc-note-save').forEach(btn => btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const wrap = btn.closest('.mc-note-wrap');
+      const ta = wrap?.querySelector('.mc-note');
+      try {
+        await apiPost('/customers.php?action=cast-note-save', { customer_id: Number(wrap.dataset.cid), note: ta?.value || '' });
+        toast('✓ メモを保存しました', 'ok');
+      } catch (err) { toast('保存失敗: ' + err.message, 'err'); }
     }));
   }
 
@@ -8710,6 +8811,7 @@
       { const io = document.getElementById('csIsOffice'); if (io) io.checked = false; }
       createRole = 'staff';
       document.querySelectorAll('[data-role-btn]').forEach(b => b.classList.toggle('active', b.dataset.role === 'staff'));
+      syncConcurrentFields('cs', 'staff');
       const roleField = document.getElementById('csRoleField');
       if (roleField) roleField.style.display = lockStaff ? 'none' : '';
       const title = document.getElementById('csTitle');
@@ -8740,6 +8842,7 @@
       b.addEventListener('click', () => {
         createRole = b.dataset.role;
         document.querySelectorAll('[data-role-btn]').forEach(b2 => b2.classList.toggle('active', b2.dataset.role === createRole));
+        syncConcurrentFields('cs', createRole);
       });
     });
     document.getElementById('csGenPw').addEventListener('click', () => {
@@ -8882,6 +8985,7 @@
         if (b.disabled) return;
         editingStaffRole = b.dataset.esRole;
         document.querySelectorAll('[data-es-role]').forEach(x => x.classList.toggle('active', x.dataset.esRole === editingStaffRole));
+        syncConcurrentFields('es', editingStaffRole);
       });
     });
     document.getElementById('esThumbFile').addEventListener('change', async e => {

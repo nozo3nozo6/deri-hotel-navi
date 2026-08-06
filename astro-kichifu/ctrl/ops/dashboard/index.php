@@ -122,9 +122,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   }
   .staff-row:last-child{border-bottom:none;}
   .sr-role{padding:.3rem .7rem;border-radius:50px;font-size:.74rem;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
-  .sr-role.owner{background:linear-gradient(135deg,var(--coral),#e87a4f);color:#fff;}
-  .sr-role.manager{background:linear-gradient(135deg,#a8e0ea,#5bbcd4);color:#fff;}
-  .sr-role.staff{background:var(--foam);color:var(--sea);border:1px solid rgba(91,188,212,.4);}
+  /* 白抜き文字は薄い地だと読めなかったので、地を淡く・文字を同系の濃色にする（店長指摘 2026-08-06）。
+     兼任つきで文字数が増えても読めるよう、5つの権限すべてに色を用意する */
+  .sr-role.owner{background:#fbe7dd;color:#a2461d;border:1px solid #f0bda3;}
+  .sr-role.manager{background:#ddeff4;color:#125b70;border:1px solid #a5d2de;}
+  .sr-role.office{background:#efe9f8;color:#573c78;border:1px solid #cab7e2;}
+  .sr-role.driver{background:#e4f1e2;color:#2d6733;border:1px solid #b3d6b3;}
+  .sr-role.staff{background:#eef8fa;color:#12667e;border:1px solid #b7dde6;}
 
   /* 権限管理テーブル (ロールは5列: owner/manager/office/staff/driver) */
   .perm-table{background:#fff;border-radius:14px;padding:1rem;box-shadow:0 4px 14px rgba(10,61,82,.05);overflow-x:auto;-webkit-overflow-scrolling:touch;}
@@ -432,6 +436,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-field{display:grid!important;grid-template-columns:1fr!important;gap:.4rem;}
   .bm-media-label{display:block!important;float:none!important;width:auto!important;white-space:normal;margin-bottom:0;}
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
+  /* OP（オプション）: 見出しを左、チップを右に置く。見出しは縦の中央に揃え、間に少し余白をとる。
+     id ではなく class で当てる（2枚目の予約モーダルは clone で id に -2 が付くため） */
+  .bm-opt-field{display:grid!important;grid-template-columns:auto 1fr;align-items:center;column-gap:.75rem;}
+  .bm-opt-field > .bm-media-label{margin:0!important;white-space:nowrap;text-align:center;}
   /* ＋10分は自動で入るが、媒体を見ていないお客様など外したい場合があるのでチェックで操作できる */
   .bm-plus10{display:inline-flex;justify-self:start;align-items:center;gap:.35rem;margin-top:.1rem;padding:.3rem .75rem;
     border:1.5px solid #9ad8bb;background:#f2fbf6;border-radius:999px;cursor:pointer;
@@ -635,6 +643,13 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .em-status .sbtn.v-unavailable.active{background:var(--unavailable);border-color:var(--unavailable);}
   .em-status .sbtn.v-unset.active{background:#aab2b7;border-color:#aab2b7;color:#fff;}
   /* 支払方法の選択中はグレーではなく明瞭な色（ティール）で */
+  /* 権限ボタンは選択が一目で分かるよう役割ごとの濃色にする（灰色系だと選択が弱かった・店長指摘 2026-08-07） */
+  .em-status .sbtn[data-role].active,.em-status .sbtn[data-es-role].active{color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.18);}
+  .em-status .sbtn[data-role="staff"].active,.em-status .sbtn[data-es-role="staff"].active{background:#12667e;border-color:#12667e;}
+  .em-status .sbtn[data-role="driver"].active,.em-status .sbtn[data-es-role="driver"].active{background:#2d6733;border-color:#2d6733;}
+  .em-status .sbtn[data-role="office"].active,.em-status .sbtn[data-es-role="office"].active{background:#573c78;border-color:#573c78;}
+  .em-status .sbtn[data-role="manager"].active,.em-status .sbtn[data-es-role="manager"].active{background:#b06a12;border-color:#b06a12;}
+  .em-status .sbtn[data-role="owner"].active,.em-status .sbtn[data-es-role="owner"].active{background:#a2461d;border-color:#a2461d;}
   .em-status .sbtn[data-pay-btn].active{background:var(--sea);border-color:var(--sea);color:#fff;box-shadow:0 3px 8px rgba(29,122,156,.35);}
   .modal-footer{padding:1rem 1.6rem 1.4rem;border-top:1px solid var(--gray);display:flex;gap:.7rem;justify-content:flex-end;}
   .btn-primary{background:var(--coral);color:#fff;border:none;padding:.7rem 1.6rem;border-radius:50px;font-weight:600;font-size:.92rem;}
@@ -746,6 +761,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .th-book-main{flex:1;min-width:0;}
   .th-book-st{font-size:.78rem;color:var(--ink-soft);white-space:nowrap;}
   .th-svc{display:inline-block;margin-top:.3rem;font-size:.72rem;font-weight:700;padding:.1rem .5rem;border-radius:999px;background:#eef1f3;color:var(--ink-soft);}
+  /* リピーターバッジ（キャストのマイページ）。ご新規=金 / リピ=緑 / 自分との関係=薄地 */
+  .th-rep{display:inline-block;margin:.3rem .3rem 0 0;font-size:.72rem;font-weight:700;padding:.1rem .5rem;border-radius:999px;background:#e4f1e2;color:#2d6733;}
+  .th-rep.new{background:#fbf1d6;color:#75540c;}
+  .th-rep.me{background:#eef1f3;color:var(--ink-soft);font-weight:600;}
   .th-svc.live{background:#d6f1f6;color:#1d7a8c;}
   .th-svc.done{background:#d9efd5;color:#3a7547;}
   .th-svc-btn{flex-shrink:0;font-size:.82rem;padding:.45rem .9rem;}
@@ -967,18 +986,25 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   body[data-theme="soft"] .tl-head.is-now{background:#c4503f;}
 
   /* 予約ブロック本体 */
-  body[data-theme="soft"] .tl-booking{background:#f1f2f0;color:#3a4247;border-left:4px solid #9aa3a0;
+  /* 状態ごとに色相をはっきり分ける（店長指定 2026-08-06「各フラグがはっきりわかるように」）。
+     地は薄く・文字は同系の濃色にして読みやすさを保ちつつ、左帯を太く濃くして遠目でも状態が分かるようにする。
+     色相の割り当て: 問合せ=灰 / 予約=金 / 事前予約=紫 / 保留=橙 / 接客中=ローズ / 終了=緑 /
+                     キャンセル=薄灰＋取り消し線 / 無連絡=赤
+     ※ 接客中と終了はいちばん取り違えたくないので、暖色（進行中）と緑（終わり）で分ける */
+  body[data-theme="soft"] .tl-booking{background:#f1f2f0;color:#3a4247;border-left:7px solid #9aa3a0;
     box-shadow:0 1px 3px rgba(20,30,25,.10);}
-  body[data-theme="soft"] .tl-booking:hover{box-shadow:0 3px 9px rgba(20,30,25,.20);}
-  body[data-theme="soft"] .tl-booking.s-inquiry{background:#eef1f5;color:#3f5164;border-left-color:#7d94ab;}
-  body[data-theme="soft"] .tl-booking.s-reserved{background:#fdeee4;color:#8f4318;border-left-color:#d9743c;}
-  body[data-theme="soft"] .tl-booking.s-pre_reserved{background:#f4ecf8;color:#5b3f73;border-left-color:#9b6db0;}
+  body[data-theme="soft"] .tl-booking:hover{box-shadow:0 3px 10px rgba(20,30,25,.22);}
+  body[data-theme="soft"] .tl-booking.s-inquiry{background:#eef1f2;color:#4e5a61;border-left-color:#7b8b93;}
+  body[data-theme="soft"] .tl-booking.s-reserved{background:#fbf1d6;color:#75540c;border-left-color:#d3a021;}
+  body[data-theme="soft"] .tl-booking.s-pre_reserved{background:#f2ecf9;color:#56386f;border-left-color:#8f5fb0;}
   body[data-theme="soft"] .tl-booking.s-on_hold,
-  body[data-theme="soft"] .tl-booking.s-pending{background:#fdf4dd;color:#6f5210;border-left-color:#e0a92f;}
-  body[data-theme="soft"] .tl-booking.s-completed{background:#e4f1ee;color:#1b6152;border-left-color:#2e9c81;}
-  body[data-theme="soft"] .tl-booking.svc-ended{background:#e9f0e2;color:#3a6330;border-left-color:#5c9a48;}
-  body[data-theme="soft"] .tl-booking.s-cancelled{background:#f1f1ef;color:#767d79;border-left-color:#b9beba;}
-  body[data-theme="soft"] .tl-booking.s-no_show{background:#fbebe9;color:#98392f;border-left-color:#cd6357;}
+  body[data-theme="soft"] .tl-booking.s-pending{background:#fde9d9;color:#8a4a12;border-left-color:#e08636;}
+  body[data-theme="soft"] .tl-booking.s-completed{background:#fde6ec;color:#97244b;border-left-color:#d84470;}
+  body[data-theme="soft"] .tl-booking.svc-ended{background:#e4f1e2;color:#2f6b34;border-left-color:#4f9c52;}
+  body[data-theme="soft"] .tl-booking.s-cancelled{background:#f2f2f0;color:#8b918d;border-left-color:#c3c8c4;}
+  body[data-theme="soft"] .tl-booking.s-no_show{background:#fae4e1;color:#93342a;border-left-color:#c8503f;}
+  /* 休憩・私用は status='confirmed' で保存される。予約と混ざらないよう地の色を土色系にする */
+  body[data-theme="soft"] .tl-booking.s-confirmed{background:#efece4;color:#6f665a;border-left-color:#a99f8c;}
   /* 中の部品は白文字前提だったので、地の色を継ぐように置き換える */
   body[data-theme="soft"] .tl-booking .bk-top{background:rgba(255,255,255,.66);color:inherit;}
   body[data-theme="soft"] .tl-booking .bk-top:hover{background:rgba(255,255,255,.95);}
@@ -990,9 +1016,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   body[data-theme="soft"] .tl-booking .bk-meet.on{background:#1f7a45;color:#fff;border-color:#1f7a45;}
   body[data-theme="soft"] .tl-booking .bk-svc-sel{color:inherit;border-color:currentColor;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555c60' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  /* 始（接客中）と終（終了）は同じ緑だと見分けが付かないので、始=ローズ・終=緑で分ける */
   body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-started,
-  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-ended{background-color:#1f7a45;color:#fff;border-color:#1f7a45;
+  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-ended{color:#fff;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-started{background-color:#c33a63;border-color:#c33a63;}
+  body[data-theme="soft"] .tl-booking .bk-svc-sel.svc-ended{background-color:#3f8a4a;border-color:#3f8a4a;}
   body[data-theme="soft"] .tl-booking .bk-go,
   body[data-theme="soft"] .tl-booking .bk-back{background:rgba(255,255,255,.62);color:inherit;}
   body[data-theme="soft"] .tl-booking .bk-go:hover,
@@ -1450,7 +1479,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button type="button" class="entry-card" data-mode="manager">
         <span class="entry-ico">🏢</span>
         <span class="entry-name">マネージャー管理</span>
-        <span class="entry-desc">タイムライン・予約・顧客・経理など店長業務</span>
+        <span class="entry-desc">タイムライン・予約・顧客・経理など管理者業務</span>
       </button>
       <button type="button" class="entry-card" data-mode="therapist">
         <span class="entry-ico">💆</span>
@@ -2035,13 +2064,31 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         </div>
       </div>
       <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
-      <div class="field" id="bmOptionField">
+      <div class="field bm-opt-field" id="bmOptionField">
         <label class="bm-media-label">OP<span class="bm-media-note" id="bmOptionSum"></span></label>
         <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
       </div>
 
-      <!-- 延長（追加加算）は廃止（店長指定 2026-08-06）。時間を延ばすときは組み合わせコースで選ぶ。
-           JS側は要素が無ければ延長0回として扱う（extCount / extAmount） -->
+      <!-- 「延長30分 ✕ 0」で内容が分かるので見出しは置かない（コンパクト化・店長指定 2026-08-06） -->
+      <div class="field" id="bmExtField">
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-weight:600;color:var(--ink);white-space:nowrap;">延長30分 ✕</span>
+          <select id="bmExtCount" style="max-width:6em;">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+          <span class="hint" id="bmExtInfo" style="margin-top:0;"></span>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" data-money id="bmPrice"></div>
         <div class="field"><label for="bmTransport">交通費(円)</label>
@@ -2193,6 +2240,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <div class="od-label">お仕事メモ</div>
         <textarea id="odNoteEdit" rows="3" placeholder="お客様の好み・申し送りなどを記録（この予約に保存されます）" style="width:100%;box-sizing:border-box;"></textarea>
       </div>
+      <!-- キャスト個別のお客様メモ。予約単位ではなくお客様に紐づく自分専用メモ（他のキャストからは見えない） -->
+      <div class="od-row" id="odCastNoteRow" style="display:none;flex-direction:column;align-items:stretch;gap:.4rem;">
+        <div class="od-label">🗒 私のお客様メモ <span style="font-weight:500;font-size:.7rem;color:var(--ink-soft);">このお客様についての自分専用メモ（他のキャストには見えません）</span></div>
+        <textarea id="odCastNote" rows="2" placeholder="例: 会話は控えめが好み / 猫を飼っている" style="width:100%;box-sizing:border-box;"></textarea>
+        <button class="btn-secondary" type="button" id="odCastNoteSave" style="align-self:flex-end;font-size:.8rem;">メモを保存</button>
+      </div>
       <div class="od-row" style="margin-top:.7rem;"><div class="od-label">ステータス</div><div class="od-value" id="odStatus"></div></div>
       <hr style="border:0;border-top:1px solid var(--gray);margin:.7rem 0;">
       <div class="od-row" style="flex-direction:column;align-items:stretch;gap:.5rem;">
@@ -2286,6 +2339,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <div id="cmHistory" style="margin-top:1rem;display:none;">
         <h2 style="font-size:.95rem;color:var(--deep);font-weight:700;margin-bottom:.5rem;">過去のご利用</h2>
         <div id="cmHistoryList" style="font-size:.85rem;color:var(--ink-soft);"></div>
+      </div>
+      <!-- キャストがそれぞれ書いた自分用のお客様メモ。内勤スタッフ以上のみ閲覧（キャスト同士は見えない） -->
+      <div id="cmCastNotes" style="margin-top:1rem;display:none;">
+        <h2 style="font-size:.95rem;color:var(--deep);font-weight:700;margin-bottom:.5rem;">🗒 キャストのお客様メモ</h2>
+        <div id="cmCastNotesList" style="font-size:.85rem;color:var(--ink-soft);"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2729,17 +2787,14 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <button class="sbtn v-visited active" data-role-btn data-role="staff" type="button">キャスト</button>
           <button class="sbtn v-unset" data-role-btn data-role="driver" type="button">ドライバー</button>
           <button class="sbtn v-unset" data-role-btn data-role="office" type="button">内勤スタッフ</button>
-          <button class="sbtn v-inquiry" data-role-btn data-role="manager" type="button">店長</button>
+          <button class="sbtn v-inquiry" data-role-btn data-role="manager" type="button">管理者</button>
           <button class="sbtn v-unavailable" data-role-btn data-role="owner" type="button">オーナー</button>
         </div>
       </div>
-      <div class="field">
+      <div class="field" id="csConcurrentField">
         <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
-          <input type="checkbox" id="csIsTherapist" style="width:18px;height:18px;cursor:pointer;">
-          <span>💆 キャスト業務も兼任する</span>
-        </label>
-        <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
+        <input type="checkbox" id="csIsTherapist" hidden>
+        <label id="csOfficeRow" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
           <input type="checkbox" id="csIsOffice" style="width:18px;height:18px;cursor:pointer;">
           <span>🪪 内勤業務も兼任する</span>
         </label>
@@ -2802,18 +2857,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
             <button class="sbtn v-visited" data-es-role="staff" type="button">キャスト</button>
             <button class="sbtn v-unset" data-es-role="driver" type="button">ドライバー</button>
             <button class="sbtn v-unset" data-es-role="office" type="button">内勤スタッフ</button>
-            <button class="sbtn v-inquiry" data-es-role="manager" type="button">店長</button>
+            <button class="sbtn v-inquiry" data-es-role="manager" type="button">管理者</button>
             <button class="sbtn v-unavailable" data-es-role="owner" type="button">オーナー</button>
           </div>
           <span class="hint" id="esRoleHint"></span>
         </div>
-        <div class="field">
+        <div class="field" id="esConcurrentField">
           <label>兼任（主となる権限とは別に、複数の業務を兼ねる場合はチェック）</label>
-          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.3rem;">
-            <input type="checkbox" id="esIsTherapist" style="width:18px;height:18px;cursor:pointer;">
-            <span>💆 キャスト業務も兼任する</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
+          <input type="checkbox" id="esIsTherapist" hidden>
+          <label id="esOfficeRow" style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;margin-top:.5rem;">
             <input type="checkbox" id="esIsOffice" style="width:18px;height:18px;cursor:pointer;">
             <span>🪪 内勤業務も兼任する</span>
           </label>

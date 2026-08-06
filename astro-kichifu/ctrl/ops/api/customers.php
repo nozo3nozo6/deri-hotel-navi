@@ -355,4 +355,47 @@ if ($action === 'member-link' && $method === 'POST') {
     jsonResponse(['ok' => true, 'token' => $token, 'url' => 'https://ylka.jp/member.html?t=' . $token]);
 }
 
+// =================================================================
+// キャスト個別のお客様メモ（店長指定 2026-08-07）
+//   キャスト本人が自分専用に書く（他のキャストからは見えない）。
+//   内勤スタッフ・管理者・オーナーは全キャストのメモを閲覧できる。
+//   お客様×キャストで1件の上書き方式（ops_cast_customer_notes UNIQUE）。
+// =================================================================
+if ($action === 'cast-note' && $method === 'GET') {
+    $cid = (int)($_GET['customer_id'] ?? 0);
+    if ($cid <= 0) errorResponse('customer_id required', 400);
+    $role = currentUserRole();
+    if ($role === 'staff') {
+        $st = $pdo->prepare("SELECT note, updated_at FROM ops_cast_customer_notes WHERE cast_admin_id = ? AND customer_id = ?");
+        $st->execute([currentUserId(), $cid]);
+        $r = $st->fetch();
+        jsonResponse(['note' => $r['note'] ?? '', 'updated_at' => $r['updated_at'] ?? null]);
+    }
+    if ($role === 'driver') errorResponse('forbidden', 403);
+    // 内勤以上: そのお客様についた全キャストのメモ（キャスト名つき）
+    $st = $pdo->prepare(
+        "SELECT n.note, n.updated_at, u.display_name AS cast_name
+           FROM ops_cast_customer_notes n
+           LEFT JOIN ops_admin_users u ON u.id = n.cast_admin_id
+          WHERE n.customer_id = ? AND n.note IS NOT NULL AND n.note <> ''
+          ORDER BY n.updated_at DESC"
+    );
+    $st->execute([$cid]);
+    jsonResponse(['notes' => $st->fetchAll()]);
+}
+
+if ($action === 'cast-note-save' && $method === 'POST') {
+    if (currentUserRole() !== 'staff') errorResponse('forbidden', 403);
+    $b = readJsonBody();
+    $cid = (int)($b['customer_id'] ?? 0);
+    if ($cid <= 0) errorResponse('customer_id required', 400);
+    $note = mb_substr(trim((string)($b['note'] ?? '')), 0, 2000);
+    $pdo->prepare(
+        "INSERT INTO ops_cast_customer_notes (cast_admin_id, customer_id, note)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE note = VALUES(note)"
+    )->execute([currentUserId(), $cid, $note !== '' ? $note : null]);
+    jsonResponse(['ok' => true]);
+}
+
 errorResponse('invalid action', 400);

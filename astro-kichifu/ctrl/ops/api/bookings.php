@@ -61,8 +61,31 @@ function staffScopeWhere(): array {
 // キャスト(staff)には顧客連絡先(電話/メール)を返さない（個人情報保護）。owner/manager/office は従来どおり
 function stripContactForStaff(array $rows): array {
     if (currentUserRole() !== 'staff') return $rows;
+    // 過去の営業日かどうか（5:00〜翌5:00）。当日の仕事はフル住所が必要、過ぎたら番地は見せない
+    $curBiz = date('H:i') < '05:00' ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
     foreach (array_keys($rows) as $i) {
         unset($rows[$i]['customer_phone'], $rows[$i]['customer_phone_snapshot'], $rows[$i]['customer_email_snapshot'], $rows[$i]['customer_notes']);
+        // 自宅・その他の訪問先住所は、翌営業日以降 ○○市○○町 まで（番地・建物・部屋は非表示）。
+        // 画面で隠すだけだと通信に残るので、APIの時点で落とす（セキュリティ・店長指定 2026-08-07）
+        $bd = (string)($rows[$i]['booking_date'] ?? '');
+        $st = (string)($rows[$i]['start_time'] ?? '');
+        if ($bd !== '') {
+            $biz = (substr($st, 0, 5) !== '' && substr($st, 0, 5) < '05:00')
+                ? date('Y-m-d', strtotime($bd . ' -1 day')) : $bd;
+            if ($biz < $curBiz) {
+                $hn = (string)($rows[$i]['hotel_name_snapshot'] ?? '');
+                foreach (['【自宅】', '【その他】'] as $pfx) {
+                    if (str_starts_with($hn, $pfx)) {
+                        $addr = substr($hn, strlen($pfx));
+                        // 最初の数字（番地）以降を落とす。住所は半角数字に正規化済み
+                        $masked = preg_replace('/[0-9０-９].*$/u', '', $addr);
+                        $rows[$i]['hotel_name_snapshot'] = $pfx . rtrim(trim((string)$masked), '-－ー');
+                        break;
+                    }
+                }
+                if (isset($rows[$i]['room_number'])) $rows[$i]['room_number'] = '';
+            }
+        }
     }
     return $rows;
 }
@@ -109,6 +132,39 @@ if ($action === 'range' && $method === 'GET') {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $out = ['bookings' => stripContactForStaff($stmt->fetchAll())];
+
+    // キャストのマイページ用: リピーター表示（お店として何回目か / 自分と会ったことがあるか）。
+    // 回数は予約ステータス基準（キャンセル・無連絡・問合せは数えない）＋旧システム実績(visit_count)
+    if (!empty($_GET['with_repeat']) && currentUserRole() === 'staff') {
+        $meId = currentUserId();
+        $cids = array_values(array_unique(array_filter(array_map(fn($bk) => (int)($bk['customer_id'] ?? 0), $out['bookings']))));
+        if ($cids !== []) {
+            $in = implode(',', array_fill(0, count($cids), '?'));
+            $agg = [];
+            $q = $pdo->prepare(
+                "SELECT customer_id,
+                        COUNT(*) AS ops_cnt,
+                        SUM(CASE WHEN assigned_admin_id = ? THEN 1 ELSE 0 END) AS with_me
+                   FROM ops_bookings
+                  WHERE customer_id IN ($in)
+                    AND status NOT IN ('cancelled','no_show','inquiry')
+                  GROUP BY customer_id"
+            );
+            $q->execute(array_merge([$meId], $cids));
+            foreach ($q->fetchAll() as $r) $agg[(int)$r['customer_id']] = $r;
+            $lv = $pdo->prepare("SELECT id, visit_count FROM ops_customers WHERE id IN ($in)");
+            $lv->execute($cids);
+            $legacy = [];
+            foreach ($lv->fetchAll() as $r) $legacy[(int)$r['id']] = (int)$r['visit_count'];
+            foreach (array_keys($out['bookings']) as $i) {
+                $cid = (int)($out['bookings'][$i]['customer_id'] ?? 0);
+                if (!$cid) continue;
+                $a = $agg[$cid] ?? ['ops_cnt' => 0, 'with_me' => 0];
+                $out['bookings'][$i]['repeat_shop_count'] = (int)$a['ops_cnt'] + ($legacy[$cid] ?? 0);
+                $out['bookings'][$i]['repeat_with_me'] = (int)$a['with_me'];
+            }
+        }
+    }
 
     // 旧システムから取り込んだ利用履歴も同じ一覧に混ぜる（include_legacy=1）。
     // ドライバー／キャストは自分の担当ぶんだけを見る画面なので対象外（旧履歴に担当の紐付けが無い）。
@@ -217,9 +273,9 @@ if ($action === 'get' && $method === 'GET') {
     if (currentUserRole() === 'staff' && (int)($row['assigned_admin_id'] ?? 0) !== currentUserId()) {
         errorResponse('forbidden', 403);
     }
-    // キャストには顧客連絡先(電話/メール)を返さない（個人情報保護）
+    // キャストには顧客連絡先(電話/メール)を返さない・過去の住所は番地を落とす（stripContactForStaff と同条件）
     if (currentUserRole() === 'staff') {
-        unset($row['customer_phone'], $row['customer_phone_snapshot'], $row['customer_email_snapshot'], $row['customer_notes']);
+        $row = stripContactForStaff([$row])[0];
     }
     jsonResponse(['booking' => $row]);
 }
@@ -523,7 +579,9 @@ if ($action === 'set-service' && $method === 'POST') {
     if ($id <= 0 || !in_array($state, ['pending', 'started', 'ended'], true)) {
         errorResponse('invalid params', 400);
     }
-    $row = $pdo->prepare("SELECT status, customer_id, assigned_admin_id, service_ended_at FROM ops_bookings WHERE id = ?");
+    $row = $pdo->prepare("SELECT status, customer_id, assigned_admin_id, service_ended_at,
+                                 booking_date, start_time, end_time, course_name, customer_name_snapshot
+                            FROM ops_bookings WHERE id = ?");
     $row->execute([$id]);
     $cur = $row->fetch();
     if (!$cur) errorResponse('not found', 404);
@@ -544,7 +602,43 @@ if ($action === 'set-service' && $method === 'POST') {
     if ($state === 'pending') {
         $pdo->prepare("UPDATE ops_bookings SET status = 'reserved', service_ended_at = NULL WHERE id = ?")->execute([$id]);
     } elseif ($state === 'started') {
-        $pdo->prepare("UPDATE ops_bookings SET status = 'completed', service_ended_at = NULL WHERE id = ?")->execute([$id]);
+        // キャスト本人が「▶開始」を押したら、押した時刻を実際の開始時刻として書き換える（店長指定 2026-08-07）。
+        // 22:00予定を22:05に押せば 22:05 開始になり、終了時刻も同じぶん後ろへずれる。
+        // 元の予定時刻は planned_start_time に一度だけ残す（何分押しだったか後から追える）。
+        // 管理者がタイムラインから押す場合は既存の時刻ポップアップ（この時刻で始）があるため書き換えない。
+        // 休憩行は対象外。
+        $isBreakRow = ($cur['course_name'] === '休憩') || ($cur['customer_name_snapshot'] === '【休憩】');
+        if ($role === 'staff' && !$isBreakRow && !empty($cur['booking_date']) && !empty($cur['start_time'])) {
+            $tz = new DateTimeZone('Asia/Tokyo');
+            $now = new DateTimeImmutable('now', $tz);
+            $plannedStart = new DateTimeImmutable($cur['booking_date'] . ' ' . $cur['start_time'], $tz);
+            $deltaSec = $now->getTimestamp() - $plannedStart->getTimestamp();
+            // 予定から3時間超ずれた打鍵は押し忘れ・誤操作とみなし、時刻は書き換えず開始だけ記録する
+            if (abs($deltaSec) > 3 * 3600) {
+                $pdo->prepare("UPDATE ops_bookings SET status = 'completed', service_ended_at = NULL WHERE id = ?")->execute([$id]);
+                $deltaSec = null;
+            }
+            if ($deltaSec !== null) {
+                // 終了時刻は開始より前なら翌日跨ぎとして扱う
+                $newEnd = null;
+                if (!empty($cur['end_time'])) {
+                    $end = new DateTimeImmutable($cur['booking_date'] . ' ' . $cur['end_time'], $tz);
+                    if ($end <= $plannedStart) $end = $end->modify('+1 day');
+                    $newEnd = $end->modify(($deltaSec >= 0 ? '+' : '') . $deltaSec . ' seconds');
+                }
+                $pdo->prepare("UPDATE ops_bookings SET status = 'completed', service_ended_at = NULL,
+                                 planned_start_time = COALESCE(planned_start_time, start_time),
+                                 booking_date = ?, start_time = ?, end_time = ?
+                               WHERE id = ?")->execute([
+                    $now->format('Y-m-d'),
+                    $now->format('H:i:00'),
+                    $newEnd ? $newEnd->format('H:i:00') : $cur['end_time'],
+                    $id,
+                ]);
+            }
+        } else {
+            $pdo->prepare("UPDATE ops_bookings SET status = 'completed', service_ended_at = NULL WHERE id = ?")->execute([$id]);
+        }
     } else { // ended
         $pdo->prepare("UPDATE ops_bookings SET status = 'completed', service_ended_at = COALESCE(service_ended_at, NOW()) WHERE id = ?")->execute([$id]);
     }
