@@ -8,8 +8,9 @@
 //   POST ?action=delete                {id}
 //
 // 権限:
-//   staff: 自分のシフトのみ編集可（admin_user_id 指定不可）
-//   owner: 全員のシフト編集可（admin_user_id 指定可）
+//   staff/driver: 自分のシフトのみ編集可（admin_user_id 指定不可）
+//   office/manager/owner: 全スタッフのシフト編集可（admin_user_id 指定可）
+//   ※ キャスト(girl_id持ち)の出勤は CTRL の出勤管理が正なので、ここでは受け付けない
 // ==========================================================================
 require_once __DIR__ . '/auth-guard.php';
 require_once __DIR__ . '/_cast-sync.php';    // 出勤の紐付け先（キャスト行）を先に揃える
@@ -18,6 +19,15 @@ require_once __DIR__ . '/_shift-sync.php';   // CTRL の schedules → ops_shift
 $pdo    = getPdo();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
+
+/**
+ * 他のスタッフの出勤を登録・編集できるか（店長指定 2026-08-07）。
+ * 内勤スタッフ以上（内勤・管理者・オーナー）は事務所として全員ぶんを組む。
+ * キャストは自分ぶんのみ、ドライバーは自分ぶんのみ。
+ */
+function opsCanManageShifts(): bool {
+    return in_array(currentUserRole(), ['owner', 'manager', 'office'], true);
+}
 
 if ($action === 'range' && $method === 'GET') {
     $from = $_GET['from'] ?? date('Y-m-d');
@@ -69,7 +79,7 @@ if ($action === 'upsert' && $method === 'POST') {
 
     // admin_user_id: ownerなら指定可、staffは自分のみ
     $adminId = isset($b['admin_user_id']) ? (int)$b['admin_user_id'] : currentUserId();
-    if (!isOwner() && $adminId !== currentUserId()) errorResponse('staff can only edit own shifts', 403);
+    if (!opsCanManageShifts() && $adminId !== currentUserId()) errorResponse('他のスタッフの出勤は内勤スタッフ以上が登録します', 403);
 
     // キャスト(CTRLで同期されるgirl_id持ち)の出勤は /ctrl/schedules.php が正。
     // ここでの手入力を許すと二重の入力元ができてしまうため、内勤/ドライバーのみ受け付ける
@@ -83,7 +93,7 @@ if ($action === 'upsert' && $method === 'POST') {
         $own->execute([$id]);
         $row = $own->fetch();
         if (!$row) errorResponse('shift not found', 404);
-        if (!isOwner() && (int)$row['admin_user_id'] !== currentUserId()) errorResponse('forbidden', 403);
+        if (!opsCanManageShifts() && (int)$row['admin_user_id'] !== currentUserId()) errorResponse('forbidden', 403);
         $pdo->prepare("UPDATE ops_shifts SET shift_date=?, start_time=?, end_time=?, status=?, note=? WHERE id=?")
             ->execute([$shiftDate, $startTime, $endTime, $status, $note, $id]);
         jsonResponse(['ok' => true, 'id' => $id]);
@@ -102,7 +112,7 @@ if ($action === 'delete' && $method === 'POST') {
     $own->execute([$id]);
     $row = $own->fetch();
     if (!$row) errorResponse('not found', 404);
-    if (!isOwner() && (int)$row['admin_user_id'] !== currentUserId()) errorResponse('forbidden', 403);
+    if (!opsCanManageShifts() && (int)$row['admin_user_id'] !== currentUserId()) errorResponse('forbidden', 403);
     $pdo->prepare("DELETE FROM ops_shifts WHERE id = ?")->execute([$id]);
     jsonResponse(['ok' => true]);
 }
@@ -114,7 +124,7 @@ if ($action === 'set-attendance' && $method === 'POST') {
     $shiftDate = $b['shift_date'] ?? '';
     $status    = in_array($b['status'] ?? '', ['available', 'off', 'tentative', 'done'], true) ? $b['status'] : 'available';
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDate)) errorResponse('invalid shift_date', 400);
-    if (!isOwner() && $adminId !== currentUserId()) errorResponse('forbidden', 403);
+    if (!opsCanManageShifts() && $adminId !== currentUserId()) errorResponse('forbidden', 403);
     $st = $pdo->prepare("SELECT id FROM ops_shifts WHERE admin_user_id=? AND shift_date=? ORDER BY id LIMIT 1");
     $st->execute([$adminId, $shiftDate]);
     $row = $st->fetch();

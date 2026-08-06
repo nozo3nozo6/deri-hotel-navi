@@ -5934,19 +5934,23 @@
     return opts;
   }
 
+  // 他のスタッフのシフトを組めるか（内勤スタッフ以上）。API 側 opsCanManageShifts と揃える
+  const canManageShifts = () => ['owner', 'manager', 'office'].includes(currentUser?.role);
+
   async function loadShifts() {
-    if (currentUser?.role === 'owner' && document.getElementById('shStaffFilter').options.length <= 1) {
+    if (canManageShifts() && document.getElementById('shStaffFilter').options.length <= 1) {
       try {
-        const d = await api('/admin-api.php?action=admin-users');
+        // staff-list は全ロールで使える（admin-users は owner 限定なので manager/office で 403 になる）
+        const d = await api('/admin-api.php?action=staff-list');
         // キャストの出勤は CTRL(/ctrl/schedules.php)が正なのでここには出さない。
-        // シフトは内勤スタッフ・ドライバーのスケジュール登録専用
-        const targets = (d.users || []).filter(u => isOfficeCapable(u) || isDriverCapable(u));
+        // それ以外のスタッフ（内勤・ドライバー・管理者・オーナー）は全員ここで組む（店長指定 2026-08-07）
+        const targets = (d.users || []).filter(u => !u.girl_id);
         const sel = document.getElementById('shStaffFilter');
         sel.style.display = 'inline-block';
         sel.innerHTML = '<option value="">全スタッフ</option>' + targets.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
         syncShiftStaffFilterForMode();
         if (targets.length === 0) {
-          const msg = '<div class="view-empty">内勤スタッフ・ドライバーがまだ登録されていません。<br>'
+          const msg = '<div class="view-empty">キャスト以外のスタッフがまだ登録されていません。<br>'
                     + '「スタッフ管理」で追加すると、ここでスケジュールを登録できます。<br>'
                     + '<span style="font-size:.85rem;color:var(--ink-soft);">※ キャストの出勤は CTRL の「出勤管理」で登録してください</span></div>';
           document.getElementById('shTimetable').innerHTML = msg;
@@ -6142,7 +6146,7 @@
         note: note.trim(),
       };
       if (existingId) payload.id = existingId;
-      if (currentUser?.role === 'owner' && targetAdminId) payload.admin_user_id = targetAdminId;
+      if (canManageShifts() && targetAdminId) payload.admin_user_id = targetAdminId;
       try {
         const r = await apiPost('/shifts.php?action=upsert', payload);
         if (r?.id && !existingId) row.dataset.shiftId = r.id;

@@ -1595,7 +1595,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <button id="shModeTimetable" class="sh-mode-btn is-active" role="tab" type="button">📋 タイムテーブル</button>
         <button id="shModeCalendar" class="sh-mode-btn" role="tab" type="button">📅 カレンダー</button>
       </div>
-      <select id="shStaffFilter" class="owner-only" style="display:none;"><option value="">全スタッフ</option></select>
+      <!-- 内勤スタッフ以上は全スタッフぶんを組めるので、owner-only は付けない（表示は loadShifts が制御） -->
+      <select id="shStaffFilter" style="display:none;"><option value="">全スタッフ</option></select>
       <button id="shPrev">← 前へ</button>
       <button id="shToday">今日から</button>
       <button id="shNext">次へ →</button>
