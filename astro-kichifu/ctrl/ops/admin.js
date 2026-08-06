@@ -2928,8 +2928,8 @@
     const batchSettleBtn = unsettledList.length
       ? `<button class="sbtn holder-settle-all" type="button" style="margin-bottom:.7rem;padding:.5rem .9rem;font-weight:700;background:var(--green);color:#fff;border:none;width:100%;">✓ 本日分をまとめて精算確定（${unsettledList.length}件）</button>`
       : '';
-    // 受け渡し候補（未割当を除く全スタッフ）
-    const people = (adminUsersAll || []).filter(u => u.id && u.role !== 'unassigned');
+    // 受け渡し候補: 内勤スタッフとドライバーのみ（キャストへの受け渡しは無い・店長指定 2026-08-07）
+    const people = (adminUsersAll || []).filter(u => u.id && (isOfficeCapable(u) || isDriverCapable(u)));
     let html = `<div style="font-weight:700;">入金分合計 ${yen(netTotal)}（${earned.length}件）</div>
       ${netSummary}
       <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:.7rem;">入金分（預り金 − 報酬）を誰がいくら持っているかを表示します。お金のやり取りが終わったお仕事は「精算確定」で締めてください。</div>${batchSettleBtn}`;
@@ -3196,9 +3196,9 @@
       const d = (adminUsersAll || []).find(u => Number(u.id) === Number(id));
       return d ? (d.display_name || d.username) : ('#' + id);
     };
-    // 受け渡し候補（担当本人を含む全スタッフ＋ドライバー、未割当を除く）。
-    // 本人も含めるのは「一旦渡した預り金を本人に戻す」ケースがあるため。現在の保有者は opts 側で除外する。
-    const people = (adminUsersAll || []).filter(u => u.id && u.role !== 'unassigned');
+    // 受け渡し候補: 内勤スタッフとドライバーのみ（キャストへの受け渡しは無い・店長指定 2026-08-07）。
+    // 本人(内勤/ドライバー)も候補に含まれるのは「一旦渡した預り金を本人に戻す」ケースがあるため。現在の保有者は opts 側で除外する。
+    const people = (adminUsersAll || []).filter(u => u.id && (isOfficeCapable(u) || isDriverCapable(u)));
     // 本人の歩合率（入金分＝全額−報酬 の算出用）
     const meRate = Number(me.commission_rate);
     const meHasRate = me.commission_rate != null && me.commission_rate !== '' && !Number.isNaN(meRate);
