@@ -3,7 +3,7 @@
 // shifts.php — スタッフシフト管理API（要認証）
 //
 // Actions:
-//   GET  ?action=range&from=YYYY-MM-DD&to=YYYY-MM-DD&admin_id=  期間取得
+//   GET  ?action=range&from=YYYY-MM-DD&to=YYYY-MM-DD&admin_id=&exclude_casts=1  期間取得
 //   POST ?action=upsert                {id?, shift_date, start_time, end_time, status, note, admin_user_id?}
 //   POST ?action=delete                {id}
 //
@@ -49,6 +49,10 @@ if ($action === 'range' && $method === 'GET') {
     if (currentUserRole() === 'staff') {
         $where[] = 's.admin_user_id = ?';
         $params[] = currentUserId();
+    }
+    // 内勤・送迎シフトの一覧はキャストを出さない（キャストの出勤は CTRL の出勤管理が正・店長指定 2026-08-07）
+    if (!empty($_GET['exclude_casts'])) {
+        $where[] = "(au.role <> 'staff' AND au.girl_id IS NULL)";
     }
 
     // 差分同期がスキップされた時でも is_private を参照できるようにしておく

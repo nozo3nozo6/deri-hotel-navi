@@ -5983,7 +5983,7 @@
     const gridEnd = addDays(lastDay, 6 - lastDay.getDay());
 
     try {
-      const params = new URLSearchParams({ from: fmtDate(gridStart), to: fmtDate(gridEnd) });
+      const params = new URLSearchParams({ from: fmtDate(gridStart), to: fmtDate(gridEnd), exclude_casts: '1' });
       if (shSelectedStaff) params.set('admin_id', shSelectedStaff);
       const d = await api('/shifts.php?action=range&' + params.toString());
       renderShiftCalendar(gridStart, gridEnd, d.shifts || []);
@@ -6001,7 +6001,7 @@
     document.getElementById('shTitle').textContent = `内勤・送迎シフト ${fmtDate(start)} 〜 ${fmtDate(end)}`;
 
     try {
-      const params = new URLSearchParams({ from: fmtDate(start), to: fmtDate(end) });
+      const params = new URLSearchParams({ from: fmtDate(start), to: fmtDate(end), exclude_casts: '1' });
       // owner で staff 未選択時は自分の id を渡す (タイムテーブルは 1 スタッフ分)
       const targetAdminId = shSelectedStaff || currentUser?.id;
       if (targetAdminId) params.set('admin_id', targetAdminId);
