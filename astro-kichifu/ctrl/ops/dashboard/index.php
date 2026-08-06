@@ -297,6 +297,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .row-name{font-size:1rem;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:.2rem;}
   .row-meta{display:flex;flex-wrap:wrap;gap:.4rem 1rem;font-size:.82rem;color:var(--ink-soft);}
   .row-meta b{color:var(--sea);font-weight:600;}
+  /* 交通費は常に表示（未設定でもそう分かるように）。値の有無で濃淡を分ける */
+  .row-meta .row-fee-unset{opacity:.55;}
+  .row-meta .row-fee-unset b{color:var(--ink-soft);}
   .row-meta .badge-mini{background:var(--foam);color:var(--sea);padding:.1rem .5rem;border-radius:6px;font-size:.72rem;font-weight:600;}
 
   .row-actions{display:flex;gap:.5rem;}

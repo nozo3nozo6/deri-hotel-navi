@@ -724,7 +724,7 @@
             <div class="row-meta">
               ${h.city ? `<span><b>市区:</b> ${escapeHtml(h.city)}</span>` : ''}
               ${h.nearest_station ? `<span><b>駅:</b> ${escapeHtml(h.nearest_station)}</span>` : ''}
-              ${h.transport_fee !== null && h.transport_fee !== undefined && h.transport_fee !== '' ? `<span><b>交通費:</b> ¥${Number(h.transport_fee).toLocaleString()}</span>` : ''}
+              <span class="${(h.transport_fee === null || h.transport_fee === undefined || h.transport_fee === '') ? 'row-fee-unset' : ''}"><b>交通費:</b> ${(h.transport_fee === null || h.transport_fee === undefined || h.transport_fee === '') ? '未設定' : '¥' + Number(h.transport_fee).toLocaleString()}</span>
               ${h.hotel_type ? `<span class="badge-mini">${hotelTypeLabel(h.hotel_type)}</span>` : ''}
               ${h.entry_method ? `<span class="badge-mini">${entryMethodLabel(h.entry_method)}</span>` : ''}
               ${h.internal_memo ? `<span title="${escapeAttr(h.internal_memo)}">📝</span>` : ''}
