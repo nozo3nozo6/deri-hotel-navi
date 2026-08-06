@@ -275,7 +275,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
   /* Hotel List */
   .main{padding:1.5rem;max-width:1600px;margin:0 auto;}
-  .results-bar{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.9rem;padding:0 .2rem;}
+  .results-bar{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.9rem;padding:0 .2rem;gap:.8rem;flex-wrap:wrap;}
+  .select-all-wrap{display:flex;align-items:center;gap:.4rem;cursor:pointer;font-size:.85rem;color:var(--ink-soft);font-weight:600;white-space:nowrap;}
+  .select-all-wrap input{width:16px;height:16px;cursor:pointer;margin:0;}
   .results-bar .count{color:var(--ink-soft);font-size:.92rem;}
   .results-bar .count b{color:var(--deep);font-family:'Outfit';font-weight:700;font-size:1.1rem;margin:0 .15rem;}
 
@@ -2511,6 +2513,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 <main class="main">
   <div class="results-bar">
+    <!-- 今の絞り込み結果を丸ごとチェックする（一括設定・一括削除の対象を素早く選ぶため） -->
+    <label class="select-all-wrap"><input type="checkbox" id="selectAllHotels"><span>全て選択</span></label>
     <div class="count"><b id="resultCount">0</b>件のホテル</div>
     <div class="count" id="filterNote"></div>
     <button id="btnHotelAdd" class="btn-edit" style="margin-left:auto;">＋ ホテルを追加</button>

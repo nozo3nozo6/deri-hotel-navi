@@ -749,6 +749,17 @@
       bar.classList.remove('show');
     }
     updateBulkFeeBtn();
+    syncSelectAllCheckbox();
+  }
+  // 「全て選択」チェックボックスの状態を、いま絞り込まれている一覧と選択状況に合わせる
+  //（一部だけ選択中は中間表示、全部選択済みならON）
+  function syncSelectAllCheckbox() {
+    const cb = document.getElementById('selectAllHotels');
+    if (!cb) return;
+    const total = allHotels.length;
+    const selectedInView = allHotels.filter(h => selectedIds.has(h.id)).length;
+    cb.checked = total > 0 && selectedInView === total;
+    cb.indeterminate = selectedInView > 0 && selectedInView < total;
   }
 
   // --- Set status (single) ---
@@ -1069,11 +1080,12 @@
   function entryMethodLabel(m) {
     if (!m) return '';
     const fallback = { front:'フロント呼出', card:'カードキー', direct:'客室直行', lobby:'ロビー待機', other:'その他' };
-    return String(m).split(',').filter(Boolean).map(code => {
-      const c = code.trim();
+    // マスタに無いコード（削除済み・過去の不整合データ等）は内部コードのまま出すと文字化けに見えるので、
+    // 表示からは落とす（データは残す＝編集画面で開けばチップの状態としては見える）
+    return String(m).split(',').map(c => c.trim()).filter(Boolean).map(c => {
       const found = entryMethodsCache.find(e => e.code === c);
-      return found ? found.label : (fallback[c] || c);
-    }).join(' / ');
+      return found ? found.label : fallback[c] || null;
+    }).filter(Boolean).join(' / ');
   }
   function populateEntryMethodSelect() {
     // チップ生成（複数選択UI）
@@ -8870,6 +8882,14 @@
         updateBulkBar();
         document.getElementById('filterNote').textContent = selectedIds.size > 0 ? `（${selectedIds.size}件選択中）` : '';
       }
+    });
+    // 全て選択: いま絞り込まれて表示されている件数ぶんをまとめてチェック/解除する
+    document.getElementById('selectAllHotels')?.addEventListener('change', e => {
+      allHotels.forEach(h => { if (e.target.checked) selectedIds.add(h.id); else selectedIds.delete(h.id); });
+      document.querySelectorAll('#hotelList .rowSelect').forEach(cb => { cb.checked = selectedIds.has(Number(cb.dataset.id)); });
+      document.querySelectorAll('#hotelList .hotel-row').forEach(row => { row.classList.toggle('selected', selectedIds.has(Number(row.dataset.id))); });
+      updateBulkBar();
+      document.getElementById('filterNote').textContent = selectedIds.size > 0 ? `（${selectedIds.size}件選択中）` : '';
     });
 
     // 一括操作バー
