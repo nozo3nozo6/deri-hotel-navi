@@ -3295,12 +3295,21 @@
       const legacyHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
                           : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : defaultHolderOf(b));
       const curHolder = hops.length ? Number(hops[hops.length - 1].to_admin_id) : legacyHolder;
-      // チェーン（担当→…→現在の保有者）。保有者は下のバッジで明示
-      let chain = `<span class="chain-node start">${escapeHtml(nameOf(b.assigned_admin_id))}<small>担当</small></span>`;
-      hops.forEach(h => { chain += `<span class="chain-arrow">→</span><span class="chain-node">${escapeHtml(nameOf(h.to_admin_id))}</span>`; });
-      if (!hops.length && curHolder !== Number(b.assigned_admin_id)) {
-        chain += `<span class="chain-arrow">→</span><span class="chain-node">${escapeHtml(nameOf(curHolder))}</span>`;
-      }
+      // チェーン（担当→…→現在の保有者）。保有者は下のバッジで明示。
+      // 記録に残っていない受け渡し（担当キャスト→お迎え担当）も間に補って、
+      // 「誰から誰へ渡ったか」が飛ばずに追えるようにする（店長指摘 2026-08-07）
+      const chainIds = [Number(b.assigned_admin_id)];
+      hops.forEach(h => {
+        const from = Number(h.from_admin_id);
+        // 直前のノードと繋がらない場合はその人を補完（例: かれん→[徳安]→三宅）
+        if (from && from !== chainIds[chainIds.length - 1]) chainIds.push(from);
+        chainIds.push(Number(h.to_admin_id));
+      });
+      if (!hops.length && curHolder !== Number(b.assigned_admin_id)) chainIds.push(curHolder);
+      let chain = chainIds.map((id, i) => {
+        const node = `<span class="chain-node${i === 0 ? ' start' : ''}">${escapeHtml(nameOf(id))}${i === 0 ? '<small>担当</small>' : ''}</span>`;
+        return i === 0 ? node : `<span class="chain-arrow">→</span>${node}`;
+      }).join('');
       const held = heldAmountOf(b);
       const headAmt = held !== amt
         ? `<span style="white-space:nowrap;"><b>${yen(held)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span>`
