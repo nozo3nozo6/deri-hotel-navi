@@ -8,6 +8,7 @@
 //   GET  ?action=cities                               市区町村一覧+件数
 //   POST ?action=update-info                          {hotel_id, status, entry_method, guide_note, internal_memo, room_type_recommended}
 //   POST ?action=bulk-status                          {hotel_ids: [], status: 'visited'|'inquiry'|'unavailable'|null}
+//   POST ?action=bulk-transport-fee                    {hotel_ids: [], transport_fee: number|null}  ※null=未設定に戻す
 //
 // Status:
 //   visited      ご案内実績あり
@@ -169,6 +170,36 @@ if ($action === 'bulk-status' && $method === 'POST') {
                                ON DUPLICATE KEY UPDATE status = VALUES(status)");
         foreach ($ids as $hid) {
             $stmt->execute([$hid, $status]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        errorResponse('bulk update failed', 500);
+    }
+    jsonResponse(['ok' => true, 'updated' => count($ids)]);
+}
+
+// =================================================================
+// 交通費 一括設定（マスタのホテル一覧で複数選択→まとめて設定・店長要望 2026-08-07）
+// =================================================================
+if ($action === 'bulk-transport-fee' && $method === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true);
+    $ids  = $body['hotel_ids'] ?? [];
+    $fee  = array_key_exists('transport_fee', $body) ? $body['transport_fee'] : null;
+    if (!is_array($ids) || count($ids) === 0) errorResponse('hotel_ids required', 400);
+    // null=未設定に戻す。数値は0円(無料)〜11,000円の550円刻みのみ許可（予約モーダルの選択肢と揃える）
+    if ($fee !== null) {
+        $fee = (int)$fee;
+        if ($fee < 0 || $fee > 11000 || $fee % 550 !== 0) errorResponse('invalid transport_fee', 400);
+    }
+    $ids = array_map('intval', $ids);
+
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("INSERT INTO ops_ylka_hotel_info (hotel_id, transport_fee) VALUES (?, ?)
+                               ON DUPLICATE KEY UPDATE transport_fee = VALUES(transport_fee)");
+        foreach ($ids as $hid) {
+            $stmt->execute([$hid, $fee]);
         }
         $pdo->commit();
     } catch (Throwable $e) {

@@ -266,6 +266,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .btn-bulk-unavailable{background:var(--unavailable);color:#fff;}
   .btn-bulk-unset{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4)!important;}
   .btn-bulk-clear{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4)!important;}
+  /* 交通費の一括設定（区切り線＋選択＋実行ボタン） */
+  .bulk-sep{width:1px;align-self:stretch;background:rgba(255,255,255,.25);margin:0 .15rem;}
+  .bulk-fee-select{padding:.45rem .7rem;border-radius:8px;border:1.5px solid rgba(255,255,255,.4);background:#fff;color:var(--ink);font-size:.82rem;font-weight:600;}
+  .btn-bulk-fee{background:var(--aqua);color:var(--deep)!important;}
+  .btn-bulk-fee:disabled{opacity:.4;cursor:not-allowed;}
+  @media(max-width:640px){.bulk-sep{display:none;}}
 
   /* Hotel List */
   .main{padding:1.5rem;max-width:1600px;margin:0 auto;}
@@ -2488,6 +2494,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="btn-bulk-inquiry" data-bulk="inquiry">要問合せ</button>
       <button class="btn-bulk-unavailable" data-bulk="unavailable">不可</button>
       <button class="btn-bulk-unset" data-bulk="unset">未設定</button>
+      <span class="bulk-sep"></span>
+      <!-- 交通費の一括設定。予約モーダル・編集モーダルと同じ550円刻み（店長要望 2026-08-07） -->
+      <select id="bulkFeeSelect" class="bulk-fee-select">
+        <option value="">交通費を選択</option>
+        <option value="unset">— 未設定に戻す —</option>
+        <option value="0">🆓 無料（¥0）</option>
+        <option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
+      </select>
+      <button class="btn-bulk-fee" id="btnBulkFee" disabled>交通費を設定</button>
       <button class="btn-bulk-delete" id="btnBulkDelete">リストから削除</button>
       <button class="btn-bulk-clear" id="btnBulkClear">選択解除</button>
     </div>

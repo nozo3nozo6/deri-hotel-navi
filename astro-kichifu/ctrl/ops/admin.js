@@ -748,6 +748,7 @@
     } else {
       bar.classList.remove('show');
     }
+    updateBulkFeeBtn();
   }
 
   // --- Set status (single) ---
@@ -806,6 +807,34 @@
     } catch (e) {
       toast('一括更新失敗: ' + e.message, 'err');
     }
+  }
+
+  // 交通費の一括設定（チェックした複数ホテルへまとめて反映・店長要望 2026-08-07）
+  async function bulkSetTransportFee() {
+    if (selectedIds.size === 0) return;
+    const sel = document.getElementById('bulkFeeSelect');
+    const raw = sel?.value || '';
+    if (raw === '') return;
+    const fee = raw === 'unset' ? null : Number(raw);
+    const ids = Array.from(selectedIds);
+    const label = fee === null ? '未設定' : (fee === 0 ? '無料（¥0）' : `¥${fee.toLocaleString()}`);
+    if (!confirm(`選択中の${ids.length}件の交通費を「${label}」に設定します。よろしいですか？`)) return;
+    try {
+      await apiPost('/admin-api.php?action=bulk-transport-fee', { hotel_ids: ids, transport_fee: fee });
+      toast(`✓ ${ids.length}件の交通費を${label}に設定しました`, 'ok');
+      selectedIds.clear();
+      if (sel) sel.value = '';
+      updateBulkFeeBtn();
+      await loadHotels();
+    } catch (e) {
+      toast('一括設定失敗: ' + e.message, 'err');
+    }
+  }
+  // 選択0件・未選択のときはボタンを押せなくする
+  function updateBulkFeeBtn() {
+    const btn = document.getElementById('btnBulkFee');
+    const sel = document.getElementById('bulkFeeSelect');
+    if (btn) btn.disabled = selectedIds.size === 0 || !sel?.value;
   }
 
   // 住所から都道府県・市区町村を切り出す（住所欄は「市区町村から番地まで」を持つ）
@@ -8850,11 +8879,15 @@
     document.getElementById('btnBulkDelete')?.addEventListener('click', () => {
       deleteHotels(Array.from(selectedIds), `選択中の${selectedIds.size}件`);
     });
+    document.getElementById('bulkFeeSelect')?.addEventListener('change', updateBulkFeeBtn);
+    document.getElementById('btnBulkFee')?.addEventListener('click', bulkSetTransportFee);
     document.getElementById('btnHotelAdd')?.addEventListener('click', () => openEdit(null));
     document.getElementById('btnBulkClear').addEventListener('click', () => {
       selectedIds.clear();
       document.querySelectorAll('.rowSelect').forEach(cb => cb.checked = false);
       document.querySelectorAll('.hotel-row.selected').forEach(r => r.classList.remove('selected'));
+      const feeSel = document.getElementById('bulkFeeSelect');
+      if (feeSel) feeSel.value = '';
       updateBulkBar();
       document.getElementById('filterNote').textContent = '';
     });
