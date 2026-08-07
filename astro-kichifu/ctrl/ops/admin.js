@@ -552,6 +552,35 @@
       });
     }
   }
+  // クレジット手数料（お客様への上乗せ率）。マスタタブで設定する（店長要望 2026-08-07）
+  async function loadCardSurchargeSetting() {
+    const el = document.getElementById('msCardSurcharge');
+    if (!el) return;
+    try {
+      const d = await api('/admin-api.php?action=card-fee-get');
+      if (d && d.card_surcharge_rate != null) {
+        CARD_SURCHARGE_RATE = parseFloat(d.card_surcharge_rate) || CARD_SURCHARGE_RATE;
+      }
+    } catch (e) {}
+    el.value = CARD_SURCHARGE_RATE;
+    const btn = document.getElementById('msCardSurchargeSave');
+    const msg = document.getElementById('msCardSurchargeMsg');
+    if (btn && !btn.dataset.wired) {
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', async () => {
+        const rate = parseFloat(el.value);
+        if (isNaN(rate) || rate < 0 || rate > 100) { toast('0〜100の数値を入力してください', 'err'); return; }
+        try {
+          const d = await apiPost('/admin-api.php?action=card-fee-set', { card_surcharge_rate: rate });
+          CARD_SURCHARGE_RATE = parseFloat(d.card_surcharge_rate);
+          el.value = CARD_SURCHARGE_RATE;
+          if (msg) { msg.textContent = '✓ 保存しました'; setTimeout(() => { msg.textContent = ''; }, 2000); }
+          toast('✓ クレジット手数料を ' + CARD_SURCHARGE_RATE + '% に更新しました', 'ok');
+        } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+      });
+    }
+  }
+
   /** 出発地の初期値: 端末で最後に使った場所 → 無ければ事務所 */
   function bmRouteOrigin() {
     try { const v = localStorage.getItem('opsRouteOrigin'); if (v) return v; } catch (_) {}
@@ -7365,7 +7394,7 @@
     else if (name === 'bookings') loadBookings();
     else if (name === 'customers') loadCustomers();
     else if (name === 'shifts') loadShifts();
-    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); }
+    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); loadCardSurchargeSetting(); }
     else if (name === 'stations') loadStations();
     else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
     else if (name === 'chat' && userCanSeeTab('chat')) loadChatInbox();
@@ -7521,24 +7550,12 @@
         ${s.unset ? row('支払方法 未設定', yen(s.unset), { sub:true }) : ''}
         ${row('キャスト報酬', yen(d.reward_total), { minus:true })}
         ${row('＝ 店舗売上（キャストからの入金）', yen(shopSales), { big:true, border:true })}
-        ${row(`クレジット手数料 <button id="acCardFeeBtn" type="button" style="margin-left:.4rem;background:transparent;border:1px solid var(--gray);border-radius:6px;padding:.1rem .5rem;font-size:.75rem;color:var(--ink-soft);cursor:pointer;">${parseFloat(d.card_fee_rate)}% 変更</button>`, yen(d.card_fee), { minus:true })}
+        ${row(`クレジット手数料 <span style="margin-left:.4rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);">お客様上乗せ ${CARD_SURCHARGE_RATE}%・変更はマスタタブ</span>`, yen(d.card_fee), { minus:true })}
         ${row(`指名料 <button id="acNominationFeeBtn" type="button" style="margin-left:.4rem;background:transparent;border:1px solid var(--gray);border-radius:6px;padding:.1rem .5rem;font-size:.75rem;color:var(--ink-soft);cursor:pointer;">設定</button>`, `<span style="font-size:.78rem;color:var(--ink-soft);font-weight:500;">初¥${NOMINATION_FEES.first.toLocaleString()} / 本¥${NOMINATION_FEES.regular.toLocaleString()} / フリー¥${NOMINATION_FEES.free.toLocaleString()}</span>`, { sub:true })}
         ${row(`経費合計`, yen(d.expense_total), { minus:true })}
         ${catRows}
         ${row('＝ 利益', yen(d.gross_profit), { big:true, border:true, accent:'var(--coral)' })}
       </div>`;
-    document.getElementById('acCardFeeBtn')?.addEventListener('click', async () => {
-      const cur = parseFloat(d.card_fee_rate);
-      const v = prompt('カード手数料率（%）を入力', String(cur));
-      if (v === null) return;
-      const rate = parseFloat(v);
-      if (isNaN(rate) || rate < 0 || rate > 100) { toast('0〜100の数値を入力してください', 'err'); return; }
-      try {
-        await apiPost('/admin-api.php?action=card-fee-set', { card_fee_rate: rate });
-        toast('✓ 手数料率を更新しました', 'ok');
-        loadAcSummary();
-      } catch (e) { toast('更新失敗: ' + e.message, 'err'); }
-    });
     document.getElementById('acNominationFeeBtn')?.addEventListener('click', async () => {
       const vf = prompt('初指名の指名料（円）を入力', String(NOMINATION_FEES.first));
       if (vf === null) return;

@@ -618,10 +618,21 @@ if ($action === 'card-fee-get' && $method === 'GET') {
 if ($action === 'card-fee-set' && $method === 'POST') {
     requireOwnerOrManager();
     $body = json_decode(file_get_contents('php://input'), true);
-    $rate = max(0, min(100, (float)($body['card_fee_rate'] ?? 3.5)));
-    $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES ('card_fee_rate', ?)
-                   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")->execute([(string)$rate]);
-    jsonResponse(['ok' => true, 'card_fee_rate' => $rate]);
+    $ins = $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES (?, ?)
+                          ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
+    $out = ['ok' => true];
+    if (array_key_exists('card_fee_rate', $body)) {
+        $rate = max(0, min(100, (float)$body['card_fee_rate']));
+        $ins->execute(['card_fee_rate', (string)$rate]);
+        $out['card_fee_rate'] = $rate;
+    }
+    // お客様の合計に上乗せする率（マスタタブで設定・店長要望 2026-08-07）
+    if (array_key_exists('card_surcharge_rate', $body)) {
+        $sur = max(0, min(100, (float)$body['card_surcharge_rate']));
+        $ins->execute(['card_surcharge_rate', (string)$sur]);
+        $out['card_surcharge_rate'] = $sur;
+    }
+    jsonResponse($out);
 }
 
 // =================================================================

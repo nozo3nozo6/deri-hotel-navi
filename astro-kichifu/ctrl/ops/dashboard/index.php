@@ -1677,8 +1677,27 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 <!-- ========== コース管理ビュー ========== -->
 <div class="view" id="view-courses">
-  <!-- ホテル管理（旧タブ→マスタ内へ移動。クリックで view-hotel に切替） -->
+  <!-- 料金の全体設定（店長要望 2026-08-07: 損益タブから移設）。
+       クレジットは手数料をお客様の合計に上乗せして受け取る。キャストの報酬は決済方法で変わらない -->
   <div class="tl-toolbar">
+    <div class="tl-title">💳 クレジット手数料<span class="tl-sub">お客様の合計に上乗せする率。キャストの報酬には影響しません</span></div>
+  </div>
+  <div class="staff-main" style="max-width:900px;">
+    <div class="card card-pad" style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;">
+      <label for="msCardSurcharge" style="font-weight:700;">お客様への上乗せ率</label>
+      <input type="number" id="msCardSurcharge" min="0" max="100" step="0.1" style="width:7em;padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:1rem;font-weight:700;text-align:right;">
+      <span style="font-weight:700;">%</span>
+      <button class="btn-primary" type="button" id="msCardSurchargeSave" style="padding:.45rem 1rem;font-size:.85rem;">保存</button>
+      <span id="msCardSurchargeMsg" style="font-size:.82rem;color:var(--ink-soft);"></span>
+    </div>
+    <p style="font-size:.8rem;color:var(--ink-soft);margin:.5rem 0 0;line-height:1.7;">
+      例）10% のとき、コース¥11,000＋交通費¥1,100 のクレジット決済ならお客様の合計は ¥13,310 になります。<br>
+      変更しても過去の予約に保存済みの手数料額は変わりません（これから作る予約に適用されます）。
+    </p>
+  </div>
+
+  <!-- ホテル管理（旧タブ→マスタ内へ移動。クリックで view-hotel に切替） -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
     <div class="tl-title">🏨 ホテル管理<span class="tl-sub">対応ホテルの公開状況・実績・交通費を管理</span></div>
     <div class="tl-nav">
       <button class="tl-add" id="openHotelMgr" type="button">ホテル管理を開く →</button>
