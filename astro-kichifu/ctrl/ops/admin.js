@@ -3103,7 +3103,7 @@
     el.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
     openModal('cashSummaryModal');
     let data;
-    try { data = await api('/admin-api.php?action=cash-summary'); }
+    try { data = await api('/admin-api.php?action=cash-summary&date=' + encodeURIComponent(fmtDate(tlCurrentDate))); }
     catch (e) { el.innerHTML = '<p style="color:var(--coral);">読み込み失敗: ' + escapeHtml(e.message) + '</p>'; return; }
 
     const nameOf = (id, name, uname) => name || uname || ('#' + id);
@@ -3137,24 +3137,35 @@
       if (b.assigned_admin_id && bizDateOf(b.booking_date, b.start_time) === cashBizDay
           && b.status !== 'cancelled' && b.status !== 'no_show') onDutyIds.add(Number(b.assigned_admin_id));
     });
+    // 預り金を持っている人は、出勤名簿に載っていなくても必ず出す（ドライバー・内勤が持ったままを見落とさないため）
+    Object.keys(byHolderId).forEach(id => onDutyIds.add(Number(id)));
     const roster = adminUsersAll.filter(u => onDutyIds.has(Number(u.id))
       && (isTherapistCapable(u) || isOfficeCapable(u) || isDriverCapable(u)));
+    // 誰が持っているのかが一目で分かるよう役割を添える（内勤・ドライバーは特に取り違えやすい）
     const rosterRoleBadge = (u) => {
       const badges = [];
-      if (isOfficeCapable(u)) badges.push('🪪内勤');
-      if (isDriverCapable(u)) badges.push('🚗ドライバー');
-      return badges.length ? ' ' + badges.join(' ') : '';
+      if (isOfficeCapable(u)) badges.push('<span class="cs-role cs-role-office">🪪 内勤</span>');
+      if (isDriverCapable(u)) badges.push('<span class="cs-role cs-role-driver">🚗 ドライバー</span>');
+      if (!badges.length && isTherapistCapable(u)) badges.push('<span class="cs-role cs-role-cast">💆 キャスト</span>');
+      return badges.length ? ' ' + badges.join('') : '';
     };
 
     html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.5rem;">💰 本日出勤スタッフの預り金（${roster.length}名）</div>`;
     if (!roster.length) {
       html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">本日出勤のスタッフはいません。</p>';
     } else {
+      // 持っている人を上に、金額の大きい順に並べる（受け渡しの判断がしやすい）
+      roster.sort((a, b) => {
+        const ta = (byHolderId[Number(a.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0);
+        const tb = (byHolderId[Number(b.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0);
+        return tb - ta;
+      });
       roster.forEach(u => {
         const items = byHolderId[Number(u.id)] || [];
         const total = items.reduce((s, b) => s + heldAmtOf(b), 0);
-        html += `<div style="border:1px solid var(--gray);border-radius:10px;padding:.6rem;margin-bottom:.5rem;">
-          <div style="font-weight:700;margin-bottom:.25rem;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:400;font-size:.8rem;color:var(--ink-soft);">計 ${yen(total)}（${items.length}件）</span></div>`;
+        const has = total > 0;
+        html += `<div class="cs-holder${has ? ' has-cash' : ''}">
+          <div style="font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:${has ? '700' : '400'};font-size:${has ? '.92rem' : '.8rem'};color:${has ? 'var(--coral-deep,#c2410c)' : 'var(--ink-soft)'};">計 ${yen(total)}（${items.length}件）</span></div>`;
         items.forEach(b => {
           const amt = heldAmtOf(b);
           const therapistNote = (b.held_by != null && Number(b.held_by) !== Number(b.assigned_admin_id))
@@ -3165,22 +3176,8 @@
         });
         html += '</div>';
       });
-      // 本日出勤名簿に含まれない保有者がいれば見落とし防止に表示（前日以前からの繰越等）
-      const rosterIds = new Set(roster.map(u => Number(u.id)));
-      const strayIds = Object.keys(byHolderId).map(Number).filter(id => !rosterIds.has(id));
-      if (strayIds.length) {
-        html += '<div style="font-size:.78rem;color:var(--coral-deep);margin:.6rem 0 .3rem;">⚠ 本日出勤名簿以外で保有中（繰越分など）</div>';
-        strayIds.forEach(id => {
-          const items = byHolderId[id];
-          const total = items.reduce((s, b) => s + heldAmtOf(b), 0);
-          const first = items[0];
-          const name = (first.held_by != null && Number(first.held_by) === id)
-            ? nameOf(id, first.holder_name, first.holder_username)
-            : nameOf(id, first.therapist_name, first.therapist_username);
-          html += `<div style="font-size:.8rem;padding:.2rem 0;display:flex;justify-content:space-between;">
-            <span>📍 ${escapeHtml(name)}</span><b>${yen(total)}（${items.length}件）</b></div>`;
-        });
-      }
+      // 名簿に載っていない保有者も上の roster に含めているので、ここでの繰越表示は不要
+      // （預り金はその営業日ぶんのみ・繰越は扱わない / 店長指定 2026-08-07）
     }
 
     el.innerHTML = html;

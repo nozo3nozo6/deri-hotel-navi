@@ -1197,11 +1197,18 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
 // 現金まとめサマリー
 //   uncollected: 予約として成立しているぶん（キャンセル/無連絡/問合せ以外）& shop_settled=0
 //   — 誰が預り金を持っているか。売上・集金と同じ条件（店長指定 2026-08-06「予約で売上計上」）
+//   対象はその営業日ぶんのみ。繰越は扱わない（店長指定 2026-08-07）。
 // =================================================================
 if ($action === 'cash-summary' && $method === 'GET') {
     requireOwnerOrManager();
+    // 表示中の営業日（未指定なら本日営業日＝朝5時区切り）
+    $bizDate = (string)($_GET['date'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $bizDate)) {
+        $bizDate = date('H:i') < '05:00' ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+    }
+    $bizDay = ylkaBizDayExpr('b');
     // 出回っている現金（誰がいくら持っているか）: 現金決済のみ・休憩除外。報酬確定済みは残額をクライアントで計算
-    $unc = $pdo->query("
+    $st = $pdo->prepare("
         SELECT b.id, b.booking_date, b.start_time, b.price, b.late_fee, b.transport_fee,
                b.assigned_admin_id, b.held_by, b.driver_id, b.back_driver_id, b.reward_paid_at, b.payment_method,
                b.customer_name_snapshot,
@@ -1213,11 +1220,13 @@ if ($action === 'cash-summary' && $method === 'GET') {
         WHERE (b.status NOT IN ('cancelled','no_show','inquiry')
                OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))
           AND b.shop_settled = 0
+          AND $bizDay = ?
           AND (b.payment_method IS NULL OR b.payment_method NOT IN ('credit','card','bank'))" . ylkaExcludeBreakSql('b') . "
         ORDER BY b.booking_date DESC, b.start_time DESC
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $st->execute([$bizDate]);
 
-    jsonResponse(['uncollected' => $unc]);
+    jsonResponse(['uncollected' => $st->fetchAll(PDO::FETCH_ASSOC), 'biz_date' => $bizDate]);
 }
 
 // =================================================================

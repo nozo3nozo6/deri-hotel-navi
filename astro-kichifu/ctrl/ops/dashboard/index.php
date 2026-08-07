@@ -831,7 +831,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 24時間軸: スタッフ列 + 24時間スロット */
   /* 1時間セル幅は公開スケジュール (/schedule/) と揃える: PC=96px / mobile=72px */
   /* overflow:hidden は sticky 列を無効化するので避ける (角丸は border-radius のみで適用) */
-  .tl-grid{display:grid;grid-template-columns:200px repeat(24, minmax(96px, 1fr));gap:1px;background:var(--gray);border-radius:12px;min-width:2529px;}
+  /* スタッフ列は 受/完 バッジのぶんだけ広げてある（200→224px・店長指摘 2026-08-07） */
+  .tl-grid{display:grid;grid-template-columns:224px repeat(24, minmax(96px, 1fr));gap:1px;background:var(--gray);border-radius:12px;min-width:2553px;}
   .tl-head{background:var(--deep);color:#fff;padding:.55rem .35rem;font-size:.78rem;text-align:center;font-weight:600;letter-spacing:.04em;}
   /* スタッフ列は横スクロール時に左端固定 (公開スケジュールと同じ挙動) */
   .tl-head.staff-col{background:#072b3a;text-align:left;padding-left:.9rem;display:flex;align-items:center;font-size:.85rem;position:sticky;left:0;z-index:60;box-shadow:6px 0 12px -2px rgba(10,61,82,.35);isolation:isolate;transform:translateZ(0);}
@@ -866,9 +867,16 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-m-private .tl-m-v{color:#7d4a95;font-size:.72rem;letter-spacing:.02em;}
   .tl-m-wave{margin:0 .15em;color:var(--ink-soft);font-weight:600;}
   /* 受/完＝終了時刻の意味。受付できるかの判断に使うので、時刻のすぐ後ろに小さく強めの色で出す */
-  .tl-endtype{display:inline-block;margin-left:.25em;padding:0 .3em;border-radius:4px;font-size:.82em;font-weight:800;line-height:1.4;}
+  .tl-endtype{display:inline-block;margin-left:.25em;padding:0 .3em;border-radius:4px;font-size:.82em;font-weight:800;line-height:1.4;white-space:nowrap;}
   .tl-endtype-accept{background:#ddeff4;color:#0d5e70;}
   .tl-endtype-finish{background:#fde9d9;color:#8a4a12;}
+  /* 現金まとめ: 誰が持っているか一目で分かるよう、保有ありは枠を強調し役割バッジを添える */
+  .cs-holder{border:1px solid var(--gray);border-radius:10px;padding:.6rem;margin-bottom:.5rem;background:#fff;}
+  .cs-holder.has-cash{border-color:#f0b699;background:#fffaf6;box-shadow:0 1px 4px rgba(190,90,30,.12);}
+  .cs-role{display:inline-block;padding:.05rem .4rem;border-radius:5px;font-size:.7rem;font-weight:700;margin-left:.1rem;}
+  .cs-role-office{background:#efe9f8;color:#573c78;}
+  .cs-role-driver{background:#e4f1e2;color:#2d6733;}
+  .cs-role-cast{background:#eef8fa;color:#12667e;}
   button.tl-staff-sales.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;-webkit-tap-highlight-color:rgba(232,93,47,.25);}
   button.tl-staff-sales.tl-m .tl-m-l,button.tl-staff-sales.tl-m .tl-m-v{color:var(--coral);}
   /* 預り金（青・クリックで受け渡し履歴） */
@@ -1327,7 +1335,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     /* タイムライン: スタッフ列を sticky + 横スクロール (モバイル) */
     .tl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:.4rem 0;scroll-padding-inline-end:60px;}
     /* セル幅をモバイル用に縮小して画面内に多くの時間帯を表示, 角丸縮小で最終列の見切れ防止 */
-    .tl-grid{grid-template-columns:184px repeat(24, minmax(72px, 1fr))!important;min-width:1937px;border-radius:4px!important;}
+    .tl-grid{grid-template-columns:206px repeat(24, minmax(72px, 1fr))!important;min-width:1959px;border-radius:4px!important;}
     .tl-row-area{grid-template-columns:repeat(24, minmax(72px, 1fr))!important;}
     /* 営業日終端マーカー (最終列 09:00 = 翌10:00 まで) を見やすく */
     .tl-grid > .tl-head:last-child,
