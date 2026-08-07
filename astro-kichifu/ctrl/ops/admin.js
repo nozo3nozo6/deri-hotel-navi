@@ -3103,7 +3103,8 @@
     el.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
     openModal('cashSummaryModal');
     let data;
-    try { data = await api('/admin-api.php?action=cash-summary&date=' + encodeURIComponent(fmtDate(tlCurrentDate))); }
+    // 日付では絞らない。現金は営業日をまたいで残るので、未精算のぶんは全部出す
+    try { data = await api('/admin-api.php?action=cash-summary'); }
     catch (e) { el.innerHTML = '<p style="color:var(--coral);">読み込み失敗: ' + escapeHtml(e.message) + '</p>'; return; }
 
     const nameOf = (id, name, uname) => name || uname || ('#' + id);
@@ -3150,7 +3151,10 @@
       return badges.length ? ' ' + badges.join('') : '';
     };
 
-    html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.5rem;">💰 本日出勤スタッフの預り金（${roster.length}名）</div>`;
+    const grandTotal = unc.reduce((sum, b) => sum + heldAmtOf(b), 0);
+    const holderCount = roster.filter(u => (byHolderId[Number(u.id)] || []).length > 0).length;
+    html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.15rem;">💰 いま出回っている現金 ${yen(grandTotal)}（${holderCount}名が保有）</div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.6rem;">精算が済んでいない現金です。日付をまたいで残っているぶんも含みます。</div>`;
     if (!roster.length) {
       html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">本日出勤のスタッフはいません。</p>';
     } else {
