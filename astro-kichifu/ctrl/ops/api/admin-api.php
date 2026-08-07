@@ -457,12 +457,13 @@ function ylkaReward(int $price, int $late, int $transport, float $rate, bool $go
 }
 // クレジット決済のカード手数料のうち「キャスト負担分」= 売上全額 ×（手数料率 ÷ 2）%。
 // カード手数料（平均3%）はお店とキャストで半分ずつ負担（各1.5%）。現金・振込は0。
+// admi はカード手数料をお客様に上乗せして受け取る運用で、キャストの報酬は決済方法に左右されない
+//（ylka はキャストが半分負担していた・店長指定 2026-08-07）。0 固定にして計算式の形だけ残す。
 function ylkaCardFeeTherapist(int $sales, ?string $pm, float $cardFeeRate): int {
-    if ($pm !== 'credit' && $pm !== 'card') return 0;
-    return (int)floor($sales * ($cardFeeRate / 2) / 100);
+    return 0;
 }
 // 1予約の [売上, 報酬] を返す。お客様都合キャンセルは手入力のキャンセル料/報酬、それ以外は通常計算（予約時点で計上）。
-// カード決済は $cardFeeRate>0 のとき、キャスト負担分のカード手数料を報酬から差し引く。
+// カード決済でも報酬は変わらない（手数料はお客様に上乗せして受け取る・admi 方式）。
 function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
     if (($r['status'] ?? '') === 'cancelled') {
         return [(int)($r['cancellation_fee'] ?? 0), (int)($r['cancellation_reward'] ?? 0)];

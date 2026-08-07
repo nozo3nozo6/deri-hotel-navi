@@ -2809,13 +2809,13 @@
     } catch (e) { toast('更新失敗: ' + e.message, 'err'); }
   }
 
-  // クレジット決済のキャスト負担カード手数料 = 売上全額(price+trans) ×(手数料率÷2)%。現金/振込は0
+  // admi はカード手数料をお客様に上乗せして受け取るので、キャストの報酬は決済方法に左右されない
+  //（ylka はキャストが半分負担していた・店長指定 2026-08-07）。サーバ ylkaCardFeeTherapist と同じく0固定。
   function cardFeeSelf(price, trans, pm) {
-    if (pm !== 'credit' && pm !== 'card') return 0;
-    return Math.floor(((price || 0) + (trans || 0)) * (CARD_FEE_RATE / 2) / 100);
+    return 0;
   }
   // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、交通費は片道max(½,850)を送迎分だけ店取り
-  // pm(payment_method) がクレジットのときはカード手数料のキャスト負担分を差し引く
+  // クレジットでも報酬は変わらない（手数料はお客様に上乗せして受け取る・admi 方式）
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
   // コース名から、マスタに登録された「キャスト報酬」を引く（admi 方式）。
   // 未登録・見つからない場合は null を返し、歩合率(%)方式にフォールバックする。
@@ -7504,11 +7504,11 @@
       </div>`;
     const catRows = (d.expense_by_category || []).map(c =>
       row(`　・${escapeHtml(c.category)}`, yen(c.amount), { sub:true })).join('');
-    // 店舗売上 = お客様総額 − キャスト報酬（＝キャストから店が受け取る額）
+    // 店舗売上 = お預り金総額 − キャスト報酬（＝キャストから店が受け取る額）
     const shopSales = (s.total || 0) - (d.reward_total || 0);
     document.getElementById('ac-summary').innerHTML = `
       <div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1.1rem 1.3rem;max-width:560px;">
-        ${row(`お客様総額 <span style="color:var(--ink-soft);font-weight:500;font-size:.8rem;">（完了 ${s.count}件）</span>`, yen(s.total))}
+        ${row(`お預り金総額 <span style="color:var(--ink-soft);font-weight:500;font-size:.8rem;">（完了 ${s.count}件）</span>`, yen(s.total))}
         ${subhead('料金内訳')}
         ${row('コース料金', yen(bd.course), { sub:true })}
         ${row('深夜料金', yen(bd.late), { sub:true })}
@@ -8150,7 +8150,7 @@
                 <td style="padding:.3rem .4rem;text-align:right;">${yen(x.base)}</td>
                 <td style="padding:.3rem .4rem;text-align:right;font-weight:700;color:var(--coral);">${yen(x.reward)}</td>
               </tr>
-              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_fee || 0)}×${parseFloat(t.rate)}% = ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 交通費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}${x.card_fee_self > 0 ? ` <span style="color:var(--sea);">− 💳カード手数料 ${yen(x.card_fee_self)}</span>` : ''}</td></tr>`).join('')}
+              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_fee || 0)}×${parseFloat(t.rate)}% = ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 交通費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}</td></tr>`).join('')}
             </tbody>
           </table>
         </div>
