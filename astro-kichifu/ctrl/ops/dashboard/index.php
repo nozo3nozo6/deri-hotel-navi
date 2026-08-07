@@ -1173,10 +1173,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* PC=フルラベル表示、モバイル=省略ラベル表示 (デフォルト PC) */
   .sh-tt-row .sh-tt-stchip .lbl-short{display:none;}
   .sh-tt-row .sh-tt-stchip:hover{border-color:var(--coral);}
-  .sh-tt-row .sh-tt-stchip.is-on[data-status="available"]{background:linear-gradient(135deg,#5fc28e,var(--green));color:#fff;border-color:transparent;box-shadow:0 2px 6px rgba(58,154,96,.3);}
-  .sh-tt-row .sh-tt-stchip.is-on[data-status="tentative"]{background:linear-gradient(135deg,#f7c25c,#e6a93a);color:#fff;border-color:transparent;box-shadow:0 2px 6px rgba(230,169,58,.3);}
-  .sh-tt-row .sh-tt-stchip.is-on[data-status="off"]{background:linear-gradient(135deg,#7a7e83,#4a4e53);color:#fff;border-color:transparent;box-shadow:0 2px 6px rgba(0,0,0,.2);}
-  .sh-tt-row .sh-tt-stchip.is-on[data-status="unreg"]{background:linear-gradient(135deg,#d8dde2,#a8b2b8);color:#fff;border-color:transparent;box-shadow:0 2px 6px rgba(0,0,0,.15);font-style:italic;}
+  /* 選択中は淡いグラデ+白抜きだと読みにくいので、濃い単色で塗る（OPSは各所読みやすさ優先） */
+  .sh-tt-row .sh-tt-stchip.is-on{color:#fff;border-color:transparent;box-shadow:0 2px 7px rgba(0,0,0,.22);}
+  .sh-tt-row .sh-tt-stchip.is-on[data-status="available"]{background:#2d7a4a;}
+  .sh-tt-row .sh-tt-stchip.is-on[data-status="tentative"]{background:#c07a12;}
+  .sh-tt-row .sh-tt-stchip.is-on[data-status="off"]{background:#4a4e53;}
+  .sh-tt-row .sh-tt-stchip.is-on[data-status="unreg"]{background:#8b969d;font-style:italic;}
   /* 未登録は背景を薄く + 時刻入力をプレースホルダー扱い (時刻は事前入力可能) */
   .sh-tt-row.is-unreg{background:linear-gradient(90deg,#fafafa,#fff);}
   .sh-tt-row.is-unreg .sh-tt-24h,.sh-tt-row.is-unreg .sh-tt-start,.sh-tt-row.is-unreg .sh-tt-end,.sh-tt-row.is-unreg .sh-tt-memo{opacity:.7;}
@@ -1191,6 +1193,16 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .sh-bulk-chips{display:inline-flex;gap:.3rem;}
   .sh-bulk select{padding:.4rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.85rem;background:#fff;}
   .sh-bulk .btn-primary{padding:.45rem 1rem;font-size:.85rem;}
+  /* 一括設定バーのチップ。行内のチップ用CSSは .sh-tt-row 配下にしか効かないので、
+     ここで別に指定する（当たっておらず、押しても見た目が変わらなかった・店長指摘 2026-08-07） */
+  .sh-bulk .sh-tt-stchip{display:inline-flex;align-items:center;gap:.25rem;padding:.4rem .8rem;border:1.5px solid var(--gray);
+    border-radius:50px;font-size:.85rem;font-weight:700;color:var(--ink-soft);background:#fff;cursor:pointer;user-select:none;transition:all .15s;}
+  .sh-bulk .sh-tt-stchip:hover{border-color:var(--sea);color:var(--ink);}
+  /* 選択中は地を塗って白抜き＋少し持ち上げる。どれを選んでいるか一目で分かるように */
+  .sh-bulk .sh-tt-stchip.is-on{color:#fff;border-color:transparent;box-shadow:0 2px 7px rgba(0,0,0,.22);transform:translateY(-1px);}
+  .sh-bulk .sh-tt-stchip.is-on[data-bulk-status="available"]{background:#2d7a4a;}
+  .sh-bulk .sh-tt-stchip.is-on[data-bulk-status="tentative"]{background:#c07a12;}
+  .sh-bulk .sh-tt-stchip.is-on[data-bulk-status="off"]{background:#4a4e53;}
   @media(max-width:640px){
     .sh-bulk{padding:.6rem .8rem;}
     .sh-bulk-title{width:100%;}
