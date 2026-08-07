@@ -3571,8 +3571,14 @@
         const privateTag = isPrivateShift
           ? `<div class="tl-m tl-m-private" title="サイト・媒体には出していない出勤です"><span class="tl-m-l">🔒</span><span class="tl-m-v">サイト非掲載</span></div>`
           : '';
+        // 受/完＝終了時刻の意味（CTRLの出勤管理で選ぶ）。受付できる時間の判断に使う
+        //   受 … その時刻までの注文に対応 / 完 … その時刻に完全終了して帰宅
+        const endTypeLabel = (myShift && myShift.end_type === 'finish') ? '完' : '受';
+        const endTypeTitle = endTypeLabel === '完'
+          ? 'この時刻に完全終了して帰宅（この時刻までに終わる注文のみ）'
+          : 'この時刻までの注文に対応';
         const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
-          ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${hhmm(myShift.start_time)}<span class="tl-m-wave">〜</span>${hhmm(myShift.end_time)}</span></div>`
+          ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${hhmm(myShift.start_time)}<span class="tl-m-wave">〜</span>${hhmm(myShift.end_time)}<span class="tl-endtype tl-endtype-${endTypeLabel === '完' ? 'finish' : 'accept'}" title="${endTypeTitle}">${endTypeLabel}</span></span></div>`
           : '';
         html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" data-cast-edit="${u.id}" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 

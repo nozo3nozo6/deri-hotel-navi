@@ -17,6 +17,25 @@ function schedule_status_has_time(string $status): bool {
     return $status === 'work' || $status === 'ops_only';
 }
 
+// 終了時刻の意味（店長指定 2026-08-07）。内勤が受付するときの判断材料。
+//   accept … 受：その時刻までの注文に対応する（＝受付の締め）
+//   finish … 完：その時刻に完全に終了して帰宅できるようにする
+// 公開サイト・媒体には出さない（OPS のタイムラインと CTRL の出勤管理でのみ見える）。
+const SCHEDULE_END_TYPES = ['accept', 'finish'];
+const SCHEDULE_END_TYPE_LABELS = ['accept' => '受', 'finish' => '完'];
+
+/** 受/完 のセレクト。$name='' なら name 属性なし（一括適用用） */
+function end_type_select(string $name, ?string $val, string $key = '', string $id = ''): string {
+    $cur = in_array($val, SCHEDULE_END_TYPES, true) ? $val : 'accept';
+    $nm = $name === '' ? '' : ' name="' . h($name) . '[' . h($key) . ']"';
+    $idAttr = $id === '' ? '' : ' id="' . h($id) . '"';
+    $o = '<select class="etsel"' . $nm . $idAttr . ' aria-label="終了の意味">';
+    foreach (SCHEDULE_END_TYPE_LABELS as $v => $lb) {
+        $o .= '<option value="' . $v . '"' . ($cur === $v ? ' selected' : '') . '>' . $lb . '</option>';
+    }
+    return $o . '</select>';
+}
+
 // date … 1日×全女性で登録 / girl … 1女性×28日で登録 / grid … 10日先までの一覧（見るだけ）
 $mode = in_array($_GET['mode'] ?? 'date', ['girl', 'grid'], true) ? $_GET['mode'] : 'date';
 // freq … 通算の出勤回数が多い順 / in_date … 入店が新しい順 / range … 表示中10日の出勤が多い順（一覧のみ）
@@ -53,9 +72,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_check();
     // date … 1日×全女性 / girl … 1女性×28日 / cell … 一覧のマス目1つ（JSON応答）
     $postMode = in_array($_POST['mode'] ?? 'date', ['girl', 'cell'], true) ? $_POST['mode'] : 'date';
-    $up = db()->prepare('INSERT INTO schedules (shop_id, girl_id, work_date, start_time, end_time, status)
-                         VALUES (:shop,:girl,:date,:start,:end,:status)
-                         ON DUPLICATE KEY UPDATE start_time=VALUES(start_time), end_time=VALUES(end_time), status=VALUES(status)');
+    $up = db()->prepare('INSERT INTO schedules (shop_id, girl_id, work_date, start_time, end_time, end_type, status)
+                         VALUES (:shop,:girl,:date,:start,:end,:endtype,:status)
+                         ON DUPLICATE KEY UPDATE start_time=VALUES(start_time), end_time=VALUES(end_time), end_type=VALUES(end_type), status=VALUES(status)');
     // 掲載店舗チェック（girl_shops）— girls.shop_id ではなく多対多で判定
     $own = db()->prepare('SELECT 1 FROM girl_shops WHERE girl_id=? AND shop_id=?');
     // 時・分 select から HH:MM を組み立て（どちらか未選択なら null）
@@ -125,12 +144,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $weekTargets = [];      // "sid:gid" => [sid, gid]（未来日 D+1〜 の変更＝媒体の週間出勤同期用）
 
     // 1女性×1日を、対象店舗のうち「その店に掲載中」の店だけに upsert
-    $saveOne = function ($gid, $date, $stt, $s, $e) use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $getStart, $syncBy, $shiftDt, &$webhookTargets, &$weekTargets) {
+    $saveOne = function ($gid, $date, $stt, $s, $e, $et = 'accept') use ($targets, $own, $up, $bizToday, $syncShift, $alignPlay, $cancelPlay, $getStart, $syncBy, $shiftDt, &$webhookTargets, &$weekTargets) {
+        $et = in_array($et, SCHEDULE_END_TYPES, true) ? $et : 'accept';
         $cnt = 0;
         foreach ($targets as $sid) {
             $own->execute([$gid, $sid]);
             if (!$own->fetchColumn()) continue; // その店に未掲載ならスキップ
-            $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'status' => $stt]);
+            $up->execute(['shop' => $sid, 'girl' => $gid, 'date' => $date, 'start' => $s, 'end' => $e, 'endtype' => $et, 'status' => $stt]);
             $changed = $up->rowCount() > 0;
             $cnt++;
             // play_availability はその営業日(=work_date)の行と連動（work=時刻セット / 休み・未定=NULL）。
@@ -201,15 +221,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         foreach ($targets as $sid) { $own->execute([$gid, $sid]); if ($own->fetchColumn()) { $okGirl = true; break; } }
         if (!$okGirl) { http_response_code(403); exit(json_encode(['error' => '対象の女性が見つかりません。'])); }
         $s = $e = null;
+        $et = in_array($_POST['end_type'] ?? '', SCHEDULE_END_TYPES, true) ? $_POST['end_type'] : 'accept';
         if (schedule_status_has_time($stt)) {
             $s = $mkTime($_POST['start_h'] ?? '', $_POST['start_m'] ?? '');
             $e = $mkTime($_POST['end_h'] ?? '', $_POST['end_m'] ?? '');
             // 出勤なのに時刻が欠けた保存は他タブでも止めている（未定扱いで消える事故を防ぐ）
             if ($s === null || $e === null) { http_response_code(400); exit(json_encode(['error' => '開始と終了の時間を選んでください。'])); }
         }
-        $saveOne($gid, $date, $stt, $s, $e);
+        $saveOne($gid, $date, $stt, $s, $e, $et);
         $notifyShiftWebhooks();
-        exit(json_encode(['ok' => true, 'status' => $stt, 'start' => $s, 'end' => $e, 'shops' => $tlabel]));
+        exit(json_encode(['ok' => true, 'status' => $stt, 'start' => $s, 'end' => $e, 'end_type' => $et, 'shops' => $tlabel]));
     }
 
     if ($postMode === 'date') {
@@ -218,12 +239,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $status = (array)($_POST['status'] ?? []);
         $sh = (array)($_POST['start_h'] ?? []); $sm = (array)($_POST['start_m'] ?? []);
         $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
+        $ety = (array)($_POST['end_type'] ?? []);
         foreach ($status as $gid => $stt) {
             $gid = (int)$gid;
             $stt = in_array($stt, SCHEDULE_STATUSES, true) ? $stt : 'undecided';
             $s = schedule_status_has_time($stt) ? $mkTime($sh[$gid] ?? '', $sm[$gid] ?? '') : null;
             $e = schedule_status_has_time($stt) ? $mkTime($eh[$gid] ?? '', $em[$gid] ?? '') : null;
-            $saveOne($gid, $date, $stt, $s, $e);
+            $saveOne($gid, $date, $stt, $s, $e, $ety[$gid] ?? 'accept');
         }
         $notifyShiftWebhooks();
         flash('ok', $date . ' の出勤を保存しました（' . $tlabel . '）。');
@@ -238,13 +260,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $status = (array)($_POST['status'] ?? []); // key = 日付
         $sh = (array)($_POST['start_h'] ?? []); $sm = (array)($_POST['start_m'] ?? []);
         $eh = (array)($_POST['end_h'] ?? []);   $em = (array)($_POST['end_m'] ?? []);
+        $ety = (array)($_POST['end_type'] ?? []);
         $n = 0;
         foreach ($status as $d => $stt) {
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
             $stt = in_array($stt, SCHEDULE_STATUSES, true) ? $stt : 'undecided';
             $s = schedule_status_has_time($stt) ? $mkTime($sh[$d] ?? '', $sm[$d] ?? '') : null;
             $e = schedule_status_has_time($stt) ? $mkTime($eh[$d] ?? '', $em[$d] ?? '') : null;
-            if ($saveOne($gid, $d, $stt, $s, $e) > 0) $n++;
+            if ($saveOne($gid, $d, $stt, $s, $e, $ety[$d] ?? 'accept') > 0) $n++;
         }
         $notifyShiftWebhooks();
         flash('ok', $n . '日分の出勤を保存しました（' . $tlabel . '）。');
@@ -299,6 +322,8 @@ layout_header('出勤管理', 'schedules.php');
   .tsel{display:inline-flex;align-items:center;gap:3px}
   .tsel select{padding:6px 4px;border:1px solid var(--border);border-radius:7px;font-size:.95rem;background:#fff}
   .tsel-c{color:var(--muted,#999);font-weight:700}
+  /* 受/完（終了時刻の意味）。OPSの受付判断用で、公開サイト・媒体には出さない */
+  .etsel{padding:6px 4px;border:1px solid var(--border);border-radius:7px;font-size:.95rem;background:#fff;font-weight:700}
   .media-sync{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:.86rem;line-height:1.7}
   .media-sync summary{cursor:pointer;font-weight:700;color:#166534;font-size:.92rem;list-style:none}
   .media-sync summary::-webkit-details-marker{display:none}
@@ -341,6 +366,8 @@ layout_header('出勤管理', 'schedules.php');
   .grid-tbl .gd-t{display:block;font-weight:700}
   .grid-tbl .gd-t2{display:block;font-size:.82em;opacity:.75}
   .grid-tbl .gd-t2::before{content:'〜'}
+  /* 一覧のマス目に出す 受/完 のしるし。時刻の直後に小さく添える */
+  .grid-tbl .gd-et{font-style:normal;font-size:.9em;font-weight:700;margin-left:2px;opacity:.9}
   .grid-tbl .gd-lock{font-size:.7rem}
   .grid-tbl .gd-un{opacity:.45}
   .grid-tbl .gd-total{background:var(--bg-1,#faf7fb);font-weight:700;min-width:3.2rem}
@@ -435,7 +462,7 @@ layout_header('出勤管理', 'schedules.php');
 
     $gm = [];   // [girl_id][work_date] = 行
     if ($girls) {
-        $sc = db()->prepare('SELECT girl_id, work_date, start_time, end_time, status
+        $sc = db()->prepare('SELECT girl_id, work_date, start_time, end_time, end_type, status
                                FROM schedules WHERE shop_id=? AND work_date BETWEEN ? AND ?');
         $sc->execute([$shop, $dates[0], end($dates)]);
         foreach ($sc->fetchAll() as $r) $gm[(int)$r['girl_id']][$r['work_date']] = $r;
@@ -524,15 +551,16 @@ layout_header('出勤管理', 'schedules.php');
               $today = $d === $schedBiz ? ' is-today' : '';
               $st5 = ($r['start_time'] ?? null) ? substr($r['start_time'], 0, 5) : '';
               $et5 = ($r['end_time']   ?? null) ? substr($r['end_time'], 0, 5)   : '';
+              $ety = ($r['end_type'] ?? 'accept') === 'finish' ? 'finish' : 'accept';
             ?>
               <td class="gd-c s-<?= $stt ?><?= $today ?>" tabindex="0" role="button"
                   data-gid="<?= $gid ?>" data-name="<?= h($g['name']) ?>" data-date="<?= h($d) ?>"
                   data-label="<?= (int)substr($d, 5, 2) ?>/<?= (int)substr($d, 8, 2) ?>(<?= $WD[(int)date('w', strtotime($d))] ?>)"
-                  data-st="<?= $stt ?>" data-s="<?= h($st5) ?>" data-e="<?= h($et5) ?>">
+                  data-st="<?= $stt ?>" data-s="<?= h($st5) ?>" data-e="<?= h($et5) ?>" data-et="<?= $ety ?>">
                 <?php if ($stt === 'work' || $stt === 'ops_only'): ?>
                   <?php if ($stt === 'ops_only'): ?><span class="gd-lock" title="OPSのみ（サイト・媒体には出ません）">🔒</span><?php endif; ?>
                   <span class="gd-t"><?= h($hm($r['start_time'] ?? null)) ?></span>
-                  <span class="gd-t2"><?= h($hm($r['end_time'] ?? null)) ?></span>
+                  <span class="gd-t2"><?= h($hm($r['end_time'] ?? null)) ?><i class="gd-et"><?= h(SCHEDULE_END_TYPE_LABELS[$ety]) ?></i></span>
                 <?php elseif ($stt === 'off'): ?>
                   休
                 <?php else: ?>
@@ -566,6 +594,7 @@ layout_header('出勤管理', 'schedules.php');
     </div>
     <div class="cp-time" id="cpTime">
       <?= time_select('', null, '', 'cpStart') ?><span class="cp-wave">〜</span><?= time_select('', null, '', 'cpEnd') ?>
+      <?= end_type_select('', null, '', 'cpEndType') ?>
     </div>
     <div class="cp-foot">
       <span class="cp-msg" id="cpMsg"></span>
@@ -600,6 +629,7 @@ layout_header('出勤管理', 'schedules.php');
       document.getElementById('cpTitle').textContent = td.dataset.name + '　' + td.dataset.label;
       document.getElementById('cpMsg').textContent = '';
       setT(S, td.dataset.s); setT(E, td.dataset.e);
+      document.getElementById('cpEndType').value = td.dataset.et || 'accept';
       paintStatus();
       pop.hidden = false;
       // マスの真下に出す。画面からはみ出すときは内側へ寄せる
@@ -618,12 +648,13 @@ layout_header('出勤管理', 'schedules.php');
     }
 
     // 保存後にマスの見た目を描き直す（ページ再読み込みなしで反映）
-    function repaint(td, st, s, e) {
-      td.dataset.st = st; td.dataset.s = s || ''; td.dataset.e = e || '';
+    function repaint(td, st, s, e, et) {
+      td.dataset.st = st; td.dataset.s = s || ''; td.dataset.e = e || ''; td.dataset.et = et || 'accept';
       td.className = td.className.replace(/\bs-\w+/, 's-' + st);
       if (hasTime(st)) {
         td.innerHTML = (st === 'ops_only' ? '<span class="gd-lock" title="OPSのみ（サイト・媒体には出ません）">🔒</span>' : '')
-          + '<span class="gd-t">' + fmt(s) + '</span><span class="gd-t2">' + fmt(e) + '</span>';
+          + '<span class="gd-t">' + fmt(s) + '</span><span class="gd-t2">' + fmt(e)
+          + '<i class="gd-et">' + (et === 'finish' ? '完' : '受') + '</i></span>';
       } else {
         td.innerHTML = st === 'off' ? '休' : '<span class="gd-un">＋</span>';
       }
@@ -663,7 +694,11 @@ layout_header('出勤管理', 'schedules.php');
       if (hasTime(stCur) && !S.h.value && cell) {
         var sib = cell.parentNode.querySelectorAll('.gd-c');
         for (var i = 0; i < sib.length; i++) {
-          if (sib[i] !== cell && sib[i].dataset.s) { setT(S, sib[i].dataset.s); setT(E, sib[i].dataset.e); break; }
+          if (sib[i] !== cell && sib[i].dataset.s) {
+            setT(S, sib[i].dataset.s); setT(E, sib[i].dataset.e);
+            document.getElementById('cpEndType').value = sib[i].dataset.et || 'accept';
+            break;
+          }
         }
       }
       paintStatus();
@@ -684,6 +719,7 @@ layout_header('出勤管理', 'schedules.php');
       fd.append('_csrf', CSRF); fd.append('mode', 'cell');
       fd.append('girl_id', cell.dataset.gid); fd.append('date', cell.dataset.date); fd.append('status', stCur);
       fd.append('start_h', s.h); fd.append('start_m', s.m); fd.append('end_h', e.h); fd.append('end_m', e.m);
+      fd.append('end_type', document.getElementById('cpEndType').value);
       shops.forEach(function (v) { fd.append('shops[]', v); });
       var btn = this, td = cell;
       btn.disabled = true; msg.textContent = '保存中...';
@@ -692,7 +728,7 @@ layout_header('出勤管理', 'schedules.php');
         .then(function (res) {
           btn.disabled = false;
           if (!res.ok || res.j.error) { msg.textContent = res.j.error || '保存できませんでした。'; return; }
-          repaint(td, res.j.status, res.j.start, res.j.end);
+          repaint(td, res.j.status, res.j.start, res.j.end, res.j.end_type);
           close();
         })
         .catch(function () { btn.disabled = false; msg.textContent = '通信に失敗しました。'; });
@@ -707,7 +743,7 @@ layout_header('出勤管理', 'schedules.php');
     $bizNow = date('Y-m-d', time() - 5 * 3600);
     $date = $_GET['date'] ?? $bizNow;
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) $date = $bizNow;
-    $sc = db()->prepare('SELECT girl_id, start_time, end_time, status FROM schedules WHERE shop_id=? AND work_date=?');
+    $sc = db()->prepare('SELECT girl_id, start_time, end_time, end_type, status FROM schedules WHERE shop_id=? AND work_date=?');
     $sc->execute([$shop, $date]);
     $map = [];
     foreach ($sc->fetchAll() as $r) $map[(int)$r['girl_id']] = $r;
@@ -740,7 +776,7 @@ layout_header('出勤管理', 'schedules.php');
     <input type="hidden" name="date" value="<?= h($date) ?>">
     <div class="table-wrap" style="border:none">
       <table class="tbl">
-        <thead><tr><th>女性</th><th>状態</th><th>開始</th><th>終了</th></tr></thead>
+        <thead><tr><th>女性</th><th>状態</th><th>開始</th><th>終了</th><th title="受=その時刻までの注文に対応 / 完=その時刻に完全終了">受/完</th></tr></thead>
         <tbody>
           <?php foreach ($girls as $g): $cur = $map[(int)$g['id']] ?? null; $stt = $cur['status'] ?? 'undecided'; ?>
             <tr class="is-<?= $stt ?>">
@@ -755,9 +791,10 @@ layout_header('出勤管理', 'schedules.php');
               </td>
               <td><?= time_select('start', ($cur['start_time'] ?? null) ? substr($cur['start_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
               <td><?= time_select('end', ($cur['end_time'] ?? null) ? substr($cur['end_time'], 0, 5) : null, (string)(int)$g['id']) ?></td>
+              <td><?= end_type_select('end_type', $cur['end_type'] ?? null, (string)(int)$g['id']) ?></td>
             </tr>
           <?php endforeach; ?>
-          <?php if (!$girls): ?><tr><td colspan="4" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
+          <?php if (!$girls): ?><tr><td colspan="5" class="muted" style="text-align:center;padding:30px">この店舗に掲載中の女性がいません</td></tr><?php endif; ?>
         </tbody>
       </table>
     </div>
@@ -788,7 +825,7 @@ layout_header('出勤管理', 'schedules.php');
 
     $map = [];
     if ($gid) {
-        $sc = db()->prepare('SELECT work_date, start_time, end_time, status FROM schedules WHERE shop_id=? AND girl_id=? AND work_date BETWEEN ? AND ?');
+        $sc = db()->prepare('SELECT work_date, start_time, end_time, end_type, status FROM schedules WHERE shop_id=? AND girl_id=? AND work_date BETWEEN ? AND ?');
         $sc->execute([$shop, $gid, $dates[0], end($dates)]);
         foreach ($sc->fetchAll() as $r) $map[$r['work_date']] = $r;
     }
@@ -835,13 +872,14 @@ layout_header('出勤管理', 'schedules.php');
       </span>
       <span class="grp">一括時間
         <?= time_select('', null, '', 'bulkStart') ?> 〜 <?= time_select('', null, '', 'bulkEnd') ?>
+        <?= end_type_select('', null, '', 'bulkEndType') ?>
         <button type="button" class="btn-mini" id="applyTime">出勤日に適用</button>
       </span>
     </div>
 
     <div class="table-wrap" style="border:none">
       <table class="tbl">
-        <thead><tr><th>日付</th><th>状態</th><th>開始</th><th>終了</th></tr></thead>
+        <thead><tr><th>日付</th><th>状態</th><th>開始</th><th>終了</th><th title="受=その時刻までの注文に対応 / 完=その時刻に完全終了">受/完</th></tr></thead>
         <tbody>
           <?php foreach ($dates as $d): $r = $map[$d] ?? null; $stt = $r['status'] ?? 'undecided'; $wdi = (int)date('w', strtotime($d)); ?>
             <tr class="is-<?= $stt ?>">
@@ -858,6 +896,7 @@ layout_header('出勤管理', 'schedules.php');
               </td>
               <td><?= time_select('start', ($r['start_time'] ?? null) ? substr($r['start_time'], 0, 5) : null, $d) ?></td>
               <td><?= time_select('end', ($r['end_time'] ?? null) ? substr($r['end_time'], 0, 5) : null, $d) ?></td>
+              <td><?= end_type_select('end_type', $r['end_type'] ?? null, $d) ?></td>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -886,10 +925,13 @@ layout_header('出勤管理', 'schedules.php');
     function setT(el, t) { if (t.h !== '') el.querySelector('.tsel-h').value = t.h; if (t.m !== '') el.querySelector('.tsel-m').value = t.m; }
     document.getElementById('applyTime').addEventListener('click', function () {
       var bs = getT(document.getElementById('bulkStart')), be = getT(document.getElementById('bulkEnd'));
+      var bet = document.getElementById('bulkEndType').value;
       rows().forEach(function (tr) {
         if (!HAS_TIME(tr.querySelector('[data-status]').value)) return;
         var ts = tr.querySelectorAll('.tsel');
         setT(ts[0], bs); setT(ts[1], be);
+        var et = tr.querySelector('.etsel');   // 受/完 も一括で揃える
+        if (et) et.value = bet;
       });
     });
   })();

@@ -14,6 +14,8 @@
 //                 2026-08-01 実測: 立川の同日 work 4件 / undecided 115件）
 //     off       → 同期しない（休み）
 //
+//   end_type … 終了時刻の意味（受＝その時刻までの注文に対応 / 完＝その時刻に完全終了）。
+//              内勤の受付判断に使うので OPS 側にもそのまま持ってくる。
 //   時間未入力の work は 10:00-翌5:00（営業時間いっぱい）として扱う。
 //   CTRL 側で消された・未定に戻された出勤は ops からも消す（同期元が正）。
 //
@@ -37,6 +39,10 @@ function ops_shifts_ensure_private_column(PDO $pdo): void {
     if (!in_array('is_private', $cols, true)) {
         $pdo->exec('ALTER TABLE ops_shifts ADD COLUMN is_private TINYINT(1) NOT NULL DEFAULT 0');
     }
+    // 終了時刻の意味（accept=受 / finish=完）。CTRL の出勤管理で選ぶ
+    if (!in_array('end_type', $cols, true)) {
+        $pdo->exec("ALTER TABLE ops_shifts ADD COLUMN end_type ENUM('accept','finish') NOT NULL DEFAULT 'accept' AFTER end_time");
+    }
 }
 
 /**
@@ -55,13 +61,13 @@ function ops_sync_shifts(int $shopId, string $from, string $to): array {
     }
 
     $st = $pdo->prepare(
-        'SELECT girl_id, work_date, start_time, end_time, note, status
+        'SELECT girl_id, work_date, start_time, end_time, end_type, note, status
            FROM schedules
           WHERE shop_id = ? AND work_date BETWEEN ? AND ? AND status IN ("work", "ops_only")'
     );
     $st->execute([$shopId, $from, $to]);
 
-    $want = [];   // "adminId|date" => [start, end, status, note, private]
+    $want = [];   // "adminId|date" => [start, end, status, note, private, endType]
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $aid = $map[(int)$r['girl_id']] ?? null;
         if (!$aid) continue;   // ops に未同期のキャスト（掲載外など）は無視
@@ -71,13 +77,14 @@ function ops_sync_shifts(int $shopId, string $from, string $to): array {
             'available',
             (string)($r['note'] ?? ''),
             $r['status'] === 'ops_only' ? 1 : 0,   // サイト・媒体に出さない出勤
+            ($r['end_type'] ?? 'accept') === 'finish' ? 'finish' : 'accept',
         ];
     }
 
     // 既存（同期対象＝キャスト行のみ。手入力のスタッフシフトは触らない）
     $cur = [];
     $ex = $pdo->prepare(
-        'SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.status, s.note, s.is_private
+        'SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.end_type, s.status, s.note, s.is_private
            FROM ops_shifts s
            JOIN ops_admin_users u ON u.id = s.admin_user_id AND u.girl_id IS NOT NULL
           WHERE s.shift_date BETWEEN ? AND ?'
@@ -87,15 +94,15 @@ function ops_sync_shifts(int $shopId, string $from, string $to): array {
         $cur[(int)$r['admin_user_id'] . '|' . $r['shift_date']] = $r;
     }
 
-    $ins = $pdo->prepare('INSERT INTO ops_shifts (admin_user_id, shift_date, start_time, end_time, status, note, is_private) VALUES (?,?,?,?,?,?,?)');
-    $upd = $pdo->prepare('UPDATE ops_shifts SET start_time=?, end_time=?, status=?, note=?, is_private=? WHERE id=?');
+    $ins = $pdo->prepare('INSERT INTO ops_shifts (admin_user_id, shift_date, start_time, end_time, status, note, is_private, end_type) VALUES (?,?,?,?,?,?,?,?)');
+    $upd = $pdo->prepare('UPDATE ops_shifts SET start_time=?, end_time=?, status=?, note=?, is_private=?, end_type=? WHERE id=?');
     $del = $pdo->prepare('DELETE FROM ops_shifts WHERE id=?');
 
     $added = 0; $updated = 0; $removed = 0;
-    foreach ($want as $key => [$start, $end, $status, $note, $private]) {
+    foreach ($want as $key => [$start, $end, $status, $note, $private, $endType]) {
         [$aid, $date] = explode('|', $key);
         if (!isset($cur[$key])) {
-            $ins->execute([(int)$aid, $date, $start, $end, $status, $note, $private]);
+            $ins->execute([(int)$aid, $date, $start, $end, $status, $note, $private, $endType]);
             $added++;
             continue;
         }
@@ -103,13 +110,14 @@ function ops_sync_shifts(int $shopId, string $from, string $to): array {
         if ($c['status'] !== 'available') {
             // 手動オーバーライド（終了/休み/予定）は触らないが、非公開かどうかだけは追従させる
             // ＝ CTRL で公開/非公開を切り替えたのにタイムラインの🔒が古いまま、を防ぐ
-            if ((int)$c['is_private'] !== $private) {
-                $pdo->prepare('UPDATE ops_shifts SET is_private=? WHERE id=?')->execute([$private, (int)$c['id']]);
+            if ((int)$c['is_private'] !== $private || (string)($c['end_type'] ?? 'accept') !== $endType) {
+                $pdo->prepare('UPDATE ops_shifts SET is_private=?, end_type=? WHERE id=?')->execute([$private, $endType, (int)$c['id']]);
             }
             continue;
         }
-        if ($c['start_time'] !== $start || $c['end_time'] !== $end || (string)$c['note'] !== $note || (int)$c['is_private'] !== $private) {
-            $upd->execute([$start, $end, $status, $note, $private, (int)$c['id']]);
+        if ($c['start_time'] !== $start || $c['end_time'] !== $end || (string)$c['note'] !== $note
+            || (int)$c['is_private'] !== $private || (string)($c['end_type'] ?? 'accept') !== $endType) {
+            $upd->execute([$start, $end, $status, $note, $private, $endType, (int)$c['id']]);
             $updated++;
         }
     }

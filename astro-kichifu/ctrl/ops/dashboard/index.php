@@ -865,6 +865,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tl-m-private .tl-m-l{color:#7d4a95;}
   .tl-m-private .tl-m-v{color:#7d4a95;font-size:.72rem;letter-spacing:.02em;}
   .tl-m-wave{margin:0 .15em;color:var(--ink-soft);font-weight:600;}
+  /* 受/完＝終了時刻の意味。受付できるかの判断に使うので、時刻のすぐ後ろに小さく強めの色で出す */
+  .tl-endtype{display:inline-block;margin-left:.25em;padding:0 .3em;border-radius:4px;font-size:.82em;font-weight:800;line-height:1.4;}
+  .tl-endtype-accept{background:#ddeff4;color:#0d5e70;}
+  .tl-endtype-finish{background:#fde9d9;color:#8a4a12;}
   button.tl-staff-sales.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;-webkit-tap-highlight-color:rgba(232,93,47,.25);}
   button.tl-staff-sales.tl-m .tl-m-l,button.tl-staff-sales.tl-m .tl-m-v{color:var(--coral);}
   /* 預り金（青・クリックで受け渡し履歴） */

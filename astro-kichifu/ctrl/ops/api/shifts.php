@@ -57,7 +57,7 @@ if ($action === 'range' && $method === 'GET') {
 
     // 差分同期がスキップされた時でも is_private を参照できるようにしておく
     ops_shifts_ensure_private_column($pdo);
-    $sql = "SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.status, s.note, s.is_private,
+    $sql = "SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.end_type, s.status, s.note, s.is_private,
                    au.display_name AS staff_name, au.role AS staff_role
             FROM ops_shifts s
             LEFT JOIN ops_admin_users au ON au.id = s.admin_user_id
