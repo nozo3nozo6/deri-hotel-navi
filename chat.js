@@ -80,7 +80,21 @@ function getCastBearer() {
     } catch (_) { return null; }
 }
 
+// 店舗オーナー受信箱を URL 直開き: ?owner_token=<device_token>.
+// 別ドメイン(admi2888.com の管理画面など)の iframe からだと Cookie(SameSite=Strict) も
+// localStorage も共有されず、必ず訪問者モードに落ちてしまう。キャスト受信箱 ?cast_inbox= と
+// 同じ考え方で、URL でトークンを渡して受信箱を開けるようにする（店長要望 2026-08-09）。
+// device_token は bin2hex(random_bytes(48)) = 96桁hex。
+function getOwnerTokenParam() {
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('owner_token') || '').trim().toLowerCase();
+        return /^[a-f0-9]{96}$/.test(v) ? v : '';
+    } catch (_) { return ''; }
+}
+
 const SLUG = getSlug();
+const OWNER_TOKEN = getOwnerTokenParam();
 const CAST_ID = getCastParam();
 const CAST_BEARER = getCastBearer();
 const VIEW_TOKEN = getViewToken();
@@ -205,6 +219,7 @@ const refs = {
     input: $('chat-input'),
     sendBtn: $('chat-send'),
     btnRefresh: $('btn-refresh-inbox'),
+    btnOwnerOpsLink: $('btn-owner-opslink'),
     btnBlock: $('btn-block-user'),
     btnCloseSession: $('btn-close-session'),
     btnReopenSession: $('btn-reopen-session'),
@@ -2228,13 +2243,25 @@ async function _init() {
         // ?cast=... 指名URLの場合は必ず訪問者モード。
         // 店舗オーナーが同じブラウザで開いた時にオーナー画面へ乗っ取られるのを防ぐ。
         if (!CAST_ID) {
-            // 1. localStorage の device_token で verify-device
-            let savedToken = null;
-            try { savedToken = localStorage.getItem(LS_DEVICE); } catch (_) { savedToken = null; }
+            // 1. device_token で verify-device。URL の ?owner_token= を最優先（別ドメイン iframe 用）
+            let savedToken = OWNER_TOKEN || null;
+            if (!savedToken) {
+                try { savedToken = localStorage.getItem(LS_DEVICE); } catch (_) { savedToken = null; }
+            }
             if (savedToken) {
                 try {
                     const dev = await api('verify-device', { device_token: savedToken });
                     if (dev.slug === SLUG) {
+                        // URL 経由で入った場合はこの端末（iframe のストレージ区画）に覚えさせ、
+                        // アドレスバーからトークンを消す（履歴・共有からの漏れ防止）
+                        if (OWNER_TOKEN) {
+                            try { localStorage.setItem(LS_DEVICE, OWNER_TOKEN); } catch (_) {}
+                            try {
+                                const u = new URL(window.location.href);
+                                u.searchParams.delete('owner_token');
+                                history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+                            } catch (_) {}
+                        }
                         state.mode = 'owner';
                         state.device_token = savedToken;
                         state.shop_name = dev.shop_name;
@@ -3520,6 +3547,8 @@ async function enterOwnerMode() {
     if (refs.visitorName) refs.visitorName.classList.add('hidden');
     if (refs.btnHeaderBack) refs.btnHeaderBack.classList.add('hidden');
     if (refs.nicknameArea) refs.nicknameArea.classList.add('hidden');
+    // 別ドメインの管理画面へ貼る受信箱URL（?owner_token=）のコピーボタン。オーナー本人のときだけ出す
+    if (refs.btnOwnerOpsLink) refs.btnOwnerOpsLink.classList.remove('hidden');
 
     await refreshOwnerStatus();
     await loadTemplates();
@@ -4871,6 +4900,23 @@ if (refs.loginModal) refs.loginModal.addEventListener('click', (e) => {
 });
 if (refs.loginForm) refs.loginForm.addEventListener('submit', handleLogin);
 if (refs.btnOwnerLogout) refs.btnOwnerLogout.addEventListener('click', handleOwnerLogout);
+// 管理画面(OPS)の枠内にこの受信箱を出すための直リンクをコピー。
+// 別ドメインの iframe には Cookie も localStorage も渡らないので、URL にトークンを載せる
+if (refs.btnOwnerOpsLink) refs.btnOwnerOpsLink.addEventListener('click', async () => {
+    if (!state.device_token) return;
+    const url = `${location.origin}/chat/${encodeURIComponent(SLUG)}/?owner_token=${state.device_token}`;
+    let copied = false;
+    try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
+    if (!copied) {
+        // クリップボードが使えない環境（権限拒否など）は選択してもらう
+        window.prompt('この URL を管理画面のチャット設定に貼り付けてください', url);
+        return;
+    }
+    const btn = refs.btnOwnerOpsLink;
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => { btn.textContent = orig; }, 2000);
+});
 
 function sendOwnerGoOffline() {
     if (state.mode !== 'owner' || !state.device_token) return;
