@@ -30,13 +30,14 @@ function bookingSelectColumns(): string {
         b.id, b.customer_id, b.customer_name_snapshot, b.customer_phone_snapshot, b.customer_email_snapshot,
         b.assigned_admin_id, b.driver_id, b.back_driver_id, b.hotel_id, b.hotel_name_snapshot, b.display_city, b.room_number,
         b.booking_date, b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.pickup_go_mailed_at, b.pickup_back_mailed_at,
-        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.hotel_price_applied, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.card_paid_at, b.counseling, b.media, b.extension_count,
+        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.hotel_price_applied, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.cash_amount, b.card_paid_at, b.card_paid_by, b.counseling, b.media, b.extension_count,
         b.status, b.service_ended_at, b.source, b.notes, b.cancellation_reason, b.cancellation_reason_type, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.shop_settled, b.shop_settled_by, b.settle_kind, b.reward_paid_at, b.reward_paid_by, b.counseling_sheet_url, b.held_by, b.created_at, b.updated_at,
         c.name AS customer_name, c.phone AS customer_phone, c.notes AS customer_notes,
         h.name AS hotel_name, h.city AS hotel_city, h.address AS hotel_address,
         au.display_name AS staff_name,
         dr.display_name AS driver_name,
-        dr2.display_name AS back_driver_name
+        dr2.display_name AS back_driver_name,
+        cp.display_name AS card_paid_by_name
     ";
 }
 
@@ -127,6 +128,7 @@ if ($action === 'range' && $method === 'GET') {
             LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
             LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
+            LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
             WHERE " . implode(' AND ', $where) . "
             ORDER BY b.booking_date, b.start_time";
     $stmt = $pdo->prepare($sql);
@@ -216,6 +218,7 @@ if ($action === 'list' && $method === 'GET') {
             LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
             LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
+            LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
             " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
             ORDER BY b.booking_date DESC, b.start_time DESC
             LIMIT 200";
@@ -259,6 +262,7 @@ if ($action === 'get' && $method === 'GET') {
                            LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
                            LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
+            LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
                            WHERE b.id = ?");
     $stmt->execute([$id]);
     $row = $stmt->fetch();
@@ -354,9 +358,13 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'hotel_price_applied'     => !empty($b['hotel_price_applied']) ? 1 : 0,
         'late_fee'                => max(0, (int)($b['late_fee'] ?? 0)),
         'transport_fee'           => isset($b['transport_fee']) && $b['transport_fee'] !== '' ? (int)$b['transport_fee'] : null,
-        'payment_method'          => in_array($b['payment_method'] ?? '', ['cash','credit','bank'], true) ? $b['payment_method'] : null,
-        // クレジットのときお客様の合計に上乗せした手数料額。現金/振込は0
-        'card_fee'                => (($b['payment_method'] ?? '') === 'credit') ? max(0, (int)($b['card_fee'] ?? 0)) : 0,
+        // split = 現金＋クレジットの併用（稀にある・店長要望 2026-08-08）
+        'payment_method'          => in_array($b['payment_method'] ?? '', ['cash','credit','bank','split'], true) ? $b['payment_method'] : null,
+        // クレジット部分にかかる、お客様の合計への上乗せ額。現金/振込は0
+        'card_fee'                => in_array($b['payment_method'] ?? '', ['credit','split'], true) ? max(0, (int)($b['card_fee'] ?? 0)) : 0,
+        // 併用のとき現金で受け取る額。残りがクレジット。併用以外は NULL（現金/カードの別は payment_method で足りる）
+        'cash_amount'             => (($b['payment_method'] ?? '') === 'split' && isset($b['cash_amount']) && $b['cash_amount'] !== '')
+                                        ? max(0, (int)$b['cash_amount']) : null,
         // 媒体・予約経路（複数可・カンマ区切り）。LINE予約のときだけ +10分(無料)
         'media'                   => ops_normalize_media($b['media'] ?? ''),
         // counseling は「+10分が付いたか」を表す既存フラグ。根拠は LINE予約に変わったので
@@ -378,8 +386,8 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'reward_override'         => isset($b['reward_override']) && $b['reward_override'] !== '' && $b['reward_override'] !== null ? (int)$b['reward_override'] : null,
     ];
 
-    // 決済確認: クレジットのときだけ持つ。日時は最初に確認した時点を保つ（付け外しで上書きしない）
-    if (($b['payment_method'] ?? '') !== 'credit') {
+    // 決済確認: クレジットを使うときだけ持つ（併用も対象）。日時は最初に確認した時点を保つ（付け外しで上書きしない）
+    if (!in_array($b['payment_method'] ?? '', ['credit', 'split'], true)) {
         $fields['card_paid_at'] = null;
         $fields['card_paid_by'] = null;
     } elseif (array_key_exists('card_paid', $b)) {
@@ -491,23 +499,36 @@ if ($action === 'shift-time' && $method === 'POST') {
     $b = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     $delta = (int)($b['delta'] ?? 0);
-    if ($id <= 0 || $delta === 0 || abs($delta) > 240) errorResponse('invalid params', 400);
+    // ポップの時刻選択は営業日の全時間帯（10時〜翌9時）から選べる。画面側が近い方向へ ±12時間以内に
+    // 丸めて送ってくるので、上限もそれに合わせる（4時間だと遠い時刻を選んだとき invalid params で落ちていた）
+    if ($id <= 0 || $delta === 0 || abs($delta) > 720) errorResponse('invalid params', 400);
     opsGuardNotOvertaken($pdo, $id, trim((string)($b['expected_updated_at'] ?? '')));
-    $st = $pdo->prepare("SELECT start_time, end_time, pickup_go_time, pickup_back_time FROM ops_bookings WHERE id = ?");
+    $st = $pdo->prepare("SELECT booking_date, start_time, end_time, pickup_go_time, pickup_back_time FROM ops_bookings WHERE id = ?");
     $st->execute([$id]);
     $row = $st->fetch();
     if (!$row) errorResponse('not found', 404);
     $toMin = function($t) { if (!$t) return null; $p = explode(':', $t); return (int)$p[0] * 60 + (int)$p[1]; };
-    $fmt = function($m) { if ($m === null) return null; $m = max(0, $m); return sprintf('%02d:%02d:00', intdiv($m, 60), $m % 60); };
-    $ns = $toMin($row['start_time']) + $delta;
-    $ne = $toMin($row['end_time']) + $delta;
-    if ($ns < 0) errorResponse('時刻が範囲外です', 400);
-    // 送迎時刻も追従（設定がある場合のみ）
-    $ngo = $row['pickup_go_time'] !== null ? $fmt($toMin($row['pickup_go_time']) + $delta) : null;
-    $nback = $row['pickup_back_time'] !== null ? $fmt($toMin($row['pickup_back_time']) + $delta) : null;
-    $pdo->prepare("UPDATE ops_bookings SET start_time = ?, end_time = ?, pickup_go_time = ?, pickup_back_time = ? WHERE id = ?")
-        ->execute([$fmt($ns), $fmt($ne), $ngo, $nback, $id]);
-    jsonResponse(['ok' => true, 'start_time' => $fmt($ns), 'end_time' => $fmt($ne)]);
+    $fmt = function($m) { if ($m === null) return null; return sprintf('%02d:%02d:00', intdiv($m, 60), $m % 60); };
+    // 深夜0時をまたぐ移動（01:44 → 23:36 など）でも失敗しないよう、booking_date ごとずらす。
+    // 以前は時刻だけ引き算して負になり「時刻が範囲外です」で弾いていた（店長指摘 2026-08-09）。
+    // 基準は営業日（10:00〜翌10:00）。同じタイムライン上の移動なので営業日は必ず維持する:
+    //   新しい開始が 10:00 以降 → その営業日の当日 / 10:00 未満 → 営業日の翌日
+    $startMin = $toMin($row['start_time']);
+    $bizDay = $startMin < 600
+        ? date('Y-m-d', strtotime($row['booking_date'] . ' -1 day'))
+        : $row['booking_date'];
+    $ns = (($startMin + $delta) % 1440 + 1440) % 1440;   // 0〜1439 に収める
+    // 終了は「開始からの所要時間」を保って動かす。end_time は 00:39 のように日をまたいで格納される
+    $dur = ($toMin($row['end_time']) - $startMin + 1440) % 1440;
+    $ne = ($ns + $dur) % 1440;
+    // 送迎時刻も同じだけ追従（設定がある場合のみ）
+    $slide = function($t) use ($toMin, $fmt, $delta) {
+        return $t === null ? null : $fmt((($toMin($t) + $delta) % 1440 + 1440) % 1440);
+    };
+    $newDate = $ns < 600 ? date('Y-m-d', strtotime($bizDay . ' +1 day')) : $bizDay;
+    $pdo->prepare("UPDATE ops_bookings SET booking_date = ?, start_time = ?, end_time = ?, pickup_go_time = ?, pickup_back_time = ? WHERE id = ?")
+        ->execute([$newDate, $fmt($ns), $fmt($ne), $slide($row['pickup_go_time']), $slide($row['pickup_back_time']), $id]);
+    jsonResponse(['ok' => true, 'booking_date' => $newDate, 'start_time' => $fmt($ns), 'end_time' => $fmt($ne)]);
 }
 
 if ($action === 'set-status' && $method === 'POST') {

@@ -95,14 +95,23 @@
     return clone;
   }
 
+  /**
+   * 時のプルダウン。並びは営業日と同じ 10時 → 23時 → 0時 → 9時（店長指定 2026-08-08）。
+   * value はこれまでどおり 0〜23 の実時刻なので、保存や計算側は何も変わらない
+   */
+  function bizHourOptions() {
+    let html = '';
+    for (let i = 0; i < 24; i++) {
+      const h = (10 + i) % 24;
+      html += `<option value="${h}">${('0' + h).slice(-2)}</option>`;
+    }
+    return html;
+  }
+
   function bindSecondaryModalEvents() {
     // select 構築
     const sh = document.getElementById('bmStartHour-2');
-    if (sh) {
-      let optHtml = '';
-      for (let h = 0; h < 24; h++) optHtml += `<option value="${h}">${('0'+h).slice(-2)}</option>`;
-      sh.innerHTML = optHtml;
-    }
+    if (sh) sh.innerHTML = bizHourOptions();
     const sm = document.getElementById('bmStartMin-2');
     if (sm) {
       let minHtml = '';
@@ -147,7 +156,9 @@
       } else if (e.target.name === 'bmCityRegion-2') {
         withBmSuffix('-2', () => { populateCitySelect(e.target.value); populateHotelSelect(bel('bmCity').value); });
       } else if (e.target.id === 'bmCity-2') {
-        withBmSuffix('-2', () => { populateHotelSelect(e.target.value); onCityChangedForHome(); });
+        withBmSuffix('-2', () => { populateHotelSelect(e.target.value); onCityChangedForHome(); loadBmTowns().then(() => withBmSuffix('-2', applyHomeTransportFee)); });
+      } else if (e.target.id === 'bmTown-2') {
+        withBmSuffix('-2', () => { onTownChangedForHome(); applyHomeTransportFee(); });
       } else if (e.target.id === 'bmHotelId-2') {
         withBmSuffix('-2', () => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
       } else if (e.target.id === 'bmStatus-2') {
@@ -179,7 +190,7 @@
     modal2.addEventListener('input', e => {
       if (e.target.id === 'bmCustomMin-2') withBmSuffix('-2', updateEndTime);
       else if (e.target.id === 'bmBreakCustomMin-2') withBmSuffix('-2', updateEndTime);
-      else if (e.target.id === 'bmPrice-2' || e.target.id === 'bmDepositOverride-2') withBmSuffix('-2', updateBookingTotal);
+      else if (e.target.id === 'bmPrice-2' || e.target.id === 'bmDepositOverride-2' || e.target.id === 'bmCashAmount-2') withBmSuffix('-2', updateBookingTotal);
       withBmSuffix('-2', () => { try { updateFooterStatus(); } catch (err) {} });
     });
     modal2.addEventListener('blur', e => {
@@ -252,8 +263,17 @@
   }
   const OTHER_PREFIX = '【その他】';
 
+  /** ラブホ / ホテル はどちらも同じホテル選択欄を使う（一覧の中身だけ種別で切り替える） */
+  const isHotelLoc = (type) => type === 'hotel' || type === 'loveho';
+  /** ホテルマスタの hotel_type がラブホか（love_hotel の162件。他は city/business/ryokan/minshuku/other） */
+  const isLoveHotel = (h) => String(h?.hotel_type || '') === 'love_hotel';
+
   function detectLocType(hotelId, snapshot) {
-    if (hotelId) return 'hotel';
+    if (hotelId) {
+      // 登録済みホテルならラブホかどうかでタブを決める（店長要望 2026-08-08: ラブホを独立タブに）
+      const h = (hotelsForSelect || []).find(x => Number(x.id) === Number(hotelId));
+      return isLoveHotel(h) ? 'loveho' : 'hotel';
+    }
     if (!snapshot) return 'hotel';
     if (snapshot.startsWith(HOME_PREFIX)) return 'home';
     if (snapshot.startsWith(OTHER_PREFIX)) return 'other';
@@ -261,11 +281,16 @@
   }
   function switchLocSection(type) {
     const modal = document.getElementById('bookingModal' + activeBmSuffix) || document;
+    // ラブホは hotel セクションを流用する（欄は同じで、選べる一覧だけが変わる）
+    const sectionFor = isHotelLoc(type) ? 'hotel' : type;
     modal.querySelectorAll('.loc-section').forEach(el => {
-      el.style.display = el.dataset.loc === type ? 'block' : 'none';
+      el.style.display = el.dataset.loc === sectionFor ? 'block' : 'none';
     });
     modal.querySelectorAll(`input[name="bmLocType${activeBmSuffix}"]`).forEach(r => r.checked = r.value === type);
-    if (type === 'home') prefillHomeCity();
+    if (isHotelLoc(type)) { populateHotelSelect(); loadBmTowns(); }   // ラブホ・ホテルでは町名欄を消す
+    if (type === 'home') { prefillHomeCity(); loadBmTowns().then(applyHomeTransportFee); }
+    if (type === 'other') loadBmTowns();   // その他でも町名は不要
+    renderBmMapLinks();
   }
   /**
    * 自宅・オフィスのとき、住所の頭に市区町村を入れておく（毎回打つのが手間なため）。
@@ -282,6 +307,36 @@
     if (cur !== '' && !/^[^0-9０-９]{1,8}[市区町村]$/.test(cur)) return;
     addr.value = (bel('bmCity')?.value || '').trim();
   }
+  /**
+   * 自宅・その他の住所にも、ホテルと同じ住所パネル（住所＋出発→ルート）を出す
+   *（店長要望 2026-08-09）。ホテルは選ぶと出るが、手で打つ自宅・その他には無かった。
+   * 建物名・部屋番号は入れない（地図アプリが別の場所を指すため。ホテルと同じ考え方）
+   */
+  function renderBmMapLinks() {
+    const put = (boxId, raw) => {
+      const box = bel(boxId);
+      if (!box) return;
+      const a = String(raw || '').split('\n')[0].trim();
+      if (!a) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      // 市区町村が住所に含まれていなければプルダウンの値で補う（「1-27-3」だけ打つ人もいる）
+      const city = (bel('bmCity')?.value || '').trim();
+      const withCity = (city && a.indexOf(city) === -1) ? city + a : a;
+      const full = composeAddress(prefOfCity(extractCityFromAddress(withCity)) || '', '', withCity);
+      const origin = bmRouteOrigin();
+      box.innerHTML = `<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(full)}</span></div>
+        <div class="bha-route">
+          <span class="bha-l">出発</span>
+          <input type="text" class="bha-origin" value="${escapeAttr(origin)}" placeholder="いまキャストがいる場所（住所・駅名）">
+          <button type="button" class="bha-office" data-bha-office>事務所</button>
+          <button type="button" class="bha-go" data-bha-route>🚗 ルート</button>
+        </div>`;
+      box.style.display = 'block';
+      wireBhaRoute(box, full);
+    };
+    put('bmHomeMapLinks', bel('bmHomeAddress')?.value);
+    put('bmOtherMapLinks', bel('bmOtherLoc')?.value);
+  }
+
   function prefillHomeCity() {
     const addr = bel('bmHomeAddress');
     const city = (bel('bmCity')?.value || '').trim();
@@ -329,6 +384,7 @@
       note.style.display = 'block';
       note.textContent = '📍 いつもの場所を自動入力しました（ホテル利用のときは「ホテル」タブへ）';
     }
+    renderBmMapLinks();   // 自動入力した住所にも地図リンクを出す
   }
   // メインエリア（多摩）。立川駅からの直線距離が近い順。
   //   距離は各市区町村の役所の位置で概算（カッコ内はおおよその km）。
@@ -506,6 +562,15 @@
     if (!bits.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.innerHTML = bits.join('');
     box.style.display = 'block';
+    wireBhaRoute(box, full);
+  }
+
+  /**
+   * 住所パネルの「出発 → ルート」を動かす。ホテル・自宅・その他で共用（店長要望 2026-08-09）。
+   * @param {HTMLElement} box パネル要素
+   * @param {string} full 目的地の住所
+   */
+  function wireBhaRoute(box, full) {
     const originEl = box.querySelector('.bha-origin');
     // 出発地は端末ごとに覚える（毎回打ち直さなくて済むように）
     if (originEl) originEl.addEventListener('change', () => {
@@ -581,6 +646,239 @@
     }
   }
 
+  // 指名料。マスタタブで設定する（店長要望 2026-08-08: 損益タブは金額の集計だけにする）
+  async function loadNominationFeeSetting() {
+    const fFirst = document.getElementById('msNomFirst');
+    const fReg = document.getElementById('msNomRegular');
+    const fFree = document.getElementById('msNomFree');
+    if (!fFirst || !fReg || !fFree) return;
+    // 指名料（お客様）とキャスト報酬は別物。同じ画面で並べて設定する（店長要望 2026-08-08）
+    const rFirst = document.getElementById('msNomRewFirst');
+    const rReg = document.getElementById('msNomRewRegular');
+    const rFree = document.getElementById('msNomRewFree');
+    const fill = () => {
+      fFirst.value = NOMINATION_FEES.first;
+      fReg.value = NOMINATION_FEES.regular;
+      fFree.value = NOMINATION_FEES.free;
+      if (rFirst) rFirst.value = NOMINATION_REWARDS.first;
+      if (rReg) rReg.value = NOMINATION_REWARDS.regular;
+      if (rFree) rFree.value = NOMINATION_REWARDS.free;
+    };
+    fill();
+    const btn = document.getElementById('msNomSave');
+    const msg = document.getElementById('msNomMsg');
+    if (btn && !btn.dataset.wired) {
+      btn.dataset.wired = '1';
+      btn.addEventListener('click', async () => {
+        const parsed = {
+          first: parseInt(fFirst.value, 10),
+          regular: parseInt(fReg.value, 10),
+          free: parseInt(fFree.value, 10),
+        };
+        const rewards = {
+          first: parseInt(rFirst?.value ?? '0', 10),
+          regular: parseInt(rReg?.value ?? '0', 10),
+          free: parseInt(rFree?.value ?? '0', 10),
+        };
+        if (Object.values(parsed).concat(Object.values(rewards)).some(n => isNaN(n) || n < 0)) {
+          toast('0以上の数値を入力してください', 'err'); return;
+        }
+        try {
+          const res = await apiPost('/admin-api.php?action=nomination-fees-set',
+            { nomination_fees: parsed, nomination_rewards: rewards });
+          if (res?.nomination_fees) Object.assign(NOMINATION_FEES, res.nomination_fees);
+          if (res?.nomination_rewards) Object.assign(NOMINATION_REWARDS, res.nomination_rewards);
+          fill();
+          if (msg) { msg.textContent = '✓ 保存しました'; setTimeout(() => { msg.textContent = ''; }, 2000); }
+          toast('✓ 指名料・報酬を更新しました', 'ok');
+          if (typeof loadTimeline === 'function') loadTimeline(true);   // 報酬の表示に即反映
+        } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+      });
+    }
+  }
+
+  // 自宅の交通費（市区町村＋町名）。予約モーダルで自宅を選んだときの初期値に使う（店長要望 2026-08-08）。
+  // CITY_FEES = { 市区町村: { "": 全域の額, 町名: その町の額, ... } }。
+  // 使い方は「まず市区町村で一括、その後 町名で調整」。例: 立川市 全域¥1,650 / 羽村市の一部の町だけ別額。
+  let CITY_FEES = {};
+  // 町名一覧のキャッシュ（市区町村 → [町名...]）。API側もDBにキャッシュするが、二度目以降の切替を速くする
+  const TOWNS_CACHE = {};
+  async function fetchTowns(city) {
+    if (!city) return [];
+    if (TOWNS_CACHE[city]) return TOWNS_CACHE[city];
+    try {
+      const d = await api('/admin-api.php?action=city-towns&city=' + encodeURIComponent(city));
+      TOWNS_CACHE[city] = d.towns || [];
+    } catch (e) { TOWNS_CACHE[city] = []; }
+    return TOWNS_CACHE[city];
+  }
+
+  // ===== 🏠 自宅の交通費 専用ページ（マスタから開く。店長要望 2026-08-08: 町名一覧を見ながら設定） =====
+  let cfAllCities = [];
+  const cfState = { region: 'main', city: '' };
+
+  async function loadCityFeeView() {
+    try {
+      const d = await api('/admin-api.php?action=city-fees');
+      CITY_FEES = d.fees || {};
+      cfAllCities = d.cities || [];
+    } catch (e) { toast('読み込み失敗: ' + e.message, 'err'); return; }
+    renderCfCities();
+    renderCfTownPanel();
+  }
+
+  /** 金額プルダウンの中身。cur=null は未設定（emptyLabel を出す） */
+  function cfFeeOptions(cur, emptyLabel) {
+    // ¥1,100 から550円刻み（¥550 は廃止・店長指定 2026-08-08）
+    const steps = [0, 1100, 1650, 2200, 2750, 3300, 3850, 4400, 4950, 5500, 6050, 6600, 7150, 7700, 8250, 8800, 9350, 9900, 10450, 11000];
+    // 刻みに無い金額（設定済みの旧データ）は、選ばれたまま残るよう選択肢に足す
+    if (cur != null && !steps.includes(cur)) steps.push(Number(cur));
+    steps.sort((a, b) => a - b);
+    return `<option value=""${cur == null ? ' selected' : ''}>${escapeHtml(emptyLabel)}</option>` +
+      steps.map(v => `<option value="${v}"${cur === v ? ' selected' : ''}>${v === 0 ? '🆓 無料（¥0）' : '¥' + v.toLocaleString()}</option>`).join('');
+  }
+
+  /** エリアタブに応じた市区町村チップ。設定済みは金額と町別件数のバッジ付き */
+  function renderCfCities() {
+    const box = document.getElementById('cfCityChips');
+    if (!box) return;
+    const inOtherRegions = new Set([].concat(...Object.values(CITY_REGIONS)));
+    let cities;
+    if (cfState.region === 'main') {
+      // メイン=多摩。ホテルのある市区町村（他エリアに属さないもの）＋設定だけ残っている市区町村
+      const base = (cfAllCities || []).filter(c => !inOtherRegions.has(c));
+      Object.keys(CITY_FEES).forEach(c => { if (!inOtherRegions.has(c) && !base.includes(c)) base.push(c); });
+      cities = sortCitiesByProximity(base);
+    } else {
+      cities = CITY_REGIONS[cfState.region] || [];
+    }
+    box.innerHTML = cities.map(c => {
+      const f = CITY_FEES[c] || {};
+      const baseFee = f[''] != null ? '¥' + Number(f['']).toLocaleString() : '';
+      const townCount = Object.keys(f).filter(t => t !== '').length;
+      const tag = [baseFee, townCount ? `町別${townCount}` : ''].filter(Boolean).join('・');
+      const on = c === cfState.city;
+      return `<button type="button" data-cf-city="${escapeAttr(c)}"
+        style="padding:.45rem .8rem;border-radius:999px;border:1.5px solid ${on ? 'var(--sea)' : 'var(--gray)'};background:${on ? 'var(--sea)' : '#fff'};color:${on ? '#fff' : 'var(--ink)'};font-size:.86rem;font-weight:600;cursor:pointer;">
+        ${escapeHtml(c)}${tag ? `<span style="margin-left:.35rem;font-size:.76rem;opacity:.85;">${escapeHtml(tag)}</span>` : ''}</button>`;
+    }).join('') || '<p class="hint">このエリアの市区町村がありません</p>';
+  }
+
+  /** 選んだ市区町村の「全域＋町名一覧」パネル。金額を選ぶと即保存 */
+  async function renderCfTownPanel() {
+    const panel = document.getElementById('cfTownPanel');
+    if (!panel) return;
+    const city = cfState.city;
+    if (!city) {
+      panel.innerHTML = '<p class="hint" style="margin:.4rem 0;">市区町村を選ぶと、全域の金額と町名ごとの調整ができます。</p>';
+      return;
+    }
+    panel.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+    const towns = await fetchTowns(city);
+    if (cfState.city !== city) return;   // 読み込み中に別の市区町村へ変わっていたら捨てる
+    const f = CITY_FEES[city] || {};
+    const zen = f[''] != null ? Number(f['']) : null;
+    let html = `
+      <div class="card card-pad" style="margin-top:.4rem;">
+        <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;padding-bottom:.7rem;border-bottom:1.5px solid var(--gray);margin-bottom:.8rem;">
+          <b style="font-size:1.05rem;">${escapeHtml(city)}</b>
+          <span style="font-weight:700;">全域</span>
+          <select data-cf-fee data-town="" style="padding:.4rem .55rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.92rem;font-weight:700;">${cfFeeOptions(zen, '（未設定）')}</select>
+          <span class="hint">選ぶと即保存。町名は「全域と同じ」のままなら全域の金額が使われます</span>
+        </div>`;
+    if (towns.length) {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.45rem .9rem;">' +
+        towns.map(t => {
+          const name = t.name;
+          const own = f[name] != null ? Number(f[name]) : null;
+          const emptyLabel = zen != null ? `全域と同じ（¥${zen.toLocaleString()}）` : '（全域と同じ）';
+          // 立川駅からの直線距離（丁目の平均座標から計算）。交通費の目安として名前の隣に出す
+          const km = t.km != null ? `<small style="color:var(--ink-soft);font-weight:500;margin-left:.3rem;">${t.km}km</small>` : '';
+          return `<label style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:600;">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(name)}${km}</span>
+            <select data-cf-fee data-town="${escapeAttr(name)}" style="width:11.5em;padding:.3rem .45rem;border:1.5px solid ${own != null ? 'var(--sea)' : 'var(--gray)'};border-radius:8px;font-size:.84rem;font-weight:600;${own != null ? 'background:var(--foam);' : ''}">${cfFeeOptions(own, emptyLabel)}</select>
+          </label>`;
+        }).join('') + '</div>';
+    } else {
+      html += '<p class="hint">この市区町村の町名一覧を取得できませんでした（全域の設定だけ使えます）</p>';
+    }
+    html += '</div>';
+    panel.innerHTML = html;
+  }
+
+  /** 予約モーダルの町名プルダウン。市区町村を選んだら右に出す（町名一覧が取れない市区町村では出さない） */
+  async function loadBmTowns() {
+    // await の後は activeBmSuffix が呼び出し時と変わっていることがある（クローンモーダル②）。
+    // bel() を await 後に呼び直すと別モーダルの要素を触るので、要素は最初に捕まえておく
+    const townSel = bel('bmTown');
+    const citySel = bel('bmCity');
+    if (!townSel) return;
+    const city = citySel?.value || '';
+    const keep = townSel.value;
+    townSel.style.display = "none";
+    setCityRowWide(false);
+    townSel.innerHTML = '<option value="">町名（任意）</option>';
+    // 町名は自宅の交通費を決めるためだけの欄。ラブホ・ホテルでは使わないので出さない（店長指定 2026-08-08）
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    if (locType !== 'home') return;
+    if (!city) return;
+    const towns = await fetchTowns(city);
+    if ((citySel?.value || '') !== city) return;   // 読み込み中に変わっていたら捨てる
+    if (!towns.length) return;
+    // towns は {name, km} の配列。距離はマスタ専用の表示なので、予約モーダルでは名前だけ使う
+    const names = towns.map(t => t.name);
+    townSel.innerHTML = '<option value="">町名（任意）</option>' +
+      names.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+    if (keep && names.includes(keep)) townSel.value = keep;
+    townSel.style.display = '';
+    setCityRowWide(true);   // 町名が並ぶと市区町村が狭くなるので列幅を広げる
+  }
+
+  /**
+   * 市区町村の列幅。町名プルダウンが出ているときは2つ並ぶので広くする
+   *（店長指摘 2026-08-09: 「国分寺市」が切れて読めない）
+   */
+  function setCityRowWide(on) {
+    const row = document.getElementById('bmLocTypeRow' + activeBmSuffix);
+    if (row) row.classList.toggle('has-town', !!on);
+  }
+
+  /** 自宅・オフィスのとき、市区町村（＋町名）に対応する交通費を入れる。町名の設定が全域より優先 */
+  function applyHomeTransportFee() {
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    if (locType !== 'home') return;
+    const city = bel('bmCity')?.value || '';
+    const town = bel('bmTown')?.value || '';
+    const f = CITY_FEES[city] || {};
+    const raw = (town !== '' && f[town] != null) ? f[town] : f[''];
+    if (raw == null) return;   // 未設定の市区町村は触らない
+    const sel = bel('bmTransport');
+    if (!sel) return;
+    const fee = String(parseInt(raw, 10) || 0);
+    if (![...sel.options].some(o => o.value === fee)) {
+      const o = document.createElement('option');
+      o.value = fee;
+      o.textContent = `¥${Number(fee).toLocaleString()}`;
+      sel.appendChild(o);
+    }
+    sel.value = fee;
+    try { updateBookingTotal(); } catch (e) {}
+  }
+
+  /** 町名を選んだとき、自宅住所が空か市区町村（＋町名）だけなら「立川市曙町」の形に差し替える */
+  function onTownChangedForHome() {
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    if (locType !== 'home') return;
+    const addr = bel('bmHomeAddress');
+    const city = bel('bmCity')?.value || '';
+    const town = bel('bmTown')?.value || '';
+    if (!addr || !city) return;
+    const cur = String(addr.value || '').trim();
+    // 空、または「市区町村だけ」「市区町村＋町名だけ」（数字なし）のときだけ差し替える。番地を打ってあれば触らない
+    if (cur !== '' && !(cur.startsWith(city) && !/[0-9０-９]/.test(cur) && cur.length <= city.length + 10)) return;
+    addr.value = city + town;
+  }
+
   /** 出発地の初期値: 端末で最後に使った場所 → 無ければ事務所 */
   function bmRouteOrigin() {
     try { const v = localStorage.getItem('opsRouteOrigin'); if (v) return v; } catch (_) {}
@@ -594,9 +892,12 @@
     // （市区町村だけ変えて一覧を絞り直し忘れる事故を防ぐ。''を渡せば従来どおり全件）
     if (filterCity === undefined) filterCity = bel('bmCity')?.value || '';
     const selectedValue = sel.value;
-    const list = filterCity
-      ? hotelsForSelect.filter(h => h.city === filterCity)
-      : hotelsForSelect;
+    // 訪問先タイプが「ラブホ」ならラブホだけ、「ホテル」ならそれ以外だけを出す（店長要望 2026-08-08）
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    let list = hotelsForSelect;
+    if (locType === 'loveho') list = list.filter(isLoveHotel);
+    else if (locType === 'hotel') list = list.filter(h => !isLoveHotel(h));
+    if (filterCity) list = list.filter(h => h.city === filterCity);
     sel.innerHTML = '<option value="">— 選択しない（下に手入力） —</option>' +
       list.map(h => `<option value="${h.id}">${escapeHtml(h.name)}${h.nearest_station ? ' (' + escapeHtml(h.nearest_station) + '駅)' : ''}</option>`).join('');
     if (selectedValue && list.some(h => Number(h.id) === Number(selectedValue))) sel.value = selectedValue;
@@ -705,9 +1006,13 @@
     const city = document.getElementById('fCity').value;
     const status = document.getElementById('fStatus').value;
     const kw = document.getElementById('fKeyword').value.trim();
+    const htype = document.getElementById('fHotelType')?.value || '';
+    const sort = document.getElementById('fSort')?.value || '';
     if (city) params.set('city', city);
     if (status) params.set('status', status);
     if (kw) params.set('keyword', kw);
+    if (htype) params.set('hotel_type', htype);
+    if (sort) params.set('sort', sort);
 
     try {
       const data = await api('/admin-api.php?action=hotels&' + params.toString());
@@ -981,6 +1286,18 @@
       document.getElementById('emAddress').value = rest;
     }
     document.getElementById('emTel').value = hotel.tel || '';
+    // タイプ（ラブホ / ホテル各種）。選択肢に無い古い値はその場で足してから選ぶ
+    {
+      const tSel = document.getElementById('emHotelType');
+      const tv = String(hotel.hotel_type || (isNew ? 'love_hotel' : 'other'));
+      if (![...tSel.options].some(o => o.value === tv)) {
+        const o = document.createElement('option');
+        o.value = tv;
+        o.textContent = hotelTypeLabel(tv);
+        tSel.appendChild(o);
+      }
+      tSel.value = tv;
+    }
     emCityTouched = !isNew && !!(hotel.city || '').trim();   // 既存の市区町村は勝手に書き換えない
     wireAddressAutofill();
     renderAddrCity();
@@ -1027,6 +1344,7 @@
       const prefVal = prefOfCity(cityVal) || editingHotel.prefecture || '東京都';
       // 保存する住所は「市区町村＋入力欄」。表示と保存で形が変わらないようここで結合する
       const addrVal = (cityVal + document.getElementById('emAddress').value.trim()).trim();
+      const typeVal = document.getElementById('emHotelType').value;
       const r = await apiPost('/admin-api.php?action=hotel-save', {
         id: editingHotel.id || 0,
         name,
@@ -1034,6 +1352,7 @@
         prefecture: prefVal,
         address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
+        hotel_type: typeVal,
       });
       if (!editingHotel.id) editingHotel.id = r.id;   // 新規は採番された id を使う
       Object.assign(editingHotel, {
@@ -1042,6 +1361,7 @@
         prefecture: prefVal,
         address: addrVal,
         tel: document.getElementById('emTel').value.trim(),
+        hotel_type: typeVal,
       });
     } catch (e) { toast('ホテル情報の保存に失敗: ' + e.message, 'err'); return; }
 
@@ -1553,6 +1873,19 @@
       draggable.style.transform = 'translate(-50%,-50%)';
       draggable.style.margin = '';
     }
+    // 中身のスクロールも先頭に戻す。前に開いたときの位置が残っていると、
+    // 開いた直後が途中から表示されて上の項目が見えない（店長指摘 2026-08-08 予約編集）。
+    // 実際にスクロールしているのは .modal 自身（overflow-y:auto）。ここを外していたため
+    // 電話番号を入れて開いたときに下の方が出ていた（店長指摘 2026-08-09）。
+    // show の直後はまだレイアウト前のことがあり、顧客履歴の読み込みで高さも変わるので、
+    // 次フレームと少し後にもう一度当てる。
+    const toTop = () => {
+      overlay.scrollTop = 0;
+      overlay.querySelectorAll('.modal, .modal-body, .bm-cols, .bm-col').forEach(el => { el.scrollTop = 0; });
+    };
+    toTop();
+    requestAnimationFrame(() => { toTop(); requestAnimationFrame(toTop); });
+    setTimeout(toTop, 200);   // 履歴の読み込みで高さが変わったあと
   }
   function closeModal(id) {
     if (id === 'bookingModal') releaseBookingLock('');
@@ -1637,11 +1970,35 @@
 
   let tlCurrentDate = getBusinessDayDate();  // 1日分のタイムライン (営業日基準)
   let adminUsersAll = [];      // {id, username, display_name, role}
-  let CARD_FEE_RATE = 3;       // クレジット手数料率(%)。init で card-fee-get から取得。半分がキャスト負担
+  // カード会社へ払う手数料率(%)。init で card-fee-get から取得。お客様の決済総額（上乗せ後）にかかる。
+  // アドミはキャストに負担させない（報酬は決済方法で変わらない）ので、まるごと店の経費
+  let CARD_FEE_RATE = 3;
   // クレジット決済でお客様の合計に上乗せする手数料率(%)。上の CARD_FEE_RATE(キャスト負担用)とは別物
   let CARD_SURCHARGE_RATE = 10;
   const NOMINATION_FEES = { first: 0, regular: 0, free: 0 };  // 指名料(固定額)。init で nomination-fees-get から取得
   const nominationFeeFor = (type) => NOMINATION_FEES[type] || 0;
+  // 指名料のうちキャストへ支払う報酬。お客様の指名料とは別に設定する（店長要望 2026-08-08）
+  const NOMINATION_REWARDS = { first: 0, regular: 0, free: 0 };
+  const nominationRewardFor = (type) => NOMINATION_REWARDS[type] || 0;
+  /**
+   * コースの本数。組み合わせ（90分コース ＋ 90分コース）は2本。
+   * 指名料も指名の報酬も、この本数ぶんかかる（店長指定 2026-08-08）。
+   * ＋10分は LINE 特典の無料延長なので本数に数えない
+   */
+  function courseUnitCount(courseName) {
+    const cname = String(courseName || '').replace(/\s*＋\s*10\s*分\s*$/, '').trim();
+    if (!cname) return 1;
+    return Math.max(1, cname.split(/\s*[＋+]\s*/).map(x => x.trim()).filter(Boolean).length);
+  }
+  /**
+   * 延長1回あたりのキャスト報酬。コースマスタの「延長」コースの キャスト報酬 を使う
+   *（コース選択肢からは外しているので、コース名には出てこない・店長指摘 2026-08-08）
+   */
+  function extensionRewardUnit() {
+    const c = (coursesCache || []).find(x => /延長/.test(String(x.name || '')));
+    if (!c || c.cast_reward == null || c.cast_reward === '') return 0;
+    return parseInt(c.cast_reward, 10) || 0;
+  }
   let tlBookings = [];
   let tlShifts = [];
   let hotelsForSelect = [];    // selectで使う簡易ホテル一覧
@@ -1732,6 +2089,7 @@
   let shSelectedStaff = '';
   let shViewMode = 'timetable';  // 'timetable' (10日) | 'calendar' (月)
   let shCachedShifts = [];       // タイムテーブルの自動保存で参照
+  let shStaffList = [];          // 内勤・送迎シフトの対象スタッフ（キャストは除く）。一覧グリッドの行に使う
   let coursesCache = [];
   let editingCourseId = null;
 
@@ -1814,12 +2172,16 @@
     if (bel('bmBreakMode')?.checked) return false;
     return !!bel('bmPlus10')?.checked;
   }
-  /** 自動判定の答え（チェックを手で触っていないときだけ反映する） */
+  /**
+   * 自動判定の答え（チェックを手で触っていないときだけ反映する）。
+   * 媒体・LINEのどれかにチェックが入っていれば付ける。
+   * 以前は「LINE は常時／それ以外はご新規様のみ」だったが、ホテルから電話をかけてくるお客様など
+   * 新規かどうかを判定できない場面が多く、媒体を選んでも付かないことがあった（店長指定 2026-08-08）。
+   * 媒体を見ていないお客様のときは、チェックを手で外せば外れたままになる。
+   */
   function plus10Auto() {
     if (bel('bmBreakMode')?.checked) return false;
-    const m = getBmMedia();
-    if (m.includes('line')) return true;
-    return bmCust[activeBmSuffix]?.isNew === true && m.some(k => k !== 'line');
+    return getBmMedia().length > 0;
   }
   /**
    * ＋10分が付くとき、選択中コースに「＋10分のときのコース」が設定されていればそれを返す。
@@ -2111,50 +2473,86 @@
         wrap.innerHTML = '<span class="hint">オプションが登録されていません（マスタタブで追加できます）</span>';
         return;
       }
-      const checked = new Set(bmOptionIds(sfx));
-      wrap.innerHTML = active.map(o => `
-        <label class="bm-media"><input type="checkbox" name="bmOption${sfx}" value="${o.id}"${checked.has(o.id) ? ' checked' : ''}><span>${escapeHtml(o.name)} ¥${Number(o.price || 0).toLocaleString()}</span></label>`).join('');
+      const cur = bmOptionCounts(sfx);   // {id: 個数}
+      wrap.innerHTML = active.map(o => {
+        const n = cur[o.id] || 0;
+        const opts = [0, 1, 2, 3, 4, 5].map(v => `<option value="${v}"${v === n ? ' selected' : ''}>${v === 0 ? '—' : '×' + v}</option>`).join('');
+        return `<label class="bm-media bm-opt${n ? ' has-count' : ''}">
+          <span class="bm-opt-name">${escapeHtml(o.name)} ¥${Number(o.price || 0).toLocaleString()}</span>
+          <select class="bm-opt-qty" name="bmOption${sfx}" data-opt-id="${o.id}">${opts}</select>
+        </label>`;
+      }).join('');
     });
     updateBmOptionSum();
   }
-  /** いま選ばれているオプションID（サフィックス省略時はアクティブなモーダル） */
-  function bmOptionIds(sfx) {
+  /** いま選ばれているオプションの個数 { オプションID: 個数 }（0のものは含めない） */
+  function bmOptionCounts(sfx) {
     const s = sfx === undefined ? activeBmSuffix : sfx;
     const wrap = document.getElementById('bmOptionList' + s);
-    if (!wrap) return [];
-    return [...wrap.querySelectorAll('input:checked')].map(i => Number(i.value));
+    if (!wrap) return {};
+    const out = {};
+    wrap.querySelectorAll('.bm-opt-qty').forEach(sel => {
+      const n = parseInt(sel.value, 10) || 0;
+      if (n > 0) out[Number(sel.dataset.optId)] = n;
+    });
+    return out;
   }
-  function setBmOptionIds(ids) {
+  /** いま選ばれているオプションID（個数は見ない。判定用） */
+  function bmOptionIds(sfx) {
+    return Object.keys(bmOptionCounts(sfx)).map(Number);
+  }
+  /** 個数を復元。数値配列（旧形式=各1個）と {id:個数} の両方を受ける */
+  function setBmOptionCounts(counts) {
     const wrap = bel('bmOptionList');
     if (!wrap) return;
-    const set = new Set((ids || []).map(Number));
-    wrap.querySelectorAll('input').forEach(i => { i.checked = set.has(Number(i.value)); });
+    const map = Array.isArray(counts)
+      ? Object.fromEntries((counts || []).map(id => [Number(id), 1]))
+      : Object.fromEntries(Object.entries(counts || {}).map(([k, v]) => [Number(k), Number(v) || 0]));
+    wrap.querySelectorAll('.bm-opt-qty').forEach(sel => {
+      const n = map[Number(sel.dataset.optId)] || 0;
+      sel.value = String(n);
+      sel.closest('.bm-opt')?.classList.toggle('has-count', n > 0);
+    });
+    // 何も選ばれていない状態にしたときは畳んでおく（新規予約は毎回閉じた状態で始まる）
+    const acc = bel('bmOptionField');
+    if (acc && acc.tagName === 'DETAILS' && !Object.values(map).some(v => v > 0)) acc.open = false;
     updateBmOptionSum();
   }
-  /** オプション合計（料金） */
+  const setBmOptionIds = setBmOptionCounts;   // 旧名の呼び出しをそのまま活かす
+  /** オプション合計（料金）。個数ぶん掛ける */
   function optionTotal() {
     if (bel('bmBreakMode')?.checked) return 0;
-    const ids = new Set(bmOptionIds());
-    return optionsCache.filter(o => ids.has(Number(o.id))).reduce((n, o) => n + (Number(o.price) || 0), 0);
+    const cnt = bmOptionCounts();
+    return optionsCache.reduce((n, o) => n + (Number(o.price) || 0) * (cnt[Number(o.id)] || 0), 0);
   }
-  /** オプションのキャスト報酬合計（未設定は店の取り分＝0） */
+  /** オプションのキャスト報酬合計（未設定は店の取り分＝0）。個数ぶん掛ける */
   function optionReward() {
     if (bel('bmBreakMode')?.checked) return 0;
-    const ids = new Set(bmOptionIds());
-    return optionsCache.filter(o => ids.has(Number(o.id)))
-      .reduce((n, o) => n + (o.cast_reward != null && o.cast_reward !== '' ? Number(o.cast_reward) : 0), 0);
+    const cnt = bmOptionCounts();
+    return optionsCache.reduce((n, o) => {
+      const r = (o.cast_reward != null && o.cast_reward !== '') ? Number(o.cast_reward) : 0;
+      return n + r * (cnt[Number(o.id)] || 0);
+    }, 0);
   }
-  /** 保存用テキスト（menu_items）。「ローター¥1,000 / バイブ¥1,000」 */
+  /** 保存用テキスト（menu_items）。「ローター¥1,000 / バイブ×2 ¥2,000」 */
   function optionText() {
-    const ids = new Set(bmOptionIds());
-    return optionsCache.filter(o => ids.has(Number(o.id)))
-      .map(o => o.name + '¥' + Number(o.price || 0).toLocaleString()).join(' / ');
+    const cnt = bmOptionCounts();
+    return optionsCache.filter(o => cnt[Number(o.id)]).map(o => {
+      const n = cnt[Number(o.id)];
+      const sub = (Number(o.price) || 0) * n;
+      return o.name + (n > 1 ? '×' + n : '') + '¥' + sub.toLocaleString();
+    }).join(' / ');
   }
   function updateBmOptionSum() {
     const el = bel('bmOptionSum');
     if (!el) return;
     const t = optionTotal();
-    el.textContent = t > 0 ? `・選択中 ¥${t.toLocaleString()}` : '';
+    const names = optionText();   // 「ローター¥1,100 / バイブ×2 ¥2,200」
+    // 畳んでいても何を選んだか分かるように、見出しに内容を出す（店長要望 2026-08-09）
+    el.textContent = t > 0 ? `　${names}` : '';
+    // 選ばれている予約を開いたときは開いた状態にする（畳んだままだと気付けない）
+    const acc = bel('bmOptionField');
+    if (acc && acc.tagName === 'DETAILS' && t > 0) acc.open = true;
   }
 
   // 予約モーダルごとの「このお客様」情報。isNew: true=ご新規様 / false=会員様 / null=不明（電話未入力等）
@@ -2187,7 +2585,8 @@
   /** ホテル利用×初対面キャスト＝特別料金の対象か。不明（電話未入力など）は対象外 */
   function hotelFirstEligible() {
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
-    if (locType !== 'hotel' || bel('bmBreakMode')?.checked) return false;
+    // ラブホもホテル特別料金の対象（タブを分ける前と同じ扱い・店長確認 2026-08-08）
+    if (!isHotelLoc(locType) || bel('bmBreakMode')?.checked) return false;
     if (bel('bmNomination')?.value === 'regular') return false;   // 本指名＝そのキャストは2回目以降なので対象外
     const st = bmCust[activeBmSuffix];
     if (st.isNew === true) return true;   // ご新規様はどのキャストとも初対面
@@ -2263,6 +2662,9 @@
       if (hfOff && hfInput.checked) {
         hfInput.checked = false;
         try { toast(hfLock ? '本指名（2回目以降）のためホテル料金を外しました' : 'このコースはホテル料金の設定がないため外しました', 'err'); } catch (_) {}
+        // チェックを外したらコース選択肢も通常料金に戻す。呼び忘れると
+        // 「チェックの状態」と「選択肢の金額」が食い違ったまま残る（2026-08-08）
+        try { populateCourseSelect(); applyCoursePrice(); } catch (_) {}
       }
     }
     if (hfField) {
@@ -2277,9 +2679,10 @@
       let w = '';
       if (hfLock) w = '⚠️ 本指名（そのキャストが2回目以降）のため対象外です';
       else if (hfNA) w = '⚠️ このコースはホテル料金の設定がありません（対象外）';
-      else if (nomNow === '') w = '※ ホテル利用 × そのキャストが初めてのお客様のみ対象です（本指名は対象外）';
+      else if (nomNow === '') w = '（本指名は対象外）';
       hfWarn.textContent = w;
-      hfWarn.style.display = w ? 'block' : 'none';
+      // 通常は見出しと同じ行（inline）。CSS の .is-block 側で本指名のときだけ改行させる
+      hfWarn.style.display = w ? '' : 'none';
       hfWarn.classList.toggle('is-block', hfLock);
     }
     // 特別料金の自動チェック（手で触っていなければ）
@@ -2297,8 +2700,10 @@
       else hint.textContent = '（初めてのキャスト限定）';
     }
     // ホテル料金の引き額（コース管理の「ホテル料金」があればその差額）
+    // 引き額は出さない（ホテル料金はコース料金を置き換える方式で、−¥0 と出ても意味がない）。
+    // コース管理で未設定のときだけ、その旨を残す（店長指定 2026-08-08）
     const hfAmt = bel('bmHotelFirstAmt');
-    if (hfAmt) hfAmt.textContent = hfNA ? '（このコースは設定なし）' : '−¥' + hotelDeltaForCurrentCourse().toLocaleString();
+    if (hfAmt) hfAmt.textContent = hfNA ? '（このコースは設定なし）' : '';
     // ＋10分: 手で触っていなければ自動判定を反映する
     const p10 = bel('bmPlus10');
     if (p10 && !bmPlus10Touched[activeBmSuffix]) {
@@ -2391,7 +2796,7 @@
     const hfOff = hotelFirstDiscount();
     const campOff = campaignDiscount(coursePrice);
     const stampOff = stampDiscount(coursePrice - campOff);
-    const cardFee = bel('bmPayment')?.value === 'credit'
+    const cardFee = ['credit', 'split'].includes(bel('bmPayment')?.value)
       ? cardSurcharge(coursePrice + transportFee + lateFee + extFee + nomFee + optFee - campOff - stampOff - hfOff)
       : 0;
     const yenTag = (label, amount, sign) =>
@@ -2674,6 +3079,236 @@
     return '';
   }
 
+  // =============================================================
+  // 予約バーの詳細ふきだし（店長要望 2026-08-08）
+  // ブラウザ標準の title は文字が小さく、住所・電話・支払も出せないため独自に描く。
+  // バーは幅が狭く1〜2行しか載らないので、電話をかける前に要る情報をここで全部見せる。
+  // =============================================================
+  const TIP_NOM_LABEL = { first: '初指名', regular: '本指名', free: 'フリー' };
+  const TIP_PAY_LABEL = { cash: '現金', credit: 'クレジット', card: 'クレジット', bank: '振込', split: '現金＋クレジット' };
+  let _bkTipEl = null;      // ふきだし本体（body直下。バーの overflow:hidden に切られないため）
+  let _bkTipFor = null;     // 今出している予約ID（同じバー内を動いても作り直さない）
+  let _bkTipTouchAt = 0;    // 直前のタッチ時刻。タップでmouseoverが飛ぶ端末で一瞬光るのを防ぐ
+
+  /** ラベル＋値の1行。値は組み立て済みHTML（呼び出し側でエスケープ済み） */
+  function bkTipRow(label, valueHtml) {
+    if (!valueHtml) return '';
+    return `<div class="bk-tip-l">${escapeHtml(label)}</div><div class="bk-tip-v">${valueHtml}</div>`;
+  }
+
+  function buildBookingTipHtml(b) {
+    const wrapHM = (hm) => { const p = String(hm).split(':'); return (parseInt(p[0], 10) % 24) + ':' + (p[1] || '00'); };
+    const st = b.start_time ? wrapHM(String(b.start_time).slice(0, 5)) : '';
+    const et = b.end_time ? wrapHM(String(b.end_time).slice(0, 5)) : '';
+    const timeTxt = st && et ? `${st}〜${et}` : (st || '');
+    const isBreakRow = (b.course_name === '休憩') || (b.customer_name_snapshot === '【休憩】');
+    const notes = String(b.notes || '').trim();
+    const noteHtml = notes ? `<div class="bk-tip-note">${escapeHtml(notes)}</div>` : '';
+
+    if (isBreakRow) {
+      return `<div class="bk-tip-head"><span class="bk-tip-time">${escapeHtml(timeTxt)}</span>`
+        + `<span class="bk-tip-name">休憩</span></div>${noteHtml}`;
+    }
+
+    const name = b.customer_name || b.customer_name_snapshot || '匿名';
+    const nom = TIP_NOM_LABEL[b.nomination_type] || '';
+
+    // 訪問先: 自宅／その他は内部の目印を外して読める形にする
+    const full = b.hotel_name || b.hotel_name_snapshot || '';
+    const cleaned = full.replace(HOME_PREFIX, '').replace(OTHER_PREFIX, '');
+    const isHome = full.startsWith(HOME_PREFIX);
+    const isOther = full.startsWith(OTHER_PREFIX);
+    const cityFromName = extractCityFromAddress(cleaned);
+    const city = (isHome || isOther)
+      ? cityFromName
+      : (b.display_city || b.hotel_city || extractCityFromAddress(b.hotel_address || '') || cityFromName);
+    let venue = full;
+    if (isHome) venue = 'ご自宅';
+    else if (isOther) venue = cleaned.split('\n')[0].trim();
+    const placeHtml = [
+      venue ? escapeHtml(venue) : '',
+      city ? `<span class="bk-tip-city">＜${escapeHtml(city)}＞</span>` : '',
+      b.room_number ? escapeHtml(String(b.room_number)) + '号室' : '',
+    ].filter(Boolean).join(' ');
+
+    // 住所: ホテルは登録住所、自宅／その他は入力された文字列から。番地・建物まで出す（現地の手がかり）
+    let addr = composeAddress('', (b.display_city || b.hotel_city || ''), (b.hotel_address || ''));
+    if (!addr && (isHome || isOther)) addr = cleaned.split('\n')[0].trim();
+
+    // 支払: お客様が払う総額 = コース料金(深夜・延長・指名料・OP・割引を含む) + 交通費 + カード上乗せ
+    const price = Number(b.price) || 0;
+    const trans = Number(b.transport_fee) || 0;
+    const cardUp = Number(b.card_fee) || 0;
+    const total = price + trans + cardUp;
+    const payLabel = TIP_PAY_LABEL[String(b.payment_method || '')] || '';
+    // 併用は「現金いくら／カードいくら」まで出す。電話で確認するとき必要になる
+    const splitBreak = isSplitPay(b)
+      ? `<span class="bk-tip-sub">（現金¥${cashTakenOf(b).toLocaleString()} ／ カード¥${cardTakenOf(b).toLocaleString()}）</span>` : '';
+    const payHtml = (payLabel || total)
+      ? escapeHtml(payLabel) + (total ? ` ¥${total.toLocaleString()}` : '') + splitBreak
+        + (trans ? `<span class="bk-tip-sub">（交通費¥${trans.toLocaleString()}込）</span>` : '')
+      : '';
+
+    // 送迎: 時刻とドライバー。担当が居なければ自走
+    const legHtml = (time, drv, label) => {
+      const t = time ? String(time).slice(0, 5) : '';
+      if (!t && !drv) return '';
+      return escapeHtml(label) + ' ' + [t, escapeHtml(drv || '自走')].filter(Boolean).join(' ');
+    };
+    const pickupHtml = [legHtml(b.pickup_go_time, b.driver_name, '行き'), legHtml(b.pickup_back_time, b.back_driver_name, '帰り')]
+      .filter(Boolean).join(' <span class="bk-tip-sub">/</span> ');
+
+    const course = [b.course_name, b.extension_count ? `延長×${b.extension_count}` : ''].filter(Boolean).join(' ');
+    const phone = toHalfWidth(b.customer_phone || b.customer_phone_snapshot || '');
+
+    // 決済確認: カードを使う予約だけ出す。誰がいつ確認したかを残す（店長要望 2026-08-08）
+    let cardPaidHtml = '';
+    if (['credit', 'card', 'split'].includes(String(b.payment_method || ''))) {
+      if (b.card_paid_at) {
+        const who = b.card_paid_by_name ? `${b.card_paid_by_name}` : '';
+        const when = String(b.card_paid_at).slice(0, 16).replace('T', ' ');
+        cardPaidHtml = `<span class="bk-tip-ok">✅ 確認済み</span>`
+          + (who ? ` ${escapeHtml(who)}` : '')
+          + `<span class="bk-tip-sub">（${escapeHtml(when)}）</span>`;
+      } else {
+        cardPaidHtml = '<span class="bk-tip-warn">⚠ 未確認</span>';
+      }
+    }
+
+    // キャスト報酬（店長要望 2026-08-08）。どこから出た額か分かるよう内訳を添える
+    const hotelApplied = Number(b.hotel_price_applied) === 1;
+    const rewardTotal = rewardOf(b);
+    let rewardHtml = '';
+    if (!isBreakRow && rewardTotal) {
+      const ov = b.reward_override != null && b.reward_override !== '';
+      const parts = [];
+      if (ov) parts.push('手入力');
+      else {
+        const courseR = courseCastReward(b.course_name, hotelApplied) || 0;
+        const selfLegs = (b.driver_id ? 0 : 1) + (b.back_driver_id ? 0 : 1);
+        const bonus = trans > 0
+          ? (selfLegs === 2 ? trans : (selfLegs === 1 ? Math.ceil(Math.ceil(trans / 2) / 50) * 50 : 0))
+          : 0;
+        const lateR = b.back_driver_id ? 0 : (Number(b.late_fee) || 0);
+        const nomCnt = courseUnitCount(b.course_name);
+        const nomR = nominationRewardFor(b.nomination_type) * nomCnt;
+        const optR = menuItemsReward(b.menu_items);
+        const extCnt = Number(b.extension_count) || 0;
+        const extR = extensionRewardUnit() * extCnt;
+        if (courseR) parts.push(`コース¥${courseR.toLocaleString()}`);
+        if (extR) parts.push(`延長¥${extR.toLocaleString()}${extCnt > 1 ? `（${extCnt}回）` : ''}`);
+        if (optR) parts.push(`OP¥${optR.toLocaleString()}`);
+        if (nomR) parts.push(`指名¥${nomR.toLocaleString()}${nomCnt > 1 ? `（${nomCnt}本分）` : ''}`);
+        // 何片道ぶんの機動ボーナスかが一目で分かるように（店長要望 2026-08-08）
+        if (bonus) parts.push(`${selfLegs === 2 ? '往復' : '片道'}機動¥${bonus.toLocaleString()}`);
+        if (lateR) parts.push(`深夜¥${lateR.toLocaleString()}`);
+      }
+      rewardHtml = `¥${rewardTotal.toLocaleString()}`
+        + (parts.length ? `<span class="bk-tip-sub">（${escapeHtml(parts.join(' ＋ '))}）</span>` : '');
+    }
+
+    return `<div class="bk-tip-head">
+        <span class="bk-tip-time">${escapeHtml(timeTxt)}</span>
+        <span class="bk-tip-name">${escapeHtml(name)} 様</span>
+        ${nom ? `<span class="bk-tip-badge">${escapeHtml(nom)}</span>` : ''}
+      </div>
+      <div class="bk-tip-r">
+        ${bkTipRow('キャスト', escapeHtml(b.staff_name || ''))}
+        ${bkTipRow('コース', escapeHtml(course))}
+        ${bkTipRow('場所', placeHtml)}
+        ${bkTipRow('住所', escapeHtml(addr))}
+        ${bkTipRow('電話', escapeHtml(phone))}
+        ${bkTipRow('支払', payHtml)}
+        ${bkTipRow('決済', cardPaidHtml)}
+        ${bkTipRow('報酬', rewardHtml)}
+        ${bkTipRow('送迎', pickupHtml)}
+      </div>${noteHtml}`;
+  }
+
+  /** バーの外側（下→入らなければ上）に置く。画面端では左右も内側へ寄せる */
+  function positionBookingTip(anchorEl) {
+    const r = anchorEl.getBoundingClientRect();
+    _bkTipEl.style.left = '0px';
+    _bkTipEl.style.top = '0px';        // 折り返しを確定させてから実寸を測る
+    const w = _bkTipEl.offsetWidth, h = _bkTipEl.offsetHeight;
+    let left = r.left;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (left < 8) left = 8;
+    let top = r.bottom + 8;
+    if (top + h > window.innerHeight - 8) top = r.top - h - 8;
+    if (top < 8) top = 8;
+    _bkTipEl.style.left = left + 'px';
+    _bkTipEl.style.top = top + 'px';
+  }
+
+  function showBookingTip(anchorEl, id) {
+    const b = _tlBookingMap[id];
+    if (!b) return;
+    if (!_bkTipEl) {
+      _bkTipEl = document.createElement('div');
+      _bkTipEl.className = 'bk-tip';
+      document.body.appendChild(_bkTipEl);
+    }
+    _bkTipEl.innerHTML = buildBookingTipHtml(b);
+    _bkTipFor = String(id);
+    positionBookingTip(anchorEl);
+    _bkTipEl.classList.add('show');
+  }
+
+  function hideBookingTip() {
+    if (_bkTipEl) _bkTipEl.classList.remove('show');
+    _bkTipFor = null;
+  }
+
+  // 出すのはお客様の名前に乗せたときだけ（店長指定 2026-08-08）。
+  // バー全体だと送迎ボタンや場所を触るたびに出て邪魔になる。位置はバーを基準にして重ねない
+  // ─ 電話番号は全角で打たれても半角に直す（店長要望 2026-08-08）─
+  // 全角のままだと顧客の引き当てに外れる。保存時にもサーバ側で正規化しているが、
+  // 入力欄の見た目が全角のままだと「合っているのに引けない」ように見えるのでその場で直す。
+  // 変換中（IME確定前）は触らない。確定した文字だけを直す
+  const PHONE_SEL = 'input[type="tel"], #cmPhone, #cmPhone2';
+  let _phoneComposing = false;
+  document.addEventListener('compositionstart', (e) => { if (e.target?.matches?.(PHONE_SEL)) _phoneComposing = true; });
+  document.addEventListener('compositionend', (e) => {
+    if (!e.target?.matches?.(PHONE_SEL)) return;
+    _phoneComposing = false;
+    normalizePhoneInput(e.target);
+  });
+  document.addEventListener('input', (e) => {
+    if (_phoneComposing || !e.target?.matches?.(PHONE_SEL)) return;
+    normalizePhoneInput(e.target);
+  });
+  function normalizePhoneInput(el) {
+    const before = el.value;
+    const after = toHalfWidth(before);
+    if (after === before) return;
+    const pos = el.selectionStart;
+    const sameLen = after.length === before.length;   // 前後の空白が落ちたときは位置が変わる
+    el.value = after;
+    if (sameLen) { try { el.setSelectionRange(pos, pos); } catch (_) { /* 使えない入力欄がある */ } }
+  }
+
+  document.addEventListener('mouseover', (e) => {
+    if (Date.now() - _bkTipTouchAt < 800) return;   // タップ由来の mouseover は無視
+    const nameEl = e.target && e.target.closest ? e.target.closest('.tl-booking .bk-name') : null;
+    if (!nameEl) { if (_bkTipFor) hideBookingTip(); return; }
+    const bar = nameEl.closest('.tl-booking');
+    const id = bar && bar.getAttribute('data-booking-id');
+    if (!id) return;
+    if (String(id) === _bkTipFor) return;           // 同じ名前の上で動いただけ
+    showBookingTip(bar, id);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const nameEl = e.target && e.target.closest ? e.target.closest('.tl-booking .bk-name') : null;
+    if (!nameEl) return;
+    if (e.relatedTarget && nameEl.contains(e.relatedTarget)) return;   // 子要素へ移っただけ
+    hideBookingTip();
+  });
+  // スクロール・クリック・タッチでは即座に消す（位置がずれたまま残らないように）
+  window.addEventListener('scroll', hideBookingTip, true);
+  document.addEventListener('click', hideBookingTip, true);
+  document.addEventListener('touchstart', () => { _bkTipTouchAt = Date.now(); hideBookingTip(); }, { passive: true, capture: true });
+
   // 下段クリック → 送迎情報をクリップボードへ（LINE等でドライバーに送る）
   // 送迎情報テキスト＋件名＋対象ドライバーIDを生成（コピー / メール送信で共用）
   function buildPickupInfo(id, dir) {
@@ -2798,6 +3433,54 @@
     setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
   }
 
+  /**
+   * 横スクロールする箱を「掴んで動かせる」ようにする（店長要望 2026-08-08）。
+   * 下のスクロールバーまで手を伸ばすのが面倒なため。
+   *  - 指はブラウザ標準のスクロールに任せる（マウスのときだけ有効）
+   *  - 5px 動くまでは「クリック」のまま。セルをクリックして新規予約、タブを押して切替、が従来どおり効く
+   *  - ドラッグしたときは直後のクリックを1回だけ握りつぶす（動かした先で予約やタブが開かないように）
+   *  - プルダウン等の上からは始めない（選択操作を邪魔しない）
+   * @param {string} selector 対象の箱
+   * @param {boolean} withPage 縦方向にページごと動かすか（タイムラインだけ true）
+   */
+  function initDragScroll(selector, withPage) {
+    const wrap = document.querySelector(selector);
+    if (!wrap || wrap.dataset.dragScroll) return;
+    wrap.dataset.dragScroll = '1';
+    const NO_DRAG = 'input,select,textarea,option,a';
+    let down = false, dragging = false, sx = 0, sy = 0, startLeft = 0, startTop = 0;
+    wrap.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      if (e.target?.closest?.(NO_DRAG)) return;
+      down = true; dragging = false;
+      sx = e.clientX; sy = e.clientY;
+      startLeft = wrap.scrollLeft; startTop = window.scrollY;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!dragging) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        dragging = true;
+        wrap.classList.add('tl-dragging');
+      }
+      wrap.scrollLeft = startLeft - dx;
+      if (withPage) window.scrollTo(window.scrollX, Math.max(0, startTop - dy));
+      e.preventDefault();
+    });
+    window.addEventListener('pointerup', () => {
+      if (!down) return;
+      down = false;
+      if (!dragging) return;
+      dragging = false;
+      wrap.classList.remove('tl-dragging');
+      // click は pointerup の直後に同期的に飛ぶので、1回だけ止めてすぐ外す
+      const kill = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+      window.addEventListener('click', kill, true);
+      setTimeout(() => window.removeEventListener('click', kill, true), 0);
+    });
+  }
+
   function scrollTimelineToNow() {
     const scroller = document.querySelector('.tl-wrap');
     const grid = document.getElementById('timelineGrid')?.querySelector('.tl-grid');
@@ -2843,7 +3526,7 @@
   function cardFeeSelf(price, trans, pm) {
     return 0;
   }
-  // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、交通費は片道max(½,850)を送迎分だけ店取り
+  // キャスト報酬の算出（サーバ ylkaReward と同式）: 深夜=帰り送迎ありは店、交通費は自走した片道ごとに機動ボーナス
   // クレジットでも報酬は変わらない（手数料はお客様に上乗せして受け取る・admi 方式）
   // rewardOverride: 予約単位の手入力オーバーライド（微調整用）が入っていればそれをそのまま返す
   // コース名から、マスタに登録された「キャスト報酬」を引く（admi 方式）。
@@ -2866,28 +3549,81 @@
     });
     return total;
   }
-  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName, hotelApplied) {
+  /** 保存済みの menu_items テキストからオプションのキャスト報酬を出す（PHP の opsOptionReward と同式） */
+  function menuItemsReward(menuItems) {
+    const txt = String(menuItems || '').trim();
+    if (!txt) return 0;
+    return (optionsCache || []).reduce((n, o) => {
+      const r = (o.cast_reward != null && o.cast_reward !== '') ? Number(o.cast_reward) || 0 : 0;
+      return n + (r && o.name && txt.includes(o.name) ? r : 0);
+    }, 0);
+  }
+  /**
+   * 予約1件のキャスト報酬。**サーバの ylkaReward と必ず同じ式にすること**。
+   *   コース報酬（マスタ固定額）＋ オプション報酬 ＋ 指名料の報酬 ＋ 深夜料金 ＋ 機動ボーナス
+   * 歩合率(%)は使わない（店長方針 2026-08-05: 報酬はコース管理の固定額のみ）。
+   * 深夜料金は帰りのお迎えがあれば全額お店（ドライバー手当のため）。
+   */
+  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName, hotelApplied, nominationType, menuItems, extensionCount) {
     if (rewardOverride !== undefined && rewardOverride !== null && rewardOverride !== '') return parseInt(rewardOverride, 10) || 0;
     const lateT = backDrv ? 0 : late;
     let transT = 0;
-    if (trans > 0) { const perLeg = Math.max(Math.floor(trans / 2), 850); let shop = (goDrv ? perLeg : 0) + (backDrv ? perLeg : 0); if (shop > trans) shop = trans; transT = trans - shop; }
-    // admi: マスタのコース別「キャスト報酬」を優先。無ければ従来の歩合率(%)で算出
-    // 報酬はコース管理の固定額のみ（歩合率は使わない・店長方針 2026-08-05）。
-    // 未設定のコースは0円。マスタに入れるまで報酬は出ない
+    // 機動ボーナス（店長指定 2026-08-09）。PHP の ylkaTherapistTransport と同式。
+    //   行き帰りとも自走 … 交通費の全額（¥1,650 なら ¥1,650）
+    //   片道だけ自走     … 交通費の半分を50円単位で切り上げ（¥1,650 → ¥825 → ¥850）
+    // 片道ずつ切り上げて足すと往復が ¥1,700 になり交通費を超えるため、往復は満額とする
+    if (trans > 0) {
+      const selfLegs = (goDrv ? 0 : 1) + (backDrv ? 0 : 1);
+      if (selfLegs === 2) transT = trans;
+      else if (selfLegs === 1) transT = Math.ceil(Math.ceil(trans / 2) / 50) * 50;
+    }
+    // マスタのコース別「キャスト報酬」。未設定のコースは0円（マスタに入れるまで報酬は出ない）
     const base = courseCastReward(courseName, hotelApplied) || 0;
-    return base + lateT + transT - cardFeeSelf(price, trans, pm);
+    // 指名の報酬もコースの本数ぶん（90＋90 なら2本分）。お客様の指名料と同じ数え方
+    return base + menuItemsReward(menuItems)
+      + nominationRewardFor(nominationType) * courseUnitCount(courseName)
+      + extensionRewardUnit() * (Number(extensionCount) || 0)
+      + lateT + transT - cardFeeSelf(price, trans, pm);
+  }
+  /** 予約オブジェクトからの報酬。画面のどこから出しても同じ額になるよう必ずここを通す */
+  function rewardOf(b) {
+    return calcReward(
+      Number(b.price) || 0, Number(b.late_fee) || 0, Number(b.transport_fee) || 0, Number(b.commission_rate),
+      !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override,
+      b.course_name, Number(b.hotel_price_applied) === 1, b.nomination_type, b.menu_items, b.extension_count);
   }
   // 時刻のテキスト表示は実時刻・0埋めなし（例 02:00→2:00）。24h+表記(displayTime)は位置計算・ソート専用
   function fmtTimeDisp(t) { return String(t || '').slice(0, 5).replace(/^0/, ''); }
   // 現金を預からない決済（カード/振込）。預り金・入金分の「現金の所在」追跡から除外する
   const NON_CASH_PM = ['credit', 'card', 'bank'];
   const isNonCash = (b) => NON_CASH_PM.includes(String(b.payment_method || ''));
+  // 現金＋クレジットの併用（稀にある・店長要望 2026-08-08）。1件の中に両方が混ざるので
+  // 「現金かどうか」ではなく「いくら現金で受け取ったか」で追跡する
+  const isSplitPay = (b) => String(b.payment_method || '') === 'split';
+  /** カードを使う予約なのに決済確認がまだ。回収漏れになるのでタイムラインで目立たせる（店長要望 2026-08-08） */
+  const isCardUnconfirmed = (b) => ['credit', 'card', 'split'].includes(String(b.payment_method || '')) && !b.card_paid_at;
+  /**
+   * お客様から受け取る総額（クレジットの上乗せ分を含む）。
+   * 集金APIの行は金額が sales に入っていて明細を持たないので、そちらも受けられるようにしている
+   */
+  const customerTotalOf = (b) => (b && b.price == null && b.sales != null)
+    ? (Number(b.sales) || 0)
+    : (Number(b.price) || 0) + (Number(b.transport_fee) || 0) + (Number(b.card_fee) || 0);
+  /** そのうち現金で受け取る額。カード/振込は0、併用は入力された現金額（総額は超えない） */
+  const cashTakenOf = (b) => {
+    if (isNonCash(b)) return 0;
+    if (isSplitPay(b)) return Math.min(customerTotalOf(b), Math.max(0, Number(b.cash_amount) || 0));
+    return customerTotalOf(b);
+  };
+  /** クレジットで切った額（併用の残り） */
+  const cardTakenOf = (b) => isSplitPay(b) ? customerTotalOf(b) - cashTakenOf(b) : (isNonCash(b) ? customerTotalOf(b) : 0);
   // 預り金の既定の保有者 = 帰りのお迎え担当（ドライバー）。お迎えが無ければ担当キャスト本人。
   // キャストは接客後にお迎えのドライバーへ現金を渡す運用のため（店長指定 2026-08-07）。
   // held_by（受け渡しで明示的に記録された保有者）があればそちらが優先。
   const defaultHolderOf = (b) => (b && b.back_driver_id != null && b.back_driver_id !== '')
     ? Number(b.back_driver_id) : Number(b && b.assigned_admin_id);
-  const pmBadge = (b) => String(b.payment_method) === 'bank' ? '🏦 振込' : '💳 カード';
+  const pmBadge = (b) => String(b.payment_method) === 'bank' ? '🏦 振込'
+    : (String(b.payment_method) === 'split' ? '🧾 現金＋カード' : '💳 カード');
   // 兼任判定: role(主ロール)に加え is_therapist/is_office/can_drive の兼任フラグも見る（例: 橘=role manager だが is_therapist/is_office 兼任）
   const isTherapistCapable = (u) => u.role === 'staff' || Number(u.is_therapist) === 1;
 
@@ -2931,8 +3667,8 @@
     // 入金分（店取り分）= 全額 − 報酬
     const netOf = (b) => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+      const amt = customerTotalOf(b);   // お客様から受け取る総額（クレジットの上乗せ分を含む）
+      const reward = meHasRate ? rewardOf(b) : 0;
       return amt - reward;
     };
     const netTotal = earned.reduce((s, b) => s + netOf(b), 0);
@@ -2970,8 +3706,8 @@
     if (!earned.length) html += '<p style="color:var(--ink-soft);">この日の入金はありません。</p>';
     earned.forEach(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+      const amt = customerTotalOf(b);   // お客様から受け取る総額（クレジットの上乗せ分を含む）
+      const reward = meHasRate ? rewardOf(b) : 0;
       const net = amt - reward;
       const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span><span style="white-space:nowrap;"><b>${yen(net)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span></div>
         <div style="margin-top:.35rem;"><span class="chain-now-badge">📍 <b>${escapeHtml(netHolderOf(b))}</b></span></div>`;
@@ -3132,11 +3868,15 @@
     el.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
     openModal('cashSummaryModal');
     let data;
-    // 日付では絞らない。現金は営業日をまたいで残るので、未精算のぶんは全部出す
-    try { data = await api('/admin-api.php?action=cash-summary'); }
+    // 現金は営業日ごとに締める。繰越は無い（店長指定 2026-08-08）ので、
+    // タイムラインで見ている営業日のぶんだけを出す。前の日ぶんはその日に戻れば見られる
+    const cashBizDay = fmtDate(tlCurrentDate);
+    try { data = await api('/admin-api.php?action=cash-summary&date=' + encodeURIComponent(cashBizDay)); }
     catch (e) { el.innerHTML = '<p style="color:var(--coral);">読み込み失敗: ' + escapeHtml(e.message) + '</p>'; return; }
 
     const nameOf = (id, name, uname) => name || uname || ('#' + id);
+    // 立て替えで手元がマイナスになりうるので、符号を頭に出す（¥-9,000 は読みにくい）
+    const yenSigned = (n) => (n < 0 ? '−¥' + Math.abs(Number(n)).toLocaleString() : yen(n));
     let html = '';
 
     // ─ 預り金の保有状況（本日出勤のキャスト・内勤・ドライバーを名簿ベースで表示） ─
@@ -3145,11 +3885,25 @@
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const rate = Number(b.commission_rate);
       const hasRate = b.commission_rate != null && b.commission_rate !== '' && !Number.isNaN(rate);
-      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-      if (b.reward_paid_at && hasRate) return amt - calcReward(price, late, trans, rate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name);
+      const amt = cashTakenOf(b);   // 現金として預かっている額（併用は現金ぶんだけ）
+      if (b.reward_paid_at && hasRate) return amt - rewardOf(b);
       return amt;
     };
-    const unc = data.uncollected || [];
+    // お客様名は「様」付きで（店長要望 2026-08-08）。名前が無いときは付けない
+    const custName = (b) => {
+      const n = String(b.customer_name_snapshot || '').trim();
+      return n ? escapeHtml(n) + ' 様' : '—';
+    };
+    // 渡した報酬の額（0のときは記録しない）。報酬を渡した予約は預り金がそのぶん減っている
+    const paidRewardOf = (b) => {
+      if (!b.reward_paid_at) return 0;
+      const rate = Number(b.commission_rate);
+      if (b.commission_rate == null || b.commission_rate === '' || Number.isNaN(rate)) return 0;
+      return rewardOf(b);
+    };
+    // クレジット・振込は現金の入りが無い。報酬を立て替えていない予約は出す意味がないので落とす
+    //（立て替えたものは「−報酬」の行として残し、手元がいくら減ったかを見せる）
+    const unc = (data.uncollected || []).filter(b => cashTakenOf(b) > 0 || paidRewardOf(b) > 0);
     // 現在の保有者ID別に集計（held_by優先、未設定なら担当本人）
     const byHolderId = {};
     unc.forEach(b => {
@@ -3157,8 +3911,46 @@
       if (!byHolderId[hId]) byHolderId[hId] = [];
       byHolderId[hId].push(b);
     });
+
+    // ─ 受け渡しの履歴（店長要望 2026-08-08: 保有額だけでは「◯◯さんに渡した」が確かめられない）─
+    const uncById = {};
+    unc.forEach(b => { uncById[Number(b.id)] = b; });
+    const hopsByBooking = {};
+    (data.handoffs || []).forEach(h => {
+      const k = Number(h.booking_id);
+      if (!hopsByBooking[k]) hopsByBooking[k] = [];
+      hopsByBooking[k].push(h);
+    });
+    const userNameOf = (id) => {
+      const u = (adminUsersAll || []).find(x => Number(x.id) === Number(id));
+      return u ? (u.display_name || u.username) : ('#' + id);
+    };
+    /** 現金が渡ってきた順の名前の並び。受け渡しが無ければ今の保有者ひとりだけ */
+    const custodyChain = (b) => {
+      const hops = hopsByBooking[Number(b.id)] || [];
+      const cur = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
+      if (!hops.length) return [cur];
+      const ids = [Number(hops[0].from_admin_id)];
+      hops.forEach(h => ids.push(Number(h.to_admin_id)));
+      return ids;
+    };
+    // 「この人が誰かに渡して、今は持っていないぶん」を人ごとにまとめる。
+    // 渡したあと戻ってきた（今も保有している）ぶんは保有側に出るのでここには入れない
+    const gaveByAdminId = {};
+    const gaveSeen = {};   // 同じ人が同じ予約を何度も渡した場合は最後の1回だけ残す
+    (data.handoffs || []).forEach(h => {
+      const b = uncById[Number(h.booking_id)];
+      if (!b) return;
+      const from = Number(h.from_admin_id);
+      const cur = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
+      if (from === cur) return;   // 渡したあと戻ってきた＝今も持っているので保有側に出る
+      if (!gaveByAdminId[from]) gaveByAdminId[from] = [];
+      const key = from + '|' + b.id;
+      const entry = { booking: b, to: Number(h.to_admin_id), at: h.created_at };
+      if (gaveSeen[key] !== undefined) gaveByAdminId[from][gaveSeen[key]] = entry;
+      else { gaveSeen[key] = gaveByAdminId[from].length; gaveByAdminId[from].push(entry); }
+    });
     // 本日出勤の名簿: シフト「出勤」中 or 本日の担当予約ありの キャスト/内勤/ドライバー
-    const cashBizDay = fmtDate(tlCurrentDate);
     const onDutyIds = new Set();
     tlShifts.forEach(s => {
       if (String(s.shift_date).slice(0, 10) === cashBizDay && s.status === 'available') onDutyIds.add(Number(s.admin_user_id));
@@ -3169,6 +3961,23 @@
     });
     // 預り金を持っている人は、出勤名簿に載っていなくても必ず出す（ドライバー・内勤が持ったままを見落とさないため）
     Object.keys(byHolderId).forEach(id => onDutyIds.add(Number(id)));
+    // 渡し終えて手元が空になった人も出す。「自分は渡した」を後から確かめられるようにするため
+    Object.keys(gaveByAdminId).forEach(id => onDutyIds.add(Number(id)));
+
+    // ─ 報酬を受け取った記録（店長要望 2026-08-08）─
+    // 預り金からキャストへ報酬を渡すと、その予約の残額はそのぶん減る。
+    // 減った理由が画面から追えないと「¥13,200 のはずが ¥5,600」に見えてしまうため、
+    // 受け取った本人の欄に「いつ・いくら・誰から」を残す
+    const rewardsByAdminId = {};
+    unc.forEach(b => {
+      const amt = paidRewardOf(b);
+      if (!amt) return;
+      const castId = Number(b.assigned_admin_id);
+      if (!castId) return;
+      if (!rewardsByAdminId[castId]) rewardsByAdminId[castId] = [];
+      rewardsByAdminId[castId].push({ booking: b, amount: amt });
+    });
+    Object.keys(rewardsByAdminId).forEach(id => onDutyIds.add(Number(id)));
     const roster = adminUsersAll.filter(u => onDutyIds.has(Number(u.id))
       && (isTherapistCapable(u) || isOfficeCapable(u) || isDriverCapable(u)));
     // 誰が持っているのかが一目で分かるよう役割を添える（内勤・ドライバーは特に取り違えやすい）
@@ -3181,11 +3990,11 @@
     };
 
     const grandTotal = unc.reduce((sum, b) => sum + heldAmtOf(b), 0);
-    const holderCount = roster.filter(u => (byHolderId[Number(u.id)] || []).length > 0).length;
-    html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.15rem;">💰 いま出回っている現金 ${yen(grandTotal)}（${holderCount}名が保有）</div>
-      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.6rem;">精算が済んでいない現金です。日付をまたいで残っているぶんも含みます。</div>`;
+    const holderCount = roster.filter(u => (byHolderId[Number(u.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0) > 0).length;
+    html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.15rem;">💰 ${escapeHtml(formatDate(cashBizDay))}の現金 ${yenSigned(grandTotal)}（${holderCount}名が保有）</div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.6rem;">この営業日ぶんの、精算が済んでいない現金です。前の日からの繰越はありません。</div>`;
     if (!roster.length) {
-      html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">本日出勤のスタッフはいません。</p>';
+      html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">この日に出勤したスタッフはいません。</p>';
     } else {
       // 持っている人を上に、金額の大きい順に並べる（受け渡しの判断がしやすい）
       roster.sort((a, b) => {
@@ -3195,25 +4004,115 @@
       });
       roster.forEach(u => {
         const items = byHolderId[Number(u.id)] || [];
+        const gave = gaveByAdminId[Number(u.id)] || [];
         const total = items.reduce((s, b) => s + heldAmtOf(b), 0);
-        const has = total > 0;
-        html += `<div class="cs-holder${has ? ' has-cash' : ''}">
-          <div style="font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:${has ? '700' : '400'};font-size:${has ? '.92rem' : '.8rem'};color:${has ? 'var(--coral-deep,#c2410c)' : 'var(--ink-soft)'};">計 ${yen(total)}（${items.length}件）</span></div>`;
+        const gaveTotal = gave.reduce((s, g) => s + heldAmtOf(g.booking), 0);
+        const has = total !== 0;   // 立て替えでマイナスにもなる
+        const minus = total < 0;
+        html += `<div class="cs-holder${has ? ' has-cash' : ''}${minus ? ' is-minus' : ''}">
+          <div style="font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:${has ? '700' : '400'};font-size:${has ? '.92rem' : '.8rem'};color:${minus ? '#c0392b' : (has ? 'var(--coral-deep,#c2410c)' : 'var(--ink-soft)')};">いま持っている ${yenSigned(total)}（${items.length}件）${minus ? '<span class="cs-minus-note">立て替えで不足</span>' : ''}</span></div>`;
+        const rewards = rewardsByAdminId[Number(u.id)] || [];
         items.forEach(b => {
           const amt = heldAmtOf(b);
           const therapistNote = (b.held_by != null && Number(b.held_by) !== Number(b.assigned_admin_id))
             ? ` <span style="font-size:.74rem;color:var(--ink-soft);">担当:${escapeHtml(nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username))}</span>` : '';
+          // 誰の手を通って今ここにあるか。受け渡しがあったぶんだけ出す
+          const chain = custodyChain(b);
+          const chainNote = chain.length > 1
+            ? `<div class="cs-chain">${chain.map(id => escapeHtml(userNameOf(id))).join(' <span class="cs-arrow">→</span> ')}</div>` : '';
+          // カード・振込は現金の入りが無いので、報酬を立て替えたぶんだけマイナスで並ぶ
+          const advNote = cashTakenOf(b) === 0
+            ? `<div class="cs-chain">${pmBadge(b)}決済・報酬を現金から立て替え</div>` : '';
           html += `<div style="font-size:.8rem;padding:.2rem 0;border-top:1px solid #eee;display:flex;justify-content:space-between;gap:.4rem;">
-            <span>${formatDate(bizDateOf(b.booking_date, b.start_time || '00:00'))} ${fmtTimeDisp(b.start_time)} ${escapeHtml(b.customer_name_snapshot || '—')}${therapistNote}</span>
-            <b style="white-space:nowrap;">${yen(amt)}</b></div>`;
+            <span>${formatDate(bizDateOf(b.booking_date, b.start_time || '00:00'))} ${fmtTimeDisp(b.start_time)} ${custName(b)}${therapistNote}${chainNote}${advNote}</span>
+            <b style="white-space:nowrap;${amt < 0 ? "color:#c0392b;" : ""}">${yenSigned(amt)}</b></div>`;
         });
+        // 預り金から出ていった報酬は、予約ごとではなくキャストごとの合計で1行にまとめる
+        // （明細に混ぜると行が増えて読みづらい・店長要望 2026-08-08）
+        const paidOut = {};
+        items.forEach(b => {
+          const r = paidRewardOf(b);
+          if (!r) return;
+          const castId = Number(b.assigned_admin_id);
+          if (!paidOut[castId]) paidOut[castId] = { name: nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username), sum: 0, count: 0 };
+          paidOut[castId].sum += r;
+          paidOut[castId].count++;
+        });
+        Object.values(paidOut).forEach(p => {
+          html += `<div class="cs-reward-head">💸 ${escapeHtml(p.name)} に報酬 ${yen(p.sum)} を渡した<span class="cs-gave-note">（${p.count}件ぶん・上の金額はその残り）</span></div>`;
+        });
+        // 渡したぶん: 手元にはもう無いが「確かに渡した」を後から確かめるための控え
+        if (gave.length) {
+          html += `<div class="cs-gave-head">↗ 渡したぶん ${yen(gaveTotal)}（${gave.length}件）<span class="cs-gave-note">手元にはありません</span></div>`;
+          gave.forEach(g => {
+            const b = g.booking;
+            const at = g.at ? String(g.at).slice(11, 16) : '';
+            html += `<div class="cs-gave-row">
+              <span>${formatDate(bizDateOf(b.booking_date, b.start_time || '00:00'))} ${fmtTimeDisp(b.start_time)} ${custName(b)}
+                <span class="cs-gave-to">→ ${escapeHtml(userNameOf(g.to))} へ${at ? ' ' + at : ''}</span></span>
+              <b style="white-space:nowrap;">${yen(heldAmtOf(b))}</b></div>`;
+          });
+        }
+        // 受け取った報酬も、予約ごとではなく合計1行で（店長要望 2026-08-08）
+        if (rewards.length) {
+          const rewardTotal = rewards.reduce((s, r) => s + r.amount, 0);
+          const payers = [...new Set(rewards.map(r => r.booking.reward_paid_by_name).filter(Boolean))];
+          const from = payers.length ? `<span class="cs-reward-from">${escapeHtml(payers.join('・'))} から</span>` : '';
+          html += `<div class="cs-reward-head">💸 受け取った報酬 ${yen(rewardTotal)} ${from}<span class="cs-gave-note">（${rewards.length}件ぶん）</span></div>`;
+        }
         html += '</div>';
       });
       // 名簿に載っていない保有者も上の roster に含めているので、ここでの繰越表示は不要
       // （預り金はその営業日ぶんのみ・繰越は扱わない / 店長指定 2026-08-07）
     }
 
+    // ─ 勤務実績（日報の「増田22:00～1:00(3H30km)」用）─
+    // 一日の締めをここでするので、ついでに入れられる場所として現金まとめに置く（店長要望 2026-08-08）
+    const logs = data.driver_logs || {};
+    const workStaff = roster.filter(u => !(u.role === 'staff' || Number(u.is_therapist) === 1));
+    if (workStaff.length) {
+      html += `<div class="cs-work">
+        <div class="cs-work-head">🚗 勤務実績<span class="cs-gave-note">日報に「22:00～1:00(3H30km)」の形で入ります</span></div>`;
+      workStaff.forEach(u => {
+        const lg = logs[Number(u.id)] || {};
+        html += `<div class="cs-work-row" data-work-id="${u.id}">
+          <span class="cs-work-name">${escapeHtml(nameOf(u.id, u.display_name, u.username))}</span>
+          <input type="time" class="cs-work-in" value="${escapeAttr(lg.clock_in || '')}">
+          <span class="cs-work-sep">〜</span>
+          <input type="time" class="cs-work-out" value="${escapeAttr(lg.clock_out || '')}">
+          <input type="number" class="cs-work-km" min="0" step="1" placeholder="km" value="${escapeAttr(lg.distance_km || '')}">
+          <span class="cs-work-unit">km</span>
+        </div>`;
+      });
+      html += `<div class="cs-work-foot">
+        <button class="btn-primary" type="button" id="csWorkSave" style="padding:.4rem 1rem;font-size:.82rem;">保存</button>
+        <span id="csWorkMsg" style="font-size:.8rem;color:var(--ink-soft);"></span>
+      </div></div>`;
+    }
+
     el.innerHTML = html;
+
+    const saveBtn = document.getElementById('csWorkSave');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const msg = document.getElementById('csWorkMsg');
+        saveBtn.disabled = true;
+        try {
+          // 空欄のままの人は送らない（毎回全員ぶん書き込まないように）
+          const rows = [...el.querySelectorAll('.cs-work-row')].map(r => ({
+            driver_id: Number(r.dataset.workId),
+            work_date: cashBizDay,
+            clock_in: r.querySelector('.cs-work-in').value,
+            clock_out: r.querySelector('.cs-work-out').value,
+            distance_km: r.querySelector('.cs-work-km').value,
+          })).filter(r => r.clock_in || r.clock_out || r.distance_km !== '');
+          for (const r of rows) await apiPost('/admin-api.php?action=driver-log-upsert', r);
+          if (msg) { msg.textContent = `✓ ${rows.length}名ぶん保存しました`; setTimeout(() => { msg.textContent = ''; }, 2500); }
+          toast('✓ 勤務実績を保存しました', 'ok');
+        } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+        saveBtn.disabled = false;
+      });
+    }
   }
 
   // スタッフ列の「預り金」クリック → その人の当日売上(予約ごと)の受け渡しの流れを表示・記録（owner/manager）
@@ -3256,8 +4155,8 @@
     const heldAmountOf = (b) => {
       if (isNonCash(b)) return 0;                                                  // カード/振込は現金を預からない
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+      const amt = cashTakenOf(b);   // 現金として預かっている額（併用は現金ぶんだけ）
+      const reward = meHasRate ? rewardOf(b) : 0;
       if (b.reward_paid_at) return amt - reward;                                   // 報酬確定 → 残額（入金分）
       if (b.shop_settled && b.settle_kind === 'net') return amt - reward;          // 旧データ互換
       return amt;                                                                   // 全額のまま
@@ -3306,7 +4205,7 @@
 
     earned.forEach(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-      const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
+      const amt = customerTotalOf(b), cashAmt = cashTakenOf(b);   // 総額と、そのうち現金で預かっている額
       // カード/振込決済: 現金の預かりなし。受け渡しUIは出さずバッジのみ
       if (isNonCash(b)) {
         html += `<div style="border:1px solid var(--gray);border-radius:10px;padding:.6rem;margin-bottom:.5rem;opacity:.8;">
@@ -3319,7 +4218,7 @@
         return;
       }
       // 入金分（店の取り分）= 全額 − 報酬。報酬は本人の歩合で算出
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+      const reward = meHasRate ? rewardOf(b) : 0;
       const net = amt - reward;
       const hops = byBooking[b.id] || [];
       const legacyHolder = (b.held_by != null && b.held_by !== '') ? Number(b.held_by)
@@ -3344,7 +4243,10 @@
       const headAmt = held !== amt
         ? `<span style="white-space:nowrap;"><b>${yen(held)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span>`
         : `<b style="white-space:nowrap;">${yen(amt)}</b>`;
-      const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span>${headAmt}</div>`;
+      // 併用は「預かったのは現金ぶんだけ」が伝わるように内訳を添える
+      const splitNote = isSplitPay(b)
+        ? `<div style="margin-top:.3rem;"><span class="chain-now-badge">🧾 併用：現金 ${yen(cashAmt)} ／ カード ${yen(amt - cashAmt)}</span></div>` : '';
+      const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span>${headAmt}</div>${splitNote}`;
       const opts = people.filter(p => Number(p.id) !== Number(curHolder))
         .map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('');
       const undo = hops.length ? `<button class="sbtn chain-undo" data-id="${b.id}" type="button" style="padding:.35rem .5rem;font-size:.78rem;white-space:nowrap;">↩ 直前を取消</button>` : '';
@@ -3417,7 +4319,7 @@
                           : (b.shop_settled && b.shop_settled_by ? Number(b.shop_settled_by) : defaultHolderOf(b));
     const items = earned.map(b => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-      const reward = meHasRate ? calcReward(price, late, trans, meRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name) : 0;
+      const reward = meHasRate ? rewardOf(b) : 0;
       totalReward += reward;
       let statusHtml;
       if (b.reward_paid_at) {
@@ -3491,6 +4393,9 @@
   function renderTimeline() {
     const grid = document.getElementById('timelineGrid');
     const bizDay = fmtDate(tlCurrentDate);
+    // 描き直すとバーのDOMごと入れ替わり mouseout が飛ばないので、先にふきだしを消す
+    // （消さないと古い内容が宙に浮いたまま残る）
+    hideBookingTip();
 
     // ヘッダー: スタッフ列 + 24時間スロット (10:00 〜 翌09:00)
     let html = '<div class="tl-grid"><div class="tl-head staff-col">キャスト</div>';
@@ -3530,7 +4435,8 @@
         { id: 0, display_name: 'キャスト未割当', role: 'unassigned' },
       ];
       // キャスト報酬の算出（モジュール共通の calcReward を使用）
-      const tlReward = calcReward;
+      // 報酬は必ず rewardOf(予約) を通す。位置引数で直接 calcReward を呼ぶと
+      // 指名料の報酬・オプション報酬を渡し忘れて金額がズレる（実際にズレた 2026-08-08）
       // 出勤状態の3ステート: available=出勤 / tentative=予定 / off=休み（タップで順に切替）
       const ATT_NEXT  = { available: 'done', done: 'off', off: 'tentative', tentative: 'available' };
       const ATT_LABEL = { available: '出勤', done: '終了', off: '休み', tentative: '予定' };
@@ -3555,8 +4461,9 @@
         let heldSales = 0, heldReward = 0, heldShop = 0;
         dayJobs.forEach(b => {
           const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-          const amt = price + trans + cardFee;   // お客様から受け取る総額（クレジットの手数料上乗せ分を含む）
-          const rw = hasRate ? tlReward(price, late, trans, uRate, !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override, b.course_name, Number(b.hotel_price_applied) === 1) : 0;
+          const amt = cashTakenOf(b);   // 現金として手元にある額（併用は現金ぶんだけ）
+          // rewardOf を通す（指名料の報酬・オプション報酬が抜けないように）
+          const rw = hasRate ? rewardOf(b) : 0;
           if (hasRate) heldReward += rw;
           if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
         });
@@ -3639,7 +4546,7 @@
             if (slotStart >= ss && slotStart < se) inShift = true;
           });
           const slotTime = ('0' + (h % 24)).slice(-2) + ':00';
-          html += `<div class="tl-cell ${inShift?'shift-bg':''}" data-date="${bizDay}" data-admin="${u.id}" data-hour="${h % 24}" data-ext-hour="${h}"></div>`;
+          html += `<div class="tl-cell ${inShift?'shift-bg':''}" title="ダブルクリックで新規予約" data-date="${bizDay}" data-admin="${u.id}" data-hour="${h % 24}" data-ext-hour="${h}"></div>`;
           // 予約ブロックは row-area 内の独立レイヤー(.tl-bk-wrap)にまとめて配置（最初の反復で一度だけ）
           if (h === 10) {
             html += '<div class="tl-bk-wrap">';
@@ -3684,7 +4591,6 @@
               // 表示用に 24時間超え表記(24:40,25:40,27:00..)を通常表記(0:40,1:40,3:00)へ
               const wrapHM = (hm) => { const p = String(hm).split(':'); const h = parseInt(p[0],10) % 24; return h + ':' + (p[1] || '00'); };
               const stDisp = wrapHM(st), etDisp = wrapHM(et);
-              const titleText = `${stDisp}-${etDisp} ${name}${hotelFull ? ' / ' + hotelFull : ''}`;
               const isBreakRow = (b.course_name === '休憩') || (b.customer_name_snapshot === '【休憩】');
               const svc = svcState(b);                   // 未/始/確（接客ライフサイクル）
               const canMeet = !isBreakRow && svc !== null;  // CTRL で 未→始→確→未 を巡回操作
@@ -3706,12 +4612,17 @@
               const goCell = (goMailed ? '✓' : '') + (goDrv || '<span class="bk-self">自走</span>');
               const backCell = (backMailed ? '✓' : '') + (backDrv || '<span class="bk-self">自走</span>');
               const svcTitle = svc === 'pending' ? '開始（接客開始＝経理に計上）' : svc === 'started' ? '終了（接客終了）' : 'クリックで未開始に戻す（巻き戻し）';
-              html += `<div class="tl-booking s-${b.status}${svc === 'ended' ? ' svc-ended' : ''}" data-booking-id="${b.id}" title="${escapeAttr(titleText)}" style="left:${leftCalc};width:${widthCalc};top:2px;bottom:2px;">
+              // カード決済の予約は、両サイドのラインの色で決済前(橙)／決済後(緑)を示す
+              const usesCard = !isBreakRow && ['credit', 'card', 'split'].includes(String(b.payment_method || ''));
+              const cardWarn = usesCard && !b.card_paid_at;
+              const payCls = usesCard ? (cardWarn ? ' pay-unconfirmed' : ' pay-confirmed') : '';
+              html += `<div class="tl-booking s-${b.status}${svc === 'ended' ? ' svc-ended' : ''}${payCls}" data-booking-id="${b.id}" style="left:${leftCalc};width:${widthCalc};top:2px;bottom:2px;">
                 <div class="bk-top" data-bk-time="${b.id}">
                   <span class="bk-st">${stDisp}</span><span class="bk-dash">〜</span><span class="bk-et">${etDisp}</span>
                 </div>
                 <div class="bk-mid">
                   <span class="bk-name" data-bk-edit="${b.id}">${escapeHtml(name)}</span>
+                  ${cardWarn ? '<span class="bk-paywarn" title="カード決済の確認がまだです">💳未</span>' : ''}
                   ${canMeet ? `<span class="bk-svc-ph" data-svc-ph="${b.id}" data-svc-state="${svc}"></span>` : ''}
                 </div>
                 ${isBreakRow ? '' : `<div class="bk-place" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(placeShort)}</div><div class="bk-venue" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(venue)}</div>`}
@@ -3828,8 +4739,10 @@
     grid.querySelectorAll('[data-bk-back]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); openDriverAssign(Number(btn.dataset.bkBack), 'back', btn); });
     });
+    // 空きマスは【ダブルクリック】で新規予約。1クリックだと横スクロールや誤タップで
+    // 予約モーダルが開いてしまい邪魔だった（店長指摘 2026-08-09）
     grid.querySelectorAll('.tl-cell').forEach(c => {
-      c.addEventListener('click', () => {
+      c.addEventListener('dblclick', () => {
         // 日付欄は営業日基準。クリックしたセルの営業日と実時刻(0-23)を渡す（保存時に開始時刻からカレンダー日へ変換）
         const bizDay = c.dataset.date;
         const extH = parseInt(c.dataset.extHour, 10);  // 10-33
@@ -4281,6 +5194,11 @@
         populateCitySelect();
         populateHotelSelect('');
       } catch (e) {}
+      // 自宅の交通費（市区町村ごと）。マスタタブを開かなくても予約モーダルで効くように読む
+      try {
+        const cf = await api('/admin-api.php?action=city-fees');
+        CITY_FEES = cf.fees || {};
+      } catch (e) {}
     }
     if (adminUsersAll.length === 0) {
       // owner=admin-users / 他=staff-list (read-only)
@@ -4332,22 +5250,40 @@
     const ratio = Math.min(rewardMin, courseMin) / courseMin;
     return Math.floor(postCampaignCourse * ratio);
   }
-  /** クレジット決済でお客様の合計に上乗せする手数料。現金/振込は0 */
-  function cardSurcharge(subtotal) {
-    if (bel('bmPayment')?.value !== 'credit') return 0;
-    return Math.floor((subtotal || 0) * CARD_SURCHARGE_RATE / 100);
+  /** 併用のとき「現金で受け取る額」。未入力は0 */
+  function bmCashAmount() {
+    const raw = String(bel('bmCashAmount')?.value || '').replace(/[^\d]/g, '');
+    return raw === '' ? 0 : (parseInt(raw, 10) || 0);
   }
-  /** 支払方法に応じて決済確認チェックと手数料の内訳を出し入れする */
+  /**
+   * クレジットでお客様の合計に上乗せする手数料。現金/振込は0。
+   * 併用(split)は、現金で受け取るぶんを差し引いた「カードで切る額」にだけ上乗せする
+   * （店長要望 2026-08-08）。
+   */
+  function cardSurcharge(subtotal) {
+    const pm = bel('bmPayment')?.value;
+    if (pm === 'credit') return Math.floor((subtotal || 0) * CARD_SURCHARGE_RATE / 100);
+    if (pm === 'split') {
+      const rest = Math.max(0, (subtotal || 0) - bmCashAmount());
+      return Math.floor(rest * CARD_SURCHARGE_RATE / 100);
+    }
+    return 0;
+  }
+  /** 支払方法に応じて決済確認チェック・併用の入力欄・手数料の内訳を出し入れする */
   function syncCardUi() {
-    const isCredit = bel('bmPayment')?.value === 'credit';
+    const pm = bel('bmPayment')?.value;
+    const usesCard = pm === 'credit' || pm === 'split';
     const wrap = bel('bmCardPaidWrap');
-    if (wrap) wrap.style.display = isCredit ? 'flex' : 'none';
-    if (!isCredit) {
+    if (wrap) wrap.style.display = usesCard ? 'flex' : 'none';
+    if (!usesCard) {
       const chk = bel('bmCardPaid');
       if (chk) chk.checked = false;
       const at = bel('bmCardPaidAt');
       if (at) at.textContent = '';
     }
+    const splitWrap = bel('bmSplitWrap');
+    if (splitWrap) splitWrap.style.display = pm === 'split' ? 'flex' : 'none';
+    if (pm !== 'split' && bel('bmCashAmount')) bel('bmCashAmount').value = '';
     updateBookingTotal();
   }
   function updateBookingTotal() {
@@ -4360,7 +5296,7 @@
     const hasDepositOverride = depositOverrideRaw !== '';
     const amtEl = bel('bmCampaignAmt');
     const stampEl = bel('bmStampAmt');
-    let surchargeShown = 0;
+    let surchargeShown = 0, subtotalShown = 0;
     if (hasDepositOverride) {
       totalEl.textContent = '¥' + (parseInt(depositOverrideRaw, 10) || 0).toLocaleString();
       if (amtEl) amtEl.textContent = '';
@@ -4382,6 +5318,27 @@
       if (amtEl) amtEl.textContent = discount > 0 ? `(−¥${discount.toLocaleString()})` : '';
       if (stampEl) stampEl.textContent = stamp > 0 ? `−¥${stamp.toLocaleString()}` : '';
       surchargeShown = surcharge;
+      subtotalShown = subtotal;
+    }
+    // 併用の内訳。お客様に「現金いくら・カードいくら」をそのまま読み上げられるように
+    const splitNote = bel('bmSplitNote');
+    if (splitNote) {
+      if (bel('bmPayment')?.value === 'split' && !hasDepositOverride) {
+        const cash = bmCashAmount();
+        if (cash > subtotalShown) {
+          splitNote.className = 'bm-split-note over';
+          splitNote.textContent = `⚠ 現金の額が合計 ¥${subtotalShown.toLocaleString()} を超えています`;
+        } else {
+          const card = subtotalShown - cash + surchargeShown;
+          splitNote.className = 'bm-split-note';
+          splitNote.textContent = cash > 0
+            ? `現金 ¥${cash.toLocaleString()} ／ カード ¥${card.toLocaleString()}`
+              + (surchargeShown > 0 ? `（うち上乗せ +${CARD_SURCHARGE_RATE}% ¥${surchargeShown.toLocaleString()}）` : '')
+            : '現金で受け取る額を入れると、残りがクレジットになります';
+        }
+      } else {
+        splitNote.textContent = '';
+      }
     }
     // カード手数料の内訳。手入力の預り金を使うときは「その額が最終」なので出さない
     const feeNote = bel('bmCardFeeNote');
@@ -4408,6 +5365,14 @@
       }
     }
     updateCourseCalc();   // コース欄の金額メモ（合計を触るところは必ずここを通る）
+    // 指名料の表示欄。指名方法に連動する自動表示（組み合わせコースは本数ぶん）。
+    // お客様への最終確認で「コース料金／指名料／交通費」をそのまま読み上げられるようにするため
+    const nomView = bel('bmNominationFeeView');
+    if (nomView) {
+      const nf = nominationFeeTotal();
+      const cnt = nominationCount();
+      nomView.value = nf ? nf.toLocaleString() + (cnt > 1 ? `（${cnt}本分）` : '') : '0';
+    }
   }
   // 担当キャストが選ばれたら、ステータスが「問合せ」のときのみ自動で「予約」に切替える
   // （完了・キャンセル等、既に確定した状態は上書きしない）
@@ -4683,7 +5648,7 @@
         // ロケーションタイプ判定 + 復元
         const locType = detectLocType(b.hotel_id, b.hotel_name_snapshot);
         switchLocSection(locType);
-        if (locType === 'hotel') {
+        if (isHotelLoc(locType)) {
           // ホテルの市区町村も復元
           const h = hotelsForSelect.find(x => Number(x.id) === Number(b.hotel_id));
           if (h && h.city) {
@@ -4706,6 +5671,8 @@
         } else if (locType === 'other') {
           bel('bmOtherLoc').value = (b.hotel_name_snapshot || '').replace(OTHER_PREFIX, '');
         }
+        loadBmTowns();   // 市区町村が確定したので町名プルダウンを合わせる（前の予約の一覧を残さない）
+        renderBmMapLinks();   // 開いた予約の住所にも地図リンクを出す
         // 担当プルダウンはその日の出勤者だけ。割当済みの担当は出勤外でも残す
         await populateCastSelect(bel('bmDate').value, b.assigned_admin_id || '');
         bel('bmAdminId').value = b.assigned_admin_id || '';
@@ -4719,9 +5686,14 @@
         setMoney('bmCancelFee', b.cancellation_fee ?? '');
         setMoney('bmCancelReward', b.cancellation_reward ?? '');
         bel('bmCancelWrap').style.display = b.status === 'cancelled' ? 'block' : 'none';
-        // コース料金はコースマスタの基本料金を入れる（保存値は延長/深夜込みのため二重計上を防ぐ）
+        // コース料金はコースマスタの基本料金を入れる（保存値は延長/深夜/指名料込みのため二重計上を防ぐ）。
+        // 組み合わせ（90＋90 など）は bmCourse の選択肢に無いので、そちらの料金を先に見る。
+        // 見ないと保存値がそのまま入り、開いて保存し直すたびに指名料などが二重に乗っていた
+        //（2026-08-08 店長指摘: 内訳の計 ¥44,000 に対しコース料金欄が ¥51,700 ＝指名料¥4,400込みの保存値）。
+        const combo2El = bel('bmCourse2');
+        const combo2Opt = combo2El && combo2El.value ? combo2El.options[combo2El.selectedIndex] : null;
         const courseOptEl = opt ? [...bel('bmCourse').options].find(o => o.value === String(courseMin)) : null;
-        const basePrice = courseOptEl?.dataset?.price;
+        const basePrice = combo2Opt?.dataset?.price || courseOptEl?.dataset?.price;
         setMoney('bmPrice', basePrice ? basePrice : (b.price || ''));
         // 交通費セレクトに無い金額(旧・手入力データ等)なら選択肢として一時追加してから復元する
         {
@@ -4735,11 +5707,21 @@
           }
           if (transSel) transSel.value = transVal;
         }
+        // 併用の現金額は setBmPayment（→ syncCardUi）が併用以外で消すので、その後に入れる
         setBmPayment(b.payment_method || '');
+        if (bel('bmCashAmount')) {
+          bel('bmCashAmount').value = (b.payment_method === 'split' && b.cash_amount != null) ? String(b.cash_amount) : '';
+          updateBookingTotal();
+        }
         const paidChk = bel('bmCardPaid');
         if (paidChk) paidChk.checked = !!b.card_paid_at;
         const paidAt = bel('bmCardPaidAt');
-        if (paidAt) paidAt.textContent = b.card_paid_at ? String(b.card_paid_at).slice(0, 16).replace('T', ' ') : '';
+        // 誰が確認したかも残す（後から「これ誰が通したの」を追えるように・店長要望 2026-08-08）
+        if (paidAt) {
+          paidAt.textContent = b.card_paid_at
+            ? String(b.card_paid_at).slice(0, 16).replace('T', ' ') + (b.card_paid_by_name ? `　${b.card_paid_by_name}` : '')
+            : '';
+        }
         if (bel('bmNomination')) bel('bmNomination').value = b.nomination_type || '';
         // 預り金は都度の手入力のため常に空欄（既存の報酬オーバーライドのみ編集時に復元）
         if (bel('bmDepositOverride')) bel('bmDepositOverride').value = '';
@@ -4784,7 +5766,12 @@
           if (p10Edit) p10Edit.checked = /＋\s*10\s*分\s*$/.test(String(b.course_name || ''));
           bmPlus10Touched[activeBmSuffix] = true;
           populateCourseSelect();
-          if (hfCbEdit?.checked) applyCoursePrice();   // ホテル料金ならコース料金欄もその金額に
+          // 選択肢を作り直したら金額も必ず入れ直す（内訳メモと同じ元データから作るため）。
+          // 以前はホテル料金のときだけ呼んでいたので、前に開いた予約のホテル料金つき選択肢から
+          // 拾った金額が残り、内訳¥44,000 に対しコース料金欄が¥38,500 とズレていた
+          //（2026-08-08 店長指摘）。コースが特定できないときは applyCoursePrice が何もしないので
+          // 手入力で調整した金額は消えない。
+          applyCoursePrice();
         }
         updateBookingTotal();
         bel('bmSub').textContent = b.customer_name || b.customer_name_snapshot || '';
@@ -4814,7 +5801,7 @@
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
       // リセット
-      ['bmCustomerId','bmCustomerName','bmCustomerPhone','bmCustomerEmail','bmCourse','bmCourse2','bmNomination','bmCustomMin','bmBreakDur','bmBreakCustomMin','bmBreakCity','bmHotelId','bmHotelName','bmRoom','bmHomeAddress','bmHomeBuilding','bmOtherLoc','bmPrice','bmNotes','bmStampReward','bmDepositOverride','bmRewardOverride'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+      ['bmCustomerId','bmCustomerName','bmCustomerPhone','bmCustomerEmail','bmCourse','bmCourse2','bmNomination','bmCustomMin','bmBreakDur','bmBreakCustomMin','bmBreakCity','bmHotelId','bmHotelName','bmRoom','bmHomeAddress','bmHomeBuilding','bmOtherLoc','bmPrice','bmNotes','bmStampReward','bmDepositOverride','bmRewardOverride','bmCashAmount'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
       if (bel('bmTransport')) bel('bmTransport').value = '0';  // select化: 「なし(¥0)」がデフォルト
       loadCustomerHistory(null);
       // デフォルト: キャンペーン割引ON・深夜料金OFF
@@ -4837,7 +5824,8 @@
       if (mainRegion) { mainRegion.checked = true; populateCitySelect('main'); }
       bel('bmCity').value = '';
       populateHotelSelect('');
-      switchLocSection('hotel');
+      loadBmTowns();   // 市区町村が空になったので町名プルダウンも隠す
+      switchLocSection('loveho');   // 新規予約の既定はラブホタブ（店長指定 2026-08-08）
       const usualNote = bel('bmUsualLocNote');
       if (usualNote) usualNote.style.display = 'none';
       bel('bmDate').value = prefill?.date || fmtDate(getBusinessDayDate());  // 日付欄は営業日基準（深夜0-10時は前営業日）。保存時に開始時刻からカレンダー日へ変換
@@ -4939,6 +5927,9 @@
       const el = document.getElementById(id);
       if (el) el.style.display = checked ? 'none' : 'flex';
     });
+    // スタンプ特典と深夜料金は2列のラッパーに入っている。中身だけ隠すと枠の余白が残るので箱ごと消す
+    const stampRow = document.getElementById('bmStampLateRow' + activeBmSuffix) || document.getElementById('bmStampLateRow');
+    if (stampRow) stampRow.style.display = checked ? 'none' : 'grid';
     if (checked) { const cf = bel('bmCampaignField'); if (cf) cf.style.display = 'none'; } else { syncCampaignFieldVisibility(); }
     const paymentF = document.getElementById('bmPaymentField');
     if (paymentF) paymentF.style.display = checked ? 'none' : '';
@@ -5262,7 +6253,7 @@
       || document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
     let hotelSnap = '';
     let roomNum = '';
-    if (locType === 'hotel') {
+    if (isHotelLoc(locType)) {
       const hid = bel('bmHotelId').value;
       if (hid) {
         const h = hotelsForSelect.find(x => Number(x.id) === Number(hid));
@@ -5348,7 +6339,7 @@
     const locType = document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
     let hotelSnap = '';
     let roomNum = '';
-    if (locType === 'hotel') {
+    if (isHotelLoc(locType)) {
       const hid = bel('bmHotelId').value;
       if (hid) {
         const h = hotelsForSelect.find(x => Number(x.id) === Number(hid));
@@ -5455,7 +6446,8 @@
     let displayCity = null;
     if (!isBreak) {
       const locType = document.querySelector('input[name="bmLocType"]:checked')?.value || 'hotel';
-      if (locType === 'hotel') {
+      // ラブホもホテルと同じ欄・同じ保存（違うのは選べる一覧だけ）
+      if (isHotelLoc(locType)) {
         hotelId = bel('bmHotelId').value || null;
         hotelSnapshot = bel('bmHotelName').value.trim();
         roomNumber = bel('bmRoom').value.trim();
@@ -5528,8 +6520,9 @@
       extension_count: isBreak ? 0 : extCount(),
       payment_method: isBreak ? null : (bel('bmPayment')?.value || null),
       // クレジットのときお客様の合計に上乗せした手数料。合計 = price + transport_fee + card_fee
+      // 併用(split)は「カードで切る額」にだけ上乗せする（cardSurcharge が判定する）
       card_fee: (() => {
-        if (isBreak || bel('bmPayment')?.value !== 'credit') return 0;
+        if (isBreak || !['credit', 'split'].includes(bel('bmPayment')?.value)) return 0;
         const depositRaw = String(bel('bmDepositOverride')?.value || '').replace(/[^\d]/g, '');
         if (depositRaw !== '') return 0;   // 手入力の預り金＝それが最終額なので上乗せしない
         const base = parseInt(String(bel('bmPrice').value || '').replace(/[^\d]/g, ''), 10) || 0;
@@ -5540,6 +6533,8 @@
         const trans = parseInt(String(bel('bmTransport').value || '').replace(/[^\d]/g, ''), 10) || 0;
         return cardSurcharge(base + trans + late + extAmount() + nomFee + optionTotal() - disc - stamp - hotelFirstDiscount());
       })(),
+      // 併用のとき現金で受け取る額。併用以外は null（サーバ側でも同じ判定をしている）
+      cash_amount: (!isBreak && bel('bmPayment')?.value === 'split') ? bmCashAmount() : null,
       card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeTotal(),
@@ -5990,22 +6985,11 @@
     if (!sel) return;
     const allOpt = sel.querySelector('option[value=""]');
     if (!allOpt) return;
-    if (shViewMode === 'timetable') {
-      allOpt.style.display = 'none';
-      allOpt.disabled = true;
-      // 「全スタッフ」が選ばれていたら、現在ユーザー or 最初の実スタッフに切替
-      if (sel.value === '') {
-        const firstReal = Array.from(sel.options).find(o => o.value);
-        if (firstReal) {
-          sel.value = currentUser?.id && Array.from(sel.options).some(o => o.value === String(currentUser.id))
-            ? String(currentUser.id) : firstReal.value;
-          shSelectedStaff = sel.value;
-        }
-      }
-    } else {
-      allOpt.style.display = '';
-      allOpt.disabled = false;
-    }
+    // タイムテーブルは「全スタッフ＝一覧グリッド」「個人＝1人ぶんの編集」の2通り。
+    // 以前は全スタッフを隠して必ず1人に絞っていたが、CTRLの女性出勤表と同じ一覧が欲しいとの店長要望で開放（2026-08-09）
+    allOpt.textContent = shViewMode === 'timetable' ? '📊 全スタッフ一覧' : '全スタッフ';
+    allOpt.style.display = '';
+    allOpt.disabled = false;
   }
 
   // 30 分刻みの時刻オプション (10:00〜翌10:00)
@@ -6040,6 +7024,7 @@
         // 権限=キャスト、またはCTRL同期のキャスト(girl_id あり)はどちらも除外する。
         // それ以外（内勤・ドライバー・管理者・オーナー）は全員ここで組む（店長指定 2026-08-07）
         const targets = (d.users || []).filter(u => u.role !== 'staff' && !u.girl_id);
+        shStaffList = targets;
         const sel = document.getElementById('shStaffFilter');
         const keep = sel.value;
         sel.style.display = 'inline-block';
@@ -6077,7 +7062,9 @@
       const params = new URLSearchParams({ from: fmtDate(gridStart), to: fmtDate(gridEnd), exclude_casts: '1' });
       if (shSelectedStaff) params.set('admin_id', shSelectedStaff);
       const d = await api('/shifts.php?action=range&' + params.toString());
-      renderShiftCalendar(gridStart, gridEnd, d.shifts || []);
+      shCachedShifts = d.shifts || [];
+      renderShiftCalendar(gridStart, gridEnd, shCachedShifts);
+      setupShiftBulk();  // カレンダーは複数人ぶんなので「まとめて設定」は隠す
     } catch (e) {
       cal.innerHTML = '<div class="view-empty">読み込み失敗</div>';
     }
@@ -6090,19 +7077,110 @@
     const start = new Date(shCurrent.getFullYear(), shCurrent.getMonth(), shCurrent.getDate());
     const end = addDays(start, 9);  // 10日分
     document.getElementById('shTitle').textContent = `内勤・送迎シフト ${fmtDate(start)} 〜 ${fmtDate(end)}`;
+    // スタッフ未選択 = 全員ぶんの一覧グリッド（横に10日）。個人を選ぶと従来の1人ぶん編集に切り替わる
+    const isGrid = shBulkIsGrid();
+    tt.classList.toggle('is-grid', isGrid);
 
     try {
       const params = new URLSearchParams({ from: fmtDate(start), to: fmtDate(end), exclude_casts: '1' });
-      // owner で staff 未選択時は自分の id を渡す (タイムテーブルは 1 スタッフ分)
-      const targetAdminId = shSelectedStaff || currentUser?.id;
+      const targetAdminId = isGrid ? '' : (shSelectedStaff || currentUser?.id);
       if (targetAdminId) params.set('admin_id', targetAdminId);
       const d = await api('/shifts.php?action=range&' + params.toString());
       shCachedShifts = d.shifts || [];
-      renderShiftTimetable(start, shCachedShifts, targetAdminId);
+      if (isGrid) renderShiftGrid(start, shCachedShifts);
+      else renderShiftTimetable(start, shCachedShifts, targetAdminId);
       setupShiftBulk();
     } catch (e) {
       tt.innerHTML = '<div class="view-empty">読み込み失敗</div>';
     }
+  }
+
+  // 一覧グリッド: 行=スタッフ / 列=10日。CTRL の女性出勤表と同じ見え方にそろえてある（店長要望 2026-08-09）
+  function renderShiftGrid(startDate, shifts) {
+    const tt = document.getElementById('shTimetable');
+    const todayStr = fmtDate(getBusinessDayDate());
+    const WDAY = ['日','月','火','水','木','金','土'];
+    const days = [];
+    for (let i = 0; i < 10; i++) days.push(addDays(startDate, i));
+
+    const staff = (shStaffList || []).slice();
+    if (!staff.length) {
+      tt.innerHTML = '<div class="view-empty">キャスト以外のスタッフがまだ登録されていません。</div>';
+      return;
+    }
+    // admin_user_id + 日付 で引けるようにしておく
+    const byKey = {};
+    (shifts || []).forEach(s => { byKey[s.admin_user_id + '|' + s.shift_date] = s; });
+    const isWork = (s) => s && (s.status === 'available' || s.status === 'tentative');
+    const hm = (t) => String(t || '').substring(0, 5);
+    // 終了が開始以前なら日をまたいでいる（22:00〜翌05:00 など）
+    const endLabel = (s) => {
+      const st = hm(s.start_time), en = hm(s.end_time);
+      if (st === '10:00' && en === '10:00') return '24H';
+      return (en <= st ? '翌' : '') + en;
+    };
+    const roleOf = (u) => u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '管理者'
+                        : u.role === 'office' ? '内勤' : u.role === 'driver' ? '送迎' : '';
+
+    let head = '<tr><th class="sg-name">スタッフ</th>';
+    days.forEach(d => {
+      const ds = fmtDate(d);
+      const dw = d.getDay();
+      const cnt = staff.filter(u => isWork(byKey[u.id + '|' + ds])).length;
+      const cls = [dw === 0 ? 'sg-sun' : dw === 6 ? 'sg-sat' : '', ds === todayStr ? 'is-today' : ''].filter(Boolean).join(' ');
+      head += `<th class="${cls}">${d.getMonth()+1}/${d.getDate()}<span class="sg-dow">(${WDAY[dw]})</span><span class="sg-num">${cnt}人</span></th>`;
+    });
+    head += '<th class="sg-total">出勤計</th></tr>';
+
+    let body = '';
+    staff.forEach(u => {
+      const role = roleOf(u);
+      body += `<tr><td class="sg-name"><button type="button" class="sg-who" data-staff="${u.id}">${escapeHtml(u.display_name || u.username)}</button>`
+            + (role ? `<span class="sg-role">${role}</span>` : '') + '</td>';
+      let work = 0;
+      days.forEach(d => {
+        const ds = fmtDate(d);
+        const s = byKey[u.id + '|' + ds] || null;
+        if (isWork(s)) work++;
+        const cls = ['sg-c', s ? 's-' + s.status : '', ds === todayStr ? 'is-today' : ''].filter(Boolean).join(' ');
+        let inner;
+        if (isWork(s)) {
+          inner = `<span class="sg-t">${hm(s.start_time)}</span><span class="sg-t2">〜${endLabel(s)}</span>`
+                + (s.note ? `<span class="sg-memo" title="${escapeAttr(s.note)}">${escapeHtml(s.note)}</span>` : '');
+        } else if (s && s.status === 'off') {
+          inner = '休';
+        } else {
+          inner = '<span class="sg-un">＋</span>';
+        }
+        body += `<td class="${cls}" data-staff="${u.id}" data-date="${ds}" data-shift-id="${s?.id || ''}" tabindex="0" role="button">${inner}</td>`;
+      });
+      body += `<td class="sg-total">${work}<small>日</small></td></tr>`;
+    });
+
+    tt.innerHTML = `<div class="sh-grid-wrap"><table class="sh-grid"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+      <div class="sh-grid-legend">
+        <span><i class="lg-available"></i>出勤</span>
+        <span><i class="lg-tentative"></i>仮</span>
+        <span><i class="lg-off"></i>休み</span>
+        <span><i class="lg-unreg"></i>未登録（＋）</span>
+        <span>マスをクリックで登録・変更／上の「まとめて設定」で選んだスタッフの10日ぶんを一括登録／名前をクリックでその人だけの画面へ</span>
+      </div>`;
+
+    // 名前クリック → その人の1人ぶん画面（まとめて設定が使える）へ
+    tt.querySelectorAll('.sg-who').forEach(b => {
+      b.addEventListener('click', () => {
+        const sel = document.getElementById('shStaffFilter');
+        if (sel) sel.value = b.dataset.staff;
+        shSelectedStaff = b.dataset.staff;
+        loadShiftsTimetable();
+      });
+    });
+    // マスクリック → シフト登録/編集モーダル（その人・その日をあらかじめ入れておく）
+    tt.querySelectorAll('td.sg-c').forEach(td => {
+      const open = () => openShiftModal(td.dataset.shiftId ? Number(td.dataset.shiftId) : null, td.dataset.date, td.dataset.staff);
+      td.addEventListener('click', open);
+      td.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+    });
   }
 
   // ===== 一括設定（表示中の10日ぶんをまとめて登録）=====
@@ -6110,8 +7188,19 @@
   function setupShiftBulk() {
     const bar = document.getElementById('shBulk');
     if (!bar) return;
-    // タイムテーブル表示かつ 1人ぶんを見ているときだけ出す（カレンダーは全員表示なので対象外）
+    // タイムテーブル表示のときだけ出す（カレンダーは月表示なので対象外）。
+    // 一覧グリッドでも使えるよう、グリッドのときは対象スタッフの選択を横に出す
     bar.style.display = (shViewMode === 'timetable') ? '' : 'none';
+    const staffSel = document.getElementById('shBulkStaff');
+    if (staffSel) {
+      const isGrid = shBulkIsGrid();
+      staffSel.style.display = isGrid ? '' : 'none';
+      if (isGrid) {
+        const keep = staffSel.value;
+        staffSel.innerHTML = (shStaffList || []).map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
+        if (keep && [...staffSel.options].some(o => o.value === keep)) staffSel.value = keep;
+      }
+    }
     if (_shBulkInit) return;
     _shBulkInit = true;
     const fill = (id, opts, sel) => {
@@ -6142,8 +7231,14 @@
     document.getElementById('shBulkApply')?.addEventListener('click', applyShiftBulk);
   }
 
+  // まとめて設定が「一覧グリッド（複数人）」を相手にしているか
+  const shBulkIsGrid = () => shViewMode === 'timetable' && !shSelectedStaff && canManageShifts();
+
   async function applyShiftBulk() {
-    const targetAdminId = shSelectedStaff || currentUser?.id;
+    const isGrid = shBulkIsGrid();
+    const targetAdminId = isGrid
+      ? (document.getElementById('shBulkStaff')?.value || '')
+      : (shSelectedStaff || currentUser?.id);
     if (!targetAdminId) { toast('スタッフを選んでください', 'err'); return; }
     const status = document.querySelector('#shBulkStatus .is-on')?.dataset.bulkStatus || 'available';
     const is24h = document.getElementById('shBulk24h')?.checked;
@@ -6151,18 +7246,33 @@
     const end = is24h ? '10:00' : (document.getElementById('shBulkEnd')?.value || '22:00');
     const scope = document.getElementById('shBulkDays')?.value || 'all';
 
-    // 画面に出ている10日の行から対象を絞る（未登録だけ／平日だけ 等）
-    const rows = [...document.querySelectorAll('#shTimetable .sh-tt-row')].filter(row => {
-      const d = _parseYmd(row.dataset.date);
-      const dow = d.getDay();
+    // 画面に出ている10日ぶんを {日付, 既存ID, メモ} に揃える（個人表示=行 / 一覧=その人の列）
+    const cells = isGrid
+      ? [...document.querySelectorAll(`#shTimetable td.sg-c[data-staff="${targetAdminId}"]`)].map(td => ({
+          date: td.dataset.date,
+          shiftId: td.dataset.shiftId,
+          unreg: !td.dataset.shiftId,
+          // 一覧にはメモの入力欄が無いので、既に入っているメモをそのまま引き継ぐ
+          note: ((shCachedShifts || []).find(s => String(s.admin_user_id) === String(targetAdminId) && s.shift_date === td.dataset.date)?.note) || '',
+        }))
+      : [...document.querySelectorAll('#shTimetable .sh-tt-row')].map(row => ({
+          date: row.dataset.date,
+          shiftId: row.dataset.shiftId,
+          unreg: row.classList.contains('is-unreg'),
+          note: row.querySelector('.sh-tt-memo')?.value.trim() || '',
+        }));
+    const rows = cells.filter(c => {
+      const dow = _parseYmd(c.date).getDay();
       if (scope === 'weekday') return dow >= 1 && dow <= 5;
       if (scope === 'weekend') return dow === 0 || dow === 6;
-      if (scope === 'unreg') return row.classList.contains('is-unreg');
+      if (scope === 'unreg') return c.unreg;
       return true;
     });
     if (!rows.length) { toast('対象の日がありません', 'err'); return; }
 
-    const staffName = document.getElementById('shStaffFilter')?.selectedOptions?.[0]?.textContent || '自分';
+    const staffName = isGrid
+      ? (document.getElementById('shBulkStaff')?.selectedOptions?.[0]?.textContent || 'このスタッフ')
+      : (document.getElementById('shStaffFilter')?.selectedOptions?.[0]?.textContent || '自分');
     const label = status === 'off' ? '休み' : `${status === 'tentative' ? '仮シフト' : '出勤'} ${is24h ? '24時間' : start + '〜' + end}`;
     if (!confirm(`${staffName} の ${rows.length}日ぶんを「${label}」にします。\n既に登録済みの日も上書きします。よろしいですか？`)) return;
 
@@ -6172,13 +7282,13 @@
     // 連打で媒体側APIのように詰まらないよう、1件ずつ順番に投げる
     for (const row of rows) {
       const payload = {
-        shift_date: row.dataset.date,
+        shift_date: row.date,
         start_time: start,
         end_time: end,
         status,
-        note: row.querySelector('.sh-tt-memo')?.value.trim() || '',
+        note: row.note,
       };
-      const existingId = row.dataset.shiftId ? Number(row.dataset.shiftId) : 0;
+      const existingId = row.shiftId ? Number(row.shiftId) : 0;
       if (existingId) payload.id = existingId;
       if (canManageShifts() && targetAdminId) payload.admin_user_id = targetAdminId;
       try { await apiPost('/shifts.php?action=upsert', payload); ok++; }
@@ -6375,26 +7485,36 @@
     });
   }
 
-  async function openShiftModal(id, date) {
+  async function openShiftModal(id, date, presetAdminId) {
     editingShiftId = id;
     document.getElementById('smTitle').textContent = id ? 'シフト編集' : 'シフト登録';
     document.getElementById('smDelete').style.display = id ? 'inline-flex' : 'none';
 
-    if (currentUser?.role === 'owner') {
+    if (canManageShifts()) {
       document.getElementById('smStaffField').style.display = 'block';
-      if (adminUsersAll.length === 0) {
-        try { const d = await api('/admin-api.php?action=admin-users'); adminUsersAll = d.users; } catch (e) {}
+      // 内勤・送迎シフトの画面なので候補はキャストを除いた名簿（shStaffList）。
+      // まだ取れていない場合だけ owner 用の admin-users にフォールバックする
+      let list = shStaffList;
+      if (!list.length) {
+        if (adminUsersAll.length === 0 && currentUser?.role === 'owner') {
+          try { const d = await api('/admin-api.php?action=admin-users'); adminUsersAll = d.users; } catch (e) {}
+        }
+        list = adminUsersAll;
       }
-      document.getElementById('smStaff').innerHTML = adminUsersAll.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
-      document.getElementById('smStaff').value = currentUser.id;
+      document.getElementById('smStaff').innerHTML = list.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
+      document.getElementById('smStaff').value = presetAdminId || currentUser.id;
     }
 
     if (id) {
       try {
-        const d = await api(`/shifts.php?action=range&from=2020-01-01&to=2100-12-31`);
-        const s = (d.shifts || []).find(x => Number(x.id) === id);
+        // 表示中のぶんは取得済みなのでまずそこから。無ければ全期間から引く
+        let s = (shCachedShifts || []).find(x => Number(x.id) === id);
+        if (!s) {
+          const d = await api(`/shifts.php?action=range&from=2020-01-01&to=2100-12-31`);
+          s = (d.shifts || []).find(x => Number(x.id) === id);
+        }
         if (!s) throw new Error('not found');
-        document.getElementById('smSub').textContent = s.shift_date;
+        document.getElementById('smSub').textContent = s.shift_date + (s.staff_name ? '　' + s.staff_name : '');
         document.getElementById('smStart').value = s.start_time.substring(0,5);
         document.getElementById('smEnd').value = s.end_time.substring(0,5);
         document.getElementById('smStatus').value = s.status;
@@ -6404,7 +7524,8 @@
         document.getElementById('smTitle').dataset.date = s.shift_date;
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
-      document.getElementById('smSub').textContent = date;
+      const who = (shStaffList || []).find(u => String(u.id) === String(presetAdminId));
+      document.getElementById('smSub').textContent = date + (who ? '　' + (who.display_name || who.username) : '');
       document.getElementById('smStart').value = '10:00';
       document.getElementById('smEnd').value = '22:00';
       document.getElementById('smStatus').value = 'available';
@@ -6429,7 +7550,7 @@
       status: document.getElementById('smStatus').value,
       note: document.getElementById('smNote').value,
     };
-    if (currentUser?.role === 'owner') payload.admin_user_id = document.getElementById('smStaff').value;
+    if (canManageShifts()) payload.admin_user_id = document.getElementById('smStaff').value;
     if (editingShiftId) payload.id = editingShiftId;
     try {
       await apiPost('/shifts.php?action=upsert', payload);
@@ -7383,8 +8504,19 @@
     card.querySelector('[data-pf-today]')?.addEventListener('click', () => { thMonth = curYm; renderThPerf(); });
   }
 
+  // ─ 更新しても同じ画面・同じ日付に戻る（店長要望 2026-08-08）─
+  // 別タブ・再ログイン後は消えてよいので sessionStorage。ログアウトの挙動は変えない
+  const VIEW_KEY = 'ops_last_view', DAY_KEY = 'ops_last_day';
+  function rememberPlace() {
+    try {
+      const v = document.querySelector('.view.active')?.id?.replace(/^view-/, '');
+      if (v) sessionStorage.setItem(VIEW_KEY, v);
+      sessionStorage.setItem(DAY_KEY, fmtDate(tlCurrentDate));
+    } catch (e) { /* プライベートブラウズ等で使えない場合は諦める */ }
+  }
+
   function switchView(name) {
-    const tabName = (name === 'hotel' || name === 'stations') ? 'courses' : name;  // ホテル管理・駅マスタはマスタ配下（タブ廃止）
+    const tabName = (name === 'hotel' || name === 'stations' || name === 'cityfee') ? 'courses' : name;  // ホテル管理・駅マスタ・自宅交通費はマスタ配下
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === tabName));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     if (name === 'staff' && ['owner', 'manager'].includes(currentUser?.role)) loadAdminUsers();
@@ -7394,13 +8526,15 @@
     else if (name === 'bookings') loadBookings();
     else if (name === 'customers') loadCustomers();
     else if (name === 'shifts') loadShifts();
-    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); loadCardSurchargeSetting(); }
+    else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); loadCardSurchargeSetting(); loadNominationFeeSetting(); }
+    else if (name === 'cityfee') loadCityFeeView();
     else if (name === 'stations') loadStations();
     else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
-    else if (name === 'chat' && userCanSeeTab('chat')) loadChatInbox();
+    else if (name === 'chat' && userCanSeeTab('chat')) openChatFrame();
     else if (name === 'staffboard' && userCanSeeTab('staffboard')) loadStaffBoard();
     else if (name === 'payroll' && userCanSeeTab('payroll')) loadAccounting();
     else if (name === 'settlement') loadMySettlements();
+    rememberPlace();
   }
 
   // ============ 💰 経理 ============
@@ -7414,10 +8548,11 @@
     const fmt = (dt) => `${dt.getFullYear()}-${('0'+(dt.getMonth()+1)).slice(-2)}-${('0'+dt.getDate()).slice(-2)}`;
     let from, to;
     if (range === 'today') { from = to = new Date(y, m, d); }
-    else if (range === 'yesterday') {
+    else if (range === 'yesterday' || range === 'tomorrow') {
+      // 表示中の日付を1日ずらす（連打で遡る／進める）。未設定なら今日を起点にする
       const cur = document.getElementById('acFrom').value;
       const base = cur ? new Date(cur + 'T00:00:00') : new Date(y, m, d);
-      base.setDate(base.getDate() - 1);
+      base.setDate(base.getDate() + (range === 'tomorrow' ? 1 : -1));
       from = to = base;
     }
     else if (range === 'this-week') {
@@ -7491,6 +8626,15 @@
       acPopulateTherapists();
       document.getElementById('acTherapist')?.addEventListener('change', acReloadActive);
     }
+    // タイムラインで見ていた営業日をそのまま引き継ぐ（8/3 を見てから経理を開けば 8/3・店長要望 2026-08-08）。
+    // 期間を手で広げていた場合は上書きしない
+    const tlDay = fmtDate(tlCurrentDate);
+    const fromEl = document.getElementById('acFrom'), toEl = document.getElementById('acTo');
+    if (fromEl && toEl && fromEl.value === toEl.value && fromEl.value !== tlDay) {
+      fromEl.value = tlDay;
+      toEl.value = tlDay;
+      document.querySelectorAll('.ac-range').forEach(x => x.classList.remove('active'));
+    }
     acSwitchPanel(_acPanel);
   }
 
@@ -7542,7 +8686,7 @@
         ${row('コース料金', yen(bd.course), { sub:true })}
         ${row('深夜料金', yen(bd.late), { sub:true })}
         ${row('交通費', yen(bd.transport), { sub:true })}
-        ${bd.card ? row(`カード手数料（お客様上乗せ ${CARD_SURCHARGE_RATE}%）`, yen(bd.card), { sub:true }) : ''}
+        ${bd.card ? row(`カード手数料（${CARD_SURCHARGE_RATE}%）`, yen(bd.card), { sub:true }) : ''}
         ${subhead('支払方法')}
         ${row('現金', yen(s.cash), { sub:true })}
         ${row('クレジット', yen(s.credit), { sub:true })}
@@ -7550,28 +8694,15 @@
         ${s.unset ? row('支払方法 未設定', yen(s.unset), { sub:true }) : ''}
         ${row('キャスト報酬', yen(d.reward_total), { minus:true })}
         ${row('＝ 店舗売上（キャストからの入金）', yen(shopSales), { big:true, border:true })}
-        ${row(`クレジット手数料 <span style="margin-left:.4rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);">お客様上乗せ ${CARD_SURCHARGE_RATE}%・変更はマスタタブ</span>`, yen(d.card_fee), { minus:true })}
-        ${row(`指名料 <button id="acNominationFeeBtn" type="button" style="margin-left:.4rem;background:transparent;border:1px solid var(--gray);border-radius:6px;padding:.1rem .5rem;font-size:.75rem;color:var(--ink-soft);cursor:pointer;">設定</button>`, `<span style="font-size:.78rem;color:var(--ink-soft);font-weight:500;">初¥${NOMINATION_FEES.first.toLocaleString()} / 本¥${NOMINATION_FEES.regular.toLocaleString()} / フリー¥${NOMINATION_FEES.free.toLocaleString()}</span>`, { sub:true })}
+        ${/* カード会社へ払う手数料。実際は約8%だが、お客様からの上乗せ分と同額を計上して相殺する
+              （店長指定 2026-08-08。厳密な経理は弥生会計側で行うため、ここはアバウトで良い）。
+              上の「カード手数料」と必ず同額になる */''}
+        ${row(`クレジット手数料 <span style="margin-left:.4rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);">お客様からの上乗せ分と相殺</span>`, yen(d.card_fee), { minus:true })}
         ${row(`経費合計`, yen(d.expense_total), { minus:true })}
         ${catRows}
         ${row('＝ 利益', yen(d.gross_profit), { big:true, border:true, accent:'var(--coral)' })}
       </div>`;
-    document.getElementById('acNominationFeeBtn')?.addEventListener('click', async () => {
-      const vf = prompt('初指名の指名料（円）を入力', String(NOMINATION_FEES.first));
-      if (vf === null) return;
-      const vr = prompt('本指名の指名料（円）を入力', String(NOMINATION_FEES.regular));
-      if (vr === null) return;
-      const vfr = prompt('フリーの指名料（円）を入力', String(NOMINATION_FEES.free));
-      if (vfr === null) return;
-      const parsed = { first: parseInt(vf, 10), regular: parseInt(vr, 10), free: parseInt(vfr, 10) };
-      if (Object.values(parsed).some(n => isNaN(n) || n < 0)) { toast('0以上の数値を入力してください', 'err'); return; }
-      try {
-        const res = await apiPost('/admin-api.php?action=nomination-fees-set', { nomination_fees: parsed });
-        if (res?.nomination_fees) Object.assign(NOMINATION_FEES, res.nomination_fees);
-        toast('✓ 指名料を更新しました', 'ok');
-        loadAcSummary();
-      } catch (e) { toast('更新失敗: ' + e.message, 'err'); }
-    });
+    // 指名料の設定はマスタタブへ移設（店長要望 2026-08-08）。損益は金額の集計だけを出す
   }
 
   // --- 💴 売上 ---
@@ -7605,6 +8736,8 @@
         <td style="padding:.35rem .4rem;text-align:right;font-weight:700;">${yen(r.amt)}</td></tr>`).join('') || '<tr><td colspan="3" style="padding:.6rem;color:var(--ink-soft);">データなし</td></tr>';
     document.getElementById('ac-sales').innerHTML = `
       <div style="display:grid;gap:1rem;">
+        <div id="acCashBox"></div>
+        <div id="acReportBox"></div>
         <div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;">
           <div style="font-weight:700;margin-bottom:.4rem;">支払方法別</div>${payHtml}
         </div>
@@ -7623,6 +8756,105 @@
           </table>
         </div>
       </div>`;
+    // 現金と日報は「1日ぶん」の話なので、期間の最終日を対象にする
+    loadDailyReport(acPeriod().to);
+  }
+
+  // ─ 現金の状況と、社内報告用の日報テキスト（店長要望 2026-08-08）─
+  const WD = ['日', '月', '火', '水', '木', '金', '土'];
+  const mdw = (ymd) => {
+    const d = new Date(ymd + 'T12:00:00');
+    return `${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`;
+  };
+  /** 日報の数字は「1,234-」の形（末尾ハイフンは店の書式） */
+  const rep = (n) => Number(n || 0).toLocaleString() + '-';
+
+  function buildDailyReportText(d) {
+    const L = [];
+    L.push(mdw(d.date));
+    (d.casts || []).forEach(c => L.push(`${c.name}${rep(c.sales)}`));
+    // 出勤していたが1本も無かったキャストは 0-、休んだキャストは「休み」で並べる
+    //（日報はその日に予定していた人を全員載せる）
+    const listed = new Set((d.casts || []).map(c => c.name));
+    const onDuty = (d.today_shift?.casts || []).filter(c => !c.off);
+    (d.today_shift?.casts || []).forEach(c => {
+      if (listed.has(c.name)) return;
+      L.push(c.off ? `${c.name}休み` : `${c.name}0-`);
+    });
+    L.push('');
+    L.push(`出勤合計：${onDuty.length || (d.casts || []).length}名`);
+    L.push(`合計本数：${d.booking_count}本`);
+    L.push(`売上合計：${rep(d.sales_total)}`);
+    L.push(`客単価：${rep(d.avg_price)}`);
+    L.push(`月売上：${rep(d.month_sales)}`);
+    L.push(`ペース：${rep(d.pace)}`);
+    L.push('');
+    L.push('スタッフ');
+    (d.today_shift?.staff || []).forEach(s => L.push(s.name + (d.driver_logs?.[s.id] ? d.driver_logs[s.id] : '')));
+    L.push('');
+    L.push('明日');
+    L.push(mdw(d.next_date));
+    // 明日は開始時刻だけ（「にい10-」= 10時から）
+    const hh = (t) => String(parseInt(String(t || '').slice(0, 2), 10) || 0);
+    (d.tomorrow_shift?.casts || []).forEach(c => L.push(c.off ? `${c.name}休み` : `${c.name}${hh(c.start)}-`));
+    L.push('');
+    L.push('スタッフ');
+    (d.tomorrow_shift?.staff || []).forEach(s => {
+      // 10:00〜10:00 は「時間未設定」なので終わりは書かない
+      const end = (s.start === s.end) ? '' : hh(s.end);
+      L.push(`${s.name}${hh(s.start)}-${end}`);
+    });
+    L.push('');
+    L.push('『アドミ』');
+    return L.join('\n');
+  }
+
+  async function loadDailyReport(date) {
+    const cashBox = document.getElementById('acCashBox');
+    const repBox = document.getElementById('acReportBox');
+    if (!cashBox || !repBox || !date) return;
+    let d;
+    try { d = await api('/admin-api.php?action=daily-report&date=' + encodeURIComponent(date)); }
+    catch (e) { cashBox.innerHTML = ''; repBox.innerHTML = ''; return; }
+
+    const c = d.cash || {};
+    const line = (label, val, opt) => `<div style="display:flex;justify-content:space-between;padding:.4rem 0;${opt?.border ? 'border-top:1.5px solid var(--gray);margin-top:.2rem;' : ''}">
+      <span style="${opt?.big ? 'font-weight:800;' : ''}">${label}</span>
+      <span style="font-weight:${opt?.big ? '800' : '700'};font-family:'Outfit';font-size:${opt?.big ? '1.15rem' : '1rem'};color:${opt?.minus ? '#c0392b' : (opt?.big ? 'var(--deep)' : 'inherit')};">${opt?.minus ? '−' : ''}${yen(Math.abs(Number(val) || 0))}</span></div>`;
+    // お預り金総額 → カード等を引いて現金 → 報酬を引いて手元、の順で追えるようにする
+    cashBox.innerHTML = `<div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;">
+      <div style="font-weight:700;margin-bottom:.2rem;">💰 現金（${escapeHtml(formatDate(d.date))}）</div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.4rem;">カード決済ぶんの報酬も、その日の現金から立て替えて渡します。</div>
+      ${line('お預り金総額', c.total)}
+      ${Number(c.credit) ? line('クレジット <span style="font-size:.74rem;color:var(--ink-soft);">店の口座へ・現金にならない</span>', c.credit, { minus: true }) : ''}
+      ${Number(c.bank) ? line('銀行振込 <span style="font-size:.74rem;color:var(--ink-soft);">店の口座へ</span>', c.bank, { minus: true }) : ''}
+      ${line('＝ 現金で受け取った額', c.received, { border: true })}
+      ${line('キャストへ渡した報酬' + (c.advanced ? ` <span style="font-size:.74rem;color:var(--ink-soft);">うちカード分の立て替え ${yen(c.advanced)}</span>` : ''), c.reward_paid, { minus: true })}
+      ${line('＝ 手元の現金', c.on_hand, { big: true, border: true, minus: Number(c.on_hand) < 0 })}
+    </div>`;
+
+    repBox.innerHTML = `<div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;">
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.35rem;">
+        <div style="font-weight:700;">📝 日報（社内報告用）</div>
+        <button class="sbtn" type="button" id="acRepCopy" style="padding:.35rem .8rem;font-size:.8rem;">📋 コピー</button>
+        <button class="sbtn" type="button" id="acRepReset" style="padding:.35rem .8rem;font-size:.8rem;">↺ 作り直す</button>
+        <span id="acRepMsg" style="font-size:.8rem;color:var(--ink-soft);"></span>
+      </div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.5rem;">当日欠勤・ドライバーの実働時間・末尾のメモは、ここで直してからコピーしてください。</div>
+      <textarea id="acRepText" style="width:100%;min-height:22rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem;line-height:1.7;padding:.7rem .8rem;border:1.5px solid var(--gray);border-radius:10px;"></textarea>
+    </div>`;
+    const ta = document.getElementById('acRepText');
+    ta.value = buildDailyReportText(d);
+    document.getElementById('acRepReset').addEventListener('click', () => {
+      ta.value = buildDailyReportText(d);
+      const m = document.getElementById('acRepMsg'); m.textContent = '作り直しました'; setTimeout(() => { m.textContent = ''; }, 2000);
+    });
+    document.getElementById('acRepCopy').addEventListener('click', async () => {
+      const ok = await copyTextToClipboard(ta.value);
+      const m = document.getElementById('acRepMsg');
+      m.textContent = ok ? '✓ コピーしました' : 'コピーに失敗しました';
+      setTimeout(() => { m.textContent = ''; }, 2500);
+    });
   }
 
   // --- ✅ 集金（日×スタッフ単位の受け渡し・双方確認） ---
@@ -7834,10 +9066,10 @@
     const fmt = (dt) => `${dt.getFullYear()}-${('0'+(dt.getMonth()+1)).slice(-2)}-${('0'+dt.getDate()).slice(-2)}`;
     let from, to;
     if (range === 'today') { from = to = new Date(y, m, d); }
-    else if (range === 'yesterday') {
+    else if (range === 'yesterday' || range === 'tomorrow') {
       const cur = document.getElementById('msFrom').value;
       const base = cur ? new Date(cur + 'T00:00:00') : new Date(y, m, d);
-      base.setDate(base.getDate() - 1);
+      base.setDate(base.getDate() + (range === 'tomorrow' ? 1 : -1));
       from = to = base;
     }
     else if (range === 'this-week') { const dow = (now.getDay() + 6) % 7; from = new Date(y, m, d - dow); to = new Date(y, m, d - dow + 6); }
@@ -7949,8 +9181,10 @@
         rewardTotal += Number(r.reward) || 0;
         if (isNonCash(r)) { settledTotal += sales; return; }  // カード/振込は現金を預からない（店の口座へ）
         if (r.settled) { settledTotal += sales; return; }
-        // 報酬確定済み（渡し済み/本人確保）なら、預り金として動くのは残額（入金分）だけ
-        const heldAmt = r.reward_paid_at ? sales - (Number(r.reward) || 0) : sales;
+        // 報酬確定済み（渡し済み/本人確保）なら、預り金として動くのは残額（入金分）だけ。
+        // 併用は現金で受け取ったぶんしか手元に無い
+        const cash = cashTakenOf(r);
+        const heldAmt = r.reward_paid_at ? cash - (Number(r.reward) || 0) : cash;
         if (r.held_by && Number(r.held_by) !== myId) {
           // 誰かに渡した（手元にない）
           handedTotal += heldAmt;
@@ -8144,7 +9378,8 @@
       html += `
       <div class="hotel-row" style="display:block;margin-bottom:.6rem;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;cursor:pointer;" data-pay-toggle="${detailId}">
-          <div style="font-weight:700;">${escapeHtml(t.name)} <span style="color:var(--ink-soft);font-weight:500;font-size:.85rem;">（歩合 ${parseFloat(t.rate)}%・${t.count}件）</span></div>
+          <!-- 歩合率は使わない運用なので出さない（報酬はマスタのコース別固定額・店長指定 2026-08-08） -->
+          <div style="font-weight:700;">${escapeHtml(t.name)} <span style="color:var(--ink-soft);font-weight:500;font-size:.85rem;">（${t.count}件）</span></div>
           <div style="display:flex;gap:1.2rem;align-items:baseline;">
             <span style="color:var(--ink-soft);font-size:.85rem;">対象 ${yen(t.base_total)}</span>
             <span style="font-weight:800;color:var(--coral);font-size:1.05rem;">${yen(t.reward_total)}</span>
@@ -8201,6 +9436,55 @@
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
     return d;
+  }
+
+  /**
+   * 💬 チャットタブ。YobuChat の店舗受信箱（/chat/{slug}/）を iframe で開く。
+   * 初回だけ src を入れる（タブを行き来するたびに読み直すと、入力中の返信が消えるため）。
+   * 下の loadChatInbox 以下は ylka から移植した独自UIの名残で、OPS には API が無く動かない。
+   * 呼び出し元はここだけだったので、今は使っていない（消すと参照が散らばっているため残置）。
+   */
+  async function openChatFrame() {
+    const f = document.getElementById('caFrame');
+    if (!f) return;
+    // 保存済みの受信箱URL（?owner_token= 付き）があればそれを使う。
+    // 別サイトの iframe には Cookie も localStorage も渡らないため、これが無いと訪問者画面になる
+    let url = '';
+    try {
+      const d = await api('/admin-api.php?action=setting-get&key=chat_inbox_url');
+      url = String(d.value || '').trim();
+    } catch (e) {}
+    const box = document.getElementById('caInboxUrl');
+    if (box && !box.value) box.value = url;
+    if (url) {
+      f.dataset.src = url;
+      const open = document.getElementById('caFrameOpen');
+      if (open) open.href = url;
+    }
+    if (!f.src && f.dataset.src) f.src = f.dataset.src;
+  }
+
+  async function saveChatInboxUrl() {
+    const box = document.getElementById('caInboxUrl');
+    if (!box) return;
+    const v = box.value.trim();
+    if (v && !/^https:\/\/[^\/]+\/chat\/[^\/]+\/?\?owner_token=[a-f0-9]{96}$/.test(v)) {
+      toast('URLの形式が違います。受信チャットの「🔗 管理画面用URL」でコピーしたものを貼ってください', 'err');
+      return;
+    }
+    try {
+      await apiPost('/admin-api.php?action=setting-set', { key: 'chat_inbox_url', value: v });
+      toast(v ? '✓ 保存しました。枠を読み込み直します' : '✓ 設定を消しました', 'ok');
+      const f = document.getElementById('caFrame');
+      if (f) {
+        const next = v || f.dataset.src;
+        f.dataset.src = next;
+        const open = document.getElementById('caFrameOpen');
+        if (open && v) open.href = v;
+        f.src = 'about:blank';
+        setTimeout(() => { f.src = next; }, 50);
+      }
+    } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
 
   async function loadChatInbox() {
@@ -8723,6 +10007,15 @@
     document.getElementById('caOnlineToggle')?.addEventListener('change', toggleChatOnline);
     document.getElementById('caSettings')?.addEventListener('click', openChatSettingsModal);
     document.getElementById('caPushBtn')?.addEventListener('click', toggleChatPush);
+    // 受信箱を読み込み直す（相手の新着が来ているのに反映されないときの手動更新）
+    document.getElementById('caInboxUrlSave')?.addEventListener('click', saveChatInboxUrl);
+    document.getElementById('caFrameReload')?.addEventListener('click', () => {
+      const f = document.getElementById('caFrame');
+      if (!f) return;
+      const src = f.src || f.dataset.src || '';
+      f.src = 'about:blank';
+      setTimeout(() => { f.src = src; }, 50);
+    });
     document.getElementById('caReplySend')?.addEventListener('click', sendChatReply);
     document.getElementById('caReplyText')?.addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendChatReply(); }
@@ -8828,6 +10121,7 @@
     try {
       const nf = await api('/admin-api.php?action=nomination-fees-get');
       if (nf && nf.nomination_fees) Object.assign(NOMINATION_FEES, nf.nomination_fees);
+      if (nf && nf.nomination_rewards) Object.assign(NOMINATION_REWARDS, nf.nomination_rewards);
     } catch (e) {}
     // 事務所の住所（ルート案内の既定の出発地）
     try {
@@ -8839,10 +10133,31 @@
     await loadPermissions();
     applyTabVisibility();
 
+    // 更新前に見ていた画面・日付に戻す（店長要望 2026-08-08）。
+    // 日付はタブを描く前に戻さないと、当日ぶんを読んでから読み直すことになる
+    let restoredView = '';
+    window._opsRestoredView = '';
+    try {
+      const savedDay = sessionStorage.getItem(DAY_KEY);
+      if (savedDay && /^\d{4}-\d{2}-\d{2}$/.test(savedDay)) {
+        const [yy, mm, dd] = savedDay.split('-').map(Number);
+        tlCurrentDate = new Date(yy, mm - 1, dd);
+        const dEl = document.getElementById('tlDatePicker');
+        if (dEl) dEl.value = savedDay;
+      }
+      const savedView = sessionStorage.getItem(VIEW_KEY);
+      // 見せてよいタブに限る（権限が変わっていても飛ばないように）
+      if (savedView && document.getElementById('view-' + savedView) && userCanSeeTab(savedView)) {
+        restoredView = savedView;
+        window._opsRestoredView = savedView;
+      }
+    } catch (e) { /* sessionStorage が使えない環境ではそのまま既定の動きにする */ }
+
     // キャスト(staff)は専用マイページに自動分岐
     if (currentUser?.role === 'staff') switchView('therapist');
-    // 店長(manager)はログイン直後に入口画面（マネージャー管理 / キャスト管理 の2択）
-    if (currentUser?.role === 'manager') showManagerEntry();
+    // 店長(manager)はログイン直後に入口画面（マネージャー管理 / キャスト管理 の2択）。
+    // ただし更新で戻ってきたときは、見ていた画面を優先する（実際の切替は init の最後）
+    else if (currentUser?.role === 'manager' && !restoredView) showManagerEntry();
     updateModeSwitch();
 
     // 支払方法ボタン（予約モーダル / クローン両対応）
@@ -8879,6 +10194,8 @@
     let filterTimer;
     document.getElementById('fCity').addEventListener('change', loadHotels);
     document.getElementById('fStatus').addEventListener('change', loadHotels);
+    document.getElementById('fHotelType')?.addEventListener('change', loadHotels);
+    document.getElementById('fSort')?.addEventListener('change', loadHotels);
     document.getElementById('fKeyword').addEventListener('input', () => {
       clearTimeout(filterTimer);
       filterTimer = setTimeout(loadHotels, 280);
@@ -8887,6 +10204,8 @@
       document.getElementById('fCity').value = '';
       document.getElementById('fStatus').value = '';
       document.getElementById('fKeyword').value = '';
+      if (document.getElementById('fHotelType')) document.getElementById('fHotelType').value = '';
+      if (document.getElementById('fSort')) document.getElementById('fSort').value = '';
       loadHotels();
     });
 
@@ -9045,8 +10364,15 @@
       b.addEventListener('click', () => closeModal(b.dataset.close));
     });
     // 通常モーダル (.transparent でない) は外クリックで閉じる
+    // ただし「モーダル内で押して外で離した（ドラッグ／文字選択）」では閉じない。
+    // click は押した所と離した所の共通祖先で発火するため、mousedown も overlay 自身か確認する
     document.querySelectorAll('.modal-overlay:not(.transparent)').forEach(m => {
-      m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+      let downOnOverlay = false;
+      m.addEventListener('pointerdown', e => { downOnOverlay = (e.target === m); });
+      m.addEventListener('click', e => {
+        if (e.target === m && downOnOverlay) m.classList.remove('show');
+        downOnOverlay = false;
+      });
     });
 
     // ============ 最小化機能（フッターチップに退避） ============
@@ -9058,16 +10384,9 @@
         minimizeModal(minBtn.dataset.minimize);
         return;
       }
-      // 透過モーダルの「外クリック」を document レベルで検出
-      // overlay は pointer-events:none なので、modal の外をクリックすると背景要素にイベントが行く
-      // 透過モーダルが開いていて、クリック先が .modal の内部でない場合は最小化
-      const openTransparent = document.querySelectorAll('.modal-overlay.transparent.show:not(.minimized)');
-      if (openTransparent.length === 0) return;
-      // ＿ ボタンや × はすでに上で処理済みなのでスルー
-      if (e.target.closest('.modal')) return;
-      if (e.target.closest('.min-card')) return;
-      // タイムライン領域なら最小化のみ（モーダルを邪魔にしない）
-      openTransparent.forEach(m => minimizeModal(m.id));
+      // 予約モーダル（透過）は外側を触っても最小化しない。
+      // 情報をコピーしている最中や、裏のタイムラインをドラッグしただけで
+      // 消えてしまうため、＿ / × / 閉じる / 保存 の操作でのみ閉じる（店長指定 2026-08-09）
     }, true);
 
     function minimizeModal(modalId) {
@@ -9191,12 +10510,12 @@
     document.getElementById('esSave').addEventListener('click', saveStaffEdit);
 
     // ========== Timeline / Bookings / Customers / Shifts events ==========
-    document.getElementById('tlPrev').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, -1); loadTimeline(); });
-    document.getElementById('tlToday').addEventListener('click', () => { tlCurrentDate = getBusinessDayDate(); loadTimeline(); });
-    document.getElementById('tlNext').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, 1); loadTimeline(); });
+    document.getElementById('tlPrev').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, -1); rememberPlace(); loadTimeline(); });
+    document.getElementById('tlToday').addEventListener('click', () => { tlCurrentDate = getBusinessDayDate(); rememberPlace(); loadTimeline(); });
+    document.getElementById('tlNext').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, 1); rememberPlace(); loadTimeline(); });
     document.getElementById('tlDatePicker').addEventListener('change', e => {
       const [y,m,d] = e.target.value.split('-').map(Number);
-      tlCurrentDate = new Date(y, m-1, d); loadTimeline();
+      tlCurrentDate = new Date(y, m-1, d); rememberPlace(); loadTimeline();
     });
     document.getElementById('tlAddBooking').addEventListener('click', () => openBookingForAdd({ date: tlPrefillDate() }));
     const tlCashSummaryBtn = document.getElementById('tlCashSummary');
@@ -9262,9 +10581,14 @@
     let cuTimer;
     document.getElementById('cuKeyword').addEventListener('input', () => { clearTimeout(cuTimer); cuTimer = setTimeout(loadCustomers, 300); });
     document.addEventListener('input', e => {
-      if (e.target.id === 'bmHomeAddress' || e.target.id === 'bmHomeAddress-2') {
-        const n = document.getElementById('bmUsualLocNote' + (e.target.id.endsWith('-2') ? '-2' : ''));
+      const id = e.target.id || '';
+      if (id === 'bmHomeAddress' || id === 'bmHomeAddress-2') {
+        const n = document.getElementById('bmUsualLocNote' + (id.endsWith('-2') ? '-2' : ''));
         if (n) n.style.display = 'none';
+      }
+      // 住所を打つそばから地図リンクを出し直す
+      if (/^(bmHomeAddress|bmOtherLoc)(-2)?$/.test(id)) {
+        withBmSuffix(id.endsWith('-2') ? '-2' : '', renderBmMapLinks);
       }
     });
     document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
@@ -9357,14 +10681,62 @@
     document.getElementById('opDelete')?.addEventListener('click', deleteOption);
     // オプションのチェック → 合計を再計算（動的生成なので委譲）
     document.addEventListener('change', e => {
+      if (e.target.name === 'bmOption' || e.target.name === 'bmOption-2') {
+        // 個数が入った項目は枠を色づけて、選ばれていることが一目で分かるようにする
+        e.target.closest('.bm-opt')?.classList.toggle('has-count', (parseInt(e.target.value, 10) || 0) > 0);
+      }
       if (e.target.name === 'bmOption') { updateBmOptionSum(); updateBookingTotal(); }
       else if (e.target.name === 'bmOption-2') withBmSuffix('-2', () => { updateBmOptionSum(); updateBookingTotal(); });
+      // 媒体チェック（メインモーダル）。クローン側(-2)にだけ配線があり、こちらが漏れていたため
+      // 媒体を選んでも ＋10分 が連動しなかった（店長指摘 2026-08-08）
+      else if (e.target.name === 'bmMedia') {
+        bmPlus10Touched[''] = false;   // 自動判定に戻す
+        withBmSuffix('', () => { syncDealBadges(); updateEndTime(); updateBookingTotal(); });
+      }
     });
     document.getElementById('coSave').addEventListener('click', saveCourse);
     document.getElementById('coDelete').addEventListener('click', deleteCourse);
     // ホテル管理（マスタ内から開く）
     document.getElementById('openHotelMgr')?.addEventListener('click', () => switchView('hotel'));
     document.getElementById('hotelBackToMaster')?.addEventListener('click', () => switchView('courses'));
+    // 自宅の交通費（マスタ内から開く）
+    document.getElementById('openCityFeeMgr')?.addEventListener('click', () => switchView('cityfee'));
+    document.getElementById('cityFeeBackToMaster')?.addEventListener('click', () => switchView('courses'));
+    document.querySelectorAll('input[name="cfRegion"]').forEach(r => r.addEventListener('change', () => {
+      cfState.region = r.value;
+      cfState.city = '';
+      renderCfCities();
+      renderCfTownPanel();
+    }));
+    document.getElementById('cfCityChips')?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cf-city]');
+      if (!b) return;
+      cfState.city = b.dataset.cfCity;
+      renderCfCities();
+      renderCfTownPanel();
+    });
+    // 金額を選んだら即保存（全域も町名も同じ経路。空=未設定に戻す）
+    document.getElementById('cfTownPanel')?.addEventListener('change', async (e) => {
+      const sel = e.target.closest('select[data-cf-fee]');
+      if (!sel || !cfState.city) return;
+      const city = cfState.city;
+      const town = sel.getAttribute('data-town') || '';
+      const raw = sel.value;
+      const label = town ? `${city} ${town}` : `${city}（全域）`;
+      try {
+        await apiPost('/admin-api.php?action=city-fee-set', { city, town, transport_fee: raw === '' ? null : Number(raw) });
+        if (!CITY_FEES[city]) CITY_FEES[city] = {};
+        if (raw === '') {
+          delete CITY_FEES[city][town];
+          if (!Object.keys(CITY_FEES[city]).length) delete CITY_FEES[city];
+        } else {
+          CITY_FEES[city][town] = Number(raw);
+        }
+        toast(raw === '' ? `✓ ${label} を未設定に戻しました` : `✓ ${label} を ¥${Number(raw).toLocaleString()} にしました`, 'ok');
+        renderCfCities();
+        renderCfTownPanel();
+      } catch (err) { toast('保存失敗: ' + err.message, 'err'); renderCfTownPanel(); }
+    });
     document.getElementById('openStationMgr')?.addEventListener('click', () => switchView('stations'));
     document.getElementById('stationBackToMaster')?.addEventListener('click', () => switchView('courses'));
     // 入室方法マスタ
@@ -9378,13 +10750,10 @@
     const permSaveBtn = document.getElementById('permSave');
     if (permSaveBtn) permSaveBtn.addEventListener('click', savePermissions);
 
-    // 開始時刻 select 構築 (0〜23 時、カレンダー日基準)
+    // 開始時刻 select 構築。並びは営業日と同じ 10時〜翌9時（店長要望 2026-08-08）。
+    // 0時始まりだと深夜の予約を入れるのに毎回いちばん下まで送ることになる
     const shSel = bel('bmStartHour');
-    let optHtml = '';
-    for (let h = 0; h < 24; h++) {
-      optHtml += `<option value="${h}">${('0'+h).slice(-2)}</option>`;
-    }
-    shSel.innerHTML = optHtml;
+    shSel.innerHTML = bizHourOptions();
     // 分 select 構築 (0〜59 分)
     const smSel = bel('bmStartMin');
     let minHtml = '';
@@ -9458,6 +10827,8 @@
     bel('bmPrice').addEventListener('input', updateBookingTotal);
     bel('bmTransport').addEventListener('change', updateBookingTotal);
     bel('bmDepositOverride')?.addEventListener('input', updateBookingTotal);
+    // 併用の現金額。入れるたびにカード側の額と上乗せを引き直す
+    bel('bmCashAmount')?.addEventListener('input', updateBookingTotal);
     // 休憩時間 select 変更
     const bdSel = bel('bmBreakDur');
     if (bdSel) bdSel.addEventListener('change', () => {
@@ -9478,7 +10849,8 @@
       r.addEventListener('change', () => { populateCitySelect(r.value); populateHotelSelect(bel('bmCity').value); });
     });
     // 市区町村変更 → ホテル絞り込み
-    bel('bmCity').addEventListener('change', e => { populateHotelSelect(e.target.value); onCityChangedForHome(); });
+    bel('bmCity').addEventListener('change', e => { populateHotelSelect(e.target.value); onCityChangedForHome(); loadBmTowns().then(applyHomeTransportFee); });
+    bel('bmTown')?.addEventListener('change', () => { onTownChangedForHome(); applyHomeTransportFee(); });
     // ホテル変更 → そのホテルの交通費を初期値に入れる
     bel('bmHotelId')?.addEventListener('change', e => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
     // ステータス変更 → キャンセル理由欄の表示制御＋合計注記更新
@@ -9524,16 +10896,25 @@
       if (sel) setStaffAttendance(Number(sel.getAttribute('data-admin')), sel.value);
     });
 
+    // タイムラインとタブバーを掴んで動かせるようにする（縦のページ送りはタイムラインだけ）
+    initDragScroll('.tl-wrap', true);
+    initDragScroll('.tab-nav', false);
     // コースを起動時に1回読み込んでおく（予約モーダル即応のため）
     ensureCoursesLoaded();
+    // オプションも起動時に。報酬の内訳（OP報酬）を出すのに要る＝タイムラインを開いた時点で必要
+    ensureOptionsLoaded();
     // 入室方法マスタを起動時にロード（select の選択肢で必要）
     loadEntryMethods();
 
     // チャット管理イベントバインド (owner のみ実質的に使う)
     bindChatEvents();
 
-    // 初期表示: タイムライン（店長は入口画面に着地するので自動ロードしない）
-    if (currentUser?.role !== 'manager') loadTimeline();
+    // 初期表示。更新で戻ってきたときは、見ていた画面へ最後に切り替える
+    // （途中で switchView すると、まだ組み立てていない部分を呼ぶ恐れがあるため最後に回す）
+    const back = window._opsRestoredView;
+    if (currentUser?.role === 'staff') { /* キャストは上でマイページに分岐済み */ }
+    else if (back) switchView(back);            // タイムラインでも switchView 経由で読み込む
+    else if (currentUser?.role !== 'manager') loadTimeline();
 
     // バックグラウンドで未読バッジ更新 (owner のみ)
     if (currentUser?.role === 'owner') {

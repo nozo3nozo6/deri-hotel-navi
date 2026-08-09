@@ -60,6 +60,8 @@ if ($action === 'hotels' && $method === 'GET') {
     $city    = trim($_GET['city'] ?? '');
     $keyword = trim($_GET['keyword'] ?? '');
     $status  = trim($_GET['status'] ?? '');  // ''=all, 'visited', 'inquiry', 'unavailable', 'unset'
+    $htype   = trim($_GET['hotel_type'] ?? '');  // ''=all, 'loveho', 'hotel'（店長要望 2026-08-08）
+    $sort    = trim($_GET['sort'] ?? '');        // ''=既定(実績→市区町村→名前), 'name', 'city', 'visited'
 
     $where  = ['h.is_published = 1'];
     $params = [];
@@ -78,6 +80,21 @@ if ($action === 'hotels' && $method === 'GET') {
     } elseif ($status === 'unset') {
         $where[] = 'yhi.status IS NULL';
     }
+    // hotel_type = 'love_hotel' がラブホ。それ以外(city/business/ryokan/minshuku/other)を「ホテル」として括る
+    if ($htype === 'loveho') {
+        $where[] = "h.hotel_type = 'love_hotel'";
+    } elseif ($htype === 'hotel') {
+        $where[] = "(h.hotel_type IS NULL OR h.hotel_type <> 'love_hotel')";
+    }
+
+    $orderBy = "FIELD(yhi.status, 'visited', 'inquiry', 'unavailable') ASC, h.city, h.name";
+    if ($sort === 'name') {
+        $orderBy = 'h.name';
+    } elseif ($sort === 'city') {
+        $orderBy = 'h.city, h.name';
+    } elseif ($sort === 'visited') {
+        $orderBy = 'COALESCE(yhi.visited_count, 0) DESC, h.name';
+    }
 
     $sql = "SELECT
                 h.id, h.name, h.address, h.city, h.major_area, h.detail_area,
@@ -93,7 +110,7 @@ if ($action === 'hotels' && $method === 'GET') {
             FROM ops_hotels h
             LEFT JOIN ops_ylka_hotel_info yhi ON yhi.hotel_id = h.id
             WHERE " . implode(' AND ', $where) . "
-            ORDER BY FIELD(yhi.status, 'visited', 'inquiry', 'unavailable') ASC, h.city, h.name
+            ORDER BY {$orderBy}
             LIMIT 500";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -283,14 +300,25 @@ if (($action === 'hotel-save') && $method === 'POST') {
         if (str_starts_with($addr, $pfx)) { $pref = $pfx; $addr = trim(mb_substr($addr, mb_strlen($pfx))); break; }
     }
 
+    // タイプ（ラブホ / シティ / ビジネス / 旅館 / 民宿 / その他）。一覧の絞り込みは love_hotel かどうかで分けている
+    $typeList = ['love_hotel', 'city', 'business', 'ryokan', 'minshuku', 'other'];
+    $rawType  = (string)($body['hotel_type'] ?? '');
+    $type     = in_array($rawType, $typeList, true) ? $rawType : null;
+
     if ($id > 0) {
-        $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');
-        $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $id]);
+        if ($type !== null) {
+            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, hotel_type=?, is_edited=1, updated_at=NOW() WHERE id=?');
+            $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $type, $id]);
+        } else {
+            // 未知の値が来たときは今の値を壊さない（画面が古い等）
+            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');
+            $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $id]);
+        }
         jsonResponse(['ok' => true, 'id' => $id]);
     }
     $st = $pdo->prepare("INSERT INTO ops_hotels (name, address, prefecture, city, hotel_type, source, tel, is_published, is_edited, created_at, updated_at)
-                         VALUES (?,?,?,?,'love_hotel','manual',?,1,1,NOW(),NOW())");
-    $st->execute([mb_substr($name, 0, 255), $addr, $pref, $city, $tel ?: null]);
+                         VALUES (?,?,?,?,?,'manual',?,1,1,NOW(),NOW())");
+    $st->execute([mb_substr($name, 0, 255), $addr, $pref, $city, $type ?? 'love_hotel', $tel ?: null]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
 }
 
@@ -386,7 +414,17 @@ if ($action === 'admin-update' && $method === 'POST') {
         $cols[] = 'can_drive = ?';
         $vals[] = !empty($body['can_drive']) ? 1 : 0;
     }
-    if (array_key_exists('is_therapist', $body)) {
+    // 兼任ルールの担保（店長指定 2026-08-07）: キャスト(staff)以外は「キャスト兼任」にしない。
+    // 編集画面の該当チェックは hidden で画面から外せないため、保存のたびに既存値がそのまま
+    // 書き戻され、一度立った is_therapist を消せなかった
+    //（2026-08-08 オーナーの宮時がOPSのキャスト欄に出続けた）。ここで最終的な役割を見て落とす。
+    $roleAfter = (array_key_exists('role', $body) && $body['role'] !== null)
+        ? (string) $body['role']
+        : (string) ($pdo->query('SELECT role FROM ops_admin_users WHERE id = ' . (int) $id)->fetchColumn() ?: '');
+    if ($roleAfter !== 'staff') {
+        $cols[] = 'is_therapist = ?';
+        $vals[] = 0;
+    } elseif (array_key_exists('is_therapist', $body)) {
         $cols[] = 'is_therapist = ?';
         $vals[] = !empty($body['is_therapist']) ? 1 : 0;
     }
@@ -412,9 +450,8 @@ if ($action === 'admin-update' && $method === 'POST') {
 // =================================================================
 // 報酬集計（owner / manager 専用）
 // キャスト報酬 = コース(price−深夜)×歩合 + 深夜料金(全額) + 出張費のキャスト取り分
-// 出張費: 自走分は全額キャスト。送迎(ドライバー割当)した片道ごとに max(出張費/2, 850円) を店が取得（上限=出張費総額）
+// 出張費: キャストが自走した片道ごとに「出張費の半分（50円単位に切り上げ）」を機動ボーナスとして支給
 // =================================================================
-// 出張費のキャスト取り分（送迎=ドライバー割当した片道は店が max(出張費/2,850) を取得、残りがキャスト）
 /**
  * 予約の menu_items（「ローター¥1,000 / バイブ¥1,000」形式のテキスト）から
  * オプションのキャスト報酬合計を出す。cast_reward 未設定のオプションは店の取り分＝0円。
@@ -442,18 +479,125 @@ function opsOptionReward(?string $menuItems): int {
     return $sum;
 }
 
+/**
+ * 出張費のキャスト取り分＝機動ボーナス（店長指定 2026-08-09）。admin.js の calcReward と同式。
+ *   行き帰りとも自走 … 出張費の全額（¥1,650 なら ¥1,650）
+ *   片道だけ自走     … 出張費の半分を50円単位に切り上げ（¥1,650 → 折半 ¥825 → ¥850）
+ * ドライバーが送迎した片道はお店の取り分なので 0。
+ * 片道ずつ切り上げて足すと往復が ¥1,700 になり出張費を超えるため、往復は満額とする。
+ */
 function ylkaTherapistTransport(int $transport, bool $goDriver, bool $backDriver): int {
     if ($transport <= 0) return 0;
-    $perLeg = max((int)floor($transport / 2), 850);
-    $shop = ($goDriver ? $perLeg : 0) + ($backDriver ? $perLeg : 0);
-    if ($shop > $transport) $shop = $transport; // 出張費総額を超えない
-    return $transport - $shop;
+    $selfLegs = ($goDriver ? 0 : 1) + ($backDriver ? 0 : 1);
+    if ($selfLegs === 2) return $transport;
+    if ($selfLegs === 1) return intdiv((int)ceil($transport / 2) + 49, 50) * 50;
+    return 0;
 }
-// キャスト報酬 = コース(price−深夜)×歩合 + 深夜全額 + 出張費のキャスト取り分
-function ylkaReward(int $price, int $late, int $transport, float $rate, bool $goDriver, bool $backDriver): int {
-    // 深夜料金: 帰りのお迎え(backDriver)があれば全額お店（深夜のドライバー手当のため）。なければ全額キャスト
-    $lateTherapist = $backDriver ? 0 : $late;
-    return (int)floor(($price - $late) * $rate / 100) + $lateTherapist + ylkaTherapistTransport($transport, $goDriver, $backDriver);
+/**
+ * コース名からマスタの「キャスト報酬」を引く（admin.js の courseCastReward と同式）。
+ * 保存名は「60分コース ＋10分」「90分コース ＋ 90分コース」の形になりうるので、
+ * ＋10分（LINE特典・無料）を落として ＋ で分解し、各コースの報酬を足す。
+ * ホテル料金を適用した予約は、そのコースの「ホテル料金のキャスト報酬」を使う。
+ * マスタに無いコースは null（＝報酬0円。マスタに入れるまで出さない）。
+ */
+function opsCourseCastReward(?string $courseName, bool $hotelApplied): ?int {
+    static $master = null;
+    $name = trim((string)$courseName);
+    if ($name === '') return null;
+    if ($master === null) {
+        $master = [];
+        try {
+            foreach (getPdo()->query('SELECT name, cast_reward, hotel_cast_reward FROM ops_courses') as $c) {
+                $master[trim((string)$c['name'])] = $c;
+            }
+        } catch (Throwable $e) { $master = []; }
+    }
+    $name  = preg_replace('/\s*＋\s*10\s*分\s*$/u', '', $name);
+    $parts = preg_split('/\s*[＋+]\s*/u', trim($name));
+    $total = null;
+    foreach ($parts as $nm) {
+        $nm = trim($nm);
+        if ($nm === '' || !isset($master[$nm])) continue;
+        $c = $master[$nm];
+        $v = null;
+        if ($hotelApplied && $c['hotel_cast_reward'] !== null && $c['hotel_cast_reward'] !== '') {
+            $v = (int)$c['hotel_cast_reward'];
+        } elseif ($c['cast_reward'] !== null && $c['cast_reward'] !== '') {
+            $v = (int)$c['cast_reward'];
+        }
+        if ($v !== null) $total = (int)$total + $v;
+    }
+    return $total;
+}
+
+/**
+ * 走行距離の表示（30 → "30" / 12.5 → "12.5"）。
+ * rtrim で末尾の 0 を落とすと 30 が 3 になるので、小数があるときだけ整える
+ */
+function opsKmText(float $km): string {
+    return (fmod($km, 1.0) == 0.0) ? (string)(int)$km : rtrim(rtrim(number_format($km, 1, '.', ''), '0'), '.');
+}
+
+/** 指名区分ごとのキャスト報酬（マスタタブで設定）。1リクエスト内は読み直さない */
+function opsNominationReward(?string $type): int {
+    static $cache = null;
+    if ($cache === null) {
+        try { $cache = getNominationRewards(getPdo()); }
+        catch (Throwable $e) { $cache = ['first' => 0, 'regular' => 0, 'free' => 0]; }
+    }
+    return (int)($cache[(string)$type] ?? 0);
+}
+
+/**
+ * コースの本数。組み合わせ（90分コース ＋ 90分コース）は2本。
+ * 指名料も指名の報酬も、この本数ぶんかかる（店長指定 2026-08-08）。
+ * ＋10分は LINE 特典の無料延長なので本数に数えない。admin.js の courseUnitCount と同式
+ */
+/**
+ * 延長1回あたりのキャスト報酬。コースマスタの「延長」を含むコースから引く。
+ * 延長はコース選択肢から外してあるので course_name には現れず、extension_count で数える
+ *（店長指摘 2026-08-08: 延長の報酬が入っていなかった）
+ */
+function opsExtensionRewardUnit(): int {
+    static $v = null;
+    if ($v === null) {
+        $v = 0;
+        try {
+            foreach (getPdo()->query("SELECT name, cast_reward FROM ops_courses") as $c) {
+                if (mb_strpos((string)$c['name'], '延長') !== false && $c['cast_reward'] !== null && $c['cast_reward'] !== '') {
+                    $v = (int)$c['cast_reward'];
+                    break;
+                }
+            }
+        } catch (Throwable $e) { $v = 0; }
+    }
+    return $v;
+}
+
+function opsCourseUnitCount(?string $courseName): int {
+    $n = trim((string)$courseName);
+    if ($n === '') return 1;
+    $n = preg_replace('/\s*＋\s*10\s*分\s*$/u', '', $n);
+    $parts = array_filter(array_map('trim', preg_split('/\s*[＋+]\s*/u', trim($n))), fn($s) => $s !== '');
+    return max(1, count($parts));
+}
+
+/**
+ * 予約1件のキャスト報酬。**画面(admin.js の calcReward)と必ず同じ式にすること**。
+ *   コース報酬（マスタ固定額）＋ オプション報酬 ＋ 指名料の報酬 ＋ 深夜料金 ＋ 機動ボーナス
+ * 歩合率(%)は使わない（店長方針 2026-08-05: 報酬はコース管理の固定額のみ）。
+ * 深夜料金は帰りのお迎えがあれば全額お店（ドライバー手当のため）。
+ */
+function ylkaReward(array $r): int {
+    $late  = (int)($r['late_fee'] ?? 0);
+    $trans = (int)($r['transport_fee'] ?? 0);
+    $back  = !empty($r['back_driver_id']);
+    return (int)(opsCourseCastReward($r['course_name'] ?? null, (int)($r['hotel_price_applied'] ?? 0) === 1) ?? 0)
+         + opsOptionReward($r['menu_items'] ?? null)
+         + opsNominationReward($r["nomination_type"] ?? null) * opsCourseUnitCount($r["course_name"] ?? null)
+         + opsExtensionRewardUnit() * (int)($r["extension_count"] ?? 0)
+         + ($back ? 0 : $late)
+         + ylkaTherapistTransport($trans, !empty($r['driver_id']), $back);
 }
 // クレジット決済のカード手数料のうち「キャスト負担分」= 売上全額 ×（手数料率 ÷ 2）%。
 // カード手数料（平均3%）はお店とキャストで半分ずつ負担（各1.5%）。現金・振込は0。
@@ -474,7 +618,7 @@ function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
     if (isset($r['reward_override']) && $r['reward_override'] !== null && $r['reward_override'] !== '') {
         return [$sales, (int)$r['reward_override']];
     }
-    $reward = ylkaReward((int)($r['price'] ?? 0), (int)($r['late_fee'] ?? 0), (int)($r['transport_fee'] ?? 0), (float)($r['commission_rate'] ?? 0), !empty($r['driver_id']), !empty($r['back_driver_id']));
+    $reward = ylkaReward($r);
     $reward -= ylkaCardFeeTherapist($sales, $r['payment_method'] ?? null, $cardFeeRate);
     return [$sales, $reward];
 }
@@ -501,7 +645,8 @@ if ($action === 'payroll' && $method === 'GET') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   errorResponse('invalid to', 400);
 
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.assigned_admin_id,
-                   b.customer_name_snapshot, b.course_name, b.menu_items, b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
+                   b.customer_name_snapshot, b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.payment_method,
                    b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override,
                    au.display_name, au.username, au.commission_rate, au.sort_order
             FROM ops_bookings b
@@ -537,7 +682,10 @@ if ($action === 'payroll' && $method === 'GET') {
         // オプション（ローター等）のキャスト報酬。menu_items のテキストに残した名前で
         // ops_options を引き、cast_reward が設定されているものだけ加算する（未設定＝店の取り分）。
         $optionReward = opsOptionReward($r['menu_items'] ?? null);
-        $courseReward = (int)floor($courseFee * $rate / 100) + $optionReward;
+        // コース報酬はマスタの固定額（歩合率は使わない・店長方針 2026-08-05）＋ 指名料の報酬
+        $courseReward = (int)(opsCourseCastReward($r['course_name'] ?? null, (int)($r['hotel_price_applied'] ?? 0) === 1) ?? 0)
+                      + $optionReward + opsNominationReward($r["nomination_type"] ?? null) * opsCourseUnitCount($r["course_name"] ?? null)
+                      + opsExtensionRewardUnit() * (int)($r["extension_count"] ?? 0);
         $tTherapist = ylkaTherapistTransport($trans, $hasGo, $hasBack);
         $lateTherapist = $hasBack ? 0 : $late;   // 帰りお迎えあり→深夜料金は店
         $cardFeeSelf = ylkaCardFeeTherapist($base, $r['payment_method'] ?? null, $cardRate); // カード決済のキャスト負担
@@ -579,6 +727,7 @@ if ($action === 'payroll' && $method === 'GET') {
             'transport_shop' => $trans - $tTherapist,
             'card_fee_self'  => $cardFeeSelf,
             'payment_method' => $r['payment_method'] ?? null,
+            'cash_amount'    => isset($r['cash_amount']) ? (int)$r['cash_amount'] : null,
             'has_driver'     => ($hasGo || $hasBack),
             'has_back_driver'=> $hasBack,
         ];
@@ -649,8 +798,22 @@ function getNominationFees(PDO $pdo): array {
     return $out;
 }
 
+/** 指名区分ごとの「キャスト報酬」。お客様からいただく指名料とは別に設定する（店長要望 2026-08-08） */
+function getNominationRewards(PDO $pdo): array {
+    $out = ['first' => 0, 'regular' => 0, 'free' => 0];
+    $st = $pdo->prepare("SELECT setting_key, setting_value FROM ops_admin_settings
+                          WHERE setting_key IN ('nomination_reward_first','nomination_reward_regular','nomination_reward_free')");
+    $st->execute();
+    foreach ($st->fetchAll() as $row) {
+        $out[str_replace('nomination_reward_', '', $row['setting_key'])] = (int)$row['setting_value'];
+    }
+    return $out;
+}
+
 // 汎用の店舗設定（許可キーのみ）。いまは事務所の住所（ルート案内の既定の出発地）。
-const OPS_SETTING_KEYS = ['office_address'];
+// chat_inbox_url: YobuChat の店舗受信箱を枠内に出すための URL（?owner_token= 付き）。
+// 別ドメインなので Cookie も localStorage も共有されず、これが無いと訪問者画面しか出せない
+const OPS_SETTING_KEYS = ['office_address', 'chat_inbox_url'];
 
 if ($action === 'setting-get' && $method === 'GET') {
     $k = (string)($_GET['key'] ?? '');
@@ -672,19 +835,132 @@ if ($action === 'setting-set' && $method === 'POST') {
 }
 
 if ($action === 'nomination-fees-get' && $method === 'GET') {
-    jsonResponse(['nomination_fees' => getNominationFees($pdo)]);
+    jsonResponse([
+        'nomination_fees'    => getNominationFees($pdo),
+        'nomination_rewards' => getNominationRewards($pdo),
+    ]);
 }
 
 if ($action === 'nomination-fees-set' && $method === 'POST') {
     requireOwnerOrManager();
     $body = json_decode(file_get_contents('php://input'), true);
-    $fees = $body['nomination_fees'] ?? [];
+    $fees    = $body['nomination_fees'] ?? [];
+    $rewards = $body['nomination_rewards'] ?? null;   // 送られてこなければ据え置き
+    $save = $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES (?, ?)
+                           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
     foreach (['first', 'regular', 'free'] as $type) {
-        $v = max(0, (int)($fees[$type] ?? 0));
-        $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES (?, ?)
-                       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")->execute(['nomination_fee_' . $type, (string)$v]);
+        $save->execute(['nomination_fee_' . $type, (string)max(0, (int)($fees[$type] ?? 0))]);
+        if (is_array($rewards)) {
+            $save->execute(['nomination_reward_' . $type, (string)max(0, (int)($rewards[$type] ?? 0))]);
+        }
     }
-    jsonResponse(['ok' => true, 'nomination_fees' => getNominationFees($pdo)]);
+    jsonResponse([
+        'ok'                 => true,
+        'nomination_fees'    => getNominationFees($pdo),
+        'nomination_rewards' => getNominationRewards($pdo),
+    ]);
+}
+
+// =================================================================
+// 自宅の交通費マスタ（市区町村ごと）— 店長要望 2026-08-08
+//   ホテルは ops_ylka_hotel_info.transport_fee（ホテル1軒ごと）と連動。
+//   自宅・オフィスはホテルが無いので、市区町村を選んだ時点でここの金額を入れる。
+// =================================================================
+if ($action === 'city-fees' && $method === 'GET') {
+    // 登録済みの金額 + 選択肢に出す市区町村（ホテルの登録がある市区町村）をまとめて返す。
+    // fees は { 市区町村: { "": 全域の額, 町名: その町の額, ... } }。town="" が市区町村全体。
+    $fees = [];
+    foreach ($pdo->query('SELECT city, town, transport_fee FROM ops_city_transport_fees ORDER BY city, town') as $r) {
+        $fees[$r['city']][$r['town']] = (int)$r['transport_fee'];
+    }
+    $cities = [];
+    foreach ($pdo->query("SELECT DISTINCT city FROM ops_hotels WHERE is_published = 1 AND city <> '' ORDER BY city") as $r) {
+        $cities[] = $r['city'];
+    }
+    // マスタにだけあって、ホテルが無くなった市区町村も選択肢に残す（設定が迷子にならないように）
+    foreach (array_keys($fees) as $c) {
+        if (!in_array($c, $cities, true)) $cities[] = $c;
+    }
+    sort($cities);
+    jsonResponse(['fees' => $fees, 'cities' => $cities]);
+}
+
+if ($action === 'city-fee-set' && $method === 'POST') {
+    requireOwnerOrManager();
+    $body = json_decode(file_get_contents('php://input'), true);
+    $city = trim((string)($body['city'] ?? ''));
+    $town = trim((string)($body['town'] ?? ''));   // '' = 市区町村全体
+    if ($city === '') errorResponse('city required', 400);
+    // fee を空/null で送ると、その設定を消す（未設定に戻す）
+    if (!array_key_exists('transport_fee', $body) || $body['transport_fee'] === '' || $body['transport_fee'] === null) {
+        $pdo->prepare('DELETE FROM ops_city_transport_fees WHERE city = ? AND town = ?')->execute([$city, $town]);
+        jsonResponse(['ok' => true, 'city' => $city, 'town' => $town, 'transport_fee' => null]);
+    }
+    $fee = max(0, (int)$body['transport_fee']);
+    $pdo->prepare('INSERT INTO ops_city_transport_fees (city, town, transport_fee) VALUES (?, ?, ?)
+                   ON DUPLICATE KEY UPDATE transport_fee = VALUES(transport_fee)')->execute([$city, $town, $fee]);
+    jsonResponse(['ok' => true, 'city' => $city, 'town' => $town, 'transport_fee' => $fee]);
+}
+
+if ($action === 'city-towns' && $method === 'GET') {
+    // 市区町村の町名一覧。初回は Geolonia 住所データ（国土交通省 位置参照情報ベースの公開データ）から
+    // 取得して ops_city_towns にキャッシュし、以後はDBから返す（外部が落ちていても動く）。
+    // 丁目は畳む（曙町一丁目/二丁目 → 曙町）。並びは元データの順＝あいうえお順をそのまま保つ。
+    // 各町に立川駅からの直線距離 km を付けて返す（マスタの表示用。緯度経度は丁目の平均）。
+    $city = trim($_GET['city'] ?? '');
+    if ($city === '') errorResponse('city required', 400);
+
+    // 立川駅からの直線距離（km・小数1桁）。lat/lng が無い行は null
+    $kmFromTachikawa = static function ($lat, $lng): ?float {
+        if ($lat === null || $lng === null) return null;
+        $la1 = deg2rad(35.69794); $la2 = deg2rad((float)$lat);
+        $dLa = deg2rad((float)$lat - 35.69794); $dLo = deg2rad((float)$lng - 139.41395);
+        $a = sin($dLa / 2) ** 2 + cos($la1) * cos($la2) * sin($dLo / 2) ** 2;
+        return round(6371.0 * 2 * atan2(sqrt($a), sqrt(1 - $a)), 1);
+    };
+
+    $st = $pdo->prepare('SELECT town, lat, lng FROM ops_city_towns WHERE city = ? ORDER BY sort_order, town');
+    $st->execute([$city]);
+    $cached = $st->fetchAll();
+    if ($cached !== []) {
+        $towns = array_map(static fn ($r) => ['name' => $r['town'], 'km' => $kmFromTachikawa($r['lat'], $r['lng'])], $cached);
+        jsonResponse(['city' => $city, 'towns' => $towns, 'cached' => true]);
+    }
+
+    $pf = $pdo->prepare("SELECT prefecture FROM ops_hotels WHERE city = ? AND prefecture <> '' LIMIT 1");
+    $pf->execute([$city]);
+    $pref = (string)($pf->fetchColumn() ?: '東京都');
+    $url = 'https://geolonia.github.io/japanese-addresses/api/ja/'
+         . rawurlencode($pref) . '/' . rawurlencode($city) . '.json';
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 15, CURLOPT_FOLLOWLOCATION => true]);
+    $bodyRaw = curl_exec($ch);
+    curl_close($ch);
+    $rows = json_decode((string)$bodyRaw, true);
+    if (!is_array($rows)) jsonResponse(['city' => $city, 'towns' => [], 'error' => 'town list fetch failed']);
+    // 丁目を畳みつつ緯度経度を平均して町の代表点にする
+    $agg = [];   // name => [latSum, lngSum, n, order]
+    $order = 0;
+    foreach ($rows as $r) {
+        $t = trim((string)preg_replace('/[一二三四五六七八九十〇]+丁目$/u', '', (string)($r['town'] ?? '')));
+        $t = (string)preg_replace('/^大字/u', '', $t);   // 「大字箱根ケ崎」→「箱根ケ崎」。表記として不要（店長指定 2026-08-08）
+        if ($t === '') continue;
+        if (!isset($agg[$t])) $agg[$t] = [0.0, 0.0, 0, $order++];
+        if (isset($r['lat'], $r['lng'])) {
+            $agg[$t][0] += (float)$r['lat'];
+            $agg[$t][1] += (float)$r['lng'];
+            $agg[$t][2]++;
+        }
+    }
+    $ins = $pdo->prepare('INSERT IGNORE INTO ops_city_towns (city, town, sort_order, lat, lng) VALUES (?, ?, ?, ?, ?)');
+    $towns = [];
+    foreach ($agg as $t => [$latSum, $lngSum, $n, $ord]) {
+        $lat = $n ? $latSum / $n : null;
+        $lng = $n ? $lngSum / $n : null;
+        $ins->execute([$city, $t, $ord, $lat, $lng]);
+        $towns[] = ['name' => $t, 'km' => $kmFromTachikawa($lat, $lng)];
+    }
+    jsonResponse(['city' => $city, 'towns' => $towns, 'cached' => false]);
 }
 
 // =================================================================
@@ -732,7 +1008,7 @@ if ($action === 'driver-day' && $method === 'GET') {
     // このドライバーが現在保有している預り金（未精算）
     $cardRate = getCardFeeRate($pdo);
     $cst = $pdo->prepare(
-        "SELECT b.id, b.customer_name_snapshot, b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id,
+        "SELECT b.id, b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id,
                 b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, b.settle_kind,
                 au.commission_rate, au.display_name AS therapist_name, au.username AS therapist_username
          FROM ops_bookings b
@@ -834,20 +1110,28 @@ if ($action === 'accounting-summary' && $method === 'GET') {
 
     // 売上（支払方法別）。card は旧データ互換でクレジット扱い
     $sales = ['cash' => 0, 'credit' => 0, 'bank' => 0, 'unset' => 0, 'total' => 0, 'count' => 0];
-    $st = $pdo->prepare("SELECT payment_method, COUNT(*) AS cnt, COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END),0) AS amt
+    // 併用(split)は1件の中に現金とクレジットが混ざるので、合計ではなく1件ずつ振り分ける
+    $st = $pdo->prepare("SELECT payment_method, cash_amount,
+                                CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0)
+                                     ELSE price + COALESCE(transport_fee,0) + COALESCE(card_fee,0) END AS amt
                          FROM ops_bookings
-                         WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak
-                         GROUP BY payment_method");
+                         WHERE (status NOT IN ('cancelled','no_show','inquiry') OR (status='cancelled' AND cancellation_reason_type='customer')) AND $bizDay BETWEEN ? AND ?$tCond$noBreak");
     $st->execute(array_merge([$from, $to], $tArg));
     foreach ($st->fetchAll() as $r) {
         $amt = (int)$r['amt'];
         $pm = $r['payment_method'];
-        if ($pm === 'cash') $sales['cash'] += $amt;
+        if ($pm === 'split') {
+            // 現金で受け取った額と、残り（＝カードで切った額）に分ける
+            $cash = min($amt, max(0, (int)$r['cash_amount']));
+            $sales['cash']   += $cash;
+            $sales['credit'] += $amt - $cash;
+        }
+        elseif ($pm === 'cash') $sales['cash'] += $amt;
         elseif ($pm === 'credit' || $pm === 'card') $sales['credit'] += $amt;
         elseif ($pm === 'bank') $sales['bank'] += $amt;
         else $sales['unset'] += $amt;
         $sales['total'] += $amt;
-        $sales['count'] += (int)$r['cnt'];
+        $sales['count']++;
     }
     // 料金内訳（コース料金 / 深夜料金 / 出張費）— 売上と同じ絞り込み条件。price=コース+深夜が合算済みなので course=price−late
     $bt = $pdo->prepare("SELECT COALESCE(SUM(CASE WHEN status='cancelled' THEN COALESCE(cancellation_fee,0) ELSE price - COALESCE(late_fee,0) END),0) AS course,
@@ -861,11 +1145,14 @@ if ($action === 'accounting-summary' && $method === 'GET') {
     $breakdown = ['course' => (int)$bd['course'], 'late' => (int)$bd['late'], 'transport' => (int)$bd['transport'], 'card' => (int)$bd['card']];
 
     $rate = getCardFeeRate($pdo);
-    // 手数料はクレジットのみ
-    $cardFee = (int)floor($sales['credit'] * $rate / 100);
+    // カード会社へ払う手数料は、お客様からいただいた上乗せ分と「同額」で計上して相殺する。
+    // 実際の料率は約8%で、上乗せの10%とだいたい同じになるため（店長指定 2026-08-08）。
+    // 厳密な経理は弥生会計側で行うので、OPSでは「カード決済でも店の取り分は変わらない」と見なす。
+    // ※ 決済額×料率で出すと上乗せ分にも手数料がかかって数百円ズレ、日々の確認がしづらかった
+    $cardFee = $breakdown['card'];
 
     // 報酬合計
-    $rwst = $pdo->prepare("SELECT b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+    $rwst = $pdo->prepare("SELECT b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
                            FROM ops_bookings b JOIN ops_admin_users au ON au.id = b.assigned_admin_id
                            WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.assigned_admin_id IS NOT NULL
                              AND $bizDayB BETWEEN ? AND ?$tCondB$noBreakB");
@@ -962,7 +1249,7 @@ if ($action === 'settlements' && $method === 'GET') {
     $tCondB = $tid ? ' AND b.assigned_admin_id = ?' : '';
     $tArg = $tid ? [$tid] : [];
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by,
                    au.display_name, au.username, au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username,
@@ -995,7 +1282,7 @@ if ($action === 'settlements' && $method === 'GET') {
             'therapist' => $r['display_name'] ?: ($r['username'] ?: '(未割当)'),
             'customer'  => $r['customer_name_snapshot'],
             'course'    => $r['course_name'],
-            'payment_method' => $r['payment_method'],
+            'payment_method' => $r['payment_method'], 'cash_amount' => isset($r['cash_amount']) ? (int)$r['cash_amount'] : null,
             'sales'     => $sales,
             'reward'    => $reward,
             'shop_amount' => $shop,
@@ -1209,36 +1496,218 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
 // 現金まとめサマリー
 //   uncollected: 予約として成立しているぶん（キャンセル/無連絡/問合せ以外）& shop_settled=0
 //   — 誰が預り金を持っているか。売上・集金と同じ条件（店長指定 2026-08-06「予約で売上計上」）
-//   日付では絞らない。現金は営業日をまたいで手元に残るため、未精算のぶんは
-//   いつのお仕事でも「いま持っている人」として出す（店長指摘 2026-08-07:
-//   当日で絞ったら 8/4 の ¥31,900 が誰の手元にも見えなくなった）。
-//   date= を渡した場合だけその営業日に絞る。
+//   現金は営業日ごとに締める。繰越は無い（店長指定 2026-08-08）ので、
+//   画面は必ず date= を付けて呼び、その営業日ぶんだけを出す。
+//   date= 無しは全期間（他の用途向け）。前の日ぶんはタイムラインでその日に戻れば見られる。
 // =================================================================
 if ($action === 'cash-summary' && $method === 'GET') {
     requireOwnerOrManager();
     $bizDate = (string)($_GET['date'] ?? '');
     $hasDate = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $bizDate);
     $bizDay = ylkaBizDayExpr('b');
-    // 出回っている現金（誰がいくら持っているか）: 現金決済のみ・休憩除外。報酬確定済みは残額をクライアントで計算
+    // 出回っている現金（誰がいくら持っているか）。休憩は除外。報酬確定済みは残額をクライアントで計算。
+    // クレジット・振込の予約も返す: そのぶんの報酬も「当日預かった現金から立て替えて」キャストへ渡す
+    // 運用のため（店長指定 2026-08-08）。現金の入りは0・報酬の出だけがあるので、手元がマイナスになりうる。
+    // 決済方法で絞ると、立て替えたぶんが画面から消えて現金が合わなくなる。
     $st = $pdo->prepare("
-        SELECT b.id, b.booking_date, b.start_time, b.price, b.late_fee, b.transport_fee,
-               b.assigned_admin_id, b.held_by, b.driver_id, b.back_driver_id, b.reward_paid_at, b.payment_method,
+        SELECT b.id, b.booking_date, b.start_time, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount,
+               b.course_name, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.extension_count,
+               b.assigned_admin_id, b.held_by, b.driver_id, b.back_driver_id, b.reward_paid_at, b.reward_paid_by, b.payment_method,
                b.customer_name_snapshot,
                u.display_name  AS therapist_name,  u.username  AS therapist_username,  u.commission_rate,
-               h.display_name  AS holder_name,     h.username  AS holder_username
+               h.display_name  AS holder_name,     h.username  AS holder_username,
+               rp.display_name AS reward_paid_by_name
         FROM ops_bookings b
         LEFT JOIN ops_admin_users u ON u.id = b.assigned_admin_id
         LEFT JOIN ops_admin_users h ON h.id = b.held_by
+        LEFT JOIN ops_admin_users rp ON rp.id = b.reward_paid_by
         WHERE (b.status NOT IN ('cancelled','no_show','inquiry')
                OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))
           AND b.shop_settled = 0
           " . ($hasDate ? "AND $bizDay = ?" : '') . "
-          AND (b.payment_method IS NULL OR b.payment_method NOT IN ('credit','card','bank'))" . ylkaExcludeBreakSql('b') . "
+          " . ylkaExcludeBreakSql('b') . "
         ORDER BY b.booking_date DESC, b.start_time DESC
     ");
     $st->execute($hasDate ? [$bizDate] : []);
+    $rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
-    jsonResponse(['uncollected' => $st->fetchAll(PDO::FETCH_ASSOC), 'biz_date' => $hasDate ? $bizDate : null]);
+    // 受け渡しの履歴（誰から誰へ現金が動いたか）。保有者だけ見ても
+    // 「自分は◯◯さんに渡した」が確かめられないため一緒に返す（店長要望 2026-08-08）
+    $handoffs = [];
+    $ids = array_values(array_filter(array_map(fn($r) => (int)$r['id'], $rows)));
+    if ($ids) {
+        $place = implode(',', array_fill(0, count($ids), '?'));
+        $hst = $pdo->prepare("SELECT id, booking_id, from_admin_id, to_admin_id, created_at
+                              FROM ops_booking_handoffs WHERE booking_id IN ($place) ORDER BY booking_id, id");
+        $hst->execute($ids);
+        $handoffs = $hst->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // 内勤・ドライバーの勤務実績（日報の「増田22:00～1:00(3H30km)」用）。
+    // 一日の締めをする画面で一緒に入れられるよう、現金まとめに同梱する（店長要望 2026-08-08）
+    $logs = [];
+    if ($hasDate) {
+        $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km FROM ops_driver_logs WHERE work_date = ?");
+        $lg->execute([$bizDate]);
+        foreach ($lg->fetchAll() as $r) {
+            $logs[(int)$r['driver_id']] = [
+                'clock_in'    => substr((string)$r['clock_in'], 0, 5),
+                'clock_out'   => substr((string)$r['clock_out'], 0, 5),
+                'distance_km' => ($r['distance_km'] === null) ? '' : opsKmText((float)$r['distance_km']),
+            ];
+        }
+    }
+
+    jsonResponse(['uncollected' => $rows, 'handoffs' => $handoffs, 'driver_logs' => $logs, 'biz_date' => $hasDate ? $bizDate : null]);
+}
+
+// =================================================================
+// 日報（社内報告用）— 店長要望 2026-08-08
+//   毎日 LINE 等に貼る定型文をそのまま作る。分かるところだけ埋めて返し、
+//   当日欠勤・ドライバーの実働時間・メモは画面側で手直ししてもらう前提。
+//   現金は「入った − 出た ＝ 手元」の3行。カード決済ぶんの報酬も現金から立て替えるので、
+//   立て替え額を別に返して内訳が分かるようにする。
+// =================================================================
+if ($action === 'daily-report' && $method === 'GET') {
+    requireOwnerOrManager();
+    $date = (string)($_GET['date'] ?? date('Y-m-d'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) errorResponse('invalid date', 400);
+    $bizDay = ylkaBizDayExpr('b');
+    $next   = date('Y-m-d', strtotime($date . ' +1 day'));
+
+    // --- その日の予約（キャスト別の売上・本数、現金の出入り） ---
+    $st = $pdo->prepare(
+        "SELECT b.assigned_admin_id, b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
+                b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.payment_method,
+                b.driver_id, b.back_driver_id, b.reward_paid_at, b.reward_override,
+                b.status, b.cancellation_fee, b.cancellation_reward,
+                u.display_name, u.username
+           FROM ops_bookings b
+           LEFT JOIN ops_admin_users u ON u.id = b.assigned_admin_id
+          WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status='cancelled' AND b.cancellation_reason_type='customer'))
+            AND $bizDay = ?" . ylkaExcludeBreakSql('b')
+    );
+    $st->execute([$date]);
+    // 日報に載せる金額は「入金分（お客様総額 − キャスト報酬）」＝店に入るぶん（店長指定 2026-08-08）。
+    // お預り金総額（お客様からいただいた全額）は現金の欄で使うので別に持つ
+    $byCast = []; $salesTotal = 0; $shopTotal = 0; $bookingCount = 0;
+    $cashIn = 0; $rewardPaid = 0; $advanced = 0; $creditIn = 0; $bankIn = 0;
+    foreach ($st->fetchAll() as $r) {
+        [$sales, $reward] = ylkaRowSalesReward($r, 0.0);
+        $shop = $sales - $reward;
+        $aid = (int)$r['assigned_admin_id'];
+        $nm  = $r['display_name'] ?: ($r['username'] ?: '(未割当)');
+        if (!isset($byCast[$aid])) $byCast[$aid] = ['name' => $nm, 'sales' => 0, 'count' => 0];
+        $byCast[$aid]['sales'] += $shop;
+        $byCast[$aid]['count']++;
+        $salesTotal += $sales;
+        $shopTotal  += $shop;
+        $bookingCount++;
+        // 現金の出入り: カード・振込は入りなし。報酬は決済方法に関わらず現金から渡す
+        $pm = (string)$r['payment_method'];
+        $isCash = !in_array($pm, ['credit', 'card', 'bank'], true);
+        $in = $isCash ? (($pm === 'split') ? min($sales, max(0, (int)$r['cash_amount'])) : $sales) : 0;
+        $cashIn += $in;
+        // 現金にならなかったぶん（併用の残りはカードで切った額）
+        if ($pm === 'bank') $bankIn += $sales;
+        else $creditIn += $sales - $in;
+        if ($r['reward_paid_at']) {
+            $rw = ylkaReward($r);
+            $rewardPaid += $rw;
+            if ($in === 0) $advanced += $rw;   // 現金の入りが無いのに渡した＝立て替え
+        }
+    }
+
+    // --- 出勤（キャスト / 内勤・ドライバー）。その日と翌日 ---
+    $shiftOf = function (string $d) use ($pdo) {
+        // 休み(off)のキャストも返す。日報は「りお休み」のように休んだ人も載せるため
+        //（当日欠勤という区分は設けず休みで表す・店長指定 2026-08-08）
+        $q = $pdo->prepare(
+            "SELECT s.status, s.start_time, s.end_time, u.id, u.display_name, u.username, u.role, u.is_therapist, u.is_office, u.can_drive
+               FROM ops_shifts s JOIN ops_admin_users u ON u.id = s.admin_user_id
+              WHERE s.shift_date = ?
+              ORDER BY s.start_time, u.sort_order, u.id"
+        );
+        $q->execute([$d]);
+        $casts = []; $staff = [];
+        foreach ($q->fetchAll() as $r) {
+            $row = [
+                'id'    => (int)$r['id'],
+                'name'  => $r['display_name'] ?: $r['username'],
+                'start' => substr((string)$r['start_time'], 0, 5),
+                'end'   => substr((string)$r['end_time'], 0, 5),
+                'off'   => $r['status'] === 'off',
+            ];
+            if ($r['role'] === 'staff' || (int)$r['is_therapist'] === 1) $casts[] = $row;
+            elseif ($r['status'] !== 'off') $staff[] = $row;   // 内勤・ドライバーの休みは日報に出さない
+        }
+        return ['casts' => $casts, 'staff' => $staff];
+    };
+    $today = $shiftOf($date);
+    $tomo  = $shiftOf($next);
+
+    // --- 月売上とペース（＝月売上 ÷ 経過日数 × その月の日数）---
+    // こちらも入金分。報酬は1件ずつ計算するので、合計SQLではなく行を回す
+    $mFrom = date('Y-m-01', strtotime($date));
+    $ms = $pdo->prepare(
+        "SELECT b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
+                b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
+                b.driver_id, b.back_driver_id, b.reward_override,
+                b.status, b.cancellation_fee, b.cancellation_reward
+           FROM ops_bookings b
+          WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status='cancelled' AND b.cancellation_reason_type='customer'))
+            AND $bizDay BETWEEN ? AND ?" . ylkaExcludeBreakSql('b')
+    );
+    $ms->execute([$mFrom, $date]);
+    $monthSales = 0;
+    foreach ($ms->fetchAll() as $r) {
+        [$s, $rw] = ylkaRowSalesReward($r, 0.0);
+        $monthSales += $s - $rw;
+    }
+    $elapsed    = (int)date('j', strtotime($date));
+    $daysInMon  = (int)date('t', strtotime($date));
+    $pace       = $elapsed > 0 ? (int)floor($monthSales / $elapsed * $daysInMon) : 0;
+
+    // --- ドライバーの勤務実績（あれば「22:00～1:00(3H30km)」の形で添える） ---
+    $logs = [];
+    $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km FROM ops_driver_logs WHERE work_date = ?");
+    $lg->execute([$date]);
+    foreach ($lg->fetchAll() as $r) {
+        $ci = substr((string)$r['clock_in'], 0, 5);
+        $co = substr((string)$r['clock_out'], 0, 5);
+        if ($ci === '' && $co === '') continue;
+        $h = '';
+        if ($ci !== '' && $co !== '') {
+            $mins = (strtotime($co) - strtotime($ci)) / 60;
+            if ($mins <= 0) $mins += 24 * 60;
+            $h = round($mins / 60) . 'H';
+        }
+        $km = ($r['distance_km'] !== null && (float)$r['distance_km'] > 0) ? opsKmText((float)$r['distance_km']) . 'km' : '';
+        $logs[(int)$r['driver_id']] = $ci . '～' . $co . (($h || $km) ? '(' . $h . $km . ')' : '');
+    }
+
+    usort($byCast, fn($a, $b) => $b['sales'] <=> $a['sales']);
+    jsonResponse([
+        'date' => $date, 'next_date' => $next,
+        'casts' => array_values($byCast),
+        'booking_count' => $bookingCount,
+        'sales_total' => $shopTotal,   // 日報の「売上合計」＝入金分
+        'avg_price' => $bookingCount > 0 ? (int)floor($shopTotal / $bookingCount) : 0,
+        'month_sales' => $monthSales,
+        'pace' => $pace,
+        'today_shift' => $today,
+        'tomorrow_shift' => $tomo,
+        'driver_logs' => $logs,
+        'cash' => [
+            'total'       => $salesTotal,   // お預り金総額（お客様からいただいた全額）
+            'credit'      => $creditIn,     // うちカードで切ったぶん（現金にならない）
+            'bank'        => $bankIn,
+            'received'    => $cashIn,       // 実際に現金で受け取った額
+            'reward_paid' => $rewardPaid,
+            'advanced'    => $advanced,     // カード決済ぶんの報酬を現金から立て替えた額
+            'on_hand'     => $cashIn - $rewardPaid,
+        ],
+    ]);
 }
 
 // =================================================================
@@ -1250,7 +1719,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
 // 指定期間の (日, キャスト) 別 店入金額合計を算出
 function ylkaComputeShopAmounts(PDO $pdo, string $from, string $to): array {
     $stmt = $pdo->prepare(
-        "SELECT b.booking_date, b.assigned_admin_id, b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+        "SELECT b.booking_date, b.assigned_admin_id, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
          FROM ops_bookings b
          LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
          WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.booking_date BETWEEN ? AND ?
@@ -1370,7 +1839,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
     // 経理は予約時点で計上＝キャンセル/無連絡以外の全予約を集計（未/始/終は無関係, 2026-06-17）
     $statusWhere = "(b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))";
     $stmt = $pdo->prepare("SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by, b.reward_paid_at, b.reward_paid_by,
                    au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username,
@@ -1397,7 +1866,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
             : ($r['back_drv_name'] ?: $r['back_drv_username'] ?: null);
         $rows[] = ['id' => (int)$r['id'], 'date' => $r['booking_date'], 'time' => substr((string)$r['start_time'], 0, 5),
                    'customer' => $r['customer_name_snapshot'], 'course' => $r['course_name'],
-                   'sales' => $sales, 'reward' => $reward, 'payment_method' => $r['payment_method'],
+                   'sales' => $sales, 'reward' => $reward, 'payment_method' => $r['payment_method'], 'cash_amount' => isset($r['cash_amount']) ? (int)$r['cash_amount'] : null,
                    'shop_amount' => $shop, 'settled' => $settled, 'settled_at' => $r['shop_settled_at'],
                    'assigned_admin_id' => (int)$r['assigned_admin_id'],
                    'reward_paid_at' => $r['reward_paid_at'], 'reward_paid_by' => $r['reward_paid_by'] !== null ? (int)$r['reward_paid_by'] : null,

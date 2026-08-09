@@ -4,6 +4,11 @@
 // 掴み続ける（2026-08-02: 出勤トグルの「終了」が反映されない事象の原因）。
 // CTRL 本体の admin.css / list.js と同じ filemtime 方式に揃えた。
 $APP_VERSION = (string)(@filemtime(__DIR__ . '/../admin.js') ?: '1');
+
+// 💬 チャットタブに読み込む YobuChat の店舗受信箱。
+// 店舗ごとに slug が違うので、店舗を増やすときはここを変える（アドミ立川 = 0tkzk670）。
+define('OPS_CHAT_URL', 'https://yobuho.com/chat/0tkzk670/');
+
 header('Cache-Control: no-store, no-cache, must-revalidate');
 ?>
 <!DOCTYPE html>
@@ -449,19 +454,53 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .bm-media-note{font-weight:500;font-size:.72rem;color:var(--ink-soft);}
   /* OP（オプション）: 見出しを左、チップを右に置く。見出しは縦の中央に揃え、間に少し余白をとる。
      id ではなく class で当てる（2枚目の予約モーダルは clone で id に -2 が付くため） */
-  .bm-opt-field{display:grid!important;grid-template-columns:auto 1fr;align-items:center;column-gap:.75rem;}
-  .bm-opt-field > .bm-media-label{margin:0!important;white-space:nowrap;text-align:center;}
+  .bm-opt-field{display:grid!important;grid-template-columns:1fr;align-items:start;row-gap:.25rem;padding-top:.15rem;}
+  /* 見出しは一覧の上に置き、チップは横幅いっぱいを使って回り込ませる */
+  .bm-opt-field > .bm-media-label{margin:0!important;white-space:nowrap;text-align:left;padding-top:0;}
   /* ＋10分は自動で入るが、媒体を見ていないお客様など外したい場合があるのでチェックで操作できる */
+  /* ＋10分は売りの特典なので、他のチップより目立つ濃いピンクにする（店長指定 2026-08-08） */
   .bm-plus10{display:inline-flex;justify-self:start;align-items:center;gap:.35rem;margin-top:.1rem;padding:.3rem .75rem;
-    border:1.5px solid #9ad8bb;background:#f2fbf6;border-radius:999px;cursor:pointer;
-    font-size:.76rem;font-weight:700;color:#0d7a4a;vertical-align:middle;}
-  .bm-plus10 input{width:14px;height:14px;margin:0;cursor:pointer;accent-color:#0d7a4a;}
+    border:1.5px solid #e0559a;background:#fff0f6;border-radius:999px;cursor:pointer;
+    font-size:.76rem;font-weight:700;color:#c2185b;vertical-align:middle;}
+  /* 2行目（LINE ＋ ＋10分）は左揃え・互いに上下中央（店長指定 2026-08-08） */
+  .bm-media-row2{grid-column:1 / -1;display:flex;justify-content:flex-start;align-items:center;gap:.5rem;}
+  .bm-media-row2 .bm-media{min-width:7.5rem;}
+  /* admin.css の `.field label{margin-bottom:6px}` が効くと、その余白ごと中央に揃うので
+     見た目が上にずれる。マージンを消してから中央に揃える（店長指摘 2026-08-08） */
+  .bm-media-row2 .bm-plus10{margin:0!important;white-space:nowrap;align-self:center;}
+  .bm-plus10 input{width:14px;height:14px;margin:0;cursor:pointer;accent-color:#d81b60;}
   .bm-plus10-note{display:block;margin-top:.25rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);line-height:1.5;}
-  .bm-plus10:has(input:checked){background:#d9f3e4;border-color:#4bb583;}
+  .bm-plus10:has(input:checked){background:#ffd6e7;border-color:#d81b60;color:#ad1457;}
   /* 幅がバラバラだと段ごとに端がずれて読みにくいので、等幅の升目に並べる */
   /* PC・スマホとも2行に収める: 1行目=媒体6つ / 2行目=LINE予約（全幅）。
      狭い画面でも折り返さないよう、文字と余白を詰めて6列を維持する */
-  .bm-media-list{display:grid;grid-template-columns:repeat(6,1fr);gap:.4rem;}
+  /* チップ同士の間隔を詰めて（.4→.2rem）、その分を右端の余白に回す（店長要望 2026-08-08） */
+  .bm-media-list{display:grid;grid-template-columns:repeat(6,1fr);gap:.2rem;padding-right:1.4rem;}
+  /* OP は媒体(6個固定)と違って項目数が可変。4列固定だと右端が枠からはみ出していたので、
+     幅に応じて列数を決める升目にする（最低 8.5rem 確保・店長指摘 2026-08-09） */
+  .bm-opt-list{grid-template-columns:repeat(auto-fill,minmax(8.5rem,1fr))!important;padding-right:0;gap:.25rem;
+    width:100%;box-sizing:border-box;}
+  /* OP は注文が稀なので普段は畳む（店長要望 2026-08-09）。開閉の見た目はホテル手入力と揃える */
+  .bm-opt-acc{display:block!important;margin-bottom:1.1rem;}
+  .bm-opt-acc > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;
+    font-size:.82rem;font-weight:700;color:var(--sea);}
+  .bm-opt-acc > summary::-webkit-details-marker{display:none;}
+  .bm-opt-acc > summary::before{content:'＋';font-weight:700;}
+  .bm-opt-acc[open] > summary::before{content:'−';}
+  .bm-opt-acc[open] > summary{margin-bottom:.4rem;}
+  .bm-opt-acc > summary:hover{text-decoration:underline;}
+  /* 選ばれているときは畳んでいても分かるよう、見出しの注記を強調する */
+  .bm-opt-acc > summary .bm-media-note{color:var(--deep);font-weight:700;}
+  /* OP は「名前＋個数プルダウン」。個数が入ったら枠を色づけて選択が分かるようにする（店長要望 2026-08-08） */
+  .bm-media.bm-opt{justify-content:space-between;gap:.2rem;padding:.25rem .35rem;}
+  .bm-opt-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem;text-align:left;}
+  /* .modal-body select{width:100%} が効くとプルダウンが枠いっぱいに広がり、
+     名前が幅0に潰れて見えなくなる。幅を固定して名前ぶんを残す（2026-08-08） */
+  .bm-opt-qty{flex:0 0 auto!important;width:2.9em!important;min-width:2.9em!important;
+    padding:.1rem .15rem!important;border:1.5px solid var(--gray)!important;border-radius:6px!important;
+    background:#fff!important;font-size:.72rem!important;font-weight:700!important;color:var(--ink)!important;cursor:pointer;}
+  .bm-media.bm-opt.has-count{border-color:var(--deep);background:var(--foam);color:var(--deep);}
+  .bm-media.bm-opt.has-count .bm-opt-qty{border-color:var(--deep);color:var(--deep);}
   /* 狭い画面では6つ横並びにチェック□を置く幅が無いので、□は隠して枠の色で選択を示す
      （選ぶと枠が濃くなり地が色づく）。LINE予約は全幅なので□をそのまま残す */
   @media(max-width:520px){
@@ -498,7 +537,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     .bm-cast-alert-head{font-size:.72rem;margin-top:1px;margin-bottom:-.5rem;}
   }
   /* ホテル料金の適用条件の注意（チェックする前に気づけるように） */
-  .bm-hf-warn{display:block;margin-top:.2rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
+  /* 見出しと同じ行に流して高さを詰める（店長要望 2026-08-08）。
+     本指名で対象外のときだけ強い注意なので、そのときは折り返して目立たせる */
+  .bm-hf-warn{display:inline;margin-left:.35rem;font-size:.74rem;font-weight:600;color:#6b7f9e;line-height:1.5;}
+  .bm-hf-warn.is-block{display:block;margin:.15rem 0 0;color:#a5342f;}
   .bm-hf-warn.is-block{color:#a5342f;}
   /* 同時編集ロックの注意帯（別端末が編集中＝読み取り専用） */
   .bm-lock-notice{margin-bottom:1rem;padding:.6rem .8rem;background:#fff4f4;border:1.5px solid #e7a6a0;
@@ -520,6 +562,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 住所からの地図リンク（案内・場所確認用。別タブで開く） */
   .cu-loc{margin-top:.2rem;font-size:.78rem;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .cu-last{margin-left:.6rem;font-size:.74rem;color:var(--ink-soft);}
+  /* 市区町村は選ぶだけなので狭く、訪問先タイプ（4択）に幅を回す（店長要望 2026-08-08）。
+     ただし町名プルダウンが並ぶときは市区町村が読めなくなるので広げる（店長指摘 2026-08-09） */
+  .bm-loctype-row{display:grid;grid-template-columns:.72fr 1.28fr;gap:.7rem;}
+  .bm-loctype-row.has-town{grid-template-columns:1.15fr 1.05fr;}
+  /* 市区町村のほうが文字数が多いので、町名より広く取る */
+  .bm-loctype-row.has-town #bmCity,.bm-loctype-row.has-town #bmCity-2{flex:1.35;}
   .map-links{display:inline-flex;gap:.3rem;flex-wrap:wrap;vertical-align:middle;}
   .map-link{display:inline-block;padding:.22rem .55rem;border:1.5px solid var(--gray);border-radius:6px;
     background:#fff;color:var(--deep);font-size:.72rem;font-weight:700;text-decoration:none;white-space:nowrap;
@@ -662,6 +710,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .em-status .sbtn[data-role="manager"].active,.em-status .sbtn[data-es-role="manager"].active{background:#b06a12;border-color:#b06a12;}
   .em-status .sbtn[data-role="owner"].active,.em-status .sbtn[data-es-role="owner"].active{background:#a2461d;border-color:#a2461d;}
   .em-status .sbtn[data-pay-btn].active{background:var(--sea);border-color:var(--sea);color:#fff;box-shadow:0 3px 8px rgba(29,122,156,.35);}
+  /* 支払方法は4つを1行に。振込・未設定はほぼ使わないので幅も文字も小さくする（店長要望 2026-08-08） */
+  .bm-pay-row .sbtn{padding-left:.3rem;padding-right:.3rem;white-space:nowrap;}
+  .bm-pay-row .bm-pay-rare{font-size:.78rem;}
   .modal-footer{padding:1rem 1.6rem 1.4rem;border-top:1px solid var(--gray);display:flex;gap:.7rem;justify-content:flex-end;}
   .btn-primary{background:var(--coral);color:#fff;border:none;padding:.7rem 1.6rem;border-radius:50px;font-weight:600;font-size:.92rem;}
   .btn-primary:hover{background:var(--deep);}
@@ -710,6 +761,10 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
   /* 左右パディングは撤去: sticky スタッフ列の左に中身が透けるバグの原因 (schedule.css と同対応) */
   .tl-wrap{padding:1.2rem 0;max-width:1800px;margin:0 auto;overflow-x:auto;}
+  /* 掴んで動かしている間だけ。文字が選択されると青くなって見づらいので止める（店長要望 2026-08-08）。
+     タイムラインとタブバーで共用 */
+  .tl-dragging{cursor:grabbing;user-select:none;-webkit-user-select:none;}
+  .tl-dragging *{cursor:grabbing!important;}
 
   /* ===== 受付リスト（着信履歴）左パネル ＋ タイムライン 2カラム ===== */
   .tl-split{display:flex;gap:1rem;align-items:flex-start;padding:0 1.2rem;}
@@ -832,7 +887,9 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 1時間セル幅は公開スケジュール (/schedule/) と揃える: PC=96px / mobile=72px */
   /* overflow:hidden は sticky 列を無効化するので避ける (角丸は border-radius のみで適用) */
   /* スタッフ列は 受/完 バッジのぶんだけ広げてある（200→224px・店長指摘 2026-08-07） */
-  .tl-grid{display:grid;grid-template-columns:224px repeat(24, minmax(96px, 1fr));gap:1px;background:var(--gray);border-radius:12px;min-width:2553px;}
+  /* 1時間の幅は 96px → 144px（店長要望 2026-08-08: ホテル名や送迎の名前が入りきらない）。
+     min-width = スタッフ列224 + 24時間×144 + すき間25 = 3705 */
+  .tl-grid{display:grid;grid-template-columns:224px repeat(24, minmax(144px, 1fr));gap:1px;background:var(--gray);border-radius:12px;min-width:3705px;}
   .tl-head{background:var(--deep);color:#fff;padding:.55rem .35rem;font-size:.78rem;text-align:center;font-weight:600;letter-spacing:.04em;}
   /* スタッフ列は横スクロール時に左端固定 (公開スケジュールと同じ挙動) */
   .tl-head.staff-col{background:#072b3a;text-align:left;padding-left:.9rem;display:flex;align-items:center;font-size:.85rem;position:sticky;left:0;z-index:60;box-shadow:6px 0 12px -2px rgba(10,61,82,.35);isolation:isolate;transform:translateZ(0);}
@@ -873,10 +930,53 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* 現金まとめ: 誰が持っているか一目で分かるよう、保有ありは枠を強調し役割バッジを添える */
   .cs-holder{border:1px solid var(--gray);border-radius:10px;padding:.6rem;margin-bottom:.5rem;background:#fff;}
   .cs-holder.has-cash{border-color:#f0b699;background:#fffaf6;box-shadow:0 1px 4px rgba(190,90,30,.12);}
+  /* カード決済ぶんの報酬を現金から立て替えると手元がマイナスになる（店長指定 2026-08-08）。
+     「渡しすぎ」ではなく「立て替え中」なので、警告色より落ち着いた赤枠にする */
+  .cs-holder.is-minus{border-color:#e2a09a;background:#fdf6f5;box-shadow:0 1px 4px rgba(160,50,40,.12);}
+  .cs-minus-note{margin-left:.35rem;font-size:.72rem;font-weight:700;color:#c0392b;
+    background:#fbe6e3;padding:.05rem .4rem;border-radius:5px;}
   .cs-role{display:inline-block;padding:.05rem .4rem;border-radius:5px;font-size:.7rem;font-weight:700;margin-left:.1rem;}
   .cs-role-office{background:#efe9f8;color:#573c78;}
   .cs-role-driver{background:#e4f1e2;color:#2d6733;}
   .cs-role-cast{background:#eef8fa;color:#12667e;}
+  /* 現金＋クレジット併用: 現金額だけ入れれば残りは自動。入力は1つに絞る */
+  .bm-split{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;
+    padding:.6rem .7rem;border:1.5px solid #cfe0ea;border-radius:10px;background:#f4fafd;}
+  .bm-split label{font-weight:700;font-size:.86rem;margin:0!important;}
+  .bm-split input{width:8em;padding:.4rem .55rem;border:1.5px solid var(--gray);border-radius:8px;
+    font-size:1rem;font-weight:700;text-align:right;}
+  .bm-split-note{flex-basis:100%;font-size:.8rem;font-weight:600;color:var(--ink-soft);}
+  .bm-split-note.over{color:#c0392b;}
+  /* 指名料マスタ: 指名料とキャスト報酬を並べて、別物だと分かるようにする */
+  .ms-nom-grid{display:grid;grid-template-columns:auto auto auto;gap:.5rem 1.2rem;align-items:center;justify-content:start;}
+  .ms-nom-h{font-size:.8rem;font-weight:700;color:var(--ink-soft);}
+  .ms-nom-l{font-weight:700;}
+  .ms-nom-grid input{width:7em;padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;
+    font-size:1rem;font-weight:700;text-align:right;margin-right:.25rem;}
+  /* 受け渡しの流れ: 現金が誰の手を通って今ここにあるか（店長要望 2026-08-08） */
+  .cs-chain{font-size:.72rem;color:var(--ink-soft);font-weight:600;margin-top:.1rem;}
+  .cs-arrow{color:#c2410c;font-weight:700;}
+  /* 渡したぶん: もう手元に無いので、金額は控えめにして保有分と読み間違えないようにする */
+  .cs-gave-head{margin-top:.45rem;padding-top:.35rem;border-top:1.5px dashed var(--gray);
+    font-size:.78rem;font-weight:700;color:#2d6733;display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;}
+  .cs-gave-note{font-size:.7rem;font-weight:600;color:var(--ink-soft);}
+  .cs-gave-row{font-size:.78rem;padding:.15rem 0;display:flex;justify-content:space-between;gap:.4rem;color:var(--ink-soft);}
+  .cs-gave-row b{font-weight:600;}
+  .cs-gave-to{color:#2d6733;font-weight:700;white-space:nowrap;}
+  /* 受け取った報酬: 預り金から出ていったぶん。渡したぶんと区別できるよう色を分ける */
+  .cs-reward-head{margin-top:.45rem;padding-top:.35rem;border-top:1.5px dashed var(--gray);
+    font-size:.78rem;font-weight:700;color:#8a4a12;display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;}
+  .cs-reward-from{color:#8a4a12;font-weight:700;white-space:nowrap;}
+  /* 勤務実績: 一日の締めのついでに入れる場所。行が増えるので詰めて置く */
+  .cs-work{margin-top:1rem;border:1.5px solid var(--gray);border-radius:12px;padding:.7rem .8rem;background:var(--foam);}
+  .cs-work-head{font-weight:700;font-size:.9rem;margin-bottom:.5rem;display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;}
+  .cs-work-row{display:flex;align-items:center;gap:.35rem;padding:.25rem 0;flex-wrap:nowrap;}
+  .cs-work-name{flex:1 1 5.5em;min-width:0;font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cs-work-row input{padding:.3rem .35rem;border:1.5px solid var(--gray);border-radius:7px;font-size:16px;font-weight:600;background:var(--white);}
+  .cs-work-row input[type="time"]{flex:0 0 auto;width:6.6em;}
+  .cs-work-km{flex:0 0 auto;width:4.2em;text-align:right;}
+  .cs-work-sep,.cs-work-unit{flex:0 0 auto;font-size:.8rem;color:var(--ink-soft);}
+  .cs-work-foot{display:flex;align-items:center;gap:.7rem;margin-top:.6rem;}
   button.tl-staff-sales.tl-m{background:transparent;border:none;padding:0;cursor:pointer;width:100%;-webkit-tap-highlight-color:rgba(232,93,47,.25);}
   button.tl-staff-sales.tl-m .tl-m-l,button.tl-staff-sales.tl-m .tl-m-v{color:var(--coral);}
   /* 預り金（青・クリックで受け渡し履歴） */
@@ -910,13 +1010,39 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   /* スタッフ行はrelativeで予約ブロックをabsolute配置 */
   .tl-row-track{display:contents;}
   /* 行エリア: スタッフ列(col1)の右(col2/-1)。予約は中の独立レイヤーで描画し z-index:1 で固定列(z55)の下層に閉じ込め＝透け防止 (schedule方式) */
-  .tl-row-area{grid-column:2 / -1;position:relative;display:grid;grid-template-columns:repeat(24, minmax(96px, 1fr));gap:1px;z-index:1;}
-  .tl-cell{background:var(--white);min-height:94px;cursor:pointer;transition:background .15s;position:relative;}
+  .tl-row-area{grid-column:2 / -1;position:relative;display:grid;grid-template-columns:repeat(24, minmax(144px, 1fr));gap:1px;z-index:1;}
+  /* 空きマスはダブルクリックで新規予約。touch-action:manipulation でダブルタップズームを抑える */
+  .tl-cell{background:var(--white);min-height:94px;cursor:pointer;transition:background .15s;position:relative;touch-action:manipulation;user-select:none;}
   .tl-cell:hover{background:var(--foam);}
   .tl-cell.shift-bg{background:linear-gradient(180deg,#eaf6f9,#f4fbfd);}
   /* 予約ブロックは、各スタッフの最初のセルに配置して absolute で広げる */
   .tl-bk-wrap{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;}
-  .tl-booking{position:absolute;background:linear-gradient(135deg,#e0743c,#c9551f);color:#fff;border-radius:6px;padding:2px;font-size:.72rem;line-height:1.25;overflow:hidden;pointer-events:auto;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:2;display:flex;flex-direction:column;gap:1px;}
+  /* 予約バーの詳細ふきだし（店長要望 2026-08-08: ブラウザ標準の title は小さすぎ情報も足りない）。
+     バーに重ならないよう body 直下に出し、画面端では左右・上下を反転させる */
+  .bk-tip{position:fixed;z-index:1200;max-width:min(92vw,420px);background:#fff;color:var(--ink);
+    border:1.5px solid var(--gray);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.22);
+    padding:.75rem .9rem;font-size:.92rem;line-height:1.6;pointer-events:none;opacity:0;transition:opacity .1s;}
+  .bk-tip.show{opacity:1;}
+  .bk-tip-head{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;
+    padding-bottom:.45rem;margin-bottom:.5rem;border-bottom:1.5px solid var(--gray);}
+  .bk-tip-time{font-family:'Outfit';font-size:1.25rem;font-weight:800;color:var(--deep);letter-spacing:.02em;}
+  .bk-tip-name{font-size:1.05rem;font-weight:800;}
+  .bk-tip-badge{font-size:.74rem;font-weight:700;padding:.1rem .5rem;border-radius:999px;border:1.5px solid currentColor;color:var(--deep);}
+  .bk-tip-r{display:grid;grid-template-columns:4.6em 1fr;gap:.1rem .7rem;}
+  .bk-tip-l{color:var(--ink-soft);font-weight:600;font-size:.86rem;}
+  .bk-tip-v{font-weight:700;word-break:break-word;}
+  /* 市区町村・補足（交通費込み等）は本文より一段弱く。読む順序を主→従にする */
+  .bk-tip-city,.bk-tip-sub{color:var(--ink-soft);font-weight:600;font-size:.86rem;}
+  .bk-tip-note{margin-top:.5rem;padding-top:.5rem;border-top:1.5px dashed var(--gray);
+    font-size:.86rem;font-weight:600;color:#a5342f;white-space:pre-wrap;}
+  .bk-tip-ok{color:#2f7a46;font-weight:800;}
+  .bk-tip-warn{color:#b3600c;font-weight:800;}
+  .bk-paywarn{flex:0 0 auto;background:#eda72c;color:#4a2c00;font-size:.62rem;font-weight:800;
+    padding:0 .25rem;border-radius:4px;line-height:1.5;white-space:nowrap;}
+  /* 左右の枠は決済ライン（決済前=橙 / 決済後=濃緑）用の受け皿。既定は透明なので、
+     現金のバーは地のグラデーションがそのまま透けて見た目は変わらない。
+     全バーに同じ幅を持たせることで、カードのバーだけ幅がズレるのを防いでいる（店長要望 2026-08-08） */
+  .tl-booking{position:absolute;background:linear-gradient(135deg,#e0743c,#c9551f);color:#fff;border-radius:6px;padding:2px;border-left:7px solid transparent;border-right:3.5px solid transparent;font-size:.72rem;line-height:1.25;overflow:hidden;pointer-events:auto;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:2;display:flex;flex-direction:column;gap:1px;}
   .tl-booking:hover{z-index:3;box-shadow:0 4px 10px rgba(0,0,0,.25);}
   .tl-booking.s-inquiry{background:linear-gradient(135deg,#8fb4d9,#5f8fc2);color:#fff;}
   .tl-booking.s-reserved{background:linear-gradient(135deg,#e0743c,#c9551f);}
@@ -1014,20 +1140,63 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
      色相の割り当て: 問合せ=灰 / 予約=金 / 事前予約=紫 / 保留=橙 / 接客中=ローズ / 終了=緑 /
                      キャンセル=薄灰＋取り消し線 / 無連絡=赤
      ※ 接客中と終了はいちばん取り違えたくないので、暖色（進行中）と緑（終わり）で分ける */
-  body[data-theme="soft"] .tl-booking{background:#f1f2f0;color:#3a4247;border-left:7px solid #9aa3a0;
+  /* 開始＝太いライン、終了＝その半分の太さ。どちらも同じ濃さで、始まりと終わりの時刻を目で追えるように
+     （店長要望 2026-08-08）。色は各ステータスの border-color が左右まとめて上書きする */
+  body[data-theme="soft"] .tl-booking{background:#f1f2f0;color:#3a4247;
+    border-left:7px solid #9aa3a0;border-right:3.5px solid #9aa3a0;
     box-shadow:0 1px 3px rgba(20,30,25,.10);}
   body[data-theme="soft"] .tl-booking:hover{box-shadow:0 3px 10px rgba(20,30,25,.22);}
-  body[data-theme="soft"] .tl-booking.s-inquiry{background:#eef1f2;color:#4e5a61;border-left-color:#7b8b93;}
-  body[data-theme="soft"] .tl-booking.s-reserved{background:#fbf1d6;color:#75540c;border-left-color:#d3a021;}
-  body[data-theme="soft"] .tl-booking.s-pre_reserved{background:#f2ecf9;color:#56386f;border-left-color:#8f5fb0;}
+  body[data-theme="soft"] .tl-booking.s-inquiry{background:#eef1f2;color:#4e5a61;border-color:#7b8b93;}
+  body[data-theme="soft"] .tl-booking.s-reserved{background:#fbf1d6;color:#75540c;border-color:#d3a021;}
+  body[data-theme="soft"] .tl-booking.s-pre_reserved{background:#f2ecf9;color:#56386f;border-color:#8f5fb0;}
   body[data-theme="soft"] .tl-booking.s-on_hold,
-  body[data-theme="soft"] .tl-booking.s-pending{background:#fde9d9;color:#8a4a12;border-left-color:#e08636;}
-  body[data-theme="soft"] .tl-booking.s-completed{background:#fde6ec;color:#97244b;border-left-color:#d84470;}
-  body[data-theme="soft"] .tl-booking.svc-ended{background:#e4f1e2;color:#2f6b34;border-left-color:#4f9c52;}
-  body[data-theme="soft"] .tl-booking.s-cancelled{background:#f2f2f0;color:#8b918d;border-left-color:#c3c8c4;}
-  body[data-theme="soft"] .tl-booking.s-no_show{background:#fae4e1;color:#93342a;border-left-color:#c8503f;}
+  body[data-theme="soft"] .tl-booking.s-pending{background:#fde9d9;color:#8a4a12;border-color:#e08636;}
+  body[data-theme="soft"] .tl-booking.s-completed{background:#fde6ec;color:#97244b;border-color:#d84470;}
+  body[data-theme="soft"] .tl-booking.svc-ended{background:#e4f1e2;color:#2f6b34;border-color:#4f9c52;}
+  body[data-theme="soft"] .tl-booking.s-cancelled{background:#f2f2f0;color:#8b918d;border-color:#c3c8c4;}
+  body[data-theme="soft"] .tl-booking.s-no_show{background:#fae4e1;color:#93342a;border-color:#c8503f;}
   /* 休憩・私用は status='confirmed' で保存される。予約と混ざらないよう地の色を土色系にする */
-  body[data-theme="soft"] .tl-booking.s-confirmed{background:#efece4;color:#6f665a;border-left-color:#a99f8c;}
+  body[data-theme="soft"] .tl-booking.s-confirmed{background:#efece4;color:#6f665a;border-color:#a99f8c;}
+  /* カード決済の予約は、両サイドのラインで決済前／決済後を示す（店長要望 2026-08-08）。
+     地の色は従来どおりステータス（接客中/終了など）を表すので、両方が同時に見える。
+     現金・振込の予約はラインもステータス色のままなので、色が混ざることはない。
+     ※ 上のステータス指定と同じ強さなので、必ずこの順（あと）に置くこと */
+  body[data-theme="soft"] .tl-booking.pay-unconfirmed{border-color:#eda72c;}   /* 決済前＝橙 */
+  /* 決済後はあえて「とても濃い緑」。地の色と最も差が付くので、
+     どれがクレカのお客様かが一目で分かる（店長要望 2026-08-08） */
+  body[data-theme="soft"] .tl-booking.pay-confirmed{border-color:#0e4429;}     /* 決済後＝濃緑 */
+  /* 既定テーマ（濃い地色）にも同じ決済ラインを入れる。地が濃いぶん、より濃い色を使う。
+     ステータス指定は border-color を触らないので、この位置で効く */
+  .tl-booking.pay-unconfirmed{border-color:#e08c00;}
+  .tl-booking.pay-confirmed{border-color:#08301b;}
+
+  /* ── 既定テーマの文字を白から「地の反対色（濃い色）」へ（店長要望 2026-08-08）──
+     地色はどれも中間の明るさで、白文字だとコントラストが 1.5〜3.1 しか出ていなかった。
+     濃い文字にすると全ステータスで改善する（実測: 保留 1.49→10.5 / 終了 2.20→5.97）。
+     もともと保留(#5a3500)だけ濃い文字だったので、その考え方を全ステータスに広げた形。 */
+  .tl-booking,
+  .tl-booking.s-inquiry,
+  .tl-booking.s-pre_reserved,
+  .tl-booking.s-no_show,
+  .tl-booking.s-cancelled{color:#000;}
+  /* 白前提だった中の部品も、地の色を継いで濃い側に寄せる */
+  .tl-booking .bk-name{color:inherit;border-color:rgba(0,0,0,.28);}
+  .tl-booking .bk-name:hover{background:rgba(255,255,255,.45);}
+  .tl-booking .bk-place,
+  .tl-booking .bk-venue{color:inherit;}
+  .tl-booking .bk-meet{color:inherit;border-color:currentColor;}
+  .tl-booking .bk-go,
+  .tl-booking .bk-back{background:rgba(255,255,255,.5);color:inherit;}
+  .tl-booking .bk-go:hover,
+  .tl-booking .bk-back:hover{background:rgba(255,255,255,.78);}
+  .tl-booking .bk-svc-sel{color:inherit;border-color:rgba(0,0,0,.45);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23000' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  /* 「始／終」だけは押せるボタンだと分かるよう白地で反転させたまま残す（矢印も従来の緑） */
+  .tl-booking .bk-svc-sel.svc-started,
+  .tl-booking .bk-svc-sel.svc-ended{background-color:#fff;color:#1f7a45;border-color:#fff;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%231f7a45' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");}
+  .tl-booking .bk-self{opacity:.75;}
+
   /* 中の部品は白文字前提だったので、地の色を継ぐように置き換える */
   body[data-theme="soft"] .tl-booking .bk-top{background:rgba(255,255,255,.66);color:inherit;}
   body[data-theme="soft"] .tl-booking .bk-top:hover{background:rgba(255,255,255,.95);}
@@ -1231,6 +1400,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .sh-shift-pill.s-off{background:#eceeef;color:#5a6268;border-left-color:#9aa3a8;}
   .sh-shift-pill.s-tentative{background:#fde9d9;color:#8a4a12;border-left-color:#e08636;}
   .sh-timetable{padding:1rem 1.5rem;max-width:1100px;margin:0 auto;}
+  .sh-timetable.is-grid{max-width:1600px;}
+  @media(max-width:760px){.sh-timetable{padding:.7rem;}}
   .sh-tt-row{display:grid;grid-template-columns:130px 120px 60px 120px 120px 1fr 90px;gap:.6rem;align-items:center;padding:.7rem .85rem;background:#fff;border-radius:10px;margin-bottom:.5rem;box-shadow:0 1px 4px rgba(10,61,82,.06);transition:all .15s;border-left:4px solid transparent;}
   .sh-tt-row .sh-tt-24h{display:flex;align-items:center;justify-content:center;gap:.25rem;font-size:.78rem;font-weight:600;color:var(--deep);cursor:pointer;user-select:none;padding:.4rem;border:1.5px solid var(--gray);border-radius:8px;background:#fff;}
   .sh-tt-row .sh-tt-24h:hover{border-color:var(--coral);}
@@ -1258,6 +1429,50 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .sh-tt-row .sh-tt-status-cell .sh-saved{font-size:.72rem;color:var(--green);font-weight:600;}
   .sh-tt-row .sh-tt-status-cell .sh-clear{font-size:.7rem;color:var(--ink-soft);background:none;border:1px solid var(--gray);padding:.3rem .5rem;border-radius:6px;cursor:pointer;}
   .sh-tt-row .sh-tt-status-cell .sh-clear:hover{color:var(--red);border-color:var(--red);}
+
+  /* 内勤・送迎シフトの一覧グリッド（スタッフ×10日）。CTRL の女性出勤グリッドと同じ見え方に揃える */
+  .sh-grid-wrap{overflow-x:auto;background:#fff;border:1.5px solid var(--gray);border-radius:12px;box-shadow:0 1px 4px rgba(10,61,82,.06);}
+  .sh-grid{border-collapse:separate;border-spacing:0;width:100%;font-size:.85rem;}
+  .sh-grid th,.sh-grid td{border-bottom:1px solid var(--gray);border-right:1px solid var(--gray);padding:.35rem .3rem;text-align:center;white-space:nowrap;}
+  .sh-grid tr:last-child td{border-bottom:none;}
+  .sh-grid th{background:var(--foam);color:var(--deep);font-weight:700;font-size:.8rem;position:sticky;top:0;z-index:2;}
+  .sh-grid .sg-name{text-align:left;padding-left:.7rem;padding-right:.7rem;position:sticky;left:0;background:#fff;z-index:1;min-width:9.5rem;}
+  .sh-grid th.sg-name{background:var(--foam);z-index:3;}
+  .sh-grid tbody tr:hover .sg-name{background:var(--sand);}
+  .sh-grid .sg-name .sg-who{font-weight:700;color:var(--deep);background:none;border:none;padding:0;font-size:.9rem;cursor:pointer;text-align:left;}
+  .sh-grid .sg-name .sg-who:hover{color:var(--coral);text-decoration:underline;}
+  .sh-grid .sg-role{display:block;font-size:.68rem;color:var(--ink-soft);font-weight:600;}
+  .sh-grid th .sg-dow{display:block;font-size:.7rem;font-weight:600;}
+  .sh-grid th .sg-num{display:block;font-size:.68rem;color:var(--ink-soft);font-weight:600;}
+  .sh-grid th.sg-sat a,.sh-grid th.sg-sat{color:#27a;}
+  .sh-grid th.sg-sun a,.sh-grid th.sg-sun{color:#c44;}
+  .sh-grid th.is-today{background:#fff1e9;box-shadow:inset 0 -3px 0 var(--coral);}
+  .sh-grid td.sg-c{cursor:pointer;min-width:5.6rem;line-height:1.15;transition:background .12s;}
+  .sh-grid td.sg-c:hover{background:var(--foam);}
+  .sh-grid td.sg-c.is-today{background:#fffaf7;}
+  .sh-grid td.sg-c .sg-t{display:block;font-weight:700;font-size:.86rem;color:var(--deep);font-family:'Outfit';}
+  .sh-grid td.sg-c .sg-t2{display:block;font-size:.72rem;color:var(--ink-soft);font-weight:600;font-family:'Outfit';}
+  .sh-grid td.sg-c .sg-un{color:var(--unset);font-size:1rem;font-weight:700;}
+  .sh-grid td.sg-c .sg-memo{display:block;font-size:.66rem;color:var(--ink-soft);max-width:6.5rem;overflow:hidden;text-overflow:ellipsis;margin:0 auto;}
+  .sh-grid td.s-available{background:#eefaf2;}
+  .sh-grid td.s-available:hover{background:#dff5e8;}
+  .sh-grid td.s-tentative{background:#fff8e8;}
+  .sh-grid td.s-tentative .sg-t{color:#a86a00;}
+  .sh-grid td.s-off{background:#f3f4f5;color:var(--ink-soft);font-weight:700;}
+  .sh-grid td.sg-total{font-weight:700;color:var(--deep);background:var(--foam);border-right:none;}
+  .sh-grid td.sg-total small{font-weight:600;color:var(--ink-soft);font-size:.7rem;}
+  .sh-grid th.sg-total{border-right:none;}
+  .sh-grid-legend{display:flex;flex-wrap:wrap;gap:.9rem;align-items:center;margin-top:.7rem;font-size:.78rem;color:var(--ink-soft);}
+  .sh-grid-legend i{display:inline-block;width:.85rem;height:.85rem;border-radius:3px;border:1px solid var(--gray);vertical-align:-2px;margin-right:.3rem;}
+  .sh-grid-legend i.lg-available{background:#eefaf2;}
+  .sh-grid-legend i.lg-tentative{background:#fff8e8;}
+  .sh-grid-legend i.lg-off{background:#f3f4f5;}
+  .sh-grid-legend i.lg-unreg{background:#fff;}
+  @media(max-width:760px){
+    .sh-grid td.sg-c{min-width:4.6rem;}
+    .sh-grid .sg-name{min-width:6.5rem;}
+    .sh-grid td.sg-c .sg-memo{display:none;}
+  }
 
   /* 共通: empty */
   .view-empty{text-align:center;padding:3rem 1rem;color:var(--ink-soft);}
@@ -1654,6 +1869,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   <!-- 一括設定: 同じ時間の日が多いので、表示中の10日ぶんをまとめて登録する（店長要望 2026-08-07） -->
   <div class="sh-bulk" id="shBulk" style="display:none;">
     <span class="sh-bulk-title">まとめて設定</span>
+    <!-- 一覧グリッド表示のときだけ出す対象スタッフ。個人表示のときは上のスタッフ選択が対象 -->
+    <select id="shBulkStaff" style="display:none;" title="まとめて設定する対象スタッフ"></select>
     <div class="sh-bulk-chips" id="shBulkStatus">
       <button type="button" class="sh-tt-stchip is-on" data-bulk-status="available">🟢 出勤</button>
       <button type="button" class="sh-tt-stchip" data-bulk-status="tentative">🟡 仮</button>
@@ -1677,25 +1894,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 <!-- ========== コース管理ビュー ========== -->
 <div class="view" id="view-courses">
-  <!-- 料金の全体設定（店長要望 2026-08-07: 損益タブから移設）。
-       クレジットは手数料をお客様の合計に上乗せして受け取る。キャストの報酬は決済方法で変わらない -->
-  <div class="tl-toolbar">
-    <div class="tl-title">💳 クレジット手数料<span class="tl-sub">お客様の合計に上乗せする率。キャストの報酬には影響しません</span></div>
-  </div>
-  <div class="staff-main" style="max-width:900px;">
-    <div class="card card-pad" style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;">
-      <label for="msCardSurcharge" style="font-weight:700;">お客様への上乗せ率</label>
-      <input type="number" id="msCardSurcharge" min="0" max="100" step="0.1" style="width:7em;padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:1rem;font-weight:700;text-align:right;">
-      <span style="font-weight:700;">%</span>
-      <button class="btn-primary" type="button" id="msCardSurchargeSave" style="padding:.45rem 1rem;font-size:.85rem;">保存</button>
-      <span id="msCardSurchargeMsg" style="font-size:.82rem;color:var(--ink-soft);"></span>
-    </div>
-    <p style="font-size:.8rem;color:var(--ink-soft);margin:.5rem 0 0;line-height:1.7;">
-      例）10% のとき、コース¥11,000＋交通費¥1,100 のクレジット決済ならお客様の合計は ¥13,310 になります。<br>
-      変更しても過去の予約に保存済みの手数料額は変わりません（これから作る予約に適用されます）。
-    </p>
-  </div>
-
   <!-- ホテル管理（旧タブ→マスタ内へ移動。クリックで view-hotel に切替） -->
   <div class="tl-toolbar" style="margin-top:2rem;">
     <div class="tl-title">🏨 ホテル管理<span class="tl-sub">対応ホテルの公開状況・実績・交通費を管理</span></div>
@@ -1750,6 +1948,64 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <p class="hint" style="margin-top:.5rem;">
         キャストがいまいる場所を入れ直せば、そこからのルートに切り替わります（入れた場所はその端末が覚えます）。
       </p>
+    </div>
+  </div>
+
+  <!-- 自宅の交通費はページ分離（店長要望 2026-08-08: 町名一覧を見ながら設定したいのでホテル管理と同じ方式） -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
+    <div class="tl-title">🏠 自宅の交通費<span class="tl-sub">自宅・オフィスの交通費を市区町村・町名ごとに設定（ホテルはホテルマスタの交通費）</span></div>
+    <div class="tl-nav">
+      <button class="tl-add" id="openCityFeeMgr" type="button">自宅の交通費を開く →</button>
+    </div>
+  </div>
+
+  <!-- 料金の全体設定。ほぼ変更しないので一番下へ（店長要望 2026-08-08）。
+       クレジットは手数料をお客様の合計に上乗せして受け取る。キャストの報酬は決済方法で変わらない -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
+    <div class="tl-title">💳 クレジット手数料<span class="tl-sub">お客様の合計に上乗せする率。キャストの報酬には影響しません</span></div>
+  </div>
+  <div class="staff-main" style="max-width:900px;">
+    <div class="card card-pad" style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;">
+      <label for="msCardSurcharge" style="font-weight:700;">お客様への上乗せ率</label>
+      <input type="number" id="msCardSurcharge" min="0" max="100" step="0.1" style="width:7em;padding:.45rem .6rem;border:1.5px solid var(--gray);border-radius:8px;font-size:1rem;font-weight:700;text-align:right;">
+      <span style="font-weight:700;">%</span>
+      <button class="btn-primary" type="button" id="msCardSurchargeSave" style="padding:.45rem 1rem;font-size:.85rem;">保存</button>
+      <span id="msCardSurchargeMsg" style="font-size:.82rem;color:var(--ink-soft);"></span>
+    </div>
+    <p style="font-size:.8rem;color:var(--ink-soft);margin:.5rem 0 0;line-height:1.7;">
+      例）10% のとき、コース¥11,000＋交通費¥1,100 のクレジット決済ならお客様の合計は ¥13,310 になります。<br>
+      変更しても過去の予約に保存済みの手数料額は変わりません（これから作る予約に適用されます）。
+    </p>
+  </div>
+
+  <!-- 指名料。損益タブから移設・ほぼ変更しないので一番下へ（店長要望 2026-08-08） -->
+  <div class="tl-toolbar" style="margin-top:2rem;">
+    <div class="tl-title">🎯 指名料<span class="tl-sub">お客様にいただく金額と、そのうちキャストへ支払う報酬</span></div>
+  </div>
+  <div class="staff-main" style="max-width:900px;">
+    <div class="card card-pad">
+      <!-- 指名料とキャスト報酬は別物。報酬はコース報酬・機動ボーナスと合算されて報酬タブに出る（店長要望 2026-08-08） -->
+      <div class="ms-nom-grid">
+        <div class="ms-nom-h"></div>
+        <div class="ms-nom-h">お客様の指名料</div>
+        <div class="ms-nom-h">キャスト報酬</div>
+
+        <div class="ms-nom-l">初指名</div>
+        <div><input type="number" id="msNomFirst" min="0" step="100">円</div>
+        <div><input type="number" id="msNomRewFirst" min="0" step="100">円</div>
+
+        <div class="ms-nom-l">本指名</div>
+        <div><input type="number" id="msNomRegular" min="0" step="100">円</div>
+        <div><input type="number" id="msNomRewRegular" min="0" step="100">円</div>
+
+        <div class="ms-nom-l">フリー</div>
+        <div><input type="number" id="msNomFree" min="0" step="100">円</div>
+        <div><input type="number" id="msNomRewFree" min="0" step="100">円</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.8rem;margin-top:1rem;">
+        <button class="btn-primary" type="button" id="msNomSave" style="padding:.45rem 1rem;font-size:.85rem;">保存</button>
+        <span id="msNomMsg" style="font-size:.82rem;color:var(--ink-soft);"></span>
+      </div>
     </div>
   </div>
 
@@ -2023,16 +2279,23 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       </div>
       <!-- 市区町村 | 訪問先タイプ -->
       <!-- 市区町村は訪問先タイプを切り替えても残す（ホテル→自宅に変えるたびに選び直すのが手間なため） -->
-      <div id="bmLocTypeRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+      <!-- 市区町村は選ぶだけなので狭く、訪問先タイプ（4択）に幅を回す（店長要望 2026-08-08） -->
+      <div id="bmLocTypeRow" class="bm-loctype-row">
         <div class="field" id="bmCityField">
           <label for="bmCity">市区町村</label>
-          <select id="bmCity"><option value="">— すべて —</option></select>
+          <!-- 町名は市区町村を選ぶと右に出る。自宅の交通費を町単位で変えるため（店長要望 2026-08-08）。
+               町名一覧が無い市区町村では出ない -->
+          <div style="display:flex;gap:.4rem;">
+            <select id="bmCity" style="flex:1;min-width:0;"><option value="">— すべて —</option></select>
+            <select id="bmTown" style="flex:1;min-width:0;display:none;"><option value="">町名（任意）</option></select>
+          </div>
         </div>
         <div class="field">
           <label>訪問先タイプ</label>
           <div style="display:flex;gap:.3rem;background:var(--foam);padding:.4rem;border-radius:10px;">
-            <label class="loc-tab"><input type="radio" name="bmLocType" value="hotel" checked><span>ホテル</span></label>
-            <label class="loc-tab"><input type="radio" name="bmLocType" value="home"><span>自宅・オフィス</span></label>
+            <label class="loc-tab"><input type="radio" name="bmLocType" value="loveho" checked><span>ラブホ</span></label>
+            <label class="loc-tab"><input type="radio" name="bmLocType" value="hotel"><span>ホテル</span></label>
+            <label class="loc-tab"><input type="radio" name="bmLocType" value="home"><span>自宅</span></label>
             <label class="loc-tab"><input type="radio" name="bmLocType" value="other"><span>その他</span></label>
           </div>
         </div>
@@ -2072,6 +2335,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
             <input type="text" id="bmHomeBuilding" placeholder="例: ○○マンション 305号室">
           </div>
         </div>
+        <!-- 打った住所をその場で地図で確かめられるように（店長要望 2026-08-09） -->
+        <div id="bmHomeMapLinks" class="bm-hotel-addr" style="display:none;"></div>
         <!-- リピーターの「よく使う場所」を自動入力したときの案内（手入力したら消える） -->
         <span class="hint" id="bmUsualLocNote" style="display:none;color:#1d6b39;font-weight:600;margin-top:-.6rem;margin-bottom:1.1rem;"></span>
       </div>
@@ -2082,6 +2347,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label for="bmOtherLoc">場所の詳細</label>
           <textarea id="bmOtherLoc" placeholder="場所の詳細を自由に記入"></textarea>
         </div>
+        <div id="bmOtherMapLinks" class="bm-hotel-addr" style="display:none;"></div>
       </div>
 
       </div><!-- /.bm-col 左（お客様・日時・場所） -->
@@ -2096,16 +2362,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="fuzoku"><span>風じゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="deli"><span>デリじゃ</span></label>
           <label class="bm-media"><input type="checkbox" name="bmMedia" value="other"><span>その他</span></label>
-          <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
+          <!-- 2行目: LINE と ＋10分 を並べて中央に置く（店長要望 2026-08-08: 1行ぶんコンパクトに・中央揃え） -->
+          <div class="bm-media-row2">
+            <label class="bm-media is-line" title="チェックが入ると＋10分(無料)"><input type="checkbox" name="bmMedia" value="line"><span>LINE</span></label>
+            <label id="bmPlus10Field" class="bm-plus10">
+              <input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span>
+            </label>
+          </div>
         </div>
-        <label id="bmPlus10Field" class="bm-plus10">
-          <input type="checkbox" id="bmPlus10"><span>＋10分（無料）</span>
-        </label>
-        <span class="bm-plus10-note">LINE予約／ご新規様の媒体経由に自動で付きます（媒体を見ていないお客様などは外せます）</span>
+        <span class="bm-plus10-note">媒体・LINEにチェックを入れると自動で付きます（媒体を見ていないお客様などは外せます）</span>
       </div>
-      <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
+      <label id="bmHotelFirstField" style="display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;background:linear-gradient(135deg,#eef4ff,#fff);border:1.5px solid #9db8e8;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#28468a;margin-top:.2rem;">
         <input type="checkbox" id="bmHotelFirst" style="width:18px;height:18px;cursor:pointer;">
-        <span>🏨 ホテル料金 <b id="bmHotelFirstAmt">−¥5,500</b> <span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span><span id="bmHotelFirstWarn" class="bm-hf-warn" style="display:none;"></span></span>
+        <span>🏨 ホテル料金 <b id="bmHotelFirstAmt"></b><span id="bmHotelFirstHint" style="font-weight:500;opacity:.8;"></span><span id="bmHotelFirstWarn" class="bm-hf-warn" style="display:none;"></span></span>
       </label>
       <div id="bmCourseNominationRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field" id="bmCourseField"><label for="bmCourse">コース</label>
@@ -2152,11 +2421,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <span class="hint" style="margin-top:.3rem;">5分単位 / カスタムの場合のみ</span>
         </div>
       </div>
-      <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集 -->
-      <div class="field bm-opt-field" id="bmOptionField">
-        <label class="bm-media-label">OP<span class="bm-media-note" id="bmOptionSum"></span></label>
-        <div class="bm-media-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
-      </div>
+      <!-- オプション（ローター・バイブ等）。選ぶと合計に加算される。マスタは「マスタ」タブで編集。
+           注文は稀なので普段は畳んでおく。選ばれていれば開いた状態で出す（店長要望 2026-08-09） -->
+      <details class="field bm-opt-field bm-opt-acc" id="bmOptionField">
+        <summary>OP<span class="bm-media-note" id="bmOptionSum"></span></summary>
+        <div class="bm-media-list bm-opt-list" id="bmOptionList"><span class="hint">オプションが登録されていません（マスタタブで追加できます）</span></div>
+      </details>
 
       <!-- 「延長30分 ✕ 0」で内容が分かるので見出しは置かない（コンパクト化・店長指定 2026-08-06） -->
       <div class="field" id="bmExtField">
@@ -2178,10 +2448,17 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <span class="hint" id="bmExtInfo" style="margin-top:0;"></span>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
+      <!-- コース料金 | 指名料 | 交通費 の3列。お客様への最終確認で内訳をそのまま読み上げられるように
+           指名料も並べる（店長要望 2026-08-08）。指名料は指名方法に連動する自動表示で、直接は編集しない -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.7rem;">
         <div class="field"><label for="bmPrice">コース料金(円)</label><input type="text" inputmode="numeric" data-money id="bmPrice"></div>
+        <div class="field"><label for="bmNominationFeeView">指名料(円)</label>
+          <input type="text" id="bmNominationFeeView" readonly tabindex="-1"
+                 style="background:var(--foam);color:var(--deep);font-weight:700;cursor:default;"
+                 title="指名方法に応じて自動で決まります（マスタで金額を変更できます）">
+        </div>
         <div class="field"><label for="bmTransport">交通費(円)</label>
-          <select id="bmTransport"><option value="0">なし(¥0)</option><option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option></select>
+          <select id="bmTransport"><option value="0">なし(¥0)</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option></select>
         </div>
       </div>
       <div class="field" id="bmBreakCityField" style="display:none;"><label for="bmBreakCity">エリア (公開タイムライン表示用)</label>
@@ -2197,29 +2474,41 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
            組み合わせは一番長い1本だけ。ホテル料金を設定していないコース（お泊り等）は対象外。
            担当・訪問先・お客様が決まると自動でチェックが入る（手で触ったら以後は自動で動かさない） -->
       <!-- スタンプ特典 — コース料金(キャンペーン割引後)から特典時間ぶんを按分割引。特典時間≥コース時間なら全額無料 -->
-      <div id="bmStampField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#fff0f6,#fff);border:1.5px solid #e7a6c4;border-radius:8px;font-size:.88rem;font-weight:600;color:#9a3a6a;margin-top:-.2rem;">
-        <span>🎟️ スタンプ特典</span>
-        <select id="bmStampReward" style="font-size:.85rem;padding:.25rem .5rem;border-radius:6px;border:1px solid #e7a6c4;background:#fff;color:#9a3a6a;font-weight:600;cursor:pointer;">
+      <!-- スタンプ特典 | 深夜料金 を横並び2列に（店長要望 2026-08-08: 横幅を半分ずつ） -->
+      <div id="bmStampLateRow" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:-.2rem;">
+      <div id="bmStampField" style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;min-width:0;background:linear-gradient(135deg,#fff0f6,#fff);border:1.5px solid #e7a6c4;border-radius:8px;font-size:.88rem;font-weight:600;color:#9a3a6a;flex-wrap:nowrap;">
+        <span style="white-space:nowrap;">🎟️ スタンプ</span>
+        <select id="bmStampReward" style="flex:1;min-width:0;font-size:.85rem;padding:.25rem .4rem;border-radius:6px;border:1px solid #e7a6c4;background:#fff;color:#9a3a6a;font-weight:600;cursor:pointer;">
           <option value="">なし</option>
           <option value="30">30分</option>
           <option value="60">60分</option>
           <option value="90">90分</option>
         </select>
-        <span id="bmStampAmt" style="font-weight:500;opacity:.85;margin-left:auto;"></span>
+        <span id="bmStampAmt" style="font-weight:500;opacity:.85;white-space:nowrap;"></span>
       </div>
       <!-- 深夜料金 (23:00〜翌5:00) — チェックで合計に +¥3,300 -->
-      <label id="bmLateNightField" style="display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:linear-gradient(135deg,#fff5e8,#fff);border:1.5px solid #f0c98e;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#7a4a00;margin-top:-.2rem;">
-        <input type="checkbox" id="bmLateNight" style="width:18px;height:18px;cursor:pointer;">
-        <span>🌙 深夜料金 <b>+¥3,300</b> <span style="font-weight:500;opacity:.8;">(23:00〜翌5:00)</span></span>
+      <label id="bmLateNightField" style="display:flex;align-items:center;gap:.4rem;padding:.4rem .6rem;min-width:0;background:linear-gradient(135deg,#fff5e8,#fff);border:1.5px solid #f0c98e;border-radius:8px;cursor:pointer;font-size:.88rem;font-weight:600;color:#7a4a00;flex-wrap:nowrap;">
+        <input type="checkbox" id="bmLateNight" style="width:18px;height:18px;cursor:pointer;flex-shrink:0;">
+        <span style="white-space:nowrap;" title="23:00〜翌5:00">🌙 深夜 <b>+¥3,300</b></span>
       </label>
+      </div>
       <div class="field" id="bmPaymentField">
         <label>支払方法</label>
         <input type="hidden" id="bmPayment" data-pay-hidden value="cash">
-        <div class="em-status" style="grid-template-columns:1fr 1fr;">
+        <div class="em-status bm-pay-row" style="grid-template-columns:1fr 1fr 1.35fr .7fr .7fr;">
           <button class="sbtn v-unset active" data-pay-btn data-pay="cash" type="button">💴 現金</button>
           <button class="sbtn v-unset" data-pay-btn data-pay="credit" type="button">💳 クレジット</button>
-          <button class="sbtn v-unset" data-pay-btn data-pay="bank" type="button">🏦 銀行振込</button>
-          <button class="sbtn v-unset" data-pay-btn data-pay="" type="button">未設定</button>
+          <!-- 稀に現金とカードを分けて払うお客様がいる（店長要望 2026-08-08） -->
+          <button class="sbtn v-unset" data-pay-btn data-pay="split" type="button">🧾 現金＋クレジット</button>
+          <button class="sbtn v-unset bm-pay-rare" data-pay-btn data-pay="bank" type="button">🏦 振込</button>
+          <button class="sbtn v-unset bm-pay-rare" data-pay-btn data-pay="" type="button">未設定</button>
+        </div>
+        <!-- 併用のときだけ出る。現金で受け取る額を入れると、残りが自動でクレジットになる -->
+        <div class="bm-split" id="bmSplitWrap" style="display:none;">
+          <label for="bmCashAmount">現金で受け取る額</label>
+          <input type="text" inputmode="numeric" data-money id="bmCashAmount" placeholder="例 10000">
+          <span>円</span>
+          <div class="bm-split-note" id="bmSplitNote"></div>
         </div>
         <!-- 稀に決済が通らないことがあるため、通ったかどうかを1件ずつ記録する -->
         <label class="bm-card-paid" id="bmCardPaidWrap" style="display:none;">
@@ -2476,7 +2765,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="modal-close" data-close="shiftModal">×</button>
     </div>
     <div class="modal-body">
-      <div class="field owner-only" id="smStaffField" style="display:none;">
+      <!-- 内勤スタッフ以上なら他人のシフトも組めるので owner 限定にしない（表示は openShiftModal が制御） -->
+      <div class="field" id="smStaffField" style="display:none;">
         <label for="smStaff">対象スタッフ</label>
         <select id="smStaff"></select>
       </div>
@@ -2520,6 +2810,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
 <section class="filter-bar">
   <div class="filter-inner">
+    <!-- タイプ絞り込み・並び替え（店長要望 2026-08-08） -->
+    <select id="fHotelType">
+      <option value="">タイプ: すべて</option>
+      <option value="loveho">ラブホ</option>
+      <option value="hotel">ホテル</option>
+    </select>
     <select id="fCity"><option value="">全市区町村</option></select>
     <select id="fStatus">
       <option value="">ステータス: すべて</option>
@@ -2527,6 +2823,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <option value="inquiry">要問合せ</option>
       <option value="unavailable">不可</option>
       <option value="unset">未設定</option>
+    </select>
+    <select id="fSort">
+      <option value="">並び順: 実績優先</option>
+      <option value="city">市区町村順</option>
+      <option value="name">名前順</option>
+      <option value="visited">案内実績が多い順</option>
     </select>
     <input type="search" id="fKeyword" placeholder="ホテル名・住所で検索" enterkeyhint="search">
     <div class="reset-wrap"><button class="btn-reset" id="btnReset">クリア</button></div>
@@ -2542,12 +2844,12 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <button class="btn-bulk-unavailable" data-bulk="unavailable">不可</button>
       <button class="btn-bulk-unset" data-bulk="unset">未設定</button>
       <span class="bulk-sep"></span>
-      <!-- 交通費の一括設定。予約モーダル・編集モーダルと同じ550円刻み（店長要望 2026-08-07） -->
+      <!-- 交通費の一括設定。予約モーダル・編集モーダルと同じ ¥1,100〜550円刻み（店長要望 2026-08-07 / ¥550 は廃止 2026-08-08） -->
       <select id="bulkFeeSelect" class="bulk-fee-select">
         <option value="">交通費を選択</option>
         <option value="unset">— 未設定に戻す —</option>
         <option value="0">🆓 無料（¥0）</option>
-        <option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
+        <option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
       </select>
       <button class="btn-bulk-fee" id="btnBulkFee" disabled>交通費を設定</button>
       <button class="btn-bulk-delete" id="btnBulkDelete">リストから削除</button>
@@ -2570,6 +2872,26 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 </div>
 <!-- /view-hotel -->
 
+<!-- 🏠 自宅の交通費 ビュー（マスタ内から開く。店長要望 2026-08-08: 町名一覧を見ながら設定） -->
+<div class="view" id="view-cityfee">
+  <div style="padding:.2rem 0 .6rem;"><button class="btn-secondary" id="cityFeeBackToMaster" type="button" style="padding:.45rem .9rem;font-size:.88rem;">← マスタへ戻る</button></div>
+  <div class="tl-toolbar">
+    <div class="tl-title">🏠 自宅の交通費<span class="tl-sub">まず市区町村（全域）で一括 → 変えたい町だけ選び直す。予約の自宅で市区町村・町名を選ぶとこの金額が入ります</span></div>
+  </div>
+  <div class="staff-main" style="max-width:1000px;">
+    <!-- エリアタブは予約モーダルと同じ4区分（メイン=多摩／23区／埼玉／神奈川） -->
+    <div style="display:flex;gap:.3rem;background:var(--foam);padding:.4rem;border-radius:10px;max-width:460px;" id="cfRegionTabs">
+      <label class="loc-tab"><input type="radio" name="cfRegion" value="main" checked><span>メイン</span></label>
+      <label class="loc-tab"><input type="radio" name="cfRegion" value="tokyo23"><span>23区</span></label>
+      <label class="loc-tab"><input type="radio" name="cfRegion" value="saitama"><span>埼玉</span></label>
+      <label class="loc-tab"><input type="radio" name="cfRegion" value="kanagawa"><span>神奈川</span></label>
+    </div>
+    <div id="cfCityChips" style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.9rem 0;"></div>
+    <div id="cfTownPanel"></div>
+  </div>
+</div>
+<!-- /view-cityfee -->
+
 <!-- 🚉 駅マスタ ビュー（マスタ内から開く） -->
 <div class="view" id="view-stations">
   <div style="padding:.2rem 0 .6rem;"><button class="btn-secondary" id="stationBackToMaster" type="button" style="padding:.45rem .9rem;font-size:.88rem;">← マスタへ戻る</button></div>
@@ -2582,21 +2904,42 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 </div>
 <!-- /view-stations -->
 
-<!-- 💬 チャット ビュー (owner専用) -->
+<!-- 💬 チャット ビュー
+     お客様対応は YobuChat の店舗受信箱をそのまま使う（店長要望 2026-08-08）。
+     独自に作り直すと本家との機能差が出るため、/chat/{slug}/ を iframe で読み込む方式にした
+     （chat.html は frame-ancestors * で埋込許可済み。埋込は iframe 統一という YobuChat の方針とも一致）。
+     下の旧UI(caLegacyUi)は ylka から移植したまま API が無く動かない残骸。JS が
+     getElementById で参照するため消さずに隠してある。 -->
 <div class="view" id="view-chat">
   <main class="chat-admin">
     <div class="chat-admin-head">
       <h2>💬 チャット</h2>
       <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-        <label style="font-size:.85rem;color:var(--ink-soft);display:flex;align-items:center;gap:.4rem;cursor:pointer;">
-          <input type="checkbox" id="caOnlineToggle" style="width:18px;height:18px;cursor:pointer;">
-          <span>オンライン受付</span>
-        </label>
-        <button class="btn-secondary" id="caPushBtn" type="button" title="この端末でチャット通知を受け取る">🔔 通知をON</button>
-        <button class="btn-secondary" id="caSettings">⚙️ 設定</button>
+        <button class="btn-secondary" id="caFrameReload" type="button" title="受信箱を読み込み直す">↻ 更新</button>
+        <a class="btn-secondary" id="caFrameOpen" href="<?= htmlspecialchars(OPS_CHAT_URL, ENT_QUOTES) ?>" target="_blank" rel="noopener" style="text-decoration:none;">別タブで開く ↗</a>
       </div>
     </div>
-    <div class="chat-admin-grid">
+    <iframe id="caFrame" title="YobuChat 店舗受信箱"
+            data-src="<?= htmlspecialchars(OPS_CHAT_URL, ENT_QUOTES) ?>"
+            style="width:100%;height:calc(100dvh - 210px);min-height:520px;border:1.5px solid var(--gray);border-radius:12px;background:#fff;display:block;"></iframe>
+    <details style="margin:.7rem 0 0;font-size:.83rem;color:var(--ink-soft);">
+      <summary style="cursor:pointer;font-weight:700;color:var(--deep);">⚙ 受信箱URLの設定（受信チャットが出ないとき）</summary>
+      <p style="margin:.5rem 0;line-height:1.8;">
+        チャットは <b>yobuho.com</b>、この管理画面は <b>admi2888.com</b> と別のサイトのため、
+        ログイン情報が枠の中に引き継がれません。そのままだとお客様側の画面が出ます。<br>
+        <b>手順:</b> 右上の「別タブで開く ↗」で受信チャットを開く →
+        見出しの「🔗 管理画面用URL」を押してコピー → 下に貼って保存。以降はこの枠に受信チャットが出ます。
+      </p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+        <input type="url" id="caInboxUrl" placeholder="https://yobuho.com/chat/xxxxxxxx/?owner_token=…"
+               style="flex:1;min-width:18rem;padding:.5rem .7rem;border:1.5px solid var(--gray);border-radius:8px;font-size:.85rem;">
+        <button class="btn-primary" id="caInboxUrlSave" type="button" style="padding:.5rem 1rem;font-size:.85rem;">保存</button>
+      </div>
+      <p style="margin:.5rem 0 0;line-height:1.7;">
+        通知の設定・受付時間・定型文も、この枠の中の「設定」から変更できます。
+      </p>
+    </details>
+    <div class="chat-admin-grid" id="caLegacyUi" style="display:none;">
       <!-- 左ペイン: 受信箱 -->
       <div class="ca-inbox" id="caInbox">
         <div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>
@@ -2712,6 +3055,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <button class="sbtn v-unset ac-range" data-range="this-week" type="button">今週</button>
           <button class="sbtn v-unset ac-range" data-range="today" type="button">今日</button>
           <button class="sbtn v-unset ac-range" data-range="yesterday" type="button">前日</button>
+          <button class="sbtn v-unset ac-range" data-range="tomorrow" type="button">翌日</button>
         </div>
         <input type="date" id="acFrom" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;">
         <span style="color:var(--ink-soft);">〜</span>
@@ -2751,7 +3095,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 
     <!-- 👤 報酬 -->
     <div class="ac-panel" id="ac-payroll" style="display:none;">
-      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = <b>マスタでコースごとに設定したキャスト報酬</b> ＋ 交通費（自走分）＋ 深夜料金。<b>交通費</b>＝送迎した片道は片道850円〜がお店、行き帰り両方送迎なら全額お店。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
+      <p style="color:var(--ink-soft);font-size:.85rem;margin-bottom:1rem;">対象 = <b>完了</b>予約のみ。報酬 = <b>マスタでコースごとに設定したキャスト報酬</b> ＋ 延長 ＋ オプション ＋ 指名料の報酬 ＋ 機動ボーナス（交通費）＋ 深夜料金。<b>機動ボーナス</b>＝行き帰りとも自走なら交通費の全額（例 ¥1,650→¥1,650）、片道だけ自走ならその半分を50円単位に切り上げ（例 ¥1,650→¥850）。送迎した片道はお店の取り分。<b>深夜料金</b>＝帰りのお迎えがあった場合は全額お店、お迎えなしは全額キャスト。</p>
       <div id="payTotal" style="margin-bottom:1rem;"></div>
       <div id="payResult"><div class="loading"><span class="spinner"></span><br><br>読み込み中...</div></div>
     </div>
@@ -2804,6 +3148,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
           <button class="sbtn v-unset ms-range" data-range="this-week" type="button">今週</button>
           <button class="sbtn v-unset ms-range" data-range="today" type="button">今日</button>
           <button class="sbtn v-unset ms-range" data-range="yesterday" type="button">前日</button>
+          <button class="sbtn v-unset ms-range" data-range="tomorrow" type="button">翌日</button>
         </div>
         <input type="date" id="msFrom" style="padding:.5rem .6rem;border:1.5px solid var(--gray);border-radius:8px;">
         <span style="color:var(--ink-soft);">〜</span>
@@ -3029,6 +3374,19 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
         <label for="emName">ホテル名</label>
         <input type="text" id="emName" placeholder="例: シティ">
       </div>
+      <div class="field">
+        <label for="emHotelType">タイプ</label>
+        <!-- 一覧の絞り込みは「ラブホ / ホテル」の2択。ラブホ以外はすべて「ホテル」に含まれる -->
+        <select id="emHotelType">
+          <option value="love_hotel">🛏 ラブホ</option>
+          <option value="city">🏨 シティホテル</option>
+          <option value="business">🏨 ビジネスホテル</option>
+          <option value="ryokan">🏯 旅館</option>
+          <option value="minshuku">🏠 民宿</option>
+          <option value="other">その他</option>
+        </select>
+        <span class="hint">ラブホ以外は一覧の「タイプ: ホテル」でまとめて絞り込めます</span>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;">
         <div class="field">
           <label for="emCity">市区町村</label>
@@ -3070,11 +3428,11 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
       <input type="hidden" id="emRoomRec">
       <div class="field">
         <label for="emTransportFee">交通費</label>
-        <!-- 予約モーダルの交通費と同じ550円刻み。無料(0円)と未設定(表示なし)は別物 -->
+        <!-- 予約モーダルの交通費と同じ ¥1,100〜550円刻み。無料(0円)と未設定(表示なし)は別物 -->
         <select id="emTransportFee">
           <option value="">— 未設定（表示なし）—</option>
           <option value="0">🆓 無料（¥0）</option>
-          <option value="550">¥550</option><option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
+          <option value="1100">¥1,100</option><option value="1650">¥1,650</option><option value="2200">¥2,200</option><option value="2750">¥2,750</option><option value="3300">¥3,300</option><option value="3850">¥3,850</option><option value="4400">¥4,400</option><option value="4950">¥4,950</option><option value="5500">¥5,500</option><option value="6050">¥6,050</option><option value="6600">¥6,600</option><option value="7150">¥7,150</option><option value="7700">¥7,700</option><option value="8250">¥8,250</option><option value="8800">¥8,800</option><option value="9350">¥9,350</option><option value="9900">¥9,900</option><option value="10450">¥10,450</option><option value="11000">¥11,000</option>
         </select>
         <span class="hint">ホテルを選ぶと、予約画面の交通費にこの金額が初期値で入ります</span>
       </div>
