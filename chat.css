@@ -834,7 +834,16 @@ body[data-mode="men"]{
   --dlp-online:#1E8E5A;       /* パステル地で視認できる緑 */
 }
 body[data-mode="men"]{background:#FBE7EF}
-body[data-mode="men"] #chat-root{background:#fff;border-color:rgba(194,24,91,.18)}
+/* 外枠: ヘッダーがパステルになった分、1px/.18 の枠では周囲に溶けて輪郭が消える。
+   濃ピンクを 1.5px でしっかり引き、影も締めて「箱」として見えるようにする。 */
+body[data-mode="men"] #chat-root,
+body[data-mode="men"][data-role="cast"] #chat-root{
+  background:#fff;
+  border:1.5px solid rgba(194,24,91,.55);
+  box-shadow:0 10px 30px rgba(90,16,48,.12),0 2px 10px rgba(194,24,91,.18);
+}
+/* 埋め込み時は親サイトのレイアウトに従うので枠なしを維持（既定の打ち消しを再適用） */
+body[data-mode="men"].embedded #chat-root{border:0;box-shadow:none}
 body[data-mode="men"] .chat-messages{background:var(--dlp-bg-base)}
 body[data-mode="men"] .chat-thread{background:var(--dlp-bg-base)}
 
