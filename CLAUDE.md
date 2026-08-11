@@ -1142,12 +1142,14 @@ iframe 方式で真の単一ソース化を達成し、手動同期作業自体�
 - 受けるメッセージ: `ychat:resize` / `ychat:input-focus` / `ychat:enter-fullscreen` / `ychat:exit-fullscreen`
 - 高さ範囲は iframe 属性 `data-ychat-min` / `data-ychat-max`（省略時 500-900px）
 - 全画面化: タッチ端末で入力 focus 時に chat.js が送信 → iframe を `position:fixed;inset:0;100dvh;z-index:max` 化、✕/Esc で復帰（iOS iframe のキーボード座標系問題を根本回避）
-- .htaccess で `Cache-Control: max-age=3600, must-revalidate` → 1時間以内に全埋込先が最新版に追従、客側の再コピペ不要
+- .htaccess で `Cache-Control: no-cache, must-revalidate` → **リロード即反映**（毎回 revalidate、ETag 一致なら 304 でほぼ無負荷）。客側の再コピペ不要
+  ※ 旧 `max-age=3600` は「1時間 hotfix が届かない」問題があったため廃止済み
 - chat-widget.js も同じ cache ポリシー（以前は 1年キャッシュで更新が行き届かなかった）
+- **反映経路まとめ（全て即時）**: `/chat/{slug}/`=chat-embed.php が `no-store` / `chat.css`・`chat.js` は deploy.yml が `?v=` を git ハッシュに置換 / `chat-embed.js`・`chat-widget.js` は no-cache / `chat-i18n.json?v=` も deploy.yml が chat.js 内を置換（2026-08-11 追加。それ以前は固定値で訳文更新が届かなかった）
 
 **変更時の鉄則:**
 - 訪問者UIの変更 → `chat.html` / `chat.js` / `chat.css` のみ編集。全5埋込に自動反映
-- 埋込ブリッジの改良 → `chat-embed.js` のみ編集。全②/⑤埋込先に1時間以内に反映、スニペット再配布不要
+- 埋込ブリッジの改良 → `chat-embed.js` のみ編集。全②/⑤埋込先にリロードで即反映、スニペット再配布不要
 - i18n追加 → `chat-i18n.json` のみ編集（chat.js が fetch するため即時反映）
 - 高さ・外枠スタイル（iframe 側）の変更 → shop-admin.html の `renderChatAdmin()` 内の該当埋込タイプのコードのみ修正
 - .htaccess の `/chat/` は `frame-ancestors *` / X-Frame-Options 除去済み（iframe 埋込許可）

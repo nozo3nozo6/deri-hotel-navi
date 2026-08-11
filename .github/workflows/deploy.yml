@@ -79,6 +79,9 @@ jobs:
           sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" portal-men.html portal-women.html portal-men-same.html portal-women-same.html portal-este.html
           sed -i -E "s/\?v=[a-zA-Z0-9]+/?v=$HASH/g" shop-admin.html admin.html chat.html 2>/dev/null || true
           sed -i "s/CACHE_HASH/$HASH/g" hotel-search.js
+          # chat.js が force-cache で読む辞書。JSファイル内の固定 ?v= はHTML側のsedが届かず
+          # 手動更新しない限り古い訳文のままになるため、ここでハッシュに置換する。
+          sed -i -E "s#chat-i18n\.json\?v=[a-zA-Z0-9]+#chat-i18n.json?v=$HASH#g" chat.js 2>/dev/null || true
 
       - name: Generate sitemap.xml
         run: node generate-sitemap.js
