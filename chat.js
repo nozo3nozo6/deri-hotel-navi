@@ -2986,7 +2986,7 @@ function addRestartButton() {
     btn.type = 'button';
     btn.className = 'btn-restart-chat';
     btn.textContent = t('thread.restart');
-    btn.style.cssText = 'padding:10px 20px;border:1px solid #d4af37;border-radius:20px;background:#fff;color:#9b2d35;font-weight:600;cursor:pointer;font-size:14px;';
+    btn.style.cssText = 'padding:10px 20px;border:1.5px solid var(--chat-primary,#9b2d35);border-radius:20px;background:#fff;color:var(--chat-primary,#9b2d35);font-weight:700;cursor:pointer;font-size:14px;';
     btn.addEventListener('click', restartVisitorSession);
     wrap.appendChild(btn);
     refs.chatMessages.appendChild(wrap);

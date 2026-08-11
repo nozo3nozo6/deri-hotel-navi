@@ -1,6 +1,6 @@
 /* chat.css — スタンドアロンチャット + 埋め込み共用 */
 :root{--chat-primary:#9b2d35;--chat-primary-dark:#7a1f27;--chat-primary-rgb:155,45,53;--chat-quick-bg:#f0e8dc;--chat-quick-bg-hover:#e8dcc4;--chat-quick-border:#d4c5a8;--chat-quick-text:#7a1f27;--chat-note-bg:#fff4e6;--chat-note-border:#f5d7a8;--chat-note-text:#7a4a15}
-body[data-mode="women"]{--chat-primary:#b5627a;--chat-primary-dark:#8e4a5d;--chat-primary-rgb:181,98,122;--chat-quick-bg:#fce7ee;--chat-quick-bg-hover:#f8d5e1;--chat-quick-border:#e9b5c5;--chat-quick-text:#8e4a5d;--chat-note-bg:#fff0f4;--chat-note-border:#f5c8d4;--chat-note-text:#7a3f52}
+body[data-mode="women"]{--chat-primary:#d92552;--chat-primary-dark:#a1153e;--chat-primary-rgb:217,37,82;--chat-quick-bg:#ffe4ec;--chat-quick-bg-hover:#ffd0e0;--chat-quick-border:#f5a8c0;--chat-quick-text:#a1153e;--chat-note-bg:#fff1f5;--chat-note-border:#f3b8c8;--chat-note-text:#8e1237}
 body[data-mode="men_same"]{--chat-primary:#2a5a8f;--chat-primary-dark:#1e4268;--chat-primary-rgb:42,90,143;--chat-quick-bg:#e3ecf5;--chat-quick-bg-hover:#cfdcea;--chat-quick-border:#a9c1db;--chat-quick-text:#1e4268;--chat-note-bg:#eff5fb;--chat-note-border:#c4d6e8;--chat-note-text:#24456e}
 body[data-mode="women_same"]{--chat-primary:#8a5a9e;--chat-primary-dark:#6b4079;--chat-primary-rgb:138,90,158;--chat-quick-bg:#efe5f5;--chat-quick-bg-hover:#e1d0ec;--chat-quick-border:#c5aed6;--chat-quick-text:#6b4079;--chat-note-bg:#f5ecfa;--chat-note-border:#dcc5ea;--chat-note-text:#5a3466}
 body[data-mode="este"]{--chat-primary:#2aa8b8;--chat-primary-dark:#1e7d8a;--chat-primary-rgb:42,168,184;--chat-quick-bg:#dff2f4;--chat-quick-bg-hover:#c7e8eb;--chat-quick-border:#a0d4da;--chat-quick-text:#1e7d8a;--chat-note-bg:#ecf7f9;--chat-note-border:#bfe0e5;--chat-note-text:#1e5a64}
@@ -503,26 +503,27 @@ body.cast-mode.chat-input-focused #embed-direct-link{display:none}
    仕様: 文字コントラスト WCAG AA 以上、UI は柔らかい凸シャドウで上品に.
    ====================================================================== */
 body[data-mode="women"]{
-  --thb-bg-base:#F5EAE4;
-  --thb-bg-soft:#FBF6F2;
-  --thb-bg-shadow:#EFE3DD;
-  --thb-header-from:#B85470;
-  --thb-header-to:#8B3A52;
-  --thb-header-text:#FBE9E7;
-  --thb-accent:#B85470;
-  --thb-accent-soft:#C66B85;
-  --thb-accent-deep:#A04960;
-  --thb-text-primary:#1F0A14;
-  --thb-text-body:#3D1A2A;
-  --thb-text-sub:#8B5666;
-  --thb-text-muted:#A07585;
-  --thb-text-heading:#5C2A38;
-  --thb-status-online:#7DD3A8;
+  /* 2026-08-11 ルージュ・パレット: くすみワイン×ベージュ → 口紅の赤×白い化粧台（パキッと） */
+  --thb-bg-base:#FBEDF1;
+  --thb-bg-soft:#FFF7F9;
+  --thb-bg-shadow:#F3DCE3;
+  --thb-header-from:#D92552;
+  --thb-header-to:#A1153E;
+  --thb-header-text:#FFFFFF;
+  --thb-accent:#D92552;
+  --thb-accent-soft:#E05C8A;
+  --thb-accent-deep:#B01945;
+  --thb-text-primary:#2B1A20;
+  --thb-text-body:#4A2634;
+  --thb-text-sub:#8A4F63;
+  --thb-text-muted:#9C6274;
+  --thb-text-heading:#8E1237;
+  --thb-status-online:#4CD68A;
   --thb-shadow-light:rgba(255,255,255,0.92);
-  --thb-shadow-dark:rgba(180,130,120,0.18);
-  --thb-shadow-dark-strong:rgba(180,130,120,0.22);
-  --thb-border-soft:rgba(184,84,112,0.15);
-  --thb-border-faint:rgba(184,84,112,0.12);
+  --thb-shadow-dark:rgba(198,94,124,0.18);
+  --thb-shadow-dark-strong:rgba(198,94,124,0.24);
+  --thb-border-soft:rgba(217,37,82,0.16);
+  --thb-border-faint:rgba(217,37,82,0.12);
 }
 body[data-mode="women"]{background:var(--thb-bg-shadow)}
 /* chat-root 背景は白. ローズヘッダーの角丸 (border-top-radius) の隙間が
@@ -537,19 +538,33 @@ body[data-mode="women"] #chat-header{
   background:linear-gradient(135deg,var(--thb-header-from) 0%,var(--thb-header-to) 100%);
   color:var(--thb-header-text);
 }
+/* 口紅スペクトルライン（ポータル「ルージュ・パレット」と共通の意匠） */
+body[data-mode="women"] #chat-header::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:3px;
+  background:linear-gradient(90deg,#b01945,#d92552 28%,#e8735a 52%,#d4af6a 76%,#e05c8a);
+  z-index:11;
+}
 body[data-mode="women"] #chat-shop-name{
   color:var(--thb-header-text);
   font-weight:600;
   letter-spacing:.04em;
 }
 body[data-mode="women"] .status-label{
-  color:rgba(251,233,231,.85);
+  color:rgba(255,255,255,.9);
   font-size:10px;
 }
 body[data-mode="women"] .status-dot.online{
   background:var(--thb-status-online);
   width:8px;height:8px;
-  box-shadow:0 0 6px rgba(125,211,168,.6);
+  box-shadow:0 0 6px rgba(76,214,138,.65);
+}
+/* 終了メッセージ等のシステムバブル: 黄土色 → 口紅パレットに合わせた血色の白 */
+body[data-mode="women"] .msg-system{
+  background:#fff1f5;
+  color:#8e1237;
 }
 body[data-mode="women"] .toggle-switch .slider{
   background:rgba(0,0,0,.28);
