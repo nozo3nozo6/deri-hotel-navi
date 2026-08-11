@@ -1,5 +1,7 @@
 /* chat.css — スタンドアロンチャット + 埋め込み共用 */
-:root{--chat-primary:#9b2d35;--chat-primary-dark:#7a1f27;--chat-primary-rgb:155,45,53;--chat-quick-bg:#f0e8dc;--chat-quick-bg-hover:#e8dcc4;--chat-quick-border:#d4c5a8;--chat-quick-text:#7a1f27;--chat-note-bg:#fff4e6;--chat-note-border:#f5d7a8;--chat-note-text:#7a4a15}
+/* 既定 = デリヘル(men)。2026-08-11: 臙脂+ベージュ → パステルピンク基調に刷新。
+   面はパステル、文字・枠は白地で 4.5:1 を満たす濃ピンクという役割分担。 */
+:root{--chat-primary:#c2185b;--chat-primary-dark:#9c1249;--chat-primary-rgb:194,24,91;--chat-quick-bg:#ffeaf1;--chat-quick-bg-hover:#ffd8e6;--chat-quick-border:#f7bcd0;--chat-quick-text:#9c1249;--chat-note-bg:#fff2f6;--chat-note-border:#f7c9d8;--chat-note-text:#8e2b4c}
 body[data-mode="women"]{--chat-primary:#d92552;--chat-primary-dark:#a1153e;--chat-primary-rgb:217,37,82;--chat-quick-bg:#ffe4ec;--chat-quick-bg-hover:#ffd0e0;--chat-quick-border:#f5a8c0;--chat-quick-text:#a1153e;--chat-note-bg:#fff1f5;--chat-note-border:#f3b8c8;--chat-note-text:#8e1237}
 body[data-mode="men_same"]{--chat-primary:#2a5a8f;--chat-primary-dark:#1e4268;--chat-primary-rgb:42,90,143;--chat-quick-bg:#e3ecf5;--chat-quick-bg-hover:#cfdcea;--chat-quick-border:#a9c1db;--chat-quick-text:#1e4268;--chat-note-bg:#eff5fb;--chat-note-border:#c4d6e8;--chat-note-text:#24456e}
 body[data-mode="women_same"]{--chat-primary:#8a5a9e;--chat-primary-dark:#6b4079;--chat-primary-rgb:138,90,158;--chat-quick-bg:#efe5f5;--chat-quick-bg-hover:#e1d0ec;--chat-quick-border:#c5aed6;--chat-quick-text:#6b4079;--chat-note-bg:#f5ecfa;--chat-note-border:#dcc5ea;--chat-note-text:#5a3466}
@@ -72,7 +74,7 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 /* Header right cluster */
 .chat-header-right{justify-self:end;display:flex;align-items:center;gap:8px}
 .font-size-btn{height:34px;padding:0 12px;border-radius:17px;background:#f0ede7;color:#555;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;flex-shrink:0;line-height:1;border:1px solid #e0dbd0}
-.font-size-btn .font-size-icon{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:16px;color:#9b2d35;line-height:1;padding-right:6px;border-right:1px solid #d4ccbe}
+.font-size-btn .font-size-icon{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:16px;color:var(--chat-primary);line-height:1;padding-right:6px;border-right:1px solid #d4ccbe}
 .font-size-btn:hover{background:#e5e0d8}
 .lang-select{height:34px;padding:0 26px 0 10px;border-radius:17px;background:#f0ede7;color:#444;font-size:13px;font-weight:600;border:1px solid #e0dbd0;cursor:pointer;flex-shrink:0;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23666' d='M5 6L0 0h10z'/></svg>");background-repeat:no-repeat;background-position:right 8px center}
 .lang-select:focus{outline:none;background-color:#e5e0d8}
@@ -405,12 +407,12 @@ body.embedded #chat-root:has(#visitor-notify input:not([type=checkbox]):focus) .
 .footer-brand:hover{background:#f0ede7}
 .footer-brand.hidden{display:none}
 .footer-brand-row{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.footer-brand-name{font-weight:800;color:#9b2d35;letter-spacing:.2px}
+.footer-brand-name{font-weight:800;color:var(--chat-primary);letter-spacing:.2px}
 .footer-brand-ruby{font-size:10px;color:#8a7a6a;letter-spacing:.5px}
 .footer-brand-by{color:#a89a8a;font-size:10px}
 .footer-brand-site{font-weight:700;color:#555}
-.footer-brand:hover .footer-brand-site{color:#9b2d35}
-.footer-brand:hover .footer-brand-name{color:#7a1f27}
+.footer-brand:hover .footer-brand-site{color:var(--chat-primary)}
+.footer-brand:hover .footer-brand-name{color:var(--chat-primary-dark)}
 @media (max-width:420px){.footer-brand{font-size:10px;padding:3px 6px}.footer-brand-row{gap:3px}}
 @media (max-width:640px){
   .chat-footer{flex-wrap:nowrap;gap:4px;padding:6px 8px}
@@ -812,3 +814,70 @@ body[data-mode="women"] .embed-direct-link{
   padding:14px;
 }
 
+
+/* ======================================================================
+   deli (men) パステルピンク・リファイン (2026-08-11)
+   ======================================================================
+   対象: body[data-mode="men"]（既定テーマ）。他モードは影響を受けない。
+   狙い: 面はパステルピンクで軽やかに、文字・枠は濃ピンクで可読性を担保。
+   ヘッダーを明色にするため、白文字前提だった要素を個別に上書きしている。
+   ====================================================================== */
+body[data-mode="men"]{
+  --dlp-bg-base:#FFF4F8;      /* スレッド面（淡いピンク） */
+  --dlp-bg-soft:#FFFAFC;      /* フッター等のさらに淡い面 */
+  --dlp-header-from:#FFD9E6;  /* ヘッダー左（パステル） */
+  --dlp-header-to:#FFC2D8;    /* ヘッダー右（パステル） */
+  --dlp-header-text:#5A1030;  /* ヘッダー文字（パステル地で 8:1 以上） */
+  --dlp-header-sub:#7A2144;   /* ヘッダー補助文字 */
+  --dlp-accent:#C2185B;       /* 濃ピンク（文字・枠・CTA） */
+  --dlp-border-soft:rgba(194,24,91,0.14);
+  --dlp-online:#1E8E5A;       /* パステル地で視認できる緑 */
+}
+body[data-mode="men"]{background:#FBE7EF}
+body[data-mode="men"] #chat-root{background:#fff;border-color:rgba(194,24,91,.18)}
+body[data-mode="men"] .chat-messages{background:var(--dlp-bg-base)}
+body[data-mode="men"] .chat-thread{background:var(--dlp-bg-base)}
+
+/* ヘッダー: パステル地 + 濃い文字（白文字前提の既定を打ち消す） */
+body[data-mode="men"] #chat-header{
+  background:linear-gradient(135deg,var(--dlp-header-from) 0%,var(--dlp-header-to) 100%);
+  color:var(--dlp-header-text);
+  box-shadow:0 1px 4px rgba(194,24,91,.10);
+}
+/* 下端にキャンディカラーの細ライン（ポータルの差し色マーカーに呼応） */
+body[data-mode="men"] #chat-header::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;bottom:0;
+  height:3px;
+  background:linear-gradient(90deg,#C2185B,#F06292 34%,#FFAB91 62%,#FFD54F 84%,#F48FB1);
+  z-index:11;
+}
+body[data-mode="men"] #chat-shop-name{color:var(--dlp-header-text);font-weight:700;letter-spacing:.02em}
+body[data-mode="men"] .visitor-name{color:var(--dlp-header-sub);opacity:1}
+body[data-mode="men"] .status-label{color:var(--dlp-header-sub);opacity:1}
+body[data-mode="men"] .status-dot.online{background:var(--dlp-online);box-shadow:0 0 6px rgba(30,142,90,.45)}
+/* 戻るボタン: 半透明白 → パステル上で見える白面 + 濃ピンク文字 */
+body[data-mode="men"] .header-back{background:rgba(255,255,255,.72);color:var(--dlp-accent)}
+body[data-mode="men"] .header-back:hover{background:#fff}
+/* 通知トグル: OFF状態がパステルに埋もれないよう濃くする */
+body[data-mode="men"] .toggle-switch .slider{background:rgba(90,16,48,.28)}
+body[data-mode="men"] .toggle-switch input:checked + .slider{background:var(--dlp-online)}
+/* 認証バッジ: 白ハートはパステル地で消えるため、濃ピンクのハート＋白チェックに反転 */
+body[data-mode="men"] .verified-badge path:first-of-type{fill:var(--dlp-accent)}
+body[data-mode="men"] .verified-badge path:last-of-type{stroke:#fff}
+/* キャスト受信箱バッジ（ヘッダー左上のチップ） */
+body[data-mode="men"][data-role="cast"] #chat-header::before{
+  background:rgba(255,255,255,.72);
+  color:var(--dlp-accent);
+}
+
+/* 吹き出し: 訪問者は濃ピンク面（白文字）、店舗は白面 */
+body[data-mode="men"] .msg.shop{border-color:#F2D5DF}
+/* 終了・システム系バブル: 黄土色 → パステルピンクに統一 */
+body[data-mode="men"] .msg-system{background:#FFEAF1;color:#8E2B4C}
+
+/* フッター・入力まわり */
+body[data-mode="men"] #chat-footer,
+body[data-mode="men"] .footer-brand{background:var(--dlp-bg-soft);border-top-color:var(--dlp-border-soft)}
+body[data-mode="men"] .embed-direct-link{background:var(--dlp-bg-base);border-top-color:var(--dlp-border-soft)}
