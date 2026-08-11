@@ -331,6 +331,13 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年8月11日 — 女風（women）テーマ全面刷新「ルージュ・パレット」
+- theme-women.css / portal-v2-women.css を全面書き換え（デリヘル「モード・マガジン」と同じ2ファイル構成・同じ仕掛け位置）
+- コンセプト: 白い化粧台 × 口紅の赤 × シェード色見本の遊び。見出し明朝（Noto Serif JP、PortalLayoutで600追加読込）
+- トークン: ink #2b1a20 / rouge #d92552(装飾) / rouge-deep #b01945(文字・CTA 6.8:1) / coral #e8735a / rose #e05c8a / plum #9e4a78 / gold #d4af6a
+- 装飾: ヒーロー見出しに口紅スウォッチ横塗りアニメ、エリアカード下線が4色シェード循環(nth-child)、地域カードにN°01シェード番号、h2頭に口紅弾丸型(clip-path)、ヘッダー下に口紅スペクトルライン(border-image)、CTAは艶ルージュグラデ
+- 意味色(shop-green/user-blue/ng-red)と検索・モバイル対応・reduced-motion はデリヘル版と同一構造を維持
+
 ### 2026年8月1日 — メール送信を SMTP AUTH に統一（iCloud 配信不能の根本解決）
 
 #### 症状
