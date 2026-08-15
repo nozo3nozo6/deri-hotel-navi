@@ -66,14 +66,29 @@ document.addEventListener('change', function(e) {
         if (tgt) tgt.style.display = el.checked ? (el.dataset.onchangeToggleShow || 'flex') : 'none';
     }
 });
+// 全角数字(０-９)を半角に寄せる。IME が日本語入力モードのままだと数字は全角で出るため、
+// 「半角以外を削除」だけだと打った端から消えて入力不能になる。削除ではなく変換する。
+function _toHalfDigits(s) {
+    return String(s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+}
+function _numericize(el) {
+    el.value = _toHalfDigits(el.value).replace(/[^0-9]/g, '');
+}
 document.addEventListener('input', function(e) {
     const el = e.target;
     if (el.dataset.oninput && typeof window[el.dataset.oninput] === 'function') {
         window[el.dataset.oninput](el);
     }
     if (el.dataset.oninputNumeric === '1') {
-        el.value = el.value.replace(/[^0-9]/g, '');
+        // 変換中(isComposing)に value を書き換えると IME セッションが壊れて入力できなくなる
+        if (e.isComposing) return;
+        _numericize(el);
     }
+});
+// Safari 等 compositionend の後に input が来ない環境向けの保険
+document.addEventListener('compositionend', function(e) {
+    const el = e.target;
+    if (el && el.dataset && el.dataset.oninputNumeric === '1') _numericize(el);
 });
 document.addEventListener('submit', function(e) {
     const el = e.target;
@@ -113,7 +128,7 @@ function fmtDate(iso){if(!iso)return"—";const s=String(iso).replace('T',' ').r
 function jstNow(){const d=new Date();const j=new Date(d.getTime()+((d.getTimezoneOffset()+540)*60000));return j.getFullYear()+'-'+String(j.getMonth()+1).padStart(2,'0')+'-'+String(j.getDate()).padStart(2,'0')+' '+String(j.getHours()).padStart(2,'0')+':'+String(j.getMinutes()).padStart(2,'0')+':'+String(j.getSeconds()).padStart(2,'0');}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function formatPostalCode(el){const digits=el.value.replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
+function formatPostalCode(el){const digits=_toHalfDigits(el.value).replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
 // ===== 認証（サーバー側PHP認証 via api/auth.php） =====
 function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
 let _currentUser=null;

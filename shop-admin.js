@@ -75,6 +75,15 @@ document.addEventListener('change', function(e) {
     }
 });
 
+// 全角数字(０-９)を半角に寄せる。IME が日本語入力モードのままだと数字は全角で出るため、
+// 「半角以外を削除」だけだと打った端から消えて入力不能になる。削除ではなく変換する。
+function _toHalfDigits(s) {
+    return String(s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+}
+function _numericize(el) {
+    el.value = _toHalfDigits(el.value).replace(/[^0-9]/g, '');
+}
+
 // === input イベント委譲 ===
 // data-oninput="関数名"  → 関数を e.target で呼ぶ
 // data-oninput-numeric="1" → 数字以外を削除（連絡先・分・円等の数値入力欄）
@@ -84,8 +93,16 @@ document.addEventListener('input', function(e) {
         window[el.dataset.oninput](el);
     }
     if (el.dataset.oninputNumeric === '1') {
-        el.value = el.value.replace(/[^0-9]/g, '');
+        // 変換中(isComposing)に value を書き換えると IME セッションが壊れ、
+        // 以降まったく入力できなくなる。確定後(compositionend / 通常入力)に整形する。
+        if (e.isComposing) return;
+        _numericize(el);
     }
+});
+// Safari 等 compositionend の後に input が来ない環境向けの保険
+document.addEventListener('compositionend', function(e) {
+    const el = e.target;
+    if (el && el.dataset && el.dataset.oninputNumeric === '1') _numericize(el);
 });
 
 // === submit イベント委譲 ===
@@ -1531,9 +1548,14 @@ function cancelForm(){
 }
 
 // ===== 交通費入力 =====
-function formatTransportInput(el){let val=el.value.replace(/[^0-9]/g,'');el.value=val?parseInt(val,10).toLocaleString('ja-JP'):'';}
-document.getElementById('form-transport').addEventListener('input',function(){formatTransportInput(this);});
-document.getElementById('lh-form-transport').addEventListener('input',function(){formatTransportInput(this);});
+function formatTransportInput(el){let val=_toHalfDigits(el.value).replace(/[^0-9]/g,'');el.value=val?parseInt(val,10).toLocaleString('ja-JP'):'';}
+// IME 変換中は値を触らない（触ると変換が壊れて入力不能になる）。確定後に桁区切りへ整形する。
+['form-transport','lh-form-transport'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('input',function(e){if(e.isComposing)return;formatTransportInput(el);});
+    el.addEventListener('compositionend',function(){formatTransportInput(el);});
+});
 function toggleTransportFee(){
     const fc=document.getElementById("transport-free");
     const wrap=document.getElementById("transport-fee-wrap");
