@@ -149,6 +149,22 @@ function setCastDeviceToken(token) {
     if (!LS_CAST_DEVICE) return;
     try { localStorage.setItem(LS_CAST_DEVICE, token); } catch (_) {}
 }
+// キャスト受信箱を別ドメインのiframeから直開き: ?cast_device=<device_token>.
+// OPS(admi2888.com)のキャストマイページ埋め込み用。?owner_token= と同じ考え方で、
+// URLで端末登録トークンを受け取り localStorage に保存してから受信箱を開く（店長要望 2026-09-02）。
+// トークンは cast_inbox_devices に事前登録済みのもの（OPS側が発行）。保存後はURLから消す。
+(function adoptCastDeviceParam() {
+    if (!CAST_INBOX_TOKEN) return;
+    try {
+        const p = new URLSearchParams(window.location.search);
+        const v = (p.get('cast_device') || '').trim().toLowerCase();
+        if (!/^[a-f0-9]{32,64}$/.test(v)) return;
+        setCastDeviceToken(v);
+        const u = new URL(window.location.href);
+        u.searchParams.delete('cast_device');
+        history.replaceState(null, '', u.toString());
+    } catch (_) {}
+})();
 
 // ===== State =====
 let state = {
