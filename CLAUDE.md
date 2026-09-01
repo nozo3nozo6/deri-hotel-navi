@@ -18,6 +18,10 @@
 - MySQL (MariaDB): シンレンタルサーバー上、api/db-config.phpで接続情報定義（deploy.ymlでGitHub Secretsから生成）
 - ローカル接続: SSHトンネル（ssh -p 10022 -L 3307:localhost:3306）+ db-local.js
 - SMTP: hotel@yobuho.com（sv6051.wpx.ne.jp:587）— Magic Linkテンプレートカスタマイズ済み
+- **メール送信は必ず `sendMimeMail()`（api/mail-utils.php）経由**。生の `mail()` は使わない。
+  SMTP AUTH（587+STARTTLS、api/smtp-send.php）で送信し、未設定・失敗時のみ `mail()` にフォールバック。
+  `mail()` 直送は Apple/iCloud に `554 5.7.1 [HM08]` で拒否される（2026-08-01 の修正履歴参照）。
+  必要 Secret: `SMTP_PASS`（他は既定値）
 
 ## Project Structure
 ```
@@ -327,6 +331,59 @@ id, placement_type, placement_target, status, mode, shop_id, banner_image_url, b
 - hotels: INSERT/UPDATE/DELETE = admin
 
 ## 修正履歴
+### 2026年8月11日 — 女風（women）テーマ全面刷新「ルージュ・パレット」
+- theme-women.css / portal-v2-women.css を全面書き換え（デリヘル「モード・マガジン」と同じ2ファイル構成・同じ仕掛け位置）
+- コンセプト: 白い化粧台 × 口紅の赤 × シェード色見本の遊び。見出し明朝（Noto Serif JP、PortalLayoutで600追加読込）
+- トークン: ink #2b1a20 / rouge #d92552(装飾) / rouge-deep #b01945(文字・CTA 6.8:1) / coral #e8735a / rose #e05c8a / plum #9e4a78 / gold #d4af6a
+- 装飾: ヒーロー見出しに口紅スウォッチ横塗りアニメ、エリアカード下線が4色シェード循環(nth-child)、地域カードにN°01シェード番号、h2頭に口紅弾丸型(clip-path)、ヘッダー下に口紅スペクトルライン(border-image)、CTAは艶ルージュグラデ
+- 意味色(shop-green/user-blue/ng-red)と検索・モバイル対応・reduced-motion はデリヘル版と同一構造を維持
+
+### 2026年8月1日 — メール送信を SMTP AUTH に統一（iCloud 配信不能の根本解決）
+
+#### 症状
+`@icloud.com` 宛のメールが `554 5.7.1 [HM08] Message rejected due to local policy` で拒否され続けていた。
+キャスト受信箱の端末認証コードが届かず、該当キャストがログイン不能に。
+バウンス履歴（`~/yobuho.com/mail/yobuho.com/hotel@yobuho.com/new/`）を調べると **6/8 以降、複数の iCloud 宛で継続発生**。
+旧サーバー sv6825 時代は 0 件で、**4/21 の sv6051 移行後にのみ発生**していた。
+
+#### 切り分けの経緯（誤診を含む記録 — 同じ回り道を避けるため）
+1. ~~MIME 不正が原因~~ → CTE 欠落等を修正したが **HM08 は解消せず**（形式は原因ではなかった）
+2. ~~SPF/DKIM/DMARC 未設定~~ → **3つとも設定済み・pass**（Google の DMARC レポートで確認済み）
+3. ~~IP がブラックリスト入り~~ → **60 件中 0 件でクリーン**（MXToolbox）
+4. ~~受信者アドレス個別のブロック~~ → **自分の iCloud アドレスでも再現**したため否定
+5. ✅ **送信経路が原因** → 決定打は次の A/B:
+   - `php mail()` 経由（sv6051） → **HM08 で拒否**
+   - **Web メール（SMTP AUTH）経由（同一サーバ・同一IP・同一 From）** → **正常配信**
+
+#### 根本原因
+`mail()` はローカルの sendmail にメッセージを直接注入するため、
+`Received: by sv6051.wpx.ne.jp (Postfix, from userid 20014)` が残り、
+受信側から「SMTP 認証を伴わないスクリプト送信」であることが露見する。
+これが**共有ホスティングの IP と組み合わさると Apple/iCloud のポリシー判定で拒否**される。
+（ヘッダを整えると HM08 は消えるが、今度は受理後にサイレント破棄され受信箱に届かない）
+
+#### 対策（実装）
+- **`api/smtp-send.php` 新設** — 依存ライブラリ無しの SMTP AUTH 送信（submission/587 + STARTTLS + AUTH LOGIN）。
+  composer 未使用のため自己完結実装。ヘッダインジェクション防止、行頭ドットのエスケープ（RFC5321 4.5.2）、
+  CRLF 正規化、複数行応答の解析、TLS 必須、資格情報をログに出さない設計。
+- **`api/mail-utils.php`** — `sendMimeMail()` を新設し、**全メール送信をこの1関数に集約**。
+  SMTP を優先し、未設定・接続失敗時は従来の `mail()` に自動フォールバック（段階導入・障害耐性）。
+  Message-ID 未指定なら `@yobuho.com` で補完（MTA 生成だと `@sv6051.wpx.ne.jp` になり From とドメイン不一致）。
+- **統合した送信元**: `sendTransactionalMail()` / `chat-api.php`（訪問者通知・キャスト認証コード）/
+  `chat-notify.php`（オーナー宛通知）/ `send-mail.php`（汎用送信）。生の `mail()` はフォールバック1箇所のみ。
+- **`deploy.yml`** — `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS` を db-config.php に生成。
+  `SMTP_PASS` のみ GitHub Secrets 必須（他は既定値 `sv6051.wpx.ne.jp` / `587` / `hotel@yobuho.com`）。
+
+#### 結果
+本番で `sendTransactionalMail()` 経由の iCloud 宛テストが**受信成功**。外部SMTPサービスへの移行は不要だった。
+
+#### 教訓・今後の注意
+- **サーバー内から送るメールは必ず `sendMimeMail()` 経由にすること。** 生の `mail()` を新規に書かない。
+- バウンスは `hotel@yobuho.com` のメールボックスに溜まるだけで**誰も気づけない**（今回 約2ヶ月放置された）。
+  調査時は `grep -l -i "icloud" ~/yobuho.com/mail/yobuho.com/hotel@yobuho.com/new/*` で履歴を追える。
+- 配信調査の初手は「**同じ内容を別経路で送って比較**」。認証・形式・ブラックリストを先に疑うと回り道になる。
+- Apple はエラーコードの意味を非公開・FBL/ダッシュボードも無し。窓口は `icloudadmin@apple.com` のみ。
+
 ### 2026年7月5日 — GSC 404対応・admin/shop-admin UX改善・デプロイSSH瞬断耐性強化
 
 #### GSC「ページのインデックス登録」404/ソフト404 対応
@@ -1085,12 +1142,14 @@ iframe 方式で真の単一ソース化を達成し、手動同期作業自体�
 - 受けるメッセージ: `ychat:resize` / `ychat:input-focus` / `ychat:enter-fullscreen` / `ychat:exit-fullscreen`
 - 高さ範囲は iframe 属性 `data-ychat-min` / `data-ychat-max`（省略時 500-900px）
 - 全画面化: タッチ端末で入力 focus 時に chat.js が送信 → iframe を `position:fixed;inset:0;100dvh;z-index:max` 化、✕/Esc で復帰（iOS iframe のキーボード座標系問題を根本回避）
-- .htaccess で `Cache-Control: max-age=3600, must-revalidate` → 1時間以内に全埋込先が最新版に追従、客側の再コピペ不要
+- .htaccess で `Cache-Control: no-cache, must-revalidate` → **リロード即反映**（毎回 revalidate、ETag 一致なら 304 でほぼ無負荷）。客側の再コピペ不要
+  ※ 旧 `max-age=3600` は「1時間 hotfix が届かない」問題があったため廃止済み
 - chat-widget.js も同じ cache ポリシー（以前は 1年キャッシュで更新が行き届かなかった）
+- **反映経路まとめ（全て即時）**: `/chat/{slug}/`=chat-embed.php が `no-store` / `chat.css`・`chat.js` は deploy.yml が `?v=` を git ハッシュに置換 / `chat-embed.js`・`chat-widget.js` は no-cache / `chat-i18n.json?v=` も deploy.yml が chat.js 内を置換（2026-08-11 追加。それ以前は固定値で訳文更新が届かなかった）
 
 **変更時の鉄則:**
 - 訪問者UIの変更 → `chat.html` / `chat.js` / `chat.css` のみ編集。全5埋込に自動反映
-- 埋込ブリッジの改良 → `chat-embed.js` のみ編集。全②/⑤埋込先に1時間以内に反映、スニペット再配布不要
+- 埋込ブリッジの改良 → `chat-embed.js` のみ編集。全②/⑤埋込先にリロードで即反映、スニペット再配布不要
 - i18n追加 → `chat-i18n.json` のみ編集（chat.js が fetch するため即時反映）
 - 高さ・外枠スタイル（iframe 側）の変更 → shop-admin.html の `renderChatAdmin()` 内の該当埋込タイプのコードのみ修正
 - .htaccess の `/chat/` は `frame-ancestors *` / X-Frame-Options 除去済み（iframe 埋込許可）
@@ -1107,6 +1166,8 @@ launch前にAPI/DB/フロントを移行前提に整備済み。
 
 ### DBテーブル（sql/chat_tables.sql）
 - chat_sessions — 匿名訪問者セッション（session_token、shop_id、status=open/closed、blocked）
+  ※ 保持ポリシー（2026-08-03〜）: **自動終了なし**（旧: 48時間無応答で自動close → 廃止）。
+    close の入口は手動のみ（訪問者 close-session / オーナー終了 / ブロック）。closed から60日で完全削除は維持（chat-retention.php）
 - chat_messages — メッセージ（sender_type=visitor/shop、read_at）
 - shop_chat_templates — 店舗定型文
 - shop_chat_status — 有効化 + is_online + notify_mode + reception_start/end + welcome_message + notify_email（shop-chat-status にレコードあり = チャット機能ON）

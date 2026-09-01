@@ -152,17 +152,43 @@ if (preg_match('#^/portal-[a-z-]+\.(php|html)$#', $_reqPath) || $_reqPath === "/
 // 第1セグメント($pref)が実在都道府県でない、または市区町村に該当ホテルが無いURLは 404 に。
 if ($pref || $city) {
     $_invalidUrl = false;
+    $_redirectTo = null;
     if ($pref) {
         $_adv = loadAreaData();
         if (empty($_adv['pref'][$pref])) {
             $_invalidUrl = true;                       // 例: index.html, wp-login.php, 乱文字列
         } elseif ($city) {
             $_cs = cityHotelStats($pref, $city);
-            if ((int)($_cs['total'] ?? 0) === 0) $_invalidUrl = true; // 実在しない市区町村
+            if ((int)($_cs['total'] ?? 0) === 0) {
+                // 2026-07-28: 3セグURL(/path/pref/area/X)は .htaccess が常に X を市区町村として
+                // ルーティングするが、SPA(buildUrl)は「エリア詳細のみ選択・市区町村未選択」の状態でも
+                // 同じ3セグ形式(pref/area/detail)のURLを生成する。この場合サーバーは detail 名を
+                // 市区町村と誤認し実在しない市区町村として404化していた（GSC「見つかりませんでした」で検出）。
+                // area-data.json の detail_area 一覧と一致する場合は、実在する親エリアページへ301で救済する。
+                $_isDetailAreaName = false;
+                if ($area && !$detail) {
+                    $_aKey = $pref . "\t" . $area;
+                    $_aEntry = $_adv['area'][$_aKey] ?? null;
+                    if ($_aEntry && !empty($_aEntry['da']) && is_array($_aEntry['da'])) {
+                        foreach ($_aEntry['da'] as $_daRow) {
+                            if (($_daRow[0] ?? null) === $city) { $_isDetailAreaName = true; break; }
+                        }
+                    }
+                }
+                if ($_isDetailAreaName) {
+                    $_redirectTo = '/' . $path . '/' . rawurlencode($pref) . '/' . rawurlencode($area);
+                } else {
+                    $_invalidUrl = true;                    // 実在しない市区町村
+                }
+            }
         }
     } else {
         // pref 無しで city だけ来るのは不正経路
         $_invalidUrl = true;
+    }
+    if ($_redirectTo) {
+        header('Location: https://yobuho.com' . $_redirectTo, true, 301);
+        exit;
     }
     if ($_invalidUrl) {
         http_response_code(404);

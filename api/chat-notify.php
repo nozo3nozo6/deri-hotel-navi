@@ -24,6 +24,7 @@
 require_once __DIR__ . '/db-config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/cast-bearer.php';
+require_once __DIR__ . '/mail-utils.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store');
@@ -207,17 +208,21 @@ $textBody = <<<TXT
 ※このメールは自動送信です。返信しないでください。
 TXT;
 
-// mail() で送信 (UTF-8 Base64 件名)
-$encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-$headers = [
+// 2026-08-01: MIME-Version ヘッダが無く、Content-Type/CTE が形式上無効な状態だった
+// （RFC2045: MIME-Version 非表示のメッセージは非MIME扱い＝日本語UTF-8が正しく解釈されない）。
+// MIME-Version を追加し、本文も 8bit 生送出から base64 に変更。
+// あわせて mail() 直呼び → sendMimeMail() に統一（SMTP AUTH 優先経路）。
+//   mail() のローカル注入は Apple/iCloud に [HM08] で拒否されるため、全送信経路を集約する。
+$headers = implode("\r\n", [
     'From: YobuChat <hotel@yobuho.com>',
     'Reply-To: hotel@yobuho.com',
+    'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
+    'Content-Transfer-Encoding: base64',
     'X-Mailer: YobuChat-DO',
-];
+]);
 
-$ok = @mail($to, $encodedSubject, $textBody, implode("\r\n", $headers), '-f hotel@yobuho.com');
+$ok = sendMimeMail($to, $subject, chunk_split(base64_encode($textBody)), $headers);
 
 if (!$ok) {
     http_response_code(500);

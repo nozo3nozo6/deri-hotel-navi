@@ -8,7 +8,21 @@
 //   - From: YobuHo <hotel@yobuho.com>
 //   - envelope sender (-f hotel@yobuho.com) で SPF alignment
 // を揃える。DMARC p=reject 下でもGmailのAIフィルタに「transactional」と認識させやすくする。
+//
+// 2026-08-01: 送信経路を SMTP AUTH 優先に変更。
+//   mail() はローカル sendmail への直接注入のため Received に
+//   "(Postfix, from userid 20014)" が残り、共有IPと相まって Apple/iCloud に
+//   554 5.7.1 [HM08] で拒否される（または受理後サイレント破棄される）ことを実測。
+//   同条件でも Web メール（SMTP AUTH）経由なら iCloud へ正常配信されたため、
+//   同じ submission 経路を使う。SMTP 未設定・失敗時は従来の mail() に自動フォールバック。
 // ==========================================================================
+
+// SMTP 認証情報は db-config.php（deploy.yml が GitHub Secrets から生成）に定義される。
+// ローカル開発環境等で存在しない場合は SMTP を使わず mail() にフォールバックする。
+if (!defined('SMTP_HOST') && is_readable(__DIR__ . '/db-config.php')) {
+    require_once __DIR__ . '/db-config.php';
+}
+require_once __DIR__ . '/smtp-send.php';
 
 /**
  * HTMLメールを multipart/alternative で送信する。
@@ -31,12 +45,51 @@ function sendTransactionalMail(string $to, string $subject, string $htmlBody): b
     $mimeBody .= chunk_split(base64_encode($htmlBody)) . "\r\n";
     $mimeBody .= "--{$boundary}--\r\n";
 
+    // Message-ID を yobuho.com ドメインで明示付与する。
+    // 未指定だと MTA が送信サーバのホスト名（sv6051.wpx.ne.jp）で生成し、From ヘッダの
+    // ドメインと不一致になる。iCloud/Apple は RFC5322 準拠とドメイン一貫性を要求するため
+    // （Postmaster ガイドライン）、From と揃えて弱いマイナス signal を消す。
+    // sendmail は Message-ID が既にある場合は上書きしないので重複しない。
+    $messageId = '<' . bin2hex(random_bytes(16)) . '.' . time() . '@yobuho.com>';
+
     $headers  = "From: YobuHo <hotel@yobuho.com>\r\n";
     $headers .= "Reply-To: hotel@yobuho.com\r\n";
+    $headers .= "Message-ID: {$messageId}\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
+    return sendMimeMail($to, $subject, $mimeBody, $headers);
+}
+
+/**
+ * 組み立て済み MIME メールを共通の送信経路で送る低レベル API。
+ *
+ * 独自の MIME 構造を持つ送信元（チャット通知など、text/plain だけ・独自の本文組み立てを
+ * したい箇所）が、sendTransactionalMail と同じ経路・同じ品質で送るための入口。
+ * 全メールをこの1関数に集約することで、送信経路の変更が一箇所で済む。
+ *
+ * Message-ID が未指定の場合は yobuho.com ドメインで補う（MTA が生成すると
+ * sv6051.wpx.ne.jp になり From とドメイン不一致になるため）。
+ *
+ * @param string $to       宛先
+ * @param string $subject  生の件名（内部で RFC2047 エンコードする）
+ * @param string $mimeBody 組み立て済み本文
+ * @param string $headers  CRLF 区切りのヘッダ群（To/Subject/Date は含めない）
+ */
+function sendMimeMail(string $to, string $subject, string $mimeBody, string $headers): bool {
+    if (stripos($headers, 'Message-ID:') === false) {
+        $messageId = '<' . bin2hex(random_bytes(16)) . '.' . time() . '@yobuho.com>';
+        $headers = rtrim($headers, "\r\n") . "\r\nMessage-ID: {$messageId}\r\n";
+    }
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+
+    // 経路1: SMTP AUTH（submission/587）。Web メールと同じ経路で、iCloud への配信実績あり。
+    $smtpErr = null;
+    if (smtpSendMail($to, $encodedSubject, $headers, $mimeBody, $smtpErr)) {
+        return true;
+    }
+    // 経路2: フォールバック。SMTP 未設定・接続失敗時も配信を止めない。
+    error_log('[mail-utils] SMTP send failed, falling back to mail(): ' . (string)$smtpErr);
     return @mail($to, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
 }
 

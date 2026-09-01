@@ -516,10 +516,10 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n";
 
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    // 2026-05-17: outlook.jp 配信失敗の調査用. mail() の返り値と宛先を error log に出力.
-    // production の PHP error_log で確認可能 (常時 false なら mail() 自体の問題、true なら配信途中の問題).
-    $mailResult = @mail($notifyTo, $encodedSubject, $mimeBody, $headers, '-f hotel@yobuho.com');
+    // 2026-05-17: outlook.jp 配信失敗の調査用. 送信結果と宛先を error log に出力.
+    // 2026-08-01: mail() 直呼び → sendMimeMail() に統一（SMTP AUTH 優先経路）。
+    //   mail() のローカル注入は Apple/iCloud に [HM08] で拒否されるため、全送信経路を集約する。
+    $mailResult = sendMimeMail($notifyTo, $subject, $mimeBody, $headers);
     error_log(sprintf(
         '[chat-api] mail to=%s session=%d cast=%s mode=%s result=%s',
         $notifyTo,
@@ -2136,24 +2136,32 @@ function maskCastEmail(string $email): string {
     return $maskedLocal . '@' . $domain;
 }
 
-function sendCastInboxAuthMail(string $to, string $displayName, string $code): void {
+// 2026-08-01: 生の mail() 直呼び → sendTransactionalMail() に統一.
+// 旧実装は Content-Transfer-Encoding ヘッダが無いまま日本語UTF-8(8bit)本文を送っていた
+// （RFC2045 上、CTE 省略時の既定は 7bit。8bit 本文を 7bit と申告する規約違反状態）。
+// iCloud 等の厳格な受信側でスパム/ポリシー判定を受けやすいため、他のトランザクショナル
+// メールと同じ base64 + multipart/alternative の共通ヘルパー経由に変更する。
+function sendCastInboxAuthMail(string $to, string $displayName, string $code): bool {
     $subject = '[YobuHo] 受信箱 端末認証コード';
-    $body  = "キャスト: {$displayName}\n";
-    $body .= "\n受信箱を開く端末の認証コードです:\n\n";
-    $body .= "    {$code}\n\n";
-    $body .= "（15分間有効 / 5回間違えると再送信が必要）\n\n";
-    $body .= "心当たりがない場合、URLが流出している可能性があります。\n";
-    $body .= "所属店舗のオーナーに連絡し、受信箱URLを再発行してもらってください。\n\n";
-    $body .= "YobuHo Cast\nhttps://yobuho.com/cast-admin.html\n";
+    $esc = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $headers = [
-        'From: YobuHo <hotel@yobuho.com>',
-        'Reply-To: hotel@yobuho.com',
-        'Content-Type: text/plain; charset=UTF-8',
-        'MIME-Version: 1.0',
-    ];
-    @mail($to, $encodedSubject, $body, implode("\r\n", $headers), '-f hotel@yobuho.com');
+    $body = '<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333;">'
+          . '<h2 style="color:#b5627a;">受信箱 端末認証コード</h2>'
+          . '<p>キャスト: ' . $esc($displayName) . ' 様</p>'
+          . '<p>受信箱を開く端末の認証コードです。</p>'
+          . '<div style="text-align:center;margin:28px 0;">'
+          . '<span style="display:inline-block;padding:14px 32px;background:#f7f2f4;border:1px solid #e4d3da;border-radius:8px;'
+          . 'font-size:28px;font-weight:bold;letter-spacing:0.28em;color:#b5627a;">' . $esc($code) . '</span>'
+          . '</div>'
+          . '<p style="font-size:13px;color:#666;">15分間有効です。5回間違えると再送信が必要になります。</p>'
+          . '<hr style="border:none;border-top:1px solid #eee;margin:20px 0;">'
+          . '<p style="font-size:12px;color:#888;">心当たりがない場合、受信箱URLが流出している可能性があります。'
+          . '所属店舗のオーナーに連絡し、受信箱URLを再発行してもらってください。</p>'
+          . '<p style="font-size:12px;color:#888;">YobuHo Cast — '
+          . '<a href="https://yobuho.com/cast-admin.html" style="color:#b5627a;text-decoration:none;">https://yobuho.com/cast-admin.html</a></p>'
+          . '</div>';
+
+    return sendTransactionalMail($to, $subject, $body);
 }
 
 /**

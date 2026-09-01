@@ -66,14 +66,29 @@ document.addEventListener('change', function(e) {
         if (tgt) tgt.style.display = el.checked ? (el.dataset.onchangeToggleShow || 'flex') : 'none';
     }
 });
+// 全角数字(０-９)を半角に寄せる。IME が日本語入力モードのままだと数字は全角で出るため、
+// 「半角以外を削除」だけだと打った端から消えて入力不能になる。削除ではなく変換する。
+function _toHalfDigits(s) {
+    return String(s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+}
+function _numericize(el) {
+    el.value = _toHalfDigits(el.value).replace(/[^0-9]/g, '');
+}
 document.addEventListener('input', function(e) {
     const el = e.target;
     if (el.dataset.oninput && typeof window[el.dataset.oninput] === 'function') {
         window[el.dataset.oninput](el);
     }
     if (el.dataset.oninputNumeric === '1') {
-        el.value = el.value.replace(/[^0-9]/g, '');
+        // 変換中(isComposing)に value を書き換えると IME セッションが壊れて入力できなくなる
+        if (e.isComposing) return;
+        _numericize(el);
     }
+});
+// Safari 等 compositionend の後に input が来ない環境向けの保険
+document.addEventListener('compositionend', function(e) {
+    const el = e.target;
+    if (el && el.dataset && el.dataset.oninputNumeric === '1') _numericize(el);
 });
 document.addEventListener('submit', function(e) {
     const el = e.target;
@@ -113,7 +128,7 @@ function fmtDate(iso){if(!iso)return"—";const s=String(iso).replace('T',' ').r
 function jstNow(){const d=new Date();const j=new Date(d.getTime()+((d.getTimezoneOffset()+540)*60000));return j.getFullYear()+'-'+String(j.getMonth()+1).padStart(2,'0')+'-'+String(j.getDate()).padStart(2,'0')+' '+String(j.getHours()).padStart(2,'0')+':'+String(j.getMinutes()).padStart(2,'0')+':'+String(j.getSeconds()).padStart(2,'0');}
 function fmtShort(iso){return iso?fmtDate(iso).split(" ")[0]:"—";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function formatPostalCode(el){const digits=el.value.replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
+function formatPostalCode(el){const digits=_toHalfDigits(el.value).replace(/[^0-9]/g,'');if(digits.length>=4){el.value=digits.slice(0,3)+'-'+digits.slice(3,7);}else{el.value=digits;}}
 // ===== 認証（サーバー側PHP認証 via api/auth.php） =====
 function togglePwVis(cb,inputId){document.getElementById(inputId).type=cb.checked?"text":"password";}
 let _currentUser=null;
@@ -202,7 +217,7 @@ function closeNav(){var tb=document.getElementById("tab-bar");if(tb)tb.classList
 function toggleMobileMenu(){var tb=document.getElementById("tab-bar");var ov=document.getElementById("nav-overlay");if(tb.classList.contains("open")){tb.classList.remove("open");ov.classList.remove("open");}else{tb.classList.add("open");ov.classList.add("open");}}
 function closeMobileMenu(){closeNav();}
 
-function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadEntryMethods();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
+function loadAll(){loadDashboard();loadContractPlans().then(()=>loadShops());loadReports();loadHotels();loadCanReasons();loadCannotReasons();loadRoomTypes();loadServiceOptions();loadGoodPoints();loadAtmospheres();loadEntryMethods();loadHotelRequests();loadCorrections();loadOutreachHistory();loadPlanRequests();loadMailBounces();initPrefSelect("edit");initPrefSelect("add");initPrefSelect("hreq-edit");}
 function switchTab(name){
   if(!document.getElementById("tab-"+name))name="dashboard";
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
@@ -3998,6 +4013,22 @@ async function dndDrop(e,targetId){
 // =========================================================
 // 📥 未対応キュー（フラグ/審査待ち店舗/掲載リク/情報修正/プラン申込を集約）
 // =========================================================
+// メール配信失敗（バウンス）。api/scan-bounces.php が cron で記録したものを表示する。
+// 2026-08-01: iCloud 宛の配信停止に約2ヶ月気づけなかった反省から追加。
+let mailBouncesData=[];
+async function loadMailBounces(){
+  const data=await apiGet("mail-bounces","");
+  mailBouncesData=data||[];
+  updateInboxBadge();
+}
+async function resolveMailBounce(id){
+  if(!confirm("このバウンスを確認済みにしますか？"))return;
+  const res=await api("resolve-mail-bounce",{id:parseInt(id)});
+  if(!res.ok){toast("更新エラー");return;}
+  mailBouncesData=mailBouncesData.filter(b=>String(b.id)!==String(id));
+  updateInboxBadge();renderInbox();toast("✅ 確認済みにしました");
+}
+
 function inboxItems(){
   return{
     flags:(reportsData||[]).filter(r=>r.flagged_at&&!r.flag_resolved),
@@ -4005,11 +4036,13 @@ function inboxItems(){
     hreqs:(hotelRequestsData||[]).filter(r=>r.status==="pending"),
     corrs:(correctionsData||[]).filter(r=>r.status==="pending"),
     plans:(planReqData||[]).filter(r=>r.status==="pending"),
+    // 恒久的失敗(5.x.x)のみ。4.x.x は再送で解決することが多いので通知しない
+    bounces:(mailBouncesData||[]).filter(b=>String(b.status_code||"").startsWith("5")),
   };
 }
 function updateInboxBadge(){
   const it=inboxItems();
-  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length;
+  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length+it.bounces.length;
   const b=document.getElementById("inbox-badge");
   if(b){if(total>0){b.style.display="inline-flex";b.textContent=total;}else b.style.display="none";}
   // 未対応タブを開いている時はリストも即時更新
@@ -4025,8 +4058,8 @@ function renderInbox(){
   const el=document.getElementById("inbox-content");
   if(!el)return;
   const it=inboxItems();
-  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length;
-  if(total===0){el.innerHTML='<div class="card" style="text-align:center;padding:48px 20px;"><div style="font-size:40px;margin-bottom:12px;">🎉</div><div style="font-size:14px;font-weight:700;">未対応のタスクはありません</div><div style="font-size:12px;color:var(--ink-3);margin-top:6px;">フラグ報告・店舗審査・掲載リクエスト・情報修正・プラン申込がここに集まります</div></div>';return;}
+  const total=it.flags.length+it.shops.length+it.hreqs.length+it.corrs.length+it.plans.length+it.bounces.length;
+  if(total===0){el.innerHTML='<div class="card" style="text-align:center;padding:48px 20px;"><div style="font-size:40px;margin-bottom:12px;">🎉</div><div style="font-size:14px;font-weight:700;">未対応のタスクはありません</div><div style="font-size:12px;color:var(--ink-3);margin-top:6px;">フラグ報告・店舗審査・掲載リクエスト・情報修正・プラン申込・メール配信失敗がここに集まります</div></div>';return;}
   const genreMap={men:"♂ デリヘル",women:"♀ 女風",este:"💆 エステ",men_same:"♂♂ 同性(男)",women_same:"♀♀ 同性(女)"};
   const catLabels=typeof CORR_CAT_LABELS!=="undefined"?CORR_CAT_LABELS:{};
   let html="";
@@ -4040,6 +4073,27 @@ function renderInbox(){
     `<div class="inbox-row" data-action="inboxGoCorr"><strong>${esc(r.hotel_name||"—")}</strong><span class="badge b-women" style="font-size:10px;">${esc(catLabels[r.category]||r.category||"")}</span><span class="ib-date">${fmtDate(r.created_at)}</span></div>`).join(""),"dashGoToCorrections");
   html+=_inboxSection("📋 未処理のプラン申込",it.plans,it.plans.slice(0,8).map(r=>
     `<div class="inbox-row" data-action="inboxGoPlan"><strong>${esc(r.shop_name||"—")}</strong><span style="color:var(--ink-3);">${genreMap[r.gender_mode]||"—"}</span><span style="color:var(--ink-3);font-size:11px;">${esc((r.requested_areas||[]).join(", ")||"")}</span><span class="ib-date">${fmtDate(r.created_at)}</span></div>`).join(""),"dashGoToPlanRequests");
+  // メール配信失敗: 宛先に届いていない = キャスト/店舗が詰まっている可能性があるので目立たせる
+  if(it.bounces.length){
+    html+=`<div class="card" style="padding:0;overflow:hidden;border-left:4px solid #c05050;"><div class="card-title" style="padding:14px 16px 10px;margin-bottom:0;">📮 メールが届かなかった宛先<span class="sub">(${it.bounces.length}件)</span></div>`
+      +`<div style="padding:0 16px 10px;font-size:11px;color:var(--ink-3);">相手に認証コード等が届いていません。別アドレスへの変更案内が必要な場合があります。</div>`
+      +it.bounces.slice(0,8).map(b=>{
+        const diag=String(b.diagnostic||"");
+        const short=diag.length>90?diag.slice(0,90)+"…":diag;
+        return `<div class="inbox-row" style="align-items:flex-start;">`
+          +`<span>✉️</span>`
+          +`<div style="flex:1;min-width:0;">`
+            +`<div><strong>${esc(b.recipient||"—")}</strong> <span class="badge b-cant" style="font-size:10px;">${esc(b.status_code||"")}</span></div>`
+            +`<div style="font-size:11px;color:var(--ink-3);margin-top:2px;">${esc(b.orig_subject||"")}</div>`
+            +`<div style="font-size:10px;color:var(--ink-3);margin-top:2px;word-break:break-all;">${esc(short)}</div>`
+          +`</div>`
+          +`<span class="ib-date">${fmtDate(b.bounced_at)}</span>`
+          +`<button class="btn b-btn-gray" style="font-size:11px;flex-shrink:0;" data-action="resolveMailBounce" data-arg1="${esc(String(b.id))}">確認済み</button>`
+        +`</div>`;
+      }).join("")
+      +(it.bounces.length>8?`<div style="padding:10px 12px;font-size:11px;color:var(--ink-3);">他 ${it.bounces.length-8} 件</div>`:"")
+      +`</div>`;
+  }
   el.innerHTML=html;
 }
 function inboxGoFlag(){dashGoToFlaggedReports();}

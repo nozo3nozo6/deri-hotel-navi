@@ -1323,15 +1323,58 @@ async function ensurePushConfig() {
     return _pushConfigCache;
 }
 
+// 2026-08-16: 購読状態を localStorage のフラグだけで判定していたため、
+// ブラウザ側の購読が失効しても「通知ON (解除)」と表示され続け、
+// 実際には何も届かないのに本人は ON のつもり、という状態に誰も気づけなかった。
+// (失効の主因: PWA の削除→再追加 / 通知権限のリセット / pushsubscriptionchange)
+// フラグに加えて PushManager の実体を非同期に照合し、消えていたらフラグを落とす。
+//   _pushSubLive : null=未確認 / true=実体あり / false=実体なし
+let _pushSubLive = null;
+let _pushReconciling = false;
+
 function pushIsSubscribed() {
-    try { return !!localStorage.getItem(LS_PUSH_SUBSCRIBED); } catch (_) { return false; }
+    let flag = false;
+    try { flag = !!localStorage.getItem(LS_PUSH_SUBSCRIBED); } catch (_) { flag = false; }
+    if (!flag) return false;
+    // 実体が「無い」と確認できた時だけ未購読に倒す。
+    // 未確認(null)は従来どおりフラグを信じる（照合前に一瞬OFF表示になるのを防ぐ）。
+    return _pushSubLive !== false;
+}
+
+/**
+ * ブラウザの実際の購読状態を PushManager に問い合わせ、フラグと突き合わせる。
+ * 実体が無ければフラグを落として表示を「通知を許可」に戻す（タップで再購読できる）。
+ * 判定不能(例外)時は現状維持。誤って OFF 表示にしない。
+ */
+async function reconcilePushSubscription() {
+    if (_pushReconciling) return;
+    if (!pushSupported()) { _pushSubLive = false; return; }
+    _pushReconciling = true;
+    const before = pushIsSubscribed();
+    try {
+        const reg = await navigator.serviceWorker.getRegistration('/chat-push-sw.js');
+        const sub = reg ? await reg.pushManager.getSubscription() : null;
+        if (sub) {
+            _pushSubLive = true;
+        } else {
+            _pushSubLive = false;
+            clearPushSubscribed();
+        }
+    } catch (_) {
+        _pushSubLive = null;
+    } finally {
+        _pushReconciling = false;
+    }
+    if (pushIsSubscribed() !== before) refreshPushButton();
 }
 
 function markPushSubscribed(hash) {
+    _pushSubLive = true;
     try { localStorage.setItem(LS_PUSH_SUBSCRIBED, hash || '1'); } catch (_) {}
 }
 
 function clearPushSubscribed() {
+    _pushSubLive = false;
     try { localStorage.removeItem(LS_PUSH_SUBSCRIBED); } catch (_) {}
 }
 
@@ -1590,6 +1633,8 @@ function refreshPushButton() {
         return;
     }
     btn.disabled = false;
+    // 実体未確認なら照合を走らせる（結果が変われば中で再描画される）
+    if (_pushSubLive === null) reconcilePushSubscription();
     if (pushIsSubscribed()) {
         btn.textContent = '🔔 通知ON (解除)';
         btn.classList.add('is-on');
@@ -1635,7 +1680,12 @@ function clearAppBadgeIfSupported() {
 }
 if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) clearAppBadgeIfSupported();
+        if (document.hidden) return;
+        clearAppBadgeIfSupported();
+        // 2026-08-16: バックグラウンド中に購読が失効していることがあるため、
+        // 復帰のたびに実体を取り直す（表示と実態のズレを持ち越さない）。
+        _pushSubLive = null;
+        try { refreshPushButton(); } catch (_) {}
     });
     // 初回ロード時もクリア (通知タップで開いた瞬間に確実にバッジ消す).
     if (!document.hidden) clearAppBadgeIfSupported();
@@ -3002,7 +3052,7 @@ function addRestartButton() {
     btn.type = 'button';
     btn.className = 'btn-restart-chat';
     btn.textContent = t('thread.restart');
-    btn.style.cssText = 'padding:10px 20px;border:1px solid #d4af37;border-radius:20px;background:#fff;color:#9b2d35;font-weight:600;cursor:pointer;font-size:14px;';
+    btn.style.cssText = 'padding:10px 20px;border:1.5px solid var(--chat-primary,#9b2d35);border-radius:20px;background:#fff;color:var(--chat-primary,#9b2d35);font-weight:700;cursor:pointer;font-size:14px;';
     btn.addEventListener('click', restartVisitorSession);
     wrap.appendChild(btn);
     refs.chatMessages.appendChild(wrap);
