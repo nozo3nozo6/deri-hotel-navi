@@ -140,6 +140,8 @@ jobs:
             --exclude='generate-*.js' --exclude='generate-*.mjs' \
             --exclude='update-*.js' --exclude='import-*.js' --exclude='scripts' \
             --exclude='astro-src' --exclude='.env' --exclude='.env.example' \
+            --exclude='astro-kichifu' --exclude='astro-admi' \
+            --exclude='worklog-*.md' --exclude='*-for-grok.md' \
             --exclude='.eslintrc*' --exclude='vitest.config.*' \
             --exclude='deli.yobuho.com' --exclude='jofu.yobuho.com' \
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='este.yobuho.com' \
