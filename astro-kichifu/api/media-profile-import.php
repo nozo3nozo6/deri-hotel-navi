@@ -37,6 +37,9 @@ $MEDIA_COL = [
     'fucolle'  => 'fucolle_girl_id',
     'manzoku'  => 'manzoku_girl_id',
     'mensv'    => 'mensv_girl_id',
+    // 駅ちかの予約管理(e-yoyaku)は駅ちか本体と別のID体系。名前一致では同名キャストで誤爆するため
+    // 列を分けて持つ（店長要望 2026-08-18）
+    'eyoyaku'  => 'eyoyaku_girl_id',
 ];
 $shopId = (int)($_GET['shop_id'] ?? 1);
 

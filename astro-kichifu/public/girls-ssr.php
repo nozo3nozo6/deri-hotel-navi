@@ -58,17 +58,20 @@ try {
     $tags = array_column($st->fetchAll(PDO::FETCH_ASSOC), 'name');
 } catch (Throwable $e) {}
 
-// プレイ（基本/オプション）
-$basicPlay = $optionPlay = [];
+// プレイ（基本 / 応用 / オプション）。play_tier: 1=基本 2=応用 3=オプション
+$basicPlay = $appliedPlay = $optionPlay = [];
 try {
     $st = DB::conn()->prepare(
-        'SELECT go.name, go.is_basic FROM girl_option_links gol
+        'SELECT go.name, go.play_tier FROM girl_option_links gol
            JOIN girl_options go ON go.id = gol.girl_option_id
-          WHERE gol.girl_id = ? ORDER BY go.is_basic DESC, go.sort, go.id'
+          WHERE gol.girl_id = ? ORDER BY go.play_tier, go.sort, go.id'
     );
     $st->execute([$id]);
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $o) {
-        if ((int)$o['is_basic'] === 1) $basicPlay[] = $o['name']; else $optionPlay[] = $o['name'];
+        $t = (int)$o['play_tier'];
+        if ($t === 1)      $basicPlay[]   = $o['name'];
+        elseif ($t === 2)  $appliedPlay[] = $o['name'];
+        else               $optionPlay[]  = $o['name'];
     }
 } catch (Throwable $e) {}
 
@@ -88,9 +91,10 @@ try {
 
 require __DIR__ . '/_ssr-shell.php';   // $SSR / ssr_head / ssr_header / ssr_footer / asset_url / ssr_h / ssr_localize_body
 
-// 新人判定: 入店3ヶ月未満（config.ts isNewcomer と同ロジック）
+// 新人判定: 入店3ヶ月未満 かつ CTRLの「新人」チェックON（config.ts isNewcomer と同ロジック）。
+// チェックを外すとその子だけ新人アイコンが消える（店長要望 2026-08-24）
 $isNew = false;
-if (!empty($g['in_date'])) {
+if (!empty($g['in_date']) && (int)($g['is_newgirl'] ?? 1) === 1) {
     $isNew = substr($g['in_date'], 0, 10) >= date('Y-m-d', strtotime('-3 months'));
 }
 
@@ -213,6 +217,13 @@ ssr_header($SSR);
           </div>
           <?php endif; ?>
 
+          <?php if ($appliedPlay): ?>
+          <p class="section-label play-label play-label-applied" data-i18n="girl_applied_play_label">応用プレイ</p>
+          <div class="girl-options">
+            <?php foreach ($appliedPlay as $o): ?><span class="play-chip is-applied" data-i18n-dynamic><?= ssr_h($o) ?></span><?php endforeach; ?>
+          </div>
+          <?php endif; ?>
+
           <?php if ($optionPlay): ?>
           <p class="section-label play-label play-label-option" data-i18n="girl_option_play_label">オプションプレイ</p>
           <div class="girl-options">
@@ -222,7 +233,10 @@ ssr_header($SSR);
 
           <!-- 週間出勤予定（schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
           <div id="girl-week" class="girl-week" data-girl-id="<?= (int)$g['id'] ?>" style="display:none">
-            <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+            <div class="gw-head">
+              <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+              <p class="gw-note" data-i18n="girl_weekly_schedule_note">前日までのご予約はタイムラインで表示されます</p>
+            </div>
             <div class="gw-body"></div>
           </div>
 

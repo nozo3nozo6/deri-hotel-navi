@@ -58,3 +58,36 @@ function ops_current_user(): ?array {
         'role'         => (string)($u['role'] ?: 'staff'),
     ];
 }
+
+/**
+ * 権限は「上のメニュー（タブ）の表示・非表示」だけで分ける（店長指定 2026-08-15）。
+ * そのタブを見られるロールなら、中の操作は全部できる。判定は権限管理（tab_permissions）に従う。
+ * キャスト(staff)はマイページだけなので常に不可。オーナーは常に可。
+ */
+function opsRoleCanSeeTab(PDO $pdo, string $tab): bool {
+    $role = $_SESSION['ylka_admin_role'] ?? '';
+    if ($role === 'owner') return true;
+    if ($role === 'staff' || $role === '') return false;
+    $row = $pdo->query("SELECT setting_value FROM ops_admin_settings WHERE setting_key = 'tab_permissions'")->fetch();
+    $perms = $row ? json_decode($row['setting_value'], true) : null;
+    if (is_array($perms[$tab] ?? null)) return in_array($role, $perms[$tab], true);
+    // まだ保存していないタブの既定（画面側 TAB_DEFAULTS と合わせる）
+    $def = [
+        'payroll'     => ['owner', 'manager'],
+        'staff'       => ['owner', 'manager'],
+        'staffboard'  => ['owner', 'manager'],
+        'permissions' => ['owner'],
+        'chat'        => ['owner', 'manager', 'office'],
+    ];
+    return isset($def[$tab]) ? in_array($role, $def[$tab], true) : true;
+}
+function requireTabOps(PDO $pdo, string $tab): void {
+    if (!opsRoleCanSeeTab($pdo, $tab)) {
+        errorResponse('この操作の権限がありません（権限管理で許可できます）', 403);
+    }
+}
+/** どれか1つのタブが見えていれば可（例: スタッフ管理 と キャスト管理 の両方から使う操作） */
+function requireAnyTabOps(PDO $pdo, array $tabs): void {
+    foreach ($tabs as $t) { if (opsRoleCanSeeTab($pdo, $t)) return; }
+    errorResponse('この操作の権限がありません（権限管理で許可できます）', 403);
+}

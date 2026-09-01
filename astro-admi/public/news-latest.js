@@ -40,17 +40,24 @@
     return plain ? (plain.length > 80 ? plain.slice(0, 80) + '…' : plain) : '';
   }
   // 表示中と同じ並び/内容なら再描画しない（ほとんどのページ表示では内容不変＝チラつきゼロ）
-  function signatureOf(items) { return items.map(function (it) { return it.id; }).join(','); }
+  //   ※ id だけで比べると、記事はそのままでサムネだけ差し替えた場合（写真→紹介動画など）に
+  //     古いサムネが出たままになる（次のデプロイまで直らない）。サムネも一緒に見る（2026-08-20）
+  function pathOf(u) { return String(u || '').replace(/^https?:\/\/[^/]+/, ''); }
+  function signatureOf(items) {
+    return items.map(function (it) { return it.id + '|' + pathOf(imgUrlOf(it.thumb)); }).join(',');
+  }
   function currentSignature(wrap) {
     return [].map.call(wrap.querySelectorAll('.news-item'), function (a) {
       var m = (a.getAttribute('href') || '').match(/\/news\/(\d+)/);
-      return m ? m[1] : '';
+      var t = a.querySelector('.news-thumb');
+      return (m ? m[1] : '') + '|' + pathOf(t && t.getAttribute('src'));
     }).join(',');
   }
   // サムネ画像をまとめてプリロードしてからコールバック（読込中の空白/崩れを防ぐ）。
   // 全て読込完了(または失敗)、もしくはタイムアウトで進行。
   function preloadAll(urls, cb) {
-    urls = urls.filter(Boolean);
+    // 動画(.mp4)は Image() で読めないので先読みの対象にしない
+    urls = urls.filter(function (u) { return u && !/\.mp4(\?|$)/i.test(u); });
     if (!urls.length) { cb(); return; }
     var remaining = urls.length, done = false;
     var timer = setTimeout(finish, 4000);
@@ -65,11 +72,18 @@
 
   // top: 小サムネ・h3・抜粋なし
   // data-i18n-dynamic = content-i18n.js の翻訳対象（お知らせタイトルはCTRL自由入力の動的コンテンツ）
+  // サムネの中身（キャストの紹介動画をサムネにした場合は <video> で出す・店長要望 2026-08-20）
+  function thumbHtml(url, w, h) {
+    if (!url) return '<div class="news-no-thumb">📢</div>';
+    if (/\.mp4(\?|$)/i.test(url)) {
+      return '<video src="' + url + '" width="' + w + '" height="' + h + '" class="news-thumb"' +
+             ' muted loop playsinline autoplay preload="metadata"></video>';
+    }
+    return '<img src="' + url + '" alt="" width="' + w + '" height="' + h + '" loading="lazy" class="news-thumb">';
+  }
+
   function topCard(it) {
-    var img = imgUrlOf(it.thumb);
-    var thumb = img
-      ? '<img src="' + img + '" alt="" width="64" height="80" loading="lazy" class="news-thumb">'
-      : '<div class="news-no-thumb">📢</div>';
+    var thumb = thumbHtml(imgUrlOf(it.thumb), 64, 80);
     return '<a href="/news/' + encodeURIComponent(it.id) + '" target="_self" class="news-item">' + thumb +
       '<div class="news-meta"><p class="news-date">' + esc(fmtDate(it.posted_at)) + '</p>' +
       '<h3 class="news-title" data-i18n-dynamic>' + esc(it.title) + '</h3>' +
@@ -78,10 +92,7 @@
 
   // /news: 大サムネ・h2・抜粋あり
   function archCard(it, tw, th) {
-    var img = imgUrlOf(it.thumb);
-    var thumb = img
-      ? '<img src="' + img + '" alt="" width="' + tw + '" height="' + th + '" loading="lazy" class="news-thumb">'
-      : '<div class="news-no-thumb">📢</div>';
+    var thumb = thumbHtml(imgUrlOf(it.thumb), tw, th);
     var ex = excerptOf(it.body);
     return '<a href="/news/' + encodeURIComponent(it.id) + '" target="_self" class="news-item">' + thumb +
       '<div class="news-meta"><p class="news-date">' + esc(fmtDate(it.posted_at)) + '</p>' +

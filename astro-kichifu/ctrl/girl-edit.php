@@ -15,7 +15,7 @@ $tags = db()->prepare('SELECT id, name FROM girl_image_tags WHERE shop_id=? AND 
 $tags->execute([$shop]);
 $tags = $tags->fetchAll();
 
-$opts = db()->prepare('SELECT id, name, is_basic FROM girl_options WHERE shop_id=? ORDER BY is_basic DESC, sort, id');
+$opts = db()->prepare('SELECT id, name, play_tier FROM girl_options WHERE shop_id=? ORDER BY play_tier, sort, id');
 $opts->execute([$shop]);
 $opts = $opts->fetchAll();
 
@@ -28,7 +28,9 @@ if ($profs) {
     foreach ($po->fetchAll() as $r) $profOpts[(int)$r['girl_profile_id']][] = $r['label'];
 }
 
-$FLAGS = ['is_newgirl' => '新人', 'is_trial' => '体験入店', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
+// is_trial は列名こそ「体験入店」だが、公開サイトでは待ち合わせアイコン(flag-machiawase)として
+// 出している。CTRLの表記を実際の表示に合わせる（店長指定 2026-08-25）
+$FLAGS = ['is_newgirl' => '新人', 'is_trial' => '待ち合わせ', 'is_tel' => '電話', 'is_inbound' => 'インバウンド', 'is_genderless' => 'ジェンダーレス'];
 $allShops = shops_list();  // 掲載店舗チェック用（☑アドミ立川/☑吉祥寺）
 
 // ---- 保存 ----
@@ -101,7 +103,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $up->execute([$id, (int)$pid, trim((string)$val), $disp]);
             }
 
-            // 画像アップロード（複数）
+            $imgErrs = [];   // 登録できなかった画像の理由（黙って捨てない）
+
+            // 画像アップロード（複数）。
+            //   ★ 以前は保存できなかった画像を黙って捨てていたため、
+            //     「登録したのに前のまま」に見えていた（店長指摘 2026-08-22）。理由を出す。
             if (!empty($_FILES['images']['name'][0])) {
                 $sortBase = db()->prepare('SELECT COALESCE(MAX(sort),-1)+1 FROM girl_images WHERE girl_id=?');
                 $sortBase->execute([$id]);
@@ -109,11 +115,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $insImg = db()->prepare('INSERT INTO girl_images (girl_id, path, sort) VALUES (?,?,?)');
                 $files  = $_FILES['images'];
                 for ($i = 0; $i < count($files['name']); $i++) {
-                    if (($files['error'][$i] ?? 4) !== UPLOAD_ERR_OK) continue;
-                    $one = ['name' => $files['name'][$i], 'type' => $files['type'][$i],
-                            'tmp_name' => $files['tmp_name'][$i], 'error' => $files['error'][$i], 'size' => $files['size'][$i]];
+                    $fname = (string)($files['name'][$i] ?? '');
+                    if ($fname === '') continue;
+                    $err = (int)($files['error'][$i] ?? UPLOAD_ERR_NO_FILE);
+                    if ($err !== UPLOAD_ERR_OK) {
+                        if ($err !== UPLOAD_ERR_NO_FILE) {
+                            $imgErrs[] = $fname . '（受け取れませんでした・サイズ超過などの可能性）';
+                        }
+                        continue;
+                    }
+                    $one = ['name' => $fname, 'type' => $files['type'][$i],
+                            'tmp_name' => $files['tmp_name'][$i], 'error' => $err, 'size' => $files['size'][$i]];
+                    if (($one['size'] ?? 0) > 20 * 1024 * 1024) { $imgErrs[] = $fname . '（20MBを超えています）'; continue; }
+                    $info = @getimagesize($one['tmp_name']);
+                    $mime = $info['mime'] ?? '';
+                    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) {
+                        $imgErrs[] = $fname . '（この形式は登録できません。iPhoneのHEICなどはJPEGで保存し直してください）';
+                        continue;
+                    }
                     $path = save_upload($one, 'girls/' . $shop);
                     if ($path) $insImg->execute([$id, $path, $s++]);
+                    else $imgErrs[] = $fname . '（画像を変換できませんでした）';
                 }
             }
 
@@ -150,12 +172,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 }
             }
 
+            // 紹介動画（オフィシャルサイトのキャストページ専用。媒体には出さない・店長指定 2026-08-20）。
+            //   /uploads/girls/<shop>/video/<girl_id>.mp4 に固定名で保存＝DBに列を足さない
+            if (!empty($_POST['video_delete'])) delete_girl_video((int)$shop, (int)$id);
+            if (($_FILES['girl_video']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                if (!save_girl_video($_FILES['girl_video'], (int)$shop, (int)$id)) {
+                    $videoErr = '動画を保存できませんでした（mp4・60MBまで）。';
+                }
+            }
+
             db()->commit();
 
             // サイト自動リビルド
             trigger_deploy();
 
-            flash('ok', '保存しました。ページをリロードすると即時反映されます。');
+            $problems = array_filter(array_merge([$videoErr ?? ''], $imgErrs));
+            flash($problems ? 'err' : 'ok',
+                  $problems
+                    ? '登録できなかったファイルがあります: ' . implode(' / ', $problems) . '（他の内容は保存しました）'
+                    : '保存しました。ページをリロードすると即時反映されます。');
             redirect('girl-edit.php?id=' . $id);
         } catch (Throwable $e) {
             db()->rollBack();
@@ -297,13 +332,25 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
 
   <?php if ($opts): ?>
   <div class="card card-pad">
-    <strong>プレイ項目 <span class="muted" style="font-weight:400;font-size:12px">（基本プレイ・オプションプレイ）</span></strong>
-    <div class="checks" style="margin-top:10px">
-      <?php foreach ($opts as $o): ?>
-        <label class="check"><input type="checkbox" name="options[]" value="<?= (int)$o['id'] ?>" <?= in_array((int)$o['id'], $linkedOpts, true) ? 'checked' : '' ?>>
-          <?= h($o['name']) ?><?= (int)$o['is_basic'] ? ' <span class="muted">(基本)</span>' : '' ?></label>
-      <?php endforeach; ?>
-    </div>
+    <strong>プレイ項目</strong>
+    <?php
+      // 区分ごとに行を分けて出す（店長要望 2026-08-11）。1列に全部並べると境目が読めない。
+      // 見出しに区分名を出すので、項目名のうしろの「(基本)」等は不要
+      $optsByTier = [1 => [], 2 => [], 3 => []];
+      foreach ($opts as $o) { $t = (int)$o['play_tier']; $optsByTier[isset($optsByTier[$t]) ? $t : 3][] = $o; }
+      $tierLabels = [1 => '基本プレイ', 2 => '応用プレイ', 3 => 'オプションプレイ'];
+    ?>
+    <?php foreach ($tierLabels as $tv => $tlabel): if (!$optsByTier[$tv]) continue; ?>
+      <div class="play-group">
+        <div class="play-group-label"><?= h($tlabel) ?></div>
+        <div class="checks">
+          <?php foreach ($optsByTier[$tv] as $o): ?>
+            <label class="check"><input type="checkbox" name="options[]" value="<?= (int)$o['id'] ?>" <?= in_array((int)$o['id'], $linkedOpts, true) ? 'checked' : '' ?>>
+              <?= h($o['name']) ?></label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
   </div>
   <?php endif; ?>
 
@@ -496,6 +543,43 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     </div>
   </div>
 
+  <?php
+    // 紹介動画。ファイルの有無だけで判断する（DBに列なし）
+    $vRel = '/uploads/girls/' . (int)$shop . '/video/' . (int)$id . '.mp4';
+    $vAbs = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT) ? UPLOADS_ROOT : rtrim($_SERVER['DOCUMENT_ROOT'], '/')) . $vRel;
+    $hasVideo = $id && is_file($vAbs);
+  ?>
+  <div class="card card-pad">
+    <strong>🎬 紹介動画</strong>
+    <p class="muted" style="margin:6px 0 10px;font-size:.85em">
+      オフィシャルサイトのキャストページに出ます（写真の<strong>4枚目の枠</strong>が動画になります）。
+      <strong>媒体には送りません</strong>。<br>
+      mp4・60MBまで。縦向き（3:4 や 9:16）がきれいに収まります。枠より大きい動画は、枠の中をゆっくり動いて全体が見えます。
+    </p>
+    <?php if (!$id): ?>
+      <p class="muted" style="font-size:.85em">※ 先にキャストを保存すると動画をアップロードできます。</p>
+    <?php else: ?>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <?php if ($hasVideo): ?>
+        <div style="position:relative">
+          <video src="<?= h(asset_url($vRel)) ?>?v=<?= (int)@filemtime($vAbs) ?>" style="width:110px;height:147px;object-fit:cover;border-radius:8px;border:3px solid #0ea5a4;background:#000" muted loop playsinline autoplay></video>
+          <span style="position:absolute;top:4px;left:4px;background:#0f766e;color:#fff;border-radius:8px;font-size:.68em;font-weight:700;padding:1px 7px">動画</span>
+          <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;font-size:.62em;padding:1px 5px"><?= number_format(@filesize($vAbs) / 1048576, 1) ?>MB</span>
+        </div>
+      <?php else: ?>
+        <div style="width:110px;height:147px;border:2px dashed #5eead4;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#0d9488;font-size:.75em;text-align:center">未設定<br>（動画なし）</div>
+      <?php endif; ?>
+      <div class="field" style="flex:1;min-width:220px">
+        <label><?= $hasVideo ? '差し替え' : 'アップロード' ?>（mp4）</label>
+        <input type="file" name="girl_video" accept="video/mp4,video/quicktime">
+        <?php if ($hasVideo): ?>
+          <label style="display:block;margin-top:8px;font-size:.85em"><input type="checkbox" name="video_delete" value="1"> この動画を削除する</label>
+        <?php endif; ?>
+      </div>
+    </div>
+    <?php endif; ?>
+  </div>
+
   <div class="card card-pad">
     <strong>オフィシャル画像</strong>
     <p class="muted" style="margin:6px 0 0;font-size:.85em">
@@ -515,7 +599,8 @@ layout_header($id ? '女性を編集' : '女性を登録', 'girls.php');
     <?php endif; ?>
     <div class="field">
       <label>画像を追加（複数選択可・自動でWebP縮小）</label>
-      <input type="file" name="images[]" accept="image/*" multiple>
+      <input type="file" name="images[]" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+      <span class="hint">JPEG / PNG / WebP / GIF（1枚20MBまで）。iPhoneのHEICは登録できないため、JPEGで書き出してください</span>
     </div>
   </div>
 

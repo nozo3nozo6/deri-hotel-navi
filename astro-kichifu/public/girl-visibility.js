@@ -88,7 +88,8 @@
       ' data-age="'    + (g.age    || 0)    + '"' +
       ' data-name="'   + esc(g.name)        + '"' +
       ' data-new="'    + isNew               + '"' +
-      ' data-tags="'   + esc(tags.join('|'))+ '">' +
+      ' data-tags="'   + esc(tags.join('|'))+ '"' +
+      (g.has_video ? ' data-video="1"' : '') + '>' +
       '<a class="girl-card-img-wrap" href="' + esc(thumbUrl) + '" target="_self">' +
         photoHtml +
         '<div class="girl-card-info">' +

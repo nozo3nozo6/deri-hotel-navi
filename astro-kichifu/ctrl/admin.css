@@ -128,6 +128,10 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .checks { display: flex; flex-wrap: wrap; gap: 12px; }
 .check { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+/* プレイ項目を区分ごとに行分け（基本 / 応用 / オプション）— 店長要望 2026-08-11 */
+.play-group { margin-top: 12px; }
+.play-group + .play-group { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.play-group-label { font-size: 12px; font-weight: 700; color: var(--muted, #7a8288); letter-spacing: .04em; margin-bottom: 7px; }
 .form-actions { display: flex; gap: 10px; margin-top: 8px; }
 
 /* ---------- flash / pagination / login ---------- */
@@ -151,6 +155,11 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .girl-img-thumb img { width: 48px; height: 64px; object-fit: cover; display: block; }
 .girl-img-thumb:hover { border-color: var(--accent); }
 .girl-img-thumb.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* 紹介動画のタイル（お知らせのサムネ選択・店長要望 2026-08-20） */
+.girl-img-thumb.is-video { position: relative; }
+.girl-img-thumb.is-video video { width: 48px; height: 64px; object-fit: cover; display: block; background: #000; }
+.girl-img-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.7); pointer-events: none; }
 
 /* ---------- 店舗別掲載トグル（女性一覧・owner用）---------- */
 .shop-toggles { display: flex; flex-direction: column; gap: 4px; }

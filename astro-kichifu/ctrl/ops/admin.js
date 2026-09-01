@@ -16,7 +16,8 @@
   let managerMode = null;
   let allUsers = [];
   let _tlBookingMap = {};      // タイムライン: id → booking（送迎コピー用）
-  let _tlPrevScroll = null;    // タイムライン: 操作後に復元する横スクロール位置
+  let _tlPrevScroll = null;    // タイムライン: 操作後に復元するスクロール位置 {left, top}
+  let _tlSyncVer = null;       // タイムライン: 他PCの変更を検知する軽量バージョン（件数＋最終更新時刻）
   let _extUnit = { min: 30, price: 0, name: '延長30分' };  // 延長1回あたり（コースマスタの「延長」から取得）
   let createRole = 'staff';
   let resetPwUserId = null;
@@ -103,9 +104,31 @@
     let html = '';
     for (let i = 0; i < 24; i++) {
       const h = (10 + i) % 24;
-      html += `<option value="${h}">${('0' + h).slice(-2)}</option>`;
+      html += `<option value="${h}">${h}</option>`;   // 時は先頭の0なし（6:00・店長指定 2026-08-16）
     }
     return html;
+  }
+
+  /** シフトの開始/終了は時select+分select（分は15分刻み）。値は "HH:MM" でやり取りする */
+  function smTimeGet(pfx) {
+    const h = document.getElementById(pfx + 'H'), m = document.getElementById(pfx + 'M');
+    if (!h || !m) return '';
+    if (h.value === '') return '';                       // 「--」＝未選択
+    return ('0' + (parseInt(h.value, 10) || 0)).slice(-2) + ':' + ('0' + (parseInt(m.value, 10) || 0)).slice(-2);
+  }
+  function smTimeSet(pfx, hhmm) {
+    const h = document.getElementById(pfx + 'H'), m = document.getElementById(pfx + 'M');
+    if (!h || !m) return;
+    if (!hhmm) { h.value = ''; m.value = ''; return; }    // 空＝「--」に戻す
+    const parts = String(hhmm || '').split(':');
+    h.value = String(parseInt(parts[0], 10) || 0);
+    let mi = parseInt(parts[1], 10) || 0;
+    mi = Math.round(mi / 15) * 15; if (mi >= 60) mi = 45;   // 15分刻みに丸める
+    m.value = String(mi);
+  }
+  function smTimeSetDisabled(pfx, dis) {
+    const h = document.getElementById(pfx + 'H'), m = document.getElementById(pfx + 'M');
+    if (h) h.disabled = dis; if (m) m.disabled = dis;
   }
 
   function bindSecondaryModalEvents() {
@@ -124,16 +147,18 @@
       if (e.target.closest('[data-close]')) { closeModal('bookingModal-2'); return; }
       if (e.target.id === 'bmSave-2') { withBmSuffix('-2', saveBooking); return; }
       if (e.target.id === 'bmDelete-2') { withBmSuffix('-2', deleteBooking); return; }
-      if (e.target.id === 'bmCopyText-2') { withBmSuffix('-2', copyBookingFormAsText); return; }
-      if (e.target.id === 'bmCopyCustomerText-2') { withBmSuffix('-2', copyCustomerBookingText); return; }
+      // アイコン(svg)を押したときも拾えるよう closest で見る（e.target だとsvgになる）
+      if (e.target.closest('#bmCopyText-2')) { withBmSuffix('-2', copyBookingFormAsText); return; }
+      if (e.target.closest('#bmCopyCustomerText-2')) { withBmSuffix('-2', copyCustomerBookingText); return; }
       if (e.target.closest('#bmHistoryToggle-2')) { withBmSuffix('-2', toggleHistoryPanel); return; }
+      if (e.target.id === 'bmPhoneLookup-2') { withBmSuffix('-2', lookupCustomerByPhoneManual); return; }
     });
     modal2.addEventListener('change', e => {
       if (e.target.id === 'bmStartHour-2' || e.target.id === 'bmStartMin-2') {
         bmStartTouched['-2'] = true;
         withBmSuffix('-2', () => { updateEndTime(); autoToggleLateNight(); });
       } else if (e.target.id === 'bmDate-2') {
-        withBmSuffix('-2', applyDefaultStartOnDateChange);
+        withBmSuffix('-2', () => { syncBmDateDisp(); applyDefaultStartOnDateChange(); });
       } else if (e.target.id === 'bmHotelFirst-2') {
         bmHotelFirstTouched['-2'] = true;
         withBmSuffix('-2', () => { populateCourseSelect(); applyCoursePrice(); updateBookingTotal(); });
@@ -158,11 +183,12 @@
       } else if (e.target.id === 'bmCity-2') {
         withBmSuffix('-2', () => { populateHotelSelect(e.target.value); onCityChangedForHome(); loadBmTowns().then(() => withBmSuffix('-2', applyHomeTransportFee)); });
       } else if (e.target.id === 'bmTown-2') {
-        withBmSuffix('-2', () => { onTownChangedForHome(); applyHomeTransportFee(); });
+        withBmSuffix('-2', () => { onTownChangedForHome(); applyHomeTransportFee(); syncTownHint(); });
       } else if (e.target.id === 'bmHotelId-2') {
         withBmSuffix('-2', () => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
       } else if (e.target.id === 'bmStatus-2') {
-        document.getElementById('bmCancelWrap-2').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
+        document.getElementById('bmCancelWrap-2').style.display = bmIsCancel(e.target.value) ? 'block' : 'none';
+        withBmSuffix('-2', syncCancelTypeFromStatus);
         withBmSuffix('-2', () => {
           const cb = bel('bmBreakMode');
           const want = e.target.value === 'break';
@@ -239,6 +265,15 @@
   }
 
   // ===== Location helpers (ホテル / 自宅 / その他) =====
+  /**
+   * ホテルが決まっていないときの場所名（店長要望 2026-08-24）。
+   * ラブホは「お客様が直前に決める」ことが多く、ホテル名なしでも保存できるようにする。
+   *   ラブホ → 「立川市ラブホテル」 / ホテル → 「立川市ホテル」（市区町村が空なら市区町村なし）
+   */
+  function undecidedVenueName(locType) {
+    const city = (bel('bmCity')?.value || '').trim();
+    return city + (locType === 'loveho' ? 'ラブホテル' : 'ホテル');
+  }
   const HOME_PREFIX = '【自宅】';
   // 自宅の場所は「住所」と「建物名・部屋番号」の2欄。保存は半角スペースで1本に結合する。
   // 旧データは ' / ' 区切りなので、読むときは両方に対応する。
@@ -255,11 +290,24 @@
     if (!m) return [t, ''];
     return [m[1].trim(), (m[2] || '').trim()];
   }
-  /** [住所, 建物] を保存用の1本に結合（建物が空なら住所だけ） */
+  /** [住所, 建物] を保存用の1本に結合（建物が空なら住所だけ）。住所欄に既に建物が入っていれば二重にしない */
   function joinAddressBuilding(addr, bld) {
     const a = String(addr || '').trim();
     const b = String(bld || '').trim();
-    return b ? a + HOME_SEP + b : a;
+    if (!b) return a;
+    if (a.replace(/[\s　]+$/, '').endsWith(b)) return a;   // 住所末尾が建物と同じ＝既に含む → 付け足さない
+    return a + HOME_SEP + b;
+  }
+  /** 末尾に同じ文字列が繰り返されていたら1つに畳む（「…プレステージ立川 805 プレステージ立川 805」→「…プレステージ立川 805」） */
+  function dedupeRepeatedSuffix(s) {
+    const t = String(s || '').trim();
+    const n = t.length;
+    for (let len = Math.floor(n / 2); len >= 4; len--) {
+      const tail = t.slice(n - len);
+      const before = t.slice(0, n - len).replace(/[\s　]+$/, '');
+      if (before.endsWith(tail)) return before;
+    }
+    return t;
   }
   const OTHER_PREFIX = '【その他】';
 
@@ -318,16 +366,22 @@
       if (!box) return;
       const a = String(raw || '').split('\n')[0].trim();
       if (!a) { box.style.display = 'none'; box.innerHTML = ''; return; }
-      // 市区町村が住所に含まれていなければプルダウンの値で補う（「1-27-3」だけ打つ人もいる）
+      // 市区町村が住所に無いときだけプルダウンの値で補う（「1-27-3」だけ打つ人がいるため）。
+      // 住所に別の市区町村が既に入っている場合は補わない。以前は選択中の市名だけを見ていたため
+      //「国分寺市を選んだまま青梅市の住所」で 東京都国分寺市青梅市… と二重になっていた（店長指摘 2026-08-10）
       const city = (bel('bmCity')?.value || '').trim();
-      const withCity = (city && a.indexOf(city) === -1) ? city + a : a;
+      const hasAnyCity = !!extractCityFromAddress(a);
+      const withCity = (city && !hasAnyCity) ? city + a : a;
       const full = composeAddress(prefOfCity(extractCityFromAddress(withCity)) || '', '', withCity);
       const origin = bmRouteOrigin();
       box.innerHTML = `<div class="bha-line"><span class="bha-l">住所</span><span>${escapeHtml(full)}</span></div>
         <div class="bha-route">
           <span class="bha-l">出発</span>
           <input type="text" class="bha-origin" value="${escapeAttr(origin)}" placeholder="いまキャストがいる場所（住所・駅名）">
+          <button type="button" class="bha-office" data-bha-prev style="display:none;">直前</button>
           <button type="button" class="bha-office" data-bha-office>事務所</button>
+          <button type="button" class="bha-fix" data-bha-eta-go title="この出発地で所要時間を計算する">確定</button>
+          <span class="bha-eta" data-bha-eta></span>
           <button type="button" class="bha-go" data-bha-route>🚗 ルート</button>
         </div>`;
       box.style.display = 'block';
@@ -345,14 +399,56 @@
     addr.value = city;
   }
 
+  // ===== 過去に使ったご自宅住所（2つ以上あるお客様は選べるように・店長要望 2026-08-14）=====
+  const bmPastAddrs = { '': [], '-2': [] };   // suffix ごと。新しく使った順
+  /**
+   * そのお客様のご自宅住所を新しい順に取り出す。同じ住所は最新の1つだけ。
+   * 予約履歴（新しい順）のあとに、顧客登録の「よく使う場所」も候補に足す
+   *（引っ越し前の住所などが登録側に残っていることがあるため・店長要望 2026-08-14）
+   */
+  function collectHomeAddresses(bookings, defaultLoc) {
+    const out = [], seen = new Set();
+    const add = (raw) => {
+      const addr = dedupeRepeatedSuffix(String(raw || '').trim());
+      if (!addr) return;
+      const key = addr.replace(/\s+/g, '');
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(addr);
+    };
+    (bookings || []).forEach(b => {
+      const snap = String(b.hotel_name_snapshot || '');
+      if (!snap.startsWith(HOME_PREFIX)) return;
+      add(snap.slice(HOME_PREFIX.length));
+    });
+    add(defaultLoc);
+    return out;
+  }
+  /** 過去のご利用住所プルダウンを作る。1つ以下なら出さない（選ぶ必要が無いため） */
+  function renderPastAddrSelect(suffix, addrs, current) {
+    const sel = document.getElementById('bmPastAddr' + suffix);
+    const field = document.getElementById('bmPastAddrField' + suffix);
+    if (!sel || !field) return;
+    bmPastAddrs[suffix] = addrs || [];
+    if (!addrs || addrs.length < 2) { field.style.display = 'none'; sel.innerHTML = ''; return; }
+    sel.innerHTML = addrs.map((a, i) =>
+      `<option value="${escapeAttr(a)}">${escapeHtml(a)}${i === 0 ? '（直近）' : ''}</option>`).join('');
+    const cur = String(current || '').replace(/\s+/g, '');
+    const hit = addrs.find(a => a.replace(/\s+/g, '') === cur);
+    sel.value = hit || addrs[0];
+    field.style.display = '';
+  }
+
   // ===== いつもの場所の自動入力 =====
   // 電話番号でお客様が当たったとき、顧客登録の「よく使う場所」（＝ご自宅の住所が多い）を
   // 訪問先に自動セットする。基本ご自宅利用のお客様で毎回住所を打ち直さなくて済むように。
   // 稀にホテル利用もあるので、あくまで初期値＝「ホテル」タブに切り替えれば普通にホテル選択。
   // 場所を少しでも触っていたら何もしない（オペレーターの入力を消さない）。
-  function prefillUsualLocation(c) {
+  function prefillUsualLocation(c, pastAddrs) {
     const note = bel('bmUsualLocNote');
-    const addr = String(c?.default_location || '').trim();
+    // 直近に使ったご自宅住所を最優先（住所が変わった／2つある人は最新が正しいことが多い・店長要望 2026-08-14）。
+    // 履歴が無いときだけ顧客登録の「よく使う場所」を使う
+    const addr = String((pastAddrs && pastAddrs[0]) || c?.default_location || '').trim();
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
     // 「まだ場所を何も入れていない」＝どの欄も空。タブがホテル/自宅のどちらを向いていても入れる
     // （自宅タブに切り替えただけで住所が空、というのが一番多い。ここを弾いていて出なかった）
@@ -414,10 +510,121 @@
     '三鷹市',              // 13.3
     '武蔵野市',            // 13.9
     '青梅市',              // 15.2
+    '狛江市',              // 16.4（自宅の交通費で選べなかった・店長指摘 2026-08-29）
     '町田市',              // 17.0
     '西多摩郡檜原村',      // 24.2
     '西多摩郡奥多摩町',    // 29.3
   ];
+  // 市区町村の読み。プルダウンをキーボードで探せるようにするため（店長要望 2026-08-30）。
+  // ここに無い市区町村は漢字の部分一致だけで探せる
+  const CITY_KANA = {
+    '立川市': 'たちかわし', '国立市': 'くにたちし', '日野市': 'ひのし', '国分寺市': 'こくぶんじし',
+    '東大和市': 'ひがしやまとし', '昭島市': 'あきしまし', '武蔵村山市': 'むさしむらやまし', '小平市': 'こだいらし',
+    '府中市': 'ふちゅうし', '多摩市': 'たまし', '東村山市': 'ひがしむらやまし', '小金井市': 'こがねいし',
+    '福生市': 'ふっさし', '八王子市': 'はちおうじし', '西多摩郡瑞穂町': 'にしたまぐんみずほまち',
+    '稲城市': 'いなぎし', 'あきる野市': 'あきるのし', '西東京市': 'にしとうきょうし', '羽村市': 'はむらし',
+    '調布市': 'ちょうふし', '東久留米市': 'ひがしくるめし', '三鷹市': 'みたかし', '武蔵野市': 'むさしのし',
+    '青梅市': 'おうめし', '狛江市': 'こまえし', '町田市': 'まちだし',
+    '西多摩郡檜原村': 'にしたまぐんひのはらむら', '西多摩郡奥多摩町': 'にしたまぐんおくたままち',
+    '杉並区': 'すぎなみく', '練馬区': 'ねりまく', '世田谷区': 'せたがやく', '中野区': 'なかのく',
+    '渋谷区': 'しぶやく', '新宿区': 'しんじゅくく', '目黒区': 'めぐろく', '板橋区': 'いたばしく',
+    '豊島区': 'としまく', '北区': 'きたく', '品川区': 'しながわく', '文京区': 'ぶんきょうく',
+    '千代田区': 'ちよだく', '港区': 'みなとく', '大田区': 'おおたく', '中央区': 'ちゅうおうく',
+    '台東区': 'たいとうく', '荒川区': 'あらかわく', '墨田区': 'すみだく', '足立区': 'あだちく',
+    '江東区': 'こうとうく', '葛飾区': 'かつしかく', '江戸川区': 'えどがわく',
+    '所沢市': 'ところざわし', '入間市': 'いるまし', '狭山市': 'さやまし', '新座市': 'にいざし',
+    '志木市': 'しきし', '朝霞市': 'あさかし', '和光市': 'わこうし', '飯能市': 'はんのうし',
+    '入間郡三芳町': 'いるまぐんみよしまち', 'ふじみ野市': 'ふじみのし', '富士見市': 'ふじみし',
+    '日高市': 'ひだかし', '川越市': 'かわごえし', '鶴ヶ島市': 'つるがしまし', '坂戸市': 'さかどし',
+    '戸田市': 'とだし', '蕨市': 'わらびし', '川口市': 'かわぐちし', 'さいたま市': 'さいたまし', '上尾市': 'あげおし',
+    '相模原市': 'さがみはらし', '座間市': 'ざまし', '大和市': 'やまとし', '厚木市': 'あつぎし',
+    '海老名市': 'えびなし', '綾瀬市': 'あやせし', '川崎市': 'かわさきし', '伊勢原市': 'いせはらし',
+    '横浜市': 'よこはまし', '秦野市': 'はだのし', '藤沢市': 'ふじさわし', '茅ヶ崎市': 'ちがさきし',
+    '平塚市': 'ひらつかし', '小田原市': 'おだわらし',
+  };
+  /** カタカナ→ひらがな・全角英数→半角にそろえる（打ち方の違いを吸収） */
+  function kanaNorm(t) {
+    return String(t || '').normalize('NFKC')
+      .replace(/[\u30a1-\u30f6]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
+      .toLowerCase();
+  }
+
+  /**
+   * 市区町村のプルダウンを、キーボードで打って探せるようにする（店長要望 2026-08-30）。
+   * select はそのまま残し（値の持ち主は select のまま）、その上に入力欄をかぶせる。
+   * 漢字でも ひらがな・カタカナ でも候補が出る。
+   */
+  function attachCitySearch(sel) {
+    if (!sel || sel.dataset.searchable === '1') return;
+    sel.dataset.searchable = '1';
+    const box = document.createElement('div');
+    box.className = 'city-search';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'city-search-inp';
+    inp.setAttribute('placeholder', '例: たちかわ');
+    inp.setAttribute('autocomplete', 'off');
+    const list = document.createElement('div');
+    list.className = 'city-search-list';
+    box.appendChild(inp);
+    box.appendChild(list);
+    sel.parentNode.insertBefore(box, sel);
+    sel.style.display = 'none';
+
+    const optionsOf = () => [...sel.options].map(o => ({ value: o.value, label: o.textContent }));
+    const syncInput = () => {
+      const o = sel.selectedOptions[0];
+      inp.value = (o && o.value) ? o.textContent : '';
+    };
+    const close = () => { list.classList.remove('is-open'); list.innerHTML = ''; };
+    const render = (q) => {
+      const nq = kanaNorm(q);
+      const hits = optionsOf().filter(o => {
+        if (!o.value) return false;                           // 「— すべて —」は候補に出さない（店長指定 2026-08-30）
+        if (nq === '') return true;
+        const kana = kanaNorm(CITY_KANA[o.value] || '');
+        return o.value.includes(q) || kanaNorm(o.value).includes(nq) || kana.includes(nq);
+      }).slice(0, 40);
+      if (!hits.length) { close(); return; }
+      list.innerHTML = hits.map((o, i) =>
+        `<button type="button" class="city-search-item${i === 0 ? ' is-on' : ''}" data-v="${escapeAttr(o.value)}">${escapeHtml(o.label)}</button>`).join('');
+      list.classList.add('is-open');
+    };
+    const pick = (v) => {
+      sel.value = v;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      syncInput();
+      close();
+    };
+    inp.addEventListener('focus', () => { inp.select(); render(''); });
+    inp.addEventListener('input', () => render(inp.value.trim()));
+    inp.addEventListener('keydown', (e) => {
+      const items = [...list.querySelectorAll('.city-search-item')];
+      if (!items.length) return;
+      const cur = items.findIndex(b => b.classList.contains('is-on'));
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const next = e.key === 'ArrowDown' ? Math.min(items.length - 1, cur + 1) : Math.max(0, cur - 1);
+        items.forEach(b => b.classList.remove('is-on'));
+        items[next].classList.add('is-on');
+        items[next].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        (items[cur] || items[0]).click();
+      } else if (e.key === 'Escape') { close(); }
+    });
+    list.addEventListener('mousedown', (e) => {
+      const b = e.target.closest('.city-search-item');
+      if (b) { e.preventDefault(); pick(b.dataset.v); }
+    });
+    inp.addEventListener('blur', () => setTimeout(() => { close(); syncInput(); }, 120));
+    // 中身が入れ替わったとき（エリアタブの切替など）に表示をそろえる
+    sel.addEventListener('change', syncInput);
+    const mo = new MutationObserver(syncInput);
+    mo.observe(sel, { childList: true });
+    syncInput();
+  }
+
   function cityProximityRank(c) {
     const i = CITY_PROXIMITY.indexOf(c);
     return i === -1 ? CITY_PROXIMITY.length : i;   // リスト外は末尾（同順は五十音）
@@ -491,14 +698,36 @@
     if (!sel) return;
     const keep = sel.value;
     const reg = region || currentCityRegion();
+    // メインはホテルのある市区町村＋正規リスト(CITY_PROXIMITY)。ホテルが無い市区町村
+    // （武蔵村山市など）も選べるようにする（店長指摘 2026-08-13）
     const cities = (reg === 'main')
-      ? sortCitiesByProximity([...new Set(hotelsForSelect.map(h => h.city).filter(Boolean))])
+      ? sortCitiesByProximity([...new Set([...hotelsForSelect.map(h => h.city).filter(Boolean), ...CITY_PROXIMITY])])
       : (CITY_REGIONS[reg] || []);
     sel.innerHTML = '<option value="">— すべて —</option>' +
       cities.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
     if (keep && cities.includes(keep)) sel.value = keep;   // 同じ市区町村が新しいエリアにもあれば維持
+    attachCitySearch(sel);   // 打って探せるようにする（1回だけ付く）
   }
   // 市区町村の値から、それが属するエリアのタブを選び直す（既存予約を開いた時など）
+  /**
+   * 自宅・その他の予約を開いたとき、市区町村プルダウンを戻す（店長要望 2026-08-22）。
+   * 保存してある display_city を優先し、無ければ住所から切り出す。
+   * 交通費は保存値のままにしたいので、ここでは再計算しない（値は変更しない）
+   */
+  function restoreBmCityFor(b, addr) {
+    const sel = bel('bmCity');
+    if (!sel) return;
+    const city = (b && b.display_city) || extractCityFromAddress(addr || '') || '';
+    if (!city) return;
+    syncCityRegionTab(city);                       // 23区などはエリアタブも合わせる
+    sel.value = city;
+    if (sel.value !== city) {                      // 選択肢に無い市区町村（他エリア）でも表示できるよう足す
+      const opt = document.createElement('option');
+      opt.value = city; opt.textContent = city;
+      sel.appendChild(opt);
+      sel.value = city;
+    }
+  }
   function syncCityRegionTab(city) {
     if (!city) return;
     let reg = 'main';
@@ -555,7 +784,10 @@
       bits.push(`<div class="bha-route">
         <span class="bha-l">出発</span>
         <input type="text" class="bha-origin" value="${escapeAttr(origin)}" placeholder="いまキャストがいる場所（住所・駅名）">
+        <button type="button" class="bha-office" data-bha-prev style="display:none;">直前</button>
         <button type="button" class="bha-office" data-bha-office>事務所</button>
+        <button type="button" class="bha-fix" data-bha-eta-go title="この出発地で所要時間を計算する">確定</button>
+        <span class="bha-eta" data-bha-eta></span>
         <button type="button" class="bha-go" data-bha-route>🚗 ルート</button>
       </div>`);
     }
@@ -582,6 +814,42 @@
       try { localStorage.removeItem('opsRouteOrigin'); } catch (_) {}
       if (!_officeAddress) toast('事務所の住所が未設定です（マスタ → 事務所の住所）', 'err');
     });
+    // 直前のお仕事の住所を出発地に入れる（送迎の判断・所要時間の見積もりに使う・店長要望 2026-08-10）
+    const prevBtn = box.querySelector('[data-bha-prev]');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', async () => {
+        prevBtn.disabled = true;
+        try {
+          const prev = await prevJobOf();
+          if (!prev) { refreshPrevJobButtons(); return; }
+          const addr = addressOfBooking(prev);
+          if (!addr) return;
+          if (originEl) originEl.value = addr;
+          try { localStorage.setItem('opsRouteOrigin', addr); } catch (_) {}
+          const who = String(prev.customer_name_snapshot || prev.customer_name || '').trim();
+          toast(`${fmtTimeDisp(prev.start_time)}${who ? ' ' + who + ' 様' : ''} の場所を入れました`, 'ok');
+        } finally { prevBtn.disabled = false; }
+      });
+      refreshPrevJobButtons();   // 直前が無い日は最初から出さない
+    }
+    // 出発地が入っていれば、車での所要時間をその場に出す（Googleへのリンクはそのまま残す）
+    const etaEl = box.querySelector('[data-bha-eta]');
+    if (etaEl) {
+      const runEta = () => {
+        const from = (originEl?.value || '').trim();
+        if (from) { try { localStorage.setItem('opsRouteOrigin', from); } catch (_) {} }
+        renderRouteEta(etaEl, from, addressForMap(full));
+      };
+      runEta();
+      if (originEl) {
+        originEl.addEventListener('change', runEta);
+        // Enter でも計算（Googleへは飛ばさない）
+        originEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runEta(); } });
+      }
+      // 「確定」= この出発地で時間だけ出し直す。🚗ルート は Google が開くので分けてある（店長要望 2026-08-10）
+      const fixBtn = box.querySelector('[data-bha-eta-go]');
+      if (fixBtn) fixBtn.addEventListener('click', runEta);
+    }
     const goBtn = box.querySelector('[data-bha-route]');
     if (goBtn) goBtn.addEventListener('click', () => {
       const from = (originEl?.value || '').trim();
@@ -592,6 +860,101 @@
         + '&destination=' + encodeURIComponent(to)
         + '&travelmode=driving';
       window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  /**
+   * 出発地 → 目的地 の車での所要時間を出す（店長要望 2026-08-10）。
+   * 渋滞は考慮しない「道なりの時間」なので、正確に見たいときは 🚗ルート で Google を開く。
+   * 同じ組み合わせはサーバー側で貯めるので、2回目以降はすぐ出る。
+   */
+  const _etaMem = {};   // 画面内のメモ（同じ組み合わせを何度も投げない）
+  async function renderRouteEta(el, from, to) {
+    if (!el) return;
+    if (!from || !to) { el.textContent = ''; el.className = 'bha-eta'; return; }
+    const key = from + '|' + to;
+    const put = (txt, cls) => { el.textContent = txt; el.className = 'bha-eta' + (cls ? ' ' + cls : ''); };
+    if (_etaMem[key]) { put(_etaMem[key], 'is-ok'); return; }
+    put('計測中…', 'is-loading');
+    try {
+      const d = await api(`/route-eta.php?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+      const min = Math.max(1, Math.round((d.duration_sec || 0) / 60));
+      const km = ((d.distance_m || 0) / 1000);
+      const txt = `🚗約${min}分・${km >= 10 ? km.toFixed(0) : km.toFixed(1)}km`;
+      _etaMem[key] = txt;
+      put(txt, 'is-ok');
+      el.title = '渋滞は考えていない道なりの時間です。正確な時間は「🚗 ルート」でご確認ください';
+    } catch (e) {
+      put('—', 'is-ng');
+      el.title = '所要時間を取れませんでした: ' + (e.message || '');
+    }
+  }
+
+  /** 予約1件から「住所」だけを取り出す（ナビにそのまま貼れる形）。bookingAddressText の引数版 */
+  function addressOfBooking(b) {
+    if (!b) return '';
+    const addr = (b.hotel_address || '').trim();
+    if (addr) return addressForMap(composeAddress('', (b.display_city || b.hotel_city || ''), addr));
+    const snap = (b.hotel_name_snapshot || '').trim();
+    if (snap.startsWith(HOME_PREFIX)) return addressForMap(snap.slice(HOME_PREFIX.length));
+    if (snap.startsWith(OTHER_PREFIX)) return snap.slice(OTHER_PREFIX.length).split('\n')[0].trim();
+    return '';
+  }
+
+  // その営業日の予約一覧。「直前」ボタンの判定で何度も同じ日を取りに行かないよう1日ぶんだけ持つ。
+  // 予約モーダルを開くたびに捨てる（保存直後の古いデータを掴まないため）
+  let _prevJobCache = { key: '', rows: null };
+  function clearPrevJobCache() { _prevJobCache = { key: '', rows: null }; }
+  async function fetchDayBookings(bizDay) {
+    if (_prevJobCache.key === bizDay && _prevJobCache.rows) return _prevJobCache.rows;
+    const next = fmtDate(addDays(_parseYmd(bizDay), 1));
+    const d = await api(`/bookings.php?action=range&from=${bizDay}&to=${next}`);
+    _prevJobCache = { key: bizDay, rows: d.bookings || [] };
+    return _prevJobCache.rows;
+  }
+  /**
+   * いま開いている予約の「直前のお仕事」を返す（無ければ null）。
+   * 同じキャスト・同じ営業日で、開始時刻がこの予約より前のもののうち一番遅いもの。
+   * キャンセル・無連絡は移動元にならないので除く。
+   */
+  async function prevJobOf() {
+    const adminId = Number(bel('bmAdminId')?.value || 0);
+    const bizDay = (bel('bmDate')?.value || '').trim();
+    if (!adminId || !bizDay) return null;
+    const bizMin = (h, m) => ((h < 10 ? h + 24 : h) * 60 + m);
+    const bizMinOf = (t) => bizMin(parseInt(String(t).slice(0, 2), 10) || 0, parseInt(String(t).slice(3, 5), 10) || 0);
+    const myMin = bizMin(parseInt(bel('bmStartHour')?.value || '0', 10), parseInt(bel('bmStartMin')?.value || '0', 10));
+    const myId = Number(getEditingBookingId() || 0);
+    let rows = [];
+    // 取得に失敗したときは「無い」と決めつけない（ボタンを消さずに残す）
+    try { rows = await fetchDayBookings(bizDay); } catch (e) { return undefined; }
+    const cands = rows.filter(b =>
+      Number(b.assigned_admin_id) === adminId
+      && Number(b.id) !== myId
+      && !['cancelled', 'no_show'].includes(String(b.status || ''))
+      && bizDateOf(b.booking_date, b.start_time || '00:00') === bizDay
+      && bizMinOf(b.start_time) < myMin
+      && !!addressOfBooking(b)          // 住所が入っていないものは出発地にできない
+    );
+    if (!cands.length) return null;
+    // 並べ替えは営業日の時刻順。文字列で並べると 0:06 が 23:00 より前になり、直前を取り違える
+    cands.sort((a, b) => bizMinOf(a.start_time) - bizMinOf(b.start_time));
+    return cands[cands.length - 1];
+  }
+  /** 直前のお仕事が無ければ「直前」ボタンを消す（店長要望 2026-08-10） */
+  async function refreshPrevJobButtons() {
+    const btns = document.querySelectorAll('[data-bha-prev]');
+    if (!btns.length) return;
+    let prev = null;
+    try { prev = await prevJobOf(); } catch (e) { prev = undefined; }
+    if (prev === undefined) {   // 取得できなかった → 判断がつかないので消さずに残す
+      btns.forEach(b => { b.style.display = ''; b.title = '直前のお仕事の場所を出発地に入れる'; });
+      return;
+    }
+    const who = prev ? String(prev.customer_name_snapshot || prev.customer_name || '').trim() : '';
+    btns.forEach(b => {
+      b.style.display = prev ? '' : 'none';
+      b.title = prev ? `直前のお仕事: ${fmtTimeDisp(prev.start_time)}${who ? ' ' + who + ' 様' : ''} の場所を出発地に入れる` : '';
     });
   }
 
@@ -748,6 +1111,9 @@
       // メイン=多摩。ホテルのある市区町村（他エリアに属さないもの）＋設定だけ残っている市区町村
       const base = (cfAllCities || []).filter(c => !inOtherRegions.has(c));
       Object.keys(CITY_FEES).forEach(c => { if (!inOtherRegions.has(c) && !base.includes(c)) base.push(c); });
+      // メインの正規リスト(CITY_PROXIMITY)も必ず含める。ホテルも設定も無い市区町村（武蔵村山市など）が
+      // 交通費を設定できなくなるのを防ぐ（店長指摘 2026-08-13）
+      CITY_PROXIMITY.forEach(c => { if (!inOtherRegions.has(c) && !base.includes(c)) base.push(c); });
       cities = sortCitiesByProximity(base);
     } else {
       cities = CITY_REGIONS[cfState.region] || [];
@@ -806,6 +1172,21 @@
     panel.innerHTML = html;
   }
 
+  /**
+   * 自宅で「町名（任意）」が未選択のときだけ注意を出す（店長要望 2026-08-24）。
+   * 町名で交通費が変わるのに、市区町村だけ選んで先へ進んでしまう事故があった。
+   * 町名一覧が無い市区町村（プルダウンが出ない）では何も言わない
+   */
+  function syncTownHint() {
+    const town = bel('bmTown');
+    const hint = bel('bmTownHint');
+    if (!town || !hint) return;
+    const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
+    const shown = town.style.display !== 'none' && town.options.length > 1;
+    const need = locType === 'home' && shown && !town.value;
+    hint.style.display = need ? '' : 'none';
+    town.classList.toggle('need-pick', need);
+  }
   /** 予約モーダルの町名プルダウン。市区町村を選んだら右に出す（町名一覧が取れない市区町村では出さない） */
   async function loadBmTowns() {
     // await の後は activeBmSuffix が呼び出し時と変わっていることがある（クローンモーダル②）。
@@ -820,11 +1201,11 @@
     townSel.innerHTML = '<option value="">町名（任意）</option>';
     // 町名は自宅の交通費を決めるためだけの欄。ラブホ・ホテルでは使わないので出さない（店長指定 2026-08-08）
     const locType = document.querySelector(`input[name="bmLocType${activeBmSuffix}"]:checked`)?.value || 'hotel';
-    if (locType !== 'home') return;
-    if (!city) return;
+    if (locType !== 'home') { syncTownHint(); return; }
+    if (!city) { syncTownHint(); return; }
     const towns = await fetchTowns(city);
     if ((citySel?.value || '') !== city) return;   // 読み込み中に変わっていたら捨てる
-    if (!towns.length) return;
+    if (!towns.length) { syncTownHint(); return; }
     // towns は {name, km} の配列。距離はマスタ専用の表示なので、予約モーダルでは名前だけ使う
     const names = towns.map(t => t.name);
     townSel.innerHTML = '<option value="">町名（任意）</option>' +
@@ -832,6 +1213,7 @@
     if (keep && names.includes(keep)) townSel.value = keep;
     townSel.style.display = '';
     setCityRowWide(true);   // 町名が並ぶと市区町村が狭くなるので列幅を広げる
+    syncTownHint();
   }
 
   /**
@@ -898,6 +1280,8 @@
     if (locType === 'loveho') list = list.filter(isLoveHotel);
     else if (locType === 'hotel') list = list.filter(h => !isLoveHotel(h));
     if (filterCity) list = list.filter(h => h.city === filterCity);
+    // 予約入力はホテル名を探しながら選ぶので、あいうえお順に並べる（店長要望 2026-08-10）
+    list = [...list].sort(byNameJa);
     sel.innerHTML = '<option value="">— 選択しない（下に手入力） —</option>' +
       list.map(h => `<option value="${h.id}">${escapeHtml(h.name)}${h.nearest_station ? ' (' + escapeHtml(h.nearest_station) + '駅)' : ''}</option>`).join('');
     if (selectedValue && list.some(h => Number(h.id) === Number(selectedValue))) sel.value = selectedValue;
@@ -989,11 +1373,36 @@
       const data = await api('/admin-api.php?action=cities');
       cities = data.cities || [];
       const sel = document.getElementById('fCity');
-      sel.innerHTML = '<option value="">全市区町村</option>' +
-        cities.map(c => {
-          const pub = Number(c.visited) + Number(c.inquiry);
-          return `<option value="${escapeAttr(c.city)}">${escapeHtml(c.city)} (公開${pub}/${c.total})</option>`;
-        }).join('');
+      const keep = sel.value;
+      // 予約モーダルと同じ並び（多摩・立川周辺は立川駅から近い順 → 23区 → 埼玉 → 神奈川）に揃える。
+      // 件数の多い順だと探しにくい、との店長要望 2026-08-10
+      const byCity = {};
+      cities.forEach(c => { byCity[String(c.city || '').trim()] = c; });
+      const opt = (name) => {
+        const c = byCity[name];
+        if (!c) return '';
+        const pub = Number(c.visited) + Number(c.inquiry);
+        return `<option value="${escapeAttr(name)}">${escapeHtml(name)} (公開${pub}/${c.total})</option>`;
+      };
+      const groups = [
+        ['多摩・立川周辺（立川駅から近い順）', CITY_PROXIMITY],
+        ['東京23区', CITY_REGIONS.tokyo23 || []],
+        ['埼玉県', CITY_REGIONS.saitama || []],
+        ['神奈川県', CITY_REGIONS.kanagawa || []],
+      ];
+      const listed = new Set();
+      let html = '<option value="">全市区町村</option>';
+      groups.forEach(([label, list]) => {
+        const body = list.map(name => { const o = opt(name); if (o) listed.add(name); return o; }).join('');
+        if (body) html += `<optgroup label="${escapeAttr(label)}">${body}</optgroup>`;
+      });
+      // どのグループにも入っていない市区町村（旧データなど）は最後にまとめる
+      const rest = cities.map(c => String(c.city || '').trim()).filter(n => n && !listed.has(n));
+      if (rest.length) {
+        html += '<optgroup label="その他">' + rest.sort((a, b) => a.localeCompare(b, 'ja')).map(opt).join('') + '</optgroup>';
+      }
+      sel.innerHTML = html;
+      if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
     } catch (e) { /* silent */ }
   }
 
@@ -1017,6 +1426,8 @@
     try {
       const data = await api('/admin-api.php?action=hotels&' + params.toString());
       allHotels = data.hotels || [];
+      // 名前順は DB の並びだと ひらがな/カタカナ/漢字 が別々に固まるので、日本語の並び（あいうえお順）で整え直す
+      if (sort === 'name') allHotels.sort(byNameJa);
       renderHotels();
     } catch (e) {
       list.innerHTML = '<div class="empty">読み込みに失敗しました: ' + escapeHtml(e.message) + '</div>';
@@ -1026,6 +1437,27 @@
   function statusClass(s) {
     return s ? 'status-' + s : '';
   }
+
+  /**
+   * ホテル名から読みを自動で作る。カタカナ→ひらがなに直すだけなので、
+   * カタカナ・ひらがなで始まる名前はこれだけで正しい位置に並ぶ。
+   * 漢字・英字で始まる名前は読み仮名を手で入れてもらう（emNameKana）。
+   */
+  function autoKana(name) {
+    return String(name || '').trim()
+      .replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))   // カタカナ→ひらがな
+      .replace(/[ー]/g, 'ー');
+  }
+  /** 並べ替えに使う読み。手入力の読み仮名があればそれ、無ければ名前から自動生成 */
+  const kanaKeyOf = (h) => {
+    const k = String(h?.name_kana || '').trim();
+    return autoKana(k || h?.name || '');
+  };
+  /** かな以外で始まる名前なのに読み仮名が無い＝あいうえお順の位置がずれるもの */
+  const needsKana = (h) => !String(h?.name_kana || '').trim()
+    && !/^[ぁ-んァ-ヶ]/.test(String(h?.name || '').trim());
+  /** ホテル名の並び（あいうえお順）。ひらがな/カタカナを同じ扱いにし、数字も数として比べる */
+  const byNameJa = (a, b) => kanaKeyOf(a).localeCompare(kanaKeyOf(b), 'ja', { numeric: true, sensitivity: 'base' });
 
   function renderHotels() {
     const list = document.getElementById('hotelList');
@@ -1038,11 +1470,14 @@
       return;
     }
 
+    // 「自分の順番」のときだけ行をドラッグして並べ替えられるようにする
+    const manual = (document.getElementById('fSort')?.value || '') === 'manual';
     list.innerHTML = allHotels.map(h => {
       const status = h.status || '';
       const checked = selectedIds.has(h.id);
       return `
-        <div class="hotel-row ${statusClass(status)} ${checked ? 'selected' : ''}" data-id="${h.id}">
+        <div class="hotel-row ${statusClass(status)} ${checked ? 'selected' : ''}${manual ? ' sortable' : ''}" data-id="${h.id}"${manual ? ' draggable="true"' : ''}>
+          ${manual ? '<div class="drag-handle" title="ドラッグで並べ替え">⠿</div>' : ''}
           <div class="row-check">
             <input type="checkbox" class="rowSelect" data-id="${h.id}" ${checked ? 'checked' : ''}>
           </div>
@@ -1060,6 +1495,7 @@
               ${h.nearest_station ? `<span><b>駅:</b> ${escapeHtml(h.nearest_station)}</span>` : ''}
               <span class="${(h.transport_fee === null || h.transport_fee === undefined || h.transport_fee === '') ? 'row-fee-unset' : ''}"><b>交通費:</b> ${(h.transport_fee === null || h.transport_fee === undefined || h.transport_fee === '') ? '未設定' : '¥' + Number(h.transport_fee).toLocaleString()}</span>
               ${h.hotel_type ? `<span class="badge-mini">${hotelTypeLabel(h.hotel_type)}</span>` : ''}
+              ${needsKana(h) ? '<span class="badge-mini badge-kana" title="かな以外で始まる名前です。読み仮名を入れるとあいうえお順の正しい位置に並びます">読み未設定</span>' : ''}
               ${h.entry_method ? `<span class="badge-mini">${entryMethodLabel(h.entry_method)}</span>` : ''}
               ${h.internal_memo ? `<span title="${escapeAttr(h.internal_memo)}">📝</span>` : ''}
             </div>
@@ -1070,7 +1506,54 @@
           </div>
         </div>`;
     }).join('');
+    if (manual) setupHotelSortable(list);
     updateBulkBar();
+  }
+
+  /**
+   * ホテル一覧のドラッグ並べ替え（並び順=自分の順番のときだけ）。
+   * 表示中の並びをそのまま 1 から振り直す。絞り込み中でも、見えている行の順番だけを保存する。
+   */
+  function setupHotelSortable(list) {
+    let dragSrc = null;
+    const clearMarks = () => list.querySelectorAll('.drag-over-top, .drag-over-bottom')
+      .forEach(r => r.classList.remove('drag-over-top', 'drag-over-bottom'));
+    list.querySelectorAll('.hotel-row.sortable').forEach(row => {
+      row.addEventListener('dragstart', e => {
+        // ボタンやチェックからのドラッグは無視（誤操作防止）
+        if (e.target.closest('button, input')) { e.preventDefault(); return; }
+        dragSrc = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', row.dataset.id);
+      });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); clearMarks(); });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        clearMarks();
+        row.classList.add((e.clientY - rect.top) < rect.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+      });
+      row.addEventListener('drop', async e => {
+        e.preventDefault();
+        if (!dragSrc || row === dragSrc) return;
+        const rect = row.getBoundingClientRect();
+        const before = (e.clientY - rect.top) < rect.height / 2;
+        list.insertBefore(dragSrc, before ? row : row.nextSibling);
+        clearMarks();
+        const ids = [...list.querySelectorAll('.hotel-row.sortable')].map(r => Number(r.dataset.id));
+        try {
+          await apiPost('/admin-api.php?action=hotel-reorder', { ids });
+          // 次に描き直したときも同じ順になるよう、手元のデータも並べ替えておく
+          allHotels.sort((a, b) => ids.indexOf(Number(a.id)) - ids.indexOf(Number(b.id)));
+          toast('✓ 並び順を保存しました', 'ok');
+        } catch (err) {
+          toast('並べ替え失敗: ' + err.message, 'err');
+          loadHotels();
+        }
+      });
+    });
   }
 
   function updateBulkBar() {
@@ -1124,7 +1607,7 @@
   // 予約で使われているものはサーバー側で【非表示】に切り替わる（履歴の hotel_id を壊さない）。
   async function deleteHotels(ids, label) {
     if (!ids.length) return;
-    if (!confirm(`${label}をリストから削除します。よろしいですか？\n（予約で使用中のホテルは削除せず非表示にします）`)) return;
+    if (!await opsConfirm(`${label}をリストから削除します。よろしいですか？\n（予約で使用中のホテルは削除せず非表示にします）`)) return;
     try {
       const r = await apiPost('/admin-api.php?action=hotel-delete', { hotel_ids: ids });
       const msg = [r.deleted ? `${r.deleted}件を削除` : '', r.hidden ? `${r.hidden}件は使用中のため非表示` : '']
@@ -1163,7 +1646,7 @@
     const fee = raw === 'unset' ? null : Number(raw);
     const ids = Array.from(selectedIds);
     const label = fee === null ? '未設定' : (fee === 0 ? '無料（¥0）' : `¥${fee.toLocaleString()}`);
-    if (!confirm(`選択中の${ids.length}件の交通費を「${label}」に設定します。よろしいですか？`)) return;
+    if (!await opsConfirm(`選択中の${ids.length}件の交通費を「${label}」に設定します。よろしいですか？`)) return;
     try {
       await apiPost('/admin-api.php?action=bulk-transport-fee', { hotel_ids: ids, transport_fee: fee });
       toast(`✓ ${ids.length}件の交通費を${label}に設定しました`, 'ok');
@@ -1275,6 +1758,14 @@
     const isNew = !hotel;
     if (isNew) hotel = { id: 0, name: '', city: '', address: '', tel: '' };
     document.getElementById('emName').value = hotel.name || '';
+    {
+      // 読み仮名。未入力のときは自動で使われる読みをプレースホルダに出しておく
+      const kEl = document.getElementById('emNameKana');
+      if (kEl) {
+        kEl.value = hotel.name_kana || '';
+        kEl.placeholder = autoKana(hotel.name) || '（自動）';
+      }
+    }
     const cityEl = document.getElementById('emCity');
     cityEl.innerHTML = cityOptionsHtml(hotel.city || '');
     cityEl.value = hotel.city || '';
@@ -1326,7 +1817,6 @@
       }
       feeSel.value = v;
     }
-    document.getElementById('emGuide').value = hotel.guide_note || '';
     document.getElementById('emMemo').value = hotel.internal_memo || '';
     document.getElementById('editModal').classList.add('show');
   }
@@ -1345,9 +1835,11 @@
       // 保存する住所は「市区町村＋入力欄」。表示と保存で形が変わらないようここで結合する
       const addrVal = (cityVal + document.getElementById('emAddress').value.trim()).trim();
       const typeVal = document.getElementById('emHotelType').value;
+      const kanaVal = (document.getElementById('emNameKana')?.value || '').trim();
       const r = await apiPost('/admin-api.php?action=hotel-save', {
         id: editingHotel.id || 0,
         name,
+        name_kana: kanaVal,
         city: cityVal,
         prefecture: prefVal,
         address: addrVal,
@@ -1357,6 +1849,7 @@
       if (!editingHotel.id) editingHotel.id = r.id;   // 新規は採番された id を使う
       Object.assign(editingHotel, {
         name,
+        name_kana: kanaVal || null,
         city: cityVal,
         prefecture: prefVal,
         address: addrVal,
@@ -1373,7 +1866,6 @@
       transport_fee: document.getElementById('emTransportFee').value === ''
         ? null
         : Number(document.getElementById('emTransportFee').value),
-      guide_note: document.getElementById('emGuide').value.trim(),
       internal_memo: document.getElementById('emMemo').value.trim(),
     };
     try {
@@ -1383,7 +1875,6 @@
         entry_method: payload.entry_method || null,
         room_type_recommended: payload.room_type_recommended || null,
         transport_fee: payload.transport_fee,
-        guide_note: payload.guide_note || null,
         internal_memo: payload.internal_memo || null,
       });
       hotelsForSelect = [];   // 予約モーダルのホテル候補を次回読み直す
@@ -1467,9 +1958,19 @@
     return s;
   }
 
-  // ロール別エンドポイント: owner は全項目(歩合/登録日)、それ以外は最小リスト(read-only)
+  /**
+   * スタッフ管理を操作できるか。owner は常に可。それ以外は権限管理（tab_permissions.staff）で
+   * チェックの入ったロール（店長要望 2026-08-14: 管理者にスタッフ管理を任せる）。
+   * オーナーアカウントの編集・削除・PW再発行はサーバー側で owner のみに制限される
+   */
+  function canManageStaffTab() {
+    // 制限はメニューのチェックだけ。スタッフ管理 か キャスト管理 が見えていれば操作できる（店長指定 2026-08-15）
+    return userCanSeeTab('staff') || userCanSeeTab('staffboard');
+  }
+
+  // ロール別エンドポイント: スタッフ管理権限あり=全項目(admin-users)、なし=最小リスト(read-only)
   function staffListEndpoint() {
-    return currentUser?.role === 'owner' ? 'admin-users' : 'staff-list';
+    return canManageStaffTab() ? 'admin-users' : 'staff-list';
   }
 
   async function loadAdminUsers() {
@@ -1482,6 +1983,42 @@
     } catch (e) {
       el.innerHTML = '<div class="empty">読み込みに失敗: ' + escapeHtml(e.message) + '</div>';
     }
+  }
+
+  // キャスト管理画面の専用URL（admin_user_id → {url, pin_set, ...}）。キャスト管理タブで読む
+  let castAccessMap = {};
+  let showCastAccess = false;
+  async function loadCastAccess() {
+    try {
+      const d = await api('/admin-api.php?action=cast-access-list');
+      castAccessMap = d.access || {};
+    } catch (e) { castAccessMap = {}; }
+  }
+  function castAccessHtml(u) {
+    const a = castAccessMap[String(u.id)];
+    if (!a || !a.url) {
+      return `<div class="sr-access">
+        <button class="sra-btn" data-action="cast-url-issue" data-id="${u.id}" type="button">🔑 専用URLを発行</button>
+      </div>`;
+    }
+    const pin = a.pin_set
+      ? `<span class="sra-pin is-set">暗証番号 設定済み</span>`
+      : `<span class="sra-pin">暗証番号 未設定<span class="sra-note">（次に開いたとき本人が決めます）</span></span>`;
+    const locked = a.locked ? '<span class="sra-pin is-locked">ロック中</span>' : '';
+    const nm = escapeAttr(u.display_name || u.username);
+    return `<div class="sr-access">
+      <div class="sra-url"><input type="text" class="sra-url-in" value="${escapeAttr(a.url)}" readonly>
+        <button class="sra-copy" data-action="cast-url-copy" data-url="${escapeAttr(a.url)}" type="button" title="コピー">📋</button></div>
+      <div class="sra-line">${pin}${locked}
+        <button class="sra-btn" data-action="cast-pin-reset" data-id="${u.id}" data-name="${nm}" type="button">リセット</button>
+        <button class="sra-btn is-warn" data-action="cast-url-issue" data-id="${u.id}" data-renew="1" data-name="${nm}" type="button">URLを作り直す</button>
+      </div>
+      <div class="sra-line">
+        <input type="text" class="sra-pin-in" id="sraPin${u.id}" inputmode="numeric" maxlength="4" placeholder="□□□□" autocomplete="off">
+        <button class="sra-btn" data-action="cast-pin-set" data-id="${u.id}" data-name="${nm}" type="button">この番号にする</button>
+        <span class="sra-note">店長が決めて本人に伝えます</span>
+      </div>
+    </div>`;
   }
 
   // スタッフ行 HTML（スタッフ管理 / キャスト管理 共通）
@@ -1508,7 +2045,11 @@
     // ドライバー(専任 or 兼任)には送迎・勤務実績の詳細ボタン
     const isDriverRow = isDriverCapable(u);
     const driverBtn = isDriverRow ? `<button class="sr-driver" data-action="driver-detail" data-id="${u.id}" type="button" style="margin-top:.3rem;padding:.28rem .7rem;font-size:.74rem;font-weight:700;border:1.5px solid var(--sea);color:var(--sea);background:#fff;border-radius:50px;cursor:pointer;">🚗 送迎・勤務</button>` : '';
-    const meta = `${metaText}${driverBtn ? '<br>' + driverBtn : ''}`;
+    // キャスト管理画面（biyobu.com/cosmenote/）の専用URLと暗証番号の状態。
+    // 本人に渡すもの＝URL。暗証番号は本人が決めたものを取り出せない形で持っているので、
+    // 分からなくなったらリセットして決め直してもらう（店長要望 2026-08-11）
+    const accessHtml = (showCastAccess && isTherapistCapable(u)) ? castAccessHtml(u) : '';
+    const meta = `${metaText}${driverBtn ? '<br>' + driverBtn : ''}${accessHtml}`;
     const actionsHtml = actions ? `
             <button class="sr-edit" data-action="edit-user" data-id="${u.id}">編集</button>
             <button class="sr-pw" data-action="reset-pw" data-id="${u.id}" data-name="${escapeAttr(u.display_name || u.username)}">パスワード再発行</button>
@@ -1527,29 +2068,63 @@
         </div>`;
   }
 
-  // スタッフ管理タブ = 運営側のみ（role≠staff）
+  // スタッフ管理タブ = 運営側のみ（role≠staff）。操作可否は権限管理のスタッフ管理チェックに従う
   function renderAdminUsers() {
     const el = document.getElementById('staffTable');
-    const isOwner = currentUser?.role === 'owner';
+    const canManage = canManageStaffTab();
     const addBtn = document.getElementById('btnAddStaff');
-    if (addBtn) addBtn.style.display = isOwner ? '' : 'none';
+    if (addBtn) addBtn.style.display = canManage ? '' : 'none';
     const ops = allUsers.filter(u => u.role !== 'staff');
     if (!ops.length) { el.innerHTML = '<div class="empty">運営スタッフがいません</div>'; return; }
-    el.innerHTML = ops.map(u => staffRowHtml(u, { drag: isOwner, actions: isOwner })).join('');
-    if (isOwner) setupStaffSortable('staffTable');
+    el.innerHTML = ops.map(u => staffRowHtml(u, { drag: canManage, actions: canManage })).join('');
+    if (canManage) setupStaffSortable('staffTable');
+  }
+
+  // ===== キャスト一覧の並び替え（店長要望 2026-08-11。CTRL の出勤管理と同じ考え方）=====
+  //   manual  … 手動（sort_order。ドラッグで並べ替え）
+  //   in_date … 入店順。新しく入った子が上（CTRL と同じ in_date DESC）
+  //   work    … 出勤頻度順。出勤（予定・終了ふくむ）の日数が多い順
+  //   kana    … あいうえお順。源氏名の読みで並べる（カタカナはひらがなに寄せる）
+  let sbSort = 'manual';
+  try { sbSort = localStorage.getItem('opsCastSort') || 'manual'; } catch (e) {}
+  const SB_SORT_NOTE = {
+    in_date: '入店日の新しい順です',
+    work: '出勤日数の多い順です',
+    kana: '源氏名のあいうえお順です',
+  };
+  function sortTherapists(list) {
+    const arr = list.slice();
+    if (sbSort === 'in_date') {
+      arr.sort((a, b) => String(b.in_date || '').localeCompare(String(a.in_date || ''))
+        || Number(b.id) - Number(a.id));
+    } else if (sbSort === 'work') {
+      arr.sort((a, b) => (Number(b.work_days) || 0) - (Number(a.work_days) || 0)
+        || String(b.in_date || '').localeCompare(String(a.in_date || '')));
+    } else if (sbSort === 'kana') {
+      arr.sort((a, b) => kanaKeyOf({ name: a.display_name || a.username })
+        .localeCompare(kanaKeyOf({ name: b.display_name || b.username }), 'ja', { numeric: true, sensitivity: 'base' }));
+    }
+    return arr;   // manual は API の sort_order 順のまま
   }
 
   // キャスト管理タブ = role=staff、または is_therapist 兼任者（例: 橘=manager+is_therapist）の一覧
   function renderTherapistBoard() {
     const el = document.getElementById('staffBoard');
     if (!el) return;
-    const isOwner = currentUser?.role === 'owner';
+    // このタブを開ける人は中の操作も全部できる（制限は上のメニューだけ・店長指定 2026-08-15）
+    const isOwner = currentUser?.role !== 'staff';
     const addBtn = document.getElementById('btnAddTherapist');
     if (addBtn) addBtn.style.display = isOwner ? '' : 'none';
-    const ths = allUsers.filter(u => isTherapistCapable(u));
+    const ths = sortTherapists(allUsers.filter(u => isTherapistCapable(u)));
     if (!ths.length) { el.innerHTML = '<p style="color:var(--ink-soft);padding:1.5rem 0;text-align:center;">キャストが登録されていません。</p>'; return; }
-    el.innerHTML = ths.map(u => staffRowHtml(u, { drag: isOwner, actions: isOwner })).join('');
-    if (isOwner) setupStaffSortable('staffBoard');
+    // 手動（ドラッグ）以外の並びのときは、動かしても保存されないので掴めなくする
+    const manual = sbSort === 'manual';
+    showCastAccess = true;
+    el.innerHTML = ths.map(u => staffRowHtml(u, { drag: isOwner && manual, actions: isOwner })).join('');
+    showCastAccess = false;
+    const note = document.getElementById('sbSortNote');
+    if (note) note.textContent = manual ? '' : SB_SORT_NOTE[sbSort] || '';
+    if (isOwner && manual) setupStaffSortable('staffBoard');
   }
 
   // ===== スタッフ並び替え（フィルタ表示でも全体順序を保つ） =====
@@ -1638,6 +2213,19 @@
       castBox.className = 'bm-ng-alert' + (hit ? ' lv2' : '');
       castBox.style.display = hit ? 'block' : 'none';
       castBox.textContent = hit ? `⚠️ ${u?.display_name || ''} はこのお客様NGです` : '';
+      // 選んでいるキャストをその場でNGにできるボタン（店長要望 2026-08-22）
+      const ngBtn = bel('bmNgCastBtn');
+      if (ngBtn) {
+        const custId = Number(bel('bmCustomerId')?.value || 0);
+        const show = !!id;
+        ngBtn.style.display = show ? 'inline-block' : 'none';
+        ngBtn.classList.toggle('is-on', !!hit);
+        ngBtn.textContent = hit ? '🚫 NG解除' : '🚫 NG';
+        ngBtn.disabled = !custId;
+        ngBtn.title = !custId
+          ? 'お客様が特定できてからNGにできます（電話番号を入れるか、保存してから）'
+          : (hit ? 'このお客様のNGから外す' : '選んでいるキャストをこのお客様のNGにする');
+      }
     }
   }
 
@@ -1681,8 +2269,32 @@
     document.getElementById('esSub').textContent = u.username;
     document.getElementById('esName').value = u.display_name || '';
     editingStaffUsername = u.username || '';
+    // ログインID = username、メールアドレス = email（分離）
+    const esLoginId = document.getElementById('esLoginId');
+    if (esLoginId) esLoginId.value = u.username || '';
     const esEmail = document.getElementById('esEmail');
-    if (esEmail) esEmail.value = u.username || '';
+    if (esEmail) esEmail.value = u.email || '';
+    // 写メ日記（URL/ID/PASS）
+    { const el = document.getElementById('esDiaryUrl');   if (el) el.value = u.diary_url || ''; }
+    { const el = document.getElementById('esDiaryLogin'); if (el) el.value = u.diary_login || ''; }
+    { const el = document.getElementById('esDiaryPass');  if (el) el.value = u.diary_pass || ''; }
+    // キャスト画面の「出勤確認」ボタンを出すか（既定は非表示）
+    { const el = document.getElementById('esSelfConfirm'); if (el) el.checked = Number(u.self_confirm_shift) === 1; }
+    // 預り金カードの色（内勤以上）。他のスタッフが使用中の色は選べない（誰の現金か見分ける色のため・店長要望 2026-08-14）
+    { const el = document.getElementById('esColor');
+      if (el) {
+        const roster = (allUsers && allUsers.length ? allUsers : adminUsersAll) || [];
+        const used = {};
+        roster.forEach(x => { if (x.staff_color && Number(x.id) !== Number(u.id)) used[String(x.staff_color).toLowerCase()] = x.display_name || x.username; });
+        Array.from(el.options).forEach(o => {
+          if (!o.dataset.base) o.dataset.base = o.textContent;
+          const holder = o.value ? used[o.value.toLowerCase()] : '';
+          o.disabled = !!holder;
+          o.textContent = holder ? `${o.dataset.base}（${holder} 使用中）` : o.dataset.base;
+        });
+        el.value = u.staff_color || ''; if (el.value !== (u.staff_color || '')) el.value = '';   // 一覧に無い旧値は「なし」扱い
+        const pv = document.getElementById('esColorPreview'); if (pv) pv.style.background = el.value || 'transparent';
+      } }
     // CTRL から同期したキャスト(girl_id あり)は権限=キャスト固定。
     // 権限/兼任/歩合率はスタッフ管理でのみ扱う
     const isCast = u.girl_id != null && u.girl_id !== '';
@@ -1694,14 +2306,20 @@
     // 注意事項は「予約を取る前にキャストについて確認すること」なのでキャスト編集のときだけ出す
     const notesField = document.getElementById('esCastNotesField');
     if (notesField) notesField.style.display = isCast ? '' : 'none';
+    // 写メ日記はキャストだけに出す（内勤・ドライバーには不要）
+    const diaryField = document.getElementById('esDiaryField');
+    if (diaryField) diaryField.style.display = isCast ? '' : 'none';
+    const selfConfirmField = document.getElementById('esSelfConfirmField');
+    if (selfConfirmField) selfConfirmField.style.display = isCast ? '' : 'none';
     const esTitle = document.getElementById('esTitle');
     if (esTitle) esTitle.textContent = isCast ? 'キャスト編集' : 'スタッフ編集';
 
     const esNotes = document.getElementById('esCastNotes');
     if (esNotes) esNotes.value = u.cast_notes || '';
-    // 注意事項は店長も編集できる（cast-note-update）。それ以外の項目は owner 専用
-    const canEditAll = currentUser?.role === 'owner';
-    ['esName', 'esEmail', 'esThumbFile', 'esThumbRemove'].forEach(id => {
+    // 注意事項は店長も編集できる（cast-note-update）。それ以外の項目はスタッフ管理権限（権限管理で許可）。
+    // ただしオーナーのアカウントは owner のみ編集可（サーバー側と同じ制限）
+    const canEditAll = canManageStaffTab() && !(u.role === 'owner' && currentUser?.role !== 'owner');
+    ['esName', 'esLoginId', 'esEmail', 'esThumbFile', 'esThumbRemove'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.disabled = !canEditAll; el.style.opacity = canEditAll ? 1 : .55; }
     });
@@ -1716,7 +2334,11 @@
     syncConcurrentFields('es', u.role);
     const me = Number(currentUser?.id) === Number(u.id);
     document.getElementById('esRoleHint').textContent = me ? '⚠️ 自分自身の権限は変更できません' : '';
-    document.querySelectorAll('[data-es-role]').forEach(b => { b.disabled = me; b.style.opacity = me ? .5 : 1; });
+    document.querySelectorAll('[data-es-role]').forEach(b => {
+      // オーナー権限の付与は owner のみ（サーバー側と同じ制限）
+      const lock = me || (b.dataset.esRole === 'owner' && currentUser?.role !== 'owner');
+      b.disabled = lock; b.style.opacity = lock ? .5 : 1;
+    });
     // サムネプレビュー
     const prev = document.getElementById('esThumbPreview');
     prev.innerHTML = editingThumbData
@@ -1764,7 +2386,9 @@
         try { renderTimeline(); } catch (_) {}
       } catch (e) { toast('注意事項の保存に失敗しました', 'err'); return; }
     }
-    if (currentUser?.role !== 'owner') {   // 他項目は owner 専用。店長は注意事項だけ保存して終了
+    // 他項目はスタッフ管理権限（権限管理で許可されたロール）。オーナーのアカウントは owner のみ。
+    // 権限がない場合は注意事項だけ保存して終了（従来の店長の挙動）
+    if (!canManageStaffTab() || (editingStaffRole === 'owner' && currentUser?.role !== 'owner')) {
       toast('✓ 注意事項を保存しました', 'ok');
       closeModal('editStaffModal');
       try { renderCastAlert(); } catch (_) {}
@@ -1778,12 +2402,24 @@
       payload.can_drive = document.getElementById('esCanDrive')?.checked ? 1 : 0;
       payload.is_therapist = document.getElementById('esIsTherapist')?.checked ? 1 : 0;
       payload.is_office = document.getElementById('esIsOffice')?.checked ? 1 : 0;
+      payload.staff_color = document.getElementById('esColor')?.value || '';   // 預り金カード色（空=なし）
     }
-    // メール(=ログインID) 変更時のみ送信
+    // ログインID（username）変更時のみ送信
+    const loginIdVal = (document.getElementById('esLoginId')?.value || '').trim();
+    if (loginIdVal && loginIdVal !== editingStaffUsername) {
+      if (!/^[A-Za-z0-9@._-]{2,190}$/.test(loginIdVal)) { toast('ログインIDは半角英数字・記号(@._-)で入力してください', 'err'); return; }
+      payload.login_id = loginIdVal;
+    }
+    // メールアドレス（送迎メール送信先）。空にもできる（未設定）ので常に送る
     const emailVal = (document.getElementById('esEmail')?.value || '').trim();
-    if (emailVal && emailVal !== editingStaffUsername) {
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailVal)) { toast('メールアドレスの形式が正しくありません', 'err'); return; }
-      payload.email = emailVal;
+    if (emailVal !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailVal)) { toast('メールアドレスの形式が正しくありません', 'err'); return; }
+    payload.email = emailVal;
+    // 写メ日記（URL/ID/PASS）はキャストのみ。空にもできるので常に送る
+    if (editingStaffIsCast) {
+      payload.diary_url = (document.getElementById('esDiaryUrl')?.value || '').trim();
+      payload.diary_login = (document.getElementById('esDiaryLogin')?.value || '').trim();
+      payload.diary_pass = (document.getElementById('esDiaryPass')?.value || '').trim();
+      payload.self_confirm_shift = document.getElementById('esSelfConfirm')?.checked ? 1 : 0;
     }
     // 自分以外なら role も送信
     // キャストは role=staff 固定（権限UIを出していないので送らない）
@@ -1806,11 +2442,20 @@
   }
 
   async function createStaff() {
+    const loginId = document.getElementById('csLoginId').value.trim();
     const email = document.getElementById('csEmail').value.trim();
     const password = document.getElementById('csPassword').value;
     const displayName = document.getElementById('csName').value.trim();
-    if (!email || !password || !displayName) {
-      toast('全項目を入力してください', 'err');
+    if (!loginId || !password || !displayName) {
+      toast('表示名・ログインID・パスワードは必須です', 'err');
+      return;
+    }
+    if (!/^[A-Za-z0-9@._-]{2,190}$/.test(loginId)) {
+      toast('ログインIDは半角英数字・記号(@._-)で入力してください', 'err');
+      return;
+    }
+    if (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      toast('メールアドレスの形式が正しくありません', 'err');
       return;
     }
     if (password.length < 8) {
@@ -1822,7 +2467,7 @@
     const rate = 50;
     try {
       await apiPost('/admin-api.php?action=admin-create', {
-        email, password, display_name: displayName, role: createRole, commission_rate: rate,
+        login_id: loginId, email, password, display_name: displayName, role: createRole, commission_rate: rate,
         can_drive: document.getElementById('csCanDrive')?.checked ? 1 : 0,
         is_therapist: document.getElementById('csIsTherapist')?.checked ? 1 : 0,
         is_office: document.getElementById('csIsOffice')?.checked ? 1 : 0,
@@ -1852,7 +2497,7 @@
   }
 
   async function deleteUser(id, name) {
-    if (!confirm(`「${name}」を削除しますか？\nログインできなくなります。`)) return;
+    if (!await opsConfirm(`「${name}」を削除しますか？\nログインできなくなります。`)) return;
     try {
       await apiPost('/admin-api.php?action=admin-delete', { id: Number(id) });
       toast('✓ 削除しました', 'ok');
@@ -2001,6 +2646,8 @@
   }
   let tlBookings = [];
   let tlShifts = [];
+  let tlDayFlags = {};   // 「貴重品お預かり」「釣銭お渡し」その日・その人ぶん（"admin_id|YYYY-MM-DD" → {valuables, change_given}）
+  let tlPlayNow = {};        // 今から遊べる時間（即姫）: admin_user_id → {hm, closed}
   let hotelsForSelect = [];    // selectで使う簡易ホテル一覧
   let bookingsList = [];
   let legacyVisitsList = [];   // 予約一覧に混ぜる旧システムの利用履歴
@@ -2085,7 +2732,9 @@
   });
   let editingCustomerId = null;
   let editingShiftId = null;
-  let shCurrent = new Date();
+  // 内勤・送迎シフトの表示開始日。日付の切り替わりは 10:00（営業日）。
+  // 深夜0〜9時台はまだ前日の営業日なので、暦日の new Date() では1日先に飛んでしまう（店長指摘 2026-08-11）
+  let shCurrent = getBusinessDayDate();
   let shSelectedStaff = '';
   let shViewMode = 'timetable';  // 'timetable' (10日) | 'calendar' (月)
   let shCachedShifts = [];       // タイムテーブルの自動保存で参照
@@ -2096,6 +2745,32 @@
   function fmtDate(d) { return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2); }
   function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
   function dowLabel(d) { return ['日','月','火','水','木','金','土'][d.getDay()]; }
+  /**
+   * 予約モーダルの日付欄の上に重ねる表示（店長要望 2026-08-16）。
+   *   年は出さず「8/15（土）」＋ 当日なら「本日」、先の日付なら「前日」（＝前日までに受けた予約）の目印。
+   * 営業日は10:00区切りなので、当日判定は getBusinessDayDate() と突き合わせる
+   */
+  function syncBmDateDisp() {
+    const inp = bel('bmDate');
+    const disp = bel('bmDateDisp');
+    if (!inp || !disp) return;
+    const v = String(inp.value || '');
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) { disp.textContent = ''; return; }
+    const today = fmtDate(getBusinessDayDate());
+    const pill = v === today ? '<span class="bmd-pill is-today">本日</span>'
+               : (v > today ? '<span class="bmd-pill is-adv">前日</span>' : '');
+    disp.innerHTML = `<span>${parseInt(m[2], 10)}/${parseInt(m[3], 10)}（${dowLabel(new Date(v))}）</span>${pill}`;
+  }
+
+  /** 日付欄の上に重ねる表示（年なし・曜日つき）。input[type=date] の value(YYYY-MM-DD)から作る（店長指摘 2026-08-16） */
+  function syncDateDisp() {
+    const dp = document.getElementById('tlDatePicker');
+    const disp = document.getElementById('tlDateDisp');
+    if (!dp || !disp) return;
+    const m = String(dp.value || '').match(/^\d{4}-(\d{2})-(\d{2})$/);
+    disp.textContent = m ? `${parseInt(m[1], 10)}/${parseInt(m[2], 10)}（${dowLabel(new Date(dp.value))}）` : '';
+  }
 
   // ===== 24h+ 時刻パーサー =====
   // "26:00" → { date_offset: 1, time: "02:00" }
@@ -2476,7 +3151,7 @@
       const cur = bmOptionCounts(sfx);   // {id: 個数}
       wrap.innerHTML = active.map(o => {
         const n = cur[o.id] || 0;
-        const opts = [0, 1, 2, 3, 4, 5].map(v => `<option value="${v}"${v === n ? ' selected' : ''}>${v === 0 ? '—' : '×' + v}</option>`).join('');
+        const opts = [0, 1, 2, 3, 4, 5].map(v => `<option value="${v}"${v === n ? ' selected' : ''}>${v === 0 ? '—' : String(v)}</option>`).join('');
         return `<label class="bm-media bm-opt${n ? ' has-count' : ''}">
           <span class="bm-opt-name">${escapeHtml(o.name)} ¥${Number(o.price || 0).toLocaleString()}</span>
           <select class="bm-opt-qty" name="bmOption${sfx}" data-opt-id="${o.id}">${opts}</select>
@@ -2519,6 +3194,34 @@
     updateBmOptionSum();
   }
   const setBmOptionIds = setBmOptionCounts;   // 旧名の呼び出しをそのまま活かす
+  /**
+   * 保存した menu_items（「ローター¥1,100 / 無料ローター¥0 / バイブ×2 ¥2,200」）を
+   * オプションID→個数 に戻す（店長指摘 2026-08-30）。
+   * 以前は名前の部分一致で拾っていたため、「無料ローター」を選んで保存すると
+   * 「ローター」にもチェックが入って開いていた。区切りごとに名前を切り出して照合する。
+   */
+  function parseMenuItemCounts(txt) {
+    const raw = String(txt || '').trim();
+    const counts = {};
+    if (!raw) return counts;
+    const byName = {};
+    (optionsCache || []).forEach(o => { if (o.name) byName[String(o.name)] = o; });
+    let matched = 0;
+    raw.split('/').map(t => t.trim()).filter(Boolean).forEach(part => {
+      const m = part.match(/^(.*?)(?:×(\d+))?\s*¥[\d,]+$/);
+      const name = (m ? m[1] : part).trim();
+      const n = (m && m[2]) ? (parseInt(m[2], 10) || 1) : 1;
+      const o = byName[name];
+      if (o) { counts[Number(o.id)] = n; matched++; }
+    });
+    if (matched) return counts;
+    // 上の切り出しで1つも当たらない古い書き方のときだけ、名前の部分一致で拾う。
+    // 「無料ローター」があるときに「ローター」まで拾わないよう、他の名前に含まれる名前は落とす
+    const hits = (optionsCache || []).filter(o => o.name && raw.includes(o.name)).map(o => String(o.name));
+    hits.filter(nm => !hits.some(other => other !== nm && other.includes(nm)))
+        .forEach(nm => { const o = byName[nm]; if (o) counts[Number(o.id)] = 1; });
+    return counts;
+  }
   /** オプション合計（料金）。個数ぶん掛ける */
   function optionTotal() {
     if (bel('bmBreakMode')?.checked) return 0;
@@ -2557,7 +3260,8 @@
 
   // 予約モーダルごとの「このお客様」情報。isNew: true=ご新規様 / false=会員様 / null=不明（電話未入力等）
   // castNames: 過去に利用したキャスト名の集合（OPS予約の担当名＋旧システムの源氏名）
-  const bmCust = { '': { isNew: null, castNames: null }, '-2': { isNew: null, castNames: null } };
+  // lastFee: 前回ご案内したときの交通費 {fee, day, cast}（無ければ null）
+  const bmCust = { '': { isNew: null, castNames: null, lastFee: null }, '-2': { isNew: null, castNames: null, lastFee: null } };
   // 特別料金チェックを手で触ったら自動では動かさない
   const bmHotelFirstTouched = { '': false, '-2': false };
   const bmPlus10Touched = { '': false, '-2': false };   // ＋10分を手で触ったら自動判定を止める
@@ -2569,7 +3273,7 @@
   const bmStartTouched = { '': false, '-2': false };
 
   function resetBmCust() {
-    bmCust[activeBmSuffix] = { isNew: null, castNames: null };
+    bmCust[activeBmSuffix] = { isNew: null, castNames: null, lastFee: null };
     bmHotelFirstTouched[activeBmSuffix] = false;
     const badge = bel('bmNewBadge');
     if (badge) badge.style.display = 'none';
@@ -2818,9 +3522,13 @@
     const custName = (bel('bmCustomerName')?.value || '').trim();
     const adminSel = bel('bmAdminId');
     const castName = adminSel?.value ? (adminSel.options[adminSel.selectedIndex]?.text || '').replace(/^担当\s*/, '') : '';
+    // 指名方法も出す（初指名/本指名/フリーは金額に効くので、確認のとき必ず読む・店長要望 2026-08-25）
+    const NOM_LABEL = { first: '初指名', regular: '本指名', free: 'フリー' };
+    const nomTxt = NOM_LABEL[bel('bmNomination')?.value] || '';
     const who = [
       custName ? `${escapeHtml(custName)} 様` : '',
       castName && castName !== '—' ? `💁 ${escapeHtml(castName)}` : '',
+      nomTxt ? `<b>${escapeHtml(nomTxt)}</b>` : '',
     ].filter(Boolean).join('　');
     setOut([
       startLine ? `<b>${escapeHtml(startLine)}</b>` : '',
@@ -2877,6 +3585,20 @@
     }
     return bookingDate;
   }
+  /**
+   * その営業日に出勤している人のID。受け渡し・報酬の相手はこの人たちだけ出す
+   * （出ていないスタッフ・ドライバーが選べると誤って記録してしまう・店長指摘 2026-08-15）。
+   * extraIds には「すでに預り金を持っている／報酬を渡した」人を渡す（出勤登録が無くても消さないため）
+   */
+  function opsOnDutySet(bizDay, extraIds) {
+    const set = new Set();
+    (tlShifts || []).forEach(x => {
+      if (String(x.shift_date).slice(0, 10) === bizDay && (x.status === 'available' || x.status === 'done')) set.add(Number(x.admin_user_id));
+    });
+    (extraIds || []).forEach(id => { if (id !== null && id !== undefined && id !== '') set.add(Number(id)); });
+    if (currentUser?.id) set.add(Number(currentUser.id));   // 操作している本人は常に選べる
+    return set;
+  }
   // 営業日(表示・入力用) + 開始時(0-23) → 実カレンダー保存日。開始が10時前なら翌カレンダー日へ繰り上げ
   // （bizDateOf の逆変換。編集モーダルの日付欄は営業日で扱い、保存時にこれでカレンダー日へ戻す）
   function bizDateToCalendar(bizDate, startHour) {
@@ -2896,47 +3618,112 @@
 
   // ========== Timeline (1日 × 24時間 × スタッフ) ==========
   // ===== 受付リスト（着信履歴）左パネル =====
-  // ※ 現状はデザイン確認用のサンプル表示。CTI連携が入ったら loadReceptionCalls() を
-  //   実データ取得（その日の着信ログをAPIから取得）に差し替えるだけで動く構造。
-  //   返却形式: [{ time:'21:25', phone:'090-…', name:'こまつ', booking_id:null|123, status:''|'inquiry'|'reserved' }]
-  const SAMPLE_RECV_CALLS = [
-    { time: '21:25', phone: '090-1234-5678', name: 'こまつ',   booking_id: null, status: '' },
-    { time: '20:53', phone: '080-2222-3333', name: 'たけうち', booking_id: null, status: '' },
-    { time: '20:35', phone: '080-2222-3333', name: 'たけうち', booking_id: 0,    status: 'reserved' },
-    { time: '19:24', phone: '070-4444-5555', name: 'すがわら', booking_id: null, status: 'inquiry' },
-    { time: '18:22', phone: '090-6666-7777', name: 'たなか',   booking_id: null, status: '' },
-  ];
-  function loadReceptionCalls(bizDay) {
-    // TODO: CTI連携後、bizDay の着信ログをAPIから取得して返す（下記サンプルと同形式）
-    // デザイン確認用: コンソールで localStorage.ylka_recv_demo='1' にするとサンプル表示
-    if (localStorage.getItem('ylka_recv_demo') === '1') return SAMPLE_RECV_CALLS;
-    return [];
+  // 旧システム(asyura)の受電リストをサーバーの取込ボット（~/asyura-cti-cron、1分cron）が
+  // ops_incoming_calls へ流し込み、ここは営業日単位で表示するだけ。
+  // 顧客名・当日予約の突合はサーバー側（calls.php list）。Asterisk直叩き（?src=&dst=）も同じ受け口。
+  async function loadReceptionCalls(bizDay) {
+    try {
+      const d = await api('/calls.php?action=list&date=' + encodeURIComponent(bizDay));
+      return d.calls || [];
+    } catch (_) {
+      return null;   // 取得失敗（テーブル未作成・ネットワーク等）はエラー表示にしない
+    }
   }
-  function recvStateBadge(status) {
-    if (status === 'reserved') return '<span class="recv-state s-reserved">予約</span>';
+  function recvStateBadge(status, cast) {
+    // 予約はキャスト名を出す（誰の予約かがその場で分かる・店長要望 2026-08-16）。列幅は変えない
+    if (status === 'reserved') {
+      const nm = String(cast || '').trim();
+      return nm ? `<span class="recv-state s-reserved" title="予約：${escapeHtml(nm)}">${escapeHtml(nm)}</span>`
+                : '<span class="recv-state s-reserved">予約</span>';
+    }
     if (status === 'inquiry')  return '<span class="recv-state s-inquiry">問合せ</span>';
     return '<span class="recv-state s-none">—</span>';
   }
-  function renderReceptionList(bizDay) {
+  // 数字のみの番号を読みやすく（09012345678 → 090-1234-5678）。それ以外は受信したまま出す
+  /**
+   * 電話番号を読みやすくハイフンで区切る（見た目だけ。保存は半角数字のまま）。
+   * 形が想定外のときは元の文字列をそのまま返す（勝手に切らない）
+   */
+  function hyphenPhone(s) {
+    const n = String(s || '').replace(/[^0-9]/g, '');
+    if (/^0(120|800)\d{6}$/.test(n)) return n.slice(0, 4) + '-' + n.slice(4, 7) + '-' + n.slice(7);  // フリーダイヤル
+    if (/^0\d{10}$/.test(n)) return n.slice(0, 3) + '-' + n.slice(3, 7) + '-' + n.slice(7);           // 携帯・050
+    if (/^0\d{9}$/.test(n)) {
+      // 固定電話（東京03/大阪06は2桁局番、それ以外は3桁で区切る）
+      return /^0[36]/.test(n) ? n.slice(0, 2) + '-' + n.slice(2, 6) + '-' + n.slice(6)
+                              : n.slice(0, 3) + '-' + n.slice(3, 6) + '-' + n.slice(6);
+    }
+    return String(s || '');
+  }
+  function fmtRecvPhone(c) {
+    const out = hyphenPhone(c.phone_norm || '');
+    return out || c.phone || '';
+  }
+  let _recvRenderSeq = 0;
+  let _recvLastJson = '';
+  // 新しく入った着信は10秒だけ色を付ける（見逃し防止・店長要望 2026-08-15）。
+  // 同じ番号でも掛け直しがあれば時刻が変わるので、番号＋最新時刻を目印にする
+  const RECV_NEW_MS = 10000;
+  let _recvSeenKeys = null;              // null = まだ一度も読んでいない（初回は光らせない）
+  const _recvNewUntil = new Map();       // 目印 → いつまで新着扱いか
+  const recvKeyOf = (c) => (c.phone_norm || c.phone || '') + '|' + (c.time || '');
+  let _recvBizDay = '';
+  let _recvNewTimer = null;      // 点滅を止めるための再描画タイマー
+  async function renderReceptionList(bizDay) {
     const listEl = document.getElementById('recvList');
     const countEl = document.getElementById('recvCount');
     if (!listEl) return;
-    const calls = loadReceptionCalls(bizDay) || [];
-    if (countEl) countEl.textContent = calls.length;
-    if (!calls.length) {
-      listEl.innerHTML = '<div class="recv-empty">本日の着信はまだありません<br><span style="font-size:.72rem;opacity:.7;">（CTI連携後に自動表示されます）</span></div>';
+    const seq = ++_recvRenderSeq;
+    if (_recvBizDay !== bizDay) { _recvBizDay = bizDay; _recvSeenKeys = null; _recvNewUntil.clear(); }
+    const calls = await loadReceptionCalls(bizDay);
+    if (seq !== _recvRenderSeq) return;   // 日付を連打したときは最後の描画だけ有効
+    if (calls === null) {
+      if (countEl) countEl.textContent = '0';
+      listEl.innerHTML = '<div class="recv-empty">着信履歴を取得できませんでした</div>';
+      _recvLastJson = '';
       return;
     }
+    // 内容が前回と同じなら描画しない（4秒ポーリングでのちらつき・スクロールリセット防止）
+    const json = bizDay + '\n' + JSON.stringify(calls);
+    if (json === _recvLastJson) return;
+    _recvLastJson = json;
+    if (countEl) countEl.textContent = calls.length;
+    if (!calls.length) {
+      listEl.innerHTML = '<div class="recv-empty">この営業日の着信はまだありません</div>';
+      _recvSeenKeys = new Set();
+      return;
+    }
+    // 前回に無かった着信＝新着。日付を切り替えた直後（初回）は光らせない
+    const nowMs = Date.now();
+    const keys = calls.map(recvKeyOf);
+    if (_recvSeenKeys) keys.forEach(k => { if (!_recvSeenKeys.has(k)) _recvNewUntil.set(k, nowMs + RECV_NEW_MS); });
+    // 点滅が終わったら色を消すために、10秒後にもう一度描き直す（内容が変わらないと再描画されないため）
+    if (_recvNewUntil.size && !_recvNewTimer) {
+      _recvNewTimer = setTimeout(() => {
+        _recvNewTimer = null; _recvLastJson = '';
+        renderReceptionList(fmtDate(tlCurrentDate));
+      }, RECV_NEW_MS + 400);
+    }
+    _recvSeenKeys = new Set(keys);
+    _recvNewUntil.forEach((until, k) => { if (until < nowMs) _recvNewUntil.delete(k); });
     listEl.innerHTML = calls.map(c => {
       const hasBooking = c.booking_id != null;
+      const phoneDisp = fmtRecvPhone(c);
       const actBtn = hasBooking
         ? `<button class="recv-act edit" data-recv-edit="${c.booking_id}">編集</button>`
-        : `<button class="recv-act" data-recv-new="${escapeHtml(c.phone || '')}">新規</button>`;
-      return `<div class="recv-row">`
+        : `<button class="recv-act" data-recv-new="${escapeHtml(c.phone_norm || c.phone || '')}">受付</button>`;
+      const ngMark = (c.ng_level || 0) >= 2 ? '⛔' : (c.ng_level || 0) === 1 ? '⚠️' : '';
+      // 掛け直しは1行にまとまっている。時刻は最新、何回かけてきたかはバッジ、全時刻はホバーで
+      const cnt = c.count || 1;
+      const cntBadge = cnt > 1 ? `<span class="rr-cnt">${cnt}回</span>` : '';
+      const tip = cnt > 1 ? ` title="着信 ${escapeHtml((c.times || []).join(' / '))}"` : '';
+      const isNew = (_recvNewUntil.get(recvKeyOf(c)) || 0) > nowMs;
+      return `<div class="recv-row${isNew ? ' is-new' : ''}"${tip}>`
         + `<span class="rr-time">${escapeHtml(c.time || '')}</span>`
-        + `<span class="rr-phone">${escapeHtml(c.phone || '')}</span>`
-        + `<span class="rr-name${c.name ? '' : ' empty'}">${escapeHtml(c.name || '—')}</span>`
-        + recvStateBadge(c.status)
+        + `<span class="rr-phone">${escapeHtml(phoneDisp)}${cntBadge}</span>`
+        // 修飾子は is-empty。素の empty は全画面共通の空状態(.loading,.empty{padding:3rem})に当たって行が3倍の高さになる
+        + `<span class="rr-name${c.name ? '' : ' is-empty'}">${ngMark}${escapeHtml(c.name || '—')}</span>`
+        + recvStateBadge(c.status, c.cast)
         + actBtn
         + `</div>`;
     }).join('');
@@ -2945,39 +3732,177 @@
     listEl.querySelectorAll('[data-recv-edit]').forEach(b =>
       b.addEventListener('click', () => openBookingModal(Number(b.dataset.recvEdit))));
   }
+  // 受付リスト（着信）は4秒おきに再取得（内容不変なら再描画しない）
+  setInterval(() => {
+    const view = document.getElementById('view-timeline');
+    if (document.hidden || !view || !view.classList.contains('active')) return;
+    renderReceptionList(fmtDate(tlCurrentDate));
+  }, 4000);
+  // 他PCの予約変更（事前予約→予約 など）の追従は、超軽量の変更チェックを1.5秒おきに。
+  // 変わっていない間はほぼ無負荷（約50バイトの返答のみ）、変わった瞬間だけフル取得して描き直す
+  setInterval(refreshTimelineIfChanged, 1500);
+
+  /**
+   * 予約モーダルを開いたままタイムラインの日付を変えたとき、モーダルの日付も合わせる
+   * （店長要望 2026-08-18）。既存の予約を編集中は動かさない（その予約の日付を勝手に変えないため）。
+   */
+  function syncOpenBookingModalDate(bizDay) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(bizDay || ''))) return;
+    ['', '-2'].forEach(suffix => {
+      const modal = document.getElementById('bookingModal' + suffix);
+      if (!modal || !modal.classList.contains('show')) return;
+      if (editingBookingIdBySuffix[suffix]) return;      // 編集中の予約は触らない
+      const inp = document.getElementById('bmDate' + suffix);
+      if (!inp || inp.value === bizDay) return;
+      inp.value = bizDay;
+      // 日付欄を手で変えたときと同じ後処理（表示・既定の開始時刻・キャスト候補）
+      withBmSuffix(suffix, () => {
+        syncBmDateDisp();
+        applyDefaultStartOnDateChange();
+        try { populateCastSelect(bizDay, bel('bmAdminId')?.value || ''); } catch (_) {}
+      });
+    });
+  }
+
+  // 操作のあとに戻したいスクロール位置。描き直しの途中で何度もあて直す
+  let _tlHold = null;
+  let _tlHoldTimer = null;
+  /**
+   * タイムラインのスクロール位置を、描画が落ち着くまで当て続ける（店長指摘 2026-08-30）。
+   * 1回だけ戻すと、まだ中身が組み上がっていないうちに戻してしまい位置が頭打ちになり、
+   * 数時間前が表示されたり、上へ飛んだりしていた。秘密基地の行のように
+   * あとから足される中身もあるので、しばらく見張って当て直す。
+   */
+  function holdTimelineScroll(pos) {
+    if (!pos) return;
+    _tlHold = pos;
+    clearInterval(_tlHoldTimer);
+    const put = () => {
+      const sc = document.querySelector('.tl-wrap');
+      if (!sc || !_tlHold) return;
+      if (sc.scrollLeft !== _tlHold.left) sc.scrollLeft = _tlHold.left;
+      if (sc.scrollTop !== _tlHold.top) sc.scrollTop = _tlHold.top;
+    };
+    requestAnimationFrame(() => { put(); requestAnimationFrame(put); });
+    let n = 0;
+    _tlHoldTimer = setInterval(() => {
+      put();
+      // 1.5秒ごとの自動更新をまたげるよう、少し長めに見張る
+      if (++n >= 20) { clearInterval(_tlHoldTimer); _tlHoldTimer = null; _tlHold = null; }   // 約2秒で見張り終了
+    }, 100);
+  }
 
   async function loadTimeline(keepScroll = false) {
     const grid = document.getElementById('timelineGrid');
     // 操作後の再描画ではスクロール位置を保持（10時に戻さない）。renderTimeline で復元するためモジュール変数へ
-    _tlPrevScroll = keepScroll ? (document.querySelector('.tl-wrap')?.scrollLeft ?? null) : null;
-    grid.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
+    // 縦も一緒に覚える。横だけだと、秘密基地など下の行を見ていたときに上へ飛ぶ。
+    // 位置を戻している最中（_tlHold）は、いまの表示ではなくその狙いの位置を引き継ぐ。
+    // 描き直しの途中は一瞬 0 になるので、そこを読むと先頭に飛んでしまう（店長指摘 2026-08-30）
+    {
+      const w = document.querySelector('.tl-wrap');
+      _tlPrevScroll = !keepScroll ? null
+        : (_tlHold ? { left: _tlHold.left, top: _tlHold.top }
+                   : (w ? { left: w.scrollLeft, top: w.scrollTop } : null));
+    }
+    // 操作後の描き直し（keepScroll）では「読み込み中」に差し替えない。
+    // 差し替えると枠の中身が一瞬つぶれて、位置が飛んでから戻る＝カクついて見える（店長指摘 2026-08-30）
+    if (!keepScroll) grid.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
 
     const bizDay = fmtDate(tlCurrentDate);
     const nextDay = fmtDate(addDays(tlCurrentDate, 1));
 
     // タイトルは年を省いて短縮表示（例: 06/18 (木)）。日付ピッカー(dp.value)には年付き bizDay を使う
     const bizDayShort = bizDay.slice(5).replace('-', '/');
-    document.getElementById('tlTitle').innerHTML = `${bizDayShort} (${dowLabel(tlCurrentDate)})<span class="tl-sub">営業日 10:00〜翌10:00</span>`;
+    // 今この画面が「今日」なのかを、見出しと日付ナビの両方でハッキリ出す（店長要望 2026-08-11）。
+    // 営業日は 10:00 切り替えなので、暦の今日ではなく getBusinessDayDate() と突き合わせる
+    const isTodayView = bizDay === fmtDate(getBusinessDayDate());
+    document.getElementById('tlTitle').innerHTML = `${bizDayShort} (${dowLabel(tlCurrentDate)})`
+      + (isTodayView ? '<span class="tl-todaypill">本日</span>' : '')
+      + `<span class="tl-sub">営業日 10:00〜翌10:00</span>`;
+    document.querySelector('.tl-toolbar .tl-nav')?.classList.toggle('is-today', isTodayView);
+    refreshCastReportBadge();
+    const todayBtn = document.getElementById('tlToday');
+    if (todayBtn) {
+      todayBtn.disabled = isTodayView;                       // 今日を見ているときは押す必要がない
+      todayBtn.textContent = isTodayView ? '本日' : '本日へ';
+    }
     const dp = document.getElementById('tlDatePicker');
     if (dp) dp.value = bizDay;
+    syncDateDisp();
+    syncOpenBookingModalDate(bizDay);   // 開いている新規予約の日付も合わせる（店長要望 2026-08-18）
     renderReceptionList(bizDay);
 
     try {
       // タイムラインはキャスト(isTherapistCapable)のみ表示 (内勤/ドライバー専任は行に出さない)
       //   - owner: admin-users (将来編集用、フル属性)
       //   - その他 (office/manager/driver): staff-list (read-only、最小属性)
-      const urlUsers = currentUser?.role === 'owner' ? '/admin-api.php?action=admin-users' : '/admin-api.php?action=staff-list';
-      const [usersRes, bookingsRes, shiftsRes] = await Promise.all([
+      const urlUsers = '/admin-api.php?action=' + staffListEndpoint();
+      // オプションのマスタも必ず待つ。未読込だと貸出品（🧺）の判定ができず、
+      // バスタオル以外が出なかった（店長指摘 2026-08-16）
+      const [usersRes, bookingsRes, shiftsRes, playRes] = await Promise.all([
         api(urlUsers),
         api(`/bookings.php?action=range&from=${bizDay}&to=${nextDay}`),
         api(`/shifts.php?action=range&from=${bizDay}&to=${nextDay}`),
+        // 「今から遊べる時間」（即姫）。表示だけなので、取れなくてもタイムラインは出す
+        api(`/play-now.php?action=list&date=${bizDay}`).catch(() => ({ play: {} })),
+        ensureOptionsLoaded(),
       ]);
       adminUsersAll = usersRes.users || [];
       tlBookings = bookingsRes.bookings || [];
       tlShifts = shiftsRes.shifts || [];
+      tlDayFlags = shiftsRes.day_flags || {};
+      tlPlayNow = playRes.play || {};
       renderTimeline();
+      // 手動ロード直後は基準を取り直す（次の同期チェックが誤発火しないよう null に戻す）
+      _tlSyncVer = null;
     } catch (e) {
       grid.innerHTML = '<div class="view-empty">読み込み失敗: ' + escapeHtml(e.message) + '</div>';
+    }
+  }
+
+  // 他PCでの変更（事前予約→予約 など）を、こちらが操作しなくても1〜2秒で反映する。
+  //   - まず超軽量の sync-version（件数＋最終更新時刻）だけ取得。変わっていなければ何もしない
+  //   - 変わった時だけフル取得して描き直す（差分なし＝点滅・スクロール飛びなし）
+  //   - 編集中（モーダル表示中・入力フォーカス中）は邪魔しないでスキップ
+  let _tlAutoBusy = false;
+  async function refreshTimelineIfChanged() {
+    const view = document.getElementById('view-timeline');
+    if (document.hidden || !view || !view.classList.contains('active')) return;
+    if (_tlAutoBusy) return;
+    if (document.querySelector('.modal-overlay.active')) return;   // 何か編集中
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return; // 入力中
+    _tlAutoBusy = true;
+    try {
+      const bizDay = fmtDate(tlCurrentDate);
+      const nextDay = fmtDate(addDays(tlCurrentDate, 1));
+      // ① 超軽量チェック
+      const vr = await api(`/bookings.php?action=sync-version&from=${bizDay}&to=${nextDay}`);
+      if (bizDay !== fmtDate(tlCurrentDate)) return;   // 取得中に日付を動かした
+      const v = vr && vr.v;
+      if (v == null) return;
+      if (_tlSyncVer === null) { _tlSyncVer = v; return; }  // 初回は基準を記録するだけ
+      if (v === _tlSyncVer) return;                          // 変化なし → 何もしない
+      _tlSyncVer = v;
+      // ② 変化あり → フル取得して再描画
+      const [bookingsRes, shiftsRes] = await Promise.all([
+        api(`/bookings.php?action=range&from=${bizDay}&to=${nextDay}`),
+        api(`/shifts.php?action=range&from=${bizDay}&to=${nextDay}`),
+      ]);
+      if (bizDay !== fmtDate(tlCurrentDate)) return;
+      tlBookings = bookingsRes.bookings || [];
+      tlShifts = shiftsRes.shifts || [];
+      tlDayFlags = shiftsRes.day_flags || {};
+      {
+        // 自動更新（1.5秒ごと）。操作直後で位置を戻している最中なら、その狙いの位置を引き継ぐ
+        const w = document.querySelector('.tl-wrap');
+        _tlPrevScroll = _tlHold ? { left: _tlHold.left, top: _tlHold.top }
+                                : (w ? { left: w.scrollLeft, top: w.scrollTop } : null);
+      }
+      renderTimeline();
+    } catch (_) {
+    } finally {
+      _tlAutoBusy = false;
     }
   }
 
@@ -3005,7 +3930,11 @@
     pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">開始時刻</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
       <div class="ttp-time"><select class="ttp-sel ttp-h" aria-label="時">${hOpts}</select><span class="ttp-c">:</span><select class="ttp-sel ttp-m" aria-label="分">${mOpts}</select></div>
       <button type="button" class="ttp-apply">この時刻に変更</button>
-      <button type="button" class="ttp-apply ttp-start">この時刻で始</button>`;
+      <button type="button" class="ttp-apply ttp-start">この時刻で始</button>
+      <div class="ttp-sep"></div>
+      <button type="button" class="ttp-apply ttp-play">この時刻に変更 / 即姫更新</button>
+      <button type="button" class="ttp-apply ttp-start ttp-play">この時刻で始 / 即姫更新</button>
+      <div class="ttp-playhint" id="ttpPlayHint"></div>`;
     document.body.appendChild(pop);
     pop.querySelector('.ttp-close').addEventListener('click', (ev) => { ev.stopPropagation(); closeTimeAdjust(); });
     const r = anchor.getBoundingClientRect();
@@ -3013,21 +3942,58 @@
     pop.style.left = (r.left + window.scrollX) + 'px';
     const pr = pop.getBoundingClientRect();
     if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    // 即姫（最速で遊べる時間）に入る時刻の予告。終了予定＝開始＋コース＋延長 を5分に丸めた値。
+    // 丸めは「0〜2分は切り下げ / 3〜4分は切り上げ」（店長指定 2026-08-18・案B）
+    const round5B = (mins) => { const r = ((mins % 5) + 5) % 5; return mins + (r <= 2 ? -r : 5 - r); };
+    const durMin = (() => {                       // いまの予約の長さ（終了−開始）。日またぎも吸収
+      if (!b.end_time) return null;
+      let d = toMin(b.end_time) - toMin(b.start_time);
+      if (d < 0) d += 1440;
+      return d;
+    })();
+    // 即姫は「本日の営業日」の予約だけ。前日・翌日の予約で押して媒体に出してしまう事故を防ぐ
+    // （店長指定 2026-08-18）
+    const bkBizDay = bizDateOf(b.booking_date, b.start_time || '00:00');
+    const isTodayBooking = bkBizDay === fmtDate(getBusinessDayDate());
+    if (!isTodayBooking) {
+      pop.querySelectorAll('.ttp-play, .ttp-sep, .ttp-playhint').forEach(el => el.remove());
+    }
+    const playHint = pop.querySelector('#ttpPlayHint');
+    const syncPlayHint = () => {
+      if (!playHint) return;
+      if (durMin === null) { playHint.textContent = '終了予定が無いため即姫は設定できません'; return; }
+      const h = parseInt(pop.querySelector('.ttp-h').value, 10);
+      const m = parseInt(pop.querySelector('.ttp-m').value, 10);
+      const end = round5B((h * 60 + m + durMin) % 1440);
+      playHint.innerHTML = `即姫 → <b>${Math.floor(end / 60) % 24}:${('0' + (end % 60)).slice(-2)}</b>`;
+    };
+    pop.querySelectorAll('.ttp-sel').forEach(s => s.addEventListener('change', syncPlayHint));
+    syncPlayHint();
+
     // 「この時刻に変更」＝時間だけ動かす / 「この時刻で始」＝時間を合わせて接客開始（始）にする
+    // ttp-play が付いていれば、続けて「最速で遊べる時間」も更新する（上書き・店長指定 2026-08-18）
     const applyTime = async (alsoStart, btn) => {
+      const alsoPlay = !!(btn && btn.classList.contains('ttp-play'));
       const h = parseInt(pop.querySelector('.ttp-h').value, 10);
       const m = parseInt(pop.querySelector('.ttp-m').value, 10);
       // ずらす分数。日をまたぐ選び方（19:05→2:00 など）は近い方向へ寄せる
       let delta = (h * 60 + m) - cur;
       if (delta > 720) delta -= 1440;
       if (delta < -720) delta += 1440;
-      if (delta === 0 && !alsoStart) { closeTimeAdjust(); return; }
+      // 時刻を変えずに即姫だけ更新したいこともあるので、即姫つきのときは素通りさせない
+      // （同じ時刻を選ぶと何も起きなかった・店長指摘 2026-08-18）
+      if (delta === 0 && !alsoStart && !alsoPlay) { closeTimeAdjust(); return; }
       pop.querySelectorAll('button').forEach(x => { x.disabled = true; });
       try {
         if (delta !== 0) await apiPost('/bookings.php?action=shift-time', { id, delta, expected_updated_at: (b.updated_at || '') });
         if (alsoStart) {
           await apiPost('/bookings.php?action=set-service', { id: Number(id), state: 'started' });
           toast(`▶ ${h}:${('0' + m).slice(-2)} で開始（経理に計上）`, 'ok');
+        }
+        if (alsoPlay) {
+          // 時間を動かしたあとの終了予定から決まるので、サーバー側で計算して書く
+          const r = await apiPost('/play-now.php?action=from-booking', { booking_id: Number(id) });
+          toast(`⏰ ${r.cast} の遊べる時間を ${r.hm} に更新しました`, 'ok');
         }
         closeTimeAdjust();
         loadTimeline(true);
@@ -3036,10 +4002,14 @@
         closeTimeAdjust();
       }
     };
-    const btn = pop.querySelector('.ttp-apply:not(.ttp-start)');
-    btn.addEventListener('click', (ev) => { ev.stopPropagation(); applyTime(false, btn); });
-    const btnStart = pop.querySelector('.ttp-start');
-    btnStart.addEventListener('click', (ev) => { ev.stopPropagation(); applyTime(true, btnStart); });
+    // 4つとも登録する。querySelector で1つずつ拾っていたときは
+    // 「/即姫更新」の2つにクリックが付いておらず押せなかった（店長指摘 2026-08-18）
+    pop.querySelectorAll('.ttp-apply').forEach(bt => {
+      bt.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        applyTime(bt.classList.contains('ttp-start'), bt);
+      });
+    });
     setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
   }
 
@@ -3153,13 +4123,14 @@
     const legHtml = (time, drv, label) => {
       const t = time ? String(time).slice(0, 5) : '';
       if (!t && !drv) return '';
-      return escapeHtml(label) + ' ' + [t, escapeHtml(drv || '自走')].filter(Boolean).join(' ');
+      return escapeHtml(label) + ' ' + [t, escapeHtml(drv || 'キャスト')].filter(Boolean).join(' ');
     };
     const pickupHtml = [legHtml(b.pickup_go_time, b.driver_name, '行き'), legHtml(b.pickup_back_time, b.back_driver_name, '帰り')]
       .filter(Boolean).join(' <span class="bk-tip-sub">/</span> ');
 
     const course = [b.course_name, b.extension_count ? `延長×${b.extension_count}` : ''].filter(Boolean).join(' ');
-    const phone = toHalfWidth(b.customer_phone || b.customer_phone_snapshot || '');
+    // ふきだしの電話はハイフン区切りで（掛け間違い防止・店長要望 2026-08-20）
+    const phone = hyphenPhone(toHalfWidth(b.customer_phone || b.customer_phone_snapshot || ''));
 
     // 決済確認: カードを使う予約だけ出す。誰がいつ確認したかを残す（店長要望 2026-08-08）
     let cardPaidHtml = '';
@@ -3185,11 +4156,11 @@
       if (ov) parts.push('手入力');
       else {
         const courseR = courseCastReward(b.course_name, hotelApplied) || 0;
-        const selfLegs = (b.driver_id ? 0 : 1) + (b.back_driver_id ? 0 : 1);
+        const selfLegs = (selfLegOf(b, 'go') ? 1 : 0) + (selfLegOf(b, 'back') ? 1 : 0);
         const bonus = trans > 0
           ? (selfLegs === 2 ? trans : (selfLegs === 1 ? Math.ceil(Math.ceil(trans / 2) / 50) * 50 : 0))
           : 0;
-        const lateR = b.back_driver_id ? 0 : (Number(b.late_fee) || 0);
+        const lateR = selfLegOf(b, 'back') ? (Number(b.late_fee) || 0) : 0;
         const nomCnt = courseUnitCount(b.course_name);
         const nomR = nominationRewardFor(b.nomination_type) * nomCnt;
         const optR = menuItemsReward(b.menu_items);
@@ -3262,11 +4233,12 @@
 
   // 出すのはお客様の名前に乗せたときだけ（店長指定 2026-08-08）。
   // バー全体だと送迎ボタンや場所を触るたびに出て邪魔になる。位置はバーを基準にして重ねない
-  // ─ 電話番号は全角で打たれても半角に直す（店長要望 2026-08-08）─
+  // ─ 電話番号・部屋番号は全角で打たれても半角に直す（店長要望 2026-08-08 / 2026-08-11）─
   // 全角のままだと顧客の引き当てに外れる。保存時にもサーバ側で正規化しているが、
   // 入力欄の見た目が全角のままだと「合っているのに引けない」ように見えるのでその場で直す。
   // 変換中（IME確定前）は触らない。確定した文字だけを直す
-  const PHONE_SEL = 'input[type="tel"], #cmPhone, #cmPhone2';
+  // 部屋番号もここに乗せる（「２０５」と打たれても「205」に直す・店長要望 2026-08-11）
+  const PHONE_SEL = 'input[type="tel"], #cmPhone, #cmPhone2, [id^="bmRoom"], #tlRoomInp';
   let _phoneComposing = false;
   document.addEventListener('compositionstart', (e) => { if (e.target?.matches?.(PHONE_SEL)) _phoneComposing = true; });
   document.addEventListener('compositionend', (e) => {
@@ -3318,35 +4290,49 @@
     const wrapHM = (hm) => { const p = String(hm).split(':'); return (parseInt(p[0], 10) % 24) + ':' + (p[1] || '00'); };
     const cust = b.customer_name || b.customer_name_snapshot || '匿名';
     let place = b.hotel_name || b.hotel_name_snapshot || '';
-    if (place.startsWith(HOME_PREFIX)) place = '自宅 ' + place.slice(HOME_PREFIX.length);
+    // 自宅は「場所: 自宅」だけにする（住所は下の「住所:」行に出すので二重に書かない・店長指摘 2026-08-14）
+    if (place.startsWith(HOME_PREFIX)) place = '自宅';
     else if (place.startsWith(OTHER_PREFIX)) place = place.slice(OTHER_PREFIX.length);
     if (b.room_number) place += ' 『' + b.room_number + '』';   // 部屋番号は見落とさないよう括弧で囲む
     const drvRaw = isGo ? b.driver_name : b.back_driver_name;
-    const drv = drvRaw || ('自走' + (b.staff_name ? '（' + b.staff_name + '）' : ''));
+    const drv = drvRaw || ('キャスト' + (b.staff_name ? '（' + b.staff_name + '）' : ''));
     const st = b.start_time ? wrapHM(String(b.start_time).slice(0, 5)) : '';
     const et = b.end_time ? wrapHM(String(b.end_time).slice(0, 5)) : '';
     const lines = [];
     lines.push(isGo ? '🚗【送迎 行き（送り）】' : '🚗【送迎 帰り（迎え）】');
+    // キャスト名は送り・迎えどちらにも必ず出す（ドライバー欄はキャスト自走時のみキャスト名になり
+    // 誰を乗せる送迎かが分からなくなっていた・店長指摘 2026-08-20）
+    if (b.staff_name) lines.push('キャスト: ' + b.staff_name);
     lines.push('ドライバー: ' + drv);
     lines.push('日付: ' + fmtBizDate(b));
     lines.push('お客様: ' + cust + ' 様');
     // 行き＝キャストが着く時間、帰り＝迎えに行く時間（帰りは店長指定の並びで「時刻＋お迎え予定」）
     if (st && et) lines.push(isGo ? `到着見込み: ${st}〜${et}` : `${st}〜${et}お迎え予定`);
+    // 領収証が必要なお客様は送迎の文面にも出す（渡し忘れが多い・店長要望 2026-08-23）
+    if (Number(b.receipt_needed) === 1) {
+      lines.push(b.receipt_given_at ? '🧾 領収証: お渡しずみ' : '🧾 領収証: 必要です ← お渡しをお願いします');
+    }
+    // 貸出品は帰りに必ず回収する。持ち帰られたまま無くなるのを防ぐ（店長要望 2026-08-18）
+    if (!isGo && !b.lend_returned_at) {
+      const lend = lentItemsOf(b);
+      if (lend.length) lines.push('🧺 貸出品: ' + lend.join('・') + ' ← キャストが持ち帰ったか確認をお願いします');
+    }
     // コース（何分）・指名・料金
     const nomLabel = { first: '初指名', regular: '本指名', free: 'フリー' }[b.nomination_type] || '';
     const courseBits = [b.course_name, nomLabel].filter(Boolean).join('・');
     if (courseBits) lines.push('コース: ' + courseBits);
     const priceN = parseInt(b.price, 10) || 0;
     const transN = parseInt(b.transport_fee, 10) || 0;
-    if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString() + (transN ? '（交通費込）' : ''));
+    // 料金は交通費を足した総額。ドライバー宛の文面では「（交通費込）」は付けない（店長指定 2026-08-20）
+    if (priceN + transN > 0) lines.push('料金: ¥' + (priceN + transN).toLocaleString());
     if (place) lines.push('場所: ' + place);
     // 住所: ホテルは hotel_address、自宅は snapshot 内の住所部を使う。地図アプリで開けるようリンク付き
     // 読む行はフル住所（現地でビル名が手がかりになる）。地図リンクだけ番地までにする
     let fullAddr = composeAddress('', (b.display_city || b.hotel_city || ''), (b.hotel_address || ''));
-    if (!fullAddr) {
-      const snap = b.hotel_name_snapshot || '';
-      if (snap.startsWith(HOME_PREFIX)) fullAddr = snap.slice(HOME_PREFIX.length).trim();
-    }
+    const snap = b.hotel_name_snapshot || '';
+    // 自宅は snapshot の住所を正とする（番地・建物まで）。建物名の二重を畳む
+    if (snap.startsWith(HOME_PREFIX)) fullAddr = dedupeRepeatedSuffix(snap.slice(HOME_PREFIX.length).trim());
+    else if (!fullAddr && snap.startsWith(OTHER_PREFIX)) fullAddr = dedupeRepeatedSuffix(snap.slice(OTHER_PREFIX.length).trim());
     if (fullAddr) {
       lines.push('住所: ' + fullAddr);
       const q = encodeURIComponent(addressForMap(fullAddr));
@@ -3366,7 +4352,35 @@
       toast(ok ? '✓ 送迎情報をコピーしました（LINE等で送れます）' : 'コピーに失敗しました', ok ? 'ok' : 'err'));
   }
 
-  // 送迎情報を担当ドライバーの登録メール(username)へ relux@ylka.jp から送信
+  // 中央に出す確認ダイアログ（ブラウザ既定の confirm() は画面上部に固定され位置を変えられないため自前で用意）
+  function opsConfirm(message, opts) {
+    const o = opts || {};
+    const okLabel = o.ok || 'OK';
+    const cancelLabel = o.cancel || 'キャンセル';
+    return new Promise((resolve) => {
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const lines = String(message).split('\n')
+        .map((l) => `<div class="ops-confirm-line">${esc(l) || '&nbsp;'}</div>`).join('');
+      const ov = document.createElement('div');
+      ov.className = 'ops-confirm-ov';
+      ov.innerHTML = `<div class="ops-confirm" role="dialog" aria-modal="true">
+        <div class="ops-confirm-body">${lines}</div>
+        <div class="ops-confirm-btns">
+          <button type="button" class="ops-confirm-cancel">${esc(cancelLabel)}</button>
+          <button type="button" class="ops-confirm-ok">${esc(okLabel)}</button>
+        </div></div>`;
+      document.body.appendChild(ov);
+      const done = (v) => { ov.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+      const onKey = (e) => { if (e.key === 'Escape') done(false); else if (e.key === 'Enter') done(true); };
+      ov.querySelector('.ops-confirm-ok').addEventListener('click', () => done(true));
+      ov.querySelector('.ops-confirm-cancel').addEventListener('click', () => done(false));
+      ov.addEventListener('click', (e) => { if (e.target === ov) done(false); });
+      document.addEventListener('keydown', onKey);
+      requestAnimationFrame(() => ov.querySelector('.ops-confirm-ok').focus());
+    });
+  }
+
+  // 送迎情報を担当ドライバーの登録メール(email)へ admi2888 から送信
   async function sendPickupMail(id, dir) {
     const info = buildPickupInfo(id, dir);
     if (!info) { toast('情報が見つかりません', 'err'); return; }
@@ -3375,11 +4389,13 @@
     const driverId = (selEl && parseInt(selEl.value, 10)) || info.driverId;
     if (!driverId) { toast('先にドライバーを選択してください', 'err'); return; }
     const drv = (adminUsersAll || []).find(u => Number(u.id) === Number(driverId));
-    const email = drv && drv.username ? String(drv.username).trim() : '';
+    // 送信先はメール欄（email）。ログインID(username)とは別。旧データで空なら username(旧メール) にフォールバック
+    let email = (drv && drv.email ? String(drv.email) : '').trim();
+    if (!email && drv && drv.username) email = String(drv.username).trim();
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       toast('ドライバーのメールアドレスが未登録です（スタッフ編集で登録してください）', 'err'); return;
     }
-    if (!confirm(`${drv.display_name || email} 宛に送迎情報をメール送信しますか？\n送信先: ${email}`)) return;
+    if (!await opsConfirm(`${drv.display_name || email} 宛に送迎情報をメール送信しますか？\n送信先: ${email}`)) return;
     try {
       await apiPost('/bookings.php?action=send-pickup-mail', { id: Number(id), leg: dir, driver_id: Number(driverId), subject: info.subject, body: info.text });
       toast('✓ ' + (drv.display_name || email) + ' にメール送信しました', 'ok');
@@ -3389,15 +4405,282 @@
   }
 
   // 下段クリック → ドライバー指定 + 送迎情報コピー のポップ
-  function openDriverAssign(id, dir, anchor) {
+  /**
+   * 部屋番号セルをクリック → その場で登録・修正する小さなポップ（店長要望 2026-08-16）。
+   * 予約モーダルを開かずに部屋番号だけ直せるようにする。ホテル名はこれまでどおり住所コピー。
+   */
+  function openRoomEdit(id, anchorEl) {
+    closeTimeAdjust();
+    const b = _tlBookingMap[id];
+    if (!b) return;
+    const cur = b.room_number ? String(b.room_number).trim() : '';
+    const pop = document.createElement('div');
+    pop.id = 'tlRoomPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">部屋番号</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <div class="ttp-room-row">
+        <input type="text" id="tlRoomInp" class="ttp-room-inp" value="${escapeAttr(cur)}" placeholder="例: 303" maxlength="20">
+        <button type="button" class="ttp-room-save" id="tlRoomSave">保存</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    const inp = pop.querySelector('#tlRoomInp');
+    const saveBtn = pop.querySelector('#tlRoomSave');
+    const save = async () => {
+      const val = toHalfWidth(inp.value);   // 数字は必ず半角で保存
+      inp.value = val;
+      saveBtn.disabled = true; inp.disabled = true;
+      try {
+        await apiPost('/bookings.php?action=set-room', { id, room_number: val });
+        b.room_number = val || null;
+        toast(val ? `✓ 部屋番号 ${val}` : '✓ 部屋番号を消しました', 'ok');
+        closeTimeAdjust();
+        loadTimeline(true);
+      } catch (err) {
+        toast('保存失敗: ' + err.message, 'err');
+        saveBtn.disabled = false; inp.disabled = false;
+      }
+    };
+    saveBtn.addEventListener('click', (e) => { e.stopPropagation(); save(); });
+    inp.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); save(); }
+      else if (e.key === 'Escape') closeTimeAdjust();
+    });
+    inp.addEventListener('click', (e) => e.stopPropagation());
+    setTimeout(() => { inp.focus(); inp.select(); }, 0);
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /**
+   * 事前予約の「お約束」チップをクリック → 予約（確定）に変えられる小さなポップ（店長要望 2026-08-20）。
+   * お客様と連絡がついて確定したときに、予約モーダルを開かずその場でフラグだけ変える。
+   */
+  function openPrepFlag(id, anchor) {
+    closeTimeAdjust();
+    const b = _tlBookingMap[id];
+    if (!b) return;
+    const cur = b.status || 'pre_reserved';
+    const opts = [['reserved', '予約'], ['pre_reserved', '事前予約']];
+    const pop = document.createElement('div');
+    pop.id = 'tlFlagPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">予約のフラグ</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>` +
+      opts.map(([v, l]) => `<button type="button" class="ttp-apply${v === cur ? ' is-cur' : ''}" data-flag="${v}">${v === cur ? '✓ ' : ''}${l}</button>`).join('');
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    const btns = pop.querySelectorAll('[data-flag]');
+    btns.forEach(btn => btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const next = btn.getAttribute('data-flag');
+      if (next === cur) { closeTimeAdjust(); return; }
+      btns.forEach(x => { x.disabled = true; });
+      try {
+        await apiPost('/bookings.php?action=set-status', { id: Number(id), status: next });
+        b.status = next;
+        const cached = _tlBookingMap[id];
+        if (cached && cached !== b) cached.status = next;
+        toast(next === 'reserved' ? '✓ 予約にしました' : '✓ 事前予約にしました', 'ok');
+        closeTimeAdjust();
+        loadTimeline(true);
+      } catch (err) {
+        toast('更新失敗: ' + err.message, 'err');
+        btns.forEach(x => { x.disabled = false; });
+      }
+    }));
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /**
+   * 「遊べる時間」（即姫）をその場で決めるポップ（店長要望 2026-08-22）。
+   * 予約の終了予定からではなく、手で決めた時刻をそのまま入れる。設定できるのは本日ぶんだけ
+   */
+  function openPlayEdit(userId, bizDay, curHm, anchor) {
+    closeTimeAdjust();
+    const parts = /^\d{1,2}:\d{2}$/.test(curHm) ? curHm.split(':') : null;
+    const curH = parts ? parseInt(parts[0], 10) : null;
+    const curM = parts ? parseInt(parts[1], 10) : null;
+    // 営業は10:00〜翌9:00なので、時は 10→23→0→9 の順に並べる
+    const hours = [...Array(14).keys()].map(i => i + 10).concat([...Array(10).keys()]);
+    const hOpts = hours.map(h => `<option value="${h}"${h === curH ? ' selected' : ''}>${h}</option>`).join('');
+    const mOpts = [...Array(12).keys()].map(i => i * 5)
+      .map(m => `<option value="${m}"${m === curM ? ' selected' : ''}>${('0' + m).slice(-2)}</option>`).join('');
+    const pop = document.createElement('div');
+    pop.id = 'tlPlayPop';
+    pop.className = 'tl-time-pop';
+    // 操作はCTRLの即姫画面と同じ4つ（時刻設定 / 今すぐ / 受付終了 / クリア・店長指定 2026-08-22）
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">遊べる時間</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <div class="ttp-time"><select class="ttp-sel ttp-h" aria-label="時">${hOpts}</select><span class="ttp-c">:</span><select class="ttp-sel ttp-m" aria-label="分">${mOpts}</select></div>
+      <button type="button" class="ttp-apply" data-play-act="set">時刻設定</button>
+      <button type="button" class="ttp-apply" data-play-act="now">今すぐ</button>
+      <div class="ttp-sep"></div>
+      <button type="button" class="ttp-apply is-cur" data-play-act="close">🚫 受付終了</button>
+      <button type="button" class="ttp-apply is-cur" data-play-act="clear">クリア</button>`;
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    pop.querySelectorAll('select').forEach(sel => sel.addEventListener('click', e => e.stopPropagation()));
+
+    const run = async (act, body, okMsg) => {
+      pop.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      try {
+        await apiPost('/play-now.php?action=' + act, body);
+        toast(okMsg, 'ok');
+        closeTimeAdjust();
+        loadTimeline(true);
+      } catch (err) {
+        toast('更新失敗: ' + err.message, 'err');
+        pop.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      }
+    };
+    pop.querySelectorAll('[data-play-act]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const act = btn.getAttribute('data-play-act');
+      if (act === 'set') {
+        const h = parseInt(pop.querySelector('.ttp-h').value, 10);
+        const m = parseInt(pop.querySelector('.ttp-m').value, 10);
+        const hm = h + ':' + ('0' + m).slice(-2);
+        run('set', { admin_user_id: userId, date: bizDay, hm }, `✓ ${hm}〜 遊べるにしました`);
+      } else if (act === 'now') {
+        run('now', { admin_user_id: userId, date: bizDay }, '✓ 今すぐ遊べるにしました');
+      } else if (act === 'close') {
+        run('close', { admin_user_id: userId, date: bizDay }, '✓ 受付終了にしました（出勤・ヒメ割はそのまま）');
+      } else {
+        run('clear', { admin_user_id: userId, date: bizDay }, '遊べる時間をクリアしました');
+      }
+    }));
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /**
+   * 💳未 バッジをクリック → 「決済を確認した」だけをその場で付ける小さなポップ（店長要望 2026-08-22）。
+   * 予約モーダルを開かずに、カード決済の確認を済ませられるようにする
+   */
+  // ===== 領収証（店長要望 2026-08-23）=====
+  // 「領収証が必要」を押した予約は、タイムラインで 🧾 が点滅する。渡し忘れが多いため。
+  // 🧾 を押して「渡した」にすると点滅が止まり、🧾✓ の点灯だけになる
+  function setReceiptBtn(on) {
+    const hid = bel('bmReceiptNeeded');
+    const btn = bel('bmReceiptBtn');
+    if (hid) hid.value = on ? '1' : '0';
+    if (btn) {
+      btn.classList.toggle('is-on', !!on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.textContent = on ? '🧾 領収証が必要 ✓' : '🧾 領収証が必要';
+    }
+  }
+  function openReceiptGiven(id, anchor) {
+    closeTimeAdjust();
+    const b = _tlBookingMap[id];
+    if (!b) return;
+    const pop = document.createElement('div');
+    pop.id = 'tlReceiptPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">領収証</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <label class="ttp-card-chk"><input type="checkbox" id="tlReceiptChk"${b.receipt_given_at ? ' checked' : ''}> ✅ 領収証を渡した</label>`;
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    const chk = pop.querySelector('#tlReceiptChk');
+    chk.addEventListener('click', (e) => e.stopPropagation());
+    chk.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const given = chk.checked;
+      chk.disabled = true;
+      try {
+        await apiPost('/bookings.php?action=set-receipt-given', { id: Number(id), given: given ? 1 : 0 });
+        b.receipt_given_at = given ? '1' : null;
+        toast(given ? '✓ 領収証をお渡しずみにしました' : 'まだ渡していないに戻しました', 'ok');
+        closeTimeAdjust();
+        loadTimeline(true);
+      } catch (err) {
+        toast('更新失敗: ' + err.message, 'err');
+        chk.checked = !given; chk.disabled = false;
+      }
+    });
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  function openCardPaid(id, anchor) {
+    closeTimeAdjust();
+    const b = _tlBookingMap[id];
+    if (!b) return;
+    const pop = document.createElement('div');
+    pop.id = 'tlCardPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">カード決済</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <label class="ttp-card-chk"><input type="checkbox" id="tlCardChk"${b.card_paid_at ? ' checked' : ''}> ✅ 決済を確認した</label>`;
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    const chk = pop.querySelector('#tlCardChk');
+    chk.addEventListener('click', (e) => e.stopPropagation());
+    chk.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const paid = chk.checked;
+      chk.disabled = true;
+      try {
+        await apiPost('/bookings.php?action=set-card-paid', { id: Number(id), paid: paid ? 1 : 0 });
+        b.card_paid_at = paid ? '1' : null;
+        toast(paid ? '✓ 決済を確認しました' : '未確認に戻しました', 'ok');
+        closeTimeAdjust();
+        loadTimeline(true);
+      } catch (err) {
+        toast('更新失敗: ' + err.message, 'err');
+        chk.checked = !paid; chk.disabled = false;
+      }
+    });
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  async function openDriverAssign(id, dir, anchor) {
     closeTimeAdjust();
     const b = _tlBookingMap[id];
     if (!b) return;
     const isGo = dir === 'go';
     const curDrv = isGo ? (b.driver_id || '') : (b.back_driver_id || '');
-    // ドライバー候補 = ロールがドライバー、または兼任(can_drive)のスタッフ
-    const drivers = (adminUsersAll || []).filter(u => isDriverCapable(u));
-    const opts = '<option value="">自走（ドライバーなし）</option>' +
+    const curSelf = Number(isGo ? b.go_self : b.back_self) === 1;
+    // ドライバー候補 = ロールがドライバー、または兼任(can_drive)のスタッフ。
+    // そのうち **その営業日に出勤している人だけ** を出す（休み・未登録は出さない・店長要望 2026-08-11）。
+    // 既に割り当て済みの人は、その日出勤していなくても選択が消えないよう必ず残す
+    const bizDay = bizDateOf(String(b.booking_date || '').slice(0, 10), String(b.start_time || '10:00'));
+    const [shifts, offSet] = await Promise.all([shiftsForDay(bizDay), driverOffSetForDay(bizDay)]);
+    const capable = (adminUsersAll || []).filter(u => isDriverCapable(u));
+    const drivers = capable.filter(u => {
+      if (offSet.has(Number(u.id))) return false;   // まとめで「休み」にした人は候補から外す
+      const sh = shiftForDay(shifts, bizDay, u.id);
+      return !!sh && sh.status !== 'off';
+    });
+    if (curDrv && !drivers.some(u => String(u.id) === String(curDrv))) {
+      const assigned = capable.find(u => String(u.id) === String(curDrv));
+      if (assigned) drivers.push(assigned);
+    }
+    drivers.sort(opsStaffOrder(bizDay, shifts));   // 並びは「まとめ」と同じ（終了した人は下）
+    // 送迎なしは「未定(-)」と「キャスト（自走）」の2択。値が違うので、どちらを選んでも change が飛ぶ
+    const opts = `<option value="undecided" ${!curDrv && !curSelf ? 'selected' : ''}>-（未定）</option>` +
+      `<option value="self" ${!curDrv && curSelf ? 'selected' : ''}>キャスト（自走）</option>` +
       drivers.map(u => `<option value="${u.id}" ${String(u.id) === String(curDrv) ? 'selected' : ''}>${escapeHtml(u.display_name || u.username)}</option>`).join('');
     const pop = document.createElement('div');
     pop.id = 'tlDrvPop';
@@ -3416,14 +4699,16 @@
     const sel = pop.querySelector('#tlDrvSel');
     sel.addEventListener('change', async (e) => {
       e.stopPropagation();
-      const dv = parseInt(e.target.value, 10) || 0;
+      const raw = String(e.target.value || '');
+      const isSelf = raw === 'self';
+      const dv = (raw === 'self' || raw === 'undecided') ? 0 : (parseInt(raw, 10) || 0);
       sel.disabled = true;
       try {
-        const res = await apiPost('/bookings.php?action=set-driver', { id, leg: dir, driver_id: dv });
+        const res = await apiPost('/bookings.php?action=set-driver', { id, leg: dir, driver_id: dv, self: isSelf ? 1 : 0 });
         const nm = dv ? (drivers.find(u => String(u.id) === String(dv))?.display_name || '') : '';
-        if (isGo) { b.driver_id = dv || null; b.driver_name = nm; b.pickup_go_time = res.pickup_time; }
-        else { b.back_driver_id = dv || null; b.back_driver_name = nm; b.pickup_back_time = res.pickup_time; }
-        toast('✓ ' + (dv ? nm + ' を割当' : '自走に設定'), 'ok');
+        if (isGo) { b.driver_id = dv || null; b.driver_name = nm; b.go_self = isSelf ? 1 : 0; b.pickup_go_time = res.pickup_time; }
+        else { b.back_driver_id = dv || null; b.back_driver_name = nm; b.back_self = isSelf ? 1 : 0; b.pickup_back_time = res.pickup_time; }
+        toast('✓ ' + (dv ? nm + ' を割当' : (isSelf ? 'キャスト（自走）に設定' : '未定に戻しました')), 'ok');
         loadTimeline(true);
         sel.disabled = false;
       } catch (err) { toast('更新失敗: ' + err.message, 'err'); sel.disabled = false; }
@@ -3481,6 +4766,56 @@
     });
   }
 
+  /**
+   * ご利用履歴の表とモーダルの中身を、掴んで動かせるようにする（店長要望 2026-08-14）。
+   * 中身は描き直されるので、要素ごとではなく委譲で拾う。いちばん近い枠を対象にするので、
+   * モーダルの中の表は表が、それ以外はモーダル全体が動く。
+   * 行はクリックで予約を開けるので、ドラッグした直後のクリックは1回だけ無効にする。
+   */
+  function initTableDragScroll() {
+    if (document.body.dataset.histDrag) return;
+    document.body.dataset.histDrag = '1';
+    const NO_DRAG = 'input,select,textarea,option,a,button';
+    const SCROLLERS = '.hist-tbl-wrap,.modal';   // .modal が縦スクロールの枠（.modal-body ではない）
+    let wrap = null, down = false, dragging = false, allowX = false, sx = 0, sy = 0, sl = 0, st = 0;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      if (e.target?.closest?.(NO_DRAG)) return;
+      const w = e.target?.closest?.(SCROLLERS);
+      if (!w) return;
+      // 動かせる余地が無い枠（縦にも横にもはみ出していない）は掴まない
+      if (w.scrollHeight <= w.clientHeight + 2 && w.scrollWidth <= w.clientWidth + 2) return;
+      wrap = w; down = true; dragging = false;
+      allowX = w.matches('.hist-tbl-wrap');   // 横に長い表だけ横ドラッグ。モーダル本体は縦だけ
+      sx = e.clientX; sy = e.clientY; sl = w.scrollLeft; st = w.scrollTop;
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!down || !wrap) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (!dragging) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        // 横向きの動きは文字を選んでコピーしたいとき。モーダル本体では掴まず、選択にまかせる（店長要望 2026-08-14）
+        if (!allowX && Math.abs(dx) > Math.abs(dy)) { down = false; wrap = null; return; }
+        dragging = true;
+        wrap.classList.add('tl-dragging');
+      }
+      if (allowX) wrap.scrollLeft = sl - dx;
+      wrap.scrollTop = st - dy;
+      e.preventDefault();
+    });
+    window.addEventListener('pointerup', () => {
+      if (!down) return;
+      down = false;
+      if (!dragging) { wrap = null; return; }
+      dragging = false;
+      wrap.classList.remove('tl-dragging');
+      wrap = null;
+      const kill = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+      window.addEventListener('click', kill, true);
+      setTimeout(() => window.removeEventListener('click', kill, true), 0);
+    });
+  }
+
   function scrollTimelineToNow() {
     const scroller = document.querySelector('.tl-wrap');
     const grid = document.getElementById('timelineGrid')?.querySelector('.tl-grid');
@@ -3499,6 +4834,39 @@
     const targetLeft = Math.max(0, (offsetH - padCells) * hourWidth);
     scroller.scrollTo({ left: targetLeft, behavior: 'auto' });
   }
+
+  // 現在時刻の赤い縦線（当日を表示しているときだけ）。1分ごとに動く。
+  function updateNowLine() {
+    const gridEl = document.getElementById('timelineGrid')?.querySelector('.tl-grid');
+    if (!gridEl) return;
+    let line = gridEl.querySelector('.tl-nowline');
+    // 今日（営業日）以外を見ているときは出さない
+    if (fmtDate(tlCurrentDate) !== fmtDate(getBusinessDayDate())) { if (line) line.remove(); return; }
+    const headCells = gridEl.querySelectorAll('.tl-head:not(.staff-col)');
+    if (!headCells.length) return;
+    const now = new Date();
+    let offsetH = now.getHours() + now.getMinutes() / 60 - 10;   // 10:00 起点
+    if (offsetH < 0) offsetH += 24;                               // 深夜帯は翌日扱い
+    if (offsetH < 0 || offsetH > 24) { if (line) line.remove(); return; }
+    // 時間セルの実位置で正確に置く（セル幅・隙間に依存しない）
+    const hi = Math.min(headCells.length - 1, Math.floor(offsetH));
+    const cell = headCells[hi];
+    const x = cell.offsetLeft + (offsetH - Math.floor(offsetH)) * cell.offsetWidth;
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'tl-nowline';
+      gridEl.appendChild(line);
+    }
+    line.style.left = x + 'px';
+    // 時刻ヘッダー行の高さ分だけ下げて開始 → 時刻ラベルは常に前面、点線はその下から
+    line.style.top = (cell.offsetHeight || 0) + 'px';
+  }
+  // 現在時刻ラインを自走させる（タイムライン表示中のみ、20秒ごと）
+  setInterval(() => {
+    const view = document.getElementById('view-timeline');
+    if (document.hidden || !view || !view.classList.contains('active')) return;
+    updateNowLine();
+  }, 20000);
 
   // タイムラインから新規予約を開くときの日付＝表示中の営業日（日付欄は営業日基準。保存時に開始時刻からカレンダー日へ変換）
   function tlPrefillDate() {
@@ -3562,18 +4930,19 @@
    * 予約1件のキャスト報酬。**サーバの ylkaReward と必ず同じ式にすること**。
    *   コース報酬（マスタ固定額）＋ オプション報酬 ＋ 指名料の報酬 ＋ 深夜料金 ＋ 機動ボーナス
    * 歩合率(%)は使わない（店長方針 2026-08-05: 報酬はコース管理の固定額のみ）。
-   * 深夜料金は帰りのお迎えがあれば全額お店（ドライバー手当のため）。
+   * 深夜料金は帰りが「キャスト（自走）」のときだけキャスト。送迎（と未定）は全額お店。
    */
-  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName, hotelApplied, nominationType, menuItems, extensionCount) {
+  function calcReward(price, late, trans, rate, goDrv, backDrv, pm, rewardOverride, courseName, hotelApplied, nominationType, menuItems, extensionCount, goSelf, backSelf) {
     if (rewardOverride !== undefined && rewardOverride !== null && rewardOverride !== '') return parseInt(rewardOverride, 10) || 0;
-    const lateT = backDrv ? 0 : late;
+    const lateT = backSelf ? late : 0;
     let transT = 0;
     // 機動ボーナス（店長指定 2026-08-09）。PHP の ylkaTherapistTransport と同式。
     //   行き帰りとも自走 … 交通費の全額（¥1,650 なら ¥1,650）
     //   片道だけ自走     … 交通費の半分を50円単位で切り上げ（¥1,650 → ¥825 → ¥850）
     // 片道ずつ切り上げて足すと往復が ¥1,700 になり交通費を超えるため、往復は満額とする
+    // 対象は「キャスト（自走）」を選んだ片道だけ。「-（未定）」は送迎とみなす（店長指定 2026-08-10）
     if (trans > 0) {
-      const selfLegs = (goDrv ? 0 : 1) + (backDrv ? 0 : 1);
+      const selfLegs = (goSelf ? 1 : 0) + (backSelf ? 1 : 0);
       if (selfLegs === 2) transT = trans;
       else if (selfLegs === 1) transT = Math.ceil(Math.ceil(trans / 2) / 50) * 50;
     }
@@ -3590,7 +4959,14 @@
     return calcReward(
       Number(b.price) || 0, Number(b.late_fee) || 0, Number(b.transport_fee) || 0, Number(b.commission_rate),
       !!b.driver_id, !!b.back_driver_id, b.payment_method, b.reward_override,
-      b.course_name, Number(b.hotel_price_applied) === 1, b.nomination_type, b.menu_items, b.extension_count);
+      b.course_name, Number(b.hotel_price_applied) === 1, b.nomination_type, b.menu_items, b.extension_count,
+      selfLegOf(b, 'go'), selfLegOf(b, 'back'));
+  }
+  /** その片道をキャストが自走したか。「-（未定）」は送迎とみなす（機動ボーナスなし） */
+  function selfLegOf(b, leg) {
+    return leg === 'go'
+      ? (!b.driver_id && Number(b.go_self) === 1)
+      : (!b.back_driver_id && Number(b.back_self) === 1);
   }
   // 時刻のテキスト表示は実時刻・0埋めなし（例 02:00→2:00）。24h+表記(displayTime)は位置計算・ソート専用
   function fmtTimeDisp(t) { return String(t || '').slice(0, 5).replace(/^0/, ''); }
@@ -3620,8 +4996,25 @@
   // 預り金の既定の保有者 = 帰りのお迎え担当（ドライバー）。お迎えが無ければ担当キャスト本人。
   // キャストは接客後にお迎えのドライバーへ現金を渡す運用のため（店長指定 2026-08-07）。
   // held_by（受け渡しで明示的に記録された保有者）があればそちらが優先。
-  const defaultHolderOf = (b) => (b && b.back_driver_id != null && b.back_driver_id !== '')
-    ? Number(b.back_driver_id) : Number(b && b.assigned_admin_id);
+  const defaultHolderOf = (b) => {
+    if (!b) return 0;
+    // 報酬を渡した人は、その現金を持っていた人（渡す原資がその予約の現金のため）。
+    // 受け渡しの記録が無いときは、お迎え担当よりこちらを優先する（記録漏れで現金が残って見えるのを防ぐ・店長指摘 2026-08-15）
+    if (b.reward_paid_at && b.reward_paid_by != null && b.reward_paid_by !== '') return Number(b.reward_paid_by);
+    return (b.back_driver_id != null && b.back_driver_id !== '') ? Number(b.back_driver_id) : Number(b.assigned_admin_id);
+  };
+  /**
+   * その予約の現金を「いま持っている人」に登録された色（スタッフ管理の🎨預り金カードの色）。
+   * 受け渡し済みなら held_by、未受け渡しなら既定の保有者（帰りのお迎え担当→無ければ担当キャスト）。
+   * 現金の入りが無い予約（カード・振込）と、色を登録していない人は色なし。
+   */
+  const holderColorOf = (b) => {
+    if (!b || cashTakenOf(b) <= 0) return '';
+    const hid = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
+    if (!hid) return '';
+    const u = (adminUsersAll || []).find(x => Number(x.id) === hid) || (allUsers || []).find(x => Number(x.id) === hid);
+    return (u && u.staff_color) ? String(u.staff_color) : '';
+  };
   const pmBadge = (b) => String(b.payment_method) === 'bank' ? '🏦 振込'
     : (String(b.payment_method) === 'split' ? '🧾 現金＋カード' : '💳 カード');
   // 兼任判定: role(主ロール)に加え is_therapist/is_office/can_drive の兼任フラグも見る（例: 橘=role manager だが is_therapist/is_office 兼任）
@@ -3664,10 +5057,12 @@
     const meRate = Number(me.commission_rate);
     const meHasRate = me.commission_rate != null && me.commission_rate !== '' && !Number.isNaN(meRate);
     document.getElementById('holderModalTitle').textContent = `${me.display_name || me.username || ''} の入金（店入金分）`;
-    // 入金分（店取り分）= 全額 − 報酬
+    // 入金分（店取り分）= 全額 − 報酬。
+    // ただしキャストへの報酬は現金からのみ支払うため、カード・振込は満額がそのまま店の入金分になる（店長指定 2026-08-15）
     const netOf = (b) => {
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const amt = customerTotalOf(b);   // お客様から受け取る総額（クレジットの上乗せ分を含む）
+      if (isNonCash(b)) return amt;     // カード・振込は満額。報酬は現金から出るので引かない
       const reward = meHasRate ? rewardOf(b) : 0;
       return amt - reward;
     };
@@ -3698,8 +5093,9 @@
     const batchSettleBtn = unsettledList.length
       ? `<button class="sbtn holder-settle-all" type="button" style="margin-bottom:.7rem;padding:.5rem .9rem;font-weight:700;background:var(--green);color:#fff;border:none;width:100%;">✓ 本日分をまとめて精算確定（${unsettledList.length}件）</button>`
       : '';
-    // 受け渡し候補: 内勤スタッフとドライバーのみ（キャストへの受け渡しは無い・店長指定 2026-08-07）
-    const people = (adminUsersAll || []).filter(u => u.id && (isOfficeCapable(u) || isDriverCapable(u)));
+    // 受け渡し候補: 内勤スタッフとドライバーのみ（キャストへの受け渡しは無い・店長指定 2026-08-07）。その日の出勤者だけ
+    const netDuty = opsOnDutySet(bizDay, earned.flatMap(b => [b.held_by, b.reward_paid_by, b.shop_settled_by]));
+    const people = (adminUsersAll || []).filter(u => u.id && netDuty.has(Number(u.id)) && (isOfficeCapable(u) || isDriverCapable(u))).sort(opsStaffOrder(bizDay));
     let html = `<div style="font-weight:700;">入金分合計 ${yen(netTotal)}（${earned.length}件）</div>
       ${netSummary}
       <div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:.7rem;">入金分（預り金 − 報酬）を誰がいくら持っているかを表示します。お金のやり取りが終わったお仕事は「精算確定」で締めてください。</div>${batchSettleBtn}`;
@@ -3708,9 +5104,15 @@
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const amt = customerTotalOf(b);   // お客様から受け取る総額（クレジットの上乗せ分を含む）
       const reward = meHasRate ? rewardOf(b) : 0;
-      const net = amt - reward;
-      const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span><span style="white-space:nowrap;"><b>${yen(net)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small></span></div>
-        <div style="margin-top:.35rem;"><span class="chain-now-badge">📍 <b>${escapeHtml(netHolderOf(b))}</b></span></div>`;
+      const net = netOf(b);
+      // カード・振込は満額が入金分。報酬は現金から出ることが分かるように添える（店長指定 2026-08-15）
+      const cardNote = (isNonCash(b) && reward > 0)
+        ? `<span class="chain-now-badge">💰 報酬 ${yen(reward)} は現金から支払い</span>` : '';
+      const amtCell = net !== amt
+        ? `<b>${yen(net)}</b><small style="color:var(--ink-soft);font-weight:500;"> ／全額 ${yen(amt)}</small>`
+        : `<b>${yen(amt)}</b>`;
+      const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span><span style="white-space:nowrap;">${amtCell}</span></div>
+        <div style="margin-top:.35rem;display:flex;gap:.35rem;flex-wrap:wrap;"><span class="chain-now-badge">📍 <b>${escapeHtml(netHolderOf(b))}</b></span>${cardNote}</div>`;
       // 精算済み: バッジ＋取消のみ。未精算: 受け渡し＋精算確定ボタン
       let ctrl = '';
       if (b.shop_settled) {
@@ -3738,13 +5140,13 @@
     const holderReload = async () => { await loadTimeline(true); openHolderModal(adminId); };
     document.querySelectorAll('#holderModalBody .settle-confirm').forEach(btn => btn.addEventListener('click', async () => {
       const warn = btn.dataset.rwddone === '1' ? '' : '\n※ 報酬はまだ「渡し済み」になっていません。';
-      if (!confirm(`「${btn.dataset.desc}」のお金のやり取りを終了（精算確定）します。${warn}\nよろしいですか？`)) return;
+      if (!await opsConfirm(`「${btn.dataset.desc}」のお金のやり取りを終了（精算確定）します。${warn}\nよろしいですか？`)) return;
       btn.disabled = true;
       try { await apiPost('/admin-api.php?action=booking-settle', { id: Number(btn.dataset.id), settled: 1, kind: 'full' }); toast('✓ 精算確定しました', 'ok'); await holderReload(); }
       catch (e) { toast('確定失敗: ' + e.message, 'err'); btn.disabled = false; }
     }));
     document.querySelectorAll('#holderModalBody .settle-undo').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('精算確定を取り消しますか？')) return;
+      if (!await opsConfirm('精算確定を取り消しますか？')) return;
       btn.disabled = true;
       try { await apiPost('/admin-api.php?action=booking-settle', { id: Number(btn.dataset.id), settled: 0 }); toast('精算確定を取り消しました', 'ok'); await holderReload(); }
       catch (e) { toast('取消失敗: ' + e.message, 'err'); btn.disabled = false; }
@@ -3754,7 +5156,7 @@
       const ids = unsettledList.map(b => b.id);
       const noRwd = unsettledList.filter(b => !b.reward_paid_at).length;
       const warn = noRwd ? `\n※ うち${noRwd}件は報酬がまだ「渡し済み」になっていません。` : '';
-      if (!confirm(`本日分 ${ids.length}件をまとめて精算確定します。${warn}\nよろしいですか？`)) return;
+      if (!await opsConfirm(`本日分 ${ids.length}件をまとめて精算確定します。${warn}\nよろしいですか？`)) return;
       settleAllBtn.disabled = true;
       try { await apiPost('/admin-api.php?action=booking-settle-batch', { ids, kind: 'full' }); toast(`${ids.length}件を精算確定しました`, 'ok'); await holderReload(); }
       catch (e) { toast('確定失敗: ' + e.message, 'err'); settleAllBtn.disabled = false; }
@@ -3765,7 +5167,7 @@
       if (!to) { toast('渡す先を選んでください', 'err'); return; }
       const toName = nameOf(to);
       const meName = me.display_name || me.username || '担当';
-      if (!confirm(`入金分 ${yen(Number(btn.dataset.net))} を ${toName} に渡します。\n報酬 ${yen(Number(btn.dataset.reward))} は ${meName} の手元に残る記録になります。よろしいですか？`)) return;
+      if (!await opsConfirm(`入金分 ${yen(Number(btn.dataset.net))} を ${toName} に渡します。\n報酬 ${yen(Number(btn.dataset.reward))} は ${meName} の手元に残る記録になります。よろしいですか？`)) return;
       btn.disabled = true;
       try {
         await apiPost('/admin-api.php?action=booking-net-handoff', { id: Number(btn.dataset.id), to_admin_id: Number(to) });
@@ -3861,12 +5263,147 @@
     }));
   }
 
+  // 勤務実績の時刻は15分刻み（店長指定 2026-08-11）。
+  // <input type="time"> の step はブラウザのピッカーに効かない（分が1刻みのまま出る）ので、
+  // 時と分の select を自前で組む。時は営業日の並び（10時始まり）、分は 00/15/30/45。
+  // 既に別の分で保存されている値は、勝手に丸めず選択肢に足して残す。
+  const WORK_MIN_STEPS = ['00', '15', '30', '45'];
+  function workTimeSelects(cls, val) {
+    const v = String(val || '').slice(0, 5);
+    const hh = v ? v.slice(0, 2) : '';
+    const mm = v ? v.slice(3, 5) : '';
+    const hours = Array.from({ length: 24 }, (_, i) => String((i + 10) % 24).padStart(2, '0'));
+    const mins = (mm === '' || WORK_MIN_STEPS.includes(mm)) ? WORK_MIN_STEPS : [...WORK_MIN_STEPS, mm].sort();
+    return `<select class="${cls}-h" aria-label="時">
+        <option value="">--</option>${hours.map(h => `<option value="${h}"${h === hh ? ' selected' : ''}>${Number(h)}</option>`).join('')}
+      </select><span class="cs-work-colon">:</span><select class="${cls}-m" aria-label="分">
+        <option value="">--</option>${mins.map(m => `<option value="${m}"${m === mm ? ' selected' : ''}>${m}</option>`).join('')}
+      </select>`;
+  }
+  /** 時＋分の select から "HH:MM" を組む。時が空なら未入力あつかいで '' */
+  function readWorkTime(row, cls) {
+    const h = row.querySelector('.' + cls + '-h')?.value || '';
+    const m = row.querySelector('.' + cls + '-m')?.value || '';
+    return h ? (h + ':' + (m || '00')) : '';
+  }
+
+
+  // ===== ⚠ キャストからの報告（キャスト画面の「お店に報告」）=====
+  // キャストは伝えるだけ。出禁/要注意/その子だけ外す の判断は店長が押す（店長方針 2026-08-11）。
+  // 押した内容はお客様のNG設定にそのまま入るので、予約時の警告は既存のものが効く。
+  const CR_LV = { ng: ['lv-ng', 'NGにしてほしい'], caution: ['lv-caution', '気をつけてほしい'] };
+
+  async function refreshCastReportBadge() {
+    const btn = document.getElementById('tlCastReports');
+    if (!btn) return;
+    if (!userCanSeeTab('timeline')) { btn.hidden = true; return; }
+    try {
+      const d = await api('/admin-api.php?action=cast-reports-count');
+      const n = Number(d.pending) || 0;
+      document.getElementById('tlCastRepN').textContent = n;
+      btn.hidden = n === 0;
+    } catch (e) { btn.hidden = true; }
+  }
+
+  async function openCastReportModal() {
+    const body = document.getElementById('castRepBody');
+    if (!body) { toast('画面を再読み込みしてください', 'err'); return; }
+    body.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+    openModal('castRepModal');
+    await renderCastReports();
+  }
+
+  async function renderCastReports() {
+    const body = document.getElementById('castRepBody');
+    const all = document.getElementById('crShowAll')?.checked;
+    let d;
+    try { d = await api('/admin-api.php?action=cast-reports&status=' + (all ? 'all' : 'pending')); }
+    catch (e) { body.innerHTML = '<p style="color:var(--coral);">読み込み失敗: ' + escapeHtml(e.message) + '</p>'; return; }
+    const rows = d.reports || [];
+    if (!rows.length) {
+      body.innerHTML = `<p style="color:var(--ink-soft);padding:1.5rem 0;text-align:center;">${all ? '報告はありません。' : '未対応の報告はありません。'}</p>`;
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const [cls, label] = CR_LV[r.level] || ['lv-caution', r.level || ''];
+      const when = String(r.created_at || '').slice(5, 16).replace('-', '/');
+      const job = r.booking_date
+        ? `${formatDate(bizDateOf(r.booking_date, r.start_time || '00:00'))} ${fmtTimeDisp(r.start_time)}のお仕事`
+        : '';
+      const done = r.status === 'done';
+      const nm = escapeAttr(r.customer_name || 'お客様');
+      const acts = done
+        ? `<div class="cr-done-note">✓ 対応済み${r.handled_name ? '（' + escapeHtml(r.handled_name) + '）' : ''}${r.handled_at ? ' ' + String(r.handled_at).slice(5, 16).replace('-', '/') : ''}</div>`
+        : `<div class="cr-acts">
+             <button type="button" data-cr="cast_ng" data-id="${r.id}" data-name="${nm}" data-cast="${escapeAttr(r.cast_name || '')}">この子だけ外す</button>
+             <button type="button" data-cr="caution" data-id="${r.id}" data-name="${nm}">⚠ 要注意にする</button>
+             <button type="button" class="is-ng" data-cr="ng" data-id="${r.id}" data-name="${nm}">🚫 出禁にする</button>
+             <button type="button" data-cr="done" data-id="${r.id}" data-name="${nm}">確認済み</button>
+           </div>`;
+      const now = Number(r.ng_level) > 0 || Number(r.cast_ng) === 1
+        ? `<span style="font-size:.78rem;color:var(--ink-soft);">現在: ${Number(r.ng_level) === 2 ? '出禁' : Number(r.ng_level) === 1 ? '要注意' : ''}${Number(r.cast_ng) === 1 ? (Number(r.ng_level) > 0 ? '・' : '') + 'この子だけNG' : ''}</span>` : '';
+      return `<div class="cr-item${done ? ' is-done' : ''}">
+        <div class="cr-top"><span class="cr-lv ${cls}">${escapeHtml(label)}</span>
+          <b style="color:var(--deep);">${escapeHtml(r.cast_name || '—')}</b> より
+          <span>${escapeHtml(when)}</span>${job ? `<span>・${escapeHtml(job)}</span>` : ''}${now}</div>
+        <div class="cr-cust">${escapeHtml(r.customer_name || 'お客様')} 様</div>
+        ${r.reason ? `<div class="cr-reason">${escapeHtml(r.reason)}</div>` : ''}
+        ${acts}
+      </div>`;
+    }).join('');
+
+    body.querySelectorAll('[data-cr]').forEach(btn => btn.addEventListener('click', async () => {
+      const act = btn.dataset.cr;
+      const msg = {
+        cast_ng: `${btn.dataset.name} 様に ${btn.dataset.cast} を出さないようにします。お店としては受けます。よろしいですか？`,
+        caution: `${btn.dataset.name} 様を「要注意」にします。予約を取るときに警告が出ます。よろしいですか？`,
+        ng: `${btn.dataset.name} 様を「出禁」にします。お店として受けなくなります。よろしいですか？`,
+        done: '記録だけ残して対応済みにします。よろしいですか？',
+      }[act];
+      if (!await opsConfirm(msg)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cast-report-handle', { id: Number(btn.dataset.id), act });
+        toast('✓ 対応済みにしました', 'ok');
+        await renderCastReports();
+        refreshCastReportBadge();
+      } catch (e) { toast('失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }));
+  }
+
+  /** 顧客カルテに出す「キャストからの報告」履歴 */
+  async function renderCustomerReports(customerId) {
+    const box = document.getElementById('cmReports');
+    if (!box) return;
+    box.innerHTML = '';
+    if (!customerId) return;
+    let d;
+    try { d = await api('/admin-api.php?action=cast-reports-for-customer&customer_id=' + Number(customerId)); }
+    catch (e) { return; }
+    const rows = d.reports || [];
+    if (!rows.length) return;
+    box.innerHTML = `<div class="field-label" style="font-weight:700;font-size:.85rem;margin-bottom:.3rem;">⚠ キャストからの報告（${rows.length}件）</div>`
+      + rows.map(r => {
+        const [, label] = CR_LV[r.level] || ['', r.level || ''];
+        return `<div class="cm-rep">
+          <div class="cm-rep-h"><b>${escapeHtml(r.cast_name || '—')}</b>
+            <span>${escapeHtml(String(r.created_at || '').slice(5, 16).replace('-', '/'))}</span>
+            <span>${escapeHtml(label)}</span>
+            <span>${r.status === 'done' ? '✓ 対応済み' : '未対応'}</span></div>
+          ${r.reason ? `<div class="cm-rep-b">${escapeHtml(r.reason)}</div>` : ''}
+        </div>`;
+      }).join('');
+  }
+
   // 現金まとめ: 本日出勤スタッフが現在いくら預り金を持っているかを一覧表示（owner/manager）
   async function openCashSummaryModal() {
     const el = document.getElementById('cashSummaryBody');
     if (!el) { toast('画面を再読み込みしてください', 'err'); return; }
     el.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
     openModal('cashSummaryModal');
+    // コース・オプションのマスタが未読込のまま計算すると、コース報酬が0円になって
+    // 報酬が指名料ぶんだけの少額で出てしまう（起動時の読み込みは待っていないため・店長指摘 2026-08-14）
+    try { await Promise.all([ensureCoursesLoaded(), ensureOptionsLoaded()]); } catch (e) {}
     let data;
     // 現金は営業日ごとに締める。繰越は無い（店長指定 2026-08-08）ので、
     // タイムラインで見ている営業日のぶんだけを出す。前の日ぶんはその日に戻れば見られる
@@ -3878,6 +5415,15 @@
     // 立て替えで手元がマイナスになりうるので、符号を頭に出す（¥-9,000 は読みにくい）
     const yenSigned = (n) => (n < 0 ? '−¥' + Math.abs(Number(n)).toLocaleString() : yen(n));
     let html = '';
+    let summaryText = '';   // まとめのプレーンテキスト（コピー / メール用）
+    const holderCardText = {};   // 担当者ごとのカード文面（uid → テキスト。個別コピー/メール用）
+
+    // 受け渡しの権限と渡し先候補（内勤スタッフとドライバーのみ・キャストへは渡さない）。
+    // ルールはタイムラインの受け渡しモーダルと同じにそろえる
+    // まとめの閲覧・受け渡しは内勤スタッフ以上（事務所として締める作業のため・店長指定 2026-08-14）
+    const csCanHandoff = currentUser?.role !== 'staff';   // 制限はメニューのみ（店長指定 2026-08-14）
+    const csDuty = opsOnDutySet(cashBizDay, (data.uncollected || []).flatMap(b => [b.held_by, b.reward_paid_by, b.assigned_admin_id]));
+    const csHandoffPeople = (adminUsersAll || []).filter(u => u.id && csDuty.has(Number(u.id)) && (isOfficeCapable(u) || isDriverCapable(u))).sort(opsStaffOrder(cashBizDay));
 
     // ─ 預り金の保有状況（本日出勤のキャスト・内勤・ドライバーを名簿ベースで表示） ─
     // 報酬確定済み（渡し済み/本人確保）の予約は残額（全額−報酬）で計上
@@ -3904,13 +5450,104 @@
     // クレジット・振込は現金の入りが無い。報酬を立て替えていない予約は出す意味がないので落とす
     //（立て替えたものは「−報酬」の行として残し、手元がいくら減ったかを見せる）
     const unc = (data.uncollected || []).filter(b => cashTakenOf(b) > 0 || paidRewardOf(b) > 0);
-    // 現在の保有者ID別に集計（held_by優先、未設定なら担当本人）
+    // 現在の保有者ID別に集計（held_by優先、未設定なら担当本人）。
+    // カード・振込予約は現金を持たないので保有明細には並べない（報酬の立て替えは「渡した人」の手元から引く・店長指摘 2026-08-14）
     const byHolderId = {};
     unc.forEach(b => {
+      if (cashTakenOf(b) <= 0) return;
       const hId = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
       if (!byHolderId[hId]) byHolderId[hId] = [];
       byHolderId[hId].push(b);
     });
+    // 「💸 ◯◯ に報酬を渡した」は、その予約の現金を持っているかに関係なく
+    // 実際に報酬を渡した人(reward_paid_by)基準で集計する（報酬はまとめて誰かが渡す運用・店長指摘 2026-08-14）
+    const rewardOfPaid = (b) => {
+      const rate = Number(b.commission_rate);
+      const hasRate = b.commission_rate != null && b.commission_rate !== '' && !Number.isNaN(rate);
+      return (b.reward_paid_at && hasRate) ? rewardOf(b) : 0;
+    };
+    const payerIdOf = (b) => b.reward_paid_at ? Number(b.reward_paid_by) : null;
+    // 明細は「お預り金（お客様からの現金・満額）」で出す（店長指摘 2026-08-14）
+    const depositOf = (b) => cashTakenOf(b);
+    // 並び順のキー: 営業日 + 受付時刻。0〜9時台は同じ営業日の続きなので24時足しで後ろへ
+    const csTimeOrd = (b) => {
+      const d = Number(String(bizDateOf(b.booking_date, b.start_time || '00:00') || '').replace(/-/g, '')) || 0;
+      const m = String(b.start_time || '00:00').match(/^(\d{1,2}):(\d{2})/);
+      const h = m ? Number(m[1]) : 0, mi = m ? Number(m[2]) : 0;
+      return d * 10000 + ((h < 10 ? h + 24 : h) * 60 + mi);
+    };
+    // カード・振込予約の報酬は現金の入りが無いぶん、渡した人(reward_paid_by)の手元現金から出ている。
+    // その人が現金を次の人へ渡していれば、渡した額はそのぶん少ない＝控除も渡し先へ移る（現金の動きだけを追う・店長指摘 2026-08-14）
+    const pocketHolderOf = (uid, seen) => {
+      const id = Number(uid);
+      if ((byHolderId[id] || []).length) return id;          // まだ現金（保有予約）がある
+      const gave = gaveByAdminId[id] || [];
+      if (!gave.length) return id;
+      const to = Number(gave[gave.length - 1].to);
+      const s = new Set(seen || []);
+      if (!to || to === id || s.has(to)) return id;
+      s.add(id);
+      return pocketHolderOf(to, s);
+    };
+    // 報酬を出した現金の持ち主。記録上の支払者が現金の流れに居ないとき（キャスト本人が確保した等）は、
+    // その時刻に現金を持っていた人の手元から出たものとして扱う（そうしないと帳尻が合わない）
+    const effPayerOf = (b) => {
+      const pid = payerIdOf(b);
+      if (!pid) return null;
+      // 記録上の支払者がその予約の担当キャスト＝本人が自分の報酬を確保した場合。
+      // 現金はそのとき持っていた人の手元から出ているので、その人を支払者として扱う
+      if (cashTakenOf(b) > 0 && Number(pid) === Number(b.assigned_admin_id)) {
+        const chain = custodyChain(b);
+        const hops = hopsByBooking[Number(b.id)] || [];
+        const at = String(b.reward_paid_at || '');
+        let holder = chain[0];
+        hops.forEach((h, i) => { if (String(h.created_at || '') <= at) holder = chain[i + 1]; });
+        return Number(holder);
+      }
+      return Number(pid);
+    };
+    /**
+     * 報酬は「その予約の預り金」からではなく、渡す人の手元の現金から出る（店長指定 2026-08-16）。
+     * どの予約のぶんかは現金の計算に持ち込まない。払った人の手元からまとめて引く。
+     */
+    const isPocketReward = (b) => rewardOfPaid(b) > 0;
+    // その現金が流れていった順（自分 → 渡した先 → …）。カード予約の報酬を、道すじの全員に反映するため
+    const pocketPath = (start) => {
+      const path = [Number(start)];
+      const seen = new Set(path);
+      for (;;) {
+        const id = path[path.length - 1];
+        if ((byHolderId[id] || []).length) break;       // まだ現金が手元にある＝ここで止まる
+        const g = gaveByAdminId[id] || [];
+        if (!g.length) break;
+        const to = Number(g[g.length - 1].to);
+        if (!to || seen.has(to)) break;
+        seen.add(to);
+        path.push(to);
+      }
+      return path;
+    };
+    // 報酬は「現金を持っている人」からだけ引く。立て替えの概念は使わない（店長指定 2026-08-22）。
+    // 現金の流れをたどった先が誰も現金を持っていない（カード予約など）ときは、誰の手元からも引かない
+    const pocketPaidOf = (uid) => unc.reduce((s, b) => {
+      if (!isPocketReward(b)) return s;
+      const pid = effPayerOf(b);
+      if (!pid) return s;
+      const holder = pocketHolderOf(pid);
+      if (holder !== Number(uid)) return s;
+      if (!(byHolderId[Number(uid)] || []).length) return s;   // 手元に現金が無い人からは引かない
+      return s + rewardOfPaid(b);
+    }, 0);
+    // 金額だけの現金受け渡し（つり銭など）。渡した人は減り、受け取った人は増える（店長要望 2026-08-14）
+    const cashTransfers = data.transfers || [];
+    const transferNetOf = (uid) => cashTransfers.reduce((s, t) =>
+      s + (Number(t.to_admin_id) === Number(uid) ? Number(t.amount) || 0 : 0)
+        - (Number(t.from_admin_id) === Number(uid) ? Number(t.amount) || 0 : 0), 0);
+    // uid の手元現金＝保有しているお預り金の合計 −（その予約で渡し済みの報酬）−（カード予約ぶんの報酬立て替え）
+    // 報酬を渡しているのにお預り金満額が手元にあるのはおかしいため差し引く（店長指摘 2026-08-14）
+    const netCashOf = (uid) => (byHolderId[Number(uid)] || [])
+      .reduce((s, b) => s + depositOf(b), 0)
+      - pocketPaidOf(uid) + transferNetOf(uid);
 
     // ─ 受け渡しの履歴（店長要望 2026-08-08: 保有額だけでは「◯◯さんに渡した」が確かめられない）─
     const uncById = {};
@@ -3925,14 +5562,19 @@
       const u = (adminUsersAll || []).find(x => Number(x.id) === Number(id));
       return u ? (u.display_name || u.username) : ('#' + id);
     };
+    // 受け渡し時刻「M/D H:MM」（時は先頭ゼロなし）。同じ人でも別々の時刻ぶんは分けて出すため
+    const fmtRecvAt = (at) => {
+      const m = String(at || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      return m ? `${parseInt(m[2], 10)}/${parseInt(m[3], 10)} ${parseInt(m[4], 10)}:${m[5]}` : '';
+    };
     /** 現金が渡ってきた順の名前の並び。受け渡しが無ければ今の保有者ひとりだけ */
     const custodyChain = (b) => {
       const hops = hopsByBooking[Number(b.id)] || [];
       const cur = (b.held_by != null && b.held_by !== '') ? Number(b.held_by) : defaultHolderOf(b);
-      if (!hops.length) return [cur];
-      const ids = [Number(hops[0].from_admin_id)];
-      hops.forEach(h => ids.push(Number(h.to_admin_id)));
-      return ids;
+      // 記録どおりの並びだけを出す。記録に無い受け渡しを勝手に足さない（店長指摘 2026-08-16）
+      return hops.length
+        ? [Number(hops[0].from_admin_id), ...hops.map(h => Number(h.to_admin_id))]
+        : [cur];
     };
     // 「この人が誰かに渡して、今は持っていないぶん」を人ごとにまとめる。
     // 渡したあと戻ってきた（今も保有している）ぶんは保有側に出るのでここには入れない
@@ -3953,7 +5595,8 @@
     // 本日出勤の名簿: シフト「出勤」中 or 本日の担当予約ありの キャスト/内勤/ドライバー
     const onDutyIds = new Set();
     tlShifts.forEach(s => {
-      if (String(s.shift_date).slice(0, 10) === cashBizDay && s.status === 'available') onDutyIds.add(Number(s.admin_user_id));
+      // 「終了」にした人も名簿に残す。押し間違いのときに戻せるように（店長要望 2026-08-16）
+      if (String(s.shift_date).slice(0, 10) === cashBizDay && (s.status === 'available' || s.status === 'done')) onDutyIds.add(Number(s.admin_user_id));
     });
     tlBookings.forEach(b => {
       if (b.assigned_admin_id && bizDateOf(b.booking_date, b.start_time) === cashBizDay
@@ -3963,6 +5606,8 @@
     Object.keys(byHolderId).forEach(id => onDutyIds.add(Number(id)));
     // 渡し終えて手元が空になった人も出す。「自分は渡した」を後から確かめられるようにするため
     Object.keys(gaveByAdminId).forEach(id => onDutyIds.add(Number(id)));
+    // 金額だけの受け渡しに関わった人も名簿に入れる（つり銭だけ受け取った人が消えないように）
+    (data.transfers || []).forEach(t => { onDutyIds.add(Number(t.from_admin_id)); onDutyIds.add(Number(t.to_admin_id)); });
 
     // ─ 報酬を受け取った記録（店長要望 2026-08-08）─
     // 預り金からキャストへ報酬を渡すと、その予約の残額はそのぶん減る。
@@ -3978,6 +5623,8 @@
       rewardsByAdminId[castId].push({ booking: b, amount: amt });
     });
     Object.keys(rewardsByAdminId).forEach(id => onDutyIds.add(Number(id)));
+    // 報酬を実際に渡した人も必ず出す（現金は他の人へ渡していても「誰に払ったか」はその人の欄に残す）
+    unc.forEach(b => { const p = effPayerOf(b); if (p) onDutyIds.add(Number(p)); });
     const roster = adminUsersAll.filter(u => onDutyIds.has(Number(u.id))
       && (isTherapistCapable(u) || isOfficeCapable(u) || isDriverCapable(u)));
     // 誰が持っているのかが一目で分かるよう役割を添える（内勤・ドライバーは特に取り違えやすい）
@@ -3989,130 +5636,602 @@
       return badges.length ? ' ' + badges.join('') : '';
     };
 
-    const grandTotal = unc.reduce((sum, b) => sum + heldAmtOf(b), 0);
-    const holderCount = roster.filter(u => (byHolderId[Number(u.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0) > 0).length;
+    // ★「まとめて渡す」＝手元にある現金を渡す（店長指定 2026-08-25）。
+    //   預り金は満額のまま次の人へ動くので、その前に「金額を渡す」で現金を出していると
+    //   出したぶんが二重に引かれ、渡した本人がマイナスになる（例: 矢島 −6,900）。
+    //   手持ちがマイナスになった人は、その不足分を「最後に渡した相手」への行から差し引き、
+    //   受け取った側も同じだけ少なく受け取った扱いにする＝実際に手渡した額に合わせる。
+    const csShort = {};      // 渡した人 => { to: 受け取った人, amount: 実際には渡していない額 }
+    const csShortIn = {};    // 受け取った人 => 少なく受け取った合計
+    // その人が「最後に預り金を渡した相手」
+    const csLastTo = {};
+    roster.forEach(u => {
+      const uid = Number(u.id);
+      let last = null;
+      (data.handoffs || []).forEach(h => {
+        if (Number(h.from_admin_id) !== uid || !uncById[Number(h.booking_id)]) return;
+        if (!last || String(h.created_at) > String(last.created_at)) last = h;
+      });
+      if (last) csLastTo[uid] = Number(last.to_admin_id);
+    });
+    // 少なく渡したぶんは次の人にも順に効く（矢島→戸塚→宮時 のように連鎖する）ので、
+    // 変化が無くなるまで繰り返す
+    for (let pass = 0; pass < 12; pass++) {
+      let changed = false;
+      roster.forEach(u => {
+        const uid = Number(u.id);
+        const to = csLastTo[uid];
+        if (to === undefined) return;         // 預り金を誰にも渡していない＝立て替え等。触らない
+        const eff = netCashOf(uid) + ((csShort[uid] || {}).amount || 0) - (csShortIn[uid] || 0);
+        if (eff >= 0) return;
+        const add = -eff;
+        csShort[uid] = { to, amount: ((csShort[uid] || {}).amount || 0) + add };
+        csShortIn[to] = (csShortIn[to] || 0) + add;
+        changed = true;
+      });
+      if (!changed) break;
+    }
+    /** 実際の手持ち（上の調整を反映） */
+    const netCashAdj = (uid) => netCashOf(uid)
+      + ((csShort[Number(uid)] || {}).amount || 0)
+      - (csShortIn[Number(uid)] || 0);
+
+    const grandTotal = unc.reduce((sum, b) => sum + depositOf(b) - rewardOfPaid(b), 0);   // その日の手元現金（お預り金 − 渡した報酬）
+    const holderCount = roster.filter(u => netCashAdj(u.id) > 0).length;
     html += `<div style="font-size:.95rem;font-weight:700;margin-bottom:.15rem;">💰 ${escapeHtml(formatDate(cashBizDay))}の現金 ${yenSigned(grandTotal)}（${holderCount}名が保有）</div>
       <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.6rem;">この営業日ぶんの、精算が済んでいない現金です。前の日からの繰越はありません。</div>`;
+    html += `<div class="cs-actions"><button type="button" id="csCopy" class="cs-act-btn">📋 コピー</button><button type="button" id="csMail" class="cs-act-btn">✉️ メール</button><span id="csCopyMsg" class="cs-act-msg"></span></div>`;
+    // 「まだ渡していない報酬」の一覧は出さない（まとめは出納だけ・店長指定 2026-08-22）。
+    // キャストごとの当日の報酬対象件数だけ数える（渡した件数と同じなら「1件全て」と出すため）
+    const castDayCount = {};
+    (tlBookings || []).forEach(b => {
+      if (bizDateOf(b.booking_date, b.start_time) !== cashBizDay) return;
+      if (b.status !== 'completed') return;
+      if (b.course_name === '休憩' || b.customer_name_snapshot === '【休憩】') return;
+      if (!rewardOf(b)) return;
+      const castId = Number(b.assigned_admin_id);
+      castDayCount[castId] = (castDayCount[castId] || 0) + 1;
+    });
+    let csFinishedHtml = '';   // 終了した人のカード（勤務実績の下に置く）
     if (!roster.length) {
       html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">この日に出勤したスタッフはいません。</p>';
     } else {
-      // 持っている人を上に、金額の大きい順に並べる（受け渡しの判断がしやすい）
-      roster.sort((a, b) => {
-        const ta = (byHolderId[Number(a.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0);
-        const tb = (byHolderId[Number(b.id)] || []).reduce((s, x) => s + heldAmtOf(x), 0);
-        return tb - ta;
-      });
-      roster.forEach(u => {
-        const items = byHolderId[Number(u.id)] || [];
-        const gave = gaveByAdminId[Number(u.id)] || [];
-        const total = items.reduce((s, b) => s + heldAmtOf(b), 0);
-        const gaveTotal = gave.reduce((s, g) => s + heldAmtOf(g.booking), 0);
+      // 内勤・ドライバーを先に、キャストはその下（現金は最後にお店側へ集まるため・店長要望 2026-08-14）。
+      // それぞれの中では金額の大きい順（受け渡しの判断がしやすい）
+      const isCastRow = (u) => !isOfficeCapable(u) && !isDriverCapable(u) && isTherapistCapable(u);
+      // 上がった人（シフト＝終了）は一番下へ。キャストはタイムラインの出勤トグルで「終了」にすると
+      // ここでも下がる。内勤・ドライバーはこのカードの「終了」ボタンで下げる（店長要望 2026-08-16）
+      const csDoneSet = new Set((tlShifts || [])
+        .filter(s => String(s.shift_date).slice(0, 10) === cashBizDay && s.status === 'done')
+        .map(s => Number(s.admin_user_id)));
+      const csIsDone = (u) => csDoneSet.has(Number(u.id));
+      roster.sort((a, b) => (Number(csIsDone(a)) - Number(csIsDone(b)))
+        || (Number(isCastRow(a)) - Number(isCastRow(b)))
+        || (netCashAdj(b.id) - netCashAdj(a.id)));
+      // 1人ぶんのカードを組み立てる（外側の html には足さず、文字列を返す）
+      const renderHolderCard = (u) => {
+        let html = '';
+        const uid = Number(u.id);
+        // 明細は上から時系列（古い順）。深夜(0〜9時台)は同じ営業日の続きなので後ろに置く（店長要望 2026-08-15）
+        const items = (byHolderId[uid] || []).slice().sort((a, b) => csTimeOrd(a) - csTimeOrd(b));
+        const total = netCashAdj(uid);   // いま手元にある現金（渡していない不足分を調整ずみ）
+        // ── 現金の出入りを受け渡しの順に組み立てる（手元が0になるまでの履歴・店長要望 2026-08-15）──
+        // お客様から直接お預りしたぶん ／ 誰から受け取ったか ／ 誰へ渡したか
+        const direct = { sum: 0, count: 0 };
+        const directList = [];   // お客様から預かった予約を1件ずつ出すため（店長要望 2026-08-22）
+        const recvFrom = {};   // 「誰から・いつ」ごと
+        const gaveTo = {};     // 「誰へ・いつ」ごと
+        unc.forEach(b => {
+          if (cashTakenOf(b) <= 0) return;                 // 現金を預かる予約だけが手渡しの対象
+          const chain = custodyChain(b);
+          const i = chain.indexOf(uid);
+          if (i < 0) return;                               // この予約の現金には触っていない
+          const hops = hopsByBooking[Number(b.id)] || [];
+          if (i === 0) {
+            direct.sum += depositOf(b);                    // 現場でお客様から預かった＝入り口
+            direct.count++;
+            directList.push(b);
+          } else {
+            const at = (hops[i - 1] || {}).created_at || '';
+            const key = chain[i - 1] + '|' + String(at).slice(0, 16);
+            if (!recvFrom[key]) recvFrom[key] = { from: chain[i - 1], at, net: 0, count: 0 };
+            recvFrom[key].net += depositOf(b);       // 預り金は満額のまま動く（報酬は別建て）
+            recvFrom[key].count++;
+          }
+          if (i < chain.length - 1) {
+            const at = (hops[i] || {}).created_at || '';
+            const key = chain[i + 1] + '|' + String(at).slice(0, 16);
+            if (!gaveTo[key]) gaveTo[key] = { to: chain[i + 1], at, net: 0, count: 0 };
+            gaveTo[key].net += depositOf(b);         // 渡した報酬は下の 💸 行で引く
+            gaveTo[key].count++;
+          }
+        });
+        // カード・振込予約の報酬は現金から出るので、その現金が流れた道すじの全員に効かせる。
+        // 「誰との受け渡しで減ったのか」まで合わせたいので、相手ごとに持つ
+        const pocketIn = {}, pocketOut = {};
+        unc.forEach(b => {
+          if (!isPocketReward(b)) return;
+          const r = rewardOfPaid(b), pid = effPayerOf(b);
+          if (!r || !pid) return;
+          const path = pocketPath(pid);
+          const i = path.indexOf(uid);
+          if (i < 0) return;
+          if (i > 0) pocketIn[path[i - 1]] = (pocketIn[path[i - 1]] || 0) + r;           // 前の人から、そのぶん少なく受け取っている
+          if (i < path.length - 1) pocketOut[path[i + 1]] = (pocketOut[path[i + 1]] || 0) + r;  // 次の人へ、そのぶん少なく渡している
+        });
+        const byAt = (a, b) => String(a.at).localeCompare(String(b.at));
+        const recvList = Object.values(recvFrom).sort(byAt);
+        const gaveList = Object.values(gaveTo).sort(byAt);
+        // 同じ相手が複数回ある場合は最後の受け渡しから引く
+        Object.keys(pocketIn).forEach(fid => {
+          const rows = recvList.filter(r => Number(r.from) === Number(fid));
+          if (rows.length) { const l = rows[rows.length - 1]; l.net -= pocketIn[fid]; }
+        });
+        Object.keys(pocketOut).forEach(tid => {
+          const rows = gaveList.filter(g => Number(g.to) === Number(tid));
+          if (rows.length) { const l = rows[rows.length - 1]; l.net -= pocketOut[tid]; }
+        });
+        // 「金額を渡す」で先に現金を出していたぶん（csShort）も、渡した額・受け取った額から差し引く
+        const myShort = csShort[uid];
+        if (myShort) {
+          const rows = gaveList.filter(g => Number(g.to) === Number(myShort.to));
+          if (rows.length) { const l = rows[rows.length - 1]; l.net -= myShort.amount; }
+        }
+        Object.keys(csShort).forEach(fid => {
+          if (Number(csShort[fid].to) !== uid) return;
+          const rows = recvList.filter(r => Number(r.from) === Number(fid));
+          if (rows.length) { const l = rows[rows.length - 1]; l.net -= csShort[fid].amount; }
+        });
         const has = total !== 0;   // 立て替えでマイナスにもなる
         const minus = total < 0;
-        html += `<div class="cs-holder${has ? ' has-cash' : ''}${minus ? ' is-minus' : ''}">
-          <div style="font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:${has ? '700' : '400'};font-size:${has ? '.92rem' : '.8rem'};color:${minus ? '#c0392b' : (has ? 'var(--coral-deep,#c2410c)' : 'var(--ink-soft)')};">いま持っている ${yenSigned(total)}（${items.length}件）${minus ? '<span class="cs-minus-note">立て替えで不足</span>' : ''}</span></div>`;
-        const rewards = rewardsByAdminId[Number(u.id)] || [];
-        items.forEach(b => {
-          const amt = heldAmtOf(b);
-          const therapistNote = (b.held_by != null && Number(b.held_by) !== Number(b.assigned_admin_id))
-            ? ` <span style="font-size:.74rem;color:var(--ink-soft);">担当:${escapeHtml(nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username))}</span>` : '';
-          // 誰の手を通って今ここにあるか。受け渡しがあったぶんだけ出す
-          const chain = custodyChain(b);
-          const chainNote = chain.length > 1
-            ? `<div class="cs-chain">${chain.map(id => escapeHtml(userNameOf(id))).join(' <span class="cs-arrow">→</span> ')}</div>` : '';
-          // カード・振込は現金の入りが無いので、報酬を立て替えたぶんだけマイナスで並ぶ
-          const advNote = cashTakenOf(b) === 0
-            ? `<div class="cs-chain">${pmBadge(b)}決済・報酬を現金から立て替え</div>` : '';
-          html += `<div style="font-size:.8rem;padding:.2rem 0;border-top:1px solid #eee;display:flex;justify-content:space-between;gap:.4rem;">
-            <span>${formatDate(bizDateOf(b.booking_date, b.start_time || '00:00'))} ${fmtTimeDisp(b.start_time)} ${custName(b)}${therapistNote}${chainNote}${advNote}</span>
-            <b style="white-space:nowrap;${amt < 0 ? "color:#c0392b;" : ""}">${yenSigned(amt)}</b></div>`;
-        });
-        // 預り金から出ていった報酬は、予約ごとではなくキャストごとの合計で1行にまとめる
-        // （明細に混ぜると行が増えて読みづらい・店長要望 2026-08-08）
+        // 内勤・ドライバーは「終了」で下へ下げる（キャストはタイムラインの出勤トグルの終了でこうなる）
+        const csDone = csDoneSet.has(uid);
+        const finishBtn = isCastRow(u) ? ''
+          : `<button type="button" class="cs-finish${csDone ? ' is-done' : ''}" data-finish="${uid}" data-done="${csDone ? 1 : 0}"
+               title="${csDone ? 'クリックで出勤中に戻す' : 'この人は上がり。まとめの下へ移します'}">${csDone ? '✓ 終了' : '終了'}</button>`;
+        html += `<div class="cs-holder${has ? ' has-cash' : ''}${minus ? ' is-minus' : ''}${csDone ? ' is-finished' : ''}">
+          <div style="font-weight:700;margin-bottom:.25rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">📍 ${escapeHtml(nameOf(u.id, u.display_name, u.username))}${rosterRoleBadge(u)} <span style="font-weight:700;font-size:.92rem;color:${minus ? '#c0392b' : (has ? 'var(--coral-deep,#c2410c)' : 'var(--deep)')};">いま持っている ${yenSigned(total)}（${items.length}件）</span>${finishBtn}</div>`;
+        const rewards = rewardsByAdminId[uid] || [];
+        // 予約1件ずつの明細は出さない。「誰からいくら受け取り／誰にいくら渡した」だけで足りる（店長要望 2026-08-15）
+        // 渡した報酬は「実際に渡した人」の欄に出す（店長指定 2026-08-15）。
+        // 現金を他の人へ渡していても、キャストへ手渡ししたのはこの人なのでここに残す
         const paidOut = {};
-        items.forEach(b => {
-          const r = paidRewardOf(b);
-          if (!r) return;
+        unc.forEach(b => {
+          const r = rewardOfPaid(b);
+          if (!r || effPayerOf(b) !== uid) return;
           const castId = Number(b.assigned_admin_id);
-          if (!paidOut[castId]) paidOut[castId] = { name: nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username), sum: 0, count: 0 };
+          if (!paidOut[castId]) paidOut[castId] = { id: castId, name: nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username), sum: 0, count: 0, at: '' };
           paidOut[castId].sum += r;
           paidOut[castId].count++;
+          const rat = String(b.reward_paid_at || '');
+          if (rat > paidOut[castId].at) paidOut[castId].at = rat;
+        });
+        // 基本はその日のぶんをまとめて渡すので「◯件全て」。一部だけ渡したときだけ「◯件分」（店長要望 2026-08-14）
+        const paidCountNote = (p) => (castDayCount[p.id] && p.count >= castDayCount[p.id]) ? `${p.count}件全て` : `${p.count}件分`;
+        // ── やり取りを時刻順に並べ、行の右にその時点の手持ち額を出す（店長要望 2026-08-15）──
+        const ev = [];
+        // 現場でお客様から預かったぶんは1件ずつ出す（どの予約のお金かが分かるように・店長要望 2026-08-22）。
+        // 手元の現金の入り口なので、受け渡しより前（時刻順の先頭）に並べる
+        directList.slice().sort((a, b) => csTimeOrd(a) - csTimeOrd(b)).forEach(b => {
+          const t = String(b.start_time || '').slice(0, 5).replace(/^0/, '');
+          const who = b.assigned_admin_id ? userNameOf(Number(b.assigned_admin_id)) : '';
+          const note = [t, who].filter(Boolean).join(' ');
+          ev.push({ at: '', d: depositOf(b), cls: 'cs-recv-head',
+            txt: `📥 お客様から ${yen(depositOf(b))} お預り${note ? '（' + note + '）' : ''}`,
+            html: `📥 お客様から ${yen(depositOf(b))} お預り${note ? `<span class="cs-gave-note">${escapeHtml(note)}</span>` : ''}` });
+        });
+        // 誰から・いつ受け取ったか。同じ人でも受け渡しが分かれていれば、その都度ぶんを分けて出す（店長要望 2026-08-14）
+        recvList.forEach(r => {
+          const t = fmtRecvAt(r.at);
+          ev.push({ at: r.at, d: r.net, cls: 'cs-recv-head',
+            txt: `📥 ${userNameOf(r.from)} から ${yen(r.net)} 受け取り${t ? ' ' + t : ''}（${r.count}件）`,
+            html: `📥 ${escapeHtml(userNameOf(r.from))} から ${yen(r.net)} 受け取り${t ? `<span class="cs-recv-at">${t}</span>` : ''}<span class="cs-gave-note">（${r.count}件）</span>` });
         });
         Object.values(paidOut).forEach(p => {
-          html += `<div class="cs-reward-head">💸 ${escapeHtml(p.name)} に報酬 ${yen(p.sum)} を渡した<span class="cs-gave-note">（${p.count}件ぶん・上の金額はその残り）</span></div>`;
+          ev.push({ at: p.at, d: -p.sum, cls: 'cs-reward-head',
+            txt: `💸 ${p.name} に報酬 ${yen(p.sum)} を渡した（${paidCountNote(p)}）`,
+            html: `💸 ${escapeHtml(p.name)} に報酬 ${yen(p.sum)} を渡した<span class="cs-gave-note">（${paidCountNote(p)}）</span>` });
         });
-        // 渡したぶん: 手元にはもう無いが「確かに渡した」を後から確かめるための控え
-        if (gave.length) {
-          html += `<div class="cs-gave-head">↗ 渡したぶん ${yen(gaveTotal)}（${gave.length}件）<span class="cs-gave-note">手元にはありません</span></div>`;
-          gave.forEach(g => {
-            const b = g.booking;
-            const at = g.at ? String(g.at).slice(11, 16) : '';
-            html += `<div class="cs-gave-row">
-              <span>${formatDate(bizDateOf(b.booking_date, b.start_time || '00:00'))} ${fmtTimeDisp(b.start_time)} ${custName(b)}
-                <span class="cs-gave-to">→ ${escapeHtml(userNameOf(g.to))} へ${at ? ' ' + at : ''}</span></span>
-              <b style="white-space:nowrap;">${yen(heldAmtOf(b))}</b></div>`;
-          });
+        // 渡したぶん: 予約ごとではなく「誰へいくら」だけ（店長要望 2026-08-15）
+        gaveList.forEach(g => {
+          const t = fmtRecvAt(g.at);
+          ev.push({ at: g.at, d: -g.net, cls: 'cs-gave-head',
+            txt: `📤 ${userNameOf(g.to)} へ ${yen(g.net)} 渡した${t ? ' ' + t : ''}（${g.count}件）`,
+            html: `📤 ${escapeHtml(userNameOf(g.to))} へ ${yen(g.net)} 渡した${t ? `<span class="cs-recv-at">${t}</span>` : ''}<span class="cs-gave-note">（${g.count}件）</span>` });
+        });
+        // 金額だけの受け渡し（つり銭など）も同じ流れに混ぜる（店長要望 2026-08-14）
+        cashTransfers.forEach(t => {
+          const amt = Number(t.amount) || 0;
+          const at = fmtRecvAt(t.created_at);
+          const memo = String(t.note || '').trim();
+          const memoHtml = memo ? `<span class="cs-gave-note">${escapeHtml(memo)}</span>` : '';
+          const delBtn = csCanHandoff ? `<button type="button" class="cs-tr-del" data-tr="${t.id}" title="取り消す">×</button>` : '';
+          if (Number(t.to_admin_id) === uid) {
+            ev.push({ at: t.created_at || '', d: amt, cls: 'cs-recv-head',
+              txt: `📥 ${userNameOf(Number(t.from_admin_id))} から ${yen(amt)} 受け取り${at ? ' ' + at : ''}${memo ? '（' + memo + '）' : ''}`,
+              html: `📥 ${escapeHtml(userNameOf(Number(t.from_admin_id)))} から ${yen(amt)} 受け取り${at ? `<span class="cs-recv-at">${at}</span>` : ''}${memoHtml}${delBtn}` });
+          } else if (Number(t.from_admin_id) === uid) {
+            ev.push({ at: t.created_at || '', d: -amt, cls: 'cs-gave-head',
+              txt: `📤 ${userNameOf(Number(t.to_admin_id))} へ ${yen(amt)} 渡した${at ? ' ' + at : ''}${memo ? '（' + memo + '）' : ''}`,
+              html: `📤 ${escapeHtml(userNameOf(Number(t.to_admin_id)))} へ ${yen(amt)} 渡した${at ? `<span class="cs-recv-at">${at}</span>` : ''}${memoHtml}${delBtn}` });
+          }
+        });
+        ev.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+        // 右の額は「その時点で手元にいくらあるか」。最後の行が「いま持っている」と一致する
+        const balTxt = (n) => n > 0 ? '＋' + yen(n) : (n < 0 ? '−' + yen(-n) : '¥0');
+        let bal = 0;
+        ev.forEach(e => {
+          bal += e.d;
+          const cls = bal > 0 ? 'is-plus' : (bal < 0 ? 'is-minus' : 'is-zero');
+          html += `<div class="${e.cls}">${e.html}<span class="cs-bal ${cls}">${balTxt(bal)}</span></div>`;
+        });
+        // まとめの中から直接、次の人へ渡せるようにする（店長要望 2026-08-11）。
+        // タイムラインの「預り金 受け渡し」を開かなくても、この画面で締められる。
+        // カード・振込は現金を預かっていないので対象外（受け渡しモーダルと同じ扱い）
+        const handable = items.filter(b => !isNonCash(b));
+        if (csCanHandoff && handable.length) {
+          const to = csHandoffPeople.filter(p => Number(p.id) !== Number(u.id));
+          html += `<div class="cs-handoff">
+            <select class="cs-handoff-to" data-holder="${u.id}"><option value="">渡す先…</option>${to.map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('')}</select>
+            <button type="button" class="sbtn cs-handoff-go" data-holder="${u.id}" data-ids="${handable.map(b => b.id).join(',')}">まとめて渡す（${handable.length}件）</button>
+          </div>`;
+        }
+        // 誰かから受け取る（間に人が入るときに「誰から」を選べるように・店長要望 2026-08-22）。
+        // 渡す側の画面を開かなくても、受け取った本人が記録できる
+        if (csCanHandoff) {
+          const froms = roster
+            .filter(p => Number(p.id) !== Number(u.id))
+            .map(p => ({ id: Number(p.id), name: nameOf(p.id, p.display_name, p.username),
+                         ids: (byHolderId[Number(p.id)] || []).filter(b => !isNonCash(b)).map(b => b.id) }))
+            .filter(p => p.ids.length);
+          if (froms.length) {
+            html += `<div class="cs-handoff cs-recv">
+              <select class="cs-recv-from" data-holder="${u.id}"><option value="">受け取り元…</option>`
+              + froms.map(p => `<option value="${p.id}" data-ids="${p.ids.join(',')}">${escapeHtml(p.name)}（${p.ids.length}件）</option>`).join('')
+              + `</select>
+              <button type="button" class="sbtn cs-recv-go" data-holder="${u.id}">受け取る</button>
+            </div>`;
+          }
+        }
+        // 予約とは関係なく、現金を金額だけ渡すとき（つり銭・両替など）
+        if (csCanHandoff) {
+          const to2 = csHandoffPeople.filter(p => Number(p.id) !== Number(u.id));
+          html += `<div class="cs-handoff cs-amt">
+            <select class="cs-amt-to" data-holder="${u.id}"><option value="">渡す先…</option>${to2.map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('')}</select>
+            <input type="text" class="cs-amt-yen" data-holder="${u.id}" inputmode="numeric" placeholder="金額">
+            <input type="text" class="cs-amt-note" data-holder="${u.id}" placeholder="メモ（つり銭など）">
+            <button type="button" class="sbtn cs-amt-go" data-holder="${u.id}">金額を渡す</button>
+          </div>`;
         }
         // 受け取った報酬も、予約ごとではなく合計1行で（店長要望 2026-08-08）
         if (rewards.length) {
           const rewardTotal = rewards.reduce((s, r) => s + r.amount, 0);
           const payers = [...new Set(rewards.map(r => r.booking.reward_paid_by_name).filter(Boolean))];
           const from = payers.length ? `<span class="cs-reward-from">${escapeHtml(payers.join('・'))} から</span>` : '';
-          html += `<div class="cs-reward-head">💸 受け取った報酬 ${yen(rewardTotal)} ${from}<span class="cs-gave-note">（${rewards.length}件ぶん）</span></div>`;
+          const recvNote = (castDayCount[uid] && rewards.length >= castDayCount[uid]) ? `${rewards.length}件全て` : `${rewards.length}件分`;
+          html += `<div class="cs-reward-head">💸 受け取った報酬 ${yen(rewardTotal)} ${from}<span class="cs-gave-note">（${recvNote}）</span></div>`;
         }
+        // 担当者ごとのコピー / メール（この状況を本人へ送れるように・店長要望 2026-08-14）
+        const roleTxt = isOfficeCapable(u) ? '（内勤）' : (isDriverCapable(u) ? '（ドライバー）' : (isTherapistCapable(u) ? '（キャスト）' : ''));
+        const nmT = nameOf(u.id, u.display_name, u.username);
+        const tLines = [`【現金まとめ ${formatDate(cashBizDay)}】`, `${nmT}${roleTxt} いま持っている ${yenSigned(total)}（${items.length}件）`, ''];
+        // 画面と同じ並び。右にその時点の手持ち額（店長要望 2026-08-15）
+        let balT = 0;
+        ev.forEach(e => { balT += e.d; tLines.push(`${e.txt}  ${balTxt(balT)}`); });
+        holderCardText[uid] = tLines.join('\n');
+        html += `<div class="cs-hcard-actions">
+          <button type="button" class="cs-hcopy cs-act-btn" data-uid="${uid}">📋 コピー</button>
+          <button type="button" class="cs-hmail cs-act-btn" data-uid="${uid}">✉️ ${escapeHtml(nmT)}にメール</button>
+          <span class="cs-hmsg cs-act-msg" data-uid="${uid}"></span></div>`;
         html += '</div>';
+        return html;
+      };
+
+      // その日のスタッフは全員そのまま出す（店長指定 2026-08-15）。
+      // ほとんどは渡し終えて ±0 になるので、0 の人も並べて「確かに締まっている」を見えるようにする
+      const holders = roster;
+      // コピー / メール用のプレーンテキスト（お客様・担当キャスト・金額）
+      const roleTextOf = (u) => isOfficeCapable(u) ? '（内勤）' : (isDriverCapable(u) ? '（ドライバー）' : (isTherapistCapable(u) ? '（キャスト）' : ''));
+      const custRaw = (b) => { const n = String(b.customer_name_snapshot || '').trim(); return n ? n + ' 様' : '—'; };
+      const stLines = [`【まとめ】${formatDate(cashBizDay)}の現金 ${yenSigned(grandTotal)}（${holderCount}名が保有）`];
+      holders.forEach(u => {
+        const uid = Number(u.id);
+        const items = byHolderId[uid] || [];
+        stLines.push('');
+        stLines.push(`■ ${nameOf(u.id, u.display_name, u.username)}${roleTextOf(u)} いま持っている ${yenSigned(netCashAdj(uid))}（${items.length}件）`);
+        // 予約1件ずつは載せない（店長要望 2026-08-15）
+        // 渡した報酬（いま持っている予約ぶん＋カード予約の立て替えぶん・キャスト別）
+        const pd = {};
+        unc.forEach(b => { if (effPayerOf(b) === uid && rewardOfPaid(b) > 0) { const c = Number(b.assigned_admin_id); (pd[c] = pd[c] || { n: nameOf(b.assigned_admin_id, b.therapist_name, b.therapist_username), s: 0 }).s += rewardOfPaid(b); } });
+        Object.values(pd).forEach(p => stLines.push(`  💸 ${p.n} に報酬 −${yen(p.s)}`));
       });
+      summaryText = stLines.join('\n');
+      // 終了した人は消さずに、勤務実績（シフト）の下へまとめて置く（押し間違いを戻せるように・店長要望 2026-08-16）
+      holders.filter(u => !csIsDone(u)).forEach(u => { html += renderHolderCard(u); });
+      csFinishedHtml = holders.filter(u => csIsDone(u)).map(u => renderHolderCard(u)).join('');
+      if (!holders.length) {
+        html += '<p style="color:var(--ink-soft);font-size:.86rem;margin-bottom:1rem;">この日の出勤スタッフがいません。</p>';
+      }
       // 名簿に載っていない保有者も上の roster に含めているので、ここでの繰越表示は不要
       // （預り金はその営業日ぶんのみ・繰越は扱わない / 店長指定 2026-08-07）
     }
 
-    // ─ 勤務実績（日報の「増田22:00～1:00(3H30km)」用）─
-    // 一日の締めをここでするので、ついでに入れられる場所として現金まとめに置く（店長要望 2026-08-08）
-    const logs = data.driver_logs || {};
-    const workStaff = roster.filter(u => !(u.role === 'staff' || Number(u.is_therapist) === 1));
-    if (workStaff.length) {
-      html += `<div class="cs-work">
-        <div class="cs-work-head">🚗 勤務実績<span class="cs-gave-note">日報に「22:00～1:00(3H30km)」の形で入ります</span></div>`;
-      workStaff.forEach(u => {
-        const lg = logs[Number(u.id)] || {};
-        html += `<div class="cs-work-row" data-work-id="${u.id}">
-          <span class="cs-work-name">${escapeHtml(nameOf(u.id, u.display_name, u.username))}</span>
-          <input type="time" class="cs-work-in" value="${escapeAttr(lg.clock_in || '')}">
-          <span class="cs-work-sep">〜</span>
-          <input type="time" class="cs-work-out" value="${escapeAttr(lg.clock_out || '')}">
-          <input type="number" class="cs-work-km" min="0" step="1" placeholder="km" value="${escapeAttr(lg.distance_km || '')}">
-          <span class="cs-work-unit">km</span>
-        </div>`;
-      });
-      html += `<div class="cs-work-foot">
-        <button class="btn-primary" type="button" id="csWorkSave" style="padding:.4rem 1rem;font-size:.82rem;">保存</button>
-        <span id="csWorkMsg" style="font-size:.8rem;color:var(--ink-soft);"></span>
-      </div></div>`;
+    // 勤務実績は「🚗 勤務実績」ボタンの別画面へ移した（まとめから独立・店長要望 2026-08-29）
+
+    // 上がった人はここ（勤務実績の下）。消さずに残すので、間違えて押しても「終了」をもう一度で戻せる
+    if (csFinishedHtml) {
+      html += `<div class="cs-finished-sec"><div class="cs-finished-title">🏁 終了したスタッフ</div>${csFinishedHtml}</div>`;
     }
 
     el.innerHTML = html;
 
-    const saveBtn = document.getElementById('csWorkSave');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', async () => {
-        const msg = document.getElementById('csWorkMsg');
-        saveBtn.disabled = true;
-        try {
-          // 空欄のままの人は送らない（毎回全員ぶん書き込まないように）
-          const rows = [...el.querySelectorAll('.cs-work-row')].map(r => ({
-            driver_id: Number(r.dataset.workId),
-            work_date: cashBizDay,
-            clock_in: r.querySelector('.cs-work-in').value,
-            clock_out: r.querySelector('.cs-work-out').value,
-            distance_km: r.querySelector('.cs-work-km').value,
-          })).filter(r => r.clock_in || r.clock_out || r.distance_km !== '');
-          for (const r of rows) await apiPost('/admin-api.php?action=driver-log-upsert', r);
-          if (msg) { msg.textContent = `✓ ${rows.length}名ぶん保存しました`; setTimeout(() => { msg.textContent = ''; }, 2500); }
-          toast('✓ 勤務実績を保存しました', 'ok');
-        } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
-        saveBtn.disabled = false;
-      });
+    // まとめのコピー / メール（お預かり情報を日報や引き継ぎに使えるように・店長要望 2026-08-13）
+    const csCopyMsg = () => document.getElementById('csCopyMsg');
+    const flashMsg = (t) => { const m = csCopyMsg(); if (!m) return; m.textContent = t; setTimeout(() => { if (csCopyMsg() === m) m.textContent = ''; }, 2000); };
+    document.getElementById('csCopy')?.addEventListener('click', async () => {
+      if (!summaryText) { flashMsg('コピーする内容がありません'); return; }
+      try { await navigator.clipboard.writeText(summaryText); }
+      catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = summaryText; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        ta.remove();
+      }
+      flashMsg('✓ コピーしました');
+    });
+    document.getElementById('csMail')?.addEventListener('click', () => {
+      const subj = encodeURIComponent(`まとめ ${formatDate(cashBizDay)}`);
+      const body = encodeURIComponent(summaryText || '');
+      window.location.href = `mailto:?subject=${subj}&body=${body}`;
+    });
+
+    // 「終了」= その日のシフトを終了にする（タイムラインの出勤トグルと同じ状態）。
+    // まとめの中で今いる人／上がった人がひと目で分かるように（店長要望 2026-08-16）
+    el.querySelectorAll('[data-finish]').forEach(btn => btn.addEventListener('click', async () => {
+      const uid = Number(btn.dataset.finish);
+      const done = btn.dataset.done === '1';
+      const nm = (adminUsersAll || []).find(x => Number(x.id) === uid);
+      const label = nm ? (nm.display_name || nm.username) : '';
+      if (!await opsConfirm(done ? `${label} を出勤中に戻しますか？` : `${label} は終了（上がり）でよろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/shifts.php?action=set-attendance', {
+          admin_user_id: uid, shift_date: cashBizDay, status: done ? 'available' : 'done',
+        });
+        await loadTimeline(true);      // タイムラインの並び・出勤トグルも合わせる
+        await openCashSummaryModal();  // まとめを組み直して並べ替える
+      } catch (e) { btn.disabled = false; toast('更新失敗: ' + e.message, 'err'); }
+    }));
+
+    // 担当者ごとのコピー / メール（本人の状況をその人へ送る）
+    const flashHMsg = (uid, t) => { const m = el.querySelector(`.cs-hmsg[data-uid="${uid}"]`); if (!m) return; m.textContent = t; setTimeout(() => { if (m.textContent === t) m.textContent = ''; }, 2000); };
+    el.querySelectorAll('.cs-hcopy').forEach(btn => btn.addEventListener('click', async () => {
+      const uid = btn.dataset.uid;
+      const txt = holderCardText[uid] || '';
+      if (!txt) { flashHMsg(uid, 'コピーする内容がありません'); return; }
+      try { await navigator.clipboard.writeText(txt); }
+      catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        ta.remove();
+      }
+      flashHMsg(uid, '✓ コピーしました');
+    }));
+    el.querySelectorAll('.cs-hmail').forEach(btn => btn.addEventListener('click', async () => {
+      const uid = Number(btn.dataset.uid);
+      const txt = holderCardText[uid] || '';
+      if (!txt) { flashHMsg(uid, '送る内容がありません'); return; }
+      const person = (adminUsersAll || []).find(x => Number(x.id) === uid) || {};
+      const pName = person.display_name || person.username || '';
+      if (!await opsConfirm(`${pName} 宛に、この現金まとめの状況をメール送信しますか？`)) return;
+      try {
+        await apiPost('/admin-api.php?action=send-reward-mail', { to_admin_id: uid, subject: `現金まとめ ${formatDate(cashBizDay)}`, body: txt });
+        flashHMsg(uid, '✓ メールしました');
+      } catch (e) { flashHMsg(uid, 'メール失敗: ' + e.message); }
+    }));
+
+    // まとめて渡す
+    el.querySelectorAll('.cs-handoff-go').forEach(btn => btn.addEventListener('click', async () => {
+      const sel = el.querySelector(`.cs-handoff-to[data-holder="${btn.dataset.holder}"]`);
+      const to = sel && sel.value;
+      if (!to) { toast('渡す先を選んでください', 'err'); return; }
+      const ids = String(btn.dataset.ids || '').split(',').map(Number).filter(Boolean);
+      if (!ids.length) return;
+      const toName = nameOf(to, ...(() => { const d = (adminUsersAll || []).find(x => Number(x.id) === Number(to)); return [d?.display_name, d?.username]; })());
+      if (!await opsConfirm(`${ids.length}件を ${toName} にまとめて渡します。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=booking-handoff-batch', { ids, to_admin_id: Number(to) });
+        toast(`${ids.length}件を ${toName} に渡しました`, 'ok');
+        await loadTimeline(true);
+        openCashSummaryModal();
+      } catch (e) { toast('記録失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }));
+
+    // 「◯◯ から受け取る」（店長要望 2026-08-22）。渡す側と同じ記録を、受け取った人の側から作る
+    el.querySelectorAll('.cs-recv-go').forEach(btn => btn.addEventListener('click', async () => {
+      const sel = el.querySelector(`.cs-recv-from[data-holder="${btn.dataset.holder}"]`);
+      const opt = sel && sel.selectedOptions[0];
+      const ids = String((opt && opt.dataset.ids) || '').split(',').map(Number).filter(Boolean);
+      if (!ids.length) { toast('受け取り元を選んでください', 'err'); return; }
+      const meId = Number(btn.dataset.holder);
+      const meName = nameOf(meId, ...(() => { const d = (adminUsersAll || []).find(x => Number(x.id) === meId); return [d?.display_name, d?.username]; })());
+      if (!await opsConfirm(`${opt.textContent.replace(/（.*）$/, '')} から ${ids.length}件ぶんの現金を ${meName} が受け取ります。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=booking-handoff-batch', { ids, to_admin_id: meId });
+        toast(`${ids.length}件を受け取りました`, 'ok');
+        await loadTimeline(true);
+        openCashSummaryModal();
+      } catch (e) { toast('記録失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }));
+
+    // 金額だけの受け渡し（つり銭など）を記録（店長要望 2026-08-14）
+    el.querySelectorAll('.cs-amt-go').forEach(btn => btn.addEventListener('click', async () => {
+      const holder = btn.dataset.holder;
+      const sel = el.querySelector(`.cs-amt-to[data-holder="${holder}"]`);
+      const yenEl = el.querySelector(`.cs-amt-yen[data-holder="${holder}"]`);
+      const noteEl = el.querySelector(`.cs-amt-note[data-holder="${holder}"]`);
+      const to = sel && sel.value;
+      const amt = parseInt(String(yenEl?.value || '').replace(/[^\d]/g, ''), 10) || 0;
+      if (!to) { toast('渡す先を選んでください', 'err'); return; }
+      if (amt <= 0) { toast('金額を入れてください', 'err'); return; }
+      const toName = nameOf(to, ...(() => { const d = (adminUsersAll || []).find(x => Number(x.id) === Number(to)); return [d?.display_name, d?.username]; })());
+      if (!await opsConfirm(`${toName} に ${yen(amt)} を渡します。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cash-transfer-add', {
+          date: cashBizDay, from_admin_id: Number(holder), to_admin_id: Number(to), amount: amt, note: (noteEl?.value || '').trim(),
+        });
+        toast(`${toName} に ${yen(amt)} を渡しました`, 'ok');
+        openCashSummaryModal();
+      } catch (e) { toast('記録失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }));
+    // 記録の取り消し
+    el.querySelectorAll('.cs-tr-del').forEach(btn => btn.addEventListener('click', async () => {
+      if (!await opsConfirm('この受け渡しの記録を取り消しますか？')) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cash-transfer-delete', { id: Number(btn.dataset.tr) });
+        toast('✓ 取り消しました', 'ok');
+        openCashSummaryModal();
+      } catch (e) { toast('取り消し失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }));
+
+  }
+
+  /**
+   * 🚗 勤務実績（日報の「増田22:00〜1:00(3H30km)」用）。
+   * もとは現金まとめの中にあったが、締め作業と入力作業を分けたいので独立させた（店長要望 2026-08-29）。
+   */
+  async function openWorkLogModal() {
+    const el = document.getElementById('workLogBody');
+    if (!el) { toast('画面を再読み込みしてください', 'err'); return; }
+    el.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
+    openModal('workLogModal');
+    const bizDay = fmtDate(tlCurrentDate);
+    let data;
+    try { data = await api('/admin-api.php?action=cash-summary&date=' + encodeURIComponent(bizDay)); }
+    catch (e) { el.innerHTML = '<p style="color:var(--coral);">読み込み失敗: ' + escapeHtml(e.message) + '</p>'; return; }
+
+    const logs = data.driver_logs || {};
+    // その日にシフトが入っている内勤・ドライバー（キャストは対象外）。
+    // 実績だけ入っていてシフトが無い人も落とさない
+    const ids = new Set();
+    (tlShifts || []).forEach(sh => {
+      if (String(sh.shift_date).slice(0, 10) === bizDay && sh.status !== 'off') ids.add(Number(sh.admin_user_id));
+    });
+    Object.keys(logs).forEach(id => ids.add(Number(id)));
+    const workStaff = (adminUsersAll || []).filter(u => ids.has(Number(u.id))
+      && !(u.role === 'staff' || Number(u.is_therapist) === 1))
+      .sort(opsStaffOrder(bizDay));   // 並びは「まとめ」と同じ（終了した人は下）
+    // 予定は「休み以外」なら出す。終わった人(done)や仮(tentative)でも予定は見たい
+    const schedByAdmin = {};
+    (tlShifts || []).forEach(sh => {
+      if (String(sh.shift_date).slice(0, 10) === bizDay && sh.status !== 'off') schedByAdmin[Number(sh.admin_user_id)] = sh;
+    });
+    // 24H・早番・遅番はその名前で出す（時刻より区分のほうが早く読める・店長要望 2026-08-29）
+    const schedText = (sh) => ({ '24h': '24H', early: '早番', late: '遅番' })[sh.shift_preset || '']
+      || `${hhmm(sh.start_time)}〜${sh.end_time ? hhmm(sh.end_time) : (sh.end_open === 'last' ? 'ラスト' : '未定')}`;
+
+    if (!workStaff.length) {
+      el.innerHTML = '<p style="color:var(--ink-soft);font-size:.86rem;">この営業日に出勤している内勤・ドライバーがいません。</p>';
+      return;
     }
+    let html = `<div class="cs-work" style="margin-top:0;">
+      <div class="cs-work-head">🚗 勤務実績<span class="cs-gave-note">日報に「22:00〜1:00(3H30km)」の形で入ります</span></div>`;
+    workStaff.forEach(u => {
+      const lg = logs[Number(u.id)] || {};
+      const sc = schedByAdmin[Number(u.id)];
+      const schedNote = sc ? `<span class="cs-work-sched">予定 ${escapeHtml(schedText(sc))}</span>` : '';
+      // シフトに入っていたのに結局出ていない人は「休」で記録する（空欄だと未入力と区別が付かない）
+      const isOff = Number(lg.off) === 1;
+      html += `<div class="cs-work-row${isOff ? ' is-off' : ''}" data-work-id="${u.id}" data-off="${isOff ? 1 : 0}" data-off0="${isOff ? 1 : 0}">
+        <span class="cs-work-name">${escapeHtml(u.display_name || u.username || ('#' + u.id))}${schedNote}</span>
+        <button type="button" class="cs-work-off${isOff ? ' is-on' : ''}" title="この日は出ていない（お休み）ときに押す">休</button>
+        ${workTimeSelects('cs-work-in', lg.clock_in)}
+        <span class="cs-work-sep">〜</span>
+        ${workTimeSelects('cs-work-out', lg.clock_out)}
+        <input type="number" class="cs-work-km" min="0" step="1" placeholder="km" value="${escapeAttr(lg.distance_km || '')}">
+        <span class="cs-work-unit">km</span>
+        <span class="cs-work-hours"></span>
+      </div>`;
+    });
+    html += `<div class="cs-work-foot">
+      <button class="btn-primary" type="button" id="csWorkSave" style="padding:.4rem 1rem;font-size:.82rem;">保存</button>
+      <span id="csWorkMsg" style="font-size:.8rem;color:var(--ink-soft);"></span>
+    </div></div>`;
+    el.innerHTML = html;
+
+    /**
+     * 開始と終了がそろったら勤務時間を出す（店長要望 2026-08-29）。
+     * 日報と同じ数え方: 15分＝0.25H、ちょうどなら「3H」。日をまたぐ場合は+24時間
+     */
+    const showHours = (row) => {
+      const out = row.querySelector('.cs-work-hours');
+      if (!out) return;
+      const ci = readWorkTime(row, 'cs-work-in');
+      const co = readWorkTime(row, 'cs-work-out');
+      if (row.dataset.off === '1' || !ci || !co) { out.textContent = ''; return; }
+      const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+      let mins = toMin(co) - toMin(ci);
+      if (mins <= 0) mins += 24 * 60;
+      const h = Math.round(mins / 15) / 4;
+      out.textContent = (Number.isInteger(h) ? h : h.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')) + 'H';
+    };
+    // 時を選んだら分は自動で 00（CTRL の出勤編集と同じ操作感）
+    el.querySelectorAll('.cs-work-in-h,.cs-work-out-h').forEach(sel => sel.addEventListener('change', () => {
+      const m = sel.parentElement?.querySelector(sel.classList.contains('cs-work-in-h') ? '.cs-work-in-m' : '.cs-work-out-m');
+      if (m && sel.value && !m.value) m.value = '00';
+      if (m && !sel.value) m.value = '';
+    }));
+    el.querySelectorAll('.cs-work-in-h,.cs-work-in-m,.cs-work-out-h,.cs-work-out-m').forEach(sel => {
+      sel.addEventListener('change', () => showHours(sel.closest('.cs-work-row')));
+    });
+    // 「休」を押したら時刻・kmは入れられなくする（もう一度押すと戻る）
+    const applyOffRow = (row) => {
+      const off = row.dataset.off === '1';
+      row.classList.toggle('is-off', off);
+      row.querySelector('.cs-work-off')?.classList.toggle('is-on', off);
+      row.querySelectorAll('.cs-work-in-h,.cs-work-in-m,.cs-work-out-h,.cs-work-out-m,.cs-work-km').forEach(f => {
+        f.disabled = off;
+        if (off) f.value = '';
+      });
+      showHours(row);
+    };
+    el.querySelectorAll('.cs-work-off').forEach(btn => btn.addEventListener('click', () => {
+      const row = btn.closest('.cs-work-row');
+      if (!row) return;
+      row.dataset.off = row.dataset.off === '1' ? '0' : '1';
+      applyOffRow(row);
+    }));
+    el.querySelectorAll('.cs-work-row').forEach(applyOffRow);
+
+    const saveBtn = document.getElementById('csWorkSave');
+    saveBtn?.addEventListener('click', async () => {
+      const msg = document.getElementById('csWorkMsg');
+      saveBtn.disabled = true;
+      try {
+        // 空欄のままの人は送らない（毎回全員ぶん書き込まないように）。お休みは空でも送る
+        const rows = [...el.querySelectorAll('.cs-work-row')].map(r => ({
+          driver_id: Number(r.dataset.workId),
+          work_date: bizDay,
+          off: r.dataset.off === '1' ? 1 : 0,
+          _changed: r.dataset.off !== r.dataset.off0,   // 休みを解除しただけ（他は空）でも保存する
+          clock_in: readWorkTime(r, 'cs-work-in'),
+          clock_out: readWorkTime(r, 'cs-work-out'),
+          distance_km: r.querySelector('.cs-work-km').value,
+        })).filter(r => r.off || r._changed || r.clock_in || r.clock_out || r.distance_km !== '');
+        for (const r of rows) await apiPost('/admin-api.php?action=driver-log-upsert', r);
+        delete _driverOffCache[bizDay];   // 休みの更新を送迎ドライバー選択にすぐ反映させる
+        if (msg) { msg.textContent = `✓ ${rows.length}名ぶん保存しました`; setTimeout(() => { msg.textContent = ''; }, 2500); }
+        toast('✓ 勤務実績を保存しました', 'ok');
+      } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+      saveBtn.disabled = false;
+    });
   }
 
   // スタッフ列の「預り金」クリック → その人の当日売上(予約ごと)の受け渡しの流れを表示・記録（owner/manager）
@@ -4132,7 +6251,8 @@
     };
     // 受け渡し候補: 内勤スタッフとドライバーのみ（キャストへの受け渡しは無い・店長指定 2026-08-07）。
     // 本人(内勤/ドライバー)も候補に含まれるのは「一旦渡した預り金を本人に戻す」ケースがあるため。現在の保有者は opts 側で除外する。
-    const people = (adminUsersAll || []).filter(u => u.id && (isOfficeCapable(u) || isDriverCapable(u)));
+    const chainDuty = opsOnDutySet(bizDay, earned.flatMap(b => [b.held_by, b.reward_paid_by, b.shop_settled_by]));
+    const people = (adminUsersAll || []).filter(u => u.id && chainDuty.has(Number(u.id)) && (isOfficeCapable(u) || isDriverCapable(u))).sort(opsStaffOrder(bizDay));
     // 本人の歩合率（入金分＝全額−報酬 の算出用）
     const meRate = Number(me.commission_rate);
     const meHasRate = me.commission_rate != null && me.commission_rate !== '' && !Number.isNaN(meRate);
@@ -4157,7 +6277,7 @@
       const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
       const amt = cashTakenOf(b);   // 現金として預かっている額（併用は現金ぶんだけ）
       const reward = meHasRate ? rewardOf(b) : 0;
-      if (b.reward_paid_at) return amt - reward;                                   // 報酬確定 → 残額（入金分）
+      // 報酬は手元の現金から渡すので、予約の預り金からは引かない（店長指定 2026-08-16）
       if (b.shop_settled && b.settle_kind === 'net') return amt - reward;          // 旧データ互換
       return amt;                                                                   // 全額のまま
     };
@@ -4198,7 +6318,10 @@
           <button class="sbtn chain-handoff-all" type="button" style="padding:.45rem .8rem;font-weight:700;background:var(--sea);color:#fff;border:none;white-space:nowrap;">まとめて渡す（${holdableList.length}件）</button>
         </div>`
       : '';
-    let html = `<div style="font-weight:700;">預り金合計 ${yen(total)}（${cashCount}件${nonCashCount ? `・ほか💳${nonCashCount}件` : ''}）</div>
+    // 見出しは「この人がいま持っている額」。他の人へ渡したぶんまで足すと持ち金を取り違える（店長指摘 2026-08-15）
+    const mineTotal = holdableList.reduce((s, b) => s + heldAmountOf(b), 0);
+    let html = `<div style="font-weight:700;">${escapeHtml(me.display_name || me.username || '')} がいま持っている ${yen(mineTotal)}（${holdableList.length}件）</div>
+      <div style="font-size:.78rem;color:var(--ink-soft);margin:.1rem 0 .1rem;">この日の預り金 ${yen(total)}（${cashCount}件${nonCashCount ? `・ほか💳${nonCashCount}件` : ''}）— 内訳は下のとおり</div>
       ${holderSummary}
       <div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:.7rem;">いま誰がいくら持っているかは上のバッジで確認できます。「渡した先」を選ぶと受け渡しの流れが残ります。カード・振込は現金を預からないため対象外です。</div>${batchBtn}`;
     if (!earned.length) html += '<p style="color:var(--ink-soft);">この日の預り金はありません。</p>';
@@ -4236,7 +6359,14 @@
       });
       if (!hops.length && curHolder !== Number(b.assigned_admin_id)) chainIds.push(curHolder);
       let chain = chainIds.map((id, i) => {
-        const node = `<span class="chain-node${i === 0 ? ' start' : ''}">${escapeHtml(nameOf(id))}${i === 0 ? '<small>担当</small>' : ''}</span>`;
+        // 名前チップの色は、スタッフ管理で本人ごとに決めた色を使う（店長指定 2026-08-16）。
+        // 色を決めていない人（キャスト・ドライバーなど）は役割の色で出す
+        const cu = (adminUsersAll || []).find(x => Number(x.id) === Number(id));
+        const sc = /^#[0-9a-fA-F]{6}$/.test(String(cu?.staff_color || '')) ? String(cu.staff_color) : '';
+        const officeSide = cu && (isOfficeCapable(cu) || cu.role === 'owner' || cu.role === 'manager');
+        const roleCls = (sc || !cu) ? '' : (officeSide ? ' r-office' : (isDriverCapable(cu) ? ' r-driver' : (isTherapistCapable(cu) ? ' r-cast' : '')));
+        const scStyle = sc ? ` style="background:${sc}1a;border-color:${sc};color:${sc};"` : '';
+        const node = `<span class="chain-node${i === 0 ? ' start' : ''}${roleCls}"${scStyle}>${escapeHtml(nameOf(id))}${i === 0 ? '<small>担当</small>' : ''}</span>`;
         return i === 0 ? node : `<span class="chain-arrow">→</span>${node}`;
       }).join('');
       const held = heldAmountOf(b);
@@ -4247,8 +6377,13 @@
       const splitNote = isSplitPay(b)
         ? `<div style="margin-top:.3rem;"><span class="chain-now-badge">🧾 併用：現金 ${yen(cashAmt)} ／ カード ${yen(amt - cashAmt)}</span></div>` : '';
       const head = `<div style="display:flex;justify-content:space-between;gap:.5rem;"><span>${formatDate(bizDay)} ${escapeHtml(fmtTimeDisp(b.start_time))}・${escapeHtml(b.customer_name_snapshot || '—')}</span>${headAmt}</div>${splitNote}`;
+      // ドライバーが受け取り忘れて、実はキャストが持ったままのことがあるので、
+      // その予約の担当キャストもプルダウン末尾に混ぜる（店長要望 2026-08-14）
+      const castId = Number(b.assigned_admin_id);
+      const castOpt = (castId && castId !== Number(curHolder) && !people.some(p => Number(p.id) === castId))
+        ? `<option value="${castId}">${escapeHtml(nameOf(castId))}（キャスト）</option>` : '';
       const opts = people.filter(p => Number(p.id) !== Number(curHolder))
-        .map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('');
+        .map(p => `<option value="${p.id}">${escapeHtml(p.display_name || p.username)}${p.role === 'driver' ? '（ドライバー）' : ''}</option>`).join('') + castOpt;
       const undo = hops.length ? `<button class="sbtn chain-undo" data-id="${b.id}" type="button" style="padding:.35rem .5rem;font-size:.78rem;white-space:nowrap;">↩ 直前を取消</button>` : '';
       const ctrl = `<div class="chain-ctrl">
           <span class="chain-now-badge">📍 いま持っている人：<b>${escapeHtml(nameOf(curHolder))}</b></span>
@@ -4269,7 +6404,7 @@
       if (!to) { toast('まとめて渡す先を選んでください', 'err'); return; }
       const ids = holdableList.map(b => b.id);
       if (!ids.length) return;
-      if (!confirm(`本日分 ${ids.length}件を ${nameOf(to)} にまとめて渡します。よろしいですか？`)) return;
+      if (!await opsConfirm(`本日分 ${ids.length}件を ${nameOf(to)} にまとめて渡します。よろしいですか？`)) return;
       handoffAllBtn.disabled = true;
       try { await apiPost('/admin-api.php?action=booking-handoff-batch', { ids, to_admin_id: Number(to) }); toast(`${ids.length}件を ${nameOf(to)} に渡しました`, 'ok'); await reload(); }
       catch (e) { toast('記録失敗: ' + e.message, 'err'); handoffAllBtn.disabled = false; }
@@ -4290,6 +6425,44 @@
   }
 
   // ============== 報酬専用モーダル: 報酬がいま誰の手元にあるか・誰が本人に渡したか ==============
+  /**
+   * その日の報酬をぜんぶ渡し終えたら、そのキャストの出勤を自動で「終了」にする（店長要望 2026-08-10）。
+   * 報酬を渡す＝その日の仕事が締まった、という運用のため。
+   * 出勤中のときだけ触る（休み・予定・すでに終了は動かさない）。
+   */
+  async function autoFinishIfAllRewardPaid(adminId) {
+    const bizDay = fmtDate(tlCurrentDate);
+    const earned = (tlBookings || []).filter(b =>
+      bizDateOf(b.booking_date, b.start_time) === bizDay && b.status === 'completed'
+      && Number(b.assigned_admin_id) === Number(adminId)
+      && b.course_name !== '休憩' && b.customer_name_snapshot !== '【休憩】'
+    );
+    if (!earned.length) return;
+    if (earned.some(b => !b.reward_paid_at)) return;   // まだ渡していないものが残っている
+    const sel = document.querySelector(`.tl-att-sel[data-admin="${adminId}"]`);
+    if (!sel || sel.value !== 'available') return;     // 出勤中のときだけ
+    await setStaffAttendance(adminId, 'done');
+  }
+
+  /**
+   * スタッフのプルダウンの並びを「まとめ」と同じにする（店長要望 2026-08-29）。
+   *   ① 上がった人（シフト＝終了）は一番下
+   *   ② 内勤・ドライバーが先、キャストはその下
+   *   ③ 同じ並びの中は名簿の順（sort_order → 名前）
+   * まとめは③が金額順だが、プルダウンには金額が無いので名簿順にそろえる。
+   */
+  function opsStaffOrder(bizDay, shifts) {
+    const list = shifts || tlShifts || [];
+    const doneSet = new Set(list
+      .filter(sh => String(sh.shift_date).slice(0, 10) === bizDay && sh.status === 'done')
+      .map(sh => Number(sh.admin_user_id)));
+    const isCastRow = (u) => !isOfficeCapable(u) && !isDriverCapable(u) && isTherapistCapable(u);
+    return (a, b) => (Number(doneSet.has(Number(a.id))) - Number(doneSet.has(Number(b.id))))
+      || (Number(isCastRow(a)) - Number(isCastRow(b)))
+      || ((Number(a.sort_order) || 9999) - (Number(b.sort_order) || 9999))
+      || String(a.display_name || a.username || '').localeCompare(String(b.display_name || b.username || ''), 'ja');
+  }
+
   function openRewardModal(adminId) {
     if (!document.getElementById('rewardModal')) { toast('画面を再読み込みしてください', 'err'); return; }
     const bizDay = fmtDate(tlCurrentDate);
@@ -4352,23 +6525,72 @@
     const batchBtn = (meHasRate && unpaidIds.length)
       ? `<button class="sbtn rwd-pay-all" type="button" style="width:100%;margin-bottom:.7rem;${PAY_BTN}padding:.55rem .9rem;">💸 まとめて${escapeHtml(meName)}に報酬を渡す（${yen(unpaidReward)}・${unpaidIds.length}件）</button>`
       : '';
-    body.innerHTML = `<div style="font-weight:700;">報酬合計 ${yen(totalReward)}（${earned.length}件）</div>
+    // 渡す人（誰が報酬を渡すか）。内勤・ドライバー・管理者から選ぶ
+    const giverDuty = opsOnDutySet(bizDay, earned.flatMap(b => [holderOf(b), b.reward_paid_by, b.held_by]));
+    const giverCandidates = (adminUsersAll || []).filter(u => u.id && giverDuty.has(Number(u.id))
+      && (isOfficeCapable(u) || isDriverCapable(u) || u.role === 'owner' || u.role === 'manager'))
+      .sort(opsStaffOrder(bizDay));   // 並びは「まとめ」と同じ（終了した人は下）
+    // 既定では誰も選ばない（「--」）。誰かが入っていると、その人が渡したと勘違いする（店長指摘 2026-08-29）
+    // オーナーと管理者は役職を出さない（店長指定 2026-08-22 / 2026-08-29）
+    const roleSuffix = (u) => u.role === 'driver' ? '（ドライバー）' : (u.role === 'office' ? '（内勤）' : '');
+    const giverRow = (meHasRate && earned.length && giverCandidates.length)
+      ? `<div class="rwd-giver-row"><span class="rwd-giver-l">渡す人</span>
+          <select id="rwdGiver" class="rwd-giver-sel"><option value="" selected>--</option>${giverCandidates.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}${roleSuffix(u)}</option>`).join('')}</select>
+          <button type="button" id="rwdMail" class="rwd-mail-btn">✉️ 渡す人にメール</button></div>`
+      : '';
+    // 全部渡し終わっていたら見出しの右に印を出す（店長要望 2026-08-29）
+    const allPaidBadge = (earned.length && !unpaidIds.length)
+      ? '<span style="margin-left:.5rem;font-size:.78rem;font-weight:700;color:#2e9e5b;background:#e6f7ee;border-radius:999px;padding:.12rem .6rem;">✅ 精算済</span>'
+      : '';
+    body.innerHTML = `<div style="font-weight:700;">報酬合計 ${yen(totalReward)}（${earned.length}件）${allPaidBadge}</div>
       <div style="font-size:.78rem;color:var(--ink-soft);margin-bottom:.7rem;">各お仕事の報酬を ${escapeHtml(meName)} に渡したら 💸 で記録します。</div>
+      ${giverRow}
       ${batchBtn}
       ${earned.length ? items.join('') : '<p style="color:var(--ink-soft);">この日の報酬はありません。</p>'}`;
 
+    // 渡す人メール（選んだ担当者へ、報酬明細を送る）
+    document.getElementById('rwdMail')?.addEventListener('click', async () => {
+      const giverId = Number(document.getElementById('rwdGiver')?.value) || 0;
+      if (!giverId) { toast('渡す人を選んでください', 'err'); return; }
+      const giver = (adminUsersAll || []).find(u => Number(u.id) === giverId) || {};
+      const giverName = giver.display_name || giver.username || '';
+      const targets = earned.filter(b => !b.reward_paid_at);
+      const list = targets.length ? targets : earned;
+      if (!list.length) { toast('渡す報酬がありません', 'err'); return; }
+      const sumR = list.reduce((s, b) => s + (meHasRate ? rewardOf(b) : 0), 0);
+      const lines = [
+        `${meName} さんへ報酬をお渡しください。`,
+        `合計 ${yen(sumR)}（${list.length}件）`,
+        '',
+        ...list.map(b => `${formatDate(bizDateOf(b.booking_date, b.start_time))} ${fmtTimeDisp(b.start_time)} ${b.customer_name_snapshot || '—'} 様  ${yen(meHasRate ? rewardOf(b) : 0)}`),
+        '',
+        `渡し終えたら OPS「まとめ」→ ${meName} の報酬 で「渡した」記録をお願いします。`,
+      ];
+      const subject = `【報酬】${meName} へ ${yen(sumR)}（${formatDate(bizDay)}）`;
+      if (!await opsConfirm(`${giverName} 宛に、${meName} の報酬明細（${yen(sumR)}・${list.length}件）をメール送信しますか？`)) return;
+      try {
+        await apiPost('/admin-api.php?action=send-reward-mail', { to_admin_id: giverId, subject, body: lines.join('\n') });
+        toast(`${giverName} にメールしました`, 'ok');
+      } catch (e) { toast('メール送信失敗: ' + e.message, 'err'); }
+    });
+
     body.querySelectorAll('.rwd-pay').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm(`「${btn.dataset.desc}」の報酬 ${yen(Number(btn.dataset.reward))} を ${meName} に渡した記録にします。よろしいですか？`)) return;
+      const by = Number(document.getElementById('rwdGiver')?.value) || null;
+      // 既定を「--」にしたので、誰が渡したかを選ばずに記録できてしまわないようにする（店長指摘 2026-08-29）
+      if (!by) { toast('渡す人を選んでください', 'err'); document.getElementById('rwdGiver')?.focus(); return; }
+      const byName = nameOf(by);
+      if (!await opsConfirm(`「${btn.dataset.desc}」の報酬 ${yen(Number(btn.dataset.reward))} を ${meName} に渡した記録にします。${byName ? `\n渡す人: ${byName}` : ''}`)) return;
       btn.disabled = true;
       try {
-        await apiPost('/admin-api.php?action=booking-reward-pay', { id: Number(btn.dataset.id), paid: 1 });
+        await apiPost('/admin-api.php?action=booking-reward-pay', { id: Number(btn.dataset.id), paid: 1, by });
         toast('報酬を渡したと記録しました', 'ok');
         await loadTimeline(true);
+        await autoFinishIfAllRewardPaid(adminId);   // 全部渡し終えたら出勤を「終了」に
         openRewardModal(adminId);
       } catch (e) { toast('記録失敗: ' + e.message, 'err'); btn.disabled = false; }
     }));
     body.querySelectorAll('.rwd-unpay').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('報酬を渡した記録を取り消します。よろしいですか？')) return;
+      if (!await opsConfirm('報酬を渡した記録を取り消します。よろしいですか？')) return;
       btn.disabled = true;
       try {
         await apiPost('/admin-api.php?action=booking-reward-pay', { id: Number(btn.dataset.id), paid: 0 });
@@ -4379,15 +6601,711 @@
     }));
     const payAllBtn = body.querySelector('.rwd-pay-all');
     if (payAllBtn) payAllBtn.addEventListener('click', async () => {
-      if (!confirm(`未渡しの報酬 ${unpaidIds.length}件（${yen(unpaidReward)}）を ${meName} にまとめて渡した記録にします。よろしいですか？`)) return;
+      const by = Number(document.getElementById('rwdGiver')?.value) || null;
+      if (!by) { toast('渡す人を選んでください', 'err'); document.getElementById('rwdGiver')?.focus(); return; }
+      const byName = nameOf(by);
+      if (!await opsConfirm(`未渡しの報酬 ${unpaidIds.length}件（${yen(unpaidReward)}）を ${meName} にまとめて渡した記録にします。${byName ? `\n渡す人: ${byName}` : ''}`)) return;
       payAllBtn.disabled = true;
       try {
-        await apiPost('/admin-api.php?action=booking-reward-pay-batch', { ids: unpaidIds });
+        await apiPost('/admin-api.php?action=booking-reward-pay-batch', { ids: unpaidIds, by });
         toast(`${unpaidIds.length}件の報酬を渡しました`, 'ok');
         await loadTimeline(true);
+        await autoFinishIfAllRewardPaid(adminId);   // 全部渡し終えたら出勤を「終了」に
         openRewardModal(adminId);
       } catch (e) { toast('記録失敗: ' + e.message, 'err'); payAllBtn.disabled = false; }
     });
+  }
+
+
+  // =============================================================
+  // 立川秘密基地（別システム）のその日の出勤セラピストを、タイムラインの
+  // 「キャスト未割当」の下に足す（読み取り専用・店長要望 2026-08-19）。
+  //   ・向こうのシステムには書き込まない
+  //   ・お客様の名前・電話は取らない。出ているのは「出勤時間」と「埋まっている時間帯」だけ
+  //   ・取得に失敗しても OPS のタイムラインは壊さない（黙って何も足さない）
+  // =============================================================
+  // 秘密基地のお仕事に、こちら側で付けた送迎の割り当て（order_id → {driver_id,self,mailed_at}）
+  let _hkPickups = {};
+  // 送迎ポップで出す内容（order_id → {name,start,end,label,place}）。描画のたびに作り直す
+  let _hkBusyByOrder = {};
+  /** 表示中の営業日が本日なら「今」を 10〜34 の目盛りで返す（別日なら null） */
+  function hkNowAbs(bizDay) {
+    if (bizDay !== fmtDate(getBusinessDayDate())) return null;
+    const d = new Date();
+    const h = d.getHours();
+    return (h < 10 ? h + 24 : h) + d.getMinutes() / 60;
+  }
+
+  // 秘密基地の管理画面（オーダー登録/編集）への入口URL（店長要望 2026-09-01）。
+  // こちらのサーバーからは一切書かない。店長自身のブラウザ（向こうに自分でログイン済み）で
+  // 開くだけなので、連携用Cookieや端末登録には触れない＝読み取り専用の約束はそのまま。
+  const HK_ORDER_URL = 'https://himitsu-kichi.mydns.jp/control/shop/order/';
+  function hkBackQuery(bizDay) {
+    const [y, m, d] = String(bizDay).split('-').map(Number);
+    return `back_page=orderStatus&back_year=${y}&back_month=${m}&back_day=${d}`;
+  }
+  /** 既存オーダーの編集画面URL */
+  function hkEditUrl(orderId, bizDay) {
+    return `${HK_ORDER_URL}?order_id=${encodeURIComponent(orderId)}&${hkBackQuery(bizDay)}`;
+  }
+  /** 新規オーダー登録画面URL（セラピスト・日付を選んだ状態で開く。worker_id 無しなら素の登録画面） */
+  function hkNewUrl(workerId, bizDay) {
+    const [y, m, d] = String(bizDay).split('-').map(Number);
+    const wk = workerId ? `worker_id=${encodeURIComponent(workerId)}&` : '';
+    return `${HK_ORDER_URL}?${wk}in_year=${y}&in_month=${m}&in_day=${d}&${hkBackQuery(bizDay)}`;
+  }
+
+  async function renderHimitsuRows(bizDay) {
+    const grid = document.getElementById('timelineGrid')?.querySelector('.tl-grid');
+    if (!grid) return;
+    // 秘密基地の行は一番下にあるので、消して作り直すとスクロール位置が上へ戻ってしまう。
+    // 送迎メールを送ったあとに表示が飛んでいた（店長指摘 2026-08-29）ので、位置を覚えて戻す
+    const wrap = grid.closest('.tl-wrap');
+    // タイムライン全体の描き直し中（位置を戻している最中）は、その位置に合わせる
+    const keep = _tlHold ? { top: _tlHold.top, left: _tlHold.left }
+               : (wrap ? { top: wrap.scrollTop, left: wrap.scrollLeft } : null);
+    const restore = () => { if (wrap && keep) { wrap.scrollTop = keep.top; wrap.scrollLeft = keep.left; } };
+    grid.querySelectorAll('.hk-row').forEach(el => el.remove());
+    let d = null;
+    try { d = await api('/himitsu.php?action=day&date=' + encodeURIComponent(bizDay)); }
+    catch (e) { restore(); return; }   // 別システムなので、取れなくてもタイムライン本体は出す
+    if (!d || !d.ok || !Array.isArray(d.therapists) || !d.therapists.length) { restore(); return; }
+    _hkPickups = d.pickups || {};
+    _hkBusyByOrder = {};
+    (d.therapists || []).forEach(t => (t.busy || []).forEach(b => {
+      if (b.order_id) _hkBusyByOrder[String(b.order_id)] = { name: t.name, start: b.start, end: b.end, label: b.label, place: b.place, guest: b.guest };
+    }));
+    if (fmtDate(tlCurrentDate) !== bizDay) return;   // 表示中の日が変わっていたら捨てる（位置は新しい描画に任せる）
+
+    const frag = document.createDocumentFragment();
+    const head = document.createElement('div');
+    head.className = 'tl-staff hk-row hk-head';
+    head.style.gridColumn = '1 / -1';
+    head.innerHTML = `<span class="hk-head-t">🏠 立川秘密基地（別システム）の出勤</span>`
+                   + `<span class="hk-head-n">${d.therapists.length}名`
+                   + ` <button type="button" class="hk-add" data-hk-new="" data-hk-newdate="${escapeAttr(bizDay)}" title="オーダーを登録">＋ オーダー登録</button></span>`;
+    frag.appendChild(head);
+
+    d.therapists.forEach(t => {
+      const staff = document.createElement('div');
+      staff.className = 'tl-staff hk-row hk-staff';
+      const timeTxt = `${t.shift_start}<span class="tl-m-wave">〜</span>${t.shift_end}`;
+      // お仕事が入っているか一目で分かるように（店長要望 2026-08-20）。
+      // 黒（講習会など）以外を「お仕事」として数える（判定は himitsu-lib.php 側）
+      const jobs = (t.busy || []).filter(x => x.kind === 'job');
+      const nowAbs = hkNowAbs(bizDay);
+      const working = nowAbs != null && jobs.some(x => x.start_h != null && x.end_h != null && x.start_h <= nowAbs && nowAbs < x.end_h);
+      // 件数と「対応中」は別々に出す（今どうかと、その日に何件あるかは別の話・店長要望 2026-08-27）
+      const jobChip = (jobs.length
+          ? `<span class="hk-job">お仕事 ${jobs.length}件</span>`
+          : '<span class="hk-job hk-job-none">お仕事なし</span>')
+        + (working ? '<span class="hk-job hk-job-now">🟠 対応中</span>' : '');
+      staff.innerHTML = `<div class="tl-staff-body"><div class="tl-staff-left">`
+        + `<span class="tl-staff-thumb tl-staff-thumb-ph hk-thumb">${escapeHtml(String(t.name || '?').slice(0, 1))}</span>`
+        + `<div class="tl-staff-name">${escapeHtml(t.name)}</div>`
+        + (t.worker_id ? `<button type="button" class="hk-add" data-hk-new="${escapeAttr(String(t.worker_id))}" data-hk-newdate="${escapeAttr(bizDay)}" title="${escapeAttr(t.name)} のお仕事を登録">＋ お仕事</button>` : '')
+        + `</div>`
+        + `<div class="tl-staff-info">`
+        + `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${timeTxt}</span></div>`
+        + (t.note ? `<div class="tl-m"><span class="tl-m-l">備考</span><span class="tl-m-v">${escapeHtml(t.note)}</span></div>` : '')
+        + `<div class="tl-m hk-job-row">${jobChip}</div>`
+        + `<span class="role-mini hk-mini">${escapeHtml(t.shop || '')}秘密基地</span>`
+        + `</div></div>`;
+      frag.appendChild(staff);
+
+      // 24スロット。OPSは10:00〜翌10:00、向こうは9:00〜翌8:00なので、重なる範囲だけ描く
+      const ss = (t.start_h == null) ? null : Number(t.start_h);
+      const se = (t.end_h == null) ? null : Number(t.end_h);
+      let cells = '';
+      for (let h = 10; h < 34; h++) {
+        const inShift = (ss != null && se != null && h + 1 > ss && h < se);
+        cells += `<div class="tl-cell hk-cell${inShift ? ' shift-bg' : ''}"></div>`;
+      }
+      let bars = '';
+      (t.busy || []).forEach(b => {
+        if (b.start_h == null || b.end_h == null) return;
+        const bs = Math.max(10, Number(b.start_h));
+        const be = Math.min(34, Number(b.end_h));
+        if (!(be > bs)) return;   // 表示範囲の外
+        const left = `calc((100% + 1px) / 24 * ${bs - 10})`;
+        const width = `calc((100% + 1px) / 24 * ${be - bs} - 4px)`;
+        const isJob = b.kind === 'job';
+        const lbl = String(b.label || '').trim();
+        const place = String(b.place || '').trim();
+        const guest = String(b.guest || '').trim();
+        // アドミの予約カードと同じ作りにする（店長要望 2026-08-29）。
+        // 上から 時間 / お客様名 / 利用エリア / 詳細な場所 / 行き・帰りのドライバー
+        const pu = (b.order_id && _hkPickups[String(b.order_id)]) || {};
+        const drvNameOf = (id) => id
+          ? ((adminUsersAll || []).find(u => Number(u.id) === Number(id))?.display_name || ('#' + id))
+          : '';
+        const legCell = (id, self, mailed) => (mailed ? '✓' : '')
+          + (id ? escapeHtml(drvNameOf(id))
+                : (Number(self) === 1 ? '<span class="bk-self">セラピ</span>' : '<span class="bk-self bk-drv-undecided">-</span>'));
+        if (!isJob || !b.order_id) {
+          const tip = `${b.start}〜${b.end}${lbl ? ' ' + lbl : ''}`;
+          bars += `<div class="hk-busy is-other" style="left:${left};width:${width};" title="${escapeAttr(tip)}">`
+                + `${escapeHtml(b.start)}〜${escapeHtml(b.end)}${lbl ? ' ' + escapeHtml(lbl) : ''}</div>`;
+          return;
+        }
+        const tip = [guest, `${b.start}〜${b.end}${lbl ? ' ' + lbl : ''}`, place].filter(Boolean).join('\n');
+        bars += `<div class="tl-booking hk-bk" data-hk-order="${escapeAttr(String(b.order_id))}" data-hk-date="${escapeAttr(bizDay)}"
+                   style="left:${left};width:${width};top:2px;bottom:2px;" title="${escapeAttr(tip)}">
+            <div class="bk-top"><span class="bk-st">${escapeHtml(b.start)}</span><span class="bk-dash">〜</span><span class="bk-et">${escapeHtml(b.end)}</span></div>
+            <div class="bk-mid"><span class="bk-name">${escapeHtml(guest || '—')}</span></div>
+            ${(lbl || place) ? `<div class="bk-venue hk-venue">${lbl ? `<span class="hk-area">${escapeHtml(lbl)}</span>` : ''}${place ? `🏠${escapeHtml(place)}` : ''}</div>` : ''}
+            <div class="bk-bottom">
+              <button class="bk-go${pu.mailed_at ? ' mailed' : ''}" data-hk-go="${escapeAttr(String(b.order_id))}" data-hk-date="${escapeAttr(bizDay)}" title="行き: ドライバー指定・メール送信">${legCell(pu.driver_id, pu.self === undefined ? 1 : pu.self, pu.mailed_at)}</button>
+              <button class="bk-back${pu.back_mailed_at ? ' mailed' : ''}" data-hk-back="${escapeAttr(String(b.order_id))}" data-hk-date="${escapeAttr(bizDay)}" title="帰り: ドライバー指定・メール送信">${legCell(pu.back_driver_id, pu.back_self === undefined ? 1 : pu.back_self, pu.back_mailed_at)}</button>
+            </div>
+          </div>`;
+      });
+      const area = document.createElement('div');
+      area.className = 'tl-row-area hk-row hk-area';
+      area.innerHTML = cells + `<div class="tl-bk-wrap">${bars}</div>`;
+      frag.appendChild(area);
+    });
+    grid.appendChild(frag);
+    restore();
+    requestAnimationFrame(restore);   // 描画が落ち着いたあとにもう一度あわせる
+    // 行き / 帰り のボタン → ドライバー指定（既定はセラピ自走）。アドミの予約カードと同じ操作
+    grid.querySelectorAll('[data-hk-go]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openHimitsuPickup(btn.dataset.hkGo, btn.dataset.hkDate, btn, 'go');
+    }));
+    grid.querySelectorAll('[data-hk-back]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openHimitsuPickup(btn.dataset.hkBack, btn.dataset.hkDate, btn, 'back');
+    }));
+    // お仕事バー本体をタップ → OPS内のオーダー編集モーダル（店長要望 2026-09-01「画面内で直接入力」）。
+    // 行き/帰りボタンは上で止めているので混ざらない
+    grid.querySelectorAll('.hk-bk[data-hk-order]').forEach(bar => bar.addEventListener('click', () => {
+      openHkOrderModal({ orderId: bar.dataset.hkOrder, date: bar.dataset.hkDate });
+    }));
+    grid.querySelectorAll('.hk-add[data-hk-newdate]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openHkOrderModal({ workerId: btn.dataset.hkNew || null, date: btn.dataset.hkNewdate });
+    }));
+  }
+
+  // ===== 🏠 秘密基地オーダーの登録・編集モーダル =====
+  // アドミの予約（ops_bookings）とは完全に別物。保存先は秘密基地の管理システムで、
+  // サーバー側が「全項目収穫→触った所だけ差し替え→全部返す」ので、ここに出していない
+  // 項目（ポイント・ティッカー等）は壊れない。終了時刻も向こうの計算APIに任せる。
+  let _hkoMeta = null;   // 開いているフォームの meta（保存時に slot 一覧を使う）
+  let _hkoCtx = null;    // {orderId, workerId, date}
+  async function openHkOrderModal(ctx) {
+    const body = document.getElementById('hkOrderBody');
+    const title = document.getElementById('hkOrderTitle');
+    if (!body) { toast('画面を再読み込みしてください', 'err'); return; }
+    _hkoCtx = ctx;
+    title.textContent = ctx.orderId ? '🏠 立川秘密基地 オーダー編集' : '🏠 立川秘密基地 オーダー登録';
+    body.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>秘密基地から読み込み中...</div>';
+    openModal('hkOrderModal');
+    let f;
+    try {
+      const q = ctx.orderId
+        ? 'order_id=' + encodeURIComponent(ctx.orderId)
+        : 'worker_id=' + encodeURIComponent(ctx.workerId || '') + '&date=' + encodeURIComponent(ctx.date || '');
+      f = await api('/himitsu.php?action=order-form&' + q);
+    } catch (e) {
+      body.innerHTML = '<div class="empty">読み込みに失敗しました: ' + escapeHtml(e.message) + '</div>';
+      return;
+    }
+    _hkoMeta = f.meta;
+    renderHkOrderForm(f);
+  }
+
+  function hkoSel(name, opts = {}) {
+    const m = _hkoMeta.selects[name];
+    if (!m) return '';
+    // 選択肢の「&yen1,100」は ¥ 表記に直して見せる（交通費・出張費）
+    return `<select data-hko="${name}"${opts.grow ? ' style="flex:1;min-width:0;"' : ''}>`
+      + m.options.map(([v, t]) => `<option value="${escapeAttr(v)}"${v === m.value ? ' selected' : ''}>${hkoLabel(t)}</option>`).join('')
+      + `</select>`;
+  }
+  function hkoRadio(name, cls = '') {
+    const m = _hkoMeta.radios[name];
+    if (!m) return '';
+    return m.options.map(([v, t]) => `<label class="hko-radio ${cls}"><input type="radio" name="hko_${name}" value="${escapeAttr(v)}"${v === m.value ? ' checked' : ''}>${escapeHtml(t)}</label>`).join('');
+  }
+  function hkoText(name, ph = '', type = 'text') {
+    const v = _hkoMeta.texts[name] ?? '';
+    return `<input type="${type}" data-hko="${name}" value="${escapeAttr(v)}" placeholder="${escapeAttr(ph)}" autocomplete="off">`;
+  }
+  /** 金額ラベル（&yen11,000 → ¥11,000） */
+  function hkoLabel(s) { return escapeHtml(String(s || '').replace(/&yen;?/g, '¥')); }
+
+  // コース・延長は「選んだものだけ」行で見せる（16行全部並べると読めない・店長指摘 2026-09-01）。
+  // 向こうの回数selectは未選択が '0' なので、空判定は Number>0 で行う
+  let _hkoRows = [];   // [{kind:'course'|'encho', slot, count}]
+  function hkoSlotDef(kind, slot) {
+    return (_hkoMeta.slots[kind] || []).find(x => Number(x.slot) === Number(slot));
+  }
+  /** ラベルから金額を読む（「1100 &yen1,100」→1100）。traffic_id / trip_id の料金計算用 */
+  function hkoPriceFromLabel(t) {
+    const m = String(t || '').match(/(?:&yen;?|¥)([\d,]+)/);
+    return m ? parseInt(m[1].replace(/,/g, ''), 10) : 0;
+  }
+  function hkoNum(v) { const n = parseInt(String(v || '').replace(/[^\-0-9]/g, ''), 10); return isNaN(n) ? 0 : n; }
+
+  function renderHkoSlotRows() {
+    const box = document.getElementById('hkoSlotRows');
+    if (!box) return;
+    if (!_hkoRows.length) {
+      box.innerHTML = '<div class="hko-note" style="padding:.2rem 0 .4rem;">まだコースがありません。下の「＋ 追加」から選んでください。</div>';
+    } else {
+      box.innerHTML = _hkoRows.map((r, i) => {
+        const def = hkoSlotDef(r.kind, r.slot) || { label: '?' };
+        let opts = '';
+        for (let n = 1; n <= 9; n++) opts += `<option value="${n}"${Number(r.count) === n ? ' selected' : ''}>${n}</option>`;
+        if (Number(r.count) > 9) opts += `<option value="${escapeAttr(String(r.count))}" selected>${escapeHtml(String(r.count))}</option>`;
+        return `<div class="hko-course-row">
+            <span class="hko-ckind">${r.kind === 'encho' ? '延長' : 'コース'}</span>
+            <span class="hko-cname">${hkoLabel(def.label)}</span>
+            <select data-hko-rowcount="${i}">${opts}</select><span class="hko-note">回</span>
+            <button type="button" class="hko-course-del" data-hko-rowdel="${i}" title="外す">×</button>
+          </div>`;
+      }).join('');
+    }
+    box.querySelectorAll('[data-hko-rowcount]').forEach(sel => sel.addEventListener('change', () => {
+      _hkoRows[Number(sel.dataset.hkoRowcount)].count = sel.value;
+      recalcHkTotals();
+    }));
+    box.querySelectorAll('[data-hko-rowdel]').forEach(btn => btn.addEventListener('click', () => {
+      _hkoRows.splice(Number(btn.dataset.hkoRowdel), 1);
+      renderHkoSlotRows();
+      recalcHkTotals();
+    }));
+  }
+
+  /**
+   * 料金・ポイント・終了時刻を、向こうのフォームと同じ考え方で概算表示する。
+   *   料金 = コース＋延長＋指名＋オプション＋交通費＋出張費＋追加移動費＋その他料金
+   *   ポイント = 料金＋本指名pt＋貸切pt＋延長pt＋追加ポイント
+   * 確定値は保存時に向こうのシステムが計算する（ここは目安の表示）
+   */
+  function recalcHkTotals() {
+    const body = document.getElementById('hkOrderBody');
+    if (!body || !_hkoMeta) return;
+    const P = _hkoMeta.extras?.points || {};
+    let price = 0, points = 0, mins = 0, kashikiriCnt = 0;
+    _hkoRows.forEach(r => {
+      const def = hkoSlotDef(r.kind, r.slot);
+      if (!def) return;
+      const c = Number(r.count) || 0;
+      price += (def.price || 0) * c;
+      mins += (def.min || 0) * c;
+      if (r.kind === 'course' && def.kashikiri) kashikiriCnt += c;
+      if (r.kind === 'encho' && def.pt_flag) points += (P['point_encho' + def.pt_flag] || 0) * c;
+    });
+    const c1 = hkoNum(body.querySelector('[data-hko="shimei_count1"]')?.value);
+    const c2 = hkoNum(body.querySelector('[data-hko="shimei_count2"]')?.value);
+    const sm1 = _hkoMeta.slots.shimei.find(x => x.slot === 1), sm2 = _hkoMeta.slots.shimei.find(x => x.slot === 2);
+    price += (sm1?.price || 0) * c1 + (sm2?.price || 0) * c2;
+    points += (P.point_honshi || 0) * c2 + (P.point_kashikiri || 0) * kashikiriCnt;
+    body.querySelectorAll('[data-hko-opt]').forEach(el => {
+      if (!el.checked) return;
+      const o = _hkoMeta.slots.option.find(x => Number(x.slot) === Number(el.dataset.hkoOpt));
+      price += o?.price || 0;
+    });
+    ['traffic_id', 'trip_id'].forEach(name => {
+      const sel = body.querySelector(`[data-hko="${name}"]`);
+      if (!sel || !sel.value) return;
+      const opt = (_hkoMeta.selects[name]?.options || []).find(([v]) => v === sel.value);
+      price += hkoPriceFromLabel(opt?.[1]);
+    });
+    price += hkoNum(body.querySelector('[data-hko="traffic_price_add"]')?.value);
+    price += hkoNum(body.querySelector('[data-hko="etc_price"]')?.value);
+    points += price + hkoNum(body.querySelector('[data-hko="add_point"]')?.value);
+    const priceEl = document.getElementById('hkoTotalPrice');
+    const ptEl = document.getElementById('hkoTotalPoint');
+    if (priceEl) priceEl.textContent = price.toLocaleString();
+    if (ptEl) ptEl.textContent = points.toLocaleString();
+    // 終了時刻の目安（開始＋コース・延長の合計分）。確定値は保存時に向こうが計算
+    const outEl = document.getElementById('hkoOutTime');
+    if (outEl) {
+      const y = hkoNum(body.querySelector('[data-hko="in_year"]')?.value);
+      const mo = hkoNum(body.querySelector('[data-hko="in_month"]')?.value);
+      const d = hkoNum(body.querySelector('[data-hko="in_day"]')?.value);
+      const h = hkoNum(body.querySelector('[data-hko="in_hour"]')?.value);
+      const mi = hkoNum(body.querySelector('[data-hko="in_min"]')?.value);
+      if (y && mo && d && mins > 0) {
+        const dt = new Date(y, mo - 1, d, h, mi + mins);
+        outEl.textContent = `終了時間 ${dt.getMonth() + 1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2, '0')}（コースから自動計算）`;
+      } else {
+        outEl.textContent = '終了時間はコースから自動計算されます';
+      }
+    }
+  }
+
+  function hkoField(label, inner, req = false) {
+    return `<div class="hko-field"><label>${label}${req ? '<span class="hko-req">(必須)</span>' : ''}</label>${inner}</div>`;
+  }
+
+  function renderHkOrderForm(f) {
+    const body = document.getElementById('hkOrderBody');
+    const m = f.meta;
+    const slots = m.slots;
+    const ex = m.extras || {};
+    _hkoRows = [];
+    slots.course.forEach(c => { if (Number(c.count) > 0) _hkoRows.push({ kind: 'course', slot: c.slot, count: c.count }); });
+    slots.encho.forEach(c => { if (Number(c.count) > 0) _hkoRows.push({ kind: 'encho', slot: c.slot, count: c.count }); });
+    // 指名: 向こうと同じく初指名・本指名の本数を両方見せる。radioは入力補助（押すと本数が入る）
+    const sm1 = slots.shimei.find(x => x.slot === 1) || { count: '0', label: '初指名' };
+    const sm2 = slots.shimei.find(x => x.slot === 2) || { count: '0', label: '本指名' };
+    const shimeiMode = Number(sm2.count) > 0 ? 'main' : (Number(sm1.count) > 0 ? 'first' : 'free');
+    const cntSel = (name, cur) => {
+      let o = `<option value="0"${Number(cur) === 0 ? ' selected' : ''}>なし</option>`;
+      for (let n = 1; n <= 9; n++) o += `<option value="${n}"${Number(cur) === n ? ' selected' : ''}>${n}回</option>`;
+      if (Number(cur) > 9) o += `<option value="${escapeAttr(String(cur))}" selected>${escapeHtml(String(cur))}回</option>`;
+      return `<select data-hko="${name}">${o}</select>`;
+    };
+    const shimeiRadio = [['free', 'フリー'], ['first', '初指名'], ['main', '本指名']]
+      .map(([v, t]) => `<label class="hko-radio"><input type="radio" name="hko_shimei_mode" value="${v}"${v === shimeiMode ? ' checked' : ''}>${t}</label>`).join('');
+    const adderOpts = `<option value="">＋ コース・延長を追加...</option>`
+      + `<optgroup label="ご利用コース">${slots.course.map(c => `<option value="course:${c.slot}">${hkoLabel(c.label)}</option>`).join('')}</optgroup>`
+      + `<optgroup label="延長">${slots.encho.map(c => `<option value="encho:${c.slot}">延長 ${hkoLabel(c.label)}</option>`).join('')}</optgroup>`;
+    const copyBtns = (_hkoCtx.orderId && (ex.worker_url || ex.guest_url))
+      ? `<div class="hko-row" style="margin-bottom:.6rem;">
+          ${ex.worker_url ? `<button type="button" class="hko-copybtn" data-hko-copy="${escapeAttr(ex.worker_url)}">📋 セラピスト用URL</button>` : ''}
+          ${ex.guest_url ? `<button type="button" class="hko-copybtn" data-hko-copy="${escapeAttr(ex.guest_url)}">📋 お客様用URL</button>` : ''}
+        </div>` : '';
+
+    body.innerHTML = `
+      ${copyBtns}
+      <div class="hko-sec">基本</div>
+      ${hkoField('セラピスト', hkoSel('worker_id', { grow: 1 }), true)}
+      <div class="hko-field"><label>ステータス</label><div class="hko-row">${hkoRadio('status')}</div></div>
+      <div class="hko-field"><label>支払い方法<span class="hko-req">(必須)</span></label>
+        <div class="hko-row">${hkoSel('method_of_payment')}
+        <label class="hko-check"><input type="checkbox" data-hko-check="payment_status"${m.checks.payment_status ? ' checked' : ''}>支払い済み</label></div></div>
+      <div class="hko-field"><label>開始時間</label>
+        <div class="hko-row">${hkoSel('in_year')}${hkoSel('in_month')}${hkoSel('in_day')}
+          <span class="hko-gap"></span>${hkoSel('in_hour')}<b>:</b>${hkoSel('in_min')}</div>
+        <div class="hko-note" id="hkoOutTime" style="margin-top:.25rem;"></div></div>
+      <div class="hko-sec">お客様</div>
+      <div class="hko-field"><label>新規/会員<span class="hko-req">(必須)</span></label><div class="hko-row">${hkoRadio('client_type')}</div></div>
+      ${hkoField('お名前（様）', hkoText('client_name', ''), true)}
+      ${hkoField('予約方法', hkoSel('method_of_reserve', { grow: 1 }))}
+      <div class="hko-field"><label>電話番号</label>
+        <div class="hko-row" style="flex-wrap:nowrap;">${hkoText('client_tel', '半角数字英数', 'tel')}
+          <button type="button" class="hko-copybtn" id="hkoTelSearch" style="flex:0 0 auto;">🔍 照会</button></div>
+        <div id="hkoTelResult"></div></div>
+      ${hkoField('メールアドレス', hkoText('client_email', ''))}
+      ${hkoField('ご利用エリア', hkoText('area', ''))}
+      ${hkoField('合流方法', hkoSel('method_of_join', { grow: 1 }))}
+      ${hkoField('詳細な場所', hkoText('place', ''))}
+      <div class="hko-sec">指名（本数自動計算）</div>
+      <div class="hko-row">${shimeiRadio}</div>
+      <div class="hko-course-row"><span class="hko-cname">${hkoLabel(sm1.label)}</span>${cntSel('shimei_count1', sm1.count)}</div>
+      <div class="hko-course-row"><span class="hko-cname">${hkoLabel(sm2.label)}</span>${cntSel('shimei_count2', sm2.count)}</div>
+      <div class="hko-sec">ご利用コース・延長</div>
+      <div id="hkoSlotRows"></div>
+      <div class="hko-row"><select id="hkoSlotAdd" style="flex:1;">${adderOpts}</select></div>
+      <div class="hko-sec">交通費</div>
+      ${hkoField('交通費', hkoSel('traffic_id', { grow: 1 }))}
+      ${hkoField('追加移動費<span class="hko-req">（深夜料金・お客様から頂くタクシー代など）</span>', hkoText('traffic_price_add', '半角数字') + '<span class="hko-note"> 円</span>')}
+      ${hkoField('交通費実費<span class="hko-req">（実際にセラピストが受け取る金額）</span>', hkoText('full_back_price', '半角数字') + '<span class="hko-note"> 円</span>')}
+      <div class="hko-sec">オプション</div>
+      <div class="hko-opts">
+        ${slots.option.map(o => `<label class="hko-check hko-opt-chip"><input type="checkbox" data-hko-opt="${o.slot}"${o.enabled ? ' checked' : ''}>${hkoLabel(o.label)}</label>`).join('')}</div>
+      ${hkoField('出張費', hkoSel('trip_id', { grow: 1 }))}
+      ${hkoField('その他料金（調整用）', hkoText('etc_price', '') + '<span class="hko-note"> 円</span>')}
+      <div class="hko-sec">備考</div>
+      <div class="hko-field"><label>備考（セラピスト用のオーダー確認用URLに反映されます）</label>
+        <textarea data-hko="bikou" rows="4">${escapeHtml(m.texts.bikou ?? '')}</textarea></div>
+      ${hkoField('追加ポイント', hkoText('add_point', '半角数字', 'tel'))}
+      <div class="hko-field"><label>メモ（ここの項目はお客様にもセラピストにも見えません）</label>
+        <textarea data-hko="bikou_staff_only" rows="4">${escapeHtml(m.texts.bikou_staff_only ?? '')}</textarea></div>
+      <div class="hko-total">料金は <b>¥<span id="hkoTotalPrice">0</span></b> です<br>
+        ポイントは <b><span id="hkoTotalPoint">0</span></b> ポイントです
+        <span class="hko-note">（目安。確定は保存時に秘密基地側で計算）</span></div>
+      <div class="hko-foot">
+        <button type="button" class="hko-save" id="hkoSave">${_hkoCtx.orderId ? '保存する' : '登録する'}</button>
+        ${_hkoCtx.orderId ? '<button type="button" class="hko-trash" id="hkoTrash">削除（ゴミ箱）</button>' : ''}
+        <a class="hko-open-hk" href="${escapeAttr(_hkoCtx.orderId ? hkEditUrl(_hkoCtx.orderId, _hkoCtx.date || fmtDate(tlCurrentDate)) : hkNewUrl(_hkoCtx.workerId, _hkoCtx.date || fmtDate(tlCurrentDate)))}" target="_blank" rel="noopener">秘密基地の画面で開く</a>
+      </div>`;
+    renderHkoSlotRows();
+    recalcHkTotals();
+    // コース・延長の追加
+    document.getElementById('hkoSlotAdd')?.addEventListener('change', (e) => {
+      const v = e.target.value; e.target.value = '';
+      if (!v) return;
+      const [kind, slot] = v.split(':');
+      const exRow = _hkoRows.find(r => r.kind === kind && Number(r.slot) === Number(slot));
+      if (exRow) exRow.count = String(Number(exRow.count) + 1);
+      else _hkoRows.push({ kind, slot: Number(slot), count: '1' });
+      renderHkoSlotRows();
+      recalcHkTotals();
+    });
+    // 指名: radioを押すと本数が入る（向こうの自動計算ボタンの代わり）。本数を直接触るとradioが追従
+    const smSync = () => {
+      const c1 = hkoNum(body.querySelector('[data-hko="shimei_count1"]')?.value);
+      const c2 = hkoNum(body.querySelector('[data-hko="shimei_count2"]')?.value);
+      const mode = c2 > 0 ? 'main' : (c1 > 0 ? 'first' : 'free');
+      const r = body.querySelector(`input[name="hko_shimei_mode"][value="${mode}"]`);
+      if (r) r.checked = true;
+    };
+    body.querySelectorAll('input[name="hko_shimei_mode"]').forEach(r => r.addEventListener('change', () => {
+      const v = body.querySelector('input[name="hko_shimei_mode"]:checked')?.value;
+      const s1 = body.querySelector('[data-hko="shimei_count1"]');
+      const s2 = body.querySelector('[data-hko="shimei_count2"]');
+      if (v === 'free') { if (s1) s1.value = '0'; if (s2) s2.value = '0'; }
+      if (v === 'first') { if (s1 && hkoNum(s1.value) === 0) s1.value = '1'; if (s2) s2.value = '0'; }
+      if (v === 'main') { if (s2 && hkoNum(s2.value) === 0) s2.value = '1'; if (s1) s1.value = '0'; }
+      recalcHkTotals();
+    }));
+    body.querySelector('[data-hko="shimei_count1"]')?.addEventListener('change', () => { smSync(); });
+    body.querySelector('[data-hko="shimei_count2"]')?.addEventListener('change', () => { smSync(); });
+    // どこを触っても料金・ポイント・終了時刻を計算し直す
+    body.addEventListener('change', recalcHkTotals);
+    body.addEventListener('input', recalcHkTotals);
+    // 電話番号で顧客照会（秘密基地の顧客管理を検索・店長要望 2026-09-01）
+    document.getElementById('hkoTelSearch')?.addEventListener('click', async () => {
+      const tel = String(body.querySelector('[data-hko="client_tel"]')?.value || '').replace(/[^0-9]/g, '');
+      const box = document.getElementById('hkoTelResult');
+      if (!box) return;
+      if (tel.length < 4) { toast('電話番号を入力してください', 'err'); return; }
+      box.innerHTML = '<div class="hko-note" style="padding:.3rem 0;">照会中...</div>';
+      let d;
+      try { d = await api('/himitsu.php?action=client-search&tel=' + encodeURIComponent(tel)); }
+      catch (e) { box.innerHTML = `<div class="hko-note" style="color:#c0392b;">照会失敗: ${escapeHtml(e.message)}</div>`; return; }
+      const list = d.clients || [];
+      if (!list.length) { box.innerHTML = '<div class="hko-tel-none">この番号の顧客は見つかりません（新規のお客様）</div>'; return; }
+      box.innerHTML = list.map((c, i) => `<div class="hko-tel-hit">
+          <div class="hko-tel-info"><b>${escapeHtml(c.name)}様</b>
+            <span>利用 ${escapeHtml(c.count)}</span><span>最終 ${escapeHtml(c.last)}</span><span>${escapeHtml(c.tel)}</span></div>
+          <button type="button" class="hko-copybtn" data-hko-fill="${i}">この顧客を反映</button>
+        </div>`).join('');
+      box.querySelectorAll('[data-hko-fill]').forEach(btn => btn.addEventListener('click', () => {
+        const c = list[Number(btn.dataset.hkoFill)];
+        const nameIn = body.querySelector('[data-hko="client_name"]');
+        if (nameIn) nameIn.value = c.name;
+        const member = body.querySelector('input[name="hko_client_type"][value="member"]');
+        if (member) member.checked = true;
+        toast(`✓ ${c.name}様（会員）を反映しました`, 'ok');
+      }));
+    });
+    // URLコピー
+    body.querySelectorAll('[data-hko-copy]').forEach(btn => btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(btn.dataset.hkoCopy); toast('✓ URLをコピーしました', 'ok'); }
+      catch (e) { toast('コピーできませんでした', 'err'); }
+    }));
+    document.getElementById('hkoSave')?.addEventListener('click', saveHkOrder);
+    document.getElementById('hkoTrash')?.addEventListener('click', trashHkOrder);
+  }
+
+  async function saveHkOrder() {
+    const body = document.getElementById('hkOrderBody');
+    const edits = {};
+    body.querySelectorAll('[data-hko]').forEach(el => { edits[el.getAttribute('data-hko')] = el.value; });
+    body.querySelectorAll('input[name^="hko_"][type="radio"]:checked').forEach(el => {
+      const name = el.name.replace(/^hko_/, '');
+      if (name === 'shimei_mode') return;   // 補助ボタン。実体は shimei_count1/2
+      edits[name] = el.value;
+    });
+    // コース・延長: 全スロットを明示的に送る（外したものは '0'＝向こうの「なし」）
+    (_hkoMeta.slots.course || []).forEach(c => {
+      const r = _hkoRows.find(x => x.kind === 'course' && Number(x.slot) === Number(c.slot));
+      edits['course_count' + c.slot] = r ? String(r.count) : '0';
+    });
+    (_hkoMeta.slots.encho || []).forEach(c => {
+      const r = _hkoRows.find(x => x.kind === 'encho' && Number(x.slot) === Number(c.slot));
+      edits['encho_count' + c.slot] = r ? String(r.count) : '0';
+    });
+    // チェックボックス
+    edits.payment_status = !!body.querySelector('[data-hko-check="payment_status"]')?.checked;
+    body.querySelectorAll('[data-hko-opt]').forEach(el => { edits['option_enable' + el.dataset.hkoOpt] = el.checked; });
+    if (!_hkoRows.some(r => r.kind === 'course' && Number(r.count) > 0)) { toast('コースを選んでください', 'err'); return; }
+    if (!String(edits.client_name || '').trim()) { toast('お名前を入力してください', 'err'); return; }
+    const nm = (_hkoMeta.selects.worker_id?.options || []).find(([v]) => v === edits.worker_id)?.[1] || '';
+    if (!await opsConfirm(`立川秘密基地にこのオーダーを${_hkoCtx.orderId ? '上書き保存' : '登録'}します。\nセラピスト: ${nm}\nよろしいですか？`)) return;
+    const btn = document.getElementById('hkoSave');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+    try {
+      await apiPost('/himitsu.php?action=order-save', {
+        order_id: _hkoCtx.orderId || '',
+        worker_id: _hkoCtx.workerId || '',
+        date: _hkoCtx.date || fmtDate(tlCurrentDate),
+        edits,
+      });
+      toast('✓ 秘密基地に保存しました', 'ok');
+      closeModal('hkOrderModal');
+      loadTimeline(true);
+    } catch (e) {
+      toast('保存失敗: ' + e.message, 'err');
+      if (btn) { btn.disabled = false; btn.textContent = _hkoCtx.orderId ? '保存する' : '登録する'; }
+    }
+  }
+
+  async function trashHkOrder() {
+    if (!_hkoCtx?.orderId) return;
+    if (!await opsConfirm('このオーダーを削除（ゴミ箱に移動）します。\n本当によろしいですか？')) return;
+    const btn = document.getElementById('hkoTrash');
+    if (btn) { btn.disabled = true; btn.textContent = '削除中...'; }
+    try {
+      await apiPost('/himitsu.php?action=order-trash', { order_id: _hkoCtx.orderId });
+      toast('✓ ゴミ箱に移動しました', 'ok');
+      closeModal('hkOrderModal');
+      loadTimeline(true);
+    } catch (e) {
+      toast('削除失敗: ' + e.message, 'err');
+      if (btn) { btn.disabled = false; btn.textContent = '削除（ゴミ箱）'; }
+    }
+  }
+
+  /**
+   * 立川秘密基地のお仕事の送迎割り当て（店長要望 2026-08-29）。
+   * 向こうのシステムには一切書かず、こちら側だけで「誰が送るか」を持ち、ドライバーにメールを送る。
+   * 既定は「セラピ（自走）」。
+   */
+  async function openHimitsuPickup(orderId, bizDay, anchorEl, leg) {
+    closeTimeAdjust();
+    const isGo = leg !== 'back';
+    const p0 = _hkPickups[String(orderId)] || {};
+    const cur = isGo
+      ? { driver_id: p0.driver_id || null, self: p0.self === undefined ? 1 : p0.self }
+      : { driver_id: p0.back_driver_id || null, self: p0.back_self === undefined ? 1 : p0.back_self };
+    const [shifts, offSet] = await Promise.all([shiftsForDay(bizDay), driverOffSetForDay(bizDay)]);
+    const capable = (adminUsersAll || []).filter(u => isDriverCapable(u));
+    const drivers = capable.filter(u => {
+      if (offSet.has(Number(u.id))) return false;
+      const sh = shiftForDay(shifts, bizDay, u.id);
+      return !!sh && sh.status !== 'off';
+    });
+    if (cur.driver_id && !drivers.some(u => Number(u.id) === Number(cur.driver_id))) {
+      const a = capable.find(u => Number(u.id) === Number(cur.driver_id));
+      if (a) drivers.push(a);
+    }
+    drivers.sort(opsStaffOrder(bizDay, shifts));
+    // 行き先（詳細な場所）はバーの title から拾う。ここでも改めて出す
+    const info = _hkBusyByOrder[String(orderId)] || {};
+    const opts = `<option value="self"${!cur.driver_id ? ' selected' : ''}>セラピ（自走）</option>`
+      + drivers.map(u => `<option value="${u.id}"${Number(u.id) === Number(cur.driver_id) ? ' selected' : ''}>${escapeHtml(u.display_name || u.username)}</option>`).join('');
+    const pop = document.createElement('div');
+    pop.id = 'tlHkPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">🏠 秘密基地 ${isGo ? '行き（送り）' : '帰り（迎え）'}</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <div class="ttp-hk-info">${escapeHtml(info.guest || '')}${info.guest ? '　' : ''}${escapeHtml(info.name || '')}　${escapeHtml(info.start || '')}〜${escapeHtml(info.end || '')}${info.label ? '　' + escapeHtml(info.label) : ''}</div>
+      ${info.place ? `<div class="ttp-hk-place">${escapeHtml(info.place)}</div>` : ''}
+      <select class="ttp-sel" id="tlHkSel">${opts}</select>
+      <button type="button" class="ttp-mail" id="tlHkMail">✉️ ドライバーにメール</button>`;
+    document.body.appendChild(pop);
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    pop.addEventListener('click', (e) => e.stopPropagation());
+
+    const sel = pop.querySelector('#tlHkSel');
+    sel.addEventListener('change', async (e) => {
+      e.stopPropagation();
+      const raw = String(e.target.value || '');
+      const isSelf = raw === 'self';
+      const dv = isSelf ? 0 : (parseInt(raw, 10) || 0);
+      sel.disabled = true;
+      try {
+        await apiPost('/himitsu.php?action=pickup-set', { order_id: orderId, work_date: bizDay, leg: isGo ? 'go' : 'back', driver_id: dv, self: isSelf ? 1 : 0 });
+        const cache = _hkPickups[String(orderId)] = _hkPickups[String(orderId)] || {};
+        if (isGo) { cache.driver_id = dv || null; cache.self = isSelf ? 1 : 0; cache.mailed_at = null; }
+        else { cache.back_driver_id = dv || null; cache.back_self = isSelf ? 1 : 0; cache.back_mailed_at = null; }
+        toast(isSelf ? '✓ セラピ（自走）にしました' : '✓ ' + (drivers.find(u => Number(u.id) === dv)?.display_name || '') + ' を割当', 'ok');
+        renderHimitsuRows(bizDay).catch(() => {});
+      } catch (err) { toast('更新失敗: ' + err.message, 'err'); }
+      sel.disabled = false;
+    });
+
+    pop.querySelector('#tlHkMail').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const dv = parseInt(sel.value, 10) || 0;
+      if (!dv) { toast('先にドライバーを選んでください', 'err'); return; }
+      const drv = (adminUsersAll || []).find(u => Number(u.id) === dv) || {};
+      let email = String(drv.email || '').trim() || String(drv.username || '').trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('ドライバーのメールアドレスが未登録です', 'err'); return; }
+      // 文面はアドミの送迎メールにそろえる（店長要望 2026-08-29）。
+      // ただし秘密基地（セラピスト）のぶんはお客様名を入れない（店長指定 2026-08-29）
+      const lines = [];
+      lines.push(isGo ? '🚗【送迎 行き（送り）】' : '🚗【送迎 帰り（迎え）】');
+      if (info.name) lines.push('セラピスト: ' + info.name);
+      lines.push('ドライバー: ' + (drv.display_name || drv.username || ''));
+      lines.push('日付: ' + formatDate(bizDay));
+      if (info.start && info.end) lines.push(isGo ? `到着見込み: ${info.start}〜${info.end}` : `${info.start}〜${info.end}お迎え予定`);
+      if (info.label) lines.push('エリア: ' + info.label);
+      if (info.place) {
+        lines.push('場所: ' + info.place);
+        // 住所らしい（市区町村＋番地）ときだけ地図リンクを付ける。「DMにて」等には付けない
+        if (/[都道府県市区町村郡]/.test(info.place) && /[0-9０-９]/.test(info.place)) {
+          const q = encodeURIComponent(addressForMap(info.place));
+          lines.push('Googleマップ: https://www.google.com/maps/search/?api=1&query=' + q);
+          lines.push('Yahoo!マップ: https://map.yahoo.co.jp/search?q=' + q);
+          lines.push('Appleマップ: https://maps.apple.com/?q=' + q);
+        }
+      }
+      const subject = `${isGo ? '【送迎 行き（送り）】' : '【送迎 帰り（迎え）】'}${info.name || ''} ${formatDate(bizDay)}${info.start ? ' ' + info.start : ''}`;
+      if (!await opsConfirm(`${drv.display_name || email} 宛に送迎情報をメール送信しますか？\n送信先: ${email}`)) return;
+      try {
+        await apiPost('/admin-api.php?action=send-reward-mail', { to_admin_id: dv, subject, body: lines.join('\n') });
+        await apiPost('/himitsu.php?action=pickup-mailed', { order_id: orderId, leg: isGo ? 'go' : 'back' });
+        const c2 = _hkPickups[String(orderId)] = _hkPickups[String(orderId)] || {};
+        if (isGo) c2.mailed_at = '1'; else c2.back_mailed_at = '1';
+        toast('✓ ' + (drv.display_name || email) + ' にメール送信しました', 'ok');
+        closeTimeAdjust();
+        renderHimitsuRows(bizDay).catch(() => {});
+      } catch (err) { toast('メール送信失敗: ' + err.message, 'err'); }
+    });
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /**
+   * タイムライン枠の高さを実測で決める（店長指摘 2026-08-27: スマホで下の行まで届かない）。
+   * ヘッダー(sticky) と日付バー(sticky) は画面に貼りつくので、枠の高さは
+   * 「画面の高さ − その2つ」でないと、枠の底がページの底より下にはみ出して最後の行が見えなくなる。
+   * 日付バーの背の高さは画面幅で変わる（スマホは電話番号欄などで2〜3行）ため決め打ちにできない。
+   */
+  function syncTimelineHeight() {
+    const hdr = document.querySelector('header');
+    const bar = document.querySelector('#view-timeline .tl-toolbar');
+    const hdrH = hdr ? Math.round(hdr.getBoundingClientRect().height) : 68;
+    const barH = bar ? Math.round(bar.getBoundingClientRect().height) : 90;
+    const root = document.documentElement;
+    root.style.setProperty('--hdr-h', hdrH + 'px');
+    // 枠の下に少しだけ余白（影が切れないぶん）
+    root.style.setProperty('--tl-stick', (hdrH + barH + 8) + 'px');
+  }
+  window.addEventListener('resize', syncTimelineHeight);
+  window.addEventListener('orientationchange', () => setTimeout(syncTimelineHeight, 250));
+
+  /**
+   * 遊べる時刻を過ぎたキャストは、交互表示をやめて出勤時間に「今」を出しっぱなしにする。
+   * まだのキャストは交互のまま。4秒ごとに呼ぶので、時刻が来たらその場で切り替わる
+   */
+  function syncPlayNowMode() {
+    const now = Date.now();
+    document.querySelectorAll('.tl-m-alt[data-play-at]').forEach(el => {
+      const at  = Date.parse(String(el.getAttribute('data-play-at') || '').replace(' ', 'T'));
+      const end = Date.parse(String(el.getAttribute('data-shift-end') || '').replace(' ', 'T'));
+      const ended = !isNaN(end) && now >= end;             // 出勤が終わった＝もう案内できない
+      const passed = !ended && !isNaN(at) && now >= at;
+      // 終わった人は交互表示もやめて、出勤時間だけを出す
+      el.classList.toggle('is-nowmode', passed || ended);
+      const mark = el.querySelector('.tl-nowmark');
+      if (mark) mark.hidden = !passed;
+    });
+  }
+
+  // 「時間」の交互表示を動かす時計。描き直しても止まらないよう1本だけ持つ
+  let _tlAltTimer = null;
+  let _tlAltOn = false;
+  function ensureTimeAltTimer() {
+    if (_tlAltTimer) return;
+    _tlAltTimer = setInterval(() => {
+      _tlAltOn = !_tlAltOn;
+      document.querySelectorAll('.tl-m-alt').forEach(el => el.classList.toggle('show-b', _tlAltOn));
+      syncPlayNowMode();     // 見直すたびに、時刻が来ていれば「今」に切り替わる
+    }, 5000);                // ゆっくり溶ける切り替え（0.75秒）に合わせて、間隔も少し長めに
   }
 
   function renderTimeline() {
@@ -4396,6 +7314,18 @@
     // 描き直すとバーのDOMごと入れ替わり mouseout が飛ばないので、先にふきだしを消す
     // （消さないと古い内容が宙に浮いたまま残る）
     hideBookingTip();
+    // どこから呼ばれても、既に描いてある画面の「描き直し」なら今の位置を引き継ぐ。
+    // 一部の操作（始/終の記録・注意事項の保存など）が位置を覚えずに描き直していて、
+    // 10〜11時台へ飛んでいた（店長指摘 2026-09-01）。呼び出し側の覚え忘れを個別に
+    // 直すのではなく、ここで一括して面倒を見る。日付移動・初回表示は先に「読み込み中」
+    // を挟む＝ .loading がある時だけ初回扱いにして、従来どおり現在時刻へスクロールする
+    if (_tlPrevScroll == null) {
+      const w0 = document.querySelector('.tl-wrap');
+      if (w0 && grid && grid.children.length && !grid.querySelector('.loading')) {
+        _tlPrevScroll = _tlHold ? { left: _tlHold.left, top: _tlHold.top }
+                                : { left: w0.scrollLeft, top: w0.scrollTop };
+      }
+    }
 
     // ヘッダー: スタッフ列 + 24時間スロット (10:00 〜 翌09:00)
     let html = '<div class="tl-grid"><div class="tl-head staff-col">キャスト</div>';
@@ -4405,7 +7335,8 @@
     for (let h = 10; h < 34; h++) {
       const displayH = h % 24;
       const isNext = h >= 24;
-      html += `<div class="tl-head${h === nowH ? ' is-now' : ''}"><span class="tl-hour ${isNext?'next-day':''}">${('0'+displayH).slice(-2)}:00</span></div>`;
+      // 時刻は「1:00」形式（先頭の0は付けない）。マスの左端＝その時刻の位置なので左寄せ（店長要望 2026-08-10）
+      html += `<div class="tl-head${h === nowH ? ' is-now' : ''}"><span class="tl-hour ${isNext?'next-day':''}">${displayH}:00</span></div>`;
     }
 
     // スタッフ行: その営業日にシフトがあるスタッフのみ表示
@@ -4442,7 +7373,7 @@
       const ATT_LABEL = { available: '出勤', done: '終了', off: '休み', tentative: '予定' };
       const ATT_BG    = { available: 'var(--sea)', done: '#7a7a7a', off: '#c0392b', tentative: '#a0aab4' };
       usersWithUnassigned.forEach(u => {
-        const roleLabel = u.role === 'owner' ? 'オーナー'
+        const roleLabel = u.role === 'owner' ? ''
                         : u.role === 'manager' ? '管理者'
                         : u.role === 'office' ? '🪪 内勤スタッフ'
                         : u.role === 'driver' ? '🚗ドライバー'
@@ -4457,33 +7388,56 @@
         const dayCount = dayJobs.length;
         const uRate = Number(u.commission_rate);
         const hasRate = u.commission_rate != null && u.commission_rate !== '' && !Number.isNaN(uRate);
-        // 預り金・入金分は現金決済のみ（カード/振込は現金を預からない）。報酬は全決済で発生
-        let heldSales = 0, heldReward = 0, heldShop = 0;
+        // 預り金＝現金決済のみ（カード/振込は現金を預からない）。報酬は全決済で発生。
+        // 入金分（店取り分＝全額−報酬）は現金ぶん(要回収)とカードぶん(すでに店口座)に分けて出す（店長要望 2026-08-13）
+        let heldSales = 0, heldReward = 0, heldShop = 0, cardFull = 0;
+        // その日のお仕事が全部「報酬を渡し済み」「入金分を精算確定済み」なら印を出す（店長要望 2026-08-29）
+        let allRewardPaid = dayJobs.length > 0;
+        let allNetSettled = dayJobs.length > 0;
         dayJobs.forEach(b => {
-          const price = Number(b.price) || 0, late = Number(b.late_fee) || 0, trans = Number(b.transport_fee) || 0, cardFee = Number(b.card_fee) || 0;
-          const amt = cashTakenOf(b);   // 現金として手元にある額（併用は現金ぶんだけ）
+          if (!b.reward_paid_at) allRewardPaid = false;
+          if (!Number(b.shop_settled)) allNetSettled = false;
+          const cashPart = cashTakenOf(b);   // 現金で受け取る額（カード=0／併用は現金ぶん）
+          const cardPart = cardTakenOf(b);   // カードで切る額（併用の残り／カード=全額）
           // rewardOf を通す（指名料の報酬・オプション報酬が抜けないように）
           const rw = hasRate ? rewardOf(b) : 0;
           if (hasRate) heldReward += rw;
-          if (!isNonCash(b)) { heldSales += amt; heldShop += amt - rw; }
+          heldSales += cashPart;
+          // キャストへの報酬は現金からのみ支払う。カードぶんからは引かない（店長指定 2026-08-15）
+          // → カード予約の報酬も現金から出るので、現金の入金分がそのぶん減る（マイナスもそのまま出す）
+          heldShop  += cashPart - rw;   // 現金の店取り分（物理的に回収が必要）
+          cardFull  += cardPart;        // カードで切った満額（お客様が払った額。報酬は引かない）
         });
-        const canHolder = currentUser?.role === 'owner' || currentUser?.role === 'manager';
+        // 預り金・報酬・入金分の詳細（受け渡しの記録）は内勤スタッフ以上が扱う（店長指定 2026-08-14）
+        // 制限は上のメニュー（タブ）だけ。タイムラインを見られる人は中の操作を全部できる（店長指定 2026-08-14）
+        const canHolder = currentUser?.role !== 'staff';
         // 担当キャスト行のみ数値を表示（0でも ¥0 を表示）。ドライバー/内勤/未割当は非表示（is_therapist兼任者は表示）
         const showSales = u.id && u.role !== 'unassigned' && ((u.role !== 'driver' && u.role !== 'office') || isTherapistCapable(u));
         // 右BOX: 件数 / 預り金 / 報酬 / 入金（報酬・入金は歩合のある owner/manager のみ。入金=店受取、クリックで受け渡し状況）
+        // 入金分の見せ方: 現金ぶん＋（あれば）💳カードぶん。全額カードなら 💳 のみ、両方なら並べる
+        // カードは満額（お客様が切った額）で出す。報酬を引いた額ではない（店長指定 2026-08-14）
+        // 現金ぶんはマイナスもある（カード予約の報酬を現金から払った日）。その場合は店が返す額
+        const yenS = (n) => (n < 0 ? '−¥' + Math.abs(Number(n) || 0).toLocaleString() : yen(n));
+        const cardTag = cardFull > 0 ? `<span class="tl-m-card">💳${yen(cardFull)}</span>` : '';
+        const nyukinInner = cardFull > 0
+          ? (heldShop !== 0 ? `${yenS(heldShop)} ${cardTag}` : cardTag)
+          : yenS(heldShop);
+        const okMark = '<span class="tl-m-ok" title="この日のぶんは終わっています">✅</span>';
+        const netOk = allNetSettled ? okMark : '';
+        const rwdOk = allRewardPaid ? okMark : '';
         const nyukinRow = !hasRate ? '' : (canHolder
-          ? `<button type="button" class="tl-staff-sales tl-m" data-admin="${u.id}" title="入金分（預り金−報酬）のありか"><span class="tl-m-l">入金分</span><span class="tl-m-v">${yen(heldShop)} ▸</span></button>`
-          : `<div class="tl-m"><span class="tl-m-l">入金分</span><span class="tl-m-v">${yen(heldShop)}</span></div>`);
+          ? `<button type="button" class="tl-staff-sales tl-m${allNetSettled ? ' is-done' : ''}" data-admin="${u.id}" title="入金分（現金＝要回収／💳＝カードで切った満額・すでに店口座。報酬は現金からのみ支払い）"><span class="tl-m-l">${netOk}入金分</span><span class="tl-m-v">${nyukinInner} ▸</span></button>`
+          : `<div class="tl-m${allNetSettled ? ' is-done' : ''}"><span class="tl-m-l">${netOk}入金分</span><span class="tl-m-v">${nyukinInner}</span></div>`);
         // 預り金: owner/manager はクリックで受け渡し履歴（担当→A→B→…→店）を表示・記録
         const heldRow = canHolder
           ? `<button type="button" class="tl-staff-held tl-m" data-admin="${u.id}" title="預り金の受け渡し履歴"><span class="tl-m-l">預り金</span><span class="tl-m-v">${yen(heldSales)} ▸</span></button>`
           : `<div class="tl-m"><span class="tl-m-l">預り金</span><span class="tl-m-v">${yen(heldSales)}</span></div>`;
         const metricsHtml = showSales
-          ? `<div class="tl-m"><span class="tl-m-l">件数</span><span class="tl-m-v">${dayCount}件</span></div>`
+          ? `<div class="tl-m tl-m-count"><span class="tl-m-flags">${dayFlagBtn(u.id, bizDay, 'valuables', '貴重品')}${dayFlagBtn(u.id, bizDay, 'change_given', '釣銭')}</span><span class="tl-m-v">${dayCount}件</span></div>`
             + heldRow
             + (hasRate ? (canHolder
-                ? `<button type="button" class="tl-staff-reward tl-m" data-admin="${u.id}" title="報酬のありか・渡した記録"><span class="tl-m-l">報酬</span><span class="tl-m-v">${yen(heldReward)} ▸</span></button>`
-                : `<div class="tl-m"><span class="tl-m-l">報酬</span><span class="tl-m-v">${yen(heldReward)}</span></div>`) : '')
+                ? `<button type="button" class="tl-staff-reward tl-m${allRewardPaid ? ' is-done' : ''}" data-admin="${u.id}" title="報酬のありか・渡した記録"><span class="tl-m-l">${rwdOk}報酬</span><span class="tl-m-v">${yen(heldReward)} ▸</span></button>`
+                : `<div class="tl-m${allRewardPaid ? ' is-done' : ''}"><span class="tl-m-l">${rwdOk}報酬</span><span class="tl-m-v">${yen(heldReward)}</span></div>`) : '')
             + nyukinRow
           : '';
         // 役職ラベルは機能的な driver / 未割当 / 内勤 のみ表示（店長・オーナー・キャストは非表示）
@@ -4493,7 +7447,10 @@
         const isOff = !!(myShift && myShift.status === 'off');
         const attStatus = myShift ? (myShift.status || 'available') : 'available';
         // select は iOS Safari で innerHTML に含めると TypeError になるため placeholder を使い後で挿入
-        const attToggle = (canHolder && u.id && u.role !== 'unassigned')
+        // 出勤の切替は内勤スタッフも操作できる（事務所として組むため・店長要望 2026-08-14）。
+        // サーバー側(shifts.php set-attendance)も owner/manager/office を許可している
+        const canAttend = currentUser?.role !== 'staff';   // 制限はメニューのみ（店長指定 2026-08-14）
+        const attToggle = (canAttend && u.id && u.role !== 'unassigned')
           ? `<span class="tl-att-ph" data-admin="${u.id}" data-state="${attStatus}"></span>`
           : '';
         const tlThumb = (u.id && u.role !== 'unassigned')
@@ -4514,15 +7471,54 @@
         const endTypeTitle = endTypeLabel === '完'
           ? 'この時刻に完全終了して帰宅（この時刻までに終わる注文のみ）'
           : 'この時刻までの注文に対応';
-        const tlShiftTime = (myShift && myShift.start_time && myShift.end_time)
-          ? `<div class="tl-m tl-m-time"><span class="tl-m-l">時間</span><span class="tl-m-v">${hhmm(myShift.start_time)}<span class="tl-m-wave">〜</span>${hhmm(myShift.end_time)}<span class="tl-endtype tl-endtype-${endTypeLabel === '完' ? 'finish' : 'accept'}" title="${endTypeTitle}">${endTypeLabel}</span></span></div>`
+        // 出勤時間と「今から遊べる時間」（即姫）の見せ方（店長要望 2026-08-20/21）:
+        //   ・もう遊べる人  … 切り替えずに、出勤時間の「受」の隣に「今」を出しっぱなし
+        //   ・これから遊べる人… 出勤時間 ⇄「0:00〜遊べる」を交互に
+        //   ・即姫なし        … 出勤時間だけ
+        // どちらの状態かは syncPlayNowMode() が今の時刻を見て切り替える（開きっぱなしでも変わる）
+        const pn = tlPlayNow[String(u.id)];
+        const nowMark = (pn && pn.at && !pn.closed)
+          ? `<span class="tl-nowmark" data-play-edit="${u.id}" data-play-hm="${escapeAttr(pn.hm || '')}" title="クリックで遊べる時間を変える" hidden>今</span>`
           : '';
+        // 受付終了にしている人は「受」の代わりに「終」を出す（並べるとはみ出すので置き換え・店長指定 2026-08-22）。
+        // 押せば遊べる時間を入れ直せる（＝受付再開）
+        const isClosedNow = !!(pn && pn.closed);
+        const endMark = isClosedNow
+          ? `<span class="tl-endmark" data-play-edit="${u.id}" data-play-hm="" title="受付終了（クリックで遊べる時間を入れ直せます）">終</span>`
+          : '';
+        const shiftInner = (myShift && myShift.start_time)
+          ? `<span class="tl-m-l">時間</span><span class="tl-m-v">${hhmm(myShift.start_time)}<span class="tl-m-wave">〜</span>${myShift.end_time ? `${hhmm(myShift.end_time)}${isClosedNow ? endMark : `<span class="tl-endtype tl-endtype-${endTypeLabel === '完' ? 'finish' : 'accept'}" title="${endTypeTitle}">${endTypeLabel}</span>`}` : `<span class="tl-end-undecided">${myShift.end_open === 'last' ? 'ラスト' : '未定'}</span>${endMark}`}${nowMark}</span>`
+          : '';
+        // 受付終了は出さない（店長指定 2026-08-21）。遊べる時刻があるときだけ交互表示にする
+        const playInner = (pn && pn.hm && !pn.closed)
+          ? `<span class="tl-m-v tl-play-hm" data-play-edit="${u.id}" data-play-hm="${escapeAttr(pn.hm)}" title="クリックで遊べる時間を変える">${escapeHtml(pn.hm)}〜遊べる</span>`
+          : '';
+        // 出勤が終わった人には「今」も「〜遊べる」も出さない（店長指摘 2026-08-22）。
+        // 終了が未定・ラストのときは終わりが分からないので、これまでどおり出す
+        const shiftEndAt = (() => {
+          if (!myShift || !myShift.start_time || !myShift.end_time) return '';
+          // ★ hhmm() は先頭の0を落とす（0:00）ので日時として読めない。DBの値をそのまま2桁で使う
+          const st = String(myShift.start_time).slice(0, 5);   // 例 17:00
+          const en = String(myShift.end_time).slice(0, 5);     // 例 00:00
+          if (!/^\d{2}:\d{2}$/.test(st) || !/^\d{2}:\d{2}$/.test(en)) return '';
+          // 営業日は10:00〜翌10:00。開始が10時前なら暦は翌日、終了が開始以下ならさらに翌日
+          const day = new Date(bizDay + 'T00:00:00');
+          if (parseInt(st.slice(0, 2), 10) < 10) day.setDate(day.getDate() + 1);
+          if (en <= st) day.setDate(day.getDate() + 1);
+          return fmtDate(day) + ' ' + en;
+        })();
+        const tlShiftTime = !shiftInner ? ''
+          : playInner
+            ? `<div class="tl-m tl-m-time tl-m-alt" data-play-at="${escapeAttr(pn.at || '')}" data-shift-end="${escapeAttr(shiftEndAt)}" title="出勤時間と、今から遊べる時間（即姫）">`
+              + `<span class="tl-alt-a">${shiftInner}</span><span class="tl-alt-b">${playInner}</span></div>`
+            : `<div class="tl-m tl-m-time">${shiftInner}</div>`;
         html += `<div class="tl-staff${u.role==='unassigned'?' tl-staff-unassigned':''}" style="${isOff ? 'background:#eef1f3;color:var(--ink-soft);' : ''}"><div class="tl-staff-body"><div class="tl-staff-left">${tlThumb}<div class="tl-staff-name">${escapeHtml(u.display_name || u.username)}${(u.cast_notes || '').trim() ? `<span class="tl-staff-alert" data-cast-edit="${u.id}" title="${escapeAttr(u.cast_notes)}">⚠️</span>` : ''}</div>${attToggle}</div><div class="tl-staff-info">${tlShiftTime}${privateTag}${roleMini}${metricsHtml}</div></div></div>`;
 
         // この行の予約とシフト（営業日基準）
         // ドライバー行では driver_id=自分の予約、未割当行では assigned_admin_id=null/0 の予約
         const rowBookings = tlBookings.filter(b => {
           if (bizDateOf(b.booking_date, b.start_time) !== bizDay) return false;
+          if (b.status === 'cancelled') return false;   // キャンセルはタイムラインに出さない（店長指定 2026-08-16）
           if (u.role === 'unassigned') return !b.assigned_admin_id;
           if (u.role === 'driver') return Number(b.driver_id) === Number(u.id) || Number(b.back_driver_id) === Number(u.id);
           return Number(b.assigned_admin_id) === Number(u.id);
@@ -4541,8 +7537,8 @@
             // shift_date=営業日なので時刻だけで24h+化（10時前=翌側）
             const extT = (t) => { let h = parseInt(String(t).slice(0, 2), 10); if (h < 10) h += 24; return h + ':' + String(t).slice(3, 5); };
             const ss = timeToOffset(extT(s.start_time)) + 10;
-            let se = timeToOffset(extT(s.end_time)) + 10;
-            if (se <= ss) se = ss + 24;  // 24h (start===end) or 翌日跨ぎ
+            let se = s.end_time ? timeToOffset(extT(s.end_time)) + 10 : 34;   // 終了未定は当日いっぱい
+            if (s.end_time && se <= ss) se = ss + 24;  // 24h (start===end) or 翌日跨ぎ
             if (slotStart >= ss && slotStart < se) inShift = true;
           });
           const slotTime = ('0' + (h % 24)).slice(-2) + ':00';
@@ -4561,8 +7557,8 @@
                 const [eh, em] = et.split(':');
                 et = (parseInt(eh, 10) + 24) + ':' + em;
               }
-              // 予約/休憩とも終了+10分の余地を視覚的に確保 (片付け・移動の見込み).
-              endOff += 10 / 60;
+              // カードの右端＝終了時刻ちょうど（+10分の余地は隣の予約と重なるため廃止・店長指摘 2026-08-14）。
+              // 左端＝開始時刻ちょうど（leftCalc が startOff）なので、2:08終了と2:10開始は重ならない
               const widthSlots = Math.max(0.4, endOff - startOff);
               const leftPct = (startOff / 24) * (24 * 100);  // 単位は次のセル幅で計算
               // 1セル = 100% / 24 → 計算しなおし: cellのwrap = 24cells幅
@@ -4601,35 +7597,71 @@
                 _cityRaw = b.display_city || b.hotel_city || extractCityFromAddress(b.hotel_address || '') || _city;
               }
               const placeShort = _cityRaw ? String(_cityRaw).replace(/[市区町村]$/, '') : '';
-              // 4段目: 場所（自宅=ご自宅 / ホテル=ホテル名 / その他=詳細）
+              // 4段目: 場所（自宅=ご自宅＋番地まで / ホテル=ホテル名（部屋番号は右寄せ） / その他=詳細）
               let venue = '';
-              if (hotelFull.startsWith(HOME_PREFIX)) venue = 'ご自宅';
-              else if (hotelFull.startsWith(OTHER_PREFIX)) venue = hotelFull.slice(OTHER_PREFIX.length);
-              else venue = hotelFull;
+              const isHomeRow = hotelFull.startsWith(HOME_PREFIX);
+              const isOtherRow = hotelFull.startsWith(OTHER_PREFIX);
+              if (isHomeRow) {
+                // 自宅は市区町村から番地まで通しで出す（建物は省く）。
+                // 「新町5-8-3」だけだとどこの町か読み取れないため、市も残す（店長指摘 2026-08-16）
+                const addrFull = dedupeRepeatedSuffix(hotelFull.slice(HOME_PREFIX.length).trim());
+                const addrNoBld = splitAddressBuilding(addrFull)[0] || addrFull;
+                venue = addrNoBld ? '🏠' + addrNoBld : '🏠ご自宅';   // 自宅は家アイコン（間は詰める・店長要望 2026-08-16）
+              } else if (isOtherRow) venue = hotelFull.slice(OTHER_PREFIX.length);
+              // ホテルは種別でアイコンを分ける（ラブホ=💗 / ビジネス・シティ等=🏨・店長要望 2026-08-16）。
+              // hotel_type はマスタの値（love_hotel / city / business / ryokan / minshuku / other）
+              else venue = (String(b.hotel_type || '') === 'love_hotel' ? '💗' : '🏨') + hotelFull;
+              // ホテルは部屋番号を欄の右端に、専用のセルとしてクリックで登録できるようにする
+              // （見落とし防止・店長要望 2026-08-14／セル分離・クリック登録は 2026-08-16）
+              const isHotelRow = !isHomeRow && !isOtherRow;
+              const roomNo = (isHotelRow && b.room_number) ? String(b.room_number).trim() : '';
+              const venueHtml = isHotelRow
+                ? `<span class="bk-venue-name">${escapeHtml(venue)}</span>` +
+                  `<span class="bk-venue-room${roomNo ? '' : ' is-empty'}" data-bk-room="${b.id}" title="クリックで部屋番号を登録">${roomNo ? escapeHtml(roomNo) : '部屋番'}</span>`
+                : escapeHtml(venue);
               // 5段目: ドライバー名（記号なし、左=行き / 右=帰り）。未定は自走。
               const goMailed = !!b.pickup_go_mailed_at;
               const backMailed = !!b.pickup_back_mailed_at;
-              const goCell = (goMailed ? '✓' : '') + (goDrv || '<span class="bk-self">自走</span>');
-              const backCell = (backMailed ? '✓' : '') + (backDrv || '<span class="bk-self">自走</span>');
+              // ドライバー未設定の表示。予約を入れた時点ではまだ送迎を決めていないので「-」のまま。
+              // 送迎ポップアップで「キャスト（自走）」を選んだときだけ go_self/back_self が立ち
+              // 「キャスト」に変わる（店長要望 2026-08-10）。接客の進み具合では自動で変えない
+              const noDrv = (self) => self
+                ? '<span class="bk-self">キャスト</span>'
+                : '<span class="bk-self bk-drv-undecided">-</span>';
+              const goCell = (goMailed ? '✓' : '') + (goDrv || noDrv(Number(b.go_self) === 1));
+              const backCell = (backMailed ? '✓' : '') + (backDrv || noDrv(Number(b.back_self) === 1));
+              // お預り金を持っている人に色が登録してあれば、帰りボタンをその色にする（誰が現金を持っているか一目で・店長要望 2026-08-14）。
+              // 受け渡し前（held_by 未設定）は既定の保有者＝帰りのお迎え担当。色はスタッフ管理で登録した人だけが持つ
+              const holderColor = holderColorOf(b);
+              const backStyle = holderColor ? ` style="background:${escapeAttr(holderColor)};color:#fff;"` : '';
+              const holderColored = !!holderColor;
               const svcTitle = svc === 'pending' ? '開始（接客開始＝経理に計上）' : svc === 'started' ? '終了（接客終了）' : 'クリックで未開始に戻す（巻き戻し）';
               // カード決済の予約は、両サイドのラインの色で決済前(橙)／決済後(緑)を示す
               const usesCard = !isBreakRow && ['credit', 'card', 'split'].includes(String(b.payment_method || ''));
               const cardWarn = usesCard && !b.card_paid_at;
-              const payCls = usesCard ? (cardWarn ? ' pay-unconfirmed' : ' pay-confirmed') : '';
+              // カード決済は黒縁で囲む（お預かりが現金でないと一目で分かるように・店長要望 2026-08-14）
+              const payCls = usesCard ? (cardWarn ? ' pay-card pay-unconfirmed' : ' pay-card pay-confirmed') : '';
               html += `<div class="tl-booking s-${b.status}${svc === 'ended' ? ' svc-ended' : ''}${payCls}" data-booking-id="${b.id}" style="left:${leftCalc};width:${widthCalc};top:2px;bottom:2px;">
                 <div class="bk-top" data-bk-time="${b.id}">
                   <span class="bk-st">${stDisp}</span><span class="bk-dash">〜</span><span class="bk-et">${etDisp}</span>
                 </div>
                 <div class="bk-mid">
                   <span class="bk-name" data-bk-edit="${b.id}">${escapeHtml(name)}</span>
-                  ${cardWarn ? '<span class="bk-paywarn" title="カード決済の確認がまだです">💳未</span>' : ''}
+                  ${usesCard ? (cardWarn
+                    ? `<span class="bk-paywarn" data-bk-card="${b.id}" title="カード決済の確認がまだです（クリックで確認）">💳未</span>`
+                    : `<span class="bk-paywarn is-paid" data-bk-card="${b.id}" title="カード決済の確認ずみ（クリックで戻せます）">💳✓</span>`) : ''}
+                  ${Number(b.receipt_needed) === 1
+                    ? `<span class="bk-receipt${b.receipt_given_at ? ' is-given' : ''}" data-bk-receipt="${b.id}" title="${b.receipt_given_at ? '領収証はお渡しずみ（クリックで戻せます）' : '領収証が必要です（クリックで「渡した」に）'}">🧾${b.receipt_given_at ? '✓' : ''}</span>`
+                    : ''}
+                  ${prepBadgeHtml(b)}
+                  ${lendBadgeHtml(b)}
                   ${canMeet ? `<span class="bk-svc-ph" data-svc-ph="${b.id}" data-svc-state="${svc}"></span>` : ''}
                 </div>
-                ${isBreakRow ? '' : `<div class="bk-place" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(placeShort)}</div><div class="bk-venue" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(venue)}</div>`}
+                ${isBreakRow ? '' : `<div class="bk-place" data-bk-addr="${b.id}" title="クリックで住所をコピー">${escapeHtml(placeShort)}</div><div class="bk-venue${isHotelRow ? ' has-room' : ''}" data-bk-addr="${b.id}" title="クリックでホテル名・住所をコピー">${venueHtml}</div>`}
                 ${!isBreakRow
                   ? `<div class="bk-bottom">
                        <button class="bk-go${goMailed ? ' mailed' : ''}" data-bk-go="${b.id}" title="行き: ドライバー指定・送迎情報をコピー">${goCell}</button>
-                       <button class="bk-back${backMailed ? ' mailed' : ''}" data-bk-back="${b.id}" title="帰り: ドライバー指定・送迎情報をコピー">${backCell}</button>
+                       <button class="bk-back${backMailed ? ' mailed' : ''}" data-bk-back="${b.id}"${backStyle} title="帰り: ドライバー指定・送迎情報をコピー${holderColored ? '（お預り金保有中）' : ''}">${backCell}</button>
                      </div>`
                   : ''}
               </div>`;
@@ -4642,6 +7674,22 @@
     }
     html += '</div>';
     grid.innerHTML = html;
+    // 入れ替えた直後、画面に出る前に位置を戻す。あとから（次のフレームで）戻すと
+    // 一瞬だけ先頭が描かれてカクついて見える（店長指摘 2026-08-30）
+    if (_tlPrevScroll != null) {
+      const sc0 = document.querySelector('.tl-wrap');
+      if (sc0) { sc0.scrollLeft = _tlPrevScroll.left; sc0.scrollTop = _tlPrevScroll.top; }
+    }
+
+    // 出勤時間 ⇄ 今から遊べる時間 の切り替えを動かす（描き直した直後は出勤時間から）
+    ensureTimeAltTimer();
+    if (_tlAltOn) grid.querySelectorAll('.tl-m-alt').forEach(el => el.classList.add('show-b'));
+    syncPlayNowMode();
+    // 日付バーの行数は中身で変わる（スマホは折り返す）ので、描画のたびに枠の高さを取り直す
+    syncTimelineHeight();
+
+    // 立川秘密基地の出勤を「キャスト未割当」の下に後から足す（別システムなので非同期）
+    renderHimitsuRows(bizDay).catch(() => {});
 
     // select を DOM API で挿入（iOS Safari は innerHTML 内の select を弾くため）。
     // 万一ここで例外が出てもタイムライン本体は既に描画済みなので握りつぶす
@@ -4696,13 +7744,12 @@
     // 操作後の再描画はスクロール位置を復元。それ以外で当日表示時は現在時刻へ。
     const todayBiz = fmtDate(getBusinessDayDate());
     if (_tlPrevScroll != null) {
-      const keep = _tlPrevScroll;
-      const sc = document.querySelector('.tl-wrap');
-      if (sc) requestAnimationFrame(() => { sc.scrollLeft = keep; });
+      holdTimelineScroll(_tlPrevScroll);
     } else if (bizDay === todayBiz) {
       requestAnimationFrame(scrollTimelineToNow);
     }
     _tlPrevScroll = null;
+    requestAnimationFrame(updateNowLine);   // 現在時刻ライン（赤い縦線）を今の位置に
 
     // （売上クリックは init() の document 委譲で処理）
 
@@ -4714,13 +7761,64 @@
         openBookingModal(Number(el.dataset.bkEdit));
       });
     });
-    // 3〜4段目 地名・場所 → 住所をコピー（ナビや案内にそのまま貼れるように）
+    // 3〜4段目 地名・場所 → 住所をコピー（ナビや案内にそのまま貼れるように）。
+    // 部屋番号セルは専用の登録UIを持つので、そちらのクリックでは住所コピーを起こさない（店長要望 2026-08-16）
     grid.querySelectorAll('[data-bk-addr]').forEach(el => {
       el.addEventListener('click', e => {
+        if (e.target.closest('[data-bk-room]')) return;
         e.stopPropagation();
         const addr = bookingAddressText(Number(el.dataset.bkAddr));
         if (!addr) { toast('住所が登録されていません', 'err'); return; }
         copyTextToClipboard(addr).then(ok => toast(ok ? '📋 ' + addr : 'コピーに失敗しました', ok ? 'ok' : 'err'));
+      });
+    });
+    // 「〇:〇〇〜遊べる」「今」→ その場で遊べる時間を決めるポップ（店長要望 2026-08-22）
+    grid.querySelectorAll('[data-play-edit]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openPlayEdit(Number(el.dataset.playEdit), bizDay, el.dataset.playHm || '', el);
+      });
+    });
+    // 💳未 バッジ → その場で「決済を確認した」を付けるポップ（店長要望 2026-08-22）
+    grid.querySelectorAll('[data-bk-card]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openCardPaid(Number(el.dataset.bkCard), el);
+      });
+    });
+    // お約束チップ（💬未 など）→ クリックで「予約」に変えるポップ（店長要望 2026-08-20）
+    grid.querySelectorAll('[data-bk-flag]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openPrepFlag(Number(el.dataset.bkFlag), el);
+      });
+    });
+    // 🧾 領収証バッジ → 渡した/まだ を切り替える（店長要望 2026-08-23）
+    grid.querySelectorAll('[data-bk-receipt]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openReceiptGiven(Number(el.dataset.bkReceipt), el);
+      });
+    });
+    // 部屋番号セル → クリックでその場で登録・修正（店長要望 2026-08-16）
+    grid.querySelectorAll('[data-bk-room]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openRoomEdit(Number(el.dataset.bkRoom), el);
+      });
+    });
+    // 件数行の「貴重品」「釣銭」→ 誰が預かった/返したを記録（店長要望 2026-08-16）
+    grid.querySelectorAll('[data-day-flag]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openDayFlagEdit(Number(el.dataset.admin), el.dataset.date, el.dataset.dayFlag, el);
+      });
+    });
+    // 貸出品バッジ → クリックで「誰が回収したか」を選んで記録（店長要望 2026-08-26）
+    grid.querySelectorAll('[data-bk-lend]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        openLendReturn(Number(el.dataset.bkLend), el);
       });
     });
     // 上段 時間 → ±調整ポップ
@@ -4785,15 +7883,54 @@
       el.innerHTML = '<div class="view-empty">読み込み失敗: ' + escapeHtml(e.message) + '</div>';
     }
   }
+  // ── 旧システムの履歴と OPS 予約の重なり判定 ──
+  // 旧＝予定の時刻 / OPS＝実際に受けた時刻 で数分ずれることがある。
+  // ただし幅を持たせると別のお仕事まで消えるので、ぴったり一致のときだけ隠す
+  //（店長判断 2026-08-11: ズレている分は旧側の状態を直して運用する）。
+  const SAME_JOB_MIN = 0;
+  /** 営業日内の分。10時前は翌日ぶんとして +24h（0:35 が 23:00 より後になる） */
+  function bizMinOf(hm) {
+    const p = String(hm || '00:00').split(':');
+    const h = parseInt(p[0], 10) || 0, m = parseInt(p[1], 10) || 0;
+    return (h < BIZ_DAY_START_HOUR ? h + 24 : h) * 60 + m;
+  }
+  /** OPS予約から「お客様・営業日・開始分」の一覧を作る（withCustomer=false なら顧客は見ない） */
+  function bookedSlotsOf(bookings, withCustomer) {
+    return (bookings || []).map(b => {
+      const hm = String(b.start_time || '00:00').substring(0, 5);
+      return {
+        cid: withCustomer ? (Number(b.customer_id) || 0) : 0,
+        day: bizDateOf(b.booking_date, b.start_time || '00:00'),
+        min: bizMinOf(hm),
+      };
+    });
+  }
+  /** その旧履歴が OPS 予約と同じお仕事か（＝一覧では隠す） */
+  function legacyIsDup(v, slots, withCustomer) {
+    const at = String(v.visit_at || '');
+    if (at.length < 16) return false;
+    const cid = Number(v.customer_id) || 0;
+    if (withCustomer && !cid) return false;
+    const hm = at.substring(11, 16);
+    const day = bizDateOf(at.substring(0, 10), hm);
+    const min = bizMinOf(hm);
+    return slots.some(sl => (!withCustomer || sl.cid === cid) && sl.day === day
+      && Math.abs(sl.min - min) <= SAME_JOB_MIN);
+  }
+
   function renderBookingsList() {
     const el = document.getElementById('bookingList');
+    // 旧システムの履歴のうち、同じ予約を OPS にも入れたものは二重に出さない。
+    // お客様・営業日が同じで、開始時刻が30分以内なら同じお仕事とみなす（別のお仕事は消さない）
+    const bookedSlots = bookedSlotsOf(bookingsList, true);
+    const legacyRows = (legacyVisitsList || []).filter(v => !legacyIsDup(v, bookedSlots, true));
     // OPSの予約と旧システムの利用履歴を、日時の新しい順に1本の並びにする
     const merged = [
       ...bookingsList.map(b => ({
         k: 'b', v: b,
         at: bizDateOf(b.booking_date, b.start_time || '00:00') + ' ' + String(b.start_time || '00:00').substring(0, 5),
       })),
-      ...(legacyVisitsList || []).map(v => ({
+      ...legacyRows.map(v => ({
         k: 'l', v,
         at: String(v.visit_at || '').substring(0, 10) + ' ' + String(v.visit_at || '').substring(11, 16),
       })),
@@ -4836,10 +7973,10 @@
     return (min ? `<b>${escapeHtml(min)}</b><small>分</small>` : '')
          + (tag ? `<span class="bkt-tag">${escapeHtml(tag)}</span>` : '');
   }
-  /** 電話番号は必ず半角で出す（旧システムから来たデータに全角が混ざっている） */
+  /** 電話番号・部屋番号は必ず半角で出す（旧システムのデータや全角入力が混ざっている） */
   function toHalfWidth(s) {
     return String(s || '')
-      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
       .replace(/[－‐‑–—ー―]/g, '-')
       .trim();
   }
@@ -4980,49 +8117,183 @@
       meta: (metaAt === -1 ? [] : lines.slice(metaAt)).join('\n').trim(),
     };
   }
-  function customerNoteHead(withEdit) {
+  function customerNoteHead(btnLabel) {
+    // 「✏️編集」の下に「🚫NG」（選んでいるキャストをこのお客様のNGにする・店長指定 2026-08-22）。
+    // モーダル②でも重ならないよう、id には今のモーダルの印を付ける
+    const ngBtn = `<button type="button" id="bmNgCastBtn${activeBmSuffix}" class="bm-ngcast-btn"
+        title="選んでいるキャストをこのお客様のNGにする" style="display:none;">🚫 NG</button>`;
     return '<div class="bhn-head"><span class="bhn-title">👤 お客様メモ'
       + '<span class="bhn-sub">キャストには伝えない</span></span>'
-      + (withEdit ? '<button type="button" class="bhn-btn" data-note-edit>✏️ 編集</button>' : '')
+      + '<span class="bhn-actions">'
+      + (btnLabel ? `<button type="button" class="bhn-btn" data-note-edit>${btnLabel}</button>` : '')
+      + ngBtn
+      + '</span>'
       + '</div>';
   }
-  function renderCustomerNote(notes) {
+  // 追加した1件は「【2026/8/22 まどか】本文」の形で保存してある（店長指定 2026-08-22）。
+  // 表示では日付＋キャスト名を小見出しに起こし、本文と分けて読ませる。
+  // 印の無い行は追加方式より前に書かれた記録なので、本文だけを出す
+  const NOTE_STAMP_RE = /^【\s*(\d{4}\/\d{1,2}\/\d{1,2})(?:[ \u3000]+([^】]*))?】[ \u3000]*/;
+  // 「＋ 追加」より前に書かれたメモは、日付も書いた人も残っていない（旧システムの取込分も、
+  // OPSのメモ欄に直接書いた分も同じ）。メモは接客の直後に書かれるので、
+  // 「済んだご利用のうち一番新しいもの」の日付＋担当キャストを推定の見出しに充てる。
+  // いま開いている予約も、済んでいるなら候補に入れる（そこで分かった話を書いていることが多い・
+  // 店長指摘 2026-08-23: 3/26ゆあ ではなく 8/22まどか が正しい）。
+  // これからの予約（未来日・問合せ・キャンセル・無連絡）は書きようがないので候補にしない
+  const NOTE_STAMP_SKIP = ['cancelled', 'no_show', 'inquiry'];
+  function presumedNoteStamp(bookings, legacyVisits) {
+    const today = fmtDate(getBusinessDayDate());
+    const cand = [];
+    (bookings || []).filter(b => !NOTE_STAMP_SKIP.includes(String(b.status))).forEach(b => {
+      const day = bizDateOf(b.booking_date, b.start_time || '00:00');
+      if (day && day <= today) cand.push({ key: `${day} ${b.start_time || '00:00'}`, day, cast: String(b.staff_name || '').trim() });
+    });
+    (legacyVisits || []).filter(v => !NOTE_STAMP_SKIP.includes(String(v.status))).forEach(v => {
+      const day = String(v.visit_at || '').slice(0, 10);
+      if (day && day <= today) cand.push({ key: String(v.visit_at), day, cast: String(v.cast_name || '').trim() });
+    });
+    if (!cand.length) return null;
+    cand.sort((x, y) => (x.key < y.key ? 1 : x.key > y.key ? -1 : 0));
+    const m = cand[0].day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    return { date: `${m[1]}/${Number(m[2])}/${Number(m[3])}`, cast: cand[0].cast };
+  }
+  /** いま開いている予約の「日付＋キャスト」＝これから付ける印 */
+  function currentNoteStamp() {
+    const dv = (bel('bmDate')?.value || '').trim();
+    const dm = dv.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const d = new Date();
+    const date = dm ? `${dm[1]}/${Number(dm[2])}/${Number(dm[3])}`
+                    : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    const castId = Number(bel('bmAdminId')?.value || 0);
+    const cast = castId ? (findStaffUser(castId)?.display_name || '') : '';
+    return { date, cast };
+  }
+  /** メモ本文を1件ずつに割る。印の無い記録には推定の見出し(fallback)を当てる */
+  function parseNoteEntries(main, fallback) {
+    const entries = [];
+    String(main || '').split('\n').forEach(line => {
+      const m = line.match(NOTE_STAMP_RE);
+      if (m) entries.push({ date: m[1], cast: (m[2] || '').trim(), body: line.slice(m[0].length), stamped: true });
+      else if (entries.length) entries[entries.length - 1].body += '\n' + line;
+      else entries.push({ date: '', cast: '', body: line, stamped: false });
+    });
+    return entries.filter(e => e.date || String(e.body).trim()).map(e => {
+      const st = e.stamped ? e : (fallback || { date: '', cast: '' });
+      return Object.assign({}, e, { showDate: st.date, showCast: st.cast, guess: !e.stamped && !!st.date });
+    });
+  }
+  /** その予約で登録された記録＝いま開いている予約と印が同じもの（あれば編集、無ければ追加） */
+  function noteEntryIndexFor(entries, stamp) {
+    if (!stamp || !stamp.date) return -1;
+    return entries.findIndex(e => e.showDate === stamp.date && (e.showCast || '') === (stamp.cast || ''));
+  }
+  /** NG登録を「登録した予約の印（日付＋キャスト）」に直す。深夜0〜10時は前営業日扱い */
+  function ngNoteStamps(ngCasts) {
+    return (ngCasts || []).map(n => {
+      const m = String(n.created_at || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      if (!m) return null;
+      const day = bizDateOf(`${m[1]}-${m[2]}-${m[3]}`, `${m[4]}:${m[5]}`);
+      const dm = String(day).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!dm) return null;
+      return { date: `${dm[1]}/${Number(dm[2])}/${Number(dm[3])}`, cast: String(n.display_name || '').trim() };
+    }).filter(Boolean);
+  }
+  /** 表示用に「NGにした」印を混ぜる。メモが無いNGはその1行だけ出す（店長要望 2026-08-23） */
+  function mergeNgIntoEntries(entries, ngCasts) {
+    const out = entries.map((e, i) => Object.assign({}, e, { realIdx: i }));
+    ngNoteStamps(ngCasts).forEach(st => {
+      const hit = out.find(e => e.showDate === st.date && (e.showCast || '') === st.cast);
+      if (hit) hit.ng = true;
+      else out.unshift({ showDate: st.date, showCast: st.cast, body: '', ng: true, realIdx: -1 });
+    });
+    return out;
+  }
+  function renderNoteEntries(entries, hideIdx) {
+    return entries.map(e => ((e.realIdx !== undefined ? e.realIdx : -2) === hideIdx ? '' : '<div class="bhn-entry">'
+      + (e.showDate
+        ? `<div class="bhn-stamp${e.guess ? ' old' : ''}"`
+          + (e.guess ? ' title="日付が残っていない記録です。直近のご利用の日付と担当キャストを当てて表示しています"' : '')
+          + `>${escapeHtml(e.showDate)}${e.showCast ? ' ' + escapeHtml(e.showCast) : ''}`
+          + (e.ng ? `<span class="bhn-ng">🚫 ${escapeHtml(e.showCast || '')}をNGに登録</span>` : '')
+          + '</div>'
+        : '<div class="bhn-stamp old">以前の記録（日付なし）</div>')
+      + (String(e.body).trim() ? `<div class="bhn-body">${escapeHtml(String(e.body).trim())}</div>` : '')
+      + '</div>')).join('');
+  }
+  /** 保存する本文を組み立て直す。触っていない記録は元の形のまま残す */
+  function buildNoteMain(entries, idx, body, stamp) {
+    return entries.map((e, i) => {
+      if (i === idx) return `【${stamp.date}${stamp.cast ? ' ' + stamp.cast : ''}】${body}`;
+      return e.stamped ? `【${e.date}${e.cast ? ' ' + e.cast : ''}】${e.body}` : e.body;
+    }).join('\n');
+  }
+  function renderCustomerNote(notes, fallback, ngCasts) {
     const { main, meta } = splitCustomerNote(notes);
+    const entries = parseNoteEntries(main, fallback);
+    const shown = mergeNgIntoEntries(entries, ngCasts);
+    // いま開いている予約で登録した記録があるなら「編集」、無ければ「追加」（店長指定 2026-08-23）
+    const isEdit = noteEntryIndexFor(entries, currentNoteStamp()) >= 0;
     return '<div class="bm-history-note">'
-      + customerNoteHead(true)
-      + (main ? `<div class="bhn-main">${escapeHtml(main)}</div>`
-              : '<div class="bhn-empty">（未記入）— 編集から追加できます</div>')
+      + customerNoteHead(isEdit ? '✏️ 編集' : '＋ 追加')
+      + (shown.length ? `<div class="bhn-main">${renderNoteEntries(shown, -2)}</div>` : '')
       + (meta ? `<div class="bhn-meta">${escapeHtml(meta)}</div>` : '')
       + '</div>';
   }
-  /** 予約モーダルの履歴パネル内で、お客様メモを編集できるようにする */
-  function wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes) {
+  /** 予約モーダルの履歴パネル内で、お客様メモを編集・追加できるようにする */
+  function wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes, fallback, ngCasts) {
     const rerender = () => {
       const host = panelEl.querySelector('.bm-history-note');
       if (!host) return;
-      host.outerHTML = renderCustomerNote(getNotes());
-      wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes);
+      host.outerHTML = renderCustomerNote(getNotes(), fallback, ngCasts);
+      wireCustomerNoteEdit(panelEl, customerId, getNotes, setNotes, fallback, ngCasts);
+      renderNgAlert();
     };
+    // 担当キャスト・日付を変えると「その予約で書いた記録か」が変わる（＝編集/追加が入れ替わる）
+    panelEl._noteRerender = rerender;
+    panelEl._noteNg = ngCasts;   // NGボタンを押した直後にメモ側の印も出し入れするため
     const editBtn = panelEl.querySelector('[data-note-edit]');
     if (!editBtn) return;
+    // その予約で書いた記録は「編集」（書き直し）、それ以外の予約からは「追加」（書き足し）。
+    // 1件ごとに「登録した予約の日付」と「そのときのキャスト名」が頭に付く
     editBtn.addEventListener('click', () => {
       const host = panelEl.querySelector('.bm-history-note');
       const { main, meta } = splitCustomerNote(getNotes());
-      host.innerHTML = customerNoteHead(false)
-        + `<textarea class="bhn-ta" rows="4" placeholder="キャストには伝えない、このお客様の情報">${escapeHtml(main)}</textarea>`
+      const entries = parseNoteEntries(main, fallback);
+      const stamp = currentNoteStamp();
+      const idx = noteEntryIndexFor(entries, stamp);
+      const editing = idx >= 0;
+      host.innerHTML = customerNoteHead('')
+        + `<div class="bhn-stamp">${escapeHtml(stamp.date)}${stamp.cast ? ' ' + escapeHtml(stamp.cast) : ''}</div>`
+        + '<textarea class="bhn-ta" rows="3" placeholder="キャストには伝えない、このお客様の情報"></textarea>'
         + '<div class="bhn-actions"><button type="button" class="bhn-btn" data-note-cancel>キャンセル</button>'
-        + '<button type="button" class="bhn-btn primary" data-note-save>保存</button></div>'
+        + `<button type="button" class="bhn-btn primary" data-note-save>${editing ? '保存する' : '追加する'}</button></div>`
+        + (entries.length ? `<div class="bhn-main">${renderNoteEntries(mergeNgIntoEntries(entries, ngCasts), idx)}</div>` : '')
         + (meta ? `<div class="bhn-meta">${escapeHtml(meta)}</div>` : '');
       const ta = host.querySelector('.bhn-ta');
+      if (editing) ta.value = String(entries[idx].body).trim();
       ta.focus();
       host.querySelector('[data-note-cancel]').addEventListener('click', rerender);
       host.querySelector('[data-note-save]').addEventListener('click', async () => {
-        // 移行情報は編集させず、そのまま末尾に戻す（旧IDなどを消さないため）
-        const next = [ta.value.trim(), meta].filter(Boolean).join('\n');
+        const body = ta.value.trim();
+        if (!body && !editing) { rerender(); return; }
+        let nextMain;
+        if (editing) {
+          // 空にしたらその1件だけ消す
+          nextMain = body
+            ? buildNoteMain(entries, idx, body, stamp)
+            : buildNoteMain(entries.filter((_, i) => i !== idx), -1, '', stamp);
+        } else {
+          // 新しい記録が上。触っていない記録は元の形のまま
+          nextMain = [`【${stamp.date}${stamp.cast ? ' ' + stamp.cast : ''}】${body}`,
+                      buildNoteMain(entries, -1, '', stamp)].filter(Boolean).join('\n');
+        }
+        // 移行情報（旧IDなど）は末尾のまま動かさない
+        const next = [nextMain, meta].filter(Boolean).join('\n');
         try {
           await apiPost('/customers.php?action=update', { id: customerId, notes: next });
           setNotes(next);
-          toast('✓ お客様メモを保存しました', 'ok');
+          toast(editing ? '✓ お客様メモを保存しました' : '✓ お客様メモに追加しました', 'ok');
           rerender();
         } catch (e) { toast('保存に失敗しました', 'err'); }
       });
@@ -5041,11 +8312,16 @@
   };
   const HIST_NOM = { first: '初指名', regular: '本指名', free: 'フリー' };
 
-  /** 予約(b)・旧履歴(v) を時系列（新しい順）に混ぜる */
+  /**
+   * 予約(b)・旧履歴(v) を時系列（新しい順）に混ぜる。
+   * 同じ予約を OPS にも入れてある旧履歴（日付・開始時刻が一致）は二重に出さない（店長指摘 2026-08-10）
+   */
   function mergeHistoryRows(bookings, legacy) {
+    const slots = bookedSlotsOf(bookings, false);
+    const legacyRows = (legacy || []).filter(v => !legacyIsDup(v, slots, false));
     return [
       ...(bookings || []).map(b => ({ t: `${b.booking_date} ${(b.start_time || '00:00')}`, kind: 'b', b })),
-      ...(legacy || []).map(v => ({ t: String(v.visit_at), kind: 'l', v })),
+      ...legacyRows.map(v => ({ t: String(v.visit_at), kind: 'l', v })),
     ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
   }
 
@@ -5159,6 +8435,19 @@
       return d.shifts || [];
     } catch (e) { return []; }
   }
+  // その日「休み」にしたドライバーのID集合（勤務実績のお休みチップ・店長要望 2026-08-20）。
+  // シフトの出勤状態(off)とは別管理なので、送迎ドライバー選択ではこちらも見て除外する
+  const _driverOffCache = {};
+  async function driverOffSetForDay(bizDay) {
+    if (!bizDay) return new Set();
+    if (_driverOffCache[bizDay]) return _driverOffCache[bizDay];
+    try {
+      const d = await api(`/admin-api.php?action=driver-off-list&date=${bizDay}`);
+      const set = new Set((d.driver_ids || []).map(Number));
+      _driverOffCache[bizDay] = set;
+      return set;
+    } catch (e) { return new Set(); }
+  }
   // 担当プルダウン: その日に出勤しているキャストだけを、タイムラインと同じ並びで出す。
   // 休み(off)は除外。既に割り当て済みのキャストは、その日出勤していなくても
   // 選択が消えないよう必ず残す（過去予約の編集で担当が飛ぶのを防ぐ）
@@ -5180,7 +8469,7 @@
     const list = sortCastsByShift(onDuty, shifts, bizDay);
     // 名前だけを出す。出勤時間はタイムラインで把握できるうえ、ヘッダーの狭い枠では
     // 「あおい（15:30〜」と切れて読みにくかった（店長判断 2026-08-03）
-    adSel.innerHTML = '<option value="">— 未割当 —</option>' +
+    adSel.innerHTML = '<option value="">キャストは？</option>' +   // 未選択は問いかけで目立たせる（店長要望 2026-08-16）
       list.map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
     if (keep) adSel.value = keep;
   }
@@ -5202,7 +8491,7 @@
     }
     if (adminUsersAll.length === 0) {
       // owner=admin-users / 他=staff-list (read-only)
-      const ep = currentUser?.role === 'owner' ? 'admin-users' : 'staff-list';
+      const ep = staffListEndpoint();
       try {
         const d = await api('/admin-api.php?action=' + ep);
         adminUsersAll = d.users || [];
@@ -5211,14 +8500,8 @@
     const usersForSel = adminUsersAll.length ? adminUsersAll : [{ id: currentUser.id, display_name: currentUser.display_name, username: currentUser.email, role: currentUser.role }];
     // 担当キャストの選択肢は日付が決まってから populateCastSelect() が入れる
     // （その日の出勤者だけに絞るため。ここで全員を入れると一瞬全件が見えてしまう）
-    // ドライバー = role=driver、または can_drive 兼任者（行き/帰りで別ドライバー可）
-    const drvOpts = '<option value="">未定(自走)</option>' +
-      usersForSel.filter(u => isDriverCapable(u))
-        .map(u => `<option value="${u.id}">${escapeHtml(u.display_name || u.username)}</option>`).join('');
-    const drvSel = bel('bmDriverId');
-    if (drvSel) drvSel.innerHTML = drvOpts;
-    const drvBackSel = bel('bmBackDriverId');
-    if (drvBackSel) drvBackSel.innerHTML = drvOpts;
+    // 送迎ドライバーは予約モーダルでは選ばない（タイムラインのカード下の
+    // 行き/帰りボタン → openDriverAssign で、その日の出勤者から選ぶ）
   }
 
   // 深夜料金 (+¥3,300) — チェックは合計表示のみに反映 (bmPrice はコース料金のまま)
@@ -5286,6 +8569,49 @@
     if (pm !== 'split' && bel('bmCashAmount')) bel('bmCashAmount').value = '';
     updateBookingTotal();
   }
+  /**
+   * 「前回ご案内したときの交通費」を割り出す（店長要望 2026-08-24）。
+   * 基本は以前と同じ額でご案内するので、今回の額が違うときに気づけるようにするための材料。
+   * 済んだご利用のうち一番新しいもの（OPS予約＋旧履歴／今開いている予約は除く）を見る。
+   * キャンセル・無連絡・問合せ、交通費が未記録のものは対象外
+   */
+  function lastTransportFee(d, excludeBookingId) {
+    const SKIP = ['cancelled', 'no_show', 'inquiry'];
+    const cand = [];
+    (d.bookings || []).forEach(b => {
+      if (Number(b.id) === Number(excludeBookingId)) return;
+      if (SKIP.includes(String(b.status))) return;
+      if (b.transport_fee === null || b.transport_fee === undefined || b.transport_fee === '') return;
+      const day = bizDateOf(b.booking_date, b.start_time || '00:00');
+      cand.push({ key: `${day} ${b.start_time || '00:00'}`, day, fee: parseInt(b.transport_fee, 10) || 0,
+                  cast: String(b.staff_name || '').trim() });
+    });
+    (d.legacy_visits || []).forEach(v => {
+      if (SKIP.includes(String(v.status))) return;
+      if (v.transport_fee === null || v.transport_fee === undefined || v.transport_fee === '') return;
+      const day = String(v.visit_at || '').slice(0, 10);
+      if (!day) return;
+      cand.push({ key: String(v.visit_at), day, fee: parseInt(v.transport_fee, 10) || 0,
+                  cast: String(v.cast_name || '').trim() });
+    });
+    if (!cand.length) return null;
+    cand.sort((x, y) => (x.key < y.key ? 1 : x.key > y.key ? -1 : 0));
+    const m = cand[0].day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return { fee: cand[0].fee, cast: cand[0].cast, day: m ? `${Number(m[2])}/${Number(m[3])}` : cand[0].day };
+  }
+  /** 今回の交通費が前回と違うときだけ注意を出す。ボタンで前回の額に戻せる */
+  function syncTransportHint() {
+    const hint = bel('bmFeeHint');
+    const sel = bel('bmTransport');
+    if (!hint || !sel) return;
+    const last = bmCust[activeBmSuffix]?.lastFee;
+    const now = parseInt(String(sel.value || '').replace(/[^\d]/g, ''), 10) || 0;
+    if (!last || last.fee === now) { hint.style.display = 'none'; hint.innerHTML = ''; return; }
+    hint.style.display = '';
+    hint.innerHTML = `▲ 前回は ¥${last.fee.toLocaleString()} でご案内`
+      + `（${escapeHtml(last.day)}${last.cast ? ' ' + escapeHtml(last.cast) : ''}）`
+      + `<button type="button" class="bm-fee-apply" data-fee-apply="${last.fee}">前回の額にする</button>`;
+  }
   function updateBookingTotal() {
     const priceEl = bel('bmPrice');
     const transportEl = bel('bmTransport');
@@ -5350,8 +8676,8 @@
     // キャンセル時の計上注記（合計は元料金のまま表示し、計上の有無/額を明示）
     const noteEl = bel('bmCancelNote');
     if (noteEl) {
-      if (bel('bmStatus')?.value === 'cancelled') {
-        if (bel('bmCancelType')?.value === 'customer') {
+      if (bmIsCancel(bel('bmStatus')?.value)) {
+        if (bmCancelKindOf(bel('bmStatus')?.value) === 'customer') {
           const fee = parseInt(String(bel('bmCancelFee')?.value || '').replace(/[^\d]/g, ''), 10) || 0;
           noteEl.textContent = `お客様都合キャンセル → 計上額 ¥${fee.toLocaleString()}（キャンセル料）`;
           noteEl.style.color = 'var(--coral)';
@@ -5373,7 +8699,282 @@
       const cnt = nominationCount();
       nomView.value = nf ? nf.toLocaleString() + (cnt > 1 ? `（${cnt}本分）` : '') : '0';
     }
+    // 交通費は自動計算でも手動でも、必ずここを通ってから表示が変わる
+    try { syncTransportHint(); } catch (_) {}
   }
+  /**
+   * タイムラインのカードに出す「お約束の連絡」バッジ。事前予約のときだけ。
+   * 未対応のものを1つだけ出す（①出勤確認 →②到着見込み）。予定時刻を過ぎていたら赤。
+   * カードの形は変えず、💳未 と同じ行に小さく置く（店長要望 2026-08-10）。
+   */
+  /**
+   * その日・そのキャストの「貴重品お預かり」「釣銭お渡し」（店長要望 2026-08-16）。
+   * 大事なものなので、誰が預かった/渡した・誰が返した/回収した を残す。
+   *   なし → 素の色 ／ 預かり中(まだ戻っていない) → オレンジ ／ 済み → 緑
+   */
+  const DAY_FLAG_LABELS = {
+    valuables:    { on: '預かった人', off: '返した人' },
+    change_given: { on: '渡した人',   off: '回収した人' },
+  };
+  const dayFlagOf = (adminId, bizDay) => tlDayFlags[adminId + '|' + bizDay] || {};
+  function dayFlagBtn(adminId, bizDay, key, label) {
+    const f = dayFlagOf(adminId, bizDay);
+    const by = f[key + '_by'], offBy = f[key + '_off_by'];
+    const state = by && !offBy ? 'is-on' : (by && offBy ? 'is-done' : '');
+    const L = DAY_FLAG_LABELS[key];
+    // nameOf は関数ごとのローカル定義なのでここでは使えない。名簿から直接引く
+    const nm = (id) => {
+      const u = (adminUsersAll || []).find(x => Number(x.id) === Number(id));
+      return u ? (u.display_name || u.username) : '—';
+    };
+    // fmtRecvAt はまとめ画面の中だけの関数なのでここでは使わない。「M/D H:MM」に整えて出す
+    const tm = (v) => {
+      const m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      return m ? `（${parseInt(m[2], 10)}/${parseInt(m[3], 10)} ${parseInt(m[4], 10)}:${m[5]}）` : '';
+    };
+    const title = by
+      ? `${label}／${L.on}: ${nm(by)}${tm(f[key + '_at'])}` + (offBy ? `／${L.off}: ${nm(offBy)}${tm(f[key + '_off_at'])}` : `／${L.off}: まだ`)
+      : `${label}：クリックして記録`;
+    return `<button type="button" class="tl-flag ${state}" data-day-flag="${key}" data-admin="${adminId}" data-date="${bizDay}" title="${escapeAttr(title)}">${label}${by && offBy ? '✓' : ''}</button>`;
+  }
+  /** 貴重品／釣銭の記録ポップ（誰が・誰が返した の2つを選んで保存） */
+  function openDayFlagEdit(adminId, bizDay, key, anchorEl) {
+    closeTimeAdjust();
+    const L = DAY_FLAG_LABELS[key];
+    const label = key === 'valuables' ? '貴重品' : '釣銭';
+    const f = dayFlagOf(adminId, bizDay);
+    // 候補はその日の出勤スタッフ（内勤・ドライバー）。すでに記録されている人は必ず残す
+    const duty = opsOnDutySet(bizDay, [f[key + '_by'], f[key + '_off_by']]);
+    const people = (adminUsersAll || []).filter(u => u.id && duty.has(Number(u.id)) && (isOfficeCapable(u) || isDriverCapable(u))).sort(opsStaffOrder(bizDay));
+    const opts = (sel) => '<option value="">—</option>' + people.map(u =>
+      `<option value="${u.id}"${Number(sel) === Number(u.id) ? ' selected' : ''}>${escapeHtml(u.display_name || u.username)}</option>`).join('');
+    const pop = document.createElement('div');
+    pop.id = 'tlFlagPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">${label}</span><button class="ttp-close" type="button" aria-label="閉じる">×</button></div>
+      <div class="ttp-flag-row"><span class="ttp-flag-l">${L.on}</span><select class="ttp-sel" id="tlFlagBy">${opts(f[key + '_by'])}</select></div>
+      <div class="ttp-flag-row"><span class="ttp-flag-l">${L.off}</span><select class="ttp-sel" id="tlFlagOffBy">${opts(f[key + '_off_by'])}</select></div>
+      <button type="button" class="ttp-copy" id="tlFlagSave">保存</button>`;
+    document.body.appendChild(pop);
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    pop.addEventListener('click', (e) => e.stopPropagation());
+    pop.querySelector('#tlFlagSave').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const by = pop.querySelector('#tlFlagBy').value;
+      const offBy = pop.querySelector('#tlFlagOffBy').value;
+      try {
+        const res = await apiPost('/shifts.php?action=set-day-flag', { admin_user_id: adminId, biz_date: bizDay, key, by, off_by: offBy });
+        const k = adminId + '|' + bizDay;
+        tlDayFlags[k] = Object.assign({}, tlDayFlags[k], {
+          [key + '_by']: res.by, [key + '_at']: res.at,
+          [key + '_off_by']: res.off_by, [key + '_off_at']: res.off_at,
+        });
+        toast('✓ ' + label + 'を記録しました', 'ok');
+        closeTimeAdjust();
+        renderTimeline();
+      } catch (err) { toast('保存失敗: ' + err.message, 'err'); btn.disabled = false; }
+    });
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /**
+   * 回収が必要な貸出品（バスタオル＋マスタで「貸出品」にしたオプション）。
+   * 回収忘れが一番困るので、回収するまでタイムラインに出す（店長要望 2026-08-16）
+   */
+  function lentItemsOf(b) {
+    if (!b) return [];
+    const items = [];
+    if (Number(b.towel_lent) === 1) items.push('バスタオル');
+    const txt = String(b.menu_items || '');
+    const hits = (optionsCache || [])
+      .filter(o => Number(o.is_lendable) === 1 && String(o.name || '') && txt.includes(String(o.name)))
+      .map(o => String(o.name));
+    // 「無料ﾛｰﾀｰ」が入っているときに「ﾛｰﾀｰ」も拾ってしまうので、他の名前に含まれるものは落とす
+    hits.filter(nm => !hits.some(other => other !== nm && other.includes(nm))).forEach(nm => items.push(nm));
+    return items;
+  }
+  /** 貸出品を回収した人の名前（記録が無ければ空） */
+  function lendReturnedByName(b) {
+    const id = Number(b?.lend_returned_by || 0);
+    if (!id) return '';
+    const u = (adminUsersAll || []).find(x => Number(x.id) === id);
+    return u ? String(u.display_name || u.username || '') : '';
+  }
+
+  /**
+   * 貸出品の回収ポップ。「回収しましたか？」のはい/いいえだけだと誰が回収したか残らないため、
+   * その日の出勤スタッフから選んで記録する（店長要望 2026-08-26）。
+   * onDone は予約モーダルから開いたときの再描画用。
+   */
+  function openLendReturn(id, anchorEl, bookingObj, onDone) {
+    closeTimeAdjust();
+    const b = bookingObj || _tlBookingMap[id];
+    if (!b) return;
+    const items = lentItemsOf(b);
+    const done = !!b.lend_returned_at;
+    // 候補はその予約の営業日に出ている内勤・ドライバー。すでに記録されている人は必ず残す
+    const bizDay = bizDateOf(String(b.booking_date || '').slice(0, 10), String(b.start_time || '10:00'));
+    const duty = opsOnDutySet(bizDay, [b.lend_returned_by]);
+    const people = (adminUsersAll || []).filter(u => u.id && duty.has(Number(u.id)) && (isOfficeCapable(u) || isDriverCapable(u))).sort(opsStaffOrder(bizDay));
+    const sel = Number(b.lend_returned_by || 0) || Number(currentUser?.id || 0);
+    const opts = '<option value="">—</option>' + people.map(u =>
+      `<option value="${u.id}"${Number(sel) === Number(u.id) ? ' selected' : ''}>${escapeHtml(u.display_name || u.username)}</option>`).join('');
+
+    const pop = document.createElement('div');
+    pop.id = 'tlLendPop';
+    pop.className = 'tl-time-pop';
+    pop.innerHTML = `<div class="ttp-head"><span class="ttp-label">${done ? '回収済み' : '貸出品の回収'}</span>`
+      + `<button class="ttp-close" type="button" aria-label="閉じる">×</button></div>`
+      + `<div class="ttp-lend-items">🧺 ${escapeHtml(items.join('・'))}</div>`
+      + `<div class="ttp-flag-row"><span class="ttp-flag-l">回収した人</span><select class="ttp-sel" id="tlLendBy">${opts}</select></div>`
+      + `<button type="button" class="ttp-copy" id="tlLendSave">${done ? '担当を変更する' : '回収した'}</button>`
+      + (done ? `<button type="button" class="ttp-undo" id="tlLendUndo">貸出中に戻す</button>` : '');
+    document.body.appendChild(pop);
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+    pop.style.left = (r.left + window.scrollX) + 'px';
+    const pr = pop.getBoundingClientRect();
+    if (pr.right > window.innerWidth - 8) pop.style.left = (window.innerWidth - pr.width - 8 + window.scrollX) + 'px';
+    pop.querySelector('.ttp-close').addEventListener('click', (e) => { e.stopPropagation(); closeTimeAdjust(); });
+    pop.addEventListener('click', (e) => e.stopPropagation());
+
+    const apply = async (returned, byVal, btn) => {
+      btn.disabled = true;
+      try {
+        const res = await apiPost('/bookings.php?action=set-lend-returned', { id, returned: returned ? 1 : 0, by: byVal || '' });
+        b.lend_returned_at = returned ? '1' : null;
+        b.lend_returned_by = returned ? (res.by || null) : null;
+        const cached = _tlBookingMap[id];
+        if (cached && cached !== b) { cached.lend_returned_at = b.lend_returned_at; cached.lend_returned_by = b.lend_returned_by; }
+        toast(returned ? '✓ 回収済みにしました' : '貸出中に戻しました', 'ok');
+        closeTimeAdjust();
+        if (typeof onDone === 'function') onDone();
+        loadTimeline(true);
+      } catch (err) { toast('更新失敗: ' + err.message, 'err'); btn.disabled = false; }
+    };
+    pop.querySelector('#tlLendSave').addEventListener('click', (e) => {
+      e.stopPropagation();
+      apply(true, pop.querySelector('#tlLendBy').value, e.target.closest('button'));
+    });
+    const undo = pop.querySelector('#tlLendUndo');
+    if (undo) undo.addEventListener('click', (e) => { e.stopPropagation(); apply(false, '', e.target.closest('button')); });
+    setTimeout(() => document.addEventListener('click', _ttpOutside, true), 0);
+  }
+
+  /** 貸出品バッジ。回収済み（lend_returned_at あり）になったら消える */
+  function lendBadgeHtml(b) {
+    const items = lentItemsOf(b);
+    if (!items.length) return '';
+    // 回収しても消さず、チェック付きで残す（何を貸したかを後から見たい・店長要望 2026-08-23）
+    const done = !!b.lend_returned_at;
+    const who = lendReturnedByName(b);
+    const tip = done
+      ? `回収済み${who ? '（' + who + '）' : ''}: ${items.join('・')}／クリックで担当の変更・「貸出中」に戻せます`
+      : `貸出中: ${items.join('・')}／クリックで回収した人を選んで記録`;
+    return `<span class="bk-lend${done ? ' is-returned' : ''}" data-bk-lend="${b.id}" title="${escapeAttr(tip)}">🧺${done ? '✓' : items.length}</span>`;
+  }
+  /**
+   * 予約詳細（モーダル）の貸出品の状態表示。
+   * タイムラインで回収してもチェックが入ったままで「まだ貸してる」ように見えたため、
+   * 貸出中／回収済みをここにも出し、クリックで切り替えられるようにした（店長指摘 2026-08-16）
+   */
+  function renderBmLendState(b) {
+    const el = bel('bmLendState');
+    const wrap = bel('bmTowelWrap');
+    const items = lentItemsOf(b);
+    if (wrap) wrap.classList.toggle('is-returned', !!(b && b.lend_returned_at));
+    if (!el) return;
+    if (!b || !b.id || !items.length) { el.style.display = 'none'; el.onclick = null; return; }
+    const done = !!b.lend_returned_at;
+    el.style.display = 'inline-flex';
+    el.className = 'bm-lend-state' + (done ? ' is-done' : '');
+    const who = lendReturnedByName(b);
+    el.textContent = done ? ('✅ 回収済み' + (who ? '（' + who + '）' : '')) : `🧺 貸出中: ${items.join('・')}`;
+    el.title = done ? 'クリックで担当の変更・「貸出中」に戻す' : 'クリックで回収した人を選んで記録';
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      openLendReturn(b.id, el, b, () => renderBmLendState(b));
+    };
+  }
+  function prepBadgeHtml(b) {
+    if (!b || b.status !== 'pre_reserved') return '';
+    const kind = b.pre_kind || '';
+    const due = String(b.pre_due || '').substring(0, 5);
+    if (!kind && !due) return '';   // 何も決めていない事前予約には出さない
+    const label = kind === 'eta' ? '到着見込みの連絡' : kind === 'confirm' ? '出勤確認の連絡' : 'お客様への連絡';
+    const isLine = b.pre_contact_method === 'line';
+    const method = isLine ? '💬' : b.pre_contact_method === 'tel' ? '☎' : '📞';
+    // 営業日は 10:00〜翌10:00 なので、10時未満は「+24時間」として比べる（0:30 が 23:00 より後になる）
+    const bizMin = (h, m) => ((h < 10 ? h + 24 : h) * 60 + m);
+    const nowD = new Date();
+    const nowMin = bizMin(nowD.getHours(), nowD.getMinutes());
+    const dueMin = (t) => { const p = String(t).split(':'); return bizMin(parseInt(p[0], 10), parseInt(p[1], 10) || 0); };
+    // 予定時刻が未入力なら「未」だけ。時刻があり、今日の営業日ぶんで予定を過ぎていれば赤
+    const sameBizDay = bizDateOf(b.booking_date, b.start_time || '00:00') === fmtDate(getBusinessDayDate());
+    const overdue = !!due && sameBizDay && dueMin(due) <= nowMin;
+    const tip = `${label}${due ? '（' + due + '予定）' : ''} がまだです / クリックで「予約」に変えられます`;
+    // 予定時刻を過ぎたら手段に関わらず赤。まだのうちは LINE=緑 / 電話=紫（店長要望 2026-08-10）
+    const cls = overdue ? 'is-due' : (isLine ? 'is-wait is-line' : 'is-wait');
+    return `<span class="bk-prewarn ${cls}" data-bk-flag="${b.id}" title="${escapeAttr(tip)}">${method}${due || '未'}</span>`;
+  }
+
+  // ===== 事前予約のお約束（出勤確認の連絡・到着見込みの連絡）=====
+  // 事前予約のときだけ入力欄を出す。他のステータスでは値を持っていても隠すだけ（消さない）
+  // ステータス欄はキャンセルを理由ごとに分けて出す（店長指定 2026-08-15）。値は "cancelled:shop" 形式。
+  // DBは今まで通り status='cancelled' ＋ cancellation_reason_type に分けて保存する
+  const bmIsCancel = (v) => String(v || '').split(':')[0] === 'cancelled';
+  const bmCancelKindOf = (v) => String(v || '').split(':')[1] || 'customer';
+  /** ステータス欄の値から、隠してある理由 select を合わせる（保存・計上の判定に使う） */
+  function syncCancelTypeFromStatus() {
+    const v = bel('bmStatus')?.value || '';
+    const ct = bel('bmCancelType');
+    if (ct && bmIsCancel(v)) ct.value = bmCancelKindOf(v);
+  }
+  function syncPrepWrap() {
+    const wrap = bel('bmPreWrap');
+    if (!wrap) return;
+    wrap.style.display = bel('bmStatus')?.value === 'pre_reserved' ? 'block' : 'none';
+  }
+  /** チップの選択状態を反映（連絡手段 ☎/💬 と 内容 出勤確認/到着見込み の2組で共用） */
+  function setPrepChip(kind, v) {
+    const hid = bel(kind === 'method' ? 'bmPreMethod' : 'bmPreKind');
+    if (hid) hid.value = v || '';
+    const sel = kind === 'method' ? '.bm-prep-m' : '.bm-prep-k';
+    const attr = kind === 'method' ? 'prepMethod' : 'prepKind';
+    document.querySelectorAll(`#bmPreWrap${activeBmSuffix} ${sel}`).forEach(b => {
+      b.classList.toggle('is-on', b.dataset[attr] === v);
+    });
+  }
+  /** 予約データ → 入力欄 */
+  function fillPrepFields(b) {
+    setPrepChip('method', b?.pre_contact_method || '');
+    setPrepChip('kind', b?.pre_kind || '');
+    const preDue = String(b?.pre_due || '').substring(0, 5);
+    if (bel('bmPreDueH')) bel('bmPreDueH').value = preDue ? preDue.slice(0, 2) : '';
+    // 分は5分刻みの選択肢。5分刻みでない古いデータは近い値に丸める（選択肢に無いと空欄になるため）
+    if (bel('bmPreDueM')) {
+      let mv = '';
+      if (preDue) { let m = Math.round((parseInt(preDue.slice(3, 5), 10) || 0) / 5) * 5; if (m >= 60) m = 55; mv = ('0' + m).slice(-2); }
+      bel('bmPreDueM').value = mv;
+    }
+    syncPrepWrap();
+  }
+  /** 入力欄 → 保存する値。連絡が取れたら「事前予約→予約」に変える運用なので、済みフラグは持たない */
+  function prepPayload() {
+    return {
+      pre_contact_method: bel('bmPreMethod')?.value || null,
+      pre_kind: bel('bmPreKind')?.value || null,
+      pre_due: bel('bmPreDueH')?.value ? (bel('bmPreDueH').value + ':' + (bel('bmPreDueM')?.value || '00')) : null,
+    };
+  }
+
   // 担当キャストが選ばれたら、ステータスが「問合せ」のときのみ自動で「予約」に切替える
   // （完了・キャンセル等、既に確定した状態は上書きしない）
   function autoStatusOnAssign() {
@@ -5480,9 +9081,17 @@
       const d = await api('/customers.php?action=get&id=' + customerId);
       if (historyReqSeq[suffix] !== mySeq) return;  // その間に新しい呼び出しが発生済み→この古い結果は破棄
       const c = d.customer || {};
+      // 過去に使ったご自宅住所（新しい順）。2つ以上あれば選べるようにする（店長要望 2026-08-14）
+      const pastAddrs = collectHomeAddresses(d.bookings, c.default_location);
       // 顧客が確定したこの時点でも「いつもの場所」を試す（電話blur以外の経路をここで拾う）。
       // 既存予約を開いたときは場所が復元済み＝untouchedでないので何も起きない。
-      withBmSuffix(suffix, () => { try { prefillUsualLocation(c); } catch (_) {} });
+      withBmSuffix(suffix, () => { try { prefillUsualLocation(c, pastAddrs); } catch (_) {} });
+      {
+        const cur = joinAddressBuilding(
+          (document.getElementById('bmHomeAddress' + suffix)?.value || '').trim(),
+          (document.getElementById('bmHomeBuilding' + suffix)?.value || '').trim());
+        renderPastAddrSelect(suffix, pastAddrs, cur);
+      }
       // ご利用回数と「過去に会ったキャスト」は、実際のオーダーから数える。
       // キャンセル・無連絡は利用に数えない＝そのキャストとは会っていないまま（店長方針 2026-08-05）。
       // 予約ステータスで1回と判断する（店長方針 2026-08-05）。
@@ -5502,8 +9111,8 @@
         doneRows.forEach(x => { const n = String(x.staff_name || '').trim(); if (n) names.add(n); });
         (d.legacy_visits || []).filter(x => COUNTED(x.status))
           .forEach(x => { const n = String(x.cast_name || '').trim(); if (n) names.add(n); });
-        bmCust[suffix] = { isNew: usedCount === 0, castNames: names };
-        withBmSuffix(suffix, () => { try { syncDealBadges(); } catch (_) {} });
+        bmCust[suffix] = { isNew: usedCount === 0, castNames: names, lastFee: lastTransportFee(d, excludeBookingId) };
+        withBmSuffix(suffix, () => { try { syncDealBadges(); } catch (_) {} try { syncTransportHint(); } catch (_) {} });
       }
       const notesTrim = (c.notes || '').trim();
       const rows = (d.bookings || []).filter(b => Number(b.id) !== Number(excludeBookingId));
@@ -5526,12 +9135,14 @@
         ? `リピーター・ご利用${usedCount}回` + lastLabel
         : (notesTrim ? '📝 お客様メモあり' : (histCount > 0 ? `予約履歴 ${histCount}件` : '新規のお客様'));
       let curNotes = notesTrim;
-      const noteHtml = renderCustomerNote(curNotes);
+      const noteFallback = presumedNoteStamp(d.bookings || [], legacy);
+      const noteHtml = renderCustomerNote(curNotes, noteFallback, d.ng_casts || []);
       // 旧システムの一覧と同じ表形式。件数が多いので直近30件まで
       const mergedRows = mergeHistoryRows(rows, legacy).slice(0, 30);
       const rowsHtml = renderHistoryTable(mergedRows, { clickable: false });
       panelEl.innerHTML = noteHtml + rowsHtml;
-      wireCustomerNoteEdit(panelEl, customerId, () => curNotes, v => { curNotes = v; });
+      wireCustomerNoteEdit(panelEl, customerId, () => curNotes, v => { curNotes = v; }, noteFallback, d.ng_casts || []);
+      renderNgAlert();   // 差し込んだ 🚫NG ボタンの表示・文言を今の状態に合わせる
     } catch (e) {
       if (historyReqSeq[suffix] !== mySeq) return;
       summaryEl.textContent = 'リピーター履歴（読み込み失敗）';
@@ -5548,6 +9159,27 @@
     panel.style.display = open ? 'none' : 'block';
   }
 
+  // 電話番号の「🔍 照会」ボタン。押した時点でハッキリ結果を返す（blurだけだと気づきにくいため・店長要望 2026-08-16）
+  async function lookupCustomerByPhoneManual() {
+    const phone = bel('bmCustomerPhone').value.trim();
+    if (!phone) { toast('電話番号を入力してください', 'err'); return; }
+    const btn = bel('bmPhoneLookup');
+    if (btn) { btn.disabled = true; btn.textContent = '照会中…'; }
+    try {
+      await lookupCustomerByPhone();
+      const hit = !!bel('bmCustomerId').value;
+      if (hit) {
+        // 見つかったら履歴パネルをその場で開いて表示する
+        const toggleBtn = bel('bmHistoryToggle');
+        if (toggleBtn && toggleBtn.getAttribute('aria-expanded') !== 'true') toggleHistoryPanel();
+        toast(`✓ 該当あり：${bel('bmCustomerName').value || '（お名前未登録）'} 様`, 'ok');
+      } else {
+        toast('該当するお客様はいません（ご新規様）', 'err');
+      }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 照会'; }
+    }
+  }
   // 電話番号 blur で既存顧客検索
   async function lookupCustomerByPhone() {
     const phone = bel('bmCustomerPhone').value.trim();
@@ -5559,14 +9191,18 @@
         setBookingNg({ level: Number(d.customer.ng_level || 0), reason: d.customer.ng_reason || '', castIds: d.ng_cast_ids || [] });
         prefillUsualLocation(d.customer);
         const nameField = bel('bmCustomerName');
-        if (!nameField.value.trim()) nameField.value = d.customer.name || '';
+        // 旧データの「（名前未登録）」は名前として入れない（そのまま保存されて未登録が残るため）
+        const isNoName = (n) => !String(n || '').trim()
+          || ['名称未設定', '名前未登録', '未登録', '名前なし', '匿名']
+               .includes(String(n).replace(/[（）()\s　]/g, ''));
+        if (!nameField.value.trim() && !isNoName(d.customer.name)) nameField.value = d.customer.name || '';
         const emailField = bel('bmCustomerEmail');
         if (!emailField.value.trim() && d.customer.email) emailField.value = d.customer.email;
         loadCustomerHistory(d.customer.id, getEditingBookingId());
       } else {
         bel('bmCustomerId').value = '';
         setBookingNg(null);
-        bmCust[activeBmSuffix] = { isNew: true, castNames: new Set() };   // 登録なし＝ご新規様
+        bmCust[activeBmSuffix] = { isNew: true, castNames: new Set(), lastFee: null };   // 登録なし＝ご新規様
         try { syncDealBadges(); } catch (_) {}
         loadCustomerHistory(null);
       }
@@ -5574,6 +9210,7 @@
   }
 
   async function openBookingModal(id, prefill) {
+    clearPrevJobCache();   // 「直前のお仕事」はその都度取り直す（保存直後の古い一覧を掴まないため）
     await ensureSelectsLoaded();
     await ensureCoursesLoaded();
     await ensureOptionsLoaded();
@@ -5586,7 +9223,9 @@
     else { releaseBookingLock(activeBmSuffix); _bmLoadedUpdatedAt[activeBmSuffix] = ''; }
     const labelSuffix = activeBmSuffix === '-2' ? '（②）' : (document.getElementById('bookingModal-2')?.classList.contains('show') ? '（①）' : '');
     bel('bmTitle').textContent = (id ? '予約編集' : '新規予約') + labelSuffix;
-    bel('bmDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
+    // 電話番号の照会ボタンは新規受付のときだけ（編集中は電話が既に確定しているため・店長要望 2026-08-16）
+    { const lb = bel('bmPhoneLookup'); if (lb) lb.style.display = id ? 'none' : ''; }
+    bel('bmDelete').style.display = id && currentUser?.role !== 'staff' ? 'inline-flex' : 'none';
     // 休憩モードリセット (デフォルト OFF)
     const breakChk = bel('bmBreakMode');
     if (breakChk) { breakChk.checked = false; setBreakMode(false); }
@@ -5665,11 +9304,16 @@
           syncFreeHotelWrap();   // 手入力で登録された予約は開いた状態で出す
           bel('bmRoom').value = b.room_number || '';
         } else if (locType === 'home') {
-          const [rAddr, rBld] = splitAddressBuilding((b.hotel_name_snapshot || '').replace(HOME_PREFIX, ''));
+          // 建物名が二重に入っている古いデータ（例「プレステージ立川 805 プレステージ立川 805」）は畳んで出す
+          const [rAddr, rBld] = splitAddressBuilding(dedupeRepeatedSuffix((b.hotel_name_snapshot || '').replace(HOME_PREFIX, '').trim()));
           bel('bmHomeAddress').value = rAddr;
           bel('bmHomeBuilding').value = rBld;
+          // 市区町村も戻す。保存値（display_city）が無い古い予約は住所から拾う
+          // （入れないと開くたび「— すべて —」に見え、町名プルダウンも出なかった・店長指摘 2026-08-22）
+          restoreBmCityFor(b, rAddr);
         } else if (locType === 'other') {
           bel('bmOtherLoc').value = (b.hotel_name_snapshot || '').replace(OTHER_PREFIX, '');
+          restoreBmCityFor(b, bel('bmOtherLoc').value);
         }
         loadBmTowns();   // 市区町村が確定したので町名プルダウンを合わせる（前の予約の一覧を残さない）
         renderBmMapLinks();   // 開いた予約の住所にも地図リンクを出す
@@ -5680,12 +9324,15 @@
         // 送迎ドライバーはタイムラインで操作（モーダルでは扱わない）
         // 接客完了は予約としては「予約」。終わっているかはタイムラインの「終」で分かる
         bmKeptStatus[activeBmSuffix] = b.status === 'completed' ? 'completed' : null;
-        bel('bmStatus').value = b.status === 'completed' ? 'reserved' : (b.status || 'reserved');
+        bel('bmStatus').value = b.status === 'completed' ? 'reserved'
+          : (b.status === 'cancelled' ? 'cancelled:' + (b.cancellation_reason_type || 'customer') : (b.status || 'reserved'));
         bel('bmCancelType').value = b.cancellation_reason_type || 'customer';
         bel('bmCancelReason').value = b.cancellation_reason || '';
         setMoney('bmCancelFee', b.cancellation_fee ?? '');
         setMoney('bmCancelReward', b.cancellation_reward ?? '');
         bel('bmCancelWrap').style.display = b.status === 'cancelled' ? 'block' : 'none';
+        syncCancelTypeFromStatus();
+        fillPrepFields(b);   // 事前予約のお約束（出勤確認・到着連絡）
         // コース料金はコースマスタの基本料金を入れる（保存値は延長/深夜/指名料込みのため二重計上を防ぐ）。
         // 組み合わせ（90＋90 など）は bmCourse の選択肢に無いので、そちらの料金を先に見る。
         // 見ないと保存値がそのまま入り、開いて保存し直すたびに指名料などが二重に乗っていた
@@ -5722,18 +9369,17 @@
             ? String(b.card_paid_at).slice(0, 16).replace('T', ' ') + (b.card_paid_by_name ? `　${b.card_paid_by_name}` : '')
             : '';
         }
+        setReceiptBtn(Number(b.receipt_needed) === 1);
         if (bel('bmNomination')) bel('bmNomination').value = b.nomination_type || '';
         // 預り金は都度の手入力のため常に空欄（既存の報酬オーバーライドのみ編集時に復元）
         if (bel('bmDepositOverride')) bel('bmDepositOverride').value = '';
         if (bel('bmRewardOverride')) setMoney('bmRewardOverride', b.reward_override != null ? b.reward_override : '');
         bel('bmNotes').value = b.notes || '';
+        { const tw = bel('bmTowelLent'); if (tw) tw.checked = Number(b.towel_lent) === 1; }
+        renderBmLendState(b);   // 貸出中／回収済みをここでも出す（店長指摘 2026-08-16）
         // オプションは menu_items にテキストで保存している。名前で照合して選択を復元する
         // （マスタから消えたオプションは復元されないが、記録のテキストは残る）
-        {
-          const txt = String(b.menu_items || '');
-          const ids = optionsCache.filter(o => o.name && txt.includes(o.name)).map(o => o.id);
-          setBmOptionIds(ids);
-        }
+        setBmOptionCounts(parseMenuItemCounts(b.menu_items));
         // 深夜料金・キャンペーン割引を保存値から復元（bmPrice はコース基本料金＝通常価格）。
         // 保存 price = 基本 + 深夜 + 延長 − 割引 − スタンプ。スタンプは保存されないため 0 とみなし逆算する。
         const stampSelEdit = bel('bmStampReward');
@@ -5802,6 +9448,7 @@
     } else {
       // リセット
       ['bmCustomerId','bmCustomerName','bmCustomerPhone','bmCustomerEmail','bmCourse','bmCourse2','bmNomination','bmCustomMin','bmBreakDur','bmBreakCustomMin','bmBreakCity','bmHotelId','bmHotelName','bmRoom','bmHomeAddress','bmHomeBuilding','bmOtherLoc','bmPrice','bmNotes','bmStampReward','bmDepositOverride','bmRewardOverride','bmCashAmount'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+      setReceiptBtn(false);
       if (bel('bmTransport')) bel('bmTransport').value = '0';  // select化: 「なし(¥0)」がデフォルト
       loadCustomerHistory(null);
       // デフォルト: キャンペーン割引ON・深夜料金OFF
@@ -5826,6 +9473,7 @@
       populateHotelSelect('');
       loadBmTowns();   // 市区町村が空になったので町名プルダウンも隠す
       switchLocSection('loveho');   // 新規予約の既定はラブホタブ（店長指定 2026-08-08）
+      renderPastAddrSelect(activeBmSuffix, [], '');   // 前のお客様の住所候補を残さない
       const usualNote = bel('bmUsualLocNote');
       if (usualNote) usualNote.style.display = 'none';
       bel('bmDate').value = prefill?.date || fmtDate(getBusinessDayDate());  // 日付欄は営業日基準（深夜0-10時は前営業日）。保存時に開始時刻からカレンダー日へ変換
@@ -5857,11 +9505,14 @@
       renderCastAlert();
       setBmPayment('cash');  // 支払方法デフォルト=現金
       if (bel('bmExtCount')) bel('bmExtCount').value = '0';  // 延長デフォルト=なし
+      { const tw = bel('bmTowelLent'); if (tw) tw.checked = false; }
+      renderBmLendState(null);
       setBmMedia('');   // 媒体・予約経路は既定で未チェック
       // デフォルト: 担当キャスト未割当なら「問合せ」、既に割当済み(タイムラインの担当行から作成)なら「予約」
       bmKeptStatus[activeBmSuffix] = null;
       bel('bmStatus').value = prefill?.adminId ? 'reserved' : 'inquiry';
       bel('bmSub').textContent = '';
+      fillPrepFields(null);
     }
     const modalId = 'bookingModal' + activeBmSuffix;
     // 最小化中なら復元してから表示
@@ -5870,8 +9521,12 @@
       m.classList.remove('minimized');
       document.querySelector(`#minDock [data-restore="${modalId}"]`)?.remove();
     }
+    try { syncBmDateDisp(); } catch (e) {}
     // フッターの予約内容サマリーを全項目セット後に反映（編集時は場所・料金が updateEndTime より後に入るため）
     try { updateFooterStatus(); } catch (e) {}
+    // 「直前」ボタンの出し入れは全項目が入ってから判定する。
+    // 住所パネルは担当キャストより先に描かれるので、描画時だけの判定では常に「無し」になっていた
+    try { refreshPrevJobButtons(); } catch (e) {}
     openModal(modalId);
   }
 
@@ -6003,8 +9658,8 @@
       // 送迎（行き / 帰り）: ドライバー割当があれば「名前（時刻）」、無ければ「自走」
       const go = b.pickup_go_time ? String(b.pickup_go_time).substring(0,5) : '';
       const back = b.pickup_back_time ? String(b.pickup_back_time).substring(0,5) : '';
-      setText('odGo', b.driver_name ? `${b.driver_name}${go ? '（' + go + '）' : ''}` : '自走');
-      setText('odBack', b.back_driver_name ? `${b.back_driver_name}${back ? '（' + back + '）' : ''}` : '自走');
+      setText('odGo', b.driver_name ? `${b.driver_name}${go ? '（' + go + '）' : ''}` : 'キャスト');
+      setText('odBack', b.back_driver_name ? `${b.back_driver_name}${back ? '（' + back + '）' : ''}` : 'キャスト');
 
       // お仕事メモ（この予約＝自分が担当した仕事に保存。顧客に紐づく共通メモはお店の顧客管理のみ）
       const noteEl = document.getElementById('odNoteEdit');
@@ -6097,7 +9752,7 @@
 
   async function markOrderCompleted() {
     if (!currentOrderId) return;
-    if (!confirm('この予約を「接客完了」にしますか？')) return;
+    if (!await opsConfirm('この予約を「接客完了」にしますか？')) return;
     try {
       await apiPost('/bookings.php?action=update', { id: currentOrderId, status: 'completed' });
       toast('✓ 接客完了に更新しました', 'ok');
@@ -6174,7 +9829,7 @@
   }
 
   // お客様送信用の文面 (内部情報=電話/送迎/ドライバー/メモ を除外、丁寧な挨拶付き)
-  function buildCustomerBookingText(b, stampUrl) {
+  function buildCustomerBookingText(b) {
     const name = b.customer_name || b.customer_name_snapshot || '';
     // 日付を「2026年6月14日(土)」形式に
     let dateStr = b.booking_date || '';
@@ -6194,47 +9849,39 @@
     lines.push('下記の内容で承りました。');
     lines.push('');
     if (dateStr || st) lines.push(`■ 日時：${dateStr}${dateStr && st ? ' ' : ''}${st}${st && et ? '〜' + et : ''}`);
+    if (b.therapist_name) lines.push(`■ キャスト：${b.therapist_name}`);   // 日時の次に置く（店長指定 2026-08-22）
+    const nomLabelTxt = { first: '初指名', regular: '本指名', free: 'フリー' }[b.nomination_type] || '';
+    if (nomLabelTxt) lines.push(`■ 指名方法：${nomLabelTxt}`);
     if (b.course_name) lines.push(`■ コース：${b.course_name}${String(b.media || '').split(',').includes('line') ? ' ＋ LINE予約特典10分（無料）' : ''}${b.extension_count ? ` ＋ 延長${b.ext_unit_min || 30}分×${b.extension_count}` : ''}`);
     if (b.media) lines.push(`■ 媒体：${mediaLabels(b.media)}`);
     const priceNum = Number(b.price) || 0;
     const transNum = (b.transport_fee != null && b.transport_fee !== '') ? Number(b.transport_fee) : 0;
     const discNum = Number(b.discount) || 0;
-    if (priceNum) lines.push(`■ 料金：¥${priceNum.toLocaleString()}（税込）`);
+    const nomNum = Number(b.nomination_fee) || 0;
+    if (priceNum) lines.push(`■ 料金：¥${priceNum.toLocaleString()}`);   // （税込）表記は付けない（店長指定 2026-08-22）
+    if (nomNum > 0) lines.push(`■ 指名料：¥${nomNum.toLocaleString()}`);   // 店長要望 2026-08-22
     if (transNum > 0) lines.push(`■ 交通費：¥${transNum.toLocaleString()}`);
     if (discNum > 0) lines.push(`■ キャンペーン割引：-¥${discNum.toLocaleString()}`);
     const stampNum = Number(b.stamp_discount) || 0;
     if (stampNum > 0) lines.push(`■ スタンプ特典：-¥${stampNum.toLocaleString()}`);
     const hfNum = Number(b.hotel_first_discount) || 0;
     if (hfNum > 0) lines.push(`■ ホテル料金：-¥${hfNum.toLocaleString()}`);
-    if (priceNum && (transNum > 0 || discNum > 0 || stampNum > 0 || hfNum > 0)) lines.push(`■ 合計：¥${(priceNum + transNum - discNum - stampNum - hfNum).toLocaleString()}（税込）`);
+    if (priceNum && (nomNum > 0 || transNum > 0 || discNum > 0 || stampNum > 0 || hfNum > 0)) {
+      lines.push(`■ 合計：¥${(priceNum + nomNum + transNum - discNum - stampNum - hfNum).toLocaleString()}`);
+    }
     // 訪問先 (内部プレフィックスは外して表示)
     const hotel = b.hotel_name_snapshot || b.hotel_name || '';
     if (hotel) {
-      let loc = hotel;
-      if (hotel.startsWith(HOME_PREFIX)) loc = hotel.replace(HOME_PREFIX, '');
-      else if (hotel.startsWith(OTHER_PREFIX)) loc = hotel.replace(OTHER_PREFIX, '');
-      lines.push(`■ 訪問先：${loc}${b.room_number ? ' ' + b.room_number + '号室' : ''}`);
+      // 行き先に合わせて見出しを変える（ご自宅／ホテル）。その他はこれまでどおり「訪問先」
+      let loc = hotel, locLabel = 'ホテル';
+      if (hotel.startsWith(HOME_PREFIX)) { loc = hotel.replace(HOME_PREFIX, ''); locLabel = 'ご自宅'; }
+      else if (hotel.startsWith(OTHER_PREFIX)) { loc = hotel.replace(OTHER_PREFIX, ''); locLabel = '訪問先'; }
+      lines.push(`■ ${locLabel}：${loc}${b.room_number ? ' ' + b.room_number + '号室' : ''}`);
     }
-    if (b.therapist_name) lines.push(`■ 担当キャスト：${b.therapist_name}`);
     lines.push('');
     lines.push('当日はどうぞよろしくお願いいたします。');
-    lines.push('ご変更・ご不明な点はお気軽にご連絡ください。');
-    lines.push('');
-    lines.push('＜スタンプカードのご案内＞');
-    if (stampUrl) {
-      lines.push(`${name || 'お客様'}様専用のスタンプカードはこちらです。`);
-      lines.push('ご利用ごとにスタンプが貯まり、特典もございます。');
-      lines.push(stampUrl);
-    } else {
-      lines.push('当店ではスタンプカードを発行しております。');
-      lines.push('ご利用ごとにスタンプが貯まり、特典もございます。');
-      lines.push('ご利用後、お客様専用のスタンプカードをお送りいたします。');
-    }
-    lines.push('');
-    lines.push('───────────────');
-    lines.push('YLKA（イルカ）');
-    lines.push('立川・多摩エリア 出張リラクゼーション');
-    lines.push('📞 042-512-8507（受付 10:00〜翌4:00）');
+    // ご案内文・スタンプカード・店舗の署名は入れない（店長指定 2026-08-22）。
+    // 予約内容だけを渡し、あいさつはスタッフがその場の言葉で添える
     return lines.join('\n');
   }
 
@@ -6261,6 +9908,7 @@
       } else {
         hotelSnap = bel('bmHotelName').value.trim();
       }
+      if (!hotelSnap) hotelSnap = undecidedVenueName(locType);   // 未定のときは「立川市ラブホテル」
       roomNum = bel('bmRoom').value.trim();
     } else if (locType === 'home') {
       const addr = bel('bmHomeAddress').value.trim();
@@ -6283,6 +9931,8 @@
       end_time: endTxt,
       course_name: courseName,
       price: baseForCopy + lateForCopy,
+      nomination_type: bel('bmNomination')?.value || null,
+      nomination_fee: nominationFeeTotal(),
       discount: campaignDiscount(baseForCopy),
       stamp_discount: stampDiscount(baseForCopy - campaignDiscount(baseForCopy)),
       hotel_first_discount: hotelFirstDiscount(),
@@ -6291,13 +9941,8 @@
       room_number: roomNum,
       therapist_name: therapistName,
     };
-    // お客様専用スタンプカードURL（会員トークンは未発行なら自動生成される）
-    let stampUrl = '';
-    const custId = bel('bmCustomerId').value;
-    if (custId) {
-      try { const d = await apiPost('/customers.php?action=member-link', { id: Number(custId) }); stampUrl = d?.url || ''; } catch (e) {}
-    }
-    const text = buildCustomerBookingText(b, stampUrl);
+    // 文面にスタンプカードの案内は入れないので、会員URLの発行もしない（店長指定 2026-08-22）
+    const text = buildCustomerBookingText(b);
     const ok = await copyTextToClipboard(text);
     if (ok) toast('✓ お客様用テキストをコピーしました', 'ok');
     else toast('コピーに失敗しました', 'err');
@@ -6347,6 +9992,7 @@
       } else {
         hotelSnap = bel('bmHotelName').value.trim();
       }
+      if (!hotelSnap) hotelSnap = undecidedVenueName(locType);   // 未定のときは「立川市ラブホテル」
       roomNum = bel('bmRoom').value.trim();
     } else if (locType === 'home') {
       const addr = bel('bmHomeAddress').value.trim();
@@ -6450,6 +10096,8 @@
       if (isHotelLoc(locType)) {
         hotelId = bel('bmHotelId').value || null;
         hotelSnapshot = bel('bmHotelName').value.trim();
+        // 一覧からも選ばず手入力も無い＝「ホテルは未定」。市区町村だけで場所を残す
+        if (!hotelId && !hotelSnapshot) hotelSnapshot = undecidedVenueName(locType);
         roomNumber = bel('bmRoom').value.trim();
         // 選択ホテルから city を抽出
         if (hotelId && Array.isArray(hotelsForSelect)) {
@@ -6495,11 +10143,13 @@
         ? 'confirmed'
         : (bmKeptStatus[activeBmSuffix] === 'completed' && bel('bmStatus').value === 'reserved'
             ? 'completed'
-            : bel('bmStatus').value),
-      cancellation_reason_type: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelType').value : null,
-      cancellation_reason: bel('bmStatus').value === 'cancelled' && !isBreak ? bel('bmCancelReason').value : null,
-      cancellation_fee: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelFee') : null,
-      cancellation_reward: bel('bmStatus').value === 'cancelled' && bel('bmCancelType').value === 'customer' && !isBreak ? moneyVal('bmCancelReward') : null,
+            : String(bel('bmStatus').value).split(':')[0]),
+      cancellation_reason_type: bmIsCancel(bel('bmStatus').value) && !isBreak ? bmCancelKindOf(bel('bmStatus').value) : null,
+      cancellation_reason: bmIsCancel(bel('bmStatus').value) && !isBreak ? bel('bmCancelReason').value : null,
+      cancellation_fee: bmIsCancel(bel('bmStatus').value) && bmCancelKindOf(bel('bmStatus').value) === 'customer' && !isBreak ? moneyVal('bmCancelFee') : null,
+      cancellation_reward: bmIsCancel(bel('bmStatus').value) && bmCancelKindOf(bel('bmStatus').value) === 'customer' && !isBreak ? moneyVal('bmCancelReward') : null,
+      // 事前予約のお約束（出勤確認の連絡・到着見込みの連絡）。休憩には無い
+      ...(isBreak ? {} : prepPayload()),
       price: (() => {
         if (isBreak) return 0;
         // 預り金の手入力があれば自動計算をまるごと上書き（交通費込み・微調整用）
@@ -6536,12 +10186,16 @@
       // 併用のとき現金で受け取る額。併用以外は null（サーバ側でも同じ判定をしている）
       cash_amount: (!isBreak && bel('bmPayment')?.value === 'split') ? bmCashAmount() : null,
       card_paid: isBreak ? false : !!bel('bmCardPaid')?.checked,
+      // 領収証が必要なお客様（タイムラインで🧾が点滅する）
+      receipt_needed: isBreak ? 0 : (bel('bmReceiptNeeded')?.value === '1' ? 1 : 0),
       nomination_type: isBreak ? null : (bel('bmNomination')?.value || null),
       nomination_fee: isBreak ? 0 : nominationFeeTotal(),
       media: isBreak ? '' : getBmMedia().join(','),
       menu_items: isBreak ? '' : optionText(),
+      towel_lent: isBreak ? 0 : (bel('bmTowelLent')?.checked ? 1 : 0),   // バスタオル貸出（店長要望 2026-08-16）
       plus10: isBreak ? false : lineBonusExtra() > 0,
       notes: isBreak ? ('[休憩] ' + bel('bmNotes').value).trim() : bel('bmNotes').value,
+
       reward_override: (() => {
         const raw = String(bel('bmRewardOverride')?.value || '').replace(/[^\d]/g, '');
         return raw !== '' ? parseInt(raw, 10) : null;
@@ -6556,7 +10210,7 @@
       if (aId && (ng.castIds || []).map(Number).includes(aId)) {
         warn.push(`${findStaffUser(aId)?.display_name || '担当キャスト'} はこのお客様NGです`);
       }
-      if (warn.length && !confirm('⚠️ ' + warn.join('\n⚠️ ') + '\n\nこのまま登録しますか？')) return;
+      if (warn.length && !await opsConfirm('⚠️ ' + warn.join('\n⚠️ ') + '\n\nこのまま登録しますか？')) return;
     }
     try {
       const editId = getEditingBookingId();
@@ -6578,7 +10232,7 @@
   async function deleteBooking() {
     const editId = getEditingBookingId();
     if (!editId) return;
-    if (!confirm('この予約を削除しますか？')) return;
+    if (!await opsConfirm('この予約を削除しますか？')) return;
     try {
       await apiPost('/bookings.php?action=delete', { id: editId });
       toast('✓ 削除しました', 'ok');
@@ -6710,23 +10364,47 @@
     const cnWrap = document.getElementById('cmCastNotes');
     if (cnWrap) {
       cnWrap.style.display = 'none';
-      const cnRole = currentUser?.role;
-      if (id && ['office', 'manager', 'owner'].includes(cnRole)) {
+      if (id && currentUser?.role !== 'staff') {
         api('/customers.php?action=cast-note&customer_id=' + id).then(r => {
           const list = r.notes || [];
-          if (!list.length) return;
+          const logs = r.logs || [];
+          if (!list.length && !logs.length) return;
+          // 日付は「そのご利用の営業日」。時刻は先頭ゼロなし
+          const ymd = (s) => {
+            const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${m[1]}/${+m[2]}/${+m[3]}` : '';
+          };
+          const stamp = (s) => {
+            const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+            return m ? `${m[1]}/${+m[2]}/${+m[3]} ${+m[4]}:${m[5]}` : '';
+          };
+          const ACT = { create: '登録', update: '修正', delete: '削除' };
           const listEl = document.getElementById('cmCastNotesList');
-          if (listEl) listEl.innerHTML = list.map(n =>
+          if (listEl) listEl.innerHTML = (list.map(n =>
             `<div style="padding:.45rem .6rem;border:1px solid var(--gray);border-radius:8px;margin-bottom:.4rem;background:#fbfcfb;">
                <b style="color:var(--deep);">${escapeHtml(n.cast_name || '(退職キャスト)')}</b>
-               <span style="font-size:.72rem;color:var(--ink-soft);margin-left:.4rem;">${escapeHtml(String(n.updated_at || '').slice(0, 16))}</span>
+               <span style="font-size:.72rem;color:var(--ink-soft);margin-left:.4rem;">ご利用 ${escapeHtml(ymd(n.used_at))}</span>
+               <span style="font-size:.72rem;color:var(--ink-soft);margin-left:.4rem;">最終更新 ${escapeHtml(stamp(n.updated_at))}</span>
                <div style="margin-top:.2rem;white-space:pre-wrap;">${escapeHtml(n.note || '')}</div>
-             </div>`).join('');
+             </div>`).join('')
+            // キャストが登録・修正・削除した記録。消したメモの中身もここに残る（店長要望 2026-08-16）
+            + (logs.length
+              ? `<details style="margin-top:.5rem;"><summary style="cursor:pointer;color:var(--ink-soft);">メモの操作記録（${logs.length}件）</summary>`
+                + logs.map(l =>
+                  `<div style="padding:.4rem .6rem;border-left:3px solid var(--gray);margin:.35rem 0 .35rem .2rem;">
+                     <b style="color:var(--deep);">${escapeHtml(l.cast_name || '(退職キャスト)')}</b>
+                     <span style="margin-left:.4rem;">${escapeHtml(ACT[l.action] || l.action)}</span>
+                     <span style="font-size:.72rem;color:var(--ink-soft);margin-left:.4rem;">${escapeHtml(stamp(l.created_at))}</span>
+                     ${l.before_note ? `<div style="margin-top:.15rem;white-space:pre-wrap;color:#a55;text-decoration:line-through;">${escapeHtml(l.before_note)}</div>` : ''}
+                     ${l.after_note ? `<div style="margin-top:.15rem;white-space:pre-wrap;">${escapeHtml(l.after_note)}</div>` : ''}
+                   </div>`).join('')
+                + '</details>'
+              : ''));
           cnWrap.style.display = '';
         }).catch(() => {});
       }
     }
-    document.getElementById('cmDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
+    document.getElementById('cmDelete').style.display = id && currentUser?.role !== 'staff' ? 'inline-flex' : 'none';
     document.getElementById('cmHistory').style.display = 'none';
     // 会員証リンク（既存顧客のみ）
     const memWrap = document.getElementById('cmMemberWrap');
@@ -6755,6 +10433,7 @@
         document.getElementById('cmNotes').value = c.notes || '';
         document.getElementById('cmNgLevel').value = String(c.ng_level || 0);
         document.getElementById('cmNgReason').value = c.ng_reason || '';
+        renderCustomerReports(id);   // キャストからの報告（このお客様ぶん）
         cmNgCasts = (d.ng_casts || []).map(n => ({ cast_admin_id: Number(n.cast_admin_id), display_name: n.display_name }));
         syncCmNgBox();
         renderCmNgCasts();
@@ -6864,10 +10543,10 @@
     });
     // 削除ボタン
     el.querySelectorAll('[data-del-pledge]').forEach(btn => {
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', async e => {
         e.stopPropagation();
         const i = Number(btn.dataset.delPledge);
-        if (confirm('この誓約書画像を削除しますか？（保存ボタンで確定）')) {
+        if (await opsConfirm('この誓約書画像を削除しますか？（保存ボタンで確定）')) {
           cmPledgesState.splice(i, 1);
           renderCmPledges();
         }
@@ -6953,7 +10632,7 @@
     } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
   async function deleteCustomer() {
-    if (!editingCustomerId || !confirm('この顧客を削除しますか？\n過去の予約データは残りますが顧客情報は失われます。')) return;
+    if (!editingCustomerId || !await opsConfirm('この顧客を削除しますか？\n過去の予約データは残りますが顧客情報は失われます。')) return;
     try {
       await apiPost('/customers.php?action=delete', { id: editingCustomerId });
       toast('✓ 削除しました', 'ok');
@@ -6976,7 +10655,7 @@
     //   - カレンダー: 全員のシフトをピル表示できるので「全スタッフ」表示
     syncShiftStaffFilterForMode();
     // モード切替時は今日基準にリセット (起点が日/月で意味が違うので)
-    shCurrent = mode === 'timetable' ? getBusinessDayDate() : new Date();
+    shCurrent = getBusinessDayDate();   // 月表示も 10:00 で切り替え（深夜は前営業日の月）
     loadShifts();
   }
 
@@ -7011,8 +10690,9 @@
     return opts;
   }
 
-  // 他のスタッフのシフトを組めるか（内勤スタッフ以上）。API 側 opsCanManageShifts と揃える
-  const canManageShifts = () => ['owner', 'manager', 'office'].includes(currentUser?.role);
+  // 他のスタッフのシフトを組めるか。制限はメニューのチェックだけ（店長指定 2026-08-15）。
+  // キャストの出勤は CTRL の出勤管理が正なので、キャスト本人は自分ぶんのみ（API opsCanManageShifts と揃える）
+  const canManageShifts = () => currentUser?.role !== 'staff' && userCanSeeTab('shifts');
 
   async function loadShifts() {
     // 一度作ったら作り直さない作りだと、古い一覧（キャストが混ざった状態）が残るので毎回組み直す
@@ -7116,10 +10796,15 @@
     // 終了が開始以前なら日をまたいでいる（22:00〜翌05:00 など）
     const endLabel = (s) => {
       const st = hm(s.start_time), en = hm(s.end_time);
-      if (st === '10:00' && en === '10:00') return '24H';
+      // 「ラスト」「未定」は終了時刻を持たない。そのまま比べると空文字が開始より前と見なされ、
+      // 「〜翌」だけが出ていた（店長指摘 2026-08-22）
+      if (!en) return s.end_open === 'last' ? 'ラスト' : '未定';
+      if (s.shift_preset === '24h') return '24H';
       return (en <= st ? '翌' : '') + en;
     };
-    const roleOf = (u) => u.role === 'owner' ? 'オーナー' : u.role === 'manager' ? '管理者'
+    // 24H・早番・遅番は時刻ではなく区分の名前で出す（時刻より速く読める・店長要望 2026-08-28）
+    const kubunOf = (s) => ({ '24h': '24H', early: '早番', late: '遅番' })[s.shift_preset || ''] || '';
+    const roleOf = (u) => u.role === 'owner' ? '' : u.role === 'manager' ? '管理者'
                         : u.role === 'office' ? '内勤' : u.role === 'driver' ? '送迎' : '';
 
     let head = '<tr><th class="sg-name">スタッフ</th>';
@@ -7145,7 +10830,10 @@
         const cls = ['sg-c', s ? 's-' + s.status : '', ds === todayStr ? 'is-today' : ''].filter(Boolean).join(' ');
         let inner;
         if (isWork(s)) {
-          inner = `<span class="sg-t">${hm(s.start_time)}</span><span class="sg-t2">〜${endLabel(s)}</span>`
+          const kb = kubunOf(s);
+          inner = (kb
+                    ? `<span class="sg-t sg-kubun">${kb}</span>`
+                    : `<span class="sg-t">${hm(s.start_time)}</span><span class="sg-t2">〜${endLabel(s)}</span>`)
                 + (s.note ? `<span class="sg-memo" title="${escapeAttr(s.note)}">${escapeHtml(s.note)}</span>` : '');
         } else if (s && s.status === 'off') {
           inner = '休';
@@ -7214,8 +10902,8 @@
       chip.addEventListener('click', () => {
         document.querySelectorAll('#shBulkStatus [data-bulk-status]').forEach(c => c.classList.remove('is-on'));
         chip.classList.add('is-on');
-        // 休みは時間を使わないので入力を伏せる
-        const isOff = chip.dataset.bulkStatus === 'off';
+        // 休み・未登録は時間を使わないので入力を伏せる
+        const isOff = chip.dataset.bulkStatus === 'off' || chip.dataset.bulkStatus === 'unreg';
         ['shBulk24h', 'shBulkStart', 'shBulkEnd'].forEach(id => {
           const el = document.getElementById(id);
           if (!el) return;
@@ -7224,10 +10912,39 @@
         });
       });
     });
+    // 24H・早番・遅番のときは時間欄そのものを隠す（決まっているので出す必要がない・店長指定 2026-08-25）
+    const shBulkTimeVis = () => {
+      const fixed = ['shBulk24h', 'shBulkEarly', 'shBulkLate'].some(id => document.getElementById(id)?.checked);
+      ['shBulkStart', 'shBulkTilde', 'shBulkEnd'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = fixed ? 'none' : '';
+      });
+    };
+    [['shBulkEarly', '10:00', '19:00'], ['shBulkLate', '19:00', '10:00']].forEach(([id, st, en]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        if (!el.checked) return;
+        ['shBulk24h', 'shBulkEarly', 'shBulkLate'].forEach(o => { if (o !== id) { const x = document.getElementById(o); if (x) x.checked = false; } });
+        const ss = document.getElementById('shBulkStart'), es = document.getElementById('shBulkEnd');
+        if (ss) { ss.disabled = false; ss.value = st; }
+        if (es) { es.disabled = false; es.value = en; }
+        // 状態も「出勤」に寄せる（時間を決めた＝出勤）
+        document.querySelectorAll('#shBulkStatus [data-bulk-status]').forEach(c => c.classList.toggle('is-on', c.dataset.bulkStatus === 'available'));
+        shBulkTimeVis();
+      });
+      el.addEventListener('change', shBulkTimeVis);
+    });
     const cb24 = document.getElementById('shBulk24h');
     if (cb24) cb24.addEventListener('change', () => {
       ['shBulkStart', 'shBulkEnd'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = cb24.checked; });
+      if (cb24.checked) {
+        ['shBulkEarly', 'shBulkLate'].forEach(o => { const x = document.getElementById(o); if (x) x.checked = false; });
+        document.querySelectorAll('#shBulkStatus [data-bulk-status]').forEach(c => c.classList.toggle('is-on', c.dataset.bulkStatus === 'available'));
+      }
+      shBulkTimeVis();
     });
+    shBulkTimeVis();
     document.getElementById('shBulkApply')?.addEventListener('click', applyShiftBulk);
   }
 
@@ -7273,8 +10990,26 @@
     const staffName = isGrid
       ? (document.getElementById('shBulkStaff')?.selectedOptions?.[0]?.textContent || 'このスタッフ')
       : (document.getElementById('shStaffFilter')?.selectedOptions?.[0]?.textContent || '自分');
+    // 「○ 未登録」はまとめて登録を消す（各行のチップと同じ動き・店長要望 2026-08-16）
+    if (status === 'unreg') {
+      const targets = rows.filter(r => r.shiftId);
+      if (!targets.length) { toast('消す登録がありません', 'err'); return; }
+      if (!await opsConfirm(`${staffName} の ${targets.length}日ぶんの登録を消します（未登録に戻す）。よろしいですか？`)) return;
+      const delBtn = document.getElementById('shBulkApply');
+      if (delBtn) { delBtn.disabled = true; delBtn.textContent = '反映中…'; }
+      let dOk = 0; let dNg = 0;
+      for (const row of targets) {
+        try { await apiPost('/shifts.php?action=delete', { id: Number(row.shiftId) }); dOk++; }
+        catch (e) { dNg++; }
+      }
+      if (delBtn) { delBtn.disabled = false; delBtn.textContent = 'この内容で反映'; }
+      toast(dNg ? `${dOk}日を未登録に（${dNg}日は失敗）` : `✓ ${dOk}日ぶんを未登録に戻しました`, dNg ? 'err' : 'ok');
+      loadShiftsTimetable();
+      return;
+    }
+
     const label = status === 'off' ? '休み' : `${status === 'tentative' ? '仮シフト' : '出勤'} ${is24h ? '24時間' : start + '〜' + end}`;
-    if (!confirm(`${staffName} の ${rows.length}日ぶんを「${label}」にします。\n既に登録済みの日も上書きします。よろしいですか？`)) return;
+    if (!await opsConfirm(`${staffName} の ${rows.length}日ぶんを「${label}」にします。\n既に登録済みの日も上書きします。よろしいですか？`)) return;
 
     const btn = document.getElementById('shBulkApply');
     if (btn) { btn.disabled = true; btn.textContent = '反映中…'; }
@@ -7287,6 +11022,10 @@
         end_time: end,
         status,
         note: row.note,
+        // まとめて設定でチェックした区分も一緒に残す（店長指摘 2026-08-29）
+        preset: document.getElementById('shBulk24h')?.checked ? '24h'
+              : document.getElementById('shBulkEarly')?.checked ? 'early'
+              : document.getElementById('shBulkLate')?.checked ? 'late' : '',
       };
       const existingId = row.shiftId ? Number(row.shiftId) : 0;
       if (existingId) payload.id = existingId;
@@ -7302,8 +11041,9 @@
   function renderShiftTimetable(startDate, shifts, targetAdminId) {
     const tt = document.getElementById('shTimetable');
     const todayStr = fmtDate(getBusinessDayDate());
-    const startOpts = shiftTimeOptions(true);
-    const endOpts = shiftTimeOptions(false);
+    // 24H・早番・遅番のときは「--」を選んでおく（時間は決まっているので出さない・店長指定 2026-08-25）
+    const startOpts = [{ val: '', label: '--' }].concat(shiftTimeOptions(true));
+    const endOpts = [{ val: '', label: '--' }].concat(shiftTimeOptions(false));
     let html = '';
     for (let i = 0; i < 10; i++) {
       const d = addDays(startDate, i);
@@ -7314,10 +11054,17 @@
       const s = shifts.find(x => x.shift_date === ds) || null;
       const isRegistered = !!s;
       const status = s?.status || '';  // '' = 未登録
-      const start = s ? s.start_time.substring(0,5) : '10:00';
-      const end = s ? s.end_time.substring(0,5) : '22:00';
+      // 「ラスト」「未定」は end_time が空。素で substring すると一覧全体が落ちる（2026-08-16 修正）
+      const start = (s && s.start_time) ? s.start_time.substring(0,5) : '10:00';
+      const end = (s && s.end_time) ? s.end_time.substring(0,5) : '22:00';
       const note = s?.note || '';
-      const is24h = isRegistered && start === '10:00' && end === '10:00';
+      // 区分は「チェックを選んで保存したもの」だけ。時刻がたまたま同じでも区分にしない
+      //（10:00〜19:00 のドライバーが早番になっていた・店長指摘 2026-08-29）
+      const pset = s?.shift_preset || '';
+      const is24h = isRegistered && pset === '24h';
+      const isEarlyShift = isRegistered && pset === 'early';   // 早番
+      const isLateShift  = isRegistered && pset === 'late';    // 遅番
+      const shPreset = is24h || isEarlyShift || isLateShift;
       const rowClasses = [
         dowClass,
         isToday ? 'today' : '',
@@ -7338,8 +11085,10 @@
           ${chip('unreg', '○ 未登録', '○未')}
         </div>
         <label class="sh-tt-24h" title="10:00〜翌10:00 (24時間)"><input type="checkbox" class="sh-tt-24h-cb"${is24h?' checked':''}>24H</label>
-        <select class="sh-tt-start" data-field="start_time"${is24h?' disabled':''}>${buildOpts(startOpts, start)}</select>
-        <select class="sh-tt-end" data-field="end_time"${is24h?' disabled':''}>${buildOpts(endOpts, end)}</select>
+        <label class="sh-tt-24h" title="10:00〜19:00"><input type="checkbox" class="sh-tt-early-cb"${isEarlyShift ? ' checked' : ''}>早番</label>
+        <label class="sh-tt-24h" title="19:00〜翌10:00"><input type="checkbox" class="sh-tt-late-cb"${isLateShift ? ' checked' : ''}>遅番</label>
+        <select class="sh-tt-start" data-field="start_time"${shPreset?' disabled':''}>${buildOpts(startOpts, shPreset ? '' : start)}</select>
+        <select class="sh-tt-end" data-field="end_time"${shPreset?' disabled':''}>${buildOpts(endOpts, shPreset ? '' : end)}</select>
         <input type="text" class="sh-tt-memo" data-field="note" value="${escapeAttr(note)}" placeholder="メモ (任意)">
         <div class="sh-tt-status-cell">
           <span class="sh-status-indicator"></span>
@@ -7381,6 +11130,35 @@
       });
     });
 
+    // 時間を入れたら「出勤」にする（未登録・休みのままにしない・店長要望 2026-08-25）
+    const shMakeAvailable = (row) => {
+      const chipAvail = row.querySelector('.sh-tt-stchip[data-status="available"]');
+      if (!chipAvail || chipAvail.classList.contains('is-on')) return;
+      row.querySelectorAll('.sh-tt-stchip').forEach(c => c.classList.remove('is-on'));
+      chipAvail.classList.add('is-on');
+      row.classList.remove('is-unreg', 'is-off-only');
+    };
+    // 早番 / 遅番: チェックで時間が入り、状態も出勤になる（24Hと同時には選べない）
+    [['.sh-tt-early-cb', '10:00', '19:00'], ['.sh-tt-late-cb', '19:00', '10:00']].forEach(([sel, st, en]) => {
+      tt.querySelectorAll(sel).forEach(cb => {
+        cb.addEventListener('change', () => {
+          const row = cb.closest('.sh-tt-row');
+          const startSel = row.querySelector('.sh-tt-start');
+          const endSel = row.querySelector('.sh-tt-end');
+          if (!cb.checked) {                              // 外したら時間欄を触れるように戻すだけ
+            startSel.disabled = false; endSel.disabled = false;
+            return;
+          }
+          row.querySelectorAll('.sh-tt-24h-cb, .sh-tt-early-cb, .sh-tt-late-cb').forEach(o => { if (o !== cb) o.checked = false; });
+          startSel.value = ''; endSel.value = '';             // 画面は「--」。時刻は保存時に入れる
+          startSel.disabled = true; endSel.disabled = true;
+          row.classList.remove('is-24h');
+          shMakeAvailable(row);
+          saveShiftTimetableRow(row, targetAdminId);
+        });
+      });
+    });
+
     // 24H チェック: ON で 10:00〜翌10:00 固定、プルダウンを disable
     tt.querySelectorAll('.sh-tt-24h-cb').forEach(cb => {
       cb.addEventListener('change', () => {
@@ -7388,15 +11166,18 @@
         const startSel = row.querySelector('.sh-tt-start');
         const endSel = row.querySelector('.sh-tt-end');
         if (cb.checked) {
-          startSel.value = '10:00';
-          endSel.value = '10:00';
+          row.querySelectorAll('.sh-tt-early-cb, .sh-tt-late-cb').forEach(o => { o.checked = false; });
+          startSel.value = '';
+          endSel.value = '';
           startSel.disabled = true;
           endSel.disabled = true;
           row.classList.add('is-24h');
+          shMakeAvailable(row);
         } else {
           startSel.disabled = false;
           endSel.disabled = false;
-          if (endSel.value === '10:00') endSel.value = '22:00';
+          if (startSel.value === '') startSel.value = '10:00';
+          if (endSel.value === '' || endSel.value === '10:00') endSel.value = '22:00';
           row.classList.remove('is-24h');
         }
         saveShiftTimetableRow(row, targetAdminId);
@@ -7421,8 +11202,17 @@
     const activeChip = row.querySelector('.sh-tt-stchip.is-on');
     if (!activeChip) return;  // 状態未選択 → 保存しない
     const status = activeChip.dataset.status;
-    const start = row.querySelector('.sh-tt-start').value;
-    const end = row.querySelector('.sh-tt-end').value;
+    // 24H・早番・遅番のチェックが入っていれば、その時刻で保存する（画面は「--」表示）
+    const presetOf = (r) => r.querySelector('.sh-tt-24h-cb')?.checked ? ['10:00', '10:00']
+      : r.querySelector('.sh-tt-early-cb')?.checked ? ['10:00', '19:00']
+      : r.querySelector('.sh-tt-late-cb')?.checked ? ['19:00', '10:00'] : null;
+    const presetIdOf = (r) => r.querySelector('.sh-tt-24h-cb')?.checked ? '24h'
+      : r.querySelector('.sh-tt-early-cb')?.checked ? 'early'
+      : r.querySelector('.sh-tt-late-cb')?.checked ? 'late' : '';
+    const pre = presetOf(row);
+    const presetId = presetIdOf(row);
+    const start = pre ? pre[0] : row.querySelector('.sh-tt-start').value;
+    const end = pre ? pre[1] : row.querySelector('.sh-tt-end').value;
     const note = row.querySelector('.sh-tt-memo').value;
     const existingId = row.dataset.shiftId ? Number(row.dataset.shiftId) : 0;
     const indicator = row.querySelector('.sh-status-indicator');
@@ -7436,6 +11226,7 @@
         end_time: end,
         status,
         note: note.trim(),
+        preset: presetId,
       };
       if (existingId) payload.id = existingId;
       if (canManageShifts() && targetAdminId) payload.admin_user_id = targetAdminId;
@@ -7451,6 +11242,15 @@
       }
     }, 350);
   }
+  /** 個人の色の上に置く文字色。明るい色なら黒寄せ（黄色に白文字だと読めない） */
+  function textOnColor(hex) {
+    const m = /^#([0-9a-fA-F]{6})$/.exec(String(hex || ''));
+    if (!m) return '#fff';
+    const n = parseInt(m[1], 16);
+    const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+    return lum > 0.62 ? '#3a2f00' : '#fff';
+  }
+
   function renderShiftCalendar(gridStart, gridEnd, shifts) {
     const cal = document.getElementById('shCalendar');
     const todayStr = fmtDate(getBusinessDayDate());
@@ -7470,7 +11270,20 @@
       html += `<div class="sh-day ${isOtherMonth?'other-month':''} ${isToday?'today':''}" data-date="${ds}">
         <div class="sd-date ${dowClass}">${d.getDate()}</div>
         <div class="sd-shifts">
-          ${dayShifts.map(s => `<div class="sh-shift-pill s-${s.status}" data-shift-id="${s.id}" title="${escapeAttr(s.staff_name||'')} ${s.start_time}-${s.end_time}">${escapeHtml(s.staff_name||'').substring(0,4)} ${s.start_time.substring(0,5)}-${s.end_time.substring(0,5)}</div>`).join('')}
+          ${dayShifts.map(s => {
+            // 終了は「ラスト」「未定」で end_time が空のことがある。
+            // そのまま substring すると全体が落ちてカレンダーが「読み込み失敗」になっていた（2026-08-16 修正）
+            const st = hhmm(s.start_time) || '';
+            const et = s.end_time ? hhmm(s.end_time) : (s.end_open === 'last' ? 'ラスト' : '未定');
+            // 24時間・早番・遅番はその名前で出す（時刻より区分のほうが早く読める・店長要望 2026-08-25）。
+            // 判定は保存された区分だけ。時刻がたまたま同じ人は時刻のまま（店長指摘 2026-08-29）
+            const shiftLabel = ({ '24h': '24H', early: '早番', late: '遅番' })[s.shift_preset || ''] || `${st}-${et}`;
+            // 内勤はスタッフ管理で決めた個人の色、ドライバーは送迎ボタンと同じ黄色（店長指定 2026-08-16）
+            const col = /^#[0-9a-fA-F]{6}$/.test(String(s.staff_color || '')) ? String(s.staff_color) : '';
+            const style = col ? ` style="background:${escapeAttr(col)};border-color:${escapeAttr(col)};color:${textOnColor(col)};"`
+                        : (s.staff_role === 'driver' ? ' style="background:#ffd76a;border-color:#e6b93f;color:#5a4200;"' : '');
+            return `<div class="sh-shift-pill s-${s.status}" data-shift-id="${s.id}"${style} title="${escapeAttr(s.staff_name || '')} ${escapeAttr(st)}〜${escapeAttr(et)}">${escapeHtml(s.staff_name || '').substring(0, 4)} ${escapeHtml(shiftLabel)}</div>`;
+          }).join('')}
         </div>
       </div>`;
       d = addDays(d, 1);
@@ -7515,39 +11328,73 @@
         }
         if (!s) throw new Error('not found');
         document.getElementById('smSub').textContent = s.shift_date + (s.staff_name ? '　' + s.staff_name : '');
-        document.getElementById('smStart').value = s.start_time.substring(0,5);
-        document.getElementById('smEnd').value = s.end_time.substring(0,5);
+        smTimeSet('smStart', s.start_time ? s.start_time.substring(0,5) : '10:00');
+        { const mode = s.end_time ? 'time' : (s.end_open === 'last' ? 'last' : 'undecided'); const em = document.getElementById('smEndMode'); if (em) em.value = mode; smTimeSet('smEnd', s.end_time ? s.end_time.substring(0,5) : '22:00'); const wrap = document.getElementById('smEndTimeWrap'); if (wrap) wrap.style.display = mode === 'time' ? '' : 'none'; }
         document.getElementById('smStatus').value = s.status;
         document.getElementById('smNote').value = s.note || '';
         document.getElementById('smStaff').value = s.admin_user_id;
         // 編集時の日付保持
         document.getElementById('smTitle').dataset.date = s.shift_date;
+        document.getElementById('smTitle').dataset.preset = s.shift_preset || '';
       } catch (e) { toast('読み込み失敗', 'err'); return; }
     } else {
       const who = (shStaffList || []).find(u => String(u.id) === String(presetAdminId));
       document.getElementById('smSub').textContent = date + (who ? '　' + (who.display_name || who.username) : '');
-      document.getElementById('smStart').value = '10:00';
-      document.getElementById('smEnd').value = '22:00';
-      document.getElementById('smStatus').value = 'available';
+      smTimeSet('smStart', '');   // 既定は「--」（店長指定 2026-08-25）
+      smTimeSet('smEnd', '');
+      { const em = document.getElementById('smEndMode'); if (em) em.value = 'time'; const wrap = document.getElementById('smEndTimeWrap'); if (wrap) wrap.style.display = ''; }
+      document.getElementById('smStatus').value = 'undecided';   // 既定は未定（店長指定 2026-08-11）
       document.getElementById('smNote').value = '';
       document.getElementById('smTitle').dataset.date = date;
+      document.getElementById('smTitle').dataset.preset = '';
     }
-    // 24時間チェック状態を反映
-    const sm24 = document.getElementById('sm24h');
-    if (sm24) {
-      const isAll = document.getElementById('smStart').value === '10:00' && document.getElementById('smEnd').value === '10:00';
-      sm24.checked = isAll;
-      document.getElementById('smStart').disabled = isAll;
-      document.getElementById('smEnd').disabled = isAll;
+    // 24時間・早番・遅番のチェック状態は「保存された区分」だけで決める。
+    // 時刻が偶然そろっているだけの人（10:00〜19:00 のドライバー等）は素の時刻のまま（店長指摘 2026-08-29）
+    {
+      const pset = document.getElementById('smTitle').dataset.preset || '';
+      const isAll   = pset === '24h';
+      const isEarly = pset === 'early';
+      const isLate  = pset === 'late';
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+      set('sm24h', isAll); set('smEarly', isEarly); set('smLate', isLate);
+      const fixed = isAll || isEarly || isLate;
+      if (fixed) { smTimeSet('smStart', ''); smTimeSet('smEnd', ''); }   // 「--」表示（実時刻はチェックが持つ）
+      smTimeSetDisabled('smStart', fixed);
+      smTimeSetDisabled('smEnd', fixed);
+      try { window._smTimeRowVis && window._smTimeRowVis(); } catch (_) {}
     }
     openModal('shiftModal');
   }
   async function saveShift() {
+    const st = document.getElementById('smStatus').value;
+    // 未定 = 行を持たない（カレンダーにも出さない）。既に入っていれば消す。
+    // キャスト画面の「未定（登録なし）」と同じ扱いにそろえてある（店長指定 2026-08-11）
+    if (st === 'undecided') {
+      try {
+        if (editingShiftId) await apiPost('/shifts.php?action=delete', { id: editingShiftId });
+        toast('✓ 未定にしました', 'ok');
+        closeModal('shiftModal');
+        loadShifts();
+      } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
+      return;
+    }
+    let endMode = document.getElementById('smEndMode')?.value || 'time';
+    // 24時間・早番・遅番のチェックが入っていれば、その時刻で登録する（画面は「--」のまま）
+    const presetId = (typeof window._smActivePreset === 'function') ? window._smActivePreset() : null;
+    const preset = presetId ? window._smPresetTimes(presetId) : null;
+    let startVal = preset ? preset.start : smTimeGet('smStart');
+    let endVal   = preset ? preset.end   : ((endMode === 'time') ? smTimeGet('smEnd') : '');
+    if (preset) endMode = 'time';
+    // 「--」のままでは出勤として登録できない（開始が無いとカレンダーに置けない）
+    if (st !== 'off' && startVal === '') { toast('開始時刻を選んでください', 'err'); return; }
     const payload = {
       shift_date: document.getElementById('smTitle').dataset.date,
-      start_time: document.getElementById('smStart').value,
-      end_time: document.getElementById('smEnd').value,
-      status: document.getElementById('smStatus').value,
+      preset: ({ sm24h: '24h', smEarly: 'early', smLate: 'late' })[presetId] || '',
+      start_time: startVal,
+      // 「時刻を指定」でも「--」のままなら未定として保存する
+      end_time: (endMode === 'time' && endVal !== '') ? endVal : '',
+      end_open: (endMode === 'time' && endVal !== '') ? '' : (endMode === 'time' ? 'undecided' : endMode),
+      status: st,
       note: document.getElementById('smNote').value,
     };
     if (canManageShifts()) payload.admin_user_id = document.getElementById('smStaff').value;
@@ -7560,7 +11407,7 @@
     } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
   async function deleteShift() {
-    if (!editingShiftId || !confirm('このシフトを削除しますか？')) return;
+    if (!editingShiftId || !await opsConfirm('このシフトを削除しますか？')) return;
     try {
       await apiPost('/shifts.php?action=delete', { id: editingShiftId });
       toast('✓ 削除しました', 'ok');
@@ -7681,7 +11528,7 @@
   function openCourseModal(id) {
     editingCourseId = id;
     document.getElementById('coTitle').textContent = id ? 'コース編集' : '新規コース';
-    document.getElementById('coDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
+    document.getElementById('coDelete').style.display = id && currentUser?.role !== 'staff' ? 'inline-flex' : 'none';
     if (id) {
       const c = coursesCache.find(x => x.id === id);
       if (!c) return;
@@ -7742,7 +11589,7 @@
     } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
   async function deleteCourse() {
-    if (!editingCourseId || !confirm('このコースを削除しますか？\n既存予約のコース名表示には影響しません。')) return;
+    if (!editingCourseId || !await opsConfirm('このコースを削除しますか？\n既存予約のコース名表示には影響しません。')) return;
     try {
       await apiPost('/courses.php?action=delete', { id: editingCourseId });
       toast('✓ 削除しました', 'ok');
@@ -7851,6 +11698,7 @@
     setMoney('opPrice', o ? (o.price || '') : '');
     setMoney('opCastReward', o && o.cast_reward != null ? o.cast_reward : '');
     document.getElementById('opIsActive').checked = o ? Number(o.is_active) === 1 : true;
+    document.getElementById('opIsLendable').checked = o ? Number(o.is_lendable) === 1 : false;
     openModal('optionModal');
   }
 
@@ -7862,6 +11710,7 @@
       price: moneyVal('opPrice') || 0,
       cast_reward: moneyVal('opCastReward'),
       is_active: document.getElementById('opIsActive').checked ? 1 : 0,
+      is_lendable: document.getElementById('opIsLendable').checked ? 1 : 0,   // 貸出品（店長要望 2026-08-16）
     };
     if (!editingOptionId) {
       payload.sort_order = optionsCache.reduce((m, o) => Math.max(m, Number(o.sort_order || 0)), 0) + 10;
@@ -7881,7 +11730,7 @@
   }
 
   async function deleteOption() {
-    if (!editingOptionId || !confirm('このオプションを削除しますか？\n既存予約に記録済みの内容は消えません。')) return;
+    if (!editingOptionId || !await opsConfirm('このオプションを削除しますか？\n既存予約に記録済みの内容は消えません。')) return;
     try {
       await apiPost('/options.php?action=delete', { id: editingOptionId });
       toast('✓ 削除しました', 'ok');
@@ -7976,7 +11825,7 @@
   function openEntryMethodModal(id) {
     editingEntryMethodId = id;
     document.getElementById('emaTitle').textContent = id ? '入室方法を編集' : '新規入室方法';
-    document.getElementById('emaDelete').style.display = id && currentUser?.role === 'owner' ? 'inline-flex' : 'none';
+    document.getElementById('emaDelete').style.display = id && currentUser?.role !== 'staff' ? 'inline-flex' : 'none';
     if (id) {
       const e = entryMethodsCache.find(x => x.id === id);
       if (!e) return;
@@ -8019,7 +11868,7 @@
     } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
   async function deleteEntryMethod() {
-    if (!editingEntryMethodId || !confirm('この入室方法を削除しますか？\n既にホテルに設定されている場合、その表示は影響を受けます。')) return;
+    if (!editingEntryMethodId || !await opsConfirm('この入室方法を削除しますか？\n既にホテルに設定されている場合、その表示は影響を受けます。')) return;
     try {
       await apiPost('/entry-methods.php?action=delete', { id: editingEntryMethodId });
       toast('✓ 削除しました', 'ok');
@@ -8111,19 +11960,241 @@
     } catch (e) { toast('保存失敗: ' + e.message, 'err'); }
   }
 
+  // ========== 🔒 端末とログイン（スタッフ管理タブの中） ==========
+  // CTRL は誰でも開けるので、端末の許可・解除はここに置く（店長要望 2026-08-17）
+  const DEV_ROLE_LABEL = { owner: 'オーナー', manager: '店長', staff: 'スタッフ' };
+
+  async function loadDeviceList() {
+    const el = document.getElementById('devTable');
+    if (!el) return;
+    let d;
+    try { d = await api('/devices.php?action=list'); }
+    catch (e) { el.innerHTML = `<p style="color:var(--coral);">読み込み失敗: ${escapeHtml(e.message)}</p>`; return; }
+    // 「n/j H:MM」（時刻は先頭ゼロなし）
+    const when = (s) => {
+      const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      return m ? `${+m[2]}/${+m[3]} ${+m[4]}:${m[5]}` : '—';
+    };
+    el.innerHTML = '<div class="dev-card">' + (d.staff || []).map(s => `
+      <div class="dev-row">
+        <div>
+          <div class="dev-name">${escapeHtml(s.name)}
+            <span class="dev-tag ${s.role === 'owner' ? 'is-owner' : ''}">${escapeHtml(DEV_ROLE_LABEL[s.role] || s.role)}</span>
+            ${s.granted ? '<span class="dev-tag is-grant">許可中</span>' : ''}
+            ${s.dev_count === 0 ? '<span class="dev-tag is-none">端末なし</span>' : ''}
+          </div>
+          <div class="dev-meta">
+            ${s.dev_count ? `端末 ${s.dev_count}台（${s.devices.map(x => escapeHtml(x.name)).join(' / ')}）　最終利用 ${escapeHtml(when(s.dev_last))}`
+                          : 'まだ端末がありません。「次のログインを許可」を押してから、本人にログインしてもらってください'}
+            <br>最終ログイン ${escapeHtml(when(s.last_login))}
+          </div>
+        </div>
+        <div class="dev-acts">
+          ${s.granted
+            ? `<button type="button" class="dev-btn" data-dev-grant-cancel="${s.id}">許可を取り消す</button>`
+            : `<button type="button" class="dev-btn is-go" data-dev-grant="${s.id}" data-name="${escapeAttr(s.name)}">次のログインを許可</button>`}
+          ${s.dev_count ? `<button type="button" class="dev-btn is-danger" data-dev-revoke="${s.id}" data-name="${escapeAttr(s.name)}">端末を全部解除</button>` : ''}
+        </div>
+      </div>`).join('') + '</div>';
+
+    const post = async (path, body, msg) => {
+      try { await apiPost(path, body); toast(msg, 'ok'); await loadDeviceList(); }
+      catch (e) { toast('失敗: ' + e.message, 'err'); }
+    };
+    el.querySelectorAll('[data-dev-grant]').forEach(b => b.addEventListener('click', async () => {
+      if (!await opsConfirm(`${b.dataset.name} の次のログインを許可します。\n10分以内にご本人がログインした端末が登録されます。`)) return;
+      post('/devices.php?action=grant', { admin_id: Number(b.dataset.devGrant) }, '✓ 次のログインを許可しました');
+    }));
+    el.querySelectorAll('[data-dev-grant-cancel]').forEach(b => b.addEventListener('click', () => {
+      post('/devices.php?action=grant-cancel', { admin_id: Number(b.dataset.devGrantCancel) }, '許可を取り消しました');
+    }));
+    el.querySelectorAll('[data-dev-revoke]').forEach(b => b.addEventListener('click', async () => {
+      if (!await opsConfirm(`${b.dataset.name} の端末をすべて解除します。\n次にログインした端末が新しく登録されます。よろしいですか？`)) return;
+      post('/devices.php?action=revoke-user', { admin_id: Number(b.dataset.devRevoke) }, '✓ 端末を解除しました');
+    }));
+  }
+
+  // ========== 📦 備品 ==========
+  // 事務所にある数と、誰に貸しているかを常に出す。黙って無くなるのを防ぐのが目的なので、
+  // 貸出中は「誰が・いつから」を必ず見せる（店長要望 2026-08-16）
+  let _supData = { items: [], loans: [], users: [] };
+  const SUP_ROLE_LABEL = { staff: 'キャスト', driver: 'ドライバー', office: '内勤', manager: '店長', owner: '' };
+
+  function supMsg(text, isErr) {
+    const el = document.getElementById('supMsg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('is-err', !!isErr);
+    if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 4000);
+  }
+
+  async function loadSupplies() {
+    const stockEl = document.getElementById('supStock');
+    if (!stockEl) return;
+    try {
+      _supData = await api('/supplies.php?action=list');
+    } catch (e) {
+      stockEl.innerHTML = `<p style="color:var(--coral);">読み込み失敗: ${escapeHtml(e.message)}</p>`;
+      return;
+    }
+    renderSupplyStock();
+    renderSupplyLoans();
+    fillSupplyPickers();
+  }
+
+  function renderSupplyStock() {
+    const el = document.getElementById('supStock');
+    if (!el) return;
+    const rows = (_supData.items || []).filter(i => Number(i.is_active) === 1);
+    el.innerHTML = `<div class="sup-card">
+      <div class="sup-card-head">事務所にある数<small>数字を直すとその場で保存されます</small></div>
+      <div class="sup-row head"><div>備品</div><div class="sup-num">事務所</div><div class="sup-num">貸出中</div><div class="sup-num">合計</div></div>
+      ${rows.map(i => `<div class="sup-row">
+        <div class="sup-name">${escapeHtml(i.name)}
+          <span class="sup-kind ${i.kind === 'set' ? 'is-set' : 'is-each'}">${i.kind === 'set' ? 'セット' : '都度'}</span>
+        </div>
+        <div class="sup-num"><input class="sup-stock-in" type="number" min="0" inputmode="numeric"
+          value="${Number(i.stock)}" data-sup-stock="${i.id}"></div>
+        <div class="sup-num ${Number(i.lent) ? 'is-lent' : 'is-zero'}">${Number(i.lent)}</div>
+        <div class="sup-num">${Number(i.total)}</div>
+      </div>`).join('')}
+    </div>`;
+    el.querySelectorAll('[data-sup-stock]').forEach(inp => {
+      inp.addEventListener('change', async () => {
+        const id = Number(inp.dataset.supStock);
+        const stock = Math.max(0, parseInt(inp.value, 10) || 0);
+        try {
+          await apiPost('/supplies.php?action=set-stock', { id, stock });
+          supMsg('✓ 事務所の数を直しました');
+          await loadSupplies();
+        } catch (e) { supMsg(e.message || '保存できませんでした', true); }
+      });
+    });
+  }
+
+  function renderSupplyLoans() {
+    const el = document.getElementById('supLoans');
+    if (!el) return;
+    const loans = _supData.loans || [];
+    if (!loans.length) {
+      el.innerHTML = '<div class="sup-card"><div class="sup-card-head">貸出中</div>'
+        + '<div class="sup-empty">いま貸し出している備品はありません</div></div>';
+      return;
+    }
+    // 人ごとにまとめる（誰が何を持ったままかを1か所で見る）
+    const byUser = new Map();
+    loans.forEach(l => {
+      if (!byUser.has(l.admin_user_id)) byUser.set(l.admin_user_id, { name: l.user_name, role: l.user_role, list: [] });
+      byUser.get(l.admin_user_id).list.push(l);
+    });
+    const now = Date.now();
+    const daysOf = (s) => {
+      const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+      if (!m) return null;
+      const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+      return Math.floor((now - t) / 86400000);
+    };
+    let html = `<div class="sup-card"><div class="sup-card-head">貸出中<small>${loans.length}件</small></div>`;
+    byUser.forEach(u => {
+      html += `<div class="sup-person">
+        <div class="sup-person-name">${escapeHtml(u.name || '(退職)')}
+          <span class="role-mini">${escapeHtml(SUP_ROLE_LABEL[u.role] || u.role || '')}</span></div>
+        ${u.list.map(l => {
+          const d = daysOf(l.lent_at);
+          const dayTxt = d === null ? '' : (d === 0 ? '今日から' : `${d}日前から`);
+          return `<div class="sup-loan">
+            <span class="sup-loan-name">${escapeHtml(l.supply_name)}${Number(l.qty) > 1 ? ` ×${Number(l.qty)}` : ''}</span>
+            <span class="sup-loan-days${d !== null && d >= 7 ? ' is-long' : ''}">${escapeHtml(dayTxt)}</span>
+            <button type="button" class="sup-ret" data-sup-return="${l.id}">返却</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('[data-sup-return]').forEach(b => b.addEventListener('click', async () => {
+      const id = Number(b.dataset.supReturn);
+      const l = (_supData.loans || []).find(x => x.id === id);
+      if (!l) return;
+      if (!await opsConfirm(`${l.user_name} から ${l.supply_name}${Number(l.qty) > 1 ? ' ×' + l.qty : ''} を返してもらいましたか？`)) return;
+      try {
+        await apiPost('/supplies.php?action=return', { loan_id: id });
+        supMsg('✓ 返却しました');
+        await loadSupplies();
+      } catch (e) { supMsg(e.message || '戻せませんでした', true); }
+    }));
+  }
+
+  /** 貸出先に選ばれている人（キャスト側・スタッフ側のどちらか）。両方空なら0 */
+  function supSelectedUserId() {
+    const c = Number(document.getElementById('supUserCast')?.value || 0);
+    const s2 = Number(document.getElementById('supUserStaff')?.value || 0);
+    return c || s2 || 0;
+  }
+
+  function fillSupplyPickers() {
+    // 貸出先は「キャスト」と「スタッフ」で別々のプルダウン（店長要望 2026-08-22）。
+    // どちらかを選ぶともう片方は空に戻す＝選び間違いを防ぐ
+    const cSel = document.getElementById('supUserCast');
+    const sSel = document.getElementById('supUserStaff');
+    const iSel = document.getElementById('supItem');
+    const qSel = document.getElementById('supQty');
+    if (cSel && sSel) {
+      const all = _supData.users || [];
+      // キャストは入店日の新しい順 → 同じ日は名前順（探しやすさ）
+      const casts = all.filter(u => u.role === 'staff').slice().sort((a, b) => {
+        const da = String(a.in_date || ''), db = String(b.in_date || '');
+        if (da !== db) return db.localeCompare(da);
+        return String(a.name || '').localeCompare(String(b.name || ''), 'ja');
+      });
+      const staffs = all.filter(u => u.role !== 'staff');
+      const optOf = (u, withRole) => {
+        const r = withRole ? (SUP_ROLE_LABEL[u.role] !== undefined ? SUP_ROLE_LABEL[u.role] : (u.role || '')) : '';
+        return `<option value="${u.id}">${escapeHtml(u.name)}${r ? '（' + escapeHtml(r) + '）' : ''}</option>`;
+      };
+      const keepC = cSel.value, keepS = sSel.value;
+      cSel.innerHTML = '<option value="">— キャスト —</option>' + casts.map(u => optOf(u, false)).join('');
+      sSel.innerHTML = '<option value="">— スタッフ —</option>' + staffs.map(u => optOf(u, true)).join('');
+      if (keepC) cSel.value = keepC;
+      if (keepS) sSel.value = keepS;
+      if (!cSel.dataset.wired) {
+        cSel.dataset.wired = '1';
+        sSel.dataset.wired = '1';
+        cSel.addEventListener('change', () => { if (cSel.value) sSel.value = ''; });
+        sSel.addEventListener('change', () => { if (sSel.value) cSel.value = ''; });
+      }
+    }
+    if (iSel) {
+      const keep = iSel.value;
+      // お仕事セット（セット品を1つずつ）もここから選べるようにする（店長要望 2026-08-22）
+      const setItems = (_supData.items || []).filter(i => i.kind === 'set' && Number(i.is_active) === 1);
+      const setOpt = setItems.length
+        ? `<option value="set">🧰 お仕事セット（${escapeHtml(setItems.map(i => i.name).join('・'))}）</option>`
+        : '';
+      iSel.innerHTML = '<option value="">— 備品 —</option>' + setOpt
+        + (_supData.items || []).filter(i => Number(i.is_active) === 1).map(i =>
+            `<option value="${i.id}">${escapeHtml(i.name)}（事務所 ${Number(i.stock)}）</option>`).join('');
+      if (keep) iSel.value = keep;
+    }
+    if (qSel && !qSel.options.length) {
+      qSel.innerHTML = Array.from({ length: 10 }, (_, n) => `<option value="${n + 1}">${n + 1}</option>`).join('');
+    }
+  }
+
   // ========== 権限管理 ==========
   const TAB_INFO = {
     timeline:    { label: 'タイムライン', desc: '日次予約タイムラインの閲覧・操作' },
     bookings:    { label: '予約管理',     desc: '予約一覧の閲覧と編集' },
     customers:   { label: '顧客管理',     desc: '顧客情報の閲覧・編集' },
     shifts:      { label: '内勤・送迎シフト', desc: '内勤スタッフ・ドライバーのスケジュール登録（キャストの出勤はCTRLの出勤管理が正）' },
-    courses:     { label: 'コース',       desc: 'コースの追加・編集' },
-    hotel:       { label: 'ホテル管理',   desc: 'ホテルのステータス・ガイド編集' },
+    // 並び・名前はヘッダーのタブと必ず合わせる（店長指摘 2026-08-16）
     chat:        { label: '💬 チャット',  desc: 'お客様からのチャット問い合わせの受信・返信' },
-    payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計（オーナー・管理者のみ・固定）' },
-    settlement:  { label: '💴 入金',      desc: '自分の店舗への受け渡し確認（スタッフ本人）' },
-    staffboard:  { label: '👥 キャスト管理', desc: '当日の売上・件数・報酬・出勤（オーナー・管理者）' },
-    staff:       { label: 'スタッフ管理', desc: 'スタッフアカウントの追加・削除（必ずownerを含む）' },
+    staffboard:  { label: '👥 キャスト管理', desc: '当日の売上・件数・報酬・出勤' },
+    supplies:    { label: '📦 備品',      desc: '事務所にある数と、キャスト・ドライバーへの貸出' },
+    staff:       { label: 'スタッフ管理', desc: 'スタッフアカウントの追加・削除・ログイン端末（必ずownerを含む）' },
+    payroll:     { label: '💰 経理',      desc: '各キャストの報酬集計' },
+    settlement:  { label: '💴 入金', desc: 'お店への現金の受け渡し確認（内勤・ドライバー本人の画面）' },
+    courses:     { label: 'マスタ',       desc: 'コース・オプション・指名料・ホテル・駅・自宅の交通費など' },
     permissions: { label: '権限管理',     desc: 'このページ自体（必ずownerを含む）' },
   };
   let tabPermissions = null;
@@ -8145,13 +12216,14 @@
       chat:        ['owner', 'manager', 'office'],
       payroll:     ['owner', 'manager'],
       settlement:  ['owner', 'manager', 'office', 'staff', 'driver'],
+      staffboard:  ['owner', 'manager'],
       staff:       ['owner', 'manager'],
       permissions: ['owner'],
     };
-    // 管理タブ(マネージャー管理モードで出すもの)の可否判定
+    // 管理タブ(マネージャー管理モードで出すもの)の可否判定。
+    // 役職での決め打ちはしない。権限管理のチェック（未設定なら上の既定）だけで決める（店長指定 2026-08-15）
     const managerCanSee = (t) => {
       if (t === 'therapist' || t === 'myclients' || t === 'settlement') return false;
-      if (t === 'payroll' || t === 'staffboard' || t === 'staff') return ['owner', 'manager'].includes(role);
       if (!tabPermissions || !tabPermissions[t]) {
         const def = TAB_DEFAULTS[t];
         return def ? def.includes(role) : true;
@@ -8220,18 +12292,17 @@
   async function renderPermissions() {
     await loadPermissions(true);
     const el = document.getElementById('permTable');
-    const roles = ['owner', 'manager', 'office', 'staff', 'driver'];
+    // キャスト・ドライバーは OPS を見ない・操作しないので列自体を出さない（店長指定 2026-08-15）
+    const roles = ['owner', 'manager', 'office'];
     // ドライバーのデフォルト可視タブ
     const driverDefault = { timeline: true, bookings: true, shifts: true };
     // 内勤スタッフのデフォルト可視タブ (施術はしないが予約/顧客/チャット対応)
-    const officeDefault = { timeline: true, bookings: true, customers: true, chat: true };
+    const officeDefault = { timeline: true, bookings: true, customers: true, chat: true, supplies: true };
     let html = `<div class="perm-row header">
       <div>タブ</div>
       <div class="perm-cell">オーナー</div>
       <div class="perm-cell">管理者</div>
       <div class="perm-cell">🪪 内勤</div>
-      <div class="perm-cell">キャスト</div>
-      <div class="perm-cell">🚗ドライバー</div>
     </div>`;
     // チャットはデフォルトでオーナー＋店長＋内勤のみ (お客様対応用)
     const chatDefault = ['owner', 'manager', 'office'];
@@ -8242,14 +12313,13 @@
                            : ['owner','manager','staff'];
       if (driverDefault[key]) defaultAllowed.push('driver');
       if (officeDefault[key] && !defaultAllowed.includes('office')) defaultAllowed.push('office');
-      const payrollLocked = (key === 'payroll');
-      const allowed = payrollLocked ? ['owner', 'manager'] : (tabPermissions[key] || defaultAllowed);
+      const allowed = tabPermissions[key] || defaultAllowed;
       const ownerLocked = (key === 'staff' || key === 'permissions');
       html += `<div class="perm-row" data-perm-tab="${key}">
         <div class="perm-name">${info.label}<span class="perm-desc">${info.desc}</span></div>
         ${roles.map(r => {
           const checked = allowed.includes(r) ? 'checked' : '';
-          const disabled = ((r === 'owner' && ownerLocked) || payrollLocked) ? 'disabled' : '';
+          const disabled = (r === 'owner' && ownerLocked) ? 'disabled' : '';
           return `<div class="perm-cell"><input type="checkbox" data-role="${r}" ${checked} ${disabled}></div>`;
         }).join('')}
       </div>`;
@@ -8284,7 +12354,10 @@
     if (!el) return;
     el.innerHTML = '<div class="loading"><span class="spinner"></span><br><br>読み込み中...</div>';
     try {
-      const data = await api('/admin-api.php?action=' + staffListEndpoint());
+      const [data] = await Promise.all([
+        api('/admin-api.php?action=' + staffListEndpoint()),
+        loadCastAccess(),                       // 専用URL・暗証番号の状態
+      ]);
       allUsers = data.users || [];
       renderTherapistBoard();
     } catch (e) {
@@ -8362,7 +12435,7 @@
           </div>
         </div>`;
 
-      el.innerHTML = `<div class="th-grid">${attHtml}<div class="th-card" id="thBookCard"></div><div class="th-card" id="thPerfCard"></div>${shiftHtml}</div>`;
+      el.innerHTML = `<div class="th-grid">${attHtml}<div class="th-card" id="thBookCard"></div><div class="th-card" id="thChatCard"></div><div class="th-card" id="thPerfCard"></div>${shiftHtml}</div>`;
 
       // 出勤/休みの自己切替は廃止（キャストは閲覧のみ・出勤はシフトで管理）
       document.getElementById('thToClients')?.addEventListener('click', () => switchView('myclients'));
@@ -8370,10 +12443,50 @@
       // 入金明細は「今日」を表示してから開く
       document.getElementById('thToSettleMenu')?.addEventListener('click', () => { msSetRange('today'); switchView('settlement'); });
 
-      await Promise.all([renderThBookings(), renderThPerf()]);
+      await Promise.all([renderThBookings(), renderThPerf(), renderThChat()]);
     } catch (e) {
       el.innerHTML = `<p style="color:var(--coral);">読み込み失敗: ${escapeHtml(e.message)}</p>`;
     }
+  }
+
+  // 💬 チャット: 自分宛（指名）のYobuChat受信箱をそのまま埋め込む（店長要望 2026-09-02）。
+  // お店のチャットタブと同じ「本家をiframeで使う」方式。認証は受信箱URL（inbox_token）だけで完結する
+  async function renderThChat() {
+    const card = document.getElementById('thChatCard');
+    if (!card) return;
+    card.innerHTML = '<div class="th-card-h">💬 チャット</div><div style="color:var(--ink-soft);padding:.4rem 0;">読み込み中...</div>';
+    let d;
+    try { d = await api('/admin-api.php?action=my-chat-inbox'); }
+    catch (e) {
+      card.innerHTML = `<div class="th-card-h">💬 チャット</div><div style="color:var(--ink-soft);font-size:.84rem;">読み込めませんでした: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    const visBtn = (on) => `<label class="th-chat-vis${on ? ' on' : ''}">
+        <input type="checkbox" id="thChatVis"${on ? ' checked' : ''}>
+        指名チャット受付 <b>${on ? 'ON' : 'OFF'}</b></label>
+      <span class="hko-note" style="font-size:.72rem;">ONにすると、お客様のチャット画面の指名一覧にあなたの名前が出ます</span>`;
+    card.innerHTML = `<div class="th-card-h">💬 チャット <span style="font-size:.72rem;color:var(--ink-soft);font-weight:600;">あなた宛のお客様チャット</span></div>
+      <div class="th-chat-visrow" id="thChatVisRow">${visBtn(!!d.visible)}</div>
+      <iframe src="${escapeAttr(d.inbox_url)}" title="あなた宛のチャット"
+              style="width:100%;height:60vh;min-height:380px;border:1.5px solid var(--gray);border-radius:12px;background:#fff;display:block;"></iframe>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;align-items:center;">
+        <a class="btn-secondary" href="${escapeAttr(d.inbox_url)}" target="_blank" rel="noopener" style="text-decoration:none;font-size:.8rem;padding:.4rem .8rem;">別タブで開く ↗</a>
+        <button class="btn-secondary" type="button" id="thChatShare" style="font-size:.8rem;padding:.4rem .8rem;">📋 あなたの指名チャットURLをコピー</button>
+      </div>`;
+    const bindVis = () => document.getElementById('thChatVis')?.addEventListener('change', async (e) => {
+      const on = e.target.checked;
+      try {
+        await apiPost('/admin-api.php?action=my-chat-visible', { on: on ? 1 : 0 });
+        toast(on ? '✓ 指名チャット受付をONにしました' : '指名チャット受付をOFFにしました', 'ok');
+      } catch (err) { toast('切り替え失敗: ' + err.message, 'err'); }
+      const row = document.getElementById('thChatVisRow');
+      if (row) { row.innerHTML = visBtn(on); bindVis(); }
+    });
+    bindVis();
+    document.getElementById('thChatShare')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(d.share_url); toast('✓ 指名チャットURLをコピーしました', 'ok'); }
+      catch (e) { toast('コピーできませんでした', 'err'); }
+    });
   }
 
   // 予約セクション（前日 / 今日 / 明日 ナビ）。開始/終了ボタンは今日のみ表示（本人・一方通行）
@@ -8428,6 +12541,14 @@
           ? '<span class="th-rep new">🆕 ご新規様</span>'
           : `<span class="th-rep">♻ ${shopN}回目</span><span class="th-rep me">${meTag}</span>`;
       }
+      // 前日までに入っていた予約（営業日の始まり10:00より前に受付）と事前予約の印（店長要望 2026-09-02）。
+      // 当日出勤してから入る予約と違い、前もって約束が入っていたことが本人に一目で分かるように
+      let advTag = '';
+      if (!isBreakRow) {
+        const madeBefore = b.created_at && String(b.created_at) < `${d} 10:00:00`;
+        if (madeBefore) advTag = '<span class="th-adv">📌 前日予約</span>';
+        else if (b.status === 'pre_reserved') advTag = '<span class="th-adv">📌 事前予約</span>';
+      }
       // 表示は実時刻・0埋めなし（2:00 等）。並び順のみ営業日基準（深夜は最後）
       const stTime = fmtTimeDisp(b.start_time);
       const etTime = fmtTimeDisp(b.end_time);
@@ -8438,7 +12559,7 @@
           <div>${escapeHtml(b.course_name || '—')}</div>
           ${isBreakRow
             ? (etTime ? `<div style="color:var(--ink-soft);font-size:.82rem;">${stTime} 〜 ${etTime}</div>` : '')
-            : `${place ? `<div style="color:var(--ink-soft);font-size:.82rem;">${escapeHtml(place)}</div>` : ''}${repeatTag}${badge}`}
+            : `${place ? `<div style="color:var(--ink-soft);font-size:.82rem;">${escapeHtml(place)}</div>` : ''}${advTag}${repeatTag}${badge}`}
         </div>
         ${isBreakRow ? '' : action}
         ${isBreakRow ? '' : '<span class="th-book-chev" aria-hidden="true">›</span>'}
@@ -8455,14 +12576,14 @@
       catch (e) { toast('更新失敗: ' + e.message, 'err'); }
     };
     // 誤操作防止: 開始/終了は確認ダイアログを挟む（本人は巻き戻せない一方通行のため）
-    card.querySelectorAll('[data-svc-start]').forEach(btn => btn.addEventListener('click', (e) => {
+    card.querySelectorAll('[data-svc-start]').forEach(btn => btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm(`「${btn.dataset.svcDesc}」の接客を開始しますか？\n※ いま押した時刻が開始時刻として記録されます`)) return;
+      if (!await opsConfirm(`「${btn.dataset.svcDesc}」の接客を開始しますか？\n※ いま押した時刻が開始時刻として記録されます`)) return;
       svcAction(btn.dataset.svcStart, 'started', '▶ 接客を開始しました');
     }));
-    card.querySelectorAll('[data-svc-end]').forEach(btn => btn.addEventListener('click', (e) => {
+    card.querySelectorAll('[data-svc-end]').forEach(btn => btn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm(`「${btn.dataset.svcDesc}」の接客を終了しますか？\n※ 終了後はご自分では戻せません`)) return;
+      if (!await opsConfirm(`「${btn.dataset.svcDesc}」の接客を終了しますか？\n※ 終了後はご自分では戻せません`)) return;
       svcAction(btn.dataset.svcEnd, 'ended', '■ 接客を終了しました');
     }));
     // 予約行をタップ → 読み取り専用の詳細モーダル（休憩行は除く）
@@ -8519,7 +12640,7 @@
     const tabName = (name === 'hotel' || name === 'stations' || name === 'cityfee') ? 'courses' : name;  // ホテル管理・駅マスタ・自宅交通費はマスタ配下
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.view === tabName));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
-    if (name === 'staff' && ['owner', 'manager'].includes(currentUser?.role)) loadAdminUsers();
+    if (name === 'staff' && userCanSeeTab('staff')) { loadAdminUsers(); loadDeviceList(); }
     else if (name === 'therapist') loadTherapistHome();
     else if (name === 'myclients') loadMyClients();
     else if (name === 'timeline') loadTimeline();
@@ -8527,9 +12648,10 @@
     else if (name === 'customers') loadCustomers();
     else if (name === 'shifts') loadShifts();
     else if (name === 'courses') { loadCourses(); loadOptions(); loadEntryMethods(); loadOfficeAddress(); loadCardSurchargeSetting(); loadNominationFeeSetting(); }
+    else if (name === 'supplies') loadSupplies();
     else if (name === 'cityfee') loadCityFeeView();
     else if (name === 'stations') loadStations();
-    else if (name === 'permissions' && currentUser?.role === 'owner') renderPermissions();
+    else if (name === 'permissions' && userCanSeeTab('permissions')) renderPermissions();
     else if (name === 'chat' && userCanSeeTab('chat')) openChatFrame();
     else if (name === 'staffboard' && userCanSeeTab('staffboard')) loadStaffBoard();
     else if (name === 'payroll' && userCanSeeTab('payroll')) loadAccounting();
@@ -8697,7 +12819,7 @@
         ${/* カード会社へ払う手数料。実際は約8%だが、お客様からの上乗せ分と同額を計上して相殺する
               （店長指定 2026-08-08。厳密な経理は弥生会計側で行うため、ここはアバウトで良い）。
               上の「カード手数料」と必ず同額になる */''}
-        ${row(`クレジット手数料 <span style="margin-left:.4rem;font-size:.72rem;font-weight:500;color:var(--ink-soft);">お客様からの上乗せ分と相殺</span>`, yen(d.card_fee), { minus:true })}
+        ${row('クレジット手数料', yen(d.card_fee), { minus:true })}
         ${row(`経費合計`, yen(d.expense_total), { minus:true })}
         ${catRows}
         ${row('＝ 利益', yen(d.gross_profit), { big:true, border:true, accent:'var(--coral)' })}
@@ -8738,6 +12860,7 @@
       <div style="display:grid;gap:1rem;">
         <div id="acCashBox"></div>
         <div id="acReportBox"></div>
+        <div id="acHimitsuBox"></div>
         <div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;">
           <div style="font-weight:700;margin-bottom:.4rem;">支払方法別</div>${payHtml}
         </div>
@@ -8772,15 +12895,10 @@
   function buildDailyReportText(d) {
     const L = [];
     L.push(mdw(d.date));
-    (d.casts || []).forEach(c => L.push(`${c.name}${rep(c.sales)}`));
-    // 出勤していたが1本も無かったキャストは 0-、休んだキャストは「休み」で並べる
-    //（日報はその日に予定していた人を全員載せる）
-    const listed = new Set((d.casts || []).map(c => c.name));
+    // 名前に載せるのは「その日お仕事があった人」だけ。件数と金額を並べる（店長要望 2026-08-28）
     const onDuty = (d.today_shift?.casts || []).filter(c => !c.off);
-    (d.today_shift?.casts || []).forEach(c => {
-      if (listed.has(c.name)) return;
-      L.push(c.off ? `${c.name}休み` : `${c.name}0-`);
-    });
+    (d.casts || []).filter(c => Number(c.count) > 0)
+      .forEach(c => L.push(`${c.name}${c.count}件${rep(c.sales)}`));
     L.push('');
     L.push(`出勤合計：${onDuty.length || (d.casts || []).length}名`);
     L.push(`合計本数：${d.booking_count}本`);
@@ -8800,13 +12918,96 @@
     L.push('');
     L.push('スタッフ');
     (d.tomorrow_shift?.staff || []).forEach(s => {
-      // 10:00〜10:00 は「時間未設定」なので終わりは書かない
-      const end = (s.start === s.end) ? '' : hh(s.end);
+      // 24H・早番・遅番は時刻ではなく区分の名前で書く（店長要望 2026-08-28）。
+      // 区分はチェックを選んで保存したものだけ（店長指摘 2026-08-29）
+      const kubun = ({ '24h': '24H', early: '早番', late: '遅番' })[s.preset || ''] || '';
+      if (kubun) { L.push(`${s.name}${kubun}`); return; }
+      // 「ラスト」はそのままラストと書く（店長要望 2026-08-25）。
+      // 開始と終わりが同じ人は時間未設定なので終わりは書かない
+      const end = s.end_open === 'last' ? 'ラスト' : ((s.start === s.end) ? '' : hh(s.end));
       L.push(`${s.name}${hh(s.start)}-${end}`);
     });
     L.push('');
     L.push('『アドミ』');
     return L.join('\n');
+  }
+
+  /**
+   * 立川秘密基地の日報（社内報告用）。数字は向こうのオーダーの「店落ち」から積む。
+   * 並びはアドミの日報と揃えるが、スタッフ欄は「日報の出し先＝秘密基地」にしたスタッフだけ。
+   */
+  function buildHimitsuReportText(h, d) {
+    const L = [];
+    L.push(mdw(h.date));
+    // お仕事があったセラピストだけ「◯件いくら」で並べる（店長要望 2026-08-28）
+    (h.therapists || []).filter(t => Number(t.count) > 0)
+      .forEach(t => L.push(`${t.name}${t.count}件${rep(t.sales)}`));
+    L.push('');
+    L.push('スタッフ');
+    (d?.today_shift?.himitsu_staff || []).forEach(s => {
+      const kubun = ({ '24h': '24H', early: '早番', late: '遅番' })[s.preset || ''] || '';
+      if (kubun) { L.push(`${s.name}${kubun}`); return; }
+      const end = s.end_open === 'last' ? 'ラスト' : (s.start === s.end ? '' : s.end);
+      L.push(`${s.name}${s.start}${end ? '〜' + end : ''}`);
+    });
+    L.push('');
+    L.push(`出勤合計：${h.on_duty}名`);
+    L.push(`合計本数：${h.booking_count}本`);
+    L.push(`売上合計：${rep(h.sales_total)}`);
+    L.push(`客単価：${rep(h.avg_price)}`);
+    L.push(`月売上：${rep(h.month_sales)}`);
+    L.push(`ペース：${rep(h.pace)}`);
+    L.push('');
+    L.push('明日');
+    L.push(mdw(h.next_date));
+    const hh = (t) => String(parseInt(String(t || '').slice(0, 2), 10) || 0);
+    (h.tomorrow || []).forEach(t => L.push(`${t.name}${hh(t.start)}-`));
+    L.push('');
+    L.push('スタッフ');
+    (d?.tomorrow_shift?.himitsu_staff || []).forEach(s => {
+      const kubun = ({ '24h': '24H', early: '早番', late: '遅番' })[s.preset || ''] || '';
+      if (kubun) { L.push(`${s.name}${kubun}`); return; }
+      const end = s.end_open === 'last' ? 'ラスト' : (s.start === s.end ? '' : s.end);
+      L.push(`${s.name}${s.start}${end ? '〜' + end : ''}`);
+    });
+    L.push('');
+    L.push('『秘密基地』');
+    return L.join('\n');
+  }
+
+  /** 秘密基地の日報を、アドミの日報の下に足す（別システムなので取れなくても本体は出す） */
+  async function loadHimitsuReport(date, d) {
+    const box = document.getElementById('acHimitsuBox');
+    if (!box || !date) return;
+    let h;
+    try { h = await api('/himitsu.php?action=report&date=' + encodeURIComponent(date)); }
+    catch (e) { box.innerHTML = ''; return; }
+    if (!h || !h.ok) { box.innerHTML = ''; return; }
+    const warn = h.sales_ok ? ''
+      : '<div style="font-size:.74rem;color:var(--coral);margin-bottom:.4rem;">⚠ 売上集計が取得できませんでした。金額はご確認ください</div>';
+    box.innerHTML = `<div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;margin-top:1rem;">
+      <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.35rem;">
+        <div style="font-weight:700;">📝 日報（立川秘密基地）</div>
+        <button class="sbtn" type="button" id="acHkCopy" style="padding:.35rem .8rem;font-size:.8rem;">📋 コピー</button>
+        <button class="sbtn" type="button" id="acHkReset" style="padding:.35rem .8rem;font-size:.8rem;">↺ 作り直す</button>
+        <span id="acHkMsg" style="font-size:.8rem;color:var(--ink-soft);"></span>
+      </div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.5rem;">金額は秘密基地の「売上集計（店舗）」の店落ちです。直してからコピーできます。</div>
+      ${warn}
+      <textarea id="acHkText" style="width:100%;min-height:20rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86rem;line-height:1.7;padding:.7rem .8rem;border:1.5px solid var(--gray);border-radius:10px;"></textarea>
+    </div>`;
+    const ta = document.getElementById('acHkText');
+    ta.value = buildHimitsuReportText(h, d);
+    document.getElementById('acHkReset').addEventListener('click', () => {
+      ta.value = buildHimitsuReportText(h, d);
+      const m = document.getElementById('acHkMsg'); m.textContent = '作り直しました'; setTimeout(() => { m.textContent = ''; }, 2000);
+    });
+    document.getElementById('acHkCopy').addEventListener('click', async () => {
+      const ok = await copyTextToClipboard(ta.value);
+      const m = document.getElementById('acHkMsg');
+      m.textContent = ok ? '✓ コピーしました' : 'コピーに失敗しました';
+      setTimeout(() => { m.textContent = ''; }, 2500);
+    });
   }
 
   async function loadDailyReport(date) {
@@ -8824,12 +13025,12 @@
     // お預り金総額 → カード等を引いて現金 → 報酬を引いて手元、の順で追えるようにする
     cashBox.innerHTML = `<div style="background:var(--white);border:1.5px solid var(--gray);border-radius:14px;padding:1rem 1.2rem;">
       <div style="font-weight:700;margin-bottom:.2rem;">💰 現金（${escapeHtml(formatDate(d.date))}）</div>
-      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.4rem;">カード決済ぶんの報酬も、その日の現金から立て替えて渡します。</div>
+      <div style="font-size:.76rem;color:var(--ink-soft);margin-bottom:.4rem;">カード決済ぶんの報酬も、その日の現金から渡します。</div>
       ${line('お預り金総額', c.total)}
       ${Number(c.credit) ? line('クレジット <span style="font-size:.74rem;color:var(--ink-soft);">店の口座へ・現金にならない</span>', c.credit, { minus: true }) : ''}
       ${Number(c.bank) ? line('銀行振込 <span style="font-size:.74rem;color:var(--ink-soft);">店の口座へ</span>', c.bank, { minus: true }) : ''}
       ${line('＝ 現金で受け取った額', c.received, { border: true })}
-      ${line('キャストへ渡した報酬' + (c.advanced ? ` <span style="font-size:.74rem;color:var(--ink-soft);">うちカード分の立て替え ${yen(c.advanced)}</span>` : ''), c.reward_paid, { minus: true })}
+      ${line('キャストへ渡した報酬', c.reward_paid, { minus: true })}
       ${line('＝ 手元の現金', c.on_hand, { big: true, border: true, minus: Number(c.on_hand) < 0 })}
     </div>`;
 
@@ -8855,6 +13056,8 @@
       m.textContent = ok ? '✓ コピーしました' : 'コピーに失敗しました';
       setTimeout(() => { m.textContent = ''; }, 2500);
     });
+    // 立川秘密基地の日報（別システムなので後から足す）
+    loadHimitsuReport(d.date, d).catch(() => {});
   }
 
   // --- ✅ 集金（日×スタッフ単位の受け渡し・双方確認） ---
@@ -9313,7 +13516,7 @@
   }
   async function deleteExpense() {
     if (!editingExpenseId) return;
-    if (!confirm('この経費を削除しますか？')) return;
+    if (!await opsConfirm('この経費を削除しますか？')) return;
     try {
       await apiPost('/admin-api.php?action=expense-delete', { id: editingExpenseId });
       toast('✓ 削除しました', 'ok');
@@ -9402,7 +13605,7 @@
                 <td style="padding:.3rem .4rem;text-align:right;">${yen(x.base)}</td>
                 <td style="padding:.3rem .4rem;text-align:right;font-weight:700;color:var(--coral);">${yen(x.reward)}</td>
               </tr>
-              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_fee || 0)}×${parseFloat(t.rate)}% = ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 交通費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}</td></tr>`).join('')}
+              <tr><td colspan="6" style="padding:0 .4rem .45rem 1.2rem;color:var(--ink-soft);font-size:.73rem;line-height:1.5;">コース ${yen(x.course_reward || 0)}${x.late_self ? ` ＋ 深夜 ${yen(x.late_self)}` : (x.late_shop > 0 ? ` ＋ 深夜 ${yen(x.late_shop)}はお迎えで店` : '')} ＋ 交通費 ${yen(x.transport_self || 0)}${x.has_driver && x.transport_shop > 0 ? `（送迎で店 ${yen(x.transport_shop)}）` : ''}</td></tr>`).join('')}
             </tbody>
           </table>
         </div>
@@ -9883,8 +14086,8 @@
       document.getElementById('ctBody').value = t.body || '';
       document.getElementById('ctSave').textContent = '💾 更新する';
     }));
-    wrap.querySelectorAll('.ct-del').forEach(b => b.addEventListener('click', () => {
-      if (!confirm('この定型文を削除しますか？')) return;
+    wrap.querySelectorAll('.ct-del').forEach(b => b.addEventListener('click', async () => {
+      if (!await opsConfirm('この定型文を削除しますか？')) return;
       saveChatTemplates(loadChatTemplates().filter(x => x.id !== b.dataset.id));
       renderChatTplEditList();
       resetChatTplForm();
@@ -10136,6 +14339,9 @@
     // 更新前に見ていた画面・日付に戻す（店長要望 2026-08-08）。
     // 日付はタブを描く前に戻さないと、当日ぶんを読んでから読み直すことになる
     let restoredView = '';
+    // 管理者は入口の2択画面を出さず、そのままマネージャー管理で開く（店長指定 2026-08-15）。
+    // 復元判定(userCanSeeTab)より前にモードを決めておかないと、全タブが「見えない」扱いになる
+    if (currentUser?.role === 'manager') managerMode = 'manager';
     window._opsRestoredView = '';
     try {
       const savedDay = sessionStorage.getItem(DAY_KEY);
@@ -10144,6 +14350,7 @@
         tlCurrentDate = new Date(yy, mm - 1, dd);
         const dEl = document.getElementById('tlDatePicker');
         if (dEl) dEl.value = savedDay;
+        syncDateDisp();
       }
       const savedView = sessionStorage.getItem(VIEW_KEY);
       // 見せてよいタブに限る（権限が変わっていても飛ばないように）
@@ -10155,9 +14362,11 @@
 
     // キャスト(staff)は専用マイページに自動分岐
     if (currentUser?.role === 'staff') switchView('therapist');
-    // 店長(manager)はログイン直後に入口画面（マネージャー管理 / キャスト管理 の2択）。
-    // ただし更新で戻ってきたときは、見ていた画面を優先する（実際の切替は init の最後）
-    else if (currentUser?.role === 'manager' && !restoredView) showManagerEntry();
+    // 管理者はマネージャー管理から。キャスト管理へは右上の名前プルダウンで切り替える
+    else if (currentUser?.role === 'manager') {
+      if (restoredView) applyTabVisibility();     // 更新で戻ったときは見ていた画面を優先
+      else setManagerMode('manager');
+    }
     updateModeSwitch();
 
     // 支払方法ボタン（予約モーダル / クローン両対応）
@@ -10205,7 +14414,7 @@
       document.getElementById('fStatus').value = '';
       document.getElementById('fKeyword').value = '';
       if (document.getElementById('fHotelType')) document.getElementById('fHotelType').value = '';
-      if (document.getElementById('fSort')) document.getElementById('fSort').value = '';
+      if (document.getElementById('fSort')) document.getElementById('fSort').value = 'name';   // 既定はあいうえお順
       loadHotels();
     });
 
@@ -10288,6 +14497,146 @@
       if (e.key === 'Escape' && document.getElementById('editModal').classList.contains('show')) closeEdit();
     });
 
+    // タイムラインを読み直す（クイック予約の左の ⟳ 更新・店長要望 2026-08-16）
+    document.getElementById('tlReload')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = '更新中…';
+      try { await loadTimeline(true); } catch (_) {}
+      btn.textContent = old;
+      btn.disabled = false;
+    });
+
+    // 予約モーダル: 選んでいるキャストをこのお客様のNGにする／外す（店長要望 2026-08-22）
+    // 「前回の額にする」＝前回ご案内した交通費に合わせる（店長要望 2026-08-24）
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('[data-fee-apply]');
+      if (!btn) return;
+      e.stopPropagation();
+      const suffix = btn.closest('#bookingModal-2') ? '-2' : '';
+      withBmSuffix(suffix, () => {
+        const sel = bel('bmTransport');
+        if (!sel) return;
+        const fee = String(parseInt(btn.dataset.feeApply, 10) || 0);
+        // 一覧に無い金額（旧システムの端数など）はその場で足す
+        if (![...sel.options].some(o => o.value === fee)) {
+          const o = document.createElement('option');
+          o.value = fee;
+          o.textContent = `¥${Number(fee).toLocaleString()}`;
+          sel.appendChild(o);
+        }
+        sel.value = fee;
+        updateBookingTotal();
+        toast(`交通費を前回の ¥${Number(fee).toLocaleString()} にしました`, 'ok');
+      });
+    });
+
+    // 合計バーの「保存」＝下の保存ボタンと同じ（下まで送らずに保存できるように・店長要望 2026-08-25）
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('[id^="bmSaveMini"]');
+      if (!btn) return;
+      e.stopPropagation();
+      const modal = btn.closest('.modal');
+      const save = modal?.querySelector('[id^="bmSave"]:not([id^="bmSaveMini"])');
+      if (save) save.click();
+    });
+
+    // 🧾 領収証が必要 のトグル（予約モーダル①②とも）
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('[id^="bmReceiptBtn"]');
+      if (!btn) return;
+      e.stopPropagation();
+      const suffix = btn.id === 'bmReceiptBtn-2' ? '-2' : '';
+      withBmSuffix(suffix, () => setReceiptBtn(bel('bmReceiptNeeded')?.value !== '1'));
+    });
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[id^="bmNgCastBtn"]');
+      if (!btn) return;
+      e.stopPropagation();
+      const suffix = btn.id === 'bmNgCastBtn-2' ? '-2' : '';
+      await withBmSuffix(suffix, async () => {
+        const custId = Number(bel('bmCustomerId')?.value || 0);
+        const castId = Number(bel('bmAdminId')?.value || 0);
+        if (!custId) { toast('お客様が特定できてからNGにできます', 'err'); return; }
+        if (!castId) { toast('キャストを選んでください', 'err'); return; }
+        const cur = bmNg[activeBmSuffix] || { level: 0, reason: '', castIds: [] };
+        const isNg = (cur.castIds || []).map(Number).includes(castId);
+        const name = findStaffUser(castId)?.display_name || '';
+        // 確認ダイアログは出さない（押し間違えても同じボタンで戻せる）。
+        // 効き目は「そのキャストを選んだときに出る注意書き」で分かる（店長指定 2026-08-22）
+        btn.disabled = true;
+        try {
+          const r = await apiPost('/customers.php?action=ng-cast-toggle',
+            { customer_id: custId, cast_admin_id: castId, on: isNg ? 0 : 1 });
+          setBookingNg({ level: cur.level, reason: cur.reason, castIds: r.ng_cast_ids || [] });
+          // お客様メモにも「その予約でNGにした」印を出す（書きかけの時は触らない）
+          const pane = bel('bmHistoryPanel');
+          if (pane && pane._noteNg && pane._noteRerender && !pane.querySelector('.bhn-ta')) {
+            if (isNg) {
+              const i = pane._noteNg.findIndex(n => Number(n.cast_admin_id) === castId);
+              if (i >= 0) pane._noteNg.splice(i, 1);
+            } else {
+              const t = new Date();
+              const p2 = v => String(v).padStart(2, '0');
+              pane._noteNg.push({
+                cast_admin_id: castId, display_name: name,
+                created_at: `${fmtDate(t)} ${p2(t.getHours())}:${p2(t.getMinutes())}:00`,
+              });
+            }
+            try { pane._noteRerender(); } catch (_) {}
+          }
+          toast(isNg ? `${name} のNGを外しました` : `✓ ${name} をNGにしました`, 'ok');
+        } catch (err) {
+          toast('更新失敗: ' + err.message, 'err');
+        } finally { btn.disabled = false; }
+      });
+    });
+
+    // 🔒 端末とログイン（スタッフ管理タブ内）
+    document.getElementById('btnDevReload')?.addEventListener('click', () => loadDeviceList());
+
+    // 📦 備品: 貸し出す / 読み直す
+    document.getElementById('supReload')?.addEventListener('click', () => loadSupplies());
+    document.getElementById('supLendSet')?.addEventListener('click', async () => {
+      const uid = supSelectedUserId();
+      if (!uid) { supMsg('誰に貸すか選んでください', true); return; }
+      const who = (_supData.users || []).find(u => u.id === uid);
+      const setNames = (_supData.items || []).filter(i => i.kind === 'set' && Number(i.is_active) === 1).map(i => i.name);
+      if (!await opsConfirm(`${who ? who.name : ''} にお仕事セットを貸しますか？\n${setNames.join('・')}`)) return;
+      try {
+        const r = await apiPost('/supplies.php?action=lend-set', { user_id: uid });
+        supMsg(r.lent ? `✓ ${r.lent}点を貸しました` : 'すでに全部お持ちです');
+        await loadSupplies();
+      } catch (e) { supMsg(e.message || '貸せませんでした', true); }
+    });
+    document.getElementById('supLendOne')?.addEventListener('click', async () => {
+      const uid = supSelectedUserId();
+      const raw = String(document.getElementById('supItem')?.value || '');
+      const qty = Number(document.getElementById('supQty')?.value || 1);
+      if (!uid) { supMsg('誰に貸すか選んでください', true); return; }
+      // 「お仕事セット」を選んだときは、セット品を1つずつ貸す（数量は使わない）
+      if (raw === 'set') {
+        const who = (_supData.users || []).find(u => u.id === uid);
+        const setNames = (_supData.items || []).filter(i => i.kind === 'set' && Number(i.is_active) === 1).map(i => i.name);
+        if (!await opsConfirm(`${who ? who.name : ''} にお仕事セットを貸しますか？\n${setNames.join('・')}`)) return;
+        try {
+          const r = await apiPost('/supplies.php?action=lend-set', { user_id: uid });
+          supMsg(r.lent ? `✓ ${r.lent}点を貸しました` : 'すでに全部お持ちです');
+          await loadSupplies();
+        } catch (e) { supMsg(e.message || '貸せませんでした', true); }
+        return;
+      }
+      const sid = Number(raw || 0);
+      if (!sid) { supMsg('備品を選んでください', true); return; }
+      try {
+        await apiPost('/supplies.php?action=lend', { supply_id: sid, user_id: uid, qty });
+        supMsg('✓ 貸しました');
+        await loadSupplies();
+      } catch (e) { supMsg(e.message || '貸せませんでした', true); }
+    });
+
     // タブ切替
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
@@ -10309,6 +14658,7 @@
     // スタッフ追加モーダルを開く共通処理。lockStaff=true なら role=staff 固定＋権限選択を隠す
     function openCreateStaff(lockStaff) {
       document.getElementById('csName').value = '';
+      { const li = document.getElementById('csLoginId'); if (li) li.value = ''; }
       document.getElementById('csEmail').value = '';
       document.getElementById('csPassword').value = '';
       { const cd = document.getElementById('csCanDrive'); if (cd) cd.checked = false; }
@@ -10479,7 +14829,61 @@
         openEditStaffModal(Number(btn.dataset.id));
       } else if (btn.dataset.action === 'driver-detail') {
         openDriverModal(Number(btn.dataset.id));
+      } else if (btn.dataset.action === 'cast-url-copy') {
+        copyTextToClipboard(btn.dataset.url).then(ok => toast(ok ? '✓ 専用URLをコピーしました' : 'コピーできませんでした', ok ? 'ok' : 'err'));
+      } else if (btn.dataset.action === 'cast-url-issue') {
+        castUrlIssue(btn);
+      } else if (btn.dataset.action === 'cast-pin-reset') {
+        castPinReset(btn);
+      } else if (btn.dataset.action === 'cast-pin-set') {
+        castPinSet(btn);
       }
+    }
+
+    async function castPinSet(btn) {
+      const inp = document.getElementById('sraPin' + btn.dataset.id);
+      const pin = String(inp?.value || '').replace(/[^0-9]/g, '');
+      if (pin.length !== 4) { toast('4桁の数字で入れてください', 'err'); inp?.focus(); return; }
+      if (!await opsConfirm(`${btn.dataset.name} の暗証番号を ${pin} にします。\n本人にこの番号を伝えてください。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cast-access-set-pin', { admin_user_id: Number(btn.dataset.id), pin });
+        toast('✓ 暗証番号を設定しました', 'ok');
+        await loadCastAccess();
+        renderTherapistBoard();
+      } catch (e) { toast('設定失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }
+
+    async function castUrlIssue(btn) {
+      const renew = btn.dataset.renew === '1';
+      if (renew && !await opsConfirm(`${btn.dataset.name} の専用URLを作り直します。\n今のURLと暗証番号は使えなくなります。新しいURLを本人に渡してください。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cast-access-issue', { admin_user_id: Number(btn.dataset.id), renew });
+        toast(renew ? '✓ 新しい専用URLを発行しました' : '✓ 専用URLを発行しました', 'ok');
+        await loadCastAccess();
+        renderTherapistBoard();
+      } catch (e) { toast('発行失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }
+    async function castPinReset(btn) {
+      if (!await opsConfirm(`${btn.dataset.name} の暗証番号をリセットします。\n次にURLを開いたとき、本人が新しい4桁を決め直します。よろしいですか？`)) return;
+      btn.disabled = true;
+      try {
+        await apiPost('/admin-api.php?action=cast-access-reset-pin', { admin_user_id: Number(btn.dataset.id) });
+        toast('✓ 暗証番号をリセットしました', 'ok');
+        await loadCastAccess();
+        renderTherapistBoard();
+      } catch (e) { toast('リセット失敗: ' + e.message, 'err'); btn.disabled = false; }
+    }
+    // キャスト一覧の並び順（選ぶと即反映。次に開いたときも同じ並びで出す）
+    const sbSel = document.getElementById('sbSort');
+    if (sbSel) {
+      sbSel.value = sbSort;
+      sbSel.addEventListener('change', () => {
+        sbSort = sbSel.value;
+        try { localStorage.setItem('opsCastSort', sbSort); } catch (e) {}
+        renderTherapistBoard();
+      });
     }
     document.getElementById('staffTable').addEventListener('click', handleStaffRowClick);
     document.getElementById('staffBoard')?.addEventListener('click', handleStaffRowClick);
@@ -10508,18 +14912,28 @@
       document.getElementById('esThumbFile').value = '';
     });
     document.getElementById('esSave').addEventListener('click', saveStaffEdit);
+    // 預り金カード色: 選択と同時に右のスウォッチへ反映
+    document.getElementById('esColor')?.addEventListener('change', e => {
+      const pv = document.getElementById('esColorPreview');
+      if (pv) pv.style.background = e.target.value || 'transparent';
+    });
 
     // ========== Timeline / Bookings / Customers / Shifts events ==========
     document.getElementById('tlPrev').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, -1); rememberPlace(); loadTimeline(); });
     document.getElementById('tlToday').addEventListener('click', () => { tlCurrentDate = getBusinessDayDate(); rememberPlace(); loadTimeline(); });
     document.getElementById('tlNext').addEventListener('click', () => { tlCurrentDate = addDays(tlCurrentDate, 1); rememberPlace(); loadTimeline(); });
     document.getElementById('tlDatePicker').addEventListener('change', e => {
+      syncDateDisp();
       const [y,m,d] = e.target.value.split('-').map(Number);
       tlCurrentDate = new Date(y, m-1, d); rememberPlace(); loadTimeline();
     });
     document.getElementById('tlAddBooking').addEventListener('click', () => openBookingForAdd({ date: tlPrefillDate() }));
     const tlCashSummaryBtn = document.getElementById('tlCashSummary');
     if (tlCashSummaryBtn) tlCashSummaryBtn.addEventListener('click', () => openCashSummaryModal());
+    document.getElementById('tlWorkLog')?.addEventListener('click', () => openWorkLogModal());
+    // ⚠ キャストからの報告
+    document.getElementById('tlCastReports')?.addEventListener('click', () => openCastReportModal());
+    document.getElementById('crShowAll')?.addEventListener('change', () => renderCastReports());
 
     // クイック電話入力 → 予約モーダル起動（①=primary、②=secondary 2件同時可能）
     function quickPhoneStart(num) {
@@ -10572,6 +14986,14 @@
     if (bmCopyCust) bmCopyCust.addEventListener('click', copyCustomerBookingText);
     const odCopy = document.getElementById('odCopyText');
     if (odCopy) odCopy.addEventListener('click', copyOrderDetailAsText);
+    // コピーボタンを押した合図（1.2秒だけ緑に）。手応えが無いと二度押ししてしまうため。
+    // モーダル①②どちらでも効くよう委譲で受ける
+    document.addEventListener('click', e => {
+      const btn = e.target?.closest?.('.bm-copy-btn');
+      if (!btn) return;
+      btn.classList.add('is-copied');
+      setTimeout(() => btn.classList.remove('is-copied'), 1200);
+    });
     // 休憩モードトグル
     const bmBreak = document.getElementById('bmBreakMode');
     if (bmBreak) bmBreak.addEventListener('change', e => setBreakMode(e.target.checked));
@@ -10590,6 +15012,35 @@
       if (/^(bmHomeAddress|bmOtherLoc)(-2)?$/.test(id)) {
         withBmSuffix(id.endsWith('-2') ? '-2' : '', renderBmMapLinks);
       }
+    });
+    // 過去のご利用住所を選んだら、住所・建物・市区町村をその住所に入れ替える（店長要望 2026-08-14）
+    document.addEventListener('change', e => {
+      const id = e.target.id || '';
+      if (!/^bmPastAddr(-2)?$/.test(id)) return;
+      const suffix = id.endsWith('-2') ? '-2' : '';
+      const picked = String(e.target.value || '').trim();
+      if (!picked) return;
+      const [pAddr, pBld] = splitAddressBuilding(picked);
+      const a = document.getElementById('bmHomeAddress' + suffix);
+      const b2 = document.getElementById('bmHomeBuilding' + suffix);
+      if (a) a.value = pAddr;
+      if (b2) b2.value = pBld;
+      withBmSuffix(suffix, () => {
+        const city = extractCityFromAddress(picked);
+        if (city) {
+          syncCityRegionTab(city);
+          const citySel = bel('bmCity');
+          if (citySel && [...citySel.options].some(o => o.value === city)) {
+            citySel.value = city;
+            populateHotelSelect(city);
+          }
+          loadBmTowns();
+        }
+        renderBmMapLinks();
+        try { updateFooterStatus(); } catch (_) {}
+      });
+      const note = document.getElementById('bmUsualLocNote' + suffix);
+      if (note) note.style.display = 'none';
     });
     document.getElementById('cuSort')?.addEventListener('change', loadCustomers);
     document.getElementById('cuVisitDate')?.addEventListener('change', loadCustomers);
@@ -10644,7 +15095,7 @@
       loadShifts();
     });
     document.getElementById('shToday').addEventListener('click', () => {
-      shCurrent = shViewMode === 'timetable' ? getBusinessDayDate() : new Date();
+      shCurrent = getBusinessDayDate();
       loadShifts();
     });
     document.getElementById('shNext').addEventListener('click', () => {
@@ -10658,19 +15109,77 @@
     document.getElementById('shModeCalendar').addEventListener('click', () => setShiftViewMode('calendar'));
     document.getElementById('smSave').addEventListener('click', saveShift);
     document.getElementById('smDelete').addEventListener('click', deleteShift);
-    // 24時間チェック: ON で 10:00〜翌10:00 固定、入力欄をdisable
-    const sm24el = document.getElementById('sm24h');
-    if (sm24el) {
-      sm24el.addEventListener('change', e => {
-        const checked = e.target.checked;
-        const startEl = document.getElementById('smStart');
-        const endEl = document.getElementById('smEnd');
-        if (checked) {
-          startEl.value = '10:00';
-          endEl.value = '10:00';
+    // シフトの開始/終了 時select（営業日順 10時〜翌9時）＋ 分select（15分刻み）を構築
+    // 既定は「--」（未選択）。時刻を選んだ時点で状態が「出勤」に変わる（店長指定 2026-08-25）
+    ['smStartH', 'smEndH'].forEach(idv => { const el = document.getElementById(idv); if (el) el.innerHTML = '<option value="">--</option>' + bizHourOptions(); });
+    { let mh = '<option value="">--</option>'; for (let m = 0; m < 60; m += 15) mh += `<option value="${m}">${('0' + m).slice(-2)}</option>`;
+      ['smStartM', 'smEndM'].forEach(idv => { const el = document.getElementById(idv); if (el) el.innerHTML = mh; }); }
+    // 時刻を選んだら、状態が「未定」のままなら自動で「出勤」にする（CTRLの出勤管理と同じUX・店長要望 2026-08-25）。
+    // 時間を入れたのに未定のままで保存され、カレンダーに出ない事故を防ぐ
+    ['smStartH', 'smStartM', 'smEndH', 'smEndM'].forEach(idv => {
+      const el = document.getElementById(idv);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        if (el.value === '') return;                 // 「--」に戻したときは触らない
+        const st = document.getElementById('smStatus');
+        if (st && st.value === 'undecided') st.value = 'available';
+        // 時だけ選んだら分は自動で00（出勤管理と同じUX）
+        if (idv === 'smStartH' || idv === 'smEndH') {
+          const m = document.getElementById(idv.replace('H', 'M'));
+          if (m && m.value === '') m.value = '0';
         }
-        startEl.disabled = checked;
-        endEl.disabled = checked;
+      });
+    });
+
+    // よく使う時間のチェック（24時間 / 早番 / 遅番）。どれか1つだけ・選んだら状態も「出勤」に
+    const SM_PRESETS = {
+      sm24h:   { start: '10:00', end: '10:00', lock: true  },   // 10:00〜翌10:00（入力欄は固定）
+      smEarly: { start: '10:00', end: '19:00', lock: true  },   // 早番（時間欄は固定）
+      smLate:  { start: '19:00', end: '10:00', lock: true  },   // 遅番（翌10:00・時間欄は固定）
+    };
+    // 24時間・早番・遅番のときは時刻欄を「--」のままにする（時間は決まっているので選ばせない・店長指定 2026-08-25）。
+    // 保存時はチェックに対応する時刻を使う（下の saveShift 参照）
+    const smTimeRowVis = () => {
+      const row = document.getElementById('smTimeRow');
+      if (row) row.style.display = 'grid';
+    };
+    window._smTimeRowVis = smTimeRowVis;   // モーダルを開いたときにも呼ぶ
+    /** チェックが入っているプリセット（無ければ null） */
+    window._smActivePreset = () => Object.keys(SM_PRESETS).find(id => document.getElementById(id)?.checked) || null;
+    window._smPresetTimes = (id) => SM_PRESETS[id] || null;
+    Object.keys(SM_PRESETS).forEach(pid => {
+      const el = document.getElementById(pid);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        const on = el.checked;
+        // 他のチェックは外す（同時に2つは選べない）
+        if (on) Object.keys(SM_PRESETS).forEach(other => {
+          if (other === pid) return;
+          const o = document.getElementById(other);
+          if (o) o.checked = false;
+        });
+        const p = SM_PRESETS[pid];
+        if (on) {
+          smTimeSet('smStart', '');   // 画面は「--」のまま。実際の時刻は保存時に入れる
+          smTimeSet('smEnd', '');
+          const em = document.getElementById('smEndMode');
+          if (em && em.value !== 'time') { em.value = 'time'; const wrap = document.getElementById('smEndTimeWrap'); if (wrap) wrap.style.display = ''; }
+          const st = document.getElementById('smStatus');
+          if (st && st.value === 'undecided') st.value = 'available';   // 時間が決まった＝出勤
+        }
+        // 24時間・早番・遅番は入力欄を固定（時間は決まっているので触らせない・店長指定 2026-08-25）
+        smTimeSetDisabled('smStart', on);
+        smTimeSetDisabled('smEnd', on);
+        smTimeRowVis();
+      });
+    });
+    const smEmEl = document.getElementById('smEndMode');
+    if (smEmEl) {
+      smEmEl.addEventListener('change', e => {
+        const isTime = e.target.value === 'time';
+        const wrap = document.getElementById('smEndTimeWrap');
+        if (wrap) wrap.style.display = isTime ? '' : 'none';
+        if (!isTime) { const s24 = document.getElementById('sm24h'); if (s24 && s24.checked) { s24.checked = false; smTimeSetDisabled('smStart', false); smTimeSetDisabled('smEnd', false); } }
       });
     }
 
@@ -10685,7 +15194,9 @@
         // 個数が入った項目は枠を色づけて、選ばれていることが一目で分かるようにする
         e.target.closest('.bm-opt')?.classList.toggle('has-count', (parseInt(e.target.value, 10) || 0) > 0);
       }
-      if (e.target.name === 'bmOption') { updateBmOptionSum(); updateBookingTotal(); }
+      // メイン側も明示的に '' で計算する。activeBmSuffix が '-2'（クローンを開いた残り）のままだと
+      // optionTotal()→bmOptionCounts() が別モーダルを読み、オプションを選んでも合計に即反映されなかった
+      if (e.target.name === 'bmOption') withBmSuffix('', () => { updateBmOptionSum(); updateBookingTotal(); });
       else if (e.target.name === 'bmOption-2') withBmSuffix('-2', () => { updateBmOptionSum(); updateBookingTotal(); });
       // 媒体チェック（メインモーダル）。クローン側(-2)にだけ配線があり、こちらが漏れていたため
       // 媒体を選んでも ＋10分 が連動しなかった（店長指摘 2026-08-08）
@@ -10767,6 +15278,7 @@
     if (bmBodyEl) ['input', 'change'].forEach(ev => bmBodyEl.addEventListener(ev, () => { try { updateFooterStatus(); } catch (e) {} }));
     // リピーター履歴バーの開閉
     bel('bmHistoryToggle')?.addEventListener('click', toggleHistoryPanel);
+    document.getElementById('bmPhoneLookup')?.addEventListener('click', () => withBmSuffix('', lookupCustomerByPhoneManual));
     // 予約モーダル: 時刻/コース/休憩時間 変更時に終了時刻再計算
     bel('bmStartHour').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
     bel('bmStartMin').addEventListener('change', () => { bmStartTouched[activeBmSuffix] = true; updateEndTime(); autoToggleLateNight(); });
@@ -10850,18 +15362,57 @@
     });
     // 市区町村変更 → ホテル絞り込み
     bel('bmCity').addEventListener('change', e => { populateHotelSelect(e.target.value); onCityChangedForHome(); loadBmTowns().then(applyHomeTransportFee); });
-    bel('bmTown')?.addEventListener('change', () => { onTownChangedForHome(); applyHomeTransportFee(); });
+    bel('bmTown')?.addEventListener('change', () => { onTownChangedForHome(); applyHomeTransportFee(); syncTownHint(); });
     // ホテル変更 → そのホテルの交通費を初期値に入れる
     bel('bmHotelId')?.addEventListener('change', e => { applyHotelTransportFee(e.target.value); renderBmHotelAddr(); });
+    // 連絡する時刻: 時を選んだら分は自動で 00（毎回 00 を選び直す手間をなくす・店長要望 2026-08-20）。
+    // 分を自分で選んだあとは尊重する。時を「--」に戻したら分も空にする
+    bel('bmPreDueH')?.addEventListener('change', e => {
+      const m = bel('bmPreDueM');
+      if (!m) return;
+      if (!e.target.value) { m.value = ''; return; }
+      if (!m.value) m.value = '00';
+    });
     // ステータス変更 → キャンセル理由欄の表示制御＋合計注記更新
     bel('bmStatus').addEventListener('change', e => {
-      bel('bmCancelWrap').style.display = e.target.value === 'cancelled' ? 'block' : 'none';
+      bel('bmCancelWrap').style.display = bmIsCancel(e.target.value) ? 'block' : 'none';
+      syncCancelTypeFromStatus();
+      syncPrepWrap();
       updateBookingTotal();
+    });
+    // 担当キャスト・日付・開始時刻が変わると「直前のお仕事」も変わる。
+    // モーダル①②どちらでも効くよう、id の頭で見て委譲で拾う
+    document.addEventListener('change', e => {
+      const id = e.target?.id || '';
+      if (/^(bmAdminId|bmDate|bmStartHour|bmStartMin)(-2)?$/.test(id)) refreshPrevJobButtons();
+      // お客様メモの「編集/追加」もキャスト・日付で入れ替わる。書きかけの時は触らない
+      if (/^(bmAdminId|bmDate)(-2)?$/.test(id)) {
+        document.querySelectorAll('[id^=bmHistoryPanel]').forEach(pane => {
+          if (pane._noteRerender && !pane.querySelector('.bhn-ta')) { try { pane._noteRerender(); } catch (_) {} }
+        });
+      }
+    });
+    // 事前予約の「連絡手段(☎/💬)」と「内容(出勤確認/到着見込み)」。どちらも1つだけ選ぶ。
+    // モーダル①②どちらでも効くよう委譲で受ける（もう一度押すと解除）
+    document.addEventListener('click', e => {
+      const btn = e.target?.closest?.('[data-prep-method], [data-prep-kind]');
+      if (!btn) return;
+      const isMethod = btn.hasAttribute('data-prep-method');
+      const wrap = btn.closest('.bm-prep');
+      if (!wrap) return;
+      const hid = wrap.querySelector(isMethod ? '[id^=bmPreMethod]' : '[id^=bmPreKind]');
+      const val = isMethod ? btn.dataset.prepMethod : btn.dataset.prepKind;
+      const next = (hid && hid.value === val) ? '' : val;
+      if (hid) hid.value = next;
+      wrap.querySelectorAll(isMethod ? '.bm-prep-m' : '.bm-prep-k').forEach(x => {
+        x.classList.toggle('is-on', (isMethod ? x.dataset.prepMethod : x.dataset.prepKind) === next);
+      });
     });
     // 担当キャスト選択 → 問合せ状態なら自動で「予約」へ（キャストが決まった＝実予約成立）
     bel('bmAdminId').addEventListener('change', e => { autoStatusOnAssign(); renderCastAlert(); renderNgAlert(); syncDealBadges(); });
     // 日付を変えたら、その日の出勤キャストで担当プルダウンを組み直す
     bel('bmDate')?.addEventListener('change', e => {
+      syncBmDateDisp();
       applyDefaultStartOnDateChange();
       populateCastSelect(e.target.value, bel('bmAdminId').value);
     });
@@ -10877,7 +15428,7 @@
       if (!e.target.closest) return;
       // サムネイルクリックでキャスト編集（注意事項をその場で確認・追記できるように）
       const ce = e.target.closest('[data-cast-edit]');
-      if (ce && ['owner', 'manager'].includes(currentUser?.role)) {
+      if (ce && canManageStaffTab()) {
         openEditStaffModal(Number(ce.dataset.castEdit));
         return;
       }
@@ -10899,10 +15450,10 @@
     // タイムラインとタブバーを掴んで動かせるようにする（縦のページ送りはタイムラインだけ）
     initDragScroll('.tl-wrap', true);
     initDragScroll('.tab-nav', false);
-    // コースを起動時に1回読み込んでおく（予約モーダル即応のため）
-    ensureCoursesLoaded();
-    // オプションも起動時に。報酬の内訳（OP報酬）を出すのに要る＝タイムラインを開いた時点で必要
-    ensureOptionsLoaded();
+    initTableDragScroll();   // ご利用履歴の表（横に長い）を掴んで動かせるように
+    // コース・オプションのマスタは報酬計算の元。読み終える前に画面を描くと
+    // コース報酬が0円のまま（指名料ぶんだけ）の少額で出てしまうため、ここで待つ（店長指摘 2026-08-14）
+    try { await Promise.all([ensureCoursesLoaded(), ensureOptionsLoaded()]); } catch (e) {}
     // 入室方法マスタを起動時にロード（select の選択肢で必要）
     loadEntryMethods();
 
@@ -10916,8 +15467,8 @@
     else if (back) switchView(back);            // タイムラインでも switchView 経由で読み込む
     else if (currentUser?.role !== 'manager') loadTimeline();
 
-    // バックグラウンドで未読バッジ更新 (owner のみ)
-    if (currentUser?.role === 'owner') {
+    // バックグラウンドで未読バッジ更新（チャットタブが見える人）
+    if (userCanSeeTab('chat')) {
       updateChatBadgeOnly();
       setInterval(updateChatBadgeOnly, 30000);
     }

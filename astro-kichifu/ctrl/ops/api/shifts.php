@@ -26,7 +26,9 @@ $action = $_GET['action'] ?? '';
  * キャストは自分ぶんのみ、ドライバーは自分ぶんのみ。
  */
 function opsCanManageShifts(): bool {
-    return in_array(currentUserRole(), ['owner', 'manager', 'office'], true);
+    // 制限はメニュー（シフトタブ）のチェックだけ（店長指定 2026-08-15）。キャストは自分ぶんのみ
+    if (currentUserRole() === 'staff') return false;
+    return opsRoleCanSeeTab(getPdo(), 'shifts');
 }
 
 if ($action === 'range' && $method === 'GET') {
@@ -57,15 +59,75 @@ if ($action === 'range' && $method === 'GET') {
 
     // 差分同期がスキップされた時でも is_private を参照できるようにしておく
     ops_shifts_ensure_private_column($pdo);
-    $sql = "SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.end_type, s.status, s.note, s.is_private,
-                   au.display_name AS staff_name, au.role AS staff_role
+    $sql = "SELECT s.id, s.admin_user_id, s.shift_date, s.start_time, s.end_time, s.end_open, s.end_type, s.status, s.note, s.is_private, s.shift_preset,
+                   au.display_name AS staff_name, au.role AS staff_role, au.staff_color AS staff_color
             FROM ops_shifts s
             LEFT JOIN ops_admin_users au ON au.id = s.admin_user_id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY s.shift_date, s.start_time, s.admin_user_id";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    jsonResponse(['shifts' => $stmt->fetchAll()]);
+    // その日の「貴重品お預かり」「釣銭お渡し」（タイムラインの件数行のトグル・店長要望 2026-08-16）
+    $fq = $pdo->prepare("SELECT admin_user_id, biz_date,
+                                valuables_by, valuables_at, valuables_off_by, valuables_off_at,
+                                change_given_by, change_given_at, change_given_off_by, change_given_off_at
+                           FROM ops_cast_day_flags WHERE biz_date BETWEEN ? AND ?");
+    $fq->execute([$from, $to]);
+    $flags = [];
+    foreach ($fq->fetchAll() as $f) {
+        $flags[$f['admin_user_id'] . '|' . substr((string)$f['biz_date'], 0, 10)] = [
+            // 貴重品: 預かった人 / 返した人（釣銭: 渡した人 / 回収した人）と、その時刻
+            'valuables_by'        => $f['valuables_by'] !== null ? (int)$f['valuables_by'] : null,
+            'valuables_at'        => $f['valuables_at'],
+            'valuables_off_by'    => $f['valuables_off_by'] !== null ? (int)$f['valuables_off_by'] : null,
+            'valuables_off_at'    => $f['valuables_off_at'],
+            'change_given_by'     => $f['change_given_by'] !== null ? (int)$f['change_given_by'] : null,
+            'change_given_at'     => $f['change_given_at'],
+            'change_given_off_by' => $f['change_given_off_by'] !== null ? (int)$f['change_given_off_by'] : null,
+            'change_given_off_at' => $f['change_given_off_at'],
+        ];
+    }
+    jsonResponse(['shifts' => $stmt->fetchAll(), 'day_flags' => $flags]);
+}
+
+/**
+ * 貴重品お預かり / 釣銭お渡し の記録（その日・そのキャストぶん・店長要望 2026-08-16）。
+ *   貴重品: 誰が預かった(by) / 誰が返した(off_by)
+ *   釣銭  : 誰が渡した(by)   / 誰が回収した(off_by)
+ * 大事なお金・持ち物なので「誰が」を必ず残す。時刻は担当を入れ替えたときだけ打ち直す
+ */
+if ($action === 'set-day-flag' && $method === 'POST') {
+    $b = readJsonBody();
+    $adminId = (int)($b['admin_user_id'] ?? 0);
+    $date    = (string)($b['biz_date'] ?? '');
+    $key     = (string)($b['key'] ?? '');
+    if ($adminId <= 0) errorResponse('invalid admin_user_id', 400);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) errorResponse('invalid biz_date', 400);
+    if (!in_array($key, ['valuables', 'change_given'], true)) errorResponse('invalid key', 400);
+    if (currentUserRole() === 'staff') errorResponse('forbidden', 403);
+    $by    = (isset($b['by'])     && $b['by']     !== '' && $b['by']     !== null) ? (int)$b['by']     : null;
+    $offBy = (isset($b['off_by']) && $b['off_by'] !== '' && $b['off_by'] !== null) ? (int)$b['off_by'] : null;
+
+    $cur = $pdo->prepare("SELECT {$key}_by AS b, {$key}_off_by AS ob, {$key}_at AS a, {$key}_off_at AS oa
+                            FROM ops_cast_day_flags WHERE admin_user_id = ? AND biz_date = ?");
+    $cur->execute([$adminId, $date]);
+    $old = $cur->fetch() ?: ['b' => null, 'ob' => null, 'a' => null, 'oa' => null];
+    // 担当が変わった（または新しく入った）ときだけ時刻を打ち直す。消したら時刻も消す
+    $at    = $by    === null ? null : (((int)($old['b']  ?? 0) === $by    && $old['a'])  ? $old['a']  : date('Y-m-d H:i:s'));
+    $offAt = $offBy === null ? null : (((int)($old['ob'] ?? 0) === $offBy && $old['oa']) ? $old['oa'] : date('Y-m-d H:i:s'));
+    // 旧来の 0/1 も残しておく（預かり中＝渡した人がいて、まだ戻っていない）
+    $onFlag = ($by !== null && $offBy === null) ? 1 : 0;
+
+    $pdo->prepare("INSERT INTO ops_cast_day_flags
+                     (admin_user_id, biz_date, {$key}, {$key}_by, {$key}_at, {$key}_off_by, {$key}_off_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                   ON DUPLICATE KEY UPDATE
+                     {$key} = VALUES({$key}),
+                     {$key}_by = VALUES({$key}_by), {$key}_at = VALUES({$key}_at),
+                     {$key}_off_by = VALUES({$key}_off_by), {$key}_off_at = VALUES({$key}_off_at),
+                     updated_at = NOW()")
+        ->execute([$adminId, $date, $onFlag, $by, $at, $offBy, $offAt]);
+    jsonResponse(['ok' => true, 'by' => $by, 'at' => $at, 'off_by' => $offBy, 'off_at' => $offAt]);
 }
 
 if ($action === 'upsert' && $method === 'POST') {
@@ -76,10 +138,21 @@ if ($action === 'upsert' && $method === 'POST') {
     $endTime   = $b['end_time']   ?? '';
     $status    = in_array($b['status'] ?? '', ['available','off','tentative'], true) ? $b['status'] : 'available';
     $note      = trim($b['note'] ?? '') ?: null;
+    // 24H・早番・遅番は「チェックを選んだとき」だけ区分として残す。
+    // 時刻が偶然一致しただけの人（10:00〜19:00のドライバー等）を早番扱いにしないため（店長指摘 2026-08-29）
+    $preset    = in_array($b['preset'] ?? '', ['24h','early','late'], true) ? $b['preset'] : null;
 
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDate)) errorResponse('invalid shift_date', 400);
+    // 休みは時刻なしで登録できる（画面側も休みだけ開始未入力を許している。店長指摘 2026-09-02）。
+    // start_time カラムは NOT NULL なので 00:00 を置く（休みの表示は時刻を使わないため無害）
+    if ($status === 'off' && trim((string)$startTime) === '') $startTime = '00:00';
     if (!preg_match('/^\d{2}:\d{2}/', $startTime)) errorResponse('invalid start_time', 400);
-    if (!preg_match('/^\d{2}:\d{2}/', $endTime)) errorResponse('invalid end_time', 400);
+    // 終了は「時刻」または「未定 / ラスト」を許可。未定・ラストは end_time=NULL + end_open で区別
+    $endTime = trim((string)$endTime);
+    $endOpen = in_array($b['end_open'] ?? '', ['undecided', 'last'], true) ? $b['end_open'] : '';
+    if ($endTime === '') { $endTime = null; }
+    elseif (!preg_match('/^\d{2}:\d{2}/', $endTime)) errorResponse('invalid end_time', 400);
+    if ($endTime !== null) $endOpen = '';   // 時刻があるときは open ではない
 
     // admin_user_id: ownerなら指定可、staffは自分のみ
     $adminId = isset($b['admin_user_id']) ? (int)$b['admin_user_id'] : currentUserId();
@@ -98,12 +171,12 @@ if ($action === 'upsert' && $method === 'POST') {
         $row = $own->fetch();
         if (!$row) errorResponse('shift not found', 404);
         if (!opsCanManageShifts() && (int)$row['admin_user_id'] !== currentUserId()) errorResponse('forbidden', 403);
-        $pdo->prepare("UPDATE ops_shifts SET shift_date=?, start_time=?, end_time=?, status=?, note=? WHERE id=?")
-            ->execute([$shiftDate, $startTime, $endTime, $status, $note, $id]);
+        $pdo->prepare("UPDATE ops_shifts SET shift_date=?, start_time=?, end_time=?, end_open=?, status=?, note=?, shift_preset=? WHERE id=?")
+            ->execute([$shiftDate, $startTime, $endTime, $endOpen, $status, $note, $preset, $id]);
         jsonResponse(['ok' => true, 'id' => $id]);
     } else {
-        $pdo->prepare("INSERT INTO ops_shifts (admin_user_id, shift_date, start_time, end_time, status, note) VALUES (?,?,?,?,?,?)")
-            ->execute([$adminId, $shiftDate, $startTime, $endTime, $status, $note]);
+        $pdo->prepare("INSERT INTO ops_shifts (admin_user_id, shift_date, start_time, end_time, end_open, status, note, shift_preset) VALUES (?,?,?,?,?,?,?,?)")
+            ->execute([$adminId, $shiftDate, $startTime, $endTime, $endOpen, $status, $note, $preset]);
         jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
     }
 }
@@ -128,7 +201,9 @@ if ($action === 'set-attendance' && $method === 'POST') {
     $shiftDate = $b['shift_date'] ?? '';
     $status    = in_array($b['status'] ?? '', ['available', 'off', 'tentative', 'done'], true) ? $b['status'] : 'available';
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDate)) errorResponse('invalid shift_date', 400);
-    if (!opsCanManageShifts() && $adminId !== currentUserId()) errorResponse('forbidden', 403);
+    // タイムラインの出勤トグルは、その画面を見られる人なら誰でも切り替えられる（制限はメニューのみ・店長指定 2026-08-14）。
+    // キャスト(staff)はタイムラインを持たないので、自分ぶんだけ
+    if (currentUserRole() === 'staff' && $adminId !== currentUserId()) errorResponse('forbidden', 403);
     $st = $pdo->prepare("SELECT id FROM ops_shifts WHERE admin_user_id=? AND shift_date=? ORDER BY id LIMIT 1");
     $st->execute([$adminId, $shiftDate]);
     $row = $st->fetch();

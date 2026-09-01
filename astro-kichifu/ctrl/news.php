@@ -123,7 +123,14 @@ layout_header('お知らせ', 'news.php');
     <tbody>
       <?php foreach ($rows as $n): ?>
         <tr>
-          <td><img class="thumb" src="<?= h(asset_url($n['thumb'] ?: '/img/placeholder.svg')) ?>" alt=""></td>
+          <td>
+            <?php $tSrc = h(asset_url($n['thumb'] ?: '/img/placeholder.svg')); ?>
+            <?php if ($n['thumb'] && preg_match('/\.mp4(\?|$)/i', (string)$n['thumb'])): // 紹介動画をサムネにした場合 ?>
+              <video class="thumb" src="<?= $tSrc ?>" muted loop playsinline autoplay preload="metadata"></video>
+            <?php else: ?>
+              <img class="thumb" src="<?= $tSrc ?>" alt="">
+            <?php endif; ?>
+          </td>
           <td><?= h($n['title']) ?></td>
           <td class="muted"><?= h($n['posted_at'] ?: $n['created']) ?></td>
           <td><button type="button" class="toggle <?= (int)$n['is_display'] ? 'on' : '' ?>" data-toggle-id="<?= (int)$n['id'] ?>"></button></td>

@@ -71,9 +71,10 @@
       syncSizes(g);
       syncHtml('girl-shop-comment', 'お店からのメッセージ', g.shop_comment, false, 'girl_shop_message_label');
       syncProfiles(g.profiles || [], g.name || '');
-      syncPlays(g.basic_play || [], g.option_play || []);
+      syncPlays(g.basic_play || [], g.applied_play || [], g.option_play || []);
       syncHtml('comment-box', (g.name || '') + 'からの一言', g.comment, true);
       syncGallery(g.images || [], g.name || '');
+      syncVideo(g.video || null, g.name || '');
       // 上記どれかがDOMのテキストを書き換えた可能性があるため、原文キャッシュを全リセットして
       // 現在選択中の言語で再翻訳＋静的ラベルの再適用を一括実行（個々の関数での個別呼び出しは不要）。
       if (window.admiI18n) window.admiI18n.reapply();
@@ -220,21 +221,33 @@
     p2.insertAdjacentElement('afterend', table);
   }
 
-  // ---- 基本プレイ / オプションプレイ（チップ2グループ） ----
-  function syncPlays(basic, option) {
-    syncPlayGroup(basic, false);
-    syncPlayGroup(option, true);
+  // ---- 基本プレイ / 応用プレイ / オプションプレイ（チップ3グループ） ----
+  // 区分は CTRL の play_tier（1=基本 / 2=応用 / 3=オプション）。2026-08-11 に応用を新設
+  var PLAY_TIERS = [
+    { cls: '',                    sel: '',                     chip: '',            i18n: 'girl_basic_play_label',   label: '基本プレイ' },
+    { cls: ' play-label-applied', sel: '.play-label-applied',  chip: ' is-applied', i18n: 'girl_applied_play_label', label: '応用プレイ' },
+    { cls: ' play-label-option',  sel: '.play-label-option',   chip: ' is-option',  i18n: 'girl_option_play_label',  label: 'オプションプレイ' }
+  ];
+  function syncPlays(basic, applied, option) {
+    syncPlayGroup(basic, 0);
+    syncPlayGroup(applied, 1);
+    syncPlayGroup(option, 2);
   }
-  function syncPlayGroup(items, isOption) {
-    // ラベルで既存グループを特定（基本= .play-label:not(.play-label-option) / オプション= .play-label-option）
+  function tierOfLabel(l) {
+    if (l.classList.contains('play-label-option')) return 2;
+    if (l.classList.contains('play-label-applied')) return 1;
+    return 0;
+  }
+  function syncPlayGroup(items, idx) {
+    var def = PLAY_TIERS[idx];
+    // ラベルの class で既存グループを特定（基本はどちらの修飾も付かないもの）
     var label = null;
     [].forEach.call(root.querySelectorAll('.play-label'), function (l) {
-      var opt = l.classList.contains('play-label-option');
-      if (opt === isOption && !label) label = l;
+      if (!label && tierOfLabel(l) === idx) label = l;
     });
     var box = label && label.nextElementSibling && label.nextElementSibling.classList.contains('girl-options')
       ? label.nextElementSibling : null;
-    var chipCls = 'play-chip' + (isOption ? ' is-option' : '');
+    var chipCls = 'play-chip' + def.chip;
     var cur = box ? [].map.call(box.querySelectorAll('.play-chip'), function (s) { return s.textContent; }) : [];
     if (items.join('|') === cur.join('|')) {
       if (box) { box.style.display = ''; if (label) label.style.display = ''; }
@@ -252,13 +265,17 @@
       if (label) label.style.display = '';
       return;
     }
-    // ビルド時に無かった→ 基本=オプションラベル or #girl-week の前 / オプション= #girl-week の前
-    var anchor = (!isOption && root.querySelector('.play-label-option')) || document.getElementById('girl-week');
+    // ビルド時に無かった → 自分より後ろの区分のラベル、無ければ #girl-week の前に差し込む
+    var anchor = null;
+    for (var i = idx + 1; i < PLAY_TIERS.length && !anchor; i++) {
+      anchor = root.querySelector('.play-label' + PLAY_TIERS[i].sel);
+    }
+    anchor = anchor || document.getElementById('girl-week');
     if (!anchor) return;
     var p = document.createElement('p');
-    p.className = 'section-label play-label' + (isOption ? ' play-label-option' : '');
-    p.setAttribute('data-i18n', isOption ? 'girl_option_play_label' : 'girl_basic_play_label');
-    p.textContent = isOption ? 'オプションプレイ' : '基本プレイ';
+    p.className = 'section-label play-label' + def.cls;
+    p.setAttribute('data-i18n', def.i18n);
+    p.textContent = def.label;
     var div = document.createElement('div');
     div.className = 'girl-options';
     div.innerHTML = html;
@@ -268,6 +285,79 @@
 
   // 画像ギャラリーを API の並び順(sort)で最新化。メイン写真＋サムネ群を作り直す。
   //   site.js は getGallery()/イベント委譲で都度 [data-girl-thumb] を読むので innerHTML 差替で動作継続。
+  /**
+   * 紹介動画をCTRLのアップロード直後から出す（静的ページの作り直しを待たない・店長指摘 2026-08-20）。
+   * メイン枠の中に <video> を差し込み、サムネの4枠目に動画タイルを入れる。
+   * 動画を消した場合は、逆にDOMから取り除く。
+   */
+  function syncVideo(videoPath, name) {
+    var wrap = root.querySelector('.girl-main-wrap');
+    if (!wrap) return;
+    var v = document.getElementById('girlMainVideo');
+    var sub = root.querySelector('.girl-sub-photos');
+
+    // 動画が消された → 片付ける
+    if (!videoPath) {
+      if (v) v.remove();
+      var oldTile = sub && sub.querySelector('[data-girl-video-thumb]');
+      if (oldTile) oldTile.remove();
+      if (sub) sub.classList.remove('has-video');
+      var mainImg0 = document.getElementById('girlMainPhoto');
+      if (mainImg0) mainImg0.style.visibility = '';
+      return;
+    }
+
+    var url = asset(videoPath);
+    var mainImg = document.getElementById('girlMainPhoto');
+    var poster = mainImg ? mainImg.getAttribute('src') : '';
+
+    if (!v) {
+      v = document.createElement('video');
+      v.id = 'girlMainVideo';
+      v.className = 'girl-main-video';
+      v.muted = true; v.loop = true; v.playsInline = true;
+      v.setAttribute('playsinline', ''); v.setAttribute('muted', ''); v.setAttribute('loop', '');
+      v.setAttribute('preload', 'metadata');
+      v.setAttribute('aria-label', name + ' の動画');
+      v.hidden = true;
+      wrap.appendChild(v);
+    }
+    if (poster) v.setAttribute('poster', poster);
+    var srcEl = v.querySelector('source');
+    if (!srcEl) { srcEl = document.createElement('source'); srcEl.type = 'video/mp4'; v.appendChild(srcEl); }
+    if (srcEl.getAttribute('src') !== url) { srcEl.setAttribute('src', url); try { v.load(); } catch (_) {} }
+
+    if (!sub) return;
+    sub.classList.add('has-video');
+    if (!sub.querySelector('[data-girl-video-thumb]')) {
+      var tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'girl-thumb girl-thumb-video';
+      tile.setAttribute('data-girl-video-thumb', '');
+      tile.setAttribute('aria-label', name + ' の動画');
+      // サムネは動画の1コマ目（#t=0.1）。写真は使わない（店長指定 2026-08-22）
+      tile.innerHTML = '<video src="' + esc(url) + '#t=0.1" muted playsinline preload="metadata" width="200" height="267" aria-hidden="true"></video>'
+                     + '<span class="girl-thumb-play" aria-hidden="true"><span class="gtp-yt"></span></span>';
+      var tiles = sub.querySelectorAll('[data-girl-thumb]');
+      if (tiles.length >= 3) tiles[2].insertAdjacentElement('afterend', tile);
+      else sub.appendChild(tile);
+    } else {
+      // 既にあるタイルの中身が写真のままなら、動画の1コマ目に入れ替える
+      var exist = sub.querySelector('[data-girl-video-thumb]');
+      var ev = exist.querySelector('video');
+      if (!ev) {
+        var img0 = exist.querySelector('img');
+        if (img0) img0.remove();
+        ev = document.createElement('video');
+        ev.muted = true; ev.setAttribute('muted', ''); ev.setAttribute('playsinline', '');
+        ev.setAttribute('preload', 'metadata'); ev.setAttribute('aria-hidden', 'true');
+        ev.width = 200; ev.height = 267;
+        exist.insertBefore(ev, exist.firstChild);
+      }
+      if (ev.getAttribute('src') !== url + '#t=0.1') ev.setAttribute('src', url + '#t=0.1');
+    }
+  }
+
   function syncGallery(images, name) {
     var urls = images.map(function (im) { return asset(im.path); }).filter(Boolean);
     if (!urls.length) return; // 画像なし→SSGのまま
@@ -297,11 +387,16 @@
         sub.className = 'girl-sub-photos';
         wrap.insertAdjacentElement('afterend', sub);
       }
-      sub.innerHTML = urls.map(function (u, i) {
+      // 動画タイル（SSGが出した3枠目）は作り直しで消えるので、同じ位置に入れ直す
+      var vTile = sub.querySelector('[data-girl-video-thumb]');
+      var vHtml = vTile ? vTile.outerHTML : '';
+      var parts = urls.map(function (u, i) {
         return '<button type="button" class="girl-thumb' + (i === 0 ? ' is-active' : '') + '"' +
           ' data-girl-thumb data-full="' + esc(u) + '" aria-label="' + esc(name) + ' 写真' + (i + 1) + '">' +
           '<img src="' + esc(u) + '" alt="' + esc(name) + ' 写真' + (i + 1) + '" width="200" height="267" loading="lazy"></button>';
-      }).join('');
+      });
+      if (vHtml) parts.splice(Math.min(3, parts.length), 0, vHtml);
+      sub.innerHTML = parts.join('');
     });
   }
 
@@ -379,4 +474,34 @@
     var p = el.previousElementSibling;
     return (p && p.classList.contains('section-label')) ? p : null;
   }
+})();
+
+/* 紹介動画（メイン枠の中で写真と切り替え・店長指定 2026-08-20: 1・2枚目は写真、3枠目が動画）。
+   CSPでインラインJSが使えないのでここに置く。動画は無音のみアップロードする運用なので音ボタンは無し
+   （店長指定 2026-08-20）。 */
+(function () {
+  function showVideo(on) {
+    var v = document.getElementById('girlMainVideo');
+    var img = document.getElementById('girlMainPhoto');
+    if (!v || !img) return;
+    v.hidden = !on;
+    img.style.visibility = on ? 'hidden' : '';
+    if (on) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+    else { try { v.pause(); } catch (_) {} }
+    var vt = document.querySelector('[data-girl-video-thumb]');
+    if (vt) vt.classList.toggle('is-active', !!on);
+    if (on) {
+      document.querySelectorAll('[data-girl-thumb]').forEach(function (b) { b.classList.remove('is-active'); });
+    }
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[data-girl-video-thumb]')) { showVideo(true); return; }
+    if (t.closest('[data-girl-thumb]')) { showVideo(false); return; }   // 写真に戻す
+  });
+  // 動画を見ているときはタップでライトボックス（写真の拡大）を開かない
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.girl-main-video')) e.stopPropagation();
+  }, true);
 })();

@@ -33,8 +33,11 @@
     return ASSET_ORIGIN + (path.charAt(0) === '/' ? path : '/' + path);
   }
   function tagEmoji(name) { return TAG_EMOJI[name] || '♡'; }
-  function isNewcomer(inDate) {
+  // 新人 = 入店3ヶ月未満 かつ CTRLの「新人」チェックON（config.ts isNewcomer と同ロジック）。
+  // チェックを外すとその子だけ新人セクション・新人アイコンから外れる（店長要望 2026-08-24）
+  function isNewcomer(inDate, isNew) {
     if (!inDate) return false;
+    if (isNew !== undefined && isNew !== null && Number(isNew) !== 1) return false;
     var cut = new Date();
     cut.setMonth(cut.getMonth() - 3);
     return inDate.slice(0, 10) >= cut.toISOString().slice(0, 10);
@@ -60,7 +63,7 @@
     var sizes   = 'T' + (g.height || '—') + ' B' + (g.bust || '—') + '(' + (g.cup || '—') + ') W' + (g.waist || '—') + ' H' + (g.hip || '—');
     var tags    = (g.tags || []).slice(0, 4);
     var inNum   = g.in_date ? (parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0) : 0;
-    var isNew   = isNewcomer(g.in_date) ? 1 : 0;
+    var isNew   = isNewcomer(g.in_date, g.is_newgirl) ? 1 : 0;
     var thumbUrl = g.external_url || '/girls/' + g.id;
 
     var photoHtml = g.photo
@@ -88,7 +91,8 @@
       ' data-age="'    + (g.age    || 0)    + '"' +
       ' data-name="'   + esc(g.name)        + '"' +
       ' data-new="'    + isNew               + '"' +
-      ' data-tags="'   + esc(tags.join('|'))+ '">' +
+      ' data-tags="'   + esc(tags.join('|'))+ '"' +
+      (g.has_video ? ' data-video="1"' : '') + '>' +
       '<a class="girl-card-img-wrap" href="' + esc(thumbUrl) + '" target="_self">' +
         photoHtml +
         '<div class="girl-card-info">' +
@@ -113,9 +117,13 @@
   var shop = window.__SHOP_ID;
   if (!shop) return;
 
-  fetch('/api/girls.php?action=list&shop_id=' + encodeURIComponent(shop) + '&limit=300', { cache: 'no-store' })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
+  // 前回開いたときの一覧を端末に覚えておき、開いた瞬間に反映する（店長要望 2026-08-25）。
+  //   静的HTMLは前回デプロイ時点の内容なので、CTRLで変えた直後は 0.2秒ほど古い表示が残っていた。
+  //   2回目以降はこのキャッシュで即座に正しくなり、その後の通信で最新へ上書きする。
+  var CACHE_KEY = 'admiGirlsCache:' + shop;
+  var CACHE_MAX_AGE = 3 * 24 * 60 * 60 * 1000;   // 古すぎるキャッシュは使わない（3日）
+
+  function apply(d) {
       if (!d || !Array.isArray(d.girls)) return; // 失敗時は SSG 表示を維持
 
       var liveMap = {};
@@ -125,6 +133,16 @@
       document.querySelectorAll('.girl-card[data-id]').forEach(function (c) {
         if (!liveMap[c.getAttribute('data-id')]) c.remove();
       });
+
+      // 1-b. 新人セクションから「もう新人ではない子」を外す（店長指摘 2026-08-25）。
+      //   新人セクションは静的HTMLに焼き込まれているため、CTRLで新人チェックを外しても
+      //   次のデプロイまで残ってしまっていた。3ヶ月を過ぎた子もここで消える
+      if (newGrid) {
+        newGrid.querySelectorAll('.girl-card[data-id]').forEach(function (c) {
+          var g = liveMap[c.getAttribute('data-id')];
+          if (g && !isNewcomer(g.in_date, g.is_newgirl)) c.remove();
+        });
+      }
 
       // 2. SSGに無い新規女性を追加
       function addMissing(grid, filterFn) {
@@ -149,7 +167,7 @@
 
       addMissing(mainGrid, null);                                          // /girls: 全員
       addMissing(schedGrid, null);                                         // schedule: 全員（schedule-page.jsがhide/show）
-      addMissing(newGrid, function (g) { return isNewcomer(g.in_date); }); // top新人セクション: 新人のみ
+      addMissing(newGrid, function (g) { return isNewcomer(g.in_date, g.is_newgirl); }); // top新人セクション: 新人のみ
 
       // 並びは「入店日が新しい順」（2026-07-18 店長指示）。addMissing は末尾appendのため、
       //   デプロイ後に登録された子が最後尾に表示されてしまう（むぎ実例）。data-in(=YYYYMMDD数値)
@@ -175,6 +193,11 @@
       document.querySelectorAll('.girl-card[data-id]').forEach(function (c) {
         var g = liveMap[c.getAttribute('data-id')];
         if (!g) return;
+
+        // --- 紹介動画の有無（オフィシャルプロフの♡を紫の再生ボタンに切り替える印）---
+        //   SSG済みのカードは buildCard を通らないので、ここで属性を付け外しする（店長要望 2026-08-20）
+        if (g.has_video) c.setAttribute('data-video', '1');
+        else c.removeAttribute('data-video');
 
         // --- 3. 写真 ---
         var newSrc = g.photo ? asset(g.photo) : '';
@@ -203,7 +226,7 @@
 
         // --- 4. 文字情報（要素単位patch＝出勤バッジ等の後入れ要素を壊さない） ---
         var tags  = (g.tags || []).slice(0, 4);
-        var isNew = isNewcomer(g.in_date) ? 1 : 0;
+        var isNew = isNewcomer(g.in_date, g.is_newgirl) ? 1 : 0;
         var inNum = g.in_date ? (parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0) : 0;
 
         // data-*（girls-filter.js の並び替え/絞り込みが最新値で動くように）
@@ -288,6 +311,26 @@
       });
 
       if (window.admiI18n) window.admiI18n.reapply(); // 新規追加カード(buildCard)等に選択中の言語を即適用
+  }
+
+  // ① まず前回ぶんで即座に整える（ちらつき防止）
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      var cached = JSON.parse(raw);
+      if (cached && Array.isArray(cached.girls) && (Date.now() - (cached.at || 0)) < CACHE_MAX_AGE) {
+        apply(cached);
+      }
+    }
+  } catch (e) { /* 使えなければ従来どおり通信結果だけで整える */ }
+
+  // ② 通信で最新に上書きし、次回のために覚えておく
+  fetch('/api/girls.php?action=list&shop_id=' + encodeURIComponent(shop) + '&limit=300', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !Array.isArray(d.girls)) return;
+      apply(d);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), girls: d.girls })); } catch (e) {}
     })
     .catch(function () {}); // 通信失敗時は SSG 表示を維持
 })();

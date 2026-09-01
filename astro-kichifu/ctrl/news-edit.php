@@ -299,8 +299,10 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
     </div>
     <div class="field">
       <label>サムネイル画像（現在）</label>
+      <?php $thumbIsVideo = $n['thumb'] && preg_match('/\.mp4(\?|$)/i', (string)$n['thumb']); ?>
       <div id="current-thumb-box" style="margin-bottom:8px;<?= $n['thumb'] ? '' : 'display:none' ?>">
-        <img id="current-thumb-img" src="<?= $n['thumb'] ? h(asset_url($n['thumb'])) : '' ?>" style="width:120px;border-radius:8px">
+        <img id="current-thumb-img" src="<?= ($n['thumb'] && !$thumbIsVideo) ? h(asset_url($n['thumb'])) : '' ?>" style="width:120px;border-radius:8px;<?= $thumbIsVideo ? 'display:none' : '' ?>">
+        <video id="current-thumb-video" src="<?= $thumbIsVideo ? h(asset_url($n['thumb'])) : '' ?>" style="width:120px;border-radius:8px;background:#000;<?= $thumbIsVideo ? '' : 'display:none' ?>" muted loop playsinline autoplay></video>
         <div id="thumb-set-note" style="font-size:.8125rem;color:#2e9e5b;margin-top:4px;display:none">✓ この画像をサムネに設定しました（保存で確定します）</div>
         <label class="check" style="margin-top:6px"><input type="checkbox" name="remove_thumb"> 画像を削除</label>
       </div>
@@ -347,31 +349,65 @@ layout_header($id ? 'お知らせを編集' : 'お知らせを作成', 'news.php
       var r = await fetch('/ctrl/girl-actions.php', { method: 'POST', body: fd });
       var j = await r.json();
       wrap.innerHTML = '';
-      if (!j.ok || !j.images || !j.images.length) {
+      var hasVideo = !!(j.video && j.video.path);
+      if (!j.ok || ((!j.images || !j.images.length) && !hasVideo)) {
         wrap.innerHTML = '<span class="muted" style="font-size:13px">この子の登録画像がありません（手動アップロードしてください）</span>';
         return;
       }
+      j.images = j.images || [];
+      // 選択時の共通処理（画像でも動画でも「現在のサムネ」プレビューを更新する）
+      function selectThumb(btn, path, isVideo, posterPath) {
+        wrap.querySelectorAll('.girl-img-thumb').forEach(function (x) { x.classList.remove('sel'); });
+        btn.classList.add('sel');
+        hidden.value = path;   // 選んだものを news サムネに（保存時 thumb_from_girl で反映）
+        var box = document.getElementById('current-thumb-box');
+        var cimg = document.getElementById('current-thumb-img');
+        var cvid = document.getElementById('current-thumb-video');
+        var note = document.getElementById('thumb-set-note');
+        if (isVideo) {
+          if (cvid) {
+            cvid.src = ASSET + path;
+            if (posterPath) cvid.poster = ASSET + posterPath;
+            cvid.style.display = '';
+            try { cvid.load(); cvid.play().catch(function () {}); } catch (e) {}
+          }
+          if (cimg) cimg.style.display = 'none';
+        } else {
+          if (cimg) { cimg.src = ASSET + path; cimg.style.display = ''; }
+          if (cvid) { cvid.style.display = 'none'; try { cvid.pause(); } catch (e) {} }
+        }
+        if (box) box.style.display = '';
+        if (note) note.style.display = '';
+        var rm = document.querySelector('input[name=remove_thumb]'); if (rm) rm.checked = false;
+      }
+
       j.images.forEach(function (im) {
         var b = document.createElement('button');
         b.type = 'button'; b.className = 'girl-img-thumb';
         var img = document.createElement('img');
         img.src = ASSET + im.path; img.alt = '';
         b.appendChild(img);
-        b.addEventListener('click', function () {
-          wrap.querySelectorAll('.girl-img-thumb').forEach(function (x) { x.classList.remove('sel'); });
-          b.classList.add('sel');
-          hidden.value = im.path;   // 選んだ画像を news サムネに（保存時 thumb_from_girl で反映）
-          // 「現在のサムネ」プレビューを即更新（セットされたと一目で分かるように）
-          var box = document.getElementById('current-thumb-box');
-          var cimg = document.getElementById('current-thumb-img');
-          var note = document.getElementById('thumb-set-note');
-          if (cimg) cimg.src = ASSET + im.path;
-          if (box) box.style.display = '';
-          if (note) note.style.display = '';
-          var rm = document.querySelector('input[name=remove_thumb]'); if (rm) rm.checked = false;
-        });
+        b.addEventListener('click', function () { selectThumb(b, im.path, false, ''); });
         wrap.appendChild(b);
       });
+
+      // 紹介動画がある子は、写真の後ろに動画タイルも並べる（店長要望 2026-08-20）
+      if (j.video && j.video.path) {
+        var vb = document.createElement('button');
+        vb.type = 'button'; vb.className = 'girl-img-thumb is-video';
+        vb.title = '紹介動画をサムネにする';
+        var vv = document.createElement('video');
+        vv.src = ASSET + j.video.path;
+        if (j.video.poster) vv.poster = ASSET + j.video.poster;
+        vv.muted = true; vv.loop = true; vv.playsInline = true; vv.autoplay = true;
+        vv.setAttribute('muted', ''); vv.setAttribute('playsinline', '');
+        vb.appendChild(vv);
+        var mark = document.createElement('span');
+        mark.className = 'girl-img-play'; mark.textContent = '▶';
+        vb.appendChild(mark);
+        vb.addEventListener('click', function () { selectThumb(vb, j.video.path, true, j.video.poster || ''); });
+        wrap.appendChild(vb);
+      }
     } catch (e) {
       wrap.innerHTML = '<span class="muted" style="font-size:13px">読み込みに失敗しました</span>';
     }

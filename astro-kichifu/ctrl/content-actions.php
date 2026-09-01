@@ -28,7 +28,7 @@ $TABLES = [
     'girl_diaries'    => [['image'], 'is_display', true],
     'courses'         => [[], 'is_display', true],
     'girl_categories' => [[], null, false],
-    'girl_options'    => [[], 'is_basic', false],
+    'girl_options'    => [[], null, false],   // 区分は3値(play_tier)になったのでトグル無し
     'girl_profiles'   => [[], null, false],
     'girl_image_tags' => [[], 'is_active', false],
 ];

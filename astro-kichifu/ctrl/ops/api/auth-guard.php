@@ -21,6 +21,7 @@ function requireOwner(): void {
     if (!isOwner()) errorResponse('owner role required', 403);
 }
 
+
 function readJsonBody(): array {
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);

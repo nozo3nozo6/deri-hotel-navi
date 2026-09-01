@@ -222,12 +222,21 @@ try {
             // 女の子の登録画像一覧（お知らせのサムネ選択用）。sort 順で path を返す
             $gid = (int)($_POST['girl_id'] ?? 0);
             $imgs = [];
+            $video = null;
             if ($gid) {
                 $st = db()->prepare('SELECT id, path FROM girl_images WHERE girl_id=? ORDER BY sort, id');
                 $st->execute([$gid]);
                 $imgs = $st->fetchAll(PDO::FETCH_ASSOC);
+
+                // 紹介動画があれば、お知らせのサムネ候補として一緒に返す（店長要望 2026-08-20）。
+                // 更新時刻を ?v= に付けてキャッシュ違いを避ける（キャストページと同じ扱い）
+                $vrel = '/uploads/girls/' . (int)$shop . '/video/' . $gid . '.mp4';
+                $vabs = (defined('UPLOADS_ROOT') && is_dir(UPLOADS_ROOT) ? UPLOADS_ROOT : rtrim((string)$_SERVER['DOCUMENT_ROOT'], '/')) . $vrel;
+                if (is_file($vabs)) {
+                    $video = ['path' => $vrel . '?v=' . (int)filemtime($vabs), 'poster' => $imgs[0]['path'] ?? ''];
+                }
             }
-            echo json_encode(['ok' => true, 'images' => $imgs]);
+            echo json_encode(['ok' => true, 'images' => $imgs, 'video' => $video]);
             break;
         }
         default:

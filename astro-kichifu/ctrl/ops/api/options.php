@@ -25,7 +25,7 @@ if ($action === 'list' && $method === 'GET') {
     $includeInactive = !empty($_GET['include_inactive']);
     try {
         $pdo = getPdo();
-        $sql = "SELECT id, name, price, cast_reward, sort_order, is_active
+        $sql = "SELECT id, name, price, cast_reward, is_lendable, sort_order, is_active
                 FROM ops_options "
                 . ($includeInactive ? '' : 'WHERE is_active = 1 ')
                 . "ORDER BY sort_order, id";
@@ -44,11 +44,12 @@ if ($action === 'create' && $method === 'POST') {
     $b = readJsonBody();
     $name = trim($b['name'] ?? '');
     if ($name === '') errorResponse('name required', 400);
-    $pdo->prepare("INSERT INTO ops_options (name, price, cast_reward, sort_order, is_active, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, 1, NOW(), NOW())")->execute([
+    $pdo->prepare("INSERT INTO ops_options (name, price, cast_reward, is_lendable, sort_order, is_active, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())")->execute([
         $name,
         (int)($b['price'] ?? 0),
         isset($b['cast_reward']) && $b['cast_reward'] !== '' ? (int)$b['cast_reward'] : null,
+        !empty($b['is_lendable']) ? 1 : 0,   // 貸出品（持ち帰り忘れ防止の対象）
         (int)($b['sort_order'] ?? 100),
     ]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
@@ -59,7 +60,7 @@ if ($action === 'update' && $method === 'POST') {
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
     $cols = []; $vals = [];
-    foreach (['name', 'price', 'cast_reward', 'sort_order', 'is_active'] as $k) {
+    foreach (['name', 'price', 'cast_reward', 'is_lendable', 'sort_order', 'is_active'] as $k) {
         if (array_key_exists($k, $b)) {
             $cols[] = "$k = ?";
             $v = $b[$k];
@@ -89,7 +90,7 @@ if ($action === 'toggle-active' && $method === 'POST') {
 }
 
 if ($action === 'delete' && $method === 'POST') {
-    requireOwner();
+    requireTabOps($pdo, 'courses');
     $b = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);

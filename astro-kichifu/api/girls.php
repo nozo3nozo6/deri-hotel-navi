@@ -32,6 +32,15 @@ try {
         $imgs->execute([$id]);
         $girl['images'] = $imgs->fetchAll(PDO::FETCH_ASSOC);
 
+        // 紹介動画（任意）。/uploads/girls/{shop_id}/video/{girl_id}.mp4 を置くだけで詳細ページに出る。
+        // DBに列を足さずに済むよう、ファイルの有無だけで判断する（店長要望 2026-08-20・まずは1人でテスト）
+        $vrel = '/uploads/girls/' . (int)$shop_id . '/video/' . (int)$id . '.mp4';
+        $vabs = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') . $vrel;
+        // 更新時刻をURLの ?v= に使う（キャッシュバスター）。動画は固定ファイル名のため、
+        // 差し替えてもURLが同じままだとCloudflare/ブラウザのキャッシュに古い内容が残り続けていた
+        // （店長指摘 2026-08-20: はな・まどかの動画更新がフロントに反映されない）
+        $girl['video'] = is_file($vabs) ? $vrel . '?v=' . (int)filemtime($vabs) : null;
+
         // お店コメントのテキスト化（媒体プロフィール同期のデータ源。速報と同じ整形＝news_html_to_text）
         require_once __DIR__ . '/_html-text.php';
         $girl['shop_comment_text'] = news_html_to_text((string)($girl['shop_comment'] ?? ''));
@@ -53,18 +62,24 @@ try {
         $tg->execute([$id]);
         $girl['tags'] = array_column($tg->fetchAll(PDO::FETCH_ASSOC), 'name');
 
-        // オプション（基本プレイ / オプションプレイに分割）
+        // オプション（基本プレイ / 応用プレイ / オプションプレイ に分割）
+        // play_tier: 1=基本 / 2=応用 / 3=オプション（店長指定 2026-08-11 に応用を新設）
         $opts = DB::conn()->prepare(
-            'SELECT go.name, go.is_basic FROM girl_option_links gol
+            'SELECT go.name, go.play_tier FROM girl_option_links gol
                JOIN girl_options go ON go.id = gol.girl_option_id
               WHERE gol.girl_id = ?
-              ORDER BY go.is_basic DESC, go.sort, go.id'
+              ORDER BY go.play_tier, go.sort, go.id'
         );
         $opts->execute([$id]);
         $allOpts = $opts->fetchAll(PDO::FETCH_ASSOC);
-        $girl['options']     = array_column($allOpts, 'name');
-        $girl['basic_play']  = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 1)));
-        $girl['option_play'] = array_values(array_map(fn($o) => $o['name'], array_filter($allOpts, fn($o) => (int)$o['is_basic'] === 0)));
+        $byTier = fn(int $t) => array_values(array_map(
+            fn($o) => $o['name'],
+            array_filter($allOpts, fn($o) => (int)$o['play_tier'] === $t)
+        ));
+        $girl['options']      = array_column($allOpts, 'name');
+        $girl['basic_play']   = $byTier(1);
+        $girl['applied_play'] = $byTier(2);
+        $girl['option_play']  = $byTier(3);
 
         // プロフィール（is_display=1 のみ）
         $profs = DB::conn()->prepare(
@@ -124,6 +139,12 @@ try {
                 $byGirl[$r['girl_id']][] = $r['name'];
             }
             foreach ($girls as &$g) { $g['tags'] = $byGirl[$g['id']] ?? []; }
+            unset($g);
+
+            // 紹介動画の有無だけをカードに伝える（内容は詳細ページで取る・店長要望 2026-08-20）。
+            // ファイルの有無で判断するので、動画をアップロード/削除した瞬間から一覧にも反映される
+            $vdir = rtrim((string)($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') . '/uploads/girls/' . (int)$shop_id . '/video/';
+            foreach ($girls as &$g) { $g['has_video'] = is_file($vdir . $g['id'] . '.mp4') ? 1 : 0; }
             unset($g);
         }
 

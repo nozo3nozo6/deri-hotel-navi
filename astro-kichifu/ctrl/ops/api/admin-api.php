@@ -18,6 +18,10 @@
 // ==========================================================================
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/_ctrl-session.php';   // CTRL のログインを流用（ops 独自ログインは廃止）
+
+// 勤務実績の「お休み」印。ops_driver_logs.note に入れて空欄（未入力）と区別する（店長要望 2026-08-19）
+const OPS_DRIVER_OFF = '休み';
+require_once __DIR__ . '/reward-lib.php';       // 報酬計算（admin.js の calcReward と同式・biyobu.com とも共有）
 require_once __DIR__ . '/_cast-sync.php';      // CTRL の girls → ops のキャスト行へ同期
 
 setCorsHeaders();
@@ -49,6 +53,76 @@ function requireOwner(): void {
 function requireOwnerOrManager(): void {
     if (!in_array($_SESSION['ylka_admin_role'] ?? '', ['owner', 'manager'], true)) {
         errorResponse('owner or manager role required', 403);
+    }
+}
+
+function isOwnerSession(): bool {
+    return ($_SESSION['ylka_admin_role'] ?? '') === 'owner';
+}
+
+/**
+ * 制限は「上のメニュー（タブ）」だけで行う（店長指定 2026-08-14）。
+ * そのタブを見られるロールなら、中の操作は全部できる。判定は権限管理（tab_permissions）に従う。
+ * キャスト(staff)はマイページだけなので常に不可。
+ */
+
+/**
+ * スタッフ管理の操作権限。owner は常に可。それ以外は権限管理（tab_permissions.staff）で
+ * チェックの入ったロールに許可（店長要望 2026-08-14: 管理者にスタッフ管理を任せられるように）。
+ * オーナーアカウントの作成・変更・削除・PW再発行は各アクション側で owner のみに制限する。
+ */
+function requireStaffManage(PDO $pdo): void {
+    // スタッフ管理 か キャスト管理 のどちらかが見えていれば操作できる（制限はメニューだけ・店長指定 2026-08-15）
+    requireAnyTabOps($pdo, ['staff', 'staffboard']);
+}
+
+/** ops の役割(owner/manager/staff/driver/office) → admins の役割(owner/staff)。owner だけ owner、他は staff。
+ *  CTRL 内の細かい権限は ops_admin_users.role を見るので、admins 側は「入れるかどうか」の粗い区分でよい */
+function opsRoleToAdmins(string $role): string {
+    return $role === 'owner' ? 'owner' : 'staff';
+}
+
+/**
+ * CTRL ログイン用 admins テーブルへ ops スタッフを反映する。
+ *   ログインは admins（username＋password_hash）で行い、ops 側は _ctrl-session.php が
+ *   username を照合キーにして紐付ける。両テーブルの username を必ず一致させること。
+ *   $matchUsername=更新前のusername（照合用）／$newUsername=設定するusername。
+ *   $passwordHash を渡した時だけパスワードを更新（新規時は必須、更新時は変更しないなら null）。
+ */
+function syncAdminRow(PDO $pdo, string $matchUsername, string $newUsername, ?string $email, string $displayName, string $opsRole, ?string $passwordHash = null): void {
+    $adminsRole = opsRoleToAdmins($opsRole);
+    $email = ($email === '' ? null : $email);
+    $st = $pdo->prepare('SELECT id FROM admins WHERE username = ? LIMIT 1');
+    $st->execute([$matchUsername]);
+    $id = $st->fetchColumn();
+    if ($id) {
+        if ($passwordHash !== null) {
+            $pdo->prepare('UPDATE admins SET username = ?, email = ?, display_name = ?, role = ?, password_hash = ?, modified = NOW() WHERE id = ?')
+                ->execute([$newUsername, $email, $displayName, $adminsRole, $passwordHash, $id]);
+        } else {
+            $pdo->prepare('UPDATE admins SET username = ?, email = ?, display_name = ?, role = ?, modified = NOW() WHERE id = ?')
+                ->execute([$newUsername, $email, $displayName, $adminsRole, $id]);
+        }
+    } else {
+        $pdo->prepare('INSERT INTO admins (shop_id, username, password_hash, display_name, email, role, theme, created, modified) VALUES (NULL, ?, ?, ?, ?, ?, ?, NOW(), NOW())')
+            ->execute([$newUsername, $passwordHash ?? '*', $displayName, $email, $adminsRole, 'grey-skin']);
+    }
+}
+
+/** ログインIDの形式チェック（英数字と @ . _ - を許可、2〜190文字）。メールをそのままIDにもできる */
+function isValidLoginId(string $s): bool {
+    return (bool) preg_match('/^[A-Za-z0-9@._-]{2,190}$/', $s);
+}
+
+/**
+ * POST の JSON 本文。auth-guard.php にも同名があるが、admin-api.php はそれを読み込まないので
+ * ここで用意する（読み込まれている場合は二重定義にしない）。
+ * 2026-08-11: これが無くて POST 系が「request failed」で落ちていた。
+ */
+if (!function_exists('readJsonBody')) {
+    function readJsonBody(): array {
+        $data = json_decode((string)file_get_contents('php://input'), true);
+        return is_array($data) ? $data : [];
     }
 }
 
@@ -94,10 +168,13 @@ if ($action === 'hotels' && $method === 'GET') {
         $orderBy = 'h.city, h.name';
     } elseif ($sort === 'visited') {
         $orderBy = 'COALESCE(yhi.visited_count, 0) DESC, h.name';
+    } elseif ($sort === 'manual') {
+        // 手で並べた順。未設定(NULL)は後ろにまとめて名前順（店長要望 2026-08-09）
+        $orderBy = '(h.sort_order IS NULL) ASC, h.sort_order ASC, h.name';
     }
 
     $sql = "SELECT
-                h.id, h.name, h.address, h.city, h.major_area, h.detail_area,
+                h.id, h.name, h.name_kana, h.address, h.city, h.major_area, h.detail_area,
                 h.hotel_type, h.nearest_station, h.tel, h.latitude, h.longitude,
                 yhi.status,
                 yhi.entry_method,
@@ -243,10 +320,22 @@ if ($action === 'bulk-transport-fee' && $method === 'POST') {
 // =================================================================
 // スタッフ管理（owner 専用）
 // =================================================================
+/** キャスト一覧の並び替え用カラム（入店日・出勤日数）。admin-users / staff-list で共用 */
+function extra_sort_cols(): string {
+    return ",
+            (SELECT g.in_date FROM girls g WHERE g.id = au.girl_id) AS in_date,
+            (SELECT COUNT(*) FROM ops_shifts sh
+              WHERE sh.admin_user_id = au.id AND sh.status IN ('available','done')) AS work_days";
+}
+
 if ($action === 'admin-users' && $method === 'GET') {
-    requireOwner();
+    requireStaffManage($pdo);
     ops_sync_casts_if_changed(current_shop_id());
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, commission_rate, girl_id, cast_notes, created_at FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    // in_date（入店日）と work_days（出勤日数）は一覧の並び替え用（店長要望 2026-08-11）
+    $rows = $pdo->query("SELECT au.id, au.username, au.email, au.display_name, au.role, au.can_drive, au.is_therapist,
+                                au.is_office, au.thumbnail_url, au.sort_order, au.commission_rate, au.girl_id,
+                                au.cast_notes, au.diary_url, au.diary_login, au.diary_pass, au.self_confirm_shift, au.staff_color, au.created_at" . extra_sort_cols() . "
+                           FROM ops_admin_users au ORDER BY au.sort_order, au.id")->fetchAll();
     jsonResponse(['users' => $rows]);
 }
 
@@ -262,16 +351,213 @@ if ($action === 'staff-list' && $method === 'GET') {
     // 注: admin-api.php は auth-guard.php を読み込まないため currentUserRole() は未定義。
     //     セッションを直接参照する（requireOwnerOrManager と同じ方式）。これを関数化すると
     //     非owner（manager/office/driver）でこの行が Fatal になり JSON が壊れる原因になった。
-    $withRate = in_array($_SESSION['ylka_admin_role'] ?? '', ['owner', 'manager'], true);
+    // 制限は上のメニュー（タブ）だけ。タイムラインを見られる人は預り金・報酬・入金分の詳細も扱う（店長指定 2026-08-14）。
+    // 歩合率が無いとタイムラインの金額行そのものが出ないため、キャスト以外には返す
+    $withRate = !in_array($_SESSION['ylka_admin_role'] ?? '', ['staff', ''], true);
     ops_sync_casts_if_changed(current_shop_id());
-    $rows = $pdo->query("SELECT id, username, display_name, role, can_drive, is_therapist, is_office, thumbnail_url, sort_order, girl_id, cast_notes" . ($withRate ? ", commission_rate" : "") . " FROM ops_admin_users ORDER BY sort_order, id")->fetchAll();
+    $rows = $pdo->query("SELECT au.id, au.username, au.email, au.display_name, au.role, au.can_drive, au.is_therapist,
+                                au.is_office, au.thumbnail_url, au.sort_order, au.girl_id, au.cast_notes, au.staff_color"
+                        . ($withRate ? ", au.commission_rate" : "") . extra_sort_cols() . "
+                           FROM ops_admin_users au ORDER BY au.sort_order, au.id")->fetchAll();
     jsonResponse(['users' => $rows]);
+}
+
+// ============ キャストからの報告（キャスト画面の「お店に報告」）============
+// キャストは「気をつけてほしい/NGにしてほしい」と伝えるだけ。
+// 出禁にするか・要注意にするか・その子だけ外すかの判断は店長が持つ（店長方針 2026-08-11）。
+// 判断した結果は既存のお客様のNG設定（ops_customers.ng_level / ops_customer_ng_casts）に流し込むので、
+// 予約を取るときの警告はそのまま効く。
+
+if ($action === 'cast-reports' && $method === 'GET') {
+    requireTabOps($pdo, 'timeline');
+    $only = ($_GET['status'] ?? 'pending') === 'all' ? '' : " WHERE r.status = 'pending'";
+    $st = $pdo->query(
+        "SELECT r.id, r.cast_admin_id, r.customer_id, r.booking_id, r.level, r.reason,
+                r.status, r.handled_at, r.created_at,
+                au.display_name AS cast_name, au.username AS cast_username,
+                c.name AS customer_name, c.ng_level,
+                b.booking_date, b.start_time,
+                hu.display_name AS handled_name,
+                EXISTS (SELECT 1 FROM ops_customer_ng_casts nc
+                         WHERE nc.customer_id = r.customer_id AND nc.cast_admin_id = r.cast_admin_id) AS cast_ng
+           FROM ops_cast_reports r
+           LEFT JOIN ops_admin_users au ON au.id = r.cast_admin_id
+           LEFT JOIN ops_admin_users hu ON hu.id = r.handled_by
+           LEFT JOIN ops_customers c    ON c.id  = r.customer_id
+           LEFT JOIN ops_bookings b     ON b.id  = r.booking_id
+          {$only}
+          ORDER BY r.status = 'pending' DESC, r.created_at DESC
+          LIMIT 200");
+    $rows = $st->fetchAll();
+    $pending = (int)$pdo->query("SELECT COUNT(*) FROM ops_cast_reports WHERE status = 'pending'")->fetchColumn();
+    jsonResponse(['reports' => $rows, 'pending' => $pending]);
+}
+
+// 未対応の件数だけ（タイムライン上のバッジ用・軽い）
+if ($action === 'cast-reports-count' && $method === 'GET') {
+    requireTabOps($pdo, 'timeline');
+    jsonResponse(['pending' => (int)$pdo->query("SELECT COUNT(*) FROM ops_cast_reports WHERE status = 'pending'")->fetchColumn()]);
+}
+
+// 報告を処理する。
+//   cast_ng … そのキャストだけ外す（お店としては受ける）
+//   caution … 要注意（受けるが気をつける・全体）
+//   ng      … 出禁（お店として受けない・全体）
+//   done    … 記録だけ残して対応済みにする
+if ($action === 'cast-report-handle' && $method === 'POST') {
+    requireTabOps($pdo, 'timeline');
+    $b   = readJsonBody();
+    $id  = (int)($b['id'] ?? 0);
+    $act = (string)($b['act'] ?? '');
+    if ($id <= 0 || !in_array($act, ['cast_ng', 'caution', 'ng', 'done'], true)) errorResponse('invalid params', 400);
+
+    $st = $pdo->prepare("SELECT r.*, au.display_name AS cast_name FROM ops_cast_reports r
+                           LEFT JOIN ops_admin_users au ON au.id = r.cast_admin_id
+                          WHERE r.id = ? LIMIT 1");
+    $st->execute([$id]);
+    $r = $st->fetch();
+    if (!$r) errorResponse('not found', 404);
+    $cid = (int)$r['customer_id'];
+    $me  = (int)($_SESSION['ylka_admin_id'] ?? 0);
+    // 判断のもとになった報告文を、お客様側の理由にも残す（あとで「なぜNGか」が分かるように）
+    $note = trim((string)$r['reason']);
+    $stamp = date('n/j') . ' ' . trim((string)($r['cast_name'] ?? '')) . 'より' . ($note !== '' ? '「' . $note . '」' : '');
+
+    if ($act === 'cast_ng' && $cid > 0) {
+        $pdo->prepare("INSERT IGNORE INTO ops_customer_ng_casts (customer_id, cast_admin_id, reason, created_at)
+                       VALUES (?, ?, ?, NOW())")->execute([$cid, (int)$r['cast_admin_id'], $stamp]);
+    } elseif (($act === 'caution' || $act === 'ng') && $cid > 0) {
+        $lv = $act === 'ng' ? 2 : 1;
+        $cur = $pdo->prepare("SELECT ng_level, ng_reason FROM ops_customers WHERE id = ?");
+        $cur->execute([$cid]);
+        $c = $cur->fetch();
+        // 今より軽い判断で上書きしない（出禁のお客様を要注意に落とさない）
+        $newLv = max($lv, (int)($c['ng_level'] ?? 0));
+        $reason = trim((string)($c['ng_reason'] ?? ''));
+        $reason = $reason === '' ? $stamp : ($reason . "\n" . $stamp);
+        $pdo->prepare("UPDATE ops_customers SET ng_level = ?, ng_reason = ?, ng_at = NOW() WHERE id = ?")
+            ->execute([$newLv, $reason, $cid]);
+    }
+
+    $pdo->prepare("UPDATE ops_cast_reports SET status = 'done', handled_at = NOW(), handled_by = ? WHERE id = ?")
+        ->execute([$me ?: null, $id]);
+    jsonResponse(['ok' => true]);
+}
+
+// お客様1人ぶんの報告履歴（顧客カルテに出す）
+if ($action === 'cast-reports-for-customer' && $method === 'GET') {
+    requireTabOps($pdo, 'timeline');
+    $cid = (int)($_GET['customer_id'] ?? 0);
+    if ($cid <= 0) errorResponse('customer_id required', 400);
+    $st = $pdo->prepare(
+        "SELECT r.id, r.level, r.reason, r.status, r.created_at, r.handled_at,
+                au.display_name AS cast_name, hu.display_name AS handled_name
+           FROM ops_cast_reports r
+           LEFT JOIN ops_admin_users au ON au.id = r.cast_admin_id
+           LEFT JOIN ops_admin_users hu ON hu.id = r.handled_by
+          WHERE r.customer_id = ? ORDER BY r.created_at DESC LIMIT 50");
+    $st->execute([$cid]);
+    jsonResponse(['reports' => $st->fetchAll()]);
+}
+
+// ============ キャスト管理画面（biyobu.com/cosmenote/）の専用URL ============
+// キャストごとに 32桁のカギ(token)を1本発行し、URL に載せて本人に渡す。
+// URL＋本人が決めた4桁の暗証番号の2段構え（ops_cast_access）。
+// 暗証番号は取り出せない形（bcrypt）で保存しているので、忘れたときは
+// リセットして本人に決め直してもらう。
+const CAST_PORTAL_BASE = 'https://biyobu.com/cosmenote/';
+
+if ($action === 'cast-access-list' && $method === 'GET') {
+    requireTabOps($pdo, 'staffboard');
+    $rows = $pdo->query("SELECT admin_user_id, token, pin_hash, pin_set_at, last_seen_at, revoked_at, locked_until
+                           FROM ops_cast_access")->fetchAll();
+    $out = [];
+    foreach ($rows as $r) {
+        $out[(string)(int)$r['admin_user_id']] = [
+            'url'        => $r['revoked_at'] ? null : CAST_PORTAL_BASE . '?k=' . $r['token'],
+            'pin_set'    => !empty($r['pin_hash']),
+            'pin_set_at' => $r['pin_set_at'],
+            'last_seen'  => $r['last_seen_at'],
+            'revoked'    => !empty($r['revoked_at']),
+            'locked'     => !empty($r['locked_until']) && strtotime((string)$r['locked_until']) > time(),
+        ];
+    }
+    jsonResponse(['access' => $out, 'base' => CAST_PORTAL_BASE]);
+}
+
+// URL を発行（初回）／作り直し（前のURLは使えなくなる）
+if ($action === 'cast-access-issue' && $method === 'POST') {
+    requireTabOps($pdo, 'staffboard');
+    $b = readJsonBody();
+    $uid = (int)($b['admin_user_id'] ?? 0);
+    $renew = !empty($b['renew']);
+    if ($uid <= 0) errorResponse('admin_user_id required', 400);
+    $st = $pdo->prepare("SELECT id, token, revoked_at FROM ops_cast_access WHERE admin_user_id = ? LIMIT 1");
+    $st->execute([$uid]);
+    $row = $st->fetch();
+    if ($row && !$renew && empty($row['revoked_at'])) {
+        jsonResponse(['url' => CAST_PORTAL_BASE . '?k=' . $row['token'], 'created' => false]);
+    }
+    $token = bin2hex(random_bytes(16));
+    if ($row) {
+        // 作り直し = 前のカギも暗証番号も無効。本人に新しいURLを渡し直す
+        $pdo->prepare("UPDATE ops_cast_access
+                          SET token = ?, pin_hash = NULL, pin_set_at = NULL, fail_count = 0,
+                              locked_until = NULL, revoked_at = NULL
+                        WHERE id = ?")->execute([$token, (int)$row['id']]);
+    } else {
+        $pdo->prepare("INSERT INTO ops_cast_access (admin_user_id, token, fail_count, created_at)
+                       VALUES (?, ?, 0, NOW())")->execute([$uid, $token]);
+    }
+    jsonResponse(['url' => CAST_PORTAL_BASE . '?k=' . $token, 'created' => true]);
+}
+
+// 暗証番号だけリセット（URLはそのまま）。次に開いたとき本人が決め直す
+if ($action === 'cast-access-reset-pin' && $method === 'POST') {
+    requireTabOps($pdo, 'staffboard');
+    $b = readJsonBody();
+    $uid = (int)($b['admin_user_id'] ?? 0);
+    if ($uid <= 0) errorResponse('admin_user_id required', 400);
+    $pdo->prepare("UPDATE ops_cast_access
+                      SET pin_hash = NULL, pin_set_at = NULL, fail_count = 0, locked_until = NULL
+                    WHERE admin_user_id = ?")->execute([$uid]);
+    jsonResponse(['ok' => true]);
+}
+
+// 店長が暗証番号を決める（店長指定 2026-08-11）。
+// 保存は取り出せない形（bcrypt）のまま＝DBを見られても番号は分からない。
+// 「店長が決めた番号だから店長は知っている」という運用で、画面に数字は出さない。
+if ($action === 'cast-access-set-pin' && $method === 'POST') {
+    requireTabOps($pdo, 'staffboard');
+    $b = readJsonBody();
+    $uid = (int)($b['admin_user_id'] ?? 0);
+    $pin = preg_replace('/[^0-9]/', '', (string)($b['pin'] ?? ''));
+    if ($uid <= 0) errorResponse('admin_user_id required', 400);
+    if (strlen($pin) !== 4) errorResponse('暗証番号は4桁の数字で入れてください', 400);
+    $st = $pdo->prepare("SELECT id FROM ops_cast_access WHERE admin_user_id = ? AND revoked_at IS NULL LIMIT 1");
+    $st->execute([$uid]);
+    $row = $st->fetch();
+    if (!$row) errorResponse('先に専用URLを発行してください', 400);
+    $pdo->prepare("UPDATE ops_cast_access
+                      SET pin_hash = ?, pin_set_at = NOW(), fail_count = 0, locked_until = NULL
+                    WHERE id = ?")->execute([password_hash($pin, PASSWORD_DEFAULT), (int)$row['id']]);
+    jsonResponse(['ok' => true]);
+}
+
+// URLを止める（退店など）。同じ人に再発行するときは cast-access-issue の renew
+if ($action === 'cast-access-revoke' && $method === 'POST') {
+    requireTabOps($pdo, 'staffboard');
+    $b = readJsonBody();
+    $uid = (int)($b['admin_user_id'] ?? 0);
+    if ($uid <= 0) errorResponse('admin_user_id required', 400);
+    $pdo->prepare("UPDATE ops_cast_access SET revoked_at = NOW() WHERE admin_user_id = ?")->execute([$uid]);
+    jsonResponse(['ok' => true]);
 }
 
 // キャストの注意事項（猫アレルギー等・予約を取る前に確認するもの）。
 // 受付で気づいた点をその場で足せるよう、admin-update(owner限定)とは別に店長も許可する。
 if ($action === 'cast-note-update' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id   = (int)($body['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
@@ -284,7 +570,7 @@ if ($action === 'cast-note-update' && $method === 'POST') {
 // ホテルそのもの（名前・住所・市区町村・TEL）の作成／更新。
 //   ops_ylka_hotel_info（ステータスや交通費）は update-info が担当。ここは ops_hotels 側。
 if (($action === 'hotel-save') && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'hotel');
     $body = json_decode(file_get_contents('php://input'), true);
     $id   = (int)($body['id'] ?? 0);
     $name = trim((string)($body['name'] ?? ''));
@@ -305,28 +591,46 @@ if (($action === 'hotel-save') && $method === 'POST') {
     $rawType  = (string)($body['hotel_type'] ?? '');
     $type     = in_array($rawType, $typeList, true) ? $rawType : null;
 
+    // 読み仮名（あいうえお順の並び用）。カタカナ・ひらがなの名前は画面側で自動生成するので空でよい
+    $kana = mb_substr(trim((string)($body['name_kana'] ?? '')), 0, 255);
+
     if ($id > 0) {
         if ($type !== null) {
-            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, hotel_type=?, is_edited=1, updated_at=NOW() WHERE id=?');
-            $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $type, $id]);
+            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, name_kana=?, city=?, address=?, prefecture=?, tel=?, hotel_type=?, is_edited=1, updated_at=NOW() WHERE id=?');
+            $st->execute([mb_substr($name, 0, 255), $kana ?: null, $city, $addr, $pref, $tel ?: null, $type, $id]);
         } else {
             // 未知の値が来たときは今の値を壊さない（画面が古い等）
-            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');
-            $st->execute([mb_substr($name, 0, 255), $city, $addr, $pref, $tel ?: null, $id]);
+            $st = $pdo->prepare('UPDATE ops_hotels SET name=?, name_kana=?, city=?, address=?, prefecture=?, tel=?, is_edited=1, updated_at=NOW() WHERE id=?');
+            $st->execute([mb_substr($name, 0, 255), $kana ?: null, $city, $addr, $pref, $tel ?: null, $id]);
         }
         jsonResponse(['ok' => true, 'id' => $id]);
     }
-    $st = $pdo->prepare("INSERT INTO ops_hotels (name, address, prefecture, city, hotel_type, source, tel, is_published, is_edited, created_at, updated_at)
-                         VALUES (?,?,?,?,?,'manual',?,1,1,NOW(),NOW())");
-    $st->execute([mb_substr($name, 0, 255), $addr, $pref, $city, $type ?? 'love_hotel', $tel ?: null]);
+    $st = $pdo->prepare("INSERT INTO ops_hotels (name, name_kana, address, prefecture, city, hotel_type, source, tel, is_published, is_edited, created_at, updated_at)
+                         VALUES (?,?,?,?,?,?,'manual',?,1,1,NOW(),NOW())");
+    $st->execute([mb_substr($name, 0, 255), $kana ?: null, $addr, $pref, $city, $type ?? 'love_hotel', $tel ?: null]);
     jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+}
+
+// ホテル一覧の手動並べ替え（「並び順: 自分の順番」でドラッグしたときに保存）。
+// 送られてきた id の並びをそのまま 1 から振り直す。送られていないホテルには触らない。
+if ($action === 'hotel-reorder' && $method === 'POST') {
+    requireTabOps($pdo, 'courses');
+    $body = json_decode(file_get_contents('php://input'), true);
+    $ids  = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? [])), fn($v) => $v > 0));
+    if (!$ids) errorResponse('ids required', 400);
+    if (count($ids) > 2000) errorResponse('too many', 400);
+    $st = $pdo->prepare('UPDATE ops_hotels SET sort_order = ? WHERE id = ?');
+    $pdo->beginTransaction();
+    foreach ($ids as $i => $hid) $st->execute([$i + 1, $hid]);
+    $pdo->commit();
+    jsonResponse(['ok' => true, 'count' => count($ids)]);
 }
 
 // ホテルをリストから外す（YLKA由来の民宿など、アドミでは使わないものを消すため）。
 //   予約で使われているホテルは【消さずに非表示】にする。履歴の hotel_id が迷子になるのを防ぐ。
 //   使われていないものは実削除（ops_ylka_hotel_info も一緒に）。
 if ($action === 'hotel-delete' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'courses');
     $body = json_decode(file_get_contents('php://input'), true);
     $ids  = array_values(array_filter(array_map('intval', (array)($body['hotel_ids'] ?? [])), fn($v) => $v > 0));
     if (!$ids) errorResponse('hotel_ids required', 400);
@@ -354,36 +658,58 @@ if ($action === 'hotel-delete' && $method === 'POST') {
 }
 
 if ($action === 'admin-create' && $method === 'POST') {
-    requireOwner();
+    requireStaffManage($pdo);
     $body         = json_decode(file_get_contents('php://input'), true);
+    // ログインID（CTRL ログインで打つID）とメールアドレス（送迎/認証コード送信先）は別物
+    $loginId      = trim($body['login_id'] ?? '');
     $email        = trim($body['email'] ?? '');
     $password     = $body['password'] ?? '';
     $displayName  = trim($body['display_name'] ?? '');
     $role         = $body['role'] ?? 'staff';
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) errorResponse('valid email required', 400);
+    if ($loginId === '' || !isValidLoginId($loginId)) errorResponse('ログインIDは英数字・記号(@._-)で入力してください', 400);
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) errorResponse('メールアドレスの形式が正しくありません', 400);
     if (strlen($password) < 8) errorResponse('password must be at least 8 chars', 400);
     if (!in_array($role, ['owner', 'manager', 'staff', 'driver', 'office'], true)) errorResponse('invalid role', 400);
+    if ($role === 'owner' && !isOwnerSession()) errorResponse('オーナー権限のアカウントはオーナーのみ作成できます', 403);
     if ($displayName === '') errorResponse('display_name required', 400);
 
+    // ログインIDは ops_admin_users・admins の両方でユニークでなければならない
     $exists = $pdo->prepare('SELECT 1 FROM ops_admin_users WHERE username = ?');
-    $exists->execute([$email]);
-    if ($exists->fetch()) errorResponse('email already exists', 409);
+    $exists->execute([$loginId]);
+    if ($exists->fetch()) errorResponse('このログインIDは既に使われています', 409);
+    $existsA = $pdo->prepare('SELECT 1 FROM admins WHERE username = ?');
+    $existsA->execute([$loginId]);
+    if ($existsA->fetch()) errorResponse('このログインIDは既に使われています', 409);
 
     $rate = isset($body['commission_rate']) && $body['commission_rate'] !== '' ? max(0, min(100, (float)$body['commission_rate'])) : 50.0;
     $canDrive = !empty($body['can_drive']) ? 1 : 0;
     $isTherapist = !empty($body['is_therapist']) ? 1 : 0;
     $isOffice = !empty($body['is_office']) ? 1 : 0;
     $hash = password_hash($password, PASSWORD_BCRYPT);
-    $pdo->prepare('INSERT INTO ops_admin_users (username, password_hash, display_name, role, can_drive, is_therapist, is_office, commission_rate, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())')
-        ->execute([$email, $hash, $displayName, $role, $canDrive, $isTherapist, $isOffice, $rate]);
-    jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+
+    $pdo->beginTransaction();
+    // ① ログイン基盤（admins）に作る。ここに無いと CTRL ログインできない
+    syncAdminRow($pdo, $loginId, $loginId, $email, $displayName, $role, $hash);
+    // ② ops 側プロファイル（担当割当・歩合など）。username は admins と一致させる
+    $pdo->prepare('INSERT INTO ops_admin_users (username, email, password_hash, display_name, role, can_drive, is_therapist, is_office, commission_rate, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())')
+        ->execute([$loginId, ($email === '' ? null : $email), $hash, $displayName, $role, $canDrive, $isTherapist, $isOffice, $rate]);
+    $newId = (int)$pdo->lastInsertId();
+    $pdo->commit();
+    jsonResponse(['ok' => true, 'id' => $newId]);
 }
 
 if ($action === 'admin-update' && $method === 'POST') {
-    requireOwner();
+    requireStaffManage($pdo);
     $body        = json_decode(file_get_contents('php://input'), true);
     $id          = (int)($body['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
+    // オーナーアカウントの編集・オーナーへの昇格は owner のみ（権限管理でスタッフ管理を許可された管理者の権限昇格を防ぐ）
+    if (!isOwnerSession()) {
+        $tq = $pdo->prepare('SELECT role FROM ops_admin_users WHERE id = ?');
+        $tq->execute([$id]);
+        if ((string)$tq->fetchColumn() === 'owner') errorResponse('オーナーのアカウントはオーナーのみ編集できます', 403);
+        if (($body['role'] ?? '') === 'owner') errorResponse('オーナー権限の付与はオーナーのみ行えます', 403);
+    }
 
     $cols = [];
     $vals = [];
@@ -432,213 +758,71 @@ if ($action === 'admin-update' && $method === 'POST') {
         $cols[] = 'is_office = ?';
         $vals[] = !empty($body['is_office']) ? 1 : 0;
     }
-    // メールアドレス(=ログインID username)の変更。送迎メール送信先も兼ねる
-    if (array_key_exists('email', $body) && trim((string)$body['email']) !== '') {
-        $newEmail = trim((string)$body['email']);
-        if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) errorResponse('valid email required', 400);
+    // ログインID（CTRL ログインで打つID = username）の変更
+    if (array_key_exists('login_id', $body) && trim((string)$body['login_id']) !== '') {
+        $newLoginId = trim((string)$body['login_id']);
+        if (!isValidLoginId($newLoginId)) errorResponse('ログインIDは英数字・記号(@._-)で入力してください', 400);
         $chk = $pdo->prepare('SELECT 1 FROM ops_admin_users WHERE username = ? AND id <> ?');
-        $chk->execute([$newEmail, $id]);
-        if ($chk->fetch()) errorResponse('email already exists', 409);
-        $cols[] = 'username = ?'; $vals[] = $newEmail;
+        $chk->execute([$newLoginId, $id]);
+        if ($chk->fetch()) errorResponse('このログインIDは既に使われています', 409);
+        // admins 側でも、自分の現行username以外と衝突しないこと
+        $curU = (string)$pdo->query('SELECT username FROM ops_admin_users WHERE id = ' . (int)$id)->fetchColumn();
+        $chkA = $pdo->prepare('SELECT 1 FROM admins WHERE username = ? AND username <> ?');
+        $chkA->execute([$newLoginId, $curU]);
+        if ($chkA->fetch()) errorResponse('このログインIDは既に使われています', 409);
+        $cols[] = 'username = ?'; $vals[] = $newLoginId;
+    }
+    // メールアドレス（送迎メール・認証コードの送信先）の変更。空文字なら未設定にする
+    if (array_key_exists('email', $body)) {
+        $newEmail = trim((string)$body['email']);
+        if ($newEmail !== '' && !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) errorResponse('メールアドレスの形式が正しくありません', 400);
+        $cols[] = 'email = ?'; $vals[] = ($newEmail === '' ? null : $newEmail);
+    }
+    // 写メ日記のURL・ログインID・パスワード（キャスト本人がcosmenoteから使う。空にもできる）
+    foreach (['diary_url', 'diary_login', 'diary_pass'] as $dk) {
+        if (array_key_exists($dk, $body)) {
+            $v = trim((string)$body[$dk]);
+            $cols[] = "$dk = ?"; $vals[] = ($v === '' ? null : $v);
+        }
+    }
+    // キャスト画面の「出勤確認」ボタンを出すか（既定は非表示）
+    if (array_key_exists('self_confirm_shift', $body)) {
+        $cols[] = 'self_confirm_shift = ?'; $vals[] = !empty($body['self_confirm_shift']) ? 1 : 0;
+    }
+    // 預り金カード色（内勤以上）。#rrggbb か空（未設定）。同じ色の二重登録は不可（誰の現金か見分けるための色のため）
+    if (array_key_exists('staff_color', $body)) {
+        $sc = trim((string)$body['staff_color']);
+        if ($sc !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $sc)) errorResponse('invalid staff_color', 400);
+        if ($sc !== '') {
+            $dq = $pdo->prepare('SELECT display_name FROM ops_admin_users WHERE staff_color = ? AND id <> ? LIMIT 1');
+            $dq->execute([$sc, $id]);
+            $dupe = $dq->fetchColumn();
+            if ($dupe !== false) errorResponse('この色は ' . $dupe . ' さんが使用中です。別の色を選んでください', 409);
+        }
+        $cols[] = 'staff_color = ?'; $vals[] = $sc;
     }
     if (!$cols) errorResponse('nothing to update', 400);
+
+    // admins の照合キーは更新前の username。先に控える
+    $oldUsername = (string)$pdo->query('SELECT username FROM ops_admin_users WHERE id = ' . (int)$id)->fetchColumn();
+
+    $pdo->beginTransaction();
     $vals[] = $id;
     $pdo->prepare("UPDATE ops_admin_users SET " . implode(', ', $cols) . " WHERE id = ?")->execute($vals);
+    // ログイン基盤（admins）へ反映。最新の ops 値を読み直して同期（パスワードは触らない）
+    $u = $pdo->prepare('SELECT username, email, display_name, role FROM ops_admin_users WHERE id = ?');
+    $u->execute([$id]);
+    $row = $u->fetch();
+    if ($row) {
+        syncAdminRow($pdo, $oldUsername, (string)$row['username'], (string)($row['email'] ?? ''), (string)($row['display_name'] ?: $row['username']), (string)$row['role']);
+    }
+    $pdo->commit();
     jsonResponse(['ok' => true]);
 }
 
-// =================================================================
-// 報酬集計（owner / manager 専用）
-// キャスト報酬 = コース(price−深夜)×歩合 + 深夜料金(全額) + 出張費のキャスト取り分
-// 出張費: キャストが自走した片道ごとに「出張費の半分（50円単位に切り上げ）」を機動ボーナスとして支給
-// =================================================================
-/**
- * 予約の menu_items（「ローター¥1,000 / バイブ¥1,000」形式のテキスト）から
- * オプションのキャスト報酬合計を出す。cast_reward 未設定のオプションは店の取り分＝0円。
- * マスタは一度だけ読んで使い回す（明細ループから毎行呼ばれるため）。
- */
-function opsOptionReward(?string $menuItems): int {
-    static $master = null;
-    $txt = trim((string)$menuItems);
-    if ($txt === '') return 0;
-    if ($master === null) {
-        $master = [];
-        try {
-            foreach (getPdo()->query('SELECT name, cast_reward FROM ops_options') as $o) {
-                $name = trim((string)$o['name']);
-                if ($name !== '' && $o['cast_reward'] !== null && $o['cast_reward'] !== '') {
-                    $master[$name] = (int)$o['cast_reward'];
-                }
-            }
-        } catch (Throwable $e) { $master = []; }
-    }
-    $sum = 0;
-    foreach ($master as $name => $reward) {
-        if (mb_strpos($txt, $name) !== false) $sum += $reward;
-    }
-    return $sum;
-}
-
-/**
- * 出張費のキャスト取り分＝機動ボーナス（店長指定 2026-08-09）。admin.js の calcReward と同式。
- *   行き帰りとも自走 … 出張費の全額（¥1,650 なら ¥1,650）
- *   片道だけ自走     … 出張費の半分を50円単位に切り上げ（¥1,650 → 折半 ¥825 → ¥850）
- * ドライバーが送迎した片道はお店の取り分なので 0。
- * 片道ずつ切り上げて足すと往復が ¥1,700 になり出張費を超えるため、往復は満額とする。
- */
-function ylkaTherapistTransport(int $transport, bool $goDriver, bool $backDriver): int {
-    if ($transport <= 0) return 0;
-    $selfLegs = ($goDriver ? 0 : 1) + ($backDriver ? 0 : 1);
-    if ($selfLegs === 2) return $transport;
-    if ($selfLegs === 1) return intdiv((int)ceil($transport / 2) + 49, 50) * 50;
-    return 0;
-}
-/**
- * コース名からマスタの「キャスト報酬」を引く（admin.js の courseCastReward と同式）。
- * 保存名は「60分コース ＋10分」「90分コース ＋ 90分コース」の形になりうるので、
- * ＋10分（LINE特典・無料）を落として ＋ で分解し、各コースの報酬を足す。
- * ホテル料金を適用した予約は、そのコースの「ホテル料金のキャスト報酬」を使う。
- * マスタに無いコースは null（＝報酬0円。マスタに入れるまで出さない）。
- */
-function opsCourseCastReward(?string $courseName, bool $hotelApplied): ?int {
-    static $master = null;
-    $name = trim((string)$courseName);
-    if ($name === '') return null;
-    if ($master === null) {
-        $master = [];
-        try {
-            foreach (getPdo()->query('SELECT name, cast_reward, hotel_cast_reward FROM ops_courses') as $c) {
-                $master[trim((string)$c['name'])] = $c;
-            }
-        } catch (Throwable $e) { $master = []; }
-    }
-    $name  = preg_replace('/\s*＋\s*10\s*分\s*$/u', '', $name);
-    $parts = preg_split('/\s*[＋+]\s*/u', trim($name));
-    $total = null;
-    foreach ($parts as $nm) {
-        $nm = trim($nm);
-        if ($nm === '' || !isset($master[$nm])) continue;
-        $c = $master[$nm];
-        $v = null;
-        if ($hotelApplied && $c['hotel_cast_reward'] !== null && $c['hotel_cast_reward'] !== '') {
-            $v = (int)$c['hotel_cast_reward'];
-        } elseif ($c['cast_reward'] !== null && $c['cast_reward'] !== '') {
-            $v = (int)$c['cast_reward'];
-        }
-        if ($v !== null) $total = (int)$total + $v;
-    }
-    return $total;
-}
-
-/**
- * 走行距離の表示（30 → "30" / 12.5 → "12.5"）。
- * rtrim で末尾の 0 を落とすと 30 が 3 になるので、小数があるときだけ整える
- */
-function opsKmText(float $km): string {
-    return (fmod($km, 1.0) == 0.0) ? (string)(int)$km : rtrim(rtrim(number_format($km, 1, '.', ''), '0'), '.');
-}
-
-/** 指名区分ごとのキャスト報酬（マスタタブで設定）。1リクエスト内は読み直さない */
-function opsNominationReward(?string $type): int {
-    static $cache = null;
-    if ($cache === null) {
-        try { $cache = getNominationRewards(getPdo()); }
-        catch (Throwable $e) { $cache = ['first' => 0, 'regular' => 0, 'free' => 0]; }
-    }
-    return (int)($cache[(string)$type] ?? 0);
-}
-
-/**
- * コースの本数。組み合わせ（90分コース ＋ 90分コース）は2本。
- * 指名料も指名の報酬も、この本数ぶんかかる（店長指定 2026-08-08）。
- * ＋10分は LINE 特典の無料延長なので本数に数えない。admin.js の courseUnitCount と同式
- */
-/**
- * 延長1回あたりのキャスト報酬。コースマスタの「延長」を含むコースから引く。
- * 延長はコース選択肢から外してあるので course_name には現れず、extension_count で数える
- *（店長指摘 2026-08-08: 延長の報酬が入っていなかった）
- */
-function opsExtensionRewardUnit(): int {
-    static $v = null;
-    if ($v === null) {
-        $v = 0;
-        try {
-            foreach (getPdo()->query("SELECT name, cast_reward FROM ops_courses") as $c) {
-                if (mb_strpos((string)$c['name'], '延長') !== false && $c['cast_reward'] !== null && $c['cast_reward'] !== '') {
-                    $v = (int)$c['cast_reward'];
-                    break;
-                }
-            }
-        } catch (Throwable $e) { $v = 0; }
-    }
-    return $v;
-}
-
-function opsCourseUnitCount(?string $courseName): int {
-    $n = trim((string)$courseName);
-    if ($n === '') return 1;
-    $n = preg_replace('/\s*＋\s*10\s*分\s*$/u', '', $n);
-    $parts = array_filter(array_map('trim', preg_split('/\s*[＋+]\s*/u', trim($n))), fn($s) => $s !== '');
-    return max(1, count($parts));
-}
-
-/**
- * 予約1件のキャスト報酬。**画面(admin.js の calcReward)と必ず同じ式にすること**。
- *   コース報酬（マスタ固定額）＋ オプション報酬 ＋ 指名料の報酬 ＋ 深夜料金 ＋ 機動ボーナス
- * 歩合率(%)は使わない（店長方針 2026-08-05: 報酬はコース管理の固定額のみ）。
- * 深夜料金は帰りのお迎えがあれば全額お店（ドライバー手当のため）。
- */
-function ylkaReward(array $r): int {
-    $late  = (int)($r['late_fee'] ?? 0);
-    $trans = (int)($r['transport_fee'] ?? 0);
-    $back  = !empty($r['back_driver_id']);
-    return (int)(opsCourseCastReward($r['course_name'] ?? null, (int)($r['hotel_price_applied'] ?? 0) === 1) ?? 0)
-         + opsOptionReward($r['menu_items'] ?? null)
-         + opsNominationReward($r["nomination_type"] ?? null) * opsCourseUnitCount($r["course_name"] ?? null)
-         + opsExtensionRewardUnit() * (int)($r["extension_count"] ?? 0)
-         + ($back ? 0 : $late)
-         + ylkaTherapistTransport($trans, !empty($r['driver_id']), $back);
-}
-// クレジット決済のカード手数料のうち「キャスト負担分」= 売上全額 ×（手数料率 ÷ 2）%。
-// カード手数料（平均3%）はお店とキャストで半分ずつ負担（各1.5%）。現金・振込は0。
-// admi はカード手数料をお客様に上乗せして受け取る運用で、キャストの報酬は決済方法に左右されない
-//（ylka はキャストが半分負担していた・店長指定 2026-08-07）。0 固定にして計算式の形だけ残す。
-function ylkaCardFeeTherapist(int $sales, ?string $pm, float $cardFeeRate): int {
-    return 0;
-}
-// 1予約の [売上, 報酬] を返す。お客様都合キャンセルは手入力のキャンセル料/報酬、それ以外は通常計算（予約時点で計上）。
-// カード決済でも報酬は変わらない（手数料はお客様に上乗せして受け取る・admi 方式）。
-function ylkaRowSalesReward(array $r, float $cardFeeRate = 0.0): array {
-    if (($r['status'] ?? '') === 'cancelled') {
-        return [(int)($r['cancellation_fee'] ?? 0), (int)($r['cancellation_reward'] ?? 0)];
-    }
-    // 売上 = コース料金 + 出張費 + クレジットの手数料上乗せ分（お客様から受け取る総額）
-    $sales = (int)($r['price'] ?? 0) + (int)($r['transport_fee'] ?? 0) + (int)($r['card_fee'] ?? 0);
-    // 報酬の手入力オーバーライドがあればそちらを優先（微調整用。カード手数料差引は適用しない＝入力額そのまま）
-    if (isset($r['reward_override']) && $r['reward_override'] !== null && $r['reward_override'] !== '') {
-        return [$sales, (int)$r['reward_override']];
-    }
-    $reward = ylkaReward($r);
-    $reward -= ylkaCardFeeTherapist($sales, $r['payment_method'] ?? null, $cardFeeRate);
-    return [$sales, $reward];
-}
-// 経理の絞り込みキャストID（0=全体）
-function ylkaReqTherapistId(): int {
-    return isset($_GET['therapist_id']) && $_GET['therapist_id'] !== '' ? max(0, (int)$_GET['therapist_id']) : 0;
-}
-// 休憩は売上・件数・報酬の対象外。エイリアスに応じた「休憩を除外」SQL断片を返す（先頭に AND 付き）
-function ylkaExcludeBreakSql(string $alias = ''): string {
-    $p = $alias ? "$alias." : '';
-    return " AND ({$p}course_name <> '休憩' OR {$p}course_name IS NULL) AND ({$p}customer_name_snapshot <> '【休憩】' OR {$p}customer_name_snapshot IS NULL)";
-}
-// 営業日(10:00〜翌10:00)基準の日付を返すSQL式。start_time が 10:00 未満なら前日扱い。
-// 経理・集金は営業日で集計・絞り込みするため booking_date の代わりにこれを使う。
-function ylkaBizDayExpr(string $alias = ''): string {
-    $p = $alias ? "$alias." : '';
-    return "DATE(CASE WHEN {$p}start_time < '10:00:00' THEN DATE_SUB({$p}booking_date, INTERVAL 1 DAY) ELSE {$p}booking_date END)";
-}
+// 報酬計算はキャスト用画面（biyobu.com）とも共有するため reward-lib.php に集約（2026-08-10）
 if ($action === 'payroll' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -647,7 +831,7 @@ if ($action === 'payroll' && $method === 'GET') {
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.assigned_admin_id,
                    b.customer_name_snapshot, b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
                    b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.payment_method,
-                   b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override,
+                   b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override,
                    au.display_name, au.username, au.commission_rate, au.sort_order
             FROM ops_bookings b
             JOIN ops_admin_users au ON au.id = b.assigned_admin_id
@@ -686,8 +870,10 @@ if ($action === 'payroll' && $method === 'GET') {
         $courseReward = (int)(opsCourseCastReward($r['course_name'] ?? null, (int)($r['hotel_price_applied'] ?? 0) === 1) ?? 0)
                       + $optionReward + opsNominationReward($r["nomination_type"] ?? null) * opsCourseUnitCount($r["course_name"] ?? null)
                       + opsExtensionRewardUnit() * (int)($r["extension_count"] ?? 0);
-        $tTherapist = ylkaTherapistTransport($trans, $hasGo, $hasBack);
-        $lateTherapist = $hasBack ? 0 : $late;   // 帰りお迎えあり→深夜料金は店
+        // 機動ボーナスは「キャスト（自走）」を選んだ片道だけ。「-（未定）」は送迎とみなす
+        [$goSelf, $backSelf] = opsSelfLegs($r);
+        $tTherapist = ylkaTherapistTransport($trans, !$goSelf, !$backSelf);
+        $lateTherapist = $backSelf ? $late : 0;  // 帰りが自走のときだけ深夜料金はキャスト
         $cardFeeSelf = ylkaCardFeeTherapist($base, $r['payment_method'] ?? null, $cardRate); // カード決済のキャスト負担
         $reward = $courseReward + $lateTherapist + $tTherapist - $cardFeeSelf;
         // 報酬の手入力オーバーライドがあれば置き換え（内訳(course_reward等)は参考値として自動計算のまま残す）
@@ -765,7 +951,7 @@ if ($action === 'card-fee-get' && $method === 'GET') {
 }
 
 if ($action === 'card-fee-set' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'courses');
     $body = json_decode(file_get_contents('php://input'), true);
     $ins = $pdo->prepare("INSERT INTO ops_admin_settings (setting_key, setting_value) VALUES (?, ?)
                           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)");
@@ -787,28 +973,6 @@ if ($action === 'card-fee-set' && $method === 'POST') {
 // =================================================================
 // 指名料（初指名/本指名/フリー、固定額）の取得/保存。予約保存時の合計加算・フッターサマリー内訳表示に使用
 // =================================================================
-function getNominationFees(PDO $pdo): array {
-    $out = ['first' => 0, 'regular' => 0, 'free' => 0];
-    $st = $pdo->prepare("SELECT setting_key, setting_value FROM ops_admin_settings WHERE setting_key IN ('nomination_fee_first','nomination_fee_regular','nomination_fee_free')");
-    $st->execute();
-    foreach ($st->fetchAll() as $row) {
-        $type = str_replace('nomination_fee_', '', $row['setting_key']);
-        $out[$type] = (int)$row['setting_value'];
-    }
-    return $out;
-}
-
-/** 指名区分ごとの「キャスト報酬」。お客様からいただく指名料とは別に設定する（店長要望 2026-08-08） */
-function getNominationRewards(PDO $pdo): array {
-    $out = ['first' => 0, 'regular' => 0, 'free' => 0];
-    $st = $pdo->prepare("SELECT setting_key, setting_value FROM ops_admin_settings
-                          WHERE setting_key IN ('nomination_reward_first','nomination_reward_regular','nomination_reward_free')");
-    $st->execute();
-    foreach ($st->fetchAll() as $row) {
-        $out[str_replace('nomination_reward_', '', $row['setting_key'])] = (int)$row['setting_value'];
-    }
-    return $out;
-}
 
 // 汎用の店舗設定（許可キーのみ）。いまは事務所の住所（ルート案内の既定の出発地）。
 // chat_inbox_url: YobuChat の店舗受信箱を枠内に出すための URL（?owner_token= 付き）。
@@ -824,7 +988,7 @@ if ($action === 'setting-get' && $method === 'GET') {
 }
 
 if ($action === 'setting-set' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'courses');
     $body = json_decode(file_get_contents('php://input'), true);
     $k = (string)($body['key'] ?? '');
     if (!in_array($k, OPS_SETTING_KEYS, true)) errorResponse('unknown key', 400);
@@ -842,7 +1006,7 @@ if ($action === 'nomination-fees-get' && $method === 'GET') {
 }
 
 if ($action === 'nomination-fees-set' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'courses');
     $body = json_decode(file_get_contents('php://input'), true);
     $fees    = $body['nomination_fees'] ?? [];
     $rewards = $body['nomination_rewards'] ?? null;   // 送られてこなければ据え置き
@@ -886,7 +1050,7 @@ if ($action === 'city-fees' && $method === 'GET') {
 }
 
 if ($action === 'city-fee-set' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'courses');
     $body = json_decode(file_get_contents('php://input'), true);
     $city = trim((string)($body['city'] ?? ''));
     $town = trim((string)($body['town'] ?? ''));   // '' = 市区町村全体
@@ -922,7 +1086,11 @@ if ($action === 'city-towns' && $method === 'GET') {
     $st = $pdo->prepare('SELECT town, lat, lng FROM ops_city_towns WHERE city = ? ORDER BY sort_order, town');
     $st->execute([$city]);
     $cached = $st->fetchAll();
-    if ($cached !== []) {
+    // 緯度経度が1件も入っていないキャッシュは、距離が出せないので取り直す
+    // （lat/lng を持つ前の古いキャッシュが残っていた: 杉並区・練馬区ほか・店長指摘 2026-08-11）
+    $hasGeo = false;
+    foreach ($cached as $r) { if ($r['lat'] !== null && $r['lng'] !== null) { $hasGeo = true; break; } }
+    if ($cached !== [] && $hasGeo) {
         $towns = array_map(static fn ($r) => ['name' => $r['town'], 'km' => $kmFromTachikawa($r['lat'], $r['lng'])], $cached);
         jsonResponse(['city' => $city, 'towns' => $towns, 'cached' => true]);
     }
@@ -952,7 +1120,9 @@ if ($action === 'city-towns' && $method === 'GET') {
             $agg[$t][2]++;
         }
     }
-    $ins = $pdo->prepare('INSERT IGNORE INTO ops_city_towns (city, town, sort_order, lat, lng) VALUES (?, ?, ?, ?, ?)');
+    // 取り直しのときは既存行の緯度経度も更新する（INSERT IGNORE だけだと NULL のまま残る）
+    $ins = $pdo->prepare('INSERT INTO ops_city_towns (city, town, sort_order, lat, lng) VALUES (?, ?, ?, ?, ?)
+                          ON DUPLICATE KEY UPDATE sort_order = VALUES(sort_order), lat = VALUES(lat), lng = VALUES(lng)');
     $towns = [];
     foreach ($agg as $t => [$latSum, $lngSum, $n, $ord]) {
         $lat = $n ? $latSum / $n : null;
@@ -967,7 +1137,7 @@ if ($action === 'city-towns' && $method === 'GET') {
 // ドライバー: その日の送迎・保有預り金・勤務実績（owner / manager が閲覧・入力）
 // =================================================================
 if ($action === 'driver-day' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'staffboard');
     $did  = (int)($_GET['driver_id'] ?? 0);
     $date = $_GET['date'] ?? date('Y-m-d');
     if ($did <= 0) errorResponse('invalid driver_id', 400);
@@ -977,7 +1147,7 @@ if ($action === 'driver-day' && $method === 'GET') {
     // 送迎（送り=driver_id / お迎え=back_driver_id）。1予約で両方担当もあり得る
     $st = $pdo->prepare(
         "SELECT b.id, b.customer_name_snapshot, b.hotel_name_snapshot, b.display_city, b.room_number,
-                b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.driver_id, b.back_driver_id,
+                b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.driver_id, b.go_self, b.back_driver_id, b.back_self,
                 au.display_name AS therapist_name, au.username AS therapist_username,
                 h.name AS hotel_name, h.city AS hotel_city
          FROM ops_bookings b
@@ -1008,7 +1178,7 @@ if ($action === 'driver-day' && $method === 'GET') {
     // このドライバーが現在保有している預り金（未精算）
     $cardRate = getCardFeeRate($pdo);
     $cst = $pdo->prepare(
-        "SELECT b.id, b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id,
+        "SELECT b.id, b.customer_name_snapshot, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.go_self, b.back_driver_id, b.back_self,
                 b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, b.settle_kind,
                 au.commission_rate, au.display_name AS therapist_name, au.username AS therapist_username
          FROM ops_bookings b
@@ -1054,8 +1224,20 @@ if ($action === 'driver-day' && $method === 'GET') {
     ]);
 }
 
+// その日「休み」にしたドライバー一覧（勤務実績のノート=OPS_DRIVER_OFF）。
+//   タイムラインの送迎ドライバー選択で「休みにした人は出さない」ため（店長要望 2026-08-20）。
+//   まとめの出勤ステータス(off)とは別管理なので、こちらも合わせて見る必要がある
+if ($action === 'driver-off-list' && $method === 'GET') {
+    requireTabOps($pdo, 'timeline');
+    $date = (string)($_GET['date'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) errorResponse('invalid date', 400);
+    $st = $pdo->prepare('SELECT driver_id FROM ops_driver_logs WHERE work_date = ? AND note = ?');
+    $st->execute([$date, OPS_DRIVER_OFF]);
+    jsonResponse(['date' => $date, 'driver_ids' => array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN))]);
+}
+
 if ($action === 'driver-log-upsert' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $did  = (int)($body['driver_id'] ?? 0);
     $date = $body['work_date'] ?? '';
@@ -1074,6 +1256,13 @@ if ($action === 'driver-log-upsert' && $method === 'POST') {
     $kmV = ($km === '' || $km === null) ? null : (float)$km;
     if ($kmV !== null && ($kmV < 0 || $kmV > 99999)) errorResponse('invalid distance', 400);
     $note = trim((string)($body['note'] ?? ''));
+    // お休み（シフトに入っていたが結局出ていない）。時刻・走行距離は消して note に印を付ける。
+    // 空欄のままだと「まだ入力していない」のか「休んだ」のか分からなかった（店長要望 2026-08-19）
+    if (!empty($body['off'])) {
+        $ci = null; $co = null; $kmV = null; $note = OPS_DRIVER_OFF;
+    } elseif ($note === OPS_DRIVER_OFF) {
+        $note = '';   // 休み解除
+    }
     $uid  = (int)($_SESSION['ylka_admin_id'] ?? 0);
     $pdo->prepare(
         "INSERT INTO ops_driver_logs (driver_id, work_date, clock_in, clock_out, distance_km, note, created_by)
@@ -1093,7 +1282,7 @@ if ($action === 'driver-log-upsert' && $method === 'POST') {
 // 粗利 = 売上 − カード手数料 − 報酬 − 経費
 // =================================================================
 if ($action === 'accounting-summary' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -1152,7 +1341,7 @@ if ($action === 'accounting-summary' && $method === 'GET') {
     $cardFee = $breakdown['card'];
 
     // 報酬合計
-    $rwst = $pdo->prepare("SELECT b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+    $rwst = $pdo->prepare("SELECT b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
                            FROM ops_bookings b JOIN ops_admin_users au ON au.id = b.assigned_admin_id
                            WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.assigned_admin_id IS NOT NULL
                              AND $bizDayB BETWEEN ? AND ?$tCondB$noBreakB");
@@ -1195,7 +1384,7 @@ if ($action === 'accounting-summary' && $method === 'GET') {
 // 経理: 売上分析（owner / manager）— コース別 / 日別 / 支払方法別
 // =================================================================
 if ($action === 'sales' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -1239,7 +1428,7 @@ if ($action === 'sales' && $method === 'GET') {
 // 各完了ジョブの 店入金額 = (price + transport_fee) − 報酬。入金確認フラグ shop_settled。
 // =================================================================
 if ($action === 'settlements' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -1249,7 +1438,7 @@ if ($action === 'settlements' && $method === 'GET') {
     $tCondB = $tid ? ' AND b.assigned_admin_id = ?' : '';
     $tArg = $tid ? [$tid] : [];
     $sql = "SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by,
                    au.display_name, au.username, au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username,
@@ -1299,7 +1488,7 @@ if ($action === 'settlements' && $method === 'GET') {
 }
 
 if ($action === 'booking-set-holder' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
@@ -1313,7 +1502,7 @@ if ($action === 'booking-set-holder' && $method === 'POST') {
 }
 
 if ($action === 'booking-settle' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['id'] ?? 0);
     $settled = !empty($body['settled']) ? 1 : 0;
@@ -1334,7 +1523,7 @@ if ($action === 'booking-settle' && $method === 'POST') {
 // 締めのまとめ受領: 指定予約(複数)を一括で店受領。owner/manager のみ。
 // お店が締めのときに、その人の本日分をまとめて受領する運用。report は full 固定想定だが kind も受ける。
 if ($action === 'booking-settle-batch' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $ids  = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? [])), fn($v) => $v > 0));
     $kind = in_array($body['kind'] ?? '', ['full', 'net'], true) ? $body['kind'] : 'full';
@@ -1353,18 +1542,18 @@ if ($action === 'booking-settle-batch' && $method === 'POST') {
 //   bookings.held_by を「現在の保有者(最新ホップの to)」として同期する。
 // =================================================================
 if ($action === 'booking-handoffs' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $ids = array_values(array_filter(array_map('intval', explode(',', (string)($_GET['ids'] ?? ''))), fn($v) => $v > 0));
     if (!$ids) { jsonResponse(['handoffs' => []]); }
     $place = implode(',', array_fill(0, count($ids), '?'));
     $stmt = $pdo->prepare("SELECT id, booking_id, from_admin_id, to_admin_id, created_at
-                           FROM ops_booking_handoffs WHERE booking_id IN ($place) ORDER BY booking_id, id");
+                           FROM ops_booking_handoffs WHERE booking_id IN ($place) ORDER BY booking_id, created_at, id");
     $stmt->execute($ids);
     jsonResponse(['handoffs' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
 if ($action === 'booking-handoff-add' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['booking_id'] ?? 0);
     $to = (int)($body['to_admin_id'] ?? 0);
@@ -1384,7 +1573,7 @@ if ($action === 'booking-handoff-add' && $method === 'POST') {
 }
 
 if ($action === 'booking-handoff-undo' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['booking_id'] ?? 0);
     if ($id <= 0) errorResponse('invalid params', 400);
@@ -1409,12 +1598,13 @@ if ($action === 'booking-handoff-undo' && $method === 'POST') {
 // 報酬の受け渡し記録（店受領の有無に依存しない・誰が本人に渡したかだけ記録）。
 // =================================================================
 if ($action === 'booking-reward-pay' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id   = (int)($body['id'] ?? 0);
     $paid = !empty($body['paid']);
     if ($id <= 0) errorResponse('invalid id', 400);
-    $payer = (int)($_SESSION['ylka_admin_id'] ?? 0) ?: null;  // 渡した人=操作者
+    // 渡す人＝UIで選んだ担当者(by)。未指定なら操作者
+    $payer = (int)($body['by'] ?? 0) ?: ((int)($_SESSION['ylka_admin_id'] ?? 0) ?: null);
     if ($paid) {
         $pdo->prepare("UPDATE ops_bookings SET reward_paid_at = NOW(), reward_paid_by = ? WHERE id = ?")
             ->execute([$payer, $id]);
@@ -1426,21 +1616,53 @@ if ($action === 'booking-reward-pay' && $method === 'POST') {
 
 // 報酬をまとめて渡す（複数予約を一括で reward_paid 記録）
 if ($action === 'booking-reward-pay-batch' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $ids  = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? [])), fn($v) => $v > 0));
     if (!$ids) errorResponse('no ids', 400);
-    $payer = (int)($_SESSION['ylka_admin_id'] ?? 0) ?: null;
+    $payer = (int)($body['by'] ?? 0) ?: ((int)($_SESSION['ylka_admin_id'] ?? 0) ?: null);  // 渡す人＝選んだ担当者
     $place = implode(',', array_fill(0, count($ids), '?'));
     $stmt = $pdo->prepare("UPDATE ops_bookings SET reward_paid_at = NOW(), reward_paid_by = ? WHERE id IN ($place) AND reward_paid_at IS NULL");
     $stmt->execute(array_merge([$payer], $ids));
     jsonResponse(['ok' => true, 'paid' => $stmt->rowCount()]);
 }
 
+// 報酬の受け渡し詳細を「渡す人（選んだ担当者）」の登録メールへ送る（店長要望 2026-08-13）
+if ($action === 'send-reward-mail' && $method === 'POST') {
+    requireTabOps($pdo, 'timeline');
+    $body = json_decode(file_get_contents('php://input'), true);
+    $toId    = (int)($body['to_admin_id'] ?? 0);
+    $subject = trim((string)($body['subject'] ?? ''));
+    $bodyTxt = trim((string)($body['body'] ?? ''));
+    if ($toId <= 0) errorResponse('to_admin_id required', 400);
+    if ($bodyTxt === '') errorResponse('body required', 400);
+    // 宛先はサーバー側で解決（任意アドレスへの送信を防止）。email 未設定なら旧データの username を試す
+    $st = $pdo->prepare("SELECT username, email, display_name FROM ops_admin_users WHERE id = ? LIMIT 1");
+    $st->execute([$toId]);
+    $u = $st->fetch();
+    if (!$u) errorResponse('staff not found', 404);
+    $to = trim((string)($u['email'] ?? ''));
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) $to = trim((string)($u['username'] ?? ''));
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) errorResponse('渡す人のメールアドレスが未設定です', 422);
+    if ($subject === '') $subject = '報酬の受け渡し';
+    $subjEnc = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    // envelope sender（-f）を必ず渡す。省くと差出人がサーバー既定になり SPF が揃わず Gmail で拒否される
+    $from = 'no-reply@admi2888.com';
+    $headers = implode("\r\n", [
+        'From: admi2888 <' . $from . '>',
+        'Reply-To: ' . $from,
+        'Content-Type: text/plain; charset=UTF-8',
+        'X-Mailer: admi Dispatch',
+    ]);
+    $ok = @mail($to, $subjEnc, $bodyTxt, $headers, '-f' . $from);
+    if (!$ok) errorResponse('mail send failed', 500);
+    jsonResponse(['ok' => true, 'to' => $to]);
+}
+
 // 入金分のみの受け渡し（パターン2）: 預り金の保有を to へ移し、報酬は担当本人が確保した記録を同時に付ける。
 // 例: 橘が全額¥15,400を保有 → 入金分¥5,390だけ糸井に渡す → 報酬¥10,010は橘の手元に残る
 if ($action === 'booking-net-handoff' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['id'] ?? 0);
     $to = (int)($body['to_admin_id'] ?? 0);
@@ -1469,7 +1691,7 @@ if ($action === 'booking-net-handoff' && $method === 'POST') {
 
 // 預り金をまとめて渡す（複数予約を1人へ一括ハンドオフ）
 if ($action === 'booking-handoff-batch' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $body = json_decode(file_get_contents('php://input'), true);
     $ids  = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? [])), fn($v) => $v > 0));
     $to   = (int)($body['to_admin_id'] ?? 0);
@@ -1501,7 +1723,7 @@ if ($action === 'booking-handoff-batch' && $method === 'POST') {
 //   date= 無しは全期間（他の用途向け）。前の日ぶんはタイムラインでその日に戻れば見られる。
 // =================================================================
 if ($action === 'cash-summary' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'timeline');
     $bizDate = (string)($_GET['date'] ?? '');
     $hasDate = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $bizDate);
     $bizDay = ylkaBizDayExpr('b');
@@ -1512,7 +1734,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
     $st = $pdo->prepare("
         SELECT b.id, b.booking_date, b.start_time, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount,
                b.course_name, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.extension_count,
-               b.assigned_admin_id, b.held_by, b.driver_id, b.back_driver_id, b.reward_paid_at, b.reward_paid_by, b.payment_method,
+               b.assigned_admin_id, b.held_by, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.reward_paid_at, b.reward_paid_by, b.payment_method,
                b.customer_name_snapshot,
                u.display_name  AS therapist_name,  u.username  AS therapist_username,  u.commission_rate,
                h.display_name  AS holder_name,     h.username  AS holder_username,
@@ -1538,7 +1760,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
     if ($ids) {
         $place = implode(',', array_fill(0, count($ids), '?'));
         $hst = $pdo->prepare("SELECT id, booking_id, from_admin_id, to_admin_id, created_at
-                              FROM ops_booking_handoffs WHERE booking_id IN ($place) ORDER BY booking_id, id");
+                              FROM ops_booking_handoffs WHERE booking_id IN ($place) ORDER BY booking_id, created_at, id");
         $hst->execute($ids);
         $handoffs = $hst->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -1547,18 +1769,60 @@ if ($action === 'cash-summary' && $method === 'GET') {
     // 一日の締めをする画面で一緒に入れられるよう、現金まとめに同梱する（店長要望 2026-08-08）
     $logs = [];
     if ($hasDate) {
-        $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km FROM ops_driver_logs WHERE work_date = ?");
+        $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km, note FROM ops_driver_logs WHERE work_date = ?");
         $lg->execute([$bizDate]);
         foreach ($lg->fetchAll() as $r) {
             $logs[(int)$r['driver_id']] = [
                 'clock_in'    => substr((string)$r['clock_in'], 0, 5),
                 'clock_out'   => substr((string)$r['clock_out'], 0, 5),
                 'distance_km' => ($r['distance_km'] === null) ? '' : opsKmText((float)$r['distance_km']),
+                'off'         => ((string)($r['note'] ?? '') === OPS_DRIVER_OFF) ? 1 : 0,
             ];
         }
     }
 
-    jsonResponse(['uncollected' => $rows, 'handoffs' => $handoffs, 'driver_logs' => $logs, 'biz_date' => $hasDate ? $bizDate : null]);
+    // 金額だけの現金受け渡し（つり銭など・予約単位ではないぶん。店長要望 2026-08-14）
+    $transfers = [];
+    if ($hasDate) {
+        $tq = $pdo->prepare(
+            "SELECT t.id, t.from_admin_id, t.to_admin_id, t.amount, t.note, t.created_at,
+                    f.display_name AS from_name, o.display_name AS to_name
+               FROM ops_cash_transfers t
+               LEFT JOIN ops_admin_users f ON f.id = t.from_admin_id
+               LEFT JOIN ops_admin_users o ON o.id = t.to_admin_id
+              WHERE t.biz_date = ? ORDER BY t.created_at"
+        );
+        $tq->execute([$bizDate]);
+        $transfers = $tq->fetchAll();
+    }
+    jsonResponse(['uncollected' => $rows, 'handoffs' => $handoffs, 'driver_logs' => $logs, 'transfers' => $transfers, 'biz_date' => $hasDate ? $bizDate : null]);
+}
+
+// 金額だけの現金受け渡しを記録する（例: 宮時 → 矢島 ¥3,000 つり銭）。店長要望 2026-08-14
+if ($action === 'cash-transfer-add' && $method === 'POST') {
+    requireTabOps($pdo, 'timeline');
+    $b = json_decode(file_get_contents('php://input'), true);
+    $date = (string)($b['date'] ?? '');
+    $from = (int)($b['from_admin_id'] ?? 0);
+    $to   = (int)($b['to_admin_id'] ?? 0);
+    $amt  = (int)($b['amount'] ?? 0);
+    $note = trim((string)($b['note'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) errorResponse('invalid date', 400);
+    if ($from <= 0 || $to <= 0 || $from === $to) errorResponse('渡す人と渡す先を選んでください', 400);
+    if ($amt <= 0) errorResponse('金額を入れてください', 400);
+    $pdo->prepare('INSERT INTO ops_cash_transfers (biz_date, from_admin_id, to_admin_id, amount, note, created_by) VALUES (?,?,?,?,?,?)')
+        ->execute([$date, $from, $to, $amt, mb_substr($note, 0, 255), (int)($_SESSION['ylka_admin_id'] ?? 0) ?: null]);
+    jsonResponse(['ok' => true, 'id' => (int)$pdo->lastInsertId()]);
+}
+
+// 記録した金額受け渡しの取り消し（打ち間違い用）
+if ($action === 'cash-transfer-delete' && $method === 'POST') {
+    requireTabOps($pdo, 'timeline');
+    $b = json_decode(file_get_contents('php://input'), true);
+    $id = (int)($b['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid id', 400);
+    $pdo->prepare('DELETE FROM ops_cash_transfers WHERE id = ?')->execute([$id]);
+    jsonResponse(['ok' => true]);
 }
 
 // =================================================================
@@ -1569,7 +1833,7 @@ if ($action === 'cash-summary' && $method === 'GET') {
 //   立て替え額を別に返して内訳が分かるようにする。
 // =================================================================
 if ($action === 'daily-report' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $date = (string)($_GET['date'] ?? date('Y-m-d'));
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) errorResponse('invalid date', 400);
     $bizDay = ylkaBizDayExpr('b');
@@ -1579,7 +1843,7 @@ if ($action === 'daily-report' && $method === 'GET') {
     $st = $pdo->prepare(
         "SELECT b.assigned_admin_id, b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
                 b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.payment_method,
-                b.driver_id, b.back_driver_id, b.reward_paid_at, b.reward_override,
+                b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.reward_paid_at, b.reward_override,
                 b.status, b.cancellation_fee, b.cancellation_reward,
                 u.display_name, u.username
            FROM ops_bookings b
@@ -1623,25 +1887,32 @@ if ($action === 'daily-report' && $method === 'GET') {
         // 休み(off)のキャストも返す。日報は「りお休み」のように休んだ人も載せるため
         //（当日欠勤という区分は設けず休みで表す・店長指定 2026-08-08）
         $q = $pdo->prepare(
-            "SELECT s.status, s.start_time, s.end_time, u.id, u.display_name, u.username, u.role, u.is_therapist, u.is_office, u.can_drive
+            "SELECT s.status, s.start_time, s.end_time, s.end_open, s.shift_preset, u.id, u.display_name, u.username, u.role, u.is_therapist, u.is_office, u.can_drive, u.report_group
                FROM ops_shifts s JOIN ops_admin_users u ON u.id = s.admin_user_id
               WHERE s.shift_date = ?
               ORDER BY s.start_time, u.sort_order, u.id"
         );
         $q->execute([$d]);
-        $casts = []; $staff = [];
+        $casts = []; $staff = []; $hkStaff = [];
         foreach ($q->fetchAll() as $r) {
             $row = [
                 'id'    => (int)$r['id'],
                 'name'  => $r['display_name'] ?: $r['username'],
                 'start' => substr((string)$r['start_time'], 0, 5),
                 'end'   => substr((string)$r['end_time'], 0, 5),
+                // 終わりが「ラスト」の人は日報にもラストと書く（店長要望 2026-08-25）
+                'end_open' => (string)($r['end_open'] ?? ''),
+                // 24H・早番・遅番は「選んだとき」だけ入る（時刻の偶然一致では入らない）
+                'preset' => (string)($r['shift_preset'] ?? ''),
                 'off'   => $r['status'] === 'off',
             ];
-            if ($r['role'] === 'staff' || (int)$r['is_therapist'] === 1) $casts[] = $row;
-            elseif ($r['status'] !== 'off') $staff[] = $row;   // 内勤・ドライバーの休みは日報に出さない
+            if ($r['role'] === 'staff' || (int)$r['is_therapist'] === 1) { $casts[] = $row; continue; }
+            if ($r['status'] === 'off') continue;              // 内勤・ドライバーの休みは日報に出さない
+            // 秘密基地の日報に出すスタッフ（吉川・星野など）はアドミの日報からは外す（店長指定 2026-08-28）
+            if ((string)($r['report_group'] ?? 'admi') === 'himitsu') $hkStaff[] = $row;
+            else $staff[] = $row;
         }
-        return ['casts' => $casts, 'staff' => $staff];
+        return ['casts' => $casts, 'staff' => $staff, 'himitsu_staff' => $hkStaff];
     };
     $today = $shiftOf($date);
     $tomo  = $shiftOf($next);
@@ -1652,7 +1923,7 @@ if ($action === 'daily-report' && $method === 'GET') {
     $ms = $pdo->prepare(
         "SELECT b.course_name, b.menu_items, b.nomination_type, b.extension_count, b.hotel_price_applied,
                 b.price, b.late_fee, b.transport_fee, b.card_fee, b.payment_method,
-                b.driver_id, b.back_driver_id, b.reward_override,
+                b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.reward_override,
                 b.status, b.cancellation_fee, b.cancellation_reward
            FROM ops_bookings b
           WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status='cancelled' AND b.cancellation_reason_type='customer'))
@@ -1670,20 +1941,27 @@ if ($action === 'daily-report' && $method === 'GET') {
 
     // --- ドライバーの勤務実績（あれば「22:00～1:00(3H30km)」の形で添える） ---
     $logs = [];
-    $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km FROM ops_driver_logs WHERE work_date = ?");
+    $lg = $pdo->prepare("SELECT driver_id, clock_in, clock_out, distance_km, note FROM ops_driver_logs WHERE work_date = ?");
     $lg->execute([$date]);
     foreach ($lg->fetchAll() as $r) {
-        $ci = substr((string)$r['clock_in'], 0, 5);
-        $co = substr((string)$r['clock_out'], 0, 5);
+        // お休みはキャストと同じ「休み」表記（日報で「増田休み」になる）
+        if ((string)($r['note'] ?? '') === OPS_DRIVER_OFF) { $logs[(int)$r['driver_id']] = OPS_DRIVER_OFF; continue; }
+        // 時刻は先頭の0なし（0:30）
+        $ci = preg_replace('/^0(\d:)/', '$1', substr((string)$r['clock_in'], 0, 5));
+        $co = preg_replace('/^0(\d:)/', '$1', substr((string)$r['clock_out'], 0, 5));
         if ($ci === '' && $co === '') continue;
         $h = '';
+        $hasMin = false;
         if ($ci !== '' && $co !== '') {
-            $mins = (strtotime($co) - strtotime($ci)) / 60;
+            $mins = (int)round((strtotime($co) - strtotime($ci)) / 60);
             if ($mins <= 0) $mins += 24 * 60;
-            $h = round($mins / 60) . 'H';
+            // 15分＝0.25H 単位で出す（00:30～06:15＝5.75H）。ちょうどなら「3H」
+            $hasMin = ($mins % 60) !== 0;
+            $h = rtrim(rtrim(number_format(round($mins / 15) / 4, 2, '.', ''), '0'), '.') . 'H';
         }
         $km = ($r['distance_km'] !== null && (float)$r['distance_km'] > 0) ? opsKmText((float)$r['distance_km']) . 'km' : '';
-        $logs[(int)$r['driver_id']] = $ci . '～' . $co . (($h || $km) ? '(' . $h . $km . ')' : '');
+        $sep = ($h !== '' && $km !== '' && $hasMin) ? '・' : '';
+        $logs[(int)$r['driver_id']] = $ci . '～' . $co . (($h || $km) ? '(' . $h . $sep . $km . ')' : '');
     }
 
     usort($byCast, fn($a, $b) => $b['sales'] <=> $a['sales']);
@@ -1719,7 +1997,7 @@ if ($action === 'daily-report' && $method === 'GET') {
 // 指定期間の (日, キャスト) 別 店入金額合計を算出
 function ylkaComputeShopAmounts(PDO $pdo, string $from, string $to): array {
     $stmt = $pdo->prepare(
-        "SELECT b.booking_date, b.assigned_admin_id, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
+        "SELECT b.booking_date, b.assigned_admin_id, b.course_name, b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.payment_method, au.commission_rate
          FROM ops_bookings b
          LEFT JOIN ops_admin_users au ON au.id = b.assigned_admin_id
          WHERE (b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer')) AND b.booking_date BETWEEN ? AND ?
@@ -1807,7 +2085,7 @@ function ylkaSettlementSummary(array $rows): array {
 
 // owner/manager: 全スタッフの集金一覧
 if ($action === 'settlement-days' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -1829,6 +2107,50 @@ if ($action === 'my-settlements' && $method === 'GET') {
 }
 
 // スタッフ本人: 自分の予約1件ごとの店舗受領状況（閲覧のみ）
+// キャスト本人のYobuChat受信箱URL（マイページの💬チャット用・店長要望 2026-09-02）。
+// チャット側に未登録ならこの場で登録する（lazy provisioning）
+if ($action === 'my-chat-inbox' && $method === 'GET') {
+    $me = (int)($_SESSION['ylka_admin_id'] ?? 0);
+    if ($me <= 0) errorResponse('unauthorized', 401);
+    $st = $pdo->prepare('SELECT au.id, au.girl_id, au.display_name, g.name AS girl_name
+                           FROM ops_admin_users au LEFT JOIN girls g ON g.id = au.girl_id WHERE au.id = ?');
+    $st->execute([$me]);
+    $u = $st->fetch();
+    if (!$u || !$u['girl_id']) errorResponse('キャストのアカウントではありません', 400);
+    require_once __DIR__ . '/yobuchat-link.php';
+    try {
+        $cast = ycEnsureCast((int)$u['id'], (string)($u['girl_name'] ?: $u['display_name']));
+        jsonResponse(['ok' => true] + ycUrls($cast) + [
+            'display_name' => $cast['display_name'],
+            'visible'      => ycGetVisible($cast['shop_cast_id']),
+        ]);
+    } catch (Throwable $e) {
+        error_log('[my-chat-inbox] ' . $e->getMessage());
+        errorResponse('チャットとの連携に失敗しました', 502);
+    }
+}
+
+// 指名ピッカーの表示ON/OFF（本人がマイページで切替・店長指定 2026-09-02）
+if ($action === 'my-chat-visible' && $method === 'POST') {
+    $me = (int)($_SESSION['ylka_admin_id'] ?? 0);
+    if ($me <= 0) errorResponse('unauthorized', 401);
+    $b = readJsonBody();
+    $on = !empty($b['on']);
+    $st = $pdo->prepare('SELECT au.id, au.display_name, g.name AS girl_name FROM ops_admin_users au LEFT JOIN girls g ON g.id = au.girl_id WHERE au.id = ? AND au.girl_id IS NOT NULL');
+    $st->execute([$me]);
+    $u = $st->fetch();
+    if (!$u) errorResponse('キャストのアカウントではありません', 400);
+    require_once __DIR__ . '/yobuchat-link.php';
+    try {
+        $cast = ycEnsureCast((int)$u['id'], (string)($u['girl_name'] ?: $u['display_name']));
+        ycSetVisible($cast['shop_cast_id'], $on);
+        jsonResponse(['ok' => true, 'visible' => $on]);
+    } catch (Throwable $e) {
+        error_log('[my-chat-visible] ' . $e->getMessage());
+        errorResponse('切り替えに失敗しました', 502);
+    }
+}
+
 if ($action === 'my-settlement-bookings' && $method === 'GET') {
     $me = (int)($_SESSION['ylka_admin_id'] ?? 0);
     if ($me <= 0) errorResponse('unauthorized', 401);
@@ -1839,7 +2161,7 @@ if ($action === 'my-settlement-bookings' && $method === 'GET') {
     // 経理は予約時点で計上＝キャンセル/無連絡以外の全予約を集計（未/始/終は無関係, 2026-06-17）
     $statusWhere = "(b.status NOT IN ('cancelled','no_show','inquiry') OR (b.status = 'cancelled' AND b.cancellation_reason_type = 'customer'))";
     $stmt = $pdo->prepare("SELECT b.id, b.booking_date, b.start_time, b.customer_name_snapshot, b.course_name,
-                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.back_driver_id, b.payment_method, b.shop_settled, b.shop_settled_at,
+                   b.price, b.late_fee, b.transport_fee, b.card_fee, b.cash_amount, b.hotel_price_applied, b.menu_items, b.nomination_type, b.extension_count, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.payment_method, b.shop_settled, b.shop_settled_at,
                    b.status, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.assigned_admin_id, b.held_by, b.reward_paid_at, b.reward_paid_by,
                    au.commission_rate,
                    h.display_name AS holder_name, h.username AS holder_username,
@@ -1960,7 +2282,7 @@ if ($action === 'settlement-confirm' && $method === 'POST') {
 // 経理: 経費 CRUD（owner / manager）
 // =================================================================
 if ($action === 'expenses-list' && $method === 'GET') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $from = $_GET['from'] ?? date('Y-m-01');
     $to   = $_GET['to']   ?? date('Y-m-t');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) errorResponse('invalid from', 400);
@@ -1978,7 +2300,7 @@ if ($action === 'expenses-list' && $method === 'GET') {
 }
 
 if ($action === 'expense-save' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $body = json_decode(file_get_contents('php://input'), true);
     $id       = (int)($body['id'] ?? 0);
     $date     = trim($body['expense_date'] ?? '');
@@ -2002,7 +2324,7 @@ if ($action === 'expense-save' && $method === 'POST') {
 }
 
 if ($action === 'expense-delete' && $method === 'POST') {
-    requireOwnerOrManager();
+    requireTabOps($pdo, 'payroll');
     $body = json_decode(file_get_contents('php://input'), true);
     $id = (int)($body['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
@@ -2022,7 +2344,7 @@ if ($action === 'permissions-get' && $method === 'GET') {
 }
 
 if ($action === 'permissions-update' && $method === 'POST') {
-    requireOwner();
+    requireTabOps($pdo, 'permissions');
     $body = json_decode(file_get_contents('php://input'), true);
     $perms = $body['permissions'] ?? null;
     if (!is_array($perms)) errorResponse('permissions must be object', 400);
@@ -2045,7 +2367,7 @@ if ($action === 'permissions-update' && $method === 'POST') {
 }
 
 if ($action === 'admin-reorder' && $method === 'POST') {
-    requireOwner();
+    requireStaffManage($pdo);
     $body = json_decode(file_get_contents('php://input'), true);
     $ids = $body['ids'] ?? [];
     if (!is_array($ids) || count($ids) === 0) errorResponse('ids required', 400);
@@ -2066,7 +2388,7 @@ if ($action === 'admin-reorder' && $method === 'POST') {
 }
 
 if ($action === 'admin-delete' && $method === 'POST') {
-    requireOwner();
+    requireStaffManage($pdo);
     $body = json_decode(file_get_contents('php://input'), true);
     $id   = (int)($body['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
@@ -2078,22 +2400,42 @@ if ($action === 'admin-delete' && $method === 'POST') {
     $row = $target->fetch();
     if (!$row) errorResponse('user not found', 404);
     if ($row['role'] === 'owner') {
+        if (!isOwnerSession()) errorResponse('オーナーのアカウントはオーナーのみ削除できます', 403);
         $cnt = $pdo->query("SELECT COUNT(*) FROM ops_admin_users WHERE role = 'owner'")->fetchColumn();
         if ((int)$cnt <= 1) errorResponse('cannot delete the last owner', 403);
     }
+    // ログイン基盤（admins）側も username で消す。キャスト等 admins に無い行は素通り
+    $uname = (string)$pdo->query('SELECT username FROM ops_admin_users WHERE id = ' . (int)$id)->fetchColumn();
+    $pdo->beginTransaction();
     $pdo->prepare('DELETE FROM ops_admin_users WHERE id = ?')->execute([$id]);
+    if ($uname !== '') {
+        $pdo->prepare('DELETE FROM admins WHERE username = ?')->execute([$uname]);
+    }
+    $pdo->commit();
     jsonResponse(['ok' => true]);
 }
 
 if ($action === 'admin-reset-password' && $method === 'POST') {
-    requireOwner();
+    requireStaffManage($pdo);
     $body     = json_decode(file_get_contents('php://input'), true);
     $id       = (int)($body['id'] ?? 0);
     $password = $body['password'] ?? '';
     if ($id <= 0) errorResponse('invalid id', 400);
     if (strlen($password) < 8) errorResponse('password must be at least 8 chars', 400);
+    if (!isOwnerSession()) {
+        $tq = $pdo->prepare('SELECT role FROM ops_admin_users WHERE id = ?');
+        $tq->execute([$id]);
+        if ((string)$tq->fetchColumn() === 'owner') errorResponse('オーナーのパスワードはオーナーのみ再発行できます', 403);
+    }
     $hash = password_hash($password, PASSWORD_BCRYPT);
+    // CTRL ログインは admins のパスワードで行う。ops 側にも同じものを控える（照合キーは username）
+    $uname = (string)$pdo->query('SELECT username FROM ops_admin_users WHERE id = ' . (int)$id)->fetchColumn();
+    $pdo->beginTransaction();
     $pdo->prepare('UPDATE ops_admin_users SET password_hash = ? WHERE id = ?')->execute([$hash, $id]);
+    if ($uname !== '') {
+        $pdo->prepare('UPDATE admins SET password_hash = ?, modified = NOW() WHERE username = ?')->execute([$hash, $uname]);
+    }
+    $pdo->commit();
     jsonResponse(['ok' => true]);
 }
 

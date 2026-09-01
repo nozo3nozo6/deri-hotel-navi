@@ -25,6 +25,7 @@ const images = (g.images ?? []) as Array<{ path: string; alt?: string }>;
 const mainPhoto = images[0]?.path ?? null;
 const imageTags = (g?.tags ?? []) as string[];
 const basicPlay = (g?.basic_play ?? []) as string[];
+const appliedPlay = (g?.applied_play ?? []) as string[];
 const optionPlay = (g?.option_play ?? []) as string[];
 const profiles = (g?.profiles ?? []) as Array<{ name: string; type?: string; value: string }>;
 
@@ -182,6 +183,18 @@ if (g.catch_copy) {
               </Fragment>
             ) : null}
 
+            <!-- 応用プレイ -->
+            {appliedPlay.length ? (
+              <Fragment>
+                <p class="section-label play-label play-label-applied" data-i18n="girl_applied_play_label">応用プレイ</p>
+                <div class="girl-options">
+                  {appliedPlay.map((o) => (
+                    <span class="play-chip is-applied" data-i18n-dynamic>{o}</span>
+                  ))}
+                </div>
+              </Fragment>
+            ) : null}
+
             <!-- オプションプレイ -->
             {optionPlay.length ? (
               <Fragment>
@@ -196,7 +209,10 @@ if (g.catch_copy) {
 
             <!-- 週間出勤予定（オプションの下・schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
             <div id="girl-week" class="girl-week" data-girl-id={g.id} style="display:none">
-              <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+              <div class="gw-head">
+                <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+                <p class="gw-note" data-i18n="girl_weekly_schedule_note">前日までのご予約はタイムラインで表示されます</p>
+              </div>
               <div class="gw-body"></div>
             </div>
 

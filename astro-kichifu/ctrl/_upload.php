@@ -93,3 +93,38 @@ function delete_upload_safe(?string $rel, string $selfTable = '', int $selfId = 
     if (upload_in_use($rel, $selfTable, $selfId)) return;
     delete_upload($rel);
 }
+
+/**
+ * 動画アップロード（キャスト紹介動画）。
+ *   保存先: public_html/uploads/girls/<shop>/video/<girl_id>.mp4（/uploads/... で配信）
+ *   ・ファイル名はキャストIDで固定＝上書き。DBに列を足さず、ファイルの有無だけで出し分ける
+ *   ・mp4 のみ。変換はしないので、アップロード前に縦動画・軽いサイズにしてもらう
+ *   ・媒体連携は無し。オフィシャルサイトのキャストページにだけ出る（店長指定 2026-08-20）
+ * @return string|null 成功なら /uploads/... のパス
+ */
+function save_girl_video(array $file, int $shopId, int $girlId, int $maxMb = 60): ?string {
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) return null;
+    if (($file['size'] ?? 0) > $maxMb * 1024 * 1024) return null;
+    // 中身がmp4かを確認（拡張子だけを信じない）
+    $mime = '';
+    if (function_exists('finfo_open')) {
+        $fi = finfo_open(FILEINFO_MIME_TYPE);
+        if ($fi) { $mime = (string)finfo_file($fi, $file['tmp_name']); finfo_close($fi); }
+    }
+    if ($mime !== '' && !in_array($mime, ['video/mp4', 'application/mp4', 'video/quicktime'], true)) return null;
+
+    $rel = '/uploads/girls/' . $shopId . '/video/' . $girlId . '.mp4';
+    $abs = (defined('UPLOADS_ROOT') ? UPLOADS_ROOT : rtrim((string)$_SERVER['DOCUMENT_ROOT'], '/')) . $rel;
+    $dir = dirname($abs);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true)) return null;
+    if (!@move_uploaded_file($file['tmp_name'], $abs)) return null;
+    @chmod($abs, 0644);
+    return $rel;
+}
+
+/** キャスト紹介動画を消す */
+function delete_girl_video(int $shopId, int $girlId): void {
+    $abs = (defined('UPLOADS_ROOT') ? UPLOADS_ROOT : rtrim((string)$_SERVER['DOCUMENT_ROOT'], '/'))
+         . '/uploads/girls/' . $shopId . '/video/' . $girlId . '.mp4';
+    if (is_file($abs)) @unlink($abs);
+}

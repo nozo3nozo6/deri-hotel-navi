@@ -1,3 +1,4 @@
+@charset "UTF-8";
 /* ===========================================================================
    kichifu.com — site.css  ガーリーネオンY2K standalone (no Tailwind)
    =========================================================================== */
@@ -755,7 +756,76 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
   transition: background .15s, color .15s;
 }
 .girl-card-official:hover { background: rgba(255,79,216,.07); color: #ff2d9b; }
-.girl-card-official::after { content: "♡"; font-size: 11px; }
+/* ♡は少し大きめに。行の高さ（＝カードの背丈）を変えないよう inline-block で高さを固定する。
+   文字コード指定なしのCSSでは「♡」が化けるため、コード（\2661）で書く（2026-08-20） */
+/* ♡は文字ではなく絵（SVG）で描く。文字のハートは書体ごとに上下位置が違って中央に揃わないため。
+   再生ボタン（動画あり）と同じ置き方＝2つのマークが必ず同じ高さに並ぶ（2026-08-20） */
+.girl-card-official::after {
+  content: "";
+  display: inline-block;
+  width: 21px;
+  height: 21px;
+  margin: -11px 0 -11px 5px;   /* 行の高さ＝カードの背丈を変えないための打ち消し */
+  vertical-align: middle;
+  position: relative;
+  top: -2px;                   /* 再生ボタンと同じ持ち上げ量 */
+  background: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%2021.35l-1.45-1.32C5.4%2015.36%202%2012.28%202%208.5%202%205.42%204.42%203%207.5%203c1.74%200%203.41.81%204.5%202.09C13.09%203.81%2014.76%203%2016.5%203%2019.58%203%2022%205.42%2022%208.5c0%203.78-3.4%206.86-8.55%2011.54L12%2021.35z'%20fill='none'%20stroke='%23ff1493'%20stroke-width='2'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  /* 押してもらえるよう、ゆっくり鼓動させる */
+  animation: officialHeartBeat 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+.girl-card-official:hover::after,
+.girl-card-official:active::after {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M12%2021.35l-1.45-1.32C5.4%2015.36%202%2012.28%202%208.5%202%205.42%204.42%203%207.5%203c1.74%200%203.41.81%204.5%202.09C13.09%203.81%2014.76%203%2016.5%203%2019.58%203%2022%205.42%2022%208.5c0%203.78-3.4%206.86-8.55%2011.54L12%2021.35z'%20fill='%23ff2d9b'%20stroke='%23ff2d9b'%20stroke-width='2'%20stroke-linejoin='round'/%3E%3C/svg%3E");   /* 触れると塗りつぶしのハートに変わる */
+  animation-duration: 1s;
+}
+@keyframes officialPlayPop {
+  0%, 20%, 100% { transform: scale(1) rotate(0deg); }
+  7%            { transform: scale(1.18) rotate(-4deg); }
+  14%           { transform: scale(.97) rotate(2deg); }
+}
+/* 全カードが一斉に脈打つと画面全体が揺れて見えるので、少しずつずらす */
+.girl-card:nth-child(3n)   .girl-card-official::after { animation-delay: .8s; }
+.girl-card:nth-child(3n+1) .girl-card-official::after { animation-delay: 1.6s; }
+.girl-card[data-video]:nth-child(5n)   .girl-card-official::after { animation-delay: .5s; }
+.girl-card[data-video]:nth-child(5n+1) .girl-card-official::after { animation-delay: 2.1s; }
+.girl-card[data-video]:nth-child(5n+2) .girl-card-official::after { animation-delay: 1.2s; }
+.girl-card[data-video]:nth-child(5n+3) .girl-card-official::after { animation-delay: 2.8s; }
+@keyframes officialHeartBeat {
+  0%, 22%, 100% { transform: scale(1); }
+  8%           { transform: scale(1.22); }
+  15%          { transform: scale(1.04); }
+}
+/* 紹介動画があるキャストは、♡の代わりに紫の再生ボタンにする（店長指定 2026-08-20）。
+   ▶の文字ではなく、詳細ページのサムネと同じ YouTube 風の角丸ボタン（白い三角はSVG） */
+.girl-card[data-video] .girl-card-official::after {
+  content: "";
+  display: inline-block;
+  /* 帯（footer）の高さは変えずに、入るギリギリまで大きく（店長指定 2026-08-20）。
+     上下のマイナスマージンで行の高さに影響させない＝カードの背丈は今までどおり */
+  width: 30px;
+  height: 21px;            /* ♡と同じ高さに揃える（店長指定 2026-08-20） */
+  margin: -11px 0 -11px 5px;
+  vertical-align: middle;
+  position: relative;
+  top: -2px;              /* 文字の中心より少し下に見えるので、目で見て真ん中に来るまで上げる */
+  /* ♡の鼓動とは別の動き（ぴょこっと弾む）。周期もずらしてあるので一緒には揺れない */
+  animation: officialPlayPop 3.4s ease-in-out infinite;
+  border-radius: 22% / 30%;
+  background-image:
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2020%2014'%3E%3Cpath%20d='M7.6%204.2L13.4%207L7.6%209.8Z'%20fill='%23fff'/%3E%3C/svg%3E"),
+    linear-gradient(155deg, #e879f9, #a78bfa);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%, 100% 100%;
+  box-shadow: 0 1px 6px rgba(167,139,250,.55);
+}
+.girl-card[data-video] .girl-card-official:hover::after {
+  background-image:
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2020%2014'%3E%3Cpath%20d='M7.6%204.2L13.4%207L7.6%209.8Z'%20fill='%23fff'/%3E%3C/svg%3E"),
+    linear-gradient(155deg, #f0abfc, #c4b5fd);
+}
+
 .girl-card-flag-icon {
   width: 34px;
   height: 34px;
@@ -1028,6 +1098,9 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
   gap: 8px;
   margin-top: 12px;
 }
+/* 動画があるキャストは「写真2枚＋動画＋写真」が1行に収まるよう4列に（店長指定 2026-08-20）。
+   動画が無いキャストは従来どおり3列 */
+.girl-sub-photos.has-video { grid-template-columns: repeat(4,1fr); }
 .girl-thumb {
   position: relative;
   padding: 0;
@@ -1040,7 +1113,8 @@ body.icons-open #icons-modal .modal-box { transform: translateY(0) scale(1); }
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-.girl-thumb img {
+.girl-thumb img,
+.girl-thumb video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1293,7 +1367,9 @@ body.lb-open { overflow: hidden; }
   text-shadow: 0 0 12px rgba(255,45,155,.7);
 }
 .play-label::before { content: "🔥"; margin-right: 7px; }
+.play-label-applied::before { content: "💫"; }
 .play-label-option::before { content: "✨"; }
+/* .play-chip.is-applied は基本プレイと同じ見た目（区分は見出しで分ける） */
 .play-chip {
   display: inline-block;
   padding: 7px 16px;
@@ -1314,13 +1390,153 @@ body.lb-open { overflow: hidden; }
 
 /* 週間出勤予定（プロフィール、オプションの下） */
 .girl-week { margin-bottom: 24px; }
+.gw-head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+.gw-head .section-label { margin: 0; }
+.gw-note { font-size: .76rem; color: var(--lav-soft, #a98fd0); margin: 0; line-height: 1.5; text-align: right; }
 .gw-body { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .gw-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px 8px; flex-wrap: wrap;
   padding: 9px 14px; border-radius: 12px;
   background: rgba(183,143,255,.10);
   border: 1px solid rgba(255,79,216,.16);
 }
+/* 予約済みの時間帯（出勤時間の下に全幅で右寄せ） */
+/* ご予約の時間チップ。右寄せで、件数が増えたら右詰めのまま下へ折り返す（店長要望 2026-08-19） */
+.gw-booked { flex-basis: 100%; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
+  gap: 5px; row-gap: 5px; margin-top: 3px; }
+.gw-bk { max-width: 100%; }
+.gw-bk {
+  font-size: .74rem; font-weight: 800; color: #fff;
+  /* 上半分に静かなツヤ。帯のキラキラと合わせて「お仕事が入っている」感じを出す（動きは付けない） */
+  background: linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 52%),
+              linear-gradient(135deg, #ff6fe0, #d63aa8);
+  border: 1px solid rgba(214,58,168,.9);
+  border-radius: 9999px; padding: 2px 10px; white-space: nowrap;
+  box-shadow: 0 1px 6px -1px rgba(214,58,168,.5);
+  text-shadow: 0 1px 2px rgba(120,20,90,.4);
+  font-variant-numeric: tabular-nums; letter-spacing: .02em;
+}
+/* OPS風タイムライン: 出勤時間を軸に、予約帯を「ご予約済」ブロックで重ねる */
+.gw-tl { flex-basis: 100%; width: 100%; margin-top: 8px; }
+.gw-tl-track {
+  position: relative; height: 26px; border-radius: 13px;
+  background: rgba(183,143,255,.22); border: 1px solid rgba(255,79,216,.16);
+  overflow: hidden;
+}
+/* ご予約済の帯。キラキラは飾りなので、光らなくても帯・文字はそのまま読める作りにする
+   （視差効果を減らす設定の端末で見えなくならないように・店長要望 2026-08-19） */
+.gw-tl-bk {
+  position: absolute; top: 2px; bottom: 2px; min-width: 6px; border-radius: 11px;
+  /* 上半分のツヤは背景に焼き込む。アニメーションが止まる端末でも必ず光って見えるように
+     （iPhoneの「視差効果を減らす」ONだと animation が動かない・店長指摘 2026-08-19） */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.06) 48%, rgba(255,255,255,0) 52%),
+    linear-gradient(135deg, #ff6fe0 0%, #ff4fd8 45%, #d63aa8 100%);
+  box-shadow: 0 2px 8px -2px rgba(214,58,168,.65), inset 0 1px 0 rgba(255,255,255,.55);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+/* 光の粒。静止でもはっきり見える大きさ・明るさにして、瞬きは「おまけ」にする */
+.gw-tl-bk::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 28%, #fff 0 1.7px, rgba(255,255,255,.35) 2.4px, transparent 3.2px),
+    radial-gradient(circle at 33% 74%, #fff 0 1.4px, rgba(255,255,255,.3) 2px, transparent 2.8px),
+    radial-gradient(circle at 58% 22%, #fff 0 1.6px, rgba(255,255,255,.32) 2.2px, transparent 3px),
+    radial-gradient(circle at 78% 66%, #fff 0 1.4px, rgba(255,255,255,.3) 2px, transparent 2.8px),
+    radial-gradient(circle at 92% 34%, #fff 0 1.6px, rgba(255,255,255,.32) 2.2px, transparent 3px);
+  opacity: .95;
+  animation: gwTwinkle 2.6s ease-in-out infinite;
+}
+/* 流れる光。1本目 → 2本目 → … と左から順に流れる（同時に光らせない・店長要望 2026-08-19）。
+   --gw-i は schedule-week.js が「左から何番目のご予約か」を入れる */
+.gw-tl-bk::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -55%; width: 45%;
+  pointer-events: none; transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.7), transparent);
+  animation: gwShine 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--gw-i, 0) * 1.2s);
+}
+@keyframes gwTwinkle { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+/* 前半で駆け抜けて、あとは次の予約に順番を譲る（その間は右端で待機） */
+@keyframes gwShine { 0% { left: -55%; } 32%, 100% { left: 115%; } }
+.gw-tl-in {
+  position: relative; z-index: 2;
+  font-size: .68rem; font-weight: 800; color: #fff; white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(120,20,90,.55); padding: 0 4px; letter-spacing: .02em;
+}
+/* 「視差効果を減らす」がONの端末でもキラキラは残す（店長要望 2026-08-19）。
+   以前はここで animation:none にしていたため、iPhoneで光らないという指摘になった。
+   画面が飛び跳ねるような動きではなく帯の中で光が流れるだけなので、ゆっくりにして続ける */
+@media (prefers-reduced-motion: reduce) {
+  .gw-tl-bk::before { animation-duration: 4.2s; opacity: 1; }
+  .gw-tl-bk::after { animation-duration: 5.4s; }
+}
+.gw-tl-ends {
+  display: flex; justify-content: space-between; margin-top: 2px;
+  font-size: .64rem; font-weight: 700; color: var(--lav-soft, #a98fd0);
+  font-variant-numeric: tabular-nums;
+}
+/* スマホ: 予約が3件以上ある日でもチップが読めるように。
+   右端に寄せると折り返した行がガタつくので中央寄せ、文字と余白を少しだけ詰める（店長要望 2026-08-19） */
+@media (max-width: 560px) {
+  /* スマホでも右寄せ。1件でも5件でも右端が揃うので、件数が増えても読み取りやすい */
+  .gw-booked { justify-content: flex-end; gap: 4px; row-gap: 4px; margin-top: 4px; }
+  /* 「ご予約済」の文字は隠して時間だけにする。すぐ上の帯に「ご予約済」と出ているので意味は伝わり、
+     チップが小さくなるぶん3件以上でも横に並び、文字は大きいまま読める */
+  .gw-bk { padding: 3px 10px; letter-spacing: 0; }
+  .gw-bk-l { display: none; }
+  .gw-bk-t::before { content: '✓ '; font-weight: 900; }
+  .gw-tl-in { font-size: .62rem; }
+}
+
+/* トップ: 前日予約の流れるご案内（右→左）。AssureTabs帯とNEWSの間。左に固定ラベル「前日予約」 */
+.resv-ticker {
+  display: flex; align-items: center; gap: 8px; overflow: hidden; margin: 8px auto; max-width: 1100px;
+  background: linear-gradient(90deg, rgba(255,79,216,.10), rgba(183,143,255,.10));
+  border: 1px solid rgba(255,79,216,.20);
+  border-radius: 9999px; padding: 5px 6px;
+}
+.resv-lead {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px;
+  font-size: .76rem; font-weight: 800; color: #fff; white-space: nowrap;
+  background: linear-gradient(135deg, #ff2d9b, #d63aa8); border-radius: 9999px;
+  box-shadow: 0 1px 6px -1px rgba(214,58,168,.5); text-shadow: 0 1px 2px rgba(120,20,90,.4);
+}
+.resv-ticker-vp {
+  flex: 1; min-width: 0; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 94%, transparent);
+}
+.resv-ticker-track {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  will-change: transform; animation: resv-scroll 30s linear infinite;
+}
+/* 一時停止は本物のホバー端末だけ。タッチ端末は :hover が張り付き、タップ後に止まったまま戻らないため */
+@media (hover: hover) and (pointer: fine) {
+  .resv-ticker-vp:hover .resv-ticker-track { animation-play-state: paused; }
+}
+@keyframes resv-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+/* 前日予約バーから来た日の行を強調（アニメに依存せず常時ハイライト） */
+.gw-row.gw-hl {
+  background: linear-gradient(135deg, rgba(255,79,216,.16), rgba(183,143,255,.18));
+  border-color: rgba(255,79,216,.6);
+  box-shadow: 0 0 14px -3px rgba(255,79,216,.55);
+}
+.resv-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 2px 20px; text-decoration: none; white-space: nowrap;
+  border-right: 1px solid rgba(255,79,216,.18);
+}
+.resv-emo { font-size: .95rem; line-height: 1; }
+.resv-date { font-size: .74rem; font-weight: 800; color: var(--neon-pink, #ff2d9b); font-variant-numeric: tabular-nums; }
+.resv-name { font-size: .92rem; font-weight: 800; color: var(--text-strong, #3a2740); }
+.resv-course { font-size: .78rem; font-weight: 700; color: var(--text-soft, #6b5f70); }
+.resv-booked {
+  font-size: .74rem; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, #ff4fd8, #d63aa8); border-radius: 9999px; padding: 1px 10px;
+  text-shadow: 0 1px 2px rgba(120,20,90,.4);
+}
+/* reduce-motion でもこの帯は情報の流れなので止めず、速度も落とさない（全端末同じ速さ・店長要望） */
 .gw-row.is-today {
   background: linear-gradient(135deg, rgba(255,79,216,.16), rgba(183,143,255,.18));
   border-color: rgba(255,79,216,.55);
@@ -3343,3 +3559,84 @@ body {
 
 /* スクリーンリーダー/検索エンジン向け不可視見出し（/top のページh1 等） */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* キャストの動画。写真と同じメイン枠の中で切り替える（3枠目のサムネで再生・店長指定 2026-08-20） */
+.girl-main-wrap { position: relative; }
+.girl-main-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  border-radius: inherit; background: #000; display: block;
+  /* 枠より大きい動画は、枠の中をゆっくり動かして全体を見せる（店長要望 2026-08-20）。
+     object-position は「はみ出しているぶん」だけ動くので、枠とぴったりの動画では何も起きない */
+  object-position: 50% 50%;
+  animation: girlVideoPan 24s ease-in-out infinite; }
+@keyframes girlVideoPan {
+  0%   { object-position: 50% 0%; }
+  25%  { object-position: 100% 50%; }
+  50%  { object-position: 50% 100%; }
+  75%  { object-position: 0% 50%; }
+  100% { object-position: 50% 0%; }
+}
+@media (prefers-reduced-motion: reduce) { .girl-main-video { animation-duration: 40s; } }
+.girl-main-video[hidden] { display: none; }
+/* 動画サムネ（4枠目）だけレインボーで目立たせる（店長指定 2026-08-20）。
+   内側の余白で枠を作ると下が詰まって欠けて見えたので、外側に虹の輪を重ねる方式にした。
+   円錐グラデーションなので、止まっていても全色（ピンク→橙→黄→緑→水色→紫）が一度に見える */
+.girl-thumb-video {
+  border: none !important;
+  padding: 0;
+  overflow: visible;
+  border-radius: 12px;
+  background: none;
+  box-shadow: 0 4px 18px -5px rgba(255,79,216,.8);
+}
+.girl-thumb-video::before {
+  content: '';
+  position: absolute; inset: -3px; border-radius: 15px; z-index: 0;
+  background: conic-gradient(from 0deg, #ff2d9b, #ff8c00, #ffe600, #3ddc84, #00d4ff, #8b5cf6, #ff2d9b);
+  animation: gtvHue 3.5s linear infinite;
+}
+.girl-thumb-video img,
+.girl-thumb-video video { position: relative; z-index: 1; border-radius: 12px; }
+.girl-thumb-video.is-active { box-shadow: 0 0 0 3px rgba(255,255,255,.9), 0 6px 22px -5px rgba(255,79,216,.95); }
+@keyframes gtvHue { to { filter: hue-rotate(360deg); } }
+/* ▶と、その上を流れる光・光の粒 */
+.girl-thumb-play { position: absolute; inset: 0; z-index: 2; border-radius: 12px; display: flex;
+  align-items: center; justify-content: center; font-size: 1.5rem; color: #fff;
+  /* 黒い膜はかけない（写真がそのまま見えるように・店長指摘 2026-08-20） */
+  background:
+    radial-gradient(circle at 22% 26%, #fff 0 1.5px, rgba(255,255,255,.3) 2.2px, transparent 3px),
+    radial-gradient(circle at 76% 34%, #fff 0 1.3px, rgba(255,255,255,.3) 2px, transparent 2.8px),
+    radial-gradient(circle at 38% 76%, #fff 0 1.4px, rgba(255,255,255,.3) 2.1px, transparent 2.9px);
+  pointer-events: none; overflow: hidden; }
+.girl-thumb-play::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
+  transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.8), transparent);
+  animation: gtvShine 3.2s ease-in-out infinite;
+}
+/* 再生ボタンは YouTube と同じ形（赤い角丸＋白い三角）にする（店長指定 2026-08-20） */
+.gtp-yt {
+  position: relative; z-index: 1;
+  width: 40%; max-width: 44px; aspect-ratio: 40 / 28;
+  border-radius: 18% / 26%;
+  background: linear-gradient(155deg, #e879f9, #a78bfa);
+  box-shadow: 0 2px 10px rgba(167,139,250,.5);
+  display: block;
+}
+.gtp-yt::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  transform: translate(-40%, -50%);
+  width: 0; height: 0;
+  border-style: solid;
+  border-width: 0.34em 0 0.34em 0.56em;
+  border-color: transparent transparent transparent #fff;
+  font-size: 1rem;
+}
+.girl-thumb-video:hover .gtp-yt { background: linear-gradient(155deg, #f0abfc, #c4b5fd); }
+
+@keyframes gtvShine { 0% { left: -60%; } 35%, 100% { left: 120%; } }
+@media (prefers-reduced-motion: reduce) {
+  .girl-thumb-video::before { animation-duration: 9s; }
+  .girl-thumb-play::after { animation-duration: 6s; }
+  .girl-card-official::after { animation-duration: 6s; }
+  .girl-card[data-video] .girl-card-official::after { animation-duration: 8s; }
+}

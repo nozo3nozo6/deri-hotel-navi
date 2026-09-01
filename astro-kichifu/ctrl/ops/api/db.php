@@ -67,6 +67,18 @@ function errorResponse(string $message, int $code = 400) {
 //   同じ人が別顧客として二重登録される（2026-08-02 に発覚し統一）。
 //   全角数字・ハイフン・空白・括弧・国番号(+81)を吸収する。
 // ==========================================================================
+/**
+ * 名前が「実質空っぽ」か。旧システムから取り込んだ顧客は 1,307件が「（名前未登録）」で、
+ * これを空扱いにしないと、あとからお名前を入れても上書きされず「未登録」のままになる
+ * （店長指摘 2026-08-21）
+ */
+function opsIsPlaceholderName(?string $raw): bool {
+    $n = trim((string)$raw);
+    if ($n === '') return true;
+    $n = str_replace(['（', '）', '(', ')', ' ', '　'], '', $n);
+    return in_array($n, ['名称未設定', '名前未登録', '未登録', '名前なし', '匿名'], true);
+}
+
 function opsNormPhone(?string $raw): string {
     $s = (string)$raw;
     if ($s === '') return '';

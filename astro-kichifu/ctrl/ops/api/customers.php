@@ -175,7 +175,8 @@ if ($action === 'get' && $method === 'GET') {
     } catch (Throwable $e) { /* テーブル無し */ }
 
     // このお客様に出さないキャスト（退職などで消えた分は JOIN で落ちる）
-    $ng = $pdo->prepare("SELECT nc.cast_admin_id, nc.reason, au.display_name
+    // created_at も返す: お客様メモに「その予約でNGにした」印を出すため（店長要望 2026-08-23）
+    $ng = $pdo->prepare("SELECT nc.cast_admin_id, nc.reason, nc.created_at, au.display_name
                          FROM ops_customer_ng_casts nc
                          JOIN ops_admin_users au ON au.id = nc.cast_admin_id
                          WHERE nc.customer_id = ?
@@ -210,6 +211,20 @@ if ($action === 'get' && $method === 'GET') {
  * NGキャストを丸ごと入れ替える。理由は既存分を引き継ぐ（画面から理由だけ消えないように）。
  * $ids は ops_admin_users.id の配列。実在しないIDは黙って捨てる。
  */
+/**
+ * NGキャストを1人だけ足す／外す（予約画面のキャスト選択の横から使う・店長要望 2026-08-22）。
+ * 一覧を総入れ替えする opsSaveNgCasts と違い、他のNG設定には触れない
+ */
+function opsToggleNgCast(PDO $pdo, int $customerId, int $castId, bool $on): void {
+    if ($on) {
+        $pdo->prepare("INSERT IGNORE INTO ops_customer_ng_casts (customer_id, cast_admin_id, created_at)
+                       VALUES (?, ?, NOW())")->execute([$customerId, $castId]);
+    } else {
+        $pdo->prepare("DELETE FROM ops_customer_ng_casts WHERE customer_id = ? AND cast_admin_id = ?")
+            ->execute([$customerId, $castId]);
+    }
+}
+
 function opsSaveNgCasts(PDO $pdo, int $customerId, array $ids): void {
     $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
     $prev = [];
@@ -229,6 +244,20 @@ function opsSaveNgCasts(PDO $pdo, int $customerId, array $ids): void {
     }
 }
 
+if ($action === 'ng-cast-toggle' && $method === 'POST') {
+    $b = readJsonBody();
+    $cid = (int)($b['customer_id'] ?? 0);
+    $castId = (int)($b['cast_admin_id'] ?? 0);
+    if ($cid <= 0 || $castId <= 0) errorResponse('invalid params', 400);
+    $ok = $pdo->prepare("SELECT 1 FROM ops_admin_users WHERE id = ?");
+    $ok->execute([$castId]);
+    if (!$ok->fetchColumn()) errorResponse('キャストが見つかりません', 404);
+    opsToggleNgCast($pdo, $cid, $castId, !empty($b['on']));
+    $q = $pdo->prepare("SELECT cast_admin_id FROM ops_customer_ng_casts WHERE customer_id = ?");
+    $q->execute([$cid]);
+    jsonResponse(['ok' => true, 'ng_cast_ids' => array_map('intval', $q->fetchAll(PDO::FETCH_COLUMN))]);
+}
+
 if ($action === 'find-by-phone' && $method === 'GET') {
     $phone = trim($_GET['phone'] ?? '');
     if ($phone === '') errorResponse('phone required', 400);
@@ -236,10 +265,14 @@ if ($action === 'find-by-phone' && $method === 'GET') {
     // 保存済み側に区切りが混ざっていても拾えるよう、列側も除去して比較する。
     $digits = opsNormPhone($phone);
     if ($digits === '') { jsonResponse(['customer' => null]); }
-    // 2台持ちのお客様がいるため phone / phone2 の両方で引き当てる
+    // 2台持ちのお客様がいるため phone / phone2 の両方で引き当てる。
+    //   同姓同名などで顧客が重複登録された場合、visit_count は旧システム専用で常に0のため
+    //   タイブレークが id 昇順＝先に作られた空の記録を拾ってしまっていた（実例: やぎ様、店長指摘 2026-08-20）。
+    //   実績（ご利用日時）があるほうを優先し、無ければ最近更新された記録を優先する
     $stmt = $pdo->prepare("SELECT * FROM ops_customers
                             WHERE " . opsPhoneMatchSql('phone') . " OR " . opsPhoneMatchSql('phone2') . "
-                            ORDER BY visit_count DESC, id LIMIT 1");
+                            ORDER BY (last_visit_at IS NOT NULL) DESC, last_visit_at DESC,
+                                     visit_count DESC, updated_at DESC, id DESC LIMIT 1");
     $stmt->execute([$digits, $digits]);
     $cust = $stmt->fetch() ?: null;
     // 予約を取る瞬間に警告を出すため、NGキャストのIDもここで返す（追加の往復をさせない）
@@ -329,7 +362,7 @@ if ($action === 'update' && $method === 'POST') {
 }
 
 if ($action === 'delete' && $method === 'POST') {
-    requireOwner();
+    requireTabOps($pdo, 'customers');
     $b  = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);
@@ -366,22 +399,48 @@ if ($action === 'cast-note' && $method === 'GET') {
     if ($cid <= 0) errorResponse('customer_id required', 400);
     $role = currentUserRole();
     if ($role === 'staff') {
-        $st = $pdo->prepare("SELECT note, updated_at FROM ops_cast_customer_notes WHERE cast_admin_id = ? AND customer_id = ?");
+        // メモはご利用ごとに1件あるので、一番新しいものを出す（マイページ側が本来の編集画面）
+        $st = $pdo->prepare("SELECT note, updated_at FROM ops_cast_customer_notes
+                              WHERE cast_admin_id = ? AND customer_id = ? ORDER BY id DESC LIMIT 1");
         $st->execute([currentUserId(), $cid]);
         $r = $st->fetch();
         jsonResponse(['note' => $r['note'] ?? '', 'updated_at' => $r['updated_at'] ?? null]);
     }
     if ($role === 'driver') errorResponse('forbidden', 403);
-    // 内勤以上: そのお客様についた全キャストのメモ（キャスト名つき）
+    // 内勤以上: そのお客様についた全キャストのメモ（キャスト名つき）。ご利用ごとに1件
     $st = $pdo->prepare(
-        "SELECT n.note, n.updated_at, u.display_name AS cast_name
+        "SELECT n.note, n.created_at, n.updated_at, n.booking_id, u.display_name AS cast_name,
+                b.booking_date, b.start_time
            FROM ops_cast_customer_notes n
            LEFT JOIN ops_admin_users u ON u.id = n.cast_admin_id
+           LEFT JOIN ops_bookings b ON b.id = n.booking_id
           WHERE n.customer_id = ? AND n.note IS NOT NULL AND n.note <> ''
-          ORDER BY n.updated_at DESC"
+          ORDER BY COALESCE(b.booking_date, DATE(n.created_at)) DESC, n.id DESC"
     );
     $st->execute([$cid]);
-    jsonResponse(['notes' => $st->fetchAll()]);
+    $notes = [];
+    foreach ($st->fetchAll() as $r) {
+        // 営業日は 10:00〜翌10:00。10時前の予約は前の日のぶん
+        if ($r['booking_date']) {
+            $d = substr((string)$r['booking_date'], 0, 10);
+            $r['used_at'] = ((string)$r['start_time'] < '10:00:00')
+                ? date('Y-m-d', strtotime($d . ' -1 day')) : $d;
+        } else {
+            $r['used_at'] = substr((string)$r['created_at'], 0, 10);
+        }
+        $notes[] = $r;
+    }
+    // キャストがメモを登録・修正・削除した記録（消したメモの中身も残る・店長要望 2026-08-16）
+    $lg = $pdo->prepare(
+        "SELECT l.action, l.before_note, l.after_note, l.created_at, l.booking_id,
+                u.display_name AS cast_name
+           FROM ops_cast_note_logs l
+           LEFT JOIN ops_admin_users u ON u.id = l.cast_admin_id
+          WHERE l.customer_id = ?
+          ORDER BY l.id DESC LIMIT 50"
+    );
+    $lg->execute([$cid]);
+    jsonResponse(['notes' => $notes, 'logs' => $lg->fetchAll()]);
 }
 
 if ($action === 'cast-note-save' && $method === 'POST') {
@@ -390,11 +449,30 @@ if ($action === 'cast-note-save' && $method === 'POST') {
     $cid = (int)($b['customer_id'] ?? 0);
     if ($cid <= 0) errorResponse('customer_id required', 400);
     $note = mb_substr(trim((string)($b['note'] ?? '')), 0, 2000);
-    $pdo->prepare(
-        "INSERT INTO ops_cast_customer_notes (cast_admin_id, customer_id, note)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE note = VALUES(note)"
-    )->execute([currentUserId(), $cid, $note !== '' ? $note : null]);
+    $uid  = currentUserId();
+    // メモはご利用ごとに1件（マイページ側が本来の編集画面）。ここでは一番新しいものを直す
+    $cur = $pdo->prepare("SELECT id, booking_id, note FROM ops_cast_customer_notes
+                           WHERE cast_admin_id = ? AND customer_id = ? ORDER BY id DESC LIMIT 1");
+    $cur->execute([$uid, $cid]);
+    $row = $cur->fetch();
+    $log = $pdo->prepare("INSERT INTO ops_cast_note_logs
+                            (cast_admin_id, customer_id, booking_id, note_id, action, before_note, after_note)
+                          VALUES (?,?,?,?,?,?,?)");
+    if ($note === '') {
+        if ($row) {
+            $pdo->prepare("DELETE FROM ops_cast_customer_notes WHERE id = ?")->execute([(int)$row['id']]);
+            $log->execute([$uid, $cid, $row['booking_id'], (int)$row['id'], 'delete', (string)$row['note'], null]);
+        }
+    } elseif ($row) {
+        $pdo->prepare("UPDATE ops_cast_customer_notes SET note = ? WHERE id = ?")->execute([$note, (int)$row['id']]);
+        if ((string)$row['note'] !== $note) {
+            $log->execute([$uid, $cid, $row['booking_id'], (int)$row['id'], 'update', (string)$row['note'], $note]);
+        }
+    } else {
+        $pdo->prepare("INSERT INTO ops_cast_customer_notes (cast_admin_id, customer_id, booking_id, note)
+                       VALUES (?, ?, NULL, ?)")->execute([$uid, $cid, $note]);
+        $log->execute([$uid, $cid, null, (int)$pdo->lastInsertId(), 'create', null, $note]);
+    }
     jsonResponse(['ok' => true]);
 }
 

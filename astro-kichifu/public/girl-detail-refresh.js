@@ -71,7 +71,7 @@
       syncSizes(g);
       syncHtml('girl-shop-comment', 'お店からのメッセージ', g.shop_comment, false, 'girl_shop_message_label');
       syncProfiles(g.profiles || [], g.name || '');
-      syncPlays(g.basic_play || [], g.option_play || []);
+      syncPlays(g.basic_play || [], g.applied_play || [], g.option_play || []);
       syncHtml('comment-box', (g.name || '') + 'からの一言', g.comment, true);
       syncGallery(g.images || [], g.name || '');
       // 上記どれかがDOMのテキストを書き換えた可能性があるため、原文キャッシュを全リセットして
@@ -220,21 +220,33 @@
     p2.insertAdjacentElement('afterend', table);
   }
 
-  // ---- 基本プレイ / オプションプレイ（チップ2グループ） ----
-  function syncPlays(basic, option) {
-    syncPlayGroup(basic, false);
-    syncPlayGroup(option, true);
+  // ---- 基本プレイ / 応用プレイ / オプションプレイ（チップ3グループ） ----
+  // 区分は CTRL の play_tier（1=基本 / 2=応用 / 3=オプション）。2026-08-11 に応用を新設
+  var PLAY_TIERS = [
+    { cls: '',                    sel: '',                     chip: '',            i18n: 'girl_basic_play_label',   label: '基本プレイ' },
+    { cls: ' play-label-applied', sel: '.play-label-applied',  chip: ' is-applied', i18n: 'girl_applied_play_label', label: '応用プレイ' },
+    { cls: ' play-label-option',  sel: '.play-label-option',   chip: ' is-option',  i18n: 'girl_option_play_label',  label: 'オプションプレイ' }
+  ];
+  function syncPlays(basic, applied, option) {
+    syncPlayGroup(basic, 0);
+    syncPlayGroup(applied, 1);
+    syncPlayGroup(option, 2);
   }
-  function syncPlayGroup(items, isOption) {
-    // ラベルで既存グループを特定（基本= .play-label:not(.play-label-option) / オプション= .play-label-option）
+  function tierOfLabel(l) {
+    if (l.classList.contains('play-label-option')) return 2;
+    if (l.classList.contains('play-label-applied')) return 1;
+    return 0;
+  }
+  function syncPlayGroup(items, idx) {
+    var def = PLAY_TIERS[idx];
+    // ラベルの class で既存グループを特定（基本はどちらの修飾も付かないもの）
     var label = null;
     [].forEach.call(root.querySelectorAll('.play-label'), function (l) {
-      var opt = l.classList.contains('play-label-option');
-      if (opt === isOption && !label) label = l;
+      if (!label && tierOfLabel(l) === idx) label = l;
     });
     var box = label && label.nextElementSibling && label.nextElementSibling.classList.contains('girl-options')
       ? label.nextElementSibling : null;
-    var chipCls = 'play-chip' + (isOption ? ' is-option' : '');
+    var chipCls = 'play-chip' + def.chip;
     var cur = box ? [].map.call(box.querySelectorAll('.play-chip'), function (s) { return s.textContent; }) : [];
     if (items.join('|') === cur.join('|')) {
       if (box) { box.style.display = ''; if (label) label.style.display = ''; }
@@ -252,13 +264,17 @@
       if (label) label.style.display = '';
       return;
     }
-    // ビルド時に無かった→ 基本=オプションラベル or #girl-week の前 / オプション= #girl-week の前
-    var anchor = (!isOption && root.querySelector('.play-label-option')) || document.getElementById('girl-week');
+    // ビルド時に無かった → 自分より後ろの区分のラベル、無ければ #girl-week の前に差し込む
+    var anchor = null;
+    for (var i = idx + 1; i < PLAY_TIERS.length && !anchor; i++) {
+      anchor = root.querySelector('.play-label' + PLAY_TIERS[i].sel);
+    }
+    anchor = anchor || document.getElementById('girl-week');
     if (!anchor) return;
     var p = document.createElement('p');
-    p.className = 'section-label play-label' + (isOption ? ' play-label-option' : '');
-    p.setAttribute('data-i18n', isOption ? 'girl_option_play_label' : 'girl_basic_play_label');
-    p.textContent = isOption ? 'オプションプレイ' : '基本プレイ';
+    p.className = 'section-label play-label' + def.cls;
+    p.setAttribute('data-i18n', def.i18n);
+    p.textContent = def.label;
     var div = document.createElement('div');
     div.className = 'girl-options';
     div.innerHTML = html;

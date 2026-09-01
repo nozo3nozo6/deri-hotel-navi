@@ -80,8 +80,14 @@ export function tagEmoji(name: string): string {
 
 // 「新人」判定: 入店日(in_date)が3ヶ月未満なら新人（ビルド時基準）。
 // is_newgirl 手動フラグではなく入店日で全ページ統一する。
-export function isNewcomer(inDate?: string | null): boolean {
+/**
+ * 新人かどうか。入店3ヶ月未満 かつ CTRL の「新人」チェックON。
+ * 3ヶ月ルールだけだと個別に外せなかったため、CTRL のチェックを手動スイッチにした
+ *（girls.is_newgirl。チェックを外すとその子だけ新人セクション・新人アイコンから消える・店長要望 2026-08-24）
+ */
+export function isNewcomer(inDate?: string | null, isNew?: number | string | boolean | null): boolean {
   if (!inDate) return false;
+  if (isNew !== undefined && isNew !== null && Number(isNew) !== 1) return false;   // CTRLでチェックを外した子
   const cut = new Date();
   cut.setMonth(cut.getMonth() - 3);
   const cutStr = cut.toISOString().slice(0, 10); // 3ヶ月前 YYYY-MM-DD

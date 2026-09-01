@@ -23,8 +23,11 @@ if (!g) {
 
 const images = (g.images ?? []) as Array<{ path: string; alt?: string }>;
 const mainPhoto = images[0]?.path ?? null;
+// 紹介動画（任意）。/uploads/girls/{shop}/video/{id}.mp4 を置けば api/girls.php が返す
+const videoPath = (g as { video?: string | null }).video ?? null;
 const imageTags = (g?.tags ?? []) as string[];
 const basicPlay = (g?.basic_play ?? []) as string[];
+const appliedPlay = (g?.applied_play ?? []) as string[];
 const optionPlay = (g?.option_play ?? []) as string[];
 const profiles = (g?.profiles ?? []) as Array<{ name: string; type?: string; value: string }>;
 
@@ -74,22 +77,48 @@ if (g.catch_copy) {
               <div class="girl-main-wrap" data-lightbox-open>
                 <img src={asset(mainPhoto)} alt={g.name}
                      width="640" height="853" class="girl-main-photo" id="girlMainPhoto" />
+                {videoPath ? (
+                  <video class="girl-main-video" id="girlMainVideo" playsinline muted loop preload="metadata"
+                         poster={asset(mainPhoto)} aria-label={`${g.name} の動画`} hidden>
+                    <source src={asset(videoPath)} type="video/mp4" />
+                  </video>
+                ) : null}
               </div>
             ) : (
               <div class="girl-main-photo" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,var(--bg-2),var(--bg-1));font-size:4rem;color:rgba(255,79,216,.2)">👤</div>
             )}
 
-            {images.length > 1 ? (
-              <div class="girl-sub-photos">
+            {images.length > 1 || videoPath ? (
+              <div class={`girl-sub-photos${videoPath ? ' has-video' : ''}`}>
                 {images.map((img, idx) => (
-                  <button type="button"
-                          class={`girl-thumb${idx === 0 ? ' is-active' : ''}`}
-                          data-girl-thumb data-full={asset(img.path)}
-                          aria-label={`${g.name} 写真${idx + 1}`}>
-                    <img src={asset(img.path)} alt={`${g.name} 写真${idx + 1}`}
-                         width="200" height="267" loading="lazy" />
-                  </button>
+                  <>
+                    <button type="button"
+                            class={`girl-thumb${idx === 0 ? ' is-active' : ''}`}
+                            data-girl-thumb data-full={asset(img.path)}
+                            aria-label={`${g.name} 写真${idx + 1}`}>
+                      <img src={asset(img.path)} alt={`${g.name} 写真${idx + 1}`}
+                           width="200" height="267" loading="lazy" />
+                    </button>
+                    {/* 4枠目を動画にする（1〜3は写真・店長指定 2026-08-20） */}
+                    {/* サムネは動画の1コマ目（#t=0.1 で先頭のフレームを出す。写真は使わない） */}
+                    {videoPath && idx === 2 ? (
+                      <button type="button" class="girl-thumb girl-thumb-video" data-girl-video-thumb
+                              aria-label={`${g.name} の動画`}>
+                        <video src={`${asset(videoPath)}#t=0.1`} muted playsinline preload="metadata"
+                               width="200" height="267" aria-hidden="true"></video>
+                        <span class="girl-thumb-play" aria-hidden="true"><span class="gtp-yt"></span></span>
+                      </button>
+                    ) : null}
+                  </>
                 ))}
+                {videoPath && images.length < 3 ? (
+                  <button type="button" class="girl-thumb girl-thumb-video" data-girl-video-thumb
+                          aria-label={`${g.name} の動画`}>
+                    <video src={`${asset(videoPath)}#t=0.1`} muted playsinline preload="metadata"
+                           width="200" height="267" aria-hidden="true"></video>
+                    <span class="girl-thumb-play" aria-hidden="true"><span class="gtp-yt"></span></span>
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -98,7 +127,7 @@ if (g.catch_copy) {
           <div>
             <!-- 名前・バッジ -->
             <div class="girl-flags">
-              {isNewcomer(g.in_date) ? <img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" /> : null}
+              {isNewcomer(g.in_date, (g as any).is_newgirl) ? <img src="/img/flag-newgirl.png" class="girl-flag-icon" width="128" height="128" alt="新人" title="新人" data-i18n-attr="alt=flag_newgirl, title=flag_newgirl" /> : null}
               {g.is_trial ? <img src="/img/flag-machiawase.png" class="girl-flag-icon" width="128" height="128" alt="待ち合わせ" title="待ち合わせ" data-i18n-attr="alt=flag_machiawase, title=flag_machiawase" /> : null}
               {g.is_inbound ? <img src="/img/flag-inbound.png" class="girl-flag-icon" width="128" height="128" alt="インバウンド" title="インバウンド" data-i18n-attr="alt=flag_inbound, title=flag_inbound" /> : null}
               {g.is_genderless ? <img src="/img/flag-genderless.png" class="girl-flag-icon" width="128" height="128" alt="ジェンダーレス" title="ジェンダーレス" data-i18n-attr="alt=flag_genderless, title=flag_genderless" /> : null}
@@ -182,6 +211,18 @@ if (g.catch_copy) {
               </Fragment>
             ) : null}
 
+            <!-- 応用プレイ -->
+            {appliedPlay.length ? (
+              <Fragment>
+                <p class="section-label play-label play-label-applied" data-i18n="girl_applied_play_label">応用プレイ</p>
+                <div class="girl-options">
+                  {appliedPlay.map((o) => (
+                    <span class="play-chip is-applied" data-i18n-dynamic>{o}</span>
+                  ))}
+                </div>
+              </Fragment>
+            ) : null}
+
             <!-- オプションプレイ -->
             {optionPlay.length ? (
               <Fragment>
@@ -196,7 +237,10 @@ if (g.catch_copy) {
 
             <!-- 週間出勤予定（オプションの下・schedule-week.js がAPIから取得して描画。出勤無し/失敗時は非表示） -->
             <div id="girl-week" class="girl-week" data-girl-id={g.id} style="display:none">
-              <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+              <div class="gw-head">
+                <p class="section-label" data-i18n="girl_weekly_schedule_label">📅 週間出勤予定</p>
+                <p class="gw-note" data-i18n="girl_weekly_schedule_note">前日までのご予約はタイムラインで表示されます</p>
+              </div>
               <div class="gw-body"></div>
             </div>
 

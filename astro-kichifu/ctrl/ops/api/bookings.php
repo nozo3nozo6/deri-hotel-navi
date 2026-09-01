@@ -25,19 +25,27 @@ $pdo    = getPdo();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+/** "14:30" 形式だけ通す（空文字・不正は NULL）。事前予約の連絡予定時刻用 */
+function opsHmOrNull($v): ?string {
+    $s = trim((string)$v);
+    return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $s) ? $s . ':00' : null;
+}
 function bookingSelectColumns(): string {
     return "
         b.id, b.customer_id, b.customer_name_snapshot, b.customer_phone_snapshot, b.customer_email_snapshot,
-        b.assigned_admin_id, b.driver_id, b.back_driver_id, b.hotel_id, b.hotel_name_snapshot, b.display_city, b.room_number,
+        b.assigned_admin_id, b.driver_id, b.go_self, b.back_driver_id, b.back_self, b.hotel_id, b.hotel_name_snapshot, b.display_city, b.room_number,
         b.booking_date, b.start_time, b.end_time, b.pickup_go_time, b.pickup_back_time, b.pickup_go_mailed_at, b.pickup_back_mailed_at,
-        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.price, b.hotel_price_applied, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.cash_amount, b.card_paid_at, b.card_paid_by, b.counseling, b.media, b.extension_count,
-        b.status, b.service_ended_at, b.source, b.notes, b.cancellation_reason, b.cancellation_reason_type, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.shop_settled, b.shop_settled_by, b.settle_kind, b.reward_paid_at, b.reward_paid_by, b.counseling_sheet_url, b.held_by, b.created_at, b.updated_at,
+        b.course_name, b.nomination_type, b.nomination_fee, b.menu_items, b.towel_lent, b.lend_returned_at, b.lend_returned_by, b.price, b.hotel_price_applied, b.late_fee, b.transport_fee, b.payment_method, b.card_fee, b.cash_amount, b.card_paid_at, b.card_paid_by, b.counseling, b.media, b.extension_count,
+        b.status, b.service_ended_at, b.source, b.notes, b.staff_notes, b.cancellation_reason, b.cancellation_reason_type, b.cancellation_fee, b.cancellation_reward, b.reward_override, b.shop_settled, b.shop_settled_by, b.settle_kind, b.reward_paid_at, b.reward_paid_by, b.counseling_sheet_url, b.held_by, b.created_at, b.updated_at,
+        b.pre_contact_method, b.pre_kind, b.pre_due,
+        b.receipt_needed, b.receipt_given_at,
         c.name AS customer_name, c.phone AS customer_phone, c.notes AS customer_notes,
-        h.name AS hotel_name, h.city AS hotel_city, h.address AS hotel_address,
+        h.name AS hotel_name, h.city AS hotel_city, h.address AS hotel_address, h.hotel_type AS hotel_type,
         au.display_name AS staff_name,
         dr.display_name AS driver_name,
         dr2.display_name AS back_driver_name,
-        cp.display_name AS card_paid_by_name
+        cp.display_name AS card_paid_by_name,
+        hu.role AS held_by_role, hu.staff_color AS held_by_color
     ";
 }
 
@@ -106,6 +114,22 @@ function opsGuardNotOvertaken(PDO $pdo, int $id, string $expected): void {
     }
 }
 
+// タイムラインの他PC同期用: この営業日の予約・シフトが変わったかだけを返す超軽量チェック。
+// 件数と最終更新時刻だけなので約50バイト。フル取得の前にこれを叩き、値が変わった時だけ本取得する
+// （1.5秒間隔で叩いても軽い）。挿入=件数増＋時刻更新／変更=時刻更新／削除=件数減 で必ず値が変わる。
+if ($action === 'sync-version' && $method === 'GET') {
+    $from = $_GET['from'] ?? date('Y-m-d');
+    $to   = $_GET['to']   ?? $from;
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) errorResponse('bad date', 400);
+    $b = $pdo->prepare("SELECT COUNT(*) c, COALESCE(MAX(updated_at), '') m FROM ops_bookings WHERE booking_date BETWEEN ? AND ?");
+    $b->execute([$from, $to]);
+    $rb = $b->fetch();
+    $s = $pdo->prepare("SELECT COUNT(*) c, COALESCE(MAX(updated_at), '') m FROM ops_shifts WHERE shift_date BETWEEN ? AND ?");
+    $s->execute([$from, $to]);
+    $rs = $s->fetch();
+    jsonResponse(['v' => 'b' . $rb['c'] . '-' . $rb['m'] . '|s' . $rs['c'] . '-' . $rs['m']]);
+}
+
 if ($action === 'range' && $method === 'GET') {
     $from = $_GET['from'] ?? date('Y-m-d');
     $to   = $_GET['to']   ?? date('Y-m-d', strtotime('+10 days'));
@@ -129,6 +153,7 @@ if ($action === 'range' && $method === 'GET') {
             LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
             LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
+            LEFT JOIN ops_admin_users hu ON hu.id = b.held_by
             WHERE " . implode(' AND ', $where) . "
             ORDER BY b.booking_date, b.start_time";
     $stmt = $pdo->prepare($sql);
@@ -201,8 +226,20 @@ if ($action === 'list' && $method === 'GET') {
 
     $where = []; $params = [];
     if ($kw !== '') {
-        $where[] = '(c.name LIKE ? OR b.customer_name_snapshot LIKE ? OR h.name LIKE ? OR b.hotel_name_snapshot LIKE ?)';
-        $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%"; $params[] = "%{$kw}%";
+        // 住所でも探せるようにする（店長要望 2026-08-29）。
+        //   ・自宅利用は住所が hotel_name_snapshot に「【自宅】立川市…」の形で入っている
+        //   ・ホテル利用は ops_hotels.address
+        //   ・お客様に登録した住所（default_location）でも当たるようにする
+        //   ・表記ゆれ（全角・ハイフン・空白）は location_norm で吸収する
+        $kwAddr = opsNormAddress($kw);
+        $sqlKw = '(c.name LIKE ? OR b.customer_name_snapshot LIKE ? OR h.name LIKE ? OR b.hotel_name_snapshot LIKE ?'
+               . ' OR b.display_city LIKE ? OR h.address LIKE ?'
+               . ' OR c.default_location LIKE ? OR c.default_location2 LIKE ?'
+               . ($kwAddr !== '' ? ' OR c.location_norm LIKE ? OR c.location_norm2 LIKE ?' : '')
+               . ')';
+        $where[] = $sqlKw;
+        for ($i = 0; $i < 8; $i++) { $params[] = "%{$kw}%"; }
+        if ($kwAddr !== '') { $params[] = "%{$kwAddr}%"; $params[] = "%{$kwAddr}%"; }
     }
     if ($status !== '') { $where[] = 'b.status = ?'; $params[] = $status; }
     if ($date !== '') { $where[] = 'b.booking_date = ?'; $params[] = $date; }
@@ -219,6 +256,7 @@ if ($action === 'list' && $method === 'GET') {
             LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
             LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
+            LEFT JOIN ops_admin_users hu ON hu.id = b.held_by
             " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
             ORDER BY b.booking_date DESC, b.start_time DESC
             LIMIT 200";
@@ -263,6 +301,7 @@ if ($action === 'get' && $method === 'GET') {
                            LEFT JOIN ops_admin_users dr ON dr.id = b.driver_id
             LEFT JOIN ops_admin_users dr2 ON dr2.id = b.back_driver_id
             LEFT JOIN ops_admin_users cp ON cp.id = b.card_paid_by
+            LEFT JOIN ops_admin_users hu ON hu.id = b.held_by
                            WHERE b.id = ?");
     $stmt->execute([$id]);
     $row = $stmt->fetch();
@@ -318,20 +357,28 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         $existing = $cs->fetch();
         if ($existing) {
             $customerId = (int)$existing['id'];
-            // 既存顧客の名前が空で、今回名前があれば更新
-            if ($name !== '' && (empty($existing['name']) || $existing['name'] === '名称未設定')) {
-                $pdo->prepare("UPDATE ops_customers SET name = ? WHERE id = ?")->execute([$name, $customerId]);
-            }
-            // メアド未登録なら追記
-            if ($email !== '') {
-                $pdo->prepare("UPDATE ops_customers SET email = ? WHERE id = ? AND (email IS NULL OR email = '')")->execute([$email, $customerId]);
-            }
         } else {
             // 新規顧客作成
             $newName = $name !== '' ? $name : '名称未設定';
             $pdo->prepare("INSERT INTO ops_customers (name, phone, email, first_visit_at) VALUES (?, ?, ?, NOW())")
                 ->execute([$newName, $phone, $email ?: null]);
             $customerId = (int)$pdo->lastInsertId();
+        }
+    }
+
+    // お名前・メアドの追記は、お客様の記録が空っぽ（または「（名前未登録）」のような仮の名前）のときだけ。
+    // ★ 以前は「電話から新しく見つけたとき」しか通らず、画面で既にお客様が特定できている
+    //    （customer_id が入っている）と素通りしていた。そのため旧データの「（名前未登録）」に
+    //    お名前を入れて保存しても、いつまでも未登録のままだった（店長指摘 2026-08-21）
+    if ($customerId && ($name !== '' || $email !== '')) {
+        $cur = $pdo->prepare("SELECT name, email FROM ops_customers WHERE id = ?");
+        $cur->execute([$customerId]);
+        $curRow = $cur->fetch() ?: [];
+        if ($name !== '' && opsIsPlaceholderName($curRow['name'] ?? '')) {
+            $pdo->prepare("UPDATE ops_customers SET name = ? WHERE id = ?")->execute([$name, $customerId]);
+        }
+        if ($email !== '' && trim((string)($curRow['email'] ?? '')) === '') {
+            $pdo->prepare("UPDATE ops_customers SET email = ? WHERE id = ?")->execute([$email, $customerId]);
         }
     }
 
@@ -344,7 +391,8 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'hotel_id'                => !empty($b['hotel_id']) ? (int)$b['hotel_id'] : null,
         'hotel_name_snapshot'     => trim($b['hotel_name_snapshot'] ?? '') ?: null,
         'display_city'            => trim($b['display_city'] ?? '') ?: null,
-        'room_number'             => trim($b['room_number'] ?? '') ?: null,
+        // 部屋番号は必ず半角（「２０５」で入っても「205」で持つ・店長指定 2026-08-11）
+        'room_number'             => trim(mb_convert_kana((string)($b['room_number'] ?? ''), 'as', 'UTF-8')) ?: null,
         'booking_date'            => $bookingDate,
         'start_time'              => $startTime,
         'end_time'                => $endTime,
@@ -352,6 +400,7 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'nomination_type'         => in_array($b['nomination_type'] ?? '', ['first','regular','free'], true) ? $b['nomination_type'] : null,
         'nomination_fee'          => max(0, (int)($b['nomination_fee'] ?? 0)),
         'menu_items'              => trim($b['menu_items'] ?? '') ?: null,
+        'towel_lent'              => !empty($b['towel_lent']) ? 1 : 0,   // バスタオル貸出（店長要望 2026-08-16）
         'price'                   => isset($b['price']) && $b['price'] !== '' ? (int)$b['price'] : null,
         // ホテル料金を適用したか。開いたときの復元とキャスト報酬の判定に使う
         // （金額からの逆算は指名料・オプションが増えるたびに壊れるので、事実として持つ）
@@ -384,6 +433,13 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         'cancellation_reward'     => (($b['status'] ?? '') === 'cancelled' && ($b['cancellation_reason_type'] ?? '') === 'customer' && isset($b['cancellation_reward']) && $b['cancellation_reward'] !== '') ? max(0, (int)$b['cancellation_reward']) : null,
         // 報酬の手入力オーバーライド（微調整用）。空欄ならNULL＝従来通り自動計算
         'reward_override'         => isset($b['reward_override']) && $b['reward_override'] !== '' && $b['reward_override'] !== null ? (int)$b['reward_override'] : null,
+        // 事前予約のお約束。「出勤確認が取れたら連絡」か「到着見込みを連絡」のどちらか1つ。
+        // 予定時刻と「連絡した日時」を持ち、タイムラインのバッジで未対応が分かるようにする
+        'pre_contact_method'      => in_array($b['pre_contact_method'] ?? '', ['tel','line'], true) ? $b['pre_contact_method'] : null,
+        'pre_kind'                => in_array($b['pre_kind'] ?? '', ['confirm','eta'], true) ? $b['pre_kind'] : null,
+        'pre_due'                 => opsHmOrNull($b['pre_due'] ?? null),
+        // 領収証が必要なお客様。タイムラインで点滅させて渡し忘れを防ぐ（店長要望 2026-08-23）
+        'receipt_needed'          => !empty($b['receipt_needed']) ? 1 : 0,
     ];
 
     // 決済確認: クレジットを使うときだけ持つ（併用も対象）。日時は最初に確認した時点を保つ（付け外しで上書きしない）
@@ -406,8 +462,18 @@ if (($action === 'create' || $action === 'update') && $method === 'POST') {
         }
     }
 
+    if (empty($fields['receipt_needed'])) $fields['receipt_given_at'] = null;
+
     if ($isUpdate) {
         opsGuardNotOvertaken($pdo, $id, trim((string)($b['expected_updated_at'] ?? '')));
+        // 貸出品の中身が変わったら「回収済み」は白紙に戻す。
+        // 一度回収したあとに貸し直したのにバッジが出なかった（店長指摘 2026-08-16）
+        $prev = $pdo->prepare("SELECT towel_lent, menu_items FROM ops_bookings WHERE id = ?");
+        $prev->execute([$id]);
+        $pv = $prev->fetch() ?: [];
+        $changed = ((int)($pv['towel_lent'] ?? 0) !== (int)$fields['towel_lent'])
+                || ((string)($pv['menu_items'] ?? '') !== (string)($fields['menu_items'] ?? ''));
+        if ($changed) { $fields['lend_returned_at'] = null; $fields['lend_returned_by'] = null; }
         $cols = []; $vals = [];
         foreach ($fields as $k => $v) { $cols[] = "$k = ?"; $vals[] = $v; }
         $vals[] = $id;
@@ -437,6 +503,11 @@ if ($action === 'set-driver' && $method === 'POST') {
     $id  = (int)($b['id'] ?? 0);
     $leg = $b['leg'] ?? '';
     $driverId = !empty($b['driver_id']) ? (int)$b['driver_id'] : null;
+    // 送迎なしのときの2状態を分ける（店長要望 2026-08-10）
+    //   self=1 … キャストが自走すると決まった（カードに「キャスト」と出す）
+    //   self=0 … まだ決めていない（カードは「-」のまま）
+    // どちらも driver_id は NULL。報酬の機動ボーナスは従来どおり driver_id で判定する
+    $self = $driverId === null && !empty($b['self']) ? 1 : 0;
     if ($id <= 0 || !in_array($leg, ['go', 'back'], true)) errorResponse('invalid params', 400);
     $st = $pdo->prepare("SELECT start_time, end_time FROM ops_bookings WHERE id = ?");
     $st->execute([$id]);
@@ -447,11 +518,11 @@ if ($action === 'set-driver' && $method === 'POST') {
     if ($leg === 'go') {
         // 行き = 施術開始の30分前。ドライバー変更につきメール送信済みフラグをリセット
         $t = $fmt($toMin($row['start_time']) - 30);
-        $pdo->prepare("UPDATE ops_bookings SET driver_id = ?, pickup_go_time = ?, pickup_go_mailed_at = NULL WHERE id = ?")->execute([$driverId, $t, $id]);
+        $pdo->prepare("UPDATE ops_bookings SET driver_id = ?, go_self = ?, pickup_go_time = ?, pickup_go_mailed_at = NULL WHERE id = ?")->execute([$driverId, $self, $t, $id]);
     } else {
         // 帰り = 施術終了時刻。ドライバー変更につきメール送信済みフラグをリセット
         $t = $fmt($toMin($row['end_time']));
-        $pdo->prepare("UPDATE ops_bookings SET back_driver_id = ?, pickup_back_time = ?, pickup_back_mailed_at = NULL WHERE id = ?")->execute([$driverId, $t, $id]);
+        $pdo->prepare("UPDATE ops_bookings SET back_driver_id = ?, back_self = ?, pickup_back_time = ?, pickup_back_mailed_at = NULL WHERE id = ?")->execute([$driverId, $self, $t, $id]);
     }
     jsonResponse(['ok' => true, 'pickup_time' => $t]);
 }
@@ -468,22 +539,27 @@ if ($action === 'send-pickup-mail' && $method === 'POST') {
     if ($driverId <= 0) errorResponse('driver_id required', 400);
     if ($bodyTxt === '') errorResponse('body required', 400);
     if (!in_array($leg, ['go', 'back'], true)) errorResponse('invalid leg', 400);
-    // 送信先はサーバー側で admin_users から解決（任意アドレスへの送信を防止）
-    $st = $pdo->prepare("SELECT username, display_name FROM ops_admin_users WHERE id = ? LIMIT 1");
+    // 送信先はサーバー側で admin_users から解決（任意アドレスへの送信を防止）。
+    // 送信先はメールアドレス欄（email）。旧データで未設定なら、従来どおり username を試す
+    // （ログインIDとメールを分離する前は username がメールだった）
+    $st = $pdo->prepare("SELECT username, email, display_name FROM ops_admin_users WHERE id = ? LIMIT 1");
     $st->execute([$driverId]);
     $drv = $st->fetch();
     if (!$drv) errorResponse('driver not found', 404);
-    $to = trim($drv['username'] ?? '');
-    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) errorResponse('driver email not set', 422);
-    if ($subject === '') $subject = 'YLKA 送迎情報';
+    $to = trim($drv['email'] ?? '');
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) $to = trim($drv['username'] ?? '');
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) errorResponse('ドライバーのメールアドレスが未設定です', 422);
+    if ($subject === '') $subject = '送迎情報';
     $subjEnc = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    // envelope sender（-f）を必ず渡す。省くと差出人がサーバー既定になり SPF が揃わず Gmail で拒否される
+    $from = 'no-reply@admi2888.com';
     $headers = implode("\r\n", [
-        'From: YLKA <relux@ylka.jp>',
-        'Reply-To: relux@ylka.jp',
+        'From: admi2888 <' . $from . '>',
+        'Reply-To: ' . $from,
         'Content-Type: text/plain; charset=UTF-8',
-        'X-Mailer: YLKA Dispatch',
+        'X-Mailer: admi Dispatch',
     ]);
-    $ok = @mail($to, $subjEnc, $bodyTxt, $headers, '-frelux@ylka.jp');
+    $ok = @mail($to, $subjEnc, $bodyTxt, $headers, '-f' . $from);
     if (!$ok) errorResponse('mail send failed', 500);
     // 送信済みを記録（タイムラインの色表示用）。leg に応じた列を更新
     if ($bkId > 0) {
@@ -571,6 +647,54 @@ if ($action === 'set-status' && $method === 'POST') {
 //   pending = status 'reserved' + service_ended_at NULL（巻き戻し）
 // 権限: driver 不可。staff は「自分の予約のみ」かつ started/ended のみ（巻き戻し不可・一方通行）。
 //        owner/manager/office は全 state 可（CTRL タイムライン権限）。
+// 決済確認だけをその場で切り替える（タイムラインの 💳未 バッジから・店長要望 2026-08-22）。
+// 予約モーダルを開かずに「確認した／まだ」を行き来できるようにする。
+// 日時は最初に確認した時点を保つ（付け外しで上書きしない＝モーダル側と同じ扱い）
+if ($action === 'set-card-paid' && $method === 'POST') {
+    if (($_SESSION['ylka_admin_role'] ?? '') === 'driver') errorResponse('forbidden', 403);
+    $b = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid params', 400);
+    $paid = !empty($b['paid']);
+    $q = $pdo->prepare("SELECT payment_method, card_paid_at FROM ops_bookings WHERE id = ?");
+    $q->execute([$id]);
+    $row = $q->fetch();
+    if (!$row) errorResponse('not found', 404);
+    if (!in_array($row['payment_method'], ['credit', 'split'], true)) {
+        errorResponse('カード決済の予約ではありません', 400);
+    }
+    if ($paid) {
+        $at = $row['card_paid_at'] ?: date('Y-m-d H:i:s');
+        $pdo->prepare("UPDATE ops_bookings SET card_paid_at = ?, card_paid_by = ? WHERE id = ?")
+            ->execute([$at, currentUserId(), $id]);
+    } else {
+        $pdo->prepare("UPDATE ops_bookings SET card_paid_at = NULL, card_paid_by = NULL WHERE id = ?")->execute([$id]);
+    }
+    jsonResponse(['ok' => true, 'paid' => $paid]);
+}
+
+// 領収証を渡したかだけをその場で切り替える（タイムラインの 🧾 バッジから・店長要望 2026-08-23）。
+// 渡した日時は最初に押した時点を保つ（付け外しで上書きしない＝カード決済と同じ扱い）
+if ($action === 'set-receipt-given' && $method === 'POST') {
+    if (($_SESSION['ylka_admin_role'] ?? '') === 'driver') errorResponse('forbidden', 403);
+    $b = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid params', 400);
+    $given = !empty($b['given']);
+    $q = $pdo->prepare("SELECT receipt_needed, receipt_given_at FROM ops_bookings WHERE id = ?");
+    $q->execute([$id]);
+    $row = $q->fetch();
+    if (!$row) errorResponse('not found', 404);
+    if (empty($row['receipt_needed'])) errorResponse('領収証が必要な予約ではありません', 400);
+    if ($given) {
+        $at = $row['receipt_given_at'] ?: date('Y-m-d H:i:s');
+        $pdo->prepare("UPDATE ops_bookings SET receipt_given_at = ? WHERE id = ?")->execute([$at, $id]);
+    } else {
+        $pdo->prepare("UPDATE ops_bookings SET receipt_given_at = NULL WHERE id = ?")->execute([$id]);
+    }
+    jsonResponse(['ok' => true, 'given' => $given]);
+}
+
 if ($action === 'set-note' && $method === 'POST') {
     $b  = readJsonBody();
     $id = (int)($b['id'] ?? 0);
@@ -587,6 +711,55 @@ if ($action === 'set-note' && $method === 'POST') {
     // キャストの「お仕事メモ」は予約単位(bookings.notes)に保存。顧客紐づけメモ(customers.notes)はお店の顧客管理でのみ編集
     $pdo->prepare("UPDATE ops_bookings SET notes = ?, updated_at = NOW() WHERE id = ?")->execute([$note !== '' ? $note : null, $id]);
     jsonResponse(['ok' => true]);
+}
+
+// 貸出品（バスタオル・ローター等）を回収したかを切り替える（タイムラインのカードから・店長要望 2026-08-16）
+if ($action === 'set-lend-returned' && $method === 'POST') {
+    $b  = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid id', 400);
+    $done = !empty($b['returned']);
+    $row = $pdo->prepare("SELECT assigned_admin_id FROM ops_bookings WHERE id = ?");
+    $row->execute([$id]);
+    $cur = $row->fetch();
+    if (!$cur) errorResponse('not found', 404);
+    $role = $_SESSION['ylka_admin_role'] ?? '';
+    if ($role === 'staff' && (int)$cur['assigned_admin_id'] !== (int)($_SESSION['ylka_admin_id'] ?? 0)) errorResponse('forbidden', 403);
+    // 誰が回収したかも残す（店長要望 2026-08-26）。未選択なら操作した本人を入れる
+    $by = (int)($b['by'] ?? 0);
+    if ($by <= 0) $by = (int)($_SESSION['ylka_admin_id'] ?? 0);
+    if ($by > 0) {
+        $chk = $pdo->prepare("SELECT id FROM ops_admin_users WHERE id = ?");
+        $chk->execute([$by]);
+        if (!$chk->fetchColumn()) $by = 0;
+    }
+    if ($done) {
+        $pdo->prepare("UPDATE ops_bookings SET lend_returned_at = NOW(), lend_returned_by = ?, updated_at = NOW() WHERE id = ?")
+            ->execute([$by ?: null, $id]);
+    } else {
+        $pdo->prepare("UPDATE ops_bookings SET lend_returned_at = NULL, lend_returned_by = NULL, updated_at = NOW() WHERE id = ?")
+            ->execute([$id]);
+    }
+    jsonResponse(['ok' => true, 'returned' => $done, 'by' => $done ? ($by ?: null) : null]);
+}
+
+// 部屋番号だけを更新（タイムラインのカードから直接・店長要望 2026-08-16）
+if ($action === 'set-room' && $method === 'POST') {
+    $b  = readJsonBody();
+    $id = (int)($b['id'] ?? 0);
+    if ($id <= 0) errorResponse('invalid id', 400);
+    // 全角で入力されても半角で保存する（数字は全て半角・店長指定）
+    $room = trim(mb_convert_kana((string)($b['room_number'] ?? ''), 'as'));
+    $room = str_replace(['－', '‐', '‑', '–', '—', 'ー', '―'], '-', $room);
+    if (mb_strlen($room) > 20) errorResponse('部屋番号が長すぎます', 400);
+    $row = $pdo->prepare("SELECT assigned_admin_id FROM ops_bookings WHERE id = ?");
+    $row->execute([$id]);
+    $cur = $row->fetch();
+    if (!$cur) errorResponse('not found', 404);
+    $role = $_SESSION['ylka_admin_role'] ?? '';
+    if ($role === 'staff' && (int)$cur['assigned_admin_id'] !== (int)($_SESSION['ylka_admin_id'] ?? 0)) errorResponse('forbidden', 403);
+    $pdo->prepare("UPDATE ops_bookings SET room_number = ?, updated_at = NOW() WHERE id = ?")->execute([$room !== '' ? $room : null, $id]);
+    jsonResponse(['ok' => true, 'room_number' => $room]);
 }
 
 if ($action === 'set-service' && $method === 'POST') {
@@ -723,7 +896,7 @@ if ($action === 'unlock' && $method === 'POST') {
 
 if ($action === 'delete' && $method === 'POST') {
     if (($_SESSION['ylka_admin_role'] ?? '') === 'driver') errorResponse('forbidden', 403);
-    requireOwner();
+    requireAnyTabOps($pdo, ['timeline', 'bookings']);
     $b = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);

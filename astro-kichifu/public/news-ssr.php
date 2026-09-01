@@ -104,15 +104,25 @@ ssr_header($SSR);
       <p class="news-detail-date"><?= ssr_h($date) ?></p>
       <h1 class="news-detail-title" data-i18n-dynamic><?= ssr_h($it['title']) ?></h1>
 
-      <?php if ($it['thumb']): ?>
+      <?php if ($it['thumb']):
+        // キャストの紹介動画をサムネにした場合は動画で出す（音は出さない・ループ）
+        $thumbIsVideo = (bool)preg_match('/\.mp4(\?|$)/i', (string)$it['thumb']);
+        $thumbSrc = ssr_h(asset_url($it['thumb']));
+      ?>
         <?php if ($thumbLink): ?>
           <a href="<?= ssr_h($thumbLink) ?>" target="_self" class="news-detail-thumb-link">
-            <img src="<?= ssr_h(asset_url($it['thumb'])) ?>" alt=""
-                 loading="lazy" class="news-detail-thumb" />
+            <?php if ($thumbIsVideo): ?>
+              <video src="<?= $thumbSrc ?>" class="news-detail-thumb"
+                     muted loop playsinline autoplay preload="metadata"></video>
+            <?php else: ?>
+              <img src="<?= $thumbSrc ?>" alt="" loading="lazy" class="news-detail-thumb" />
+            <?php endif; ?>
           </a>
+        <?php elseif ($thumbIsVideo): ?>
+          <video src="<?= $thumbSrc ?>" class="news-detail-thumb"
+                 muted loop playsinline autoplay preload="metadata"></video>
         <?php else: ?>
-          <img src="<?= ssr_h(asset_url($it['thumb'])) ?>" alt=""
-               loading="lazy" class="news-detail-thumb" />
+          <img src="<?= $thumbSrc ?>" alt="" loading="lazy" class="news-detail-thumb" />
         <?php endif; ?>
       <?php endif; ?>
 

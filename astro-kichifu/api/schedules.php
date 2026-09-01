@@ -60,8 +60,72 @@ try {
                 }
                 $sch[$r['work_date']] = ['status' => $r['status'], 'start' => $r['start'], 'end' => $r['end']];
             }
+
+            // 予約が入っている時間帯を「ご予約済」として重ねる（店長要望 2026-08-14）。
+            // OPS(予約管理)は admi(shop_id=1) のみが持つため、そのショップの公開ページだけで集計する
+            // （他ショップの girl_id に共有ロスターで誤ヒットして予約が漏れるのを防ぐ）。
+            // 公開APIなので客名は返さず、時間帯だけ。載せるのは公開中(work)の出勤日に限る（隠し出勤の露出防止）。
+            if ($gid && $shop_id === 1) {
+                $booked = [];
+                $bq = $pdo->prepare(
+                    "SELECT b.booking_date, TIME_FORMAT(b.start_time,'%H:%i') AS s, TIME_FORMAT(b.end_time,'%H:%i') AS e
+                       FROM ops_bookings b
+                       JOIN ops_admin_users au ON au.id = b.assigned_admin_id
+                      WHERE au.girl_id = ? AND b.status NOT IN ('cancelled','no_show','inquiry')
+                        AND b.booking_date BETWEEN ? AND DATE_ADD(?, INTERVAL 1 DAY)"
+                );
+                $bq->execute([$gid, $from, $to]);
+                foreach ($bq->fetchAll(PDO::FETCH_ASSOC) as $b) {
+                    // 10時前開始は前営業日ぶん（夜シフトの深夜予約を前日の出勤に寄せる）
+                    $h  = (int)substr((string)$b['s'], 0, 2);
+                    $wd = $h < 10 ? date('Y-m-d', strtotime($b['booking_date'] . ' -1 day')) : (string)$b['booking_date'];
+                    $booked[$wd][] = ['start' => $b['s'], 'end' => $b['e']];
+                }
+                foreach ($sch as $d => &$info) {
+                    if (($info['status'] ?? '') === 'work' && !empty($booked[$d])) {
+                        usort($booked[$d], fn($a, $bb) => strcmp($a['start'], $bb['start']));
+                        $info['booked'] = array_values($booked[$d]);
+                    }
+                }
+                unset($info);
+            }
         }
         echo json_encode(['from' => $from, 'days' => $days, 'schedule' => $sch], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($action === 'recent-reservations') {
+        // トップの流れるご案内用。事前予約(reserved/pre_reserved)の「ご予約頂きました」を新着順で。
+        // OPS(予約)を持つ admi(shop_id=1) のみ。公開APIなので客情報は返さず、キャスト名/コース/日付だけ。
+        $out = [];
+        if ($shop_id === 1) {
+            // 営業日は 10:00〜翌10:00。当日10時を過ぎたら「その日の予約」は前日予約でなくなるので出さない。
+            // ＝予約の営業日が「現在の営業日」より先のものだけ流す（店長要望 2026-08-14）。
+            $bizToday = ((int)date('H') < 10) ? date('Y-m-d', strtotime('-1 day')) : date('Y-m-d');
+            $st = $pdo->prepare(
+                "SELECT b.booking_date, TIME_FORMAT(b.start_time,'%H:%i') AS start, b.course_name, au.girl_id, g.name AS girl_name
+                   FROM ops_bookings b
+                   JOIN ops_admin_users au ON au.id = b.assigned_admin_id
+                   JOIN girls g ON g.id = au.girl_id AND g.shop_id = ?
+                  WHERE b.status IN ('reserved','pre_reserved')
+                    AND (CASE WHEN b.start_time < '10:00:00' THEN DATE_SUB(b.booking_date, INTERVAL 1 DAY) ELSE b.booking_date END) > ?
+                  ORDER BY b.created_at DESC
+                  LIMIT 10"
+            );
+            $st->execute([$shop_id, $bizToday]);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+                // 深夜(10時前開始)は前営業日ぶんに寄せて、リンク先の出勤タイムライン行(work_date)に合わせる
+                $h = (int)substr((string)$r['start'], 0, 2);
+                $d = $h < 10 ? date('Y-m-d', strtotime($r['booking_date'] . ' -1 day')) : (string)$r['booking_date'];
+                $out[] = [
+                    'girl_id' => (int)$r['girl_id'],
+                    'name'    => (string)$r['girl_name'],
+                    'course'  => (string)($r['course_name'] ?? ''),
+                    'date'    => $d,
+                ];
+            }
+        }
+        echo json_encode(['reservations' => $out], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

@@ -54,19 +54,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 try { db()->prepare('UPDATE admins SET last_login_at = NOW() WHERE id = ?')->execute([$a['id']]); } catch (Throwable $e) {}
                 redirect('index.php');
             }
-            // 未登録の端末 → 認証コードを発行してメール送信
-            $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $sent = device_send_code($a, $code);
-            $_SESSION['login_pending'] = [
-                'admin_id' => (int)$a['id'],
-                'code'     => $code,
-                'at'       => time(),
-                'tries'    => 0,
-                'sent'     => $sent,
-                'to'       => (string)($a['email'] ?? ''),
-            ];
-            $step    = 'code';
-            $pending = $_SESSION['login_pending'];
+            // 店長が「次のログインを許可」を出した人だけ、その場で端末を登録して入れる。
+            // 1台目も許可が要る（誰でも初回に登録できると、共有アカウントで先に入られてしまう・店長指摘 2026-08-18）
+            $granted = device_grant_active((int)$a['id']);
+            if ($granted) {
+                login_session($a);
+                device_register((int)$a['id'], (string)($_POST['device_name'] ?? '') ?: device_auto_name());
+                if ($granted) device_grant_clear((int)$a['id']);
+                try { db()->prepare('UPDATE admins SET last_login_at = NOW() WHERE id = ?')->execute([$a['id']]); } catch (Throwable $e) {}
+                flash('ok', 'この端末を登録しました。次回からはログイン操作なしで開けます。');
+                redirect('index.php');
+            }
+            // 登録済みの端末がある人の【別の端末】。
+            // オーナーは自分のメールに届く6桁コードで追加できる（共有アカウントでは突破できない）。
+            // それ以外の人は店長の許可が要る
+            if (($a['role'] ?? '') !== 'owner') {
+                $err  = 'この端末はまだ登録されていません。管理者に「次のログインを許可」を出してもらってから、10分以内にログインしてください。';
+                $step = 'password';
+            } else {
+                $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $sent = device_send_code($a, $code);
+                $_SESSION['login_pending'] = [
+                    'admin_id' => (int)$a['id'],
+                    'code'     => $code,
+                    'at'       => time(),
+                    'tries'    => 0,
+                    'sent'     => $sent,
+                    'to'       => (string)($a['email'] ?? ''),
+                ];
+                $step    = 'code';
+                $pending = $_SESSION['login_pending'];
+            }
         } else {
             $_SESSION['login_fails'] = ($_SESSION['login_fails'] ?? 0) + 1;
             if ($_SESSION['login_fails'] >= 5) { $_SESSION['login_until'] = time() + 900; $_SESSION['login_fails'] = 0; }
@@ -160,8 +178,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
       </form>
       <?php if (DEVICE_AUTH_ENABLED): ?>
       <p class="field-hint" style="margin-top:1rem;text-align:center;line-height:1.6">
-        初めての端末では、メールに届く認証コードの入力が必要です。<br>
-        一度登録した端末は、次回からログイン操作なしで開けます。
+        登録した端末からだけ入れます。<br>
+        はじめての端末・機種変更のときは、管理者に「次のログインを許可」を出してもらってください。
       </p>
       <?php endif; ?>
     <?php endif; ?>

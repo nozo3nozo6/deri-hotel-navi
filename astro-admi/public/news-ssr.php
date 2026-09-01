@@ -100,8 +100,13 @@ header('Cache-Control: no-store');
       <h1 class="news-detail-title"><?= h($it['title']) ?></h1>
 
       <?php if ($it['thumb']): ?>
+        <?php if (preg_match('/\.mp4(\?|$)/i', (string)$it['thumb'])): // キャストの紹介動画をサムネにした場合 ?>
+        <video src="<?= h(asset_url($it['thumb'])) ?>" class="news-detail-thumb"
+               muted loop playsinline autoplay preload="metadata"></video>
+        <?php else: ?>
         <img src="<?= h(asset_url($it['thumb'])) ?>" alt=""
              loading="lazy" class="news-detail-thumb" />
+        <?php endif; ?>
       <?php endif; ?>
 
       <?php if ($body): ?>

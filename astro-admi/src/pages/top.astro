@@ -10,6 +10,7 @@ import { statSync } from 'node:fs';
 const ver = (f: string): string => { try { return String(Math.floor(statSync(f).mtimeMs)); } catch { return '1'; } };
 const schedV = ver('public/schedule-badge.js');
 const schedPageV = ver('public/schedule-page.js');
+const resvV = ver('public/resv-ticker.js');
 const gvV = ver('public/girl-visibility.js');
 const bannerSliderV = ver('public/banner-slider.js');
 const sliderLatestV = ver('public/slider-latest.js');
@@ -46,10 +47,11 @@ const allGirls = await getGirls();
 const sliders = (await getSliders()).filter((s) => s.image_pc || s.image_sp);
 // 下部バナー（管理画面 /ctrl で設定、ビルド時取得。画像未設定は除外）
 const bottomBanners = (await getBanners('bottom')).filter((b) => b.image);
-// 新人の女の子 = 入店3ヶ月未満を入店日の新しい順に全員（件数上限なし・2026-07-18 店長指示）
+// 新人の女の子 = 入店3ヶ月未満 かつ CTRLの「新人」チェックON。入店日の新しい順に全員
+//（件数上限なし・2026-07-18 店長指示 / チェックで個別に外せるように 2026-08-24）
 const inNum = (g: any): number => g.in_date ? parseInt(String(g.in_date).slice(0, 10).replace(/-/g, ''), 10) || 0 : 0;
 const newFaces = allGirls
-  .filter((g) => isNewcomer(g.in_date))
+  .filter((g) => isNewcomer(g.in_date, (g as any).is_newgirl))
   .sort((a, b) => (inNum(b) - inNum(a)) || (b.id - a.id));
 
 const title = `${SHOP.fullName}｜立川でおすすめ`;   // 正式店名 + おすすめKW
@@ -193,10 +195,13 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
         {feed.length ? feed.map((it) => {
           const date = it.posted_at ? (function (s) { var d = s.slice(0, 10).split('-'), y = +d[0], mo = +d[1], da = +d[2], w = '日月火水木金土'[new Date(y, mo - 1, da).getDay()]; return y + '年' + mo + '月' + da + '日(' + w + ')' + (s.length > 10 ? ' ' + s.slice(11, 16).replace(/^0/, '') : ''); })(it.posted_at) : '';
           const imgSrc = it.thumb ? asset(it.thumb) : '';
+          const isVideo = /\.mp4(\?|$)/i.test(it.thumb || '');   // キャストの紹介動画をサムネにした場合
           return (
         <a href={`/news/${it.id}`} target="_self" class="news-item">
           {imgSrc
-            ? <img src={imgSrc} alt="" width="64" height="80" loading="lazy" class="news-thumb" />
+            ? (isVideo
+                ? <video src={imgSrc} width="64" height="80" class="news-thumb" muted loop playsinline autoplay preload="metadata"></video>
+                : <img src={imgSrc} alt="" width="64" height="80" loading="lazy" class="news-thumb" />)
             : <div class="news-no-thumb">📢</div>}
           <div class="news-meta">
             <p class="news-date">{date}</p>
@@ -216,6 +221,13 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
        出勤表・バナー等を挟んでから実行されており、古いお知らせが目に見える時間が長かった
        （2026-07-08 修正） -->
   <script is:inline src={`/news-latest.js?v=${newsV}`}></script>
+
+  <!-- 前日予約の流れるご案内（右→左）。予約が無ければ resv-ticker.js が非表示にする。
+       置き場所は「お知らせをもっと見る」と「ヒメ日記」の間（店長指定 2026-08-22） -->
+  <div class="resv-ticker" id="resv-ticker" aria-label="前日予約のご案内" style="display:none">
+    <span class="resv-lead"><span data-i18n="resv_lead">前日予約</span></span>
+    <div class="resv-ticker-vp"><div class="resv-ticker-track" id="resv-ticker-track"></div></div>
+  </div>
 
   <!-- ヒメ日記（口コミ風俗情報局・ポイント対象）＝最新情報の下に単体設置。スマホ横幅100% -->
   <HimeDiary />
@@ -314,6 +326,7 @@ const desc = `${SHOP.catch}でおすすめの老舗「${SHOP.name}」（since${S
 
   <script is:inline src={`/schedule-badge.js?v=${schedV}`}></script>
   <script is:inline src={`/schedule-page.js?v=${schedPageV}`}></script>
+  <script is:inline src={`/resv-ticker.js?v=${resvV}`}></script>
 </main>
 
 <!-- アイコンの見かた モーダル -->

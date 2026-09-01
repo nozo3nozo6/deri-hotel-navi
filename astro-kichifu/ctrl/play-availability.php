@@ -557,4 +557,58 @@ layout_header('最速で遊べる時間', 'play-availability.php');
   });
 </script>
 
+<?php
+// ===== 変更履歴（play_availability_logs / DBトリガーが自動で記録）=====
+// 「4:50 にしたのに今すぐになっていた」のような食い違いを、その場で確かめられるようにする（店長要望 2026-08-25）。
+// CTRL・OPS・出勤表の自動調整・直SQL、どこから変わっても必ず残る
+$paLogs = [];
+try {
+    $lq = db()->prepare(
+        'SELECT l.created_at, l.girl_id, g.name, l.kind, l.old_play_at, l.new_play_at,
+                l.old_closed, l.new_closed, l.old_status, l.new_status, l.updated_by, l.shop_id
+           FROM play_availability_logs l
+           LEFT JOIN girls g ON g.id = l.girl_id
+          WHERE l.shop_id = ? AND l.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+          ORDER BY l.id DESC LIMIT 60');
+    $lq->execute([$shop]);
+    $paLogs = $lq->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { /* テーブル未作成でも画面は出す */ }
+$paHm = static function (?string $dt): string {
+    if (!$dt) return '—';
+    $t = strtotime($dt);
+    return $t ? date('n/j G:i', $t) : '—';
+};
+?>
+<div class="card card-pad" style="margin-top:18px">
+  <strong>🕘 遊べる時間の変更履歴<span class="muted" style="font-weight:400;font-size:.82em;margin-left:8px">直近24時間・この店舗ぶん</span></strong>
+  <?php if (!$paLogs): ?>
+    <p class="muted" style="margin:8px 0 0;font-size:.86em">この24時間の変更はありません。</p>
+  <?php else: ?>
+  <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:.86em">
+    <tr style="text-align:left;color:#64748b">
+      <th style="padding:4px 6px">時刻</th><th style="padding:4px 6px">女性</th>
+      <th style="padding:4px 6px">変更</th><th style="padding:4px 6px">操作</th>
+    </tr>
+    <?php foreach ($paLogs as $l): ?>
+    <?php
+      $from = $l['old_closed'] ? '受付終了' : $paHm($l['old_play_at']);
+      $to   = $l['new_closed'] ? '受付終了' : $paHm($l['new_play_at']);
+      if (($l['new_status'] ?? '') === 'cleared') $to = '取り消し';
+      $who  = (string)($l['updated_by'] ?? '');
+      $auto = str_starts_with($who, 'shift:');          // 出勤表の変更に連動した自動調整
+      $fan  = str_ends_with($who, ':fanout');            // もう一方の店舗へのコピー
+    ?>
+    <tr style="border-top:1px solid #eee<?= $fan ? ';opacity:.55' : '' ?>">
+      <td style="padding:4px 6px;white-space:nowrap"><?= h(date('n/j G:i:s', strtotime((string)$l['created_at']))) ?></td>
+      <td style="padding:4px 6px;white-space:nowrap"><?= h($l['name'] ?? ('#' . $l['girl_id'])) ?></td>
+      <td style="padding:4px 6px;white-space:nowrap"><?= h($from) ?> → <strong><?= h($to) ?></strong></td>
+      <td style="padding:4px 6px;white-space:nowrap;color:#64748b">
+        <?= $auto ? '出勤表に連動' : h($who === '' ? '—' : $who) ?><?= $fan ? '（他店へコピー）' : '' ?>
+      </td>
+    </tr>
+    <?php endforeach; ?>
+  </table>
+  <?php endif; ?>
+</div>
+
 <?php layout_footer(); ?>

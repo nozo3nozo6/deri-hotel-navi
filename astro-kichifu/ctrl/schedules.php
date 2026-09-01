@@ -343,11 +343,16 @@ layout_header('出勤管理', 'schedules.php');
   .sched-toolbar .btn-mini:hover{background:var(--accent,#ec4899);color:#fff}
   /* 角丸は容器側に持たせる（Safari は sticky セルに border-radius があると欠ける）。
      左右 padding も持たせない（sticky 左列の裏に中身が透ける） */
-  .grid-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:12px}
+  /* 日付の見出しを固定するため、この容器を縦スクロールの担当にする（店長要望 2026-08-22）。
+     容器自体が縦に動くと sticky が効かないので、高さに上限を持たせて中でスクロールさせる */
+  .grid-wrap{overflow:auto;max-height:calc(100dvh - 250px);min-height:320px;
+             background:#fff;border:1px solid var(--border);border-radius:12px}
   .grid-tbl{border-collapse:separate;border-spacing:0;width:100%;font-size:.86rem}
   .grid-tbl th,.grid-tbl td{border-bottom:1px solid var(--border);padding:7px 6px;text-align:center;white-space:nowrap}
   .grid-tbl tbody tr:last-child th,.grid-tbl tbody tr:last-child td{border-bottom:none}
-  .grid-tbl thead th{background:var(--bg-1,#faf7fb);font-weight:700;color:var(--text,#333);line-height:1.35}
+  /* 日付の見出しは縦スクロールしても残す（左上の「女性」は縦横どちらでも残すので一段上の重なり） */
+  .grid-tbl thead th{position:sticky;top:0;z-index:3;background:var(--bg-1,#faf7fb);font-weight:700;
+                     color:var(--text,#333);line-height:1.35;box-shadow:0 1px 0 var(--border)}
   .grid-tbl thead th a{text-decoration:none;color:inherit;font-weight:700}
   .grid-tbl thead th a:hover{text-decoration:underline}
   .grid-tbl thead th small{font-weight:600;font-size:.76em;margin-left:1px}
@@ -356,7 +361,7 @@ layout_header('出勤管理', 'schedules.php');
   /* 女性名は横スクロールしても残す */
   .grid-tbl .gd-name{position:sticky;left:0;z-index:1;background:#fff;text-align:left;min-width:8.5rem;
                      box-shadow:1px 0 0 var(--border)}
-  .grid-tbl thead .gd-name{z-index:2;background:var(--bg-1,#faf7fb)}
+  .grid-tbl thead .gd-name{z-index:4;background:var(--bg-1,#faf7fb)}
   .grid-tbl .gd-c{min-width:4.4rem;line-height:1.25;color:var(--muted,#999)}
   .grid-tbl .gd-c.s-work{background:#fdf2f8;color:var(--text,#333)}
   .grid-tbl .gd-c.s-ops_only{background:#faf3fd;color:#7d4a95}

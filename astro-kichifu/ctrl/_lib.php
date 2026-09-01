@@ -117,9 +117,13 @@ function logout_session(): void {
 //   有効期限は90日で、使うたびに延長（スライディング）。紛失時は端末一覧から解除。
 // ==========================================================================
 // 端末認証のON/OFF。false の間は従来どおり「ユーザー名＋パスワード」だけで入れる。
-// メール（認証コード）の到達を確認してから true に戻すこと。
 // ※ false でも登録済み端末の自動復帰は効くので、ログイン操作は増えない。
-const DEVICE_AUTH_ENABLED = false;
+//
+// true のときの決まり（店長指定 2026-08-17）:
+//   ・登録済みの端末 → そのまま入れる
+//   ・未登録の端末 → 入れない。1台目も店長の「次のログインを許可」（10分だけ有効）が要る
+//   ・オーナー本人はメールの6桁コードでも登録できる（自分のメールが要るので共有アカウントでは突破できない）
+const DEVICE_AUTH_ENABLED = true;
 const DEVICE_COOKIE = 'KICHIFU_DEVICE';
 const DEVICE_TTL_DAYS = 90;
 
@@ -158,6 +162,15 @@ function current_device(?int $adminId = null): ?array {
  *  （そうしないとログアウトしてもすぐ入り直ってしまい、ログアウトが機能しない）。
  *  次回パスワードで入り直せば解除される（信頼済みなので認証コードは不要）。 */
 function try_device_login(): bool {
+    // 1台を複数人で使っている端末（事務所の共用PCなど）は、誰として入るか決められないので
+    // 自動復帰しない。パスワードで入り直してもらう（他人として入ってしまう事故を防ぐ）
+    try {
+        $tok = (string)($_COOKIE[DEVICE_COOKIE] ?? '');
+        if ($tok === '') return false;
+        $c = db()->prepare('SELECT COUNT(*) FROM admin_trusted_devices WHERE token_hash = ? AND expires_at > NOW()');
+        $c->execute([hash('sha256', $tok)]);
+        if ((int)$c->fetchColumn() > 1) return false;
+    } catch (Throwable $e) { return false; }
     $d = current_device();
     if (!$d || !empty($d['auto_disabled_at'])) return false;
     try {
@@ -191,13 +204,61 @@ function device_pause_auto_login(): void {
     } catch (Throwable $e) {}
 }
 
-/** 端末を登録して Cookie を発行する。戻り値は端末ID */
+/** 端末名の自動生成（自動登録のとき用）。「iPhone（8/17）」のように後から見て分かる名前にする */
+function device_auto_name(): string {
+    $ua = device_ua();
+    $kind = preg_match('/iPhone/i', $ua) ? 'iPhone'
+          : (preg_match('/iPad/i', $ua) ? 'iPad'
+          : (preg_match('/Android/i', $ua) ? 'Android'
+          : (preg_match('/Macintosh|Mac OS X/i', $ua) ? 'Mac'
+          : (preg_match('/Windows/i', $ua) ? 'Windows' : '端末'))));
+    return $kind . '（' . date('n/j') . ' 登録）';
+}
+
+/** その管理者に登録されている端末の数（期限内のみ） */
+function device_count(int $adminId): int {
+    try {
+        $st = db()->prepare('SELECT COUNT(*) FROM admin_trusted_devices WHERE admin_id = ? AND expires_at > NOW()');
+        $st->execute([$adminId]);
+        return (int)$st->fetchColumn();
+    } catch (Throwable $e) { return 0; }   // テーブル未作成でも締め出さない
+}
+
+/** 店長が出した「次のログインを許可」が生きているか（1時間だけ有効） */
+function device_grant_active(int $adminId): bool {
+    try {
+        $st = db()->prepare('SELECT 1 FROM admins WHERE id = ? AND device_grant_until IS NOT NULL AND device_grant_until > NOW()');
+        $st->execute([$adminId]);
+        return (bool)$st->fetchColumn();
+    } catch (Throwable $e) { return false; }
+}
+/** 許可を使い切る（1回登録したら消す） */
+function device_grant_clear(int $adminId): void {
+    try { db()->prepare('UPDATE admins SET device_grant_until = NULL WHERE id = ?')->execute([$adminId]); }
+    catch (Throwable $e) {}
+}
+/** 店長が「次のログインを許可」を出す（既定10分・店長指定 2026-08-18） */
+function device_grant_issue(int $adminId, int $minutes = 10): void {
+    db()->prepare('UPDATE admins SET device_grant_until = DATE_ADD(NOW(), INTERVAL ? MINUTE) WHERE id = ?')
+        ->execute([$minutes, $adminId]);
+}
+
+/**
+ * 端末を登録して Cookie を発行する。戻り値は端末ID。
+ * 事務所の共用PCのように1台を何人かで使う場合があるので、
+ * すでに端末Cookieがあればそのトークンを使い回して「同じ端末・別の人」として足す
+ * （人ごとに token を作り直すと、後から入った人が前の人のCookieを消して締め出してしまう）。
+ */
 function device_register(int $adminId, string $name): int {
-    $token = bin2hex(random_bytes(32));
+    $token = (string)($_COOKIE[DEVICE_COOKIE] ?? '');
+    if ($token === '' || !preg_match('/^[0-9a-f]{64}$/', $token)) $token = bin2hex(random_bytes(32));
     $name  = trim($name) !== '' ? mb_substr(trim($name), 0, 60) : '名称未設定の端末';
     db()->prepare('INSERT INTO admin_trusted_devices
                      (admin_id, token_hash, device_name, created_at, last_used_at, expires_at, last_ip, user_agent)
-                   VALUES (?, ?, ?, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL ' . DEVICE_TTL_DAYS . ' DAY), ?, ?)')
+                   VALUES (?, ?, ?, NOW(), NOW(), DATE_ADD(NOW(), INTERVAL ' . DEVICE_TTL_DAYS . ' DAY), ?, ?)
+                   ON DUPLICATE KEY UPDATE device_name = VALUES(device_name), last_used_at = NOW(),
+                                           auto_disabled_at = NULL,
+                                           expires_at = DATE_ADD(NOW(), INTERVAL ' . DEVICE_TTL_DAYS . ' DAY)')
         ->execute([$adminId, hash('sha256', $token), $name, device_ip(), device_ua()]);
     device_cookie_set($token);
     return (int)db()->lastInsertId();
@@ -285,8 +346,9 @@ function nav_groups(): array {
             ['mail-magazines.php', '✉️', '配信'],
             ['mail-users.php', '👥', '会員'],
         ],
+        // 端末とログインは CTRL に置かない。CTRL は誰でも開けるので、
+        // 許可・解除は OPS の「スタッフ管理」タブ（権限管理で絞れる）から行う（店長指定 2026-08-17）
         '管理' => [
-            ['devices.php', '🔒', '端末とログイン'],
             ['contacts.php', '📨', 'お問い合わせ'],
             ['courses.php', '💴', '料金'],
             ['configs.php', '⚙️', '設定'],
@@ -317,6 +379,17 @@ function layout_header(string $title, string $active = ''): void {
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('Pragma: no-cache');
     $admin = require_login();
+    // ドライバーだけは本体の管理画面（女性管理・売上・お知らせ等）を使わせず、OPS の送迎専用にする。
+    // 内勤スタッフ・管理者・オーナーは本体も操作できる（店長方針 2026-08-13）。
+    // owner/staff は admins.role で分かるが、driver/office/manager の区別は ops_admin_users.role にある。
+    // /ctrl/ops/ は layout_header を通らないので、リダイレクトの無限ループにはならない。
+    if (($admin['role'] ?? '') !== 'owner') {
+        try {
+            $st = db()->prepare('SELECT role FROM ops_admin_users WHERE username = ? LIMIT 1');
+            $st->execute([$admin['username']]);
+            if ((string)$st->fetchColumn() === 'driver') redirect('/ctrl/ops/');
+        } catch (Throwable $e) { /* 取得失敗時は締め出さない（安全側） */ }
+    }
     $shops = shops_list();
     $curShop = current_shop_id();
     $canSwitch = !$admin['shop_id']; // 全店 owner のみ切替可
@@ -334,7 +407,9 @@ function layout_header(string $title, string $active = ''): void {
     <?php foreach (nav_groups() as $group => $links): ?>
       <?php if ($group !== ''): ?><div class="s-group"><?= h($group) ?></div><?php endif; ?>
       <?php foreach ($links as [$href, $ic, $label]): ?>
-        <a class="s-link <?= $active === $href ? 'active' : '' ?>" href="/ctrl/<?= $href ?>"><span class="ic"><?= $ic ?></span><?= h($label) ?></a>
+        <?php // オペレーション（OPS）だけは別タブ。CTRLの作業を閉じずに現場を見続けられるように（店長要望 2026-08-16） ?>
+        <?php $newTab = ($href === 'ops/dashboard/'); ?>
+        <a class="s-link <?= $active === $href ? 'active' : '' ?>" href="/ctrl/<?= $href ?>"<?= $newTab ? ' target="_blank" rel="noopener"' : '' ?>><span class="ic"><?= $ic ?></span><?= h($label) ?></a>
       <?php endforeach; ?>
     <?php endforeach; ?>
   </aside>

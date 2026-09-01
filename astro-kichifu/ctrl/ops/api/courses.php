@@ -103,7 +103,7 @@ if ($action === 'toggle-active' && $method === 'POST') {
 }
 
 if ($action === 'delete' && $method === 'POST') {
-    requireOwner();
+    requireTabOps($pdo, 'courses');
     $b = readJsonBody();
     $id = (int)($b['id'] ?? 0);
     if ($id <= 0) errorResponse('invalid id', 400);

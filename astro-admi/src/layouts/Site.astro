@@ -28,7 +28,12 @@ const jsonLd = {
   '@id': SITE + '/#business',
   name: SHOP.fullName,
   // 通称を配列で明示（Web上の通称「立川アドミ」/TikTok名「アドミ立川」を同一エンティティに束ねる）
-  alternateName: [SHOP.name, `${SHOP.area}${SHOP.name}`, `${SHOP.name}${SHOP.area}`],
+  //   GSCで「立川 あどみ」（ひらがな）が月30表示あったのでひらがな・ローマ字の表記ゆれも束ねる（2026-08-19）
+  alternateName: [
+    SHOP.name, `${SHOP.area}${SHOP.name}`, `${SHOP.name}${SHOP.area}`,
+    'あどみ', `${SHOP.area}あどみ`, `あどみ${SHOP.area}`,
+    'Admi', 'admi2888',
+  ],
   legalName: SHOP.fullName,
   url: SITE,
   telephone: SHOP.tel,

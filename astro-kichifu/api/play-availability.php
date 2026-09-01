@@ -59,6 +59,23 @@ function iso(?string $dt): ?string {
     return $t ? date('Y-m-d\TH:i:sP', $t) : null;
 }
 
+// bot のポーリング間隔を実測するための最小ログ（2026-08-23 店長「即姫が90秒で更新されない」調査）。
+// 1行=1リクエスト。中身は時刻・shop・updated_since・UA・IPだけで、鍵や個人情報は書かない。
+// ログ先が無ければ何もしない＝本番の応答には影響させない
+function play_poll_log(string $method, int $shopId): void {
+    $dir = dirname(__DIR__, 2) . '/log';           // /home/xxx/<domain>/log
+    if (!is_dir($dir) || !is_writable($dir)) return;
+    $line = sprintf(
+        "%s\t%s\tshop=%d\tsince=%s\tcast=%s\tua=%s\tip=%s\n",
+        date('Y-m-d H:i:s'), $method, $shopId,
+        (string)($_GET['updated_since'] ?? '-'), (string)($_GET['cast_id'] ?? '-'),
+        substr((string)($_SERVER['HTTP_USER_AGENT'] ?? '-'), 0, 60),
+        (string)($_SERVER['REMOTE_ADDR'] ?? '-')
+    );
+    @file_put_contents($dir . '/play-poll.log', $line, FILE_APPEND | LOCK_EX);
+}
+play_poll_log($method, $shopId);
+
 try {
     if ($method === 'GET') {
         $castId = (int)($_GET['cast_id'] ?? 0);
@@ -132,6 +149,20 @@ try {
             return $d . ' ' . substr($t, 0, 5) . ':00';
         };
 
+        // 媒体別の「この日は出さない」指定（media_schedule_excludes）。
+        // その媒体のIDを null にして返す＝bot はその媒体を触れない（＝今すぐ設定・受付終了も送られない）。
+        // 例: ヘブンだけ休みにしたい日（媒体のペナルティ回避・店長指示 2026-08-18）
+        $excl = [];   // "girl_id|営業日" => [media, ...]
+        try {
+            $ex = DB::conn()->prepare(
+                'SELECT girl_id, work_date, media FROM media_schedule_excludes
+                  WHERE shop_id = ? AND work_date IN (' . implode(',', array_fill(0, count($dates), '?')) . ')');
+            $ex->execute(array_merge([$shopId], $dates));
+            foreach ($ex->fetchAll(PDO::FETCH_ASSOC) as $e) {
+                $excl[(int)$e['girl_id'] . '|' . $e['work_date']][] = $e['media'];
+            }
+        } catch (Throwable $e) { /* テーブル未作成でも従来どおり動かす */ }
+
         $items = [];
         foreach ($rows as $r) {
             $hasPa = $r['pa_id'] !== null;
@@ -177,6 +208,15 @@ try {
                     'mensv'    => $r['mensv_girl_id'],
                 ],
             ];
+            // この営業日に「出さない」指定がある媒体は、IDを消して bot が触れないようにする
+            $skip = $excl[(int)$r['girl_id'] . '|' . $bd] ?? [];
+            if ($skip) {
+                $last = count($items) - 1;
+                foreach ($skip as $m) {
+                    if (array_key_exists($m, $items[$last]['media_ids'])) $items[$last]['media_ids'][$m] = null;
+                }
+                $items[$last]['media_skip'] = array_values($skip);
+            }
         }
         echo DB::jsonEncode(['items' => $items, 'server_time' => date('Y-m-d\TH:i:sP')]);
         exit;

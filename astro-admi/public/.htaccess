@@ -65,10 +65,35 @@ DirectorySlash Off
   RewriteCond %{THE_REQUEST} \s/+([^.\s?]+)\.html[\s?] [NC]
   RewriteRule ^ /%1 [R=301,L]
 
+  # --- 旧サイト(admi2888.com 旧CMS)のURLを301で受け止める ---------------
+  #   GSCの404が804件あり、その約110件が旧サイトの残骸だった（2026-08-19 調査）。
+  #   消したページ（/news/{id} /diary/{id} /girls/{id}）は404のままが正しいので触らない。
+  #   ここで拾うのは「今のサイトに相当するページがある」旧URLだけ。
+  #   置換先の末尾 ? はクエリを捨てる意味（?date=... を引きずらないため）
+  RewriteRule ^schedules/?$        /schedule? [R=301,L]
+  RewriteRule ^girl-diaries/?$     /girls?    [R=301,L]
+  RewriteRule ^mailmagazine/?$     /?         [R=301,L]
+  RewriteRule ^rules(/.*)?$        /system?   [R=301,L]
+  RewriteRule ^home(/.*)?$         /?         [R=301,L]
+  RewriteRule ^index\.htm$         /?         [R=301,L]
+  RewriteRule ^mobile/girls\.php$  /girls?    [R=301,L]
+  RewriteRule ^mobile(/.*)?$       /?         [R=301,L]
+  RewriteRule ^ladies/profile\.php$ /girls?   [R=301,L]
+  RewriteRule ^profile/?$          /girls?    [R=301,L]
+  RewriteRule ^whatsnew(/.*)?$     /news?     [R=301,L]
+  RewriteRule ^event/?$            /news?     [R=301,L]
+  RewriteRule ^hotel/?$            /guide?    [R=301,L]
+  RewriteRule ^manga/?$            /?         [R=301,L]
+  RewriteRule ^link/?$             /?         [R=301,L]
+  # /diary はディレクトリだけあって一覧ページが無く403を返していた（写メ日記は各キャストのページに集約）
+  RewriteRule ^diary/?$            /girls?    [R=301,L]
+
   # 一覧ページは同名サブディレクトリ(girls/ news/)が存在し DirectorySlash で
   # /girls→/girls/ に飛ばされるため、明示的に .html へ先回りマッピング
   RewriteRule ^girls/?$ /girls.html [L]
   RewriteRule ^news/?$  /news.html  [L]
+  # /guide も配下ページ（guide/hotel・guide/home）を作ったので同じ対処が必要（2026-08-19）
+  RewriteRule ^guide/?$ /guide.html [L]
   # /news/[id] の静的 .html が未生成の場合 PHP で動的フォールバック
   RewriteRule ^news/([0-9]+)/?$ /news-ssr.php?id=$1 [L]
   RewriteRule ^diary/([0-9]+)/?$ /diary-ssr.php?id=$1 [L]
