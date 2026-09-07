@@ -5389,6 +5389,15 @@ setupEmbedDirectLinkFooter();
     // 100svh - kb-h の計算式が破綻する (keyboard 開でヘッダーしか残らない症状).
     if (embedded) document.body.classList.add('embedded');
 
+    // 2026-08-20: 入力中にフッターを畳むのは「ソフトキーボードで画面が潰れる」対策なので、
+    // 実際にキーボードが出る端末だけに限定する。PC ではキーボードが出ないのに畳まれ、
+    // 入力欄をクリックした瞬間に言語切替やフォントサイズが消えて見えていた。
+    // (外国語の訪問者が言語切替を探すのは、まさに入力しようとした時)
+    try {
+        const softKb = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+        if (softKb) document.body.classList.add('soft-kb');
+    } catch (_) { document.body.classList.add('soft-kb'); }
+
     const setKbH = (px) => {
         docEl.style.setProperty('--kb-h', px + 'px');
     };

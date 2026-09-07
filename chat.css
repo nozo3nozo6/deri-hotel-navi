@@ -349,24 +349,27 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 }
 
 /* ===== キャストモード: viewport 問わず入力中は画面を広く ===== */
+/* 2026-08-20: ソフトキーボードが出る端末 (body.soft-kb) に限定。
+   PC ではキーボードが出ないので畳む必要がなく、畳むと言語切替が消えて見える。 */
 /* キャストは iframe 埋込/PC返信 etc で viewport が 480px超になるケースがあるため @media 外で適用. */
-body.cast-mode.chat-input-focused #visitor-notify,
-body.cast-mode.chat-input-focused #nickname-area,
-body.cast-mode.chat-input-focused #reservation-hint,
-body.cast-mode.chat-input-focused #cast-view-banner,
-body.cast-mode.chat-input-focused #owner-templates,
-body.cast-mode.chat-input-focused #chat-footer{display:none}
+body.soft-kb.cast-mode.chat-input-focused #visitor-notify,
+body.soft-kb.cast-mode.chat-input-focused #nickname-area,
+body.soft-kb.cast-mode.chat-input-focused #reservation-hint,
+body.soft-kb.cast-mode.chat-input-focused #cast-view-banner,
+body.soft-kb.cast-mode.chat-input-focused #owner-templates,
+body.soft-kb.cast-mode.chat-input-focused #chat-footer{display:none}
 
 /* ===== 埋込モード (iframe): viewport 問わず入力中は画面を広く ===== */
+/* 2026-08-20: 同上。body.soft-kb (タッチ端末) のときだけ畳む。 */
 /* iframe 埋込 (②/⑤/① widget) では親が iframe 高さ = vv.height-stickyInset に縮める.
    その縮んだ高さに footer (113px) が入ると入力欄が iframe 中央付近に来てしまい、
    キーボード直上にピタリ来ない. cast-mode と同じく @media 外で footer 等を畳む. */
-body.embedded.chat-input-focused #visitor-notify,
-body.embedded.chat-input-focused #nickname-area,
-body.embedded.chat-input-focused #reservation-hint,
-body.embedded.chat-input-focused #cast-view-banner,
-body.embedded.chat-input-focused #owner-templates,
-body.embedded.chat-input-focused #chat-footer{display:none}
+body.soft-kb.embedded.chat-input-focused #visitor-notify,
+body.soft-kb.embedded.chat-input-focused #nickname-area,
+body.soft-kb.embedded.chat-input-focused #reservation-hint,
+body.soft-kb.embedded.chat-input-focused #cast-view-banner,
+body.soft-kb.embedded.chat-input-focused #owner-templates,
+body.soft-kb.embedded.chat-input-focused #chat-footer{display:none}
 
 /* ===== 埋込モード: nickname/email 入力時は対象欄をキーボード直上に固定 =====
    iframe 高さ = vv.height-stickyInset だと nickname/email は iframe 上方にあり、
@@ -495,7 +498,7 @@ body:has(#embed-direct-link:not(.hidden)) #chat-footer{border-bottom-left-radius
 .embed-cast-link{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--chat-primary);border-radius:16px;background:#fff;color:var(--chat-primary);font-size:14px;font-weight:700;text-decoration:none;min-height:34px;line-height:1.2;transition:background .15s ease,color .15s ease}
 .embed-cast-link:hover,.embed-cast-link:focus-visible{background:var(--chat-primary);color:#fff;outline:none}
 @media (max-width:480px){body.chat-input-focused #embed-direct-link{display:none}}
-body.cast-mode.chat-input-focused #embed-direct-link{display:none}
+body.soft-kb.cast-mode.chat-input-focused #embed-direct-link{display:none}
 
 /* ======================================================================
    jofu (women) ネオモーフ + ピンクベージュ系リファイン (2026-04-29)
