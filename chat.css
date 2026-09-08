@@ -187,10 +187,12 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .typing-dot:nth-child(2){animation-delay:.18s}
 .typing-dot:nth-child(3){animation-delay:.36s}
 @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
-/* 2026-05-18: chat-footer のジオメトリ中央に固定配置.
-   position:absolute + left:50% + translateX(-50%) で font-size/footer-brand の幅に依らず真の中央へ.
-   chat-footer は position:relative なので親基準で位置決定. */
-.chat-push-btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;z-index:1;transition:background .15s,border-color .15s}
+/* 2026-09-08: 絶対配置(中央固定)をやめ、通常のフレックス項目に戻す.
+   言語切替が復活してフッターの項目が増えた結果、中央に浮いたこのボタンが
+   文字サイズボタンに重なって読めなくなっていた。
+   placePushButton() が footer-brand の直前に挿入するので、流れに乗せれば
+   「文字サイズ ↔ ブランド」の間という本来の位置に収まる。 */
+.chat-push-btn{height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;z-index:1;transition:background .15s,border-color .15s}
 .chat-push-btn:hover:not(:disabled){background:#e5e0d8;border-color:var(--chat-primary)}
 .chat-push-btn.is-on{background:var(--chat-primary);color:#fff;border-color:var(--chat-primary)}
 .chat-push-btn.is-on:hover:not(:disabled){opacity:.9}
@@ -418,13 +420,17 @@ body.embedded #chat-root:has(#visitor-notify input:not([type=checkbox]):focus) .
 .footer-brand:hover .footer-brand-name{color:var(--chat-primary-dark)}
 @media (max-width:420px){.footer-brand{font-size:10px;padding:3px 6px}.footer-brand-row{gap:3px}}
 @media (max-width:640px){
-  .chat-footer{flex-wrap:nowrap;gap:4px;padding:6px 8px}
-  .font-size-btn,.footer-btn{height:30px;padding:0 8px;font-size:11px}
-  .font-size-btn .font-size-icon{font-size:13px;padding-right:4px}
-  .lang-select{height:30px;font-size:11px;padding:0 22px 0 8px}
-  .footer-brand{margin-left:auto;padding:2px 6px;font-size:10px;flex-shrink:0}
-  .footer-brand-ruby{font-size:9px}
-  .footer-brand-by{font-size:9px}
+  /* 2026-09-08: nowrap で1行に押し込むと項目が潰れて読めないため折り返しを許可。
+     文字も 11px/10px/9px は小さすぎたので、操作する要素は 12px 以上に引き上げる
+     (このプロジェクトの下限は 12px)。 */
+  .chat-footer{flex-wrap:wrap;gap:6px;padding:6px 8px}
+  .font-size-btn,.footer-btn{height:32px;padding:0 10px;font-size:12px}
+  .font-size-btn .font-size-icon{font-size:14px;padding-right:5px}
+  .lang-select{height:32px;font-size:12px;padding:0 24px 0 10px}
+  .chat-push-btn{height:32px;padding:0 12px;font-size:12px}
+  .footer-brand{margin-left:auto;padding:2px 6px;font-size:11px;flex-shrink:0}
+  .footer-brand-ruby{font-size:10px}
+  .footer-brand-by{font-size:10px}
 }
 
 /* ===== Owner login footer (visitor mode, discreet) ===== */
