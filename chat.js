@@ -3596,11 +3596,10 @@ async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     disableVisitorHeader();
     refs.ownerToggle.classList.remove('hidden');
-    // オーナー側は日本語固定（言語切替はユーザーのみ）
-    if (refs.langSelect) {
-        refs.langSelect.classList.add('hidden');
-        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
-    }
+    // 2026-09-07: 店舗側の言語切替を復活（c29cd2b で日本語固定にしていたのを取り消し）。
+    // 日本語以外のスタッフが返信画面を使うため、表示言語を選べる必要がある。
+    // 翻訳の向きは訪問者の入力言語が基準なので、ここの選択は翻訳に影響しない。
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
@@ -4081,10 +4080,8 @@ async function enterCastOwnerMode() {
     // キャスト自分用(受信箱)は店名を出さない（自分の受信箱という文脈で冗長）
     refs.shopName.textContent = state.cast_name || state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
-    if (refs.langSelect) {
-        refs.langSelect.classList.add('hidden');
-        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
-    }
+    // 2026-09-07: キャスト受信箱でも言語切替を表示（店舗側と揃える）。
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     // キャスト受信箱では「受付中/停止中」ラベルは出さない（緑丸と通知トグルだけで状態は十分伝わる）
