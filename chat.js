@@ -2226,7 +2226,8 @@ function applyLang(lang) {
 // ===== フォントサイズ =====
 const LS_FONT_SIZE = 'chat_font_size_' + SLUG;
 const FONT_SIZES = ['s', 'm', 'l', 'xl'];
-const FONT_SIZE_LABELS = { s: '小', m: '中', l: '大', xl: '特大' };
+// 2026-09-11: 「特大」だけ2文字でフッターを押し広げていたため 小/中/大/特 の1文字に統一
+const FONT_SIZE_LABELS = { s: '小', m: '中', l: '大', xl: '特' };
 function applyFontSize(size) {
     if (!FONT_SIZES.includes(size)) size = 'm';
     refs.root.setAttribute('data-font-size', size);

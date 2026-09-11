@@ -448,6 +448,32 @@ body.embedded #chat-root:has(#visitor-notify input:not([type=checkbox]):focus) .
   .footer-brand-by{font-size:10px}
 }
 
+/* 2026-09-11: スマホのフッターを1行に収める。
+   オーナーのスレッド表示では 言語/文字サイズ/終了/ブロック/ブランド の5項目が並び、
+   実測で 546px 必要なのに使える幅は 352px しかなく3行に折り返していた（高さ101px）。
+   文字を削れるところを削って1行に納める。
+   - 終了/再開/ブロック: 絵文字だけにする（いずれも confirm ダイアログがあるため誤タップは実害なし）
+   - ブランド: 「🏨 YobuHo.com」の1行だけにする（リンク自体は維持）
+   タブレット以上は従来どおり全文表示。 */
+@media (max-width:480px){
+  /* 1行に納めるため、隙間と各要素の余白・文字も少しずつ詰める */
+  /* テーマ側の body[data-mode="women"] #chat-footer{padding:8px 14px} に詳細度で勝つ必要があるため
+     #chat-root #chat-footer で指定する（.chat-footer だと負けて左右14pxのままになる）。 */
+  #chat-root #chat-footer{gap:4px;padding:6px 6px}
+  .font-size-btn{padding:0 8px}
+  .font-size-btn .font-size-icon{padding-right:4px}
+  .footer-brand{font-size:10px}
+  #btn-close-session,#btn-reopen-session,#btn-block-user{font-size:0;padding:0 9px;gap:0}
+  #btn-close-session::before{content:"\1F512";font-size:15px;line-height:1}
+  #btn-reopen-session::before{content:"\1F4AC";font-size:15px;line-height:1}
+  #btn-block-user::before{content:"\1F6AB";font-size:15px;line-height:1}
+  .lang-select{padding:0 22px 0 8px}
+  .footer-brand{padding:2px 4px}
+  .footer-brand > .footer-brand-row:first-child{display:none}
+  .footer-brand-by{display:none}
+  .footer-brand-emoji{display:none}
+}
+
 /* ===== Owner login footer (visitor mode, discreet) ===== */
 .owner-login-footer{padding:6px 12px;text-align:center;background:#fafafa;border-top:1px solid #eee;flex-shrink:0}
 .owner-login-footer.hidden{display:none}
