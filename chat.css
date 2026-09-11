@@ -62,6 +62,21 @@ body.visitor-header .chat-header-left #chat-shop-name{font-size:16px;display:blo
 .status-dot.online{background:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.8)}
 .status-dot.offline{display:none}
 .status-label{font-size:12px;opacity:.9;line-height:1.2;text-align:center}
+/* 2026-09-11: スマホでスレッドを開くとヘッダーが詰まり、中央の店舗名が 47px まで潰れて
+   「立川...」のように切れていた（実測: 左118px / 中央47px / 右183px = 幅の48%を右が占有）。
+   受付時間はオーナー自身が設定した静的な情報で、狭い画面では優先度が最も低い。
+   スレッド表示中(戻るボタンが出ている間)だけ隠して、その幅を店舗名に返す。
+   受信箱の一覧や訪問者側は従来どおり表示する。 */
+@media (max-width:480px){
+  #chat-header:has(#btn-header-back:not(.hidden)) #chat-status-label{display:none}
+}
+/* さらに狭い端末では「📧メール」の文字も落としてアイコンだけにする。
+   全言語で先頭が 📧 のため意味は保たれる（ja:📧メール / en:📧Mail / ko:📧메일 …）。
+   文字は font-size:0 で見えなくするだけなので読み上げには残る。 */
+@media (max-width:380px){
+  #chat-header:has(#btn-header-back:not(.hidden)) .toggle-label{font-size:0}
+  #chat-header:has(#btn-header-back:not(.hidden)) .toggle-label::before{content:"\1F4E7";font-size:15px}
+}
 .status-label-line{display:block}
 
 /* ===== キャスト自分用モード装飾 (body[data-role="cast"]) ===== */

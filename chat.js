@@ -4358,14 +4358,41 @@ function startCastInboxPolling() {
 }
 
 // ===== ログインモーダル =====
+/**
+ * 2026-09-11: iOS Safari は「ページ内にパスワード欄があるか」でそのページをログイン画面と
+ * 判定し、無関係なテキスト欄にも AutoFill バー(🔑 パスワード / 💳 カード / 📍 連絡先)を出す。
+ * オーナーログインのモーダルは常時 DOM にあるため、チャットのメッセージ入力欄を
+ * タップするたびにこのバーが出て邪魔になっていた。
+ * 閉じている間は disabled + type=text + autocomplete=off にして
+ * 「パスワード欄が存在しない」状態にしておく。開く時だけ本来の姿に戻す。
+ */
+function setLoginFieldsActive(active) {
+    const em = refs.loginEmail;
+    const pw = refs.loginPassword;
+    if (em) {
+        em.disabled = !active;
+        em.setAttribute('autocomplete', active ? 'username' : 'off');
+    }
+    if (pw) {
+        pw.disabled = !active;
+        // type の出し入れが肝心。disabled だけでは判定に残る実装があるため両方やる。
+        try { pw.type = active ? 'password' : 'text'; } catch (_) {}
+        pw.setAttribute('autocomplete', active ? 'current-password' : 'off');
+    }
+}
+// 起動時点で無効化しておく（モーダルは hidden 状態で始まる）
+setLoginFieldsActive(false);
+
 function openLoginModal() {
     refs.loginError.classList.add('hidden');
     refs.loginError.textContent = '';
+    setLoginFieldsActive(true);
     refs.loginModal.classList.remove('hidden');
     setTimeout(() => refs.loginEmail && refs.loginEmail.focus(), 100);
 }
 function closeLoginModal() {
     refs.loginModal.classList.add('hidden');
+    setLoginFieldsActive(false);
 }
 
 async function handleLogin(ev) {
@@ -5459,9 +5486,12 @@ setupEmbedDirectLinkFooter();
         // 2026-05-19: PWA standalone モードでは window.innerHeight が safe-area を含み
         // vv.height が含まないため、偽の差分 (~30-60px) が出る → 画面下半分が空く症状.
         // 実 keyboard は最低でも 150px+ なので、150px 未満は safe-area 差分と見なして 0 に丸める.
-        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-            || navigator.standalone === true;
-        if (isStandalone && kb < 150) kb = 0;
+        // 2026-09-11: この丸めを standalone 限定から全モードに広げた。
+        //   Safari のタブでも、上下ツールバーが開いている状態だと innerHeight と vv.height に
+        //   100px 前後の差が残り、キーボードを閉じてもチャットが縮んだままになる
+        //   （画面下に余白が出て全画面にならない）。閾値 150px はどの端末の
+        //   ソフトキーボードよりも低いので、本物のキーボードを取りこぼすことはない。
+        if (kb < 150) kb = 0;
         setKbH(kb);
         const wasOpen = keyboardOpen;
         keyboardOpen = kb > 0;
