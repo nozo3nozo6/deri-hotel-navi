@@ -32,11 +32,16 @@
     var rel = String(u).replace(/^https?:\/\/(www\.)?(admi2888\.com|kichifu\.com)(?=\/|$)/i, '');
     return rel === '' ? '/' : rel;
   }
+  // バニラ求人(kanto.qzin.jp)への公式サイトリンクだけは先方指定で別タブ＋nofollow
+  //（top.astro の isVanilla と同一条件。ここを忘れると CTRL 編集後の再描画で属性が落ちる）
+  function isVanilla(u) {
+    return /^https:\/\/kanto\.qzin\.jp\//.test(String(u || ''));
+  }
   // top.astro の bottom-banner-item と同一構造
   function itemHtml(b) {
     var img = '<img src="' + esc(assetUrl(b.image)) + '" alt="' + esc(b.title) + '" loading="lazy" />';
     return b.url
-      ? '<a href="' + esc(localUrl(b.url)) + '" target="_self" rel="noopener" class="bottom-banner-item">' + img + '</a>'
+      ? '<a href="' + esc(localUrl(b.url)) + '"' + (isVanilla(b.url) ? ' target="_blank" rel="nofollow noopener"' : ' target="_self" rel="noopener"') + ' class="bottom-banner-item">' + img + '</a>'
       : '<span class="bottom-banner-item">' + img + '</span>';
   }
   // 差分判定用の署名（画像URL＋リンクURL＋タイトル）。slider-latest.js と同方式。

@@ -35,6 +35,11 @@
     var rel = String(u).replace(/^https?:\/\/(www\.)?(admi2888\.com|kichifu\.com)(?=\/|$)/i, '');
     return rel === '' ? '/' : rel;
   }
+  // バニラ求人(kanto.qzin.jp)への公式サイトリンクだけは先方指定で別タブ＋nofollow
+  //（top.astro の isVanilla と同一条件。ここを忘れると CTRL 編集後の再描画で属性が落ちる）
+  function isVanilla(u) {
+    return /^https:\/\/kanto\.qzin\.jp\//.test(String(u || ''));
+  }
   // top.astro の hero-slide と同一構造（image_sp あれば <picture>）
   function slideHtml(s) {
     var pc = assetUrl(s.image_pc || s.image_sp);
@@ -42,7 +47,8 @@
     var img = sp
       ? '<picture><source media="(max-width:640px)" srcset="' + esc(sp) + '"><img src="' + esc(pc) + '" alt="' + esc(s.title) + '"></picture>'
       : '<img src="' + esc(pc) + '" alt="' + esc(s.title) + '">';
-    var inner = s.url ? '<a href="' + esc(localUrl(s.url)) + '" target="_self" rel="noopener">' + img + '</a>' : img;
+    var attrs = isVanilla(s.url) ? ' target="_blank" rel="nofollow noopener"' : ' target="_self" rel="noopener"';
+    var inner = s.url ? '<a href="' + esc(localUrl(s.url)) + '"' + attrs + '>' + img + '</a>' : img;
     return '<div class="hero-slide">' + inner + '</div>';
   }
 
