@@ -180,7 +180,13 @@ function handleList() {
                    sc.status, sc.sort_order, sc.joined_at, sc.approved_at, sc.is_visible,
                    sc.chat_notify_mode, sc.notify_email_mode, sc.notify_push_mode, sc.chat_notify_email,
                    c.email, c.status AS cast_status, c.last_login_at,
-                   (c.password_hash IS NOT NULL) AS has_password
+                   (c.password_hash IS NOT NULL) AS has_password,
+                   -- 2026-09-22: キャストの多くは受信箱URL(?cast_inbox=)から使うため
+                   -- casts.last_login_at（メール+パスワードのログインでしか更新されない）は
+                   -- 何ヶ月も前のまま固定され、稼働中のキャストが休眠に見えていた。
+                   -- 端末ごとの最終アクセスの最大値を「受信箱の最終利用」として返す。
+                   (SELECT MAX(d.last_accessed_at) FROM cast_inbox_devices d
+                     WHERE d.shop_cast_id = sc.id) AS last_inbox_at
             FROM shop_casts sc
             JOIN casts c ON c.id = sc.cast_id
             WHERE sc.shop_id = ? AND sc.status != "removed"
