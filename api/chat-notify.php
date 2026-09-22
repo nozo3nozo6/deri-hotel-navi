@@ -84,10 +84,12 @@ if ($castId !== '') {
         $stmt = $pdo->prepare(
             'SELECT sc.id AS shop_cast_id,
                     c.email, c.status AS cast_status,
-                    sc.chat_notify_mode, sc.chat_notify_email, sc.status AS sc_status
+                    sc.chat_notify_mode, sc.chat_notify_email, sc.status AS sc_status,
+                    s.email AS shop_email, st.notify_email AS shop_notify_email
              FROM casts c
              JOIN shop_casts sc ON sc.cast_id = c.id
              JOIN shops s ON s.id = sc.shop_id
+             LEFT JOIN shop_chat_status st ON st.shop_id = s.id
              WHERE c.id = ? AND s.slug = ? LIMIT 1'
         );
         $stmt->execute([$castId, $shopSlug]);
@@ -112,10 +114,22 @@ if ($castId !== '') {
 
         // 店舗オーナーが shop-admin で設定した chat_notify_email を優先. 未設定なら casts.email にフォールバック.
         $overrideEmail = trim((string)($castRow['chat_notify_email'] ?? ''));
-        $to = $overrideEmail !== '' ? $overrideEmail : (string)($castRow['email'] ?? '');
-        if ($to === '') {
-            echo json_encode(['ok' => true, 'skipped' => 'cast_no_email']);
-            exit;
+        $to = $overrideEmail !== '' ? $overrideEmail : trim((string)($castRow['email'] ?? ''));
+        // 2026-09-22: キャスト宛に届くアドレスが無い場合は、その店舗の通知先へ回す。
+        // 従来は「宛先なし」で黙ってスキップ、あるいは届かないドメインへ送って
+        // 4日後にバウンス（店舗もキャストも気づけない）という状態だった。
+        // 宛先は店舗ごとに解決する。固定アドレスを埋め込むと他店舗のキャスト宛通知まで
+        // そこへ流れるため（チャット本文とキャスト受信箱リンクを含む）。
+        if ($to === '' || isUndeliverableMailDomain($to)) {
+            $shopNotify = trim((string)($castRow['shop_notify_email'] ?? ''));
+            $fallbackTo = $shopNotify !== '' ? $shopNotify : trim((string)($castRow['shop_email'] ?? ''));
+            if ($fallbackTo === '') {
+                echo json_encode(['ok' => true, 'skipped' => 'cast_no_email']);
+                exit;
+            }
+            error_log('[chat-notify] cast mail fallback to shop: cast_id=' . $castId
+                . ' from=' . ($to === '' ? '(未設定)' : $to));
+            $to = $fallbackTo;
         }
         $shopCastIdForUrl = (string)($castRow['shop_cast_id'] ?? '');
     } catch (Throwable $e) {

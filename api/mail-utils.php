@@ -120,3 +120,27 @@ function htmlToPlainText(string $html): string {
     $text = preg_replace("/\n{3,}/", "\n\n", $text);
     return trim($text);
 }
+
+/**
+ * 2026-09-22: 「メールサーバーが存在しないドメイン」宛かどうかを判定する。
+ *
+ * 背景: キャスト通知が ops-cast-139@casts.admi2888.com 宛に送られ、
+ *   4日以上リトライされた末に `connect to ...:25: Connection timed out` で
+ *   バウンスしていた。casts.admi2888.com は MX を持たず、SMTP が A レコードに
+ *   フォールバックした先が Cloudflare の Web プロキシ（admi2888.com と同一IP）のため、
+ *   25番ポートには永久に応答が無い。何度送っても届かない。
+ *
+ * DNS を引いて MX の有無で判定する手もあるが、送信のたびに待たされるうえ
+ * 一時的な解決失敗で誤判定するため、確認済みのドメインを明示列挙する方式にする。
+ * 新たに同種のドメインが見つかったらここに足す。
+ */
+function isUndeliverableMailDomain(string $email): bool {
+    static $domains = [
+        // admi2888.com と同じ Cloudflare IP を指すだけでメールを受けられない
+        'casts.admi2888.com',
+    ];
+    $at = strrpos($email, '@');
+    if ($at === false) return false;
+    $domain = strtolower(trim(substr($email, $at + 1)));
+    return $domain !== '' && in_array($domain, $domains, true);
+}
