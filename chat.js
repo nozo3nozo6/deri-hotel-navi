@@ -2226,7 +2226,8 @@ function applyLang(lang) {
 // ===== フォントサイズ =====
 const LS_FONT_SIZE = 'chat_font_size_' + SLUG;
 const FONT_SIZES = ['s', 'm', 'l', 'xl'];
-const FONT_SIZE_LABELS = { s: '小', m: '中', l: '大', xl: '特大' };
+// 2026-09-11: 「特大」だけ2文字でフッターを押し広げていたため 小/中/大/特 の1文字に統一
+const FONT_SIZE_LABELS = { s: '小', m: '中', l: '大', xl: '特' };
 function applyFontSize(size) {
     if (!FONT_SIZES.includes(size)) size = 'm';
     refs.root.setAttribute('data-font-size', size);
@@ -3596,11 +3597,10 @@ async function enterOwnerMode() {
     refs.shopName.textContent = state.shop_name;
     disableVisitorHeader();
     refs.ownerToggle.classList.remove('hidden');
-    // オーナー側は日本語固定（言語切替はユーザーのみ）
-    if (refs.langSelect) {
-        refs.langSelect.classList.add('hidden');
-        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
-    }
+    // 2026-09-07: 店舗側の言語切替を復活（c29cd2b で日本語固定にしていたのを取り消し）。
+    // 日本語以外のスタッフが返信画面を使うため、表示言語を選べる必要がある。
+    // 翻訳の向きは訪問者の入力言語が基準なので、ここの選択は翻訳に影響しない。
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     if (refs.statusLabel) refs.statusLabel.classList.remove('hidden');
@@ -4081,10 +4081,8 @@ async function enterCastOwnerMode() {
     // キャスト自分用(受信箱)は店名を出さない（自分の受信箱という文脈で冗長）
     refs.shopName.textContent = state.cast_name || state.shop_name;
     refs.ownerToggle.classList.remove('hidden');
-    if (refs.langSelect) {
-        refs.langSelect.classList.add('hidden');
-        if (currentLang !== 'ja') { refs.langSelect.value = 'ja'; applyLang('ja'); }
-    }
+    // 2026-09-07: キャスト受信箱でも言語切替を表示（店舗側と揃える）。
+    if (refs.langSelect) refs.langSelect.classList.remove('hidden');
     if (refs.footerBrand) refs.footerBrand.classList.remove('hidden');
     if (refs.statusDot) refs.statusDot.classList.remove('hidden');
     // キャスト受信箱では「受付中/停止中」ラベルは出さない（緑丸と通知トグルだけで状態は十分伝わる）
@@ -4361,14 +4359,41 @@ function startCastInboxPolling() {
 }
 
 // ===== ログインモーダル =====
+/**
+ * 2026-09-11: iOS Safari は「ページ内にパスワード欄があるか」でそのページをログイン画面と
+ * 判定し、無関係なテキスト欄にも AutoFill バー(🔑 パスワード / 💳 カード / 📍 連絡先)を出す。
+ * オーナーログインのモーダルは常時 DOM にあるため、チャットのメッセージ入力欄を
+ * タップするたびにこのバーが出て邪魔になっていた。
+ * 閉じている間は disabled + type=text + autocomplete=off にして
+ * 「パスワード欄が存在しない」状態にしておく。開く時だけ本来の姿に戻す。
+ */
+function setLoginFieldsActive(active) {
+    const em = refs.loginEmail;
+    const pw = refs.loginPassword;
+    if (em) {
+        em.disabled = !active;
+        em.setAttribute('autocomplete', active ? 'username' : 'off');
+    }
+    if (pw) {
+        pw.disabled = !active;
+        // type の出し入れが肝心。disabled だけでは判定に残る実装があるため両方やる。
+        try { pw.type = active ? 'password' : 'text'; } catch (_) {}
+        pw.setAttribute('autocomplete', active ? 'current-password' : 'off');
+    }
+}
+// 起動時点で無効化しておく（モーダルは hidden 状態で始まる）
+setLoginFieldsActive(false);
+
 function openLoginModal() {
     refs.loginError.classList.add('hidden');
     refs.loginError.textContent = '';
+    setLoginFieldsActive(true);
     refs.loginModal.classList.remove('hidden');
     setTimeout(() => refs.loginEmail && refs.loginEmail.focus(), 100);
 }
 function closeLoginModal() {
     refs.loginModal.classList.add('hidden');
+    setLoginFieldsActive(false);
 }
 
 async function handleLogin(ev) {
@@ -5389,6 +5414,15 @@ setupEmbedDirectLinkFooter();
     // 100svh - kb-h の計算式が破綻する (keyboard 開でヘッダーしか残らない症状).
     if (embedded) document.body.classList.add('embedded');
 
+    // 2026-08-20: 入力中にフッターを畳むのは「ソフトキーボードで画面が潰れる」対策なので、
+    // 実際にキーボードが出る端末だけに限定する。PC ではキーボードが出ないのに畳まれ、
+    // 入力欄をクリックした瞬間に言語切替やフォントサイズが消えて見えていた。
+    // (外国語の訪問者が言語切替を探すのは、まさに入力しようとした時)
+    try {
+        const softKb = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+        if (softKb) document.body.classList.add('soft-kb');
+    } catch (_) { document.body.classList.add('soft-kb'); }
+
     const setKbH = (px) => {
         docEl.style.setProperty('--kb-h', px + 'px');
     };
@@ -5453,9 +5487,12 @@ setupEmbedDirectLinkFooter();
         // 2026-05-19: PWA standalone モードでは window.innerHeight が safe-area を含み
         // vv.height が含まないため、偽の差分 (~30-60px) が出る → 画面下半分が空く症状.
         // 実 keyboard は最低でも 150px+ なので、150px 未満は safe-area 差分と見なして 0 に丸める.
-        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-            || navigator.standalone === true;
-        if (isStandalone && kb < 150) kb = 0;
+        // 2026-09-11: この丸めを standalone 限定から全モードに広げた。
+        //   Safari のタブでも、上下ツールバーが開いている状態だと innerHeight と vv.height に
+        //   100px 前後の差が残り、キーボードを閉じてもチャットが縮んだままになる
+        //   （画面下に余白が出て全画面にならない）。閾値 150px はどの端末の
+        //   ソフトキーボードよりも低いので、本物のキーボードを取りこぼすことはない。
+        if (kb < 150) kb = 0;
         setKbH(kb);
         const wasOpen = keyboardOpen;
         keyboardOpen = kb > 0;

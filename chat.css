@@ -62,6 +62,21 @@ body.visitor-header .chat-header-left #chat-shop-name{font-size:16px;display:blo
 .status-dot.online{background:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.8)}
 .status-dot.offline{display:none}
 .status-label{font-size:12px;opacity:.9;line-height:1.2;text-align:center}
+/* 2026-09-11: スマホでスレッドを開くとヘッダーが詰まり、中央の店舗名が 47px まで潰れて
+   「立川...」のように切れていた（実測: 左118px / 中央47px / 右183px = 幅の48%を右が占有）。
+   受付時間はオーナー自身が設定した静的な情報で、狭い画面では優先度が最も低い。
+   スレッド表示中(戻るボタンが出ている間)だけ隠して、その幅を店舗名に返す。
+   受信箱の一覧や訪問者側は従来どおり表示する。 */
+@media (max-width:480px){
+  #chat-header:has(#btn-header-back:not(.hidden)) #chat-status-label{display:none}
+}
+/* さらに狭い端末では「📧メール」の文字も落としてアイコンだけにする。
+   全言語で先頭が 📧 のため意味は保たれる（ja:📧メール / en:📧Mail / ko:📧메일 …）。
+   文字は font-size:0 で見えなくするだけなので読み上げには残る。 */
+@media (max-width:380px){
+  #chat-header:has(#btn-header-back:not(.hidden)) .toggle-label{font-size:0}
+  #chat-header:has(#btn-header-back:not(.hidden)) .toggle-label::before{content:"\1F4E7";font-size:15px}
+}
 .status-label-line{display:block}
 
 /* ===== キャスト自分用モード装飾 (body[data-role="cast"]) ===== */
@@ -187,10 +202,12 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 .typing-dot:nth-child(2){animation-delay:.18s}
 .typing-dot:nth-child(3){animation-delay:.36s}
 @keyframes typingDot{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
-/* 2026-05-18: chat-footer のジオメトリ中央に固定配置.
-   position:absolute + left:50% + translateX(-50%) で font-size/footer-brand の幅に依らず真の中央へ.
-   chat-footer は position:relative なので親基準で位置決定. */
-.chat-push-btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;z-index:1;transition:background .15s,border-color .15s}
+/* 2026-09-08: 絶対配置(中央固定)をやめ、通常のフレックス項目に戻す.
+   言語切替が復活してフッターの項目が増えた結果、中央に浮いたこのボタンが
+   文字サイズボタンに重なって読めなくなっていた。
+   placePushButton() が footer-brand の直前に挿入するので、流れに乗せれば
+   「文字サイズ ↔ ブランド」の間という本来の位置に収まる。 */
+.chat-push-btn{height:34px;padding:0 14px;border:1px solid rgba(var(--chat-primary-rgb),.4);background:#f0ede7;color:var(--chat-primary);border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;line-height:1;display:flex;align-items:center;justify-content:center;gap:4px;flex-shrink:0;z-index:1;transition:background .15s,border-color .15s}
 .chat-push-btn:hover:not(:disabled){background:#e5e0d8;border-color:var(--chat-primary)}
 .chat-push-btn.is-on{background:var(--chat-primary);color:#fff;border-color:var(--chat-primary)}
 .chat-push-btn.is-on:hover:not(:disabled){opacity:.9}
@@ -349,24 +366,27 @@ body[data-role="cast"] #chat-root{border:1px solid rgba(var(--chat-primary-rgb),
 }
 
 /* ===== キャストモード: viewport 問わず入力中は画面を広く ===== */
+/* 2026-08-20: ソフトキーボードが出る端末 (body.soft-kb) に限定。
+   PC ではキーボードが出ないので畳む必要がなく、畳むと言語切替が消えて見える。 */
 /* キャストは iframe 埋込/PC返信 etc で viewport が 480px超になるケースがあるため @media 外で適用. */
-body.cast-mode.chat-input-focused #visitor-notify,
-body.cast-mode.chat-input-focused #nickname-area,
-body.cast-mode.chat-input-focused #reservation-hint,
-body.cast-mode.chat-input-focused #cast-view-banner,
-body.cast-mode.chat-input-focused #owner-templates,
-body.cast-mode.chat-input-focused #chat-footer{display:none}
+body.soft-kb.cast-mode.chat-input-focused #visitor-notify,
+body.soft-kb.cast-mode.chat-input-focused #nickname-area,
+body.soft-kb.cast-mode.chat-input-focused #reservation-hint,
+body.soft-kb.cast-mode.chat-input-focused #cast-view-banner,
+body.soft-kb.cast-mode.chat-input-focused #owner-templates,
+body.soft-kb.cast-mode.chat-input-focused #chat-footer{display:none}
 
 /* ===== 埋込モード (iframe): viewport 問わず入力中は画面を広く ===== */
+/* 2026-08-20: 同上。body.soft-kb (タッチ端末) のときだけ畳む。 */
 /* iframe 埋込 (②/⑤/① widget) では親が iframe 高さ = vv.height-stickyInset に縮める.
    その縮んだ高さに footer (113px) が入ると入力欄が iframe 中央付近に来てしまい、
    キーボード直上にピタリ来ない. cast-mode と同じく @media 外で footer 等を畳む. */
-body.embedded.chat-input-focused #visitor-notify,
-body.embedded.chat-input-focused #nickname-area,
-body.embedded.chat-input-focused #reservation-hint,
-body.embedded.chat-input-focused #cast-view-banner,
-body.embedded.chat-input-focused #owner-templates,
-body.embedded.chat-input-focused #chat-footer{display:none}
+body.soft-kb.embedded.chat-input-focused #visitor-notify,
+body.soft-kb.embedded.chat-input-focused #nickname-area,
+body.soft-kb.embedded.chat-input-focused #reservation-hint,
+body.soft-kb.embedded.chat-input-focused #cast-view-banner,
+body.soft-kb.embedded.chat-input-focused #owner-templates,
+body.soft-kb.embedded.chat-input-focused #chat-footer{display:none}
 
 /* ===== 埋込モード: nickname/email 入力時は対象欄をキーボード直上に固定 =====
    iframe 高さ = vv.height-stickyInset だと nickname/email は iframe 上方にあり、
@@ -415,13 +435,43 @@ body.embedded #chat-root:has(#visitor-notify input:not([type=checkbox]):focus) .
 .footer-brand:hover .footer-brand-name{color:var(--chat-primary-dark)}
 @media (max-width:420px){.footer-brand{font-size:10px;padding:3px 6px}.footer-brand-row{gap:3px}}
 @media (max-width:640px){
-  .chat-footer{flex-wrap:nowrap;gap:4px;padding:6px 8px}
-  .font-size-btn,.footer-btn{height:30px;padding:0 8px;font-size:11px}
-  .font-size-btn .font-size-icon{font-size:13px;padding-right:4px}
-  .lang-select{height:30px;font-size:11px;padding:0 22px 0 8px}
-  .footer-brand{margin-left:auto;padding:2px 6px;font-size:10px;flex-shrink:0}
-  .footer-brand-ruby{font-size:9px}
-  .footer-brand-by{font-size:9px}
+  /* 2026-09-08: nowrap で1行に押し込むと項目が潰れて読めないため折り返しを許可。
+     文字も 11px/10px/9px は小さすぎたので、操作する要素は 12px 以上に引き上げる
+     (このプロジェクトの下限は 12px)。 */
+  .chat-footer{flex-wrap:wrap;gap:6px;padding:6px 8px}
+  .font-size-btn,.footer-btn{height:32px;padding:0 10px;font-size:12px}
+  .font-size-btn .font-size-icon{font-size:14px;padding-right:5px}
+  .lang-select{height:32px;font-size:12px;padding:0 24px 0 10px}
+  .chat-push-btn{height:32px;padding:0 12px;font-size:12px}
+  .footer-brand{margin-left:auto;padding:2px 6px;font-size:11px;flex-shrink:0}
+  .footer-brand-ruby{font-size:10px}
+  .footer-brand-by{font-size:10px}
+}
+
+/* 2026-09-11: スマホのフッターを1行に収める。
+   オーナーのスレッド表示では 言語/文字サイズ/終了/ブロック/ブランド の5項目が並び、
+   実測で 546px 必要なのに使える幅は 352px しかなく3行に折り返していた（高さ101px）。
+   文字を削れるところを削って1行に納める。
+   - 終了/再開/ブロック: 絵文字だけにする（いずれも confirm ダイアログがあるため誤タップは実害なし）
+   - ブランド: 「🏨 YobuHo.com」の1行だけにする（リンク自体は維持）
+   タブレット以上は従来どおり全文表示。 */
+@media (max-width:480px){
+  /* 1行に納めるため、隙間と各要素の余白・文字も少しずつ詰める */
+  /* テーマ側の body[data-mode="women"] #chat-footer{padding:8px 14px} に詳細度で勝つ必要があるため
+     #chat-root #chat-footer で指定する（.chat-footer だと負けて左右14pxのままになる）。 */
+  #chat-root #chat-footer{gap:4px;padding:6px 6px}
+  .font-size-btn{padding:0 8px}
+  .font-size-btn .font-size-icon{padding-right:4px}
+  .footer-brand{font-size:10px}
+  #btn-close-session,#btn-reopen-session,#btn-block-user{font-size:0;padding:0 9px;gap:0}
+  #btn-close-session::before{content:"\1F512";font-size:15px;line-height:1}
+  #btn-reopen-session::before{content:"\1F4AC";font-size:15px;line-height:1}
+  #btn-block-user::before{content:"\1F6AB";font-size:15px;line-height:1}
+  .lang-select{padding:0 22px 0 8px}
+  .footer-brand{padding:2px 4px}
+  .footer-brand > .footer-brand-row:first-child{display:none}
+  .footer-brand-by{display:none}
+  .footer-brand-emoji{display:none}
 }
 
 /* ===== Owner login footer (visitor mode, discreet) ===== */
@@ -495,7 +545,7 @@ body:has(#embed-direct-link:not(.hidden)) #chat-footer{border-bottom-left-radius
 .embed-cast-link{display:inline-flex;align-items:center;padding:7px 14px;border:1.5px solid var(--chat-primary);border-radius:16px;background:#fff;color:var(--chat-primary);font-size:14px;font-weight:700;text-decoration:none;min-height:34px;line-height:1.2;transition:background .15s ease,color .15s ease}
 .embed-cast-link:hover,.embed-cast-link:focus-visible{background:var(--chat-primary);color:#fff;outline:none}
 @media (max-width:480px){body.chat-input-focused #embed-direct-link{display:none}}
-body.cast-mode.chat-input-focused #embed-direct-link{display:none}
+body.soft-kb.cast-mode.chat-input-focused #embed-direct-link{display:none}
 
 /* ======================================================================
    jofu (women) ネオモーフ + ピンクベージュ系リファイン (2026-04-29)

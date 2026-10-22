@@ -24,7 +24,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 2026-09-22: 1行のJS修正でも Astroビルド/Pagefind再構築まで走り 92秒かかっていた。
+      # 配信物をそのまま置き換えるだけで済む変更は、重いステップを飛ばして短縮する。
+      # 判定は許可リスト方式。リストに無いファイルが1つでも混じればフル実行に倒す
+      # （初回push等で差分が取れない場合もフル実行）。取りこぼしても遅くなるだけで、
+      # ビルドが必要なのにスキップする方向には倒れない。
+      - name: Detect change scope
+        id: scope
+        run: |
+          LIGHT=0
+          BEFORE="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "$BEFORE" ] && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}" || true)
+            echo "変更ファイル:"; echo "$CHANGED"
+            if [ -n "$CHANGED" ]; then
+              # そのまま配信される静的ファイルのみ許可
+              ALLOW='^(api/[^/]+\.php|chat-i18n\.json|[^/]+\.(js|css|html|php|md))$'
+              # 許可リストに合致してもビルド/生成に影響するものは除外
+              HEAVY='^(generate-|db-local\.js|apply-migration\.js|package(-lock)?\.json)'
+              if ! echo "$CHANGED" | grep -qvE "$ALLOW" && ! echo "$CHANGED" | grep -qE "$HEAVY"; then
+                LIGHT=1
+              fi
+            fi
+          fi
+          if [ "$LIGHT" = "1" ]; then
+            echo "::notice::軽量デプロイ — ビルド系ステップをスキップします"
+          else
+            echo "::notice::フルデプロイ — 全ステップを実行します"
+          fi
+          echo "light=$LIGHT" >> $GITHUB_OUTPUT
+
       - name: Setup Node.js
+        if: steps.scope.outputs.light != '1'
         uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -43,12 +74,15 @@ jobs:
           [ -s ~/.ssh/known_hosts ] && echo "ssh-keyscan ok" || echo "::notice::ssh-keyscan skipped; relying on StrictHostKeyChecking=accept-new"
 
       - name: Install dependencies (root)
+        if: steps.scope.outputs.light != '1'
         run: npm ci
 
       - name: Install dependencies (Astro)
+        if: steps.scope.outputs.light != '1'
         run: cd astro-src && npm ci
 
       - name: Build Astro SSG
+        if: steps.scope.outputs.light != '1'
         run: |
           cd astro-src && npx astro build
           cp dist/portal-men.html dist/portal-women.html dist/portal-men-same.html dist/portal-women-same.html dist/portal-este.html ../
@@ -84,6 +118,7 @@ jobs:
           sed -i -E "s#chat-i18n\.json\?v=[a-zA-Z0-9]+#chat-i18n.json?v=$HASH#g" chat.js 2>/dev/null || true
 
       - name: Generate sitemap.xml
+        if: steps.scope.outputs.light != '1'
         run: node generate-sitemap.js
 
       - name: Generate db-config.php
@@ -159,6 +194,7 @@ jobs:
           done
 
       - name: Deploy subdomain LP files
+        if: steps.scope.outputs.light != '1'
         run: |
           SSH_OPTS="ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
           for sub in deli jofu same loveho este; do
@@ -173,6 +209,7 @@ jobs:
           done
 
       - name: Generate static JSON + Pagefind data on server
+        if: steps.scope.outputs.light != '1'
         run: |
           ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 $REMOTE_USER@$REMOTE_HOST "
             cd $REMOTE_PATH
@@ -184,12 +221,15 @@ jobs:
           "
 
       - name: Download pagefind-data.json from server
+        if: steps.scope.outputs.light != '1'
         run: scp -P $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/pagefind-data.json ./pagefind-data.json
 
       - name: Build Pagefind index
+        if: steps.scope.outputs.light != '1'
         run: node generate-pagefind-index.mjs
 
       - name: Upload Pagefind index to server
+        if: steps.scope.outputs.light != '1'
         run: |
           rsync -avz --delete \
             -e "ssh -p $SSH_PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
@@ -212,6 +252,7 @@ jobs:
           fi
 
       - name: Notify IndexNow (Bing/Yandex/Naver)
+        if: steps.scope.outputs.light != '1'
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |

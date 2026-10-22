@@ -35,6 +35,20 @@ let hotelFormState = {
 // AppState.form 登録
 Object.defineProperty(AppState.form, 'hotel', { get() { return hotelFormState; }, set(v) { hotelFormState = v; } });
 
+// 2026-09-22: portal-init.js の data-onchange-set / data-onchange-check は
+//   var obj = window[parts[0]]
+// で状態オブジェクトを探すが、`let` 宣言はグローバル宣言レコードに入るだけで
+// window のプロパティにはならない。そのため hotelFormState 宛の書き込みが
+// すべて無視され、利用時間帯・部屋タイプ・複数人利用・コメント・投稿者名が
+// 画面で選んでも状態に入らず、確認モーダルにも出ず、DBにも保存されていなかった。
+// （lhFormState は hotel-search.js で var 宣言のため影響なし）
+// resetHotelForm() で実体ごと差し替わるため、値のコピーではなくアクセサで公開する。
+Object.defineProperty(window, 'hotelFormState', {
+    configurable: true,
+    get() { return hotelFormState; },
+    set(v) { hotelFormState = v; },
+});
+
 function hotelStepGuest(gender, delta) {
     const key = gender === 'male' ? 'guest_male' : 'guest_female';
     const elId = gender === 'male' ? 'form-guest-male' : 'form-guest-female';

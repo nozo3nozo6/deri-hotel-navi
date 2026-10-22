@@ -2980,7 +2980,16 @@ function renderCastList(casts){
         } else {
             statusBadge = '<span style="font-size:11px;padding:2px 8px;background:#d1fae5;color:#065f46;border-radius:10px;">✓ 承認済み</span>';
         }
-        const lastLogin = c.last_login_at ? ('最終ログイン: ' + formatCastDate(c.last_login_at)) : 'ログイン履歴なし';
+        // 2026-09-22: パスワードログイン(last_login_at)と受信箱の利用(last_inbox_at)の
+        // 新しい方を「最終利用」として出す。受信箱から使っているキャストは
+        // last_login_at が更新されないため、従来は何ヶ月も前の日付で固定されていた。
+        const lastLogin = (() => {
+            const pw = c.last_login_at ? new Date(String(c.last_login_at).replace(' ', 'T')) : null;
+            const ib = c.last_inbox_at ? new Date(String(c.last_inbox_at).replace(' ', 'T')) : null;
+            if (!pw && !ib) return '利用履歴なし';
+            if (ib && (!pw || ib >= pw)) return '最終利用: ' + formatCastDate(c.last_inbox_at) + '（受信箱）';
+            return '最終ログイン: ' + formatCastDate(c.last_login_at);
+        })();
         const bio = c.bio ? '<div style="font-size:12px;color:var(--text-3);margin-top:6px;white-space:pre-wrap;">' + esc(c.bio) + '</div>' : '';
         const approveBtn = (isPending && hasPwd)
             ? '<button type="button" class="btn primary" data-action="approveCast" data-arg1="' + esc(c.id) + '" data-arg2="' + esc(c.display_name) + '" style="padding:6px 12px;font-size:12px;font-weight:700;">✓ 承認する</button>'

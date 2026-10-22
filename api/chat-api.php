@@ -438,9 +438,25 @@ function sendChatNotification(string $shopId, int $sessionId, string $preview): 
         $castRow = $stmt->fetch();
         if (!$castRow) return; // 承認待ち/停止中/削除済みには通知しない
         $overrideEmail = trim((string)($castRow['chat_notify_email'] ?? ''));
-        $notifyTo = $overrideEmail !== '' ? $overrideEmail : (string)$castRow['email'];
+        $notifyTo = $overrideEmail !== '' ? $overrideEmail : trim((string)$castRow['email']);
         $mode = $castRow['notify_email_mode'] ?? 'off';
         $recipientLabel = $castRow['display_name'] . '（' . $shop['shop_name'] . '）';
+        // 2026-09-22: キャスト宛に届くアドレスが無い場合は、その店舗の通知先へ回す。
+        // 背景: ops-cast-139@casts.admi2888.com のような「MXの無いドメイン」宛の通知が
+        //   4日以上リトライされた末にバウンスし、店舗もキャストも気づけない状態だった。
+        //   （casts.admi2888.com は admi2888.com と同じ Cloudflare の IP = Webプロキシで、
+        //     25番ポートに応答しない。何度送っても永久に届かない）
+        // 宛先は店舗ごとに解決する。固定のアドレスを埋め込むと他店舗のキャスト宛通知まで
+        // そこへ流れてしまうため（チャット本文とキャスト受信箱リンクを含む）。
+        if ($notifyTo === '' || isUndeliverableMailDomain($notifyTo)) {
+            $fallbackTo = !empty($shop['notify_email']) ? $shop['notify_email'] : (string)($shop['email'] ?? '');
+            if ($fallbackTo !== '') {
+                error_log('[chat-notify] cast mail fallback to shop: cast=' . $castRow['display_name']
+                    . ' from=' . ($notifyTo === '' ? '(未設定)' : $notifyTo));
+                $notifyTo = $fallbackTo;
+                $recipientLabel .= '（キャスト宛に届かないため店舗へ）';
+            }
+        }
         // キャスト受信箱 URL: ?cast_inbox=<inbox_token> (受信箱トップまで、スレッド直リンクはしない)
         if (!empty($castRow['inbox_token']) && !empty($shop['slug'])) {
             $destUrl = 'https://yobuho.com/chat/' . $shop['slug'] . '/?cast_inbox=' . rawurlencode($castRow['inbox_token']);
