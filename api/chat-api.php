@@ -2346,35 +2346,45 @@ function handleTranslate() {
         return;
     }
 
-    if (!defined('GEMINI_API_KEY') || GEMINI_API_KEY === '') err('Translation not configured', 500);
+    $hasDeepl  = defined('DEEPL_API_KEY') && DEEPL_API_KEY !== '';
+    $hasGemini = defined('GEMINI_API_KEY') && GEMINI_API_KEY !== '';
+    if (!$hasDeepl && !$hasGemini) err('Translation not configured', 500);
 
-    $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
-    $fromName = $langNames[$from] ?? $from;
-    $toName   = $langNames[$to]   ?? $to;
-    $prompt = "Translate this chat message from {$fromName} to {$toName}. This is a casual chat between a business and a customer — keep the tone natural and conversational. Return ONLY the translated text, with no explanation, no quotes, and no prefix.\n\nMessage:\n{$text}";
+    // ① DeepL を最優先（店長指定 2026-10-22。翻訳専用で安定・Free は月100万文字）。
+    //    Gemini 2.5 Flash の無料枠は1日20回しかなく、訪問者が多い日は昼前に尽きて 502 を返していた（admi の translate.php と同じ構成）
+    $translated = '';
+    if ($hasDeepl) {
+        $dl = ['ja' => 'JA', 'en' => 'EN-US', 'zh' => 'ZH-HANS', 'zh-tw' => 'ZH-HANT', 'ko' => 'KO'];
+        $host = str_ends_with(DEEPL_API_KEY, ':fx') ? 'api-free.deepl.com' : 'api.deepl.com';
+        $dBody = json_encode(['text' => [$text], 'source_lang' => $dl[$from] ?? 'JA', 'target_lang' => $dl[$to] ?? 'EN-US', 'preserve_formatting' => true], JSON_UNESCAPED_UNICODE);
+        $dOpts = ['method' => 'POST', 'header' => "Content-Type: application/json\r\nAuthorization: DeepL-Auth-Key " . DEEPL_API_KEY . "\r\n", 'content' => $dBody, 'timeout' => 10, 'ignore_errors' => true];
+        $dResp = @file_get_contents('https://' . $host . '/v2/translate', false, stream_context_create(['http' => $dOpts, 'https' => $dOpts]));
+        $dData = $dResp !== false ? json_decode($dResp, true) : null;
+        $translated = trim((string)($dData['translations'][0]['text'] ?? ''));
+    }
 
-    $body = json_encode([
-        'contents' => [['parts' => [['text' => $prompt]]]],
-        'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 800],
-    ], JSON_UNESCAPED_UNICODE);
-
-    $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . urlencode(GEMINI_API_KEY);
-    $opts = [
-        'method' => 'POST',
-        'header' => "Content-Type: application/json\r\n",
-        'content' => $body,
-        'timeout' => 10,
-        'ignore_errors' => true,
-    ];
-    $ctx = stream_context_create(['http' => $opts, 'https' => $opts]);
-    $resp = @file_get_contents($url, false, $ctx);
-    if ($resp === false) err('Translation service unreachable', 502);
-    $data = json_decode($resp, true);
-    $translated = isset($data['candidates'][0]['content']['parts'][0]['text'])
-        ? trim((string)$data['candidates'][0]['content']['parts'][0]['text'])
-        : '';
-    $translated = trim($translated, " \t\n\r\0\x0B\"'「」『』");
-    if ($translated === '' || $translated === $text) err('Translation failed', 502);
+    // ② だめなら Gemini（flash-lite → 2.5-flash）
+    if ($translated === '' && $hasGemini) {
+        $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
+        $fromName = $langNames[$from] ?? $from;
+        $toName   = $langNames[$to]   ?? $to;
+        $prompt = "Translate this chat message from {$fromName} to {$toName}. This is a casual chat between a business and a customer — keep the tone natural and conversational. Return ONLY the translated text, with no explanation, no quotes, and no prefix.\n\nMessage:\n{$text}";
+        $body = json_encode([
+            'contents' => [['parts' => [['text' => $prompt]]]],
+            'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 800],
+        ], JSON_UNESCAPED_UNICODE);
+        foreach (['gemini-3.5-flash-lite', 'gemini-2.5-flash'] as $model) {
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . urlencode(GEMINI_API_KEY);
+            $opts = ['method' => 'POST', 'header' => "Content-Type: application/json\r\n", 'content' => $body, 'timeout' => 10, 'ignore_errors' => true];
+            $resp = @file_get_contents($url, false, stream_context_create(['http' => $opts, 'https' => $opts]));
+            if ($resp === false) continue;
+            $data = json_decode($resp, true);
+            $cand = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim((string)$data['candidates'][0]['content']['parts'][0]['text']) : '';
+            $cand = trim($cand, " \t\n\r\0\x0B\"'「」『』");
+            if ($cand !== '') { $translated = $cand; break; }
+        }
+    }
+    if ($translated === '') err('Translation failed', 502);
 
     $pdo->prepare('INSERT IGNORE INTO chat_translations (cache_key, src_lang, dst_lang, src_text, translated) VALUES (?, ?, ?, ?, ?)')
         ->execute([$cacheKey, $from, $to, $text, $translated]);
