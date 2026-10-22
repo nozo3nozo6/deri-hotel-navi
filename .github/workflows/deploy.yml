@@ -182,6 +182,7 @@ jobs:
             --exclude='same.yobuho.com' --exclude='loveho.yobuho.com' --exclude='este.yobuho.com' \
             --exclude='db-local.js' --exclude='apply-migration.js' --exclude='.eslintrc.json' \
             --exclude='handover-*.md' --exclude='pagefind-data.json' \
+            --exclude='*.md' --exclude='.prettierrc' --exclude='.prettierignore' --exclude='.env.*' \
             --exclude='pagefind' --exclude='master-data.json' \
             --exclude='area-data.json' --exclude='hotel-data' \
             --exclude='search-index.json' \
