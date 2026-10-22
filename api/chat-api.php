@@ -2350,21 +2350,9 @@ function handleTranslate() {
     $hasGemini = defined('GEMINI_API_KEY') && GEMINI_API_KEY !== '';
     if (!$hasDeepl && !$hasGemini) err('Translation not configured', 500);
 
-    // ① DeepL を最優先（店長指定 2026-10-22。翻訳専用で安定・Free は月100万文字）。
-    //    Gemini 2.5 Flash の無料枠は1日20回しかなく、訪問者が多い日は昼前に尽きて 502 を返していた（admi の translate.php と同じ構成）
+    // ① Gemini を先に（品質で店長が選択）。flash-lite → 2.5-flash。無料枠が尽きたら DeepL へ
     $translated = '';
-    if ($hasDeepl) {
-        $dl = ['ja' => 'JA', 'en' => 'EN-US', 'zh' => 'ZH-HANS', 'zh-tw' => 'ZH-HANT', 'ko' => 'KO'];
-        $host = str_ends_with(DEEPL_API_KEY, ':fx') ? 'api-free.deepl.com' : 'api.deepl.com';
-        $dBody = json_encode(['text' => [$text], 'source_lang' => $dl[$from] ?? 'JA', 'target_lang' => $dl[$to] ?? 'EN-US', 'preserve_formatting' => true], JSON_UNESCAPED_UNICODE);
-        $dOpts = ['method' => 'POST', 'header' => "Content-Type: application/json\r\nAuthorization: DeepL-Auth-Key " . DEEPL_API_KEY . "\r\n", 'content' => $dBody, 'timeout' => 10, 'ignore_errors' => true];
-        $dResp = @file_get_contents('https://' . $host . '/v2/translate', false, stream_context_create(['http' => $dOpts, 'https' => $dOpts]));
-        $dData = $dResp !== false ? json_decode($dResp, true) : null;
-        $translated = trim((string)($dData['translations'][0]['text'] ?? ''));
-    }
-
-    // ② だめなら Gemini（flash-lite → 2.5-flash）
-    if ($translated === '' && $hasGemini) {
+    if ($hasGemini) {
         $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
         $fromName = $langNames[$from] ?? $from;
         $toName   = $langNames[$to]   ?? $to;
@@ -2384,6 +2372,17 @@ function handleTranslate() {
             if ($cand !== '') { $translated = $cand; break; }
         }
     }
+    // ② DeepL は Gemini がだめだったときの保険（店長評価 2026-10-22: 訳が硬い）
+    if ($translated === '' && $hasDeepl) {
+        $dl = ['ja' => 'JA', 'en' => 'EN-US', 'zh' => 'ZH-HANS', 'zh-tw' => 'ZH-HANT', 'ko' => 'KO'];
+        $host = str_ends_with(DEEPL_API_KEY, ':fx') ? 'api-free.deepl.com' : 'api.deepl.com';
+        $dBody = json_encode(['text' => [$text], 'source_lang' => $dl[$from] ?? 'JA', 'target_lang' => $dl[$to] ?? 'EN-US', 'preserve_formatting' => true], JSON_UNESCAPED_UNICODE);
+        $dOpts = ['method' => 'POST', 'header' => "Content-Type: application/json\r\nAuthorization: DeepL-Auth-Key " . DEEPL_API_KEY . "\r\n", 'content' => $dBody, 'timeout' => 10, 'ignore_errors' => true];
+        $dResp = @file_get_contents('https://' . $host . '/v2/translate', false, stream_context_create(['http' => $dOpts, 'https' => $dOpts]));
+        $dData = $dResp !== false ? json_decode($dResp, true) : null;
+        $translated = trim((string)($dData['translations'][0]['text'] ?? ''));
+    }
+
     if ($translated === '') err('Translation failed', 502);
 
     $pdo->prepare('INSERT IGNORE INTO chat_translations (cache_key, src_lang, dst_lang, src_text, translated) VALUES (?, ?, ?, ?, ?)')
