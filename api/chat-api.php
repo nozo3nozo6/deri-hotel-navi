@@ -2326,6 +2326,80 @@ function respondOwnerBatch(PDO $pdo, int $sessionId, string $shopId, int $sinceI
     ]));
 }
 
+/**
+ * 翻訳の文脈（直前の数通）を受け取り、安全な形に整える。
+ * 訪問者が送ってくる値なので信用しない: 件数・長さ・話者を制限し、制御文字を落とす。
+ * 戻り値: [['who' => 'shop'|'visitor', 'text' => string], ...]（古い順）
+ */
+function normalizeTranslateContext($raw): array {
+    if (!is_array($raw)) return [];
+    $out = [];
+    foreach (array_slice($raw, -3) as $item) {
+        if (!is_array($item)) continue;
+        $who = (string)($item['who'] ?? '');
+        if ($who !== 'shop' && $who !== 'visitor') continue;
+        $text = trim((string)($item['text'] ?? ''));
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text) ?? '';
+        if ($text === '') continue;
+        if (mb_strlen($text) > 200) $text = mb_substr($text, 0, 200);
+        $out[] = ['who' => $who, 'text' => $text];
+    }
+    return $out;
+}
+
+/**
+ * Gemini 用の指示（systemInstruction）と本文（user turn）を組み立てる。
+ *
+ * 2026-10-23: 精度が「いまいち」との店長評価を受けて全面改稿。
+ * それまでは「casual chat の1文を訳せ」だけで、
+ *   - 文脈が無い（「それで大丈夫です」の「それ」が訳せない）
+ *   - 業界用語の知識が無い（指名→nomination、モニター→画面 等の誤訳）
+ *   - 口調の指示が逆（店舗は敬語なのに casual と指示）
+ * という構造的な原因があった。エンジンの入れ替え（DeepL⇄Gemini）では解決しない。
+ */
+function buildTranslatePrompt(string $from, string $to, string $text, array $context): array {
+    $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
+    $fromName = $langNames[$from] ?? $from;
+    $toName   = $langNames[$to]   ?? $to;
+
+    $system = <<<TXT
+You are a professional translator for YobuChat, a live chat between a Japanese adult-entertainment business (a delivery health / women's service / massage shop) and its customer, about booking a session at a hotel.
+
+Domain glossary (apply these meanings; do not translate them literally):
+- 指名 = requesting a specific cast/therapist by name. 本指名 = repeat request of the same person. フリー = no specific request (the shop chooses).
+- キャスト / セラピスト = the staff member who provides the service. Keep as "cast" / "therapist".
+- 待ち合わせ = meeting up at a location (station, hotel entrance) and going to the room together. 直接 / 直行 = the cast goes straight to the hotel room.
+- 入室 = entering the hotel room. 先に入る = the customer checks in and enters the room first.
+- コース = a time-based service plan (e.g. 90分コース = 90-minute course). 延長 = extending the session time.
+- 受付 / 受付時間 = reception / reception hours. ご新規様 = first-time customer. お電話確認 = phone confirmation required for first-time customers.
+- NG = not allowed / not offered. 本番NG = full intercourse is strictly not offered.
+- モニター / 無料モニター = a trial session (free or discounted, in exchange for feedback). NOT a display screen.
+- 出禁 = banned (a hotel that refuses delivery services). 交通費 = travel fee. お店 = the shop/business. 担当 = the person in charge.
+- ラブホ = love hotel. ビジホ = business hotel. シティホテル = city hotel.
+
+Tone:
+- Messages from the shop are polite customer-service language. Keep them courteous and professional in the target language (no slang). When translating INTO Japanese, use natural 丁寧語.
+- Messages from the customer should be translated faithfully. When translating INTO Japanese, use natural 丁寧語 so staff can read it comfortably, without adding meaning.
+
+Rules:
+- Translate ONLY the final message. Earlier messages are context and must not be translated or repeated.
+- Resolve pronouns and omitted subjects/objects using the context (Japanese often drops them).
+- Preserve numbers, times (e.g. 23:00), prices (¥), durations, names, emoji, URLs and line breaks exactly.
+- Do not add explanations, notes, quotes, or prefixes. Output the translation only.
+TXT;
+
+    $ctxBlock = '';
+    if ($context) {
+        $lines = [];
+        foreach ($context as $c) {
+            $lines[] = ($c['who'] === 'shop' ? 'Shop' : 'Customer') . ': ' . $c['text'];
+        }
+        $ctxBlock = "Earlier messages (context only — do not translate):\n" . implode("\n", $lines) . "\n\n";
+    }
+    $user = $ctxBlock . "Translate the following message from {$fromName} to {$toName}.\n\nMessage:\n{$text}";
+    return ['system' => $system, 'user' => $user];
+}
+
 function handleTranslate() {
     $text = trim((string)inp('text', ''));
     $from = strtolower(substr((string)inp('from', ''), 0, 5));
@@ -2336,8 +2410,13 @@ function handleTranslate() {
     if (!in_array($from, $allowed, true) || !in_array($to, $allowed, true)) err('invalid lang');
     if ($from === $to) { ok(['translated' => $text, 'cached' => false]); return; }
 
+    // 文脈（直前の数通）。無い場合は従来どおり単独翻訳。
+    $context = normalizeTranslateContext(inp('context', []));
+
     $pdo = DB::conn();
-    $cacheKey = md5($from . '|' . $to . '|' . $text);
+    // 同じ文でも文脈が違えば訳が変わるため、キャッシュキーに文脈を含める。
+    // 文脈なしのキーは従来と同一（既存キャッシュと互換）。
+    $cacheKey = md5($from . '|' . $to . '|' . $text . ($context ? '|' . md5(json_encode($context, JSON_UNESCAPED_UNICODE)) : ''));
     $stmt = $pdo->prepare('SELECT translated FROM chat_translations WHERE cache_key = ? LIMIT 1');
     $stmt->execute([$cacheKey]);
     $cached = $stmt->fetchColumn();
@@ -2353,12 +2432,10 @@ function handleTranslate() {
     // ① Gemini を先に（品質で店長が選択）。flash-lite → 2.5-flash。無料枠が尽きたら DeepL へ
     $translated = '';
     if ($hasGemini) {
-        $langNames = ['ja' => 'Japanese', 'en' => 'English', 'zh' => 'Simplified Chinese', 'zh-tw' => 'Traditional Chinese', 'ko' => 'Korean'];
-        $fromName = $langNames[$from] ?? $from;
-        $toName   = $langNames[$to]   ?? $to;
-        $prompt = "Translate this chat message from {$fromName} to {$toName}. This is a casual chat between a business and a customer — keep the tone natural and conversational. Return ONLY the translated text, with no explanation, no quotes, and no prefix.\n\nMessage:\n{$text}";
+        $prompt = buildTranslatePrompt($from, $to, $text, $context);
         $body = json_encode([
-            'contents' => [['parts' => [['text' => $prompt]]]],
+            'systemInstruction' => ['parts' => [['text' => $prompt['system']]]],
+            'contents' => [['role' => 'user', 'parts' => [['text' => $prompt['user']]]]],
             'generationConfig' => ['temperature' => 0.2, 'maxOutputTokens' => 800],
         ], JSON_UNESCAPED_UNICODE);
         foreach (['gemini-3.5-flash-lite', 'gemini-2.5-flash'] as $model) {
@@ -2368,7 +2445,8 @@ function handleTranslate() {
             if ($resp === false) continue;
             $data = json_decode($resp, true);
             $cand = isset($data['candidates'][0]['content']['parts'][0]['text']) ? trim((string)$data['candidates'][0]['content']['parts'][0]['text']) : '';
-            $cand = trim($cand, " \t\n\r\0\x0B\"'「」『』");
+            // 「」『』は訳文の一部になり得る（引用で始まる返答など）ので剥がさない。ASCII の引用符だけ落とす。
+            $cand = trim($cand, " \t\n\r\0\x0B\"'");
             if ($cand !== '') { $translated = $cand; break; }
         }
     }
@@ -2376,7 +2454,12 @@ function handleTranslate() {
     if ($translated === '' && $hasDeepl) {
         $dl = ['ja' => 'JA', 'en' => 'EN-US', 'zh' => 'ZH-HANS', 'zh-tw' => 'ZH-HANT', 'ko' => 'KO'];
         $host = str_ends_with(DEEPL_API_KEY, ':fx') ? 'api-free.deepl.com' : 'api.deepl.com';
-        $dBody = json_encode(['text' => [$text], 'source_lang' => $dl[$from] ?? 'JA', 'target_lang' => $dl[$to] ?? 'EN-US', 'preserve_formatting' => true], JSON_UNESCAPED_UNICODE);
+        $dPayload = ['text' => [$text], 'source_lang' => $dl[$from] ?? 'JA', 'target_lang' => $dl[$to] ?? 'EN-US', 'preserve_formatting' => true];
+        if ($context) {
+            // DeepL の context パラメータ: 翻訳対象には含めず、訳語の選択だけに使われる
+            $dPayload['context'] = implode("\n", array_map(fn($c) => ($c['who'] === 'shop' ? 'Shop: ' : 'Customer: ') . $c['text'], $context));
+        }
+        $dBody = json_encode($dPayload, JSON_UNESCAPED_UNICODE);
         $dOpts = ['method' => 'POST', 'header' => "Content-Type: application/json\r\nAuthorization: DeepL-Auth-Key " . DEEPL_API_KEY . "\r\n", 'content' => $dBody, 'timeout' => 10, 'ignore_errors' => true];
         $dResp = @file_get_contents('https://' . $host . '/v2/translate', false, stream_context_create(['http' => $dOpts, 'https' => $dOpts]));
         $dData = $dResp !== false ? json_decode($dResp, true) : null;

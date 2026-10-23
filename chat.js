@@ -3153,6 +3153,9 @@ function addMessage(m, _fromOwnerLegacy) {
 
     const row = document.createElement('div');
     row.className = 'msg-row ' + renderAs;
+    // 翻訳の文脈収集 (collectTranslateContext) が「どちらの発言か」を見るため、
+    // 表示位置(self/other)ではなく送信者そのものを残す。
+    if (m.sender_type) row.dataset.sender = m.sender_type;
     if (m.id) row.dataset.msgId = m.id;
     if (m.client_msg_id) row.dataset.cmid = m.client_msg_id;
     if (m.sent_at) row.dataset.sentAt = m.sent_at;
@@ -3252,11 +3255,40 @@ function detectLang(text) {
 }
 
 const _translateCache = new Map();
+
+/**
+ * 2026-10-23: 翻訳に渡す文脈（直前の最大3通）を描画済みの行から集める。
+ * 1通ずつ単独で訳すと「それで大丈夫です」の「それ」が何か分からず精度が落ちる。
+ * メッセージ配列は state に無く DOM にしか無いため、吹き出しの行から遡る。
+ * 訳文 (.msg-translation) は原文ではないので除く。古い順に返す。
+ */
+function collectTranslateContext(msgDiv, max) {
+    max = max || 3;
+    const out = [];
+    try {
+        let row = msgDiv && msgDiv.closest ? msgDiv.closest('.msg-row') : null;
+        while (row && out.length < max) {
+            row = row.previousElementSibling;
+            if (!row || !row.classList || !row.classList.contains('msg-row')) continue; // 日付区切り等は飛ばす
+            const who = row.dataset.sender === 'shop' ? 'shop' : (row.dataset.sender === 'visitor' ? 'visitor' : '');
+            const bubble = row.querySelector('.msg');
+            if (!who || !bubble) continue;
+            const clone = bubble.cloneNode(true);
+            clone.querySelectorAll('.msg-translation').forEach(n => n.remove());
+            const text = (clone.textContent || '').trim().slice(0, 200);
+            if (text) out.unshift({ who, text });
+        }
+    } catch (_) {}
+    return out;
+}
+
 async function maybeTranslate(msgDiv, text, from, to) {
     // 初期ロード時の「最新メッセージが隠れる」対策:
     // async で翻訳が戻る時にメッセージ高さが伸びる → 事前に末尾近くに居たなら終わったあと再スクロール.
     const wasNearBottom = isNearBottom();
-    const key = from + '|' + to + '|' + text;
+    const context = collectTranslateContext(msgDiv, 3);
+    // 同じ文でも文脈が違えば訳が変わるので、キャッシュキーにも文脈を含める
+    const key = from + '|' + to + '|' + text + '|' + JSON.stringify(context);
     const trDiv = document.createElement('div');
     trDiv.className = 'msg-translation';
     trDiv.textContent = '翻訳中…';
@@ -3265,7 +3297,7 @@ async function maybeTranslate(msgDiv, text, from, to) {
     try {
         let translated = _translateCache.get(key);
         if (!translated) {
-            const res = await api('translate', { text, from, to }, 'POST');
+            const res = await api('translate', { text, from, to, context }, 'POST');
             translated = res.translated || '';
             if (translated) _translateCache.set(key, translated);
         }
