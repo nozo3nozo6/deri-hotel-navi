@@ -61,6 +61,8 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
   .tab-btn{background:transparent;border:none;white-space:nowrap;flex-shrink:0;padding:.7rem .85rem;font-size:.86rem;color:var(--ink-soft);font-weight:600;border-bottom:3px solid transparent;cursor:pointer;transition:all .2s;}
   .tab-btn:hover{color:var(--sea);}
   .tab-btn.active{color:var(--deep);border-bottom-color:var(--coral);}
+  /* 📅 絵文字は端末側で日付が「17」固定になるため自前SVG（店長要望: 28） */
+  .tab-cal{width:1.15em;height:1.15em;vertical-align:-.2em;}
   .tab-btn.owner-only{display:none;}
   body.is-owner .tab-btn.owner-only{display:block;}
   /* 店長: 名前プルダウンでモード切替（マネージャー管理 / キャスト管理） */
@@ -2489,7 +2491,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
     <nav class="tab-nav">
       <button class="tab-btn" data-view="therapist" style="display:none;">🪪 マイページ</button>
       <button class="tab-btn" data-view="myclients" style="display:none;">👤 お客様</button>
-      <button class="tab-btn active" data-view="timeline">📅 タイムライン</button>
+      <button class="tab-btn active" data-view="timeline"><svg class="tab-cal" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="3" width="28" height="27" rx="5" fill="#fff" stroke="#c9ced6"/><path d="M2 8a5 5 0 0 1 5-5h18a5 5 0 0 1 5 5v3H2z" fill="#e5483f"/><text x="16" y="26.5" text-anchor="middle" font-size="15" font-weight="700" fill="#2b2f36" font-family="-apple-system,Helvetica,Arial,sans-serif">28</text></svg> タイムライン</button>
       <button class="tab-btn" data-view="bookings">予約管理</button>
       <button class="tab-btn" data-view="customers">顧客管理</button>
       <button class="tab-btn" data-view="shifts">内勤・送迎シフト</button>
